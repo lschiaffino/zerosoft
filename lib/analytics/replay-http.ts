@@ -52,7 +52,7 @@ export async function handleReplayIngest(req: Request): Promise<Response> {
 
   let parsed;
   try {
-    parsed = parseChunk(JSON.parse(text));
+    parsed = parseChunk(JSON.parse(text), Date.now(), { masked: r.project.replay_mask_text !== 0 });
   } catch {
     return reply(req, 400, { error: 'invalid_json' });
   }

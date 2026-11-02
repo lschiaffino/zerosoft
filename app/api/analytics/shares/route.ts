@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createShare, listShares } from '@/lib/analytics/records-more';
 import { getDashboard, getInsight } from '@/lib/analytics/records';
+import { shareableQuery } from '@/lib/analytics/types';
 import { actorProject, aError, analyticsActor, canManageAnalytics, isResponse, readJson } from '@/lib/analytics/http';
 
 export const runtime = 'nodejs';
@@ -37,6 +38,8 @@ export async function POST(req: NextRequest) {
   if (!exists) return aError(404, 'not_found');
   // Un resultado de SQL puede traer cualquier dato de la base del proyecto: no se publica.
   if (insightId && 'kind' in exists && exists.kind === 'sql') return aError(400, 'sql_not_shareable');
+  // Tampoco una apertura por persona: sus valores son emails o ids a la vista de cualquiera.
+  if (insightId && 'query' in exists && !shareableQuery(exists.query)) return aError(400, 'breakdown_not_shareable');
   if ((await listShares(project.id, { insightId, dashboardId })).length >= MAX_SHARES) return aError(409, 'too_many_shares');
   return NextResponse.json({ share: await createShare(project.id, actor.personId, { insightId, dashboardId }) }, { status: 201 });
 }

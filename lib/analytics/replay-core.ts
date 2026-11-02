@@ -6,7 +6,7 @@
  */
 import { cleanUrl } from './ingest-core';
 import type { ProjectRow } from './projects';
-import { scrubReplayEvent } from './replay-scrub';
+import { scrubReplayEvent, type ScrubOptions } from './replay-scrub';
 
 const num = (name: string, fallback: number) => {
   const v = Number(process.env[name]);
@@ -98,7 +98,7 @@ export function cleanPageUrl(raw: unknown): string | null {
 }
 
 /** Un evento con la forma de rrweb, solo con sus tres campos. null si no la tiene. */
-export function cleanEvent(v: unknown): ReplayEvent | null {
+export function cleanEvent(v: unknown, opt: ScrubOptions = { masked: true }): ReplayEvent | null {
   if (!isObject(v)) return null;
   const { type, data, timestamp } = v;
   if (!Number.isInteger(type) || !Number.isFinite(timestamp) || !isObject(data)) return null;
@@ -116,7 +116,7 @@ export function cleanEvent(v: unknown): ReplayEvent | null {
     if (typeof data.href !== 'string' || !Number.isFinite(data.width) || !Number.isFinite(data.height)) return null;
   }
   if (t === EVENT_CUSTOM && typeof data.tag !== 'string') return null;
-  scrubReplayEvent(t, data);
+  scrubReplayEvent(t, data, opt);
   return { type: t, data, timestamp: timestamp as number };
 }
 
@@ -137,6 +137,11 @@ export function summarize(events: ReplayEvent[], skewMs: number): ChunkSummary {
       const url = cleanPageUrl(e.data.href);
       if (url && !pages.includes(url) && pages.length < REPLAY_LIMITS.maxPages) pages.push(url);
     }
+    // Un cambio de ruta en una app de una página: el snippet lo marca con un evento propio.
+    if (e.type === EVENT_CUSTOM && e.data.tag === '$pageview' && isObject(e.data.payload)) {
+      const url = cleanPageUrl(e.data.payload.href);
+      if (url && !pages.includes(url) && pages.length < REPLAY_LIMITS.maxPages) pages.push(url);
+    }
     if (e.type === EVENT_INCREMENTAL) {
       const source = e.data.source as number;
       if (ACTIVE_SOURCES.has(source)) activeSeconds.add(Math.floor(ts / 1000));
@@ -151,7 +156,7 @@ export function summarize(events: ReplayEvent[], skewMs: number): ChunkSummary {
  * evento con mala forma rechaza el chunk entero; así lo que se guarda es lo que
  * se validó y nada más.
  */
-export function parseChunk(body: unknown, now = Date.now()): ChunkParse {
+export function parseChunk(body: unknown, now = Date.now(), opt: ScrubOptions = { masked: true }): ChunkParse {
   if (!isObject(body)) return { ok: false, error: 'invalid_payload' };
   const sessionId = body.session_id;
   if (typeof sessionId !== 'string' || !ID_RE.test(sessionId)) return { ok: false, error: 'invalid_session_id' };
@@ -166,7 +171,7 @@ export function parseChunk(body: unknown, now = Date.now()): ChunkParse {
   if (raw.length > REPLAY_LIMITS.maxEventsPerChunk) return { ok: false, error: 'too_many_events' };
   const events: ReplayEvent[] = [];
   for (const v of raw) {
-    const e = cleanEvent(v);
+    const e = cleanEvent(v, opt);
     if (!e) return { ok: false, error: 'invalid_events' };
     events.push(e);
   }

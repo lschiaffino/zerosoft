@@ -56,6 +56,10 @@ function siteHtml(base: string, key: string, title: string): string {
 <p id="plain">Some plain paragraph</p>
 <input id="secret" type="password">
 <input id="mail" type="email">
+<input id="csrf" type="hidden" value="CSRFSECRET">
+<div id="ed" contenteditable="true">TYPEDSECRET</div>
+<select id="sel"><option value="OPTVALUESECRET">OPTLABELSECRET</option></select>
+<a id="tok" href="/x?token=LINKSECRET&page=2">Link</a>
 <div class="zs-no-capture" id="private-block">Private customer note</div>
 <div class="tall"></div>
 <button id="bottom">Bottom button</button>
@@ -175,6 +179,9 @@ test('prender desde los ajustes, grabar en otro origen y reproducir', async ({ p
   await site.evaluate(() => window.scrollTo(0, 1500));
   await site.waitForTimeout(400);
   await site.click('#bottom');
+  // Una ruta de app de una página: queda en la lista de páginas, sin su token.
+  await site.evaluate(() => history.pushState({}, '', '/reset?token=ROUTESECRET'));
+  await site.waitForTimeout(300);
   // Salir de la página manda lo que quede.
   await site.evaluate(() => {
     window.dispatchEvent(new Event('pagehide'));
@@ -224,6 +231,13 @@ test('prender desde los ajustes, grabar en otro origen y reproducir', async ({ p
   await expect(frame.locator('#buy')).toHaveText('Buy now');
   await expect(frame.locator('#site-title')).toHaveText('Shop');
   await expect(frame.locator('body')).not.toContainText('Private customer note');
+  // Con el grabador real, lo que no tiene que salir del navegador no está en lo que se reconstruye.
+  const rebuilt = await frame.locator('html').innerHTML();
+  for (const secret of ['CSRFSECRET', 'TYPEDSECRET', 'OPTVALUESECRET', 'OPTLABELSECRET', 'LINKSECRET']) expect(rebuilt, secret).not.toContain(secret);
+  // La ruta de la app se encuentra filtrando por URL.
+  const byUrl = (await (await request.get(`/api/analytics/replay?project=${projectId}&url=${encodeURIComponent('/reset')}`)).json()) as { recordings: Array<{ pages?: string[] }> };
+  expect(byUrl.recordings.length).toBeGreaterThanOrEqual(1);
+  expect(JSON.stringify(byUrl)).not.toContain('ROUTESECRET');
 
   // Eventos de la sesión, marcas y sincronía.
   const list = page.getByTestId('an-replay-events');
@@ -357,7 +371,10 @@ test('grabación hostil: el <script> y los manejadores inline no corren', async 
   expect(res.status(), await res.text()).toBe(200);
   const [rec] = await sql('SELECT id FROM analytics_replay_recordings WHERE project_id = ? AND session_id = ?', [projectId, session]);
 
-  await page.goto(`/en/app/analytics/replay/${rec.id}`, { waitUntil: 'networkidle' });
+  // Entrando por la lista: navegación del lado del cliente, sin el encabezado de la página.
+  await page.goto('/en/app/analytics/replay', { waitUntil: 'networkidle' });
+  await page.locator(`a[href*="/analytics/replay/${rec.id}"]`).first().click();
+  await expect(page).toHaveURL(new RegExp(`/replay/${rec.id}`));
   const frame = page.frameLocator('.replayer-wrapper iframe');
   await expect(frame.locator('#hostile-marker')).toHaveText('Hostile page', { timeout: 30_000 });
   await expect(page.locator('.replayer-wrapper iframe')).toHaveAttribute('sandbox', 'allow-same-origin');

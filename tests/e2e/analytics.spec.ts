@@ -110,6 +110,8 @@ test('proyecto, snippet en otro sitio y eventos en vivo', async ({ page, request
   const layout = await table.boundingBox();
   expect(layout!.width).toBeGreaterThan(700);
   expect(layout!.x).toBeLessThan(320);
+  // El filtro tiene alto de campo, no de columna.
+  expect((await page.getByRole('combobox', { name: 'Filter by event' }).or(page.locator('.an-live-filter input')).first().boundingBox())!.height).toBeLessThan(60);
   await expect(table.getByRole('button', { name: '$pageview' }).first()).toBeVisible();
   await expect(table.getByRole('button', { name: 'signed_up' })).toBeVisible();
   // Detalle de un evento.

@@ -325,7 +325,8 @@
       "all": "Pages and custom events"
     },
     "pathsNoteAll": "Paths follow pages and your own events within each session. They show the most common next step.",
-    "shareNoSql": "SQL results can contain anything in the project, so they cannot be made public"
+    "shareNoSql": "SQL results can contain anything in the project, so they cannot be made public",
+    "shareNoPersonBreakdown": "A breakdown by person shows emails or ids, so it cannot be made public"
   },
   "sql": {
     "title": "SQL",
@@ -491,7 +492,8 @@
       "duplicate_key": "Another flag already uses that key.",
       "variants_must_sum_100": "Variants have to add up to 100%.",
       "invalid_input": "Check the key: letters, numbers, - and _ only.",
-      "flag_in_use": "An experiment uses this flag. Delete the experiment first."
+      "flag_in_use": "An experiment uses this flag. Delete the experiment first.",
+      "flag_in_experiment": "An experiment uses this flag. Only admins can turn it on or change its rollout."
     },
     "groupsHelp": "Release groups are checked in order: the first one that matches and includes the person decides.",
     "groupN": "Release group {n}",

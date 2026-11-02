@@ -325,7 +325,8 @@
       "all": "Páginas y eventos propios"
     },
     "pathsNoteAll": "Los caminos siguen páginas y tus eventos dentro de cada sesión. Muestran el siguiente paso más común.",
-    "shareNoSql": "Un resultado de SQL puede traer cualquier dato del proyecto, así que no se puede hacer público"
+    "shareNoSql": "Un resultado de SQL puede traer cualquier dato del proyecto, así que no se puede hacer público",
+    "shareNoPersonBreakdown": "Una apertura por persona muestra emails o ids, así que no se puede hacer pública"
   },
   "sql": {
     "title": "SQL",
@@ -491,7 +492,8 @@
       "duplicate_key": "Otro flag ya usa esa clave.",
       "variants_must_sum_100": "Las variantes tienen que sumar 100%.",
       "invalid_input": "Revisá la clave: solo letras, números, - y _.",
-      "flag_in_use": "Un experimento usa este flag. Borrá primero el experimento."
+      "flag_in_use": "Un experimento usa este flag. Borrá primero el experimento.",
+      "flag_in_experiment": "Un experimento usa este flag. Solo los admins pueden prenderlo o cambiar su reparto."
     },
     "groupsHelp": "Los grupos de release se miran en orden: decide el primero que coincide e incluye a la persona.",
     "groupN": "Grupo de release {n}",

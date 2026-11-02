@@ -6,6 +6,8 @@ import { parseIngestBody } from '@/lib/analytics/ingest-core';
 import { storeEvents } from '@/lib/analytics/ingest';
 import { createProject, forgetProjectCache, updateProject, getProject, type ProjectRow } from '@/lib/analytics/projects';
 import { scrubNode, scrubUrl } from '@/lib/analytics/replay-scrub';
+import { sanitizeForPlayer } from '@/lib/analytics/replay-sanitize';
+import { searchApps } from '@/lib/app-search';
 import { parseChunk } from '@/lib/analytics/replay-core';
 import { cleanAnswer, npsFrom } from '@/lib/analytics/surveys-core';
 import { scrubMessage } from '@/lib/analytics/errors-core';
@@ -35,7 +37,7 @@ import { createExperiment, experimentResults, getExperiment, setExperimentStatus
 import { alertFires, createAlert, deleteAlert, listAlerts, runAlertsCron } from '@/lib/analytics/alerts';
 import { publicResult, publicShareView } from '@/lib/analytics/share-view';
 import { runAnalyticsCron } from '@/lib/analytics/cron';
-import { cohortDefinitionSchema, insightQuerySchema, trendsQuerySchema, type FunnelResult } from '@/lib/analytics/types';
+import { cohortDefinitionSchema, insightQuerySchema, shareableQuery, trendsQuerySchema, type FunnelResult } from '@/lib/analytics/types';
 import { recordProject } from '@/lib/analytics/http';
 import { bucketBefore, bucketList, bucketOf, previousAligned, resolveRange } from '@/lib/analytics/compute';
 import { fromLocal, isTimeZone, offsetMsAt, transitionsIn } from '@/lib/analytics/tz';
@@ -383,8 +385,9 @@ describe('analytics: arreglos de QA contados a mano', () => {
 
 describe('analytics: lo que queda en una grabación', () => {
   it('URLs sin tokens ni fragmentos, absolutas o relativas', () => {
-    expect(scrubUrl('https://a.io/p?token=abc&x=1#access_token=zz')).toBe('https://a.io/p?x=1');
-    expect(scrubUrl('/reset?code=123&utm_source=mail')).toBe('/reset?utm_source=mail');
+    expect(scrubUrl('https://a.io/p?token=abc&x=1#access_token=zz')).toBe('https://a.io/p');
+    expect(scrubUrl('https://a.io/p?token=abc&x=1#access_token=zz', false)).toBe('https://a.io/p?x=1');
+    expect(scrubUrl('/reset?code=123&utm_source=mail', false)).toBe('/reset?utm_source=mail');
     expect(scrubUrl('#access_token=zz')).toBe('#');
     expect(scrubUrl('javascript:alert(1)')).toBe('');
     expect(scrubUrl('mailto:ana@acme.com')).toBe('');
@@ -402,7 +405,7 @@ describe('analytics: lo que queda en una grabación', () => {
         { type: 2, tagName: 'select', attributes: {}, childNodes: [{ type: 2, tagName: 'option', attributes: {}, childNodes: [{ type: 3, textContent: 'Diagnóstico' }] }] },
       ],
     };
-    scrubNode(node);
+    scrubNode(node, { masked: false });
     const json = JSON.stringify(node);
     for (const secret of ['SECRET', 'ana@acme.com', 'token=abc', 'mi nota privada', 'Diagnóstico']) expect(json).not.toContain(secret);
     expect(json).toContain('visible');
@@ -440,6 +443,110 @@ describe('analytics: turno del cron', () => {
   }, 60_000);
 });
 
+describe('analytics: segunda revisión de QA', () => {
+  it('Cmd+K encuentra un error aunque esté en el último de muchos proyectos', async () => {
+    const user = await upsertUser({ email: `an-search-${nanoid(8)}@test.dev` });
+    const projects = [];
+    for (let i = 0; i < 6; i++) projects.push(await createProject(user.id, user.id, `P${i}`));
+    created.push(...projects.map((p) => p.id));
+    const last = projects[5];
+    await ingest(last, [{ event: '$exception', distinct_id: 'a', properties: { $exception_type: 'TypeError', $exception_message: 'Cannot read cartTotal of undefined' } }]);
+    const found = await searchApps({ id: user.id, role: 'owner' }, 'cartTotal');
+    const hit = found.find((x) => x.label.includes('cartTotal'));
+    expect(hit?.href).toMatch(new RegExp(`/app/analytics/errors/${last.id}~`));
+    expect((await searchApps({ id: user.id, role: 'owner' }, 'TypeError')).some((x) => x.label.includes('cartTotal'))).toBe(true);
+    // De otro workspace no aparece.
+    const stranger = await upsertUser({ email: `an-search-${nanoid(8)}@test.dev` });
+    expect((await searchApps({ id: stranger.id, role: 'owner' }, 'cartTotal')).length).toBe(0);
+  });
+  it('un día de 23 horas no se saltea: rango -47h que termina el 9 de marzo en Nueva York', () => {
+    const now = Date.parse('2026-12-01T00:00:00Z');
+    const r = resolveRange({ from: '-47h', to: '2026-03-09' }, now, 'America/New_York');
+    expect(bucketList(r.from, r.to, 'day', 'America/New_York')).toEqual(['2026-03-07', '2026-03-08', '2026-03-09']);
+    // Y uno de 25 horas no se repite.
+    expect(bucketList(Date.parse('2026-10-31T05:00:00Z'), Date.parse('2026-11-02T04:59:00Z'), 'day', 'America/New_York')).toEqual(['2026-10-31', '2026-11-01']);
+  });
+  it('en modo enmascarado ninguna URL conserva su query, también en CSS, y el texto va con asteriscos', () => {
+    const parsed = parseChunk({
+      session_id: 'sessionid1',
+      window_id: 'windowid01',
+      seq: 0,
+      distinct_id: 'a',
+      events: [
+        { type: 4, timestamp: NOW, data: { href: 'https://a.io/p?t=SECRET1', width: 8, height: 6 } },
+        {
+          type: 2,
+          timestamp: NOW,
+          data: {
+            initialOffset: { top: 0, left: 0 },
+            node: {
+              type: 0,
+              id: 1,
+              childNodes: [
+                { type: 2, id: 2, tagName: 'a', attributes: { href: '/x?t=SECRET2', title: 'SECRET3', 'aria-label': 'SECRET4', onclick: 'SECRET5()' }, childNodes: [{ type: 3, id: 3, textContent: 'SECRET6' }] },
+                { type: 2, id: 4, tagName: 'img', attributes: { alt: 'SECRET7', src: 'https://a.io/i.png?t=SECRET8', style: 'background: url(https://a.io/b.png?t=SECRET9)' }, childNodes: [] },
+                { type: 2, id: 5, tagName: 'style', attributes: {}, childNodes: [{ type: 3, id: 6, isStyle: true, textContent: 'a{background:url("https://a.io/c.png?t=SECRETA")}' }] },
+                { type: 2, id: 7, tagName: 'link', attributes: { rel: 'stylesheet', _cssText: 'b{background:url(/d.png?t=SECRETB)} @import "https://a.io/e.css?t=SECRETC";' }, childNodes: [] },
+                { type: 2, id: 8, tagName: 'button', attributes: { value: 'SECRETD' }, childNodes: [] },
+                { type: 2, id: 9, tagName: 'input', attributes: { type: 'submit', value: 'SECRETE' }, childNodes: [] },
+                { type: 2, id: 10, tagName: 'option', attributes: { value: 'SECRETF' }, childNodes: [] },
+              ],
+            },
+          },
+        },
+        { type: 3, timestamp: NOW + 1, data: { source: 0, removes: [], adds: [], attributes: [], texts: [{ id: 3, value: 'SECRETG' }] } },
+        { type: 3, timestamp: NOW + 2, data: { source: 5, id: 3, text: 'SECRETH', isChecked: false } },
+        { type: 3, timestamp: NOW + 3, data: { source: 8, id: 5, adds: [{ rule: 'c{background:url(/f.png?t=SECRETI)}', index: 0 }] } },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    const json = JSON.stringify(parsed);
+    expect(json).not.toContain('SECRET');
+    expect(json).toContain('https://a.io/p');
+  });
+  it('sin enmascarar, el texto queda pero no los manejadores ni los parámetros que parecen secretos', () => {
+    const parsed = parseChunk(
+      { session_id: 'sessionid1', window_id: 'windowid01', seq: 0, distinct_id: 'a', events: [{ type: 2, timestamp: NOW, data: { initialOffset: { top: 0, left: 0 }, node: { type: 0, id: 1, childNodes: [{ type: 2, id: 2, tagName: 'a', attributes: { href: '/x?page=2&token=SECRET', onclick: 'SECRET()' }, childNodes: [{ type: 3, id: 3, textContent: 'visible' }] }] } } }] },
+      NOW,
+      { masked: false },
+    );
+    const json = JSON.stringify(parsed);
+    expect(json).not.toContain('SECRET');
+    expect(json).toContain('page=2');
+    expect(json).toContain('visible');
+  });
+  it('las rutas de una app de una página entran en la lista de páginas, limpias', () => {
+    const parsed = parseChunk({ session_id: 'sessionid1', window_id: 'windowid01', seq: 0, distinct_id: 'a', events: [{ type: 4, timestamp: NOW, data: { href: 'https://a.io/', width: 8, height: 6 } }, { type: 5, timestamp: NOW + 1, data: { tag: '$pageview', payload: { href: 'https://a.io/reset?token=SECRET' } } }] });
+    expect(parsed.ok && parsed.summary.pages).toEqual(['https://a.io/', 'https://a.io/reset']);
+    expect(JSON.stringify(parsed)).not.toContain('SECRET');
+  });
+  it('el reproductor no pide nada afuera: imágenes, estilos, fuentes y reglas', () => {
+    const out = sanitizeForPlayer([
+      { type: 2, data: { node: { type: 0, childNodes: [
+        { type: 2, tagName: 'img', attributes: { src: 'https://evil.test/track.png', srcset: 'https://evil.test/a.png 1x', style: 'background:url(https://evil.test/bg.png)' }, childNodes: [] },
+        { type: 2, tagName: 'link', attributes: { rel: 'stylesheet', href: 'https://evil.test/evil.css', _cssText: '@import "https://evil.test/i.css"; a{background:url(//evil.test/x.png)}' }, childNodes: [] },
+        { type: 2, tagName: 'style', attributes: {}, childNodes: [{ type: 3, isStyle: true, textContent: 'b{background:url(/rel.png)} @import url(https://evil.test/j.css);' }] },
+        { type: 2, tagName: 'a', attributes: { href: 'https://site.test/ok' }, childNodes: [] },
+      ] } } },
+      { type: 3, data: { source: 0, adds: [{ node: { type: 2, tagName: 'img', attributes: { src: 'https://evil.test/added.png' }, childNodes: [] } }], attributes: [{ id: 1, attributes: { src: 'https://evil.test/changed.png' } }], texts: [], removes: [] } },
+      { type: 3, data: { source: 8, id: 1, adds: [{ rule: 'c{background:url(https://evil.test/rule.png)}', index: 0 }] } },
+      { type: 3, data: { source: 7, family: 'x', fontSource: 'url(https://evil.test/font.woff)', buffer: false } },
+    ]);
+    expect(JSON.stringify(out)).not.toContain('evil.test');
+    expect(JSON.stringify(out)).toContain('site.test/ok');
+    expect(out).toHaveLength(3);
+  });
+  it('una apertura por persona no se publica', async () => {
+    expect(shareableQuery(trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }], breakdown: { key: 'email', type: 'person' } }))).toBe(false);
+    expect(shareableQuery(trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }], breakdown: { key: 'distinct_id', type: 'event' } }))).toBe(false);
+    expect(shareableQuery(trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }], breakdown: { key: '$browser', type: 'event' } }))).toBe(true);
+    const { project: p } = await newProject();
+    const i = await createInsight(p.id, 'u', { name: 'Por email', query: insightQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }], breakdown: { key: 'email', type: 'person' } }) });
+    const share = await createShare(p.id, 'u', { insightId: i.id });
+    expect(await publicShareView(share.token)).toBeNull();
+  });
+});
+
 describe('analytics: bots', () => {
   it('reconoce crawlers y deja pasar navegadores y SDKs', () => {
     expect(isBotUserAgent('Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')).toBe(true);
@@ -455,6 +562,20 @@ describe('analytics: bots', () => {
       'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
       'Mozilla/5.0 (compatible; bot/1.0)',
       'Mozilla/5.0 (compatible; SomeCrawler/3.1)',
+      'Mozilla/5.0 (compatible; DotBot/1.2; +https://opensiteexplorer.org/dotbot)',
+      'CCBot/2.0 (https://commoncrawl.org/faq/)',
+      'Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)',
+      'Mozilla/5.0 (compatible; SeznamBot/4.0; +http://napoveda.seznam.cz/seznambot-intro/)',
+      'Mozilla/5.0 (compatible; coccocbot-web/1.0; +http://help.coccoc.com/searchengine)',
+      'Mozilla/5.0 (compatible; Mail.RU_Bot/2.0; +https://help.mail.ru/webmaster/indexing/robots)',
+      'Mozilla/5.0 (compatible; YisouSpider/1.0)',
+      'Mozilla/5.0 (compatible; 360Spider)',
+      'Mozilla/5.0 (compatible; DuckAssistBot/1.0)',
+      'Mozilla/5.0 (compatible; ImagesiftBot; +imagesift.com)',
+      'Mozilla/5.0 (compatible; FacebookBot/1.0; +https://developers.facebook.com/docs/sharing/webmasters/facebookbot/)',
+      'anthropic-ai',
+      'Google-Extended',
+      'SomeBot/1.0',
     ]) expect(isBotUserAgent(ua), ua).toBe(true);
     // Gente de verdad en apps y teléfonos con nombres parecidos.
     for (const ua of [

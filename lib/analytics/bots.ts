@@ -4,6 +4,7 @@
  * Un servidor con la key secreta no pasa por acá.
  */
 const BOT_TOKENS = [
+  'anthropic-ai', 'google-extended', 'coccocbot', 'duckassistbot', 'imagesiftbot', 'facebookbot', 'ccbot', 'dotbot', 'discordbot', 'seznambot', 'mail.ru_bot', 'mail.ru/', '360spider', 'yisouspider',
   'adsbot-google', 'ahrefsbot', 'ahrefssiteaudit', 'amazonbot', 'amazonproductbot', 'apis-google', 'app.hypefactors.com', 'applebot', 'archive.org_bot',
   'awariobot', 'backlinksextendedbot', 'baiduspider', 'better uptime bot', 'bingbot', 'bingpreview', 'bytespider', 'chatgpt-user', 'chrome-lighthouse',
   'claudebot', 'cypress', 'dataforseobot', 'deepscan', 'duckduckbot', 'duplexweb-google', 'facebookcatalog', 'facebookexternalhit', 'feedfetcher-google',
@@ -14,7 +15,7 @@ const BOT_TOKENS = [
   'turnitin', 'twitterbot', 'uptimerobot', 'vercel-screenshot', 'vercelbot', 'yandexbot', 'zoombot',
 ];
 /** La palabra sola como producto ("bot/1.0", "(bot;") o un crawler genérico. No toca teléfonos como "CUBOT/" ni apps. */
-const GENERIC = /(^|[\s(;,])(bot|spider|crawler)([\/;,)\s]|$)|[a-z0-9_-]crawler\b|pinterest\/0\.\d|bot\.(html?|php)/i;
+const GENERIC = /(^|[\s(;,])(bot|spider|crawler)([\/;,)\s]|$)|[a-z0-9_-]crawler\b|[a-z0-9_-]+spider\/|(?<!cu)bot\/|(?<!cu)bot[;),]|pinterest\/0\.\d|bot\.(html?|php)/i;
 
 export function isBotUserAgent(ua: string | null | undefined): boolean {
   if (!ua) return false;

@@ -85,7 +85,7 @@ export default function LiveEvents({ projectId, initial }: { projectId: string; 
           void reload();
         }}
       >
-        <label className="an-live-filter">
+        <label className="an-live-filter an-inline-field">
           <span className="label">{t('filter')}</span>
           <EventInput value={filter} onChange={setFilter} meta={meta} label={t('filter')} />
         </label>

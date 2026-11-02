@@ -598,6 +598,17 @@ export interface ExperimentResults {
   truncated: boolean;
 }
 
+/**
+ * ¿Se puede publicar el resultado de esta consulta en un link abierto? SQL no
+ * (puede traer cualquier dato) y tampoco una apertura por propiedad de persona o
+ * por distinct_id, porque sus valores identifican gente.
+ */
+export function shareableQuery(q: InsightQuery): boolean {
+  if (q.kind === 'sql') return false;
+  if (q.kind === 'trends' && q.breakdown && (q.breakdown.type === 'person' || q.breakdown.key === 'distinct_id')) return false;
+  return true;
+}
+
 export interface EventDefinitionDto {
   event: string;
   description: string;

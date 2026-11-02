@@ -134,13 +134,25 @@ export function bucketSql(interval: Interval, col = 'e.ts', shift = ''): string 
 /** Todas las cubetas del rango, en orden (las vacías también). Tope de 2000. */
 export function bucketList(from: number, to: number, interval: Interval, tz: Tz = 0): string[] {
   const out: string[] = [];
-  const step = interval === 'hour' ? HOUR : DAY;
   let last = '';
-  for (let t = from; t <= to && out.length < 2000; t += step) {
-    const b = bucketOf(t, interval, tz);
-    if (b !== last) {
-      out.push(b);
-      last = b;
+  if (interval === 'hour') {
+    for (let t = from; t <= to && out.length < 2000; t += HOUR) {
+      const b = bucketOf(t, interval, tz);
+      if (b !== last) {
+        out.push(b);
+        last = b;
+      }
+    }
+  } else {
+    // Por día de calendario en la zona: un día de 23 o 25 horas no se saltea ni se repite.
+    const firstDay = Math.floor((from + offsetMsAt(tz, from)) / DAY);
+    const lastDay = Math.floor((to + offsetMsAt(tz, to)) / DAY);
+    for (let d = firstDay; d <= lastDay && out.length < 2000; d++) {
+      const b = bucketOf(d * DAY, interval, 0);
+      if (b !== last) {
+        out.push(b);
+        last = b;
+      }
     }
   }
   const end = bucketOf(to, interval, tz);

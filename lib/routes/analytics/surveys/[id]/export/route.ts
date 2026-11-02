@@ -3,7 +3,7 @@ import { resolveRange } from '@/lib/analytics/compute';
 import { dateRangeSchema } from '@/lib/analytics/types';
 import { getSurvey, surveySentRows } from '@/lib/analytics/surveys';
 import { surveyCsvRow } from '@/lib/analytics/surveys-core';
-import { aError, analyticsActor, isResponse, recordProject } from '@/lib/analytics/http';
+import { aError, analyticsActor, isResponse, recordProject , canManageAnalytics } from '@/lib/analytics/http';
 import { csvLine } from '@/lib/form-engine';
 import { rateLimit } from '@/lib/rate-limit';
 import { projectTz } from '@/lib/analytics/tz';
@@ -17,6 +17,8 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(req: NextRequest, ctx: Ctx) {
   const actor = await analyticsActor(req, 'read');
   if (isResponse(actor)) return actor;
+  // Bajar un archivo con todas las respuestas es de admins; ver los resultados, de cualquier miembro.
+  if (!canManageAnalytics(actor)) return aError(403, 'forbidden');
   const { id } = await ctx.params;
   const project = await recordProject(actor, 'analytics_surveys', id);
   if (isResponse(project)) return project;

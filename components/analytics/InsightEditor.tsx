@@ -18,7 +18,7 @@ import type {
   StickinessQuery,
   TrendsQuery,
 } from '@/lib/analytics/types';
-import { PROPERTY_MATHS, SERIES_MATHS, TREND_DISPLAYS, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
+import { PROPERTY_MATHS, SERIES_MATHS, shareableQuery, TREND_DISPLAYS, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
 import { AlertsPanel, CorrelationPanel, ShareDialog, downloadCsv } from './InsightPanels';
 import { ApiError, apiErrorText, api, notifyChanged, runQuery } from './client';
 import { EventInput, FilterList, cleanFilters, useProjectMeta, type ProjectMeta } from './Filters';
@@ -638,7 +638,7 @@ export default function InsightEditor({
               </button>
             )}
             {insight && (
-              <button type="button" className="btn" disabled={!canShare || kind === 'sql'} title={kind === 'sql' ? t('shareNoSql') : canShare ? undefined : t('shareAdminsOnly')} onClick={() => setSharing(true)}>
+              <button type="button" className="btn" disabled={!canShare || !shareableQuery(cleaned)} title={kind === 'sql' ? t('shareNoSql') : !shareableQuery(cleaned) ? t('shareNoPersonBreakdown') : canShare ? undefined : t('shareAdminsOnly')} onClick={() => setSharing(true)}>
                 {t('share')}
               </button>
             )}

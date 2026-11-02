@@ -8,6 +8,7 @@ import { useMounted } from '@/components/ui/useMounted';
 import type { RecordingDto } from '@/lib/analytics/replay';
 import type { LiveEvent } from '@/lib/analytics/types';
 import { api, fmtDuration, fmtTime } from '../client';
+import { sanitizeForPlayer } from '@/lib/analytics/replay-sanitize';
 
 interface ReplayerInstance {
   wrapper: HTMLElement;
@@ -154,7 +155,7 @@ export default function Player({ recording, events, canDelete }: { recording: Re
           return;
         }
         all.sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
-        const r = new window.rrwebReplay.Replayer(all, {
+        const r = new window.rrwebReplay.Replayer(sanitizeForPlayer(all), {
           root: root.current,
           skipInactive: true,
           speed: 1,

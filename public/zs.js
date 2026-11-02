@@ -560,9 +560,17 @@
     if (replay.chars >= REPLAY_CHUNK_CHARS) flushReplay(false);
     else if (!replay.timer) replay.timer = setTimeout(function () { flushReplay(false); }, REPLAY_FLUSH_MS);
   }
-  // Lo mismo que la ingesta saca de las URLs, antes de que la grabación salga del navegador.
+  // Lo mismo que limpia el servidor, antes de que la grabación salga del navegador. En modo
+  // enmascarado ninguna URL conserva su query: un token puede tener cualquier nombre.
   var REPLAY_SECRET = /token|secret|password|passwd|auth|session|signature|sig$|code|key|otp|jwt|email/i;
   var REPLAY_URL_ATTRS = { href: 1, src: 1, action: 1, formaction: 1, poster: 1, cite: 1, data: 1, ping: 1, background: 1, longdesc: 1, 'xlink:href': 1 };
+  var REPLAY_TEXT_ATTRS = { title: 1, 'aria-label': 1, alt: 1, 'aria-description': 1, 'aria-placeholder': 1, label: 1 };
+  function replayMasked() {
+    return !replay.conf || replay.conf.maskAllText !== false;
+  }
+  function maskStr(t) {
+    return String(t).replace(/\S/g, '*');
+  }
   function scrubUrl(raw) {
     var v = String(raw).trim();
     if (!v) return v;
@@ -573,26 +581,41 @@
     try {
       var u = new URL(v, w.location.href);
       u.hash = '';
-      var keys = [];
-      u.searchParams.forEach(function (_, k) {
-        keys.push(k);
-      });
-      keys.forEach(function (k) {
-        if (REPLAY_SECRET.test(k) && !/^utm_/i.test(k)) u.searchParams.delete(k);
-      });
+      if (replayMasked()) u.search = '';
+      else {
+        var keys = [];
+        u.searchParams.forEach(function (_, k) {
+          keys.push(k);
+        });
+        keys.forEach(function (k) {
+          if (REPLAY_SECRET.test(k) && !/^utm_/i.test(k)) u.searchParams.delete(k);
+        });
+      }
       return relative ? u.pathname + u.search : u.toString();
     } catch (e) {
       return '';
     }
   }
+  function scrubCss(css) {
+    return String(css)
+      .replace(/url\(\s*(['"]?)([^'")]*)\1\s*\)/gi, function (m, q, url) {
+        return /^data:/i.test(url) ? m : 'url(' + q + url.replace(/[?#].*$/, '') + q + ')';
+      })
+      .replace(/@import\s+(['"])([^'"]*)\1/gi, function (_, q, url) {
+        return '@import ' + q + url.replace(/[?#].*$/, '') + q;
+      });
+  }
   function scrubAttrs(attrs, tag) {
-    var hidden = tag === 'input' && String(attrs.type || '').toLowerCase() === 'hidden';
+    var type = String(attrs.type || '').toLowerCase();
     Object.keys(attrs).forEach(function (key) {
       var k = key.toLowerCase();
-      if (k.indexOf('data-') === 0 || k === 'placeholder' || k === 'nonce' || k === 'integrity' || k === 'srcset') delete attrs[key];
-      else if (REPLAY_URL_ATTRS[k] && typeof attrs[key] === 'string') attrs[key] = scrubUrl(attrs[key]);
+      var v = attrs[key];
+      if (k.indexOf('on') === 0 || k.indexOf('data-') === 0 || k === 'placeholder' || k === 'nonce' || k === 'integrity' || k === 'srcset') delete attrs[key];
+      else if (REPLAY_URL_ATTRS[k] && typeof v === 'string') attrs[key] = scrubUrl(v);
+      else if ((k === 'style' || k === '_cssText' || k === '_csstext') && typeof v === 'string') attrs[key] = scrubCss(v);
+      else if (replayMasked() && REPLAY_TEXT_ATTRS[k] && typeof v === 'string') attrs[key] = maskStr(v);
     });
-    if (hidden) delete attrs.value;
+    if ((tag === 'input' && /^(hidden|submit|button|reset|image)$/.test(type)) || tag === 'option' || tag === 'button') delete attrs.value;
   }
   function scrubTree(node, masked) {
     if (!node || typeof node !== 'object') return;
@@ -606,7 +629,10 @@
         scrubAttrs(attrs, tag);
       }
     }
-    if (node.type === 3 && inside && typeof node.textContent === 'string') node.textContent = node.textContent.replace(/\S/g, '*');
+    if (node.type === 3 && typeof node.textContent === 'string') {
+      if (node.isStyle) node.textContent = scrubCss(node.textContent);
+      else if (inside) node.textContent = maskStr(node.textContent);
+    }
     if (node.childNodes) node.childNodes.forEach(function (c) {
       scrubTree(c, inside);
     });
@@ -625,6 +651,20 @@
         scrubAttrs(c.attributes, '');
         delete c.attributes.value;
       });
+    }
+    if (ev.type === 3 && data.source === 8) {
+      (data.adds || []).forEach(function (a) {
+        if (typeof a.rule === 'string') a.rule = scrubCss(a.rule);
+      });
+    }
+  }
+  // Cambio de ruta en una app de una página: queda en la grabación, ya limpio.
+  function markReplayPage() {
+    if (!replay.started || !w.rrwebRecord || !w.rrwebRecord.record || !w.rrwebRecord.record.addCustomEvent) return;
+    try {
+      w.rrwebRecord.record.addCustomEvent('$pageview', { href: scrubUrl(w.location.href) });
+    } catch (e) {
+      /* el grabador todavía no arrancó */
     }
   }
   function beginRecording() {
@@ -1056,6 +1096,7 @@
       h[m] = function () {
         var r = orig.apply(this, arguments);
         setTimeout(pageview, 0);
+        setTimeout(markReplayPage, 0);
         return r;
       };
     });

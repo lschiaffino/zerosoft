@@ -1,9 +1,6 @@
 import { getDb } from '@/lib/db';
 import { roleAtLeast } from '@/lib/teams';
 import { likeContains } from '@/lib/track-views';
-import { listIssues } from '@/lib/analytics/errors';
-import { issueRef } from '@/lib/analytics/more-types';
-import { listProjects } from '@/lib/analytics/projects';
 import { trackVisibleSql } from '@/lib/track-access';
 import { boardViewer, boardVisibleSql } from '@/lib/board-access';
 import { snippet as boardSnippet } from '@/lib/boards';
@@ -459,15 +456,21 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     analyticsIn('analytics_surveys'),
   ]);
 
-  // Errores de Analytics: no tienen nombre propio, se buscan por tipo y mensaje en los proyectos del workspace.
-  const anErrors: Array<{ id: string; label: string; meta: string }> = [];
-  if (needle.length >= 2) {
-    const projects = (await listProjects(user.id).catch(() => [])).slice(0, 3);
-    for (const p of projects) {
-      const found = await listIssues(p, { q: needle, status: 'all' }).catch(() => null);
-      for (const i of (found?.issues ?? []).slice(0, 5)) anErrors.push({ id: issueRef(p.id, i.fingerprint), label: `${i.type}: ${i.message}`.slice(0, 120), meta: p.name });
-    }
-  }
+  // Errores de Analytics: no tienen nombre propio, se buscan por tipo y mensaje en los últimos 30 días, en todos los proyectos.
+  const anErrors = await all(
+    `SELECT e.project_id || '~' || json_extract(e.properties, '$."$exception_fingerprint"') AS id,
+            json_extract(e.properties, '$."$exception_type"') || ': ' || substr(COALESCE(json_extract(e.properties, '$."$exception_message"'), ''), 1, 100) AS label,
+            p.name AS meta
+     FROM analytics_events e JOIN analytics_projects p ON p.id = e.project_id
+     WHERE e.project_id IN (${analyticsProjects}) AND e.event = '$exception' AND e.ts >= ?
+       AND (json_extract(e.properties, '$."$exception_message"') LIKE ? ESCAPE '\\' OR json_extract(e.properties, '$."$exception_type"') LIKE ? ESCAPE '\\')
+       AND json_extract(e.properties, '$."$exception_fingerprint"') IS NOT NULL
+     GROUP BY 1 ORDER BY MAX(e.ts) DESC LIMIT ?`,
+    user.id,
+    Date.now() - 30 * 86_400_000,
+    like,
+    like,
+  );
 
   // Chat: conversaciones (asunto, visitante o texto), personas, vistas guardadas y equipos.
   const chatWidgets = `SELECT id FROM chat_widgets WHERE ${widgetWhere}`;

@@ -4,7 +4,7 @@ import { flagGroupSchema, flagKeySchema, flagPayloadsSchema, flagVariantSchema, 
 import { experimentsUsingFlag } from '@/lib/analytics/experiments';
 import { variantsValid } from '@/lib/analytics/flags-core';
 import { deleteFlag, getFlag, updateFlag } from '@/lib/analytics/records';
-import { aError, analyticsActor, isResponse, readJson, recordProject } from '@/lib/analytics/http';
+import { aError, analyticsActor, canManageAnalytics, isResponse, readJson, recordProject } from '@/lib/analytics/http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,6 +40,15 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const parsed = patchSchema.safeParse(await readJson(req));
   if (!parsed.success) return aError(400, 'invalid_input');
   if (parsed.data.variants && !variantsValid(parsed.data.variants)) return aError(400, 'variants_must_sum_100');
+  // El flag de un experimento decide quién ve qué: prenderlo o cambiar su reparto es empezar o pasar a todos.
+  if (!canManageAnalytics(actor) && (await experimentsUsingFlag(project.id, id))) {
+    const cur = await getFlag(project.id, id);
+    const same = (a: unknown, b: unknown) => a === undefined || JSON.stringify(a) === JSON.stringify(b);
+    const d = parsed.data;
+    if (!cur || !same(d.active, cur.active) || !same(d.rollout, cur.rollout) || !same(d.variants, cur.variants) || !same(d.groups, cur.groups) || !same(d.conditions, cur.conditions)) {
+      return aError(403, 'flag_in_experiment');
+    }
+  }
   const flag = await updateFlag(project.id, id, parsed.data);
   if (flag === 'duplicate_key') return aError(409, 'duplicate_key');
   return NextResponse.json({ flag });
