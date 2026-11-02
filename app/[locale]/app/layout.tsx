@@ -40,6 +40,7 @@ import '@/styles/voice-host.css';
 import '@/styles/workspace.css';
 import '@/styles/assistant.css';
 import NavProgress from '@/components/app/NavProgress';
+import RouterNudge from '@/components/app/RouterNudge';
 import { Suspense } from 'react';
 
 export const dynamic = 'force-dynamic';
@@ -380,6 +381,7 @@ export default async function AppLayout(
               support: tCat('support.title'),
               automate: tCat('automate.title'),
               build: tCat('build.title'),
+              run: tCat('run.title'),
               daily: tCat('daily.title'),
             },
             platform: tSide('platform'),
@@ -658,6 +660,7 @@ export default async function AppLayout(
             },
           }}
         />
+        <RouterNudge />
         <div className="app-main-scroll">
           <Suspense fallback={null}>
             <NavProgress />

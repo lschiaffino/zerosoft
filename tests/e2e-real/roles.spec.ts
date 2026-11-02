@@ -25,7 +25,8 @@ async function sql(statement: string, args: Array<string | number | null> = []) 
 function lastCode(email: string): string {
   const lines = fs.readFileSync(process.env.E2E_MAIL_FILE!, 'utf8').trim().split('\n').filter(Boolean);
   const mail = lines.map((l) => JSON.parse(l) as { to: string; text: string }).reverse().find((m) => m.to === email);
-  return /\b(\d{6})\b/.exec(mail!.text)![1];
+  // En su propia línea: el email del texto también puede tener seis dígitos seguidos (owner-300846@...).
+  return /^(\d{6})$/m.exec(mail!.text)![1];
 }
 
 interface Person {
