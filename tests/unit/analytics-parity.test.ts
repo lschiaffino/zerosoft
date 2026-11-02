@@ -33,7 +33,8 @@ import { publicResult, publicShareView } from '@/lib/analytics/share-view';
 import { runAnalyticsCron } from '@/lib/analytics/cron';
 import { cohortDefinitionSchema, insightQuerySchema, trendsQuerySchema, type FunnelResult } from '@/lib/analytics/types';
 import { recordProject } from '@/lib/analytics/http';
-import { bucketList, previousAligned } from '@/lib/analytics/compute';
+import { bucketList, bucketOf, previousAligned, resolveRange } from '@/lib/analytics/compute';
+import { fromLocal, isTimeZone, offsetMsAt, transitionsIn } from '@/lib/analytics/tz';
 import { isBotUserAgent } from '@/lib/analytics/bots';
 import { handleCapture } from '@/lib/analytics/ingest-http';
 
@@ -183,6 +184,70 @@ describe('analytics: cálculos puros', () => {
     expect(old.kind === 'trends' && Boolean(old.excludeInternal)).toBe(false);
     expect(cohortDefinitionSchema.parse({ properties: [], behavior: { event: 'x' } }).type).toBeUndefined();
     expect(trendsQuerySchema.safeParse({ kind: 'trends', series: [{ event: 'x', math: 'evil' }] }).success).toBe(false);
+  });
+});
+
+describe('analytics: zona horaria con cambio de hora', () => {
+  const NY = 'America/New_York';
+  const at = (x: string) => Date.parse(x);
+  it('desfase de cada lado del cambio y hora local al instante real', () => {
+    expect(offsetMsAt(NY, at('2026-03-08T06:59:00Z')) / 3_600_000).toBe(-5);
+    expect(offsetMsAt(NY, at('2026-03-08T07:00:00Z')) / 3_600_000).toBe(-4);
+    expect(offsetMsAt(NY, at('2026-11-01T05:59:00Z')) / 3_600_000).toBe(-4);
+    expect(offsetMsAt(NY, at('2026-11-01T06:00:00Z')) / 3_600_000).toBe(-5);
+    expect(fromLocal(at('2026-03-08T00:00:00Z'), NY)).toBe(at('2026-03-08T05:00:00Z'));
+    expect(fromLocal(at('2026-03-09T00:00:00Z'), NY)).toBe(at('2026-03-09T04:00:00Z'));
+    expect(offsetMsAt('America/Argentina/Buenos_Aires', at('2026-07-01T00:00:00Z')) / 3_600_000).toBe(-3);
+    expect(transitionsIn(NY, at('2026-01-01T00:00:00Z'), at('2026-12-31T00:00:00Z')).map((x) => x.at)).toEqual([at('2026-03-08T07:00:00Z'), at('2026-11-01T06:00:00Z')]);
+    expect(transitionsIn('America/Argentina/Buenos_Aires', at('2026-01-01T00:00:00Z'), at('2026-12-31T00:00:00Z'))).toEqual([]);
+    expect(isTimeZone('Mars/Olympus')).toBe(false);
+  });
+  it('los días de un rango que cruza el cambio empiezan a medianoche local', () => {
+    const r = resolveRange({ from: '2026-03-07', to: '2026-03-09' }, at('2026-12-01T00:00:00Z'), NY);
+    expect(r.from).toBe(at('2026-03-07T05:00:00Z'));
+    expect(r.to).toBe(at('2026-03-10T04:00:00Z') - 1);
+    expect(bucketList(r.from, r.to, 'day', NY)).toEqual(['2026-03-07', '2026-03-08', '2026-03-09']);
+    // Ayer, en cada lado del corte.
+    expect(bucketOf(at('2026-03-08T04:59:00Z'), 'day', NY)).toBe('2026-03-07');
+    expect(bucketOf(at('2026-03-09T03:59:00Z'), 'day', NY)).toBe('2026-03-08');
+    expect(bucketOf(at('2026-03-09T04:00:00Z'), 'day', NY)).toBe('2026-03-09');
+    // Comparar corre días locales: los mismos cortes a medianoche.
+    const prev = previousAligned(r, 'day', NY);
+    expect(prev.from).toBe(at('2026-03-04T05:00:00Z'));
+  });
+  it('SQL y JS dan la misma cubeta: eventos a cada lado de medianoche contados a mano', async () => {
+    const { user, project: p } = await newProject();
+    await updateProject(user.id, p.id, { tzName: NY });
+    const fresh = (await getProject(user.id, p.id))!;
+    expect(fresh.tz_name).toBe(NY);
+    // Son fechas de 2026: dentro de la retención solo si el reloj está cerca; se escriben directo a la tabla.
+    const stamps = ['2026-03-08T04:59:00Z', '2026-03-08T05:00:00Z', '2026-03-09T03:59:00Z', '2026-03-09T04:00:00Z', '2026-03-09T05:00:00Z'];
+    for (const [i, ts] of stamps.entries()) {
+      await getDb().prepare('INSERT INTO analytics_events (project_id, event, distinct_id, ts, properties, uuid) VALUES (?, ?, ?, ?, ?, ?)').run(p.id, 'e', `u${i}`, at(ts), '{}', `tz-${p.id}-${i}`);
+    }
+    const q = trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'e' }], dateRange: { from: '2026-03-07', to: '2026-03-09' } });
+    const r = await runTrends(fresh, q, at('2026-12-01T00:00:00Z'));
+    expect(r.buckets).toEqual(['2026-03-07', '2026-03-08', '2026-03-09']);
+    // 7 de marzo: el de las 23:59 locales. 8: 00:00 y 23:59 (día de 23 horas). 9: 00:00 y 01:00.
+    expect(r.series[0].data).toEqual([1, 2, 2]);
+    // Por hora: la hora que no existe no aparece y los números siguen cayendo donde corresponde.
+    const h = await runTrends(fresh, trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'e' }], interval: 'hour', dateRange: { from: '2026-03-08', to: '2026-03-08' } }), at('2026-12-01T00:00:00Z'));
+    expect(h.buckets).not.toContain('2026-03-08 02:00');
+    expect(h.series[0].total).toBe(2);
+    // El mismo instante, sin zona: UTC parte distinto.
+    const utc = await runTrends({ ...fresh, tz_name: null, tz_offset_min: 0 }, q, at('2026-12-01T00:00:00Z'));
+    expect(utc.series[0].data).toEqual([0, 2, 3]);
+  });
+  it('cambiar de zona descarta los rollups: se rehacen con el corte nuevo', async () => {
+    const { user, project: p } = await newProject();
+    await ingest(p, [{ event: 'e', distinct_id: 'a', ts: NOW - 2 * DAY }]);
+    for (let i = 0; i < 3; i++) await runAnalyticsCron({ budgetMs: 10_000, now: NOW });
+    const n = async () => Number(((await getDb().prepare('SELECT COUNT(*) AS n FROM analytics_daily WHERE project_id = ?').get(p.id)) as { n: number }).n);
+    expect((await getProject(user.id, p.id))?.rolled_through).toBeTruthy();
+    expect(await n()).toBeGreaterThan(0);
+    await updateProject(user.id, p.id, { tzName: 'Asia/Tokyo' });
+    expect((await getProject(user.id, p.id))?.rolled_through).toBeNull();
+    expect(await n()).toBe(0);
   });
 });
 

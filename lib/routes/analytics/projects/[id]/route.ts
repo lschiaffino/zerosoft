@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { propertyFilterSchema } from '@/lib/analytics/types';
+import { isTimeZone } from '@/lib/analytics/tz';
 import { deleteProject, toProjectDto, updateProject } from '@/lib/analytics/projects';
 import { actorProject, aError, analyticsActor, canManageAnalytics, isResponse, readJson } from '@/lib/analytics/http';
 
@@ -23,6 +24,7 @@ const patchSchema = z.object({
   webVitals: z.boolean().optional(),
   retentionDays: z.number().int().min(1).max(3650).optional(),
   tzOffsetMin: z.number().int().min(-720).max(840).optional(),
+  tzName: z.string().max(64).refine(isTimeZone, 'invalid_time_zone').nullable().optional(),
   testFilters: z.array(propertyFilterSchema).max(20).optional(),
 });
 

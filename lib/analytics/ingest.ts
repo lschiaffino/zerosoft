@@ -20,6 +20,7 @@ import {
 } from './ingest-core';
 import { normalizeSpecialEvents } from './ingest-special';
 import type { ProjectRow } from './projects';
+import { offsetMsAt, projectTz, type Tz } from './tz';
 
 /** Contexto del pedido: user agent, país y IP (sin headers que pueda inventar el cliente). */
 export function requestContext(req: Request): RequestContext {
@@ -39,8 +40,8 @@ export function requestContext(req: Request): RequestContext {
 const DAY = 86_400_000;
 
 /** Día local de un ts (null si el ts no es una fecha válida: nunca tira). */
-export function dayOf(ts: number, offsetMin: number): string | null {
-  const d = new Date(ts + offsetMin * 60_000);
+export function dayOf(ts: number, tz: Tz): string | null {
+  const d = new Date(ts + offsetMsAt(tz, ts));
   return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
@@ -238,7 +239,7 @@ export async function storeEvents(project: ProjectRow, events: CleanEvent[], ctx
   }
   // 7. Un evento de un día que el rollup ya cerró lo marca para rehacer desde ahí.
   // Se decide en SQL (rolled_through del momento, no el del caché del proyecto).
-  const oldestDay = dayOf(Math.min(...events.map((e) => e.ts)), Number(project.tz_offset_min));
+  const oldestDay = dayOf(Math.min(...events.map((e) => e.ts)), projectTz(project));
   if (oldestDay) {
     stmts.push({
       sql: `UPDATE analytics_projects SET dirty_from = MIN(COALESCE(dirty_from, ?1), ?1)

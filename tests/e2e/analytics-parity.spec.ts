@@ -402,6 +402,39 @@ test('otro workspace no alcanza nada de las rutas nuevas', async ({ browser, bas
   await anon.close();
 });
 
+test('zona horaria: se elige en ajustes y los días del gráfico cortan a medianoche de esa zona', async ({ page, request, baseURL }) => {
+  const res = await request.post('/api/analytics/projects', { data: { name: `Zona ${uid()}` } });
+  const { project } = (await res.json()) as { project: { id: string; publicKey: string } };
+  await page.context().addCookies([{ name: 'zs_analytics_project', value: project.id, url: baseURL! }]);
+  await page.goto('/en/app/analytics/settings', { waitUntil: 'networkidle' });
+  await expect(page.getByTestId('an-timezone')).toHaveValue('');
+  await page.getByTestId('an-timezone').selectOption('Asia/Tokyo');
+  await shot(page, 'settings-timezone');
+  await page.getByRole('button', { name: 'Save' }).first().click();
+  await expect(page.getByRole('status').filter({ hasText: /saved/i }).first()).toBeVisible();
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(page.getByTestId('an-timezone')).toHaveValue('Asia/Tokyo');
+
+  // Ayer 16:00 UTC ya es hoy en Tokio (UTC+9) y 14:00 UTC todavía es ayer: un evento en cada día local.
+  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+  const stamp = (h: string) => `${yesterday}T${h}:00:00.000Z`;
+  for (const [i, h] of ['14', '16'].entries()) {
+    const r = await request.post('/api/ingest/e', { headers: H, data: { api_key: project.publicKey, event: 'tz_event', distinct_id: `tz${i}`, timestamp: stamp(h) } });
+    expect(r.status()).toBe(200);
+  }
+  const { result } = await (
+    await request.post('/api/analytics/query', { data: { projectId: project.id, query: { kind: 'trends', series: [{ event: 'tz_event' }], dateRange: { from: '-3d' } } } })
+  ).json();
+  const tokyoDay = (t: string) => new Date(Date.parse(t) + 9 * 3_600_000).toISOString().slice(0, 10);
+  const counts = Object.fromEntries((result.buckets as string[]).map((b, i) => [b, result.series[0].data[i]]));
+  expect(tokyoDay(stamp('14'))).not.toBe(tokyoDay(stamp('16')));
+  expect(counts[tokyoDay(stamp('14'))]).toBe(1);
+  expect(counts[tokyoDay(stamp('16'))]).toBe(1);
+  await page.goto('/en/app/analytics/insights/new', { waitUntil: 'networkidle' });
+  await page.getByRole('combobox', { name: 'Event' }).first().fill('tz_event');
+  await expect(page.getByTestId('an-result').getByRole('cell', { name: '2', exact: true })).toBeVisible({ timeout: 10_000 });
+});
+
 test('API key de la ingesta de PostHog: /batch y /flags', async ({ request }) => {
   const batch = await request.post('/api/ingest/batch', { headers: H, data: { api_key: publicKey, batch: [{ event: 'from_sdk', distinct_id: 'sdk', properties: {} }] } });
   expect(batch.status()).toBe(200);

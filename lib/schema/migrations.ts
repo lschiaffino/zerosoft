@@ -8205,6 +8205,13 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    id: '183_analytics_time_zone',
+    up: async (client) => {
+      // Sin zona se sigue usando el desfase fijo de siempre: un proyecto existente no cambia hasta que elige una.
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN tz_name TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -282,8 +282,12 @@ const parity: ProductParity = {
         'Roda no mesmo banco libsql ou Turso da suíte, com um só escritor. Pensado para sites pequenos e médios, alguns milhões de eventos por projeto antes de as consultas ficarem lentas. Os rollups diários aceleram tendências diárias sem filtros; funis, retenção e caminhos leem até 200.000 linhas e avisam quando cortam',
       ],
     }),
-    row('timezone', 'data', ['Project time zone', 'Zona horaria del proyecto', 'Fuso horário do projeto'], 'partial', {
-      detail: ['A fixed UTC offset per project, without daylight saving changes', 'Un desfase fijo respecto de UTC por proyecto, sin horario de verano', 'Um deslocamento fixo de UTC por projeto, sem horário de verão'],
+    row('timezone', 'data', ['Project time zone', 'Zona horaria del proyecto', 'Fuso horário do projeto'], 'have', {
+      detail: [
+        'Any IANA zone, with daylight saving: days start at local midnight on each side of the change. Projects from before keep their fixed offset until they pick one',
+        'Cualquier zona IANA, con horario de verano: los días empiezan a medianoche local a cada lado del cambio. Los proyectos de antes siguen con su desfase fijo hasta que eligen una',
+        'Qualquer fuso IANA, com horário de verão: os dias começam à meia-noite local de cada lado da mudança. Projetos de antes seguem com o deslocamento fixo até escolherem um',
+      ],
     }),
     row('api-scopes', 'data', ['API access with scoped keys', 'Acceso por API con keys con permisos', 'Acesso por API com keys com permissões'], 'have', {
       detail: ['analytics:read and analytics:write for queries, events and persons', 'analytics:read y analytics:write para consultas, eventos y personas', 'analytics:read e analytics:write para consultas, eventos e pessoas'],

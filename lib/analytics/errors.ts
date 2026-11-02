@@ -11,6 +11,7 @@ import { listOwnerSpacePeople } from '../workspace';
 import type { ProjectRow } from './projects';
 import { cleanFrames } from './errors-core';
 import { issueRef, type IssueDetail, type IssueEffectiveStatus, type IssueFilter, type IssueListResult, type IssueOccurrence, type IssueRow, type IssueStatus } from './more-types';
+import { projectTz } from './tz';
 
 const SCAN_CAP = 200_000;
 const LIST_CAP = 100;
@@ -39,7 +40,7 @@ export interface IssueQuery {
 }
 
 export async function listIssues(project: ProjectRow, query: IssueQuery, now = Date.now()): Promise<IssueListResult> {
-  const range = resolveRange({ from: query.from ?? '-30d' }, now, Number(project.tz_offset_min));
+  const range = resolveRange({ from: query.from ?? '-30d' }, now, projectTz(project));
   const where: string[] = [];
   const args: Array<string | number> = [];
   switch (query.status ?? 'active') {
@@ -138,7 +139,7 @@ export async function issueExists(projectId: string, fingerprint: string): Promi
 }
 
 export async function issueDetail(project: ProjectRow, fingerprint: string, query: { from?: string }, now = Date.now()): Promise<IssueDetail | null> {
-  const tz = Number(project.tz_offset_min);
+  const tz = projectTz(project);
   const range = resolveRange({ from: query.from ?? '-30d' }, now, tz);
   const db = getDb();
   const [status, summary, latestAny, first, recent, people, tsRows] = await Promise.all([

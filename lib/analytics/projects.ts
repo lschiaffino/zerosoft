@@ -9,6 +9,7 @@ import { customAlphabet, nanoid } from 'nanoid';
 import { getDb } from '../db';
 import { sha256 } from '../api-auth';
 import { normalizeDomains } from './ingest-core';
+import { offsetMsAt } from './tz';
 import { z } from 'zod';
 import { propertyFilterSchema, type ProjectDto, type PropertyFilter } from './types';
 
@@ -34,6 +35,8 @@ export interface ProjectRow {
   web_vitals: number;
   retention_days: number;
   tz_offset_min: number;
+  /** Zona IANA; null = el desfase fijo de tz_offset_min. */
+  tz_name: string | null;
   test_filters: string;
   rolled_through: string | null;
   dirty_from: string | null;
@@ -79,7 +82,9 @@ export function toProjectDto(r: ProjectRow): ProjectDto {
     captureExceptions: r.capture_exceptions === 1,
     webVitals: r.web_vitals === 1,
     retentionDays: Number(r.retention_days),
-    tzOffsetMin: Number(r.tz_offset_min),
+    // Con zona, el desfase de ahora: lo usan las fechas de las encuestas.
+    tzOffsetMin: r.tz_name ? offsetMsAt(r.tz_name, Date.now()) / 60_000 : Number(r.tz_offset_min),
+    tzName: r.tz_name,
     testFilters: parseTestFilters(r.test_filters),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -128,6 +133,7 @@ export interface ProjectPatch {
   webVitals?: boolean;
   retentionDays?: number;
   tzOffsetMin?: number;
+  tzName?: string | null;
   testFilters?: PropertyFilter[];
 }
 
@@ -191,6 +197,18 @@ export async function updateProject(workspaceId: string, id: string, patch: Proj
   if (patch.tzOffsetMin !== undefined) {
     sets.push('tz_offset_min = ?');
     args.push(Math.min(840, Math.max(-720, Math.round(patch.tzOffsetMin))));
+  }
+  if (patch.tzName !== undefined) {
+    sets.push('tz_name = ?');
+    args.push(patch.tzName as string);
+  }
+  // Los rollups diarios están cortados con la zona anterior: se rehacen de a poco y mientras tanto se lee del crudo.
+  const nextName = patch.tzName !== undefined ? patch.tzName : p.tz_name;
+  const nextOffset = patch.tzOffsetMin !== undefined ? Math.min(840, Math.max(-720, Math.round(patch.tzOffsetMin))) : Number(p.tz_offset_min);
+  const zoneChanged = nextName !== p.tz_name || (!nextName && nextOffset !== Number(p.tz_offset_min));
+  if (zoneChanged) {
+    sets.push('rolled_through = NULL', 'dirty_from = NULL');
+    await getDb().prepare('DELETE FROM analytics_daily WHERE project_id = ?').run(id);
   }
   if (sets.length) {
     sets.push('updated_at = ?');

@@ -19,6 +19,7 @@ import {
   type SurveyResults,
 } from './more-types';
 import { computeQuestionResults, defaultAppearance, defaultTargeting, parseAppearance, parseQuestions, parseTargeting, surveyIsLive, type SurveyEventRow } from './surveys-core';
+import { projectTz } from './tz';
 
 /** Filas de eventos que mira una lectura como mucho. */
 export const SURVEY_ROW_CAP = 20_000;
@@ -221,7 +222,7 @@ async function countEvent(project: ProjectRow, event: string, surveyId: string, 
 }
 
 export async function surveyResults(project: ProjectRow, survey: SurveyDto, dateRange: { from: string }, now = Date.now()): Promise<SurveyResults> {
-  const range = resolveRange(dateRange, now, Number(project.tz_offset_min));
+  const range = resolveRange(dateRange, now, projectTz(project));
   const [shown, dismissed, sent, data] = await Promise.all([
     countEvent(project, 'survey shown', survey.id, range),
     countEvent(project, 'survey dismissed', survey.id, range),

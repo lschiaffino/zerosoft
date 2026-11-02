@@ -6,6 +6,7 @@ import { surveyCsvRow } from '@/lib/analytics/surveys-core';
 import { aError, analyticsActor, isResponse, recordProject } from '@/lib/analytics/http';
 import { csvLine } from '@/lib/form-engine';
 import { rateLimit } from '@/lib/rate-limit';
+import { projectTz } from '@/lib/analytics/tz';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   if (!limit.ok && process.env.RATE_LIMIT_DISABLED !== 'true') return aError(429, 'rate_limited');
   const survey = await getSurvey(project.id, id);
   if (!survey) return aError(404, 'not_found');
-  const window = resolveRange({ from: range.data.from }, Date.now(), Number(project.tz_offset_min));
+  const window = resolveRange({ from: range.data.from }, Date.now(), projectTz(project));
   const { rows } = await surveySentRows(project, id, window);
   const lines = [csvLine(['timestamp', 'distinct_id', ...survey.questions.map((q) => q.text)]), ...rows.map((r) => csvLine(surveyCsvRow(survey.questions, r)))];
   const slug = survey.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'survey';

@@ -24,6 +24,7 @@ import {
 import { actionSql, cohortSql, filtersSql, groupKeySql, needsPerson, numericProp, personJoins, PERSON_KEY, propText, type Arg, type Frag } from './sql-build';
 import { applyFormula, collapsePath, computeLifecycle, correlate, formulaValue, parseFormula, percentile, PERCENTILE_OF, round2, stickinessHistogram } from './compute-more';
 import { parseTestFilters } from './projects';
+import { fromLocal, offsetMsAt, projectTz, tzShiftSql } from './tz';
 import { checkSql, SQL_MAX_ROWS, wrapSql } from './sql-safe';
 import { runReadOnly, SqlRunError } from './sql-run';
 import { getCohort, loadActions, type ActionMap } from './records';
@@ -73,7 +74,9 @@ export class QueryError extends Error {
   }
 }
 
-const offMs = (p: ProjectRow) => Number(p.tz_offset_min) * 60_000;
+/** Desfase en ms en un instante; `shiftFor` corrige lo que cae después de un cambio de hora dentro del rango. */
+const offAt = (p: ProjectRow, at: number) => offsetMsAt(projectTz(p), at);
+const shiftFor = (p: ProjectRow, range: { from: number; to: number }, col = 'e.ts') => tzShiftSql(projectTz(p), range.from, range.to, col);
 
 async function cohortFrag(project: ProjectRow, cohortId: string | null | undefined, now: number): Promise<Frag | null> {
   if (!cohortId) return null;
@@ -170,13 +173,12 @@ async function trendFromRollup(
 ): Promise<number[] | null> {
   if (!project.rolled_through || event === '*') return null;
   if (interval === 'hour' || (math === 'unique' && interval !== 'day')) return null;
-  const off = offMs(project);
   // El rango tiene que arrancar a medianoche local para que los días cierren.
-  if ((range.from + off) % DAY !== 0) return null;
-  const fromDay = bucketOf(range.from, 'day', Number(project.tz_offset_min));
+  if ((range.from + offAt(project, range.from)) % DAY !== 0) return null;
+  const fromDay = bucketOf(range.from, 'day', projectTz(project));
   const rolled = project.dirty_from && project.dirty_from <= project.rolled_through ? dayBefore(project.dirty_from) : project.rolled_through;
   if (rolled < fromDay) return null;
-  const toDay = bucketOf(range.to, 'day', Number(project.tz_offset_min));
+  const toDay = bucketOf(range.to, 'day', projectTz(project));
   const lastRolled = rolled < toDay ? rolled : toDay;
   const daily = (await all(`SELECT day, ${math === 'unique' ? 'uniques' : 'count'} AS n FROM analytics_daily WHERE project_id = ? AND event = ? AND day >= ? AND day <= ?`, [
     project.id,
@@ -185,16 +187,18 @@ async function trendFromRollup(
     lastRolled,
   ])) as Array<{ day: string; n: number }>;
   const rows: Array<{ bucket: string; count: number }> = daily.map((d) => ({
-    bucket: interval === 'day' ? d.day : bucketOf(Date.parse(`${d.day}T00:00:00Z`) - off, interval, Number(project.tz_offset_min)),
+    // La fila ya es un día local: la semana o el mes salen de esa fecha, sin zona.
+    bucket: interval === 'day' ? d.day : bucketOf(Date.parse(`${d.day}T00:00:00Z`), interval, 0),
     count: Number(d.n),
   }));
   if (lastRolled < toDay) {
-    const rawFrom = Date.parse(`${dayAfter(lastRolled)}T00:00:00Z`) - off;
+    const rawFrom = fromLocal(Date.parse(`${dayAfter(lastRolled)}T00:00:00Z`), projectTz(project));
+    const rawRange = { from: rawFrom, to: range.to };
     const agg = math === 'unique' ? `COUNT(DISTINCT ${PERSON_KEY})` : 'COUNT(*)';
     const raw = (await all(
-      `SELECT ${bucketSql(interval)} AS bucket, ${agg} AS count FROM analytics_events e ${math === 'unique' ? personJoins(false) : ''}
+      `SELECT ${bucketSql(interval, 'e.ts', shiftFor(project, rawRange))} AS bucket, ${agg} AS count FROM analytics_events e ${math === 'unique' ? personJoins(false) : ''}
        WHERE e.project_id = ? AND e.event = ? AND e.ts >= ? AND e.ts <= ? GROUP BY 1`,
-      [off, project.id, event, rawFrom, range.to],
+      [offAt(project, rawFrom), project.id, event, rawFrom, range.to],
     )) as Array<{ bucket: string; count: number }>;
     rows.push(...raw);
   }
@@ -238,15 +242,16 @@ async function percentileSeries(
   where: Frag,
   joins: string,
   buckets: string[],
+  range: { from: number; to: number },
 ): Promise<Array<{ value: string | null; data: number[]; total: number }>> {
   if (!s.mathProperty) throw new QueryError('math_property_required');
   const p = PERCENTILE_OF[s.math];
   const v = numericProp(s.mathProperty);
   const bd = q.breakdown ? propText(q.breakdown.key, q.breakdown.type) : null;
   const rows = (await all(
-    `SELECT ${bucketSql(q.interval)} AS bucket, ${bd ? bd.sql : 'NULL'} AS value, ${v.sql} AS v FROM analytics_events e ${joins}
+    `SELECT ${bucketSql(q.interval, 'e.ts', shiftFor(project, range))} AS bucket, ${bd ? bd.sql : 'NULL'} AS value, ${v.sql} AS v FROM analytics_events e ${joins}
      WHERE ${where.sql} AND ${v.sql} IS NOT NULL LIMIT ?`,
-    [offMs(project), ...(bd?.args ?? []), ...v.args, ...where.args, ...v.args, ROW_CAP],
+    [offAt(project, range.from), ...(bd?.args ?? []), ...v.args, ...where.args, ...v.args, ROW_CAP],
   )) as Array<{ bucket: string; value: string | null; v: number }>;
   const groups = new Map<string | null, Map<string, number[]>>();
   for (const r of rows) {
@@ -266,8 +271,9 @@ async function percentileSeries(
 }
 
 async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: number; to: number }, now: number) {
-  const off = offMs(project);
-  const tz = Number(project.tz_offset_min);
+  const off = offAt(project, range.from);
+  const shift = shiftFor(project, range);
+  const tz = projectTz(project);
   const buckets = bucketList(range.from, range.to, q.interval, tz);
   const cohort = await cohortFrag(project, q.cohortId, now);
   const actions = await loadActions(project.id, q.series.map((s) => s.event));
@@ -290,14 +296,14 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
     const joins = usesPerson || withPerson || cohort ? personJoins(withPerson) : '';
     const where = whereFor(project, range, s.event, filters, cohort, actions);
     if (PERCENTILE_OF[s.math] !== undefined) {
-      for (const b of await percentileSeries(project, s, q, where, joins, buckets)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total });
+      for (const b of await percentileSeries(project, s, q, where, joins, buckets, range)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total });
       continue;
     }
     const agg = aggSql(s);
     if (q.breakdown) {
       const value = propText(q.breakdown.key, q.breakdown.type);
       const rows = (await all(
-        `SELECT ${bucketSql(q.interval)} AS bucket, ${value.sql} AS value, ${agg.sql} AS count FROM analytics_events e ${joins}
+        `SELECT ${bucketSql(q.interval, 'e.ts', shift)} AS bucket, ${value.sql} AS value, ${agg.sql} AS count FROM analytics_events e ${joins}
          WHERE ${where.sql} GROUP BY 1, 2`,
         [off, ...value.args, ...agg.args, ...where.args],
       )) as Array<{ bucket: string; value: string | null; count: number }>;
@@ -305,7 +311,7 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
         out.push({ label, breakdownValue: b.value, data: b.data, total: round2(b.total) });
       }
     } else {
-      const rows = (await all(`SELECT ${bucketSql(q.interval)} AS bucket, ${agg.sql} AS count FROM analytics_events e ${joins} WHERE ${where.sql} GROUP BY 1`, [
+      const rows = (await all(`SELECT ${bucketSql(q.interval, 'e.ts', shift)} AS bucket, ${agg.sql} AS count FROM analytics_events e ${joins} WHERE ${where.sql} GROUP BY 1`, [
         off,
         ...agg.args,
         ...where.args,
@@ -326,11 +332,11 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
 }
 
 export async function runTrends(project: ProjectRow, q: TrendsQuery, now = Date.now()): Promise<TrendsResult> {
-  const range = resolveRange(q.dateRange, now, Number(project.tz_offset_min));
+  const range = resolveRange(q.dateRange, now, projectTz(project));
   const cur = await trendOnce(project, q, range, now);
   const series = cur.series.map((s) => ({ ...s }) as TrendsResult['series'][number]);
   if (q.compare) {
-    const prev = await trendOnce(project, q, previousAligned(range, q.interval, Number(project.tz_offset_min)), now);
+    const prev = await trendOnce(project, q, previousAligned(range, q.interval, projectTz(project)), now);
     for (const s of series) {
       const match = prev.series.find((p) => p.label === s.label && p.breakdownValue === s.breakdownValue);
       const data = match?.data ?? [];
@@ -396,7 +402,7 @@ async function funnelRows(project: ProjectRow, q: FunnelQuery, range: { from: nu
 }
 
 export async function runFunnel(project: ProjectRow, q: FunnelQuery, now = Date.now()): Promise<FunnelResult> {
-  const range = resolveRange(q.dateRange, now, Number(project.tz_offset_min));
+  const range = resolveRange(q.dateRange, now, projectTz(project));
   const windowMs = q.windowDays * DAY;
   const { list, truncated, actions } = await funnelRows(project, q, range, windowMs, now);
   const c = computeFunnel(list, q.steps.length, windowMs, range);
@@ -425,7 +431,7 @@ const CORRELATION_PEOPLE = 5000;
 /** Qué hicieron (o qué propiedades tienen) los que convirtieron y los que no. */
 export async function runCorrelation(project: ProjectRow, q: CorrelationQuery, now = Date.now()): Promise<CorrelationResult> {
   const f = q.funnel;
-  const range = resolveRange(f.dateRange, now, Number(project.tz_offset_min));
+  const range = resolveRange(f.dateRange, now, projectTz(project));
   const windowMs = f.windowDays * DAY;
   const { list, truncated } = await funnelRows(project, { ...f, groupType: null }, range, windowMs, now);
   const c = computeFunnel(list, f.steps.length, windowMs, range, Number.MAX_SAFE_INTEGER);
@@ -467,7 +473,7 @@ export async function runCorrelation(project: ProjectRow, q: CorrelationQuery, n
 const INTERVAL_MS = { day: DAY, week: 7 * DAY, month: 30 * DAY } as const;
 
 export async function runStickiness(project: ProjectRow, q: StickinessQuery, now = Date.now()): Promise<StickinessResult> {
-  const tz = Number(project.tz_offset_min);
+  const tz = projectTz(project);
   const range = resolveRange(q.dateRange, now, tz);
   const intervals = Math.max(bucketList(range.from, range.to, q.interval, tz).length, 1);
   const cohort = await cohortFrag(project, q.cohortId, now);
@@ -478,9 +484,9 @@ export async function runStickiness(project: ProjectRow, q: StickinessQuery, now
     const filters = [...internalFilters(project, q.excludeInternal), ...q.filters, ...s.filters];
     const where = whereFor(project, range, s.event, filters, cohort, actions);
     const rows = (await all(
-      `SELECT ${PERSON_KEY} AS person, COUNT(DISTINCT ${bucketSql(q.interval)}) AS n FROM analytics_events e ${personJoins(needsPerson(filters))}
+      `SELECT ${PERSON_KEY} AS person, COUNT(DISTINCT ${bucketSql(q.interval, 'e.ts', shiftFor(project, range))}) AS n FROM analytics_events e ${personJoins(needsPerson(filters))}
        WHERE ${where.sql} GROUP BY 1 LIMIT ?`,
-      [offMs(project), ...where.args, ROW_CAP + 1],
+      [offAt(project, range.from), ...where.args, ROW_CAP + 1],
     )) as Array<{ person: string; n: number }>;
     truncated = truncated || rows.length > ROW_CAP;
     const data = stickinessHistogram(rows.slice(0, ROW_CAP).map((r) => Number(r.n)), intervals);
@@ -492,18 +498,18 @@ export async function runStickiness(project: ProjectRow, q: StickinessQuery, now
 // ---------- Ciclo de vida ----------
 
 export async function runLifecycle(project: ProjectRow, q: LifecycleQuery, now = Date.now()): Promise<LifecycleResult> {
-  const tz = Number(project.tz_offset_min);
-  const off = offMs(project);
+  const tz = projectTz(project);
   const range = resolveRange(q.dateRange, now, tz);
   // Una cubeta antes del rango, para saber quién venía del intervalo anterior.
   const before = range.from - INTERVAL_MS[q.interval];
+  const off = offAt(project, before);
   const buckets = bucketList(before, range.to, q.interval, tz);
   const cohort = await cohortFrag(project, q.cohortId, now);
   const actions = await loadActions(project.id, [q.event]);
   const filters = [...internalFilters(project, q.excludeInternal), ...q.filters, ...q.eventFilters];
   const joins = personJoins(needsPerson(filters));
   const where = whereFor(project, { from: before, to: range.to }, q.event, filters, cohort, actions);
-  const rows = (await all(`SELECT DISTINCT ${PERSON_KEY} AS person, ${bucketSql(q.interval)} AS bucket FROM analytics_events e ${joins} WHERE ${where.sql} LIMIT ?`, [
+  const rows = (await all(`SELECT DISTINCT ${PERSON_KEY} AS person, ${bucketSql(q.interval, 'e.ts', shiftFor(project, { from: before, to: range.to }))} AS bucket FROM analytics_events e ${joins} WHERE ${where.sql} LIMIT ?`, [
     off,
     ...where.args,
     ROW_CAP + 1,
@@ -522,18 +528,19 @@ export async function runLifecycle(project: ProjectRow, q: LifecycleQuery, now =
 // ---------- Retención ----------
 
 export async function runRetention(project: ProjectRow, q: RetentionQuery, now = Date.now()): Promise<RetentionResult> {
-  const tz = Number(project.tz_offset_min);
-  const off = offMs(project);
+  const tz = projectTz(project);
   const lastPeriod = periodOf(now, q.period, tz);
   const firstPeriod = lastPeriod - q.periods + 1;
   const firstDay = q.period === 'day' ? firstPeriod : firstPeriod * 7 - 3;
-  const from = firstDay * DAY - off;
+  const from = fromLocal(firstDay * DAY, tz);
+  const off = offAt(project, from);
+  const shift = shiftFor(project, { from, to: now });
   const cohort = await cohortFrag(project, q.cohortId, now);
   const filters = [...internalFilters(project, q.excludeInternal), ...q.filters];
   const actions = await loadActions(project.id, [q.startEvent, q.returnEvent]);
   const withPerson = needsPerson(filters);
   // CAST: Turso manda los números como REAL y la división tiene que ser entera.
-  const periodSql = q.period === 'day' ? '((e.ts + CAST(? AS INTEGER)) / 86400000)' : '((((e.ts + CAST(? AS INTEGER)) / 86400000) + 3) / 7)';
+  const periodSql = q.period === 'day' ? `((e.ts + CAST(? AS INTEGER)${shift}) / 86400000)` : `((((e.ts + CAST(? AS INTEGER)${shift}) / 86400000) + 3) / 7)`;
   const fetch = async (event: string) => {
     const where = whereFor(project, { from, to: now }, event, filters, cohort, actions);
     return (await all(
@@ -561,7 +568,7 @@ export async function runRetention(project: ProjectRow, q: RetentionQuery, now =
 // ---------- Caminos ----------
 
 export async function runPaths(project: ProjectRow, q: PathsQuery, now = Date.now()): Promise<PathsResult> {
-  const range = resolveRange(q.dateRange, now, Number(project.tz_offset_min));
+  const range = resolveRange(q.dateRange, now, projectTz(project));
   // Con eventos propios: la página o el nombre del evento (sin el ruido de autocapture e identify).
   const source = q.source ?? 'pageviews';
   const rows = (await all(
@@ -653,9 +660,9 @@ export async function runInsight(project: ProjectRow, q: InsightQuery, now = Dat
 type Top = Array<{ key: string; visitors: number; views: number }>;
 
 export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now()): Promise<WebResult> {
-  const tz = Number(project.tz_offset_min);
-  const off = offMs(project);
+  const tz = projectTz(project);
   const range = resolveRange(q.dateRange, now, tz);
+  const off = offAt(project, range.from);
   const prev = previousAligned(range, range.to - range.from <= 2 * DAY ? 'hour' : 'day', tz);
   const interval = range.to - range.from <= 2 * DAY ? 'hour' : 'day';
   const buckets = bucketList(range.from, range.to, interval, tz);
@@ -700,7 +707,7 @@ export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now())
     stats(range),
     q.compare ? stats(prev) : Promise.resolve(null),
     all(
-      `SELECT ${bucketSql(interval)} AS bucket, COUNT(DISTINCT ${PERSON_KEY}) AS visitors, COUNT(*) AS views FROM analytics_events e ${join}
+      `SELECT ${bucketSql(interval, 'e.ts', shiftFor(project, range))} AS bucket, COUNT(DISTINCT ${PERSON_KEY}) AS visitors, COUNT(*) AS views FROM analytics_events e ${join}
        WHERE ${pv} GROUP BY 1`,
       [off, ...pvArgs(range)],
     ),

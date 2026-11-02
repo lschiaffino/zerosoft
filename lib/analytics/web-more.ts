@@ -8,6 +8,7 @@ import { personJoins, PERSON_KEY } from './sql-build';
 import { computeVitals, webFiltersSql, type VitalRow } from './web-core';
 import type { ProjectRow } from './projects';
 import type { VitalsResult, WebFilter } from './more-types';
+import { projectTz } from './tz';
 
 export const VITALS_ROW_CAP = 20_000;
 const LIVE_WINDOW_MS = 5 * 60_000;
@@ -23,7 +24,7 @@ export async function liveVisitors(project: ProjectRow, now = Date.now()): Promi
 const v = (metric: string) => `json_extract(e.properties, '$."$web_vitals_${metric}_value"')`;
 
 export async function webVitals(project: ProjectRow, query: { from?: string; filters?: readonly WebFilter[] }, now = Date.now()): Promise<VitalsResult> {
-  const range = resolveRange({ from: query.from ?? '-7d' }, now, Number(project.tz_offset_min));
+  const range = resolveRange({ from: query.from ?? '-7d' }, now, projectTz(project));
   const f = webFiltersSql(query.filters ?? []);
   const rows = (await getDb()
     .prepare(

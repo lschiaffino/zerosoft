@@ -549,7 +549,7 @@
     "retention": "Keep events for",
     "days": "{n} days",
     "timezone": "Project time zone",
-    "timezoneHelp": "Days and weeks in insights start at midnight in this offset. It doesn't follow daylight saving time.",
+    "timezoneHelp": "Days and weeks in insights start at midnight in this zone and follow its daylight saving changes. Changing it rebuilds the daily totals.",
     "saved": "Settings saved",
     "deleteTitle": "Delete project",
     "deleteDesc": "The key stops accepting events right away. Events, people, insights, dashboards, cohorts and flags of the project are erased.",
@@ -568,7 +568,8 @@
     "sdkTitle": "Server SDKs",
     "sdkDesc": "The capture and flags endpoints speak the PostHog protocol: use posthog-node with your public key and this host. Other PostHog SDKs may work the same way; only posthog-node has been tried.",
     "localEvalTitle": "Flags on your server",
-    "localEvalDesc": "Fetch the definitions with the secret key and evaluate them without a request per check. They use the same hash as PostHog."
+    "localEvalDesc": "Fetch the definitions with the secret key and evaluate them without a request per check. They use the same hash as PostHog.",
+    "timezoneFixed": "Fixed offset {offset} (no daylight saving)"
   },
   "share": {
     "title": "Public link",

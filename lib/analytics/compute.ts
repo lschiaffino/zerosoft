@@ -4,6 +4,7 @@
  * servidor trae filas ya filtradas por proyecto y acá se agregan.
  */
 import type { DateRange, Interval } from './types';
+import { fromLocal, offsetMsAt, type Tz } from './tz';
 
 const HOUR = 3_600_000;
 const DAY = 86_400_000;
@@ -14,12 +15,11 @@ const DAY = 86_400_000;
  * Rango [from, to] en ms. `from` relativo ('-7d', '-24h', '-2w', '-3m') o una
  * fecha local del proyecto; `to` una fecha (fin de ese día) o ahora.
  */
-export function resolveRange(range: DateRange, now: number, offsetMin = 0): { from: number; to: number } {
-  const off = offsetMin * 60_000;
+export function resolveRange(range: DateRange, now: number, tz: Tz = 0): { from: number; to: number } {
   let to = now;
   if (range.to) {
     const t = Date.parse(`${range.to}T00:00:00Z`);
-    if (Number.isFinite(t)) to = Math.min(now, t - off + DAY - 1);
+    if (Number.isFinite(t)) to = Math.min(now, fromLocal(t + DAY, tz) - 1);
   }
   let from: number;
   const rel = /^-(\d{1,4})([hdwm])$/.exec(range.from);
@@ -30,12 +30,12 @@ export function resolveRange(range: DateRange, now: number, offsetMin = 0): { fr
     else {
       const days = unit === 'd' ? n : unit === 'w' ? n * 7 : n * 30;
       // Días enteros del proyecto: desde la medianoche local de hace N-1 días.
-      const localToday = Math.floor((to + off) / DAY) * DAY;
-      from = localToday - (days - 1) * DAY - off;
+      const localToday = Math.floor((to + offsetMsAt(tz, to)) / DAY) * DAY;
+      from = fromLocal(localToday - (days - 1) * DAY, tz);
     }
   } else {
     const f = Date.parse(`${range.from}T00:00:00Z`);
-    from = Number.isFinite(f) ? f - off : to - 7 * DAY;
+    from = Number.isFinite(f) ? fromLocal(f, tz) : to - 7 * DAY;
   }
   if (from > to) from = to;
   return { from, to };
@@ -52,22 +52,24 @@ export function previousRange(r: { from: number; to: number }): { from: number; 
  * atrás. Con un rango de 7 días que termina ahora, compara los mismos 7 días
  * cortados a la misma hora, y cada cubeta cae frente a su equivalente.
  */
-export function previousAligned(r: { from: number; to: number }, interval: Interval, offsetMin = 0): { from: number; to: number } {
-  const n = bucketList(r.from, r.to, interval, offsetMin).length;
+export function previousAligned(r: { from: number; to: number }, interval: Interval, tz: Tz = 0): { from: number; to: number } {
+  const n = bucketList(r.from, r.to, interval, tz).length;
   if (interval === 'month') {
-    const off = offsetMin * 60_000;
     const back = (ts: number) => {
-      const d = new Date(ts + off);
+      const d = new Date(ts + offsetMsAt(tz, ts));
       const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - n, 1));
       const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
       target.setUTCDate(Math.min(d.getUTCDate(), lastDay));
       target.setUTCHours(d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds(), d.getUTCMilliseconds());
-      return target.getTime() - off;
+      return fromLocal(target.getTime(), tz);
     };
     return { from: back(r.from), to: back(r.to) };
   }
-  const unit = interval === 'hour' ? HOUR : interval === 'day' ? DAY : 7 * DAY;
-  return { from: r.from - n * unit, to: r.to - n * unit };
+  if (interval === 'hour') return { from: r.from - n * HOUR, to: r.to - n * HOUR };
+  // Días y semanas se corren en hora local: un cambio de hora en el medio no mueve el corte.
+  const unit = interval === 'day' ? DAY : 7 * DAY;
+  const back = (ts: number) => fromLocal(ts + offsetMsAt(tz, ts) - n * unit, tz);
+  return { from: back(r.from), to: back(r.to) };
 }
 
 // ---------- Cubetas ----------
@@ -81,8 +83,8 @@ function iso(ms: number): string {
  * misma que arma bucketSql en SQLite: 'YYYY-MM-DD HH:00', 'YYYY-MM-DD'
  * (día), el lunes de la semana o 'YYYY-MM-01'.
  */
-export function bucketOf(ts: number, interval: Interval, offsetMin = 0): string {
-  const local = ts + offsetMin * 60_000;
+export function bucketOf(ts: number, interval: Interval, tz: Tz = 0): string {
+  const local = ts + offsetMsAt(tz, ts);
   const s = iso(local);
   switch (interval) {
     case 'hour':
@@ -100,9 +102,13 @@ export function bucketOf(ts: number, interval: Interval, offsetMin = 0): string 
   }
 }
 
-/** Expresión SQLite con la misma etiqueta que bucketOf (columna `ts` en ms; un parámetro: el desfase en ms). */
-export function bucketSql(interval: Interval, col = 'e.ts'): string {
-  const t = `((${col} + CAST(? AS INTEGER)) / 1000)`;
+/**
+ * Expresión SQLite con la misma etiqueta que bucketOf (columna `ts` en ms; un
+ * parámetro: el desfase en ms al inicio del rango). `shift` corrige los eventos
+ * posteriores a un cambio de hora (tzShiftSql).
+ */
+export function bucketSql(interval: Interval, col = 'e.ts', shift = ''): string {
+  const t = `((${col} + CAST(? AS INTEGER)${shift}) / 1000)`;
   switch (interval) {
     case 'hour':
       return `strftime('%Y-%m-%d %H:00', ${t}, 'unixepoch')`;
@@ -116,18 +122,18 @@ export function bucketSql(interval: Interval, col = 'e.ts'): string {
 }
 
 /** Todas las cubetas del rango, en orden (las vacías también). Tope de 2000. */
-export function bucketList(from: number, to: number, interval: Interval, offsetMin = 0): string[] {
+export function bucketList(from: number, to: number, interval: Interval, tz: Tz = 0): string[] {
   const out: string[] = [];
   const step = interval === 'hour' ? HOUR : DAY;
   let last = '';
   for (let t = from; t <= to && out.length < 2000; t += step) {
-    const b = bucketOf(t, interval, offsetMin);
+    const b = bucketOf(t, interval, tz);
     if (b !== last) {
       out.push(b);
       last = b;
     }
   }
-  const end = bucketOf(to, interval, offsetMin);
+  const end = bucketOf(to, interval, tz);
   if (out[out.length - 1] !== end && out.length < 2000) out.push(end);
   return out;
 }
@@ -306,8 +312,8 @@ export function computeRetention(
 }
 
 /** Número de período (días o semanas desde 1970, semanas desde el lunes) con el desfase del proyecto. */
-export function periodOf(ts: number, period: 'day' | 'week', offsetMin = 0): number {
-  const day = Math.floor((ts + offsetMin * 60_000) / DAY);
+export function periodOf(ts: number, period: 'day' | 'week', tz: Tz = 0): number {
+  const day = Math.floor((ts + offsetMsAt(tz, ts)) / DAY);
   return period === 'day' ? day : Math.floor((day + 3) / 7);
 }
 

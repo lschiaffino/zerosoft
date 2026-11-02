@@ -4,6 +4,7 @@
  * un tope. Totales, por modelo y por día sobre filas ya acotadas.
  */
 import { bucketList, bucketOf } from './compute';
+import type { Tz } from './tz';
 import { percentile } from './web-core';
 import type { LlmModelRow, LlmOverview, LlmTotals } from './more-types';
 
@@ -56,10 +57,10 @@ function add(t: LlmTotals, r: LlmRow): void {
 
 export const LLM_MAX_MODELS = 50;
 
-export function computeLlm(rows: readonly LlmRow[], range: { from: number; to: number }, tzOffsetMin: number, truncated: boolean): LlmOverview {
+export function computeLlm(rows: readonly LlmRow[], range: { from: number; to: number }, tz: Tz, truncated: boolean): LlmOverview {
   const totals = emptyTotals();
   const models = new Map<string, { totals: LlmTotals; provider: string | null; latencies: number[] }>();
-  const buckets = bucketList(range.from, range.to, 'day', tzOffsetMin);
+  const buckets = bucketList(range.from, range.to, 'day', tz);
   const index = new Map(buckets.map((b, i) => [b, i]));
   const callsPerDay = buckets.map(() => 0);
   const costPerDay = buckets.map(() => 0);
@@ -74,7 +75,7 @@ export function computeLlm(rows: readonly LlmRow[], range: { from: number; to: n
     add(m.totals, r);
     const l = latencyMs(r.latency);
     if (l !== null) m.latencies.push(l);
-    const i = index.get(bucketOf(r.ts, 'day', tzOffsetMin));
+    const i = index.get(bucketOf(r.ts, 'day', tz));
     if (i !== undefined) {
       callsPerDay[i]++;
       costPerDay[i] += clampNumber(r.cost, LLM_MAX.costUsd);

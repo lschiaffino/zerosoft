@@ -8,6 +8,7 @@ import { resolveRange } from './compute';
 import { clampNumber, cleanLabel, computeLlm, latencyMs, LLM_MAX, truthy, type LlmRow } from './llm-core';
 import type { ProjectRow } from './projects';
 import type { LlmGeneration, LlmGenerationDetail, LlmOverview, LlmTrace } from './more-types';
+import { projectTz } from './tz';
 
 export const LLM_ROW_CAP = 50_000;
 const TEXT_CAP = 8000;
@@ -15,7 +16,7 @@ const TEXT_CAP = 8000;
 const j = (key: string, alias = 'e') => `json_extract(${alias}.properties, '$."${key}"')`;
 
 export async function llmOverview(project: ProjectRow, query: { from?: string }, now = Date.now()): Promise<LlmOverview> {
-  const tz = Number(project.tz_offset_min);
+  const tz = projectTz(project);
   const range = resolveRange({ from: query.from ?? '-30d' }, now, tz);
   const rows = (await getDb()
     .prepare(
@@ -57,7 +58,7 @@ export interface GenerationQuery {
 
 /** Generaciones, lo más nuevo primero, con cursor por id. */
 export async function llmGenerations(project: ProjectRow, q: GenerationQuery, now = Date.now()): Promise<{ generations: LlmGeneration[]; nextBefore: number | null }> {
-  const range = resolveRange({ from: q.from ?? '-30d' }, now, Number(project.tz_offset_min));
+  const range = resolveRange({ from: q.from ?? '-30d' }, now, projectTz(project));
   const limit = Math.min(Math.max(q.limit ?? 50, 1), 100);
   const parts = [`e.project_id = ?`, `e.event = '$ai_generation'`, 'e.ts >= ?', 'e.ts <= ?'];
   const args: Array<string | number> = [project.id, range.from, range.to];
@@ -85,7 +86,7 @@ const num = (key: string, max: number) => `MIN(MAX(COALESCE(CAST(${j(key)} AS RE
 
 /** Trazas del rango (una por $ai_trace_id), con totales. */
 export async function llmTraces(project: ProjectRow, q: { from?: string }, now = Date.now()): Promise<LlmTrace[]> {
-  const range = resolveRange({ from: q.from ?? '-30d' }, now, Number(project.tz_offset_min));
+  const range = resolveRange({ from: q.from ?? '-30d' }, now, projectTz(project));
   const rows = (await getDb()
     .prepare(
       `SELECT trace, COUNT(*) AS n, SUM(input) AS input, SUM(output) AS output, SUM(cost) AS cost, SUM(err) AS errors, MIN(ts) AS first_ts, MAX(ts) AS last_ts FROM (

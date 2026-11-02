@@ -10,6 +10,7 @@
  */
 import { getDb } from '../db';
 import { bucketOf } from './compute';
+import { fromLocal, projectTz, type Tz } from './tz';
 import { purgeProjectRecordings, runReplayRetention } from './replay';
 import { runErrorRegressions } from './errors';
 
@@ -17,8 +18,8 @@ const DAY = 86_400_000;
 const CLAIM_MS = 10 * 60_000;
 const CHUNK = 5000;
 
-function dayStartMs(day: string, offsetMin: number): number {
-  return Date.parse(`${day}T00:00:00Z`) - offsetMin * 60_000;
+function dayStartMs(day: string, tz: Tz): number {
+  return fromLocal(Date.parse(`${day}T00:00:00Z`), tz);
 }
 
 function addDays(day: string, n: number): string {
@@ -125,10 +126,10 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
   // 2. Rollup diario: hasta ayer (día local del proyecto), 31 días por corrida.
   const candidates = (await db
     .prepare(
-      `SELECT id, tz_offset_min, rolled_through, dirty_from FROM analytics_projects
+      `SELECT id, tz_offset_min, tz_name, rolled_through, dirty_from FROM analytics_projects
        WHERE deleted_at IS NULL AND (rollup_claimed_at IS NULL OR rollup_claimed_at < ?) ORDER BY rollup_claimed_at LIMIT 50`,
     )
-    .all(now - CLAIM_MS)) as Array<{ id: string; tz_offset_min: number; rolled_through: string | null; dirty_from: string | null }>;
+    .all(now - CLAIM_MS)) as Array<{ id: string; tz_offset_min: number; tz_name: string | null; rolled_through: string | null; dirty_from: string | null }>;
   for (const p of candidates) {
     if (left() <= 0) break;
     try {
@@ -139,7 +140,7 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     }
   }
   async function rollup(p: (typeof candidates)[number]) {
-    const tz = Number(p.tz_offset_min);
+    const tz = projectTz(p);
     const yesterday = addDays(bucketOf(now, 'day', tz), -1);
     let from: string | null = p.dirty_from ?? (p.rolled_through ? addDays(p.rolled_through, 1) : null);
     if (!from) {
@@ -162,7 +163,7 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
            LEFT JOIN analytics_person_ids m ON m.project_id = e.project_id AND m.distinct_id = e.distinct_id
            WHERE e.project_id = ? AND e.ts >= ? AND e.ts < ? GROUP BY e.event`,
         )
-        .run(day, p.id, start, start + DAY);
+        .run(day, p.id, start, dayStartMs(addDays(day, 1), tz));
       out.rolledDays++;
       last = day;
       day = addDays(day, 1);

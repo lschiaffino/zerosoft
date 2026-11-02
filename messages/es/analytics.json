@@ -549,7 +549,7 @@
     "retention": "Guardar eventos durante",
     "days": "{n} días",
     "timezone": "Zona horaria del proyecto",
-    "timezoneHelp": "Los días y semanas de los insights empiezan a medianoche en este desfase. No sigue el horario de verano.",
+    "timezoneHelp": "Los días y semanas de los insights empiezan a medianoche en esta zona y siguen sus cambios de hora. Cambiarla rehace los totales diarios.",
     "saved": "Ajustes guardados",
     "deleteTitle": "Borrar proyecto",
     "deleteDesc": "La key deja de aceptar eventos al instante. Se borran los eventos, personas, insights, tableros, cohortes y flags del proyecto.",
@@ -568,7 +568,8 @@
     "sdkTitle": "SDKs de servidor",
     "sdkDesc": "Los endpoints de captura y flags hablan el protocolo de PostHog: usá posthog-node con tu key pública y este host. Otros SDKs de PostHog pueden andar igual; solo se probó posthog-node.",
     "localEvalTitle": "Flags en tu servidor",
-    "localEvalDesc": "Traé las definiciones con la key secreta y evaluálas sin un pedido por chequeo. Usan el mismo hash que PostHog."
+    "localEvalDesc": "Traé las definiciones con la key secreta y evaluálas sin un pedido por chequeo. Usan el mismo hash que PostHog.",
+    "timezoneFixed": "Desfase fijo {offset} (sin horario de verano)"
   },
   "share": {
     "title": "Link público",

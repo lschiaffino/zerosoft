@@ -449,6 +449,7 @@ export interface ProjectDto {
   webVitals: boolean;
   retentionDays: number;
   tzOffsetMin: number;
+  tzName: string | null;
   /** Filtros que definen gente interna o de prueba (se aplican con excludeInternal). */
   testFilters: PropertyFilter[];
   createdAt: string;

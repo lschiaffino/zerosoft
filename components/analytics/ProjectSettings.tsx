@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ProjectDto, PropertyFilter } from '@/lib/analytics/types';
 import { FilterList, cleanFilters, useProjectMeta } from './Filters';
+import { offsetLabel } from '@/lib/analytics/tz';
 import { ApiError, apiErrorText, api, notifyChanged } from './client';
 import ReplaySettings from './replay/ReplaySettings';
 
@@ -46,6 +47,10 @@ export default function ProjectSettings({ project, canManage }: { project: Proje
   const tm = useTranslations('analyticsMore.settings');
   const router = useRouter();
   const [origin, setOrigin] = useState('https://zerosoft.ai');
+  // Las zonas salen del navegador: la lista completa recién al montar, para no romper la hidratación.
+  const [zones, setZones] = useState<string[]>([]);
+  useEffect(() => setZones(Intl.supportedValuesOf('timeZone')), []);
+  const labelAt = useMemo(() => Date.parse('2026-01-15T12:00:00Z'), []);
   useEffect(() => setOrigin(window.location.origin), []);
   const [form, setForm] = useState({
     name: project.name,
@@ -57,6 +62,7 @@ export default function ProjectSettings({ project, canManage }: { project: Proje
     webVitals: project.webVitals,
     retentionDays: project.retentionDays,
     tzOffsetMin: project.tzOffsetMin,
+    tzName: project.tzName,
   });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -74,6 +80,7 @@ export default function ProjectSettings({ project, canManage }: { project: Proje
       webVitals: project.webVitals,
       retentionDays: project.retentionDays,
       tzOffsetMin: project.tzOffsetMin,
+    tzName: project.tzName,
     });
     setSecret(null);
   }, [project]);
@@ -111,7 +118,7 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
           captureExceptions: form.captureExceptions,
           webVitals: form.webVitals,
           retentionDays: form.retentionDays,
-          tzOffsetMin: form.tzOffsetMin,
+          tzName: form.tzName,
         },
       });
       setMsg({ ok: true, text: t('saved') });
@@ -240,11 +247,17 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
             </label>
             <label className="ui-field">
               <span className="label">{t('timezone')}</span>
-              <select className="select" value={form.tzOffsetMin} onChange={(e) => setForm({ ...form, tzOffsetMin: Number(e.target.value) })}>
-                {Array.from({ length: 27 }, (_, i) => (i - 12) * 60).map((m) => (
-                  <option key={m} value={m}>
-                    UTC{m >= 0 ? '+' : '−'}
-                    {Math.abs(m / 60)}
+              <select
+                className="select"
+                data-testid="an-timezone"
+                value={form.tzName ?? ''}
+                onChange={(e) => setForm({ ...form, tzName: e.target.value || null })}
+              >
+                {/* Un proyecto de antes sigue con su desfase fijo hasta que elige una zona. */}
+                {!project.tzName && <option value="">{t('timezoneFixed', { offset: offsetLabel(project.tzOffsetMin, 0) })}</option>}
+                {[...new Set([...(form.tzName ? [form.tzName] : []), ...zones])].map((z) => (
+                  <option key={z} value={z}>
+                    {z.replace(/_/g, ' ')} ({offsetLabel(z, labelAt)})
                   </option>
                 ))}
               </select>
