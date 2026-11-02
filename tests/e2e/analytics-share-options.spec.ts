@@ -77,7 +77,7 @@ test('contraseña: pide, equivocarse no abre, acertar sí, y al quitarla se cort
   expect(await p.content()).not.toContain('Zebra report');
   await p.getByLabel('Password').fill('wrong');
   await p.getByRole('button', { name: 'Open' }).click();
-  await expect(p.getByRole('alert')).toContainText('not right');
+  await expect(p.locator('.ui-error')).toContainText('not right');
   await p.getByLabel('Password').fill(password);
   await p.getByRole('button', { name: 'Open' }).click();
   await expect(p.getByTestId('an-share-public')).toBeVisible({ timeout: 15_000 });

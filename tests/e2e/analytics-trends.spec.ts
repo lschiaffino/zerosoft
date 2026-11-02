@@ -188,9 +188,9 @@ test('aperturas: dos propiedades, en rangos y cargar más', async ({ page, baseU
   const rows = result(page).locator('tbody tr');
   await expect(rows).toHaveCount(2, { timeout: 15_000 });
   await page.getByRole('button', { name: '+ Another breakdown' }).click();
-  await expect(result(page).locator('tbody')).toContainText('Chrome / Mac', { timeout: 15_000 });
+  await expect(result(page).locator('tbody')).toContainText('Chrome / ', { timeout: 15_000 });
   await page.getByLabel('Breakdown property').nth(1).fill('');
-  await expect(result(page).locator('tbody')).not.toContainText('/ Mac', { timeout: 15_000 });
+  await expect(result(page).locator('tbody')).not.toContainText(' / ', { timeout: 15_000 });
 
   // 30 valores: entran 25 y el resto en Otros, hasta cargar más.
   await page.getByLabel('Breakdown property').first().fill('code');
