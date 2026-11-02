@@ -74,7 +74,8 @@ export async function openPdf(bytes: Buffer): Promise<PdfHandle> {
   } catch (err) {
     await task.destroy().catch(() => undefined);
     const e = err as { name?: string; message?: string };
-    if (e?.name === 'PasswordException') throw new SendError('pdf_password', 422);
+    // Cifrado que no abre sin más: lo que hay que pedir es sacarle la contraseña.
+    if (e?.name === 'PasswordException' || bytes.includes('/Encrypt')) throw new SendError('pdf_password', 422);
     // Un worker o una fuente que no cargó es del servidor, no del archivo.
     if (/worker|cannot find|module not found|ENOENT/i.test(e?.message ?? '')) throw new SendError('render_unavailable', 503);
     throw new SendError('pdf_invalid', 422);

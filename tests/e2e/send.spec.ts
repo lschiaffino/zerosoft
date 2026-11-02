@@ -84,7 +84,6 @@ function mailsTo(to: string): Array<{ to: string; subject: string; text: string 
     .filter((m) => m.to === to);
 }
 
-test.describe.configure({ mode: 'serial' });
 test.setTimeout(240_000);
 const slow = expect.configure({ timeout: 45_000 });
 
@@ -497,7 +496,7 @@ test('espacios: varios documentos detrás de un link, con números y acceso por 
   expect(await csv.text()).toContain(`limited${suffix}@acme.com`);
   await expect(page.getByTestId('send-space-denied')).toContainText(`outsider${suffix}@acme.com`);
   await page.getByTestId('send-space-tab-access').click();
-  await expect(page.getByTestId('send-access-row')).toContainText(`limited${suffix}@acme.com`);
+  await expect(page.getByTestId('send-access-row').filter({ hasText: `limited${suffix}@acme.com` })).toBeVisible();
   await page.goto('/en/app/send/spaces');
   await expect(page.getByTestId('send-space-row').filter({ hasText: 'Series A room' })).toBeVisible();
   await shot(page, 'spaces');

@@ -122,7 +122,7 @@ const parity: ProductParity = {
     }),
     row('passcode', 'access', ['Passcode', 'Código de acceso', 'Código de acesso'], 'have', {
       weight: 2,
-      detail: ['Hashed, with limits per person and per link', 'Con hash, y con topes por persona y por link', 'Com hash, e com limites por pessoa e por link'],
+      detail: ['Hashed, with a limit per person and a delay per link', 'Con hash, con un tope por persona y una demora por link', 'Com hash, com um limite por pessoa e uma espera por link'],
     }),
     row('expiry', 'access', ['Expiry date', 'Fecha de vencimiento', 'Data de vencimento'], 'have', { weight: 2 }),
     row('allow-block', 'access', ['Allow or block emails and domains', 'Permitir o bloquear emails y dominios', 'Permitir ou bloquear emails e domínios'], 'have', {

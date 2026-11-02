@@ -2188,7 +2188,7 @@
         },
         "f4": {
           "q": "¿Qué archivos puedo subir?",
-          "a": "PDF hasta 100 MB y 500 páginas, que se ve exacto. Word (.docx) y PowerPoint (.pptx) con un conversor simplificado: mirá la vista previa o exportá a PDF. Video hasta 1 GB. No se aceptan .doc, .ppt, Excel, Keynote ni PDF con contraseña."
+          "a": "PDF hasta 100 MB y 500 páginas, que se ve exacto. Word (.docx) y PowerPoint (.pptx) con un conversor simplificado: mirá la vista previa o exportá a PDF. Video hasta 1 GB, dentro del almacenamiento del workspace. No se aceptan .doc, .ppt, Excel, Keynote ni PDF con contraseña."
         },
         "f5": {
           "q": "¿Qué falta comparado con DocSend?",

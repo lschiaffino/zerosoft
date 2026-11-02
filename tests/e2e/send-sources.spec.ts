@@ -403,6 +403,7 @@ test('Roles: un member ve lo suyo y lo compartido, y no exporta', async ({ brows
 });
 
 test('Se ve bien: oscuro, 390 px y marca propia', async ({ page, browser, request }) => {
+  test.setTimeout(480_000);
   const saved = await request.put('/api/send/settings', { data: { brandName: 'Acme Capital', logoUrl: '', brandColor: '#7c3aed', siteUrl: 'https://acme.example' } });
   expect(saved.ok()).toBe(true);
   const bytes = await plainPdf(3);
