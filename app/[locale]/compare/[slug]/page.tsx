@@ -165,7 +165,7 @@ export default async function ComparePage(props: { params: Promise<Params> }) {
             <dl className="cmp-glance">
               <div>
                 <dt>{c.percentNote ? t('vs.glance.counts') : t('vs.glance.parity', v)}</dt>
-                <dd className="data">{c.percentNote ? `${c.score.have} · ${c.score.partial} · ${c.score.missing}` : `${c.score.percent}%`}</dd>
+                <dd className={c.percentNote ? "data cmp-glance-counts" : "data"}>{c.percentNote ? `${c.score.have} · ${c.score.partial} · ${c.score.missing}` : `${c.score.percent}%`}</dd>
               </div>
               {price && (
                 <div>
