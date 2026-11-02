@@ -12,8 +12,8 @@ const SPECS: Record<string, BoardSpec> = {
   // Track: cuatro columnas, las issues avanzan de a una y salen por la última.
   track: {
     columns: 4,
-    counts: [4, 4, 3, 3],
-    cardH: 5,
+    counts: [4, 3, 3, 3],
+    cardH: 6,
     moves: [[0, 1], [1, 2], [2, 3], [3, -1], [-1, 0], [1, 2], [0, 1], [2, 3], [3, -1], [-1, 0]],
   },
   // CRM: el embudo, cinco etapas que se angostan.
