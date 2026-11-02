@@ -27,7 +27,11 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
   const tc = await getTranslations({ locale, namespace: 'common' });
   // Paridad de cada app contra su competidor, calculada de content/feature-parity.
   const parity = Object.fromEntries(
-    PRODUCT_KEYS.map((k) => [k, t('parityShort', { percent: computeParity(PARITY[k].rows).percent, competitor: PARITY[k].competitor })]),
+    PRODUCT_KEYS.map((k) => {
+      const score = computeParity(PARITY[k].rows);
+      const competitor = PARITY[k].competitor;
+      return [k, PARITY[k].percentHidden ? t('parityCounts', { have: score.have, partial: score.partial, counted: score.counted, competitor }) : t('parityShort', { percent: score.percent, competitor })];
+    }),
   );
   const seoText = await staticPageText('products', locale);
   const ld = graphLd([

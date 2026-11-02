@@ -5,7 +5,7 @@
    de la app solo en series y barras.
    ============================================================ */
 
-.an-page section { padding-top: 0; padding-bottom: 0; }
+.an-page section:not(.ui-section):not(.an-panel) { padding-top: 0; padding-bottom: 0; }
 .an-page { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
 /* Colores de las series (la primera es la de la app). */
@@ -269,3 +269,73 @@
 }
 
 
+
+/* ---------- Métricas, formas nuevas ---------- */
+.an-area { fill: var(--an-c); opacity: 0.14; stroke: none; }
+.an-annotation-mark { fill: var(--dim); }
+.an-tip-note { max-width: 240px; white-space: normal; color: var(--dim); border-top: 1px solid var(--line); padding-top: 2px; margin-top: 2px; }
+.an-date-input { width: auto; max-width: 170px; }
+.an-grow { flex: 1 1 220px; min-width: 0; }
+.an-between { justify-content: space-between; }
+.an-flush { margin: 0; }
+.an-self-start { align-self: flex-start; }
+.an-wrap-cell { overflow-wrap: anywhere; }
+.an-form-tight { display: flex; flex-direction: column; gap: 4px; }
+
+/* Torta */
+.an-pie { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; }
+.an-pie-svg { width: 200px; height: 200px; flex: none; transform: none; }
+.an-pie-slice { stroke: var(--an-c); stroke-width: 8; }
+.an-pie-legend { flex: 1 1 220px; min-width: 0; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 0.8125rem; }
+.an-pie-legend li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.an-pie-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Ciclo de vida */
+.an-life-chart { height: 260px; }
+.an-life-new { fill: var(--c-analytics); }
+.an-life-returning { fill: color-mix(in srgb, var(--c-analytics) 45%, var(--bg)); }
+.an-life-resurrecting { fill: var(--c-cal); }
+.an-life-dormant { fill: var(--bad-ink); opacity: 0.55; }
+.an-life-swatch-new { background: var(--c-analytics); }
+.an-life-swatch-returning { background: color-mix(in srgb, var(--c-analytics) 45%, var(--bg)); }
+.an-life-swatch-resurrecting { background: var(--c-cal); }
+.an-life-swatch-dormant { background: var(--bad-ink); opacity: 0.55; }
+
+/* Sankey de caminos */
+.an-sankey-wrap { overflow-x: auto; max-width: 100%; }
+.an-sankey { display: block; }
+.an-sankey-band { stroke: var(--c-analytics); stroke-opacity: 0.22; }
+.an-sankey-band:hover { stroke-opacity: 0.45; }
+.an-sankey-node { fill: var(--c-analytics); }
+.an-sankey-label { font-family: var(--mono); font-size: 11px; fill: var(--ink); }
+
+/* Alertas y compartir */
+.an-alert-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.an-alert-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.875rem; }
+.an-alert-text { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.an-alert-state { font-size: 0.75rem; font-family: var(--mono); color: var(--dim); min-width: 72px; }
+.an-alert-state.is-firing, .an-alert-state.is-error { color: var(--bad-ink); }
+.an-alert-state.is-ok { color: var(--ok-ink); }
+.an-share-dialog { width: min(640px, calc(100vw - 32px)); }
+.an-share-row { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+
+/* Página pública */
+.an-share-public { max-width: 1100px; margin: 0 auto; padding: 32px clamp(16px, 3vw, 32px); display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.an-share-public.is-embed { padding: 0; max-width: none; }
+.an-share-head { display: flex; flex-direction: column; gap: 6px; }
+.an-share-title { margin: 0; font-size: 1.5rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.an-share-foot { font-size: 0.8125rem; }
+
+/* El selector de las acciones de la cabecera no ocupa toda la fila. */
+.an-header-select { width: auto; max-width: 220px; }
+
+/* Bloques seguidos dentro de un panel. */
+.an-panel > .an-code + .an-code, .an-panel > .an-code + form { margin-top: 8px; }
+
+/* En un teléfono, el evento de una serie o un paso no se aplasta contra sus controles. */
+.an-series > .an-row { flex-wrap: wrap; }
+/* Las pestañas de tipo de insight entran todas en un teléfono. */
+.an-editor .ui-tabs { flex-wrap: wrap; }
+.an-live-filter { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 0 1 280px; }
+.an-live { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.an-live > .an-toolbar { align-items: flex-end; }

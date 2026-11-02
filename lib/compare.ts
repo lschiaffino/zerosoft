@@ -1,5 +1,6 @@
 import { PARITY } from '@/content/feature-parity';
 import type { ParityRow } from '@/content/feature-parity/types';
+import type { Localized } from '@/content/feature-parity/types';
 import { computeParity, rowWeight, type ParityScore } from '@/lib/feature-parity';
 import { PRODUCT_CONFIG, PRODUCT_KEYS, type ProductKey } from '@/lib/products';
 
@@ -23,6 +24,8 @@ export interface Comparison {
   altSlug: string;
   lastReviewed: string;
   score: ParityScore;
+  /** Nota si esta app no publica porcentaje (content/feature-parity). */
+  percentNote: Localized | null;
 }
 
 /** "Excalidraw+" → "excalidraw-plus"; "Wispr Flow + Granola" → "wispr-flow-granola". */
@@ -50,6 +53,7 @@ function build(product: ProductKey): Comparison {
     altSlug: `${slug}-alternative`,
     lastReviewed: parity.lastReviewed,
     score: computeParity(parity.rows),
+    percentNote: parity.percentHidden?.note ?? null,
   };
 }
 

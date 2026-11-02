@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eventNames, propertyKeys } from '@/lib/analytics/query';
+import { hiddenEvents, listActions } from '@/lib/analytics/records-more';
 import { actorProject, analyticsActor, isResponse } from '@/lib/analytics/http';
 
 export const runtime = 'nodejs';
@@ -11,6 +12,11 @@ export async function GET(req: NextRequest) {
   if (isResponse(actor)) return actor;
   const project = await actorProject(actor, req.nextUrl.searchParams.get('project'));
   if (isResponse(project)) return project;
-  const [names, keys] = await Promise.all([eventNames(project), propertyKeys(project)]);
-  return NextResponse.json({ events: names.map((n) => n.event), eventProperties: keys.event, personProperties: keys.person });
+  const [names, keys, actions, hidden] = await Promise.all([eventNames(project), propertyKeys(project), listActions(project.id), hiddenEvents(project.id)]);
+  return NextResponse.json({
+    events: names.map((n) => n.event).filter((e) => !hidden.has(e)),
+    eventProperties: keys.event,
+    personProperties: keys.person,
+    actions: actions.map((a) => ({ id: a.id, name: a.name })),
+  });
 }

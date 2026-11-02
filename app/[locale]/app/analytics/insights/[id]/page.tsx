@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import NoProject from '@/components/analytics/NoProject';
+import { listAnnotations } from '@/lib/analytics/records-more';
+import { parseTestFilters } from '@/lib/analytics/projects';
 import InsightEditor from '@/components/analytics/InsightEditor';
 import SyncProject from '@/components/analytics/SyncProject';
 import { analyticsPage } from '@/lib/analytics/page';
@@ -30,7 +32,7 @@ export default async function AnalyticsInsightPage(props: { params: Promise<{ lo
   if (!ctx.project) return <NoProject title={t('title')} canManage={ctx.canManage} />;
   const insight = id === 'new' ? null : await getInsight(ctx.project.id, id);
   if (id !== 'new' && !insight) notFound();
-  const [dashboards, cohorts] = await Promise.all([listDashboards(ctx.project.id), listCohorts(ctx.project.id)]);
+  const [dashboards, cohorts, annotations] = await Promise.all([listDashboards(ctx.project.id), listCohorts(ctx.project.id), listAnnotations(ctx.project.id)]);
   const cookieProject = (await analyticsPage(locale)).project?.id ?? null;
   return (
     <>
@@ -42,6 +44,9 @@ export default async function AnalyticsInsightPage(props: { params: Promise<{ lo
         initialKind={INSIGHT_KINDS.includes(kind as InsightKind) ? (kind as InsightKind) : undefined}
         dashboards={dashboards.map((d) => ({ id: d.id, name: d.name, insightIds: d.insightIds }))}
         cohorts={cohorts.map((c) => ({ id: c.id, name: c.name }))}
+        hasInternalFilters={parseTestFilters(ctx.project.test_filters).length > 0}
+        canShare={ctx.canManage}
+        annotations={annotations.map((a) => ({ date: a.date, content: a.content }))}
       />
     </>
   );

@@ -67,7 +67,12 @@ export interface AppSearchItem {
     | 'analyticsInsights'
     | 'analyticsDashboards'
     | 'analyticsFlags'
+    | 'analyticsSurveys'
     | 'analyticsCohorts'
+    | 'analyticsActions'
+    | 'analyticsErrors'
+    | 'analyticsExperiments'
+    | 'analyticsAlerts'
     | 'analyticsProjects'
     | 'socialPosts'
     | 'socialLibrary';
@@ -432,7 +437,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       user.id,
       like,
     );
-  const [anInsights, anDashboards, anFlags, anCohorts, anProjects] = await Promise.all([
+  const [anInsights, anDashboards, anFlags, anCohorts, anProjects, anActions, anExperiments, anAlerts, anSurveys] = await Promise.all([
     analyticsIn('analytics_insights'),
     analyticsIn('analytics_dashboards'),
     // Flags: por clave o descripción (se muestra la descripción si hay).
@@ -445,7 +450,27 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ),
     analyticsIn('analytics_cohorts'),
     all(`SELECT id, name AS label FROM analytics_projects WHERE workspace_id = ? AND deleted_at IS NULL AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like),
+    analyticsIn('analytics_actions'),
+    analyticsIn('analytics_experiments'),
+    analyticsIn('analytics_alerts'),
+    analyticsIn('analytics_surveys'),
   ]);
+
+  // Errores de Analytics: no tienen nombre propio, se buscan por tipo y mensaje en los últimos 30 días, en todos los proyectos.
+  const anErrors = await all(
+    `SELECT e.project_id || '~' || json_extract(e.properties, '$."$exception_fingerprint"') AS id,
+            json_extract(e.properties, '$."$exception_type"') || ': ' || substr(COALESCE(json_extract(e.properties, '$."$exception_message"'), ''), 1, 100) AS label,
+            p.name AS meta
+     FROM analytics_events e JOIN analytics_projects p ON p.id = e.project_id
+     WHERE e.project_id IN (${analyticsProjects}) AND e.event = '$exception' AND e.ts >= ?
+       AND (json_extract(e.properties, '$."$exception_message"') LIKE ? ESCAPE '\\' OR json_extract(e.properties, '$."$exception_type"') LIKE ? ESCAPE '\\')
+       AND json_extract(e.properties, '$."$exception_fingerprint"') IS NOT NULL
+     GROUP BY 1 ORDER BY MAX(e.ts) DESC LIMIT ?`,
+    user.id,
+    Date.now() - 30 * 86_400_000,
+    like,
+    like,
+  );
 
   // Chat: conversaciones (asunto, visitante o texto), personas, vistas guardadas y equipos.
   const chatWidgets = `SELECT id FROM chat_widgets WHERE ${widgetWhere}`;
@@ -582,6 +607,11 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(anDashboards, 'analyticsDashboards', (id) => `/app/analytics/dashboards/${id}`),
     ...map(anFlags, 'analyticsFlags', (id) => `/app/analytics/flags/${id}`),
     ...map(anCohorts, 'analyticsCohorts', (id) => `/app/analytics/cohorts?open=${id}`),
+    ...map(anErrors, 'analyticsErrors', (id) => `/app/analytics/errors/${id}`),
+    ...map(anActions, 'analyticsActions', (id) => `/app/analytics/actions/${id}`),
+    ...map(anExperiments, 'analyticsExperiments', (id) => `/app/analytics/experiments/${id}`),
+    ...map(anAlerts, 'analyticsAlerts', () => `/app/analytics/alerts`),
+    ...map(anSurveys, 'analyticsSurveys', (id) => `/app/analytics/surveys/${id}`),
     ...map(anProjects, 'analyticsProjects', (id) => `/app/analytics/settings?project=${id}`),
   ];
 }

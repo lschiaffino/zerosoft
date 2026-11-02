@@ -198,6 +198,18 @@ export interface SidebarLabels {
     persons: string;
     cohorts: string;
     flags: string;
+    experiments: string;
+    actions: string;
+    alerts: string;
+    annotations: string;
+    data: string;
+    groups: string;
+    /** Session replay y heatmaps (opcionales: los tests viejos arman labels sin estas claves). */
+    recordings?: string;
+    heatmaps?: string;
+    surveys: string;
+    errors: string;
+    llm: string;
     sql: string;
     projects: string;
     newInsight: string;
@@ -841,6 +853,7 @@ export function buildNav(
             // Los tableros cuelgan del ítem (AnalyticsBranch en el hueco #side-branch), como en PostHog.
             { href: '/app/analytics/dashboards', label: a.dashboards, active: at('/app/analytics/dashboards'), icon: 'dashboards', branch: true },
             { href: '/app/analytics/sql', label: a.sql, active: at('/app/analytics/sql'), icon: 'sql' },
+            { href: '/app/analytics/alerts', label: a.alerts, active: at('/app/analytics/alerts'), icon: 'bell' },
           ],
         },
         {
@@ -848,7 +861,21 @@ export function buildNav(
           items: [
             { href: '/app/analytics/persons', label: a.persons, active: at('/app/analytics/persons'), icon: 'contacts' },
             { href: '/app/analytics/cohorts', label: a.cohorts, active: at('/app/analytics/cohorts'), icon: 'groups' },
+            { href: '/app/analytics/groups', label: a.groups, active: at('/app/analytics/groups'), icon: 'companies' },
             { href: '/app/analytics/flags', label: a.flags, active: at('/app/analytics/flags'), icon: 'flag' },
+            { href: '/app/analytics/surveys', label: a.surveys, active: at('/app/analytics/surveys'), icon: 'forms' },
+            { href: '/app/analytics/errors', label: a.errors, active: at('/app/analytics/errors'), icon: 'bug' },
+            { href: '/app/analytics/llm', label: a.llm, active: at('/app/analytics/llm'), icon: 'assistant' },
+            ...(a.recordings ? [{ href: '/app/analytics/replay', label: a.recordings, active: at('/app/analytics/replay'), icon: 'rec' as const }] : []),
+            ...(a.heatmaps ? [{ href: '/app/analytics/heatmaps', label: a.heatmaps, active: at('/app/analytics/heatmaps'), icon: 'reports' as const }] : []),
+            { href: '/app/analytics/experiments', label: a.experiments, active: at('/app/analytics/experiments'), icon: 'forecast' },
+          ],
+        },
+        {
+          items: [
+            { href: '/app/analytics/actions', label: a.actions, active: at('/app/analytics/actions'), icon: 'workflows' },
+            { href: '/app/analytics/data', label: a.data, active: at('/app/analytics/data'), icon: 'objects' },
+            { href: '/app/analytics/annotations', label: a.annotations, active: at('/app/analytics/annotations'), icon: 'notes' },
           ],
         },
         {
@@ -1080,6 +1107,7 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
         item('/app/analytics/insights/new', labels.analytics.newInsight, 'insights'),
         item('/app/analytics/dashboards?new=1', labels.analytics.dashboards, 'dashboards'),
         item('/app/analytics/flags?new=1', labels.analytics.flags, 'flag'),
+        item('/app/analytics/surveys?new=1', labels.analytics.surveys, 'forms'),
       ];
     case 'home':
     case 'talk':

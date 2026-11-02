@@ -35,6 +35,7 @@ export default defineConfig({
       DEMO_MODE_ALLOW_PRODUCTION: 'true',
       // Otra sesión para los e2e de invitaciones (lib/session.ts): la cookie zs_e2e_as=<email>. Solo acá.
       E2E_IDENTITY_COOKIE: '1',
+      ANALYTICS_ALLOW_HEADLESS: '1',
       TURSO_DATABASE_URL: `file:${dbFile}`,
       NEXTAUTH_SECRET: 'e2e-secret',
       NEXTAUTH_URL: `http://localhost:${PORT}`,

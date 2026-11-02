@@ -49,7 +49,7 @@ export async function generateMetadata(props: { params: Promise<Params> }) {
     locale,
     path: `/compare/${slug}`,
     title: t(`${key}.metaTitle`, v),
-    description: t(`${key}.metaDescription`, v),
+    description: t(found.comparison.percentNote ? `${key}.metaDescriptionCounts` : `${key}.metaDescription`, v),
     image: `/api/og/compare/${locale}/${slug}`,
     absoluteTitle: true,
   });
@@ -134,7 +134,8 @@ export default async function ComparePage(props: { params: Promise<Params> }) {
               </>
             )}
           </h1>
-          <p className="read-intro">{kind === 'vs' ? t('vs.lead', v) : t('alt.lead', v)}</p>
+          <p className="read-intro">{t(c.percentNote ? (kind === 'vs' ? 'vs.leadCounts' : 'alt.leadCounts') : kind === 'vs' ? 'vs.lead' : 'alt.lead', v)}</p>
+          {c.percentNote && <p className="cmp-scope-note">{loc(c.percentNote, locale)}</p>}
           <div className="read-actions">
             <Link className="btn btn-primary" href={launch}>
               {t('tryCta', v)}
@@ -163,8 +164,8 @@ export default async function ComparePage(props: { params: Promise<Params> }) {
             </h2>
             <dl className="cmp-glance">
               <div>
-                <dt>{t('vs.glance.parity', v)}</dt>
-                <dd className="data">{`${c.score.percent}%`}</dd>
+                <dt>{c.percentNote ? t('vs.glance.counts') : t('vs.glance.parity', v)}</dt>
+                <dd className={c.percentNote ? "data cmp-glance-counts" : "data"}>{c.percentNote ? `${c.score.have} · ${c.score.partial} · ${c.score.missing}` : `${c.score.percent}%`}</dd>
               </div>
               {price && (
                 <div>

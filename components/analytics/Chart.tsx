@@ -23,12 +23,15 @@ export default function Chart({
   kind = 'line',
   summary,
   height = 260,
+  annotations = [],
 }: {
   series: ChartSeries[];
   labels: string[];
-  kind?: 'line' | 'bar';
+  kind?: 'line' | 'bar' | 'area';
   summary: string;
   height?: number;
+  /** Marcas sobre el eje x: índice de la cubeta y texto. */
+  annotations?: Array<{ index: number; text: string }>;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState<number | null>(null);
@@ -60,9 +63,12 @@ export default function Chart({
   const x = (i: number) => (kind === 'bar' ? pad.l + stepX * i + stepX / 2 : pad.l + i * stepX);
   const narrow = W < 600;
   const every = Math.max(1, Math.ceil(n / (narrow ? 3 : 8)));
-  const xTicks = n ? [...new Set([...Array.from({ length: n }, (_, i) => i).filter((i) => i % every === 0), n - 1])] : [];
+  // La última etiqueta siempre va; la anterior se saca si quedaría encima.
+  const xTicks = n ? [...new Set([...Array.from({ length: n }, (_, i) => i).filter((i) => i % every === 0 && (i === 0 || n - 1 - i >= Math.ceil(every * 0.7))), n - 1])] : [];
   const barW = kind === 'bar' ? Math.max(2, (stepX * 0.8) / Math.max(series.length, 1)) : 0;
-  const fmt = (v: number) => (v >= 10_000 ? `${Math.round(v / 1000)}k` : String(v));
+  const fmt = (v: number) => (v >= 10_000 ? `${Math.round(v / 1000)}k` : String(Math.round(v * 100) / 100));
+  const tipValue = (v: number | undefined) => new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(v ?? 0);
+  const hoverNotes = hover === null ? [] : annotations.filter((a) => a.index === hover);
 
   return (
     <div className="an-chart">
@@ -76,9 +82,12 @@ export default function Chart({
               </text>
             </g>
           ))}
-          {kind === 'line' &&
+          {(kind === 'line' || kind === 'area') &&
             series.map((s, si) => (
               <g key={si} className={`an-s an-s${si % 6}`}>
+                {kind === 'area' && n > 1 && (
+                  <polygon className="an-area" points={`${x(0)},${pad.t + ih} ${s.data.map((v, i) => `${x(i)},${y(v)}`).join(' ')} ${x(n - 1)},${pad.t + ih}`} />
+                )}
                 {s.compare && <polyline className="an-line-compare" fill="none" points={s.compare.map((v, i) => `${x(i)},${y(v)}`).join(' ')} />}
                 <polyline className="an-line" fill="none" points={s.data.map((v, i) => `${x(i)},${y(v)}`).join(' ')} />
                 {n === 1 && <circle className="an-dot" cx={x(0)} cy={y(s.data[0])} r={3.5} />}
@@ -99,6 +108,11 @@ export default function Chart({
                 ))}
               </g>
             ))}
+          {annotations.map((a, i) => (
+            <path key={`a${i}`} className="an-annotation-mark" d={`M${x(a.index) - 4} ${pad.t + ih + 7} L${x(a.index) + 4} ${pad.t + ih + 7} L${x(a.index)} ${pad.t + ih + 1} Z`}>
+              <title>{a.text}</title>
+            </path>
+          ))}
           {hover !== null && n > 0 && <line className="an-hover-line" x1={x(hover)} x2={x(hover)} y1={pad.t} y2={pad.t + ih} />}
           {xTicks.map((i) => (
             <text key={i} className="chart-xlabel" x={x(i)} y={H - 6} textAnchor={kind === 'bar' ? 'middle' : i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}>
@@ -125,8 +139,13 @@ export default function Chart({
             {series.map((s, si) => (
               <span key={si} className={`an-tip-row an-s${si % 6}`}>
                 <i className="an-swatch" aria-hidden="true" />
-                {s.label}: {s.data[hover] ?? 0}
-                {s.compare ? ` (${s.compare[hover] ?? 0})` : ''}
+                {s.label}: {tipValue(s.data[hover])}
+                {s.compare ? ` (${tipValue(s.compare[hover])})` : ''}
+              </span>
+            ))}
+            {hoverNotes.map((a, i) => (
+              <span key={`n${i}`} className="an-tip-note">
+                {a.text}
               </span>
             ))}
           </div>

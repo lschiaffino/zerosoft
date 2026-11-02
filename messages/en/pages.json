@@ -2114,7 +2114,8 @@
         "sub": "Open Forms, pick a template and publish a link.",
         "button": "Open Forms"
       }
-    }
+    },
+    "parityCounts": "{have} included, {partial} partial of {counted}"
   },
   "product": {
     "launch": "Try {name}",
@@ -2178,7 +2179,10 @@
       "missingTitle": "Still missing ({count})",
       "missingLead": "{competitor} has these and we don't yet. If you need one, vote for it on the public board.",
       "vote": "Vote on the board",
-      "noneYet": "{name} doesn't include any capability yet: it is being built. Below are all the ones we measure."
+      "noneYet": "{name} doesn't include any capability yet: it is being built. Below are all the ones we measure.",
+      "methodCounts": "We listed {count} {competitor} capabilities from its docs. This is our own assessment, checked against the code on {date}.",
+      "areaCounts": "{have} included · {partial} partial · {missing} missing",
+      "kickerCounts": "compared with {competitor}"
     },
     "building": {
       "badge": "In the works",
@@ -3550,7 +3554,7 @@
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across the 24 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across {apps} of the 24 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",
@@ -3560,7 +3564,8 @@
       "missing": "Missing",
       "beyond": "Beyond"
     },
-    "method": "Each app counts 1 for an included capability, 0.5 for a partial one and 0 for a missing one, with double weight for core capabilities. It is our own review against the code, updated with every release. Open an app to see its full list."
+    "method": "Each app counts 1 for an included capability, 0.5 for a partial one and 0 for a missing one, with double weight for core capabilities. It is our own review against the code, updated with every release. Open an app to see its full list.",
+    "notComparable": "Not comparable"
   },
   "desktopLogin": {
     "title": "Sign in to the zerosoft app",
@@ -3640,7 +3645,8 @@
         "pages": "Pages"
       },
       "vsLink": "{name} vs {competitor}",
-      "altLink": "{competitor} alternative"
+      "altLink": "{competitor} alternative",
+      "notComparable": "Not comparable"
     },
     "vs": {
       "metaTitle": "zerosoft {name} vs {competitor}: feature-by-feature comparison",
@@ -3655,11 +3661,14 @@
         "oursValue": "$0 on your server (AGPLv3). On zerosoft Cloud: free plan, then usage. Seats are not billed.",
         "license": "License of {name}",
         "licenseValue": "AGPLv3, source on GitHub",
-        "reviewed": "Last reviewed"
+        "reviewed": "Last reviewed",
+        "counts": "Included · partial · missing"
       },
       "tableTitle": "Capability by capability.",
       "tableTitleDim": "Our count, from the code.",
-      "altCta": "{competitor} alternative: what you get and what is missing"
+      "altCta": "{competitor} alternative: what you get and what is missing",
+      "metaDescriptionCounts": "{name} next to {competitor}, across {count} capabilities from its docs: {have} included, {partial} partial, {missing} missing. Open source, $0 on your server.",
+      "leadCounts": "{name} is the zerosoft app that replaces {competitor}. Going through the {count} capabilities in its docs, we count {have} included, {partial} partial and {missing} missing. The table comes from the same data as the product page."
     },
     "alt": {
       "metaTitle": "Open-source {competitor} alternative: zerosoft {name}",
@@ -3676,7 +3685,9 @@
       "moveTitle": "Moving from {competitor}",
       "vsCta": "See the full comparison table",
       "partial": "partial",
-      "missing": "missing"
+      "missing": "missing",
+      "metaDescriptionCounts": "zerosoft {name} is an open-source {competitor} alternative: $0 on your server, free plan on zerosoft Cloud. Of {count} capabilities from its docs, {have} are included and {partial} partial.",
+      "leadCounts": "{name} runs on your server for $0 under AGPLv3, or on zerosoft Cloud with a free plan and usage-based pricing, with no charge per seat. Of the {count} capabilities in the {competitor} docs, we count {have} included, {partial} partial and {missing} missing."
     },
     "faqTitle": "Questions.",
     "relatedTitle": "Guides and posts",

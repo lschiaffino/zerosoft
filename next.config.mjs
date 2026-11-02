@@ -74,6 +74,11 @@ const nextConfig = {
         headers: cors,
       },
       { source: '/api/chat/messages/upload', headers: cors },
+      // Reproductor de grabaciones: lo grabado puede apuntar a cualquier URL, y el visor no la pide.
+      {
+        source: '/:locale(en|es|pt)/app/analytics/replay/:id',
+        headers: [{ key: 'Content-Security-Policy', value: "img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-src 'self' about:" }],
+      },
       // Snippet de Analytics: se importa como módulo desde sitios de terceros.
       { source: '/:file(zs\\.js|zs\\.mjs)', headers: [{ key: 'Access-Control-Allow-Origin', value: '*' }, { key: 'Cache-Control', value: 'public, max-age=3600' }] },
     ];

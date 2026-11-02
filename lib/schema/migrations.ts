@@ -8125,6 +8125,213 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE people_employees ADD COLUMN linked_confirmed TEXT');
     },
   },
+  {
+    id: '180_analytics_parity',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN test_filters TEXT NOT NULL DEFAULT \'[]\'');
+      await addColumn(client, 'ALTER TABLE analytics_flags ADD COLUMN groups TEXT NOT NULL DEFAULT \'[]\'');
+      await addColumn(client, 'ALTER TABLE analytics_flags ADD COLUMN payloads TEXT NOT NULL DEFAULT \'{}\'');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS analytics_annotations (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          day TEXT NOT NULL,
+          content TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_annotations_project ON analytics_annotations(project_id, day);
+        CREATE TABLE IF NOT EXISTS analytics_actions (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          steps TEXT NOT NULL DEFAULT '[]',
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_actions_project ON analytics_actions(project_id, updated_at);
+        CREATE TABLE IF NOT EXISTS analytics_shares (
+          id TEXT PRIMARY KEY,
+          token TEXT NOT NULL UNIQUE,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          insight_id TEXT REFERENCES analytics_insights(id) ON DELETE CASCADE,
+          dashboard_id TEXT REFERENCES analytics_dashboards(id) ON DELETE CASCADE,
+          created_by TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_shares_project ON analytics_shares(project_id);
+        CREATE TABLE IF NOT EXISTS analytics_alerts (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          insight_id TEXT NOT NULL REFERENCES analytics_insights(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          series_index INTEGER NOT NULL DEFAULT 0,
+          condition TEXT NOT NULL,
+          threshold REAL NOT NULL,
+          frequency TEXT NOT NULL DEFAULT 'daily',
+          enabled INTEGER NOT NULL DEFAULT 1,
+          subscribers TEXT NOT NULL DEFAULT '[]',
+          state TEXT NOT NULL DEFAULT 'ok',
+          last_value REAL,
+          next_check_at INTEGER NOT NULL DEFAULT 0,
+          claimed_at INTEGER,
+          last_checked_at INTEGER,
+          last_fired_at INTEGER,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_alerts_due ON analytics_alerts(enabled, next_check_at);
+        CREATE INDEX IF NOT EXISTS idx_analytics_alerts_project ON analytics_alerts(project_id, updated_at);
+        CREATE TABLE IF NOT EXISTS analytics_experiments (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          flag_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          hypothesis TEXT NOT NULL DEFAULT '',
+          metrics TEXT NOT NULL DEFAULT '[]',
+          status TEXT NOT NULL DEFAULT 'draft',
+          started_at INTEGER,
+          ended_at INTEGER,
+          conclusion TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_experiments_project ON analytics_experiments(project_id, updated_at);
+        CREATE TABLE IF NOT EXISTS analytics_cohort_members (
+          cohort_id TEXT NOT NULL REFERENCES analytics_cohorts(id) ON DELETE CASCADE,
+          project_id TEXT NOT NULL,
+          person_key TEXT NOT NULL,
+          PRIMARY KEY (cohort_id, person_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_cohort_members_project ON analytics_cohort_members(project_id);
+        CREATE TABLE IF NOT EXISTS analytics_event_defs (
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          event TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          verified INTEGER NOT NULL DEFAULT 0,
+          hidden INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (project_id, event)
+        );
+      `);
+    },
+  },
+  {
+    // Analytics: session replay y heatmaps. Todo apagado por defecto: un proyecto existente no cambia hasta que un admin lo prende.
+    id: '181_analytics_replay',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_enabled INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_sample_rate INTEGER NOT NULL DEFAULT 100');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_mask_text INTEGER NOT NULL DEFAULT 1');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN heatmaps_enabled INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_purged_at INTEGER');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS analytics_replay_recordings (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          session_id TEXT NOT NULL,
+          window_id TEXT NOT NULL DEFAULT '',
+          distinct_id TEXT NOT NULL,
+          start_ts INTEGER NOT NULL,
+          end_ts INTEGER NOT NULL,
+          clock_skew_ms INTEGER NOT NULL DEFAULT 0,
+          clicks INTEGER NOT NULL DEFAULT 0,
+          active_seconds INTEGER NOT NULL DEFAULT 0,
+          first_url TEXT,
+          pages TEXT NOT NULL DEFAULT '[]',
+          has_snapshot INTEGER NOT NULL DEFAULT 0,
+          chunks INTEGER NOT NULL DEFAULT 0,
+          bytes INTEGER NOT NULL DEFAULT 0,
+          raw_bytes INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_analytics_replay_key ON analytics_replay_recordings(project_id, session_id, window_id);
+        CREATE INDEX IF NOT EXISTS idx_analytics_replay_start ON analytics_replay_recordings(project_id, start_ts);
+        CREATE INDEX IF NOT EXISTS idx_analytics_replay_distinct ON analytics_replay_recordings(project_id, distinct_id);
+        CREATE TABLE IF NOT EXISTS analytics_replay_chunks (
+          recording_id TEXT NOT NULL,
+          project_id TEXT NOT NULL,
+          session_id TEXT NOT NULL,
+          seq INTEGER NOT NULL,
+          bytes INTEGER NOT NULL,
+          raw_bytes INTEGER NOT NULL,
+          data BLOB NOT NULL,
+          created_at INTEGER NOT NULL,
+          PRIMARY KEY (recording_id, seq)
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_replay_chunks_project ON analytics_replay_chunks(project_id);
+        CREATE TABLE IF NOT EXISTS analytics_replay_daily (
+          project_id TEXT NOT NULL,
+          day TEXT NOT NULL,
+          sessions INTEGER NOT NULL DEFAULT 0,
+          bytes INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (project_id, day)
+        );
+      `);
+    },
+  },
+  {
+    id: '182_analytics_more',
+    up: async (client) => {
+      // Encuestas, estado de los errores agrupados y dos ajustes del proyecto (apagados por defecto).
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS analytics_surveys (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'draft',
+          presentation TEXT NOT NULL DEFAULT 'popover',
+          questions TEXT NOT NULL DEFAULT '[]',
+          appearance TEXT NOT NULL DEFAULT '{}',
+          targeting TEXT NOT NULL DEFAULT '{}',
+          start_at INTEGER,
+          end_at INTEGER,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_surveys_project ON analytics_surveys(project_id, updated_at);
+        CREATE INDEX IF NOT EXISTS idx_analytics_surveys_running ON analytics_surveys(project_id, status);
+
+        CREATE TABLE IF NOT EXISTS analytics_error_issues (
+          project_id TEXT NOT NULL,
+          fingerprint TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'open',
+          assignee_id TEXT,
+          resolved_at INTEGER,
+          regressed_at INTEGER,
+          checked_at INTEGER,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (project_id, fingerprint)
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_error_issues_status ON analytics_error_issues(status, checked_at);
+      `);
+      for (const column of ['capture_exceptions', 'web_vitals']) {
+        await client.execute(`ALTER TABLE analytics_projects ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`).catch((err: unknown) => {
+          if (!/duplicate column/i.test(String(err))) throw err;
+        });
+      }
+    },
+  },
+  {
+    id: '183_analytics_time_zone',
+    up: async (client) => {
+      // Sin zona se sigue usando el desfase fijo de siempre: un proyecto existente no cambia hasta que elige una.
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN tz_name TEXT');
+    },
+  },
+  {
+    id: '184_analytics_bots',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN keep_bots INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN bots_filtered INTEGER NOT NULL DEFAULT 0');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

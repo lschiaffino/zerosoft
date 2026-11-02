@@ -25,9 +25,13 @@ export default async function AnalyticsCohortsPage(props: { params: Promise<{ lo
   if (!ctx.project) return <NoProject title={t('title')} canManage={ctx.canManage} />;
   const [cohorts, opened] = await Promise.all([listCohorts(ctx.project.id), open ? getCohort(ctx.project.id, open) : null]);
   const summary = (c: (typeof cohorts)[number]) =>
-    [c.definition.properties.length ? t('metaProps', { count: c.definition.properties.length }) : null, c.definition.behavior ? t('metaBehavior', { event: c.definition.behavior.event, days: c.definition.behavior.days }) : null]
-      .filter(Boolean)
-      .join(' · ');
+    c.definition.type === 'static'
+      ? t('metaStatic')
+      : c.definition.groups?.length
+        ? t('metaGroups', { count: c.definition.groups.length })
+        : [c.definition.properties.length ? t('metaProps', { count: c.definition.properties.length }) : null, c.definition.behavior ? t('metaBehavior', { event: c.definition.behavior.event, days: c.definition.behavior.days }) : null]
+            .filter(Boolean)
+            .join(' · ');
   return (
     <CollectionPage
       kind="cohorts"

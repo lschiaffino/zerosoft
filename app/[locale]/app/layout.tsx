@@ -87,6 +87,8 @@ export default async function AppLayout(
   if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
   const tGuard = await getTranslations({ locale, namespace: 'settings.access' });
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
+  const tAnalyticsReplay = await getTranslations({ locale, namespace: 'analyticsReplay' });
+  const tAnalyticsMore = await getTranslations({ locale, namespace: 'analyticsMore' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
   const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
@@ -296,6 +298,17 @@ export default async function AppLayout(
                 { href: '/app/analytics/persons', label: tAnalytics('sidebar.persons') },
                 { href: '/app/analytics/cohorts', label: tAnalytics('sidebar.cohorts') },
                 { href: '/app/analytics/flags', label: tAnalytics('sidebar.flags') },
+                { href: '/app/analytics/experiments', label: tAnalytics('sidebar.experiments') },
+                { href: '/app/analytics/actions', label: tAnalytics('sidebar.actions') },
+                { href: '/app/analytics/alerts', label: tAnalytics('sidebar.alerts') },
+                { href: '/app/analytics/annotations', label: tAnalytics('sidebar.annotations') },
+                { href: '/app/analytics/data', label: tAnalytics('sidebar.data') },
+                { href: '/app/analytics/groups', label: tAnalytics('sidebar.groups') },
+                { href: '/app/analytics/replay', label: tAnalyticsReplay('sidebar.recordings') },
+                { href: '/app/analytics/heatmaps', label: tAnalyticsReplay('sidebar.heatmaps') },
+                { href: '/app/analytics/surveys', label: tAnalyticsMore('sidebar.surveys') },
+                { href: '/app/analytics/errors', label: tAnalyticsMore('sidebar.errors') },
+                { href: '/app/analytics/llm', label: tAnalyticsMore('sidebar.llm') },
                 { href: '/app/analytics/sql', label: tAnalytics('sidebar.sql') },
                 { href: '/app/analytics/projects', label: tAnalytics('sidebar.projects') },
                 { href: '/app/social', label: tSocial('sidebar.calendar') },
@@ -519,6 +532,17 @@ export default async function AppLayout(
               persons: tAnalytics('sidebar.persons'),
               cohorts: tAnalytics('sidebar.cohorts'),
               flags: tAnalytics('sidebar.flags'),
+              experiments: tAnalytics('sidebar.experiments'),
+              actions: tAnalytics('sidebar.actions'),
+              alerts: tAnalytics('sidebar.alerts'),
+              annotations: tAnalytics('sidebar.annotations'),
+              data: tAnalytics('sidebar.data'),
+              groups: tAnalytics('sidebar.groups'),
+              recordings: tAnalyticsReplay('sidebar.recordings'),
+              heatmaps: tAnalyticsReplay('sidebar.heatmaps'),
+              surveys: tAnalyticsMore('sidebar.surveys'),
+              errors: tAnalyticsMore('sidebar.errors'),
+              llm: tAnalyticsMore('sidebar.llm'),
               sql: tAnalytics('sidebar.sql'),
               projects: tAnalytics('sidebar.projects'),
               newInsight: tAnalytics('sidebar.newInsight'),

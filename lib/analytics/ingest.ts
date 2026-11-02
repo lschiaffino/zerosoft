@@ -18,7 +18,9 @@ import {
   type PersonState,
   type RequestContext,
 } from './ingest-core';
+import { normalizeSpecialEvents } from './ingest-special';
 import type { ProjectRow } from './projects';
+import { offsetMsAt, projectTz, type Tz } from './tz';
 
 /** Contexto del pedido: user agent, país y IP (sin headers que pueda inventar el cliente). */
 export function requestContext(req: Request): RequestContext {
@@ -38,8 +40,8 @@ export function requestContext(req: Request): RequestContext {
 const DAY = 86_400_000;
 
 /** Día local de un ts (null si el ts no es una fecha válida: nunca tira). */
-export function dayOf(ts: number, offsetMin: number): string | null {
-  const d = new Date(ts + offsetMin * 60_000);
+export function dayOf(ts: number, tz: Tz): string | null {
+  const d = new Date(ts + offsetMsAt(tz, ts));
   return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
@@ -59,8 +61,26 @@ export async function storeEvents(project: ProjectRow, events: CleanEvent[], ctx
   const maxAge = Math.min(INGEST_LIMITS.maxPastMs, Math.max(1, Number(project.retention_days) || 365) * DAY);
   events = events.filter((e) => validTs(e.ts, now, maxAge));
   if (!events.length) return 0;
+  normalizeSpecialEvents(events);
   await ensureMigrated();
   const pid = project.id;
+  // Un reintento trae el mismo uuid: la tabla de eventos lo ignora y las sesiones tampoco tienen que contarlo.
+  const seenInBatch = new Set<string>();
+  events = events.filter((e) => {
+    if (!e.uuid) return true;
+    if (seenInBatch.has(e.uuid)) return false;
+    seenInBatch.add(e.uuid);
+    return true;
+  });
+  if (seenInBatch.size) {
+    const known = await getClient().execute({
+      sql: `SELECT uuid FROM analytics_events WHERE project_id = ? AND uuid IN (${[...seenInBatch].map(() => '?').join(',')})`,
+      args: [pid, ...seenInBatch],
+    });
+    const stored = new Set(known.rows.map((r) => String(r.uuid)));
+    if (stored.size) events = events.filter((e) => !e.uuid || !stored.has(e.uuid));
+    if (!events.length) return 0;
+  }
   const db = getDb();
 
   // Personas que ya existen para los ids del lote (incluidos anónimos y alias).
@@ -236,7 +256,7 @@ export async function storeEvents(project: ProjectRow, events: CleanEvent[], ctx
   }
   // 7. Un evento de un día que el rollup ya cerró lo marca para rehacer desde ahí.
   // Se decide en SQL (rolled_through del momento, no el del caché del proyecto).
-  const oldestDay = dayOf(Math.min(...events.map((e) => e.ts)), Number(project.tz_offset_min));
+  const oldestDay = dayOf(Math.min(...events.map((e) => e.ts)), projectTz(project));
   if (oldestDay) {
     stmts.push({
       sql: `UPDATE analytics_projects SET dirty_from = MIN(COALESCE(dirty_from, ?1), ?1)

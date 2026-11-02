@@ -2,10 +2,11 @@
 
 import { useEffect, useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { PROPERTY_OPS, type PropertyFilter, type PropertyOp } from '@/lib/analytics/types';
+import { ACTION_PREFIX, PROPERTY_OPS, type PropertyFilter, type PropertyOp } from '@/lib/analytics/types';
 import { api } from './client';
 
 export interface ProjectMeta {
+  actions?: Array<{ id: string; name: string }>;
   events: string[];
   eventProperties: string[];
   personProperties: string[];
@@ -50,18 +51,30 @@ export function EventInput({
 }) {
   const id = useId();
   const options = [...new Set([...(allowAny ? ['*'] : []), ...COMMON_EVENTS, ...meta.events])];
+  const actions = meta.actions ?? [];
+  // Las acciones se ven por su nombre y se guardan por id. Se escribe el nombre con @ delante.
+  const isAction = value.startsWith(ACTION_PREFIX);
+  const actionName = isAction ? actions.find((a) => a.id === value.slice(ACTION_PREFIX.length))?.name : null;
+  const shown = isAction ? `@${actionName ?? value.slice(ACTION_PREFIX.length)}` : value;
   return (
     <>
       <input
         className="input an-event-input"
         aria-label={label}
         list={`${id}-events`}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={shown}
+        onChange={(e) => {
+          const text = e.target.value;
+          const match = text.startsWith('@') ? actions.find((a) => `@${a.name}` === text) : null;
+          onChange(match ? `${ACTION_PREFIX}${match.id}` : text);
+        }}
         maxLength={200}
         spellCheck={false}
       />
       <datalist id={`${id}-events`}>
+        {actions.map((a) => (
+          <option key={a.id} value={`@${a.name}`} />
+        ))}
         {options.map((o) => (
           <option key={o} value={o} />
         ))}

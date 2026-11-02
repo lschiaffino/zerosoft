@@ -35,6 +35,7 @@ import { pruneLinkHistory } from '@/lib/link-activity';
 import { backfillSearchText, purgeExpiredTrash as purgeBoardTrash } from '@/lib/boards';
 import { pruneBoardEvents } from '@/lib/board-live';
 import { runAnalyticsCron } from '@/lib/analytics/cron';
+import { runAlertsCron } from '@/lib/analytics/alerts';
 import { purgeExpiredCandidates } from '@/lib/hiring/candidates';
 import { sendFeedbackReminders } from '@/lib/hiring/evaluation';
 import { syncAllInterviews } from '@/lib/hiring/interviews';
@@ -113,6 +114,8 @@ export async function GET(req: NextRequest) {
   const linkHistory = await pruneLinkHistory().catch(() => null);
   // Analytics: rollup diario, retención por proyecto y purga de proyectos borrados (claim por proyecto).
   const analytics = await runAnalyticsCron({ budgetMs: 20_000 }).catch(() => null);
+  // Alertas de insights: con su propio tope de tiempo y claim por alerta.
+  const analyticsAlerts = await runAlertsCron({ budgetMs: 8_000 }).catch(() => null);
   // Hiring: retención de candidatos (compare-and-set en purge_claimed_at), recordatorios de
   // scorecards (claim en reminded_at) y reservas de Cal de las entrevistas.
   const hiring = {
