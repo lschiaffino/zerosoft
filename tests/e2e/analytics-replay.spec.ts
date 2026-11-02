@@ -485,8 +485,10 @@ test('heatmaps sobre la página real, con valores hostiles ignorados', async ({ 
   // Visitas reales: clics con posición y scroll al salir.
   const site = await page.context().newPage();
   await site.setViewportSize({ width: 1280, height: 720 });
+  // Se escucha antes de navegar: la respuesta puede llegar antes de que goto termine.
+  const decided1 = site.waitForResponse((r) => r.url().includes('/api/ingest/decide'), { timeout: 20_000 }).catch(() => null);
   await site.goto(`http://127.0.0.1:${sitePort}/heat`);
-  await site.waitForResponse((r) => r.url().includes('/api/ingest/decide')).catch(() => null);
+  await decided1;
   await site.waitForTimeout(800);
   await site.click('#buy');
   await site.click('#buy');
