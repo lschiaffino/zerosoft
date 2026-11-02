@@ -1379,7 +1379,7 @@ export default function NotesApp({
     }
     // Enter sobre la nota que las flechas ya abrieron: pasa a escribir en ella.
     if (e.detail === 0 && id === note?.id) {
-      document.querySelector<HTMLElement>('.note-body .docs-editable, .note-body .docs-title')?.focus();
+      (document.querySelector<HTMLElement>('.note-body .docs-editable') ?? document.querySelector<HTMLElement>('.note-body .docs-title'))?.focus();
       return;
     }
     void openNote(id);
