@@ -55,7 +55,7 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
           </h1>
           <p className="lp-sub">{t('hero.sub')}</p>
           <div className="lp-ctas">
-            <Link className="btn btn-primary btn-lg" href="/app">
+            <Link className="btn btn-primary btn-lg" href="/app/start">
               {t('cta.button')}
             </Link>
           </div>
@@ -90,7 +90,7 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
           </h2>
           <p className="lp-end-sub">{t('cta.sub')}</p>
           <div className="lp-ctas">
-            <Link className="btn btn-invert-solid btn-lg" href="/app">
+            <Link className="btn btn-invert-solid btn-lg" href="/app/start">
               {t('cta.button')}
             </Link>
           </div>

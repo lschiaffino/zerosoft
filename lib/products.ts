@@ -12,8 +12,8 @@
 export type ProductCategory = 'sell' | 'support' | 'automate' | 'build' | 'run' | 'daily';
 export type ProductAudience = 'team' | 'personal';
 
-/** Orden de las categorías en los menús: vender, atender, automatizar, construir, operar, trabajo diario. */
-export const PRODUCT_CATEGORIES: readonly ProductCategory[] = ['sell', 'support', 'automate', 'build', 'run', 'daily'];
+/** Orden de las categorías en los menús: construir (Track primero) y después vender, atender, automatizar, operar, trabajo diario. */
+export const PRODUCT_CATEGORIES: readonly ProductCategory[] = ['build', 'sell', 'support', 'automate', 'run', 'daily'];
 
 interface ProductEntry {
   name: string;
@@ -28,13 +28,13 @@ interface ProductEntry {
 }
 
 export const PRODUCT_CONFIG = {
+  track: { name: 'Track', launch: '/app/track', path: 'track', color: '#f2611d', category: 'build', audience: 'team' },
   crm: { name: 'CRM', launch: '/app/crm', path: 'crm', color: '#7b4dff', category: 'sell', audience: 'team' },
   chat: { name: 'Chat', launch: '/app/chat', path: 'chat', color: '#e23d7f', category: 'support', audience: 'team' },
   groups: { name: 'Groups', launch: '/app/groups', path: 'groups', color: '#65a30d', category: 'support', audience: 'team' },
   agents: { name: 'Agents', launch: '/app/agents', path: 'agents', color: '#ff3b30', category: 'automate', audience: 'team' },
   flow: { name: 'Flow', launch: '/app/flow', path: 'flow', color: '#0284c7', category: 'automate', audience: 'team' },
   robots: { name: 'Robots', launch: '/app/robots', path: 'robots', color: '#6b7280', category: 'automate', audience: 'team' },
-  track: { name: 'Track', launch: '/app/track', path: 'track', color: '#f2611d', category: 'build', audience: 'team' },
   link: { name: 'Link', launch: '/app/links', path: 'links', color: '#2f6bff', category: 'sell', audience: 'team' },
   docs: { name: 'Docs', launch: '/app/docs', path: 'docs', color: '#c2700a', category: 'daily', audience: 'personal' },
   notes: { name: 'Notes', launch: '/app/notes', path: 'notes', color: '#e6b400', category: 'daily', audience: 'personal' },
@@ -55,10 +55,11 @@ export const PRODUCT_CONFIG = {
 } as const satisfies Record<string, ProductEntry>;
 
 /**
- * Orden del switcher de la app (las más usadas arriba). Nombre, ruta y color
+ * Orden del switcher de la app: Track primero, es la app más completa; después las más usadas. Nombre, ruta y color
  * salen de PRODUCT_CONFIG; acá va solo el orden.
  */
 export const APP_SWITCHER_ORDER = [
+  'track',
   'link',
   'crm',
   'shop',
@@ -66,7 +67,6 @@ export const APP_SWITCHER_ORDER = [
   'forms',
   'docs',
   'cal',
-  'track',
   'chat',
   'groups',
   'social',

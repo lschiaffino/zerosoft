@@ -27,7 +27,7 @@ export default async function SignInPage(props: {
   const callbackUrl = safeCallbackUrl(rawCallback, base) ?? undefined;
 
   const user = await getCurrentUser();
-  if (user) redirect(callbackUrl ?? `/${locale}/app`);
+  if (user) redirect(callbackUrl ?? `/${locale}/app/start`);
 
   const t = await getTranslations({ locale, namespace: 'common.auth' });
 
