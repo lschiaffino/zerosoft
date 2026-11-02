@@ -519,7 +519,7 @@ test('web: filtros con chips y URL, canales, en vivo y web vitals', async ({ pag
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
     window.dispatchEvent(new Event('pagehide'));
   });
-  await expect.poll(async () => (await sql(`SELECT COUNT(*) AS n FROM analytics_events WHERE project_id = ? AND event = '$web_vitals'`, [projectId]))[0].n, { timeout: 15_000 }).toBe(1);
+  await expect.poll(async () => (await sql(`SELECT COUNT(*) AS n FROM analytics_events WHERE project_id = ? AND event = '$web_vitals' AND pathname = '/vitals-page'`, [projectId]))[0].n, { timeout: 15_000 }).toBe(1);
   await site.close();
   // Una medición inventada e imposible no cuenta.
   await request.post('/api/ingest/e', {
