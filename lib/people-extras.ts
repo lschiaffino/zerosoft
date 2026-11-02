@@ -624,7 +624,10 @@ export async function applyDueChanges(asOf = today(), budgetMs = 20_000): Promis
     try {
       // Con los permisos de HR de quien la agendó si sigue siéndolo; si no, no se aplica.
       const { peopleContext } = await import('./people');
-      const ctx = await peopleContext(r.workspace_id, r.created_by, r.created_by === r.workspace_id ? 'owner' : 'member');
+      const { personAppAccess } = await import('./api-auth');
+      const access = await personAppAccess(r.workspace_id, r.created_by);
+      if (!access) throw new PeopleError('forbidden', 403);
+      const ctx = await peopleContext(r.workspace_id, r.created_by, access.role);
       if (!ctx.viewer.hr) throw new PeopleError('forbidden', 403);
       await updateEmployee(ctx, r.employee_id, parseJson<EmployeeInput>(r.changes, {}));
       await db().prepare("UPDATE people_scheduled_changes SET status = 'applied' WHERE id = ?").run(r.id);
