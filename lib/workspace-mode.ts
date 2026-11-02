@@ -18,10 +18,10 @@ export function normalizeWorkspaceMode(value: unknown): WorkspaceMode {
 }
 
 /** Destacadas en uso personal: escribir, planificar y el tiempo propio. */
-const PERSONAL_FEATURED: readonly ProductKey[] = ['notes', 'docs', 'cal', 'board', 'link', 'track'];
+const PERSONAL_FEATURED: readonly ProductKey[] = ['track', 'notes', 'docs', 'cal', 'board', 'link'];
 
 /** Destacadas en equipo: vender, atender y entregar. El resto queda a un clic en "Más apps". */
-const TEAM_FEATURED: readonly ProductKey[] = ['crm', 'chat', 'track', 'docs', 'cal', 'link'];
+const TEAM_FEATURED: readonly ProductKey[] = ['track', 'crm', 'chat', 'docs', 'cal', 'link'];
 
 /**
  * Apps destacadas, en orden. `entryApp` (la app por la que entró la persona)
