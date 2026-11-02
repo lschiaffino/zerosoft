@@ -30,6 +30,8 @@ interface Props {
   note: NoteDetail;
   notebooks: NotebookInfo[];
   focusTitle: number;
+  /** Abierta con las flechas de la lista: el foco se queda en la lista. */
+  keepListFocus?: boolean;
   status: SaveStatus;
   onBack: () => void;
   onSaveContent: (id: string, patch: { title: string; content: DocsBlock[]; lock?: NoteLockEnvelope; lock_proof?: string }) => Promise<void>;
@@ -158,6 +160,7 @@ export default function NoteEditorPane({
   note,
   notebooks,
   focusTitle,
+  keepListFocus,
   status,
   onBack,
   onSaveContent,
@@ -871,6 +874,7 @@ export default function NoteEditorPane({
               ancestors={[]}
               onSave={handleSave}
               embedded
+              keepFocusOnOpen={keepListFocus}
               pageLinks={pageLinks}
               files={files}
               aiUrl={!locked && !offline ? '/api/notes/ai' : undefined}
