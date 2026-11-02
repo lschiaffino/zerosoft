@@ -219,14 +219,12 @@ export function videoBuckets(durationSec: number): { bucketSec: number; pages: n
 // ---------- Reenvíos ----------
 
 /**
- * Se abrió con otro email: si el link tiene destinatario, cualquier otro; si no,
- * cualquiera distinto del primero que lo abrió. Es un indicio: un email escrito
- * sin verificar puede ser de cualquiera.
+ * Un link con destinatario se abrió con otro email. En un link sin destinatario
+ * (una campaña) muchos emails es lo esperado. Es un indicio: un email escrito sin
+ * verificar puede ser de cualquiera.
  */
-export function isForwarded(recipient: string | null, firstEmail: string | null, email: string | null): boolean {
-  if (!email) return false;
-  if (recipient) return recipient.toLowerCase() !== email;
-  return Boolean(firstEmail && firstEmail !== email);
+export function isForwarded(recipient: string | null, email: string | null): boolean {
+  return Boolean(email && recipient && recipient.toLowerCase() !== email);
 }
 
 // ---------- Archivos ----------

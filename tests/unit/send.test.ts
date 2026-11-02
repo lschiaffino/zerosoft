@@ -157,15 +157,14 @@ describe('Send: tiempo', () => {
 
 describe('Send: reenvíos', () => {
   it('con destinatario, otro email es un posible reenvío', () => {
-    expect(isForwarded('ana@acme.com', null, 'ana@acme.com')).toBe(false);
-    expect(isForwarded('Ana@Acme.com', null, 'ana@acme.com')).toBe(false);
-    expect(isForwarded('ana@acme.com', null, 'bruno@acme.com')).toBe(true);
+    expect(isForwarded('ana@acme.com', 'ana@acme.com')).toBe(false);
+    expect(isForwarded('Ana@Acme.com', 'ana@acme.com')).toBe(false);
+    expect(isForwarded('ana@acme.com', 'bruno@acme.com')).toBe(true);
+    expect(isForwarded('ana@acme.com', null)).toBe(false);
   });
-  it('sin destinatario, compara con el primero que lo abrió', () => {
-    expect(isForwarded(null, null, 'ana@acme.com')).toBe(false);
-    expect(isForwarded(null, 'ana@acme.com', 'ana@acme.com')).toBe(false);
-    expect(isForwarded(null, 'ana@acme.com', 'bruno@acme.com')).toBe(true);
-    expect(isForwarded(null, 'ana@acme.com', null)).toBe(false);
+  it('sin destinatario nada es un reenvío: en una campaña, muchos emails es lo esperado', () => {
+    expect(isForwarded(null, 'ana@acme.com')).toBe(false);
+    expect(isForwarded(null, null)).toBe(false);
   });
 });
 

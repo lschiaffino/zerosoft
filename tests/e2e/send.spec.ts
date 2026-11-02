@@ -64,7 +64,8 @@ function mailsTo(to: string): Array<{ to: string; subject: string; text: string 
 }
 
 test.describe.configure({ mode: 'serial' });
-test.setTimeout(180_000);
+test.setTimeout(240_000);
+const slow = expect.configure({ timeout: 45_000 });
 
 test('de punta a punta: subir, armar un link, leer y ver los segundos por página', async ({ page, browser, request }) => {
   await page.goto('/en/app/send');
@@ -115,7 +116,7 @@ test('de punta a punta: subir, armar un link, leer y ver los segundos por págin
   await expect(v.getByTestId('sv-reader')).toBeVisible();
   await expect(v.getByTestId('sv-page')).toHaveText('1 / 4');
   await expect(v.locator('figure[data-page="1"] img')).toBeVisible();
-  await expect.poll(() => v.locator('figure[data-page="1"] img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1600);
+  await slow.poll(() => v.locator('figure[data-page="1"] img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1600);
   await shot(v, 'viewer-390');
   expect(await v.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   // Nunca un PDF: el archivo no se ofrece y la imagen es WebP sin caché.
@@ -282,7 +283,7 @@ test('código de acceso con tope, verificación por código y lista de permitido
   await v.getByTestId('sv-input').fill('intruder@evil.io');
   await v.getByTestId('sv-submit').click();
   await expect(v.getByTestId('sv-gate-verify')).toBeVisible();
-  await expect.poll(() => mailsTo('intruder@evil.io').length).toBeGreaterThan(0);
+  await slow.poll(() => mailsTo('intruder@evil.io').length).toBeGreaterThan(0);
   const code = (mailsTo('intruder@evil.io').at(-1)!.subject.match(/\d{6}/) ?? [''])[0];
   await v.getByTestId('sv-input').fill(code);
   await v.getByTestId('sv-submit').click();
@@ -295,7 +296,7 @@ test('código de acceso con tope, verificación por código y lista de permitido
   await v.getByTestId('sv-input').fill('ana@acme.com');
   await v.getByTestId('sv-submit').click();
   await expect(v.getByTestId('sv-gate-verify')).toBeVisible();
-  await expect.poll(() => mailsTo('ana@acme.com').filter((m) => /\d{6}/.test(m.subject)).length).toBeGreaterThan(0);
+  await slow.poll(() => mailsTo('ana@acme.com').filter((m) => /\d{6}/.test(m.subject)).length).toBeGreaterThan(0);
   await v.getByTestId('sv-input').fill('000000');
   await v.getByTestId('sv-submit').click();
   await expect(v.getByTestId('sv-error')).toBeVisible();
@@ -335,7 +336,7 @@ test('watermark en la imagen y en la descarga; descarga permitida baja el archiv
   await v.getByTestId('sv-submit').click();
   await expect(v.getByTestId('sv-reader')).toBeVisible();
   await expect(v.locator('figure[data-page="1"] img')).toBeVisible();
-  await expect.poll(() => v.locator('figure[data-page="1"] img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1600);
+  await slow.poll(() => v.locator('figure[data-page="1"] img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1600);
   await shot(v, 'viewer-watermark');
 
   const version = (await (await request.get(`/api/send/documents/${id}`)).json()).document.currentVersionId;

@@ -445,9 +445,6 @@ export async function recordPing(link: LinkRow, session: SessionRow, input: Ping
     visitId = visitSeq(session.id, input.documentId, input.versionId, Number(n.n));
     const ctx = contextFromHeaders(meta.headers);
     const ua = new UAParser(meta.ua).getResult();
-    const first = (await db
-      .prepare('SELECT email FROM send_visits WHERE link_id = ? AND email IS NOT NULL ORDER BY started_at LIMIT 1')
-      .get(link.id)) as { email: string } | undefined;
     const ts = nowIso();
     const res = await db
       .prepare(
@@ -464,7 +461,7 @@ export async function recordPing(link: LinkRow, session: SessionRow, input: Ping
         input.versionId,
         session.email,
         session.email_verified ? 1 : 0,
-        isForwarded(link.recipient_email, first?.email ?? null, session.email) ? 1 : 0,
+        isForwarded(link.recipient_email, session.email) ? 1 : 0,
         ts,
         ts,
         total,

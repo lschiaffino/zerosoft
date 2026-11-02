@@ -36,7 +36,7 @@ import { searchSign } from '@/lib/sign/core';
 import { signActorOf } from '@/lib/sign/http';
 import { searchForms } from '@/lib/forms/search';
 import { searchSend } from '@/lib/send/search';
-import { sendActorOf } from '@/lib/send/http';
+import { sendActorOf } from '@/lib/send/actor';
 import { actorOf as formsActorOf } from '@/lib/forms/http';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';

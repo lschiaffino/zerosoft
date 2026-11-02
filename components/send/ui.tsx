@@ -148,11 +148,18 @@ export async function pumpVersion(
 ): Promise<UploadedVersion> {
   let v = initial;
   let waits = 0;
-  while (v.status === 'processing' && waits < 600) {
+  let errors = 0;
+  while (v.status === 'processing' && waits < 200) {
     const before = v.renderedCount;
     const res = await fetch(`/api/send/versions/${versionId}/process`, { method: 'POST' }).catch(() => null);
     const data = res ? await jsonOf(res) : {};
-    if (data.version) v = data.version;
+    if (data.version) {
+      v = data.version;
+      errors = 0;
+    } else if (++errors >= 5) {
+      // El cron sigue con el render: el detalle muestra cómo va.
+      return v;
+    }
     onProgress({ phase: 'process', done: v.renderedCount, total: v.pageCount });
     // Otro proceso lo tiene reclamado: esperar en lugar de insistir.
     if (v.status === 'processing' && v.renderedCount === before) {

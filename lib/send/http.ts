@@ -8,7 +8,10 @@ import { userCanUseApp } from '../workspace';
 import { clientIp, limitByIp } from '../rate-limit';
 import { resolveLink } from './viewer';
 import type { LinkRow } from './core';
+import { sendActorOf } from './actor';
 import { SendError, sessionCookie, type SendActor } from './types';
+
+export { sendActorOf };
 
 const NO_STORE = { 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex, nofollow', 'referrer-policy': 'no-referrer' };
 
@@ -20,11 +23,6 @@ export function sFail(err: unknown) {
   if (err instanceof SendError) return sJson({ error: err.code, ...(err.detail ?? {}) }, err.status);
   if (err instanceof ZodError) return sJson({ error: 'invalid_input' }, 400);
   throw err;
-}
-
-export function sendActorOf(user: SessionUser): SendActor {
-  const person = user.actingUser ?? user;
-  return { ws: user.id, person: person.id, admin: user.role === 'owner' || user.role === 'admin', email: (person.email ?? '').toLowerCase(), name: person.name ?? person.email ?? '' };
 }
 
 /** Sesión con Send en el workspace activo (guest nunca). */

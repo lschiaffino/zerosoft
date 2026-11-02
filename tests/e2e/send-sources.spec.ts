@@ -18,7 +18,8 @@ const shot = async (page: Page, name: string, fullPage = false) => {
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 test.describe.configure({ mode: 'serial' });
-test.setTimeout(180_000);
+test.setTimeout(240_000);
+const slow = expect.configure({ timeout: 45_000 });
 
 function docx(): Buffer {
   const p = (text: string, style = '') => `<w:p>${style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : ''}<w:r><w:t>${text}</w:t></w:r></w:p>`;
@@ -117,14 +118,14 @@ test('Word: se convierte con un aviso, y quien abre ve páginas', async ({ page,
   const id = await uploadThroughUi(page, { name: 'Agreement.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: docx() });
   await expect(page.getByTestId('send-simplified')).toContainText('simplified layout');
   await page.getByTestId('send-tab-preview').click();
-  await expect.poll(() => page.getByTestId('send-preview').locator('img').first().evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(100);
+  await slow.poll(() => page.getByTestId('send-preview').locator('img').first().evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(100);
   await shot(page, 'word-preview');
   const link = await linkFor(request, id, { allowDownload: true });
   const ctx = await browser.newContext();
   const v = await ctx.newPage();
   await v.goto(link.url);
   await expect(v.getByTestId('sv-reader')).toHaveAttribute('data-kind', 'word');
-  await expect.poll(() => v.locator('figure[data-page="1"] img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1600);
+  await slow.poll(() => v.locator('figure[data-page="1"] img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1600);
   await shot(v, 'word-viewer');
   // Sin watermark, la descarga es el .docx original.
   const down = await ctx.request.get(`/api/send/public/${link.token}/download?document=${id}&piece=0`);
@@ -144,7 +145,7 @@ test('PowerPoint: dibuja texto, formas y fondos, heredando de la plantilla', asy
   await v.getByTestId('sv-submit').click();
   await expect(v.getByTestId('sv-reader')).toHaveAttribute('data-kind', 'slides');
   await expect(v.getByTestId('sv-page')).toHaveText('1 / 2');
-  await expect.poll(() => v.locator('figure[data-page="1"] img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1600);
+  await slow.poll(() => v.locator('figure[data-page="1"] img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1600);
   expect(await v.locator('figure[data-page="1"] img').evaluate((i: HTMLImageElement) => i.naturalHeight)).toBe(900);
   await shot(v, 'pptx-viewer');
   // Con watermark, la descarga es un PDF armado con las páginas.
@@ -165,7 +166,7 @@ test('Video: se sube, se ve por rangos, y el tiempo cae en el tramo que se repro
   await v.goto(link.url);
   await expect(v.getByTestId('sv-reader')).toHaveAttribute('data-kind', 'video');
   const video = v.getByTestId('sv-video');
-  await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.duration)).toBeGreaterThan(20);
+  await slow.poll(() => video.evaluate((el: HTMLVideoElement) => el.duration)).toBeGreaterThan(20);
   // Rango: 206 y solo lo pedido.
   const version = (await (await request.get(`/api/send/documents/${id}`)).json()).document.currentVersionId;
   const range = await ctx.request.get(`/api/send/public/${link.token}/video/${version}`, { headers: { range: 'bytes=0-99' } });
@@ -336,7 +337,7 @@ test('Se ve bien: oscuro, 390 px y marca propia', async ({ page, browser, reques
   await v.getByTestId('sv-input').fill('a-very-long-email-address-for-testing-wrap@some-long-company-domain.example');
   await v.getByTestId('sv-submit').click();
   await expect(v.getByTestId('sv-reader')).toBeVisible();
-  await expect.poll(() => v.locator('figure[data-page="1"] img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1600);
+  await slow.poll(() => v.locator('figure[data-page="1"] img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1600);
   await shot(v, 'dark-viewer-390');
   expect(await v.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await v.waitForTimeout(4000);

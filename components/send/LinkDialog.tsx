@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { LinkDto } from '@/lib/send/core';
 import { api, SendDialog, useErrorText } from './ui';
@@ -64,11 +64,10 @@ function LinkForm({ link, createUrl, templates, onClose, onSaved }: { link: Link
   const verifyForced = accessMode === 'allow';
   const emailOn = requireEmail || emailForced;
   const verifyOn = verifyEmail || verifyForced;
-  const hasChanges = useMemo(() => true, []);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (busy || !hasChanges) return;
+    if (busy) return;
     setError('');
     if (usePasscode && !link?.hasPasscode && passcode.trim().length < 4) return setError(errorText('invalid_passcode'));
     if (hasExpiry && !expiresAt) return setError(errorText('invalid_expiry'));

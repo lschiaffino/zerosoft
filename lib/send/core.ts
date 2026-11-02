@@ -725,7 +725,6 @@ async function passcodeHash(passcode: string): Promise<string> {
 /** Crea un link. Es una URL que funciona sin cuenta: se hace desde la web (lib/mcp/excludes.mjs). */
 export async function createLink(actor: SendActor, target: { documentId?: string; spaceId?: string }, input: LinkInput): Promise<LinkRow> {
   const fields = cleanLinkFields(input);
-  if (!fields.access_list && input.accessMode && input.accessMode !== 'none') throw new SendError('empty_access_list', 400);
   if (input.accessMode && input.accessMode !== 'none' && (fields.access_list === '[]' || !fields.access_list)) throw new SendError('empty_access_list', 400);
   const id = newId('sl');
   const token = newToken();
@@ -804,7 +803,7 @@ export async function updateLink(actor: SendActor, id: string, input: LinkInput)
     args.push(v as string | number | null);
     if (GATE_FIELDS.includes(k) && v !== (cur as unknown as Record<string, unknown>)[k]) reGate = true;
   }
-  if (input.passcode !== undefined) {
+  if (input.passcode !== undefined && (input.passcode || cur.passcode_hash)) {
     sets.push('passcode_hash = ?');
     args.push(input.passcode ? await passcodeHash(input.passcode) : null);
     reGate = true;
