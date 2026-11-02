@@ -186,18 +186,18 @@ test('sidebar del inicio: tus apps a la vista y el resto en "Más apps"', async 
 
 test('switcher en el teléfono: ←/→ cruzan entre columnas', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/es/app/crm', { waitUntil: 'networkidle' });
+  await page.goto('/es/app/track', { waitUntil: 'networkidle' });
   await page.locator('.band-product').press('Enter');
   const menu = page.getByRole('menu', { name: 'Cambiar de app' });
-  const crm = menu.getByRole('menuitem', { name: 'CRM' });
-  await expect(crm).toBeFocused();
-  const before = (await crm.boundingBox())!;
+  const track = menu.getByRole('menuitem', { name: 'Track' });
+  await expect(track).toBeFocused();
+  const before = (await track.boundingBox())!;
   await page.keyboard.press('ArrowRight');
   const after = (await page.locator(':focus').boundingBox())!;
   expect(after.x).toBeGreaterThan(before.x + 40);
   expect(Math.abs(after.y - before.y)).toBeLessThan(8);
   await page.keyboard.press('ArrowLeft');
-  await expect(crm).toBeFocused();
+  await expect(track).toBeFocused();
 });
 
 test('Link: sin clics, el top link muestra un estado vacío', async ({ page }) => {
