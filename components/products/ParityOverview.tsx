@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { PARITY } from "@/content/feature-parity";
-import { computeParity } from "@/lib/feature-parity";
+import { computeParity, loc } from "@/lib/feature-parity";
 import { PRODUCT_CONFIG, PRODUCT_KEYS } from "@/lib/products";
 import { SECTION_IDS } from "@/components/site/catalog";
 import SectionSign from "@/components/site/SectionSign";
@@ -27,19 +27,23 @@ export default async function ParityOverview({
     key: k,
     competitor: PARITY[k].competitor,
     score: computeParity(PARITY[k].rows),
+    note: PARITY[k].percentHidden?.note ?? null,
   }));
-  const counted = rows.reduce((s, r) => s + r.score.counted, 0);
+  // El promedio deja afuera a las apps sin porcentaje: miden otra cosa.
+  const comparable = rows.filter((r) => !r.note);
+  const counted = comparable.reduce((s, r) => s + r.score.counted, 0);
   // Promedio simple de los porcentajes por app, truncado como computeParity.
   const average = Math.floor(
-    rows.reduce((s, r) => s + r.score.percent, 0) / rows.length,
+    comparable.reduce((s, r) => s + r.score.percent, 0) / comparable.length,
   );
+  const notes = rows.filter((r) => r.note);
 
   return (
     <section className="lp-section" id={id} aria-labelledby={headingId}>
       <SectionSign id={headingId} title={t("title")} sub={t("titleDim")} />
       <div className="container parity-overview">
         <p className="parity-overview-lead">
-          {t("lead", { average, counted })}
+          {t("lead", { average, counted, apps: comparable.length })}
         </p>
         <div className="parity-overview-wrap">
           <table className="parity-overview-table" aria-labelledby={headingId}>
@@ -67,7 +71,7 @@ export default async function ParityOverview({
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ key, competitor, score }) => (
+              {rows.map(({ key, competitor, score, note }) => (
                 <tr key={key}>
                   <th scope="row">
                     <Link
@@ -84,12 +88,16 @@ export default async function ParityOverview({
                   </th>
                   <td className="po-competitor po-sm-hide">{competitor}</td>
                   <td className="po-bar-col">
-                    <span className="po-bar-cell">
-                      <span className="parity-bar" aria-hidden="true">
-                        <i style={{ width: `${score.percent}%` }} />
+                    {note ? (
+                      <span className="po-no-percent">{t("notComparable")}</span>
+                    ) : (
+                      <span className="po-bar-cell">
+                        <span className="parity-bar" aria-hidden="true">
+                          <i style={{ width: `${score.percent}%` }} />
+                        </span>
+                        <span className="data po-percent">{`${score.percent}%`}</span>
                       </span>
-                      <span className="data po-percent">{`${score.percent}%`}</span>
-                    </span>
+                    )}
                   </td>
                   <td className="po-num data">{score.have}</td>
                   <td className="po-num po-sm-hide data">{score.partial}</td>
@@ -101,6 +109,11 @@ export default async function ParityOverview({
           </table>
         </div>
         <p className="parity-method">{t("method")}</p>
+        {notes.map((r) => (
+          <p key={r.key} className="parity-method">
+            {PRODUCT_CONFIG[r.key].name}: {loc(r.note!, locale)}
+          </p>
+        ))}
       </div>
     </section>
   );

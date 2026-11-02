@@ -4,6 +4,7 @@
  * servidor trae filas ya filtradas por proyecto y acá se agregan.
  */
 import type { DateRange, Interval } from './types';
+import { fromLocal, offsetMsAt, type Tz } from './tz';
 
 const HOUR = 3_600_000;
 const DAY = 86_400_000;
@@ -14,12 +15,11 @@ const DAY = 86_400_000;
  * Rango [from, to] en ms. `from` relativo ('-7d', '-24h', '-2w', '-3m') o una
  * fecha local del proyecto; `to` una fecha (fin de ese día) o ahora.
  */
-export function resolveRange(range: DateRange, now: number, offsetMin = 0): { from: number; to: number } {
-  const off = offsetMin * 60_000;
+export function resolveRange(range: DateRange, now: number, tz: Tz = 0): { from: number; to: number } {
   let to = now;
   if (range.to) {
     const t = Date.parse(`${range.to}T00:00:00Z`);
-    if (Number.isFinite(t)) to = Math.min(now, t - off + DAY - 1);
+    if (Number.isFinite(t)) to = Math.min(now, fromLocal(t + DAY, tz) - 1);
   }
   let from: number;
   const rel = /^-(\d{1,4})([hdwm])$/.exec(range.from);
@@ -30,12 +30,12 @@ export function resolveRange(range: DateRange, now: number, offsetMin = 0): { fr
     else {
       const days = unit === 'd' ? n : unit === 'w' ? n * 7 : n * 30;
       // Días enteros del proyecto: desde la medianoche local de hace N-1 días.
-      const localToday = Math.floor((to + off) / DAY) * DAY;
-      from = localToday - (days - 1) * DAY - off;
+      const localToday = Math.floor((to + offsetMsAt(tz, to)) / DAY) * DAY;
+      from = fromLocal(localToday - (days - 1) * DAY, tz);
     }
   } else {
     const f = Date.parse(`${range.from}T00:00:00Z`);
-    from = Number.isFinite(f) ? f - off : to - 7 * DAY;
+    from = Number.isFinite(f) ? fromLocal(f, tz) : to - 7 * DAY;
   }
   if (from > to) from = to;
   return { from, to };
@@ -45,6 +45,31 @@ export function resolveRange(range: DateRange, now: number, offsetMin = 0): { fr
 export function previousRange(r: { from: number; to: number }): { from: number; to: number } {
   const len = r.to - r.from + 1;
   return { from: r.from - len, to: r.from - 1 };
+}
+
+/**
+ * El período anterior comparable: las mismas cubetas enteras corridas hacia
+ * atrás. Con un rango de 7 días que termina ahora, compara los mismos 7 días
+ * cortados a la misma hora, y cada cubeta cae frente a su equivalente.
+ */
+export function previousAligned(r: { from: number; to: number }, interval: Interval, tz: Tz = 0): { from: number; to: number } {
+  const n = bucketList(r.from, r.to, interval, tz).length;
+  if (interval === 'month') {
+    const back = (ts: number) => {
+      const d = new Date(ts + offsetMsAt(tz, ts));
+      const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - n, 1));
+      const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+      target.setUTCDate(Math.min(d.getUTCDate(), lastDay));
+      target.setUTCHours(d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds(), d.getUTCMilliseconds());
+      return fromLocal(target.getTime(), tz);
+    };
+    return { from: back(r.from), to: back(r.to) };
+  }
+  if (interval === 'hour') return { from: r.from - n * HOUR, to: r.to - n * HOUR };
+  // Días y semanas se corren en hora local: un cambio de hora en el medio no mueve el corte.
+  const unit = interval === 'day' ? DAY : 7 * DAY;
+  const back = (ts: number) => fromLocal(ts + offsetMsAt(tz, ts) - n * unit, tz);
+  return { from: back(r.from), to: back(r.to) };
 }
 
 // ---------- Cubetas ----------
@@ -58,8 +83,8 @@ function iso(ms: number): string {
  * misma que arma bucketSql en SQLite: 'YYYY-MM-DD HH:00', 'YYYY-MM-DD'
  * (día), el lunes de la semana o 'YYYY-MM-01'.
  */
-export function bucketOf(ts: number, interval: Interval, offsetMin = 0): string {
-  const local = ts + offsetMin * 60_000;
+export function bucketOf(ts: number, interval: Interval, tz: Tz = 0): string {
+  const local = ts + offsetMsAt(tz, ts);
   const s = iso(local);
   switch (interval) {
     case 'hour':
@@ -77,9 +102,23 @@ export function bucketOf(ts: number, interval: Interval, offsetMin = 0): string 
   }
 }
 
-/** Expresión SQLite con la misma etiqueta que bucketOf (columna `ts` en ms; un parámetro: el desfase en ms). */
-export function bucketSql(interval: Interval, col = 'e.ts'): string {
-  const t = `((${col} + CAST(? AS INTEGER)) / 1000)`;
+/** Un instante dentro de la cubeta anterior a la de `ts` (meses de calendario, no 30 días). */
+export function bucketBefore(ts: number, interval: 'day' | 'week' | 'month', tz: Tz = 0): number {
+  const local = ts + offsetMsAt(tz, ts);
+  if (interval === 'month') {
+    const d = new Date(local);
+    return fromLocal(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1), tz);
+  }
+  return fromLocal(local - (interval === 'day' ? DAY : 7 * DAY), tz);
+}
+
+/**
+ * Expresión SQLite con la misma etiqueta que bucketOf (columna `ts` en ms; un
+ * parámetro: el desfase en ms al inicio del rango). `shift` corrige los eventos
+ * posteriores a un cambio de hora (tzShiftSql).
+ */
+export function bucketSql(interval: Interval, col = 'e.ts', shift = ''): string {
+  const t = `((${col} + CAST(? AS INTEGER)${shift}) / 1000)`;
   switch (interval) {
     case 'hour':
       return `strftime('%Y-%m-%d %H:00', ${t}, 'unixepoch')`;
@@ -93,18 +132,30 @@ export function bucketSql(interval: Interval, col = 'e.ts'): string {
 }
 
 /** Todas las cubetas del rango, en orden (las vacías también). Tope de 2000. */
-export function bucketList(from: number, to: number, interval: Interval, offsetMin = 0): string[] {
+export function bucketList(from: number, to: number, interval: Interval, tz: Tz = 0): string[] {
   const out: string[] = [];
-  const step = interval === 'hour' ? HOUR : DAY;
   let last = '';
-  for (let t = from; t <= to && out.length < 2000; t += step) {
-    const b = bucketOf(t, interval, offsetMin);
-    if (b !== last) {
-      out.push(b);
-      last = b;
+  if (interval === 'hour') {
+    for (let t = from; t <= to && out.length < 2000; t += HOUR) {
+      const b = bucketOf(t, interval, tz);
+      if (b !== last) {
+        out.push(b);
+        last = b;
+      }
+    }
+  } else {
+    // Por día de calendario en la zona: un día de 23 o 25 horas no se saltea ni se repite.
+    const firstDay = Math.floor((from + offsetMsAt(tz, from)) / DAY);
+    const lastDay = Math.floor((to + offsetMsAt(tz, to)) / DAY);
+    for (let d = firstDay; d <= lastDay && out.length < 2000; d++) {
+      const b = bucketOf(d * DAY, interval, 0);
+      if (b !== last) {
+        out.push(b);
+        last = b;
+      }
     }
   }
-  const end = bucketOf(to, interval, offsetMin);
+  const end = bucketOf(to, interval, tz);
   if (out[out.length - 1] !== end && out.length < 2000) out.push(end);
   return out;
 }
@@ -180,6 +231,8 @@ export interface FunnelComputed {
   medians: Array<number | null>;
   /** Personas que llegaron al paso i y no al i+1. */
   dropped: string[][];
+  /** Personas que llegaron al último paso. */
+  converted: string[];
 }
 
 function median(xs: number[]): number | null {
@@ -199,6 +252,7 @@ export function computeFunnel(rows: FunnelRow[], nSteps: number, windowMs: numbe
   const counts = new Array(nSteps).fill(0);
   const gaps: number[][] = Array.from({ length: nSteps }, () => []);
   const dropped: string[][] = Array.from({ length: nSteps }, () => []);
+  const converted: string[] = [];
 
   let i = 0;
   while (i < rows.length) {
@@ -234,8 +288,9 @@ export function computeFunnel(rows: FunnelRow[], nSteps: number, windowMs: numbe
       if (s > 0) gaps[s].push(bestTimes[s] - bestTimes[s - 1]);
     }
     if (best < nSteps && dropped[best - 1].length < droppedLimit) dropped[best - 1].push(person);
+    if (best === nSteps) converted.push(person);
   }
-  return { counts, medians: gaps.map((g, s) => (s === 0 ? null : median(g))), dropped };
+  return { counts, medians: gaps.map((g, s) => (s === 0 ? null : median(g))), dropped, converted };
 }
 
 // ---------- Retención ----------
@@ -279,8 +334,8 @@ export function computeRetention(
 }
 
 /** Número de período (días o semanas desde 1970, semanas desde el lunes) con el desfase del proyecto. */
-export function periodOf(ts: number, period: 'day' | 'week', offsetMin = 0): number {
-  const day = Math.floor((ts + offsetMin * 60_000) / DAY);
+export function periodOf(ts: number, period: 'day' | 'week', tz: Tz = 0): number {
+  const day = Math.floor((ts + offsetMsAt(tz, ts)) / DAY);
   return period === 'day' ? day : Math.floor((day + 3) / 7);
 }
 
@@ -303,6 +358,7 @@ export function computePaths(
   steps: number,
   startPath: string | null,
   limit = 30,
+  endPath: string | null = null,
 ): { links: Array<{ step: number; from: string; to: string; count: number }>; topPaths: Array<{ path: string[]; count: number }>; sessions: number } {
   const bySession = new Map<string, Array<{ path: string; ts: number }>>();
   for (const r of rows) {
@@ -325,7 +381,13 @@ export function computePaths(
       from = seq.indexOf(startPath);
       if (from < 0) continue;
     }
-    const path = seq.slice(from, from + steps);
+    let path = seq.slice(from, from + steps);
+    // Con un final: solo las sesiones que llegan ahí, cortadas en esa página.
+    if (endPath) {
+      const end = seq.indexOf(endPath, from);
+      if (end < 0) continue;
+      path = seq.slice(Math.max(from, end - steps + 1), end + 1);
+    }
     if (!path.length) continue;
     sessions++;
     for (let s = 0; s + 1 < path.length; s++) {

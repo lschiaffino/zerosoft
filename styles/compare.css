@@ -84,3 +84,4 @@
   .cmp-page .read-actions { flex-direction: column; align-items: stretch; gap: 8px; }
   .cmp-page .read-actions .btn { justify-content: center; text-align: center; padding: 10px 16px; }
 }
+.cmp-glance dd.cmp-glance-counts { font-size: 1.25rem; white-space: nowrap; }

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import type { FlagDto, FlagVariant, PropertyFilter } from '@/lib/analytics/types';
+import type { FlagDto, FlagGroup, FlagVariant, PropertyFilter } from '@/lib/analytics/types';
 import { ApiError, api, notifyChanged } from './client';
 import { FilterList, cleanFilters, useProjectMeta } from './Filters';
 
@@ -14,7 +14,7 @@ import { FilterList, cleanFilters, useProjectMeta } from './Filters';
  * (multivariante) y condiciones sobre propiedades de la persona. Abajo, el
  * código para usarlo y una prueba con un distinct_id.
  */
-export default function FlagEditor({ projectId, flag, publicKey }: { projectId: string; flag: FlagDto; publicKey: string }) {
+export default function FlagEditor({ projectId, flag, publicKey, cohorts = [] }: { projectId: string; flag: FlagDto; publicKey: string; cohorts?: Array<{ id: string; name: string }> }) {
   const t = useTranslations('analytics.flags');
   const tc = useTranslations('analytics.common');
   const router = useRouter();
@@ -22,7 +22,6 @@ export default function FlagEditor({ projectId, flag, publicKey }: { projectId: 
   const [key, setKey] = useState(flag.key);
   const [name, setName] = useState(flag.name);
   const [active, setActive] = useState(flag.active);
-  const [rollout, setRollout] = useState(flag.rollout);
   const [multi, setMulti] = useState(flag.variants.length > 0);
   const [variants, setVariants] = useState<FlagVariant[]>(
     flag.variants.length
@@ -32,7 +31,20 @@ export default function FlagEditor({ projectId, flag, publicKey }: { projectId: 
           { key: 'test', rollout: 50 },
         ],
   );
-  const [conditions, setConditions] = useState<PropertyFilter[]>(flag.conditions);
+  // Lo guardado antes de los grupos es un solo grupo.
+  const [groups, setGroups] = useState<FlagGroup[]>(flag.groups.length ? flag.groups : [{ conditions: flag.conditions as FlagGroup['conditions'], cohortId: null, rollout: flag.rollout, variant: null }]);
+  const [payloads, setPayloads] = useState<Record<string, string>>(flag.payloads ?? {});
+  const payloadKeys = multi ? variants.map((v) => v.key) : ['true'];
+  const badPayload = payloadKeys.find((k) => {
+    const raw = payloads[k];
+    if (!raw?.trim()) return false;
+    try {
+      JSON.parse(raw);
+      return false;
+    } catch {
+      return true;
+    }
+  });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -42,13 +54,30 @@ export default function FlagEditor({ projectId, flag, publicKey }: { projectId: 
   const [origin, setOrigin] = useState('');
   useEffect(() => setOrigin(window.location.origin), []);
 
+  const cleanGroups = groups.map((g) => ({
+    ...g,
+    cohortId: g.cohortId || null,
+    variant: multi ? g.variant || null : null,
+    conditions: cleanFilters(g.conditions as PropertyFilter[]).map((c) => ({ ...c, type: 'person' as const })),
+  }));
+  const setGroup = (i: number, patch: Partial<FlagGroup>) => setGroups(groups.map((g, j) => (j === i ? { ...g, ...patch } : g)));
+
   const save = async () => {
     setBusy(true);
     setMsg(null);
     try {
       await api(`/api/analytics/flags/${flag.id}`, {
         method: 'PATCH',
-        body: { key, name, active, rollout, variants: multi ? variants : [], conditions: cleanFilters(conditions).map((c) => ({ ...c, type: 'person' })) },
+        body: {
+          key,
+          name,
+          active,
+          rollout: cleanGroups[0]?.rollout ?? 100,
+          variants: multi ? variants : [],
+          conditions: cleanGroups[0]?.conditions ?? [],
+          groups: cleanGroups,
+          payloads: Object.fromEntries(payloadKeys.filter((k) => payloads[k]?.trim()).map((k) => [k, payloads[k]])),
+        },
       });
       setMsg({ ok: true, text: t('saved') });
       notifyChanged();
@@ -109,15 +138,50 @@ export default function FlagEditor({ projectId, flag, publicKey }: { projectId: 
         <label className="ui-check">
           <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> {t('active')}
         </label>
-        <fieldset className="an-series">
-          <legend className="an-series-legend">{t('conditions')}</legend>
-          <p className="an-note">{t('conditionsHelp')}</p>
-          <FilterList filters={conditions} onChange={setConditions} meta={meta} types={['person']} />
-        </fieldset>
-        <label className="ui-field">
-          <span className="label">{t('rollout', { pct: rollout })}</span>
-          <input type="range" min={0} max={100} value={rollout} onChange={(e) => setRollout(Number(e.target.value))} aria-valuetext={`${rollout}%`} />
-        </label>
+        <p className="an-note">{t('groupsHelp')}</p>
+        {groups.map((g, i) => (
+          <fieldset key={i} className="an-series" data-testid="an-flag-group">
+            <legend className="an-series-legend">{t('groupN', { n: i + 1 })}</legend>
+            <p className="an-note">{t('conditionsHelp')}</p>
+            <FilterList filters={g.conditions as PropertyFilter[]} onChange={(f) => setGroup(i, { conditions: f as FlagGroup['conditions'] })} meta={meta} types={['person']} />
+            <label className="ui-field">
+              <span className="label">{t('cohort')}</span>
+              <select className="select" value={g.cohortId ?? ''} disabled={!cohorts.length} onChange={(e) => setGroup(i, { cohortId: e.target.value || null })}>
+                <option value="">{cohorts.length ? t('anyone') : t('noCohorts')}</option>
+                {cohorts.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="ui-field">
+              <span className="label">{t('rollout', { pct: g.rollout })}</span>
+              <input type="range" min={0} max={100} value={g.rollout} onChange={(e) => setGroup(i, { rollout: Number(e.target.value) })} aria-valuetext={`${g.rollout}%`} />
+            </label>
+            {multi && (
+              <label className="ui-field">
+                <span className="label">{t('forceVariant')}</span>
+                <select className="select" value={g.variant ?? ''} onChange={(e) => setGroup(i, { variant: e.target.value || null })}>
+                  <option value="">{t('splitVariants')}</option>
+                  {variants.map((v) => (
+                    <option key={v.key} value={v.key}>
+                      {v.key}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {groups.length > 1 && (
+              <button type="button" className="btn btn-ghost btn-sm an-self-start" onClick={() => setGroups(groups.filter((_, j) => j !== i))}>
+                {t('removeGroup')}
+              </button>
+            )}
+          </fieldset>
+        ))}
+        <button type="button" className="btn btn-sm an-self-start" disabled={groups.length >= 10} title={groups.length >= 10 ? t('groupsMax') : undefined} onClick={() => setGroups([...groups, { conditions: [], cohortId: null, rollout: 100, variant: null }])}>
+          + {t('addGroup')}
+        </button>
         <label className="ui-check">
           <input type="checkbox" checked={multi} onChange={(e) => setMulti(e.target.checked)} /> {t('multivariate')}
         </label>
@@ -160,8 +224,27 @@ export default function FlagEditor({ projectId, flag, publicKey }: { projectId: 
             <p className={sum === 100 ? 'an-note' : 'ui-error'}>{t('variantSum', { sum })}</p>
           </fieldset>
         )}
+        <details className="an-more">
+          <summary>{t('payloads')}</summary>
+          <p className="an-note">{t('payloadsHelp')}</p>
+          {payloadKeys.map((k) => (
+            <label key={k} className="ui-field">
+              <span className="label an-mono">{k}</span>
+              <textarea
+                className="textarea an-mono"
+                rows={2}
+                spellCheck={false}
+                placeholder='{"color": "green"}'
+                value={payloads[k] ?? ''}
+                onChange={(e) => setPayloads({ ...payloads, [k]: e.target.value })}
+                maxLength={10000}
+              />
+            </label>
+          ))}
+          {badPayload && <p className="ui-error">{t('payloadInvalid', { key: badPayload })}</p>}
+        </details>
         <div className="an-row">
-          <button type="submit" className="btn btn-primary" disabled={busy || (multi && sum !== 100)}>
+          <button type="submit" className="btn btn-primary" disabled={busy || (multi && sum !== 100) || Boolean(badPayload)}>
             {tc('save')}
           </button>
           {msg && (
@@ -214,10 +297,11 @@ export default function FlagEditor({ projectId, flag, publicKey }: { projectId: 
             await api(`/api/analytics/flags/${flag.id}`, { method: 'DELETE' });
             notifyChanged();
             router.replace('/app/analytics/flags');
-          } catch {
+          } catch (err) {
             setBusy(false);
             setDeleting(false);
-            setMsg({ ok: false, text: tc('error') });
+            const code = err instanceof ApiError ? err.code : 'error';
+            setMsg({ ok: false, text: t.has(`errors.${code}`) ? t(`errors.${code}`) : tc('error') });
           }
         }}
       />

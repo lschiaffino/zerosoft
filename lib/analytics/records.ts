@@ -7,8 +7,10 @@ import { nanoid } from 'nanoid';
 import { getDb } from '../db';
 import { likeContains } from '../track-views';
 import {
+  ACTION_PREFIX,
   cohortDefinitionSchema,
   insightQuerySchema,
+  type ActionStep,
   type CohortDefinition,
   type CohortDto,
   type DashboardDto,
@@ -28,6 +30,20 @@ function parseJson<T>(raw: unknown, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+/** Acciones que aparecen en una lista de eventos, por id (para no leer la base si no hay ninguna). */
+export type ActionMap = Map<string, { name: string; steps: ActionStep[] }>;
+
+export async function loadActions(projectId: string, events: string[]): Promise<ActionMap> {
+  const ids = [...new Set(events.filter((e) => e.startsWith(ACTION_PREFIX)).map((e) => e.slice(ACTION_PREFIX.length)))];
+  const out: ActionMap = new Map();
+  if (!ids.length) return out;
+  const rows = (await getDb()
+    .prepare(`SELECT id, name, steps FROM analytics_actions WHERE project_id = ? AND id IN (${ids.map(() => '?').join(',')})`)
+    .all(projectId, ...ids)) as Array<{ id: string; name: string; steps: string }>;
+  for (const r of rows) out.set(r.id, { name: r.name, steps: parseJson<ActionStep[]>(r.steps, []) });
+  return out;
 }
 
 // ---------- Insights ----------
@@ -197,7 +213,7 @@ function toCohort(r: CohortRow): CohortDto {
   return {
     id: r.id,
     name: r.name,
-    definition: parsed.success ? parsed.data : { properties: [], behavior: null },
+    definition: parsed.success ? parsed.data : { properties: [], behavior: null, groups: [], type: 'dynamic' },
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -248,6 +264,8 @@ interface FlagRow {
   rollout: number;
   variants: string;
   conditions: string;
+  groups: string;
+  payloads: string;
   created_at: string;
   updated_at: string;
 }
@@ -261,6 +279,8 @@ export function toFlag(r: FlagRow): FlagDto {
     rollout: Number(r.rollout),
     variants: parseJson(r.variants, []),
     conditions: parseJson(r.conditions, []),
+    groups: parseJson(r.groups, []),
+    payloads: parseJson(r.payloads, {}),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -280,16 +300,16 @@ export async function getFlag(projectId: string, id: string): Promise<FlagDto | 
   return r ? toFlag(r) : null;
 }
 
-export async function createFlag(projectId: string, personId: string, input: FlagInput): Promise<FlagDto | 'duplicate_key'> {
+export async function createFlag(projectId: string, personId: string, input: Omit<FlagInput, 'groups' | 'payloads'> & Partial<Pick<FlagInput, 'groups' | 'payloads'>>): Promise<FlagDto | 'duplicate_key'> {
   const id = `af_${nanoid(12)}`;
   const ts = now();
   try {
     await getDb()
       .prepare(
-        `INSERT INTO analytics_flags (id, project_id, key, name, active, rollout, variants, conditions, created_by, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO analytics_flags (id, project_id, key, name, active, rollout, variants, conditions, groups, payloads, created_by, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(id, projectId, input.key, input.name, input.active ? 1 : 0, input.rollout, JSON.stringify(input.variants), JSON.stringify(input.conditions), personId, ts, ts);
+      .run(id, projectId, input.key, input.name, input.active ? 1 : 0, input.rollout, JSON.stringify(input.variants), JSON.stringify(input.conditions), JSON.stringify(input.groups ?? []), JSON.stringify(input.payloads ?? {}), personId, ts, ts);
   } catch (err) {
     if (/UNIQUE/i.test(String(err))) return 'duplicate_key';
     throw err;
@@ -305,9 +325,9 @@ export async function updateFlag(projectId: string, id: string, patch: Partial<F
   try {
     await getDb()
       .prepare(
-        `UPDATE analytics_flags SET key = ?, name = ?, active = ?, rollout = ?, variants = ?, conditions = ?, updated_at = ? WHERE id = ? AND project_id = ?`,
+        `UPDATE analytics_flags SET key = ?, name = ?, active = ?, rollout = ?, variants = ?, conditions = ?, groups = ?, payloads = ?, updated_at = ? WHERE id = ? AND project_id = ?`,
       )
-      .run(next.key, next.name, next.active ? 1 : 0, next.rollout, JSON.stringify(next.variants), JSON.stringify(next.conditions), now(), id, projectId);
+      .run(next.key, next.name, next.active ? 1 : 0, next.rollout, JSON.stringify(next.variants), JSON.stringify(next.conditions), JSON.stringify(next.groups), JSON.stringify(next.payloads), now(), id, projectId);
   } catch (err) {
     if (/UNIQUE/i.test(String(err))) return 'duplicate_key';
     throw err;

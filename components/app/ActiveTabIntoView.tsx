@@ -19,6 +19,20 @@ export default function ActiveTabIntoView() {
       const r = row.getBoundingClientRect();
       row.scrollLeft = Math.max(0, row.scrollLeft + (a.left - r.left) - (row.clientWidth - a.width) / 2);
     }
+    // En un sidebar largo, la página abierta queda a la vista dentro de su propia lista.
+    const open = document.querySelector<HTMLElement>('.side-stop.active');
+    if (open && open.offsetParent) {
+      const list = open.closest<HTMLElement>('[data-side-scroll]') ?? open.parentElement;
+      for (let el: HTMLElement | null = list; el && el !== document.body; el = el.parentElement) {
+        if (el.scrollHeight > el.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) {
+          const a = open.getBoundingClientRect();
+          const r = el.getBoundingClientRect();
+          if (a.top < r.top) el.scrollTop -= r.top - a.top;
+          else if (a.bottom > r.bottom) el.scrollTop += a.bottom - r.bottom;
+          break;
+        }
+      }
+    }
   }, [pathname, search]);
   return null;
 }

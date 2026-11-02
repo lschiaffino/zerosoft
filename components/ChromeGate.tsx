@@ -79,6 +79,8 @@ export default function ChromeGate({
   }
   const publicPage =
     pathname.startsWith('/book/') ||
+    // Insight o tablero compartido: se puede embeber, sin el marco del sitio.
+    pathname.startsWith('/stats/a/') ||
     pathname.startsWith('/r/') ||
     pathname.startsWith('/bio/') ||
     // Notas y pizarras compartidas por link (Notes /n, Board /b).

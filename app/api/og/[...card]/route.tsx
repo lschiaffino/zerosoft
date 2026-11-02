@@ -119,7 +119,8 @@ export async function GET(_req: Request, props: { params: Promise<{ card: string
       return ogCard({
         seed: c.product,
         color: PRODUCT_CONFIG[c.product].color,
-        kicker: `zerosoft · ${parity}: ${c.score.percent}%`,
+        // Sin porcentaje público, sin porcentaje en la tarjeta.
+        kicker: c.percentNote ? `zerosoft · ${c.competitor}` : `zerosoft · ${parity}: ${c.score.percent}%`,
         title: page === 'vs' ? t('vs.title', vars) : t('alt.title', vars),
         sub: page === 'vs' ? undefined : t('alt.titleDim', vars),
       });

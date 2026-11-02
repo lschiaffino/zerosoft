@@ -12,7 +12,15 @@ for (const product of PRODUCTS) {
   test(`paridad en /es/products/${product}`, async ({ page }) => {
     await page.goto(`/es/products/${product}`);
     const section = page.locator('#parity');
-    await expect(section.locator('.parity-num .data')).toHaveText(/^\d{1,3}%$/);
+    if (product === 'analytics') {
+      // Mide toda la documentación de PostHog: cuentas por estado y una nota, sin porcentaje.
+      await expect(section.locator('.parity-num')).toHaveCount(0);
+      await expect(section.getByTestId('parity-scope-note')).toBeVisible();
+      await expect(section.locator('.parity-counts dd').first()).toHaveText(/^\d+$/);
+      expect(await section.locator('.parity-head').textContent()).not.toMatch(/\d%/);
+    } else {
+      await expect(section.locator('.parity-num .data')).toHaveText(/^\d{1,3}%$/);
+    }
     await expect(section.locator('.parity-method')).toContainText('Medimos');
     // Las apps en construcción no incluyen nada todavía: cuentan las filas de lo que falta (abierto).
     const building = ([] as string[]).includes(product);
@@ -41,6 +49,24 @@ test('/products muestra el porcentaje de cada app', async ({ page }) => {
   const tags = page.locator('.suite-parity');
   await expect(tags).toHaveCount(PRODUCTS.length);
   await expect(tags.first()).toHaveText(/^\d{1,3}% parity with .+/);
+});
+
+test('Analytics no publica porcentaje en /products, /compare ni en su comparación', async ({ page, request }) => {
+  await page.goto('/en/products');
+  const tag = page.locator('.suite-vs', { hasText: 'PostHog' }).locator('.suite-parity');
+  await expect(tag).toHaveText(/included, \d+ partial of \d+$/);
+  const row = page.locator('#paridad .parity-overview-table tbody tr', { hasText: 'Analytics' });
+  await expect(row).toContainText('Not comparable');
+  expect(await row.textContent()).not.toMatch(/\d%/);
+  await page.goto('/en/compare');
+  const cmp = page.locator('table tbody tr', { hasText: 'PostHog' });
+  await expect(cmp).toContainText('Not comparable');
+  expect(await cmp.textContent()).not.toMatch(/\d%/);
+  await page.goto('/en/compare/zerosoft-vs-posthog');
+  expect(await page.locator('.cmp-glance').textContent()).not.toMatch(/\d%/);
+  await expect(page.locator('.cmp-scope-note')).toContainText('not comparable');
+  const llms = await (await request.get('/llms.txt')).text();
+  expect(llms).not.toMatch(/PostHog\]\([^)]*\): \d+%/);
 });
 
 for (const path of ['/es', '/es/products']) {

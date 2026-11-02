@@ -204,7 +204,12 @@ function useGroupOrder() {
         'analyticsInsights',
         'analyticsDashboards',
         'analyticsFlags',
+        'analyticsSurveys',
         'analyticsCohorts',
+        'analyticsActions',
+        'analyticsErrors',
+        'analyticsExperiments',
+        'analyticsAlerts',
         'analyticsProjects',
         'assistantChats',
       ], []);

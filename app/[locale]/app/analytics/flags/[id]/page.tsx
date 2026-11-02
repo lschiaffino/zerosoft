@@ -6,7 +6,7 @@ import SyncProject from '@/components/analytics/SyncProject';
 import { analyticsPage } from '@/lib/analytics/page';
 import { recordProjectId } from '@/lib/analytics/guard';
 import { requireUser } from '@/lib/session';
-import { getFlag } from '@/lib/analytics/records';
+import { getFlag, listCohorts } from '@/lib/analytics/records';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +29,7 @@ export default async function AnalyticsFlagPage(props: { params: Promise<{ local
   return (
     <>
       <SyncProject projectId={ctx.project.id} currentId={cookieProject} />
-      <FlagEditor key={flag.id} projectId={ctx.project.id} flag={flag} publicKey={ctx.project.public_key} />
+      <FlagEditor key={flag.id} projectId={ctx.project.id} flag={flag} publicKey={ctx.project.public_key} cohorts={(await listCohorts(ctx.project.id)).map((c) => ({ id: c.id, name: c.name }))} />
     </>
   );
 }

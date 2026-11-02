@@ -83,7 +83,8 @@ describe('llms.txt', () => {
     for (const k of PRODUCT_KEYS) expect(txt).toContain(`[${PRODUCT_CONFIG[k].name}](${origin}/en/products/${k})`);
     for (const c of getComparisons()) {
       expect(txt).toContain(`${origin}/en/compare/${c.vsSlug}`);
-      expect(txt).toContain(`${c.score.percent}% parity`);
+      // Una app sin porcentaje público (content/feature-parity) lista sus cuentas.
+      if (!c.percentNote) expect(txt).toContain(`${c.score.percent}% parity`);
     }
     expect(txt).toContain(`${origin}/llms-full.txt`);
   });

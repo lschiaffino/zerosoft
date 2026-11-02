@@ -3,7 +3,8 @@
 import { useMounted } from '@/components/ui/useMounted';
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
+import NameDialog from './NameDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import { personLabel, type PersonRow } from '@/lib/analytics/types';
 import { api, fmtTime } from './client';
@@ -25,6 +26,26 @@ export default function PersonsList({
   const t = useTranslations('analytics.persons');
   const locale = useLocale();
   const mounted = useMounted();
+  const router = useRouter();
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [asking, setAsking] = useState(false);
+
+  // La gente de esta lista (por ejemplo, los que abandonaron un paso) como cohorte estática.
+  const saveCohort = async (name: string) => {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const { cohort } = await api<{ cohort: { id: string } }>('/api/analytics/cohorts', { body: { projectId, name, definition: { type: 'static', properties: [], behavior: null, groups: [] } } });
+      await api(`/api/analytics/cohorts/${cohort.id}/members`, { body: { ids: (ids ?? '').split(',').filter(Boolean) } });
+      router.push(`/app/analytics/cohorts?open=${cohort.id}`);
+    } catch {
+      setSaveMsg(t('saveCohortError'));
+    } finally {
+      setSaving(false);
+      setAsking(false);
+    }
+  };
   const [q, setQ] = useState('');
   const [persons, setPersons] = useState(initial);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -77,6 +98,17 @@ export default function PersonsList({
     <div className="an-persons" aria-busy={loading}>
       <div className="an-toolbar">
         <input className="input an-search" type="search" placeholder={t('search')} aria-label={t('search')} value={q} onChange={(e) => setQ(e.target.value)} />
+        {ids && (
+          <button type="button" className="btn btn-sm" disabled={saving} onClick={() => setAsking(true)}>
+            {t('saveCohort')}
+          </button>
+        )}
+        {saveMsg && (
+          <span className="ui-error" role="alert">
+            {saveMsg}
+          </span>
+        )}
+        <NameDialog open={asking} title={t('saveCohort')} label={t('cohortName')} submitLabel={t('saveCohort')} busy={saving} onClose={() => setAsking(false)} onSubmit={(n) => void saveCohort(n)} />
         {(cohortId || ids) && (
           <Link href="/app/analytics/persons" className="an-link">
             {t('clearFilter')}

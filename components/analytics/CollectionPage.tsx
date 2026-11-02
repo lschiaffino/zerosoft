@@ -10,7 +10,7 @@ import NameDialog from './NameDialog';
 import RecordList, { type RecordItem } from './RecordList';
 import { ApiError, apiErrorText, api, notifyChanged, setProjectCookie } from './client';
 
-export type CollectionKind = 'insights' | 'dashboards' | 'flags' | 'cohorts' | 'projects';
+export type CollectionKind = 'insights' | 'dashboards' | 'flags' | 'cohorts' | 'projects' | 'actions' | 'experiments' | 'alerts';
 
 const ENDPOINT: Record<CollectionKind, string> = {
   insights: '/api/analytics/insights',
@@ -18,6 +18,9 @@ const ENDPOINT: Record<CollectionKind, string> = {
   flags: '/api/analytics/flags',
   cohorts: '/api/analytics/cohorts',
   projects: '/api/analytics/projects',
+  actions: '/api/analytics/actions',
+  experiments: '/api/analytics/experiments',
+  alerts: '/api/analytics/alerts',
 };
 
 /** Clave de flag válida a partir de lo que se escribe ("Nuevo checkout" → "nuevo-checkout"). */
@@ -32,6 +35,23 @@ export function flagKeyFrom(text: string): string {
       .replace(/^-+|-+$/g, '')
       .slice(0, 100) || 'flag'
   );
+}
+
+/** Un experimento nace con su propio flag control/test a mitades y apagado: se prende al empezar. */
+async function experimentBody(projectId: string, name: string) {
+  const base = `exp-${flagKeyFrom(name)}`.slice(0, 90);
+  for (let i = 0; i < 5; i++) {
+    const key = i === 0 ? base : `${base}-${i + 1}`;
+    try {
+      const { flag } = await api<{ flag: { id: string } }>('/api/analytics/flags', {
+        body: { projectId, key, name, active: false, variants: [{ key: 'control', rollout: 50 }, { key: 'test', rollout: 50 }] },
+      });
+      return { projectId, name, hypothesis: '', flagId: flag.id, metrics: [{ event: '$pageview', filters: [], type: 'conversion', mathProperty: null }] };
+    } catch (err) {
+      if (!(err instanceof ApiError) || err.status !== 409) throw err;
+    }
+  }
+  throw new ApiError('duplicate_key', 409);
 }
 
 /**
@@ -62,6 +82,7 @@ export default function CollectionPage({
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [staticCohort, setStaticCohort] = useState(false);
 
   useEffect(() => {
     if (search.get('new') === '1' && canCreate && kind !== 'insights') setCreating(true);
@@ -77,8 +98,18 @@ export default function CollectionPage({
           : kind === 'flags'
             ? { projectId, key: flagKeyFrom(name), name: '' }
             : kind === 'cohorts'
-              ? { projectId, name, definition: { properties: [], behavior: { event: '$pageview', days: 30, minCount: 1 } } }
-              : { projectId, name };
+              ? {
+                  projectId,
+                  name,
+                  definition: staticCohort
+                    ? { type: 'static', properties: [], behavior: null, groups: [] }
+                    : { properties: [], behavior: null, groups: [{ properties: [], behaviors: [{ event: '$pageview', days: 30, minCount: 1, negate: false }] }] },
+                }
+              : kind === 'actions'
+                ? { projectId, name, description: '', steps: [{ event: '$pageview', urlContains: null, filters: [] }] }
+                : kind === 'experiments'
+                  ? await experimentBody(projectId!, name)
+                  : { projectId, name };
       const res = await api<Record<string, { id: string }>>(ENDPOINT[kind], { body });
       const created = Object.values(res)[0];
       notifyChanged();
@@ -155,6 +186,11 @@ export default function CollectionPage({
           }}
         />
       )}
+      {kind === 'cohorts' && creating && (
+        <span className="sr-only" role="status">
+          {staticCohort ? t('typeStatic') : t('typeDynamic')}
+        </span>
+      )}
       <NameDialog
         open={creating}
         title={t('new')}
@@ -167,6 +203,13 @@ export default function CollectionPage({
           setError(null);
         }}
         onSubmit={(name) => void create(name)}
+        extra={
+          kind === 'cohorts' ? (
+            <label className="ui-check">
+              <input type="checkbox" checked={staticCohort} onChange={(e) => setStaticCohort(e.target.checked)} /> {t('typeStaticLabel')}
+            </label>
+          ) : undefined
+        }
       />
     </div>
   );

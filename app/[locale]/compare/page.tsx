@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import { getComparisons } from '@/lib/compare';
+import { loc } from '@/lib/feature-parity';
 import { staticPageMetadata } from '@/lib/seo-pages';
 import { breadcrumbLd, graphLd, jsonLdString, absoluteUrl, localePath } from '@/lib/seo';
 import '@/styles/pages.css';
@@ -79,7 +80,7 @@ export default async function CompareIndexPage(props: { params: Promise<{ locale
                     {c.competitor}
                   </td>
                   <td className="num data cmp-cell" data-label={t('index.col.parity')}>
-                    {`${c.score.percent}%`}
+                    {c.percentNote ? t('index.notComparable') : `${c.score.percent}%`}
                   </td>
                   <td className="data cmp-cell" data-label={t('index.col.counts')}>
                     {`${c.score.have} · ${c.score.partial} · ${c.score.missing}`}
@@ -98,6 +99,13 @@ export default async function CompareIndexPage(props: { params: Promise<{ locale
             </tbody>
           </table>
         </div>
+        {comparisons
+          .filter((c) => c.percentNote)
+          .map((c) => (
+            <p key={c.product} className="cmp-scope-note">
+              {c.name}: {loc(c.percentNote!, locale)}
+            </p>
+          ))}
       </div>
     </main>
   );

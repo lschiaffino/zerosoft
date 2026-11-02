@@ -11,26 +11,36 @@ import {
   breakdownSeries,
   bucketList,
   bucketOf,
+  bucketBefore,
   bucketSql,
   computeFunnel,
   computePaths,
   computeRetention,
   periodLabel,
   periodOf,
-  previousRange,
+  previousAligned,
   resolveRange,
   type FunnelRow,
 } from './compute';
-import { cohortSql, filtersSql, needsPerson, personJoins, PERSON_KEY, propText, type Arg, type Frag } from './sql-build';
+import { actionSql, cohortSql, filtersSql, groupKeySql, needsPerson, numericProp, personJoins, PERSON_KEY, propText, type Arg, type Frag } from './sql-build';
+import { applyFormula, collapsePath, computeLifecycle, correlate, formulaValue, parseFormula, percentile, PERCENTILE_OF, round2, stickinessHistogram } from './compute-more';
+import { parseTestFilters } from './projects';
+import { fromLocal, offsetMsAt, projectTz, tzShiftSql } from './tz';
 import { checkSql, SQL_MAX_ROWS, wrapSql } from './sql-safe';
 import { runReadOnly, SqlRunError } from './sql-run';
-import { getCohort } from './records';
+import { getCohort, loadActions, type ActionMap } from './records';
+import { channelSql, webFiltersSql } from './web-core';
 import type { ProjectRow } from './projects';
+import { ACTION_PREFIX, PROPERTY_MATHS } from './types';
 import type {
+  CorrelationQuery,
+  CorrelationResult,
   FunnelQuery,
   FunnelResult,
   InsightQuery,
   InsightResult,
+  LifecycleQuery,
+  LifecycleResult,
   LiveEvent,
   PathsQuery,
   PathsResult,
@@ -38,6 +48,8 @@ import type {
   RetentionQuery,
   RetentionResult,
   SqlResult,
+  StickinessQuery,
+  StickinessResult,
   TrendsQuery,
   TrendsResult,
   WebQuery,
@@ -63,13 +75,15 @@ export class QueryError extends Error {
   }
 }
 
-const offMs = (p: ProjectRow) => Number(p.tz_offset_min) * 60_000;
+/** Desfase en ms en un instante; `shiftFor` corrige lo que cae después de un cambio de hora dentro del rango. */
+const offAt = (p: ProjectRow, at: number) => offsetMsAt(projectTz(p), at);
+const shiftFor = (p: ProjectRow, range: { from: number; to: number }, col = 'e.ts') => tzShiftSql(projectTz(p), range.from, range.to, col);
 
 async function cohortFrag(project: ProjectRow, cohortId: string | null | undefined, now: number): Promise<Frag | null> {
   if (!cohortId) return null;
   const c = await getCohort(project.id, cohortId);
   if (!c) throw new QueryError('cohort_not_found');
-  const sub = cohortSql(project.id, c.definition, now);
+  const sub = cohortSql(project.id, c.definition, now, c.id);
   return { sql: `${PERSON_KEY} IN (${sub.sql})`, args: sub.args };
 }
 
@@ -80,12 +94,14 @@ function whereFor(
   event: string | null,
   filters: PropertyFilter[],
   cohort: Frag | null,
+  actions?: ActionMap,
 ): Frag {
   const parts = ['e.project_id = ?', 'e.ts >= ?', 'e.ts <= ?'];
   const args: Arg[] = [project.id, range.from, range.to];
   if (event && event !== '*') {
-    parts.push('e.event = ?');
-    args.push(event);
+    const m = eventMatch(event, actions);
+    parts.push(m.sql);
+    args.push(...m.args);
   }
   const f = filtersSql(filters);
   if (f.sql) {
@@ -99,12 +115,44 @@ function whereFor(
   return { sql: parts.join(' AND '), args };
 }
 
+/** Condición de un evento o de una acción guardada. Una acción borrada no matchea nada. */
+function eventMatch(event: string, actions?: ActionMap): Frag {
+  if (event === '*') return { sql: '1', args: [] };
+  if (event.startsWith(ACTION_PREFIX)) {
+    const a = actions?.get(event.slice(ACTION_PREFIX.length));
+    return a ? actionSql(a.steps) : { sql: '0', args: [] };
+  }
+  return { sql: 'e.event = ?', args: [event] };
+}
+
+/** Filtros de gente interna del proyecto, si la consulta los pide. */
+function internalFilters(project: ProjectRow, on: boolean | undefined): PropertyFilter[] {
+  return on ? parseTestFilters(project.test_filters) : [];
+}
+
 // ---------- Tendencias ----------
 
-function seriesLabel(event: string, math: 'total' | 'unique', label?: string): string {
-  if (label) return label;
-  const name = event === '*' ? 'All events' : event;
-  return math === 'unique' ? `${name} (unique users)` : name;
+const MATH_SUFFIX: Record<string, string> = {
+  unique: 'unique users',
+  sessions: 'sessions',
+  per_user: 'per user',
+  unique_group: 'unique groups',
+  sum: 'sum',
+  avg: 'average',
+  min: 'minimum',
+  max: 'maximum',
+  median: 'median',
+  p90: 'p90',
+  p95: 'p95',
+  p99: 'p99',
+};
+
+function seriesLabel(event: string, s: { math: string; mathProperty?: string; label?: string }, actions?: ActionMap): string {
+  if (s.label) return s.label;
+  const name = event === '*' ? 'All events' : event.startsWith(ACTION_PREFIX) ? (actions?.get(event.slice(ACTION_PREFIX.length))?.name ?? 'Deleted action') : event;
+  const suffix = MATH_SUFFIX[s.math];
+  if (!suffix) return name;
+  return s.mathProperty && PROPERTY_MATHS.includes(s.math as never) ? `${name} (${suffix} of ${s.mathProperty})` : `${name} (${suffix})`;
 }
 
 function dayAfter(day: string): string {
@@ -126,13 +174,12 @@ async function trendFromRollup(
 ): Promise<number[] | null> {
   if (!project.rolled_through || event === '*') return null;
   if (interval === 'hour' || (math === 'unique' && interval !== 'day')) return null;
-  const off = offMs(project);
   // El rango tiene que arrancar a medianoche local para que los días cierren.
-  if ((range.from + off) % DAY !== 0) return null;
-  const fromDay = bucketOf(range.from, 'day', Number(project.tz_offset_min));
+  if ((range.from + offAt(project, range.from)) % DAY !== 0) return null;
+  const fromDay = bucketOf(range.from, 'day', projectTz(project));
   const rolled = project.dirty_from && project.dirty_from <= project.rolled_through ? dayBefore(project.dirty_from) : project.rolled_through;
   if (rolled < fromDay) return null;
-  const toDay = bucketOf(range.to, 'day', Number(project.tz_offset_min));
+  const toDay = bucketOf(range.to, 'day', projectTz(project));
   const lastRolled = rolled < toDay ? rolled : toDay;
   const daily = (await all(`SELECT day, ${math === 'unique' ? 'uniques' : 'count'} AS n FROM analytics_daily WHERE project_id = ? AND event = ? AND day >= ? AND day <= ?`, [
     project.id,
@@ -141,16 +188,18 @@ async function trendFromRollup(
     lastRolled,
   ])) as Array<{ day: string; n: number }>;
   const rows: Array<{ bucket: string; count: number }> = daily.map((d) => ({
-    bucket: interval === 'day' ? d.day : bucketOf(Date.parse(`${d.day}T00:00:00Z`) - off, interval, Number(project.tz_offset_min)),
+    // La fila ya es un día local: la semana o el mes salen de esa fecha, sin zona.
+    bucket: interval === 'day' ? d.day : bucketOf(Date.parse(`${d.day}T00:00:00Z`), interval, 0),
     count: Number(d.n),
   }));
   if (lastRolled < toDay) {
-    const rawFrom = Date.parse(`${dayAfter(lastRolled)}T00:00:00Z`) - off;
+    const rawFrom = fromLocal(Date.parse(`${dayAfter(lastRolled)}T00:00:00Z`), projectTz(project));
+    const rawRange = { from: rawFrom, to: range.to };
     const agg = math === 'unique' ? `COUNT(DISTINCT ${PERSON_KEY})` : 'COUNT(*)';
     const raw = (await all(
-      `SELECT ${bucketSql(interval)} AS bucket, ${agg} AS count FROM analytics_events e ${math === 'unique' ? personJoins(false) : ''}
+      `SELECT ${bucketSql(interval, 'e.ts', shiftFor(project, rawRange))} AS bucket, ${agg} AS count FROM analytics_events e ${math === 'unique' ? personJoins(false) : ''}
        WHERE e.project_id = ? AND e.event = ? AND e.ts >= ? AND e.ts <= ? GROUP BY 1`,
-      [off, project.id, event, rawFrom, range.to],
+      [offAt(project, rawFrom), project.id, event, rawFrom, range.to],
     )) as Array<{ bucket: string; count: number }>;
     rows.push(...raw);
   }
@@ -161,17 +210,81 @@ function dayBefore(day: string): string {
   return new Date(Date.parse(`${day}T00:00:00Z`) - DAY).toISOString().slice(0, 10);
 }
 
+/** Agregación SQL de los conteos ('per_user' y las de propiedad se resuelven aparte). */
+function aggSql(s: TrendsQuery['series'][number]): Frag {
+  switch (s.math) {
+    case 'unique':
+      return { sql: `COUNT(DISTINCT ${PERSON_KEY})`, args: [] };
+    case 'sessions':
+      return { sql: 'COUNT(DISTINCT e.session_id)', args: [] };
+    case 'per_user':
+      return { sql: `CAST(COUNT(*) AS REAL) / MAX(COUNT(DISTINCT ${PERSON_KEY}), 1)`, args: [] };
+    case 'unique_group':
+      if (!s.groupType) throw new QueryError('group_type_required');
+      return { sql: `COUNT(DISTINCT ${groupKeySql()})`, args: [`$."$groups"."${s.groupType}"`] };
+    case 'sum':
+    case 'avg':
+    case 'min':
+    case 'max': {
+      if (!s.mathProperty) throw new QueryError('math_property_required');
+      const v = numericProp(s.mathProperty);
+      return { sql: `${s.math.toUpperCase()}(${v.sql})`, args: v.args };
+    }
+    default:
+      return { sql: 'COUNT(*)', args: [] };
+  }
+}
+
+/** Percentiles: trae los valores (con tope) y calcula acá, que SQLite no los tiene. */
+async function percentileSeries(
+  project: ProjectRow,
+  s: TrendsQuery['series'][number],
+  q: TrendsQuery,
+  where: Frag,
+  joins: string,
+  buckets: string[],
+  range: { from: number; to: number },
+): Promise<Array<{ value: string | null; data: number[]; total: number }>> {
+  if (!s.mathProperty) throw new QueryError('math_property_required');
+  const p = PERCENTILE_OF[s.math];
+  const v = numericProp(s.mathProperty);
+  const bd = q.breakdown ? propText(q.breakdown.key, q.breakdown.type) : null;
+  const rows = (await all(
+    `SELECT ${bucketSql(q.interval, 'e.ts', shiftFor(project, range))} AS bucket, ${bd ? bd.sql : 'NULL'} AS value, ${v.sql} AS v FROM analytics_events e ${joins}
+     WHERE ${where.sql} AND ${v.sql} IS NOT NULL LIMIT ?`,
+    [offAt(project, range.from), ...(bd?.args ?? []), ...v.args, ...where.args, ...v.args, ROW_CAP],
+  )) as Array<{ bucket: string; value: string | null; v: number }>;
+  const groups = new Map<string | null, Map<string, number[]>>();
+  for (const r of rows) {
+    const k = bd ? (r.value ?? '(none)') : null;
+    let g = groups.get(k);
+    if (!g) groups.set(k, (g = new Map()));
+    let list = g.get(String(r.bucket));
+    if (!list) g.set(String(r.bucket), (list = []));
+    list.push(Number(r.v));
+  }
+  const out = [...groups.entries()].map(([value, g]) => ({
+    value,
+    data: buckets.map((b) => percentile(g.get(b) ?? [], p)),
+    total: percentile([...g.values()].flat(), p),
+  }));
+  return out.sort((a, b) => b.total - a.total).slice(0, 10);
+}
+
 async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: number; to: number }, now: number) {
-  const off = offMs(project);
-  const tz = Number(project.tz_offset_min);
+  const off = offAt(project, range.from);
+  const shift = shiftFor(project, range);
+  const tz = projectTz(project);
   const buckets = bucketList(range.from, range.to, q.interval, tz);
   const cohort = await cohortFrag(project, q.cohortId, now);
+  const actions = await loadActions(project.id, q.series.map((s) => s.event));
   let usedRollup = false;
   const out: Array<{ label: string; breakdownValue: string | null; data: number[]; total: number }> = [];
   for (const s of q.series) {
-    const filters = [...q.filters, ...s.filters];
-    const label = seriesLabel(s.event, s.math, s.label);
-    if (!filters.length && !q.breakdown && !cohort) {
+    const filters = [...internalFilters(project, q.excludeInternal), ...q.filters, ...s.filters];
+    const label = seriesLabel(s.event, s, actions);
+    const isAction = s.event.startsWith(ACTION_PREFIX);
+    if (!filters.length && !q.breakdown && !cohort && !isAction && s.math === 'total') {
       const data = await trendFromRollup(project, s.event, s.math, q.interval, range, buckets);
       if (data) {
         usedRollup = true;
@@ -180,32 +293,47 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
       }
     }
     const withPerson = needsPerson(filters) || q.breakdown?.type === 'person';
-    const joins = s.math === 'unique' || withPerson || cohort ? personJoins(withPerson) : '';
-    const where = whereFor(project, range, s.event, filters, cohort);
-    const agg = s.math === 'unique' ? `COUNT(DISTINCT ${PERSON_KEY})` : 'COUNT(*)';
+    const usesPerson = s.math === 'unique' || s.math === 'per_user';
+    const joins = usesPerson || withPerson || cohort ? personJoins(withPerson) : '';
+    const where = whereFor(project, range, s.event, filters, cohort, actions);
+    if (PERCENTILE_OF[s.math] !== undefined) {
+      for (const b of await percentileSeries(project, s, q, where, joins, buckets, range)) out.push({ label, breakdownValue: b.value, data: b.data, total: b.total });
+      continue;
+    }
+    const agg = aggSql(s);
     if (q.breakdown) {
       const value = propText(q.breakdown.key, q.breakdown.type);
       const rows = (await all(
-        `SELECT ${bucketSql(q.interval)} AS bucket, ${value.sql} AS value, ${agg} AS count FROM analytics_events e ${joins}
+        `SELECT ${bucketSql(q.interval, 'e.ts', shift)} AS bucket, ${value.sql} AS value, ${agg.sql} AS count FROM analytics_events e ${joins}
          WHERE ${where.sql} GROUP BY 1, 2`,
-        [off, ...value.args, ...where.args],
+        [off, ...value.args, ...agg.args, ...where.args],
       )) as Array<{ bucket: string; value: string | null; count: number }>;
-      for (const b of breakdownSeries(rows, buckets, 10, s.math === 'total')) {
-        out.push({ label, breakdownValue: b.value, data: b.data, total: b.total });
+      const summable = s.math === 'total' || s.math === 'sum';
+      // Únicos, promedios y demás no se suman por día: el total de cada valor es su propia cuenta sobre el rango.
+      const exact = summable
+        ? null
+        : new Map(
+            ((await all(`SELECT ${value.sql} AS value, ${agg.sql} AS n FROM analytics_events e ${joins} WHERE ${where.sql} GROUP BY 1`, [...value.args, ...agg.args, ...where.args])) as Array<{ value: string | null; n: number | null }>).map(
+              (r) => [r.value ?? '(none)', round2(Number(r.n ?? 0))] as const,
+            ),
+          );
+      for (const b of breakdownSeries(rows.map((r) => ({ ...r, count: round2(Number(r.count ?? 0)) })), buckets, 10, summable)) {
+        out.push({ label, breakdownValue: b.value, data: b.data, total: exact ? (exact.get(b.value) ?? 0) : round2(b.total) });
       }
     } else {
-      const rows = (await all(`SELECT ${bucketSql(q.interval)} AS bucket, ${agg} AS count FROM analytics_events e ${joins} WHERE ${where.sql} GROUP BY 1`, [
+      const rows = (await all(`SELECT ${bucketSql(q.interval, 'e.ts', shift)} AS bucket, ${agg.sql} AS count FROM analytics_events e ${joins} WHERE ${where.sql} GROUP BY 1`, [
         off,
+        ...agg.args,
         ...where.args,
-      ])) as Array<{ bucket: string; count: number }>;
-      const data = alignSeries(rows, buckets);
-      let total = data.reduce((a, b) => a + b, 0);
-      if (s.math === 'unique') {
-        // Únicos del rango entero (no la suma de cada cubeta).
+      ])) as Array<{ bucket: string; count: number | null }>;
+      const data = alignSeries(rows.map((r) => ({ bucket: r.bucket, count: round2(Number(r.count ?? 0)) })), buckets);
+      let total = round2(data.reduce((a, b) => a + b, 0));
+      if (s.math !== 'total' && s.math !== 'sum') {
+        // Únicos, promedios y demás se calculan sobre el rango entero (no son la suma de cada cubeta).
         const t = (await getDb()
-          .prepare(`SELECT COUNT(DISTINCT ${PERSON_KEY}) AS n FROM analytics_events e ${joins} WHERE ${where.sql}`)
-          .get(...where.args)) as { n: number } | undefined;
-        total = Number(t?.n ?? 0);
+          .prepare(`SELECT ${agg.sql} AS n FROM analytics_events e ${joins} WHERE ${where.sql}`)
+          .get(...agg.args, ...where.args)) as { n: number | null } | undefined;
+        total = round2(Number(t?.n ?? 0));
       }
       out.push({ label, breakdownValue: null, data, total });
     }
@@ -214,11 +342,11 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
 }
 
 export async function runTrends(project: ProjectRow, q: TrendsQuery, now = Date.now()): Promise<TrendsResult> {
-  const range = resolveRange(q.dateRange, now, Number(project.tz_offset_min));
+  const range = resolveRange(q.dateRange, now, projectTz(project));
   const cur = await trendOnce(project, q, range, now);
   const series = cur.series.map((s) => ({ ...s }) as TrendsResult['series'][number]);
   if (q.compare) {
-    const prev = await trendOnce(project, q, previousRange(range), now);
+    const prev = await trendOnce(project, q, previousAligned(range, q.interval, projectTz(project)), now);
     for (const s of series) {
       const match = prev.series.find((p) => p.label === s.label && p.breakdownValue === s.breakdownValue);
       const data = match?.data ?? [];
@@ -226,43 +354,73 @@ export async function runTrends(project: ProjectRow, q: TrendsQuery, now = Date.
       s.compareTotal = match?.total ?? 0;
     }
   }
+  // Fórmula: una sola serie calculada (sin apertura, que multiplicaría las letras).
+  if (q.formula && !q.breakdown) {
+    const node = parseFormula(q.formula);
+    if (!node) throw new QueryError('invalid_formula');
+    const data = applyFormula(node, series.map((x) => x.data), cur.buckets.length);
+    const out: TrendsResult['series'][number] = {
+      label: q.formula,
+      breakdownValue: null,
+      data,
+      total: formulaValue(node, series.map((x) => x.total)),
+    };
+    if (q.compare) {
+      out.compare = applyFormula(node, series.map((x) => x.compare ?? []), cur.buckets.length);
+      out.compareTotal = formulaValue(node, series.map((x) => x.compareTotal ?? 0));
+    }
+    return { kind: 'trends', buckets: cur.buckets, series: [out], usedRollup: cur.usedRollup };
+  }
   return { kind: 'trends', buckets: cur.buckets, series, usedRollup: cur.usedRollup };
 }
 
 // ---------- Embudos ----------
 
-export async function runFunnel(project: ProjectRow, q: FunnelQuery, now = Date.now()): Promise<FunnelResult> {
-  const range = resolveRange(q.dateRange, now, Number(project.tz_offset_min));
-  const windowMs = q.windowDays * DAY;
+/** Filas de un embudo (persona o grupo, ts, qué pasos cumple). */
+async function funnelRows(project: ProjectRow, q: FunnelQuery, range: { from: number; to: number }, windowMs: number, now: number): Promise<{ list: FunnelRow[]; truncated: boolean; actions: ActionMap }> {
   const cohort = await cohortFrag(project, q.cohortId, now);
-  const withPerson = needsPerson(q.filters) || q.steps.some((s) => needsPerson(s.filters));
+  const actions = await loadActions(project.id, q.steps.map((s) => s.event));
+  const filters = [...internalFilters(project, q.excludeInternal), ...q.filters];
+  const withPerson = needsPerson(filters) || q.steps.some((s) => needsPerson(s.filters));
   const flags: Frag[] = q.steps.map((s) => {
     const f = filtersSql(s.filters);
-    const parts = [s.event === '*' ? '1' : 'e.event = ?', f.sql].filter(Boolean);
-    return { sql: `(${parts.join(' AND ')})`, args: [...(s.event === '*' ? [] : [s.event]), ...f.args] };
+    const m = eventMatch(s.event, actions);
+    const parts = [m.sql, f.sql].filter(Boolean);
+    return { sql: `(${parts.join(' AND ')})`, args: [...m.args, ...f.args] };
   });
   const events = [...new Set(q.steps.map((s) => s.event))];
-  const anyEvent = events.includes('*');
-  const where = whereFor(project, { from: range.from, to: range.to + windowMs }, null, q.filters, cohort);
+  // Con una acción, un paso puede ser cualquier evento: el recorte por nombre solo sirve sin acciones.
+  const anyEvent = events.includes('*') || events.some((e) => e.startsWith(ACTION_PREFIX));
+  const where = whereFor(project, { from: range.from, to: range.to + windowMs }, null, filters, cohort);
+  const key: Frag = q.groupType ? { sql: groupKeySql(), args: [`$."$groups"."${q.groupType}"`] } : { sql: PERSON_KEY, args: [] };
   const rows = (await all(
-    `SELECT ${PERSON_KEY} AS person, e.ts AS ts, ${flags.map((f, i) => `${f.sql} AS s${i}`).join(', ')}
+    `SELECT ${key.sql} AS person, e.ts AS ts, ${flags.map((f, i) => `${f.sql} AS s${i}`).join(', ')}
      FROM analytics_events e ${personJoins(withPerson)}
-     WHERE ${where.sql}${anyEvent ? '' : ` AND e.event IN (${events.map(() => '?').join(',')})`}
+     WHERE ${where.sql}${anyEvent ? '' : ` AND e.event IN (${events.map(() => '?').join(',')})`}${q.groupType ? ` AND ${key.sql} IS NOT NULL` : ''}
      ORDER BY person, e.ts LIMIT ?`,
-    [...flags.flatMap((f) => f.args), ...where.args, ...(anyEvent ? [] : events), ROW_CAP + 1],
+    [...key.args, ...flags.flatMap((f) => f.args), ...where.args, ...(anyEvent ? [] : events), ...(q.groupType ? key.args : []), ROW_CAP + 1],
   )) as Row[];
-  const truncated = rows.length > ROW_CAP;
-  const list: FunnelRow[] = rows.slice(0, ROW_CAP).map((r) => ({
-    person: String(r.person),
-    ts: Number(r.ts),
-    steps: q.steps.map((_, i) => i).filter((i) => Number(r[`s${i}`]) === 1),
-  }));
+  return {
+    truncated: rows.length > ROW_CAP,
+    actions,
+    list: rows.slice(0, ROW_CAP).map((r) => ({
+      person: String(r.person),
+      ts: Number(r.ts),
+      steps: q.steps.map((_, i) => i).filter((i) => Number(r[`s${i}`]) === 1),
+    })),
+  };
+}
+
+export async function runFunnel(project: ProjectRow, q: FunnelQuery, now = Date.now()): Promise<FunnelResult> {
+  const range = resolveRange(q.dateRange, now, projectTz(project));
+  const windowMs = q.windowDays * DAY;
+  const { list, truncated, actions } = await funnelRows(project, q, range, windowMs, now);
   const c = computeFunnel(list, q.steps.length, windowMs, range);
   const first = c.counts[0] || 0;
   return {
     kind: 'funnel',
     steps: q.steps.map((s, i) => ({
-      label: s.label || s.event,
+      label: s.label || (s.event.startsWith(ACTION_PREFIX) ? (actions.get(s.event.slice(ACTION_PREFIX.length))?.name ?? 'Deleted action') : s.event),
       event: s.event,
       count: c.counts[i],
       conversion: first ? c.counts[i] / first : 0,
@@ -275,21 +433,125 @@ export async function runFunnel(project: ProjectRow, q: FunnelQuery, now = Date.
   };
 }
 
+// ---------- Correlación ----------
+
+const NOISE_EVENTS = ['$set', '$identify', '$groupidentify', '$create_alias', '$pageleave', '$feature_flag_called'];
+const CORRELATION_PEOPLE = 5000;
+
+/** Qué hicieron (o qué propiedades tienen) los que convirtieron y los que no. */
+export async function runCorrelation(project: ProjectRow, q: CorrelationQuery, now = Date.now()): Promise<CorrelationResult> {
+  const f = q.funnel;
+  const range = resolveRange(f.dateRange, now, projectTz(project));
+  const windowMs = f.windowDays * DAY;
+  const { list, truncated } = await funnelRows(project, { ...f, groupType: null }, range, windowMs, now);
+  const c = computeFunnel(list, f.steps.length, windowMs, range, Number.MAX_SAFE_INTEGER);
+  const dropped = new Set(c.dropped.flat());
+  const converted = new Set(c.converted);
+  const base = { kind: 'correlation' as const, convertedPeople: converted.size, droppedPeople: dropped.size };
+  if (!converted.size && !dropped.size) return { ...base, positive: [], negative: [], truncated };
+  if (q.source === 'events') {
+    const skip = new Set([...NOISE_EVENTS, ...f.steps.map((s) => s.event)]);
+    const rows = (await all(
+      `SELECT DISTINCT ${PERSON_KEY} AS person, e.event AS name FROM analytics_events e ${personJoins(false)}
+       WHERE e.project_id = ? AND e.ts >= ? AND e.ts <= ? LIMIT ?`,
+      [project.id, range.from, range.to + windowMs, ROW_CAP + 1],
+    )) as Array<{ person: string; name: string }>;
+    const r = correlate(rows.slice(0, ROW_CAP).filter((x) => !skip.has(String(x.name))).map((x) => ({ person: String(x.person), name: String(x.name) })), converted, dropped, 'event');
+    return { ...base, ...r, truncated: truncated || rows.length > ROW_CAP };
+  }
+  // Propiedades: una muestra acotada de personas de cada lado.
+  const ids = [...[...converted].slice(0, CORRELATION_PEOPLE), ...[...dropped].slice(0, CORRELATION_PEOPLE)];
+  const props: Array<{ person: string; name: string }> = [];
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500);
+    const rows = (await all(`SELECT id, properties FROM analytics_persons WHERE project_id = ? AND id IN (${chunk.map(() => '?').join(',')})`, [project.id, ...chunk])) as Array<{ id: string; properties: string }>;
+    for (const r of rows) {
+      for (const [k, v] of Object.entries(parseProps(r.properties))) {
+        if (k.startsWith('$initial_') || (typeof v !== 'string' && typeof v !== 'boolean' && typeof v !== 'number')) continue;
+        const text = String(v);
+        // Valores largos o casi únicos (emails, ids) no dicen nada.
+        if (text.length > 60 || k === 'email' || k === 'name') continue;
+        props.push({ person: r.id, name: `${k} = ${text}` });
+      }
+    }
+  }
+  return { ...base, ...correlate(props, converted, dropped, 'property'), truncated: truncated || ids.length < converted.size + dropped.size };
+}
+
+// ---------- Stickiness ----------
+
+
+export async function runStickiness(project: ProjectRow, q: StickinessQuery, now = Date.now()): Promise<StickinessResult> {
+  const tz = projectTz(project);
+  const range = resolveRange(q.dateRange, now, tz);
+  const intervals = Math.max(bucketList(range.from, range.to, q.interval, tz).length, 1);
+  const cohort = await cohortFrag(project, q.cohortId, now);
+  const actions = await loadActions(project.id, q.series.map((s) => s.event));
+  let truncated = false;
+  const series: StickinessResult['series'] = [];
+  for (const s of q.series) {
+    const filters = [...internalFilters(project, q.excludeInternal), ...q.filters, ...s.filters];
+    const where = whereFor(project, range, s.event, filters, cohort, actions);
+    const rows = (await all(
+      `SELECT ${PERSON_KEY} AS person, COUNT(DISTINCT ${bucketSql(q.interval, 'e.ts', shiftFor(project, range))}) AS n FROM analytics_events e ${personJoins(needsPerson(filters))}
+       WHERE ${where.sql} GROUP BY 1 LIMIT ?`,
+      [offAt(project, range.from), ...where.args, ROW_CAP + 1],
+    )) as Array<{ person: string; n: number }>;
+    truncated = truncated || rows.length > ROW_CAP;
+    const data = stickinessHistogram(rows.slice(0, ROW_CAP).map((r) => Number(r.n)), intervals);
+    series.push({ label: seriesLabel(s.event, { math: 'total', label: s.label }, actions), data, total: data.reduce((a, b) => a + b, 0) });
+  }
+  return { kind: 'stickiness', interval: q.interval, intervals, series, truncated };
+}
+
+// ---------- Ciclo de vida ----------
+
+export async function runLifecycle(project: ProjectRow, q: LifecycleQuery, now = Date.now()): Promise<LifecycleResult> {
+  const tz = projectTz(project);
+  const range = resolveRange(q.dateRange, now, tz);
+  // Una cubeta antes del rango, para saber quién venía del intervalo anterior.
+  const before = bucketBefore(range.from, q.interval, tz);
+  const off = offAt(project, before);
+  const buckets = bucketList(before, range.to, q.interval, tz);
+  const cohort = await cohortFrag(project, q.cohortId, now);
+  const actions = await loadActions(project.id, [q.event]);
+  const filters = [...internalFilters(project, q.excludeInternal), ...q.filters, ...q.eventFilters];
+  const joins = personJoins(needsPerson(filters));
+  const where = whereFor(project, { from: before, to: range.to }, q.event, filters, cohort, actions);
+  const rows = (await all(`SELECT DISTINCT ${PERSON_KEY} AS person, ${bucketSql(q.interval, 'e.ts', shiftFor(project, { from: before, to: range.to }))} AS bucket FROM analytics_events e ${joins} WHERE ${where.sql} LIMIT ?`, [
+    off,
+    ...where.args,
+    ROW_CAP + 1,
+  ])) as Array<{ person: string; bucket: string }>;
+  // Primer evento de siempre de cada persona (dentro de lo que se retiene).
+  const whereFirst = whereFor(project, { from: 0, to: range.to }, q.event, filters, cohort, actions);
+  const firsts = (await all(`SELECT ${PERSON_KEY} AS person, MIN(e.ts) AS first FROM analytics_events e ${joins} WHERE ${whereFirst.sql} GROUP BY 1 LIMIT ?`, [
+    ...whereFirst.args,
+    ROW_CAP + 1,
+  ])) as Array<{ person: string; first: number }>;
+  const firstSeen = new Map(firsts.map((r) => [String(r.person), bucketOf(Number(r.first), q.interval, tz)]));
+  const c = computeLifecycle(rows.slice(0, ROW_CAP).map((r) => ({ person: String(r.person), bucket: String(r.bucket) })), firstSeen, buckets);
+  return { kind: 'lifecycle', interval: q.interval, buckets: buckets.slice(1), ...c, truncated: rows.length > ROW_CAP || firsts.length > ROW_CAP };
+}
+
 // ---------- Retención ----------
 
 export async function runRetention(project: ProjectRow, q: RetentionQuery, now = Date.now()): Promise<RetentionResult> {
-  const tz = Number(project.tz_offset_min);
-  const off = offMs(project);
+  const tz = projectTz(project);
   const lastPeriod = periodOf(now, q.period, tz);
   const firstPeriod = lastPeriod - q.periods + 1;
   const firstDay = q.period === 'day' ? firstPeriod : firstPeriod * 7 - 3;
-  const from = firstDay * DAY - off;
+  const from = fromLocal(firstDay * DAY, tz);
+  const off = offAt(project, from);
+  const shift = shiftFor(project, { from, to: now });
   const cohort = await cohortFrag(project, q.cohortId, now);
-  const withPerson = needsPerson(q.filters);
+  const filters = [...internalFilters(project, q.excludeInternal), ...q.filters];
+  const actions = await loadActions(project.id, [q.startEvent, q.returnEvent]);
+  const withPerson = needsPerson(filters);
   // CAST: Turso manda los números como REAL y la división tiene que ser entera.
-  const periodSql = q.period === 'day' ? '((e.ts + CAST(? AS INTEGER)) / 86400000)' : '((((e.ts + CAST(? AS INTEGER)) / 86400000) + 3) / 7)';
+  const periodSql = q.period === 'day' ? `((e.ts + CAST(? AS INTEGER)${shift}) / 86400000)` : `((((e.ts + CAST(? AS INTEGER)${shift}) / 86400000) + 3) / 7)`;
   const fetch = async (event: string) => {
-    const where = whereFor(project, { from, to: now }, event, q.filters, cohort);
+    const where = whereFor(project, { from, to: now }, event, filters, cohort, actions);
     return (await all(
       `SELECT DISTINCT ${PERSON_KEY} AS person, ${periodSql} AS period FROM analytics_events e ${personJoins(withPerson)} WHERE ${where.sql} LIMIT ?`,
       [off, ...where.args, ROW_CAP + 1],
@@ -315,15 +577,25 @@ export async function runRetention(project: ProjectRow, q: RetentionQuery, now =
 // ---------- Caminos ----------
 
 export async function runPaths(project: ProjectRow, q: PathsQuery, now = Date.now()): Promise<PathsResult> {
-  const range = resolveRange(q.dateRange, now, Number(project.tz_offset_min));
+  const range = resolveRange(q.dateRange, now, projectTz(project));
+  // Con eventos propios: la página o el nombre del evento (sin el ruido de autocapture e identify).
+  const source = q.source ?? 'pageviews';
   const rows = (await all(
-    `SELECT e.session_id AS session, e.pathname AS path, e.ts AS ts FROM analytics_events e
-     WHERE e.project_id = ? AND e.event = '$pageview' AND e.ts >= ? AND e.ts <= ? AND e.session_id IS NOT NULL AND e.pathname IS NOT NULL
-     ORDER BY e.ts LIMIT ?`,
+    source === 'all'
+      ? `SELECT e.session_id AS session, e.pathname AS path, e.event AS event, e.ts AS ts FROM analytics_events e
+         WHERE e.project_id = ? AND e.event NOT IN ('$autocapture', '$identify', '$set', '$groupidentify', '$create_alias', '$pageleave', '$feature_flag_called', '$web_vitals') AND e.ts >= ? AND e.ts <= ? AND e.session_id IS NOT NULL
+         ORDER BY e.ts LIMIT ?`
+      : `SELECT e.session_id AS session, e.pathname AS path, e.event AS event, e.ts AS ts FROM analytics_events e
+         WHERE e.project_id = ? AND e.event = '$pageview' AND e.ts >= ? AND e.ts <= ? AND e.session_id IS NOT NULL AND e.pathname IS NOT NULL
+         ORDER BY e.ts LIMIT ?`,
     [project.id, range.from, range.to, ROW_CAP + 1],
-  )) as Array<{ session: string; path: string; ts: number }>;
+  )) as Array<{ session: string; path: string | null; event: string; ts: number }>;
   const truncated = rows.length > ROW_CAP;
-  const r = computePaths(rows.slice(0, ROW_CAP).map((x) => ({ session: String(x.session), path: String(x.path), ts: Number(x.ts) })), q.steps, q.startPath || null);
+  const nodes = rows.slice(0, ROW_CAP).map((x) => {
+    const raw = String(x.event) === '$pageview' ? String(x.path ?? '') : String(x.event);
+    return { session: String(x.session), path: q.collapseIds && String(x.event) === '$pageview' ? collapsePath(raw) : raw, ts: Number(x.ts) };
+  });
+  const r = computePaths(nodes.filter((n) => n.path), q.steps, q.startPath || null, 30, q.endPath || null);
   return { kind: 'paths', ...r, truncated };
 }
 
@@ -385,6 +657,10 @@ export async function runInsight(project: ProjectRow, q: InsightQuery, now = Dat
       return runPaths(project, q, now);
     case 'sql':
       return runSql(project, q.sql);
+    case 'stickiness':
+      return runStickiness(project, q, now);
+    case 'lifecycle':
+      return runLifecycle(project, q, now);
   }
 }
 
@@ -393,26 +669,31 @@ export async function runInsight(project: ProjectRow, q: InsightQuery, now = Dat
 type Top = Array<{ key: string; visitors: number; views: number }>;
 
 export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now()): Promise<WebResult> {
-  const tz = Number(project.tz_offset_min);
-  const off = offMs(project);
+  const tz = projectTz(project);
   const range = resolveRange(q.dateRange, now, tz);
-  const prev = previousRange(range);
+  const off = offAt(project, range.from);
+  const prev = previousAligned(range, range.to - range.from <= 2 * DAY ? 'hour' : 'day', tz);
   const interval = range.to - range.from <= 2 * DAY ? 'hour' : 'day';
   const buckets = bucketList(range.from, range.to, interval, tz);
-  const pv = `e.project_id = ? AND e.event = '$pageview' AND e.ts >= ? AND e.ts <= ?`;
+  const filter = webFiltersSql(q.filters ?? []);
+  const pv = `e.project_id = ? AND e.event = '$pageview' AND e.ts >= ? AND e.ts <= ?${filter.sql ? ` AND ${filter.sql}` : ''}`;
+  const pvArgs = (r: { from: number; to: number }): Arg[] => [project.id, r.from, r.to, ...filter.args];
   const join = personJoins(false);
+  /** Con filtros, las sesiones son las que tuvieron un pageview que los cumple. */
+  const sessionFilter = (r: { from: number; to: number }): Frag =>
+    filter.sql ? { sql: ` AND id IN (SELECT e.session_id FROM analytics_events e WHERE ${pv} AND e.session_id IS NOT NULL)`, args: pvArgs(r) } : { sql: '', args: [] };
 
   const stats = async (r: { from: number; to: number }) => {
     const [a, s] = await Promise.all([
       getDb()
         .prepare(`SELECT COUNT(DISTINCT ${PERSON_KEY}) AS visitors, COUNT(*) AS pageviews FROM analytics_events e ${join} WHERE ${pv}`)
-        .get(project.id, r.from, r.to) as Promise<{ visitors: number; pageviews: number } | undefined>,
+        .get(...pvArgs(r)) as Promise<{ visitors: number; pageviews: number } | undefined>,
       getDb()
         .prepare(
           `SELECT COUNT(*) AS sessions, SUM(CASE WHEN pageviews <= 1 THEN 1 ELSE 0 END) AS bounces, AVG(ended_at - started_at) AS dur
-           FROM analytics_sessions WHERE project_id = ? AND started_at >= ? AND started_at <= ? AND pageviews > 0`,
+           FROM analytics_sessions WHERE project_id = ? AND started_at >= ? AND started_at <= ? AND pageviews > 0${sessionFilter(r).sql}`,
         )
-        .get(project.id, r.from, r.to) as Promise<{ sessions: number; bounces: number | null; dur: number | null } | undefined>,
+        .get(project.id, r.from, r.to, ...sessionFilter(r).args) as Promise<{ sessions: number; bounces: number | null; dur: number | null } | undefined>,
     ]);
     const sessions = Number(s?.sessions ?? 0);
     return {
@@ -428,22 +709,22 @@ export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now())
     all(
       `SELECT COALESCE(${col}, '(none)') AS key, COUNT(DISTINCT ${PERSON_KEY}) AS visitors, COUNT(*) AS views FROM analytics_events e ${join}
        WHERE ${pv} GROUP BY 1 ORDER BY visitors DESC, views DESC LIMIT 10`,
-      [project.id, range.from, range.to],
+      pvArgs(range),
     ).then((rows) => rows.map((r) => ({ key: String(r.key), visitors: Number(r.visitors), views: Number(r.views) })));
 
-  const [cur, before, chart, pages, entries, referrers, utmSources, countries, devices, browsers, os] = await Promise.all([
+  const [cur, before, chart, pages, entries, referrers, utmSources, countries, devices, browsers, os, hosts, channels] = await Promise.all([
     stats(range),
     q.compare ? stats(prev) : Promise.resolve(null),
     all(
-      `SELECT ${bucketSql(interval)} AS bucket, COUNT(DISTINCT ${PERSON_KEY}) AS visitors, COUNT(*) AS views FROM analytics_events e ${join}
+      `SELECT ${bucketSql(interval, 'e.ts', shiftFor(project, range))} AS bucket, COUNT(DISTINCT ${PERSON_KEY}) AS visitors, COUNT(*) AS views FROM analytics_events e ${join}
        WHERE ${pv} GROUP BY 1`,
-      [off, project.id, range.from, range.to],
+      [off, ...pvArgs(range)],
     ),
     top('e.pathname'),
     all(
-      `SELECT COALESCE(entry_path, '(none)') AS key, COUNT(DISTINCT distinct_id) AS visitors, COUNT(*) AS views FROM analytics_sessions
-       WHERE project_id = ? AND started_at >= ? AND started_at <= ? AND pageviews > 0 GROUP BY 1 ORDER BY visitors DESC LIMIT 10`,
-      [project.id, range.from, range.to],
+      `SELECT COALESCE(entry_path, '(none)') AS key, COUNT(DISTINCT COALESCE((SELECT m.person_id FROM analytics_person_ids m WHERE m.project_id = analytics_sessions.project_id AND m.distinct_id = analytics_sessions.distinct_id), distinct_id)) AS visitors, COUNT(*) AS views FROM analytics_sessions
+       WHERE project_id = ? AND started_at >= ? AND started_at <= ? AND pageviews > 0${sessionFilter(range).sql} GROUP BY 1 ORDER BY visitors DESC LIMIT 10`,
+      [project.id, range.from, range.to, ...sessionFilter(range).args],
     ).then((rows) => rows.map((r) => ({ key: String(r.key), visitors: Number(r.visitors), views: Number(r.views) }))),
     top('e.referring_domain'),
     top('e.utm_source'),
@@ -451,7 +732,13 @@ export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now())
     top('e.device'),
     top('e.browser'),
     top('e.os'),
+    top('e.host'),
+    top(channelSql('e')),
   ]);
+  // Sin pageviews en el período: ¿el proyecto recibió alguno alguna vez? Cambia lo que se le dice a la persona.
+  const hasPageviews =
+    cur.pageviews > 0 ||
+    !!(await getDb().prepare(`SELECT 1 AS ok FROM analytics_events WHERE project_id = ? AND event = '$pageview' LIMIT 1`).get(project.id));
   const stat = (k: keyof typeof cur) => ({ value: cur[k], previous: before ? before[k] : null });
   return {
     kind: 'web',
@@ -473,6 +760,9 @@ export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now())
     devices,
     browsers,
     os,
+    hosts,
+    channels,
+    hasPageviews,
   };
 }
 

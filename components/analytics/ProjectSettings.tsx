@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import type { ProjectDto } from '@/lib/analytics/types';
+import type { ProjectDto, PropertyFilter } from '@/lib/analytics/types';
+import { FilterList, cleanFilters, useProjectMeta } from './Filters';
+import { offsetLabel } from '@/lib/analytics/tz';
 import { ApiError, apiErrorText, api, notifyChanged } from './client';
+import ReplaySettings from './replay/ReplaySettings';
 
 const RETENTION = [30, 90, 180, 365, 730];
 
@@ -41,17 +44,26 @@ function CopyBlock({ code, label }: { code: string; label: string }) {
 export default function ProjectSettings({ project, canManage }: { project: ProjectDto; canManage: boolean }) {
   const t = useTranslations('analytics.settings');
   const tc = useTranslations('analytics.common');
+  const tm = useTranslations('analyticsMore.settings');
   const router = useRouter();
   const [origin, setOrigin] = useState('https://zerosoft.ai');
+  // Las zonas salen del navegador: la lista completa recién al montar, para no romper la hidratación.
+  const [zones, setZones] = useState<string[]>([]);
+  useEffect(() => setZones(Intl.supportedValuesOf('timeZone')), []);
+  const labelAt = useMemo(() => Date.parse('2026-01-15T12:00:00Z'), []);
   useEffect(() => setOrigin(window.location.origin), []);
   const [form, setForm] = useState({
     name: project.name,
     domains: project.allowedDomains.join('\n'),
     respectDnt: project.respectDnt,
+    keepBots: project.keepBots,
     anonymizeIp: project.anonymizeIp,
     autocapture: project.autocapture,
+    captureExceptions: project.captureExceptions,
+    webVitals: project.webVitals,
     retentionDays: project.retentionDays,
     tzOffsetMin: project.tzOffsetMin,
+    tzName: project.tzName,
   });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -63,10 +75,14 @@ export default function ProjectSettings({ project, canManage }: { project: Proje
       name: project.name,
       domains: project.allowedDomains.join('\n'),
       respectDnt: project.respectDnt,
+    keepBots: project.keepBots,
       anonymizeIp: project.anonymizeIp,
       autocapture: project.autocapture,
+      captureExceptions: project.captureExceptions,
+      webVitals: project.webVitals,
       retentionDays: project.retentionDays,
       tzOffsetMin: project.tzOffsetMin,
+    tzName: project.tzName,
     });
     setSecret(null);
   }, [project]);
@@ -99,10 +115,13 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
           name: form.name,
           allowedDomains: form.domains.split(/[\s,]+/).filter(Boolean),
           respectDnt: form.respectDnt,
+          keepBots: form.keepBots,
           anonymizeIp: form.anonymizeIp,
           autocapture: form.autocapture,
+          captureExceptions: form.captureExceptions,
+          webVitals: form.webVitals,
           retentionDays: form.retentionDays,
-          tzOffsetMin: form.tzOffsetMin,
+          tzName: form.tzName,
         },
       });
       setMsg({ ok: true, text: t('saved') });
@@ -200,8 +219,20 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
           </label>
           <p className="ui-help">{t('autocaptureHelp')}</p>
           <label className="ui-check">
+            <input type="checkbox" checked={form.captureExceptions} onChange={(e) => setForm({ ...form, captureExceptions: e.target.checked })} data-testid="an-capture-exceptions" /> {tm('captureExceptions')}
+          </label>
+          <p className="ui-help">{tm('captureExceptionsHelp')}</p>
+          <label className="ui-check">
+            <input type="checkbox" checked={form.webVitals} onChange={(e) => setForm({ ...form, webVitals: e.target.checked })} data-testid="an-web-vitals" /> {tm('webVitals')}
+          </label>
+          <p className="ui-help">{tm('webVitalsHelp')}</p>
+          <label className="ui-check">
             <input type="checkbox" checked={form.respectDnt} onChange={(e) => setForm({ ...form, respectDnt: e.target.checked })} /> {t('respectDnt')}
           </label>
+          <label className="ui-check">
+            <input type="checkbox" data-testid="an-keep-bots" checked={form.keepBots} onChange={(e) => setForm({ ...form, keepBots: e.target.checked })} /> {t('keepBots')}
+          </label>
+          <p className="ui-help" data-testid="an-bots-filtered">{t('botsFiltered', { count: project.botsFiltered })}</p>
           <label className="ui-check">
             <input type="checkbox" checked={form.anonymizeIp} onChange={(e) => setForm({ ...form, anonymizeIp: e.target.checked })} /> {t('anonymizeIp')}
           </label>
@@ -223,11 +254,17 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
             </label>
             <label className="ui-field">
               <span className="label">{t('timezone')}</span>
-              <select className="select" value={form.tzOffsetMin} onChange={(e) => setForm({ ...form, tzOffsetMin: Number(e.target.value) })}>
-                {Array.from({ length: 27 }, (_, i) => (i - 12) * 60).map((m) => (
-                  <option key={m} value={m}>
-                    UTC{m >= 0 ? '+' : '−'}
-                    {Math.abs(m / 60)}
+              <select
+                className="select"
+                data-testid="an-timezone"
+                value={form.tzName ?? ''}
+                onChange={(e) => setForm({ ...form, tzName: e.target.value || null })}
+              >
+                {/* Un proyecto de antes sigue con su desfase fijo hasta que elige una zona. */}
+                {!project.tzName && <option value="">{t('timezoneFixed', { offset: offsetLabel(project.tzOffsetMin, 0) })}</option>}
+                {[...new Set([...(form.tzName ? [form.tzName] : []), ...zones])].map((z) => (
+                  <option key={z} value={z}>
+                    {z.replace(/_/g, ' ')} ({offsetLabel(z, labelAt)})
                   </option>
                 ))}
               </select>
@@ -248,6 +285,10 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
           )}
         </fieldset>
       </form>
+
+      <InternalFilters project={project} canManage={canManage} />
+      <IntegrationGuides origin={origin} publicKey={project.publicKey} />
+      <ReplaySettings project={project} canManage={canManage} />
 
       {canManage && (
         <section className="ui-section ui-section-danger" aria-labelledby="an-danger">
@@ -288,5 +329,90 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
         }}
       />
     </div>
+  );
+}
+
+/** Quién es gente interna o de prueba: se saca de los insights que lo piden. */
+function InternalFilters({ project, canManage }: { project: ProjectDto; canManage: boolean }) {
+  const t = useTranslations('analytics.settings');
+  const tc = useTranslations('analytics.common');
+  const router = useRouter();
+  const meta = useProjectMeta(project.id);
+  const [filters, setFilters] = useState<PropertyFilter[]>(project.testFilters);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const save = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await api(`/api/analytics/projects/${project.id}`, { method: 'PATCH', body: { testFilters: cleanFilters(filters) } });
+      setMsg({ ok: true, text: t('saved') });
+      router.refresh();
+    } catch {
+      setMsg({ ok: false, text: tc('error') });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="ui-section" aria-labelledby="an-internal-title" id="an-internal">
+      <div className="ui-section-head">
+        <h2 id="an-internal-title" className="ui-section-title">
+          {t('internalTitle')}
+        </h2>
+        <p className="ui-section-desc">{canManage ? t('internalDesc') : t('adminsOnly')}</p>
+      </div>
+      <fieldset className="ui-section-body ui-fields" disabled={!canManage}>
+        <p className="an-note">{t('internalExample')}</p>
+        <FilterList filters={filters} onChange={setFilters} meta={meta} />
+        {canManage && (
+          <div className="an-row">
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void save()}>
+              {tc('save')}
+            </button>
+            {msg && (
+              <span className={msg.ok ? 'an-saved' : 'ui-error'} role={msg.ok ? 'status' : 'alert'}>
+                {msg.text}
+              </span>
+            )}
+          </div>
+        )}
+      </fieldset>
+    </section>
+  );
+}
+
+/** Guías: proxy inverso, SDKs de PostHog apuntados acá y flags evaluados en tu servidor. */
+function IntegrationGuides({ origin, publicKey }: { origin: string; publicKey: string }) {
+  const t = useTranslations('analytics.settings');
+  const host = origin || 'https://zerosoft.ai';
+  const hostName = host.replace(/^https?:\/\//, '');
+  const nextProxy = `// next.config.js\nasync rewrites() {\n  return [\n    { source: '/z/zs.js', destination: '${host}/zs.js' },\n    { source: '/z/zs-replay.js', destination: '${host}/zs-replay.js' },\n    { source: '/z/api/ingest/:path*', destination: '${host}/api/ingest/:path*' },\n  ];\n}`;
+  const nginx = `# Only the snippet and ingest, not the whole app.\nlocation ~ ^/z/(zs\\.js|zs-replay\\.js|api/ingest/.*)$ {\n  proxy_pass ${host}/$1$is_args$args;\n  proxy_set_header Host ${hostName};\n  proxy_ssl_server_name on;\n}`;
+  const useProxy = `<script src="/z/zs.js" defer></script>\n<script>\n  window.zs = window.zs || [];\n  zs.push(['init', '${publicKey}', { api_host: location.origin + '/z' }]);\n</script>`;
+  const node = `import { PostHog } from 'posthog-node';\n\nconst client = new PostHog('${publicKey}', { host: '${host}/api/ingest' });\nclient.capture({ distinctId: 'user-123', event: 'order_paid', properties: { total: 42 } });\nawait client.shutdown();`;
+  const defs = `curl ${host}/api/ingest/flag-definitions \\\n  -H "Authorization: Bearer zss_…"`;
+  return (
+    <section className="ui-section" aria-labelledby="an-guides">
+      <div className="ui-section-head">
+        <h2 id="an-guides" className="ui-section-title">
+          {t('guidesTitle')}
+        </h2>
+        <p className="ui-section-desc">{t('guidesDesc')}</p>
+      </div>
+      <div className="ui-section-body">
+        <h3 className="an-h4">{t('proxyTitle')}</h3>
+        <p className="an-note">{t('proxyDesc')}</p>
+        <CopyBlock code={nextProxy} label={t('proxyNext')} />
+        <CopyBlock code={nginx} label={t('proxyNginx')} />
+        <CopyBlock code={useProxy} label={t('proxyUse')} />
+        <h3 className="an-h4">{t('sdkTitle')}</h3>
+        <p className="an-note">{t('sdkDesc')}</p>
+        <CopyBlock code={node} label={t('sdkTitle')} />
+        <h3 className="an-h4">{t('localEvalTitle')}</h3>
+        <p className="an-note">{t('localEvalDesc')}</p>
+        <CopyBlock code={defs} label={t('localEvalTitle')} />
+      </div>
+    </section>
   );
 }

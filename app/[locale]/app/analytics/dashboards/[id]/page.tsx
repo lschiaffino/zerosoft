@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
+import { listAnnotations } from '@/lib/analytics/records-more';
 import DashboardView from '@/components/analytics/DashboardView';
 import SyncProject from '@/components/analytics/SyncProject';
 import { analyticsPage } from '@/lib/analytics/page';
@@ -31,7 +32,14 @@ export default async function AnalyticsDashboardPage(props: { params: Promise<{ 
   return (
     <>
       <SyncProject projectId={ctx.project.id} currentId={cookieProject} />
-      <DashboardView projectId={ctx.project.id} dashboard={dashboard} insights={insights} allInsights={all.map((i) => ({ id: i.id, name: i.name }))} />
+      <DashboardView
+        projectId={ctx.project.id}
+        dashboard={dashboard}
+        insights={insights}
+        allInsights={all.map((i) => ({ id: i.id, name: i.name }))}
+        canShare={ctx.canManage}
+        annotations={(await listAnnotations(ctx.project.id)).map((a) => ({ date: a.date, content: a.content }))}
+      />
     </>
   );
 }

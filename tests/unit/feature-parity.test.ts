@@ -16,6 +16,17 @@ const row = (status: ParityRow['status'], competitorHas = true, weight?: 1 | 2, 
   weight,
 });
 
+describe('apps sin porcentaje público', () => {
+  it('Analytics lo oculta con una nota en los tres idiomas; computeParity sigue calculando', () => {
+    const p = PARITY.analytics;
+    expect(p.percentHidden?.note.en).toContain('not comparable');
+    expect(p.percentHidden?.note.es.trim()).toBeTruthy();
+    expect(p.percentHidden?.note.pt.trim()).toBeTruthy();
+    expect(computeParity(p.rows).percent).toBeGreaterThan(0);
+    expect(PARITY.crm.percentHidden).toBeUndefined();
+  });
+});
+
 describe('computeParity', () => {
   it('have y better valen 1, partial 0,5, missing 0', () => {
     const s = computeParity([row('have'), row('better'), row('partial'), row('missing')]);
