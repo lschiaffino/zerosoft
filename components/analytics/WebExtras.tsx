@@ -49,7 +49,7 @@ export function LiveVisitors({ projectId }: { projectId: string }) {
   }, [projectId]);
 
   return (
-    <span className="an-live" role="status" data-testid="an-live-visitors">
+    <span className="an-web-live" role="status" data-testid="an-live-visitors">
       <i className={count ? 'is-on' : ''} aria-hidden="true" />
       {failed ? t('liveFailed') : count === null ? t('liveLoading') : t('liveNow', { count, formatted: fmtNumber(count, locale) })}
     </span>

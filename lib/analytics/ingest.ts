@@ -64,6 +64,23 @@ export async function storeEvents(project: ProjectRow, events: CleanEvent[], ctx
   normalizeSpecialEvents(events);
   await ensureMigrated();
   const pid = project.id;
+  // Un reintento trae el mismo uuid: la tabla de eventos lo ignora y las sesiones tampoco tienen que contarlo.
+  const seenInBatch = new Set<string>();
+  events = events.filter((e) => {
+    if (!e.uuid) return true;
+    if (seenInBatch.has(e.uuid)) return false;
+    seenInBatch.add(e.uuid);
+    return true;
+  });
+  if (seenInBatch.size) {
+    const known = await getClient().execute({
+      sql: `SELECT uuid FROM analytics_events WHERE project_id = ? AND uuid IN (${[...seenInBatch].map(() => '?').join(',')})`,
+      args: [pid, ...seenInBatch],
+    });
+    const stored = new Set(known.rows.map((r) => String(r.uuid)));
+    if (stored.size) events = events.filter((e) => !e.uuid || !stored.has(e.uuid));
+    if (!events.length) return 0;
+  }
   const db = getDb();
 
   // Personas que ya existen para los ids del lote (incluidos anónimos y alias).

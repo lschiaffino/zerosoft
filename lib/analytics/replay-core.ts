@@ -6,6 +6,7 @@
  */
 import { cleanUrl } from './ingest-core';
 import type { ProjectRow } from './projects';
+import { scrubReplayEvent } from './replay-scrub';
 
 const num = (name: string, fallback: number) => {
   const v = Number(process.env[name]);
@@ -115,6 +116,7 @@ export function cleanEvent(v: unknown): ReplayEvent | null {
     if (typeof data.href !== 'string' || !Number.isFinite(data.width) || !Number.isFinite(data.height)) return null;
   }
   if (t === EVENT_CUSTOM && typeof data.tag !== 'string') return null;
+  scrubReplayEvent(t, data);
   return { type: t, data, timestamp: timestamp as number };
 }
 

@@ -75,13 +75,13 @@ describe('encuestas: respuestas del cliente', () => {
   });
 
   it('NPS: 9-10 promotores, 7-8 neutros, resto detractores', () => {
-    const d = Array(10).fill(0);
-    d[9] = 5; // 10
-    d[8] = 1; // 9
-    d[7] = 2; // 8
-    d[0] = 2; // 1
+    const d = Array(11).fill(0);
+    d[10] = 5;
+    d[9] = 1;
+    d[8] = 2;
+    d[1] = 2;
     expect(npsFrom(d)).toEqual({ nps: 40, promoters: 6, passives: 2, detractors: 2 });
-    expect(npsFrom(Array(10).fill(0)).nps).toBeNull();
+    expect(npsFrom(Array(11).fill(0)).nps).toBeNull();
   });
 
   it('resultados: distribución, opciones y texto, sin contar lo inválido', () => {
@@ -95,8 +95,10 @@ describe('encuestas: respuestas del cliente', () => {
     if (r.type !== 'rating' || (c.type !== 'multiple' && c.type !== 'single') || t.type !== 'open') throw new Error('tipos');
     expect(r.answered).toBe(2);
     expect(r.invalid).toBe(1);
-    expect(r.distribution[9]).toBe(1);
-    expect(r.distribution[2]).toBe(1);
+    // Escala de 10: arranca en 0, así que el puntaje es el índice.
+    expect(r.distribution).toHaveLength(11);
+    expect(r.distribution[10]).toBe(1);
+    expect(r.distribution[3]).toBe(1);
     expect(r.nps).toBe(0);
     expect(c.choices).toEqual([{ label: 'a', count: 2 }, { label: 'b', count: 1 }]);
     expect(c.invalid).toBe(1);

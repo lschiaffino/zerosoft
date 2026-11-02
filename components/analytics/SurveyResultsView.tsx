@@ -107,7 +107,7 @@ function QuestionResult({ q, index }: { q: SurveyQuestionResult; index: number }
           </div>
           <ul className="an-sv-bars" role="list">
             {q.distribution.map((count, i) => (
-              <Bar key={i} label={String(i + 1)} count={count} total={q.answered} locale={locale} />
+              <Bar key={i} label={String(i + (q.scale === 10 ? 0 : 1))} count={count} total={q.answered} locale={locale} />
             ))}
           </ul>
           {q.scale === 10 && <p className="an-note">{t('npsBreakdown', { promoters: q.promoters, passives: q.passives, detractors: q.detractors })}</p>}

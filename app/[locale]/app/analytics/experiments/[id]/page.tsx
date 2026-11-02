@@ -29,7 +29,7 @@ export default async function AnalyticsExperimentPage(props: { params: Promise<{
   return (
     <>
       <SyncProject projectId={ctx.project.id} currentId={cookieProject} />
-      <ExperimentView key={`${experiment.id}:${experiment.status}`} projectId={ctx.project.id} experiment={experiment} flags={flags.map((f) => ({ id: f.id, key: f.key, variants: f.variants.length }))} />
+      <ExperimentView key={`${experiment.id}:${experiment.status}`} projectId={ctx.project.id} experiment={experiment} flags={flags.map((f) => ({ id: f.id, key: f.key, variants: f.variants.length }))} canManage={ctx.canManage} />
     </>
   );
 }

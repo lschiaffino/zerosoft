@@ -52,7 +52,9 @@
     "deleteAdminsOnly": "Só admins podem excluir gravações",
     "personEmpty": "Não há gravações desta pessoa.",
     "personOff": "A gravação de sessões está desligada neste projeto.",
-    "personOffMember": "A gravação de sessões está desligada neste projeto. Um admin pode ligar."
+    "personOffMember": "A gravação de sessões está desligada neste projeto. Um admin pode ligar.",
+    "adminsOnlyTitle": "Só admins podem ver gravações",
+    "adminsOnlyBody": "As gravações podem mostrar o que as pessoas fazem no site, por isso ficam para os admins do workspace. Peça a um admin se precisar de uma."
   },
   "player": {
     "loading": "Carregando a gravação: {done} de {total} partes",

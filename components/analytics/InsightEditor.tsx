@@ -638,7 +638,7 @@ export default function InsightEditor({
               </button>
             )}
             {insight && (
-              <button type="button" className="btn" disabled={!canShare} title={canShare ? undefined : t('shareAdminsOnly')} onClick={() => setSharing(true)}>
+              <button type="button" className="btn" disabled={!canShare || kind === 'sql'} title={kind === 'sql' ? t('shareNoSql') : canShare ? undefined : t('shareAdminsOnly')} onClick={() => setSharing(true)}>
                 {t('share')}
               </button>
             )}

@@ -11,6 +11,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(req: NextRequest, ctx: Ctx) {
   const actor = await analyticsActor(req, 'read');
   if (isResponse(actor)) return actor;
+  if (!canManageAnalytics(actor)) return aError(403, 'forbidden');
   const { id } = await ctx.params;
   const project = await recordProject(actor, 'analytics_replay_recordings', id);
   if (isResponse(project)) return project;

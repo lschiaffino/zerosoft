@@ -35,6 +35,8 @@ export async function POST(req: NextRequest) {
   const { insightId, dashboardId } = parsed.data;
   const exists = insightId ? await getInsight(project.id, insightId) : await getDashboard(project.id, dashboardId!);
   if (!exists) return aError(404, 'not_found');
+  // Un resultado de SQL puede traer cualquier dato de la base del proyecto: no se publica.
+  if (insightId && 'kind' in exists && exists.kind === 'sql') return aError(400, 'sql_not_shareable');
   if ((await listShares(project.id, { insightId, dashboardId })).length >= MAX_SHARES) return aError(409, 'too_many_shares');
   return NextResponse.json({ share: await createShare(project.id, actor.personId, { insightId, dashboardId }) }, { status: 201 });
 }

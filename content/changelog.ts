@@ -29,25 +29,6 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-11-01-mcp-unificado',
-    date: '2026-11-01',
-    title: {
-      en: 'Connect Claude to all 24 apps, and a zerosoft CLI',
-      es: 'Conectá Claude a las 24 apps, y una CLI de zerosoft',
-      pt: 'Conecte o Claude aos 24 apps, e uma CLI da zerosoft',
-    },
-    items: [
-      {
-        product: 'agents',
-        en: 'One connector for Claude Code. You sign in with your normal login, choose the workspace and whether it can write, and Claude acts as you, with your role and permissions. See and disconnect your apps in Settings, API and webhooks.',
-        es: 'Un solo conector para Claude Code. Entrás con tu login de siempre, elegís el workspace y si puede escribir, y Claude actúa como vos, con tu rol y tus permisos. Mirá y desconectá tus apps en Ajustes, API y webhooks.',
-        pt: 'Um único conector para o Claude Code. Você entra com seu login de sempre, escolhe o workspace e se pode escrever, e o Claude age como você, com seu papel e suas permissões. Veja e desconecte seus apps em Ajustes, API e webhooks.',
-      },
-      {
-        product: 'agents',
-        en: 'A zerosoft command line with the same reach, for the terminal and for scripts. It runs from the repository for now and is not on npm.',
-        es: 'Una línea de comandos de zerosoft con el mismo alcance, para la terminal y para scripts. Por ahora corre desde el repositorio y no está en npm.',
-        pt: 'Uma linha de comando da zerosoft com o mesmo alcance, para o terminal e para scripts. Por enquanto roda a partir do repositório e não está no npm.',
     id: '2026-11-01-analytics-replay-experimentos',
     date: '2026-11-01',
     title: {
@@ -76,9 +57,32 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'analytics',
-        en: 'More accurate numbers: comparisons now line up with the same hours of the previous period, unique users over a range count each person once, and known crawlers are left out of browser traffic.',
-        es: 'Números más exactos: las comparaciones se alinean con las mismas horas del período anterior, los usuarios únicos de un rango cuentan a cada persona una vez y los crawlers conocidos quedan fuera del tráfico del navegador.',
-        pt: 'Números mais exatos: as comparações se alinham com as mesmas horas do período anterior, os usuários únicos de um período contam cada pessoa uma vez e os crawlers conhecidos ficam fora do tráfego do navegador.',
+        en: 'More accurate numbers: comparisons line up with the same hours of the previous period, unique users over a range count each person once, also per breakdown value, and retried events no longer add to sessions. On existing projects, known crawlers stop being counted from now on. You can keep them with a setting, and settings show how many hits were left out. Time zones now follow daylight saving once you pick one.',
+        es: 'Números más exactos: las comparaciones se alinean con las mismas horas del período anterior, los usuarios únicos de un rango cuentan a cada persona una vez, también por valor de apertura, y los eventos reintentados ya no suman a las sesiones. En los proyectos existentes, los crawlers conocidos dejan de contarse desde ahora. Podés conservarlos con un ajuste, y los ajustes muestran cuántos hits quedaron afuera. Las zonas horarias siguen el horario de verano cuando elegís una.',
+        pt: 'Números mais exatos: as comparações se alinham com as mesmas horas do período anterior, os usuários únicos de um período contam cada pessoa uma vez, também por valor de abertura, e eventos reenviados não somam mais às sessões. Nos projetos existentes, os crawlers conhecidos deixam de ser contados a partir de agora. Você pode mantê-los com um ajuste, e os ajustes mostram quantos hits ficaram de fora. Os fusos seguem o horário de verão quando você escolhe um.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-01-mcp-unificado',
+    date: '2026-11-01',
+    title: {
+      en: 'Connect Claude to all 24 apps, and a zerosoft CLI',
+      es: 'Conectá Claude a las 24 apps, y una CLI de zerosoft',
+      pt: 'Conecte o Claude aos 24 apps, e uma CLI da zerosoft',
+    },
+    items: [
+      {
+        product: 'agents',
+        en: 'One connector for Claude Code. You sign in with your normal login, choose the workspace and whether it can write, and Claude acts as you, with your role and permissions. See and disconnect your apps in Settings, API and webhooks.',
+        es: 'Un solo conector para Claude Code. Entrás con tu login de siempre, elegís el workspace y si puede escribir, y Claude actúa como vos, con tu rol y tus permisos. Mirá y desconectá tus apps en Ajustes, API y webhooks.',
+        pt: 'Um único conector para o Claude Code. Você entra com seu login de sempre, escolhe o workspace e se pode escrever, e o Claude age como você, com seu papel e suas permissões. Veja e desconecte seus apps em Ajustes, API e webhooks.',
+      },
+      {
+        product: 'agents',
+        en: 'A zerosoft command line with the same reach, for the terminal and for scripts. It runs from the repository for now and is not on npm.',
+        es: 'Una línea de comandos de zerosoft con el mismo alcance, para la terminal y para scripts. Por ahora corre desde el repositorio y no está en npm.',
+        pt: 'Uma linha de comando da zerosoft com o mesmo alcance, para o terminal e para scripts. Por enquanto roda a partir do repositório e não está no npm.',
       },
     ],
   },

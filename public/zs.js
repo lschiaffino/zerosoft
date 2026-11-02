@@ -560,13 +560,86 @@
     if (replay.chars >= REPLAY_CHUNK_CHARS) flushReplay(false);
     else if (!replay.timer) replay.timer = setTimeout(function () { flushReplay(false); }, REPLAY_FLUSH_MS);
   }
+  // Lo mismo que la ingesta saca de las URLs, antes de que la grabación salga del navegador.
+  var REPLAY_SECRET = /token|secret|password|passwd|auth|session|signature|sig$|code|key|otp|jwt|email/i;
+  var REPLAY_URL_ATTRS = { href: 1, src: 1, action: 1, formaction: 1, poster: 1, cite: 1, data: 1, ping: 1, background: 1, longdesc: 1, 'xlink:href': 1 };
+  function scrubUrl(raw) {
+    var v = String(raw).trim();
+    if (!v) return v;
+    if (v.charAt(0) === '#') return '#';
+    if (/^(javascript|mailto|tel):/i.test(v)) return '';
+    if (/^(data|blob):/i.test(v)) return v;
+    var relative = !/^[a-z][a-z0-9+.-]*:/i.test(v) && v.indexOf('//') !== 0;
+    try {
+      var u = new URL(v, w.location.href);
+      u.hash = '';
+      var keys = [];
+      u.searchParams.forEach(function (_, k) {
+        keys.push(k);
+      });
+      keys.forEach(function (k) {
+        if (REPLAY_SECRET.test(k) && !/^utm_/i.test(k)) u.searchParams.delete(k);
+      });
+      return relative ? u.pathname + u.search : u.toString();
+    } catch (e) {
+      return '';
+    }
+  }
+  function scrubAttrs(attrs, tag) {
+    var hidden = tag === 'input' && String(attrs.type || '').toLowerCase() === 'hidden';
+    Object.keys(attrs).forEach(function (key) {
+      var k = key.toLowerCase();
+      if (k.indexOf('data-') === 0 || k === 'placeholder' || k === 'nonce' || k === 'integrity' || k === 'srcset') delete attrs[key];
+      else if (REPLAY_URL_ATTRS[k] && typeof attrs[key] === 'string') attrs[key] = scrubUrl(attrs[key]);
+    });
+    if (hidden) delete attrs.value;
+  }
+  function scrubTree(node, masked) {
+    if (!node || typeof node !== 'object') return;
+    var inside = masked;
+    if (node.type === 2) {
+      var tag = String(node.tagName || '').toLowerCase();
+      var attrs = node.attributes;
+      if (tag === 'select' || tag === 'option') inside = true;
+      if (attrs) {
+        if (attrs.contenteditable !== undefined && String(attrs.contenteditable).toLowerCase() !== 'false') inside = true;
+        scrubAttrs(attrs, tag);
+      }
+    }
+    if (node.type === 3 && inside && typeof node.textContent === 'string') node.textContent = node.textContent.replace(/\S/g, '*');
+    if (node.childNodes) node.childNodes.forEach(function (c) {
+      scrubTree(c, inside);
+    });
+  }
+  function scrubReplayEvent(ev) {
+    var data = ev && ev.data;
+    if (!data) return;
+    if (ev.type === 4 && typeof data.href === 'string') data.href = scrubUrl(data.href);
+    if (ev.type === 2) scrubTree(data.node, false);
+    if (ev.type === 3 && data.source === 0) {
+      (data.adds || []).forEach(function (a) {
+        scrubTree(a.node, false);
+      });
+      (data.attributes || []).forEach(function (c) {
+        if (!c.attributes) return;
+        scrubAttrs(c.attributes, '');
+        delete c.attributes.value;
+      });
+    }
+  }
   function beginRecording() {
     if (replay.dead || !w.rrwebRecord || !w.rrwebRecord.record || state.optedOut) return;
     try {
       replay.stop = w.rrwebRecord.record({
-        emit: onReplayEvent,
-        maskAllInputs: true,
-        maskTextSelector: replay.conf.maskAllText ? '*' : null,
+        emit: function (ev) {
+          scrubReplayEvent(ev);
+          onReplayEvent(ev);
+        },
+        // Todos los campos enmascarados, también los ocultos (tokens de formularios).
+        maskAllInputs: false,
+        maskInputOptions: { color: true, date: true, 'datetime-local': true, email: true, month: true, number: true, range: true, search: true, tel: true, text: true, time: true, url: true, week: true, textarea: true, select: true, password: true, hidden: true },
+        // Lo que se escribe en un campo editable y las opciones de un select nunca van como texto.
+        maskTextSelector: replay.conf.maskAllText ? '*' : '[contenteditable]:not([contenteditable="false"]), select, option',
         blockClass: /(^|\s)(zs-no-capture|ph-no-capture)(\s|$)/,
         ignoreClass: 'zs-no-capture',
         slimDOMOptions: 'all',
@@ -884,7 +957,7 @@
         rate.setAttribute('role', 'group');
         rate.setAttribute('aria-label', cut(q.text, 200));
         var scale = q.scale === 10 ? 10 : 5;
-        for (var n = 1; n <= scale; n++) {
+        for (var n = q.scale === 10 ? 0 : 1; n <= scale; n++) {
           (function (value) {
             var b = el('button', '', value);
             b.type = 'button';

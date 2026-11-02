@@ -35,8 +35,8 @@ export default function SurveyPreview({
           {q.type === 'rating' && (
             <>
               <div className="an-sv-rate" aria-hidden="true">
-                {Array.from({ length: q.scale }, (_, i) => (
-                  <span key={i}>{i + 1}</span>
+                {Array.from({ length: q.scale === 10 ? 11 : q.scale }, (_, i) => (
+                  <span key={i}>{q.scale === 10 ? i : i + 1}</span>
                 ))}
               </div>
               {(q.lowLabel || q.highLabel) && (

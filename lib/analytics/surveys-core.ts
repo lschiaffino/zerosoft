@@ -97,7 +97,7 @@ export function cleanAnswer(q: SurveyQuestion, raw: unknown): CleanAnswer {
   if (raw === undefined || raw === null || raw === '') return { kind: 'none' };
   if (q.type === 'rating') {
     const n = typeof raw === 'number' ? raw : typeof raw === 'string' && /^\d{1,2}$/.test(raw.trim()) ? Number(raw) : NaN;
-    if (!Number.isInteger(n) || n < 1 || n > q.scale) return { kind: 'invalid' };
+    if (!Number.isInteger(n) || n < ratingMin(q.scale) || n > q.scale) return { kind: 'invalid' };
     return { kind: 'rating', value: n };
   }
   if (q.type === 'open') {
@@ -116,13 +116,18 @@ export function cleanAnswer(q: SurveyQuestion, raw: unknown): CleanAnswer {
   return values.length ? { kind: 'choices', values } : { kind: 'none' };
 }
 
-/** NPS con escala de 1 a 10: promotores 9 y 10, neutros 7 y 8, detractores el resto. */
+/** La escala de 10 es la de NPS y arranca en 0; la de 5 arranca en 1. */
+export function ratingMin(scale: number): number {
+  return scale === 10 ? 0 : 1;
+}
+
+/** NPS con escala de 0 a 10: promotores 9 y 10, neutros 7 y 8, detractores de 0 a 6. */
 export function npsFrom(distribution: number[]): { nps: number | null; promoters: number; passives: number; detractors: number } {
   let promoters = 0;
   let passives = 0;
   let detractors = 0;
   distribution.forEach((count, i) => {
-    const score = i + 1;
+    const score = i;
     if (score >= 9) promoters += count;
     else if (score >= 7) passives += count;
     else detractors += count;
@@ -139,7 +144,8 @@ export function computeQuestionResults(questions: SurveyQuestion[], rows: Survey
     let answered = 0;
     let invalid = 0;
     if (q.type === 'rating') {
-      const distribution = Array.from({ length: q.scale }, () => 0);
+      const min = ratingMin(q.scale);
+      const distribution = Array.from({ length: q.scale - min + 1 }, () => 0);
       let sum = 0;
       for (const r of rows) {
         const a = cleanAnswer(q, rawAnswer(r.properties, q, index));
@@ -147,7 +153,7 @@ export function computeQuestionResults(questions: SurveyQuestion[], rows: Survey
         if (a.kind !== 'rating') continue;
         answered++;
         sum += a.value;
-        distribution[a.value - 1]++;
+        distribution[a.value - min]++;
       }
       const nps = q.scale === 10 ? npsFrom(distribution) : { nps: null, promoters: 0, passives: 0, detractors: 0 };
       return { id: q.id, type: 'rating', text: q.text, answered, invalid, scale: q.scale, distribution, average: answered ? sum / answered : null, ...nps };

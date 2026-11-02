@@ -1,6 +1,9 @@
 import { getDb } from '@/lib/db';
 import { roleAtLeast } from '@/lib/teams';
 import { likeContains } from '@/lib/track-views';
+import { listIssues } from '@/lib/analytics/errors';
+import { issueRef } from '@/lib/analytics/more-types';
+import { listProjects } from '@/lib/analytics/projects';
 import { trackVisibleSql } from '@/lib/track-access';
 import { boardViewer, boardVisibleSql } from '@/lib/board-access';
 import { snippet as boardSnippet } from '@/lib/boards';
@@ -70,6 +73,7 @@ export interface AppSearchItem {
     | 'analyticsSurveys'
     | 'analyticsCohorts'
     | 'analyticsActions'
+    | 'analyticsErrors'
     | 'analyticsExperiments'
     | 'analyticsAlerts'
     | 'analyticsProjects'
@@ -455,6 +459,16 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     analyticsIn('analytics_surveys'),
   ]);
 
+  // Errores de Analytics: no tienen nombre propio, se buscan por tipo y mensaje en los proyectos del workspace.
+  const anErrors: Array<{ id: string; label: string; meta: string }> = [];
+  if (needle.length >= 2) {
+    const projects = (await listProjects(user.id).catch(() => [])).slice(0, 3);
+    for (const p of projects) {
+      const found = await listIssues(p, { q: needle, status: 'all' }).catch(() => null);
+      for (const i of (found?.issues ?? []).slice(0, 5)) anErrors.push({ id: issueRef(p.id, i.fingerprint), label: `${i.type}: ${i.message}`.slice(0, 120), meta: p.name });
+    }
+  }
+
   // Chat: conversaciones (asunto, visitante o texto), personas, vistas guardadas y equipos.
   const chatWidgets = `SELECT id FROM chat_widgets WHERE ${widgetWhere}`;
   const [chatConversations, chatPeople, chatViews, chatTeams, chatOutbound, chatCompanies, chatReports, chatCampaigns] = await Promise.all([
@@ -590,6 +604,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(anDashboards, 'analyticsDashboards', (id) => `/app/analytics/dashboards/${id}`),
     ...map(anFlags, 'analyticsFlags', (id) => `/app/analytics/flags/${id}`),
     ...map(anCohorts, 'analyticsCohorts', (id) => `/app/analytics/cohorts?open=${id}`),
+    ...map(anErrors, 'analyticsErrors', (id) => `/app/analytics/errors/${id}`),
     ...map(anActions, 'analyticsActions', (id) => `/app/analytics/actions/${id}`),
     ...map(anExperiments, 'analyticsExperiments', (id) => `/app/analytics/experiments/${id}`),
     ...map(anAlerts, 'analyticsAlerts', () => `/app/analytics/alerts`),

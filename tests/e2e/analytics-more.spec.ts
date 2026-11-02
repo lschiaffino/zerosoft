@@ -440,6 +440,17 @@ test('errores: capturar, agrupar, huella del servidor, estado, responsable y reg
   expect(errors.filter((e) => !/404/.test(e)), errors.join('\n')).toEqual([]);
 });
 
+test('Cmd+K encuentra un error por su mensaje', async ({ page, baseURL }) => {
+  await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
+  await page.goto('/en/app/analytics/errors', { waitUntil: 'networkidle' });
+  await page.keyboard.press('ControlOrMeta+k');
+  const dialog = page.getByRole('dialog', { name: 'Search' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('combobox').click();
+  await dialog.getByRole('combobox').pressSequentially('Order 99 failed');
+  await expect(dialog.getByRole('option', { name: /Order 99 failed/ }).first()).toBeVisible();
+});
+
 test('LLM: ejemplo vacío, valores limpios, por modelo, trazas y detalle', async ({ page, request, baseURL }) => {
   test.setTimeout(180_000);
   await ensureProject(request, baseURL!, page);

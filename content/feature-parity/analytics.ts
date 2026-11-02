@@ -115,11 +115,11 @@ const parity: ProductParity = {
         'group() guarda grupos e marca eventos; as tendências contam grupos únicos, os funis contam por grupo e há uma lista de grupos. Sem páginas de grupo, filtros de grupo nem retenção por grupo',
       ],
     }),
-    row('reverse-proxy', 'ingest', ['Reverse proxy guide', 'Guía de proxy inverso', 'Guia de proxy reverso'], 'have', {
+    row('reverse-proxy', 'ingest', ['Reverse proxy guide', 'Guía de proxy inverso', 'Guia de proxy reverso'], 'partial', {
       detail: [
-        'Guides for Next.js and nginx in project settings; the snippet and ingest were exercised through a real proxy on another origin',
-        'Guías para Next.js y nginx en los ajustes del proyecto; el snippet y la ingesta se probaron a través de un proxy real en otro origen',
-        'Guias para Next.js e nginx nas configurações do projeto; o snippet e a ingestão foram testados através de um proxy real em outra origem',
+        'Guides for Next.js and nginx in project settings. The snippet and ingest were tried through a test proxy on another origin, not through these guides. Behind a proxy the country comes from the proxy, not the visitor',
+        'Guías para Next.js y nginx en los ajustes del proyecto. El snippet y la ingesta se probaron con un proxy de prueba en otro origen, no con estas guías. Detrás de un proxy, el país es el del proxy y no el del visitante',
+        'Guias para Next.js e nginx nas configurações do projeto. O snippet e a ingestão foram testados com um proxy de teste em outra origem, não com estes guias. Atrás de um proxy, o país é o do proxy e não o do visitante',
       ],
     }),
 

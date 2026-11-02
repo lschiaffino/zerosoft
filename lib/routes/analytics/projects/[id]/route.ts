@@ -24,6 +24,7 @@ const patchSchema = z.object({
   webVitals: z.boolean().optional(),
   retentionDays: z.number().int().min(1).max(3650).optional(),
   tzOffsetMin: z.number().int().min(-720).max(840).optional(),
+  keepBots: z.boolean().optional(),
   tzName: z.string().max(64).refine(isTimeZone, 'invalid_time_zone').nullable().optional(),
   testFilters: z.array(propertyFilterSchema).max(20).optional(),
 });

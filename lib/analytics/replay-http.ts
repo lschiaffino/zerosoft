@@ -10,31 +10,11 @@ import { promisify } from 'util';
 import { gunzip } from 'zlib';
 import { parseChunk, REPLAY_LIMITS, sampledIn } from './replay-core';
 import { storeChunk } from './replay';
-import { dntOn, limited, precheck, reply, resolveProject } from './ingest-http';
+import { isBotUserAgent } from './bots';
+import { dntOn, limited, precheck, readCapped, reply, resolveProject } from './ingest-http';
 
 const gunzipAsync = promisify(gunzip);
 const REPLAY_RPM = Number(process.env.ANALYTICS_REPLAY_RPM) || 3000;
-
-/** Lee el cuerpo sin pasar el tope, aunque content-length mienta. null si lo pasa. */
-async function readCapped(req: Request, max: number): Promise<Uint8Array | null> {
-  const len = Number(req.headers.get('content-length') ?? 0);
-  if (len > max) return null;
-  if (!req.body) return new Uint8Array(0);
-  const reader = req.body.getReader();
-  const parts: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > max) {
-      await reader.cancel().catch(() => undefined);
-      return null;
-    }
-    parts.push(value);
-  }
-  return Buffer.concat(parts);
-}
 
 const isGzip = (b: Uint8Array) => b.length > 2 && b[0] === 0x1f && b[1] === 0x8b;
 
@@ -55,6 +35,7 @@ export async function handleReplayIngest(req: Request): Promise<Response> {
   // Apagado (o se apagó hace poco): el snippet deja de mandar con este estado.
   if (r.project.replay_enabled !== 1) return reply(req, 403, { error: 'replay_disabled' });
   if (!r.secret && r.project.respect_dnt === 1 && dntOn(req)) return reply(req, 200, { status: 1, stored: 0, reason: 'dnt' });
+  if (!r.secret && r.project.keep_bots !== 1 && isBotUserAgent(req.headers.get('user-agent'))) return reply(req, 200, { status: 1, stored: 0, reason: 'bot' });
   const block = await limited(req, 'areplay', r.project.id, REPLAY_RPM);
   if (block) return block;
 

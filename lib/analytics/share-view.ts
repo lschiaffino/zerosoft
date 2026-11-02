@@ -56,12 +56,13 @@ export async function publicShareView(token: string): Promise<PublicShareView | 
   let view: PublicShareView | null = null;
   if (share.insight_id) {
     const insight = await getInsight(project.id, share.insight_id);
-    if (insight) view = { title: insight.name, description: insight.description, tiles: [await tile(project, insight)] };
+    // Un resultado de SQL nunca sale por un link público.
+    if (insight && insight.kind !== 'sql') view = { title: insight.name, description: insight.description, tiles: [await tile(project, insight)] };
   } else if (share.dashboard_id) {
     const dashboard = await getDashboard(project.id, share.dashboard_id);
     if (dashboard) {
       const all = await listInsights(project.id);
-      const insights = dashboard.insightIds.map((id) => all.find((x) => x.id === id)).filter((x): x is InsightDto => Boolean(x)).slice(0, MAX_TILES);
+      const insights = dashboard.insightIds.map((id) => all.find((x) => x.id === id)).filter((x): x is InsightDto => Boolean(x) && x?.kind !== 'sql').slice(0, MAX_TILES);
       const tiles: PublicTile[] = [];
       for (const i of insights) tiles.push(await tile(project, i));
       view = { title: dashboard.name, description: dashboard.description, tiles };

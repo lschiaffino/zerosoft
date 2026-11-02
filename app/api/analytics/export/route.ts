@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { actorProject, aError, analyticsActor, isResponse } from '@/lib/analytics/http';
+import { actorProject, aError, analyticsActor, canManageAnalytics, isResponse } from '@/lib/analytics/http';
 import { csvLines } from '@/lib/analytics/compute-more';
 import { liveEvents } from '@/lib/analytics/query';
 import { rateLimit } from '@/lib/rate-limit';
@@ -14,6 +14,7 @@ const MAX_ROWS = 20_000;
 export async function GET(req: NextRequest) {
   const actor = await analyticsActor(req, 'read');
   if (isResponse(actor)) return actor;
+  if (!canManageAnalytics(actor)) return aError(403, 'forbidden');
   const sp = req.nextUrl.searchParams;
   const project = await actorProject(actor, sp.get('project'));
   if (isResponse(project)) return project;

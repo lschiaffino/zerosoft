@@ -118,7 +118,7 @@
     "series": "Série",
     "total": "Total",
     "previous": "Período anterior",
-    "funnelTotal": "{conversion} converteu: {count} de {start} pessoas.",
+    "funnelTotal": "{conversion} converteu: {count} de {start} {n, plural, one {pessoa} other {pessoas}}.",
     "fromPrevious": "{pct} desde a etapa anterior",
     "medianTime": "mediana {time}",
     "dropped": "{count, plural, one {# pessoa desistiu} other {# pessoas desistiram}}",
@@ -324,7 +324,8 @@
       "pageviews": "Só páginas",
       "all": "Páginas e eventos próprios"
     },
-    "pathsNoteAll": "Os caminhos seguem páginas e seus eventos em cada sessão. Mostram o próximo passo mais comum."
+    "pathsNoteAll": "Os caminhos seguem páginas e seus eventos em cada sessão. Mostram o próximo passo mais comum.",
+    "shareNoSql": "Um resultado de SQL pode trazer qualquer dado do projeto, por isso não pode ser público"
   },
   "sql": {
     "title": "SQL",
@@ -561,7 +562,7 @@
     "guidesTitle": "Integrações",
     "guidesDesc": "Proxy reverso, SDKs de servidor e flags avaliados no seu próprio servidor.",
     "proxyTitle": "Proxy reverso",
-    "proxyDesc": "Sirva o snippet e seus pedidos do seu domínio, assim os bloqueadores os tratam como seus. Encaminhe o IP do cliente se quiser o país.",
+    "proxyDesc": "Sirva o snippet e seus pedidos do seu domínio, assim os bloqueadores os tratam como seus. Atrás de um proxy, o país do visitante não é detectado: os eventos ficam com o do proxy.",
     "proxyNext": "Next.js",
     "proxyNginx": "nginx",
     "proxyUse": "Depois aponte o snippet para lá",
@@ -569,11 +570,13 @@
     "sdkDesc": "Os endpoints de captura e flags falam o protocolo do PostHog: use posthog-node com sua key pública e este host. Outros SDKs do PostHog podem funcionar igual; só o posthog-node foi testado.",
     "localEvalTitle": "Flags no seu servidor",
     "localEvalDesc": "Busque as definições com a key secreta e avalie sem um pedido por verificação. Usam o mesmo hash do PostHog.",
-    "timezoneFixed": "Deslocamento fixo {offset} (sem horário de verão)"
+    "timezoneFixed": "Deslocamento fixo {offset} (sem horário de verão)",
+    "keepBots": "Guardar o tráfego de bots conhecidos",
+    "botsFiltered": "{count, plural, =0 {Nenhum hit de bots filtrado até agora.} one {# hit de bots filtrado até agora.} other {# hits de bots filtrados até agora.}} Os crawlers conhecidos ficam de fora por padrão."
   },
   "share": {
     "title": "Link público",
-    "warning": "Qualquer pessoa com o link vê estes resultados, sem entrar. A consulta e os ids de pessoas não aparecem. Revogue um link para fechá-lo na hora.",
+    "warning": "Qualquer pessoa com o link vê estes resultados, incluindo valores das aberturas e caminhos de páginas, sem entrar. A definição da consulta e os ids de pessoas não aparecem. Revogue um link para fechá-lo na hora.",
     "none": "Ainda não há links públicos.",
     "link": "Link público",
     "copyLink": "Copiar link",
@@ -583,8 +586,7 @@
     "publicTitle": "Analytics compartilhado",
     "rateLimited": "Muitas visitas agora. Tente de novo em um minuto.",
     "emptyPublic": "Ainda não há nada para mostrar.",
-    "tileError": "Não foi possível carregar este resultado.",
-    "poweredBy": "Feito com zerosoft Analytics"
+    "tileError": "Não foi possível carregar este resultado."
   },
   "alerts": {
     "title": "Alertas",
@@ -708,7 +710,8 @@
       "invalid_state": "Isso não é possível no estado atual.",
       "flag_not_multivariate": "O flag precisa de pelo menos duas variantes.",
       "invalid_variant": "Essa variante não está no flag."
-    }
+    },
+    "adminsOnly": "Só admins podem começar, terminar, passar para todos ou apagar um experimento"
   },
   "actions": {
     "title": "Ações",
@@ -759,7 +762,8 @@
     "descriptionFor": "Descrição de {event}",
     "descriptionPlaceholder": "O que este evento significa",
     "verifiedFor": "{event} verificado",
-    "hiddenFor": "{event} oculto"
+    "hiddenFor": "{event} oculto",
+    "exportAdminsOnly": "Só admins podem exportar todos os eventos"
   },
   "groups": {
     "title": "Grupos",

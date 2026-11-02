@@ -205,6 +205,7 @@ function useGroupOrder() {
         'analyticsSurveys',
         'analyticsCohorts',
         'analyticsActions',
+        'analyticsErrors',
         'analyticsExperiments',
         'analyticsAlerts',
         'analyticsProjects',

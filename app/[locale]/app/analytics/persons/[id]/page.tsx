@@ -34,7 +34,7 @@ export default async function AnalyticsPersonPage(props: { params: Promise<{ loc
         person={person}
         events={events}
         canDelete={ctx.canManage}
-        recordings={<PersonRecordings projectId={ctx.project.id} personId={person.id} replayEnabled={ctx.project.replay_enabled === 1} canManage={ctx.canManage} />}
+        recordings={!ctx.canManage ? null : <PersonRecordings projectId={ctx.project.id} personId={person.id} replayEnabled={ctx.project.replay_enabled === 1} canManage={ctx.canManage} />}
       />
     </>
   );

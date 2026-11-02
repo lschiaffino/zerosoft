@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyticsActor, aError, isResponse, recordProject } from '@/lib/analytics/http';
+import { analyticsActor, aError, canManageAnalytics, isResponse, recordProject } from '@/lib/analytics/http';
 import { getRecording, recordingChunks } from '@/lib/analytics/replay';
 
 export const runtime = 'nodejs';
@@ -11,6 +11,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(req: NextRequest, ctx: Ctx) {
   const actor = await analyticsActor(req, 'read');
   if (isResponse(actor)) return actor;
+  if (!canManageAnalytics(actor)) return aError(403, 'forbidden');
   const { id } = await ctx.params;
   const project = await recordProject(actor, 'analytics_replay_recordings', id);
   if (isResponse(project)) return project;

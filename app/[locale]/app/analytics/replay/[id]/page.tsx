@@ -22,7 +22,7 @@ export default async function AnalyticsRecordingPage(props: { params: Promise<{ 
   const ownerProject = await recordProjectId('recordings', id, (await requireUser(locale)).id);
   if (!ownerProject) notFound();
   const ctx = await analyticsPage(locale, ownerProject);
-  if (!ctx.project || ctx.project.id !== ownerProject) notFound();
+  if (!ctx.project || ctx.project.id !== ownerProject || !ctx.canManage) notFound();
   const recording = await getRecording(ctx.project, id);
   if (!recording) notFound();
   const events = await recordingEvents(ctx.project, recording);

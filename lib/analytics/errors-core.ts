@@ -5,6 +5,7 @@
  */
 import { createHash } from 'crypto';
 import type { StackFrame } from './more-types';
+import { cleanUrl } from './ingest-core';
 
 export const ERROR_LIMITS = { type: 200, message: 1000, frames: 30, file: 300, fn: 200 } as const;
 
@@ -75,11 +76,20 @@ export function exceptionFingerprint(type: string, message: string, frames: Stac
  * _stack, o $exception_list como lo manda posthog-js (ahí el cuadro más
  * reciente va último). Pisa $exception_fingerprint con la del servidor.
  */
+/** Un mensaje de error suele traer URLs firmadas, emails o números largos: mismo criterio que las propiedades de los eventos. */
+export function scrubMessage(message: string): string {
+  return message
+    .replace(/https?:\/\/[^\s"'<>)]+/gi, (url) => cleanUrl(url) ?? '[url]')
+    .replace(/[^\s"'<>@]+@[^\s"'<>@]+\.[a-z]{2,}/gi, '[email]')
+    .replace(/\b(?:bearer|token|api[_-]?key|password|secret)[=:\s]+\S+/gi, (m) => `${m.split(/[=:\s]/)[0]}=[redacted]`)
+    .replace(/\d[\d -]{8,}\d/g, '[number]');
+}
+
 export function normalizeExceptionProps(props: Record<string, unknown>): void {
   const list = Array.isArray(props.$exception_list) ? props.$exception_list : null;
   const first = list && list[0] && typeof list[0] === 'object' ? (list[0] as Record<string, unknown>) : null;
   const type = text(props.$exception_type, ERROR_LIMITS.type) || text(first?.type, ERROR_LIMITS.type) || 'Error';
-  const message = text(props.$exception_message, ERROR_LIMITS.message) || text(first?.value, ERROR_LIMITS.message);
+  const message = scrubMessage(text(props.$exception_message, ERROR_LIMITS.message) || text(first?.value, ERROR_LIMITS.message));
   let frames = cleanFrames(props.$exception_stack);
   if (!frames.length && first) {
     const st = first.stacktrace && typeof first.stacktrace === 'object' ? (first.stacktrace as Record<string, unknown>) : null;

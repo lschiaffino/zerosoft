@@ -136,7 +136,7 @@ function Funnel({ r, peopleHref }: { r: FunnelResult; peopleHref?: (ids: string[
   return (
     <div className="an-result">
       <p className="an-funnel-total">
-        {t('funnelTotal', { conversion: fmtPercent(last.conversion, locale), count: fmtNumber(last.count, locale), start: fmtNumber(first, locale) })}
+        {t('funnelTotal', { conversion: fmtPercent(last.conversion, locale), count: fmtNumber(last.count, locale), start: fmtNumber(first, locale), n: first })}
       </p>
       <ol className="an-funnel" role="list">
         {r.steps.map((s, i) => (
@@ -149,7 +149,7 @@ function Funnel({ r, peopleHref }: { r: FunnelResult; peopleHref?: (ids: string[
               </span>
             </div>
             <div className="an-funnel-bar" aria-hidden="true">
-              <span style={{ width: `${Math.max(1, s.conversion * 100)}%` }} />
+              {s.conversion > 0 && <span style={{ width: `${Math.max(1, s.conversion * 100)}%` }} />}
             </div>
             <div className="an-funnel-meta">
               {i > 0 && (

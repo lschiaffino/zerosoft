@@ -15,7 +15,7 @@ import { useMounted } from '@/components/ui/useMounted';
  * mejor, cambio contra control e intervalo). Se edita en borrador; empieza y
  * termina con un botón; al terminar se puede llevar a todos a la ganadora.
  */
-export default function ExperimentView({ projectId, experiment, flags }: { projectId: string; experiment: ExperimentDto; flags: Array<{ id: string; key: string; variants: number }> }) {
+export default function ExperimentView({ projectId, experiment, flags, canManage = false }: { projectId: string; experiment: ExperimentDto; flags: Array<{ id: string; key: string; variants: number }>; canManage?: boolean }) {
   const t = useTranslations('analytics.experiments');
   const tc = useTranslations('analytics.common');
   const locale = useLocale();
@@ -68,16 +68,16 @@ export default function ExperimentView({ projectId, experiment, flags }: { proje
         actions={
           <>
             {experiment.status === 'draft' && (
-              <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void patch({ action: 'start' }, t('started'))}>
+              <button type="button" className="btn btn-primary" disabled={busy || !canManage} title={canManage ? undefined : t('adminsOnly')} onClick={() => void patch({ action: 'start' }, t('started'))}>
                 {t('start')}
               </button>
             )}
             {experiment.status === 'running' && (
-              <button type="button" className="btn" disabled={busy} onClick={() => void patch({ action: 'stop' }, t('stopped'))}>
+              <button type="button" className="btn" disabled={busy || !canManage} title={canManage ? undefined : t('adminsOnly')} onClick={() => void patch({ action: 'stop' }, t('stopped'))}>
                 {t('stop')}
               </button>
             )}
-            <button type="button" className="btn btn-ghost" onClick={() => setDeleting(true)}>
+            <button type="button" className="btn btn-ghost" disabled={!canManage} title={canManage ? undefined : t('adminsOnly')} onClick={() => setDeleting(true)}>
               {tc('delete')}
             </button>
           </>
@@ -244,7 +244,7 @@ export default function ExperimentView({ projectId, experiment, flags }: { proje
               <div className="an-row an-wrap">
                 <span className="label">{t('shipLabel')}</span>
                 {(results.metrics[0]?.variants ?? []).map((v) => (
-                  <button key={v.key} type="button" className="btn btn-sm" onClick={() => setShipping(v.key)}>
+                  <button key={v.key} type="button" className="btn btn-sm" disabled={!canManage} title={canManage ? undefined : t('adminsOnly')} onClick={() => setShipping(v.key)}>
                     {t('ship', { key: v.key })}
                   </button>
                 ))}

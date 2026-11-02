@@ -43,9 +43,9 @@
 .an-top-filter:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .an-top-filter[aria-pressed='true'] { font-weight: 600; }
 
-.an-live { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--dim); }
-.an-live i { display: inline-block; width: 8px; height: 8px; background: var(--dim); opacity: 0.5; }
-.an-live i.is-on { background: var(--ok-ink); opacity: 1; }
+.an-web-live { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--dim); }
+.an-web-live i { display: inline-block; width: 8px; height: 8px; background: var(--dim); opacity: 0.5; }
+.an-web-live i.is-on { background: var(--ok-ink); opacity: 1; }
 
 .an-vital-badge { align-self: flex-start; }
 .an-vital-cell { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }

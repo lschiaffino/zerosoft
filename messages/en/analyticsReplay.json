@@ -52,7 +52,9 @@
     "deleteAdminsOnly": "Only admins can delete recordings",
     "personEmpty": "No recordings of this person.",
     "personOff": "Session replay is off for this project.",
-    "personOffMember": "Session replay is off for this project. An admin can turn it on."
+    "personOffMember": "Session replay is off for this project. An admin can turn it on.",
+    "adminsOnlyTitle": "Only admins can watch recordings",
+    "adminsOnlyBody": "Recordings can show what people do on the site, so they are limited to workspace admins. Ask an admin if you need one."
   },
   "player": {
     "loading": "Loading recording: {done} of {total} parts",

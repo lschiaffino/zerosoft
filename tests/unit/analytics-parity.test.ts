@@ -4,7 +4,11 @@ import { getDb, upsertUser } from '@/lib/db';
 import { nanoid } from 'nanoid';
 import { parseIngestBody } from '@/lib/analytics/ingest-core';
 import { storeEvents } from '@/lib/analytics/ingest';
-import { createProject, updateProject, getProject, type ProjectRow } from '@/lib/analytics/projects';
+import { createProject, forgetProjectCache, updateProject, getProject, type ProjectRow } from '@/lib/analytics/projects';
+import { scrubNode, scrubUrl } from '@/lib/analytics/replay-scrub';
+import { parseChunk } from '@/lib/analytics/replay-core';
+import { cleanAnswer, npsFrom } from '@/lib/analytics/surveys-core';
+import { scrubMessage } from '@/lib/analytics/errors-core';
 import {
   applyFormula,
   collapsePath,
@@ -21,7 +25,7 @@ import {
   sampleRatioMismatch,
   stickinessHistogram,
 } from '@/lib/analytics/compute-more';
-import { runCorrelation, runFunnel, runInsight, runLifecycle, runPaths, runRetention, runStickiness, runTrends } from '@/lib/analytics/query';
+import { runCorrelation, runFunnel, runInsight, runLifecycle, runPaths, runRetention, runStickiness, runTrends, runWeb } from '@/lib/analytics/query';
 import { addCohortMembers, createAction, createAnnotation, createShare, listAnnotations, parseMemberList, revokeShare, saveEventDefinition, shareByToken, hiddenEvents, listEventDefinitions } from '@/lib/analytics/records-more';
 import { createCohort, createFlag, createInsight, deleteFlag, getCohort } from '@/lib/analytics/records';
 import { countPersons, listPersons } from '@/lib/analytics/persons';
@@ -33,7 +37,7 @@ import { publicResult, publicShareView } from '@/lib/analytics/share-view';
 import { runAnalyticsCron } from '@/lib/analytics/cron';
 import { cohortDefinitionSchema, insightQuerySchema, trendsQuerySchema, type FunnelResult } from '@/lib/analytics/types';
 import { recordProject } from '@/lib/analytics/http';
-import { bucketList, bucketOf, previousAligned, resolveRange } from '@/lib/analytics/compute';
+import { bucketBefore, bucketList, bucketOf, previousAligned, resolveRange } from '@/lib/analytics/compute';
 import { fromLocal, isTimeZone, offsetMsAt, transitionsIn } from '@/lib/analytics/tz';
 import { isBotUserAgent } from '@/lib/analytics/bots';
 import { handleCapture } from '@/lib/analytics/ingest-http';
@@ -251,12 +255,195 @@ describe('analytics: zona horaria con cambio de hora', () => {
   });
 });
 
+describe('analytics: arreglos de QA contados a mano', () => {
+  const trend = (series: Array<Record<string, unknown>>, extra: Record<string, unknown> = {}) => trendsQuerySchema.parse({ kind: 'trends', series, dateRange: { from: '-7d' }, ...extra });
+
+  it('con apertura, el total de cada valor es su cuenta sobre el rango y no la suma de los días', async () => {
+    const { project: p } = await newProject();
+    // ana y bob vienen dos días; carla uno. Pro: ana y carla. Montos 100 y 50 en pro.
+    await ingest(p, [
+      { event: 'v', distinct_id: 'ana', ts: NOW - 2 * DAY, properties: { plan: 'pro', amount: 100 } },
+      { event: 'v', distinct_id: 'ana', ts: NOW - DAY, properties: { plan: 'pro', amount: 50 } },
+      { event: 'v', distinct_id: 'bob', ts: NOW - 2 * DAY, properties: { plan: 'free', amount: 10 } },
+      { event: 'v', distinct_id: 'bob', ts: NOW - DAY, properties: { plan: 'free', amount: 10 } },
+      { event: 'v', distinct_id: 'carla', ts: NOW - DAY, properties: { plan: 'pro' } },
+    ]);
+    const by = (r: Awaited<ReturnType<typeof runTrends>>) => Object.fromEntries(r.series.map((x) => [x.breakdownValue, x.total]));
+    const bd = { breakdown: { key: 'plan', type: 'event' } };
+    expect(by(await runTrends(p, trend([{ event: 'v', math: 'unique' }], bd), NOW))).toEqual({ pro: 2, free: 1 });
+    expect(by(await runTrends(p, trend([{ event: 'v', math: 'avg', mathProperty: 'amount' }], bd), NOW))).toEqual({ pro: 75, free: 10 });
+    expect(by(await runTrends(p, trend([{ event: 'v', math: 'per_user' }], bd), NOW))).toEqual({ pro: 1.5, free: 2 });
+    expect(by(await runTrends(p, trend([{ event: 'v', math: 'sum', mathProperty: 'amount' }], bd), NOW))).toEqual({ pro: 150, free: 20 });
+    expect(by(await runTrends(p, trend([{ event: 'v', math: 'total' }], bd), NOW))).toEqual({ pro: 3, free: 2 });
+    expect(by(await runTrends(p, trend([{ event: 'v', math: 'max', mathProperty: 'amount' }], bd), NOW))).toEqual({ pro: 100, free: 10 });
+  });
+
+  it('ciclo de vida mensual: un rango que arranca el 31 tiene sus meses', async () => {
+    const { project: p } = await newProject();
+    const now = Date.parse('2026-11-20T12:00:00Z');
+    const r = await runLifecycle(p, { kind: 'lifecycle', event: 'e', eventFilters: [], interval: 'month', dateRange: { from: '2026-10-31', to: '2026-11-20' }, filters: [] }, now);
+    expect(r.buckets).toEqual(['2026-10-01', '2026-11-01']);
+    expect(bucketBefore(Date.parse('2026-10-31T00:00:00Z'), 'month')).toBe(Date.parse('2026-09-01T00:00:00Z'));
+    expect(bucketBefore(Date.parse('2026-03-31T00:00:00Z'), 'month')).toBe(Date.parse('2026-02-01T00:00:00Z'));
+  });
+
+  it('un reintento con el mismo uuid no suma a la sesión: el rebote no cambia', async () => {
+    const { project: p, user } = await newProject();
+    const body = (uuid: string, s: string) => JSON.stringify({ api_key: p.public_key, batch: [{ event: '$pageview', distinct_id: 'r', uuid, timestamp: new Date(NOW - 5000).toISOString(), properties: { $session_id: s, $pathname: '/' } }] });
+    const send = async (uuid: string, s: string) => {
+      const parsed = parseIngestBody(body(uuid, s));
+      if (!parsed.ok) throw new Error(parsed.error);
+      return storeEvents((await getProject(user.id, p.id))!, parsed.events, null);
+    };
+    const uuid = '11111111-2222-4333-8444-555555555555';
+    expect(await send(uuid, 'sess-bounce')).toBe(1);
+    expect(await send(uuid, 'sess-bounce')).toBe(0);
+    const row = (await getDb().prepare('SELECT pageviews, events FROM analytics_sessions WHERE project_id = ? AND id = ?').get(p.id, 'sess-bounce')) as { pageviews: number; events: number };
+    expect(Number(row.pageviews)).toBe(1);
+    expect(Number(row.events)).toBe(1);
+    const web = await runWeb((await getProject(user.id, p.id))!, { kind: 'web', dateRange: { from: '-7d' }, compare: false });
+    expect(web.stats.bounceRate.value).toBe(1);
+    expect(web.stats.pageviews.value).toBe(1);
+  });
+
+  it('páginas de entrada: una persona con dos ids es un visitante', async () => {
+    const { project: p } = await newProject();
+    await ingest(p, [
+      { event: '$pageview', distinct_id: 'anon-1', ts: NOW - 9000, properties: { $session_id: 's-a', $pathname: '/home' } },
+      { event: '$identify', distinct_id: 'user-1', ts: NOW - 8000, properties: { $anon_distinct_id: 'anon-1' } },
+      { event: '$pageview', distinct_id: 'user-1', ts: NOW - 7000, properties: { $session_id: 's-b', $pathname: '/home' } },
+    ]);
+    const web = await runWeb(p, { kind: 'web', dateRange: { from: '-7d' }, compare: false });
+    expect(web.entries.find((x) => x.key === '/home')?.visitors).toBe(1);
+    expect(web.entries.find((x) => x.key === '/home')?.views).toBe(2);
+  });
+
+  it('NPS: la escala va de 0 a 10 y un 0 cuenta como detractor', () => {
+    const q = { id: 'q', type: 'rating', text: 'x', scale: 10 } as never;
+    expect(cleanAnswer(q, 0)).toEqual({ kind: 'rating', value: 0 });
+    expect(cleanAnswer(q, 11)).toEqual({ kind: 'invalid' });
+    const five = { id: 'q', type: 'rating', text: 'x', scale: 5 } as never;
+    expect(cleanAnswer(five, 0)).toEqual({ kind: 'invalid' });
+    const dist = new Array(11).fill(0) as number[];
+    dist[0] = 1;
+    dist[7] = 1;
+    dist[10] = 2;
+    expect(npsFrom(dist)).toEqual({ nps: 25, promoters: 2, passives: 1, detractors: 1 });
+  });
+
+  it('mensajes de error sin URLs firmadas, emails ni números largos', () => {
+    const m = scrubMessage('Failed https://a.io/x?token=abc&ok=1#frag for ana@acme.com card 4111 1111 1111 1111 token=zzz');
+    expect(m).not.toContain('abc');
+    expect(m).not.toContain('frag');
+    expect(m).not.toContain('ana@acme.com');
+    expect(m).not.toContain('4111');
+    expect(m).not.toContain('zzz');
+    expect(m).toContain('ok=1');
+  });
+
+  it('un cuerpo sin content-length se corta al pasar el tope, sin leerlo entero', async () => {
+    let pulled = 0;
+    const chunk = new Uint8Array(1024 * 1024);
+    const stream = new ReadableStream<Uint8Array>({
+      pull(c) {
+        pulled++;
+        if (pulled > 300) c.close();
+        else c.enqueue(chunk);
+      },
+    });
+    const res = await handleCapture(new Request('http://x/api/ingest/e', { method: 'POST', body: stream, duplex: 'half' } as RequestInit));
+    expect(res.status).toBe(413);
+    expect(pulled).toBeLessThan(5);
+  });
+
+  it('un insight SQL no sale por un link público, ni solo ni en un tablero', async () => {
+    const { project: p } = await newProject();
+    const sql = await createInsight(p.id, 'u', { name: 'Leak', query: insightQuerySchema.parse({ kind: 'sql', sql: 'SELECT distinct_id FROM events' }) });
+    const ok = await createInsight(p.id, 'u', { name: 'Fine', query: insightQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }] }) });
+    const direct = await createShare(p.id, 'u', { insightId: sql.id });
+    expect(await publicShareView(direct.token)).toBeNull();
+    const { createDashboard, updateDashboard } = await import('@/lib/analytics/records');
+    const d = await createDashboard(p.id, 'u', { name: 'B' });
+    await updateDashboard(p.id, d.id, { insightIds: [sql.id, ok.id] });
+    const board = await createShare(p.id, 'u', { dashboardId: d.id });
+    expect((await publicShareView(board.token))?.tiles.map((t) => t.name)).toEqual(['Fine']);
+  });
+});
+
+describe('analytics: lo que queda en una grabación', () => {
+  it('URLs sin tokens ni fragmentos, absolutas o relativas', () => {
+    expect(scrubUrl('https://a.io/p?token=abc&x=1#access_token=zz')).toBe('https://a.io/p?x=1');
+    expect(scrubUrl('/reset?code=123&utm_source=mail')).toBe('/reset?utm_source=mail');
+    expect(scrubUrl('#access_token=zz')).toBe('#');
+    expect(scrubUrl('javascript:alert(1)')).toBe('');
+    expect(scrubUrl('mailto:ana@acme.com')).toBe('');
+  });
+  it('saca valores ocultos, data-* y placeholders; enmascara editables y selects siempre', () => {
+    const node = {
+      type: 2,
+      tagName: 'div',
+      attributes: { 'data-user': 'ana@acme.com', title: 'keep' },
+      childNodes: [
+        { type: 2, tagName: 'input', attributes: { type: 'hidden', name: 'csrf', value: 'SECRET' }, childNodes: [] },
+        { type: 2, tagName: 'input', attributes: { type: 'text', placeholder: 'tu email ana@acme.com' }, childNodes: [] },
+        { type: 2, tagName: 'a', attributes: { href: '/a?token=abc' }, childNodes: [{ type: 3, textContent: 'visible' }] },
+        { type: 2, tagName: 'div', attributes: { contenteditable: 'true' }, childNodes: [{ type: 3, textContent: 'mi nota privada' }] },
+        { type: 2, tagName: 'select', attributes: {}, childNodes: [{ type: 2, tagName: 'option', attributes: {}, childNodes: [{ type: 3, textContent: 'Diagnóstico' }] }] },
+      ],
+    };
+    scrubNode(node);
+    const json = JSON.stringify(node);
+    for (const secret of ['SECRET', 'ana@acme.com', 'token=abc', 'mi nota privada', 'Diagnóstico']) expect(json).not.toContain(secret);
+    expect(json).toContain('visible');
+    expect(json).toContain('keep');
+  });
+  it('el servidor limpia aunque el snippet no lo haya hecho', () => {
+    const parsed = parseChunk({
+      session_id: 'sessionid1',
+      window_id: 'windowid01',
+      seq: 0,
+      distinct_id: 'a',
+      url: 'https://a.io/',
+      events: [
+        { type: 4, timestamp: NOW, data: { href: 'https://a.io/?token=abc#access_token=zz', width: 800, height: 600 } },
+        { type: 2, timestamp: NOW, data: { node: { type: 0, id: 1, childNodes: [{ type: 2, id: 2, tagName: 'input', attributes: { type: 'hidden', value: 'CSRF' }, childNodes: [] }] }, initialOffset: { top: 0, left: 0 } } },
+        { type: 3, timestamp: NOW + 1, data: { source: 0, texts: [], removes: [], adds: [], attributes: [{ id: 2, attributes: { value: 'CSRF2', 'data-x': 'y', href: '/x?token=abc' } }] } },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    const json = JSON.stringify(parsed);
+    for (const secret of ['token=abc', 'access_token', 'CSRF', 'CSRF2', 'data-x']) expect(json).not.toContain(secret);
+  });
+});
+
 describe('analytics: bots', () => {
   it('reconoce crawlers y deja pasar navegadores y SDKs', () => {
     expect(isBotUserAgent('Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')).toBe(true);
     expect(isBotUserAgent('Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2)')).toBe(true);
     expect(isBotUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36')).toBe(false);
     expect(isBotUserAgent('posthog-node/4.0')).toBe(false);
+    // Crawlers de verdad.
+    for (const ua of [
+      'Mozilla/5.0 (compatible; Pinterestbot/1.0; +http://www.pinterest.com/bot.html)',
+      'Pinterest/0.2 (+https://www.pinterest.com/bot.html)',
+      'HubSpot Crawler 2.0 http://www.hubspot.com/',
+      'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+      'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+      'Mozilla/5.0 (compatible; bot/1.0)',
+      'Mozilla/5.0 (compatible; SomeCrawler/3.1)',
+    ]) expect(isBotUserAgent(ua), ua).toBe(true);
+    // Gente de verdad en apps y teléfonos con nombres parecidos.
+    for (const ua of [
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Pinterest/iOS',
+      'Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0 Mobile Safari/537.36 [Pinterest/Android]',
+      'Mozilla/5.0 (Linux; Android 11; CUBOT X50 Build/RP1A) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0 Mobile Safari/537.36',
+      'Mozilla/5.0 (Linux; Android 10; Cubot/X20) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0 Mobile Safari/537.36',
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/430.0]',
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 LinkedInApp',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Slack/4.34 Chrome/116 Safari/537.36',
+      'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/118.0 Mobile Safari/537.36 Google-Read-Aloud',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0 HubSpot-Tools/1.0 Safari/537.36',
+    ]) expect(isBotUserAgent(ua), ua).toBe(false);
     expect(isBotUserAgent(null)).toBe(false);
   });
   it('lo que manda un crawler con la key pública no se guarda; un navegador sí', async () => {
@@ -271,6 +458,14 @@ describe('analytics: bots', () => {
     expect(human.stored).toBe(1);
     const n = (await getDb().prepare('SELECT COUNT(*) AS n FROM analytics_events WHERE project_id = ?').get(p.id)) as { n: number };
     expect(Number(n.n)).toBe(1);
+    // Lo filtrado se cuenta, y el proyecto puede pedir guardarlo.
+    const { user } = { user: { id: p.workspace_id } };
+    expect((await getProject(user.id, p.id))?.bots_filtered).toBe(1);
+    await updateProject(user.id, p.id, { keepBots: true });
+    forgetProjectCache();
+    const kept = await (await send('Googlebot/2.1')).json();
+    expect(kept.stored).toBe(1);
+    expect((await getProject(user.id, p.id))?.bots_filtered).toBe(1);
   });
 });
 

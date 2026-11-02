@@ -27,7 +27,7 @@ function watchErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
   page.on('console', (msg) => {
-    if (msg.type() === 'error' && !/favicon|Failed to load resource|Blocked script execution|Refused to display/i.test(msg.text())) errors.push(`console: ${msg.text()}`);
+    if (msg.type() === 'error' && !/favicon|Failed to load resource|Blocked script execution|Refused to display|Content Security Policy/i.test(msg.text())) errors.push(`console: ${msg.text()}`);
   });
   page.on('response', (res) => {
     if (res.status() >= 500) errors.push(`${res.status()} ${res.url()}`);
@@ -293,6 +293,15 @@ test('grabación hostil: el <script> y los manejadores inline no corren', async 
   test.setTimeout(120_000);
   const errors = watchErrors(page);
   const t0 = Date.now() - 4000;
+  // Lo grabado apunta a un servidor de afuera: el navegador de quien mira no tiene que pedirle nada.
+  const outside: string[] = [];
+  const outsidePort = (Number(process.env.E2E_PORT) || 3210) + 21;
+  const outsideServer = http.createServer((req, res) => {
+    outside.push(req.url ?? '');
+    res.writeHead(200);
+    res.end();
+  });
+  await new Promise<void>((resolve) => outsideServer.listen(outsidePort, '127.0.0.1', resolve));
   let id = 10;
   const el = (tagName: string, attributes: Record<string, unknown>, childNodes: unknown[] = []) => ({ type: 2, tagName, attributes, childNodes, id: id++ });
   const text = (textContent: string) => ({ type: 3, textContent, id: id++ });
@@ -311,6 +320,8 @@ test('grabación hostil: el <script> y los manejadores inline no corren', async 
           el('head', {}, [el('script', {}, [text(pwn)])]),
           el('body', { onload: "window.top.__pwned='onload'" }, [
             el('div', { id: 'hostile-marker' }, [text('Hostile page')]),
+            el('img', { src: `http://127.0.0.1:${outsidePort}/pixel.png` }),
+            el('link', { rel: 'stylesheet', href: `http://127.0.0.1:${outsidePort}/style.css` }),
             el('img', { id: 'bad-img', src: 'data:image/png;base64,nope', onerror: "window.top.__pwned='onerror'" }),
             el('script', {}, [text(pwn)]),
             el('a', { id: 'bad-link', href: "javascript:window.top.__pwned='href'" }, [text('click me')]),
@@ -350,6 +361,9 @@ test('grabación hostil: el <script> y los manejadores inline no corren', async 
   const frame = page.frameLocator('.replayer-wrapper iframe');
   await expect(frame.locator('#hostile-marker')).toHaveText('Hostile page', { timeout: 30_000 });
   await expect(page.locator('.replayer-wrapper iframe')).toHaveAttribute('sandbox', 'allow-same-origin');
+  await page.waitForTimeout(1500);
+  expect(outside, outside.join(', ')).toEqual([]);
+  outsideServer.close();
   // Dejamos que termine de reproducir: la mutación y el clic ya pasaron.
   await page.waitForTimeout(4000);
   // Si algo corriera, tocaría window.top; los manejadores tampoco corren disparándolos a mano.
@@ -431,16 +445,16 @@ test('accesos: otro workspace 404, sin la app 403, miembro sin borrar', async ({
     await ctx.close();
   }
   const { ctx: memberCtx, p: member } = await join(`member-${uid()}@darwin-e2e.io`, 'member', '["analytics"]');
-  expect((await memberCtx.request.get(`/api/analytics/replay/${recordingId}`)).status()).toBe(200);
-  expect((await memberCtx.request.get(`/api/analytics/replay/${recordingId}/chunks`)).status()).toBe(200);
+  // Ver grabaciones es de admins: API, lista y reproductor.
+  for (const path of [`/api/analytics/replay/${recordingId}`, `/api/analytics/replay/${recordingId}/chunks`, `/api/analytics/replay?project=${projectId}`, `/api/analytics/replay/sessions?project=${projectId}&ids=${sessionId}`]) {
+    expect((await memberCtx.request.get(path)).status(), path).toBe(403);
+  }
   expect((await memberCtx.request.delete(`/api/analytics/replay/${recordingId}`)).status()).toBe(403);
   await member.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
   await member.goto('/en/app/analytics/replay', { waitUntil: 'networkidle' });
-  const memberRow = member.getByTestId('an-recording-row').first();
-  // El botón se ve deshabilitado y dice por qué.
-  const del = memberRow.getByRole('button', { name: /Delete recording/ });
-  await expect(del).toBeDisabled();
-  await expect(del).toHaveAttribute('title', 'Only admins can delete recordings');
+  await expect(member.getByText('Only admins can watch recordings')).toBeVisible();
+  await expect(member.getByTestId('an-recording-row')).toHaveCount(0);
+  expect((await member.goto(`/en/app/analytics/replay/${recordingId}`))?.status()).toBe(404);
   // Ajustes de solo lectura para un miembro.
   await member.goto('/en/app/analytics/settings', { waitUntil: 'networkidle' });
   await expect(member.getByTestId('an-replay-enabled')).toBeDisabled();
@@ -449,10 +463,17 @@ test('accesos: otro workspace 404, sin la app 403, miembro sin borrar', async ({
   const offId = ((await fresh.json()) as { project: { id: string } }).project.id;
   await member.context().addCookies([{ name: 'zs_analytics_project', value: offId, url: baseURL! }]);
   await member.goto('/en/app/analytics/replay', { waitUntil: 'networkidle' });
-  await expect(member.getByText('Ask an admin of your workspace to turn on session replay')).toBeVisible();
-  await expect(member.getByRole('link', { name: 'Open settings' })).toHaveCount(0);
+  await expect(member.getByText('Only admins can watch recordings')).toBeVisible();
   await member.goto('/en/app/analytics/heatmaps', { waitUntil: 'networkidle' });
   await expect(member.getByText('Ask an admin of your workspace to turn on heatmaps')).toBeVisible();
+  // Exportar todos los eventos y empezar, terminar, pasar o borrar un experimento también son de admins.
+  expect((await memberCtx.request.get(`/api/analytics/export?project=${projectId}`)).status()).toBe(403);
+  const { flag } = await (await request.post('/api/analytics/flags', { data: { projectId, key: `perm-${uid()}`, active: false, variants: [{ key: 'control', rollout: 50 }, { key: 'test', rollout: 50 }] } })).json();
+  const { experiment } = await (await request.post('/api/analytics/experiments', { data: { projectId, name: `Perm ${uid()}`, flagId: flag.id, metrics: [{ event: 'x' }] } })).json();
+  for (const data of [{ action: 'start' }, { action: 'stop' }, { ship: 'test' }]) {
+    expect((await memberCtx.request.patch(`/api/analytics/experiments/${experiment.id}`, { data })).status(), JSON.stringify(data)).toBe(403);
+  }
+  expect((await memberCtx.request.delete(`/api/analytics/experiments/${experiment.id}`)).status()).toBe(403);
   await memberCtx.close();
 });
 
@@ -473,10 +494,11 @@ test('heatmaps sobre la página real, con valores hostiles ignorados', async ({ 
   await site.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await site.waitForTimeout(200);
   await site.click('#bottom');
-  await site.evaluate(() => {
-    window.dispatchEvent(new Event('pagehide'));
-    (window as unknown as { zs: { flush: () => void } }).zs.flush();
-  });
+  // Una salida de verdad: el navegador deja la página y lo último se va por sendBeacon.
+  await site.goto('about:blank');
+  await expect
+    .poll(async () => Number((await sql("SELECT count(*) AS n FROM analytics_events WHERE project_id = ? AND event = '$pageleave' AND pathname = '/heat'", [projectId]))[0].n), { timeout: 15_000 })
+    .toBeGreaterThanOrEqual(1);
   await expect
     .poll(async () => Number((await sql("SELECT count(*) AS n FROM analytics_events WHERE project_id = ? AND pathname = '/heat' AND event = '$pageleave'", [projectId]))[0].n), { timeout: 15_000 })
     .toBeGreaterThanOrEqual(1);

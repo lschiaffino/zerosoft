@@ -450,6 +450,8 @@ export interface ProjectDto {
   retentionDays: number;
   tzOffsetMin: number;
   tzName: string | null;
+  keepBots: boolean;
+  botsFiltered: number;
   /** Filtros que definen gente interna o de prueba (se aplican con excludeInternal). */
   testFilters: PropertyFilter[];
   createdAt: string;

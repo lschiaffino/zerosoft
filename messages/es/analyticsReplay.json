@@ -52,7 +52,9 @@
     "deleteAdminsOnly": "Solo los admins pueden borrar grabaciones",
     "personEmpty": "No hay grabaciones de esta persona.",
     "personOff": "La grabación de sesiones está apagada en este proyecto.",
-    "personOffMember": "La grabación de sesiones está apagada en este proyecto. Un admin puede prenderla."
+    "personOffMember": "La grabación de sesiones está apagada en este proyecto. Un admin puede prenderla.",
+    "adminsOnlyTitle": "Solo los admins pueden ver grabaciones",
+    "adminsOnlyBody": "Las grabaciones pueden mostrar lo que la gente hace en el sitio, así que quedan para los admins del workspace. Pedile a un admin si necesitás una."
   },
   "player": {
     "loading": "Cargando la grabación: {done} de {total} partes",

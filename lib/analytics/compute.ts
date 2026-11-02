@@ -102,6 +102,16 @@ export function bucketOf(ts: number, interval: Interval, tz: Tz = 0): string {
   }
 }
 
+/** Un instante dentro de la cubeta anterior a la de `ts` (meses de calendario, no 30 días). */
+export function bucketBefore(ts: number, interval: 'day' | 'week' | 'month', tz: Tz = 0): number {
+  const local = ts + offsetMsAt(tz, ts);
+  if (interval === 'month') {
+    const d = new Date(local);
+    return fromLocal(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1), tz);
+  }
+  return fromLocal(local - (interval === 'day' ? DAY : 7 * DAY), tz);
+}
+
 /**
  * Expresión SQLite con la misma etiqueta que bucketOf (columna `ts` en ms; un
  * parámetro: el desfase en ms al inicio del rango). `shift` corrige los eventos

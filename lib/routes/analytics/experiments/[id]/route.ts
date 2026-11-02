@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { experimentMetricSchema } from '@/lib/analytics/types';
 import { deleteExperiment, experimentResults, getExperiment, setExperimentFlag, setExperimentStatus, shipVariant, updateExperiment } from '@/lib/analytics/experiments';
 import { getFlag } from '@/lib/analytics/records';
-import { aError, analyticsActor, isResponse, readJson, recordProject } from '@/lib/analytics/http';
+import { aError, analyticsActor, canManageAnalytics, isResponse, readJson, recordProject } from '@/lib/analytics/http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,6 +39,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const parsed = patchSchema.safeParse(await readJson(req));
   if (!parsed.success) return aError(400, 'invalid_input');
   const { action, ship, flagId, ...patch } = parsed.data;
+  // Empezar, terminar y pasar a todos cambian lo que ve la gente en producción: solo admins.
+  if ((action || ship) && !canManageAnalytics(actor)) return aError(403, 'forbidden');
   if (flagId) {
     const cur = await getExperiment(project.id, id);
     if (cur?.status !== 'draft') return aError(409, 'invalid_state');
@@ -62,6 +64,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const actor = await analyticsActor(req, 'write');
   if (isResponse(actor)) return actor;
   const { id } = await ctx.params;
+  if (!canManageAnalytics(actor)) return aError(403, 'forbidden');
   const project = await recordProject(actor, 'analytics_experiments', id);
   if (isResponse(project)) return project;
   await deleteExperiment(project.id, id);

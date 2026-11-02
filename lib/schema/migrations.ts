@@ -8301,6 +8301,13 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN tz_name TEXT');
     },
   },
+  {
+    id: '184_analytics_bots',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN keep_bots INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN bots_filtered INTEGER NOT NULL DEFAULT 0');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

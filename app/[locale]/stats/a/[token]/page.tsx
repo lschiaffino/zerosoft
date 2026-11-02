@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import InsightResultView from '@/components/analytics/InsightResultView';
-import { Link } from '@/i18n/navigation';
 import { publicShareView } from '@/lib/analytics/share-view';
 import { clientIp, rateLimit } from '@/lib/rate-limit';
 import { headers } from 'next/headers';
@@ -56,13 +55,6 @@ export default async function PublicAnalyticsShare(props: Props) {
             </article>
           ))}
         </div>
-        {!embed && (
-          <footer className="an-share-foot">
-            <Link href="/" className="an-link">
-              {t('poweredBy')}
-            </Link>
-          </footer>
-        )}
       </main>
     </ClientMessages>
   );

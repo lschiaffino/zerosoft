@@ -11,6 +11,7 @@ import {
   breakdownSeries,
   bucketList,
   bucketOf,
+  bucketBefore,
   bucketSql,
   computeFunnel,
   computePaths,
@@ -307,8 +308,17 @@ async function trendOnce(project: ProjectRow, q: TrendsQuery, range: { from: num
          WHERE ${where.sql} GROUP BY 1, 2`,
         [off, ...value.args, ...agg.args, ...where.args],
       )) as Array<{ bucket: string; value: string | null; count: number }>;
-      for (const b of breakdownSeries(rows.map((r) => ({ ...r, count: round2(Number(r.count ?? 0)) })), buckets, 10, s.math === 'total' || s.math === 'sum')) {
-        out.push({ label, breakdownValue: b.value, data: b.data, total: round2(b.total) });
+      const summable = s.math === 'total' || s.math === 'sum';
+      // Únicos, promedios y demás no se suman por día: el total de cada valor es su propia cuenta sobre el rango.
+      const exact = summable
+        ? null
+        : new Map(
+            ((await all(`SELECT ${value.sql} AS value, ${agg.sql} AS n FROM analytics_events e ${joins} WHERE ${where.sql} GROUP BY 1`, [...value.args, ...agg.args, ...where.args])) as Array<{ value: string | null; n: number | null }>).map(
+              (r) => [r.value ?? '(none)', round2(Number(r.n ?? 0))] as const,
+            ),
+          );
+      for (const b of breakdownSeries(rows.map((r) => ({ ...r, count: round2(Number(r.count ?? 0)) })), buckets, 10, summable)) {
+        out.push({ label, breakdownValue: b.value, data: b.data, total: exact ? (exact.get(b.value) ?? 0) : round2(b.total) });
       }
     } else {
       const rows = (await all(`SELECT ${bucketSql(q.interval, 'e.ts', shift)} AS bucket, ${agg.sql} AS count FROM analytics_events e ${joins} WHERE ${where.sql} GROUP BY 1`, [
@@ -470,7 +480,6 @@ export async function runCorrelation(project: ProjectRow, q: CorrelationQuery, n
 
 // ---------- Stickiness ----------
 
-const INTERVAL_MS = { day: DAY, week: 7 * DAY, month: 30 * DAY } as const;
 
 export async function runStickiness(project: ProjectRow, q: StickinessQuery, now = Date.now()): Promise<StickinessResult> {
   const tz = projectTz(project);
@@ -501,7 +510,7 @@ export async function runLifecycle(project: ProjectRow, q: LifecycleQuery, now =
   const tz = projectTz(project);
   const range = resolveRange(q.dateRange, now, tz);
   // Una cubeta antes del rango, para saber quién venía del intervalo anterior.
-  const before = range.from - INTERVAL_MS[q.interval];
+  const before = bucketBefore(range.from, q.interval, tz);
   const off = offAt(project, before);
   const buckets = bucketList(before, range.to, q.interval, tz);
   const cohort = await cohortFrag(project, q.cohortId, now);
@@ -713,7 +722,7 @@ export async function runWeb(project: ProjectRow, q: WebQuery, now = Date.now())
     ),
     top('e.pathname'),
     all(
-      `SELECT COALESCE(entry_path, '(none)') AS key, COUNT(DISTINCT distinct_id) AS visitors, COUNT(*) AS views FROM analytics_sessions
+      `SELECT COALESCE(entry_path, '(none)') AS key, COUNT(DISTINCT COALESCE((SELECT m.person_id FROM analytics_person_ids m WHERE m.project_id = analytics_sessions.project_id AND m.distinct_id = analytics_sessions.distinct_id), distinct_id)) AS visitors, COUNT(*) AS views FROM analytics_sessions
        WHERE project_id = ? AND started_at >= ? AND started_at <= ? AND pageviews > 0${sessionFilter(range).sql} GROUP BY 1 ORDER BY visitors DESC LIMIT 10`,
       [project.id, range.from, range.to, ...sessionFilter(range).args],
     ).then((rows) => rows.map((r) => ({ key: String(r.key), visitors: Number(r.visitors), views: Number(r.views) }))),

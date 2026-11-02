@@ -305,7 +305,7 @@ export function AnnotationsPage({ projectId, initial }: { projectId: string; ini
 }
 
 /** Gestión de datos: los eventos del proyecto con descripción, verificado y oculto de los selectores. */
-export function DataManagement({ projectId, initial }: { projectId: string; initial: EventDefinitionDto[] }) {
+export function DataManagement({ projectId, initial, canExport = false }: { projectId: string; initial: EventDefinitionDto[]; canExport?: boolean }) {
   const t = useTranslations('analytics.data');
   const tc = useTranslations('analytics.common');
   const locale = useLocale();
@@ -333,9 +333,15 @@ export function DataManagement({ projectId, initial }: { projectId: string; init
         title={t('title')}
         description={t('description')}
         actions={
-          <a className="btn" href={`/api/analytics/export?project=${encodeURIComponent(projectId)}`} download>
-            {t('exportEvents')}
-          </a>
+          canExport ? (
+            <a className="btn" href={`/api/analytics/export?project=${encodeURIComponent(projectId)}`} download>
+              {t('exportEvents')}
+            </a>
+          ) : (
+            <button type="button" className="btn" disabled title={t('exportAdminsOnly')}>
+              {t('exportEvents')}
+            </button>
+          )
         }
       />
       {error && (

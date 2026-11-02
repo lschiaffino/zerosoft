@@ -118,7 +118,7 @@
     "series": "Series",
     "total": "Total",
     "previous": "Previous period",
-    "funnelTotal": "{conversion} converted: {count} of {start} people.",
+    "funnelTotal": "{conversion} converted: {count} of {start} {n, plural, one {person} other {people}}.",
     "fromPrevious": "{pct} from previous step",
     "medianTime": "median {time}",
     "dropped": "{count, plural, one {# person dropped off} other {# people dropped off}}",
@@ -324,7 +324,8 @@
       "pageviews": "Pages only",
       "all": "Pages and custom events"
     },
-    "pathsNoteAll": "Paths follow pages and your own events within each session. They show the most common next step."
+    "pathsNoteAll": "Paths follow pages and your own events within each session. They show the most common next step.",
+    "shareNoSql": "SQL results can contain anything in the project, so they cannot be made public"
   },
   "sql": {
     "title": "SQL",
@@ -561,7 +562,7 @@
     "guidesTitle": "Integrations",
     "guidesDesc": "Reverse proxy, server SDKs and flags evaluated on your own server.",
     "proxyTitle": "Reverse proxy",
-    "proxyDesc": "Serve the snippet and its requests from your own domain, so that blockers treat them as yours. Forward the client IP if you want its country.",
+    "proxyDesc": "Serve the snippet and its requests from your own domain, so that blockers treat them as yours. Behind a proxy, the visitor's country is not detected: events get the proxy's country.",
     "proxyNext": "Next.js",
     "proxyNginx": "nginx",
     "proxyUse": "Then point the snippet at it",
@@ -569,11 +570,13 @@
     "sdkDesc": "The capture and flags endpoints speak the PostHog protocol: use posthog-node with your public key and this host. Other PostHog SDKs may work the same way; only posthog-node has been tried.",
     "localEvalTitle": "Flags on your server",
     "localEvalDesc": "Fetch the definitions with the secret key and evaluate them without a request per check. They use the same hash as PostHog.",
-    "timezoneFixed": "Fixed offset {offset} (no daylight saving)"
+    "timezoneFixed": "Fixed offset {offset} (no daylight saving)",
+    "keepBots": "Keep traffic from known bots",
+    "botsFiltered": "{count, plural, =0 {No bot hits filtered so far.} one {# bot hit filtered so far.} other {# bot hits filtered so far.}} Known crawlers are left out by default."
   },
   "share": {
     "title": "Public link",
-    "warning": "Anyone with the link can see these results, without signing in. The query itself and person ids stay private. Revoke a link to close it at once.",
+    "warning": "Anyone with the link can see these results, including breakdown values and page paths, without signing in. The query definition and person ids stay private. Revoke a link to close it at once.",
     "none": "No public links yet.",
     "link": "Public link",
     "copyLink": "Copy link",
@@ -583,8 +586,7 @@
     "publicTitle": "Shared analytics",
     "rateLimited": "Too many visits right now. Try again in a minute.",
     "emptyPublic": "Nothing to show here yet.",
-    "tileError": "This result could not be loaded.",
-    "poweredBy": "Made with zerosoft Analytics"
+    "tileError": "This result could not be loaded."
   },
   "alerts": {
     "title": "Alerts",
@@ -708,7 +710,8 @@
       "invalid_state": "That is not possible in the current status.",
       "flag_not_multivariate": "The flag needs at least two variants.",
       "invalid_variant": "That variant is not in the flag."
-    }
+    },
+    "adminsOnly": "Only admins can start, stop, ship or delete an experiment"
   },
   "actions": {
     "title": "Actions",
@@ -759,7 +762,8 @@
     "descriptionFor": "Description of {event}",
     "descriptionPlaceholder": "What this event means",
     "verifiedFor": "{event} verified",
-    "hiddenFor": "{event} hidden"
+    "hiddenFor": "{event} hidden",
+    "exportAdminsOnly": "Only admins can export all events"
   },
   "groups": {
     "title": "Groups",

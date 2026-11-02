@@ -118,7 +118,7 @@
     "series": "Serie",
     "total": "Total",
     "previous": "Período anterior",
-    "funnelTotal": "{conversion} convirtió: {count} de {start} personas.",
+    "funnelTotal": "{conversion} convirtió: {count} de {start} {n, plural, one {persona} other {personas}}.",
     "fromPrevious": "{pct} desde el paso anterior",
     "medianTime": "mediana {time}",
     "dropped": "{count, plural, one {# persona abandonó} other {# personas abandonaron}}",
@@ -324,7 +324,8 @@
       "pageviews": "Solo páginas",
       "all": "Páginas y eventos propios"
     },
-    "pathsNoteAll": "Los caminos siguen páginas y tus eventos dentro de cada sesión. Muestran el siguiente paso más común."
+    "pathsNoteAll": "Los caminos siguen páginas y tus eventos dentro de cada sesión. Muestran el siguiente paso más común.",
+    "shareNoSql": "Un resultado de SQL puede traer cualquier dato del proyecto, así que no se puede hacer público"
   },
   "sql": {
     "title": "SQL",
@@ -561,7 +562,7 @@
     "guidesTitle": "Integraciones",
     "guidesDesc": "Proxy inverso, SDKs de servidor y flags evaluados en tu propio servidor.",
     "proxyTitle": "Proxy inverso",
-    "proxyDesc": "Serví el snippet y sus pedidos desde tu dominio, así los bloqueadores los tratan como tuyos. Reenviá la IP del cliente si querés su país.",
+    "proxyDesc": "Serví el snippet y sus pedidos desde tu dominio, así los bloqueadores los tratan como tuyos. Detrás de un proxy no se detecta el país del visitante: los eventos quedan con el del proxy.",
     "proxyNext": "Next.js",
     "proxyNginx": "nginx",
     "proxyUse": "Después apuntá el snippet ahí",
@@ -569,11 +570,13 @@
     "sdkDesc": "Los endpoints de captura y flags hablan el protocolo de PostHog: usá posthog-node con tu key pública y este host. Otros SDKs de PostHog pueden andar igual; solo se probó posthog-node.",
     "localEvalTitle": "Flags en tu servidor",
     "localEvalDesc": "Traé las definiciones con la key secreta y evaluálas sin un pedido por chequeo. Usan el mismo hash que PostHog.",
-    "timezoneFixed": "Desfase fijo {offset} (sin horario de verano)"
+    "timezoneFixed": "Desfase fijo {offset} (sin horario de verano)",
+    "keepBots": "Guardar el tráfico de bots conocidos",
+    "botsFiltered": "{count, plural, =0 {Todavía no se filtró ningún hit de bots.} one {# hit de bots filtrado hasta ahora.} other {# hits de bots filtrados hasta ahora.}} Los crawlers conocidos quedan afuera por defecto."
   },
   "share": {
     "title": "Link público",
-    "warning": "Cualquiera con el link ve estos resultados, sin iniciar sesión. La consulta y los ids de personas no se muestran. Revocá un link para cerrarlo al instante.",
+    "warning": "Cualquiera con el link ve estos resultados, incluidos los valores de las aperturas y las rutas de páginas, sin iniciar sesión. La definición de la consulta y los ids de personas no se muestran. Revocá un link para cerrarlo al instante.",
     "none": "Todavía no hay links públicos.",
     "link": "Link público",
     "copyLink": "Copiar link",
@@ -583,8 +586,7 @@
     "publicTitle": "Analítica compartida",
     "rateLimited": "Demasiadas visitas ahora. Probá de nuevo en un minuto.",
     "emptyPublic": "Todavía no hay nada para mostrar.",
-    "tileError": "No se pudo cargar este resultado.",
-    "poweredBy": "Hecho con zerosoft Analytics"
+    "tileError": "No se pudo cargar este resultado."
   },
   "alerts": {
     "title": "Alertas",
@@ -708,7 +710,8 @@
       "invalid_state": "Eso no se puede en el estado actual.",
       "flag_not_multivariate": "El flag necesita al menos dos variantes.",
       "invalid_variant": "Esa variante no está en el flag."
-    }
+    },
+    "adminsOnly": "Solo los admins pueden empezar, terminar, pasar a todos o borrar un experimento"
   },
   "actions": {
     "title": "Acciones",
@@ -759,7 +762,8 @@
     "descriptionFor": "Descripción de {event}",
     "descriptionPlaceholder": "Qué significa este evento",
     "verifiedFor": "{event} verificado",
-    "hiddenFor": "{event} oculto"
+    "hiddenFor": "{event} oculto",
+    "exportAdminsOnly": "Solo los admins pueden exportar todos los eventos"
   },
   "groups": {
     "title": "Grupos",

@@ -17,5 +17,5 @@ export default async function AnalyticsDataPage(props: { params: Promise<{ local
   const { locale } = await props.params;
   const [ctx, t] = await Promise.all([analyticsPage(locale), getTranslations({ locale, namespace: 'analytics.data' })]);
   if (!ctx.project) return <NoProject title={t('title')} canManage={ctx.canManage} />;
-  return <DataManagement key={ctx.project.id} projectId={ctx.project.id} initial={await listEventDefinitions(ctx.project.id)} />;
+  return <DataManagement key={ctx.project.id} projectId={ctx.project.id} initial={await listEventDefinitions(ctx.project.id)} canExport={ctx.canManage} />;
 }

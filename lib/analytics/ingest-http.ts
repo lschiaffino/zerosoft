@@ -8,7 +8,7 @@
 import { gunzipSync } from 'zlib';
 import { NextResponse } from 'next/server';
 import { extractBearer } from '../api-auth';
-import { ensureMigrated, getClient } from '../db';
+import { ensureMigrated, getClient, getDb } from '../db';
 import { clientIp } from '../rate-limit';
 import { isBotUserAgent } from './bots';
 import { INGEST_LIMITS, originAllowed, parseIngestBody } from './ingest-core';
@@ -63,24 +63,41 @@ export function preflight(req: Request): Response {
   return new Response(null, { status: 204, headers: corsHeaders(req) });
 }
 
-/** Cuerpo con tope de tamaño (sin leer de más si content-length ya lo pasa). */
-async function readBody(req: Request): Promise<string | null> {
+/** Lee el cuerpo y corta apenas pasa el tope, aunque venga sin content-length. */
+export async function readCapped(req: Request, max: number): Promise<Uint8Array | null> {
   const len = Number(req.headers.get('content-length') ?? 0);
-  if (len > INGEST_LIMITS.maxBodyBytes) return null;
-  // Los SDKs de servidor mandan gzip. El tope vale para lo descomprimido también.
+  if (len > max) return null;
+  if (!req.body) return new Uint8Array(0);
+  const reader = req.body.getReader();
+  const parts: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    parts.push(value);
+  }
+  return Buffer.concat(parts);
+}
+
+/** Cuerpo con tope de tamaño. Los SDKs de servidor mandan gzip: el tope vale para lo descomprimido también. */
+async function readBody(req: Request): Promise<string | null> {
+  const raw = await readCapped(req, INGEST_LIMITS.maxBodyBytes).catch(() => null);
+  if (raw === null) return null;
   const gzipped = /gzip/i.test(req.headers.get('content-encoding') ?? '') || /gzip/i.test(new URL(req.url).searchParams.get('compression') ?? '');
+  const buffer = Buffer.from(raw);
   if (gzipped) {
-    const raw = Buffer.from(await req.arrayBuffer().catch(() => new ArrayBuffer(0)));
-    if (raw.length > INGEST_LIMITS.maxBodyBytes) return null;
     try {
-      return gunzipSync(raw, { maxOutputLength: INGEST_LIMITS.maxBodyBytes }).toString('utf8');
+      return gunzipSync(buffer, { maxOutputLength: INGEST_LIMITS.maxBodyBytes }).toString('utf8');
     } catch (err) {
       if ((err as { code?: string }).code === 'ERR_BUFFER_TOO_LARGE') return null;
-      return raw.toString('utf8');
     }
   }
-  const text = await req.text().catch(() => '');
-  return text.length > INGEST_LIMITS.maxBodyBytes ? null : text;
+  return buffer.toString('utf8');
 }
 
 type Resolved = { project: ProjectRow; secret: boolean } | { res: NextResponse };
@@ -142,8 +159,13 @@ export async function handleCapture(req: Request): Promise<Response> {
   if (!parsed.ok) return reply(req, 400, { error: parsed.error });
   const r = await resolveProject(req, parsed.apiKey);
   if ('res' in r) return r.res;
-  // Bots conocidos: lo que manda un crawler desde el navegador no se guarda.
-  if (!r.secret && isBotUserAgent(req.headers.get('user-agent'))) return reply(req, 200, { status: 1, stored: 0, dropped: parsed.events.length, reason: 'bot' });
+  // Bots conocidos: lo que manda un crawler desde el navegador no se guarda, salvo que el proyecto pida lo contrario.
+  if (!r.secret && r.project.keep_bots !== 1 && isBotUserAgent(req.headers.get('user-agent'))) {
+    const blocked = await limited(req, 'aingest', r.project.id, INGEST_RPM);
+    if (blocked) return blocked;
+    await getDb().prepare('UPDATE analytics_projects SET bots_filtered = bots_filtered + ? WHERE id = ?').run(parsed.events.length, r.project.id);
+    return reply(req, 200, { status: 1, stored: 0, dropped: parsed.events.length, reason: 'bot' });
+  }
   // Do Not Track / GPC del navegador: con el ajuste prendido no se guarda nada.
   if (!r.secret && r.project.respect_dnt === 1 && dntOn(req)) return reply(req, 200, { status: 1, stored: 0, dropped: parsed.events.length, reason: 'dnt' });
   const block = await limited(req, 'aingest', r.project.id, INGEST_RPM);
@@ -174,6 +196,7 @@ export async function handleDecide(req: Request): Promise<Response> {
   if (block) return block;
   const distinctId = typeof body.distinct_id === 'string' ? body.distinct_id.slice(0, INGEST_LIMITS.maxDistinctId) : '';
   const overrides = body.person_properties && typeof body.person_properties === 'object' && !Array.isArray(body.person_properties) ? (body.person_properties as Record<string, unknown>) : {};
+  const botHere = !r.secret && r.project.keep_bots !== 1 && isBotUserAgent(req.headers.get('user-agent'));
   const { flags: featureFlags, payloads } = distinctId ? await decideFlagsFull(r.project.id, distinctId, overrides) : { flags: {}, payloads: {} };
   return reply(req, 200, {
     featureFlags,
@@ -182,11 +205,11 @@ export async function handleDecide(req: Request): Promise<Response> {
       autocapture: r.project.autocapture === 1,
       respectDnt: r.project.respect_dnt === 1,
       // Replay y heatmaps: solo si un admin los prendió; con Do Not Track y el ajuste prendido, nunca.
-      ...replayConfig(r.project, !r.secret && r.project.respect_dnt === 1 && dntOn(req)),
-      captureExceptions: r.project.capture_exceptions === 1,
-      webVitals: r.project.web_vitals === 1,
+      ...replayConfig(r.project, (!r.secret && r.project.respect_dnt === 1 && dntOn(req)) || botHere),
+      captureExceptions: !botHere && r.project.capture_exceptions === 1,
+      webVitals: !botHere && r.project.web_vitals === 1,
       // Sin encuestas al aire el snippet no hace ningún pedido más.
-      surveys: await hasLivePopover(r.project.id),
+      surveys: botHere ? false : await hasLivePopover(r.project.id),
     },
   });
 }

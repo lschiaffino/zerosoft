@@ -56,6 +56,7 @@ export default function ProjectSettings({ project, canManage }: { project: Proje
     name: project.name,
     domains: project.allowedDomains.join('\n'),
     respectDnt: project.respectDnt,
+    keepBots: project.keepBots,
     anonymizeIp: project.anonymizeIp,
     autocapture: project.autocapture,
     captureExceptions: project.captureExceptions,
@@ -74,6 +75,7 @@ export default function ProjectSettings({ project, canManage }: { project: Proje
       name: project.name,
       domains: project.allowedDomains.join('\n'),
       respectDnt: project.respectDnt,
+    keepBots: project.keepBots,
       anonymizeIp: project.anonymizeIp,
       autocapture: project.autocapture,
       captureExceptions: project.captureExceptions,
@@ -113,6 +115,7 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
           name: form.name,
           allowedDomains: form.domains.split(/[\s,]+/).filter(Boolean),
           respectDnt: form.respectDnt,
+          keepBots: form.keepBots,
           anonymizeIp: form.anonymizeIp,
           autocapture: form.autocapture,
           captureExceptions: form.captureExceptions,
@@ -226,6 +229,10 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
           <label className="ui-check">
             <input type="checkbox" checked={form.respectDnt} onChange={(e) => setForm({ ...form, respectDnt: e.target.checked })} /> {t('respectDnt')}
           </label>
+          <label className="ui-check">
+            <input type="checkbox" data-testid="an-keep-bots" checked={form.keepBots} onChange={(e) => setForm({ ...form, keepBots: e.target.checked })} /> {t('keepBots')}
+          </label>
+          <p className="ui-help" data-testid="an-bots-filtered">{t('botsFiltered', { count: project.botsFiltered })}</p>
           <label className="ui-check">
             <input type="checkbox" checked={form.anonymizeIp} onChange={(e) => setForm({ ...form, anonymizeIp: e.target.checked })} /> {t('anonymizeIp')}
           </label>
@@ -380,8 +387,8 @@ function IntegrationGuides({ origin, publicKey }: { origin: string; publicKey: s
   const t = useTranslations('analytics.settings');
   const host = origin || 'https://zerosoft.ai';
   const hostName = host.replace(/^https?:\/\//, '');
-  const nextProxy = `// next.config.js\nasync rewrites() {\n  return [\n    { source: '/z/zs.js', destination: '${host}/zs.js' },\n    { source: '/z/api/ingest/:path*', destination: '${host}/api/ingest/:path*' },\n  ];\n}`;
-  const nginx = `location /z/ {\n  proxy_pass ${host}/;\n  proxy_set_header Host ${hostName};\n  proxy_set_header X-Forwarded-For $remote_addr;\n  proxy_ssl_server_name on;\n}`;
+  const nextProxy = `// next.config.js\nasync rewrites() {\n  return [\n    { source: '/z/zs.js', destination: '${host}/zs.js' },\n    { source: '/z/zs-replay.js', destination: '${host}/zs-replay.js' },\n    { source: '/z/api/ingest/:path*', destination: '${host}/api/ingest/:path*' },\n  ];\n}`;
+  const nginx = `# Solo el snippet y la ingesta, no toda la app.\nlocation ~ ^/z/(zs\\.js|zs-replay\\.js|api/ingest/.*)$ {\n  proxy_pass ${host}/$1$is_args$args;\n  proxy_set_header Host ${hostName};\n  proxy_ssl_server_name on;\n}`;
   const useProxy = `<script src="/z/zs.js" defer></script>\n<script>\n  window.zs = window.zs || [];\n  zs.push(['init', '${publicKey}', { api_host: location.origin + '/z' }]);\n</script>`;
   const node = `import { PostHog } from 'posthog-node';\n\nconst client = new PostHog('${publicKey}', { host: '${host}/api/ingest' });\nclient.capture({ distinctId: 'user-123', event: 'order_paid', properties: { total: 42 } });\nawait client.shutdown();`;
   const defs = `curl ${host}/api/ingest/flag-definitions \\\n  -H "Authorization: Bearer zss_…"`;

@@ -329,6 +329,16 @@ test('link público: se ve sin sesión, sin la consulta ni personas, y revocar l
   await anon.close();
 });
 
+test('un insight SQL no se puede hacer público', async ({ page, request, baseURL }) => {
+  await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
+  const { insight } = await (await request.post('/api/analytics/insights', { data: { projectId, name: `SQL ${uid()}`, query: { kind: 'sql', sql: 'SELECT distinct_id FROM events' } } })).json();
+  const res = await request.post('/api/analytics/shares', { data: { projectId, insightId: insight.id } });
+  expect(res.status()).toBe(400);
+  expect((await res.json()).error).toBe('sql_not_shareable');
+  await page.goto(`/en/app/analytics/insights/${insight.id}`, { waitUntil: 'networkidle' });
+  await expect(page.getByRole('button', { name: 'Share' })).toBeDisabled();
+});
+
 test('alerta desde un insight: aparece en el panel y en la lista, se pausa y se borra', async ({ page, request, baseURL }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
   const { insight } = await (await request.post('/api/analytics/insights', { data: { projectId, name: `Alertable ${uid()}`, query: { kind: 'trends', series: [{ event: 'used_app' }], dateRange: { from: '-7d' } } } })).json();

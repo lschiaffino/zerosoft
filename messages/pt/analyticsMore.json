@@ -53,7 +53,7 @@
     },
     "scale": "Escala",
     "scale5": "1 a 5",
-    "scale10": "1 a 10 (mostra NPS)",
+    "scale10": "0 a 10 (mostra NPS)",
     "questionText": "Pergunta",
     "questionDescription": "Descrição (opcional)",
     "lowLabel": "Texto da nota mais baixa",
