@@ -19,6 +19,11 @@ export function runFigure(box: HTMLElement, pre: HTMLPreElement, figure: Figure)
   let lastTick = 0;
   let lastDraw = 0;
   let shown = pre.textContent ?? '';
+  let lastScroll = -Infinity;
+  const yieldToScroll = window.matchMedia('(pointer: coarse), (max-width: 860px)').matches;
+  const onScroll = () => {
+    lastScroll = performance.now();
+  };
 
   const paint = () => {
     let text: string;
@@ -41,6 +46,8 @@ export function runFigure(box: HTMLElement, pre: HTMLPreElement, figure: Figure)
     time += Math.min(now - lastTick, 100) / 1000;
     lastTick = now;
     if (now - lastDraw < interval - 2) return;
+    // En el teléfono, mientras la página se desliza, primero el scroll: el cuadro espera.
+    if (yieldToScroll && now - lastScroll < 140) return;
     lastDraw = now;
     paint();
   };
@@ -65,6 +72,11 @@ export function runFigure(box: HTMLElement, pre: HTMLPreElement, figure: Figure)
   reduced.addEventListener('change', sync);
 
   const cleanups: (() => void)[] = [];
+
+  if (yieldToScroll) {
+    window.addEventListener('scroll', onScroll, { passive: true });
+    cleanups.push(() => window.removeEventListener('scroll', onScroll));
+  }
 
   // Las que ocupan lo que les den: tantas celdas como entren con la letra del CSS.
   if (figure.fluid) {
