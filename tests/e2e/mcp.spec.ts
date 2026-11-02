@@ -295,7 +295,7 @@ test('sin sesión pasa por el login normal, con código por email, y vuelve a la
       const file = process.env.E2E_MAIL_FILE!;
       if (!fs.existsSync(file)) return '';
       const mail = fs.readFileSync(file, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as { to: string; text: string }).filter((m) => m.to === email).pop();
-      code = mail ? (/\b(\d{6})\b/.exec(mail.text)?.[1] ?? '') : '';
+      code = mail ? (/^(\d{6})$/m.exec(mail.text)?.[1] ?? '') : '';
       return code;
     })
     .not.toBe('');
