@@ -11,7 +11,7 @@ const TYPES = ['full_time', 'part_time', 'contractor', 'intern'] as const;
 const STATUSES = ['active', 'onboarding', 'offboarding', 'terminated'] as const;
 
 /** Armar una lista de personas: columnas, filtros, vista previa, CSV y guardarla. Solo HR (la ruta lo exige). */
-export default function CustomReports({ saved: initial, customFields, departments, locations, openId = null }: { openId?: string | null; saved: SavedReport[]; customFields: Array<{ id: string; label: string; sensitive: boolean }>; departments: string[]; locations: string[] }) {
+export default function CustomReports({ saved: initial, customFields, departments, locations, openId = null, canSeePay = false }: { openId?: string | null; canSeePay?: boolean; saved: SavedReport[]; customFields: Array<{ id: string; label: string; sensitive: boolean }>; departments: string[]; locations: string[] }) {
   const t = useTranslations('people');
   const errText = useErrorText();
   const [toast, push] = useToast();
@@ -23,8 +23,8 @@ export default function CustomReports({ saved: initial, customFields, department
   const [renaming, setRenaming] = useState<SavedReport | null>(null);
 
   const options = useMemo(
-    () => [...COLUMNS.map((c) => ({ key: c as string, label: t(`customReports.columns.${c}`) })), ...customFields.map((f) => ({ key: `custom:${f.id}`, label: f.sensitive ? `${f.label} (${t('customReports.sensitive')})` : f.label }))],
-    [customFields, t],
+    () => [...COLUMNS.filter((c) => c !== 'payPeriod' || canSeePay).map((c) => ({ key: c as string, label: t(`customReports.columns.${c}`) })), ...customFields.map((f) => ({ key: `custom:${f.id}`, label: f.sensitive ? `${f.label} (${t('customReports.sensitive')})` : f.label }))],
+    [customFields, t, canSeePay],
   );
   const labelOf = (key: string, fallback: string) => options.find((o) => o.key === key)?.label ?? fallback;
 

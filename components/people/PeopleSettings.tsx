@@ -9,7 +9,7 @@ import type { CustomField, PeopleSettings as Settings } from '@/lib/people';
 import type { Policy } from '@/lib/people-timeoff';
 import { CONFIGURABLE_FIELDS } from '@/lib/people-access';
 import { HOLIDAY_COUNTRIES } from '@/lib/people-time';
-import { api, Dialog, Field, Tabs, useDay, useErrorText, useToast } from './people-ui';
+import { api, Dialog, Field, Tabs, useDay, useErrorText, useToast, useCountry } from './people-ui';
 import { DocumentList, UploadDocumentDialog, useLoad, Loading, LoadError } from './ProfileSections';
 import type { PeopleDocument } from '@/lib/people-docs';
 import type { ChangeRequest } from '@/lib/people-extras';
@@ -57,8 +57,8 @@ function ChangesPanel({ approveChanges, onChanged, onError }: { approveChanges: 
     }
     onChanged();
   };
-  const decide = async (id: string, decision: 'approve' | 'deny') => {
-    const res = await api(`/api/people/changes/${id}`, { method: 'PATCH', json: { decision } });
+  const decide = async (id: string, decision: 'approve' | 'deny', confirmStale = false) => {
+    const res = await api(`/api/people/changes/${id}`, { method: 'PATCH', json: { decision, confirmStale } });
     if (!res.ok) return onError(res.data.error);
     reload();
     onChanged();
@@ -96,7 +96,10 @@ function ChangesPanel({ approveChanges, onChanged, onError }: { approveChanges: 
                   {r.changes.map((c) => (
                     <tr key={c.field}>
                       <th scope="row">{label(c.field)}</th>
-                      <td>{c.before}</td>
+                      <td>
+                        {c.before}
+                        {c.stale && <span className="ppl-card-meta ppl-warn">{t('changes.stale')}</span>}
+                      </td>
                       <td>{c.after}</td>
                     </tr>
                   ))}
@@ -104,8 +107,8 @@ function ChangesPanel({ approveChanges, onChanged, onError }: { approveChanges: 
               </table>
             </div>
             <div className="ppl-panel-actions">
-              <button type="button" className="btn btn-sm btn-primary" onClick={() => void decide(r.id, 'approve')}>
-                {t('changes.approve')}
+              <button type="button" className="btn btn-sm btn-primary" onClick={() => void decide(r.id, 'approve', r.stale)}>
+                {r.stale ? t('changes.approveAnyway') : t('changes.approve')}
               </button>
               <button type="button" className="btn btn-sm btn-ghost" onClick={() => void decide(r.id, 'deny')}>
                 {t('changes.deny')}
@@ -119,6 +122,7 @@ function ChangesPanel({ approveChanges, onChanged, onError }: { approveChanges: 
 }
 
 export default function PeopleSettings({ settings, policies, fields, holidays, seeded, members, isOwner, tab: initialTab, changesCount = 0 }: SettingsProps) {
+  const countryName = useCountry();
   const t = useTranslations('people');
   const router = useRouter();
   const locale = useLocale();
@@ -296,7 +300,7 @@ export default function PeopleSettings({ settings, policies, fields, holidays, s
                 <select className="select" value={country} onChange={(e) => setCountry(e.target.value)} aria-label={t('fields.country')}>
                   {HOLIDAY_COUNTRIES.map((c) => (
                     <option key={c} value={c}>
-                      {t(`countries.${c}`)}
+                      {countryName(c)}
                     </option>
                   ))}
                 </select>
@@ -319,7 +323,7 @@ export default function PeopleSettings({ settings, policies, fields, holidays, s
                   <option value="">{t('settings.allCountries')}</option>
                   {HOLIDAY_COUNTRIES.map((c) => (
                     <option key={c} value={c}>
-                      {t(`countries.${c}`)}
+                      {countryName(c)}
                     </option>
                   ))}
                 </select>

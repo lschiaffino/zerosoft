@@ -550,17 +550,26 @@ export async function updateJob(actor: HiringActor, id: string, patch: Partial<J
   checkSalary(next.salary_min, next.salary_max);
   if (patch.questions) checkQuestions(patch.questions);
   if (next.status === 'published' && !next.description.trim()) throw new HiringError('description_required');
-  // Con aprobadores en Ajustes, nadie publica sin la cadena completa (tampoco un admin). Reabrir lo ya publicado no pide nada.
-  if (next.status === 'published' && !cur.published_at && cur.approval_status !== 'approved') {
-    const settings = await ensureSettings(actor.ws);
-    if (parseJson<string[]>(settings.job_approvers, []).length) throw new HiringError('approval_required', 409);
+  // Lo aprobado es este título y este salario: si cambian, hay que aprobar de nuevo.
+  const settingsNow = await ensureSettings(actor.ws);
+  const chainOn = parseJson<string[]>(settingsNow.job_approvers, []).length > 0;
+  const materialChange = next.title !== cur.title || next.salary_min !== cur.salary_min || next.salary_max !== cur.salary_max || next.salary_currency !== cur.salary_currency || next.salary_period !== cur.salary_period;
+  let approvalStatus = cur.approval_status;
+  if (chainOn && materialChange && (cur.approval_status === 'approved' || cur.approval_status === 'pending')) {
+    if (cur.status === 'published') throw new HiringError('close_to_edit', 409);
+    approvalStatus = 'stale';
+    await getDb().prepare("DELETE FROM hiring_approvals WHERE workspace_id = ? AND subject_type = 'job' AND subject_id = ?").run(actor.ws, id);
+  }
+  // Con aprobadores en Ajustes, nadie publica sin la cadena completa (tampoco un admin). Reabrir lo ya publicado no pide nada, salvo que haya cambiado.
+  if (chainOn && next.status === 'published' && cur.status !== 'published' && approvalStatus !== 'approved' && (!cur.published_at || approvalStatus === 'stale')) {
+    throw new HiringError('approval_required', 409);
   }
   const ts = nowIso();
   const slug = patch.title && patch.title !== cur.title && cur.status === 'draft' ? await uniqueSlug(actor.ws, patch.title, id) : cur.slug;
   await getDb()
     .prepare(
       `UPDATE hiring_jobs SET slug = ?, title = ?, department = ?, location = ?, workplace = ?, employment_type = ?, salary_min = ?, salary_max = ?, salary_currency = ?,
-        salary_period = ?, salary_public = ?, description = ?, questions = ?, status = ?, confidential = ?,
+        salary_period = ?, salary_public = ?, description = ?, questions = ?, status = ?, confidential = ?, approval_status = ?,
         published_at = CASE WHEN ? = 'published' AND published_at IS NULL THEN ? ELSE published_at END,
         closed_at = CASE WHEN ? IN ('closed','archived') THEN COALESCE(closed_at, ?) WHEN ? = 'published' THEN NULL ELSE closed_at END,
         updated_at = ? WHERE id = ?`,
@@ -581,6 +590,7 @@ export async function updateJob(actor: HiringActor, id: string, patch: Partial<J
       next.questions,
       next.status,
       next.confidential,
+      approvalStatus,
       next.status,
       ts,
       next.status,

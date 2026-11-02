@@ -171,7 +171,9 @@ test('People: encuesta, reporte, pares, políticas y organigrama', async ({ page
     await dialogButton(page, 'Open survey').click();
     const card = page.locator('article', { hasText: question });
     await expect(card).toContainText('0 answers so far');
-    for (const [p, score] of [[a, '10'], [b, '9'], [boss, '3']] as Array<[Person, string]>) {
+    const c = await person(browser, baseURL!, `Cata${uid()}`);
+    const d = await person(browser, baseURL!, `Dino${uid()}`);
+    for (const [p, score] of [[a, '10'], [b, '9'], [boss, '3'], [c, '8'], [d, '10']] as Array<[Person, string]>) {
       await p.page.goto('/en/app/people/reviews', { waitUntil: 'networkidle' });
       const mine = p.page.locator('article', { hasText: question });
       await mine.locator('label', { hasText: new RegExp(`^${score}$`) }).click();
@@ -180,9 +182,14 @@ test('People: encuesta, reporte, pares, políticas y organigrama', async ({ page
       await p.page.reload({ waitUntil: 'networkidle' });
       await expect(p.page.locator('article', { hasText: question }).getByRole('button', { name: 'Send answer' })).toHaveCount(0);
       await expect(p.page.getByTestId('people-enps')).toHaveCount(0);
+      // Con la encuesta abierta, HR tampoco ve el resultado.
+      await page.reload({ waitUntil: 'networkidle' });
+      await expect(page.locator('article', { hasText: question }).getByTestId('people-enps')).toHaveCount(0);
     }
-    await page.reload({ waitUntil: 'networkidle' });
-    await expect(page.locator('article', { hasText: question }).getByTestId('people-enps')).toHaveText('+33');
+    await page.locator('article', { hasText: question }).getByRole('button', { name: 'Close survey' }).click();
+    await expect(page.locator('article', { hasText: question }).getByTestId('people-enps')).toHaveText('+40');
+    await c.ctx.close();
+    await d.ctx.close();
 
     // ⌘K encuentra la encuesta.
     await page.keyboard.press('ControlOrMeta+k');
@@ -244,7 +251,10 @@ test('People: encuesta, reporte, pares, políticas y organigrama', async ({ page
     const org = page.getByTestId('people-org');
     await expect(org).toBeVisible();
     expect(await org.evaluate((el) => getComputedStyle(el).touchAction)).toBe('pan-y');
-    await expect(page.getByLabel('Org chart').or(page.locator('.ppl-org-tools')).first()).toContainText('50%');
+    // Quien no tiene manager ni reportes va aparte, y el árbol abre legible.
+    await expect(page.getByTestId('people-org-loose')).toBeVisible();
+    const zoomText = await page.locator('.ppl-org-tools').innerText();
+    expect(Number(/(\d+)%/.exec(zoomText)![1])).toBeGreaterThanOrEqual(60);
     expect(errors).toEqual([]);
   } finally {
     for (const p of [boss, a, b]) await p.ctx.close();

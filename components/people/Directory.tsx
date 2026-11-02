@@ -8,7 +8,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { EmployeeSummary } from '@/lib/people';
 import { HOLIDAY_COUNTRIES } from '@/lib/people-time';
 import CsvImportDialog from '@/components/ui/CsvImportDialog';
-import { api, Avatar, Dialog, Field, useErrorText, useToast } from './people-ui';
+import { api, Avatar, Dialog, Field, useErrorText, useToast, useCountry } from './people-ui';
 
 const TYPES = ['full_time', 'part_time', 'contractor', 'intern'] as const;
 
@@ -25,6 +25,7 @@ export interface DirectoryProps {
 
 export default function Directory({ employees, facets, hr, templates, filters, openNew, home }: DirectoryProps) {
   const t = useTranslations('people');
+  const countryName = useCountry();
   const router = useRouter();
   const errText = useErrorText();
   const [q, setQ] = useState(filters.q);
@@ -249,7 +250,7 @@ export default function Directory({ employees, facets, hr, templates, filters, o
                   <option value="">{t('profile.noCountry')}</option>
                   {HOLIDAY_COUNTRIES.map((c) => (
                     <option key={c} value={c}>
-                      {t(`countries.${c}`)}
+                      {countryName(c)}
                     </option>
                   ))}
                 </select>

@@ -238,12 +238,12 @@ export default function CandidateProfile({
             {app.utm.utm_campaign ? ` · utm_campaign=${app.utm.utm_campaign}` : ''} · {date(app.createdAt, false)}
           </span>
         </div>
-        {app.canManage && (
+        {app.canManage && app.status !== 'withdrawn' && (
           <div className="hr-stagebar-actions">
             <label className="sr-only" htmlFor="hr-stage-select">
               {t('profile.stage')}
             </label>
-            <select id="hr-stage-select" className="select" value={app.stageId} disabled={busy} onChange={(e) => void act(`/api/hiring/applications/${app.id}`, 'PATCH', { action: 'move', stageId: e.target.value }, t('profile.movedTo', { stage: app.stages.find((s) => s.id === e.target.value)?.name ?? '' }))}>
+            <select id="hr-stage-select" className="select" value={app.stageId} disabled={busy} onChange={(e) => void act(`/api/hiring/applications/${app.id}`, 'PATCH', { action: 'move', stageId: e.target.value }, app.status === 'hired' ? t('profile.hireUndone') : t('profile.movedTo', { stage: app.stages.find((s) => s.id === e.target.value)?.name ?? '' }))}>
               {app.stages.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -789,6 +789,7 @@ export default function CandidateProfile({
         >
           <div className="ui-modal-body">
             <p>{t('merge.body', { keep: c.name, drop: mergeWith?.name ?? '' })}</p>
+            <p className="ui-help">{t('merge.visibility')}</p>
           </div>
           <div className="ui-modal-foot">
             <button type="button" className="btn btn-ghost" onClick={() => setMergeWith(null)}>
@@ -1016,7 +1017,7 @@ function eventVars(data: Record<string, unknown>, t: ReturnType<typeof useTransl
   const s = (v: unknown) => (typeof v === 'string' ? v : '');
   const status = s(data.status);
   return {
-    to: s(data.to),
+    to: s(data.to) || (data.movedJob ? t('events.anotherJob') : ''),
     from: s(data.from),
     stage: s(data.stage),
     job: s(data.job),

@@ -324,7 +324,8 @@
     "links": "Links",
     "documents": "Outros documentos",
     "duplicates": "O mesmo email em outras vagas",
-    "unverifiedDoc": "veio com uma nova candidatura, sem verificar"
+    "unverifiedDoc": "veio com uma nova candidatura, sem verificar",
+    "hireUndone": "Saiu de Contratados. O perfil no People continua: o RH foi avisado."
   },
   "events": {
     "applied": "Candidatou-se ({source})",
@@ -353,7 +354,8 @@
       "withdrawn": "retirada"
     },
     "email_dropped": "Email não aceito ({reason})",
-    "unverified": "Remetente não verificado"
+    "unverified": "Remetente não verificado",
+    "anotherJob": "outra vaga"
   },
   "score": {
     "submitted": "Scorecard enviado.",
@@ -516,7 +518,7 @@
     "consentText": "Texto de consentimento do formulário",
     "membersCreateJobs": "Membros com Hiring podem criar vagas (senão, só admins)",
     "approvals": "Aprovações",
-    "approvalsHelp": "Escolha pessoas em ordem. Cada uma decide depois da anterior e entra na equipe da vaga como hiring manager, para ver o que aprova. Sem ninguém escolhido, não é preciso aprovar.",
+    "approvalsHelp": "Escolha pessoas em ordem. Cada uma decide depois da anterior e entra na equipe da vaga como hiring manager, para ver o que aprova. Ninguém aprova o próprio pedido: se assim não sobrar ninguém, o owner ou outro admin é adicionado. Sem ninguém escolhido, não é preciso aprovar.",
     "jobApprovers": "Para publicar uma vaga nova",
     "offerApprovers": "Para enviar uma oferta",
     "addApprover": "Adicionar alguém",
@@ -582,7 +584,11 @@
     "same_candidate": "É o mesmo candidato.",
     "file_too_large": "O arquivo é muito grande (2 MB no máximo).",
     "invalid_field": "Esse valor não corresponde ao tipo do campo.",
-    "duplicate_field": "Esse campo está repetido."
+    "duplicate_field": "Esse campo está repetido.",
+    "no_other_approver": "Outra pessoa precisa aprovar. Adicione outro aprovador em Ajustes.",
+    "close_to_edit": "Esta vaga foi aprovada como está. Feche para mudar o título ou o salário e peça aprovação de novo.",
+    "job_not_open": "Essa vaga não está aberta.",
+    "application_withdrawn": "Esta candidatura foi retirada."
   },
   "esign": {
     "send": "Enviar para assinatura com Sign",
@@ -612,7 +618,10 @@
       "request": "Aprovação pedida.",
       "approve": "Aprovado.",
       "reject": "Recusado."
-    }
+    },
+    "fallback": "Adicionado porque ninguém mais revisaria",
+    "reassigned": "Reatribuído: quem aprovava saiu do workspace",
+    "statusStale": "Mudou depois de aprovado: é preciso pedir aprovação de novo"
   },
   "import": {
     "button": "Importar CSV",
@@ -643,7 +652,8 @@
     "title": "Mesclar candidatos",
     "body": "Tudo de {drop} passa para {keep}: candidaturas, linha do tempo, documentos e tags. Não dá para desfazer.",
     "confirm": "Mesclar",
-    "done": "Mesclados."
+    "done": "Mesclados.",
+    "visibility": "A equipe de cada vaga vai ver esta pessoa com todas as candidaturas, documentos e dados, inclusive de uma vaga confidencial."
   },
   "candidateFields": {
     "title": "Campos de candidatos",

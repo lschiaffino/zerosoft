@@ -97,6 +97,7 @@ export function BalanceCards({ balances }: { balances: Array<{ policy: Policy; b
               ? t('noAccrual')
               : t('balanceMeta', { accrued: num(balance.accrued), used: num(balance.used + balance.scheduled), pending: num(balance.pending), carried: num(balance.carriedOver) })}
           </span>
+          {balance.laterYears > 0 && <span className="ppl-card-meta" data-testid="people-later-years">{t('laterYears', { days: num(balance.laterYears) })}</span>}
           {balance.expiringAtYearEnd > 0 && <span className="ppl-card-meta ppl-warn">{t('expiring', { days: num(balance.expiringAtYearEnd) })}</span>}
         </div>
       ))}
@@ -940,7 +941,7 @@ export function HistorySection({ employeeId, hr, people }: { employeeId: string;
     <>
       {scheduledBlock}
     <div className="table-wrap">
-      <table className="table table-compact ppl-table" data-testid="people-history">
+      <table className="table table-compact ppl-table ppl-history" data-testid="people-history">
         <thead>
           <tr>
             <th scope="col">{t('history.date')}</th>
@@ -957,7 +958,7 @@ export function HistorySection({ employeeId, hr, people }: { employeeId: string;
               <td>{t(`history.fields.${h.field}`)}</td>
               <td>{value(h.field, h.from)}</td>
               <td>{value(h.field, h.to)}</td>
-              <td>{h.actorName}</td>
+              <td>{h.actorName || t('history.auto')}</td>
             </tr>
           ))}
         </tbody>

@@ -4,12 +4,13 @@
  * eNPS y evaluadores pares elegidos a mano. Las reglas de quién ve qué siguen en
  * lib/people-access.ts. Server-only.
  */
-import { getDb } from './db';
+import { getClient, getDb } from './db';
 import { localized } from './notification-copy';
 import { open as unseal, seal } from './secret-box';
 import { parseCsv, toCsv } from './hr-csv';
 import {
   audit,
+  checkEmployeeValues,
   createEmployee,
   getEmployeeRow,
   listFields,
@@ -45,7 +46,7 @@ export interface JobHistoryEntry {
 }
 
 /** Una fila por campo que cambió. La llama updateEmployee con la ficha de antes y de después. */
-export async function recordJobChanges(ws: string, employeeId: string, actorId: string, changes: Array<{ field: TrackedField; from: string; to: string }>): Promise<void> {
+export async function recordJobChanges(ws: string, employeeId: string, actorId: string | null, changes: Array<{ field: TrackedField; from: string; to: string }>): Promise<void> {
   const now = nowIso();
   for (const c of changes) {
     if (c.from === c.to) continue;
@@ -78,6 +79,8 @@ export async function listJobHistory(ctx: PeopleCtx, employeeId: string): Promis
 export interface QueuedChange {
   phone?: string;
   personal?: Record<string, unknown>;
+  /** El valor de cada campo cuando se pidió: si cambió después, aprobar pisaría algo más nuevo. */
+  base?: { phone?: string; personal?: Record<string, unknown> };
 }
 
 export interface ChangeRequest {
@@ -85,7 +88,8 @@ export interface ChangeRequest {
   employeeId: string;
   employeeName: string;
   status: 'pending' | 'approved' | 'denied';
-  changes: Array<{ field: string; before: string; after: string }>;
+  changes: Array<{ field: string; before: string; after: string; stale: boolean }>;
+  stale: boolean;
   createdAt: string;
   note: string;
 }
@@ -95,20 +99,62 @@ export async function approvalsOn(ws: string): Promise<boolean> {
   return Number(r?.approve_changes) === 1;
 }
 
-/** Deja el pedido pendiente (cifrado: lleva datos personales). Un pedido nuevo reemplaza al anterior. */
+const sameValue = (a: unknown, b: unknown) => JSON.stringify(a ?? '') === JSON.stringify(b ?? '');
+
+/**
+ * Pura: el pedido que queda después de sumarle `next` al que ya estaba. Solo los
+ * campos que difieren de lo actual; volver al valor actual saca ese campo. Null si
+ * no queda nada por revisar.
+ */
+export function mergeChange(prev: QueuedChange | null, next: QueuedChange, current: { phone: string; personal: Record<string, unknown> }): QueuedChange | null {
+  const out: QueuedChange = { base: { phone: prev?.base?.phone, personal: { ...(prev?.base?.personal ?? {}) } } };
+  const phone = next.phone !== undefined ? next.phone : prev?.phone;
+  if (phone !== undefined && phone !== current.phone) {
+    out.phone = phone;
+    if (out.base!.phone === undefined) out.base!.phone = current.phone;
+  }
+  const merged = { ...(prev?.personal ?? {}), ...(next.personal ?? {}) };
+  const personal: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(merged)) {
+    if (sameValue(v, current.personal[k])) continue;
+    personal[k] = v;
+    if (!(k in out.base!.personal!)) out.base!.personal![k] = current.personal[k];
+  }
+  if (Object.keys(personal).length) out.personal = personal;
+  return out.phone === undefined && !out.personal ? null : out;
+}
+
+/** Deja el pedido pendiente (cifrado: lleva datos personales). Se combina con el anterior; sin cambios reales no crea nada. */
 export async function queueChange(ctx: PeopleCtx, employeeId: string, change: QueuedChange): Promise<void> {
-  const now = nowIso();
-  await db().prepare("DELETE FROM people_change_requests WHERE workspace_id = ? AND employee_id = ? AND status = 'pending'").run(ctx.ws, employeeId);
+  const emp = await getEmployeeRow(ctx.ws, employeeId);
+  if (!emp) throw new PeopleError('not_found', 404);
+  const pending = (await db().prepare("SELECT id, payload FROM people_change_requests WHERE workspace_id = ? AND employee_id = ? AND status = 'pending'").get(ctx.ws, employeeId)) as { id: string; payload: string } | undefined;
+  const merged = mergeChange(pending ? readChange(pending.payload) : null, change, { phone: emp.phone, personal: readPersonal(emp.personal) as unknown as Record<string, unknown> });
+  if (!merged) {
+    if (pending) await db().prepare('DELETE FROM people_change_requests WHERE id = ? AND workspace_id = ?').run(pending.id, ctx.ws);
+    return;
+  }
+  if (pending) {
+    await db().prepare('UPDATE people_change_requests SET payload = ? WHERE id = ? AND workspace_id = ?').run(seal(JSON.stringify(merged)), pending.id, ctx.ws);
+    return;
+  }
   await db()
     .prepare("INSERT INTO people_change_requests (id, workspace_id, employee_id, requested_by, payload, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?)")
-    .run(newId('chg'), ctx.ws, employeeId, ctx.personId, seal(JSON.stringify(change)), now);
-  const emp = await getEmployeeRow(ctx.ws, employeeId);
+    .run(newId('chg'), ctx.ws, employeeId, ctx.personId, seal(JSON.stringify(merged)), nowIso());
   const hr = (await hrPeople(ctx.ws)).filter((u) => u !== ctx.personId);
-  await notifyPeople(hr, { title: localized('peopleChangeRequested', { name: emp?.name ?? '' }), href: '/app/people/settings?tab=changes', sourceId: employeeId });
+  await notifyPeople(hr, { title: localized('peopleChangeRequested', { name: emp.name }), href: '/app/people/settings?tab=changes', sourceId: employeeId });
 }
 
 export async function pendingChangeFor(ws: string, employeeId: string): Promise<boolean> {
   return Boolean(await db().prepare("SELECT 1 AS x FROM people_change_requests WHERE workspace_id = ? AND employee_id = ? AND status = 'pending'").get(ws, employeeId));
+}
+
+/** Lo que la persona pidió y espera: su formulario lo muestra, así el próximo guardado no lo pierde. */
+export async function pendingValuesFor(ws: string, employeeId: string): Promise<{ phone?: string; personal?: Record<string, unknown> } | null> {
+  const r = (await db().prepare("SELECT payload FROM people_change_requests WHERE workspace_id = ? AND employee_id = ? AND status = 'pending'").get(ws, employeeId)) as { payload: string } | undefined;
+  if (!r) return null;
+  const c = readChange(r.payload);
+  return { phone: c.phone, personal: c.personal };
 }
 
 function readChange(payload: string): QueuedChange {
@@ -116,13 +162,13 @@ function readChange(payload: string): QueuedChange {
 }
 
 function diffChange(row: { phone: string; personal: string }, change: QueuedChange): ChangeRequest['changes'] {
-  const before = readPersonal(row.personal);
+  const before = readPersonal(row.personal) as unknown as Record<string, unknown>;
+  const text = (x: unknown) => (Array.isArray(x) ? x.map((c: { name?: string; phone?: string }) => [c.name, c.phone].filter(Boolean).join(' ')).join(', ') : String(x ?? ''));
   const out: ChangeRequest['changes'] = [];
-  if (change.phone !== undefined && change.phone !== row.phone) out.push({ field: 'phone', before: row.phone, after: String(change.phone) });
+  if (change.phone !== undefined) out.push({ field: 'phone', before: row.phone, after: change.phone, stale: change.base?.phone !== undefined && change.base.phone !== row.phone });
   for (const [k, v] of Object.entries(change.personal ?? {})) {
-    const prev = (before as unknown as Record<string, unknown>)[k];
-    const text = (x: unknown) => (Array.isArray(x) ? x.map((c: { name?: string; phone?: string }) => [c.name, c.phone].filter(Boolean).join(' ')).join(', ') : String(x ?? ''));
-    if (text(prev) !== text(v)) out.push({ field: k, before: text(prev), after: text(v) });
+    const base = change.base?.personal;
+    out.push({ field: k, before: text(before[k]), after: text(v), stale: Boolean(base && k in base && !sameValue(base[k], before[k])) });
   }
   return out;
 }
@@ -144,31 +190,34 @@ export async function listChangeRequests(ctx: PeopleCtx): Promise<ChangeRequest[
     )
     .all(ctx.ws)) as Array<Record<string, string>>;
   for (const r of rows) await audit(ctx, 'view', 'personal:change-request', r.employee_id);
-  return rows.map((r) => ({
-    id: r.id,
-    employeeId: r.employee_id,
-    employeeName: r.name,
-    status: 'pending' as const,
-    changes: diffChange({ phone: r.phone, personal: r.personal }, readChange(r.payload)),
-    createdAt: r.created_at,
-    note: r.note,
-  }));
+  return rows.map((r) => {
+    const changes = diffChange({ phone: r.phone, personal: r.personal }, readChange(r.payload));
+    return { id: r.id, employeeId: r.employee_id, employeeName: r.name, status: 'pending' as const, changes, stale: changes.some((c) => c.stale), createdAt: r.created_at, note: r.note };
+  });
 }
 
 /** Compare-and-set: dos personas de HR a la vez no aplican el cambio dos veces. */
-export async function decideChange(ctx: PeopleCtx, id: string, decision: 'approve' | 'deny', note = ''): Promise<void> {
+export async function decideChange(ctx: PeopleCtx, id: string, decision: 'approve' | 'deny', note = '', confirmStale = false): Promise<void> {
   requireHr(ctx);
   const r = (await db().prepare('SELECT employee_id, payload, requested_by FROM people_change_requests WHERE id = ? AND workspace_id = ?').get(id, ctx.ws)) as
     | { employee_id: string; payload: string; requested_by: string }
     | undefined;
   if (!r) throw new PeopleError('not_found', 404);
+  // Alguien cambió el dato después del pedido: aprobar lo pisaría, así que hay que confirmarlo.
+  if (decision === 'approve' && !confirmStale) {
+    const emp = await getEmployeeRow(ctx.ws, r.employee_id);
+    if (emp && diffChange({ phone: emp.phone, personal: emp.personal }, readChange(r.payload)).some((c) => c.stale)) throw new PeopleError('stale_change', 409);
+  }
   // Nadie aprueba lo propio.
   if (r.requested_by === ctx.personId) throw new PeopleError('own_request', 403);
   const res = await db()
-    .prepare("UPDATE people_change_requests SET status = ?, note = ?, decided_by = ?, decided_at = ? WHERE id = ? AND status = 'pending'")
-    .run(decision === 'approve' ? 'approved' : 'denied', note.slice(0, 500), ctx.personId, nowIso(), id);
+    .prepare("UPDATE people_change_requests SET status = ?, note = ?, decided_by = ?, decided_at = ? WHERE id = ? AND workspace_id = ? AND status = 'pending'")
+    .run(decision === 'approve' ? 'approved' : 'denied', note.slice(0, 500), ctx.personId, nowIso(), id, ctx.ws);
   if (!res.changes) throw new PeopleError('not_pending', 409);
-  if (decision === 'approve') await updateEmployee(ctx, r.employee_id, readChange(r.payload) as EmployeeInput);
+  if (decision === 'approve') {
+    const { phone, personal } = readChange(r.payload);
+    await updateEmployee(ctx, r.employee_id, { ...(phone !== undefined ? { phone } : {}), ...(personal ? { personal } : {}) } as EmployeeInput);
+  }
   await notifyPeople([r.requested_by], { title: localized(decision === 'approve' ? 'peopleChangeApproved' : 'peopleChangeDeclined'), body: note.slice(0, 200) || undefined, href: `/app/people/${r.employee_id}`, sourceId: id });
 }
 
@@ -228,6 +277,20 @@ export async function importEmployees(ctx: PeopleCtx, input: { csv: string; dryR
   if (!rows.length) throw new PeopleError('csv_empty');
   const existing = (await db().prepare('SELECT id, work_email FROM people_employees WHERE workspace_id = ?').all(ctx.ws)) as Array<{ id: string; work_email: string }>;
   const byEmail = new Map(existing.filter((e) => e.work_email).map((e) => [e.work_email.toLowerCase(), e.id]));
+  const fileEmails = new Set(rows.filter((r) => !r.error && r.values.workEmail).map((r) => r.values.workEmail as string));
+  // El manager tiene que existir o venir en el mismo archivo: la vista previa y la corrida dicen lo mismo.
+  for (const r of rows) {
+    const mgr = r.values.managerEmail?.toLowerCase();
+    if (!r.error && mgr && !byEmail.has(mgr) && !fileEmails.has(mgr)) r.error = 'invalid_manager';
+    if (!r.error && mgr && mgr === r.values.workEmail) r.error = 'manager_cycle';
+    if (!r.error) {
+      try {
+        checkEmployeeValues(r.values);
+      } catch (err) {
+        r.error = err instanceof PeopleError ? err.code : 'generic';
+      }
+    }
+  }
   const failed = rows.filter((r) => r.error).map((r) => ({ line: r.line, code: r.error as string }));
   const good = rows.filter((r) => !r.error);
   const updates = good.filter((r) => r.values.workEmail && byEmail.has(r.values.workEmail)).length;
@@ -250,10 +313,7 @@ export async function importEmployees(ctx: PeopleCtx, input: { csv: string; dryR
   }
   for (const m of managers) {
     const mgr = byEmail.get(m.email);
-    if (!mgr) {
-      failed.push({ line: m.line, code: 'invalid_manager' });
-      continue;
-    }
+    if (!mgr) continue;
     await updateEmployee(ctx, m.id, { managerId: mgr }).catch((err: unknown) => failed.push({ line: m.line, code: err instanceof PeopleError ? err.code : 'generic' }));
   }
   return { dryRun: false, created, updated, failed };
@@ -340,7 +400,9 @@ export interface ReportResult {
 export async function runReport(ctx: PeopleCtx, config: ReportConfig, asOf = today()): Promise<ReportResult> {
   requireHr(ctx);
   const fields = await listFields(ctx.ws);
-  const known = new Set<string>([...REPORT_COLUMNS, ...fields.map((f) => `custom:${f.id}`)]);
+  // El período de pago va con el sueldo (lib/people.ts lo muestra solo a quien lo lee).
+  const standard = REPORT_COLUMNS.filter((c) => c !== 'payPeriod' || ctx.viewer.comp === true);
+  const known = new Set<string>([...standard, ...fields.map((f) => `custom:${f.id}`)]);
   const picked = [...new Set((config.columns ?? []).map(String))].filter((c) => known.has(c)).slice(0, MAX_REPORT_COLUMNS);
   if (!picked.length) throw new PeopleError('report_columns');
   const rows = (await db().prepare('SELECT * FROM people_employees WHERE workspace_id = ? ORDER BY name COLLATE NOCASE').all(ctx.ws)) as Array<Record<string, string | null>>;
@@ -367,7 +429,7 @@ export async function runReport(ctx: PeopleCtx, config: ReportConfig, asOf = tod
       case 'startDate': return String(r.start_date ?? '');
       case 'endDate': return String(r.end_date ?? '');
       case 'tenureYears': return String(tenureYears(r.start_date, r.end_date, asOf));
-      case 'payPeriod': return String(r.pay_period ?? '');
+      case 'payPeriod': return ctx.viewer.comp === true ? String(r.pay_period ?? '') : '';
       case 'phone': return String(r.phone ?? '');
     }
   };
@@ -434,8 +496,11 @@ export async function deleteReport(ctx: PeopleCtx, id: string): Promise<boolean>
 
 // ---------- Encuestas eNPS ----------
 
-/** Menos respuestas que esto y no se muestra nada: con pocas, se adivina quién dijo qué. */
-export const SURVEY_MIN_RESPONSES = 3;
+/**
+ * Resultado solo al cerrar y con este mínimo: mirando el número antes y después
+ * de cada respuesta se sabría quién dijo qué. El owner puede pedir otro mínimo.
+ */
+export const SURVEY_MIN_RESPONSES = 5;
 
 export interface SurveyDto {
   id: string;
@@ -465,8 +530,8 @@ export async function listSurveys(ctx: PeopleCtx): Promise<SurveyDto[]> {
   for (const s of rows) {
     const responses = (await db().prepare('SELECT score, comment FROM people_survey_responses WHERE survey_id = ?').all(s.id)) as Array<{ score: number; comment: string }>;
     const answered = ctx.viewer.employeeId ? Boolean(await db().prepare('SELECT 1 AS x FROM people_survey_participants WHERE survey_id = ? AND employee_id = ?').get(s.id, ctx.viewer.employeeId)) : false;
-    // El resultado es de HR. Con menos del mínimo, ni HR lo ve.
-    const show = ctx.viewer.hr && responses.length >= SURVEY_MIN_RESPONSES;
+    // El resultado es de HR, con la encuesta cerrada y desde el mínimo. Mientras tanto, solo cuántos respondieron.
+    const show = ctx.viewer.hr && s.status === 'closed' && responses.length >= SURVEY_MIN_RESPONSES;
     const summary = show ? enps(responses.map((r) => Number(r.score))) : null;
     if (!ctx.viewer.hr && s.status !== 'open') continue;
     out.push({
@@ -515,10 +580,16 @@ export async function closeSurvey(ctx: PeopleCtx, id: string): Promise<boolean> 
 
 export async function deleteSurvey(ctx: PeopleCtx, id: string): Promise<boolean> {
   requireHr(ctx);
-  const res = await db().prepare('DELETE FROM people_surveys WHERE id = ? AND workspace_id = ?').run(id, ctx.ws);
-  await db().prepare('DELETE FROM people_survey_responses WHERE survey_id = ?').run(id);
-  await db().prepare('DELETE FROM people_survey_participants WHERE survey_id = ?').run(id);
-  return res.changes > 0;
+  if (!(await db().prepare('SELECT 1 AS x FROM people_surveys WHERE id = ? AND workspace_id = ?').get(id, ctx.ws))) return false;
+  await getClient().batch(
+    [
+      { sql: 'DELETE FROM people_survey_responses WHERE survey_id = ?', args: [id] },
+      { sql: 'DELETE FROM people_survey_participants WHERE survey_id = ?', args: [id] },
+      { sql: 'DELETE FROM people_surveys WHERE id = ? AND workspace_id = ?', args: [id, ctx.ws] },
+    ],
+    'write',
+  );
+  return true;
 }
 
 /**
@@ -528,6 +599,7 @@ export async function deleteSurvey(ctx: PeopleCtx, id: string): Promise<boolean>
 export async function answerSurvey(ctx: PeopleCtx, id: string, input: { score: unknown; comment?: unknown }): Promise<void> {
   const me = ctx.viewer.employeeId;
   if (!me) throw new PeopleError('no_profile', 409);
+  if ((await getEmployeeRow(ctx.ws, me))?.status === 'terminated') throw new PeopleError('forbidden', 403);
   const s = (await db().prepare('SELECT status FROM people_surveys WHERE id = ? AND workspace_id = ?').get(id, ctx.ws)) as { status: string } | undefined;
   if (!s) throw new PeopleError('not_found', 404);
   if (s.status !== 'open') throw new PeopleError('survey_closed', 409);
@@ -547,7 +619,7 @@ export async function addPeerReviewer(ctx: PeopleCtx, cycleId: string, subjectId
   if (!c) throw new PeopleError('not_found', 404);
   if (!ctx.viewer.hr && !isManagerOf(ctx.viewer, subjectId)) throw new PeopleError('forbidden', 403);
   if (c.status !== 'active') throw new PeopleError('cycle_not_active', 409);
-  if (subjectId === reviewerId) throw new PeopleError('invalid_reviewer');
+  if (subjectId === reviewerId || reviewerId === ctx.viewer.employeeId) throw new PeopleError('invalid_reviewer');
   const reviewer = await getEmployeeRow(ctx.ws, reviewerId);
   const subject = await getEmployeeRow(ctx.ws, subjectId);
   if (!subject || !reviewer || reviewer.status === 'terminated') throw new PeopleError('invalid_reviewer');
@@ -562,7 +634,7 @@ export async function removePeerReviewer(ctx: PeopleCtx, reviewId: string): Prom
   if (!r || r.kind !== 'peer') return false;
   if (!ctx.viewer.hr && !isManagerOf(ctx.viewer, r.subject_id)) throw new PeopleError('forbidden', 403);
   if (r.status !== 'pending') throw new PeopleError('already_submitted', 409);
-  return (await db().prepare("DELETE FROM people_reviews WHERE id = ? AND status = 'pending'").run(reviewId)).changes > 0;
+  return (await db().prepare("DELETE FROM people_reviews WHERE id = ? AND workspace_id = ? AND status = 'pending'").run(reviewId, ctx.ws)).changes > 0;
 }
 
 // ---------- Cambios de puesto con fecha futura ----------
@@ -625,19 +697,21 @@ export async function cancelScheduled(ctx: PeopleCtx, id: string): Promise<boole
  */
 export async function applyDueChanges(asOf = today(), budgetMs = 20_000): Promise<{ applied: number; failed: number }> {
   const started = Date.now();
+  // Una corrida que se cayó a mitad deja la fila en 'applying': pasado este rato se reintenta.
+  const stuckBefore = new Date(started - 15 * 60_000).toISOString();
   const rows = (await db()
     .prepare(
       `SELECT id, workspace_id, employee_id, changes, created_by FROM (
          SELECT *, ROW_NUMBER() OVER (PARTITION BY workspace_id ORDER BY effective_date, created_at) AS rn
-         FROM people_scheduled_changes WHERE status = 'pending' AND effective_date <= ?
+         FROM people_scheduled_changes WHERE (status = 'pending' OR (status = 'applying' AND applied_at < ?)) AND effective_date <= ?
        ) WHERE rn <= 25 ORDER BY rn, effective_date LIMIT 200`,
     )
-    .all(asOf)) as Array<Record<string, string>>;
+    .all(stuckBefore, asOf)) as Array<Record<string, string>>;
   let applied = 0;
   let failed = 0;
   for (const r of rows) {
     if (Date.now() - started > budgetMs) break;
-    const claim = await db().prepare("UPDATE people_scheduled_changes SET status = 'applying', applied_at = ? WHERE id = ? AND status = 'pending'").run(nowIso(), r.id);
+    const claim = await db().prepare("UPDATE people_scheduled_changes SET status = 'applying', applied_at = ? WHERE id = ? AND (status = 'pending' OR (status = 'applying' AND applied_at < ?))").run(nowIso(), r.id, stuckBefore);
     if (!claim.changes) continue;
     try {
       // Con los permisos de HR de quien la agendó si sigue siéndolo; si no, no se aplica.
@@ -657,5 +731,19 @@ export async function applyDueChanges(asOf = today(), budgetMs = 20_000): Promis
       failed++;
     }
   }
+  await finishExits(asOf);
   return { applied, failed };
+}
+
+/** Las salidas con fecha pasan a baja el día que corresponde, con su fila en el historial. */
+export async function finishExits(asOf = today(), limit = 100): Promise<number> {
+  const rows = (await db().prepare("SELECT id, workspace_id FROM people_employees WHERE status = 'offboarding' AND end_date IS NOT NULL AND end_date <= ? LIMIT ?").all(asOf, limit)) as Array<{ id: string; workspace_id: string }>;
+  let done = 0;
+  for (const r of rows) {
+    const res = await db().prepare("UPDATE people_employees SET status = 'terminated', updated_at = ? WHERE id = ? AND status = 'offboarding'").run(nowIso(), r.id);
+    if (!res.changes) continue;
+    await recordJobChanges(r.workspace_id, r.id, null, [{ field: 'status', from: 'offboarding', to: 'terminated' }]);
+    done++;
+  }
+  return done;
 }

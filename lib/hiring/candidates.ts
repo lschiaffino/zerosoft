@@ -15,6 +15,7 @@ import {
   HiringError,
   MAX_TAGS,
   RESUME_MAX_BYTES,
+  oneLine,
   cleanCustomValues,
   type CandidateField,
   autoRejected,
@@ -346,7 +347,7 @@ export async function createApplication(ws: string, input: ApplyCore): Promise<{
 }
 
 export const publicApplySchema = z.object({
-  name: z.string().trim().min(1).max(160),
+  name: z.string().transform(oneLine).pipe(z.string().min(1).max(160)),
   email: z.string().trim().max(254),
   phone: z.string().trim().max(40).default(''),
   linkedin: z.string().trim().max(300).default(''),
@@ -410,7 +411,7 @@ export async function applyPublic(handle: string, jobSlug: string, input: z.infe
 
 export const manualAddSchema = z.object({
   jobId: z.string().min(1).max(80),
-  name: z.string().trim().min(1).max(160),
+  name: z.string().transform(oneLine).pipe(z.string().min(1).max(160)),
   email: z.string().trim().max(254),
   phone: z.string().trim().max(40).optional(),
   location: z.string().trim().max(120).optional(),
@@ -803,7 +804,13 @@ export async function moveApplication(actor: HiringActor, appId: string, stageId
   const stages = (await listStages(job.id)).map(stageDto);
   const to = stages.find((s) => s.id === stageId);
   if (!to) throw new HiringError('invalid_stage');
+  if (app.status === 'withdrawn') throw new HiringError('application_withdrawn', 409);
   if (app.stage_id === stageId && app.status !== 'rejected') return app;
+  if (app.status === 'hired' && to.kind !== 'hired') {
+    // La ficha de People no se borra sola: alguien de HR decide qué hacer con ella.
+    const { warnHireUndone } = await import('../people-hire');
+    await warnHireUndone(actor.ws, app.id, candidate.name).catch(() => undefined);
+  }
   const from = stages.find((s) => s.id === app.stage_id);
   const ts = nowIso();
   const hired = to.kind === 'hired';
@@ -846,7 +853,7 @@ export async function markHired(ws: string, appId: string, actorId: string | nul
     hiredAt: app.hired_at ?? nowIso(),
     hiredBy: actorId,
     candidate: { id: c.id, name: c.name, email: c.email, phone: c.phone, location: c.location },
-    job: { id: job.id, title: job.title, department: job.department, location: job.location, workplace: job.workplace, employmentType: job.employment_type },
+    job: { id: job.id, title: job.title, department: job.department, location: job.location, workplace: job.workplace, employmentType: job.employment_type, confidential: job.confidential === 1 },
     offer: offer ? { title: offer.title, salary: offer.salary, currency: offer.currency, startDate: offer.start_date } : null,
   };
   await emitHiring(ws, 'hiring.candidate.hired', job.id, { candidate: payload.candidate, job: payload.job, offer: payload.offer, hiredAt: payload.hiredAt });
@@ -861,6 +868,7 @@ export const rejectSchema = z.object({ reason: z.string().trim().max(300).defaul
 /** Rechazo hecho por una persona (con email de rechazo opcional desde una plantilla). */
 export async function rejectApplication(actor: HiringActor, appId: string, input: z.infer<typeof rejectSchema>): Promise<ApplicationRow> {
   const { app, job, candidate } = await requireManageApp(actor, appId);
+  if (app.status === 'withdrawn') throw new HiringError('application_withdrawn', 409);
   const ts = nowIso();
   await getDb().prepare("UPDATE hiring_applications SET status = 'rejected', reject_reason = ?, rejected_at = ?, updated_at = ? WHERE id = ?").run(input.reason, ts, ts, app.id);
   await addEvent(actor.ws, candidate.id, app.id, 'rejected', actor.person, { reason: input.reason });
@@ -898,7 +906,7 @@ export async function addNote(actor: HiringActor, appId: string, body: string): 
 }
 
 export const candidatePatchSchema = z.object({
-  name: z.string().trim().min(1).max(160).optional(),
+  name: z.string().transform(oneLine).pipe(z.string().min(1).max(160)).optional(),
   phone: z.string().trim().max(40).optional(),
   location: z.string().trim().max(120).optional(),
   headline: z.string().trim().max(200).optional(),

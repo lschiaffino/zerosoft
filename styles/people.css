@@ -493,9 +493,9 @@ a.ppl-rowtitle:not(:hover) {
   position: relative;
   width: 100%;
   min-width: 0;
-  /* El alto lo pone OrgChart según el organigrama: sin lienzo vacío alrededor de un equipo chico. */
-  min-height: 136px;
-  max-height: min(70vh, 640px);
+  /* Llena la página en escritorio; en el teléfono crece con el árbol y scrollea la página (OrgChart pone --org-h). */
+  height: calc(100dvh - 320px);
+  min-height: 420px;
   border: 1px solid var(--line);
   border-radius: var(--radius-1);
   background: var(--brand-enamel);
@@ -789,4 +789,77 @@ td.ppl-ellipsis {
 }
 #surveys {
   margin-top: 24px;
+}
+
+@media (max-width: 639px) {
+  .ppl-org {
+    height: var(--org-h, 420px);
+    min-height: 200px;
+  }
+}
+.ppl-org-loose {
+  margin-top: 16px;
+}
+.ppl-org-loose-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.ppl-org-loose-list a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+.ppl-org-loose-list a:hover,
+.ppl-org-loose-list a:focus-visible {
+  border-color: var(--brand-ink);
+}
+/* Historial en el teléfono: cada cambio es un bloque, sin columnas que corten. */
+@media (max-width: 560px) {
+  .ppl-history thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .ppl-history,
+  .ppl-history tbody,
+  .ppl-history tr {
+    display: block;
+    width: 100%;
+  }
+  .ppl-history tr {
+    padding: 8px 12px;
+    border-top: 1px solid var(--line);
+  }
+  .ppl-history td {
+    display: inline;
+    padding: 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+  .ppl-history td:nth-child(1),
+  .ppl-history td:nth-child(5) {
+    display: block;
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+  .ppl-history td:nth-child(2) {
+    display: block;
+    font-weight: 600;
+  }
+  .ppl-history td:nth-child(3)::after {
+    content: ' \2192  ';
+  }
 }

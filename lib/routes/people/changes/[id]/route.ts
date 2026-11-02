@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   return withPeople(async (ctx) => {
     const b = await readJson(req);
-    await decideChange(ctx, (await params).id, b.decision === 'approve' ? 'approve' : 'deny', String(b.note ?? ''));
+    await decideChange(ctx, (await params).id, b.decision === 'approve' ? 'approve' : 'deny', String(b.note ?? ''), b.confirmStale === true);
     return pjson({ ok: true });
   });
 }

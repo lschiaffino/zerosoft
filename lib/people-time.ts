@@ -149,6 +149,8 @@ export interface Balance {
   balance: number;
   /** Saldo menos lo aprobado a futuro y lo pendiente: lo que se puede pedir. */
   available: number;
+  /** Pedido o aprobado para años siguientes: sale del saldo de ese año, no de este. */
+  laterYears: number;
   /** Lo que se pierde al cerrar el año por el tope de arrastre (estimado sobre el saldo actual). */
   expiringAtYearEnd: number;
 }
@@ -302,7 +304,9 @@ export function computeBalance(input: {
   const scheduled = input.approved.filter((u) => u.date > asOf && sameYear(u)).reduce((s, u) => s + u.days, 0);
   const pending = (input.pending ?? []).filter(sameYear).reduce((s, u) => s + u.days, 0);
   const keep = policy.carryoverMax == null ? balance : Math.min(balance, Math.max(0, policy.carryoverMax));
+  const later = [...input.approved, ...(input.pending ?? [])].filter((u) => toDate(u.date).getUTCFullYear() > year).reduce((s, u) => s + u.days, 0);
   return {
+    laterYears: roundDays(later),
     accrued: roundDays(accrued),
     used: roundDays(used),
     scheduled: roundDays(scheduled),

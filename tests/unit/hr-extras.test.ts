@@ -22,7 +22,11 @@ import {
   importEmployees,
   listChangeRequests,
   listJobHistory,
+  closeSurvey,
+  finishExits,
+  deleteSurvey,
   listSurveys,
+  mergeChange,
   nextOccurrence,
   readEmployeeCsv,
   reportCsv,
@@ -30,12 +34,12 @@ import {
   SURVEY_MIN_RESPONSES,
 } from '@/lib/people-extras';
 import { createCycle, launchCycle } from '@/lib/people-perf';
-import { listChecklists, listTemplates, startChecklist } from '@/lib/people-onboarding';
+import { listChecklists, listTemplates, offboard, startChecklist } from '@/lib/people-onboarding';
 import { addHireToPeople } from '@/lib/people-hire';
 import { canSeeJob, canSeeJobSalary, cleanCustomValues, failedKnockouts, autoRejected, type HiringActor, type Question } from '@/lib/hiring/types';
-import { createJob, getJob, listJobs, setTeam, updateJob, updateSettings as updateHiringSettings, ensureSettings } from '@/lib/hiring/core';
-import { addCandidateManually, applyPublic, getCandidateProfile, listApplications, searchHiring, updateCandidate } from '@/lib/hiring/candidates';
-import { actOnJobApproval, chainState, currentStep, listChain, myPendingApprovals } from '@/lib/hiring/approvals';
+import { createJob, getJob, listJobs, listStages, setTeam, updateJob, updateSettings as updateHiringSettings, ensureSettings } from '@/lib/hiring/core';
+import { addCandidateManually, applyPublic, getCandidateProfile, listApplications, manualAddSchema, moveApplication, rejectApplication, searchHiring, updateCandidate } from '@/lib/hiring/candidates';
+import { actOnJobApproval, chainState, currentStep, listChain, myPendingApprovals, reassignApprover } from '@/lib/hiring/approvals';
 import { actOnOffer, createOffer } from '@/lib/hiring/offers';
 import { hiringReport } from '@/lib/hiring/reports';
 import { applicationsCsv, copyToJob, importCandidates, mergeCandidates, readCandidateCsv } from '@/lib/hiring/transfer';
@@ -202,6 +206,15 @@ describe('People: bajas y salidas no se filtran', () => {
     expect(await getEmployee(await pctx(w, 'boss'), w.ids.gone, { audit: false })).not.toBeNull();
   });
 
+  it('las salidas quedan en el historial: la que vence pasa a baja sola', async () => {
+    const hrw = await peopleWorld();
+    await offboard(hrw.hr, hrw.ids.emp, { endDate: '2098-01-01' });
+    expect((await listJobHistory(hrw.hr, hrw.ids.emp)).find((h) => h.field === 'status')).toMatchObject({ from: 'active', to: 'offboarding' });
+    expect(await finishExits('2098-01-01')).toBeGreaterThanOrEqual(1);
+    expect((await getEmployee(hrw.hr, hrw.ids.emp, { audit: false }))?.status).toBe('terminated');
+    expect((await listJobHistory(hrw.hr, hrw.ids.emp)).find((h) => h.to === 'terminated')).toMatchObject({ from: 'offboarding', actorName: '' });
+  });
+
   it('de su propio offboarding, la persona ve solo sus tareas', async () => {
     const tpl = (await listTemplates(w.owner, 'offboarding'))[0];
     await startChecklist(w.hr, w.ids.peer, tpl.id, '2099-01-01');
@@ -270,6 +283,39 @@ describe('People: historial y aprobación de cambios', () => {
     await updateSettings(w.hr, { approveChanges: false });
   });
 
+  it('sin cambios reales no crea nada; un pedido nuevo se combina con el anterior', async () => {
+    const empCtx = await pctx(w, 'emp');
+    await updateSettings(w.hr, { approveChanges: true });
+    const cur = (await getEmployee(w.hr, w.ids.emp, { audit: false }))!;
+    await updateEmployee(empCtx, w.ids.emp, { phone: cur.phone ?? '', personal: { address: cur.personal?.address ?? '' } });
+    expect((await listChangeRequests(w.hr)).filter((r) => r.employeeId === w.ids.emp)).toEqual([]);
+    await updateEmployee(empCtx, w.ids.emp, { phone: '700' });
+    await updateEmployee(empCtx, w.ids.emp, { personal: { address: 'Otra 2' } });
+    const [req] = (await listChangeRequests(w.hr)).filter((r) => r.employeeId === w.ids.emp);
+    expect(req.changes.map((c) => c.field).sort()).toEqual(['address', 'phone']);
+    expect((await getEmployee(empCtx, w.ids.emp, { audit: false }))?.pendingValues?.phone).toBe('700');
+    // Volver al valor actual saca ese campo.
+    await updateEmployee(empCtx, w.ids.emp, { phone: cur.phone ?? '' });
+    expect((await listChangeRequests(w.hr)).find((r) => r.employeeId === w.ids.emp)?.changes.map((c) => c.field)).toEqual(['address']);
+    // HR cambia el dato: aprobar pide confirmar.
+    await updateEmployee(w.hr, w.ids.emp, { personal: { address: 'De HR' } });
+    const [stale] = (await listChangeRequests(w.hr)).filter((r) => r.employeeId === w.ids.emp);
+    expect(stale.stale).toBe(true);
+    await expect(decideChange(w.hr, stale.id, 'approve')).rejects.toMatchObject({ code: 'stale_change' });
+    await decideChange(w.hr, stale.id, 'approve', '', true);
+    expect((await getEmployee(w.hr, w.ids.emp, { audit: false }))?.personal?.address).toBe('Otra 2');
+    await updateSettings(w.hr, { approveChanges: false });
+  });
+
+  it('un pedido que no corresponde no deja nada en la cola', async () => {
+    await updateSettings(w.hr, { approveChanges: true });
+    const empCtx = await pctx(w, 'emp');
+    await expect(updateEmployee(empCtx, w.ids.emp, { phone: '999', jobTitle: 'CEO' })).rejects.toMatchObject({ status: 403 });
+    await expect(updateEmployee(empCtx, w.ids.emp, { phone: '999', custom: { x: 'y' } })).rejects.toMatchObject({ status: 403 });
+    expect((await listChangeRequests(w.hr)).filter((r) => r.employeeId === w.ids.emp)).toEqual([]);
+    await updateSettings(w.hr, { approveChanges: false });
+  });
+
   it('el documento de identidad sigue sin poder editarse por uno mismo', async () => {
     await updateSettings(w.hr, { approveChanges: true });
     await expect(updateEmployee(await pctx(w, 'emp'), w.ids.emp, { personal: { nationalId: '123' } })).rejects.toMatchObject({ status: 403 });
@@ -319,6 +365,31 @@ describe('People: importar, cumpleaños, reportes y encuestas', () => {
     await updateSettings(w.hr, { visibility: { birthday: 'everyone', startDate: 'everyone' } });
   });
 
+  it('el período de pago en un reporte es de quien lee sueldos', async () => {
+    const admin = await peopleContext(w.owner, w.users.boss, 'admin');
+    expect(admin.viewer.hr).toBe(true);
+    expect(admin.viewer.comp).not.toBe(true);
+    const asAdmin = await runReport(admin, { columns: ['name', 'payPeriod'] });
+    expect(asAdmin.columns.map((c) => c.key)).toEqual(['name']);
+    await expect(runReport(admin, { columns: ['payPeriod'] })).rejects.toMatchObject({ code: 'report_columns' });
+    expect((await runReport(w.hr, { columns: ['name', 'payPeriod'] })).columns.map((c) => c.key)).toEqual(['name', 'payPeriod']);
+  });
+
+  it('el manager de un reporte no se suma a sí mismo de par', async () => {
+    const cycle = await createCycle(w.hr, { name: `S ${uid()}`, selfReview: true });
+    await launchCycle(w.hr, cycle.id);
+    await expect(addPeerReviewer(await pctx(w, 'boss'), cycle.id, w.ids.emp, w.ids.boss)).rejects.toMatchObject({ code: 'invalid_reviewer' });
+  });
+
+  it('importar: la vista previa y la corrida dicen lo mismo, también con un manager que no existe', async () => {
+    const csv = `Name,Work email,Manager\nUno,uno-${uid()}@example.com,nadie@nowhere.io\n`;
+    const dry = await importEmployees(w.hr, { csv, dryRun: true });
+    const real = await importEmployees(w.hr, { csv, dryRun: false });
+    expect(dry.failed).toEqual([{ line: 2, code: 'invalid_manager' }]);
+    expect(real.failed).toEqual(dry.failed);
+    expect(real).toMatchObject({ created: 0 });
+  });
+
   it('reporte a medida: solo HR, columnas conocidas, sin sueldos y auditado al exportar', async () => {
     await expect(runReport(await pctx(w, 'boss'), { columns: ['name'] })).rejects.toMatchObject({ status: 403 });
     await expect(runReport(w.hr, { columns: ['salary', 'personal'] })).rejects.toMatchObject({ code: 'report_columns' });
@@ -330,25 +401,46 @@ describe('People: importar, cumpleaños, reportes y encuestas', () => {
     expect(audited).toBeTruthy();
   });
 
-  it('eNPS: anónimo, una vez por persona y sin resultado bajo el mínimo', async () => {
+  it('eNPS: anónimo, una vez por persona; resultado solo al cerrar y desde el mínimo', async () => {
     await expect(createSurvey(await pctx(w, 'emp'), 'x')).rejects.toMatchObject({ status: 403 });
     const id = await createSurvey(w.hr, 'Recomendarías?');
     const emp = await pctx(w, 'emp');
     await answerSurvey(emp, id, { score: 10, comment: 'muy bien' });
     await expect(answerSurvey(emp, id, { score: 1 })).rejects.toMatchObject({ code: 'already_answered' });
     await expect(answerSurvey(await pctx(w, 'peer'), id, { score: 11 })).rejects.toMatchObject({ code: 'invalid_number' });
-    let hr = (await listSurveys(w.hr)).find((s) => s.id === id)!;
-    expect(hr).toMatchObject({ responses: 1, score: null, comments: [] });
     await answerSurvey(await pctx(w, 'peer'), id, { score: 3 });
     await answerSurvey(await pctx(w, 'boss'), id, { score: 8 });
-    expect(SURVEY_MIN_RESPONSES).toBe(3);
+    await answerSurvey(await pctx(w, 'hrp'), id, { score: 9 });
+    await answerSurvey(w.hr, id, { score: 7 });
+    expect(SURVEY_MIN_RESPONSES).toBe(5);
+    // Abierta: cuántos respondieron, nada más, aunque ya alcance el mínimo.
+    let hr = (await listSurveys(w.hr)).find((s) => s.id === id)!;
+    expect(hr).toMatchObject({ responses: 5, score: null, comments: [] });
+    await closeSurvey(w.hr, id);
     hr = (await listSurveys(w.hr)).find((s) => s.id === id)!;
-    expect(hr).toMatchObject({ responses: 3, score: 0, promoters: 1, detractors: 1, comments: ['muy bien'] });
-    const asEmp = (await listSurveys(emp)).find((s) => s.id === id)!;
-    expect(asEmp).toMatchObject({ answered: true, score: null, responses: 0, comments: [] });
+    expect(hr).toMatchObject({ responses: 5, score: 20, promoters: 2, detractors: 1, comments: ['muy bien'] });
+    expect((await listSurveys(emp)).find((s) => s.id === id)).toBeUndefined();
+    const few = await createSurvey(w.hr, 'Pocas');
+    await answerSurvey(emp, few, { score: 10 });
+    await closeSurvey(w.hr, few);
+    expect((await listSurveys(w.hr)).find((s) => s.id === few)).toMatchObject({ responses: 1, score: null });
     const cols = (await getDb().prepare('SELECT * FROM people_survey_responses WHERE survey_id = ? LIMIT 1').get(id)) as Record<string, unknown>;
     expect(Object.keys(cols).sort()).toEqual(['comment', 'id', 'score', 'survey_id']);
-    expect(String(cols.comment)).not.toBe('muy bien');
+  });
+
+  it('borrar una encuesta de otro workspace no toca nada; quien se fue no responde', async () => {
+    const other = await peopleWorld();
+    const id = await createSurvey(other.hr, 'Ajena');
+    await answerSurvey(await pctx(other, 'emp'), id, { score: 9 });
+    expect(await deleteSurvey(w.hr, id)).toBe(false);
+    expect(((await getDb().prepare('SELECT COUNT(*) AS n FROM people_survey_responses WHERE survey_id = ?').get(id)) as { n: number }).n).toBe(1);
+    expect(((await getDb().prepare('SELECT COUNT(*) AS n FROM people_survey_participants WHERE survey_id = ?').get(id)) as { n: number }).n).toBe(1);
+    expect(await deleteSurvey(other.hr, id)).toBe(true);
+    expect(((await getDb().prepare('SELECT COUNT(*) AS n FROM people_survey_responses WHERE survey_id = ?').get(id)) as { n: number }).n).toBe(0);
+    const open = await createSurvey(other.hr, 'Abierta');
+    const peer = await pctx(other, 'peer');
+    await updateEmployee(other.hr, other.ids.peer, { status: 'terminated' });
+    await expect(answerSurvey(peer, open, { score: 5 })).rejects.toMatchObject({ status: 403 });
   });
 
   it('pares a mano: HR o la cadena, en un ciclo activo', async () => {
@@ -398,6 +490,13 @@ describe('People: cambios con fecha futura', () => {
     expect((await getEmployee(w.hr, w.ids.peer, { audit: false }))?.jobTitle).not.toBe('Later');
     const again = await getDb().prepare("SELECT COUNT(*) AS n FROM people_scheduled_changes WHERE employee_id = ? AND status = 'pending'").get(w.ids.emp) as { n: number };
     expect(Number(again.n)).toBe(0);
+  });
+
+  it('una fila trabada en applying se reintenta', async () => {
+    await scheduleChange(w.hr, w.ids.hrp, { effectiveDate: '2098-05-01', changes: { jobTitle: 'Stuck' } });
+    await getDb().prepare("UPDATE people_scheduled_changes SET status = 'applying', applied_at = ? WHERE employee_id = ? AND effective_date = '2098-05-01'").run(new Date(Date.now() - 3_600_000).toISOString(), w.ids.hrp);
+    await applyDueChanges('2098-05-01');
+    expect((await getEmployee(w.hr, w.ids.hrp, { audit: false }))?.jobTitle).toBe('Stuck');
   });
 
   it('uno que no se puede aplicar queda marcado, sin frenar a los demás', async () => {
@@ -543,7 +642,9 @@ describe('Hiring: importar, copiar, fusionar y exportar', () => {
 
   it('copiar pide gestionar los dos puestos; mover retira la original', async () => {
     const [a, b] = [await jobFor(w), await jobFor(w)];
-    const other = (await createJob(w.owner, { title: `Foreign ${uid()}` })).job;
+    await expect(copyToJob(w.recruiter, (await addCandidateManually(w.recruiter, { jobId: a.id, name: 'Dft', email: `d-${uid()}@x.co`, source: 'manual' }, null)).applicationId, { jobId: b.id, move: false })).rejects.toMatchObject({ code: 'job_not_open' });
+    await updateJob(w.recruiter, b.id, { status: 'published' });
+    const other = (await createJob(w.owner, { title: `Foreign ${uid()}`, description: 'x', status: 'published' })).job;
     const c = await addCandidateManually(w.recruiter, { jobId: a.id, name: 'Mia', email: `m-${uid()}@x.co`, source: 'manual' }, null);
     await expect(copyToJob(w.recruiter, c.applicationId, { jobId: other.id, move: false })).rejects.toMatchObject({ status: 403 });
     await expect(copyToJob(w.interviewer, c.applicationId, { jobId: b.id, move: false })).rejects.toMatchObject({ status: 404 });
@@ -552,6 +653,50 @@ describe('Hiring: importar, copiar, fusionar y exportar', () => {
     expect(apps.find((x) => x.id === c.applicationId)?.status).toBe('withdrawn');
     expect(apps.find((x) => x.id === res.applicationId)?.jobId).toBe(b.id);
     await expect(copyToJob(w.recruiter, res.applicationId, { jobId: b.id, move: false })).rejects.toMatchObject({ code: 'same_job' });
+  });
+
+  it('mover a un puesto confidencial no deja su título en el puesto de origen', async () => {
+    const [a, secret] = [await jobFor(w), await jobFor(w, { confidential: true })];
+    await updateJob(w.recruiter, secret.id, { status: 'published' });
+    await setTeam(w.owner, secret.id, [{ userId: w.outsider.person, role: 'recruiter' }, { userId: w.recruiter.person, role: 'recruiter' }]);
+    const c = await addCandidateManually(w.recruiter, { jobId: a.id, name: 'Sec', email: `s-${uid()}@x.co`, source: 'manual' }, null);
+    await copyToJob(w.recruiter, c.applicationId, { jobId: secret.id, move: true });
+    const events = (await getDb().prepare("SELECT data FROM hiring_events WHERE application_id = ? AND kind = 'stage'").all(c.applicationId)) as Array<{ data: string }>;
+    expect(events.some((e) => e.data.includes('movedJob'))).toBe(true);
+    expect(JSON.stringify(events)).not.toContain(secret.title);
+  });
+
+  it('fusionar en el mismo puesto: queda la etapa más avanzada y se muda lo de la otra', async () => {
+    const job = await jobFor(w);
+    const email = `f-${uid()}@x.co`;
+    const stages = await listStages(job.id);
+    const k = await addCandidateManually(w.owner, { jobId: job.id, name: 'K', email, source: 'manual' }, null);
+    const d = await addCandidateManually(w.owner, { jobId: job.id, name: 'D', email: `2${email}`, source: 'manual' }, null);
+    const later = stages[2];
+    await getDb().prepare('UPDATE hiring_applications SET stage_id = ? WHERE id = ?').run(later.id, d.applicationId);
+    await createOffer(w.owner, d.applicationId, { salary: 1, currency: 'USD', startDate: null, templateId: null, body: 'Hi' });
+    await mergeCandidates(w.owner, k.candidateId, d.candidateId);
+    const p = (await getCandidateProfile(w.owner, k.candidateId))!;
+    expect(p.applications).toHaveLength(1);
+    expect(p.applications[0].stageId).toBe(later.id);
+    expect(((await getDb().prepare('SELECT COUNT(*) AS n FROM hiring_offers WHERE application_id = ?').get(k.applicationId)) as { n: number }).n).toBe(1);
+  });
+
+  it('un nombre es una línea', async () => {
+    const job = await jobFor(w);
+    expect(readCandidateCsv('Name,Email\n"Ana\nBel",a@x.co\n').rows[0].name).toBe('Ana Bel');
+    const c = await addCandidateManually(w.recruiter, manualAddSchema.parse({ jobId: job.id, name: 'Una\r\nDos', email: `l-${uid()}@x.co` }), null);
+    expect((await getCandidateProfile(w.recruiter, c.candidateId))?.candidate.name).toBe('Una Dos');
+  });
+
+  it('una postulación retirada no se mueve ni se rechaza', async () => {
+    const [a, b] = [await jobFor(w), await jobFor(w)];
+    await updateJob(w.recruiter, b.id, { status: 'published' });
+    const c = await addCandidateManually(w.recruiter, { jobId: a.id, name: 'Wd', email: `w-${uid()}@x.co`, source: 'manual' }, null);
+    await copyToJob(w.recruiter, c.applicationId, { jobId: b.id, move: true });
+    const stages = await listStages(a.id);
+    await expect(moveApplication(w.recruiter, c.applicationId, stages[1].id)).rejects.toMatchObject({ code: 'application_withdrawn' });
+    await expect(rejectApplication(w.recruiter, c.applicationId, { reason: '', sendEmail: false, templateId: null })).rejects.toMatchObject({ code: 'application_withdrawn' });
   });
 
   it('fusionar exige gestionar todas las postulaciones de los dos', async () => {
@@ -640,6 +785,41 @@ describe('Hiring: cadenas de aprobación', () => {
     expect(done.offer.status).toBe('approved');
   });
 
+  it('si el único aprobador es quien pide, se suma el owner: alguien más revisa', async () => {
+    await updateHiringSettings(w.owner, { jobApprovers: [w.recruiter.person] });
+    const job = await jobFor(w);
+    const res = await actOnJobApproval(w.recruiter, job.id, { action: 'request', note: '' });
+    expect(res.status).toBe('pending');
+    expect(res.steps.map((s) => [s.userId, s.status, s.note])).toEqual([[w.recruiter.person, 'skipped', ''], [w.owner.person, 'pending', 'fallback']]);
+    await expect(actOnJobApproval(w.recruiter, job.id, { action: 'approve', note: '' })).rejects.toMatchObject({ code: 'not_your_step' });
+    await updateHiringSettings(w.owner, { jobApprovers: [w.approver.person, w.owner.person] });
+  });
+
+  it('cambiar título o salario después de aprobar pide aprobar de nuevo', async () => {
+    const job = await jobFor(w);
+    await actOnJobApproval(w.recruiter, job.id, { action: 'request', note: '' });
+    await actOnJobApproval(w.approver, job.id, { action: 'approve', note: '' });
+    await actOnJobApproval(w.owner, job.id, { action: 'approve', note: '' });
+    expect((await updateJob(w.recruiter, job.id, { department: 'Ops' })).job.approvalStatus).toBe('approved');
+    expect((await updateJob(w.recruiter, job.id, { salaryMax: 9999 })).job.approvalStatus).toBe('stale');
+    await expect(updateJob(w.recruiter, job.id, { status: 'published' })).rejects.toMatchObject({ code: 'approval_required' });
+    await actOnJobApproval(w.recruiter, job.id, { action: 'request', note: '' });
+    await actOnJobApproval(w.approver, job.id, { action: 'approve', note: '' });
+    await actOnJobApproval(w.owner, job.id, { action: 'approve', note: '' });
+    await updateJob(w.recruiter, job.id, { status: 'published' });
+    await expect(updateJob(w.recruiter, job.id, { title: 'Otro' })).rejects.toMatchObject({ code: 'close_to_edit' });
+  });
+
+  it('quien aprobaba y se va: su paso pasa al owner y sale de los ajustes', async () => {
+    const job = await jobFor(w);
+    await updateHiringSettings(w.owner, { jobApprovers: [w.approver.person] });
+    await actOnJobApproval(w.recruiter, job.id, { action: 'request', note: '' });
+    await reassignApprover(w.owner.ws, w.approver.person);
+    expect((await listChain(w.owner.ws, 'job', job.id)).map((s) => [s.userId, s.note])).toEqual([[w.owner.person, 'reassigned']]);
+    expect((await ensureSettings(w.owner.ws)).job_approvers).toBe('[]');
+    await updateHiringSettings(w.owner, { jobApprovers: [w.approver.person, w.owner.person] });
+  });
+
   it('quien arma la oferta no se aprueba a sí mismo: su paso queda salteado', async () => {
     await updateHiringSettings(w.owner, { offerApprovers: [w.recruiter.person, w.approver.person] });
     const job = await jobFor(w);
@@ -713,6 +893,16 @@ describe('De Hiring a People', () => {
     const u = await upsertUser({ email: `nop-${uid()}@example.com`, name: 'N', image: null });
     expect(await addHireToPeople(event(u.id, `app_${uid()}`))).toBeNull();
     expect(await getDb().prepare('SELECT 1 AS x FROM people_settings WHERE workspace_id = ?').get(u.id)).toBeUndefined();
+  });
+
+  it('de un puesto confidencial, la ficha no lleva título, área ni ubicación del puesto', async () => {
+    const w = await peopleWorld();
+    const e = event(w.owner, `app_${uid()}`);
+    const id = await addHireToPeople({ ...e, candidate: { ...e.candidate, location: '' }, job: { ...e.job, title: 'CEO secreto', department: 'Board', location: 'HQ', confidential: true } });
+    const row = (await getEmployee(w.hr, id!, { audit: false }))!;
+    expect([row.jobTitle, row.department, row.location]).toEqual(['', '', '']);
+    const notif = (await getDb().prepare("SELECT body FROM notifications WHERE source_id = ?").all(id!)) as Array<{ body: string | null }>;
+    expect(JSON.stringify(notif)).not.toContain('CEO secreto');
   });
 
   it('crea la ficha en onboarding una sola vez, sin sueldo y con el email en lo personal', async () => {

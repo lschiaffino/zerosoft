@@ -201,6 +201,7 @@ async function linkOrCreate(
       await db()
         .prepare("UPDATE people_employees SET status = 'active', end_date = NULL, updated_at = ? WHERE id = ? AND status IN ('terminated', 'offboarding')")
         .run(nowIso(), own.id);
+      await (await extras()).recordJobChanges(ws, own.id, null, [{ field: 'status', from: 'terminated', to: 'active' }]);
     }
     return;
   }
@@ -228,12 +229,14 @@ export async function linkJoinedPerson(ws: string, userId: string): Promise<void
 
 /** Paso de personRemoved: la ficha queda como baja (no se borra: cuenta para rotación y antigüedad). */
 export async function markRemovedPerson(ws: string, userId: string): Promise<void> {
+  const before = (await db().prepare('SELECT id, status FROM people_employees WHERE workspace_id = ? AND user_id = ?').get(ws, userId)) as { id: string; status: string } | undefined;
   await db()
     .prepare(
       `UPDATE people_employees SET status = 'terminated', end_date = COALESCE(end_date, ?), updated_at = ?
        WHERE workspace_id = ? AND user_id = ? AND status != 'terminated'`,
     )
     .run(today(), nowIso(), ws, userId);
+  if (before && before.status !== 'terminated') await (await extras()).recordJobChanges(ws, before.id, null, [{ field: 'status', from: before.status, to: 'terminated' }]);
   await db().prepare('DELETE FROM people_hr_admins WHERE workspace_id = ? AND user_id = ?').run(ws, userId);
 }
 
@@ -478,6 +481,8 @@ export interface EmployeeSummary {
 export interface EmployeeDto extends EmployeeSummary {
   /** Hay un pedido de cambio de datos esperando a HR (lo ven HR y la persona). */
   pendingChange: boolean;
+  /** Lo que espera a HR (la persona y HR): su formulario parte de acá. */
+  pendingValues: { phone?: string; personal?: Record<string, unknown> } | null;
   managerName: string | null;
   pronouns: string;
   bio: string;
@@ -630,6 +635,7 @@ export async function getEmployee(ctx: PeopleCtx, id: string, opts: { via?: stri
     },
     hasAccount: Boolean(r.user_id),
     pendingChange: (v.hr || isSelf(v, id)) && (await (await extras()).pendingChangeFor(ctx.ws, id)),
+    pendingValues: v.hr || isSelf(v, id) ? await (await extras()).pendingValuesFor(ctx.ws, id) : null,
   };
 }
 
@@ -835,10 +841,24 @@ async function hasCompensationRows(ws: string, employeeId: string): Promise<bool
 /** Carga diferida: people-extras importa este módulo. */
 const extras = () => import('./people-extras');
 
+/** Los mismos chequeos de formato que crear y editar: la vista previa de la importación dice lo que después pasa. */
+export function checkEmployeeValues(values: EmployeeInput): void {
+  for (const [key, value] of Object.entries(values)) {
+    if (value === undefined || !(key in JOB_COLUMNS) || key === 'managerId') continue;
+    normalizeValue(key, value);
+  }
+}
+
 export async function updateEmployee(ctx: PeopleCtx, id: string, rawInput: EmployeeInput): Promise<EmployeeDto> {
   const r = await getEmployeeRow(ctx.ws, id);
   if (!r) throw new PeopleError('not_found', 404);
   let input = rawInput;
+  // Primero se valida todo: un pedido que no corresponde no deja nada en la cola.
+  for (const [key, value] of Object.entries(input)) {
+    if (value === undefined || key === 'custom' || key === 'personal' || key === 'confirmLinkedAccount') continue;
+    if (!canEditField(ctx.viewer, id, key)) throw new PeopleError('forbidden', 403);
+  }
+  if (input.custom && !ctx.viewer.hr) throw new PeopleError('forbidden', 403);
   // Con la aprobación encendida, teléfono y datos personales de la propia ficha esperan a HR.
   // Lo demás (pronombres, bio) se aplica. HR edita directo.
   if (isSelf(ctx.viewer, id) && !ctx.viewer.hr && (input.phone !== undefined || input.personal) && (await extras().then((m) => m.approvalsOn(ctx.ws)))) {

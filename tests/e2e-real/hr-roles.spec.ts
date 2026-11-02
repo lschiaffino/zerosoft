@@ -8,7 +8,8 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
  * mirando también el HTML de las páginas, Cmd+K y las API keys de cada persona.
  */
 
-const uid = () => Math.random().toString(36).slice(2, 8);
+// Empieza con letra: seis dígitos seguidos en el email se confundirían con el código.
+const uid = () => `x${Math.random().toString(36).slice(2, 8)}`;
 let ip = 100;
 
 async function sql(statement: string, args: Array<string | number | null> = []) {
@@ -217,6 +218,98 @@ test('aprobación de cambios: la persona pide, solo HR decide y nadie se aprueba
   }
 });
 
+test('reportes: el período de pago no llega a un admin sin marca, ni guardado', async ({ browser }) => {
+  const w = await peopleWorld(browser);
+  try {
+    const run = (p: Person, columns: string[]) => p.ctx.request.post('/api/people/custom-reports', { data: { config: { columns } } });
+    const asAda = (await (await run(w.ada, ['name', 'payPeriod'])).json()) as { columns: Array<{ key: string }> };
+    expect(asAda.columns.map((c) => c.key)).toEqual(['name']);
+    expect((await run(w.ada, ['payPeriod'])).status()).toBe(400);
+    const asHr = (await (await run(w.hrp, ['name', 'payPeriod'])).json()) as { columns: Array<{ key: string }> };
+    expect(asHr.columns.map((c) => c.key)).toEqual(['name', 'payPeriod']);
+    await w.ada.page.goto('/en/app/people/reports', { waitUntil: 'networkidle' });
+    await expect(w.ada.page.getByTestId('people-custom-reports').getByRole('checkbox', { name: 'Pay period' })).toHaveCount(0);
+  } finally {
+    await closeWorld(w);
+  }
+});
+
+test('encuesta: sin resultado antes de cerrar, ni bajo el mínimo, para nadie; quien se fue no responde; otro workspace no borra nada', async ({ browser }) => {
+  const w = await peopleWorld(browser);
+  const other = await owner(browser);
+  try {
+    const { id } = (await (await w.olga.ctx.request.post('/api/people/surveys', { data: { question: 'Recommend?' } })).json()) as { id: string };
+    const answers: Array<[Person, number]> = [[w.emp, 10], [w.peer, 2], [w.boss, 9], [w.hrp, 8], [w.ada, 9]];
+    const seen = async () => ((await (await w.olga.ctx.request.get('/api/people/surveys')).json()) as { surveys: Array<{ id: string; score: number | null; responses: number; comments: string[] }> }).surveys.find((s) => s.id === id)!;
+    for (const [p, score] of answers) {
+      expect((await p.ctx.request.post(`/api/people/surveys/${id}`, { data: { score, comment: 'hola' } })).status(), p.email).toBe(201);
+      expect(await seen()).toMatchObject({ score: null, comments: [] });
+    }
+    // Otro workspace no toca respuestas.
+    expect((await other.ctx.request.delete(`/api/people/surveys/${id}`)).status()).toBe(404);
+    expect((await seen()).responses).toBe(5);
+    expect((await w.olga.ctx.request.patch(`/api/people/surveys/${id}`, { data: {} })).ok()).toBe(true);
+    expect((await seen()).score).toBe(40);
+    const second = (await (await w.olga.ctx.request.post('/api/people/surveys', { data: { question: 'Again?' } })).json()) as { id: string };
+    expect((await w.olga.ctx.request.patch(`/api/people/employees/${w.ids.peer}`, { data: { status: 'terminated', endDate: '2020-01-01' } })).ok()).toBe(true);
+    expect((await w.peer.ctx.request.post(`/api/people/surveys/${second.id}`, { data: { score: 5 } })).status()).toBe(403);
+  } finally {
+    await closeAll(other);
+    await closeWorld(w);
+  }
+});
+
+test('contratar en un puesto confidencial no publica el título: directorio, API, v1 y aviso de HR', async ({ browser }) => {
+  const w = await peopleWorld(browser);
+  try {
+    const title = `Secret CEO ${uid()}`;
+    const created = await w.olga.ctx.request.post('/api/hiring/jobs', { data: { title, description: 'x', confidential: true } });
+    expect(created.status(), await created.text()).toBe(201);
+    const job = (await created.json()) as { job: { id: string }; stages: Array<{ id: string; kind: string }> };
+    expect((await w.olga.ctx.request.patch(`/api/hiring/jobs/${job.job.id}`, { data: { status: 'published' } })).ok()).toBe(true);
+    const name = `Hire ${uid()}`;
+    const app = (await (await w.olga.ctx.request.post('/api/hiring/applications', { data: { jobId: job.job.id, name, email: `h-${uid()}@real-e2e.io` } })).json()) as { applicationId: string };
+    const hired = job.stages.find((s) => s.kind === 'hired')!;
+    expect((await w.olga.ctx.request.patch(`/api/hiring/applications/${app.applicationId}`, { data: { action: 'move', stageId: hired.id } })).ok()).toBe(true);
+    await expect.poll(async () => (await (await w.emp.ctx.request.get('/api/people/employees')).text()).includes(name)).toBe(true);
+    for (const p of [w.emp, w.peer, w.hrp, w.ada]) {
+      expect(await (await p.ctx.request.get('/api/people/employees')).text(), p.email).not.toContain(title);
+      expect(await html(p, '/en/app/people'), p.email).not.toContain(title);
+      const found = await (await p.ctx.request.get(`/api/search?q=${encodeURIComponent(title)}`)).json() as { items: Array<{ group: string }> };
+      expect(found.items.filter((i) => i.group === 'people'), p.email).toEqual([]);
+    }
+    const bell = await (await w.hrp.ctx.request.get('/api/notifications?limit=50')).text();
+    expect(bell).not.toContain(title);
+    const key = await keyOf(w.emp, ['people:read']);
+    expect(await (await w.emp.ctx.request.get('/api/v1/people/employees', { headers: { authorization: `Bearer ${key}` } })).text()).not.toContain(title);
+  } finally {
+    await closeWorld(w);
+  }
+});
+
+test('mover a un puesto confidencial no le muestra el título al equipo del puesto de origen', async ({ browser }) => {
+  const olga = await owner(browser);
+  const rita = await join(browser, olga, 'Rita', 'member', ['hiring']);
+  const omar = await join(browser, olga, 'Omar', 'member', ['hiring']);
+  try {
+    const mk = async (title: string, extra: Record<string, unknown>, members: Array<{ userId: string; role: string }>) => {
+      const id = ((await (await olga.ctx.request.post('/api/hiring/jobs', { data: { title, description: 'x', ...extra } })).json()) as { job: { id: string } }).job.id;
+      expect((await olga.ctx.request.patch(`/api/hiring/jobs/${id}`, { data: { status: 'published' } })).ok()).toBe(true);
+      expect((await olga.ctx.request.put(`/api/hiring/jobs/${id}/team`, { data: { members } })).ok()).toBe(true);
+      return id;
+    };
+    const secretTitle = `Secret ${uid()}`;
+    const open = await mk(`Open ${uid()}`, {}, [{ userId: rita.id, role: 'recruiter' }, { userId: omar.id, role: 'recruiter' }]);
+    const secret = await mk(secretTitle, { confidential: true }, [{ userId: rita.id, role: 'recruiter' }]);
+    const c = (await (await rita.ctx.request.post('/api/hiring/applications', { data: { jobId: open, name: `Cand ${uid()}`, email: `c-${uid()}@real-e2e.io` } })).json()) as { candidateId: string; applicationId: string };
+    expect((await rita.ctx.request.post(`/api/hiring/applications/${c.applicationId}/copy`, { data: { jobId: secret, move: true } })).status()).toBe(201);
+    expect(await (await omar.ctx.request.get(`/api/hiring/candidates/${c.candidateId}`)).text()).not.toContain(secretTitle);
+    expect(await html(omar, `/en/app/hiring/candidates/${c.candidateId}`)).not.toContain(secretTitle);
+  } finally {
+    await closeAll(olga, rita, omar);
+  }
+});
+
 test('Hiring: borrador, confidencial y salario oculto por rol, y cadena de aprobación en turno', async ({ browser }) => {
   const olga = await owner(browser);
   const ada = await join(browser, olga, 'Ada', 'admin', ['hiring']);
@@ -296,6 +389,14 @@ test('Hiring: borrador, confidencial y salario oculto por rol, y cadena de aprob
     expect(offerRes.status(), await offerRes.text()).toBe(201);
     const offer = (await offerRes.json()) as { offer: { id: string } };
     for (const p of [rita, ada, olga]) expect((await p.ctx.request.patch(`/api/hiring/offers/${offer.offer.id}`, { data: { action: 'approve' } })).status(), p.email).toBe(403);
+    // Quien arma y es el único aprobador: alguien más tiene que revisar.
+    expect((await olga.ctx.request.put('/api/hiring/settings', { data: { jobApprovers: [rita.id] } })).ok()).toBe(true);
+    const selfJob = await mk(`Self ${uid()}`);
+    const selfChain = (await (await rita.ctx.request.post(`/api/hiring/jobs/${selfJob}/approval`, { data: { action: 'request' } })).json()) as { status: string; steps: Array<{ userId: string; status: string }> };
+    expect(selfChain.status).toBe('pending');
+    expect(selfChain.steps.at(-1)).toMatchObject({ userId: olga.id, status: 'pending' });
+    expect((await rita.ctx.request.post(`/api/hiring/jobs/${selfJob}/approval`, { data: { action: 'approve' } })).status()).toBe(403);
+    expect((await olga.ctx.request.put('/api/hiring/settings', { data: { jobApprovers: [] } })).ok()).toBe(true);
     expect((await rita.ctx.request.patch(`/api/hiring/offers/${offer.offer.id}`, { data: { action: 'send' } })).status()).toBe(409);
     expect((await appr.ctx.request.patch(`/api/hiring/offers/${offer.offer.id}`, { data: { action: 'approve' } })).ok()).toBe(true);
   } finally {

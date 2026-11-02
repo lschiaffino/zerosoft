@@ -6,7 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import type { CustomField, EmployeeDto } from '@/lib/people';
 import { HOLIDAY_COUNTRIES } from '@/lib/people-time';
-import { api, Avatar, Dialog, Fact, Field, Tabs, useDay, useErrorText, useToast } from './people-ui';
+import { api, Avatar, Dialog, Fact, Field, Tabs, useDay, useErrorText, useToast, useCountry } from './people-ui';
 import { CompensationSection, DocumentsSection, HistorySection, OnboardingSection, OneOnOneSection, PerformanceSection, TimeOffSection } from './ProfileSections';
 
 type TabKey = 'overview' | 'timeoff' | 'documents' | 'performance' | 'history' | 'compensation' | 'onboarding' | 'notes';
@@ -29,6 +29,7 @@ const TYPES = ['full_time', 'part_time', 'contractor', 'intern'] as const;
 
 export default function Profile({ employee: e, fields, people, hr, myEmployeeId, tab: initialTab, templates, wsAdmin = false, signEnabled = false }: ProfileProps) {
   const t = useTranslations('people');
+  const countryName = useCountry();
   const router = useRouter();
   const day = useDay();
   const errText = useErrorText();
@@ -142,7 +143,10 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
   };
 
   const canEditPhoto = hr || e.can.isSelf;
+  // Lo que ya espera a HR: el formulario propio parte de ahí, para que guardar de nuevo no lo pierda.
+  const pending = e.can.isSelf && !hr ? e.pendingValues : null;
   const p = e.personal;
+  const pf = p && pending?.personal ? ({ ...p, ...pending.personal } as typeof p) : p;
 
   return (
     <div className="app-page ui-page ppl-page">
@@ -238,7 +242,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
                   </div>
                 )}
                 <Fact label={t('fields.phone')} value={e.phone} hidden={e.phone === null} />
-                <Fact label={t('fields.location')} value={[e.location, e.country ? t(`countries.${e.country}`) : ''].filter(Boolean).join(' · ')} hidden={e.location === null} />
+                <Fact label={t('fields.location')} value={[e.location, e.country ? countryName(e.country) : ''].filter(Boolean).join(' · ')} hidden={e.location === null} />
                 <Fact label={t('fields.startDate')} value={e.startDate ? day(e.startDate) : null} hidden={e.startDate === undefined} />
                 <Fact label={t('fields.employmentType')} value={e.employmentType ? t(`types.${e.employmentType}`) : null} hidden={e.employmentType === null} />
                 {e.birthday && <Fact label={t('fields.birthday')} value={day(`2000-${e.birthday}`, { month: 'long', day: 'numeric' })} />}
@@ -352,7 +356,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
                     <option value="">{t('profile.noCountry')}</option>
                     {HOLIDAY_COUNTRIES.map((c) => (
                       <option key={c} value={c}>
-                        {t(`countries.${c}`)}
+                        {countryName(c)}
                       </option>
                     ))}
                   </select>
@@ -401,34 +405,34 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
             {editing === 'personal' && (
               <div className="ui-fields-2 ppl-fields">
                 <Field label={t('fields.phone')} htmlFor="pp-phone">
-                  <input id="pp-phone" name="phone" className="input" defaultValue={e.phone ?? ''} maxLength={40} autoFocus />
+                  <input id="pp-phone" name="phone" className="input" defaultValue={pending?.phone ?? e.phone ?? ''} maxLength={40} autoFocus />
                 </Field>
                 <Field label={t('fields.pronouns')} htmlFor="pp-pron">
                   <input id="pp-pron" name="pronouns" className="input" defaultValue={e.pronouns} maxLength={40} />
                 </Field>
-                {p && (
+                {pf && (
                   <>
                     <Field label={t('fields.personalEmail')} htmlFor="pp-pemail">
-                      <input id="pp-pemail" name="personalEmail" type="email" className="input" defaultValue={p.personalEmail} maxLength={200} />
+                      <input id="pp-pemail" name="personalEmail" type="email" className="input" defaultValue={pf.personalEmail} maxLength={200} />
                     </Field>
                     <Field label={t('fields.birthDate')} htmlFor="pp-birth">
-                      <input id="pp-birth" name="birthDate" type="date" className="input" defaultValue={p.birthDate} />
+                      <input id="pp-birth" name="birthDate" type="date" className="input" defaultValue={pf.birthDate} />
                     </Field>
                     <Field label={t('fields.address')} htmlFor="pp-addr">
-                      <input id="pp-addr" name="address" className="input" defaultValue={p.address} maxLength={500} />
+                      <input id="pp-addr" name="address" className="input" defaultValue={pf.address} maxLength={500} />
                     </Field>
                     {/* El documento lo carga HR: cada persona lo ve en su ficha, y mandarlo desde acá hacía fallar todo el guardado. */}
                     {hr && (
                       <Field label={t('fields.nationalId')} htmlFor="pp-nid">
-                        <input id="pp-nid" name="nationalId" className="input" defaultValue={p.nationalId} maxLength={60} />
+                        <input id="pp-nid" name="nationalId" className="input" defaultValue={pf.nationalId} maxLength={60} />
                       </Field>
                     )}
                     {[0, 1].map((i) => (
                       <fieldset key={i} className="ppl-fieldset">
                         <legend className="label">{t('profile.emergencyContact', { n: i + 1 })}</legend>
-                        <input name={`ec_name_${i}`} className="input" aria-label={t('fields.name')} placeholder={t('fields.name')} defaultValue={p.emergencyContacts[i]?.name ?? ''} maxLength={120} />
-                        <input name={`ec_rel_${i}`} className="input" aria-label={t('profile.relation')} placeholder={t('profile.relation')} defaultValue={p.emergencyContacts[i]?.relation ?? ''} maxLength={60} />
-                        <input name={`ec_phone_${i}`} className="input" aria-label={t('fields.phone')} placeholder={t('fields.phone')} defaultValue={p.emergencyContacts[i]?.phone ?? ''} maxLength={40} />
+                        <input name={`ec_name_${i}`} className="input" aria-label={t('fields.name')} placeholder={t('fields.name')} defaultValue={pf.emergencyContacts[i]?.name ?? ''} maxLength={120} />
+                        <input name={`ec_rel_${i}`} className="input" aria-label={t('profile.relation')} placeholder={t('profile.relation')} defaultValue={pf.emergencyContacts[i]?.relation ?? ''} maxLength={60} />
+                        <input name={`ec_phone_${i}`} className="input" aria-label={t('fields.phone')} placeholder={t('fields.phone')} defaultValue={pf.emergencyContacts[i]?.phone ?? ''} maxLength={40} />
                       </fieldset>
                     ))}
                   </>

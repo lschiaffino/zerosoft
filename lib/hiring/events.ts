@@ -108,7 +108,7 @@ export interface HireEvent {
   hiredAt: string;
   hiredBy: string | null;
   candidate: { id: string; name: string; email: string; phone: string; location: string };
-  job: { id: string; title: string; department: string; location: string; workplace: string; employmentType: string };
+  job: { id: string; title: string; department: string; location: string; workplace: string; employmentType: string; confidential?: boolean };
   offer: { title: string; salary: number | null; currency: string; startDate: string | null } | null;
 }
 

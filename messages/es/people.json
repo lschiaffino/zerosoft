@@ -196,7 +196,8 @@
     "nextMonth": "Mes siguiente",
     "thisMonth": "Hoy",
     "outThisMonth": "Fuera este mes",
-    "nobodyOut": "Nadie está fuera este mes."
+    "nobodyOut": "Nadie está fuera este mes.",
+    "laterYears": "{days} días pedidos para años siguientes"
   },
   "documents": {
     "upload": "Subir documento",
@@ -340,7 +341,8 @@
     "fit": "Ajustar a la pantalla",
     "flat": "Nadie tiene manager todavía, así que todos quedan en una fila. Poné un manager en una ficha para dibujar las líneas de reporte.",
     "alone": "Por ahora sos la única persona acá. Sumá gente o importala desde el directorio.",
-    "openDirectory": "Abrir el directorio"
+    "openDirectory": "Abrir el directorio",
+    "loose": "Sin manager todavía ({count})"
   },
   "reviews": {
     "desc": "Ciclos de evaluación con autoevaluación, evaluación del manager y de pares.",
@@ -595,7 +597,9 @@
     "already_submitted": "Esta evaluación ya se envió.",
     "own_request": "Tu propio cambio lo tiene que revisar otra persona de HR.",
     "nothing_to_change": "Completá al menos un cambio.",
-    "survey_answered": "Esta encuesta ya tiene respuestas: el texto queda como está."
+    "survey_answered": "Esta encuesta ya tiene respuestas: el texto queda como está.",
+    "stale_change": "Este valor cambió después del pedido. Revisalo y confirmá.",
+    "work_email_locked": "Solo el owner o un HR admin marcado pueden cambiar este email de trabajo."
   },
   "home": {
     "inbox": "Te esperan",
@@ -662,22 +666,23 @@
     "new": "Nueva encuesta eNPS",
     "open": "Abrir encuesta",
     "question": "Pregunta",
-    "newHint": "Se le pide a cada persona con ficha que responda, de 0 a 10, una vez. Las respuestas no llevan nombre.",
+    "newHint": "Se le pide a cada persona con ficha que responda, de 0 a 10, una vez. Las respuestas no llevan nombre. HR ve el resultado recién al cerrar, con al menos 5 respuestas.",
     "defaultQuestion": "¿Qué tan probable es que le recomiendes a un amigo trabajar acá?",
     "empty": "Todavía no hay encuestas.",
     "scale": "0 es nada probable, 10 es muy probable.",
     "comment": "Comentario (opcional)",
-    "anonymous": "Tu nombre no se guarda con tu respuesta.",
+    "anonymous": "Tu nombre no se guarda con tu respuesta. HR ve el resultado recién al cerrar la encuesta, con al menos 5 respuestas.",
     "send": "Enviar respuesta",
     "thanks": "Gracias, tu respuesta quedó registrada.",
     "close": "Cerrar encuesta",
-    "tooFew": "{count, plural, one {# respuesta} other {# respuestas}} hasta ahora. El resultado se ve desde 3 respuestas, para que no se pueda adivinar a nadie.",
+    "tooFew": "{count, plural, one {# respuesta} other {# respuestas}} hasta ahora. El resultado se ve al cerrar la encuesta, con al menos 5 respuestas, para que no se pueda identificar a nadie.",
     "summary": "{count, plural, one {# respuesta} other {# respuestas}}: {promoters, plural, one {# promotor} other {# promotores}}, {passives, plural, one {# neutro} other {# neutros}}, {detractors, plural, one {# detractor} other {# detractores}}",
     "status": {
       "open": "Abierta",
       "closed": "Cerrada"
     },
-    "yourAnswer": "Tu respuesta"
+    "yourAnswer": "Tu respuesta",
+    "closedTooFew": "Cerrada con {count, plural, one {# respuesta} other {# respuestas}}. El resultado necesita al menos 5, para que no se pueda identificar a nadie."
   },
   "changes": {
     "toggle": "Los cambios de datos de contacto y personales propios necesitan aprobación de HR",
@@ -691,7 +696,9 @@
     "deny": "Rechazar",
     "pending": "Esperando a HR",
     "pendingSelf": "Tu último cambio de datos está esperando a HR. Se va a ver acá cuando lo aprueben.",
-    "pendingHr": "Esta persona tiene un cambio de datos para revisar en Ajustes."
+    "pendingHr": "Esta persona tiene un cambio de datos para revisar en Ajustes.",
+    "stale": "Cambió desde que se pidió. Aprobar pisa el valor más nuevo.",
+    "approveAnyway": "Aprobar igual"
   },
   "history": {
     "empty": "Todavía no hay cambios. Acá aparecen los de puesto, área, ubicación, manager, tipo y estado.",
@@ -716,6 +723,7 @@
     "keep": "Sin cambio",
     "work_email_locked": "Solo el owner o un HR admin pueden cambiar el email de trabajo de esta ficha.",
     "delete_has_pay": "Esta ficha tiene historial de sueldos. Solo el owner o un HR admin la pueden borrar.",
-    "linked_account_mismatch": "La cuenta enlazada de esta ficha no coincide con su email de trabajo. Confirmala primero en la ficha."
+    "linked_account_mismatch": "La cuenta enlazada de esta ficha no coincide con su email de trabajo. Confirmala primero en la ficha.",
+    "auto": "Automático"
   }
 }

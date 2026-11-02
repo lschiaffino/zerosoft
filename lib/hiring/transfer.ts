@@ -7,10 +7,10 @@
 import { z } from 'zod';
 import { getDb } from '../db';
 import { parseCsv, toCsv } from '../hr-csv';
-import { deleteApplicationRows, nowIso, parseJson, requireManage, type JobRow } from './core';
+import { deleteApplicationRows, listStages, nowIso, parseJson, requireManage, type JobRow } from './core';
 import { addCandidateManually, createApplication, getApplicationRow, getCandidateRow, listApplications, requireManageApp, type ListFilter } from './candidates';
 import { addEvent } from './events';
-import { HiringError, MAX_TAGS, SOURCES, type HiringActor, type Source } from './types';
+import { HiringError, MAX_TAGS, SOURCES, oneLine, type HiringActor, type Source } from './types';
 
 // ---------- CSV ----------
 
@@ -51,7 +51,7 @@ export function readCandidateCsv(text: string): { rows: ImportRow[]; missing: st
     const get = (k: string) => (cells[cols.indexOf(k)] ?? '').trim();
     const email = get('email').toLowerCase();
     const src = get('source').toLowerCase();
-    const name = get('name').slice(0, 160);
+    const name = oneLine(get('name')).slice(0, 160);
     let error: string | null = null;
     if (!name) error = 'name_required';
     else if (!EMAIL.test(email) || email.length > 254) error = 'invalid_email';
@@ -102,11 +102,13 @@ export async function copyToJob(actor: HiringActor, appId: string, input: z.infe
   const { app, job, candidate } = await requireManageApp(actor, appId);
   if (input.jobId === job.id) throw new HiringError('same_job');
   const target: JobRow = await requireManage(actor, input.jobId);
+  if (target.status !== 'published') throw new HiringError('job_not_open', 409);
   const res = await createApplication(actor.ws, { job: target, candidate, source: 'manual', utm: {}, referrer: '', answers: {}, knockouts: [], createdBy: actor.person });
   if (input.move && app.status === 'active') {
     const ts = nowIso();
     await getDb().prepare("UPDATE hiring_applications SET status = 'withdrawn', updated_at = ? WHERE id = ?").run(ts, app.id);
-    await addEvent(actor.ws, candidate.id, app.id, 'stage', actor.person, { movedTo: target.title });
+    // Este evento lo ve el equipo del puesto de origen: el título de un puesto confidencial no va.
+    await addEvent(actor.ws, candidate.id, app.id, 'stage', actor.person, { to: target.confidential === 1 ? '' : target.title, movedJob: true });
   }
   return { applicationId: res.app.id, candidateId: candidate.id, existing: res.existing };
 }
@@ -132,6 +134,31 @@ async function manageAllApps(actor: HiringActor, candidateId: string): Promise<b
  * Hay que gestionar todas las postulaciones de los dos; si no, un equipo vería
  * datos de otro puesto. Si los dos están en el mismo puesto queda la más vieja.
  */
+const STATUS_RANK: Record<string, number> = { hired: 3, active: 2, rejected: 1, withdrawn: 0 };
+
+/**
+ * Dos postulaciones de la misma persona al mismo puesto: queda una, en la etapa más
+ * avanzada y con el mejor estado, con todo lo de la otra (scorecards, entrevistas,
+ * ofertas, evaluadores y eventos).
+ */
+async function foldApplication(ws: string, keepCandidate: string, dropApp: string, jobId: string): Promise<void> {
+  const db = getDb();
+  const keep = (await db.prepare('SELECT id, stage_id, status, reject_reason, rejected_at, hired_at, knocked_out FROM hiring_applications WHERE candidate_id = ? AND job_id = ?').get(keepCandidate, jobId)) as Record<string, string | number | null>;
+  const drop = (await db.prepare('SELECT stage_id, status, reject_reason, rejected_at, hired_at FROM hiring_applications WHERE id = ?').get(dropApp)) as Record<string, string | number | null>;
+  const pos = new Map((await listStages(jobId)).map((st) => [st.id, st.position]));
+  const stage = (pos.get(String(drop.stage_id)) ?? 0) > (pos.get(String(keep.stage_id)) ?? 0) ? drop.stage_id : keep.stage_id;
+  const best = (STATUS_RANK[String(drop.status)] ?? 0) > (STATUS_RANK[String(keep.status)] ?? 0) ? drop : keep;
+  const id = String(keep.id);
+  for (const t of ['hiring_scorecards', 'hiring_evaluators']) await db.prepare(`UPDATE OR IGNORE ${t} SET application_id = ? WHERE application_id = ?`).run(id, dropApp);
+  for (const t of ['hiring_interviews', 'hiring_offers', 'hiring_events']) await db.prepare(`UPDATE ${t} SET application_id = ? WHERE application_id = ?`).run(id, dropApp);
+  await db.prepare('UPDATE hiring_documents SET application_id = ? WHERE application_id = ?').run(id, dropApp);
+  await db
+    .prepare('UPDATE hiring_applications SET stage_id = ?, status = ?, reject_reason = ?, rejected_at = ?, hired_at = COALESCE(hired_at, ?), updated_at = ? WHERE id = ?')
+    .run(stage, best.status, best.reject_reason, best.rejected_at, drop.hired_at, nowIso(), id);
+  await deleteApplicationRows(dropApp);
+  void ws;
+}
+
 export async function mergeCandidates(actor: HiringActor, keepId: string, dropId: string): Promise<void> {
   if (keepId === dropId) throw new HiringError('same_candidate');
   const [keep, drop] = await Promise.all([getCandidateRow(actor.ws, keepId), getCandidateRow(actor.ws, dropId)]);
@@ -142,7 +169,7 @@ export async function mergeCandidates(actor: HiringActor, keepId: string, dropId
   const keepJobs = new Set(((await db.prepare('SELECT job_id FROM hiring_applications WHERE candidate_id = ?').all(keepId)) as Array<{ job_id: string }>).map((r) => r.job_id));
   const apps = (await db.prepare('SELECT id, job_id FROM hiring_applications WHERE candidate_id = ?').all(dropId)) as Array<{ id: string; job_id: string }>;
   for (const a of apps) {
-    if (keepJobs.has(a.job_id)) await deleteApplicationRows(a.id);
+    if (keepJobs.has(a.job_id)) await foldApplication(actor.ws, keepId, a.id, a.job_id);
     else await db.prepare('UPDATE hiring_applications SET candidate_id = ?, updated_at = ? WHERE id = ?').run(keepId, ts, a.id);
   }
   await db.prepare('UPDATE hiring_events SET candidate_id = ? WHERE candidate_id = ?').run(keepId, dropId);

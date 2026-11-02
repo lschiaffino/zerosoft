@@ -196,7 +196,8 @@
     "nextMonth": "Próximo mês",
     "thisMonth": "Hoje",
     "outThisMonth": "Fora neste mês",
-    "nobodyOut": "Ninguém está fora neste mês."
+    "nobodyOut": "Ninguém está fora neste mês.",
+    "laterYears": "{days} dias pedidos para anos seguintes"
   },
   "documents": {
     "upload": "Enviar documento",
@@ -340,7 +341,8 @@
     "fit": "Ajustar à tela",
     "flat": "Ninguém tem manager ainda, então todos ficam em uma linha. Defina um manager em um perfil para desenhar as linhas de reporte.",
     "alone": "Por enquanto só há você aqui. Adicione pessoas ou importe pelo diretório.",
-    "openDirectory": "Abrir o diretório"
+    "openDirectory": "Abrir o diretório",
+    "loose": "Sem manager ainda ({count})"
   },
   "reviews": {
     "desc": "Ciclos de avaliação com autoavaliação, avaliação do gestor e de pares.",
@@ -595,7 +597,9 @@
     "already_submitted": "Esta avaliação já foi enviada.",
     "own_request": "Sua própria alteração precisa ser revisada por outra pessoa do RH.",
     "nothing_to_change": "Preencha ao menos uma alteração.",
-    "survey_answered": "Esta pesquisa já tem respostas: o texto fica como está."
+    "survey_answered": "Esta pesquisa já tem respostas: o texto fica como está.",
+    "stale_change": "Este valor mudou depois do pedido. Confira e confirme.",
+    "work_email_locked": "Só o owner ou um HR admin marcado podem mudar este email de trabalho."
   },
   "home": {
     "inbox": "Aguardando você",
@@ -662,22 +666,23 @@
     "new": "Nova pesquisa eNPS",
     "open": "Abrir pesquisa",
     "question": "Pergunta",
-    "newHint": "Cada pessoa com perfil é convidada a responder, de 0 a 10, uma vez. As respostas não levam nome.",
+    "newHint": "Cada pessoa com perfil é convidada a responder, de 0 a 10, uma vez. As respostas não levam nome. O RH vê o resultado só ao encerrar, com ao menos 5 respostas.",
     "defaultQuestion": "Qual a probabilidade de você recomendar trabalhar aqui a um amigo?",
     "empty": "Ainda não há pesquisas.",
     "scale": "0 é nada provável, 10 é muito provável.",
     "comment": "Comentário (opcional)",
-    "anonymous": "Seu nome não é salvo com a resposta.",
+    "anonymous": "Seu nome não é salvo com a resposta. O RH vê o resultado só depois de encerrar a pesquisa, com ao menos 5 respostas.",
     "send": "Enviar resposta",
     "thanks": "Obrigado, sua resposta foi registrada.",
     "close": "Encerrar pesquisa",
-    "tooFew": "{count, plural, one {# resposta} other {# respostas}} até agora. O resultado aparece a partir de 3 respostas, para que ninguém seja identificado.",
+    "tooFew": "{count, plural, one {# resposta} other {# respostas}} até agora. O resultado aparece ao encerrar a pesquisa, com ao menos 5 respostas, para que ninguém seja identificado.",
     "summary": "{count, plural, one {# resposta} other {# respostas}}: {promoters, plural, one {# promotor} other {# promotores}}, {passives, plural, one {# neutro} other {# neutros}}, {detractors, plural, one {# detrator} other {# detratores}}",
     "status": {
       "open": "Aberta",
       "closed": "Encerrada"
     },
-    "yourAnswer": "Sua resposta"
+    "yourAnswer": "Sua resposta",
+    "closedTooFew": "Encerrada com {count, plural, one {# resposta} other {# respostas}}. O resultado precisa de ao menos 5, para que ninguém seja identificado."
   },
   "changes": {
     "toggle": "Alterações nos próprios dados de contato e pessoais precisam de aprovação do RH",
@@ -691,7 +696,9 @@
     "deny": "Recusar",
     "pending": "Aguardando o RH",
     "pendingSelf": "Sua última alteração de dados está aguardando o RH. Ela aparece aqui depois de aprovada.",
-    "pendingHr": "Esta pessoa tem uma alteração de dados para revisar em Ajustes."
+    "pendingHr": "Esta pessoa tem uma alteração de dados para revisar em Ajustes.",
+    "stale": "Mudou desde o pedido. Aprovar sobrescreve o valor mais novo.",
+    "approveAnyway": "Aprovar mesmo assim"
   },
   "history": {
     "empty": "Ainda não há alterações. Aqui aparecem as de cargo, departamento, localização, manager, tipo e status.",
@@ -716,6 +723,7 @@
     "keep": "Sem alteração",
     "work_email_locked": "Só o owner ou um admin de RH podem mudar o email de trabalho deste perfil.",
     "delete_has_pay": "Este perfil tem histórico de salários. Só o owner ou um admin de RH podem excluí-lo.",
-    "linked_account_mismatch": "A conta vinculada deste perfil não coincide com o email de trabalho. Confirme-a primeiro no perfil."
+    "linked_account_mismatch": "A conta vinculada deste perfil não coincide com o email de trabalho. Confirme-a primeiro no perfil.",
+    "auto": "Automático"
   }
 }

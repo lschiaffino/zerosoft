@@ -293,6 +293,8 @@ export async function offboard(ctx: PeopleCtx, employeeId: string, input: Offboa
   const endDate = input.endDate && isIsoDate(input.endDate) ? input.endDate : today();
   const status = endDate <= today() ? 'terminated' : 'offboarding';
   await db().prepare('UPDATE people_employees SET end_date = ?, status = ?, updated_at = ? WHERE id = ?').run(endDate, status, nowIso(), employeeId);
+  const { recordJobChanges } = await import('./people-extras');
+  await recordJobChanges(ctx.ws, employeeId, ctx.personId, [{ field: 'status', from: emp.status, to: status }]);
   const { cancelCalBlocksFor } = await import('./people-timeoff');
   await cancelCalBlocksFor(ctx.ws, employeeId, endDate > today() ? endDate : today());
   let checklistId: string | null = null;

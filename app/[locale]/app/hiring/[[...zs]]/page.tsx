@@ -107,7 +107,7 @@ export default async function HiringPage(props: Props) {
           focusApp={sp.app ?? null}
           me={actor.person}
           isAdmin={actor.admin}
-          manageJobs={allJobs.filter((j) => j.canManage && j.status !== 'archived').map((j) => ({ id: j.id, title: j.title }))}
+          manageJobs={allJobs.filter((j) => j.canManage && j.status === 'published').map((j) => ({ id: j.id, title: j.title }))}
           templates={templates.filter((t) => t.kind !== 'job').map((t) => ({ id: t.id, jobId: t.jobId, kind: t.kind, name: t.name, subject: t.subject, body: t.body }))}
           repliesEnabled={repliesEnabled()}
           signEnabled={userCanUseApp(user, 'sign')}

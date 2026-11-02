@@ -324,7 +324,8 @@
     "links": "Links",
     "documents": "Other documents",
     "duplicates": "Same email in other jobs",
-    "unverifiedDoc": "sent with a new application, unverified"
+    "unverifiedDoc": "sent with a new application, unverified",
+    "hireUndone": "Moved out of Hired. The People profile stays: HR was told."
   },
   "events": {
     "applied": "Applied ({source})",
@@ -353,7 +354,8 @@
       "withdrawn": "withdrawn"
     },
     "email_dropped": "Email not accepted ({reason})",
-    "unverified": "Sender not verified"
+    "unverified": "Sender not verified",
+    "anotherJob": "another job"
   },
   "score": {
     "submitted": "Scorecard submitted.",
@@ -516,7 +518,7 @@
     "consentText": "Consent text on the application form",
     "membersCreateJobs": "Members with Hiring can create jobs (otherwise only admins)",
     "approvals": "Approvals",
-    "approvalsHelp": "Choose people in order. Each one decides after the previous one and joins the team of that job as hiring manager, so they can see what they approve. With nobody chosen, no approval is needed.",
+    "approvalsHelp": "Choose people in order. Each one decides after the previous one and joins the team of that job as hiring manager, so they can see what they approve. Nobody approves their own request: if that leaves nobody, the owner or another admin is added. With nobody chosen, no approval is needed.",
     "jobApprovers": "To publish a new job",
     "offerApprovers": "To send an offer",
     "addApprover": "Add a person",
@@ -582,7 +584,11 @@
     "same_candidate": "That is the same candidate.",
     "file_too_large": "The file is too large (2 MB at most).",
     "invalid_field": "That value does not fit the field type.",
-    "duplicate_field": "That field is repeated."
+    "duplicate_field": "That field is repeated.",
+    "no_other_approver": "Someone other than you has to approve this. Add another approver in Settings.",
+    "close_to_edit": "This job was approved as it is. Close it to change the title or salary, then request approval again.",
+    "job_not_open": "That job is not open.",
+    "application_withdrawn": "This application was withdrawn."
   },
   "esign": {
     "send": "Send for e-signature with Sign",
@@ -612,7 +618,10 @@
       "request": "Approval requested.",
       "approve": "Approved.",
       "reject": "Rejected."
-    }
+    },
+    "fallback": "Added because nobody else would review it",
+    "reassigned": "Reassigned: the approver left the workspace",
+    "statusStale": "Changed after approval: request approval again"
   },
   "import": {
     "button": "Import CSV",
@@ -643,7 +652,8 @@
     "title": "Merge candidates",
     "body": "Everything from {drop} moves to {keep}: applications, timeline, documents and tags. This cannot be undone.",
     "confirm": "Merge",
-    "done": "Merged."
+    "done": "Merged.",
+    "visibility": "The team of each job will see this person with all their applications, documents and details, including from a confidential job."
   },
   "candidateFields": {
     "title": "Candidate fields",

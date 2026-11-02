@@ -196,7 +196,8 @@
     "nextMonth": "Next month",
     "thisMonth": "Today",
     "outThisMonth": "Out this month",
-    "nobodyOut": "Nobody is out this month."
+    "nobodyOut": "Nobody is out this month.",
+    "laterYears": "{days} days requested for later years"
   },
   "documents": {
     "upload": "Upload document",
@@ -340,7 +341,8 @@
     "fit": "Fit to screen",
     "flat": "Nobody has a manager yet, so everyone is on one row. Set a manager on a profile to draw the reporting lines.",
     "alone": "You are the only person here so far. Add people or import them from the directory.",
-    "openDirectory": "Open the directory"
+    "openDirectory": "Open the directory",
+    "loose": "No manager yet ({count})"
   },
   "reviews": {
     "desc": "Review cycles with self, manager and peer reviews.",
@@ -595,7 +597,9 @@
     "already_submitted": "This review was already submitted.",
     "own_request": "Someone else in HR has to review your own change.",
     "nothing_to_change": "Fill in at least one change.",
-    "survey_answered": "This survey already has answers, so its text stays as it is."
+    "survey_answered": "This survey already has answers, so its text stays as it is.",
+    "stale_change": "This value changed after the request. Check it and confirm.",
+    "work_email_locked": "Only the owner or a named HR admin can change this work email."
   },
   "home": {
     "inbox": "Waiting for you",
@@ -662,22 +666,23 @@
     "new": "New eNPS survey",
     "open": "Open survey",
     "question": "Question",
-    "newHint": "Everyone with a profile is asked to answer, from 0 to 10, once. Answers carry no name.",
+    "newHint": "Everyone with a profile is asked to answer, from 0 to 10, once. Answers carry no name. HR sees results only after closing, with at least 5 answers.",
     "defaultQuestion": "How likely are you to recommend working here to a friend?",
     "empty": "No surveys yet.",
     "scale": "0 is not at all likely, 10 is extremely likely.",
     "comment": "Comment (optional)",
-    "anonymous": "Your name is not saved with your answer.",
+    "anonymous": "Your name is not saved with your answer. HR sees results only after the survey closes, with at least 5 answers.",
     "send": "Send answer",
     "thanks": "Thanks, your answer is in.",
     "close": "Close survey",
-    "tooFew": "{count, plural, one {# answer} other {# answers}} so far. Results show from 3 answers, so nobody can be guessed.",
+    "tooFew": "{count, plural, one {# answer} other {# answers}} so far. Results show after you close the survey, with at least 5 answers, so nobody can be identified.",
     "summary": "{count, plural, one {# answer} other {# answers}}: {promoters, plural, one {# promoter} other {# promoters}}, {passives, plural, one {# passive} other {# passives}}, {detractors, plural, one {# detractor} other {# detractors}}",
     "status": {
       "open": "Open",
       "closed": "Closed"
     },
-    "yourAnswer": "Your answer"
+    "yourAnswer": "Your answer",
+    "closedTooFew": "Closed with {count, plural, one {# answer} other {# answers}}. Results need at least 5, so nobody can be identified."
   },
   "changes": {
     "toggle": "People need HR approval to change their own contact and personal data",
@@ -691,7 +696,9 @@
     "deny": "Decline",
     "pending": "Waiting for HR",
     "pendingSelf": "Your latest change to your data is waiting for HR. It will show here once approved.",
-    "pendingHr": "This person has a data change waiting for review in Settings."
+    "pendingHr": "This person has a data change waiting for review in Settings.",
+    "stale": "Changed since this was requested. Approving overwrites the newer value.",
+    "approveAnyway": "Approve anyway"
   },
   "history": {
     "empty": "No changes yet. Changes to job title, department, location, manager, type and status show up here.",
@@ -716,6 +723,7 @@
     "keep": "No change",
     "work_email_locked": "Only the owner or an HR admin can change the work email of this record.",
     "delete_has_pay": "This record has pay history. Only the owner or an HR admin can delete it.",
-    "linked_account_mismatch": "This record's linked account doesn't match its work email. Confirm it on the profile first."
+    "linked_account_mismatch": "This record's linked account doesn't match its work email. Confirm it on the profile first.",
+    "auto": "Automatic"
   }
 }

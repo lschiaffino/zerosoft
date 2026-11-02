@@ -7,7 +7,8 @@
 import { z } from 'zod';
 import { getDb } from '../db';
 import { localized } from '../notification-copy';
-import { ensureSettings, getJobRow, newId, nowIso, parseJson, requireManage, type SettingsRow } from './core';
+import { ensureSettings, getJobRow, getSettings, newId, nowIso, parseJson, requireManage, type SettingsRow } from './core';
+import { listOwnerSpacePeople } from '../workspace';
 import { notifyTeam } from './events';
 import { HiringError, type HiringActor } from './types';
 
@@ -67,7 +68,22 @@ async function joinTeam(jobId: string, ids: string[]): Promise<void> {
   for (const id of ids) await getDb().prepare('INSERT OR IGNORE INTO hiring_job_members (job_id, user_id, role, created_at) VALUES (?, ?, ?, ?)').run(jobId, id, 'hiring_manager', ts);
 }
 
-/** Arranca la cadena (borra la anterior). `creator` no se aprueba a sí misma: su paso queda salteado. */
+/**
+ * Pasos reales de una cadena: solo quienes siguen en el workspace con Hiring.
+ * `creator` no se aprueba a sí misma: su paso queda salteado. Si con eso nadie más
+ * revisa, se suma al owner (o a otro admin): sin ellos, no se puede pedir.
+ */
+async function resolveSteps(ws: string, approvers: string[], creator: string): Promise<Array<{ userId: string; status: StepStatus; note: string }>> {
+  const people = await listOwnerSpacePeople(ws, { app: 'hiring' });
+  const active = new Set([ws, ...people.map((p) => p.id)]);
+  const steps = approvers.filter((id) => active.has(id)).map((userId) => ({ userId, status: (userId === creator ? 'skipped' : 'pending') as StepStatus, note: '' }));
+  if (steps.some((st) => st.status === 'pending')) return steps;
+  const other = creator !== ws ? ws : people.find((p) => p.id !== creator && (p.role === 'admin' || p.role === 'owner'))?.id;
+  if (!other) throw new HiringError('no_other_approver', 409);
+  return [...steps.filter((st) => st.userId !== other), { userId: other, status: 'pending', note: 'fallback' }];
+}
+
+/** Arranca la cadena (borra la anterior). */
 export async function startChain(
   ws: string,
   subject: ApprovalSubject,
@@ -78,19 +94,40 @@ export async function startChain(
   notice: { title: string; href: string },
 ): Promise<ApprovalStep[]> {
   const db = getDb();
+  const planned = await resolveSteps(ws, approvers, creator);
   await db.prepare('DELETE FROM hiring_approvals WHERE workspace_id = ? AND subject_type = ? AND subject_id = ?').run(ws, subject, subjectId);
   const ts = nowIso();
   let position = 0;
-  for (const userId of approvers) {
+  for (const st of planned) {
     await db
       .prepare('INSERT INTO hiring_approvals (id, workspace_id, subject_type, subject_id, position, user_id, status, note, decided_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)')
-      .run(newId('hap'), ws, subject, subjectId, position++, userId, userId === creator ? 'skipped' : 'pending', '', ts);
+      .run(newId('hap'), ws, subject, subjectId, position++, st.userId, st.status, st.note, ts);
   }
-  await joinTeam(jobId, approvers);
+  await joinTeam(jobId, planned.map((st) => st.userId));
   const steps = await listChain(ws, subject, subjectId);
   const next = currentStep(steps);
   if (next) await notifyTeam([next.userId], { title: notice.title, body: localized('hiringApprovalWaiting'), href: notice.href, sourceId: subjectId });
   return steps;
+}
+
+/**
+ * Alguien que aprobaba dejó el workspace: su paso pasa al owner (o se saltea si el
+ * owner ya tiene uno pendiente en esa cadena) y deja de estar en los ajustes.
+ */
+export async function reassignApprover(ws: string, userId: string): Promise<void> {
+  const db = getDb();
+  const rows = (await db.prepare("SELECT id, subject_type, subject_id FROM hiring_approvals WHERE workspace_id = ? AND user_id = ? AND status = 'pending'").all(ws, userId)) as Array<{ id: string; subject_type: string; subject_id: string }>;
+  for (const r of rows) {
+    const ownerStep = await db.prepare("SELECT 1 AS x FROM hiring_approvals WHERE workspace_id = ? AND subject_type = ? AND subject_id = ? AND user_id = ? AND status = 'pending'").get(ws, r.subject_type, r.subject_id, ws);
+    if (ownerStep) await db.prepare("UPDATE hiring_approvals SET status = 'skipped' WHERE id = ?").run(r.id);
+    else await db.prepare("UPDATE hiring_approvals SET user_id = ?, note = 'reassigned' WHERE id = ?").run(ws, r.id);
+  }
+  if (rows.length) await notifyTeam([ws], { title: 'Hiring', body: localized('hiringApprovalWaiting'), href: '/app/hiring', sourceId: userId });
+  const s = await getSettings(ws);
+  if (s) {
+    const drop = (raw: string) => JSON.stringify(parseJson<string[]>(raw, []).filter((id) => id !== userId));
+    await db.prepare('UPDATE hiring_settings SET job_approvers = ?, offer_approvers = ? WHERE workspace_id = ?').run(drop(s.job_approvers), drop(s.offer_approvers), ws);
+  }
 }
 
 /** Decide el paso actual: compare-and-set sobre la fila, para que dos clics no avancen dos pasos. */
@@ -109,8 +146,8 @@ export async function decideStep(
   if (decision === 'reject' && !note.trim()) throw new HiringError('reason_required');
   const ts = nowIso();
   const res = await getDb()
-    .prepare("UPDATE hiring_approvals SET status = ?, note = ?, decided_at = ? WHERE id = ? AND status = 'pending'")
-    .run(decision === 'approve' ? 'approved' : 'rejected', note.trim().slice(0, 500), ts, step.id);
+    .prepare("UPDATE hiring_approvals SET status = ?, note = ?, decided_at = ? WHERE id = ? AND workspace_id = ? AND status = 'pending'")
+    .run(decision === 'approve' ? 'approved' : 'rejected', note.trim().slice(0, 500), ts, step.id, actor.ws);
   if (!res.changes) throw new HiringError('invalid_state', 409);
   const after = await listChain(actor.ws, subject, subjectId);
   const next = currentStep(after);
@@ -134,11 +171,11 @@ export async function actOnJobApproval(actor: HiringActor, jobId: string, input:
     if (!approvers.length) throw new HiringError('approvals_off', 409);
     const steps = await startChain(actor.ws, 'job', jobId, jobId, approvers, actor.person, notice);
     const state = chainState(steps);
-    await db.prepare('UPDATE hiring_jobs SET approval_status = ?, updated_at = ? WHERE id = ?').run(state, nowIso(), jobId);
+    await db.prepare('UPDATE hiring_jobs SET approval_status = ?, updated_at = ? WHERE id = ? AND workspace_id = ?').run(state, nowIso(), jobId, actor.ws);
     return { status: state, steps };
   }
   const state = await decideStep(actor, 'job', jobId, input.action, input.note, notice);
-  await db.prepare('UPDATE hiring_jobs SET approval_status = ?, updated_at = ? WHERE id = ?').run(state, nowIso(), jobId);
+  await db.prepare('UPDATE hiring_jobs SET approval_status = ?, updated_at = ? WHERE id = ? AND workspace_id = ?').run(state, nowIso(), jobId, actor.ws);
   if (state !== 'pending' && job.created_by && job.created_by !== actor.person) {
     await notifyTeam([job.created_by], { title: job.title, body: localized(state === 'approved' ? 'hiringApprovalDone' : 'hiringApprovalRejected'), href: notice.href, sourceId: jobId });
   }

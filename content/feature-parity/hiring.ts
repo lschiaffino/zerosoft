@@ -85,8 +85,8 @@ const parity: ProductParity = {
     row('resume-upload', 'careers', ['Resume upload', 'Subida de CV', 'Envio de currículo'], 'have', {
       detail: ['PDF, DOC or DOCX up to 4 MB, checked by their bytes; private Blob store or encrypted at rest', 'PDF, DOC o DOCX de hasta 4 MB, chequeados por sus bytes; Blob privado o cifrado en reposo', 'PDF, DOC ou DOCX de até 4 MB, verificados pelos bytes; Blob privado ou criptografado em repouso'],
     }),
-    row('knockout', 'careers', ['Knock-out questions', 'Preguntas knock-out', 'Perguntas eliminatórias'], 'partial', {
-      detail: ['Flag for review, or reject automatically with the reason on record; the candidate is not told and it can be reactivated. Automatic rejection is tested against the database, not yet set from the job editor and applied through the careers page in a browser', 'Marca para revisión, o rechaza solo con el motivo registrado; al candidato no se le avisa y se puede reactivar. El rechazo solo está probado contra la base, todavía no configurado desde el editor y postulado por la página de empleos en el navegador', 'Marca para revisão, ou recusa automaticamente com o motivo registrado; o candidato não é avisado e dá para reativar. A recusa automática está testada contra o banco, ainda não configurada no editor e candidatada pela página de vagas no navegador'],
+    row('knockout', 'careers', ['Knock-out questions', 'Preguntas knock-out', 'Perguntas eliminatórias'], 'have', {
+      detail: ['Set from the job editor: the application is flagged for review or rejected automatically with the reason on record. The candidate is not told and it can be reactivated', 'Se configura en el editor: la postulación queda marcada para revisión o rechazada sola con el motivo registrado. Al candidato no se le avisa y se puede reactivar', 'Configurado no editor: a candidatura fica marcada para revisão ou recusada automaticamente com o motivo registrado. O candidato não é avisado e dá para reativar'],
     }),
     row('anti-spam', 'careers', ['Spam protection', 'Protección contra spam', 'Proteção contra spam'], 'partial', {
       detail: ['Rate limit per IP and a hidden trap field; no CAPTCHA', 'Límite por IP y un campo trampa oculto; sin CAPTCHA', 'Limite por IP e um campo armadilha oculto; sem CAPTCHA'],
@@ -152,7 +152,7 @@ const parity: ProductParity = {
     // Ofertas
     row('offer-letters', 'offers', ['Offer letters from templates', 'Cartas de oferta desde plantillas', 'Cartas de oferta a partir de modelos'], 'have'),
     row('offer-approval', 'offers', ['Offer approval', 'Aprobación de ofertas', 'Aprovação de ofertas'], 'have', {
-      detail: ['One approval by the hiring manager or an admin, or an ordered chain of named people from Settings, with a reason to reject. Whoever wrote the offer skips their own step. No approval groups or reminders', 'Una aprobación del hiring manager o un admin, o una cadena en orden de personas elegidas en Ajustes, con motivo para rechazar. Quien la armó saltea su paso. Sin grupos ni recordatorios', 'Uma aprovação do hiring manager ou de um admin, ou uma cadeia em ordem de pessoas escolhidas em Ajustes, com motivo para recusar. Quem escreveu pula a própria etapa. Sem grupos nem lembretes'],
+      detail: ['One approval by the hiring manager or an admin, or an ordered chain of named people from Settings, with a reason to reject. Whoever wrote the offer skips their own step; if that leaves nobody, the owner or another admin is added. No approval groups or reminders', 'Una aprobación del hiring manager o un admin, o una cadena en orden de personas elegidas en Ajustes, con motivo para rechazar. Quien la armó saltea su paso; si así no queda nadie, se suma el owner u otro admin. Sin grupos ni recordatorios', 'Uma aprovação do hiring manager ou de um admin, ou uma cadeia em ordem de pessoas escolhidas em Ajustes, com motivo para recusar. Quem escreveu pula a própria etapa; se não sobrar ninguém, o owner ou outro admin é adicionado. Sem grupos nem lembretes'],
     }),
     row('offer-accept', 'offers', ['Candidate accepts or declines online', 'El candidato acepta o rechaza en línea', 'O candidato aceita ou recusa online'], 'have', {
       detail: ['Typed full name with date, IP, browser and a hash of the letter on record', 'Nombre escrito con fecha, IP, navegador y hash de la carta registrados', 'Nome digitado com data, IP, navegador e hash da carta registrados'],
@@ -208,12 +208,13 @@ const parity: ProductParity = {
     }),
     row('ai-job-content', 'jobs', ['AI job descriptions and interview questions', 'Avisos y preguntas de entrevista con IA', 'Descrições de vaga e perguntas de entrevista com IA'], 'missing'),
     row('careers-widget', 'careers', ['Embeddable job list', 'Lista de empleos para embeber', 'Lista de vagas para incorporar'], 'missing'),
-    row('candidate-search', 'candidates', ['Search all candidates across jobs', 'Búsqueda de candidatos en todos los puestos', 'Busca de candidatos em todas as vagas'], 'partial', {
+    row('candidate-search', 'candidates', ['Search all candidates across jobs', 'Búsqueda de candidatos en todos los puestos', 'Busca de candidatos em todas as vagas'], 'have', {
       weight: 2,
-      detail: ['Limited to the jobs each person can see, no boolean operators. Permissions are tested through the API; the filters are not yet walked in a browser for each role', 'Limitada a los puestos que cada persona ve, sin operadores booleanos. Los permisos están probados por la API; los filtros todavía no se recorrieron en el navegador con cada rol', 'Limitada às vagas que cada pessoa vê, sem operadores booleanos. As permissões estão testadas pela API; os filtros ainda não foram percorridos no navegador com cada papel'],
+      detail: ['Search and filters in the URL, limited to the jobs each person can see. No boolean operators', 'Búsqueda y filtros en la URL, limitada a los puestos que cada persona ve. Sin operadores booleanos', 'Busca e filtros na URL, limitada às vagas que cada pessoa vê. Sem operadores booleanos'],
     }),
-    row('candidate-custom-fields', 'candidates', ['Custom candidate fields', 'Campos propios de candidatos', 'Campos próprios de candidatos'], 'missing', {
+    row('candidate-custom-fields', 'candidates', ['Custom candidate fields', 'Campos propios de candidatos', 'Campos próprios de candidatos'], 'have', {
       weight: 2,
+      detail: ['Text, number, date and list fields set in Settings, filled on each profile. Protected ones are seen only by recruiters, hiring managers and admins. They do not filter the candidate list or go into the CSV', 'Campos de texto, número, fecha y lista definidos en Ajustes, completados en cada perfil. Los protegidos los ven solo recruiters, hiring managers y admins. No filtran la lista de candidatos ni van en el CSV', 'Campos de texto, número, data e lista definidos em Ajustes, preenchidos em cada perfil. Os protegidos são vistos só por recruiters, hiring managers e admins. Não filtram a lista de candidatos nem vão no CSV'],
     }),
     row('resurface-candidates', 'candidates', ['AI suggests past candidates for a new job', 'La IA sugiere candidatos anteriores para un puesto', 'A IA sugere candidatos anteriores para uma vaga'], 'missing'),
     row('referrals-portal', 'candidates', ['Employee referral portal', 'Portal de referidos', 'Portal de indicações'], 'missing', {
@@ -255,7 +256,9 @@ const parity: ProductParity = {
     row('requisition-approval-routing', 'jobs', ['Requisition approval routing', 'Aprobación de requisiciones por área', 'Roteamento de aprovação de requisições'], 'partial', {
       detail: ['Ordered named approvers from Settings. No routing rules or groups', 'Aprobadores en orden elegidos en Ajustes. Sin reglas de ruteo ni grupos', 'Aprovadores em ordem escolhidos em Ajustes. Sem regras de roteamento nem grupos'],
     }),
-    row('requisition-reapproval', 'jobs', ['Re-approval on requisition edits', 'Reaprobación al editar', 'Reaprovação ao editar requisição'], 'missing'),
+    row('requisition-reapproval', 'jobs', ['Re-approval on requisition edits', 'Reaprobación al editar', 'Reaprovação ao editar requisição'], 'have', {
+      detail: ['Changing the title or salary after approval asks for approval again; a published job has to be closed first', 'Cambiar título o salario después de aprobar pide aprobar de nuevo; un puesto publicado hay que cerrarlo antes', 'Mudar título ou salário depois de aprovar pede aprovação de novo; uma vaga publicada precisa ser fechada antes'],
+    }),
     row('requisition-fields', 'jobs', ['Custom requisition fields', 'Campos propios de requisición', 'Campos próprios de requisição'], 'missing'),
     row('requisition-bulk', 'jobs', ['Bulk requisitions', 'Requisiciones masivas', 'Requisições em massa'], 'missing'),
     row('requisition-statuses', 'jobs', ['Requisition statuses', 'Estados de requisición', 'Status de requisição'], 'missing'),

@@ -109,7 +109,7 @@ export default function Surveys({ surveys, hr }: { surveys: SurveyDto[]; hr: boo
                   <span className={`badge ${s.status === 'open' ? 'badge-info' : 'badge-outline'}`}>{t(`surveys.status.${s.status}`)}</span>
                 </div>
                 {s.score === null ? (
-                  <p className="ppl-hint">{t('surveys.tooFew', { count: s.responses })}</p>
+                  <p className="ppl-hint">{t(s.status === 'closed' ? 'surveys.closedTooFew' : 'surveys.tooFew', { count: s.responses })}</p>
                 ) : (
                   <>
                     <p className="ppl-survey-score">

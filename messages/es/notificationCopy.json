@@ -78,5 +78,6 @@
   "workspaceChangeAsk": "Preguntale a {who} si tenés dudas.",
   "roleNameAdmin": "Admin",
   "roleNameMember": "Miembro",
-  "roleNameGuest": "Invitado"
+  "roleNameGuest": "Invitado",
+  "peopleHireUndone": "Se deshizo la contratación de {name}: su ficha sigue en People"
 }

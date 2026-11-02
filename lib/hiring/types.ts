@@ -72,6 +72,9 @@ export function canSeeJobSalary(a: { admin: boolean; jobRole: TeamRole | null; s
   return a.salaryPublic || a.admin || a.jobRole === 'recruiter' || a.jobRole === 'hiring_manager';
 }
 
+/** Un nombre es una línea: un salto de línea rompe asuntos de email y listas. */
+export const oneLine = (s: string) => s.replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+
 // ---------- Campos propios de candidatos ----------
 
 export const MAX_CANDIDATE_FIELDS = 30;

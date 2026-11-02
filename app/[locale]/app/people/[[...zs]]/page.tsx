@@ -175,7 +175,7 @@ async function peopleView(props: Props, user: SessionUser, ctx: PeopleCtx) {
         if (!cycle) notFound();
         const canPick = ctx.viewer.hr || ctx.viewer.reports.size > 0;
         const picks = canPick ? await listEmployees(ctx) : [];
-        return <CycleDetail cycle={cycle} reviews={await listReviews(ctx, { cycleId: id })} hr={ctx.viewer.hr} focus={sp.review ?? null} reports={[...ctx.viewer.reports]} people={picks.map((p) => ({ id: p.id, name: p.name }))} />;
+        return <CycleDetail cycle={cycle} reviews={await listReviews(ctx, { cycleId: id })} hr={ctx.viewer.hr} focus={sp.review ?? null} reports={[...ctx.viewer.reports]} people={picks.filter((p) => p.id !== ctx.viewer.employeeId).map((p) => ({ id: p.id, name: p.name }))} />;
       }
       const [cycles, toWrite, surveys] = await Promise.all([listCycles(ctx), listReviews(ctx, { mineToWrite: true }), listSurveys(ctx)]);
       return (
@@ -191,7 +191,7 @@ async function peopleView(props: Props, user: SessionUser, ctx: PeopleCtx) {
       if (id) notFound();
       if (!ctx.viewer.hr) return hrOnly();
       const [report, audit, saved, fields, facets] = await Promise.all([peopleReport(ctx), listAudit(ctx, 100), listSavedReports(ctx), listFields(ctx.ws), directoryFacets(ctx)]);
-      return <Reports report={report} audit={audit} canExport={ctx.viewer.comp === true} custom={<CustomReports saved={saved} customFields={fields.map((f) => ({ id: f.id, label: f.label, sensitive: f.sensitive }))} departments={facets.departments} locations={facets.locations} openId={sp.report ?? null} />} />;
+      return <Reports report={report} audit={audit} canExport={ctx.viewer.comp === true} custom={<CustomReports saved={saved} customFields={fields.map((f) => ({ id: f.id, label: f.label, sensitive: f.sensitive }))} departments={facets.departments} locations={facets.locations} openId={sp.report ?? null} canSeePay={ctx.viewer.comp === true} />} />;
     }
     case 'settings': {
       if (id) notFound();

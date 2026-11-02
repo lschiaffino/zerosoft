@@ -78,5 +78,6 @@
   "workspaceChangeAsk": "Ask {who} if you have questions.",
   "roleNameAdmin": "Admin",
   "roleNameMember": "Member",
-  "roleNameGuest": "Guest"
+  "roleNameGuest": "Guest",
+  "peopleHireUndone": "The hire of {name} was undone: their profile is still in People"
 }
