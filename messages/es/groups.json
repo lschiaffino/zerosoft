@@ -59,8 +59,8 @@
     "waiting": "Esperando {time}",
     "unread": "{n} sin leer",
     "showing": "Mostrando {shown} de {total}. Buscá o filtrá para acotar.",
-    "noNumbersTitle": "Conectá un número de WhatsApp",
-    "noNumbersBody": "Vinculá un número con la Cloud API oficial de WhatsApp o escaneá un QR con tu gateway WAHA o Evolution API. Los chats y grupos aparecen acá.",
+    "noNumbersTitle": "Tu bandeja de WhatsApp está vacía",
+    "noNumbersBody": "Cargá datos de ejemplo para recorrer la bandeja sin conectar nada. Cuando quieras, conectá tu número con la Cloud API de Meta o con tu propio servidor WAHA o Evolution API.",
     "connect": "Conectar un número",
     "pickTitle": "Elegí un chat",
     "keysNav": "Chat siguiente y anterior",
@@ -80,7 +80,11 @@
     "keysUnread": "Leído o no leído",
     "keysPin": "Fijar el chat",
     "keysTranslate": "Traducir mensajes",
-    "keysSelect": "Seleccionar para una acción en masa"
+    "keysSelect": "Seleccionar para una acción en masa",
+    "noNumbersBodyQr": "Escaneá un QR con tu teléfono y en un minuto ves tus chats y grupos acá. Si preferís mirar primero, cargá datos de ejemplo.",
+    "scanQr": "Escanear QR",
+    "pendingBanner": "Tu número todavía no está conectado.",
+    "finishConnect": "Terminar de conectar"
   },
   "filters": {
     "all": "Abiertos",
@@ -189,7 +193,8 @@
     "toCustomerLang": "Idioma del cliente ({lang})",
     "noteHint": "Escribí @ para mencionar a alguien. Le llega un aviso.",
     "task": "Tarea",
-    "question": "Pide respuesta"
+    "question": "Pide respuesta",
+    "fileUnavailable": "No disponible"
   },
   "status": {
     "pending": "Enviando",
@@ -240,7 +245,11 @@
     "remove": "Quitar de Groups",
     "removeTitle": "¿Quitar este chat de Groups?",
     "removeBody": "Sus mensajes, notas y etiquetas se borran acá. El chat o grupo sigue en WhatsApp y un mensaje nuevo lo trae de vuelta.",
-    "removeConfirm": "Quitar"
+    "removeConfirm": "Quitar",
+    "description": "Descripción",
+    "descriptionPlaceholder": "De qué se trata el grupo",
+    "descriptionHelp": "Se cambia también en WhatsApp.",
+    "sampleInvite": "Es un grupo de ejemplo: no tiene un link de invitación real."
   },
   "roles": {
     "member": "Miembro",
@@ -251,7 +260,7 @@
     "title": "Grupos",
     "desc": "Todos los grupos de WhatsApp de tus números, con miembros, etiquetas y propiedades.",
     "noNumbersTitle": "Todavía no hay números",
-    "noNumbersBody": "Conectá un número de WhatsApp para crear y administrar grupos.",
+    "noNumbersBody": "Conectá un número de WhatsApp para crear y administrar grupos, o cargá datos de ejemplo para probar.",
     "search": "Buscar por nombre",
     "importCsv": "Importar CSV",
     "new": "Nuevo grupo",
@@ -296,7 +305,7 @@
     "participants": "{n, plural, one {# participante} other {# participantes}}",
     "lineError": "Línea {line}: {error}",
     "create": "Crear {n, plural, one {# grupo} other {# grupos}}",
-    "done": "Se crearon {ok} de {total} grupos.",
+    "done": "{total, plural, one {Se creó {ok} de # grupo.} other {Se crearon {ok} de # grupos.}}",
     "ok": "Listo",
     "notAdded": "{n} sin agregar, mandá el link"
   },
@@ -531,7 +540,7 @@
     "qrAlt": "Código QR para vincular WhatsApp",
     "qr1": "Abrí WhatsApp en el teléfono.",
     "qr2": "Andá a Ajustes, Dispositivos vinculados, Vincular un dispositivo.",
-    "qr3": "Escaneá este código. Esta pantalla se actualiza sola.",
+    "qr3": "Escaneá este código con el teléfono.",
     "webhookUrl": "URL del webhook",
     "webhookCloud": "Pegala en tu app de Meta (WhatsApp, Configuración) con el mismo token de verificación y suscribite a mensajes.",
     "webhookBridge": "La registramos en tu gateway al conectar. Lleva un secreto: no la compartas.",
@@ -542,7 +551,16 @@
     "newQr": "Pedir un QR nuevo",
     "disconnectedBanner": "La sesión está desconectada. Pedí un QR nuevo y escanealo desde el teléfono para volver a vincular el número.",
     "disconnectTitle": "¿Desconectar {name}?",
-    "disconnectBody": "Los chats y el historial quedan. Los mensajes nuevos dejan de llegar hasta que vuelvas a conectar el número."
+    "disconnectBody": "Los chats y el historial quedan. Los mensajes nuevos dejan de llegar hasta que vuelvas a conectar el número.",
+    "showQr": "Mostrar QR",
+    "recommended": "Recomendado",
+    "advanced": "Conexión avanzada",
+    "managedTips": "Para probar, usá un número de prueba y no sumes muchos desconocidos de golpe: WhatsApp puede restringir números que se usan así.",
+    "syncing": "Trayendo tus grupos...",
+    "syncedAuto": "{n, plural, =0 {Todavía no hay grupos en este número.} one {Trajimos # grupo.} other {Trajimos # grupos.}}",
+    "openInbox": "Ir a la bandeja",
+    "deleteBodyManaged": "Sus chats, grupos, mensajes y tickets se borran de Groups y se cierra la sesión vinculada en el teléfono.",
+    "adminOnly": "Solo los admins del workspace agregan, conectan y borran números."
   },
   "providers": {
     "cloud": {
@@ -551,15 +569,23 @@
     },
     "waha": {
       "name": "WAHA (QR)",
-      "desc": "Gateway propio. Grupos, miembros, admins y links de invitación."
+      "desc": "Gateway propio que administra grupos, con sus miembros y links de invitación."
     },
     "evolution": {
       "name": "Evolution API (QR)",
-      "desc": "Gateway propio. Grupos, miembros, admins y links de invitación."
+      "desc": "Gateway propio que administra grupos, con sus miembros y links de invitación."
     },
     "fake": {
       "name": "Número de demo",
       "desc": "Un número de prueba que nunca habla con WhatsApp. Solo en entornos de demo y de test."
+    },
+    "managed": {
+      "name": "Escanear QR",
+      "desc": "Vinculá tu WhatsApp desde el teléfono, como en WhatsApp Web, y administrá tus grupos desde acá."
+    },
+    "sample": {
+      "name": "Datos de ejemplo",
+      "desc": "Chats y grupos de ejemplo. Nada sale a WhatsApp."
     }
   },
   "numberStatus": {
@@ -801,7 +827,8 @@
     "push_failed": "No se pudieron activar los avisos en este navegador.",
     "invalid_label": "Etiqueta inválida.",
     "missing_variables": "Completá todas las variables de la plantilla.",
-    "missing_tree": "Escribí las opciones, una por línea."
+    "missing_tree": "Escribí las opciones, una por línea.",
+    "bridge_unavailable": "El servidor de conexión por QR no está configurado. Volvé a intentar cuando esté disponible."
   },
   "media": {
     "image": "Imagen",
@@ -984,7 +1011,9 @@
     "extraPhones": "Participantes extra (opcional)",
     "csvHelp": "Primera fila con las columnas: {columns}. Un grupo por fila, hasta 50.",
     "sameName": "El de la plantilla",
-    "varRequired": "Obligatoria"
+    "varRequired": "Obligatoria",
+    "exampleVar": "empresa",
+    "exampleSuffix": "Soporte"
   },
   "lists": {
     "sidebar": "Listas guardadas",
@@ -1353,5 +1382,21 @@
     "modePoll": "Encuesta",
     "unsupported": "Este número usa la Cloud API de Meta, que no tiene encuestas. Mandala desde un número WAHA o Evolution.",
     "badge": "encuesta"
+  },
+  "sample": {
+    "badge": "Ejemplo",
+    "load": "Probar con datos de ejemplo",
+    "loading": "Cargando ejemplo...",
+    "askAdmin": "Pedile a un admin del workspace que conecte un número o cargue datos de ejemplo.",
+    "banner": "Datos de ejemplo: lo que mandes no sale a WhatsApp.",
+    "clear": "Borrar datos de ejemplo",
+    "clearTitle": "¿Borrar los datos de ejemplo?",
+    "clearBody": "Se borran el número de ejemplo con sus chats, grupos, mensajes, tickets, tareas y envíos. Lo tuyo no se toca.",
+    "composerNote": "Número de ejemplo: el mensaje queda como enviado y no sale a WhatsApp."
+  },
+  "notFound": {
+    "title": "Esto ya no está en Groups",
+    "body": "El chat, grupo o ticket se borró o ya no tenés acceso.",
+    "action": "Ir a la bandeja"
   }
 }

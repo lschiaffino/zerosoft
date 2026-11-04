@@ -174,7 +174,7 @@ export async function saveOnboarding(user: Pick<UserRow, 'id' | 'name' | 'email'
   });
   if (input.sampleData) {
     const { seedUserIfNeeded } = await import('./seed');
-    await seedUserIfNeeded(user.id);
+    await seedUserIfNeeded(user.id, { groups: true });
   }
   return profile;
 }

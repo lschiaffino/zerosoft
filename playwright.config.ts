@@ -54,6 +54,9 @@ export default defineConfig({
       CRM_ENRICH_FAKE: '1',
       // Groups contra el proveedor de WhatsApp falso (lib/groups-provider-fake.ts): nada sale a WhatsApp.
       GROUPS_FAKE: '1',
+      // QR administrado contra un Evolution API simulado que levanta tests/e2e/groups-start.spec.ts en PORT + 31.
+      GROUPS_BRIDGE_URL: `http://127.0.0.1:${PORT + 31}`,
+      GROUPS_BRIDGE_KEY: 'e2e-bridge-global-key',
       // IA de Groups contra el modelo falso: marcado de preguntas sin responder
       // (lib/groups-flag.ts), traducción y borradores (lib/groups-ai.ts); con la
       // cookie groups_ai_fake=off se ve el error ai_disabled.

@@ -64,6 +64,10 @@ test('conectar un número por QR desde Ajustes', async ({ page }) => {
   await page.goto('/en/app/groups/settings?tab=numbers&new=1', { waitUntil: 'networkidle' });
   const dialog = page.getByRole('dialog', { name: 'Add a WhatsApp number' });
   await expect(dialog).toBeVisible();
+  // El QR administrado va primero; las credenciales propias, bajo "Conexión avanzada".
+  await expect(dialog.getByLabel(/Scan QR code/)).toBeChecked();
+  await dialog.getByText('Advanced connection').click();
+  await dialog.getByLabel(/WAHA \(QR\)/).check();
   // El modo puente avisa el riesgo; el oficial, sus límites con grupos.
   await expect(dialog.getByText(/unofficial WhatsApp Web session/)).toBeVisible();
   await dialog.getByLabel(/WhatsApp Cloud API \(official\)/).check();

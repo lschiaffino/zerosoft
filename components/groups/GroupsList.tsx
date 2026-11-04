@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
+import GetStarted from './GetStarted';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ChatDto, LabelDto, NumberDto, PropertyDef } from '@/lib/groups';
 import { PropertyValueText, filterOptions } from './PropertyInput';
@@ -40,8 +41,13 @@ export default function GroupsList({
   properties,
   openNew,
   initial,
+  managed = false,
+  canEdit = true,
 }: {
   initial: ChatDto[];
+  /** QR administrado disponible y si la persona puede agregar números (estado vacío). */
+  managed?: boolean;
+  canEdit?: boolean;
   numbers: NumberDto[];
   labels: LabelDto[];
   properties: PropertyDef[];
@@ -132,8 +138,8 @@ export default function GroupsList({
     return (
       <EmptyState
         title={t('list.noNumbersTitle')}
-        body={t('list.noNumbersBody')}
-        action={{ label: t('inbox.connect'), href: '/app/groups/settings?tab=numbers&new=1' }}
+        body={canEdit ? t('list.noNumbersBody') : t('sample.askAdmin')}
+        action={canEdit ? <GetStarted managed={managed} canEdit /> : undefined}
         product="groups"
       />
     );

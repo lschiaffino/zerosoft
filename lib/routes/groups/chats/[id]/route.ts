@@ -51,7 +51,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
 /** Saca el chat de Groups (el grupo sigue en WhatsApp). */
 export async function DELETE(_req: Request, ctx: Ctx) {
-  const s = await groupsSession({ write: true });
+  // Quitar un chat de Groups (con su historial) es de admins, como los números (docs/permissions.md).
+  const s = await groupsSession({ write: true, admin: true });
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
   const guard = await chatGuard(s, id);

@@ -134,7 +134,15 @@ export function Modal({
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) {
+      d.showModal();
+      // Abierto con un atajo (C, N...): el foco va al primer campo, no queda en la página.
+      requestAnimationFrame(() => {
+        if (d.contains(document.activeElement) && document.activeElement !== d) return;
+        const first = d.querySelector<HTMLElement>('.ui-modal-body [autofocus], .ui-modal-body input:not([type=hidden]):not([disabled]), .ui-modal-body textarea, .ui-modal-body select, .ui-modal-body button, .ui-modal-foot button');
+        first?.focus();
+      });
+    }
     if (!open && d.open) d.close();
   }, [open]);
   const submit = (e: FormEvent) => {
@@ -224,4 +232,40 @@ export function LabelTag({ name, color }: { name: string; color: string }) {
       {name}
     </span>
   );
+}
+
+/**
+ * Cambio de chat en curso: desde el clic (o J/K) hasta que el chat nuevo se
+ * monta, el composer del chat que se deja no acepta texto ni envíos. Así un
+ * mensaje nunca sale al chat anterior.
+ */
+let switchingTo: string | null = null;
+let switchTimer: ReturnType<typeof setTimeout> | null = null;
+const SWITCH_EVENT = 'gr-chat-switch';
+
+export function markChatSwitch(chatId: string | null): void {
+  if (typeof window === 'undefined') return;
+  switchingTo = chatId;
+  if (switchTimer) clearTimeout(switchTimer);
+  // Si la navegación no llega (error, cancelada), el composer vuelve a andar.
+  if (chatId) switchTimer = setTimeout(() => markChatSwitch(null), 10_000);
+  window.dispatchEvent(new Event(SWITCH_EVENT));
+}
+
+/** El chat `chatId` se está dejando por otro. */
+export function isLeavingChat(chatId: string): boolean {
+  return switchingTo !== null && switchingTo !== chatId;
+}
+
+export function useLeavingChat(chatId: string): boolean {
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    // Este chat ya se montó: si era el destino, el cambio terminó.
+    if (switchingTo === chatId) markChatSwitch(null);
+    const sync = () => setLeaving(isLeavingChat(chatId));
+    sync();
+    window.addEventListener(SWITCH_EVENT, sync);
+    return () => window.removeEventListener(SWITCH_EVENT, sync);
+  }, [chatId]);
+  return leaving;
 }

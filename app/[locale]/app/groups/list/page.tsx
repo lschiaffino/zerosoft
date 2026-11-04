@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
+import { managedAvailable } from '@/lib/groups-provider-managed';
 import { listChats, listLabels, listNumbers, listPropertyDefs } from '@/lib/groups';
 import { pageViewer } from '@/lib/groups-page';
 import PageHeader from '@/components/ui/PageHeader';
@@ -30,6 +31,8 @@ export default async function GroupsListPage(props: { params: Promise<{ locale: 
         labels={labels.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
         properties={properties}
         openNew={sp.new === '1'}
+        managed={managedAvailable()}
+        canEdit={isWorkspaceAdmin(user)}
       />
     </div>
   );
