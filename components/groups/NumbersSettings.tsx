@@ -47,9 +47,15 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
   const [numbers, setNumbers] = useState(initial);
   const [adding, setAdding] = useState(openNew && canEdit);
   const [connecting, setConnecting] = useState<NumberDto | null>(null);
+  // Número recién agregado: si se cierra el QR sin escanear, no queda uno "esperando".
+  const [freshId, setFreshId] = useState<string | null>(null);
   const [removing, setRemoving] = useState<NumberDto | null>(null);
   const [disconnecting, setDisconnecting] = useState<NumberDto | null>(null);
   const [editing, setEditing] = useState<NumberDto | null>(null);
+
+  const syncStatus = useCallback((id: string, status: ConnectState['status']) => {
+    setNumbers((list) => (list.some((x) => x.id === id && x.status !== status) ? list.map((x) => (x.id === id ? { ...x, status } : x)) : list));
+  }, []);
 
   const reload = useCallback(async () => {
     const res = await api<{ numbers: NumberDto[] }>('/api/groups/numbers');
@@ -84,6 +90,7 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
     <div className="ui-fields">
       <div className="gr-detail-head">
         <p className="ui-help">{t('numbers.intro')}</p>
+        {!canEdit && <p className="ui-help">{t('numbers.adminOnly')}</p>}
         {canEdit && (
           <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
             {t('numbers.add')}
@@ -155,14 +162,23 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
           setAdding(false);
           setEditing(null);
           void reload();
-          if (isNew) setConnecting(n);
-          else showToast(t('common.saved'));
+          if (isNew) {
+            setFreshId(n.id);
+            setConnecting(n);
+          } else showToast(t('common.saved'));
         }}
       />
       <ConnectModal
         number={connecting}
-        onClose={() => {
+        onStatus={syncStatus}
+        onClose={async (connected) => {
+          const n = connecting;
           setConnecting(null);
+          setFreshId(null);
+          // QR administrado sin escanear: se borra el número y su instancia en el servidor.
+          if (n && !connected && n.id === freshId && n.provider === 'managed') {
+            await api(`/api/groups/numbers/${n.id}`, { method: 'DELETE' });
+          }
           void reload();
           router.refresh();
         }}
@@ -338,7 +354,15 @@ function ProviderOption({ p, provider, setProvider }: { p: ProviderKind; provide
 /** WhatsApp cambia el QR cada ~20 s; si nadie lo escanea en 2 minutos, se pide uno nuevo a mano. */
 const QR_STALE_MS = 120_000;
 
-function ConnectModal({ number, onClose }: { number: NumberDto | null; onClose: () => void }) {
+function ConnectModal({
+  number,
+  onClose: close,
+  onStatus,
+}: {
+  number: NumberDto | null;
+  onClose: (connected: boolean) => void;
+  onStatus: (id: string, status: ConnectState['status']) => void;
+}) {
   const t = useTranslations('groups');
   const router = useRouter();
   const errText = useErrorText();
@@ -354,6 +378,12 @@ function ConnectModal({ number, onClose }: { number: NumberDto | null; onClose: 
   const managed = number?.provider === 'managed';
   const [synced, setSynced] = useState<{ busy: boolean; n: number | null; error: string }>({ busy: false, n: null, error: '' });
   const syncStarted = useRef(false);
+  const onClose = () => close(state?.status === 'connected');
+  // La fila de la lista (detrás del diálogo) sigue el mismo estado.
+  const status = state?.status;
+  useEffect(() => {
+    if (number && status) onStatus(number.id, status);
+  }, [number, status, onStatus]);
 
   useEffect(() => {
     if (!number) return;

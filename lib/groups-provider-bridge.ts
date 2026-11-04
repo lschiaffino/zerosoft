@@ -13,7 +13,7 @@
  * La URL del gateway pasa por safeFetch (sin hosts privados) salvo en
  * self-host con ALLOW_PRIVATE_WEBHOOKS=true. Los errores no llevan la key.
  */
-import { safeFetch, UnsafeUrlError } from './safe-fetch';
+import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
 import {
   PROVIDER_CAPS,
   ProviderError,
@@ -51,13 +51,18 @@ function baseOf(cfg: BridgeConfig): string {
   return base;
 }
 
+/** Tope de una respuesta común del gateway (listas de grupos, estados, QR). */
+export const BRIDGE_MAX_RESPONSE = 5 * 1024 * 1024;
+
 export async function bridgeRequest(
   fetchImpl: FetchLike,
   url: string,
   headers: Record<string, string>,
   method: string,
   body?: unknown,
+  opts: { maxBytes?: number } = {},
 ): Promise<unknown> {
+  const maxBytes = opts.maxBytes ?? BRIDGE_MAX_RESPONSE;
   let res: Response;
   try {
     res = await fetchImpl(url, {
@@ -69,8 +74,17 @@ export async function bridgeRequest(
     if (err instanceof UnsafeUrlError) throw new ProviderError('invalid_config');
     throw new ProviderError('unreachable');
   }
-  if (!res.ok) throw errorFromStatus(res.status);
-  const text = await res.text().catch(() => '');
+  if (!res.ok) {
+    await res.body?.cancel().catch(() => {});
+    throw errorFromStatus(res.status);
+  }
+  // Se corta mientras se lee: ni el content-length ni el cuerpo pueden pasar el tope.
+  if (Number(res.headers.get('content-length') ?? 0) > maxBytes) {
+    await res.body?.cancel().catch(() => {});
+    throw new ProviderError('provider_error', 413);
+  }
+  const text = await readTextCapped(res, maxBytes + 1).catch(() => '');
+  if (Buffer.byteLength(text) > maxBytes) throw new ProviderError('provider_error', 413);
   if (!text) return {};
   try {
     return JSON.parse(text);
@@ -652,7 +666,7 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
                 name: content.media.name,
                 // Más grande que el tope: queda el tipo y el nombre, sin bajarlo.
                 ...(content.media.size <= MAX_INBOUND_MEDIA
-                  ? { fetchRef: { providerMessageId: id, chatId, fromMe, raw: { key, message: m.message } } }
+                  ? { fetchRef: { providerMessageId: id, chatId: String(key.remoteJid ?? chatId), fromMe } }
                   : {}),
               }
             : undefined,
@@ -736,18 +750,24 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
 }
 
 /**
- * Un archivo recibido por Evolution: getBase64FromMediaMessage con el mensaje
- * completo (el gateway lo descifra sin buscarlo) o, si no llegó, solo la key
- * (el gateway lo busca en su base). Corta antes de decodificar si pasa el tope.
+ * Un archivo recibido por Evolution: getBase64FromMediaMessage con solo la
+ * key del mensaje (el gateway lo busca en su base y lo descifra). Nada del
+ * mensaje que llegó por el webhook se reenvía. La respuesta se lee con tope
+ * (base64 del máximo más un margen) y se vuelve a medir al decodificar.
  */
 async function evolutionMedia(
-  api: (path: string, method?: string, body?: unknown) => Promise<unknown>,
+  api: (path: string, method?: string, body?: unknown, o?: { maxBytes?: number }) => Promise<unknown>,
   instance: string,
   ref: MediaRef,
   maxBytes: number,
 ): Promise<FetchedMedia> {
-  const message = ref.raw ?? { key: { id: ref.providerMessageId, remoteJid: ref.chatId, fromMe: ref.fromMe } };
-  const r = (await api(`/chat/getBase64FromMediaMessage/${instance}`, 'POST', { message, convertToMp4: false })) as Json;
+  const message = { key: { id: ref.providerMessageId, remoteJid: ref.chatId, fromMe: ref.fromMe } };
+  const r = (await api(
+    `/chat/getBase64FromMediaMessage/${instance}`,
+    'POST',
+    { message, convertToMp4: false },
+    { maxBytes: Math.ceil((maxBytes * 4) / 3) + 64 * 1024 },
+  )) as Json;
   const b64 = typeof r.base64 === 'string' ? r.base64.replace(/^data:[^,]*,/, '') : '';
   if (!b64) throw new ProviderError('not_found');
   if (Math.floor((b64.length * 3) / 4) > maxBytes) throw new ProviderError('provider_error', 413);
@@ -760,7 +780,8 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
   const f = opts.fetch ?? defaultBridgeFetch;
   const instance = encodeURIComponent(cfg.session || 'zerosoft');
   const headers = { apikey: cfg.apiKey ?? '' };
-  const api = (path: string, method = 'GET', body?: unknown) => bridgeRequest(f, `${baseOf(cfg)}${path}`, headers, method, body);
+  const api = (path: string, method = 'GET', body?: unknown, o?: { maxBytes?: number }) =>
+    bridgeRequest(f, `${baseOf(cfg)}${path}`, headers, method, body, o);
   const q = (groupId: string) => `?groupJid=${encodeURIComponent(groupId)}`;
 
   async function qr(): Promise<string | undefined> {

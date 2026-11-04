@@ -8500,6 +8500,19 @@ export const MIGRATIONS: Migration[] = [
       ]);
     },
   },
+  {
+    // Groups: instancias del QR administrado que no se pudieron borrar al
+    // quitar el número. /api/cron/tick las reintenta con un claim por fila.
+    id: '192_groups_bridge_tombstones',
+    async up(client) {
+      await client.execute(`CREATE TABLE IF NOT EXISTS groups_bridge_tombstones (
+        instance TEXT PRIMARY KEY,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        claimed_until TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

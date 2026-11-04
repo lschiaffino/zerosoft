@@ -26,16 +26,17 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   // Evolution: el archivo no se pudo guardar al llegar. Se baja ahora, se guarda y se redirige ahí.
   if (msg.media_url.startsWith('evo:') && (number.provider === 'evolution' || number.provider === 'managed') && chat) {
     try {
-      const url = await storeInboundMedia(number, msg.id, {
+      const stored = await storeInboundMedia(number, msg.id, {
         providerMessageId: msg.media_url.slice(4),
         chatId: chat.provider_chat_id,
         fromMe: msg.direction === 'out',
       });
       // Otro pedido pudo guardarlo recién: se usa lo que quedó.
-      const saved = url ?? (await getMessageRow(s.ws, msg.id))?.media_url ?? '';
+      const saved = stored?.url ?? (await getMessageRow(s.ws, msg.id))?.media_url ?? '';
       if (!saved || saved.startsWith('evo:')) return groupsError(404, 'not_found');
       return NextResponse.redirect(new URL(saved, _req.url), 302);
     } catch {
+      // Si quedó marcado como definitivo, la próxima vez ya no se pide.
       return groupsError(502, 'provider_error');
     }
   }

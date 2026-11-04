@@ -143,7 +143,7 @@ test('QR administrado: escanear, traer grupos solo, recibir y responder, borrar 
     // El webhook lo registramos nosotros: no se muestra.
     await expect(connect.getByLabel('Webhook URL')).toHaveCount(0);
     await expect(connect.getByText(/^Connected/)).toBeVisible({ timeout: 20_000 });
-    await expect(connect.getByText('We brought in 1 group. New chats arrive in the inbox on their own.')).toBeVisible({ timeout: 15_000 });
+    await expect(connect.getByText('We brought in 1 group.')).toBeVisible({ timeout: 15_000 });
 
     // Alta con la clave global; todo lo demás con el token de la instancia, nunca la global.
     const create = hits.find((h) => h.path === '/instance/create')!;
@@ -184,6 +184,116 @@ test('QR administrado: escanear, traer grupos solo, recibir y responder, borrar 
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
     await expect.poll(() => hits.some((h) => h.method === 'DELETE' && h.path === `/instance/delete/${instance}` && h.apikey === GLOBAL_KEY)).toBe(true);
     await expect(page.locator('.gr-number')).toHaveCount(0);
+  } finally {
+    await ctx.close();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+type Chat = { id: string; name: string; kind: string };
+async function chatsOf(ctx: BrowserContext): Promise<Chat[]> {
+  const res = await ctx.request.get('/api/groups/chats?limit=100');
+  return ((await res.json()) as { rows: Chat[] }).rows;
+}
+async function bodiesOf(ctx: BrowserContext, chatId: string): Promise<string[]> {
+  const res = await ctx.request.get(`/api/groups/chats/${chatId}/messages`);
+  return ((await res.json()) as { messages: Array<{ body: string }> }).messages.map((m) => m.body);
+}
+
+test('cambiar de chat y mandar enseguida nunca manda al chat anterior', async ({ browser, baseURL }) => {
+  const { ctx } = await newPerson(browser, baseURL!);
+  const page = await ctx.newPage();
+  try {
+    await ctx.request.post('/api/groups/sample', { data: { locale: 'en' } });
+    const chats = await chatsOf(ctx);
+    const lucia = chats.find((c) => c.name === 'Lucía Fernández')!;
+    const pablo = chats.find((c) => c.name === 'Pablo Ortiz')!;
+    await page.goto(`/en/app/groups/inbox/${lucia.id}`, { waitUntil: 'networkidle' });
+    await expect(page.getByRole('heading', { level: 2, name: 'Lucía Fernández' })).toBeVisible();
+    const text = `Para Pablo ${uid()}`;
+    // Clic en otro chat y a escribir sin esperar: lo que se escribe nunca termina en el chat que se deja.
+    await page.locator('.gr-row', { hasText: 'Pablo Ortiz' }).click();
+    const composer = page.getByLabel('WhatsApp', { exact: true });
+    await composer.fill(text);
+    await composer.press('Enter');
+    await expect(page.getByRole('heading', { level: 2, name: 'Pablo Ortiz' })).toBeVisible();
+    await page.waitForTimeout(1500);
+    expect(await bodiesOf(ctx, lucia.id)).not.toContain(text);
+    // Si llegó a mandarse, fue a Pablo; si no, quedó como borrador del chat donde se escribió (no se perdió).
+    if (!(await bodiesOf(ctx, pablo.id)).includes(text)) {
+      await page.goto(`/en/app/groups/inbox/${lucia.id}`, { waitUntil: 'networkidle' });
+      await expect(page.getByLabel('WhatsApp', { exact: true })).toHaveValue(text);
+    }
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('abrir un chat con una imagen deja a la vista el último mensaje', async ({ browser, baseURL }) => {
+  const { ctx } = await newPerson(browser, baseURL!);
+  const page = await ctx.newPage();
+  try {
+    await ctx.request.post('/api/groups/sample', { data: { locale: 'en' } });
+    const acme = (await chatsOf(ctx)).find((c) => c.name === 'Acme · Rollout')!;
+    await page.goto(`/en/app/groups/inbox/${acme.id}`, { waitUntil: 'networkidle' });
+    await expect(page.locator('.gr-media img')).toBeVisible();
+    await expect
+      .poll(() => page.locator('.gr-messages').evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight), { timeout: 5000 })
+      .toBeLessThan(30);
+    await expect(page.locator('.gr-messages').getByText('When can we schedule the team training?')).toBeInViewport();
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('descripción del grupo: se ve, se edita y queda; sumar un miembro actualiza el encabezado', async ({ browser, baseURL }) => {
+  const { ctx } = await newPerson(browser, baseURL!);
+  const page = await ctx.newPage();
+  try {
+    await ctx.request.post('/api/groups/sample', { data: { locale: 'en' } });
+    const acme = (await chatsOf(ctx)).find((c) => c.name === 'Acme · Rollout')!;
+    await page.goto(`/en/app/groups/list/${acme.id}`, { waitUntil: 'networkidle' });
+    const field = page.getByLabel('Description', { exact: true });
+    await expect(field).toHaveValue('Acme rollout. Questions, progress and files.');
+    const next = `Rollout notes ${uid()}`;
+    await field.fill(next);
+    await page.locator('.gr-detail-section', { has: field }).getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Saved')).toBeVisible();
+    await page.reload({ waitUntil: 'networkidle' });
+    await expect(page.getByLabel('Description', { exact: true })).toHaveValue(next);
+    await expect(page.getByText('4 members').first()).toBeVisible();
+    await page.getByPlaceholder(/Phones to add/).fill('+54 9 11 5555 0101');
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await expect(page.locator('.ui-page-header').getByText('5 members')).toBeVisible();
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('cerrar el QR sin escanear no deja un número esperando; un número sin conectar ofrece terminar o probar el ejemplo', async ({ browser, baseURL }) => {
+  const { server, hits } = startEvolution();
+  await new Promise<void>((resolve) => server.listen(PORT + 31, '127.0.0.1', () => resolve()));
+  const { ctx } = await newPerson(browser, baseURL!);
+  const page = await ctx.newPage();
+  try {
+    await page.goto('/en/app/groups/settings?tab=numbers&new=1', { waitUntil: 'networkidle' });
+    await page.getByRole('dialog', { name: 'Add a WhatsApp number' }).getByRole('button', { name: 'Show QR code' }).click();
+    const connect = page.getByRole('dialog', { name: /^Connect / });
+    await expect(connect.getByRole('img', { name: 'QR code to link WhatsApp' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(connect).toBeHidden();
+    await expect.poll(async () => ((await (await ctx.request.get('/api/groups/numbers')).json()) as { numbers: unknown[] }).numbers.length).toBe(0);
+    const instance = String(hits.find((h) => h.path === '/instance/create')?.body?.instanceName);
+    await expect.poll(() => hits.some((h) => h.method === 'DELETE' && h.path === `/instance/delete/${instance}`)).toBe(true);
+    await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+    await expect(page.getByRole('button', { name: 'Try with sample data' })).toBeVisible();
+
+    // Un número agregado que nunca conectó (credenciales propias): la bandeja lo dice y ofrece seguir.
+    await ctx.request.post('/api/groups/numbers', { data: { provider: 'fake', name: `Pending ${uid()}` } });
+    await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+    await expect(page.getByText('Your number is not connected yet.')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Finish connecting' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Try with sample data' })).toBeVisible();
   } finally {
     await ctx.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));

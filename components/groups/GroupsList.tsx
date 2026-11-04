@@ -138,8 +138,8 @@ export default function GroupsList({
     return (
       <EmptyState
         title={t('list.noNumbersTitle')}
-        body={t('list.noNumbersBody')}
-        action={<GetStarted managed={managed} canEdit={canEdit} />}
+        body={canEdit ? t('list.noNumbersBody') : t('sample.askAdmin')}
+        action={canEdit ? <GetStarted managed={managed} canEdit /> : undefined}
         product="groups"
       />
     );

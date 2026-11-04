@@ -82,7 +82,9 @@
     "keysTranslate": "Translate messages",
     "keysSelect": "Select for a bulk action",
     "noNumbersBodyQr": "Scan a QR code with your phone and your chats and groups show up here in about a minute. If you want to look around first, load sample data.",
-    "scanQr": "Scan QR code"
+    "scanQr": "Scan QR code",
+    "pendingBanner": "Your number is not connected yet.",
+    "finishConnect": "Finish connecting"
   },
   "filters": {
     "all": "Open",
@@ -191,7 +193,8 @@
     "toCustomerLang": "Customer's language ({lang})",
     "noteHint": "Type @ to mention someone. They get a notification.",
     "task": "Task",
-    "question": "Needs reply"
+    "question": "Needs reply",
+    "fileUnavailable": "Not available"
   },
   "status": {
     "pending": "Sending",
@@ -242,7 +245,11 @@
     "remove": "Remove from Groups",
     "removeTitle": "Remove this chat from Groups?",
     "removeBody": "Its messages, notes and labels are deleted here. The chat or group stays in WhatsApp, and a new message brings it back.",
-    "removeConfirm": "Remove"
+    "removeConfirm": "Remove",
+    "description": "Description",
+    "descriptionPlaceholder": "What the group is about",
+    "descriptionHelp": "It also changes in WhatsApp.",
+    "sampleInvite": "This is a sample group: it has no real invite link."
   },
   "roles": {
     "member": "Member",
@@ -298,7 +305,7 @@
     "participants": "{n, plural, one {# participant} other {# participants}}",
     "lineError": "Line {line}: {error}",
     "create": "Create {n, plural, one {# group} other {# groups}}",
-    "done": "{ok} of {total} groups created.",
+    "done": "{total, plural, one {{ok} of # group created.} other {{ok} of # groups created.}}",
     "ok": "Done",
     "notAdded": "{n} not added, send the link"
   },
@@ -533,7 +540,7 @@
     "qrAlt": "QR code to link WhatsApp",
     "qr1": "Open WhatsApp on the phone.",
     "qr2": "Go to Settings, Linked devices, Link a device.",
-    "qr3": "Scan this code. This screen updates by itself.",
+    "qr3": "Scan this code with your phone.",
     "webhookUrl": "Webhook URL",
     "webhookCloud": "Paste it in your Meta app (WhatsApp, Configuration) with the same verify token, and subscribe to messages.",
     "webhookBridge": "We registered it in your gateway when connecting. It carries a secret: do not share it.",
@@ -550,9 +557,10 @@
     "advanced": "Advanced connection",
     "managedTips": "While testing, use a test number and avoid adding many strangers at once: WhatsApp can restrict numbers used that way.",
     "syncing": "Bringing in your groups...",
-    "syncedAuto": "{n, plural, =0 {No groups on this number yet. New chats arrive in the inbox on their own.} one {We brought in # group. New chats arrive in the inbox on their own.} other {We brought in # groups. New chats arrive in the inbox on their own.}}",
+    "syncedAuto": "{n, plural, =0 {No groups on this number yet.} one {We brought in # group.} other {We brought in # groups.}}",
     "openInbox": "Go to inbox",
-    "deleteBodyManaged": "Its chats, groups, messages and tickets are deleted from Groups and the linked session on the phone is logged out."
+    "deleteBodyManaged": "Its chats, groups, messages and tickets are deleted from Groups and the linked session on the phone is logged out.",
+    "adminOnly": "Only workspace admins add, connect and delete numbers."
   },
   "providers": {
     "cloud": {
@@ -561,11 +569,11 @@
     },
     "waha": {
       "name": "WAHA (QR)",
-      "desc": "Self-hosted gateway. Groups, members, admins and invite links."
+      "desc": "Your own gateway that manages groups, with their members and invite links."
     },
     "evolution": {
       "name": "Evolution API (QR)",
-      "desc": "Self-hosted gateway. Groups, members, admins and invite links."
+      "desc": "Your own gateway that manages groups, with their members and invite links."
     },
     "fake": {
       "name": "Demo number",
@@ -573,7 +581,7 @@
     },
     "managed": {
       "name": "Scan QR code",
-      "desc": "Link your WhatsApp from your phone, like WhatsApp Web. Groups, members and invite links."
+      "desc": "Link your WhatsApp from your phone, like WhatsApp Web, and manage your groups from here."
     },
     "sample": {
       "name": "Sample data",
@@ -819,7 +827,8 @@
     "push_failed": "Could not turn on notifications in this browser.",
     "invalid_label": "Invalid label.",
     "missing_variables": "Fill in every template variable.",
-    "missing_tree": "Write the options, one per line."
+    "missing_tree": "Write the options, one per line.",
+    "bridge_unavailable": "The QR connection server is not configured. Try again once it is available."
   },
   "media": {
     "image": "Image",
@@ -1002,7 +1011,9 @@
     "extraPhones": "Extra participants (optional)",
     "csvHelp": "First row with the columns: {columns}. One group per row, up to 50.",
     "sameName": "Same as the template",
-    "varRequired": "Required"
+    "varRequired": "Required",
+    "exampleVar": "company",
+    "exampleSuffix": "Support"
   },
   "lists": {
     "sidebar": "Saved lists",
@@ -1382,5 +1393,10 @@
     "clearTitle": "Delete the sample data?",
     "clearBody": "This deletes the sample number with its chats, groups, messages, tickets, tasks and sends. Your own data is not touched.",
     "composerNote": "Sample number: the message is saved as sent and does not go out to WhatsApp."
+  },
+  "notFound": {
+    "title": "This is no longer in Groups",
+    "body": "The chat, group or ticket was deleted or you no longer have access.",
+    "action": "Go to inbox"
   }
 }

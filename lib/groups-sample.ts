@@ -24,7 +24,8 @@ interface SampleMsg {
   dir: 'in' | 'out' | 'note';
   from?: number;
   body: string;
-  media?: { type: string; name: string; image?: boolean };
+  /** `url` de un archivo de public/groups-sample (o la imagen de abajo si `image`). */
+  media?: { type: string; name: string; image?: boolean; url?: string };
   poll?: { question: string; options: string[]; votes: number[][] };
 }
 
@@ -125,7 +126,7 @@ const T: Record<Locale, Record<string, string>> = {
     ventas2: 'Yo tomo los de Córdoba.',
     broadcastName: 'Recordatorio de la capacitación',
     broadcast: 'Recordatorio: la capacitación del nuevo catálogo es el jueves a las 10 h. ¡Los esperamos!',
-    voice: 'Nota de voz.ogg',
+    voice: 'Nota de voz.wav',
     quote: 'Cotizacion-cajas.pdf',
   },
   en: {
@@ -183,7 +184,7 @@ const T: Record<Locale, Record<string, string>> = {
     ventas2: 'I will take the ones from Córdoba.',
     broadcastName: 'Training reminder',
     broadcast: 'Reminder: the new catalog training is on Thursday at 10 am. See you there!',
-    voice: 'Voice note.ogg',
+    voice: 'Voice note.wav',
     quote: 'Boxes-quote.pdf',
   },
   pt: {
@@ -241,7 +242,7 @@ const T: Record<Locale, Record<string, string>> = {
     ventas2: 'Eu fico com os de Córdoba.',
     broadcastName: 'Lembrete do treinamento',
     broadcast: 'Lembrete: o treinamento do novo catálogo é na quinta às 10 h. Esperamos vocês!',
-    voice: 'Mensagem de voz.ogg',
+    voice: 'Mensagem de voz.wav',
     quote: 'Cotacao-caixas.pdf',
   },
 };
@@ -345,7 +346,7 @@ function chats(t: Record<string, string>): SampleChat[] {
       name: P.valen.name,
       people: [P.valen],
       messages: [
-        { ago: 8 * 60, dir: 'in', body: t.valen1, media: { type: 'audio/ogg', name: t.voice } },
+        { ago: 8 * 60, dir: 'in', body: t.valen1, media: { type: 'audio/wav', name: t.voice, url: '/groups-sample/nota-de-voz.wav' } },
         { ago: 8 * 60 - 10, dir: 'out', body: t.valen2 },
       ],
     },
@@ -367,7 +368,7 @@ function chats(t: Record<string, string>): SampleChat[] {
       name: t.prov,
       people: [P.marta, P.ana],
       messages: [
-        { ago: 30 * 60, dir: 'in', from: 0, body: t.prov1, media: { type: 'application/pdf', name: t.quote } },
+        { ago: 30 * 60, dir: 'in', from: 0, body: t.prov1, media: { type: 'application/pdf', name: t.quote, url: '/groups-sample/cotizacion.pdf' } },
         { ago: 29 * 60, dir: 'out', body: t.prov2 },
         { ago: 28 * 60, dir: 'in', from: 0, body: t.prov3 },
       ],
@@ -528,7 +529,7 @@ export async function loadSampleData(ws: string, actor: string, rawLocale: strin
           sender?.name ?? '',
           m.dir === 'in' ? null : actor,
           body,
-          m.media?.image ? PANEL_IMG : '',
+          m.media?.image ? PANEL_IMG : (m.media?.url ?? ''),
           m.media?.type ?? '',
           m.media?.name ?? '',
           m.dir === 'in' ? 'received' : m.dir === 'out' ? 'read' : 'sent',

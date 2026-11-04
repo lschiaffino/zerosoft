@@ -134,10 +134,11 @@ describe('archivos recibidos por Evolution', () => {
     const row = (await getNumberRowById(n.id))!;
     await ingestEvents(row, parseEvolutionWebhook(imageEvent('IMG3')));
     const call = calls.find((c) => c.url === 'https://evo.example.com/chat/getBase64FromMediaMessage/s')!;
-    expect(call.body).toMatchObject({ message: { key: { id: 'IMG3' }, message: { imageMessage: { mimetype: 'image/jpeg' } } }, convertToMp4: false });
+    // Solo la key: nada del mensaje del webhook (url, directPath, mediaKey) se reenvía al gateway.
+    expect(call.body).toEqual({ message: { key: { id: 'IMG3', remoteJid: '5491155550000@s.whatsapp.net', fromMe: false } }, convertToMp4: false });
     const chat = (await listChats(user.id, user.id)).rows[0];
     const msg = (await listMessages(user.id, chat.id))[0];
-    expect(msg.media?.url).toMatch(/^\/uploads\/chat\/.+\.jpeg$/);
+    expect(msg.media?.url).toMatch(/^\/uploads\/chat\/.+\.jpe?g$/);
     expect(msg.media?.type).toBe('image/jpeg');
     expect(readFileSync(path.join(dir, 'chat', msg.media!.url.split('/').pop()!))).toEqual(JPEG);
     expect(readConfig(row).apiKey).toBe('k');
@@ -164,12 +165,13 @@ describe('archivos recibidos por Evolution', () => {
 
     fail = false;
     // Lo mismo que hace la ruta de media al abrir el archivo.
-    expect(await storeInboundMedia(row, pending.id, { providerMessageId: 'IMG4', chatId: '5491155550000@s.whatsapp.net', fromMe: false })).toMatch(/^\/uploads\/chat\//);
+    expect(await storeInboundMedia(row, pending.id, { providerMessageId: 'IMG4', chatId: '5491155550000@s.whatsapp.net', fromMe: false })).toMatchObject({ url: expect.stringMatching(/^\/uploads\/chat\//) });
     expect((await raw('IMG4')).media_url).toMatch(/^\/uploads\/chat\//);
 
     huge = true;
     const big = await raw('IMG5');
     await expect(storeInboundMedia(row, big.id, { providerMessageId: 'IMG5', chatId: '5491155550000@s.whatsapp.net', fromMe: false })).rejects.toMatchObject({ httpStatus: 413 });
-    expect((await raw('IMG5')).media_url).toBe('evo:IMG5');
+    // Pasar el tope es definitivo: queda sin archivo (con tipo y nombre) y no se vuelve a pedir.
+    expect((await raw('IMG5')).media_url).toBe('');
   });
 });

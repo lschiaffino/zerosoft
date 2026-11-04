@@ -53,6 +53,7 @@ export default function ChatDetails({
   crm,
   caps,
   me = '',
+  isAdmin = false,
   compact = false,
 }: {
   chat: ChatDto;
@@ -66,6 +67,8 @@ export default function ChatDetails({
   caps: ProviderCaps;
   /** Persona logueada (tareas: "para mí" por defecto). */
   me?: string;
+  /** Quitar un chat de Groups es de admins. */
+  isAdmin?: boolean;
   compact?: boolean;
 }) {
   const t = useTranslations('groups');
@@ -88,13 +91,15 @@ export default function ChatDetails({
   const [scheduled, setScheduled] = useState<ScheduledLite[] | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [name, setName] = useState(chat.name);
+  const [description, setDescription] = useState(chat.description);
   const isGroup = chat.kind === 'group';
 
   useEffect(() => {
     setProps(chat.properties);
     setName(chat.name);
+    setDescription(chat.description);
     setLink(chat.inviteLink);
-  }, [chat.id, chat.properties, chat.name, chat.inviteLink]);
+  }, [chat.id, chat.properties, chat.name, chat.description, chat.inviteLink]);
 
   useEffect(() => {
     void api<{ tickets: TicketLite[] }>(`/api/groups/tickets?chat=${chat.id}&status=all`).then((r) => setTickets(r.data?.tickets ?? []));
@@ -141,6 +146,9 @@ export default function ChatDetails({
     }
     setMembers(res.data.members);
     onChange({ ...chat, memberCount: res.data.members.length });
+    // El encabezado de la página del grupo (servidor) y la lista muestran la cantidad.
+    router.refresh();
+    inbox.refresh();
     if (action === 'add') {
       setMemberResult(res.data.result.results);
       setPhones('');
@@ -221,6 +229,41 @@ export default function ChatDetails({
             </button>
           </form>
           {isGroup && !caps.groups && <p className="ui-help">{t('details.renameLocal')}</p>}
+        </section>
+      )}
+
+      {!compact && isGroup && (
+        <section className="gr-detail-section">
+          <h3 className="gr-detail-title">{t('details.description')}</h3>
+          <form
+            className="ui-fields"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (description !== chat.description) void patch({ description }).then((d) => d && showToast(t('common.saved')));
+            }}
+          >
+            <textarea
+              className="input gr-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={2000}
+              rows={3}
+              placeholder={t('details.descriptionPlaceholder')}
+              aria-label={t('details.description')}
+            />
+            <div>
+              <button type="submit" className="btn btn-secondary btn-sm" disabled={description === chat.description}>
+                {t('common.save')}
+              </button>
+            </div>
+          </form>
+          {caps.groups && <p className="ui-help">{t('details.descriptionHelp')}</p>}
+        </section>
+      )}
+      {compact && isGroup && chat.description && (
+        <section className="gr-detail-section">
+          <h3 className="gr-detail-title">{t('details.description')}</h3>
+          <p className="gr-pre gr-description-text">{chat.description}</p>
         </section>
       )}
 
@@ -392,7 +435,11 @@ export default function ChatDetails({
               )}
               <div className="gr-invite">
                 <h4 className="gr-detail-title">{t('details.invite')}</h4>
-                {link ? (
+                {link.startsWith('sample:') ? (
+                  <p className="gr-banner" role="status">
+                    {t('details.sampleInvite')}
+                  </p>
+                ) : link ? (
                   <p className="gr-invite-link">
                     <input className="input" readOnly value={link} aria-label={t('details.invite')} onFocus={(e) => e.target.select()} />
                     <button
@@ -477,9 +524,11 @@ export default function ChatDetails({
         <a className="btn btn-ghost btn-sm" href={`/api/groups/export?type=messages&chat=${chat.id}`}>
           {t('details.exportMessages')}
         </a>
-        <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setConfirmDelete(true)}>
-          {t('details.remove')}
-        </button>
+        {isAdmin && (
+          <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setConfirmDelete(true)}>
+            {t('details.remove')}
+          </button>
+        )}
       </section>
       <ConfirmDialog
         open={confirmDelete}

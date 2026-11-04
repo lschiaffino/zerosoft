@@ -54,8 +54,8 @@ export function sampleProvider(numberId: string): GroupsProvider {
     },
     participants: async (groupId) => (await members(groupId)).map((m) => ({ phone: m.phone, role: m.role, name: m.name || undefined })),
     updateParticipants: async (_groupId, _action, phones) => phones.map((p) => ({ phone: phoneDigits(p), ok: true })),
-    // Los códigos reales de WhatsApp no llevan guiones: este link no abre ningún grupo de verdad.
-    inviteLink: async () => `https://chat.whatsapp.com/sample-${randomBytes(6).toString('hex')}`,
+    // No es un link: la interfaz muestra que es de ejemplo y no deja copiarlo.
+    inviteLink: async () => `sample:invite-${randomBytes(6).toString('hex')}`,
     updateGroup: async () => undefined,
     editMessage: async () => undefined,
     deleteMessage: async () => undefined,

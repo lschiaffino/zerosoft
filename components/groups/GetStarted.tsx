@@ -10,7 +10,19 @@ import { api, useErrorText } from './ui';
  * tiene la conexión administrada) o cargar datos de ejemplo. Sin QR
  * administrado, el ejemplo va primero y la conexión propia queda al lado.
  */
-export default function GetStarted({ managed, canEdit }: { managed: boolean; canEdit: boolean }) {
+export default function GetStarted({
+  managed,
+  canEdit,
+  finish = false,
+  inline = false,
+}: {
+  managed: boolean;
+  canEdit: boolean;
+  /** Ya hay un número sin conectar: el link lleva a terminar la conexión. */
+  finish?: boolean;
+  /** Dentro de un aviso: botones chicos en línea. */
+  inline?: boolean;
+}) {
   const t = useTranslations('groups');
   const errText = useErrorText();
   const locale = useLocale();
@@ -18,7 +30,10 @@ export default function GetStarted({ managed, canEdit }: { managed: boolean; can
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  if (!canEdit) return <p className="ui-help">{t('sample.askAdmin')}</p>;
+  if (!canEdit) return inline ? null : <p className="ui-help">{t('sample.askAdmin')}</p>;
+  const size = inline ? ' btn-sm' : '';
+  const connectHref = finish ? '/app/groups/settings?tab=numbers' : '/app/groups/settings?tab=numbers&new=1';
+  const connectLabel = finish ? t('inbox.finishConnect') : managed ? t('inbox.scanQr') : t('inbox.connect');
 
   async function load() {
     if (busy) return;
@@ -34,26 +49,26 @@ export default function GetStarted({ managed, canEdit }: { managed: boolean; can
   }
 
   const sampleButton = (primary: boolean) => (
-    <button type="button" className={`btn ${primary ? 'btn-primary' : 'btn-secondary'}`} onClick={() => void load()} aria-busy={busy || undefined} disabled={busy}>
+    <button type="button" className={`btn ${primary ? 'btn-primary' : 'btn-secondary'}${size}`} onClick={() => void load()} aria-busy={busy || undefined} disabled={busy}>
       {busy ? t('sample.loading') : t('sample.load')}
     </button>
   );
 
   return (
-    <div className="gr-start">
+    <div className={`gr-start${inline ? ' is-inline' : ''}`}>
       <div className="gr-start-actions">
-        {managed ? (
+        {managed || finish ? (
           <>
-            <Link href="/app/groups/settings?tab=numbers&new=1" className="btn btn-primary">
-              {t('inbox.scanQr')}
+            <Link href={connectHref} className={`btn btn-primary${size}`}>
+              {connectLabel}
             </Link>
             {sampleButton(false)}
           </>
         ) : (
           <>
             {sampleButton(true)}
-            <Link href="/app/groups/settings?tab=numbers&new=1" className="btn btn-secondary">
-              {t('inbox.connect')}
+            <Link href={connectHref} className={`btn btn-secondary${size}`}>
+              {connectLabel}
             </Link>
           </>
         )}

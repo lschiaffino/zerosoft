@@ -146,8 +146,6 @@ export interface MediaRef {
   providerMessageId: string;
   chatId: string;
   fromMe: boolean;
-  /** El mensaje completo de Baileys, si llegó en el webhook (no hace falta buscarlo en el gateway). */
-  raw?: unknown;
 }
 
 export interface FetchedMedia {
@@ -178,10 +176,7 @@ export type InboundEvent =
         url: string;
         type: string;
         name: string;
-        /**
-         * Lo que el proveedor necesita para bajar el archivo después (Evolution:
-         * la key y el mensaje de Baileys). Vive solo durante el webhook: no se guarda.
-         */
+        /** Lo que el proveedor necesita para bajar el archivo después (la key del mensaje). */
         fetchRef?: MediaRef;
       };
       replyToProviderId?: string;

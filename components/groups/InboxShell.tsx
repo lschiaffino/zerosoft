@@ -10,7 +10,7 @@ import type { ChatDto, ChatFilter, GroupsPerson, LabelDto, PropertyDef } from '@
 import type { SavedListDto, SavedListFilters } from '@/lib/groups-org';
 import { LISTS_CHANGED, notifyListsChanged } from './GroupsListsBranch';
 import { filterOptions } from './PropertyInput';
-import { ChatPlate, LabelTag, Modal, api, useErrorText, useMediaText, useRelativeTime, useToast } from './ui';
+import { ChatPlate, LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useToast } from './ui';
 
 const FILTERS: ChatFilter[] = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'];
 const STORE = 'zs-groups-inbox';
@@ -235,7 +235,10 @@ export default function InboxShell({
       if (rows.length === 0) return;
       const i = rows.findIndex((r) => r.id === current);
       const next = rows[Math.min(rows.length - 1, Math.max(0, i < 0 ? 0 : i + delta))];
-      if (next) router.push(`/app/groups/inbox/${next.id}${listId ? `?list=${listId}` : ''}`);
+      if (next) {
+        markChatSwitch(next.id);
+        router.push(`/app/groups/inbox/${next.id}${listId ? `?list=${listId}` : ''}`);
+      }
     },
     [rows, current, router, listId],
   );
@@ -559,6 +562,10 @@ export default function InboxShell({
                   />
                   <Link
                     href={`/app/groups/inbox/${c.id}${listSuffix}`}
+                    onClick={(e) => {
+                      // Abrir en otra pestaña no cambia el chat de esta.
+                      if (!e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0 && c.id !== current) markChatSwitch(c.id);
+                    }}
                     className={`gr-row${c.id === current ? ' is-active' : ''}${c.unread > 0 ? ' is-unread' : ''}`}
                     aria-current={c.id === current ? 'page' : undefined}
                   >

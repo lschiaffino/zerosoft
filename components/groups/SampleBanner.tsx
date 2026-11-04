@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
+import { useLocale, useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { api, useErrorText, useToast } from './ui';
 
@@ -13,7 +13,7 @@ import { api, useErrorText, useToast } from './ui';
 export default function SampleBanner({ canEdit, managed, onlySample }: { canEdit: boolean; managed: boolean; onlySample: boolean }) {
   const t = useTranslations('groups');
   const errText = useErrorText();
-  const router = useRouter();
+  const locale = useLocale();
   const [toast, showToast] = useToast();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -24,8 +24,8 @@ export default function SampleBanner({ canEdit, managed, onlySample }: { canEdit
     const res = await api('/api/groups/sample', { method: 'DELETE' });
     setBusy(false);
     if (!res.data) return showToast(errText(res.error), true);
-    router.push('/app/groups/inbox');
-    router.refresh();
+    // Carga completa: la lista, el chat abierto y los contadores se van todos juntos, sin esperar al próximo refresco.
+    window.location.assign(`/${locale}/app/groups/inbox`);
   }
 
   return (
