@@ -1,3 +1,6 @@
+import { RETURN_PATH_HEADER } from '@/lib/return-path';
+import { headers } from 'next/headers';
+import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
@@ -29,7 +32,9 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   ]);
 
   if (numbers.length === 0) {
-    // Sin números no se renderiza la página hija (un link viejo a un chat, p. ej. tras borrar el ejemplo, cae acá).
+    // Sin números no se renderiza la página hija: un id en la ruta no puede existir. Da 404 con el aviso de
+    // Groups dentro de la app (app/[locale]/app/groups/not-found.tsx), p. ej. un link viejo tras borrar el ejemplo.
+    if (/\/inbox\/[^/?#]+/.test((await headers()).get(RETURN_PATH_HEADER) ?? '')) notFound();
     return (
       <div className="ui-page">
         <PageHeader title={t('inbox.title')} />
