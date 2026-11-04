@@ -56,6 +56,9 @@
 .sd-check { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; font-size: 0.9375rem; cursor: pointer; }
 .sd-check input { margin: 3px 0 0; accent-color: var(--c-send); }
 .sd-check small { display: block; color: var(--brand-gray-2); font-size: 0.8125rem; line-height: 1.4; margin-top: 2px; }
+.sd-csv { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sd-csv .sd-over { color: var(--bad-ink); font-weight: 600; }
+.sd-csv label:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
 .sd-sub { margin: 0 0 0 26px; display: grid; gap: 6px; min-width: 0; }
 
 /* Detalle */
@@ -104,6 +107,7 @@ textarea.sd-title-input:focus { outline: none; border-color: var(--ink); }
 .sd-bar-track i { display: block; height: 100%; background: var(--c-send); }
 .sd-bar-value { text-align: right; white-space: nowrap; }
 .sd-bar-reach { color: var(--brand-gray-2); text-align: right; white-space: nowrap; }
+.sd-clicks { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 2px; }
 .sd-preview { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
 .sd-preview img { width: 100%; height: auto; border: 1px solid var(--line); background: #fff; display: block; }
 .sd-preview-video { width: 100%; max-width: 960px; background: #000; display: block; }
@@ -151,6 +155,9 @@ section > .sd-help:last-child { margin-top: 12px; }
 .sv-message-top { width: 100%; max-width: 920px; margin: 0; background: var(--brand-white); padding: 10px 12px; }
 .sv-page { margin: 0; width: 100%; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.14); display: block; position: relative; scroll-margin-top: 68px; }
 .sv-page img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none; }
+.sv-plink { position: absolute; display: block; padding: 0; margin: 0; border: 0; background: transparent; cursor: pointer; }
+.sv-plink:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.sv-plink:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .sv-page-error { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 16px; text-align: center; color: #333; }
 .sv-page-error p { margin: 0; }
 .sv-video-wrap { position: relative; width: 100%; max-width: 1100px; }

@@ -124,7 +124,7 @@
     "accessNone": "Anyone with the link",
     "accessAllow": "Only these emails and domains",
     "accessBlock": "Everyone except these",
-    "accessAllowHelp": "One per line. A domain includes its subdomains. Up to 500.",
+    "accessAllowHelp": "One per line, or import a CSV: emails and domains are taken from any cell. A domain includes its subdomains. Up to 500.",
     "accessBlockHelp": "One per line. Without verification, someone blocked can type another email.",
     "protectTitle": "Protection",
     "download": "Allow download",
@@ -174,7 +174,12 @@
     "problem_creator_left": "The person who made this link left the workspace. Make a new link.",
     "problem_creator_no_access": "The person who made this link no longer has Send. Give them access again, or make a new link.",
     "problem_document_private": "The document is private, so this link can't show it. Share the document with the workspace, or make a new link.",
-    "problem_space_nothing_visible": "The documents in this space are private to others, so this link has nothing to show. Share them with the workspace, or make a new link."
+    "problem_space_nothing_visible": "The documents in this space are private to others, so this link has nothing to show. Share them with the workspace, or make a new link.",
+    "csvImport": "Import from CSV",
+    "csvAdded": "{count, plural, one {Added # entry.} other {Added # entries.}}",
+    "csvSkipped": "{count, plural, one {Skipped # cell that is not an email or a domain.} other {Skipped # cells that are not an email or a domain.}}",
+    "csvTooMany": "The list is over {max}: remove some before saving.",
+    "accessCount": "{count} of {max}"
   },
   "visits": {
     "loadError": "The numbers didn't load.",
@@ -214,7 +219,13 @@
     "noLocation": "No location for this visit.",
     "perPage": "Average time per page in version {n}, and how many visits got there",
     "reach": "{pct}% reached",
-    "deniedTitle": "Tried to open it without access"
+    "deniedTitle": "Tried to open it without access",
+    "clicksTitle": "Links clicked inside the document",
+    "colLink": "Link",
+    "colOnPage": "On page",
+    "colClicks": "Clicks",
+    "toPage": "Page {page} of the document",
+    "clickedOn": "Clicked on page {page}: {target}"
   },
   "spaces": {
     "title": "Spaces",
@@ -321,7 +332,9 @@
     "pageError": "This page didn't load.",
     "retry": "Try again",
     "videoError": "The video didn't load. Some browsers can't play MOV files.",
-    "unavailableTitle": "This link is no longer available"
+    "unavailableTitle": "This link is no longer available",
+    "linkTo": "Open {url}",
+    "linkToPage": "Go to page {page}"
   },
   "errors": {
     "generic": "Something went wrong. Try again.",
@@ -371,6 +384,8 @@
     "office_too_complex": "This file is too large to convert. Export it to PDF and upload that.",
     "storage_quota": "This would go over the workspace's storage limit. Delete documents to make room.",
     "logo_https": "The logo needs an https:// address: the viewer only loads secure images.",
-    "page_too_complex": "A page in this file is too heavy to prepare. Print it to a new PDF, or lower its detail, and upload that."
+    "page_too_complex": "A page in this file is too heavy to prepare. Print it to a new PDF, or lower its detail, and upload that.",
+    "csv_too_large": "That file is over 1 MB. A list of emails is much smaller.",
+    "too_many_entries": "The list has more than 500 entries."
   }
 }

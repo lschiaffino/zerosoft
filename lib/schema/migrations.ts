@@ -8592,6 +8592,13 @@ export const MIGRATIONS: Migration[] = [
       )`);
     },
   },
+  {
+    // Send: links dentro de cada página (posición y destino), para dibujarlos sobre la imagen.
+    id: '198_send_page_links',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE send_pages ADD COLUMN links TEXT NOT NULL DEFAULT '[]'");
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

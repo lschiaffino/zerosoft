@@ -40,6 +40,8 @@ export interface RenderedPage {
   bytes: Buffer;
   width: number;
   height: number;
+  /** Links de la página tal como salen del PDF; core los revisa antes de guardarlos. */
+  links?: unknown;
 }
 
 /** Carga el lienzo. Si falla (una dependencia que no llegó al deploy) no es culpa del archivo. */
@@ -96,7 +98,7 @@ export async function renderPdfPages(
       } else if (m.type === 'info') inOrder(() => o.onInfo(Number(m.numPages)));
       else if (m.type === 'page')
         inOrder(async () => {
-          await o.onPage({ page: Number(m.page), bytes: Buffer.from(m.bytes as Uint8Array), width: Number(m.width), height: Number(m.height) });
+          await o.onPage({ page: Number(m.page), bytes: Buffer.from(m.bytes as Uint8Array), width: Number(m.width), height: Number(m.height), links: m.links });
           // Se acabó el turno: el resto sigue en el pedido siguiente.
           if (Date.now() >= o.deadline) finish();
         });

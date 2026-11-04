@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   acceptedSeconds,
+  cleanPageLinks,
+  entriesFromCsv,
+  safeLinkUrl,
   firstClaim,
   isScriptedUserAgent,
   accessAllowed,
@@ -28,7 +31,7 @@ import {
 import { assertOfficeSize, imageSize, kid, kids, parseXml, pptxToImages } from '@/lib/send/office';
 import { buildZip } from '@/lib/zip-reader';
 import { renderPdfPages } from '@/lib/send/render';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFString } from 'pdf-lib';
 import { createClient } from '@libsql/client';
 import { sendUp } from '@/lib/schema/send-migration';
 import { excludeReason, webOnlyWhere } from '@/lib/mcp/excludes.mjs';
@@ -367,6 +370,69 @@ describe('Send: migración sobre una forma vieja', () => {
     expect(await cols('send_download_cache')).toContain('email');
     expect(await cols('send_link_items')).toEqual([]);
     expect((await client.execute('SELECT id FROM send_links')).rows).toHaveLength(1);
+  });
+});
+
+describe('Send: links dentro de las páginas', () => {
+  it('solo web y email; el resto no llega al visor', () => {
+    expect(safeLinkUrl('https://acme.com/a?b=1')).toBe('https://acme.com/a?b=1');
+    expect(safeLinkUrl('mailto:ana@acme.com')).toBe('mailto:ana@acme.com');
+    for (const bad of ['javascript:alert(1)', 'file:///etc/passwd', 'data:text/html,x', 'acme.com', '', 3, null]) expect(safeLinkUrl(bad)).toBeNull();
+    expect(safeLinkUrl(`https://acme.com/${'a'.repeat(2100)}`)).toBeNull();
+  });
+
+  it('las posiciones quedan dentro de la página y los destinos son de este documento', () => {
+    const links = cleanPageLinks(
+      [
+        { x: 0.1, y: 0.2, w: 0.3, h: 0.05, url: 'https://acme.com' },
+        { x: 0.9, y: 0.9, w: 0.5, h: 0.5, page: 2 },
+        { x: 0.1, y: 0.1, w: 0.1, h: 0.1, page: 9 },
+        { x: -1, y: 0.1, w: 0.1, h: 0.1, url: 'javascript:alert(1)' },
+        { x: Number.NaN, y: 0, w: 1, h: 1, url: 'https://acme.com' },
+        'nope',
+      ],
+      3,
+    );
+    expect(links).toHaveLength(2);
+    expect(links[0]).toEqual({ x: 0.1, y: 0.2, w: 0.3, h: 0.05, url: 'https://acme.com/' });
+    expect(links[1].page).toBe(2);
+    expect(links[1].x + links[1].w).toBeLessThanOrEqual(1);
+    expect(cleanPageLinks(Array.from({ length: 500 }, () => ({ x: 0, y: 0, w: 0.1, h: 0.1, page: 1 })), 1)).toHaveLength(200);
+  });
+
+  it('el render saca los links del PDF: a la web y a otra página', async () => {
+    const doc = await PDFDocument.create();
+    const p1 = doc.addPage([600, 800]);
+    const p2 = doc.addPage([600, 800]);
+    const uri = doc.context.obj({ Type: 'Annot', Subtype: 'Link', Rect: [60, 700, 260, 720], Border: [0, 0, 0], A: { S: 'URI', URI: PDFString.of('https://acme.com/pricing') } });
+    const jump = doc.context.obj({ Type: 'Annot', Subtype: 'Link', Rect: [60, 600, 260, 620], Border: [0, 0, 0], Dest: [p2.ref, PDFName.of('Fit')] });
+    const bad = doc.context.obj({ Type: 'Annot', Subtype: 'Link', Rect: [60, 500, 260, 520], A: { S: 'URI', URI: PDFString.of('javascript:alert(1)') } });
+    p1.node.set(PDFName.of('Annots'), doc.context.obj([doc.context.register(uri), doc.context.register(jump), doc.context.register(bad)]));
+    const bytes = Buffer.from(await doc.save());
+    const pages: Array<{ page: number; links?: unknown }> = [];
+    await renderPdfPages(bytes, { from: 1, deadline: Date.now() + 60_000, onInfo: async () => undefined, onPage: async (p) => void pages.push(p) });
+    const links = cleanPageLinks(pages[0].links, 2);
+    expect(links.map((l) => l.url ?? `#${l.page}`)).toEqual(['https://acme.com/pricing', '#2']);
+    // Rect [60,700,260,720] en una página de 600x800: arriba a la izquierda, en fracciones.
+    expect(links[0].x).toBeCloseTo(0.1, 2);
+    expect(links[0].y).toBeCloseTo(0.1, 2);
+    expect(links[0].w).toBeCloseTo(1 / 3, 2);
+    expect(cleanPageLinks(pages[1].links, 2)).toEqual([]);
+  }, 60_000);
+});
+
+describe('Send: lista desde un CSV', () => {
+  it('toma emails y dominios de cualquier celda y saltea lo demás', () => {
+    const csv = '\uFEFFName,Email,Company\n"Ana Pérez",ana@acme.com,Acme\nBruno,"Bruno <bruno@beta.io>",@beta.io\n;;\nTeam,*.gamma.org,2026-11-03\nAna again,ANA@ACME.COM,\n';
+    const { entries, skipped } = entriesFromCsv(csv);
+    expect(entries).toEqual(['ana@acme.com', 'bruno@beta.io', 'beta.io', 'gamma.org']);
+    // Name, Email, Company, Ana Pérez, Acme, Bruno, Team, la fecha, Ana again.
+    expect(skipped).toBe(9);
+  });
+
+  it('el servidor no corta en silencio: más de 500 es un error', () => {
+    const many = Array.from({ length: 501 }, (_, i) => `p${i}@acme.com`);
+    expect(cleanAccessList(many).entries).toHaveLength(501);
   });
 });
 

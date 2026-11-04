@@ -124,7 +124,7 @@
     "accessNone": "Qualquer pessoa com o link",
     "accessAllow": "Só estes emails e domínios",
     "accessBlock": "Todos menos estes",
-    "accessAllowHelp": "Um por linha. Um domínio inclui seus subdomínios. Até 500.",
+    "accessAllowHelp": "Um por linha, ou importe um CSV: emails e domínios são lidos de qualquer célula. Um domínio inclui seus subdomínios. Até 500.",
     "accessBlockHelp": "Um por linha. Sem verificação, alguém bloqueado pode digitar outro email.",
     "protectTitle": "Proteção",
     "download": "Permitir download",
@@ -174,7 +174,12 @@
     "problem_creator_left": "Quem criou este link saiu do workspace. Crie um link novo.",
     "problem_creator_no_access": "Quem criou este link não tem mais o Send. Dê acesso de novo, ou crie um link novo.",
     "problem_document_private": "O documento é privado, então este link não pode mostrá-lo. Compartilhe com o workspace, ou crie um link novo.",
-    "problem_space_nothing_visible": "Os documentos deste espaço são privados de outras pessoas, então este link não tem o que mostrar. Compartilhe com o workspace, ou crie um link novo."
+    "problem_space_nothing_visible": "Os documentos deste espaço são privados de outras pessoas, então este link não tem o que mostrar. Compartilhe com o workspace, ou crie um link novo.",
+    "csvImport": "Importar de um CSV",
+    "csvAdded": "{count, plural, one {# entrada adicionada.} other {# entradas adicionadas.}}",
+    "csvSkipped": "{count, plural, one {# célula ignorada, não é email nem domínio.} other {# células ignoradas, não são email nem domínio.}}",
+    "csvTooMany": "A lista passa de {max}: remova algumas antes de salvar.",
+    "accessCount": "{count} de {max}"
   },
   "visits": {
     "loadError": "Os números não carregaram.",
@@ -214,7 +219,13 @@
     "noLocation": "Sem localização para esta visita.",
     "perPage": "Tempo médio por página na versão {n}, e quantas visitas chegaram",
     "reach": "{pct}% chegaram",
-    "deniedTitle": "Tentaram abrir sem acesso"
+    "deniedTitle": "Tentaram abrir sem acesso",
+    "clicksTitle": "Links clicados dentro do documento",
+    "colLink": "Link",
+    "colOnPage": "Na página",
+    "colClicks": "Cliques",
+    "toPage": "Página {page} do documento",
+    "clickedOn": "Clicou na página {page}: {target}"
   },
   "spaces": {
     "title": "Espaços",
@@ -321,7 +332,9 @@
     "pageError": "Esta página não carregou.",
     "retry": "Tentar de novo",
     "videoError": "O vídeo não carregou. Alguns navegadores não reproduzem arquivos MOV.",
-    "unavailableTitle": "Este link não está mais disponível"
+    "unavailableTitle": "Este link não está mais disponível",
+    "linkTo": "Abrir {url}",
+    "linkToPage": "Ir para a página {page}"
   },
   "errors": {
     "generic": "Algo deu errado. Tente de novo.",
@@ -371,6 +384,8 @@
     "office_too_complex": "Este arquivo é grande demais para converter. Exporte para PDF e envie esse.",
     "storage_quota": "Isto passaria o limite de armazenamento do workspace. Exclua documentos para abrir espaço.",
     "logo_https": "O logo precisa de um endereço https://: o visor só carrega imagens seguras.",
-    "page_too_complex": "Uma página deste arquivo é pesada demais para preparar. Imprima em um novo PDF, ou reduza o detalhe, e envie esse."
+    "page_too_complex": "Uma página deste arquivo é pesada demais para preparar. Imprima em um novo PDF, ou reduza o detalhe, e envie esse.",
+    "csv_too_large": "Esse arquivo passa de 1 MB. Uma lista de emails é bem menor.",
+    "too_many_entries": "A lista tem mais de 500 entradas."
   }
 }

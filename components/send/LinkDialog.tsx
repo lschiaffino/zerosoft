@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import type { LinkDto } from '@/lib/send/core';
+import { cleanAccessList, entriesFromCsv, MAX_ACCESS_CSV_BYTES, MAX_ACCESS_ENTRIES } from '@/lib/send/access-list';
 import { api, SendDialog, useErrorText } from './ui';
 
 function toLocalInput(iso: string | null): string {
@@ -58,6 +59,23 @@ function LinkForm({ link, createUrl, templates, onClose, onSaved }: { link: Link
   const [useBranding, setUseBranding] = useState(link?.useBranding ?? true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [csvNote, setCsvNote] = useState('');
+
+  // Emails y dominios de cualquier celda del CSV, sumados a lo que ya está en la lista.
+  const importCsv = async (file: File | undefined) => {
+    setCsvNote('');
+    if (!file) return;
+    if (file.size > MAX_ACCESS_CSV_BYTES) return setCsvNote(errorText('csv_too_large'));
+    const { entries, skipped } = entriesFromCsv(await file.text());
+    const before = cleanAccessList([accessText]).entries;
+    const merged = [...new Set([...before, ...entries])];
+    setAccessText(merged.join('\n'));
+    const added = merged.length - before.length;
+    setCsvNote(
+      [t('csvAdded', { count: added }), skipped ? t('csvSkipped', { count: skipped }) : '', merged.length > MAX_ACCESS_ENTRIES ? t('csvTooMany', { max: MAX_ACCESS_ENTRIES }) : ''].filter(Boolean).join(' '),
+    );
+  };
+  const accessCount = cleanAccessList([accessText]).entries.length;
 
   // Lo que estas reglas piden aunque no se tilde: se muestra y queda tildado.
   const emailForced = watermark || !!nda || accessMode !== 'none' || verifyEmail;
@@ -153,6 +171,29 @@ function LinkForm({ link, createUrl, templates, onClose, onSaved }: { link: Link
           {accessMode !== 'none' && (
             <div className="sd-sub">
               <textarea className="input" rows={3} value={accessText} onChange={(e) => setAccessText(e.target.value)} placeholder={'ana@acme.com\nacme.com'} aria-label={t('accessList')} data-testid="link-access-list" />
+              <div className="sd-csv">
+                <label className="btn btn-secondary btn-sm">
+                  {t('csvImport')}
+                  <input
+                    className="sr-only"
+                    type="file"
+                    accept=".csv,.txt,text/csv,text/plain"
+                    data-testid="link-access-csv"
+                    onChange={(e) => {
+                      void importCsv(e.target.files?.[0]);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+                <span className={`sd-rowmeta num${accessCount > MAX_ACCESS_ENTRIES ? ' sd-over' : ''}`} data-testid="link-access-count">
+                  {t('accessCount', { count: accessCount, max: MAX_ACCESS_ENTRIES })}
+                </span>
+              </div>
+              {csvNote && (
+                <p className="sd-help" role="status" data-testid="link-access-csv-note">
+                  {csvNote}
+                </p>
+              )}
               <p className="sd-help">{accessMode === 'allow' ? t('accessAllowHelp') : t('accessBlockHelp')}</p>
             </div>
           )}
