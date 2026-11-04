@@ -41,7 +41,10 @@ test('vacío, crear, buscar, próxima entrega, apagar y borrar con deshacer', as
 
   const table = page.getByTestId('an-subs-table');
   const row = table.getByRole('row', { name: new RegExp(name) });
-  await expect(row).toContainText('ana@acme.com, bob@other.org', { timeout: 15_000 });
+  // Los de afuera esperan su confirmación antes de recibir nada.
+  await expect(row).toContainText('ana@acme.com', { timeout: 15_000 });
+  await expect(row).toContainText('bob@other.org');
+  await expect(row).toContainText('waiting for confirmation');
   await expect(row).not.toContainText('Not scheduled');
 
   await page.getByLabel('Search by name or recipient').fill('nobody-here');
@@ -56,7 +59,8 @@ test('vacío, crear, buscar, próxima entrega, apagar y borrar con deshacer', as
 
   // Mandar ahora llega de verdad a los destinatarios.
   await row.getByRole('button', { name: 'Send now' }).click();
-  await expect(page.getByText('Sent to its recipients.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Sent to the recipients who confirmed.')).toBeVisible({ timeout: 15_000 });
+  await expect(row).toContainText('waiting for confirmation');
 
   // Apagada no se puede probar.
   await row.getByRole('button', { name: 'Turn off' }).click();
@@ -110,6 +114,7 @@ test('darse de baja: abrir el link no cambia nada, confirmar sí', async ({ page
   await expect(page.getByTestId('an-unsubscribe')).toBeVisible();
   const before = (await (await request.get(`/api/analytics/subscriptions?project=${projectId}`)).json()) as typeof list;
   expect(before.subscriptions.find((x) => x.id === s.id)?.recipients).toContain('ana@acme.com');
+  void mail;
   await page.getByRole('button', { name: 'Unsubscribe' }).click();
   await expect(page.getByText('You will not get this report anymore.')).toBeVisible({ timeout: 15_000 });
 });

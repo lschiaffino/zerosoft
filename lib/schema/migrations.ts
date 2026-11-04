@@ -8524,6 +8524,8 @@ export const MIGRATIONS: Migration[] = [
         recipients TEXT NOT NULL DEFAULT '[]',
         message TEXT NOT NULL DEFAULT '',
         schedule TEXT NOT NULL DEFAULT '{}',
+        locale TEXT NOT NULL DEFAULT 'en',
+        recipient_state TEXT NOT NULL DEFAULT '{}',
         enabled INTEGER NOT NULL DEFAULT 1,
         next_at INTEGER,
         claimed_at INTEGER,
@@ -8535,6 +8537,12 @@ export const MIGRATIONS: Migration[] = [
       )`);
       await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_subscriptions_due ON analytics_subscriptions(enabled, next_at)');
       await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_subscriptions_project ON analytics_subscriptions(project_id, created_at)');
+      await client.execute(`CREATE TABLE IF NOT EXISTS analytics_email_optouts (
+        workspace_id TEXT NOT NULL,
+        email TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (workspace_id, email)
+      )`);
     },
   },
 ];

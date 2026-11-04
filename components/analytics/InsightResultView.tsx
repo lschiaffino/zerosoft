@@ -462,7 +462,7 @@ function Funnel({ r, peopleHref, query }: { r: FunnelResult; peopleHref?: (ids: 
                   <span className="an-funnel-name">{unordered ? t('completedSteps', { n: i + 1 }) : s.label}</span>
                   <span className="an-funnel-count">
                     {peopleHref && reached.length && r.unit !== 'group' ? (
-                      <Link href={peopleHref(reached)} className="an-link">
+                      <Link href={`${peopleHref(reached)}&from=reached`} className="an-link">
                         {count}
                       </Link>
                     ) : (

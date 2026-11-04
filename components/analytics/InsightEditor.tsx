@@ -1201,7 +1201,7 @@ export default function InsightEditor({
                       void runQuery(projectId, { ...q, drill: cell })
                         .then((r) => {
                           const ids = r.kind === 'retention' ? (r.drillPersons ?? []) : [];
-                          if (ids.length) router.push(`/app/analytics/persons?ids=${encodeURIComponent(ids.join(','))}`);
+                          if (ids.length) router.push(`/app/analytics/persons?ids=${encodeURIComponent(ids.join(','))}&from=retention`);
                         })
                         .catch(() => setError(t('errors.request_failed')));
                     }

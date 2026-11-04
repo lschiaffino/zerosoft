@@ -329,7 +329,7 @@
       "invalid_formula": "The formula is not valid. Use the series letters, numbers and + - * / ( ).",
       "math_property_required": "Choose the numeric property to calculate.",
       "group_type_required": "Write the group type to count.",
-      "shared_admin_only": "This appears on a public link, so only admins can change it.",
+      "shared_admin_only": "This appears on a public link or in an email, so only admins can change it.",
       "admin_only": "Only admins can change feature flags."
     },
     "noCohorts": "No cohorts yet",
@@ -618,8 +618,8 @@
         "body": "Generations, people, cost, latency and usage by model."
       }
     },
-    "sharedAdminOnly": "This appears on a public link, so only admins can change it.",
-    "sharedLocked": "This dashboard has a public link. Only admins can change it.",
+    "sharedAdminOnly": "This appears on a public link or in an email, so only admins can change it.",
+    "sharedLocked": "This dashboard appears on a public link or in an email. Only admins can change it.",
     "subscribe": "Subscribe"
   },
   "persons": {
@@ -652,7 +652,9 @@
     "deleteBody": "The person, their distinct IDs, sessions and every event they sent are erased. This can't be undone. Events they send later create a new person.",
     "saveCohort": "Save as cohort",
     "cohortName": "Cohort name",
-    "saveCohortError": "Could not save the cohort."
+    "saveCohortError": "Could not save the cohort.",
+    "fromRetention": "{count, plural, one {# person in this retention cell} other {# people in this retention cell}}.",
+    "fromReached": "{count, plural, one {# person who reached this step} other {# people who reached this step}}."
   },
   "cohorts": {
     "title": "Cohorts",
@@ -823,7 +825,8 @@
     "cookielessHelp": "The snippet can run without storing anything in the browser, with cookieless_mode. Visitors are counted with a hash that changes every day, so the same person on two days counts twice and there are no person profiles. The IP is not stored. Off by default.",
     "cookielessTitle": "Without cookies",
     "cookielessDesc": "Nothing is stored in the browser and identify does nothing. Recordings and surveys stay off in this mode. Turn on \"Allow tracking without cookies\" above first.",
-    "cookielessDropped": "{count, plural, one {# event} other {# events}} came in with cookieless_mode and were dropped because \"Allow tracking without cookies\" is off. Turn it on or change the snippet."
+    "cookielessDropped": "{count, plural, one {# event} other {# events}} came in with cookieless_mode and were dropped because \"Allow tracking without cookies\" is off. Turn it on or change the snippet.",
+    "respectDntHelp": "The server drops events that arrive with a DNT or Sec-GPC header. When the browser reports the signal, the snippet also stops saving anything."
   },
   "share": {
     "title": "Public link",
@@ -844,7 +847,6 @@
     "themeLight": "Light",
     "themeDark": "Dark",
     "showLegend": "Show legend",
-    "showBranding": "Show zerosoft credit",
     "passwords": "Passwords",
     "passwordsOn": "Viewers need one of these. Correct entry lasts 24 hours in that browser.",
     "passwordsOff": "With at least one password, the link asks for it.",
@@ -862,14 +864,15 @@
       "password_added": "Password added",
       "password_removed": "Password removed"
     },
-    "poweredBy": "Made with zerosoft",
     "tooManyTries": "Too many tries. Wait a few minutes.",
     "wrongPassword": "That password is not right.",
     "passwordTitle": "This link is protected",
     "passwordLabel": "Password",
     "passwordEnter": "Open",
     "dependsOn": "Numbers on this link depend on {list}. A member who edits them changes what the link shows.",
-    "changesPublic": "This changes the numbers on {count, plural, one {a public link} other {# public links}}: {list}."
+    "changesPublic": "This changes the numbers on {count, plural, one {a public link} other {# public links}}: {list}.",
+    "cookiesBlocked": "The password was right, but this browser blocks what the embed needs to remember it.",
+    "openNewTab": "Open it in a new tab"
   },
   "alerts": {
     "title": "Alerts",
@@ -1074,7 +1077,7 @@
     "insights": "Insights",
     "name": "Name",
     "recipients": "Recipients",
-    "recipientsHelp": "Email addresses, inside or outside your team. Each one gets a notice and can unsubscribe. Up to 20.",
+    "recipientsHelp": "Email addresses. People outside your workspace get a link to confirm first and receive nothing until they do. Up to 20.",
     "message": "Message",
     "frequency": "Frequency",
     "daily": "Daily",
@@ -1132,7 +1135,7 @@
     "edit": "Edit",
     "editNamed": "Edit {name}",
     "test": "Send now",
-    "testSent": "Sent to its recipients.",
+    "testSent": "Sent to the recipients who confirmed.",
     "testDisabled": "Turn it on to send it.",
     "disable": "Turn off",
     "enable": "Turn on",
@@ -1148,6 +1151,16 @@
     "unsubscribeBody": "You will stop getting this report by email. Others keep getting it.",
     "unsubscribeConfirm": "Unsubscribe",
     "unsubscribed": "Done. You will not get this report anymore.",
-    "unsubscribeError": "This link is not valid."
+    "unsubscribeError": "This link is not valid.",
+    "state": {
+      "pending": "waiting for confirmation",
+      "unsubscribed": "unsubscribed"
+    },
+    "recipientCount": "{count, plural, one {# recipient} other {# recipients}}",
+    "emailLimit": "You reached the email limit for this hour. Try again later.",
+    "confirmTitle": "Receive this report",
+    "confirmBody": "Confirm that you want this analytics report by email. You can unsubscribe from any report.",
+    "confirmAction": "Confirm",
+    "confirmed": "Done. You will get the next report."
   }
 }

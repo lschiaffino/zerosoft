@@ -7,7 +7,7 @@ import InsightResultView from '@/components/analytics/InsightResultView';
 import ShareChrome, { ShareUnlock } from '@/components/analytics/ShareChrome';
 import { shareAccessOk, shareByToken, shareCookieName, shareHasPasswordProtect } from '@/lib/analytics/records-more';
 import { publicShareView } from '@/lib/analytics/share-view';
-import { clientIp, rateLimit } from '@/lib/rate-limit';
+import { clientIp, hashedIp, rateLimit } from '@/lib/rate-limit';
 import { cookies, headers } from 'next/headers';
 import '@/styles/app-shared.css';
 import '@/styles/analytics.css';
@@ -34,7 +34,7 @@ export default async function PublicAnalyticsShare(props: Props) {
   const t = await getTranslations({ locale, namespace: 'analytics.share' });
   const h = await headers();
   const ip = clientIp(new Request('http://x', { headers: h }));
-  const limit = await rateLimit(`ashare:${ip}`, 60, 60);
+  const limit = await rateLimit(`ashare:${hashedIp(ip)}`, 60, 60);
   if (!limit.ok && process.env.RATE_LIMIT_DISABLED !== 'true') {
     return <p className="an-empty-result">{t('rateLimited')}</p>;
   }
@@ -74,13 +74,6 @@ export default async function PublicAnalyticsShare(props: Props) {
             </article>
           ))}
         </div>
-        {view.options.branding !== false && (
-          <p className="an-note an-share-brand" data-testid="an-share-brand">
-            <a href="https://zerosoft.ai" target="_blank" rel="noopener noreferrer" className="an-link">
-              {t('poweredBy')}
-            </a>
-          </p>
-        )}
       </main>
     </ClientMessages>
   );

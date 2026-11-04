@@ -14,6 +14,8 @@ export interface SubscriptionRow {
   dashboardId: string | null;
   insightIds: string[];
   recipients: string[];
+  recipientState: Record<string, 'confirmed' | 'pending' | 'unsubscribed'>;
+  recipientCount: number;
   message: string;
   schedule: SubscriptionSchedule;
   enabled: boolean;
@@ -117,7 +119,7 @@ export function SubscribeDialog({
       onSaved?.(r.subscription);
       onClose();
     } catch (err) {
-      setError(err instanceof ApiError && err.code === 'invalid_input' ? t('invalidInput') : apiErrorText(err, tc));
+      setError(err instanceof ApiError && err.code === 'invalid_input' ? t('invalidInput') : err instanceof ApiError && err.code === 'email_limit' ? t('emailLimit') : apiErrorText(err, tc));
     } finally {
       setBusy(false);
     }
@@ -356,7 +358,7 @@ export function SubscriptionsPage({ projectId, canManage, insights, dashboards }
       if (done) setNotice(done);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError && err.code === 'subscription_disabled' ? t('testDisabled') : apiErrorText(err, tc));
+      setError(err instanceof ApiError && err.code === 'subscription_disabled' ? t('testDisabled') : err instanceof ApiError && err.code === 'email_limit' ? t('emailLimit') : apiErrorText(err, tc));
     }
   };
   const remove = (r: SubscriptionRow) =>
@@ -451,7 +453,17 @@ export function SubscriptionsPage({ projectId, canManage, insights, dashboards }
                         {!r.enabled && <span className="an-muted an-small"> · {t('disabled')}</span>}
                         {r.lastError && <span className="ui-error an-small"> · {t('lastFailed')}</span>}
                       </td>
-                      <td className="an-break">{r.recipients.join(', ')}</td>
+                      <td className="an-break">
+                        {canManage
+                          ? r.recipients.map((x, i) => (
+                              <span key={x}>
+                                {i > 0 && ', '}
+                                {x}
+                                {r.recipientState[x] && r.recipientState[x] !== 'confirmed' && <span className="an-muted an-small"> ({t(`state.${r.recipientState[x]}`)})</span>}
+                              </span>
+                            ))
+                          : t('recipientCount', { count: r.recipientCount })}
+                      </td>
                       <td>{when(r.nextAt)}</td>
                       {canManage && (
                         <td className="an-td-action">
@@ -490,30 +502,30 @@ export function SubscriptionsPage({ projectId, canManage, insights, dashboards }
   );
 }
 
-/** Confirmar la baja de un reporte. */
-export function UnsubscribeButton({ token }: { token: string }) {
+/** Confirmar que se quieren los reportes, o darse de baja. Abrir el link no cambia nada. */
+export function UnsubscribeButton({ token, confirm }: { token: string; confirm?: string }) {
   const t = useTranslations('analytics.subscriptions');
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
   const go = async () => {
     setState('busy');
-    const res = await fetch('/api/analytics/sub-unsubscribe', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }) }).catch(() => null);
+    const res = await fetch('/api/analytics/sub-unsubscribe', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(confirm ? { confirm } : { token }) }).catch(() => null);
     setState(res?.ok ? 'done' : 'error');
   };
   return (
     <div className="an-share-unlock an-panel" data-testid="an-unsubscribe">
-      <h1 className="an-h3 an-flush">{t('unsubscribeTitle')}</h1>
+      <h1 className="an-h3 an-flush">{confirm ? t('confirmTitle') : t('unsubscribeTitle')}</h1>
       {state === 'done' ? (
-        <p role="status">{t('unsubscribed')}</p>
+        <p role="status">{confirm ? t('confirmed') : t('unsubscribed')}</p>
       ) : (
         <>
-          <p className="an-note">{t('unsubscribeBody')}</p>
+          <p className="an-note">{confirm ? t('confirmBody') : t('unsubscribeBody')}</p>
           {state === 'error' && (
             <p className="ui-error" role="alert">
               {t('unsubscribeError')}
             </p>
           )}
           <button type="button" className="btn btn-primary an-self-start" disabled={state === 'busy'} onClick={() => void go()}>
-            {t('unsubscribeConfirm')}
+            {confirm ? t('confirmAction') : t('unsubscribeConfirm')}
           </button>
         </>
       )}

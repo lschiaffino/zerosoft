@@ -12,7 +12,10 @@ export async function GET(req: NextRequest) {
   if (isResponse(actor)) return actor;
   const project = await actorProject(actor, req.nextUrl.searchParams.get('project'));
   if (isResponse(project)) return project;
-  return NextResponse.json({ subscriptions: await listSubscriptions(project.id), me: actor.personId });
+  const list = await listSubscriptions(project.id);
+  // Las direcciones las ve quien puede administrar: un miembro ve cuántas son.
+  const visible = canManageAnalytics(actor) ? list : list.map((s) => ({ ...s, recipients: [], recipientState: {} }));
+  return NextResponse.json({ subscriptions: visible, me: actor.personId });
 }
 
 const subscriptionBody = z.object({
@@ -35,6 +38,7 @@ export async function POST(req: NextRequest) {
   const project = await actorProject(actor, parsed.data.projectId);
   if (isResponse(project)) return project;
   const created = await createSubscription(project, actor.personId, parsed.data, Date.now(), parsed.data.locale ?? 'en');
+  if (created === 'email_limit') return aError(429, 'email_limit');
   if (!created) return aError(404, 'not_found');
   return NextResponse.json({ subscription: created }, { status: 201 });
 }

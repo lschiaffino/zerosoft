@@ -621,6 +621,13 @@ test('Analytics: lo que está en un link público y los flags los cambia un admi
     expect((await m.patch(`/api/analytics/dashboards/${board.id}`, { data: { insightIds: [] } })).status()).toBe(403);
     expect((await m.delete(`/api/analytics/dashboards/${board.id}`)).status()).toBe(403);
     expect((await m.patch(`/api/analytics/dashboards/${plain.id}`, { data: { transfer: { targetId: board.id, kind: 'insight', tileId: free.id, move: false } } })).status()).toBe(403);
+    // Lo que sale por email también: un miembro no cambia lo que le llega a alguien de afuera, ni ve a quién.
+    const { insight: mailed } = await post('/api/analytics/insights', { projectId, name: 'Mailed', query });
+    await post('/api/analytics/subscriptions', { projectId, name: 'Weekly', insightId: mailed.id, recipients: ['outside@other.org'], schedule: { frequency: 'daily', interval: 1, hour: 9 } });
+    expect((await m.patch(`/api/analytics/insights/${mailed.id}`, { data: { name: 'Otro' } })).status()).toBe(403);
+    expect((await m.post('/api/analytics/subscriptions', { data: { projectId, name: 'No', insightId: free.id, recipients: ['x@other.org'], schedule: { frequency: 'daily', interval: 1, hour: 9 } } })).status()).toBe(403);
+    const seen = await (await m.get(`/api/analytics/subscriptions?project=${projectId}`)).text();
+    expect(seen).not.toContain('outside@other.org');
     // Sin link público, se trabaja normal.
     expect((await m.patch(`/api/analytics/insights/${free.id}`, { data: { name: 'Libre' } })).status()).toBe(200);
     expect((await m.patch(`/api/analytics/dashboards/${plain.id}`, { data: { settings } })).status()).toBe(200);

@@ -289,8 +289,8 @@ const parity: ProductParity = {
         'Qualquer fuso IANA, com horário de verão: os dias começam à meia-noite local de cada lado da mudança. Projetos de antes seguem com o deslocamento fixo até escolherem um',
       ],
     }),
-    row('api-scopes', 'data', ['API access with scoped keys', 'Acceso por API con keys con permisos', 'Acesso por API com keys com permissões'], 'have', {
-      detail: ['analytics:read and analytics:write for queries, events and persons', 'analytics:read y analytics:write para consultas, eventos y personas', 'analytics:read e analytics:write para consultas, eventos e pessoas'],
+    row('api-scopes', 'data', ['API access with scoped keys', 'Acceso por API con keys con permisos', 'Acesso por API com keys com permissões'], 'partial', {
+      detail: ['analytics:read and analytics:write for queries, events and persons, checked over the API; creating a key from the settings screen not yet walked', 'analytics:read y analytics:write para consultas, eventos y personas, probados por la API; crear la key desde la pantalla de ajustes todavía sin recorrer', 'analytics:read e analytics:write para consultas, eventos e pessoas, testados pela API; criar a key pela tela de configurações ainda sem percorrer'],
     }),
     row('ai-assistant', 'data', ['AI assistant over your analytics', 'Asistente de IA sobre tu analítica', 'Assistente de IA sobre o seu analytics'], 'partial', {
       detail: ['Read tools in the platform assistant, with the same app access; not yet tried from start to finish with a real model', 'Herramientas de lectura en el asistente de la plataforma, con el mismo acceso por app; todavía sin probar de punta a punta con un modelo real', 'Ferramentas de leitura no assistente da plataforma, com o mesmo acesso por app; ainda sem testar do início ao fim com um modelo real'],

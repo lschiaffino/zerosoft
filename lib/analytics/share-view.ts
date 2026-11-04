@@ -31,7 +31,15 @@ export interface PublicShareView {
 
 const TTL_MS = 60_000;
 const MAX_TILES = 12;
+const FORCE_EVERY_MS = 30 * 60_000;
 const cache = new Map<string, { at: number; view: PublicShareView }>();
+const lastForced = new Map<string, number>();
+
+/** Quien administra cambió el link: lo próximo que se muestre ya lo refleja. */
+export function forgetShareView(token?: string): void {
+  if (token) cache.delete(token);
+  else cache.clear();
+}
 
 /** Quita lo que identifica personas del resultado. */
 export function publicResult(r: InsightResult): InsightResult {
@@ -57,7 +65,14 @@ export async function publicShareView(token: string, fresh = false): Promise<Pub
     return null;
   }
   const hit = cache.get(token);
-  if (!fresh && hit && Date.now() - hit.at < TTL_MS) return hit.view;
+  // ?refresh=true salta la caché como mucho una vez por intervalo de actualización.
+  const forced = lastForced.get(token) ?? 0;
+  const mayForce = fresh && Date.now() - forced >= FORCE_EVERY_MS;
+  if (mayForce) {
+    if (lastForced.size > 500) lastForced.clear();
+    lastForced.set(token, Date.now());
+  }
+  if (!mayForce && hit && Date.now() - hit.at < TTL_MS) return hit.view;
   const project = (await getDb().prepare('SELECT * FROM analytics_projects WHERE id = ? AND deleted_at IS NULL').get(share.project_id)) as ProjectRow | undefined;
   if (!project) return null;
   let view: PublicShareView | null = null;

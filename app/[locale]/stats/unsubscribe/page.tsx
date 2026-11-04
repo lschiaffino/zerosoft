@@ -7,7 +7,7 @@ import '@/styles/analytics.css';
 
 export const dynamic = 'force-dynamic';
 
-type Props = { params: Promise<{ locale: string }>; searchParams: Promise<{ t?: string }> };
+type Props = { params: Promise<{ locale: string }>; searchParams: Promise<{ t?: string; confirm?: string }> };
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { locale } = await props.params;
@@ -18,12 +18,12 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 /** Darse de baja de un reporte: abrir el link no cambia nada, hace falta confirmar. */
 export default async function UnsubscribePage(props: Props) {
   const { locale } = await props.params;
-  const { t: token } = await props.searchParams;
+  const { t: token, confirm } = await props.searchParams;
   setRequestLocale(locale);
   return (
     <ClientMessages locale={locale} namespaces={['analytics']}>
       <main className="an-share-public">
-        <UnsubscribeButton token={token ?? ''} />
+        <UnsubscribeButton token={token ?? ''} confirm={confirm} />
       </main>
     </ClientMessages>
   );

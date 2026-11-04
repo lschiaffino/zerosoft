@@ -81,24 +81,31 @@ export interface SummaryTable {
 const pct = (v: number) => `${Math.round(v * 1000) / 10}%`;
 const MAX_ROWS = 12;
 
-/** Lo que un insight dice en un email: una tabla corta, sin ids de personas. */
-export function summarize(r: InsightResult): SummaryTable | null {
+const LABELS: Record<string, { series: string; total: string; step: string; count: string; conversion: string; cohort: string; size: string; period1: string; path: string; sessions: string; group: string; new: string; returning: string; back: string; stopped: string; other: string }> = {
+  en: { series: 'Series', total: 'Total', step: 'Step', count: 'Count', conversion: 'Conversion', cohort: 'Cohort', size: 'Size', period1: 'Period 1', path: 'Path', sessions: 'Sessions', group: 'Group', new: 'New', returning: 'Returning', back: 'Came back', stopped: 'Stopped', other: 'Other' },
+  es: { series: 'Serie', total: 'Total', step: 'Paso', count: 'Cantidad', conversion: 'Conversión', cohort: 'Cohorte', size: 'Tamaño', period1: 'Período 1', path: 'Camino', sessions: 'Sesiones', group: 'Grupo', new: 'Nuevos', returning: 'Vuelven', back: 'Regresaron', stopped: 'Dejaron', other: 'Otros' },
+  pt: { series: 'Série', total: 'Total', step: 'Etapa', count: 'Quantidade', conversion: 'Conversão', cohort: 'Coorte', size: 'Tamanho', period1: 'Período 1', path: 'Caminho', sessions: 'Sessões', group: 'Grupo', new: 'Novos', returning: 'Voltam', back: 'Regressaram', stopped: 'Pararam', other: 'Outros' },
+};
+
+/** Lo que un insight dice en un email: una tabla corta, sin ids de personas, en el idioma de la suscripción. */
+export function summarize(r: InsightResult, locale = 'en'): SummaryTable | null {
+  const l = LABELS[locale] ?? LABELS.en;
   switch (r.kind) {
     case 'trends':
-      return { head: ['Series', 'Total'], rows: r.series.slice(0, MAX_ROWS).map((s) => [s.breakdownValue ? `${s.label} · ${s.breakdownValue === '$other' ? 'Other' : s.breakdownValue}` : s.label, String(s.total)]) };
+      return { head: [l.series, l.total], rows: r.series.slice(0, MAX_ROWS).map((s) => [s.breakdownValue ? `${s.label} · ${s.breakdownValue === '$other' ? l.other : s.breakdownValue}` : s.label, String(s.total)]) };
     case 'funnel':
-      return { head: ['Step', 'Count', 'Conversion'], rows: r.steps.slice(0, MAX_ROWS).map((s) => [s.label, String(s.count), pct(s.conversion)]) };
+      return { head: [l.step, l.count, l.conversion], rows: r.steps.slice(0, MAX_ROWS).map((s) => [s.label, String(s.count), pct(s.conversion)]) };
     case 'retention': {
       const live = r.cohorts.filter((c) => c.size > 0).slice(-MAX_ROWS);
-      return { head: ['Cohort', 'Size', 'Period 1'], rows: live.map((c) => [c.start, String(c.size), c.values[1] === undefined ? '' : pct(c.size ? c.values[1] / c.size : 0)]) };
+      return { head: [l.cohort, l.size, l.period1], rows: live.map((c) => [c.start, String(c.size), c.values[1] === undefined ? '' : pct(c.size ? c.values[1] / c.size : 0)]) };
     }
     case 'paths':
-      return { head: ['Path', 'Sessions'], rows: r.topPaths.slice(0, MAX_ROWS).map((p) => [p.path.join(' > '), String(p.count)]) };
+      return { head: [l.path, l.sessions], rows: r.topPaths.slice(0, MAX_ROWS).map((p) => [p.path.join(' > '), String(p.count)]) };
     case 'stickiness':
-      return { head: ['Series', 'Total'], rows: r.series.slice(0, MAX_ROWS).map((s) => [s.label, String(s.data.reduce((a, b) => a + b, 0))]) };
+      return { head: [l.series, l.total], rows: r.series.slice(0, MAX_ROWS).map((s) => [s.label, String(s.data.reduce((a, b) => a + b, 0))]) };
     case 'lifecycle': {
       const total = (k: 'new' | 'returning' | 'resurrecting' | 'dormant') => String(r[k].reduce((a, b) => a + Math.abs(b), 0));
-      return { head: ['Group', 'Total'], rows: [['New', total('new')], ['Returning', total('returning')], ['Came back', total('resurrecting')], ['Stopped', total('dormant')]] };
+      return { head: [l.group, l.total], rows: [[l.new, total('new')], [l.returning, total('returning')], [l.back, total('resurrecting')], [l.stopped, total('dormant')]] };
     }
     default:
       return null;

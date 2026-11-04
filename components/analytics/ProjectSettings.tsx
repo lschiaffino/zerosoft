@@ -232,6 +232,7 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
           <label className="ui-check">
             <input type="checkbox" checked={form.respectDnt} onChange={(e) => setForm({ ...form, respectDnt: e.target.checked })} /> {t('respectDnt')}
           </label>
+          <p className="ui-help">{t('respectDntHelp')}</p>
           <label className="ui-check">
             <input type="checkbox" data-testid="an-cookieless" checked={form.cookieless} onChange={(e) => setForm({ ...form, cookieless: e.target.checked })} /> {t('cookieless')}
           </label>

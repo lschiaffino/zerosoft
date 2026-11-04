@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { forgetShareView } from '@/lib/analytics/share-view';
 import { addSharePassword, removeSharePassword, revokeShare, rotateShareToken, updateShareOptions } from '@/lib/analytics/records-more';
 import { aError, analyticsActor, canManageAnalytics, isResponse, readJson, recordProject } from '@/lib/analytics/http';
 
@@ -9,9 +10,9 @@ export const dynamic = 'force-dynamic';
 type Ctx = { params: Promise<{ id: string }> };
 
 const patchSchema = z.object({
-  options: z.object({ theme: z.enum(['system', 'light', 'dark']).optional(), branding: z.boolean().optional(), legend: z.boolean().optional() }).optional(),
+  options: z.object({ theme: z.enum(['system', 'light', 'dark']).optional(), legend: z.boolean().optional() }).optional(),
   rotateToken: z.boolean().optional(),
-  addPassword: z.object({ password: z.string().max(200).optional(), note: z.string().max(200).optional() }).optional(),
+  addPassword: z.object({ password: z.string().min(8).max(200).optional(), note: z.string().max(200).optional() }).optional(),
   removePassword: z.string().max(64).optional(),
 });
 
@@ -33,9 +34,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (d.removePassword) return (await removeSharePassword(project.id, id, d.removePassword, actor.personId)) ? NextResponse.json({ ok: true }) : aError(404, 'not_found');
   if (d.rotateToken) {
     const share = await rotateShareToken(project.id, id, actor.personId);
+    forgetShareView();
     return share ? NextResponse.json({ share }) : aError(404, 'not_found');
   }
   const share = await updateShareOptions(project.id, id, d.options ?? {}, actor.personId);
+  if (share) forgetShareView(share.token);
   return share ? NextResponse.json({ share }) : aError(404, 'not_found');
 }
 

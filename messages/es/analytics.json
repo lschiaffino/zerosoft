@@ -329,7 +329,7 @@
       "invalid_formula": "La fórmula no es válida. Usá las letras de las series, números y + - * / ( ).",
       "math_property_required": "Elegí la propiedad numérica para calcular.",
       "group_type_required": "Escribí el tipo de grupo para contar.",
-      "shared_admin_only": "Esto aparece en un link público, así que solo un admin lo puede cambiar.",
+      "shared_admin_only": "Esto aparece en un link público o en un email, así que solo un admin lo puede cambiar.",
       "admin_only": "Solo un admin puede cambiar los feature flags."
     },
     "noCohorts": "Todavía no hay cohortes",
@@ -618,8 +618,8 @@
         "body": "Generaciones, personas, costo, latencia y uso por modelo."
       }
     },
-    "sharedAdminOnly": "Esto aparece en un link público, así que solo un admin lo puede cambiar.",
-    "sharedLocked": "Este tablero tiene un link público. Solo un admin lo puede cambiar.",
+    "sharedAdminOnly": "Esto aparece en un link público o en un email, así que solo un admin lo puede cambiar.",
+    "sharedLocked": "Este tablero aparece en un link público o en un email. Solo un admin lo puede cambiar.",
     "subscribe": "Suscribir"
   },
   "persons": {
@@ -652,7 +652,9 @@
     "deleteBody": "Se borran la persona, sus distinct IDs, sus sesiones y todos los eventos que mandó. No se puede deshacer. Los eventos que mande después crean una persona nueva.",
     "saveCohort": "Guardar como cohorte",
     "cohortName": "Nombre de la cohorte",
-    "saveCohortError": "No se pudo guardar la cohorte."
+    "saveCohortError": "No se pudo guardar la cohorte.",
+    "fromRetention": "{count, plural, one {# persona en esta celda de retención} other {# personas en esta celda de retención}}.",
+    "fromReached": "{count, plural, one {# persona que llegó a este paso} other {# personas que llegaron a este paso}}."
   },
   "cohorts": {
     "title": "Cohortes",
@@ -823,7 +825,8 @@
     "cookielessHelp": "El snippet puede correr sin guardar nada en el navegador, con cookieless_mode. Los visitantes se cuentan con un hash que cambia cada día, así que la misma persona en dos días cuenta dos veces y no hay perfiles de persona. La IP no se guarda. Apagado por defecto.",
     "cookielessTitle": "Sin cookies",
     "cookielessDesc": "No se guarda nada en el navegador e identify no hace nada. Las grabaciones y encuestas quedan apagadas en este modo. Primero prendé \"Permitir medir sin cookies\" arriba.",
-    "cookielessDropped": "{count, plural, one {# evento llegó} other {# eventos llegaron}} con cookieless_mode y se descartaron porque \"Permitir medir sin cookies\" está apagado. Prendelo o cambiá el snippet."
+    "cookielessDropped": "{count, plural, one {# evento llegó} other {# eventos llegaron}} con cookieless_mode y se descartaron porque \"Permitir medir sin cookies\" está apagado. Prendelo o cambiá el snippet.",
+    "respectDntHelp": "El servidor descarta los eventos que llegan con el header DNT o Sec-GPC. Cuando el navegador informa la señal, el snippet además deja de guardar."
   },
   "share": {
     "title": "Link público",
@@ -844,7 +847,6 @@
     "themeLight": "Claro",
     "themeDark": "Oscuro",
     "showLegend": "Mostrar leyenda",
-    "showBranding": "Mostrar crédito de zerosoft",
     "passwords": "Contraseñas",
     "passwordsOn": "Quien mira necesita una de estas. Al darla bien, dura 24 horas en ese navegador.",
     "passwordsOff": "Con al menos una contraseña, el link la pide.",
@@ -862,14 +864,15 @@
       "password_added": "Contraseña agregada",
       "password_removed": "Contraseña quitada"
     },
-    "poweredBy": "Hecho con zerosoft",
     "tooManyTries": "Demasiados intentos. Esperá unos minutos.",
     "wrongPassword": "Esa contraseña no es correcta.",
     "passwordTitle": "Este link está protegido",
     "passwordLabel": "Contraseña",
     "passwordEnter": "Abrir",
     "dependsOn": "Los números de este link dependen de {list}. Quien las edite cambia lo que muestra el link.",
-    "changesPublic": "Esto cambia los números de {count, plural, one {un link público} other {# links públicos}}: {list}."
+    "changesPublic": "Esto cambia los números de {count, plural, one {un link público} other {# links públicos}}: {list}.",
+    "cookiesBlocked": "La contraseña es correcta, pero este navegador bloquea lo que el embed necesita para recordarla.",
+    "openNewTab": "Abrilo en una pestaña nueva"
   },
   "alerts": {
     "title": "Alertas",
@@ -1074,7 +1077,7 @@
     "insights": "Insights",
     "name": "Nombre",
     "recipients": "Destinatarios",
-    "recipientsHelp": "Direcciones de email, de tu equipo o de afuera. Cada una recibe un aviso y se puede dar de baja. Hasta 20.",
+    "recipientsHelp": "Direcciones de email. Quien no es de tu workspace recibe un link para confirmar y no recibe nada hasta hacerlo. Hasta 20.",
     "message": "Mensaje",
     "frequency": "Frecuencia",
     "daily": "Diaria",
@@ -1132,7 +1135,7 @@
     "edit": "Editar",
     "editNamed": "Editar {name}",
     "test": "Mandar ahora",
-    "testSent": "Enviada a sus destinatarios.",
+    "testSent": "Enviada a los destinatarios que confirmaron.",
     "testDisabled": "Prendela para mandarla.",
     "disable": "Apagar",
     "enable": "Prender",
@@ -1148,6 +1151,16 @@
     "unsubscribeBody": "Vas a dejar de recibir este reporte por email. Los demás lo siguen recibiendo.",
     "unsubscribeConfirm": "Darme de baja",
     "unsubscribed": "Listo. Ya no vas a recibir este reporte.",
-    "unsubscribeError": "Este link no es válido."
+    "unsubscribeError": "Este link no es válido.",
+    "state": {
+      "pending": "esperando confirmación",
+      "unsubscribed": "se dio de baja"
+    },
+    "recipientCount": "{count, plural, one {# destinatario} other {# destinatarios}}",
+    "emailLimit": "Llegaste al tope de emails de esta hora. Probá más tarde.",
+    "confirmTitle": "Recibir este reporte",
+    "confirmBody": "Confirmá que querés este reporte de analítica por email. Te podés dar de baja de cualquier reporte.",
+    "confirmAction": "Confirmar",
+    "confirmed": "Listo. Vas a recibir el próximo reporte."
   }
 }

@@ -329,7 +329,7 @@
       "invalid_formula": "A fórmula não é válida. Use as letras das séries, números e + - * / ( ).",
       "math_property_required": "Escolha a propriedade numérica para calcular.",
       "group_type_required": "Escreva o tipo de grupo para contar.",
-      "shared_admin_only": "Isto aparece em um link público, então só um admin pode mudar.",
+      "shared_admin_only": "Isto aparece em um link público ou em um email, então só um admin pode mudar.",
       "admin_only": "Só um admin pode mudar feature flags."
     },
     "noCohorts": "Ainda não há coortes",
@@ -618,8 +618,8 @@
         "body": "Gerações, pessoas, custo, latência e uso por modelo."
       }
     },
-    "sharedAdminOnly": "Isto aparece em um link público, então só um admin pode mudar.",
-    "sharedLocked": "Este painel tem um link público. Só um admin pode mudar.",
+    "sharedAdminOnly": "Isto aparece em um link público ou em um email, então só um admin pode mudar.",
+    "sharedLocked": "Este painel aparece em um link público ou em um email. Só um admin pode mudar.",
     "subscribe": "Inscrever"
   },
   "persons": {
@@ -652,7 +652,9 @@
     "deleteBody": "A pessoa, seus distinct IDs, suas sessões e todos os eventos que enviou são apagados. Não dá para desfazer. Eventos enviados depois criam uma pessoa nova.",
     "saveCohort": "Salvar como coorte",
     "cohortName": "Nome da coorte",
-    "saveCohortError": "Não foi possível salvar a coorte."
+    "saveCohortError": "Não foi possível salvar a coorte.",
+    "fromRetention": "{count, plural, one {# pessoa nesta célula de retenção} other {# pessoas nesta célula de retenção}}.",
+    "fromReached": "{count, plural, one {# pessoa que chegou a esta etapa} other {# pessoas que chegaram a esta etapa}}."
   },
   "cohorts": {
     "title": "Coortes",
@@ -823,7 +825,8 @@
     "cookielessHelp": "O snippet pode rodar sem guardar nada no navegador, com cookieless_mode. Os visitantes são contados com um hash que muda todo dia, então a mesma pessoa em dois dias conta duas vezes e não há perfis de pessoa. O IP não é guardado. Desligado por padrão.",
     "cookielessTitle": "Sem cookies",
     "cookielessDesc": "Nada é guardado no navegador e identify não faz nada. Gravações e pesquisas ficam desligadas neste modo. Primeiro ligue \"Permitir medir sem cookies\" acima.",
-    "cookielessDropped": "{count, plural, one {# evento chegou} other {# eventos chegaram}} com cookieless_mode e foram descartados porque \"Permitir medir sem cookies\" está desligado. Ligue ou mude o snippet."
+    "cookielessDropped": "{count, plural, one {# evento chegou} other {# eventos chegaram}} com cookieless_mode e foram descartados porque \"Permitir medir sem cookies\" está desligado. Ligue ou mude o snippet.",
+    "respectDntHelp": "O servidor descarta os eventos que chegam com o header DNT ou Sec-GPC. Quando o navegador informa o sinal, o snippet também para de salvar."
   },
   "share": {
     "title": "Link público",
@@ -844,7 +847,6 @@
     "themeLight": "Claro",
     "themeDark": "Escuro",
     "showLegend": "Mostrar legenda",
-    "showBranding": "Mostrar crédito do zerosoft",
     "passwords": "Senhas",
     "passwordsOn": "Quem vê precisa de uma destas. Ao acertar, dura 24 horas nesse navegador.",
     "passwordsOff": "Com pelo menos uma senha, o link pede.",
@@ -862,14 +864,15 @@
       "password_added": "Senha adicionada",
       "password_removed": "Senha removida"
     },
-    "poweredBy": "Feito com zerosoft",
     "tooManyTries": "Muitas tentativas. Aguarde alguns minutos.",
     "wrongPassword": "Essa senha não está certa.",
     "passwordTitle": "Este link está protegido",
     "passwordLabel": "Senha",
     "passwordEnter": "Abrir",
     "dependsOn": "Os números deste link dependem de {list}. Quem as editar muda o que o link mostra.",
-    "changesPublic": "Isto muda os números de {count, plural, one {um link público} other {# links públicos}}: {list}."
+    "changesPublic": "Isto muda os números de {count, plural, one {um link público} other {# links públicos}}: {list}.",
+    "cookiesBlocked": "A senha está certa, mas este navegador bloqueia o que o embed precisa para lembrá-la.",
+    "openNewTab": "Abra em uma nova aba"
   },
   "alerts": {
     "title": "Alertas",
@@ -1074,7 +1077,7 @@
     "insights": "Insights",
     "name": "Nome",
     "recipients": "Destinatários",
-    "recipientsHelp": "Endereços de email, da sua equipe ou de fora. Cada um recebe um aviso e pode cancelar. Até 20.",
+    "recipientsHelp": "Endereços de email. Quem não é do seu workspace recebe um link para confirmar e não recebe nada até lá. Até 20.",
     "message": "Mensagem",
     "frequency": "Frequência",
     "daily": "Diária",
@@ -1132,7 +1135,7 @@
     "edit": "Editar",
     "editNamed": "Editar {name}",
     "test": "Mandar agora",
-    "testSent": "Enviada aos destinatários.",
+    "testSent": "Enviada aos destinatários que confirmaram.",
     "testDisabled": "Ligue para mandar.",
     "disable": "Desligar",
     "enable": "Ligar",
@@ -1148,6 +1151,16 @@
     "unsubscribeBody": "Você vai parar de receber este relatório por email. Os outros continuam recebendo.",
     "unsubscribeConfirm": "Cancelar inscrição",
     "unsubscribed": "Pronto. Você não vai mais receber este relatório.",
-    "unsubscribeError": "Este link não é válido."
+    "unsubscribeError": "Este link não é válido.",
+    "state": {
+      "pending": "aguardando confirmação",
+      "unsubscribed": "cancelou"
+    },
+    "recipientCount": "{count, plural, one {# destinatário} other {# destinatários}}",
+    "emailLimit": "Você chegou ao limite de emails desta hora. Tente mais tarde.",
+    "confirmTitle": "Receber este relatório",
+    "confirmBody": "Confirme que quer este relatório de analytics por email. Você pode cancelar qualquer relatório.",
+    "confirmAction": "Confirmar",
+    "confirmed": "Pronto. Você vai receber o próximo relatório."
   }
 }

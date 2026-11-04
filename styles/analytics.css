@@ -417,3 +417,12 @@
 .an-subs-table { min-width: 780px; }
 .an-sub-days { border: 0; padding: 0; margin: 0; }
 .an-sub-days legend { padding: 0; margin-bottom: 6px; }
+.an-plain-fieldset { display: contents; }
+@media (max-width: 640px) {
+  .an-subs-table { min-width: 0; }
+  .an-subs-table thead { display: none; }
+  .an-subs-table, .an-subs-table tbody, .an-subs-table tr, .an-subs-table td { display: block; width: 100%; }
+  .an-subs-table tr { padding: 10px 0; border-bottom: 1px solid var(--rule, currentColor); }
+  .an-subs-table td { border: 0; padding: 2px 8px; white-space: normal; }
+  .an-subs-table .an-td-action { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; text-align: left; }
+}

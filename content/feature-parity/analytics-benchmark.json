@@ -3489,8 +3489,13 @@
         "es": "Opciones de visualización al compartir",
         "pt": "Opções de exibição ao compartilhar"
       },
-      "status": "have",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "The legend can be hidden; the credit cannot be turned off for now",
+        "es": "La leyenda se puede ocultar; el crédito por ahora no se apaga",
+        "pt": "A legenda pode ser ocultada; o crédito por enquanto não se desliga"
+      }
     },
     {
       "id": "sharing-theme",

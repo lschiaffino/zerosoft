@@ -6,7 +6,9 @@
  */
 import { createHmac, timingSafeEqual } from 'crypto';
 import { nanoid } from 'nanoid';
+import { listBoardMembers } from '../board-comments';
 import { getDb } from '../db';
+import { rateLimit } from '../rate-limit';
 import { appSender, escapeHtml, sendEmail } from '../email';
 import { applyDashboard } from './dashboard-core';
 import { getProjectById, type ProjectRow } from './projects';
@@ -18,8 +20,16 @@ import { projectTz } from './tz';
 import { shareableQuery, type InsightDto } from './types';
 
 const CLAIM_MS = 15 * 60_000;
+const DAY = 86_400_000;
+/** Emails por hora y workspace: menos los primeros días, que es cuando se abusa de un envío gratis. */
+const EMAILS_PER_HOUR = 300;
+const EMAILS_PER_HOUR_NEW = 30;
+const NEW_WORKSPACE_DAYS = 7;
+const CONFIRM_DAYS = 14;
 export const SUBSCRIPTION_MAX_INSIGHTS = 20;
 export const SUBSCRIPTION_MAX_RECIPIENTS = 20;
+
+export type RecipientState = 'confirmed' | 'pending' | 'unsubscribed';
 
 export interface SubscriptionDto {
   id: string;
@@ -28,6 +38,10 @@ export interface SubscriptionDto {
   dashboardId: string | null;
   insightIds: string[];
   recipients: string[];
+  /** Por destinatario: quienes no son del workspace confirman antes de recibir nada. */
+  recipientState: Record<string, RecipientState>;
+  recipientCount: number;
+  locale: string;
   message: string;
   schedule: SubscriptionSchedule;
   enabled: boolean;
@@ -46,6 +60,8 @@ interface Row {
   dashboard_id: string | null;
   insight_ids: string;
   recipients: string;
+  recipient_state?: string | null;
+  locale?: string | null;
   message: string;
   schedule: string;
   enabled: number;
@@ -65,15 +81,31 @@ function parseList(raw: string): string[] {
   }
 }
 
+function parseState(raw: string | null | undefined): Record<string, RecipientState> {
+  try {
+    const v = JSON.parse(raw || '{}');
+    return v && typeof v === 'object' ? (v as Record<string, RecipientState>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Lo que va en un asunto o un nombre: sin saltos de línea ni caracteres de control. */
+const oneLine = (v: string) => v.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
+
 function toDto(r: Row): SubscriptionDto {
   const parsed = subscriptionScheduleSchema.safeParse(JSON.parse(r.schedule || '{}'));
+  const recipients = parseList(r.recipients);
   return {
     id: r.id,
     name: r.name,
     insightId: r.insight_id,
     dashboardId: r.dashboard_id,
     insightIds: parseList(r.insight_ids),
-    recipients: parseList(r.recipients),
+    recipients,
+    recipientState: parseState(r.recipient_state),
+    recipientCount: recipients.length,
+    locale: r.locale || 'en',
     message: r.message,
     schedule: parsed.success ? parsed.data : { frequency: 'weekly', interval: 1, hour: 9 },
     enabled: r.enabled === 1,
@@ -108,6 +140,36 @@ export interface SubscriptionInput {
 
 const cleanRecipients = (list: string[]) => [...new Set(list.map((x) => x.trim().toLowerCase()).filter(Boolean))].slice(0, SUBSCRIPTION_MAX_RECIPIENTS);
 
+/** Gasta un email del cupo del workspace. false: no quedan por esta hora. */
+async function takeEmail(workspaceId: string): Promise<boolean> {
+  if (process.env.RATE_LIMIT_DISABLED === 'true') return true;
+  const owner = (await getDb().prepare('SELECT created_at FROM users WHERE id = ?').get(workspaceId)) as { created_at?: string | number | null } | undefined;
+  const age = owner?.created_at ? Date.now() - new Date(owner.created_at).getTime() : 0;
+  const limit = age > NEW_WORKSPACE_DAYS * DAY ? EMAILS_PER_HOUR : EMAILS_PER_HOUR_NEW;
+  return (await rateLimit(`asub-mail:${workspaceId}`, limit, 3600)).ok;
+}
+
+async function workspaceEmails(workspaceId: string): Promise<Set<string>> {
+  return new Set((await listBoardMembers(workspaceId)).map((m) => m.email.toLowerCase()));
+}
+
+async function optedOut(workspaceId: string, emails: string[]): Promise<Set<string>> {
+  if (!emails.length) return new Set();
+  const rows = (await getDb()
+    .prepare(`SELECT email FROM analytics_email_optouts WHERE workspace_id = ? AND email IN (${emails.map(() => '?').join(',')})`)
+    .all(workspaceId, ...emails)) as unknown as Array<{ email: string }>;
+  return new Set(rows.map((r) => r.email));
+}
+
+/** Estado de cada destinatario: quien se dio de baja no vuelve; del workspace entra directo; el resto confirma. */
+async function nextStates(workspaceId: string, recipients: string[], prev: Record<string, RecipientState>): Promise<Record<string, RecipientState>> {
+  const inside = await workspaceEmails(workspaceId);
+  const out = await optedOut(workspaceId, recipients);
+  const state: Record<string, RecipientState> = {};
+  for (const r of recipients) state[r] = out.has(r) ? 'unsubscribed' : prev[r] === 'confirmed' || inside.has(r) ? 'confirmed' : 'pending';
+  return state;
+}
+
 async function validTarget(projectId: string, input: Pick<SubscriptionInput, 'insightId' | 'dashboardId' | 'insightIds'>): Promise<{ insightIds: string[] } | null> {
   if (input.insightId) {
     const i = await getInsight(projectId, input.insightId);
@@ -123,25 +185,31 @@ async function validTarget(projectId: string, input: Pick<SubscriptionInput, 'in
   return null;
 }
 
-export async function createSubscription(project: ProjectRow, personId: string, input: SubscriptionInput, now = Date.now(), locale = 'en'): Promise<SubscriptionDto | null> {
+export async function createSubscription(project: ProjectRow, personId: string, input: SubscriptionInput, now = Date.now(), locale = 'en'): Promise<SubscriptionDto | 'email_limit' | null> {
   const target = await validTarget(project.id, input);
   if (!target) return null;
+  const recipients = cleanRecipients(input.recipients);
+  const state = await nextStates(project.workspace_id, recipients, {});
+  const toNotify = recipients.filter((r) => state[r] !== 'unsubscribed');
+  // Antes de crear nada: si no alcanza el cupo para los avisos, no se crea.
+  for (let i = 0; i < toNotify.length; i++) if (!(await takeEmail(project.workspace_id))) return 'email_limit';
   const id = `asb_${nanoid(12)}`;
   const enabled = input.enabled !== false;
-  const recipients = cleanRecipients(input.recipients);
   await getDb()
     .prepare(
-      `INSERT INTO analytics_subscriptions (id, project_id, name, insight_id, dashboard_id, insight_ids, recipients, message, schedule, enabled, next_at, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO analytics_subscriptions (id, project_id, name, insight_id, dashboard_id, insight_ids, recipients, recipient_state, locale, message, schedule, enabled, next_at, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
       project.id,
-      input.name.slice(0, 200),
+      oneLine(input.name).slice(0, 200),
       input.insightId ?? null,
       input.insightId ? null : (input.dashboardId ?? null),
       JSON.stringify(target.insightIds),
       JSON.stringify(recipients),
+      JSON.stringify(state),
+      locale,
       (input.message ?? '').slice(0, 1000),
       JSON.stringify(input.schedule),
       enabled ? 1 : 0,
@@ -151,25 +219,28 @@ export async function createSubscription(project: ProjectRow, personId: string, 
       new Date(now).toISOString(),
     );
   const dto = (await getSubscription(project.id, id))!;
-  await notifyRecipients(dto, recipients, locale);
+  await notifyRecipients(dto, toNotify, locale);
   return dto;
 }
 
-export async function updateSubscription(project: ProjectRow, id: string, patch: Partial<SubscriptionInput>, now = Date.now(), locale = 'en'): Promise<SubscriptionDto | null> {
+export async function updateSubscription(project: ProjectRow, id: string, patch: Partial<SubscriptionInput>, now = Date.now(), locale?: string): Promise<SubscriptionDto | 'email_limit' | null> {
   const cur = await getSubscription(project.id, id);
   if (!cur) return null;
   const target = await validTarget(project.id, { insightId: cur.insightId, dashboardId: cur.dashboardId, insightIds: patch.insightIds ?? cur.insightIds });
   if (!target) return null;
   const recipients = patch.recipients ? cleanRecipients(patch.recipients) : cur.recipients;
+  const state = await nextStates(project.workspace_id, recipients, cur.recipientState);
+  // Solo a quienes recién se suman, y nunca a quien se dio de baja.
+  const toNotify = recipients.filter((r) => !cur.recipients.includes(r) && state[r] !== 'unsubscribed');
+  for (let i = 0; i < toNotify.length; i++) if (!(await takeEmail(project.workspace_id))) return 'email_limit';
   const schedule = patch.schedule ?? cur.schedule;
   const enabled = patch.enabled ?? cur.enabled;
   const nextAt = enabled ? (patch.schedule || !cur.enabled || cur.nextAt === null ? nextDelivery(schedule, now, Date.parse(cur.createdAt), projectTz(project)) : cur.nextAt) : null;
   await getDb()
-    .prepare('UPDATE analytics_subscriptions SET name = ?, insight_ids = ?, recipients = ?, message = ?, schedule = ?, enabled = ?, next_at = ?, last_error = CASE WHEN ? = 1 THEN NULL ELSE last_error END, updated_at = ? WHERE id = ? AND project_id = ?')
-    .run((patch.name ?? cur.name).slice(0, 200), JSON.stringify(target.insightIds), JSON.stringify(recipients), (patch.message ?? cur.message).slice(0, 1000), JSON.stringify(schedule), enabled ? 1 : 0, nextAt, enabled ? 1 : 0, new Date(now).toISOString(), id, project.id);
+    .prepare('UPDATE analytics_subscriptions SET name = ?, insight_ids = ?, recipients = ?, recipient_state = ?, locale = ?, message = ?, schedule = ?, enabled = ?, next_at = ?, last_error = CASE WHEN ? = 1 THEN NULL ELSE last_error END, updated_at = ? WHERE id = ? AND project_id = ?')
+    .run(oneLine(patch.name ?? cur.name).slice(0, 200), JSON.stringify(target.insightIds), JSON.stringify(recipients), JSON.stringify(state), locale ?? cur.locale, (patch.message ?? cur.message).slice(0, 1000), JSON.stringify(schedule), enabled ? 1 : 0, nextAt, enabled ? 1 : 0, new Date(now).toISOString(), id, project.id);
   const dto = (await getSubscription(project.id, id))!;
-  // Solo a quienes recién se suman.
-  await notifyRecipients(dto, recipients.filter((r) => !cur.recipients.includes(r)), locale);
+  await notifyRecipients(dto, toNotify, locale ?? cur.locale);
   return dto;
 }
 
@@ -197,16 +268,45 @@ export function parseUnsubscribeToken(token: string): { id: string; email: strin
   return { id, email };
 }
 
-/** Saca a una persona de una suscripción, con el token de su email. Sin nadie más, queda apagada. */
+const signConfirm = (id: string, email: string, exp: number) => createHmac('sha256', `analytics-sub-confirm:${secret()}`).update(`${id}\n${email}\n${exp}`).digest('base64url').slice(0, 32);
+
+export function confirmToken(id: string, email: string, now = Date.now()): string {
+  const exp = now + CONFIRM_DAYS * DAY;
+  return `${id}.${Buffer.from(email).toString('base64url')}.${exp}.${signConfirm(id, email, exp)}`;
+}
+
+/** Quien recibió el aviso confirma que quiere los reportes. El token vence y solo sirve para su dirección. */
+export async function confirmRecipient(token: string, now = Date.now()): Promise<boolean> {
+  const [id, enc, expRaw, sig] = token.split('.');
+  if (!id || !enc || !expRaw || !sig) return false;
+  const email = Buffer.from(enc, 'base64url').toString();
+  const exp = Number(expRaw);
+  if (!Number.isFinite(exp) || exp < now) return false;
+  const want = Buffer.from(signConfirm(id, email, exp));
+  const got = Buffer.from(sig);
+  if (want.length !== got.length || !timingSafeEqual(want, got)) return false;
+  const row = (await getDb().prepare('SELECT s.recipients, s.recipient_state, p.workspace_id FROM analytics_subscriptions s JOIN analytics_projects p ON p.id = s.project_id WHERE s.id = ?').get(id)) as { recipients: string; recipient_state: string; workspace_id: string } | undefined;
+  if (!row || !parseList(row.recipients).includes(email)) return false;
+  const state = parseState(row.recipient_state);
+  state[email] = 'confirmed';
+  await getDb().prepare('DELETE FROM analytics_email_optouts WHERE workspace_id = ? AND email = ?').run(row.workspace_id, email);
+  await getDb().prepare('UPDATE analytics_subscriptions SET recipient_state = ? WHERE id = ?').run(JSON.stringify(state), id);
+  return true;
+}
+
+/** Saca a una persona de una suscripción, con el token de su email, y el workspace no la vuelve a avisar. Sin nadie más, queda apagada. */
 export async function unsubscribe(token: string): Promise<boolean> {
   const parsed = parseUnsubscribeToken(token);
   if (!parsed) return false;
-  const row = (await getDb().prepare('SELECT * FROM analytics_subscriptions WHERE id = ?').get(parsed.id)) as Row | undefined;
+  const row = (await getDb().prepare('SELECT s.*, p.workspace_id FROM analytics_subscriptions s JOIN analytics_projects p ON p.id = s.project_id WHERE s.id = ?').get(parsed.id)) as (Row & { workspace_id: string }) | undefined;
   if (!row) return true;
+  await getDb().prepare('INSERT OR IGNORE INTO analytics_email_optouts (workspace_id, email, created_at) VALUES (?, ?, ?)').run(row.workspace_id, parsed.email, new Date().toISOString());
   const left = parseList(row.recipients).filter((r) => r !== parsed.email);
+  const state = parseState(row.recipient_state);
+  delete state[parsed.email];
   await getDb()
-    .prepare('UPDATE analytics_subscriptions SET recipients = ?, enabled = CASE WHEN ? = 0 THEN 0 ELSE enabled END, next_at = CASE WHEN ? = 0 THEN NULL ELSE next_at END WHERE id = ?')
-    .run(JSON.stringify(left), left.length, left.length, parsed.id);
+    .prepare('UPDATE analytics_subscriptions SET recipients = ?, recipient_state = ?, enabled = CASE WHEN ? = 0 THEN 0 ELSE enabled END, next_at = CASE WHEN ? = 0 THEN NULL ELSE next_at END WHERE id = ?')
+    .run(JSON.stringify(left), JSON.stringify(state), left.length, left.length, parsed.id);
   return true;
 }
 
@@ -214,22 +314,37 @@ export async function unsubscribe(token: string): Promise<boolean> {
 
 const siteUrl = () => (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'https://zerosoft.ai').replace(/\/$/, '');
 
-const COPY: Record<string, { subscribed: (n: string) => string; intro: string; unsub: string; open: string; notPublic: string; failed: string; empty: string }> = {
-  en: { subscribed: (n) => `You were subscribed to "${n}"`, intro: 'You will get this report by email on its schedule.', unsub: 'Unsubscribe', open: 'Open in zerosoft', notPublic: 'This one is only visible inside the app.', failed: 'Could not calculate this one.', empty: 'No data for this period.' },
-  es: { subscribed: (n) => `Te suscribieron a "${n}"`, intro: 'Vas a recibir este reporte por email según su calendario.', unsub: 'Darme de baja', open: 'Abrir en zerosoft', notPublic: 'Este solo se puede ver dentro de la app.', failed: 'No se pudo calcular.', empty: 'Sin datos en este período.' },
-  pt: { subscribed: (n) => `Você foi inscrito em "${n}"`, intro: 'Você vai receber este relatório por email conforme a agenda.', unsub: 'Cancelar inscrição', open: 'Abrir no zerosoft', notPublic: 'Este só pode ser visto dentro do app.', failed: 'Não foi possível calcular.', empty: 'Sem dados neste período.' },
+const COPY: Record<string, { noticeSubject: string; notice: string; confirmSubject: string; confirmBody: string; confirm: string; unsub: string; open: string; notPublic: string; failed: string; empty: string }> = {
+  en: { noticeSubject: 'You were added to an analytics report', notice: 'A zerosoft workspace you belong to added you to a report by email.', confirmSubject: 'Do you want to receive this analytics report?', confirmBody: 'Someone using zerosoft wants to send you an analytics report by email. You will get nothing unless you confirm. If you were not expecting this, ignore this message.', confirm: 'Confirm', unsub: 'Unsubscribe', open: 'Open in zerosoft', notPublic: 'This one is only visible inside the app.', failed: 'Could not calculate this one.', empty: 'No data for this period.' },
+  es: { noticeSubject: 'Te sumaron a un reporte de analítica', notice: 'Un workspace de zerosoft del que sos parte te sumó a un reporte por email.', confirmSubject: '¿Querés recibir este reporte de analítica?', confirmBody: 'Alguien que usa zerosoft quiere mandarte un reporte de analítica por email. No vas a recibir nada si no confirmás. Si no lo esperabas, ignorá este mensaje.', confirm: 'Confirmar', unsub: 'Darme de baja', open: 'Abrir en zerosoft', notPublic: 'Este solo se puede ver dentro de la app.', failed: 'No se pudo calcular.', empty: 'Sin datos en este período.' },
+  pt: { noticeSubject: 'Você foi adicionado a um relatório de analytics', notice: 'Um workspace do zerosoft do qual você faz parte adicionou você a um relatório por email.', confirmSubject: 'Quer receber este relatório de analytics?', confirmBody: 'Alguém que usa o zerosoft quer enviar um relatório de analytics por email. Você não recebe nada se não confirmar. Se não esperava isto, ignore esta mensagem.', confirm: 'Confirmar', unsub: 'Cancelar inscrição', open: 'Abrir no zerosoft', notPublic: 'Este só pode ser visto dentro do app.', failed: 'Não foi possível calcular.', empty: 'Sem dados neste período.' },
 };
 const copy = (locale: string) => COPY[locale] ?? COPY.en;
 
 const unsubLink = (id: string, email: string, locale: string) => `${siteUrl()}/${locale}/stats/unsubscribe?t=${encodeURIComponent(unsubscribeToken(id, email))}`;
+const unsubHeaders = (id: string, email: string) => ({
+  'List-Unsubscribe': `<${siteUrl()}/api/analytics/sub-unsubscribe?t=${encodeURIComponent(unsubscribeToken(id, email))}>`,
+  'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+});
 
+/** El primer email no lleva nada escrito por quien suscribe: ni nombre ni mensaje. Quien no es del workspace confirma. */
 async function notifyRecipients(s: SubscriptionDto, recipients: string[], locale: string): Promise<void> {
   const c = copy(locale);
   for (const to of recipients) {
-    const link = unsubLink(s.id, to, locale);
-    const text = [c.intro, s.message, `${c.unsub}: ${link}`].filter(Boolean).join('\n\n');
-    const html = `<p>${escapeHtml(c.intro)}</p>${s.message ? `<p>${escapeHtml(s.message)}</p>` : ''}<p><a href="${escapeHtml(link)}">${escapeHtml(c.unsub)}</a></p>`;
-    await sendEmail({ to, subject: c.subscribed(s.name), text, html, from: appSender() }).catch(() => null);
+    const unsub = unsubLink(s.id, to, locale);
+    if (s.recipientState[to] === 'confirmed') {
+      await sendEmail({ to, subject: c.noticeSubject, text: `${c.notice}\n\n${c.unsub}: ${unsub}`, html: `<p>${escapeHtml(c.notice)}</p><p><a href="${escapeHtml(unsub)}">${escapeHtml(c.unsub)}</a></p>`, from: appSender(), headers: unsubHeaders(s.id, to) }).catch(() => null);
+      continue;
+    }
+    const link = `${siteUrl()}/${locale}/stats/unsubscribe?confirm=${encodeURIComponent(confirmToken(s.id, to))}`;
+    await sendEmail({
+      to,
+      subject: c.confirmSubject,
+      text: `${c.confirmBody}\n\n${c.confirm}: ${link}\n\n${c.unsub}: ${unsub}`,
+      html: `<p>${escapeHtml(c.confirmBody)}</p><p><a href="${escapeHtml(link)}">${escapeHtml(c.confirm)}</a></p><p style="font-size:12px;color:#666"><a href="${escapeHtml(unsub)}">${escapeHtml(c.unsub)}</a></p>`,
+      from: appSender(),
+      headers: unsubHeaders(s.id, to),
+    }).catch(() => null);
   }
 }
 
@@ -261,7 +376,7 @@ export async function buildReport(project: ProjectRow, s: SubscriptionDto, local
     }
     try {
       const q = board ? applyDashboard(i.query, board.settings, board.settings.tiles[i.id]) : i.query;
-      const table = summarize(publicResult(await runInsight(project, q)));
+      const table = summarize(publicResult(await runInsight(project, q)), locale);
       if (!table || !table.rows.length) {
         text.push(c.empty, '');
         html.push(`<p>${escapeHtml(c.empty)}</p>`);
@@ -282,18 +397,22 @@ export async function buildReport(project: ProjectRow, s: SubscriptionDto, local
   return { text, html };
 }
 
-/** Manda una suscripción ahora a todos sus destinatarios. Devuelve el error, si hubo. */
-export async function deliverSubscription(project: ProjectRow, s: SubscriptionDto, locale = 'en'): Promise<string | null> {
+/** Manda una suscripción ahora a quienes confirmaron. Devuelve el error, si hubo. */
+export async function deliverSubscription(project: ProjectRow, s: SubscriptionDto, localeArg?: string): Promise<string | null> {
+  const locale = localeArg ?? s.locale;
   const c = copy(locale);
   const body = await buildReport(project, s, locale);
   const path = s.insightId ? `/${locale}/app/analytics/insights/${s.insightId}` : `/${locale}/app/analytics/dashboards/${s.dashboardId}`;
   let error: string | null = null;
   for (const to of s.recipients) {
+    if (s.recipientState[to] !== 'confirmed') continue;
+    if (!(await takeEmail(project.workspace_id))) return 'email_limit';
     const link = unsubLink(s.id, to, locale);
     const res = await sendEmail({
       to,
       subject: s.name,
       from: appSender(),
+      headers: unsubHeaders(s.id, to),
       text: [...(s.message ? [s.message, ''] : []), ...body.text, `${c.open}: ${siteUrl()}${path}`, '', `${c.unsub}: ${link}`].join('\n'),
       html: `${s.message ? `<p>${escapeHtml(s.message)}</p>` : ''}${body.html.join('')}<p style="margin-top:20px"><a href="${escapeHtml(`${siteUrl()}${path}`)}">${escapeHtml(c.open)}</a></p><p style="font-size:12px;color:#666"><a href="${escapeHtml(link)}">${escapeHtml(c.unsub)}</a></p>`,
     }).catch(() => ({ ok: false, error: 'send_failed' }));

@@ -8,19 +8,32 @@ import { createDashboard, createInsight, updateDashboard } from '@/lib/analytics
 import { nextDelivery, summarize, type SubscriptionSchedule } from '@/lib/analytics/subscriptions-core';
 import { insightQuerySchema } from '@/lib/analytics/types';
 
-const sent: Array<{ to: string; subject: string; text: string; html: string }> = [];
+const sent: Array<{ to: string; subject: string; text: string; html: string; headers?: Record<string, string> }> = [];
 vi.mock('@/lib/email', async (orig) => {
   const real = (await orig()) as Record<string, unknown>;
   return {
     ...real,
-    sendEmail: async (o: { to: string; subject: string; text: string; html: string }) => {
+    sendEmail: async (o: { to: string; subject: string; text: string; html: string; headers?: Record<string, string> }) => {
       if (o.to.startsWith('fail')) return { ok: false, error: 'x' };
       sent.push(o);
       return { ok: true };
     },
   };
 });
-const { buildReport, createSubscription, deliverSubscription, getSubscription, parseUnsubscribeToken, runSubscriptionsCron, unsubscribe, unsubscribeToken, updateSubscription } = await import('@/lib/analytics/subscriptions');
+const { buildReport, confirmRecipient, confirmToken, createSubscription: createRaw, deliverSubscription, getSubscription, parseUnsubscribeToken, runSubscriptionsCron, unsubscribe, unsubscribeToken, updateSubscription: updateRaw } = await import('@/lib/analytics/subscriptions');
+
+type Dto = Awaited<ReturnType<typeof getSubscription>>;
+/** Crea y confirma: casi todas las pruebas hablan de lo que pasa después. */
+async function createSubscription(...args: Parameters<typeof createRaw>): Promise<NonNullable<Dto> | null> {
+  const s = await createRaw(...args);
+  if (!s || s === 'email_limit') return null;
+  for (const r of s.recipients) await confirmRecipient(confirmToken(s.id, r));
+  return getSubscription(args[0].id, s.id);
+}
+async function updateSubscription(...args: Parameters<typeof updateRaw>): Promise<NonNullable<Dto> | null> {
+  const s = await updateRaw(...args);
+  return s === 'email_limit' ? null : s;
+}
 
 const at = (s: string) => Date.parse(s);
 const sch = (p: Partial<SubscriptionSchedule>): SubscriptionSchedule => ({ frequency: 'daily', interval: 1, hour: 9, ...p });
@@ -86,6 +99,92 @@ describe('subscriptions on stored data', () => {
   const trend = (extra = {}) => insightQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }], dateRange: { from: '-1d' }, ...extra });
   const schedule = sch({});
 
+  it('outside recipients confirm first: the first email has nothing the sender wrote', async () => {
+    const { project, userId } = await setup();
+    const insight = await createInsight(project.id, userId, { name: 'I', query: trend() });
+    sent.length = 0;
+    const s = await createRaw(project, userId, { name: 'Win a prize at evil.example', insightId: insight.id, recipients: ['out@other.org'], message: 'Click https://evil.example', schedule });
+    if (!s || s === 'email_limit') throw new Error('no se creó');
+    expect(s.recipientState['out@other.org']).toBe('pending');
+    expect(sent).toHaveLength(1);
+    const first = JSON.stringify(sent[0]);
+    expect(first).not.toContain('evil.example');
+    expect(first).not.toContain('prize');
+    expect(sent[0].text).toContain('confirm=');
+    // Sin confirmar, ni el cron ni mandar ahora le llegan.
+    sent.length = 0;
+    await runSubscriptionsCron({ now: s.nextAt! + 1000 });
+    expect(await deliverSubscription(project, s)).toBeNull();
+    expect(sent.filter((m) => m.to === 'out@other.org')).toEqual([]);
+    // Un token vencido o tocado no sirve.
+    expect(await confirmRecipient(confirmToken(s.id, 'out@other.org', Date.now() - 30 * 86_400_000))).toBe(false);
+    expect(await confirmRecipient(`${confirmToken(s.id, 'out@other.org')}x`)).toBe(false);
+    expect(await confirmRecipient(confirmToken(s.id, 'nobody@other.org'))).toBe(false);
+    expect(await confirmRecipient(confirmToken(s.id, 'out@other.org'))).toBe(true);
+    const after = (await getSubscription(project.id, s.id))!;
+    expect(after.recipientState['out@other.org']).toBe('confirmed');
+    await deliverSubscription(project, after);
+    expect(sent.map((m) => m.to)).toContain('out@other.org');
+    const mail = sent.find((m) => m.to === 'out@other.org') as unknown as { headers: Record<string, string> };
+    expect(mail.headers['List-Unsubscribe']).toContain('/api/analytics/sub-unsubscribe?t=');
+    expect(mail.headers['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
+  });
+
+  it('people of the workspace enter directly; who unsubscribed is not notified again', async () => {
+    const { project, userId } = await setup();
+    const insight = await createInsight(project.id, userId, { name: 'I', query: trend() });
+    const owner = (await getDb().prepare('SELECT email FROM users WHERE id = ?').get(userId)) as { email: string };
+    sent.length = 0;
+    const s = await createRaw(project, userId, { name: 'Team', insightId: insight.id, recipients: [owner.email, 'gone@other.org'], message: 'Hola', schedule });
+    if (!s || s === 'email_limit') throw new Error('no se creó');
+    expect(s.recipientState[owner.email.toLowerCase()]).toBe('confirmed');
+    expect(JSON.stringify(sent)).not.toContain('Hola');
+    await unsubscribe(unsubscribeToken(s.id, 'gone@other.org'));
+    sent.length = 0;
+    // Volver a agregarla, acá o en otra suscripción, no le manda nada.
+    const again = await updateRaw(project, s.id, { recipients: [owner.email, 'gone@other.org'] });
+    if (!again || again === 'email_limit') throw new Error('no se guardó');
+    expect(again.recipientState['gone@other.org']).toBe('unsubscribed');
+    const other = await createRaw(project, userId, { name: 'Other', insightId: insight.id, recipients: ['gone@other.org'], schedule });
+    if (!other || other === 'email_limit') throw new Error('no se creó');
+    expect(other.recipientState['gone@other.org']).toBe('unsubscribed');
+    expect(sent).toEqual([]);
+    await deliverSubscription(project, other);
+    expect(sent).toEqual([]);
+  });
+
+  it('a new workspace has a low email limit per hour, for notices and for sending', async () => {
+    const prev = process.env.RATE_LIMIT_DISABLED;
+    delete process.env.RATE_LIMIT_DISABLED;
+    try {
+      const { project, userId } = await setup();
+      const insight = await createInsight(project.id, userId, { name: 'I', query: trend() });
+      const many = Array.from({ length: 20 }, (_, i) => `r${i}@other.org`);
+      const a = await createRaw(project, userId, { name: 'A', insightId: insight.id, recipients: many, schedule });
+      expect(a && a !== 'email_limit').toBeTruthy();
+      sent.length = 0;
+      // El tope de 30 por hora: la segunda ya no entra, y no se crea ni se avisa a nadie.
+      const b = await createRaw(project, userId, { name: 'B', insightId: insight.id, recipients: many, schedule });
+      expect(b).toBe('email_limit');
+      expect(sent).toEqual([]);
+      const all = (await getDb().prepare('SELECT count(*) AS n FROM analytics_subscriptions WHERE project_id = ?').get(project.id)) as { n: number };
+      expect(Number(all.n)).toBe(1);
+    } finally {
+      if (prev !== undefined) process.env.RATE_LIMIT_DISABLED = prev;
+    }
+  });
+
+  it('names lose line breaks, and the report keeps the locale of the subscription', async () => {
+    const { project, userId } = await setup();
+    const insight = await createInsight(project.id, userId, { name: 'I', query: trend() });
+    const s = await createSubscription(project, userId, { name: 'A\r\nBcc: x@evil.example', insightId: insight.id, recipients: ['l@other.org'], schedule }, Date.now(), 'es');
+    expect(s?.name).toBe('A Bcc: x@evil.example');
+    sent.length = 0;
+    await deliverSubscription(project, s!);
+    expect(sent[0].text).toContain('Serie | Total');
+    expect(sent[0].text).toContain('Darme de baja');
+  });
+
   it('creating notifies the recipients once; the cron delivers once and moves to the next date', async () => {
     const { project, userId } = await setup();
     const insight = await createInsight(project.id, userId, { name: 'Sales', query: trend() });
@@ -93,7 +192,7 @@ describe('subscriptions on stored data', () => {
     const s = await createSubscription(project, userId, { name: 'Weekly sales', insightId: insight.id, recipients: ['Ana@acme.com', 'ana@acme.com', 'bob@other.org'], message: 'Hola', schedule });
     expect(s?.recipients).toEqual(['ana@acme.com', 'bob@other.org']);
     expect(sent.map((m) => m.to)).toEqual(['ana@acme.com', 'bob@other.org']);
-    expect(sent[0].text).toContain('Hola');
+    expect(sent[0].text).not.toContain('Hola');
     expect(sent[0].text).toContain('/stats/unsubscribe?t=');
 
     sent.length = 0;
@@ -165,13 +264,14 @@ describe('subscriptions on stored data', () => {
     const { project, userId } = await setup();
     const { project: other, userId: otherUser } = await setup();
     const foreign = await createInsight(other.id, otherUser, { name: 'Other', query: trend() });
-    expect(await createSubscription(project, userId, { name: 'N', insightId: foreign.id, recipients: ['x@acme.com'], schedule })).toBeNull();
+    expect(await createRaw(project, userId, { name: 'N', insightId: foreign.id, recipients: ['x@acme.com'], schedule })).toBeNull();
   });
 
   it('unsubscribe: a good token removes that person, a tampered one nobody, and the last one turns it off', async () => {
     const { project, userId } = await setup();
     const insight = await createInsight(project.id, userId, { name: 'I', query: trend() });
     const s = (await createSubscription(project, userId, { name: 'U', insightId: insight.id, recipients: ['a@acme.com', 'b@acme.com'], schedule }))!;
+    expect(unsubscribeToken(s.id, 'a@acme.com')).toBeTruthy();
     const token = unsubscribeToken(s.id, 'a@acme.com');
     expect(parseUnsubscribeToken(token)).toEqual({ id: s.id, email: 'a@acme.com' });
     const tampered = unsubscribeToken(s.id, 'a@acme.com').replace(Buffer.from('a@acme.com').toString('base64url'), Buffer.from('b@acme.com').toString('base64url'));

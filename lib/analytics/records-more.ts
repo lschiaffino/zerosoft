@@ -186,7 +186,6 @@ export function parseMemberList(text: string): string[] {
 
 export interface ShareOptions {
   theme?: 'system' | 'light' | 'dark';
-  branding?: boolean;
   legend?: boolean;
 }
 
@@ -203,9 +202,9 @@ export interface ShareRow {
 export function shareOptions(r: Pick<ShareRow, 'options'>): ShareOptions {
   try {
     const o = JSON.parse(r.options || '{}') as ShareOptions;
-    return { theme: o.theme === 'light' || o.theme === 'dark' ? o.theme : 'system', branding: o.branding !== false, legend: o.legend !== false };
+    return { theme: o.theme === 'light' || o.theme === 'dark' ? o.theme : 'system', legend: o.legend !== false };
   } catch {
-    return { theme: 'system', branding: true, legend: true };
+    return { theme: 'system', legend: true };
   }
 }
 
@@ -335,15 +334,20 @@ export async function shareAccessOk(shareId: string, cookie: string | undefined,
 
 export const shareHasPasswordProtect = async (shareId: string): Promise<boolean> => Boolean(await getDb().prepare('SELECT 1 AS x FROM analytics_share_passwords WHERE share_id = ? LIMIT 1').get(shareId));
 
-/** ¿Lo que se quiere tocar se ve en algún link público? Un insight también, si está en un tablero compartido. */
+/** ¿Lo que se quiere tocar se ve afuera? En un link público o en el email de una suscripción, también a través de un tablero. */
 export async function hasActiveShare(projectId: string, target: { insightId?: string; dashboardId?: string }): Promise<boolean> {
-  const row = target.insightId
-    ? await getDb()
-        .prepare(
-          `SELECT 1 AS x FROM analytics_shares s WHERE s.project_id = ? AND (s.insight_id = ? OR s.dashboard_id IN (SELECT dashboard_id FROM analytics_dashboard_items WHERE insight_id = ?)) LIMIT 1`,
-        )
-        .get(projectId, target.insightId, target.insightId)
-    : await getDb().prepare('SELECT 1 AS x FROM analytics_shares WHERE project_id = ? AND dashboard_id = ? LIMIT 1').get(projectId, target.dashboardId ?? '');
+  const db = getDb();
+  if (target.insightId) {
+    const boards = `(SELECT dashboard_id FROM analytics_dashboard_items WHERE insight_id = ?)`;
+    const row =
+      (await db.prepare(`SELECT 1 AS x FROM analytics_shares s WHERE s.project_id = ? AND (s.insight_id = ? OR s.dashboard_id IN ${boards}) LIMIT 1`).get(projectId, target.insightId, target.insightId)) ??
+      (await db.prepare(`SELECT 1 AS x FROM analytics_subscriptions s WHERE s.project_id = ? AND (s.insight_id = ? OR s.dashboard_id IN ${boards}) LIMIT 1`).get(projectId, target.insightId, target.insightId));
+    return Boolean(row);
+  }
+  const id = target.dashboardId ?? '';
+  const row =
+    (await db.prepare('SELECT 1 AS x FROM analytics_shares WHERE project_id = ? AND dashboard_id = ? LIMIT 1').get(projectId, id)) ??
+    (await db.prepare('SELECT 1 AS x FROM analytics_subscriptions WHERE project_id = ? AND dashboard_id = ? LIMIT 1').get(projectId, id));
   return Boolean(row);
 }
 

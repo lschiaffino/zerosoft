@@ -5,9 +5,10 @@ import { handleCapture } from '@/lib/analytics/ingest-http';
 import { parseIngestBody } from '@/lib/analytics/ingest-core';
 import { storeEvents } from '@/lib/analytics/ingest';
 import { createProject, getProject, type ProjectRow } from '@/lib/analytics/projects';
-import { runTrends } from '@/lib/analytics/query';
+import { runTrends, runWeb } from '@/lib/analytics/query';
 import { createDashboard, createInsight, updateDashboard } from '@/lib/analytics/records';
 import { createShare, hasActiveShare } from '@/lib/analytics/records-more';
+import { createSubscription } from '@/lib/analytics/subscriptions';
 import { funnelQuerySchema, shareableQuery, trendsQuerySchema } from '@/lib/analytics/types';
 
 const DAY = 86_400_000;
@@ -123,6 +124,25 @@ describe('active public links', () => {
   });
 });
 
+describe('subscribed counts as shared', () => {
+  it('an insight or board that goes out by email is locked like a public link', async () => {
+    const { project, userId } = await setup();
+    const q = trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }] });
+    const a = await createInsight(project.id, userId, { name: 'A', query: q });
+    const b = await createInsight(project.id, userId, { name: 'B', query: q });
+    const free = await createInsight(project.id, userId, { name: 'Free', query: q });
+    const board = await createDashboard(project.id, userId, { name: 'Board' });
+    await updateDashboard(project.id, board.id, { insightIds: [b.id] });
+    const schedule = { frequency: 'daily' as const, interval: 1, hour: 9 };
+    await createSubscription(project, userId, { name: 'S', insightId: a.id, recipients: ['x@other.org'], schedule });
+    await createSubscription(project, userId, { name: 'T', dashboardId: board.id, recipients: ['x@other.org'], schedule });
+    expect(await hasActiveShare(project.id, { insightId: a.id })).toBe(true);
+    expect(await hasActiveShare(project.id, { insightId: b.id })).toBe(true);
+    expect(await hasActiveShare(project.id, { dashboardId: board.id })).toBe(true);
+    expect(await hasActiveShare(project.id, { insightId: free.id })).toBe(false);
+  });
+});
+
 describe('what can go public', () => {
   const trend = (key: string, type = 'event') => trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }], breakdown: { key, type } });
   it('only breakdowns from the safe list', () => {
@@ -130,6 +150,105 @@ describe('what can go public', () => {
     for (const key of ['$browser', '$os', '$geoip_country_code', '$pathname', 'utm_source']) expect(shareableQuery(trend(key)), key).toBe(true);
     expect(shareableQuery(trend('$browser', 'person'))).toBe(false);
     expect(shareableQuery(funnelQuerySchema.parse({ kind: 'funnel', steps: [{ event: 'a' }, { event: 'b' }], breakdown: { key: 'email', type: 'event' } }))).toBe(false);
+  });
+});
+
+describe('breakdowns in ranges', () => {
+  const by = (r: { series: Array<{ breakdownValue: string | null; total: number; compareTotal?: number }> }) => r.series.map((x) => [x.breakdownValue, x.total, x.compareTotal]);
+  it('leave out what is not a number, keep ranges right and sort them', async () => {
+    const { project } = await setup();
+    const now = Date.now();
+    const values: unknown[] = [10, 20, 30, 40, 50, 100, 'abc', '', '12x', '1.2.3', '--3', '1-2'];
+    await ingest(project, values.map((amount, i) => ({ event: 'x', who: `p${i}`, at: now - 1000, props: { amount } })));
+    await ingest(project, [{ event: 'x', who: 'none', at: now - 1000 }]);
+    const r = await runTrends(project, trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }], dateRange: { from: '-1d' }, breakdown: { key: 'amount', bins: 3 } }));
+    expect(r.series.map((x) => [x.breakdownValue, x.total])).toEqual([
+      ['10 to 40', 3],
+      ['40 to 70', 2],
+      ['70 to 100', 1],
+      ['(none)', 7],
+    ]);
+  });
+
+  it('use the ranges of the current period for the comparison', async () => {
+    const { project } = await setup();
+    const now = Date.now();
+    await ingest(project, [
+      { event: 'x', who: 'a', at: now - 1000, props: { amount: 10 } },
+      { event: 'x', who: 'b', at: now - 1000, props: { amount: 100 } },
+      // El período anterior: uno en cada mitad y uno fuera de los rangos de ahora.
+      { event: 'x', who: 'c', at: now - 8 * DAY, props: { amount: 20 } },
+      { event: 'x', who: 'd', at: now - 8 * DAY, props: { amount: 90 } },
+      { event: 'x', who: 'e', at: now - 8 * DAY, props: { amount: 500 } },
+    ]);
+    const r = await runTrends(project, trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }], dateRange: { from: '-7d' }, compare: true, breakdown: { key: 'amount', bins: 2 } }));
+    expect(by(r)).toEqual([
+      ['10 to 55', 1, 1],
+      ['55 to 100', 1, 2],
+    ]);
+  });
+
+  it('a second breakdown without a first one does not read the rollup', async () => {
+    const { project } = await setup();
+    await ingest(project, [{ event: 'x', who: 'a', at: Date.now() - 1000, props: { plan: 'pro' } }]);
+    const r = await runTrends(project, trendsQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }], dateRange: { from: '-1d' }, breakdown: null, breakdownsMore: [{ key: 'plan' }] }));
+    expect(r.series.map((x) => x.breakdownValue)).toEqual(['pro']);
+  });
+});
+
+describe('web sources per visit', () => {
+  const page = (key: string, who: string, session: string, path: string, referrer: string | null, ago: number) =>
+    handleCapture(
+      new Request('http://x/api/ingest/e', {
+        method: 'POST',
+        headers: { 'user-agent': 'Mozilla/5.0 Chrome/130.0 Safari/537.36', origin: 'https://shop.example', 'x-forwarded-for': '203.0.113.7' },
+        body: JSON.stringify({ api_key: key, event: '$pageview', distinct_id: who, timestamp: new Date(Date.now() - ago).toISOString(), properties: { $session_id: session, $pathname: path, $host: 'shop.example', $current_url: `https://shop.example${path}`, ...(referrer ? { $referrer: referrer } : {}) } }),
+      }),
+    );
+  const pairs = (rows: Array<{ key: string; visitors: number; views: number }>) => Object.fromEntries(rows.map((r) => [r.key, [r.visitors, r.views]]));
+
+  it('a filter on the source keeps the whole visit, and the numbers match the row', async () => {
+    const { project } = await setup();
+    const k = project.public_key;
+    // Dos visitas de Google: 5 páginas en total. Una directa con /a.
+    await page(k, 'g1', 'v1', '/', 'https://google.com/', 5000);
+    await page(k, 'g1', 'v1', '/a', 'https://shop.example/', 4000);
+    await page(k, 'g1', 'v1', '/b', 'https://shop.example/a', 3000);
+    await page(k, 'g2', 'v2', '/', 'https://google.com/', 5000);
+    await page(k, 'g2', 'v2', '/a', 'https://shop.example/', 4000);
+    await page(k, 'd1', 'v3', '/a', null, 3000);
+    await page(k, 'b1', 'v4', '/a', 'https://bing.com/', 3000);
+    const all = await runWeb(project, { kind: 'web', dateRange: { from: '-1d' }, compare: false });
+    expect(pairs(all.referrers)['google.com']).toEqual([2, 5]);
+    expect(pairs(all.referrers)['shop.example']).toBeUndefined();
+    const filtered = await runWeb(project, { kind: 'web', dateRange: { from: '-1d' }, compare: false, filters: [{ key: 'referrer', value: 'google.com' }] });
+    expect(filtered.stats.pageviews.value).toBe(5);
+    expect(filtered.stats.visitors.value).toBe(2);
+    expect(filtered.stats.sessions.value).toBe(2);
+    // Filtrar por página: las fuentes siguen siendo las de cada visita.
+    const byPath = await runWeb(project, { kind: 'web', dateRange: { from: '-1d' }, compare: false, filters: [{ key: 'path', value: '/a' }] });
+    const refs = pairs(byPath.referrers);
+    expect(refs['google.com']?.[0]).toBe(2);
+    expect(refs['bing.com']?.[0]).toBe(1);
+    expect(refs['shop.example']).toBeUndefined();
+  });
+
+  it('a visit that started before the range keeps its real source', async () => {
+    const { project } = await setup();
+    const k = project.public_key;
+    await page(k, 'x', 'long', '/', 'https://google.com/', 3 * DAY);
+    await page(k, 'x', 'long', '/next', 'https://shop.example/', 1000);
+    const web = await runWeb(project, { kind: 'web', dateRange: { from: '-1d' }, compare: false });
+    expect(web.referrers.map((r) => r.key)).toEqual(['google.com']);
+    expect(web.channels.map((c) => c.key)).not.toContain('referral');
+  });
+
+  it('coming from your own site does not count as a referrer', async () => {
+    const { project } = await setup();
+    await page(project.public_key, 'y', 'self', '/', 'https://shop.example/old', 1000);
+    const web = await runWeb(project, { kind: 'web', dateRange: { from: '-1d' }, compare: false });
+    expect(web.referrers.map((r) => r.key)).not.toContain('shop.example');
+    expect(web.channels.map((c) => c.key)).not.toContain('referral');
   });
 });
 

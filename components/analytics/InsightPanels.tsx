@@ -11,7 +11,7 @@ interface ShareRowDto {
   id: string;
   token: string;
   created_at: string;
-  options: { theme?: 'system' | 'light' | 'dark'; branding?: boolean; legend?: boolean };
+  options: { theme?: 'system' | 'light' | 'dark'; legend?: boolean };
   passwords: Array<{ id: string; note: string; createdAt: string }>;
 }
 interface ShareLogDto {
@@ -163,9 +163,6 @@ export function ShareDialog({ open, onClose, projectId, target }: { open: boolea
                 </label>
                 <label className="ui-check">
                   <input type="checkbox" checked={s.options.legend !== false} disabled={busy} onChange={(e) => void change(s.id, { options: { legend: e.target.checked } })} /> {t('showLegend')}
-                </label>
-                <label className="ui-check">
-                  <input type="checkbox" checked={s.options.branding !== false} disabled={busy} onChange={(e) => void change(s.id, { options: { branding: e.target.checked } })} /> {t('showBranding')}
                 </label>
               </div>
               <div className="an-form-tight">

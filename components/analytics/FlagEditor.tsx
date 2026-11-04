@@ -131,6 +131,7 @@ export default function FlagEditor({ projectId, flag, publicKey, cohorts = [], c
           void save();
         }}
       >
+        <fieldset disabled={!canManage} className="an-plain-fieldset">
         <div className="ui-fields ui-fields-2">
           <label className="ui-field">
             <span className="label">{t('key')}</span>
@@ -260,6 +261,7 @@ export default function FlagEditor({ projectId, flag, publicKey, cohorts = [], c
             </span>
           )}
         </div>
+        </fieldset>
       </form>
       <section className="an-panel" aria-labelledby="an-flag-use">
         <h2 id="an-flag-use" className="an-h3">

@@ -73,9 +73,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'analytics',
-        en: 'Rejecting consent, Do Not Track, Global Privacy Control and cookieless mode now clear what the snippet had saved in the browser. Changes to what appears on a public link and to feature flags need an admin, and public links accept breakdowns only by browser, OS, device, country, page, host, referrer or UTM.',
-        es: 'Rechazar el consentimiento, Do Not Track, Global Privacy Control y el modo sin cookies ahora borran lo que el snippet había guardado en el navegador. Cambiar lo que aparece en un link público y los feature flags necesita un admin, y los links públicos solo aceptan aperturas por navegador, sistema, dispositivo, país, página, host, referente o UTM.',
-        pt: 'Recusar o consentimento, Do Not Track, Global Privacy Control e o modo sem cookies agora apagam o que o snippet tinha guardado no navegador. Mudar o que aparece em um link público e os feature flags precisa de um admin, e os links públicos só aceitam aberturas por navegador, sistema, dispositivo, país, página, host, referência ou UTM.',
+        en: 'Rejecting consent, Do Not Track, Global Privacy Control and cookieless mode now clear what the snippet had saved in the browser. Changes to what appears on a public link or in a subscription email and to feature flags need an admin, and public links accept breakdowns only by browser, OS, device, country, page, host, referrer or UTM.',
+        es: 'Rechazar el consentimiento, Do Not Track, Global Privacy Control y el modo sin cookies ahora borran lo que el snippet había guardado en el navegador. Cambiar lo que aparece en un link público o en el email de una suscripción y los feature flags necesita un admin, y los links públicos solo aceptan aperturas por navegador, sistema, dispositivo, país, página, host, referente o UTM.',
+        pt: 'Recusar o consentimento, Do Not Track, Global Privacy Control e o modo sem cookies agora apagam o que o snippet tinha guardado no navegador. Mudar o que aparece em um link público ou no email de uma inscrição e os feature flags precisa de um admin, e os links públicos só aceitam aberturas por navegador, sistema, dispositivo, país, página, host, referência ou UTM.',
       },
       {
         product: 'analytics',
@@ -85,15 +85,15 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'analytics',
-        en: 'Public links gain a theme, a legend and credit option, passwords with a note for each person, a new link without changing the insight, a history of changes, refresh on load with ?refresh=true, refresh every 30 minutes and an embed that adjusts its height.',
-        es: 'Los links públicos suman tema, opción de leyenda y de crédito, contraseñas con una nota para cada persona, un link nuevo sin cambiar el insight, historial de cambios, actualizar al abrir con ?refresh=true, actualización cada 30 minutos y un embed que ajusta su alto.',
-        pt: 'Os links públicos ganham tema, opção de legenda e de crédito, senhas com uma nota para cada pessoa, um link novo sem mudar o insight, histórico de mudanças, atualizar ao abrir com ?refresh=true, atualização a cada 30 minutos e um embed que ajusta sua altura.',
+        en: 'Public links gain a theme, a legend option, passwords with a note for each person, a new link without changing the insight, a history of changes, refresh on load with ?refresh=true, refresh every 30 minutes and an embed that adjusts its height.',
+        es: 'Los links públicos suman tema, opción de leyenda, contraseñas con una nota para cada persona, un link nuevo sin cambiar el insight, historial de cambios, actualizar al abrir con ?refresh=true, actualización cada 30 minutos y un embed que ajusta su alto.',
+        pt: 'Os links públicos ganham tema, opção de legenda, senhas com uma nota para cada pessoa, um link novo sem mudar o insight, histórico de mudanças, atualizar ao abrir com ?refresh=true, atualização a cada 30 minutos e um embed que ajusta sua altura.',
       },
       {
         product: 'analytics',
-        en: 'Subscriptions send an insight or a dashboard by email on a daily, weekly or monthly schedule, with their own page to search, test, turn off and delete. Recipients get a notice and can unsubscribe. Only what could go on a public link is sent.',
-        es: 'Las suscripciones mandan un insight o un tablero por email con calendario diario, semanal o mensual, con su página para buscar, probar, apagar y borrar. Los destinatarios reciben un aviso y se pueden dar de baja. Solo se manda lo que podría ir en un link público.',
-        pt: 'As inscrições mandam um insight ou um painel por email em agenda diária, semanal ou mensal, com uma página para buscar, testar, desligar e excluir. Os destinatários recebem um aviso e podem cancelar. Só é enviado o que poderia ir em um link público.',
+        en: 'Subscriptions send an insight or a dashboard by email on a daily, weekly or monthly schedule, with their own page to search, test, turn off and delete. People outside the workspace confirm by a link before getting anything, everyone can unsubscribe, and only what could go on a public link is sent.',
+        es: 'Las suscripciones mandan un insight o un tablero por email con calendario diario, semanal o mensual, con su página para buscar, probar, apagar y borrar. Quien no es del workspace confirma con un link antes de recibir nada, cualquiera se puede dar de baja y solo se manda lo que podría ir en un link público.',
+        pt: 'As inscrições mandam um insight ou um painel por email em agenda diária, semanal ou mensal, com uma página para buscar, testar, desligar e excluir. Quem não é do workspace confirma por um link antes de receber algo, qualquer um pode cancelar e só é enviado o que poderia ir em um link público.',
       },
       {
         product: 'analytics',

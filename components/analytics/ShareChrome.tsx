@@ -56,6 +56,7 @@ export function ShareUnlock({ token }: { token: string }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [blocked, setBlocked] = useState(false);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -63,7 +64,13 @@ export function ShareUnlock({ token }: { token: string }) {
     try {
       const res = await fetch('/api/analytics/share-unlock', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, password }) });
       if (res.ok) {
-        router.refresh();
+        // Embebido en otro sitio, el navegador puede no guardar el acceso: se avisa en lugar de volver a pedirla.
+        const kept = (await (await fetch(`/api/analytics/share-unlock?token=${encodeURIComponent(token)}`)).json()) as { ok: boolean };
+        if (kept.ok) {
+          router.refresh();
+          return;
+        }
+        setBlocked(true);
         return;
       }
       setError(res.status === 429 ? t('tooManyTries') : t('wrongPassword'));
@@ -84,6 +91,14 @@ export function ShareUnlock({ token }: { token: string }) {
       {error && (
         <p className="ui-error" role="alert">
           {error}
+        </p>
+      )}
+      {blocked && (
+        <p className="an-note" role="status" data-testid="an-share-blocked">
+          {t('cookiesBlocked')}{' '}
+          <a href={window.location.pathname} target="_blank" rel="noopener noreferrer" className="an-link">
+            {t('openNewTab')}
+          </a>
         </p>
       )}
       <button type="submit" className="btn btn-primary an-self-start" disabled={busy || !password} aria-busy={busy}>

@@ -1,6 +1,6 @@
 import { expect, test, type Browser } from '@playwright/test';
 
-/** Opciones de un link público: tema, leyenda, crédito, contraseñas, token nuevo e historial. */
+/** Opciones de un link público: tema, leyenda, contraseñas, token nuevo e historial. */
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 test.describe.configure({ mode: 'serial' });
@@ -20,7 +20,7 @@ test.beforeAll(async ({ request }) => {
 
 const anon = (browser: Browser, baseURL: string) => browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
 
-test('crear, tema, leyenda y crédito, desde el cuadro de compartir', async ({ page, browser, baseURL, request }) => {
+test('crear, tema y leyenda, desde el cuadro de compartir', async ({ page, browser, baseURL, request }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
   await page.goto(`/en/app/analytics/insights/${insightId}`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Share' }).click();
@@ -35,26 +35,23 @@ test('crear, tema, leyenda y crédito, desde el cuadro de compartir', async ({ p
   await expect(dialog.getByLabel('Theme')).toHaveValue('dark');
   await dialog.getByLabel('Show legend').uncheck();
   await expect(dialog.getByLabel('Show legend')).not.toBeChecked();
-  await dialog.getByLabel('Show zerosoft credit').uncheck();
-  await expect(dialog.getByLabel('Show zerosoft credit')).not.toBeChecked();
+  const saved = async () => ((await (await request.get(`/api/analytics/shares?project=${projectId}&insight=${insightId}`)).json()) as { shares: Array<{ options: { theme: string; legend: boolean } }> }).shares[0].options;
+  await expect.poll(saved).toEqual({ theme: 'dark', legend: false });
 
   const ctx = await anon(browser, baseURL!);
   const p = await ctx.newPage();
   await p.goto(`/en/stats/a/${token}?refresh=true`, { waitUntil: 'networkidle' });
   await expect(p.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(p.locator('.an-legend')).toHaveCount(0);
-  await expect(p.getByTestId('an-share-brand')).toHaveCount(0);
   await ctx.close();
 
   await dialog.getByLabel('Show legend').check();
   await expect(dialog.getByLabel('Show legend')).toBeChecked();
-  await dialog.getByLabel('Show zerosoft credit').check();
-  await expect(dialog.getByLabel('Show zerosoft credit')).toBeChecked();
+  await expect.poll(saved).toEqual({ theme: 'dark', legend: true });
   const again = await anon(browser, baseURL!);
   const q = await again.newPage();
   await q.goto(`/en/stats/a/${token}?refresh=true`, { waitUntil: 'networkidle' });
   await expect(q.locator('.an-legend')).toHaveCount(1);
-  await expect(q.getByTestId('an-share-brand')).toBeVisible();
   await again.close();
 });
 
