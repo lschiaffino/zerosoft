@@ -91,6 +91,10 @@
   --c-people: #c99a6b;
   --c-people-on: #111111;
   /* Sign: el rojo lacre base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
+  /* Send: el azul petróleo base no se lee sobre el fondo oscuro. */
+  --c-send-ink: #6fd0e0;
+  --c-send: #6fd0e0;
+  --c-send-on: #111111;
   --c-sign-ink: #ffb3b3;
   --c-sign: #ffb3b3;
   --c-sign-on: #111111;
@@ -211,6 +215,10 @@
   --c-people: #c99a6b;
   --c-people-on: #111111;
   /* Sign: el rojo lacre base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
+  /* Send: el azul petróleo base no se lee sobre el fondo oscuro. */
+  --c-send-ink: #6fd0e0;
+  --c-send: #6fd0e0;
+  --c-send-on: #111111;
   --c-sign-ink: #ffb3b3;
   --c-sign: #ffb3b3;
   --c-sign-on: #111111;
@@ -257,10 +265,12 @@
   :root:not([data-theme='light']) .card-shop { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-hiring { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-people { --on-accent: #111111; }
+  :root:not([data-theme='light']) .card-send { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-sign { --on-accent: #111111; }
 }
 :root[data-theme='dark'] .card-talk { --on-accent: #111111; }
 :root[data-theme='dark'] .card-shop { --on-accent: #111111; }
 :root[data-theme='dark'] .card-hiring { --on-accent: #111111; }
 :root[data-theme='dark'] .card-people { --on-accent: #111111; }
+:root[data-theme='dark'] .card-send { --on-accent: #111111; }
 :root[data-theme='dark'] .card-sign { --on-accent: #111111; }

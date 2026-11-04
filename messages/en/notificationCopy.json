@@ -79,6 +79,15 @@
   "roleNameAdmin": "Admin",
   "roleNameMember": "Member",
   "roleNameGuest": "Guest",
+  "sendReading": "{who} is reading {title}",
+  "sendReadingUnverified": "{who} (email not verified) is reading {title}",
+  "sendReadingBody": "Link: {link}",
+  "sendDenied": "{who} tried to open {title} and has no access",
+  "sendCrmSubject": "Opened {title} in Send",
+  "sendCrmBody": "{email} opened it through a Send link, with a verified email.",
+  "sendDigest": "{count} more visits or denied attempts on {title}",
   "peopleHireUndone": "The hire of {name} was undone: their profile is still in People",
-  "peopleExitFinished": "{name}'s exit date has passed: their profile is now closed"
+  "peopleExitFinished": "{name}'s exit date has passed: their profile is now closed",
+  "sendLinksTransferred": "{count} Send links by {who} passed to you",
+  "sendLinksStopped": "{count} stopped because their documents are private. Each link says what to do."
 }

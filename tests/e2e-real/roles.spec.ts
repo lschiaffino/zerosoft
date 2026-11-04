@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { createClient } from '@libsql/client';
+import { PDFDocument } from 'pdf-lib';
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 
 /**
@@ -562,5 +563,203 @@ test('un admin sin apps ve en el inicio solo lo que puede hacer', async ({ brows
     await expect(nia.page.getByTestId('home-import')).toHaveCount(0);
   } finally {
     await closeAll(olga, nia);
+  }
+});
+
+/** Send: un PDF de una página, subido como lo hace el navegador. */
+async function sendDoc(p: Person, title: string): Promise<{ id: string; versionId: string }> {
+  const doc = await PDFDocument.create();
+  doc.addPage([612, 792]);
+  const bytes = Buffer.from(await doc.save());
+  const created = await p.ctx.request.post('/api/send/documents', { data: { title, file: { name: 'd.pdf', mime: 'application/pdf', size: bytes.length } } });
+  expect(created.status(), await created.text()).toBe(201);
+  const { document, version } = (await created.json()) as { document: { id: string }; version: { id: string } };
+  expect((await p.ctx.request.put(`/api/send/versions/${version.id}/parts/0`, { data: bytes, headers: { 'content-type': 'application/octet-stream' } })).ok()).toBe(true);
+  expect((await p.ctx.request.post(`/api/send/versions/${version.id}/complete`, { data: {} })).ok()).toBe(true);
+  expect(((await (await p.ctx.request.post(`/api/send/versions/${version.id}/process`)).json()) as { version: { status: string } }).version.status).toBe('ready');
+  return { id: document.id, versionId: version.id };
+}
+
+const REAL_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
+
+test('Send: cada rol ve y hace solo lo suyo, y un link no sirve lo que su autor ya no ve', async ({ browser, baseURL }) => {
+  const olga = await owner(browser);
+  const adam = await join(browser, olga, 'Adam', 'admin', '*');
+  const mel = await join(browser, olga, 'Mel', 'member', ['send']);
+  const nia = await join(browser, olga, 'Nia', 'member', ['crm']);
+  const gus = await join(browser, olga, 'Gus', 'guest', []);
+  const anon = await browser.newContext({ baseURL, extraHTTPHeaders: { 'user-agent': REAL_UA } });
+  try {
+    const priv = await sendDoc(olga, `Private ${uid()}`);
+    const shared = await sendDoc(olga, `Shared ${uid()}`);
+    expect((await olga.ctx.request.patch(`/api/send/documents/${shared.id}`, { data: { sharing: 'workspace' } })).ok()).toBe(true);
+    const ownLink = (await (await olga.ctx.request.post(`/api/send/documents/${shared.id}/links`, { data: { name: 'Owner' } })).json()) as { link: { id: string; path: string } };
+
+    // Sin la app: nada.
+    expect((await nia.ctx.request.get('/api/send/documents')).status()).toBe(401);
+    expect((await nia.ctx.request.get(`/api/send/documents/${shared.id}`)).status()).toBe(401);
+    expect((await nia.ctx.request.post('/api/send/documents', { data: { title: 'x', file: { name: 'a.pdf', mime: 'application/pdf', size: 10 } } })).status()).toBe(401);
+    // Un invitado queda en su workspace propio: lo de este no existe para él.
+    expect(JSON.stringify(await (await gus.ctx.request.get('/api/send/documents')).json())).not.toContain(shared.id);
+    expect((await gus.ctx.request.get(`/api/send/documents/${shared.id}`)).status()).toBe(404);
+    expect((await gus.ctx.request.get(`/api/send/versions/${shared.versionId}/pages/1`)).status()).toBe(404);
+
+    // Admin: ve todo, exporta y cambia la marca.
+    expect((await adam.ctx.request.get(`/api/send/documents/${priv.id}`)).ok()).toBe(true);
+    expect((await adam.ctx.request.get(`/api/send/documents/${priv.id}/export`)).ok()).toBe(true);
+    expect((await adam.ctx.request.put('/api/send/settings', { data: { brandName: 'Acme', logoUrl: '', brandColor: '', siteUrl: '' } })).ok()).toBe(true);
+
+    // Member, lo privado: ni existe.
+    for (const url of [`/api/send/documents/${priv.id}`, `/api/send/documents/${priv.id}/analytics`, `/api/send/documents/${priv.id}/links`, `/api/send/versions/${priv.versionId}/pages/1`, `/api/send/versions/${priv.versionId}/file`]) {
+      expect((await mel.ctx.request.get(url)).status(), url).toBe(404);
+    }
+    expect((await mel.ctx.request.post(`/api/send/documents/${priv.id}/links`, { data: {} })).status()).toBe(404);
+    expect(JSON.stringify(await (await mel.ctx.request.get('/api/send/documents')).json())).not.toContain(priv.id);
+
+    // Member, lo compartido: lee y arma links propios, no administra.
+    expect((await mel.ctx.request.get(`/api/send/documents/${shared.id}`)).ok()).toBe(true);
+    expect((await mel.ctx.request.patch(`/api/send/documents/${shared.id}`, { data: { title: 'Mine now' } })).status()).toBe(403);
+    expect((await mel.ctx.request.delete(`/api/send/documents/${shared.id}`)).status()).toBe(403);
+    expect((await mel.ctx.request.get(`/api/send/documents/${shared.id}/export`)).status()).toBe(403);
+    expect((await mel.ctx.request.patch(`/api/send/links/${ownLink.link.id}`, { data: { disabled: true } })).status()).toBe(403);
+    expect((await mel.ctx.request.put('/api/send/settings', { data: { brandName: 'X', logoUrl: '', brandColor: '', siteUrl: '' } })).status()).toBe(403);
+    const links = (await (await mel.ctx.request.get(`/api/send/documents/${shared.id}/links`)).json()) as { links: Array<{ id: string; path: string | null }> };
+    expect(links.links.find((l) => l.id === ownLink.link.id)?.path).toBeNull();
+
+    // Su link funciona, y deja de servir en cuanto el dueño vuelve privado el documento.
+    const melLink = (await (await mel.ctx.request.post(`/api/send/documents/${shared.id}/links`, { data: { name: 'Mel', allowDownload: true } })).json()) as { link: { path: string } };
+    const melToken = melLink.link.path.split('/').pop()!;
+    expect(((await (await anon.request.post(`/api/send/public/${melToken}`, { data: {} })).json()) as { documents: unknown[] }).documents).toHaveLength(1);
+    expect((await anon.request.get(`/api/send/public/${melToken}/pages/${shared.versionId}/1`)).ok()).toBe(true);
+    expect((await olga.ctx.request.patch(`/api/send/documents/${shared.id}`, { data: { sharing: 'private' } })).ok()).toBe(true);
+    expect((await anon.request.get(`/api/send/public/${melToken}/pages/${shared.versionId}/1`)).status()).toBe(409);
+    expect((await anon.request.get(`/api/send/public/${melToken}/download?document=${shared.id}&piece=0`)).status()).toBe(404);
+    // Quien lo abre ve que ya no está; el dueño ve por qué y qué hacer.
+    expect(((await (await anon.request.get(`/api/send/public/${melToken}`)).json()) as { state: string; reason: string })).toMatchObject({ state: 'closed', reason: 'unavailable' });
+    const owned = (await (await olga.ctx.request.get(`/api/send/documents/${shared.id}/links`)).json()) as { links: Array<{ name: string; problem: string | null }> };
+    expect(owned.links.find((l) => l.name === 'Mel')?.problem).toBe('document_private');
+    expect(owned.links.find((l) => l.name === 'Owner')?.problem).toBeNull();
+    // El link del dueño sigue.
+    const ownToken = ownLink.link.path.split('/').pop()!;
+    expect(((await (await anon.request.post(`/api/send/public/${ownToken}`, { data: {} })).json()) as { documents: unknown[] }).documents).toHaveLength(1);
+
+    // Un documento privado dentro de un espacio compartido no llega a un member.
+    const open = await sendDoc(olga, `Open ${uid()}`);
+    expect((await olga.ctx.request.patch(`/api/send/documents/${open.id}`, { data: { sharing: 'workspace' } })).ok()).toBe(true);
+    const room = (await (await olga.ctx.request.post('/api/send/spaces', { data: { title: `Room ${uid()}` } })).json()) as { space: { id: string } };
+    expect((await olga.ctx.request.patch(`/api/send/spaces/${room.space.id}`, { data: { sharing: 'workspace', items: [{ documentId: priv.id }, { documentId: open.id }] } })).ok()).toBe(true);
+    const seen = JSON.stringify(await (await mel.ctx.request.get(`/api/send/spaces/${room.space.id}`)).json());
+    expect(seen).toContain(open.id);
+    expect(seen).not.toContain(priv.id);
+    // Su link del espacio publica solo lo que él ve.
+    const spaceLink = (await (await mel.ctx.request.post(`/api/send/spaces/${room.space.id}/links`, { data: { name: 'Mel', allowDownload: true } })).json()) as { link: { path: string } };
+    const spaceToken = spaceLink.link.path.split('/').pop()!;
+    const viewer = await browser.newContext({ baseURL, extraHTTPHeaders: { 'user-agent': REAL_UA } });
+    const state = (await (await viewer.request.post(`/api/send/public/${spaceToken}`, { data: {} })).json()) as { documents: Array<{ id: string }> };
+    expect(state.documents.map((d) => d.id)).toEqual([open.id]);
+    expect((await viewer.request.get(`/api/send/public/${spaceToken}/pages/${priv.versionId}/1`)).status()).toBe(409);
+    expect((await viewer.request.get(`/api/send/public/${spaceToken}/download?document=${priv.id}&piece=0`)).status()).toBe(404);
+    // Sus números tampoco: el dueño lo abre por su link y el member no ve ese documento en el espacio.
+    const ownRoom = (await (await olga.ctx.request.post(`/api/send/spaces/${room.space.id}/links`, { data: { name: 'Olga' } })).json()) as { link: { path: string } };
+    const ownRoomToken = ownRoom.link.path.split('/').pop()!;
+    const reader = await browser.newContext({ baseURL, extraHTTPHeaders: { 'user-agent': REAL_UA } });
+    await reader.request.post(`/api/send/public/${ownRoomToken}`, { data: {} });
+    await reader.request.get(`/api/send/public/${ownRoomToken}/pages/${priv.versionId}/1`);
+    await new Promise((r) => setTimeout(r, 1000));
+    expect(((await (await reader.request.post(`/api/send/public/${ownRoomToken}/ping`, { data: { documentId: priv.id, versionId: priv.versionId, deltas: [{ page: 1, seconds: 2.4 }] } })).json()) as { counted: boolean }).counted).toBe(true);
+    const melNumbers = JSON.stringify(await (await mel.ctx.request.get(`/api/send/spaces/${room.space.id}/analytics`)).json());
+    expect(melNumbers).not.toContain(priv.id);
+    expect(JSON.stringify(await (await olga.ctx.request.get(`/api/send/spaces/${room.space.id}/analytics`)).json())).toContain(priv.id);
+    await viewer.close();
+    await reader.close();
+  } finally {
+    await anon.close();
+    await closeAll(olga, adam, mel, nia, gus);
+  }
+});
+
+test('Send: los avisos de más salen en un resumen', async ({ browser, baseURL }) => {
+  const olga = await owner(browser);
+  try {
+    const doc = await sendDoc(olga, `Digest ${uid()}`);
+    const created = (await (await olga.ctx.request.post(`/api/send/documents/${doc.id}/links`, { data: { name: 'Campaign' } })).json()) as { link: { id: string; path: string } };
+    const token = created.link.path.split('/').pop()!;
+    for (let i = 0; i < 5; i++) {
+      const c = await browser.newContext({ baseURL, extraHTTPHeaders: { 'user-agent': REAL_UA, 'x-forwarded-for': `10.30.1.${i + 1}` } });
+      await c.request.post(`/api/send/public/${token}`, { data: {} });
+      await c.request.get(`/api/send/public/${token}/pages/${doc.versionId}/1`);
+      await new Promise((r) => setTimeout(r, 1000));
+      await c.request.post(`/api/send/public/${token}/ping`, { data: { documentId: doc.id, versionId: doc.versionId, deltas: [{ page: 1, seconds: 2.4 }] } });
+      await c.close();
+    }
+    await sql('UPDATE send_links SET alert_window_at = ? WHERE id = ?', [Date.now() - 2 * 3_600_000, created.link.id]);
+    expect((await olga.ctx.request.get('/api/cron/minute', { headers: { authorization: 'Bearer e2e-cron' } })).ok()).toBe(true);
+    const mails = fs.readFileSync(process.env.E2E_MAIL_FILE!, 'utf8').trim().split('\n').map((l) => JSON.parse(l) as { to: string; subject: string }).filter((m) => m.to === olga.email && m.subject.includes('Digest'));
+    expect(mails.filter((m) => /is reading/.test(m.subject))).toHaveLength(3);
+    expect(mails.filter((m) => /2 more/.test(m.subject))).toHaveLength(1);
+  } finally {
+    await closeAll(olga);
+  }
+});
+
+test('Send: quien se va, pierde la app o pasa a guest deja de publicar; lo compartido pasa al owner', async ({ browser, baseURL }) => {
+  const olga = await owner(browser);
+  const left = await join(browser, olga, 'Lena', 'member', ['send']);
+  const lost = await join(browser, olga, 'Lucho', 'member', ['send', 'crm']);
+  const down = await join(browser, olga, 'Dora', 'member', ['send']);
+  const open = async (token: string) => {
+    const c = await browser.newContext({ baseURL, extraHTTPHeaders: { 'user-agent': REAL_UA } });
+    const state = (await (await c.request.post(`/api/send/public/${token}`, { data: {} })).json()) as { state: string; reason?: string };
+    await c.close();
+    return state;
+  };
+  const makeLink = async (p: Person, id: string, name: string) => ((await (await p.ctx.request.post(`/api/send/documents/${id}/links`, { data: { name } })).json()) as { link: { path: string } }).link.path.split('/').pop()!;
+  try {
+    const shared = await sendDoc(olga, `Team ${uid()}`);
+    expect((await olga.ctx.request.patch(`/api/send/documents/${shared.id}`, { data: { sharing: 'workspace' } })).ok()).toBe(true);
+
+    // Se va: su link sobre lo compartido sigue, ahora del owner; el de su documento privado se frena.
+    const hers = await sendDoc(left, `Hers ${uid()}`);
+    const herShared = await sendDoc(left, `Hers shared ${uid()}`);
+    expect((await left.ctx.request.patch(`/api/send/documents/${herShared.id}`, { data: { sharing: 'workspace' } })).ok()).toBe(true);
+    const onShared = await makeLink(left, shared.id, 'On shared');
+    const onHerShared = await makeLink(left, herShared.id, 'On her shared');
+    const onHerPrivate = await makeLink(left, hers.id, 'On her private');
+    expect((await open(onHerPrivate)).state).toBe('open');
+    expect((await olga.ctx.request.delete(`/api/teams/members/${left.id}`)).ok()).toBe(true);
+    expect((await open(onShared)).state).toBe('open');
+    expect((await open(onHerShared)).state).toBe('open');
+    expect(await open(onHerPrivate)).toMatchObject({ state: 'closed', reason: 'unavailable' });
+    const links = (await (await olga.ctx.request.get(`/api/send/documents/${hers.id}/links`)).json()) as { links: Array<{ name: string; problem: string | null; mine: boolean }> };
+    expect(links.links[0]).toMatchObject({ problem: 'document_private', mine: true });
+    expect((await sql('SELECT created_by, transferred_from FROM send_links WHERE name = ?', ['On shared']))[0]).toMatchObject({ created_by: olga.id, transferred_from: left.id });
+    const bell = JSON.stringify(await (await olga.ctx.request.get('/api/notifications?limit=30')).json());
+    expect(bell).toContain('passed to you');
+    expect(bell).toContain('stopped');
+    // Compartir el documento lo vuelve a servir: lo decide el owner.
+    expect((await olga.ctx.request.patch(`/api/send/documents/${hers.id}`, { data: { sharing: 'workspace' } })).ok()).toBe(true);
+    expect((await open(onHerPrivate)).state).toBe('open');
+
+    // Pierde la app: deja de servir, también sobre lo compartido; el owner ve por qué.
+    const his = await makeLink(lost, shared.id, 'Lucho link');
+    expect((await open(his)).state).toBe('open');
+    expect((await olga.ctx.request.patch(`/api/teams/members/${lost.id}`, { data: { apps: ['crm'] } })).ok()).toBe(true);
+    expect(await open(his)).toMatchObject({ state: 'closed', reason: 'unavailable' });
+    const hisLinks = (await (await olga.ctx.request.get(`/api/send/documents/${shared.id}/links`)).json()) as { links: Array<{ name: string; problem: string | null }> };
+    expect(hisLinks.links.find((l) => l.name === 'Lucho link')?.problem).toBe('creator_no_access');
+    // Se la devuelven: vuelve.
+    expect((await olga.ctx.request.patch(`/api/teams/members/${lost.id}`, { data: { apps: ['send', 'crm'] } })).ok()).toBe(true);
+    expect((await open(his)).state).toBe('open');
+
+    // Pasa a guest: como irse.
+    const dorasDoc = await sendDoc(down, `Dora ${uid()}`);
+    const onDorasPrivate = await makeLink(down, dorasDoc.id, 'Dora private');
+    const onSharedByDora = await makeLink(down, shared.id, 'Dora shared');
+    expect((await olga.ctx.request.patch(`/api/teams/members/${down.id}`, { data: { role: 'guest' } })).ok()).toBe(true);
+    expect((await open(onDorasPrivate)).state).toBe('closed');
+    expect((await open(onSharedByDora)).state).toBe('open');
+    expect((await sql('SELECT created_by FROM send_links WHERE name = ?', ['Dora shared']))[0].created_by).toBe(olga.id);
+  } finally {
+    await closeAll(olga, left, lost, down);
   }
 });

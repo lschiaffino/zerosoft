@@ -90,8 +90,8 @@ const SECRET_VALUE: RegExp[] = [
 const URL_END = `[^\\s"'<>()\\[\\]]*`;
 const URL_CHAR = `[^\\s"'<>()\\[\\]]`;
 /** Páginas con [token]: quien tiene el link firma, aprueba o entra sin sesión. */
-const TOKEN_PAGES = 'm|sign|d|q|b/e|b|n|invite|view|watch|stats|flow/approve|flow/form|book/manage|app/docs/invite';
-const TOKEN_APIS = 'flow/(?:hooks|resume|approvals)|talk/hooks|groups/webhook|boards/guest|crm/(?:d|v|t/[cuo])|calendar/poll-votes|books/public|sign/public|crm/quotes/public';
+const TOKEN_PAGES = 'm|sign|send|d|q|b/e|b|n|invite|view|watch|stats|flow/approve|flow/form|book/manage|app/docs/invite';
+const TOKEN_APIS = 'flow/(?:hooks|resume|approvals)|talk/hooks|groups/webhook|boards/guest|crm/(?:d|v|t/[cuo])|calendar/poll-votes|books/public|sign/public|send/public|crm/quotes/public';
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 

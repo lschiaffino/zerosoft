@@ -52,6 +52,7 @@ export const PRODUCT_CONFIG = {
   books: { name: 'Books', launch: '/app/books', path: 'books', color: '#1e3a8a', category: 'run', audience: 'team' },
   sign: { name: 'Sign', launch: '/app/sign', path: 'sign', color: '#7f1d1d', category: 'run', audience: 'team' },
   forms: { name: 'Forms', launch: '/app/forms', path: 'forms', color: '#6e730d', category: 'sell', audience: 'team' },
+  send: { name: 'Send', launch: '/app/send', path: 'send', color: '#0b7285', category: 'sell', audience: 'team' },
 } as const satisfies Record<string, ProductEntry>;
 
 /**
@@ -65,6 +66,7 @@ export const APP_SWITCHER_ORDER = [
   'shop',
   'books',
   'forms',
+  'send',
   'docs',
   'cal',
   'chat',

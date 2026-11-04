@@ -94,31 +94,32 @@ import * as r91 from "@/lib/routes/v1/robots/[id]/bulk/route";
 import * as r92 from "@/app/api/v1/robots/[id]/runs/route";
 import * as r93 from "@/lib/routes/v1/robots/batches/[id]/route";
 import * as r94 from "@/lib/routes/v1/robots/runs/[id]/route";
-import * as r95 from "@/app/api/v1/shop/orders/route";
-import * as r96 from "@/app/api/v1/shop/products/route";
-import * as r97 from "@/app/api/v1/sign/envelopes/route";
-import * as r98 from "@/app/api/v1/social/posts/route";
-import * as r99 from "@/app/api/v1/talk/channels/route";
-import * as r100 from "@/app/api/v1/talk/messages/route";
-import * as r101 from "@/app/api/v1/track/issues/route";
-import * as r102 from "@/lib/routes/v1/track/issues/[id]/route";
-import * as r103 from "@/lib/routes/v1/track/issues/[id]/comments/route";
-import * as r104 from "@/app/api/v1/track/labels/route";
-import * as r105 from "@/app/api/v1/track/projects/route";
-import * as r106 from "@/lib/routes/v1/track/projects/[id]/route";
-import * as r107 from "@/lib/routes/v1/track/projects/[id]/cycles/route";
-import * as r108 from "@/lib/routes/v1/track/projects/[id]/statuses/route";
-import * as r109 from "@/app/api/v1/track/requests/route";
-import * as r110 from "@/app/api/v1/track/teams/route";
-import * as r111 from "@/lib/routes/v1/track/teams/[id]/route";
-import * as r112 from "@/lib/routes/v1/track/teams/[id]/cycles/route";
-import * as r113 from "@/lib/routes/v1/track/teams/[id]/statuses/route";
-import * as r114 from "@/app/api/v1/track/users/route";
-import * as r115 from "@/app/api/v1/voice/dictate/route";
-import * as r116 from "@/app/api/v1/voice/dictionary/route";
-import * as r117 from "@/app/api/v1/voice/sessions/route";
-import * as r118 from "@/lib/routes/v1/voice/sessions/[id]/route";
-import * as r119 from "@/app/api/v1/voice/sessions/[id]/chunks/route";
+import * as r95 from "@/app/api/v1/send/documents/route";
+import * as r96 from "@/app/api/v1/shop/orders/route";
+import * as r97 from "@/app/api/v1/shop/products/route";
+import * as r98 from "@/app/api/v1/sign/envelopes/route";
+import * as r99 from "@/app/api/v1/social/posts/route";
+import * as r100 from "@/app/api/v1/talk/channels/route";
+import * as r101 from "@/app/api/v1/talk/messages/route";
+import * as r102 from "@/app/api/v1/track/issues/route";
+import * as r103 from "@/lib/routes/v1/track/issues/[id]/route";
+import * as r104 from "@/lib/routes/v1/track/issues/[id]/comments/route";
+import * as r105 from "@/app/api/v1/track/labels/route";
+import * as r106 from "@/app/api/v1/track/projects/route";
+import * as r107 from "@/lib/routes/v1/track/projects/[id]/route";
+import * as r108 from "@/lib/routes/v1/track/projects/[id]/cycles/route";
+import * as r109 from "@/lib/routes/v1/track/projects/[id]/statuses/route";
+import * as r110 from "@/app/api/v1/track/requests/route";
+import * as r111 from "@/app/api/v1/track/teams/route";
+import * as r112 from "@/lib/routes/v1/track/teams/[id]/route";
+import * as r113 from "@/lib/routes/v1/track/teams/[id]/cycles/route";
+import * as r114 from "@/lib/routes/v1/track/teams/[id]/statuses/route";
+import * as r115 from "@/app/api/v1/track/users/route";
+import * as r116 from "@/app/api/v1/voice/dictate/route";
+import * as r117 from "@/app/api/v1/voice/dictionary/route";
+import * as r118 from "@/app/api/v1/voice/sessions/route";
+import * as r119 from "@/lib/routes/v1/voice/sessions/[id]/route";
+import * as r120 from "@/app/api/v1/voice/sessions/[id]/chunks/route";
 
 export const routes: Record<string, unknown> = {
   "/api/v1/agents/[id]/messages": r0,
@@ -216,29 +217,30 @@ export const routes: Record<string, unknown> = {
   "/api/v1/robots/[id]/runs": r92,
   "/api/v1/robots/batches/[id]": r93,
   "/api/v1/robots/runs/[id]": r94,
-  "/api/v1/shop/orders": r95,
-  "/api/v1/shop/products": r96,
-  "/api/v1/sign/envelopes": r97,
-  "/api/v1/social/posts": r98,
-  "/api/v1/talk/channels": r99,
-  "/api/v1/talk/messages": r100,
-  "/api/v1/track/issues": r101,
-  "/api/v1/track/issues/[id]": r102,
-  "/api/v1/track/issues/[id]/comments": r103,
-  "/api/v1/track/labels": r104,
-  "/api/v1/track/projects": r105,
-  "/api/v1/track/projects/[id]": r106,
-  "/api/v1/track/projects/[id]/cycles": r107,
-  "/api/v1/track/projects/[id]/statuses": r108,
-  "/api/v1/track/requests": r109,
-  "/api/v1/track/teams": r110,
-  "/api/v1/track/teams/[id]": r111,
-  "/api/v1/track/teams/[id]/cycles": r112,
-  "/api/v1/track/teams/[id]/statuses": r113,
-  "/api/v1/track/users": r114,
-  "/api/v1/voice/dictate": r115,
-  "/api/v1/voice/dictionary": r116,
-  "/api/v1/voice/sessions": r117,
-  "/api/v1/voice/sessions/[id]": r118,
-  "/api/v1/voice/sessions/[id]/chunks": r119,
+  "/api/v1/send/documents": r95,
+  "/api/v1/shop/orders": r96,
+  "/api/v1/shop/products": r97,
+  "/api/v1/sign/envelopes": r98,
+  "/api/v1/social/posts": r99,
+  "/api/v1/talk/channels": r100,
+  "/api/v1/talk/messages": r101,
+  "/api/v1/track/issues": r102,
+  "/api/v1/track/issues/[id]": r103,
+  "/api/v1/track/issues/[id]/comments": r104,
+  "/api/v1/track/labels": r105,
+  "/api/v1/track/projects": r106,
+  "/api/v1/track/projects/[id]": r107,
+  "/api/v1/track/projects/[id]/cycles": r108,
+  "/api/v1/track/projects/[id]/statuses": r109,
+  "/api/v1/track/requests": r110,
+  "/api/v1/track/teams": r111,
+  "/api/v1/track/teams/[id]": r112,
+  "/api/v1/track/teams/[id]/cycles": r113,
+  "/api/v1/track/teams/[id]/statuses": r114,
+  "/api/v1/track/users": r115,
+  "/api/v1/voice/dictate": r116,
+  "/api/v1/voice/dictionary": r117,
+  "/api/v1/voice/sessions": r118,
+  "/api/v1/voice/sessions/[id]": r119,
+  "/api/v1/voice/sessions/[id]/chunks": r120,
 };

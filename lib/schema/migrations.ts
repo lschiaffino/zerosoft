@@ -10,6 +10,7 @@ import { peopleUp } from './people-migration';
 import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
+import { sendUp } from './send-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -8465,6 +8466,11 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, "ALTER TABLE hiring_settings ADD COLUMN candidate_fields TEXT NOT NULL DEFAULT '[]'");
       await addColumn(c, "ALTER TABLE hiring_candidates ADD COLUMN custom TEXT NOT NULL DEFAULT '{}'");
     },
+  },
+  {
+    // Send (DocSend): ver lib/schema/send-migration.ts.
+    id: '190_send',
+    up: sendUp,
   },
 ];
 

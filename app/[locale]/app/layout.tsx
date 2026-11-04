@@ -91,7 +91,7 @@ export default async function AppLayout(
   const tAnalyticsReplay = await getTranslations({ locale, namespace: 'analyticsReplay' });
   const tAnalyticsMore = await getTranslations({ locale, namespace: 'analyticsMore' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tasksDue, serverTz, tPlanning, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tSend, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -119,6 +119,7 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'books' }),
       getTranslations({ locale, namespace: 'sign' }),
       getTranslations({ locale, namespace: 'forms' }),
+      getTranslations({ locale, namespace: 'send' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
       countDueTasks(user.id).catch((err) => {
         console.error('[app layout] countDueTasks', err);
@@ -191,6 +192,7 @@ export default async function AppLayout(
                 { href: '/app/people/settings', label: tSide('appSettings') },
                 { href: '/app/books/settings', label: tSide('appSettings') },
                 { href: '/app/forms/settings', label: tSide('appSettings') },
+                { href: '/app/send/settings', label: tSide('appSettings') },
                 { href: '/app/crm', label: tCrm('tabs.overview') },
                 { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
                 { href: '/app/crm/companies', label: tCrm('tabs.companies') },
@@ -351,6 +353,8 @@ export default async function AppLayout(
                 { href: '/app/sign/new', label: tSign('nav.new') },
                 { href: '/app/forms', label: tForms('nav.forms') },
                 { href: '/app/forms/new', label: tForms('nav.templates') },
+                { href: '/app/send', label: tSend('nav.documents') },
+                { href: '/app/send/spaces', label: tSend('nav.spaces') },
                 { href: '/app/assistant', label: tSide('assistant') },
               ]}
             />
@@ -578,6 +582,7 @@ export default async function AppLayout(
               welcome: tPeople('nav.welcome'),
               newPerson: tPeople('directory.add'),
             },
+            send: { documents: tSend('nav.documents'), spaces: tSend('nav.spaces'), newDocument: tSend('nav.new') },
             forms: { forms: tForms('nav.forms'), templates: tForms('nav.templates'), newForm: tForms('list.new') },
             books: {
               overview: tBooks('nav.overview'),
