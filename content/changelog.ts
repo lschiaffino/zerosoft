@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-04-link-api-filters',
+    date: '2026-11-04',
+    title: {
+      en: 'Link: filter the links list in the API',
+      es: 'Link: filtros en la lista de links de la API',
+      pt: 'Link: filtros na lista de links da API',
+    },
+    items: [
+      {
+        product: 'link',
+        en: 'GET /api/v1/links now takes q (slug, URL and title), tag, folder, archived and sort (created or clicks), on top of page, pageSize and creator. The page size limit is 50, and the API reference now says so.',
+        es: 'GET /api/v1/links ahora acepta q (slug, URL y título), tag, folder, archived y sort (created o clicks), además de page, pageSize y creator. El límite de pageSize es 50, y la referencia de la API ahora lo dice.',
+        pt: 'GET /api/v1/links agora aceita q (slug, URL e título), tag, folder, archived e sort (created ou clicks), além de page, pageSize e creator. O limite de pageSize é 50, e a referência da API agora informa isso.',
+      },
+    ],
+  },
+  {
     id: '2026-11-04-send-links-csv',
     date: '2026-11-04',
     title: {

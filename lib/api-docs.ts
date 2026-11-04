@@ -388,6 +388,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       { name: 'page', type: 'integer', descriptionKey: 'paramPage' },
       { name: 'pageSize', type: 'integer', descriptionKey: 'paramPageSize' },
       { name: 'creator', type: 'string', descriptionKey: 'paramLinkCreator' },
+      { name: 'q', type: 'string', descriptionKey: 'paramLinkSearch' },
+      { name: 'tag', type: 'string', descriptionKey: 'paramLinkTagFilter' },
+      { name: 'folder', type: 'string', descriptionKey: 'paramLinkFolderFilter' },
+      { name: 'archived', type: 'boolean', descriptionKey: 'paramLinkArchivedFilter' },
+      { name: 'sort', type: 'string', descriptionKey: 'paramLinkSort' },
     ],
     response: {
       links: [

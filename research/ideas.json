@@ -2404,5 +2404,31 @@
     "parity": "masking",
     "status": "done",
     "changelog": "2026-10-25-groups-platform"
+  },
+  {
+    "title": "Link: Filter the v1 API links list by search, tag, folder, archived state and sort",
+    "description": "Dub's list endpoint filters by search, tag, domain, folder and archived state (https://dub.co/docs/api-reference/endpoint/retrieve-a-list-of-links). Our GET /api/v1/links in app/api/v1/links/route.ts only accepted page, pageSize and creator, so an integration had to page through everything to find one link. First scope: q, tag, folder, archived and sort query params on the same endpoint, documented in the API reference.",
+    "product": "link",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-04-link-api-filters"
+  },
+  {
+    "title": "Link: Add an upsert endpoint to the v1 API that creates or updates a link in one call",
+    "description": "Dub offers PUT /links/upsert, which creates the link or updates the one with the same URL (https://dub.co/docs/api-reference/endpoint/upsert-a-link). Today an integration must GET by externalId, then POST or PATCH (app/api/v1/links/route.ts and lib/routes/v1/links/[id]/route.ts), with a race between the two calls. For a small team syncing links from a CMS or a database, one idempotent call is simpler and safer. First scope: PUT /api/v1/links/upsert keyed on externalId, falling back to destination URL, returning 200 when updated and 201 when created.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Add bulk create, update and delete endpoints to the v1 API",
+    "description": "Dub exposes POST, PATCH and DELETE on /links/bulk with up to 100 links per request (https://dub.co/docs/concepts/links/bulk-operations). We have bulk create and bulk actions in the app (app/api/links/bulk/route.ts) but they use the session, and the public v1 API creates one link per call. A team migrating thousands of links or tagging a campaign from a script hits the rate limit quickly. First scope: bulk create and bulk delete under links:write, up to 100 per request, with a per-item result so one bad row does not fail the batch.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Add a count endpoint to the v1 API with the same filters as the list",
+    "description": "Dub has GET /links/count that accepts the list filters and returns only the total (https://dub.co/docs/api-reference/endpoint/retrieve-links-count). Our API only returns total inside the paginated list, so a dashboard that wants a number must fetch a page of links too. First scope: GET /api/v1/links/count reusing parseLinkListQuery in lib/link-api-query.ts, links:read scope, grouped by an optional groupBy of tag or folder.",
+    "product": "link",
+    "kind": "idea"
   }
 ]
