@@ -57,6 +57,7 @@
 .sd-check input { margin: 3px 0 0; accent-color: var(--c-send); }
 .sd-check small { display: block; color: var(--brand-gray-2); font-size: 0.8125rem; line-height: 1.4; margin-top: 2px; }
 .sd-csv { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sd-csv .sd-over { color: var(--bad-ink); font-weight: 600; }
 .sd-csv label:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
 .sd-sub { margin: 0 0 0 26px; display: grid; gap: 6px; min-width: 0; }
 

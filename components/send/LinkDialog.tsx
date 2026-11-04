@@ -185,7 +185,7 @@ function LinkForm({ link, createUrl, templates, onClose, onSaved }: { link: Link
                     }}
                   />
                 </label>
-                <span className="sd-rowmeta num" data-testid="link-access-count">
+                <span className={`sd-rowmeta num${accessCount > MAX_ACCESS_ENTRIES ? ' sd-over' : ''}`} data-testid="link-access-count">
                   {t('accessCount', { count: accessCount, max: MAX_ACCESS_ENTRIES })}
                 </span>
               </div>
