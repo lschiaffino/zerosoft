@@ -651,7 +651,8 @@ test('un PDF con contraseña da su motivo', async ({ page, request }) => {
 test('50 intentos de código a la vez: solo se comparan los del tope', async ({ browser, request }) => {
   const { id } = await makeDoc(request, 'Parallel', await pdf(1));
   const link = await makeLink(request, id, { name: 'P', passcode: 'open-sesame' });
-  const ctx = await browser.newContext();
+  // Su propia IP: los 51 pedidos no gastan el tope por IP de los tests que siguen.
+  const ctx = await browser.newContext({ extraHTTPHeaders: { 'x-forwarded-for': '10.77.0.50' } });
   await ctx.request.post(`/api/send/public/${link.token}`, { data: {} });
   const all = await Promise.all(Array.from({ length: 50 }, (_, i) => ctx.request.post(`/api/send/public/${link.token}`, { data: { passcode: `wrong-${i}` } })));
   const statuses = all.map((r) => r.status());
@@ -674,6 +675,7 @@ test('un link con avisos apagados no avisa de un intento sin acceso', async ({ b
   const link = await makeLink(request, id, { name: 'Q', notify: false, accessMode: 'block', accessList: ['blocked.example'] });
   const ctx = await browser.newContext();
   const res = await ctx.request.post(`/api/send/public/${link.token}`, { data: { email: 'a@blocked.example' } });
+  expect(res.status(), await res.text()).toBe(200);
   expect((await res.json()).step).toBe('denied');
   await ctx.close();
   expect(JSON.stringify(await (await request.get('/api/notifications?limit=30')).json())).not.toContain(title);
