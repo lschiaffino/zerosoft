@@ -256,6 +256,11 @@
 .gr-msg:hover .gr-msg-actions,
 .gr-msg:focus-within .gr-msg-actions { opacity: 1; }
 @media (hover: none) { .gr-msg-actions { opacity: 1; } }
+/* Con mouse las acciones aparecen al pasar por encima: botones más bajos para que el lugar que reservan no abra huecos entre mensajes. */
+@media (hover: hover) {
+  .gr-msg { gap: 2px; }
+  .gr-msg .gr-msg-actions .btn { --btn-h: 22px; --btn-px: 6px; --btn-fs: 0.75rem; }
+}
 .gr-emoji-picker { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); }
 
 /* Composer */

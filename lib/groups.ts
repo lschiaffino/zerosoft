@@ -8,6 +8,7 @@
  * DTO solo dice qué campos están cargados.
  */
 import { randomBytes, randomUUID } from 'crypto';
+import { after } from 'next/server';
 import { getDb } from './db';
 import { open, seal } from './secret-box';
 import { emitEventSoon } from './events';
@@ -16,6 +17,7 @@ import {
   PROVIDER_KINDS,
   ProviderError,
   isGroupJid,
+  isLidJid,
   isValidPhone,
   phoneDigits,
   splitPhones,
@@ -24,6 +26,7 @@ import {
   type ConnectState,
   type GroupsProvider,
   type InboundEvent,
+  type MediaRef,
   type MemberRole,
   type ParticipantAction,
   type ParticipantResult,
@@ -426,7 +429,8 @@ function parseJson<T>(raw: string | null | undefined, fallback: T): T {
 
 /** Nombre visible: el del grupo o contacto, o el teléfono con +. */
 export function chatDisplayName(row: Pick<ChatRow, 'name' | 'phone' | 'provider_chat_id'>): string {
-  return row.name || (row.phone ? `+${row.phone}` : row.provider_chat_id);
+  // Un id "@lid" de WhatsApp no es un teléfono: no se muestra.
+  return row.name || (row.phone ? `+${row.phone}` : isLidJid(row.provider_chat_id) ? 'WhatsApp' : row.provider_chat_id);
 }
 
 export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
@@ -835,7 +839,7 @@ export interface MessageDto {
 /** URL de la media para el navegador: las de proveedor pasan por el proxy autenticado. */
 function mediaUrlFor(row: MessageRow): string {
   if (!row.media_url) return '';
-  if (row.media_url.startsWith('meta:') || row.media_url.startsWith('bridge:')) return `/api/groups/media/${row.id}`;
+  if (row.media_url.startsWith('meta:') || row.media_url.startsWith('bridge:') || row.media_url.startsWith('evo:')) return `/api/groups/media/${row.id}`;
   return row.media_url;
 }
 
@@ -1131,6 +1135,42 @@ async function maybeTicketFromReaction(ws: string, msg: MessageRow, emoji: strin
 // Webhook: eventos del proveedor
 // ======================================================================
 
+/** Corre los trabajos después de la respuesta (next/server after); fuera de un request, acá mismo. */
+async function runAfter(jobs: Array<() => Promise<unknown>>): Promise<void> {
+  for (const job of jobs) {
+    try {
+      after(() => job().catch(() => null));
+    } catch {
+      await job().catch(() => null);
+    }
+  }
+}
+
+/**
+ * Baja un archivo recibido por el gateway (Evolution) y lo guarda en nuestro
+ * storage, como los adjuntos que se mandan. Respeta el tope de tamaño y los
+ * tipos permitidos; si algo falla, el mensaje queda con "evo:<id>" y la ruta
+ * de media lo vuelve a intentar al abrirlo. Devuelve la URL guardada.
+ */
+export async function storeInboundMedia(number: NumberRow, messageId: string, ref: MediaRef): Promise<string | null> {
+  let provider: GroupsProvider;
+  try {
+    provider = providerFor(number);
+  } catch {
+    return null;
+  }
+  if (!provider.fetchMedia) return null;
+  const { MAX_UPLOAD_SIZE, saveUpload } = await import('./uploads');
+  const file = await provider.fetchMedia(ref, MAX_UPLOAD_SIZE);
+  const mimetype = file.mimetype.split(';')[0].trim() || 'application/octet-stream';
+  const filename = file.filename || `whatsapp-${ref.providerMessageId.slice(0, 24)}`;
+  const url = await saveUpload('chat', filename, mimetype, file.data);
+  const r = await getDb()
+    .prepare("UPDATE groups_messages SET media_url = ?, media_type = CASE WHEN media_type = '' THEN ? ELSE media_type END WHERE id = ? AND number_id = ? AND media_url LIKE 'evo:%'")
+    .run(url, mimetype, messageId, number.id);
+  return r.changes > 0 ? url : null;
+}
+
 export interface IngestResult {
   messages: number;
   duplicates: number;
@@ -1140,6 +1180,7 @@ export interface IngestResult {
 export async function ingestEvents(number: NumberRow, events: InboundEvent[]): Promise<IngestResult> {
   const res: IngestResult = { messages: 0, duplicates: 0, ignored: 0 };
   const ws = number.user_id;
+  const later: Array<() => Promise<unknown>> = [];
   for (const ev of events.slice(0, 200)) {
     try {
       if (ev.type === 'message') {
@@ -1178,6 +1219,11 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[]): P
           continue;
         }
         res.messages++;
+        // Archivo que el gateway baja aparte (Evolution): se guarda después de responder el webhook.
+        if (ev.media?.fetchRef && row.media_url.startsWith('evo:')) {
+          const ref = ev.media.fetchRef;
+          later.push(() => storeInboundMedia(number, row.id, ref));
+        }
         await touchChat(chat.id, at, previewOf(ev.body, ev.media?.type ?? '', ev.media?.name ?? ''), !ev.fromMe);
         // Modo "preguntas": el chat espera recién cuando la AI dice que el mensaje pide respuesta (lib/groups-flag.ts).
         if (!ev.fromMe && (await getSettings(ws)).flagMode === 'questions') {
@@ -1289,6 +1335,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[]): P
       console.error('[groups] webhook event failed', (err as Error)?.name ?? 'error');
     }
   }
+  await runAfter(later);
   return res;
 }
 

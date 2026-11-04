@@ -141,6 +141,21 @@ export interface MediaInput {
   caption?: string;
 }
 
+/** Un archivo recibido que el proveedor puede bajar (getBase64FromMediaMessage en Evolution). */
+export interface MediaRef {
+  providerMessageId: string;
+  chatId: string;
+  fromMe: boolean;
+  /** El mensaje completo de Baileys, si llegó en el webhook (no hace falta buscarlo en el gateway). */
+  raw?: unknown;
+}
+
+export interface FetchedMedia {
+  data: Buffer;
+  mimetype: string;
+  filename: string;
+}
+
 export interface Template {
   name: string;
   language: string;
@@ -159,7 +174,16 @@ export type InboundEvent =
       senderName: string;
       providerMessageId: string;
       body: string;
-      media?: { url: string; type: string; name: string };
+      media?: {
+        url: string;
+        type: string;
+        name: string;
+        /**
+         * Lo que el proveedor necesita para bajar el archivo después (Evolution:
+         * la key y el mensaje de Baileys). Vive solo durante el webhook: no se guarda.
+         */
+        fetchRef?: MediaRef;
+      };
       replyToProviderId?: string;
       timestamp?: string;
     }
@@ -227,6 +251,8 @@ export interface GroupsProvider {
   /** Encuesta nativa (solo si caps.polls). */
   sendPoll?(chatId: string, poll: { question: string; options: string[]; multi: boolean }): Promise<SendResult>;
   listTemplates(): Promise<Template[]>;
+  /** Baja un archivo recibido (solo los proveedores que lo dejan, con tope de tamaño). */
+  fetchMedia?(ref: MediaRef, maxBytes: number): Promise<FetchedMedia>;
   listGroups(): Promise<GroupInfo[]>;
   createGroup(name: string, phones: string[]): Promise<GroupInfo>;
   participants(groupId: string): Promise<Participant[]>;
@@ -284,9 +310,20 @@ export function errorFromStatus(status: number): ProviderError {
 
 // ---------- Helpers compartidos ----------
 
-/** Solo dígitos: "+54 9 11 5555-0000" → "5491155550000". */
+/**
+ * Solo dígitos: "+54 9 11 5555-0000" → "5491155550000". Un id de WhatsApp
+ * "@lid" (identificador anónimo, no es un teléfono) da vacío: nunca se
+ * muestra ni se usa como número.
+ */
 export function phoneDigits(raw: string): string {
-  return String(raw ?? '').replace(/@.*$/, '').replace(/[^\d]/g, '');
+  const s = String(raw ?? '');
+  if (isLidJid(s)) return '';
+  return s.replace(/@.*$/, '').replace(/[^\d]/g, '');
+}
+
+/** "123456789012345@lid": id anónimo de WhatsApp (no es un teléfono). */
+export function isLidJid(raw: string): boolean {
+  return /@lid$/i.test(String(raw ?? '').trim());
 }
 
 /** Número válido para WhatsApp (E.164 sin "+": 8 a 15 dígitos). */

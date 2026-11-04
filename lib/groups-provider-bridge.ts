@@ -21,12 +21,15 @@ import {
   errorFromStatus,
   hmacHex,
   isGroupJid,
+  isLidJid,
   phoneDigits,
   safeEqual,
   type BridgeConfig,
   type ConnectState,
   type ConnectStatus,
+  type FetchedMedia,
   type FetchLike,
+  type MediaRef,
   type GroupInfo,
   type GroupsProvider,
   type InboundEvent,
@@ -81,6 +84,44 @@ function idString(raw: unknown): string {
   const o = (raw ?? {}) as Json;
   return String(o._serialized ?? o.id ?? '');
 }
+
+/**
+ * Id de WhatsApp con teléfono a partir de un id que puede ser "@lid" (anónimo).
+ * Evolution v2.3 (Baileys 7) manda el alternativo en remoteJidAlt /
+ * participantAlt; versiones anteriores, en senderPn / participantPn. Si no hay
+ * ninguno con teléfono, queda el lid (sirve de id, nunca de teléfono).
+ */
+export function pnJid(primary: string, ...alts: unknown[]): string {
+  if (!isLidJid(primary)) return primary;
+  for (const a of alts) {
+    const v = typeof a === 'string' ? a.trim() : '';
+    if (v && !isLidJid(v) && /@(s\.whatsapp\.net|c\.us)$/.test(v)) return v;
+  }
+  return primary;
+}
+
+/** Teléfono de un participante de grupo (string o { id, phoneNumber, jid, lid }), sin lids. */
+function participantPhone(raw: unknown): string {
+  if (typeof raw === 'string') return phoneDigits(raw);
+  const o = (raw ?? {}) as Json;
+  for (const k of ['phoneNumber', 'jid', 'id', '_serialized']) {
+    const v = typeof o[k] === 'string' ? (o[k] as string) : '';
+    const d = phoneDigits(v);
+    if (d) return d;
+  }
+  return '';
+}
+
+/** fileLength de Baileys: número, string o Long { low, high }. */
+function byteLength(raw: unknown): number {
+  if (typeof raw === 'number') return raw;
+  if (typeof raw === 'string') return Number(raw) || 0;
+  const o = (raw ?? {}) as { low?: number; high?: number };
+  return typeof o.low === 'number' ? (o.low >>> 0) + (o.high ?? 0) * 2 ** 32 : 0;
+}
+
+/** Tope de lo que se baja de un archivo recibido (lo mismo que acepta un adjunto). */
+export const MAX_INBOUND_MEDIA = 10 * 1024 * 1024;
 
 function roleOf(raw: unknown): MemberRole {
   const r = String(raw ?? '').toLowerCase();
@@ -493,7 +534,7 @@ const EVOLUTION_ACK: Record<string, 'sent' | 'delivered' | 'read' | 'failed'> = 
 /** Texto y media de un `message` de Baileys (lo que manda Evolution). */
 function baileysContent(message: Json): {
   body: string;
-  media?: { url: string; type: string; name: string };
+  media?: { url: string; type: string; name: string; size: number };
   replyTo?: string;
   reaction?: Json;
   /** protocolMessage: edición (texto nuevo) o borrado para todos del mensaje `target`. */
@@ -524,8 +565,8 @@ function baileysContent(message: Json): {
       const ctx = (m.contextInfo ?? {}) as Json;
       return {
         body: String(m.caption ?? ''),
-        // La URL de WhatsApp está cifrada: se guarda el tipo y el nombre, no el archivo.
-        media: { url: '', type: String(m.mimetype ?? key.replace('Message', '')), name: String(m.fileName ?? '') },
+        // La URL de WhatsApp está cifrada: el archivo se baja después por el gateway (fetchMedia).
+        media: { url: '', type: String(m.mimetype ?? key.replace('Message', '')), name: String(m.fileName ?? ''), size: byteLength(m.fileLength) },
         replyTo: ctx.stanzaId ? String(ctx.stanzaId) : undefined,
       };
     }
@@ -544,11 +585,13 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
       const out: InboundEvent[] = [];
       for (const m of rows) {
         const key = (m.key ?? {}) as Json;
-        const chatId = String(key.remoteJid ?? '');
+        // Chats con id "@lid": se usa el id con teléfono cuando Evolution lo da.
+        const chatId = pnJid(String(key.remoteJid ?? ''), key.remoteJidAlt, key.senderPn, m.senderPn);
         const id = String(key.id ?? '');
         if (!chatId || !id || chatId === 'status@broadcast') continue;
         const isGroup = isGroupJid(chatId);
         const fromMe = key.fromMe === true;
+        const participant = pnJid(String(key.participant ?? m.participant ?? ''), key.participantAlt, key.participantPn, m.participantPn);
         const pollUpdate = ((m.message ?? {}) as Json).pollUpdateMessage as Json | undefined;
         if (pollUpdate) {
           // Evolution manda el voto descifrado en vote.selectedOptions (si el gateway lo descifra).
@@ -560,7 +603,7 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
               type: 'poll_vote',
               chatId,
               pollProviderMessageId: target,
-              voterPhone: phoneDigits(isGroup ? String(key.participant ?? m.participant ?? '') : chatId),
+              voterPhone: phoneDigits(isGroup ? participant : chatId),
               voterName: String(m.pushName ?? ''),
               options: selected,
             });
@@ -568,7 +611,7 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
           continue;
         }
         const content = baileysContent((m.message ?? {}) as Json);
-        const sender = isGroup ? String(key.participant ?? m.participant ?? '') : fromMe ? '' : chatId;
+        const sender = isGroup ? participant : fromMe ? '' : chatId;
         if (content.protocol) {
           out.push(
             content.protocol.kind === 'edit'
@@ -601,7 +644,18 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
           senderName: String(m.pushName ?? ''),
           providerMessageId: id,
           body: content.body,
-          media: content.media,
+          media: content.media
+            ? {
+                // "evo:<id>": se baja después y se guarda en nuestro storage (ver storeInboundMedia).
+                url: content.media.size <= MAX_INBOUND_MEDIA ? `evo:${id}` : '',
+                type: content.media.type,
+                name: content.media.name,
+                // Más grande que el tope: queda el tipo y el nombre, sin bajarlo.
+                ...(content.media.size <= MAX_INBOUND_MEDIA
+                  ? { fetchRef: { providerMessageId: id, chatId, fromMe, raw: { key, message: m.message } } }
+                  : {}),
+              }
+            : undefined,
           replyToProviderId: content.replyTo,
           timestamp: Number.isFinite(ts) && ts > 0 ? new Date(ts * 1000).toISOString() : undefined,
         });
@@ -626,7 +680,8 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
               byVoter.set(phone, [...(byVoter.get(phone) ?? []), String(opt.name ?? '')]);
             }
           }
-          const chatId = String(u.remoteJid ?? ((u.key ?? {}) as Json).remoteJid ?? '');
+          const uk = (u.key ?? {}) as Json;
+          const chatId = pnJid(String(u.remoteJid ?? uk.remoteJid ?? ''), uk.remoteJidAlt, u.remoteJidAlt);
           for (const [phone, options] of byVoter) {
             out.push({ type: 'poll_vote', chatId, pollProviderMessageId: id, voterPhone: phone, voterName: '', options });
           }
@@ -637,7 +692,7 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
     case 'messages.delete': {
       const key = ((d.key ?? d) as Json) ?? {};
       const id = String(key.id ?? '');
-      const chatId = String(key.remoteJid ?? '');
+      const chatId = pnJid(String(key.remoteJid ?? ''), key.remoteJidAlt);
       return id && chatId ? [{ type: 'revoke', chatId, providerMessageId: id }] : [];
     }
     case 'call': {
@@ -672,11 +727,33 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
       const action = String(d.action ?? '') as ParticipantAction;
       if (!['add', 'remove', 'promote', 'demote'].includes(action) || !d.id) return [];
       const parts = Array.isArray(d.participants) ? (d.participants as unknown[]) : [];
-      return [{ type: 'participants', chatId: String(d.id), action, phones: parts.map((p) => phoneDigits(idString(p))) }];
+      const phones = parts.map(participantPhone).filter(Boolean);
+      return phones.length ? [{ type: 'participants', chatId: String(d.id), action, phones }] : [];
     }
     default:
       return [];
   }
+}
+
+/**
+ * Un archivo recibido por Evolution: getBase64FromMediaMessage con el mensaje
+ * completo (el gateway lo descifra sin buscarlo) o, si no llegó, solo la key
+ * (el gateway lo busca en su base). Corta antes de decodificar si pasa el tope.
+ */
+async function evolutionMedia(
+  api: (path: string, method?: string, body?: unknown) => Promise<unknown>,
+  instance: string,
+  ref: MediaRef,
+  maxBytes: number,
+): Promise<FetchedMedia> {
+  const message = ref.raw ?? { key: { id: ref.providerMessageId, remoteJid: ref.chatId, fromMe: ref.fromMe } };
+  const r = (await api(`/chat/getBase64FromMediaMessage/${instance}`, 'POST', { message, convertToMp4: false })) as Json;
+  const b64 = typeof r.base64 === 'string' ? r.base64.replace(/^data:[^,]*,/, '') : '';
+  if (!b64) throw new ProviderError('not_found');
+  if (Math.floor((b64.length * 3) / 4) > maxBytes) throw new ProviderError('provider_error', 413);
+  const data = Buffer.from(b64, 'base64');
+  if (data.length === 0 || data.length > maxBytes) throw new ProviderError('provider_error', 413);
+  return { data, mimetype: String(r.mimetype ?? 'application/octet-stream'), filename: String(r.fileName ?? '') };
 }
 
 export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike } = {}): GroupsProvider {
@@ -784,6 +861,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       throw new ProviderError('unsupported');
     },
     listTemplates: async () => [],
+    fetchMedia: (ref, maxBytes) => evolutionMedia(api, instance, ref, maxBytes),
     async listGroups(): Promise<GroupInfo[]> {
       const rows = (await api(`/group/fetchAllGroups/${instance}?getParticipants=false`)) as Json[];
       return (Array.isArray(rows) ? rows : [])
@@ -799,7 +877,10 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async participants(groupId) {
       const r = (await api(`/group/participants/${instance}${q(groupId)}`)) as Json;
       const rows = Array.isArray(r.participants) ? (r.participants as Json[]) : [];
-      return rows.map((p) => ({ phone: phoneDigits(String(p.id ?? '')), role: roleOf(p.admin) }));
+      // Los que solo tienen un lid (sin teléfono a la vista) no se pueden listar como teléfono.
+      return rows
+        .map((p) => ({ phone: participantPhone(p), role: roleOf(p.admin), name: typeof p.name === 'string' ? p.name : undefined }))
+        .filter((p) => p.phone);
     },
     updateParticipants: update,
     async inviteLink(groupId, revoke) {
