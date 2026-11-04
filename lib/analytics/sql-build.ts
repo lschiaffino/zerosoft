@@ -47,6 +47,14 @@ export function propText(key: string, type: 'event' | 'person', eventAlias = 'e'
   };
 }
 
+/** Propiedad del grupo al que pertenece el evento (la dice analytics_groups). */
+export function groupPropText(key: string, groupType: string, eventAlias = 'e'): Frag {
+  return {
+    sql: `(SELECT CAST(json_extract(g.properties, ?) AS TEXT) FROM analytics_groups g WHERE g.project_id = ${eventAlias}.project_id AND g.group_type = ? AND g.group_key = json_extract(${eventAlias}.properties, ?))`,
+    args: [jsonPath(key), groupType, `$."$groups"."${groupType.replace(/"/g, '')}"`],
+  };
+}
+
 function propRaw(key: string, type: 'event' | 'person', eventAlias = 'e', personAlias = 'p'): Frag {
   if (type === 'event' && EVENT_COLUMNS[key]) return { sql: EVENT_COLUMNS[key].replace(/^e\./, `${eventAlias}.`), args: [] };
   const col = type === 'person' ? `${personAlias}.properties` : `${eventAlias}.properties`;

@@ -63,7 +63,7 @@ export interface ClickContext {
 }
 
 /** Derives referrer / country / device / browser / os from the request headers. */
-export function contextFromHeaders(headers: Headers): ClickContext {
+export function contextFromHeaders(headers: Headers, trustedIp?: string | null): ClickContext {
   const referer = headers.get('referer');
   let referrer = 'direct';
   if (referer) {
@@ -86,7 +86,8 @@ export function contextFromHeaders(headers: Headers): ClickContext {
   let city: string | null = process.env.VERCEL ? decodeGeoHeader(headers.get('x-vercel-ip-city')) : null;
   let region: string | null = process.env.VERCEL ? decodeGeoHeader(headers.get('x-vercel-ip-country-region')) : null;
   if (!process.env.VERCEL) {
-    const ip = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+    // Quien llama puede pasar la IP resuelta según los proxies de confianza.
+    const ip = trustedIp && trustedIp !== 'unknown' ? trustedIp : headers.get('x-forwarded-for')?.split(',')[0]?.trim();
     const hit = ip ? geoipLookup(ip) : null;
     if (hit) {
       country = country || hit.country;

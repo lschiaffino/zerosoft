@@ -23,8 +23,8 @@ export default async function AnalyticsFlagsPage(props: { params: Promise<{ loca
     <CollectionPage
       kind="flags"
       projectId={ctx.project.id}
-      canCreate
-      canEdit
+      canCreate={ctx.canManage}
+      canEdit={ctx.canManage}
       items={flags.map((f) => ({
         id: f.id,
         name: f.name || f.key,

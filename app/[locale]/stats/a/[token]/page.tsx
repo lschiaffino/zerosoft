@@ -1,17 +1,20 @@
 import type { Metadata } from 'next';
+import DashboardText from '@/components/analytics/DashboardText';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import InsightResultView from '@/components/analytics/InsightResultView';
+import ShareChrome, { ShareUnlock } from '@/components/analytics/ShareChrome';
+import { shareAccessOk, shareByToken, shareCookieName, shareHasPasswordProtect } from '@/lib/analytics/records-more';
 import { publicShareView } from '@/lib/analytics/share-view';
-import { clientIp, rateLimit } from '@/lib/rate-limit';
-import { headers } from 'next/headers';
+import { clientIp, hashedIp, rateLimit } from '@/lib/rate-limit';
+import { cookies, headers } from 'next/headers';
 import '@/styles/app-shared.css';
 import '@/styles/analytics.css';
 
 export const dynamic = 'force-dynamic';
 
-type Props = { params: Promise<{ locale: string; token: string }>; searchParams: Promise<{ embed?: string }> };
+type Props = { params: Promise<{ locale: string; token: string }>; searchParams: Promise<{ embed?: string; refresh?: string }> };
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { locale } = await props.params;
@@ -26,20 +29,35 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
  */
 export default async function PublicAnalyticsShare(props: Props) {
   const { locale, token } = await props.params;
-  const { embed } = await props.searchParams;
+  const { embed, refresh } = await props.searchParams;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'analytics.share' });
   const h = await headers();
   const ip = clientIp(new Request('http://x', { headers: h }));
-  const limit = await rateLimit(`ashare:${ip}`, 60, 60);
+  const limit = await rateLimit(`ashare:${hashedIp(ip)}`, 60, 60);
   if (!limit.ok && process.env.RATE_LIMIT_DISABLED !== 'true') {
     return <p className="an-empty-result">{t('rateLimited')}</p>;
   }
-  const view = await publicShareView(token);
+  // Con contraseña: nada se calcula ni se manda hasta que este navegador la haya dado.
+  const share = await shareByToken(token);
+  if (share && (await shareHasPasswordProtect(share.id))) {
+    const access = (await cookies()).get(shareCookieName(share.id))?.value;
+    if (!(await shareAccessOk(share.id, access))) {
+      return (
+        <ClientMessages locale={locale} namespaces={['analytics']}>
+          <main className={`an-share-public${embed ? ' is-embed' : ''}`} data-testid="an-share-locked">
+            <ShareUnlock token={token} />
+          </main>
+        </ClientMessages>
+      );
+    }
+  }
+  const view = await publicShareView(token, refresh === 'true');
   if (!view) notFound();
   return (
     <ClientMessages locale={locale} namespaces={['analytics']}>
       <main className={`an-share-public${embed ? ' is-embed' : ''}`} data-testid="an-share-public">
+        <ShareChrome theme={view.options.theme ?? 'system'} embed={Boolean(embed)} />
         {!embed && (
           <header className="an-share-head">
             <h1 className="an-share-title">{view.title}</h1>
@@ -49,8 +67,9 @@ export default async function PublicAnalyticsShare(props: Props) {
         {view.tiles.length === 0 && <p className="an-empty-result">{t('emptyPublic')}</p>}
         <div className={view.tiles.length > 1 ? 'an-tiles' : 'an-form'}>
           {view.tiles.map((tile, i) => (
-            <article key={i} className="an-tile an-panel">
-              {(view.tiles.length > 1 || embed) && <h2 className="an-h3 an-flush">{tile.name}</h2>}
+            <article key={i} className={`an-tile an-panel is-${tile.size ?? 'm'}`}>
+              {tile.text !== undefined && <DashboardText body={tile.text} />}
+              {tile.text === undefined && (view.tiles.length > 1 || embed) && <h2 className="an-h3 an-flush">{tile.name}</h2>}
               {tile.error ? <p className="ui-error">{t('tileError')}</p> : tile.result && <InsightResultView result={tile.result} display={tile.display} />}
             </article>
           ))}

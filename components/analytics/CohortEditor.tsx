@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import PublicLinksNotice from './PublicLinksNotice';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { CohortDto, CohortGroup, PropertyFilter } from '@/lib/analytics/types';
@@ -75,7 +76,7 @@ function initialGroups(c: CohortDto): CohortGroup[] {
  * Cohorte (como las de PostHog). Dinámica: grupos de reglas unidos con O.
  * Estática: una lista subida en CSV o guardada desde una lista de personas.
  */
-export default function CohortEditor({ projectId, cohort }: { projectId: string; cohort: CohortDto }) {
+export default function CohortEditor({ projectId, cohort, publicLinks = [] }: { projectId: string; cohort: CohortDto; publicLinks?: Array<{ shareId: string; name: string }> }) {
   const t = useTranslations('analytics.cohorts');
   const tc = useTranslations('analytics.common');
   const locale = useLocale();
@@ -143,6 +144,7 @@ export default function CohortEditor({ projectId, cohort }: { projectId: string;
 
   return (
     <section className="an-panel an-cohort" aria-label={t('editTitle', { name: cohort.name })} data-testid="an-cohort-editor">
+      <PublicLinksNotice links={publicLinks} />
       <form
         className="an-form"
         onSubmit={(e) => {

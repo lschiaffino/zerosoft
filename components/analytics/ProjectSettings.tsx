@@ -57,6 +57,7 @@ export default function ProjectSettings({ project, canManage }: { project: Proje
     domains: project.allowedDomains.join('\n'),
     respectDnt: project.respectDnt,
     keepBots: project.keepBots,
+    cookieless: project.cookieless,
     anonymizeIp: project.anonymizeIp,
     autocapture: project.autocapture,
     captureExceptions: project.captureExceptions,
@@ -76,6 +77,7 @@ export default function ProjectSettings({ project, canManage }: { project: Proje
       domains: project.allowedDomains.join('\n'),
       respectDnt: project.respectDnt,
     keepBots: project.keepBots,
+    cookieless: project.cookieless,
       anonymizeIp: project.anonymizeIp,
       autocapture: project.autocapture,
       captureExceptions: project.captureExceptions,
@@ -116,6 +118,7 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
           allowedDomains: form.domains.split(/[\s,]+/).filter(Boolean),
           respectDnt: form.respectDnt,
           keepBots: form.keepBots,
+          cookieless: form.cookieless,
           anonymizeIp: form.anonymizeIp,
           autocapture: form.autocapture,
           captureExceptions: form.captureExceptions,
@@ -229,6 +232,16 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
           <label className="ui-check">
             <input type="checkbox" checked={form.respectDnt} onChange={(e) => setForm({ ...form, respectDnt: e.target.checked })} /> {t('respectDnt')}
           </label>
+          <p className="ui-help">{t('respectDntHelp')}</p>
+          <label className="ui-check">
+            <input type="checkbox" data-testid="an-cookieless" checked={form.cookieless} onChange={(e) => setForm({ ...form, cookieless: e.target.checked })} /> {t('cookieless')}
+          </label>
+          <p className="ui-help">{t('cookielessHelp')}</p>
+          {!project.cookieless && project.cookielessDropped > 0 && (
+            <p className="ui-error" role="alert" data-testid="an-cookieless-dropped">
+              {t('cookielessDropped', { count: project.cookielessDropped })}
+            </p>
+          )}
           <label className="ui-check">
             <input type="checkbox" data-testid="an-keep-bots" checked={form.keepBots} onChange={(e) => setForm({ ...form, keepBots: e.target.checked })} /> {t('keepBots')}
           </label>
@@ -406,6 +419,9 @@ function IntegrationGuides({ origin, publicKey }: { origin: string; publicKey: s
         <CopyBlock code={nextProxy} label={t('proxyNext')} />
         <CopyBlock code={nginx} label={t('proxyNginx')} />
         <CopyBlock code={useProxy} label={t('proxyUse')} />
+        <h3 className="an-h4">{t('cookielessTitle')}</h3>
+        <p className="an-note">{t('cookielessDesc')}</p>
+        <CopyBlock code={`zs.push(['init', '${publicKey}', { cookieless_mode: 'always' }]);\n\n// With a cookie banner: nothing until the person decides.\nzs.push(['init', '${publicKey}', { cookieless_mode: 'on_reject' }]);\nzs.optIn();  // accepts\nzs.optOut(); // rejects: stays without cookies`} label={t('cookielessTitle')} />
         <h3 className="an-h4">{t('sdkTitle')}</h3>
         <p className="an-note">{t('sdkDesc')}</p>
         <CopyBlock code={node} label={t('sdkTitle')} />
