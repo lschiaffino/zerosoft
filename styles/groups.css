@@ -132,11 +132,12 @@
   line-height: 1.1;
 }
 .gr-search { width: 100%; }
-.gr-filters { display: flex; flex-wrap: wrap; gap: 4px; }
+.gr-filters { display: flex; flex-wrap: wrap; gap: 3px; }
 .gr-filter {
   height: 28px;
-  padding: 0 8px;
-  font-size: 0.8125rem;
+  padding: 0 7px;
+  font-size: 0.78rem;
+  white-space: nowrap;
   color: var(--ink-3);
   background: transparent;
   border: 1px solid var(--line);
@@ -249,6 +250,15 @@
 }
 .gr-media { margin: 0 0 6px; }
 .gr-media img { display: block; max-width: 100%; max-height: 320px; border-radius: var(--radius-1); }
+.gr-file { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); color: var(--ink); font-size: 0.8125rem; text-decoration: none; }
+a.gr-file:hover { background: var(--ui-hover); }
+a.gr-file:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.gr-file-icon { flex: none; color: var(--ink-2); }
+.gr-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-file.is-off { color: var(--ink-2); }
+.gr-thread-skeleton { padding: 20px; }
+.gr-description { width: 100%; resize: vertical; }
+.gr-description-text { margin: 0; font-size: 0.875rem; }
 .gr-msg-foot { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; font-family: var(--font-data); font-size: 0.6875rem; color: var(--brand-gray-2); }
 .gr-ticket-tag { color: var(--c-groups-ink); font-weight: 600; text-underline-offset: 2px; }
 .gr-reactions { display: flex; gap: 4px; margin: 4px 0 0; font-size: 0.875rem; }
@@ -256,6 +266,11 @@
 .gr-msg:hover .gr-msg-actions,
 .gr-msg:focus-within .gr-msg-actions { opacity: 1; }
 @media (hover: none) { .gr-msg-actions { opacity: 1; } }
+/* Con mouse las acciones aparecen al pasar por encima: botones más bajos para que el lugar que reservan no abra huecos entre mensajes. */
+@media (hover: hover) {
+  .gr-msg { gap: 2px; }
+  .gr-msg .gr-msg-actions .btn { --btn-h: 22px; --btn-px: 6px; --btn-fs: 0.75rem; }
+}
 .gr-emoji-picker { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); }
 
 /* Composer */
@@ -268,7 +283,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-composer-tabs { margin-bottom: 8px; }
 .gr-input { width: 100%; resize: vertical; min-height: 72px; }
 .gr-composer-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.gr-composer-hint { margin-left: auto; }
+.gr-composer-hint { flex: 1 1 0; min-width: 0; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr-replying,
 .gr-attachment { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 0.8125rem; color: var(--ink-2); min-width: 0; }
 .gr-replying span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-3); }
@@ -414,6 +429,21 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-provider > span { display: flex; flex-direction: column; gap: 2px; }
 .gr-provider.is-on { border-color: var(--ink); background: var(--bg-soft); }
 .gr-provider input { margin-top: 3px; }
+.gr-recommended { margin-left: 6px; font-size: 0.75rem; font-weight: 500; color: var(--ok-ink); }
+.gr-advanced { border-top: 1px solid var(--line); padding-top: 8px; }
+.gr-advanced > summary { cursor: pointer; font-size: 0.875rem; color: var(--ink-2); padding: 4px 0; }
+.gr-advanced > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.gr-advanced[open] > summary { margin-bottom: 8px; }
+.gr-qr-note { flex-basis: 100%; margin: 0; }
+/* Bandeja sin números: los dos caminos (QR o ejemplo). */
+.gr-start { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.gr-start-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Datos de ejemplo: aviso arriba de la lista y debajo del composer. */
+.gr-sample-banner { padding: 6px 4px 6px 10px; font-size: 0.8125rem; gap: 2px 8px; }
+.gr-sample-banner > span:first-child { flex: 1 1 100%; }
+.gr-sample-actions, .gr-start.is-inline { display: flex; flex-wrap: wrap; gap: 2px; flex: 1 1 100%; margin-left: -8px; }
+.gr-start.is-inline { margin-left: 0; align-items: flex-start; }
+.gr-sample-note { margin: 6px 0 0; font-size: 0.75rem; }
 .gr-qr { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
 .gr-qr img { background: #ffffff; padding: 8px; border: 1px solid var(--line); image-rendering: pixelated; }
 .gr-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 0.875rem; }
@@ -477,7 +507,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
   .gr-tickets-table tbody,
   .gr-tickets-table tr,
   .gr-tickets-table td { display: block; width: 100%; }
-  .gr-tickets-table tr { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .gr-tickets-table tr { padding: 12px; border-bottom: 1px solid var(--line); }
   .gr-tickets-table td { padding: 4px 0; border: 0; }
   .gr-tickets-table td.num { text-align: left; font-family: var(--font-data); color: var(--brand-gray-2); }
   .gr-tickets-table td.num::before { content: '#'; }
@@ -661,7 +691,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-view.is-on { color: var(--ink); border-color: var(--ink); font-weight: 600; }
 .gr-view:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .gr-list-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 0; }
-.gr-list-save { display: flex; justify-content: flex-end; }
+.gr-list-save { display: flex; justify-content: space-between; gap: 6px; margin: 0 -8px; }
 .gr-branch-count { margin-left: auto; font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); }
 .gr-multi { display: flex; flex-wrap: wrap; gap: 4px; }
 .gr-multi-opt {

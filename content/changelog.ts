@@ -29,8 +29,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-11-03-send-links-csv',
-    date: '2026-11-03',
+    id: '2026-11-04-send-links-csv',
+    date: '2026-11-04',
     title: {
       en: 'Send: clickable links in documents, and allow lists from a CSV',
       es: 'Send: links que se tocan dentro de los documentos, y listas de permitidos desde un CSV',
@@ -39,6 +39,25 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       { product: 'send', en: 'Links in a PDF, a Word file or a Docs page work in the viewer: web and email links open in a new tab, and links to another page jump there. You see which links were clicked, on which page and by whom. New uploads keep their links; to add them to an older document, replace its file.', es: 'Los links de un PDF, un Word o una página de Docs andan en el visor: los de web y email abren en otra pestaña, y los que van a otra página saltan ahí. Ves qué links se tocaron, en qué página y quién. Lo que subas desde ahora conserva sus links; para un documento anterior, reemplazá el archivo.', pt: 'Os links de um PDF, um Word ou uma página do Docs funcionam no visor: os de web e email abrem em outra aba, e os que vão para outra página pulam para ela. Você vê quais links foram clicados, em qual página e por quem. O que você enviar a partir de agora mantém os links; para um documento anterior, substitua o arquivo.' },
       { product: 'send', en: 'Import an allow or block list from a CSV: emails and domains are read from any cell and added to the list, and the dialog says how many cells it skipped. Lists go up to 500 entries.', es: 'Importá una lista de permitidos o bloqueados desde un CSV: se leen los emails y dominios de cualquier celda y se suman a la lista, y el diálogo dice cuántas celdas salteó. Las listas llegan hasta 500 entradas.', pt: 'Importe uma lista de permitidos ou bloqueados de um CSV: emails e domínios são lidos de qualquer célula e somados à lista, e o diálogo diz quantas células ignorou. As listas vão até 500 entradas.' },
+    ],
+  },
+  {
+    id: '2026-11-03-groups-sample-data',
+    date: '2026-11-03',
+    title: { en: 'Groups: try it with sample data', es: 'Groups: probalo con datos de ejemplo', pt: 'Groups: teste com dados de exemplo' },
+    items: [
+      {
+        product: 'groups',
+        en: 'An empty inbox can load sample chats and groups, with notes, labels, a poll, a ticket and a scheduled send. Replies on the sample number never go out to WhatsApp, and one button deletes it all.',
+        es: 'Una bandeja vacía puede cargar chats y grupos de ejemplo, con notas, etiquetas, una encuesta, un ticket y un envío programado. Lo que respondas en el número de ejemplo no sale a WhatsApp, y un botón borra todo.',
+        pt: 'Uma caixa vazia pode carregar conversas e grupos de exemplo, com notas, etiquetas, uma enquete, um ticket e um envio agendado. O que você responder no número de exemplo não sai para o WhatsApp, e um botão exclui tudo.',
+      },
+      {
+        product: 'groups',
+        en: 'Numbers on Evolution API now show the images, voice notes and documents they receive, and each group page lets you edit its description.',
+        es: 'Los números con Evolution API ahora muestran las imágenes, notas de voz y documentos que reciben, y la página de cada grupo deja editar su descripción.',
+        pt: 'Os números com Evolution API agora mostram as imagens, mensagens de voz e documentos que recebem, e a página de cada grupo permite editar a descrição.',
+      },
     ],
   },
   {

@@ -62,7 +62,7 @@ export default function TemplatesBoard({
   return (
     <>
       <div className="gr-toolbar">
-        <p className="ui-help">{t('templates.intro', { example: '{{company}}', auto: '{{date}} {{month}} {{year}}' })}</p>
+        <p className="ui-help">{t('templates.intro', { example: `{{${t('templates.exampleVar')}}}`, auto: '{{date}} {{month}} {{year}}' })}</p>
         <span className="gr-toolbar-spacer" />
         <button type="button" className="btn btn-primary" onClick={() => setEditing('new')}>
           {t('templates.new')} <kbd className="kbd">C</kbd>
@@ -249,8 +249,8 @@ function TemplateForm({
         </label>
         <label className="ui-field">
           <span className="label">{t('templates.groupName')}</span>
-          <input className="input" value={groupName} onChange={(e) => setGroupName(e.target.value)} maxLength={100} placeholder="{{company}} · Support" />
-          <span className="ui-help">{t('templates.groupNameHelp', { example: '{{company}}' })}</span>
+          <input className="input" value={groupName} onChange={(e) => setGroupName(e.target.value)} maxLength={100} placeholder={`{{${t('templates.exampleVar')}}} · ${t('templates.exampleSuffix')}`} />
+          <span className="ui-help">{t('templates.groupNameHelp', { example: `{{${t('templates.exampleVar')}}}` })}</span>
         </label>
         <label className="ui-field">
           <span className="label">{t('list.description')}</span>
@@ -312,7 +312,7 @@ function TemplateForm({
         </fieldset>
         <label className="ui-field">
           <span className="label">{t('templates.welcome')}</span>
-          <textarea className="textarea" rows={3} value={welcome} onChange={(e) => setWelcome(e.target.value)} maxLength={4000} placeholder={t('templates.welcomePlaceholder', { example: '{{company}}' })} />
+          <textarea className="textarea" rows={3} value={welcome} onChange={(e) => setWelcome(e.target.value)} maxLength={4000} placeholder={t('templates.welcomePlaceholder', { example: `{{${t('templates.exampleVar')}}}` })} />
           <span className="ui-help">{t('templates.welcomeHelp')}</span>
         </label>
         {error && (

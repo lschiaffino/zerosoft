@@ -1,4 +1,5 @@
 import { runVoiceCron } from '@/lib/voice-jobs';
+import { retryManagedDeletes } from '@/lib/groups-provider-managed';
 import { applyRetention } from '@/lib/talk-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { retryDueWebhooks } from '@/lib/webhooks';
@@ -155,6 +156,8 @@ export async function GET(req: NextRequest) {
   const sequences = await processSequences({ limit: 100 }).catch(() => null);
   // Voice: lo mismo que cada minuto, más la limpieza de reuniones vacías y subidas huérfanas.
   const voice = await runVoiceCron({ budgetMs: 20_000 }).catch(() => null);
+  // Groups: instancias del QR administrado que quedaron sin borrar (claim por fila).
+  const groupsBridge = await retryManagedDeletes({ limit: 20 }).catch(() => null);
   // Lead scoring: recálculo completo una vez por día por workspace (ventanas de N días).
   const scoring = await runNightlyScoring(new Date(), 10).catch(() => null);
   // Flow con presupuesto: no empieza corridas nuevas pasados ~150 s del tick
@@ -181,6 +184,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
+  return NextResponse.json({ groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }
