@@ -114,7 +114,8 @@ test('People: importar, cambios con aprobación, historial, agenda e inicio', as
     const coming = peer.page.getByTestId('people-celebrations');
     await expect(coming).toContainText(emp.name);
     await expect(coming).toContainText('Birthday');
-    expect(await peer.page.content()).not.toContain('1991');
+    // El texto, no el HTML: el nombre de un archivo de la build puede traer esos dígitos.
+    expect(await peer.page.locator('body').innerText()).not.toContain('1991');
 
     // HR cambia el puesto: queda en el historial, que el manager ve y el compañero no.
     await page.goto(`/en/app/people/${empId}`, { waitUntil: 'networkidle' });
