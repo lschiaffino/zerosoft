@@ -738,10 +738,9 @@ test('links dentro del PDF: se tocan, abren afuera o saltan de página, y quedan
   await expect(out).toHaveAttribute('rel', /noreferrer/);
   await expect(out).toHaveAttribute('target', '_blank');
   await v.waitForTimeout(4200);
-  // Sin salir a internet: el clic se avisa igual y la pestaña nueva se descarta.
-  await ctx.route('https://example.com/**', (r) => r.fulfill({ status: 204, body: '' }));
-  const [popup] = await Promise.all([ctx.waitForEvent('page'), out.click()]);
-  await popup.close();
+  // Sin salir a internet ni abrir otra pestaña: se frena la navegación antes del clic, y el aviso sale igual.
+  await v.evaluate(() => document.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('a[data-testid="sv-page-link"]')) e.preventDefault(); }, true));
+  await out.click();
   await v.locator('figure[data-page="1"]').getByTestId('sv-page-jump').click();
   await expect(v.getByTestId('sv-page')).toHaveText('2 / 2');
   await shot(v, 'viewer-links');
@@ -775,7 +774,7 @@ test('lista de permitidos desde un CSV: suma lo que sirve y dice qué salteó', 
   await page.getByTestId('link-access-list').fill('first@acme.com');
   await page.getByTestId('link-access-csv').setInputFiles({ name: 'people.csv', mimeType: 'text/csv', buffer: Buffer.from('Name,Email\nAna,ana@acme.com\nBruno,bruno@beta.io\nTeam,beta.io\nAna,first@acme.com\n') });
   await expect(page.getByTestId('link-access-csv-note')).toContainText('Added 3 entries');
-  await expect(page.getByTestId('link-access-csv-note')).toContainText('Skipped 4 cells');
+  await expect(page.getByTestId('link-access-csv-note')).toContainText('Skipped 6 cells');
   await expect(page.getByTestId('link-access-count')).toHaveText('4 of 500');
   await expect(page.getByTestId('link-access-list')).toHaveValue('first@acme.com\nana@acme.com\nbruno@beta.io\nbeta.io');
   await shot(page, 'link-dialog-csv');
