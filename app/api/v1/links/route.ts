@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createLink, listLinks, toLinkDto, type CreateLinkError } from '@/lib/links';
+import { parseLinkListQuery } from '@/lib/link-api-query';
 import { listDomains } from '@/lib/link-domains';
 import { linkTargetingSchema } from '@/lib/link-targeting';
 import { limitByIp } from '@/lib/rate-limit';
@@ -109,13 +110,7 @@ export async function GET(req: NextRequest) {
   const auth = await requireApiUser(req, 'links:read');
   if ('res' in auth) return auth.res;
 
-  const sp = req.nextUrl.searchParams;
-  const result = await listLinks(auth.user.id, {
-    archived: 'all',
-    creator: sp.get('creator') ?? undefined,
-    page: Number(sp.get('page') ?? '1') || 1,
-    pageSize: Number(sp.get('pageSize') ?? '10') || 10,
-  });
+  const result = await listLinks(auth.user.id, parseLinkListQuery(req.nextUrl.searchParams));
 
   return NextResponse.json({
     links: result.links.map((l) => {
