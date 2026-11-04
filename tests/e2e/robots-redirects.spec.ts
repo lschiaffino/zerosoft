@@ -4,7 +4,12 @@ import { createServer as createHttp, type Server } from 'node:http';
 import { createServer as createHttps, type Server as HttpsServer } from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
+import { ownWorkspace } from './helpers/own-workspace';
 import { expect, test, type APIRequestContext } from '@playwright/test';
+
+
+// Su propio workspace: las corridas de robots por hora no se comparten con el resto del shard.
+ownWorkspace('robots-redirects');
 
 /**
  * Robots: redirecciones reales en el Chromium local. Cada 30x se valida en el

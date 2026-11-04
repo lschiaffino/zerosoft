@@ -566,6 +566,86 @@ test('un admin sin apps ve en el inicio solo lo que puede hacer', async ({ brows
   }
 });
 
+test('Analytics: sin sesión, con un token inventado o sin la app, la API dice 401', async ({ browser }) => {
+  const olga = await owner(browser);
+  const nia = await join(browser, olga, 'Nia', 'member', []);
+  const baseURL = test.info().project.use.baseURL as string;
+  const anon = await browser.newContext({ baseURL });
+  try {
+    const paths = ['/api/analytics/projects', '/api/analytics/dashboards?project=x', '/api/analytics/insights?project=x'];
+    for (const path of paths) {
+      expect((await anon.request.get(path)).status(), path).toBe(401);
+      expect((await anon.request.get(path, { headers: { authorization: 'Bearer zsk_inventado' } })).status(), path).toBe(401);
+      // Sin la app la sesión cuenta como que no alcanza para esa API (lib/session.ts).
+      expect((await nia.ctx.request.get(path)).status(), path).toBe(401);
+    }
+    expect((await anon.request.post('/api/analytics/query', { data: { projectId: 'x', query: { kind: 'sql', sql: 'SELECT 1' } } })).status()).toBe(401);
+    // Y el que sí tiene la app entra.
+    expect((await olga.ctx.request.get('/api/analytics/projects')).status()).toBe(200);
+    // La página no se abre sin sesión.
+    const page = await anon.newPage();
+    await page.goto('/en/app/analytics');
+    await page.waitForURL((u) => !u.pathname.includes('/app/'), { timeout: 20_000 });
+  } finally {
+    await anon.close();
+    await closeAll(olga, nia);
+  }
+});
+
+test('Analytics: lo que está en un link público y los flags los cambia un admin; lo demás, cualquiera con la app', async ({ browser }) => {
+  const olga = await owner(browser);
+  const mia = await join(browser, olga, 'Mia', 'member', ['analytics']);
+  const post = async (path: string, data: unknown) => {
+    const res = await olga.ctx.request.post(path, { data });
+    expect(res.status(), await res.text()).toBeLessThan(300);
+    return res.json();
+  };
+  try {
+    const { project } = await post('/api/analytics/projects', { name: `Real ${uid()}` });
+    const projectId = project.id as string;
+    const query = { kind: 'trends', series: [{ event: 'x' }] };
+    const { insight: shared } = await post('/api/analytics/insights', { projectId, name: 'Shared', query });
+    const { insight: onBoard } = await post('/api/analytics/insights', { projectId, name: 'On board', query });
+    const { insight: free } = await post('/api/analytics/insights', { projectId, name: 'Free', query });
+    const { dashboard: board } = await post('/api/analytics/dashboards', { projectId, name: 'Public board' });
+    const { dashboard: plain } = await post('/api/analytics/dashboards', { projectId, name: 'Plain' });
+    await olga.ctx.request.patch(`/api/analytics/dashboards/${board.id}`, { data: { insightIds: [onBoard.id] } });
+    await post('/api/analytics/shares', { projectId, insightId: shared.id });
+    await post('/api/analytics/shares', { projectId, dashboardId: board.id });
+
+    const m = mia.ctx.request;
+    const settings = { filters: [], order: [], tiles: {}, texts: [{ id: 't', body: 'hola' }] };
+    expect((await m.patch(`/api/analytics/insights/${shared.id}`, { data: { name: 'Otro' } })).status()).toBe(403);
+    expect((await m.patch(`/api/analytics/insights/${onBoard.id}`, { data: { name: 'Otro' } })).status()).toBe(403);
+    expect((await m.delete(`/api/analytics/insights/${shared.id}`)).status()).toBe(403);
+    expect((await m.patch(`/api/analytics/dashboards/${board.id}`, { data: { settings } })).status()).toBe(403);
+    expect((await m.patch(`/api/analytics/dashboards/${board.id}`, { data: { insightIds: [] } })).status()).toBe(403);
+    expect((await m.delete(`/api/analytics/dashboards/${board.id}`)).status()).toBe(403);
+    expect((await m.patch(`/api/analytics/dashboards/${plain.id}`, { data: { transfer: { targetId: board.id, kind: 'insight', tileId: free.id, move: false } } })).status()).toBe(403);
+    // Lo que sale por email también: un miembro no cambia lo que le llega a alguien de afuera, ni ve a quién.
+    const { insight: mailed } = await post('/api/analytics/insights', { projectId, name: 'Mailed', query });
+    await post('/api/analytics/subscriptions', { projectId, name: 'Weekly', insightId: mailed.id, recipients: ['outside@other.org'], schedule: { frequency: 'daily', interval: 1, hour: 9 } });
+    expect((await m.patch(`/api/analytics/insights/${mailed.id}`, { data: { name: 'Otro' } })).status()).toBe(403);
+    expect((await m.post('/api/analytics/subscriptions', { data: { projectId, name: 'No', insightId: free.id, recipients: ['x@other.org'], schedule: { frequency: 'daily', interval: 1, hour: 9 } } })).status()).toBe(403);
+    const seen = await (await m.get(`/api/analytics/subscriptions?project=${projectId}`)).text();
+    expect(seen).not.toContain('outside@other.org');
+    // Sin link público, se trabaja normal.
+    expect((await m.patch(`/api/analytics/insights/${free.id}`, { data: { name: 'Libre' } })).status()).toBe(200);
+    expect((await m.patch(`/api/analytics/dashboards/${plain.id}`, { data: { settings } })).status()).toBe(200);
+    // Un admin sí puede.
+    expect((await olga.ctx.request.patch(`/api/analytics/insights/${shared.id}`, { data: { name: 'Otro' } })).status()).toBe(200);
+
+    // Flags: crear, cambiar y borrar son de admin.
+    const { flag } = await post('/api/analytics/flags', { projectId, key: `f-${uid()}`, name: '', active: false, rollout: 100, variants: [], conditions: [] });
+    expect((await m.post('/api/analytics/flags', { data: { projectId, key: `m-${uid()}`, name: '', active: true, rollout: 100, variants: [], conditions: [] } })).status()).toBe(403);
+    expect((await m.patch(`/api/analytics/flags/${flag.id}`, { data: { active: true } })).status()).toBe(403);
+    expect((await m.delete(`/api/analytics/flags/${flag.id}`)).status()).toBe(403);
+    expect((await m.get(`/api/analytics/flags/${flag.id}`)).status()).toBe(200);
+  } finally {
+    await closeAll(olga, mia);
+  }
+});
+
 /** Send: un PDF de una página, subido como lo hace el navegador. */
 async function sendDoc(p: Person, title: string): Promise<{ id: string; versionId: string }> {
   const doc = await PDFDocument.create();

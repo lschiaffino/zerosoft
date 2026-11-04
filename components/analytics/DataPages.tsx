@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import PublicLinksNotice from './PublicLinksNotice';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
@@ -13,7 +14,7 @@ import { apiErrorText, api, fmtNumber, fmtTime, notifyChanged } from './client';
 import { EventInput, FilterList, cleanFilters, useProjectMeta } from './Filters';
 
 /** Editor de una acción: nombre y pasos (cualquiera cuenta). */
-export function ActionEditor({ projectId, action }: { projectId: string; action: ActionDto }) {
+export function ActionEditor({ projectId, action, publicLinks = [] }: { projectId: string; action: ActionDto; publicLinks?: Array<{ shareId: string; name: string }> }) {
   const t = useTranslations('analytics.actions');
   const tc = useTranslations('analytics.common');
   const router = useRouter();
@@ -55,6 +56,7 @@ export function ActionEditor({ projectId, action }: { projectId: string; action:
           </button>
         }
       />
+      <PublicLinksNotice links={publicLinks} />
       <form
         className="an-form an-panel"
         onSubmit={(e) => {

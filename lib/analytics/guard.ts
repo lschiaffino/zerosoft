@@ -9,6 +9,7 @@ const TABLES = {
   insights: 'analytics_insights',
   flags: 'analytics_flags',
   dashboards: 'analytics_dashboards',
+  subscriptions: 'analytics_subscriptions',
   persons: 'analytics_persons',
   cohorts: 'analytics_cohorts',
   actions: 'analytics_actions',

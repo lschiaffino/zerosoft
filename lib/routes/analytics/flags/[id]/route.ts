@@ -40,15 +40,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const parsed = patchSchema.safeParse(await readJson(req));
   if (!parsed.success) return aError(400, 'invalid_input');
   if (parsed.data.variants && !variantsValid(parsed.data.variants)) return aError(400, 'variants_must_sum_100');
-  // El flag de un experimento decide quién ve qué: prenderlo o cambiar su reparto es empezar o pasar a todos.
-  if (!canManageAnalytics(actor) && (await experimentsUsingFlag(project.id, id))) {
-    const cur = await getFlag(project.id, id);
-    const same = (a: unknown, b: unknown) => a === undefined || JSON.stringify(a) === JSON.stringify(b);
-    const d = parsed.data;
-    if (!cur || !same(d.active, cur.active) || !same(d.rollout, cur.rollout) || !same(d.variants, cur.variants) || !same(d.groups, cur.groups) || !same(d.conditions, cur.conditions)) {
-      return aError(403, 'flag_in_experiment');
-    }
-  }
+  // Un flag decide qué ve la gente en producción: lo cambia un admin, como los experimentos.
+  if (!canManageAnalytics(actor)) return aError(403, (await experimentsUsingFlag(project.id, id)) ? 'flag_in_experiment' : 'admin_only');
   const flag = await updateFlag(project.id, id, parsed.data);
   if (flag === 'duplicate_key') return aError(409, 'duplicate_key');
   return NextResponse.json({ flag });
@@ -60,6 +53,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const project = await recordProject(actor, 'analytics_flags', id);
   if (isResponse(project)) return project;
+  if (!canManageAnalytics(actor)) return aError(403, 'admin_only');
   if (await experimentsUsingFlag(project.id, id)) return aError(409, 'flag_in_use');
   await deleteFlag(project.id, id);
   return NextResponse.json({ ok: true });

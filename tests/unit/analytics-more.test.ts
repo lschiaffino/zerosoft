@@ -271,11 +271,14 @@ describe('canales', () => {
     await db.execute('CREATE TABLE e (referring_domain TEXT, utm_source TEXT, utm_medium TEXT, url TEXT)');
     for (const [input, want] of cases) {
       const r = await db.execute({
-        sql: `SELECT ${channelSql('t')} AS c FROM (SELECT ? AS referring_domain, ? AS utm_source, ? AS utm_medium, ? AS url) t`,
-        args: [input.referringDomain ?? null, input.utmSource ?? null, input.utmMedium ?? null, input.url ?? null],
+        sql: `SELECT ${channelSql('t')} AS c FROM (SELECT ? AS referring_domain, ? AS utm_source, ? AS utm_medium, ? AS url, ? AS host) t`,
+        args: [input.referringDomain ?? null, input.utmSource ?? null, input.utmMedium ?? null, input.url ?? null, 'shop.example'],
       });
       expect(r.rows[0].c, JSON.stringify(input)).toBe(want);
     }
+    // Venir del propio sitio cuenta como directo.
+    const own = await db.execute({ sql: `SELECT ${channelSql('t')} AS c FROM (SELECT 'shop.example' AS referring_domain, NULL AS utm_source, NULL AS utm_medium, NULL AS url, 'shop.example' AS host) t`, args: [] });
+    expect(own.rows[0].c).toBe('direct');
     db.close();
   });
 });

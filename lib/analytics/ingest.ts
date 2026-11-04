@@ -19,12 +19,13 @@ import {
   type RequestContext,
 } from './ingest-core';
 import { normalizeSpecialEvents } from './ingest-special';
+import { COOKIELESS_PREFIX } from './cookieless';
 import type { ProjectRow } from './projects';
 import { offsetMsAt, projectTz, type Tz } from './tz';
 
 /** Contexto del pedido: user agent, país y IP (sin headers que pueda inventar el cliente). */
 export function requestContext(req: Request): RequestContext {
-  const c = contextFromHeaders(req.headers);
+  const c = contextFromHeaders(req.headers, clientIp(req));
   const ua = req.headers.get('user-agent') ?? '';
   // Sin user agent (un servidor): el navegador y el sistema los dice el evento.
   const hasUa = ua.trim().length > 0;
@@ -115,7 +116,8 @@ export async function storeEvents(project: ProjectRow, events: CleanEvent[], ctx
   });
   const plan = planPersons(
     pid,
-    rows.map(({ e, cols }) => ({ ...e, initial: initialProps(cols) })),
+    // Sin cookies no hay perfil de persona: el visitante es solo su id de hoy.
+    rows.filter(({ e }) => !e.distinctId.startsWith(COOKIELESS_PREFIX)).map(({ e, cols }) => ({ ...e, initial: initialProps(cols) })),
     existing,
   );
 

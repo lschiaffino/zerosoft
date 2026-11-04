@@ -68,6 +68,7 @@ const RECORD_TABLES = [
   'analytics_alerts',
   'analytics_experiments',
   'analytics_shares',
+  'analytics_subscriptions',
   'analytics_replay_recordings',
   'analytics_surveys',
 ] as const;

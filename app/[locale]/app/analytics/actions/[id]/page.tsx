@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { ActionEditor } from '@/components/analytics/DataPages';
+import { sharesUsing } from '@/lib/analytics/records-more';
 import SyncProject from '@/components/analytics/SyncProject';
 import { recordProjectId } from '@/lib/analytics/guard';
 import { analyticsPage } from '@/lib/analytics/page';
@@ -28,7 +29,7 @@ export default async function AnalyticsActionPage(props: { params: Promise<{ loc
   return (
     <>
       <SyncProject projectId={ctx.project.id} currentId={cookieProject} />
-      <ActionEditor key={action.id} projectId={ctx.project.id} action={action} />
+      <ActionEditor key={action.id} projectId={ctx.project.id} action={action} publicLinks={await sharesUsing(ctx.project.id, { actionId: action.id })} />
     </>
   );
 }

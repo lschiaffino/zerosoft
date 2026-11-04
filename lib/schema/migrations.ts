@@ -8472,6 +8472,85 @@ export const MIGRATIONS: Migration[] = [
     id: '190_send',
     up: sendUp,
   },
+  {
+    id: '191_analytics_cookieless',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN cookieless INTEGER NOT NULL DEFAULT 0');
+      await client.execute('CREATE TABLE IF NOT EXISTS analytics_cookieless_salts (day TEXT PRIMARY KEY, salt TEXT NOT NULL, created_at INTEGER NOT NULL)');
+    },
+  },
+  {
+    id: '192_analytics_dashboard_settings',
+    up: async (client) => {
+      await addColumn(client, "ALTER TABLE analytics_dashboards ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'");
+    },
+  },
+  {
+    id: '193_analytics_cookieless_dropped',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN cookieless_dropped INTEGER NOT NULL DEFAULT 0');
+    },
+  },
+  {
+    id: '194_analytics_share_options',
+    up: async (client) => {
+      await addColumn(client, "ALTER TABLE analytics_shares ADD COLUMN options TEXT NOT NULL DEFAULT '{}'");
+      await client.execute(`CREATE TABLE IF NOT EXISTS analytics_share_passwords (
+        id TEXT PRIMARY KEY,
+        share_id TEXT NOT NULL REFERENCES analytics_shares(id) ON DELETE CASCADE,
+        hash TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        created_by TEXT,
+        created_at TEXT NOT NULL
+      )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_share_passwords_share ON analytics_share_passwords(share_id)');
+      await client.execute(`CREATE TABLE IF NOT EXISTS analytics_share_log (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+        share_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        person_id TEXT,
+        insight_id TEXT,
+        dashboard_id TEXT,
+        created_at TEXT NOT NULL
+      )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_share_log_target ON analytics_share_log(project_id, created_at)');
+    },
+  },
+  {
+    id: '195_analytics_subscriptions',
+    up: async (client) => {
+      await client.execute(`CREATE TABLE IF NOT EXISTS analytics_subscriptions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        insight_id TEXT REFERENCES analytics_insights(id) ON DELETE CASCADE,
+        dashboard_id TEXT REFERENCES analytics_dashboards(id) ON DELETE CASCADE,
+        insight_ids TEXT NOT NULL DEFAULT '[]',
+        recipients TEXT NOT NULL DEFAULT '[]',
+        message TEXT NOT NULL DEFAULT '',
+        schedule TEXT NOT NULL DEFAULT '{}',
+        locale TEXT NOT NULL DEFAULT 'en',
+        recipient_state TEXT NOT NULL DEFAULT '{}',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        next_at INTEGER,
+        claimed_at INTEGER,
+        last_sent_at INTEGER,
+        last_error TEXT,
+        created_by TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_subscriptions_due ON analytics_subscriptions(enabled, next_at)');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_subscriptions_project ON analytics_subscriptions(project_id, created_at)');
+      await client.execute(`CREATE TABLE IF NOT EXISTS analytics_email_optouts (
+        workspace_id TEXT NOT NULL,
+        email TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (workspace_id, email)
+      )`);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

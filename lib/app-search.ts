@@ -73,6 +73,7 @@ export interface AppSearchItem {
     | 'analyticsErrors'
     | 'analyticsExperiments'
     | 'analyticsAlerts'
+    | 'analyticsSubscriptions'
     | 'analyticsProjects'
     | 'socialPosts'
     | 'socialLibrary';
@@ -437,7 +438,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       user.id,
       like,
     );
-  const [anInsights, anDashboards, anFlags, anCohorts, anProjects, anActions, anExperiments, anAlerts, anSurveys] = await Promise.all([
+  const [anInsights, anDashboards, anFlags, anCohorts, anProjects, anActions, anExperiments, anAlerts, anSurveys, anSubscriptions] = await Promise.all([
     analyticsIn('analytics_insights'),
     analyticsIn('analytics_dashboards'),
     // Flags: por clave o descripción (se muestra la descripción si hay).
@@ -454,6 +455,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     analyticsIn('analytics_experiments'),
     analyticsIn('analytics_alerts'),
     analyticsIn('analytics_surveys'),
+    analyticsIn('analytics_subscriptions'),
   ]);
 
   // Errores de Analytics: no tienen nombre propio, se buscan por tipo y mensaje en los últimos 30 días, en todos los proyectos.
@@ -611,6 +613,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(anActions, 'analyticsActions', (id) => `/app/analytics/actions/${id}`),
     ...map(anExperiments, 'analyticsExperiments', (id) => `/app/analytics/experiments/${id}`),
     ...map(anAlerts, 'analyticsAlerts', () => `/app/analytics/alerts`),
+    ...map(anSubscriptions, 'analyticsSubscriptions', () => `/app/analytics/subscriptions`),
     ...map(anSurveys, 'analyticsSurveys', (id) => `/app/analytics/surveys/${id}`),
     ...map(anProjects, 'analyticsProjects', (id) => `/app/analytics/settings?project=${id}`),
   ];

@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import NoProject from '@/components/analytics/NoProject';
 import CollectionPage from '@/components/analytics/CollectionPage';
 import CohortEditor from '@/components/analytics/CohortEditor';
+import { sharesUsing } from '@/lib/analytics/records-more';
 import { analyticsPage } from '@/lib/analytics/page';
 import { recordProjectId } from '@/lib/analytics/guard';
 import { requireUser } from '@/lib/session';
@@ -38,7 +39,7 @@ export default async function AnalyticsCohortsPage(props: { params: Promise<{ lo
       projectId={ctx.project.id}
       canCreate
       canEdit
-      extra={opened ? <CohortEditor projectId={ctx.project.id} cohort={opened} /> : undefined}
+      extra={opened ? <CohortEditor projectId={ctx.project.id} cohort={opened} publicLinks={await sharesUsing(ctx.project.id, { cohortId: opened.id })} /> : undefined}
       items={cohorts.map((c) => ({ id: c.id, name: c.name, meta: summary(c), href: `/app/analytics/cohorts?open=${c.id}` }))}
     />
   );
