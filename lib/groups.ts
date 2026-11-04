@@ -33,6 +33,8 @@ import {
 import { cloudProvider } from './groups-provider-cloud';
 import { bridgeProvider } from './groups-provider-bridge';
 import { fakeProvider, fakeProviderAllowed } from './groups-provider-fake';
+import { managedAvailable, managedProvider, newManagedInstance } from './groups-provider-managed';
+import { sampleProvider } from './groups-provider-sample';
 import { chatAccessSql, maskChat, type GroupsViewer } from './groups-access';
 import { parsePoll, pollPreview, tallyPoll, voteOptions, type PollDto, type PollInput } from './groups-polls';
 import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyText, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
@@ -112,14 +114,24 @@ export function toNumberDto(row: NumberRow): NumberDto {
     lastError: row.last_error,
     caps: PROVIDER_CAPS[row.provider],
     configured,
-    settings: { baseUrl: cfg.baseUrl, session: cfg.session, phoneNumberId: cfg.phoneNumberId, wabaId: cfg.wabaId },
+    // La instancia administrada es nuestra: su servidor y su nombre no se muestran.
+    settings: row.provider === 'managed' || row.provider === 'sample' ? {} : { baseUrl: cfg.baseUrl, session: cfg.session, phoneNumberId: cfg.phoneNumberId, wabaId: cfg.wabaId },
     createdAt: row.created_at,
   };
 }
 
-/** Proveedores que esta instancia ofrece al conectar (el falso solo en tests/demo). */
+/**
+ * Proveedores que esta instancia ofrece al conectar: el QR administrado solo
+ * si el servidor tiene su config, el falso solo en tests/demo. El de ejemplo
+ * no se agrega a mano (lo carga "Probar con datos de ejemplo").
+ */
 export function availableProviders(): ProviderKind[] {
-  return PROVIDER_KINDS.filter((k) => k !== 'fake' || fakeProviderAllowed());
+  return PROVIDER_KINDS.filter((k) => {
+    if (k === 'managed') return managedAvailable();
+    if (k === 'sample') return false;
+    if (k === 'fake') return fakeProviderAllowed();
+    return true;
+  });
 }
 
 function cleanConfig(kind: ProviderKind, input: Record<string, unknown>, prev: ProviderConfig = {}): ProviderConfig {
@@ -133,7 +145,7 @@ function cleanConfig(kind: ProviderKind, input: Record<string, unknown>, prev: P
   const keys: readonly string[] =
     kind === 'cloud'
       ? ['phoneNumberId', 'accessToken', 'appSecret', 'verifyToken', 'wabaId', 'apiVersion']
-      : kind === 'fake'
+      : kind === 'fake' || kind === 'managed' || kind === 'sample'
         ? []
         : ['baseUrl', 'apiKey', 'session'];
   for (const k of keys) {
@@ -181,6 +193,8 @@ export async function createNumber(
   if (Number(count.c) >= 50) throw new GroupsError('too_many_numbers');
   const cfg = cleanConfig(kind, input.config ?? {});
   if ((kind === 'waha' || kind === 'evolution') && !cfg.session) cfg.session = `zs-${randomBytes(4).toString('hex')}`;
+  // QR administrado: nombre y token de la instancia los genera el servidor.
+  if (kind === 'managed') Object.assign(cfg, newManagedInstance());
   const id = newId();
   const now = nowIso();
   await getDb()
@@ -193,7 +207,7 @@ export async function createNumber(
 }
 
 function defaultNumberName(kind: ProviderKind): string {
-  return kind === 'cloud' ? 'WhatsApp Cloud API' : kind === 'waha' ? 'WAHA' : kind === 'evolution' ? 'Evolution API' : 'Demo number';
+  return kind === 'managed' ? 'WhatsApp' : kind === 'cloud' ? 'WhatsApp Cloud API' : kind === 'waha' ? 'WAHA' : kind === 'evolution' ? 'Evolution API' : 'Demo number';
 }
 
 export async function updateNumber(
@@ -224,9 +238,13 @@ export async function updateNumber(
 export async function deleteNumber(ws: string, id: string): Promise<boolean> {
   const row = await getNumberRow(ws, id);
   if (!row) return false;
-  await providerFor(row)
-    .disconnect()
-    .catch(() => null);
+  // El número de ejemplo se lleva todo lo suyo (tickets, tareas, etiquetas que creó).
+  if (row.provider === 'sample') {
+    const { clearSampleData } = await import('./groups-sample');
+    return clearSampleData(ws);
+  }
+  // Cierra la sesión (y en el QR administrado borra la instancia); si el proveedor no está, se borra igual.
+  await safeDisconnect(row);
   const r = await getDb().prepare('DELETE FROM groups_numbers WHERE id = ? AND user_id = ?').run(id, ws);
   return r.changes > 0;
 }
@@ -240,6 +258,11 @@ export function providerFor(row: NumberRow): GroupsProvider {
     case 'waha':
     case 'evolution':
       return bridgeProvider(row.provider, cfg as BridgeConfig, { webhookSecret: row.webhook_secret });
+    case 'managed':
+      if (!managedAvailable()) throw new GroupsError('provider_unavailable', 503);
+      return managedProvider(cfg);
+    case 'sample':
+      return sampleProvider(row.id);
     case 'fake':
       if (!fakeProviderAllowed()) throw new GroupsError('provider_unavailable', 503);
       return fakeProvider(row.id);
@@ -301,10 +324,16 @@ export async function refreshNumber(ws: string, id: string): Promise<ConnectStat
 export async function disconnectNumber(ws: string, id: string): Promise<void> {
   const row = await getNumberRow(ws, id);
   if (!row) throw new GroupsError('not_found', 404);
-  await providerFor(row)
-    .disconnect()
-    .catch(() => null);
+  await safeDisconnect(row);
   await saveState(row, { status: 'disconnected' });
+}
+
+async function safeDisconnect(row: NumberRow): Promise<void> {
+  try {
+    await providerFor(row).disconnect();
+  } catch {
+    // Sin red o sin config: el número igual queda desconectado acá.
+  }
 }
 
 // ======================================================================
@@ -1495,9 +1524,9 @@ export async function createGroups(ws: string, numberId: string, rows: CreateGro
       const now = nowIso();
       await db.prepare('UPDATE groups_chats SET name = ?, last_message_at = COALESCE(last_message_at, ?) WHERE id = ?').run(name, now, chat.id);
       // Miembros reales desde WhatsApp (los que no se pudieron agregar no aparecen).
-      let members: Array<{ phone: string; role: MemberRole }> = [];
+      let members: Array<{ phone: string; role: MemberRole }> = info.participants ?? [];
       try {
-        members = await provider.participants(info.id);
+        if (!info.participants) members = await provider.participants(info.id);
       } catch {
         members = phones.map((phone) => ({ phone, role: 'member' as const }));
       }

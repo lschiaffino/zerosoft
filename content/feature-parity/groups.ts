@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-10-29',
+  lastReviewed: '2026-11-03',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -40,38 +40,38 @@ const parity: ProductParity = {
   ],
   rows: [
     // Números
-    row('qr-connect', 'numbers', ['Connect a number with a QR code', 'Conectar un número con QR', 'Conectar um número com QR'], 'have', {
+    row('qr-connect', 'numbers', ['Connect a number with a QR code', 'Conectar un número con QR', 'Conectar um número com QR'], 'partial', {
       weight: 2,
       detail: [
-        'From Settings with a WAHA or Evolution API gateway: the QR refreshes by itself, the status follows the phone and a new QR reconnects it',
-        'Desde Ajustes con un gateway WAHA o Evolution API: el QR se actualiza solo, el estado sigue al teléfono y un QR nuevo lo reconecta',
-        'Pelas Configurações com um gateway WAHA ou Evolution API: o QR se atualiza sozinho, o status acompanha o telefone e um QR novo reconecta',
+        'Scan from the phone on our Evolution API server, or with your own WAHA or Evolution API gateway: the QR refreshes by itself, the status follows the phone and groups come in on connect. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Escanear desde el teléfono en nuestro servidor de Evolution API, o con tu propio gateway WAHA o Evolution API: el QR se actualiza solo, el estado sigue al teléfono y los grupos llegan al conectar. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Escanear pelo celular no nosso servidor de Evolution API, ou com seu próprio gateway WAHA ou Evolution API: o QR se atualiza sozinho, o status acompanha o telefone e os grupos chegam ao conectar. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
     row('multi-number', 'numbers', ['Several numbers in one inbox', 'Varios números en una bandeja', 'Vários números em uma caixa'], 'have', {
       weight: 2,
       detail: ['Up to 50 numbers per workspace, filter by number', 'Hasta 50 números por workspace, filtro por número', 'Até 50 números por workspace, filtro por número'],
     }),
-    row('official-api', 'numbers', ['Official WhatsApp Cloud API numbers', 'Números de la API oficial (Cloud API)', 'Números da API oficial (Cloud API)'], 'better', {
+    row('official-api', 'numbers', ['Official WhatsApp Cloud API numbers', 'Números de la API oficial (Cloud API)', 'Números da API oficial (Cloud API)'], 'partial', {
       competitorHas: false,
       detail: [
-        'Webhook with signature check, media and templates; Periskope does not accept official API numbers',
-        'Webhook con firma verificada, media y plantillas; Periskope no acepta números de la API oficial',
-        'Webhook com assinatura verificada, mídia e templates; o Periskope não aceita números da API oficial',
+        'Webhook with signature check, media and templates; Periskope does not accept official API numbers. Tested against a simulated API; not yet tried with real WhatsApp',
+        'Webhook con firma verificada, media y plantillas; Periskope no acepta números de la API oficial. Probado contra una API simulada; falta probarlo con WhatsApp real',
+        'Webhook com assinatura verificada, mídia e templates; o Periskope não aceita números da API oficial. Testado contra uma API simulada; falta testar com WhatsApp real',
       ],
     }),
-    row('number-ops', 'numbers', ['Reconnect, resync groups and remove a number', 'Reconectar, resincronizar grupos y borrar un número', 'Reconectar, ressincronizar grupos e remover um número'], 'have'),
+    row('number-ops', 'numbers', ['Reconnect, resync groups and remove a number', 'Reconectar, resincronizar grupos y borrar un número', 'Reconectar, ressincronizar grupos e remover um número'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
     row('self-host', 'numbers', ['Self-hosted, your data on your server', 'Self-host, los datos en tu servidor', 'Self-host, os dados no seu servidor'], 'better', { competitorHas: false }),
 
     // Bandeja
-    row('chats-and-groups', 'inbox', ['1:1 chats and groups in one list', 'Chats 1:1 y grupos en una lista', 'Chats 1:1 e grupos em uma lista'], 'have', { weight: 2 }),
-    row('reply-from-app', 'inbox', ['Reply without the phone, media and replies', 'Responder sin el teléfono, con media y respuestas citadas', 'Responder sem o telefone, com mídia e respostas citadas'], 'have', { weight: 2 }),
-    row('reactions', 'inbox', ['Reactions', 'Reacciones', 'Reações'], 'have'),
-    row('edit-delete-forward', 'inbox', ['Edit, delete, forward and pin messages', 'Editar, borrar, reenviar y fijar mensajes', 'Editar, apagar, encaminhar e fixar mensagens'], 'have', {
+    row('chats-and-groups', 'inbox', ['1:1 chats and groups in one list', 'Chats 1:1 y grupos en una lista', 'Chats 1:1 e grupos em uma lista'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
+    row('reply-from-app', 'inbox', ['Reply without the phone, media and replies', 'Responder sin el teléfono, con media y respuestas citadas', 'Responder sem o telefone, com mídia e respostas citadas'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
+    row('reactions', 'inbox', ['Reactions', 'Reacciones', 'Reações'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
+    row('edit-delete-forward', 'inbox', ['Edit, delete, forward and pin messages', 'Editar, borrar, reenviar y fijar mensajes', 'Editar, apagar, encaminhar e fixar mensagens'], 'partial', {
       detail: [
-        'Edit (15 min) and delete for everyone on WAHA and Evolution numbers, also when it happens on the phone. Pins go to WhatsApp on WAHA and stay in Groups elsewhere. Forward is native on WAHA and a copy elsewhere. The Cloud API cannot edit or delete',
-        'Editar (15 min) y borrar para todos en números WAHA y Evolution, también cuando pasa desde el teléfono. Fijar llega a WhatsApp en WAHA y queda en Groups en el resto. Reenviar es nativo en WAHA y una copia en el resto. La Cloud API no deja editar ni borrar',
-        'Editar (15 min) e apagar para todos em números WAHA e Evolution, também quando acontece no telefone. Fixar chega ao WhatsApp no WAHA e fica no Groups nos outros. Encaminhar é nativo no WAHA e uma cópia nos outros. A Cloud API não deixa editar nem apagar',
+        'Edit (15 min) and delete for everyone on WAHA and Evolution numbers, also when it happens on the phone. Pins go to WhatsApp on WAHA and stay in Groups elsewhere. Forward is native on WAHA and a copy elsewhere. The Cloud API cannot edit or delete. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Editar (15 min) y borrar para todos en números WAHA y Evolution, también cuando pasa desde el teléfono. Fijar llega a WhatsApp en WAHA y queda en Groups en el resto. Reenviar es nativo en WAHA y una copia en el resto. La Cloud API no deja editar ni borrar. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Editar (15 min) e apagar para todos em números WAHA e Evolution, também quando acontece no telefone. Fixar chega ao WhatsApp no WAHA e fica no Groups nos outros. Encaminhar é nativo no WAHA e uma cópia nos outros. A Cloud API não deixa editar nem apagar. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
     row('assignment', 'inbox', ['Assign chats', 'Asignar chats', 'Atribuir chats'], 'have', {
@@ -119,34 +119,34 @@ const parity: ProductParity = {
     }),
 
     // Grupos
-    row('create-group', 'groups', ['Create a group', 'Crear un grupo', 'Criar um grupo'], 'have', { weight: 2 }),
-    row('bulk-create', 'groups', ['Create many groups from a CSV', 'Crear muchos grupos desde un CSV', 'Criar muitos grupos a partir de um CSV'], 'better', {
+    row('create-group', 'groups', ['Create a group', 'Crear un grupo', 'Criar um grupo'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
+    row('bulk-create', 'groups', ['Create many groups from a CSV', 'Crear muchos grupos desde un CSV', 'Criar muitos grupos a partir de um CSV'], 'partial', {
       competitorHas: false,
-      detail: ['Up to 50 per run with result per row', 'Hasta 50 por vez con resultado por fila', 'Até 50 por vez com resultado por linha'],
+      detail: ['Up to 50 per run with result per row. Tested against a simulated gateway; not yet tried with real WhatsApp', 'Hasta 50 por vez con resultado por fila. Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Até 50 por vez com resultado por linha. Testado contra um gateway simulado; falta testar com WhatsApp real'],
     }),
-    row('bulk-members', 'groups', ['Add and remove members in many groups', 'Agregar y quitar miembros en muchos grupos', 'Adicionar e remover membros em muitos grupos'], 'have', { weight: 2 }),
-    row('admins', 'groups', ['Promote and demote admins in bulk', 'Promover y degradar admins en masa', 'Promover e rebaixar admins em massa'], 'have'),
-    row('invite-links', 'groups', ['Invite link and reset', 'Link de invitación y regenerarlo', 'Link de convite e redefinir'], 'have'),
-    row('group-settings', 'groups', ['Group settings (name, description, who can write or edit)', 'Ajustes del grupo (nombre, descripción, quién escribe o edita)', 'Configurações do grupo (nome, descrição, quem escreve ou edita)'], 'have', {
+    row('bulk-members', 'groups', ['Add and remove members in many groups', 'Agregar y quitar miembros en muchos grupos', 'Adicionar e remover membros em muitos grupos'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
+    row('admins', 'groups', ['Promote and demote admins in bulk', 'Promover y degradar admins en masa', 'Promover e rebaixar admins em massa'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
+    row('invite-links', 'groups', ['Invite link and reset', 'Link de invitación y regenerarlo', 'Link de convite e redefinir'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
+    row('group-settings', 'groups', ['Group settings (name, description, who can write or edit)', 'Ajustes del grupo (nombre, descripción, quién escribe o edita)', 'Configurações do grupo (nome, descrição, quem escreve ou edita)'], 'partial', {
       detail: [
-        'Name, description, photo, admin-only messages and edits, invite link; disappearing messages with Evolution API',
-        'Nombre, descripción, foto, solo admins escriben y editan, link de invitación; mensajes temporales con Evolution API',
-        'Nome, descrição, foto, só admins escrevem e editam, link de convite; mensagens temporárias com Evolution API',
+        'Name, description, photo, admin-only messages and edits, invite link; disappearing messages with Evolution API. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Nombre, descripción, foto, solo admins escriben y editan, link de invitación; mensajes temporales con Evolution API. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Nome, descrição, foto, só admins escrevem e editam, link de convite; mensagens temporárias com Evolution API. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
-    row('group-templates', 'groups', ['Group templates with preset members', 'Plantillas de grupo con miembros fijos', 'Modelos de grupo com membros predefinidos'], 'have', {
+    row('group-templates', 'groups', ['Group templates with preset members', 'Plantillas de grupo con miembros fijos', 'Modelos de grupo com membros predefinidos'], 'partial', {
       detail: [
-        'Fixed members and admins, name with variables, labels, settings and a welcome message; one group or many from a CSV',
-        'Miembros y admins fijos, nombre con variables, etiquetas, ajustes y mensaje de bienvenida; un grupo o varios desde un CSV',
-        'Membros e admins fixos, nome com variáveis, etiquetas, configurações e mensagem de boas-vindas; um grupo ou vários de um CSV',
+        'Fixed members and admins, name with variables, labels, settings and a welcome message; one group or many from a CSV. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Miembros y admins fijos, nombre con variables, etiquetas, ajustes y mensaje de bienvenida; un grupo o varios desde un CSV. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Membros e admins fixos, nome com variáveis, etiquetas, configurações e mensagem de boas-vindas; um grupo ou vários de um CSV. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
-    row('sync-groups', 'groups', ['Refresh groups and members from WhatsApp', 'Refrescar grupos y miembros desde WhatsApp', 'Atualizar grupos e membros pelo WhatsApp'], 'have'),
-    row('leave-join', 'groups', ['Join by invite and leave a group', 'Entrar por invitación y salir de un grupo', 'Entrar por convite e sair de um grupo'], 'have', {
+    row('sync-groups', 'groups', ['Refresh groups and members from WhatsApp', 'Refrescar grupos y miembros desde WhatsApp', 'Atualizar grupos e membros pelo WhatsApp'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
+    row('leave-join', 'groups', ['Join by invite and leave a group', 'Entrar por invitación y salir de un grupo', 'Entrar por convite e sair de um grupo'], 'partial', {
       detail: [
-        'Join with the invite link and the group arrives with its members; leaving keeps the history',
-        'Entrar con el link de invitación trae el grupo con sus miembros; salir conserva el historial',
-        'Entrar com o link de convite traz o grupo com os membros; sair mantém o histórico',
+        'Join with the invite link and the group arrives with its members; leaving keeps the history. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Entrar con el link de invitación trae el grupo con sus miembros; salir conserva el historial. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Entrar com o link de convite traz o grupo com os membros; sair mantém o histórico. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
 
@@ -211,7 +211,7 @@ const parity: ProductParity = {
     }),
 
     // Envíos
-    row('broadcast', 'broadcasts', ['Broadcast to many groups and chats', 'Envío a muchos grupos y chats', 'Envio para muitos grupos e chats'], 'have', { weight: 2 }),
+    row('broadcast', 'broadcasts', ['Broadcast to many groups and chats', 'Envío a muchos grupos y chats', 'Envio para muitos grupos e chats'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
     row('variables', 'broadcasts', ['Variables in the message', 'Variables en el mensaje', 'Variáveis na mensagem'], 'have'),
     row('throttle', 'broadcasts', ['Pace between messages', 'Ritmo entre mensajes', 'Ritmo entre mensagens'], 'have', {
       detail: ['Per broadcast and a cap per number', 'Por envío y un tope por número', 'Por envio e um teto por número'],
@@ -225,11 +225,11 @@ const parity: ProductParity = {
       ],
     }),
     row('delivery-log', 'broadcasts', ['Live status per recipient', 'Estado en vivo por destinatario', 'Status ao vivo por destinatário'], 'have'),
-    row('polls', 'broadcasts', ['Polls in broadcasts', 'Encuestas en envíos', 'Enquetes nos envios'], 'have', {
+    row('polls', 'broadcasts', ['Polls in broadcasts', 'Encuestas en envíos', 'Enquetes nos envios'], 'partial', {
       detail: [
-        'In chats, broadcasts and recurring messages, with live results from WAHA votes; Evolution counts votes when the gateway sends them decrypted; the Meta Cloud API has no polls',
-        'En chats, envíos y recurrentes, con resultados en vivo de los votos de WAHA; Evolution los cuenta cuando el gateway los manda descifrados; la Cloud API de Meta no tiene encuestas',
-        'Em chats, envios e recorrentes, com resultados ao vivo dos votos do WAHA; o Evolution conta quando o gateway manda os votos decifrados; a Cloud API da Meta não tem enquetes',
+        'In chats, broadcasts and recurring messages, with live results from WAHA votes; Evolution counts votes when the gateway sends them decrypted; the Meta Cloud API has no polls. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'En chats, envíos y recurrentes, con resultados en vivo de los votos de WAHA; Evolution los cuenta cuando el gateway los manda descifrados; la Cloud API de Meta no tiene encuestas. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Em chats, envios e recorrentes, com resultados ao vivo dos votos do WAHA; o Evolution conta quando o gateway manda os votos decifrados; a Cloud API da Meta não tem enquetes. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
     row('no-send-credits', 'broadcasts', ['No per-seat send credits', 'Sin créditos de envío por licencia', 'Sem créditos de envio por licença'], 'better', { competitorHas: false }),

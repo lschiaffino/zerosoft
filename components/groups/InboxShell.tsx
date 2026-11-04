@@ -100,6 +100,7 @@ export default function InboxShell({
   properties = [],
   me = '',
   initialLists = [],
+  banner = null,
   children,
 }: {
   labels: LabelDto[];
@@ -108,6 +109,8 @@ export default function InboxShell({
   properties?: PropertyDef[];
   me?: string;
   initialLists?: SavedListDto[];
+  /** Aviso arriba de la lista (datos de ejemplo). */
+  banner?: ReactNode;
   children: ReactNode;
 }) {
   const t = useTranslations('groups');
@@ -315,6 +318,7 @@ export default function InboxShell({
       <div className={`gr-inbox${current ? ' has-chat' : ''}`}>
         <section className="gr-list" aria-label={t('inbox.listLabel')}>
           <div className="gr-list-head">
+            {banner}
             <div className="gr-list-titlebar">
               <h1 className="gr-list-title">{activeList ? activeList.name : t('inbox.title')}</h1>
               {available !== null && (
@@ -415,9 +419,6 @@ export default function InboxShell({
                   </option>
                 ))}
               </select>
-              <button type="button" className="btn btn-ghost btn-sm" aria-expanded={moreOpen} onClick={() => setMoreOpen((v) => !v)}>
-                {t('lists.moreFilters')}
-              </button>
             </div>
             {moreOpen && (
               <div className="gr-list-selects">
@@ -475,6 +476,9 @@ export default function InboxShell({
               </div>
             )}
             <div className="gr-list-save">
+              <button type="button" className="btn btn-ghost btn-sm" aria-expanded={moreOpen} onClick={() => setMoreOpen((v) => !v)}>
+                {t('lists.moreFilters')}
+              </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSaving('new')}>
                 {t('lists.save')}
               </button>

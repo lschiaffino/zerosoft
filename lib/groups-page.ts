@@ -75,6 +75,7 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
     teams: teams.map((t) => ({ id: t.id, name: t.name })),
     numberName: number ? number.name || (number.phone ? `+${number.phone}` : '') : '',
     caps: number ? PROVIDER_CAPS[number.provider] : PROVIDER_CAPS.cloud,
+    sample: number?.provider === 'sample',
     ticketEmoji: settings.ticketEmoji,
   };
 }

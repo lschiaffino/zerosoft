@@ -8472,6 +8472,34 @@ export const MIGRATIONS: Migration[] = [
     id: '190_send',
     up: sendUp,
   },
+  {
+    // Groups: dos proveedores nuevos de número, el QR administrado ('managed')
+    // y el número de los datos de ejemplo ('sample'). Se reconstruye la tabla
+    // para ampliar el CHECK (client.migrate apaga las foreign keys: los chats
+    // no se borran en cascada).
+    id: '191_groups_managed_sample',
+    async up(client) {
+      const current = await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'groups_numbers'");
+      const sql = String(current.rows[0]?.sql ?? '');
+      const check = /CHECK\s*\(\s*provider\s+IN\s*\([^)]*\)\s*\)/i;
+      if (!sql || !check.test(sql) || /'sample'/.test(sql.match(check)?.[0] ?? '')) return;
+      const newSql = sql
+        .replace(check, "CHECK (provider IN ('managed', 'cloud', 'waha', 'evolution', 'sample', 'fake'))")
+        .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?groups_numbers["`]?/i, 'CREATE TABLE groups_numbers_new');
+      const cols = (await client.execute('PRAGMA table_info(groups_numbers)')).rows.map((r) => `"${String(r.name)}"`).join(', ');
+      const indexes = (
+        await client.execute("SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'groups_numbers' AND sql IS NOT NULL")
+      ).rows.map((r) => String(r.sql));
+      await client.migrate([
+        'DROP TABLE IF EXISTS groups_numbers_new',
+        newSql,
+        `INSERT INTO groups_numbers_new (${cols}) SELECT ${cols} FROM groups_numbers`,
+        'DROP TABLE groups_numbers',
+        'ALTER TABLE groups_numbers_new RENAME TO groups_numbers',
+        ...indexes,
+      ]);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

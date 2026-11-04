@@ -59,8 +59,8 @@
     "waiting": "Esperando {time}",
     "unread": "{n} sin leer",
     "showing": "Mostrando {shown} de {total}. Buscá o filtrá para acotar.",
-    "noNumbersTitle": "Conectá un número de WhatsApp",
-    "noNumbersBody": "Vinculá un número con la Cloud API oficial de WhatsApp o escaneá un QR con tu gateway WAHA o Evolution API. Los chats y grupos aparecen acá.",
+    "noNumbersTitle": "Tu bandeja de WhatsApp está vacía",
+    "noNumbersBody": "Cargá datos de ejemplo para recorrer la bandeja sin conectar nada. Cuando quieras, conectá tu número con la Cloud API de Meta o con tu propio servidor WAHA o Evolution API.",
     "connect": "Conectar un número",
     "pickTitle": "Elegí un chat",
     "keysNav": "Chat siguiente y anterior",
@@ -80,7 +80,9 @@
     "keysUnread": "Leído o no leído",
     "keysPin": "Fijar el chat",
     "keysTranslate": "Traducir mensajes",
-    "keysSelect": "Seleccionar para una acción en masa"
+    "keysSelect": "Seleccionar para una acción en masa",
+    "noNumbersBodyQr": "Escaneá un QR con tu teléfono y en un minuto ves tus chats y grupos acá. Si preferís mirar primero, cargá datos de ejemplo.",
+    "scanQr": "Escanear QR"
   },
   "filters": {
     "all": "Abiertos",
@@ -251,7 +253,7 @@
     "title": "Grupos",
     "desc": "Todos los grupos de WhatsApp de tus números, con miembros, etiquetas y propiedades.",
     "noNumbersTitle": "Todavía no hay números",
-    "noNumbersBody": "Conectá un número de WhatsApp para crear y administrar grupos.",
+    "noNumbersBody": "Conectá un número de WhatsApp para crear y administrar grupos, o cargá datos de ejemplo para probar.",
     "search": "Buscar por nombre",
     "importCsv": "Importar CSV",
     "new": "Nuevo grupo",
@@ -542,7 +544,15 @@
     "newQr": "Pedir un QR nuevo",
     "disconnectedBanner": "La sesión está desconectada. Pedí un QR nuevo y escanealo desde el teléfono para volver a vincular el número.",
     "disconnectTitle": "¿Desconectar {name}?",
-    "disconnectBody": "Los chats y el historial quedan. Los mensajes nuevos dejan de llegar hasta que vuelvas a conectar el número."
+    "disconnectBody": "Los chats y el historial quedan. Los mensajes nuevos dejan de llegar hasta que vuelvas a conectar el número.",
+    "showQr": "Mostrar QR",
+    "recommended": "Recomendado",
+    "advanced": "Conexión avanzada",
+    "managedTips": "Para probar, usá un número de prueba y no sumes muchos desconocidos de golpe: WhatsApp puede restringir números que se usan así.",
+    "syncing": "Trayendo tus grupos...",
+    "syncedAuto": "{n, plural, =0 {Todavía no hay grupos en este número. Los chats nuevos llegan solos a la bandeja.} one {Trajimos # grupo. Los chats nuevos llegan solos a la bandeja.} other {Trajimos # grupos. Los chats nuevos llegan solos a la bandeja.}}",
+    "openInbox": "Ir a la bandeja",
+    "deleteBodyManaged": "Sus chats, grupos, mensajes y tickets se borran de Groups y se cierra la sesión vinculada en el teléfono."
   },
   "providers": {
     "cloud": {
@@ -560,6 +570,14 @@
     "fake": {
       "name": "Número de demo",
       "desc": "Un número de prueba que nunca habla con WhatsApp. Solo en entornos de demo y de test."
+    },
+    "managed": {
+      "name": "Escanear QR",
+      "desc": "Vinculá tu WhatsApp desde el teléfono, como en WhatsApp Web. Grupos, miembros y links de invitación."
+    },
+    "sample": {
+      "name": "Datos de ejemplo",
+      "desc": "Chats y grupos de ejemplo. Nada sale a WhatsApp."
     }
   },
   "numberStatus": {
@@ -1353,5 +1371,16 @@
     "modePoll": "Encuesta",
     "unsupported": "Este número usa la Cloud API de Meta, que no tiene encuestas. Mandala desde un número WAHA o Evolution.",
     "badge": "encuesta"
+  },
+  "sample": {
+    "badge": "Ejemplo",
+    "load": "Probar con datos de ejemplo",
+    "loading": "Cargando ejemplo...",
+    "askAdmin": "Pedile a un admin del workspace que conecte un número o cargue datos de ejemplo.",
+    "banner": "Datos de ejemplo: lo que mandes no sale a WhatsApp.",
+    "clear": "Borrar datos de ejemplo",
+    "clearTitle": "¿Borrar los datos de ejemplo?",
+    "clearBody": "Se borran el número de ejemplo con sus chats, grupos, mensajes, tickets, tareas y envíos. Lo tuyo no se toca.",
+    "composerNote": "Número de ejemplo: el mensaje queda como enviado y no sale a WhatsApp."
   }
 }

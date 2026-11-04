@@ -40,7 +40,7 @@ import {
 
 type Json = Record<string, unknown>;
 
-const defaultFetch: FetchLike = (url, init) => safeFetch(url, init, 15_000);
+export const defaultBridgeFetch: FetchLike = (url, init) => safeFetch(url, init, 15_000);
 
 function baseOf(cfg: BridgeConfig): string {
   const base = String(cfg.baseUrl ?? '').trim().replace(/\/+$/, '');
@@ -48,7 +48,7 @@ function baseOf(cfg: BridgeConfig): string {
   return base;
 }
 
-async function request(
+export async function bridgeRequest(
   fetchImpl: FetchLike,
   url: string,
   headers: Record<string, string>,
@@ -281,10 +281,10 @@ export function wahaProvider(
   cfg: BridgeConfig,
   opts: { fetch?: FetchLike; webhookSecret?: string } = {},
 ): GroupsProvider {
-  const f = opts.fetch ?? defaultFetch;
+  const f = opts.fetch ?? defaultBridgeFetch;
   const session = encodeURIComponent(cfg.session || 'default');
   const headers = { 'x-api-key': cfg.apiKey ?? '' };
-  const api = (path: string, method = 'GET', body?: unknown) => request(f, `${baseOf(cfg)}${path}`, headers, method, body);
+  const api = (path: string, method = 'GET', body?: unknown) => bridgeRequest(f, `${baseOf(cfg)}${path}`, headers, method, body);
   const jid = (phone: string) => `${phoneDigits(phone)}@c.us`;
   const gid = (id: string) => encodeURIComponent(id);
 
@@ -449,7 +449,7 @@ export function wahaProvider(
 // Evolution API v2
 // ======================================================================
 
-const EVOLUTION_EVENTS = [
+export const EVOLUTION_EVENTS = [
   'MESSAGES_UPSERT',
   'MESSAGES_UPDATE',
   'MESSAGES_DELETE',
@@ -680,10 +680,10 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
 }
 
 export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike } = {}): GroupsProvider {
-  const f = opts.fetch ?? defaultFetch;
+  const f = opts.fetch ?? defaultBridgeFetch;
   const instance = encodeURIComponent(cfg.session || 'zerosoft');
   const headers = { apikey: cfg.apiKey ?? '' };
-  const api = (path: string, method = 'GET', body?: unknown) => request(f, `${baseOf(cfg)}${path}`, headers, method, body);
+  const api = (path: string, method = 'GET', body?: unknown) => bridgeRequest(f, `${baseOf(cfg)}${path}`, headers, method, body);
   const q = (groupId: string) => `?groupJid=${encodeURIComponent(groupId)}`;
 
   async function qr(): Promise<string | undefined> {

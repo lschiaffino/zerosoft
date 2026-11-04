@@ -29,6 +29,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-03-groups-sample-data',
+    date: '2026-11-03',
+    title: { en: 'Groups: try it with sample data', es: 'Groups: probalo con datos de ejemplo', pt: 'Groups: teste com dados de exemplo' },
+    items: [
+      {
+        product: 'groups',
+        en: 'An empty inbox can load sample chats and groups, with notes, labels, a poll, a ticket and a scheduled send. Replies on the sample number never go out to WhatsApp, and one button deletes it all.',
+        es: 'Una bandeja vacía puede cargar chats y grupos de ejemplo, con notas, etiquetas, una encuesta, un ticket y un envío programado. Lo que respondas en el número de ejemplo no sale a WhatsApp, y un botón borra todo.',
+        pt: 'Uma caixa vazia pode carregar conversas e grupos de exemplo, com notas, etiquetas, uma enquete, um ticket e um envio agendado. O que você responder no número de exemplo não sai para o WhatsApp, e um botão exclui tudo.',
+      },
+    ],
+  },
+  {
     id: '2026-11-02-send',
     date: '2026-11-02',
     title: {

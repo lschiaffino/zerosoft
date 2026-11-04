@@ -268,7 +268,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-composer-tabs { margin-bottom: 8px; }
 .gr-input { width: 100%; resize: vertical; min-height: 72px; }
 .gr-composer-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.gr-composer-hint { margin-left: auto; }
+.gr-composer-hint { margin-left: auto; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr-replying,
 .gr-attachment { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 0.8125rem; color: var(--ink-2); min-width: 0; }
 .gr-replying span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-3); }
@@ -414,6 +414,19 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-provider > span { display: flex; flex-direction: column; gap: 2px; }
 .gr-provider.is-on { border-color: var(--ink); background: var(--bg-soft); }
 .gr-provider input { margin-top: 3px; }
+.gr-recommended { margin-left: 6px; font-size: 0.75rem; font-weight: 500; color: var(--ok-ink); }
+.gr-advanced { border-top: 1px solid var(--line); padding-top: 8px; }
+.gr-advanced > summary { cursor: pointer; font-size: 0.875rem; color: var(--ink-2); padding: 4px 0; }
+.gr-advanced > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.gr-advanced[open] > summary { margin-bottom: 8px; }
+.gr-qr-note { flex-basis: 100%; margin: 0; }
+/* Bandeja sin números: los dos caminos (QR o ejemplo). */
+.gr-start { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.gr-start-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Datos de ejemplo: aviso arriba de la lista y debajo del composer. */
+.gr-sample-banner { padding: 6px 4px 6px 10px; font-size: 0.8125rem; gap: 2px 8px; }
+.gr-sample-actions { display: flex; flex-wrap: wrap; gap: 2px; margin-left: auto; }
+.gr-sample-note { margin: 6px 0 0; font-size: 0.75rem; }
 .gr-qr { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
 .gr-qr img { background: #ffffff; padding: 8px; border: 1px solid var(--line); image-rendering: pixelated; }
 .gr-steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 0.875rem; }
@@ -661,7 +674,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-view.is-on { color: var(--ink); border-color: var(--ink); font-weight: 600; }
 .gr-view:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .gr-list-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 0; }
-.gr-list-save { display: flex; justify-content: flex-end; }
+.gr-list-save { display: flex; justify-content: space-between; gap: 6px; margin: 0 -8px; }
 .gr-branch-count { margin-left: auto; font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); }
 .gr-multi { display: flex; flex-wrap: wrap; gap: 4px; }
 .gr-multi-opt {

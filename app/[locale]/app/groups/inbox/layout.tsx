@@ -3,13 +3,16 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { listLabels, listNumbers, listPeople, listPropertyDefs } from '@/lib/groups';
+import { managedAvailable } from '@/lib/groups-provider-managed';
 import { listTeams } from '@/lib/groups-inbox';
 import { listSavedLists } from '@/lib/groups-org';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import InboxShell from '@/components/groups/InboxShell';
+import GetStarted from '@/components/groups/GetStarted';
+import SampleBanner from '@/components/groups/SampleBanner';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,17 +39,21 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
         <PageHeader title={t('inbox.title')} />
         <EmptyState
           title={t('inbox.noNumbersTitle')}
-          body={t('inbox.noNumbersBody')}
-          action={{ label: t('inbox.connect'), href: '/app/groups/settings?tab=numbers&new=1' }}
+          body={managedAvailable() ? t('inbox.noNumbersBodyQr') : t('inbox.noNumbersBody')}
+          action={<GetStarted managed={managedAvailable()} canEdit={isWorkspaceAdmin(user)} />}
           product="groups"
         />
       </div>
     );
   }
 
+  // Solo el número de ejemplo: un aviso arriba con cómo seguir.
+  const onlySample = numbers.every((n) => n.provider === 'sample');
+  const hasSample = numbers.some((n) => n.provider === 'sample');
   return (
     <>
       <InboxShell
+        banner={hasSample ? <SampleBanner canEdit={isWorkspaceAdmin(user)} managed={managedAvailable()} onlySample={onlySample} /> : null}
         labels={labels.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
         people={people}
         teams={teams.map((tm) => ({ id: tm.id, name: tm.name }))}

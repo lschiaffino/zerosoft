@@ -36,6 +36,8 @@ export interface ThreadProps {
   isAdmin: boolean;
   numberName: string;
   caps: ProviderCaps;
+  /** Número de ejemplo: lo que se manda queda guardado y no sale a WhatsApp. */
+  sample?: boolean;
   ticketEmoji: string;
   pinned: MessageDto[];
   teams: Array<{ id: string; name: string }>;
@@ -1033,6 +1035,11 @@ export default function ChatThread(props: ThreadProps) {
               {mode === 'note' ? t('thread.saveNote') : t('thread.send')}
             </button>
           </div>
+          {props.sample && mode !== 'note' && (
+            <p className="ui-help gr-sample-note" role="note">
+              {t('sample.composerNote')}
+            </p>
+          )}
         </div>
       </section>
 

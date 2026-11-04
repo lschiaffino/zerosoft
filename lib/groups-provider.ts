@@ -7,6 +7,11 @@
  * - `waha` / `evolution`: un gateway HTTP open source autoalojado (WAHA o
  *   Evolution API) que abre una sesión de WhatsApp Web por QR. Es lo que
  *   permite crear grupos y manejar miembros (lib/groups-provider-bridge.ts).
+ * - `managed`: Evolution API en un servidor nuestro (GROUPS_BRIDGE_URL y
+ *   GROUPS_BRIDGE_KEY). La persona solo escanea el QR; cada número es una
+ *   instancia propia con su token (lib/groups-provider-managed.ts).
+ * - `sample`: el número de los datos de ejemplo. Nunca sale a la red: lo que
+ *   se manda queda guardado como hecho (lib/groups-provider-sample.ts).
  * - `fake`: proveedor en memoria para tests y demo, solo con GROUPS_FAKE=1 y
  *   NODE_ENV=test o DEMO_MODE=true (lib/groups-provider-fake.ts).
  *
@@ -16,8 +21,8 @@
  */
 import { createHmac, timingSafeEqual } from 'crypto';
 
-export type ProviderKind = 'cloud' | 'waha' | 'evolution' | 'fake';
-export const PROVIDER_KINDS: readonly ProviderKind[] = ['cloud', 'waha', 'evolution', 'fake'];
+export type ProviderKind = 'managed' | 'cloud' | 'waha' | 'evolution' | 'sample' | 'fake';
+export const PROVIDER_KINDS: readonly ProviderKind[] = ['managed', 'cloud', 'waha', 'evolution', 'sample', 'fake'];
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -38,6 +43,8 @@ export interface BridgeConfig {
   apiKey: string;
   /** Nombre de la sesión (WAHA) o de la instancia (Evolution). */
   session: string;
+  /** Token propio de la instancia (solo `managed`: lo generamos al crearla). */
+  instanceToken?: string;
 }
 
 export type ProviderConfig = Partial<CloudConfig & BridgeConfig>;
@@ -71,6 +78,8 @@ export const PROVIDER_CAPS: Record<ProviderKind, ProviderCaps> = {
   waha: { groups: true, qr: true, templates: false, ephemeral: false, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
   // Evolution API v2 edita y borra; no tiene endpoint para fijar ni reenviar.
   evolution: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true },
+  managed: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true },
+  sample: { groups: true, qr: false, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: false },
   fake: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
 };
 
