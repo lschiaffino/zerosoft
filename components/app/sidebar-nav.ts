@@ -251,6 +251,8 @@ export interface SidebarLabels {
     reports: string;
     newInvoice: string;
   };
+  /** Send (DocSend): documentos con links y espacios. */
+  send: { documents: string; spaces: string; newDocument: string };
   /** Sign (DocuSign): sobres, plantillas. */
   sign: {
     home: string;
@@ -319,7 +321,8 @@ export type AppProduct =
   | 'people'
   | 'books'
   | 'sign'
-  | 'forms';
+  | 'forms'
+  | 'send';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -345,6 +348,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/books', 'books'],
   ['/app/sign', 'sign'],
   ['/app/forms', 'forms'],
+  ['/app/send', 'send'],
 ];
 
 /** La app del shell para una clave de producto (Cal vive en /app/calendar). */
@@ -392,6 +396,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   books: 'books',
   sign: 'sign',
   forms: 'forms',
+  send: 'send',
 };
 
 /** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
@@ -912,6 +917,17 @@ export function buildNav(
       ];
     }
 
+    case 'send':
+      return [
+        {
+          items: [
+            { href: '/app/send', label: labels.send.documents, active: pathname === '/app/send' || at('/app/send/documents') || at('/app/send/new'), icon: 'send' },
+            { href: '/app/send/spaces', label: labels.send.spaces, active: at('/app/send/spaces'), icon: 'folder' },
+          ],
+        },
+        appSettingsGroup('/app/send/settings'),
+      ];
+
     case 'sign': {
       const s = labels.sign;
       return [
@@ -1102,6 +1118,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/voice?new=1', labels.voice.newMeeting, 'voice')];
     case 'hiring':
       return [item('/app/hiring/jobs/new', labels.hiring.newJob, 'hiring')];
+    case 'send':
+      return [item('/app/send/new', labels.send.newDocument, 'send')];
     case 'sign':
       return [item('/app/sign/new', labels.sign.newEnvelope, 'sign')];
     case 'analytics':

@@ -1,16 +1,16 @@
 {
   "products": {
     "meta": {
-      "title": "24 apps open source para empresas: CRM, chat, docs y más",
-      "description": "Veinticuatro apps open source, del CRM y el chat de soporte a los docs, las facturas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
+      "title": "25 apps open source para empresas: CRM, chat, docs y más",
+      "description": "Veinticinco apps open source, del CRM y el chat de soporte a los docs, las facturas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
     },
     "hero": {
-      "title1": "Veinticuatro apps.",
+      "title1": "Veinticinco apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las veinticuatro apps.",
+      "title1": "Probá las veinticinco apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -2115,7 +2115,93 @@
         "button": "Abrir Forms"
       }
     },
-    "parityCounts": "{have} incluidas, {partial} parciales de {counted}"
+    "parityCounts": "{have} incluidas, {partial} parciales de {counted}",
+    "send": {
+      "meta": {
+        "title": "Send: compartí documentos por link y mirá quién leyó cada página",
+        "description": "Compartí un PDF, una presentación o un video por link con reglas de email, código, vencimiento y watermark, y mirá el tiempo por página de cada persona. Alternativa open source a DocSend."
+      },
+      "hero": {
+        "sub": "Subí un PDF, una presentación, un Word o un video y armá un link por persona. Definí las reglas de cada link y mirá quién lo abrió, cuánto se quedó en cada página y si volvió."
+      },
+      "featuresTitle": "Sabé quién leyó qué.",
+      "featuresTitleDim": "Página por página.",
+      "f1": {
+        "t": "Un documento, muchos links",
+        "d": "Un link por destinatario o campaña, cada uno con su nombre y sus reglas. Deshabilitá uno y deja de andar en el pedido siguiente, imágenes incluidas."
+      },
+      "f2": {
+        "t": "Reglas en cada link",
+        "d": "Email, verificación por código, código de acceso, vencimiento, listas de permitidos o bloqueados por email o dominio, NDA firmado con Sign y descarga sí o no."
+      },
+      "f3": {
+        "t": "Tiempo en cada página",
+        "d": "Segundos por página desde el navegador de quien lee, con la pestaña visible. Completado, visitas de vuelta, dispositivo, ubicación aproximada y una marca cuando otro email abre el link de un destinatario."
+      },
+      "f4": {
+        "t": "El archivo se queda con vos",
+        "d": "Sin descarga, PDF, Word y PowerPoint llegan al navegador como imágenes de las páginas, no como el archivo. El watermark con su email se dibuja en el servidor. Un video se transmite, así que alguien decidido puede guardarlo, y una captura no se puede impedir. Lo decimos."
+      },
+      "f5": {
+        "t": "Reemplazalo sin tocar los links",
+        "d": "Subí una versión nueva y cada link la muestra cuando está lista. Cada visita cuenta para la versión que vio, así las podés comparar."
+      },
+      "f6": {
+        "t": "Espacios y tus otras apps",
+        "d": "Varios documentos detrás de un link, con números por documento y acceso por persona. Las visitas llegan al contacto del CRM cuando el email coincide."
+      },
+      "steps": {
+        "s1": {
+          "t": "Subir",
+          "d": "PDF, PowerPoint, Word, video o una página de Docs."
+        },
+        "s2": {
+          "t": "Armar un link",
+          "d": "Uno por persona, con las reglas que necesite."
+        },
+        "s3": {
+          "t": "Ver quién leyó",
+          "d": "Un aviso cuando alguien empieza, y el tiempo en cada página."
+        }
+      },
+      "compare": {
+        "rival": "DocSend",
+        "price": "Planes por usuario",
+        "per": "por usuario, o planes fijos con una cantidad de usuarios",
+        "teamLabel": "Un equipo de 5 que comparte propuestas",
+        "team": "ver los precios de DocSend",
+        "zero": "$0",
+        "note": "La página de precios de DocSend no se pudo leer cuando la revisamos, así que no citamos un precio: mirá docsend.com/pricing. Send en tu servidor cuesta $0 más tu base, almacenamiento y envío de emails."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Alguien puede copiar un documento que mando?",
+          "a": "Puede sacar una captura o una foto, y ninguna página web lo puede frenar. Sin descarga, los documentos le llegan como imágenes de las páginas, no como el archivo, y con watermark su email va en cada imagen. Un video se transmite, así que alguien decidido puede guardarlo."
+        },
+        "f2": {
+          "q": "¿Cómo saben quién es quien abre?",
+          "a": "Si el link pide email, es lo que escribió, y se muestra sin verificar. Con verificación, llega un código a esa dirección y el email se muestra verificado. Sin ninguna de las dos, la visita aparece como anónima, con dispositivo y ubicación aproximada."
+        },
+        "f3": {
+          "q": "¿Los bots y las vistas previas de links cuentan?",
+          "a": "No. Abrir la página no escribe nada. Una visita empieza tras unos segundos de lectura en un navegador con la pestaña visible, y quedan afuera los bots conocidos y los navegadores automatizados. Un escáner que se comporte igual que una persona igual podría contar."
+        },
+        "f4": {
+          "q": "¿Qué archivos puedo subir?",
+          "a": "PDF hasta 100 MB y 500 páginas, que se ve exacto. Word (.docx) y PowerPoint (.pptx) con un conversor simplificado: mirá la vista previa o exportá a PDF. Video hasta 1 GB, dentro del almacenamiento del workspace. No se aceptan .doc, .ppt, Excel, Keynote ni PDF con contraseña."
+        },
+        "f5": {
+          "q": "¿Qué falta comparado con DocSend?",
+          "a": "Dominios propios, Salesforce, complementos de navegador y de correo, Excel, preguntas en los espacios y registros de auditoría con vista propia, entre otras cosas. La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Mandalo.",
+        "title2": "Mirá quién lo leyó.",
+        "sub": "Abrí Send, subí un documento y armá tu primer link.",
+        "button": "Abrir Send"
+      }
+    }
   },
   "product": {
     "launch": "Probar {name}",
@@ -2130,7 +2216,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Veinticuatro apps, el mismo login.",
+    "suiteTitleDim": "Veinticinco apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -2218,7 +2304,8 @@
       "people": "fig. 0 · licencias en un calendario",
       "books": "fig. 0 · movimientos que se concilian",
       "sign": "fig. 0 · una firma al pie de un contrato",
-      "forms": "fig. 0 · un formulario que se completa"
+      "forms": "fig. 0 · un formulario que se completa",
+      "send": "fig. 0 · páginas que se leen, con el tiempo de cada una"
     },
     "heroFigHint": "arrastrá para girar"
   },
@@ -2668,6 +2755,27 @@
       "i2": "Apretá 9 y después Enter",
       "summary": "Resumen",
       "action": "42 respuestas · promedio 8,4 · 3 abandonaron en la pregunta 4"
+    },
+    "send": {
+      "listTitle": "Links",
+      "r1name": "Propuesta para Acme",
+      "r1time": "hace 2 min",
+      "r1meta": "ana@acme.com · verificado",
+      "r2name": "Inversores",
+      "r2time": "Ayer",
+      "r2meta": "4 personas · 3 visitas cada una",
+      "r3name": "Newsletter",
+      "r3time": "Deshabilitado",
+      "r3meta": "128 visitas",
+      "status": "Leyendo ahora",
+      "p1label": "Página 1",
+      "p1time": "0:48",
+      "p2label": "Página 2",
+      "p2time": "1:05",
+      "p3label": "Página 3",
+      "p3time": "0:25",
+      "p4label": "Página 4",
+      "p4time": "0:08"
     }
   },
   "status": {
@@ -3549,12 +3657,13 @@
     "scope_notes_write": "Crear y editar las notas de quien creó la clave.",
     "formsApiTitle": "Forms",
     "formsApiDesc": "Formularios y sus respuestas. La key actúa como la persona que la creó y solo ve los formularios que esa persona puede abrir. Scope forms:read.",
-    "mcpCta": "Conectar Claude y la CLI"
+    "mcpCta": "Conectar Claude y la CLI",
+    "scope_send_read": "Leer los documentos que la persona ve, con sus links y visitas."
   },
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de {apps} de las 24 apps: {average} %. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de {apps} de las 25 apps: {average} %. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",
@@ -3698,7 +3807,7 @@
   "docsMcp": {
     "meta": {
       "title": "Conectar Claude y la CLI",
-      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 24 apps como vos."
+      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 25 apps como vos."
     }
   }
 }

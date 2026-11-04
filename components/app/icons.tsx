@@ -70,6 +70,7 @@ export type IconName =
   | 'analytics'
   | 'hiring'
   | 'sign'
+  | 'send'
   | 'flag'
   | 'bug'
   | 'sql'
@@ -326,6 +327,13 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="3" y="7" width="18" height="13" rx="1" />
       <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18" />
+    </>
+  ),
+  send: (
+    <>
+      <path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z" />
+      <path d="M14 3v5h5M8.5 14.5c1.6-2.2 5.4-2.2 7 0-1.6 2.2-5.4 2.2-7 0z" />
+      <circle cx="12" cy="14.5" r=".8" />
     </>
   ),
   sign: (

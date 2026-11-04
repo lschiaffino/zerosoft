@@ -45,6 +45,7 @@ export const RIVALS: Record<ProductKey, string> = {
   books: 'Xero · QuickBooks',
   sign: 'DocuSign',
   forms: 'Typeform',
+  send: 'DocSend',
 };
 
 /** Las seis apps de la tabla de costos del home (precio por usuario o plan fijo). */
@@ -159,4 +160,6 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   sign: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
   // Los precios de Typeform no se pudieron verificar: el bloque remite a typeform.com/pricing.
   forms: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  // Precios de DocSend: la página oficial no se pudo leer, el bloque remite a docsend.com/pricing.
+  send: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
 };

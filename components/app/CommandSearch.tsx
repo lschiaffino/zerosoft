@@ -157,6 +157,7 @@ function useGroupOrder() {
         'signEnvelopes',
         'signTemplates',
         'forms',
+        'send',
         'links',
         'docs',
         'notes',

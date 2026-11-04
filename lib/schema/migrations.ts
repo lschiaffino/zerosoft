@@ -10,6 +10,7 @@ import { peopleUp } from './people-migration';
 import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
+import { sendUp } from './send-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -8467,26 +8468,31 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
-    id: '190_analytics_cookieless',
+    // Send (DocSend): ver lib/schema/send-migration.ts.
+    id: '190_send',
+    up: sendUp,
+  },
+  {
+    id: '191_analytics_cookieless',
     up: async (client) => {
       await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN cookieless INTEGER NOT NULL DEFAULT 0');
       await client.execute('CREATE TABLE IF NOT EXISTS analytics_cookieless_salts (day TEXT PRIMARY KEY, salt TEXT NOT NULL, created_at INTEGER NOT NULL)');
     },
   },
   {
-    id: '191_analytics_dashboard_settings',
+    id: '192_analytics_dashboard_settings',
     up: async (client) => {
       await addColumn(client, "ALTER TABLE analytics_dashboards ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'");
     },
   },
   {
-    id: '192_analytics_cookieless_dropped',
+    id: '193_analytics_cookieless_dropped',
     up: async (client) => {
       await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN cookieless_dropped INTEGER NOT NULL DEFAULT 0');
     },
   },
   {
-    id: '193_analytics_share_options',
+    id: '194_analytics_share_options',
     up: async (client) => {
       await addColumn(client, "ALTER TABLE analytics_shares ADD COLUMN options TEXT NOT NULL DEFAULT '{}'");
       await client.execute(`CREATE TABLE IF NOT EXISTS analytics_share_passwords (
@@ -8512,7 +8518,7 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
-    id: '194_analytics_subscriptions',
+    id: '195_analytics_subscriptions',
     up: async (client) => {
       await client.execute(`CREATE TABLE IF NOT EXISTS analytics_subscriptions (
         id TEXT PRIMARY KEY,

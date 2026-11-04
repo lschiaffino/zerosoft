@@ -72,7 +72,7 @@ describe('cobertura del catálogo', () => {
     for (const o of OPERATIONS) expect(excludeReason(o.path, o.method), o.path).toBeNull();
   });
 
-  it('las 24 apps tienen operaciones', () => {
+  it('las 25 apps tienen operaciones', () => {
     const apps = new Set(OPERATIONS.map((o) => o.app));
     for (const k of PRODUCT_KEYS) expect(apps.has(k), k).toBe(true);
   });

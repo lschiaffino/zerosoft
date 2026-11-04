@@ -39,6 +39,7 @@ export const API_SCOPES = [
   'books:read',
   'books:write',
   'forms:read',
+  'send:read',
   'notes:read',
   'notes:write',
 ] as const;
@@ -105,6 +106,7 @@ export const SCOPE_APP: Record<string, string> = {
   books: 'books',
   sign: 'sign',
   forms: 'forms',
+  send: 'send',
 };
 
 /** Solo los scopes de apps permitidas ('*' = todas). */

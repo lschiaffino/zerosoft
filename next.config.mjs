@@ -16,9 +16,12 @@ const nextConfig = {
   // __dirname at require time, which breaks when webpack bundles it.
   // Keep it external so it is required from node_modules at runtime.
   // playwright-core (runner local de Robots) se carga de node_modules en runtime.
-  serverExternalPackages: ['geoip-lite', 'playwright-core'],
+  serverExternalPackages: ['geoip-lite', 'playwright-core', '@napi-rs/canvas'],
   // La descarga de la extensión de Chrome arma el zip leyendo extensions/chrome en runtime.
   outputFileTracingIncludes: {
+    // Send: pdf.js (worker y fuentes estándar) y el lienzo nativo se cargan en runtime.
+    '/api/send/**': ['./lib/send/render-worker.mjs', './node_modules/pdfjs-dist/package.json', './node_modules/pdfjs-dist/legacy/build/**/*', './node_modules/pdfjs-dist/standard_fonts/**/*', './node_modules/pdfjs-dist/cmaps/**/*', './node_modules/pdfjs-dist/wasm/**/*', './node_modules/@napi-rs/canvas*/**/*'],
+    '/api/cron/send-render': ['./lib/send/render-worker.mjs', './node_modules/pdfjs-dist/package.json', './node_modules/pdfjs-dist/legacy/build/**/*', './node_modules/pdfjs-dist/standard_fonts/**/*', './node_modules/pdfjs-dist/cmaps/**/*', './node_modules/pdfjs-dist/wasm/**/*', './node_modules/@napi-rs/canvas*/**/*'],
     '/api/crm/extension/download': ['./extensions/chrome/**/*'],
     // Imágenes OG (lib/og-card.tsx): las fuentes de la marca y los posts del blog, leídos en runtime.
     '/api/og/[...card]': ['./lib/og-fonts/*.ttf', './content/blog/**/*.md'],
@@ -71,6 +74,20 @@ const nextConfig = {
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
           { key: 'Referrer-Policy', value: 'no-referrer' },
+        ],
+      },
+      // Visor de Send: un documento confidencial, sin iframes ajenos, sin referer y sin recursos de otros orígenes salvo el logo.
+      {
+        source: '/:locale(en|es|pt)/send/:token',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+          {
+            key: 'Content-Security-Policy',
+            value: `default-src 'self'; script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'production' ? '' : " 'unsafe-eval'"}; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; media-src 'self'; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`,
+          },
         ],
       },
       {

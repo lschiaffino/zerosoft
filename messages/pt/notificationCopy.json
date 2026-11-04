@@ -79,6 +79,15 @@
   "roleNameAdmin": "Admin",
   "roleNameMember": "Membro",
   "roleNameGuest": "Convidado",
+  "sendReading": "{who} está lendo {title}",
+  "sendReadingUnverified": "{who} (email não verificado) está lendo {title}",
+  "sendReadingBody": "Link: {link}",
+  "sendDenied": "{who} tentou abrir {title} e não tem acesso",
+  "sendCrmSubject": "Abriu {title} no Send",
+  "sendCrmBody": "{email} abriu por um link do Send, com o email verificado.",
+  "sendDigest": "Mais {count} visitas ou tentativas sem acesso em {title}",
   "peopleHireUndone": "A contratação de {name} foi desfeita: o perfil continua no People",
-  "peopleExitFinished": "A data de saída de {name} passou: o perfil foi encerrado"
+  "peopleExitFinished": "A data de saída de {name} passou: o perfil foi encerrado",
+  "sendLinksTransferred": "{count} links do Send de {who} passaram para você",
+  "sendLinksStopped": "{count} pararam porque os documentos são privados. Cada link diz o que fazer."
 }

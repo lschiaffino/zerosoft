@@ -175,6 +175,11 @@
       "a": "How many NPS responses did we get this week?",
       "b": "Summarize the answers to my feedback form",
       "c": "Create a contact form from a template"
+    },
+    "send": {
+      "a": "Who read the latest proposal?",
+      "b": "Which links are expiring this week?",
+      "c": "How much time did people spend on my deck?"
     }
   },
   "page": {
