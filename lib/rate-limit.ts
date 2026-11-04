@@ -1,3 +1,4 @@
+import { createHmac } from 'crypto';
 import { NextResponse } from 'next/server';
 import { getDb } from './db';
 
@@ -69,6 +70,11 @@ export async function isRateLimited(key: string, limit: number, windowSec: numbe
  * - TRUST_PROXY=0: no se confía en ningún header (todo cae en 'unknown').
  * - Sin headers: 'unknown' (un solo cupo, como sin proxy).
  */
+/** Lo que se guarda en una clave de límite: la IP nunca tal cual. */
+export function hashedIp(ip: string): string {
+  return createHmac('sha256', process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'zs-rate').update(ip).digest('base64url').slice(0, 24);
+}
+
 export function clientIp(req: Request): string {
   if (process.env.TRUST_PROXY === '0') return 'unknown';
   const h = req.headers;

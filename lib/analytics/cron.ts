@@ -10,6 +10,7 @@
  */
 import { getDb } from '../db';
 import { bucketOf } from './compute';
+import { purgeCookielessSalts } from './cookieless';
 import { fromLocal, projectTz, type Tz } from './tz';
 import { purgeProjectRecordings, runReplayRetention } from './replay';
 import { runErrorRegressions } from './errors';
@@ -89,7 +90,10 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     // Todo explícito (no depende de que las FK en cascada estén prendidas).
     await db.prepare('DELETE FROM analytics_dashboard_items WHERE dashboard_id IN (SELECT id FROM analytics_dashboards WHERE project_id = ?)').run(id);
     // Primero lo que apunta a insights, tableros y cohortes.
+    await db.prepare('DELETE FROM analytics_share_passwords WHERE share_id IN (SELECT id FROM analytics_shares WHERE project_id = ?)').run(id);
     for (const table of [
+      'analytics_share_log',
+      'analytics_subscriptions',
       'analytics_shares',
       'analytics_alerts',
       'analytics_experiments',
@@ -123,6 +127,8 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     console.error('[analytics cron] replay', err);
   }
 
+  await purgeCookielessSalts(now).catch(() => null);
+
   // 2. Rollup diario: hasta ayer (día local del proyecto), 31 días por corrida.
   const candidates = (await db
     .prepare(
@@ -146,7 +152,8 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     const yesterday = addDays(bucketOf(now, 'day', tz), -1);
     let from: string | null = p.dirty_from ?? (p.rolled_through ? addDays(p.rolled_through, 1) : null);
     if (!from) {
-      const first = (await db.prepare('SELECT MIN(ts) AS ts FROM analytics_events WHERE project_id = ?').get(p.id)) as { ts: number | null } | undefined;
+      // Solo fechas posibles: una fila vieja con un valor imposible no frena el primer rollup del proyecto.
+      const first = (await db.prepare('SELECT MIN(ts) AS ts FROM analytics_events WHERE project_id = ? AND ts >= 0 AND ts <= 8640000000000000').get(p.id)) as { ts: number | null } | undefined;
       if (first?.ts == null || !Number.isFinite(Number(first.ts))) return;
       // Nunca más atrás que la retención máxima (5 años), aunque haya un dato raro.
       from = bucketOf(Math.max(Number(first.ts), now - 5 * 365 * DAY), 'day', tz);

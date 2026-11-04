@@ -18,8 +18,9 @@ import type {
   StickinessQuery,
   TrendsQuery,
 } from '@/lib/analytics/types';
-import { PROPERTY_MATHS, SERIES_MATHS, shareableQuery, TREND_DISPLAYS, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
+import { FUNNEL_ATTRIBUTIONS, FUNNEL_DISPLAYS, FUNNEL_ORDERS, FUNNEL_WINDOW_UNITS, PROPERTY_MATHS, RETENTION_TYPES, SERIES_MATHS, shareableQuery, TREND_DISPLAYS, TREND_UNITS, type FunnelWindowUnit, type TrendBreakdown, type InsightQuery as AnyQuery, type SeriesMath } from '@/lib/analytics/types';
 import { AlertsPanel, CorrelationPanel, ShareDialog, downloadCsv } from './InsightPanels';
+import { SubscribeDialog } from './Subscriptions';
 import { ApiError, apiErrorText, api, notifyChanged, runQuery } from './client';
 import { EventInput, FilterList, cleanFilters, useProjectMeta, type ProjectMeta } from './Filters';
 import InsightResultView from './InsightResultView';
@@ -67,11 +68,19 @@ function clean(q: InsightQuery): InsightQuery {
       return {
         ...q,
         filters: cleanFilters(q.filters),
-        series: q.series.map((s) => ({ ...s, event: s.event.trim() || '*', filters: cleanFilters(s.filters) })),
-        breakdown: q.breakdown && q.breakdown.key.trim() ? { ...q.breakdown, key: q.breakdown.key.trim() } : null,
+        series: q.series.map((s) => ({ ...s, event: s.event.trim() || '*', orEvents: (s.orEvents ?? []).map((e) => e.trim()).filter(Boolean), filters: cleanFilters(s.filters) })),
+        breakdown: q.breakdown && q.breakdown.key.trim() ? { ...q.breakdown, key: q.breakdown.key.trim(), groupType: q.breakdown.groupType?.trim() || undefined } : null,
+        breakdownsMore: (q.breakdownsMore ?? []).filter((b) => b.key.trim()),
+        options: q.options ? { ...q.options, goalLines: (q.options.goalLines ?? []).filter((g) => Number.isFinite(g.value)) } : null,
       };
     case 'funnel':
-      return { ...q, filters: cleanFilters(q.filters), steps: q.steps.map((s) => ({ ...s, event: s.event.trim() || '*', filters: cleanFilters(s.filters) })) };
+      return {
+        ...q,
+        filters: cleanFilters(q.filters),
+        steps: q.steps.map((s) => ({ ...s, event: s.event.trim() || '*', orEvents: (s.orEvents ?? []).map((e) => e.trim()).filter(Boolean), filters: cleanFilters(s.filters) })),
+        exclusions: (q.exclusions ?? []).filter((x) => x.event.trim()).map((x) => ({ ...x, event: x.event.trim(), filters: cleanFilters(x.filters) })),
+        breakdown: q.breakdown && q.breakdown.key.trim() ? { ...q.breakdown, key: q.breakdown.key.trim() } : null,
+      };
     case 'retention':
       return { ...q, filters: cleanFilters(q.filters), startEvent: q.startEvent.trim() || '$pageview', returnEvent: q.returnEvent.trim() || '$pageview' };
     case 'stickiness':
@@ -120,6 +129,39 @@ function InternalToggle({ value, onChange, available }: { value: boolean; onChan
   );
 }
 
+/** Una apertura: propiedad de evento, de persona o de grupo; si es numérica, en rangos. */
+function BreakdownRow({ value, onChange, meta }: { value: TrendBreakdown | null; onChange: (v: TrendBreakdown | null) => void; meta: ProjectMeta }) {
+  const t = useTranslations('analytics.editor');
+  void meta;
+  const type = value?.type ?? 'event';
+  const set = (patch: Partial<TrendBreakdown>) => onChange({ key: value?.key ?? '', type, ...value, ...patch });
+  return (
+    <div className="an-row an-wrap">
+      <span className="label">{t('breakdown')}</span>
+      <select className="select" aria-label={t('breakdownType')} value={type} onChange={(e) => set({ type: e.target.value as TrendBreakdown['type'] })}>
+        <option value="event">{t('eventProperty')}</option>
+        <option value="person">{t('personProperty')}</option>
+        <option value="group">{t('groupProperty')}</option>
+      </select>
+      {type === 'group' && <input className="input an-filter-key" aria-label={t('groupType')} placeholder={t('groupTypePlaceholder')} value={value?.groupType ?? ''} maxLength={100} onChange={(e) => set({ groupType: e.target.value || undefined })} />}
+      <input
+        className="input an-filter-key"
+        aria-label={t('breakdownKey')}
+        placeholder={t('breakdownPlaceholder')}
+        value={value?.key ?? ''}
+        list="an-breakdown-keys"
+        onChange={(e) => (e.target.value ? set({ key: e.target.value }) : onChange(null))}
+      />
+      {value?.key && (
+        <label className="ui-check">
+          <input type="checkbox" checked={Boolean(value.bins)} onChange={(e) => set({ bins: e.target.checked ? 5 : null })} /> {t('breakdownBins')}
+        </label>
+      )}
+      {value?.bins && <input className="input an-num-input" type="number" min={2} max={50} aria-label={t('breakdownBinCount')} value={value.bins} onChange={(e) => set({ bins: Math.min(50, Math.max(2, Number(e.target.value) || 2)) })} />}
+    </div>
+  );
+}
+
 function TrendsForm({ q, set, meta, cohorts, internal }: { q: TrendsQuery; set: (q: TrendsQuery) => void; meta: ProjectMeta; cohorts: Array<{ id: string; name: string }>; internal: boolean }) {
   const t = useTranslations('analytics.editor');
   const letters = 'ABCDE';
@@ -147,11 +189,37 @@ function TrendsForm({ q, set, meta, cohorts, internal }: { q: TrendsQuery; set: 
                 </option>
               ))}
             </select>
+            {q.series.length < 5 && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, series: [...q.series.slice(0, i + 1), { ...s, filters: [...s.filters] }, ...q.series.slice(i + 1)] })}>
+                {t('duplicateSeries')}
+              </button>
+            )}
             {q.series.length > 1 && (
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, series: q.series.filter((_, j) => j !== i) })}>
                 {t('removeSeries')}
               </button>
             )}
+          </div>
+          {(s.orEvents ?? []).map((ev, k) => (
+            <div key={k} className="an-row">
+              <span className="an-muted an-small">{t('orWord')}</span>
+              <EventInput value={ev} onChange={(event) => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, orEvents: (x.orEvents ?? []).map((y, m) => (m === k ? event : y)) } : x)) })} meta={meta} label={t('orSeriesEvent', { n: letters[i] })} />
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, orEvents: (x.orEvents ?? []).filter((_, m) => m !== k) } : x)) })}>
+                {t('removeOr')}
+              </button>
+            </div>
+          ))}
+          <div className="an-row an-wrap">
+            {(s.orEvents ?? []).length < 4 && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, orEvents: [...(x.orEvents ?? []), '$pageview'] } : x)) })}>
+                + {t('addOr')}
+              </button>
+            )}
+            <select className="select" aria-label={t('firstSeriesLabel', { n: letters[i] })} value={s.first ?? ''} onChange={(e) => set({ ...q, series: q.series.map((x, j) => (j === i ? { ...x, first: (e.target.value || null) as 'ever' | 'matching' | null } : x)) })}>
+              <option value="">{t('firstAny')}</option>
+              <option value="ever">{t('firstEver')}</option>
+              <option value="matching">{t('firstMatching')}</option>
+            </select>
           </div>
           {PROPERTY_MATHS.includes(s.math) && (
             <input
@@ -214,6 +282,294 @@ function TrendsForm({ q, set, meta, cohorts, internal }: { q: TrendsQuery; set: 
         />
         <span className="ui-help">{q.breakdown ? t('formulaOff') : t('formulaHelp')}</span>
       </label>
+      <BreakdownRow value={q.breakdown ?? null} onChange={(breakdown) => set({ ...q, breakdown, breakdownsMore: breakdown ? q.breakdownsMore : [], breakdownLimit: undefined })} meta={meta} />
+      {(q.breakdownsMore ?? []).map((b, i) => (
+        <BreakdownRow
+          key={i}
+          value={b}
+          meta={meta}
+          onChange={(v) => set({ ...q, breakdownsMore: v ? (q.breakdownsMore ?? []).map((x, j) => (j === i ? v : x)) : (q.breakdownsMore ?? []).filter((_, j) => j !== i), breakdownLimit: undefined })}
+        />
+      ))}
+      <div className="an-row an-wrap">
+        {q.breakdown?.key && (q.breakdownsMore ?? []).length < 2 && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, breakdownsMore: [...(q.breakdownsMore ?? []), { key: '$os', type: 'event' }] })}>
+            + {t('addBreakdown')}
+          </button>
+        )}
+        {cohorts.length > 0 && (
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('breakdownByCohort')}</span>
+            <select
+              className="select"
+              value=""
+              disabled={(q.breakdownCohorts ?? []).length >= 5}
+              onChange={(e) => e.target.value && set({ ...q, breakdown: null, breakdownsMore: [], breakdownCohorts: [...new Set([...(q.breakdownCohorts ?? []), e.target.value])] })}
+            >
+              <option value="">{t('chooseCohort')}</option>
+              {cohorts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(q.breakdownCohorts ?? []).map((id) => (
+          <button key={id} type="button" className="btn btn-ghost btn-sm" aria-label={t('removeCohortBreakdown', { name: cohorts.find((c) => c.id === id)?.name ?? id })} onClick={() => set({ ...q, breakdownCohorts: (q.breakdownCohorts ?? []).filter((x) => x !== id) })}>
+            {cohorts.find((c) => c.id === id)?.name ?? id} ×
+          </button>
+        ))}
+      </div>
+      <datalist id="an-breakdown-keys">
+        {['$pathname', '$browser', '$os', '$device_type', '$geoip_country_code', '$referring_domain', 'utm_source', '$el_text', ...meta.eventProperties, ...meta.personProperties].map((k, i) => (
+          <option key={`${k}-${i}`} value={k} />
+        ))}
+      </datalist>
+      <TrendOptionsForm q={q} set={set} />
+      <details className="an-more">
+        <summary>{t('globalFilters')}</summary>
+        <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
+        <CohortSelect value={q.cohortId} onChange={(cohortId) => set({ ...q, cohortId })} cohorts={cohorts} />
+      </details>
+      <InternalToggle value={Boolean(q.excludeInternal)} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
+    </div>
+  );
+}
+
+/** Opciones del gráfico: suavizado, ejes, unidades, líneas de meta. */
+function TrendOptionsForm({ q, set }: { q: TrendsQuery; set: (q: TrendsQuery) => void }) {
+  const t = useTranslations('analytics.editor');
+  const o = q.options ?? {};
+  const patch = (p: Partial<NonNullable<TrendsQuery['options']>>) => set({ ...q, options: { ...o, ...p } });
+  const num = (v: string) => (v.trim() === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+  const goals = o.goalLines ?? [];
+  const daily = q.interval === 'day';
+  return (
+    <details className="an-more" data-testid="an-chart-options">
+      <summary>{t('chartOptions')}</summary>
+      <div className="an-row an-wrap">
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('smoothing')}</span>
+          <select className="select" disabled={!daily} value={daily ? (o.smoothing ?? 0) : 0} onChange={(e) => patch({ smoothing: Number(e.target.value) as 0 | 7 | 28 })}>
+            <option value={0}>{t('smoothingNone')}</option>
+            <option value={7}>{t('smoothingN', { n: 7 })}</option>
+            <option value={28}>{t('smoothingN', { n: 28 })}</option>
+          </select>
+        </label>
+        <label className="ui-check">
+          <input type="checkbox" disabled={!daily} checked={daily && Boolean(o.hideWeekends)} onChange={(e) => patch({ hideWeekends: e.target.checked })} /> {t('hideWeekends')}
+        </label>
+      </div>
+      {!daily && <p className="ui-help">{t('dailyOnly')}</p>}
+      <div className="an-row an-wrap">
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('unit')}</span>
+          <select className="select" value={o.unit ?? 'none'} onChange={(e) => patch({ unit: e.target.value as NonNullable<TrendsQuery['options']>['unit'] })}>
+            {TREND_UNITS.map((u) => (
+              <option key={u} value={u}>
+                {t(`units.${u}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {o.unit === 'currency' && (
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('currency')}</span>
+            <input className="input an-num-input" maxLength={3} defaultValue={o.currency ?? 'USD'} onBlur={(e) => /^[A-Za-z]{3}$/.test(e.target.value) && patch({ currency: e.target.value.toUpperCase() })} />
+          </label>
+        )}
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('prefix')}</span>
+          <input className="input an-num-input" maxLength={12} value={o.prefix ?? ''} onChange={(e) => patch({ prefix: e.target.value })} />
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('suffix')}</span>
+          <input className="input an-num-input" maxLength={12} value={o.suffix ?? ''} onChange={(e) => patch({ suffix: e.target.value })} />
+        </label>
+      </div>
+      <div className="an-row an-wrap">
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('yMin')}</span>
+          <input className="input an-num-input" type="number" value={o.yMin ?? ''} onChange={(e) => patch({ yMin: num(e.target.value) })} />
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('yMax')}</span>
+          <input className="input an-num-input" type="number" value={o.yMax ?? ''} onChange={(e) => patch({ yMax: num(e.target.value) })} />
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('xLabel')}</span>
+          <input className="input" maxLength={60} value={o.xLabel ?? ''} onChange={(e) => patch({ xLabel: e.target.value })} />
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('yLabel')}</span>
+          <input className="input" maxLength={60} value={o.yLabel ?? ''} onChange={(e) => patch({ yLabel: e.target.value })} />
+        </label>
+      </div>
+      <div className="an-row an-wrap">
+        <label className="ui-check">
+          <input type="checkbox" checked={Boolean(o.showValues)} onChange={(e) => patch({ showValues: e.target.checked })} /> {t('showValues')}
+        </label>
+        <label className="ui-check">
+          <input type="checkbox" checked={Boolean(o.hideLegend)} onChange={(e) => patch({ hideLegend: e.target.checked })} /> {t('hideLegend')}
+        </label>
+      </div>
+      {goals.map((g, i) => (
+        <div key={i} className="an-row an-wrap">
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('goalValue')}</span>
+            <input className="input an-num-input" type="number" value={g.value} onChange={(e) => patch({ goalLines: goals.map((x, j) => (j === i ? { ...x, value: Number(e.target.value) } : x)) })} />
+          </label>
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('goalLabel')}</span>
+            <input className="input" maxLength={60} value={g.label ?? ''} onChange={(e) => patch({ goalLines: goals.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
+          </label>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => patch({ goalLines: goals.filter((_, j) => j !== i) })}>
+            {t('removeOr')}
+          </button>
+        </div>
+      ))}
+      {goals.length < 5 && (
+        <button type="button" className="btn btn-sm" onClick={() => patch({ goalLines: [...goals, { value: 100 }] })}>
+          + {t('addGoal')}
+        </button>
+      )}
+    </details>
+  );
+}
+
+function FunnelForm({ q, set, meta, cohorts, internal }: { q: FunnelQuery; set: (q: FunnelQuery) => void; meta: ProjectMeta; cohorts: Array<{ id: string; name: string }>; internal: boolean }) {
+  const t = useTranslations('analytics.editor');
+  const setStep = (i: number, patch: Partial<FunnelQuery['steps'][number]>) => set({ ...q, steps: q.steps.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+  const order = q.order ?? 'ordered';
+  const display = q.display ?? 'steps';
+  const win = q.window ?? { value: q.windowDays, unit: 'day' as FunnelWindowUnit };
+  const exclusions = q.exclusions ?? [];
+  const attribution = q.attribution ?? 'first';
+  const stepNames = new Set(q.steps.flatMap((s) => [s.event, ...(s.orEvents ?? [])]));
+  const setExclusion = (i: number, patch: Partial<NonNullable<FunnelQuery['exclusions']>[number]>) => set({ ...q, exclusions: exclusions.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+  const countBy = q.bySession ? 'session' : q.groupType != null ? 'group' : 'person';
+  return (
+    <div className="an-form">
+      <ol className="an-steps" role="list">
+        {q.steps.map((s, i) => (
+          <li key={i} className="an-series">
+            <div className="an-row">
+              <span className="an-step-n">{i + 1}</span>
+              <EventInput value={s.event} onChange={(event) => setStep(i, { event })} meta={meta} label={t('stepN', { n: i + 1 })} />
+              {q.steps.length > 2 && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, steps: q.steps.filter((_, j) => j !== i), attributionStep: 0, exclusions: [] })}>
+                  {t('removeStep')}
+                </button>
+              )}
+            </div>
+            {(s.orEvents ?? []).map((ev, k) => (
+              <div key={k} className="an-row">
+                <span className="an-muted an-small">{t('orWord')}</span>
+                <EventInput value={ev} onChange={(event) => setStep(i, { orEvents: (s.orEvents ?? []).map((x, j) => (j === k ? event : x)) })} meta={meta} label={t('orEvent', { n: i + 1 })} />
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep(i, { orEvents: (s.orEvents ?? []).filter((_, j) => j !== k) })}>
+                  {t('removeOr')}
+                </button>
+              </div>
+            ))}
+            <div className="an-row an-wrap">
+              {(s.orEvents ?? []).length < 4 && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep(i, { orEvents: [...(s.orEvents ?? []), '$pageview'] })}>
+                  + {t('addOr')}
+                </button>
+              )}
+              <select className="select" aria-label={t('firstLabel', { n: i + 1 })} value={s.first ?? ''} onChange={(e) => setStep(i, { first: (e.target.value || null) as 'ever' | 'matching' | null })}>
+                <option value="">{t('firstAny')}</option>
+                <option value="ever">{t('firstEver')}</option>
+                <option value="matching">{t('firstMatching')}</option>
+              </select>
+            </div>
+            <FilterList filters={s.filters} onChange={(filters) => setStep(i, { filters })} meta={meta} />
+          </li>
+        ))}
+      </ol>
+      {q.steps.length < 10 && (
+        <button type="button" className="btn btn-sm" onClick={() => set({ ...q, steps: [...q.steps, { event: '$pageview', filters: [] }] })}>
+          + {t('addStep')}
+        </button>
+      )}
+      <div className="an-row an-wrap">
+        <DateRangePicker value={q.dateRange} onChange={(dateRange) => set({ ...q, dateRange })} />
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('graph')}</span>
+          <select className="select" value={display} onChange={(e) => set({ ...q, display: e.target.value as typeof display })}>
+            {FUNNEL_DISPLAYS.map((d) => (
+              <option key={d} value={d}>
+                {t(`funnelDisplays.${d}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {display === 'trends' && (
+          <select className="select" aria-label={t('interval')} value={q.interval ?? 'day'} onChange={(e) => set({ ...q, interval: e.target.value as FunnelQuery['interval'] })}>
+            {(['hour', 'day', 'week', 'month'] as const).map((iv) => (
+              <option key={iv} value={iv}>
+                {t(`intervals.${iv}`)}
+              </option>
+            ))}
+          </select>
+        )}
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('stepOrder')}</span>
+          <select className="select" value={order} onChange={(e) => set({ ...q, order: e.target.value as typeof order })}>
+            {FUNNEL_ORDERS.map((o) => (
+              <option key={o} value={o}>
+                {t(`funnelOrders.${o}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="an-row an-wrap">
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('windowValue')}</span>
+          <input
+            className="input an-num-input"
+            type="number"
+            min={1}
+            max={10000}
+            value={win.value}
+            onChange={(e) => set({ ...q, window: { unit: win.unit, value: Math.min(10000, Math.max(1, Number(e.target.value) || 1)) } })}
+          />
+        </label>
+        <select className="select" aria-label={t('windowUnit')} value={win.unit} onChange={(e) => set({ ...q, window: { value: win.value, unit: e.target.value as FunnelWindowUnit } })}>
+          {FUNNEL_WINDOW_UNITS.map((u) => (
+            <option key={u} value={u}>
+              {t(`windowUnits.${u}`)}
+            </option>
+          ))}
+        </select>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('countBy')}</span>
+          <select
+            className="select"
+            value={countBy}
+            onChange={(e) => {
+              const v = e.target.value;
+              set({ ...q, bySession: v === 'session', groupType: v === 'group' ? (q.groupType ?? '') : null });
+            }}
+          >
+            <option value="person">{t('countPeople')}</option>
+            <option value="session">{t('countSessions')}</option>
+            <option value="group">{t('countGroups')}</option>
+          </select>
+        </label>
+        {countBy === 'group' && (
+          <input
+            className="input an-filter-key"
+            aria-label={t('groupType')}
+            placeholder={t('groupTypePlaceholder')}
+            value={q.groupType ?? ''}
+            maxLength={100}
+            onChange={(e) => set({ ...q, groupType: e.target.value })}
+          />
+        )}
+      </div>
       <div className="an-row an-wrap">
         <span className="label">{t('breakdown')}</span>
         <select
@@ -238,66 +594,72 @@ function TrendsForm({ q, set, meta, cohorts, internal }: { q: TrendsQuery; set: 
             <option key={k} value={k} />
           ))}
         </datalist>
+        {q.breakdown?.key && (
+          <>
+            <select className="select" aria-label={t('attribution')} value={attribution} onChange={(e) => set({ ...q, attribution: e.target.value as typeof attribution })}>
+              {FUNNEL_ATTRIBUTIONS.map((a) => (
+                <option key={a} value={a}>
+                  {a === 'step' && order === 'unordered' ? t('attributionAnyStep') : t(`attributions.${a}`)}
+                </option>
+              ))}
+            </select>
+            {attribution === 'step' && order !== 'unordered' && (
+              <select className="select" aria-label={t('attributionStep')} value={Math.min(q.attributionStep ?? 0, q.steps.length - 1)} onChange={(e) => set({ ...q, attributionStep: Number(e.target.value) })}>
+                {q.steps.map((_, i) => (
+                  <option key={i} value={i}>
+                    {t('stepN', { n: i + 1 })}
+                  </option>
+                ))}
+              </select>
+            )}
+          </>
+        )}
       </div>
-      <details className="an-more">
-        <summary>{t('globalFilters')}</summary>
-        <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
-        <CohortSelect value={q.cohortId} onChange={(cohortId) => set({ ...q, cohortId })} cohorts={cohorts} />
-      </details>
-      <InternalToggle value={Boolean(q.excludeInternal)} onChange={(excludeInternal) => set({ ...q, excludeInternal })} available={internal} />
-    </div>
-  );
-}
-
-function FunnelForm({ q, set, meta, cohorts, internal }: { q: FunnelQuery; set: (q: FunnelQuery) => void; meta: ProjectMeta; cohorts: Array<{ id: string; name: string }>; internal: boolean }) {
-  const t = useTranslations('analytics.editor');
-  return (
-    <div className="an-form">
-      <ol className="an-steps" role="list">
-        {q.steps.map((s, i) => (
-          <li key={i} className="an-series">
-            <div className="an-row">
-              <span className="an-step-n">{i + 1}</span>
-              <EventInput value={s.event} onChange={(event) => set({ ...q, steps: q.steps.map((x, j) => (j === i ? { ...x, event } : x)) })} meta={meta} label={t('stepN', { n: i + 1 })} />
-              {q.steps.length > 2 && (
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, steps: q.steps.filter((_, j) => j !== i) })}>
-                  {t('removeStep')}
-                </button>
+      <details className="an-more" open={exclusions.length > 0 || undefined}>
+        <summary>{t('exclusions')}</summary>
+        <p className="ui-help">{order === 'unordered' ? t('exclusionsHelpAny') : t('exclusionsHelp')}</p>
+        {exclusions.map((x, i) => (
+          <div key={i} className="an-series">
+            <div className="an-row an-wrap">
+              <EventInput value={x.event} onChange={(event) => setExclusion(i, { event })} meta={meta} label={t('exclusionEvent')} />
+              {order !== 'unordered' && (
+                <>
+                  <select className="select" aria-label={t('exclusionFrom')} value={Math.min(x.fromStep, q.steps.length - 2)} onChange={(e) => { const fromStep = Number(e.target.value); setExclusion(i, { fromStep, toStep: Math.max(x.toStep, fromStep + 1) }); }}>
+                    {q.steps.slice(0, -1).map((_, k) => (
+                      <option key={k} value={k}>
+                        {t('exclusionFromN', { n: k + 1 })}
+                      </option>
+                    ))}
+                  </select>
+                  <select className="select" aria-label={t('exclusionTo')} value={Math.min(x.toStep, q.steps.length - 1)} onChange={(e) => setExclusion(i, { toStep: Number(e.target.value) })}>
+                    {q.steps.map((_, k) =>
+                      k > x.fromStep ? (
+                        <option key={k} value={k}>
+                          {t('exclusionToN', { n: k + 1 })}
+                        </option>
+                      ) : null,
+                    )}
+                  </select>
+                </>
               )}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, exclusions: exclusions.filter((_, j) => j !== i) })}>
+                {t('removeExclusion')}
+              </button>
             </div>
-            <FilterList filters={s.filters} onChange={(filters) => set({ ...q, steps: q.steps.map((x, j) => (j === i ? { ...x, filters } : x)) })} meta={meta} />
-          </li>
+            {stepNames.has(x.event) && (
+              <p className="ui-help" role="alert">
+                {t('exclusionIsStep')}
+              </p>
+            )}
+            <FilterList filters={x.filters} onChange={(filters) => setExclusion(i, { filters })} meta={meta} />
+          </div>
         ))}
-      </ol>
-      {q.steps.length < 10 && (
-        <button type="button" className="btn btn-sm" onClick={() => set({ ...q, steps: [...q.steps, { event: '$pageview', filters: [] }] })}>
-          + {t('addStep')}
-        </button>
-      )}
-      <div className="an-row an-wrap">
-        <DateRangePicker value={q.dateRange} onChange={(dateRange) => set({ ...q, dateRange })} />
-        <label className="ui-field an-inline-field">
-          <span className="label">{t('window')}</span>
-          <input
-            className="input an-num-input"
-            type="number"
-            min={1}
-            max={90}
-            value={q.windowDays}
-            onChange={(e) => set({ ...q, windowDays: Math.min(90, Math.max(1, Number(e.target.value) || 1)) })}
-          />
-        </label>
-        <label className="ui-field an-inline-field">
-          <span className="label">{t('countBy')}</span>
-          <input
-            className="input"
-            placeholder={t('countByPeople')}
-            value={q.groupType ?? ''}
-            maxLength={100}
-            onChange={(e) => set({ ...q, groupType: e.target.value || null })}
-          />
-        </label>
-      </div>
+        {exclusions.length < 5 && (
+          <button type="button" className="btn btn-sm" onClick={() => set({ ...q, exclusions: [...exclusions, { event: '', filters: [], fromStep: 0, toStep: q.steps.length - 1 }] })}>
+            + {t('addExclusion')}
+          </button>
+        )}
+      </details>
       <details className="an-more">
         <summary>{t('globalFilters')}</summary>
         <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
@@ -323,15 +685,106 @@ function RetentionForm({ q, set, meta, cohorts, internal }: { q: RetentionQuery;
         </label>
       </div>
       <div className="an-row an-wrap">
-        <select className="select" aria-label={t('period')} value={q.period} onChange={(e) => set({ ...q, period: e.target.value as 'day' | 'week' })}>
-          <option value="day">{t('intervals.day')}</option>
-          <option value="week">{t('intervals.week')}</option>
+        <select className="select" aria-label={t('period')} value={q.period} onChange={(e) => set({ ...q, period: e.target.value as RetentionQuery['period'] })}>
+          {(['hour', 'day', 'week', 'month'] as const).map((iv) => (
+            <option key={iv} value={iv}>
+              {t(`intervals.${iv}`)}
+            </option>
+          ))}
         </select>
         <label className="ui-field an-inline-field">
           <span className="label">{t('periods')}</span>
-          <input className="input an-num-input" type="number" min={2} max={16} value={q.periods} onChange={(e) => set({ ...q, periods: Math.min(16, Math.max(2, Number(e.target.value) || 2)) })} />
+          <input className="input an-num-input" type="number" min={2} max={24} value={q.periods} onChange={(e) => set({ ...q, periods: Math.min(24, Math.max(2, Number(e.target.value) || 2)) })} />
         </label>
       </div>
+      <div className="an-row an-wrap">
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('retentionType')}</span>
+          <select className="select" value={q.type ?? 'first_time'} onChange={(e) => set({ ...q, type: e.target.value as RetentionQuery['type'] })}>
+            {RETENTION_TYPES.map((k) => (
+              <option key={k} value={k}>
+                {t(`retentionTypes.${k}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('returning')}</span>
+          <select className="select" value={q.cumulative ? 'after' : 'on'} onChange={(e) => set({ ...q, cumulative: e.target.value === 'after' })}>
+            <option value="on">{t('returningOn')}</option>
+            <option value="after">{t('returningAfter')}</option>
+          </select>
+        </label>
+        <label className="ui-field an-inline-field">
+          <span className="label">{t('countBy')}</span>
+          <select className="select" value={q.groupType != null ? 'group' : 'person'} onChange={(e) => set({ ...q, groupType: e.target.value === 'group' ? (q.groupType ?? '') : null })}>
+            <option value="person">{t('countPeople')}</option>
+            <option value="group">{t('countGroups')}</option>
+          </select>
+        </label>
+        {q.groupType != null && <input className="input an-filter-key" aria-label={t('groupType')} placeholder={t('groupTypePlaceholder')} value={q.groupType} maxLength={100} onChange={(e) => set({ ...q, groupType: e.target.value })} />}
+      </div>
+      <div className="an-row an-wrap">
+        <span className="label">{t('breakdown')}</span>
+        <select className="select" aria-label={t('breakdownType')} value={q.breakdown?.type ?? 'event'} onChange={(e) => set({ ...q, breakdown: { key: q.breakdown?.key ?? '', type: e.target.value as 'event' | 'person' } })}>
+          <option value="event">{t('eventProperty')}</option>
+          <option value="person">{t('personProperty')}</option>
+        </select>
+        <input
+          className="input an-filter-key"
+          aria-label={t('breakdownKey')}
+          placeholder={t('breakdownPlaceholder')}
+          value={q.breakdown?.key ?? ''}
+          list="an-breakdown-keys"
+          onChange={(e) => set({ ...q, breakdown: e.target.value ? { key: e.target.value, type: q.breakdown?.type ?? 'event' } : null })}
+        />
+        <datalist id="an-breakdown-keys">
+          {['$pathname', '$browser', '$os', '$device_type', '$geoip_country_code', '$referring_domain', 'utm_source', ...(q.breakdown?.type === 'person' ? meta.personProperties : meta.eventProperties)].map((k) => (
+            <option key={k} value={k} />
+          ))}
+        </datalist>
+      </div>
+      <details className="an-more">
+        <summary>{t('chartOptions')}</summary>
+        <div className="an-row an-wrap">
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('retentionReference')}</span>
+            <select className="select" value={q.reference ?? 'period0'} onChange={(e) => set({ ...q, reference: e.target.value as RetentionQuery['reference'] })}>
+              <option value="period0">{t('retentionPeriod0')}</option>
+              <option value="previous">{t('retentionPrevious')}</option>
+            </select>
+          </label>
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('retentionMean')}</span>
+            <select className="select" value={q.mean ?? 'weighted'} onChange={(e) => set({ ...q, mean: e.target.value as RetentionQuery['mean'] })}>
+              <option value="weighted">{t('retentionWeighted')}</option>
+              <option value="simple">{t('retentionSimple')}</option>
+            </select>
+          </label>
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('retentionLabels')}</span>
+            <select className="select" value={q.labelStart ?? 0} onChange={(e) => set({ ...q, labelStart: Number(e.target.value) as 0 | 1 })}>
+              <option value={0}>{t('retentionFrom0')}</option>
+              <option value={1}>{t('retentionFrom1')}</option>
+            </select>
+          </label>
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('retentionChartType')}</span>
+            <select className="select" value={q.chart ?? 'line'} onChange={(e) => set({ ...q, chart: e.target.value as RetentionQuery['chart'] })}>
+              <option value="line">{t('displays.line')}</option>
+              <option value="bar">{t('displays.bar')}</option>
+            </select>
+          </label>
+          <label className="ui-field an-inline-field">
+            <span className="label">{t('retentionShow')}</span>
+            <select className="select" value={q.show ?? 'both'} onChange={(e) => set({ ...q, show: e.target.value as RetentionQuery['show'] })}>
+              <option value="both">{t('retentionBoth')}</option>
+              <option value="graph">{t('retentionGraph')}</option>
+              <option value="table">{t('retentionTable')}</option>
+            </select>
+          </label>
+        </div>
+      </details>
       <details className="an-more">
         <summary>{t('globalFilters')}</summary>
         <FilterList filters={q.filters} onChange={(filters) => set({ ...q, filters })} meta={meta} />
@@ -426,6 +879,14 @@ function PathsForm({ q, set }: { q: PathsQuery; set: (q: PathsQuery) => void }) 
   const t = useTranslations('analytics.editor');
   return (
     <div className="an-form">
+      {q.funnel && (
+        <div className="an-row an-wrap" data-testid="an-paths-funnel">
+          <span className="an-note">{t(`pathFunnelModes.${q.funnel.mode}`, { n: q.funnel.step + 1, prev: q.funnel.step })}</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ ...q, funnel: null })}>
+            {t('pathFunnelClear')}
+          </button>
+        </div>
+      )}
       <div className="an-row an-wrap">
         <DateRangePicker value={q.dateRange} onChange={(dateRange) => set({ ...q, dateRange })} />
         <label className="ui-field an-inline-field">
@@ -491,6 +952,7 @@ export default function InsightEditor({
   projectId,
   insight,
   initialKind,
+  initialQuery,
   dashboards,
   cohorts,
   hasInternalFilters = false,
@@ -503,6 +965,8 @@ export default function InsightEditor({
   projectId: string;
   insight: InsightDto | null;
   initialKind?: InsightKind;
+  /** Consulta armada desde un embudo o un camino. */
+  initialQuery?: InsightQuery;
   dashboards: Array<{ id: string; name: string; insightIds: string[] }>;
   cohorts: Array<{ id: string; name: string }>;
 }) {
@@ -510,9 +974,10 @@ export default function InsightEditor({
   const tc = useTranslations('analytics.common');
   const router = useRouter();
   const meta = useProjectMeta(projectId);
-  const [drafts, setDrafts] = useState(() => (insight ? { ...DEFAULTS, [insight.kind]: insight.query } : DEFAULTS));
+  const [drafts, setDrafts] = useState(() => (insight ? { ...DEFAULTS, [insight.kind]: insight.query } : initialQuery ? { ...DEFAULTS, [initialQuery.kind]: initialQuery } : DEFAULTS));
   const [sharing, setSharing] = useState(false);
-  const [kind, setKind] = useState<InsightKind>(insight?.kind ?? initialKind ?? 'trends');
+  const [subscribing, setSubscribing] = useState(false);
+  const [kind, setKind] = useState<InsightKind>(insight?.kind ?? initialQuery?.kind ?? initialKind ?? 'trends');
   const [result, setResult] = useState<InsightResult | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -642,6 +1107,11 @@ export default function InsightEditor({
                 {t('share')}
               </button>
             )}
+            {insight && canShare && shareableQuery(cleaned) && (
+              <button type="button" className="btn" onClick={() => setSubscribing(true)}>
+                {t('subscribe')}
+              </button>
+            )}
             {insight && (
               <select
                 className="select an-header-select"
@@ -718,6 +1188,25 @@ export default function InsightEditor({
               display={query.kind === 'trends' ? query.display : 'line'}
               peopleHref={(ids) => `/app/analytics/persons?ids=${encodeURIComponent(ids.join(','))}`}
               annotations={annotations}
+              query={cleaned}
+              onLoadMore={
+                query.kind === 'trends'
+                  ? () => set({ ...query, breakdownLimit: (query.breakdownLimit ?? 25) + 25 })
+                  : undefined
+              }
+              onRetentionCell={
+                insight || kind === 'retention'
+                  ? (cell) => {
+                      const q = cleaned as RetentionQuery;
+                      void runQuery(projectId, { ...q, drill: cell })
+                        .then((r) => {
+                          const ids = r.kind === 'retention' ? (r.drillPersons ?? []) : [];
+                          if (ids.length) router.push(`/app/analytics/persons?ids=${encodeURIComponent(ids.join(','))}&from=retention`);
+                        })
+                        .catch(() => setError(t('errors.request_failed')));
+                    }
+                  : undefined
+              }
             />
           )}
           {!running && !result && !error && kind === 'sql' && <p className="an-muted">{t('runHint')}</p>}
@@ -735,6 +1224,9 @@ export default function InsightEditor({
         <AlertsPanel projectId={projectId} insightId={insight.id} insightName={insight.name} seriesLabels={result.series.map((s) => s.label)} />
       )}
       {insight && insight.kind !== 'trends' && <p className="an-note">{t('alertsTrendsOnly')}</p>}
+      {insight && (
+        <SubscribeDialog open={subscribing} onClose={() => setSubscribing(false)} projectId={projectId} insights={[{ id: insight.id, name: insight.name }]} dashboards={[]} target={{ insightId: insight.id }} />
+      )}
       {insight && <ShareDialog open={sharing} onClose={() => setSharing(false)} projectId={projectId} target={{ insightId: insight.id }} />}
       <NameDialog
         open={askName}

@@ -14,7 +14,7 @@ import { FilterList, cleanFilters, useProjectMeta } from './Filters';
  * (multivariante) y condiciones sobre propiedades de la persona. Abajo, el
  * código para usarlo y una prueba con un distinct_id.
  */
-export default function FlagEditor({ projectId, flag, publicKey, cohorts = [] }: { projectId: string; flag: FlagDto; publicKey: string; cohorts?: Array<{ id: string; name: string }> }) {
+export default function FlagEditor({ projectId, flag, publicKey, cohorts = [], canManage = true }: { projectId: string; flag: FlagDto; publicKey: string; cohorts?: Array<{ id: string; name: string }>; canManage?: boolean }) {
   const t = useTranslations('analytics.flags');
   const tc = useTranslations('analytics.common');
   const router = useRouter();
@@ -112,11 +112,18 @@ export default function FlagEditor({ projectId, flag, publicKey, cohorts = [] }:
         title={flag.key}
         description={flag.name || undefined}
         actions={
-          <button type="button" className="btn btn-ghost" onClick={() => setDeleting(true)}>
-            {tc('delete')}
-          </button>
+          canManage ? (
+            <button type="button" className="btn btn-ghost" onClick={() => setDeleting(true)}>
+              {tc('delete')}
+            </button>
+          ) : undefined
         }
       />
+      {!canManage && (
+        <p className="an-note" role="status" data-testid="an-flag-readonly">
+          {t('adminOnly')}
+        </p>
+      )}
       <form
         className="an-form an-panel"
         onSubmit={(e) => {
@@ -124,6 +131,7 @@ export default function FlagEditor({ projectId, flag, publicKey, cohorts = [] }:
           void save();
         }}
       >
+        <fieldset disabled={!canManage} className="an-plain-fieldset">
         <div className="ui-fields ui-fields-2">
           <label className="ui-field">
             <span className="label">{t('key')}</span>
@@ -244,7 +252,7 @@ export default function FlagEditor({ projectId, flag, publicKey, cohorts = [] }:
           {badPayload && <p className="ui-error">{t('payloadInvalid', { key: badPayload })}</p>}
         </details>
         <div className="an-row">
-          <button type="submit" className="btn btn-primary" disabled={busy || (multi && sum !== 100) || Boolean(badPayload)}>
+          <button type="submit" className="btn btn-primary" disabled={!canManage || busy || (multi && sum !== 100) || Boolean(badPayload)}>
             {tc('save')}
           </button>
           {msg && (
@@ -253,6 +261,7 @@ export default function FlagEditor({ projectId, flag, publicKey, cohorts = [] }:
             </span>
           )}
         </div>
+        </fieldset>
       </form>
       <section className="an-panel" aria-labelledby="an-flag-use">
         <h2 id="an-flag-use" className="an-h3">

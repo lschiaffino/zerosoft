@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createShare, listShares } from '@/lib/analytics/records-more';
+import { createShare, shareDependencies, listShareLog, listSharePasswords, listShares, shareOptions } from '@/lib/analytics/records-more';
 import { getDashboard, getInsight } from '@/lib/analytics/records';
 import { shareableQuery } from '@/lib/analytics/types';
 import { actorProject, aError, analyticsActor, canManageAnalytics, isResponse, readJson } from '@/lib/analytics/http';
@@ -20,7 +20,12 @@ export async function GET(req: NextRequest) {
   const insightId = req.nextUrl.searchParams.get('insight') ?? undefined;
   const dashboardId = req.nextUrl.searchParams.get('dashboard') ?? undefined;
   if (!insightId && !dashboardId) return aError(400, 'target_required');
-  return NextResponse.json({ shares: await listShares(project.id, { insightId, dashboardId }) });
+  const shares = await listShares(project.id, { insightId, dashboardId });
+  return NextResponse.json({
+    shares: await Promise.all(shares.map(async (x) => ({ ...x, options: shareOptions(x), passwords: await listSharePasswords(x.id) }))),
+    log: await listShareLog(project.id, { insightId, dashboardId }),
+    dependsOn: await shareDependencies(project.id, { insightId, dashboardId }),
+  });
 }
 
 const schema = z.object({ projectId: z.string().max(64), insightId: z.string().max(64).optional(), dashboardId: z.string().max(64).optional() }).refine((b) => Boolean(b.insightId) !== Boolean(b.dashboardId));
@@ -41,5 +46,6 @@ export async function POST(req: NextRequest) {
   // Tampoco una apertura por persona: sus valores son emails o ids a la vista de cualquiera.
   if (insightId && 'query' in exists && !shareableQuery(exists.query)) return aError(400, 'breakdown_not_shareable');
   if ((await listShares(project.id, { insightId, dashboardId })).length >= MAX_SHARES) return aError(409, 'too_many_shares');
-  return NextResponse.json({ share: await createShare(project.id, actor.personId, { insightId, dashboardId }) }, { status: 201 });
+  const created = await createShare(project.id, actor.personId, { insightId, dashboardId });
+  return NextResponse.json({ share: { ...created, options: shareOptions(created), passwords: [] } }, { status: 201 });
 }

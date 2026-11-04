@@ -37,12 +37,14 @@ import * as r34 from "@/lib/routes/analytics/replay/[id]/route";
 import * as r35 from "@/app/api/analytics/replay/sessions/route";
 import * as r36 from "@/app/api/analytics/shares/route";
 import * as r37 from "@/lib/routes/analytics/shares/[id]/route";
-import * as r38 from "@/app/api/analytics/surveys/route";
-import * as r39 from "@/lib/routes/analytics/surveys/[id]/route";
-import * as r40 from "@/lib/routes/analytics/surveys/[id]/export/route";
-import * as r41 from "@/lib/routes/analytics/surveys/[id]/results/route";
-import * as r42 from "@/app/api/analytics/web-live/route";
-import * as r43 from "@/app/api/analytics/web-vitals/route";
+import * as r38 from "@/app/api/analytics/subscriptions/route";
+import * as r39 from "@/lib/routes/analytics/subscriptions/[id]/route";
+import * as r40 from "@/app/api/analytics/surveys/route";
+import * as r41 from "@/lib/routes/analytics/surveys/[id]/route";
+import * as r42 from "@/lib/routes/analytics/surveys/[id]/export/route";
+import * as r43 from "@/lib/routes/analytics/surveys/[id]/results/route";
+import * as r44 from "@/app/api/analytics/web-live/route";
+import * as r45 from "@/app/api/analytics/web-vitals/route";
 
 export const routes: Record<string, unknown> = {
   "/api/analytics/actions": r0,
@@ -83,10 +85,12 @@ export const routes: Record<string, unknown> = {
   "/api/analytics/replay/sessions": r35,
   "/api/analytics/shares": r36,
   "/api/analytics/shares/[id]": r37,
-  "/api/analytics/surveys": r38,
-  "/api/analytics/surveys/[id]": r39,
-  "/api/analytics/surveys/[id]/export": r40,
-  "/api/analytics/surveys/[id]/results": r41,
-  "/api/analytics/web-live": r42,
-  "/api/analytics/web-vitals": r43,
+  "/api/analytics/subscriptions": r38,
+  "/api/analytics/subscriptions/[id]": r39,
+  "/api/analytics/surveys": r40,
+  "/api/analytics/surveys/[id]": r41,
+  "/api/analytics/surveys/[id]/export": r42,
+  "/api/analytics/surveys/[id]/results": r43,
+  "/api/analytics/web-live": r44,
+  "/api/analytics/web-vitals": r45,
 };

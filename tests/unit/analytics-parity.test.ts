@@ -8,6 +8,7 @@ import { createProject, forgetProjectCache, updateProject, getProject, type Proj
 import { scrubNode, scrubUrl } from '@/lib/analytics/replay-scrub';
 import { sanitizeForPlayer } from '@/lib/analytics/replay-sanitize';
 import { searchApps } from '@/lib/app-search';
+import { applyCookieless, cookielessId, purgeCookielessSalts } from '@/lib/analytics/cookieless';
 import { parseChunk } from '@/lib/analytics/replay-core';
 import { cleanAnswer, npsFrom } from '@/lib/analytics/surveys-core';
 import { scrubMessage } from '@/lib/analytics/errors-core';
@@ -544,6 +545,67 @@ describe('analytics: segunda revisión de QA', () => {
     const i = await createInsight(p.id, 'u', { name: 'Por email', query: insightQuerySchema.parse({ kind: 'trends', series: [{ event: 'x' }], breakdown: { key: 'email', type: 'person' } }) });
     const share = await createShare(p.id, 'u', { insightId: i.id });
     expect(await publicShareView(share.token)).toBeNull();
+  });
+});
+
+describe('analytics: sin cookies', () => {
+  const UA = 'Mozilla/5.0 Chrome/130.0 Safari/537.36';
+  const send = (key: string, ip: string, ua = UA, extra: Record<string, unknown> = {}) =>
+    handleCapture(
+      new Request('http://x/api/ingest/e', {
+        method: 'POST',
+        headers: { 'user-agent': ua, origin: 'http://shop.test', 'x-forwarded-for': ip },
+        body: JSON.stringify({ api_key: key, event: '$pageview', distinct_id: '$zs_cookieless', properties: { $host: 'shop.test', $pathname: '/', ...extra } }),
+      }),
+    );
+  it('el id cambia con la sal, la IP, el navegador y el sitio; es estable con los mismos datos', () => {
+    const a = cookielessId('s1', 'p', '1.1.1.1', 'ua', 'a.com');
+    expect(a).toBe(cookielessId('s1', 'p', '1.1.1.1', 'ua', 'A.com'));
+    expect(a.startsWith('ck_')).toBe(true);
+    for (const other of [cookielessId('s2', 'p', '1.1.1.1', 'ua', 'a.com'), cookielessId('s1', 'q', '1.1.1.1', 'ua', 'a.com'), cookielessId('s1', 'p', '1.1.1.2', 'ua', 'a.com'), cookielessId('s1', 'p', '1.1.1.1', 'ub', 'a.com'), cookielessId('s1', 'p', '1.1.1.1', 'ua', 'b.com')]) {
+      expect(other).not.toBe(a);
+    }
+  });
+  it('con el proyecto apagado no se guarda; prendido cuenta visitantes sin perfil y sin IP', async () => {
+    const { project: p, user } = await newProject();
+    expect((await (await send(p.public_key, '9.9.9.1')).json()).stored).toBe(0);
+    await updateProject(user.id, p.id, { cookieless: true });
+    forgetProjectCache();
+    expect((await (await send(p.public_key, '9.9.9.1')).json()).stored).toBe(1);
+    expect((await (await send(p.public_key, '9.9.9.1')).json()).stored).toBe(1);
+    expect((await (await send(p.public_key, '9.9.9.2')).json()).stored).toBe(1);
+    const fresh = (await getProject(user.id, p.id))!;
+    const web = await runWeb(fresh, { kind: 'web', dateRange: { from: '-7d' }, compare: false });
+    expect(web.stats.pageviews.value).toBe(3);
+    expect(web.stats.visitors.value).toBe(2);
+    // Dos visitantes, dos sesiones; el que volvió en el mismo rato sigue en la suya.
+    expect(web.stats.sessions.value).toBe(2);
+    const rows = (await getDb().prepare('SELECT distinct_id, ip, session_id FROM analytics_events WHERE project_id = ?').all(p.id)) as Array<{ distinct_id: string; ip: string | null; session_id: string }>;
+    expect(rows.every((r) => r.distinct_id.startsWith('ck_') && r.ip === null && r.session_id)).toBe(true);
+    const persons = (await getDb().prepare('SELECT COUNT(*) AS n FROM analytics_persons WHERE project_id = ?').get(p.id)) as { n: number };
+    expect(Number(persons.n)).toBe(0);
+  });
+  it('sesión nueva después de 30 minutos, y un identify no crea a nadie', async () => {
+    const { project: p, user } = await newProject();
+    await updateProject(user.id, p.id, { cookieless: true });
+    const fresh = (await getProject(user.id, p.id))!;
+    const req = new Request('http://x', { headers: { 'user-agent': UA, origin: 'http://shop.test' } });
+    const ev = (ts: number, event = '$pageview') => ({ event, distinctId: '$zs_cookieless', properties: {}, ts, uuid: null, set: { email: 'a@b.c' }, setOnce: null });
+    const t = Date.now() - 3_600_000;
+    const out = await applyCookieless(fresh, [ev(t), ev(t + 60_000), ev(t + 40 * 60_000), ev(t + 40 * 60_000, '$identify')], req, '8.8.8.8');
+    expect(out).toHaveLength(3);
+    expect(out[0].properties.$session_id).toBe(out[1].properties.$session_id);
+    expect(out[2].properties.$session_id).not.toBe(out[1].properties.$session_id);
+    expect(out.every((e) => e.set === null && e.distinctId.startsWith('ck_'))).toBe(true);
+  });
+  it('las sales viejas se borran: ya no se puede recalcular el id de hace días', async () => {
+    const now = Date.parse('2030-05-10T12:00:00Z');
+    await getDb().prepare('INSERT OR IGNORE INTO analytics_cookieless_salts (day, salt, created_at) VALUES (?, ?, ?)').run('2030-05-01', 'old', now);
+    await getDb().prepare('INSERT OR IGNORE INTO analytics_cookieless_salts (day, salt, created_at) VALUES (?, ?, ?)').run('2030-05-10', 'new', now);
+    await purgeCookielessSalts(now);
+    const left = (await getDb().prepare("SELECT day FROM analytics_cookieless_salts WHERE day IN ('2030-05-01', '2030-05-10')").all()) as Array<{ day: string }>;
+    expect(left.map((r) => r.day)).toEqual(['2030-05-10']);
+    await getDb().prepare("DELETE FROM analytics_cookieless_salts WHERE day = '2030-05-10'").run();
   });
 });
 

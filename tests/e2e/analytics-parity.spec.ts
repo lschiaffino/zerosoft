@@ -445,6 +445,67 @@ test('zona horaria: se elige en ajustes y los días del gráfico cortan a median
   await expect(page.getByTestId('an-result').getByRole('cell', { name: '2', exact: true })).toBeVisible({ timeout: 10_000 });
 });
 
+test('sin cookies con el snippet real: nada en el navegador, visitantes contados y consentimiento', async ({ browser, request, baseURL, page }) => {
+  test.setTimeout(120_000);
+  const { project } = (await (await request.post('/api/analytics/projects', { data: { name: `Cookieless ${uid()}` } })).json()) as { project: { id: string; publicKey: string } };
+  await page.context().addCookies([{ name: 'zs_analytics_project', value: project.id, url: baseURL! }]);
+  await page.goto('/en/app/analytics/settings', { waitUntil: 'networkidle' });
+  await page.getByTestId('an-cookieless').check();
+  await page.getByRole('button', { name: 'Save' }).first().click();
+  await expect(page.getByRole('status').filter({ hasText: /saved/i }).first()).toBeVisible();
+  await shot(page, 'settings-cookieless');
+  const port = (Number(process.env.E2E_PORT) || 3210) + 10;
+  let mode = 'always';
+  const server = http.createServer((_q, res) => {
+    res.writeHead(200, { 'content-type': 'text/html' });
+    res.end(`<!doctype html><title>s</title><a id="next" href="/two">Next</a><script src="${baseURL}/zs.js"></script><script>window.zs.init('${project.publicKey}', { api_host: '${baseURL}', cookieless_mode: '${mode}' });</script>`);
+  });
+  await new Promise<void>((resolve) => server.listen(port, '127.0.0.1', resolve));
+  const events = async () => ((await (await request.get(`/api/analytics/events?project=${project.id}`)).json()) as { events: Array<{ event: string; distinctId: string; pathname: string | null }> }).events;
+  const site = await browser.newContext();
+  const a = await site.newPage();
+  await a.goto(`http://127.0.0.1:${port}/one`);
+  await expect.poll(async () => (await events()).length, { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
+  await a.click('#next');
+  await expect.poll(async () => (await events()).filter((e) => e.pathname === '/two').length, { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
+  // Nada guardado en el navegador, y la misma persona en las dos páginas.
+  expect(await a.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('zs_')))).toEqual([]);
+  expect(await a.evaluate(() => document.cookie)).toBe('');
+  const seen = await events();
+  expect(new Set(seen.map((e) => e.distinctId)).size).toBe(1);
+  expect(seen[0].distinctId).toMatch(/^ck_/);
+  await site.close();
+  const { result } = await (await request.post('/api/analytics/query', { data: { projectId: project.id, query: { kind: 'web', dateRange: { from: '-7d' } } } })).json();
+  expect(result.stats.visitors.value).toBe(1);
+  expect(result.stats.pageviews.value).toBe(2);
+  expect(result.stats.sessions.value).toBe(1);
+
+  // Con aviso de cookies: nada hasta decidir, y al rechazar sigue sin cookies.
+  mode = 'on_reject';
+  const before = (await events()).length;
+  const ctx = await browser.newContext();
+  const b = await ctx.newPage();
+  await b.goto(`http://127.0.0.1:${port}/banner`);
+  await b.waitForTimeout(2500);
+  expect((await events()).length).toBe(before);
+  expect(await b.evaluate(() => (window as unknown as { zs: { getConsentStatus: () => string } }).zs.getConsentStatus())).toBe('pending');
+  expect(await b.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('zs_')))).toEqual([]);
+  await b.evaluate(() => (window as unknown as { zs: { optOut: () => void } }).zs.optOut());
+  await expect.poll(async () => (await events()).filter((e) => e.pathname === '/banner').length, { timeout: 15_000 }).toBe(1);
+  expect((await events()).find((e) => e.pathname === '/banner')?.distinctId).toMatch(/^ck_/);
+  await ctx.close();
+  // Si acepta: id propio guardado.
+  const ctx2 = await browser.newContext();
+  const c = await ctx2.newPage();
+  await c.goto(`http://127.0.0.1:${port}/accepted`);
+  await c.evaluate(() => (window as unknown as { zs: { optIn: () => void } }).zs.optIn());
+  await expect.poll(async () => (await events()).filter((e) => e.pathname === '/accepted').length, { timeout: 15_000 }).toBe(1);
+  expect((await events()).find((e) => e.pathname === '/accepted')?.distinctId).not.toMatch(/^ck_/);
+  expect(await c.evaluate(() => Object.keys(localStorage).some((k) => k.endsWith('_id')))).toBe(true);
+  await ctx2.close();
+  server.close();
+});
+
 test('API key de la ingesta de PostHog: /batch y /flags', async ({ request }) => {
   const batch = await request.post('/api/ingest/batch', { headers: H, data: { api_key: publicKey, batch: [{ event: 'from_sdk', distinct_id: 'sdk', properties: {} }] } });
   expect(batch.status()).toBe(200);

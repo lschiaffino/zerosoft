@@ -3,7 +3,8 @@
  * de eventos, miembros de cohortes estáticas y links públicos. El proyecto ya
  * se validó contra el workspace en la ruta. Server-only.
  */
-import { randomBytes } from 'crypto';
+import { hashPassword, verifyPassword } from '../links';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { nanoid } from 'nanoid';
 import { getDb } from '../db';
 import { actionStepSchema, ACTION_PREFIX, type ActionDto, type AnnotationDto, type EventDefinitionDto } from './types';
@@ -183,6 +184,11 @@ export function parseMemberList(text: string): string[] {
 
 // ---------- Links públicos ----------
 
+export interface ShareOptions {
+  theme?: 'system' | 'light' | 'dark';
+  legend?: boolean;
+}
+
 export interface ShareRow {
   id: string;
   token: string;
@@ -190,6 +196,16 @@ export interface ShareRow {
   insight_id: string | null;
   dashboard_id: string | null;
   created_at: string;
+  options?: string | null;
+}
+
+export function shareOptions(r: Pick<ShareRow, 'options'>): ShareOptions {
+  try {
+    const o = JSON.parse(r.options || '{}') as ShareOptions;
+    return { theme: o.theme === 'light' || o.theme === 'dark' ? o.theme : 'system', legend: o.legend !== false };
+  } catch {
+    return { theme: 'system', legend: true };
+  }
 }
 
 export function isAnalyticsShareToken(token: string): boolean {
@@ -199,7 +215,7 @@ export function isAnalyticsShareToken(token: string): boolean {
 export async function listShares(projectId: string, target: { insightId?: string; dashboardId?: string }): Promise<ShareRow[]> {
   const col = target.insightId ? 'insight_id' : 'dashboard_id';
   return (await getDb()
-    .prepare(`SELECT id, token, project_id, insight_id, dashboard_id, created_at FROM analytics_shares WHERE project_id = ? AND ${col} = ? ORDER BY created_at DESC LIMIT 10`)
+    .prepare(`SELECT id, token, project_id, insight_id, dashboard_id, created_at, options FROM analytics_shares WHERE project_id = ? AND ${col} = ? ORDER BY created_at DESC LIMIT 10`)
     .all(projectId, target.insightId ?? target.dashboardId ?? '')) as unknown as ShareRow[];
 }
 
@@ -210,10 +226,179 @@ export async function createShare(projectId: string, personId: string, target: {
   await getDb()
     .prepare('INSERT INTO analytics_shares (id, token, project_id, insight_id, dashboard_id, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
     .run(id, token, projectId, target.insightId ?? null, target.dashboardId ?? null, personId, ts);
-  return { id, token, project_id: projectId, insight_id: target.insightId ?? null, dashboard_id: target.dashboardId ?? null, created_at: ts };
+  await logShare(projectId, id, 'enabled', personId, target);
+  return { id, token, project_id: projectId, insight_id: target.insightId ?? null, dashboard_id: target.dashboardId ?? null, created_at: ts, options: '{}' };
 }
 
-export async function revokeShare(projectId: string, id: string): Promise<boolean> {
+export type ShareAction = 'enabled' | 'disabled' | 'options' | 'token_rotated' | 'password_added' | 'password_removed';
+
+/** Quién publicó qué y cuándo. */
+export async function logShare(projectId: string, shareId: string, action: ShareAction, personId: string | null, target: { insightId?: string | null; dashboardId?: string | null }): Promise<void> {
+  await getDb()
+    .prepare('INSERT INTO analytics_share_log (id, project_id, share_id, action, person_id, insight_id, dashboard_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(`asl_${nanoid(12)}`, projectId, shareId, action, personId, target.insightId ?? null, target.dashboardId ?? null, nowIso());
+}
+
+export async function listShareLog(projectId: string, target: { insightId?: string; dashboardId?: string }, limit = 30): Promise<Array<{ action: ShareAction; personId: string | null; createdAt: string }>> {
+  const col = target.insightId ? 'insight_id' : 'dashboard_id';
+  const rows = (await getDb()
+    .prepare(`SELECT action, person_id, created_at FROM analytics_share_log WHERE project_id = ? AND ${col} = ? ORDER BY created_at DESC LIMIT ?`)
+    .all(projectId, target.insightId ?? target.dashboardId ?? '', limit)) as unknown as Array<{ action: ShareAction; person_id: string | null; created_at: string }>;
+  return rows.map((r) => ({ action: r.action, personId: r.person_id, createdAt: r.created_at }));
+}
+
+async function shareById(projectId: string, id: string): Promise<ShareRow | null> {
+  return ((await getDb().prepare('SELECT id, token, project_id, insight_id, dashboard_id, created_at, options FROM analytics_shares WHERE id = ? AND project_id = ?').get(id, projectId)) as ShareRow | undefined) ?? null;
+}
+
+export async function updateShareOptions(projectId: string, id: string, options: ShareOptions, personId: string): Promise<ShareRow | null> {
+  const cur = await shareById(projectId, id);
+  if (!cur) return null;
+  const next = { ...shareOptions(cur), ...options };
+  await getDb().prepare('UPDATE analytics_shares SET options = ? WHERE id = ?').run(JSON.stringify(next), id);
+  await logShare(projectId, id, 'options', personId, { insightId: cur.insight_id, dashboardId: cur.dashboard_id });
+  return shareById(projectId, id);
+}
+
+/** Token nuevo: el link anterior deja de abrir. */
+export async function rotateShareToken(projectId: string, id: string, personId: string): Promise<ShareRow | null> {
+  const cur = await shareById(projectId, id);
+  if (!cur) return null;
+  await getDb().prepare('UPDATE analytics_shares SET token = ? WHERE id = ?').run(randomBytes(32).toString('base64url'), id);
+  await logShare(projectId, id, 'token_rotated', personId, { insightId: cur.insight_id, dashboardId: cur.dashboard_id });
+  return shareById(projectId, id);
+}
+
+export interface SharePasswordDto {
+  id: string;
+  note: string;
+  createdAt: string;
+  createdBy: string | null;
+}
+
+export async function listSharePasswords(shareId: string): Promise<SharePasswordDto[]> {
+  const rows = (await getDb().prepare('SELECT id, note, created_by, created_at FROM analytics_share_passwords WHERE share_id = ? ORDER BY created_at').all(shareId)) as unknown as Array<{ id: string; note: string; created_by: string | null; created_at: string }>;
+  return rows.map((r) => ({ id: r.id, note: r.note, createdAt: r.created_at, createdBy: r.created_by }));
+}
+
+/** Agrega una contraseña; sin texto, la genera. Se muestra una sola vez: acá solo queda su hash. */
+export async function addSharePassword(projectId: string, id: string, personId: string, input: { password?: string; note?: string }): Promise<{ id: string; password: string } | null> {
+  const cur = await shareById(projectId, id);
+  if (!cur) return null;
+  const password = input.password?.trim() || randomBytes(12).toString('base64url');
+  const pid = `asp_${nanoid(12)}`;
+  await getDb()
+    .prepare('INSERT INTO analytics_share_passwords (id, share_id, hash, note, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(pid, id, await hashPassword(password), (input.note ?? '').slice(0, 200), personId, nowIso());
+  await logShare(projectId, id, 'password_added', personId, { insightId: cur.insight_id, dashboardId: cur.dashboard_id });
+  return { id: pid, password };
+}
+
+export async function removeSharePassword(projectId: string, id: string, passwordId: string, personId: string): Promise<boolean> {
+  const cur = await shareById(projectId, id);
+  if (!cur) return false;
+  const res = await getDb().prepare('DELETE FROM analytics_share_passwords WHERE id = ? AND share_id = ?').run(passwordId, id);
+  if (res.changes > 0) await logShare(projectId, id, 'password_removed', personId, { insightId: cur.insight_id, dashboardId: cur.dashboard_id });
+  return res.changes > 0;
+}
+
+/** La contraseña que coincide, si alguna. */
+export async function matchSharePassword(shareId: string, password: string): Promise<string | null> {
+  const rows = (await getDb().prepare('SELECT id, hash FROM analytics_share_passwords WHERE share_id = ?').all(shareId)) as unknown as Array<{ id: string; hash: string }>;
+  for (const r of rows) if (await verifyPassword(password, r.hash)) return r.id;
+  return null;
+}
+
+const SHARE_ACCESS_MS = 24 * 3_600_000;
+const shareSecret = () => process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || process.env.ENCRYPTION_KEY || '';
+const signAccess = (shareId: string, passwordId: string, exp: number) => createHmac('sha256', `analytics-share:${shareSecret()}`).update(`${shareId}.${passwordId}.${exp}`).digest('base64url');
+
+export const shareCookieName = (shareId: string) => `zs_ashare_${shareId}`;
+
+/** Lo que se guarda en el navegador tras una contraseña correcta: dura 24 horas y cae si se borra esa contraseña. */
+export function shareAccessCookie(shareId: string, passwordId: string, now = Date.now()): string {
+  const exp = now + SHARE_ACCESS_MS;
+  return `${passwordId}.${exp}.${signAccess(shareId, passwordId, exp)}`;
+}
+
+export async function shareAccessOk(shareId: string, cookie: string | undefined, now = Date.now()): Promise<boolean> {
+  const [passwordId, expRaw, sig] = (cookie ?? '').split('.');
+  const exp = Number(expRaw);
+  if (!passwordId || !sig || !Number.isFinite(exp) || exp < now) return false;
+  const want = Buffer.from(signAccess(shareId, passwordId, exp));
+  const got = Buffer.from(sig);
+  if (want.length !== got.length || !timingSafeEqual(want, got)) return false;
+  const row = await getDb().prepare('SELECT 1 AS x FROM analytics_share_passwords WHERE id = ? AND share_id = ?').get(passwordId, shareId);
+  return Boolean(row);
+}
+
+export const shareHasPasswordProtect = async (shareId: string): Promise<boolean> => Boolean(await getDb().prepare('SELECT 1 AS x FROM analytics_share_passwords WHERE share_id = ? LIMIT 1').get(shareId));
+
+/** ¿Lo que se quiere tocar se ve afuera? En un link público o en el email de una suscripción, también a través de un tablero. */
+export async function hasActiveShare(projectId: string, target: { insightId?: string; dashboardId?: string }): Promise<boolean> {
+  const db = getDb();
+  if (target.insightId) {
+    const boards = `(SELECT dashboard_id FROM analytics_dashboard_items WHERE insight_id = ?)`;
+    const row =
+      (await db.prepare(`SELECT 1 AS x FROM analytics_shares s WHERE s.project_id = ? AND (s.insight_id = ? OR s.dashboard_id IN ${boards}) LIMIT 1`).get(projectId, target.insightId, target.insightId)) ??
+      (await db.prepare(`SELECT 1 AS x FROM analytics_subscriptions s WHERE s.project_id = ? AND (s.insight_id = ? OR s.dashboard_id IN ${boards}) LIMIT 1`).get(projectId, target.insightId, target.insightId));
+    return Boolean(row);
+  }
+  const id = target.dashboardId ?? '';
+  const row =
+    (await db.prepare('SELECT 1 AS x FROM analytics_shares WHERE project_id = ? AND dashboard_id = ? LIMIT 1').get(projectId, id)) ??
+    (await db.prepare('SELECT 1 AS x FROM analytics_subscriptions WHERE project_id = ? AND dashboard_id = ? LIMIT 1').get(projectId, id));
+  return Boolean(row);
+}
+
+/** Lo que aparece en cada link público del proyecto: el nombre del insight o tablero y la consulta de cada insight. */
+async function sharedTargets(projectId: string): Promise<Array<{ shareId: string; name: string; queries: string[]; boardSettings: string | null; insightId: string | null; dashboardId: string | null }>> {
+  const db = getDb();
+  const rows = (await db
+    .prepare(
+      `SELECT s.id AS share_id, s.insight_id, s.dashboard_id, i.name AS insight_name, i.query AS insight_query, d.name AS board_name, d.settings AS board_settings
+       FROM analytics_shares s LEFT JOIN analytics_insights i ON i.id = s.insight_id LEFT JOIN analytics_dashboards d ON d.id = s.dashboard_id WHERE s.project_id = ?`,
+    )
+    .all(projectId)) as unknown as Array<{ share_id: string; insight_id: string | null; dashboard_id: string | null; insight_name: string | null; insight_query: string | null; board_name: string | null; board_settings: string | null }>;
+  const out = [];
+  for (const r of rows) {
+    const queries = r.insight_query ? [r.insight_query] : [];
+    if (r.dashboard_id) {
+      const items = (await db.prepare('SELECT i.query FROM analytics_dashboard_items x JOIN analytics_insights i ON i.id = x.insight_id WHERE x.dashboard_id = ?').all(r.dashboard_id)) as unknown as Array<{ query: string }>;
+      queries.push(...items.map((x) => x.query));
+    }
+    out.push({ shareId: r.share_id, name: r.insight_name ?? r.board_name ?? '', queries, boardSettings: r.board_settings, insightId: r.insight_id, dashboardId: r.dashboard_id });
+  }
+  return out;
+}
+
+const usesCohort = (text: string, id: string) => text.includes(`"cohortId":"${id}"`) || text.includes(`"${id}"`);
+const usesAction = (text: string, id: string) => text.includes(`"${ACTION_PREFIX}${id}"`);
+
+/** Links públicos cuyos números cambian si se edita esta cohorte o acción. */
+export async function sharesUsing(projectId: string, record: { cohortId?: string; actionId?: string }): Promise<Array<{ shareId: string; name: string }>> {
+  const uses = (text: string) => (record.cohortId ? usesCohort(text, record.cohortId) : usesAction(text, record.actionId ?? ''));
+  return (await sharedTargets(projectId)).filter((t) => t.queries.some(uses) || (record.cohortId && t.boardSettings && uses(t.boardSettings))).map((t) => ({ shareId: t.shareId, name: t.name }));
+}
+
+/** Para quien administra un link: de qué cohortes y acciones dependen sus números. */
+export async function shareDependencies(projectId: string, target: { insightId?: string; dashboardId?: string }): Promise<Array<{ kind: 'cohort' | 'action'; name: string }>> {
+  const db = getDb();
+  const t = (await sharedTargets(projectId)).find((x) => (target.insightId ? x.insightId === target.insightId : x.dashboardId === target.dashboardId));
+  if (!t) return [];
+  const text = [...t.queries, t.boardSettings ?? ''].join('\n');
+  const cohorts = (await db.prepare('SELECT id, name FROM analytics_cohorts WHERE project_id = ?').all(projectId)) as unknown as Array<{ id: string; name: string }>;
+  const actions = (await db.prepare('SELECT id, name FROM analytics_actions WHERE project_id = ?').all(projectId)) as unknown as Array<{ id: string; name: string }>;
+  return [
+    ...cohorts.filter((c) => usesCohort(text, c.id)).map((c) => ({ kind: 'cohort' as const, name: c.name })),
+    ...actions.filter((a) => usesAction(text, a.id)).map((a) => ({ kind: 'action' as const, name: a.name })),
+  ];
+}
+
+export async function revokeShare(projectId: string, id: string, personId: string | null = null): Promise<boolean> {
+  const cur = await shareById(projectId, id);
+  if (cur) await logShare(projectId, id, 'disabled', personId, { insightId: cur.insight_id, dashboardId: cur.dashboard_id });
+  await getDb().prepare('DELETE FROM analytics_share_passwords WHERE share_id = ?').run(id);
   const res = await getDb().prepare('DELETE FROM analytics_shares WHERE id = ? AND project_id = ?').run(id, projectId);
   return res.changes > 0;
 }
@@ -223,7 +408,7 @@ export async function shareByToken(token: string): Promise<ShareRow | null> {
   if (!isAnalyticsShareToken(token)) return null;
   const row = (await getDb()
     .prepare(
-      `SELECT s.id, s.token, s.project_id, s.insight_id, s.dashboard_id, s.created_at FROM analytics_shares s
+      `SELECT s.id, s.token, s.project_id, s.insight_id, s.dashboard_id, s.created_at, s.options FROM analytics_shares s
        JOIN analytics_projects p ON p.id = s.project_id WHERE s.token = ? AND p.deleted_at IS NULL`,
     )
     .get(token)) as ShareRow | undefined;

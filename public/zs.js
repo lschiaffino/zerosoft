@@ -8,7 +8,9 @@
  * zs.alias(alias), zs.group(type, key, props), zs.register(props), zs.reset(),
  * zs.isFeatureEnabled(key), zs.getFeatureFlag(key), zs.getFeatureFlagPayload(key), zs.onFeatureFlags(fn),
  * zs.reloadFeatureFlags(), zs.getDistinctId(), zs.optOut(), zs.optIn(),
- * zs.captureException(err, props), zs.getSurveys(fn).
+ * zs.captureException(err, props), zs.getSurveys(fn), zs.getConsentStatus().
+ * init acepta cookieless_mode: 'always' | 'on_reject' (el proyecto tiene que tenerlo prendido) y
+ * opt_out_capturing_by_default: true.
  * init acepta disable_session_recording: true para no grabar nunca en esta página.
  *
  * Captura sola: $pageview (también en apps de una página), y si el proyecto
@@ -45,7 +47,16 @@
     for (var i = 0; i < 32; i++) s += Math.floor(Math.random() * 16).toString(16);
     return s.slice(0, 8) + '-' + s.slice(8, 12) + '-4' + s.slice(13, 16) + '-a' + s.slice(17, 20) + '-' + s.slice(20, 32);
   }
+  // Sin cookies (o sin consentimiento todavía) nada se guarda en el navegador, salvo la decisión de consentimiento.
+  var memory = {};
+  var SENTINEL = '$zs_cookieless';
   function store(k, v) {
+    if (cfg.noStorage && k !== 'consent') {
+      if (v === undefined) return memory[k] === undefined ? null : memory[k];
+      if (v === null) delete memory[k];
+      else memory[k] = v;
+      return v;
+    }
     try {
       if (v === undefined) return JSON.parse(w.localStorage.getItem('zs_' + cfg.key + '_' + k) || 'null');
       if (v === null) w.localStorage.removeItem('zs_' + cfg.key + '_' + k);
@@ -55,12 +66,32 @@
     }
     return v;
   }
+  /** Borra todo lo del proyecto en este navegador, salvo la decisión de consentimiento. */
+  function wipeIdentity() {
+    memory = {};
+    [w.localStorage, w.sessionStorage].forEach(function (area) {
+      try {
+        var prefix = 'zs_' + cfg.key + '_';
+        for (var i = area.length - 1; i >= 0; i--) {
+          var name = area.key(i);
+          if (name && name.indexOf(prefix) === 0 && name !== prefix + 'consent') area.removeItem(name);
+        }
+      } catch (e) {
+        /* sin almacenamiento */
+      }
+    });
+    state.identified = false;
+    state.props = {};
+    state.groups = {};
+  }
   function assign(a, b) {
     for (var k in b) if (Object.prototype.hasOwnProperty.call(b, k)) a[k] = b[k];
     return a;
   }
 
   function session() {
+    // Sin cookies, la sesión la arma el servidor.
+    if (cfg.cookieless) return undefined;
     var s = store('session');
     var t = now();
     if (!s || !s.id || t - s.last > SESSION_MS) s = { id: uuid(), last: t };
@@ -155,7 +186,7 @@
   }
 
   function identify(id, props) {
-    if (!id) return;
+    if (!id || cfg.cookieless) return;
     id = String(id);
     var prev = state.distinctId;
     if (prev === id) {
@@ -175,7 +206,7 @@
   }
 
   function alias(a) {
-    if (a) capture('$create_alias', { alias: String(a) });
+    if (a && !cfg.cookieless) capture('$create_alias', { alias: String(a) });
   }
 
   function group(type, key, props) {
@@ -191,6 +222,7 @@
   }
 
   function reset() {
+    if (cfg.cookieless) return;
     flushReplay(false);
     state.distinctId = uuid();
     state.identified = false;
@@ -206,6 +238,19 @@
   // ---------- Flags ----------
   function loadFlags() {
     if (!cfg.key) return Promise.resolve(null);
+    if (state.optedOut) {
+      state.flags = {};
+      state.flagPayloads = {};
+      var waiting = state.flagCbs.slice();
+      waiting.forEach(function (cb) {
+        try {
+          cb(state.flags);
+        } catch (e) {
+          /* callback del sitio */
+        }
+      });
+      return Promise.resolve(state.flags);
+    }
     return send('/api/ingest/decide', { api_key: cfg.key, distinct_id: state.distinctId }, false).then(function (r) {
       if (!r) {
         startAutocapture();
@@ -222,6 +267,16 @@
       if (r.config && r.config.replay) startReplay(r.config.replay);
       if (r.config) {
         cfg.respectDnt = !!r.config.respectDnt;
+        // Do Not Track o GPC con el ajuste prendido: nada queda en el navegador.
+        if (browserSignal()) {
+          if (cfg.respectDnt) {
+            cfg.noStorage = true;
+            wipeIdentity();
+          } else if (cfg.noStorage && !cfg.cookieless && !state.optedOut) {
+            cfg.noStorage = false;
+            store('id', { id: state.distinctId, identified: state.identified });
+          }
+        }
         if (r.config.captureExceptions) startExceptionCapture();
         if (r.config.webVitals) startWebVitals();
         if (r.config.surveys) loadSurveys();
@@ -694,7 +749,7 @@
     }
   }
   function startReplay(conf) {
-    if (replay.started || !conf || !conf.enabled || cfg.noReplay || state.optedOut) return;
+    if (replay.started || !conf || !conf.enabled || cfg.noReplay || cfg.cookieless || state.optedOut) return;
     replay.started = true;
     replay.conf = { sampleRate: Number(conf.sampleRate) || 100, maskAllText: conf.maskAllText !== false };
     var win = sessionGet('window');
@@ -866,6 +921,7 @@
     '.thanks{margin:0 24px 0 0;font-weight:600;overflow-wrap:anywhere}';
 
   function loadSurveys() {
+    if (cfg.cookieless) return;
     return send('/api/ingest/surveys', { api_key: cfg.key, distinct_id: state.distinctId }, false).then(function (r) {
       surveyList = r && Array.isArray(r.surveys) ? r.surveys : [];
       evaluateSurveys();
@@ -884,8 +940,11 @@
     if (s.urlContains && w.location.href.indexOf(s.urlContains) < 0) return false;
     return !surveySeen(s);
   }
+  function browserSignal() {
+    return w.navigator.doNotTrack === '1' || w.navigator.globalPrivacyControl === true;
+  }
   function dntActive() {
-    return cfg.respectDnt && (w.navigator.doNotTrack === '1' || w.navigator.globalPrivacyControl === true);
+    return cfg.respectDnt && browserSignal();
   }
   function evaluateSurveys() {
     if (!surveyList || surveyOpen || surveyTimer || state.optedOut || dntActive() || !d.body) return;
@@ -1103,6 +1162,48 @@
     w.addEventListener('popstate', pageview);
   }
 
+  /**
+   * Qué se puede hacer según el modo y la decisión de la persona:
+   * always: siempre sin cookies. on_reject: sin decisión no se captura nada,
+   * si acepta es lo normal y si rechaza, sin cookies. opt_out_capturing_by_default:
+   * sin decisión no se captura ni se guarda.
+   */
+  function applyConsent(consent) {
+    cfg.cookieless = cfg.mode === 'always' || (cfg.mode === 'on_reject' && consent === 'denied');
+    var pending = !consent && (cfg.mode === 'on_reject' || cfg.defaultOut);
+    state.optedOut = pending || (consent === 'denied' && cfg.mode !== 'on_reject' && cfg.mode !== 'always');
+    cfg.noStorage = cfg.cookieless || pending || consent === 'denied';
+    if (cfg.noStorage) wipeIdentity();
+  }
+  function setConsent(value) {
+    store('consent', value);
+    applyConsent(value);
+    if (cfg.cookieless) {
+      state.distinctId = SENTINEL;
+      state.identified = false;
+    } else if (!cfg.noStorage) {
+      var saved = store('id');
+      if (!saved) {
+        // Lo que se miró antes de decidir no se guardó: el id anónimo empieza acá.
+        state.distinctId = state.distinctId && state.distinctId !== SENTINEL ? state.distinctId : uuid();
+        store('id', { id: state.distinctId, identified: false });
+      } else {
+        state.distinctId = saved.id;
+        state.identified = !!saved.identified;
+      }
+    }
+    store('optout', null);
+    if (!state.optedOut) {
+      lastPath = null;
+      loadFlags();
+      pageview();
+    }
+  }
+  function consentStatus() {
+    var c = store('consent');
+    return c === 'granted' || c === 'denied' ? c : 'pending';
+  }
+
   function init(key, opts) {
     if (state.ready || !key || sandboxedFrame) return;
     opts = opts || {};
@@ -1121,11 +1222,26 @@
     if (opts.capture_pageview === false) cfg.pageviews = false;
     cfg.debug = !!opts.debug;
     cfg.noReplay = opts.disable_session_recording === true;
-    state.optedOut = !!store('optout');
-    var saved = store('id');
-    state.distinctId = saved && saved.id ? saved.id : uuid();
-    state.identified = !!(saved && saved.identified);
-    if (!saved) store('id', { id: state.distinctId, identified: false });
+    cfg.mode = opts.cookieless_mode === 'always' || opts.cookieless_mode === 'on_reject' ? opts.cookieless_mode : 'never';
+    cfg.defaultOut = opts.opt_out_capturing_by_default === true;
+    var consent = store('consent');
+    applyConsent(consent);
+    // Quien había salido con una versión anterior: queda como rechazo.
+    if (!consent && !cfg.noStorage && store('optout')) {
+      store('consent', 'denied');
+      applyConsent('denied');
+    }
+    if (cfg.cookieless) {
+      state.distinctId = SENTINEL;
+      state.identified = false;
+    } else {
+      var saved = store('id');
+      state.distinctId = saved && saved.id ? saved.id : uuid();
+      state.identified = !!(saved && saved.identified);
+      // Con Do Not Track o GPC no se escribe nada hasta saber si el proyecto lo respeta.
+      if (!cfg.noStorage && browserSignal()) cfg.noStorage = true;
+      if (!saved) store('id', { id: state.distinctId, identified: false });
+    }
     state.props = store('props') || {};
     state.groups = store('groups') || {};
     state.ready = true;
@@ -1175,15 +1291,25 @@
         if (typeof cb === 'function') cb(r && Array.isArray(r.surveys) ? r.surveys : []);
       });
     },
+    getConsentStatus: consentStatus,
+    get_explicit_consent_status: consentStatus,
+    has_opted_in_capturing: function () {
+      return consentStatus() === 'granted';
+    },
+    has_opted_out_capturing: function () {
+      return state.optedOut;
+    },
+    opt_in_capturing: function () {
+      setConsent('granted');
+    },
+    opt_out_capturing: function () {
+      api.optOut();
+    },
     optOut: function () {
-      state.optedOut = true;
-      state.buffer = [];
-      if (replay.started) stopReplay();
-      store('optout', true);
+      setConsent('denied');
     },
     optIn: function () {
-      state.optedOut = false;
-      store('optout', null);
+      setConsent('granted');
     },
     push: function (args) {
       var m = args && api[args[0]];

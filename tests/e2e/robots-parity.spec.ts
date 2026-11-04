@@ -1,5 +1,10 @@
 import { createServer, type Server } from 'node:http';
+import { ownWorkspace } from './helpers/own-workspace';
 import { expect, test, type Page } from '@playwright/test';
+
+
+// Su propio workspace: las corridas de robots por hora no se comparten con el resto del shard.
+ownWorkspace('robots-parity');
 
 /**
  * Robots, tanda de paridad: galería de plantillas, armado con IA (modelo

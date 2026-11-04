@@ -73,6 +73,94 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-02-analytics-tendencias-tableros',
+    date: '2026-11-02',
+    title: {
+      en: 'Analytics: trend options and dashboards with filters, text and templates',
+      es: 'Analytics: opciones de tendencias y tableros con filtros, texto y plantillas',
+      pt: 'Analytics: opções de tendências e painéis com filtros, texto e modelos',
+    },
+    items: [
+      {
+        product: 'analytics',
+        en: 'Trends add weekly and monthly active people, per-person minimum, maximum, median and percentiles, several events in one series and first occurrence. Charts gain smoothing, hidden weekends, goal lines, axis range and labels, value units, a dotted line for the period still running, stacked bars, total bars, donut and proportion bar. Series can be turned off or isolated.',
+        es: 'Las tendencias suman personas activas por semana y por mes, mínimo, máximo, mediana y percentiles por persona, varios eventos en una serie y primera ocurrencia. Los gráficos suman suavizado, fines de semana ocultos, líneas de meta, rango y etiquetas de ejes, unidades, línea punteada para el período en curso, barras apiladas, barras de total, anillo y barra de proporción. Las series se pueden apagar o aislar.',
+        pt: 'As tendências ganham pessoas ativas por semana e por mês, mínimo, máximo, mediana e percentis por pessoa, vários eventos em uma série e primeira ocorrência. Os gráficos ganham suavização, fins de semana ocultos, linhas de meta, intervalo e rótulos de eixos, unidades, linha pontilhada para o período em andamento, barras empilhadas, barras de total, rosca e barra de proporção. As séries podem ser desligadas ou isoladas.',
+      },
+      {
+        product: 'analytics',
+        en: 'Dashboards keep their date range, filters, cohort and internal people setting, and refresh on their own while the tab is open. Tiles have their own size, dates, filters and display, can ignore the dashboard filters and can be copied or moved. Text cards in Markdown and three ready-made dashboards: website, product health and LLM metrics.',
+        es: 'Los tableros guardan sus fechas, filtros, cohorte y gente interna, y se actualizan solos con la pestaña abierta. Las tarjetas tienen su tamaño, fechas, filtros y vista, pueden ignorar los filtros del tablero y se copian o mueven. Tarjetas de texto en Markdown y tres tableros armados: sitio web, salud del producto y métricas de LLM.',
+        pt: 'Os painéis guardam seu período, filtros, coorte e pessoas internas, e se atualizam sozinhos com a aba aberta. Os cards têm tamanho, período, filtros e visão próprios, podem ignorar os filtros do painel e podem ser copiados ou movidos. Cards de texto em Markdown e três painéis prontos: site, saúde do produto e métricas de LLM.',
+      },
+      {
+        product: 'analytics',
+        en: 'Retention gains hours and months, recurring and first-ever cohorts, on or after returning, percentages over the previous period, weighted or simple means, breakdowns, group counts, a chart, and a click on a cell lists its people.',
+        es: 'Retención suma horas y meses, cohortes recurrentes y de primera vez de todas, vuelta en un período o después, porcentajes sobre el período anterior, promedio ponderado o simple, aperturas, conteo por grupos, gráfico, y un clic en una celda lista a sus personas.',
+        pt: 'A retenção ganha horas e meses, coortes recorrentes e de primeira vez de todas, volta em um período ou depois, percentuais sobre o período anterior, média ponderada ou simples, aberturas, contagem por grupos, gráfico, e um clique em uma célula lista suas pessoas.',
+      },
+      {
+        product: 'analytics',
+        en: 'Rejecting consent, Do Not Track, Global Privacy Control and cookieless mode now clear what the snippet had saved in the browser. Changes to what appears on a public link or in a subscription email and to feature flags need an admin, and public links accept breakdowns only by browser, OS, device, country, page, host, referrer or UTM.',
+        es: 'Rechazar el consentimiento, Do Not Track, Global Privacy Control y el modo sin cookies ahora borran lo que el snippet había guardado en el navegador. Cambiar lo que aparece en un link público o en el email de una suscripción y los feature flags necesita un admin, y los links públicos solo aceptan aperturas por navegador, sistema, dispositivo, país, página, host, referente o UTM.',
+        pt: 'Recusar o consentimento, Do Not Track, Global Privacy Control e o modo sem cookies agora apagam o que o snippet tinha guardado no navegador. Mudar o que aparece em um link público ou no email de uma inscrição e os feature flags precisa de um admin, e os links públicos só aceitam aberturas por navegador, sistema, dispositivo, país, página, host, referência ou UTM.',
+      },
+      {
+        product: 'analytics',
+        en: 'Trend breakdowns can combine up to three properties, use group properties, group numbers into ranges, compare cohorts and load more than the first 25 values.',
+        es: 'Las aperturas de tendencias combinan hasta tres propiedades, usan propiedades de grupo, agrupan números en rangos, comparan cohortes y cargan más que los primeros 25 valores.',
+        pt: 'As aberturas de tendências combinam até três propriedades, usam propriedades de grupo, agrupam números em faixas, comparam coortes e carregam mais do que os primeiros 25 valores.',
+      },
+      {
+        product: 'analytics',
+        en: 'Public links gain a theme, a legend option, passwords with a note for each person, a new link without changing the insight, a history of changes, refresh on load with ?refresh=true, refresh every 30 minutes and an embed that adjusts its height.',
+        es: 'Los links públicos suman tema, opción de leyenda, contraseñas con una nota para cada persona, un link nuevo sin cambiar el insight, historial de cambios, actualizar al abrir con ?refresh=true, actualización cada 30 minutos y un embed que ajusta su alto.',
+        pt: 'Os links públicos ganham tema, opção de legenda, senhas com uma nota para cada pessoa, um link novo sem mudar o insight, histórico de mudanças, atualizar ao abrir com ?refresh=true, atualização a cada 30 minutos e um embed que ajusta sua altura.',
+      },
+      {
+        product: 'analytics',
+        en: 'Subscriptions send an insight or a dashboard by email on a daily, weekly or monthly schedule, with their own page to search, test, turn off and delete. People outside the workspace confirm by a link before getting anything, everyone can unsubscribe, and only what could go on a public link is sent.',
+        es: 'Las suscripciones mandan un insight o un tablero por email con calendario diario, semanal o mensual, con su página para buscar, probar, apagar y borrar. Quien no es del workspace confirma con un link antes de recibir nada, cualquiera se puede dar de baja y solo se manda lo que podría ir en un link público.',
+        pt: 'As inscrições mandam um insight ou um painel por email em agenda diária, semanal ou mensal, com uma página para buscar, testar, desligar e excluir. Quem não é do workspace confirma por um link antes de receber algo, qualquer um pode cancelar e só é enviado o que poderia ir em um link público.',
+      },
+      {
+        product: 'analytics',
+        en: 'From a funnel step you can explore the paths leading to it, between steps, after it and around dropping off, and from a path you can open its funnel.',
+        es: 'Desde un paso de un embudo se exploran los caminos que llevan a él, entre pasos, después y alrededor de abandonar, y desde un camino se abre su embudo.',
+        pt: 'A partir de uma etapa de um funil dá para explorar os caminhos que levam a ela, entre etapas, depois e em torno da desistência, e de um caminho dá para abrir seu funil.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-02-analytics-embudos',
+    date: '2026-11-02',
+    title: {
+      en: 'Analytics: funnels with step order, exclusions and breakdowns',
+      es: 'Analytics: embudos con orden de pasos, exclusiones y aperturas',
+      pt: 'Analytics: funis com ordem das etapas, exclusões e aberturas',
+    },
+    items: [
+      {
+        product: 'analytics',
+        en: 'Funnels can run in sequential, strict or any order, with a conversion window from seconds to months, exclusion steps, several events in one step and first occurrence per step. They can count people, sessions or groups.',
+        es: 'Los embudos corren en orden secuencial, estricto o cualquiera, con ventana de conversión de segundos a meses, pasos de exclusión, varios eventos en un paso y primera ocurrencia por paso. Cuentan personas, sesiones o grupos.',
+        pt: 'Os funis rodam em ordem sequencial, estrita ou qualquer, com janela de conversão de segundos a meses, etapas de exclusão, vários eventos em uma etapa e primeira ocorrência por etapa. Contam pessoas, sessões ou grupos.',
+      },
+      {
+        product: 'analytics',
+        en: 'New funnel views: time to convert as a distribution and conversion over time by entry date, with an option to hide incomplete periods. Breakdowns take first touch, last touch, all steps or a specific step, and the people who reached any step can be listed. The date range now applies to every step of a funnel.',
+        es: 'Vistas nuevas de embudo: tiempo hasta convertir como distribución y conversión en el tiempo por fecha de entrada, con opción de ocultar períodos incompletos. Las aperturas toman el primer contacto, el último, todos los pasos o un paso específico, y se listan quienes llegaron a cualquier paso. El rango de fechas ahora rige en todos los pasos de un embudo.',
+        pt: 'Novas visões de funil: tempo até converter como distribuição e conversão ao longo do tempo por data de entrada, com opção de ocultar períodos incompletos. As aberturas usam o primeiro contato, o último, todas as etapas ou uma etapa específica, e quem chegou a qualquer etapa pode ser listado. O período agora vale para todas as etapas de um funil.',
+      },
+      {
+        product: 'analytics',
+        en: 'Projects can measure without cookies, always or when a visitor rejects them, with a visitor id that changes every day, so the same person on two days counts as two visitors.',
+        es: 'Los proyectos pueden medir sin cookies, siempre o cuando la persona las rechaza, con un id de visitante que cambia cada día: la misma persona en dos días cuenta como dos visitantes.',
+        pt: 'Os projetos podem medir sem cookies, sempre ou quando a pessoa os recusa, com um id de visitante que muda a cada dia: a mesma pessoa em dois dias conta como dois visitantes.',
+      },
+    ],
+  },
+  {
     id: '2026-11-01-analytics-replay-experimentos',
     date: '2026-11-01',
     title: {

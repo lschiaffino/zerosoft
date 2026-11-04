@@ -62,7 +62,8 @@ const urlAnySql = (u: string, list: readonly string[]) => `(${list.map((x) => `i
 
 /** La misma cuenta que channelType, en SQL. */
 export function channelSql(alias = 'e'): string {
-  const d = `lower(trim(COALESCE(NULLIF(${alias}.referring_domain, '$direct'), '')))`;
+  // Venir del propio sitio no es una fuente.
+  const d = `lower(trim(COALESCE(NULLIF(NULLIF(${alias}.referring_domain, '$direct'), ${alias}.host), '')))`;
   const s = `lower(trim(COALESCE(${alias}.utm_source, '')))`;
   const m = `lower(trim(COALESCE(${alias}.utm_medium, '')))`;
   const u = `lower(COALESCE(${alias}.url, ''))`;
@@ -89,12 +90,17 @@ const FILTER_COLUMNS: Record<Exclude<WebFilter['key'], 'channel'>, string> = {
   os: 'os',
 };
 
+/** El sitio de donde vino: el propio cuenta como directo. */
+export function referrerSql(alias = 'e'): string {
+  return `(CASE WHEN ${alias}.referring_domain = ${alias}.host THEN '$direct' ELSE ${alias}.referring_domain END)`;
+}
+
 /** Filtros de la página (AND). '(none)' es la fila "desconocido" de cada tabla. */
 export function webFiltersSql(filters: readonly WebFilter[], alias = 'e'): Frag {
   const parts: string[] = [];
   const args: Array<string | number | null> = [];
   for (const f of filters) {
-    const col = f.key === 'channel' ? channelSql(alias) : `${alias}.${FILTER_COLUMNS[f.key]}`;
+    const col = f.key === 'channel' ? channelSql(alias) : f.key === 'referrer' ? referrerSql(alias) : `${alias}.${FILTER_COLUMNS[f.key]}`;
     if (f.value === '(none)') {
       parts.push(`${col} IS NULL`);
     } else {
