@@ -17,6 +17,9 @@ import { loadRenderEngine, renderPdfPages } from './render';
 import { assertOfficeSize, pptxToImages } from './office';
 import {
   cleanAccessList,
+  cleanPageLinks,
+  MAX_ACCESS_ENTRIES,
+  type PageLink,
   hashToken,
   LIVE_WINDOW_MS,
   linkState,
@@ -512,12 +515,12 @@ const GUARD_MAX_BYTES = 32 * 1024 * 1024;
 const UPLOAD_RESERVE_MS = 30 * 60_000;
 const UPLOAD_TTL_MS = 6 * 3_600_000;
 
-export async function storeRenderedPage(versionId: string, page: { page: number; bytes: Buffer; width: number; height: number }): Promise<void> {
+export async function storeRenderedPage(versionId: string, page: { page: number; bytes: Buffer; width: number; height: number; links?: PageLink[] }): Promise<void> {
   const ref = await storeSendFile(page.bytes, 'image/webp');
   const db = getDb();
   await db
-    .prepare('INSERT INTO send_pages (version_id, page, ref, width, height, bytes) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (version_id, page) DO UPDATE SET ref = excluded.ref, width = excluded.width, height = excluded.height, bytes = excluded.bytes')
-    .run(versionId, page.page, ref, page.width, page.height, page.bytes.length);
+    .prepare('INSERT INTO send_pages (version_id, page, ref, width, height, bytes, links) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (version_id, page) DO UPDATE SET ref = excluded.ref, width = excluded.width, height = excluded.height, bytes = excluded.bytes, links = excluded.links')
+    .run(versionId, page.page, ref, page.width, page.height, page.bytes.length, JSON.stringify(page.links ?? []));
   await db.prepare('UPDATE send_versions SET rendered_count = MAX(rendered_count, ?), render_stalls = 0 WHERE id = ?').run(page.page, versionId);
 }
 
@@ -577,7 +580,7 @@ export async function pumpRender(versionId: string, budgetMs = 8000): Promise<Ve
         throw new SendError('render_unavailable', 503);
       });
       const file = await readParts(v.id);
-      const total = await pptxToImages(file, { skip: Number(v.rendered_count), deadline, onPage: (page) => storeRenderedPage(v.id, page), onTotal: (n) => db.prepare('UPDATE send_versions SET page_count = ?, note = ? WHERE id = ?').run(n, 'simplified', v.id).then(() => undefined) });
+      const total = await pptxToImages(file, { skip: Number(v.rendered_count), deadline, onPage: (page) => storeRenderedPage(v.id, { ...page, links: [] }), onTotal: (n) => db.prepare('UPDATE send_versions SET page_count = ?, note = ? WHERE id = ?').run(n, 'simplified', v.id).then(() => undefined) });
       if (!total) throw new SendError('office_invalid', 422);
     } else {
       const pdf = await workingPdf(v);
@@ -597,7 +600,10 @@ export async function pumpRender(versionId: string, budgetMs = 8000): Promise<Ve
           if (numPages < 1) throw new SendError('pdf_invalid', 422);
           if (Number(v.page_count) !== numPages) await db.prepare('UPDATE send_versions SET page_count = ? WHERE id = ?').run(numPages, v.id);
         },
-        onPage: (page) => storeRenderedPage(v.id, page),
+        onPage: async (page) => {
+          const total = Number((await load()).page_count) || MAX_PAGES;
+          await storeRenderedPage(v.id, { ...page, links: cleanPageLinks(page.links, total) });
+        },
       });
     }
     const after = await load();
@@ -698,9 +704,17 @@ export async function pageRef(versionId: string, page: number): Promise<{ ref: s
   return row ? { ref: row.ref, width: Number(row.width), height: Number(row.height) } : null;
 }
 
-export async function pagesOf(versionId: string): Promise<Array<{ page: number; width: number; height: number }>> {
-  const rows = (await getDb().prepare('SELECT page, width, height FROM send_pages WHERE version_id = ? ORDER BY page').all(versionId)) as Array<{ page: number; width: number; height: number }>;
-  return rows.map((r) => ({ page: Number(r.page), width: Number(r.width), height: Number(r.height) }));
+export async function pagesOf(versionId: string): Promise<Array<{ page: number; width: number; height: number; links: PageLink[] }>> {
+  const rows = (await getDb().prepare('SELECT page, width, height, links FROM send_pages WHERE version_id = ? ORDER BY page').all(versionId)) as Array<{ page: number; width: number; height: number; links: string | null }>;
+  return rows.map((r) => {
+    let links: PageLink[] = [];
+    try {
+      links = JSON.parse(r.links || '[]') as PageLink[];
+    } catch {
+      links = [];
+    }
+    return { page: Number(r.page), width: Number(r.width), height: Number(r.height), links };
+  });
 }
 
 // ---------- Links ----------
@@ -823,6 +837,7 @@ function cleanLinkFields(input: LinkInput) {
   if (input.accessList !== undefined) {
     const { entries, invalid } = cleanAccessList(input.accessList);
     if (invalid.length) throw new SendError('invalid_access_entry', 400, { entry: invalid[0].slice(0, 80) });
+    if (entries.length > MAX_ACCESS_ENTRIES) throw new SendError('too_many_entries', 400);
     out.access_list = JSON.stringify(entries);
   }
   if (input.watermark !== undefined) out.watermark = input.watermark ? 1 : 0;

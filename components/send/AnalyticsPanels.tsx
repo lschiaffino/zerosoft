@@ -239,6 +239,42 @@ function Activity({ a, kind, bucketSec }: { a: DocumentAnalytics; kind: string; 
         </table>
       </div>
 
+      {a.linkClicks.length > 0 && (
+        <>
+          <h3 className="sd-h3">{t('clicksTitle')}</h3>
+          <div className="table-wrap">
+            <table className="table sd-table" data-testid="send-link-clicks">
+              <thead>
+                <tr>
+                  <th scope="col">{t('colLink')}</th>
+                  <th scope="col" className="num">
+                    {t('colOnPage')}
+                  </th>
+                  <th scope="col" className="num">
+                    {t('colClicks')}
+                  </th>
+                  <th scope="col" className="num sd-hide-sm">
+                    {t('kVisitors')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {a.linkClicks.map((c, i) => (
+                  <tr key={i}>
+                    <th scope="row">
+                      <span className="sd-rowtitle sd-wrap">{c.url ?? t('toPage', { page: c.toPage ?? 1 })}</span>
+                    </th>
+                    <td className="num">{c.page}</td>
+                    <td className="num">{c.clicks}</td>
+                    <td className="num sd-hide-sm">{c.people}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
       {a.denied.length > 0 && (
         <>
           <h3 className="sd-h3">{t('deniedTitle')}</h3>
@@ -285,6 +321,15 @@ function VisitDetail({ v, kind, bucketSec }: { v: VisitDto; kind: string; bucket
           );
         })}
       </ul>
+      {v.clicks.length > 0 && (
+        <ul className="sd-clicks" data-testid="send-visit-clicks">
+          {v.clicks.map((c, i) => (
+            <li key={i} className="sd-rowmeta sd-wrap">
+              {t('clickedOn', { page: c.page, target: c.url ?? t('toPage', { page: c.toPage ?? 1 }) })}
+            </li>
+          ))}
+        </ul>
+      )}
       <p className="sd-rowmeta">{[v.browser, v.os].filter(Boolean).join(' · ')}</p>
       {!v.city && !v.country && <p className="sd-help">{t('noLocation')}</p>}
     </div>

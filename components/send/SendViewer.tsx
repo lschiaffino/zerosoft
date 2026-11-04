@@ -603,7 +603,7 @@ function DocView({ api, doc, state, onBack, refresh }: { api: string; doc: Viewe
             )}
           </div>
         ) : (
-          doc.pages.map((p) => <PageImage key={p.page} api={api} versionId={doc.versionId} page={p} refresh={refresh} />)
+          doc.pages.map((p) => <PageImage key={p.page} api={api} documentId={doc.id} versionId={doc.versionId} page={p} refresh={refresh} onJump={goTo} />)
         )}
         <p className="sv-fine sv-foot">
           {t('trackingNotice')} {state.watermark ? t('watermarkNotice') : ''}
@@ -613,8 +613,27 @@ function DocView({ api, doc, state, onBack, refresh }: { api: string; doc: Viewe
   );
 }
 
-function PageImage({ api, versionId, page, refresh }: { api: string; versionId: string; page: { page: number; width: number; height: number }; refresh: () => Promise<void> }) {
+function PageImage({
+  api,
+  documentId,
+  versionId,
+  page,
+  refresh,
+  onJump,
+}: {
+  api: string;
+  documentId: string;
+  versionId: string;
+  page: { page: number; width: number; height: number; links?: Array<{ x: number; y: number; w: number; h: number; url?: string; page?: number }> };
+  refresh: () => Promise<void>;
+  onJump: (page: number) => void;
+}) {
   const t = useTranslations('send.viewer');
+  // El clic se avisa sin esperar: la pestaña nueva se abre igual.
+  const report = (index: number) => {
+    const body = JSON.stringify({ documentId, versionId, page: page.page, index });
+    if (!navigator.sendBeacon?.(`${api}/click`, body)) void fetch(`${api}/click`, { method: 'POST', body, keepalive: true }).catch(() => undefined);
+  };
   const [nonce, setNonce] = useState(0);
   const [failed, setFailed] = useState(false);
   const src = `${api}/pages/${versionId}/${page.page}${nonce ? `?r=${nonce}` : ''}`;
@@ -650,6 +669,26 @@ function PageImage({ api, versionId, page, refresh }: { api: string; versionId: 
           }}
         />
       )}
+      {!failed &&
+        (page.links ?? []).map((l, i) => {
+          const style = { left: `${l.x * 100}%`, top: `${l.y * 100}%`, width: `${l.w * 100}%`, height: `${l.h * 100}%` };
+          return l.url ? (
+            <a key={i} className="sv-plink" style={style} href={l.url} target="_blank" rel="noopener noreferrer nofollow" aria-label={t('linkTo', { url: l.url })} title={l.url} onClick={() => report(i)} data-testid="sv-page-link" />
+          ) : (
+            <button
+              key={i}
+              type="button"
+              className="sv-plink"
+              style={style}
+              aria-label={t('linkToPage', { page: l.page ?? 1 })}
+              onClick={() => {
+                report(i);
+                onJump(l.page ?? 1);
+              }}
+              data-testid="sv-page-jump"
+            />
+          );
+        })}
     </figure>
   );
 }

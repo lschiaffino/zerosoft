@@ -31,6 +31,8 @@ export interface VisitDto {
   live: boolean;
   pages: Array<{ page: number; seconds: number }>;
   returning: boolean;
+  /** Links tocados en esta visita, en orden. */
+  clicks: Array<{ url: string | null; toPage: number | null; page: number; at: string }>;
 }
 
 export interface PageStat {
@@ -73,6 +75,8 @@ export interface DocumentAnalytics {
   visitors: VisitorDto[];
   versions: VersionStat[];
   denied: Array<{ email: string | null; at: string; linkName: string }>;
+  /** Links del documento que se tocaron, con cuántas veces y cuántas personas. */
+  linkClicks: Array<{ url: string | null; toPage: number | null; page: number; clicks: number; people: number }>;
 }
 
 interface VisitRow {
@@ -138,6 +142,27 @@ export async function documentAnalytics(documentId: string, opts: { versionId?: 
       byVisit.set(s.visit_id, list);
     }
   }
+  const clickRows = (await db
+    .prepare("SELECT email, detail, created_at FROM send_events WHERE document_id = ? AND type = 'link_click' ORDER BY created_at LIMIT 5000")
+    .all(documentId)) as Array<{ email: string | null; detail: string; created_at: string }>;
+  const clicksByVisit = new Map<string, VisitDto['clicks']>();
+  const byUrl = new Map<string, { url: string | null; toPage: number | null; page: number; clicks: number; people: Set<string> }>();
+  for (const c of clickRows) {
+    let d: { url?: string | null; toPage?: number | null; page?: number; visitId?: string | null; versionId?: string } = {};
+    try {
+      d = JSON.parse(c.detail);
+    } catch {
+      continue;
+    }
+    if (opts.versionId && d.versionId !== opts.versionId) continue;
+    const item = { url: d.url ?? null, toPage: d.toPage ?? null, page: Number(d.page ?? 0), at: c.created_at };
+    if (d.visitId) clicksByVisit.set(d.visitId, [...(clicksByVisit.get(d.visitId) ?? []), item]);
+    const key = `${item.url ?? `#${item.toPage}`}|${item.page}`;
+    const cur = byUrl.get(key) ?? { url: item.url, toPage: item.toPage, page: item.page, clicks: 0, people: new Set<string>() };
+    cur.clicks++;
+    cur.people.add(c.email ?? d.visitId ?? c.created_at);
+    byUrl.set(key, cur);
+  }
   const liveSince = Date.now() - LIVE_WINDOW_MS;
   const firstOfVisitor = new Map<string, string>();
   for (const r of [...rows].reverse()) {
@@ -171,6 +196,7 @@ export async function documentAnalytics(documentId: string, opts: { versionId?: 
       live: new Date(r.last_ping_at).getTime() >= liveSince,
       pages: byVisit.get(r.id) ?? [],
       returning: firstOfVisitor.get(key) !== r.id,
+      clicks: clicksByVisit.get(r.id) ?? [],
     };
   });
 
@@ -264,6 +290,7 @@ export async function documentAnalytics(documentId: string, opts: { versionId?: 
       avgSeconds: Math.round(Number(v.avg_seconds ?? 0) * 10) / 10,
     })),
     denied: denied.map((d) => ({ email: d.email, at: d.created_at, linkName: d.link_name ?? '' })),
+    linkClicks: [...byUrl.values()].map(({ people, ...rest }) => ({ ...rest, people: people.size })).sort((a, b) => b.clicks - a.clicks),
   };
 }
 

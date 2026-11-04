@@ -28,7 +28,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'DocSend',
-  lastReviewed: '2026-11-02',
+  lastReviewed: '2026-11-03',
   areas: [
     { id: 'content', label: loc(['Content', 'Contenido', 'Conteúdo']) },
     { id: 'links', label: loc(['Links', 'Links', 'Links']) },
@@ -70,8 +70,8 @@ const parity: ProductParity = {
       detail: ['Rejected with a message; the link can have its own passcode', 'Se rechazan con un mensaje; el link puede tener su propio código', 'Rejeitados com uma mensagem; o link pode ter seu próprio código'],
     }),
     row('folders', 'content', ['Content folders', 'Carpetas de contenido', 'Pastas de conteúdo'], 'missing'),
-    row('in-doc-links', 'content', ['Clickable links inside a document', 'Links clicables dentro de un documento', 'Links clicáveis dentro de um documento'], 'missing', {
-      detail: ['Pages are images, so links in a PDF don\'t click yet', 'Las páginas son imágenes: los links de un PDF todavía no se pueden tocar', 'As páginas são imagens: os links de um PDF ainda não podem ser clicados'],
+    row('in-doc-links', 'content', ['Clickable links inside a document', 'Links clicables dentro de un documento', 'Links clicáveis dentro de um documento'], 'have', {
+      detail: ['Links in a PDF, Word or Docs page click through: web and email open in a new tab, links to another page jump there', 'Los links de un PDF, un Word o una página de Docs se pueden tocar: web y email abren en otra pestaña, y un link a otra página salta ahí', 'Os links de um PDF, um Word ou uma página do Docs podem ser clicados: web e email abrem em outra aba, e um link para outra página pula para ela'],
     }),
     row('in-doc-media', 'content', ['Videos and GIFs inside a document', 'Videos y GIF dentro de un documento', 'Vídeos e GIFs dentro de um documento'], 'missing'),
     row('internal-notes', 'content', ['Internal notes on a document', 'Notas internas en un documento', 'Notas internas em um documento'], 'missing'),
@@ -128,8 +128,8 @@ const parity: ProductParity = {
     row('allow-block', 'access', ['Allow or block emails and domains', 'Permitir o bloquear emails y dominios', 'Permitir ou bloquear emails e domínios'], 'have', {
       detail: ['500 entries per link. An allow list needs verification by code, which DocSend only recommends', '500 entradas por link. Una lista de permitidos exige verificación por código, que DocSend solo recomienda', '500 entradas por link. Uma lista de permitidos exige verificação por código, que o DocSend só recomenda'],
     }),
-    row('allow-block-csv', 'access', ['Import the list from a CSV', 'Importar la lista de un CSV', 'Importar a lista de um CSV'], 'missing', {
-      detail: ['Pasting works, with one entry per line or separated by commas', 'Se puede pegar, una entrada por línea o separadas por comas', 'Dá para colar, uma entrada por linha ou separadas por vírgula'],
+    row('allow-block-csv', 'access', ['Import the list from a CSV', 'Importar la lista de un CSV', 'Importar a lista de um CSV'], 'have', {
+      detail: ['Emails and domains from any cell, added to the list, up to 500', 'Emails y dominios de cualquier celda, sumados a la lista, hasta 500', 'Emails e domínios de qualquer célula, somados à lista, até 500'],
     }),
     row('download-toggle', 'access', ['Allow or block download', 'Permitir o bloquear descarga', 'Permitir ou bloquear download'], 'partial', {
       weight: 2,
@@ -183,7 +183,9 @@ const parity: ProductParity = {
     row('csv-export', 'analytics', ['Export visits as CSV', 'Exportar visitas a CSV', 'Exportar visitas em CSV'], 'have', {
       detail: ['Admins only, with the seconds per page and the version of each visit', 'Solo admins, con los segundos por página y la versión de cada visita', 'Só admins, com os segundos por página e a versão de cada visita'],
     }),
-    row('link-clicks', 'analytics', ['Clicks on links inside the document', 'Clics en links del documento', 'Cliques em links do documento'], 'missing'),
+    row('link-clicks', 'analytics', ['Clicks on links inside the document', 'Clics en links del documento', 'Cliques em links do documento'], 'have', {
+      detail: ['Per document and per visit, with the page it was on. PowerPoint links are not kept yet', 'Por documento y por visita, con la página donde estaba. Los links de PowerPoint todavía no se guardan', 'Por documento e por visita, com a página onde estava. Os links de PowerPoint ainda não são guardados'],
+    }),
     row('visit-map', 'analytics', ['Visit map', 'Mapa de visitas', 'Mapa de visitas'], 'missing'),
     row('contacts-page', 'analytics', ['A page per contact, across documents', 'Una página por contacto, entre documentos', 'Uma página por contato, entre documentos'], 'missing', {
       detail: ['Visitors are listed per document and per space; with a matching CRM contact, the visits land on its timeline', 'Las personas se listan por documento y por espacio; con un contacto del CRM, las visitas llegan a su línea de tiempo', 'As pessoas são listadas por documento e por espaço; com um contato do CRM, as visitas chegam à linha do tempo'],

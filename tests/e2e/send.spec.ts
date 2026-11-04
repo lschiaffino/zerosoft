@@ -2,7 +2,7 @@ import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { createClient } from '@libsql/client';
 import path from 'path';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFString, rgb, StandardFonts } from 'pdf-lib';
 
 /**
  * Send de punta a punta: quien manda y quien abre sin cuenta, con los números
@@ -711,4 +711,81 @@ test('un link sin autor: quien lo abre ve que no está, el dueño ve por qué', 
   await expect(page.getByTestId('send-link-problem')).toHaveText('Not serving');
   await expect(page.getByTestId('send-link-problem-text')).toContainText('left the workspace');
   await shot(page, 'link-not-serving');
+});
+
+test('links dentro del PDF: se tocan, abren afuera o saltan de página, y quedan en los números', async ({ browser, page, request }) => {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const p1 = doc.addPage([612, 792]);
+  const p2 = doc.addPage([612, 792]);
+  p1.drawText('See pricing', { x: 60, y: 705, size: 18, font });
+  p1.drawText('Go to the appendix', { x: 60, y: 605, size: 18, font });
+  p2.drawText('Appendix', { x: 60, y: 705, size: 24, font });
+  const uri = doc.context.obj({ Type: 'Annot', Subtype: 'Link', Rect: [55, 695, 260, 725], Border: [0, 0, 0], A: { S: 'URI', URI: PDFString.of('https://example.com/pricing') } });
+  const jump = doc.context.obj({ Type: 'Annot', Subtype: 'Link', Rect: [55, 595, 260, 625], Border: [0, 0, 0], Dest: [p2.ref, PDFName.of('Fit')] });
+  p1.node.set(PDFName.of('Annots'), doc.context.obj([doc.context.register(uri), doc.context.register(jump)]));
+  const { id } = await makeDoc(request, 'Linked', Buffer.from(await doc.save()));
+  const link = await makeLink(request, id, { name: 'With links', requireEmail: true });
+
+  const ctx = await browser.newContext();
+  const v = await ctx.newPage();
+  await v.goto(link.url);
+  await v.getByTestId('sv-input').fill('clicker@acme.com');
+  await v.getByTestId('sv-submit').click();
+  await expect(v.getByTestId('sv-reader')).toBeVisible();
+  const out = v.locator('figure[data-page="1"]').getByTestId('sv-page-link');
+  await expect(out).toHaveAttribute('href', 'https://example.com/pricing');
+  await expect(out).toHaveAttribute('rel', /noreferrer/);
+  await expect(out).toHaveAttribute('target', '_blank');
+  await v.waitForTimeout(4200);
+  // Sin salir a internet: el clic se avisa igual y la pestaña nueva se descarta.
+  await ctx.route('https://example.com/**', (r) => r.fulfill({ status: 204, body: '' }));
+  const [popup] = await Promise.all([ctx.waitForEvent('page'), out.click()]);
+  await popup.close();
+  await v.locator('figure[data-page="1"]').getByTestId('sv-page-jump').click();
+  await expect(v.getByTestId('sv-page')).toHaveText('2 / 2');
+  await shot(v, 'viewer-links');
+  await v.waitForTimeout(1500);
+  await ctx.close();
+
+  // Un clic armado con un índice que no existe no se guarda.
+  const other = await browser.newContext();
+  await other.request.post(`/api/send/public/${link.token}`, { data: { email: 'x@acme.com' } });
+  const version = (await (await request.get(`/api/send/documents/${id}`)).json()).document.currentVersionId;
+  expect((await other.request.post(`/api/send/public/${link.token}/click`, { data: { documentId: id, versionId: version, page: 1, index: 9 } })).status()).toBe(404);
+  await other.close();
+
+  await slow.poll(async () => ((await (await request.get(`/api/send/documents/${id}/analytics`)).json()) as { linkClicks: unknown[] }).linkClicks.length).toBe(2);
+  const a = (await (await request.get(`/api/send/documents/${id}/analytics`)).json()) as { linkClicks: Array<{ url: string | null; toPage: number | null; clicks: number }>; visits: Array<{ clicks: unknown[] }> };
+  expect(a.linkClicks.map((c) => c.url ?? `#${c.toPage}`).sort()).toEqual(['#2', 'https://example.com/pricing']);
+  expect(a.visits[0].clicks).toHaveLength(2);
+  await page.goto(`/en/app/send/documents/${id}?tab=activity`);
+  await expect(page.getByTestId('send-link-clicks')).toContainText('https://example.com/pricing');
+  await page.getByTestId('send-visit-open').first().click();
+  await expect(page.getByTestId('send-visit-clicks')).toContainText('Clicked on page 1');
+  await shot(page, 'activity-link-clicks');
+});
+
+test('lista de permitidos desde un CSV: suma lo que sirve y dice qué salteó', async ({ page, request }) => {
+  const { id } = await makeDoc(request, 'CSV list', await pdf(1));
+  await page.goto(`/en/app/send/documents/${id}`);
+  await page.getByTestId('send-link-new').click();
+  await page.getByTestId('link-name').fill('From CSV');
+  await page.getByTestId('link-access-mode').selectOption('allow');
+  await page.getByTestId('link-access-list').fill('first@acme.com');
+  await page.getByTestId('link-access-csv').setInputFiles({ name: 'people.csv', mimeType: 'text/csv', buffer: Buffer.from('Name,Email\nAna,ana@acme.com\nBruno,bruno@beta.io\nTeam,beta.io\nAna,first@acme.com\n') });
+  await expect(page.getByTestId('link-access-csv-note')).toContainText('Added 3 entries');
+  await expect(page.getByTestId('link-access-csv-note')).toContainText('Skipped 4 cells');
+  await expect(page.getByTestId('link-access-count')).toHaveText('4 of 500');
+  await expect(page.getByTestId('link-access-list')).toHaveValue('first@acme.com\nana@acme.com\nbruno@beta.io\nbeta.io');
+  await shot(page, 'link-dialog-csv');
+  await page.getByTestId('link-save').click();
+  await expect(page.getByTestId('send-link-row').filter({ hasText: 'From CSV' })).toContainText('Allow list');
+  const links = (await (await request.get(`/api/send/documents/${id}/links`)).json()) as { links: Array<{ name: string; accessList: string[] }> };
+  expect(links.links.find((l) => l.name === 'From CSV')?.accessList).toEqual(['first@acme.com', 'ana@acme.com', 'bruno@beta.io', 'beta.io']);
+  // Más de 500, rechazado por el servidor.
+  const many = Array.from({ length: 501 }, (_, i) => `p${i}@acme.com`);
+  const res = await request.post(`/api/send/documents/${id}/links`, { data: { accessMode: 'allow', accessList: many } });
+  expect(res.status()).toBe(400);
+  expect((await res.json()).error).toBe('too_many_entries');
 });

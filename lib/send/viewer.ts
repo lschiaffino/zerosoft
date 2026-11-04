@@ -51,6 +51,7 @@ import {
   TOKEN_RE,
   VISIT_GAP_MS,
   type GateStep,
+  type PageLink,
 } from './types';
 
 const PASSCODE_PER_IP = 8;
@@ -140,7 +141,7 @@ export interface ViewerDoc {
   title: string;
   kind: string;
   versionId: string;
-  pages: Array<{ page: number; width: number; height: number }>;
+  pages: Array<{ page: number; width: number; height: number; links: PageLink[] }>;
   pageCount: number;
   durationSec: number | null;
   bucketSec: number | null;
@@ -680,6 +681,36 @@ async function alertReading(link: LinkRow, session: SessionRow, visitId: string,
       html: renderBrandedHtml({ eyebrow: 'Send', heading: subject ?? '', paragraphs: [escapeHtml(body ?? ''), `<a href="${escapeHtml(url)}" style="color:#000000;font-weight:500;">${escapeHtml(url)}</a>`] }),
     }).catch(() => undefined);
   }
+}
+
+// ---------- Links dentro del documento ----------
+
+/**
+ * Un clic en un link de una página. La URL sale de lo guardado, nunca de lo que manda
+ * el navegador, y queda atada a la visita en curso de esta persona.
+ */
+export async function recordLinkClick(link: LinkRow, session: SessionRow, input: { documentId: string; versionId: string; page: number; index: number }, meta: RequestMeta): Promise<boolean> {
+  if (isAutomated(meta, false)) return false;
+  const docs = await linkDocuments(link, session.email);
+  const target = docs.find((d) => d.doc.id === input.documentId);
+  if (!target || target.version.id !== input.versionId) throw new SendError('version_changed', 409);
+  const db = getDb();
+  const row = (await db.prepare('SELECT links FROM send_pages WHERE version_id = ? AND page = ?').get(input.versionId, input.page)) as { links: string | null } | undefined;
+  let links: PageLink[] = [];
+  try {
+    links = JSON.parse(row?.links || '[]') as PageLink[];
+  } catch {
+    links = [];
+  }
+  const hit = links[input.index];
+  if (!hit) throw new SendError('not_found', 404);
+  const visit = (await db
+    .prepare("SELECT id FROM send_visits WHERE session_id = ? AND document_id = ? AND COALESCE(email, '') = ? ORDER BY started_at DESC LIMIT 1")
+    .get(session.id, input.documentId, session.email ?? '')) as { id: string } | undefined;
+  await db
+    .prepare('INSERT INTO send_events (id, workspace_id, link_id, document_id, type, email, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(newId('se'), link.workspace_id, link.id, input.documentId, 'link_click', session.email, JSON.stringify({ url: hit.url ?? null, toPage: hit.page ?? null, page: input.page, visitId: visit?.id ?? null, versionId: input.versionId }).slice(0, 2400), nowIso());
+  return true;
 }
 
 // ---------- Descarga ----------

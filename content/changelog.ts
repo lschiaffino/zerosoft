@@ -29,6 +29,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-03-send-links-csv',
+    date: '2026-11-03',
+    title: {
+      en: 'Send: clickable links in documents, and allow lists from a CSV',
+      es: 'Send: links que se tocan dentro de los documentos, y listas de permitidos desde un CSV',
+      pt: 'Send: links clicáveis nos documentos, e listas de permitidos a partir de um CSV',
+    },
+    items: [
+      { product: 'send', en: 'Links in a PDF, a Word file or a Docs page work in the viewer: web and email links open in a new tab, and links to another page jump there. You see which links were clicked, on which page and by whom. New uploads keep their links; to add them to an older document, replace its file.', es: 'Los links de un PDF, un Word o una página de Docs andan en el visor: los de web y email abren en otra pestaña, y los que van a otra página saltan ahí. Ves qué links se tocaron, en qué página y quién. Lo que subas desde ahora conserva sus links; para un documento anterior, reemplazá el archivo.', pt: 'Os links de um PDF, um Word ou uma página do Docs funcionam no visor: os de web e email abrem em outra aba, e os que vão para outra página pulam para ela. Você vê quais links foram clicados, em qual página e por quem. O que você enviar a partir de agora mantém os links; para um documento anterior, substitua o arquivo.' },
+      { product: 'send', en: 'Import an allow or block list from a CSV: emails and domains are read from any cell and added to the list, and the dialog says how many cells it skipped. Lists go up to 500 entries.', es: 'Importá una lista de permitidos o bloqueados desde un CSV: se leen los emails y dominios de cualquier celda y se suman a la lista, y el diálogo dice cuántas celdas salteó. Las listas llegan hasta 500 entradas.', pt: 'Importe uma lista de permitidos ou bloqueados de um CSV: emails e domínios são lidos de qualquer célula e somados à lista, e o diálogo diz quantas células ignorou. As listas vão até 500 entradas.' },
+    ],
+  },
+  {
     id: '2026-11-02-send',
     date: '2026-11-02',
     title: {

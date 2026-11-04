@@ -23,7 +23,6 @@ export const PART_BYTES = 4 * 1024 * 1024;
 export const MAX_DOCUMENT_BYTES = 100 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 1024 * 1024 * 1024;
 export const MAX_PAGES = 500;
-export const MAX_ACCESS_ENTRIES = 500;
 export const SESSION_DAYS = 14;
 export const CODE_MINUTES = 15;
 export const CODE_ATTEMPTS = 5;
@@ -90,45 +89,8 @@ export const sessionCookie = (linkId: string) => `zs_send_${linkId.replace(/[^\w
 
 // ---------- Emails y listas ----------
 
-const EMAIL_RE = /^[^\s@<>"',;]{1,64}@[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)+$/;
-
-export function normalizeEmail(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const s = value.trim().toLowerCase();
-  return s.length <= 254 && EMAIL_RE.test(s) ? s : null;
-}
-
-const DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)+$/;
-
-/** Una entrada de la lista: un email, o un dominio ("acme.com", "@acme.com", "*.acme.com"). */
-export function normalizeAccessEntry(value: string): string | null {
-  const s = value.trim().toLowerCase();
-  if (!s) return null;
-  if (s.includes('@') && !s.startsWith('@')) return normalizeEmail(s);
-  const domain = s.replace(/^\*\./, '').replace(/^@/, '');
-  return DOMAIN_RE.test(domain) ? domain : null;
-}
-
-export function cleanAccessList(values: readonly string[]): { entries: string[]; invalid: string[] } {
-  const entries = new Set<string>();
-  const invalid: string[] = [];
-  for (const raw of values) {
-    for (const piece of raw.split(/[\s,;]+/)) {
-      if (!piece) continue;
-      const e = normalizeAccessEntry(piece);
-      if (e) entries.add(e);
-      else invalid.push(piece);
-    }
-  }
-  return { entries: [...entries].slice(0, MAX_ACCESS_ENTRIES), invalid };
-}
-
-/** ¿El email coincide con la lista? Un dominio vale para sus subdominios. */
-export function matchesAccessList(entries: readonly string[], email: string): boolean {
-  const at = email.lastIndexOf('@');
-  const domain = email.slice(at + 1);
-  return entries.some((e) => (e.includes('@') ? e === email : domain === e || domain.endsWith(`.${e}`)));
-}
+import { matchesAccessList } from './access-list';
+export { cleanAccessList, entriesFromCsv, MAX_ACCESS_CSV_BYTES, MAX_ACCESS_ENTRIES, matchesAccessList, normalizeAccessEntry, normalizeEmail } from './access-list';
 
 export function accessAllowed(mode: AccessMode, entries: readonly string[], email: string | null): boolean {
   if (mode === 'none') return true;
@@ -250,6 +212,53 @@ export function videoBuckets(durationSec: number): { bucketSec: number; pages: n
  */
 export function isForwarded(recipient: string | null, email: string | null): boolean {
   return Boolean(email && recipient && recipient.toLowerCase() !== email);
+}
+
+// ---------- Links dentro de un documento ----------
+
+/** Un link de una página: posición en fracciones de la página, y adónde va. */
+export interface PageLink {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  url?: string;
+  page?: number;
+}
+
+export const MAX_LINKS_PER_PAGE = 200;
+
+/** Solo web y email: un javascript: o un file: de un PDF no llega al visor. */
+export function safeLinkUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string' || raw.length > 2000) return null;
+  try {
+    const u = new URL(raw.trim());
+    return u.protocol === 'https:' || u.protocol === 'http:' || u.protocol === 'mailto:' ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Lo que viene del render, revisado: dentro de la página, con destino válido, y con tope. */
+export function cleanPageLinks(raw: unknown, pageCount: number): PageLink[] {
+  if (!Array.isArray(raw)) return [];
+  const out: PageLink[] = [];
+  const unit = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : null);
+  for (const r of raw) {
+    if (out.length >= MAX_LINKS_PER_PAGE) break;
+    if (!r || typeof r !== 'object') continue;
+    const o = r as Record<string, unknown>;
+    const x = unit(o.x);
+    const y = unit(o.y);
+    const w = unit(o.w);
+    const h = unit(o.h);
+    if (x === null || y === null || !w || !h) continue;
+    const url = o.url !== undefined ? safeLinkUrl(o.url) : null;
+    const page = Number.isInteger(o.page) && (o.page as number) >= 1 && (o.page as number) <= pageCount ? (o.page as number) : null;
+    if (!url && !page) continue;
+    out.push({ x, y, w: Math.min(w, 1 - x), h: Math.min(h, 1 - y), ...(url ? { url } : { page: page! }) });
+  }
+  return out;
 }
 
 // ---------- Archivos ----------
