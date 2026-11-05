@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-05-crm-clone-deal',
+    date: '2026-11-05',
+    title: {
+      en: 'CRM: clone a deal',
+      es: 'CRM: clonar un deal',
+      pt: 'CRM: clonar um negócio',
+    },
+    items: [
+      {
+        product: 'crm',
+        en: 'The More menu on a deal has Clone deal. The copy keeps amount, close date, priority, source, description, custom properties, contacts and companies, and opens right away. Notes, tasks, line items and history are not copied.',
+        es: 'El menú Más de un deal tiene Clonar deal. La copia conserva monto, fecha de cierre, prioridad, fuente, descripción, campos propios, contactos y empresas, y se abre enseguida. Las notas, tareas, líneas de producto y el historial no se copian.',
+        pt: 'O menu Mais de um negócio tem Clonar negócio. A cópia mantém valor, data de fechamento, prioridade, origem, descrição, campos personalizados, contatos e empresas, e abre na hora. Notas, tarefas, itens de produto e histórico não são copiados.',
+      },
+    ],
+  },
+  {
     id: '2026-11-04-link-api-filters',
     date: '2026-11-04',
     title: {

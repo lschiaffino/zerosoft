@@ -484,7 +484,13 @@
       "ownershipSection": "Ownership",
       "customFieldsSection": "Custom fields",
       "viewAllProperties": "View all properties",
-      "companies": "Companies"
+      "companies": "Companies",
+      "cloneTitle": "Clone deal",
+      "cloneDesc": "Creates a new deal named “{name}” with the same amount, close date, priority, source, description, custom properties, contacts and companies. Notes, tasks, line items and history are not copied.",
+      "cloneButton": "Clone deal",
+      "cloning": "Cloning…",
+      "cloneError": "Could not clone the deal. Try again.",
+      "cloneSuffix": "(copy)"
     },
     "addPipeline": "+ Add pipeline",
     "pipelineNamePlaceholder": "Pipeline name",
@@ -2013,7 +2019,8 @@
       "history": "History",
       "deleteContact": "Delete contact",
       "deleteCompany": "Delete company",
-      "deleteDeal": "Delete deal"
+      "deleteDeal": "Delete deal",
+      "cloneDeal": "Clone deal"
     },
     "back": {
       "contacts": "Contacts",
