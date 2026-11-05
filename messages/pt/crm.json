@@ -484,7 +484,13 @@
       "ownershipSection": "Atribuição",
       "customFieldsSection": "Campos personalizados",
       "viewAllProperties": "Ver todas as propriedades",
-      "companies": "Empresas"
+      "companies": "Empresas",
+      "cloneTitle": "Clonar negócio",
+      "cloneDesc": "Cria um novo negócio a partir de “{name}” com o mesmo valor, data de fechamento, prioridade, origem, descrição, campos personalizados, contatos e empresas. Notas, tarefas, itens de produto e histórico não são copiados.",
+      "cloneButton": "Clonar negócio",
+      "cloning": "Clonando…",
+      "cloneError": "Não foi possível clonar o negócio. Tente de novo.",
+      "cloneSuffix": "(cópia)"
     },
     "addPipeline": "+ Adicionar pipeline",
     "pipelineNamePlaceholder": "Nome do pipeline",
@@ -2013,7 +2019,8 @@
       "history": "Histórico",
       "deleteContact": "Excluir contato",
       "deleteCompany": "Excluir empresa",
-      "deleteDeal": "Excluir deal"
+      "deleteDeal": "Excluir deal",
+      "cloneDeal": "Clonar negócio"
     },
     "back": {
       "contacts": "Contatos",
