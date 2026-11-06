@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-06-cal-change-cutoff',
+    date: '2026-11-06',
+    title: {
+      en: 'Cal: a cutoff for guest cancellations and reschedules',
+      es: 'Cal: un plazo para las cancelaciones y reprogramaciones del invitado',
+      pt: 'Cal: um prazo para cancelamentos e reagendamentos do convidado',
+    },
+    items: [
+      {
+        product: 'cal',
+        en: 'Each event type can set how many hours before the start a guest stops being able to cancel or reschedule from their link (from 1 to 720). The manage page then shows a notice instead of the buttons, and the API refuses the change. You can still change the booking from the app.',
+        es: 'Cada tipo de evento puede definir cuántas horas antes del inicio el invitado deja de poder cancelar o reprogramar desde su link (de 1 a 720). La página de gestión muestra un aviso en lugar de los botones y la API rechaza el cambio. Vos podés seguir cambiando la reserva desde la app.',
+        pt: 'Cada tipo de evento pode definir quantas horas antes do início o convidado deixa de poder cancelar ou reagendar pelo link (de 1 a 720). A página de gestão mostra um aviso no lugar dos botões e a API recusa a alteração. Você ainda pode alterar a reserva pelo app.',
+      },
+    ],
+  },
+  {
     id: '2026-11-04-link-api-filters',
     date: '2026-11-04',
     title: {
