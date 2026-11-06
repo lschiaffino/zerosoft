@@ -13,6 +13,7 @@ import { bookingManageSchema } from '@/lib/calendar-schema';
 import { afterBookingCancelled, afterBookingReconfirmed, afterBookingRescheduled } from '@/lib/calendar-lifecycle';
 import { refundCancelledBooking } from '@/lib/calendar-payments';
 import { crmError, invalidBody, notFound } from '@/lib/crm-http';
+import { isInsideChangeCutoff } from '@/lib/calendar-change-cutoff';
 import { logCalActivity } from '@/lib/calendar-activity';
 import type { CalendarBookingRow } from '@/lib/db';
 
@@ -43,6 +44,14 @@ export async function POST(req: NextRequest, props: { params: Promise<{ token: s
   const body: unknown = await req.json().catch(() => null);
   const parsed = bookingManageSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
+
+  // Plazo del evento: cancelar o mover (no retirar una solicitud pendiente ni reconfirmar).
+  if (parsed.data.action !== 'reconfirm' && !awaitingApproval) {
+    const et = await getEventTypeById(booking.event_type_id);
+    if (et && isInsideChangeCutoff(et.bookingRulesParsed, new Date(booking.starts_at))) {
+      return crmError(409, 'change_cutoff');
+    }
+  }
 
   try {
     if (parsed.data.action === 'cancel') {

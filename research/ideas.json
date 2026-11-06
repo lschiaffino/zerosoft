@@ -2430,5 +2430,43 @@
     "description": "Dub has GET /links/count that accepts the list filters and returns only the total (https://dub.co/docs/api-reference/endpoint/retrieve-links-count). Our API only returns total inside the paginated list, so a dashboard that wants a number must fetch a page of links too. First scope: GET /api/v1/links/count reusing parseLinkListQuery in lib/link-api-query.ts, links:read scope, grouped by an optional groupBy of tag or folder.",
     "product": "link",
     "kind": "idea"
+  },
+  {
+    "title": "Cal: Close cancel and reschedule from the invitee link N hours before the start",
+    "description": "Calendly only shows a cancellation policy to invitees and does not enforce it (https://calendly.com/help/how-to-add-a-cancellation-policy), and Cal.com added a minimum notice to reschedule. Before this, the manage page in components/calendar/ManageBooking.tsx let a guest cancel or move a booking minutes before it started. A small team that blocks the calendar for a meeting needs a way to say changes close 24 hours before. First scope: a changeCutoffHours rule per event type, enforced in the manage route, with the buttons replaced by a notice. The host can still change the booking from the app.",
+    "product": "cal",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-06-cal-change-cutoff"
+  },
+  {
+    "title": "Cal: Show a cancellation policy on the booking page and in the confirmation email",
+    "description": "Calendly lets you write a cancellation policy that invitees see before and after booking (https://calendly.com/help/how-to-add-a-cancellation-policy). We have a welcome message on the event type (components/calendar/PublicBookingPage.tsx) but no field that travels to the confirmation email and the manage page. Invitees at small teams often ask the same question about late changes. First scope: a policy text per event type in the three languages of the host's choice, shown on the booking form, the confirmation and the manage page.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Add a fixed booking date range to an event type",
+    "description": "Calendly offers a rolling window or a fixed from/to range in Availability (https://calendly.com/help/how-to-fine-tune-your-availability-settings). Today lib/calendar.ts only supports maxFutureDays counted from today, so a workshop week or a launch campaign cannot open on a given date and close on another. This matters for recruiting weeks, office hours during an event and seasonal offers. First scope: optional startDate and endDate in the booking rules, applied in the slots engine and shown in the editor.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Limit each invitee to one upcoming booking per event type",
+    "description": "Calendly and Cal.com can limit how many future bookings the same email can hold for an event type (https://calendly.com/help/how-to-set-meeting-limits). Our meeting limits in lib/calendar-limits.ts count bookings per host and per period but not per invitee, so one person can hold every Tuesday slot. Free consultations and office hours need this to stay fair. First scope: a maxUpcomingPerInvitee rule checked at booking time, with a clear message that links to the existing booking's manage page.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Duplicate an event type with its schedule, questions and workflow steps",
+    "description": "Calendly has Clone on every event type in the list (https://calendly.com/help/event-types-overview), which is how people create the 15, 30 and 60 minute variants. In components/calendar/EventTypesView.tsx an event type can be opened, renamed and deleted, but the only way to get a variant is to fill the editor again, including questions and locations. First scope: a Duplicate action that copies the rules, fields, locations, schedule and workflow steps with a new slug and a Copy suffix in the title, and opens the editor.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Add a custom confirmation message with links to the booking confirmation",
+    "description": "Calendly lets the host add instructions to the confirmation page and the confirmation email (https://calendly.com/help/how-to-customize-your-confirmation-page). We have welcomeMessage for the booking form and a redirect URL, but nothing that appears in the confirmation screen or the email, so a host cannot say 'bring your ID' or 'here is the prep doc' without a redirect. First scope: a short message per event type with plain links, shown after booking, in the email and in the manage page.",
+    "product": "cal",
+    "kind": "idea"
   }
 ]
