@@ -84,9 +84,15 @@ test('plan: crear desde la lista, propiedades, issues y update con salud', async
 });
 
 test('roadmap: la barra se arrastra y cambia las fechas; zoom y oscuro a 390px', async ({ page, request }) => {
+  // Fechas relativas a hoy: el roadmap abre centrado en hoy y una barra ya vencida queda fuera de pantalla.
+  const day = (offset: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
   const name = `Roadmap ${uid()}`;
-  const plan = await ok<{ id: string }>(request.post('/api/track/plans', { data: { name, status: 'in_progress', startDate: '2026-10-20', targetDate: '2026-11-05' } }));
-  await ok(request.post(`/api/track/plans/${plan.id}/milestones`, { data: { name: 'Beta', targetDate: '2026-10-28' } }));
+  const plan = await ok<{ id: string }>(request.post('/api/track/plans', { data: { name, status: 'in_progress', startDate: day(0), targetDate: day(16) } }));
+  await ok(request.post(`/api/track/plans/${plan.id}/milestones`, { data: { name: 'Beta', targetDate: day(8) } }));
   await page.goto('/en/app/track/roadmap?zoom=week', { waitUntil: 'networkidle' });
   const bar = page.getByTestId('tp-bar').filter({ hasText: name });
   await expect(bar).toBeVisible();
@@ -98,12 +104,12 @@ test('roadmap: la barra se arrastra y cambia las fechas; zoom y oscuro a 390px',
   await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 4 });
   await page.mouse.move(box.x + box.width / 2 + 84, box.y + box.height / 2, { steps: 4 });
   await page.mouse.up();
-  await expect.poll(async () => (await (await request.get(`/api/track/plans/${plan.id}`)).json()).plan.start_date).toBe('2026-10-23');
-  expect((await (await request.get(`/api/track/plans/${plan.id}`)).json()).plan.target_date).toBe('2026-11-08');
+  await expect.poll(async () => (await (await request.get(`/api/track/plans/${plan.id}`)).json()).plan.start_date).toBe(day(3));
+  expect((await (await request.get(`/api/track/plans/${plan.id}`)).json()).plan.target_date).toBe(day(19));
   // Teclado: flecha izquierda mueve un día.
   await bar.focus();
   await page.keyboard.press('ArrowLeft');
-  await expect.poll(async () => (await (await request.get(`/api/track/plans/${plan.id}`)).json()).plan.start_date).toBe('2026-10-22');
+  await expect.poll(async () => (await (await request.get(`/api/track/plans/${plan.id}`)).json()).plan.start_date).toBe(day(2));
 
   await page.getByTestId('tp-zoom-quarter').click();
   await expect(page).toHaveURL(/zoom=quarter/);
