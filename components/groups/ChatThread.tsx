@@ -266,7 +266,9 @@ export default function ChatThread(props: ThreadProps) {
     const hash = window.location.hash.slice(1);
     const target = hash.startsWith('m-') ? document.getElementById(hash) : null;
     const unreadEl = !target && unreadMark ? document.getElementById('wa-unread') : null;
-    if (unreadEl) {
+    const box = boxRef.current;
+    // Lo sin leer arranca arriba solo si no entra entero en pantalla; si entra, se ve el final (como WhatsApp).
+    if (unreadEl && box && box.scrollHeight - unreadEl.offsetTop > box.clientHeight) {
       unreadEl.scrollIntoView({ block: 'start' });
       boxRef.current?.scrollBy({ top: -80 });
       return;
