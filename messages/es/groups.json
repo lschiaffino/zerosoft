@@ -828,7 +828,11 @@
     "invalid_label": "Etiqueta inválida.",
     "missing_variables": "Completá todas las variables de la plantilla.",
     "missing_tree": "Escribí las opciones, una por línea.",
-    "bridge_unavailable": "El servidor de conexión por QR no está configurado. Volvé a intentar cuando esté disponible."
+    "bridge_unavailable": "El servidor de conexión por QR no está configurado. Volvé a intentar cuando esté disponible.",
+    "media_too_large": "Pasa el tope de WhatsApp: 16 MB para notas de voz y 100 MB para cualquier otro archivo.",
+    "invalid_media": "Ese archivo no se puede mandar como nota de voz.",
+    "too_many_files": "Hasta 10 archivos a la vez.",
+    "client_upload_unavailable": "La subida directa no está disponible acá. Los archivos de hasta 10 MB se suben igual."
   },
   "media": {
     "image": "Imagen",
@@ -836,7 +840,12 @@
     "video": "Video",
     "file": "Archivo",
     "call": "Llamada",
-    "deleted": "Mensaje borrado"
+    "deleted": "Mensaje borrado",
+    "voice": "Mensaje de voz",
+    "sticker": "Sticker",
+    "location": "Ubicación",
+    "contact": "Contacto",
+    "viewOnce": "Mensaje de visualización única"
   },
   "langs": {
     "en": "inglés",

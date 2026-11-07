@@ -149,7 +149,7 @@ describe('archivos recibidos por Evolution', () => {
     let huge = false;
     vi.stubGlobal('fetch', async () => {
       if (fail) return new Response('{}', { status: 500 });
-      const data = huge ? Buffer.alloc(11 * 1024 * 1024) : JPEG;
+      const data = huge ? Buffer.alloc(17 * 1024 * 1024) : JPEG;
       return new Response(JSON.stringify({ base64: data.toString('base64'), mimetype: 'image/jpeg' }), { status: 201 });
     });
     const user = await makeUser('evo-media-lazy');

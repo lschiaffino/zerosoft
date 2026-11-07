@@ -112,7 +112,8 @@ export function managedProvider(
   const f = opts.fetch ?? defaultBridgeFetch;
   const instance = cfg.session;
   const token = cfg.instanceToken;
-  const inner = evolutionProvider({ baseUrl: env.baseUrl, apiKey: token, session: instance }, { fetch: f });
+  // Sin fetch propio, el de Evolution (con el timeout largo de los envíos de media).
+  const inner = evolutionProvider({ baseUrl: env.baseUrl, apiKey: token, session: instance }, { fetch: opts.fetch });
   const asGlobal = (path: string, method: string, body?: unknown) =>
     bridgeRequest(f, `${env.baseUrl}${path}`, { apikey: env.globalKey }, method, body);
   const asInstance = (path: string, method: string, body?: unknown) =>
