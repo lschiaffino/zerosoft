@@ -8,6 +8,7 @@ import { shopUp } from './shop-migration';
 import { hiringUp } from './hiring-migration';
 import { peopleUp } from './people-migration';
 import { booksUp } from './books-migration';
+import { booksParityUp } from './books-parity-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
 import { sendUp } from './send-migration';
@@ -8613,6 +8614,11 @@ export const MIGRATIONS: Migration[] = [
     up: async (c) => {
       await addColumn(c, 'ALTER TABLE links ADD COLUMN do_index INTEGER NOT NULL DEFAULT 0');
     },
+  },
+  {
+    // Books: impuesto incluido, cobros por lote, presupuestos, bienes de uso, reglas bancarias, centros de costo y portal de cliente.
+    id: '220_books_parity',
+    up: booksParityUp,
   },
 ];
 

@@ -12,9 +12,9 @@
  *   comprobante (libro IVA ventas y compras de AR), con export CSV.
  */
 import { getDb } from './db';
-import { ensureBooks } from './books';
+import { ensureBooks, listAccounts } from './books';
 import { normalSide, type AccountType } from './books-templates';
-import { convert, daysBetween, todayIso, toDecimalString } from './books-money';
+import { addDays, addMonths, convert, daysBetween, fiscalYearStart, todayIso, toDecimalString } from './books-money';
 
 export interface ReportLine {
   accountId: string;
@@ -25,12 +25,14 @@ export interface ReportLine {
   amount: number;
 }
 
-async function balances(ws: string, opts: { from?: string; to?: string; types?: AccountType[] }): Promise<ReportLine[]> {
+async function balances(ws: string, opts: { from?: string; to?: string; types?: AccountType[]; tracking?: string }): Promise<ReportLine[]> {
   const where = ['a.workspace_id = ?'];
   const args: Array<string | number> = [ws];
   const jWhere: string[] = [];
   if (opts.from) (jWhere.push('j.date >= ?'), args.push(opts.from));
   if (opts.to) (jWhere.push('j.date <= ?'), args.push(opts.to));
+  // Centro de costo: la línea lleva esa opción en alguna de las dos categorías.
+  if (opts.tracking) (jWhere.push('(l.tracking_a = ? OR l.tracking_b = ?)'), args.push(opts.tracking, opts.tracking));
   if (opts.types?.length) where.push(`a.type IN (${opts.types.map((t) => `'${t}'`).join(',')})`);
   const rows = (await getDb()
     .prepare(
@@ -61,9 +63,9 @@ export interface ProfitLoss {
   netProfit: number;
 }
 
-export async function profitAndLoss(ws: string, from: string, to: string): Promise<ProfitLoss> {
+export async function profitAndLoss(ws: string, from: string, to: string, opts: { tracking?: string } = {}): Promise<ProfitLoss> {
   const s = await ensureBooks(ws);
-  const lines = await balances(ws, { from, to, types: ['income', 'expense'] });
+  const lines = await balances(ws, { from, to, types: ['income', 'expense'], tracking: opts.tracking });
   const income = lines.filter((l) => l.type === 'income');
   const costOfSales = lines.filter((l) => l.type === 'expense' && l.subtype === 'cogs');
   const expenses = lines.filter((l) => l.type === 'expense' && l.subtype !== 'cogs');
@@ -92,7 +94,10 @@ export interface BalanceSheet {
   assets: ReportLine[];
   liabilities: ReportLine[];
   equity: ReportLine[];
+  /** Resultado del ejercicio en curso (desde el arranque del ejercicio hasta la fecha). */
   currentEarnings: number;
+  /** Resultado de ejercicios anteriores todavía no pasado a una cuenta de patrimonio. */
+  priorEarnings: number;
   totalAssets: number;
   totalLiabilities: number;
   totalEquity: number;
@@ -108,11 +113,15 @@ export async function balanceSheet(ws: string, asOf: string): Promise<BalanceShe
   const equity = lines.filter((l) => l.type === 'equity');
   const income = lines.filter((l) => l.type === 'income').reduce((a, l) => a + l.amount, 0);
   const expense = lines.filter((l) => l.type === 'expense').reduce((a, l) => a + l.amount, 0);
-  const currentEarnings = income - expense;
+  // El cierre de ejercicio es automático: lo anterior al arranque del ejercicio pasa a "ejercicios anteriores".
+  const yearStart = fiscalYearStart(asOf, Number(s.fiscal_start_month ?? 1));
+  const thisYear = await balances(ws, { from: yearStart, to: asOf, types: ['income', 'expense'] });
+  const currentEarnings = thisYear.reduce((a, l) => a + (l.type === 'income' ? l.amount : -l.amount), 0);
+  const priorEarnings = income - expense - currentEarnings;
   const totalAssets = assets.reduce((a, l) => a + l.amount, 0);
   const totalLiabilities = liabilities.reduce((a, l) => a + l.amount, 0);
-  const totalEquity = equity.reduce((a, l) => a + l.amount, 0) + currentEarnings;
-  return { asOf, currency: s.base_currency, assets, liabilities, equity, currentEarnings, totalAssets, totalLiabilities, totalEquity, difference: totalAssets - totalLiabilities - totalEquity };
+  const totalEquity = equity.reduce((a, l) => a + l.amount, 0) + currentEarnings + priorEarnings;
+  return { asOf, currency: s.base_currency, assets, liabilities, equity, currentEarnings, priorEarnings, totalAssets, totalLiabilities, totalEquity, difference: totalAssets - totalLiabilities - totalEquity };
 }
 
 export interface CashFlow {
@@ -234,8 +243,10 @@ export async function aging(ws: string, kind: 'receivables' | 'payables', asOf =
   const byContact = new Map<string, AgingRow>();
   const empty = (): Record<AgingBucket, number> => ({ current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 });
   const totals = { ...empty(), total: 0 };
-  const add = (d: Record<string, unknown>, due: number, bucket: AgingBucket) => {
-    const base = convert(due, String(d.currency), String(d.fx_rate), s.base_currency);
+  const add = (d: Record<string, unknown>, due: number, bucket: AgingBucket, settled?: number) => {
+    // Igual que el libro: la conversión del total menos la de lo ya saldado, no la conversión del saldo.
+    const conv = (v: number) => convert(v, String(d.currency), String(d.fx_rate), s.base_currency);
+    const base = settled === undefined ? conv(due) : conv(due + settled) - conv(settled);
     const key = String(d.contact_id ?? '');
     const row = byContact.get(key) ?? { contactId: (d.contact_id as string) ?? null, contactName: String(d.contact_name ?? ''), buckets: empty(), total: 0, docs: [] };
     row.buckets[bucket] += base;
@@ -247,7 +258,7 @@ export async function aging(ws: string, kind: 'receivables' | 'payables', asOf =
   };
   for (const d of docs) {
     const due = Number(d.total) - Number(d.paid) - Number(d.credited);
-    if (due !== 0) add(d, due, agingBucket((d.due_date as string) ?? null, asOf));
+    if (due !== 0) add(d, due, agingBucket((d.due_date as string) ?? null, asOf), Number(d.paid) + Number(d.credited));
   }
   for (const c of credits) add(c, -(Number(c.total) - Number(c.paid_total)), 'current');
   return { kind, asOf, currency: s.base_currency, rows: [...byContact.values()].sort((a, b) => b.total - a.total), totals };
@@ -447,4 +458,297 @@ export async function overview(ws: string, today = todayIso()) {
     monthExpenses: pl.totalExpenses + pl.totalCostOfSales,
     monthProfit: pl.netProfit,
   };
+}
+
+// ---------- Balance de sumas y saldos ----------
+
+export interface TrialBalanceRow {
+  accountId: string | null;
+  code: string;
+  name: string;
+  type: AccountType | 'equity';
+  debit: number;
+  credit: number;
+}
+
+export interface TrialBalance {
+  asOf: string;
+  yearStart: string;
+  currency: string;
+  rows: TrialBalanceRow[];
+  priorEarnings: number;
+  totalDebit: number;
+  totalCredit: number;
+}
+
+/**
+ * A una fecha: cuentas de balance con su saldo acumulado y cuentas de resultado
+ * desde el arranque del ejercicio; lo de ejercicios anteriores en una línea
+ * aparte. Debe = haber siempre, si los asientos balancean.
+ */
+export async function trialBalance(ws: string, asOf: string): Promise<TrialBalance> {
+  const s = await ensureBooks(ws);
+  const yearStart = fiscalYearStart(asOf, Number(s.fiscal_start_month ?? 1));
+  const sheet = await balances(ws, { to: asOf, types: ['asset', 'liability', 'equity'] });
+  const results = await balances(ws, { from: yearStart, to: asOf, types: ['income', 'expense'] });
+  const prior = await balances(ws, { to: addDays(yearStart, -1), types: ['income', 'expense'] });
+  const priorEarnings = prior.reduce((a, l) => a + (l.type === 'income' ? l.amount : -l.amount), 0);
+  const rows: TrialBalanceRow[] = [...sheet, ...results].map((l) => {
+    const signed = normalSide(l.type) === 'debit' ? l.amount : -l.amount;
+    return { accountId: l.accountId, code: l.code, name: l.name, type: l.type, debit: signed > 0 ? signed : 0, credit: signed < 0 ? -signed : 0 };
+  });
+  rows.sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+  if (priorEarnings !== 0) rows.push({ accountId: null, code: '', name: '', type: 'equity', debit: priorEarnings < 0 ? -priorEarnings : 0, credit: priorEarnings > 0 ? priorEarnings : 0 });
+  return { asOf, yearStart, currency: s.base_currency, rows, priorEarnings, totalDebit: rows.reduce((a, r) => a + r.debit, 0), totalCredit: rows.reduce((a, r) => a + r.credit, 0) };
+}
+
+// ---------- Mayor ----------
+
+export interface LedgerEntry {
+  journalId: string;
+  number: number;
+  date: string;
+  memo: string;
+  sourceType: string;
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
+export interface LedgerAccount {
+  accountId: string;
+  code: string;
+  name: string;
+  type: AccountType;
+  opening: number;
+  entries: LedgerEntry[];
+  closing: number;
+  totalDebit: number;
+  totalCredit: number;
+}
+
+export interface GeneralLedger {
+  from: string;
+  to: string;
+  currency: string;
+  accounts: LedgerAccount[];
+  truncated: boolean;
+}
+
+export const LEDGER_MAX_LINES = 5000;
+
+/** Saldo inicial, cada movimiento con saldo acumulado y saldo final, por cuenta. Saldos en el lado normal de la cuenta. */
+export async function generalLedger(ws: string, from: string, to: string, opts: { accountId?: string } = {}): Promise<GeneralLedger> {
+  const s = await ensureBooks(ws);
+  const accounts = (await listAccounts(ws, { includeArchived: true })).filter((a) => !opts.accountId || a.id === opts.accountId);
+  const rows = (await getDb()
+    .prepare(
+      `SELECT l.account_id, l.debit, l.credit, l.description, j.id AS journal_id, j.number, j.date, j.memo, j.source_type
+       FROM books_journal_lines l JOIN books_journals j ON j.id = l.journal_id
+       WHERE j.workspace_id = ? AND j.date >= ? AND j.date <= ?${opts.accountId ? ' AND l.account_id = ?' : ''}
+       ORDER BY j.date, j.number, l.rowid LIMIT ?`,
+    )
+    .all(...[ws, from, to, ...(opts.accountId ? [opts.accountId] : []), LEDGER_MAX_LINES + 1])) as Array<Record<string, unknown>>;
+  const truncated = rows.length > LEDGER_MAX_LINES;
+  const before = (await getDb()
+    .prepare(`SELECT l.account_id, COALESCE(SUM(l.debit - l.credit), 0) AS v FROM books_journal_lines l JOIN books_journals j ON j.id = l.journal_id WHERE j.workspace_id = ? AND j.date < ? GROUP BY l.account_id`)
+    .all(ws, from)) as Array<{ account_id: string; v: number }>;
+  const openingOf = new Map(before.map((b) => [b.account_id, Number(b.v)]));
+  const out: LedgerAccount[] = [];
+  for (const a of accounts) {
+    const sign = normalSide(a.type) === 'debit' ? 1 : -1;
+    const opening = sign * (openingOf.get(a.id) ?? 0);
+    let balance = opening;
+    let totalDebit = 0;
+    let totalCredit = 0;
+    const entries: LedgerEntry[] = [];
+    for (const r of rows.slice(0, LEDGER_MAX_LINES)) {
+      if (r.account_id !== a.id) continue;
+      const debit = Number(r.debit);
+      const credit = Number(r.credit);
+      balance += sign * (debit - credit);
+      totalDebit += debit;
+      totalCredit += credit;
+      entries.push({ journalId: String(r.journal_id), number: Number(r.number), date: String(r.date), memo: String(r.memo ?? ''), sourceType: String(r.source_type), description: String(r.description ?? ''), debit, credit, balance });
+    }
+    if (entries.length || opening !== 0) out.push({ accountId: a.id, code: a.code, name: a.name, type: a.type, opening, entries, closing: balance, totalDebit, totalCredit });
+  }
+  return { from, to, currency: s.base_currency, accounts: out, truncated };
+}
+
+// ---------- Ventas por ítem ----------
+
+export interface SalesByItemRow {
+  itemId: string | null;
+  name: string;
+  quantity: number;
+  net: number;
+  count: number;
+}
+
+/** Neto vendido en moneda base (facturas menos notas de crédito emitidas, por fecha de emisión; lo anulado no cuenta). */
+export async function salesByItem(ws: string, from: string, to: string): Promise<{ from: string; to: string; currency: string; rows: SalesByItemRow[]; total: number }> {
+  const s = await ensureBooks(ws);
+  const lines = (await getDb()
+    .prepare(
+      `SELECT l.item_id, l.description, l.quantity, l.net, d.doc_type, d.currency, d.fx_rate, i.name AS item_name
+       FROM books_lines l JOIN books_documents d ON d.id = l.doc_id LEFT JOIN books_items i ON i.id = l.item_id
+       WHERE d.workspace_id = ? AND d.doc_type IN ('invoice','credit_note') AND d.status NOT IN ('draft','void') AND d.issue_date >= ? AND d.issue_date <= ?`,
+    )
+    .all(ws, from, to)) as Array<Record<string, unknown>>;
+  const byItem = new Map<string, SalesByItemRow>();
+  for (const l of lines) {
+    const sign = l.doc_type === 'credit_note' ? -1 : 1;
+    const name = String(l.item_name ?? l.description ?? '');
+    const key = (l.item_id as string) ?? `text:${name.toLowerCase()}`;
+    const row = byItem.get(key) ?? { itemId: (l.item_id as string) ?? null, name, quantity: 0, net: 0, count: 0 };
+    row.quantity = Math.round((row.quantity + sign * Number(l.quantity)) * 10_000) / 10_000;
+    row.net += sign * convert(Number(l.net), String(l.currency), String(l.fx_rate), s.base_currency);
+    row.count += 1;
+    byItem.set(key, row);
+  }
+  const rows = [...byItem.values()].sort((a, b) => b.net - a.net);
+  return { from, to, currency: s.base_currency, rows, total: rows.reduce((a, r) => a + r.net, 0) };
+}
+
+// ---------- Presupuesto contra real ----------
+
+export interface BudgetVarianceRow {
+  accountId: string;
+  code: string;
+  name: string;
+  type: AccountType;
+  budget: number;
+  actual: number;
+  /** A favor es positivo: ingreso de más o gasto de menos. */
+  variance: number;
+}
+
+export async function budgetVariance(ws: string, budgetId: string, from: string, to: string) {
+  const s = await ensureBooks(ws);
+  const budget = (await getDb().prepare('SELECT id, name FROM books_budgets WHERE id = ? AND workspace_id = ?').get(budgetId, ws)) as { id: string; name: string } | undefined;
+  if (!budget) return null;
+  const planned = (await getDb()
+    .prepare('SELECT account_id, COALESCE(SUM(amount), 0) AS v FROM books_budget_lines WHERE budget_id = ? AND month >= ? AND month <= ? GROUP BY account_id')
+    .all(budgetId, from.slice(0, 7), to.slice(0, 7))) as Array<{ account_id: string; v: number }>;
+  const actual = await balances(ws, { from, to, types: ['income', 'expense'] });
+  const accounts = await listAccounts(ws, { includeArchived: true });
+  const plan = new Map(planned.map((p) => [p.account_id, Number(p.v)]));
+  const act = new Map(actual.map((a) => [a.accountId, a.amount]));
+  const rows: BudgetVarianceRow[] = accounts
+    .filter((a) => (a.type === 'income' || a.type === 'expense') && (plan.has(a.id) || act.has(a.id)))
+    .map((a) => {
+      const b = plan.get(a.id) ?? 0;
+      const x = act.get(a.id) ?? 0;
+      return { accountId: a.id, code: a.code, name: a.name, type: a.type, budget: b, actual: x, variance: a.type === 'income' ? x - b : b - x };
+    });
+  const sum = (t: AccountType, k: 'budget' | 'actual') => rows.filter((r) => r.type === t).reduce((a, r) => a + r[k], 0);
+  return {
+    budgetId,
+    budgetName: budget.name,
+    from,
+    to,
+    currency: s.base_currency,
+    rows,
+    netBudget: sum('income', 'budget') - sum('expense', 'budget'),
+    netActual: sum('income', 'actual') - sum('expense', 'actual'),
+  };
+}
+export type BudgetVariance = NonNullable<Awaited<ReturnType<typeof budgetVariance>>>;
+
+// ---------- Conciliación ----------
+
+export interface ReconciliationRow {
+  id: string;
+  name: string;
+  bookBalance: number;
+  statementTotal: number;
+  unmatched: number;
+  unmatchedAmount: number;
+}
+
+/** Por cuenta bancaria: saldo del libro, total del extracto importado y lo que falta conciliar. */
+export async function reconciliationSummary(ws: string): Promise<{ currency: string; rows: ReconciliationRow[] }> {
+  const s = await ensureBooks(ws);
+  const rows = (await getDb()
+    .prepare(
+      `SELECT b.id, b.name,
+         (SELECT COALESCE(SUM(l.debit - l.credit), 0) FROM books_journal_lines l WHERE l.account_id = b.account_id) AS book,
+         (SELECT COALESCE(SUM(t.amount), 0) FROM books_bank_txns t WHERE t.bank_account_id = b.id AND t.status != 'ignored') AS stmt,
+         (SELECT COUNT(*) FROM books_bank_txns t WHERE t.bank_account_id = b.id AND t.status = 'unmatched') AS n,
+         (SELECT COALESCE(SUM(t.amount), 0) FROM books_bank_txns t WHERE t.bank_account_id = b.id AND t.status = 'unmatched') AS pending
+       FROM books_bank_accounts b WHERE b.workspace_id = ? AND b.archived = 0 ORDER BY b.created_at`,
+    )
+    .all(ws)) as Array<Record<string, unknown>>;
+  return { currency: s.base_currency, rows: rows.map((r) => ({ id: String(r.id), name: String(r.name), bookBalance: Number(r.book), statementTotal: Number(r.stmt), unmatched: Number(r.n), unmatchedAmount: Number(r.pending) })) };
+}
+
+// ---------- Comparación y CSV ----------
+
+/** Período con el que se compara: el inmediato anterior de igual largo, o el mismo del año pasado. */
+export function comparePeriod(from: string, to: string, mode: 'prev' | 'year'): { from: string; to: string } {
+  if (mode === 'year') return { from: addMonths(from, -12), to: addMonths(to, -12) };
+  const days = daysBetween(from, to);
+  const end = addDays(from, -1);
+  return { from: addDays(end, -days), to: end };
+}
+
+export function rowsToCsv(rows: Array<Array<string | number>>): string {
+  return rows.map((r) => r.map(csvCell).join(',')).join('\n');
+}
+
+export function pnlCsv(r: ProfitLoss): string {
+  const m = (v: number) => toDecimalString(v, r.currency);
+  const sec = (name: string, ls: ReportLine[], total: number) => [...ls.map((l) => [name, l.code, l.name, m(l.amount)]), [name, '', 'total', m(total)]];
+  return rowsToCsv([['section', 'code', 'account', 'amount'], ...sec('income', r.income, r.totalIncome), ...sec('cost_of_sales', r.costOfSales, r.totalCostOfSales), ...sec('expenses', r.expenses, r.totalExpenses), ['net_profit', '', '', m(r.netProfit)]]);
+}
+
+export function balanceCsv(r: BalanceSheet): string {
+  const m = (v: number) => toDecimalString(v, r.currency);
+  const sec = (name: string, ls: ReportLine[], total: number) => [...ls.map((l) => [name, l.code, l.name, m(l.amount)]), [name, '', 'total', m(total)]];
+  return rowsToCsv([
+    ['section', 'code', 'account', 'amount'],
+    ...sec('assets', r.assets, r.totalAssets),
+    ...sec('liabilities', r.liabilities, r.totalLiabilities),
+    ...r.equity.map((l) => ['equity', l.code, l.name, m(l.amount)]),
+    ['equity', '', 'prior_years_earnings', m(r.priorEarnings)],
+    ['equity', '', 'current_year_earnings', m(r.currentEarnings)],
+    ['equity', '', 'total', m(r.totalEquity)],
+  ]);
+}
+
+export function cashFlowCsv(r: CashFlow): string {
+  const m = (v: number) => toDecimalString(v, r.currency);
+  return rowsToCsv([['line', 'amount'], ['opening', m(r.opening)], ...r.inflows.map((x) => [`in:${x.category}`, m(x.amount)]), ...r.outflows.map((x) => [`out:${x.category}`, m(-x.amount)]), ['net', m(r.net)], ['closing', m(r.closing)]]);
+}
+
+export function agingCsv(r: AgingReport): string {
+  const m = (v: number) => toDecimalString(v, r.currency);
+  return rowsToCsv([['contact', ...AGING_BUCKETS, 'total'], ...r.rows.map((x) => [x.contactName, ...AGING_BUCKETS.map((b) => m(x.buckets[b])), m(x.total)]), ['total', ...AGING_BUCKETS.map((b) => m(r.totals[b])), m(r.totals.total)]]);
+}
+
+export function trialBalanceCsv(r: TrialBalance): string {
+  const m = (v: number) => toDecimalString(v, r.currency);
+  return rowsToCsv([['code', 'account', 'debit', 'credit'], ...r.rows.map((x) => [x.code, x.name || 'prior_years_earnings', m(x.debit), m(x.credit)]), ['', 'total', m(r.totalDebit), m(r.totalCredit)]]);
+}
+
+export function ledgerCsv(r: GeneralLedger): string {
+  const m = (v: number) => toDecimalString(v, r.currency);
+  const rows: Array<Array<string | number>> = [['code', 'account', 'date', 'journal', 'memo', 'source', 'debit', 'credit', 'balance']];
+  for (const a of r.accounts) {
+    rows.push([a.code, a.name, r.from, '', 'opening', '', '', '', m(a.opening)]);
+    for (const e of a.entries) rows.push([a.code, a.name, e.date, e.number, e.memo, e.sourceType, m(e.debit), m(e.credit), m(e.balance)]);
+    rows.push([a.code, a.name, r.to, '', 'closing', '', m(a.totalDebit), m(a.totalCredit), m(a.closing)]);
+  }
+  return rowsToCsv(rows);
+}
+
+export function salesByItemCsv(r: Awaited<ReturnType<typeof salesByItem>>): string {
+  return rowsToCsv([['item', 'quantity', 'net'], ...r.rows.map((x) => [x.name, x.quantity, toDecimalString(x.net, r.currency)]), ['total', '', toDecimalString(r.total, r.currency)]]);
+}
+
+export function varianceCsv(r: BudgetVariance): string {
+  const m = (v: number) => toDecimalString(v, r.currency);
+  return rowsToCsv([['code', 'account', 'budget', 'actual', 'variance'], ...r.rows.map((x) => [x.code, x.name, m(x.budget), m(x.actual), m(x.variance)]), ['', 'net', m(r.netBudget), m(r.netActual), m(r.netActual - r.netBudget)]]);
 }

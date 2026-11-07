@@ -363,7 +363,7 @@ export async function listTxns(ws: string, bankAccountId: string, opts: { status
 // ---------- Sugerencias ----------
 
 export interface MatchCandidate {
-  kind: 'invoice' | 'bill' | 'payment';
+  kind: 'invoice' | 'bill' | 'payment' | 'batch' | 'journal';
   /** Documento (invoice/bill) o cobro ya registrado (payment). */
   id: string;
   docId: string;
@@ -452,7 +452,7 @@ async function matchables(ws: string, bankLedgerId: string, baseCurrency: string
     .prepare(
       `SELECT p.id, p.doc_id, p.amount, p.date, d.doc_type, d.number_label, c.name AS contact_name FROM books_payments p
        JOIN books_documents d ON d.id = p.doc_id LEFT JOIN books_contacts c ON c.id = d.contact_id
-       WHERE p.workspace_id = ? AND p.account_id = ? AND p.bank_txn_id IS NULL AND d.currency = ? ORDER BY p.date DESC LIMIT 500`,
+       WHERE p.workspace_id = ? AND p.account_id = ? AND p.bank_txn_id IS NULL AND p.batch_id IS NULL AND d.currency = ? ORDER BY p.date DESC LIMIT 500`,
     )
     .all(ws, bankLedgerId, baseCurrency)) as Array<Record<string, unknown>>;
   return {
@@ -487,10 +487,20 @@ export async function suggestions(ws: string, bankAccountId: string): Promise<Re
   if (!b) throw new BooksError('not_found', 404);
   const txns = await listTxns(ws, bankAccountId, { status: 'unmatched', limit: 300 });
   const pool = await matchables(ws, b.account_id, s.base_currency);
+  const batches = (await getDb().prepare('SELECT id, total, reference, date, doc_type FROM books_payment_batches WHERE workspace_id = ? AND account_id = ? AND bank_txn_id IS NULL LIMIT 300').all(ws, b.account_id)) as Array<Record<string, unknown>>;
+  const transfers = (await getDb()
+    .prepare("SELECT j.id, j.memo, j.date, SUM(l.debit - l.credit) AS v FROM books_journals j JOIN books_journal_lines l ON l.journal_id = j.id AND l.account_id = ? WHERE j.workspace_id = ? AND j.source_type = 'transfer' AND j.reversed_by IS NULL GROUP BY j.id ORDER BY j.date DESC LIMIT 300")
+    .all(b.account_id, ws)) as Array<Record<string, unknown>>;
+  const usedJournals = new Set(((await getDb().prepare('SELECT journal_id FROM books_bank_txns WHERE bank_account_id = ? AND journal_id IS NOT NULL').all(b.id)) as Array<{ journal_id: string }>).map((x) => x.journal_id));
   const out: Record<string, MatchCandidate[]> = {};
   for (const t of txns) {
     const ranked = rankCandidates(t, pool.docs, pool.payments);
-    if (ranked.length) out[t.id] = ranked;
+    // Lote o transferencia con el importe exacto: va primero, son un solo movimiento del banco.
+    const extra: MatchCandidate[] = [];
+    for (const x of batches) if (Number(x.total) === Math.abs(t.amount) && (x.doc_type === 'invoice') === t.amount > 0) extra.push({ kind: 'batch', id: String(x.id), docId: '', label: String(x.reference || x.id), contactName: '', amount: Number(x.total), date: String(x.date), score: 100 });
+    for (const x of transfers) if (Number(x.v) === t.amount && !usedJournals.has(String(x.id))) extra.push({ kind: 'journal', id: String(x.id), docId: '', label: String(x.memo), contactName: '', amount: Math.abs(t.amount), date: String(x.date), score: 100 });
+    const all = [...extra, ...ranked].slice(0, 5);
+    if (all.length) out[t.id] = all;
   }
   return out;
 }
@@ -514,7 +524,7 @@ async function claimTxn(id: string, fields: { paymentId?: string | null; journal
 export async function reconcile(
   actor: BooksActor,
   txnId: string,
-  input: { kind: 'invoice' | 'bill'; docId: string } | { kind: 'payment'; paymentId: string } | { kind: 'account'; accountId: string; description?: string } | { kind: 'ignore' },
+  input: { kind: 'invoice' | 'bill'; docId: string } | { kind: 'payment'; paymentId: string } | { kind: 'batch'; batchId: string } | { kind: 'journal'; journalId: string } | { kind: 'account'; accountId: string; description?: string } | { kind: 'ignore' },
 ): Promise<BankTxnDto> {
   assertCan(actor, 'banking.write');
   const t = await txnRow(actor.ws, txnId);
@@ -532,6 +542,23 @@ export async function reconcile(
     if (p.amount !== Math.abs(t.amount)) throw new BooksError('amount_mismatch', 409);
     const claimed = await getDb().prepare('UPDATE books_payments SET bank_txn_id = ? WHERE id = ? AND bank_txn_id IS NULL').run(t.id, p.id);
     if (!claimed.changes || !(await claimTxn(t.id, { paymentId: p.id }))) throw new BooksError('already_matched', 409);
+  } else if (input.kind === 'batch') {
+    const batch = (await getDb().prepare('SELECT * FROM books_payment_batches WHERE id = ? AND workspace_id = ?').get(input.batchId, actor.ws)) as { id: string; total: number; account_id: string; doc_type: string; bank_txn_id: string | null } | undefined;
+    if (!batch || batch.account_id !== b.account_id || batch.bank_txn_id) throw new BooksError('invalid_payment', 409);
+    if ((batch.doc_type === 'invoice') !== t.amount > 0) throw new BooksError('direction_mismatch', 409);
+    if (Number(batch.total) !== Math.abs(t.amount)) throw new BooksError('amount_mismatch', 409);
+    const claimed = await getDb().prepare('UPDATE books_payment_batches SET bank_txn_id = ? WHERE id = ? AND bank_txn_id IS NULL').run(t.id, batch.id);
+    if (!claimed.changes || !(await claimTxn(t.id, {}))) throw new BooksError('already_matched', 409);
+    await getDb().prepare('UPDATE books_bank_txns SET batch_id = ? WHERE id = ?').run(batch.id, t.id);
+  } else if (input.kind === 'journal') {
+    // Una transferencia ya registrada: la línea del extracto se vincula, sin otro asiento.
+    const line = (await getDb()
+      .prepare("SELECT COALESCE(SUM(l.debit - l.credit), 0) AS v FROM books_journal_lines l JOIN books_journals j ON j.id = l.journal_id WHERE j.id = ? AND j.workspace_id = ? AND j.source_type = 'transfer' AND j.reversed_by IS NULL AND l.account_id = ?")
+      .get(input.journalId, actor.ws, b.account_id)) as { v: number };
+    if (Number(line.v) !== t.amount || t.amount === 0) throw new BooksError('amount_mismatch', 409);
+    const taken = await getDb().prepare('SELECT 1 AS x FROM books_bank_txns WHERE bank_account_id = ? AND journal_id = ?').get(b.id, input.journalId);
+    if (taken) throw new BooksError('already_matched', 409);
+    if (!(await claimTxn(t.id, { journalId: input.journalId }))) throw new BooksError('already_matched', 409);
   } else if (input.kind === 'invoice' || input.kind === 'bill') {
     const d = await getDocRow(actor.ws, input.docId);
     if (!d || d.doc_type !== input.kind) throw new BooksError('not_found', 404);
@@ -554,6 +581,8 @@ export async function reconcile(
     const target = input as { kind: 'account'; accountId: string; description?: string };
     const acc = await getAccount(actor.ws, target.accountId);
     if (!acc || acc.archived || acc.id === b.account_id) throw new BooksError('invalid_account');
+    // Deudores y proveedores se mueven con documentos: si no, el saldo por cliente deja de coincidir con el libro.
+    if (acc.subtype === 'receivable' || acc.subtype === 'payable') throw new BooksError('account_needs_document');
     if (!(await claimTxn(t.id, {}))) throw new BooksError('already_matched', 409);
     try {
       const amount = convert(Math.abs(t.amount), b.currency, '1', s.base_currency);
@@ -579,17 +608,20 @@ export async function reconcile(
 export async function unreconcile(actor: BooksActor, txnId: string): Promise<BankTxnDto> {
   assertCan(actor, 'banking.write');
   const t = (await getDb().prepare('SELECT * FROM books_bank_txns WHERE id = ? AND workspace_id = ?').get(txnId, actor.ws)) as
-    | { id: string; bank_account_id: string; status: string; payment_id: string | null; journal_id: string | null }
+    | { id: string; bank_account_id: string; status: string; payment_id: string | null; journal_id: string | null; batch_id: string | null }
     | undefined;
   if (!t) throw new BooksError('not_found', 404);
   if (t.status === 'unmatched') return (await listTxns(actor.ws, t.bank_account_id)).find((x) => x.id === t.id)!;
   await inTransaction(async (db) => {
-    if (t.journal_id) {
+    // Solo se revierte el asiento que nació de esta línea; una transferencia vinculada queda en pie.
+    const own = t.journal_id ? ((await db.prepare('SELECT source_id FROM books_journals WHERE id = ? AND workspace_id = ?').get(t.journal_id, actor.ws)) as { source_id: string | null } | undefined) : undefined;
+    if (t.journal_id && own?.source_id === t.id) {
       const { reverseJournal } = await import('./books-ledger');
       await reverseJournal(actor.ws, actor.person, t.journal_id, { memo: 'Bank line unreconciled', db });
     }
+    if (t.batch_id) await db.prepare('UPDATE books_payment_batches SET bank_txn_id = NULL WHERE id = ? AND bank_txn_id = ?').run(t.batch_id, t.id);
     if (t.payment_id) await db.prepare('UPDATE books_payments SET bank_txn_id = NULL WHERE id = ? AND bank_txn_id = ?').run(t.payment_id, t.id);
-    await db.prepare("UPDATE books_bank_txns SET status = 'unmatched', payment_id = NULL, journal_id = NULL WHERE id = ?").run(t.id);
+    await db.prepare("UPDATE books_bank_txns SET status = 'unmatched', payment_id = NULL, journal_id = NULL, batch_id = NULL WHERE id = ?").run(t.id);
   });
   await audit(actor, 'bank.unreconcile', 'bank_txn', t.id, '');
   return (await listTxns(actor.ws, t.bank_account_id)).find((x) => x.id === t.id)!;

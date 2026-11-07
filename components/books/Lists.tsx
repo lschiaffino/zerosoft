@@ -12,6 +12,7 @@ import type { RecurringDto } from '@/lib/books-recurring';
 import type { BankAccountDto } from '@/lib/books-bank';
 import { formatMoney, parseAmount } from '@/lib/books-money';
 import { StatusBadge, useDate } from './ui';
+import { CsvTools } from './Extras';
 
 type DocKind = 'invoice' | 'credit_note' | 'bill';
 const PATH: Record<DocKind, string> = { invoice: 'invoices', credit_note: 'credit-notes', bill: 'bills' };
@@ -75,11 +76,16 @@ export function DocumentsList({ kind, items, total, q, status, canWrite, baseCur
         title={t(`nav.${NAV[kind]}`)}
         description={t(`docs.${kind}.desc`)}
         actions={
-          canWrite && kind !== 'credit_note' ? (
-            <Link className="btn btn-primary" href={`${base}/new`}>
-              {t(`docs.${kind}.new`)}
-            </Link>
-          ) : undefined
+          <>
+            <a className="btn btn-secondary" href={`/api/books/export?kind=${kind === 'invoice' ? 'invoices' : kind === 'bill' ? 'bills' : 'credit-notes'}`} download>
+              {t('csv.export')}
+            </a>
+            {canWrite && kind !== 'credit_note' && (
+              <Link className="btn btn-primary" href={`${base}/new`}>
+                {t(`docs.${kind}.new`)}
+              </Link>
+            )}
+          </>
         }
       />
       <div className="bk-toolbar">
@@ -150,6 +156,10 @@ export function ContactsList({ contacts, q, kind, canWrite, crm }: { contacts: C
         actions={
           canWrite ? (
             <>
+              <a className="btn btn-ghost" href="/api/books/export?kind=contacts" download>
+                {t('csv.export')}
+              </a>
+              <CsvTools kind="contacts" />
               {crm && (
                 <Link className="btn btn-secondary" href="/app/books/contacts/new?crm=1">
                   {t('contacts.importCrm')}
@@ -208,9 +218,15 @@ export function ItemsList({ items, q, canWrite, currency }: { items: ItemDto[]; 
         description={t('items.desc')}
         actions={
           canWrite ? (
-            <Link className="btn btn-primary" href="/app/books/items/new">
-              {t('items.new')}
-            </Link>
+            <>
+              <a className="btn btn-ghost" href="/api/books/export?kind=items" download>
+                {t('csv.export')}
+              </a>
+              <CsvTools kind="items" />
+              <Link className="btn btn-primary" href="/app/books/items/new">
+                {t('items.new')}
+              </Link>
+            </>
           ) : undefined
         }
       />
@@ -403,9 +419,14 @@ export function BankAccountsList({ accounts, canWrite, currency }: { accounts: B
         description={t('banking.desc')}
         actions={
           canWrite ? (
-            <Link className="btn btn-primary" href="/app/books/banking/new">
-              {t('banking.new')}
-            </Link>
+            <>
+              <Link className="btn btn-secondary" href="/app/books/banking/rules">
+                {t('rules.title')}
+              </Link>
+              <Link className="btn btn-primary" href="/app/books/banking/new">
+                {t('banking.new')}
+              </Link>
+            </>
           ) : undefined
         }
       />
@@ -432,7 +453,7 @@ export function BankAccountsList({ accounts, canWrite, currency }: { accounts: B
   );
 }
 
-export function QuotesList({ quotes, crm }: { quotes: Array<{ id: string; number: string; title: string; total: number; currency: string; recipient: string; status: string }>; crm: boolean }) {
+export function QuotesList({ quotes, crm, embedded = false }: { quotes: Array<{ id: string; number: string; title: string; total: number; currency: string; recipient: string; status: string }>; crm: boolean; embedded?: boolean }) {
   const t = useTranslations('books');
   const locale = useLocale();
   const router = useRouter();
@@ -448,8 +469,9 @@ export function QuotesList({ quotes, crm }: { quotes: Array<{ id: string; number
     router.push(`/app/books/invoices/${data.doc.id}`);
   };
   return (
-    <div className="app-page ui-page bk-page">
-      <PageHeader title={t('nav.quotes')} description={t('quotes.desc')} />
+    <div className={embedded ? 'bk-section bk-foot' : 'app-page ui-page bk-page'}>
+      {embedded ? <h2 className="bk-panel-title">{t('quotes.crmTitle')}</h2> : <PageHeader title={t('nav.quotes')} description={t('quotes.desc')} />}
+      {embedded && <p className="ui-help">{t('quotes.desc')}</p>}
       {error && (
         <p className="ui-error" role="alert">
           {t.has(`errors.${error}`) ? t(`errors.${error}`) : t('errors.generic')}

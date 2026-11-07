@@ -69,6 +69,13 @@ const STATUS_CLASS: Record<string, string> = {
   unmatched: 'badge-warn',
   matched: 'badge-ok',
   ignored: 'badge-outline',
+  awaiting_decision: 'badge-info',
+  accepted: 'badge-ok',
+  declined: 'badge-bad',
+  expired: 'badge-warn',
+  invoiced: 'badge-ok',
+  registered: 'badge-ok',
+  disposed: 'badge-outline',
 };
 
 export function StatusBadge({ status }: { status: string }) {

@@ -24,6 +24,7 @@ export interface EditorRefs {
   bankAccounts: Array<{ id: string; name: string }>;
   termsDays: number;
   einvoiceProvider: string | null;
+  tracking: Array<{ id: string; slot: 'a' | 'b'; name: string; options: Array<{ id: string; name: string; archived: boolean }> }>;
 }
 
 interface LineState {
@@ -34,10 +35,12 @@ interface LineState {
   unitPrice: number | null;
   discount: string;
   taxRateId: string | null;
+  trackingA: string | null;
+  trackingB: string | null;
 }
 
 let seq = 0;
-const blank = (taxRateId: string | null): LineState => ({ key: ++seq, itemId: null, description: '', quantity: '1', unitPrice: null, discount: '', taxRateId });
+const blank = (taxRateId: string | null): LineState => ({ key: ++seq, itemId: null, description: '', quantity: '1', unitPrice: null, discount: '', taxRateId, trackingA: null, trackingB: null });
 
 const CURRENCIES = ['ARS', 'MXN', 'BRL', 'CLP', 'COP', 'PEN', 'UYU', 'PYG', 'BOB', 'USD', 'EUR', 'GBP', 'CAD'];
 
@@ -78,6 +81,7 @@ export default function DocumentEditor({
   const [seriesId, setSeriesId] = useState(doc?.seriesId ?? '');
   const [reference, setReference] = useState(doc?.reference ?? '');
   const [notes, setNotes] = useState(doc?.notes ?? '');
+  const [taxInclusive, setTaxInclusive] = useState(doc?.taxInclusive ?? false);
   const [lines, setLines] = useState<LineState[]>(() =>
     doc?.lines.length
       ? doc.lines.map((l) => ({
@@ -88,6 +92,8 @@ export default function DocumentEditor({
           unitPrice: l.unitPrice,
           discount: l.discountBps ? bpsToPercent(l.discountBps) : '',
           taxRateId: l.taxRateId,
+          trackingA: l.trackingA,
+          trackingB: l.trackingB,
         }))
       : [blank(defaultTax)],
   );
@@ -107,9 +113,10 @@ export default function DocumentEditor({
           discountBps: percentToBps(l.discount || '0') ?? 0,
           taxBps: taxBps(l.taxRateId),
         })),
+        taxInclusive,
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lines, refs.taxes],
+    [lines, refs.taxes, taxInclusive],
   );
   const money = (v: number, cur = currency) => formatMoney(v, cur, locale);
   const base = `/app/books/${PATH[kind]}`;
@@ -133,6 +140,7 @@ export default function DocumentEditor({
     ...(kind !== 'bill' ? { seriesId: seriesId || null } : {}),
     reference,
     notes,
+    taxInclusive,
     lines: lines
       .filter((l) => l.description.trim() || l.itemId)
       .map((l) => ({
@@ -142,6 +150,8 @@ export default function DocumentEditor({
         unitPrice: l.unitPrice ?? 0,
         discountBps: percentToBps(l.discount || '0') ?? 0,
         taxRateId: l.taxRateId,
+        trackingA: l.trackingA,
+        trackingB: l.trackingB,
       })),
   });
 
@@ -343,7 +353,12 @@ export default function DocumentEditor({
                       <span>{t.has(`methods.${p.method}`) ? t(`methods.${p.method}`) : p.method}</span>
                       <span className="bk-ellipsis">{p.reference}</span>
                       <span className="data">{money(p.amount, doc.currency)}</span>
-                      {canWrite && !p.reference.startsWith('stripe:') && !p.reference.startsWith('mp:') && (
+                      {p.batchId && (
+                        <Link className="btn btn-ghost btn-sm" href="/app/books/batch-payments">
+                          {t('batch.inBatch')}
+                        </Link>
+                      )}
+                      {canWrite && !p.batchId && !p.reference.startsWith('stripe:') && !p.reference.startsWith('mp:') && (
                         <button type="button" className="btn btn-ghost btn-sm" onClick={() => removePayment(p.id)}>
                           {t('editor.removePayment')}
                         </button>
@@ -598,6 +613,13 @@ export default function DocumentEditor({
                 </>
               )}
               <label className="ui-field">
+                <span className="label">{t('editor.taxMode')}</span>
+                <select className="select" value={taxInclusive ? 'inclusive' : 'exclusive'} onChange={(e) => setTaxInclusive(e.target.value === 'inclusive')}>
+                  <option value="exclusive">{t('editor.taxExclusive')}</option>
+                  <option value="inclusive">{t('editor.taxInclusive')}</option>
+                </select>
+              </label>
+              <label className="ui-field">
                 <span className="label">{t('editor.currency')}</span>
                 <select className="select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
                   {[...new Set([refs.baseCurrency, ...CURRENCIES])].map((c) => (
@@ -649,6 +671,11 @@ export default function DocumentEditor({
                       {t('editor.colDiscount')}
                     </th>
                     <th scope="col">{t('editor.colTax')}</th>
+                    {refs.tracking.map((c) => (
+                      <th key={c.id} scope="col">
+                        {c.name}
+                      </th>
+                    ))}
                     <th scope="col" className="num">
                       {t('editor.colAmount')}
                     </th>
@@ -692,7 +719,24 @@ export default function DocumentEditor({
                           ))}
                         </select>
                       </td>
-                      <td className="num data" data-label={t('editor.colAmount')}>{money(totals.lines[i]?.net ?? 0)}</td>
+                      {refs.tracking.map((c) => {
+                        const key = c.slot === 'a' ? 'trackingA' : 'trackingB';
+                        return (
+                          <td key={c.id} data-label={c.name}>
+                            <select className="select bk-cell" aria-label={c.name} value={l[key] ?? ''} onChange={(e) => setLine(l.key, { [key]: e.target.value || null })}>
+                              <option value="">{t('common.none')}</option>
+                              {c.options
+                                .filter((o) => !o.archived || o.id === l[key])
+                                .map((o) => (
+                                  <option key={o.id} value={o.id}>
+                                    {o.name}
+                                  </option>
+                                ))}
+                            </select>
+                          </td>
+                        );
+                      })}
+                      <td className="num data" data-label={t('editor.colAmount')}>{money(taxInclusive ? (totals.lines[i]?.total ?? 0) : (totals.lines[i]?.net ?? 0))}</td>
                       <td>
                         <button type="button" className="btn btn-ghost btn-sm" aria-label={t('editor.removeLine')} disabled={lines.length === 1} onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))}>
                           ×
@@ -735,7 +779,7 @@ export default function DocumentEditor({
                 .filter((r) => r.taxBps > 0)
                 .map((r) => (
                   <div key={r.taxBps}>
-                    <dt>{t('editor.taxAt', { rate: bpsToPercent(r.taxBps) })}</dt>
+                    <dt>{t(taxInclusive ? 'editor.taxIncludedAt' : 'editor.taxAt', { rate: bpsToPercent(r.taxBps) })}</dt>
                     <dd>{money(r.tax)}</dd>
                   </div>
                 ))}

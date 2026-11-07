@@ -23,12 +23,14 @@ export interface JournalLineInput {
   contactId?: string | null;
   taxRateId?: string | null;
   description?: string;
+  trackingA?: string | null;
+  trackingB?: string | null;
 }
 
 export interface JournalInput {
   date: string;
   memo?: string;
-  sourceType: 'invoice' | 'credit_note' | 'bill' | 'payment' | 'expense' | 'manual' | 'reversal' | 'void' | 'shop_order' | 'bank';
+  sourceType: 'invoice' | 'credit_note' | 'bill' | 'payment' | 'expense' | 'manual' | 'reversal' | 'void' | 'shop_order' | 'bank' | 'transfer' | 'depreciation' | 'disposal' | 'opening' | 'batch';
   sourceId?: string | null;
   reversalOf?: string | null;
   lines: JournalLineInput[];
@@ -72,8 +74,8 @@ async function writeJournal(db: Db, ws: string, person: string | null, input: Om
     .run(id, ws, number, input.date, clean(input.memo ?? '', 300), input.sourceType, input.sourceId ?? null, input.reversalOf ?? null, person, nowDb());
   for (const l of lines) {
     await db
-      .prepare('INSERT INTO books_journal_lines (id, journal_id, workspace_id, account_id, debit, credit, contact_id, tax_rate_id, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(newId('jl'), id, ws, l.accountId, l.debit ?? 0, l.credit ?? 0, l.contactId ?? null, l.taxRateId ?? null, clean(l.description ?? '', 200));
+      .prepare('INSERT INTO books_journal_lines (id, journal_id, workspace_id, account_id, debit, credit, contact_id, tax_rate_id, description, tracking_a, tracking_b) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(newId('jl'), id, ws, l.accountId, l.debit ?? 0, l.credit ?? 0, l.contactId ?? null, l.taxRateId ?? null, clean(l.description ?? '', 200), l.trackingA ?? null, l.trackingB ?? null);
   }
   // La base vuelve a sumar lo que quedó escrito: si no da cero, no se confirma nada.
   const sum = (await db.prepare('SELECT COALESCE(SUM(debit), 0) AS d, COALESCE(SUM(credit), 0) AS c FROM books_journal_lines WHERE journal_id = ?').get(id)) as { d: number; c: number };
@@ -105,6 +107,9 @@ export async function postJournal(ws: string, person: string | null, input: Jour
   }
   for (const tid of [...new Set(lines.map((l) => l.taxRateId).filter((x): x is string => Boolean(x)))]) {
     if (!(await reader.prepare('SELECT 1 AS x FROM books_tax_rates WHERE id = ? AND workspace_id = ?').get(tid, ws))) throw new BooksError('invalid_tax_rate', 400);
+  }
+  for (const oid of [...new Set(lines.flatMap((l) => [l.trackingA, l.trackingB]).filter((x): x is string => Boolean(x)))]) {
+    if (!(await reader.prepare('SELECT 1 AS x FROM books_tracking_options WHERE id = ? AND workspace_id = ?').get(oid, ws))) throw new BooksError('invalid_tracking', 400);
   }
   if (opts.db) return writeJournal(opts.db, ws, person, input, lines);
   return inTransaction((db) => writeJournal(db, ws, person, input, lines));
@@ -144,6 +149,8 @@ export interface JournalLineDto {
   credit: number;
   contactId: string | null;
   description: string;
+  trackingA: string | null;
+  trackingB: string | null;
 }
 
 export interface JournalDto {
@@ -178,6 +185,8 @@ export async function getJournal(ws: string, id: string): Promise<JournalDto | n
     credit: Number(l.credit),
     contactId: (l.contact_id as string) ?? null,
     description: String(l.description ?? ''),
+    trackingA: (l.tracking_a as string) ?? null,
+    trackingB: (l.tracking_b as string) ?? null,
   }));
   return {
     id: String(j.id),
@@ -262,6 +271,8 @@ export async function reverseJournal(
     contact_id: string | null;
     tax_rate_id: string | null;
     description: string;
+    tracking_a: string | null;
+    tracking_b: string | null;
   }>;
   const settings = await ensureBooks(ws);
   const today = new Date().toISOString().slice(0, 10);
@@ -276,7 +287,7 @@ export async function reverseJournal(
       ws,
       person,
       { date, memo: opts.memo ?? `Reversal of #${j.number}${j.memo ? `: ${j.memo}` : ''}`, sourceType: opts.sourceType ?? 'reversal', reversalOf: j.id },
-      normalizeLines(lines.map((l) => ({ accountId: l.account_id, debit: Number(l.credit), credit: Number(l.debit), contactId: l.contact_id, taxRateId: l.tax_rate_id, description: l.description }))),
+      normalizeLines(lines.map((l) => ({ accountId: l.account_id, debit: Number(l.credit), credit: Number(l.debit), contactId: l.contact_id, taxRateId: l.tax_rate_id, description: l.description, trackingA: l.tracking_a, trackingB: l.tracking_b }))),
     );
     // Marca con compare-and-set: dos reversas a la vez, una pierde.
     const res = await tdb.prepare('UPDATE books_journals SET reversed_by = ? WHERE id = ? AND reversed_by IS NULL').run(id, j.id);
@@ -291,7 +302,7 @@ export async function reverseManualJournal(actor: BooksActor, journalId: string,
   assertCan(actor, 'accounting.write');
   const j = await getJournal(actor.ws, journalId);
   if (!j) throw new BooksError('not_found', 404);
-  if (j.sourceType !== 'manual') throw new BooksError('reverse_from_document', 409);
+  if (j.sourceType !== 'manual' && j.sourceType !== 'opening') throw new BooksError('reverse_from_document', 409);
   const id = await reverseJournal(actor.ws, actor.person, journalId, { date });
   await audit(actor, 'journal.reverse', 'journal', journalId, `#${j.number}`);
   return (await getJournal(actor.ws, id))!;

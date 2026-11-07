@@ -872,6 +872,30 @@ const APPS: AppCase[] = [
     detail: (i) => `/en/app/books/recurring/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/books/recurring/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/books/recurring/${i.id}`))),
+  },
+  {
+    app: 'Books quotes',
+    list: '/en/app/books/quotes',
+    create: async (request, name) => ({ id: (await ok<{ quote: { id: string } }>(request.post('/api/books/quotes', { data: { title: name, lines: [{ description: 'Smoke line', unitPrice: 1000 }] } }))).quote.id, name }),
+    detail: (i) => `/en/app/books/quotes/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/books/quotes/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/books/quotes/${i.id}`))),
+  },
+  {
+    app: 'Books fixed assets',
+    list: '/en/app/books/fixed-assets',
+    create: async (request, name) => ({ id: (await ok<{ asset: { id: string } }>(request.post('/api/books/assets', { data: { name, cost: 100000, method: 'straight_line', lifeMonths: 36 } }))).asset.id, name }),
+    detail: (i) => `/en/app/books/fixed-assets/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/books/assets/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/books/assets/${i.id}`))),
+  },
+  {
+    app: 'Books budgets',
+    list: '/en/app/books/budgets',
+    create: async (request, name) => ({ id: (await ok<{ budget: { id: string } }>(request.post('/api/books/budgets', { data: { name, startMonth: '2026-01', months: 12 } }))).budget.id, name }),
+    detail: (i) => `/en/app/books/budgets/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/books/budgets/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/books/budgets/${i.id}`))),
   },  {
     // Forms: un formulario desde una plantilla; el detalle es el builder (el nombre va en un input).
     app: 'Forms',
