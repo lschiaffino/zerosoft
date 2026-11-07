@@ -193,6 +193,7 @@
       "key": "Key",
       "ms": "Milliseconds",
       "waitSelector": "Or until this selector appears",
+      "waitUntil": "Wait until the element",
       "name": "Save as variable",
       "mode": "What to extract",
       "attribute": "Attribute",
@@ -233,6 +234,11 @@
       "aiFieldDesc": "Description (optional)",
       "aiScope": "Only inside this selector (optional)",
       "origin": "Login site"
+    },
+    "waitUntil": {
+      "appears": "Appears in the page",
+      "visible": "Is visible",
+      "disappears": "Disappears"
     },
     "modes": {
       "text": "Text of the first match",

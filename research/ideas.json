@@ -2544,5 +2544,41 @@
     "description": "HubSpot admins can allow a role to edit records without letting it create new ones (https://knowledge.hubspot.com/user-management/hubspot-user-permissions-guide). Our visibility rules in lib/crm-visibility.ts and lib/crm-field-perms.ts control what a person sees and which fields they change, not whether they can add records. This stops interns or guests from filling the CRM with duplicates. First scope: a per-role create toggle for contacts, companies and deals checked by the POST routes under app/api/crm.",
     "product": "crm",
     "kind": "idea"
+  },
+  {
+    "title": "Robots: Add hover, double click and right click actions to the Click step",
+    "description": "UiPath's Click activity exposes click type (single, double) and mouse button, and hover is a separate Hover activity (https://docs.uipath.com/activities/other/latest/ui-automation/). Our Click step in lib/robots-schema.ts only does a single left click, so menus that open on hover and context menus cannot be automated. Small teams hit this on dashboards with hover menus. First scope: a `mode` option (click, double, right, hover) on the click step, recorded by the recorder when it sees dblclick or contextmenu events.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add a Set variable step with text transforms (trim, regex, replace, number, date)",
+    "description": "UiPath's Assign and string activities let a workflow reshape values between steps (https://docs.uipath.com/activities/other/latest/ui-automation/). Today our robots can only write variables through Extract or Evaluate with custom JavaScript (lib/robots-interpreter.ts), so cleaning a price or building a URL needs code. A small team wants '$1,299.00' to become 1299 without writing a script. First scope: a set_var step with a template and a list of transforms, usable in later steps as {{vars.name}}.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add an Assert step that fails the run when a value or element is wrong",
+    "description": "UiPath ships Verify Expression and Check App State activities to validate a page before continuing (https://docs.uipath.com/activities/other/latest/ui-automation/). We have If exists, which can fail on a missing element, but nothing that checks a value such as 'row count is greater than 0' or 'text contains Welcome'. Robots that silently return empty tables look like successes in the run history. First scope: an assert step with element exists, text contains and variable comparisons, and a clear error in the run log.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Switch between tabs and handle popups opened by a click",
+    "description": "UiPath's Attach Browser and Use Browser scopes let a workflow move between windows and tabs (https://docs.uipath.com/activities/other/latest/ui-automation/). Our interpreter runs against a single page (lib/robots-interpreter.ts), so a link with target=_blank or a login popup leaves the robot on the old page. This blocks a lot of real portals. First scope: a `switch_tab` step (newest, by URL contains, back to first) and an option on Click to follow the new tab.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Dismiss cookie banners and dialogs automatically before each step",
+    "description": "UiPath handles unexpected popups with Pop-up handlers triggered during execution (https://docs.uipath.com/activities/other/latest/ui-automation/). Robots here fail or click the wrong element when a consent banner covers the page, and the user must record a manual click step for every site. For a small team that scrapes many sites this is the most common flaky step. First scope: a robot setting that clicks known consent buttons and auto-accepts JavaScript alert dialogs, with a note in the run log when it fired.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add a Check or uncheck step for checkboxes and radio buttons",
+    "description": "UiPath has a dedicated Check/Uncheck activity that sets a checkbox to a known state instead of toggling it (https://docs.uipath.com/activities/other/latest/ui-automation/). Our Click step toggles, so a robot that runs on a page where the box starts checked flips it the wrong way. First scope: a check step with a checked/unchecked choice that uses the page's real state, and a recorder mapping from checkbox clicks to this step.",
+    "product": "robots",
+    "kind": "idea"
   }
 ]
