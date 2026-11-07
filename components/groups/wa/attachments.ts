@@ -15,6 +15,7 @@ export interface TrayItem {
   status: 'uploading' | 'ready' | 'error';
   url?: string;
   error?: string;
+  uploaded?: UploadedFile;
 }
 
 /** Hasta cuántos archivos van juntos (como WhatsApp, que deja 30). */
@@ -22,28 +23,78 @@ export const MAX_TRAY = 30;
 
 let seq = 0;
 
-function uploadWithProgress(file: File, onProgress: (p: number) => void): { done: Promise<{ url: string; mimetype: string; filename: string }>; abort: () => void } {
+/** Lo que devuelve la subida: lo que se manda como media. */
+export interface UploadedFile {
+  url: string;
+  mimetype: string;
+  filename: string;
+  size: number;
+  width?: number;
+  height?: number;
+  duration?: number;
+}
+
+/** Hasta este tamaño va por la ruta común; más grande, directo a Blob desde el navegador. */
+export const SMALL_UPLOAD = 4.5 * 1024 * 1024;
+export const MAX_FILE = 100 * 1024 * 1024;
+
+function uploadSmall(file: File, onProgress: (p: number) => void): { done: Promise<UploadedFile>; abort: () => void } {
   const xhr = new XMLHttpRequest();
-  const done = new Promise<{ url: string; mimetype: string; filename: string }>((resolve, reject) => {
+  const done = new Promise<UploadedFile>((resolve, reject) => {
     const form = new FormData();
     form.append('file', file, file.name);
     xhr.open('POST', '/api/groups/upload');
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
     xhr.onload = () => {
-      let data: { url?: string; mimetype?: string; filename?: string; error?: string } = {};
+      let data: Partial<UploadedFile> & { error?: string; files?: UploadedFile[]; errors?: Array<{ error: string }> } = {};
       try {
         data = JSON.parse(xhr.responseText);
       } catch {
         // Respuesta sin JSON: error genérico.
       }
-      if (xhr.status >= 200 && xhr.status < 300 && data.url) resolve({ url: data.url, mimetype: data.mimetype || file.type, filename: data.filename || file.name });
-      else reject(new Error(data.error || 'upload_failed'));
+      const f = data.files?.[0] ?? (data.url ? (data as UploadedFile) : null);
+      if (xhr.status >= 200 && xhr.status < 300 && f?.url) resolve({ ...f, mimetype: f.mimetype || file.type, filename: f.filename || file.name, size: f.size || file.size });
+      else reject(new Error(data.errors?.[0]?.error || data.error || 'upload_failed'));
     };
     xhr.onerror = () => reject(new Error('upload_failed'));
     xhr.onabort = () => reject(new Error('aborted'));
     xhr.send(form);
   });
   return { done, abort: () => xhr.abort() };
+}
+
+/** Archivo grande: sube directo a Blob (con progreso); si el servidor no lo permite, por la ruta común. */
+function uploadLarge(file: File, onProgress: (p: number) => void): { done: Promise<UploadedFile>; abort: () => void } {
+  const ctrl = new AbortController();
+  let fallback: { abort: () => void } | null = null;
+  const done = (async () => {
+    const { upload } = await import('@vercel/blob/client');
+    const safe = (file.name || 'file').replace(/[^\w.-]+/g, '_').slice(-120);
+    try {
+      const blob = await upload(`chat/${crypto.randomUUID()}-${safe}`, file, {
+        access: 'public',
+        handleUploadUrl: '/api/groups/upload/blob',
+        abortSignal: ctrl.signal,
+        onUploadProgress: (e) => onProgress(e.percentage / 100),
+      });
+      return { url: blob.url, mimetype: file.type || 'application/octet-stream', filename: file.name, size: file.size };
+    } catch (err) {
+      if (ctrl.signal.aborted) throw new Error('aborted');
+      const msg = String((err as Error)?.message ?? '');
+      if (/client_upload_unavailable|501/.test(msg)) {
+        const small = uploadSmall(file, onProgress);
+        fallback = small;
+        return small.done;
+      }
+      throw new Error(/too large|size/i.test(msg) ? 'file_too_large' : 'upload_failed');
+    }
+  })();
+  return { done, abort: () => (ctrl.abort(), fallback?.abort()) };
+}
+
+function uploadWithProgress(file: File, onProgress: (p: number) => void) {
+  if (file.size > MAX_FILE) return { done: Promise.reject(new Error('file_too_large')), abort: () => {} };
+  return file.size > SMALL_UPLOAD ? uploadLarge(file, onProgress) : uploadSmall(file, onProgress);
 }
 
 /**
@@ -64,7 +115,7 @@ export function useAttachTray() {
       const up = uploadWithProgress(it.file, (p) => patch(it.key, { progress: p }));
       aborts.current.set(it.key, up.abort);
       up.done
-        .then((r) => patch(it.key, { status: 'ready', progress: 1, url: r.url, type: r.mimetype || it.type, name: r.filename || it.name }))
+        .then((r) => patch(it.key, { status: 'ready', progress: 1, url: r.url, type: r.mimetype || it.type, name: r.filename || it.name, uploaded: r }))
         .catch((err: Error) => err.message !== 'aborted' && patch(it.key, { status: 'error', error: err.message }))
         .finally(() => aborts.current.delete(it.key));
     },

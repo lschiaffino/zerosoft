@@ -20,6 +20,7 @@
  * corto y, a lo sumo, el status HTTP del proveedor.
  */
 import { createHmac, timingSafeEqual } from 'crypto';
+import type { ContactCard, LocationInfo, MediaInfo, MediaKind } from './groups-media';
 
 export type ProviderKind = 'managed' | 'cloud' | 'waha' | 'evolution' | 'sample' | 'fake';
 export const PROVIDER_KINDS: readonly ProviderKind[] = ['managed', 'cloud', 'waha', 'evolution', 'sample', 'fake'];
@@ -139,6 +140,12 @@ export interface MediaInput {
   mimetype: string;
   filename: string;
   caption?: string;
+  /** Tipo de mensaje de WhatsApp (planOutboundKind); sin él, sale del mimetype. */
+  kind?: MediaKind;
+  /** El archivo en base64 (subidas locales que el proveedor no puede bajar por URL). */
+  base64?: string;
+  /** Id en el proveedor del mensaje que se cita. */
+  replyTo?: string;
 }
 
 /** Un archivo recibido que el proveedor puede bajar (getBase64FromMediaMessage en Evolution). */
@@ -178,7 +185,13 @@ export type InboundEvent =
         name: string;
         /** Lo que el proveedor necesita para bajar el archivo después (la key del mensaje). */
         fetchRef?: MediaRef;
+        /** Tamaño, medidas, duración, nota de voz, páginas, miniatura (lo que mande el proveedor). */
+        info?: MediaInfo;
       };
+      /** Ubicación compartida (locationMessage / liveLocationMessage). */
+      location?: LocationInfo;
+      /** Tarjetas de contacto (contactMessage / contactsArrayMessage). */
+      contacts?: ContactCard[];
       replyToProviderId?: string;
       timestamp?: string;
       /**

@@ -42,6 +42,8 @@ import {
   Sparkle,
   Ticks,
   Trash,
+  ViewOnce,
+  Retry,
 } from './wa/icons';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -183,6 +185,7 @@ export default function ChatThread(props: ThreadProps) {
   const keepOffset = useRef<number | null>(null);
   const lastCount = useRef(props.messages.length);
   const lastId = useRef(props.messages[props.messages.length - 1]?.id ?? '');
+  const recordedSecs = useRef(0);
   const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; cancel: boolean } | null>(null);
   const draftKey = `gr-draft:${props.chat.id}`;
   // Desde el clic en otro chat hasta que se abre, este composer queda en pausa.
@@ -445,12 +448,22 @@ export default function ChatThread(props: ThreadProps) {
     const base = { note: mode === 'note', replyToId: replyTo?.id ?? null };
     let ok = true;
     if (voice) {
-      ok = Boolean(await post({ ...base, body: '', media: { ...voice, ptt: true } }));
+      ok = Boolean(await post({ ...base, body: '', media: { ...voice, kind: 'voice', voice: true, duration: recordedSecs.current || undefined } }));
     } else if (files.length) {
       for (let i = 0; i < files.length && ok; i++) {
         const f = files[i];
         const caption = i === 0 ? text : '';
-        const sent = await post({ ...base, replyToId: i === 0 ? base.replyToId : null, body: caption, media: { url: f.url, mimetype: f.type, filename: f.name, caption } });
+        const up = f.uploaded;
+        const kind = f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : f.type.startsWith('audio/') ? 'audio' : 'document';
+        // Audio no lleva pie: el texto va aparte, después.
+        const withCaption = kind !== 'audio';
+        const sent = await post({
+          ...base,
+          replyToId: i === 0 ? base.replyToId : null,
+          body: withCaption ? caption : '',
+          media: { url: f.url, mimetype: f.type, filename: f.name, size: up?.size ?? f.size, kind, width: up?.width, height: up?.height, duration: up?.duration },
+        });
+        if (sent && !withCaption && caption.trim()) await post({ ...base, replyToId: null, body: caption, media: null });
         ok = Boolean(sent && sent.status !== 'failed');
         if (ok) tray.remove(f.key);
       }
@@ -467,6 +480,14 @@ export default function ChatThread(props: ThreadProps) {
     setDraftSources([]);
     refresh();
     inputRef.current?.focus();
+  }
+
+  /** Vuelve a mandar un mensaje que no salió (el original queda marcado como no enviado). */
+  async function retrySend(m: MessageDto) {
+    setSendError('');
+    const media = m.media?.url ? { url: m.media.url, mimetype: m.media.type, filename: m.media.name, size: m.media.size, kind: m.media.kind, duration: m.media.duration } : null;
+    const sent = await post({ note: false, replyToId: m.replyToId, body: m.body, media });
+    if (sent && sent.status !== 'failed') refresh();
   }
 
   function addFiles(files: File[]) {
@@ -537,6 +558,7 @@ export default function ChatThread(props: ThreadProps) {
     const state = { rec, chunks: [] as Blob[], stream, cancel: false };
     rec.ondataavailable = (e) => e.data.size && state.chunks.push(e.data);
     rec.onstop = async () => {
+      recordedSecs.current = Math.max(1, Math.round((Date.now() - started) / 1000));
       stream.getTracks().forEach((tr) => tr.stop());
       recorder.current = null;
       setRecording(null);
@@ -547,6 +569,7 @@ export default function ChatThread(props: ThreadProps) {
       if (up) await send(up);
     };
     recorder.current = state;
+    const started = Date.now();
     rec.start(250);
     setRecording({ startedAt: Date.now(), elapsed: 0 });
   }
@@ -818,6 +841,7 @@ export default function ChatThread(props: ThreadProps) {
     if (can.forward) items.push({ key: 'forward', label: t('thread.forward'), onSelect: () => setForwarding(m) });
     if (can.pin) items.push({ key: 'pin', label: m.pinnedAt ? t('thread.unpin') : t('thread.pin'), onSelect: () => void togglePin(m) });
     if (can.edit) items.push({ key: 'edit', label: t('thread.edit'), onSelect: () => setEditing({ id: m.id, text: m.body, busy: false }) });
+    if (m.direction === 'out' && m.status === 'failed') items.unshift({ key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) });
     if (live && !m.ticketId) items.push({ key: 'ticket', label: t('wa.createTicket'), onSelect: () => openTicket(m) });
     items.push({ key: 'task', label: t('thread.task'), onSelect: () => setTaskFor(m) });
     if (can.delete)
@@ -894,20 +918,19 @@ export default function ChatThread(props: ThreadProps) {
     const tr = translateOn && m.direction === 'in' ? translations[m.id] : undefined;
     const showTr = tr && tr.text && !showOriginal.has(m.id);
     const isEditing = editing?.id === m.id;
-    const meta = m.meta as Record<string, unknown>;
     const media = m.media;
-    const kind = media ? (media.type.startsWith('image/') ? 'image' : media.type.startsWith('video/') ? 'video' : media.type.startsWith('audio/') ? 'audio' : 'doc') : '';
-    const sticker = meta.sticker === true;
+    const kind = media?.kind ?? '';
+    const sticker = kind === 'sticker';
     const bigEmoji = !media && !m.poll && !quoted && !m.deletedAt && onlyEmoji(m.body);
-    const location = meta.location as { lat: number; lng: number; name: string; address?: string } | undefined;
-    const contact = meta.contact as { name: string; phone: string } | undefined;
-    const caption = m.body && !(contact && m.body === contact.name) && !(location && m.body === location.name);
+    const location = m.location;
+    const contacts = m.contacts ?? [];
+    const caption = Boolean(m.body);
     const color = m.direction === 'in' && chat.kind === 'group' ? `wa-n${colorIndex(m.senderPhone || m.senderName)}` : '';
     const reactions = new Map<string, number>();
     for (const r of m.reactions) reactions.set(r.emoji, (reactions.get(r.emoji) ?? 0) + 1);
     const time = parseDbUtc(m.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     const items = isEditing ? [] : menuItems(m);
-    const flush = (kind === 'image' || kind === 'video') && !sticker;
+    const flush = (kind === 'image' || kind === 'video') && Boolean(media?.url);
     return (
       <article
         key={m.id}
@@ -951,21 +974,36 @@ export default function ChatThread(props: ThreadProps) {
           ) : null}
           {media && (
             <div className="gr-media">
-              {!media.url ? (
-                <DocCard url="" name={media.name} type={media.type} />
-              ) : kind === 'image' ? (
-                <ImageView url={media.url} alt={media.name || t('thread.image')} sticker={sticker} onLoad={keepAtEnd} onOpen={() => setViewerAt(m.id)} />
+              {media.viewOnce ? (
+                <span className="wa-viewonce">
+                  <ViewOnce size={20} /> {t('wa.viewOnce')}
+                </span>
+              ) : !media.url ? (
+                <DocCard url="" name={media.name || t(`media.${kind === 'voice' ? 'audio' : kind === 'document' ? 'file' : kind || 'file'}`)} type={media.type} size={media.size} />
+              ) : kind === 'image' || kind === 'sticker' ? (
+                <ImageView
+                  url={media.url}
+                  alt={media.name || t('thread.image')}
+                  sticker={sticker}
+                  thumbnail={media.thumbnail}
+                  width={media.width}
+                  height={media.height}
+                  onLoad={keepAtEnd}
+                  onOpen={() => setViewerAt(m.id)}
+                />
               ) : kind === 'video' ? (
-                <VideoView url={media.url} round={meta.round === true} seconds={Number(meta.seconds) || undefined} onOpen={() => setViewerAt(m.id)} />
-              ) : kind === 'audio' ? (
-                <VoicePlayer id={m.id} src={media.url} seconds={Number(meta.seconds) || undefined} voice={meta.ptt === true} />
+                <VideoView url={media.url} seconds={media.duration} thumbnail={media.thumbnail} width={media.width} height={media.height} onOpen={() => setViewerAt(m.id)} />
+              ) : kind === 'audio' || kind === 'voice' ? (
+                <VoicePlayer id={m.id} src={media.url} seconds={media.duration} voice={kind === 'voice' || media.ptt === true} />
               ) : (
-                <DocCard url={media.url} name={media.name} type={media.type} size={Number(meta.size) || undefined} pages={Number(meta.pages) || undefined} />
+                <DocCard url={media.url} name={media.name} type={media.type} size={media.size} pages={media.pages} />
               )}
             </div>
           )}
-          {location && <LocationCard lat={location.lat} lng={location.lng} name={location.name} address={location.address} />}
-          {contact && <ContactCard name={contact.name} phone={contact.phone} />}
+          {location && <LocationCard lat={location.lat} lng={location.lng} name={location.name ?? ''} address={location.address} url={location.url} live={location.live} />}
+          {contacts.map((c, i) => (
+            <ContactCard key={i} name={c.name} phone={c.phones?.[0] ?? ''} />
+          ))}
           {m.poll ? (
             <PollResults poll={m.poll} />
           ) : isEditing ? (
@@ -1071,6 +1109,11 @@ export default function ChatThread(props: ThreadProps) {
               <LocalText>{time}</LocalText>
             </time>
             {m.direction === 'out' && !m.deletedAt && <Ticks status={m.status} label={t(`status.${m.status}`)} />}
+            {m.direction === 'out' && m.status === 'failed' && (
+              <button type="button" className="wa-retry" onClick={() => void retrySend(m)} aria-label={t('wa.retry')} title={t('wa.retry')}>
+                <Retry size={14} />
+              </button>
+            )}
           </p>
           {items.length > 0 && (
             <span className="wa-hover">

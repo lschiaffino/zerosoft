@@ -828,7 +828,11 @@
     "invalid_label": "Etiqueta inválida.",
     "missing_variables": "Preencha todas as variáveis do modelo.",
     "missing_tree": "Escreva as opções, uma por linha.",
-    "bridge_unavailable": "O servidor de conexão por QR não está configurado. Tente de novo quando estiver disponível."
+    "bridge_unavailable": "O servidor de conexão por QR não está configurado. Tente de novo quando estiver disponível.",
+    "media_too_large": "Passa do limite do WhatsApp: 16 MB para mensagens de voz e 100 MB para qualquer outro arquivo.",
+    "invalid_media": "Esse arquivo não pode ser enviado como mensagem de voz.",
+    "too_many_files": "Até 10 arquivos por vez.",
+    "client_upload_unavailable": "O envio direto não está disponível aqui. Arquivos de até 10 MB funcionam."
   },
   "media": {
     "image": "Imagem",
@@ -836,7 +840,12 @@
     "video": "Vídeo",
     "file": "Arquivo",
     "call": "Chamada",
-    "deleted": "Mensagem apagada"
+    "deleted": "Mensagem apagada",
+    "voice": "Mensagem de voz",
+    "sticker": "Figurinha",
+    "location": "Localização",
+    "contact": "Contato",
+    "viewOnce": "Mensagem de visualização única"
   },
   "langs": {
     "en": "inglês",
@@ -1458,6 +1467,9 @@
     "reimportHelp": "Traz de novo conversas, nomes, fotos e mensagens recentes do WhatsApp. Nada se duplica e nada dispara regras ou avisos.",
     "perChat": "Mensagens por conversa",
     "reimportStarted": "Importação iniciada. Pode continuar trabalhando.",
-    "importStatus": "Importação: {status}"
+    "importStatus": "Importação: {status}",
+    "viewOnce": "Mensagem de visualização única. Abra no celular.",
+    "liveLocation": "Localização em tempo real",
+    "retry": "Tentar enviar de novo"
   }
 }

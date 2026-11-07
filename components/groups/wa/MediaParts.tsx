@@ -135,36 +135,92 @@ export function DocCard({ url, name, type, size, pages }: { url: string; name: s
   );
 }
 
-/** Imagen o sticker. Abre el visor del chat (o en otra pestaña si no hay visor). */
-export function ImageView({ url, alt, sticker, onLoad, onOpen }: { url: string; alt: string; sticker?: boolean; onLoad?: (e: SyntheticEvent<HTMLImageElement>) => void; onOpen?: () => void }) {
+/** Caja de la foto desde su ancho y alto (como WhatsApp: hasta 330 de ancho y 338 de alto). */
+function boxFor(width?: number, height?: number): { width: number; height: number } | null {
+  if (!width || !height) return null;
+  const scale = Math.min(330 / width, 338 / height, 1);
+  return { width: Math.max(100, Math.round(width * scale)), height: Math.max(60, Math.round(height * scale)) };
+}
+
+/**
+ * Imagen o sticker. Con la miniatura de WhatsApp de fondo (borrosa) hasta que
+ * carga el archivo. Abre el visor del chat (o en otra pestaña si no hay visor).
+ */
+export function ImageView({
+  url,
+  alt,
+  sticker,
+  thumbnail,
+  width,
+  height,
+  onLoad,
+  onOpen,
+}: {
+  url: string;
+  alt: string;
+  sticker?: boolean;
+  thumbnail?: string;
+  width?: number;
+  height?: number;
+  onLoad?: (e: SyntheticEvent<HTMLImageElement>) => void;
+  onOpen?: () => void;
+}) {
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const t = useTranslations('groups');
   if (failed) {
     return <span className="wa-media-off">{t('thread.fileUnavailable')}</span>;
   }
-  // eslint-disable-next-line @next/next/no-img-element
-  const img = <img src={url} alt={alt} loading="lazy" onLoad={onLoad} onError={() => setFailed(true)} />;
+  const box = sticker ? null : boxFor(width, height);
+  const style = box ? { width: box.width, aspectRatio: `${box.width} / ${box.height}` } : undefined;
+  const img = (
+    <>
+      {thumbnail && !loaded && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="wa-thumb" src={thumbnail} alt="" aria-hidden="true" />
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt={alt}
+        loading="lazy"
+        className={loaded ? 'is-loaded' : ''}
+        onLoad={(e) => {
+          setLoaded(true);
+          onLoad?.(e);
+        }}
+        onError={() => setFailed(true)}
+      />
+    </>
+  );
   if (onOpen && !sticker) {
     return (
-      <button type="button" className="wa-image" onClick={onOpen} aria-label={t('wa.openMedia', { name: alt })}>
+      <button type="button" className="wa-image" style={style} onClick={onOpen} aria-label={t('wa.openMedia', { name: alt })}>
         {img}
       </button>
     );
   }
   return (
-    <a className={`wa-image${sticker ? ' is-sticker' : ''}`} href={url} target="_blank" rel="noreferrer">
+    <a className={`wa-image${sticker ? ' is-sticker' : ''}`} style={style} href={url} target="_blank" rel="noreferrer">
       {img}
     </a>
   );
 }
 
-/** Video: miniatura con el botón de reproducir; abre el visor (o se reproduce acá si no hay visor). */
-export function VideoView({ url, round, seconds, onOpen }: { url: string; round?: boolean; seconds?: number; onOpen?: () => void }) {
+/** Video: miniatura con el botón de reproducir y la duración; abre el visor. */
+export function VideoView({ url, seconds, thumbnail, width, height, onOpen }: { url: string; seconds?: number; thumbnail?: string; width?: number; height?: number; onOpen?: () => void }) {
   const t = useTranslations('groups');
-  if (!onOpen) return <video className={`wa-video${round ? ' is-round' : ''}`} src={url} controls preload="metadata" playsInline />;
+  const box = boxFor(width, height);
+  const style = box ? { width: box.width, aspectRatio: `${box.width} / ${box.height}` } : undefined;
+  if (!onOpen) return <video className="wa-video" src={url} controls preload="metadata" playsInline />;
   return (
-    <button type="button" className={`wa-video-thumb${round ? ' is-round' : ''}`} onClick={onOpen} aria-label={t('wa.playVideo')}>
-      <video src={`${url}#t=0.1`} preload="metadata" muted playsInline tabIndex={-1} aria-hidden="true" />
+    <button type="button" className="wa-video-thumb" style={style} onClick={onOpen} aria-label={t('wa.playVideo')}>
+      {thumbnail ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={thumbnail} alt="" aria-hidden="true" />
+      ) : (
+        <video src={`${url}#t=0.1`} preload="metadata" muted playsInline tabIndex={-1} aria-hidden="true" />
+      )}
       <span className="wa-video-play" aria-hidden="true">
         <Play size={30} />
       </span>
@@ -173,17 +229,17 @@ export function VideoView({ url, round, seconds, onOpen }: { url: string; round?
   );
 }
 
-/** Ubicación compartida: abre el mapa. */
-export function LocationCard({ lat, lng, name, address }: { lat: number; lng: number; name: string; address?: string }) {
+/** Ubicación compartida: abre el mapa (sin mapa incrustado). */
+export function LocationCard({ lat, lng, name, address, url, live }: { lat: number; lng: number; name: string; address?: string; url?: string; live?: boolean }) {
   const t = useTranslations('groups.wa');
-  const href = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`;
+  const href = url && /^https:\/\//.test(url) ? url : `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`;
   return (
     <a className="wa-location" href={href} target="_blank" rel="noreferrer">
       <span className="wa-location-map" aria-hidden="true">
         <MapPin size={28} />
       </span>
       <span className="wa-location-text">
-        <strong>{name || t('location')}</strong>
+        <strong>{name || (live ? t('liveLocation') : t('location'))}</strong>
         {address && address !== name && <span>{address}</span>}
         <span className="wa-location-coords">
           {lat.toFixed(5)}, {lng.toFixed(5)}

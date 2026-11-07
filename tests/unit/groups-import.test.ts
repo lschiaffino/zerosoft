@@ -61,11 +61,11 @@ describe('Evolution: mensajes guardados y del historial', () => {
     expect(baileysContent({ conversation: 'ok' }, { stanzaId: 'Q1' })).toMatchObject({ body: 'ok', replyTo: 'Q1' });
     const doc = baileysContent({ documentWithCaptionMessage: { message: { documentMessage: { fileName: 'a.pdf', mimetype: 'application/pdf', pageCount: 2, fileLength: 1000 } } } });
     expect(doc.media).toMatchObject({ type: 'application/pdf', name: 'a.pdf' });
-    expect(doc.meta).toMatchObject({ pages: 2, size: 1000 });
-    expect(baileysContent({ audioMessage: { mimetype: 'audio/ogg; codecs=opus', ptt: true, seconds: 4 } }).meta).toMatchObject({ ptt: true, seconds: 4 });
+    expect(doc.media?.info).toMatchObject({ kind: 'document', pages: 2 });
+    expect(baileysContent({ audioMessage: { mimetype: 'audio/ogg; codecs=opus', ptt: true, seconds: 4 } }).media?.info).toMatchObject({ kind: 'voice', duration: 4 });
     expect(baileysContent({ stickerMessage: {} }).media?.type).toBe('image/webp');
     expect(baileysContent({ ephemeralMessage: { message: { conversation: 'temporal' } } }).body).toBe('temporal');
-    expect(baileysContent({ locationMessage: { degreesLatitude: -34.6, degreesLongitude: -58.4, name: 'Oficina' } }).meta).toMatchObject({ location: { lat: -34.6, name: 'Oficina' } });
+    expect(baileysContent({ locationMessage: { degreesLatitude: -34.6, degreesLongitude: -58.4, name: 'Oficina' } }).location).toMatchObject({ lat: -34.6, name: 'Oficina' });
     expect(baileysContent({ pollCreationMessageV3: { name: '¿Día?', options: [{ optionName: 'Lun' }, { optionName: 'Mar' }], selectableOptionsCount: 1 } }).poll).toEqual({ question: '¿Día?', options: ['Lun', 'Mar'], multi: false });
   });
 
@@ -130,7 +130,7 @@ describe('Importación al conectar', () => {
     expect(msgs.some((m) => m.direction === 'out' && (m.status === 'read' || m.status === 'delivered'))).toBe(true);
     expect(msgs.at(-1)?.replyToId).toBeTruthy();
     const all = (await getDb().prepare("SELECT media_type, meta FROM groups_messages WHERE number_id = ? AND media_type != ''").all(row.id)) as Array<{ media_type: string; meta: string }>;
-    expect(all.some((m) => m.media_type.startsWith('audio/') && JSON.parse(m.meta).ptt)).toBe(true);
+    expect(all.some((m) => m.media_type.startsWith('audio/') && JSON.parse(m.meta).media?.kind === 'voice')).toBe(true);
     expect(all.some((m) => m.media_type === 'application/pdf')).toBe(true);
     const gm = await listMessages(user.id, group.id);
     expect(gm.some((m) => m.reactions.some((r) => r.emoji === '❤️'))).toBe(true);

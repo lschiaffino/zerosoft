@@ -1,3 +1,5 @@
+import { deflateSync } from 'zlib';
+
 /**
  * Un Evolution API v2.3 simulado con datos realistas para probar la
  * importación: 1:1 con teléfono y con "@lid", grupos con muchos miembros,
@@ -140,7 +142,54 @@ export function buildEvolutionData(opts: { chats?: number; groups?: number; perC
   return { chats, groups, contacts };
 }
 
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+/** PNG de un color con un degradé suave (fotos de perfil y fotos de ejemplo sin archivos reales). */
+export function fakePng(w: number, h: number, seed: number): Buffer {
+  const hue = (seed * 47) % 360;
+  const rgb = (l: number) => {
+    const c = (1 - Math.abs(2 * l - 1)) * 0.45;
+    const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+    const [r, g, b] = hue < 60 ? [c, x, 0] : hue < 120 ? [x, c, 0] : hue < 180 ? [0, c, x] : hue < 240 ? [0, x, c] : hue < 300 ? [x, 0, c] : [c, 0, x];
+    const m = l - c / 2;
+    return [r + m, g + m, b + m].map((v) => Math.round(v * 255));
+  };
+  const raw = Buffer.alloc((w * 3 + 1) * h);
+  for (let y = 0; y < h; y++) {
+    raw[y * (w * 3 + 1)] = 0;
+    for (let x = 0; x < w; x++) {
+      const [r, g, b] = rgb(0.45 + 0.25 * ((x + y) / (w + h)));
+      const o = y * (w * 3 + 1) + 1 + x * 3;
+      raw[o] = r;
+      raw[o + 1] = g;
+      raw[o + 2] = b;
+    }
+  }
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc = (buf: Buffer) => {
+    let c = 0xffffffff;
+    for (const byte of buf) c = crcTable[(c ^ byte) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type: string, data: Buffer) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const td = Buffer.concat([Buffer.from(type), data]);
+    const c = Buffer.alloc(4);
+    c.writeUInt32BE(crc(td));
+    return Buffer.concat([len, td, c]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 2;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
+
+const PHOTO = fakePng(320, 240, 3);
 
 /**
  * Respuesta de Evolution para un pedido (path + cuerpo JSON). `base` es el
@@ -193,7 +242,7 @@ export function evolutionImportResponse(
     const chat = data.chats.find((c) => c.remoteJid === jid || c.remoteJidAlt === jid);
     return { status: 200, json: { wuid: jid, profilePictureUrl: chat?.pic ? `${base}/pps/${encodeURIComponent(jid)}.png` : null } };
   }
-  if (method === 'GET' && path.startsWith('/pps/')) return { status: 200, bytes: PNG, type: 'image/png' };
+  if (method === 'GET' && path.startsWith('/pps/')) return { status: 200, bytes: fakePng(48, 48, path.length * 7 + path.charCodeAt(10)), type: 'image/png' };
   if (method === 'GET' && path.startsWith('/group/fetchAllGroups/')) {
     return { status: 200, json: data.groups.map((g) => ({ id: g.id, subject: g.subject, size: g.size, announce: false, restrict: false, ...(query.get('getParticipants') === 'true' ? { participants: g.participants } : {}) })) };
   }
@@ -202,7 +251,7 @@ export function evolutionImportResponse(
     return { status: 200, json: { participants: g?.participants ?? [] } };
   }
   if (method === 'POST' && path.startsWith('/chat/getBase64FromMediaMessage/')) {
-    return { status: 201, json: { mediaType: 'imageMessage', fileName: 'foto.png', mimetype: 'image/png', base64: PNG.toString('base64') } };
+    return { status: 201, json: { mediaType: 'imageMessage', fileName: 'foto.png', mimetype: 'image/png', base64: PHOTO.toString('base64') } };
   }
   return null;
 }

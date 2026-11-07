@@ -34,7 +34,19 @@ import {
   type ProviderKind,
 } from './groups-provider';
 import { cloudProvider } from './groups-provider-cloud';
-import { bridgeProvider } from './groups-provider-bridge';
+import { bridgeProvider, MAX_INBOUND_MEDIA } from './groups-provider-bridge';
+import {
+  baseMime,
+  compactInfo,
+  imageSize,
+  kindFromMime,
+  MediaPlanError,
+  planOutboundKind,
+  type ContactCard,
+  type LocationInfo,
+  type MediaInfo,
+  type MediaKind,
+} from './groups-media';
 import { fakeProvider, fakeProviderAllowed } from './groups-provider-fake';
 import { deleteManagedInstance, managedAvailable, managedProvider, newManagedInstance, queueManagedDelete } from './groups-provider-managed';
 import { sampleProvider } from './groups-provider-sample';
@@ -878,7 +890,11 @@ export interface MessageDto {
   authorId: string | null;
   authorKind: string;
   body: string;
-  media: { url: string; type: string; name: string } | null;
+  media: MessageMediaDto | null;
+  /** Ubicación compartida (lat/lng, nombre, dirección). */
+  location?: LocationInfo;
+  /** Tarjetas de contacto (nombre, teléfonos). */
+  contacts?: ContactCard[];
   replyToId: string | null;
   reactions: Reaction[];
   status: string;
@@ -898,6 +914,41 @@ export interface MessageDto {
   poll?: PollDto | null;
 }
 
+/**
+ * Un archivo del mensaje como lo dibuja la interfaz. `url` vacía: no hay
+ * archivo para abrir (más grande que el tope, "ver una vez" o no se pudo
+ * bajar); `pending`: todavía no se bajó del proveedor (abrir la URL lo baja).
+ */
+export interface MessageMediaDto extends Omit<MediaInfo, 'kind'> {
+  url: string;
+  /** Mimetype. */
+  type: string;
+  /** Nombre del archivo (el original en documentos). */
+  name: string;
+  kind: MediaKind;
+  pending?: boolean;
+}
+
+interface StoredMeta {
+  media?: MediaInfo;
+  location?: LocationInfo;
+  contacts?: ContactCard[];
+  [k: string]: unknown;
+}
+
+function mediaDtoFor(row: MessageRow, stored: MediaInfo | undefined): MessageMediaDto | null {
+  if (!row.media_type) return null;
+  const { kind: storedKind, ...rest } = stored && typeof stored === 'object' ? stored : ({} as Partial<MediaInfo>);
+  return {
+    ...rest,
+    url: mediaUrlFor(row),
+    type: row.media_type,
+    name: row.media_name,
+    kind: storedKind ?? kindFromMime(row.media_type),
+    ...(row.media_url.startsWith('evo:') ? { pending: true } : {}),
+  };
+}
+
 /** URL de la media para el navegador: las de proveedor pasan por el proxy autenticado. */
 function mediaUrlFor(row: MessageRow): string {
   if (!row.media_url) return '';
@@ -907,6 +958,7 @@ function mediaUrlFor(row: MessageRow): string {
 
 export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll_votes?: string | null }): MessageDto {
   const poll = parsePoll(row.poll);
+  const { media: storedMedia, location, contacts, ...meta } = parseJson<StoredMeta>(row.meta ?? '', {});
   return {
     id: row.id,
     chatId: row.chat_id,
@@ -916,7 +968,9 @@ export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll
     authorId: row.author_id,
     authorKind: row.author_kind,
     body: row.body,
-    media: row.media_type ? { url: mediaUrlFor(row), type: row.media_type, name: row.media_name } : null,
+    media: mediaDtoFor(row, storedMedia),
+    ...(location ? { location } : {}),
+    ...(Array.isArray(contacts) && contacts.length ? { contacts } : {}),
     replyToId: row.reply_to_id,
     reactions: parseJson<Reaction[]>(row.reactions, []),
     status: row.status,
@@ -928,7 +982,7 @@ export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll
     pinnedAt: row.pinned_at ?? null,
     forwarded: Boolean(row.forwarded),
     translations: parseJson<MessageTranslations>(row.translations, {}),
-    meta: parseJson<Record<string, unknown>>(row.meta, {}),
+    meta,
     needsReply: row.needs_reply == null ? null : Boolean(row.needs_reply),
     ...(poll ? { poll: tallyPoll(poll, parseJson<string[]>(row.poll_votes, []).map((v) => parseJson<string[]>(v, []))) } : {}),
   };
@@ -962,11 +1016,22 @@ export async function getMessageRow(ws: string, id: string): Promise<MessageRow 
  * Vista previa de la lista: el texto, o el nombre del archivo, o un marcador
  * neutro ([image], [audio], [video], [file]) que la interfaz traduce.
  */
-export function previewOf(body: string, mediaType: string, mediaName = ''): string {
+export function previewOf(body: string, mediaType: string, mediaName = '', meta: StoredMeta = {}): string {
   const text = body.replace(/\s+/g, ' ').trim();
   if (text) return text.slice(0, 140);
+  if (meta.media?.viewOnce) return '[viewOnce]';
   if (mediaName.trim()) return mediaName.trim().slice(0, 140);
-  return mediaType ? `[${mediaKind(mediaType)}]` : '';
+  if (meta.media?.kind === 'voice') return '[voice]';
+  if (meta.media?.kind === 'sticker') return '[sticker]';
+  if (mediaType) return `[${mediaKind(mediaType)}]`;
+  if (meta.location) return '[location]';
+  if (meta.contacts?.length) return '[contact]';
+  return '';
+}
+
+/** Vista previa de una fila guardada (con los datos de media del meta). */
+function previewOfRow(row: Pick<MessageRow, 'body' | 'media_type' | 'media_name' | 'meta'>): string {
+  return previewOf(row.body, row.media_type, row.media_name, parseJson<StoredMeta>(row.meta ?? '', {}));
 }
 
 export interface InsertMessage {
@@ -1066,14 +1131,30 @@ export async function refreshChatPreview(messageId: string): Promise<void> {
     .prepare("SELECT id FROM groups_messages WHERE chat_id = ? AND direction IN ('in', 'out') ORDER BY created_at DESC, rowid DESC LIMIT 1")
     .get(msg.chat_id)) as { id: string } | undefined;
   if (last?.id !== msg.id) return;
-  const preview = msg.deleted_at ? '[deleted]' : previewOf(msg.body, msg.media_type, msg.media_name);
+  const preview = msg.deleted_at ? '[deleted]' : previewOfRow(msg);
   await db.prepare('UPDATE groups_chats SET last_message_preview = ? WHERE id = ?').run(preview, msg.chat_id);
+}
+
+/**
+ * Archivo a mandar: subido a zerosoft (/uploads/... o Blob) o una URL https.
+ * `kind` pide el tipo de mensaje ("voice" para nota de voz, "sticker",
+ * "document" para mandar como archivo); sin él, sale del mimetype.
+ */
+export interface SendMedia {
+  url: string;
+  mimetype: string;
+  filename: string;
+  size?: number;
+  kind?: MediaKind | null;
+  width?: number;
+  height?: number;
+  duration?: number;
 }
 
 export interface SendInput {
   body: string;
   replyToId?: string | null;
-  media?: { url: string; mimetype: string; filename: string } | null;
+  media?: SendMedia | null;
   note?: boolean;
   authorKind?: 'person' | 'agent' | 'broadcast' | 'scheduled' | 'flow' | 'api';
   /** Reenvío por copia (el proveedor no reenvía nativo). */
@@ -1116,14 +1197,13 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
   }
   const provider = providerFor(number);
   if (poll && (!provider.caps.polls || !provider.sendPoll)) throw new GroupsError('polls_unsupported');
+  if (input.media && !poll) return sendMediaMessage(ws, actor, chat, provider, input, body, replyProviderId);
   let providerId: string | null = null;
   let status = 'sent';
   let error = '';
   try {
     const res = poll
       ? await provider.sendPoll!(chat.provider_chat_id, poll)
-      : input.media
-      ? await provider.sendMedia(chat.provider_chat_id, { ...input.media, caption: body })
       : await provider.sendText(chat.provider_chat_id, body, { replyTo: replyProviderId });
     providerId = res.id || null;
   } catch (err) {
@@ -1140,7 +1220,6 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
     authorId: actor,
     authorKind: input.authorKind ?? 'person',
     body,
-    media: input.media ? { url: input.media.url, type: input.media.mimetype, name: input.media.filename } : null,
     replyToId: input.replyToId ?? null,
     status,
     error,
@@ -1161,6 +1240,164 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
   }
   // Un webhook con el mismo id del proveedor (eco de lo que mandamos) no duplica: lo frena el índice único.
   return toMessageDto(row as MessageRow);
+}
+
+/**
+ * Una subida local (/uploads/chat/... de este mismo servidor, sin Blob): el
+ * proveedor no la puede bajar por URL (localhost, o detrás de la sesión), así
+ * que se lee del disco y se manda en base64. null si no es una subida local.
+ */
+async function localChatUpload(url: string): Promise<{ path: string; size: number } | null> {
+  let pathname = url;
+  if (!url.startsWith('/')) {
+    let u: URL;
+    try {
+      u = new URL(url);
+    } catch {
+      return null;
+    }
+    let own = '';
+    try {
+      own = process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).host : '';
+    } catch {
+      own = '';
+    }
+    if (u.host !== own && !/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(u.host)) return null;
+    pathname = u.pathname;
+  }
+  const { localUploadPath } = await import('./uploads');
+  const file = localUploadPath(pathname, 'chat');
+  if (!file) return null;
+  const { stat } = await import('fs/promises');
+  const st = await stat(file).catch(() => null);
+  return st?.isFile() ? { path: file, size: st.size } : null;
+}
+
+const posNum = (v: unknown, max: number): number | undefined => {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 && n <= max ? Math.round(n) : undefined;
+};
+
+/** Tipos de mensaje que WhatsApp muestra con texto abajo; en los demás el texto sale aparte. */
+const CAPTIONED: ReadonlySet<MediaKind> = new Set<MediaKind>(['image', 'video', 'document']);
+
+/**
+ * Manda un archivo. El mensaje se guarda antes de mandarlo (con la URL, el
+ * tipo, el nombre, el tamaño y el mimetype) para que el chat lo muestre ya
+ * (status "pending"); después toma el id del proveedor y el estado (sent o
+ * failed; las tildes llegan por webhook). Si el tipo no lleva texto (audio,
+ * nota de voz, sticker), el texto sale como un mensaje aparte.
+ */
+async function sendMediaMessage(
+  ws: string,
+  actor: string | null,
+  chat: ChatRow,
+  provider: GroupsProvider,
+  input: SendInput,
+  body: string,
+  replyProviderId: string | undefined,
+): Promise<MessageDto> {
+  const media = input.media!;
+  const bridged = provider.kind === 'evolution' || provider.kind === 'managed';
+  const local = bridged ? await localChatUpload(media.url) : null;
+  const size = local?.size ?? posNum(media.size, 2 ** 40);
+  let kind: MediaKind;
+  try {
+    kind = planOutboundKind(media.mimetype, size, media.kind ?? null);
+  } catch (err) {
+    if (err instanceof MediaPlanError) throw new GroupsError(err.code, err.code === 'media_too_large' ? 413 : 400);
+    throw err;
+  }
+  const captioned = CAPTIONED.has(kind);
+  const caption = captioned ? body : '';
+  const visual = kind === 'image' || kind === 'video' || kind === 'sticker';
+  const info = compactInfo<MediaInfo>({
+    kind,
+    size,
+    mimetype: baseMime(media.mimetype) || undefined,
+    width: visual ? posNum(media.width, 20_000) : undefined,
+    height: visual ? posNum(media.height, 20_000) : undefined,
+    duration: kind === 'audio' || kind === 'voice' || kind === 'video' ? posNum(media.duration, 86_400) : undefined,
+    ptt: kind === 'voice' || undefined,
+  });
+  const authorKind = input.authorKind ?? 'person';
+  const at = nowIso();
+  const row = (await insertMessage({
+    ws,
+    chatId: chat.id,
+    numberId: chat.number_id,
+    providerMessageId: null,
+    direction: 'out',
+    authorId: actor,
+    authorKind,
+    body: caption,
+    media: { url: media.url, type: media.mimetype, name: media.filename },
+    replyToId: input.replyToId ?? null,
+    status: 'pending',
+    createdAt: at,
+    forwarded: input.forwarded,
+    meta: { media: info },
+  })) as MessageRow;
+
+  let providerId: string | null = null;
+  let status = 'sent';
+  let error = '';
+  try {
+    const base64 = local ? (await (await import('fs/promises')).readFile(local.path)).toString('base64') : undefined;
+    const res = await provider.sendMedia(chat.provider_chat_id, {
+      url: media.url,
+      mimetype: media.mimetype,
+      filename: media.filename,
+      caption,
+      kind,
+      ...(base64 ? { base64 } : {}),
+      ...(replyProviderId ? { replyTo: replyProviderId } : {}),
+    });
+    providerId = res.id || null;
+  } catch (err) {
+    status = 'failed';
+    error = providerErrorCode(err);
+  }
+  await settleOutgoing(row.id, chat.number_id, providerId, status, error);
+  const saved = ((await getDb().prepare('SELECT * FROM groups_messages WHERE id = ?').get(row.id)) as MessageRow | undefined) ?? row;
+  if (status === 'sent') {
+    await touchChat(chat.id, at, previewOfRow(saved), false);
+    // Un envío masivo no es una respuesta: el chat sigue esperando.
+    if (authorKind !== 'broadcast') await markAnswered(chat.id, at);
+    await emitEventSoon(ws, 'groups.message.sent', {
+      message: {
+        id: saved.id,
+        body: saved.body,
+        authorId: actor,
+        authorKind,
+        status,
+        createdAt: at,
+        media: { url: media.url, type: media.mimetype, name: media.filename, kind },
+      },
+      chat: chatEventInfo(chat),
+    });
+    // Audio, nota de voz y sticker no llevan texto en WhatsApp: va aparte, después del archivo.
+    if (!captioned && body.trim()) {
+      await sendMessage(ws, actor, chat.id, { body, authorKind, forwarded: input.forwarded }).catch(() => null);
+    }
+  }
+  return toMessageDto(saved);
+}
+
+/**
+ * Guarda el id del proveedor y el estado de un mensaje que mandamos. Si el eco
+ * del webhook llegó a guardarse antes con ese id, se queda la fila nuestra.
+ */
+async function settleOutgoing(rowId: string, numberId: string, providerId: string | null, status: string, error: string): Promise<void> {
+  const db = getDb();
+  const run = () =>
+    db.prepare('UPDATE groups_messages SET provider_message_id = ?, status = ?, error = ? WHERE id = ?').run(providerId, status, error, rowId);
+  try {
+    await run();
+  } catch {
+    await db.prepare('DELETE FROM groups_messages WHERE number_id = ? AND provider_message_id = ? AND id != ?').run(numberId, providerId, rowId);
+    await run();
+  }
 }
 
 export async function reactToMessage(ws: string, actor: string, messageId: string, emoji: string): Promise<MessageDto> {
@@ -1203,6 +1440,15 @@ const LID_CHAT_NAME: Record<string, string> = { es: 'Contacto de WhatsApp', en: 
 export async function lidChatName(ws: string): Promise<string> {
   const row = (await getDb().prepare('SELECT locale FROM users WHERE id = ?').get(ws)) as { locale?: string | null } | undefined;
   return LID_CHAT_NAME[String(row?.locale ?? '').slice(0, 2)] ?? LID_CHAT_NAME.es;
+}
+
+/** Datos del archivo, la ubicación y los contactos de un mensaje recibido (van en meta). */
+export function inboundMeta(ev: Extract<InboundEvent, { type: 'message' }>): StoredMeta | undefined {
+  const meta: StoredMeta = {};
+  if (ev.media?.info) meta.media = compactInfo(ev.media.info);
+  if (ev.location) meta.location = ev.location;
+  if (ev.contacts?.length) meta.contacts = ev.contacts.slice(0, 20);
+  return Object.keys(meta).length ? meta : undefined;
 }
 
 /** Archivos recibidos que se bajan por webhook: de a uno y con un total por webhook. */
@@ -1256,8 +1502,8 @@ export async function storeInboundMedia(
     return null;
   }
   if (!provider.fetchMedia) return null;
-  const { MAX_UPLOAD_SIZE, saveUpload } = await import('./uploads');
-  const max = Math.max(0, Math.min(MAX_UPLOAD_SIZE, opts.budget ?? MAX_UPLOAD_SIZE));
+  const { saveUpload } = await import('./uploads');
+  const max = Math.max(0, Math.min(MAX_INBOUND_MEDIA, opts.budget ?? MAX_INBOUND_MEDIA));
   const markFailed = () =>
     getDb()
       .prepare("UPDATE groups_messages SET media_url = '' WHERE id = ? AND number_id = ? AND media_url LIKE 'evo:%'")
@@ -1284,13 +1530,30 @@ export async function storeInboundMedia(
       await deleteUploads([url]);
       return null;
     }
+    await completeMediaInfo(messageId, file.data, mimetype).catch(() => null);
     return { url, bytes: file.data.length };
   } catch (err) {
     // Más grande que lo que quedaba del presupuesto del webhook (no del tope): queda para cuando se abra.
-    const overBudget = err instanceof ProviderError && err.httpStatus === 413 && max < MAX_UPLOAD_SIZE;
+    const overBudget = err instanceof ProviderError && err.httpStatus === 413 && max < MAX_INBOUND_MEDIA;
     if (permanentMediaError(err) && !overBudget) await markFailed();
     throw err;
   }
+}
+
+/** Con el archivo ya bajado: tamaño real, mimetype y medidas de la imagen si el webhook no las traía. */
+async function completeMediaInfo(messageId: string, data: Buffer, mimetype: string): Promise<void> {
+  const db = getDb();
+  const row = (await db.prepare('SELECT meta, media_type FROM groups_messages WHERE id = ?').get(messageId)) as { meta: string; media_type: string } | undefined;
+  if (!row) return;
+  const meta = parseJson<StoredMeta>(row.meta, {});
+  const info: MediaInfo = { kind: kindFromMime(row.media_type || mimetype), ...(meta.media ?? {}) };
+  info.size = data.length;
+  info.mimetype ??= mimetype;
+  if ((info.kind === 'image' || info.kind === 'sticker') && !(info.width && info.height)) {
+    const dims = imageSize(data);
+    if (dims && dims.width > 0 && dims.height > 0) Object.assign(info, dims);
+  }
+  await db.prepare('UPDATE groups_messages SET meta = ? WHERE id = ?').run(JSON.stringify({ ...meta, media: compactInfo(info) }), messageId);
 }
 
 export interface IngestResult {
@@ -1349,7 +1612,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           status: ev.fromMe ? (ev.status ?? 'sent') : 'received',
           createdAt: at,
           forwarded: ev.forwarded,
-          meta: ev.meta,
+          meta: inboundMeta(ev),
           poll: ev.poll && ev.poll.options.length >= 2 ? ev.poll : null,
         });
         if (!row) {
@@ -1362,7 +1625,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           const ref = ev.media.fetchRef;
           later.push({ messageId: row.id, ref });
         }
-        await touchChat(chat.id, at, previewOf(ev.body, ev.media?.type ?? '', ev.media?.name ?? ''), !ev.fromMe);
+        await touchChat(chat.id, at, previewOfRow(row), !ev.fromMe);
         // Modo "preguntas": el chat espera recién cuando la AI dice que el mensaje pide respuesta (lib/groups-flag.ts).
         if (!ev.fromMe && (await getSettings(ws)).flagMode === 'questions') {
           await getDb().prepare('UPDATE groups_chats SET awaiting_since = NULL WHERE id = ? AND awaiting_since = ?').run(chat.id, at);

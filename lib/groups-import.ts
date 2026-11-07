@@ -23,6 +23,7 @@ import {
   applyReaction,
   getNumberRow,
   getNumberRowById,
+  inboundMeta,
   insertMessage,
   lidChatName,
   previewOf,
@@ -250,12 +251,12 @@ export async function ingestHistory(number: NumberRow, events: InboundEvent[]): 
           senderName: ev.senderName,
           authorKind: ev.fromMe ? 'phone' : 'person',
           body: ev.body,
-          media: ev.media && (ev.media.type || ev.media.url) ? { url: ev.media.url, type: ev.media.type, name: ev.media.name } : null,
+          media: ev.media && (ev.media.type || ev.media.url) ? ev.media : null,
           replyToId,
           status: ev.fromMe ? (ev.status ?? 'sent') : 'received',
           createdAt: at,
           forwarded: ev.forwarded,
-          meta: { ...(ev.meta ?? {}), imported: true },
+          meta: { ...(inboundMeta(ev) ?? {}), imported: true },
           poll,
         });
         if (!row) {

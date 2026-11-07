@@ -220,6 +220,17 @@ export const Ticket = (p: P) => (
     <path d="M14 7.5v9" strokeDasharray="1.5 2" />
   </Svg>
 );
+export const ViewOnce = (p: P) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" strokeDasharray="3 2.5" />
+    <path d="M10.5 9.5 12 8.5V15.5" />
+  </Svg>
+);
+export const Retry = (p: P) => (
+  <Svg {...p}>
+    <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4.5v4h4" />
+  </Svg>
+);
 export const Panel = (p: P) => (
   <Svg {...p}>
     <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />

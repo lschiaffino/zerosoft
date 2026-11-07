@@ -15,6 +15,16 @@
  */
 import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
 import {
+  evolutionFileName,
+  infoFromBaileys,
+  locationFrom,
+  parseVcard,
+  planOutboundKind,
+  type ContactCard,
+  type LocationInfo,
+  type MediaInfo,
+} from './groups-media';
+import {
   PROVIDER_CAPS,
   ProviderError,
   type CallStatus,
@@ -46,6 +56,11 @@ import {
 type Json = Record<string, unknown>;
 
 export const defaultBridgeFetch: FetchLike = (url, init) => safeFetch(url, init, 15_000);
+/**
+ * Envíos de media: el gateway baja el archivo, lo convierte (JPEG, OGG/Opus,
+ * WebP) y lo sube a WhatsApp antes de responder.
+ */
+export const mediaBridgeFetch: FetchLike = (url, init) => safeFetch(url, init, 90_000);
 
 function baseOf(cfg: BridgeConfig): string {
   const base = String(cfg.baseUrl ?? '').trim().replace(/\/+$/, '');
@@ -136,8 +151,8 @@ function byteLength(raw: unknown): number {
   return typeof o.low === 'number' ? (o.low >>> 0) + (o.high ?? 0) * 2 ** 32 : 0;
 }
 
-/** Tope de lo que se baja de un archivo recibido (lo mismo que acepta un adjunto). */
-export const MAX_INBOUND_MEDIA = 10 * 1024 * 1024;
+/** Tope de lo que se baja de un archivo recibido (el de WhatsApp para fotos, video y audio). */
+export const MAX_INBOUND_MEDIA = 16 * 1024 * 1024;
 
 function roleOf(raw: unknown): MemberRole {
   const r = String(raw ?? '').toLowerCase();
@@ -550,18 +565,25 @@ const EVOLUTION_ACK: Record<string, 'sent' | 'delivered' | 'read' | 'failed'> = 
   ERROR: 'failed',
 };
 
-/** Envoltorios de Baileys que traen el mensaje real adentro (temporales, ver una vez, documento con texto). */
-const WRAPPERS = ['ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage', 'deviceSentMessage'];
+/** Envoltorios de Baileys que traen el mensaje real adentro ({ message: {...} }). */
+const BAILEYS_WRAPPERS = ['ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage', 'deviceSentMessage'];
 
-function unwrapMessage(message: Json): Json {
+/** Saca los envoltorios (mensajes temporales, "ver una vez", documento con texto). */
+function unwrapBaileys(message: Json): { message: Json; viewOnce: boolean } {
   let m = message;
-  for (let i = 0; i < 4; i++) {
-    const key = WRAPPERS.find((k) => m[k] && typeof m[k] === 'object' && (m[k] as Json).message);
+  let viewOnce = false;
+  for (let depth = 0; depth < 4; depth++) {
+    const key = BAILEYS_WRAPPERS.find((k) => m[k] && typeof m[k] === 'object');
     if (!key) break;
-    m = ((m[key] as Json).message ?? {}) as Json;
+    if (key.startsWith('viewOnce')) viewOnce = true;
+    const inner = ((m[key] as Json).message ?? null) as Json | null;
+    if (!inner || typeof inner !== 'object') break;
+    m = inner;
   }
-  return m;
+  return { message: m, viewOnce };
 }
+
+const BAILEYS_MEDIA = ['imageMessage', 'videoMessage', 'ptvMessage', 'audioMessage', 'documentMessage', 'stickerMessage'];
 
 /**
  * Nombre de perfil que sirve para mostrar. Evolution guarda "Você" en lo que
@@ -575,36 +597,33 @@ export function cleanPushName(raw: unknown): string {
   return s.slice(0, 120);
 }
 
-/** Teléfono de un vCard compartido (waid=... o TEL:). */
-function vcardPhone(vcard: string): string {
-  const waid = /waid=(\d{6,15})/.exec(vcard);
-  if (waid) return waid[1];
-  const tel = /TEL[^:]*:([+\d\s()-]{6,})/i.exec(vcard);
-  return tel ? tel[1].replace(/[^\d]/g, '') : '';
-}
-
 interface BaileysContent {
   body: string;
-  media?: { url: string; type: string; name: string; size: number };
+  media?: { url: string; type: string; name: string; size: number; info: MediaInfo };
+  location?: LocationInfo;
+  contacts?: ContactCard[];
   replyTo?: string;
   reaction?: Json;
   /** protocolMessage: edición (texto nuevo) o borrado para todos del mensaje `target`. */
   protocol?: { kind: 'edit' | 'revoke'; target: string; body: string };
   poll?: { question: string; options: string[]; multi: boolean };
   forwarded?: boolean;
-  meta?: Record<string, unknown>;
 }
 
-/** Texto y media de un `message` de Baileys (lo que manda o guarda Evolution). `topContext`: el contextInfo que Evolution saca afuera. */
+/**
+ * Texto y media de un `message` de Baileys (lo que manda o guarda Evolution).
+ * `topContext`: el contextInfo que Evolution guarda afuera (y en el que
+ * convierte extendedTextMessage en conversation).
+ */
 export function baileysContent(raw: Json, topContext?: unknown): BaileysContent {
-  const message = unwrapMessage(raw);
+  const { message, viewOnce } = unwrapBaileys(raw);
   const proto = (message.protocolMessage ?? ((((message.editedMessage ?? {}) as Json).message ?? {}) as Json).protocolMessage) as Json | undefined;
   if (proto) {
     const target = String(((proto.key ?? {}) as Json).id ?? '');
     const type = String(proto.type ?? '').toUpperCase();
     if (target && (type === 'REVOKE' || type === '0')) return { body: '', protocol: { kind: 'revoke', target, body: '' } };
     if (target && (type === 'MESSAGE_EDIT' || type === '14')) {
-      const edited = unwrapMessage((proto.editedMessage ?? {}) as Json);
+      const edited = unwrapBaileys((proto.editedMessage ?? {}) as Json).message;
       const text = typeof edited.conversation === 'string' ? edited.conversation : String(((edited.extendedTextMessage ?? {}) as Json).text ?? '');
       return { body: text, protocol: { kind: 'edit', target, body: text } };
     }
@@ -629,52 +648,65 @@ export function baileysContent(raw: Json, topContext?: unknown): BaileysContent 
     const question = String(pollMsg.name ?? '');
     return withCtx({ body: question, poll: { question, options, multi: Number(pollMsg.selectableOptionsCount ?? 1) !== 1 } }, pollMsg.contextInfo);
   }
-  const loc = (message.locationMessage ?? message.liveLocationMessage) as Json | undefined;
-  if (loc) {
-    const lat = Number(loc.degreesLatitude);
-    const lng = Number(loc.degreesLongitude);
-    const name = String(loc.name ?? loc.address ?? '').trim();
-    return withCtx(
-      { body: name, meta: { location: { lat: Number.isFinite(lat) ? lat : 0, lng: Number.isFinite(lng) ? lng : 0, name, address: String(loc.address ?? '') } } },
-      loc.contextInfo,
-    );
-  }
-  const contact = message.contactMessage as Json | undefined;
-  if (contact) {
-    const name = String(contact.displayName ?? '').trim();
-    return withCtx({ body: name, meta: { contact: { name, phone: vcardPhone(String(contact.vcard ?? '')) } } }, contact.contextInfo);
-  }
-  const contacts = message.contactsArrayMessage as Json | undefined;
-  if (contacts) {
-    const list = (Array.isArray(contacts.contacts) ? (contacts.contacts as Json[]) : []).map((c) => ({ name: String(c.displayName ?? ''), phone: vcardPhone(String(c.vcard ?? '')) }));
-    return withCtx({ body: String(contacts.displayName ?? list.map((c) => c.name).join(', ')), meta: { contacts: list.slice(0, 20) } });
-  }
-  for (const key of ['imageMessage', 'videoMessage', 'ptvMessage', 'audioMessage', 'documentMessage', 'stickerMessage']) {
+  const replyOf = (m: Json) => withCtx({ body: '' }, m.contextInfo).replyTo;
+  for (const key of BAILEYS_MEDIA) {
     const m = message[key] as Json | undefined;
-    if (m) {
-      const fallbackType = key === 'imageMessage' ? 'image/jpeg' : key === 'videoMessage' || key === 'ptvMessage' ? 'video/mp4' : key === 'audioMessage' ? 'audio/ogg' : key === 'stickerMessage' ? 'image/webp' : 'application/octet-stream';
-      const meta: Record<string, unknown> = {};
-      if (key === 'audioMessage' && m.ptt === true) meta.ptt = true;
-      if (key === 'stickerMessage') meta.sticker = true;
-      if (key === 'ptvMessage') meta.round = true;
-      const seconds = Number(m.seconds);
-      if (Number.isFinite(seconds) && seconds > 0) meta.seconds = seconds;
-      const size = byteLength(m.fileLength);
-      if (size > 0) meta.size = size;
-      const pages = Number(m.pageCount);
-      if (Number.isFinite(pages) && pages > 0) meta.pages = pages;
+    if (m && typeof m === 'object') {
+      const info = infoFromBaileys(key, m, viewOnce);
+      const fallbackType = info.kind === 'voice' ? 'audio/ogg' : info.kind === 'sticker' ? 'image/webp' : key === 'documentMessage' ? 'application/octet-stream' : key.replace('Message', '');
+      const name = String(m.fileName ?? (key === 'documentMessage' ? (m.title ?? '') : ''));
       return withCtx(
         {
           body: String(m.caption ?? ''),
           // La URL de WhatsApp está cifrada: el archivo se baja después por el gateway (fetchMedia).
-          media: { url: '', type: String(m.mimetype ?? '') || fallbackType, name: String(m.fileName ?? m.title ?? ''), size },
-          ...(Object.keys(meta).length ? { meta } : {}),
+          media: { url: '', type: String(m.mimetype ?? '') || fallbackType, name: name.slice(0, 200), size: byteLength(m.fileLength), info },
         },
         m.contextInfo,
       );
     }
   }
+  for (const key of ['locationMessage', 'liveLocationMessage']) {
+    const m = message[key] as Json | undefined;
+    if (m && typeof m === 'object') {
+      const location = locationFrom(m, key === 'liveLocationMessage');
+      if (location) return { body: String(m.comment ?? ''), location, replyTo: replyOf(m) };
+    }
+  }
+  const contact = message.contactMessage as Json | undefined;
+  if (contact && typeof contact === 'object') {
+    return { body: '', contacts: [parseVcard(String(contact.vcard ?? ''), String(contact.displayName ?? ''))], replyTo: replyOf(contact) };
+  }
+  const many = message.contactsArrayMessage as Json | undefined;
+  if (many && typeof many === 'object') {
+    const list = Array.isArray(many.contacts) ? (many.contacts as Json[]) : [];
+    const contacts = list.slice(0, 20).map((c) => parseVcard(String(c.vcard ?? ''), String(c.displayName ?? '')));
+    return { body: '', contacts, replyTo: replyOf(many) };
+  }
+  // "Ver una vez" sin contenido (WhatsApp no lo entrega a dispositivos vinculados): queda el aviso.
+  if (viewOnce) return { body: '', media: { url: '', type: 'image', name: '', size: 0, info: { kind: 'image', viewOnce: true } } };
   return { body: '' };
+}
+
+/**
+ * Media de un mensaje recibido. "evo:<id>": se baja después y se guarda en
+ * nuestro storage (ver storeInboundMedia), también la que se mandó desde el
+ * teléfono (fromMe). Más grande que el tope o "ver una vez": queda el tipo, el
+ * nombre y los datos, sin bajarlo.
+ */
+function inboundEvolutionMedia(
+  media: { type: string; name: string; size: number; info: MediaInfo },
+  id: string,
+  remoteJid: string,
+  fromMe: boolean,
+): NonNullable<Extract<InboundEvent, { type: 'message' }>['media']> {
+  const fetchable = media.size <= MAX_INBOUND_MEDIA && !media.info.viewOnce;
+  return {
+    url: fetchable ? `evo:${id}` : '',
+    type: media.type,
+    name: media.name,
+    info: media.info,
+    ...(fetchable ? { fetchRef: { providerMessageId: id, chatId: remoteJid, fromMe } } : {}),
+  };
 }
 
 /** Estado de entrega de un mensaje guardado por Evolution (status o el último MessageUpdate). */
@@ -740,10 +772,8 @@ export function evolutionMessageEvents(m: Json, history = false): InboundEvent[]
     ];
   }
   // Mensajes de sistema sin contenido (cambios de clave, avisos de cifrado): no son parte de la conversación.
-  if (!content.body && !content.media && !content.poll && !content.meta) return [];
+  if (!content.body && !content.media && !content.poll && !content.location && !content.contacts?.length) return [];
   const ts = Number(m.messageTimestamp);
-  const media = content.media;
-  const fits = media ? media.size <= MAX_INBOUND_MEDIA : false;
   const out: InboundEvent = {
     type: 'message',
     chatId,
@@ -753,23 +783,15 @@ export function evolutionMessageEvents(m: Json, history = false): InboundEvent[]
     senderName: pushName,
     providerMessageId: id,
     body: content.body,
-    media: media
-      ? {
-          // "evo:<id>": se baja después y se guarda en nuestro storage (ver storeInboundMedia).
-          url: fits ? `evo:${id}` : '',
-          type: media.type,
-          name: media.name,
-          // Más grande que el tope: queda el tipo y el nombre, sin bajarlo.
-          ...(fits ? { fetchRef: { providerMessageId: id, chatId: String(key.remoteJid ?? chatId), fromMe } } : {}),
-        }
-      : undefined,
+    media: content.media ? inboundEvolutionMedia(content.media, id, String(key.remoteJid ?? chatId), fromMe) : undefined,
+    ...(content.location ? { location: content.location } : {}),
+    ...(content.contacts?.length ? { contacts: content.contacts } : {}),
     replyToProviderId: content.replyTo,
     timestamp: Number.isFinite(ts) && ts > 0 ? new Date(ts * 1000).toISOString() : undefined,
     ...(history ? { history: true } : {}),
     ...(fromMe ? { status: storedStatus(m) } : {}),
     ...(content.poll ? { poll: content.poll } : {}),
     ...(content.forwarded ? { forwarded: true } : {}),
-    ...(content.meta ? { meta: content.meta } : {}),
   };
   return [out];
 }
@@ -915,10 +937,12 @@ async function evolutionMedia(
 
 export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike } = {}): GroupsProvider {
   const f = opts.fetch ?? defaultBridgeFetch;
+  const fMedia = opts.fetch ?? mediaBridgeFetch;
   const instance = encodeURIComponent(cfg.session || 'zerosoft');
   const headers = { apikey: cfg.apiKey ?? '' };
   const api = (path: string, method = 'GET', body?: unknown, o?: { maxBytes?: number }) =>
     bridgeRequest(f, `${baseOf(cfg)}${path}`, headers, method, body, o);
+  const mediaApi = (path: string, body: unknown) => bridgeRequest(fMedia, `${baseOf(cfg)}${path}`, headers, 'POST', body);
   const q = (groupId: string) => `?groupJid=${encodeURIComponent(groupId)}`;
 
   async function qr(): Promise<string | undefined> {
@@ -1031,23 +1055,40 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       })) as Json;
       return { id: String(((r.key ?? {}) as Json).id ?? '') };
     },
+    /**
+     * Media según el tipo (lib/groups-media.ts), contra Evolution v2.3:
+     * - nota de voz: /message/sendWhatsAppAudio con encoding (Evolution la
+     *   convierte a OGG/Opus con ffmpeg: sirve el webm del navegador);
+     * - sticker: /message/sendSticker (Evolution la pasa a WebP);
+     * - imagen, video, audio y documento: /message/sendMedia. Evolution saca el
+     *   mimetype del nombre del archivo, así que el nombre lleva la extensión.
+     * El archivo va como URL pública o, si no hay, en base64.
+     */
     async sendMedia(chatId, media) {
-      const mediatype = media.mimetype.startsWith('image/')
-        ? 'image'
-        : media.mimetype.startsWith('video/')
-          ? 'video'
-          : media.mimetype.startsWith('audio/')
-            ? 'audio'
-            : 'document';
-      const r = (await api(`/message/sendMedia/${instance}`, 'POST', {
-        number: chatId,
-        mediatype,
-        mimetype: media.mimetype,
-        media: media.url,
-        fileName: media.filename,
-        caption: media.caption ?? '',
-      })) as Json;
-      return { id: String(((r.key ?? {}) as Json).id ?? '') };
+      const kind = media.kind ?? planOutboundKind(media.mimetype, undefined, null);
+      const source = media.base64 ?? media.url;
+      const quoted = media.replyTo ? { quoted: { key: { id: media.replyTo } } } : {};
+      let r: Json;
+      if (kind === 'voice') {
+        r = (await mediaApi(`/message/sendWhatsAppAudio/${instance}`, { number: chatId, audio: source, encoding: true, ...quoted })) as Json;
+      } else if (kind === 'sticker') {
+        r = (await mediaApi(`/message/sendSticker/${instance}`, { number: chatId, sticker: source, ...quoted })) as Json;
+      } else {
+        const fileName = evolutionFileName(media.filename, media.mimetype, kind);
+        r = (await mediaApi(`/message/sendMedia/${instance}`, {
+          number: chatId,
+          mediatype: kind,
+          mimetype: kind === 'image' ? 'image/jpeg' : kind === 'video' ? 'video/mp4' : media.mimetype.split(';')[0].trim(),
+          media: source,
+          fileName,
+          // WhatsApp no muestra texto en un audio: lo manda aparte quien llama.
+          ...(kind === 'audio' ? {} : { caption: media.caption ?? '' }),
+          ...quoted,
+        })) as Json;
+      }
+      const id = String(((r.key ?? {}) as Json).id ?? '');
+      if (!id) throw new ProviderError('provider_error');
+      return { id };
     },
     async react(chatId, messageId, emoji, fromMe) {
       await api(`/message/sendReaction/${instance}`, 'POST', { key: { remoteJid: chatId, fromMe, id: messageId }, reaction: emoji });

@@ -828,7 +828,11 @@
     "invalid_label": "Invalid label.",
     "missing_variables": "Fill in every template variable.",
     "missing_tree": "Write the options, one per line.",
-    "bridge_unavailable": "The QR connection server is not configured. Try again once it is available."
+    "bridge_unavailable": "The QR connection server is not configured. Try again once it is available.",
+    "media_too_large": "Over WhatsApp's limit: 16 MB for voice notes and 100 MB for any other file.",
+    "invalid_media": "That file can't be sent as a voice note.",
+    "too_many_files": "Up to 10 files at a time.",
+    "client_upload_unavailable": "Direct upload is not available here. Files up to 10 MB still work."
   },
   "media": {
     "image": "Image",
@@ -836,7 +840,12 @@
     "video": "Video",
     "file": "File",
     "call": "Call",
-    "deleted": "Message deleted"
+    "deleted": "Message deleted",
+    "voice": "Voice message",
+    "sticker": "Sticker",
+    "location": "Location",
+    "contact": "Contact",
+    "viewOnce": "View once message"
   },
   "langs": {
     "en": "English",
@@ -1458,6 +1467,9 @@
     "reimportHelp": "Brings chats, names, photos and recent messages from WhatsApp again. Nothing is duplicated and nothing triggers rules or notifications.",
     "perChat": "Messages per chat",
     "reimportStarted": "Import started. You can keep working.",
-    "importStatus": "Import: {status}"
+    "importStatus": "Import: {status}",
+    "viewOnce": "View once message. Open it on the phone.",
+    "liveLocation": "Live location",
+    "retry": "Retry sending"
   }
 }
