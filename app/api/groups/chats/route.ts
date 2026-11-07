@@ -62,6 +62,9 @@ export async function GET(req: Request) {
     viewer: await sessionViewer(s),
   });
   // Importación en curso al conectar un número: la bandeja muestra el progreso.
-  const { activeImports } = await import('@/lib/groups-import');
-  return NextResponse.json({ ...res, imports: await activeImports(s.ws).catch(() => []) });
+  const { activeImports, kickImport } = await import('@/lib/groups-import');
+  const imports = await activeImports(s.ws).catch(() => []);
+  // Mientras alguien mira la bandeja, la importación avanza sin esperar al cron (cada tanda reclama su fila).
+  for (const im of imports) if (im.status === 'queued' || im.status === 'running') await kickImport(im.numberId);
+  return NextResponse.json({ ...res, imports });
 }

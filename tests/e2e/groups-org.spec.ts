@@ -387,7 +387,8 @@ test('tareas: desde un mensaje, en el chat y en Tareas, con aviso a su hora', as
   await page.goto(`/en/app/groups/inbox/${chat.id}`, { waitUntil: 'networkidle' });
   const msg = page.locator('.gr-msg-in', { hasText: body });
   await msg.hover();
-  await msg.getByRole('button', { name: 'Task', exact: true }).click();
+  await msg.getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Task', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Task from message' });
   await expect(dialog.getByLabel('Task')).toHaveValue(body);
   await dialog.getByRole('button', { name: 'In 1 hour' }).click();
@@ -433,7 +434,8 @@ test('tarea creada desde Groups: CRM › Tareas (hoy y próximas) abre sin error
   await page.goto(`/en/app/groups/inbox/${chat.id}`, { waitUntil: 'networkidle' });
   const msg = page.locator('.gr-msg-in', { hasText: body });
   await msg.hover();
-  await msg.getByRole('button', { name: 'Task', exact: true }).click();
+  await msg.getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Task', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Task from message' });
   await dialog.getByRole('button', { name: 'In 1 hour' }).click();
   await dialog.getByRole('button', { name: 'Create task' }).click();

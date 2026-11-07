@@ -519,7 +519,9 @@ export default function ChatThread(props: ThreadProps) {
   }
 
   // Nota de voz: grabar con el micrófono, ver el tiempo, cancelar o mandar.
-  const voiceSupported = typeof window !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia) && Boolean(recorderMime());
+  // Se sabe recién en el navegador (el servidor no tiene micrófono): después de montar, para no romper la hidratación.
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  useEffect(() => setVoiceSupported(Boolean(navigator.mediaDevices?.getUserMedia) && Boolean(recorderMime())), []);
   async function startRecording() {
     if (recording || mode === 'note') return;
     setSendError('');
@@ -886,7 +888,8 @@ export default function ChatThread(props: ThreadProps) {
   function renderMessage(m: MessageDto, cont: boolean) {
     const quoted = m.replyToId ? byId.get(m.replyToId) : null;
     const isNote = m.direction === 'note';
-    const showName = !cont && (isNote || (m.direction === 'in' && chat.kind === 'group') || m.direction === 'out');
+    // Lo propio mandado desde el teléfono no lleva firma (como en WhatsApp); lo del equipo, agentes o envíos sí.
+    const showName = !cont && (isNote || (m.direction === 'in' && chat.kind === 'group') || (m.direction === 'out' && m.authorKind !== 'phone'));
     const author = isNote ? nameOf(m.authorId) : m.direction === 'in' ? inName(m) : outAuthor(m);
     const tr = translateOn && m.direction === 'in' ? translations[m.id] : undefined;
     const showTr = tr && tr.text && !showOriginal.has(m.id);

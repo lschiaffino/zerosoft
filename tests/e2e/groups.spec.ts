@@ -121,7 +121,8 @@ test('bandeja: llega un mensaje, se responde, nota interna y ticket desde el men
   // Ticket desde el mensaje.
   const msg = page.locator('.gr-msg-in', { hasText: invoice });
   await msg.hover();
-  await msg.getByRole('button', { name: 'Ticket' }).click();
+  await msg.getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Create ticket' }).click();
   const dialog = page.getByRole('dialog', { name: 'New ticket' });
   await dialog.getByLabel('Priority').selectOption('high');
   await dialog.getByRole('button', { name: 'Create ticket' }).click();

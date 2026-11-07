@@ -465,7 +465,8 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
           const url = await history.picture(c.provider_chat_id).catch(() => '');
           if (url) await setPicture(c.id, url);
         }
-        if (c.kind === 'group' && !c.member_count) {
+        // Los grupos traen sus miembros de WhatsApp (los del historial son solo quienes escribieron).
+        if (c.kind === 'group') {
           const { syncMembers } = await import('./groups');
           await syncMembers(number.user_id, c.id).catch(() => null);
         }
