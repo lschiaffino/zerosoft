@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: mailto:security@zerosoft.ai
-    about: Please report security issues privately.
+    url: https://github.com/lschiaffino/zerosoft/blob/main/SECURITY.md
+    about: Please report security issues privately to security@zerosoft.ai.
+  - name: Code of conduct
+    url: https://github.com/lschiaffino/zerosoft/blob/main/CODE_OF_CONDUCT.md
+    about: Report unacceptable behavior to conduct@zerosoft.ai.

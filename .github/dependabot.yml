@@ -1,0 +1,26 @@
+# Weekly dependency updates, grouped so each ecosystem opens one PR a week.
+version: 2
+updates:
+  - package-ecosystem: npm
+    # The web app and the desktop app (Electron), each with its own lockfile.
+    directories: ['/', '/desktop']
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+      npm-major:
+        update-types: [major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies]
+    groups:
+      actions:
+        patterns: ['*']
