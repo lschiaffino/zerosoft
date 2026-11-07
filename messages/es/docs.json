@@ -9,7 +9,9 @@
     "emptyReadOnly": "Acá aparecen las páginas que tu workspace comparte con vos.",
     "edited": "Editada {date}",
     "colPage": "Página",
-    "colEdited": "Editada"
+    "colEdited": "Editada",
+    "guestShared": "Sos invitado de {workspace}. Estas páginas te las compartieron.",
+    "guestEmpty": "Sos invitado de {workspace}. Las páginas que te compartan aparecen acá."
   },
   "sidebar": {
     "overview": "Resumen",
@@ -138,6 +140,7 @@
       "uploading": "{count, plural, one {Subiendo # archivo...} other {Subiendo # archivos...}}",
       "tooLarge": "\"{name}\" pesa más de {max}.",
       "typeNotAllowed": "\"{name}\" es de un tipo que no se puede subir (HTML, SVG y scripts están bloqueados).",
+      "rateLimited": "Demasiadas subidas seguidas. Esperá un minuto y probá \"{name}\" de nuevo.",
       "storageUnavailable": "Este servidor no tiene configurado el almacenamiento de archivos, así que \"{name}\" no se subió.",
       "failed": "No se pudo subir \"{name}\". Probá de nuevo.",
       "dismiss": "Cerrar",

@@ -524,6 +524,22 @@ export function sniffImageType(b: Uint8Array): 'image/png' | 'image/jpeg' | 'ima
 export const REC_RECAP_DAILY = 50;
 export const REC_RECAP_DAILY_NEW = 10;
 
+/**
+ * Qué avisa el diálogo de mover antes de mandar el cambio (la misma regla que
+ * aplica updateVideo): "Solo estas personas" no entra a un lugar compartido, y
+ * un video de un espacio con "solo workspace" pasa a "Solo estas personas" al
+ * ir a Mis videos (si no, lo vería todo el workspace).
+ */
+export function recMoveNotice(
+  video: { spaceId: string | null; privacy: RecPrivacy },
+  target: { space: RecSpace; folderId: string | null; spaceId?: string | null },
+): 'needs_privacy' | 'becomes_people' | null {
+  const toPersonal = target.space === 'personal' && !target.spaceId;
+  if (video.privacy === 'people' && !toPersonal) return 'needs_privacy';
+  if (video.spaceId && video.privacy === 'workspace' && toPersonal) return 'becomes_people';
+  return null;
+}
+
 // ============================================================
 // Volver atrás mientras se graba (Live Rewind)
 // ============================================================

@@ -302,6 +302,8 @@
     "deleteBody": "The video, its comments and views are deleted, and the link stops working.",
     "moveTitle": "Move video",
     "moveHelp": "Videos in the workspace are visible to everyone in it.",
+    "moveNeedsPrivacy": "This video is set to \"Only specific people\", which only works in My videos. Change who can see it in Share first, then move it.",
+    "moveBecomesPeople": "In My videos this video changes to \"Only specific people\", so the rest of the workspace stops seeing it.",
     "move": "Move",
     "branchEmpty": "No folders yet",
     "upload": "Upload a video",

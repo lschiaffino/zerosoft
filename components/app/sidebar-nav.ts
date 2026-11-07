@@ -198,6 +198,19 @@ export interface SidebarLabels {
     persons: string;
     cohorts: string;
     flags: string;
+    experiments: string;
+    actions: string;
+    alerts: string;
+    subscriptions: string;
+    annotations: string;
+    data: string;
+    groups: string;
+    /** Session replay y heatmaps (opcionales: los tests viejos arman labels sin estas claves). */
+    recordings?: string;
+    heatmaps?: string;
+    surveys: string;
+    errors: string;
+    llm: string;
     sql: string;
     projects: string;
     newInsight: string;
@@ -238,6 +251,8 @@ export interface SidebarLabels {
     reports: string;
     newInvoice: string;
   };
+  /** Send (DocSend): documentos con links y espacios. */
+  send: { documents: string; spaces: string; newDocument: string };
   /** Sign (DocuSign): sobres, plantillas. */
   sign: {
     home: string;
@@ -249,6 +264,8 @@ export interface SidebarLabels {
     markRead: string;
     markAllRead: string;
     empty: string;
+    loading: string;
+    loadError: string;
     text: NotificationTextLabels;
   };
 }
@@ -304,7 +321,8 @@ export type AppProduct =
   | 'people'
   | 'books'
   | 'sign'
-  | 'forms';
+  | 'forms'
+  | 'send';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -330,6 +348,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/books', 'books'],
   ['/app/sign', 'sign'],
   ['/app/forms', 'forms'],
+  ['/app/send', 'send'],
 ];
 
 /** La app del shell para una clave de producto (Cal vive en /app/calendar). */
@@ -377,6 +396,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   books: 'books',
   sign: 'sign',
   forms: 'forms',
+  send: 'send',
 };
 
 /** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
@@ -440,7 +460,7 @@ export function homeAppGroups(
     icon: APP_ICONS[line],
     soon: isBuildingProduct(line) || undefined,
   });
-  const groups: NavGroup[] = [{ section: labels.yourApps, items: top.map(item) }];
+  const groups: NavGroup[] = top.length ? [{ section: labels.yourApps, items: top.map(item) }] : [];
   if (rest.length) groups.push({ section: labels.moreApps, items: rest.map(item), collapsible: true });
   return groups;
 }
@@ -839,6 +859,8 @@ export function buildNav(
             // Los tableros cuelgan del ítem (AnalyticsBranch en el hueco #side-branch), como en PostHog.
             { href: '/app/analytics/dashboards', label: a.dashboards, active: at('/app/analytics/dashboards'), icon: 'dashboards', branch: true },
             { href: '/app/analytics/sql', label: a.sql, active: at('/app/analytics/sql'), icon: 'sql' },
+            { href: '/app/analytics/alerts', label: a.alerts, active: at('/app/analytics/alerts'), icon: 'bell' },
+            { href: '/app/analytics/subscriptions', label: a.subscriptions, active: at('/app/analytics/subscriptions'), icon: 'calendar' },
           ],
         },
         {
@@ -846,7 +868,21 @@ export function buildNav(
           items: [
             { href: '/app/analytics/persons', label: a.persons, active: at('/app/analytics/persons'), icon: 'contacts' },
             { href: '/app/analytics/cohorts', label: a.cohorts, active: at('/app/analytics/cohorts'), icon: 'groups' },
+            { href: '/app/analytics/groups', label: a.groups, active: at('/app/analytics/groups'), icon: 'companies' },
             { href: '/app/analytics/flags', label: a.flags, active: at('/app/analytics/flags'), icon: 'flag' },
+            { href: '/app/analytics/surveys', label: a.surveys, active: at('/app/analytics/surveys'), icon: 'forms' },
+            { href: '/app/analytics/errors', label: a.errors, active: at('/app/analytics/errors'), icon: 'bug' },
+            { href: '/app/analytics/llm', label: a.llm, active: at('/app/analytics/llm'), icon: 'assistant' },
+            ...(a.recordings ? [{ href: '/app/analytics/replay', label: a.recordings, active: at('/app/analytics/replay'), icon: 'rec' as const }] : []),
+            ...(a.heatmaps ? [{ href: '/app/analytics/heatmaps', label: a.heatmaps, active: at('/app/analytics/heatmaps'), icon: 'reports' as const }] : []),
+            { href: '/app/analytics/experiments', label: a.experiments, active: at('/app/analytics/experiments'), icon: 'forecast' },
+          ],
+        },
+        {
+          items: [
+            { href: '/app/analytics/actions', label: a.actions, active: at('/app/analytics/actions'), icon: 'workflows' },
+            { href: '/app/analytics/data', label: a.data, active: at('/app/analytics/data'), icon: 'objects' },
+            { href: '/app/analytics/annotations', label: a.annotations, active: at('/app/analytics/annotations'), icon: 'notes' },
           ],
         },
         {
@@ -880,6 +916,17 @@ export function buildNav(
         },
       ];
     }
+
+    case 'send':
+      return [
+        {
+          items: [
+            { href: '/app/send', label: labels.send.documents, active: pathname === '/app/send' || at('/app/send/documents') || at('/app/send/new'), icon: 'send' },
+            { href: '/app/send/spaces', label: labels.send.spaces, active: at('/app/send/spaces'), icon: 'folder' },
+          ],
+        },
+        appSettingsGroup('/app/send/settings'),
+      ];
 
     case 'sign': {
       const s = labels.sign;
@@ -1071,6 +1118,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/voice?new=1', labels.voice.newMeeting, 'voice')];
     case 'hiring':
       return [item('/app/hiring/jobs/new', labels.hiring.newJob, 'hiring')];
+    case 'send':
+      return [item('/app/send/new', labels.send.newDocument, 'send')];
     case 'sign':
       return [item('/app/sign/new', labels.sign.newEnvelope, 'sign')];
     case 'analytics':
@@ -1078,6 +1127,7 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
         item('/app/analytics/insights/new', labels.analytics.newInsight, 'insights'),
         item('/app/analytics/dashboards?new=1', labels.analytics.dashboards, 'dashboards'),
         item('/app/analytics/flags?new=1', labels.analytics.flags, 'flag'),
+        item('/app/analytics/surveys?new=1', labels.analytics.surveys, 'forms'),
       ];
     case 'home':
     case 'talk':

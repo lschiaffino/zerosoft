@@ -29,8 +29,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    id: '2026-11-01-rec-chat',
-    date: '2026-11-01',
+    id: '2026-11-07-rec-chat',
+    date: '2026-11-07',
     title: { en: 'Rec and Chat: more of what Loom and Intercom do', es: 'Rec y Chat: más de lo que hacen Loom e Intercom', pt: 'Rec e Chat: mais do que o Loom e o Intercom fazem' },
     items: [
       {
@@ -62,6 +62,384 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Inbox: your own snooze options by team and how often each saved reply is used. Campaigns can be scheduled.',
         es: 'Bandeja: opciones propias de posponer por equipo y cuánto se usa cada respuesta guardada. Las campañas se pueden programar.',
         pt: 'Caixa de entrada: opções próprias de adiar por equipe e quanto cada resposta salva é usada. As campanhas podem ser programadas.',
+    id: '2026-11-07-track-default-template',
+    date: '2026-11-07',
+    title: {
+      en: 'Track: a default issue template per project',
+      es: 'Track: una plantilla de issue por defecto en cada proyecto',
+      pt: 'Track: um template de issue padrão em cada projeto',
+    },
+    items: [
+      {
+        product: 'track',
+        en: 'Mark one template as the default in the project settings. New issues from quick create start with its title, description, status, priority, assignee, estimate and labels already filled in. You can switch to another template or none from the same menu.',
+        es: 'Marcá una plantilla como predeterminada en los ajustes del proyecto. Los issues nuevos del alta rápida arrancan con su título, descripción, estado, prioridad, asignado, estimación y labels ya cargados. Podés cambiar a otra plantilla o a ninguna desde el mismo menú.',
+        pt: 'Marque um template como padrão nas configurações do projeto. As novas issues da criação rápida já começam com título, descrição, status, prioridade, responsável, estimativa e labels preenchidos. Você pode trocar para outro template ou nenhum no mesmo menu.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-06-cal-change-cutoff',
+    date: '2026-11-06',
+    title: {
+      en: 'Cal: a cutoff for guest cancellations and reschedules',
+      es: 'Cal: un plazo para las cancelaciones y reprogramaciones del invitado',
+      pt: 'Cal: um prazo para cancelamentos e reagendamentos do convidado',
+    },
+    items: [
+      {
+        product: 'cal',
+        en: 'Each event type can set how many hours before the start a guest stops being able to cancel or reschedule from their link (from 1 to 720). The manage page then shows a notice instead of the buttons, and the API refuses the change. You can still change the booking from the app.',
+        es: 'Cada tipo de evento puede definir cuántas horas antes del inicio el invitado deja de poder cancelar o reprogramar desde su link (de 1 a 720). La página de gestión muestra un aviso en lugar de los botones y la API rechaza el cambio. Vos podés seguir cambiando la reserva desde la app.',
+        pt: 'Cada tipo de evento pode definir quantas horas antes do início o convidado deixa de poder cancelar ou reagendar pelo link (de 1 a 720). A página de gestão mostra um aviso no lugar dos botões e a API recusa a alteração. Você ainda pode alterar a reserva pelo app.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-04-link-api-filters',
+    date: '2026-11-04',
+    title: {
+      en: 'Link: filter the links list in the API',
+      es: 'Link: filtros en la lista de links de la API',
+      pt: 'Link: filtros na lista de links da API',
+    },
+    items: [
+      {
+        product: 'link',
+        en: 'GET /api/v1/links now takes q (slug, URL and title), tag, folder, archived and sort (created or clicks), on top of page, pageSize and creator. The page size limit is 50, and the API reference now says so.',
+        es: 'GET /api/v1/links ahora acepta q (slug, URL y título), tag, folder, archived y sort (created o clicks), además de page, pageSize y creator. El límite de pageSize es 50, y la referencia de la API ahora lo dice.',
+        pt: 'GET /api/v1/links agora aceita q (slug, URL e título), tag, folder, archived e sort (created ou clicks), além de page, pageSize e creator. O limite de pageSize é 50, e a referência da API agora informa isso.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-04-send-links-csv',
+    date: '2026-11-04',
+    title: {
+      en: 'Send: clickable links in documents, and allow lists from a CSV',
+      es: 'Send: links que se tocan dentro de los documentos, y listas de permitidos desde un CSV',
+      pt: 'Send: links clicáveis nos documentos, e listas de permitidos a partir de um CSV',
+    },
+    items: [
+      { product: 'send', en: 'Links in a PDF, a Word file or a Docs page work in the viewer: web and email links open in a new tab, and links to another page jump there. You see which links were clicked, on which page and by whom. New uploads keep their links; to add them to an older document, replace its file.', es: 'Los links de un PDF, un Word o una página de Docs andan en el visor: los de web y email abren en otra pestaña, y los que van a otra página saltan ahí. Ves qué links se tocaron, en qué página y quién. Lo que subas desde ahora conserva sus links; para un documento anterior, reemplazá el archivo.', pt: 'Os links de um PDF, um Word ou uma página do Docs funcionam no visor: os de web e email abrem em outra aba, e os que vão para outra página pulam para ela. Você vê quais links foram clicados, em qual página e por quem. O que você enviar a partir de agora mantém os links; para um documento anterior, substitua o arquivo.' },
+      { product: 'send', en: 'Import an allow or block list from a CSV: emails and domains are read from any cell and added to the list, and the dialog says how many cells it skipped. Lists go up to 500 entries.', es: 'Importá una lista de permitidos o bloqueados desde un CSV: se leen los emails y dominios de cualquier celda y se suman a la lista, y el diálogo dice cuántas celdas salteó. Las listas llegan hasta 500 entradas.', pt: 'Importe uma lista de permitidos ou bloqueados de um CSV: emails e domínios são lidos de qualquer célula e somados à lista, e o diálogo diz quantas células ignorou. As listas vão até 500 entradas.' },
+    ],
+  },
+  {
+    id: '2026-11-03-groups-sample-data',
+    date: '2026-11-03',
+    title: { en: 'Groups: try it with sample data', es: 'Groups: probalo con datos de ejemplo', pt: 'Groups: teste com dados de exemplo' },
+    items: [
+      {
+        product: 'groups',
+        en: 'An empty inbox can load sample chats and groups, with notes, labels, a poll, a ticket and a scheduled send. Replies on the sample number never go out to WhatsApp, and one button deletes it all.',
+        es: 'Una bandeja vacía puede cargar chats y grupos de ejemplo, con notas, etiquetas, una encuesta, un ticket y un envío programado. Lo que respondas en el número de ejemplo no sale a WhatsApp, y un botón borra todo.',
+        pt: 'Uma caixa vazia pode carregar conversas e grupos de exemplo, com notas, etiquetas, uma enquete, um ticket e um envio agendado. O que você responder no número de exemplo não sai para o WhatsApp, e um botão exclui tudo.',
+      },
+      {
+        product: 'groups',
+        en: 'Numbers on Evolution API now show the images, voice notes and documents they receive, and each group page lets you edit its description.',
+        es: 'Los números con Evolution API ahora muestran las imágenes, notas de voz y documentos que reciben, y la página de cada grupo deja editar su descripción.',
+        pt: 'Os números com Evolution API agora mostram as imagens, mensagens de voz e documentos que recebem, e a página de cada grupo permite editar a descrição.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-02-send',
+    date: '2026-11-02',
+    title: {
+      en: 'Send: share documents by link and see who read each page',
+      es: 'Send: compartí documentos por link y mirá quién leyó cada página',
+      pt: 'Send: compartilhe documentos por link e veja quem leu cada página',
+    },
+    items: [
+      { product: 'send', en: 'Upload a PDF, a PowerPoint, a Word file or a video, or pick a Docs page. PDFs show exactly as they are; Word and PowerPoint go through a simplified converter, with a warning and a preview. Files are stored privately and reach people only through a link.', es: 'Subí un PDF, un PowerPoint, un Word o un video, o elegí una página de Docs. Los PDF se ven exactos; Word y PowerPoint pasan por un conversor simplificado, con un aviso y una vista previa. Los archivos se guardan privados y llegan a la gente solo por un link.', pt: 'Envie um PDF, um PowerPoint, um Word ou um vídeo, ou escolha uma página do Docs. Os PDFs aparecem exatos; Word e PowerPoint passam por um conversor simplificado, com um aviso e uma prévia. Os arquivos ficam privados e só chegam às pessoas por um link.' },
+      { product: 'send', en: 'One document, many links, each with its own name and rules: email, verification by code, passcode, expiry, download, allow and block lists, a watermark with the viewer\'s email and a signed NDA through Sign. Disable a link and it stops working on the next request.', es: 'Un documento, muchos links, cada uno con su nombre y sus reglas: email, verificación por código, código de acceso, vencimiento, descarga, listas de permitidos y bloqueados, watermark con el email de quien mira y NDA firmado con Sign. Deshabilitá un link y deja de andar en el pedido siguiente.', pt: 'Um documento, vários links, cada um com seu nome e suas regras: email, verificação por código, código de acesso, vencimento, download, listas de permitidos e bloqueados, marca d\'água com o email de quem vê e NDA assinado com o Sign. Desabilite um link e ele para de funcionar no pedido seguinte.' },
+      { product: 'send', en: 'See who opened it, seconds on each page, completion, return visits, device, approximate location and possible forwards, with a live "reading now", a bell alert and an email. Link previews and bots don\'t count as visits. Admins can export visits as CSV.', es: 'Mirá quién lo abrió, segundos en cada página, completado, visitas de vuelta, dispositivo, ubicación aproximada y posibles reenvíos, con "leyendo ahora" en vivo, un aviso en la campana y un email. Las vistas previas de links y los bots no cuentan como visitas. Los admins exportan las visitas a CSV.', pt: 'Veja quem abriu, segundos em cada página, conclusão, visitas de volta, dispositivo, localização aproximada e possíveis encaminhamentos, com "lendo agora" ao vivo, um aviso no sino e um email. Prévias de links e bots não contam como visitas. Admins exportam as visitas em CSV.' },
+      { product: 'send', en: 'Replace a file and every link shows the new version when it\'s ready, with numbers per version. Spaces put several documents behind one link, with numbers per document and access per person. When a visitor\'s email matches a CRM contact, the visit lands on its timeline.', es: 'Reemplazá un archivo y cada link muestra la versión nueva cuando está lista, con números por versión. Los espacios ponen varios documentos detrás de un link, con números por documento y acceso por persona. Si el email de quien abre coincide con un contacto del CRM, la visita llega a su línea de tiempo.', pt: 'Substitua um arquivo e cada link mostra a versão nova quando estiver pronta, com números por versão. Os espaços colocam vários documentos atrás de um link, com números por documento e acesso por pessoa. Se o email de quem abre coincide com um contato do CRM, a visita chega à linha do tempo.' },
+    ],
+  },
+  {
+    id: '2026-11-02-people-hiring-parity',
+    date: '2026-11-02',
+    title: { en: 'People and Hiring: approvals, imports and history', es: 'People y Hiring: aprobaciones, importación e historial', pt: 'People e Hiring: aprovações, importação e histórico' },
+    items: [
+      { product: 'people', en: 'Import people from a CSV, with a preview and an error per row.', es: 'Importá personas desde un CSV, con vista previa y un error por fila.', pt: 'Importe pessoas de um CSV, com prévia e um erro por linha.' },
+      { product: 'people', en: 'Job history on each profile, and optional HR approval of changes to personal data.', es: 'Historial de puesto en cada ficha y aprobación opcional de HR para cambios de datos personales.', pt: 'Histórico de cargo em cada perfil e aprovação opcional do RH para alterações de dados pessoais.' },
+      { product: 'people', en: 'eNPS surveys, custom reports, birthdays and anniversaries, and a list of what is waiting for you.', es: 'Encuestas eNPS, reportes a medida, cumpleaños y aniversarios, y una lista de lo que te espera.', pt: 'Pesquisas eNPS, relatórios personalizados, aniversários e tempo de casa, e uma lista do que espera por você.' },
+      { product: 'people', en: 'Time off: more days with tenure and policies by department, location, country or type. Peer reviewers can be added by hand.', es: 'Licencias: más días con la antigüedad y políticas por área, ubicación, país o tipo. Los evaluadores pares se pueden sumar a mano.', pt: 'Folgas: mais dias com o tempo de casa e políticas por departamento, localização, país ou tipo. Avaliadores pares podem ser adicionados à mão.' },
+      { product: 'hiring', en: 'Confidential jobs, and ordered approval chains to publish jobs and send offers.', es: 'Puestos confidenciales y cadenas de aprobación en orden para publicar puestos y enviar ofertas.', pt: 'Vagas confidenciais e cadeias de aprovação em ordem para publicar vagas e enviar ofertas.' },
+      { product: 'hiring', en: 'Import candidates from a CSV, copy or move them between jobs, merge duplicates and export what you can see.', es: 'Importá candidatos desde un CSV, copialos o movelos entre puestos, fusioná duplicados y exportá lo que ves.', pt: 'Importe candidatos de um CSV, copie ou mova entre vagas, mescle duplicados e exporte o que você vê.' },
+      { product: 'hiring', en: 'Knock-out questions can reject on their own, rejection reasons get a report, and each stage can have an interview guide.', es: 'Las preguntas knock-out pueden rechazar solas, los motivos de rechazo tienen reporte y cada etapa puede tener una guía de entrevista.', pt: 'Perguntas eliminatórias podem recusar sozinhas, os motivos de recusa têm relatório e cada etapa pode ter um guia de entrevista.' },
+      { product: 'hiring', en: 'Your own fields on each candidate, with protected ones for recruiters and hiring managers.', es: 'Campos propios en cada candidato, con protegidos para recruiters y hiring managers.', pt: 'Campos próprios em cada candidato, com protegidos para recruiters e hiring managers.' },
+      { product: 'hiring', en: 'A hire now lands in People as a new profile in onboarding, if your workspace uses People.', es: 'Una contratación ahora queda en People como ficha en onboarding, si tu workspace usa People.', pt: 'Uma contratação agora entra no People como perfil em onboarding, se o seu workspace usa o People.' },
+    ],
+  },
+  {
+    id: '2026-11-02-analytics-tendencias-tableros',
+    date: '2026-11-02',
+    title: {
+      en: 'Analytics: trend options and dashboards with filters, text and templates',
+      es: 'Analytics: opciones de tendencias y tableros con filtros, texto y plantillas',
+      pt: 'Analytics: opções de tendências e painéis com filtros, texto e modelos',
+    },
+    items: [
+      {
+        product: 'analytics',
+        en: 'Trends add weekly and monthly active people, per-person minimum, maximum, median and percentiles, several events in one series and first occurrence. Charts gain smoothing, hidden weekends, goal lines, axis range and labels, value units, a dotted line for the period still running, stacked bars, total bars, donut and proportion bar. Series can be turned off or isolated.',
+        es: 'Las tendencias suman personas activas por semana y por mes, mínimo, máximo, mediana y percentiles por persona, varios eventos en una serie y primera ocurrencia. Los gráficos suman suavizado, fines de semana ocultos, líneas de meta, rango y etiquetas de ejes, unidades, línea punteada para el período en curso, barras apiladas, barras de total, anillo y barra de proporción. Las series se pueden apagar o aislar.',
+        pt: 'As tendências ganham pessoas ativas por semana e por mês, mínimo, máximo, mediana e percentis por pessoa, vários eventos em uma série e primeira ocorrência. Os gráficos ganham suavização, fins de semana ocultos, linhas de meta, intervalo e rótulos de eixos, unidades, linha pontilhada para o período em andamento, barras empilhadas, barras de total, rosca e barra de proporção. As séries podem ser desligadas ou isoladas.',
+      },
+      {
+        product: 'analytics',
+        en: 'Dashboards keep their date range, filters, cohort and internal people setting, and refresh on their own while the tab is open. Tiles have their own size, dates, filters and display, can ignore the dashboard filters and can be copied or moved. Text cards in Markdown and three ready-made dashboards: website, product health and LLM metrics.',
+        es: 'Los tableros guardan sus fechas, filtros, cohorte y gente interna, y se actualizan solos con la pestaña abierta. Las tarjetas tienen su tamaño, fechas, filtros y vista, pueden ignorar los filtros del tablero y se copian o mueven. Tarjetas de texto en Markdown y tres tableros armados: sitio web, salud del producto y métricas de LLM.',
+        pt: 'Os painéis guardam seu período, filtros, coorte e pessoas internas, e se atualizam sozinhos com a aba aberta. Os cards têm tamanho, período, filtros e visão próprios, podem ignorar os filtros do painel e podem ser copiados ou movidos. Cards de texto em Markdown e três painéis prontos: site, saúde do produto e métricas de LLM.',
+      },
+      {
+        product: 'analytics',
+        en: 'Retention gains hours and months, recurring and first-ever cohorts, on or after returning, percentages over the previous period, weighted or simple means, breakdowns, group counts, a chart, and a click on a cell lists its people.',
+        es: 'Retención suma horas y meses, cohortes recurrentes y de primera vez de todas, vuelta en un período o después, porcentajes sobre el período anterior, promedio ponderado o simple, aperturas, conteo por grupos, gráfico, y un clic en una celda lista a sus personas.',
+        pt: 'A retenção ganha horas e meses, coortes recorrentes e de primeira vez de todas, volta em um período ou depois, percentuais sobre o período anterior, média ponderada ou simples, aberturas, contagem por grupos, gráfico, e um clique em uma célula lista suas pessoas.',
+      },
+      {
+        product: 'analytics',
+        en: 'Rejecting consent, Do Not Track, Global Privacy Control and cookieless mode now clear what the snippet had saved in the browser. Changes to what appears on a public link or in a subscription email and to feature flags need an admin, and public links accept breakdowns only by browser, OS, device, country, page, host, referrer or UTM.',
+        es: 'Rechazar el consentimiento, Do Not Track, Global Privacy Control y el modo sin cookies ahora borran lo que el snippet había guardado en el navegador. Cambiar lo que aparece en un link público o en el email de una suscripción y los feature flags necesita un admin, y los links públicos solo aceptan aperturas por navegador, sistema, dispositivo, país, página, host, referente o UTM.',
+        pt: 'Recusar o consentimento, Do Not Track, Global Privacy Control e o modo sem cookies agora apagam o que o snippet tinha guardado no navegador. Mudar o que aparece em um link público ou no email de uma inscrição e os feature flags precisa de um admin, e os links públicos só aceitam aberturas por navegador, sistema, dispositivo, país, página, host, referência ou UTM.',
+      },
+      {
+        product: 'analytics',
+        en: 'Trend breakdowns can combine up to three properties, use group properties, group numbers into ranges, compare cohorts and load more than the first 25 values.',
+        es: 'Las aperturas de tendencias combinan hasta tres propiedades, usan propiedades de grupo, agrupan números en rangos, comparan cohortes y cargan más que los primeros 25 valores.',
+        pt: 'As aberturas de tendências combinam até três propriedades, usam propriedades de grupo, agrupam números em faixas, comparam coortes e carregam mais do que os primeiros 25 valores.',
+      },
+      {
+        product: 'analytics',
+        en: 'Public links gain a theme, a legend option, passwords with a note for each person, a new link without changing the insight, a history of changes, refresh on load with ?refresh=true, refresh every 30 minutes and an embed that adjusts its height.',
+        es: 'Los links públicos suman tema, opción de leyenda, contraseñas con una nota para cada persona, un link nuevo sin cambiar el insight, historial de cambios, actualizar al abrir con ?refresh=true, actualización cada 30 minutos y un embed que ajusta su alto.',
+        pt: 'Os links públicos ganham tema, opção de legenda, senhas com uma nota para cada pessoa, um link novo sem mudar o insight, histórico de mudanças, atualizar ao abrir com ?refresh=true, atualização a cada 30 minutos e um embed que ajusta sua altura.',
+      },
+      {
+        product: 'analytics',
+        en: 'Subscriptions send an insight or a dashboard by email on a daily, weekly or monthly schedule, with their own page to search, test, turn off and delete. People outside the workspace confirm by a link before getting anything, everyone can unsubscribe, and only what could go on a public link is sent.',
+        es: 'Las suscripciones mandan un insight o un tablero por email con calendario diario, semanal o mensual, con su página para buscar, probar, apagar y borrar. Quien no es del workspace confirma con un link antes de recibir nada, cualquiera se puede dar de baja y solo se manda lo que podría ir en un link público.',
+        pt: 'As inscrições mandam um insight ou um painel por email em agenda diária, semanal ou mensal, com uma página para buscar, testar, desligar e excluir. Quem não é do workspace confirma por um link antes de receber algo, qualquer um pode cancelar e só é enviado o que poderia ir em um link público.',
+      },
+      {
+        product: 'analytics',
+        en: 'From a funnel step you can explore the paths leading to it, between steps, after it and around dropping off, and from a path you can open its funnel.',
+        es: 'Desde un paso de un embudo se exploran los caminos que llevan a él, entre pasos, después y alrededor de abandonar, y desde un camino se abre su embudo.',
+        pt: 'A partir de uma etapa de um funil dá para explorar os caminhos que levam a ela, entre etapas, depois e em torno da desistência, e de um caminho dá para abrir seu funil.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-02-analytics-embudos',
+    date: '2026-11-02',
+    title: {
+      en: 'Analytics: funnels with step order, exclusions and breakdowns',
+      es: 'Analytics: embudos con orden de pasos, exclusiones y aperturas',
+      pt: 'Analytics: funis com ordem das etapas, exclusões e aberturas',
+    },
+    items: [
+      {
+        product: 'analytics',
+        en: 'Funnels can run in sequential, strict or any order, with a conversion window from seconds to months, exclusion steps, several events in one step and first occurrence per step. They can count people, sessions or groups.',
+        es: 'Los embudos corren en orden secuencial, estricto o cualquiera, con ventana de conversión de segundos a meses, pasos de exclusión, varios eventos en un paso y primera ocurrencia por paso. Cuentan personas, sesiones o grupos.',
+        pt: 'Os funis rodam em ordem sequencial, estrita ou qualquer, com janela de conversão de segundos a meses, etapas de exclusão, vários eventos em uma etapa e primeira ocorrência por etapa. Contam pessoas, sessões ou grupos.',
+      },
+      {
+        product: 'analytics',
+        en: 'New funnel views: time to convert as a distribution and conversion over time by entry date, with an option to hide incomplete periods. Breakdowns take first touch, last touch, all steps or a specific step, and the people who reached any step can be listed. The date range now applies to every step of a funnel.',
+        es: 'Vistas nuevas de embudo: tiempo hasta convertir como distribución y conversión en el tiempo por fecha de entrada, con opción de ocultar períodos incompletos. Las aperturas toman el primer contacto, el último, todos los pasos o un paso específico, y se listan quienes llegaron a cualquier paso. El rango de fechas ahora rige en todos los pasos de un embudo.',
+        pt: 'Novas visões de funil: tempo até converter como distribuição e conversão ao longo do tempo por data de entrada, com opção de ocultar períodos incompletos. As aberturas usam o primeiro contato, o último, todas as etapas ou uma etapa específica, e quem chegou a qualquer etapa pode ser listado. O período agora vale para todas as etapas de um funil.',
+      },
+      {
+        product: 'analytics',
+        en: 'Projects can measure without cookies, always or when a visitor rejects them, with a visitor id that changes every day, so the same person on two days counts as two visitors.',
+        es: 'Los proyectos pueden medir sin cookies, siempre o cuando la persona las rechaza, con un id de visitante que cambia cada día: la misma persona en dos días cuenta como dos visitantes.',
+        pt: 'Os projetos podem medir sem cookies, sempre ou quando a pessoa os recusa, com um id de visitante que muda a cada dia: a mesma pessoa em dois dias conta como dois visitantes.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-01-analytics-replay-experimentos',
+    date: '2026-11-01',
+    title: {
+      en: 'Analytics: session replay, experiments, surveys and error tracking',
+      es: 'Analytics: session replay, experimentos, encuestas y errores',
+      pt: 'Analytics: session replay, experimentos, pesquisas e erros',
+    },
+    items: [
+      {
+        product: 'analytics',
+        en: 'New insights: stickiness, lifecycle and funnel correlation. Trends add sums, averages, percentiles, per-person counts, formulas between series and area, pie and cumulative views. Paths show a flow diagram and can include your own events.',
+        es: 'Insights nuevos: stickiness, ciclo de vida y correlación en embudos. Las tendencias suman sumas, promedios, percentiles, conteos por persona, fórmulas entre series y vistas de área, torta y acumulado. Los caminos muestran un diagrama de flujo y pueden incluir tus eventos.',
+        pt: 'Novos insights: stickiness, ciclo de vida e correlação em funis. As tendências ganham somas, médias, percentis, contagens por pessoa, fórmulas entre séries e visões de área, pizza e acumulado. Os caminhos mostram um diagrama de fluxo e podem incluir seus eventos.',
+      },
+      {
+        product: 'analytics',
+        en: 'Experiments on feature flags with exposure tracking and a chance of being best for each variant. Flags gain ordered release groups, cohorts and payloads. Cohorts gain rule groups, "did not do" and static lists.',
+        es: 'Experimentos sobre feature flags con registro de exposición y chance de ser la mejor para cada variante. Los flags suman grupos de release en orden, cohortes y payloads. Las cohortes suman grupos de reglas, "no hizo" y listas estáticas.',
+        pt: 'Experimentos em feature flags com registro de exposição e chance de ser a melhor para cada variante. Os flags ganham grupos de release em ordem, coortes e payloads. As coortes ganham grupos de regras, "não fez" e listas estáticas.',
+      },
+      {
+        product: 'analytics',
+        en: 'Session replay, heatmaps, error tracking and web vitals, all off until an admin turns them on per project. Popover surveys, an LLM page that reads PostHog event names, alerts with in-app notices, public links for insights and dashboards, actions, annotations and data management.',
+        es: 'Session replay, mapas de calor, errores y web vitals, todo apagado hasta que un admin lo prende por proyecto. Encuestas en popover, una página de LLM que lee los nombres de eventos de PostHog, alertas con avisos en la app, links públicos de insights y tableros, acciones, anotaciones y gestión de datos.',
+        pt: 'Session replay, mapas de calor, erros e web vitals, tudo desligado até um admin ligar por projeto. Pesquisas em popover, uma página de LLM que lê os nomes de eventos do PostHog, alertas com avisos no app, links públicos de insights e painéis, ações, anotações e gestão de dados.',
+      },
+      {
+        product: 'analytics',
+        en: 'More accurate numbers: comparisons line up with the same hours of the previous period, unique users over a range count each person once, also per breakdown value, and retried events no longer add to sessions. On existing projects, known crawlers stop being counted from now on. You can keep them with a setting, and settings show how many hits were left out. Time zones now follow daylight saving once you pick one.',
+        es: 'Números más exactos: las comparaciones se alinean con las mismas horas del período anterior, los usuarios únicos de un rango cuentan a cada persona una vez, también por valor de apertura, y los eventos reintentados ya no suman a las sesiones. En los proyectos existentes, los crawlers conocidos dejan de contarse desde ahora. Podés conservarlos con un ajuste, y los ajustes muestran cuántos hits quedaron afuera. Las zonas horarias siguen el horario de verano cuando elegís una.',
+        pt: 'Números mais exatos: as comparações se alinham com as mesmas horas do período anterior, os usuários únicos de um período contam cada pessoa uma vez, também por valor de abertura, e eventos reenviados não somam mais às sessões. Nos projetos existentes, os crawlers conhecidos deixam de ser contados a partir de agora. Você pode mantê-los com um ajuste, e os ajustes mostram quantos hits ficaram de fora. Os fusos seguem o horário de verão quando você escolhe um.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-01-mcp-unificado',
+    date: '2026-11-01',
+    title: {
+      en: 'Connect Claude to all 24 apps, and a zerosoft CLI',
+      es: 'Conectá Claude a las 24 apps, y una CLI de zerosoft',
+      pt: 'Conecte o Claude aos 24 apps, e uma CLI da zerosoft',
+    },
+    items: [
+      {
+        product: 'agents',
+        en: 'One connector for Claude Code. You sign in with your normal login, choose the workspace and whether it can write, and Claude acts as you, with your role and permissions. See and disconnect your apps in Settings, API and webhooks.',
+        es: 'Un solo conector para Claude Code. Entrás con tu login de siempre, elegís el workspace y si puede escribir, y Claude actúa como vos, con tu rol y tus permisos. Mirá y desconectá tus apps en Ajustes, API y webhooks.',
+        pt: 'Um único conector para o Claude Code. Você entra com seu login de sempre, escolhe o workspace e se pode escrever, e o Claude age como você, com seu papel e suas permissões. Veja e desconecte seus apps em Ajustes, API e webhooks.',
+      },
+      {
+        product: 'agents',
+        en: 'A zerosoft command line with the same reach, for the terminal and for scripts. It runs from the repository for now and is not on npm.',
+        es: 'Una línea de comandos de zerosoft con el mismo alcance, para la terminal y para scripts. Por ahora corre desde el repositorio y no está en npm.',
+        pt: 'Uma linha de comando da zerosoft com o mesmo alcance, para o terminal e para scripts. Por enquanto roda a partir do repositório e não está no npm.',
+      },
+    ],
+  },
+  {
+    id: '2026-10-31-pedir-acceso',
+    date: '2026-10-31',
+    title: {
+      en: 'Ask for access to an app and see what each role can do',
+      es: 'Pedí acceso a una app y mirá qué puede hacer cada rol',
+      pt: 'Peça acesso a um app e veja o que cada papel pode fazer',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'When an app is off for you in a workspace, Ask for access sends a notification to the owner and the admins. The notification opens your access in Settings › Members, with what you asked for already checked, and you hear back either way.',
+        es: 'Cuando una app no está habilitada para vos en un workspace, Pedir acceso le manda un aviso al owner y a los admins. El aviso abre tu acceso en Ajustes › Miembros, con lo pedido ya tildado, y te enterás de la respuesta.',
+        pt: 'Quando um app não está ativo para você em um workspace, Pedir acesso envia um aviso ao owner e aos admins. O aviso abre seu acesso em Configurações › Membros, com o pedido já marcado, e você fica sabendo da resposta.',
+      },
+      {
+        product: 'platform',
+        en: 'Salaries and the payroll export in People are now for the owner, the HR admins the owner names, and each person.',
+        es: 'Los sueldos y la exportación de nómina de People ahora son del owner, los HR admins que nombra y cada persona.',
+        pt: 'Os salários e a exportação da folha no People agora são do owner, dos admins de RH que ele nomeia e de cada pessoa.',
+      },
+      {
+        product: 'platform',
+        en: 'Requests to join by email domain also reach the owner and the admins as a notification.',
+        es: 'Los pedidos para sumarse por dominio de email también les llegan al owner y a los admins como aviso.',
+        pt: 'Os pedidos para entrar pelo domínio do email também chegam ao owner e aos admins como aviso.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Members explains each role, and Settings lists only the apps you have.',
+        es: 'Ajustes › Miembros explica cada rol y Ajustes lista solo las apps que tenés.',
+        pt: 'Configurações › Membros explica cada papel e Configurações lista só os apps que você tem.',
+      },
+    ],
+  },
+  {
+    id: '2026-10-31-correcciones-qa',
+    date: '2026-10-31',
+    title: {
+      en: 'Clearer batch estimates, moving videos and dates in your time zone',
+      es: 'Lotes más claros, mover videos y fechas en tu zona horaria',
+      pt: 'Lotes mais claros, mover vídeos e datas no seu fuso horário',
+    },
+    items: [
+      {
+        product: 'robots',
+        en: 'The bulk run dialog says how many rows your remaining minutes cover. Rows that wait too long in the queue now send a notice when they are dropped.',
+        es: 'El diálogo de corrida en lote dice cuántas filas cubren los minutos que te quedan. Las filas que esperan demasiado en la cola ahora mandan un aviso cuando se descartan.',
+        pt: 'O diálogo de execução em lote diz quantas linhas os minutos restantes cobrem. As linhas que esperam demais na fila agora enviam um aviso quando são descartadas.',
+      },
+      {
+        product: 'talk',
+        en: 'Daily recaps stay on when AI is temporarily unavailable and resume on their own. Retrying /ask after a timeout returns the first answer instead of posting a second one.',
+        es: 'Los recaps diarios siguen activos si la IA no está disponible por un rato y vuelven solos. Reintentar /ask después de un timeout devuelve la primera respuesta en lugar de publicar otra.',
+        pt: 'Os resumos diários continuam ativos se a IA ficar indisponível por um tempo e voltam sozinhos. Tentar /ask de novo depois de um timeout devolve a primeira resposta em vez de publicar outra.',
+      },
+      {
+        product: 'rec',
+        en: 'The move dialog warns when a video changes to Only specific people and shows move errors inside the dialog.',
+        es: 'El diálogo de mover avisa cuando un video pasa a Solo personas puntuales y muestra los errores adentro del diálogo.',
+        pt: 'O diálogo de mover avisa quando um vídeo passa para Só pessoas específicas e mostra os erros dentro do diálogo.',
+      },
+      {
+        product: 'crm',
+        en: 'Dates in CRM lists stay on the right day, and times in Docs, Board, Link, Voice and CRM groups use your time zone.',
+        es: 'Las fechas de las listas del CRM quedan en el día correcto, y las horas de Docs, Board, Link, Voice y los grupos del CRM usan tu zona horaria.',
+        pt: 'As datas das listas do CRM ficam no dia certo, e os horários de Docs, Board, Link, Voice e grupos do CRM usam seu fuso horário.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-01-figuras-de-ceros',
+    date: '2026-11-01',
+    title: {
+      en: 'Site: every app page has its own figure drawn with zeros',
+      es: 'Sitio: cada app tiene su figura dibujada con ceros',
+      pt: 'Site: cada app tem sua figura desenhada com zeros',
+    },
+    items: [
+      {
+        product: 'site',
+        en: 'The first screen of each app page shows what the app does, animated and made of zeros: a chain for Link, a month filling up for Cal, a board for Track, pulses through a flow for Flow. The 404 page has a zero that moves, and the closing band of the home reacts to the cursor.',
+        es: 'La primera pantalla de cada app muestra lo que hace, animado y hecho de ceros: una cadena en Link, un mes que se ocupa en Cal, un tablero en Track, pulsos por un flujo en Flow. El 404 tiene un cero que se mueve y la banda final del home reacciona al puntero.',
+        pt: 'A primeira tela de cada app mostra o que ele faz, animado e feito de zeros: uma corrente no Link, um mês se enchendo no Cal, um quadro no Track, pulsos por um fluxo no Flow. O 404 tem um zero que se move e a faixa final da home reage ao ponteiro.',
+      },
+      {
+        product: 'site',
+        en: 'The figures stop when they leave the screen or the tab is hidden, stay still with reduced motion, and show their first frame without JavaScript. On phones, dragging the zero no longer blocks page scroll.',
+        es: 'Las figuras se detienen fuera de pantalla o con la pestaña oculta, quedan quietas con movimiento reducido y muestran su primer cuadro sin JavaScript. En el teléfono, arrastrar el cero ya no bloquea el scroll de la página.',
+        pt: 'As figuras param fora da tela ou com a aba oculta, ficam paradas com movimento reduzido e mostram o primeiro quadro sem JavaScript. No celular, arrastar o zero não bloqueia mais a rolagem da página.',
+      },
+    ],
+  },
+  {
+    id: '2026-10-31-sitio-comparaciones-blog',
+    date: '2026-10-31',
+    title: {
+      en: 'Site: comparison pages for every app, blog topics and feeds, six migration guides',
+      es: 'Sitio: comparaciones de cada app, temas y feeds del blog, seis guías de migración',
+      pt: 'Site: comparações de cada app, temas e feeds do blog, seis guias de migração',
+    },
+    items: [
+      {
+        product: 'site',
+        en: 'Each app has two pages next to the product it replaces: /compare/zerosoft-vs-<competitor> with the full parity table and /compare/<competitor>-alternative with what you get, what is missing and how to move. Both come from the same parity data as the product page, so they update with it.',
+        es: 'Cada app tiene dos páginas al lado del producto que reemplaza: /compare/zerosoft-vs-<competidor> con la tabla de paridad completa y /compare/<competidor>-alternative con lo que tenés, lo que falta y cómo pasarte. Salen de los mismos datos de paridad que la página de producto, así que se actualizan con ella.',
+        pt: 'Cada app tem duas páginas ao lado do produto que substitui: /compare/zerosoft-vs-<concorrente> com a tabela de paridade completa e /compare/<concorrente>-alternative com o que você tem, o que falta e como migrar. Saem dos mesmos dados de paridade da página do produto, então se atualizam com ela.',
+      },
+      {
+        product: 'site',
+        en: 'The blog has topic and author pages, RSS and Atom feeds per language, related posts and a share image per post in its language. New guides: moving from Linear, Calendly, Intercom, Pipedrive, Evernote and Excalidraw.',
+        es: 'El blog tiene páginas por tema y por autor, feeds RSS y Atom por idioma, posts relacionados y una imagen para compartir por post en su idioma. Guías nuevas: cómo pasarte desde Linear, Calendly, Intercom, Pipedrive, Evernote y Excalidraw.',
+        pt: 'O blog tem páginas por tema e por autor, feeds RSS e Atom por idioma, posts relacionados e uma imagem de compartilhamento por post no seu idioma. Guias novos: como migrar do Linear, Calendly, Intercom, Pipedrive, Evernote e Excalidraw.',
+      },
+      {
+        product: 'site',
+        en: 'Every public page has its own title, canonical URL, links to its other languages and a PNG share image. /llms.txt and /llms-full.txt describe the apps, prices and comparisons for AI assistants.',
+        es: 'Cada página pública tiene título propio, URL canónica, links a sus otros idiomas y una imagen PNG para compartir. /llms.txt y /llms-full.txt describen las apps, los precios y las comparaciones para asistentes de IA.',
+        pt: 'Cada página pública tem título próprio, URL canônica, links para os outros idiomas e uma imagem PNG de compartilhamento. /llms.txt e /llms-full.txt descrevem os apps, os preços e as comparações para assistentes de IA.',
       },
     ],
   },

@@ -141,9 +141,11 @@ test('Sign: dos firmantes en orden, código por email, certificado y hashes', as
   await page.keyboard.press('Enter');
   const textField = page.getByRole('button', { name: `Text field for ${b.name}` });
   await expect(textField).toBeFocused();
-  const before = await textField.boundingBox();
+  // Relativo a la página del PDF: darle foco al campo puede dejar andando un scroll suave.
+  const fieldY = async () => (await textField.boundingBox())!.y - (await page1.boundingBox())!.y;
+  const before = await fieldY();
   await page.keyboard.press('Shift+ArrowDown');
-  await expect.poll(async () => (await textField.boundingBox())!.y).toBeGreaterThan(before!.y);
+  await expect.poll(fieldY).toBeGreaterThan(before + 1);
   await page.keyboard.press('Delete');
   await expect(textField).toHaveCount(0);
   await page.getByRole('button', { name: 'Next' }).click();

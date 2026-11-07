@@ -233,6 +233,8 @@ interface Draft {
   requiresConfirmation: boolean;
   redirectUrl: string;
   redirectPassDetails: boolean;
+  /** Horas de plazo para que el invitado cambie su reserva ('' = sin plazo). */
+  changeCutoff: string;
   allowGuests: boolean;
   /** Tope de invitados extra ('' = el máximo). */
   maxGuests: string;
@@ -299,6 +301,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
       requiresConfirmation: et.bookingRules.requiresConfirmation === true,
       redirectUrl: typeof et.bookingRules.redirectUrl === 'string' ? et.bookingRules.redirectUrl : '',
       redirectPassDetails: et.bookingRules.redirectPassDetails === true,
+      changeCutoff: typeof et.bookingRules.changeCutoffHours === 'number' ? String(et.bookingRules.changeCutoffHours) : '',
       allowGuests: et.bookingRules.allowGuests === true,
       maxGuests: typeof et.bookingRules.maxGuests === 'number' ? String(et.bookingRules.maxGuests) : '',
       oneOffTimes: (et.oneOffTimes ?? []).map(toLocalInput),
@@ -472,6 +475,7 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
           requiresConfirmation: d.requiresConfirmation || undefined,
           redirectUrl: redirectUrl || undefined,
           redirectPassDetails: redirectUrl && d.redirectPassDetails ? true : undefined,
+          changeCutoffHours: d.changeCutoff ? Math.min(720, Math.max(1, Math.floor(Number(d.changeCutoff)) || 1)) : undefined,
           allowGuests: d.allowGuests || undefined,
           maxGuests: d.allowGuests ? maxGuests : undefined,
         },
@@ -1020,6 +1024,28 @@ export default function EventTypeEditor(props: EventTypeEditorProps) {
                 />
                 <p id={idFor('redirect-help')} className="ui-help">
                   {t('editor.redirectHelp')}
+                </p>
+              </div>
+              <div className="ui-field">
+                <label className="label" htmlFor={idFor('cutoff')}>
+                  {t('editor.changeCutoff')} <span className="ui-optional">{t('editor.optional')}</span>
+                </label>
+                <div className="ui-input-group">
+                  <input
+                    id={idFor('cutoff')}
+                    className="input cal-num"
+                    type="number"
+                    min={1}
+                    max={720}
+                    inputMode="numeric"
+                    value={d.changeCutoff}
+                    aria-describedby={idFor('cutoff-help')}
+                    onChange={(e) => set('changeCutoff', e.target.value)}
+                  />
+                  <span className="ui-addon cal-unit">h</span>
+                </div>
+                <p id={idFor('cutoff-help')} className="ui-help">
+                  {t('editor.changeCutoffHelp')}
                 </p>
               </div>
               {d.redirectUrl.trim() && (

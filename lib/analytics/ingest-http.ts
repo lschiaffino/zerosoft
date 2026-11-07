@@ -5,15 +5,22 @@
  * de personas y un batch de escritura. CORS abierto (el snippet corre en el
  * sitio del cliente); el origen se controla con la lista de dominios.
  */
+import { gunzipSync } from 'zlib';
 import { NextResponse } from 'next/server';
 import { extractBearer } from '../api-auth';
-import { ensureMigrated, getClient } from '../db';
+import { ensureMigrated, getClient, getDb } from '../db';
+import { createHmac } from 'crypto';
 import { clientIp } from '../rate-limit';
+import { isBotUserAgent } from './bots';
+import { applyCookieless, cookielessIdFor, isCookielessId } from './cookieless';
 import { INGEST_LIMITS, originAllowed, parseIngestBody } from './ingest-core';
 import { requestContext, storeEvents } from './ingest';
 import { parseDomainList, projectByKey, type ProjectRow } from './projects';
-import { decideFlags } from './flags';
+import { decideFlagsFull, projectFlags } from './flags';
+import { capSpecialEvents } from './ingest-special';
+import { hasLivePopover, surveysFor } from './surveys';
 import { deletePerson, personIdByDistinctId } from './persons';
+import { replayConfig } from './replay-core';
 
 /** Pedidos por minuto por proyecto (cada pedido trae hasta 200 eventos). */
 const INGEST_RPM = Number(process.env.ANALYTICS_INGEST_RPM) || 1200;
@@ -50,7 +57,7 @@ export function corsHeaders(req: Request): Record<string, string> {
   };
 }
 
-function reply(req: Request, status: number, body: Record<string, unknown>): NextResponse {
+export function reply(req: Request, status: number, body: Record<string, unknown>): NextResponse {
   return NextResponse.json(body, { status, headers: corsHeaders(req) });
 }
 
@@ -58,12 +65,41 @@ export function preflight(req: Request): Response {
   return new Response(null, { status: 204, headers: corsHeaders(req) });
 }
 
-/** Cuerpo con tope de tamaño (sin leer de más si content-length ya lo pasa). */
-async function readBody(req: Request): Promise<string | null> {
+/** Lee el cuerpo y corta apenas pasa el tope, aunque venga sin content-length. */
+export async function readCapped(req: Request, max: number): Promise<Uint8Array | null> {
   const len = Number(req.headers.get('content-length') ?? 0);
-  if (len > INGEST_LIMITS.maxBodyBytes) return null;
-  const text = await req.text().catch(() => '');
-  return text.length > INGEST_LIMITS.maxBodyBytes ? null : text;
+  if (len > max) return null;
+  if (!req.body) return new Uint8Array(0);
+  const reader = req.body.getReader();
+  const parts: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    parts.push(value);
+  }
+  return Buffer.concat(parts);
+}
+
+/** Cuerpo con tope de tamaño. Los SDKs de servidor mandan gzip: el tope vale para lo descomprimido también. */
+async function readBody(req: Request): Promise<string | null> {
+  const raw = await readCapped(req, INGEST_LIMITS.maxBodyBytes).catch(() => null);
+  if (raw === null) return null;
+  const gzipped = /gzip/i.test(req.headers.get('content-encoding') ?? '') || /gzip/i.test(new URL(req.url).searchParams.get('compression') ?? '');
+  const buffer = Buffer.from(raw);
+  if (gzipped) {
+    try {
+      return gunzipSync(buffer, { maxOutputLength: INGEST_LIMITS.maxBodyBytes }).toString('utf8');
+    } catch (err) {
+      if ((err as { code?: string }).code === 'ERR_BUFFER_TOO_LARGE') return null;
+    }
+  }
+  return buffer.toString('utf8');
 }
 
 type Resolved = { project: ProjectRow; secret: boolean } | { res: NextResponse };
@@ -73,7 +109,7 @@ type Resolved = { project: ProjectRow; secret: boolean } | { res: NextResponse }
  * servidores: sin chequeo de origen) o key pública del cuerpo (con la lista de
  * dominios permitidos y Do Not Track).
  */
-async function resolveProject(req: Request, bodyKey: string | null): Promise<Resolved> {
+export async function resolveProject(req: Request, bodyKey: string | null): Promise<Resolved> {
   const bearer = extractBearer(req);
   if (bearer?.startsWith('zss_')) {
     const project = await projectByKey(bearer, 'secret');
@@ -87,7 +123,7 @@ async function resolveProject(req: Request, bodyKey: string | null): Promise<Res
   return { project, secret: false };
 }
 
-function dntOn(req: Request): boolean {
+export function dntOn(req: Request): boolean {
   return req.headers.get('dnt') === '1' || req.headers.get('sec-gpc') === '1';
 }
 
@@ -95,7 +131,12 @@ function dntOn(req: Request): boolean {
  * Tope por proyecto y por IP dentro del proyecto, los dos en un solo viaje a la
  * base (ventanas fijas de un minuto en rate_limits, como lib/rate-limit.ts).
  */
-async function limited(req: Request, bucket: string, projectId: string, rpm: number): Promise<NextResponse | null> {
+/** Lo que queda en la tabla de límites: nunca la IP tal cual. */
+function ipKey(ip: string, windowStart: number): string {
+  return createHmac('sha256', process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'zs-rate').update(`${windowStart}:${ip}`).digest('base64url').slice(0, 24);
+}
+
+export async function limited(req: Request, bucket: string, projectId: string, rpm: number): Promise<NextResponse | null> {
   if (process.env.RATE_LIMIT_DISABLED === 'true') return null;
   const now = Date.now();
   const start = Math.floor(now / 60_000) * 60_000;
@@ -105,14 +146,14 @@ async function limited(req: Request, bucket: string, projectId: string, rpm: num
     args: [key, start, start + 60_000],
   });
   await ensureMigrated();
-  const [project, ip] = await getClient().batch([upsert(`${bucket}:${projectId}`), upsert(`${bucket}:${projectId}:${clientIp(req)}`)], 'write');
+  const [project, ip] = await getClient().batch([upsert(`${bucket}:${projectId}`), upsert(`${bucket}:${projectId}:${ipKey(clientIp(req), start)}`)], 'write');
   if (Number(project.rows[0]?.count ?? 0) <= rpm && Number(ip.rows[0]?.count ?? 0) <= Math.min(rpm, IP_PROJECT_RPM)) return null;
   const res = reply(req, 429, { error: 'rate_limited' });
   res.headers.set('retry-after', String(Math.max(1, Math.ceil((start + 60_000 - now) / 1000))));
   return res;
 }
 
-function precheck(req: Request): NextResponse | null {
+export function precheck(req: Request): NextResponse | null {
   return ipPrecheck(clientIp(req)) ? null : reply(req, 429, { error: 'rate_limited' });
 }
 
@@ -125,13 +166,38 @@ export async function handleCapture(req: Request): Promise<Response> {
   if (!parsed.ok) return reply(req, 400, { error: parsed.error });
   const r = await resolveProject(req, parsed.apiKey);
   if ('res' in r) return r.res;
+  // Bots conocidos: lo que manda un crawler desde el navegador no se guarda, salvo que el proyecto pida lo contrario.
+  if (!r.secret && r.project.keep_bots !== 1 && isBotUserAgent(req.headers.get('user-agent'))) {
+    const blocked = await limited(req, 'aingest', r.project.id, INGEST_RPM);
+    if (blocked) return blocked;
+    await getDb().prepare('UPDATE analytics_projects SET bots_filtered = bots_filtered + ? WHERE id = ?').run(parsed.events.length, r.project.id);
+    return reply(req, 200, { status: 1, stored: 0, dropped: parsed.events.length, reason: 'bot' });
+  }
   // Do Not Track / GPC del navegador: con el ajuste prendido no se guarda nada.
   if (!r.secret && r.project.respect_dnt === 1 && dntOn(req)) return reply(req, 200, { status: 1, stored: 0, dropped: parsed.events.length, reason: 'dnt' });
   const block = await limited(req, 'aingest', r.project.id, INGEST_RPM);
   if (block) return block;
   // Un servidor con la key secreta no es el navegador de la persona: sin user agent ni IP del pedido.
   const ctx = r.secret ? null : requestContext(req);
-  const stored = await storeEvents(r.project, parsed.events, ctx);
+  // Sin cookies: el id sale de un hash del lado del servidor, solo si el proyecto lo prendió. La IP no se guarda.
+  let events = parsed.events;
+  let storeCtx = ctx;
+  if (events.some((e) => isCookielessId(e.distinctId))) {
+    if (r.secret || r.project.cookieless !== 1) {
+      const kept = events.filter((e) => !isCookielessId(e.distinctId));
+      // Se descartan, pero quien administra el proyecto lo ve en los ajustes.
+      if (!r.secret && kept.length < events.length) {
+        await getDb().prepare('UPDATE analytics_projects SET cookieless_dropped = cookieless_dropped + ? WHERE id = ?').run(events.length - kept.length, r.project.id);
+      }
+      events = kept;
+    }
+    else {
+      events = await applyCookieless(r.project, events, req, clientIp(req));
+      if (storeCtx) storeCtx = { ...storeCtx, ip: null };
+    }
+  }
+  // Tope diario de los eventos especiales (errores, encuestas, vitals, LLM).
+  const stored = await storeEvents(r.project, await capSpecialEvents(r.project.id, events), storeCtx);
   return reply(req, 200, { status: 1, stored, dropped: parsed.dropped + (parsed.events.length - stored) });
 }
 
@@ -152,16 +218,87 @@ export async function handleDecide(req: Request): Promise<Response> {
   if ('res' in r) return r.res;
   const block = await limited(req, 'adecide', r.project.id, DECIDE_RPM);
   if (block) return block;
-  const distinctId = typeof body.distinct_id === 'string' ? body.distinct_id.slice(0, INGEST_LIMITS.maxDistinctId) : '';
+  let distinctId = typeof body.distinct_id === 'string' ? body.distinct_id.slice(0, INGEST_LIMITS.maxDistinctId) : '';
+  // Sin cookies, el flag se evalúa con el id de hoy (y sin el ajuste, nada: no hay a quién evaluar).
+  if (isCookielessId(distinctId)) distinctId = r.project.cookieless === 1 && !r.secret ? await cookielessIdFor(r.project, req, clientIp(req), Date.now()) : '';
   const overrides = body.person_properties && typeof body.person_properties === 'object' && !Array.isArray(body.person_properties) ? (body.person_properties as Record<string, unknown>) : {};
-  const featureFlags = distinctId ? await decideFlags(r.project.id, distinctId, overrides) : {};
+  const botHere = !r.secret && r.project.keep_bots !== 1 && isBotUserAgent(req.headers.get('user-agent'));
+  const { flags: featureFlags, payloads } = distinctId ? await decideFlagsFull(r.project.id, distinctId, overrides) : { flags: {}, payloads: {} };
   return reply(req, 200, {
     featureFlags,
+    featureFlagPayloads: payloads,
     config: {
       autocapture: r.project.autocapture === 1,
       respectDnt: r.project.respect_dnt === 1,
+      // Replay y heatmaps: solo si un admin los prendió; con Do Not Track y el ajuste prendido, nunca.
+      ...replayConfig(r.project, (!r.secret && r.project.respect_dnt === 1 && dntOn(req)) || botHere),
+      captureExceptions: !botHere && r.project.capture_exceptions === 1,
+      webVitals: !botHere && r.project.web_vitals === 1,
+      // Sin encuestas al aire el snippet no hace ningún pedido más.
+      surveys: botHere ? false : await hasLivePopover(r.project.id),
     },
   });
+}
+
+/**
+ * Definiciones de los flags para evaluar en tu servidor sin ir a la red en cada
+ * chequeo. Solo con la key secreta: incluye las condiciones de segmentación.
+ */
+export async function handleFlagDefinitions(req: Request): Promise<Response> {
+  const pre = precheck(req);
+  if (pre) return pre;
+  const bearer = extractBearer(req);
+  if (!bearer?.startsWith('zss_')) return reply(req, 401, { error: 'secret_key_required' });
+  const project = await projectByKey(bearer, 'secret');
+  if (!project) return reply(req, 401, { error: 'invalid_key' });
+  const block = await limited(req, 'adefs', project.id, 120);
+  if (block) return block;
+  const flags = await projectFlags(project.id);
+  return reply(req, 200, { flags, hash: 'sha1(key.distinct_id) first 15 hex / 0xfffffffffffffff; variants add the salt "variant"' });
+}
+
+/**
+ * /flags de los SDKs de PostHog: además de featureFlags, el mapa `flags` con la
+ * forma que espera la versión 2 de su protocolo.
+ */
+export async function handleSdkFlags(req: Request): Promise<Response> {
+  const res = await handleDecide(req);
+  if (res.status !== 200) return res;
+  const body = (await res.json()) as { featureFlags: Record<string, boolean | string>; featureFlagPayloads: Record<string, unknown>; config: unknown };
+  const flags: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(body.featureFlags)) {
+    const payload = body.featureFlagPayloads[key];
+    flags[key] = {
+      key,
+      enabled: value !== false,
+      variant: typeof value === 'string' ? value : null,
+      reason: { code: value === false ? 'no_condition_match' : 'condition_match', description: '' },
+      metadata: { id: 0, version: 1, payload: payload === undefined ? null : JSON.stringify(payload) },
+    };
+  }
+  return reply(req, 200, { ...body, flags, errorsWhileComputingFlags: false, requestId: '' });
+}
+
+/** Encuestas al aire para un distinct_id (el snippet las pide solo si /decide dijo que hay). */
+export async function handleSurveys(req: Request): Promise<Response> {
+  const pre = precheck(req);
+  if (pre) return pre;
+  const text = await readBody(req);
+  if (text === null) return reply(req, 413, { error: 'payload_too_large' });
+  let body: Record<string, unknown>;
+  try {
+    const v = JSON.parse(text || '{}');
+    body = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  } catch {
+    return reply(req, 400, { error: 'invalid_json' });
+  }
+  const key = typeof body.api_key === 'string' ? body.api_key : typeof body.token === 'string' ? body.token : null;
+  const r = await resolveProject(req, key);
+  if ('res' in r) return r.res;
+  const block = await limited(req, 'asurveys', r.project.id, DECIDE_RPM);
+  if (block) return block;
+  const distinctId = typeof body.distinct_id === 'string' ? body.distinct_id.slice(0, INGEST_LIMITS.maxDistinctId) : '';
+  return reply(req, 200, { surveys: await surveysFor(r.project.id, distinctId) });
 }
 
 /** Borra la persona de un distinct_id con todos sus eventos. Solo con la key secreta. */

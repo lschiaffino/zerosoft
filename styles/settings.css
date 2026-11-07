@@ -25,7 +25,7 @@
 .st-page .table td.data { white-space: nowrap; }
 .st-stack { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 
-/* Nav lateral de la plataforma: dos grupos con rótulo; bajo 900px, un select arriba. */
+/* Nav lateral de la plataforma: dos grupos con rótulo; bajo 1180px, un select arriba (con el sidebar abierto, al lado del nav las tablas no entran). */
 .st-layout { grid-template-columns: 220px minmax(0, 1fr); }
 .st-nav-wrap { position: sticky; top: 72px; min-width: 0; }
 .st-nav { display: flex; flex-direction: column; gap: 20px; }
@@ -34,7 +34,7 @@
 .st-nav-link { gap: 8px; }
 .st-nav-swatch { flex: 0 0 8px; width: 8px; height: 8px; border-radius: var(--radius-1); }
 .st-nav-select { display: none; }
-@media (max-width: 900px) {
+@media (max-width: 1180px) {
   .st-layout { grid-template-columns: minmax(0, 1fr); }
   .st-nav-wrap { position: static; }
   .st-nav { display: none; }
@@ -525,3 +525,9 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
   .st-imp-source-cta { justify-self: start; }
   .st-imp-recent-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Apps conectadas: nombre, destino y datos en una sola celda para que la acción nunca quede fuera. */
+.st-connected-app { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.st-nowrap { white-space: nowrap; }
+/* Un nombre sin espacios (lo elige el cliente) no se sale del diálogo. */
+.ui-confirm .ui-modal-title, .ui-confirm .ui-modal-body { overflow-wrap: anywhere; }

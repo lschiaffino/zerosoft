@@ -67,8 +67,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       const forceOff = await recAiForcedOff();
       after(() => resummarizeForTrim(id, { forceOff }));
     }
+    // Un admin que mueve el video de otra persona a sus videos deja de verlo: el cambio quedó hecho igual.
     const v = await getVideoRow(s.actor, id);
-    return recJson({ video: toDto(v!, s.actor) });
+    return recJson({ video: v ? toDto(v, s.actor) : null });
   } catch (err) {
     return recFail(err);
   }

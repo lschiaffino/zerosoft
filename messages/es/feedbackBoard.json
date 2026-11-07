@@ -9,9 +9,9 @@
     "signIn": "Ingresar"
   },
   "meta": {
-    "title": "Feedback",
+    "title": "Board de feedback: votá qué construye zerosoft",
     "description": "Ideas y pedidos para zerosoft. Votá lo que necesitás, comentá y seguí cada idea hasta que sale.",
-    "roadmapTitle": "Roadmap",
+    "roadmapTitle": "Roadmap público: qué construye zerosoft ahora",
     "roadmapDescription": "Lo que está planeado, en curso y lanzado en zerosoft.",
     "newTitle": "Proponer una idea"
   },
@@ -75,7 +75,8 @@
     "hiring": "Hiring",
     "sign": "Sign",
     "books": "Books",
-    "forms": "Forms"
+    "forms": "Forms",
+    "send": "Send"
   },
   "empty": "Todavía no hay ideas. Proponé la primera.",
   "emptySearch": "Nada coincide con la búsqueda. Probá con otras palabras o proponé la idea.",

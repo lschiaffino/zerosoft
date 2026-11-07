@@ -534,6 +534,7 @@ export interface RecListItem {
   watchLater: boolean;
   tags: string[];
   spaceId: string | null;
+  privacy: RecPrivacy;
   contentType: string;
   size: number;
   createdBy: string;
@@ -588,7 +589,7 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
   const rows = (await getDb()
     .prepare(
       `SELECT v.id, v.share_id, v.title, v.status, v.space, v.folder_id, v.duration_sec, v.trim_start, v.trim_end, v.views,
-              v.archived_at, v.space_id, v.content_type, v.size, v.thumb_url, v.gif_url, v.thumb_at, v.thumb_for, v.gif_for, v.created_by, v.workspace_id, v.created_at, v.updated_at, v.description, v.tags${needle ? ', v.transcript' : ''},
+              v.archived_at, v.space_id, v.content_type, v.size, v.thumb_url, v.gif_url, v.thumb_at, v.thumb_for, v.gif_for, v.created_by, v.workspace_id, v.created_at, v.updated_at, v.description, v.tags, v.privacy, v.people_only${needle ? ', v.transcript' : ''},
               COALESCE(u.name, u.email, '') AS author_name,
               EXISTS (SELECT 1 FROM rec_watch_later l WHERE l.video_id = v.id AND l.user_id = ?) AS in_later,
               (SELECT COUNT(DISTINCT viewer_key) FROM rec_views w WHERE w.video_id = v.id) AS unique_viewers,
@@ -600,7 +601,7 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
     .all(a.actor, ...args)) as Array<
     Pick<
       RecVideoRow,
-      'id' | 'archived_at' | 'space_id' | 'content_type' | 'size' | 'share_id' | 'title' | 'status' | 'space' | 'folder_id' | 'duration_sec' | 'trim_start' | 'trim_end' | 'views' | 'thumb_url' | 'gif_url' | 'thumb_at' | 'thumb_for' | 'gif_for' | 'created_by' | 'workspace_id' | 'created_at' | 'updated_at'
+      'id' | 'archived_at' | 'space_id' | 'content_type' | 'size' | 'share_id' | 'title' | 'status' | 'space' | 'folder_id' | 'duration_sec' | 'trim_start' | 'trim_end' | 'views' | 'thumb_url' | 'gif_url' | 'thumb_at' | 'thumb_for' | 'gif_for' | 'created_by' | 'workspace_id' | 'created_at' | 'updated_at' | 'privacy' | 'people_only'
     > & {
       author_name: string;
       in_later: number;
@@ -630,6 +631,7 @@ export async function listVideos(a: RecActor, scope: RecScope, q = ''): Promise<
     watchLater: !!Number(r.in_later),
     tags: parseJson<string[]>(r.tags, []),
     spaceId: r.space_id ?? null,
+    privacy: r.people_only ? 'people' : r.privacy,
     contentType: r.content_type,
     size: Number(r.size) || 0,
     createdBy: r.created_by,
@@ -836,6 +838,9 @@ export async function updateVideo(a: RecActor, id: string, patch: RecVideoPatch)
       set('space', 'workspace');
       set('space_id', await usableSpace(a, patch.spaceId));
       finalSpace = 'workspace';
+    } else if (patch.space === undefined && patch.spaceId === undefined) {
+      // Solo sacar de la carpeta: queda donde estaba (un espacio cerrado sigue cerrado).
+      set('folder_id', null);
     } else {
       finalSpace = patch.space === 'workspace' ? 'workspace' : patch.space === 'personal' ? 'personal' : v.space;
       set('folder_id', null);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import {
@@ -137,6 +138,8 @@ function useGroupOrder() {
         'people',
         'peopleTemplates',
         'peopleCycles',
+        'peopleSurveys',
+        'peopleReports',
         'shopOrders',
         'shopProducts',
         'shopCollections',
@@ -154,6 +157,7 @@ function useGroupOrder() {
         'signEnvelopes',
         'signTemplates',
         'forms',
+        'send',
         'links',
         'docs',
         'notes',
@@ -202,7 +206,13 @@ function useGroupOrder() {
         'analyticsInsights',
         'analyticsDashboards',
         'analyticsFlags',
+        'analyticsSurveys',
         'analyticsCohorts',
+        'analyticsActions',
+        'analyticsErrors',
+        'analyticsExperiments',
+        'analyticsAlerts',
+        'analyticsSubscriptions',
         'analyticsProjects',
         'assistantChats',
       ], []);
@@ -401,11 +411,17 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
     function onOpen(e: Event) {
       const detail = (e as CustomEvent<OpenCommandDetail | undefined>).detail;
       const page = detail?.page;
-      setPages(page ? [page] : []);
-      setAnchor(page && detail?.anchor && window.innerWidth >= 640 ? detail.anchor : null);
       rememberFocus();
-      setQ('');
-      setOpen(true);
+      // Abre antes de la tecla que sigue: con P y 0 seguidos, el dígito ya encuentra el menú y su input.
+      // En una microtarea: otros oyentes de este evento (Track fija el issue) corren antes de dibujar.
+      queueMicrotask(() =>
+        flushSync(() => {
+          setPages(page ? [page] : []);
+          setAnchor(page && detail?.anchor && window.innerWidth >= 640 ? detail.anchor : null);
+          setQ('');
+          setOpen(true);
+        }),
+      );
     }
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {

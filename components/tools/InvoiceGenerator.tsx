@@ -158,34 +158,40 @@ export default function InvoiceGenerator() {
                 placeholder={t('placeholders.item')}
                 onChange={(e) => setItem(i, 'description', e.target.value)}
               />
-              <input
-                className="input"
-                aria-label={t('fields.qty')}
-                type="number"
-                min={0}
-                step="any"
-                value={Number.isFinite(it.qty) ? it.qty : 0}
-                onChange={(e) => setItem(i, 'qty', e.target.value)}
-              />
-              <input
-                className="input"
-                aria-label={t('fields.price')}
-                type="number"
-                min={0}
-                step="any"
-                value={Number.isFinite(it.price) ? it.price : 0}
-                onChange={(e) => setItem(i, 'price', e.target.value)}
-              />
-              <input
-                className="input"
-                aria-label={t('fields.tax')}
-                type="number"
-                min={0}
-                max={100}
-                step="any"
-                value={Number.isFinite(it.taxRate) ? it.taxRate : 0}
-                onChange={(e) => setItem(i, 'taxRate', e.target.value)}
-              />
+              <span className="tl-item-cell" data-label={t('fields.qty')}>
+                <input
+                  className="input"
+                  aria-label={t('fields.qty')}
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={Number.isFinite(it.qty) ? it.qty : 0}
+                  onChange={(e) => setItem(i, 'qty', e.target.value)}
+                />
+              </span>
+              <span className="tl-item-cell" data-label={t('fields.price')}>
+                <input
+                  className="input"
+                  aria-label={t('fields.price')}
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={Number.isFinite(it.price) ? it.price : 0}
+                  onChange={(e) => setItem(i, 'price', e.target.value)}
+                />
+              </span>
+              <span className="tl-item-cell" data-label={t('fields.tax')}>
+                <input
+                  className="input"
+                  aria-label={t('fields.tax')}
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="any"
+                  value={Number.isFinite(it.taxRate) ? it.taxRate : 0}
+                  onChange={(e) => setItem(i, 'taxRate', e.target.value)}
+                />
+              </span>
               <button type="button" className="tl-icon-btn" aria-label={t('removeItem')} onClick={() => removeItem(i)} disabled={d.items.length === 1}>
                 ×
               </button>

@@ -115,9 +115,10 @@ for (const path of SCREENS) {
   });
 }
 
-test('el sidebar tiene Ajustes globales en el pie y el colapsar traducido', async ({ page }) => {
+test('el pie del sidebar es una fila: Ajustes está en el menú de la cuenta y el colapsar traducido', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/es/app/crm', { waitUntil: 'networkidle' });
+  await page.getByTestId('workspace-switcher').click();
   const settings = page.getByTestId('side-settings');
   await expect(settings).toHaveAttribute('href', /\/es\/app\/settings$/);
   await expect(page.locator('.side-handle')).toHaveAttribute('aria-label', 'Contraer barra lateral');
@@ -130,8 +131,8 @@ test('el shell: banda con switcher de apps y el ítem activo marcado', async ({ 
   await expect(active).toHaveCount(1);
   await expect(active).toHaveAttribute('href', /\/es\/app\/crm\/contacts$/);
   await page.locator('.band-product').click();
-  // Inicio, las 24 apps (destacadas y por categoría) y Buscar (⌘K).
-  await expect(page.getByRole('menuitem')).toHaveCount(26);
+  // Inicio, las 25 apps (destacadas y por categoría) y Buscar (⌘K).
+  await expect(page.getByRole('menuitem')).toHaveCount(27);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menuitem')).toHaveCount(0);
   await expect(page.locator('.band-product')).toBeFocused();

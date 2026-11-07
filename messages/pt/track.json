@@ -341,7 +341,9 @@
     "groupsMention": "{actor} mencionou você em {title}",
     "groupsAssigned": "{actor} atribuiu {title} a você",
     "groupsAutoAssigned": "Chat de WhatsApp novo para você: {title}",
-    "chatMessage": "Nova mensagem de {actor}"
+    "chatMessage": "Nova mensagem de {actor}",
+    "loading": "Carregando avisos…",
+    "loadError": "Não foi possível carregar os avisos. Abra de novo para tentar outra vez."
   },
   "errors": {
     "invalid_slug": "Slug inválido. Use letras minúsculas, números e hífens.",
@@ -730,6 +732,8 @@
     "adminOnly": "Só owners e admins do workspace podem mudar isso."
   },
   "templates": {
+    "default": "Padrão",
+    "defaultLabel": "Usar como padrão para novas issues deste projeto. A criação rápida a preenche; você ainda pode escolher outra ou nenhuma.",
     "help": "Valores pré-carregados para issues que você cria com frequência. Escolha um ao criar um issue para preencher propriedades e descrição.",
     "emptyTitle": "Ainda não há modelos",
     "emptyBody": "Crie um para relatos de bug, pedidos ou qualquer issue que se repita.",
@@ -1105,7 +1109,7 @@
     "title": "Acesso",
     "help": "As equipes privadas só são vistas pelos seus membros. Os convidados veem só as equipes que você der.",
     "adminOnly": "Só os admins do workspace mudam o acesso.",
-    "personal": "Este é um workspace pessoal: ninguém mais vê suas equipes. Crie um workspace compartilhado nas configurações para compartilhar equipes e convidar.",
+    "personal": "Por enquanto você é a única pessoa neste workspace. Convide alguém para começar a trabalhar em equipe.",
     "loadError": "Não foi possível carregar o acesso.",
     "error": "Não foi possível salvar a mudança.",
     "adminGuest": "Um admin não pode ser convidado.",
@@ -1123,10 +1127,13 @@
     "inviteHelp": "Para adicionar alguém a um time, a pessoa precisa estar no workspace. Ela recebe um email; quando aceitar, adicione-a ao time aqui embaixo.",
     "invitePlaceholder": "nome@empresa.com",
     "inviteButton": "Enviar convite",
-    "inviteSent": "Convite enviado para {email}. Quando aceitar, adicione ao time aqui embaixo.",
-    "inviteAlreadyMember": "{email} já está no workspace. Adicione ao time aqui embaixo.",
+    "inviteSent": "Convite enviado para {email}. Quando aceitar, já pode entrar em um time.",
+    "inviteAlreadyMember": "{email} já está no workspace. Você pode adicionar a um time privado pelos membros dele.",
     "inviteLimited": "Convites demais por enquanto. Tente de novo daqui a pouco.",
     "inviteInvalid": "Esse email não parece válido.",
+    "everyoneIn": "Todos do workspace já estão neste time. Para escolher quem entra, deixe-o privado.",
+    "inviteCopy": "Copiar link do convite",
+    "inviteCopied": "Link copiado",
     "inviteFailed": "Não foi possível enviar o convite. Você pode vê-lo e copiar o link nas configurações da plataforma, em Membros.",
     "invitesPending": "Aguardando aceitar: {emails}",
     "noCandidates": "Todos do workspace já estão neste time. Convide alguém aqui em cima para adicionar.",

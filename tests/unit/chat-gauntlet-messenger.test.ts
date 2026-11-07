@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
-import { createCampaign, getCampaign, scheduleCampaign, setCampaignOptIn, startDueCampaigns, unscheduleCampaign } from '@/lib/chat-campaigns';
-import { mergeVisitorAttributes, parseVisitorAttributes } from '@/lib/chat-companies';
+import { createCampaign, getCampaign, scheduleCampaign, startDueCampaigns, unscheduleCampaign } from '@/lib/chat-campaigns';
+import { mergeVisitorAttributes, parseVisitorAttributes, setCampaignOptIn } from '@/lib/chat-companies';
 import { rotateWidgetIdentitySecret, visitorIdentityHash } from '@/lib/chat-identity';
 import { createCannedResponse, createChatWidget, getCannedResponse, getOrCreateChatVisitor, updateChatWidget } from '@/lib/chat-data';
 import { createChatTeam } from '@/lib/chat-collab';
@@ -138,7 +138,9 @@ describe('opciones propias de posponer', () => {
     const owner = await makeUser('sn3');
     const inTeam = await makeUser('sn4');
     const outTeam = await makeUser('sn5');
-    const team = await createChatTeam(owner.id, { name: 'Soporte', members: [inTeam.id] } as never, [inTeam.id, owner.id] as never);
+    const team = await createChatTeam(owner.id, { name: 'Soporte' }, [owner.id]);
+    // La pertenencia se sincroniza con los grupos del workspace: acá se anota directo.
+    await getDb().prepare("INSERT INTO chat_team_members (team_id, user_id, created_at) VALUES (?, ?, datetime('now'))").run(team.id, inTeam.id);
     const o = await createSnoozeOption(owner.id, { label: 'Turno', minutes: 480, team_id: team.id });
     expect((await listSnoozeOptions(owner.id, inTeam.id)).map((x) => x.id)).toContain(o.id);
     expect((await listSnoozeOptions(owner.id, outTeam.id)).map((x) => x.id)).not.toContain(o.id);
@@ -146,12 +148,21 @@ describe('opciones propias de posponer', () => {
 });
 
 describe('campañas programadas', () => {
+  // Otras pruebas comparten la base y corren el envío del cron: no quedan campañas de acá en curso.
+  const made: string[] = [];
+  afterEach(async () => {
+    for (const id of made.splice(0)) {
+      await getDb().prepare('DELETE FROM chat_campaign_recipients WHERE campaign_id = ?').run(id);
+      await getDb().prepare('DELETE FROM chat_campaigns WHERE id = ?').run(id);
+    }
+  });
   async function draft(label: string) {
     const owner = await makeUser(label);
     const w = await createChatWidget(owner.id, null, { name: label });
     const v = await getOrCreateChatVisitor(w.id, `ext-${crypto.randomUUID()}`, { email: `${label}@people.test`, name: 'P' });
     await setCampaignOptIn(v.id, true);
     const c = await createCampaign(owner.id, owner.id, { name: 'Novedades', widget_id: w.id, subject: 'Hola', body: 'Texto', audience: 'all' });
+    made.push(c.id);
     return { owner, w, v, c };
   }
 

@@ -1342,6 +1342,7 @@ export interface TrackIssueTemplateRow {
   assignee_id: string | null;
   estimate: number | null;
   labels: string; // JSON TrackLabel[]
+  is_default: number;
   created_at: string;
   updated_at: string;
 }
@@ -1471,6 +1472,12 @@ export interface ChatWidgetRow {
   locale?: 'auto' | 'en' | 'es' | 'pt';
   /** Minutos sin leer antes de mandar por email una respuesta del agente (0 = nunca). */
   offline_email_minutes?: number;
+  /** Fuente del messenger (lib/chat-schema.ts WIDGET_FONTS). */
+  font?: string;
+  /** Quién adjunta archivos: all, identified o none. */
+  visitor_attachments?: string;
+  /** Tiempo de respuesta visible: '', minutes, hour o day. */
+  reply_time?: string;
   /** JSON ChatAttributeDef[]: atributos de conversación (lib/chat-attributes.ts). */
   conversation_attributes?: string;
   created_at: string;
@@ -1592,6 +1599,9 @@ export interface ChatCannedResponseRow {
   body: string;
   /** JSON CannedActions (macro): status, assign, tag, snooze. */
   actions?: string;
+  /** Cuántas veces se insertó desde el compositor. */
+  use_count?: number;
+  last_used_at?: string | null;
   created_at: string;
   updated_at: string;
 }

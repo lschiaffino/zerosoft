@@ -6,6 +6,7 @@ import type { EventTypeWithRules } from '@/lib/calendar';
 import PublicBookingPage, { BookingInfo } from './PublicBookingPage';
 import type { PublicBrand } from './cal-utils';
 import { parseDbUtc } from '@/lib/utils';
+import { changeCutoffHours, isInsideChangeCutoff } from '@/lib/calendar-change-cutoff';
 
 interface Props {
   token: string;
@@ -56,6 +57,8 @@ export default function ManageBooking({
   const [error, setError] = useState<string | null>(null);
   const [reconfirmed, setReconfirmed] = useState(!!booking.reconfirmed);
   const past = parseDbUtc(booking.startsAt).getTime() < Date.now();
+  const cutoff = changeCutoffHours(eventType.bookingRulesParsed);
+  const locked = isInsideChangeCutoff(eventType.bookingRulesParsed, parseDbUtc(booking.startsAt));
 
   if (mode === 'reschedule') {
     return (
@@ -84,7 +87,7 @@ export default function ManageBooking({
       setMode('cancelled');
       return;
     }
-    setError(t('errors.generic'));
+    setError(res?.status === 409 ? t('errors.change_cutoff', { hours: cutoff }) : t('errors.generic'));
   }
 
   async function reconfirm() {
@@ -209,14 +212,18 @@ export default function ManageBooking({
                     </div>
                   )
                 )}
-                <div className="bk-actions">
-                  <button type="button" className="btn btn-ghost" onClick={() => setMode('cancel')}>
-                    {t('manage.cancel')}
-                  </button>
-                  <button type="button" className={reconfirmAsked && !reconfirmed ? 'btn btn-ghost' : 'btn bk-cta'} onClick={() => setMode('reschedule')}>
-                    {t('manage.reschedule')}
-                  </button>
-                </div>
+                {locked ? (
+                  <p className="bk-muted">{t('manage.changeLocked', { hours: cutoff })}</p>
+                ) : (
+                  <div className="bk-actions">
+                    <button type="button" className="btn btn-ghost" onClick={() => setMode('cancel')}>
+                      {t('manage.cancel')}
+                    </button>
+                    <button type="button" className={reconfirmAsked && !reconfirmed ? 'btn btn-ghost' : 'btn bk-cta'} onClick={() => setMode('reschedule')}>
+                      {t('manage.reschedule')}
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </section>

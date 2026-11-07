@@ -45,6 +45,7 @@ export const RIVALS: Record<ProductKey, string> = {
   books: 'Xero · QuickBooks',
   sign: 'DocuSign',
   forms: 'Typeform',
+  send: 'DocSend',
 };
 
 /** Las seis apps de la tabla de costos del home (precio por usuario o plan fijo). */
@@ -81,7 +82,7 @@ export const AUDIENCE_PRODUCTS: Record<Audience, readonly ProductKey[]> = {
 
 /**
  * Menú de productos y la suite del sitio: por categoría (vender, atender,
- * automatizar, construir, trabajo diario), en el orden de PRODUCT_CATEGORIES.
+ * automatizar, construir, operar, trabajo diario), en el orden de PRODUCT_CATEGORIES.
  */
 export const CATEGORY_PRODUCTS: ReadonlyArray<{ category: ProductCategory; products: readonly ProductKey[] }> =
   PRODUCT_CATEGORIES.map((category) => ({ category, products: productsByCategory(category) })).filter((g) => g.products.length > 0);
@@ -159,4 +160,6 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   sign: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
   // Los precios de Typeform no se pudieron verificar: el bloque remite a typeform.com/pricing.
   forms: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  // Precios de DocSend: la página oficial no se pudo leer, el bloque remite a docsend.com/pricing.
+  send: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
 };

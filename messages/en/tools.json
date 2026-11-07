@@ -1,7 +1,7 @@
 {
   "hub": {
     "metaTitle": "Free business tools, no sign-up",
-    "metaDescription": "Free tools for small teams: email signature generator, QR codes, invoices, privacy policy, website grader, AI email and ad writer, business names and more. No sign-up, no tracking.",
+    "metaDescription": "Free tools for small teams: email signatures, QR codes, invoices, privacy policies, a website grader and AI writers. No sign-up.",
     "label": "Free tools",
     "title1": "Free tools.",
     "title2": "No sign-up.",
@@ -25,7 +25,7 @@
       }
     },
     "footTitle": "Want the real thing?",
-    "footBody": "Twenty-four open-source apps that replace HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro, Canva, PostHog, UiPath and Bitly. Free plan on zerosoft Cloud, no credit card."
+    "footBody": "Twenty-five open-source apps that replace HubSpot, Intercom, Zapier, Calendly, Linear, Notion, Evernote, Miro, Canva, PostHog, UiPath and Bitly. Free plan on zerosoft Cloud, no credit card."
   },
   "common": {
     "label": "Free tools",
@@ -565,7 +565,7 @@
       "title": "SaaS cost calculator",
       "sub": "Pick the tools your team pays for and how many seats. See the yearly bill at list price, and what it costs with zerosoft.",
       "ctaTitle": "Same tools, zero license",
-      "ctaBody": "zerosoft is twenty-four open-source apps (AGPLv3). On your own server the core costs $0; on zerosoft Cloud you start on a free plan and pay for usage.",
+      "ctaBody": "zerosoft is twenty-five open-source apps (AGPLv3). On your own server the core costs $0; on zerosoft Cloud you start on a free plan and pay for usage.",
       "faq": [
         {
           "q": "Where do the prices come from?",
@@ -577,7 +577,7 @@
         },
         {
           "q": "Does zerosoft replace every tool on the list?",
-          "a": "Link, CRM, Cal, Track, Chat and Docs are available today. Flow, Board and Notes are on the way."
+          "a": "zerosoft has 25 apps, all available today. Each product page lists what is still missing next to the product it replaces."
         }
       ]
     },
@@ -585,7 +585,7 @@
       "name": "Privacy policy generator",
       "short": "A clear privacy policy for your site, from a guided form.",
       "metaTitle": "Free privacy policy generator (GDPR, CCPA, LGPD)",
-      "metaDescription": "Generate a privacy policy for your website or app with a guided form: data collected, cookies, analytics, third parties and your jurisdiction. Copy or download as Markdown or HTML.",
+      "metaDescription": "Generate a privacy policy for your site or app with a guided form: data, cookies, analytics and jurisdiction. Copy it or download it as Markdown or HTML.",
       "title": "Privacy policy generator",
       "sub": "Answer a few questions and get a readable privacy policy for your website or app, with sections for GDPR, CCPA, LGPD and more. Copy it or download it as Markdown or HTML.",
       "ctaTitle": "Keep your policies in one place",
@@ -685,7 +685,7 @@
       "name": "Website grader",
       "short": "Score your site on speed, SEO, security, mobile and accessibility.",
       "metaTitle": "Free website grader: SEO, speed and security check",
-      "metaDescription": "Grade your website out of 100: HTTPS, response time, page size, title and meta tags, Open Graph, robots.txt, sitemap, mobile viewport, alt text and more, with fixes.",
+      "metaDescription": "Grade your website out of 100: HTTPS, speed, page size, meta tags, Open Graph, robots.txt, sitemap, mobile viewport and alt text, with fixes.",
       "title": "Website grader",
       "sub": "Enter your URL and get a score out of 100 across security, performance, SEO, mobile and accessibility, with a concrete fix for every issue.",
       "ctaTitle": "Know what visitors click",
@@ -761,7 +761,7 @@
       "name": "UTM builder",
       "short": "Tracked campaign URLs for analytics, in one click.",
       "metaTitle": "Free UTM builder: campaign URL generator",
-      "metaDescription": "Build campaign URLs with UTM parameters (source, medium, campaign, term, content) for Google Analytics and any analytics tool. Presets and clean, consistent values.",
+      "metaDescription": "Build campaign URLs with UTM parameters for Google Analytics and any analytics tool, with presets and clean, consistent values.",
       "title": "UTM builder",
       "sub": "Add utm_source, utm_medium and utm_campaign to any link so your analytics know where every visit came from. Consistent, lowercase values by default.",
       "ctaTitle": "Shorten it and count the clicks",

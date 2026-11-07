@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
+import GetStarted from './GetStarted';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ChatDto, LabelDto, NumberDto, PropertyDef } from '@/lib/groups';
 import { PropertyValueText, filterOptions } from './PropertyInput';
@@ -40,8 +41,13 @@ export default function GroupsList({
   properties,
   openNew,
   initial,
+  managed = false,
+  canEdit = true,
 }: {
   initial: ChatDto[];
+  /** QR administrado disponible y si la persona puede agregar números (estado vacío). */
+  managed?: boolean;
+  canEdit?: boolean;
   numbers: NumberDto[];
   labels: LabelDto[];
   properties: PropertyDef[];
@@ -132,8 +138,8 @@ export default function GroupsList({
     return (
       <EmptyState
         title={t('list.noNumbersTitle')}
-        body={t('list.noNumbersBody')}
-        action={{ label: t('inbox.connect'), href: '/app/groups/settings?tab=numbers&new=1' }}
+        body={canEdit ? t('list.noNumbersBody') : t('sample.askAdmin')}
+        action={canEdit ? <GetStarted managed={managed} canEdit /> : undefined}
         product="groups"
       />
     );
@@ -326,7 +332,7 @@ export default function GroupsList({
                     </Link>
                   </td>
                   <td className="num" data-label={t('list.colMembers')}>{c.memberCount}</td>
-                  <td data-label={c.labels.length ? t('list.colLabels') : undefined} hidden={c.labels.length === 0}>
+                  <td className={c.labels.length ? undefined : 'gr-empty-cell'} data-label={c.labels.length ? t('list.colLabels') : undefined}>
                     <span className="gr-label-row">
                       {c.labels.map((l) => (
                         <LabelTag key={l.id} name={l.name} color={l.color} />

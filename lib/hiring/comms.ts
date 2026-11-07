@@ -21,6 +21,7 @@ import { emailDefault } from './builtin';
 import { HiringError, TEMPLATE_KINDS, firstName, renderTemplate, type HiringActor, type TemplateKind } from './types';
 import { appBase, ensureSettings, newId, nowIso, requireManage, type SettingsRow } from './core';
 import { addEvent, notifyTeam, teamIds } from './events';
+import { reserveCandidateMail } from './mail-caps';
 
 // ---------- Plantillas ----------
 
@@ -199,11 +200,16 @@ export async function sendCandidateEmail(
   tpl: { subject: string; body: string },
   actorId: string | null,
   opts: { kind?: string } = {},
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; code?: string }> {
   const settings = await ensureSettings(ws);
   const vars = mailVars(settings, ctx);
   const subject = renderTemplate(tpl.subject, vars).slice(0, 300) || ctx.job.title;
   const text = renderTemplate(tpl.body, vars).slice(0, 20_000);
+  const capped = await reserveCandidateMail(ws, ctx.candidate.email, opts.kind ?? 'custom');
+  if (capped) {
+    await addEvent(ws, ctx.candidate.id, ctx.applicationId, 'email_dropped', actorId, { reason: capped });
+    return { ok: false, code: 'email_limit' };
+  }
   const replyTo = hiringReplyAddress(ctx.applicationId) ?? undefined;
   const res = await sendEmail({
     to: ctx.candidate.email,
@@ -212,6 +218,7 @@ export async function sendCandidateEmail(
     text,
     html: renderBrandedHtml({ heading: subject, paragraphs: textToHtmlParagraphs(text), brandColor: settings.color, eyebrow: settings.company }),
     replyTo,
+    idempotencyKey: `hiring:${createHmac('sha256', signingKey()).update(`${ctx.applicationId}\n${opts.kind ?? 'custom'}\n${subject}\n${text}`).digest('hex').slice(0, 40)}`,
   });
   // Los links con token (oferta, borrado de datos, agenda) son del candidato: en la línea de tiempo quedan tapados.
   await addEvent(ws, ctx.candidate.id, ctx.applicationId, 'email_out', actorId, { subject: redactLinks(subject, ctx.extra), body: redactLinks(text, ctx.extra), kind: opts.kind ?? 'custom', delivered: res.ok });

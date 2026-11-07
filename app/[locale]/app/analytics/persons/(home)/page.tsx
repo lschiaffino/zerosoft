@@ -16,19 +16,19 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
 }
 
 /** Personas del proyecto (?cohort= para las de una cohorte, ?ids= para las que abandonaron un embudo). */
-export default async function AnalyticsPersonsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ cohort?: string; ids?: string }> }) {
+export default async function AnalyticsPersonsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ cohort?: string; ids?: string; from?: string }> }) {
   const { locale } = await props.params;
   const sp = await props.searchParams;
   const [ctx, t] = await Promise.all([analyticsPage(locale), getTranslations({ locale, namespace: 'analytics.persons' })]);
   if (!ctx.project) return <NoProject title={t('title')} canManage={ctx.canManage} />;
   const cohort = sp.cohort ? await getCohort(ctx.project.id, sp.cohort) : null;
   const ids = typeof sp.ids === 'string' ? sp.ids.split(',').filter(Boolean).slice(0, 200) : null;
-  const res = await listPersons(ctx.project.id, { cohort: cohort?.definition ?? null, ids });
+  const res = await listPersons(ctx.project.id, { cohort: cohort?.definition ?? null, cohortId: cohort?.id ?? null, ids });
   return (
     <div className="app-page ui-page an-page">
       <PageHeader
         title={t('title')}
-        description={cohort ? t('inCohort', { name: cohort.name }) : ids ? t('dropped', { count: ids.length }) : t('description')}
+        description={cohort ? t('inCohort', { name: cohort.name }) : ids ? t(sp.from === 'retention' ? 'fromRetention' : sp.from === 'reached' ? 'fromReached' : 'dropped', { count: ids.length }) : t('description')}
       />
       <PersonsList
         key={`${ctx.project.id}:${cohort?.id ?? ''}:${sp.ids ?? ''}`}

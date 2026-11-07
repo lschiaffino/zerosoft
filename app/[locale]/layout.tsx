@@ -1,10 +1,14 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { IBM_Plex_Mono, Space_Grotesk } from 'next/font/google';
+import { notFound } from 'next/navigation';
+import { hasLocale } from 'next-intl';
 import { routing } from '@/i18n/routing';
+import { siteOrigin, siteVerification } from '@/lib/seo';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ChromeGate from '@/components/ChromeGate';
 import SupportWidget from '@/components/SupportWidget';
+import { WorkspaceNoticeOutsideApp } from '@/components/app/WorkspaceGuard';
 import FeedbackLauncher from '@/components/FeedbackLauncher';
 import { supportWidgetId } from '@/lib/support';
 import { surfaceForHost } from '@/lib/host-rewrite';
@@ -49,6 +53,8 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
     locale
   } = params;
 
+  if (!hasLocale(routing.locales, locale)) return {};
+
   const t = await getTranslations({ locale, namespace: 'common.meta' });
   return {
     title: {
@@ -56,7 +62,10 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
       template: '%s · zerosoft',
     },
     description: t('description'),
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+    // Sin NEXT_PUBLIC_SITE_URL, el dominio de producción: un canonical a localhost desindexaría el sitio.
+    metadataBase: new URL(siteOrigin()),
+    // Verificación de Search Console y Bing Webmaster Tools por meta tag (docs/seo.md).
+    verification: siteVerification(),
     // Título y descripción los completa Next con los de cada página; la que quiere otra imagen pone su openGraph.
     openGraph: {
       type: 'website',
@@ -80,6 +89,9 @@ export default async function LocaleLayout(
   const {
     locale
   } = params;
+
+  // /wp-login.php y cualquier otra raíz con punto llegan acá sin pasar por el middleware.
+  if (!hasLocale(routing.locales, locale)) notFound();
 
   const {
     children
@@ -110,6 +122,7 @@ export default async function LocaleLayout(
         <ThemeProvider initial={themePref}>
         {/* Al cliente va solo lo común (header, launcher de feedback); cada app
             y página pública suma sus namespaces en su layout. */}
+        <WorkspaceNoticeOutsideApp />
         <ClientMessages root locale={locale} namespaces={['common', 'feedback.form', 'feedbackBoard']}>
           <ChromeGate
             header={<Header locale={locale} />}

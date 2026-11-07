@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { signIn, signOut } from 'next-auth/react';
+import { clearOfflineData } from '@/lib/offline-queue';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import LocaleSwitcher from './LocaleSwitcher';
@@ -80,7 +81,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
   /** aria-current del link de la sección en la que estás. */
   // Desde la landing de un producto, Dashboard y el alta llevan a esa app.
   const landing = pathname.match(/^\/products\/([a-z]+)/)?.[1];
-  const appHref = landing && isProductKey(landing) ? PRODUCT_CONFIG[landing].launch : '/app';
+  const appHref = landing && isProductKey(landing) ? PRODUCT_CONFIG[landing].launch : '/app/start';
   const current = (href: string) => (pathname === href || pathname.startsWith(`${href}/`) ? ('page' as const) : undefined);
 
   /** Cuándo se abrió el menú por hover: un clic justo después no lo cierra. */
@@ -283,7 +284,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
           <ThemeSwitcher />
           <LocaleSwitcher locale={locale} />
           {user ? (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => signOut({ callbackUrl: '/' })}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void clearOfflineData().finally(() => signOut({ callbackUrl: '/' }))}>
               {labels.signOut}
             </button>
           ) : (

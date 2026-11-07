@@ -16,6 +16,7 @@
 .chat-details-section { padding-top: 0; padding-bottom: 0; }
 
 .chat-quiet { color: var(--brand-gray-2); }
+.chat-nowrap { white-space: nowrap; }
 .chat-ok { color: var(--ok-ink); }
 
 .chat-pane { display: flex; flex-direction: column; gap: 12px; min-width: 0; }

@@ -8,7 +8,7 @@ import { getObjectBySlug, getRecord, objectEntity, recordLinks } from '@/lib/crm
 import { listTimeline, parseCustom } from '@/lib/crm';
 import { fieldAccessFor, redactCustomJson, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { ownerOptions } from '@/lib/crm-owners';
-import { formatDate } from '@/lib/utils';
+import LocalDate from '@/components/ui/LocalDate';
 import { withActivityFiles } from '@/lib/crm-files';
 import PageHeader from '@/components/ui/PageHeader';
 import RecordTabs from '@/components/crm/RecordTabs';
@@ -55,7 +55,7 @@ export default async function ObjectRecordPage(props: {
         <span className="record-meta">
           <span className="badge">{object.singular}</span>
           <span>{ownerLabel}</span>
-          <span>{formatDate(record.created_at, locale)}</span>
+          <span><LocalDate value={record.created_at} locale={locale} kind="date" /></span>
         </span>
       }
       actions={

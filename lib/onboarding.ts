@@ -65,7 +65,7 @@ export function needsOnboarding(user: Pick<UserRow, 'onboarded_at'>): boolean {
   return !user.onboarded_at;
 }
 
-/** Nombre sugerido del equipo a partir del dominio del email ("ana@getdarwin.ai" → "Getdarwin"). */
+/** Nombre sugerido del equipo a partir del dominio del email ("ana@acme.io" → "Acme"). */
 export function suggestTeamName(email: string, fallback: string): string {
   const domain = email.split('@')[1] ?? '';
   const base = domain.split('.')[0] ?? '';
@@ -79,7 +79,7 @@ export function onboardingDestination(profile: OnboardingProfile, importNow: boo
   const tool = profile.sourceTool ? SOURCE_TOOLS[profile.sourceTool] : undefined;
   if (importNow && tool?.importHref) return tool.importHref;
   const app = profile.entryApp ?? tool?.app;
-  return app ? PRODUCT_CONFIG[app].launch : '/app';
+  return app ? PRODUCT_CONFIG[app].launch : '/app/start';
 }
 
 function cleanLocale(raw: unknown): 'en' | 'es' | 'pt' | null {
@@ -174,7 +174,7 @@ export async function saveOnboarding(user: Pick<UserRow, 'id' | 'name' | 'email'
   });
   if (input.sampleData) {
     const { seedUserIfNeeded } = await import('./seed');
-    await seedUserIfNeeded(user.id);
+    await seedUserIfNeeded(user.id, { groups: true });
   }
   return profile;
 }

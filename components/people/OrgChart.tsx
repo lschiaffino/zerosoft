@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
@@ -13,49 +13,96 @@ const H = 64;
 const GX = 24;
 const GY = 56;
 
+const GS = 12;
+const INDENT = 28;
+/** Desde estos reportes sin reportes propios, van en columna: un equipo grande no vuelve ilegible el resto. */
+const STACK_MIN = 3;
+
 interface Placed extends OrgNode {
   x: number;
   y: number;
+  /** En columna bajo su manager. */
+  stacked: boolean;
 }
 
-/** Árbol ordenado: hojas una al lado de la otra, cada manager centrado sobre sus reportes. */
+/**
+ * Árbol ordenado: cada manager centrado sobre sus reportes, y los equipos de hojas
+ * en columna para que el ancho no se dispare.
+ */
 export function layoutOrg(nodes: OrgNode[]): { placed: Placed[]; width: number; height: number } {
   const children = new Map<string | null, OrgNode[]>();
-  for (const n of nodes) {
-    const k = n.managerId;
-    children.set(k, [...(children.get(k) ?? []), n]);
-  }
+  for (const n of nodes) children.set(n.managerId, [...(children.get(n.managerId) ?? []), n]);
   for (const list of children.values()) list.sort((a, b) => a.name.localeCompare(b.name));
-  const placed: Placed[] = [];
-  let cursor = 0;
-  let depthMax = 0;
-  const seen = new Set<string>();
-  const place = (n: OrgNode, depth: number): number => {
-    seen.add(n.id);
-    depthMax = Math.max(depthMax, depth);
-    const kids = (children.get(n.id) ?? []).filter((k) => !seen.has(k.id));
-    let x: number;
-    if (!kids.length) {
-      x = cursor;
-      cursor += W + GX;
-    } else {
-      const xs = kids.map((k) => place(k, depth + 1));
-      x = (xs[0] + xs[xs.length - 1]) / 2;
-    }
-    placed.push({ ...n, x, y: depth * (H + GY) });
-    return x;
+  const seenSize = new Set<string>();
+  type Size = { w: number; h: number; stack: boolean; kids: OrgNode[] };
+  const sizes = new Map<string, Size>();
+  const size = (n: OrgNode): Size => {
+    const known = sizes.get(n.id);
+    if (known) return known;
+    seenSize.add(n.id);
+    // Un ciclo no debería existir: si aparece, se corta acá.
+    const kids = (children.get(n.id) ?? []).filter((k) => !seenSize.has(k.id));
+    const inner = kids.map(size);
+    let out: Size;
+    if (!kids.length) out = { w: W, h: H, stack: false, kids };
+    else if (kids.length >= STACK_MIN && inner.every((k) => !k.kids.length)) out = { w: W + INDENT, h: H + GS + kids.length * (H + GS) - GS, stack: true, kids };
+    else out = { w: Math.max(W, inner.reduce((t, k) => t + k.w, 0) + GX * (kids.length - 1)), h: H + GY + Math.max(...inner.map((k) => k.h)), stack: false, kids };
+    sizes.set(n.id, out);
+    return out;
   };
-  for (const root of children.get(null) ?? []) place(root, 0);
-  // Ciclos o huérfanos (no debería haber): al final, en una fila.
-  for (const n of nodes) if (!seen.has(n.id)) place(n, 0);
-  return { placed, width: Math.max(cursor - GX, W), height: (depthMax + 1) * (H + GY) - GY };
+  const placed: Placed[] = [];
+  const place = (n: OrgNode, x: number, y: number, stacked: boolean): number => {
+    const s = size(n);
+    if (s.stack) {
+      s.kids.forEach((k, i) => placed.push({ ...k, x: x + INDENT, y: y + H + GS + i * (H + GS), stacked: true }));
+      placed.push({ ...n, x, y, stacked });
+      return x;
+    }
+    if (!s.kids.length) {
+      placed.push({ ...n, x, y, stacked });
+      return x;
+    }
+    let cx = x;
+    const xs: number[] = [];
+    for (const k of s.kids) {
+      const ks = size(k);
+      const kx = place(k, cx, y + H + GY, false);
+      xs.push(kx);
+      cx += ks.w + GX;
+    }
+    const nx = (xs[0] + xs[xs.length - 1]) / 2;
+    placed.push({ ...n, x: nx, y, stacked });
+    return nx;
+  };
+  let cursor = 0;
+  let maxH = 0;
+  const roots = [...(children.get(null) ?? []), ...nodes.filter((n) => n.managerId && !nodes.some((m) => m.id === n.managerId))];
+  for (const r of roots) {
+    const s = size(r);
+    place(r, cursor, 0, false);
+    cursor += s.w + GX * 2;
+    maxH = Math.max(maxH, s.h);
+  }
+  return { placed, width: Math.max(cursor - GX * 2, W), height: maxH || H };
 }
 
-const clampZoom = (z: number) => Math.max(0.2, Math.min(2.5, Math.round(z * 100) / 100));
+/** La línea de un manager a su reporte. */
+function linePath(m: Placed, n: Placed): string {
+  if (n.stacked) return `M${m.x + 14} ${m.y + H} V${n.y + H / 2} H${n.x}`;
+  const midY = m.y + H + GY / 2;
+  return `M${m.x + W / 2} ${m.y + H} V${midY} H${n.x + W / 2} V${n.y}`;
+}
+
+const clampZoom = (z: number) => Math.max(0.1, Math.min(2.5, Math.round(z * 100) / 100));
 
 export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
   const t = useTranslations('people');
-  const { placed, width, height } = useMemo(() => layoutOrg(nodes), [nodes]);
+  // Sin manager ni reportes no es parte del árbol: van aparte, para que abra en lo que importa.
+  const { tree, loose } = useMemo(() => {
+    const hasReports = new Set(nodes.map((n) => n.managerId).filter(Boolean));
+    return { tree: nodes.filter((n) => n.managerId || hasReports.has(n.id)), loose: nodes.filter((n) => !n.managerId && !hasReports.has(n.id)) };
+  }, [nodes]);
+  const { placed, width, height } = useMemo(() => layoutOrg(tree), [tree]);
   const byId = useMemo(() => new Map(placed.map((p) => [p.id, p])), [placed]);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 24, y: 24 });
@@ -64,17 +111,21 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
   view.current = { z: zoom, p: pan };
   const box = useRef<HTMLDivElement>(null);
 
-  // Ajustar a la pantalla: todo el organigrama visible y centrado (así abre).
+  // "Ajustar": todo a la vista. Al abrir: legible, con la primera raíz centrada, y se recorre.
   const fit = useCallback((readable = false) => {
     const el = box.current;
     if (!el) return;
     const pad = 24;
-    const all = clampZoom(Math.min(1, (el.clientWidth - pad * 2) / width, (el.clientHeight - pad * 2) / height));
-    // Al abrir en un teléfono, nombres legibles aunque no entre todo: se recorre con el dedo.
-    const z = readable && el.clientWidth < 640 ? Math.max(all, 0.6) : all;
+    const phone = el.clientWidth < 640;
+    const all = clampZoom(phone ? Math.min(1, (el.clientWidth - pad * 2) / width) : Math.min(1, (el.clientWidth - pad * 2) / width, (el.clientHeight - pad * 2) / height));
+    const floor = phone ? 0.6 : 0.5;
+    const z = readable && all < floor ? (phone ? 0.6 : 0.7) : all;
     setZoom(z);
-    setPan({ x: Math.max(pad, (el.clientWidth - width * z) / 2), y: pad });
-  }, [width, height]);
+    const root = placed.find((p) => !p.managerId);
+    const fits = width * z <= el.clientWidth - pad * 2;
+    const x = fits ? (el.clientWidth - width * z) / 2 : Math.min(pad, el.clientWidth / 2 - ((root?.x ?? 0) + W / 2) * z);
+    setPan({ x, y: pad });
+  }, [width, height, placed]);
   useEffect(() => fit(true), [fit]);
 
   // Zoom alrededor de un punto del recuadro: lo que está ahí se queda ahí.
@@ -157,13 +208,7 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
     for (const n of placed) {
       const m = n.managerId ? byId.get(n.managerId) : null;
       if (!m) continue;
-      const midY = m.y + H + GY / 2;
-      ctx.beginPath();
-      ctx.moveTo(m.x + W / 2, m.y + H);
-      ctx.lineTo(m.x + W / 2, midY);
-      ctx.lineTo(n.x + W / 2, midY);
-      ctx.lineTo(n.x + W / 2, n.y);
-      ctx.stroke();
+      ctx.stroke(new Path2D(linePath(m, n)));
     }
     for (const n of placed) {
       ctx.fillStyle = '#ffffff';
@@ -189,7 +234,7 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
         title={t('nav.org')}
         description={t('org.desc')}
         actions={
-          nodes.length ? (
+          tree.length ? (
             <button type="button" className="btn btn-secondary" onClick={exportPng}>
               {t('org.export')}
             </button>
@@ -200,6 +245,8 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
         <EmptyState product="people" title={t('org.emptyTitle')} body={t('org.emptyBody')} />
       ) : (
         <>
+          {tree.length > 0 && (
+            <>
           <div className="ppl-org-tools" role="group" aria-label={t('org.zoom')}>
             <button type="button" className="btn btn-sm btn-secondary" onClick={() => zoomCenter(-0.1)} aria-label={t('org.zoomOut')}>
               −
@@ -228,6 +275,7 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
             ref={box}
             className="ppl-org"
             data-testid="people-org"
+            style={{ '--org-h': `${Math.round(height * zoom) + 48}px` } as CSSProperties}
             tabIndex={0}
             role="application"
             aria-label={t('org.canvas')}
@@ -253,8 +301,7 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
                 {placed.map((n) => {
                   const m = n.managerId ? byId.get(n.managerId) : null;
                   if (!m) return null;
-                  const midY = m.y + H + GY / 2;
-                  return <path key={n.id} d={`M${m.x + W / 2} ${m.y + H} V${midY} H${n.x + W / 2} V${n.y}`} />;
+                  return <path key={n.id} d={linePath(m, n)} />;
                 })}
               </svg>
               {placed.map((n) => (
@@ -276,6 +323,35 @@ export default function OrgChart({ nodes }: { nodes: OrgNode[] }) {
             </div>
           </div>
           <p className="ppl-hint">{t('org.help')}</p>
+            </>
+          )}
+          {tree.length === 0 && (
+            <p className="ppl-note" data-testid="people-org-flat">
+              <span>
+                {nodes.length === 1 ? t('org.alone') : t('org.flat')} <Link href="/app/people">{t('org.openDirectory')}</Link>
+              </span>
+            </p>
+          )}
+          {loose.length > 0 && (
+            <section className="ppl-org-loose" aria-labelledby="ppl-org-loose" data-testid="people-org-loose">
+              <h2 id="ppl-org-loose" className="ppl-subtitle">
+                {t('org.loose', { count: loose.length })}
+              </h2>
+              <ul className="ppl-org-loose-list">
+                {loose.map((n) => (
+                  <li key={n.id}>
+                    <Link href={`/app/people/${n.id}`} data-name={n.name}>
+                      <Avatar name={n.name} photo={n.photo} size={32} />
+                      <span className="ppl-rowtext">
+                        <span className="ppl-rowtitle ppl-ellipsis">{n.name}</span>
+                        {(n.jobTitle || n.department) && <span className="ppl-rowmeta ppl-ellipsis">{n.jobTitle || n.department}</span>}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </>
       )}
     </div>

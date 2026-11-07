@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import type { EmployeeSummary } from '@/lib/people';
 import { HOLIDAY_COUNTRIES } from '@/lib/people-time';
-import { api, Avatar, Dialog, Field, useErrorText } from './people-ui';
+import CsvImportDialog from '@/components/ui/CsvImportDialog';
+import { api, Avatar, Dialog, Field, useErrorText, useToast, useCountry } from './people-ui';
 
 const TYPES = ['full_time', 'part_time', 'contractor', 'intern'] as const;
 
@@ -18,14 +19,19 @@ export interface DirectoryProps {
   templates: Array<{ id: string; name: string }>;
   filters: { q: string; department: string; location: string; type: string; status: string };
   openNew: boolean;
+  /** Pendientes y cumpleaños (solo sin filtros). */
+  home?: ReactNode;
 }
 
-export default function Directory({ employees, facets, hr, templates, filters, openNew }: DirectoryProps) {
+export default function Directory({ employees, facets, hr, templates, filters, openNew, home }: DirectoryProps) {
   const t = useTranslations('people');
+  const countryName = useCountry();
   const router = useRouter();
   const errText = useErrorText();
   const [q, setQ] = useState(filters.q);
   const [adding, setAdding] = useState(openNew && hr);
+  const [importing, setImporting] = useState(false);
+  const [toast, push] = useToast();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const filtered = Boolean(filters.q || filters.department || filters.location || filters.type || filters.status);
@@ -61,12 +67,45 @@ export default function Directory({ employees, facets, hr, templates, filters, o
         description={t('directory.desc', { count: employees.length })}
         actions={
           hr ? (
-            <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
-              {t('directory.add')}
-            </button>
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => setImporting(true)}>
+                {t('import.button')}
+              </button>
+              <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
+                {t('directory.add')}
+              </button>
+            </>
           ) : undefined
         }
       />
+      {toast}
+      {home}
+      {hr && (
+        <CsvImportDialog
+          open={importing}
+          onClose={() => setImporting(false)}
+          url="/api/people/import"
+          Dialog={Dialog}
+          onDone={(r) => {
+            push(t('import.done', { created: Number(r.created ?? 0), updated: Number(r.updated ?? 0) }));
+            router.refresh();
+          }}
+          strings={{
+            title: t('import.title'),
+            help: t('import.help'),
+            file: t('import.file'),
+            preview: t('import.preview'),
+            cancel: t('common.cancel'),
+            confirm: t('import.confirm'),
+            back: t('import.back'),
+            empty: t('import.empty'),
+            summary: (d) => t('import.summary', { creates: d.creates ?? 0, updates: d.updates ?? 0 }),
+            failedTitle: t('import.failed'),
+            line: (n, code) => t('import.line', { n, error: errText(code) }),
+            errorText: errText,
+          }}
+        />
+      )}
       <div className="ppl-toolbar">
         <form
           role="search"
@@ -150,8 +189,8 @@ export default function Directory({ employees, facets, hr, templates, filters, o
                       {e.status !== 'active' && <span className={`badge ${e.status === 'terminated' ? 'badge-outline' : 'badge-warn'}`}>{t(`status.${e.status}`)}</span>}
                     </Link>
                   </th>
-                  <td className="ppl-hide-sm">{e.department}</td>
-                  <td className="ppl-hide-sm">{e.location ?? ''}</td>
+                  <td className="ppl-hide-sm ppl-nowrap">{e.department}</td>
+                  <td className="ppl-hide-sm ppl-nowrap">{e.location ?? ''}</td>
                   <td className="ppl-hide-sm ppl-ellipsis">{e.workEmail}</td>
                 </tr>
               ))}
@@ -211,7 +250,7 @@ export default function Directory({ employees, facets, hr, templates, filters, o
                   <option value="">{t('profile.noCountry')}</option>
                   {HOLIDAY_COUNTRIES.map((c) => (
                     <option key={c} value={c}>
-                      {t(`countries.${c}`)}
+                      {countryName(c)}
                     </option>
                   ))}
                 </select>

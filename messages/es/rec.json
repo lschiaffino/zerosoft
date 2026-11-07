@@ -302,6 +302,8 @@
     "deleteBody": "Se borran el video, sus comentarios y sus vistas, y el link deja de andar.",
     "moveTitle": "Mover video",
     "moveHelp": "Los videos del workspace los ve todo el workspace.",
+    "moveNeedsPrivacy": "Este video está en \"Solo personas puntuales\", que solo funciona en Mis videos. Cambiá quién puede verlo en Compartir y después movelo.",
+    "moveBecomesPeople": "En Mis videos este video pasa a \"Solo personas puntuales\": el resto del workspace deja de verlo.",
     "move": "Mover",
     "branchEmpty": "Todavía no hay carpetas",
     "upload": "Subir un video",

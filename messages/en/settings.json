@@ -76,7 +76,9 @@
     "noteMember": "You only see your keys. Owners and admins see the whole workspace's.",
     "noteAdmin": "You see the keys of the whole workspace.",
     "error": "The key could not be created. Try again.",
-    "revokeError": "The key could not be revoked."
+    "revokeError": "The key could not be revoked.",
+    "mcpAccess": "MCP access",
+    "mcpAccessHelp": "Lets this key use the MCP endpoint, within the permissions above. Without it, the key only works with the REST API."
   },
   "webhooks": {
     "title": "Webhooks",
@@ -394,7 +396,8 @@
       "google": "Google Calendar in Cal › Connections",
       "gmail": "Gmail in CRM › Integrations",
       "whatsapp": "WhatsApp numbers in Groups › Numbers",
-      "github": "GitHub in Track › GitHub"
+      "github": "GitHub in Track › GitHub",
+      "apps": "Claude and other connected apps"
     },
     "import": {
       "title": "Import",
@@ -462,15 +465,15 @@
       "guest": "Guest"
     },
     "roleHelp": {
-      "member": "Uses the apps you allow, with the same data as the rest of the team.",
+      "member": "Uses the apps you allow. What they see in each one depends on how it’s shared.",
       "admin": "Like a member, and can also invite people, change roles and edit settings.",
-      "guest": "Does not enter the workspace: only sees what you share with them, page by page."
+      "guest": "Does not enter the workspace: only sees what you share with them, such as a Docs page."
     },
     "apps": "Apps",
     "allApps": "All apps",
     "noApps": "No apps",
     "noAppsHelp": "Without apps the person only sees what is shared with them.",
-    "guestAccess": "Only what is shared",
+    "guestAccess": "Shared only",
     "teams": "Teams",
     "send": "Send invitations",
     "invalidEmails": "These are not valid emails: {list}",
@@ -539,7 +542,9 @@
       "invalid_emails": "None of those are valid emails.",
       "owner_cant_leave": "The owner can't leave the workspace.",
       "cant_change_own_role": "You can't change your own role.",
-      "not_found": "That person or invitation no longer exists. Reload the page."
+      "not_found": "That person or invitation no longer exists. Reload the page.",
+      "wrong_workspace": "You switched workspace in another tab. Reload and try again.",
+      "apps_not_yours": "You can only give access to apps you have yourself."
     },
     "approve": "Approve",
     "allowAnyEmail": "Allow another email",
@@ -553,7 +558,40 @@
       "body": "The link stops working right away. You can invite this person again later.",
       "confirm": "Revoke",
       "cancel": "Cancel"
-    }
+    },
+    "rolesLegend": "What each role can do",
+    "rolesLegendApps": "Inside each app some actions are for admins only, like deleting pipelines or changing the app’s settings. If you need one, ask an admin.",
+    "guestOf": {
+      "title": "Workspaces where you are a guest",
+      "desc": "A guest doesn’t enter the workspace. You open what people share with you from its link, your notifications or Docs.",
+      "leave": "Stop being a guest",
+      "openDocs": "Open Docs",
+      "error": "That didn’t work. Try again.",
+      "confirmTitle": "Stop being a guest of {workspace}?",
+      "confirmBody": "You lose what they shared with you person to person. To come back, someone has to invite you again."
+    },
+    "roleLegend": {
+      "owner": "Uses every app and sees salaries in People. The only one who can name, change or remove admins and name HR admins. Can’t leave the workspace.",
+      "admin": "Uses the apps turned on for them. Also invites people, changes the role and apps of members and guests, and edits workspace settings. Sees salaries only if the owner names them HR admin.",
+      "member": "Uses the apps turned on for them. What they see in each one depends on how it’s shared.",
+      "guest": "Doesn’t enter the workspace. Only sees what people share with them, such as a Docs page."
+    },
+    "requestWorkspace": {
+      "body": "This request is from {workspace}, which isn’t your active workspace. Their access opens there.",
+      "switch": "Switch to {workspace}",
+      "error": "Couldn’t switch. Try again.",
+      "notPart": "This request is from a workspace you're not part of.",
+      "removed": "This person is no longer in {workspace}, so there's nothing to answer.",
+      "adminOnly": "Only the owner can change an admin's access, and the owner's own access can't be changed.",
+      "adminsOnly": "Only the owner and admins of {workspace} can open someone's access."
+    },
+    "requested": "(requested)",
+    "appsLimitHelp": "You can only turn on apps you have.",
+    "denyRequest": "Deny request",
+    "requestLine": "{name} asked for {apps}.",
+    "rolesLegendAppsAdmin": "Inside each app some actions are for admins only, like deleting pipelines or changing the app's settings.",
+    "appsLimitAllHelp": "This person has every app. You can narrow it to the apps you have.",
+    "requestedMarker": "Requested {apps}"
   },
   "teamsForm": {
     "createTitle": "Create a team",
@@ -610,7 +648,7 @@
     "detailsDesc": "The name and logo everyone sees in the sidebar and in invitations.",
     "name": "Name",
     "slug": "Identifier",
-    "slugPlaceholder": "darwin-ai",
+    "slugPlaceholder": "acme",
     "slugHelp": "Lowercase letters, numbers and hyphens. Unique across zerosoft.",
     "size": "Team size",
     "sizeUnset": "Not set",
@@ -657,10 +695,20 @@
       "file_too_large": "The image is over 2 MB.",
       "storage_unavailable": "File storage is not set up here.",
       "forbidden": "Only the owner and admins can change this.",
-      "domain_not_yours": "You can only allow the domain of your own email."
+      "domain_not_yours": "You can only allow the domain of your own email.",
+      "apps_not_yours": "You can only give access to apps you have yourself."
     },
     "joinApproval": "An admin approves each person before they join",
-    "joinRole": "They join as members with these apps:"
+    "joinRole": "They join as members with these apps:",
+    "dangerTitle": "Ownership and closing",
+    "dangerDesc": "What isn’t in the product yet, and what to do meanwhile.",
+    "transferTitle": "Transfer ownership",
+    "transferBody": "You can’t transfer ownership from the app yet. Meanwhile, make the next person an admin in Settings › Members: admins invite, change roles and edit these settings.",
+    "closeTitle": "Close the workspace",
+    "closeBody": "Closing a workspace isn’t available in the product yet. To ask for it, write to hola@zerosoft.ai from {email} and we’ll reply by hand.",
+    "leaveTitle": "Leave {workspace}",
+    "leaveBody": "You lose access to its apps right away. What you created stays in the workspace.",
+    "leaveCta": "Leave in Members"
   },
   "switcher": {
     "label": "Workspace: {name}. Switch workspace",
@@ -683,20 +731,36 @@
     "createSubmit": "Create and invite",
     "cancel": "Cancel",
     "teamName": "Team name",
-    "teamNamePlaceholder": "Darwin AI",
+    "teamNamePlaceholder": "Acme",
     "createHelp": "Your workspace becomes a team workspace with this name. Your data stays where it is. Next you invite people."
   },
   "access": {
     "title": "You don't have access to {app} here",
     "body": "An admin of {workspace} can turn {app} on for you in Settings › Members.",
-    "back": "Back to apps"
+    "back": "Back to apps",
+    "request": "Ask for access",
+    "sending": "Sending…",
+    "sent": "Request sent. We'll tell you when it's answered.",
+    "error": "Couldn’t send the request. Try again.",
+    "already": "You already asked today. We'll tell you when it's answered.",
+    "hasAccess": "You already have this app. Open it from your apps.",
+    "limited": "Too many requests in the last hour. Wait a while and ask again.",
+    "bodyAdmin": "The owner of {workspace} can turn {app} on for you in Settings › Members.",
+    "guardTitle": "This change wasn't saved",
+    "guardSwitched": "This tab is on {workspace}, and your active workspace changed in another tab. Nothing was saved.",
+    "guardGone": "You no longer have access to {workspace}. Nothing was saved. Copy anything you typed before you leave this page.",
+    "guardSwitchBack": "Switch back to {workspace}",
+    "guardStay": "Go to my active workspace",
+    "guardHome": "Go to Home",
+    "guardSwitchError": "Couldn't switch back. Try again.",
+    "guardClose": "Dismiss"
   },
   "invite": {
     "metaTitle": "Invitation",
     "title": "Join {workspace}",
     "sub": "{inviter} invited you to zerosoft.",
     "roleLine": {
-      "member": "You'll use the same apps and data as the rest of the team.",
+      "member": "You’ll use the workspace’s apps. What you see in each one depends on how it’s shared.",
       "admin": "You'll join as an admin: you can invite people and change settings.",
       "guest": "You'll join as a guest: you only see what they share with you."
     },
@@ -709,7 +773,7 @@
     "useAccount": "Sign in with {email}: with Google or with a code by email.",
     "expires": "The link expires on {date}.",
     "invalidTitle": "This invitation no longer works",
-    "invalidDesc": "It was already used or revoked. Ask whoever invited you for a new one.",
+    "invalidDesc": "It was already used or revoked. If you accepted it, sign in with that account. If not, ask whoever invited you for a new one.",
     "expiredTitle": "This invitation expired",
     "expiredDesc": "Invitations last 14 days. Ask whoever invited you to resend it.",
     "alreadyTitle": "You're already in {workspace}",
@@ -771,7 +835,7 @@
       "title": "Your team",
       "sub": "This is the workspace your team will share.",
       "name": "Team name",
-      "namePlaceholder": "Darwin AI",
+      "namePlaceholder": "Acme",
       "size": "How many people?",
       "sizes": {
         "1": "Just me",
@@ -809,8 +873,10 @@
     "invited": {
       "title": "Welcome to {workspace}",
       "titleNoName": "Welcome to zerosoft",
-      "sub": "Two details and you are in.",
-      "go": "Go to {workspace}"
+      "sub": "Check these details and you're in.",
+      "go": "Go to {workspace}",
+      "guestSub": "You joined {workspace} as a guest: you open what people share with you from its link or from your notifications. Your own workspace is where you land.",
+      "guestTitle": "You’re a guest of {workspace}"
     },
     "results": {
       "title": "Almost there",
@@ -824,7 +890,12 @@
       },
       "invalid": "These are not valid emails: {list}",
       "limited": "You reached the invitation limit for now. Invite the rest later from Settings › Members."
-    }
+    },
+    "notYou": "Not you? Sign out",
+    "stepFirst": "Step 1",
+    "notYouJoined": "You already joined {workspace} with {email}. Signing out doesn't undo that. To remove this account from {workspace}, leave it now; to come back with another account you'll need a new invitation.",
+    "notYouLeave": "Leave {workspace} and sign out",
+    "notYouStay": "Only sign out"
   },
   "profileForm": {
     "title": "Your details",
@@ -1041,5 +1112,75 @@
       "notMovedNote": "{count, plural, one {# page imported before stayed where it was} other {# pages imported before stayed where they were}}: importing again does not move them to the new destination. Move them from Docs if you want."
     },
     "adminOnlySource": "Only workspace admins can import from {source} into {app}. Ask an admin."
+  },
+  "oauth": {
+    "metaTitle": "Connect an app",
+    "deviceMetaTitle": "Connect a device",
+    "title": "{client} wants to use your zerosoft account",
+    "redirectsTo": "Returns to {host}",
+    "deviceOrigin": "Started from a terminal, with a device code",
+    "asPerson": "It will act as {email}, with your role and permissions.",
+    "workspace": "Workspace",
+    "personalWorkspace": "Personal",
+    "access": "Access",
+    "scopeWrite": "Read and write",
+    "scopeWriteHelp": "Read, create, change and delete in the apps you can use.",
+    "scopeRead": "Read only",
+    "scopeReadHelp": "Read what you can see. It cannot change anything.",
+    "noteSame": "It can only do what you can do in zerosoft. Your role, app access and sharing still apply.",
+    "noteOut": "It cannot sign in for you, create API keys, delete your account or change billing.",
+    "noteRevoke": "You can disconnect it at any time in Settings, API and webhooks.",
+    "approve": "Allow access",
+    "deny": "Cancel",
+    "working": "Working...",
+    "expiredTitle": "This request is no longer valid",
+    "expiredBody": "It expired or was already answered. Start the connection again from your app.",
+    "errorExpired": "This request expired. Start the connection again from your app.",
+    "errorGeneric": "Something failed. Try again.",
+    "errorCode": "That code is not valid or it expired.",
+    "errorTooMany": "Too many attempts. Wait a minute and try again.",
+    "deviceTitle": "Connect a device",
+    "deviceBody": "Enter the code your terminal is showing.",
+    "deviceCode": "Code",
+    "deviceContinue": "Continue",
+    "deviceDoneTitle": "Device connected",
+    "deviceDoneBody": "You can close this page and go back to your terminal.",
+    "deviceDeniedTitle": "Connection cancelled",
+    "deviceDeniedBody": "Nothing was connected. You can close this page.",
+    "redirectsLocal": "Returns to an app on this computer",
+    "selfDeclared": "\"{client}\" is the name this app gave itself. zerosoft has not verified it, even if it looks like a brand you know.",
+    "deviceWarningTitle": "Only approve this if you started it yourself",
+    "deviceWarningBody": "Someone who sends you a link or a code can get into your account this way. If you did not just run this in your terminal, cancel.",
+    "deviceConfirm": "Check that this is the code your terminal is showing. If it is not, close this page.",
+    "invalidTitle": "This connection request is not valid",
+    "invalidBody": "Nothing was connected. Start again from the app, or tell whoever makes it.",
+    "invalidCode": "Reason: {code}",
+    "noteKeeps": "Disconnecting stops this app. What it created stays, and automations it turned on keep running until you turn them off."
+  },
+  "connected": {
+    "title": "Connected apps",
+    "desc": "Apps you signed in to with your zerosoft account, such as Claude or the zerosoft CLI. Each one acts as you.",
+    "note": "You see only your own connections. Disconnecting one stops it at once.",
+    "emptyTitle": "No connected apps",
+    "emptyBody": "When you connect Claude or the CLI, it will show up here.",
+    "colClient": "App",
+    "colWorkspace": "Workspace",
+    "colAccess": "Access",
+    "colLastUsed": "Last used",
+    "colActions": "Actions",
+    "ownWorkspace": "Your workspace",
+    "accessWrite": "Read and write",
+    "accessRead": "Read only",
+    "never": "Never",
+    "revoke": "Disconnect",
+    "cancel": "Cancel",
+    "confirmTitle": "Disconnect {client}?",
+    "confirmBody": "It loses access right away. To use it again you will need to sign in again.",
+    "error": "Could not disconnect it. Try again.",
+    "connectedOn": "Connected {date}",
+    "changes": "{count, plural, =0 {No changes} one {# change} other {# changes}}",
+    "originLocal": "App on a computer",
+    "originDevice": "Signed in with a device code",
+    "emptyAction": "How to connect"
   }
 }

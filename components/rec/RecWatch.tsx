@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState, type CSSProperties } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { brandOnColor, fmtClock, type RecChapter, type RecOverlay, type RecSegment } from '@/lib/rec-schema';
+import { brandOnColor, fmtClock, type RecChapter, type RecOverlay, type RecSegment, type RecCaptionStyle } from '@/lib/rec-schema';
 import type { RecBrand } from '@/lib/rec-admin';
 import { parseDbUtc } from '@/lib/utils';
 import RecPlayer, { type RecMarker, type RecPlayerHandle } from './RecPlayer';
@@ -29,6 +29,8 @@ export interface RecWatchVideo {
   ctaMode: 'always' | 'end';
   hasThumb: boolean;
   overlays: RecOverlay[];
+  captionStyle?: RecCaptionStyle;
+  captionLangs?: string[];
 }
 
 /** Variables de la marca para la página compartida (el color ya viene validado). */

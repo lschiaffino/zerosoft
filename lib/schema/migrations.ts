@@ -10,6 +10,7 @@ import { peopleUp } from './people-migration';
 import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
+import { sendUp } from './send-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -7996,9 +7997,619 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Robots: quién se hizo cargo de un robot con login y quién eligió el sitio de un login. Tabla nueva, sin tocar datos.
+    id: '161_robot_audit',
+    up: async (client) => {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS robot_audit (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          robot_id TEXT NOT NULL,
+          actor_id TEXT NOT NULL,
+          action TEXT NOT NULL,
+          detail TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL
+        )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_robot_audit_robot ON robot_audit (robot_id, created_at)');
+    },
+  },
+  {
+    // MCP unificado y su login OAuth (lib/oauth): clientes, pedidos, conexiones, tokens (solo hash) y auditoría.
+    id: '162_mcp_oauth',
+    async up(client) {
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS oauth_clients (
+          client_id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          client_uri TEXT,
+          redirect_uris TEXT NOT NULL DEFAULT '[]',
+          grant_types TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS oauth_auth_requests (
+          id TEXT PRIMARY KEY,
+          client_id TEXT NOT NULL,
+          redirect_uri TEXT NOT NULL,
+          scope TEXT NOT NULL,
+          state TEXT,
+          code_challenge TEXT NOT NULL,
+          resource TEXT NOT NULL,
+          code_hash TEXT,
+          grant_id TEXT,
+          consumed_at TEXT,
+          expires_at TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_oauth_auth_requests_code ON oauth_auth_requests (code_hash);
+        CREATE TABLE IF NOT EXISTS oauth_device_codes (
+          id TEXT PRIMARY KEY,
+          device_hash TEXT NOT NULL UNIQUE,
+          user_code TEXT NOT NULL UNIQUE,
+          client_id TEXT NOT NULL,
+          scope TEXT NOT NULL,
+          resource TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          grant_id TEXT,
+          last_poll_at TEXT,
+          expires_at TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS oauth_grants (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          client_id TEXT NOT NULL,
+          team_id TEXT,
+          scope TEXT NOT NULL,
+          resource TEXT NOT NULL,
+          via TEXT NOT NULL DEFAULT 'code',
+          redirect_uri TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          last_used_at TEXT,
+          revoked_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_oauth_grants_user ON oauth_grants (user_id, revoked_at);
+        CREATE TABLE IF NOT EXISTS oauth_tokens (
+          token_hash TEXT PRIMARY KEY,
+          grant_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('access', 'refresh')),
+          expires_at TEXT NOT NULL,
+          used_at TEXT,
+          replays INTEGER NOT NULL DEFAULT 0,
+          scope TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_oauth_tokens_grant ON oauth_tokens (grant_id);
+        CREATE TABLE IF NOT EXISTS mcp_audit_log (
+          id TEXT PRIMARY KEY,
+          at TEXT NOT NULL DEFAULT (datetime('now')),
+          user_id TEXT NOT NULL,
+          workspace_id TEXT,
+          client_id TEXT,
+          client_name TEXT,
+          grant_id TEXT,
+          api_key_id TEXT,
+          operation TEXT NOT NULL,
+          access TEXT NOT NULL,
+          status INTEGER NOT NULL,
+          duration_ms INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_mcp_audit_user ON mcp_audit_log (user_id, at);
+      `);
+      // Una base que ya tenía estas tablas (CREATE IF NOT EXISTS no las toca) queda igual que una nueva.
+      await addColumn(client, `ALTER TABLE oauth_grants ADD COLUMN via TEXT NOT NULL DEFAULT 'code'`);
+      await addColumn(client, 'ALTER TABLE oauth_grants ADD COLUMN redirect_uri TEXT');
+      await addColumn(client, 'ALTER TABLE oauth_tokens ADD COLUMN scope TEXT');
+      await addColumn(client, 'ALTER TABLE oauth_tokens ADD COLUMN replays INTEGER NOT NULL DEFAULT 0');
+    },
+  },
+  {
+    // Pedidos de acceso a una app: pendientes hasta que alguien responde. Tabla nueva, sin tocar datos.
+    id: '163_workspace_access_requests',
+    up: async (client) => {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS workspace_access_requests (
+          team_id TEXT NOT NULL,
+          person_id TEXT NOT NULL,
+          app TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          requested_at TEXT NOT NULL,
+          resolved_at TEXT,
+          resolved_by TEXT,
+          PRIMARY KEY (team_id, person_id, app)
+        )`);
+    },
+  },
+  {
+    // People: la cuenta enlazada a una ficha que el owner o un HR admin confirmó. Columna nueva, vacía.
+    id: '164_people_linked_confirmed',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE people_employees ADD COLUMN linked_confirmed TEXT');
+    },
+  },
+  {
+    id: '180_analytics_parity',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN test_filters TEXT NOT NULL DEFAULT \'[]\'');
+      await addColumn(client, 'ALTER TABLE analytics_flags ADD COLUMN groups TEXT NOT NULL DEFAULT \'[]\'');
+      await addColumn(client, 'ALTER TABLE analytics_flags ADD COLUMN payloads TEXT NOT NULL DEFAULT \'{}\'');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS analytics_annotations (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          day TEXT NOT NULL,
+          content TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_annotations_project ON analytics_annotations(project_id, day);
+        CREATE TABLE IF NOT EXISTS analytics_actions (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          steps TEXT NOT NULL DEFAULT '[]',
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_actions_project ON analytics_actions(project_id, updated_at);
+        CREATE TABLE IF NOT EXISTS analytics_shares (
+          id TEXT PRIMARY KEY,
+          token TEXT NOT NULL UNIQUE,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          insight_id TEXT REFERENCES analytics_insights(id) ON DELETE CASCADE,
+          dashboard_id TEXT REFERENCES analytics_dashboards(id) ON DELETE CASCADE,
+          created_by TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_shares_project ON analytics_shares(project_id);
+        CREATE TABLE IF NOT EXISTS analytics_alerts (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          insight_id TEXT NOT NULL REFERENCES analytics_insights(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          series_index INTEGER NOT NULL DEFAULT 0,
+          condition TEXT NOT NULL,
+          threshold REAL NOT NULL,
+          frequency TEXT NOT NULL DEFAULT 'daily',
+          enabled INTEGER NOT NULL DEFAULT 1,
+          subscribers TEXT NOT NULL DEFAULT '[]',
+          state TEXT NOT NULL DEFAULT 'ok',
+          last_value REAL,
+          next_check_at INTEGER NOT NULL DEFAULT 0,
+          claimed_at INTEGER,
+          last_checked_at INTEGER,
+          last_fired_at INTEGER,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_alerts_due ON analytics_alerts(enabled, next_check_at);
+        CREATE INDEX IF NOT EXISTS idx_analytics_alerts_project ON analytics_alerts(project_id, updated_at);
+        CREATE TABLE IF NOT EXISTS analytics_experiments (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          flag_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          hypothesis TEXT NOT NULL DEFAULT '',
+          metrics TEXT NOT NULL DEFAULT '[]',
+          status TEXT NOT NULL DEFAULT 'draft',
+          started_at INTEGER,
+          ended_at INTEGER,
+          conclusion TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_experiments_project ON analytics_experiments(project_id, updated_at);
+        CREATE TABLE IF NOT EXISTS analytics_cohort_members (
+          cohort_id TEXT NOT NULL REFERENCES analytics_cohorts(id) ON DELETE CASCADE,
+          project_id TEXT NOT NULL,
+          person_key TEXT NOT NULL,
+          PRIMARY KEY (cohort_id, person_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_cohort_members_project ON analytics_cohort_members(project_id);
+        CREATE TABLE IF NOT EXISTS analytics_event_defs (
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          event TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          verified INTEGER NOT NULL DEFAULT 0,
+          hidden INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (project_id, event)
+        );
+      `);
+    },
+  },
+  {
+    // Analytics: session replay y heatmaps. Todo apagado por defecto: un proyecto existente no cambia hasta que un admin lo prende.
+    id: '181_analytics_replay',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_enabled INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_sample_rate INTEGER NOT NULL DEFAULT 100');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_mask_text INTEGER NOT NULL DEFAULT 1');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN heatmaps_enabled INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN replay_purged_at INTEGER');
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS analytics_replay_recordings (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+          session_id TEXT NOT NULL,
+          window_id TEXT NOT NULL DEFAULT '',
+          distinct_id TEXT NOT NULL,
+          start_ts INTEGER NOT NULL,
+          end_ts INTEGER NOT NULL,
+          clock_skew_ms INTEGER NOT NULL DEFAULT 0,
+          clicks INTEGER NOT NULL DEFAULT 0,
+          active_seconds INTEGER NOT NULL DEFAULT 0,
+          first_url TEXT,
+          pages TEXT NOT NULL DEFAULT '[]',
+          has_snapshot INTEGER NOT NULL DEFAULT 0,
+          chunks INTEGER NOT NULL DEFAULT 0,
+          bytes INTEGER NOT NULL DEFAULT 0,
+          raw_bytes INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_analytics_replay_key ON analytics_replay_recordings(project_id, session_id, window_id);
+        CREATE INDEX IF NOT EXISTS idx_analytics_replay_start ON analytics_replay_recordings(project_id, start_ts);
+        CREATE INDEX IF NOT EXISTS idx_analytics_replay_distinct ON analytics_replay_recordings(project_id, distinct_id);
+        CREATE TABLE IF NOT EXISTS analytics_replay_chunks (
+          recording_id TEXT NOT NULL,
+          project_id TEXT NOT NULL,
+          session_id TEXT NOT NULL,
+          seq INTEGER NOT NULL,
+          bytes INTEGER NOT NULL,
+          raw_bytes INTEGER NOT NULL,
+          data BLOB NOT NULL,
+          created_at INTEGER NOT NULL,
+          PRIMARY KEY (recording_id, seq)
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_replay_chunks_project ON analytics_replay_chunks(project_id);
+        CREATE TABLE IF NOT EXISTS analytics_replay_daily (
+          project_id TEXT NOT NULL,
+          day TEXT NOT NULL,
+          sessions INTEGER NOT NULL DEFAULT 0,
+          bytes INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (project_id, day)
+        );
+      `);
+    },
+  },
+  {
+    id: '182_analytics_more',
+    up: async (client) => {
+      // Encuestas, estado de los errores agrupados y dos ajustes del proyecto (apagados por defecto).
+      await client.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS analytics_surveys (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'draft',
+          presentation TEXT NOT NULL DEFAULT 'popover',
+          questions TEXT NOT NULL DEFAULT '[]',
+          appearance TEXT NOT NULL DEFAULT '{}',
+          targeting TEXT NOT NULL DEFAULT '{}',
+          start_at INTEGER,
+          end_at INTEGER,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_surveys_project ON analytics_surveys(project_id, updated_at);
+        CREATE INDEX IF NOT EXISTS idx_analytics_surveys_running ON analytics_surveys(project_id, status);
+
+        CREATE TABLE IF NOT EXISTS analytics_error_issues (
+          project_id TEXT NOT NULL,
+          fingerprint TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'open',
+          assignee_id TEXT,
+          resolved_at INTEGER,
+          regressed_at INTEGER,
+          checked_at INTEGER,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (project_id, fingerprint)
+        );
+        CREATE INDEX IF NOT EXISTS idx_analytics_error_issues_status ON analytics_error_issues(status, checked_at);
+      `);
+      for (const column of ['capture_exceptions', 'web_vitals']) {
+        await client.execute(`ALTER TABLE analytics_projects ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`).catch((err: unknown) => {
+          if (!/duplicate column/i.test(String(err))) throw err;
+        });
+      }
+    },
+  },
+  {
+    id: '183_analytics_time_zone',
+    up: async (client) => {
+      // Sin zona se sigue usando el desfase fijo de siempre: un proyecto existente no cambia hasta que elige una.
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN tz_name TEXT');
+    },
+  },
+  {
+    id: '184_analytics_bots',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN keep_bots INTEGER NOT NULL DEFAULT 0');
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN bots_filtered INTEGER NOT NULL DEFAULT 0');
+    },
+  },
+  {
+    // Puestos confidenciales (Hiring): fuera de la página de empleos y solo para el equipo y los admins.
+    id: '185_hiring_confidential',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE hiring_jobs ADD COLUMN confidential INTEGER NOT NULL DEFAULT 0');
+    },
+  },
+  {
+    // Hiring: cadenas de aprobación de puestos y ofertas, y guía de entrevista por etapa. Todo apagado hasta que un admin elija aprobadores.
+    id: '186_hiring_approvals',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS hiring_approvals (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          subject_type TEXT NOT NULL,
+          subject_id TEXT NOT NULL,
+          position INTEGER NOT NULL,
+          user_id TEXT NOT NULL,
+          requested_by TEXT,
+          status TEXT NOT NULL DEFAULT 'pending',
+          note TEXT NOT NULL DEFAULT '',
+          decided_at TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_hiring_approvals_subject ON hiring_approvals(workspace_id, subject_type, subject_id, position);
+        CREATE INDEX IF NOT EXISTS idx_hiring_approvals_user ON hiring_approvals(workspace_id, user_id, status);
+      `);
+      await addColumn(c, "ALTER TABLE hiring_settings ADD COLUMN job_approvers TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE hiring_settings ADD COLUMN offer_approvers TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE hiring_jobs ADD COLUMN approval_status TEXT NOT NULL DEFAULT 'none'");
+      await addColumn(c, "ALTER TABLE hiring_stages ADD COLUMN kit TEXT NOT NULL DEFAULT '[]'");
+    },
+  },
+  {
+    // People: historial de puesto, aprobación de cambios (apagada por defecto), encuestas, reportes guardados, niveles de antigüedad y alcance por política.
+    id: '187_people_parity',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS people_job_history (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          employee_id TEXT NOT NULL REFERENCES people_employees(id) ON DELETE CASCADE,
+          field TEXT NOT NULL,
+          old_value TEXT NOT NULL DEFAULT '',
+          new_value TEXT NOT NULL DEFAULT '',
+          effective_date TEXT NOT NULL,
+          actor_id TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_people_job_history ON people_job_history(workspace_id, employee_id, created_at);
+        CREATE TABLE IF NOT EXISTS people_change_requests (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          employee_id TEXT NOT NULL REFERENCES people_employees(id) ON DELETE CASCADE,
+          requested_by TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          note TEXT NOT NULL DEFAULT '',
+          decided_by TEXT,
+          decided_at TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_people_change_requests ON people_change_requests(workspace_id, status, employee_id);
+        CREATE TABLE IF NOT EXISTS people_surveys (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          question TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'open',
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          closed_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_people_surveys ON people_surveys(workspace_id, created_at);
+        CREATE TABLE IF NOT EXISTS people_survey_participants (
+          survey_id TEXT NOT NULL REFERENCES people_surveys(id) ON DELETE CASCADE,
+          employee_id TEXT NOT NULL,
+          PRIMARY KEY (survey_id, employee_id)
+        ) WITHOUT ROWID;
+        CREATE TABLE IF NOT EXISTS people_survey_responses (
+          id TEXT PRIMARY KEY,
+          survey_id TEXT NOT NULL REFERENCES people_surveys(id) ON DELETE CASCADE,
+          score INTEGER NOT NULL,
+          comment TEXT NOT NULL DEFAULT ''
+        ) WITHOUT ROWID;
+        CREATE INDEX IF NOT EXISTS idx_people_survey_responses ON people_survey_responses(survey_id);
+        CREATE TABLE IF NOT EXISTS people_saved_reports (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          config TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_people_saved_reports ON people_saved_reports(workspace_id);
+      `);
+      await addColumn(c, "ALTER TABLE people_settings ADD COLUMN approve_changes INTEGER NOT NULL DEFAULT 0");
+      await addColumn(c, "ALTER TABLE people_policies ADD COLUMN levels TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE people_policies ADD COLUMN applies_to TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(c, "ALTER TABLE people_employees ADD COLUMN source_application_id TEXT");
+      await c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_people_employees_source ON people_employees(workspace_id, source_application_id) WHERE source_application_id IS NOT NULL");
+    },
+  },
+  {
+    // People: cambios de puesto con fecha futura. Los aplica el cron de cada hora, reclamando cada fila.
+    id: '188_people_scheduled_changes',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS people_scheduled_changes (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          employee_id TEXT NOT NULL REFERENCES people_employees(id) ON DELETE CASCADE,
+          changes TEXT NOT NULL,
+          effective_date TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          error TEXT NOT NULL DEFAULT '',
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          applied_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_people_scheduled_due ON people_scheduled_changes(status, effective_date);
+        CREATE INDEX IF NOT EXISTS idx_people_scheduled_emp ON people_scheduled_changes(workspace_id, employee_id);
+      `);
+    },
+  },
+  {
+    // Hiring: campos propios de candidatos. Vacíos hasta que un admin los defina.
+    id: '189_hiring_candidate_fields',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE hiring_settings ADD COLUMN candidate_fields TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE hiring_candidates ADD COLUMN custom TEXT NOT NULL DEFAULT '{}'");
+    },
+  },
+  {
+    // Send (DocSend): ver lib/schema/send-migration.ts.
+    id: '190_send',
+    up: sendUp,
+  },
+  {
+    id: '191_analytics_cookieless',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN cookieless INTEGER NOT NULL DEFAULT 0');
+      await client.execute('CREATE TABLE IF NOT EXISTS analytics_cookieless_salts (day TEXT PRIMARY KEY, salt TEXT NOT NULL, created_at INTEGER NOT NULL)');
+    },
+  },
+  {
+    id: '192_analytics_dashboard_settings',
+    up: async (client) => {
+      await addColumn(client, "ALTER TABLE analytics_dashboards ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'");
+    },
+  },
+  {
+    id: '193_analytics_cookieless_dropped',
+    up: async (client) => {
+      await addColumn(client, 'ALTER TABLE analytics_projects ADD COLUMN cookieless_dropped INTEGER NOT NULL DEFAULT 0');
+    },
+  },
+  {
+    id: '194_analytics_share_options',
+    up: async (client) => {
+      await addColumn(client, "ALTER TABLE analytics_shares ADD COLUMN options TEXT NOT NULL DEFAULT '{}'");
+      await client.execute(`CREATE TABLE IF NOT EXISTS analytics_share_passwords (
+        id TEXT PRIMARY KEY,
+        share_id TEXT NOT NULL REFERENCES analytics_shares(id) ON DELETE CASCADE,
+        hash TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        created_by TEXT,
+        created_at TEXT NOT NULL
+      )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_share_passwords_share ON analytics_share_passwords(share_id)');
+      await client.execute(`CREATE TABLE IF NOT EXISTS analytics_share_log (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+        share_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        person_id TEXT,
+        insight_id TEXT,
+        dashboard_id TEXT,
+        created_at TEXT NOT NULL
+      )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_share_log_target ON analytics_share_log(project_id, created_at)');
+    },
+  },
+  {
+    id: '195_analytics_subscriptions',
+    up: async (client) => {
+      await client.execute(`CREATE TABLE IF NOT EXISTS analytics_subscriptions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES analytics_projects(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        insight_id TEXT REFERENCES analytics_insights(id) ON DELETE CASCADE,
+        dashboard_id TEXT REFERENCES analytics_dashboards(id) ON DELETE CASCADE,
+        insight_ids TEXT NOT NULL DEFAULT '[]',
+        recipients TEXT NOT NULL DEFAULT '[]',
+        message TEXT NOT NULL DEFAULT '',
+        schedule TEXT NOT NULL DEFAULT '{}',
+        locale TEXT NOT NULL DEFAULT 'en',
+        recipient_state TEXT NOT NULL DEFAULT '{}',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        next_at INTEGER,
+        claimed_at INTEGER,
+        last_sent_at INTEGER,
+        last_error TEXT,
+        created_by TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`);
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_subscriptions_due ON analytics_subscriptions(enabled, next_at)');
+      await client.execute('CREATE INDEX IF NOT EXISTS idx_analytics_subscriptions_project ON analytics_subscriptions(project_id, created_at)');
+      await client.execute(`CREATE TABLE IF NOT EXISTS analytics_email_optouts (
+        workspace_id TEXT NOT NULL,
+        email TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (workspace_id, email)
+      )`);
+    },
+  },
+  {
+    // Groups: dos proveedores nuevos de número, el QR administrado ('managed')
+    // y el número de los datos de ejemplo ('sample'). Se reconstruye la tabla
+    // para ampliar el CHECK (client.migrate apaga las foreign keys: los chats
+    // no se borran en cascada).
+    id: '196_groups_managed_sample',
+    async up(client) {
+      const current = await client.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'groups_numbers'");
+      const sql = String(current.rows[0]?.sql ?? '');
+      const check = /CHECK\s*\(\s*provider\s+IN\s*\([^)]*\)\s*\)/i;
+      if (!sql || !check.test(sql) || /'sample'/.test(sql.match(check)?.[0] ?? '')) return;
+      const newSql = sql
+        .replace(check, "CHECK (provider IN ('managed', 'cloud', 'waha', 'evolution', 'sample', 'fake'))")
+        .replace(/^CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`]?groups_numbers["`]?/i, 'CREATE TABLE groups_numbers_new');
+      const cols = (await client.execute('PRAGMA table_info(groups_numbers)')).rows.map((r) => `"${String(r.name)}"`).join(', ');
+      const indexes = (
+        await client.execute("SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'groups_numbers' AND sql IS NOT NULL")
+      ).rows.map((r) => String(r.sql));
+      await client.migrate([
+        'DROP TABLE IF EXISTS groups_numbers_new',
+        newSql,
+        `INSERT INTO groups_numbers_new (${cols}) SELECT ${cols} FROM groups_numbers`,
+        'DROP TABLE groups_numbers',
+        'ALTER TABLE groups_numbers_new RENAME TO groups_numbers',
+        ...indexes,
+      ]);
+    },
+  },
+  {
+    // Groups: instancias del QR administrado que no se pudieron borrar al
+    // quitar el número. /api/cron/tick las reintenta con un claim por fila.
+    id: '197_groups_bridge_tombstones',
+    async up(client) {
+      await client.execute(`CREATE TABLE IF NOT EXISTS groups_bridge_tombstones (
+        instance TEXT PRIMARY KEY,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        claimed_until TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`);
+    },
+  },
+  {
+    // Send: links dentro de cada página (posición y destino), para dibujarlos sobre la imagen.
+    id: '198_send_page_links',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE send_pages ADD COLUMN links TEXT NOT NULL DEFAULT '[]'");
+    },
+  },
+  {
+    // Track: plantilla por defecto del proyecto (una sola; el quick-create la precarga).
+    id: '199_track_template_default',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE track_issue_templates ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0');
+    },
+  },
+  {
     // Rec, gauntlet contra Loom: etiquetas y estilo de subtítulos en cada video, subtítulos
     // traducidos y comentarios que responden con un video. Solo agrega: no toca filas existentes.
-    id: '195_rec_tags_captions_replies',
+    id: '230_rec_tags_captions_replies',
     async up(client) {
       await addColumn(client, "ALTER TABLE rec_videos ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'");
       await addColumn(client, "ALTER TABLE rec_videos ADD COLUMN caption_style TEXT NOT NULL DEFAULT ''");
@@ -8019,7 +8630,7 @@ export const MIGRATIONS: Migration[] = [
   {
     // Chat, gauntlet contra Intercom: fuente, adjuntos y tiempo de respuesta del messenger, uso de
     // respuestas guardadas, campañas programadas y opciones propias de posponer. Solo agrega columnas y una tabla.
-    id: '196_chat_messenger_macros_schedule',
+    id: '231_chat_messenger_macros_schedule',
     async up(client) {
       await addColumn(client, "ALTER TABLE chat_widgets ADD COLUMN font TEXT NOT NULL DEFAULT 'system'");
       await addColumn(client, "ALTER TABLE chat_widgets ADD COLUMN visitor_attachments TEXT NOT NULL DEFAULT 'all'");

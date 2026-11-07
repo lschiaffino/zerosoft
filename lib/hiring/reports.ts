@@ -14,6 +14,8 @@ export interface HiringReport {
   funnel: Array<{ key: string; label: string; reached: number; rate: number | null }>;
   sources: Array<{ source: string; applications: number; interviews: number; hires: number }>;
   openJobs: Array<{ id: string; title: string; daysOpen: number; active: number; total: number }>;
+  /** Rechazos del período por motivo (visibles para la persona). */
+  rejectReasons: Array<{ reason: string; count: number }>;
 }
 
 const dayMs = 86_400_000;
@@ -35,7 +37,7 @@ export async function hiringReport(actor: HiringActor, opts: { days?: number; jo
   const jobFilter = opts.jobId ? ' AND a.job_id = ?' : '';
   const apps = (await db
     .prepare(
-      `SELECT a.id, a.job_id, a.source, a.status, a.created_at, a.hired_at, s.kind AS stage_kind, s.position AS stage_pos, a.stage_id
+      `SELECT a.id, a.job_id, a.source, a.status, a.reject_reason, a.created_at, a.hired_at, s.kind AS stage_kind, s.position AS stage_pos, a.stage_id
        FROM hiring_applications a LEFT JOIN hiring_stages s ON s.id = a.stage_id
        WHERE ${vis.sql}${jobFilter} AND a.created_at >= ?`,
     )
@@ -44,6 +46,7 @@ export async function hiringReport(actor: HiringActor, opts: { days?: number; jo
     job_id: string;
     source: string;
     status: string;
+    reject_reason: string;
     created_at: string;
     hired_at: string | null;
     stage_kind: StageKind | null;
@@ -110,12 +113,17 @@ export async function hiringReport(actor: HiringActor, opts: { days?: number; jo
       `SELECT j.id, j.title, j.published_at, j.created_at,
               (SELECT COUNT(*) FROM hiring_applications a WHERE a.job_id = j.id AND a.status = 'active' AND ${vis.sql}) AS active,
               (SELECT COUNT(*) FROM hiring_applications a WHERE a.job_id = j.id AND ${vis.sql}) AS total
-       FROM hiring_jobs j WHERE j.workspace_id = ? AND j.status = 'published' ORDER BY j.published_at`,
+       FROM hiring_jobs j WHERE j.workspace_id = ? AND j.status = 'published'
+         AND (? = 1 OR EXISTS (SELECT 1 FROM hiring_job_members m WHERE m.job_id = j.id AND m.user_id = ? AND m.role IN ('recruiter','hiring_manager'))) ORDER BY j.published_at`,
     )
-    .all(...vis.args, ...vis.args, actor.ws)) as Array<{ id: string; title: string; published_at: string | null; created_at: string; active: number; total: number }>;
+    .all(...vis.args, ...vis.args, actor.ws, actor.admin ? 1 : 0, actor.person)) as Array<{ id: string; title: string; published_at: string | null; created_at: string; active: number; total: number }>;
+
+  const reasons = new Map<string, number>();
+  for (const a of apps) if (a.status === 'rejected') reasons.set(a.reject_reason || '', (reasons.get(a.reject_reason || '') ?? 0) + 1);
 
   return {
     days,
+    rejectReasons: [...reasons.entries()].map(([reason, count]) => ({ reason, count })).sort((x, y) => y.count - x.count),
     jobId: opts.jobId ?? null,
     timeToHire: {
       hires: hireDays.length,

@@ -340,7 +340,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       { name: 'expiredUrl', type: 'string', descriptionKey: 'paramLinkExpiredUrl' },
     ],
     request: {
-      url: 'https://zerosoft.ai/blog/software-is-dead',
+      url: 'https://zerosoft.ai/blog/open-source-launch',
       slug: 'manifesto',
       title: 'The manifesto',
       tags: ['launch', 'blog'],
@@ -354,7 +354,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       slug: 'manifesto',
       domain: null,
       short_url: 'https://zs.ai/manifesto',
-      url: 'https://zerosoft.ai/blog/software-is-dead?utm_source=newsletter&utm_medium=email',
+      url: 'https://zerosoft.ai/blog/open-source-launch?utm_source=newsletter&utm_medium=email',
       title: 'The manifesto',
       tags: ['launch', 'blog'],
       archived: false,
@@ -388,6 +388,11 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       { name: 'page', type: 'integer', descriptionKey: 'paramPage' },
       { name: 'pageSize', type: 'integer', descriptionKey: 'paramPageSize' },
       { name: 'creator', type: 'string', descriptionKey: 'paramLinkCreator' },
+      { name: 'q', type: 'string', descriptionKey: 'paramLinkSearch' },
+      { name: 'tag', type: 'string', descriptionKey: 'paramLinkTagFilter' },
+      { name: 'folder', type: 'string', descriptionKey: 'paramLinkFolderFilter' },
+      { name: 'archived', type: 'boolean', descriptionKey: 'paramLinkArchivedFilter' },
+      { name: 'sort', type: 'string', descriptionKey: 'paramLinkSort' },
     ],
     response: {
       links: [
@@ -395,7 +400,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
           id: 'lnk_9f3ka2',
           slug: 'manifesto',
           short_url: 'https://zs.ai/manifesto',
-          url: 'https://zerosoft.ai/blog/software-is-dead',
+          url: 'https://zerosoft.ai/blog/open-source-launch',
           title: 'The manifesto',
           tags: ['launch', 'blog'],
           clicks: 4812,

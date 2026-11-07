@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { flagKeySchema, flagVariantSchema, propertyFilterSchema } from '@/lib/analytics/types';
+import { flagGroupSchema, flagKeySchema, flagPayloadsSchema, flagVariantSchema, propertyFilterSchema } from '@/lib/analytics/types';
+import { experimentsUsingFlag } from '@/lib/analytics/experiments';
 import { variantsValid } from '@/lib/analytics/flags-core';
 import { deleteFlag, getFlag, updateFlag } from '@/lib/analytics/records';
-import { aError, analyticsActor, isResponse, readJson, recordProject } from '@/lib/analytics/http';
+import { aError, analyticsActor, canManageAnalytics, isResponse, readJson, recordProject } from '@/lib/analytics/http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,8 @@ const patchSchema = z.object({
   rollout: z.number().int().min(0).max(100).optional(),
   variants: z.array(flagVariantSchema).max(10).optional(),
   conditions: z.array(propertyFilterSchema.extend({ type: z.literal('person').default('person') })).max(10).optional(),
+  groups: z.array(flagGroupSchema).max(10).optional(),
+  payloads: flagPayloadsSchema.optional(),
 });
 
 export async function GET(req: NextRequest, ctx: Ctx) {
@@ -37,6 +40,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const parsed = patchSchema.safeParse(await readJson(req));
   if (!parsed.success) return aError(400, 'invalid_input');
   if (parsed.data.variants && !variantsValid(parsed.data.variants)) return aError(400, 'variants_must_sum_100');
+  // Un flag decide qué ve la gente en producción: lo cambia un admin, como los experimentos.
+  if (!canManageAnalytics(actor)) return aError(403, (await experimentsUsingFlag(project.id, id)) ? 'flag_in_experiment' : 'admin_only');
   const flag = await updateFlag(project.id, id, parsed.data);
   if (flag === 'duplicate_key') return aError(409, 'duplicate_key');
   return NextResponse.json({ flag });
@@ -48,6 +53,8 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const project = await recordProject(actor, 'analytics_flags', id);
   if (isResponse(project)) return project;
+  if (!canManageAnalytics(actor)) return aError(403, 'admin_only');
+  if (await experimentsUsingFlag(project.id, id)) return aError(409, 'flag_in_use');
   await deleteFlag(project.id, id);
   return NextResponse.json({ ok: true });
 }

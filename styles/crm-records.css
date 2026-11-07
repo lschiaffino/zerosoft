@@ -516,6 +516,8 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   letter-spacing: 0;
 }
 .cell-name-logo { display: inline-flex; align-items: center; gap: 8px; }
+/* La celda de nombre es un bloque con puntos suspensivos: ahí el gap no corre. */
+.crm-table .cell-name-logo .co-logo { margin-right: 8px; vertical-align: top; }
 .record-title-logo { display: inline-flex; align-items: center; gap: 10px; }
 .co-enrich-note { font-size: 0.8125rem; }
 .co-enrich-dup { color: var(--ink); }
@@ -550,15 +552,16 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   font: inherit;
   background: none;
   cursor: pointer;
-  min-height: 32px;
+  min-height: 28px;
   padding: 0 10px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--ui-field);
   border-radius: var(--radius-1);
   color: var(--ink);
   font-size: 0.8125rem;
+  font-weight: 600;
   text-decoration: none;
 }
-.phone-touch-btn:hover { background: var(--ui-hover); }
+.phone-touch-btn:hover { background: var(--ui-hover); border-color: var(--ink); }
 .phone-touch-saved { font-size: 0.8125rem; }
 .phone-log {
   position: absolute;

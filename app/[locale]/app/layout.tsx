@@ -21,6 +21,7 @@ import RecorderProvider from '@/components/voice/RecorderProvider';
 import TimezoneCookie from '@/components/app/TimezoneCookie';
 import ActiveTabIntoView from '@/components/app/ActiveTabIntoView';
 import { SupportIdentify } from '@/components/SupportWidget';
+import WorkspaceGuard from '@/components/app/WorkspaceGuard';
 import { supportWidgetId } from '@/lib/support';
 import { signVisitorIdentity } from '@/lib/chat-identity';
 import { getUserTimeZone } from '@/lib/user-tz';
@@ -39,6 +40,7 @@ import '@/styles/voice-host.css';
 import '@/styles/workspace.css';
 import '@/styles/assistant.css';
 import NavProgress from '@/components/app/NavProgress';
+import RouterNudge from '@/components/app/RouterNudge';
 import { Suspense } from 'react';
 
 export const dynamic = 'force-dynamic';
@@ -84,9 +86,12 @@ export default async function AppLayout(
   const effective = user.actingUser ? (user.workspace?.id ?? null) : user.team ? (real.active_team_id ?? null) : null;
   const workspaces: SwitcherEntry[] = (await listMyWorkspaces(real).catch(() => [])).map((w) => ({ ...w, current: w.teamId === effective }));
   if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
+  const tGuard = await getTranslations({ locale, namespace: 'settings.access' });
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
+  const tAnalyticsReplay = await getTranslations({ locale, namespace: 'analyticsReplay' });
+  const tAnalyticsMore = await getTranslations({ locale, namespace: 'analyticsMore' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tasksDue, serverTz, tPlanning, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tSend, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -114,6 +119,7 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'books' }),
       getTranslations({ locale, namespace: 'sign' }),
       getTranslations({ locale, namespace: 'forms' }),
+      getTranslations({ locale, namespace: 'send' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
       countDueTasks(user.id).catch((err) => {
         console.error('[app layout] countDueTasks', err);
@@ -186,6 +192,7 @@ export default async function AppLayout(
                 { href: '/app/people/settings', label: tSide('appSettings') },
                 { href: '/app/books/settings', label: tSide('appSettings') },
                 { href: '/app/forms/settings', label: tSide('appSettings') },
+                { href: '/app/send/settings', label: tSide('appSettings') },
                 { href: '/app/crm', label: tCrm('tabs.overview') },
                 { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
                 { href: '/app/crm/companies', label: tCrm('tabs.companies') },
@@ -294,6 +301,18 @@ export default async function AppLayout(
                 { href: '/app/analytics/persons', label: tAnalytics('sidebar.persons') },
                 { href: '/app/analytics/cohorts', label: tAnalytics('sidebar.cohorts') },
                 { href: '/app/analytics/flags', label: tAnalytics('sidebar.flags') },
+                { href: '/app/analytics/experiments', label: tAnalytics('sidebar.experiments') },
+                { href: '/app/analytics/actions', label: tAnalytics('sidebar.actions') },
+                { href: '/app/analytics/alerts', label: tAnalytics('sidebar.alerts') },
+                { href: '/app/analytics/subscriptions', label: tAnalytics('sidebar.subscriptions') },
+                { href: '/app/analytics/annotations', label: tAnalytics('sidebar.annotations') },
+                { href: '/app/analytics/data', label: tAnalytics('sidebar.data') },
+                { href: '/app/analytics/groups', label: tAnalytics('sidebar.groups') },
+                { href: '/app/analytics/replay', label: tAnalyticsReplay('sidebar.recordings') },
+                { href: '/app/analytics/heatmaps', label: tAnalyticsReplay('sidebar.heatmaps') },
+                { href: '/app/analytics/surveys', label: tAnalyticsMore('sidebar.surveys') },
+                { href: '/app/analytics/errors', label: tAnalyticsMore('sidebar.errors') },
+                { href: '/app/analytics/llm', label: tAnalyticsMore('sidebar.llm') },
                 { href: '/app/analytics/sql', label: tAnalytics('sidebar.sql') },
                 { href: '/app/analytics/projects', label: tAnalytics('sidebar.projects') },
                 { href: '/app/social', label: tSocial('sidebar.calendar') },
@@ -335,6 +354,8 @@ export default async function AppLayout(
                 { href: '/app/sign/new', label: tSign('nav.new') },
                 { href: '/app/forms', label: tForms('nav.forms') },
                 { href: '/app/forms/new', label: tForms('nav.templates') },
+                { href: '/app/send', label: tSend('nav.documents') },
+                { href: '/app/send/spaces', label: tSend('nav.spaces') },
                 { href: '/app/assistant', label: tSide('assistant') },
               ]}
             />
@@ -365,6 +386,7 @@ export default async function AppLayout(
               support: tCat('support.title'),
               automate: tCat('automate.title'),
               build: tCat('build.title'),
+              run: tCat('run.title'),
               daily: tCat('daily.title'),
             },
             platform: tSide('platform'),
@@ -517,6 +539,18 @@ export default async function AppLayout(
               persons: tAnalytics('sidebar.persons'),
               cohorts: tAnalytics('sidebar.cohorts'),
               flags: tAnalytics('sidebar.flags'),
+              experiments: tAnalytics('sidebar.experiments'),
+              actions: tAnalytics('sidebar.actions'),
+              alerts: tAnalytics('sidebar.alerts'),
+              subscriptions: tAnalytics('sidebar.subscriptions'),
+              annotations: tAnalytics('sidebar.annotations'),
+              data: tAnalytics('sidebar.data'),
+              groups: tAnalytics('sidebar.groups'),
+              recordings: tAnalyticsReplay('sidebar.recordings'),
+              heatmaps: tAnalyticsReplay('sidebar.heatmaps'),
+              surveys: tAnalyticsMore('sidebar.surveys'),
+              errors: tAnalyticsMore('sidebar.errors'),
+              llm: tAnalyticsMore('sidebar.llm'),
               sql: tAnalytics('sidebar.sql'),
               projects: tAnalytics('sidebar.projects'),
               newInsight: tAnalytics('sidebar.newInsight'),
@@ -550,6 +584,7 @@ export default async function AppLayout(
               welcome: tPeople('nav.welcome'),
               newPerson: tPeople('directory.add'),
             },
+            send: { documents: tSend('nav.documents'), spaces: tSend('nav.spaces'), newDocument: tSend('nav.new') },
             forms: { forms: tForms('nav.forms'), templates: tForms('nav.templates'), newForm: tForms('list.new') },
             books: {
               overview: tBooks('nav.overview'),
@@ -581,6 +616,8 @@ export default async function AppLayout(
               markRead: tTrack('notifications.markRead'),
               markAllRead: tTrack('notifications.markAllRead'),
               empty: tTrack('notifications.empty'),
+              loading: tTrack('notifications.loading'),
+              loadError: tTrack('notifications.loadError'),
               text: {
                 someone: tTrack('inbox.someone'),
                 untitled: tTrack('notifications.untitled'),
@@ -630,11 +667,30 @@ export default async function AppLayout(
             },
           }}
         />
+        <RouterNudge />
         <div className="app-main-scroll">
           <Suspense fallback={null}>
             <NavProgress />
           </Suspense>
-          <main className="app-content">{children}</main>
+          <main className="app-content">
+            {user.workspace && (
+              <WorkspaceGuard
+                workspaceId={user.workspace.id}
+                workspaceName={user.workspace.name}
+                labels={{
+                  title: tGuard('guardTitle'),
+                  switched: tGuard.raw('guardSwitched') as string,
+                  gone: tGuard.raw('guardGone') as string,
+                  switchBack: tGuard.raw('guardSwitchBack') as string,
+                  reload: tGuard('guardStay'),
+                  home: tGuard('guardHome'),
+                  switchError: tGuard('guardSwitchError'),
+                  close: tGuard('guardClose'),
+                }}
+              />
+            )}
+            {children}
+          </main>
         </div>
         <CommandSearch allowedApps={user.role === 'owner' ? '*' : PRODUCT_KEYS.filter((key) => userCanUseApp(user, key))} />
         {/* Asistente de la plataforma: ⌘J o el botón de la banda, en toda la app. */}

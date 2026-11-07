@@ -175,6 +175,11 @@
       "a": "¿Cuántas respuestas de NPS tuvimos esta semana?",
       "b": "Resumí las respuestas de mi formulario de feedback",
       "c": "Creá un formulario de contacto desde una plantilla"
+    },
+    "send": {
+      "a": "¿Quién leyó la última propuesta?",
+      "b": "¿Qué links vencen esta semana?",
+      "c": "¿Cuánto tiempo le dedicaron a mi presentación?"
     }
   },
   "page": {

@@ -1,0 +1,12 @@
+{
+  "name": "zerosoft",
+  "version": "0.1.0",
+  "description": "Command line for zerosoft: everything you can do in the 24 apps, as you, from a terminal or a script.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "private": true,
+  "bin": { "zerosoft": "bin/zerosoft.mjs" },
+  "files": ["bin", "src", "README.md"],
+  "engines": { "node": ">=18.17" },
+  "scripts": { "test": "node --test test/" }
+}

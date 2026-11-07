@@ -42,11 +42,20 @@ export default async function Footer({ locale }: { locale: string }) {
                 </Link>
               </li>
             ))}
+          </ul>
+        </div>
+
+        <div className="footer-col">
+          <h4>{t('colExplore')}</h4>
+          <ul>
             <li>
               <Link href="/products">{t('allProducts')}</Link>
             </li>
             <li>
               <Link href="/tools">{t('freeTools')}</Link>
+            </li>
+            <li>
+              <Link href="/compare">{t('compare')}</Link>
             </li>
             <li>
               <Link href="/download">{t('desktopApp')}</Link>

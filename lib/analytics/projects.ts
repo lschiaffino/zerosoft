@@ -9,7 +9,9 @@ import { customAlphabet, nanoid } from 'nanoid';
 import { getDb } from '../db';
 import { sha256 } from '../api-auth';
 import { normalizeDomains } from './ingest-core';
-import type { ProjectDto } from './types';
+import { offsetMsAt } from './tz';
+import { z } from 'zod';
+import { propertyFilterSchema, type ProjectDto, type PropertyFilter } from './types';
 
 export const PROJECT_COOKIE = 'zs_analytics_project';
 const keyId = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 28);
@@ -25,8 +27,21 @@ export interface ProjectRow {
   respect_dnt: number;
   anonymize_ip: number;
   autocapture: number;
+  replay_enabled: number;
+  replay_sample_rate: number;
+  replay_mask_text: number;
+  heatmaps_enabled: number;
+  capture_exceptions: number;
+  web_vitals: number;
   retention_days: number;
   tz_offset_min: number;
+  /** Zona IANA; null = el desfase fijo de tz_offset_min. */
+  tz_name: string | null;
+  keep_bots: number;
+  cookieless: number;
+  bots_filtered: number;
+  cookieless_dropped?: number;
+  test_filters: string;
   rolled_through: string | null;
   dirty_from: string | null;
   deleted_at: number | null;
@@ -45,6 +60,15 @@ export function parseDomainList(raw: string | null | undefined): string[] {
   }
 }
 
+export function parseTestFilters(raw: string | null | undefined): PropertyFilter[] {
+  try {
+    const parsed = z.array(propertyFilterSchema).max(20).safeParse(JSON.parse(raw ?? '[]'));
+    return parsed.success ? parsed.data : [];
+  } catch {
+    return [];
+  }
+}
+
 export function toProjectDto(r: ProjectRow): ProjectDto {
   return {
     id: r.id,
@@ -55,8 +79,21 @@ export function toProjectDto(r: ProjectRow): ProjectDto {
     respectDnt: r.respect_dnt === 1,
     anonymizeIp: r.anonymize_ip === 1,
     autocapture: r.autocapture === 1,
+    replayEnabled: r.replay_enabled === 1,
+    replaySampleRate: Number(r.replay_sample_rate ?? 100),
+    replayMaskText: r.replay_mask_text !== 0,
+    heatmapsEnabled: r.heatmaps_enabled === 1,
+    captureExceptions: r.capture_exceptions === 1,
+    webVitals: r.web_vitals === 1,
     retentionDays: Number(r.retention_days),
-    tzOffsetMin: Number(r.tz_offset_min),
+    // Con zona, el desfase de ahora: lo usan las fechas de las encuestas.
+    tzOffsetMin: r.tz_name ? offsetMsAt(r.tz_name, Date.now()) / 60_000 : Number(r.tz_offset_min),
+    tzName: r.tz_name,
+    keepBots: r.keep_bots === 1,
+    cookieless: r.cookieless === 1,
+    botsFiltered: Number(r.bots_filtered ?? 0),
+    cookielessDropped: Number(r.cookieless_dropped ?? 0),
+    testFilters: parseTestFilters(r.test_filters),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -69,6 +106,11 @@ export async function listProjects(workspaceId: string): Promise<ProjectRow[]> {
 }
 
 /** Proyecto del workspace (null si no existe, es de otro workspace o se borró). */
+/** Sin workspace: solo para el cron, que ya sabe de qué fila viene. */
+export async function getProjectById(id: string): Promise<ProjectRow | null> {
+  return ((await getDb().prepare('SELECT * FROM analytics_projects WHERE id = ? AND deleted_at IS NULL').get(id)) as ProjectRow | undefined) ?? null;
+}
+
 export async function getProject(workspaceId: string, id: string): Promise<ProjectRow | null> {
   const row = (await getDb()
     .prepare('SELECT * FROM analytics_projects WHERE id = ? AND workspace_id = ? AND deleted_at IS NULL')
@@ -96,8 +138,18 @@ export interface ProjectPatch {
   respectDnt?: boolean;
   anonymizeIp?: boolean;
   autocapture?: boolean;
+  replayEnabled?: boolean;
+  replaySampleRate?: number;
+  replayMaskText?: boolean;
+  heatmapsEnabled?: boolean;
+  captureExceptions?: boolean;
+  webVitals?: boolean;
   retentionDays?: number;
   tzOffsetMin?: number;
+  tzName?: string | null;
+  keepBots?: boolean;
+  cookieless?: boolean;
+  testFilters?: PropertyFilter[];
 }
 
 export async function updateProject(workspaceId: string, id: string, patch: ProjectPatch): Promise<ProjectRow | null> {
@@ -113,6 +165,10 @@ export async function updateProject(workspaceId: string, id: string, patch: Proj
     sets.push('allowed_domains = ?');
     args.push(JSON.stringify(normalizeDomains(patch.allowedDomains)));
   }
+  if (patch.testFilters !== undefined) {
+    sets.push('test_filters = ?');
+    args.push(JSON.stringify(patch.testFilters));
+  }
   if (patch.respectDnt !== undefined) {
     sets.push('respect_dnt = ?');
     args.push(patch.respectDnt ? 1 : 0);
@@ -125,6 +181,30 @@ export async function updateProject(workspaceId: string, id: string, patch: Proj
     sets.push('autocapture = ?');
     args.push(patch.autocapture ? 1 : 0);
   }
+  if (patch.replayEnabled !== undefined) {
+    sets.push('replay_enabled = ?');
+    args.push(patch.replayEnabled ? 1 : 0);
+  }
+  if (patch.replaySampleRate !== undefined) {
+    sets.push('replay_sample_rate = ?');
+    args.push(Math.min(100, Math.max(1, Math.round(patch.replaySampleRate))));
+  }
+  if (patch.replayMaskText !== undefined) {
+    sets.push('replay_mask_text = ?');
+    args.push(patch.replayMaskText ? 1 : 0);
+  }
+  if (patch.heatmapsEnabled !== undefined) {
+    sets.push('heatmaps_enabled = ?');
+    args.push(patch.heatmapsEnabled ? 1 : 0);
+  }
+  if (patch.captureExceptions !== undefined) {
+    sets.push('capture_exceptions = ?');
+    args.push(patch.captureExceptions ? 1 : 0);
+  }
+  if (patch.webVitals !== undefined) {
+    sets.push('web_vitals = ?');
+    args.push(patch.webVitals ? 1 : 0);
+  }
   if (patch.retentionDays !== undefined) {
     sets.push('retention_days = ?');
     args.push(Math.min(3650, Math.max(1, Math.round(patch.retentionDays))));
@@ -132,6 +212,26 @@ export async function updateProject(workspaceId: string, id: string, patch: Proj
   if (patch.tzOffsetMin !== undefined) {
     sets.push('tz_offset_min = ?');
     args.push(Math.min(840, Math.max(-720, Math.round(patch.tzOffsetMin))));
+  }
+  if (patch.cookieless !== undefined) {
+    sets.push('cookieless = ?');
+    args.push(patch.cookieless ? 1 : 0);
+  }
+  if (patch.keepBots !== undefined) {
+    sets.push('keep_bots = ?');
+    args.push(patch.keepBots ? 1 : 0);
+  }
+  if (patch.tzName !== undefined) {
+    sets.push('tz_name = ?');
+    args.push(patch.tzName as string);
+  }
+  // Los rollups diarios están cortados con la zona anterior: se rehacen de a poco y mientras tanto se lee del crudo.
+  const nextName = patch.tzName !== undefined ? patch.tzName : p.tz_name;
+  const nextOffset = patch.tzOffsetMin !== undefined ? Math.min(840, Math.max(-720, Math.round(patch.tzOffsetMin))) : Number(p.tz_offset_min);
+  const zoneChanged = nextName !== p.tz_name || (!nextName && nextOffset !== Number(p.tz_offset_min));
+  if (zoneChanged) {
+    sets.push('rolled_through = NULL', 'dirty_from = NULL');
+    await getDb().prepare('DELETE FROM analytics_daily WHERE project_id = ?').run(id);
   }
   if (sets.length) {
     sets.push('updated_at = ?');

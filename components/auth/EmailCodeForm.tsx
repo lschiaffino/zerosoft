@@ -62,7 +62,7 @@ export default function EmailCodeForm({
     if (busy || !sentTo) return;
     setBusy(true);
     setError(null);
-    const target = callbackUrl ?? `/${locale}/app`;
+    const target = callbackUrl ?? `/${locale}/app/start`;
     const res = await signIn('email-code', { email: sentTo, code: code.trim(), redirect: false, callbackUrl: target }).catch(() => null);
     if (!res || res.error || !res.ok) {
       setBusy(false);

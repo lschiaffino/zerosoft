@@ -182,7 +182,8 @@ a.hr-list-row:hover .hr-list-main { text-decoration: underline; }
 .hr-stagebar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 14px 16px; margin: 12px 0 16px; }
 .hr-stagebar-main { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
 .hr-stagebar-job { font-weight: 700; }
-.hr-stagebar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hr-stagebar-actions { display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; }
+.hr-stagebar-actions .select { width: auto; flex: 0 1 220px; }
 .hr-profile { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 1000px) { .hr-profile { grid-template-columns: minmax(0, 1fr) 320px; } }
 .hr-profile-side { display: grid; gap: 12px; align-content: start; min-width: 0; }
@@ -248,4 +249,86 @@ a.hr-list-row:hover .hr-list-main { text-decoration: underline; }
   .hr-stagebar-actions { width: 100%; }
   .hr-stagebar-actions .select { flex: 1; min-width: 0; }
   .hr-bulk-group { flex-wrap: wrap; }
+}
+
+/* Cadenas de aprobación */
+.hr-approvals,
+.hr-chain-panel {
+  margin: 0 0 16px;
+}
+.hr-chain {
+  list-style: decimal;
+  margin: 8px 0;
+  padding-left: 20px;
+}
+.hr-chain li {
+  padding: 4px 0;
+}
+.hr-chain li > span + span {
+  margin-left: 8px;
+}
+.hr-chain li > .btn {
+  margin-left: 8px;
+}
+.hr-chain-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.hr-chain-actions .input {
+  flex: 1 1 200px;
+  min-width: 0;
+  width: auto;
+}
+.hr-chain-offer {
+  flex: 1 1 100%;
+}
+.hr-kit {
+  margin: 0 0 12px;
+}
+.hr-kit summary {
+  cursor: pointer;
+}
+.hr-kit ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.hr-stagebar-actions .btn { white-space: nowrap; }
+@media (max-width: 720px) { .hr-stagebar-actions { flex-wrap: wrap; } .hr-stagebar-actions .select { flex: 1 1 100%; } }
+
+/* Campos propios de candidatos */
+.hr-field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: end;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.hr-field-wide {
+  grid-column: 1 / 3;
+}
+.hr-custom-list {
+  margin: 0;
+}
+.hr-custom-list div + div {
+  margin-top: 8px;
+}
+.hr-custom-list dt {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.hr-custom-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 560px) {
+  .hr-field-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hr-field-wide {
+    grid-column: auto;
+  }
 }

@@ -6,13 +6,21 @@ import { expect, test } from '@playwright/test';
  * link al board. Y el porcentaje al lado de cada app en /products.
  */
 
-const PRODUCTS = ['crm', 'chat', 'groups', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms'];
+const PRODUCTS = ['crm', 'chat', 'groups', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send'];
 
 for (const product of PRODUCTS) {
   test(`paridad en /es/products/${product}`, async ({ page }) => {
     await page.goto(`/es/products/${product}`);
     const section = page.locator('#parity');
-    await expect(section.locator('.parity-num .data')).toHaveText(/^\d{1,3}%$/);
+    if (['analytics', 'people', 'hiring'].includes(product)) {
+      // Miden toda la documentación del competidor: cuentas por estado y una nota, sin porcentaje.
+      await expect(section.locator('.parity-num')).toHaveCount(0);
+      await expect(section.getByTestId('parity-scope-note')).toBeVisible();
+      await expect(section.locator('.parity-counts dd').first()).toHaveText(/^\d+$/);
+      expect(await section.locator('.parity-head').textContent()).not.toMatch(/\d%/);
+    } else {
+      await expect(section.locator('.parity-num .data')).toHaveText(/^\d{1,3}%$/);
+    }
     await expect(section.locator('.parity-method')).toContainText('Medimos');
     // Las apps en construcción no incluyen nada todavía: cuentan las filas de lo que falta (abierto).
     const building = ([] as string[]).includes(product);
@@ -43,13 +51,31 @@ test('/products muestra el porcentaje de cada app', async ({ page }) => {
   await expect(tags.first()).toHaveText(/^\d{1,3}% parity with .+/);
 });
 
+test('Analytics no publica porcentaje en /products, /compare ni en su comparación', async ({ page, request }) => {
+  await page.goto('/en/products');
+  const tag = page.locator('.suite-vs', { hasText: 'PostHog' }).locator('.suite-parity');
+  await expect(tag).toHaveText(/included, \d+ partial of \d+$/);
+  const row = page.locator('#paridad .parity-overview-table tbody tr', { hasText: 'Analytics' });
+  await expect(row).toContainText('Not comparable');
+  expect(await row.textContent()).not.toMatch(/\d%/);
+  await page.goto('/en/compare');
+  const cmp = page.locator('table tbody tr', { hasText: 'PostHog' });
+  await expect(cmp).toContainText('Not comparable');
+  expect(await cmp.textContent()).not.toMatch(/\d%/);
+  await page.goto('/en/compare/zerosoft-vs-posthog');
+  expect(await page.locator('.cmp-glance').textContent()).not.toMatch(/\d%/);
+  await expect(page.locator('.cmp-scope-note')).toContainText('not comparable');
+  const llms = await (await request.get('/llms.txt')).text();
+  expect(llms).not.toMatch(/PostHog\]\([^)]*\): \d+%/);
+});
+
 for (const path of ['/es', '/es/products']) {
   test(`tabla de paridad de todas las apps en ${path}`, async ({ page }) => {
     await page.goto(path);
     const table = page.locator('#paridad .parity-overview-table');
     await expect(table.locator('tbody tr')).toHaveCount(PRODUCTS.length);
     await expect(table.locator('.po-percent').first()).toHaveText(/^\d{1,3}%$/);
-    await expect(page.locator('#paridad .parity-overview-lead')).toContainText('24 apps');
+    await expect(page.locator('#paridad .parity-overview-lead')).toContainText('25 apps');
     await table.locator('a.po-app', { hasText: 'Groups' }).click();
     await expect(page).toHaveURL(/\/es\/products\/groups#parity$/);
   });
@@ -72,7 +98,7 @@ test('/es/products/voice es una app real', async ({ page }) => {
   await expect(page.locator('.pd-building')).toHaveCount(0);
   await expect(page.locator('#parity .parity-num .data')).not.toHaveText('0%');
   await expect(page.locator('.pd-actions .btn-primary')).toHaveAttribute('href', /\/app\/voice/);
-  await expect(page.locator('main')).toContainText('Está en camino');
+  await expect(page.locator('main')).toContainText('está en camino');
 });
 
 // Design (como Canva) sale como app real: la landing lleva a la app.

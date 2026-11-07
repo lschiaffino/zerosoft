@@ -18,7 +18,7 @@ export default function AssistantPage({ initialId, initialPrompt }: { initialId:
   const router = useRouter();
   const pathname = usePathname();
   const { status, error: statusError } = useAssistantStatus(true);
-  const suggestions = useSuggestions('/app');
+  const suggestions = useSuggestions('/app', status?.webhooks === true);
   const [current, setCurrent] = useState<string | null>(initialId);
   const [chatKey, setChatKey] = useState(0);
   const [prompt, setPrompt] = useState<string | null>(initialPrompt);

@@ -1,7 +1,8 @@
 {
   "meta": {
-    "tagline": "Twenty-four open-source apps for your team.",
-    "description": "CRM, support chat, AI agents, automations, browser robots, projects, links, docs, notes, scheduling and a whiteboard. Open source (AGPLv3): run them on your server for $0 or use zerosoft Cloud, with a free plan and usage-based pricing."
+    "tagline": "Twenty-five open-source apps for your team.",
+    "description": "Open-source business apps: CRM, support chat, AI agents, automations, docs and more. Run them on your server for $0 or use zerosoft Cloud.",
+    "homeTitle": "zerosoft: open-source business apps, from CRM to docs"
   },
   "header": {
     "products": "Products",
@@ -35,7 +36,7 @@
       "board": "Shared infinite whiteboard",
       "voice": "Voice dictation and meeting notes",
       "rec": "Screen and camera videos shared with a link",
-      "talk": "In the works: team messaging",
+      "talk": "Channels, direct messages and huddles",
       "shop": "Online store with checkout and orders",
       "design": "Graphic design from templates, with your brand",
       "analytics": "Product analytics and feature flags",
@@ -44,7 +45,8 @@
       "hiring": "Applicant tracking with a careers page",
       "sign": "Electronic signatures with an audit trail",
       "books": "Invoices, expenses, banking and accounting",
-      "forms": "Forms and surveys, one question at a time"
+      "forms": "Forms and surveys, one question at a time",
+      "send": "Share documents by link and see who read what"
     },
     "building": "In the works"
   },
@@ -190,6 +192,7 @@
     "groupAnalyticsInsights": "Analytics insights",
     "groupAnalyticsDashboards": "Analytics dashboards",
     "groupAnalyticsFlags": "Analytics feature flags",
+    "groupAnalyticsSurveys": "Analytics surveys",
     "groupAnalyticsCohorts": "Analytics cohorts",
     "groupAnalyticsProjects": "Analytics projects",
     "groupSocialPosts": "Social posts",
@@ -209,11 +212,12 @@
     "groupBooksItems": "Books items",
     "groupBooksBankAccounts": "Bank accounts",
     "groupBooksRecurring": "Recurring invoices",
-    "groupForms": "Forms"
+    "groupForms": "Forms",
+    "groupSend": "Documents to send"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
-    "p2": "Running that software costs far less. All twenty-four zerosoft apps fit in <strong>one container and one SQLite file</strong> on a small server.",
+    "p2": "Running that software costs far less. All twenty-five zerosoft apps fit in <strong>one container and one SQLite file</strong> on a small server.",
     "p3": "So we publish the code. The core of every app is AGPLv3: you can read it, change it and run it on your server without paying us.",
     "final": "Why we build zerosoft.",
     "p4": "If you would rather we run it, zerosoft Cloud bills per workspace, by usage. Adding someone to the team does not change the bill.",
@@ -263,7 +267,7 @@
       "desc": "Screen and camera videos to share with a link."
     },
     "talk": {
-      "desc": "Channels, direct messages and threads. In the works."
+      "desc": "Channels, direct messages and threads for your team."
     },
     "shop": {
       "desc": "An online store with variants, stock, checkout and orders."
@@ -291,6 +295,9 @@
     },
     "forms": {
       "desc": "Build forms and surveys, share them and read the answers."
+    },
+    "send": {
+      "desc": "Share documents by link and see who read each page."
     }
   },
   "model": {
@@ -354,9 +361,30 @@
     "titleDim": "How we build zerosoft, and why.",
     "readingTime": "min read",
     "back": "← All posts",
-    "empty": "No posts yet. Come back soon."
+    "empty": "No posts yet. Come back soon.",
+    "metaTitle": "Blog: guides, migrations and open-source software",
+    "metaDescription": "How to move from HubSpot, Notion, Linear, Calendly or Bitly, guides for each zerosoft app, and how we build an open-source suite.",
+    "tagsTitle": "Topics",
+    "more": "Show more posts ({count} left)",
+    "tagTitle": "Posts about {tag}",
+    "tagMetaDescription": "{count} zerosoft blog posts about {tag}: guides, migrations and notes on how we build the apps.",
+    "tagLead": "{count} posts.",
+    "authorTitle": "Posts by {name}",
+    "authorMetaDescription": "Everything {name} has published on the zerosoft blog: {count} posts.",
+    "authorLead": "The zerosoft team writes these posts. {count} posts so far.",
+    "relatedTitle": "Keep reading",
+    "updated": "Updated {date}",
+    "feeds": "Feeds",
+    "tagsLabel": "Tags",
+    "productLead": "{name} is the zerosoft app this post is about.",
+    "productCta": "The {name} page",
+    "compareCta": "{name} vs {competitor}",
+    "crumbHome": "Home",
+    "crumbs": "Breadcrumb",
+    "by": "by {name}"
   },
   "footer": {
+    "colExplore": "Explore",
     "tagline": "Made of zeros.",
     "copyright": "© 2026 zerosoft.ai",
     "colProduct": "Product",
@@ -382,13 +410,14 @@
     "starCta": "Star on GitHub",
     "feedback": "Feedback",
     "videos": "Videos",
-    "desktopApp": "Desktop app"
+    "desktopApp": "Desktop app",
+    "compare": "Comparisons"
   },
   "home": {
     "hero": {
-      "title1": "<nb>Twenty-four</nb> apps for your team.",
+      "title1": "<nb>Twenty-five</nb> apps for your team.",
       "title2": "Zero licenses.",
-      "sub": "Open-source alternatives to HubSpot, Intercom, Calendly, Linear, Notion and five more products your team pays for every month. Run them on your server for $0 or use them on zerosoft Cloud.",
+      "sub": "Open-source alternatives to HubSpot, Intercom, Calendly, Linear, Notion and 19 more products your team pays for every month. Run them on your server for $0 or use them on zerosoft Cloud.",
       "ctaStart": "Start free",
       "ctaSelfHost": "Self-host",
       "note1": "No credit card",
@@ -443,7 +472,7 @@
         "b3": "Templates, comments and sharing"
       },
       "one": {
-        "title": "One account for all twenty-four apps.",
+        "title": "One account for all twenty-five apps.",
         "desc": "Invite your team once. Find contacts, companies, deals, links, docs and tasks from a single search bar, and jump between apps without changing tools."
       },
       "replaces": "Replaces {rival}",
@@ -503,6 +532,9 @@
       },
       "forms": {
         "line": "Forms and surveys, one question at a time."
+      },
+      "send": {
+        "line": "Share documents by link and see who read what."
       }
     },
     "stack": {
@@ -517,7 +549,7 @@
       "total": "Total per year",
       "zeroTitle": "zerosoft, on your server",
       "footnote": "List prices as cited on our product pages, billed monthly, for 10 users (Bitly Core is a flat plan). Vendors change their prices, so check their sites. zerosoft is not affiliated with any of these companies.",
-      "rApps": "All twenty-four apps",
+      "rApps": "All twenty-five apps",
       "rSeats": "Users",
       "rLicense": "License",
       "rData": "Your data",
@@ -539,7 +571,7 @@
       "label": "Developers",
       "title": "A real API.",
       "titleDim": "And signed webhooks.",
-      "p": "Create a key in settings and use Link, CRM, Cal and Agents over REST. Subscribe to events and verify every delivery with an HMAC signature.",
+      "p": "Create a key in settings and use Link, CRM, Cal, Track, Docs, Chat, Agents and more over REST. Subscribe to events and verify every delivery with an HMAC signature.",
       "b1t": "REST API v1",
       "b1": "Links; CRM contacts, companies, deals, tasks, pipelines, products and quotes; Cal event types and bookings; and messages to your agents.",
       "b2t": "Personal API keys",
@@ -588,7 +620,7 @@
   },
   "appHome": {
     "title": "Your apps",
-    "lead": "The twenty-four apps in your workspace. Pick one to get started.",
+    "lead": "The twenty-five apps in your workspace. Pick one to get started.",
     "apps": "Apps",
     "open": "Open {name}",
     "linkSummary": "Link overview",
@@ -644,7 +676,8 @@
         "insight": "Insight",
         "socialPost": "Social post",
         "booksInvoice": "Invoice",
-        "form": "Form"
+        "form": "Form",
+        "sendDocument": "Shared document"
       },
       "untitled": "Untitled",
       "partial": "Some apps couldn't load. Reload the page to see them."
@@ -658,6 +691,11 @@
       "title": "Bring your data",
       "body": "Import from HubSpot, Pipedrive, Linear, Notion, Calendly, Bitly and other tools.",
       "cta": "Import"
+    },
+    "noApps": {
+      "title": "No apps turned on yet",
+      "body": "An admin of {workspace} can turn apps on for you in Settings › Members.",
+      "bodyAdmin": "The owner of {workspace} can turn apps on for you in Settings › Members."
     }
   },
   "publicPage": {
@@ -708,7 +746,7 @@
   "notFound": {
     "sign": "Error 404",
     "title": "This page does not exist.",
-    "body": "The link may have a typo or the page moved. The home page takes you to all twenty-four apps.",
+    "body": "The link may have a typo or the page moved. The home page takes you to all twenty-five apps.",
     "cta": "Go to the home page",
     "meta": "Page not found"
   },
@@ -758,7 +796,7 @@
   "categories": {
     "sell": {
       "title": "Sell",
-      "desc": "Pipeline, contacts and links with analytics."
+      "desc": "Pipeline, links, store, social and forms."
     },
     "support": {
       "title": "Support",
@@ -770,11 +808,15 @@
     },
     "build": {
       "title": "Build",
-      "desc": "Issues, projects and whiteboards to plan and ship."
+      "desc": "Issues, whiteboards, design and analytics."
+    },
+    "run": {
+      "title": "Run",
+      "desc": "Accounting, people, hiring and contracts."
     },
     "daily": {
       "title": "Daily work",
-      "desc": "Docs, notes and scheduling for every day."
+      "desc": "Docs, notes, calendar, calls and recordings."
     }
   },
   "appSoon": {

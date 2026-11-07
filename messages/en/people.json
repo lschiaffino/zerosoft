@@ -102,7 +102,8 @@
       "performance": "Performance",
       "compensation": "Compensation",
       "onboarding": "Onboarding",
-      "notes": "1:1 notes"
+      "notes": "1:1 notes",
+      "history": "Job history"
     },
     "sections": "Profile sections",
     "job": "Job",
@@ -122,7 +123,15 @@
     "reports": "{count, plural, one {# direct report} other {# direct reports}}",
     "endsOn": "Last day: {date}",
     "emergencyContact": "Emergency contact {n}",
-    "relation": "Relationship"
+    "relation": "Relationship",
+    "linkedAccount": "Linked account",
+    "linkedMismatch": "This record's work email doesn't match the account that reads it: {email}. Confirm it's the right person before adding pay.",
+    "linkedConfirm": "Confirm this account",
+    "linkedPayBlocked": "This record is linked to {email}, which doesn't match its work email. Confirm that account on the profile before changing pay.",
+    "exitOverdue": "Exit date passed: confirm it.",
+    "finishExit": "Finish exit",
+    "cancelExit": "Cancel exit",
+    "reactivate": "Reactivate"
   },
   "offboard": {
     "action": "Offboard",
@@ -191,7 +200,8 @@
     "nextMonth": "Next month",
     "thisMonth": "Today",
     "outThisMonth": "Out this month",
-    "nobodyOut": "Nobody is out this month."
+    "nobodyOut": "Nobody is out this month.",
+    "laterYears": "{days} days requested for later years"
   },
   "documents": {
     "upload": "Upload document",
@@ -218,7 +228,8 @@
     "ackCount": "{count, plural, one {# person read it} other {# people read it}}",
     "empty": "No documents yet.",
     "delete": "Delete {title}",
-    "signNote": "Files are private: only HR and the person they are shared with can open them. E-signature is not available yet; use the read confirmation for policies."
+    "signNote": "Files are private: only HR and the person they are shared with can open them. E-signature is not available yet; use the read confirmation for policies.",
+    "sendForSignature": "Send for signature"
   },
   "goals": {
     "title": "Goals",
@@ -331,7 +342,11 @@
     "help": "Drag to move, Ctrl or Cmd with the wheel to zoom, 0 to fit. Set managers on each profile.",
     "emptyTitle": "No org chart yet",
     "emptyBody": "Add people and set their managers: the chart builds itself.",
-    "fit": "Fit to screen"
+    "fit": "Fit to screen",
+    "flat": "Nobody has a manager yet, so everyone is on one row. Set a manager on a profile to draw the reporting lines.",
+    "alone": "You are the only person here so far. Add people or import them from the directory.",
+    "openDirectory": "Open the directory",
+    "loose": "No manager yet ({count})"
   },
   "reviews": {
     "desc": "Review cycles with self, manager and peer reviews.",
@@ -391,7 +406,12 @@
     "submit": "Submit review",
     "received": "Reviews",
     "noneReceived": "No submitted reviews yet.",
-    "noAnswer": "No answer"
+    "noAnswer": "No answer",
+    "addPeer": "Add peer",
+    "pickPeer": "Choose a peer",
+    "addPeerFor": "Add a peer reviewer for {name}",
+    "removePeer": "Remove",
+    "peerAdded": "Peer added and notified."
   },
   "reports": {
     "desc": "Headcount, turnover, time off and tenure. Only HR sees this page.",
@@ -429,7 +449,8 @@
       "view": "Viewed",
       "change": "Changed",
       "export": "Exported"
-    }
+    },
+    "auditAll": "Show all {count}"
   },
   "settings": {
     "title": "People settings",
@@ -440,7 +461,8 @@
       "fields": "Custom fields",
       "visibility": "Visibility",
       "documents": "Policies and welcome",
-      "access": "HR admins"
+      "access": "HR admins",
+      "changes": "Change approvals"
     },
     "newPolicy": "New policy",
     "kind": "Kind",
@@ -487,11 +509,7 @@
     "optionsHint": "For lists: options separated by commas.",
     "sensitiveField": "Sensitive: HR and the person only",
     "visibilityHint": "Who in the workspace sees each field in the directory and profiles. HR and the person always see their own.",
-    "levels": {
-      "everyone": "Everyone",
-      "managers": "Their managers",
-      "hr": "HR only"
-    },
+    "levels": "More days with tenure",
     "alwaysPrivate": "Compensation, personal data, ID numbers, emergency contacts, performance and exit interviews are always private.",
     "policiesDocs": "Company policies",
     "createHandbook": "Create handbook in Docs",
@@ -502,9 +520,12 @@
     "welcomeHint": "Shown at the top of the welcome page, with their manager, team, first tasks and what to read.",
     "previewWelcome": "See the welcome page",
     "hrAdmins": "HR admins",
-    "hrAdminsHint": "HR admins manage profiles, time off, documents, compensation, reviews and reports. Workspace owners and admins are always HR admins.",
-    "implicitHr": "Workspace admin",
-    "onlyAdmins": "Only workspace owners and admins choose HR admins."
+    "hrAdminsHint": "HR admins manage profiles, time off, documents, compensation, reviews and reports. Salaries and the payroll export are for the owner, HR admins and each person. Workspace admins manage the rest of People without seeing salaries. Only the owner names HR admins.",
+    "implicitHr": "Workspace owner",
+    "onlyAdmins": "Only workspace owners and admins choose HR admins.",
+    "levelsHint": "Years=days per year, separated by commas. 3=18, 5=20 means 18 days from year 3 and 20 from year 5.",
+    "scope": "Who gets this policy",
+    "scopeHint": "Blank means everyone. Separate values with commas."
   },
   "welcome": {
     "title": "Welcome, {name}",
@@ -526,15 +547,15 @@
     "unauthorized": "You do not have access to People in this workspace.",
     "forbidden": "You do not have permission to do that.",
     "not_found": "It no longer exists.",
-    "name_required": "Write a name.",
+    "name_required": "A row has no name.",
     "label_required": "Write a label.",
     "title_required": "Write a title.",
     "options_required": "A list needs at least one option.",
-    "invalid_date": "That date is not valid.",
+    "invalid_date": "Use dates as YYYY-MM-DD.",
     "invalid_dates": "Check the dates: the end cannot be before the start.",
-    "invalid_manager": "That manager does not exist.",
+    "invalid_manager": "No profile has that manager email.",
     "manager_cycle": "That would make someone their own manager up the chain.",
-    "invalid_type": "Pick an employment type.",
+    "invalid_type": "Type must be full_time, part_time, contractor or intern.",
     "invalid_pay_period": "Pick a pay period.",
     "invalid_status": "Pick a status.",
     "invalid_email": "That email is not valid.",
@@ -550,7 +571,7 @@
     "no_working_days": "Those dates are all weekends or holidays.",
     "overlap": "You already have a request for some of those days.",
     "insufficient_balance": "Not enough days available.",
-    "not_pending": "Someone already decided on this request.",
+    "not_pending": "This was already decided.",
     "not_cancellable": "This request can no longer be cancelled.",
     "no_profile": "You need a People profile for that.",
     "invalid_template": "Pick a template.",
@@ -559,7 +580,7 @@
     "invalid_rating": "Ratings go from 1 to 5.",
     "answers_required": "Answer every question before submitting.",
     "file_required": "Pick a file.",
-    "file_too_large": "The file is too large.",
+    "file_too_large": "The file is too large (4 MB at most).",
     "file_type": "Use a PDF, PNG, JPEG, WebP or DOCX file.",
     "image_type": "Use a PNG, JPEG, GIF, WebP or AVIF image.",
     "invalid_page": "That Docs page does not exist in this workspace.",
@@ -567,6 +588,148 @@
     "storage_unavailable": "File storage is not available right now.",
     "file_type_not_allowed": "That file type is not allowed.",
     "cannot_remove": "Only workspace owners and admins remove people from the workspace, and an admin cannot remove another admin. The profile was not changed.",
-    "rate_limited": "Too many removals for now. Try again in a while."
+    "rate_limited": "Too many removals for now. Try again in a while.",
+    "csv_columns": "The file needs a header row with a Name column.",
+    "csv_empty": "The file has no rows.",
+    "duplicate_in_file": "This email is repeated in the file.",
+    "report_columns": "Pick at least one column.",
+    "survey_closed": "This survey is closed.",
+    "already_answered": "You already answered this survey.",
+    "cycle_not_active": "This cycle is not active.",
+    "invalid_reviewer": "That person cannot be this reviewer.",
+    "already_reviewer": "That person is already a reviewer.",
+    "already_submitted": "This review was already submitted.",
+    "own_request": "Someone else in HR has to review your own change.",
+    "nothing_to_change": "Fill in at least one change.",
+    "survey_answered": "This survey already has answers, so its text stays as it is.",
+    "stale_change": "This value changed after the request. Check it and confirm.",
+    "work_email_locked": "Only the owner or a named HR admin can change this work email.",
+    "not_leaving": "This person is not leaving."
+  },
+  "home": {
+    "inbox": "Waiting for you",
+    "celebrations": "Coming up",
+    "birthday": "Birthday",
+    "anniversary": "{years, plural, one {# year} other {# years}} here",
+    "items": {
+      "approvals": "Time off to approve",
+      "changes": "Profile changes to review",
+      "tasks": "Onboarding tasks",
+      "reviews": "Reviews to write",
+      "surveys": "Surveys to answer",
+      "documents": "Documents to read",
+      "exits": "Exits to confirm"
+    }
+  },
+  "import": {
+    "button": "Import",
+    "title": "Import people",
+    "help": "A CSV with a header row. Name is required; also Work email, Job title, Department, Location, Country, Phone, Start date (YYYY-MM-DD), Type (full_time, part_time, contractor, intern) and Manager (their work email). A known work email updates that profile. Nobody gets invited or notified.",
+    "file": "CSV file (2 MB at most)",
+    "preview": "Check the file",
+    "confirm": "Import",
+    "back": "Back",
+    "empty": "Choose a file first.",
+    "summary": "{creates, plural, one {# new profile} other {# new profiles}} and {updates, plural, one {# update} other {# updates}}.",
+    "failed": "Rows that will be skipped",
+    "line": "Line {n}: {error}",
+    "done": "Imported: {created} new, {updated} updated."
+  },
+  "customReports": {
+    "title": "Custom report",
+    "hint": "Pick columns and filters, then see it here or download a CSV. Salaries and personal data are not available here: the payroll export covers them and is audited.",
+    "pick": "Columns",
+    "run": "Run report",
+    "needColumns": "Pick at least one column.",
+    "noRows": "Nobody matches these filters.",
+    "total": "{count, plural, one {# person} other {# people}}",
+    "csv": "Download CSV",
+    "save": "Save report",
+    "namePlaceholder": "Report name",
+    "deleteNamed": "Delete {name}",
+    "sensitive": "sensitive, audited",
+    "columns": {
+      "name": "Name",
+      "workEmail": "Work email",
+      "jobTitle": "Job title",
+      "department": "Department",
+      "location": "Location",
+      "country": "Country",
+      "manager": "Manager",
+      "status": "Status",
+      "employmentType": "Type",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "tenureYears": "Years here",
+      "payPeriod": "Pay period",
+      "phone": "Phone"
+    },
+    "rename": "Rename",
+    "renameNamed": "Rename {name}"
+  },
+  "surveys": {
+    "title": "Surveys",
+    "new": "New eNPS survey",
+    "open": "Open survey",
+    "question": "Question",
+    "newHint": "Everyone with a profile is asked to answer, from 0 to 10, once. Answers carry no name. HR sees results only after closing, with at least 5 answers.",
+    "defaultQuestion": "How likely are you to recommend working here to a friend?",
+    "empty": "No surveys yet.",
+    "scale": "0 is not at all likely, 10 is extremely likely.",
+    "comment": "Comment (optional)",
+    "anonymous": "Your name is not saved with your answer. HR sees results only after the survey closes, with at least 5 answers.",
+    "send": "Send answer",
+    "thanks": "Thanks, your answer is in.",
+    "close": "Close survey",
+    "tooFew": "{count, plural, one {# answer} other {# answers}} so far. Results show after you close the survey, with at least 5 answers, so nobody can be identified.",
+    "summary": "{count, plural, one {# answer} other {# answers}}: {promoters, plural, one {# promoter} other {# promoters}}, {passives, plural, one {# passive} other {# passives}}, {detractors, plural, one {# detractor} other {# detractors}}",
+    "status": {
+      "open": "Open",
+      "closed": "Closed"
+    },
+    "yourAnswer": "Your answer",
+    "closedTooFew": "Closed with {count, plural, one {# answer} other {# answers}}. Results need at least 5, so nobody can be identified."
+  },
+  "changes": {
+    "toggle": "People need HR approval to change their own contact and personal data",
+    "hint": "When this is on, a change to phone, address, birth date or emergency contacts waits here. Pronouns and bio apply at once.",
+    "empty": "Nothing waiting for review.",
+    "off": "Approval is off, so changes apply at once.",
+    "field": "Field",
+    "before": "Before",
+    "after": "After",
+    "approve": "Approve",
+    "deny": "Decline",
+    "pending": "Waiting for HR",
+    "pendingSelf": "Your latest change to your data is waiting for HR. It will show here once approved.",
+    "pendingHr": "This person has a data change waiting for review in Settings.",
+    "stale": "Changed since this was requested. Approving overwrites the newer value.",
+    "approveAnyway": "Approve anyway"
+  },
+  "history": {
+    "empty": "No changes yet. Changes to job title, department, location, manager, type and status show up here.",
+    "date": "Date",
+    "field": "Change",
+    "from": "From",
+    "to": "To",
+    "by": "By",
+    "fields": {
+      "jobTitle": "Job title",
+      "department": "Department",
+      "location": "Location",
+      "managerId": "Manager",
+      "employmentType": "Type",
+      "status": "Status"
+    },
+    "scheduled": "Scheduled changes",
+    "schedule": "Schedule a change",
+    "noScheduled": "Nothing scheduled.",
+    "effective": "Takes effect on",
+    "scheduleHint": "Fill in only what changes. Only HR sees it until that date.",
+    "keep": "No change",
+    "work_email_locked": "Only the owner or an HR admin can change the work email of this record.",
+    "delete_has_pay": "This record has pay history. Only the owner or an HR admin can delete it.",
+    "linked_account_mismatch": "This record's linked account doesn't match its work email. Confirm it on the profile first.",
+    "auto": "Automatic"
   }
 }

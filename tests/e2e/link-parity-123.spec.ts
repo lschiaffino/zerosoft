@@ -159,6 +159,8 @@ test('Link: bio con tema, color, vista previa y un link externo', async ({ reque
   await page.goto(`/@${bio.handle}`, { waitUntil: 'networkidle' });
   await expect(page.locator('.bio-page')).toHaveAttribute('data-bio-theme', 'dark');
   await expect(page.getByRole('link', { name: label })).toBeVisible();
+  // Una fila con link corto largo y una etiqueta que no entra tampoco ensancha la página.
+  await newLink(request, { url: 'https://example.com/bio-long-row', slug: `bio-long-row-${uid()}-${uid()}`, title: `Un título bastante largo para esta fila ${uid()}` });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/en/app/links/bio', { waitUntil: 'networkidle' });
   await noHorizontalScroll(page);

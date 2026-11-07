@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Browse AI',
   alsoCompared: ['Apify'],
-  lastReviewed: '2026-10-31',
+  lastReviewed: '2026-11-01',
   areas: [
     { id: 'building', label: { en: 'Building a robot', es: 'Armado del robot', pt: 'Montagem do robô' } },
     { id: 'login', label: { en: 'Login and sessions', es: 'Login y sesiones', pt: 'Login e sessões' } },

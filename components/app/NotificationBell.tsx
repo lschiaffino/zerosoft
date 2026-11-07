@@ -29,6 +29,8 @@ interface NotificationBellProps {
     markRead: string;
     markAllRead: string;
     empty: string;
+    loading: string;
+    loadError: string;
     text: NotificationTextLabels;
   };
   onCountChange?: (count: number) => void;
@@ -38,6 +40,8 @@ export default function NotificationBell({ labels, onCountChange }: Notification
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  // Hasta la primera respuesta no se sabe si está vacía; si falló, tampoco.
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const ref = useRef<HTMLDivElement>(null);
   const locale = useLocale();
 
@@ -45,8 +49,12 @@ export default function NotificationBell({ labels, onCountChange }: Notification
   // abrir y cuando la bandeja avisa un cambio, para no mostrar un estado viejo.
   const load = useCallback(async () => {
     const res = await fetch('/api/notifications?limit=5').catch(() => null);
-    if (!res?.ok) return;
+    if (!res?.ok) {
+      setState((s) => (s === 'ready' ? s : 'error'));
+      return;
+    }
     const data = (await res.json()) as { rows: Notification[]; unreadCount: number };
+    setState('ready');
     setNotifications(data.rows ?? []);
     setUnreadCount(data.unreadCount ?? 0);
     onCountChange?.(data.unreadCount ?? 0);
@@ -138,7 +146,9 @@ export default function NotificationBell({ labels, onCountChange }: Notification
             )}
           </div>
           {notifications.length === 0 ? (
-            <p className="side-bell-empty">{labels.empty}</p>
+            <p className="side-bell-empty" role="status" data-testid="bell-empty">
+              {state === 'loading' ? labels.loading : state === 'error' ? labels.loadError : labels.empty}
+            </p>
           ) : (
             <div className="side-bell-list">
               {notifications.map((n) => (

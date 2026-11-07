@@ -35,6 +35,7 @@ export default defineConfig({
       DEMO_MODE_ALLOW_PRODUCTION: 'true',
       // Otra sesión para los e2e de invitaciones (lib/session.ts): la cookie zs_e2e_as=<email>. Solo acá.
       E2E_IDENTITY_COOKIE: '1',
+      ANALYTICS_ALLOW_HEADLESS: '1',
       TURSO_DATABASE_URL: `file:${dbFile}`,
       NEXTAUTH_SECRET: 'e2e-secret',
       NEXTAUTH_URL: `http://localhost:${PORT}`,
@@ -53,6 +54,9 @@ export default defineConfig({
       CRM_ENRICH_FAKE: '1',
       // Groups contra el proveedor de WhatsApp falso (lib/groups-provider-fake.ts): nada sale a WhatsApp.
       GROUPS_FAKE: '1',
+      // QR administrado contra un Evolution API simulado que levanta tests/e2e/groups-start.spec.ts en PORT + 31.
+      GROUPS_BRIDGE_URL: `http://127.0.0.1:${PORT + 31}`,
+      GROUPS_BRIDGE_KEY: 'e2e-bridge-global-key',
       // IA de Groups contra el modelo falso: marcado de preguntas sin responder
       // (lib/groups-flag.ts), traducción y borradores (lib/groups-ai.ts); con la
       // cookie groups_ai_fake=off se ve el error ai_disabled.
@@ -165,6 +169,8 @@ export default defineConfig({
       BOOKS_PAYMENTS_FAKE: '1',
       // Sign (y cualquier email sin Resend): captura de emails para leer el código y el link de firma.
       EMAIL_CAPTURE_FILE: mailFile,
+      // Sin Resend real aunque .env.local lo traiga: ningún e2e manda mails de verdad.
+      RESEND_API_KEY: '',
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
     },

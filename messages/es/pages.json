@@ -1,16 +1,16 @@
 {
   "products": {
     "meta": {
-      "title": "Productos",
-      "description": "Veinticuatro apps: CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Talk, Rec, Design, Shop, Analytics, Social, Hiring, People, Books, Sign y Forms. Open source para tu servidor, o en zerosoft Cloud con plan gratis y pago por uso."
+      "title": "25 apps open source para empresas: CRM, chat, docs y más",
+      "description": "Veinticinco apps open source, del CRM y el chat de soporte a los docs, las facturas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
     },
     "hero": {
-      "title1": "Veinticuatro apps.",
+      "title1": "Veinticinco apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las veinticuatro apps.",
+      "title1": "Probá las veinticinco apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -90,7 +90,7 @@
         },
         "f5": {
           "q": "¿Qué le falta comparado con Dub?",
-          "a": "Seguimiento de leads y ventas por clic, programa de partners, SDKs oficiales, servidor MCP y CLI, configuración de DNS en un clic y link cloaking. El ruteo por país o dispositivo, los destinos A/B, el QR con logo y colores, los permisos por carpeta y las acciones en lote ya están en Link."
+          "a": "SDKs oficiales, programa de partners y afiliados, CLI, configuración de DNS en un clic, SSO SAML, SCIM y extensión de Raycast. Zapier y Make reciben eventos por sus catch hooks, pero todavía no hay una app publicada en esos catálogos."
         }
       },
       "cta": {
@@ -180,11 +180,11 @@
         },
         "f3": {
           "q": "¿Dónde veo lo que me toca?",
-          "a": "En Mis tareas y en el inbox, que junta menciones, asignaciones y cambios en tus issues."
+          "a": "En Mis issues y en el inbox, que junta menciones, asignaciones y cambios en tus issues."
         },
         "f4": {
           "q": "¿Tiene API o webhooks?",
-          "a": "Todavía no. La API v1 cubre Link, CRM, Cal y Agents. Mientras tanto, Flow puede crear issues cuando pasa algo en otra app."
+          "a": "Sí. La API REST v1 cubre issues, comentarios, equipos, cycles, status, labels y personas, con keys con scopes. Los webhooks de issues, comentarios y equipos llegan firmados, con reintentos y log de entregas. También hay un servidor MCP."
         },
         "f5": {
           "q": "¿Cómo lo hosteo?",
@@ -274,7 +274,7 @@
         },
         "f2": {
           "q": "¿Manda emails desde mi cuenta?",
-          "a": "Sí, desde tu Gmail conectado, con plantillas, seguimiento de aperturas y clics y secuencias. Los pasos de una secuencia salen dentro de la hora en que vencen. En tu servidor, conectar Gmail requiere un cliente OAuth de Google propio."
+          "a": "Sí, desde tu Gmail u Outlook conectado, con plantillas y seguimiento de aperturas y clics. Las secuencias salen solo desde Gmail, dentro de la hora en que vence cada paso. En tu servidor, conectar Gmail requiere un cliente OAuth de Google propio, y Outlook, una app en Microsoft Entra ID."
         },
         "f3": {
           "q": "¿Puedo limitar qué ve cada vendedor?",
@@ -286,7 +286,7 @@
         },
         "f5": {
           "q": "¿Qué le falta comparado con HubSpot?",
-          "a": "Las cotizaciones no tienen firma electrónica ni cobro. Los formularios no tienen varios pasos, campos condicionales ni subida de archivos. En el celular, las tablas se desplazan de costado en lugar de pasar a tarjetas."
+          "a": "Una app nativa en App Store y Google Play (hay una app instalable que anda sin conexión), un notetaker que se una a la llamada y la grabe, y un directorio de apps de terceros. La extensión de Gmail todavía no está en la Chrome Web Store y no hay complemento para Outlook."
         }
       },
       "cta": {
@@ -372,7 +372,7 @@
         },
         "f2": {
           "q": "¿Con qué calendarios se sincroniza?",
-          "a": "Con Google Calendar: lo ocupado bloquea horarios y cada reserva crea el evento con link de Meet. Outlook e iCloud todavía no. En tu servidor, la conexión con Google requiere un cliente OAuth propio."
+          "a": "Con Google Calendar, Outlook (Microsoft 365) e iCloud: elegís qué calendarios revisan conflictos y en cuál entran las reservas, con link de Meet en Google y de Teams en Outlook. iCloud se conecta con una contraseña de app. En tu servidor, Google requiere un cliente OAuth propio y Outlook, una app en Microsoft Entra ID."
         },
         "f3": {
           "q": "¿Sirve para un equipo?",
@@ -384,7 +384,7 @@
         },
         "f5": {
           "q": "¿Qué le falta comparado con Calendly?",
-          "a": "Eventos grupales o colectivos, recordatorios por SMS y calendarios de Outlook o iCloud. Los cobros con Stripe, los workflows de email y los horarios reutilizables ya están en Cal."
+          "a": "Apps de iOS y Android, paquetes de reuniones con links de pago y facturas, tipos de evento gestionados por un admin, SSO y SCIM, extensión de navegador, notetaker y un asistente que agenda por email. Al cobrar falta PayPal, y las páginas de reserva todavía no se sirven en un dominio propio."
         }
       },
       "cta": {
@@ -470,19 +470,19 @@
         },
         "f2": {
           "q": "¿Pueden editar varios a la vez?",
-          "a": "No en tiempo real. Si dos personas editan la misma página al mismo tiempo, la segunda en guardar ve un aviso y elige entre cargar la versión nueva o sobrescribirla. Cada página guarda hasta 50 versiones que podés restaurar."
+          "a": "Sí, en beta: se prende por workspace en los ajustes de Docs. Los bloques de texto se editan tecla por tecla, con cursores y presencia en vivo. Los bloques con links a páginas o de más de 20.000 caracteres, el título y las celdas de las bases se fusionan al guardar, igual que todo sin la beta. Cada página guarda hasta 50 versiones que podés restaurar."
         },
         "f3": {
           "q": "¿Puedo publicar una página en la web?",
-          "a": "Sí. Las páginas que publicás forman un centro de ayuda público en /h/ y tu handle, con colecciones, búsqueda y un voto por artículo. En zerosoft Cloud todavía no hay dominio propio. Para una persona puntual, compartí la página en modo lectura."
+          "a": "Sí. Las páginas que publicás forman un sitio público con colecciones, búsqueda y un voto por artículo, en /h/ y tu handle o en tu dominio (uno por workspace, como docs.tuempresa.com). Para una persona puntual, compartí la página en modo lectura."
         },
         "f4": {
           "q": "¿Qué tienen las bases de datos?",
-          "a": "Propiedades con tipo (texto, número, selección, selección múltiple, estado, fecha, persona, checkbox, URL, email, teléfono, creado y editado), vistas de tabla, board y galería con filtros, orden y agrupación, y filas que se abren como página. Todavía no hay relaciones, rollups, fórmulas ni vistas de calendario o timeline."
+          "a": "Propiedades con tipo (texto, número, selección, estado, fecha, persona, archivos, fórmula, relación, rollup, botón, ID único y más), vistas de tabla, board, galería, lista, calendario y timeline con filtros, orden y agrupación, y filas que se abren como página. Las fechas son de un día y los números no tienen formato de moneda. Todavía no hay vistas de gráfico, formulario ni mapa."
         },
         "f5": {
           "q": "¿Tiene API pública?",
-          "a": "Todavía no. La API v1 cubre Link, CRM, Cal y Agents. Si hosteás vos, las páginas están en tu base SQLite como JSON."
+          "a": "Sí. /api/v1/docs cubre páginas, bloques, bases, filas, búsqueda y comentarios, con keys docs:read y docs:write. También hay webhooks firmados y un servidor MCP. Si hosteás vos, las páginas están en tu base SQLite como JSON."
         }
       },
       "cta": {
@@ -568,7 +568,7 @@
         },
         "f2": {
           "q": "¿Atiende email o WhatsApp?",
-          "a": "Todavía no. Chat tiene un solo canal: el widget web."
+          "a": "Email sí: reenviás tu dirección de soporte a la del widget y respondés desde la bandeja. Las respuestas salen desde la dirección de la app, todavía no desde tu dominio, y el reenvío se probó con el payload de la doc de Resend, no contra Resend real. WhatsApp todavía no está en Chat; para eso está Groups."
         },
         "f3": {
           "q": "¿Cómo funciona el bot?",
@@ -580,7 +580,7 @@
         },
         "f5": {
           "q": "¿Qué le falta comparado con Intercom?",
-          "a": "Mensajes proactivos, una API pública con webhooks y exportar las conversaciones. Las notas internas con menciones, los tags, las macros, el centro de ayuda y los reportes por agente o por fechas ya están en Chat."
+          "a": "WhatsApp, Instagram, Messenger y SMS en la bandeja, teléfono y voz, tienda de apps, apps nativas para el equipo, SDK mobile del messenger y centro de ayuda multilingüe o privado."
         }
       },
       "cta": {
@@ -606,8 +606,8 @@
     },
     "groups": {
       "meta": {
-        "title": "Groups: bandeja de WhatsApp para equipos y gestión de grupos, open source",
-        "description": "Bandeja compartida para chats y grupos de WhatsApp: asignación, notas, tickets por emoji, SLA, envíos masivos y gestión de grupos en lote, vinculada a tu CRM. Alternativa open source a Periskope."
+        "title": "Groups: bandeja de WhatsApp para equipos, open source",
+        "description": "Bandeja compartida para chats y grupos de WhatsApp: asignación, notas, tickets, SLA y envíos, vinculada a tu CRM. Alternativa open source a Periskope."
       },
       "hero": {
         "sub": "Una bandeja para cada chat de WhatsApp y cada grupo de cliente. Asigná, respondé, convertí mensajes en tickets y manejá cientos de grupos a la vez, con cada grupo en su ficha del CRM."
@@ -677,7 +677,7 @@
         },
         "f5": {
           "q": "¿Qué falta comparado con Periskope?",
-          "a": "Todavía no hay app mobile nativa, llamadas de voz, asignación round-robin ni acceso por etiqueta para miembros. Periskope además usa AI para separar preguntas de comentarios; Groups marca por tiempo sin respuesta."
+          "a": "Apps nativas en App Store y Google Play (hay una app instalable con push), y llamar o grabar desde Groups: los proveedores no dan el audio, así que solo queda el registro de llamadas de la Cloud API. Tampoco hay app en el directorio de Zapier ni endpoints de contactos y propiedades en la API, y el MCP trae 9 herramientas contra 56."
         }
       },
       "cta": {
@@ -755,11 +755,11 @@
         },
         "f3": {
           "q": "¿Dónde habla con mis clientes?",
-          "a": "En el widget de Chat de tu sitio, en una página pública propia y por la API v1 (scope agents:run) desde tu app."
+          "a": "En el widget de Chat de tu sitio, en una página pública propia, por email (con el email entrante de Chat configurado) y por la API v1 (scope agents:run). También en WhatsApp a través de Groups, en Slack, Messenger e Instagram con tu propia app, y por teléfono en un número de Twilio que asigna el admin de la instancia."
         },
         "f4": {
           "q": "¿Puede cambiar mis datos?",
-          "a": "Solo con las herramientas que le prendas y solo dentro de tu workspace. Para agendar necesita un horario que él mismo ofreció y la confirmación del visitante."
+          "a": "Solo con las herramientas que le prendas. Las de la suite actúan dentro de tu workspace; afuera solo llama a los dominios que permitas y a tus servidores MCP. Las que escriben pueden pedir aprobación humana. Para agendar necesita un horario que él mismo ofreció y la confirmación del visitante."
         },
         "f5": {
           "q": "¿Puedo traer la configuración de Fin?",
@@ -849,7 +849,7 @@
         },
         "f5": {
           "q": "¿Qué le falta comparado con Zapier?",
-          "a": "La cantidad de integraciones. Flow trae nodos para Slack, Google Sheets, Gmail, Stripe, Notion, Discord y Telegram; Zapier conecta miles de apps. Para el resto, Flow habla HTTP: si el servicio tiene API o webhooks, lo conectás con un pedido HTTP."
+          "a": "Todavía no hay conexión OAuth en un clic (las credenciales se pegan a mano), triggers instantáneos de apps de terceros, servidor MCP, API pública de flows y corridas, SSO con SAML, audit log ni forma de restringir apps. Y el catálogo es chico: nodos para Slack, Google Sheets, Gmail, Stripe, Notion, Discord y Telegram, y HTTP para el resto."
         }
       },
       "cta": {
@@ -935,7 +935,7 @@
         },
         "f5": {
           "q": "¿Qué le falta comparado con Browse AI?",
-          "a": "Marcar en la página lo que querés extraer (hoy se escriben selectores CSS), robots listos para sitios populares, robots armados con IA a partir de una URL, proxies residenciales por país, resolver captchas y repararse solo cuando un sitio cambia su diseño."
+          "a": "Resolver captchas y Cloudflare. Con menos alcance: corridas de 180 segundos y 20 páginas (Browse AI permite 60 minutos), 8 robots prearmados (Browse AI ofrece más de 250), proxies residenciales solo con un proveedor configurado en tu servidor y una extensión de grabación que se instala a mano. La autorreparación es opcional y no reaprende acciones sola. El sync con Sheets y Airtable se validó con un proveedor falso."
         }
       },
       "cta": {
@@ -1005,7 +1005,7 @@
       "faq": {
         "f1": {
           "q": "¿Quién puede leer mis notas?",
-          "a": "Solo vos. Si compartís una nota, la lee cualquiera con el link, y podés cortarlo cuando quieras."
+          "a": "Solo vos, hasta que la compartís. Podés darle ver o editar a un compañero, compartir su libreta o prender un link público de solo lectura, que cortás cuando quieras."
         },
         "f2": {
           "q": "¿Cómo guardo cosas de la web?",
@@ -1021,7 +1021,7 @@
         },
         "f5": {
           "q": "¿Puedo importar desde Evernote?",
-          "a": "Todavía no hay importador. Podés pegar el contenido de tus notas o usar el clipper para guardar páginas web."
+          "a": "Sí. Importá archivos .enex: hasta 20 archivos de 4 MB y 500 notas por archivo, con adjuntos."
         }
       },
       "cta": {
@@ -1076,11 +1076,11 @@
       "faq": {
         "f1": {
           "q": "¿Quién puede editar una pizarra?",
-          "a": "Todo tu workspace. Si la compartís por link, el resto solo la puede ver."
+          "a": "Todo tu workspace, o solo las personas que invites, con edición o lectura por persona. Por link, hay uno de solo lectura y otro de edición para invitados sin cuenta, que apagás cuando quieras."
         },
         "f2": {
           "q": "¿Se guarda sola?",
-          "a": "Sí, mientras dibujás. Si alguien la cambió en otro lado, te avisa y elegís qué versión conservar."
+          "a": "Sí, mientras dibujás: los cambios viajan en vivo y se guardan 1,2 segundos después del último. Lo que cambia otra persona se combina por elemento, y solo te pregunta si alguien borró lo que otro editó."
         },
         "f3": {
           "q": "¿Puedo pegar imágenes?",
@@ -1106,7 +1106,7 @@
     "voice": {
       "meta": {
         "title": "Voice: dictado por voz y notas de reunión open source",
-        "description": "Dictá en cualquier campo de zerosoft y tomá notas de reunión con transcripción en vivo, resumen con IA, decisiones y tareas. La alternativa open source a Wispr Flow y Granola."
+        "description": "Dictá en cualquier campo de zerosoft y tomá notas de reunión con transcripción, resumen con IA y tareas. Alternativa open source a Wispr Flow y Granola."
       },
       "hero": {
         "sub": "Mantené una tecla, hablá y el texto limpio queda donde estabas escribiendo. Grabá una llamada desde el navegador, anotá un par de líneas y la IA arma la nota con la transcripción, en la misma suite que tu CRM, Docs y Track."
@@ -1166,7 +1166,7 @@
         },
         "f2": {
           "q": "¿Hay app de escritorio?",
-          "a": "Está en camino. El código ya está en el repositorio (dictado en cualquier programa y audio del sistema para reuniones, en Mac y Windows), pero todavía no hay descargas firmadas."
+          "a": "Todavía no hay una versión publicada. El código está en el repositorio: dictado en cualquier programa y audio del sistema para reuniones, en Mac y Windows. La descarga aparece en /download con la primera versión, al principio sin firmar."
         },
         "f3": {
           "q": "¿Dónde se procesa el audio?",
@@ -1178,7 +1178,7 @@
         },
         "f5": {
           "q": "¿Qué le falta comparado con Wispr Flow + Granola?",
-          "a": "Las apps de escritorio firmadas y las móviles, los comandos de voz para reescribir texto, los avisos del calendario de Google u Outlook, las carpetas y los links para compartir. La tabla de paridad de arriba lista cada capacidad que medimos."
+          "a": "Las apps de iPhone y Android, las descargas firmadas de la app de escritorio, el modo susurro, el dictado que reconoce código y nombres en pantalla, y SSO con SCIM. La tabla de paridad de arriba lista cada capacidad que medimos."
         }
       },
       "cta": {
@@ -1191,7 +1191,7 @@
     "rec": {
       "meta": {
         "title": "Rec: grabación de pantalla y cámara open source",
-        "description": "Grabá tu pantalla, tu cámara o las dos desde el navegador, compartí con un link, recibí comentarios con el segundo exacto y mirá quién lo vio. Una alternativa open source a Loom."
+        "description": "Grabá pantalla o cámara desde el navegador, compartí con un link y recibí comentarios con el segundo exacto. Alternativa open source a Loom."
       },
       "hero": {
         "sub": "Grabá tu pantalla, una ventana o una pestaña con tu cámara en una burbuja, desde el navegador. Cuando cortás, el link queda copiado: los comentarios caen en el segundo exacto y ves quién lo vio y cuánto."
@@ -1259,11 +1259,11 @@
         },
         "f4": {
           "q": "¿Quién puede ver un video?",
-          "a": "Cualquiera con el link, o solo los miembros de tu workspace con sesión iniciada. Le podés poner contraseña y fecha de vencimiento, y prender o apagar los comentarios. Apagar la descarga saca el botón, pero un video que se transmite se puede capturar igual."
+          "a": "Cualquiera con el link, los miembros de tu workspace o de un espacio con sesión iniciada, o solo los emails que listás. Le podés poner contraseña y fecha de vencimiento, y prender o apagar los comentarios. Apagar la descarga saca el botón, pero un video que se transmite se puede capturar igual. En un store público de Blob, quien tenga la URL del archivo lo puede leer; la app nunca la muestra."
         },
         "f5": {
           "q": "¿Qué falta frente a Loom?",
-          "a": "La app de escritorio, la extensión de Chrome y las apps móviles, dibujar en pantalla, el desenfoque de fondo, unir clips, editar desde la transcripción, la marca propia y las integraciones con Slack, Jira y Gmail. La tabla de paridad de arriba tiene la lista completa."
+          "a": "La app de escritorio, la extensión de Chrome y las apps móviles, grabar reuniones, fondos virtuales y desenfoque, dibujar en pantalla, las integraciones con Jira, Confluence, GitHub y Gmail, una app de Slack y SSO con SCIM. Unir clips y editar desde la transcripción solo andan en grabaciones WebM. La tabla de paridad de arriba tiene la lista completa."
         }
       },
       "cta": {
@@ -1276,7 +1276,7 @@
     "talk": {
       "meta": {
         "title": "Talk: mensajería de equipo open source, alternativa a Slack",
-        "description": "Canales públicos y privados, mensajes directos, hilos, menciones, búsqueda y avisos para tu equipo, en la misma suite que tu CRM, Track y Docs. Alternativa open source a Slack."
+        "description": "Canales, mensajes directos, hilos, menciones y búsqueda para tu equipo, al lado de tu CRM, Track y Docs. Alternativa open source a Slack."
       },
       "hero": {
         "sub": "La mensajería de tu equipo: canales públicos y privados, mensajes directos e hilos, con las mismas personas del workspace y links a issues, deals y páginas que se ven con su estado."
@@ -1336,7 +1336,7 @@
         },
         "f2": {
           "q": "¿Tiene llamadas como los huddles de Slack?",
-          "a": "Todavía no. Las llamadas de audio y video quedan para una etapa posterior."
+          "a": "Sí, en canales y DMs: audio y cámara de navegador a navegador para hasta 15 personas, con pantalla compartida. La cámara solo se verificó con video simulado, no con una cámara real, y las redes estrictas necesitan un servidor TURN. Todavía no hay notas de IA ni dibujar sobre la pantalla."
         },
         "f3": {
           "q": "¿Voy a poder traer mis mensajes de Slack?",
@@ -1344,11 +1344,11 @@
         },
         "f4": {
           "q": "¿Sirve con gente de otras empresas?",
-          "a": "Talk está pensado para las personas de tu workspace. Los canales compartidos con otras organizaciones, como Slack Connect, no están en el plan inicial."
+          "a": "Sí, como invitados: los invitás por email a canales puntuales y no ven otros canales, el directorio ni otras apps. Los canales compartidos con otras organizaciones, como Slack Connect, todavía no están."
         },
         "f5": {
           "q": "¿Qué le falta comparado con Slack?",
-          "a": "Llamadas, canvases y listas, apps del marketplace, canales con otras organizaciones, invitados, resúmenes con IA y apps de escritorio y móviles. La tabla de paridad lo detalla fila por fila."
+          "a": "Apps móviles con push, marketplace de apps, canales compartidos con otras empresas y SSO con SCIM. Hay menos alcance en la API (sin botones ni modales), los canvases (uno por canal o DM) y la app de escritorio (sin versión publicada ni Linux). Los recaps y /ask solo se probaron contra un modelo de IA falso. La tabla de paridad lo detalla fila por fila."
         }
       },
       "cta": {
@@ -1361,7 +1361,7 @@
     "shop": {
       "meta": {
         "title": "Shop: tienda online open source con Stripe y Mercado Pago",
-        "description": "Vendé online con productos, variantes, stock por ubicación, códigos de descuento, tarifas de envío y checkout con Stripe o Mercado Pago. Una alternativa open source a Shopify y Tiendanube."
+        "description": "Vendé online con variantes, stock por ubicación, descuentos, envíos y checkout con Stripe o Mercado Pago. Alternativa open source a Shopify y Tiendanube."
       },
       "hero": {
         "sub": "Cargá tu catálogo o importalo de Shopify o Tiendanube, elegí un tema y publicá. Tus clientes compran como invitados con tarjeta, Mercado Pago o transferencia, y cada pedido llega a tu CRM."
@@ -1442,7 +1442,7 @@
     "design": {
       "meta": {
         "title": "Design: diseño gráfico open source",
-        "description": "Hacé posts, presentaciones, documentos y logos desde plantillas, con tu kit de marca, comentarios y descarga en PNG, JPG y PDF. Una alternativa open source a Canva."
+        "description": "Hacé posts, presentaciones y logos desde plantillas, con tu kit de marca y descarga en PNG, JPG y PDF. Alternativa open source a Canva."
       },
       "hero": {
         "sub": "Elegí un tamaño o una plantilla, cambiá el texto, sumá tus imágenes y los colores de tu marca, y descargalo en PNG, JPG o PDF. Tu equipo comenta directo sobre el lienzo."
@@ -1612,8 +1612,8 @@
     },
     "social": {
       "meta": {
-        "title": "Social: gestión de redes sociales open source, alternativa a Hootsuite",
-        "description": "Programá publicaciones en Facebook, Instagram, LinkedIn, X, TikTok, YouTube, Threads y Bluesky, contestá comentarios y mensajes desde una sola bandeja, aprobá lo que publica tu equipo y medí qué funciona. Alternativa open source a Hootsuite."
+        "title": "Social: alternativa open source a Hootsuite",
+        "description": "Programá posts en ocho redes, contestá comentarios desde una bandeja, aprobá lo que publica tu equipo y medí qué funciona. Alternativa open source a Hootsuite."
       },
       "hero": {
         "sub": "Planeá, publicá y contestá en redes sociales con tu equipo: un compositor para todas las redes, un calendario compartido, aprobaciones, una bandeja unificada y métricas. Cada red está hecha sobre su API oficial y la estamos verificando con cuentas reales."
@@ -1697,8 +1697,8 @@
     },
     "people": {
       "meta": {
-        "title": "People: RR. HH. open source con licencias, onboarding y evaluaciones",
-        "description": "Directorio, organigrama, licencias con devengamiento y aprobaciones, checklists de onboarding, documentos, evaluaciones e historial de sueldos. Una alternativa open source a BambooHR."
+        "title": "People: RR. HH. open source, licencias y onboarding",
+        "description": "Directorio, organigrama, licencias con aprobaciones, checklists de onboarding, documentos y evaluaciones. Alternativa open source a BambooHR."
       },
       "hero": {
         "sub": "Cada persona de tu workspace tiene su ficha. Llevá las licencias con saldos reales, armá el onboarding desde plantillas, guardá documentos privados y corré ciclos de evaluación, al lado de las apps que tu equipo ya usa."
@@ -1762,11 +1762,11 @@
         },
         "f4": {
           "q": "¿Se pueden firmar documentos?",
-          "a": "Todavía no. Podés compartir contratos y políticas en privado y pedir que confirmen que los leyeron. La firma electrónica no está disponible."
+          "a": "Desde People, todavía no. Podés compartir contratos y políticas en privado y pedir que confirmen que los leyeron. Para firmar, mandá el PDF desde Sign, que es otra app de la suite."
         },
         "f5": {
           "q": "¿Qué le falta frente a BambooHR?",
-          "a": "Liquidación de sueldos, beneficios, búsquedas y candidatos (es otra app), firma electrónica, encuestas como eNPS, control horario y app móvil. La tabla de paridad de arriba tiene la lista completa."
+          "a": "Liquidación de sueldos, beneficios, búsquedas y candidatos (es otra app), firma electrónica desde People (Sign es otra app), encuestas como eNPS, control horario y app móvil. La tabla de paridad de arriba tiene la lista completa."
         }
       },
       "cta": {
@@ -1779,7 +1779,7 @@
     "hiring": {
       "meta": {
         "title": "Hiring: selección de personal open source con página de empleos",
-        "description": "Puestos desde plantillas, página de empleos con datos para Google for Jobs, pipeline de candidatos, scorecards, entrevistas agendadas con Cal y ofertas que el candidato acepta en línea. Una alternativa open source a Workable."
+        "description": "Puestos, página de empleos, pipeline de candidatos, scorecards, entrevistas con Cal y ofertas que se aceptan en línea. Alternativa open source a Workable."
       },
       "hero": {
         "sub": "Publicá puestos en tu página de empleos, mové candidatos en un kanban, juntá los scorecards de tus entrevistadores y mandá ofertas, con los datos de cada candidato visibles solo para el equipo de su puesto."
@@ -1852,7 +1852,7 @@
         },
         "f5": {
           "q": "¿Qué le falta frente a Workable?",
-          "a": "Publicación en portales de empleo, base de búsqueda de candidatos, entrevistas en video, evaluaciones, SMS y un HRIS. La tabla de paridad de arriba tiene la lista completa."
+          "a": "Publicación en portales de empleo, base de búsqueda de candidatos, entrevistas en video, evaluaciones, SMS y el pase automático a People al contratar (hay un evento de Flow). La tabla de paridad de arriba tiene la lista completa."
         }
       },
       "cta": {
@@ -1865,7 +1865,7 @@
     "sign": {
       "meta": {
         "title": "Sign: firma electrónica open source con registro de auditoría",
-        "description": "Mandá PDFs a firmar con orden de firma, códigos por email, plantillas y envío masivo. Cada sobre termina con un certificado de finalización y hashes SHA-256. Una alternativa open source a DocuSign."
+        "description": "Mandá PDFs a firmar con orden de firma, códigos por email y plantillas. Cada sobre termina con un certificado. Alternativa open source a DocuSign."
       },
       "hero": {
         "sub": "Subí un PDF o elegí una página de Docs, poné los campos de cada persona, definí el orden y enviá. Los destinatarios firman desde el celular sin cuenta, y todos reciben la copia firmada con su registro de auditoría."
@@ -1950,8 +1950,8 @@
     },
     "books": {
       "meta": {
-        "title": "Books: facturación y contabilidad open source, una alternativa a Xero",
-        "description": "Facturas con impuesto por línea, cobro online con Stripe o Mercado Pago, compras, gastos, conciliación bancaria y contabilidad por partida doble para pymes de Latinoamérica. Una alternativa open source a Xero, QuickBooks y Alegra."
+        "title": "Books: facturación y contabilidad open source",
+        "description": "Facturas, cobro online, compras, gastos, conciliación bancaria y partida doble para pymes de Latinoamérica. Alternativa open source a Xero y Alegra."
       },
       "hero": {
         "sub": "Facturá en tu moneda con IVA por línea, cobrá online, cargá tus compras y comprobantes, importá el extracto del banco y conciliá. Cada comprobante genera su propio asiento de partida doble."
@@ -2031,8 +2031,8 @@
     },
     "forms": {
       "meta": {
-        "title": "Forms: formularios y encuestas open source, alternativa a Typeform",
-        "description": "Formularios y encuestas que preguntan de a una, con lógica, quizzes, NPS, archivos adjuntos, temas, embeds y una tabla de respuestas con resumen por pregunta. Una alternativa open source a Typeform, Google Forms y Tally."
+        "title": "Forms: alternativa open source a Typeform",
+        "description": "Formularios y encuestas que preguntan de a una, con lógica, quizzes, NPS y embeds. Alternativa open source a Typeform y Google Forms."
       },
       "hero": {
         "sub": "Armá un formulario desde una plantilla, sumale lógica y tus colores, compartí un link o incrustalo, y leé las respuestas en una tabla, un resumen por pregunta y un CSV. Cada respuesta puede llegar a tu CRM y a tus automatizaciones."
@@ -2114,6 +2114,93 @@
         "sub": "Abrí Forms, elegí una plantilla y publicá un link.",
         "button": "Abrir Forms"
       }
+    },
+    "parityCounts": "{have} incluidas, {partial} parciales de {counted}",
+    "send": {
+      "meta": {
+        "title": "Send: compartí documentos por link y mirá quién leyó cada página",
+        "description": "Compartí un PDF, una presentación o un video por link con reglas de email, código, vencimiento y watermark, y mirá el tiempo por página de cada persona. Alternativa open source a DocSend."
+      },
+      "hero": {
+        "sub": "Subí un PDF, una presentación, un Word o un video y armá un link por persona. Definí las reglas de cada link y mirá quién lo abrió, cuánto se quedó en cada página y si volvió."
+      },
+      "featuresTitle": "Sabé quién leyó qué.",
+      "featuresTitleDim": "Página por página.",
+      "f1": {
+        "t": "Un documento, muchos links",
+        "d": "Un link por destinatario o campaña, cada uno con su nombre y sus reglas. Deshabilitá uno y deja de andar en el pedido siguiente, imágenes incluidas."
+      },
+      "f2": {
+        "t": "Reglas en cada link",
+        "d": "Email, verificación por código, código de acceso, vencimiento, listas de permitidos o bloqueados por email o dominio, NDA firmado con Sign y descarga sí o no."
+      },
+      "f3": {
+        "t": "Tiempo en cada página",
+        "d": "Segundos por página desde el navegador de quien lee, con la pestaña visible. Completado, visitas de vuelta, dispositivo, ubicación aproximada y una marca cuando otro email abre el link de un destinatario."
+      },
+      "f4": {
+        "t": "El archivo se queda con vos",
+        "d": "Sin descarga, PDF, Word y PowerPoint llegan al navegador como imágenes de las páginas, no como el archivo. El watermark con su email se dibuja en el servidor. Un video se transmite, así que alguien decidido puede guardarlo, y una captura no se puede impedir. Lo decimos."
+      },
+      "f5": {
+        "t": "Reemplazalo sin tocar los links",
+        "d": "Subí una versión nueva y cada link la muestra cuando está lista. Cada visita cuenta para la versión que vio, así las podés comparar."
+      },
+      "f6": {
+        "t": "Espacios y tus otras apps",
+        "d": "Varios documentos detrás de un link, con números por documento y acceso por persona. Las visitas llegan al contacto del CRM cuando el email coincide."
+      },
+      "steps": {
+        "s1": {
+          "t": "Subir",
+          "d": "PDF, PowerPoint, Word, video o una página de Docs."
+        },
+        "s2": {
+          "t": "Armar un link",
+          "d": "Uno por persona, con las reglas que necesite."
+        },
+        "s3": {
+          "t": "Ver quién leyó",
+          "d": "Un aviso cuando alguien empieza, y el tiempo en cada página."
+        }
+      },
+      "compare": {
+        "rival": "DocSend",
+        "price": "Planes por usuario",
+        "per": "por usuario, o planes fijos con una cantidad de usuarios",
+        "teamLabel": "Un equipo de 5 que comparte propuestas",
+        "team": "ver los precios de DocSend",
+        "zero": "$0",
+        "note": "La página de precios de DocSend no se pudo leer cuando la revisamos, así que no citamos un precio: mirá docsend.com/pricing. Send en tu servidor cuesta $0 más tu base, almacenamiento y envío de emails."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Alguien puede copiar un documento que mando?",
+          "a": "Puede sacar una captura o una foto, y ninguna página web lo puede frenar. Sin descarga, los documentos le llegan como imágenes de las páginas, no como el archivo, y con watermark su email va en cada imagen. Un video se transmite, así que alguien decidido puede guardarlo."
+        },
+        "f2": {
+          "q": "¿Cómo saben quién es quien abre?",
+          "a": "Si el link pide email, es lo que escribió, y se muestra sin verificar. Con verificación, llega un código a esa dirección y el email se muestra verificado. Sin ninguna de las dos, la visita aparece como anónima, con dispositivo y ubicación aproximada."
+        },
+        "f3": {
+          "q": "¿Los bots y las vistas previas de links cuentan?",
+          "a": "No. Abrir la página no escribe nada. Una visita empieza tras unos segundos de lectura en un navegador con la pestaña visible, y quedan afuera los bots conocidos y los navegadores automatizados. Un escáner que se comporte igual que una persona igual podría contar."
+        },
+        "f4": {
+          "q": "¿Qué archivos puedo subir?",
+          "a": "PDF hasta 100 MB y 500 páginas, que se ve exacto. Word (.docx) y PowerPoint (.pptx) con un conversor simplificado: mirá la vista previa o exportá a PDF. Video hasta 1 GB, dentro del almacenamiento del workspace. No se aceptan .doc, .ppt, Excel, Keynote ni PDF con contraseña."
+        },
+        "f5": {
+          "q": "¿Qué falta comparado con DocSend?",
+          "a": "Dominios propios, Salesforce, complementos de navegador y de correo, Excel, preguntas en los espacios y registros de auditoría con vista propia, entre otras cosas. La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Mandalo.",
+        "title2": "Mirá quién lo leyó.",
+        "sub": "Abrí Send, subí un documento y armá tu primer link.",
+        "button": "Abrir Send"
+      }
     }
   },
   "product": {
@@ -2129,7 +2216,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Veinticuatro apps, el mismo login.",
+    "suiteTitleDim": "Veinticinco apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -2178,7 +2265,10 @@
       "missingTitle": "Lo que todavía falta ({count})",
       "missingLead": "{competitor} tiene esto y nosotros todavía no. Si te hace falta, votalo en el board público.",
       "vote": "Votar en el board",
-      "noneYet": "{name} todavía no incluye ninguna capacidad: está en construcción. Abajo están todas las que medimos."
+      "noneYet": "{name} todavía no incluye ninguna capacidad: está en construcción. Abajo están todas las que medimos.",
+      "methodCounts": "Medimos {count} capacidades de {competitor} a partir de su documentación. Es nuestra propia evaluación, comprobada contra el código el {date}.",
+      "areaCounts": "{have} incluidas · {partial} parciales · {missing} faltan",
+      "kickerCounts": "comparado con {competitor}"
     },
     "building": {
       "badge": "En construcción",
@@ -2189,7 +2279,35 @@
       "faqTitleDim": "Lo que ya sabemos y lo que falta.",
       "compareZero": "Con zerosoft, cuando esté lista",
       "zeroApp": "{name} en tu servidor, cuando esté lista"
-    }
+    },
+    "heroFig": {
+      "link": "fig. 0 · una cadena de eslabones",
+      "crm": "fig. 0 · tratos que avanzan por el pipeline",
+      "chat": "fig. 0 · una conversación de ida y vuelta",
+      "groups": "fig. 0 · el grupo con un mensaje nuevo sube",
+      "agents": "fig. 0 · un agente que consulta lo que tiene alrededor",
+      "flow": "fig. 0 · un pulso que recorre dos ramas",
+      "robots": "fig. 0 · un robot lee una página y llena una tabla",
+      "track": "fig. 0 · issues que avanzan por un tablero",
+      "docs": "fig. 0 · una página que se escribe",
+      "notes": "fig. 0 · una lista que se va tildando",
+      "cal": "fig. 0 · un mes que se va ocupando",
+      "board": "fig. 0 · un dibujo a mano en una pizarra",
+      "voice": "fig. 0 · la forma de onda de una voz",
+      "rec": "fig. 0 · una grabación con la cámara en su burbuja",
+      "talk": "fig. 0 · mensajes que llegan a un canal",
+      "design": "fig. 0 · una forma que cambia en su mesa de trabajo",
+      "shop": "fig. 0 · un catálogo de seis productos",
+      "analytics": "fig. 0 · un gráfico de barras con datos de ejemplo",
+      "social": "fig. 0 · publicaciones en un calendario",
+      "hiring": "fig. 0 · candidatos que pasan de etapa",
+      "people": "fig. 0 · licencias en un calendario",
+      "books": "fig. 0 · movimientos que se concilian",
+      "sign": "fig. 0 · una firma al pie de un contrato",
+      "forms": "fig. 0 · un formulario que se completa",
+      "send": "fig. 0 · páginas que se leen, con el tiempo de cada una"
+    },
+    "heroFigHint": "arrastrá para girar"
   },
   "mockups": {
     "link": {
@@ -2637,11 +2755,32 @@
       "i2": "Apretá 9 y después Enter",
       "summary": "Resumen",
       "action": "42 respuestas · promedio 8,4 · 3 abandonaron en la pregunta 4"
+    },
+    "send": {
+      "listTitle": "Links",
+      "r1name": "Propuesta para Acme",
+      "r1time": "hace 2 min",
+      "r1meta": "ana@acme.com · verificado",
+      "r2name": "Inversores",
+      "r2time": "Ayer",
+      "r2meta": "4 personas · 3 visitas cada una",
+      "r3name": "Newsletter",
+      "r3time": "Deshabilitado",
+      "r3meta": "128 visitas",
+      "status": "Leyendo ahora",
+      "p1label": "Página 1",
+      "p1time": "0:48",
+      "p2label": "Página 2",
+      "p2time": "1:05",
+      "p3label": "Página 3",
+      "p3time": "0:25",
+      "p4label": "Página 4",
+      "p4time": "0:08"
     }
   },
   "status": {
     "meta": {
-      "title": "Estado",
+      "title": "Estado de zerosoft.ai",
       "description": "Qué corre zerosoft.ai y cómo vamos a reportar su salud. Sin números inventados."
     },
     "title": "Estado.",
@@ -2705,13 +2844,13 @@
   },
   "docs": {
     "meta": {
-      "title": "Docs de la API",
-      "description": "La API REST de zerosoft para Link, CRM, Cal y Agents. Claves personales con scopes y respuestas JSON."
+      "title": "Docs de la API REST de zerosoft",
+      "description": "La API REST de zerosoft: Link, CRM, Cal, Track, Docs, Chat, Agents y más. Claves personales con scopes, respuestas JSON y webhooks firmados."
     },
     "label": "API",
     "title": "La API de zerosoft.",
     "titleDim": "REST y JSON.",
-    "intro": "Link, CRM, Cal y Agents exponen una API REST con respuestas JSON y claves personales.",
+    "intro": "Link, CRM, Cal, Track, Docs, Chat, Agents y la mayoría de las otras apps tienen API REST con respuestas JSON y claves personales.",
     "baseLabel": "Base URL",
     "authTitle": "Autenticación",
     "authDesc": "Cada request necesita una API key, enviada como Bearer token. Para sesiones de navegador, el flujo OAuth de Google crea la cookie de sesión.",
@@ -2737,7 +2876,7 @@
     "linksCreateTitle": "Crear un link",
     "linksCreateDesc": "Crea un link corto con las mismas opciones que la app: UTM, vencimiento, límite de clicks, contraseña, vista previa social, segmentación y un externalId. slug es opcional: si lo omitís, generamos uno.",
     "linksListTitle": "Listar links",
-    "linksListDesc": "Tus links, del más nuevo al más viejo. Paginá con page y pageSize (máx 100).",
+    "linksListDesc": "Tus links, del más nuevo al más viejo. Paginá con page y pageSize (máx 50).",
     "linksDeleteTitle": "Borrar un link",
     "linksDeleteDesc": "Borrá un link por id, junto con su historial de clicks. Quien creó la API key tiene que ser admin del workspace.",
     "linksPatchTitle": "Actualizar un link",
@@ -3068,6 +3207,11 @@
     "paramLinkOg": "Título, descripción e imagen (URL http(s)) de la vista previa en redes y apps de chat.",
     "paramLinkExternalId": "Tu propio id para el link, único por workspace (letras, números y . _ : @ -). Después leé o editá el link con /api/v1/links/ext_{externalId}.",
     "paramLinkCreator": "Solo los links que creó este id de usuario.",
+    "paramLinkSearch": "Texto a buscar en el slug, la URL de destino y el título.",
+    "paramLinkTagFilter": "Solo los links con este tag.",
+    "paramLinkFolderFilter": "Id de carpeta, o none para los links sin carpeta.",
+    "paramLinkArchivedFilter": "true trae solo los archivados, false solo los activos. Sin el parámetro vienen ambos.",
+    "paramLinkSort": "created (por defecto, del más nuevo al más viejo) o clicks (del más clickeado al menos).",
     "paramMoveFields": "Propiedades que pide la etapa, se guardan antes de mover: amount, closeDate, ownerId, priority, source, description y custom (valores de custom fields por nombre).",
     "chatTitle": "Chat",
     "chatDesc": "Leé y respondé las conversaciones del inbox de Chat desde tu app o tu helpdesk. Necesita el scope chat:read para leer y chat:write para responder, asignar y resolver. Las respuestas salen a nombre de quien creó la key.",
@@ -3517,12 +3661,14 @@
     "scope_notes_read": "Leer las notas que puede ver quien creó la clave, y sus tareas.",
     "scope_notes_write": "Crear y editar las notas de quien creó la clave.",
     "formsApiTitle": "Forms",
-    "formsApiDesc": "Formularios y sus respuestas. La key actúa como la persona que la creó y solo ve los formularios que esa persona puede abrir. Scope forms:read."
+    "formsApiDesc": "Formularios y sus respuestas. La key actúa como la persona que la creó y solo ve los formularios que esa persona puede abrir. Scope forms:read.",
+    "mcpCta": "Conectar Claude y la CLI",
+    "scope_send_read": "Leer los documentos que la persona ve, con sus links y visitas."
   },
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de las 24 apps: {average}%. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de {apps} de las 25 apps: {average} %. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",
@@ -3532,7 +3678,8 @@
       "missing": "Faltan",
       "beyond": "Más allá"
     },
-    "method": "Cada app suma 1 por capacidad incluida, 0,5 por parcial y 0 por faltante, con peso doble para las centrales. Es nuestra evaluación contra el código y se actualiza con cada versión. Abrí una app para ver la lista completa."
+    "method": "Cada app suma 1 por capacidad incluida, 0,5 por parcial y 0 por faltante, con peso doble para las centrales. Es nuestra evaluación contra el código y se actualiza con cada versión. Abrí una app para ver la lista completa.",
+    "notComparable": "No comparable"
   },
   "desktopLogin": {
     "title": "Entrar a la app de zerosoft",
@@ -3591,5 +3738,81 @@
     "mobileTitle": "En el teléfono",
     "mobileBody": "Abrí zerosoft.ai/app en Safari o Chrome y agregala a la pantalla de inicio: se abre como una app, con todas las apps de zerosoft. Las versiones nativas de iOS y Android todavía no están en las tiendas.",
     "openApp": "Abrir en el navegador"
+  },
+  "compare": {
+    "crumb": "Comparar",
+    "index": {
+      "meta": {
+        "title": "Alternativas open source, comparadas función por función",
+        "description": "Cada app de zerosoft al lado del producto que reemplaza: HubSpot, Notion, Linear, Slack y más. Paridad contada con nuestras tablas, con lo que falta."
+      },
+      "title": "Comparar.",
+      "titleDim": "Cada app al lado del producto que reemplaza.",
+      "lead": "Una fila por app. El porcentaje sale de la misma tabla de paridad que la página de producto: lo que tenemos suma 1, lo parcial 0,5 y lo que falta 0, con peso doble para lo central. Es nuestra cuenta, revisada contra el código en la fecha que figura.",
+      "caption": "Las apps de zerosoft comparadas con el producto que reemplaza cada una",
+      "col": {
+        "app": "App",
+        "competitor": "Comparada con",
+        "parity": "Paridad",
+        "counts": "Incluido · parcial · falta",
+        "reviewed": "Revisado",
+        "pages": "Páginas"
+      },
+      "vsLink": "{name} vs {competitor}",
+      "altLink": "Alternativa a {competitor}",
+      "notComparable": "No comparable"
+    },
+    "vs": {
+      "metaTitle": "zerosoft {name} vs {competitor}: comparación función por función",
+      "metaDescription": "{name} cubre el {percent}% de las {count} funciones de {competitor} que medimos: {have} incluidas, {partial} parciales, {missing} faltan. Open source, $0 en tu servidor.",
+      "title": "{name} vs {competitor}",
+      "lead": "{name} es la app de zerosoft que reemplaza a {competitor}. Por nuestra cuenta cubre el {percent}% de las {count} funciones de {competitor} que medimos: {have} incluidas, {partial} parciales y {missing} que faltan. La tabla sale de los mismos datos que la página de producto y se revisó contra el código el {date}.",
+      "glanceTitle": "En resumen",
+      "glance": {
+        "parity": "Paridad con {competitor}",
+        "price": "{competitor} a precio de lista",
+        "ours": "{name}",
+        "oursValue": "$0 en tu servidor (AGPLv3). En zerosoft Cloud: plan gratis y después pago por uso. Los asientos no se cobran.",
+        "license": "Licencia de {name}",
+        "licenseValue": "AGPLv3, código en GitHub",
+        "reviewed": "Última revisión",
+        "counts": "Incluidas · parciales · faltan"
+      },
+      "tableTitle": "Función por función.",
+      "tableTitleDim": "Nuestra cuenta, desde el código.",
+      "altCta": "Alternativa a {competitor}: qué tenés y qué falta",
+      "metaDescriptionCounts": "{name} al lado de {competitor}, en {count} capacidades de su documentación: {have} incluidas, {partial} parciales, {missing} faltan. Código abierto, $0 en tu servidor.",
+      "leadCounts": "{name} es la app de zerosoft que reemplaza a {competitor}. Recorriendo las {count} capacidades de su documentación, contamos {have} incluidas, {partial} parciales y {missing} que faltan. La tabla sale de los mismos datos que la página de producto."
+    },
+    "alt": {
+      "metaTitle": "Alternativa open source a {competitor}: zerosoft {name}",
+      "metaDescription": "zerosoft {name} es una alternativa open source a {competitor}: $0 en tu servidor y plan gratis en zerosoft Cloud. Cubre el {percent}% de lo que medimos de {competitor}.",
+      "title": "Alternativa a {competitor}",
+      "titleDim": "zerosoft {name}, open source.",
+      "lead": "{name} hace lo central de {competitor}. Corre en tu servidor por $0 con licencia AGPLv3, o en zerosoft Cloud con plan gratis y pago por uso, sin cobro por asiento. Por nuestra cuenta cubre el {percent}% de las {count} funciones de {competitor} que medimos.",
+      "getTitle": "Qué tenés",
+      "gapsTitle": "Qué falta todavía",
+      "gapsLead": "Funciones que {competitor} tiene y {name} no, o cubre en parte. Votá en el board público las que necesitás.",
+      "gapsNone": "Están todas las funciones de {competitor} que medimos.",
+      "beyondTitle": "Qué suma {name}",
+      "priceTitle": "Precio",
+      "moveTitle": "Cómo pasarte desde {competitor}",
+      "vsCta": "Ver la tabla completa",
+      "partial": "parcial",
+      "missing": "falta",
+      "metaDescriptionCounts": "zerosoft {name} es una alternativa de código abierto a {competitor}: $0 en tu servidor, plan gratis en zerosoft Cloud. De {count} capacidades de su documentación, {have} están incluidas y {partial} son parciales.",
+      "leadCounts": "{name} corre en tu servidor por $0 bajo AGPLv3, o en zerosoft Cloud con un plan gratis y precio por uso, sin cobro por persona. De las {count} capacidades de la documentación de {competitor}, contamos {have} incluidas, {partial} parciales y {missing} que faltan."
+    },
+    "faqTitle": "Preguntas.",
+    "relatedTitle": "Guías y posts",
+    "otherTitle": "Otras comparaciones",
+    "tryCta": "Probar {name}",
+    "productCta": "La página de {name}"
+  },
+  "docsMcp": {
+    "meta": {
+      "title": "Conectar Claude y la CLI",
+      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 25 apps como vos."
+    }
   }
 }

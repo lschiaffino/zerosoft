@@ -161,7 +161,7 @@ describe('responder con un video', () => {
     await expect(addComment(row, viewerOf(member, 'm1'), { kind: 'comment', body: 'x', replyVideoId: notReady.id })).rejects.toMatchObject({ code: 'invalid_input' });
 
     const ok = await addComment(row, viewerOf(member, 'm1'), { kind: 'comment', body: 'Respuesta en video', replyVideoId: mine.id });
-    expect(ok.replyVideo?.shareId).toBe(mine.shareId ?? (await getVideoRow(member, mine.id))!.share_id);
+    expect(ok.replyVideo?.shareId).toBe((await getVideoRow(member, mine.id))!.share_id);
     const page = await listComments(row, 'm1');
     expect(page.comments.find((c) => c.id === ok.id)?.replyVideo?.durationSec).toBe(30);
   });

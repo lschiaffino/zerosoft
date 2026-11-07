@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { chatsForCrmRecord, mediaKind } from '@/lib/groups';
-import { parseDbUtc } from '@/lib/utils';
+import LocalDate from '@/components/ui/LocalDate';
 
 /**
  * Bloque de Groups en la ficha de un contacto o empresa del CRM: los chats y
@@ -36,7 +36,7 @@ export default async function CrmGroupsBlock({ ws, kind, recordId, locale }: { w
                   {messages.map((m) => (
                     <li key={m.id}>
                       <time className="muted" dateTime={m.createdAt}>
-                        {parseDbUtc(m.createdAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}
+                        <LocalDate value={m.createdAt} locale={locale} />
                       </time>{' '}
                       <strong>{m.direction === 'out' ? t('detail.team') : m.senderName || (m.senderPhone ? `+${m.senderPhone}` : '')}</strong>{' '}
                       <span>{m.body.slice(0, 140) || (m.media ? m.media.name || t(`media.${mediaKind(m.media.type)}`) : '')}</span>

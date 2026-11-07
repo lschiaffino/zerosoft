@@ -56,7 +56,8 @@ async function hoverRow(page: Page, id: string) {
 test.describe('Track como Linear: teclado y menús', () => {
   test('L crea un label nuevo tipeando; ⇧P tipeado elige el proyecto (no "No project"); P con dígitos', async ({ page, request }) => {
     const t = await team(request);
-    const name = `Pagos ${uid()}`;
+    // El prefijo único es lo que se tipea: un plan de otro test o del intento anterior no compite por el primer lugar.
+    const name = `${uid()} Pagos`;
     const plan = await ok<{ id: string; name: string }>(request.post('/api/track/plans', { data: { name } }));
     const a = await ok<Issue>(request.post(`/api/track/projects/${t.id}/issues`, { data: { title: 'Teclado uno' } }));
     await page.goto(`/en/app/track/team/${t.id}`);
@@ -97,6 +98,17 @@ test.describe('Track como Linear: teclado y menús', () => {
     await page.keyboard.press('p');
     await page.keyboard.press('0');
     await expect.poll(async () => (await issueOf(request, a.id)).priority).toBe('none');
+    await expect(palette).toBeHidden();
+
+    // El dígito llega antes de que React dibuje el menú (máquina cargada): no se pierde.
+    await hoverRow(page, a.id);
+    await page.evaluate(async () => {
+      const key = (k: string, code: string, on: EventTarget) => on.dispatchEvent(new KeyboardEvent('keydown', { key: k, code, bubbles: true, cancelable: true }));
+      key('p', 'KeyP', document.body);
+      await Promise.resolve();
+      key('2', 'Digit2', document.activeElement ?? document.body);
+    });
+    await expect.poll(async () => (await issueOf(request, a.id)).priority).toBe('high');
   });
 
   test('⌘⌫ sobre una fila la borra (con deshacer) y el ID viejo de un issue movido se encuentra en ⌘K', async ({ page, request }) => {

@@ -76,7 +76,9 @@
     "noteMember": "Você vê só as suas keys. Owner e admins veem as de todo o workspace.",
     "noteAdmin": "Você vê as keys de todo o workspace.",
     "error": "Não foi possível criar a key. Tente de novo.",
-    "revokeError": "Não foi possível revogar a key."
+    "revokeError": "Não foi possível revogar a key.",
+    "mcpAccess": "Acesso ao MCP",
+    "mcpAccessHelp": "Deixa esta chave usar o endpoint MCP, dentro das permissões acima. Sem isso, a chave só serve para a API REST."
   },
   "webhooks": {
     "title": "Webhooks",
@@ -394,7 +396,8 @@
       "google": "Google Calendar em Cal › Conexões",
       "gmail": "Gmail em CRM › Integrações",
       "whatsapp": "Números de WhatsApp em Groups › Números",
-      "github": "GitHub em Track › GitHub"
+      "github": "GitHub em Track › GitHub",
+      "apps": "Claude e outros apps conectados"
     },
     "import": {
       "title": "Importar",
@@ -462,9 +465,9 @@
       "guest": "Convidado"
     },
     "roleHelp": {
-      "member": "Usa os apps que você ativar para ele, com os mesmos dados que o resto da equipe.",
+      "member": "Usa os apps que você ativar para ele. O que vê em cada um depende de como está compartilhado.",
       "admin": "Como um membro, e também convida pessoas, muda papéis e edita as configurações.",
-      "guest": "Não entra no workspace: só vê o que você compartilhar, página por página."
+      "guest": "Não entra no workspace: só vê o que você compartilhar, como uma página do Docs."
     },
     "apps": "Apps",
     "allApps": "Todos os apps",
@@ -539,7 +542,9 @@
       "invalid_emails": "Nenhum é um email válido.",
       "owner_cant_leave": "O dono não pode sair do workspace.",
       "cant_change_own_role": "Você não pode mudar o seu próprio papel.",
-      "not_found": "Essa pessoa ou convite não existe mais. Recarregue a página."
+      "not_found": "Essa pessoa ou convite não existe mais. Recarregue a página.",
+      "wrong_workspace": "Você mudou de workspace em outra aba. Recarregue e tente de novo.",
+      "apps_not_yours": "Você só pode dar acesso a apps que você tem."
     },
     "approve": "Aprovar",
     "allowAnyEmail": "Permitir outro email",
@@ -553,7 +558,40 @@
       "body": "O link para de funcionar na hora. Você pode convidar essa pessoa de novo depois.",
       "confirm": "Revogar",
       "cancel": "Cancelar"
-    }
+    },
+    "rolesLegend": "O que cada papel pode fazer",
+    "rolesLegendApps": "Dentro de cada app há ações só para admins, como excluir pipelines ou mudar as configurações do app. Se precisar de uma, peça a um admin.",
+    "guestOf": {
+      "title": "Workspaces onde você é convidado",
+      "desc": "Um convidado não entra no workspace. Você abre o que compartilham com você pelo link, pelos avisos ou pelo Docs.",
+      "leave": "Deixar de ser convidado",
+      "openDocs": "Abrir Docs",
+      "error": "Não deu certo. Tente de novo.",
+      "confirmTitle": "Deixar de ser convidado de {workspace}?",
+      "confirmBody": "Você perde o que compartilharam com você pessoa a pessoa. Para voltar, alguém precisa convidar você de novo."
+    },
+    "roleLegend": {
+      "owner": "Usa todos os apps e vê os salários no People. É a única pessoa que nomeia, muda ou remove admins e nomeia admins de RH. Não pode sair do workspace.",
+      "admin": "Usa os apps ativados para ele. Também convida pessoas, muda o papel e os apps de membros e convidados e edita as configurações do workspace. Vê salários só se o owner o nomear admin de RH.",
+      "member": "Usa os apps ativados para ele. O que vê em cada um depende de como está compartilhado.",
+      "guest": "Não entra no workspace. Só vê o que compartilham com ele, como uma página do Docs."
+    },
+    "requestWorkspace": {
+      "body": "Este pedido é de {workspace}, que não é o seu workspace ativo. O acesso abre lá.",
+      "switch": "Mudar para {workspace}",
+      "error": "Não foi possível mudar. Tente de novo.",
+      "notPart": "Este pedido é de um workspace do qual você não faz parte.",
+      "removed": "Esta pessoa não está mais em {workspace}: não há nada para responder.",
+      "adminOnly": "Só o owner pode mudar o acesso de um admin, e o do owner não pode ser mudado.",
+      "adminsOnly": "Só o owner e os admins de {workspace} podem abrir o acesso de alguém."
+    },
+    "requested": "(pedido)",
+    "appsLimitHelp": "Você só pode ativar apps que você tem.",
+    "denyRequest": "Recusar pedido",
+    "requestLine": "{name} pediu {apps}.",
+    "rolesLegendAppsAdmin": "Dentro de cada app há ações só para admins, como excluir pipelines ou mudar as configurações do app.",
+    "appsLimitAllHelp": "Esta pessoa tem todos os apps. Você pode limitar aos que você tem.",
+    "requestedMarker": "Pediu {apps}"
   },
   "teamsForm": {
     "createTitle": "Criar uma equipe",
@@ -610,7 +648,7 @@
     "detailsDesc": "O nome e o logo que todos veem na barra lateral e nos convites.",
     "name": "Nome",
     "slug": "Identificador",
-    "slugPlaceholder": "darwin-ai",
+    "slugPlaceholder": "acme",
     "slugHelp": "Minúsculas, números e hífens. Único no zerosoft.",
     "size": "Tamanho da equipe",
     "sizeUnset": "Não definido",
@@ -657,10 +695,20 @@
       "file_too_large": "A imagem tem mais de 2 MB.",
       "storage_unavailable": "Aqui não há armazenamento de arquivos configurado.",
       "forbidden": "Só o dono e os admins podem mudar isto.",
-      "domain_not_yours": "Você só pode ativar o domínio do seu próprio email."
+      "domain_not_yours": "Você só pode ativar o domínio do seu próprio email.",
+      "apps_not_yours": "Você só pode dar acesso a apps que você tem."
     },
     "joinApproval": "Um admin aprova cada pessoa antes de ela entrar",
-    "joinRole": "Entram como membros com estes apps:"
+    "joinRole": "Entram como membros com estes apps:",
+    "dangerTitle": "Propriedade e encerramento",
+    "dangerDesc": "O que ainda não está no produto e o que fazer enquanto isso.",
+    "transferTitle": "Transferir a propriedade",
+    "transferBody": "Ainda não dá para transferir a propriedade pelo app. Enquanto isso, torne a próxima pessoa admin em Configurações › Membros: admins convidam, mudam papéis e editam estas configurações.",
+    "closeTitle": "Encerrar o workspace",
+    "closeBody": "Ainda não dá para encerrar um workspace pelo produto. Para pedir, escreva para hola@zerosoft.ai a partir de {email} e respondemos manualmente.",
+    "leaveTitle": "Sair de {workspace}",
+    "leaveBody": "Você perde o acesso aos apps na hora. O que você criou fica no workspace.",
+    "leaveCta": "Sair em Membros"
   },
   "switcher": {
     "label": "Workspace: {name}. Trocar de workspace",
@@ -683,20 +731,36 @@
     "createSubmit": "Criar e convidar",
     "cancel": "Cancelar",
     "teamName": "Nome da equipe",
-    "teamNamePlaceholder": "Darwin AI",
+    "teamNamePlaceholder": "Acme",
     "createHelp": "Seu workspace passa a ser de equipe com este nome. Seus dados ficam onde estão. Depois você convida as pessoas."
   },
   "access": {
     "title": "Você não tem acesso ao {app} aqui",
     "body": "Um admin de {workspace} pode ativar o acesso para você em Configurações › Membros.",
-    "back": "Voltar aos apps"
+    "back": "Voltar aos apps",
+    "request": "Pedir acesso",
+    "sending": "Enviando…",
+    "sent": "Pedido enviado. Avisamos quando responderem.",
+    "error": "Não foi possível enviar o pedido. Tente de novo.",
+    "already": "Você já pediu hoje. Avisamos quando responderem.",
+    "hasAccess": "Você já tem este app. Abra pelos seus apps.",
+    "limited": "Muitos pedidos na última hora. Espere um pouco e peça de novo.",
+    "bodyAdmin": "O owner de {workspace} pode ativar o {app} para você em Configurações › Membros.",
+    "guardTitle": "Esta mudança não foi salva",
+    "guardSwitched": "Esta aba está em {workspace} e seu workspace ativo mudou em outra aba. Nada foi salvo.",
+    "guardGone": "Você não tem mais acesso a {workspace}. Nada foi salvo. Copie o que digitou antes de sair desta página.",
+    "guardSwitchBack": "Voltar para {workspace}",
+    "guardStay": "Ir para meu workspace ativo",
+    "guardHome": "Ir para o início",
+    "guardSwitchError": "Não foi possível voltar. Tente de novo.",
+    "guardClose": "Fechar"
   },
   "invite": {
     "metaTitle": "Convite",
     "title": "Entre em {workspace}",
     "sub": "{inviter} convidou você para o zerosoft.",
     "roleLine": {
-      "member": "Você vai usar os mesmos apps e dados que o resto da equipe.",
+      "member": "Você vai usar os apps do workspace. O que você vê em cada um depende de como está compartilhado.",
       "admin": "Você entra como admin: pode convidar pessoas e mudar as configurações.",
       "guest": "Você entra como convidado: só vê o que compartilharem com você."
     },
@@ -709,7 +773,7 @@
     "useAccount": "Entre com {email}: pelo Google ou com um código por email.",
     "expires": "O link vence em {date}.",
     "invalidTitle": "Este convite não funciona mais",
-    "invalidDesc": "Já foi usado ou revogado. Peça um novo a quem convidou você.",
+    "invalidDesc": "Já foi usado ou revogado. Se você aceitou, entre com essa conta. Se não, peça um novo a quem convidou você.",
     "expiredTitle": "Este convite venceu",
     "expiredDesc": "Os convites duram 14 dias. Peça a quem convidou você para reenviar.",
     "alreadyTitle": "Você já está em {workspace}",
@@ -771,7 +835,7 @@
       "title": "Sua equipe",
       "sub": "Este é o workspace que a sua equipe vai compartilhar.",
       "name": "Nome da equipe",
-      "namePlaceholder": "Darwin AI",
+      "namePlaceholder": "Acme",
       "size": "Quantas pessoas são?",
       "sizes": {
         "1": "Só eu",
@@ -809,8 +873,10 @@
     "invited": {
       "title": "Boas-vindas a {workspace}",
       "titleNoName": "Boas-vindas ao zerosoft",
-      "sub": "Dois detalhes e você entra.",
-      "go": "Ir para {workspace}"
+      "sub": "Confira estes dados e pronto.",
+      "go": "Ir para {workspace}",
+      "guestSub": "Você entrou em {workspace} como convidado: abre o que compartilham com você pelo link ou pelos seus avisos. Você vai chegar ao seu próprio workspace.",
+      "guestTitle": "Você é convidado de {workspace}"
     },
     "results": {
       "title": "Quase pronto",
@@ -824,7 +890,12 @@
       },
       "invalid": "Estes não são emails válidos: {list}",
       "limited": "Você chegou ao limite de convites por agora. Convide o resto mais tarde em Configurações › Membros."
-    }
+    },
+    "notYou": "Não é você? Sair",
+    "stepFirst": "Passo 1",
+    "notYouJoined": "Você já entrou em {workspace} com {email}. Sair da sessão não desfaz isso. Para tirar esta conta de {workspace}, saia agora; para voltar com outra conta, será preciso um novo convite.",
+    "notYouLeave": "Sair de {workspace} e encerrar a sessão",
+    "notYouStay": "Só encerrar a sessão"
   },
   "profileForm": {
     "title": "Seus dados",
@@ -1041,5 +1112,75 @@
       "notMovedNote": "{count, plural, one {# página importada antes ficou onde estava} other {# páginas importadas antes ficaram onde estavam}}: importar de novo não as move para o novo destino. Se quiser, mova pelo Docs."
     },
     "adminOnlySource": "Só quem administra o workspace pode importar do {source} para o {app}. Peça a um admin."
+  },
+  "oauth": {
+    "metaTitle": "Conectar um app",
+    "deviceMetaTitle": "Conectar um dispositivo",
+    "title": "{client} quer usar sua conta da zerosoft",
+    "redirectsTo": "Volta para {host}",
+    "deviceOrigin": "Iniciado de um terminal, com um código de dispositivo",
+    "asPerson": "Vai agir como {email}, com seu papel e suas permissões.",
+    "workspace": "Workspace",
+    "personalWorkspace": "Pessoal",
+    "access": "Acesso",
+    "scopeWrite": "Ler e escrever",
+    "scopeWriteHelp": "Ler, criar, alterar e apagar nos apps que você pode usar.",
+    "scopeRead": "Somente leitura",
+    "scopeReadHelp": "Ler o que você pode ver. Não pode alterar nada.",
+    "noteSame": "Só pode fazer o que você pode fazer na zerosoft. Seu papel, o acesso por app e o compartilhamento continuam valendo.",
+    "noteOut": "Não pode entrar por você, criar chaves de API, apagar sua conta nem mexer no faturamento.",
+    "noteRevoke": "Você pode desconectar quando quiser em Ajustes, API e webhooks.",
+    "approve": "Permitir acesso",
+    "deny": "Cancelar",
+    "working": "Um momento...",
+    "expiredTitle": "Este pedido não vale mais",
+    "expiredBody": "Venceu ou já foi respondido. Inicie a conexão de novo pelo seu app.",
+    "errorExpired": "Este pedido venceu. Inicie a conexão de novo pelo seu app.",
+    "errorGeneric": "Algo falhou. Tente de novo.",
+    "errorCode": "Esse código não é válido ou venceu.",
+    "errorTooMany": "Tentativas demais. Espere um minuto e tente de novo.",
+    "deviceTitle": "Conectar um dispositivo",
+    "deviceBody": "Digite o código que seu terminal está mostrando.",
+    "deviceCode": "Código",
+    "deviceContinue": "Continuar",
+    "deviceDoneTitle": "Dispositivo conectado",
+    "deviceDoneBody": "Você pode fechar esta página e voltar ao terminal.",
+    "deviceDeniedTitle": "Conexão cancelada",
+    "deviceDeniedBody": "Nada foi conectado. Você pode fechar esta página.",
+    "redirectsLocal": "Volta para um app neste computador",
+    "selfDeclared": "\"{client}\" é o nome que este app se deu. A zerosoft não o verificou, mesmo que pareça uma marca que você conhece.",
+    "deviceWarningTitle": "Aprove só se foi você que iniciou",
+    "deviceWarningBody": "Alguém que manda um link ou um código pode entrar na sua conta assim. Se você não acabou de rodar isso no seu terminal, cancele.",
+    "deviceConfirm": "Confira se este é o código que seu terminal está mostrando. Se não for, feche esta página.",
+    "invalidTitle": "Este pedido de conexão não é válido",
+    "invalidBody": "Nada foi conectado. Comece de novo pelo app, ou avise quem o faz.",
+    "invalidCode": "Motivo: {code}",
+    "noteKeeps": "Desconectar corta este app. O que ele criou fica, e as automações que ele ligou continuam rodando até você desligar."
+  },
+  "connected": {
+    "title": "Apps conectados",
+    "desc": "Apps em que você entrou com sua conta da zerosoft, como o Claude ou a CLI da zerosoft. Cada um age como você.",
+    "note": "Você vê só as suas conexões. Desconectar uma corta na hora.",
+    "emptyTitle": "Nenhum app conectado",
+    "emptyBody": "Quando você conectar o Claude ou a CLI, vai aparecer aqui.",
+    "colClient": "App",
+    "colWorkspace": "Workspace",
+    "colAccess": "Acesso",
+    "colLastUsed": "Último uso",
+    "colActions": "Ações",
+    "ownWorkspace": "Seu workspace",
+    "accessWrite": "Ler e escrever",
+    "accessRead": "Somente leitura",
+    "never": "Nunca",
+    "revoke": "Desconectar",
+    "cancel": "Cancelar",
+    "confirmTitle": "Desconectar {client}?",
+    "confirmBody": "Perde o acesso na hora. Para usar de novo, você vai precisar entrar outra vez.",
+    "error": "Não foi possível desconectar. Tente de novo.",
+    "connectedOn": "Conectado em {date}",
+    "changes": "{count, plural, =0 {Sem alterações} one {# alteração} other {# alterações}}",
+    "originLocal": "App em um computador",
+    "originDevice": "Entrou com um código de dispositivo",
+    "emptyAction": "Como conectar"
   }
 }

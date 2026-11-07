@@ -44,7 +44,7 @@
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: 1.75rem;
-  line-height: 1.05;
+  line-height: 1.12;
   margin-bottom: 16px;
   text-wrap: balance;
 }
@@ -93,7 +93,7 @@
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: var(--t-h3);
-  line-height: 1;
+  line-height: 1.1;
 }
 .cl-cta-body { margin-top: 8px; color: var(--brand-on-ink-2); font-size: 16px; line-height: 1.55; }
 

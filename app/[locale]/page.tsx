@@ -19,6 +19,7 @@ import SuiteGrid from '@/components/site/SuiteGrid';
 import ParityOverview from '@/components/products/ParityOverview';
 import SectionSign from '@/components/site/SectionSign';
 import HeroVisual from '@/components/site/HeroVisual';
+import ZeroArt from '@/components/zero/ZeroArt';
 import CloudPricing from '@/components/site/CloudPricing';
 import TypedTerminal from '@/components/site/TypedTerminal';
 import { ZeroEdge } from '@/components/zero/ZeroTexture';
@@ -26,23 +27,30 @@ import ProductLinks from '@/components/site/ProductLinks';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import { GITHUB_URL, INCUMBENTS, PRODUCT_NAMES, annualCost } from '@/components/site/catalog';
 import { PRODUCT_CONFIG } from '@/lib/products';
+import { staticPageMetadata } from '@/lib/seo-pages';
+import { faqLd, graphLd, jsonLdString, organizationLd, websiteLd } from '@/lib/seo';
 import '@/styles/pages.css';
 
 const SHOWCASE = [
+  { key: 'track', Mockup: TrackMockup },
   { key: 'crm', Mockup: CrmMockup },
   { key: 'chat', Mockup: ChatMockup },
   { key: 'agents', Mockup: AgentsMockup },
   { key: 'flow', Mockup: FlowMockup },
-  { key: 'track', Mockup: TrackMockup },
   { key: 'link', Mockup: LinkMockup },
   { key: 'cal', Mockup: CalMockup },
   { key: 'docs', Mockup: DocsMockup },
 ] as const;
 
 /** Orden de la tabla de costos: de la más cara a la más barata. */
-const STACK_ORDER = ['crm', 'chat', 'cal', 'docs', 'track', 'link'] as const;
+const STACK_ORDER = ['track', 'crm', 'chat', 'cal', 'docs', 'link'] as const;
 
 const FAQ = ['1', '2', '3', '4', '5', '6', '7'] as const;
+
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
+  const { locale } = await props.params;
+  return staticPageMetadata('home', locale);
+}
 
 export default function HomePage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = use(props.params);
@@ -63,6 +71,19 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
 
   return (
     <main id="top" className="lp">
+      {/* La organización, el sitio y las preguntas del home (las mismas que se ven abajo). */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdString(
+            graphLd([
+              organizationLd(),
+              websiteLd(t('meta.description')),
+              faqLd(FAQ.map((n) => ({ q: h(`faq.q${n}`), a: h(`faq.a${n}`) }))),
+            ]),
+          ),
+        }}
+      />
       {/* Primer viewport: la tesis y el plano vivo de la suite. */}
       <section className="lp-hero" aria-labelledby="lp-title">
         <div className="lp-hero-copy">
@@ -73,7 +94,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
           </h1>
           <p className="lp-sub">{h('hero.sub')}</p>
           <div className="lp-ctas">
-            <Link className="btn btn-primary btn-lg" href="/app">
+            <Link className="btn btn-primary btn-lg" href="/app/start">
               {h('hero.ctaStart')}
             </Link>
             <a className="btn btn-secondary btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">
@@ -81,10 +102,14 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
             </a>
           </div>
           <p className="lp-notes">
-            {h('hero.note1')} · {h('hero.note2')} ·{' '}
-            <a href={GITHUB_URL} target="_blank" rel="noreferrer">
-              {h('hero.note3')}
-            </a>
+            <span className="lp-notes-start">{h('hero.note1')}</span>
+            <span className="lp-notes-sep"> · </span>
+            <span className="lp-notes-end">
+              {h('hero.note2')} ·{' '}
+              <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+                {h('hero.note3')}
+              </a>
+            </span>
           </p>
         </div>
         <HeroVisual className="lp-hero-map" caption={h('hero.fig')} hint={h('hero.figHint')} />
@@ -331,7 +356,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                     {'  '}-d <span className="tk-s">&apos;{'{'}</span>
                     {'\n'}
                     <span className="tk-s">
-                      {'    '}&quot;url&quot;: &quot;https://zerosoft.ai/blog/software-is-dead&quot;,{'\n'}
+                      {'    '}&quot;url&quot;: &quot;https://zerosoft.ai/blog/open-source-launch&quot;,{'\n'}
                       {'    '}&quot;slug&quot;: &quot;manifesto&quot;,{'\n'}
                       {'    '}&quot;tags&quot;: [&quot;launch&quot;, &quot;blog&quot;]{'\n'}
                       {'  '}
@@ -346,7 +371,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                     {'  '}<span className="tk-k">&quot;id&quot;</span>: <span className="tk-s">&quot;lnk_9f3ka2&quot;</span>,{'\n'}
                     {'  '}<span className="tk-k">&quot;slug&quot;</span>: <span className="tk-s">&quot;manifesto&quot;</span>,{'\n'}
                     {'  '}<span className="tk-k">&quot;short_url&quot;</span>: <span className="tk-s">&quot;https://zs.ai/manifesto&quot;</span>,{'\n'}
-                    {'  '}<span className="tk-k">&quot;url&quot;</span>: <span className="tk-s">&quot;https://zerosoft.ai/blog/software-is-dead&quot;</span>,{'\n'}
+                    {'  '}<span className="tk-k">&quot;url&quot;</span>: <span className="tk-s">&quot;https://zerosoft.ai/blog/open-source-launch&quot;</span>,{'\n'}
                     {'  '}<span className="tk-k">&quot;tags&quot;</span>: [<span className="tk-s">&quot;launch&quot;</span>, <span className="tk-s">&quot;blog&quot;</span>],{'\n'}
                     {'  '}<span className="tk-k">&quot;created_at&quot;</span>: <span className="tk-s">&quot;2026-07-14T18:22:41Z&quot;</span>
                     {'\n}'}
@@ -406,6 +431,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
       {/* Cierre: la página se vuelve tinta, de a ceros, y la banda con las once apps. */}
       <ZeroEdge />
       <section className="lp-end" id="sumate" aria-labelledby="h-end">
+        <ZeroArt figure={['field', '']} className="lp-end-field" />
         <div className="container lp-end-inner">
           <h2 id="h-end">
             {h('end.title1')}
@@ -414,7 +440,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
           </h2>
           <p className="lp-end-sub">{h('end.sub')}</p>
           <div className="lp-ctas">
-            <Link className="btn btn-invert-solid btn-lg" href="/app">
+            <Link className="btn btn-invert-solid btn-lg" href="/app/start">
               {h('hero.ctaStart')}
             </Link>
             <a className="btn btn-invert btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">
