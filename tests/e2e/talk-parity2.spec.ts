@@ -142,8 +142,11 @@ test('perfil con cargo y zona horaria, y horario de no molestar', async ({ page 
   const p2 = page.getByRole('dialog', { name: 'Talk preferences' });
   await p2.getByTestId('talk-dnd-schedule').check();
   await p2.getByLabel('From').fill('21:00');
+  const saved = page.waitForResponse((r) => r.url().endsWith('/api/talk/me') && r.request().method() === 'PATCH');
   await p2.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Saved')).toBeVisible();
+  expect((await saved).ok()).toBe(true);
+  // El aviso del perfil (3,5 s) puede seguir a la vista: son dos guardados, dos avisos.
+  await expect(page.locator('.ui-toast', { hasText: 'Saved' }).last()).toBeVisible();
   const boot = await ok<{ prefs: { dnd: { enabled: boolean; start: string } } }>(page.request.get('/api/talk/bootstrap'));
   expect(boot.prefs.dnd).toMatchObject({ enabled: true, start: '21:00' });
 });

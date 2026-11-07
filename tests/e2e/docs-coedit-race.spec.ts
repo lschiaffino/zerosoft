@@ -595,7 +595,8 @@ test('QA12: A borra una palabra y aprieta Enter enseguida en el mismo bloque', a
   const { doc, a, b, close } = await twoPeople(browser, request, [{ id: 'p', type: 'paragraph', content: 'alpha beta gamma delta' }]);
   await typeWhile(b, async () => {
     await caretAt(a, 'alpha beta'.length);
-    await a.keyboard.press('Alt+Backspace');
+    // Borrar una palabra es Alt+Backspace en Mac y Ctrl+Backspace en Linux y Windows.
+    await a.keyboard.press(process.platform === 'darwin' ? 'Alt+Backspace' : 'Control+Backspace');
     await a.keyboard.press('Enter');
     await a.keyboard.type('AA', { delay: 30 });
   });

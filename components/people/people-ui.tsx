@@ -49,6 +49,24 @@ export function useDay() {
   );
 }
 
+/** Nombre de un país: el nuestro si está traducido, si no el del navegador; nunca la clave cruda. */
+export function useCountry() {
+  const t = useTranslations('people.countries');
+  const locale = useLocale();
+  return useCallback(
+    (code: string) => {
+      if (!code) return '';
+      if (t.has(code)) return t(code);
+      try {
+        return new Intl.DisplayNames([locale], { type: 'region' }).of(code) ?? code;
+      } catch {
+        return code;
+      }
+    },
+    [t, locale],
+  );
+}
+
 export function useNumber() {
   const locale = useLocale();
   return useCallback((n: number, max = 2) => n.toLocaleString(locale, { maximumFractionDigits: max }), [locale]);

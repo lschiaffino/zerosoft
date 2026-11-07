@@ -3,7 +3,7 @@
  * propiedades, cohortes y joins. Todo valor va como parámetro; las claves de
  * propiedades van dentro del path JSON como parámetro también (`$."clave"`).
  */
-import type { CohortDefinition, PropertyFilter } from './types';
+import type { ActionStep, CohortDefinition, PropertyFilter } from './types';
 
 export type Arg = string | number | null;
 export interface Frag {
@@ -44,6 +44,14 @@ export function propText(key: string, type: 'event' | 'person', eventAlias = 'e'
   return {
     sql: `(CASE json_type(${col}, ?) WHEN 'true' THEN 'true' WHEN 'false' THEN 'false' ELSE CAST(json_extract(${col}, ?) AS TEXT) END)`,
     args: [path, path],
+  };
+}
+
+/** Propiedad del grupo al que pertenece el evento (la dice analytics_groups). */
+export function groupPropText(key: string, groupType: string, eventAlias = 'e'): Frag {
+  return {
+    sql: `(SELECT CAST(json_extract(g.properties, ?) AS TEXT) FROM analytics_groups g WHERE g.project_id = ${eventAlias}.project_id AND g.group_type = ? AND g.group_key = json_extract(${eventAlias}.properties, ?))`,
+    args: [jsonPath(key), groupType, `$."$groups"."${groupType.replace(/"/g, '')}"`],
   };
 }
 
@@ -115,11 +123,81 @@ export function personJoins(withProps: boolean, eventAlias = 'e'): string {
 
 export const PERSON_KEY = 'COALESCE(m.person_id, e.distinct_id)';
 
+/** Clave del grupo de un evento: un parámetro con el path `$."$groups"."tipo"`. */
+export function groupKeySql(eventAlias = 'e'): string {
+  return `json_extract(${eventAlias}.properties, ?)`;
+}
+
+/** Valor numérico de una propiedad del evento (lo que no es número queda NULL y no suma). */
+export function numericProp(key: string, eventAlias = 'e'): Frag {
+  const path = jsonPath(key);
+  const col = `${eventAlias}.properties`;
+  return {
+    sql: `(CASE WHEN json_type(${col}, ?) IN ('integer', 'real') THEN CAST(json_extract(${col}, ?) AS REAL) WHEN json_type(${col}, ?) = 'text' AND CAST(json_extract(${col}, ?) AS REAL) != 0 THEN CAST(json_extract(${col}, ?) AS REAL) END)`,
+    args: [path, path, path, path, path],
+  };
+}
+
+/** Una acción: cualquiera de sus pasos (evento, URL que contiene y filtros). */
+export function actionSql(steps: ActionStep[], eventAlias = 'e', personAlias = 'p'): Frag {
+  if (!steps.length) return { sql: '0', args: [] };
+  const parts = steps.map((st) => {
+    const sql: string[] = [];
+    const args: Arg[] = [];
+    if (st.event !== '*') {
+      sql.push(`${eventAlias}.event = ?`);
+      args.push(st.event);
+    }
+    if (st.urlContains) {
+      sql.push(`${eventAlias}.url LIKE ? ESCAPE '\\'`);
+      args.push(`%${likeEscape(st.urlContains)}%`);
+    }
+    const f = filtersSql((st.filters ?? []).filter((x) => x.type !== 'person'), eventAlias, personAlias);
+    if (f.sql) {
+      sql.push(f.sql);
+      args.push(...f.args);
+    }
+    return { sql: sql.length ? `(${sql.join(' AND ')})` : '1', args };
+  });
+  return { sql: `(${parts.map((x) => x.sql).join(' OR ')})`, args: parts.flatMap((x) => x.args) };
+}
+
+function behaviorSql(projectId: string, b: { event: string; days: number; minCount: number }, now: number): Frag {
+  return {
+    sql: `SELECT COALESCE(cm.person_id, ce.distinct_id) FROM analytics_events ce
+          LEFT JOIN analytics_person_ids cm ON cm.project_id = ce.project_id AND cm.distinct_id = ce.distinct_id
+          WHERE ce.project_id = ? AND ce.event = ? AND ce.ts >= ?
+          GROUP BY 1 HAVING COUNT(*) >= ?`,
+    args: [projectId, b.event, now - b.days * 86_400_000, b.minCount],
+  };
+}
+
 /**
  * Personas de una cohorte (subconsulta de ids de persona): las que cumplen
  * las propiedades y/o hicieron el evento al menos N veces en los últimos D días.
  */
-export function cohortSql(projectId: string, def: CohortDefinition, now: number): Frag {
+export function cohortSql(projectId: string, def: CohortDefinition, now: number, cohortId?: string): Frag {
+  if (def.type === 'static') {
+    return { sql: 'SELECT cmm.person_key FROM analytics_cohort_members cmm WHERE cmm.cohort_id = ? AND cmm.project_id = ?', args: [cohortId ?? '', projectId] };
+  }
+  if (def.groups?.length) {
+    // INTERSECT y EXCEPT van sin precedencia en SQLite: cada grupo en su propia subconsulta, unidos con UNION.
+    const groups = def.groups.map((g, gi) => {
+      const parts: Frag[] = [];
+      const negated: Frag[] = [];
+      const allPersons: Frag = { sql: 'SELECT cp.id FROM analytics_persons cp WHERE cp.project_id = ?', args: [projectId] };
+      if (g.properties.length) {
+        const f = filtersSql(g.properties.map((x) => ({ ...x, type: 'person' as const })), 'e', 'cp');
+        parts.push({ sql: `SELECT cp.id FROM analytics_persons cp WHERE cp.project_id = ? AND ${f.sql}`, args: [projectId, ...f.args] });
+      }
+      for (const b of g.behaviors) (b.negate ? negated : parts).push(behaviorSql(projectId, b, now));
+      if (!parts.length) parts.push(allPersons);
+      const positive = parts.map((p) => p.sql).join(' INTERSECT ');
+      const sql = negated.length ? `${positive} EXCEPT SELECT * FROM (${negated.map((n) => n.sql).join(' UNION ')})` : positive;
+      return { sql: `SELECT * FROM (${sql}) g${gi}`, args: [...parts.flatMap((p) => p.args), ...negated.flatMap((n) => n.args)] };
+    });
+    return { sql: groups.map((g) => g.sql).join(' UNION '), args: groups.flatMap((g) => g.args) };
+  }
   const parts: Frag[] = [];
   if (def.properties.length) {
     const f = filtersSql(def.properties.map((x) => ({ ...x, type: 'person' as const })), 'e', 'cp');

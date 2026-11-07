@@ -654,8 +654,9 @@ export default function DocsSidebar({
           aria-controls="docs-sidebar-body"
           data-testid="docs-drawer-toggle"
         >
-          <span className="docs-sidebar-title">{t('sidebar.pages')}</span>
-          <span className="docs-sidebar-count">{count}</span>
+          {/* Sin páginas propias y con compartidas (un guest), el botón no dice "0 páginas". */}
+          <span className="docs-sidebar-title">{pages.length === 0 && shared.length > 0 ? t('sidebar.sharedWithMe') : t('sidebar.pages')}</span>
+          <span className="docs-sidebar-count">{pages.length === 0 && shared.length > 0 ? shared.length : count}</span>
           <Icon name="chevronDown" size={14} />
         </button>
         <p className="docs-sidebar-title docs-sidebar-title-desk">

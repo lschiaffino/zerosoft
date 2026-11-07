@@ -16,7 +16,7 @@ function nowIso(): string {
 
 export async function listTemplates(projectId: string): Promise<TrackIssueTemplateRow[]> {
   return (await getDb()
-    .prepare('SELECT * FROM track_issue_templates WHERE project_id = ? ORDER BY name COLLATE NOCASE ASC')
+    .prepare('SELECT * FROM track_issue_templates WHERE project_id = ? ORDER BY is_default DESC, name COLLATE NOCASE ASC')
     .all(projectId)) as TrackIssueTemplateRow[];
 }
 
@@ -32,13 +32,19 @@ async function labelsJson(project: TrackProjectRow, labels: TemplateCreatePayloa
   return JSON.stringify(await normalizeIssueLabels(ws, labels));
 }
 
+/** Solo una plantilla por proyecto es la predeterminada: al marcar otra se desmarca la anterior. */
+async function clearDefault(projectId: string): Promise<void> {
+  await getDb().prepare('UPDATE track_issue_templates SET is_default = 0 WHERE project_id = ? AND is_default = 1').run(projectId);
+}
+
 export async function createTemplate(project: TrackProjectRow, payload: TemplateCreatePayload): Promise<TrackIssueTemplateRow> {
   const id = crypto.randomUUID();
   const now = nowIso();
+  if (payload.isDefault) await clearDefault(project.id);
   await getDb()
     .prepare(
-      `INSERT INTO track_issue_templates (id, project_id, name, title, description, status_id, priority, assignee_id, estimate, labels, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO track_issue_templates (id, project_id, name, title, description, status_id, priority, assignee_id, estimate, labels, is_default, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -51,6 +57,7 @@ export async function createTemplate(project: TrackProjectRow, payload: Template
       payload.assigneeId ?? null,
       payload.estimate ?? null,
       await labelsJson(project, payload.labels),
+      payload.isDefault ? 1 : 0,
       now,
       now,
     );
@@ -76,6 +83,10 @@ export async function updateTemplate(
   if (payload.assigneeId !== undefined) set('assignee_id', payload.assigneeId ?? null);
   if (payload.estimate !== undefined) set('estimate', payload.estimate ?? null);
   if (payload.labels !== undefined) set('labels', await labelsJson(project, payload.labels));
+  if (payload.isDefault !== undefined) {
+    if (payload.isDefault) await clearDefault(project.id);
+    set('is_default', payload.isDefault ? 1 : 0);
+  }
   if (fields.length > 0) {
     set('updated_at', nowIso());
     args.push(id, project.id);

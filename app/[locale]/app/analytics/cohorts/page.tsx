@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import NoProject from '@/components/analytics/NoProject';
 import CollectionPage from '@/components/analytics/CollectionPage';
 import CohortEditor from '@/components/analytics/CohortEditor';
+import { sharesUsing } from '@/lib/analytics/records-more';
 import { analyticsPage } from '@/lib/analytics/page';
 import { recordProjectId } from '@/lib/analytics/guard';
 import { requireUser } from '@/lib/session';
@@ -25,16 +26,20 @@ export default async function AnalyticsCohortsPage(props: { params: Promise<{ lo
   if (!ctx.project) return <NoProject title={t('title')} canManage={ctx.canManage} />;
   const [cohorts, opened] = await Promise.all([listCohorts(ctx.project.id), open ? getCohort(ctx.project.id, open) : null]);
   const summary = (c: (typeof cohorts)[number]) =>
-    [c.definition.properties.length ? t('metaProps', { count: c.definition.properties.length }) : null, c.definition.behavior ? t('metaBehavior', { event: c.definition.behavior.event, days: c.definition.behavior.days }) : null]
-      .filter(Boolean)
-      .join(' · ');
+    c.definition.type === 'static'
+      ? t('metaStatic')
+      : c.definition.groups?.length
+        ? t('metaGroups', { count: c.definition.groups.length })
+        : [c.definition.properties.length ? t('metaProps', { count: c.definition.properties.length }) : null, c.definition.behavior ? t('metaBehavior', { event: c.definition.behavior.event, days: c.definition.behavior.days }) : null]
+            .filter(Boolean)
+            .join(' · ');
   return (
     <CollectionPage
       kind="cohorts"
       projectId={ctx.project.id}
       canCreate
       canEdit
-      extra={opened ? <CohortEditor projectId={ctx.project.id} cohort={opened} /> : undefined}
+      extra={opened ? <CohortEditor projectId={ctx.project.id} cohort={opened} publicLinks={await sharesUsing(ctx.project.id, { cohortId: opened.id })} /> : undefined}
       items={cohorts.map((c) => ({ id: c.id, name: c.name, meta: summary(c), href: `/app/analytics/cohorts?open=${c.id}` }))}
     />
   );

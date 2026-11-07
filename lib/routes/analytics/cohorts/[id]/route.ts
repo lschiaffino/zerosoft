@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   const project = await recordProject(actor, 'analytics_cohorts', id);
   if (isResponse(project)) return project;
   const cohort = await getCohort(project.id, id);
-  return NextResponse.json({ cohort, count: cohort ? await countPersons(project.id, cohort.definition) : 0 });
+  return NextResponse.json({ cohort, count: cohort ? await countPersons(project.id, cohort.definition, Date.now(), cohort.id) : 0 });
 }
 
 const patchSchema = z.object({ name: z.string().trim().min(1).max(200).optional(), definition: cohortDefinitionSchema.optional() });

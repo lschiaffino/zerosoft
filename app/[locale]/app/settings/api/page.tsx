@@ -7,6 +7,8 @@ import { listDomains } from '@/lib/link-domains';
 import { shortDomain } from '@/lib/utils';
 import { settingsSectionMetadata } from '@/lib/settings-meta';
 import ApiKeysPanel from '@/components/app/ApiKeysPanel';
+import ConnectedClientsPanel from '@/components/app/ConnectedClientsPanel';
+import { listConnectedClients } from '@/lib/oauth/store';
 import WebhooksPanel from '@/components/app/WebhooksPanel';
 import FormSection from '@/components/ui/FormSection';
 
@@ -24,7 +26,8 @@ export default async function ApiSettingsPage(props: { params: Promise<{ locale:
   const admin = isWorkspaceAdmin(user);
   const t = await getTranslations({ locale, namespace: 'settings' });
   // Members ven solo sus keys; owner/admin, las de todo el workspace.
-  const [keys, webhooks, domains] = await Promise.all([
+  const [connected, keys, webhooks, domains] = await Promise.all([
+    listConnectedClients(realUserId(user)),
     listApiKeys(user.id, admin ? undefined : realUserId(user)),
     admin ? listWebhooks(user.id) : Promise.resolve(null),
     admin ? listDomains(user.id) : Promise.resolve([]),
@@ -32,6 +35,7 @@ export default async function ApiSettingsPage(props: { params: Promise<{ locale:
 
   return (
     <div className="st-stack">
+      <ConnectedClientsPanel initial={connected} />
       <ApiKeysPanel initialKeys={keys} isAdmin={admin} />
       {webhooks ? (
         <WebhooksPanel

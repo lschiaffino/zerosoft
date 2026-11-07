@@ -147,6 +147,9 @@ test('más ids desconocidos responden 404 y los válidos abren', async ({ reques
   expect((await request.get(`/en/app/hiring/jobs/${jobId}/edit`)).status()).toBe(200);
   const plain = await member(browser, baseURL!, 'plain', '["hiring","people"]');
   expect((await plain.ctx.request.get(`/en/app/hiring/jobs/${jobId}/edit`)).status()).toBe(404);
+  // Un borrador no existe fuera del equipo; publicado, se ve el aviso.
+  expect((await plain.ctx.request.get(`/en/app/hiring/jobs/${jobId}`)).status()).toBe(404);
+  expect((await request.patch(`/api/hiring/jobs/${jobId}`, { data: { description: 'Do things', status: 'published' } })).ok()).toBe(true);
   expect((await plain.ctx.request.get(`/en/app/hiring/jobs/${jobId}`)).status()).toBe(200);
   // People: la ficha por user id redirige de verdad; un miembro ve el aviso de RR. HH., no un 404.
   await request.get('/en/app/people/me');

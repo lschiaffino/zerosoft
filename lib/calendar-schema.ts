@@ -71,6 +71,8 @@ const bookingRules = z
       .refine(isValidRedirectUrl, { message: 'invalid_redirect' })
       .optional(),
     redirectPassDetails: z.boolean().optional(),
+    /** Horas antes del inicio desde las que el invitado ya no puede cancelar ni reprogramar con su link. */
+    changeCutoffHours: z.number().int().min(1).max(720).optional(),
   })
   .optional();
 

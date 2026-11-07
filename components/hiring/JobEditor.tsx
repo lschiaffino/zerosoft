@@ -10,7 +10,7 @@ import { descriptionHtml } from '@/lib/hiring/markdown';
 import { HrDialog, JobStatusBadge, api, useErrorText, useToast } from './ui';
 
 type Person = { id: string; email: string; name: string | null; role: string };
-type StageDraft = { id?: string; name: string; kind: StageKind; criteria: string };
+type StageDraft = { id?: string; name: string; kind: StageKind; criteria: string; kit: string };
 
 const TABS = ['details', 'form', 'team', 'stages'] as const;
 const KINDS: StageKind[] = ['applied', 'review', 'interview', 'offer', 'hired'];
@@ -28,7 +28,7 @@ function critId(label: string, i: number): string {
   );
 }
 
-export default function JobEditor({ detail, people, careersUrl, tab: initialTab }: { detail: JobDetail; people: Person[]; careersUrl: string; tab: string }) {
+export default function JobEditor({ detail, people, careersUrl, tab: initialTab, me = '' }: { detail: JobDetail; people: Person[]; careersUrl: string; tab: string; me?: string }) {
   const t = useTranslations('hiring');
   const router = useRouter();
   const errText = useErrorText();
@@ -39,7 +39,7 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab 
   const [preview, setPreview] = useState(false);
   const [questions, setQuestions] = useState<Question[]>(detail.job.questions);
   const [team, setTeam] = useState<Record<string, TeamRole | ''>>(() => Object.fromEntries(detail.team.map((m) => [m.userId, m.role])));
-  const [stages, setStages] = useState<StageDraft[]>(detail.stages.map((s) => ({ id: s.id, name: s.name, kind: s.kind, criteria: s.criteria.map((c) => c.label).join(', ') })));
+  const [stages, setStages] = useState<StageDraft[]>(detail.stages.map((s) => ({ id: s.id, name: s.name, kind: s.kind, criteria: s.criteria.map((c) => c.label).join(', '), kit: (s.kit ?? []).join('\n') })));
   const [shareOpen, setShareOpen] = useState(false);
   const [share, setShare] = useState({ utmSource: 'linkedin', utmMedium: 'social', utmCampaign: '' });
   const [shortUrl, setShortUrl] = useState<string | null>(null);
@@ -48,7 +48,23 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab 
   const [docsHits, setDocsHits] = useState<Array<{ id: string; title: string }>>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const [approval, setApproval] = useState(detail.approval ?? []);
+  const [rejectNote, setRejectNote] = useState('');
   const set = <K extends keyof typeof job>(k: K, v: (typeof job)[K]) => setJob((j) => ({ ...j, [k]: v }));
+  const approvalAct = async (action: 'request' | 'approve' | 'reject') => {
+    setBusy(true);
+    const res = await api<{ status: string; steps: NonNullable<JobDetail['approval']> }>(`/api/hiring/jobs/${job.id}/approval`, { method: 'POST', json: { action, note: action === 'reject' ? rejectNote : '' } });
+    setBusy(false);
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    setApproval(res.data.steps);
+    setJob((j) => ({ ...j, approvalStatus: res.data.status }));
+    setRejectNote('');
+    push(t(`approvals.done.${action}`));
+    router.refresh();
+  };
+  const currentStep = approval.find((s) => s.status === 'pending');
+  const blocked = job.approvalStatus === 'rejected' || !currentStep;
+  const needsChain = Boolean(detail.needsApproval) && job.status !== 'published' && job.approvalStatus !== 'approved';
 
   const saveDetails = async (e?: FormEvent, status?: string) => {
     e?.preventDefault();
@@ -66,6 +82,7 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab 
         salaryCurrency: job.salaryCurrency,
         salaryPeriod: job.salaryPeriod,
         salaryPublic: job.salaryPublic,
+        confidential: job.confidential,
         description: job.description,
         ...(status ? { status } : {}),
       },
@@ -110,11 +127,12 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab 
         .filter(Boolean)
         .slice(0, 10)
         .map((label, i) => ({ id: critId(label, i), label })),
+      kit: s.kit.split('\n').map((q) => q.trim()).filter(Boolean).slice(0, 15),
     }));
-    const res = await api<{ stages: Array<{ id: string; name: string; kind: StageKind; criteria: Array<{ label: string }> }> }>(`/api/hiring/jobs/${job.id}/stages`, { method: 'PUT', json: { stages: payload } });
+    const res = await api<{ stages: Array<{ id: string; name: string; kind: StageKind; criteria: Array<{ label: string }>; kit: string[] }> }>(`/api/hiring/jobs/${job.id}/stages`, { method: 'PUT', json: { stages: payload } });
     setBusy(false);
     if (!res.ok) return push(errText(res.data.error), 'bad');
-    setStages(res.data.stages.map((s) => ({ id: s.id, name: s.name, kind: s.kind, criteria: s.criteria.map((c) => c.label).join(', ') })));
+    setStages(res.data.stages.map((s) => ({ id: s.id, name: s.name, kind: s.kind, criteria: s.criteria.map((c) => c.label).join(', '), kit: s.kit.join('\n') })));
     push(t('common.saved'));
   };
 
@@ -175,9 +193,14 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab 
         back={{ href: `/app/hiring/jobs/${job.id}`, label: t('jobEditor.backToPipeline') }}
         actions={
           <>
-            {job.status !== 'published' && (
+            {job.status !== 'published' && !needsChain && (
               <button type="button" className="btn btn-primary" disabled={busy} onClick={() => saveDetails(undefined, 'published')}>
                 {t('jobEditor.publish')}
+              </button>
+            )}
+            {needsChain && job.approvalStatus !== 'pending' && (
+              <button type="button" className="btn btn-primary" disabled={busy} data-testid="hiring-request-approval" onClick={() => void approvalAct('request')}>
+                {t('approvals.request')}
               </button>
             )}
             {job.status === 'published' && (
@@ -193,6 +216,36 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab 
           </>
         }
       />
+      {job.approvalStatus === 'stale' && (
+        <p className="ui-help" data-testid="hiring-approval-stale">
+          {t('approvals.statusStale')}
+        </p>
+      )}
+      {approval.length > 0 && job.approvalStatus !== 'none' && job.approvalStatus !== 'stale' && (
+        <section className="panel hr-chain-panel" aria-label={t('approvals.title')} data-testid="hiring-job-approval">
+          <h2 className="hr-panel-title">{t('approvals.title')}</h2>
+          <ol className="hr-chain">
+            {approval.map((s) => (
+              <li key={s.id}>
+                <span>{s.name}</span>
+                <span className={`badge ${s.status === 'approved' || s.status === 'skipped' ? 'badge-ok' : s.status === 'rejected' ? 'badge-bad' : 'badge-outline'}`}>{t(`approvals.status.${s.status}`)}</span>
+                {s.note && <span className="hr-rowmeta">{s.note === 'fallback' ? t('approvals.fallback') : s.note === 'reassigned' ? t('approvals.reassigned') : s.note === 'no_approver' ? t('approvals.noApprover') : s.note}</span>}
+              </li>
+            ))}
+          </ol>
+          {!blocked && currentStep?.userId === me && (
+            <div className="hr-chain-actions">
+              <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void approvalAct('approve')}>
+                {t('approvals.approve')}
+              </button>
+              <input className="input" value={rejectNote} maxLength={500} placeholder={t('approvals.reason')} aria-label={t('approvals.reason')} onChange={(e) => setRejectNote(e.target.value)} />
+              <button type="button" className="btn btn-secondary btn-sm" disabled={busy || !rejectNote.trim()} onClick={() => void approvalAct('reject')}>
+                {t('approvals.reject')}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
       <div className="ui-tabs" role="tablist" aria-label={job.title}>
         {TABS.map((k) => (
           <button key={k} type="button" role="tab" className="ui-tab" aria-selected={tab === k} onClick={() => setTab(k)}>
@@ -255,6 +308,11 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab 
               <input type="checkbox" checked={job.salaryPublic} onChange={(e) => set('salaryPublic', e.target.checked)} />
               {t('job.salaryPublic')}
             </label>
+            <label className="ui-check">
+              <input type="checkbox" data-testid="hiring-confidential" checked={job.confidential} onChange={(e) => set('confidential', e.target.checked)} />
+              {t('job.confidential')}
+            </label>
+            <p className="ui-help">{t('job.confidentialHelp')}</p>
           </fieldset>
           <div className="ui-field">
             <div className="hr-label-row">
@@ -355,17 +413,28 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab 
                         checked={q.knockout !== null}
                         onChange={(e) =>
                           setQuestions((qs) =>
-                            qs.map((x, j) => (j === i ? { ...x, knockout: e.target.checked ? { accepted: x.type === 'yesno' ? ['yes'] : x.type === 'select' ? x.options.slice(0, 1) : [], min: x.type === 'number' ? 1 : null } : null } : x)),
+                            qs.map((x, j) => (j === i ? { ...x, knockout: e.target.checked ? { accepted: x.type === 'yesno' ? ['yes'] : x.type === 'select' ? x.options.slice(0, 1) : [], min: x.type === 'number' ? 1 : null, autoReject: false } : null } : x)),
                           )
                         }
                       />
                       {t('questions.knockout')}
                     </label>
                   )}
+                  {q.knockout && (
+                    <label className="ui-check">
+                      <input
+                        type="checkbox"
+                        data-testid="hiring-auto-reject"
+                        checked={q.knockout.autoReject === true}
+                        onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i && x.knockout ? { ...x, knockout: { ...x.knockout, autoReject: e.target.checked } } : x)))}
+                      />
+                      {t('questions.autoReject')}
+                    </label>
+                  )}
                   {q.knockout && q.type === 'yesno' && (
                     <label className="ui-field hr-inline">
                       <span className="label">{t('questions.expected')}</span>
-                      <select className="select" value={q.knockout.accepted[0] ?? 'yes'} onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i ? { ...x, knockout: { accepted: [e.target.value], min: null } } : x)))}>
+                      <select className="select" value={q.knockout.accepted[0] ?? 'yes'} onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i ? { ...x, knockout: { accepted: [e.target.value], min: null, autoReject: x.knockout?.autoReject } } : x)))}>
                         <option value="yes">{t('common.yes')}</option>
                         <option value="no">{t('common.no')}</option>
                       </select>
@@ -384,6 +453,7 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab 
                                 ? {
                                     ...x,
                                     knockout: {
+                                      autoReject: x.knockout?.autoReject,
                                       accepted: e.target.value
                                         .split(',')
                                         .map((o) => o.trim())
@@ -401,7 +471,7 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab 
                   {q.knockout && q.type === 'number' && (
                     <label className="ui-field hr-inline">
                       <span className="label">{t('questions.min')}</span>
-                      <input className="input" inputMode="decimal" value={q.knockout.min ?? ''} onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i ? { ...x, knockout: { accepted: [], min: e.target.value === '' ? null : Number(e.target.value) } } : x)))} />
+                      <input className="input" inputMode="decimal" value={q.knockout.min ?? ''} onChange={(e) => setQuestions((qs) => qs.map((x, j) => (j === i ? { ...x, knockout: { accepted: [], min: e.target.value === '' ? null : Number(e.target.value), autoReject: x.knockout?.autoReject } } : x)))} />
                     </label>
                   )}
                   <button type="button" className="btn btn-ghost btn-sm hr-push-right" onClick={() => setQuestions((qs) => qs.filter((_, j) => j !== i))}>
@@ -493,6 +563,10 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab 
                   <span className="label">{t('stages.criteria')}</span>
                   <input className="input" value={s.criteria} placeholder={t('stages.criteriaPlaceholder')} onChange={(e) => setStages((ss) => ss.map((x, j) => (j === i ? { ...x, criteria: e.target.value } : x)))} />
                 </label>
+                <label className="ui-field">
+                  <span className="label">{t('stages.kit')}</span>
+                  <textarea className="input" rows={2} value={s.kit} placeholder={t('stages.kitPlaceholder')} onChange={(e) => setStages((ss) => ss.map((x, j) => (j === i ? { ...x, kit: e.target.value } : x)))} />
+                </label>
                 <div className="hr-question-flags">
                   <button type="button" className="btn btn-ghost btn-sm" disabled={i === 0} aria-label={t('stages.up', { name: s.name })} onClick={() => setStages((ss) => { const n = [...ss]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; return n; })}>
                     ↑
@@ -508,7 +582,7 @@ export default function JobEditor({ detail, people, careersUrl, tab: initialTab 
             ))}
           </ol>
           <div className="hr-actions-row">
-            <button type="button" className="btn btn-secondary" disabled={stages.length >= 12} onClick={() => setStages((ss) => [...ss.slice(0, -1), { name: '', kind: 'review', criteria: '' }, ...ss.slice(-1)])}>
+            <button type="button" className="btn btn-secondary" disabled={stages.length >= 12} onClick={() => setStages((ss) => [...ss.slice(0, -1), { name: '', kind: 'review', criteria: '', kit: '' }, ...ss.slice(-1)])}>
               {t('stages.add')}
             </button>
             <button type="button" className="btn btn-primary" disabled={busy || stages.some((s) => !s.name.trim())} onClick={saveStages}>

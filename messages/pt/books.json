@@ -208,6 +208,7 @@
     "paymentDate": "Data do pagamento",
     "method": "Meio",
     "bankAccount": "Conta bancária",
+    "noBankAccounts": "Ainda não há contas bancárias. Adicione uma em Bancos para conciliar este pagamento.",
     "paymentFx": "Câmbio do dia do pagamento ({base} por 1 {cur})",
     "paymentReference": "Referência",
     "savePayment": "Salvar pagamento",

@@ -9,6 +9,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/send-render",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/robots",
       "schedule": "*/5 * * * *"
     }

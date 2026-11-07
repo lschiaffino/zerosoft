@@ -249,7 +249,8 @@ export function eventColumns(props: Record<string, unknown>, ctx: RequestContext
     browser: fromCtx('browser', '$browser'),
     os: fromCtx('os', '$os'),
     device: fromCtx('device', '$device_type'),
-    country: ctx?.country ?? str(props.$geoip_country_code, 8),
+    // Desde un navegador manda el servidor; una propiedad la puede poner cualquiera. Solo un servidor con la key secreta la manda.
+    country: ctx ? ctx.country : str(props.$geoip_country_code, 8),
     session_id: str(props.$session_id, 100),
   };
 }

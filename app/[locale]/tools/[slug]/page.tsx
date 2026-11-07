@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import Icon from '@/components/site/Icon';
 import ToolComponent from '@/components/tools/ToolComponent';
+import { pageMetadata } from '@/lib/seo';
 import { PRODUCT_NAMES } from '@/components/site/catalog';
-import { getTool, jsonLd, localizedAlternates, relatedTools, siteUrl, TOOLS } from '@/lib/tools/registry';
+import { getTool, jsonLd, relatedTools, siteUrl, TOOLS } from '@/lib/tools/registry';
 import '@/styles/tools.css';
 
 type Params = { locale: string; slug: string };
@@ -20,16 +21,13 @@ export async function generateMetadata(props: { params: Promise<Params> }) {
   const tool = getTool(slug);
   if (!tool) return {};
   const t = await getTranslations({ locale, namespace: `tools.items.${slug}` });
-  const title = t('metaTitle');
-  const description = t('metaDescription');
-  const image = `/api/og/tool/${slug}`;
-  return {
-    title,
-    description,
-    alternates: localizedAlternates(`/tools/${slug}`, locale),
-    openGraph: { title, description, type: 'website', url: `/${locale}/tools/${slug}`, images: [image] },
-    twitter: { card: 'summary_large_image', title, description, images: [image] },
-  };
+  return pageMetadata({
+    locale,
+    path: `/tools/${slug}`,
+    title: t('metaTitle'),
+    description: t('metaDescription'),
+    image: `/api/og/tool/${slug}/${locale}`,
+  });
 }
 
 interface Faq {

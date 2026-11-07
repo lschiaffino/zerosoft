@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { staticPageMetadata } from '@/lib/seo-pages';
 
 interface LegalSection {
   h: string;
@@ -9,8 +10,7 @@ interface LegalSection {
 export type LegalDoc = 'terms' | 'privacy' | 'security';
 
 export async function legalMetadata(locale: string, doc: LegalDoc) {
-  const t = await getTranslations({ locale, namespace: `legal.${doc}` });
-  return { title: t('meta.title'), description: t('meta.description') };
+  return staticPageMetadata(doc, locale);
 }
 
 /**

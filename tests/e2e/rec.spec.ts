@@ -224,6 +224,27 @@ test('biblioteca: carpeta nueva, mover, renombrar y borrar sin recargar; ⌘K', 
   await expect(again).toHaveCount(0);
 });
 
+test('mover: "solo estas personas" avisa y no deja mover a donde no se puede', async ({ page }) => {
+  await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
+  const body = await makeWebm(page);
+  const title = `People ${uid()}`;
+  const v = await uploadVideo(page.request, body, title);
+  await ok(page.request.patch(`/api/rec/videos/${v.id}`, { data: { privacy: 'people' } }));
+  await page.goto(`/en/app/rec/${v.id}`, { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: 'Move', exact: true }).first().click();
+  const move = page.getByRole('dialog', { name: 'Move video' });
+  await move.getByText('Workspace', { exact: true }).click();
+  await expect(move.getByTestId('rec-move-notice')).toContainText('Only specific people');
+  // Si el aviso ya dice que no se puede, Mover no se ofrece y no hay un error repitiéndolo.
+  await expect(move.getByTestId('rec-move-submit')).toBeDisabled();
+  await expect(move.getByTestId('rec-move-error')).toHaveCount(0);
+  // Volviendo a un destino posible, se puede de nuevo.
+  await move.getByText('My videos', { exact: true }).click();
+  await expect(move.getByTestId('rec-move-notice')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(move).toBeHidden();
+});
+
 test('compartir: contraseña, vencimiento, solo workspace, comentarios, reacciones y vistas', async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto('/en/app/rec', { waitUntil: 'networkidle' });

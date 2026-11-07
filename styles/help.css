@@ -91,7 +91,7 @@
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: clamp(2.5rem, 5vw, 3.75rem);
-  line-height: 0.98;
+  line-height: 1.08;
   letter-spacing: -0.005em;
   text-wrap: balance;
 }
@@ -123,7 +123,7 @@
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: 1.875rem;
-  line-height: 1.05;
+  line-height: 1.1;
 }
 .help-collection-title a { color: var(--ink); text-decoration: none; }
 .help-collection-title a:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 5px; text-decoration-color: var(--help-accent); }
@@ -185,7 +185,7 @@
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: clamp(2.25rem, 4vw, 3rem);
-  line-height: 1.02;
+  line-height: 1.1;
   letter-spacing: -0.005em;
   text-wrap: balance;
 }

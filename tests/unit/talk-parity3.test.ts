@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, onTestFinished } from 'vitest';
 import { getDb } from '@/lib/db';
 import { addMember, createTeam } from '@/lib/teams';
 import { addMembers, createChannel, deleteChannel, listEventsSince, postMessage, readableChannel, removeMember, updateChannel, type TalkActor } from '@/lib/talk';
@@ -281,6 +281,12 @@ describe('recap diario', () => {
   });
 
   it('un límite de uso reintenta esa mañana y, vencida la ventana, avisa', async () => {
+    // Reloj fijo a mediodía UTC: en la media hora antes de las 8 UTC, el recap de "mañana" (8:00) cae
+    // antes de los 31 minutos que distinguen un reintento de quedar para el día siguiente.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-06-10T12:00:00.000Z') });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const w = await workspace('rc4');
     const c = await createChannel(w.a, { name: 'rc-cuatro', kind: 'public' });
     await postMessage(w.a, { channelId: c.id, body: 'novedad' });

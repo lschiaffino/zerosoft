@@ -21,7 +21,7 @@ export default async function AnalyticsHome(props: { params: Promise<{ locale: s
   return (
     <div className="app-page ui-page an-page">
       <PageHeader title={t('title')} description={t('description', { project: ctx.project.name })} />
-      <WebOverview projectId={ctx.project.id} />
+      <WebOverview key={ctx.project.id} projectId={ctx.project.id} webVitals={ctx.project.web_vitals === 1} canManage={ctx.canManage} />
     </div>
   );
 }

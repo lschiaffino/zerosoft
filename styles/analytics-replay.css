@@ -1,0 +1,170 @@
+/* ============================================================
+   Analytics: session replay y heatmaps. Mismo modo que analytics.css:
+   filetes y tablas, sin pastillas ni radios grandes.
+   ============================================================ */
+
+/* ---------- Ajustes ---------- */
+.an-replay-settings { scroll-margin-top: 80px; }
+.an-replay-rate { width: auto; max-width: 240px; }
+
+/* ---------- Lista ---------- */
+.an-replay-filters .input { flex: 1 1 180px; min-width: 0; }
+.an-replay-person { overflow-wrap: anywhere; }
+.an-replay-url { display: block; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.an-replay-rowactions { white-space: nowrap; text-align: right; }
+.an-replay-rowactions .btn + .btn { margin-left: 4px; }
+.an-replay-eventlink { margin-left: 10px; font-size: 0.8125rem; white-space: nowrap; }
+.an-replay-personrow { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; color: var(--ink); text-decoration: none; min-width: 0; }
+.an-replay-personrow:hover .an-timeline-event { text-decoration: underline; text-underline-offset: 3px; }
+.an-replay-personrow:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* ---------- Reproductor ---------- */
+.an-replay-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.an-replay-headtext { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.an-replay-headtext p { margin: 0; }
+.an-replay-title { margin: 0; font-size: 1.25rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.an-replay-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.an-replay-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.an-replay-stage {
+  position: relative;
+  width: 100%;
+  height: min(62vh, 620px);
+  min-height: 240px;
+  overflow: hidden;
+  background: var(--ui-hover);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.an-replay-root { position: absolute; inset: 0; }
+.an-replay-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 16px;
+  font-size: 0.875rem;
+  color: var(--dim);
+  text-align: center;
+}
+.an-replay-skipping {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  margin: 0;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  color: var(--bg);
+  background: var(--ink);
+  border-radius: var(--radius-1);
+}
+.an-replay-controls { display: flex; flex-direction: column; gap: 8px; }
+.an-replay-track { position: relative; padding-top: 12px; }
+.an-replay-marks { position: absolute; top: 0; left: 8px; right: 8px; height: 10px; }
+.an-replay-mark { position: absolute; top: 0; width: 2px; height: 10px; margin-left: -1px; background: var(--dim); }
+.an-replay-mark-pageview { background: var(--c-analytics); }
+.an-replay-mark-click { background: var(--ink); }
+.an-replay-mark-exception { background: var(--danger, #c62828); }
+.an-replay-mark-other { background: var(--line); }
+.an-replay-range { display: block; width: 100%; margin: 0; accent-color: var(--c-analytics); cursor: pointer; }
+.an-replay-range:disabled { cursor: default; }
+.an-replay-range:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.an-replay-buttons { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+.an-replay-play { min-width: 72px; }
+.an-replay-field { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.an-replay-keys { margin-left: auto; }
+.an-replay-side { display: flex; flex-direction: column; min-width: 0; max-height: min(74vh, 720px); }
+.an-replay-events { margin: 0; padding: 0; list-style: none; overflow-y: auto; flex: 1 1 auto; min-height: 0; position: relative; }
+.an-replay-event {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 4px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.an-replay-event:hover { background: var(--ui-hover); }
+.an-replay-event[aria-current='true'] { background: var(--ui-press); }
+.an-replay-event:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.an-replay-eventname { min-width: 0; overflow-wrap: anywhere; }
+.an-replay-dot { display: inline-block; width: 8px; height: 8px; }
+
+/* Lo que rrweb agrega a la página del reproductor (público en node_modules de rrweb, MIT). */
+.an-replay-root .replayer-wrapper { position: absolute; transform-origin: top left; }
+/* La página grabada trae su propio fondo; si no trae, el de un navegador es blanco. */
+.an-replay-root iframe { display: block; border: 0; background: #fff; }
+.replayer-mouse {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  transition: left 0.05s linear, top 0.05s linear;
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyBoZWlnaHQ9JzMwMHB4JyB3aWR0aD0nMzAwcHgnICBmaWxsPSIjMDAwMDAwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGRhdGEtbmFtZT0iTGF5ZXIgMSIgdmlld0JveD0iMCAwIDUwIDUwIiB4PSIwcHgiIHk9IjBweCI+PHRpdGxlPkRlc2lnbl90bnA8L3RpdGxlPjxwYXRoIGQ9Ik00OC43MSw0Mi45MUwzNC4wOCwyOC4yOSw0NC4zMywxOEExLDEsMCwwLDAsNDQsMTYuMzlMMi4zNSwxLjA2QTEsMSwwLDAsMCwxLjA2LDIuMzVMMTYuMzksNDRhMSwxLDAsMCwwLDEuNjUuMzZMMjguMjksMzQuMDgsNDIuOTEsNDguNzFhMSwxLDAsMCwwLDEuNDEsMGw0LjM4LTQuMzhBMSwxLDAsMCwwLDQ4LjcxLDQyLjkxWm0tNS4wOSwzLjY3TDI5LDMyYTEsMSwwLDAsMC0xLjQxLDBsLTkuODUsOS44NUwzLjY5LDMuNjlsMzguMTIsMTRMMzIsMjcuNThBMSwxLDAsMCwwLDMyLDI5TDQ2LjU5LDQzLjYyWiI+PC9wYXRoPjwvc3ZnPg==");
+  border-color: transparent;
+}
+.replayer-mouse::after {
+  content: "";
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background: var(--c-analytics);
+  border-radius: 100%;
+  transform: translate(-50%, -50%);
+  opacity: 0.3;
+}
+.replayer-mouse.active::after { animation: an-replay-click 0.2s ease-in-out 1; }
+.replayer-mouse.touch-device { background-image: none; width: 70px; height: 70px; border-width: 4px; border-style: solid; border-radius: 100%; margin-left: -37px; margin-top: -37px; border-color: transparent; transition: left 0s linear, top 0s linear, border-color 0.2s ease-in-out; }
+.replayer-mouse.touch-device.touch-active { border-color: var(--c-analytics); transition: left 0.25s linear, top 0.25s linear, border-color 0.2s ease-in-out; }
+.replayer-mouse.touch-device::after { opacity: 0; }
+.replayer-mouse-tail { position: absolute; pointer-events: none; }
+@keyframes an-replay-click {
+  0% { opacity: 0.3; width: 20px; height: 20px; }
+  50% { opacity: 0.5; width: 10px; height: 10px; }
+}
+
+/* ---------- Heatmaps ---------- */
+.an-replay-pathselect { max-width: 320px; }
+.an-replay-showurl { overflow-wrap: anywhere; }
+.an-heat-box {
+  width: 100%;
+  max-height: 72vh;
+  overflow: auto;
+  background: var(--ui-hover);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+.an-heat-sizer { position: relative; margin: 0 auto; overflow: hidden; background: var(--bg); }
+.an-heat-scaled { position: absolute; top: 0; left: 0; transform-origin: top left; }
+.an-heat-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; pointer-events: none; }
+.an-heat-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.an-heat-grid { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+.an-heat-scroll { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.an-heat-scroll li { display: grid; grid-template-columns: minmax(88px, auto) minmax(0, 1fr) 48px; align-items: center; gap: 8px; }
+.an-heat-scroll li > :last-child { text-align: right; }
+.an-heat-bar { display: block; height: 8px; background: var(--ui-hover); }
+.an-heat-bar span { display: block; height: 100%; background: var(--c-analytics); }
+
+@media (max-width: 900px) {
+  .an-replay-grid, .an-heat-grid { grid-template-columns: minmax(0, 1fr); }
+  .an-replay-side { max-height: 360px; }
+  .an-replay-stage { height: 56vw; min-height: 220px; }
+  .an-replay-keys { display: none; }
+}
+@media (max-width: 640px) {
+  .an-replay-url { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+  .an-replay-rowactions { display: flex !important; gap: 4px; text-align: left; }
+  .an-replay-eventlink { display: block; margin: 2px 0 0; }
+  .an-replay-pathselect { max-width: 100%; }
+  .an-toolbar .an-replay-field { flex-wrap: wrap; }
+}

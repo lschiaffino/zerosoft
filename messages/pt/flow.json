@@ -49,6 +49,7 @@
     "noMatchBody": "Tente outra busca ou limpe o filtro."
   },
   "templates": {
+    "seeAll": "Ver todos os {count}",
     "title": "Modelos",
     "subtitle": "Flows prontos. Use um e ajuste os detalhes.",
     "use": "Usar modelo",

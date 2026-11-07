@@ -8,6 +8,7 @@
  * DTO solo dice qué campos están cargados.
  */
 import { randomBytes, randomUUID } from 'crypto';
+import { after } from 'next/server';
 import { getDb } from './db';
 import { open, seal } from './secret-box';
 import { emitEventSoon } from './events';
@@ -16,6 +17,7 @@ import {
   PROVIDER_KINDS,
   ProviderError,
   isGroupJid,
+  isLidJid,
   isValidPhone,
   phoneDigits,
   splitPhones,
@@ -24,6 +26,7 @@ import {
   type ConnectState,
   type GroupsProvider,
   type InboundEvent,
+  type MediaRef,
   type MemberRole,
   type ParticipantAction,
   type ParticipantResult,
@@ -33,6 +36,8 @@ import {
 import { cloudProvider } from './groups-provider-cloud';
 import { bridgeProvider } from './groups-provider-bridge';
 import { fakeProvider, fakeProviderAllowed } from './groups-provider-fake';
+import { deleteManagedInstance, managedAvailable, managedProvider, newManagedInstance, queueManagedDelete } from './groups-provider-managed';
+import { sampleProvider } from './groups-provider-sample';
 import { chatAccessSql, maskChat, type GroupsViewer } from './groups-access';
 import { parsePoll, pollPreview, tallyPoll, voteOptions, type PollDto, type PollInput } from './groups-polls';
 import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyText, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
@@ -112,14 +117,24 @@ export function toNumberDto(row: NumberRow): NumberDto {
     lastError: row.last_error,
     caps: PROVIDER_CAPS[row.provider],
     configured,
-    settings: { baseUrl: cfg.baseUrl, session: cfg.session, phoneNumberId: cfg.phoneNumberId, wabaId: cfg.wabaId },
+    // La instancia administrada es nuestra: su servidor y su nombre no se muestran.
+    settings: row.provider === 'managed' || row.provider === 'sample' ? {} : { baseUrl: cfg.baseUrl, session: cfg.session, phoneNumberId: cfg.phoneNumberId, wabaId: cfg.wabaId },
     createdAt: row.created_at,
   };
 }
 
-/** Proveedores que esta instancia ofrece al conectar (el falso solo en tests/demo). */
+/**
+ * Proveedores que esta instancia ofrece al conectar: el QR administrado solo
+ * si el servidor tiene su config, el falso solo en tests/demo. El de ejemplo
+ * no se agrega a mano (lo carga "Probar con datos de ejemplo").
+ */
 export function availableProviders(): ProviderKind[] {
-  return PROVIDER_KINDS.filter((k) => k !== 'fake' || fakeProviderAllowed());
+  return PROVIDER_KINDS.filter((k) => {
+    if (k === 'managed') return managedAvailable();
+    if (k === 'sample') return false;
+    if (k === 'fake') return fakeProviderAllowed();
+    return true;
+  });
 }
 
 function cleanConfig(kind: ProviderKind, input: Record<string, unknown>, prev: ProviderConfig = {}): ProviderConfig {
@@ -133,7 +148,7 @@ function cleanConfig(kind: ProviderKind, input: Record<string, unknown>, prev: P
   const keys: readonly string[] =
     kind === 'cloud'
       ? ['phoneNumberId', 'accessToken', 'appSecret', 'verifyToken', 'wabaId', 'apiVersion']
-      : kind === 'fake'
+      : kind === 'fake' || kind === 'managed' || kind === 'sample'
         ? []
         : ['baseUrl', 'apiKey', 'session'];
   for (const k of keys) {
@@ -181,6 +196,8 @@ export async function createNumber(
   if (Number(count.c) >= 50) throw new GroupsError('too_many_numbers');
   const cfg = cleanConfig(kind, input.config ?? {});
   if ((kind === 'waha' || kind === 'evolution') && !cfg.session) cfg.session = `zs-${randomBytes(4).toString('hex')}`;
+  // QR administrado: nombre y token de la instancia los genera el servidor.
+  if (kind === 'managed') Object.assign(cfg, newManagedInstance());
   const id = newId();
   const now = nowIso();
   await getDb()
@@ -193,7 +210,7 @@ export async function createNumber(
 }
 
 function defaultNumberName(kind: ProviderKind): string {
-  return kind === 'cloud' ? 'WhatsApp Cloud API' : kind === 'waha' ? 'WAHA' : kind === 'evolution' ? 'Evolution API' : 'Demo number';
+  return kind === 'managed' ? 'WhatsApp' : kind === 'cloud' ? 'WhatsApp Cloud API' : kind === 'waha' ? 'WAHA' : kind === 'evolution' ? 'Evolution API' : 'Demo number';
 }
 
 export async function updateNumber(
@@ -224,11 +241,45 @@ export async function updateNumber(
 export async function deleteNumber(ws: string, id: string): Promise<boolean> {
   const row = await getNumberRow(ws, id);
   if (!row) return false;
-  await providerFor(row)
-    .disconnect()
-    .catch(() => null);
+  // El número de ejemplo se lleva todo lo suyo (tickets, tareas, etiquetas que creó).
+  if (row.provider === 'sample') {
+    const { clearSampleData } = await import('./groups-sample');
+    return clearSampleData(ws);
+  }
+  if (row.provider === 'managed') {
+    // Sin la config del servidor no se puede borrar la instancia: no se borra el número a ciegas.
+    if (!managedAvailable()) throw new GroupsError('bridge_unavailable', 503);
+    const session = String(readConfig(row).session ?? '');
+    try {
+      await deleteManagedInstance(session);
+    } catch {
+      await queueManagedDelete(session);
+    }
+  } else {
+    // Cierra la sesión; si el proveedor no está, se borra igual.
+    await safeDisconnect(row);
+  }
+  const files = await inboundUploads('m.number_id = ?', [id]);
   const r = await getDb().prepare('DELETE FROM groups_numbers WHERE id = ? AND user_id = ?').run(id, ws);
+  if (r.changes > 0) await deleteStoredFiles(files);
   return r.changes > 0;
+}
+
+/** Archivos recibidos que guardamos nosotros (storeInboundMedia): son de un solo mensaje, se pueden borrar con él. */
+async function inboundUploads(where: string, args: string[]): Promise<string[]> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT m.media_url FROM groups_messages m WHERE ${where} AND m.direction = 'in'
+         AND (m.media_url LIKE '/uploads/chat/%' OR m.media_url LIKE 'https://%.public.blob.vercel-storage.com/chat/%')`,
+    )
+    .all(...args)) as Array<{ media_url: string }>;
+  return [...new Set(rows.map((r) => r.media_url))];
+}
+
+async function deleteStoredFiles(urls: string[]): Promise<void> {
+  if (urls.length === 0) return;
+  const { deleteUploads } = await import('./uploads');
+  await deleteUploads(urls).catch(() => null);
 }
 
 /** El adaptador del número, con sus credenciales descifradas. */
@@ -240,6 +291,11 @@ export function providerFor(row: NumberRow): GroupsProvider {
     case 'waha':
     case 'evolution':
       return bridgeProvider(row.provider, cfg as BridgeConfig, { webhookSecret: row.webhook_secret });
+    case 'managed':
+      if (!managedAvailable()) throw new GroupsError('provider_unavailable', 503);
+      return managedProvider(cfg);
+    case 'sample':
+      return sampleProvider(row.id);
     case 'fake':
       if (!fakeProviderAllowed()) throw new GroupsError('provider_unavailable', 503);
       return fakeProvider(row.id);
@@ -301,10 +357,16 @@ export async function refreshNumber(ws: string, id: string): Promise<ConnectStat
 export async function disconnectNumber(ws: string, id: string): Promise<void> {
   const row = await getNumberRow(ws, id);
   if (!row) throw new GroupsError('not_found', 404);
-  await providerFor(row)
-    .disconnect()
-    .catch(() => null);
+  await safeDisconnect(row);
   await saveState(row, { status: 'disconnected' });
+}
+
+async function safeDisconnect(row: NumberRow): Promise<void> {
+  try {
+    await providerFor(row).disconnect();
+  } catch {
+    // Sin red o sin config: el número igual queda desconectado acá.
+  }
 }
 
 // ======================================================================
@@ -397,7 +459,8 @@ function parseJson<T>(raw: string | null | undefined, fallback: T): T {
 
 /** Nombre visible: el del grupo o contacto, o el teléfono con +. */
 export function chatDisplayName(row: Pick<ChatRow, 'name' | 'phone' | 'provider_chat_id'>): string {
-  return row.name || (row.phone ? `+${row.phone}` : row.provider_chat_id);
+  // Un id "@lid" de WhatsApp no es un teléfono: no se muestra.
+  return row.name || (row.phone ? `+${row.phone}` : isLidJid(row.provider_chat_id) ? LID_CHAT_NAME.en : row.provider_chat_id);
 }
 
 export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
@@ -724,7 +787,9 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
  * llega un mensaje nuevo, vuelve a aparecer.
  */
 export async function deleteChat(ws: string, id: string): Promise<boolean> {
+  const files = await inboundUploads('m.chat_id = ? AND m.user_id = ?', [id, ws]);
   const r = await getDb().prepare('DELETE FROM groups_chats WHERE id = ? AND user_id = ?').run(id, ws);
+  if (r.changes > 0) await deleteStoredFiles(files);
   return r.changes > 0;
 }
 
@@ -806,7 +871,7 @@ export interface MessageDto {
 /** URL de la media para el navegador: las de proveedor pasan por el proxy autenticado. */
 function mediaUrlFor(row: MessageRow): string {
   if (!row.media_url) return '';
-  if (row.media_url.startsWith('meta:') || row.media_url.startsWith('bridge:')) return `/api/groups/media/${row.id}`;
+  if (row.media_url.startsWith('meta:') || row.media_url.startsWith('bridge:') || row.media_url.startsWith('evo:')) return `/api/groups/media/${row.id}`;
   return row.media_url;
 }
 
@@ -1102,6 +1167,101 @@ async function maybeTicketFromReaction(ws: string, msg: MessageRow, emoji: strin
 // Webhook: eventos del proveedor
 // ======================================================================
 
+const LID_CHAT_NAME: Record<string, string> = { es: 'Contacto de WhatsApp', en: 'WhatsApp contact', pt: 'Contato do WhatsApp' };
+
+async function lidChatName(ws: string): Promise<string> {
+  const row = (await getDb().prepare('SELECT locale FROM users WHERE id = ?').get(ws)) as { locale?: string | null } | undefined;
+  return LID_CHAT_NAME[String(row?.locale ?? '').slice(0, 2)] ?? LID_CHAT_NAME.es;
+}
+
+/** Archivos recibidos que se bajan por webhook: de a uno y con un total por webhook. */
+export const INBOUND_MEDIA_PER_WEBHOOK = 10;
+export const INBOUND_MEDIA_BUDGET = 25 * 1024 * 1024;
+
+/** Corre el trabajo después de la respuesta (next/server after); fuera de un request, acá mismo. */
+async function runAfter(job: () => Promise<unknown>): Promise<void> {
+  try {
+    after(() => job().catch(() => null));
+  } catch {
+    await job().catch(() => null);
+  }
+}
+
+/** Los archivos de un webhook, en orden, hasta el tope de cantidad y de bytes. */
+async function storeInboundBatch(number: NumberRow, items: Array<{ messageId: string; ref: MediaRef }>): Promise<void> {
+  let budget = INBOUND_MEDIA_BUDGET;
+  for (const it of items.slice(0, INBOUND_MEDIA_PER_WEBHOOK)) {
+    if (budget <= 0) break;
+    const res = await storeInboundMedia(number, it.messageId, it.ref, { budget, retry: true }).catch(() => null);
+    if (res) budget -= res.bytes;
+  }
+}
+
+/** Fallas que no se arreglan reintentando: tipo no permitido, más grande que el tope, el gateway no lo tiene. */
+function permanentMediaError(err: unknown): boolean {
+  if (err instanceof ProviderError) return err.code === 'not_found' || err.httpStatus === 413 || err.httpStatus === 400;
+  const code = (err as { code?: string })?.code;
+  return code === 'file_type_not_allowed';
+}
+
+/**
+ * Baja un archivo recibido por el gateway (Evolution) y lo guarda en nuestro
+ * storage, como los adjuntos que se mandan. Respeta el tope de tamaño (y el
+ * presupuesto que quede del webhook) y los tipos permitidos. Si la falla es
+ * pasajera, el mensaje queda con "evo:<id>" y la ruta de media reintenta al
+ * abrirlo; si es definitiva, queda sin archivo (con tipo y nombre) y no se
+ * vuelve a pedir.
+ */
+export async function storeInboundMedia(
+  number: NumberRow,
+  messageId: string,
+  ref: MediaRef,
+  opts: { budget?: number; retry?: boolean } = {},
+): Promise<{ url: string; bytes: number } | null> {
+  let provider: GroupsProvider;
+  try {
+    provider = providerFor(number);
+  } catch {
+    return null;
+  }
+  if (!provider.fetchMedia) return null;
+  const { MAX_UPLOAD_SIZE, saveUpload } = await import('./uploads');
+  const max = Math.max(0, Math.min(MAX_UPLOAD_SIZE, opts.budget ?? MAX_UPLOAD_SIZE));
+  const markFailed = () =>
+    getDb()
+      .prepare("UPDATE groups_messages SET media_url = '' WHERE id = ? AND number_id = ? AND media_url LIKE 'evo:%'")
+      .run(messageId, number.id);
+  try {
+    let file;
+    try {
+      file = await provider.fetchMedia(ref, max);
+    } catch (err) {
+      // El gateway puede guardar el mensaje un instante después de avisarlo: un reintento corto.
+      if (!opts.retry || permanentMediaError(err)) throw err;
+      await new Promise((r) => setTimeout(r, 2000));
+      file = await provider.fetchMedia(ref, max);
+    }
+    const mimetype = file.mimetype.split(';')[0].trim() || 'application/octet-stream';
+    const filename = file.filename || `whatsapp-${ref.providerMessageId.slice(0, 24)}`;
+    const url = await saveUpload('chat', filename, mimetype, file.data);
+    const r = await getDb()
+      .prepare("UPDATE groups_messages SET media_url = ?, media_type = CASE WHEN media_type = '' THEN ? ELSE media_type END WHERE id = ? AND number_id = ? AND media_url LIKE 'evo:%'")
+      .run(url, mimetype, messageId, number.id);
+    if (r.changes === 0) {
+      // Otro pedido lo guardó primero: el archivo de más se borra.
+      const { deleteUploads } = await import('./uploads');
+      await deleteUploads([url]);
+      return null;
+    }
+    return { url, bytes: file.data.length };
+  } catch (err) {
+    // Más grande que lo que quedaba del presupuesto del webhook (no del tope): queda para cuando se abra.
+    const overBudget = err instanceof ProviderError && err.httpStatus === 413 && max < MAX_UPLOAD_SIZE;
+    if (permanentMediaError(err) && !overBudget) await markFailed();
+    throw err;
+  }
+}
+
 export interface IngestResult {
   messages: number;
   duplicates: number;
@@ -1111,14 +1271,18 @@ export interface IngestResult {
 export async function ingestEvents(number: NumberRow, events: InboundEvent[]): Promise<IngestResult> {
   const res: IngestResult = { messages: 0, duplicates: 0, ignored: 0 };
   const ws = number.user_id;
+  const later: Array<{ messageId: string; ref: MediaRef }> = [];
   for (const ev of events.slice(0, 200)) {
     try {
       if (ev.type === 'message') {
         const isGroup = ev.isGroup || isGroupJid(ev.chatId);
+        let dmName = isGroup ? ev.chatName : ev.fromMe ? undefined : ev.senderName || ev.chatName;
+        // 1:1 con id "@lid" y sin nombre de perfil: un nombre legible en el idioma del workspace (nunca el lid).
+        if (!isGroup && !dmName && isLidJid(ev.chatId)) dmName = await lidChatName(ws);
         const chat = await upsertChat(number, {
           providerChatId: ev.chatId,
           kind: isGroup ? 'group' : 'dm',
-          name: isGroup ? ev.chatName : ev.fromMe ? undefined : ev.senderName || ev.chatName,
+          name: dmName,
           phone: isGroup ? '' : phoneDigits(ev.chatId),
         });
         let replyToId: string | null = null;
@@ -1149,6 +1313,11 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[]): P
           continue;
         }
         res.messages++;
+        // Archivo que el gateway baja aparte (Evolution): se guarda después de responder el webhook.
+        if (ev.media?.fetchRef && row.media_url.startsWith('evo:')) {
+          const ref = ev.media.fetchRef;
+          later.push({ messageId: row.id, ref });
+        }
         await touchChat(chat.id, at, previewOf(ev.body, ev.media?.type ?? '', ev.media?.name ?? ''), !ev.fromMe);
         // Modo "preguntas": el chat espera recién cuando la AI dice que el mensaje pide respuesta (lib/groups-flag.ts).
         if (!ev.fromMe && (await getSettings(ws)).flagMode === 'questions') {
@@ -1260,6 +1429,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[]): P
       console.error('[groups] webhook event failed', (err as Error)?.name ?? 'error');
     }
   }
+  if (later.length) await runAfter(() => storeInboundBatch(number, later));
   return res;
 }
 
@@ -1495,9 +1665,9 @@ export async function createGroups(ws: string, numberId: string, rows: CreateGro
       const now = nowIso();
       await db.prepare('UPDATE groups_chats SET name = ?, last_message_at = COALESCE(last_message_at, ?) WHERE id = ?').run(name, now, chat.id);
       // Miembros reales desde WhatsApp (los que no se pudieron agregar no aparecen).
-      let members: Array<{ phone: string; role: MemberRole }> = [];
+      let members: Array<{ phone: string; role: MemberRole }> = info.participants ?? [];
       try {
-        members = await provider.participants(info.id);
+        if (!info.participants) members = await provider.participants(info.id);
       } catch {
         members = phones.map((phone) => ({ phone, role: 'member' as const }));
       }

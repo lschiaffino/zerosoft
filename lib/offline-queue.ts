@@ -44,6 +44,8 @@ export interface QueuedRequest {
   url: string;
   method: string;
   contentType: string | null;
+  /** Workspace de la pestaña que escribió: al reenviar se exige el mismo. */
+  workspace?: string | null;
   body: string | null;
   createdAt: number;
 }
@@ -57,12 +59,18 @@ export interface ReplayResult {
   done: number;
   failed: number;
   remaining: number;
+  /** Quedaron cambios que este workspace no puede enviar (401). */
+  blocked?: boolean;
+  /** De esos, cuántos no dicen de qué workspace son. */
+  unknown?: number;
 }
 
 /**
  * Reenvía la cola en orden. Si se corta la red se detiene (lo que falta queda
  * para la próxima). Una respuesta HTTP (aunque sea 4xx/5xx) saca el item: el
- * servidor ya decidió y reintentarlo daría el mismo resultado.
+ * servidor ya decidió y reintentarlo daría el mismo resultado. Salvo un 401:
+ * sin sesión o con otro workspace activo, el cambio queda en la cola (y lo que
+ * sigue de ese workspace espera) hasta que la persona vuelva a él.
  */
 export async function replayQueue(
   store: QueueStore,
@@ -71,18 +79,34 @@ export async function replayQueue(
   const items = (await store.all()).sort((a, b) => a.createdAt - b.createdAt || a.id - b.id);
   let done = 0;
   let failed = 0;
+  const blocked = new Set<string>();
+  let unknown = 0;
   for (let i = 0; i < items.length; i += 1) {
+    // De antes de guardar el workspace: no se sabe de cuál es. No se envía; se avisa y se puede descartar.
+    if (!items[i].workspace) {
+      unknown += 1;
+      continue;
+    }
+    const key = items[i].workspace as string;
+    if (blocked.has(key)) continue;
     let res: { ok: boolean; status: number };
     try {
       res = await doFetch(items[i]);
     } catch {
       return { done, failed, remaining: items.length - i };
     }
+    if (res.status === 401) {
+      blocked.add(key);
+      continue;
+    }
     await store.remove(items[i].id);
     if (res.ok) done += 1;
     else failed += 1;
   }
-  return { done, failed, remaining: 0 };
+  let remaining = unknown;
+  for (const it of items) if (it.workspace && blocked.has(it.workspace)) remaining += 1;
+  if (!remaining) return { done, failed, remaining: 0 };
+  return unknown ? { done, failed, remaining, blocked: true, unknown } : { done, failed, remaining, blocked: true };
 }
 
 /** La respuesta es del service worker: el cambio quedó en la cola offline. */
@@ -101,6 +125,8 @@ export function isOfflineCacheName(name: string): boolean {
   return name.startsWith('zs-crm') || name.startsWith('zs-app-');
 }
 
+export const WORKSPACE_GUARD_KEY = 'zs-workspace-guard';
+
 /**
  * Al cerrar sesión: borra las vistas guardadas y la cola de este
  * dispositivo, y las grabaciones de Rec guardadas de esa persona (solo las
@@ -108,6 +134,12 @@ export function isOfflineCacheName(name: string): boolean {
  */
 export async function clearOfflineData(owner?: { userId: string; ws: string }): Promise<void> {
   if (typeof window === 'undefined') return;
+  try {
+    // El aviso de pestaña vieja nombra un workspace: no queda para quien use esta pestaña después.
+    sessionStorage.removeItem(WORKSPACE_GUARD_KEY);
+  } catch {
+    // Sin almacenamiento: nada que borrar.
+  }
   try {
     // Borrador del bloc de Notes (components/notes/NotesHome.tsx): no queda para quien entre después.
     localStorage.removeItem('zs:notes:scratch-draft');

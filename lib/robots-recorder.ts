@@ -121,10 +121,7 @@ export function selectorAlternatives(el: Element, chosen: string, isUnique: (sel
     if (v && v.length <= 100) cands.push(`${tag}[${a}="${esc(v)}"]`);
   }
   if (el.id && /^[A-Za-z][\w-]{0,63}$/.test(el.id)) cands.push(`#${el.id}`);
-  const cls = Array.from(el.classList || [])
-    .filter((c) => /^[A-Za-z][\w-]{1,39}$/.test(c) && !/\d{3,}/.test(c))
-    .slice(0, 2);
-  if (cls.length) cands.push(`${tag}.${cls.join('.')}`);
+  // Sin alternativos de solo clases: otra cosa con el mismo estilo (un "Borrar cuenta") los cumple.
   if (path) cands.push(path);
   const out: string[] = [];
   for (const c of cands) {
@@ -266,6 +263,14 @@ export function recorderLabels(t: (key: string, values?: Record<string, string>)
   };
 }
 
+/** Lo único que graba el grabador. Una grabación con otro tipo de paso (evaluate, upload…) no vino de él. */
+export const RECORDER_STEP_TYPES = ['goto', 'click', 'fill', 'select', 'press', 'extract', 'extract_list'] as const;
+
+/** ¿Todos los pasos son de los que produce el grabador? */
+export function onlyRecorderSteps(steps: unknown): boolean {
+  return Array.isArray(steps) && steps.every((s) => !!s && typeof s === 'object' && (RECORDER_STEP_TYPES as readonly string[]).includes(String((s as { type?: unknown }).type)));
+}
+
 /** Placeholder de contraseñas: el valor real nunca se graba. */
 export const PASSWORD_PLACEHOLDER = '{{credentials.LOGIN.password}}';
 
@@ -290,8 +295,9 @@ var relSel = ${relativeSelector.toString()};
 var mode = null;
 var listCard = null;
 var state;
-try { state = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (e) { state = null; }
-if (CFG && CFG.state && Array.isArray(CFG.state.steps)) state = CFG.state;
+// Con la extensión, los pasos vienen solo de ella: la página puede escribir su sessionStorage.
+if (CFG) state = CFG.state && Array.isArray(CFG.state.steps) ? CFG.state : null;
+else { try { state = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (e) { state = null; } }
 if (!state || !Array.isArray(state.steps)) state = { steps: [], last: '' };
 // Un clic o un Enter recién hecho explica el cambio de página: repetirlo sería un goto de más.
 var acted = state.at && Date.now() - state.at < 10000;
@@ -317,7 +323,7 @@ function send() {
 }
 function save() {
   state.last = location.href;
-  try { sessionStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  if (!CFG) { try { sessionStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
   try { if (CFG && chrome && chrome.runtime && chrome.runtime.id) chrome.runtime.sendMessage({ zsState: state }); } catch (e) {}
   render(); send();
 }
@@ -340,7 +346,22 @@ function sel(el, allowText) {
   } catch (e) {}
   return r;
 }
-function withAlts(step, s) { if (s.fallbacks && s.fallbacks.length) step.fallbacks = s.fallbacks; return step; }
+function norm(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
+// Lo que el robot exige para usar un alternativo en una acción: misma etiqueta, tipo y nombre visible.
+function ident(el) {
+  var type = (el.getAttribute('type') || '').toLowerCase();
+  var lab = '';
+  try { if (el.labels && el.labels[0]) lab = norm(el.labels[0].innerText || el.labels[0].textContent); } catch (e) {}
+  var nm = norm(el.getAttribute('aria-label') || lab || el.getAttribute('placeholder') || el.getAttribute('alt') || el.getAttribute('title') || (/^(submit|button)$/.test(type) ? el.getAttribute('value') : '') || el.innerText || el.textContent).slice(0, 80);
+  return nm ? { tag: el.tagName.toLowerCase(), type: type.slice(0, 40), name: nm } : null;
+}
+function withAlts(step, s, el) {
+  if (s.fallbacks && s.fallbacks.length) {
+    var id = el && step.type !== 'extract' ? ident(el) : null;
+    if (step.type === 'extract' || id) { step.fallbacks = s.fallbacks; if (id) step.identity = id; }
+  }
+  return step;
+}
 function varName(base) { var names = state.steps.map(function (s) { return s.name; }); if (names.indexOf(base) < 0) return base; var n = 2; while (names.indexOf(base + n) >= 0) n++; return base + n; }
 function fieldName(el, fields) {
   var t = (el.tagName || '').toLowerCase();
@@ -465,7 +486,7 @@ document.addEventListener('click', function (e) {
   var tag = el.tagName.toLowerCase();
   if ((tag === 'input' && !/^(submit|button|checkbox|radio|reset)$/i.test(el.type || '')) || tag === 'textarea' || tag === 'select') return;
   var s = sel(el, true);
-  push(withAlts({ type: 'click', selector: s.selector, text: s.text || '' }, s));
+  push(withAlts({ type: 'click', selector: s.selector, text: s.text || '' }, s, el));
 }, true);
 document.addEventListener('change', function (e) {
   if (e.isTrusted === false) return;
@@ -474,6 +495,7 @@ document.addEventListener('change', function (e) {
   if (tag === 'select') { push({ type: 'select', selector: sel(el).selector, value: el.value }); return; }
   if (tag === 'textarea' || (tag === 'input' && !/^(submit|button|checkbox|radio|reset|file|hidden)$/i.test(el.type || ''))) {
     var fill = { type: 'fill', selector: sel(el).selector, value: secret(el) ? ${JSON.stringify(PASSWORD_PLACEHOLDER)} : el.value };
+    if (secret(el) && /^https?:/.test(location.protocol)) fill.origin = location.origin;
     // Enter ya grabó fill + press: el change que dispara el navegador al confirmar no se repite.
     var n = state.steps.length, last = state.steps[n - 1], before = state.steps[n - 2];
     if (last && last.type === 'press' && last.key === 'Enter' && last.selector === fill.selector && before && before.type === 'fill' && before.selector === fill.selector && before.value === fill.value) return;
@@ -485,7 +507,7 @@ document.addEventListener('keydown', function (e) {
   if (mode && e.key === 'Escape') { e.preventDefault(); setMode(null); return; }
   var el = e.target; markPw(el); if (e.key !== 'Enter' || !el || el.nodeType !== 1 || inPanel(el)) return;
   var tag = el.tagName.toLowerCase(); if (tag !== 'input') return;
-  if (el.value) push({ type: 'fill', selector: sel(el).selector, value: secret(el) ? ${JSON.stringify(PASSWORD_PLACEHOLDER)} : el.value });
+  if (el.value) { var f2 = { type: 'fill', selector: sel(el).selector, value: secret(el) ? ${JSON.stringify(PASSWORD_PLACEHOLDER)} : el.value }; if (secret(el) && /^https?:/.test(location.protocol)) f2.origin = location.origin; push(f2); }
   push({ type: 'press', key: 'Enter', selector: sel(el).selector });
 }, true);
 var host = document.createElement('div');

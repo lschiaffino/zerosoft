@@ -64,6 +64,12 @@ const EXT_FOR_MIME: Record<string, string> = {
   'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/avif': 'avif',
   'audio/webm': 'weba', 'audio/mpeg': 'mp3', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/wav': 'wav',
   'video/webm': 'webm', 'video/mp4': 'mp4', 'application/pdf': 'pdf', 'text/plain': 'txt',
+  // Lo que manda WhatsApp sin nombre de archivo (todos ya permitidos arriba).
+  'image/heic': 'heic', 'audio/aac': 'aac', 'video/quicktime': 'mov', 'text/csv': 'csv', 'application/zip': 'zip',
+  'application/msword': 'doc', 'application/vnd.ms-excel': 'xls', 'application/vnd.ms-powerpoint': 'ppt',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
 };
 
 export class UploadError extends Error {

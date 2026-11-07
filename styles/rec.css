@@ -450,7 +450,7 @@ section.rec-pending { padding-top: 14px; padding-bottom: 14px; }
 .rec-edit-seg.cut .rec-edit-seg-text { text-decoration: line-through; color: var(--dim); }
 h3.rec-h { margin-top: 8px; }
 /* Acciones */
-.rec-actions { display: flex; flex-direction: column; gap: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+.rec-export { display: flex; flex-direction: column; gap: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
 .rec-actions-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .rec-actions-select { width: auto; max-width: 100%; min-width: 0; flex: 0 1 200px; }
 /* Pedidos de acceso */
@@ -468,3 +468,14 @@ h3.rec-h { margin-top: 8px; }
 .branded .rec-player-big { background: var(--rec-brand); color: var(--rec-brand-on); }
 /* Con marca propia no se muestra el "Powered by" del chrome público. */
 body:has(.has-brand) .powered-by { display: none; }
+
+/* Aviso del diálogo de mover: quién va a poder ver el video después. */
+.rec-move-notice {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--warn-ink);
+  background: var(--warn-soft);
+  border: 1px solid color-mix(in srgb, var(--warn-ink) 25%, var(--bg));
+}

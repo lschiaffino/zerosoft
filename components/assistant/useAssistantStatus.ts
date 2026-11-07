@@ -35,12 +35,14 @@ export function sectionOf(pathname: string): string {
   return seg;
 }
 
-const SECTIONS = ['home', 'crm', 'track', 'docs', 'flow', 'robots', 'settings', 'cal', 'link', 'talk', 'voice', 'chat', 'groups', 'agents', 'notes', 'board', 'shop', 'analytics', 'hiring', 'people', 'books', 'sign', 'forms'] as const;
+const SECTIONS = ['home', 'crm', 'track', 'docs', 'flow', 'robots', 'settings', 'cal', 'link', 'talk', 'voice', 'chat', 'groups', 'agents', 'notes', 'board', 'shop', 'analytics', 'hiring', 'people', 'books', 'sign', 'forms', 'send'] as const;
 
 /** Preguntas sugeridas según la página (tres por sección, traducidas). */
-export function useSuggestions(pathname: string): string[] {
+export function useSuggestions(pathname: string, canWebhooks = true): string[] {
   const t = useTranslations('assistant.suggest');
   const section = sectionOf(pathname);
   const key = (SECTIONS as readonly string[]).includes(section) ? section : 'home';
-  return [t(`${key}.a`), t(`${key}.b`), t(`${key}.c`)];
+  // Quien no usa webhooks no recibe esa pregunta como sugerencia.
+  const webhook = !canWebhooks && key === 'home' ? 'c' : !canWebhooks && key === 'settings' ? 'b' : null;
+  return (['a', 'b', 'c'] as const).filter((l) => l !== webhook).map((l) => t(`${key}.${l}`));
 }

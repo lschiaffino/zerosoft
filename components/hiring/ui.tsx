@@ -1,6 +1,7 @@
 'use client';
 
 import { useMounted } from '@/components/ui/useMounted';
+import { REJECT_REASONS } from '@/lib/hiring/types';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
@@ -129,4 +130,16 @@ export function money(amount: number | null | undefined, currency: string, local
   } catch {
     return `${currency} ${amount}`;
   }
+}
+
+/** Motivos de fábrica para el campo de rechazo (se puede escribir otro). */
+export function RejectReasonOptions() {
+  const t = useTranslations('hiring.reject.reasons');
+  return (
+    <datalist id="hr-reject-reasons">
+      {REJECT_REASONS.map((r) => (
+        <option key={r} value={t(r)} />
+      ))}
+    </datalist>
+  );
 }

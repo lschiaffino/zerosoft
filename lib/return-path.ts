@@ -15,6 +15,8 @@ export const RETURN_PATH_HEADER = 'x-zs-return-path';
  * middleware, siempre pisado): lib/session.ts lo usa para el acceso por app.
  */
 export const API_PATH_HEADER = 'x-zs-api-path';
+/** El workspace que la pestaña cree tener activo (components/app/WorkspaceGuard.tsx): si ya no es ese, el pedido no entra. */
+export const WORKSPACE_HEADER = 'x-zs-workspace';
 
 /** Tope del path de vuelta (la cookie de next-auth tiene ~4 KB en total). */
 export const RETURN_PATH_MAX = 1500;

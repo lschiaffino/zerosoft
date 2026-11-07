@@ -64,6 +64,8 @@ async function promotedToMember(teamId: string, userId: string, role: string): P
   if (!team || team.owner_id === userId) return;
   const { personJoined } = await import('./workspace-lifecycle');
   await personJoined({ ownerId: team.owner_id, teamId, userId, role });
+  // Volver a ser del equipo lo lleva de vuelta, salvo que ya esté trabajando en otro workspace ajeno.
+  await getDb().prepare('UPDATE users SET active_team_id = ? WHERE id = ? AND active_team_id IS NULL').run(teamId, userId);
 }
 
 /**
@@ -97,6 +99,11 @@ export async function setMemberApps(teamId: string, userId: string, apps: AppAcc
       const { personHasSocialApp, pauseAuthorPosts } = await import('./social');
       if (!(await personHasSocialApp(team.owner_id, userId).catch(() => true))) {
         await pauseAuthorPosts(team.owner_id, userId, { reason: 'author_app' }).catch(() => undefined);
+      }
+      // Hiring: si perdió la app, lo que le tocaba aprobar pasa a otra persona.
+      const hiringAccess = await (await import('./api-auth')).personAppAccess(team.owner_id, userId).catch(() => null);
+      if (hiringAccess && hiringAccess.apps !== '*' && !hiringAccess.apps.includes('hiring')) {
+        await (await import('./hiring/approvals')).reassignApprover(team.owner_id, userId).catch(() => undefined);
       }
       const { emitTalkEvent } = await import('./talk');
       await emitTalkEvent(team.owner_id, 'access', { userId, payload: { change: 'apps' } }).catch(() => undefined);
@@ -147,14 +154,24 @@ export async function listMemberTeams(userId: string): Promise<Array<TeamRow & {
  * (cualquier rol, también guest), o null. El onboarding lo usa para dar la
  * versión corta a quien llegó invitado, sin depender de ?invited=1.
  */
-export async function joinedWorkspace(userId: string): Promise<{ id: string; name: string } | null> {
+export async function joinedWorkspace(userId: string): Promise<{ id: string; name: string; role: string } | null> {
   const row = (await getDb()
     .prepare(
-      `SELECT t.id, t.name FROM team_members m JOIN teams t ON t.id = m.team_id
+      `SELECT t.id, t.name, m.role FROM team_members m JOIN teams t ON t.id = m.team_id
        WHERE m.user_id = ? AND t.owner_id != ? ORDER BY m.created_at DESC, t.id LIMIT 1`,
     )
-    .get(userId, userId)) as { id: string; name: string } | undefined;
+    .get(userId, userId)) as { id: string; name: string; role: string } | undefined;
   return row ?? null;
+}
+
+/** Workspaces donde la persona es guest (no van al switcher: un guest no entra). */
+export async function listGuestWorkspaces(userId: string): Promise<Array<{ id: string; name: string }>> {
+  return (await getDb()
+    .prepare(
+      `SELECT t.id, t.name FROM team_members m JOIN teams t ON t.id = m.team_id
+       WHERE m.user_id = ? AND m.role = 'guest' AND t.owner_id != ? ORDER BY t.name COLLATE NOCASE, t.id`,
+    )
+    .all(userId, userId)) as Array<{ id: string; name: string }>;
 }
 
 /**
@@ -430,6 +447,9 @@ export async function requestToJoin(team: TeamRow, userId: string, email: string
        VALUES (?, ?, ?, ?, 'member', '', ?, ?, 'request', ?)`,
     )
     .run(id, team.id, email.trim().toLowerCase(), newToken(), expires, serializeApps(apps), userId);
+  // Aviso a owner y admins (solo con el pedido nuevo, no al repetirlo).
+  const { notifyJoinRequest } = await import('./workspace-access-request');
+  await notifyJoinRequest(team, { id: userId, email }).catch(() => undefined);
   return (await db.prepare('SELECT * FROM team_invites WHERE id = ?').get(id)) as TeamInviteRow;
 }
 

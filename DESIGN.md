@@ -213,6 +213,17 @@ Flat. No box shadows. Surfaces separate by plane (white, panel, ink) or by a 1px
 
 Controls and plates have 3px corners (`--radius-1`). Avatars and plates are square. The zero is an oval ring. Rules are 1px; the heavy rule (`--stroke-rule`) is 1px of ink.
 
+## Zero figures
+
+Animated figures drawn with the torus ramp (` ·°o0Ø`), in one `<pre>`. `lib/zero-art/engine.ts` is the grid and its light, `figures/*` the drawings (pure and deterministic, one chunk per family), `runner.ts` the browser loop, `catalog.ts` which app gets which figure. `ZeroArt` renders the still frame on the server and starts the motion when the figure is about to be seen.
+
+- **One thing leads.** At rest, cards are thin outlines (`Cells.card`). What is happening right now is the only solid thing (`Cells.slab`). A figure full of solid blocks competes with the copy.
+- **Lit like the torus.** Light falls from the top left; use `slab`, `shade` or `drawMesh`, never one flat tone.
+- **The box comes from CSS.** Font size comes from the box with container units, so there is no shift and no JS needed for the first paint. Fluid figures use a fixed font size and clip.
+- **Stops by itself.** Off screen or in a hidden tab the loop ends; with reduced motion the still frame stays. Choose `still` as a moment that explains the figure, and the lowest `fps` that looks good.
+- **Decorative.** `aria-hidden`, nothing focusable. Draggable figures use `touch-action: pan-y` so a phone can still scroll the page.
+- A caption says literally what is drawn (`fig. 0 · …`, `pages.product.heroFig`).
+
 ## Components
 
 ### Buttons

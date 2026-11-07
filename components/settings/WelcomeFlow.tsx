@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { signOut } from 'next-auth/react';
+import { clearOfflineData } from '@/lib/offline-queue';
 import { useLocale, useTranslations } from 'next-intl';
 import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
@@ -46,8 +48,55 @@ function timeZones(current: string): string[] {
   }
 }
 
+/**
+ * La cuenta con la que se entró y cómo salir, en cada paso. Sale igual que desde
+ * el sidebar. Si ya aceptó una invitación, primero lo dice: esa cuenta quedó en el
+ * workspace, y salir de la sesión no la saca.
+ */
+function SignedInAs({ email, joined }: { email: string; joined?: { id: string; name: string; guest: boolean } | null }) {
+  const t = useTranslations('settings.welcome');
+  const locale = useLocale();
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const signOutNow = () => void clearOfflineData().finally(() => signOut({ callbackUrl: `/${locale}/auth/signin` }));
+
+  async function leaveAndSignOut() {
+    if (!joined) return;
+    setBusy(true);
+    const res = joined.guest
+      ? await fetch('/api/teams/guest-of', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ teamId: joined.id }) }).catch(() => null)
+      : await fetch('/api/teams/members/self', { method: 'DELETE' }).catch(() => null);
+    if (!res?.ok) setBusy(false);
+    else signOutNow();
+  }
+
+  if (asking && joined) {
+    return (
+      <div className="wl-notice" role="status" data-testid="welcome-not-you">
+        <p>{t('notYouJoined', { workspace: joined.name, email })}</p>
+        <div className="wl-notyou-actions">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => void leaveAndSignOut()} disabled={busy}>
+            {t('notYouLeave', { workspace: joined.name })}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={signOutNow} disabled={busy}>
+            {t('notYouStay')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <p className="wl-foot">
+      {t('signedInAs', { email })}{' '}
+      <button type="button" className="wl-signout" onClick={() => (joined ? setAsking(true) : signOutNow())}>
+        {t('notYou')}
+      </button>
+    </p>
+  );
+}
+
 /** Mini onboarding de quien entra por una invitación: nombre, idioma y zona. */
-function InvitedWelcome({ workspaceName, name: initialName, timeZone }: { workspaceName: string; name: string; timeZone: string }) {
+function InvitedWelcome({ workspaceId, workspaceName, name: initialName, email, timeZone, guest }: { workspaceId: string; workspaceName: string; name: string; email: string; timeZone: string; guest: boolean }) {
   const t = useTranslations('settings.welcome');
   const locale = useLocale();
   const [name, setName] = useState(initialName);
@@ -81,16 +130,17 @@ function InvitedWelcome({ workspaceName, name: initialName, timeZone }: { worksp
       setError(t('error'));
       return;
     }
-    window.location.assign(`/${lang}/app`);
+    // Un guest no entra al workspace: lo compartido se abre desde Docs de su cuenta.
+    window.location.assign(`/${lang}/app${guest ? '/docs' : ''}`);
   }
 
   return (
     <form className="wl-card" onSubmit={submit} aria-labelledby="wl-title">
       <Logo variant="symbol" tone="current" height={28} title="" />
       <h1 id="wl-title" className="wl-title">
-        {workspaceName ? t('invited.title', { workspace: workspaceName }) : t('invited.titleNoName')}
+        {!workspaceName ? t('invited.titleNoName') : guest ? t('invited.guestTitle', { workspace: workspaceName }) : t('invited.title', { workspace: workspaceName })}
       </h1>
-      <p className="wl-sub">{t('invited.sub')}</p>
+      <p className="wl-sub">{guest && workspaceName ? t('invited.guestSub', { workspace: workspaceName }) : t('invited.sub')}</p>
       <div className="ui-field">
         <label className="label" htmlFor="wl-name">
           {t('yourName')}
@@ -127,8 +177,9 @@ function InvitedWelcome({ workspaceName, name: initialName, timeZone }: { worksp
         </p>
       )}
       <button type="submit" className="btn btn-primary btn-block" disabled={!name.trim() || busy} aria-busy={busy || undefined}>
-        {workspaceName ? t('invited.go', { workspace: workspaceName }) : t('continue')}
+        {workspaceName && !guest ? t('invited.go', { workspace: workspaceName }) : t('continue')}
       </button>
+      <SignedInAs email={email} joined={workspaceId ? { id: workspaceId, name: workspaceName, guest } : null} />
     </form>
   );
 }
@@ -141,6 +192,10 @@ function InvitedWelcome({ workspaceName, name: initialName, timeZone }: { worksp
 export default function WelcomeFlow(props: {
   kind: 'full' | 'invited';
   workspaceName: string;
+  /** El workspace que lo invitó (para "No sos vos"). */
+  workspaceId?: string;
+  /** Entró como guest: no usa las apps del workspace, solo lo que le comparten. */
+  guest?: boolean;
   name: string;
   email: string;
   timeZone: string;
@@ -173,7 +228,7 @@ export default function WelcomeFlow(props: {
     heading.current?.focus();
   }, [step]);
 
-  if (props.kind === 'invited') return <InvitedWelcome workspaceName={props.workspaceName} name={props.name} timeZone={props.timeZone} />;
+  if (props.kind === 'invited') return <InvitedWelcome workspaceId={props.workspaceId ?? ''} workspaceName={props.workspaceName} name={props.name} email={props.email} timeZone={props.timeZone} guest={Boolean(props.guest)} />;
 
   const chosenTool = TOOLS.find((x) => x.key === tool);
   const apps: ProductKey[] = (() => {
@@ -304,11 +359,11 @@ export default function WelcomeFlow(props: {
       <div className="wl-top">
         <Logo variant="symbol" tone="current" height={28} title="" />
         <p className="wl-progress" aria-live="polite">
-          {t('stepOf', { step: index + 1, total: steps.length })}
+          {step === 'use' ? t('stepFirst') : t('stepOf', { step: index + 1, total: steps.length })}
         </p>
       </div>
       <div className="wl-bar" aria-hidden="true">
-        <span style={{ width: `${((index + 1) / steps.length) * 100}%` }} />
+        <span style={{ width: step === 'use' ? '20%' : `${((index + 1) / steps.length) * 100}%` }} />
       </div>
 
       {step === 'use' && (
@@ -526,7 +581,7 @@ export default function WelcomeFlow(props: {
           </button>
         </div>
       </div>
-      {step === 'use' && <p className="wl-foot">{t('signedInAs', { email: props.email })}</p>}
+      <SignedInAs email={props.email} />
     </form>
   );
 }

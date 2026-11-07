@@ -255,7 +255,8 @@ describe('quién ve qué', () => {
     ['dani', 'bruno'],
     ['eva', 'ana'],
   ]);
-  const hr = viewer({ employeeId: 'ana', hr: true, reports: reportsOf('ana', managerOf) });
+  const hr = viewer({ employeeId: 'ana', hr: true, comp: true, reports: reportsOf('ana', managerOf) });
+  const plainAdmin = viewer({ employeeId: 'ana', hr: true, reports: reportsOf('ana', managerOf) });
   const bruno = viewer({ employeeId: 'bruno', reports: reportsOf('bruno', managerOf) });
   const carla = viewer({ employeeId: 'carla', reports: reportsOf('carla', managerOf) });
   const eva = viewer({ employeeId: 'eva', reports: reportsOf('eva', managerOf) });
@@ -271,6 +272,7 @@ describe('quién ve qué', () => {
   it('matriz de datos sensibles', () => {
     const table: Array<[string, PeopleViewer, string, Record<string, boolean>]> = [
       ['HR ve todo', hr, 'carla', { personal: true, compensation: true, performance: true, timeoff: true, exit: true }],
+      ['un admin sin marca de HR no ve sueldos', plainAdmin, 'carla', { personal: true, compensation: false, performance: true, timeoff: true, exit: true }],
       ['la persona ve lo suyo (no la entrevista de salida)', carla, 'carla', { personal: true, compensation: true, performance: true, timeoff: true, exit: false }],
       ['el manager ve desempeño y licencias, no sueldo ni datos personales', bruno, 'carla', { personal: false, compensation: false, performance: true, timeoff: true, exit: false }],
       ['un par no ve nada sensible', eva, 'carla', { personal: false, compensation: false, performance: false, timeoff: false, exit: false }],
@@ -519,6 +521,14 @@ describe('People con la base', () => {
     expect(hrCtx.viewer.hr).toBe(true);
     const adminCtx = await peopleContext(x.owner, admin.id, 'admin');
     const adminEmp = adminCtx.viewer.employeeId!;
+    // Sueldos y nómina: el owner y quien él marca. Un admin sin marca, no, ni se marca solo.
+    expect(hrCtx.viewer.comp).toBe(true);
+    expect(adminCtx.viewer.comp).toBe(false);
+    expect(adminCtx.viewer.hr).toBe(true);
+    await expect(payrollCsv(adminCtx)).rejects.toMatchObject({ status: 403 });
+    await expect(payrollCsv(hrCtx)).resolves.toBeTypeOf('string');
+    await expect(updateSettings(adminCtx, { hrAdmins: [admin.id] })).rejects.toMatchObject({ status: 403 });
+    await expect(updateSettings(hrCtx, { hrAdmins: [] })).rejects.toMatchObject({ status: 403 });
     removed.length = 0;
     await expect(offboard(hrCtx, adminEmp, { removeFromWorkspace: true })).rejects.toMatchObject({ code: 'cannot_remove', status: 403 });
     const all = await listEmployees(x.hr);

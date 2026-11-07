@@ -86,6 +86,7 @@ export default function TemplatesPanel({ projectId, templates, statuses, members
               <li key={tpl.id} className="track-cycle" data-testid="track-template">
                 <div className="track-cycle-head">
                   <span className="track-cycle-name">{tpl.name}</span>
+                  {tpl.is_default === 1 && <span className="track-cycle-dates">{t('templates.default')}</span>}
                   {tpl.title && <span className="track-cycle-dates">{tpl.title}</span>}
                 </div>
                 {deleting === tpl.id ? (
@@ -145,6 +146,7 @@ function TemplateForm({
     assigneeId: template?.assignee_id ?? '',
     labels: presetLabels(template?.labels),
   });
+  const [isDefault, setIsDefault] = useState(template?.is_default === 1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const prefix = template ? `tpl-${template.id}` : 'tpl-new';
@@ -166,6 +168,7 @@ function TemplateForm({
         assigneeId: preset.assigneeId || null,
         estimate: estimate.trim() ? Number(estimate) : null,
         labels: preset.labels,
+        isDefault,
       }),
     }).catch(() => null);
     setBusy(false);
@@ -253,6 +256,10 @@ function TemplateForm({
           onChange={(e) => setEstimate(e.target.value)}
         />
       </div>
+      <label className="ui-check">
+        <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} data-testid="track-template-default" />
+        <span>{t('templates.defaultLabel')}</span>
+      </label>
       {error && (
         <p className="ui-error" role="alert">
           {t('templates.error')}

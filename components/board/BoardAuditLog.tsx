@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useId, useState } from 'react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import FormSection from '@/components/ui/FormSection';
@@ -125,7 +126,7 @@ export default function BoardAuditLog() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <td className="num">{format.dateTime(parseDbUtc(r.createdAt), { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                  <td className="num"><LocalText>{format.dateTime(parseDbUtc(r.createdAt), { dateStyle: 'medium', timeStyle: 'short' })}</LocalText></td>
                   <td>
                     {r.actorName ?? t('system')}
                     {r.via !== 'app' && <span className="ui-help"> · {r.via.toUpperCase()}</span>}

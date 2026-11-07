@@ -3,15 +3,21 @@
  * tableros, cohortes y feature flags. Todo se busca por (project_id, id): el
  * proyecto ya se validó contra el workspace en la ruta. Server-only.
  */
+import { normalizeSettings, transferTile, type TileRef } from './dashboard-core';
+import { templateContent, type DashboardTemplate } from './dashboard-templates';
 import { nanoid } from 'nanoid';
 import { getDb } from '../db';
 import { likeContains } from '../track-views';
 import {
+  ACTION_PREFIX,
   cohortDefinitionSchema,
   insightQuerySchema,
+  type ActionStep,
   type CohortDefinition,
   type CohortDto,
   type DashboardDto,
+  type DashboardSettings,
+  dashboardSettingsSchema,
   type FlagDto,
   type FlagInput,
   type InsightDto,
@@ -28,6 +34,20 @@ function parseJson<T>(raw: unknown, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+/** Acciones que aparecen en una lista de eventos, por id (para no leer la base si no hay ninguna). */
+export type ActionMap = Map<string, { name: string; steps: ActionStep[] }>;
+
+export async function loadActions(projectId: string, events: string[]): Promise<ActionMap> {
+  const ids = [...new Set(events.filter((e) => e.startsWith(ACTION_PREFIX)).map((e) => e.slice(ACTION_PREFIX.length)))];
+  const out: ActionMap = new Map();
+  if (!ids.length) return out;
+  const rows = (await getDb()
+    .prepare(`SELECT id, name, steps FROM analytics_actions WHERE project_id = ? AND id IN (${ids.map(() => '?').join(',')})`)
+    .all(projectId, ...ids)) as Array<{ id: string; name: string; steps: string }>;
+  for (const r of rows) out.set(r.id, { name: r.name, steps: parseJson<ActionStep[]>(r.steps, []) });
+  return out;
 }
 
 // ---------- Insights ----------
@@ -107,6 +127,16 @@ interface DashboardRow {
   created_at: string;
   updated_at: string;
   items: string | null;
+  settings?: string | null;
+}
+
+function parseDashboardSettings(raw: string | null | undefined): DashboardSettings {
+  try {
+    const parsed = dashboardSettingsSchema.safeParse(JSON.parse(raw || '{}'));
+    return parsed.success ? parsed.data : normalizeSettings(null);
+  } catch {
+    return normalizeSettings(null);
+  }
 }
 
 function toDashboard(r: DashboardRow): DashboardDto {
@@ -123,6 +153,7 @@ function toDashboard(r: DashboardRow): DashboardDto {
           .sort((a, b) => Number(a[0]) - Number(b[0]))
           .map((x) => x[1])
       : [],
+    settings: parseDashboardSettings(r.settings),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -152,15 +183,16 @@ export async function createDashboard(projectId: string, personId: string, input
   return (await getDashboard(projectId, id))!;
 }
 
-export async function updateDashboard(projectId: string, id: string, patch: { name?: string; description?: string; insightIds?: string[] }): Promise<DashboardDto | null> {
+export async function updateDashboard(projectId: string, id: string, patch: { name?: string; description?: string; insightIds?: string[]; settings?: DashboardSettings }): Promise<DashboardDto | null> {
   const cur = await getDashboard(projectId, id);
   if (!cur) return null;
   const db = getDb();
   await db
-    .prepare('UPDATE analytics_dashboards SET name = ?, description = ?, updated_at = ? WHERE id = ? AND project_id = ?')
+    .prepare('UPDATE analytics_dashboards SET name = ?, description = ?, settings = ?, updated_at = ? WHERE id = ? AND project_id = ?')
     .run(
       patch.name !== undefined ? cleanName(patch.name, cur.name) : cur.name,
       patch.description !== undefined ? patch.description.slice(0, 2000) : cur.description,
+      JSON.stringify(patch.settings ?? cur.settings),
       now(),
       id,
       projectId,
@@ -175,6 +207,26 @@ export async function updateDashboard(projectId: string, id: string, patch: { na
     }
   }
   return getDashboard(projectId, id);
+}
+
+/** Copia o mueve una tarjeta a otro tablero del mismo proyecto. */
+export async function transferDashboardTile(projectId: string, fromId: string, toId: string, ref: TileRef, move: boolean): Promise<DashboardDto | null> {
+  const from = await getDashboard(projectId, fromId);
+  const to = await getDashboard(projectId, toId);
+  if (!from || !to || fromId === toId) return null;
+  const next = transferTile(from, to, ref, move, () => `at_${nanoid(10)}`);
+  await updateDashboard(projectId, toId, next.to);
+  if (move) await updateDashboard(projectId, fromId, next.from);
+  return getDashboard(projectId, fromId);
+}
+
+/** Crea un tablero armado con sus insights. */
+export async function createDashboardFromTemplate(projectId: string, personId: string, template: DashboardTemplate, locale: string): Promise<DashboardDto> {
+  const content = templateContent(template, locale);
+  const dashboard = await createDashboard(projectId, personId, { name: content.name });
+  const ids: string[] = [];
+  for (const i of content.insights) ids.push((await createInsight(projectId, personId, i)).id);
+  return (await updateDashboard(projectId, dashboard.id, { insightIds: ids }))!;
 }
 
 export async function deleteDashboard(projectId: string, id: string): Promise<boolean> {
@@ -197,7 +249,7 @@ function toCohort(r: CohortRow): CohortDto {
   return {
     id: r.id,
     name: r.name,
-    definition: parsed.success ? parsed.data : { properties: [], behavior: null },
+    definition: parsed.success ? parsed.data : { properties: [], behavior: null, groups: [], type: 'dynamic' },
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -248,6 +300,8 @@ interface FlagRow {
   rollout: number;
   variants: string;
   conditions: string;
+  groups: string;
+  payloads: string;
   created_at: string;
   updated_at: string;
 }
@@ -261,6 +315,8 @@ export function toFlag(r: FlagRow): FlagDto {
     rollout: Number(r.rollout),
     variants: parseJson(r.variants, []),
     conditions: parseJson(r.conditions, []),
+    groups: parseJson(r.groups, []),
+    payloads: parseJson(r.payloads, {}),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -280,16 +336,16 @@ export async function getFlag(projectId: string, id: string): Promise<FlagDto | 
   return r ? toFlag(r) : null;
 }
 
-export async function createFlag(projectId: string, personId: string, input: FlagInput): Promise<FlagDto | 'duplicate_key'> {
+export async function createFlag(projectId: string, personId: string, input: Omit<FlagInput, 'groups' | 'payloads'> & Partial<Pick<FlagInput, 'groups' | 'payloads'>>): Promise<FlagDto | 'duplicate_key'> {
   const id = `af_${nanoid(12)}`;
   const ts = now();
   try {
     await getDb()
       .prepare(
-        `INSERT INTO analytics_flags (id, project_id, key, name, active, rollout, variants, conditions, created_by, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO analytics_flags (id, project_id, key, name, active, rollout, variants, conditions, groups, payloads, created_by, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(id, projectId, input.key, input.name, input.active ? 1 : 0, input.rollout, JSON.stringify(input.variants), JSON.stringify(input.conditions), personId, ts, ts);
+      .run(id, projectId, input.key, input.name, input.active ? 1 : 0, input.rollout, JSON.stringify(input.variants), JSON.stringify(input.conditions), JSON.stringify(input.groups ?? []), JSON.stringify(input.payloads ?? {}), personId, ts, ts);
   } catch (err) {
     if (/UNIQUE/i.test(String(err))) return 'duplicate_key';
     throw err;
@@ -305,9 +361,9 @@ export async function updateFlag(projectId: string, id: string, patch: Partial<F
   try {
     await getDb()
       .prepare(
-        `UPDATE analytics_flags SET key = ?, name = ?, active = ?, rollout = ?, variants = ?, conditions = ?, updated_at = ? WHERE id = ? AND project_id = ?`,
+        `UPDATE analytics_flags SET key = ?, name = ?, active = ?, rollout = ?, variants = ?, conditions = ?, groups = ?, payloads = ?, updated_at = ? WHERE id = ? AND project_id = ?`,
       )
-      .run(next.key, next.name, next.active ? 1 : 0, next.rollout, JSON.stringify(next.variants), JSON.stringify(next.conditions), now(), id, projectId);
+      .run(next.key, next.name, next.active ? 1 : 0, next.rollout, JSON.stringify(next.variants), JSON.stringify(next.conditions), JSON.stringify(next.groups), JSON.stringify(next.payloads), now(), id, projectId);
   } catch (err) {
     if (/UNIQUE/i.test(String(err))) return 'duplicate_key';
     throw err;

@@ -1,4 +1,5 @@
 import { setRequestLocale } from 'next-intl/server';
+import { routing } from '@/i18n/routing';
 import BoardChrome from '@/components/board/BoardChrome';
 import BoardFilters from '@/components/board/BoardFilters';
 import { BoardItemCard, BoardItemRow } from '@/components/board/BoardItemRow';
@@ -22,8 +23,14 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   return {
     title,
     description,
-    alternates: { canonical: url },
-    openGraph: { title, description, type: 'website', url },
+    alternates: {
+      canonical: url,
+      languages: {
+        ...Object.fromEntries(routing.locales.map((l) => [l, absoluteBoardUrl(l)])),
+        'x-default': absoluteBoardUrl('en'),
+      },
+    },
+    openGraph: { title, description, type: 'website', url, images: [{ url: '/api/og/home', width: 1200, height: 630, alt: title }] },
   };
 }
 

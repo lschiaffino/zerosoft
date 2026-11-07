@@ -1,4 +1,5 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { staticPageMetadata } from '@/lib/seo-pages';
 import { Link } from '@/i18n/navigation';
 import DownloadButtons from '@/components/site/DownloadButtons';
 import { desktopDownloads, latestDesktopRelease } from '@/lib/desktop-release';
@@ -6,8 +7,7 @@ import { GITHUB_URL } from '@/components/site/catalog';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
-  const t = await getTranslations({ locale, namespace: 'pages.download' });
-  return { title: t('meta.title'), description: t('meta.description') };
+  return staticPageMetadata('download', locale);
 }
 
 // Se arma en cada pedido: el release sale del data cache (10 min, lib/desktop-release.ts), no del build.

@@ -6,10 +6,10 @@ import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import type { CustomField, EmployeeDto } from '@/lib/people';
 import { HOLIDAY_COUNTRIES } from '@/lib/people-time';
-import { api, Avatar, Dialog, Fact, Field, Tabs, useDay, useErrorText, useToast } from './people-ui';
-import { CompensationSection, DocumentsSection, OnboardingSection, OneOnOneSection, PerformanceSection, TimeOffSection } from './ProfileSections';
+import { api, Avatar, Dialog, Fact, Field, Tabs, useDay, useErrorText, useToast, useCountry } from './people-ui';
+import { CompensationSection, DocumentsSection, HistorySection, OnboardingSection, OneOnOneSection, PerformanceSection, TimeOffSection } from './ProfileSections';
 
-type TabKey = 'overview' | 'timeoff' | 'documents' | 'performance' | 'compensation' | 'onboarding' | 'notes';
+type TabKey = 'overview' | 'timeoff' | 'documents' | 'performance' | 'history' | 'compensation' | 'onboarding' | 'notes';
 
 export interface ProfileProps {
   employee: EmployeeDto;
@@ -21,12 +21,15 @@ export interface ProfileProps {
   templates: Array<{ id: string; name: string; kind: string }>;
   /** Owner o admin del workspace: puede sacar a alguien del workspace al hacer el offboarding. */
   wsAdmin?: boolean;
+  /** HR con la app Sign: puede abrir un sobre desde Documentos. */
+  signEnabled?: boolean;
 }
 
 const TYPES = ['full_time', 'part_time', 'contractor', 'intern'] as const;
 
-export default function Profile({ employee: e, fields, people, hr, myEmployeeId, tab: initialTab, templates, wsAdmin = false }: ProfileProps) {
+export default function Profile({ employee: e, fields, people, hr, myEmployeeId, tab: initialTab, templates, wsAdmin = false, signEnabled = false }: ProfileProps) {
   const t = useTranslations('people');
+  const countryName = useCountry();
   const router = useRouter();
   const day = useDay();
   const errText = useErrorText();
@@ -42,7 +45,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
     { key: 'overview', label: t('profile.tabs.overview') },
     ...(e.can.seeTimeOff ? [{ key: 'timeoff' as const, label: t('profile.tabs.timeoff') }] : []),
     { key: 'documents', label: t('profile.tabs.documents') },
-    ...(e.can.seePerformance ? [{ key: 'performance' as const, label: t('profile.tabs.performance') }] : []),
+    ...(e.can.seePerformance ? [{ key: 'performance' as const, label: t('profile.tabs.performance') }, { key: 'history' as const, label: t('profile.tabs.history') }] : []),
     ...(e.can.seeCompensation ? [{ key: 'compensation' as const, label: t('profile.tabs.compensation') }] : []),
     ...(hr || e.can.isSelf || e.can.isManager ? [{ key: 'onboarding' as const, label: t('profile.tabs.onboarding') }] : []),
     ...(myEmployeeId && !e.can.isSelf ? [{ key: 'notes' as const, label: t('profile.tabs.notes') }] : []),
@@ -98,6 +101,15 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
     router.refresh();
   };
 
+  const confirmLinked = async () => {
+    setBusy(true);
+    const res = await api(`/api/people/employees/${e.id}`, { method: 'PATCH', json: { confirmLinkedAccount: true } });
+    setBusy(false);
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    push(t('common.saved'));
+    router.refresh();
+  };
+
   const uploadPhoto = async (file: File) => {
     const fd = new FormData();
     fd.set('file', file);
@@ -107,6 +119,14 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
     router.refresh();
   };
 
+  const exitAction = async (action: 'finish' | 'reactivate') => {
+    setBusy(true);
+    const res = await api(`/api/people/employees/${e.id}/exit`, { method: 'POST', json: { action } });
+    setBusy(false);
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    push(t('common.saved'));
+    router.refresh();
+  };
   const remove = async () => {
     const res = await api(`/api/people/employees/${e.id}`, { method: 'DELETE' });
     if (!res.ok) return push(errText(res.data.error), 'bad');
@@ -131,7 +151,10 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
   };
 
   const canEditPhoto = hr || e.can.isSelf;
+  // Lo que ya espera a HR: el formulario propio parte de ahí, para que guardar de nuevo no lo pierda.
+  const pending = e.can.isSelf && !hr ? e.pendingValues : null;
   const p = e.personal;
+  const pf = p && pending?.personal ? ({ ...p, ...pending.personal } as typeof p) : p;
 
   return (
     <div className="app-page ui-page ppl-page">
@@ -178,7 +201,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
                 {t('offboard.action')}
               </button>
             )}
-            {hr && !e.can.isSelf && (
+            {e.can.deleteRecord && !e.can.isSelf && (
               <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
                 {t('profile.delete')}
               </button>
@@ -190,6 +213,28 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
         <p className="ppl-note">
           <span className={`badge ${e.status === 'terminated' ? 'badge-outline' : 'badge-warn'}`}>{t(`status.${e.status}`)}</span>
           {e.endDate && <span> {t('profile.endsOn', { date: day(e.endDate) })}</span>}
+          {hr && e.exitOverdue && <span data-testid="people-exit-overdue"> {t('profile.exitOverdue')}</span>}
+          {hr && e.exitOverdue && (
+            <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => void exitAction('finish')}>
+              {t('profile.finishExit')}
+            </button>
+          )}
+          {hr && e.status === 'offboarding' && (
+            <button type="button" className="btn btn-sm btn-secondary" disabled={busy} onClick={() => void exitAction('reactivate')}>
+              {t('profile.cancelExit')}
+            </button>
+          )}
+          {hr && e.status === 'terminated' && (
+            <button type="button" className="btn btn-sm btn-secondary" disabled={busy} onClick={() => void exitAction('reactivate')}>
+              {t('profile.reactivate')}
+            </button>
+          )}
+        </p>
+      )}
+
+      {e.pendingChange && (
+        <p className="ppl-note" data-testid="people-pending-change">
+          <span className="badge badge-warn">{t('changes.pending')}</span> {e.can.isSelf ? t('changes.pendingSelf') : t('changes.pendingHr')}
         </p>
       )}
 
@@ -207,8 +252,21 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
                 <Fact label={t('fields.department')} value={e.department} />
                 <Fact label={t('fields.manager')} value={e.managerId ? <Link href={`/app/people/${e.managerId}`}>{e.managerName}</Link> : null} />
                 <Fact label={t('fields.workEmail')} value={e.workEmail ? <a href={`mailto:${e.workEmail}`}>{e.workEmail}</a> : null} />
+                {e.linkedAccount && (
+                  <div className="ppl-linked" data-testid="people-linked-account">
+                    <Fact label={t('profile.linkedAccount')} value={e.linkedAccount.email} />
+                    {e.linkedAccount.needsConfirm && (
+                      <div className="ppl-linked-warn" role="status">
+                        <p>{t('profile.linkedMismatch', { email: e.linkedAccount.email })}</p>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => void confirmLinked()} disabled={busy}>
+                          {t('profile.linkedConfirm')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <Fact label={t('fields.phone')} value={e.phone} hidden={e.phone === null} />
-                <Fact label={t('fields.location')} value={[e.location, e.country ? t(`countries.${e.country}`) : ''].filter(Boolean).join(' · ')} hidden={e.location === null} />
+                <Fact label={t('fields.location')} value={[e.location, e.country ? countryName(e.country) : ''].filter(Boolean).join(' · ')} hidden={e.location === null} />
                 <Fact label={t('fields.startDate')} value={e.startDate ? day(e.startDate) : null} hidden={e.startDate === undefined} />
                 <Fact label={t('fields.employmentType')} value={e.employmentType ? t(`types.${e.employmentType}`) : null} hidden={e.employmentType === null} />
                 {e.birthday && <Fact label={t('fields.birthday')} value={day(`2000-${e.birthday}`, { month: 'long', day: 'numeric' })} />}
@@ -274,9 +332,10 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
           </div>
         )}
         {tab === 'timeoff' && <TimeOffSection employeeId={e.id} hr={hr} isSelf={e.can.isSelf} />}
-        {tab === 'documents' && <DocumentsSection employeeId={e.id} hr={hr} isSelf={e.can.isSelf} />}
+        {tab === 'documents' && <DocumentsSection employeeId={e.id} hr={hr} isSelf={e.can.isSelf} signEnabled={signEnabled} />}
         {tab === 'performance' && <PerformanceSection employeeId={e.id} />}
-        {tab === 'compensation' && <CompensationSection employeeId={e.id} hr={hr} />}
+        {tab === 'history' && <HistorySection employeeId={e.id} hr={hr} people={people} />}
+        {tab === 'compensation' && <CompensationSection employeeId={e.id} hr={e.can.editCompensation} />}
         {tab === 'onboarding' && <OnboardingSection employeeId={e.id} hr={hr} templates={templates} />}
         {tab === 'notes' && <OneOnOneSection employeeId={e.id} name={e.name} />}
       </div>
@@ -321,7 +380,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
                     <option value="">{t('profile.noCountry')}</option>
                     {HOLIDAY_COUNTRIES.map((c) => (
                       <option key={c} value={c}>
-                        {t(`countries.${c}`)}
+                        {countryName(c)}
                       </option>
                     ))}
                   </select>
@@ -338,7 +397,8 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
                     ))}
                   </select>
                 </Field>
-                <Field label={t('fields.payPeriod')} htmlFor="pe-pay">
+                {e.can.editCompensation && (
+                  <Field label={t('fields.payPeriod')} htmlFor="pe-pay">
                   <select id="pe-pay" name="payPeriod" className="select" defaultValue={e.payPeriod || 'monthly'}>
                     {(['monthly', 'semimonthly', 'biweekly', 'weekly'] as const).map((d) => (
                       <option key={d} value={d}>
@@ -347,6 +407,7 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
                     ))}
                   </select>
                 </Field>
+                )}
                 {fields.map((f) => (
                   <Field key={f.id} label={f.label} htmlFor={`pe-c-${f.id}`}>
                     {f.kind === 'select' ? (
@@ -368,31 +429,34 @@ export default function Profile({ employee: e, fields, people, hr, myEmployeeId,
             {editing === 'personal' && (
               <div className="ui-fields-2 ppl-fields">
                 <Field label={t('fields.phone')} htmlFor="pp-phone">
-                  <input id="pp-phone" name="phone" className="input" defaultValue={e.phone ?? ''} maxLength={40} autoFocus />
+                  <input id="pp-phone" name="phone" className="input" defaultValue={pending?.phone ?? e.phone ?? ''} maxLength={40} autoFocus />
                 </Field>
                 <Field label={t('fields.pronouns')} htmlFor="pp-pron">
                   <input id="pp-pron" name="pronouns" className="input" defaultValue={e.pronouns} maxLength={40} />
                 </Field>
-                {p && (
+                {pf && (
                   <>
                     <Field label={t('fields.personalEmail')} htmlFor="pp-pemail">
-                      <input id="pp-pemail" name="personalEmail" type="email" className="input" defaultValue={p.personalEmail} maxLength={200} />
+                      <input id="pp-pemail" name="personalEmail" type="email" className="input" defaultValue={pf.personalEmail} maxLength={200} />
                     </Field>
                     <Field label={t('fields.birthDate')} htmlFor="pp-birth">
-                      <input id="pp-birth" name="birthDate" type="date" className="input" defaultValue={p.birthDate} />
+                      <input id="pp-birth" name="birthDate" type="date" className="input" defaultValue={pf.birthDate} />
                     </Field>
                     <Field label={t('fields.address')} htmlFor="pp-addr">
-                      <input id="pp-addr" name="address" className="input" defaultValue={p.address} maxLength={500} />
+                      <input id="pp-addr" name="address" className="input" defaultValue={pf.address} maxLength={500} />
                     </Field>
-                    <Field label={t('fields.nationalId')} htmlFor="pp-nid">
-                      <input id="pp-nid" name="nationalId" className="input" defaultValue={p.nationalId} maxLength={60} />
-                    </Field>
+                    {/* El documento lo carga HR: cada persona lo ve en su ficha, y mandarlo desde acá hacía fallar todo el guardado. */}
+                    {hr && (
+                      <Field label={t('fields.nationalId')} htmlFor="pp-nid">
+                        <input id="pp-nid" name="nationalId" className="input" defaultValue={pf.nationalId} maxLength={60} />
+                      </Field>
+                    )}
                     {[0, 1].map((i) => (
                       <fieldset key={i} className="ppl-fieldset">
                         <legend className="label">{t('profile.emergencyContact', { n: i + 1 })}</legend>
-                        <input name={`ec_name_${i}`} className="input" aria-label={t('fields.name')} placeholder={t('fields.name')} defaultValue={p.emergencyContacts[i]?.name ?? ''} maxLength={120} />
-                        <input name={`ec_rel_${i}`} className="input" aria-label={t('profile.relation')} placeholder={t('profile.relation')} defaultValue={p.emergencyContacts[i]?.relation ?? ''} maxLength={60} />
-                        <input name={`ec_phone_${i}`} className="input" aria-label={t('fields.phone')} placeholder={t('fields.phone')} defaultValue={p.emergencyContacts[i]?.phone ?? ''} maxLength={40} />
+                        <input name={`ec_name_${i}`} className="input" aria-label={t('fields.name')} placeholder={t('fields.name')} defaultValue={pf.emergencyContacts[i]?.name ?? ''} maxLength={120} />
+                        <input name={`ec_rel_${i}`} className="input" aria-label={t('profile.relation')} placeholder={t('profile.relation')} defaultValue={pf.emergencyContacts[i]?.relation ?? ''} maxLength={60} />
+                        <input name={`ec_phone_${i}`} className="input" aria-label={t('fields.phone')} placeholder={t('fields.phone')} defaultValue={pf.emergencyContacts[i]?.phone ?? ''} maxLength={40} />
                       </fieldset>
                     ))}
                   </>

@@ -2,13 +2,14 @@ import { cache } from 'react';
 import { getServerSession } from 'next-auth';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { API_PATH_HEADER, RETURN_PATH_HEADER, signInPath } from './return-path';
+import { API_PATH_HEADER, RETURN_PATH_HEADER, signInPath, WORKSPACE_HEADER } from './return-path';
 import { authOptions } from './auth';
 import { getUserByEmail, upsertUser, type TeamRow, type UserRow } from './db';
 import { resolveWorkspace, roleAtLeast, type TeamRole } from './teams';
 import { appFromPath, ensureWorkspace, hasAllApps, userCanUseApp, workspaceTeamId, type AppAccess } from './workspace';
 import type { ProductKey } from './products';
 import { seedUserIfNeeded } from './seed';
+import { delegatedIdentity } from './mcp/identity';
 
 /**
  * DEMO_MODE convierte a todo visitante en el usuario demo compartido. En
@@ -113,6 +114,9 @@ async function e2eIdentity(): Promise<UserRow | 'session' | null> {
 export const getCurrentUser = cache(loadCurrentUser);
 
 async function loadCurrentUser(): Promise<SessionUser | null> {
+  // Una operación del MCP: la persona del token, con los mismos chequeos que su sesión.
+  const delegated = delegatedIdentity();
+  if (delegated) return delegatedUser(delegated);
   let real: UserRow | null;
   const e2e = DEMO_MODE ? await e2eIdentity() : null;
   if (DEMO_MODE && e2e !== 'session') {
@@ -127,6 +131,10 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
   const { owner, team, workspace, role, apps } = await resolveWorkspace(real);
   const user: SessionUser =
     owner.id === real.id ? { ...real, team, workspace, role, apps } : { ...owner, actingUser: real, team, workspace, role, apps };
+  // La pestaña escribe pensando en otro workspace (la sacaron, o cambió en otra pestaña): nada se
+  // guarda en el lugar equivocado. Responde como sin sesión y la pestaña avisa y ofrece recargar.
+  const expected = await requestHeader(WORKSPACE_HEADER);
+  if (expected && workspace && expected !== workspace.id) return null;
   // Acceso por app: la API de una app que la persona no tiene en este
   // workspace responde como sin sesión. Las páginas las corta el layout.
   if (user.actingUser) {
@@ -137,6 +145,19 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
       // Las páginas (y su payload RSC) se arman con el workspace propio: nada del ajeno viaja.
       return { ...real, team: null, workspace: await ensureWorkspace(real.id), role: 'owner', apps: '*', blockedApp: page };
     }
+  }
+  return user;
+}
+
+async function delegatedUser(d: NonNullable<ReturnType<typeof delegatedIdentity>>): Promise<SessionUser | null> {
+  const { owner, team, workspace, role, apps } = await resolveWorkspace(d.real);
+  // Fijado a un workspace del que ya no es parte: sin acceso, nunca cae al propio.
+  if (d.pinnedTeamId && workspace.id !== d.pinnedTeamId) return null;
+  const user: SessionUser =
+    owner.id === d.real.id ? { ...d.real, team, workspace, role, apps } : { ...owner, actingUser: d.real, team, workspace, role, apps };
+  if (user.actingUser) {
+    const app = appFromPath(d.apiPath);
+    if (app && !userCanUseApp(user, app)) return null;
   }
   return user;
 }

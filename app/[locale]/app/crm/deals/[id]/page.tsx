@@ -215,7 +215,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
               }}
             />
             {userCanUseApp(user, 'sign') && user.role !== 'guest' && (
-              <Link className="btn btn-outline" href={`/app/sign/new?crm=deal:${deal.id}`}>
+              <Link className="btn btn-outline btn-sm" href={`/app/sign/new?crm=deal:${deal.id}`}>
                 {t('record.sendForSignature')}
               </Link>
             )}

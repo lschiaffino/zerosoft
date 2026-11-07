@@ -66,7 +66,8 @@ function QuickModalBody({
     const first = dialogRef.current?.querySelector<HTMLElement>(
       '[data-autofocus], input:not([type=hidden]):not([type=checkbox]), textarea, select',
     );
-    first?.focus();
+    // Sin campo de texto (solo checkboxes), el foco entra igual: Esc cierra desde que se abre.
+    (first ?? dialogRef.current)?.focus();
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
@@ -115,6 +116,7 @@ function QuickModalBody({
     <div className={`qm-overlay${centered ? ' qm-overlay-center' : ''}`} onMouseDown={onClose}>
       <div
         ref={dialogRef}
+        tabIndex={-1}
         className="qm"
         role="dialog"
         aria-modal="true"

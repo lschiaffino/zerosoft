@@ -4,7 +4,7 @@
  * siempre del mismo lado) y las variantes otro hash con sal "variant".
  */
 import { createHash } from 'crypto';
-import type { FlagVariant, PropertyFilter } from './types';
+import type { FlagGroup, FlagVariant, PropertyFilter } from './types';
 
 const LONG_SCALE = 0xfffffffffffffff;
 
@@ -61,6 +61,7 @@ export interface EvaluableFlag {
   rollout: number;
   variants: FlagVariant[];
   conditions: Array<Pick<PropertyFilter, 'key' | 'op' | 'value'>>;
+  groups?: FlagGroup[];
 }
 
 /** Variante para el hash (rangos acumulados según el % de cada una). null si no suman. */
@@ -78,8 +79,23 @@ export function pickVariant(variants: FlagVariant[], hash: number): string | nul
  * condiciones o queda fuera del rollout; si es multivariante, la clave de la
  * variante; si no, true.
  */
-export function evaluateFlag(flag: EvaluableFlag, distinctId: string, props: Record<string, unknown>): boolean | string {
+export function evaluateFlag(flag: EvaluableFlag, distinctId: string, props: Record<string, unknown>, cohorts: ReadonlySet<string> = new Set()): boolean | string {
   if (!flag.active) return false;
+  // Grupos de release: el primero cuyas condiciones aplican decide; si la persona cae fuera de su
+  // porcentaje se sigue mirando el siguiente, como en PostHog.
+  if (flag.groups?.length) {
+    for (const g of flag.groups) {
+      if (g.cohortId && !cohorts.has(g.cohortId)) continue;
+      if (!g.conditions.every((c) => matchProperty(c, props))) continue;
+      if (g.rollout < 100 && flagHash(flag.key, distinctId) >= g.rollout / 100) continue;
+      if (flag.variants.length) {
+        if (g.variant && flag.variants.some((v) => v.key === g.variant)) return g.variant;
+        return pickVariant(flag.variants, flagHash(flag.key, distinctId, 'variant')) ?? false;
+      }
+      return true;
+    }
+    return false;
+  }
   if (!flag.conditions.every((c) => matchProperty(c, props))) return false;
   if (flag.rollout < 100 && flagHash(flag.key, distinctId) >= flag.rollout / 100) return false;
   if (flag.variants.length) return pickVariant(flag.variants, flagHash(flag.key, distinctId, 'variant')) ?? false;

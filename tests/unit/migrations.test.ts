@@ -9,6 +9,33 @@ function freshClient() {
 }
 
 describe('migraciones versionadas', () => {
+  it('162_mcp_oauth deja igual una base nueva y una con las tablas de antes', async () => {
+    const m = MIGRATIONS.find((x) => x.id === '162_mcp_oauth')!;
+    const columns = async (client: ReturnType<typeof freshClient>, table: string) =>
+      (await client.execute(`PRAGMA table_info(${table})`)).rows.map((r) => String(r.name));
+    const fresh = freshClient();
+    await m.up(fresh);
+    const old = freshClient();
+    // La forma que tuvo antes, cuando esta migración se llamaba 160_mcp_oauth.
+    await old.executeMultiple(`
+      CREATE TABLE oauth_grants (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, client_id TEXT NOT NULL, team_id TEXT, scope TEXT NOT NULL, resource TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), last_used_at TEXT, revoked_at TEXT);
+      CREATE TABLE oauth_tokens (token_hash TEXT PRIMARY KEY, grant_id TEXT NOT NULL, kind TEXT NOT NULL, expires_at TEXT NOT NULL, used_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+      INSERT INTO oauth_grants (id, user_id, client_id, scope, resource) VALUES ('g1', 'u', 'c', 'read', 'r');
+      INSERT INTO oauth_tokens (token_hash, grant_id, kind, expires_at) VALUES ('h', 'g1', 'access', '2100-01-01');
+    `);
+    await m.up(old);
+    await m.up(old); // y se puede correr dos veces
+    for (const client of [fresh, old]) {
+      expect(await columns(client, 'oauth_grants')).toEqual(expect.arrayContaining(['via', 'redirect_uri']));
+      expect(await columns(client, 'oauth_tokens')).toEqual(expect.arrayContaining(['scope', 'replays']));
+    }
+    const row = (await old.execute(`SELECT via FROM oauth_grants WHERE id = 'g1'`)).rows[0];
+    expect(row.via).toBe('code');
+    const tok = (await old.execute(`SELECT replays, scope FROM oauth_tokens WHERE token_hash = 'h'`)).rows[0];
+    expect(tok.replays).toBe(0);
+    expect(tok.scope).toBeNull();
+  });
+
   it('los ids son únicos', () => {
     const ids = MIGRATIONS.map((m) => m.id);
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);

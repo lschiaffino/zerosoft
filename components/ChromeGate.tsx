@@ -62,7 +62,9 @@ export default function ChromeGate({
     pathname.startsWith('/feedback-board') ||
     pathname === '/brand' ||
     pathname.startsWith('/brand/') ||
-    pathname.startsWith('/nuevo-branding/')
+    pathname.startsWith('/nuevo-branding/') ||
+    // Pantallas de permisos de OAuth: nada más que la decisión, sin links que la distraigan.
+    pathname.startsWith('/oauth/')
   ) {
     return <>{children}</>;
   }
@@ -77,6 +79,8 @@ export default function ChromeGate({
   }
   const publicPage =
     pathname.startsWith('/book/') ||
+    // Insight o tablero compartido: se puede embeber, sin el marco del sitio.
+    pathname.startsWith('/stats/a/') ||
     pathname.startsWith('/r/') ||
     pathname.startsWith('/bio/') ||
     // Notas y pizarras compartidas por link (Notes /n, Board /b).
@@ -91,6 +95,8 @@ export default function ChromeGate({
     pathname.startsWith('/invoice/') ||
     // Firma de Sign (/sign/<token>): el destinatario firma sin cuenta, sin chrome de marketing.
     pathname.startsWith('/sign/') ||
+    // Link de Send (/send/<token>): quien lo abre ve el documento, sin chrome de marketing.
+    pathname.startsWith('/send/') ||
     // Formularios del CRM (/f/<slug|token>): página del cliente, también embebida en un iframe.
     pathname.startsWith('/f/') ||
     // Formularios hospedados de Flow (/flow/form/<token>): página sola del cliente.

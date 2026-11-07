@@ -26,6 +26,7 @@ export const PRODUCT_KEYS = [
   'books',
   'sign',
   'forms',
+  'send',
   'platform',
   'site',
   'other',
@@ -63,6 +64,7 @@ export const PRODUCT_COLOR: Record<ProductKey, string> = {
   books: 'var(--c-books)',
   sign: 'var(--c-sign)',
   forms: 'var(--c-forms)',
+  send: 'var(--c-send)',
   platform: 'var(--ink)',
   site: 'var(--ink)',
   other: 'var(--dim)',
@@ -128,6 +130,8 @@ export function productFromPath(pathname: string): ProductKey {
       return 'sign';
     case 'forms':
       return 'forms';
+    case 'send':
+      return 'send';
     default:
       return 'link';
   }

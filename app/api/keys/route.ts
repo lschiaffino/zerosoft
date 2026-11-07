@@ -12,6 +12,8 @@ const createSchema = z.object({
   name: z.string().min(1).max(80),
   /** Sin scopes = todos (compatibilidad con clientes anteriores). */
   scopes: z.array(z.enum(API_SCOPES)).min(1).max(API_SCOPES.length).optional(),
+  /** Puede usar el MCP unificado. Es explícito: sin esto la key sigue solo con la API v1. */
+  mcp: z.boolean().optional(),
 });
 
 export async function GET() {
@@ -45,9 +47,10 @@ export async function POST(req: NextRequest) {
     parsed.data.name.trim(),
     realUserId(user),
     allowed.length === API_SCOPES.length ? '*' : allowed,
+    parsed.data.mcp === true,
   );
   // Keys que pueden usar Cal (API v1 y servidor MCP): quedan en su registro de actividad.
   const calScopes = parsed.data.scopes === undefined || parsed.data.scopes.some((s) => s.startsWith('cal:'));
   if (calScopes) await logCalActivity(user.id, realUserId(user), 'api.key_created', { type: 'api_key', id, summary: parsed.data.name.trim() });
-  return NextResponse.json({ id, key, scopes }, { status: 201 });
+  return NextResponse.json({ id, key, scopes, mcp: parsed.data.mcp === true }, { status: 201 });
 }

@@ -31,6 +31,10 @@ export async function PATCH(req: Request, ctx: Ctx) {
 export async function DELETE(_req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true, admin: true });
   if (s instanceof NextResponse) return s;
-  const ok = await deleteNumber(s.ws, (await ctx.params).id);
-  return ok ? NextResponse.json({ ok: true }) : groupsError(404, 'not_found');
+  try {
+    const ok = await deleteNumber(s.ws, (await ctx.params).id);
+    return ok ? NextResponse.json({ ok: true }) : groupsError(404, 'not_found');
+  } catch (err) {
+    return handleGroupsError(err);
+  }
 }

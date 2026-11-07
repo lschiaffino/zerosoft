@@ -42,7 +42,7 @@ export default function AssistantPanel() {
   /** Cambia al empezar otra charla (nueva, abierta desde afuera): remonta la vista. No cambia cuando el turno crea la charla. */
   const [chatKey, setChatKey] = useState(0);
   const { status, error } = useAssistantStatus(open);
-  const suggestions = useSuggestions(pathname);
+  const suggestions = useSuggestions(pathname, status?.webhooks === true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);

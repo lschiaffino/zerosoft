@@ -88,7 +88,7 @@ export default function FormsList({ forms, q, status }: { forms: FormListItem[];
                       {f.responseCount}
                     </Link>
                   </td>
-                  <td className="fm-hide-sm fm-dim">{f.lastResponseAt ? format.relativeTime(new Date(f.lastResponseAt)) : '·'}</td>
+                  <td className="fm-hide-sm fm-dim">{f.lastResponseAt ? format.relativeTime(new Date(f.lastResponseAt)) : '—'}</td>
                 </tr>
               ))}
             </tbody>

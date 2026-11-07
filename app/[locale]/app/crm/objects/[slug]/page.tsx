@@ -9,7 +9,7 @@ import { parseCustom, parseFilterRules } from '@/lib/crm';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { fieldOptions } from '@/lib/crm-custom-fields';
 import { ownerOptions } from '@/lib/crm-owners';
-import { formatDate } from '@/lib/utils';
+import LocalDate from '@/components/ui/LocalDate';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import FormSection from '@/components/ui/FormSection';
@@ -273,7 +273,7 @@ export default async function ObjectRecordsPage(props: {
                         );
                       })}
                       <td className="muted" data-label={t('objects.owner')}>{cellCtx.users.get(r.owner_id ?? user.id) ?? r.owner_name ?? '—'}</td>
-                      <td className="num muted cell-date" data-label={t('objects.created')}>{formatDate(r.created_at, locale)}</td>
+                      <td className="num muted cell-date" data-label={t('objects.created')}><LocalDate value={r.created_at} locale={locale} kind="date" /></td>
                     </tr>
                   );
                 })}

@@ -104,7 +104,9 @@
     "currency": "Moeda",
     "period": "Período",
     "salaryPublic": "Mostrar o salário na página de vagas",
-    "description": "Descrição"
+    "description": "Descrição",
+    "confidential": "Vaga confidencial",
+    "confidentialHelp": "Só a equipe de contratação e os admins veem. Fica fora da página de vagas, do feed e da busca."
   },
   "jobEditor": {
     "statusChanged": {
@@ -168,7 +170,8 @@
     "expected": "Resposta esperada",
     "acceptedOptions": "Opções aceitas",
     "min": "Mínimo",
-    "add": "Adicionar pergunta"
+    "add": "Adicionar pergunta",
+    "autoReject": "Recusar automaticamente quando a resposta não qualifica (o candidato não é avisado; dá para reativar)"
   },
   "team": {
     "help": "Recrutadores e gestores da vaga veem todos os candidatos. Entrevistadores só veem quem foram chamados para avaliar. Admins veem tudo.",
@@ -185,7 +188,9 @@
     "criteriaPlaceholder": "Comunicação, Habilidades da vaga, Colaboração",
     "up": "Subir {name}",
     "down": "Descer {name}",
-    "add": "Adicionar etapa"
+    "add": "Adicionar etapa",
+    "kit": "Guia de entrevista",
+    "kitPlaceholder": "Uma pergunta por linha. Quem entrevista vê acima do scorecard."
   },
   "stageKinds": {
     "applied": "Candidatos",
@@ -235,7 +240,8 @@
     "desc": "Candidatos das vagas em que você está no time.",
     "search": "Buscar por nome, email ou etiqueta",
     "emptyTitle": "Ainda não há candidatos",
-    "emptyBody": "Publique uma vaga e compartilhe a página de vagas, ou adicione candidatos à mão em uma vaga."
+    "emptyBody": "Publique uma vaga e compartilhe a página de vagas, ou adicione candidatos à mão em uma vaga.",
+    "export": "Exportar CSV"
   },
   "apply": {
     "name": "Nome completo",
@@ -262,7 +268,17 @@
     "reason": "Motivo (interno)",
     "sendEmail": "Enviar o email de reprovação",
     "template": "Modelo",
-    "defaultTemplate": "Email de reprovação padrão"
+    "defaultTemplate": "Email de reprovação padrão",
+    "reasons": {
+      "experience": "Falta de experiência",
+      "skills": "As habilidades não correspondem",
+      "salary": "Expectativa salarial",
+      "location": "Localização ou disponibilidade",
+      "culture": "Não se encaixa na equipe",
+      "position_filled": "Vaga preenchida",
+      "withdrew": "O candidato desistiu",
+      "no_response": "Sem resposta"
+    }
   },
   "profile": {
     "deleteData": "Excluir dados do candidato",
@@ -308,7 +324,8 @@
     "links": "Links",
     "documents": "Outros documentos",
     "duplicates": "O mesmo email em outras vagas",
-    "unverifiedDoc": "veio com uma nova candidatura, sem verificar"
+    "unverifiedDoc": "veio com uma nova candidatura, sem verificar",
+    "hireUndone": "Saiu de Contratados. O perfil no People continua: o RH foi avisado."
   },
   "events": {
     "applied": "Candidatou-se ({source})",
@@ -337,7 +354,8 @@
       "withdrawn": "retirada"
     },
     "email_dropped": "Email não aceito ({reason})",
-    "unverified": "Remetente não verificado"
+    "unverified": "Remetente não verificado",
+    "anotherJob": "outra vaga"
   },
   "score": {
     "submitted": "Scorecard enviado.",
@@ -360,7 +378,8 @@
     "submit": "Enviar scorecard",
     "hidden": "{count, plural, one {# scorecard de outro avaliador fica oculto até você enviar o seu.} other {# scorecards de outros avaliadores ficam ocultos até você enviar o seu.}}",
     "none": "Ainda não há scorecards.",
-    "locked": "Você já enviou seu scorecard desta etapa."
+    "locked": "Você já enviou seu scorecard desta etapa.",
+    "kit": "Guia de entrevista"
   },
   "interviews": {
     "schedule": "Enviar link para agendar",
@@ -469,7 +488,11 @@
     "hires": "Contratações",
     "daysOpen": "Dias aberta",
     "active": "Ativos",
-    "total": "Total"
+    "total": "Total",
+    "rejectReasons": "Motivos de recusa",
+    "noRejections": "Sem recusas neste período.",
+    "reasonKnockout": "Pergunta eliminatória",
+    "reasonNone": "Sem motivo"
   },
   "settings": {
     "title": "Configurações do Hiring",
@@ -493,7 +516,13 @@
     "months": "{count} meses sem atividade",
     "retentionHelp": "Contratados e quem aceitou ficar para futuras vagas são mantidos.",
     "consentText": "Texto de consentimento do formulário",
-    "membersCreateJobs": "Membros com Hiring podem criar vagas (senão, só admins)"
+    "membersCreateJobs": "Membros com Hiring podem criar vagas (senão, só admins)",
+    "approvals": "Aprovações",
+    "approvalsHelp": "Escolha pessoas em ordem. Cada uma decide depois da anterior e entra na equipe da vaga como hiring manager, para ver o que aprova. Ninguém aprova o próprio pedido: se assim não sobrar ninguém, o owner ou outro admin é adicionado. Sem ninguém escolhido, não é preciso aprovar.",
+    "jobApprovers": "Para publicar uma vaga nova",
+    "offerApprovers": "Para enviar uma oferta",
+    "addApprover": "Adicionar alguém",
+    "feed": "Feed de vagas em XML, para agregadores que aceitam:"
   },
   "errors": {
     "generic": "Algo deu errado. Tente de novo.",
@@ -508,15 +537,15 @@
     "invalid_salary": "O salário mínimo é maior que o máximo.",
     "duplicate_question": "Duas perguntas têm o mesmo id.",
     "question_options": "Uma pergunta de uma opção precisa de opções.",
-    "invalid_member": "Essa pessoa não tem Hiring neste workspace.",
+    "invalid_member": "Essa pessoa não pode usar o Hiring.",
     "duplicate_member": "Uma pessoa aparece duas vezes.",
     "stages_applied_first": "A primeira etapa precisa ser do tipo Candidatos, e só uma.",
     "stages_one_hired": "Precisa haver exatamente uma etapa do tipo Contratados.",
     "stage_not_empty": "Uma etapa removida ainda tem candidatos. Mova-os antes.",
     "invalid_stage": "Escolha uma etapa desta vaga.",
-    "invalid_email": "Digite um email válido.",
+    "invalid_email": "Esse email não é válido.",
     "resume_type": "O currículo precisa ser PDF, DOC ou DOCX.",
-    "resume_size": "O currículo pode ter até 10 MB.",
+    "resume_size": "O currículo é muito grande (4 MB no máximo).",
     "resume_required": "Anexe um currículo.",
     "consent_required": "O consentimento é obrigatório.",
     "invalid_answers": "Responda as perguntas obrigatórias.",
@@ -541,7 +570,25 @@
     "own_offer": "Uma oferta que você preparou precisa ser aprovada por outra pessoa.",
     "storage_unavailable": "Não há armazenamento de arquivos configurado.",
     "auth_required": "Não foi possível verificar o email.",
-    "offer_in_sign": "Esta oferta saiu para assinatura com o Sign. Acompanhe pelo envelope; anular devolve a oferta para aprovada."
+    "offer_in_sign": "Esta oferta saiu para assinatura com o Sign. Acompanhe pelo envelope; anular devolve a oferta para aprovada.",
+    "approval_required": "Esta vaga precisa de aprovação antes de ser publicada.",
+    "approvals_off": "Não há aprovadores em Ajustes.",
+    "not_your_step": "Ainda não é sua vez de decidir.",
+    "reason_required": "Escreva um motivo para recusar.",
+    "email_limit": "Limite diário de emails atingido para este endereço ou workspace. Tente amanhã.",
+    "csv_columns": "O arquivo precisa de uma linha de títulos com as colunas Nome e Email.",
+    "csv_empty": "O arquivo não tem linhas.",
+    "name_required": "Uma linha não tem nome.",
+    "duplicate_in_file": "Este email está repetido no arquivo.",
+    "same_job": "É a mesma vaga.",
+    "same_candidate": "É o mesmo candidato.",
+    "file_too_large": "O arquivo é muito grande (2 MB no máximo).",
+    "invalid_field": "Esse valor não corresponde ao tipo do campo.",
+    "duplicate_field": "Esse campo está repetido.",
+    "no_other_approver": "Outra pessoa precisa aprovar e não há mais ninguém. Convide outro admin ou remova os aprovadores em Ajustes do Hiring.",
+    "close_to_edit": "Esta vaga está publicada. Feche para mudar o título ou o salário, mostrar um salário oculto ou tirar o confidencial, e peça aprovação.",
+    "job_not_open": "Essa vaga não está aberta.",
+    "application_withdrawn": "Esta candidatura foi retirada."
   },
   "esign": {
     "send": "Enviar para assinatura com Sign",
@@ -549,5 +596,84 @@
     "sent": "Enviada com Sign",
     "open": "Abrir no Sign",
     "error": "Não foi possível enviar com o Sign."
+  },
+  "approvals": {
+    "title": "Aprovação para publicar",
+    "waiting": "Aguardam sua aprovação",
+    "request": "Pedir aprovação",
+    "approve": "Aprovar",
+    "reject": "Recusar",
+    "reason": "Motivo (necessário para recusar)",
+    "subject": {
+      "job": "Vaga",
+      "offer": "Oferta"
+    },
+    "status": {
+      "pending": "Aguardando",
+      "approved": "Aprovado",
+      "rejected": "Recusado",
+      "skipped": "Pedido por esta pessoa"
+    },
+    "done": {
+      "request": "Aprovação pedida.",
+      "approve": "Aprovado.",
+      "reject": "Recusado."
+    },
+    "fallback": "Adicionado porque ninguém mais revisaria",
+    "reassigned": "Reatribuído: quem aprovava saiu do workspace",
+    "statusStale": "Mudou depois de aprovado: é preciso pedir aprovação de novo",
+    "noApprover": "Ninguém mais pode aprovar isto. Adicione um aprovador ou outro admin e peça de novo."
+  },
+  "import": {
+    "button": "Importar CSV",
+    "title": "Importar candidatos",
+    "help": "Um CSV com uma linha de títulos. Nome e Email são obrigatórios; também Telefone, Localização, Título, Origem e Tags (separadas por |). Nenhum email é enviado. Verifique se você pode guardar esses dados antes de importar.",
+    "file": "Arquivo CSV (2 MB e 500 linhas no máximo)",
+    "preview": "Verificar o arquivo",
+    "confirm": "Importar",
+    "back": "Voltar",
+    "empty": "Primeiro escolha um arquivo.",
+    "summary": "{valid, plural, one {# candidato pronto} other {# candidatos prontos}} para importar.",
+    "failed": "Linhas que serão ignoradas",
+    "line": "Linha {n}: {error}",
+    "done": "Importado: {added} novos, {existing} já estavam nesta vaga."
+  },
+  "copy": {
+    "button": "Copiar para outra vaga",
+    "title": "Copiar {name} para outra vaga",
+    "job": "Vaga",
+    "move": "Mover: retirar da vaga atual",
+    "help": "Na vaga nova começa na primeira etapa e a equipe dela pode ver este candidato.",
+    "confirm": "Copiar",
+    "done": "Copiado.",
+    "already": "Este candidato já está nessa vaga."
+  },
+  "merge": {
+    "button": "Mesclar",
+    "title": "Mesclar candidatos",
+    "body": "Tudo de {drop} passa para {keep}: candidaturas, linha do tempo, documentos e tags. Não dá para desfazer.",
+    "confirm": "Mesclar",
+    "done": "Mesclados.",
+    "visibility": "A equipe de cada vaga vai ver esta pessoa com todas as candidaturas, documentos e dados, inclusive de uma vaga confidencial."
+  },
+  "candidateFields": {
+    "title": "Campos de candidatos",
+    "help": "Seus próprios campos em cada candidato, como aviso prévio. Os protegidos são vistos só por recruiters, hiring managers e admins.",
+    "name": "Nome do campo",
+    "type": "Tipo",
+    "types": {
+      "text": "Texto",
+      "number": "Número",
+      "date": "Data",
+      "select": "Lista"
+    },
+    "options": "Opções, separadas por vírgulas",
+    "protected": "Só para recruiters e hiring managers",
+    "protectedShort": "protegido",
+    "removeNamed": "Remover {name}",
+    "empty": "Ainda não há campos.",
+    "add": "Adicionar um campo",
+    "panel": "Dados",
+    "nothing": "Nada preenchido ainda."
   }
 }

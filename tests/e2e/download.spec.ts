@@ -5,20 +5,33 @@ import { test, expect } from '@playwright/test';
  * DESKTOP_RELEASES_FAKE=1 devuelve uno fijo (desktop-v0.1.0).
  */
 test.describe('/download', () => {
-  test('links del último release, Mac primero en Mac y aviso de builds sin firmar', async ({ page }) => {
+  test('links del último release, Mac primero en Mac y aviso de builds sin firmar', async ({ browser }) => {
+    // El sistema lo dice el user agent: en Linux (CI) no hay instalador principal, así que se fija uno de Mac.
+    const ctx = await browser.newContext({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36' });
+    const page = await ctx.newPage();
     await page.goto('/en/download');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('zerosoft for your computer.');
     await expect(page).toHaveTitle(/Download zerosoft for Mac and Windows/);
-    // El user agent de Playwright (Chromium headless) dice el sistema de la máquina: hay un botón principal.
     const primary = page.getByTestId('download-primary');
     await expect(primary).toBeVisible();
-    await expect(primary).toHaveAttribute('href', /releases\/download\/desktop-v0\.1\.0\/zerosoft-0\.1\.0-(mac-(arm64|x64)\.dmg|win-x64\.exe)$/);
+    await expect(primary).toHaveAttribute('href', /releases\/download\/desktop-v0\.1\.0\/zerosoft-0\.1\.0-mac-(arm64|x64)\.dmg$/);
     await expect(page.getByRole('link', { name: 'All files for version 0.1.0' })).toHaveAttribute('href', /releases\/tag\/desktop-v0\.1\.0$/);
     await expect(page.getByRole('heading', { name: 'The builds are not signed yet' })).toBeVisible();
     await expect(page.getByText('click Open Anyway')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'What the desktop app adds' })).toBeVisible();
     // El footer lleva acá.
     await expect(page.locator('footer').getByRole('link', { name: 'Desktop app' })).toHaveAttribute('href', '/en/download');
+    await ctx.close();
+  });
+
+  test('sin instalador para el sistema (Linux) no hay botón principal y se ofrecen todos', async ({ browser }) => {
+    const ctx = await browser.newContext({ userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36' });
+    const page = await ctx.newPage();
+    await page.goto('/en/download');
+    await expect(page.getByTestId('download-win')).toBeVisible();
+    await expect(page.getByTestId('download-mac-arm')).toBeVisible();
+    await expect(page.getByTestId('download-primary')).toHaveCount(0);
+    await ctx.close();
   });
 
   test('elige el instalador según el sistema', async ({ browser }) => {

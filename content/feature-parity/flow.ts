@@ -275,7 +275,7 @@ const parity: ProductParity = {
       id: 'app-catalog',
       area: 'integrations',
       label: { en: 'App catalog', es: 'Catálogo de apps', pt: 'Catálogo de apps' },
-      detail: { en: '8 external apps (Slack, Google Sheets, Gmail, Stripe, Notion, Discord, Telegram) plus HTTP with cURL import and pagination, RSS and JSON polling', es: '8 apps externas (Slack, Google Sheets, Gmail, Stripe, Notion, Discord, Telegram) más HTTP con import de cURL y paginación, y polling de RSS y JSON', pt: '8 apps externos (Slack, Google Sheets, Gmail, Stripe, Notion, Discord, Telegram) mais HTTP com import de cURL e paginação, e polling de RSS e JSON' },
+      detail: { en: '7 external apps (Slack, Google Sheets, Gmail, Stripe, Notion, Discord, Telegram) plus HTTP with cURL import and pagination, RSS and JSON polling', es: '7 apps externas (Slack, Google Sheets, Gmail, Stripe, Notion, Discord, Telegram) más HTTP con import de cURL y paginación, y polling de RSS y JSON', pt: '7 apps externos (Slack, Google Sheets, Gmail, Stripe, Notion, Discord, Telegram) mais HTTP com import de cURL e paginação, e polling de RSS e JSON' },
       status: 'partial',
       competitorHas: true,
       weight: 2,

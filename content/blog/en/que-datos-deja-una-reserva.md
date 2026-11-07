@@ -84,4 +84,4 @@ DELETE FROM calendar_bookings WHERE invitee_email = 'person@example.com';
 - **Automatic retention.** There's no rule like "delete bookings older than 24 months". Bookings are kept for as long as you keep them.
 - **Exporting one person's bookings.** The API lists bookings with search (`GET /api/v1/calendar/bookings?q=`), which works for putting together an access request, but there's no "export everything for this email" button.
 
-If one of these blocks you, say so on the [feedback board](/feedback). In the meantime, the map of copies is what will save you the most time: a deletion request without a map takes an afternoon, and with one it takes fifteen minutes.
+If one of these blocks you, say so on the [feedback board](/feedback-board). In the meantime, the map of copies is what will save you the most time: a deletion request without a map takes an afternoon, and with one it takes fifteen minutes.

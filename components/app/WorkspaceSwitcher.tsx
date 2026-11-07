@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import QuickModal from '@/components/app/QuickModal';
@@ -43,18 +43,24 @@ function appRoot(pathname: string): string {
  * Switcher de workspace del sidebar: el propio y los equipos donde estoy.
  * Cambiar de workspace cambia todas las apps (los datos son del owner del
  * workspace elegido). Desde acá también se crea el equipo, se invita y se
- * llega a los ajustes del workspace.
+ * llega a los ajustes del workspace. Es también el menú de la cuenta: lo demás
+ * del pie (ajustes, ayuda, tema, salir) llega por `children`, así el pie del
+ * sidebar es una sola fila y no le quita lugar a la navegación.
  */
 export default function WorkspaceSwitcher({
   entries,
   collapsed,
   person,
   email,
+  avatar,
+  children,
 }: {
   entries: SwitcherEntry[];
   collapsed: boolean;
   person: string;
   email: string;
+  avatar?: ReactNode;
+  children?: ReactNode;
 }) {
   const t = useTranslations('settings.switcher');
   const locale = useLocale();
@@ -67,6 +73,7 @@ export default function WorkspaceSwitcher({
   const ref = useRef<HTMLDivElement>(null);
   const btn = useRef<HTMLButtonElement>(null);
   const current = entries.find((e) => e.current) ?? entries[0];
+  const name = current ? (current.personal && !current.name ? t('personal') : current.name) : person;
   const label = (e: SwitcherEntry) => (e.personal && !e.name ? t('personal') : e.name);
   const admin = current ? current.role === 'owner' || current.role === 'admin' : false;
   const canCreateTeam = current?.own && current.mode === 'personal';
@@ -138,34 +145,35 @@ export default function WorkspaceSwitcher({
     window.location.assign(`/${locale}/app/settings/members`);
   }
 
-  if (!current) return null;
-
   return (
-    <div className="ws-switcher side-user-meta side-label" ref={ref}>
+    <div className="ws-switcher" ref={ref}>
       <button
         ref={btn}
         type="button"
         className="ws-switcher-btn"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={t('label', { name: label(current) })}
-        title={collapsed ? label(current) : undefined}
+        aria-label={t('label', { name })}
+        title={collapsed ? name : undefined}
         onClick={() => setOpen((v) => !v)}
         data-testid="workspace-switcher"
       >
-        <span className="ws-switcher-lines">
+        {avatar}
+        <span className="ws-switcher-lines side-label">
           <span className="side-user-name ws-switcher-name">
-            {current.logoUrl && <Mark name={label(current)} logoUrl={current.logoUrl} small />}
-            {label(current)}
+            {current?.logoUrl && <Mark name={name} logoUrl={current.logoUrl} small />}
+            <span className="ws-switcher-name-text">{name}</span>
           </span>
           {/* Si el workspace se llama como la persona, abajo va el email (no "Pablo / Pablo"). */}
-          <span className="side-user-mail">{person.trim().toLowerCase() === label(current).trim().toLowerCase() ? email : person}</span>
+          <span className="side-user-mail">{person.trim().toLowerCase() === name.trim().toLowerCase() ? email : person}</span>
         </span>
-        <Icon name="chevronDown" size={13} />
+        <span className="side-label ws-switcher-chevron">
+          <Icon name="chevronDown" size={13} />
+        </span>
       </button>
       {open && (
         <div className="side-menu ws-switcher-menu" role="menu" aria-label={t('menu')} onKeyDown={onMenuKey}>
-          <p className="side-menu-note ws-switcher-heading">{t('workspaces')}</p>
+          {entries.length > 0 && <p className="side-menu-note ws-switcher-heading">{t('workspaces')}</p>}
           {entries.map((e) => (
             <button
               key={e.teamId ?? 'own'}
@@ -187,7 +195,7 @@ export default function WorkspaceSwitcher({
               )}
             </button>
           ))}
-          <div className="ws-switcher-sep" role="separator" />
+          {entries.length > 0 && <div className="ws-switcher-sep" role="separator" />}
           {canCreateTeam && (
             <button
               type="button"
@@ -208,10 +216,22 @@ export default function WorkspaceSwitcher({
               {t('invite')}
             </Link>
           )}
-          <Link href="/app/settings/workspace" role="menuitem" className="side-menu-item" onClick={() => setOpen(false)}>
-            <Icon name="settings" size={14} />
-            {t('settings')}
-          </Link>
+          {current && (
+            <Link href="/app/settings/workspace" role="menuitem" className="side-menu-item" onClick={() => setOpen(false)}>
+              <Icon name="settings" size={14} />
+              {t('settings')}
+            </Link>
+          )}
+          {children && (
+            <div
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest('[role="menuitem"]')) setOpen(false);
+              }}
+            >
+              {current && <div className="ws-switcher-sep" role="separator" />}
+              {children}
+            </div>
+          )}
           {error && (
             <p className="ui-error ws-switcher-error" role="alert">
               {error}

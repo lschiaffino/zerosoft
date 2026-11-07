@@ -50,7 +50,7 @@ With typical HubSpot headers, some map themselves and some need a click:
 - Usually auto-mapped: `First Name`, `Last Name`, `Email`, `Job Title`, `City`, `Lifecycle Stage`, `Lead Status`, `Industry`, `Company name`.
 - Usually need manual mapping: `Phone Number`, `Country/Region`, `Website URL`, `Company Domain Name`, `Number of Employees`.
 
-Anything you leave on "— ignore —" is dropped. `Record ID` and friends can stay ignored.
+Anything you leave on "Ignore this column" is dropped. `Record ID` and friends can stay ignored.
 
 ### Enum values: the silent trap
 
