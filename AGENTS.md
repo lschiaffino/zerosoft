@@ -72,8 +72,10 @@ Use `E2E_PORT` to avoid port clashes when several suites run at once.
 A feature is done when a person can use it end to end, not when its tests
 pass.
 
-1. **Tried in the browser.** Run the app and walk through the flow as a user.
-   If you could not, say so plainly in your report.
+1. **Tried in the browser.** Build (`npm run build`), start the app, and walk
+   through the flow as a user (Playwright or a real browser). If you could
+   not, say so plainly in your report: a change isn't merged without that
+   pass.
 2. **Meets the common list for every app** (below), not only what was asked.
 3. **Tests.** Unit tests in `tests/unit` for logic. If what the user sees
    changes, e2e tests in `tests/e2e`. If you add tabs, columns or events,
@@ -120,11 +122,18 @@ it should be here too.
 - **Design.** Reuse existing components and tokens. No pill shapes or large
   radii.
 - **Copy.** Plain and concrete. No em dashes, no "it's not X, it's Y", no
-  "free forever", no invented metrics or testimonials, and no claims about
-  features that don't exist.
+  "no X, no Y, no Z" triads, no "free forever", no invented metrics or
+  testimonials, and no claims about features that don't exist. Voice guide:
+  `docs/voice.md` (`tests/unit/copy-lint.test.ts` enforces the mechanical
+  part on the site's JSON).
+- **Backlog.** `research/ideas.json` feeds the public roadmap board (see
+  `research/README.md`). When you build an idea from it, mark it
+  `"status": "done"` with the id of its entry in `content/changelog.ts`.
 - **Feature parity.** When you add or remove a capability, update
-  `content/feature-parity/<app>.ts` (`status` and `lastReviewed`).
-- **Security.** Don't open public issues for vulnerabilities; see
+  `content/feature-parity/<app>.ts` (`status` and `lastReviewed`). The parity
+  percentage on each product page comes from there.
+- **Security.** Security bugs never go on the public board or in public
+  issues: fix them directly, and report them privately as described in
   [SECURITY.md](SECURITY.md).
 
 ## Pull requests
