@@ -12,7 +12,7 @@ export default function GlobalNotFound() {
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body>
         <main className="container">
-          <header className="read-hero">
+          <header className="read-hero nf-root">
             <h1 className="read-title">This page does not exist.</h1>
             <p className="read-intro">The link may have a typo or the page moved.</p>
             <div className="read-actions">

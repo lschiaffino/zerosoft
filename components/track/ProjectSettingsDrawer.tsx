@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { TrackProjectRow } from '@/lib/schema/types';
 import { normalizeTeamKey } from '@/lib/track-team-key';
 import { teamPath } from '@/lib/track-routes';
 import TrackIcon from './TrackIcon';
+import WorkspaceInviteForm from './WorkspaceInviteForm';
 import { LabelsSettings } from './TrackSettingsClient';
 import { TeamAutomation } from './planning/AutomationSettings';
 import { ESTIMATE_SCALES, estimateOptions, isEstimateScale, type EstimateScale } from '@/lib/track-estimates';
@@ -156,15 +157,40 @@ function GeneralPanel({ projectId, isAdmin }: { projectId: string; isAdmin: bool
   );
 }
 
-/** Members: quién ve y trabaja en el team (el acceso se maneja en Ajustes › Acceso). */
-function MembersPanel({ projectId }: { projectId: string }) {
+type TeamAccess = {
+  projects?: Array<{ id: string; visibility: 'workspace' | 'private'; members: Array<{ userId: string }> }>;
+  people?: Array<{ id: string; name: string | null; email: string }>;
+};
+
+/** Members: quién ve y trabaja en el team. Un admin suma gente desde acá; el resto del acceso, en Ajustes › Acceso. */
+function MembersPanel({ projectId, isAdmin }: { projectId: string; isAdmin: boolean }) {
   const t = useTranslations('track');
   const [rows, setRows] = useState<Array<{ id: string; name: string | null; email: string }> | null>(null);
-  useEffect(() => {
+  const [access, setAccess] = useState<TeamAccess | null>(null);
+  const [addId, setAddId] = useState('');
+  const [error, setError] = useState(false);
+
+  const load = useCallback(() => {
     void send<{ rows: Array<{ id: string; name: string | null; email: string }> }>(`/api/track/projects/${projectId}/members`).then((r) =>
       setRows(r.ok ? r.data.rows : []),
     );
-  }, [projectId]);
+    if (isAdmin) void send<TeamAccess>('/api/track/access').then((r) => r.ok && setAccess(r.data));
+  }, [projectId, isAdmin]);
+  useEffect(() => load(), [load]);
+
+  const team = access?.projects?.find((p) => p.id === projectId);
+  const candidates = team?.visibility === 'private' ? (access?.people ?? []).filter((c) => !team.members.some((m) => m.userId === c.id)) : [];
+  const selected = candidates.some((c) => c.id === addId) ? addId : (candidates[0]?.id ?? '');
+
+  const add = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selected) return;
+    setError(false);
+    const res = await send('/api/track/access', 'POST', { action: 'addMember', projectId, userId: selected });
+    if (!res.ok) setError(true);
+    load();
+  };
+
   if (!rows) return <p className="ui-help">{t('common.loading')}</p>;
   return (
     <div data-testid="track-team-members">
@@ -178,6 +204,32 @@ function MembersPanel({ projectId }: { projectId: string }) {
           </li>
         ))}
       </ul>
+      {isAdmin && team?.visibility === 'workspace' ? <p className="ui-help">{t('access.everyoneIn')}</p> : null}
+      {error ? (
+        <p className="ui-error" role="alert">
+          {t('access.error')}
+        </p>
+      ) : null}
+      {candidates.length > 0 ? (
+        <form className="track-int-row" onSubmit={(e) => void add(e)} data-testid="track-team-add">
+          <select className="select" aria-label={t('access.addMember')} value={selected} onChange={(e) => setAddId(e.target.value)}>
+            {candidates.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name || c.email}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className="btn btn-sm">
+            {t('access.addMember')}
+          </button>
+        </form>
+      ) : null}
+      {isAdmin ? (
+        <div className="track-team-invite">
+          <h4 className="ui-label">{t('access.inviteTitle')}</h4>
+          <WorkspaceInviteForm onInvited={load} />
+        </div>
+      ) : null}
       <Link href="/app/track/settings?tab=access" className="btn btn-sm">
         {t('teamSettings.manageAccess')}
       </Link>
@@ -356,7 +408,7 @@ export default function ProjectSettingsDrawer({ projectName, projectId: idProp, 
       case 'general':
         return <GeneralPanel projectId={projectId!} isAdmin={isAdmin} />;
       case 'members':
-        return <MembersPanel projectId={projectId!} />;
+        return <MembersPanel projectId={projectId!} isAdmin={isAdmin} />;
       case 'labels':
         return <LabelsSettings isAdmin={isAdmin} projectId={projectId!} />;
       case 'estimates':

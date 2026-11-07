@@ -140,7 +140,7 @@ export default function Reviews({ cycles, toWrite, hr }: { cycles: Cycle[]; toWr
 }
 
 /** Un ciclo: preguntas (en borrador), lanzar y cerrar (HR), y las evaluaciones que quien mira puede ver o escribir. */
-export function CycleDetail({ cycle, reviews, hr, focus }: { cycle: Cycle; reviews: ReviewDto[]; hr: boolean; focus: string | null }) {
+export function CycleDetail({ cycle, reviews, hr, focus, reports = [], people = [] }: { cycle: Cycle; reviews: ReviewDto[]; hr: boolean; focus: string | null; reports?: string[]; people?: Array<{ id: string; name: string }> }) {
   const t = useTranslations('people');
   const router = useRouter();
   const errText = useErrorText();
@@ -165,6 +165,17 @@ export function CycleDetail({ cycle, reviews, hr, focus }: { cycle: Cycle; revie
     const res = await api(`/api/people/cycles/${cycle.id}`, { method: 'DELETE' });
     if (!res.ok) return push(errText(res.data.error), 'bad');
     router.push('/app/people/reviews');
+    router.refresh();
+  };
+  const addPeer = async (subjectId: string, reviewerId: string) => {
+    const res = await api(`/api/people/cycles/${cycle.id}/peers`, { method: 'POST', json: { subjectId, reviewerId } });
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    push(t('reviews.peerAdded'));
+    router.refresh();
+  };
+  const removePeer = async (reviewId: string) => {
+    const res = await api(`/api/people/cycles/${cycle.id}/peers?review=${encodeURIComponent(reviewId)}`, { method: 'DELETE' });
+    if (!res.ok) return push(errText(res.data.error), 'bad');
     router.refresh();
   };
   const mine = reviews.filter((r) => r.canWrite);
@@ -262,8 +273,39 @@ export function CycleDetail({ cycle, reviews, hr, focus }: { cycle: Cycle; revie
                   <span className={`badge ${r.status === 'submitted' ? 'badge-ok' : 'badge-warn'}`}>{t(`reviews.reviewStatus.${r.status}`)}</span>
                 </h4>
                 {r.status === 'submitted' && <ReviewAnswers review={r} />}
+                {r.kind === 'peer' && r.status === 'pending' && cycle.status === 'active' && (hr || reports.includes(s)) && (
+                  <button type="button" className="btn btn-sm btn-ghost" onClick={() => void removePeer(r.id)}>
+                    {t('reviews.removePeer')}
+                  </button>
+                )}
               </article>
             ))}
+            {cycle.status === 'active' && (hr || reports.includes(s)) && (
+              <form
+                className="ppl-toolbar ppl-add-peer"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const el = e.currentTarget;
+                  const reviewerId = String(new FormData(el).get('reviewerId') ?? '');
+                  if (reviewerId) void addPeer(s, reviewerId);
+                  el.reset();
+                }}
+              >
+                <select name="reviewerId" className="select" aria-label={t('reviews.addPeerFor', { name: rs[0].subjectName })} defaultValue="" data-testid="people-add-peer">
+                  <option value="">{t('reviews.pickPeer')}</option>
+                  {people
+                    .filter((p) => p.id !== s && !rs.some((r) => r.kind === 'peer' && r.reviewerName === p.name))
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                </select>
+                <button type="submit" className="btn btn-sm btn-secondary">
+                  {t('reviews.addPeer')}
+                </button>
+              </form>
+            )}
           </section>
         );
       })}

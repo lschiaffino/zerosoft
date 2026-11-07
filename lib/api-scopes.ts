@@ -39,10 +39,21 @@ export const API_SCOPES = [
   'books:read',
   'books:write',
   'forms:read',
+  'send:read',
   'notes:read',
   'notes:write',
 ] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
+
+/**
+ * Permiso aparte y explícito para usar el MCP unificado con una key. No es de la
+ * lista de arriba: '*' y las keys anteriores no lo tienen y siguen solo con v1.
+ */
+export const MCP_KEY_SCOPE = 'mcp';
+
+export function keyHasMcpAccess(raw: string | null | undefined): boolean {
+  return (raw ?? '').split(/[\s,]+/).includes(MCP_KEY_SCOPE);
+}
 
 export function isApiScope(v: string): v is ApiScope {
   return (API_SCOPES as readonly string[]).includes(v);
@@ -95,6 +106,7 @@ export const SCOPE_APP: Record<string, string> = {
   books: 'books',
   sign: 'sign',
   forms: 'forms',
+  send: 'send',
 };
 
 /** Solo los scopes de apps permitidas ('*' = todas). */

@@ -1,0 +1,87 @@
+/* ---------- Comparaciones (/compare y /compare/<slug>) ---------- */
+
+.cmp-page { padding-bottom: 96px; }
+.cmp-hero { margin-bottom: 40px; }
+.read-title.cmp-title { max-width: 30ch; }
+.cmp-glyph { display: inline-flex; vertical-align: middle; margin-right: 14px; transform: translateY(-4px); }
+
+/* Sin el aire de las <section> del sitio (globals.css): acá lo da el margen. */
+.cmp-section { margin-top: 56px; padding-top: 0; padding-bottom: 0; }
+.cmp-last { padding-bottom: 16px; }
+.cmp-h2 {
+  font-family: var(--font-signage);
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
+  font-size: 1.75rem;
+  line-height: 1.12;
+  margin-bottom: 20px;
+  text-wrap: balance;
+}
+.cmp-h2 .dim { color: var(--brand-gray-2); }
+.cmp-note,
+.cmp-prose { max-width: 68ch; font-size: 15px; line-height: 1.6; color: var(--brand-gray-1); margin-top: 16px; }
+.cmp-prose + .cmp-prose { margin-top: 8px; }
+
+/* Resumen: pares rótulo / valor en una grilla. */
+.cmp-glance {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  border-top: var(--stroke-rule) solid var(--brand-ink);
+}
+.cmp-glance > div { padding: 16px 20px 16px 0; border-bottom: 1px solid var(--line); }
+.cmp-glance dt { font-size: 13px; color: var(--brand-gray-2); margin-bottom: 6px; }
+.cmp-glance dd { font-size: 16px; line-height: 1.45; color: var(--ink); }
+.cmp-glance dd.data { font-family: var(--font-data); font-size: 28px; }
+
+.cmp-parity { margin-top: 32px; }
+
+/* Listas de capacidades: nombre en negrita y detalle abajo. */
+.cmp-list { list-style: none; max-width: 860px; border-top: 1px solid var(--line); }
+.cmp-list li { display: flex; flex-direction: column; gap: 4px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.cmp-list strong { font-weight: 600; color: var(--ink); }
+.cmp-list span { font-size: 15px; line-height: 1.5; color: var(--brand-gray-1); }
+.cmp-list .cmp-tag { font-size: 12px; color: var(--brand-gray-2); margin-left: 8px; font-weight: 500; }
+
+.cmp-posts { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 32px; max-width: 960px; }
+.cmp-posts li { display: flex; flex-direction: column; gap: 4px; }
+.cmp-posts a { font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.cmp-posts span { font-size: 14px; line-height: 1.5; color: var(--brand-gray-1); }
+
+.cmp-other { list-style: none; display: flex; flex-wrap: wrap; gap: 10px 24px; }
+.cmp-other a,
+.cmp-links a { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.cmp-other a:hover,
+.cmp-links a:hover,
+.cmp-posts a:hover { text-decoration-thickness: 2px; }
+
+/* Índice. */
+.cmp-index .cmp-app a { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink); }
+.cmp-links { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+
+@media (max-width: 860px) {
+  .cmp-section { margin-top: 40px; }
+  .cmp-posts { grid-template-columns: minmax(0, 1fr); }
+  /* La tabla del índice pasa a tarjetas: una por app, sin scroll lateral. */
+  .cmp-index thead { display: none; }
+  .cmp-index,
+  .cmp-index tbody,
+  .cmp-index tr,
+  .cmp-index th,
+  .cmp-index td { display: block; width: 100%; }
+  .cmp-index tr { padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .cmp-index :where(tbody) th,
+  .cmp-index td { border: 0; padding: 2px 0; text-align: left; }
+  .cmp-index td.cmp-cell::before { content: attr(data-label) ": "; color: var(--brand-gray-2); font-family: var(--font-body, inherit); }
+  .cmp-index td.num { text-align: left; }
+  .cmp-links { margin-top: 6px; }
+}
+
+/* El nombre de una comparación puede ser más largo que la pantalla: el botón pasa a dos líneas. */
+.cmp-page .btn { max-width: 100%; height: auto; padding-top: 8px; padding-bottom: 8px; white-space: normal; text-align: left; }
+/* En el teléfono los tres botones se apilan parejos, con el mismo aire. */
+@media (max-width: 560px) {
+  .cmp-page .read-actions { flex-direction: column; align-items: stretch; gap: 8px; }
+  .cmp-page .read-actions .btn { justify-content: center; text-align: center; padding: 10px 16px; }
+}
+.cmp-glance dd.cmp-glance-counts { font-size: 1.25rem; white-space: nowrap; }

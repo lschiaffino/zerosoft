@@ -10,13 +10,17 @@
  */
 import { getDb } from '../db';
 import { bucketOf } from './compute';
+import { purgeCookielessSalts } from './cookieless';
+import { fromLocal, projectTz, type Tz } from './tz';
+import { purgeProjectRecordings, runReplayRetention } from './replay';
+import { runErrorRegressions } from './errors';
 
 const DAY = 86_400_000;
 const CLAIM_MS = 10 * 60_000;
 const CHUNK = 5000;
 
-function dayStartMs(day: string, offsetMin: number): number {
-  return Date.parse(`${day}T00:00:00Z`) - offsetMin * 60_000;
+function dayStartMs(day: string, tz: Tz): number {
+  return fromLocal(Date.parse(`${day}T00:00:00Z`), tz);
 }
 
 function addDays(day: string, n: number): string {
@@ -35,6 +39,8 @@ export interface AnalyticsCronResult {
   rolledDays: number;
   purgedEvents: number;
   deletedProjects: number;
+  purgedRecordings?: number;
+  regressions: number;
 }
 
 export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number } = {}): Promise<AnalyticsCronResult> {
@@ -43,7 +49,7 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
   const budget = opts.budgetMs ?? 20_000;
   const left = () => budget - (Date.now() - started);
   const db = getDb();
-  const out: AnalyticsCronResult = { rolledDays: 0, purgedEvents: 0, deletedProjects: 0 };
+  const out: AnalyticsCronResult = { rolledDays: 0, purgedEvents: 0, deletedProjects: 0, regressions: 0 };
 
   // 1. Proyectos borrados: datos por tandas, después la fila (insights, tableros y flags caen en cascada).
   const deleted = (await db
@@ -76,9 +82,22 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
       await db.prepare('UPDATE analytics_projects SET rollup_claimed_at = NULL WHERE id = ?').run(id);
       return;
     }
+    // Las grabaciones pesan: también por tandas, antes de soltar el proyecto.
+    if (!(await purgeProjectRecordings(id, left))) {
+      await db.prepare('UPDATE analytics_projects SET rollup_claimed_at = NULL WHERE id = ?').run(id);
+      return;
+    }
     // Todo explícito (no depende de que las FK en cascada estén prendidas).
     await db.prepare('DELETE FROM analytics_dashboard_items WHERE dashboard_id IN (SELECT id FROM analytics_dashboards WHERE project_id = ?)').run(id);
+    // Primero lo que apunta a insights, tableros y cohortes.
+    await db.prepare('DELETE FROM analytics_share_passwords WHERE share_id IN (SELECT id FROM analytics_shares WHERE project_id = ?)').run(id);
     for (const table of [
+      'analytics_share_log',
+      'analytics_subscriptions',
+      'analytics_shares',
+      'analytics_alerts',
+      'analytics_experiments',
+      'analytics_cohort_members',
       'analytics_insights',
       'analytics_dashboards',
       'analytics_cohorts',
@@ -88,6 +107,12 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
       'analytics_sessions',
       'analytics_groups',
       'analytics_daily',
+      'analytics_annotations',
+      'analytics_actions',
+      'analytics_event_defs',
+      'analytics_replay_daily',
+      'analytics_surveys',
+      'analytics_error_issues',
     ]) {
       await db.prepare(`DELETE FROM ${table} WHERE project_id = ?`).run(id);
     }
@@ -95,28 +120,40 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     out.deletedProjects++;
   }
 
+  // 1b. Retención de replay: es dato personal, va antes del rollup pero con su propia porción del presupuesto.
+  try {
+    out.purgedRecordings = await runReplayRetention({ now, budgetMs: Math.min(left(), Math.max(1000, budget / 5)) });
+  } catch (err) {
+    console.error('[analytics cron] replay', err);
+  }
+
+  await purgeCookielessSalts(now).catch(() => null);
+
   // 2. Rollup diario: hasta ayer (día local del proyecto), 31 días por corrida.
   const candidates = (await db
     .prepare(
-      `SELECT id, tz_offset_min, rolled_through, dirty_from FROM analytics_projects
+      `SELECT id, tz_offset_min, tz_name, rolled_through, dirty_from FROM analytics_projects
        WHERE deleted_at IS NULL AND (rollup_claimed_at IS NULL OR rollup_claimed_at < ?) ORDER BY rollup_claimed_at LIMIT 50`,
     )
-    .all(now - CLAIM_MS)) as Array<{ id: string; tz_offset_min: number; rolled_through: string | null; dirty_from: string | null }>;
+    .all(now - CLAIM_MS)) as Array<{ id: string; tz_offset_min: number; tz_name: string | null; rolled_through: string | null; dirty_from: string | null }>;
   for (const p of candidates) {
     if (left() <= 0) break;
     try {
       await rollup(p);
     } catch (err) {
       console.error('[analytics cron] rollup', p.id, err);
-      await db.prepare('UPDATE analytics_projects SET rollup_claimed_at = NULL WHERE id = ?').run(p.id).catch(() => null);
     }
+    // Turno rotativo: el que acaba de pasar, con o sin trabajo, queda atrás en la cola y
+    // disponible para la próxima corrida. Sin esto, 50 proyectos sin nada que hacer dejan sin turno al resto.
+    await db.prepare('UPDATE analytics_projects SET rollup_claimed_at = ? WHERE id = ?').run(now - CLAIM_MS - 1, p.id).catch(() => null);
   }
   async function rollup(p: (typeof candidates)[number]) {
-    const tz = Number(p.tz_offset_min);
+    const tz = projectTz(p);
     const yesterday = addDays(bucketOf(now, 'day', tz), -1);
     let from: string | null = p.dirty_from ?? (p.rolled_through ? addDays(p.rolled_through, 1) : null);
     if (!from) {
-      const first = (await db.prepare('SELECT MIN(ts) AS ts FROM analytics_events WHERE project_id = ?').get(p.id)) as { ts: number | null } | undefined;
+      // Solo fechas posibles: una fila vieja con un valor imposible no frena el primer rollup del proyecto.
+      const first = (await db.prepare('SELECT MIN(ts) AS ts FROM analytics_events WHERE project_id = ? AND ts >= 0 AND ts <= 8640000000000000').get(p.id)) as { ts: number | null } | undefined;
       if (first?.ts == null || !Number.isFinite(Number(first.ts))) return;
       // Nunca más atrás que la retención máxima (5 años), aunque haya un dato raro.
       from = bucketOf(Math.max(Number(first.ts), now - 5 * 365 * DAY), 'day', tz);
@@ -135,7 +172,7 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
            LEFT JOIN analytics_person_ids m ON m.project_id = e.project_id AND m.distinct_id = e.distinct_id
            WHERE e.project_id = ? AND e.ts >= ? AND e.ts < ? GROUP BY e.event`,
         )
-        .run(day, p.id, start, start + DAY);
+        .run(day, p.id, start, dayStartMs(addDays(day, 1), tz));
       out.rolledDays++;
       last = day;
       day = addDays(day, 1);
@@ -161,7 +198,7 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
 
   // 3. Retención: una vez cada 6 h por proyecto.
   const due = (await db
-    .prepare('SELECT id, retention_days FROM analytics_projects WHERE deleted_at IS NULL AND (purged_at IS NULL OR purged_at < ?) LIMIT 50')
+    .prepare('SELECT id, retention_days FROM analytics_projects WHERE deleted_at IS NULL AND (purged_at IS NULL OR purged_at < ?) ORDER BY purged_at LIMIT 50')
     .all(now - 6 * 3_600_000)) as Array<{ id: string; retention_days: number }>;
   for (const p of due) {
     if (left() <= 0) break;
@@ -170,6 +207,14 @@ export async function runAnalyticsCron(opts: { budgetMs?: number; now?: number }
     } catch (err) {
       console.error('[analytics cron] retention', p.id, err);
     }
+  }
+
+  // 4. Errores resueltos que volvieron a aparecer (con lo que quede del presupuesto, hasta 5 s).
+  const regressionsUntil = Date.now() + Math.min(5000, Math.max(0, left()));
+  try {
+    out.regressions = (await runErrorRegressions({ left: () => regressionsUntil - Date.now(), now })).regressions;
+  } catch (err) {
+    console.error('[analytics cron] regressions', err);
   }
   return out;
 

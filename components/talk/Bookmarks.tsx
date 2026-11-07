@@ -42,6 +42,8 @@ export default function BookmarksBar({ channel }: { channel: TalkChannelDto }) {
   const canEdit = channel.isMember && !channel.archived && !channel.deactivated;
   const listRef = useRef<HTMLDivElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
+  const moreBtnRef = useRef<HTMLButtonElement>(null);
+  const overflowRef = useRef<HTMLDivElement>(null);
   // Solo vale la última carga: la de un canal anterior que llega tarde se descarta.
   const loadSeq = useRef(0);
 
@@ -90,6 +92,21 @@ export default function BookmarksBar({ channel }: { channel: TalkChannelDto }) {
     return () => ro.disconnect();
   }, [measure, items === null]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Al abrir "Más", el foco va al primer marcador (una sola vez: después no se le roba al menú de opciones).
+  const moreOpen = !!more;
+  useEffect(() => {
+    if (moreOpen) overflowRef.current?.querySelector<HTMLElement>('a')?.focus();
+  }, [moreOpen]);
+  // Si con el nuevo ancho entran todos, "Más" desaparece: el menú se cierra y el foco no queda en el aire.
+  const extrasCount = items ? items.filter((b) => hidden.has(b.id)).length : 0;
+  useEffect(() => {
+    if (extrasCount > 0 || !more) return;
+    const inside = !!(document.activeElement as HTMLElement | null)?.closest?.('.talk-bookmark-overflow');
+    setMore(null);
+    setMenu(null);
+    if (inside) listRef.current?.querySelector<HTMLElement>('a')?.focus();
+  }, [extrasCount, more]);
+
   // Esc o un clic afuera cierran; Esc devuelve el foco al botón que abrió.
   const open = !!menu || !!more;
   useEffect(() => {
@@ -104,6 +121,17 @@ export default function BookmarksBar({ channel }: { channel: TalkChannelDto }) {
       });
       returnFocus.current?.focus();
     };
+    // Al cambiar el ancho los menús quedarían donde estaba el botón: se cierran, y si el foco
+    // estaba adentro vuelve al botón que los abrió (no se pierde en el body).
+    const onResize = () => {
+      const inside = (document.activeElement as HTMLElement | null)?.closest?.('.talk-bookmark-menu, .talk-bookmark-overflow');
+      setMenu(null);
+      setMore(null);
+      if (!inside) return;
+      // El botón de un marcador dentro de "Más" ya no está: el foco vuelve a "Más".
+      const back = returnFocus.current?.closest('.talk-bookmark-overflow') ? moreBtnRef.current : returnFocus.current;
+      back?.focus();
+    };
     const onDown = (e: MouseEvent) => {
       if ((e.target as HTMLElement).closest?.('.talk-bookmark-menu, .talk-bookmark-more, .talk-bookmark-overflow, .talk-bookmark-more-btn')) return;
       setMenu(null);
@@ -111,9 +139,11 @@ export default function BookmarksBar({ channel }: { channel: TalkChannelDto }) {
     };
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('mousedown', onDown);
+    window.addEventListener('resize', onResize);
     return () => {
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('resize', onResize);
     };
   }, [open]);
 
@@ -175,6 +205,7 @@ export default function BookmarksBar({ channel }: { channel: TalkChannelDto }) {
       {extras.length > 0 && (
         <button
           type="button"
+          ref={moreBtnRef}
           className="btn btn-ghost btn-sm talk-bookmark-more-btn"
           aria-label={t('bookmarks.moreLabel')}
           aria-haspopup="true"
@@ -200,10 +231,18 @@ export default function BookmarksBar({ channel }: { channel: TalkChannelDto }) {
           className="talk-bookmark-overflow"
           style={{ top: more.top, left: more.left }}
           data-testid="talk-bookmark-overflow"
-          ref={(el) => {
-            if (el && !el.contains(document.activeElement)) el.querySelector<HTMLElement>('a')?.focus();
-          }}
+          ref={overflowRef}
+          role="group"
+          aria-label={t('bookmarks.moreLabel')}
           onKeyDown={(e) => moveFocus(e, 'a, button')}
+          onBlur={(e) => {
+            // Tab fuera del menú lo cierra; pasar al menú de opciones de un marcador no.
+            const to = e.relatedTarget as HTMLElement | null;
+            if (to && !e.currentTarget.contains(to) && !to.closest('.talk-bookmark-menu, .talk-bookmark-more-btn')) {
+              setMore(null);
+              setMenu(null);
+            }
+          }}
         >
           {extras.map((b) => row(b, false))}
         </div>

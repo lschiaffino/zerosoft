@@ -11,12 +11,14 @@
     "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:real": "playwright test -c playwright.real.config.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.68",
     "@excalidraw/excalidraw": "^0.18.1",
     "@libsql/client": "^0.17.4",
+    "@napi-rs/canvas": "^1.1.0",
     "@vercel/blob": "^2.8.1",
     "@vercel/sandbox": "^3.7.0",
     "@xyflow/react": "^12.12.0",

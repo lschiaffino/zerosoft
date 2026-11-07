@@ -70,6 +70,20 @@ interface PendingMove {
 }
 
 /** Recalcula count y Σ amount de una columna. */
+/** Aire entre la card y el menú M (antes se superponía 6px con la card). */
+const MOVE_MENU_GAP = 4;
+
+/** Posición fija del menú M: abajo de la card y, si con su alto no entra, pegado arriba. */
+function moveMenuPlace(card: HTMLElement, menuHeight: number): { top: number; left: number } {
+  const r = card.getBoundingClientRect();
+  const below = r.bottom + MOVE_MENU_GAP;
+  const above = r.top - menuHeight - MOVE_MENU_GAP;
+  const wanted = menuHeight > 0 && below + menuHeight > window.innerHeight ? above : below;
+  // Con la card fuera de la pantalla (scroll en curso) el menú queda en el borde, a la vista.
+  const top = Math.max(8, Math.min(wanted, window.innerHeight - menuHeight - 8));
+  return { top, left: Math.max(8, Math.min(r.left + 8, window.innerWidth - 200)) };
+}
+
 function recompute(col: BoardStage): BoardStage {
   return {
     ...col,
@@ -134,6 +148,7 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
   // Posición fija (viewport): el board scrollea en x y recortaría un menú absoluto.
   const [moveMenuPos, setMoveMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const moveMenuRef = useRef<HTMLDivElement | null>(null);
+  const moveCardEl = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!moveMenuFor) return;
@@ -142,43 +157,48 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
     function onDown(e: MouseEvent) {
       if (!moveMenuRef.current?.contains(e.target as Node)) setMoveMenuFor(null);
     }
-    // Si la página o el board se mueven, el menú quedaría lejos de la card: se cierra.
+    // Un scroll solo mueve el menú con la card: el scroll suave de llevarle el foco puede seguir
+    // andando al abrir, y con la card todavía afuera de la pantalla no es motivo para cerrar.
     function onScroll(e: Event) {
+      if (moveMenuRef.current?.contains(e.target as Node)) return;
+      const card = moveCardEl.current;
+      if (!card?.isConnected) {
+        setMoveMenuFor(null);
+        return;
+      }
+      setMoveMenuPos(moveMenuPlace(card, moveMenuRef.current?.offsetHeight ?? 0));
+    }
+    // Quien scrollea con la rueda o el dedo fuera del menú ya está en otra cosa: se cierra.
+    function onUserScroll(e: Event) {
       if (!moveMenuRef.current?.contains(e.target as Node)) setMoveMenuFor(null);
     }
     const onResize = () => setMoveMenuFor(null);
     document.addEventListener('mousedown', onDown);
-    // Un frame después: el foco recién movido no cuenta como scroll del usuario.
-    const raf = window.requestAnimationFrame(() => {
-      window.addEventListener('scroll', onScroll, true);
-      window.addEventListener('resize', onResize);
-    });
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('wheel', onUserScroll, { capture: true, passive: true });
+    window.addEventListener('touchmove', onUserScroll, { capture: true, passive: true });
+    window.addEventListener('resize', onResize);
     return () => {
-      window.cancelAnimationFrame(raf);
       document.removeEventListener('mousedown', onDown);
+      window.removeEventListener('wheel', onUserScroll, { capture: true });
+      window.removeEventListener('touchmove', onUserScroll, { capture: true });
       window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onResize);
     };
   }, [moveMenuFor]);
 
-  const moveCardRect = useRef<DOMRect | null>(null);
-  /** Aire entre la card y el menú M (antes se superponía 6px con la card). */
-  const MOVE_MENU_GAP = 4;
   function openMoveMenu(card: HTMLElement, dealId: string) {
-    const r = card.getBoundingClientRect();
-    moveCardRect.current = r;
-    setMoveMenuPos({ top: r.bottom + MOVE_MENU_GAP, left: Math.max(8, Math.min(r.left + 8, window.innerWidth - 200)) });
+    moveCardEl.current = card;
+    setMoveMenuPos(moveMenuPlace(card, 0));
     setMoveMenuFor(dealId);
   }
   // Con el menú ya en pantalla se mide su alto real: si abajo no entra, va
   // pegado arriba de la card (con un alto fijo quedaba lejos si había pocas etapas).
   useLayoutEffect(() => {
-    const r = moveCardRect.current;
+    const card = moveCardEl.current;
     const el = moveMenuRef.current;
-    if (!moveMenuFor || !r || !el) return;
-    const h = el.offsetHeight;
-    const below = r.bottom + MOVE_MENU_GAP;
-    if (below + h > window.innerHeight) setMoveMenuPos((p) => ({ ...p, top: Math.max(8, r.top - h - MOVE_MENU_GAP) }));
+    if (!moveMenuFor || !card || !el) return;
+    setMoveMenuPos(moveMenuPlace(card, el.offsetHeight));
   }, [moveMenuFor]);
 
   function closeMoveMenu(refocus: boolean) {

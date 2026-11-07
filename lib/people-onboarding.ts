@@ -9,7 +9,9 @@ import { localized } from './notification-copy';
 import { getDb } from './db';
 import { isManagerOf, isSelf } from './people-access';
 import { dueDateFor, isIsoDate } from './people-time';
-import { getEmployeeRow, newId, nowIso, parseJson, PeopleError, requireHr, today, type PeopleCtx } from './people';
+import { zonedToday } from './people-time';
+import { personTz } from './people-timeoff';
+import { activeManagerUser, getEmployeeRow, newId, nowIso, parseJson, PeopleError, requireHr, today, type PeopleCtx } from './people';
 import { emitPeopleEvent, hrPeople, notifyPeople } from './people-effects';
 
 const db = () => getDb();
@@ -137,7 +139,8 @@ export async function startChecklist(ctx: PeopleCtx, employeeId: string, templat
   const tpl = await getTemplate(ctx.ws, templateId);
   if (!tpl) throw new PeopleError('invalid_template');
   const anchor = anchorOverride && isIsoDate(anchorOverride) ? anchorOverride : (tpl.kind === 'offboarding' ? emp.end_date : emp.start_date) ?? today();
-  const mgr = emp.manager_id ? await getEmployeeRow(ctx.ws, emp.manager_id) : null;
+  const activeMgr = await activeManagerUser(ctx.ws, employeeId);
+  const mgr = activeMgr ? { user_id: activeMgr } : null;
   const plan = planTasks(tpl.tasks, anchor, { newHire: emp.user_id, manager: mgr?.user_id ?? null });
   const id = newId('chk');
   await db()
@@ -190,7 +193,9 @@ export async function listChecklists(ctx: PeopleCtx, opts: { employeeId?: string
   for (const l of lists) {
     const mine = tasks.filter((t) => t.checklist_id === l.id);
     const whole = ctx.viewer.hr || isSelf(ctx.viewer, l.employee_id) || isManagerOf(ctx.viewer, l.employee_id);
-    const visible = whole ? mine : mine.filter((t) => t.assignee_id === ctx.personId);
+    // Del offboarding, la propia persona ve sus tareas: lo que hacen IT o HR (quitar accesos, entrevista) no es para ella.
+    const ownLeaving = l.kind === 'offboarding' && isSelf(ctx.viewer, l.employee_id) && !ctx.viewer.hr && !isManagerOf(ctx.viewer, l.employee_id);
+    const visible = whole && !ownLeaving ? mine : mine.filter((t) => t.assignee_id === ctx.personId || (ownLeaving && t.assignee_role === 'new_hire'));
     if (!visible.length && !whole) continue;
     const dtos = visible.map((t) => ({
       id: String(t.id),
@@ -289,8 +294,13 @@ export async function offboard(ctx: PeopleCtx, employeeId: string, input: Offboa
     if (!limit.ok) throw new PeopleError('rate_limited', 429);
   }
   const endDate = input.endDate && isIsoDate(input.endDate) ? input.endDate : today();
-  const status = endDate <= today() ? 'terminated' : 'offboarding';
+  // El último día la persona sigue: la baja corre cuando esa fecha terminó en la zona del workspace.
+  const wsToday = zonedToday(await personTz(ctx.ws));
+  const status = endDate < wsToday ? 'terminated' : 'offboarding';
   await db().prepare('UPDATE people_employees SET end_date = ?, status = ?, updated_at = ? WHERE id = ?').run(endDate, status, nowIso(), employeeId);
+  const { recordJobChanges } = await import('./people-extras');
+  await recordJobChanges(ctx.ws, employeeId, ctx.personId, [{ field: 'status', from: emp.status, to: status }]);
+  if (status === 'terminated') await (await import('./people-timeoff')).reroutePendingRequests(ctx.ws, employeeId);
   const { cancelCalBlocksFor } = await import('./people-timeoff');
   await cancelCalBlocksFor(ctx.ws, employeeId, endDate > today() ? endDate : today());
   let checklistId: string | null = null;

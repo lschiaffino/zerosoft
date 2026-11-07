@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -26,8 +26,13 @@ const FIELDS: Record<ProviderKind, Array<{ key: string; secret?: boolean; placeh
     { key: 'apiKey', secret: true },
     { key: 'session', optional: true, placeholder: 'acme' },
   ],
+  managed: [],
+  sample: [],
   fake: [],
 };
+
+/** Credenciales propias (Meta, WAHA, Evolution, demo): van bajo "Conexión avanzada" cuando hay QR administrado. */
+const ADVANCED: ProviderKind[] = ['cloud', 'waha', 'evolution', 'fake'];
 
 /**
  * Números conectados: agregar (API oficial de Meta, WAHA, Evolution API),
@@ -42,9 +47,15 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
   const [numbers, setNumbers] = useState(initial);
   const [adding, setAdding] = useState(openNew && canEdit);
   const [connecting, setConnecting] = useState<NumberDto | null>(null);
+  // Número recién agregado: si se cierra el QR sin escanear, no queda uno "esperando".
+  const [freshId, setFreshId] = useState<string | null>(null);
   const [removing, setRemoving] = useState<NumberDto | null>(null);
   const [disconnecting, setDisconnecting] = useState<NumberDto | null>(null);
   const [editing, setEditing] = useState<NumberDto | null>(null);
+
+  const syncStatus = useCallback((id: string, status: ConnectState['status']) => {
+    setNumbers((list) => (list.some((x) => x.id === id && x.status !== status) ? list.map((x) => (x.id === id ? { ...x, status } : x)) : list));
+  }, []);
 
   const reload = useCallback(async () => {
     const res = await api<{ numbers: NumberDto[] }>('/api/groups/numbers');
@@ -79,6 +90,7 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
     <div className="ui-fields">
       <div className="gr-detail-head">
         <p className="ui-help">{t('numbers.intro')}</p>
+        {!canEdit && <p className="ui-help">{t('numbers.adminOnly')}</p>}
         {canEdit && (
           <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
             {t('numbers.add')}
@@ -96,10 +108,21 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
                 <span className="ui-help">
                   {t(`providers.${n.provider}.name`)} {n.phone ? `· +${n.phone}` : ''}
                 </span>
-                <span className={`badge ${n.status === 'connected' ? 'badge-ok' : n.status === 'error' ? 'badge-bad' : 'badge-warn'}`}>{t(`numberStatus.${n.status}`)}</span>
+                {n.provider === 'sample' ? (
+                  <span className="badge">{t('sample.badge')}</span>
+                ) : (
+                  <span className={`badge ${n.status === 'connected' ? 'badge-ok' : n.status === 'error' ? 'badge-bad' : 'badge-warn'}`}>{t(`numberStatus.${n.status}`)}</span>
+                )}
                 {n.lastError && <span className="ui-error">{errText(n.lastError)}</span>}
               </div>
-              {canEdit && (
+              {canEdit && n.provider === 'sample' && (
+                <div className="gr-number-actions">
+                  <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(n)}>
+                    {t('sample.clear')}
+                  </button>
+                </div>
+              )}
+              {canEdit && n.provider !== 'sample' && (
                 <div className="gr-number-actions">
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConnecting(n)}>
                     {n.status === 'connected' ? t('numbers.status') : n.status === 'disconnected' || n.status === 'error' ? t('numbers.reconnect') : t('numbers.connect')}
@@ -139,23 +162,32 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
           setAdding(false);
           setEditing(null);
           void reload();
-          if (isNew) setConnecting(n);
-          else showToast(t('common.saved'));
+          if (isNew) {
+            setFreshId(n.id);
+            setConnecting(n);
+          } else showToast(t('common.saved'));
         }}
       />
       <ConnectModal
         number={connecting}
-        onClose={() => {
+        onStatus={syncStatus}
+        onClose={async (connected) => {
+          const n = connecting;
           setConnecting(null);
+          setFreshId(null);
+          // QR administrado sin escanear: se borra el número y su instancia en el servidor.
+          if (n && !connected && n.id === freshId && n.provider === 'managed') {
+            await api(`/api/groups/numbers/${n.id}`, { method: 'DELETE' });
+          }
           void reload();
           router.refresh();
         }}
       />
       <ConfirmDialog
         open={!!removing}
-        title={t('numbers.deleteTitle')}
-        body={t('numbers.deleteBody')}
-        confirmLabel={t('common.delete')}
+        title={removing?.provider === 'sample' ? t('sample.clearTitle') : t('numbers.deleteTitle')}
+        body={removing?.provider === 'sample' ? t('sample.clearBody') : removing?.provider === 'managed' ? t('numbers.deleteBodyManaged') : t('numbers.deleteBody')}
+        confirmLabel={removing?.provider === 'sample' ? t('sample.clear') : t('common.delete')}
         cancelLabel={t('common.cancel')}
         danger
         onConfirm={() => void remove()}
@@ -196,13 +228,15 @@ function NumberForm({
   const t = useTranslations('groups');
   const errText = useErrorText();
   const [provider, setProvider] = useState<ProviderKind>('waha');
+  const hasManaged = providers.includes('managed');
+  const advanced = hasManaged ? providers.filter((p) => ADVANCED.includes(p)) : providers;
   const [name, setName] = useState('');
   const [config, setConfig] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
     if (!open) return;
-    setProvider(editing?.provider ?? (providers.includes('waha') ? 'waha' : providers[0]));
+    setProvider(editing?.provider ?? (providers.includes('managed') ? 'managed' : providers.includes('waha') ? 'waha' : providers[0]));
     setName(editing?.name ?? '');
     setConfig(editing ? Object.fromEntries(Object.entries(editing.settings).filter(([, v]) => v).map(([k, v]) => [k, String(v)])) : {});
     setError('');
@@ -233,7 +267,7 @@ function NumberForm({
             {t('common.cancel')}
           </button>
           <button type="submit" className="btn btn-primary" aria-busy={busy || undefined}>
-            {editing ? t('common.save') : t('numbers.addAndConnect')}
+            {editing ? t('common.save') : provider === 'managed' ? t('numbers.showQr') : t('numbers.addAndConnect')}
           </button>
         </>
       }
@@ -242,17 +276,32 @@ function NumberForm({
         {!editing && (
           <fieldset className="gr-provider-pick">
             <legend className="label">{t('numbers.provider')}</legend>
-            {providers.map((p) => (
-              <label key={p} className={`gr-provider${provider === p ? ' is-on' : ''}`}>
-                <input type="radio" name="provider" value={p} checked={provider === p} onChange={() => setProvider(p)} />
+            {hasManaged && (
+              <label className={`gr-provider${provider === 'managed' ? ' is-on' : ''}`}>
+                <input type="radio" name="provider" value="managed" checked={provider === 'managed'} onChange={() => setProvider('managed')} />
                 <span>
-                  <strong>{t(`providers.${p}.name`)}</strong>
-                  <span className="ui-help">{t(`providers.${p}.desc`)}</span>
+                  <strong>
+                    {t('providers.managed.name')} <span className="gr-recommended">{t('numbers.recommended')}</span>
+                  </strong>
+                  <span className="ui-help">{t('providers.managed.desc')}</span>
                 </span>
               </label>
-            ))}
+            )}
+            {hasManaged ? (
+              <details className="gr-advanced" open={provider !== 'managed' || undefined}>
+                <summary>{t('numbers.advanced')}</summary>
+                <div className="gr-provider-pick">
+                  {advanced.map((p) => (
+                    <ProviderOption key={p} p={p} provider={provider} setProvider={setProvider} />
+                  ))}
+                </div>
+              </details>
+            ) : (
+              advanced.map((p) => <ProviderOption key={p} p={p} provider={provider} setProvider={setProvider} />)
+            )}
           </fieldset>
         )}
+        {provider === 'managed' && <p className="gr-banner is-warn">{t('numbers.managedTips')}</p>}
         {(provider === 'waha' || provider === 'evolution') && <p className="gr-banner is-warn">{t('numbers.bridgeRisk')}</p>}
         {provider === 'cloud' && <p className="gr-banner">{t('numbers.cloudLimits')}</p>}
         <label className="ui-field">
@@ -289,11 +338,33 @@ function NumberForm({
   );
 }
 
+function ProviderOption({ p, provider, setProvider }: { p: ProviderKind; provider: ProviderKind; setProvider: (p: ProviderKind) => void }) {
+  const t = useTranslations('groups');
+  return (
+    <label className={`gr-provider${provider === p ? ' is-on' : ''}`}>
+      <input type="radio" name="provider" value={p} checked={provider === p} onChange={() => setProvider(p)} />
+      <span>
+        <strong>{t(`providers.${p}.name`)}</strong>
+        <span className="ui-help">{t(`providers.${p}.desc`)}</span>
+      </span>
+    </label>
+  );
+}
+
 /** WhatsApp cambia el QR cada ~20 s; si nadie lo escanea en 2 minutos, se pide uno nuevo a mano. */
 const QR_STALE_MS = 120_000;
 
-function ConnectModal({ number, onClose }: { number: NumberDto | null; onClose: () => void }) {
+function ConnectModal({
+  number,
+  onClose: close,
+  onStatus,
+}: {
+  number: NumberDto | null;
+  onClose: (connected: boolean) => void;
+  onStatus: (id: string, status: ConnectState['status']) => void;
+}) {
   const t = useTranslations('groups');
+  const router = useRouter();
   const errText = useErrorText();
   const [state, setState] = useState<ConnectState | null>(null);
   const [error, setError] = useState('');
@@ -303,13 +374,36 @@ function ConnectModal({ number, onClose }: { number: NumberDto | null; onClose: 
   const [qrAt, setQrAt] = useState<number | null>(null);
   const [startedAt, setStartedAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
+  // QR administrado: al conectar se traen los grupos solos.
+  const managed = number?.provider === 'managed';
+  const [synced, setSynced] = useState<{ busy: boolean; n: number | null; error: string }>({ busy: false, n: null, error: '' });
+  const syncStarted = useRef(false);
+  const onClose = () => close(state?.status === 'connected');
+  // La fila de la lista (detrás del diálogo) sigue el mismo estado.
+  const status = state?.status;
+  useEffect(() => {
+    if (number && status) onStatus(number.id, status);
+  }, [number, status, onStatus]);
 
   useEffect(() => {
     if (!number) return;
     setWebhookUrl('');
     setCopied(false);
+    syncStarted.current = false;
+    setSynced({ busy: false, n: null, error: '' });
+    // El webhook del servidor administrado lo registramos nosotros: no hace falta mostrarlo.
+    if (number.provider === 'managed') return;
     void api<{ webhookUrl: string | null }>(`/api/groups/numbers/${number.id}`).then((r) => setWebhookUrl(r.data?.webhookUrl ?? ''));
   }, [number]);
+
+  useEffect(() => {
+    if (!number || !managed || state?.status !== 'connected' || syncStarted.current) return;
+    syncStarted.current = true;
+    setSynced({ busy: true, n: null, error: '' });
+    void api<{ groups?: number }>(`/api/groups/numbers/${number.id}/connect`, { body: { action: 'sync' } }).then((r) =>
+      setSynced({ busy: false, n: r.data ? (r.data.groups ?? 0) : null, error: r.data ? '' : errText(r.error) }),
+    );
+  }, [number, managed, state?.status, errText]);
 
   // Conectar (o reconectar con "Probar de nuevo" / "QR nuevo"): arranca la sesión y registra el webhook.
   useEffect(() => {
@@ -348,9 +442,24 @@ function ConnectModal({ number, onClose }: { number: NumberDto | null; onClose: 
       title={number ? t('numbers.connectTitle', { name: number.name }) : ''}
       onClose={onClose}
       foot={
-        <button type="button" className="btn btn-primary" onClick={onClose}>
-          {state?.status === 'connected' ? t('numbers.done') : t('common.close')}
-        </button>
+        managed && state?.status === 'connected' ? (
+          <>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>
+              {t('common.close')}
+            </button>
+            <button type="button" className="btn btn-primary" disabled={synced.busy} onClick={() => {
+                // La bandeja pudo quedar en caché vacía (se vio antes de conectar): se pide de nuevo.
+                router.push('/app/groups/inbox');
+                router.refresh();
+              }}>
+              {t('numbers.openInbox')}
+            </button>
+          </>
+        ) : (
+          <button type="button" className="btn btn-primary" onClick={onClose}>
+            {state?.status === 'connected' ? t('numbers.done') : t('common.close')}
+          </button>
+        )
       }
     >
       <div className="ui-fields" aria-live="polite">
@@ -368,9 +477,16 @@ function ConnectModal({ number, onClose }: { number: NumberDto | null; onClose: 
         ) : !state ? (
           <p className="ui-help">{t('numbers.connecting')}</p>
         ) : state.status === 'connected' ? (
-          <p className="gr-banner is-ok" role="status">
-            {t('numbers.connected', { phone: state.phone ? `+${state.phone}` : '' })}
-          </p>
+          <div className="ui-fields">
+            <p className="gr-banner is-ok" role="status">
+              {t('numbers.connected', { phone: state.phone ? `+${state.phone}` : '' })}
+            </p>
+            {managed && (
+              <p className="ui-help" role="status">
+                {synced.busy ? t('numbers.syncing') : synced.error ? synced.error : synced.n !== null ? t('numbers.syncedAuto', { n: synced.n }) : ''}
+              </p>
+            )}
+          </div>
         ) : state.qr ? (
           <div className="gr-qr">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -388,6 +504,7 @@ function ConnectModal({ number, onClose }: { number: NumberDto | null; onClose: 
                 {t('numbers.newQr')}
               </button>
             )}
+            {managed && <p className="ui-help gr-qr-note">{t('numbers.managedTips')}</p>}
           </div>
         ) : state.status === 'disconnected' || state.status === 'error' ? (
           <div className="ui-fields">

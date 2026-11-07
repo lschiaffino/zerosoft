@@ -27,6 +27,15 @@ export interface RobotLocator {
   waitFor(opts?: { state?: 'attached' | 'visible'; timeout?: number }): Promise<void>;
   scrollIntoViewIfNeeded(opts?: { timeout?: number }): Promise<void>;
   setInputFiles?(files: { name: string; mimeType: string; buffer: unknown }, opts?: { timeout?: number }): Promise<void>;
+  /** El elemento mismo: un login se escribe en él, no en lo que el selector encuentre después. */
+  elementHandle?(opts?: { timeout?: number }): Promise<RobotElementHandle | null>;
+}
+
+/** Atado a su documento: si la página navega, deja de servir en vez de escribir en la nueva. */
+export interface RobotElementHandle {
+  /** El navegador sabe de qué frame es (la página no lo puede falsear). */
+  ownerFrame(): Promise<{ url(): string } | null>;
+  fill(value: string, opts?: { timeout?: number }): Promise<void>;
 }
 
 export interface RobotDownload {
@@ -488,11 +497,73 @@ export async function robotInterpreter(
     return to;
   };
 
+  /** ¿El paso escribe una credencial o apunta a un campo de contraseña? Ahí no hay alternativos. */
+  const sensitiveTarget = (s: InterpreterStep, selector: string): boolean => {
+    if (/\{\{[^{}]*\bcredentials\b/.test(JSON.stringify(s))) return true;
+    if (/passw|pwd|one-time-code/i.test(selector)) return true;
+    const pr = opts.selfHeal?.prints[str(s.selector).trim()] as { a?: { type?: unknown } } | undefined;
+    return String(pr?.a?.type ?? '').toLowerCase() === 'password';
+  };
+
+  /**
+   * Lo que tiene que ser el elemento de un paso de acción para usar un alternativo:
+   * la etiqueta, el tipo y el nombre visible que se grabaron (o que dejó la huella).
+   * Sin eso, un alternativo de una acción no se usa.
+   */
+  const expectedIdentity = (s: InterpreterStep): { t: string; type: string; nm: string } | null => {
+    const id = s.identity as { tag?: unknown; type?: unknown; name?: unknown } | undefined;
+    if (id && typeof id === 'object' && typeof id.tag === 'string' && typeof id.name === 'string' && id.name.trim()) {
+      return { t: id.tag.toLowerCase(), type: String(id.type ?? '').toLowerCase(), nm: id.name.replace(/\s+/g, ' ').trim() };
+    }
+    const pr = opts.selfHeal?.prints[str(s.selector).trim()] as { t?: unknown; a?: { type?: unknown }; nm?: unknown } | undefined;
+    if (pr && typeof pr.t === 'string' && typeof pr.nm === 'string' && pr.nm.trim()) {
+      return { t: pr.t.toLowerCase(), type: String(pr.a?.type ?? '').toLowerCase(), nm: pr.nm.replace(/\s+/g, ' ').trim() };
+    }
+    return null;
+  };
+
+  /** Etiqueta, tipo y nombre visible del primer elemento del selector (corre en la página: sin funciones con nombre). */
+  const identityOf = async (selector: string): Promise<{ t: string; type: string; nm: string; pw: boolean } | null> =>
+    page
+      .locator(selector)
+      .first()
+      .evaluate(
+        (el: Element) => {
+          const e = el as HTMLInputElement;
+          const type = (el.getAttribute('type') || '').toLowerCase();
+          const lab = e.labels && e.labels[0] ? String(e.labels[0].innerText || e.labels[0].textContent || '') : '';
+          const raw =
+            el.getAttribute('aria-label') ||
+            lab.replace(/\s+/g, ' ').trim() ||
+            el.getAttribute('placeholder') ||
+            el.getAttribute('alt') ||
+            el.getAttribute('title') ||
+            (/^(submit|button)$/.test(type) ? el.getAttribute('value') : '') ||
+            (el as HTMLElement).innerText ||
+            el.textContent ||
+            '';
+          return {
+            t: el.tagName.toLowerCase(),
+            type,
+            nm: String(raw).replace(/\s+/g, ' ').trim().slice(0, 80),
+            pw: type === 'password' || /password|one-time-code/.test(el.getAttribute('autocomplete') || ''),
+          };
+        },
+        undefined,
+        { timeout: 2000 },
+      )
+      .then((r) => (r && typeof r === 'object' ? (r as { t: string; type: string; nm: string; pw: boolean }) : null))
+      .catch(() => null);
+
   /**
    * Autorreparación: si el paso tiene selectores alternativos y el principal
    * no aparece, espera (hasta 10 s) a que aparezca cualquiera y usa el
    * primero que esté, prefiriendo siempre el principal. Si no aparece
    * ninguno, sigue con el principal (y el paso falla como siempre).
+   * Un paso con credencial o sobre un campo de contraseña nunca usa
+   * alternativos. En una acción (clic, fill, select…) el alternativo tiene
+   * que dar con un elemento de la misma etiqueta, tipo y nombre visible que
+   * el grabado; si no, no se usa y el paso falla.
    */
   const heal = async (s: InterpreterStep, ctx: Record<string, unknown>, selector: string): Promise<string> => {
     const alts = (Array.isArray(s.fallbacks) ? (s.fallbacks as unknown[]) : [])
@@ -500,10 +571,17 @@ export async function robotInterpreter(
       .filter((f) => f && f !== selector)
       .slice(0, 4);
     if (!selector || !alts.length) return selector;
-    const candidates = [selector, ...alts];
+    if (sensitiveTarget(s, selector)) return selector;
+    const isAction = ACTION_TYPES.indexOf(s.type) >= 0;
+    const want = isAction ? expectedIdentity(s) : null;
+    const usable = isAction && !want ? [] : alts;
+    if (!usable.length) return selector;
+    const rejected = new Set<string>();
+    const candidates = [selector, ...usable];
     const until = Date.now() + Math.min(timeout(), 10_000);
     for (;;) {
       for (const c of candidates) {
+        if (rejected.has(c)) continue;
         let n = 0;
         try {
           n = await page.locator(c).count();
@@ -511,7 +589,15 @@ export async function robotInterpreter(
           n = 0;
         }
         if (n > 0) {
-          if (c !== selector) lastHeal = { from: selector, to: c };
+          if (c === selector) return c;
+          if (want) {
+            const got = await identityOf(c);
+            if (!got || got.pw || got.t !== want.t || got.type !== want.type || got.nm !== want.nm) {
+              rejected.add(c);
+              continue;
+            }
+          }
+          lastHeal = { from: selector, to: c };
           return c;
         }
       }
@@ -519,6 +605,42 @@ export async function robotInterpreter(
       await page.waitForTimeout(250);
     }
   };
+
+  /** Mismo sitio: esquema, host y puerto, con el dominio y www. como uno solo. Vacío si no es http(s). */
+  const siteKey = (v: string): string => {
+    try {
+      const u = new URL(v);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+      return `${u.protocol}//${u.host.toLowerCase().replace(/^www\./, '')}`;
+    } catch {
+      return '';
+    }
+  };
+  /** Origen para mostrar (nunca la URL entera: puede traer tokens). */
+  const originOf = (v: string): string => {
+    try {
+      return new URL(v).origin;
+    } catch {
+      return '';
+    }
+  };
+  /** Una contraseña o secreto de esta corrida dentro de un texto que va a salir hacia la página o la red. */
+  const carriesSecret = (text: string): boolean => {
+    for (const cred of Object.values(opts.credentials ?? {})) {
+      for (const [field, value] of Object.entries(cred)) {
+        if (field === 'username' || typeof value !== 'string' || value.length < 6) continue;
+        if (text.includes(value) || text.includes(encodeURIComponent(value))) return true;
+      }
+    }
+    return false;
+  };
+  /** Esta corrida usa un login: ningún paso puede leer lo que se escribió en un campo. */
+  const usesLogin = Object.keys(opts.credentials ?? {}).length > 0;
+
+  /** Sitio del último goto con dirección fija: ahí van los logins si el paso no dice otro. */
+  let credOrigin = '';
+  /** Detalle del último error propio (sin datos de la página que no sean el origen). */
+  let failDetail: string | undefined;
 
   type Outcome = { jump?: number; skip?: number; stop?: boolean; detail?: string };
 
@@ -687,6 +809,7 @@ export async function robotInterpreter(
     lastHeal = null;
     lastSuggestion = null;
     lastFieldHeals = [];
+    failDetail = undefined;
     let selector = await heal(s, ctx, render(str(s.selector), ctx).trim());
     selector = await relearn(s, selector, ctx);
     // Clave de la huella: el selector del paso, o el nuevo si recién se reencontró.
@@ -701,6 +824,7 @@ export async function robotInterpreter(
       case 'goto': {
         const url = render(s.url, ctx).trim();
         if (!/^https?:\/\//i.test(url)) fail('invalid_url');
+        if (carriesSecret(url)) fail('credential_not_allowed');
         const blocked = await opts.checkUrl(url);
         if (blocked) fail(blocked);
         pages += 1;
@@ -719,6 +843,14 @@ export async function robotInterpreter(
           if (why) fail(why);
           throw err;
         }
+        // Un login solo se escribe en el sitio que se configuró: el del último goto con dirección fija.
+        if (!/\{\{/.test(str(s.url))) {
+          try {
+            credOrigin = new URL(url).origin;
+          } catch {
+            credOrigin = '';
+          }
+        }
         return { detail: url };
       }
       case 'click': {
@@ -728,7 +860,34 @@ export async function robotInterpreter(
       }
       case 'fill': {
         if (!selector) fail('missing_selector');
-        await page.locator(selector).first().fill(render(s.value, ctx), { timeout: timeout() });
+        if (/\{\{[^{}]*\bcredentials\b/.test(str(s.value))) {
+          // Una redirección, un meta refresh o un location.replace pueden pasar mientras se espera
+          // el campo, y el campo puede estar en un iframe. Por eso primero el elemento, después el
+          // origen de SU frame (lo sabe el navegador) y se escribe en ese elemento: si la página
+          // navega en el medio, el elemento ya no sirve y el login no llega a la nueva.
+          const bound = str(s.origin).trim() || credOrigin;
+          // Sin un Ir a URL antes no hay sitio contra el que comparar: no hace falta esperar al campo.
+          if (!bound) {
+            // about:blank no tiene origen: "?" hace que el error pida un Ir a URL en vez de nombrar un sitio.
+            failDetail = `${/^https?:/.test(page.url()) ? originOf(page.url()) || '?' : '?'} ≠ ?`;
+            fail('credential_no_site');
+          }
+          const loc = page.locator(selector).first();
+          const handle = loc.elementHandle ? await loc.elementHandle({ timeout: timeout() }) : null;
+          const frame = handle ? await handle.ownerFrame() : null;
+          const here = frame ? frame.url() : '';
+          if (!handle || !bound || !siteKey(here) || siteKey(here) !== siteKey(bound)) {
+            failDetail = `${originOf(here) || '?'} ≠ ${originOf(bound) || '?'}`;
+            fail(bound ? 'credential_origin' : 'credential_no_site');
+          }
+          await handle!.fill(render(s.value, ctx), { timeout: timeout() });
+          return { detail: selector };
+        }
+        {
+          const value = render(s.value, ctx);
+          if (carriesSecret(value)) fail('credential_not_allowed');
+          await page.locator(selector).first().fill(value, { timeout: timeout() });
+        }
         return { detail: selector };
       }
       case 'select': {
@@ -757,6 +916,8 @@ export async function robotInterpreter(
         if (!selector) fail('missing_selector');
         const name = str(s.name);
         const attr = str(s.attribute).trim();
+        // Algunos sitios copian lo escrito al atributo value: con un login no se lee.
+        if (usesLogin && attr.toLowerCase() === 'value') fail('credential_with_script');
         const loc = page.locator(selector);
         let value: unknown;
         if (s.mode === 'all') {
@@ -821,6 +982,7 @@ export async function robotInterpreter(
       case 'extract_list': {
         if (!selector) fail('missing_selector');
         const name = str(s.name);
+        if (usesLogin && (Array.isArray(s.fields) ? (s.fields as Array<Record<string, unknown>>) : []).some((f) => str(f.attribute).trim().toLowerCase() === 'value')) fail('credential_with_script');
         const fields = (Array.isArray(s.fields) ? (s.fields as Array<Record<string, unknown>>) : [])
           .slice(0, 20)
           .map((f) => {
@@ -986,6 +1148,8 @@ export async function robotInterpreter(
         return { detail: `${name}.pdf (${buf.length} B)` };
       }
       case 'evaluate': {
+        // Un script después de un fill puede leer el valor y mandarlo a cualquier lado.
+        if (usesLogin) fail('credential_with_script');
         const name = str(s.name);
         const script = render(str(s.script), ctx);
         // Corre en la página (no en el servidor). Texto, no función: la CSP del sitio no lo bloquea.
@@ -1090,10 +1254,10 @@ export async function robotInterpreter(
   };
 
   /** Errores que cortan la corrida aunque el paso tenga continueOnError. */
-  const FATAL = /^(timeout|step_limit|page_crashed)$/;
+  const FATAL = /^(timeout|step_limit|page_crashed|credential_origin|credential_no_site|credential_with_script)$/;
 
   /** Errores que no se arreglan reintentando el paso. */
-  const NO_RETRY = /^(credential_not_allowed|timeout|page_crashed|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|missing_fields|missing_totp_secret|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
+  const NO_RETRY = /^(credential_not_allowed|credential_origin|credential_no_site|credential_with_script|timeout|page_crashed|page_limit|step_limit|invalid_url|private_host|https_required|unresolvable_host|missing_selector|missing_attribute|missing_fields|missing_totp_secret|invalid_key|unknown_step|file_limit|file_too_large|unsupported|result_too_large)$/;
 
   /** Ejecuta un paso con sus reintentos (retries + retryDelayMs). */
   const runWithRetries = async (s: InterpreterStep, ctx: Record<string, unknown>): Promise<Outcome & { attempts: number }> => {
@@ -1174,7 +1338,8 @@ export async function robotInterpreter(
               : err instanceof Error && /timeout/i.test(err.name + err.message)
                 ? 'action_timeout'
                 : 'action_failed';
-        const msg = err instanceof Error && !(err instanceof RobotError) ? err.message.split('\n')[0].slice(0, 300) : undefined;
+        const msg = err instanceof Error && !(err instanceof RobotError) ? err.message.split('\n')[0].slice(0, 300) : failDetail;
+        failDetail = undefined;
         if (lastSuggestion) {
           const sug: { from: string; to: string } = lastSuggestion;
           healed.push({ step: label, from: sug.from, to: sug.to, relearned: true, review: true });

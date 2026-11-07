@@ -4,6 +4,7 @@
  * servidor trae filas ya filtradas por proyecto y acá se agregan.
  */
 import type { DateRange, Interval } from './types';
+import { fromLocal, offsetMsAt, type Tz } from './tz';
 
 const HOUR = 3_600_000;
 const DAY = 86_400_000;
@@ -14,12 +15,11 @@ const DAY = 86_400_000;
  * Rango [from, to] en ms. `from` relativo ('-7d', '-24h', '-2w', '-3m') o una
  * fecha local del proyecto; `to` una fecha (fin de ese día) o ahora.
  */
-export function resolveRange(range: DateRange, now: number, offsetMin = 0): { from: number; to: number } {
-  const off = offsetMin * 60_000;
+export function resolveRange(range: DateRange, now: number, tz: Tz = 0): { from: number; to: number } {
   let to = now;
   if (range.to) {
     const t = Date.parse(`${range.to}T00:00:00Z`);
-    if (Number.isFinite(t)) to = Math.min(now, t - off + DAY - 1);
+    if (Number.isFinite(t)) to = Math.min(now, fromLocal(t + DAY, tz) - 1);
   }
   let from: number;
   const rel = /^-(\d{1,4})([hdwm])$/.exec(range.from);
@@ -30,12 +30,12 @@ export function resolveRange(range: DateRange, now: number, offsetMin = 0): { fr
     else {
       const days = unit === 'd' ? n : unit === 'w' ? n * 7 : n * 30;
       // Días enteros del proyecto: desde la medianoche local de hace N-1 días.
-      const localToday = Math.floor((to + off) / DAY) * DAY;
-      from = localToday - (days - 1) * DAY - off;
+      const localToday = Math.floor((to + offsetMsAt(tz, to)) / DAY) * DAY;
+      from = fromLocal(localToday - (days - 1) * DAY, tz);
     }
   } else {
     const f = Date.parse(`${range.from}T00:00:00Z`);
-    from = Number.isFinite(f) ? f - off : to - 7 * DAY;
+    from = Number.isFinite(f) ? fromLocal(f, tz) : to - 7 * DAY;
   }
   if (from > to) from = to;
   return { from, to };
@@ -45,6 +45,31 @@ export function resolveRange(range: DateRange, now: number, offsetMin = 0): { fr
 export function previousRange(r: { from: number; to: number }): { from: number; to: number } {
   const len = r.to - r.from + 1;
   return { from: r.from - len, to: r.from - 1 };
+}
+
+/**
+ * El período anterior comparable: las mismas cubetas enteras corridas hacia
+ * atrás. Con un rango de 7 días que termina ahora, compara los mismos 7 días
+ * cortados a la misma hora, y cada cubeta cae frente a su equivalente.
+ */
+export function previousAligned(r: { from: number; to: number }, interval: Interval, tz: Tz = 0): { from: number; to: number } {
+  const n = bucketList(r.from, r.to, interval, tz).length;
+  if (interval === 'month') {
+    const back = (ts: number) => {
+      const d = new Date(ts + offsetMsAt(tz, ts));
+      const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - n, 1));
+      const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+      target.setUTCDate(Math.min(d.getUTCDate(), lastDay));
+      target.setUTCHours(d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds(), d.getUTCMilliseconds());
+      return fromLocal(target.getTime(), tz);
+    };
+    return { from: back(r.from), to: back(r.to) };
+  }
+  if (interval === 'hour') return { from: r.from - n * HOUR, to: r.to - n * HOUR };
+  // Días y semanas se corren en hora local: un cambio de hora en el medio no mueve el corte.
+  const unit = interval === 'day' ? DAY : 7 * DAY;
+  const back = (ts: number) => fromLocal(ts + offsetMsAt(tz, ts) - n * unit, tz);
+  return { from: back(r.from), to: back(r.to) };
 }
 
 // ---------- Cubetas ----------
@@ -58,8 +83,8 @@ function iso(ms: number): string {
  * misma que arma bucketSql en SQLite: 'YYYY-MM-DD HH:00', 'YYYY-MM-DD'
  * (día), el lunes de la semana o 'YYYY-MM-01'.
  */
-export function bucketOf(ts: number, interval: Interval, offsetMin = 0): string {
-  const local = ts + offsetMin * 60_000;
+export function bucketOf(ts: number, interval: Interval, tz: Tz = 0): string {
+  const local = ts + offsetMsAt(tz, ts);
   const s = iso(local);
   switch (interval) {
     case 'hour':
@@ -77,9 +102,23 @@ export function bucketOf(ts: number, interval: Interval, offsetMin = 0): string 
   }
 }
 
-/** Expresión SQLite con la misma etiqueta que bucketOf (columna `ts` en ms; un parámetro: el desfase en ms). */
-export function bucketSql(interval: Interval, col = 'e.ts'): string {
-  const t = `((${col} + CAST(? AS INTEGER)) / 1000)`;
+/** Un instante dentro de la cubeta anterior a la de `ts` (meses de calendario, no 30 días). */
+export function bucketBefore(ts: number, interval: 'day' | 'week' | 'month', tz: Tz = 0): number {
+  const local = ts + offsetMsAt(tz, ts);
+  if (interval === 'month') {
+    const d = new Date(local);
+    return fromLocal(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1), tz);
+  }
+  return fromLocal(local - (interval === 'day' ? DAY : 7 * DAY), tz);
+}
+
+/**
+ * Expresión SQLite con la misma etiqueta que bucketOf (columna `ts` en ms; un
+ * parámetro: el desfase en ms al inicio del rango). `shift` corrige los eventos
+ * posteriores a un cambio de hora (tzShiftSql).
+ */
+export function bucketSql(interval: Interval, col = 'e.ts', shift = ''): string {
+  const t = `((${col} + CAST(? AS INTEGER)${shift}) / 1000)`;
   switch (interval) {
     case 'hour':
       return `strftime('%Y-%m-%d %H:00', ${t}, 'unixepoch')`;
@@ -93,18 +132,30 @@ export function bucketSql(interval: Interval, col = 'e.ts'): string {
 }
 
 /** Todas las cubetas del rango, en orden (las vacías también). Tope de 2000. */
-export function bucketList(from: number, to: number, interval: Interval, offsetMin = 0): string[] {
+export function bucketList(from: number, to: number, interval: Interval, tz: Tz = 0): string[] {
   const out: string[] = [];
-  const step = interval === 'hour' ? HOUR : DAY;
   let last = '';
-  for (let t = from; t <= to && out.length < 2000; t += step) {
-    const b = bucketOf(t, interval, offsetMin);
-    if (b !== last) {
-      out.push(b);
-      last = b;
+  if (interval === 'hour') {
+    for (let t = from; t <= to && out.length < 2000; t += HOUR) {
+      const b = bucketOf(t, interval, tz);
+      if (b !== last) {
+        out.push(b);
+        last = b;
+      }
+    }
+  } else {
+    // Por día de calendario en la zona: un día de 23 o 25 horas no se saltea ni se repite.
+    const firstDay = Math.floor((from + offsetMsAt(tz, from)) / DAY);
+    const lastDay = Math.floor((to + offsetMsAt(tz, to)) / DAY);
+    for (let d = firstDay; d <= lastDay && out.length < 2000; d++) {
+      const b = bucketOf(d * DAY, interval, 0);
+      if (b !== last) {
+        out.push(b);
+        last = b;
+      }
     }
   }
-  const end = bucketOf(to, interval, offsetMin);
+  const end = bucketOf(to, interval, tz);
   if (out[out.length - 1] !== end && out.length < 2000) out.push(end);
   return out;
 }
@@ -165,129 +216,170 @@ export function alignSeries(rows: Array<{ bucket: string; count: number }>, buck
   return out;
 }
 
-// ---------- Embudos ----------
+// ---------- Embudos: lib/analytics/funnel-core.ts ----------
 
-export interface FunnelRow {
-  person: string;
-  /** Índices de los pasos que este evento cumple (un evento puede servir a más de uno). */
-  steps: number[];
-  ts: number;
-}
-
-export interface FunnelComputed {
-  counts: number[];
-  /** Mediana de tiempo entre el paso i-1 y el i (ms); null en el primero o sin datos. */
-  medians: Array<number | null>;
-  /** Personas que llegaron al paso i y no al i+1. */
-  dropped: string[][];
-}
-
-function median(xs: number[]): number | null {
-  if (!xs.length) return null;
-  const s = [...xs].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
-}
-
-/**
- * Embudo secuencial (como el "sequential" de PostHog): por persona, cada
- * arranque del paso 1 dentro del rango abre un intento; los pasos siguientes
- * cuentan en orden y dentro de la ventana desde ese arranque. Gana el intento
- * que más lejos llega. Las filas vienen ordenadas por persona y tiempo.
- */
-export function computeFunnel(rows: FunnelRow[], nSteps: number, windowMs: number, range: { from: number; to: number }, droppedLimit = 100): FunnelComputed {
-  const counts = new Array(nSteps).fill(0);
-  const gaps: number[][] = Array.from({ length: nSteps }, () => []);
-  const dropped: string[][] = Array.from({ length: nSteps }, () => []);
-
-  let i = 0;
-  while (i < rows.length) {
-    const person = rows[i].person;
-    let j = i;
-    while (j < rows.length && rows[j].person === person) j++;
-    const events = rows.slice(i, j);
-    i = j;
-
-    let best = 0;
-    let bestTimes: number[] = [];
-    for (let s = 0; s < events.length && best < nSteps; s++) {
-      const start = events[s];
-      if (!start.steps.includes(0) || start.ts < range.from || start.ts > range.to) continue;
-      const times = [start.ts];
-      let step = 1;
-      for (let k = s + 1; k < events.length && step < nSteps; k++) {
-        const ev = events[k];
-        if (ev.ts - start.ts > windowMs) break;
-        if (ev.steps.includes(step) && ev.ts >= times[step - 1]) {
-          times.push(ev.ts);
-          step++;
-        }
-      }
-      if (step > best) {
-        best = step;
-        bestTimes = times;
-      }
-    }
-    if (best === 0) continue;
-    for (let s = 0; s < best; s++) {
-      counts[s]++;
-      if (s > 0) gaps[s].push(bestTimes[s] - bestTimes[s - 1]);
-    }
-    if (best < nSteps && dropped[best - 1].length < droppedLimit) dropped[best - 1].push(person);
-  }
-  return { counts, medians: gaps.map((g, s) => (s === 0 ? null : median(g))), dropped };
-}
+export { computeFunnel, type FunnelRow, type FunnelComputed } from './funnel-core';
 
 // ---------- Retención ----------
 
+export type RetentionPeriod = 'hour' | 'day' | 'week' | 'month';
+export type RetentionType = 'recurring' | 'first_time' | 'first_ever';
+export interface RetentionOptions {
+  /** Con `recurring`, cada vez que hizo el evento inicial entra en esa cohorte. Si no, solo la primera. */
+  recurring?: boolean;
+  /** "En o después": quien vuelve más tarde también cuenta en los períodos anteriores. */
+  cumulative?: boolean;
+}
+
+function retentionSets(starts: Array<{ person: string; period: number }>, returns: Array<{ person: string; period: number }>, firstPeriod: number, periods: number, opts: RetentionOptions) {
+  const members = new Map<string, Set<number>>();
+  for (const s of starts) {
+    if (s.period < firstPeriod || s.period >= firstPeriod + periods) continue;
+    let set = members.get(s.person);
+    if (!set) members.set(s.person, (set = new Set()));
+    if (opts.recurring) set.add(s.period);
+    else {
+      const prev = [...set][0];
+      if (prev === undefined || s.period < prev) {
+        set.clear();
+        set.add(s.period);
+      }
+    }
+  }
+  const back = new Map<string, Set<number>>();
+  for (const r of returns) {
+    let set = back.get(r.person);
+    if (!set) back.set(r.person, (set = new Set()));
+    set.add(r.period);
+  }
+  return { members, back };
+}
+
+function returned(set: Set<number> | undefined, p: number, k: number, cumulative: boolean | undefined): boolean {
+  if (!set) return false;
+  if (!cumulative) return set.has(p + k);
+  for (const x of set) if (x >= p + k) return true;
+  return false;
+}
+
 /**
  * Retención por cohortes: cada persona entra en la cohorte del período en que
- * hizo el evento inicial por primera vez (dentro del rango) y cuenta en el
- * período k si hizo el evento de vuelta en ese período (k = 0 es el mismo).
+ * hizo el evento inicial por primera vez (dentro del rango), o en todas si es
+ * recurrente, y cuenta en el período k si hizo el evento de vuelta en ese
+ * período (k = 0 es el mismo).
  */
 export function computeRetention(
   starts: Array<{ person: string; period: number }>,
   returns: Array<{ person: string; period: number }>,
   firstPeriod: number,
   periods: number,
+  opts: RetentionOptions = {},
 ): Array<{ period: number; size: number; values: number[] }> {
-  const first = new Map<string, number>();
-  for (const s of starts) {
-    if (s.period < firstPeriod || s.period >= firstPeriod + periods) continue;
-    const prev = first.get(s.person);
-    if (prev === undefined || s.period < prev) first.set(s.person, s.period);
-  }
-  const back = new Map<string, Set<number>>();
-  for (const r of returns) {
-    let set = back.get(r.person);
-    if (!set) {
-      set = new Set();
-      back.set(r.person, set);
-    }
-    set.add(r.period);
-  }
+  const { members, back } = retentionSets(starts, returns, firstPeriod, periods, opts);
   const cohorts = Array.from({ length: periods }, (_, c) => ({ period: firstPeriod + c, size: 0, values: new Array(periods - c).fill(0) as number[] }));
-  for (const [person, p] of first) {
-    const c = cohorts[p - firstPeriod];
-    c.size++;
-    c.values[0]++;
-    const set = back.get(person);
-    if (!set) continue;
-    for (let k = 1; k < c.values.length; k++) if (set.has(p + k)) c.values[k]++;
+  for (const [person, set] of members) {
+    for (const p of set) {
+      const c = cohorts[p - firstPeriod];
+      c.size++;
+      c.values[0]++;
+      for (let k = 1; k < c.values.length; k++) if (returned(back.get(person), p, k, opts.cumulative)) c.values[k]++;
+    }
   }
   return cohorts;
 }
 
-/** Número de período (días o semanas desde 1970, semanas desde el lunes) con el desfase del proyecto. */
-export function periodOf(ts: number, period: 'day' | 'week', offsetMin = 0): number {
-  const day = Math.floor((ts + offsetMin * 60_000) / DAY);
+/** Quiénes están en una celda de la tabla. */
+export function retentionCellPeople(
+  starts: Array<{ person: string; period: number }>,
+  returns: Array<{ person: string; period: number }>,
+  firstPeriod: number,
+  periods: number,
+  opts: RetentionOptions,
+  cohort: number,
+  k: number,
+  limit = 200,
+): string[] {
+  const { members, back } = retentionSets(starts, returns, firstPeriod, periods, opts);
+  const p = firstPeriod + cohort;
+  const out: string[] = [];
+  for (const [person, set] of members) {
+    if (!set.has(p)) continue;
+    if (k === 0 || returned(back.get(person), p, k, opts.cumulative)) out.push(person);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/** Porcentaje de una celda: sobre la cohorte, o sobre el período anterior. null si no hay con qué dividir. */
+export function retentionRate(values: number[], size: number, k: number, reference: 'period0' | 'previous' = 'period0'): number | null {
+  const v = values[k];
+  if (v === undefined) return null;
+  const base = reference === 'previous' && k > 0 ? values[k - 1] : size;
+  return base ? v / base : null;
+}
+
+/** Promedio de cada período entre cohortes: ponderado por tamaño o simple. */
+export function retentionMean(
+  cohorts: Array<{ size: number; values: number[] }>,
+  periods: number,
+  reference: 'period0' | 'previous' = 'period0',
+  mean: 'weighted' | 'simple' = 'weighted',
+): Array<number | null> {
+  return Array.from({ length: periods }, (_, k) => {
+    let top = 0;
+    let bottom = 0;
+    const rates: number[] = [];
+    for (const c of cohorts) {
+      const r = retentionRate(c.values, c.size, k, reference);
+      if (r === null) continue;
+      rates.push(r);
+      top += c.values[k];
+      bottom += reference === 'previous' && k > 0 ? c.values[k - 1] : c.size;
+    }
+    if (!rates.length) return null;
+    return mean === 'simple' ? rates.reduce((a, b) => a + b, 0) / rates.length : top / bottom;
+  });
+}
+
+
+/** Número de período (horas, días, semanas desde el lunes o meses desde 1970) con el desfase del proyecto. */
+export function periodOf(ts: number, period: RetentionPeriod, tz: Tz = 0): number {
+  const local = ts + offsetMsAt(tz, ts);
+  if (period === 'hour') return Math.floor(local / HOUR);
+  if (period === 'month') {
+    const d = new Date(local);
+    return d.getUTCFullYear() * 12 + d.getUTCMonth();
+  }
+  const day = Math.floor(local / DAY);
   return period === 'day' ? day : Math.floor((day + 3) / 7);
 }
 
-/** Primer día (YYYY-MM-DD) de un período. */
-export function periodLabel(n: number, period: 'day' | 'week'): string {
-  const day = period === 'day' ? n : n * 7 - 3;
-  return iso(day * DAY).slice(0, 10);
+/** Instante local (ms como si fuera UTC) en que arranca un período. */
+export function periodStartLocal(n: number, period: RetentionPeriod): number {
+  if (period === 'hour') return n * HOUR;
+  if (period === 'month') return Date.UTC(Math.floor(n / 12), n % 12, 1);
+  return (period === 'day' ? n : n * 7 - 3) * DAY;
+}
+
+/** Etiqueta de un período, con el formato de las cubetas. */
+export function periodLabel(n: number, period: RetentionPeriod): string {
+  const s = iso(periodStartLocal(n, period));
+  return period === 'hour' ? `${s.slice(0, 10)} ${s.slice(11, 13)}:00` : s.slice(0, 10);
+}
+
+/** Expresión SQLite con el mismo número que periodOf. Parámetro: el desfase (dos veces en meses). */
+export function periodSql(period: RetentionPeriod, shift = ''): string {
+  const local = `(e.ts + CAST(? AS INTEGER)${shift})`;
+  switch (period) {
+    case 'hour':
+      return `(${local} / 3600000)`;
+    case 'day':
+      return `(${local} / 86400000)`;
+    case 'week':
+      return `(((${local} / 86400000) + 3) / 7)`;
+    case 'month':
+      return `(CAST(strftime('%Y', ${local} / 1000, 'unixepoch') AS INTEGER) * 12 + CAST(strftime('%m', ${local} / 1000, 'unixepoch') AS INTEGER) - 1)`;
+  }
 }
 
 // ---------- Caminos ----------
@@ -303,6 +395,7 @@ export function computePaths(
   steps: number,
   startPath: string | null,
   limit = 30,
+  endPath: string | null = null,
 ): { links: Array<{ step: number; from: string; to: string; count: number }>; topPaths: Array<{ path: string[]; count: number }>; sessions: number } {
   const bySession = new Map<string, Array<{ path: string; ts: number }>>();
   for (const r of rows) {
@@ -325,7 +418,13 @@ export function computePaths(
       from = seq.indexOf(startPath);
       if (from < 0) continue;
     }
-    const path = seq.slice(from, from + steps);
+    let path = seq.slice(from, from + steps);
+    // Con un final: solo las sesiones que llegan ahí, cortadas en esa página.
+    if (endPath) {
+      const end = seq.indexOf(endPath, from);
+      if (end < 0) continue;
+      path = seq.slice(Math.max(from, end - steps + 1), end + 1);
+    }
     if (!path.length) continue;
     sessions++;
     for (let s = 0; s + 1 < path.length; s++) {

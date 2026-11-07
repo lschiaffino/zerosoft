@@ -1,5 +1,6 @@
 'use client';
 
+import LocalText from '@/components/ui/LocalText';
 import { useEffect, useRef, useState } from 'react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
@@ -57,7 +58,7 @@ export function TranscriptPanel({
     <div className="vc-transcript">
       {deletedAt && segments.length === 0 && (
         <p className="vc-notice" role="note" suppressHydrationWarning>
-          {t('deleted', { date: format.dateTime(new Date(deletedAt), { dateStyle: 'medium' }) })}
+          <LocalText>{t('deleted', { date: format.dateTime(new Date(deletedAt), { dateStyle: 'medium' }) })}</LocalText>
         </p>
       )}
       <input
@@ -381,7 +382,7 @@ export function DetailsPanel({
             <option value="">{calBookingId ? t('calChange') : t('calPick')}</option>
             {bookings.map((b) => (
               <option key={b.id} value={b.id}>
-                {b.title} · {b.inviteeName} · {format.dateTime(new Date(b.startsAt), { dateStyle: 'short', timeStyle: 'short' })}
+                {b.title} · {b.inviteeName} · <LocalText>{format.dateTime(new Date(b.startsAt), { dateStyle: 'short', timeStyle: 'short' })}</LocalText>
               </option>
             ))}
           </select>

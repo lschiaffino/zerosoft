@@ -70,7 +70,9 @@ export type IconName =
   | 'analytics'
   | 'hiring'
   | 'sign'
+  | 'send'
   | 'flag'
+  | 'bug'
   | 'sql'
   | 'live'
   | 'people'
@@ -79,6 +81,12 @@ export type IconName =
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
+  bug: (
+    <>
+      <rect x="8" y="8" width="8" height="12" rx="4" />
+      <path d="M9 5l1.5 3M15 5l-1.5 3M4 9l4 2M20 9l-4 2M3 14h5M21 14h-5M4 19l4-2M20 19l-4-2" />
+    </>
+  ),
   // Asistente de la plataforma: destello (distinto del robot de "Ask AI" del CRM y Docs).
   assistant: (
     <>
@@ -319,6 +327,13 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="3" y="7" width="18" height="13" rx="1" />
       <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18" />
+    </>
+  ),
+  send: (
+    <>
+      <path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z" />
+      <path d="M14 3v5h5M8.5 14.5c1.6-2.2 5.4-2.2 7 0-1.6 2.2-5.4 2.2-7 0z" />
+      <circle cx="12" cy="14.5" r=".8" />
     </>
   ),
   sign: (

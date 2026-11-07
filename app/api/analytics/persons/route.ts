@@ -22,6 +22,6 @@ export async function GET(req: NextRequest) {
   }
   const idsRaw = sp.get('ids');
   const ids = idsRaw ? idsRaw.split(',').filter(Boolean).slice(0, 200) : null;
-  const res = await listPersons(project.id, { q: sp.get('q'), cohort, ids, offset: Number(sp.get('offset')) || 0 });
+  const res = await listPersons(project.id, { q: sp.get('q'), cohort, cohortId, ids, offset: Number(sp.get('offset')) || 0 });
   return NextResponse.json(res);
 }

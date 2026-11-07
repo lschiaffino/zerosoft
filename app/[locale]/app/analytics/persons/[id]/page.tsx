@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import PersonDetail from '@/components/analytics/PersonDetail';
 import SyncProject from '@/components/analytics/SyncProject';
+import PersonRecordings from '@/components/analytics/replay/PersonRecordings';
 import { analyticsPage } from '@/lib/analytics/page';
 import { recordProjectId } from '@/lib/analytics/guard';
 import { requireUser } from '@/lib/session';
@@ -29,7 +30,12 @@ export default async function AnalyticsPersonPage(props: { params: Promise<{ loc
   return (
     <>
       <SyncProject projectId={ctx.project.id} currentId={cookieProject} />
-      <PersonDetail person={person} events={events} canDelete={ctx.canManage} />
+      <PersonDetail
+        person={person}
+        events={events}
+        canDelete={ctx.canManage}
+        recordings={!ctx.canManage ? null : <PersonRecordings projectId={ctx.project.id} personId={person.id} replayEnabled={ctx.project.replay_enabled === 1} canManage={ctx.canManage} />}
+      />
     </>
   );
 }

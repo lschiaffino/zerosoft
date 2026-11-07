@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getNumberRowById, ingestEvents, providerFor, readConfig } from '@/lib/groups';
 import { safeEqual } from '@/lib/groups-provider';
 import { limitByIp } from '@/lib/rate-limit';
+import { readTextCapped } from '@/lib/safe-fetch';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -44,8 +45,10 @@ export async function POST(req: Request, ctx: Ctx) {
   if (limited) return limited;
   const row = await numberFor(ctx);
   if (!row) return new NextResponse('not found', { status: 404 });
-  const raw = await req.text();
-  if (raw.length > MAX_BODY) return new NextResponse('too large', { status: 413 });
+  // Tope antes de leer (content-length) y mientras se lee (un cuerpo sin largo declarado tampoco pasa).
+  if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY) return new NextResponse('too large', { status: 413 });
+  const raw = await readTextCapped(new Response(req.body), MAX_BODY + 1);
+  if (Buffer.byteLength(raw) > MAX_BODY) return new NextResponse('too large', { status: 413 });
   let provider;
   try {
     provider = providerFor(row);

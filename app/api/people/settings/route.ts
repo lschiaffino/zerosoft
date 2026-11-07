@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   return withPeople(async (ctx) => {
     const s = await getSettings(ctx.ws);
-    return pjson({ settings: ctx.viewer.hr ? s : { visibility: s.visibility, welcome: s.welcome, handbookPageId: s.handbookPageId, countries: s.countries }, fields: await listFields(ctx.ws), policies: await listPolicies(ctx.ws) });
+    return pjson({ settings: ctx.viewer.hr ? s : { visibility: s.visibility, welcome: s.welcome, handbookPageId: s.handbookPageId, countries: s.countries }, fields: (await listFields(ctx.ws)).filter((f) => ctx.viewer.hr || !f.sensitive), policies: await listPolicies(ctx.ws) });
   });
 }
 

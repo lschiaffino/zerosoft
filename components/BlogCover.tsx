@@ -2,13 +2,14 @@
 import { BLOG_COVER_HEIGHT, BLOG_COVER_WIDTH } from '@/lib/blog-cover';
 
 /**
- * Portada de un post (ver lib/blog-cover). Va como archivo aparte, cacheado:
- * inline, cada tarjeta le sumaría decenas de KB al HTML del índice.
+ * La portada de un post (lib/blog-cover), como imagen aparte y no dentro del
+ * HTML: inline, cada tarjeta le suma decenas de KB al índice. Las tarjetas
+ * cargan al acercarse; la del post, enseguida. Va decorativa: el título está al lado.
  */
-export default function BlogCover({ slug, variant = 'card' }: { slug: string; title?: string; variant?: 'card' | 'hero' }) {
+export default function BlogCover({ slug, variant = 'card' }: { slug: string; variant?: 'card' | 'hero' }) {
   return (
     <img
-      src={`/api/blog-cover/${encodeURIComponent(slug)}`}
+      src={`/api/og/cover/${encodeURIComponent(slug)}`}
       alt=""
       width={BLOG_COVER_WIDTH}
       height={BLOG_COVER_HEIGHT}

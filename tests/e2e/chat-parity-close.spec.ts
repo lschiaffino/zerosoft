@@ -86,7 +86,7 @@ test('permisos: una bandeja restringida no se ve, no se abre y no sale en Cmd+K'
   await page.getByRole('switch', { name: 'Restrict this inbox' }).check();
   await page.getByRole('button', { name: 'Save' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Save changes' }).click();
-  await expect(page.getByText('Saved', { exact: false })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
 
   for (const url of [`/api/chat/widgets/${w.id}`, `/api/chat/conversations/${conv.conversation.id}`, `/api/chat/conversations/${conv.conversation.id}/messages`, `/api/chat/widgets/${w.id}/rules`]) {
     expect((await ctx.request.get(url)).status(), url).toBe(404);
@@ -144,8 +144,11 @@ test('empresas y atributos: crear, asignar a una persona y reflejarlo en la list
   await page.getByLabel('Empresa').selectOption({ label: name });
   await page.getByRole('textbox', { name: 'Nombre' }).fill('plan');
   await page.getByRole('textbox', { name: 'Valor' }).fill('pro');
+  // Se dibuja antes de guardar: recargar recién cuando el servidor respondió.
+  const saved = page.waitForResponse((r) => r.url().endsWith(`/api/chat/visitors/${conv.visitor.id}`) && r.request().method() === 'PATCH' && Boolean(r.request().postData()?.includes('attributes')));
   await page.getByRole('button', { name: 'Agregar' }).click();
   await expect(page.getByText('pro', { exact: true })).toBeVisible();
+  expect((await saved).ok()).toBe(true);
   await page.reload();
   await expect(page.getByLabel('Empresa').locator('option:checked')).toHaveText(name);
   await expect(page.getByText('pro', { exact: true })).toBeVisible();
@@ -265,7 +268,8 @@ test('campaña: solo con consentimiento; el tope no es un callejón y borrar no 
   await page.goto(`/es/app/chat/people/${person}`);
   await page.getByRole('checkbox', { name: 'Aceptó recibir campañas' }).check();
   await expect.poll(async () => (await sql('SELECT campaign_opt_in_at FROM chat_visitors WHERE id = ?', [person]))[0].campaign_opt_in_at).toBeTruthy();
-  expect(Number((await sql("SELECT COUNT(*) AS n FROM chat_audit_log WHERE action = 'visitor.opt_in' AND detail LIKE ?", [`%${person}%`]))[0].n)).toBe(1);
+  // El registro se escribe después del consentimiento, en el mismo pedido.
+  await expect.poll(async () => Number((await sql("SELECT COUNT(*) AS n FROM chat_audit_log WHERE action = 'visitor.opt_in' AND detail LIKE ?", [`%${person}%`]))[0].n)).toBe(1);
 
   // Sin cupo: se puede mandar igual, queda esperando y lo dice. Borrar no devuelve cupo.
   const day = new Date().toISOString().slice(0, 10);

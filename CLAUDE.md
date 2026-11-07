@@ -12,7 +12,7 @@ diarias en la nube). Si algo de acá choca con un prompt, gana esto.
   al final de la lista.
 - Textos en `messages/<locale>/<app>.json`, los tres idiomas a la vez.
 - Crons: `/api/cron/minute` (cada minuto), `/api/cron/tick` (cada hora),
-  `/api/cron/robots` (cada 5 min). Todo lo que corre ahí reclama cada fila
+  `/api/cron/robots` (cada 5 min), `/api/cron/send-render` (cada minuto, aparte por memoria). Todo lo que corre ahí reclama cada fila
   (compare-and-set) para que dos corridas no hagan lo mismo dos veces.
 
 ## Qué es "terminado"

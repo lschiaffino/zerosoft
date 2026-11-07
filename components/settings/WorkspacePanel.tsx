@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
 import { WORKSPACE_SIZES_LIST } from '@/lib/workspace-mode';
 import type { ProductKey } from '@/lib/products';
@@ -21,6 +21,10 @@ export interface WorkspaceFormDto {
   joinApproval: boolean;
   /** Dominio del email de quien mira: el único que puede habilitar. */
   editorDomain: string;
+  /** Quien mira es el owner (cerrar y transferir) o alguien que se puede ir. */
+  viewerIsOwner: boolean;
+  /** Apps de quien edita: no puede ofrecer otras. */
+  viewerApps: '*' | ProductKey[];
 }
 
 function initial(name: string): string {
@@ -36,7 +40,7 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
   const t = useTranslations('settings.workspaceForm');
   const router = useRouter();
   const [ws, setWs] = useState(init);
-  const [joinApps, setJoinApps] = useState<'*' | ProductKey[]>(init.joinApps);
+  const [joinApps, setJoinApps] = useState<'*' | ProductKey[]>(init.viewerApps !== '*' && init.joinApps === '*' ? init.viewerApps : init.joinApps);
   const [logoBusy, setLogoBusy] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -229,8 +233,31 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
           <span>{t('joinApproval')}</span>
         </label>
         <p className="ui-help">{t('joinRole')}</p>
-        <AppsPicker value={joinApps} onChange={setJoinApps} idPrefix="ws-join-app" />
+        <AppsPicker value={joinApps} onChange={setJoinApps} idPrefix="ws-join-app" limit={ws.viewerApps} />
       </FormSection>
+
+      {ws.viewerIsOwner ? (
+        <FormSection title={t('dangerTitle')} description={t('dangerDesc')} id="danger">
+          <div className="ws-danger" data-testid="ws-danger-owner">
+            <div>
+              <p className="st-strong">{t('transferTitle')}</p>
+              <p className="ui-help">{t('transferBody')}</p>
+            </div>
+            <div>
+              <p className="st-strong">{t('closeTitle')}</p>
+              <p className="ui-help">{t('closeBody', { email: ws.ownerEmail })}</p>
+            </div>
+          </div>
+        </FormSection>
+      ) : (
+        <FormSection title={t('leaveTitle', { workspace: ws.name })} description={t('leaveBody')} id="leave-workspace">
+          <div className="ws-danger" data-testid="ws-danger-member">
+            <Link href="/app/settings/members#leave" className="btn btn-secondary btn-sm">
+              {t('leaveCta')}
+            </Link>
+          </div>
+        </FormSection>
+      )}
     </>
   );
 }

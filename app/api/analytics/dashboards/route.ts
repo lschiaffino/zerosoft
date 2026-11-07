@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createDashboard, listDashboards } from '@/lib/analytics/records';
+import { DASHBOARD_TEMPLATES } from '@/lib/analytics/dashboard-templates';
+import { createDashboard, createDashboardFromTemplate, listDashboards } from '@/lib/analytics/records';
 import { actorProject, aError, analyticsActor, isResponse, readJson } from '@/lib/analytics/http';
 
 export const runtime = 'nodejs';
@@ -14,7 +15,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ dashboards: await listDashboards(project.id, req.nextUrl.searchParams.get('q') ?? undefined) });
 }
 
-const createSchema = z.object({ projectId: z.string().max(64), name: z.string().trim().min(1).max(200), description: z.string().max(2000).optional() });
+const createSchema = z.union([
+  z.object({ projectId: z.string().max(64), template: z.enum(DASHBOARD_TEMPLATES), locale: z.string().max(8).optional() }),
+  z.object({ projectId: z.string().max(64), name: z.string().trim().min(1).max(200), description: z.string().max(2000).optional() }),
+]);
 
 export async function POST(req: NextRequest) {
   const actor = await analyticsActor(req, 'write');
@@ -23,5 +27,6 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return aError(400, 'invalid_input');
   const project = await actorProject(actor, parsed.data.projectId);
   if (isResponse(project)) return project;
-  return NextResponse.json({ dashboard: await createDashboard(project.id, actor.personId, parsed.data) }, { status: 201 });
+  const dashboard = 'template' in parsed.data ? await createDashboardFromTemplate(project.id, actor.personId, parsed.data.template, parsed.data.locale ?? 'en') : await createDashboard(project.id, actor.personId, parsed.data);
+  return NextResponse.json({ dashboard }, { status: 201 });
 }

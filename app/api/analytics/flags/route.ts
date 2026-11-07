@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { flagInputSchema } from '@/lib/analytics/types';
 import { variantsValid } from '@/lib/analytics/flags-core';
 import { createFlag, listFlags } from '@/lib/analytics/records';
-import { actorProject, aError, analyticsActor, isResponse, readJson } from '@/lib/analytics/http';
+import { actorProject, aError, analyticsActor, canManageAnalytics, isResponse, readJson } from '@/lib/analytics/http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,6 +21,7 @@ const createSchema = flagInputSchema.extend({ projectId: z.string().max(64) });
 export async function POST(req: NextRequest) {
   const actor = await analyticsActor(req, 'write');
   if (isResponse(actor)) return actor;
+  if (!canManageAnalytics(actor)) return aError(403, 'admin_only');
   const parsed = createSchema.safeParse(await readJson(req));
   if (!parsed.success) return aError(400, 'invalid_input');
   if (!variantsValid(parsed.data.variants)) return aError(400, 'variants_must_sum_100');

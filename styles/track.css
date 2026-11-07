@@ -891,6 +891,25 @@ dialog.ui-drawer.track-drawer {
   white-space: nowrap;
 }
 
+.track-inbox-link:has(.track-inbox-body) {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.track-inbox-link:has(.track-inbox-body) .track-inbox-text {
+  max-width: 100%;
+}
+
+.track-inbox-body {
+  flex-basis: 100%;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--muted);
+  white-space: normal;
+}
+
 .track-inbox-project {
   flex-shrink: 0;
   font-size: 0.75rem;
@@ -2904,5 +2923,31 @@ a.track-board-card-title:hover {
 
   .track-figma-frame {
     height: 240px;
+  }
+}
+
+/* Teléfono: el título y el aviso a todo el ancho; la hora y Posponer abajo, sin cortarse. */
+@media (max-width: 599px) {
+  .track-inbox-item {
+    grid-template-columns: 8px minmax(0, 1fr) auto;
+    row-gap: 2px;
+    align-items: start;
+  }
+
+  .track-inbox-mark {
+    margin-top: 6px;
+  }
+
+  .track-inbox-link {
+    grid-column: 2 / -1;
+  }
+
+  .track-inbox-time {
+    grid-column: 2;
+    align-self: center;
+  }
+
+  .track-inbox-snooze.track-inline-trigger {
+    margin-inline: 0;
   }
 }

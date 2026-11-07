@@ -73,7 +73,7 @@ const COLS = [
   { id: 'phone', labelKey: 'contacts.table.phone', defaultVisible: true },
   { id: 'company', labelKey: 'contacts.table.company', defaultVisible: true },
   { id: 'lifecycle', labelKey: 'contacts.table.lifecycle', defaultVisible: true },
-  { id: 'leadStatus', labelKey: 'contacts.table.leadStatus', defaultVisible: true },
+  { id: 'leadStatus', labelKey: 'contacts.table.leadStatus', defaultVisible: false },
   { id: 'source', labelKey: 'contacts.table.source', defaultVisible: false },
   { id: 'score', labelKey: 'scoring.column', defaultVisible: false },
   { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
@@ -262,7 +262,7 @@ export default function ContactsTable({
                   </td>
                 )}
                 {visible.has('email') && (
-                  <td data-card="line">
+                  <td className="card-contact-email" data-card="line">
                     <InlineEditCell
                       endpoint={`/api/crm/contacts/${row.id}`}
                       field="email"
@@ -283,7 +283,7 @@ export default function ContactsTable({
                   </td>
                 )}
                 {visible.has('phone') && (
-                  <td className="cell-sub" data-card="line">
+                  <td className="cell-sub card-contact-phone" data-card="line">
                     <InlineEditCell
                       endpoint={`/api/crm/contacts/${row.id}`}
                       field="phone"

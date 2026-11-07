@@ -2227,6 +2227,7 @@ interface CalendarBookingRules {
   requiresConfirmation?: boolean;
   redirectUrl?: string;
   redirectPassDetails?: boolean;
+  changeCutoffHours?: number;
 }
 
 function iso(d: Date): string {

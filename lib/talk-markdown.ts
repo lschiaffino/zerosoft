@@ -426,3 +426,13 @@ export function normalizeChannelName(raw: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 80);
 }
+
+/**
+ * /ask: ¿la clave de idempotencia ya no sirve después de este error? Solo un 4xx
+ * (rechazo) termina el envío. 409 es "la primera sigue en curso": el reintento con
+ * la misma clave devuelve lo que publicó. Un 5xx o un 504 puede llegar después de
+ * que el servidor publicó y pagó, así que la clave se guarda para reintentar.
+ */
+export function agentKeySpent(status: number): boolean {
+  return status >= 400 && status < 500 && status !== 409;
+}

@@ -125,7 +125,7 @@ section.ai-card { padding-top: 0; padding-bottom: 0; }
 .ai-panel-foot { margin: 0; padding: 0 16px 12px; font-size: 0.75rem; }
 /* El botón flotante de feedback queda abajo a la derecha: el form le deja lugar. */
 body:has(.fl-root:not(.is-tucked)) .ai-panel-form,
-body:has(.fl-root:not(.is-tucked)) .ai-panel-foot { padding-right: 84px; }
+body:has(.fl-root:not(.is-tucked)) .ai-panel-foot { padding-right: 24px; }
 
 /* Agentes: tarjetas de cada agente, corridas e ítems. */
 .ai-banner { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--warn); background: var(--bg-soft); font-size: 0.875rem; }

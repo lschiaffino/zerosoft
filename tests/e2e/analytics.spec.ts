@@ -105,6 +105,13 @@ test('proyecto, snippet en otro sitio y eventos en vivo', async ({ page, request
 
   await page.goto('/en/app/analytics/events', { waitUntil: 'networkidle' });
   const table = page.getByTestId('an-live-table');
+  await expect(table).toBeVisible();
+  // La tabla ocupa el ancho de la página, sin correrse ni encogerse.
+  const layout = await table.boundingBox();
+  expect(layout!.width).toBeGreaterThan(700);
+  expect(layout!.x).toBeLessThan(320);
+  // El filtro tiene alto de campo, no de columna.
+  expect((await page.getByRole('combobox', { name: 'Filter by event' }).or(page.locator('.an-live-filter input')).first().boundingBox())!.height).toBeLessThan(60);
   await expect(table.getByRole('button', { name: '$pageview' }).first()).toBeVisible();
   await expect(table.getByRole('button', { name: 'signed_up' })).toBeVisible();
   // Detalle de un evento.
@@ -171,7 +178,7 @@ test('tendencia y embudo de 2 pasos desde el editor', async ({ page, baseURL }) 
   // Embudo: $pageview → signed_up.
   await page.goto('/en/app/analytics/insights/new?kind=funnel', { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: 'Funnel' }).click();
-  await page.getByLabel('Step 2').fill('signed_up');
+  await page.getByLabel('Step 2', { exact: true }).fill('signed_up');
   await expect(result.locator('.an-funnel-step')).toHaveCount(2);
   await expect(result.locator('.an-funnel-step').nth(1)).toContainText('signed_up');
   await expect(result.locator('.an-funnel-total')).toContainText('1 of');

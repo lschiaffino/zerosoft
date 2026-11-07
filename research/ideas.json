@@ -2404,5 +2404,113 @@
     "parity": "masking",
     "status": "done",
     "changelog": "2026-10-25-groups-platform"
+  },
+  {
+    "title": "Link: Filter the v1 API links list by search, tag, folder, archived state and sort",
+    "description": "Dub's list endpoint filters by search, tag, domain, folder and archived state (https://dub.co/docs/api-reference/endpoint/retrieve-a-list-of-links). Our GET /api/v1/links in app/api/v1/links/route.ts only accepted page, pageSize and creator, so an integration had to page through everything to find one link. First scope: q, tag, folder, archived and sort query params on the same endpoint, documented in the API reference.",
+    "product": "link",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-04-link-api-filters"
+  },
+  {
+    "title": "Link: Add an upsert endpoint to the v1 API that creates or updates a link in one call",
+    "description": "Dub offers PUT /links/upsert, which creates the link or updates the one with the same URL (https://dub.co/docs/api-reference/endpoint/upsert-a-link). Today an integration must GET by externalId, then POST or PATCH (app/api/v1/links/route.ts and lib/routes/v1/links/[id]/route.ts), with a race between the two calls. For a small team syncing links from a CMS or a database, one idempotent call is simpler and safer. First scope: PUT /api/v1/links/upsert keyed on externalId, falling back to destination URL, returning 200 when updated and 201 when created.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Add bulk create, update and delete endpoints to the v1 API",
+    "description": "Dub exposes POST, PATCH and DELETE on /links/bulk with up to 100 links per request (https://dub.co/docs/concepts/links/bulk-operations). We have bulk create and bulk actions in the app (app/api/links/bulk/route.ts) but they use the session, and the public v1 API creates one link per call. A team migrating thousands of links or tagging a campaign from a script hits the rate limit quickly. First scope: bulk create and bulk delete under links:write, up to 100 per request, with a per-item result so one bad row does not fail the batch.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Add a count endpoint to the v1 API with the same filters as the list",
+    "description": "Dub has GET /links/count that accepts the list filters and returns only the total (https://dub.co/docs/api-reference/endpoint/retrieve-links-count). Our API only returns total inside the paginated list, so a dashboard that wants a number must fetch a page of links too. First scope: GET /api/v1/links/count reusing parseLinkListQuery in lib/link-api-query.ts, links:read scope, grouped by an optional groupBy of tag or folder.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Close cancel and reschedule from the invitee link N hours before the start",
+    "description": "Calendly only shows a cancellation policy to invitees and does not enforce it (https://calendly.com/help/how-to-add-a-cancellation-policy), and Cal.com added a minimum notice to reschedule. Before this, the manage page in components/calendar/ManageBooking.tsx let a guest cancel or move a booking minutes before it started. A small team that blocks the calendar for a meeting needs a way to say changes close 24 hours before. First scope: a changeCutoffHours rule per event type, enforced in the manage route, with the buttons replaced by a notice. The host can still change the booking from the app.",
+    "product": "cal",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-06-cal-change-cutoff"
+  },
+  {
+    "title": "Cal: Show a cancellation policy on the booking page and in the confirmation email",
+    "description": "Calendly lets you write a cancellation policy that invitees see before and after booking (https://calendly.com/help/how-to-add-a-cancellation-policy). We have a welcome message on the event type (components/calendar/PublicBookingPage.tsx) but no field that travels to the confirmation email and the manage page. Invitees at small teams often ask the same question about late changes. First scope: a policy text per event type in the three languages of the host's choice, shown on the booking form, the confirmation and the manage page.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Add a fixed booking date range to an event type",
+    "description": "Calendly offers a rolling window or a fixed from/to range in Availability (https://calendly.com/help/how-to-fine-tune-your-availability-settings). Today lib/calendar.ts only supports maxFutureDays counted from today, so a workshop week or a launch campaign cannot open on a given date and close on another. This matters for recruiting weeks, office hours during an event and seasonal offers. First scope: optional startDate and endDate in the booking rules, applied in the slots engine and shown in the editor.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Limit each invitee to one upcoming booking per event type",
+    "description": "Calendly and Cal.com can limit how many future bookings the same email can hold for an event type (https://calendly.com/help/how-to-set-meeting-limits). Our meeting limits in lib/calendar-limits.ts count bookings per host and per period but not per invitee, so one person can hold every Tuesday slot. Free consultations and office hours need this to stay fair. First scope: a maxUpcomingPerInvitee rule checked at booking time, with a clear message that links to the existing booking's manage page.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Duplicate an event type with its schedule, questions and workflow steps",
+    "description": "Calendly has Clone on every event type in the list (https://calendly.com/help/event-types-overview), which is how people create the 15, 30 and 60 minute variants. In components/calendar/EventTypesView.tsx an event type can be opened, renamed and deleted, but the only way to get a variant is to fill the editor again, including questions and locations. First scope: a Duplicate action that copies the rules, fields, locations, schedule and workflow steps with a new slug and a Copy suffix in the title, and opens the editor.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Cal: Add a custom confirmation message with links to the booking confirmation",
+    "description": "Calendly lets the host add instructions to the confirmation page and the confirmation email (https://calendly.com/help/how-to-customize-your-confirmation-page). We have welcomeMessage for the booking form and a redirect URL, but nothing that appears in the confirmation screen or the email, so a host cannot say 'bring your ID' or 'here is the prep doc' without a redirect. First scope: a short message per event type with plain links, shown after booking, in the email and in the manage page.",
+    "product": "cal",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Create a Slack channel automatically for each new project",
+    "description": "Linear can create and link a Slack channel when a project is created, and posts project updates there (https://linear-web.pages.dev/changelog/2026-05-21-project-slack-channels). Track lets a project post issue activity to a channel chosen by hand in lib/track-slack.ts, but it never creates the channel. A small team loses time setting up one channel per project and wiring the notifications. First scope: a project setting that creates a channel named after the project through the existing Slack connection, links it and posts the project updates there.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Notify and create issues from Microsoft Teams channels",
+    "description": "Linear for Microsoft Teams lets people mention @Linear in a channel to create work and get issue notifications (https://linear-web.pages.dev/changelog/2026-04-16-linear-for-microsoft-teams). Track only reaches Teams through Flow, and the Slack integration (lib/track-slack.ts) has no Teams equivalent. Teams are common in small companies that already pay for Microsoft 365. First scope: an incoming webhook per project for activity notices to a Teams channel, then a bot command to create an issue from a message.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Add team documents pinned to each project page",
+    "description": "Linear lets a team pin shared documents to a team page, next to its issues (https://linear-web.pages.dev/changelog/2026-06-04-team-documents). Track projects have a description and updates but no place for specs, runbooks or onboarding pages, and the link from Track to Docs is only per issue (app/[locale]/app/track). A small team ends up with a doc per project that nobody finds. First scope: pin Docs pages to a project from its Overview tab, listed with title and last edit, opening in Docs.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Add sub-teams that roll up under a parent team",
+    "description": "Linear supports multi-level sub-teams so teams mirror the org structure, with issues and views rolling up to the parent (https://linear-web.pages.dev/changelog/2026-04-09-multi-level-sub-teams). Track has a flat list of teams that hold the key, statuses and cycles (lib/track-data.ts), with no parent. Teams of 10 to 20 people start splitting into groups such as web and mobile and want one view of both. First scope: an optional parent team, and a team issues view that includes the issues of its children.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Create projects from a project template",
+    "description": "Linear lets a workspace save project templates with a description, milestones and a set of issues, then start new projects from them (https://linear.app/docs/project-templates). Track has issue templates per project (lib/track-templates.ts) but every new project starts empty. Teams that run the same kind of project, such as a launch or a client onboarding, rebuild its milestones and first issues each time. First scope: save a project as a template with its milestones and open issues, and a Use template choice in the new project form.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Send a saved view digest to Slack or email",
+    "description": "Linear lets people subscribe to a view and get a notification when issues enter it, including to a Slack channel (https://linear.app/docs/custom-views). Track saved views are shared with the team (components/track/SavedViewsMenu.tsx) but nobody is told when something new matches. A weekly bug triage or a Fridays-due view only works if someone remembers to open it. First scope: a Notify me toggle per view that adds a daily email or Slack summary of newly matching issues, claimed per row by the existing cron.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Preload a default issue template per project in quick create",
+    "description": "Linear lets a team mark a template as the default so every new issue starts from it (https://linear.app/docs/issue-templates). Track had templates per project (lib/track-templates.ts) that had to be picked by hand each time. A small team that files most issues in one shape, such as bug reports, repeats that pick on every issue. Built: a Default checkbox on the template form, one default per project, and quick create fills it in on an empty draft.",
+    "product": "track",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-07-track-default-template"
   }
 ]

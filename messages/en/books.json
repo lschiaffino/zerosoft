@@ -198,6 +198,7 @@
     "paymentDate": "Payment date",
     "method": "Method",
     "bankAccount": "Bank account",
+    "noBankAccounts": "No bank accounts yet. Add one in Banking to match this payment.",
     "paymentFx": "Exchange rate on the payment day ({base} per 1 {cur})",
     "paymentReference": "Reference",
     "savePayment": "Save payment",

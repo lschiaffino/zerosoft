@@ -18,6 +18,7 @@ import type { IssueDraft, ProjectContext } from './useIssueStore';
 import { Popover, PriorityIcon, StatusDot } from './InlineEditors';
 import RichEditor from './RichEditor';
 import TrackIcon from './TrackIcon';
+import { pickDefaultTemplate } from '@/lib/track-template-default';
 import { buildIssueActions } from './trackCommands';
 import { pushNotice } from './trackUndo';
 import type { TrackUiLabels } from './ui-labels';
@@ -270,6 +271,17 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
     },
     [templates, project],
   );
+
+  // Plantilla predeterminada del proyecto: se precarga una vez por proyecto en un borrador vacío
+  // (no en sub-issues ni al restaurar un borrador guardado).
+  const defaultApplied = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const pid = d.projectId;
+    if (!pid || restored || fixedParent || defaultApplied.current.has(pid) || templates.length === 0) return;
+    defaultApplied.current.add(pid);
+    const def = pickDefaultTemplate(templates);
+    if (def && !templateId && !d.title.trim() && !d.description.trim()) applyTemplate(def.id);
+  }, [d.projectId, d.title, d.description, restored, fixedParent, templates, templateId, applyTemplate]);
 
   // El borrador como un issue (para reusar los mismos menús de ⌘K que los atajos).
   const draftIssue = useMemo((): TrackIssueWithStatus => {

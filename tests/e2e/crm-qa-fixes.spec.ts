@@ -166,7 +166,7 @@ test('/new de altas en modal: la primera visita nunca muestra el formulario dos 
       }).observe(document, { subtree: true, childList: true });
     });
     await page.goto(path);
-    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('dialog'), path).toBeVisible();
     // Espera a que se guarde la cookie y pase el refresh.
     await expect.poll(async () => (await context.cookies()).some((c) => c.name === 'tz')).toBe(true);
     await page.waitForLoadState('networkidle');

@@ -679,6 +679,9 @@ function TypeFields({
         <div className="robots-fields">
           {text('selector', t('fields.selector'), 'input[name="email"]')}
           {text('value', t('fields.value'), '{{inputs.email}}')}
+          {step.type === 'fill' &&
+            /\{\{[^{}]*\bcredentials\b/.test(String((step as Record<string, unknown>).value ?? '')) &&
+            text('origin', t('fields.origin'), 'https://login.example.com', true, t('originHint'))}
         </div>
       );
     case 'press':

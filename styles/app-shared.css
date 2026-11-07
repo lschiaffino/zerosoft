@@ -241,16 +241,23 @@
 }
 .fb { display: flex; flex-direction: column; gap: 20px; }
 .table-wrap { position: relative; min-width: 0; max-width: 100%; }
-/* Tabla que sigue a un costado (390): sombra en el borde con contenido oculto. Las capas
+/* Tabla que sigue a un costado: sombra en el borde con contenido oculto. Las capas
    "local" se mueven con el contenido y tapan la sombra cuando ya no hay nada más que ver. */
-@media (max-width: 640px) {
-  .table-wrap {
-    background:
-      linear-gradient(to right, var(--bg) 40%, transparent) left / 24px 100% no-repeat local,
-      linear-gradient(to left, var(--bg) 40%, transparent) right / 24px 100% no-repeat local,
-      linear-gradient(to right, color-mix(in srgb, var(--ink) 16%, transparent), transparent) left / 10px 100% no-repeat scroll,
-      linear-gradient(to left, color-mix(in srgb, var(--ink) 16%, transparent), transparent) right / 10px 100% no-repeat scroll;
-  }
+.table-wrap {
+  background:
+    linear-gradient(to right, var(--bg) 60%, transparent) left / 40px 100% no-repeat local,
+    linear-gradient(to left, var(--bg) 60%, transparent) right / 40px 100% no-repeat local,
+    linear-gradient(to right, color-mix(in srgb, var(--ink) 9%, transparent), color-mix(in srgb, var(--ink) 3%, transparent) 45%, transparent) left / 28px 100% no-repeat scroll,
+    linear-gradient(to left, color-mix(in srgb, var(--ink) 9%, transparent), color-mix(in srgb, var(--ink) 3%, transparent) 45%, transparent) right / 28px 100% no-repeat scroll;
+}
+
+/* Pestañas que no entran: sombra en el borde donde sigue la lista (como .table-wrap). Si entran, no se ve nada. */
+.ui-tabs {
+  background:
+    linear-gradient(to right, var(--bg) 60%, transparent) left / 40px 100% no-repeat local,
+    linear-gradient(to left, var(--bg) 60%, transparent) right / 40px 100% no-repeat local,
+    linear-gradient(to right, color-mix(in srgb, var(--ink) 9%, transparent), color-mix(in srgb, var(--ink) 3%, transparent) 45%, transparent) left / 28px 100% no-repeat scroll,
+    linear-gradient(to left, color-mix(in srgb, var(--ink) 9%, transparent), color-mix(in srgb, var(--ink) 3%, transparent) 45%, transparent) right / 28px 100% no-repeat scroll;
 }
 
 /* Botón de archivo de los importadores (CRM, Track, Notion). */
@@ -593,7 +600,8 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   .table-wrap.table-stack .table td:not([data-label]),
   .table-wrap.table-stack .table tbody th { display: block; font-weight: 600; }
   .table-wrap.table-stack .table td:empty,
-  .table-wrap.table-stack .table td[hidden] { display: none; }
+  .table-wrap.table-stack .table td[hidden],
+  .table-wrap.table-stack .table td.gr-empty-cell { display: none; }
   /* Una insignia o un valor corto ocupan lo suyo, no toda la columna. */
   .table-wrap.table-stack .table td[data-label] > .badge { justify-self: start; }
   .table-wrap.table-stack .table td[data-label] > .select { width: 100%; }

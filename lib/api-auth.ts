@@ -3,9 +3,10 @@ import { nanoid } from 'nanoid';
 import { NextResponse } from 'next/server';
 import { getDb, type ApiKeyRow, type UserRow } from './db';
 import { clientIp, rateLimit } from './rate-limit';
-import { hasScope, parseScopes, serializeScopes, type ApiScope, scopesForApps } from './api-scopes';
-import { normalizeRole, type TeamRole } from './teams';
+import { API_SCOPES, hasScope, keyHasMcpAccess, MCP_KEY_SCOPE, parseScopes, serializeScopes, type ApiScope, scopesForApps } from './api-scopes';
+import { normalizeRole, resolveWorkspace, type TeamRole } from './teams';
 import { parseApps } from './workspace';
+import { delegatedIdentity } from './mcp/identity';
 
 export function sha256(input: string): string {
   return createHash('sha256').update(input).digest('hex');
@@ -104,6 +105,8 @@ function withRetryAfter(res: NextResponse, resetAt: number): NextResponse {
  * sin ese scope recibe 403 insufficient_scope.
  */
 export async function requireApiUser(req: Request, scope: ApiScope): Promise<ApiAuth> {
+  const delegated = delegatedIdentity();
+  if (delegated) return delegatedApiAuth(delegated, scope);
   const raw = extractBearer(req);
   if (!raw) return { res: apiError(401, 'invalid_key', 'Missing API key. Use Authorization: Bearer zs_…') };
   // Se limita antes de validar: así tampoco se pueden probar keys a fuerza bruta.
@@ -124,6 +127,18 @@ export async function requireApiUser(req: Request, scope: ApiScope): Promise<Api
   return auth;
 }
 
+/** Una operación v1 invocada desde el MCP: la persona vale lo mismo que con una key suya en ese workspace. */
+async function delegatedApiAuth(d: NonNullable<ReturnType<typeof delegatedIdentity>>, scope: ApiScope): Promise<ApiAuth> {
+  const { owner, workspace } = await resolveWorkspace(d.real);
+  const denied = (): ApiAuth => ({ res: apiError(403, 'insufficient_scope', `This connection is missing the "${scope}" scope.`) });
+  if (d.pinnedTeamId && workspace.id !== d.pinnedTeamId) return denied();
+  const access = await personAppAccess(owner.id, d.real.id);
+  if (!access) return denied();
+  const allowed = scopesForApps(d.apiScopes ?? parseScopes('*'), access.apps);
+  if (!hasScope(allowed, scope)) return denied();
+  return { user: owner, personId: d.real.id, role: access.role, scopes: allowed };
+}
+
 // ---------- Key management (session API) ----------
 
 export interface ApiKeyDto {
@@ -136,6 +151,8 @@ export interface ApiKeyDto {
   created_by_email?: string | null;
   /** Scopes efectivos (todos si la key es anterior a los scopes). */
   scopes: ApiScope[];
+  /** Puede usar el MCP unificado (opt-in al crearla). */
+  mcp: boolean;
 }
 
 /** Generates `zs_<nanoid(32)>`, stores only its sha256. Full key is returned once. */
@@ -144,12 +161,15 @@ export async function createApiKey(
   name: string,
   createdBy: string = userId,
   scopes: readonly string[] | '*' = '*',
+  mcp = false,
 ): Promise<{ id: string; key: string; scopes: ApiScope[] }> {
   const db = getDb();
   const key = `zs_${nanoid(32)}`;
   const id = crypto.randomUUID();
   await db
-  const stored = scopes === '*' ? '*' : serializeScopes(scopes);
+  // Con MCP se guarda la lista explícita: '*' significa "solo v1" para las keys de siempre.
+  const base = scopes === '*' ? '*' : serializeScopes(scopes);
+  const stored = mcp ? `${base === '*' ? API_SCOPES.join(' ') : base} ${MCP_KEY_SCOPE}` : base;
   await db
     .prepare('INSERT INTO api_keys (id, user_id, name, prefix, key_hash, created_by, scopes) VALUES (?, ?, ?, ?, ?, ?, ?)')
     .run(id, userId, name, key.slice(0, 10), sha256(key), createdBy, stored);
@@ -166,7 +186,7 @@ export async function listApiKeys(userId: string, onlyCreatedBy?: string): Promi
        ORDER BY k.created_at DESC`,
     )
     .all(userId, onlyCreatedBy ?? null, onlyCreatedBy ?? null)) as Array<Omit<ApiKeyDto, 'scopes'> & { scopes: string }>;
-  return rows.map((r) => ({ ...r, scopes: parseScopes(r.scopes) }));
+  return rows.map((r) => ({ ...r, scopes: parseScopes(r.scopes), mcp: keyHasMcpAccess(r.scopes) }));
 }
 
 export async function revokeApiKey(userId: string, id: string, onlyCreatedBy?: string): Promise<boolean> {

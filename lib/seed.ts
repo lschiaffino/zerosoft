@@ -171,7 +171,7 @@ async function seedCalendar(userId: string) {
  * Siembra datos demo si el usuario todavía no fue seedeado.
  * Nunca lanza: un fallo de seed no puede romper el login.
  */
-export async function seedUserIfNeeded(userId: string): Promise<void> {
+export async function seedUserIfNeeded(userId: string, opts: { groups?: boolean } = {}): Promise<void> {
   try {
     // Reclamo atómico: solo una request siembra, y nunca dos veces aunque un
     // paso falle (antes un fallo dejaba seeded_at NULL y se re-sembraba el CRM
@@ -190,6 +190,8 @@ export async function seedUserIfNeeded(userId: string): Promise<void> {
     ['docs', seedDocs],
     ['track', seedTrack],
     ['calendar', seedCalendar],
+    // Groups solo desde el onboarding ("Agregar datos de ejemplo"): el usuario demo arranca sin números.
+    ...(opts.groups ? ([['groups', seedGroups]] as const) : []),
   ] as const) {
     try {
       await step(userId);
@@ -198,4 +200,11 @@ export async function seedUserIfNeeded(userId: string): Promise<void> {
       console.error(`[seed:${name}] user=${userId}`, err);
     }
   }
+}
+
+/** Groups: los mismos datos de ejemplo que "Probar con datos de ejemplo" (se borran de una vez desde la bandeja). */
+async function seedGroups(userId: string): Promise<void> {
+  const { loadSampleData } = await import('./groups-sample');
+  const row = (await getDb().prepare('SELECT locale FROM users WHERE id = ?').get(userId)) as { locale?: string | null } | undefined;
+  await loadSampleData(userId, userId, row?.locale ?? 'es');
 }

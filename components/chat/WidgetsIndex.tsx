@@ -77,7 +77,7 @@ export default async function WidgetsIndex({
               key: 'hours',
               header: t('widgetForm.tabs.hours'),
               cell: (w) =>
-                w.office_hours ? t('widgets.hoursSet') : <span className="chat-quiet">{t('widgets.alwaysOn')}</span>,
+                w.office_hours ? t('widgets.hoursSet') : <span className="chat-quiet chat-nowrap">{t('widgets.alwaysOn')}</span>,
             },
             {
               key: 'created',

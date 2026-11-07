@@ -45,11 +45,17 @@ export default async function FeatureParity({ locale, product, headingId }: { lo
     <div className="container parity">
       <div className="parity-head">
         <div className="parity-score">
-          <p className="parity-kicker data">{t('kicker', { competitor })}</p>
-          <p className="parity-num" aria-describedby={`${headingId}-method`}>
-            <span className="data">{`${score.percent}%`}</span>
-            <span className="parity-num-label">{t('ofCompetitor', { competitor })}</span>
-          </p>
+          <p className="parity-kicker data">{parity.percentHidden ? t('kickerCounts', { competitor }) : t('kicker', { competitor })}</p>
+          {parity.percentHidden ? (
+            <p className="parity-scope-note" data-testid="parity-scope-note">
+              {loc(parity.percentHidden.note, locale)}
+            </p>
+          ) : (
+            <p className="parity-num" aria-describedby={`${headingId}-method`}>
+              <span className="data">{`${score.percent}%`}</span>
+              <span className="parity-num-label">{t('ofCompetitor', { competitor })}</span>
+            </p>
+          )}
           <dl className="parity-counts">
             <div>
               <dt>{t('counts.have')}</dt>
@@ -65,7 +71,7 @@ export default async function FeatureParity({ locale, product, headingId }: { lo
             </div>
           </dl>
           <p className="parity-method" id={`${headingId}-method`}>
-            {t('method', { count: score.counted, competitor, date })}{' '}
+            {parity.percentHidden ? t('methodCounts', { count: score.counted, competitor, date }) : t('method', { count: score.counted, competitor, date })}{' '}
             <Link href="/changelog" className="parity-link">
               {t('changelog')}
             </Link>
@@ -73,13 +79,29 @@ export default async function FeatureParity({ locale, product, headingId }: { lo
         </div>
 
         <ul className="parity-areas" aria-label={t('areasLabel')}>
+          {parity.percentHidden && (
+            <li className="parity-area parity-area-head" aria-hidden="true">
+              <span />
+              <span className="parity-area-counts">
+                {t('counts.have')} · {t('counts.partial')} · {t('counts.missing')}
+              </span>
+            </li>
+          )}
           {areas.map((a) => (
             <li key={a.id} className="parity-area">
               <span className="parity-area-name">{loc(a.label, locale)}</span>
-              <span className="parity-bar" aria-hidden="true">
-                <i style={{ width: `${a.percent}%` }} />
-              </span>
-              <span className="parity-area-num data">{`${a.percent}%`}</span>
+              {parity.percentHidden ? (
+                <span className="parity-area-counts data" aria-label={t('areaCounts', { have: a.have, partial: a.partial, missing: a.missing })}>
+                  {a.have} · {a.partial} · {a.missing}
+                </span>
+              ) : (
+                <>
+                  <span className="parity-bar" aria-hidden="true">
+                    <i style={{ width: `${a.percent}%` }} />
+                  </span>
+                  <span className="parity-area-num data">{`${a.percent}%`}</span>
+                </>
+              )}
             </li>
           ))}
         </ul>
@@ -87,8 +109,12 @@ export default async function FeatureParity({ locale, product, headingId }: { lo
 
       {!hasIncluded && <p className="parity-none">{t('noneYet', { name })}</p>}
       {hasIncluded && (
-        <>
-          <h3 className="parity-h3">{t('tableTitle', { name })}</h3>
+        <details className="parity-all">
+          <summary>
+            <span className="parity-all-title">{t('tableTitle', { name })}</span>
+            <span className="parity-all-count data">{parity.rows.filter(included).length}</span>
+            <span className="faq-plus" aria-hidden="true" />
+          </summary>
           <p className="parity-legend data">
             {(['have', 'better', 'partial'] as const).map((s) => (
               <span key={s}>
@@ -141,7 +167,7 @@ export default async function FeatureParity({ locale, product, headingId }: { lo
               })}
             </table>
           </div>
-        </>
+        </details>
       )}
 
       {beyond.length > 0 && (

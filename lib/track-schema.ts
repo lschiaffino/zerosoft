@@ -308,6 +308,7 @@ export const templateCreateSchema = z.object({
   assigneeId: id.nullish(),
   estimate: z.number().int().min(0).max(1000).nullish(),
   labels: z.array(issueLabelInputSchema).max(10).optional(),
+  isDefault: z.boolean().optional(),
 });
 
 export const templateUpdateSchema = templateCreateSchema.partial();

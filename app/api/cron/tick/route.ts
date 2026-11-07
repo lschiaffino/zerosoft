@@ -1,5 +1,6 @@
 import { sendAbandonedEmails } from '@/lib/shop-abandoned';
 import { runVoiceCron } from '@/lib/voice-jobs';
+import { retryManagedDeletes } from '@/lib/groups-provider-managed';
 import { applyRetention } from '@/lib/talk-admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { retryDueWebhooks } from '@/lib/webhooks';
@@ -36,10 +37,13 @@ import { pruneLinkHistory } from '@/lib/link-activity';
 import { backfillSearchText, purgeExpiredTrash as purgeBoardTrash } from '@/lib/boards';
 import { pruneBoardEvents } from '@/lib/board-live';
 import { runAnalyticsCron } from '@/lib/analytics/cron';
+import { runSubscriptionsCron } from '@/lib/analytics/subscriptions';
+import { runAlertsCron } from '@/lib/analytics/alerts';
 import { purgeExpiredCandidates } from '@/lib/hiring/candidates';
 import { sendFeedbackReminders } from '@/lib/hiring/evaluation';
 import { syncAllInterviews } from '@/lib/hiring/interviews';
 import { peopleTick } from '@/lib/people-timeoff';
+import { applyDueChanges } from '@/lib/people-extras';
 import { runSignCron } from '@/lib/sign/signing';
 import { importResearchIdeas, researchIdeaSchema } from '@/lib/roadmap';
 import researchIdeas from '@/research/ideas.json';
@@ -114,6 +118,10 @@ export async function GET(req: NextRequest) {
   const linkHistory = await pruneLinkHistory().catch(() => null);
   // Analytics: rollup diario, retención por proyecto y purga de proyectos borrados (claim por proyecto).
   const analytics = await runAnalyticsCron({ budgetMs: 20_000 }).catch(() => null);
+  // Alertas de insights: con su propio tope de tiempo y claim por alerta.
+  const analyticsAlerts = await runAlertsCron({ budgetMs: 8_000 }).catch(() => null);
+  // Suscripciones de insights y tableros: claim por fila.
+  const analyticsSubscriptions = await runSubscriptionsCron({ budgetMs: 8_000 }).catch(() => null);
   // Hiring: retención de candidatos (compare-and-set en purge_claimed_at), recordatorios de
   // scorecards (claim en reminded_at) y reservas de Cal de las entrevistas.
   const hiring = {
@@ -123,6 +131,7 @@ export async function GET(req: NextRequest) {
   };
   // People: las licencias aprobadas que empiezan hoy ponen "fuera de la oficina" en Talk (claim por pedido).
   const peopleOoo = await peopleTick().catch(() => null);
+  const peopleScheduled = await applyDueChanges().catch(() => null);
   // Books: facturas recurrentes (claim por fila en claimed_until + next_date), vencidas (status con compare-and-set) y
   // recordatorios de pago (reminder_count con compare-and-set).
   const books = await import('@/lib/books-recurring').then((m) => m.runBooksCron({ budgetMs: 20_000 })).catch(() => null);
@@ -148,6 +157,8 @@ export async function GET(req: NextRequest) {
   const sequences = await processSequences({ limit: 100 }).catch(() => null);
   // Voice: lo mismo que cada minuto, más la limpieza de reuniones vacías y subidas huérfanas.
   const voice = await runVoiceCron({ budgetMs: 20_000 }).catch(() => null);
+  // Groups: instancias del QR administrado que quedaron sin borrar (claim por fila).
+  const groupsBridge = await retryManagedDeletes({ limit: 20 }).catch(() => null);
   // Lead scoring: recálculo completo una vez por día por workspace (ventanas de N días).
   const scoring = await runNightlyScoring(new Date(), 10).catch(() => null);
   // Flow con presupuesto: no empieza corridas nuevas pasados ~150 s del tick
@@ -176,6 +187,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ shopAbandoned, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
+  return NextResponse.json({ shopAbandoned, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

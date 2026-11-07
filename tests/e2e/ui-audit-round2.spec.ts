@@ -109,7 +109,9 @@ test('más ids desconocidos responden 404 y los válidos abren', async ({ reques
     'people/u/zzz',
     'books/reports/zzz',
     'shop/customers/new',
-    'shop/orders/new',
+    'shop/returns/zzz',
+    'shop/pages/zzz',
+    'shop/purchase-orders/zzz',
     'forms/zzz/responses',
     'hiring/candidates/new',
     'hiring/jobs/new/edit',
@@ -128,7 +130,7 @@ test('más ids desconocidos responden 404 y los válidos abren', async ({ reques
   }
 
   // Válidos, como owner.
-  for (const path of ['books/reports', 'books/reports/pnl', 'books/reports/tax', 'shop/customers', 'crm/tasks', 'crm/tasks/queue', 'crm/quotes', 'flow/tables', 'calendar/routing', 'calendar/routing/new', 'people/onboarding', 'chat/inbox']) {
+  for (const path of ['books/reports', 'books/reports/pnl', 'books/reports/tax', 'shop/customers', 'shop/orders/new', 'shop/returns', 'shop/abandoned', 'shop/reports', 'shop/pages', 'shop/pages/new', 'shop/purchase-orders', 'crm/tasks', 'crm/tasks/queue', 'crm/quotes', 'flow/tables', 'calendar/routing', 'calendar/routing/new', 'people/onboarding', 'chat/inbox']) {
     expect((await request.get(`/en/app/${path}`, { maxRedirects: 2 })).status(), path).toBe(200);
   }
   const task = (await (await request.post('/api/crm/activities', { data: { type: 'task', subject: `T ${uid()}` } })).json()) as { id?: string; activity?: { id: string } };
@@ -147,6 +149,9 @@ test('más ids desconocidos responden 404 y los válidos abren', async ({ reques
   expect((await request.get(`/en/app/hiring/jobs/${jobId}/edit`)).status()).toBe(200);
   const plain = await member(browser, baseURL!, 'plain', '["hiring","people"]');
   expect((await plain.ctx.request.get(`/en/app/hiring/jobs/${jobId}/edit`)).status()).toBe(404);
+  // Un borrador no existe fuera del equipo; publicado, se ve el aviso.
+  expect((await plain.ctx.request.get(`/en/app/hiring/jobs/${jobId}`)).status()).toBe(404);
+  expect((await request.patch(`/api/hiring/jobs/${jobId}`, { data: { description: 'Do things', status: 'published' } })).ok()).toBe(true);
   expect((await plain.ctx.request.get(`/en/app/hiring/jobs/${jobId}`)).status()).toBe(200);
   // People: la ficha por user id redirige de verdad; un miembro ve el aviso de RR. HH., no un 404.
   await request.get('/en/app/people/me');

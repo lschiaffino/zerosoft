@@ -62,7 +62,10 @@ export default function CheckoutView({
   }, [locale]);
   const chosen: Method | null = method && methods.includes(method) ? method : ((methods[0] as Method | undefined) ?? null);
   const needsShipping = cart?.totals.needsShipping ?? true;
-  const needsAddress = cart?.totals.needsAddress ?? true;
+  // La opción elegida se marca enseguida; el servidor confirma el precio al re-preciar.
+  const chosenRate = cart?.totals.shippingOptions.some((o) => o.id === rateId) ? rateId : (cart?.totals.shipping?.id ?? null);
+  const chosenOption = cart?.totals.shippingOptions.find((o) => o.id === chosenRate) ?? null;
+  const needsAddress = chosenOption ? !chosenOption.pickup : (cart?.totals.needsAddress ?? true);
   const isPickup = needsShipping && !needsAddress;
   // Al dejar el email se guarda el carrito, para poder retomarlo después (una vez por email y carrito).
   const saveProgress = () => {
@@ -207,7 +210,7 @@ export default function CheckoutView({
               {addr.country && cart && cart.totals.shippingOptions.length === 0 && <p className="sf-warn">{t.errors.no_shipping_rate}</p>}
               {cart?.totals.shippingOptions.map((o) => (
                 <label key={o.id} className="sf-radio">
-                  <input type="radio" name="rate" checked={cart.totals.shipping?.id === o.id} onChange={() => setRateId(o.id)} />
+                  <input type="radio" name="rate" checked={chosenRate === o.id} onChange={() => setRateId(o.id)} />
                   <span>
                     {o.name}
                     {o.pickup && <span className="sf-muted sf-block">{o.note || t.pickup}</span>}

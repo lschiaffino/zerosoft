@@ -64,6 +64,9 @@ export async function GET(req: NextRequest) {
   const reminders = await remindersCron(req);
   if (!reminders.ok) return reminders;
   const dueTasks = await fireDueTasks().catch(() => null);
+  // Send: descargas vencidas, resúmenes de avisos y sobras. El render va en /api/cron/send-render.
+  await import('@/lib/send/viewer').then((m) => Promise.all([m.purgeDownloadCache(), m.flushAlertDigests()])).catch(() => null);
+  await import('@/lib/send/core').then((m) => m.purgeSendLeftovers()).catch(() => null);
   // Reintentos de webhooks con backoff (1m, 5m, 30m…): claim por entrega en claimed_until.
   const webhookRetries = await retryDueWebhooks(100).catch(() => null);
   const chatEmails = await sendOfflineReplyEmails({ limit: 200 }).catch(() => null);

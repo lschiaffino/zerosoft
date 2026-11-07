@@ -52,6 +52,12 @@ export interface ProductParity {
   alsoCompared?: string[];
   /** Última revisión contra el código de main (YYYY-MM-DD). */
   lastReviewed: string;
+  /**
+   * Sin porcentaje en público: la tabla mide algo no comparable con las demás
+   * apps (por ejemplo, toda la documentación del competidor, fila por fila).
+   * Se muestran las cuentas por estado y esta nota. computeParity no cambia.
+   */
+  percentHidden?: { note: Localized };
   areas: ParityArea[];
   rows: ParityRow[];
 }

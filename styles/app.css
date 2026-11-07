@@ -381,9 +381,11 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   .side-line[data-more-below]::after {
     content: '\2304';
     position: sticky;
-    bottom: 0;
+    /* La lista tiene 4px de padding: sin esto el ítem recortado asomaba debajo de la franja. */
+    bottom: -4px;
     display: block;
-    height: 18px;
+    flex: none;
+    height: 20px;
     font-size: 0.875rem;
     line-height: 10px;
     text-align: center;
@@ -393,13 +395,13 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   }
 }
 
-/* Pie: ajustes globales, docs, sitio, usuario. */
+/* Pie: una fila con la cuenta (su menú tiene ajustes, ayuda, tema y salir) y colapsar. */
 .side-foot {
   display: flex;
   flex-direction: column;
   gap: 2px;
   margin-top: auto;
-  padding-top: 8px;
+  padding-top: 6px;
   border-top: 1px solid var(--line);
 }
 .side-link,
@@ -433,9 +435,10 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
 .side-user {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px 6px;
+  gap: 4px;
+  padding: 0 4px 2px;
 }
+.side-user .side-handle { flex: 0 0 34px; width: 34px; padding: 0; justify-content: center; }
 .side-user img,
 .side-avatar {
   flex: 0 0 24px;
@@ -491,8 +494,12 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   .sidebar-collapsed .side-user-meta { display: none; }
   .sidebar-collapsed .side-new-btn { justify-content: center; padding: 0; }
   .sidebar-collapsed .side-stop { padding-right: 0; }
-  .sidebar-collapsed .side-user { padding: 8px; justify-content: center; }
+  .sidebar-collapsed .side-user { flex-direction: column; padding: 4px 0; }
   .sidebar-collapsed .side-menu { left: calc(100% + 8px); right: auto; top: 0; white-space: nowrap; }
+  .sidebar-collapsed .ws-switcher { flex: 0 0 auto; }
+  .sidebar-collapsed .ws-switcher-btn { justify-content: center; }
+  /* El sidebar recorta lo que se sale (overflow): colapsado, el menú va fijo al lado. */
+  .sidebar-collapsed .ws-switcher-menu { position: fixed; top: auto; bottom: 8px; left: calc(var(--side-w) + 8px); width: 240px; white-space: normal; }
 }
 
 /* ---------- Mobile (<1024px): banda arriba, sidebar como drawer ---------- */
@@ -1034,7 +1041,7 @@ button.view-tab {
   font-stretch: var(--signage-stretch);
   font-weight: var(--signage-weight);
   font-size: 2rem;
-  line-height: 1.05;
+  line-height: 1.12;
 }
 
 /* Celda de acciones: era display:flex en un <td> y cortaba los bordes de la fila. */
@@ -1171,6 +1178,7 @@ td.cell-actions > * + * { margin-left: 4px; }
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 12px;
 }
+.home-today:has(> :nth-child(4):last-child) { grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); }
 .home-block {
   display: flex;
   flex-direction: column;
@@ -1325,3 +1333,18 @@ td.cell-actions > * + * { margin-left: 4px; }
 /* Marca "pronto" de las apps en construcción (Voice, Rec, Talk) en el switcher y el sidebar del inicio. */
 .app-soon-tag { margin-left: auto; padding: 0 4px; font-family: var(--mono); font-size: 11px; line-height: 16px; color: var(--brand-gray-2); border: 1px solid var(--line); }
 .sidebar-collapsed .side-soon { display: none; }
+
+/* Pantallas muy angostas: la banda entera entra (la campana quedaba afuera a 320px) y
+   Recientes no corta la fecha a mitad de palabra. */
+@media (max-width: 360px) {
+  .band-product-name { display: none; }
+}
+.band-right { flex-shrink: 0; }
+@media (max-width: 480px) {
+  .home-row { flex-wrap: wrap; gap: 0 12px; }
+  .home-row-meta { max-width: 100%; white-space: normal; }
+}
+
+
+/* Sin ningún bloque (todos vacíos en uso personal): no queda el título solo. */
+.home-section:has(> .home-today:empty) { display: none; }

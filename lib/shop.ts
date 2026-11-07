@@ -259,7 +259,12 @@ export async function updateStore(actor: ShopActor, patch: StorePatch): Promise<
 export async function revalidateStore(handle: string): Promise<void> {
   try {
     const { revalidatePath } = await import('next/cache');
-    revalidatePath(`/store/${handle}`, 'layout');
+    // Las etiquetas implícitas de una página en caché son las del patrón de la ruta
+    // (/store/[handle]/layout), no las de la URL: con la URL concreta y 'layout' no se
+    // invalidaba nada y el pie, la portada y las colecciones quedaban viejos hasta 5 minutos.
+    // Se invalida el patrón (cada tienda se regenera recién cuando alguien la visita).
+    revalidatePath('/store/[handle]', 'layout');
+    revalidatePath(`/store/${handle}`);
   } catch {
     /* fuera de un request (tests, scripts) */
   }

@@ -14,7 +14,7 @@ import { useGroupsInbox } from './InboxShell';
 import ChatDetails from './ChatDetails';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import TaskModal from './TaskModal';
-import { ChatPlate, Modal, api, useErrorText, useMediaText, useToast } from './ui';
+import { ChatPlate, Modal, api, isLeavingChat, useErrorText, useLeavingChat, useMediaText, useToast } from './ui';
 import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezone, checkRule, endsIso } from './RecurringParts';
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
@@ -36,6 +36,8 @@ export interface ThreadProps {
   isAdmin: boolean;
   numberName: string;
   caps: ProviderCaps;
+  /** Número de ejemplo: lo que se manda queda guardado y no sale a WhatsApp. */
+  sample?: boolean;
   ticketEmoji: string;
   pinned: MessageDto[];
   teams: Array<{ id: string; name: string }>;
@@ -124,6 +126,27 @@ export default function ChatThread(props: ThreadProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const requested = useRef<Set<string>>(new Set());
   const pendingCaret = useRef<number | null>(null);
+  const draftKey = `gr-draft:${props.chat.id}`;
+  // Desde el clic en otro chat hasta que se abre, este composer queda en pausa.
+  const leaving = useLeavingChat(props.chat.id);
+
+  // Borrador por chat: lo escrito no se pierde al cambiar de chat a mitad de camino.
+  useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem(draftKey);
+      if (saved) setText(saved);
+    } catch {
+      // Sin storage: sin borradores.
+    }
+  }, [draftKey]);
+  useEffect(() => {
+    try {
+      if (text) window.sessionStorage.setItem(draftKey, text);
+      else window.sessionStorage.removeItem(draftKey);
+    } catch {
+      // Sin storage: sin borradores.
+    }
+  }, [draftKey, text]);
 
   // Después de insertar una mención, el cursor queda justo después (antes de la próxima tecla).
   useLayoutEffect(() => {
@@ -160,6 +183,14 @@ export default function ChatThread(props: ThreadProps) {
     jumped.current = true;
     endRef.current?.scrollIntoView({ block: 'end' });
   }, [messages.length]);
+
+  // Una imagen que termina de cargar empuja lo último hacia abajo: si estábamos al final, se sigue ahí.
+  const keepAtEnd = useCallback((e: { currentTarget: HTMLImageElement }) => {
+    const box = e.currentTarget.closest('.gr-messages');
+    if (!box || window.location.hash.startsWith('#m-')) return;
+    const fromEnd = box.scrollHeight - box.scrollTop - box.clientHeight;
+    if (fromEnd <= e.currentTarget.getBoundingClientRect().height + 120) endRef.current?.scrollIntoView({ block: 'end' });
+  }, []);
 
   const merge = useCallback((incoming: MessageDto[]) => {
     if (incoming.length === 0) return;
@@ -260,6 +291,8 @@ export default function ChatThread(props: ThreadProps) {
 
   async function send() {
     if (sending || (!text.trim() && !attachment)) return;
+    // Ya se está abriendo otro chat: no se manda (el texto queda como borrador de este chat).
+    if (isLeavingChat(chat.id) || !window.location.pathname.includes(`/${chat.id}`)) return;
     setSending(true);
     setSendError('');
     const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, {
@@ -728,13 +761,18 @@ export default function ChatThread(props: ThreadProps) {
                       <p className="gr-media">
                         {m.media.url && m.media.type.startsWith('image/') ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={m.media.url} alt={m.media.name || t('thread.image')} loading="lazy" />
+                          <img src={m.media.url} alt={m.media.name || t('thread.image')} loading="lazy" onLoad={keepAtEnd} />
                         ) : m.media.url ? (
-                          <a href={m.media.url} target="_blank" rel="noreferrer">
-                            {mediaText({ media: m.media })}
+                          <a className="gr-file" href={m.media.url} target="_blank" rel="noreferrer">
+                            <FileIcon type={m.media.type} />
+                            <span className="gr-file-name">{mediaText({ media: m.media })}</span>
                           </a>
                         ) : (
-                          <span className="ui-help">{mediaText({ media: m.media })}</span>
+                          <span className="gr-file is-off" title={t('thread.fileUnavailable')}>
+                            <FileIcon type={m.media.type} />
+                            <span className="gr-file-name">{mediaText({ media: m.media })}</span>
+                            <span className="ui-help">{t('thread.fileUnavailable')}</span>
+                          </span>
                         )}
                       </p>
                     )}
@@ -938,6 +976,7 @@ export default function ChatThread(props: ThreadProps) {
             className="textarea gr-input"
             rows={3}
             value={text}
+            disabled={leaving}
             onChange={(e) => {
               setText(e.target.value);
               setCaret(e.target.selectionStart ?? e.target.value.length);
@@ -1033,6 +1072,11 @@ export default function ChatThread(props: ThreadProps) {
               {mode === 'note' ? t('thread.saveNote') : t('thread.send')}
             </button>
           </div>
+          {props.sample && mode !== 'note' && (
+            <p className="ui-help gr-sample-note" role="note">
+              {t('sample.composerNote')}
+            </p>
+          )}
         </div>
       </section>
 
@@ -1048,6 +1092,7 @@ export default function ChatThread(props: ThreadProps) {
           crm={props.crm}
           caps={props.caps}
           me={props.me}
+          isAdmin={props.isAdmin}
           compact
         />
       </aside>
@@ -1198,5 +1243,30 @@ export default function ChatThread(props: ThreadProps) {
       </Modal>
       {toast}
     </>
+  );
+}
+
+/** Ícono de un archivo según el tipo: audio, video o documento. */
+function FileIcon({ type }: { type: string }) {
+  const kind = type.startsWith('audio/') ? 'audio' : type.startsWith('video/') ? 'video' : 'doc';
+  return (
+    <svg className="gr-file-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      {kind === 'audio' ? (
+        <>
+          <path d="M12 3v12" />
+          <path d="M8 9v6M16 7v10M4 11v2M20 10v4" />
+        </>
+      ) : kind === 'video' ? (
+        <>
+          <rect x="3" y="6" width="13" height="12" rx="1" />
+          <path d="m16 10 5-3v10l-5-3" />
+        </>
+      ) : (
+        <>
+          <path d="M6 3h8l4 4v14H6z" />
+          <path d="M14 3v4h4M9 13h6M9 17h6" />
+        </>
+      )}
+    </svg>
   );
 }

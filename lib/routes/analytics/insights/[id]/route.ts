@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { insightQuerySchema } from '@/lib/analytics/types';
 import { deleteInsight, getInsight, updateInsight } from '@/lib/analytics/records';
-import { aError, analyticsActor, isResponse, readJson, recordProject } from '@/lib/analytics/http';
+import { aError, analyticsActor, canManageAnalytics, isResponse, readJson, recordProject } from '@/lib/analytics/http';
+import { hasActiveShare } from '@/lib/analytics/records-more';
 import { toProjectDto } from '@/lib/analytics/projects';
 
 export const runtime = 'nodejs';
@@ -33,6 +34,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (isResponse(project)) return project;
   const parsed = patchSchema.safeParse(await readJson(req));
   if (!parsed.success) return aError(400, 'invalid_input');
+  // Lo que se ve en un link público lo cambia quien puede publicar.
+  if (!canManageAnalytics(actor) && (await hasActiveShare(project.id, { insightId: id }))) return aError(403, 'shared_admin_only');
   return NextResponse.json({ insight: await updateInsight(project.id, id, parsed.data) });
 }
 
@@ -42,6 +45,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const project = await recordProject(actor, 'analytics_insights', id);
   if (isResponse(project)) return project;
+  if (!canManageAnalytics(actor) && (await hasActiveShare(project.id, { insightId: id }))) return aError(403, 'shared_admin_only');
   await deleteInsight(project.id, id);
   return NextResponse.json({ ok: true });
 }

@@ -13,10 +13,10 @@ import { useAssistantStatus, useSuggestions } from './useAssistantStatus';
 export default function HomeAsk() {
   const t = useTranslations('assistant');
   const router = useRouter();
-  const suggestions = useSuggestions('/app');
   const [draft, setDraft] = useState('');
   const [recent, setRecent] = useState<ConversationSummary[]>([]);
-  const { status } = useAssistantStatus(true);
+  const { status, error } = useAssistantStatus(true);
+  const suggestions = useSuggestions('/app', status?.webhooks === true);
   const ready = status?.state === 'ready';
 
   useEffect(() => {
@@ -39,9 +39,10 @@ export default function HomeAsk() {
     router.push(`/app/assistant?q=${encodeURIComponent(q)}`);
   }
 
-  // Mientras carga o si no responde el estado: nada (el inicio no salta con un error ajeno).
-  if (!status) return null;
-  if (!ready) {
+  // Si no responde el estado: nada (el inicio no carga un error ajeno).
+  if (error && !status) return null;
+  // Sin respuesta todavía: el mismo bloque, invisible, reserva su alto y el inicio no salta.
+  if (status && !ready) {
     return (
       <section className="asst-home" aria-labelledby="asst-home-title" data-testid="home-assistant-off">
         <h2 id="asst-home-title" className="asst-home-title">
@@ -53,7 +54,7 @@ export default function HomeAsk() {
   }
 
   return (
-    <section className="asst-home" aria-labelledby="asst-home-title" data-testid="home-assistant">
+    <section className={`asst-home${status ? '' : ' asst-home-pending'}`} aria-labelledby="asst-home-title" aria-hidden={status ? undefined : true} data-testid={status ? 'home-assistant' : undefined}>
       <h2 id="asst-home-title" className="asst-home-title">
         {t('home.title')}
       </h2>

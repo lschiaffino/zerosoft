@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { getDb, upsertUser } from '@/lib/db';
 import { INGEST_LIMITS, cleanUrl, eventTime, expandIpv6, maskIp, parseIngestBody, planPersons, validTs } from '@/lib/analytics/ingest-core';
 import { checkSql, wrapSql } from '@/lib/analytics/sql-safe';
@@ -152,6 +152,23 @@ describe('analytics: cron resistente y purga completa', () => {
     expect(Number(daily.n)).toBeGreaterThan(0);
     const bad = (await getDb().prepare("SELECT count(*) AS n FROM analytics_events WHERE project_id = ? AND event = 'bad'").get(a.id)) as { n: number };
     expect(Number(bad.n)).toBe(0);
+  });
+
+  it('una fila con una fecha imposible no frena el primer rollup de su propio proyecto', async () => {
+    const c = await createProject('hard-owner', 'hard-owner', 'C');
+    await storeEvents(c, [{ event: '$pageview', distinctId: 'u', properties: {}, ts: now - 2 * DAY, uuid: null, set: null, setOnce: null }], null);
+    await getDb().prepare("INSERT INTO analytics_events (project_id, event, distinct_id, ts, properties) VALUES (?, 'bad', 'x', -1152921504606846976, '{}')").run(c.id);
+    // El cron de otras pruebas pudo correr: que este sea el primer rollup, y con la fila ahí.
+    await getDb().prepare('UPDATE analytics_projects SET rolled_through = NULL, dirty_from = NULL, rollup_claimed_at = NULL, purged_at = ? WHERE id = ?').run(now, c.id);
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      await runAnalyticsCron({ budgetMs: 20_000 });
+      expect(errors.mock.calls.filter((x) => String(x[1]) === c.id)).toEqual([]);
+    } finally {
+      errors.mockRestore();
+    }
+    const daily = (await getDb().prepare('SELECT count(*) AS n FROM analytics_daily WHERE project_id = ?').get(c.id)) as { n: number };
+    expect(Number(daily.n)).toBeGreaterThan(0);
   });
 
   it('un evento de un día ya cerrado marca el rollup para rehacer, y el cron no lo olvida', async () => {

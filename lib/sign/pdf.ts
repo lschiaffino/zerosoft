@@ -97,12 +97,15 @@ function inflateCapped(data: Buffer, cap: number): number | null {
  * anidamiento patológico se rechazan sin cargarlos.
  * Errores: pdf_too_complex, pdf_unsupported.
  */
-export function guardPdf(input: Buffer): void {
+export function guardPdf(input: Buffer, limits: { objects?: number; stream?: number; total?: number; render?: boolean } = {}): void {
   const text = input.toString('latin1');
+  const maxStream = limits.stream ?? MAX_STREAM_INFLATED;
+  const maxTotal = limits.total ?? MAX_TOTAL_INFLATED;
   // Cifrado (con o sin contraseña de apertura): no se puede limpiar ni dibujar encima.
-  if (/\/Encrypt\s*(\d+\s+\d+\s+R|<<)/.test(text)) throw new SignError('pdf_encrypted', 415);
+  // `render`: el PDF solo se dibuja a imagen (Send), sin reescribirlo; lo cifrado o con filtros viejos abre igual.
+  if (!limits.render && /\/Encrypt\s*(\d+\s+\d+\s+R|<<)/.test(text)) throw new SignError('pdf_encrypted', 415);
   const objCount = (text.match(/\d+\s+\d+\s+obj\b/g) ?? []).length;
-  if (objCount > MAX_PDF_OBJECTS) throw new SignError('pdf_too_complex', 413);
+  if (objCount > (limits.objects ?? MAX_PDF_OBJECTS)) throw new SignError('pdf_too_complex', 413);
   let total = 0;
   const streamRe = /stream\r?\n/g;
   let m: RegExpExecArray | null;
@@ -114,17 +117,17 @@ export function guardPdf(input: Buffer): void {
     last = m.index;
     if (!/\/Filter\b/.test(dict)) continue;
     const isImage = /\/Subtype\s*\/Image\b/.test(dict);
-    if (!isImage && RISKY_FILTERS.test(dict)) throw new SignError('pdf_unsupported', 415);
+    if (!limits.render && !isImage && RISKY_FILTERS.test(dict)) throw new SignError('pdf_unsupported', 415);
     if (!/\/(FlateDecode|Fl)\b/.test(dict)) continue;
     // Flate detrás de otro filtro (ASCII85, ASCIIHex) no se puede medir acá: solo en imágenes, que pdf-lib no descomprime.
     const filters = /\/Filter\s*\[([^\]]*)\]/.exec(dict)?.[1];
-    if (filters && !isImage && !/^\s*\/(FlateDecode|Fl)\b/.test(filters)) throw new SignError('pdf_unsupported', 415);
+    if (!limits.render && filters && !isImage && !/^\s*\/(FlateDecode|Fl)\b/.test(filters)) throw new SignError('pdf_unsupported', 415);
     if (isImage) continue;
     const start = m.index + m[0].length;
-    const out = inflateCapped(input.subarray(start), Math.min(MAX_STREAM_INFLATED, MAX_TOTAL_INFLATED - total + 1));
+    const out = inflateCapped(input.subarray(start), Math.min(maxStream, maxTotal - total + 1));
     if (out === null) continue;
     total += out;
-    if (total > MAX_TOTAL_INFLATED) throw new SignError('pdf_too_complex', 413);
+    if (total > maxTotal) throw new SignError('pdf_too_complex', 413);
   }
   // Anidamiento por objeto, sin contar el contenido de los streams.
   const noStreams = text.replace(/stream\r?\n[\s\S]*?endstream/g, ' ');

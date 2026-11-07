@@ -13,15 +13,17 @@
 .ppl-toolbar .select {
   width: auto;
   max-width: 100%;
-  flex: 0 1 180px;
+  flex: 0 1 160px;
+  min-width: 0;
 }
 .ppl-search {
-  flex: 1 1 240px;
+  flex: 1 1 200px;
   min-width: 0;
 }
 .ppl-search .input {
   width: 100%;
 }
+.ppl-nowrap { white-space: nowrap; }
 .ppl-table th[scope='row'] {
   font-weight: 400;
 }
@@ -89,7 +91,7 @@ a.ppl-rowtitle:not(:hover) {
 .ppl-photo {
   display: inline-flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   font-family: var(--font-body, inherit);
   font-size: 1rem;
@@ -97,7 +99,10 @@ a.ppl-rowtitle:not(:hover) {
 }
 .ppl-photo .btn {
   font-weight: 400;
+  padding-left: 0;
 }
+.ppl-photo .btn:hover:not(:disabled) { background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+.ppl-facts + .btn { margin-top: 16px; }
 .ppl-note {
   display: flex;
   gap: 8px;
@@ -183,6 +188,7 @@ a.ppl-rowtitle:not(:hover) {
 }
 .ppl-fact dd {
   margin: 0;
+  font-size: 0.875rem;
   overflow-wrap: anywhere;
 }
 .ppl-bio,
@@ -487,13 +493,15 @@ a.ppl-rowtitle:not(:hover) {
   position: relative;
   width: 100%;
   min-width: 0;
-  height: min(70vh, 640px);
+  /* Llena la página en escritorio; en el teléfono crece con el árbol y scrollea la página (OrgChart pone --org-h). */
+  height: calc(100dvh - 320px);
+  min-height: 420px;
   border: 1px solid var(--line);
   border-radius: var(--radius-1);
   background: var(--brand-enamel);
   overflow: hidden;
   cursor: grab;
-  touch-action: none;
+  touch-action: pan-y;
 }
 .ppl-org:active {
   cursor: grabbing;
@@ -617,9 +625,245 @@ a.ppl-rowtitle:not(:hover) {
     font-size: 0.625rem;
   }
   .ppl-toolbar .select {
-    flex: 1 1 140px;
+    flex: 1 1 calc(50% - 4px);
   }
+  .ppl-search { flex-basis: 100%; }
   .ui-fields-2.ppl-fields {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Inicio del directorio: pendientes y cumpleaños */
+.ppl-home {
+  display: grid;
+  gap: 16px;
+  margin: 0 0 16px;
+}
+.ppl-home-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.ppl-home .ppl-panel {
+  margin: 0;
+}
+.ppl-home-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ppl-home-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  color: inherit;
+  text-decoration: none;
+  border-top: 1px solid var(--line);
+}
+.ppl-home-list li:first-child .ppl-home-row {
+  border-top: 0;
+}
+a.ppl-home-row:hover {
+  background: var(--ui-hover);
+  text-decoration: underline;
+}
+.ppl-home-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ppl-home-when {
+  flex: none;
+  white-space: nowrap;
+}
+.ppl-page-tail {
+  padding-top: 0;
+}
+.ppl-report-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 4px 16px;
+  border: 0;
+  margin: 12px 0;
+  padding: 0;
+}
+.ppl-report-columns legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
+.ppl-report-save {
+  margin: 12px 0 0;
+}
+.ppl-report-save .input {
+  flex: 1 1 200px;
+  min-width: 0;
+  width: auto;
+}
+.ppl-scope {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.ppl-scope legend {
+  padding: 0;
+}
+.ppl-scope-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.ppl-add-peer {
+  margin: 12px 0 0;
+}
+.ppl-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.ppl-scores legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
+.ppl-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.ppl-score:hover {
+  border-color: var(--brand-ink);
+}
+.ppl-score:focus-within {
+  outline: 2px solid var(--brand-ink);
+  outline-offset: 2px;
+}
+.ppl-score-on {
+  background: var(--brand-ink);
+  border-color: var(--brand-ink);
+  color: var(--brand-on-ink);
+}
+.ppl-survey-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  margin: 8px 0;
+}
+@media (max-width: 720px) {
+  .ppl-home-two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.ppl-linked-warn { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 6px; font-size: 0.875rem; color: var(--ink-2); }
+.ppl-linked-warn p { margin: 0; }
+
+/* La fila del directorio: el nombre no se aprieta contra la insignia ni contra las otras columnas. */
+.ppl-table th[scope='row']:has(.ppl-rowlink) {
+  min-width: 260px;
+}
+.ppl-rowlink .ppl-rowtext {
+  flex: 1 1 auto;
+}
+.ppl-rowlink .badge {
+  flex: none;
+}
+td.ppl-ellipsis {
+  max-width: 260px;
+}
+.ppl-review > .ppl-panel-actions,
+.ppl-panel > .ppl-panel-actions {
+  margin-top: 12px;
+}
+.ppl-survey-answer {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+#surveys {
+  margin-top: 24px;
+}
+
+@media (max-width: 639px) {
+  .ppl-org {
+    height: var(--org-h, 420px);
+    min-height: 200px;
+  }
+}
+.ppl-org-loose {
+  margin-top: 16px;
+}
+.ppl-org-loose-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.ppl-org-loose-list a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+.ppl-org-loose-list a:hover,
+.ppl-org-loose-list a:focus-visible {
+  border-color: var(--brand-ink);
+}
+/* Historial en el teléfono: cada cambio es un bloque, sin columnas que corten. */
+@media (max-width: 560px) {
+  .ppl-history thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .ppl-history,
+  .ppl-history tbody,
+  .ppl-history tr {
+    display: block;
+    width: 100%;
+  }
+  .ppl-history tr {
+    padding: 8px 12px;
+    border-top: 1px solid var(--line);
+  }
+  .ppl-history td {
+    display: inline;
+    padding: 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+  .ppl-history td:nth-child(1),
+  .ppl-history td:nth-child(5) {
+    display: block;
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+  .ppl-history td:nth-child(2) {
+    display: block;
+    font-weight: 600;
+  }
+  .ppl-history td:nth-child(3)::after {
+    content: ' \2192  ';
+  }
+}
+
+.ppl-note {
+  flex-wrap: wrap;
 }

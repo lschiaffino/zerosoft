@@ -341,7 +341,9 @@
     "groupsMention": "{actor} te mencionó en {title}",
     "groupsAssigned": "{actor} te asignó {title}",
     "groupsAutoAssigned": "Chat de WhatsApp nuevo para vos: {title}",
-    "chatMessage": "Mensaje nuevo de {actor}"
+    "chatMessage": "Mensaje nuevo de {actor}",
+    "loading": "Cargando avisos…",
+    "loadError": "No se pudieron cargar los avisos. Volvé a abrir para reintentar."
   },
   "errors": {
     "invalid_slug": "Slug inválido. Usá letras minúsculas, números y guiones.",
@@ -730,6 +732,8 @@
     "adminOnly": "Solo owners y admins del workspace pueden cambiar esto."
   },
   "templates": {
+    "default": "Por defecto",
+    "defaultLabel": "Usar como predeterminada para los issues nuevos de este proyecto. El alta rápida la precarga; podés elegir otra o ninguna.",
     "help": "Valores precargados para los issues que creás seguido. Elegí una al crear un issue y se completan sus propiedades y descripción.",
     "emptyTitle": "Todavía no hay plantillas",
     "emptyBody": "Creá una para reportes de bugs, pedidos o cualquier issue que repitas.",
@@ -1105,7 +1109,7 @@
     "title": "Acceso",
     "help": "Los equipos privados solo los ven sus miembros. Los invitados ven solo los equipos que les des.",
     "adminOnly": "Solo los admins del workspace cambian el acceso.",
-    "personal": "Este es un workspace personal: nadie más ve tus equipos. Creá un workspace compartido en Ajustes para compartir equipos e invitar.",
+    "personal": "Por ahora sos la única persona en este workspace. Invitá a alguien para empezar a trabajar en equipo.",
     "loadError": "No se pudo cargar el acceso.",
     "error": "No se pudo guardar el cambio.",
     "adminGuest": "Un admin no puede ser invitado.",
@@ -1123,10 +1127,13 @@
     "inviteHelp": "Para sumar a alguien a un team, primero tiene que estar en el workspace. Le llega un email; cuando acepte, lo sumás al team acá abajo.",
     "invitePlaceholder": "nombre@empresa.com",
     "inviteButton": "Enviar invitación",
-    "inviteSent": "Invitación enviada a {email}. Cuando acepte, sumalo al team acá abajo.",
-    "inviteAlreadyMember": "{email} ya está en el workspace. Sumalo al team acá abajo.",
+    "inviteSent": "Invitación enviada a {email}. Cuando acepte, ya se puede sumar a un team.",
+    "inviteAlreadyMember": "{email} ya está en el workspace. Lo podés sumar a un team privado desde sus miembros.",
     "inviteLimited": "Demasiadas invitaciones por ahora. Probá de nuevo en un rato.",
     "inviteInvalid": "Ese email no parece válido.",
+    "everyoneIn": "Todos los del workspace ya están en este team. Para elegir quién entra, hacelo privado.",
+    "inviteCopy": "Copiar link de invitación",
+    "inviteCopied": "Link copiado",
     "inviteFailed": "No se pudo enviar la invitación. La podés ver y copiar su link en los ajustes de la plataforma, en Miembros.",
     "invitesPending": "Falta que acepten: {emails}",
     "noCandidates": "Todos los del workspace ya están en este team. Invitá a alguien acá arriba para sumarlo.",

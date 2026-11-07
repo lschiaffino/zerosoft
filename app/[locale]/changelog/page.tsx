@@ -1,4 +1,6 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { staticPageMetadata, staticPageText } from '@/lib/seo-pages';
+import { absoluteUrl, breadcrumbLd, graphLd, jsonLdString, localePath } from '@/lib/seo';
 import { Link } from '@/i18n/navigation';
 import ChangelogList from '@/components/ChangelogList';
 import { getUnifiedChangelog } from '@/lib/changelog';
@@ -9,18 +11,9 @@ import '@/styles/changelog.css';
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   const t = await getTranslations({ locale, namespace: 'changelog' });
-  const title = t('metaTitle');
-  const description = t('metaDescription');
-  return {
-    title,
-    description,
-    alternates: {
-      canonical: `/${locale}/changelog`,
-      types: { 'application/atom+xml': [{ url: `/${locale}/changelog/feed.xml`, title: t('feedTitle') }] },
-    },
-    openGraph: { title, description, type: 'website', url: `/${locale}/changelog`, images: ['/api/og/changelog'] },
-    twitter: { card: 'summary_large_image', title, description, images: ['/api/og/changelog'] },
-  };
+  return staticPageMetadata('changelog', locale, {
+    alternates: { types: { 'application/atom+xml': [{ url: `/${locale}/changelog/feed.xml`, title: t('feedTitle') }] } },
+  });
 }
 
 /**
@@ -38,9 +31,19 @@ export default async function ChangelogPage(props: {
   const tb = await getTranslations({ locale, namespace: 'feedbackBoard.nav' });
   const filter = isProductKey(product) ? product : null;
   const entries = await getUnifiedChangelog();
+  const seoText = await staticPageText('changelog', locale);
+  const ld = graphLd([
+    breadcrumbLd(locale, [
+      { name: 'zerosoft', path: '' },
+      { name: seoText.title, path: '/changelog' },
+    ]),
+    { '@type': 'CollectionPage', name: seoText.title, description: seoText.description, url: absoluteUrl(localePath(locale, '/changelog')), inLanguage: locale },
+  ]);
+
 
   return (
     <main className="container cl-main">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(ld) }} />
       <header className="read-hero">
         <h1 className="read-title">
           {t('title')} <span className="dim">{t('titleDim')}</span>

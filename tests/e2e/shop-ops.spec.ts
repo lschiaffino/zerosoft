@@ -54,9 +54,9 @@ test('pedido a mano: borrador, factura, pago, envío parcial y devolución del c
   // El borrador está en su pestaña y no en la lista general.
   const draftUrl = page.url();
   await page.goto('/en/app/shop/orders', { waitUntil: 'networkidle' });
-  await expect(page.getByText(email)).toHaveCount(0);
+  await expect(page.getByRole('cell', { name: email })).toHaveCount(0);
   await page.goto('/en/app/shop/orders?status=draft', { waitUntil: 'networkidle' });
-  await expect(page.getByText(email)).toBeVisible();
+  await expect(page.getByRole('cell', { name: email })).toBeVisible();
 
   await page.goto(draftUrl, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Mark as paid' }).click();
@@ -87,7 +87,7 @@ test('pedido a mano: borrador, factura, pago, envío parcial y devolución del c
 
   // El equipo la ve, la aprueba y la recibe.
   await page.goto('/en/app/shop/returns', { waitUntil: 'networkidle' });
-  await expect(page.getByText(email)).toBeVisible();
+  await expect(page.getByText(email).first()).toBeVisible();
   await page.getByRole('button', { name: 'Approve' }).first().click();
   await page.getByRole('button', { name: 'Receive items' }).first().click();
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm' }).click();

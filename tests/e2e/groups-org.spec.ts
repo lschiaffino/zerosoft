@@ -177,7 +177,7 @@ test('plantillas: crear, usar con variables y encontrarla con ⌘K', async ({ pa
   await expect(use.getByText('1 group ready to create')).toBeVisible();
   await expect(use.getByText(`${company} · Support`)).toBeVisible();
   await use.getByRole('button', { name: 'Create 1 group' }).click();
-  await expect(use.getByText('1 of 1 groups created.')).toBeVisible({ timeout: 20_000 });
+  await expect(use.getByText('1 of 1 group created.')).toBeVisible({ timeout: 20_000 });
   await use.getByRole('link', { name: `${company} · Support` }).click();
   await expect(page.getByRole('heading', { level: 1, name: `${company} · Support` })).toBeVisible();
   await expect(page.getByText('+15550005003').first()).toBeVisible();

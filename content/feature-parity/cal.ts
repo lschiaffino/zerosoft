@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Calendly',
   alsoCompared: ['Cal.com'],
-  lastReviewed: '2026-10-27',
+  lastReviewed: '2026-11-06',
   areas: [
     { id: 'event-types', label: { en: 'Event types and availability', es: 'Tipos de evento y disponibilidad', pt: 'Tipos de evento e disponibilidade' } },
     { id: 'booking', label: { en: 'Booking page and payments', es: 'Página de reserva y cobros', pt: 'Página de reserva e cobranças' } },
@@ -135,6 +135,7 @@ const parity: ProductParity = {
       id: 'self-service-manage',
       area: 'booking',
       label: { en: 'Invitee reschedules or cancels from a link', es: 'El invitado reprograma o cancela desde un link', pt: 'O convidado remarca ou cancela por um link' },
+      detail: { en: 'With an optional cutoff in hours before the start', es: 'Con un plazo opcional en horas antes del inicio', pt: 'Com um prazo opcional em horas antes do início' },
       status: 'have',
       competitorHas: true,
       weight: 2,

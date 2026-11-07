@@ -231,7 +231,8 @@
       "aiFields": "Fields of each row",
       "aiFieldName": "Column",
       "aiFieldDesc": "Description (optional)",
-      "aiScope": "Only inside this selector (optional)"
+      "aiScope": "Only inside this selector (optional)",
+      "origin": "Login site"
     },
     "modes": {
       "text": "Text of the first match",
@@ -253,7 +254,7 @@
       "Lists: an Extract with “All matches” over “.item a” returns every link text; add the attribute href to get the URLs."
     ],
     "fileHint": "The file is stored and its URL goes to {example}.",
-    "credentialsTip": "Use {example} with a saved credential. The value never shows up in logs or screenshots.",
+    "credentialsTip": "Use {example} with a saved credential. The value stays out of logs and extracted data. Fill it into a password field: a screenshot can show any other field.",
     "credentialsLink": "Open Credentials",
     "addType": "Step type",
     "options": "Step {num} options",
@@ -280,13 +281,14 @@
       "load_more": "Load more button",
       "scroll": "Infinite scroll"
     },
-    "fallbacksHint": "Tried in order when the main selector is not on the page. The run log says which one worked.",
+    "fallbacksHint": "Tried in order when the main selector is not on the page. On clicks, fields and selects, an alternative is used only if it finds the recorded element (same tag, type and visible name), and never on a step with a login. The run log says which one worked.",
     "fallbacksShow": "Alternative selectors",
     "instructionPlaceholder": "Every product with its name, price and link",
     "aiHint": "AI reads the page text when the run ends and fills the variable as rows. Later steps of the same run don't see it yet.",
     "scrollHint": "Scrolls to the bottom and waits, until no new rows load or after {max} scrolls.",
     "moreHint": "Clicks the button until it disappears, no new rows load or after {max} clicks, then reads every row.",
-    "loadMoreDefault": "Load more"
+    "loadMoreDefault": "Load more",
+    "originHint": "The login is only typed on this site. Paste the address of the login page. Empty uses the site of the last Go to URL step with a fixed address. A domain and its www. count as the same site. If the field ends up on any other site (after a redirect or inside an iframe, for example), the step fails without typing it."
   },
   "inputs": {
     "title": "Inputs",
@@ -412,7 +414,16 @@
     "relearnedAction": "Step {step} no longer matched its selector and nothing was clicked or typed. Suggested replacement, the only element with the same name: {selector}. Approve it if it is right.",
     "approveSuggestion": "Approve and save",
     "suggestionApproved": "Approved and saved in the robot.",
-    "credentialNotAllowed": "Step {step} uses a credential outside a Fill field value, and it was not sent to the page. Credentials now only work as the value of a Fill field step. Open the Steps tab and take it out of the URL, selector, text or script."
+    "credentialNotAllowed": "Step {step} uses a credential outside the value of a Fill field step, and it was not sent to the page. Inside a robot's steps, a credential only works as the value of a Fill field step. Open the Steps tab and take it out of the URL, selector, text or script.",
+    "credentialHidden": "Step {step} did not type the login because the page was not on the site allowed for it. Only the person who built this robot or an admin can see the details.",
+    "credentialOrigin": "Step {step} did not type the login. The page was on {here}, and this step only allows {bound}. If {here} is right, enter it in Login site on step {step} in the Steps tab.",
+    "credentialScript": "Step {step} can read what was typed in a field, and this robot uses a login, so the run stopped before opening the browser. Open the Steps tab and remove that step (Run JavaScript, or reading the value attribute), or stop using the login in this robot.",
+    "credentialNoPage": "Step {step} did not type the login because the robot had not opened any page yet. Add a Go to URL step before it, with the address of the site.",
+    "credentialNoSite": "Step {step} did not type the login because this robot has no fixed site: its Go to URL address uses a variable. The page was on {here}. To allow it, enter that site in Login site on step {step} in the Steps tab.",
+    "useSite": "Use this site",
+    "useSiteTitle": "Type this login on {here}?",
+    "useSiteBody": "From now on, step {step} types the login on {here}. Confirm only if you recognize this site.",
+    "useSiteDone": "Saved. Run the robot again to use {here}."
   },
   "settings": {
     "enabled": "Allow automatic runs",
@@ -476,7 +487,7 @@
     "sessionTitle": "Session",
     "timeoutTitle": "Time limit",
     "credentialsTitle": "Credentials",
-    "credentialsDesc": "Logins are stored encrypted in Credentials, which Robots shares with Flow. Steps use them without the value showing up in logs or screenshots.",
+    "credentialsDesc": "Logins are stored encrypted in Credentials, which Robots shares with Flow. Steps use them without the value showing up in logs or extracted data. A screenshot can show a value typed into a field that is not a password field.",
     "credentialsOpen": "Open Credentials",
     "globalSettings": "Go to global Settings",
     "usageTitle": "Usage and runner",
@@ -539,7 +550,11 @@
     "no_crm_access": "You need access to the CRM to send rows there.",
     "outside_recipient": "Change emails can only go to people in this workspace.",
     "save_first": "Save your changes first.",
-    "suggestion_stale": "The step changed since that run. Run the robot again."
+    "suggestion_stale": "The step changed since that run. Run the robot again.",
+    "invalid_login_site": "Step {index}: Login site has to be a web address, like https://login.example.com.",
+    "credential_with_script": "Step {index} can read what was typed in a field, and this robot uses a login. Remove that step (Run JavaScript, or reading the value attribute) or stop using the login in this robot.",
+    "takeover_required": "This robot uses a login and was built by someone who is no longer an admin, so it does not run until an admin takes over its steps. Press Run robot and confirm.",
+    "takeover_stale": "The robot changed since you opened this. Reload and try again."
   },
   "paste": {
     "title": "Paste recorded steps",
@@ -692,10 +707,13 @@
     "nothingStarted": "No run started. Fix it and queue again.",
     "rowMissing": "Row {row}: “{name}” is required. Nothing was uploaded.",
     "estimate": "About {minutes, plural, one {# browser minute} other {# browser minutes}} at {seconds} s per run, and at least {wall} with {concurrency} at once.",
-    "estimateOver": "You have {left, number} minutes left this month. The batch pauses when they run out and continues when there are minutes again.",
-    "expiry": "Rows still waiting after 45 days are dropped.",
+    "expiry": "Rows still waiting after {age} are dropped, and you get a notice.",
     "wallMinutes": "{count, plural, one {# minute} other {# minutes}}",
-    "wallHours": "{count, plural, one {# hour} other {# hours}}"
+    "wallHours": "{count, plural, one {# hour} other {# hours}}",
+    "cover": "Your {left, number} minutes left this month cover about {covered, number} of these {rows, number} rows. The rest wait in the queue until there are minutes again.",
+    "coverAll": "Your {left, number} minutes left this month cover all {rows, number} rows.",
+    "days": "{count, plural, one {# day} other {# days}}",
+    "hours": "{count, plural, one {# hour} other {# hours}}"
   },
   "data": {
     "title": "Data across runs",
@@ -899,7 +917,30 @@
     },
     "credentialMisuse": {
       "title": "{name}: a step needs a change",
-      "body": "Step {step} uses a credential outside a Fill field value, so the robot stops there. Take it out of the URL, selector, text or script. This robot will not send this notice again."
+      "body": "Step {step} uses a credential outside a Fill field value, so the robot stops before opening the browser. Take it out of the URL, selector, text or script. Scheduled runs pause after 3 runs that fail like this. This robot will not send this notice again."
+    },
+    "batchExpired": {
+      "title": "{name}: batch rows dropped",
+      "body": "{count} rows of a batch waited more than {age} in the queue and were dropped without running. Queue them again to run them.",
+      "bodyOne": "1 row of a batch waited more than {age} in the queue and was dropped without running. Queue it again to run it.",
+      "days": "{count} days",
+      "dayOne": "1 day",
+      "hours": "{count} hours",
+      "hourOne": "1 hour"
+    },
+    "credentialScript": {
+      "title": "{name}: a step can read the login",
+      "body": "Step {step} can read what was typed in a field, and this robot uses a login, so the robot stops before opening the browser. Remove that step (Run JavaScript, or reading the value attribute). Scheduled runs pause after 3 runs that fail like this. This robot will not send this notice again."
+    },
+    "takeover": {
+      "title": "{name}: an admin took over this robot",
+      "body": "{actor} took over the steps of this robot, so it now runs under their name. You no longer own it."
     }
+  },
+  "takeover": {
+    "title": "Take over this robot's steps?",
+    "body": "{creator} built this robot and is no longer an admin. If you continue, you take over its steps: they run with this workspace's login under your name, and {creator} gets a notice. Review the Steps tab if you are not sure what they do. Scheduled runs that were paused stay paused until you turn them back on.",
+    "confirm": "Take over and run",
+    "cancel": "Cancel"
   }
 }
