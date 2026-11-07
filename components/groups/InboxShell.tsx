@@ -13,6 +13,7 @@ import { filterOptions } from './PropertyInput';
 import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useToast } from './ui';
 import Avatar from './wa/Avatar';
 import { listTime } from './wa/format';
+import { plainWa } from './wa/rich';
 import { CheckIcon, Chevron, FilterIcon, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
@@ -406,7 +407,7 @@ export default function InboxShell({
                   <>
                     {c.lastDirection === 'out' && c.lastStatus && c.lastStatus !== 'received' && <Ticks status={c.lastStatus} label={t(`status.${c.lastStatus}`)} />}
                     {c.kind === 'group' && c.lastDirection === 'in' && c.lastSender && <span className="gr-row-sender">{c.lastSender}:</span>}
-                    <span>{mediaText({ preview: c.lastMessagePreview })}</span>
+                    <span>{plainWa(mediaText({ preview: c.lastMessagePreview }))}</span>
                   </>
                 )}
               </span>

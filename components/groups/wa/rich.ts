@@ -55,3 +55,9 @@ export function parseWa(text: string, depth = 0): WaNode[] {
   return out;
 }
 
+/** El texto sin los marcadores (para la vista previa de la lista, como WhatsApp). */
+export function plainWa(text: string): string {
+  const walk = (nodes: WaNode[]): string => nodes.map((n) => (typeof n === 'string' ? n : walk(n.children))).join('');
+  return walk(parseWa(text));
+}
+

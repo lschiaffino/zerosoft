@@ -1069,7 +1069,9 @@ export default function ChatThread(props: ThreadProps) {
 
   const assignee = chat.assignedTo ? nameOf(chat.assignedTo) : '';
   const teamName = props.teams.find((tm) => tm.id === chat.assignedTeamId)?.name ?? '';
-  const memberList = props.members
+  // Primero los que tienen nombre (como WhatsApp), después los teléfonos.
+  const memberList = [...props.members]
+    .sort((a, b) => Number(!a.name) - Number(!b.name))
     .slice(0, 12)
     .map((mb) => mb.name || `+${mb.phone}`)
     .filter(Boolean);
