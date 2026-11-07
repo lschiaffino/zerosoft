@@ -106,7 +106,7 @@ export const DIRECT_TOOLS: DirectTool[] = [
   {
     name: 'list_group_chats',
     title: 'List Groups chats',
-    description: 'WhatsApp groups and direct chats in the Groups app, with last message, unread count, assignee and status. Use the id with read_group_messages, send_group_message or update_group_chat.',
+    description: 'WhatsApp groups and direct chats in the Groups app, with last message, unread count, assignee and status. Closed chats only appear with filter "closed". Use the id with read_group_messages, send_group_message or update_group_chat.',
     op: 'v1.groups.chats.list',
     inputSchema: obj({
       q: str('Words in the chat name or its messages.', { maxLength: 200 }),
