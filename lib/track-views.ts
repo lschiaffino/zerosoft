@@ -10,7 +10,7 @@ import type { TrackIssueWithStatus } from './track-data';
 
 // ---------- Orden ----------
 
-export const ISSUE_SORTS = ['newest', 'oldest', 'updated', 'priority', 'due', 'identifier', 'customers', 'revenue'] as const;
+export const ISSUE_SORTS = ['manual', 'newest', 'oldest', 'updated', 'priority', 'due', 'identifier', 'customers', 'revenue'] as const;
 export type IssueSort = (typeof ISSUE_SORTS)[number];
 
 export function parseIssueSort(value: unknown): IssueSort {
@@ -45,6 +45,9 @@ export function issueOrderBy(sort: IssueSort | undefined): string {
       return 'i.due_date IS NULL, i.due_date ASC, ' + `${PRIORITY_ORDER}, i.created_at DESC, i.id DESC`;
     case 'identifier':
       return 'i.identifier ASC, i.id ASC';
+    // Orden manual (arrastrar filas, como Linear): sub_order; sin ordenar, los más nuevos arriba.
+    case 'manual':
+      return 'i.sub_order IS NULL, i.sub_order ASC, i.created_at DESC, i.id DESC';
     case 'customers':
       return `${ISSUE_CUSTOMERS_SQL} DESC, ${PRIORITY_ORDER}, i.created_at DESC, i.id DESC`;
     case 'revenue':
@@ -57,7 +60,7 @@ export function issueOrderBy(sort: IssueSort | undefined): string {
 const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
 
 type SortableIssue = Pick<TrackIssueWithStatus, 'id' | 'created_at' | 'updated_at' | 'priority' | 'due_date' | 'identifier'> &
-  Partial<Pick<TrackIssueWithStatus, 'customer_count' | 'customer_revenue'>>;
+  Partial<Pick<TrackIssueWithStatus, 'customer_count' | 'customer_revenue' | 'sub_order'>>;
 
 function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
@@ -83,6 +86,12 @@ export function compareIssues(sort: IssueSort | undefined, a: SortableIssue, b: 
     }
     case 'identifier':
       return cmp(a.identifier, b.identifier) || cmp(a.id, b.id);
+    case 'manual': {
+      const x = a.sub_order ?? null;
+      const y = b.sub_order ?? null;
+      if ((x === null) !== (y === null)) return x === null ? 1 : -1;
+      return (x ?? 0) - (y ?? 0) || newest();
+    }
     case 'customers':
       return (b.customer_count ?? 0) - (a.customer_count ?? 0) || prio() || newest();
     case 'revenue':

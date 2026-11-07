@@ -673,6 +673,7 @@
       "project": "Equipo"
     },
     "sorts": {
+      "manual": "Manual",
       "newest": "Más nuevos",
       "oldest": "Más viejos",
       "updated": "Actualizados hace poco",
@@ -1660,6 +1661,33 @@
       "exponential": "Exponencial",
       "tshirt": "Talles de remera",
       "none": "Sin estimaciones"
+    }
+  },
+  "dnd": {
+    "count": "{count, plural, one {# issue} other {# issues}}",
+    "movedOne": "{from} pasó a {team} como {to}.",
+    "movedMany": "{count} issues pasaron a {team}.",
+    "labelsDropped": "Se sacaron labels del team anterior: {labels}.",
+    "moveFailed": "No se pudieron mover los issues. Solo se pueden mover a teams de los que sos parte.",
+    "addedToProject": "{id} se sumó a {name}.",
+    "addedManyToProject": "{count} issues se sumaron a {name}.",
+    "updatedOne": "{id} actualizado.",
+    "updatedMany": "{count} issues actualizados.",
+    "reordered": "{id} movido.",
+    "menu": {
+      "label": "Acciones del issue",
+      "status": "Estado",
+      "assignee": "Asignado",
+      "priority": "Prioridad",
+      "labels": "Labels",
+      "project": "Mover a project",
+      "cycle": "Cycle",
+      "move-team": "Mover a team",
+      "estimate": "Estimación",
+      "due": "Vencimiento",
+      "copyId": "Copiar ID",
+      "copyLink": "Copiar link",
+      "more": "Más acciones"
     }
   }
 }

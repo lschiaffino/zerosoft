@@ -1,5 +1,6 @@
 'use client';
 
+import { TRACK_ISSUES_CHANGED } from './TrackBranch';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
@@ -583,6 +584,12 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
   };
   const reloadLoadedPagesRef = useRef(reloadLoadedPages);
   reloadLoadedPagesRef.current = reloadLoadedPages;
+  // Issues movidos desde otro lado (arrastrar al sidebar, a un grupo, menú contextual): la lista se pone al día.
+  useEffect(() => {
+    const onChanged = () => void reloadLoadedPagesRef.current().catch(() => undefined);
+    window.addEventListener(TRACK_ISSUES_CHANGED, onChanged);
+    return () => window.removeEventListener(TRACK_ISSUES_CHANGED, onChanged);
+  }, []);
 
   // Cambios de otros (issues, board, triage) sin recargar la página.
   useTrackLive({ projectId }, () => {
@@ -1226,7 +1233,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
             }
           />
 
-          <div className="track-view">
+          <div className="track-view" data-track-sort={sort}>
             {view === 'list' && listGroup !== 'none' && (
               <GroupedIssuesTable
                 issues={issues}

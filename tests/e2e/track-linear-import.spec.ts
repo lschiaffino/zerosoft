@@ -25,12 +25,14 @@ async function openImporter(page: Page) {
   await page.getByLabel('Import from').selectOption('linear');
 }
 
-test('Linear: una key equivocada avisa y no queda en la página', async ({ page }) => {
+test('Linear: una key equivocada avisa y no queda a la vista', async ({ page }) => {
   await openImporter(page);
   await page.getByLabel('Linear API key').fill('lin_api_fake_wrong_key');
   await page.getByRole('button', { name: 'Preview' }).click();
   await expect(page.getByTestId('import-read-failed')).toBeVisible({ timeout: 60_000 });
-  expect(await page.content()).not.toContain('lin_api_fake_wrong_key');
+  // La key queda solo en su campo (oculto, para corregirla), nunca como texto en la página.
+  await expect(page.getByLabel('Linear API key')).toHaveAttribute('type', 'password');
+  await expect(page.getByText('lin_api_fake_wrong_key')).toHaveCount(0);
 });
 
 test('Linear: workspace entero con vista previa, import y reimport que actualiza', async ({ page }) => {

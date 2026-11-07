@@ -1287,7 +1287,9 @@ export async function moveIssueToTeam(
   issueId: string,
   targetProjectId: string,
   actorId: string,
-): Promise<TrackIssueWithStatus | undefined> {
+  /** Deshacer: vuelve con el identificador que tenía (FO-19), si está libre. */
+  opts: { identifier?: string | null } = {},
+): Promise<(TrackIssueWithStatus & { droppedLabels?: string[] }) | undefined> {
   const db = getDb();
   const existing = await getIssue(issueId);
   if (!existing) return undefined;
@@ -1304,19 +1306,46 @@ export async function moveIssueToTeam(
     )
     .all(issueId)) as Array<{ id: string }>;
   const now = nowIso();
+  const dropped: string[] = [];
   for (const id of [issueId, ...descendants.map((d) => d.id)]) {
     const issue = id === issueId ? existing : await getIssue(id);
     if (!issue || issue.project_id === targetProjectId) continue;
     const status = mapStatusToTeam({ name: issue.status_name, category: issue.status_category }, statuses);
     let identifier = await nextIdentifier(targetProjectId);
+    const wanted = id === issueId ? opts.identifier?.trim().toUpperCase() : null;
+    if (wanted && wanted.startsWith(`${to.slug.toUpperCase()}-`)) {
+      const taken = await db
+        .prepare('SELECT 1 FROM track_issues i JOIN track_projects p ON p.id = i.project_id WHERE p.id = ? AND UPPER(i.identifier) = ?')
+        .get(targetProjectId, wanted);
+      if (!taken) identifier = wanted;
+    }
+    // Labels del team anterior (no del workspace) no existen en el nuevo: se sacan, como Linear.
+    const teamLabelIds = new Set(
+      ((await db.prepare('SELECT id FROM track_labels WHERE project_id = ?').all(issue.project_id)) as Array<{ id: string }>).map((r) => r.id),
+    );
+    let labelsJson: string | null = null;
+    if (teamLabelIds.size) {
+      const current = (() => {
+        try {
+          return JSON.parse(issue.labels || '[]') as Array<{ id?: string; name?: string }>;
+        } catch {
+          return [];
+        }
+      })();
+      const kept = current.filter((l) => !l.id || !teamLabelIds.has(l.id));
+      if (kept.length !== current.length) {
+        labelsJson = JSON.stringify(kept);
+        if (id === issueId) dropped.push(...current.filter((l) => l.id && teamLabelIds.has(l.id)).map((l) => l.name ?? ''));
+      }
+    }
     for (let attempt = 0; ; attempt++) {
       try {
         await db
           .prepare(
             `UPDATE track_issues SET project_id = ?, identifier = ?, status_id = ?, cycle_id = NULL, milestone_id = NULL,
-               triage = 0, updated_at = ? WHERE id = ?`,
+               triage = 0, labels = COALESCE(?, labels), updated_at = ? WHERE id = ?`,
           )
-          .run(targetProjectId, identifier, status?.id ?? null, now, id);
+          .run(targetProjectId, identifier, status?.id ?? null, labelsJson, now, id);
         break;
       } catch (err) {
         const msg = err instanceof Error ? err.message : '';
@@ -1347,7 +1376,7 @@ export async function moveIssueToTeam(
     scheduleIssueEvents(existing, updated, ['projectId', 'identifier', 'statusId']);
     notifyTrackEvent({ type: 'issue.updated', before: existing, after: updated, changes: ['projectId', 'identifier', 'statusId'], actorId });
   }
-  return updated;
+  return updated ? { ...updated, droppedLabels: dropped.filter(Boolean) } : updated;
 }
 
 export async function getIssueByIdentifier(

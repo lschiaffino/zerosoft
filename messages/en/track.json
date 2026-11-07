@@ -673,6 +673,7 @@
       "project": "Team"
     },
     "sorts": {
+      "manual": "Manual",
       "newest": "Newest",
       "oldest": "Oldest",
       "updated": "Recently updated",
@@ -1660,6 +1661,33 @@
       "exponential": "Exponential",
       "tshirt": "T-shirt sizes",
       "none": "Not used"
+    }
+  },
+  "dnd": {
+    "count": "{count, plural, one {# issue} other {# issues}}",
+    "movedOne": "Moved {from} to {team} as {to}.",
+    "movedMany": "Moved {count} issues to {team}.",
+    "labelsDropped": "Removed labels of the old team: {labels}.",
+    "moveFailed": "The issues could not be moved. You can only move them to teams you belong to.",
+    "addedToProject": "Added {id} to {name}.",
+    "addedManyToProject": "Added {count} issues to {name}.",
+    "updatedOne": "Updated {id}.",
+    "updatedMany": "Updated {count} issues.",
+    "reordered": "Moved {id}.",
+    "menu": {
+      "label": "Issue actions",
+      "status": "Status",
+      "assignee": "Assignee",
+      "priority": "Priority",
+      "labels": "Labels",
+      "project": "Move to project",
+      "cycle": "Cycle",
+      "move-team": "Move to team",
+      "estimate": "Estimate",
+      "due": "Due date",
+      "copyId": "Copy ID",
+      "copyLink": "Copy link",
+      "more": "More actions"
     }
   }
 }

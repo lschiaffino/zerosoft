@@ -359,6 +359,9 @@ export default function IssuesTable({
                 }
                 data-issue-id={pending || !selection ? undefined : issue.id}
                 data-issue-key={pending ? undefined : issue.id}
+                data-issue-identifier={issue.identifier}
+                data-issue-team={issue.project_id}
+                data-sort-order={issue.sub_order ?? undefined}
                 className={
                   [
                     pending ? "is-pending" : "",

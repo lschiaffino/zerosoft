@@ -59,6 +59,16 @@ interface GroupedIssuesTableProps {
  * label o proyecto), cada una con su tabla. Dentro de cada grupo se respeta
  * el orden que vino del servidor.
  */
+/** Destino de arrastre de un grupo (status, prioridad, cycle, asignado o team). */
+function dropTargetFor(groupBy: string, key: string, byName: boolean): string | undefined {
+  if (groupBy === "status") return key && !byName ? `status:${key}` : undefined;
+  if (groupBy === "priority") return key ? `priority:${key}` : undefined;
+  if (groupBy === "cycle") return `cycle:${key || "none"}`;
+  if (groupBy === "assignee") return `assignee:${key || "none"}`;
+  if (groupBy === "project") return key ? `team:${key}` : undefined;
+  return undefined;
+}
+
 export default function GroupedIssuesTable({
   issues,
   groupBy,
@@ -128,6 +138,8 @@ export default function GroupedIssuesTable({
             className={`track-mytasks-group${collapsed.has(g.key) ? " is-collapsed" : ""}`}
             aria-labelledby={id}
             data-testid="track-group"
+            // Soltar issues arrastrados en el grupo cambia esa propiedad (TrackIssueDnd), como Linear.
+            data-track-drop={dropTargetFor(groupBy, g.key, !!statusByName)}
           >
             <h2 className="track-mytasks-title track-group-title">
               <button

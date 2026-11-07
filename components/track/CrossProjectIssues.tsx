@@ -8,6 +8,7 @@ import { formatDay, parseQuickTitle, type DueBucket } from '@/lib/track-tasks';
 import { rowTargetId, useTrackCommands } from './trackCommands';
 import { pendingDeleteIds } from './trackUndo';
 import { useTrackLive } from './useTrackLive';
+import { TRACK_ISSUES_CHANGED } from './TrackBranch';
 import { useWorkspaceLabels } from './LabelPicker';
 import IssuesTable, { type OptionalColumn } from './IssuesTable';
 import { TrackToast, useToday } from './InlineEditors';
@@ -124,6 +125,11 @@ export default function CrossProjectIssues({
     setIssues(initialIssues.filter((i) => !hidden.has(i.id)));
   }, [initialIssues, setIssues]);
   useTrackLive({ workspace: true }, () => router.refresh(), { syncOnStart: true });
+  useEffect(() => {
+    const onChanged = () => router.refresh();
+    window.addEventListener(TRACK_ISSUES_CHANGED, onChanged);
+    return () => window.removeEventListener(TRACK_ISSUES_CHANGED, onChanged);
+  }, [router]);
 
   const allStatuses = useMemo(() => projects.flatMap((p) => p.statuses), [projects]);
   const allMembers = useMemo(() => {

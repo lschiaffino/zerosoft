@@ -11,17 +11,21 @@ import PrivateMark from './PrivateMark';
 import { useShellBranch } from '@/components/app/useShellBranch';
 import TrackIcon, { type TrackIconName } from './TrackIcon';
 import { StatusDot } from './glyphs';
-import { isTeamPath, teamPath } from '@/lib/track-routes';
+import { isTeamPath, projectPath, teamPath } from '@/lib/track-routes';
 import { setTopbarLabel } from '@/components/app/AppTopbar';
 
 type ProjectItem = Pick<TrackProjectRow, 'id' | 'name' | 'slug' | 'icon' | 'status' | 'visibility' | 'triage_enabled'> & { triage_count?: number };
 type FavoriteView = { id: string; name: string; project_id: string; project_name?: string };
+type BranchPlan = { id: string; name: string; icon: string | null; teams: Array<{ id: string }> };
 type FavoriteIssue = { id: string; identifier: string; title: string; status_color: string | null; status_category: string | null };
 
 /** Evento que avisan las vistas al marcar/desmarcar favoritas o renombrarlas. */
 export const TRACK_VIEWS_CHANGED = 'zs:track-views-changed';
 
 const EXPANDED_KEY = 'zs:track-branch-open';
+
+/** Evento al mover issues desde otro lado (arrastrar al sidebar, menú contextual): las listas se recargan. */
+export const TRACK_ISSUES_CHANGED = 'zs:track-issues-changed';
 
 /**
  * Sidebar de Track como el de Linear: vistas favoritas arriba y "Your teams"
@@ -37,6 +41,8 @@ export default function TrackBranch() {
   const [projects, setProjects] = useState<ProjectItem[] | null>(null);
   const [favorites, setFavorites] = useState<FavoriteView[]>([]);
   const [favoriteIssues, setFavoriteIssues] = useState<FavoriteIssue[]>([]);
+  // Projects activos de cada team: se abren bajo "Projects" y reciben issues arrastrados.
+  const [plans, setPlans] = useState<BranchPlan[]>([]);
   const [tick, setTick] = useState(0);
   // En la página de un issue se marca su team (el issue deja su team en data-track-project-id).
   const [contextTeam, setContextTeam] = useState<string | null>(null);
@@ -83,7 +89,11 @@ export default function TrackBranch() {
   useEffect(() => {
     const onChange = () => setTick((n) => n + 1);
     window.addEventListener(TRACK_VIEWS_CHANGED, onChange);
-    return () => window.removeEventListener(TRACK_VIEWS_CHANGED, onChange);
+    window.addEventListener(TRACK_ISSUES_CHANGED, onChange);
+    return () => {
+      window.removeEventListener(TRACK_VIEWS_CHANGED, onChange);
+      window.removeEventListener(TRACK_ISSUES_CHANGED, onChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -98,6 +108,12 @@ export default function TrackBranch() {
       .then((r) => (r.ok ? (r.json() as Promise<{ rows: FavoriteView[] }>) : null))
       .then((d) => {
         if (alive && d) setFavorites(d.rows);
+      })
+      .catch(() => null);
+    fetch('/api/track/plans?status=planned,in_progress')
+      .then((r) => (r.ok ? (r.json() as Promise<{ rows: BranchPlan[] }>) : null))
+      .then((d) => {
+        if (alive && d) setPlans(d.rows);
       })
       .catch(() => null);
     fetch('/api/track/issues/favorites')
@@ -197,7 +213,7 @@ export default function TrackBranch() {
             ];
             return (
               <li key={p.id} className="track-branch-team">
-                <div className={`docs-tree-row${here && !open ? ' active' : ''}`}>
+                <div className={`docs-tree-row${here && !open ? ' active' : ''}`} data-track-drop={`team:${p.id}`} data-track-drop-name={p.name}>
                   <button
                     type="button"
                     className={`docs-tree-chevron${open ? ' open' : ''}`}
@@ -242,6 +258,25 @@ export default function TrackBranch() {
                         </Link>
                       </li>
                     ))}
+                    {plans
+                      .filter((pl) => pl.teams.some((tm) => tm.id === p.id))
+                      .slice(0, 6)
+                      .map((pl) => (
+                        <li
+                          key={pl.id}
+                          className={`docs-tree-row track-branch-child track-branch-plan${pathname === projectPath(pl.id) ? ' active' : ''}`}
+                          data-track-drop={`plan:${pl.id}`}
+                          data-track-drop-name={pl.name}
+                        >
+                          <span className="docs-tree-chevron-spacer" aria-hidden="true" />
+                          <Link href={projectPath(pl.id)} className="docs-tree-link" data-testid="track-branch-plan">
+                            <span className="docs-tree-icon" aria-hidden="true">
+                              {pl.icon ? pl.icon : <TrackIcon name="plans" size={13} />}
+                            </span>
+                            <span className="docs-tree-title">{pl.name}</span>
+                          </Link>
+                        </li>
+                      ))}
                   </ul>
                 )}
               </li>
