@@ -55,6 +55,7 @@ import { guessStatusGroup, newDbId } from './docs-database';
 import { fileKindFor } from './docs-files';
 import { isAllowedUpload, MAX_UPLOAD_SIZE, saveUpload } from './uploads';
 import { parseCsv } from './csv-parse';
+import { workspacePeople } from './crm-import';
 
 /** Tope del zip subido. */
 export const NOTION_MAX_ZIP_BYTES = 1024 * 1024 * 1024;
@@ -688,6 +689,42 @@ export function splitTitle(md: string, fallback: string): { title: string; body:
   return m ? { title: m[1].trim(), body: src.slice(m[0].length) } : { title: fallback, body: src };
 }
 
+/** Rango de fechas de Notion ("November 3, 2026 → November 5, 2026"): inicio y fin. */
+function dateRange(v: string): { start: string; end: string } | null {
+  const parts = v.split('→').map((x) => x.trim());
+  if (parts.length !== 2) return null;
+  const start = looksDate(parts[0]);
+  // El fin puede venir sin año ni mes ("November 3 → 5, 2026" no lo usa Notion, pero "3:00 PM" sí): se ignora lo que no es fecha.
+  const end = looksDate(parts[1]);
+  return start && end ? { start, end } : null;
+}
+
+/** Valor de relación de Notion: "Título (ruta/a/Título <id>.md)" o con la URL de notion.so, separados por coma. */
+const RELATION_ITEM = /([^,()]+?)\s*\(([^()]*?(?:\.md|notion\.so[^()]*))\)/g;
+function relationItems(v: string): Array<{ title: string; href: string }> | null {
+  const items = [...v.matchAll(RELATION_ITEM)].map((m) => ({ title: m[1].trim(), href: m[2] }));
+  if (!items.length) return null;
+  // Lo que queda sin las relaciones son solo comas y espacios.
+  return v.replace(RELATION_ITEM, '').replace(/[\s,]/g, '') === '' ? items : null;
+}
+
+/** Id de 32 hex de Notion dentro de un link (path del export o URL). */
+export function notionIdIn(href: string): string | null {
+  const m = /([0-9a-f]{32})(?:\.md)?(?:[?#].*)?$/i.exec(safeDecode(href).replace(/-/g, ''));
+  return m ? m[1].toLowerCase() : null;
+}
+
+export interface CsvDatabaseOptions {
+  /** Id del bloque de la base (fijo, así otra base puede apuntarle con una relación). */
+  blockId?: string;
+  /** Id de la fila i (fijo, por lo mismo). */
+  rowId?: (index: number) => string;
+  /** Base de destino de una relación, a partir del id de Notion de una de sus filas. */
+  relation?: (notionRowId: string) => { pageId: string; blockId: string; rowId: (notionRowId: string, title: string) => string | null } | null;
+  /** Persona del workspace por nombre o email (minúsculas). */
+  person?: (nameOrEmail: string) => string | null;
+}
+
 function looksDate(v: string): string | null {
   if (!/\d{4}/.test(v) || v.includes('→')) return null;
   const clean = v.replace(/\s*\(GMT[^)]*\)\s*$/, '');
@@ -709,12 +746,12 @@ const YES_NO = new Set(['yes', 'no', 'true', 'false', '__yes__', '__no__']);
  * multi-select con comas, status si se llama así, select si se repiten pocos
  * valores; si no, texto).
  */
-export function csvToDatabaseBlock(text: string, newId: () => string = newDbId, title?: string): DocsBlock {
-  const [header = [], ...data] = parseCsv(text);
+export function csvToDatabaseBlock(text: string, newId: () => string = newDbId, title?: string, opts: CsvDatabaseOptions = {}): DocsBlock {
+  const [header = [], ...data] = parseCsv(text.replace(/^\uFEFF/, ''));
   const width = Math.min(Math.max(header.length, 1), DB_MAX_COLUMNS);
   const cells = data.slice(0, DB_MAX_ROWS).map((r) => Array.from({ length: width }, (_, i) => (r[i] ?? '').trim().slice(0, 2000)));
   const now = new Date().toISOString();
-  const rows: DbRow[] = cells.map(() => ({ id: newId(), values: {}, created_at: now, updated_at: now }));
+  const rows: DbRow[] = cells.map((_, i) => ({ id: opts.rowId?.(i) ?? newId(), values: {}, created_at: now, updated_at: now }));
   const properties: DbProperty[] = [];
   for (let i = 0; i < width; i++) {
     const name = (header[i] ?? '').trim().slice(0, 200) || `Column ${i + 1}`;
@@ -725,11 +762,46 @@ export function csvToDatabaseBlock(text: string, newId: () => string = newDbId, 
         const v = r[i] ? fn(r[i]) : null;
         if (v !== null && !(Array.isArray(v) && v.length === 0)) rows[k].values[prop.id] = v;
       });
+    let endProp: DbProperty | null = null;
     if (i > 0 && values.length > 0) {
       const distinct = [...new Set(values)];
       const parts = [...new Set(values.flatMap((v) => v.split(',').map((x) => x.trim()).filter(Boolean)))];
       const options = (names: string[]) => names.slice(0, 100).map((n) => ({ id: newId(), name: n }));
-      if (values.every((v) => /^-?\d+(?:\.\d+)?$/.test(v))) {
+      const relations = values.map(relationItems);
+      const people = opts.person ? parts.map((x) => opts.person!(x.toLowerCase())) : [];
+      if (relations.every(Boolean)) {
+        // Relación con otra base del export: apunta a sus filas; si la base no vino, quedan los títulos como texto.
+        const first = relations[0]![0];
+        const firstId = notionIdIn(first.href);
+        const target = firstId && opts.relation ? opts.relation(firstId) : null;
+        if (target) {
+          prop.type = 'relation';
+          prop.relation = { page_id: target.pageId, block_id: target.blockId };
+          set((v) => {
+            const ids = (relationItems(v) ?? []).map((it) => target.rowId(notionIdIn(it.href) ?? '', it.title)).filter((x): x is string => Boolean(x));
+            return ids.length ? [...new Set(ids)] : null;
+          });
+        } else set((v) => (relationItems(v) ?? []).map((it) => it.title).join(', '));
+      } else if (opts.person && parts.length > 0 && people.every(Boolean) && values.every((v) => !/\d{4}/.test(v))) {
+        // Nombres (o emails) de personas del workspace: propiedad persona.
+        prop.type = 'person';
+        set((v) => {
+          const ids = v.split(',').map((x) => opts.person!(x.trim().toLowerCase())).filter((x): x is string => Boolean(x));
+          return ids.length ? [...new Set(ids)] : null;
+        });
+      } else if (values.every((v) => looksDate(v) || dateRange(v)) && values.some((v) => dateRange(v))) {
+        // Fechas con rango: el inicio en la propiedad y el fin en "<nombre> (end)", como lo usa la vista timeline.
+        prop.type = 'date';
+        endProp = { id: newId(), name: `${name} (end)`.slice(0, 200), type: 'date' };
+        const end = endProp;
+        cells.forEach((r, k) => {
+          const v = r[i];
+          if (!v) return;
+          const range = dateRange(v);
+          rows[k].values[prop.id] = range ? range.start : looksDate(v);
+          if (range) rows[k].values[end.id] = range.end;
+        });
+      } else if (values.every((v) => /^-?\d+(?:\.\d+)?$/.test(v))) {
         prop.type = 'number';
         set((v) => Number(v));
       } else if (values.every((v) => YES_NO.has(v.toLowerCase()))) {
@@ -761,13 +833,14 @@ export function csvToDatabaseBlock(text: string, newId: () => string = newDbId, 
         set((v) => v.split(',').map((x) => byName.get(x.trim())).filter((x): x is string => Boolean(x)));
       }
     }
-    if (prop.type === 'title' || prop.type === 'text') set((v) => v);
+    if ((prop.type === 'title' || prop.type === 'text') && !rows.some((r) => prop.id in r.values)) set((v) => v);
     properties.push(prop);
+    if (endProp) properties.push(endProp);
   }
   const view = { id: newId(), name: '', type: 'table' as const };
   const dbTitle = title?.trim().slice(0, 200);
   return {
-    id: newId(),
+    id: opts.blockId ?? newId(),
     type: 'database',
     content: '',
     db: { properties, rows, views: [view], active_view: view.id, ...(dbTitle ? { title: dbTitle } : {}) },
@@ -971,10 +1044,48 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
   if (destTeamspace && !(await canWriteTeamspace(job.workspace_id, job.user_id, destTeamspace))) throw new ImportError('forbidden');
   const enexCache = new Map<string, Buffer>();
 
+  // Personas del workspace por nombre y email: las columnas de personas de un CSV pasan a ser propiedades persona.
+  const people = new Map<string, string>();
+  for (const p of await workspacePeople(job.workspace_id, db)) {
+    if (p.email) people.set(p.email.toLowerCase(), p.id);
+    if (p.name && !people.has(p.name.toLowerCase())) people.set(p.name.toLowerCase(), p.id);
+  }
+
+  // Relaciones entre bases: el bloque y las filas de cada base tienen ids fijos
+  // (derivados de su id local), así una base apunta a otra aunque se escriba antes.
+  const titlesCache = new Map<string, string[]>();
+  const titlesOf = async (dbItem: NotionPageItem): Promise<string[]> => {
+    let titles = titlesCache.get(dbItem.path);
+    if (!titles) {
+      const [, ...data] = parseCsv((await readText(idx, dbItem.path).catch(() => '')).replace(/^\uFEFF/, ''));
+      titles = data.slice(0, DB_MAX_ROWS).map((r) => (r[0] ?? '').trim());
+      titlesCache.set(dbItem.path, titles);
+    }
+    return titles;
+  };
+  // Se precargan los títulos de las bases que tienen filas con id (las únicas a las que se puede apuntar).
+  for (const item of all) if (item.kind === 'database' && all.some((r) => r.rowOf === item.path)) await titlesOf(item);
+  const byNotionId = new Map(all.filter((p) => p.notionId).map((p) => [p.notionId!, p]));
+  const relationTarget = (notionRowId: string) => {
+    const rowItem = byNotionId.get(notionRowId);
+    const target = rowItem?.rowOf ? byPath.get(rowItem.rowOf) : undefined;
+    const titles = target ? titlesCache.get(target.path) : undefined;
+    if (!target || !titles) return null;
+    return {
+      pageId: target.localId,
+      blockId: dbBlockId(target),
+      rowId: (nid: string, title: string) => {
+        const t = (nid && byNotionId.get(nid)?.title) || title;
+        const i = titles.indexOf(t.trim());
+        return i === -1 ? null : dbRowId(target, i);
+      },
+    };
+  };
+
   /** .md de Notion → bloques, con links internos, callouts y adjuntos subidos. */
   const convertMd = async (zipPath: string, body: string): Promise<DocsBlock[]> => {
     const { md, attachments } = rewriteNotionMarkdown(body, { ...ctxBase, path: zipPath });
-    const blocks = calloutIcons(markdownToBlocks(md, { sanitize: sanitizeNotionHtml }));
+    const blocks = calloutIcons(markdownToBlocks(md, { sanitize: sanitizeNotionHtml, headings: 'direct' }));
     if (!attachments.length) return blocks;
     const byMarker = new Map(attachments.map((a) => [a.marker, a]));
     return replaceMarkers(blocks, (m) => {
@@ -1037,7 +1148,12 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
       blocks = [];
     } else if (format === 'csv') {
       const text = await readText(idx, page.path).catch(() => '');
-      const block = csvToDatabaseBlock(text, newDbId, splitIcon(page.title).title);
+      const block = csvToDatabaseBlock(text, newDbId, splitIcon(page.title).title, {
+        blockId: dbBlockId(page),
+        rowId: (i) => dbRowId(page, i),
+        relation: (notionRowId) => relationTarget(notionRowId),
+        person: (key) => people.get(key) ?? null,
+      });
       const columns = block.db?.properties.map((p) => p.name) ?? [];
       const bodies: Array<{ title: string; blocks: DocsBlock[] }> = [];
       for (const row of all.filter((p) => p.rowOf === page.path)) {
@@ -1116,14 +1232,25 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
     const content = blocks.length ? blocks.slice(0, DOCS_IMPORT_MAX_BLOCKS) : [{ id: crypto.randomUUID(), type: 'paragraph' as const, content: '' }];
     const now = new Date().toISOString();
     await db
-      .prepare('INSERT INTO docs_pages (id, user_id, parent_id, title, icon, content, teamspace_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(page.localId, job.workspace_id, parentId, cleanTitle.slice(0, 500), icon, stringifyBlocks(sanitizeBlocks(content)), teamspaceId, created ?? now, updated ?? now);
+      // Una base a página completa usa todo el ancho, como en Notion.
+      .prepare('INSERT INTO docs_pages (id, user_id, parent_id, title, icon, content, teamspace_id, full_width, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(page.localId, job.workspace_id, parentId, cleanTitle.slice(0, 500), icon, stringifyBlocks(sanitizeBlocks(content)), teamspaceId, page.kind === 'database' ? 1 : 0, created ?? now, updated ?? now);
     const key = page.format === 'folder' ? `folder:${page.path.replace(/\/$/, '')}` : page.format === 'enex' ? `enex:${page.path}` : (page.notionId ?? page.path);
     await setExternalId(job.workspace_id, provider, 'page', key, page.localId);
     if (page.kind === 'database') report.databases += 1;
     else report.pages += 1;
     if (!parentId && report.roots.length < 10) report.roots.push({ id: page.localId, title: cleanTitle.slice(0, 200) });
   }
+}
+
+/** Id fijo del bloque de una base importada (las relaciones de otras bases lo usan). */
+function dbBlockId(item: NotionPageItem): string {
+  return `nd${createHash('sha1').update(`${item.localId}:block`).digest('hex').slice(0, 14)}`;
+}
+
+/** Id fijo de la fila i de una base importada. */
+function dbRowId(item: NotionPageItem, index: number): string {
+  return `nr${createHash('sha1').update(`${item.localId}:row:${index}`).digest('hex').slice(0, 14)}`;
 }
 
 /** ¿Puede `userId` seguir creando páginas en ese teamspace del workspace? (lo mismo que canCreateDocPage, sin sesión). */

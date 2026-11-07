@@ -55,6 +55,8 @@ interface Current {
   type: DocsBlockType;
   level?: 1 | 2 | 3;
   checked?: boolean;
+  toggle?: boolean;
+  icon?: string;
   indent: number;
   html: string;
 }
@@ -62,7 +64,17 @@ interface Current {
 export function htmlToBlocks(html: string, opts: HtmlToBlocksOptions): DocsBlock[] {
   const newId = opts.newId ?? (() => crypto.randomUUID());
   const out: DocsBlock[] = [];
-  const lists: Array<'ul' | 'ol'> = [];
+  // 'todo': lista de tareas de Notion (<ul class="to-do-list">, casilla como <div class="checkbox checkbox-on">).
+  const lists: Array<'ul' | 'ol' | 'todo'> = [];
+  /** <li> abiertos: un <details> adentro de un ítem ya anida por la lista. */
+  let liDepth = 0;
+  /** Cada <details> abierto: si suma un nivel por su cuenta (no está adentro de un <li>). */
+  const details: boolean[] = [];
+  /** Nivel del toggle que abre el próximo <summary>. */
+  let toggleIndent = 0;
+  /** Callout de Notion (<figure class="callout">): el texto del <span class="icon"> es su ícono. */
+  let calloutDepth = 0;
+  let iconSpan = 0;
   let quoteDepth = 0;
   let skipTag: string | null = null;
   let skipDepth = 0;
@@ -72,10 +84,11 @@ export function htmlToBlocks(html: string, opts: HtmlToBlocksOptions): DocsBlock
   const inlineStack: Array<{ tag: string; open: string; close: string }> = [];
   let cur: Current | null = null;
 
-  const listIndent = () => Math.min(Math.max(0, lists.length - 1), DOCS_MAX_INDENT);
+  const detailsIndent = () => details.filter(Boolean).length;
+  const listIndent = () => Math.min(Math.max(0, lists.length - 1) + detailsIndent(), DOCS_MAX_INDENT);
   const textType = (): DocsBlockType => (quoteDepth > 0 ? 'quote' : 'paragraph');
-  // Párrafo suelto adentro de un ítem de lista: es hijo del ítem.
-  const paraIndent = () => (lists.length ? Math.min(lists.length, DOCS_MAX_INDENT) : 0);
+  // Párrafo suelto adentro de un ítem de lista (o de un toggle): es hijo del ítem.
+  const paraIndent = () => Math.min(lists.length + detailsIndent(), DOCS_MAX_INDENT);
 
   const push = (b: Omit<DocsBlock, 'id'>) => {
     if (out.length < DOCS_IMPORT_MAX_BLOCKS) out.push({ id: newId(), ...b });
@@ -86,10 +99,12 @@ export function htmlToBlocks(html: string, opts: HtmlToBlocksOptions): DocsBlock
     // Cierra las marcas que quedaron abiertas en este bloque.
     const tail = inlineStack.map((m) => m.close).reverse().join('');
     const content = opts.sanitize(cur.html + tail).replace(/^\s+|\s+$/g, '');
-    const isItem = cur.type === 'bulleted_list_item' || cur.type === 'numbered_list_item' || cur.type === 'todo';
+    const isItem = cur.type === 'bulleted_list_item' || cur.type === 'numbered_list_item' || cur.type === 'todo' || cur.type === 'toggle' || cur.type === 'callout';
     if (content || isItem) {
       const b: Omit<DocsBlock, 'id'> = { type: cur.type, content };
       if (cur.level) b.level = cur.level;
+      if (cur.toggle) b.toggle = true;
+      if (cur.icon) b.icon = cur.icon;
       if (cur.type === 'todo') b.checked = Boolean(cur.checked);
       if (cur.indent > 0) b.indent = cur.indent;
       push(b);
@@ -129,6 +144,11 @@ export function htmlToBlocks(html: string, opts: HtmlToBlocksOptions): DocsBlock
 
     if (text !== undefined || token === '<') {
       const raw = text ?? '&lt;';
+      if (iconSpan > 0 && cur && (cur as Current).type === 'callout') {
+        const icon = decodeEntities(raw).trim();
+        if (icon && !(cur as Current).icon) (cur as Current).icon = icon.slice(0, 16);
+        continue;
+      }
       if (pre) pre.html += raw;
       else if (table) {
         if (table.cell !== null) table.cell += raw;
@@ -185,19 +205,77 @@ export function htmlToBlocks(html: string, opts: HtmlToBlocksOptions): DocsBlock
       case 'h3':
       case 'h4':
       case 'h5':
-      case 'h6':
+      case 'h6': {
+        const level = tag === 'h1' ? 1 : tag === 'h2' ? 2 : 3;
+        const c = cur as Current | null;
         if (closing) flush();
-        else start({ type: 'heading', level: tag === 'h1' ? 1 : tag === 'h2' ? 2 : 3, indent: paraIndent() });
+        // Título adentro del <summary> de un toggle: toggle heading.
+        else if (c && c.type === 'toggle' && !c.html.replace(/<[^>]*>/g, '').trim()) {
+          c.type = 'heading';
+          c.level = level;
+          c.toggle = true;
+        } else start({ type: 'heading', level, indent: paraIndent() });
         continue;
+      }
       case 'ul':
       case 'ol':
         flush();
         if (closing) lists.pop();
-        else lists.push(tag);
+        else lists.push(tag === 'ul' && /\bto-do-list\b/.test(attr(attrs, 'class') ?? '') ? 'todo' : tag);
         continue;
-      case 'li':
+      case 'li': {
+        if (closing) {
+          liDepth = Math.max(0, liDepth - 1);
+          flush();
+          continue;
+        }
+        liDepth++;
+        const kind = lists[lists.length - 1];
+        start({ type: kind === 'ol' ? 'numbered_list_item' : kind === 'todo' ? 'todo' : 'bulleted_list_item', indent: listIndent(), ...(kind === 'todo' ? { checked: false } : {}) });
+        continue;
+      }
+      case 'details':
+        if (closing) {
+          flush();
+          details.pop();
+        } else {
+          const c = cur as Current | null;
+          const inItem = Boolean(c && c.type !== 'paragraph' && c.type !== 'quote' && !c.html.replace(/<[^>]*>/g, '').trim());
+          toggleIndent = inItem && c ? c.indent : paraIndent();
+          if (!inItem) flush();
+          details.push(liDepth === 0 || !inItem);
+        }
+        continue;
+      case 'summary':
         if (closing) flush();
-        else start({ type: lists[lists.length - 1] === 'ol' ? 'numbered_list_item' : 'bulleted_list_item', indent: listIndent() });
+        else {
+          const c = cur as Current | null;
+          // <ul class="toggle"><li><details><summary>: el ítem vacío pasa a ser el toggle.
+          if (c && (c.type === 'bulleted_list_item' || c.type === 'numbered_list_item') && !c.html.replace(/<[^>]*>/g, '').trim()) c.type = 'toggle';
+          else start({ type: 'toggle', indent: Math.min(toggleIndent, DOCS_MAX_INDENT) });
+        }
+        continue;
+      case 'figure':
+        if (/\bcallout\b/.test(attr(attrs, 'class') ?? '') && !closing) {
+          start({ type: 'callout', indent: paraIndent() });
+          calloutDepth++;
+          continue;
+        }
+        if (closing && calloutDepth > 0) {
+          calloutDepth--;
+          flush();
+          continue;
+        }
+        break;
+      case 'aside':
+        // Callout del Markdown de Notion (<aside>💡 texto</aside>).
+        if (!closing) {
+          start({ type: 'callout', indent: paraIndent() });
+          calloutDepth++;
+        } else if (calloutDepth > 0) {
+          calloutDepth--;
+          flush();
+        }
         continue;
       case 'blockquote':
         flush();
@@ -222,6 +300,25 @@ export function htmlToBlocks(html: string, opts: HtmlToBlocksOptions): DocsBlock
       case 'br':
         appendRaw('<br>');
         continue;
+      case 'span':
+      case 'div':
+        if (!closing && iconSpan > 0) {
+          iconSpan++;
+          continue;
+        }
+        if (closing && iconSpan > 0) {
+          iconSpan--;
+          continue;
+        }
+        if (!closing && cur && (cur as Current).type === 'todo' && /\bcheckbox\b/.test(attr(attrs, 'class') ?? '')) {
+          (cur as Current).checked = /\bcheckbox-on\b/.test(attr(attrs, 'class') ?? '');
+          continue;
+        }
+        if (!closing && tag === 'span' && calloutDepth > 0 && /\bicon\b/.test(attr(attrs, 'class') ?? '')) {
+          iconSpan = 1;
+          continue;
+        }
+        break;
       case 'input': {
         // Tareas (GitHub, Notion): <li><input type="checkbox" checked> …
         if (cur && (attr(attrs, 'type') ?? '').toLowerCase() === 'checkbox') {

@@ -64,7 +64,7 @@
     "noCommands": "No commands",
     "headingPlaceholder": "Heading",
     "quotePlaceholder": "Empty quote",
-    "languagePlaceholder": "language",
+    "languagePlaceholder": "Plain text",
     "addRow": "+ row",
     "addColumn": "+ column",
     "format": {
@@ -321,7 +321,10 @@
       "loading": "Loading…",
       "pages": "{n, plural, one {# page} other {# pages}}",
       "create": "Create a design"
-    }
+    },
+    "codeLanguage": "Code language",
+    "copyCode": "Copy",
+    "codeCopied": "Copied"
   },
   "database": {
     "database": "Database",
@@ -759,7 +762,8 @@
     "today": "Today",
     "tomorrow": "Tomorrow",
     "remindAt": "Remind me {when}",
-    "reminderHint": "Notifies you in the app and by email"
+    "reminderHint": "Notifies you in the app and by email",
+    "pages": "Pages"
   },
   "emoji": {
     "pick": "Pick icon",
@@ -840,7 +844,8 @@
     "inheritRole": "Default ({role})",
     "invitePending": "Invited by email · pending",
     "revokeInvite": "Revoke invite",
-    "sharedCommentBanner": "{name} shared this page with you so you can comment and suggest edits."
+    "sharedCommentBanner": "{name} shared this page with you so you can comment and suggest edits.",
+    "copyPageLink": "Copy link"
   },
   "templates": {
     "title": "Start from a template",

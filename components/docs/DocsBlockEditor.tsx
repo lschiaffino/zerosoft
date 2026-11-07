@@ -17,7 +17,7 @@ import { isPageLinkId, pageLinkHref, type PageLinkSource } from '@/lib/docs-page
 import { isFileBlockType } from '@/lib/docs-files';
 import { htmlToBlocks, shouldSplitPaste } from '@/lib/docs-paste';
 import { looksLikeMarkdown, markdownToBlocks, plainTextToBlocks } from '@/lib/docs-import';
-import { isToggleBlock } from '@/lib/docs-blocks';
+import { isToggleBlock, numberedMarker } from '@/lib/docs-blocks';
 import { pastedUrl } from '@/lib/docs-embeds';
 import DocsGlyph from './DocsGlyphs';
 import EmojiPicker from './EmojiPicker';
@@ -30,12 +30,17 @@ import { BreadcrumbBlock, ButtonBlock, EquationBlock, TocBlock } from './DocsAdv
 import { renderInlineTex } from './inlineTex';
 import DocsMeetingBlock from './DocsMeetingBlock';
 
+/** Sugerencias del campo de lenguaje del bloque de código (se puede escribir cualquier otro). */
+const CODE_LANGUAGES = ['Plain text', 'Bash', 'C', 'C#', 'C++', 'CSS', 'Dart', 'Diff', 'Docker', 'Go', 'GraphQL', 'HTML', 'Java', 'JavaScript', 'JSON', 'Kotlin', 'Markdown', 'Mermaid', 'PHP', 'Python', 'R', 'Ruby', 'Rust', 'Scala', 'Shell', 'SQL', 'Swift', 'TypeScript', 'YAML'];
+
 interface DocsBlockEditorProps {
   /** Solo lectura (página bloqueada o permiso de comentar): se selecciona para comentar, no se escribe. */
   readOnly?: boolean;
   block: DocsBlock;
   index: number;
   listIndex?: number;
+  /** Nivel dentro de la lista (lib/docs-blocks.ts listDepths): elige la viñeta y el formato del número. */
+  listDepth?: number;
   onChange: (index: number, patch: Partial<DocsBlock>) => void;
   onKeyDown: (index: number, e: React.KeyboardEvent<HTMLElement>) => void;
   onFocus: (index: number) => void;
@@ -95,7 +100,7 @@ function pastedBlocks(html: string, text: string): DocsBlock[] | null {
 }
 
 const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
-  ({ readOnly = false, block, index, listIndex, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles, onPasteBlocks, database, toc, trail, onRunButton, onInlineEquation, onPasteUrl, onPasteSynced }, ref) => {
+  ({ readOnly = false, block, index, listIndex, listDepth = 0, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles, onPasteBlocks, database, toc, trail, onRunButton, onInlineEquation, onPasteUrl, onPasteSynced }, ref) => {
     const t = useTranslations('docs');
     const locale = useLocale();
     const router = useRouter();
@@ -446,9 +451,33 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
             <input
               className="docs-lang-input"
               value={block.language ?? ''}
+              list="docs-code-languages"
+              aria-label={t('editor.codeLanguage')}
               placeholder={t('editor.languagePlaceholder')}
+              readOnly={readOnly}
               onChange={(e) => onChange(index, { language: e.target.value })}
             />
+            <datalist id="docs-code-languages">
+              {CODE_LANGUAGES.map((l) => (
+                <option key={l} value={l} />
+              ))}
+            </datalist>
+            <button
+              type="button"
+              className="docs-code-copy"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                const btn = e.currentTarget;
+                void navigator.clipboard?.writeText(htmlToFlatText(block.content)).then(() => {
+                  btn.textContent = t('editor.codeCopied');
+                  window.setTimeout(() => {
+                    btn.textContent = t('editor.copyCode');
+                  }, 1500);
+                });
+              }}
+            >
+              {t('editor.copyCode')}
+            </button>
           </div>
         )}
         <div
@@ -460,6 +489,8 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           role={blockRole(block.type, block.level)}
           aria-level={block.type === 'heading' ? block.level ?? 2 : undefined}
           data-index={listIndex}
+          data-marker={block.type === 'numbered_list_item' && listIndex ? numberedMarker(listIndex, listDepth) : undefined}
+          data-depth={block.type === 'bulleted_list_item' || block.type === 'numbered_list_item' ? listDepth % 3 : undefined}
           // .docs-toggle ya es el interruptor del menú de página: el texto del toggle usa otro nombre.
           className={`docs-editable docs-${block.type === 'toggle' ? 'toggle-text' : block.type}${block.level ? ` docs-h${block.level}` : ''}`}
           contentEditable={!readOnly}

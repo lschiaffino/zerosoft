@@ -64,7 +64,7 @@
     "noCommands": "Sem comandos",
     "headingPlaceholder": "Cabeçalho",
     "quotePlaceholder": "Citação vazia",
-    "languagePlaceholder": "linguagem",
+    "languagePlaceholder": "Texto simples",
     "addRow": "+ linha",
     "addColumn": "+ coluna",
     "format": {
@@ -321,7 +321,10 @@
       "loading": "Carregando…",
       "pages": "{n, plural, one {# página} other {# páginas}}",
       "create": "Criar um design"
-    }
+    },
+    "codeLanguage": "Linguagem do código",
+    "copyCode": "Copiar",
+    "codeCopied": "Copiado"
   },
   "database": {
     "database": "Banco de dados",
@@ -759,7 +762,8 @@
     "today": "Hoje",
     "tomorrow": "Amanhã",
     "remindAt": "Lembrar-me {when}",
-    "reminderHint": "Avisa você no app e por email"
+    "reminderHint": "Avisa você no app e por email",
+    "pages": "Páginas"
   },
   "emoji": {
     "pick": "Escolher ícone",
@@ -840,7 +844,8 @@
     "inheritRole": "Padrão ({role})",
     "invitePending": "Convidado por email · pendente",
     "revokeInvite": "Revogar convite",
-    "sharedCommentBanner": "{name} compartilhou esta página com você para comentar e sugerir mudanças."
+    "sharedCommentBanner": "{name} compartilhou esta página com você para comentar e sugerir mudanças.",
+    "copyPageLink": "Copiar link"
   },
   "templates": {
     "title": "Começar de um modelo",

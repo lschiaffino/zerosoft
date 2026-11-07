@@ -40,7 +40,10 @@
 .docs-editor,
 .docs-prose {
   --docs-text: 1.0625rem;
-  --docs-leading: 1.65;
+  /* 1.5 como Notion: con 2px arriba y abajo y el hueco de 4px, ~34px por renglón. */
+  --docs-leading: 1.5;
+  /* Columna de la viñeta/número/casilla: el texto de un ítem empieza acá, y un hijo anida a esta misma distancia. */
+  --docs-marker-w: 1.625rem;
   --docs-link: var(--accent-ink, var(--c-docs-ink));
 }
 
@@ -497,7 +500,7 @@
 
 .docs-blocks { position: relative; display: flex; flex-direction: column; min-width: 0; }
 .docs-block-outer { position: relative; min-width: 0; }
-.docs-block { display: flex; align-items: flex-start; gap: 10px; padding: 3px 0; min-width: 0; }
+.docs-block { display: flex; align-items: flex-start; gap: 10px; padding: 2px 0; min-width: 0; }
 
 .docs-editable {
   flex: 1;
@@ -565,29 +568,37 @@
 .docs-block-heading:has(.docs-h3) { padding-top: 14px; }
 .docs-blocks > .docs-block-outer:first-child .docs-block-heading { padding-top: 6px; }
 
-/* Listas: viñeta cuadrada. */
+/* Listas: la marca vive en una columna fija (--docs-marker-w) a la izquierda
+   del texto, centrada en la primera línea; las líneas que siguen quedan
+   alineadas con el texto, no con la marca. Por nivel de anidado cambia como en
+   Notion: viñeta llena, hueca y chica; números 1. → a. → i. */
 .docs-bulleted_list_item,
-.docs-numbered_list_item { position: relative; padding-left: 26px; }
+.docs-numbered_list_item { position: relative; padding-left: var(--docs-marker-w); }
 .docs-bulleted_list_item::before {
   content: '';
   position: absolute;
-  left: 8px;
+  left: calc(var(--docs-marker-w) / 2 - 3px);
   top: calc(var(--docs-text) * var(--docs-leading) / 2 - 3px);
   width: 6px;
   height: 6px;
   background: var(--ink);
 }
+.docs-bulleted_list_item[data-depth='1']::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink); }
+.docs-bulleted_list_item[data-depth='2']::before { left: calc(var(--docs-marker-w) / 2 - 2px); top: calc(var(--docs-text) * var(--docs-leading) / 2 - 2px); width: 4px; height: 4px; }
+/* Número alineado a la derecha de su columna: 9. y 10. cierran en el mismo punto y el texto no se mueve. */
 .docs-numbered_list_item::before {
-  content: attr(data-index) '.';
+  content: attr(data-marker) '.';
   position: absolute;
-  left: 0;
-  min-width: 20px;
+  right: calc(100% - var(--docs-marker-w) + 6px);
+  top: 0;
+  white-space: nowrap;
   color: var(--brand-gray-2);
   font-variant-numeric: tabular-nums;
 }
 
-/* Anidado (Tab): cada nivel corre el bloque (con su asa y su "+") hacia la derecha. */
-.docs-block-outer[data-indent] { margin-left: calc(var(--docs-indent, 0) * 1.625rem); }
+/* Anidado (Tab): cada nivel corre el bloque (con su asa y su "+") hacia la derecha
+   lo mismo que la columna de la marca, así el hijo arranca donde arranca el texto del padre. */
+.docs-block-outer[data-indent] { margin-left: calc(var(--docs-indent, 0) * var(--docs-marker-w)); }
 .docs-block-outer.is-hidden,
 .docs-gap.is-hidden { display: none; }
 
@@ -645,6 +656,8 @@
 .docs-callout-icon:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 
 /* Tareas: casilla cuadrada de tinta; hecha = tachada en gris. */
+/* La casilla ocupa la misma columna que una viñeta: el texto de una tarea arranca donde el de un ítem. */
+.docs-block-todo { gap: calc(var(--docs-marker-w) - 18px); }
 .docs-check {
   flex-shrink: 0;
   width: 18px;
@@ -670,27 +683,44 @@
   color: var(--brand-gray-1);
 }
 
-.docs-block-code { flex-wrap: wrap; gap: 0; }
-.docs-code-lang { width: 100%; }
+.docs-block-code { flex-wrap: wrap; gap: 0; margin: 4px 0; padding: 0; border-radius: var(--radius-1); background: var(--brand-enamel); }
+/* Barra del bloque de código (como Notion): lenguaje a la izquierda, copiar a la derecha al pasar el mouse. */
+.docs-code-lang { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 6px 8px 0; }
 .docs-lang-input {
   width: 140px;
-  height: 26px;
-  margin-bottom: -1px;
-  padding: 0 10px;
+  height: 24px;
+  padding: 0 6px;
   border: 0;
-  border-radius: var(--radius-1) var(--radius-1) 0 0;
-  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+  background: transparent;
   font-family: var(--font-data);
   font-size: 0.75rem;
   color: var(--brand-gray-1);
   outline: none;
 }
+.docs-lang-input:hover { background: var(--ui-hover); }
+.docs-lang-input::placeholder { color: var(--brand-gray-2); }
 .docs-lang-input:focus-visible { box-shadow: inset 0 0 0 2px var(--ink); }
+.docs-code-copy {
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: transparent;
+  font-size: 0.75rem;
+  color: var(--brand-gray-1);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--ui-dur, 160ms) ease;
+}
+.docs-block-code:hover .docs-code-copy,
+.docs-code-copy:focus-visible { opacity: 1; }
+.docs-code-copy:hover { background: var(--ui-hover); color: var(--ink); }
+.docs-code-copy:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+@media (hover: none) { .docs-code-copy { opacity: 1; } }
 .docs-code {
   width: 100%;
-  padding: 14px 16px;
-  border-radius: 0 var(--radius-1) var(--radius-1) var(--radius-1);
-  background: var(--brand-enamel);
+  padding: 6px 16px 14px;
   font-family: var(--font-data);
   font-size: 0.84375rem;
   line-height: 1.6;

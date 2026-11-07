@@ -17,6 +17,11 @@ export interface MarkdownToBlocksOptions {
   /** Sanea el HTML en línea (subset HTML-lite). */
   sanitize: (html: string) => string;
   newId?: () => string;
+  /**
+   * Cómo pasan los # a títulos. 'notes' (por defecto, inverso del export de
+   * Notes): # y ## → H1, ### → H2. 'direct' (Notion): # → H1, ## → H2, ### → H3.
+   */
+  headings?: 'notes' | 'direct';
 }
 
 function esc(text: string): string {
@@ -47,9 +52,11 @@ export function markdownToBlocks(md: string, opts: MarkdownToBlocksOptions): Doc
     return opts.sanitize(withLinks.replace(/\n/g, '<br>')).trim();
   };
 
+  /** <details> abiertos (toggles de Notion): lo que va adentro anida un nivel más. */
+  let detailsDepth = 0;
   const push = (b: Omit<DocsBlock, 'id'>, indent: number) => {
     if (out.length >= DOCS_IMPORT_MAX_BLOCKS) return;
-    const d = Math.min(indent, DOCS_MAX_INDENT);
+    const d = Math.min(indent + detailsDepth, DOCS_MAX_INDENT);
     out.push({ id: newId(), ...b, ...(d > 0 ? { indent: d } : {}) });
   };
 
@@ -59,7 +66,7 @@ export function markdownToBlocks(md: string, opts: MarkdownToBlocksOptions): Doc
         case 'heading': {
           const t = tok as Tokens.Heading;
           // Como el import de Notes (inverso del export): # y ## → H1, ### → H2, #### o más → H3.
-          const level = (t.depth <= 2 ? 1 : t.depth === 3 ? 2 : 3) as 1 | 2 | 3;
+          const level = (opts.headings === 'direct' ? Math.min(t.depth, 3) : t.depth <= 2 ? 1 : t.depth === 3 ? 2 : 3) as 1 | 2 | 3;
           push({ type: 'heading', level, content: inline(t.text) }, indent);
           break;
         }
@@ -108,7 +115,29 @@ export function markdownToBlocks(md: string, opts: MarkdownToBlocksOptions): Doc
           break;
         }
         case 'html': {
-          const text = opts.sanitize((tok as Tokens.HTML).text).replace(/<[^>]*>/g, '').trim();
+          const raw = (tok as Tokens.HTML).text;
+          // Toggle de Notion: <details><summary>Título</summary> … </details>.
+          if (/<\/?details\b/i.test(raw)) {
+            const re = /<details\b[^>]*>|<\/details\s*>|<summary\b[^>]*>([\s\S]*?)<\/summary\s*>/gi;
+            let m: RegExpExecArray | null;
+            let rest = raw;
+            while ((m = re.exec(raw))) {
+              if (/^<\/details/i.test(m[0])) detailsDepth = Math.max(0, detailsDepth - 1);
+              else if (/^<summary/i.test(m[0])) {
+                const h = /<h([1-3])\b[^>]*>([\s\S]*?)<\/h\1>/i.exec(m[1]);
+                const content = inline(esc((h ? h[2] : m[1]).replace(/<[^>]*>/g, '').trim()));
+                // El toggle va al nivel de afuera; su contenido, un nivel más adentro.
+                detailsDepth = Math.max(0, detailsDepth - 1);
+                push(h ? { type: 'heading', level: Number(h[1]) as 1 | 2 | 3, toggle: true, content } : { type: 'toggle', content }, indent);
+                detailsDepth += 1;
+              } else detailsDepth += 1;
+              rest = rest.replace(m[0], '');
+            }
+            const text = opts.sanitize(rest).replace(/<[^>]*>/g, '').trim();
+            if (text) push({ type: as, content: esc(text) }, indent);
+            break;
+          }
+          const text = opts.sanitize(raw).replace(/<[^>]*>/g, '').trim();
           if (text) push({ type: as, content: esc(text) }, indent);
           break;
         }

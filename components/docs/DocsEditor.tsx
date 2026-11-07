@@ -79,6 +79,7 @@ import {
   removeHtmlRange,
   serializeEditable,
   splitHtmlAt,
+  matchInlineMarkdown,
   toggleMark,
   unwrapLink,
   upgradeToHtml,
@@ -96,6 +97,7 @@ import {
   indentRange,
   insertionPoint,
   isToggleBlock,
+  listDepths,
   listNumbers,
   moveRange,
   nextVisible,
@@ -376,6 +378,8 @@ function commandIcon(cmd: { type: DocsBlockType; special?: CommandSpecial }): Do
 }
 
 const LIST_TYPES: DocsBlockType[] = ['bulleted_list_item', 'numbered_list_item', 'todo'];
+/** Backspace al inicio de estos bloques los vuelve texto antes de unir o desanidar. */
+const TO_TEXT_ON_BACKSPACE = new Set<DocsBlockType>([...LIST_TYPES, 'toggle', 'heading', 'quote', 'callout']);
 
 /** px antes de activar el drag del bloque (permite click normal en el grip). */
 const DRAG_THRESHOLD = 6;
@@ -584,6 +588,8 @@ export default function DocsEditor({
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   /** Caret pendiente de aplicar después del próximo render (split/merge/conversión). */
   const pendingCaret = useRef<{ index: number; offset: number } | null>(null);
+  /** Después de un Markdown en línea: dónde la próxima letra va sin la marca. */
+  const plainAfterMark = useRef<{ index: number; offset: number } | null>(null);
   /** Párrafo que recibe el foco cuando termina una subida (ver uploadFiles). */
   const pendingFocusId = useRef<string | null>(null);
   /** Último índice enfocado conocido, para no re-mover el caret en cada render. */
@@ -661,6 +667,7 @@ export default function DocsEditor({
   /** Bloques dentro de un toggle plegado: no se muestran ni reciben foco. */
   const hidden = useMemo(() => hiddenBlocks(blocks), [blocks]);
   const numbers = useMemo(() => listNumbers(blocks), [blocks]);
+  const depths = useMemo(() => listDepths(blocks), [blocks]);
   /** Bloques adentro de un sincronizado que quien mira no puede editar (no edita su origen). */
   const noEdit = useMemo(() => {
     const out = new Array<boolean>(blocks.length).fill(false);
@@ -2168,6 +2175,16 @@ export default function DocsEditor({
       const block = blocks[index];
       if (!block) return false;
 
+      // Como en Notion: un ítem de lista, tarea, toggle, título, cita o
+      // callout primero pierde su tipo y queda como texto (con su nivel y sus
+      // hijos); recién el próximo Backspace lo desanida o lo une.
+      if (TO_TEXT_ON_BACKSPACE.has(block.type)) {
+        convertBlock(index, 'paragraph', undefined, block.content, 0);
+        pendingCaret.current = { index, offset: 0 };
+        setFocusTick((v) => v + 1);
+        return true;
+      }
+
       // Un bloque anidado primero sube de nivel (como en Notion).
       if (blockIndent(block) > scopeBaseIndent(blocks, index) && isTextBlockType(block.type)) {
         if (indentBlocks(index, index, -1)) {
@@ -2345,6 +2362,23 @@ export default function DocsEditor({
       const isEditable = el.isContentEditable;
       const caret = isEditable ? getCaretOffset(el) : 0;
       const collapsed = window.getSelection()?.isCollapsed ?? true;
+
+      // Recién cerrado un `**negrita**`: la letra que sigue va afuera de la
+      // marca (el navegador la metería adentro). Cualquier otra tecla lo olvida.
+      const plain = plainAfterMark.current;
+      if (plain) {
+        plainAfterMark.current = null;
+        if (
+          plain.index === index && isEditable && collapsed && caret === plain.offset &&
+          e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey && !e.nativeEvent.isComposing
+        ) {
+          e.preventDefault();
+          updateBlock(index, { content: insertTextAtOffset(serializeEditable(el), caret, e.key) });
+          pendingCaret.current = { index, offset: caret + 1 };
+          setFocusTick((v) => v + 1);
+          return;
+        }
+      }
 
       // Formato en línea: Cmd/Ctrl+B/I/U (toggle) y Cmd/Ctrl+K (link). El
       // browser aplicaría <b>/<i> con execCommand: se previene y se usa el
@@ -2601,6 +2635,23 @@ export default function DocsEditor({
         }
       }
 
+      // Markdown en línea (`**negrita**`, `*cursiva*`, `` `código` ``, `~~tachado~~`):
+      // al tipear el cierre el texto toma el formato y las marcas se van.
+      const inlineMd = !isCode ? matchInlineMarkdown(beforeCaret) : null;
+      if (inlineMd && caret === beforeCaret.length) {
+        const { start, delim, inner, tag } = inlineMd;
+        let html = removeHtmlRange(text, caret - delim, caret);
+        html = removeHtmlRange(html, start, start + delim);
+        const end = start + inner.length;
+        if (!isRangeFullyMarked(html, tag, start, end)) html = toggleMark(html, tag, start, end);
+        updateBlock(index, { content: html });
+        pendingCaret.current = { index, offset: end };
+        plainAfterMark.current = { index, offset: end };
+        setFocusTick((v) => v + 1);
+        closeSlash();
+        return;
+      }
+
       // `[[query`: la query no cruza '[' ni ']' (otro '[[' reinicia el trigger).
       const mentionMatch = !isCode && pageLinksEnabled ? beforeCaret.match(/\[\[([^\][]*)$/) : null;
       if (mentionMatch) {
@@ -2802,6 +2853,32 @@ export default function DocsEditor({
     [blocks, mention, triggerSave, t, setBlocks],
   );
 
+  /** `@` también enlaza páginas (como en Notion): reemplaza el `@query` por el link. */
+  const onSelectUserPage = useCallback(
+    (selected: PageLinkCandidate) => {
+      if (!userMention) return;
+      const { index, start, end } = userMention;
+      const block = blocks[index];
+      if (!block) {
+        setUserMention(null);
+        return;
+      }
+      const title = selected.title || t('untitled');
+      const [before, after] = splitHtmlAt(removeHtmlRange(block.content, start, end), start);
+      const newContent = `${before}${pageLinkHtml(selected.id, title, selected.row_id)} ${after}`;
+      setBlocks((prev) => {
+        const next = prev.map((b, i) => (i === index ? { ...b, content: newContent } : b));
+        triggerSave(next);
+        return next;
+      });
+      setUserMention(null);
+      pendingCaret.current = { index, offset: start + title.length + 1 };
+      setFocusIndex(index);
+      setFocusTick((v) => v + 1);
+    },
+    [blocks, userMention, triggerSave, t, setBlocks],
+  );
+
   const onSelectUserMention = useCallback(
     (selected: DocsMentionableUser) => {
       if (!userMention) return;
@@ -2856,7 +2933,9 @@ export default function DocsEditor({
             : d.key === 'tomorrow'
               ? t('mentions.tomorrow')
               : dateLabel(d.date, d.time, locale),
-        detail: d.remind ? t('mentions.reminderHint') : d.key === 'date' ? '' : dateLabel(d.date, d.time, locale),
+        // El aviso va como ayuda (title): en la fila no entra junto a "Recordarme …".
+        detail: d.remind || d.key === 'date' ? '' : dateLabel(d.date, d.time, locale),
+        hint: d.remind ? t('mentions.reminderHint') : undefined,
       })),
     [dateOptions, locale, t],
   );
@@ -3689,6 +3768,7 @@ export default function DocsEditor({
                   block={block}
                   index={index}
                   listIndex={numbers[index] || undefined}
+                  listDepth={depths[index] || 0}
                   onChange={handleBlockChange}
                   onKeyDown={handleKeyDown}
                   onFocus={handleFocus}
@@ -4290,6 +4370,7 @@ export default function DocsEditor({
 
       <div
         className={`docs-blocks${fileDropLine !== null ? ' file-dragover' : ''}${blockSel ? ' has-selection' : ''}`}
+        data-dictation-bar="off"
         ref={blocksWrapRef}
         tabIndex={-1}
         aria-label={blockSel ? t('editor.selection.label', { count: selMax - selMin + 1 }) : undefined}
@@ -4451,11 +4532,12 @@ export default function DocsEditor({
         <UserMentionPopover
           query={userMention.query}
           pageId={page.id}
-          style={caretMenuStyle(caretMenuPos, 260, 280)}
+          style={caretMenuStyle(caretMenuPos, 300, 320)}
           onSelect={onSelectUserMention}
           onClose={() => setUserMention(null)}
           dates={dateOptionLabels}
           onSelectDate={onSelectDateMention}
+          onSelectPage={pageLinksEnabled && !pageLinks ? onSelectUserPage : undefined}
         />,
         document.body,
       )}
