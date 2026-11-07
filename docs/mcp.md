@@ -45,6 +45,21 @@ Clase de cada operación: DELETE y lo que manda algo afuera, mueve plata o toca 
 - Pedidos de autorización inválidos terminan en `/oauth/error`, nunca en una URI registrada. El link del dispositivo no salta a los permisos y arranca en solo lectura.
 - Rate limit por conexión: 300 lecturas y 60 escrituras por minuto. Auditoría de cada escritura en `mcp_audit_log`, sin argumentos ni secretos.
 
+## Atajos y asistente
+
+- Atajos (`DIRECT_TOOLS` en `lib/mcp/server.ts`): lo más usado de Groups, Track, Docs, Board y contactos con nombre propio y esquema descrito a mano, para harnesses que no hacen descubrimiento progresivo. Pasan por `invokeOperation` como cualquier operación. Los args planos se arman con `directArgs` (un campo `body` es el texto de un mensaje, no el envoltorio). Lo destructivo pide `confirm: true`. La lista pública está en `MCP_NAMED_TOOLS` (`content/mcp-docs.ts`) y un test las compara.
+- El asistente del panel (⌘J) usa el mismo catálogo (`lib/assistant/tools-catalog.ts`) con un caller `kind: 'session'`: lecturas en el turno, escrituras como tarjeta que la persona confirma. El registro abierto sale del path (`lib/assistant/page-context.ts`).
+- Pantalla de permisos: el workspace propio va como null aunque `active_team_id` tenga su id (`consentTeamId`). Antes, aprobar daba 403 y el cliente quedaba en "Needs authentication".
+
+## Probar con clientes reales
+
+```sh
+claude mcp add --transport http zs-local http://localhost:PORT/api/mcp
+claude mcp login zs-local --no-browser   # imprime la URL; aprobar en el navegador
+npx @modelcontextprotocol/inspector --cli http://localhost:PORT/api/mcp --transport http \
+  --header "Authorization: Bearer zs_..." --method tools/list
+```
+
 ## Decisiones
 
 - Sin dependencia nueva: el protocolo es JSON-RPC simple y `lib/track-mcp.ts` ya estaba hecho a mano.
