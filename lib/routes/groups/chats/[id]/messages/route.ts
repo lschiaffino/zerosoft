@@ -3,6 +3,7 @@ import { GroupsError, getChatRow, listMessages, sendMessage } from '@/lib/groups
 import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
 import { maskMessage } from '@/lib/groups-access';
 import { normalizePoll } from '@/lib/groups-polls';
+import { mediaFromBody } from '@/lib/groups-media-input';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,23 +25,15 @@ export async function GET(req: Request, ctx: Ctx) {
   return NextResponse.json({ messages: (await listMessages(s.ws, id, { after, limit })).map((m) => maskMessage(guard.viewer, m)) });
 }
 
-/** Manda texto, media, una encuesta ({ poll: { question, options, multi } }) o una nota interna ({ note: true }). */
+/** Manda texto, media (ver mediaFromBody), una encuesta ({ poll: { question, options, multi } }) o una nota interna ({ note: true }). */
 export async function POST(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const guard = await chatGuard(s, (await ctx.params).id);
   if (guard instanceof NextResponse) return guard;
   const b = await readJson(req);
-  const media =
-    b.media && typeof b.media === 'object'
-      ? (() => {
-          const m = b.media as Record<string, unknown>;
-          const url = str(m.url, 2000) ?? '';
-          // Solo archivos subidos a zerosoft o URLs https públicas.
-          if (!/^(\/uploads\/|https:\/\/)/.test(url)) return null;
-          return { url, mimetype: str(m.mimetype, 100) || 'application/octet-stream', filename: str(m.filename, 200) || 'file' };
-        })()
-      : null;
+  // { url, mimetype, filename, size?, kind?: 'voice' | 'sticker' | 'document' | ..., width?, height?, duration? }
+  const media = mediaFromBody(b.media, req);
   try {
     let poll = null;
     if (b.poll != null) {
@@ -55,17 +48,10 @@ export async function POST(req: Request, ctx: Ctx) {
       body: str(b.body) ?? '',
       replyToId: str(b.replyToId, 100) || null,
       note: b.note === true,
-      media: media ? { ...media, url: absoluteUrl(media.url, req) } : null,
+      media,
     });
     return NextResponse.json(maskMessage(guard.viewer, msg), { status: 201 });
   } catch (err) {
     return handleGroupsError(err);
   }
-}
-
-/** El proveedor baja la media de una URL pública: un /uploads/ relativo se completa con el origen. */
-function absoluteUrl(url: string, req: Request): string {
-  if (!url.startsWith('/')) return url;
-  const base = (process.env.NEXTAUTH_URL || new URL(req.url).origin).replace(/\/$/, '');
-  return `${base}${url}`;
 }

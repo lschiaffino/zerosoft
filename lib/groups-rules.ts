@@ -22,9 +22,11 @@ export function propertyText(v: unknown, type?: string): string {
 }
 
 /** Marcador de vista previa sin texto ni nombre ([image], [file]...), o null. */
-export function previewToken(preview: string): 'image' | 'audio' | 'video' | 'file' | 'call' | 'deleted' | null {
-  const m = /^\[(image|audio|video|file|call|deleted)\]$/.exec(String(preview ?? '').trim());
-  return m ? (m[1] as 'image' | 'audio' | 'video' | 'file' | 'call' | 'deleted') : null;
+export type PreviewToken = 'image' | 'audio' | 'video' | 'file' | 'call' | 'deleted' | 'voice' | 'sticker' | 'location' | 'contact' | 'viewOnce';
+
+export function previewToken(preview: string): PreviewToken | null {
+  const m = /^\[(image|audio|video|file|call|deleted|voice|sticker|location|contact|viewOnce)\]$/.exec(String(preview ?? '').trim());
+  return m ? (m[1] as PreviewToken) : null;
 }
 
 export const TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const;
