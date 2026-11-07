@@ -101,7 +101,9 @@ describe('track-views', () => {
 
   it('groupPreset da el valor asignable de cada grupo', () => {
     expect(groupPreset('status', 's1')).toEqual({ statusId: 's1' });
-    expect(groupPreset('status', `${STATUS_NAME_KEY}Todo`)).toBeNull();
+    // Varios teams: el grupo por nombre lleva el nombre (el alta elige el status de ese team); arrastrar no.
+    expect(groupPreset('status', `${STATUS_NAME_KEY}Todo`)).toEqual({ statusName: 'Todo' });
+    expect(groupPreset('status', `${STATUS_NAME_KEY}Todo`, { movable: true })).toBeNull();
     expect(groupPreset('priority', 'high')).toEqual({ priority: 'high' });
     expect(groupPreset('assignee', '')).toEqual({ assigneeId: null });
     expect(groupPreset('cycle', 'c1')).toEqual({ cycleId: 'c1' });

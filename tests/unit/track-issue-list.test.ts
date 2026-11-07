@@ -11,7 +11,8 @@ import {
 } from '@/lib/track-issue-list';
 import { EMPTY_FILTERS, filterToSql } from '@/lib/track-filter';
 import { compareIssues, groupIssues, groupPreset, issueOrderBy, PLAN_ISSUE_GROUPS, STATUS_NAME_KEY } from '@/lib/track-views';
-import { planProgressSeries, sortPlans } from '@/lib/track-plan-metrics';
+import { planProgressSeries } from '@/lib/track-plan-metrics';
+import { sortPlans } from '@/lib/track-plan-list';
 
 const statuses = [
   { id: 'a-todo', name: 'Todo', category: 'todo', color: '#000', position: 1 },

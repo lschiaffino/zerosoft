@@ -7,7 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import type { PlanSummary } from '@/lib/track-plans';
 import { PLAN_STATUSES, type PlanStatus } from '@/lib/track-planning-schema';
-import { PLAN_LIST_SORTS, sortPlans, type PlanListSort } from '@/lib/track-plan-metrics';
+import { PLAN_LIST_SORTS, sortPlans, type PlanListSort } from '@/lib/track-plan-list';
 import { api, fmtDay, HealthDot, LoadingRows, Modal, PlanStatusIcon, ProgressBar, personName, type Person } from './shared';
 import { projectPath } from '@/lib/track-routes';
 import KeyPicker, { type KeyPickerHandle } from '@/components/track/KeyPicker';

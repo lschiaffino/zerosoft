@@ -10,12 +10,14 @@ import RichEditor from '@/components/track/RichEditor';
 import KeyPicker from '@/components/track/KeyPicker';
 import type { PlanSummary, PlanEvent } from '@/lib/track-plans';
 import type { PlanUpdate, PlanUpdateComment, PlanUpdateReaction } from '@/lib/track-plan-updates';
-import { TRACK_REACTIONS } from '@/lib/track-ux';
 import { Popover } from '@/components/track/InlineEditors';
 import TrackIcon from '@/components/track/TrackIcon';
 import { PLAN_HEALTH, type PlanHealth } from '@/lib/track-planning-schema';
 import { api, fmtDay, fmtWhen, HealthDot, LoadingRows, personName } from './shared';
 import type { PlansMeta } from './PlansList';
+
+/** Los mismos de los comentarios de issues (TRACK_REACTIONS de lib/track-ux, que lee la base y no entra al cliente). */
+const TRACK_REACTIONS = ['👍', '👎', '❤️', '🎉', '😄', '😕', '👀', '🚀'];
 
 type Item = { kind: 'update'; at: string; update: PlanUpdate } | { kind: 'event'; at: string; event: PlanEvent };
 

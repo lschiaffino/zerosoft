@@ -1,44 +1,13 @@
 /**
- * Track — vista de projects (track_plans): orden de la lista y el gráfico de
- * progreso del project (alcance contra terminado en el tiempo), como el de
- * la página de project de Linear. El gráfico se arma con el mismo burn-up
- * de los cycles (lib/track-planning-core): el alcance de cada día son los
- * issues del project creados hasta ese día, y lo terminado sale de los
- * cambios de status de la actividad.
+ * Track — gráfico de progreso del project (alcance contra terminado en el
+ * tiempo), como el de la página de project de Linear. Se arma con el mismo
+ * burn-up de los cycles (lib/track-planning-core): el alcance de cada día son
+ * los issues del project creados hasta ese día, y lo terminado sale de los
+ * cambios de status de la actividad. Solo servidor (lee la base); el orden de
+ * la lista de projects está en lib/track-plan-list.
  */
 import { getDb } from './db';
 import { computeCycleMetrics, type CycleDayPoint, type CycleIssueHistory, type StatusCategory } from './track-planning-core';
-
-export const PLAN_LIST_SORTS = ['manual', 'name', 'target', 'progress', 'created', 'updated'] as const;
-export type PlanListSort = (typeof PLAN_LIST_SORTS)[number];
-
-interface SortablePlan {
-  name: string;
-  target_date: string | null;
-  created_at: string;
-  updated_at?: string | null;
-  progress: { percent: number };
-}
-
-/** Orden de la lista de projects ("manual" deja el del servidor: estado y después fecha). */
-export function sortPlans<T extends SortablePlan>(rows: T[], sort: PlanListSort): T[] {
-  if (sort === 'manual') return rows;
-  const out = [...rows];
-  switch (sort) {
-    case 'name':
-      return out.sort((a, b) => a.name.localeCompare(b.name));
-    case 'target':
-      // Sin fecha al final, como Linear.
-      return out.sort((a, b) => (a.target_date ?? '9999').localeCompare(b.target_date ?? '9999'));
-    case 'progress':
-      return out.sort((a, b) => b.progress.percent - a.progress.percent);
-    case 'created':
-      return out.sort((a, b) => b.created_at.localeCompare(a.created_at));
-    case 'updated':
-      return out.sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at));
-  }
-  return out;
-}
 
 export interface PlanProgressSeries {
   points: CycleDayPoint[];
