@@ -2468,5 +2468,49 @@
     "description": "Calendly lets the host add instructions to the confirmation page and the confirmation email (https://calendly.com/help/how-to-customize-your-confirmation-page). We have welcomeMessage for the booking form and a redirect URL, but nothing that appears in the confirmation screen or the email, so a host cannot say 'bring your ID' or 'here is the prep doc' without a redirect. First scope: a short message per event type with plain links, shown after booking, in the email and in the manage page.",
     "product": "cal",
     "kind": "idea"
+  },
+  {
+    "title": "Track: Create a Slack channel automatically for each new project",
+    "description": "Linear can create and link a Slack channel when a project is created, and posts project updates there (https://linear-web.pages.dev/changelog/2026-05-21-project-slack-channels). Track lets a project post issue activity to a channel chosen by hand in lib/track-slack.ts, but it never creates the channel. A small team loses time setting up one channel per project and wiring the notifications. First scope: a project setting that creates a channel named after the project through the existing Slack connection, links it and posts the project updates there.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Notify and create issues from Microsoft Teams channels",
+    "description": "Linear for Microsoft Teams lets people mention @Linear in a channel to create work and get issue notifications (https://linear-web.pages.dev/changelog/2026-04-16-linear-for-microsoft-teams). Track only reaches Teams through Flow, and the Slack integration (lib/track-slack.ts) has no Teams equivalent. Teams are common in small companies that already pay for Microsoft 365. First scope: an incoming webhook per project for activity notices to a Teams channel, then a bot command to create an issue from a message.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Add team documents pinned to each project page",
+    "description": "Linear lets a team pin shared documents to a team page, next to its issues (https://linear-web.pages.dev/changelog/2026-06-04-team-documents). Track projects have a description and updates but no place for specs, runbooks or onboarding pages, and the link from Track to Docs is only per issue (app/[locale]/app/track). A small team ends up with a doc per project that nobody finds. First scope: pin Docs pages to a project from its Overview tab, listed with title and last edit, opening in Docs.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Add sub-teams that roll up under a parent team",
+    "description": "Linear supports multi-level sub-teams so teams mirror the org structure, with issues and views rolling up to the parent (https://linear-web.pages.dev/changelog/2026-04-09-multi-level-sub-teams). Track has a flat list of teams that hold the key, statuses and cycles (lib/track-data.ts), with no parent. Teams of 10 to 20 people start splitting into groups such as web and mobile and want one view of both. First scope: an optional parent team, and a team issues view that includes the issues of its children.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Create projects from a project template",
+    "description": "Linear lets a workspace save project templates with a description, milestones and a set of issues, then start new projects from them (https://linear.app/docs/project-templates). Track has issue templates per project (lib/track-templates.ts) but every new project starts empty. Teams that run the same kind of project, such as a launch or a client onboarding, rebuild its milestones and first issues each time. First scope: save a project as a template with its milestones and open issues, and a Use template choice in the new project form.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Send a saved view digest to Slack or email",
+    "description": "Linear lets people subscribe to a view and get a notification when issues enter it, including to a Slack channel (https://linear.app/docs/custom-views). Track saved views are shared with the team (components/track/SavedViewsMenu.tsx) but nobody is told when something new matches. A weekly bug triage or a Fridays-due view only works if someone remembers to open it. First scope: a Notify me toggle per view that adds a daily email or Slack summary of newly matching issues, claimed per row by the existing cron.",
+    "product": "track",
+    "kind": "idea"
+  },
+  {
+    "title": "Track: Preload a default issue template per project in quick create",
+    "description": "Linear lets a team mark a template as the default so every new issue starts from it (https://linear.app/docs/issue-templates). Track had templates per project (lib/track-templates.ts) that had to be picked by hand each time. A small team that files most issues in one shape, such as bug reports, repeats that pick on every issue. Built: a Default checkbox on the template form, one default per project, and quick create fills it in on an empty draft.",
+    "product": "track",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-07-track-default-template"
   }
 ]

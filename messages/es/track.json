@@ -732,6 +732,8 @@
     "adminOnly": "Solo owners y admins del workspace pueden cambiar esto."
   },
   "templates": {
+    "default": "Por defecto",
+    "defaultLabel": "Usar como predeterminada para los issues nuevos de este proyecto. El alta rápida la precarga; podés elegir otra o ninguna.",
     "help": "Valores precargados para los issues que creás seguido. Elegí una al crear un issue y se completan sus propiedades y descripción.",
     "emptyTitle": "Todavía no hay plantillas",
     "emptyBody": "Creá una para reportes de bugs, pedidos o cualquier issue que repitas.",

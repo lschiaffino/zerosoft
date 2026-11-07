@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-07-track-default-template',
+    date: '2026-11-07',
+    title: {
+      en: 'Track: a default issue template per project',
+      es: 'Track: una plantilla de issue por defecto en cada proyecto',
+      pt: 'Track: um template de issue padrão em cada projeto',
+    },
+    items: [
+      {
+        product: 'track',
+        en: 'Mark one template as the default in the project settings. New issues from quick create start with its title, description, status, priority, assignee, estimate and labels already filled in. You can switch to another template or none from the same menu.',
+        es: 'Marcá una plantilla como predeterminada en los ajustes del proyecto. Los issues nuevos del alta rápida arrancan con su título, descripción, estado, prioridad, asignado, estimación y labels ya cargados. Podés cambiar a otra plantilla o a ninguna desde el mismo menú.',
+        pt: 'Marque um template como padrão nas configurações do projeto. As novas issues da criação rápida já começam com título, descrição, status, prioridade, responsável, estimativa e labels preenchidos. Você pode trocar para outro template ou nenhum no mesmo menu.',
+      },
+    ],
+  },
+  {
     id: '2026-11-06-cal-change-cutoff',
     date: '2026-11-06',
     title: {

@@ -732,6 +732,8 @@
     "adminOnly": "Só owners e admins do workspace podem mudar isso."
   },
   "templates": {
+    "default": "Padrão",
+    "defaultLabel": "Usar como padrão para novas issues deste projeto. A criação rápida a preenche; você ainda pode escolher outra ou nenhuma.",
     "help": "Valores pré-carregados para issues que você cria com frequência. Escolha um ao criar um issue para preencher propriedades e descrição.",
     "emptyTitle": "Ainda não há modelos",
     "emptyBody": "Crie um para relatos de bug, pedidos ou qualquer issue que se repita.",

@@ -1342,6 +1342,7 @@ export interface TrackIssueTemplateRow {
   assignee_id: string | null;
   estimate: number | null;
   labels: string; // JSON TrackLabel[]
+  is_default: number;
   created_at: string;
   updated_at: string;
 }
