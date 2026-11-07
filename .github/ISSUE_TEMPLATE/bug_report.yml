@@ -1,26 +1,88 @@
 name: Bug report
-description: Something is broken
-labels: [bug]
+description: Something is broken or behaves differently from what you expect
+labels: [bug, needs triage]
 body:
-  - type: dropdown
-    id: product
+  - type: markdown
     attributes:
-      label: Product
-      options: [Link, CRM, Track, Cal, Chat, Docs, Site / other]
+      value: |
+        Thanks for reporting. Please search the existing issues first.
+        Security problems go to security@zerosoft.ai, not here (see SECURITY.md).
+  - type: dropdown
+    id: app
+    attributes:
+      label: App
+      options:
+        - Agents
+        - Analytics
+        - Board
+        - Books
+        - Cal
+        - Chat
+        - CRM
+        - Design
+        - Docs
+        - Flow
+        - Forms
+        - Groups
+        - Hiring
+        - Link
+        - Notes
+        - People
+        - Rec
+        - Robots
+        - Send
+        - Shop
+        - Sign
+        - Social
+        - Talk
+        - Track
+        - Voice
+        - Platform (sign-in, workspaces, settings, search, assistant)
+        - Site, blog or API docs
+        - Self-hosting or Docker
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did it happen?
+      options:
+        - zerosoft.ai cloud
+        - Self-hosted (Docker)
+        - Self-hosted (other)
+        - Local dev
     validations:
       required: true
   - type: textarea
     id: what
     attributes:
-      label: What happened and what did you expect?
+      label: What happened, and what did you expect?
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
       label: Steps to reproduce
-  - type: dropdown
-    id: where
+      placeholder: |
+        1. Open /app/...
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: env
     attributes:
-      label: Where
-      options: [zerosoft.ai cloud, Self-hosted (Docker), Self-hosted (other), Local dev]
+      label: Browser, OS, and version or commit
+      description: When self-hosted, the commit SHA or image tag. On the cloud, the browser is enough.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, logs or anything else
+      description: Remove personal data and secrets before pasting logs.
+  - type: checkboxes
+    id: pr
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to open a PR for this.

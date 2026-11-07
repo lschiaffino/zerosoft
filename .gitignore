@@ -12,6 +12,8 @@ next-env.d.ts
 .DS_Store
 .vercel
 .env*
+!.env.example
+!.env.offline.example
 
 # Uploads locales (dev / self-host sin Blob; public/uploads es de versiones anteriores)
 /data/uploads/
@@ -20,3 +22,9 @@ public/uploads/
 # Tests
 /test-results/
 /playwright-report/
+
+# Salida local de herramientas de diseño y capturas (el material interno vive en
+# el repo privado zerosoft-internal; ver CLAUDE.md)
+/.impeccable/
+/screenshots/
+/PRODUCT.md

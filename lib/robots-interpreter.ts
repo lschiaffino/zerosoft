@@ -24,7 +24,7 @@ export interface RobotLocator {
   allInnerTexts(): Promise<string[]>;
   evaluateAll<R>(fn: (els: Element[], arg: string) => R, arg: string): Promise<R>;
   evaluate<R>(fn: (el: Element) => R, arg?: unknown, opts?: { timeout?: number }): Promise<R>;
-  waitFor(opts?: { state?: 'attached' | 'visible'; timeout?: number }): Promise<void>;
+  waitFor(opts?: { state?: 'attached' | 'visible' | 'hidden'; timeout?: number }): Promise<void>;
   scrollIntoViewIfNeeded(opts?: { timeout?: number }): Promise<void>;
   setInputFiles?(files: { name: string; mimeType: string; buffer: unknown }, opts?: { timeout?: number }): Promise<void>;
   /** El elemento mismo: un login se escribe en él, no en lo que el selector encuentre después. */
@@ -904,8 +904,10 @@ export async function robotInterpreter(
       }
       case 'wait': {
         if (selector) {
-          await page.locator(selector).first().waitFor({ state: 'attached', timeout: timeout() });
-          return { detail: selector };
+          const until = str(s.until);
+          const state = until === 'disappears' ? 'hidden' : until === 'visible' ? 'visible' : 'attached';
+          await page.locator(selector).first().waitFor({ state, timeout: timeout() });
+          return { detail: until === 'disappears' ? `${selector} (gone)` : selector };
         }
         const ms = Math.min(Math.max(Number(s.ms) || 0, 0), 30_000);
         if (ms > remaining()) fail('timeout');

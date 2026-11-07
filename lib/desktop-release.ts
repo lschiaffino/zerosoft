@@ -10,6 +10,7 @@
  * 10 minutos por instancia (la API anónima de GitHub da 60 pedidos por hora).
  * Server-only.
  */
+import { GITHUB_REPO } from './repo';
 import { safeFetch } from './safe-fetch';
 
 const CACHE_MS = 10 * 60_000;
@@ -24,7 +25,7 @@ async function cached<T>(key: string, load: () => Promise<T | null>): Promise<T 
   return value;
 }
 
-export const DESKTOP_REPO = process.env.DESKTOP_RELEASES_REPO || 'lschiaffino/zerosoft';
+export const DESKTOP_REPO = process.env.DESKTOP_RELEASES_REPO || GITHUB_REPO;
 export const DESKTOP_TAG_PREFIX = 'desktop-v';
 
 export interface GhAsset {
@@ -103,12 +104,12 @@ const FAKE: GhRelease = {
   name: 'zerosoft desktop 0.1.0',
   draft: false,
   prerelease: false,
-  html_url: 'https://github.com/lschiaffino/zerosoft/releases/tag/desktop-v0.1.0',
+  html_url: `https://github.com/${DESKTOP_REPO}/releases/tag/desktop-v0.1.0`,
   published_at: '2026-10-29T12:00:00Z',
   assets: ['zerosoft-0.1.0-mac-arm64.dmg', 'zerosoft-0.1.0-mac-x64.dmg', 'zerosoft-0.1.0-win-x64.exe', 'latest-mac.yml', 'latest.yml'].map((name) => ({
     name,
     size: 1,
-    browser_download_url: `https://github.com/lschiaffino/zerosoft/releases/download/desktop-v0.1.0/${name}`,
+    browser_download_url: `https://github.com/${DESKTOP_REPO}/releases/download/desktop-v0.1.0/${name}`,
   })),
 };
 
@@ -146,7 +147,7 @@ export async function updateFeed(file: 'latest-mac.yml' | 'latest.yml'): Promise
   if (process.env.DESKTOP_RELEASES_FAKE === '1') {
     return rewriteUpdateYml(`version: 0.1.0\nfiles:\n  - url: zerosoft-0.1.0-mac-arm64.zip\n    sha512: x\n    size: 1\npath: zerosoft-0.1.0-mac-arm64.zip\nsha512: x\n`, [
       ...release.assets,
-      { name: 'zerosoft-0.1.0-mac-arm64.zip', size: 1, browser_download_url: 'https://github.com/lschiaffino/zerosoft/releases/download/desktop-v0.1.0/zerosoft-0.1.0-mac-arm64.zip' },
+      { name: 'zerosoft-0.1.0-mac-arm64.zip', size: 1, browser_download_url: `https://github.com/${DESKTOP_REPO}/releases/download/desktop-v0.1.0/zerosoft-0.1.0-mac-arm64.zip` },
     ]);
   }
   return cached(`feed:${asset.browser_download_url}`, async () => {

@@ -1404,7 +1404,7 @@
   },
   {
     "title": "Agents: Export, import and duplicate an agent with its configuration",
-    "description": "Chatbase lets you duplicate agents and Voiceflow exports environments (https://www.chatbase.co/docs/user-guides/chatbot/settings.md, https://www.voiceflow.com/docs/documentation/deploy/environments/overview.md). There is no way to copy an agent here: to try new instructions safely you rebuild it by hand, and there is no backup before a big edit. First scope: Duplicate in the agent menu, and export/import as JSON with instructions, knowledge selection, tools config, handoff, guardrails and tests (secrets excluded and listed as missing on import).",
+    "description": "Chatbase lets you duplicate agents and Voiceflow exports environments (https://www.chatbase.co/docs/user-guides/chatbot/settings.md, https://www.voiceflow.com/docs/documentation/deploy/environments/overview.md). There is no way to copy an agent here: to try new instructions safely you rebuild it by hand, and there is no backup before a big edit. First scope: Duplicate in the agent menu, and export/import as JSON with instructions, knowledge selection, tools config, handoff, guardrails and tests (secrets excluded and listed as missing on import). Duplicate shipped; JSON export and import are still open.",
     "product": "agents",
     "kind": "idea"
   },
@@ -2269,7 +2269,9 @@
     "title": "Agents: Index the 7-day stats queries and stop loading them in the Flow editor",
     "description": "listAgents (lib/agents.ts:157-176) aggregates agent_conversations with WHERE user_id AND created_at and agent_feedback with WHERE user_id, but both tables only have agent_id indexes. EXPLAIN QUERY PLAN shows a SCAN of each table, so the cost grows with every conversation. The Flow editor page (app/[locale]/app/flow/[id]/page.tsx:27-30) loads the full listAgents, stats included, just for a picker. First scope: a migration adding agent_conversations(user_id, created_at) and agent_feedback(user_id, agent_id), plus a light listAgentOptions for the pickers.\n\nPriority: medium. Effort: S.",
     "product": "agents",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-31-agents-duplicate"
   },
   {
     "title": "Link: Daily click rollups for analytics and record clicks after the redirect",
@@ -2512,5 +2514,303 @@
     "kind": "idea",
     "status": "done",
     "changelog": "2026-11-07-track-default-template"
+  },
+  {
+    "title": "CRM: Clone a deal with its associations from the record menu",
+    "description": "HubSpot lets you clone a deal, contact or company from the record actions menu (https://knowledge.hubspot.com/records/clone-records). We had no way to copy a record, so repeat deals meant retyping every property. First scope: Clone deal in the More menu at app/[locale]/app/crm/deals/[id]/page.tsx, copying properties, contacts and companies but not notes, tasks or line items; contacts and companies come later.",
+    "product": "crm",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-05-crm-clone-deal"
+  },
+  {
+    "title": "CRM: Make custom properties required on the create form",
+    "description": "HubSpot properties can be marked required so a record cannot be created without them (https://knowledge.hubspot.com/object-settings/set-required-properties-for-records). Our custom fields in lib/crm-custom-fields.ts only support types and options, and stage rules in lib/crm-stage-rules.ts cover deals entering a stage, not creation. For a small team this keeps owner, source or region from being empty in reports. First scope: a required flag per custom field, enforced in the create forms and the v1 API with a clear error.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Set default values for properties on new records",
+    "description": "HubSpot admins can set a default value per property that applies on manual creation, workflows and the API (https://knowledge.hubspot.com/object-settings/set-default-property-values). Our custom fields have no default, so every new contact starts blank and people forget the same field. First scope: a default per custom field and per core property such as source or priority, applied in createContact, createCompany and createDeal in lib/crm.ts when the value is missing.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Add formula properties that calculate from other properties",
+    "description": "HubSpot calculation properties compute a number, date or text from other properties on the record (https://knowledge.hubspot.com/properties/create-calculation-properties). We only have stored custom fields in lib/crm-custom-fields.ts. A small team uses this for margin, days to close or weighted amount without a report. First scope: a formula field type with arithmetic over number and currency fields, computed on read, usable in table columns and filters.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Separate the permission to create records from the permission to edit",
+    "description": "HubSpot admins can allow a role to edit records without letting it create new ones (https://knowledge.hubspot.com/user-management/hubspot-user-permissions-guide). Our visibility rules in lib/crm-visibility.ts and lib/crm-field-perms.ts control what a person sees and which fields they change, not whether they can add records. This stops interns or guests from filling the CRM with duplicates. First scope: a per-role create toggle for contacts, companies and deals checked by the POST routes under app/api/crm.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add hover, double click and right click actions to the Click step",
+    "description": "UiPath's Click activity exposes click type (single, double) and mouse button, and hover is a separate Hover activity (https://docs.uipath.com/activities/other/latest/ui-automation/). Our Click step in lib/robots-schema.ts only does a single left click, so menus that open on hover and context menus cannot be automated. Small teams hit this on dashboards with hover menus. First scope: a `mode` option (click, double, right, hover) on the click step, recorded by the recorder when it sees dblclick or contextmenu events.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add a Set variable step with text transforms (trim, regex, replace, number, date)",
+    "description": "UiPath's Assign and string activities let a workflow reshape values between steps (https://docs.uipath.com/activities/other/latest/ui-automation/). Today our robots can only write variables through Extract or Evaluate with custom JavaScript (lib/robots-interpreter.ts), so cleaning a price or building a URL needs code. A small team wants '$1,299.00' to become 1299 without writing a script. First scope: a set_var step with a template and a list of transforms, usable in later steps as {{vars.name}}.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add an Assert step that fails the run when a value or element is wrong",
+    "description": "UiPath ships Verify Expression and Check App State activities to validate a page before continuing (https://docs.uipath.com/activities/other/latest/ui-automation/). We have If exists, which can fail on a missing element, but nothing that checks a value such as 'row count is greater than 0' or 'text contains Welcome'. Robots that silently return empty tables look like successes in the run history. First scope: an assert step with element exists, text contains and variable comparisons, and a clear error in the run log.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Switch between tabs and handle popups opened by a click",
+    "description": "UiPath's Attach Browser and Use Browser scopes let a workflow move between windows and tabs (https://docs.uipath.com/activities/other/latest/ui-automation/). Our interpreter runs against a single page (lib/robots-interpreter.ts), so a link with target=_blank or a login popup leaves the robot on the old page. This blocks a lot of real portals. First scope: a `switch_tab` step (newest, by URL contains, back to first) and an option on Click to follow the new tab.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Dismiss cookie banners and dialogs automatically before each step",
+    "description": "UiPath handles unexpected popups with Pop-up handlers triggered during execution (https://docs.uipath.com/activities/other/latest/ui-automation/). Robots here fail or click the wrong element when a consent banner covers the page, and the user must record a manual click step for every site. For a small team that scrapes many sites this is the most common flaky step. First scope: a robot setting that clicks known consent buttons and auto-accepts JavaScript alert dialogs, with a note in the run log when it fired.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Robots: Add a Check or uncheck step for checkboxes and radio buttons",
+    "description": "UiPath has a dedicated Check/Uncheck activity that sets a checkbox to a known state instead of toggling it (https://docs.uipath.com/activities/other/latest/ui-automation/). Our Click step toggles, so a robot that runs on a page where the box starts checked flips it the wrong way. First scope: a check step with a checked/unchecked choice that uses the page's real state, and a recorder mapping from checkbox clicks to this step.",
+    "product": "robots",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Copy a link that opens the board zoomed on a frame or selection",
+    "description": "Miro lets you copy a link to a single object or frame so teammates land on that part of a large board (https://help.miro.com/hc/en-us/articles/360017730533). Our boards open at the last saved viewport and there is no deep link parameter, as lib/board-urls.ts only builds board-level URLs. In a retro or planning board with ten frames, people paste 'see the third column' in chat instead of a link. First scope: a 'Copy link' action on a selected frame or element that adds ?focus=<elementId>, and the editor and viewer scroll to it on load.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Star boards and pin them at the top of the list and sidebar",
+    "description": "Miro has Starred boards that stay pinned on the home screen (https://help.miro.com/hc/en-us/articles/360017730773). Our board list in components/board/BoardList.tsx sorts by update date only, with no per-user favorite. Teams that keep one living roadmap board plus many workshop boards lose it under the new ones. First scope: a per-user star toggle on each row and in the editor header, stored in a small table, with starred boards listed first and in the sidebar.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Let people request access from a private board link",
+    "description": "Miro shows 'Request access' to anyone who opens a board link they cannot see, and notifies the owner (https://help.miro.com/hc/en-us/articles/360017730693). Here a user without access gets a plain error page from app/[locale]/app/board/[id]. The result is a Chat message asking the owner to share it manually. First scope: a request button on the no-access page that creates a notification for the owner, who can grant viewer or editor from BoardAccessPanel in one click.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add emoji reactions that float on the canvas for workshops",
+    "description": "Miro has reactions that people trigger with a shortcut and that float up next to their cursor, used for quick feedback during a session (https://help.miro.com/hc/en-us/articles/360017731113). We have live cursors and presence (components/board/BoardPresence.tsx) but no way to react without adding a comment or a sticky. First scope: five fixed emojis in the live layer, sent over the existing live channel in lib/board-live.ts, shown for three seconds and never saved in the scene.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add a table object with rows, columns and paste from a spreadsheet",
+    "description": "Miro has a Table item with typed columns that can be filled by pasting from Sheets or Excel (https://help.miro.com/hc/en-us/articles/360017571174). Our canvas is Excalidraw, which has no table element, and nothing in lib/board-templates.ts or components/board creates one. Comparison matrices and prioritization grids are a common reason teams open a whiteboard. First scope: paste of tab-separated text creates a grid of bound text cells aligned on the canvas, grouped so it moves as one.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add estimation sessions with hidden votes and a reveal button",
+    "description": "Miro offers a planning poker and estimation app where everyone picks a card and the facilitator reveals all at once (https://miro.com/templates/planning-poker/). We have dot voting and a shared timer in lib/board-workshop.ts but votes there are visible while people cast them. For sprint planning on Board plus Track, hidden votes avoid anchoring. First scope: a workshop mode with a fixed Fibonacci scale, hidden picks per person, a reveal action for the facilitator and a button that writes the median to the selected sticky.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Merge several selected notes into one note",
+    "description": "Evernote lets you select several notes and merge them into one, keeping the first-selected note on top (https://techlearning.com/tl-advisor-blog/9011, an older guide to check against the current app). Today the list selection in components/notes/NotesApp.tsx offers move, tag, pin and trash through app/api/notes/bulk/route.ts, but not merge. Small teams collect meeting fragments in many notes and want one clean page. First scope: a Merge action in the selection bar that concatenates content in selection order, unions tags, keeps the first note and trashes the others, with the existing version history as the undo.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Add a Note info panel with word count, dates and links",
+    "description": "Evernote has a Note info command (Ctrl+Shift+I) that shows created and updated dates, size and word count (https://help.evernote.com/hc/en-us/articles/34296687388307). Our editor in components/notes/NoteEditorPane.tsx shows only the save status and has no word or character count. Writers and people drafting posts need the count while typing. First scope: a menu entry and a shortcut that open a small popover with words, characters, reading time, created and updated dates, notebook and source URL.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Add a keyboard shortcuts drawer opened with Cmd+/",
+    "description": "Evernote shows all shortcuts in a drawer opened with Cmd+/ or Ctrl+/ and lets you remap them (https://help.evernote.com/hc/en-us/articles/34296687388307). In components/notes/NotesApp.tsx the shortcuts N and / exist but are only discoverable through small kbd hints. First scope: a read-only drawer listing the shortcuts of the list and the editor, opened with Cmd+/ and from the sidebar help menu, in the three languages. Remapping can come later.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Insert a table of contents block from the note headings",
+    "description": "Evernote can build a table of contents note that links to other notes, and Notion-style tools offer an in-page contents block (https://techlearning.com/tl-advisor-blog/9011). Our editor supports headings and [[ ]] links in components/notes/NoteBlocksView.tsx but no contents block. Long notes such as meeting logs and guides are hard to navigate. First scope: a /contents slash command that inserts a block listing the note headings as anchor links and updates as headings change.",
+    "product": "notes",
+    "kind": "idea"
+  },
+  {
+    "title": "Notes: Duplicate a note from its menu",
+    "description": "Evernote and most note apps let you copy a note to start a variation, for example a weekly template (https://help.evernote.com/hc/articles/209004637). Notes had no duplicate action in components/notes/NoteEditorPane.tsx. First scope: a Duplicate entry in the note menu that creates a copy with a Copy of title, same tags and notebook, and opens it.",
+    "product": "notes",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-01-notes-duplicar"
+  },
+  {
+    "title": "Agents: Export and import an agent as a JSON file",
+    "description": "Chatbase and Voiceflow let teams move agent configuration between workspaces (https://www.voiceflow.com/docs/documentation/deploy/environments/overview.md). Duplicate now copies an agent inside a workspace (lib/agents.ts duplicateAgent), but there is no file to back up before a big edit or to share a template. First scope: Export button in agent Settings that downloads instructions, knowledge selection, tools, handoff, guardrails and saved tests as JSON without secrets, and an Import button on the agents list that creates a new agent and lists what must be reconnected.",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Add custom guidance rules that apply by audience or topic",
+    "description": "Intercom Fin has Guidance, short rules that apply only when a condition matches, such as the customer's plan or topic (https://www.intercom.com/help/en/articles/10444459-fin-guidance). Here the only free-form text is one Instructions field plus procedures (lib/agents-procedures.ts), so every rule is always in the prompt. A small team with a paid plan and a free plan needs different answers about refunds. First scope: a list of rules with a condition text and an instruction, matched per message by keywords, and a count of how often each fired in the analytics tab.",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Show a preview of which knowledge source answered each reply",
+    "description": "Fin shows the content used to produce each answer in the conversation view so admins can fix the source (https://www.intercom.com/help/en/articles/8205718-fin-resolutions). We cite sources to the visitor (lib/agents-semantic.ts) but the conversation view in components/agents/AgentConversations.tsx does not list which chunks were retrieved. First scope: store the retrieved source ids per assistant message and render them under the reply with a link to open the Docs page or file.",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Agents: Add a bulk re-run of saved tests across all agents from one screen",
+    "description": "Fin lets teams test changes against many past conversations before turning them on (https://www.eesel.ai/blog/intercom-fin-ai-explained). Saved tests exist per agent (components/agents/AgentTests.tsx) but each agent must be opened one by one. First scope: a Tests overview on the agents home that runs all tests for the selected agents and shows pass or fail counts with a link to each failing case.",
+    "product": "agents",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Sort, limit and remove duplicates from a list in one step",
+    "description": "Done. n8n has Sort, Limit and Remove Duplicates nodes (https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.sort/) and Zapier Formatter has Utilities such as pick from list. Flow had only Merge/Aggregate and the Code step (lib/flow-schema.ts, data.merge). The new List step covers sort, limit and dedupe over a list from an earlier node.",
+    "product": "flow",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-30-flow-list"
+  },
+  {
+    "title": "Flow: Add a Stop and error step that fails a run with a custom message",
+    "description": "n8n has a Stop and Error node (https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.stopanderror/) and Zapier has Paths with a halt option. Flow can only fail through a node error or a Code step (lib/flow-engine.ts), so a branch that should end as failed needs a script. A step with a message template would route into the existing failure alert and error flow. First scope: one field with the message and an optional error code.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add a Split out step that turns a list field into one item per entry",
+    "description": "n8n has Split Out and Aggregate nodes to move between a list and separate items (https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.splitout/). Flow loops over a list with logic.loop (lib/flow-schema.ts) capped at 100 items and with no Delay inside. A step that fans a list into items would let nodes after it run per entry without those limits. First scope: a list template and a field to keep, up to 1,000 items.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add a Digest step that collects items and releases them on a schedule",
+    "description": "Zapier Digest collects entries over time and releases them as one summary (https://zapier.com/apps/digest/integrations). Flow can approximate it with a data table and a schedule flow (lib/flow-tables.ts) but needs two flows and manual cleanup. A Digest step would append to a named bucket and a schedule trigger would read and clear it. This matters for teams that want one daily email instead of one email per event. First scope: append, release and clear on a per-flow bucket.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add a Compare datasets step to find new, changed and removed rows",
+    "description": "n8n Compare Datasets returns items only in A, only in B, equal and different (https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.comparedatasets/). Flow has no way to diff two lists without writing code in data.code (lib/flow-schema.ts). Syncing a Sheet with CRM contacts is a common first flow for small teams. First scope: two lists, a key field and four outputs.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Flow: Add a Convert to file step for CSV and JSON attachments",
+    "description": "n8n Convert to File and Extract from File turn rows into CSV or JSON and back (https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.converttofile/). Flow has no binary or file data between steps: action.email sends text only (lib/flow-schema.ts). Weekly report flows end up pasting rows into the email body. First scope: build a CSV string from a list and attach it to the email step.",
+    "product": "flow",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Find text inside the open page with Cmd+F and accent-insensitive matches",
+    "description": "Notion 3.2 ships in-page find that ignores accents, so searching 'cafe' matches 'café' (https://www.notion.com/releases/2026-01-20). Docs has a Cmd+P page switcher and content search across pages (lib/docs-search.ts), but nothing that highlights matches inside the page being edited, so the browser find misses text in collapsed toggles. This matters for long meeting notes and specs. First scope: a find bar on Cmd+F that highlights matches, expands toggles, steps with Enter and Shift+Enter, and reuses normalizeSearch for accents.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Add a Tabs block to split a long page into tabs",
+    "description": "Notion 3.4 added a tabs block for organizing a page into sections (https://www.notion.com/releases). Docs has columns and toggles (lib/docs-columns.ts, components/docs/DocsBlocksView.tsx) but no way to show one section at a time inside a page. Small teams use it for project hubs with Overview, Decisions and Links. First scope: a tabs block with named tabs that each hold child blocks, switched with the keyboard, rendered in the read-only and published views.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Present a page as slides from a heading outline",
+    "description": "Notion graduated presentation mode out of beta on paid plans in 3.4 (https://www.notion.com/releases). Docs has no full-screen presentation of a page. Teams run weekly reviews from a page and would not need a second tool. First scope: a Present action in the page menu that splits blocks at each H1 or divider, steps with arrow keys, and exits with Esc.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Show sibling pages when hovering a breadcrumb segment",
+    "description": "Notion's April 2026 release lets you hover any breadcrumb item to see its sibling pages, including pages in databases (https://www.notion.com/releases/2026-04-24). Docs renders the ancestor trail as plain links (components/docs/DocsEditor.tsx, docs-breadcrumb). Moving sideways in a wiki then needs the sidebar. First scope: a menu on each segment that lists the siblings from the page tree, with keyboard support.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Add a Markdown endpoint to read and write a page body in the public API",
+    "description": "Notion's API returns and accepts page content as Markdown through GET /pages/{id}/markdown (https://matthiasfrank.de/en/notion-updates/api-markdown-and-transcript-support/). Docs has export to Markdown in the UI (lib/docs-markdown.ts) and a public API (lib/docs-v1.ts), but scripts and AI tools must handle the block JSON. First scope: GET and PUT /api/v1/docs/pages/{id}/markdown behind docs:read and docs:write, reusing the existing exporter and the paste-Markdown parser.",
+    "product": "docs",
+    "kind": "idea"
+  },
+  {
+    "title": "Docs: Show word count and reading time in the page menu",
+    "description": "Notion shows a word count at the bottom of the page menu (https://bullet.so/blog/how-to-check-word-count-in-notion/). Docs showed nothing before this change. The page menu in components/docs/DocsEditor.tsx now lists words, characters and reading time, computed by lib/docs-stats.ts.",
+    "product": "docs",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-29-docs-word-count"
+  },
+  {
+    "title": "CRM: Add calculated rollup properties (count, sum, min, max) from associated records",
+    "description": "HubSpot lets admins create rollup properties that compute count, sum, min, max or average over associated records, optionally filtered by association label, plus calculation properties built from an equation or time-between logic (https://knowledge.hubspot.com/properties/create-calculation-properties). Our custom fields in lib/crm-custom-fields.ts are all typed inputs entered by hand, and companyRollup in lib/crm.ts is a fixed set of totals. A small team wants 'total won revenue' on a company or 'open deals' on a contact as a column and a filter without building a report. A first scope is a read-only property type on companies and contacts with count and sum over associated deals, recomputed when a deal changes, usable as a column, sort and filter.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Let admins arrange the cards and properties of the record sidebar",
+    "description": "HubSpot admins customize record layouts under Settings > Objects > Record Customization, adding cards and choosing which properties show in the About card, and each user can reorder cards (https://knowledge.hubspot.com/object-settings/customize-records). In our CRM the contact, company and deal pages show a fixed set of panels under app/[locale]/app/crm. Teams with many custom fields end up scrolling past properties they never use. A first scope is a per-object list of visible properties and their order for the side panel, stored per workspace, with a reset to default.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Group custom properties into named sections",
+    "description": "HubSpot organizes properties into property groups that appear as sections in forms, record pages and imports (https://knowledge.hubspot.com/properties/create-and-edit-property-groups). Our custom fields in crm_custom_fields have a name, label, type and position with no grouping, so a workspace with 20 fields gets one flat list in components/crm/CustomFieldsPanel.tsx. A first scope is an optional group name on each field, shown as collapsible sections on the record page and the settings screen, with a migration that keeps existing fields ungrouped.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Add a unique-value option to custom properties to block duplicate IDs",
+    "description": "HubSpot custom properties can be marked as unique identifiers so two records cannot share the same value, which keeps external IDs and tax numbers clean (https://knowledge.hubspot.com/properties/create-and-edit-properties). Our custom field definitions in lib/crm-custom-fields.ts have no uniqueness rule, so the same external ID can be saved on two contacts and only the duplicate finder catches it later. A first scope is a unique flag on text and number fields that rejects the save in the UI, the CSV import and API v1 with a message naming the record that already has the value.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "CRM: Propose stakeholders and pain points from deal notes and call transcripts",
+    "description": "HubSpot now scans notes and call or meeting transcripts on a deal and adds stakeholders and pain points as structured signals on the associated company record (https://martech.org/hubspots-june-2026-updates-agents-get-more-access-revenue-hub-starts-connecting-the-dots/). We have an AI summary card and call summaries in lib/crm-ai.ts, but their output stays as text on the timeline and nothing is written to properties or associations. A first scope is a button on the deal that proposes people mentioned in notes as contacts with a role label and a short list of pain points, applied only after the user confirms each one.",
+    "product": "crm",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Add a start date so a link only goes live from a set time",
+    "description": "The Expired Link Redirection plugin schedules a link between two dates with a before, during and after URL (https://wordpress.org/plugins/expired-link-redirection/), and Lyncks changes a link destination by date (https://www.hunted.space/product/lyncks). Link only supports an end: expires_at and max_clicks in lib/links.ts, enforced in app/r/[slug]/route.ts. A small team printing a QR code ahead of a launch has to create the link on launch day. First scope: a nullable starts_at column, a datetime field next to expiry in components/link/EditLinkForm.tsx, and the redirect answering with the link fallback or a not-live-yet reason on /gone before that time.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Check destinations daily and flag links that return 404 or 5xx",
+    "description": "Redirect and URL monitors such as Pagecrawl check a destination on a schedule and alert when it breaks, shortened links included (https://pagecrawl.io/tools/monitor-website-redirects-url-changes.html). Link never fetches a destination after creation: lib/links.ts only validates the URL syntax, so a printed QR can point at a dead page for weeks. First scope: a daily cron under app/api/cron that sends a HEAD request for links with clicks in the last 30 days, stores last_check_status and last_checked_at, shows a warning in components/link/LinksTable.tsx and the link detail, and emits a link.broken webhook event.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Email a weekly digest with total clicks and the top links",
+    "description": "Linkbreakers sends weekly and monthly digests with total visits, top country and top link (https://linkbreakers.com/help/article/weekly-and-monthly-email-digests). Link has analytics pages and CSV export (app/[locale]/app/links/analytics) but nothing reaches the owner unless they open the app. A small team with a few campaign links wants one Monday email with clicks against the previous week. First scope: an hourly tick job that sends one email per workspace owner who opted in from settings, built from the queries in lib/link-analytics.ts.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Change the destination by date range with time-based redirect rules",
+    "description": "Lyncks lets one link change its destination automatically based on the time or date you set (https://www.hunted.space/product/lyncks). Link targeting covers country, device and A/B variants in lib/link-targeting.ts, with nothing based on time. A restaurant or a webinar team reuses one printed QR code and swaps the destination by hand each time. First scope: an ordered list of date range rules in the targeting JSON, checked before A/B, with the base URL as the fallback.",
+    "product": "link",
+    "kind": "idea"
+  },
+  {
+    "title": "Link: Let search engines index a short link with a per-link indexing switch",
+    "description": "Dub exposes a doIndex boolean per link and sends noindex by default (https://dub.co/docs/concepts/links/introduction). Link redirects in app/r/[slug]/route.ts sent no X-Robots-Tag, so short URLs could end up in search results. Built: redirects carry X-Robots-Tag: noindex unless the link turns on doIndex, with a checkbox in EditLinkForm and the field in the API.",
+    "product": "link",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-10-24-link"
   }
 ]
