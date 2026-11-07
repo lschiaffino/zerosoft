@@ -167,6 +167,11 @@ export function ImageView({
 }) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const ref = useRef<HTMLImageElement>(null);
+  // Una imagen que ya estaba en caché termina de cargar antes de que React escuche onLoad.
+  useEffect(() => {
+    if (ref.current?.complete && ref.current.naturalWidth > 0) setLoaded(true);
+  }, [url]);
   const t = useTranslations('groups');
   if (failed) {
     return <span className="wa-media-off">{t('thread.fileUnavailable')}</span>;
@@ -181,6 +186,7 @@ export function ImageView({
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
+        ref={ref}
         src={url}
         alt={alt}
         loading="lazy"

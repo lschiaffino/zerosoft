@@ -1470,6 +1470,7 @@
     "importStatus": "Importación: {status}",
     "viewOnce": "Mensaje de ver una vez. Abrilo en el teléfono.",
     "liveLocation": "Ubicación en tiempo real",
-    "retry": "Reintentar envío"
+    "retry": "Reintentar envío",
+    "unreadCount": "{n, plural, one {# mensaje sin leer} other {# mensajes sin leer}}"
   }
 }

@@ -241,9 +241,6 @@
 .gr-inbox .wa-text a:hover { text-decoration: underline; }
 .gr-inbox .wa-text.is-emoji { font-size: 2.5rem; line-height: 1.15; }
 .wa-spacer { display: inline-block; width: 52px; height: 1px; vertical-align: bottom; }
-.gr-msg-out .wa-spacer { width: 72px; }
-.gr-msg:has(.wa-edited) .wa-spacer { width: 104px; }
-.gr-msg-out:has(.wa-edited) .wa-spacer { width: 124px; }
 
 .gr-inbox .gr-msg-foot {
   position: absolute; right: 7px; bottom: 3px; display: inline-flex; align-items: center; gap: 3px; margin: 0;
@@ -547,3 +544,9 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-inbox .gr-msg-foot .wa-retry { display: inline-flex; padding: 0 2px; color: var(--wa-danger); background: none; border: 0; cursor: pointer; pointer-events: auto; }
 .wa-retry:focus-visible { outline: 2px solid var(--wa-primary); }
 @media (prefers-reduced-motion: reduce) { .wa-image img:not(.wa-thumb) { transition: none; } }
+
+/* "N mensajes sin leer": franja antes del primero sin leer. */
+.wa-unread-sep { display: flex; justify-content: center; margin: 10px calc(-1 * clamp(12px, 6%, 63px)) 4px; padding: 6px 0; background: rgba(255, 255, 255, 0.35); }
+:root[data-theme='dark'] .wa-unread-sep { background: rgba(0, 0, 0, 0.25); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .wa-unread-sep { background: rgba(0, 0, 0, 0.25); } }
+.wa-unread-sep > span { padding: 5px 12px; font-size: 0.78rem; color: var(--wa-text-2); background: var(--wa-system-chip); border-radius: 7.5px; box-shadow: var(--wa-shadow-bubble); }

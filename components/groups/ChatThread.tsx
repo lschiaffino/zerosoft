@@ -138,6 +138,14 @@ export default function ChatThread(props: ThreadProps) {
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
   const [viewerAt, setViewerAt] = useState<string | null>(null);
+  // Separador "N mensajes sin leer" antes del primero sin leer (solo al abrir, como WhatsApp).
+  const [unreadMark] = useState(() => {
+    const n = props.chat.unread;
+    if (!n) return null;
+    const incoming = props.messages.filter((m) => m.direction === 'in');
+    const first = incoming[Math.max(0, incoming.length - n)];
+    return first ? { id: first.id, n } : null;
+  });
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
   const [pickerFor, setPickerFor] = useState<string | null>(null);
@@ -253,13 +261,19 @@ export default function ChatThread(props: ThreadProps) {
     jumped.current = true;
     const hash = window.location.hash.slice(1);
     const target = hash.startsWith('m-') ? document.getElementById(hash) : null;
+    const unreadEl = !target && unreadMark ? document.getElementById('wa-unread') : null;
+    if (unreadEl) {
+      unreadEl.scrollIntoView({ block: 'start' });
+      boxRef.current?.scrollBy({ top: -80 });
+      return;
+    }
     if (target) {
       target.scrollIntoView({ block: 'center' });
       target.classList.add('is-target');
       return;
     }
     scrollToEnd();
-  }, [scrollToEnd]);
+  }, [scrollToEnd, unreadMark]);
 
   // Lo nuevo al final: si estábamos abajo se sigue abajo; si no, el botón cuenta lo que llegó.
   // Lo viejo arriba (cargar más): se mantiene lo que se estaba mirando.
@@ -904,6 +918,14 @@ export default function ChatThread(props: ThreadProps) {
       prev = null;
       continue;
     }
+    if (unreadMark?.id === m.id) {
+      rows.push(
+        <div key="wa-unread" id="wa-unread" className="wa-unread-sep" role="separator">
+          <span>{t('wa.unreadCount', { n: unreadMark.n })}</span>
+        </div>,
+      );
+      prev = null;
+    }
     const cont = Boolean(prev && senderKey(prev) === senderKey(m) && parseDbUtc(m.createdAt).getTime() - parseDbUtc(prev.createdAt).getTime() < GROUP_GAP_MS);
     prev = m;
     rows.push(renderMessage(m, cont));
@@ -1066,7 +1088,7 @@ export default function ChatThread(props: ThreadProps) {
                         ),
                       )}
                 {/* Lugar para la hora flotante (como en WhatsApp: el texto no se pisa con la hora). */}
-                <span className="wa-spacer" aria-hidden="true" />
+                <span className="wa-spacer" aria-hidden="true" style={{ width: `${Math.ceil(time.length * 6.6 + (m.direction === 'out' ? 26 : 8) + (m.editedAt ? 52 : 0) + (m.pinnedAt ? 16 : 0))}px` }} />
               </p>
             )
           )}
