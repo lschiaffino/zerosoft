@@ -35,6 +35,8 @@ async function ingest(project: ProjectRow, events: Array<{ event: string; who: s
 function lastSaturday(): { sat: number; mon: number; prevSat: number; prevMon: number } {
   const d = new Date();
   d.setUTCHours(12, 0, 0, 0);
+  // Siempre un sábado ya pasado: si hoy es sábado, el rango de comparación se corre.
+  d.setTime(d.getTime() - DAY);
   while (d.getUTCDay() !== 6) d.setTime(d.getTime() - DAY);
   const sat = d.getTime();
   return { sat, mon: sat - 5 * DAY, prevSat: sat - 7 * DAY, prevMon: sat - 12 * DAY };
