@@ -1,44 +1,50 @@
-Zerosoft Enterprise License (the "EE License")
-Version 1.0 — DRAFT
-Copyright (c) 2026 Zerosoft. All rights reserved.
+SPDX-License-Identifier: LicenseRef-Zerosoft-EE
 
-DRAFT — This text has not yet been reviewed by a lawyer. It must be reviewed
-and the bracketed items completed before the first commercial sale. Until
-then it states Zerosoft's intended terms in good faith.
+Zerosoft Enterprise License (the "EE License")
+Version 1.0, DRAFT
+Copyright (c) 2026 [LEGAL ENTITY NAME]. All rights reserved.
+
+DRAFT NOTICE: This text has not been reviewed by a lawyer. The items in
+square brackets must be completed, and the whole text reviewed, before the
+first commercial sale. Until then it states the intended terms in good faith.
 
 -------------------------------------------------------------------------------
 
 1. Definitions
 
-   "Zerosoft", "we" or "us" means [LEGAL ENTITY NAME, JURISDICTION OF
-   INCORPORATION AND REGISTERED ADDRESS — TO BE COMPLETED], the licensor of
-   the Enterprise Software.
+   "Zerosoft", "we" or "us" means [LEGAL ENTITY NAME], a [ENTITY TYPE]
+   organized under the laws of [JURISDICTION OF INCORPORATION], with its
+   registered office at [REGISTERED ADDRESS], the licensor of the
+   Enterprise Software.
 
-   "Enterprise Software" means all files located in the `/ee` directory of
+   "Enterprise Software" means all files located in the `ee/` directory of
    the Zerosoft source code repository, and any other file that states it is
-   licensed under this EE License, in any version, together with any
-   Modifications to them.
+   licensed under this EE License (for example with the header
+   "SPDX-License-Identifier: LicenseRef-Zerosoft-EE"), in any version,
+   together with any Modifications to them.
 
-   "Core Software" means all other files in the repository. The Core Software
-   is licensed under the GNU Affero General Public License, version 3 (see
-   /LICENSE), and nothing in this EE License limits your rights under it.
+   "Core Software" means every other file in the repository. The Core
+   Software is licensed under the GNU Affero General Public License,
+   version 3 (see /LICENSE), and nothing in this EE License limits your
+   rights under it.
 
    "You" means the individual or legal entity exercising rights under this
-   EE License, together with its Affiliates. "Affiliate" means any entity that
-   controls, is controlled by, or is under common control with that entity.
+   EE License, together with its Affiliates. "Affiliate" means any entity
+   that controls, is controlled by, or is under common control with that
+   entity.
 
-   "Subscription" means a valid, paid (or otherwise expressly granted in
-   writing) Zerosoft Enterprise subscription purchased from Zerosoft or an
-   authorized reseller, covering the scope of use (for example, number of
-   users, seats, instances or usage) for which You use the Enterprise
+   "Subscription" means a valid Zerosoft Enterprise subscription, paid or
+   otherwise expressly granted in writing, obtained from Zerosoft or an
+   authorized reseller, covering the scope of use (for example number of
+   users, workspaces, instances or usage) for which You use the Enterprise
    Software, together with the license key issued for it.
 
    "Production Use" means any use of the Enterprise Software other than
    Development and Testing, including use with real users or real data, use
-   to operate your business, or use to provide any service to third parties.
+   to operate a business, and use to provide any service to third parties.
 
-   "Development and Testing" means using the Enterprise Software, in
-   non-production environments, solely to develop, test, evaluate,
+   "Development and Testing" means using the Enterprise Software in
+   non-production environments solely to develop, test, evaluate,
    demonstrate internally, or contribute to the Enterprise Software or the
    Core Software.
 
@@ -48,31 +54,35 @@ then it states Zerosoft's intended terms in good faith.
 2. License grant for Development and Testing
 
    Subject to the terms of this EE License, Zerosoft grants You a
-   non-exclusive, non-transferable, non-sublicensable, royalty-free, worldwide
-   license to copy, modify and run the Enterprise Software for Development and
-   Testing. No Subscription is required for Development and Testing.
+   non-exclusive, non-transferable, non-sublicensable, royalty-free,
+   worldwide license to copy, modify and run the Enterprise Software for
+   Development and Testing. No Subscription is required for Development and
+   Testing.
 
 3. License grant for Production Use
 
-   You may make Production Use of the Enterprise Software only while You hold
-   a Subscription that covers that use, and only within the scope of that
-   Subscription. Subject to that, and to the terms of this EE License and of
-   the Subscription agreement, Zerosoft grants You a non-exclusive,
+   You may make Production Use of the Enterprise Software only while You
+   hold a Subscription that covers that use, and only within the scope of
+   that Subscription. Subject to that, and to the terms of this EE License
+   and of the Subscription agreement, Zerosoft grants You a non-exclusive,
    non-transferable, non-sublicensable license to copy, modify and run the
    Enterprise Software for Production Use for the term of the Subscription.
    If the Subscription agreement conflicts with this EE License, the
    Subscription agreement prevails.
 
-4. Modifications
+4. Modifications and ownership
 
-   You may create Modifications to the Enterprise Software, and You may use
-   them only as permitted in Sections 2 and 3. Notwithstanding anything to
-   the contrary, Zerosoft and its licensors retain all right, title and
-   interest in the Enterprise Software. You grant Zerosoft a perpetual,
-   worldwide, royalty-free, non-exclusive license to use, copy, modify and
-   distribute any Modifications that You submit or contribute to Zerosoft
-   (for example, through a pull request). Modifications You keep private
-   remain subject to this EE License.
+   You may create Modifications and use them only as permitted in Sections
+   2 and 3. Zerosoft and its licensors keep all right, title and interest
+   in and to the Enterprise Software. With respect to any Modifications You
+   create, You agree that Zerosoft and its licensors own all right, title
+   and interest in and to them, and You hereby assign those rights to
+   Zerosoft to the extent permitted by applicable law. Where an assignment
+   is not permitted, You grant Zerosoft an exclusive, perpetual,
+   irrevocable, worldwide, royalty-free license, with the right to
+   sublicense, to use, copy, modify and distribute those Modifications.
+   Zerosoft does not accept unsolicited contributions to the Enterprise
+   Software from outside the company.
 
 5. Restrictions
 
@@ -83,15 +93,14 @@ then it states Zerosoft's intended terms in good faith.
        Subscription, or beyond the scope of Your Subscription;
    (b) copy, distribute, sell, rent, lease, sublicense or otherwise transfer
        the Enterprise Software or any Modifications to any third party,
-       except that You may publish them in a source code repository
-       together with this EE License, in a form that preserves all notices;
+       except that You may keep them in a copy or fork of the source code
+       repository that includes this EE License and preserves all notices;
    (c) offer the Enterprise Software, or any product or service that
        exposes its functionality, to third parties as a hosted or managed
        service;
-   (d) remove, disable, bypass, or circumvent any license key, license
-       check or other technical limitation in the Enterprise Software or the
-       Core Software, or create or share license keys not issued by
-       Zerosoft; or
+   (d) remove, disable, bypass or circumvent any license key, license check
+       or other technical limitation in the Enterprise Software or the Core
+       Software, or create or share license keys not issued by Zerosoft; or
    (e) remove or alter any license, copyright or other notices in the
        Enterprise Software.
 
@@ -105,7 +114,7 @@ then it states Zerosoft's intended terms in good faith.
 
    This EE License does not grant any right to use the Zerosoft name, logos
    or trademarks, except as needed to describe the origin of the software
-   accurately.
+   accurately. See TRADEMARK.md.
 
 8. Termination
 
@@ -117,16 +126,17 @@ then it states Zerosoft's intended terms in good faith.
    termination You must stop using the Enterprise Software for the purposes
    that are no longer licensed. The Core Software keeps working without the
    Enterprise Software, and termination of this EE License does not affect
-   Your rights to the Core Software under the AGPLv3. Sections 4 (last two
-   sentences), 9, 10 and 11 survive termination.
+   Your rights to the Core Software under the AGPLv3. Sections 4, 9, 10 and
+   11 survive termination.
 
 9. Disclaimer of warranty
 
-   UNLESS OTHERWISE AGREED IN WRITING IN A SUBSCRIPTION AGREEMENT, AND TO THE
-   MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE ENTERPRISE SOFTWARE IS
-   PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING ANY WARRANTY OF MERCHANTABILITY, FITNESS FOR A
-   PARTICULAR PURPOSE, TITLE OR NON-INFRINGEMENT. YOU USE IT AT YOUR OWN RISK.
+   UNLESS OTHERWISE AGREED IN WRITING IN A SUBSCRIPTION AGREEMENT, AND TO
+   THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE ENTERPRISE SOFTWARE
+   IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING ANY WARRANTY OF MERCHANTABILITY, FITNESS
+   FOR A PARTICULAR PURPOSE, TITLE OR NON-INFRINGEMENT. YOU USE IT AT YOUR
+   OWN RISK.
 
 10. Limitation of liability
 
@@ -144,20 +154,20 @@ then it states Zerosoft's intended terms in good faith.
 
 11. Governing law and venue
 
-   This EE License is governed by the laws of [GOVERNING LAW — TO BE
+   This EE License is governed by the laws of [GOVERNING LAW: TO BE
    DECIDED], excluding its conflict-of-law rules and the United Nations
-   Convention on Contracts for the International Sale of Goods. The courts of
-   [VENUE — TO BE DECIDED] have exclusive jurisdiction over any dispute
+   Convention on Contracts for the International Sale of Goods. The courts
+   of [VENUE: TO BE DECIDED] have exclusive jurisdiction over any dispute
    arising from it, unless a Subscription agreement provides otherwise.
 
 12. General
 
    If any provision of this EE License is held unenforceable, the remaining
    provisions stay in effect. Zerosoft may publish new versions of this EE
-   License; a new version applies only to versions of the Enterprise Software
-   released under it. This EE License is the entire agreement about the
-   Enterprise Software between You and Zerosoft, except for any Subscription
-   agreement.
+   License; a new version applies only to versions of the Enterprise
+   Software released under it. This EE License is the entire agreement
+   about the Enterprise Software between You and Zerosoft, except for any
+   Subscription agreement.
 
 -------------------------------------------------------------------------------
 

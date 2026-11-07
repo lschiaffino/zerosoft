@@ -6,6 +6,7 @@ import DocsEditor from '@/components/docs/DocsEditor';
 import type { DocsBlock, DocsPage } from '@/lib/docs-types';
 import type { DocsFileSource } from '@/lib/docs-files';
 import type { PageLinkSource } from '@/lib/docs-page-links';
+import { duplicateBody } from './notes-ui';
 import { noteFileHref, noteHref, normalizeTag, type NoteDetail, type NoteLockEnvelope, type NoteSummary, type NotebookInfo } from '@/lib/notes-types';
 import { fileBlocksOnly, newNoteKey, openNoteWithKey, sealNote, type LockedPayload, type NoteKey } from '@/lib/notes-crypto';
 import NoteBlocksView from './NoteBlocksView';
@@ -440,6 +441,27 @@ export default function NoteEditorPane({
     setUnlocked(null);
   }
 
+  async function duplicate() {
+    const fresh = await onSync(note.id);
+    if (!fresh) {
+      onError?.();
+      return;
+    }
+    const res = await fetch('/api/notes', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(duplicateBody(fresh, fresh.title.trim() ? t('editor.copyOf', { title: fresh.title.trim() }) : '', () => crypto.randomUUID())),
+    }).catch(() => null);
+    const created = res?.ok ? ((await res.json().catch(() => null)) as NoteDetail | null) : null;
+    if (!created) {
+      onError?.();
+      return;
+    }
+    onCreated?.(created);
+    onNotice?.(t('editor.duplicated'));
+    onOpenNote(created.id);
+  }
+
   async function saveTemplate(name: string): Promise<boolean> {
     const fresh = await onSync(note.id);
     if (!fresh) {
@@ -656,6 +678,7 @@ export default function NoteEditorPane({
         run();
       },
     });
+  if (!locked && !offline && !note.trashed) item(t('editor.duplicate'), () => void duplicate());
   if (!locked && !offline) item(t('history.open'), () => setHistoryOpen(true));
   if (!locked && !offline) item(t('annotate.open'), () => void openAnnotate());
   if (!locked && !offline) item(t('transcribe.open'), () => void transcribe());

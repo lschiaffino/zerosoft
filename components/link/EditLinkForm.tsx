@@ -46,6 +46,7 @@ export default function EditLinkForm({
   const [url, setUrl] = useState(link.url);
   const [utm, setUtm] = useState(() => utmDrafts(link.url));
   const [forwardParams, setForwardParams] = useState(link.forward_params);
+  const [doIndex, setDoIndex] = useState(link.do_index);
   const [expiredUrl, setExpiredUrl] = useState(link.expired_url ?? '');
   const [slug, setSlug] = useState(link.slug);
   const [title, setTitle] = useState(link.title ?? '');
@@ -93,6 +94,7 @@ export default function EditLinkForm({
       ogDescription: ogDescription.trim() || null,
       ogImage: ogImage.trim() || null,
       forwardParams,
+      doIndex,
       expiredUrl: expiredUrl.trim() || null,
     };
     if (trackConversion !== link.track_conversion) payload.trackConversion = trackConversion;
@@ -312,6 +314,21 @@ export default function EditLinkForm({
           </label>
           <p id="el-forward-help" className="ui-help">
             {t('new.forwardParamsHelp')}
+          </p>
+        </div>
+
+        <div className="ui-field">
+          <label className="ui-check">
+            <input
+              type="checkbox"
+              checked={doIndex}
+              onChange={(e) => setDoIndex(e.target.checked)}
+              aria-describedby="el-index-help"
+            />
+            {t('new.doIndexLabel')}
+          </label>
+          <p id="el-index-help" className="ui-help">
+            {t('new.doIndexHelp')}
           </p>
         </div>
 

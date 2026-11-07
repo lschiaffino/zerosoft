@@ -565,10 +565,10 @@ function TypeFields({
       )}
     </Field>
   );
-  const choice = (key: string, label: string, options: readonly string[], ns: 'modes' | 'onMissing') => (
+  const choice = (key: string, label: string, options: readonly string[], ns: 'modes' | 'onMissing' | 'waitUntil') => (
     <Field key={key} label={label}>
       {(id) => (
-        <select id={id} className="select" value={String((step as Record<string, unknown>)[key])} disabled={readOnly} onChange={(e) => set({ [key]: e.target.value })}>
+        <select id={id} className="select" value={String((step as Record<string, unknown>)[key] ?? options[0])} disabled={readOnly} onChange={(e) => set({ [key]: e.target.value })}>
           {options.map((m) => (
             <option key={m} value={m}>
               {t(`${ns}.${m}` as 'modes.text')}
@@ -696,6 +696,8 @@ function TypeFields({
         <div className="robots-fields">
           {num('ms', t('fields.ms'), 0, 30_000)}
           {text('selector', t('fields.waitSelector'), '.results')}
+          {String((step as Record<string, unknown>).selector ?? '').trim() &&
+            choice('until', t('fields.waitUntil'), ['appears', 'visible', 'disappears'], 'waitUntil')}
         </div>
       );
     case 'extract':

@@ -1,160 +1,121 @@
-# zerosoft.ai
+# zerosoft
 
-**Software is dead.** We rebuild the tools you use every day and set them free. The core is open source (AGPLv3): self-host every product for $0, forever. Or use Zerosoft Cloud: a generous free plan, then transparent usage-based pricing — you pay for what scales, not for seats.
+Open source replacements for the software a company pays for every month: CRM,
+issue tracking, docs, scheduling, support chat and 20 more apps in one Next.js
+codebase. Self-host it under the AGPLv3, or use it at [zerosoft.ai](https://zerosoft.ai).
 
-This repository is the whole company in one Next.js app: the marketing site, the blog, and six products — **Link, CRM, Track, Cal, Chat and Docs**.
+![The CRM contacts list](public/videos/crm.jpg)
 
-Made of zeros. White background, black ink, nothing else.
+## Apps
 
----
+Each app lives at `/app/<path>` in the same workspace, with one sign-in, one
+search (Cmd+K) and one settings page.
 
-## What's inside
+**Build**
 
-- **Site** — home, products (all six live, each with its own detail page), API docs, status page (service list only — live monitoring is not wired up yet), and full legal (Terms, Privacy, Security). In **English, Spanish and Portuguese** (`/en`, `/es`, `/pt`, browser-detected).
-- **Link** (`/app/links`) — the Bitly alternative: custom aliases, tags, password-protected / expiring / max-click links, UTM builder, QR codes (SVG and PNG), bulk create (up to 200 URLs), cookie-less analytics (day, referrer, country, device, browser, OS), per-link CSV export, 7/30/90-day analytics with period comparison, custom domains (`go.yourcompany.com/slug`), Bitly import (API or CSV), link-in-bio pages (`/@handle`), `link.created` / `link.clicked` webhooks, and the **public REST API v1** with personal keys (`zs_…`), 100 req/min rate limit, documented at `/docs`.
-- **CRM** (`/app/crm`) — the HubSpot alternative: contacts, companies, deals with multiple pipelines and a kanban board, activities timeline, tasks, static and dynamic lists, saved views, custom fields, CSV import with mapping and dedupe, CSV/JSON export, reports and dashboards, workflows (triggers on contact/deal/task/email events → email, task, field update, list, webhook, notify), Gmail read-only sync (on demand), Cal bookings that create the contact and log the meeting, Chat conversations saved to a contact, `contact.*`/`deal.*` webhooks, and `/api/v1/crm/*` (contacts, companies, deals incl. stage moves, activities, tasks, pipelines; OpenAPI at `/api/v1/openapi.json`). Workflows, export and bulk delete are admin-only.
-  - *Known gaps:* Gmail sync is manual (no background sync), no email templates/sequences/tracking, no quotes or products, no lead forms, deals and activities can't be imported, single currency per report.
-- **Track** (`/app/track`) — the Linear alternative: projects, issues with sub-issues and relations, custom statuses, priorities, estimates, cycles, list / board / calendar / Gantt views, saved views and filters, comments, attachments, activity log, notifications inbox.
-  - *Known gaps:* no keyboard shortcuts, no realtime sync, no Git/GitHub integration, no public API or webhooks, no Linear import.
-- **Cal** (`/app/calendar`) — the Calendly alternative: event types with custom questions, weekly availability, buffers, minimum notice and booking window, blocked slots, round-robin team hosts, routing forms, public booking pages (`/book/[slug]`), confirmation + host notification + 24h reminder emails (via Resend when `RESEND_API_KEY` is set).
-  - Also: guest cancel/reschedule links, cancellation emails, .ics invites in the guest's language, Google Calendar sync with Meet links, embed (inline or popup), `/api/v1/calendar/*` and `booking.*` webhooks.
-  - *Known gaps:* no Outlook or iCloud calendars.
-- **Chat** (`/app/chat`) — the Intercom alternative: embeddable webchat widget, shared inbox, states and priorities, assignment rules, SLA policies, canned responses, office hours, CSAT, people/visitors, and an auto-answer bot.
-  - *Known gaps:* the bot is keyword matching over canned responses and docs pages, not an LLM; no conversation export.
-- **Docs** (`/app/docs`) — the Notion alternative: block editor with slash menu and inline formatting, nested pages, `[[` page mentions, templates, comments, trash, title search, sharing (public / team / single user).
-  - *Known gaps:* no realtime co-editing, no JSON/Markdown export, no Notion import.
-- **Blog** — 66 posts per locale, Markdown in `content/blog/{en,es,pt}/`.
-- **Auth** — Google OAuth via next-auth, plus a demo mode to explore the dashboard without credentials.
+| App | Replaces | Path |
+| --- | --- | --- |
+| Track | Linear | `/app/track` |
+| Board | Miro | `/app/board` |
+| Design | Canva | `/app/design` |
+| Analytics | PostHog | `/app/analytics` |
+
+**Sell**
+
+| App | Replaces | Path |
+| --- | --- | --- |
+| CRM | HubSpot | `/app/crm` |
+| Link | Bitly | `/app/links` |
+| Shop | Shopify, Tiendanube | `/app/shop` |
+| Social | Hootsuite | `/app/social` |
+| Forms | Typeform | `/app/forms` |
+| Send | DocSend | `/app/send` |
+
+**Support**
+
+| App | Replaces | Path |
+| --- | --- | --- |
+| Chat | Intercom | `/app/chat` |
+| Groups | Periskope (WhatsApp groups) | `/app/groups` |
+
+**Automate**
+
+| App | Replaces | Path |
+| --- | --- | --- |
+| Agents | Intercom Fin | `/app/agents` |
+| Flow | Zapier, n8n | `/app/flow` |
+| Robots | UiPath | `/app/robots` |
+
+**Run**
+
+| App | Replaces | Path |
+| --- | --- | --- |
+| Hiring | Workable | `/app/hiring` |
+| People | BambooHR | `/app/people` |
+| Books | Xero, QuickBooks | `/app/books` |
+| Sign | DocuSign | `/app/sign` |
+
+**Daily work**
+
+| App | Replaces | Path |
+| --- | --- | --- |
+| Docs | Notion | `/app/docs` |
+| Notes | Evernote | `/app/notes` |
+| Cal | Calendly | `/app/calendar` |
+| Voice | Wispr Flow, Granola | `/app/voice` |
+| Rec | Loom | `/app/rec` |
+| Talk | Slack | `/app/talk` |
+
+The repository also holds the marketing site and blog (in English, Spanish and
+Portuguese), the public REST API (`/api/v1`, documented at `/docs`), an MCP
+server, a desktop app (`desktop/`), a mobile shell (`mobile/`), a CLI (`cli/`)
+and a Chrome extension (`extensions/chrome`).
+
+![Docs](public/videos/docs.jpg)
 
 ## Quickstart
 
+You need Node.js 22 or later. No accounts or API keys: the offline config runs
+every app against local fakes.
+
 ```bash
+git clone https://github.com/lschiaffino/zerosoft && cd zerosoft
 npm install
-cp .env.example .env.local   # then fill in the values (see below)
-npm run seed                 # demo user, 12 links, ~450 clicks, 200 contacts, 40 companies, 65 deals, demo API key
-npm run dev                  # http://localhost:3000
+cp .env.offline.example .env.local
+npm run seed        # demo user, plus sample data for Link and CRM
+npm run dev         # http://localhost:3000/en/app
 ```
 
-With `DEMO_MODE=true` (the default in `.env.example`) you can open `http://localhost:3000/en/app` and use every dashboard (Link, CRM, Track, Cal, Chat, Docs) immediately — no Google credentials needed.
+With `DEMO_MODE=true` you are signed in as the demo user. The other apps
+start with little or no data. Everything lives in a
+local SQLite file at `data/zerosoftware.db`; delete it and run `npm run seed`
+again to start over.
 
-The seeded demo includes a password-protected link: `http://localhost:3000/tryit` (password: `ceros`).
+## Self-hosting
 
-Production build:
-
-```bash
-npm run build && npm start
-```
-
-## Environment variables
-
-| Variable | What for |
-| --- | --- |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth. Create at [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials) with authorized redirect URI `<NEXTAUTH_URL>/api/auth/callback/google`. |
-| `NEXTAUTH_SECRET` | Session signing. Generate with `openssl rand -base64 32`. |
-| `NEXTAUTH_URL` | Canonical app URL, e.g. `http://localhost:3000`. |
-| `TURSO_DATABASE_URL` | Optional. Unset → local SQLite file at `data/zerosoftware.db`. Set to `libsql://<db>.turso.io` → remote [Turso](https://turso.tech) database (what production uses). |
-| `TURSO_AUTH_TOKEN` | Auth token for the remote Turso database (`turso db tokens create <db>`). Ignored for local files. |
-| `DEMO_MODE` | `true` = everyone is the shared demo user, no login. Ignored when `NODE_ENV=production` unless `DEMO_MODE_ALLOW_PRODUCTION=true`. |
-| `RESEND_API_KEY` / `EMAIL_FROM` | Transactional email (booking confirmations, reminders). Unset → emails are logged to the console. |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob for file uploads. Required on Vercel; elsewhere, unset → files go to `UPLOADS_DIR` (default `data/uploads`, outside `public/`) and are always served through access-checked routes. |
-| `CRON_SECRET` | Required in production for `/api/cron/tick` (Cal reminders + webhook retries; Vercel Cron sends it as a Bearer token). |
-| `ENCRYPTION_KEY` | Encrypts OAuth tokens and webhook secrets at rest. Unset → derived from `NEXTAUTH_SECRET`. |
-| `CREDENTIALS_KEY` | Optional dedicated key for Flow/Robots credentials (AES-256-GCM, bound to each workspace). Unset → derived from `ENCRYPTION_KEY` or `NEXTAUTH_SECRET`. Rotating it means re-entering saved credentials. |
-| `FLOW_CODE_RUNNER` | `sandbox` or `none`. The Flow "Code" node runs JavaScript in Vercel Sandbox (30 s, 128 MB, no network). Default: `sandbox` on Vercel or with `VERCEL_TOKEN` + `VERCEL_TEAM_ID` + `VERCEL_PROJECT_ID`, otherwise `none` (the node is disabled with a notice). |
-| `ROBOTS_RUNNER` | `sandbox`, `local` or `none`. Default: `sandbox` on Vercel; elsewhere `local` when `playwright-core` is installed (it is, after `npm ci`), else `none`. |
-| `VERCEL_TOKEN` / `VERCEL_PROJECT_ID` / `VERCEL_TEAM_ID` | Link custom domains on Vercel: domains are added to the project (and get HTTPS) through the Vercel API. Self-host: leave unset, domains are verified by DNS. |
-| `APP_HOSTS` | Extra hostnames that serve the app (comma-separated), so they aren't treated as custom short-link domains. |
-| `TRUST_PROXY_HOPS` / `TRUST_PROXY` | Client IP for rate limits when self-hosting. Behind a reverse proxy the app uses the `X-Forwarded-For` entry added by your proxy (the rightmost one); with several proxies in a chain set `TRUST_PROXY_HOPS` to how many there are (default 1). `TRUST_PROXY=0` ignores those headers (use it if nothing in front rewrites them: everyone then shares one quota). On Vercel it uses `X-Vercel-Forwarded-For`. |
-| `ALLOW_PRIVATE_WEBHOOKS` | `true` allows webhooks to private/internal hosts and plain http (self-host on a private network). Never on a public cloud. |
-| `ZEROSOFT_LICENSE_KEY` | Enterprise license key for `/ee` features (optional). |
-| `SHORT_DOMAIN` | Public domain shown in short URLs, e.g. `zs.ai`. No trailing slash. |
-
-## API v1
-
-Every key is created in `/app/settings` and shown exactly once. The seed prints a demo key (`zs_demo_…`).
-
-```bash
-curl -X POST http://localhost:3000/api/v1/links \
-  -H "Authorization: Bearer zs_demo_…" \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://example.com/a/very/long/url", "slug": "my-link", "tags": ["demo"]}'
-```
-
-Endpoints: `POST /api/v1/links`, `GET /api/v1/links`, `GET /api/v1/links/:id/stats`. CRM: `GET/POST /api/v1/crm/contacts|companies|deals|tasks` plus `GET/PATCH` on `/:id`. Full reference with errors and examples at `/docs` (or `app/[locale]/docs/page.tsx`).
-
-## Data and self-hosting
-
-The app talks to a libSQL database. Locally it is a single SQLite file at `data/zerosoftware.db` — backup = copy that file, there is no other state. In production it is a remote [Turso](https://turso.tech) database selected purely by env vars (`TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN`), no code changes.
-
-Production runs on Vercel + Turso at `https://zerosoft.ai`:
-
-```bash
-vercel link                                    # once
-vercel env add TURSO_DATABASE_URL production   # libsql://<db>.turso.io
-vercel env add TURSO_AUTH_TOKEN production
-vercel env add NEXTAUTH_URL production         # https://zerosoft.ai
-vercel env add NEXTAUTH_SECRET production
-vercel env add GOOGLE_CLIENT_ID production
-vercel env add GOOGLE_CLIENT_SECRET production
-vercel env add SHORT_DOMAIN production         # zerosoft.ai
-vercel --prod
-```
-
-To self-host on any $5 VPS instead, with Docker:
-
-```bash
-git clone <repo> && cd zerosoft
-cp .env.example .env          # NEXTAUTH_URL, NEXTAUTH_SECRET, Google credentials, SHORT_DOMAIN=your-domain
-docker compose up -d          # http://localhost:3000 — put any HTTPS reverse proxy in front
-```
-
-Your reverse proxy must add the client address to `X-Forwarded-For` (nginx: `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, Caddy and Traefik do it by default). Rate limits per IP read the rightmost entry; with more than one proxy in a chain, set `TRUST_PROXY_HOPS`. **If nothing sits in front of the app (it is exposed directly), set `TRUST_PROXY=0`**: otherwise a client can send its own `X-Forwarded-For` and pick its rate-limit bucket. This includes sign-in by email code: its limits (codes sent, codes checked, the daily lockout) are counted per IP, so `next start` exposed without a proxy lets a forged `X-Forwarded-For` dodge them. With `TRUST_PROXY=0` those limits are shared by everyone on the server, so if your team signs in by email code, prefer a reverse proxy over `TRUST_PROXY=0`.
-
-Data lives in two volumes: `zerosoft-data` (the SQLite file) and `zerosoft-uploads` (attachments). Back them up and you have everything.
-
-Without Docker: `npm ci && npm run build && npm start`.
-
-### Robots and Flow on a self-hosted server
-
-- **Robots** run in a local headless Chromium by default when `ROBOTS_RUNNER` is unset: `npm ci` installs `playwright-core`, you add the browser once with `npx playwright-core install --with-deps chromium` (or point `ROBOTS_CHROMIUM_PATH` at an installed Chrome). Set `ROBOTS_RUNNER=none` to disable runs. The same SSRF guard as webhooks blocks private hosts unless `ALLOW_PRIVATE_WEBHOOKS=true`.
-- **Schedules** (Flow and Robots) are fired by `/api/cron/tick`. Vercel calls it once an hour (`vercel.json`). The Flow queue (schedules, delays, retries) and Cal reminders and workflow steps also run every minute from `/api/cron/minute`, and robot schedules also have their own cron, `/api/cron/robots`, every 5 minutes (due robots run in parallel, one per workspace; `ROBOTS_CRON_CONCURRENCY` caps how many at once); self-hosted, call it as often as you like (for example every minute with `curl -H "Authorization: Bearer $CRON_SECRET" https://your-host/api/cron/tick`). Cron expressions are 5-field with a time zone; robot intervals are at least 15 minutes.
-- **Credentials** for integrations (Slack, Google Sheets, Stripe, Notion, Discord, Telegram, API keys, logins) live in `/app/flow/credentials`, encrypted per workspace. Keep `CREDENTIALS_KEY` (or `NEXTAUTH_SECRET`) stable.
-- **Code node** needs Vercel Sandbox credentials (`FLOW_CODE_RUNNER=sandbox` + `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID`); without them it stays disabled. User code never runs inside the app process. Each execution is one microVM, capped per workspace by `FLOW_CODE_RUNS_PER_HOUR` (default 300) and `FLOW_CODE_RUNS_PER_DAY` (default 2000); set either to `unlimited` to lift it.
-
-Export everything, always: links and analytics are yours (JSON via API, and the SQLite file itself if self-hosted). No hostages.
-
-## Structure
-
-```
-app/                  Next.js App Router
-  [locale]/           en / es / pt pages (home, products, blog, docs, legal, status)
-  [locale]/app/       product dashboards: links/, crm/, track/, calendar/, chat/, docs/
-  api/                links CRUD, keys, v1 public API (+ /api/v1/crm), auth
-  r/[slug]/           the redirect engine (302 + cookie-less click tracking)
-components/           UI (ZeroField canvas, header/footer, link/* dashboard, crm/* CRM, products/* mockups)
-content/blog/         66 posts × 3 locales, Markdown with frontmatter
-i18n/                 routing + request config (next-intl)
-lib/                  db, auth, links, crm, analytics, rate limit, blog loader
-messages/             en / es / pt UI strings
-middleware.ts         locale negotiation + short-link passthrough
-lib/schema/           versioned migrations (baseline + numbered, tracked in schema_migrations)
-ee/                   enterprise features under a commercial license (see ee/README.md)
-tests/unit/           Vitest · tests/e2e/ Playwright (critical flows + every screen)
-scripts/seed.ts       demo data (Link) · scripts/seed-crm.ts (CRM) — both run via npm run seed
-styles/               globals.css, pages.css, link.css, crm.css (no Tailwind, hand-rolled)
-```
+`docker compose up -d` runs the production build with your data in two Docker
+volumes. Environment variables, reverse proxy setup, crons and bringing your
+own AI and WhatsApp providers are covered in
+[docs/self-hosting.md](docs/self-hosting.md).
 
 ## Stack
 
-Next.js 15 (App Router) · React 19 · TypeScript · @libsql/client (local SQLite file or Turso) · next-intl · next-auth v4 · zero CSS frameworks.
+Next.js 15 (App Router), React 19, TypeScript, libSQL (a local SQLite file or
+Turso), next-intl, next-auth, plain CSS with design tokens. Vitest for unit
+tests, Playwright for end-to-end tests.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: [SECURITY.md](SECURITY.md).
+Bug fixes, missing features from the tools we replace, and translations are
+welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: it covers the
+architecture, offline development, the checks, and the one-click
+[CLA](CLA.md). If you use a coding agent, point it at [AGENTS.md](AGENTS.md).
+AI-assisted pull requests follow [AI_POLICY.md](AI_POLICY.md).
+
+Security issues: [SECURITY.md](SECURITY.md). Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## License
 
-Open core, the same model as Cal.com or Dub:
-
-- Everything **outside** `/ee` — every core feature of every product — is [AGPLv3](LICENSE). Use it, self-host it, modify it. If you offer a modified version as a service, publish your changes.
-- The [`/ee`](ee/README.md) folder (SSO/SAML, audit logs, custom roles, white-label) is source-available under the [Zerosoft Enterprise License](ee/LICENSE): free for development and testing, a subscription for production use. The license text is a draft pending legal review.
+- Everything outside `ee/`, which is every feature of every app, is [AGPLv3](LICENSE).
+- `ee/` holds only enterprise features (SSO/SAML, SCIM, audit export, custom roles, white-label, multi-workspace admin) under the source-available [Zerosoft Enterprise License](ee/LICENSE): free for development, a subscription for production. See [ee/README.md](ee/README.md).
+- The zerosoft name and logo are not covered by either license. See [TRADEMARK.md](TRADEMARK.md).

@@ -23,6 +23,8 @@ interface DealsFiltersProps {
   /** Tag activo (?tag=) y tags disponibles. */
   tag?: string;
   tags?: Array<{ id: string; name: string }>;
+  /** ?stalled=1: solo deals abiertos que pasaron el umbral de rotting de su etapa. */
+  stalled?: boolean;
   createdFrom: string;
   createdTo: string;
   custom: Record<string, string>;
@@ -50,6 +52,7 @@ export default function DealsFilters({
   owner,
   tag = '',
   tags = [],
+  stalled = false,
   createdFrom,
   createdTo,
   custom,
@@ -79,6 +82,7 @@ export default function DealsFilters({
       source: source || undefined,
       owner: owner || undefined,
       tag: tag || undefined,
+      stalled: stalled ? '1' : undefined,
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
       filters: advanced || undefined,
@@ -108,6 +112,7 @@ export default function DealsFilters({
     source,
     owner,
     tag,
+    stalled,
     createdFrom,
     createdTo,
     ...Object.values(custom),
@@ -191,6 +196,15 @@ export default function DealsFilters({
         )}
         <button
           type="button"
+          className={`filter-more${stalled ? ' on' : ''}`}
+          onClick={() => go({ stalled: stalled ? undefined : '1' })}
+          aria-pressed={stalled}
+          data-testid="stalled-filter"
+        >
+          {t('deals.filterStalled')}
+        </button>
+        <button
+          type="button"
           className={`filter-more${moreOpen ? ' open' : ''}${moreActive ? ' on' : ''}`}
           onClick={() => setMoreOpen((v) => !v)}
           aria-expanded={moreOpen}
@@ -212,6 +226,7 @@ export default function DealsFilters({
                   source: undefined,
                   owner: undefined,
                   tag: undefined,
+                  stalled: undefined,
                   createdFrom: undefined,
                   createdTo: undefined,
                 })
