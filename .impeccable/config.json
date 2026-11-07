@@ -74,6 +74,15 @@
         ],
         "createdAt": "2026-10-30T06:55:22.215Z",
         "reason": "agent decision: the <img onerror> string is an intentional XSS payload in a sanitizer unit test, not rendered UI"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "styles/groups-wa.css"
+        ],
+        "createdAt": "2026-11-07T19:48:53.112Z",
+        "reason": "Claude: the quoted-reply block copies WhatsApp Web's colored left bar; the user asked for the inbox to look like WhatsApp Web"
       }
     ]
   }

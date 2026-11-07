@@ -135,23 +135,42 @@ export function DocCard({ url, name, type, size, pages }: { url: string; name: s
   );
 }
 
-/** Imagen o sticker. Abre en otra pestaña. */
-export function ImageView({ url, alt, sticker, onLoad }: { url: string; alt: string; sticker?: boolean; onLoad?: (e: SyntheticEvent<HTMLImageElement>) => void }) {
+/** Imagen o sticker. Abre el visor del chat (o en otra pestaña si no hay visor). */
+export function ImageView({ url, alt, sticker, onLoad, onOpen }: { url: string; alt: string; sticker?: boolean; onLoad?: (e: SyntheticEvent<HTMLImageElement>) => void; onOpen?: () => void }) {
   const [failed, setFailed] = useState(false);
   const t = useTranslations('groups');
   if (failed) {
     return <span className="wa-media-off">{t('thread.fileUnavailable')}</span>;
   }
+  // eslint-disable-next-line @next/next/no-img-element
+  const img = <img src={url} alt={alt} loading="lazy" onLoad={onLoad} onError={() => setFailed(true)} />;
+  if (onOpen && !sticker) {
+    return (
+      <button type="button" className="wa-image" onClick={onOpen} aria-label={t('wa.openMedia', { name: alt })}>
+        {img}
+      </button>
+    );
+  }
   return (
     <a className={`wa-image${sticker ? ' is-sticker' : ''}`} href={url} target="_blank" rel="noreferrer">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt={alt} loading="lazy" onLoad={onLoad} onError={() => setFailed(true)} />
+      {img}
     </a>
   );
 }
 
-export function VideoView({ url, round }: { url: string; round?: boolean }) {
-  return <video className={`wa-video${round ? ' is-round' : ''}`} src={url} controls preload="metadata" playsInline />;
+/** Video: miniatura con el botón de reproducir; abre el visor (o se reproduce acá si no hay visor). */
+export function VideoView({ url, round, seconds, onOpen }: { url: string; round?: boolean; seconds?: number; onOpen?: () => void }) {
+  const t = useTranslations('groups');
+  if (!onOpen) return <video className={`wa-video${round ? ' is-round' : ''}`} src={url} controls preload="metadata" playsInline />;
+  return (
+    <button type="button" className={`wa-video-thumb${round ? ' is-round' : ''}`} onClick={onOpen} aria-label={t('wa.playVideo')}>
+      <video src={`${url}#t=0.1`} preload="metadata" muted playsInline tabIndex={-1} aria-hidden="true" />
+      <span className="wa-video-play" aria-hidden="true">
+        <Play size={30} />
+      </span>
+      {seconds ? <span className="wa-video-len">{duration(seconds)}</span> : null}
+    </button>
+  );
 }
 
 /** Ubicación compartida: abre el mapa. */

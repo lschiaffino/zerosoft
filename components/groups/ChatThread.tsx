@@ -20,7 +20,9 @@ import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
 import EmojiPicker from './wa/EmojiPicker';
-import { colorIndex, dayLabel, linkify, localDayKey, onlyEmoji } from './wa/format';
+import MediaViewer from './wa/MediaViewer';
+import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
+import { colorIndex, dayLabel, extensionOf, linkify, localDayKey, onlyEmoji } from './wa/format';
 import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from './wa/MediaParts';
 import {
   ArrowDown,
@@ -33,10 +35,8 @@ import {
   Lock,
   Mic,
   Panel,
-  PhotoIcon,
   PinIcon,
   Plus,
-  PollIcon,
   SendIcon,
   Smiley,
   Sparkle,
@@ -132,9 +132,11 @@ export default function ChatThread(props: ThreadProps) {
   const [caret, setCaret] = useState(0);
   const [mode, setMode] = useState<'reply' | 'note'>('reply');
   const [replyTo, setReplyTo] = useState<MessageDto | null>(null);
-  const [attachment, setAttachment] = useState<{ url: string; mimetype: string; filename: string; ptt?: boolean; caption?: string } | null>(null);
+  const tray = useAttachTray();
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
+  const [viewerAt, setViewerAt] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [sendError, setSendError] = useState('');
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -413,31 +415,65 @@ export default function ChatThread(props: ThreadProps) {
     pendingCaret.current = start + e.length;
   }
 
-  async function send(override?: { url: string; mimetype: string; filename: string; ptt?: boolean }) {
-    const media = override ?? attachment;
-    if (sending || (!text.trim() && !media)) return;
+  async function post(body: Record<string, unknown>): Promise<MessageDto | null> {
+    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body });
+    if (!res.data) {
+      setSendError(errText(res.error));
+      return null;
+    }
+    merge([res.data]);
+    if (res.data.status === 'failed') setSendError(errText(res.data.error || 'send_failed'));
+    return res.data;
+  }
+
+  /**
+   * Manda lo del composer: el texto, o los archivos de la bandeja (el texto
+   * va como pie del primero, como en WhatsApp), o una nota de voz.
+   */
+  async function send(voice?: { url: string; mimetype: string; filename: string }) {
+    const files = mode === 'note' ? [] : tray.items;
+    if (sending) return;
+    if (!voice && !text.trim() && files.length === 0) return;
+    if (files.some((f) => f.status !== 'ready')) {
+      setSendError(t(files.some((f) => f.status === 'error') ? 'wa.fixUploads' : 'wa.waitUploads'));
+      return;
+    }
     // Ya se está abriendo otro chat: no se manda (el texto queda como borrador de este chat).
     if (isLeavingChat(chat.id) || !window.location.pathname.includes(`/${chat.id}`)) return;
     setSending(true);
     setSendError('');
-    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, {
-      body: { body: override ? '' : text, note: mode === 'note', replyToId: replyTo?.id ?? null, media: mode === 'note' ? null : media },
-    });
-    setSending(false);
-    if (!res.data) {
-      setSendError(errText(res.error));
-      return;
+    const base = { note: mode === 'note', replyToId: replyTo?.id ?? null };
+    let ok = true;
+    if (voice) {
+      ok = Boolean(await post({ ...base, body: '', media: { ...voice, ptt: true } }));
+    } else if (files.length) {
+      for (let i = 0; i < files.length && ok; i++) {
+        const f = files[i];
+        const caption = i === 0 ? text : '';
+        const sent = await post({ ...base, replyToId: i === 0 ? base.replyToId : null, body: caption, media: { url: f.url, mimetype: f.type, filename: f.name, caption } });
+        ok = Boolean(sent && sent.status !== 'failed');
+        if (ok) tray.remove(f.key);
+      }
+    } else {
+      ok = Boolean(await post({ ...base, body: text, media: null }));
     }
-    merge([res.data]);
-    if (res.data.status === 'failed') setSendError(errText(res.data.error || 'send_failed'));
+    setSending(false);
+    if (!ok) return;
     // Respondido: el chat deja de esperar (el servidor ya lo marcó).
-    else if (mode === 'reply') setChat((c) => ({ ...c, awaitingSince: null, flagged: false }));
-    if (!override) setText('');
+    if (mode === 'reply') setChat((c) => ({ ...c, awaitingSince: null, flagged: false }));
+    if (!voice) setText('');
     setReplyTo(null);
-    setAttachment(null);
     setUndoText(null);
     setDraftSources([]);
     refresh();
+    inputRef.current?.focus();
+  }
+
+  function addFiles(files: File[]) {
+    if (files.length === 0) return;
+    setMode('reply');
+    setSendError('');
+    tray.add(files);
     inputRef.current?.focus();
   }
 
@@ -471,26 +507,15 @@ export default function ChatThread(props: ThreadProps) {
   }
 
   async function uploadFile(file: File | Blob, name: string): Promise<{ url: string; mimetype: string; filename: string } | null> {
-    setUploading(true);
     const form = new FormData();
     form.append('file', file, name);
-    try {
-      const res = await fetch('/api/groups/upload', { method: 'POST', body: form });
-      const data = (await res.json().catch(() => ({}))) as { url?: string; mimetype?: string; filename?: string; error?: string };
-      if (!res.ok || !data.url) {
-        setSendError(errText(data.error ?? 'upload_failed'));
-        return null;
-      }
-      return { url: data.url, mimetype: data.mimetype ?? file.type, filename: data.filename ?? name };
-    } finally {
-      setUploading(false);
+    const res = await fetch('/api/groups/upload', { method: 'POST', body: form }).catch(() => null);
+    const data = (await res?.json().catch(() => ({}))) as { url?: string; mimetype?: string; filename?: string; error?: string } | undefined;
+    if (!res?.ok || !data?.url) {
+      setSendError(errText(data?.error ?? 'upload_failed'));
+      return null;
     }
-  }
-
-  async function upload(file: File) {
-    const up = await uploadFile(file, file.name);
-    if (up) setAttachment(up);
-    inputRef.current?.focus();
+    return { url: data.url, mimetype: data.mimetype ?? file.type, filename: data.filename ?? name };
   }
 
   // Nota de voz: grabar con el micrófono, ver el tiempo, cancelar o mandar.
@@ -517,7 +542,7 @@ export default function ChatThread(props: ThreadProps) {
       const type = (rec.mimeType || mime || 'audio/webm').split(';')[0];
       const blob = new Blob(state.chunks, { type });
       const up = await uploadFile(blob, `voice-note.${type === 'audio/mp4' ? 'm4a' : type === 'audio/ogg' ? 'ogg' : 'weba'}`);
-      if (up) await send({ ...up, ptt: true });
+      if (up) await send(up);
     };
     recorder.current = state;
     rec.start(250);
@@ -699,6 +724,11 @@ export default function ChatThread(props: ThreadProps) {
     refresh();
   }
 
+  function scheduledMedia() {
+    const f = tray.items.find((x) => x.status === 'ready');
+    return f ? { url: f.url, mimetype: f.type, filename: f.name } : null;
+  }
+
   async function scheduleSend() {
     if (!text.trim()) {
       setSchedule((s) => ({ ...s, error: errText('empty_message') }));
@@ -709,12 +739,12 @@ export default function ChatThread(props: ThreadProps) {
       if (bad) return setSchedule((s) => ({ ...s, error: errText(bad) }));
       setSchedule((s) => ({ ...s, busy: true, error: '' }));
       const res = await api<{ nextRunAt: string | null }>('/api/groups/recurring', {
-        body: { chatIds: [chat.id], body: text, media: attachment, rule, timezone, endsAt: endsIso(endsAt) },
+        body: { chatIds: [chat.id], body: text, media: scheduledMedia(), rule, timezone, endsAt: endsIso(endsAt) },
       });
       if (!res.data) return setSchedule((s) => ({ ...s, busy: false, error: errText(res.error) }));
       setSchedule({ open: false, at: '', busy: false, error: '' });
       setText('');
-      setAttachment(null);
+      tray.clear();
       setRepeat(false);
       showToast(t('recurring.created', { when: res.data.nextRunAt ? parseDbUtc(res.data.nextRunAt).toLocaleString(locale) : '' }));
       return;
@@ -726,7 +756,7 @@ export default function ChatThread(props: ThreadProps) {
     }
     setSchedule((s) => ({ ...s, busy: true, error: '' }));
     const res = await api('/api/groups/broadcasts', {
-      body: { chatIds: [chat.id], body: text, media: attachment, scheduledAt: new Date(when).toISOString(), kind: 'scheduled' },
+      body: { chatIds: [chat.id], body: text, media: scheduledMedia(), scheduledAt: new Date(when).toISOString(), kind: 'scheduled' },
     });
     if (!res.data) {
       setSchedule((s) => ({ ...s, busy: false, error: errText(res.error) }));
@@ -734,7 +764,7 @@ export default function ChatThread(props: ThreadProps) {
     }
     setSchedule({ open: false, at: '', busy: false, error: '' });
     setText('');
-    setAttachment(null);
+    tray.clear();
     showToast(t('thread.scheduled', { when: new Date(when).toLocaleString(locale) }));
   }
 
@@ -921,9 +951,9 @@ export default function ChatThread(props: ThreadProps) {
               {!media.url ? (
                 <DocCard url="" name={media.name} type={media.type} />
               ) : kind === 'image' ? (
-                <ImageView url={media.url} alt={media.name || t('thread.image')} sticker={sticker} onLoad={keepAtEnd} />
+                <ImageView url={media.url} alt={media.name || t('thread.image')} sticker={sticker} onLoad={keepAtEnd} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'video' ? (
-                <VideoView url={media.url} round={meta.round === true} />
+                <VideoView url={media.url} round={meta.round === true} seconds={Number(meta.seconds) || undefined} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'audio' ? (
                 <VoicePlayer id={m.id} src={media.url} seconds={Number(meta.seconds) || undefined} voice={meta.ptt === true} />
               ) : (
@@ -1033,7 +1063,7 @@ export default function ChatThread(props: ThreadProps) {
           )}
           <p className="gr-msg-foot">
             {m.pinnedAt && <PinIcon size={12} label={t('thread.pinned')} />}
-            {m.editedAt && !m.deletedAt && <span>{t('thread.edited')}</span>}
+            {m.editedAt && !m.deletedAt && <span className="wa-edited">{t('thread.edited')}</span>}
             <time dateTime={m.createdAt}>
               <LocalText>{time}</LocalText>
             </time>
@@ -1082,11 +1112,48 @@ export default function ChatThread(props: ThreadProps) {
     );
   }
 
-  const canSend = Boolean(text.trim() || attachment);
+  const canSend = Boolean(text.trim() || (mode === 'reply' && tray.items.length > 0));
+  const viewerItems = messages
+    .filter((m) => m.media?.url && /^(image|video)\//.test(m.media.type) && !(m.meta as Record<string, unknown>).sticker)
+    .map((m) => ({ id: m.id, url: m.media!.url, type: m.media!.type, name: m.media!.name, caption: m.body, author: m.direction === 'in' ? (chat.kind === 'group' ? inName(m) : chat.name) : t('wa.you'), createdAt: m.createdAt }));
+  const viewerIndex = viewerAt ? viewerItems.findIndex((v) => v.id === viewerAt) : -1;
 
   return (
     <>
-      <section className="gr-thread wa-thread" aria-label={chat.name}>
+      <section
+        className={`gr-thread wa-thread${dragging ? ' is-dragging' : ''}`}
+        aria-label={chat.name}
+        onDragEnter={(e) => {
+          if (!hasFiles(e.dataTransfer)) return;
+          e.preventDefault();
+          dragDepth.current++;
+          setDragging(true);
+        }}
+        onDragOver={(e) => {
+          if (!hasFiles(e.dataTransfer)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        }}
+        onDragLeave={() => {
+          dragDepth.current = Math.max(0, dragDepth.current - 1);
+          if (dragDepth.current === 0) setDragging(false);
+        }}
+        onDrop={(e) => {
+          if (!hasFiles(e.dataTransfer)) return;
+          e.preventDefault();
+          dragDepth.current = 0;
+          setDragging(false);
+          addFiles(filesFrom(e.dataTransfer));
+        }}
+      >
+        {dragging && (
+          <div className="wa-drop" aria-hidden="true">
+            <span>
+              <Plus size={34} />
+              <strong>{t('wa.dropToAttach')}</strong>
+            </span>
+          </div>
+        )}
         <header className="gr-thread-head wa-head">
           <Link href="/app/groups/inbox" className="wa-icon-btn gr-back" aria-label={t('thread.back')} title={t('thread.back')}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -1277,14 +1344,50 @@ export default function ChatThread(props: ThreadProps) {
               ))}
             </ul>
           )}
-          {attachment && (
-            <p className="gr-attachment wa-attachment">
-              {attachment.mimetype.startsWith('image/') ? <PhotoIcon size={18} /> : <DocIcon size={18} />}
-              <span>{attachment.filename}</span>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAttachment(null)}>
-                {t('common.remove')}
-              </button>
-            </p>
+          {mode === 'reply' && tray.items.length > 0 && (
+            <ul className="wa-tray" aria-label={t('wa.attachments')}>
+              {tray.items.map((f) => (
+                <li key={f.key} className={`wa-tray-item is-${f.status}`}>
+                  {f.preview && f.type.startsWith('image/') ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={f.preview} alt="" />
+                  ) : f.preview && f.type.startsWith('video/') ? (
+                    <video src={f.preview} muted preload="metadata" aria-hidden="true" />
+                  ) : (
+                    <span className="wa-tray-doc" aria-hidden="true">
+                      <DocIcon size={22} />
+                      <b>{extensionOf(f.name, f.type)}</b>
+                    </span>
+                  )}
+                  <span className="wa-tray-name" title={f.name}>
+                    {f.name}
+                  </span>
+                  {f.status === 'uploading' && (
+                    <span className="wa-tray-bar" role="progressbar" aria-label={t('wa.uploading', { name: f.name })} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(f.progress * 100)}>
+                      <i style={{ width: `${Math.max(4, f.progress * 100)}%` }} />
+                    </span>
+                  )}
+                  {f.status === 'error' && (
+                    <span className="wa-tray-err" role="alert">
+                      {errText(f.error)}
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => tray.retry(f.key)}>
+                        {t('common.retry')}
+                      </button>
+                    </span>
+                  )}
+                  <button type="button" className="wa-tray-x" onClick={() => tray.remove(f.key)} aria-label={t('wa.removeFile', { name: f.name })} title={t('common.remove')}>
+                    <Close size={14} />
+                  </button>
+                </li>
+              ))}
+              {tray.items.length < MAX_TRAY && (
+                <li className="wa-tray-add">
+                  <button type="button" onClick={() => fileRef.current?.click()} aria-label={t('wa.addMore')} title={t('wa.addMore')}>
+                    <Plus size={22} />
+                  </button>
+                </li>
+              )}
+            </ul>
           )}
           {(undoText !== null || draftSources.length > 0) && (
             <p className="gr-ai-note">
@@ -1354,10 +1457,10 @@ export default function ChatThread(props: ThreadProps) {
                   <input
                     ref={fileRef}
                     type="file"
+                    multiple
                     hidden
                     onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) void upload(f);
+                      addFiles([...(e.target.files ?? [])]);
                       e.target.value = '';
                     }}
                   />
@@ -1365,10 +1468,10 @@ export default function ChatThread(props: ThreadProps) {
                     ref={photoRef}
                     type="file"
                     accept="image/*,video/*"
+                    multiple
                     hidden
                     onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) void upload(f);
+                      addFiles([...(e.target.files ?? [])]);
                       e.target.value = '';
                     }}
                   />
@@ -1399,9 +1502,15 @@ export default function ChatThread(props: ThreadProps) {
                 }}
                 onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
                 onKeyDown={onComposerKey}
-                placeholder={mode === 'note' ? t('thread.notePlaceholder') : t('wa.typeMessage')}
+                placeholder={mode === 'note' ? t('thread.notePlaceholder') : tray.items.length ? t('wa.addCaption') : t('wa.typeMessage')}
                 aria-label={mode === 'note' ? t('thread.modeNote') : t('thread.modeReply')}
-                aria-busy={uploading || undefined}
+                onPaste={(e) => {
+                  const files = filesFrom(e.clipboardData);
+                  if (files.length && mode === 'reply') {
+                    e.preventDefault();
+                    addFiles(files);
+                  }
+                }}
               />
               {canSend || mode === 'note' || !voiceSupported ? (
                 <button
@@ -1409,7 +1518,7 @@ export default function ChatThread(props: ThreadProps) {
                   className="wa-send"
                   onClick={() => void send()}
                   disabled={sending || !canSend}
-                  aria-busy={sending || uploading || undefined}
+                  aria-busy={sending || tray.items.some((f) => f.status === 'uploading') || undefined}
                   aria-label={mode === 'note' ? t('thread.saveNote') : t('thread.send')}
                   title={mode === 'note' ? t('thread.saveNote') : t('thread.send')}
                 >
@@ -1601,9 +1710,9 @@ export default function ChatThread(props: ThreadProps) {
           )}
         </div>
       </Modal>
+      {viewerIndex >= 0 && <MediaViewer items={viewerItems} index={viewerIndex} onIndex={(i) => setViewerAt(viewerItems[i]?.id ?? null)} onClose={() => setViewerAt(null)} />}
       {toast}
     </>
   );
 }
 
-export { PollIcon };

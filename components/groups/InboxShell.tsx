@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -10,7 +10,11 @@ import type { ChatDto, ChatFilter, GroupsPerson, LabelDto, PropertyDef } from '@
 import type { SavedListDto, SavedListFilters } from '@/lib/groups-org';
 import { LISTS_CHANGED, notifyListsChanged } from './GroupsListsBranch';
 import { filterOptions } from './PropertyInput';
-import { ChatPlate, LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useToast } from './ui';
+import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useToast } from './ui';
+import Avatar from './wa/Avatar';
+import { listTime } from './wa/format';
+import { MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
+import type { ImportStatus } from '@/lib/groups-import';
 
 const FILTERS: ChatFilter[] = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'];
 const STORE = 'zs-groups-inbox';
@@ -118,6 +122,9 @@ export default function InboxShell({
   const [toast, showToast] = useToast();
   const rel = useRelativeTime();
   const mediaText = useMediaText();
+  const locale = useLocale();
+  const [imports, setImports] = useState<ImportStatus[]>([]);
+  const [pageSize, setPageSize] = useState(100);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null);
@@ -187,7 +194,7 @@ export default function InboxShell({
   }, [reloadLists, pathname]);
 
   const query = useMemo(() => {
-    const p = new URLSearchParams({ filter, limit: '100' });
+    const p = new URLSearchParams({ filter, limit: String(pageSize) });
     if (debounced) p.set('q', debounced);
     if (label) p.set('label', label);
     if (kind) p.set('kind', kind);
@@ -195,7 +202,7 @@ export default function InboxShell({
     if (team) p.set('team', team);
     if (propKey) p.set('props', JSON.stringify([propValue ? { key: propKey, op: 'is', value: propValue } : { key: propKey, op: 'set' }]));
     return p.toString();
-  }, [filter, debounced, label, kind, assignee, team, propKey, propValue]);
+  }, [filter, debounced, label, kind, assignee, team, propKey, propValue, pageSize]);
 
   const load = useCallback(
     async (silent: boolean) => {
@@ -204,10 +211,11 @@ export default function InboxShell({
       try {
         const res = await fetch(`/api/groups/chats?${query}`);
         if (!res.ok) throw new Error('failed');
-        const data = (await res.json()) as { rows: ChatDto[]; total: number };
+        const data = (await res.json()) as { rows: ChatDto[]; total: number; imports?: ImportStatus[] };
         if (mine !== seq.current) return;
         setRows(data.rows);
         setTotal(data.total);
+        setImports(data.imports ?? []);
         setError(false);
       } catch {
         if (mine === seq.current && !silent) setError(true);
@@ -382,6 +390,8 @@ export default function InboxShell({
                 )}
               </p>
             )}
+            <span className="wa-search">
+              <Search size={18} />
             <input
               ref={searchRef}
               className="input gr-search"
@@ -394,6 +404,7 @@ export default function InboxShell({
               placeholder={t('inbox.searchPlaceholder')}
               aria-label={t('inbox.search')}
             />
+            </span>
             <div className="gr-filters" role="tablist" aria-label={t('inbox.filters')}>
               {FILTERS.map((f) => (
                 <button
@@ -533,6 +544,24 @@ export default function InboxShell({
               </button>
             </div>
           )}
+          {imports.map((im) => (
+            <div key={im.numberId} className={`wa-import${im.status === 'error' ? ' is-bad' : im.status === 'done' ? ' is-done' : ''}`} role="status">
+              <span>
+                {im.status === 'done'
+                  ? t('wa.importDone', { chats: im.chatsTotal, messages: im.messages })
+                  : im.status === 'error'
+                    ? t('wa.importFailed')
+                    : im.phase === 'messages' || im.phase === 'pictures'
+                      ? t('wa.importMessages', { done: im.chatsDone, total: im.chatsTotal })
+                      : t('wa.importChats', { n: im.chatsTotal })}
+              </span>
+              {(im.status === 'queued' || im.status === 'running') && (
+                <span className="wa-import-bar" role="progressbar" aria-label={t('wa.importProgress')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={im.chatsTotal ? Math.round((im.chatsDone / im.chatsTotal) * 100) : 0}>
+                  <i style={{ width: `${im.chatsTotal ? Math.max(3, (im.chatsDone / im.chatsTotal) * 100) : 3}%` }} />
+                </span>
+              )}
+            </div>
+          ))}
           {error && (
             <div className="gr-error" role="alert">
               {t('inbox.loadError')}
@@ -550,7 +579,14 @@ export default function InboxShell({
           ) : rows.length === 0 && !error ? (
             <p className="gr-list-empty">{debounced ? t('inbox.noResults') : activeList ? t('lists.empty') : t(`inbox.empty.${filter}`)}</p>
           ) : (
-            <ul className={`gr-rows${visibleSelected.length > 0 ? ' is-selecting' : ''}`}>
+            <ul
+              className={`gr-rows${visibleSelected.length > 0 ? ' is-selecting' : ''}`}
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                // Más chats al llegar al final (de a 100, hasta 500 en pantalla).
+                if (el.scrollHeight - el.scrollTop - el.clientHeight < 400 && total > rows.length && pageSize < 500) setPageSize((n) => Math.min(500, n + 100));
+              }}
+            >
               {rows.map((c) => (
                 <li key={c.id} className="gr-row-item">
                   <input
@@ -569,21 +605,29 @@ export default function InboxShell({
                     className={`gr-row${c.id === current ? ' is-active' : ''}${c.unread > 0 ? ' is-unread' : ''}`}
                     aria-current={c.id === current ? 'page' : undefined}
                   >
-                    <ChatPlate name={c.name} kind={c.kind} />
+                    <Avatar name={c.name} kind={c.kind} src={c.pictureUrl} seed={c.id} />
                     <span className="gr-row-main">
                       <span className="gr-row-top">
-                        <span className="gr-row-name">
-                          {c.pinned && (
-                            <svg className="gr-pin-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" role="img" aria-label={t('inbox.pinned')}>
-                              <path d="M9 4h6l-1 6 4 4H6l4-4zM12 14v7" />
-                            </svg>
-                          )}
-                          {c.name}
-                        </span>
-                        <span className="gr-row-time">{rel(c.lastMessageAt ?? c.createdAt)}</span>
+                        <span className="gr-row-name">{c.name}</span>
+                        <span className={`gr-row-time${c.unread > 0 ? ' is-unread' : ''}`}>{listTime(c.lastMessageAt ?? c.createdAt, locale)}</span>
                       </span>
-                      <span className="gr-row-preview">{c.match ?? mediaText({ preview: c.lastMessagePreview })}</span>
-                      {(c.flagged || c.awaitingSince || c.labels.length > 0 || c.unread > 0 || c.assignedTo) && (
+                      <span className="gr-row-bottom">
+                        <span className="gr-row-preview">
+                          {!c.match && c.lastDirection === 'out' && c.lastStatus && c.lastStatus !== 'received' && <Ticks status={c.lastStatus} label={t(`status.${c.lastStatus}`)} />}
+                          {!c.match && c.kind === 'group' && c.lastDirection === 'in' && c.lastSender && <span className="gr-row-sender">{c.lastSender}: </span>}
+                          {c.match ?? mediaText({ preview: c.lastMessagePreview })}
+                        </span>
+                        <span className="gr-row-icons">
+                          {c.muted && <MuteIcon size={16} label={t('wa.muted')} />}
+                          {c.unread > 0 && (
+                            <span className="gr-unread" aria-label={t('inbox.unread', { n: c.unread })}>
+                              {c.unread > 999 ? '999+' : c.unread}
+                            </span>
+                          )}
+                          {c.pinned && <PinIcon size={16} className="gr-pin-icon" label={t('inbox.pinned')} />}
+                        </span>
+                      </span>
+                      {(c.flagged || c.awaitingSince || c.labels.length > 0 || c.assignedTo) && (
                         <span className="gr-row-meta">
                           {c.flagged ? (
                             <span className="badge badge-bad">{t('inbox.flagged')}</span>
@@ -594,11 +638,6 @@ export default function InboxShell({
                             <LabelTag key={l.id} name={l.name} color={l.color} />
                           ))}
                           {c.assignedTo && <span className="gr-row-assignee">{peopleById.get(c.assignedTo) ?? ''}</span>}
-                          {c.unread > 0 && (
-                            <span className="gr-unread" aria-label={t('inbox.unread', { n: c.unread })}>
-                              {c.unread}
-                            </span>
-                          )}
                         </span>
                       )}
                     </span>

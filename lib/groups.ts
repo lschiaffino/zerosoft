@@ -641,7 +641,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     matchSelect = `(SELECT body FROM groups_messages m WHERE m.chat_id = c.id AND m.body LIKE ? ESCAPE '\\' ORDER BY m.created_at DESC LIMIT 1) AS match`;
     matchArgs.push(like);
   }
-  const limit = Math.min(Math.max(1, query.limit ?? 50), 200);
+  const limit = Math.min(Math.max(1, query.limit ?? 50), 500);
   const offset = Math.max(0, query.offset ?? 0);
   const whereSql = where.join(' AND ');
   const db = getDb();

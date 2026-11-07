@@ -61,5 +61,7 @@ export async function GET(req: Request) {
     offset: Number(p.get('offset')) || 0,
     viewer: await sessionViewer(s),
   });
-  return NextResponse.json(res);
+  // Importación en curso al conectar un número: la bandeja muestra el progreso.
+  const { activeImports } = await import('@/lib/groups-import');
+  return NextResponse.json({ ...res, imports: await activeImports(s.ws).catch(() => []) });
 }

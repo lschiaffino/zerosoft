@@ -17,7 +17,8 @@ export async function GET(_req: Request, ctx: Ctx) {
   if (!s.isAdmin) {
     const row = await getNumberRow(s.ws, id);
     if (!row) return groupsError(404, 'not_found');
-    return NextResponse.json({ status: row.status, phone: row.phone || undefined, import: await getImportStatus(s.ws, id) });
+    const imp = await getImportStatus(s.ws, id);
+    return NextResponse.json({ status: row.status, phone: row.phone || undefined, ...(imp ? { import: imp } : {}) });
   }
   try {
     const state = await refreshNumber(s.ws, id);
