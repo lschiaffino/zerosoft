@@ -1549,7 +1549,7 @@ export default function ChatThread(props: ThreadProps) {
           )}
         </div>
 
-        <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`}>
+        <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`} data-voice-off>
           {mode === 'note' && (
             <p className="wa-note-strip">
               <Lock size={12} /> {t('thread.notePlaceholder')} {t('thread.noteHint')}

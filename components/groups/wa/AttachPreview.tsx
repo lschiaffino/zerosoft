@@ -50,7 +50,7 @@ export default function AttachPreview({
   const uploading = items.some((x) => x.status === 'uploading');
   const broken = items.filter((x) => x.status === 'error').length;
   return (
-    <div className="wa-attach-pane" role="dialog" aria-label={t('wa.attachments')} onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), onClose())}>
+    <div className="wa-attach-pane" data-voice-off role="dialog" aria-label={t('wa.attachments')} onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), onClose())}>
       <header className="wa-attach-head">
         <button type="button" className="wa-icon-btn" onClick={onClose} aria-label={t('common.cancel')} title={t('common.cancel')}>
           <Close />

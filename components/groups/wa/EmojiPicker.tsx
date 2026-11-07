@@ -112,7 +112,7 @@ export default function EmojiPicker({ onPick, onClose }: { onPick: (emoji: strin
   const list: Array<[string, string]> = results ?? (active === 'recent' ? recent.map((e) => [e, e] as [string, string]) : (data?.[active] ?? []));
 
   return (
-    <div className="wa-emoji" role="dialog" aria-label={t('emoji')} ref={ref} onKeyDown={onKey}>
+    <div className="wa-emoji" data-voice-off role="dialog" aria-label={t('emoji')} ref={ref} onKeyDown={onKey}>
       <div className="wa-emoji-tabs" role="tablist" aria-label={t('emojiCategories')}>
         {CATS.filter((c) => c.key !== 'recent' || recent.length > 0).map((c) => (
           <button
