@@ -23,7 +23,7 @@ import {
   type CsvField,
   type CsvMapping,
 } from '@/lib/track-import-map';
-import { teamPath } from '@/lib/track-routes';
+import { projectPath, teamPath } from '@/lib/track-routes';
 
 type Source = 'linear' | 'linear_csv' | 'jira' | 'jira_csv' | 'github' | 'asana' | 'shortcut' | 'csv';
 const SOURCES: Source[] = ['linear', 'linear_csv', 'jira', 'jira_csv', 'github', 'asana', 'shortcut', 'csv'];
@@ -57,10 +57,17 @@ interface ProjectOption {
 }
 
 interface Preview {
+  sourceName?: string | null;
   issues: number;
   comments: number;
   alreadyImported: number;
+  toUpdate?: number;
   truncated?: boolean;
+  plans?: Array<{ name: string; issues: number; milestones: number; updates: number; existing: boolean }>;
+  relations?: number;
+  attachments?: number;
+  triage?: number;
+  archived?: number;
   projects: Array<{ name: string; issues: number; existing: string | null }>;
   statuses: Array<{ name: string; category: string; issues: number; existing: boolean }>;
   people: Array<{ label: string; issues: number; member: string | null }>;
@@ -73,7 +80,13 @@ interface Preview {
 
 interface Report {
   issues: number;
+  updated?: number;
   skipped: number;
+  plansCreated?: number;
+  planUpdates?: number;
+  relations?: number;
+  attachments?: number;
+  plans?: Array<{ id: string; name: string }>;
   comments: number;
   projectsCreated: number;
   statusesCreated: number;
@@ -135,7 +148,10 @@ export default function TrackImportPanel({
       </p>
     );
   } else if (job.status === 'fetching' || job.status === 'importing') {
-    body = <ImportProgress job={job} onCancel={cancel} stageLabel={(s) => (t.has(`stages.${s}`) ? t(`stages.${s}`) : null)} />;
+    body = <ImportProgress job={job} onCancel={cancel} stageLabel={(s) => {
+          const key = `stages.${s.replace(':', '_')}`;
+          return t.has(key) ? t(key) : null;
+        }} />;
   } else if (job.status === 'preview') {
     body = <PreviewView job={job} onConfirm={start} onCancel={cancel} />;
   } else if (job.status === 'done') {
@@ -470,18 +486,35 @@ function PreviewView({ job, onConfirm, onCancel }: { job: ImportJobView; onConfi
   const t = useTranslations('track.importer');
   const p = job.preview as unknown as Preview;
   const toImport = Math.max(0, p.issues - p.alreadyImported);
+  const toUpdate = p.toUpdate ?? 0;
   const unmatched = p.people.filter((x) => !x.member);
+  const plans = p.plans ?? [];
   return (
     <div className="ximp" data-testid="track-import-preview">
+      {p.sourceName ? <p className="ui-help">{t('fromWorkspace', { name: p.sourceName })}</p> : null}
       <div className="ximp-stats">
         <ImportStat value={p.issues} label={t('stat.issues')} />
         <ImportStat value={p.comments} label={t('stat.comments')} />
         <ImportStat value={p.projects.length} label={t('stat.projects')} />
+        {plans.length > 0 && <ImportStat value={plans.length} label={t('stat.plans')} />}
         <ImportStat value={p.labels.total} label={t('stat.labels')} />
         <ImportStat value={p.cycles} label={t('stat.cycles')} />
         <ImportStat value={p.milestones} label={t('stat.milestones')} />
+        {(p.relations ?? 0) > 0 && <ImportStat value={p.relations ?? 0} label={t('stat.relations')} />}
+        {(p.attachments ?? 0) > 0 && <ImportStat value={p.attachments ?? 0} label={t('stat.attachments')} />}
       </div>
-      {p.alreadyImported > 0 && <p className="ximp-note">{t('already', { count: p.alreadyImported })}</p>}
+      {p.alreadyImported > 0 && (
+        <p className="ximp-note" data-testid="track-import-already">
+          {toUpdate > 0 ? t('alreadyUpdate', { count: p.alreadyImported, updated: toUpdate }) : t('already', { count: p.alreadyImported })}
+        </p>
+      )}
+      {(p.triage ?? 0) > 0 || (p.archived ?? 0) > 0 ? (
+        <p className="ui-help">
+          {[(p.triage ?? 0) > 0 ? t('triageNote', { count: p.triage ?? 0 }) : null, (p.archived ?? 0) > 0 ? t('archivedNote', { count: p.archived ?? 0 }) : null]
+            .filter(Boolean)
+            .join(' ')}
+        </p>
+      ) : null}
       {p.truncated && (
         <p className="ximp-note" data-tone="warn">
           {t('truncated')}
@@ -498,6 +531,24 @@ function PreviewView({ job, onConfirm, onCancel }: { job: ImportJobView; onConfi
           ))}
         </ul>
       </section>
+
+      {plans.length > 0 && (
+        <section className="ximp-section" data-testid="track-import-plans">
+          <h3>{t('plansTitle')}</h3>
+          <ul className="ximp-links">
+            {plans.map((x) => (
+              <li key={x.name}>
+                {x.name}{' '}
+                <span className="ui-help">
+                  · {x.existing ? t('projectExisting') : t('projectNew')} · {t('issuesCount', { count: x.issues })}
+                  {x.milestones > 0 ? ` · ${t('milestonesCount', { count: x.milestones })}` : ''}
+                  {x.updates > 0 ? ` · ${t('updatesCount', { count: x.updates })}` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {p.statuses.length > 0 && (
         <section className="ximp-section">
@@ -532,7 +583,12 @@ function PreviewView({ job, onConfirm, onCancel }: { job: ImportJobView; onConfi
       {p.people.length > 0 && (
         <section className="ximp-section">
           <h3>{t('peopleTitle')}</h3>
-          {unmatched.length > 0 && <p className="ximp-note" data-tone="warn">{t('unmatchedNote', { count: unmatched.length })}</p>}
+          {unmatched.length > 0 && (
+            <div className="ximp-note" data-tone="warn">
+              <p>{t('unmatchedNote', { count: unmatched.length })}</p>
+              <InviteMissing emails={unmatched.map((x) => x.label).filter((l) => l.includes('@'))} />
+            </div>
+          )}
           <div className="table-wrap">
             <table className="table table-compact ximp-table">
               <thead>
@@ -565,15 +621,64 @@ function PreviewView({ job, onConfirm, onCancel }: { job: ImportJobView; onConfi
             {p.sample.map((s, i) => (
               <li key={i}>
                 {s.key && <span className="data">{s.key} </span>}
-                {s.title} <span className="ui-help">· {t.has(`categories.${s.status}`) ? t(`categories.${s.status}`) : s.status}</span>
+                {s.title}{' '}
+                <span className="ui-help">· {s.status === 'triage' ? t('triageStatus') : t.has(`categories.${s.status}`) ? t(`categories.${s.status}`) : s.status}</span>
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      <ImportConfirm label={t('confirm', { count: toImport })} onConfirm={onConfirm} onCancel={onCancel} disabled={p.issues === 0} />
+      <ImportConfirm
+        label={toImport === 0 && p.alreadyImported > 0 ? t('confirmSync', { count: toUpdate }) : t('confirm', { count: toImport })}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+        disabled={p.issues === 0}
+      />
     </div>
+  );
+}
+
+/** Invita al workspace a las personas de la fuente que no son miembros (por email). */
+function InviteMissing({ emails }: { emails: string[] }) {
+  const t = useTranslations('track.importer');
+  const [state, setState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
+  const [sent, setSent] = useState(0);
+  if (!emails.length) return null;
+  const invite = async () => {
+    setState('busy');
+    const res = await fetch('/api/teams/invites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emails: emails.join(', '), role: 'member' }),
+    }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { results?: Array<{ status: string }> } | null;
+    if (!res?.ok || !data?.results) {
+      setState('error');
+      return;
+    }
+    setSent(data.results.filter((r) => r.status === 'sent' || r.status === 'member').length);
+    setState('done');
+  };
+  if (state === 'done') {
+    return (
+      <p role="status" data-testid="track-import-invited">
+        {t('invitedNote', { count: sent })}
+      </p>
+    );
+  }
+  return (
+    <p>
+      <button type="button" className="btn btn-sm" onClick={() => void invite()} disabled={state === 'busy'} data-testid="track-import-invite">
+        {t('inviteMissing', { count: emails.length })}
+      </button>
+      {state === 'error' ? (
+        <span className="ui-error" role="alert">
+          {' '}
+          {t('inviteFailed')}
+        </span>
+      ) : null}
+    </p>
   );
 }
 
@@ -586,6 +691,7 @@ function DoneView({ job, onAgain }: { job: ImportJobView; onAgain: () => void })
     ['projects', r.projectsCreated],
     ['statuses', r.statusesCreated],
     ['cycles', r.cyclesCreated],
+    ['plans', r.plansCreated ?? 0],
     ['milestones', r.milestonesCreated],
   ] as const;
   const created = parts.filter(([, n]) => n > 0).map(([k, n]) => t(`createdPart.${k}`, { count: n }));
@@ -594,7 +700,11 @@ function DoneView({ job, onAgain }: { job: ImportJobView; onAgain: () => void })
     <div className="ximp-done" data-testid="track-import-done">
       <p role="status">
         <strong>{t('doneTitle')}</strong> {t('doneSummary', { issues: r.issues, comments: r.comments, skipped: r.skipped })}
+        {(r.updated ?? 0) > 0 ? ` ${t('doneUpdated', { count: r.updated ?? 0 })}` : ''}
       </p>
+      {(r.relations ?? 0) + (r.attachments ?? 0) + (r.planUpdates ?? 0) > 0 && (
+        <p className="ui-help">{t('doneLinks', { relations: r.relations ?? 0, attachments: r.attachments ?? 0, updates: r.planUpdates ?? 0 })}</p>
+      )}
       {created.length > 0 && (
         <p className="ui-help">
           {t('doneCreated', { count: createdTotal, list: new Intl.ListFormat(locale, { type: 'conjunction' }).format(created) })}
@@ -605,11 +715,16 @@ function DoneView({ job, onAgain }: { job: ImportJobView; onAgain: () => void })
           {t('doneUnassigned', { count: r.unassigned })}
         </p>
       )}
-      {r.projects.length > 0 && (
+      {r.projects.length + (r.plans ?? []).length > 0 && (
         <ul className="ximp-links">
           {r.projects.map((p) => (
             <li key={p.id}>
               <Link href={teamPath(p)}>{t('openProject', { name: p.name })}</Link>
+            </li>
+          ))}
+          {(r.plans ?? []).map((p) => (
+            <li key={p.id}>
+              <Link href={projectPath(p.id)}>{t('openPlan', { name: p.name })}</Link>
             </li>
           ))}
         </ul>

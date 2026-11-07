@@ -29,7 +29,8 @@ import {
 } from './import-jobs';
 import { getDb } from './db';
 import type { FetchStepResult } from './track-import-sources';
-import { fetchGithubStep, fetchLinearStep } from './track-import-sources';
+import { fetchGithubStep } from './track-import-sources';
+import { fetchLinearWorkspaceStep } from './track-linear-import';
 import { fetchAsanaStep, fetchJiraStep, fetchShortcutStep } from './track-import-sources-more';
 import { csvToIssues, TRACK_IMPORT_MAX_ISSUES, type CsvMapping } from './track-import-map';
 import { emptyTrackReport, trackPreview, trackWriteStep, TRACK_WRITE_STAGES, type TrackImportReport } from './track-import';
@@ -98,7 +99,7 @@ const docsAdapter: ImportAdapter = {
 };
 
 const ADAPTERS: Record<string, ImportAdapter> = {
-  'track:linear': trackAdapter((job) => fetchLinearStep(job.secret, job.cursor)),
+  'track:linear': trackAdapter((job) => fetchLinearWorkspaceStep(job.secret, job.cursor)),
   'track:github': trackAdapter((job) => fetchGithubStep(job.secret, String(job.options.repo ?? ''), job.cursor)),
   'track:jira': trackAdapter((job) => fetchJiraStep(job.secret, String(job.options.site ?? ''), String(job.options.query ?? ''), job.cursor)),
   'track:asana': trackAdapter((job) => fetchAsanaStep(job.secret, String(job.options.project ?? ''), job.cursor)),
@@ -214,7 +215,7 @@ export async function runImportJob(id: string, budgetMs = REQUEST_IMPORT_BUDGET_
           });
           break;
         }
-        await updateImportJob(id, { cursor: res.cursor, total, onlyIf: 'fetching' });
+        await updateImportJob(id, { cursor: res.cursor, total, ...(res.stage ? { stage: res.stage } : {}), onlyIf: 'fetching' });
         continue;
       }
 

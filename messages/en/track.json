@@ -897,7 +897,7 @@
     "githubToken": "GitHub token",
     "githubHelp": "A fine-grained token with read access to Issues on that repository.",
     "tokenNote": "Used only for this import. It is kept encrypted while the import reads your data and deleted right after.",
-    "linearNote": "Linear teams become teams and Linear projects become milestones.",
+    "linearNote": "Linear teams come in with their workflow, Linear projects become projects with their milestones and updates, and comments, links, relations and sub-issues come along. You can run it again until you switch: it updates what changed in Linear and never duplicates.",
     "csvFile": "CSV file",
     "csvTooLarge": "The CSV is over 4 MB. Split it and import each part.",
     "csvEmpty": "The file has no header row.",
@@ -928,7 +928,11 @@
       "milestone": "Milestone",
       "parent": "Parent issue",
       "type": "Type (as a label)",
-      "comments": "Comments"
+      "comments": "Comments",
+      "plan": "Project",
+      "planMilestone": "Project milestone",
+      "creator": "Creator",
+      "updatedAt": "Updated"
     },
     "preview": "Preview",
     "stat": {
@@ -937,7 +941,10 @@
       "projects": "Teams",
       "labels": "Labels",
       "cycles": "Cycles",
-      "milestones": "Milestones"
+      "milestones": "Milestones",
+      "plans": "Projects",
+      "relations": "Relations",
+      "attachments": "Links"
     },
     "already": "{count, plural, one {# issue was imported before and will be skipped.} other {# issues were imported before and will be skipped.}}",
     "truncated": "The source has more issues than one import accepts. The rest were left out.",
@@ -960,7 +967,7 @@
       "done": "Done",
       "cancelled": "Cancelled"
     },
-    "peopleTitle": "Assignees",
+    "peopleTitle": "People",
     "personCol": "In the source",
     "memberCol": "Member",
     "unmatched": "Not a member, left unassigned",
@@ -968,8 +975,17 @@
     "sampleTitle": "First issues",
     "confirm": "{count, plural, one {Import # issue} other {Import # issues}}",
     "stages": {
-      "issues": "Creating issues and comments",
-      "parents": "Linking sub-issues"
+      "issues": "Creating teams, projects, issues and comments",
+      "parents": "Linking sub-issues",
+      "read_viewer": "Checking the API key",
+      "read_users": "Reading members",
+      "read_teams": "Reading teams and workflows",
+      "read_projects": "Reading projects",
+      "read_cycles": "Reading cycles",
+      "read_issues": "Reading issues",
+      "read_comments": "Reading comments",
+      "read_attachments": "Reading links",
+      "read_relations": "Reading relations"
     },
     "doneTitle": "Import finished.",
     "doneSummary": "{issues, plural, one {# issue} other {# issues}} and {comments, plural, one {# comment} other {# comments}} imported, {skipped, number} skipped.",
@@ -987,7 +1003,8 @@
       "projects": "{count, plural, one {# project} other {# projects}}",
       "statuses": "{count, plural, one {# status} other {# statuses}}",
       "cycles": "{count, plural, one {# cycle} other {# cycles}}",
-      "milestones": "{count, plural, one {# milestone} other {# milestones}}"
+      "milestones": "{count, plural, one {# milestone} other {# milestones}}",
+      "plans": "{count, plural, one {# project} other {# projects}}"
     },
     "jiraSite": "Jira site",
     "jiraEmail": "Atlassian account email",
@@ -1004,7 +1021,22 @@
     "shortcutQueryHelp": "A Shortcut search such as team:mobile or epic:\"Onboarding\". Empty imports every story that is not archived.",
     "shortcutToken": "Shortcut API token",
     "shortcutHelp": "In Shortcut: Settings › Your account › API tokens.",
-    "shortcutNote": "Each workflow becomes a team and epics become milestones. Shortcut caps how many stories one search returns: in a large workspace, import by team or epic."
+    "shortcutNote": "Each workflow becomes a team and epics become milestones. Shortcut caps how many stories one search returns: in a large workspace, import by team or epic.",
+    "fromWorkspace": "From the Linear workspace {name}.",
+    "alreadyUpdate": "{count, plural, one {# issue was imported before.} other {# issues were imported before.}} {updated, plural, one {# changed in the source since then and will be updated.} other {# changed in the source since then and will be updated.}} The rest stay as they are.",
+    "triageNote": "{count, plural, one {# issue lands in Triage.} other {# issues land in Triage.}}",
+    "archivedNote": "{count, plural, one {# archived issue comes in archived.} other {# archived issues come in archived.}}",
+    "plansTitle": "Projects",
+    "milestonesCount": "{count, plural, one {# milestone} other {# milestones}}",
+    "updatesCount": "{count, plural, one {# update} other {# updates}}",
+    "triageStatus": "Triage",
+    "confirmSync": "{count, plural, =0 {Bring in new comments and links} one {Update # issue} other {Update # issues}}",
+    "inviteMissing": "{count, plural, one {Invite # person} other {Invite # people}}",
+    "invitedNote": "{count, plural, one {# invitation sent.} other {# invitations sent.}} When they join, run the import again and their issues get assigned.",
+    "inviteFailed": "The invitations could not be sent. Invite them from Settings › Members.",
+    "doneUpdated": "{count, plural, one {# issue updated.} other {# issues updated.}}",
+    "doneLinks": "{relations, plural, one {# relation} other {# relations}}, {attachments, plural, one {# link} other {# links}} and {updates, plural, one {# project update} other {# project updates}} imported.",
+    "openPlan": "Open project {name}"
   },
   "integrations": {
     "tab": "Integrations",
@@ -1221,7 +1253,8 @@
       "resolved": "resolved",
       "ignored": "ignored",
       "assigned": "assigned"
-    }
+    },
+    "linkLabel": "Link"
   },
   "ux": {
     "undo": {

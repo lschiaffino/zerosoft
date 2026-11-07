@@ -73,7 +73,7 @@ describe('track import: mapeo', () => {
     const linear = parseCsv(LINEAR_CSV)[0];
     expect(detectCsvPreset(linear)).toBe('linear');
     const m = suggestMapping(linear, 'linear');
-    expect(m).toMatchObject({ id: 'ID', title: 'Title', project: 'Team', milestone: 'Project', cycle: 'Cycle Name', parent: 'Parent issue' });
+    expect(m).toMatchObject({ id: 'ID', title: 'Title', project: 'Team', plan: 'Project', cycle: 'Cycle Name', parent: 'Parent issue' });
     const jira = ['Summary', 'Issue key', 'Issue Type', 'Status', 'Labels', 'Labels', 'Comment', 'Custom field (Story Points)'];
     expect(detectCsvPreset(jira)).toBe('jira');
     expect(suggestMapping(jira, 'jira')).toMatchObject({ title: 'Summary', id: 'Issue key', estimate: 'Custom field (Story Points)', comments: 'Comment' });
@@ -138,11 +138,12 @@ describe('track import: job de punta a punta', () => {
     const done = await runToEnd(job.id);
     expect(done.status).toBe('done');
     const r = done.report as Record<string, number> & { projects: Array<{ id: string }> };
-    expect(r).toMatchObject({ issues: 3, skipped: 0, projectsCreated: 1, cyclesCreated: 1, milestonesCreated: 1, unassigned: 1, parents: 1 });
+    // La columna Project de Linear es un project de Track (no un milestone del team).
+    expect(r).toMatchObject({ issues: 3, skipped: 0, projectsCreated: 1, cyclesCreated: 1, plansCreated: 1, milestonesCreated: 0, unassigned: 1, parents: 1 });
 
     const projectId = r.projects[0].id;
     const issues = (await getDb()
-      .prepare('SELECT identifier, title, priority, assignee_id, estimate, parent_id, cycle_id, milestone_id, status_id, labels, source, created_at FROM track_issues WHERE project_id = ? ORDER BY created_at')
+      .prepare('SELECT identifier, title, priority, assignee_id, estimate, parent_id, cycle_id, plan_id, status_id, labels, source, created_at FROM track_issues WHERE project_id = ? ORDER BY created_at')
       .all(projectId)) as Array<Record<string, string | number | null>>;
     expect(issues.map((i) => i.title)).toEqual(['Old bug', 'Set up CI', 'Write docs']);
     const ci = issues[1];
@@ -150,7 +151,8 @@ describe('track import: job de punta a punta', () => {
     expect(String(ci.identifier)).toMatch(/^ENG(-[a-z0-9]+)?-\d+$/i);
     expect(JSON.parse(String(ci.labels)).map((l: { name: string }) => l.name)).toEqual(['Infra', 'DX']);
     expect(ci.cycle_id).toBeTruthy();
-    expect(ci.milestone_id).toBeTruthy();
+    expect(ci.plan_id).toBeTruthy();
+    expect(issues[2].plan_id).toBe(ci.plan_id);
     expect(issues[2].parent_id).toBeTruthy();
     const st = await listStatuses(projectId);
     expect(st.find((s) => s.name === 'In Review')?.category).toBe('in_progress');
@@ -189,59 +191,7 @@ describe('track import: job de punta a punta', () => {
     expect(st.find((s) => s.name === 'Blocked')?.category).toBe('todo');
   });
 
-  it('Linear por API: pagina, cuelga comentarios y borra el token antes de la vista previa', async () => {
-    const u = await makeUser('tlin');
-    const node = (n: number, extra: Record<string, unknown> = {}) => ({
-      id: `uuid-${n}`,
-      identifier: `APP-${n}`,
-      title: `Issue ${n}`,
-      description: 'desc',
-      priority: 2,
-      estimate: 2,
-      createdAt: `2024-03-0${n}T00:00:00.000Z`,
-      dueDate: null,
-      state: { name: 'Started', type: 'started', color: '#f2c94c' },
-      team: { key: 'APP', name: 'App' },
-      project: null,
-      cycle: { number: 7, name: null, startsAt: '2024-03-01T00:00:00.000Z', endsAt: '2024-03-14T00:00:00.000Z' },
-      assignee: { email: u.email.toUpperCase(), name: 'X' },
-      parent: null,
-      labels: { nodes: [{ name: 'Bug', color: '#eb5757' }] },
-      comments: { nodes: [{ id: `c${n}`, body: 'hello', createdAt: '2024-03-05T00:00:00.000Z', user: { email: 'stranger@x.test', name: 'Stranger' } }] },
-      ...extra,
-    });
-    const calls: string[] = [];
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (url: string, init: RequestInit) => {
-        calls.push(String((init.headers as Record<string, string>).authorization));
-        const after = JSON.parse(String(init.body)).variables.after;
-        const page = after
-          ? { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [node(2, { parent: { identifier: 'APP-1' } })] }
-          : { pageInfo: { hasNextPage: true, endCursor: 'cur1' }, nodes: [node(1)] };
-        return new Response(JSON.stringify({ data: { issues: page } }), { status: 200 });
-      }),
-    );
-    const job = await trackJob(u.id, 'linear', { target: 'new' }, { secret: 'lin_api_testtoken' });
-    expect((await getImportJobRow(job.id))?.secret).toMatch(/^enc:v1:/);
-    const prev = (await runImportJob(job.id))!;
-    expect(prev.status).toBe('preview');
-    expect(calls).toEqual(['lin_api_testtoken', 'lin_api_testtoken']);
-    expect((await getImportJobRow(job.id))?.secret).toBeNull();
-    expect(prev.preview).toMatchObject({ issues: 2, comments: 2, cycles: 1 });
-
-    await startImportJob((await getImportJob(job.id))!);
-    const done = await runToEnd(job.id);
-    expect(done.report).toMatchObject({ issues: 2, comments: 2, parents: 1, cyclesCreated: 1 });
-    const comments = (await getDb()
-      .prepare(
-        `SELECT c.body, c.user_id FROM track_issue_comments c JOIN track_issues i ON i.id = c.issue_id
-         JOIN track_projects p ON p.id = i.project_id WHERE p.owner_id = ?`,
-      )
-      .all(u.id)) as Array<{ body: string; user_id: string }>;
-    expect(comments[0].body).toBe('**Stranger**\n\nhello');
-    expect(comments[0].user_id).toBe(u.id);
-  });
+  // Linear por API (workspace entero, con el fake): tests/unit/track-linear-import.test.ts.
 
   it('Linear con token inválido: falla con unauthorized y borra el token', async () => {
     const u = await makeUser('tlin2');
