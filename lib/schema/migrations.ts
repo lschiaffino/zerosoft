@@ -8606,6 +8606,14 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE track_issue_templates ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0');
     },
   },
+  {
+    // Link: los redirects llevan X-Robots-Tag: noindex salvo que el link
+    // active la indexación (como el doIndex de Dub).
+    id: '200_link_do_index',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE links ADD COLUMN do_index INTEGER NOT NULL DEFAULT 0');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
