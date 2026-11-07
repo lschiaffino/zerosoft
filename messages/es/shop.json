@@ -148,7 +148,18 @@
     "importImagesFailed": "No se pudieron bajar {n} fotos.",
     "importRow": "Fila {row}",
     "importRun": "Importar",
-    "importImagesPending": "A {n} productos todavía les faltan las fotos. Importá el mismo archivo otra vez con “Actualizar los productos que ya existen” para bajar el resto."
+    "importImagesPending": "A {n} productos todavía les faltan las fotos. Importá el mismo archivo otra vez con “Actualizar los productos que ya existen” para bajar el resto.",
+    "selected": "{n} seleccionados",
+    "selectAll": "Seleccionar todos",
+    "selectOne": "Seleccionar {title}",
+    "bulkLabel": "Acción para los productos seleccionados",
+    "bulkActive": "Pasar a activo",
+    "bulkDraft": "Pasar a borrador",
+    "bulkArchive": "Archivar",
+    "bulkDelete": "Borrar",
+    "bulkApply": "Aplicar",
+    "bulkDeleteTitle": "¿Borrar {n} productos?",
+    "bulkDeleteBody": "Se van sus variantes y su stock. Los pedidos anteriores conservan sus líneas. No se puede deshacer."
   },
   "editor": {
     "title": "Título",
@@ -418,7 +429,9 @@
     "notes": "Etiquetas y notas",
     "tags": "Etiquetas",
     "tagsPh": "vip, mayorista",
-    "note": "Nota interna"
+    "note": "Nota interna",
+    "filteredBy": "Clientes con la etiqueta “{tag}”.",
+    "clearFilter": "Ver todos"
   },
   "discounts": {
     "desc": "Códigos de un porcentaje, un monto fijo o envío gratis.",

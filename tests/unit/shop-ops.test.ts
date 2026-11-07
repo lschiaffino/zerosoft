@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getDb, upsertUser } from '@/lib/db';
 import { computeTotals, discountLineError, lineDiscountAmount, shippingOptions, type ShippingRate } from '@/lib/shop-money';
-import { createDiscount, createLocation, createProduct, ensureStore, listInventory, nowDb, updateStore } from '@/lib/shop';
+import { bulkProducts, createDiscount, createLocation, createProduct, ensureStore, getProduct, listCustomers, listInventory, nowDb, updateCustomer, updateStore } from '@/lib/shop';
 import { createCheckoutOrder, fulfillOrder, getOrder, markPaidManually, orderByStatusToken, priceCart, publicOrder } from '@/lib/shop-orders';
 import { confirmDraftOrder, createDraftOrder, createPurchaseOrder, createReturn, declineReturn, approveReturn, deleteDraftOrder, receivePurchaseOrder, receiveReturn, requestReturnAsCustomer, transferStock, orderReturns } from '@/lib/shop-ops';
 import { SHOP_EMAIL_CAPS, claimShopEmail, optOut } from '@/lib/shop-email-guard';
@@ -354,5 +354,24 @@ describe('Shop: operaciones', () => {
     const r = await shopReports(ws, 30);
     expect(r.byPayment.find((x) => x.key === 'manual')!.orders).toBeGreaterThan(0);
     expect(r.byDay.length).toBeGreaterThan(0);
+  });
+  it('acciones masivas: solo productos del workspace; etiquetas filtran clientes', async () => {
+    const a = await product(1);
+    const b = await product(1);
+    const foreign: ShopActor = { ws: `${ws}-otro`, person: 'x', admin: true };
+    expect(await bulkProducts(foreign, [a.id, b.id], 'archived')).toBe(0);
+    expect(await bulkProducts(actor, [a.id, b.id], 'archived')).toBe(2);
+    expect((await getProduct(ws, a.id))!.status).toBe('archived');
+    await expect(bulkProducts(actor, [a.id], 'nope' as 'draft')).rejects.toMatchObject({ code: 'invalid_input' });
+    expect(await bulkProducts(actor, [b.id], 'delete')).toBe(1);
+    expect(await getProduct(ws, b.id)).toBeNull();
+
+    const p = await product(5);
+    const { order } = await buy(p.variantId, 1);
+    await updateCustomer(actor, order.customerId!, { tags: ['vip', 'mayorista'], note: 'Llama antes' });
+    const vip = await listCustomers(ws, { tag: 'vip' });
+    expect(vip.map((c) => c.id)).toContain(order.customerId);
+    expect((await listCustomers(ws, { tag: 'vi' })).map((c) => c.id)).not.toContain(order.customerId);
+    expect(vip.find((c) => c.id === order.customerId)!.note).toBe('Llama antes');
   });
 });

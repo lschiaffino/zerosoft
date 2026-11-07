@@ -148,7 +148,18 @@
     "importImagesFailed": "{n} photos couldn’t be downloaded.",
     "importRow": "Row {row}",
     "importRun": "Import",
-    "importImagesPending": "{n} products are still missing their photos. Import the same file again with “Update products that already exist” to download the rest."
+    "importImagesPending": "{n} products are still missing their photos. Import the same file again with “Update products that already exist” to download the rest.",
+    "selected": "{n} selected",
+    "selectAll": "Select all",
+    "selectOne": "Select {title}",
+    "bulkLabel": "Action for the selected products",
+    "bulkActive": "Set as active",
+    "bulkDraft": "Set as draft",
+    "bulkArchive": "Archive",
+    "bulkDelete": "Delete",
+    "bulkApply": "Apply",
+    "bulkDeleteTitle": "Delete {n} products?",
+    "bulkDeleteBody": "Their variants and stock go too. Past orders keep their lines. It can’t be undone."
   },
   "editor": {
     "title": "Title",
@@ -418,7 +429,9 @@
     "notes": "Tags and notes",
     "tags": "Tags",
     "tagsPh": "vip, wholesale",
-    "note": "Internal note"
+    "note": "Internal note",
+    "filteredBy": "Customers tagged “{tag}”.",
+    "clearFilter": "Show all"
   },
   "discounts": {
     "desc": "Codes for a percentage, a fixed amount or free shipping.",

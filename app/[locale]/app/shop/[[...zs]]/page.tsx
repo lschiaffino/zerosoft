@@ -189,7 +189,7 @@ export default async function ShopPage(props: Props) {
       return <PurchaseOrders initial={pos} locations={locations} variants={variants} currency={currency} />;
     }
     case 'customers': {
-      if (!id) return <CustomersList currency={currency} initial={await listCustomers(actor.ws, { q: sp.q })} q={sp.q ?? ''} />;
+      if (!id) return <CustomersList currency={currency} initial={await listCustomers(actor.ws, { q: sp.q, tag: sp.tag })} q={sp.q ?? ''} tag={sp.tag ?? ''} />;
       if (sub) notFound();
       const customer = await getCustomer(actor.ws, id);
       if (!customer) notFound();

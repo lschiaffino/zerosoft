@@ -817,6 +817,24 @@ export async function updateProduct(actor: ShopActor, id: string, patch: Product
   return (await getProduct(actor.ws, id))!;
 }
 
+/** Acciones sobre varios productos a la vez: cambiar el estado o borrar (hasta 200). */
+export async function bulkProducts(actor: ShopActor, ids: string[], action: 'active' | 'draft' | 'archived' | 'delete'): Promise<number> {
+  const clean = [...new Set(ids.filter((x) => typeof x === 'string' && x.length <= 80))].slice(0, 200);
+  if (!clean.length) throw new ShopError('invalid_input');
+  if (!['active', 'draft', 'archived', 'delete'].includes(action)) throw new ShopError('invalid_input');
+  const marks = clean.map(() => '?').join(',');
+  const db = getDb();
+  let n: number;
+  if (action === 'delete') {
+    n = (await db.prepare(`DELETE FROM shop_products WHERE workspace_id = ? AND id IN (${marks})`).run(actor.ws, ...clean)).changes;
+  } else {
+    n = (await db.prepare(`UPDATE shop_products SET status = ?, updated_at = ? WHERE workspace_id = ? AND id IN (${marks})`).run(action, nowDb(), actor.ws, ...clean)).changes;
+  }
+  const store = await getStore(actor.ws);
+  if (store) await revalidateStore(store.handle);
+  return n;
+}
+
 export async function deleteProduct(actor: ShopActor, id: string): Promise<boolean> {
   const res = await getDb().prepare('DELETE FROM shop_products WHERE id = ? AND workspace_id = ?').run(id, actor.ws);
   if (res.changes) await revalidateWs(actor.ws);
@@ -1668,8 +1686,17 @@ function customerDto(r: Record<string, unknown>): CustomerDto {
   };
 }
 
-export async function listCustomers(ws: string, opts: { q?: string; limit?: number } = {}): Promise<CustomerDto[]> {
+export async function listCustomers(ws: string, opts: { q?: string; tag?: string; limit?: number } = {}): Promise<CustomerDto[]> {
   const q = opts.q?.trim();
+  const tag = opts.tag?.trim().slice(0, 40);
+  if (tag) {
+    const rows = (await getDb()
+      .prepare(
+        `SELECT * FROM shop_customers WHERE workspace_id = ? AND EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(tags) THEN tags ELSE '[]' END) WHERE value = ?)${q ? " AND (email LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\')" : ''} ORDER BY updated_at DESC LIMIT ?`,
+      )
+      .all(...(q ? [ws, tag, likeEsc(q), likeEsc(q)] : [ws, tag]), Math.min(500, opts.limit ?? 200))) as Array<Record<string, unknown>>;
+    return rows.map(customerDto);
+  }
   const rows = (await getDb()
     .prepare(
       `SELECT * FROM shop_customers WHERE workspace_id = ?${q ? " AND (email LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\')" : ''} ORDER BY updated_at DESC LIMIT ?`,

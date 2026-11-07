@@ -97,7 +97,13 @@ const parity: ProductParity = {
         'Um produto pode dispensar frete, mas não há downloads nem cobrança recorrente',
       ],
     }),
-    row('bulk-editor', 'catalog', ['Bulk product editor', 'Edición masiva de productos', 'Edição em massa de produtos'], 'missing'),
+    row('bulk-editor', 'catalog', ['Bulk product editor', 'Edición masiva de productos', 'Edição em massa de produtos'], 'partial', {
+      detail: [
+        'Select products to change their status or delete them. No spreadsheet to edit prices and fields of many products at once',
+        'Seleccionar productos para cambiarles el estado o borrarlos. Sin planilla para editar precios y campos de muchos productos a la vez',
+        'Selecionar produtos para mudar o status ou excluí-los. Sem planilha para editar preços e campos de muitos produtos de uma vez',
+      ],
+    }),
     row('product-seo', 'catalog', ['SEO title, description and URL handle', 'Título, descripción y URL para buscadores', 'Título, descrição e URL para buscadores'], 'have'),
     // Inventario
     row('multi-location', 'inventory', ['Stock per location', 'Stock por ubicación', 'Estoque por local'], 'partial', {
@@ -380,7 +386,7 @@ const parity: ProductParity = {
     }),
     row('order-status-page', 'customers', ['Order status page by number and email', 'Estado del pedido por número y email', 'Status do pedido por número e email'], 'have'),
     row('customer-segments', 'customers', ['Customer segments', 'Segmentos de clientes', 'Segmentos de clientes'], 'partial', {
-      detail: ['Tags on each customer, without saved filters or segments by behavior', 'Etiquetas por cliente, sin filtros guardados ni segmentos por comportamiento', 'Tags por cliente, sem filtros salvos nem segmentos por comportamento'],
+      detail: ['Tags on each customer and the list filtered by tag, without saved segments by behavior (spend, last order)', 'Etiquetas por cliente y la lista filtrada por etiqueta, sin segmentos guardados por comportamiento (gasto, último pedido)', 'Tags por cliente e a lista filtrada por tag, sem segmentos salvos por comportamento (gasto, último pedido)'],
     }),
     row('b2b', 'customers', ['Wholesale: company accounts and price lists', 'Mayorista: cuentas de empresa y listas de precios', 'Atacado: contas de empresa e listas de preços'], 'missing'),
     row('customer-accounts', 'customers', ['Customer accounts', 'Cuentas de clientes', 'Contas de clientes'], 'partial', {
