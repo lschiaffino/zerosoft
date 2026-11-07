@@ -22,7 +22,7 @@ function row(
 }
 
 /**
- * Books contra Xero (planes y docs públicos, 2026-10-30), con notas de
+ * Books contra Xero (planes, docs públicos y notas de versión, 2026-11-07), con notas de
  * Argentina y México. QuickBooks, Alegra, Colppy y Odoo solo de referencia.
  * La factura electrónica queda en parcial: el gancho existe, los conectores
  * reales con ARCA y el SAT todavía no.
@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Xero',
   alsoCompared: ['QuickBooks Online', 'Alegra', 'Colppy', 'Odoo Invoicing'],
-  lastReviewed: '2026-10-30',
+  lastReviewed: '2026-11-07',
   areas: [
     { id: 'invoicing', label: loc(['Invoicing', 'Facturación', 'Faturamento']) },
     { id: 'einvoicing', label: loc(['E-invoicing', 'Factura electrónica', 'Nota fiscal eletrônica']) },
@@ -74,12 +74,12 @@ const parity: ProductParity = {
       weight: 2,
       detail: ['The link can be revoked and is hidden from search engines', 'El link se puede revocar y no lo indexan los buscadores', 'O link pode ser revogado e não é indexado'],
     }),
-    row('online-payments', 'invoicing', ['Online payment from the invoice', 'Cobro online desde la factura', 'Pagamento online pela fatura'], 'have', {
+    row('online-payments', 'invoicing', ['Online payment from the invoice', 'Cobro online desde la factura', 'Pagamento online pela fatura'], 'partial', {
       weight: 2,
       detail: [
-        'Stripe Checkout and Mercado Pago with signed webhooks: each payment is recorded once, and anything above the balance is kept as a customer credit with a notice to admins',
-        'Stripe Checkout y Mercado Pago con webhooks firmados: cada cobro se registra una vez y lo que supera el saldo queda como saldo a favor del cliente, con aviso a los admins',
-        'Stripe Checkout e Mercado Pago com webhooks assinados: cada pagamento é registrado uma vez e o que passa do saldo fica como crédito do cliente, com aviso aos admins',
+        'Stripe Checkout and Mercado Pago with signed webhooks, built and tested against test doubles; not yet run against live provider accounts',
+        'Stripe Checkout y Mercado Pago con webhooks firmados, hechos y probados con dobles de prueba; todavía sin correr contra cuentas reales de los proveedores',
+        'Stripe Checkout e Mercado Pago com webhooks assinados, feitos e testados com dublês de teste; ainda sem rodar contra contas reais dos provedores',
       ],
     }),
     row('recurring', 'invoicing', ['Recurring invoices', 'Facturas recurrentes', 'Faturas recorrentes'], 'have', {
@@ -87,11 +87,30 @@ const parity: ProductParity = {
     }),
     row('credit-notes', 'invoicing', ['Credit notes', 'Notas de crédito', 'Notas de crédito'], 'have'),
     row('reminders', 'invoicing', ['Automatic payment reminders', 'Recordatorios de pago automáticos', 'Lembretes de pagamento automáticos'], 'have'),
-    row('quotes', 'invoicing', ['Quotes that become invoices', 'Presupuestos que pasan a factura', 'Orçamentos que viram fatura'], 'partial', {
-      detail: ['Quotes are made in the CRM and turned into a Books invoice; Books has no quote editor of its own', 'Los presupuestos se hacen en el CRM y pasan a factura de Books; Books no tiene editor de presupuestos propio', 'Os orçamentos são feitos no CRM e viram fatura do Books; o Books não tem editor de orçamentos próprio'],
+    row('quotes', 'invoicing', ['Quotes the customer accepts online and that become invoices', 'Presupuestos que el cliente acepta online y pasan a factura', 'Orçamentos que o cliente aceita online e viram fatura'], 'have', {
+      detail: [
+        'Own quote editor with numbering, expiry, a link to accept or decline without login, and conversion to an invoice once; CRM quotes can also be invoiced',
+        'Editor propio con numeración, vencimiento, link para aceptar o rechazar sin login y paso a factura una sola vez; los presupuestos del CRM también se facturan',
+        'Editor próprio com numeração, validade, link para aceitar ou recusar sem login e conversão em fatura uma única vez; orçamentos do CRM também viram fatura',
+      ],
     }),
-    row('customer-portal', 'invoicing', ['Customer portal with statements', 'Portal del cliente con estado de cuenta', 'Portal do cliente com extrato'], 'missing'),
-    row('batch-payments', 'invoicing', ['Batch payments', 'Pagos por lote', 'Pagamentos em lote'], 'missing'),
+    row('customer-portal', 'invoicing', ['Customer statements and portal', 'Estado de cuenta y portal del cliente', 'Extrato e portal do cliente'], 'have', {
+      detail: [
+        'Statement per contact and currency with running balance, CSV and email; a revocable link where the customer sees it and opens open invoices to pay',
+        'Estado de cuenta por contacto y moneda con saldo acumulado, CSV y email; un link revocable donde el cliente lo ve y abre sus facturas para pagarlas',
+        'Extrato por contato e moeda com saldo acumulado, CSV e email; um link revogável onde o cliente o vê e abre as faturas para pagar',
+      ],
+    }),
+    row('batch-payments', 'invoicing', ['Batch payments', 'Pagos por lote', 'Pagamentos em lote'], 'have', {
+      detail: ['Several invoices or bills in one entry and one bank line, all or nothing; the statement line matches the whole batch', 'Varias facturas en un asiento y una línea de banco, todo o nada; la línea del extracto concilia contra el lote', 'Várias faturas em um lançamento e uma linha bancária, tudo ou nada; a linha do extrato concilia com o lote'],
+    }),
+    row('tax-inclusive', 'invoicing', ['Prices that include tax', 'Precios con impuesto incluido', 'Preços com imposto incluído'], 'have', {
+      detail: ['Per document, on invoices, bills, credit notes and quotes; tax is taken out of each line to the cent', 'Por documento, en facturas, compras, notas de crédito y presupuestos; el impuesto se saca de cada línea al centavo', 'Por documento, em faturas, contas, notas de crédito e orçamentos; o imposto é extraído de cada linha ao centavo'],
+    }),
+    row('credit-allocation', 'invoicing', ['Allocate credit notes and overpayments to other invoices', 'Aplicar notas de crédito y saldos a favor a otras facturas', 'Aplicar notas de crédito e créditos a outras faturas'], 'missing', {
+      detail: ['A credit note applies to its own invoice; what is left stays as a customer credit', 'Una nota de crédito se aplica a su factura; lo que sobra queda como saldo a favor', 'Uma nota de crédito se aplica à sua fatura; o que sobra fica como crédito'],
+    }),
+    row('scheduled-send', 'invoicing', ['Scheduled invoice sending', 'Envío programado de facturas', 'Envio agendado de faturas'], 'missing'),
 
     // Factura electrónica
     row('einvoice-hook', 'einvoicing', ['Electronic invoicing with the tax authority', 'Factura electrónica ante el fisco', 'Nota fiscal eletrônica junto ao fisco'], 'missing', {
@@ -124,6 +143,11 @@ const parity: ProductParity = {
     row('purchase-orders', 'purchases', ['Purchase orders', 'Órdenes de compra', 'Pedidos de compra'], 'have', {
       detail: ['Partial receiving and conversion to a bill', 'Recepción parcial y paso a factura de proveedor', 'Recebimento parcial e conversão em conta a pagar'],
     }),
+    row('repeating-bills', 'purchases', ['Repeating bills', 'Facturas de proveedor recurrentes', 'Contas a pagar recorrentes'], 'have'),
+    row('expense-claims', 'purchases', ['Employee expense claims', 'Rendición de gastos de empleados', 'Reembolso de despesas de funcionários'], 'missing'),
+    row('attachments', 'purchases', ['Files attached to invoices and bills', 'Archivos adjuntos en facturas y compras', 'Anexos em faturas e contas'], 'missing', {
+      detail: ['Receipts attach to expenses only', 'Los comprobantes se adjuntan solo a gastos', 'Os comprovantes se anexam só a despesas'],
+    }),
 
     // Inventario
     row('items', 'inventory', ['Product and service catalog with price and cost', 'Catálogo de productos y servicios con precio y costo', 'Catálogo de produtos e serviços com preço e custo'], 'have'),
@@ -153,7 +177,19 @@ const parity: ProductParity = {
       weight: 2,
       detail: ['Matches invoices and bills by amount, reference and date; a line can become an expense', 'Busca facturas y compras por importe, referencia y fecha; una línea puede pasar a gasto', 'Procura faturas e contas por valor, referência e data; uma linha pode virar despesa'],
     }),
-    row('bank-rules', 'banking', ['Automatic bank rules', 'Reglas bancarias automáticas', 'Regras bancárias automáticas'], 'missing'),
+    row('bank-rules', 'banking', ['Bank rules', 'Reglas bancarias', 'Regras bancárias'], 'have', {
+      detail: [
+        'By text, direction, amount range and account; they suggest per line and apply in bulk. Rules record no tax',
+        'Por texto, sentido, rango de importe y cuenta; sugieren en cada línea y se aplican en bloque. Las reglas no registran impuesto',
+        'Por texto, sentido, faixa de valor e conta; sugerem em cada linha e se aplicam em bloco. As regras não lançam imposto',
+      ],
+    }),
+    row('bank-transfers', 'banking', ['Transfers between bank accounts', 'Transferencias entre cuentas', 'Transferências entre contas'], 'have', {
+      detail: ['One entry that both statement lines match without posting twice', 'Un asiento al que concilian las dos líneas de extracto sin duplicarlo', 'Um lançamento que as duas linhas de extrato conciliam sem duplicar'],
+    }),
+    row('foreign-bank-accounts', 'banking', ['Bank accounts in a foreign currency', 'Cuentas bancarias en moneda extranjera', 'Contas bancárias em moeda estrangeira'], 'missing', {
+      detail: ['Bank accounts use the base currency', 'Las cuentas bancarias usan la moneda base', 'As contas bancárias usam a moeda base'],
+    }),
 
     // Contabilidad
     row('chart-of-accounts', 'accounting', ['Chart of accounts with country templates', 'Plan de cuentas con plantillas por país', 'Plano de contas com modelos por país'], 'have', {
@@ -168,10 +204,35 @@ const parity: ProductParity = {
       ],
     }),
     row('manual-journals', 'accounting', ['Manual journals and reversals', 'Asientos manuales y reversas', 'Lançamentos manuais e estornos'], 'have'),
-    row('lock-date', 'accounting', ['Period lock date', 'Cierre de período', 'Fechamento de período'], 'have'),
-    row('fixed-assets', 'accounting', ['Fixed assets and depreciation', 'Bienes de uso y amortizaciones', 'Ativo imobilizado e depreciação'], 'missing'),
-    row('budgets', 'accounting', ['Budgets', 'Presupuestos financieros', 'Orçamentos financeiros'], 'missing'),
-    row('tracking-categories', 'accounting', ['Tracking categories', 'Centros de costo', 'Centros de custo'], 'missing'),
+    row('lock-date', 'accounting', ['Period lock date', 'Cierre de período', 'Fechamento de período'], 'have', {
+      detail: ['Nothing posts, is paid, deleted or depreciated on or before the lock date; voids reverse with today’s date', 'Nada se registra, cobra, borra ni amortiza hasta la fecha de cierre; las anulaciones revierten con la fecha de hoy', 'Nada é lançado, pago, excluído ou depreciado até a data de fechamento; cancelamentos estornam com a data de hoje'],
+    }),
+    row('financial-year', 'accounting', ['Financial year with automatic year-end', 'Ejercicio con cierre anual automático', 'Exercício com encerramento automático'], 'have'),
+    row('opening-balances', 'accounting', ['Opening (conversion) balances', 'Saldos iniciales', 'Saldos iniciais'], 'have'),
+    row('repeating-journals', 'accounting', ['Repeating manual journals', 'Asientos manuales recurrentes', 'Lançamentos manuais recorrentes'], 'missing'),
+    row('find-recode', 'accounting', ['Find and recode posted transactions', 'Buscar y recodificar movimientos registrados', 'Localizar e recodificar lançamentos'], 'missing', {
+      detail: ['Posted entries are corrected with a reversal', 'Lo registrado se corrige con una reversa', 'O que foi lançado se corrige com um estorno'],
+    }),
+    row('fx-revaluation', 'accounting', ['Unrealised currency gains', 'Diferencia de cambio no realizada', 'Variação cambial não realizada'], 'missing', {
+      detail: ['Exchange differences are recorded when payments are made', 'La diferencia de cambio se registra al cobrar o pagar', 'A variação cambial é lançada no recebimento ou pagamento'],
+    }),
+    row('fixed-assets', 'accounting', ['Fixed assets and depreciation', 'Bienes de uso y amortizaciones', 'Ativo imobilizado e depreciação'], 'have', {
+      detail: [
+        'Straight line or declining balance, monthly run with rollback and disposal with gain or loss; one depreciation book, no asset types',
+        'Lineal o saldo decreciente, corrida mensual con vuelta atrás y baja con resultado; un solo libro de amortización, sin tipos de bien',
+        'Linear ou saldo decrescente, rodada mensal com desfazer e baixa com resultado; um só livro de depreciação, sem tipos de bem',
+      ],
+    }),
+    row('budgets', 'accounting', ['Budgets and budget variance', 'Presupuestos financieros y desvío', 'Orçamentos financeiros e desvio'], 'have', {
+      detail: ['Monthly by income and expense account, compared with actual in a report', 'Mensuales por cuenta de ingreso y gasto, comparados con lo real en un informe', 'Mensais por conta de receita e despesa, comparados com o realizado em um relatório'],
+    }),
+    row('tracking-categories', 'accounting', ['Tracking categories', 'Centros de costo', 'Centros de custo'], 'partial', {
+      detail: [
+        'Two categories on invoice, bill, credit note and manual journal lines, with profit and loss by option; not yet on expenses or bank rules',
+        'Dos categorías en líneas de facturas, compras, notas de crédito y asientos manuales, con resultados por opción; todavía no en gastos ni reglas bancarias',
+        'Duas categorias em linhas de faturas, contas, notas de crédito e lançamentos manuais, com resultados por opção; ainda não em despesas nem regras bancárias',
+      ],
+    }),
     row('multi-entity', 'accounting', ['Multiple companies with consolidation', 'Varias empresas con consolidación', 'Várias empresas com consolidação'], 'missing'),
     row('payroll', 'accounting', ['Payroll', 'Sueldos', 'Folha de pagamento'], 'missing'),
 
@@ -182,12 +243,25 @@ const parity: ProductParity = {
       detail: ['Direct method from bank and cash accounts', 'Método directo desde las cuentas de caja y bancos', 'Método direto a partir das contas de caixa e bancos'],
     }),
     row('aged-reports', 'reports', ['Aged receivables and payables', 'Antigüedad de cuentas a cobrar y a pagar', 'Idade de contas a receber e a pagar'], 'have'),
+    row('trial-balance', 'reports', ['Trial balance', 'Balance de sumas y saldos', 'Balancete'], 'have'),
+    row('general-ledger', 'reports', ['General ledger with running balances', 'Libro mayor con saldo acumulado', 'Razão geral com saldo acumulado'], 'have'),
+    row('sales-by-item', 'reports', ['Sales by item', 'Ventas por ítem', 'Vendas por item'], 'have'),
+    row('reconciliation-report', 'reports', ['Bank reconciliation summary', 'Resumen de conciliación bancaria', 'Resumo de conciliação bancária'], 'have'),
+    row('report-compare', 'reports', ['Comparison periods', 'Comparación de períodos', 'Comparação de períodos'], 'partial', {
+      detail: ['One comparison column: previous period or same period last year', 'Una columna de comparación: período anterior o mismo período del año pasado', 'Uma coluna de comparação: período anterior ou mesmo período do ano passado'],
+    }),
+    row('report-export', 'reports', ['Export reports', 'Exportar informes', 'Exportar relatórios'], 'partial', {
+      detail: ['CSV for every report; no PDF or spreadsheet export', 'CSV en todos los informes; sin exportar a PDF ni planilla', 'CSV em todos os relatórios; sem exportar para PDF ou planilha'],
+    }),
+    row('cash-forecast', 'reports', ['Short-term cash flow forecast', 'Proyección de caja a corto plazo', 'Projeção de caixa de curto prazo'], 'missing'),
     row('tax-report', 'reports', ['Sales tax report', 'Informe de impuestos', 'Relatório de impostos'], 'have', {
       detail: ['Argentina VAT sales and purchases books, exported as CSV', 'Libro IVA ventas y compras de Argentina, exportable en CSV', 'Livro de IVA de vendas e compras da Argentina, exportável em CSV'],
     }),
 
     // Contactos
-    row('contacts', 'contacts', ['Customers and suppliers', 'Clientes y proveedores', 'Clientes e fornecedores'], 'have'),
+    row('contacts', 'contacts', ['Customers and suppliers', 'Clientes y proveedores', 'Clientes e fornecedores'], 'have', {
+      detail: ['Import and export as CSV', 'Se importan y exportan en CSV', 'Importação e exportação em CSV'],
+    }),
     row('tax-ids', 'contacts', ['Tax ID validation', 'Validación de identificación fiscal', 'Validação de identificação fiscal'], 'better', {
       detail: [
         'Check digits for CUIT, RFC, CNPJ and CPF, plus the Argentine tax condition (Responsable Inscripto, Monotributo, Consumidor Final)',

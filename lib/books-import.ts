@@ -3,7 +3,7 @@
  * trata como datos: se valida cada fila y una fila mala no frena las demás.
  * Server-only.
  */
-import { createContact, createItem, listContacts, listItems } from './books';
+import { assertCan, createContact, createItem, listContacts, listItems } from './books';
 import { listDocuments } from './books-docs';
 import { splitCsvLine } from './books-bank';
 import { BooksError, type BooksActor, type DocType } from './books-schema';
@@ -34,6 +34,7 @@ export function parseCsvTable(text: string): Array<Record<string, string>> {
 const pick = (r: Record<string, string>, ...keys: string[]) => keys.map((k) => r[k]).find((v) => v !== undefined && v !== '') ?? '';
 
 export async function importContactsCsv(actor: BooksActor, text: string): Promise<ImportResult> {
+  assertCan(actor, 'contacts.write');
   const rows = parseCsvTable(text);
   if (!rows.length) throw new BooksError('csv_empty');
   if (rows.length > MAX_IMPORT_ROWS) throw new BooksError('too_many_rows', 413);
@@ -63,6 +64,7 @@ export async function importContactsCsv(actor: BooksActor, text: string): Promis
 }
 
 export async function importItemsCsv(actor: BooksActor, text: string): Promise<ImportResult> {
+  assertCan(actor, 'items.write');
   const rows = parseCsvTable(text);
   if (!rows.length) throw new BooksError('csv_empty');
   if (rows.length > MAX_IMPORT_ROWS) throw new BooksError('too_many_rows', 413);

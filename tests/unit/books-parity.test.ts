@@ -405,7 +405,6 @@ describe('Books cobros por lote', () => {
     await expectCode(deletePayment(a, pay.id), 'payment_in_batch');
 
     // La línea del extracto concilia contra el lote entero, sin otro asiento.
-    await importStatement(a, bank.id, { text: 'date,description,amount\n2026-07-06,Deposito,120.00', filename: 'x.csv' } as never).catch(() => undefined);
     await deleteBatch(a, b.id);
     expect((await getDocument(a.ws, d1.id))!.amountDue).toBe(10000);
     expect((await getDocument(a.ws, d2.id))!.status).toBe('sent');
@@ -577,7 +576,7 @@ describe('Books reglas bancarias y transferencias', () => {
     const other = await workspace('generic', 'USD');
     await expectCode(createRule(other, { text: 'x', accountId: fees.id }), 'invalid_account');
     await createRule(a, { name: 'Comisiones', text: 'comision', direction: 'out', accountId: fees.id });
-    await importStatement(a, bank.id, Buffer.from('date,description,amount\n2026-08-01,Comision banco,-15.50\n2026-08-02,Comision otra,-4.50\n2026-08-03,Deposito,100.00'), 'x.csv');
+    await importStatement(a, bank.id, { text: 'date,description,amount\n2026-08-01,Comision banco,-15.50\n2026-08-02,Comision otra,-4.50\n2026-08-03,Deposito,100.00', filename: 'x.csv' });
     const sugg = await ruleSuggestions(a.ws, bank.id);
     expect(Object.keys(sugg)).toHaveLength(2);
     const before = await trialBalance(a.ws, '2026-12-31');
@@ -604,8 +603,8 @@ describe('Books reglas bancarias y transferencias', () => {
     await expectCode(createTransfer(a, { fromId: b1.id, toId: b1.id, amount: 100 }), 'same_account');
     await expectCode(createTransfer(a, { fromId: b1.id, toId: b2.id, amount: -1 }), 'invalid_amount');
     const { journalId } = await createTransfer(a, { fromId: b1.id, toId: b2.id, amount: 25000, date: '2026-09-01', reference: 'Fondeo' });
-    await importStatement(a, b1.id, Buffer.from('date,description,amount\n2026-09-01,Transferencia salida,-250.00'), 'a.csv');
-    await importStatement(a, b2.id, Buffer.from('date,description,amount\n2026-09-01,Transferencia entrada,250.00'), 'b.csv');
+    await importStatement(a, b1.id, { text: 'date,description,amount\n2026-09-01,Transferencia salida,-250.00', filename: 'a.csv' });
+    await importStatement(a, b2.id, { text: 'date,description,amount\n2026-09-01,Transferencia entrada,250.00', filename: 'b.csv' });
     const out = (await listTxns(a.ws, b1.id, {}))[0];
     const inn = (await listTxns(a.ws, b2.id, {}))[0];
     const cand = await suggestions(a.ws, b1.id);
@@ -620,7 +619,7 @@ describe('Books reglas bancarias y transferencias', () => {
     const bal = (await getDb().prepare('SELECT SUM(debit - credit) AS v FROM books_journal_lines WHERE account_id = ?').get(b2.accountId)) as { v: number };
     expect(Number(bal.v)).toBe(25000);
     // Importe distinto: no concilia.
-    await importStatement(a, b1.id, Buffer.from('date,description,amount\n2026-09-02,Otra,-1.00'), 'c.csv');
+    await importStatement(a, b1.id, { text: 'date,description,amount\n2026-09-02,Otra,-1.00', filename: 'c.csv' });
     const wrong = (await listTxns(a.ws, b1.id, { status: 'unmatched' })).find((t) => t.amount === -100)!;
     await expectCode(reconcile(a, wrong.id, { kind: 'journal', journalId }), 'amount_mismatch');
   });
@@ -798,6 +797,8 @@ describe('Books búsqueda con rol', () => {
     const owner = await searchBooks({ id: a.ws, role: 'owner' }, tag);
     expect(owner.map((h) => h.group).sort()).toEqual(['booksAssets', 'booksBudgets', 'booksQuotes']);
     const m = await upsertUser({ email: `m-${uid()}@example.com`, name: 'M', image: null });
+    await getDb().prepare("INSERT OR IGNORE INTO teams (id, name, owner_id) VALUES (?, 'T', ?)").run(`t-${a.ws}`, a.ws);
+    await getDb().prepare('INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, ?, ?)').run(`t-${a.ws}`, m.id, 'member', '["books"]');
     await setRole(a, m.id, 'sales');
     const sales = await searchBooks({ id: a.ws, role: 'member', actingUser: { id: m.id } }, tag);
     expect(sales.map((h) => h.group)).toEqual(['booksQuotes']);
