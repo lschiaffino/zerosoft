@@ -5,7 +5,7 @@ import { runImportJob, startImportJob } from '@/lib/import-runner';
 import { parseOperation, validateOperation, type GqlSchemaMap } from '@/lib/graphql-lite';
 import { LINEAR_QUERIES } from '@/lib/track-linear-import';
 import { fakeLinearGraphql } from '@/lib/track-linear-fake';
-import { listStatuses, nextIdentifier } from '@/lib/track-data';
+import { listIssues, listStatuses, nextIdentifier } from '@/lib/track-data';
 import schemaJson from '@/lib/fixtures/linear-schema.json';
 import { makeUser } from './helpers';
 
@@ -188,6 +188,11 @@ describe('track import de Linear: workspace entero', () => {
     expect(await nextIdentifier(eng.id)).toBe('ENG-11');
     const total = (await db.prepare('SELECT COUNT(*) AS n FROM track_issues WHERE project_id IN (?, ?)').get(teams[0].id, eng.id)) as { n: number };
     expect(Number(total.n)).toBe(12);
+
+    // Una página de 2 issues trae igual el total por status (las columnas del board dicen el real).
+    const page = await listIssues(eng.id, { pageSize: 2, page: 1 });
+    expect(page.rows).toHaveLength(2);
+    expect(Object.values(page.statusCounts ?? {}).reduce((a, b) => a + b, 0)).toBe(page.total);
   }, 60_000);
 
   it('una key que Linear rechaza falla con unauthorized y no deja la key guardada', async () => {

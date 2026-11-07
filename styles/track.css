@@ -1804,6 +1804,12 @@ dialog.ui-drawer.track-drawer {
   color: var(--brand-gray-2);
 }
 
+/* Columna incompleta (hay más issues en el servidor que los cargados). */
+.track-board-more {
+  align-self: flex-start;
+  color: var(--brand-gray-2);
+}
+
 .track-board-cards {
   display: flex;
   flex-direction: column;

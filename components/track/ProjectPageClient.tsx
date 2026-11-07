@@ -241,6 +241,8 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [views, setViews] = useState<TrackSavedView[]>([]);
   const [issuesTotal, setIssuesTotal] = useState(0);
+  // Total por status en el servidor: el board dice el real aunque solo se haya cargado una página.
+  const [statusCounts, setStatusCounts] = useState<Record<string, number> | undefined>(undefined);
   const [issuesPage, setIssuesPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -338,10 +340,11 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
       sp.set('page', String(page));
       sp.set('today', today);
       if (!showSub) sp.set('topLevel', '1');
-      const data = await api<{ rows: TrackIssueWithStatus[]; total: number }>(
+      const data = await api<{ rows: TrackIssueWithStatus[]; total: number; statusCounts?: Record<string, number> }>(
         `/api/track/projects/${projectId}/issues?${sp.toString()}`,
       );
       if (seq !== issuesRequest.current) return;
+      setStatusCounts(data.statusCounts);
       // Los que tienen un borrado pendiente (con "Deshacer" en pantalla) no se muestran.
       const hidden = pendingDeleteIds();
       const rows = data.rows.filter((r) => !hidden.has(r.id));
@@ -366,7 +369,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
       Array.from({ length: Math.max(1, issuesPage) }, (_, i) => {
         const q = new URLSearchParams(sp);
         q.set('page', String(i + 1));
-        return api<{ rows: TrackIssueWithStatus[]; total: number }>(
+        return api<{ rows: TrackIssueWithStatus[]; total: number; statusCounts?: Record<string, number> }>(
           `/api/track/projects/${projectId}/issues?${q.toString()}`,
         );
       }),
@@ -383,6 +386,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
     }
     setIssues(rows);
     setIssuesTotal(Math.max(0, pages[pages.length - 1].total - hidden.size));
+    setStatusCounts(pages[pages.length - 1].statusCounts);
   }, [projectId, filters, sort, issuesPage, setIssues, today, showSub, statuses, scope, showCompleted]);
 
   const handleLoadMore = async () => {
@@ -408,7 +412,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
           api<{ rows: CycleWithProgress[] }>(`/api/track/projects/${projectId}/cycles`).then((r) => r.rows),
           api<{ rows: ProjectMember[] }>(`/api/track/projects/${projectId}/members`).then((r) => r.rows),
           api<{ rows: TrackSavedView[] }>(`/api/track/projects/${projectId}/views`).then((r) => r.rows),
-          api<{ rows: TrackIssueWithStatus[]; total: number }>(
+          api<{ rows: TrackIssueWithStatus[]; total: number; statusCounts?: Record<string, number> }>(
             `/api/track/projects/${projectId}/issues?pageSize=${ISSUES_PAGE_SIZE}&page=1`,
           ),
         ]);
@@ -421,6 +425,7 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
         const hidden = pendingDeleteIds();
         setIssues(i.rows.filter((r) => !hidden.has(r.id)));
         setIssuesTotal(i.total);
+        setStatusCounts(i.statusCounts);
         setIssuesPage(1);
 
         // ?savedView=<id> (link compartido) abre esa vista; si no hay estado
@@ -1271,7 +1276,10 @@ export default function ProjectPageClient({ locale, projectId, teamKey, userId, 
                   empty: labels.board.empty,
                   noCycle: labels.ui.display.noCycle,
                   noLabel: labels.ui.display.noLabel,
+                  loadMore: labels.loadMore,
                 }}
+                statusTotals={issues.length < issuesTotal ? statusCounts : undefined}
+                onLoadMore={() => void handleLoadMore()}
                 editing={{ ...editing, members }}
                 onQuickCreate={(title, preset) => quickCreate(title, preset)}
                 show={displayProps}

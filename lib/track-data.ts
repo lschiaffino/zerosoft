@@ -117,6 +117,8 @@ export interface IssueParentSummary {
 export interface ListIssuesResult {
   rows: TrackIssueWithStatus[];
   total: number;
+  /** Total por status con los mismos filtros (las columnas del board muestran el real, no solo lo cargado). */
+  statusCounts?: Record<string, number>;
   page: number;
   pageSize: number;
 }
@@ -1010,7 +1012,12 @@ export async function listIssues(
     )
     .all(...args, pageSize, (page - 1) * pageSize)) as TrackIssueWithStatus[];
 
-  return { rows, total, page, pageSize };
+  const counts = (await db
+    .prepare(`SELECT i.status_id AS s, COUNT(*) AS c FROM track_issues i WHERE ${whereSql} GROUP BY i.status_id`)
+    .all(...args)) as Array<{ s: string | null; c: number }>;
+  const statusCounts = Object.fromEntries(counts.map((r) => [r.s ?? '', Number(r.c)]));
+
+  return { rows, total, page, pageSize, statusCounts };
 }
 
 export async function listAllIssues(

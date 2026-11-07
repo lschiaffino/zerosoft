@@ -30,9 +30,15 @@ interface IssuesBoardProps {
   groupBy?: BoardGroupBy;
   /** Nombres de proyecto por id (agrupar por proyecto). */
   projectNames?: Record<string, string>;
+  /** Total por status en el servidor (con los filtros): si una columna tiene más que lo cargado, lo dice. */
+  statusTotals?: Record<string, number>;
+  /** Trae la página siguiente (columnas incompletas). */
+  onLoadMore?: () => void;
   labels: {
     noAssignee: string;
     empty: string;
+    /** "Cargar más" al pie de una columna incompleta. */
+    loadMore?: string;
     /** Columnas "sin valor" al agrupar por cycle / label. */
     noCycle?: string;
     noLabel?: string;
@@ -73,6 +79,8 @@ export default function IssuesBoard({
   editing,
   onQuickCreate,
   show: showProps = DEFAULT_DISPLAY_PROPS,
+  statusTotals,
+  onLoadMore,
 }: IssuesBoardProps) {
   const t = useTranslations('track');
   const show = new Set<DisplayProp>(showProps);
@@ -165,7 +173,9 @@ export default function IssuesBoard({
                   {title}
                 </span>
               )}
-              <span className="track-board-count">{colIssues.length}</span>
+              <span className="track-board-count" data-testid="track-board-count">
+                {groupBy === 'status' && statusTotals ? Math.max(statusTotals[colKey] ?? 0, colIssues.length) : colIssues.length}
+              </span>
             </div>
             <div className="track-board-cards">
               {colIssues.length === 0 && !(onQuickCreate && preset) && <p className="track-board-empty">{labels.empty}</p>}
@@ -343,6 +353,11 @@ export default function IssuesBoard({
                   labels={editing.ui.quick}
                   onCreate={(title) => onQuickCreate(title, preset)}
                 />
+              )}
+              {groupBy === 'status' && statusTotals && onLoadMore && labels.loadMore && (statusTotals[colKey] ?? 0) > colIssues.length && (
+                <button type="button" className="btn btn-sm btn-ghost track-board-more" onClick={onLoadMore} data-testid="track-board-more">
+                  {labels.loadMore}
+                </button>
               )}
             </div>
           </div>
