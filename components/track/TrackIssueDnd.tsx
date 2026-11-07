@@ -10,7 +10,7 @@
  * - Destinos: data-track-drop="team:<id>" (mover de team: identificador nuevo,
  *   el viejo sigue resolviendo, estado equivalente, sin cycle ni labels del
  *   team anterior), "plan:<id>" (project), "status:", "priority:", "cycle:",
- *   "assignee:" (grupos de la lista) y, con orden Manual, otra fila (reordenar).
+ *   "assignee:", "planMilestone:" (grupos de la lista) y, con orden Manual, otra fila (reordenar).
  * - Cada cambio deja Deshacer en el toast (y ⌘Z). Mover de team deshace con el
  *   mismo identificador de antes.
  * - Auto-scroll cerca de los bordes; un team cerrado del sidebar se abre si se
@@ -37,6 +37,7 @@ type IssueSnapshot = {
   assignee_id: string | null;
   cycle_id: string | null;
   plan_id: string | null;
+  plan_milestone_id?: string | null;
   sub_order?: number | null;
   labels: string;
 };
@@ -179,6 +180,7 @@ export default function TrackIssueDnd() {
 
       const field: Record<string, [string, (b: IssueSnapshot) => unknown]> = {
         plan: ['planId', (b) => b.plan_id],
+        planMilestone: ['planMilestoneId', (b) => b.plan_milestone_id ?? null],
         status: ['statusId', (b) => b.status_id],
         priority: ['priority', (b) => b.priority],
         cycle: ['cycleId', (b) => b.cycle_id],
