@@ -732,6 +732,8 @@
     "adminOnly": "Only workspace owners and admins can change this."
   },
   "templates": {
+    "default": "Default",
+    "defaultLabel": "Use as the default for new issues in this project. Quick create fills it in; you can still pick another or none.",
     "help": "Presets for issues you create often. Pick one when creating an issue to fill in its properties and description.",
     "emptyTitle": "No templates yet",
     "emptyBody": "Create one for bug reports, requests or any issue you repeat.",

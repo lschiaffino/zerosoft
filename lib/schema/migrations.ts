@@ -8599,6 +8599,13 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, "ALTER TABLE send_pages ADD COLUMN links TEXT NOT NULL DEFAULT '[]'");
     },
   },
+  {
+    // Track: plantilla por defecto del proyecto (una sola; el quick-create la precarga).
+    id: '199_track_template_default',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE track_issue_templates ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

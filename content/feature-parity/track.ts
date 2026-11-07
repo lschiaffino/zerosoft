@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Linear',
   alsoCompared: ['Jira', 'GitHub Projects'],
-  lastReviewed: '2026-10-29',
+  lastReviewed: '2026-11-07',
   areas: [
     { id: 'issues', label: { en: 'Issues and data model', es: 'Issues y modelo de datos', pt: 'Issues e modelo de dados' } },
     { id: 'views', label: { en: 'Views and navigation', es: 'Vistas y navegación', pt: 'Visualizações e navegação' } },
@@ -58,7 +58,7 @@ const parity: ProductParity = {
       id: 'issue-templates',
       area: 'issues',
       label: { en: 'Issue templates', es: 'Templates de issue', pt: 'Templates de issue' },
-      detail: { en: 'Per team', es: 'Por equipo', pt: 'Por equipe' },
+      detail: { en: 'Per project, with one default template that quick create fills in', es: 'Por proyecto, con una plantilla por defecto que el alta rápida precarga', pt: 'Por projeto, com um template padrão que a criação rápida preenche' },
       status: 'have',
       competitorHas: true,
     },
