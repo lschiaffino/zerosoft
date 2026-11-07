@@ -34,7 +34,8 @@ import {
   type NormalizedIssue,
 } from './track-import-map';
 import type { FetchStepResult } from './track-import-sources';
-import { fakeLinearGraphql, isLinearFakeToken, linearFakeAllowed } from './track-linear-fake';
+import { fakeLinearGraphql, fakeLinearUpload, isLinearFakeToken, linearFakeAllowed } from './track-linear-fake';
+import { MAX_UPLOAD_SIZE } from './uploads';
 
 // ---------- Queries (solo campos del schema público de Linear) ----------
 
@@ -431,6 +432,26 @@ function handleBody<T>(status: number, raw: unknown): T {
   if (status === 429 || err?.extensions?.code === 'RATELIMITED') throw new ImportRetryError(60_000);
   if (status < 200 || status >= 300 || !body?.data || err) throw new ImportError('source_error');
   return body.data;
+}
+
+// ---------- Archivos subidos a Linear ----------
+
+/** Imágenes y archivos subidos a Linear: piden la API key y dejan de verse al cerrar Linear. */
+export const LINEAR_UPLOAD_RE = /https:\/\/uploads\.linear\.app\/[^\s)"'<>\]]+/g;
+
+/** Descarga un archivo de uploads.linear.app con la key (null si no se pudo o pasa los 10 MB). */
+export async function fetchLinearUpload(token: string, url: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+  if (linearFakeAllowed() && isLinearFakeToken(token)) return fakeLinearUpload(url);
+  try {
+    const res = await fetch(url, { headers: { authorization: linearAuth(token) }, signal: AbortSignal.timeout(20_000), cache: 'no-store' });
+    if (!res.ok) return null;
+    if (Number(res.headers.get('content-length') ?? 0) > MAX_UPLOAD_SIZE) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.length > MAX_UPLOAD_SIZE) return null;
+    return { buffer, contentType: res.headers.get('content-type') ?? 'application/octet-stream' };
+  } catch {
+    return null;
+  }
 }
 
 // ---------- Paso del runner ----------

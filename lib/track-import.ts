@@ -45,6 +45,8 @@ import { normalizeIssueLabels, trackWorkspaceId, listLabels } from './track-labe
 import { createPlan, createPlanMilestone, type WorkspaceScope } from './track-plans';
 import { upsertExternalRef } from './track-integrations';
 import type { NormalizedComment, NormalizedIssue, TrackImportSource } from './track-import-map';
+import { fetchLinearUpload, LINEAR_UPLOAD_RE } from './track-linear-import';
+import { saveUpload } from './uploads';
 import type { ImportPerson, LinearAttachmentItem, LinearCycleItem, LinearPlanItem, LinearRelationItem, LinearTeamItem, LinearUserItem } from './track-linear-import';
 
 export interface TrackImportOptions {
@@ -326,6 +328,9 @@ export interface TrackImportReport {
   planUpdates: number;
   relations: number;
   attachments: number;
+  /** Archivos subidos a Linear copiados a Track (y los que no se pudieron copiar). */
+  uploads: number;
+  uploadsFailed: number;
   unassigned: number;
   parents: number;
   projects: Array<{ id: string; name: string }>;
@@ -346,6 +351,8 @@ export function emptyTrackReport(): TrackImportReport {
     planUpdates: 0,
     relations: 0,
     attachments: 0,
+    uploads: 0,
+    uploadsFailed: 0,
     unassigned: 0,
     parents: 0,
     projects: [],
@@ -669,6 +676,36 @@ async function ensurePlanMilestone(ctx: WriteCtx, planId: string, extId: string,
   return id;
 }
 
+// ---------- Archivos subidos a Linear ----------
+
+/**
+ * Copia a Track las imágenes y archivos de uploads.linear.app que aparecen en
+ * el texto (piden la key de Linear y dejan de verse cuando se cierra Linear) y
+ * cambia los links. Cada archivo se copia una vez (reimportar reusa la copia);
+ * si falla, queda el link original y se cuenta.
+ */
+async function rehostUploads(ctx: WriteCtx, text: string): Promise<string> {
+  if (ctx.src !== 'linear' || !ctx.job.secret || !text.includes('uploads.linear.app')) return text;
+  const urls = [...new Set(text.match(LINEAR_UPLOAD_RE) ?? [])];
+  let out = text;
+  for (const url of urls) {
+    let local = await getExternalId(ctx.ws, ctx.src, 'upload', url);
+    if (!local) {
+      const file = await fetchLinearUpload(ctx.job.secret, url);
+      const name = decodeURIComponent(new URL(url).pathname.split('/').pop() || 'file');
+      local = file ? await saveUpload('track', name, file.contentType, file.buffer).catch(() => null) : null;
+      if (!local) {
+        ctx.report.uploadsFailed += 1;
+        continue;
+      }
+      await setExternalId(ctx.ws, ctx.src, 'upload', url, local);
+      ctx.report.uploads += 1;
+    }
+    out = out.split(url).join(local);
+  }
+  return out;
+}
+
 // ---------- Issues ----------
 
 async function insertActivity(issueId: string, userId: string, type: 'created' | 'comment', meta: Record<string, unknown>, at: string): Promise<void> {
@@ -677,8 +714,9 @@ async function insertActivity(issueId: string, userId: string, type: 'created' |
     .run(crypto.randomUUID(), issueId, userId, type, JSON.stringify(meta), at);
 }
 
-async function insertComment(ctx: WriteCtx, issueId: string, c: NormalizedComment): Promise<void> {
-  const ext = `${issueId}:${c.extId}`;
+async function insertComment(ctx: WriteCtx, issueId: string, raw: NormalizedComment): Promise<void> {
+  const ext = `${issueId}:${raw.extId}`;
+  const c = { ...raw, body: await rehostUploads(ctx, raw.body) };
   const author = matchMember(ctx.members, { email: c.authorEmail, name: c.authorName });
   const original = (c.authorName || c.authorEmail || '').trim();
   const body = (author || !original ? c.body : `**${original}**\n\n${c.body}`).slice(0, 5000);
@@ -726,7 +764,7 @@ async function issueFields(ctx: WriteCtx, issue: NormalizedIssue, projectId: str
     planId,
     planMilestoneId: planId && issue.planMilestone ? await ensurePlanMilestone(ctx, planId, issue.planMilestone.extId, issue.planMilestone.name) : null,
     assignee: matchMember(ctx.members, issue.assignee),
-    description: issue.description ? JSON.stringify([{ type: 'text', text: issue.description }]) : '[]',
+    description: issue.description ? JSON.stringify([{ type: 'text', text: await rehostUploads(ctx, issue.description) }]) : '[]',
   };
 }
 

@@ -1036,7 +1036,8 @@
     "inviteFailed": "The invitations could not be sent. Invite them from Settings › Members.",
     "doneUpdated": "{count, plural, one {# issue updated.} other {# issues updated.}}",
     "doneLinks": "{relations, plural, one {# relation} other {# relations}}, {attachments, plural, one {# link} other {# links}} and {updates, plural, one {# project update} other {# project updates}} imported.",
-    "openPlan": "Open project {name}"
+    "openPlan": "Open project {name}",
+    "linearTokenNote": "Used only for this import. It is kept encrypted until the import finishes, to copy the files you uploaded to Linear, and deleted then."
   },
   "integrations": {
     "tab": "Integrations",

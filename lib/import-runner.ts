@@ -75,7 +75,8 @@ const csvSource = (preset: 'linear' | 'jira' | 'csv') => async (job: ImportJob):
   return { items: issues.map((data) => ({ kind: 'issue', data })), cursor: {}, done: true };
 };
 
-const trackAdapter = (fetchStep: ImportAdapter['fetchStep']): ImportAdapter => ({
+const trackAdapter = (fetchStep: ImportAdapter['fetchStep'], extra: Partial<ImportAdapter> = {}): ImportAdapter => ({
+  ...extra,
   fetchStep,
   preview: (job, items) => trackPreview(job, items),
   writeStages: TRACK_WRITE_STAGES,
@@ -99,7 +100,8 @@ const docsAdapter: ImportAdapter = {
 };
 
 const ADAPTERS: Record<string, ImportAdapter> = {
-  'track:linear': trackAdapter((job) => fetchLinearWorkspaceStep(job.secret, job.cursor)),
+  // La key queda (cifrada) hasta terminar: copia los archivos subidos a Linear al escribir cada issue.
+  'track:linear': trackAdapter((job) => fetchLinearWorkspaceStep(job.secret, job.cursor), { keepSecret: true }),
   'track:github': trackAdapter((job) => fetchGithubStep(job.secret, String(job.options.repo ?? ''), job.cursor)),
   'track:jira': trackAdapter((job) => fetchJiraStep(job.secret, String(job.options.site ?? ''), String(job.options.query ?? ''), job.cursor)),
   'track:asana': trackAdapter((job) => fetchAsanaStep(job.secret, String(job.options.project ?? ''), job.cursor)),

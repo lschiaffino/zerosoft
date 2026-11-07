@@ -296,6 +296,13 @@ function shape(value: unknown, sel: GqlField[]): unknown {
   return out;
 }
 
+// PNG de 1x1: lo que devuelve uploads.linear.app en el fake.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+
+export function fakeLinearUpload(url: string): { buffer: Buffer; contentType: string } | null {
+  return url.startsWith('https://uploads.linear.app/fake/') ? { buffer: PNG, contentType: 'image/png' } : null;
+}
+
 const encode = (n: number) => Buffer.from(`idx:${n}`).toString('base64');
 const decode = (c: unknown) => {
   if (typeof c !== 'string') return 0;

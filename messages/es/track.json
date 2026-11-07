@@ -1036,7 +1036,8 @@
     "inviteFailed": "No se pudieron mandar las invitaciones. Invitalas desde Ajustes › Miembros.",
     "doneUpdated": "{count, plural, one {# issue actualizado.} other {# issues actualizados.}}",
     "doneLinks": "Se importaron {relations, plural, one {# relación} other {# relaciones}}, {attachments, plural, one {# link} other {# links}} y {updates, plural, one {# update de project} other {# updates de projects}}.",
-    "openPlan": "Abrir el project {name}"
+    "openPlan": "Abrir el project {name}",
+    "linearTokenNote": "Se usa solo para este import. Queda cifrada hasta que termina, para copiar los archivos que subiste a Linear, y después se borra."
   },
   "integrations": {
     "tab": "Integraciones",

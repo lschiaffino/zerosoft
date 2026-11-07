@@ -1036,7 +1036,8 @@
     "inviteFailed": "Não foi possível enviar os convites. Convide pelas Configurações › Membros.",
     "doneUpdated": "{count, plural, one {# issue atualizado.} other {# issues atualizados.}}",
     "doneLinks": "Foram importados {relations, plural, one {# relação} other {# relações}}, {attachments, plural, one {# link} other {# links}} e {updates, plural, one {# update de project} other {# updates de projects}}.",
-    "openPlan": "Abrir o project {name}"
+    "openPlan": "Abrir o project {name}",
+    "linearTokenNote": "Usada só para este import. Fica criptografada até o import terminar, para copiar os arquivos que você enviou ao Linear, e depois é apagada."
   },
   "integrations": {
     "tab": "Integrações",

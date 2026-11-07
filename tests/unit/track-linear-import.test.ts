@@ -115,6 +115,10 @@ describe('track import de Linear: workspace entero', () => {
     expect((await issue('Empty states audit')).identifier).toBe('DES-2');
     expect(offline).toMatchObject({ priority: 'urgent', estimate: 5, assignee_id: u.id, triage: 0, archived_at: null });
     expect(String(offline.description)).toContain('- [ ] Conflict handling');
+    // La imagen subida a Linear se copió a Track: el link ya no depende de Linear.
+    expect(String(offline.description)).not.toContain('uploads.linear.app');
+    expect(String(offline.description)).toMatch(/!\[diagram\]\((\/uploads\/track\/|https:\/\/)[^)]+diagram\.png\)/);
+    expect(done.report).toMatchObject({ uploads: 1, uploadsFailed: 0 });
     expect(JSON.parse(String(offline.labels)).map((l: { name: string }) => l.name)).toEqual(['Feature', 'Performance']);
     const cycle = (await db.prepare('SELECT name FROM track_cycles WHERE id = ?').get(offline.cycle_id)) as { name: string };
     expect(cycle.name).toBe('Polish sprint');

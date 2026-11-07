@@ -400,7 +400,7 @@ function ImportForm({
             {t(TOKEN_KEYS[source]?.help ?? 'linearHelp')}
           </p>
           <p id="imp-token-note" className="ximp-note">
-            {t('tokenNote')}
+            {t(source === 'linear' ? 'linearTokenNote' : 'tokenNote')}
           </p>
         </div>
       )}
