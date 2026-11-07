@@ -1134,6 +1134,15 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
       : undefined;
     const parentId = parentRow && parent ? parent.localId : null;
     const teamspaceId = parentRow ? (parentRow.teamspace_id ?? null) : destTeamspace;
+    // Orden entre hermanas como en Notion: donde la madre enlaza a cada subpágina (Notion pone esos links
+    // en el .md); las que no aparecen van después, por título.
+    let position: number | null = null;
+    if (parentId) {
+      const parentContent = ((await db.prepare('SELECT content FROM docs_pages WHERE id = ?').get(parentId)) as { content: string } | undefined)?.content ?? '';
+      const at = parentContent.indexOf(page.localId);
+      const siblings = all.filter((p) => p.parentPath === page.parentPath && !p.rowOf).sort((a, b) => a.title.localeCompare(b.title));
+      position = at >= 0 ? at : 10_000_000 + siblings.findIndex((p) => p.path === page.path);
+    }
 
     let title = page.title;
     let blocks: DocsBlock[] = [];
@@ -1233,8 +1242,8 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
     const now = new Date().toISOString();
     await db
       // Una base a página completa usa todo el ancho, como en Notion.
-      .prepare('INSERT INTO docs_pages (id, user_id, parent_id, title, icon, content, teamspace_id, full_width, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(page.localId, job.workspace_id, parentId, cleanTitle.slice(0, 500), icon, stringifyBlocks(sanitizeBlocks(content)), teamspaceId, page.kind === 'database' ? 1 : 0, created ?? now, updated ?? now);
+      .prepare('INSERT INTO docs_pages (id, user_id, parent_id, title, icon, content, teamspace_id, full_width, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(page.localId, job.workspace_id, parentId, cleanTitle.slice(0, 500), icon, stringifyBlocks(sanitizeBlocks(content)), teamspaceId, page.kind === 'database' ? 1 : 0, position, created ?? now, updated ?? now);
     const key = page.format === 'folder' ? `folder:${page.path.replace(/\/$/, '')}` : page.format === 'enex' ? `enex:${page.path}` : (page.notionId ?? page.path);
     await setExternalId(job.workspace_id, provider, 'page', key, page.localId);
     if (page.kind === 'database') report.databases += 1;

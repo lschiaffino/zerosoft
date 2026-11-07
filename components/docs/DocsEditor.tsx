@@ -4482,7 +4482,8 @@ export default function DocsEditor({
       </div>
 
       <div
-        className={`docs-blocks${fileDropLine !== null ? ' file-dragover' : ''}${blockSel ? ' has-selection' : ''}`}
+        // Base a página completa (la única cosa de la página, con su mismo nombre): el título de la página ya la nombra, como en Notion.
+        className={`docs-blocks${fileDropLine !== null ? ' file-dragover' : ''}${blockSel ? ' has-selection' : ''}${blocks.length === 1 && blocks[0].type === 'database' && (blocks[0].db?.title ?? '').trim() === title.trim() ? ' is-db-page' : ''}`}
         data-dictation-bar="off"
         ref={blocksWrapRef}
         tabIndex={-1}

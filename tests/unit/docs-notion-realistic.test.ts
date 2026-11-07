@@ -149,6 +149,9 @@ describe('Notion: export realista de punta a punta', () => {
     expect(pages.map((p) => p.title).sort()).toEqual(['Projects', 'Tasks', 'Wiki']);
     expect(by('Tasks').parent_id).toBe(by('Wiki').id);
     expect(by('Projects').parent_id).toBe(by('Wiki').id);
+    // Orden entre hermanas: primero la que la madre enlaza (Tasks), después el resto por título.
+    const order = (await getDb().prepare('SELECT title FROM docs_pages WHERE parent_id = ? ORDER BY position').all(by('Wiki').id)) as Array<{ title: string }>;
+    expect(order.map((r) => r.title)).toEqual(['Tasks', 'Projects']);
 
     const wiki = JSON.parse(by('Wiki').content) as Array<{ type: string; level?: number; content: string; indent?: number }>;
     expect(wiki.map((b) => [b.type, b.level ?? null, b.indent ?? 0])).toEqual([

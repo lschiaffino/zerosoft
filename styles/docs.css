@@ -652,6 +652,9 @@
 .docs-bmenu-colors .docs-command-title { padding: 6px 10px 2px; }
 .docs-bmenu-item[aria-checked='true'] { font-weight: 600; }
 
+/* Base a página completa: el título de la página ya la nombra. */
+.docs-blocks.is-db-page .docs-db-title { display: none; }
+
 /* Llegada por un link a un bloque (#id): se marca un momento. */
 .docs-block-outer.is-linked { background: color-mix(in srgb, var(--docs-link) 14%, transparent); transition: background-color 600ms ease; }
 
