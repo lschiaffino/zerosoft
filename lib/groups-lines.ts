@@ -115,16 +115,18 @@ export async function listLines(ws: string, viewer: GroupsViewer | null, opts: {
 
 /** El estado de una línea cambió (webhook, conectar, desconectar): auditoría y aviso a los admins si se cayó. */
 export async function lineStatusChanged(row: NumberRow, status: string): Promise<void> {
-  if (row.provider === 'sample' || row.provider === 'fake') return;
+  if (row.provider === 'sample') return;
   await recordAudit(row.user_id, { chatId: null, chatName: row.name, actorId: null, actorKind: 'system', action: 'line_status', detail: { numberId: row.id, from: row.status, to: status } });
   const fell = row.status === 'connected' && (status === 'disconnected' || status === 'error');
   if (!fell) return;
   const { createNotification } = await import('./notifications');
+  const { localized } = await import('./notification-copy');
   for (const id of await adminIds(row.user_id)) {
     await createNotification({
       userId: id,
       type: 'groups_line',
-      title: `WhatsApp line disconnected: ${row.name}${row.phone ? ` (+${row.phone})` : ''}`,
+      title: localized('groupsLineDown', { line: `${row.name}${row.phone ? ` (+${row.phone})` : ''}` }),
+      body: localized('groupsLineDownBody'),
       href: '/app/groups/settings?tab=numbers',
       sourceType: 'groups_number',
       sourceId: row.id,

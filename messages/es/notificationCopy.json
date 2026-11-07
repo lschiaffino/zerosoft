@@ -89,5 +89,7 @@
   "peopleHireUndone": "Se deshizo la contratación de {name}: su ficha sigue en People",
   "peopleExitFinished": "Pasó la fecha de salida de {name}: su ficha quedó cerrada",
   "sendLinksTransferred": "{count} links de Send de {who} pasaron a vos",
-  "sendLinksStopped": "{count} se frenaron porque sus documentos son privados. Cada link dice qué hacer."
+  "sendLinksStopped": "{count} se frenaron porque sus documentos son privados. Cada link dice qué hacer.",
+  "groupsLineDown": "Se desconectó la línea de WhatsApp {line}",
+  "groupsLineDownBody": "Reconectala con el QR en Groups › Ajustes › Líneas. Los mensajes a esta línea no están llegando."
 }

@@ -483,7 +483,7 @@
     "title": "Groups settings",
     "desc": "Numbers, labels, quick replies, properties, assignment and ticket rules.",
     "tabs": {
-      "numbers": "Numbers",
+      "numbers": "Lines",
       "labels": "Labels",
       "quick": "Quick replies",
       "properties": "Properties",
@@ -494,7 +494,9 @@
       "access": "Access and privacy",
       "audit": "Audit log",
       "integrations": "Integrations",
-      "apps": "Mobile and desktop"
+      "apps": "Mobile and desktop",
+      "team": "Team",
+      "migrate": "Move from Periskope"
     }
   },
   "numbers": {
@@ -809,7 +811,7 @@
     "invalid_day_of_month": "The day of the month goes from 1 to 31.",
     "invalid_cron": "Invalid cron expression (5 fields).",
     "no_next_run": "With these settings it never runs. Check the end date.",
-    "invalid_kind": "Unknown integration.",
+    "invalid_kind": "Pick what the file has.",
     "invalid_slack_url": "Paste a Slack Incoming Webhook URL (https://hooks.slack.com/...).",
     "invalid_domain": "Invalid Freshdesk domain.",
     "invalid_email": "Invalid email.",
@@ -832,7 +834,13 @@
     "media_too_large": "Over WhatsApp's limit: 16 MB for voice notes and 100 MB for any other file.",
     "invalid_media": "That file can't be sent as a voice note.",
     "too_many_files": "Up to 10 files at a time.",
-    "client_upload_unavailable": "Direct upload is not available here. Files up to 10 MB still work."
+    "client_upload_unavailable": "Direct upload is not available here. Files up to 10 MB still work.",
+    "assignee_no_line_access": "That person cannot see this line. Give them the line first.",
+    "line_forbidden": "You do not have access to that line.",
+    "line_disconnected": "That line is not connected.",
+    "line_not_in_chat": "That line is not in this group.",
+    "invalid_color": "Pick one of the colors.",
+    "empty_file": "The file is empty."
   },
   "media": {
     "image": "Image",
@@ -937,7 +945,7 @@
     "somePeople": "Some people",
     "team": "Team",
     "people": "People",
-    "onlyAvailable": "People marked as away are skipped. If nobody is available the chat waits and goes to the first person who comes back.",
+    "onlyAvailable": "The rotation skips whoever does not meet the condition above and anyone who cannot see the chat line. If nobody is left the chat waits and goes to the first person who comes back.",
     "ruleSummary": "{when} → {who}",
     "anyChat": "Any chat",
     "nobody": "nobody",
@@ -949,7 +957,13 @@
     "deleteTeamTitle": "Delete the team {name}?",
     "deleteTeamBody": "Its chats stay assigned to their people. Rules that rotate in this team are turned off.",
     "deleteRuleTitle": "Delete the rule {name}?",
-    "deleteRuleBody": "Chats already assigned keep their person."
+    "deleteRuleBody": "Chats already assigned keep their person.",
+    "whenLabel": "Who is in the rotation",
+    "when": {
+      "online": "Online only",
+      "online_away": "Online or away",
+      "any": "Everyone, even offline"
+    }
   },
   "groupSettings": {
     "title": "Group settings",
@@ -1166,7 +1180,13 @@
       "members": "Members",
       "ticket_created": "Ticket created",
       "ticket_updated": "Ticket updated",
-      "ticket_deleted": "Ticket deleted"
+      "ticket_deleted": "Ticket deleted",
+      "auto_assigned": "Assigned by rule",
+      "reassigned": "Reassigned",
+      "line_access": "Line access",
+      "line_status": "Line status",
+      "availability": "Status",
+      "imported": "Import"
     },
     "actions": {
       "assigned": "assigned the chat to {to}",
@@ -1187,7 +1207,14 @@
       "ticket_deleted": "deleted ticket #{n}",
       "labelsAdded": "added labels: {added}",
       "labelsRemoved": "removed labels: {removed}",
-      "assignedSelf": "assigned the chat to themselves"
+      "assignedSelf": "assigned the chat to themselves",
+      "auto_assigned": "rule {rule} assigned the chat to {to}",
+      "reassigned": "put the chat back in the rotation because {from} went offline",
+      "line_access": "changed who sees the line {line}",
+      "line_status": "line {line} went from {from} to {state}",
+      "availability": "set the status of {to} to {status}",
+      "availabilitySelf": "is now {status}",
+      "imported": "imported {kind} from Periskope ({applied} rows)"
     },
     "memberActions": {
       "add": "added",
@@ -1477,5 +1504,124 @@
     "aiTools": "AI: draft and translate",
     "writeNote": "Write an internal note (N)",
     "backToWhatsApp": "Back to WhatsApp (R)"
+  },
+  "lines": {
+    "replyFrom": "Reply from",
+    "leftChat": "not in this chat",
+    "filter": "Line",
+    "filterAll": "All lines",
+    "colLine": "Line",
+    "colStatus": "Status",
+    "colLast": "Last message",
+    "colChats": "Open chats",
+    "colAccess": "Who sees it",
+    "colActions": "Actions",
+    "since": "since {when}",
+    "importing": "Importing chats: {done} of {total}",
+    "importFailed": "The import stopped. Try Reimport.",
+    "noMessages": "No messages yet",
+    "everyone": "Everyone",
+    "adminsOnly": "Admins only",
+    "accessMany": "{first} and {n} more",
+    "editAccessFor": "Who sees {name}",
+    "accessOnHelp": "Line access is on: members see only the lines given to them or to their team. Admins and the owner see every line.",
+    "accessOffHelp": "Everyone in the workspace sees every line. Turn on line access in Settings › Team to limit it.",
+    "accessTitle": "Who sees {name}",
+    "accessIntro": "With line access on, members only see this line if it is given to them or to one of their teams. Admins and the owner always see it.",
+    "teams": "Teams",
+    "people": "People",
+    "teamSize": "{n, plural, one {# person} other {# people}}",
+    "color": "Color",
+    "colorAuto": "Automatic"
+  },
+  "team": {
+    "intro": "Who works in Groups: role, teams, the lines each person sees, status and open chats assigned.",
+    "invite": "Invite",
+    "alone": "You are the only one here. Invite your team to answer from the same lines.",
+    "colPerson": "Person",
+    "colRole": "Role",
+    "colTeams": "Teams",
+    "colLines": "Lines",
+    "colStatus": "Status",
+    "colOpen": "Open chats",
+    "roleFor": "Role of {name}",
+    "statusFor": "Status of {name}",
+    "roles": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "member": "Member"
+    },
+    "status": {
+      "online": "Online",
+      "away": "Away",
+      "offline": "Offline"
+    },
+    "allLines": "All lines",
+    "allLinesAdmin": "All lines (admin)",
+    "noLines": "No lines",
+    "editLines": "Lines",
+    "editLinesFor": "Lines of {name}",
+    "rolesHelp": "The role is the same in every app of the workspace. Admins see every line and change settings; members answer the chats they can see.",
+    "workspaceMembers": "Workspace members",
+    "accessTitle": "Who sees what",
+    "lineAccess": "Line access: members see only their lines",
+    "lineAccessHelp": "Give each line to people or teams in Settings › Lines or with the Lines button above. Nobody is assigned a chat from a line they cannot see.",
+    "teamAccess": "Team access: members see only chats assigned to them or to their teams",
+    "teamAccessHelp": "It adds up with label access.",
+    "labelAccessLink": "Label access",
+    "reassign": "When someone goes offline, their unanswered chats go back to the assignment rules",
+    "reassignHelp": "Only open chats waiting for a reply. Away keeps them.",
+    "inviteTitle": "Invite to the workspace",
+    "emails": "Emails",
+    "sendInvite": "Send invites",
+    "adminHelp": "Sees every line and changes settings.",
+    "memberHelp": "Answers the chats they can see. With line access on, give them lines after they join.",
+    "invalidEmails": "Check the emails: none looks valid.",
+    "invited": "{n, plural, =0 {No new invites sent} one {# invite sent} other {# invites sent}}",
+    "linesTitle": "Lines of {name}",
+    "linesIntro": "Lines given to this person. The lines of their teams count too."
+  },
+  "migrate": {
+    "intro": "Bring labels, quick replies and the order of your chats from Periskope. Messages come from WhatsApp when you connect each line by QR, not from the file. This import is partial: Periskope does not publish its export columns, so we read the common names and tell you what we skipped.",
+    "step1": "Connect your lines by QR in Settings › Lines and wait for the chats to import.",
+    "step2": "In Periskope, export the chat list or a CSV from Analytics › Data Exports. For labels and quick replies, use a sheet with Name and Color, or Command and Message.",
+    "step3": "Upload each file here, check the preview and import.",
+    "kind": "What the file has",
+    "kinds": {
+      "chats": "Chats (labels, assignee, properties)",
+      "contacts": "Contacts (names and labels)",
+      "labels": "Labels",
+      "quick_replies": "Quick replies"
+    },
+    "columns": {
+      "chats": "Columns: Chat ID (required), Chat Name, Chat Type, Org Phone, Labels, Assigned To (email), and one column per custom property with its name.",
+      "contacts": "Columns: Phone (required), Name, Labels. Applies to the 1:1 chats with that phone.",
+      "labels": "Columns: Name (required), Color (name or hex).",
+      "quick_replies": "Columns: Command (required, like /hello), Message (required)."
+    },
+    "file": "CSV file",
+    "paste": "Or paste the CSV",
+    "tooBig": "The file is larger than 5 MB.",
+    "preview": "Preview",
+    "import": "Import",
+    "previewResult": "{applied} of {rows} rows would be applied.",
+    "done": "Imported: {applied} of {rows} rows.",
+    "created": "New labels: {labels}. New quick replies: {replies}.",
+    "ignored": "Columns not used: {cols}.",
+    "issueLine": "Row {line}: {reason}",
+    "issues": {
+      "empty_file": "the file is empty",
+      "missing_column": "missing column {detail}",
+      "too_many_rows": "only the first 5,000 rows are read",
+      "empty_name": "no name",
+      "exists": "already exists",
+      "invalid_shortcut": "no command",
+      "empty_message": "no message",
+      "unknown_line": "no connected line with that Org Phone",
+      "invalid_phone": "invalid phone",
+      "chat_not_found": "the chat is not in Groups yet",
+      "unknown_assignee": "the assignee is not in the workspace",
+      "not_applied": "could not be applied (check line access)"
+    }
   }
 }

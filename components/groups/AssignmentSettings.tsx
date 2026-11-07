@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { GroupsPerson, LabelDto } from '@/lib/groups';
 import type { AssignRuleDto, TeamDto } from '@/lib/groups-inbox';
+import { RULE_AVAILABILITY, type Availability, type RuleAvailability } from '@/lib/groups-lines-shared';
 import { Modal, api, useErrorText, useToast } from './ui';
 
 interface NumberLite {
@@ -20,6 +21,8 @@ interface Props {
   numbers: NumberLite[];
   labels: LabelDto[];
   availability: Record<string, boolean>;
+  /** En línea, ausente o desconectado (si no viene, sale de `availability`). */
+  statuses?: Record<string, Availability>;
   canEdit: boolean;
 }
 
@@ -32,6 +35,7 @@ type RuleDraft = {
   target: 'team' | 'people';
   teamId: string;
   personIds: string[];
+  availability: RuleAvailability;
 };
 
 const emptyRule = (teams: TeamDto[]): RuleDraft => ({
@@ -42,6 +46,7 @@ const emptyRule = (teams: TeamDto[]): RuleDraft => ({
   target: teams.length ? 'team' : 'people',
   teamId: teams[0]?.id ?? '',
   personIds: [],
+  availability: 'online',
 });
 
 /**
@@ -66,6 +71,7 @@ export default function AssignmentSettings(props: Props) {
     return p ? p.name || p.email : '';
   };
   const available = (id: string) => props.availability[id] !== false;
+  const status = (id: string): Availability => props.statuses?.[id] ?? (available(id) ? 'online' : 'away');
 
   async function saveTeam() {
     if (!teamDraft) return;
@@ -94,6 +100,7 @@ export default function AssignmentSettings(props: Props) {
       kind: ruleDraft.kind || null,
       teamId: ruleDraft.target === 'team' ? ruleDraft.teamId || null : null,
       personIds: ruleDraft.target === 'people' ? ruleDraft.personIds : [],
+      availability: ruleDraft.availability,
     };
     const res = ruleDraft.id
       ? await api<AssignRuleDto>(`/api/groups/rules/${ruleDraft.id}`, { method: 'PATCH', body })
@@ -134,7 +141,8 @@ export default function AssignmentSettings(props: Props) {
     if (r.labelId) when.push(props.labels.find((l) => l.id === r.labelId)?.name ?? '');
     if (r.kind) when.push(t(r.kind === 'group' ? 'assign.kindGroups' : 'assign.kindDms'));
     const who = r.teamId ? teams.find((x) => x.id === r.teamId)?.name ?? '' : r.personIds.map(personName).filter(Boolean).join(', ');
-    return t('assign.ruleSummary', { when: when.filter(Boolean).join(' · ') || t('assign.anyChat'), who: who || t('assign.nobody') });
+    const base = t('assign.ruleSummary', { when: when.filter(Boolean).join(' · ') || t('assign.anyChat'), who: who || t('assign.nobody') });
+    return r.availability && r.availability !== 'online' ? `${base} · ${t(`assign.when.${r.availability}`)}` : base;
   }
 
   return (
@@ -215,6 +223,7 @@ export default function AssignmentSettings(props: Props) {
                           target: r.teamId ? 'team' : 'people',
                           teamId: r.teamId ?? teams[0]?.id ?? '',
                           personIds: r.personIds,
+                          availability: r.availability ?? 'online',
                         })
                       }
                     >
@@ -242,7 +251,7 @@ export default function AssignmentSettings(props: Props) {
               <span>
                 <i className={`gr-presence-dot${available(p.id) ? ' is-on' : ''}`} aria-hidden="true" /> {p.name || p.email}
               </span>
-              <span className="ui-help">{available(p.id) ? t('inbox.available') : t('inbox.away')}</span>
+              <span className="ui-help">{status(p.id) === 'online' ? t('inbox.available') : status(p.id) === 'away' ? t('inbox.away') : t('team.status.offline')}</span>
             </li>
           ))}
         </ul>
@@ -398,6 +407,16 @@ export default function AssignmentSettings(props: Props) {
                 ))}
               </fieldset>
             )}
+            <label className="ui-field">
+              <span className="label">{t('assign.whenLabel')}</span>
+              <select className="select" value={ruleDraft.availability} onChange={(e) => setRuleDraft({ ...ruleDraft, availability: e.target.value as RuleAvailability })}>
+                {RULE_AVAILABILITY.map((a) => (
+                  <option key={a} value={a}>
+                    {t(`assign.when.${a}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
             <p className="ui-help">{t('assign.onlyAvailable')}</p>
             {formError && (
               <p className="ui-error" role="alert">

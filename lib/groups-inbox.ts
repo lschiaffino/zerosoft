@@ -493,12 +493,12 @@ export async function getAvailabilityStatus(ws: string): Promise<Record<string, 
 
 /**
  * Cambia el estado de una persona (true/false por compatibilidad: en línea o
- * desconectado). Al volver, los chats que esperaban sin nadie pueden ir a
+ * ausente, como el botón de la bandeja). Al volver, los chats que esperaban sin nadie pueden ir a
  * esa persona. Al desconectarse, si el workspace lo pide, sus chats sin
  * responder vuelven a la asignación automática.
  */
 export async function setAvailability(ws: string, personId: string, input: boolean | Availability, actor: string | null = personId): Promise<Availability> {
-  const status: Availability = typeof input === 'boolean' ? (input ? 'online' : 'offline') : input;
+  const status: Availability = typeof input === 'boolean' ? (input ? 'online' : 'away') : input;
   const db = getDb();
   const prev = (await getAvailabilityStatus(ws))[personId] ?? 'online';
   await db

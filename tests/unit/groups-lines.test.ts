@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
 import { fakeSent, resetFakeProvider } from '@/lib/groups-provider-fake';
-import { connectNumber, createLabel, createNumber, createPropertyDef, getNumberRowById, ingestEvents, listChats, listLabels, listMessages, listQuickReplies, sendMessage, updateChat, updateNumber } from '@/lib/groups';
+import { connectNumber, createLabel, createNumber, createPropertyDef, disconnectNumber, getNumberRowById, ingestEvents, listChats, listLabels, listMessages, listQuickReplies, sendMessage, updateChat, updateNumber } from '@/lib/groups';
 import { autoAssignChat, createRule, createTeam as createGroupsTeam, listRules, setAvailability } from '@/lib/groups-inbox';
 import { canSeeChat, chatAccessSql, groupsViewer, setLabelAccess, updatePlatformSettings, viewerFrom } from '@/lib/groups-access';
 import { assignmentHistory, chatLines, listLines, peopleWithLine, resolveReplyChat, setLineAccess, siblingChats, teamOverview } from '@/lib/groups-lines';
@@ -226,6 +226,11 @@ describe('líneas: estado y color', () => {
     expect(line).toMatchObject({ color: '#27ae60', displayColor: '#27ae60', openChats: 1, access: { personIds: [], teamIds: [] } });
     expect(line.lastMessageAt).toBeTruthy();
     expect(line.statusAt).toBeTruthy();
+    // Se cae: queda en la auditoría y el dueño recibe un aviso.
+    await disconnectNumber(user.id, a.id);
+    expect((await listAudit(user.id, { action: 'line_status' })).some((e) => (e.detail as { to?: string }).to === 'disconnected')).toBe(true);
+    const n = (await getDb().prepare("SELECT title FROM notifications WHERE user_id = ? AND type = 'groups_line'").get(user.id)) as { title: string } | undefined;
+    expect(n?.title).toContain('Ventas');
   });
 });
 

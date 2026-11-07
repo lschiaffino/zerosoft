@@ -820,3 +820,38 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 /* Ajustes > Números: reimportar con cuántos mensajes por chat. */
 .gr-reimport { display: inline-flex; align-items: center; gap: 4px; }
 .gr-reimport .select { width: auto; height: 28px; font-size: 0.8125rem; }
+
+/* Ajustes › Líneas y Equipo; "Responder desde" (components/groups/ReplyFromSelect.tsx). */
+.gr-line-dot { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--ink-3, #6e6e6e); }
+.gr-line-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.gr-line-name { display: flex; flex-direction: column; min-width: 0; }
+.gr-line-name strong { overflow-wrap: anywhere; }
+.gr-line-status { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.gr-line-error { display: block; margin-top: 2px; font-size: 0.8125rem; }
+.gr-line-access { max-width: 220px; text-align: left; white-space: normal; height: auto; min-height: 28px; }
+.gr-lines-table .gr-number-actions { justify-content: flex-end; }
+.gr-color-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border: 0; margin: 0; padding: 0; }
+.gr-color-pick legend { width: 100%; margin-bottom: 6px; }
+.gr-color-swatch { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius-1); cursor: pointer; font-size: 0.8125rem; }
+.gr-color-swatch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.gr-color-swatch.is-on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.gr-color-swatch:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
+.gr-check-list { display: flex; flex-direction: column; gap: 6px; border: 0; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; }
+.gr-check-list legend { margin-bottom: 6px; }
+.gr-replyfrom { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--ink-2, inherit); min-width: 0; }
+.gr-replyfrom .select { width: auto; max-width: 220px; height: 28px; font-size: 0.8125rem; }
+.gr-replyfrom-label { white-space: nowrap; }
+.gr-team-table .select { max-width: 150px; }
+.gr-team-person { display: flex; flex-direction: column; min-width: 0; }
+.gr-team-lines { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.gr-team-lines span { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8125rem; }
+.gr-avail { display: inline-flex; align-items: center; gap: 6px; }
+.gr-avail-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ui-field, #8c8c8c); }
+.gr-avail-dot.is-online { background: #27ae60; }
+.gr-avail-dot.is-away { background: #e2a03f; }
+.gr-import-result { display: flex; flex-direction: column; gap: 4px; }
+.gr-import-result ul { margin: 0; padding-left: 18px; font-size: 0.8125rem; }
+@media (max-width: 640px) {
+  .gr-replyfrom-label { display: none; }
+  .gr-replyfrom .select { max-width: 160px; }
+}

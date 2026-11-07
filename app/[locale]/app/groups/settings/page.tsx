@@ -4,7 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { isWorkspaceAdmin } from '@/lib/session';
 import { availableProviders, getSettings, groupsBaseUrl, listLabels, listNumbers, listPeople, listPropertyDefs, listQuickReplies } from '@/lib/groups';
-import { getAvailability, listRules, listTeams, workspacePeople } from '@/lib/groups-inbox';
+import { getAvailability, getAvailabilityStatus, listRules, listTeams, workspacePeople } from '@/lib/groups-inbox';
 import AssignmentSettings from '@/components/groups/AssignmentSettings';
 import { aiEnabled } from '@/lib/ai';
 import { groupsAiFakeActive } from '@/lib/groups-flag';
@@ -17,6 +17,10 @@ import SettingsTabs from '@/components/ui/SettingsTabs';
 import NumbersSettings from '@/components/groups/NumbersSettings';
 import { LabelsPanel, PropertiesPanel, QuickRepliesPanel, TicketRulesPanel } from '@/components/groups/SettingsPanels';
 import { AccessPanel, AppsPanel, AuditLog, IntegrationsPanel } from '@/components/groups/PlatformPanels';
+import TeamPanel from '@/components/groups/TeamPanel';
+import PeriskopeImport from '@/components/groups/PeriskopeImport';
+import { listLines, teamOverview } from '@/lib/groups-lines';
+import { pageViewer } from '@/lib/groups-page';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +39,7 @@ const API_ROUTES = [
   'POST /api/v1/groups/mcp',
 ];
 
-const TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'audit', 'integrations', 'api', 'apps'] as const;
+const TABS = ['numbers', 'team', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'audit', 'migrate', 'integrations', 'api', 'apps'] as const;
 /** Nombres viejos o cercanos de pestañas que llevan a la que corresponde. */
 const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
   rules: 'tickets',
@@ -43,7 +47,12 @@ const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
   webhooks: 'integrations',
   replies: 'quick',
   fields: 'ticketFields',
-  teams: 'assignment',
+  teams: 'team',
+  users: 'team',
+  members: 'team',
+  lines: 'numbers',
+  periskope: 'migrate',
+  import: 'migrate',
   'round-robin': 'assignment',
   permissions: 'access',
   privacy: 'access',
@@ -65,20 +74,56 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
   const admin = isWorkspaceAdmin(user);
 
   let body;
-  if (tab === 'numbers') body = <NumbersSettings initial={await listNumbers(user.id)} providers={availableProviders()} canEdit={admin} openNew={sp.new === '1'} />;
+  if (tab === 'numbers') {
+    const [lines, people, teams, platform] = await Promise.all([
+      listLines(user.id, await pageViewer(user), { withAccess: admin }),
+      listPeople(user.id),
+      listTeams(user.id),
+      getPlatformSettings(user.id),
+    ]);
+    body = (
+      <NumbersSettings
+        initial={lines}
+        providers={availableProviders()}
+        canEdit={admin}
+        openNew={sp.new === '1'}
+        people={people}
+        teams={teams}
+        lineAccess={platform.lineAccess}
+      />
+    );
+  } else if (tab === 'team') {
+    const [people, teams, platform, lines] = await Promise.all([teamOverview(user.id), listTeams(user.id), getPlatformSettings(user.id), listLines(user.id, await pageViewer(user), { withAccess: admin })]);
+    body = (
+      <TeamPanel
+        initial={{
+          people,
+          teams,
+          lineAccess: platform.lineAccess,
+          teamAccess: platform.teamAccess,
+          reassignOnOffline: platform.reassignOnOffline,
+          canEdit: admin,
+          me: user.actingUser?.id ?? user.id,
+        }}
+        lines={lines}
+        isOwner={user.role === 'owner'}
+      />
+    );
+  } else if (tab === 'migrate') body = admin ? <PeriskopeImport /> : <p className="ui-help">{t('access.adminsOnly')}</p>;
   else if (tab === 'labels') body = <LabelsPanel initial={await listLabels(user.id)} />;
   else if (tab === 'quick') body = <QuickRepliesPanel initial={await listQuickReplies(user.id)} />;
   else if (tab === 'properties') body = <PropertiesPanel initial={await listPropertyDefs(user.id)} canEdit={admin} />;
   else if (tab === 'ticketFields') body = <PropertiesPanel initial={await listPropertyDefs(user.id, 'ticket')} canEdit={admin} scope="ticket" />;
   else if (tab === 'tickets') body = <TicketRulesPanel initial={await getSettings(user.id)} canEdit={admin} aiAvailable={aiEnabled() || groupsAiFakeActive()} />;
   else if (tab === 'assignment') {
-    const [teams, rules, people, numbers, labels, availability] = await Promise.all([
+    const [teams, rules, people, numbers, labels, availability, statuses] = await Promise.all([
       listTeams(user.id),
       listRules(user.id),
       workspacePeople(user.id),
       listNumbers(user.id),
       listLabels(user.id),
       getAvailability(user.id),
+      getAvailabilityStatus(user.id),
     ]);
     body = (
       <AssignmentSettings
@@ -88,6 +133,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
         numbers={numbers.map((n) => ({ id: n.id, name: n.name, phone: n.phone }))}
         labels={labels.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
         availability={availability}
+        statuses={statuses}
         canEdit={admin}
       />
     );

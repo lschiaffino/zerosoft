@@ -6,7 +6,9 @@ import { useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { NumberDto } from '@/lib/groups';
 import type { ConnectState, ProviderKind } from '@/lib/groups-provider';
-import { Modal, api, useErrorText, useToast } from './ui';
+import type { LineAccess, LineDto } from '@/lib/groups-lines';
+import { LINE_COLORS, lineColor } from '@/lib/groups-lines-shared';
+import { Modal, api, useErrorText, useRelativeTime, useToast } from './ui';
 
 const FIELDS: Record<ProviderKind, Array<{ key: string; secret?: boolean; placeholder?: string; optional?: boolean }>> = {
   cloud: [
@@ -35,16 +37,37 @@ const FIELDS: Record<ProviderKind, Array<{ key: string; secret?: boolean; placeh
 const ADVANCED: ProviderKind[] = ['cloud', 'waha', 'evolution', 'fake'];
 
 /**
- * Números conectados: agregar (API oficial de Meta, WAHA, Evolution API),
- * conectar con QR, ver la URL del webhook, traer los grupos, desconectar y
- * borrar. Las credenciales se escriben y no se vuelven a mostrar.
+ * Líneas (Ajustes › Líneas): una tabla con cada línea de WhatsApp, su color,
+ * estado y desde cuándo, último mensaje, chats abiertos, quién la ve (acceso
+ * por línea) y las acciones: conectar o reconectar con QR, traer grupos,
+ * reimportar el historial, editar (nombre, color, credenciales),
+ * desconectar y borrar. Las credenciales se escriben y no se vuelven a
+ * mostrar. Se refresca sola cada 10 s.
  */
-export default function NumbersSettings({ initial, providers, canEdit, openNew }: { initial: NumberDto[]; providers: ProviderKind[]; canEdit: boolean; openNew: boolean }) {
+export default function NumbersSettings({
+  initial,
+  providers,
+  canEdit,
+  openNew,
+  people = [],
+  teams = [],
+  lineAccess = false,
+}: {
+  initial: Array<NumberDto | LineDto>;
+  providers: ProviderKind[];
+  canEdit: boolean;
+  openNew: boolean;
+  people?: Array<{ id: string; name: string; email: string }>;
+  teams?: Array<{ id: string; name: string; memberIds: string[] }>;
+  /** Acceso por línea prendido (Ajustes › Acceso). */
+  lineAccess?: boolean;
+}) {
   const t = useTranslations('groups');
   const errText = useErrorText();
   const router = useRouter();
+  const rel = useRelativeTime();
   const [toast, showToast] = useToast();
-  const [numbers, setNumbers] = useState(initial);
+  const [numbers, setNumbers] = useState<Array<NumberDto | LineDto>>(initial);
   const [adding, setAdding] = useState(openNew && canEdit);
   const [connecting, setConnecting] = useState<NumberDto | null>(null);
   // Número recién agregado: si se cierra el QR sin escanear, no queda uno "esperando".
@@ -52,14 +75,15 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
   const [removing, setRemoving] = useState<NumberDto | null>(null);
   const [disconnecting, setDisconnecting] = useState<NumberDto | null>(null);
   const [editing, setEditing] = useState<NumberDto | null>(null);
+  const [granting, setGranting] = useState<LineDto | null>(null);
 
   const syncStatus = useCallback((id: string, status: ConnectState['status']) => {
     setNumbers((list) => (list.some((x) => x.id === id && x.status !== status) ? list.map((x) => (x.id === id ? { ...x, status } : x)) : list));
   }, []);
 
   const reload = useCallback(async () => {
-    const res = await api<{ numbers: NumberDto[] }>('/api/groups/numbers');
-    if (res.data) setNumbers(res.data.numbers);
+    const res = await api<{ lines: LineDto[] }>('/api/groups/lines');
+    if (res.data) setNumbers(res.data.lines);
   }, []);
 
   // El estado cambia solo (el teléfono se desvincula, el gateway se cae): la lista se refresca cada 10 s.
@@ -83,6 +107,7 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
     const res = await api(`/api/groups/numbers/${n.id}/connect`, { body: { action: 'import', perChat } });
     if (!res.data) return showToast(errText(res.error), true);
     showToast(t('wa.reimportStarted'));
+    void reload();
   }
 
   async function remove() {
@@ -92,6 +117,18 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
     if (!res.data) return showToast(errText(res.error), true);
     void reload();
   }
+
+  const accessText = (a: LineAccess | undefined) => {
+    if (!a || (a.personIds.length === 0 && a.teamIds.length === 0)) return lineAccess ? t('lines.adminsOnly') : t('lines.everyone');
+    const parts = [
+      ...a.teamIds.map((id) => teams.find((x) => x.id === id)?.name).filter(Boolean),
+      ...a.personIds.map((id) => {
+        const p = people.find((x) => x.id === id);
+        return p ? p.name || p.email : null;
+      }).filter(Boolean),
+    ] as string[];
+    return parts.length > 3 ? t('lines.accessMany', { first: parts.slice(0, 2).join(', '), n: parts.length - 2 }) : parts.join(', ');
+  };
 
   return (
     <div className="ui-fields">
@@ -107,70 +144,130 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
       {numbers.length === 0 ? (
         <p className="ui-help">{t('numbers.empty')}</p>
       ) : (
-        <ul className="gr-numbers">
-          {numbers.map((n) => (
-            <li key={n.id} className="panel gr-number">
-              <div className="gr-number-main">
-                <strong>{n.name}</strong>
-                <span className="ui-help">
-                  {t(`providers.${n.provider}.name`)} {n.phone ? `· +${n.phone}` : ''}
-                </span>
-                {n.provider === 'sample' ? (
-                  <span className="badge">{t('sample.badge')}</span>
-                ) : (
-                  <span className={`badge ${n.status === 'connected' ? 'badge-ok' : n.status === 'error' ? 'badge-bad' : 'badge-warn'}`}>{t(`numberStatus.${n.status}`)}</span>
-                )}
-                {n.lastError && <span className="ui-error">{errText(n.lastError)}</span>}
-              </div>
-              {canEdit && n.provider === 'sample' && (
-                <div className="gr-number-actions">
-                  <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(n)}>
-                    {t('sample.clear')}
-                  </button>
-                </div>
-              )}
-              {canEdit && n.provider !== 'sample' && (
-                <div className="gr-number-actions">
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConnecting(n)}>
-                    {n.status === 'connected' ? t('numbers.status') : n.status === 'disconnected' || n.status === 'error' ? t('numbers.reconnect') : t('numbers.connect')}
-                  </button>
-                  {n.caps.groups && n.status === 'connected' && (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => void act(n, 'sync')}>
-                      {t('numbers.sync')}
-                    </button>
-                  )}
-                  {(n.provider === 'managed' || n.provider === 'evolution') && n.status === 'connected' && (
-                    <span className="gr-reimport" title={t('wa.reimportHelp')}>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => void reimport(n)}>
-                        {t('wa.reimport')}
-                      </button>
-                      <select className="select" value={perChat} onChange={(e) => setPerChat(Number(e.target.value))} aria-label={t('wa.perChat')}>
-                        {[20, 50, 100, 200].map((v) => (
-                          <option key={v} value={v}>
-                            {v}
-                          </option>
-                        ))}
-                      </select>
-                    </span>
-                  )}
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(n)}>
-                    {t('numbers.edit')}
-                  </button>
-                  {n.status === 'connected' && (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDisconnecting(n)}>
-                      {t('numbers.disconnect')}
-                    </button>
-                  )}
-                  <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(n)}>
-                    {t('common.delete')}
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+        <div className="table-wrap">
+          <table className="table gr-table gr-lines-table">
+            <thead>
+              <tr>
+                <th scope="col">{t('lines.colLine')}</th>
+                <th scope="col">{t('lines.colStatus')}</th>
+                <th scope="col">{t('lines.colLast')}</th>
+                <th scope="col">{t('lines.colChats')}</th>
+                {canEdit && <th scope="col">{t('lines.colAccess')}</th>}
+                <th scope="col">
+                  <span className="sr-only">{t('lines.colActions')}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {numbers.map((n) => {
+                const line = n as Partial<LineDto> & NumberDto;
+                const importing = line.import && (line.import.status === 'queued' || line.import.status === 'running');
+                return (
+                  <tr key={n.id} className="gr-number">
+                    <td>
+                      <div className="gr-line-cell">
+                        <span className="gr-line-dot" style={{ background: line.displayColor ?? lineColor(n) }} aria-hidden="true" />
+                        <span className="gr-line-name">
+                          <strong>{n.name}</strong>
+                          <span className="ui-help">
+                            {n.phone ? `+${n.phone} · ` : ''}
+                            {t(`providers.${n.provider}.name`)}
+                          </span>
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      {n.provider === 'sample' ? (
+                        <span className="badge">{t('sample.badge')}</span>
+                      ) : (
+                        <span className="gr-line-status">
+                          <span className={`badge ${n.status === 'connected' ? 'badge-ok' : n.status === 'error' ? 'badge-bad' : 'badge-warn'}`}>{t(`numberStatus.${n.status}`)}</span>
+                          {n.statusAt && <span className="ui-help">{t('lines.since', { when: rel(n.statusAt) })}</span>}
+                          {importing && (
+                            <span className="ui-help" role="status">
+                              {t('lines.importing', { done: line.import!.chatsDone, total: line.import!.chatsTotal })}
+                            </span>
+                          )}
+                          {line.import?.status === 'error' && <span className="ui-error">{t('lines.importFailed')}</span>}
+                        </span>
+                      )}
+                      {n.lastError && <span className="ui-error gr-line-error">{errText(n.lastError)}</span>}
+                    </td>
+                    <td>{line.lastMessageAt ? rel(line.lastMessageAt) : <span className="ui-help">{t('lines.noMessages')}</span>}</td>
+                    <td>{line.openChats ?? '·'}</td>
+                    {canEdit && (
+                      <td>
+                        <button type="button" className="btn btn-ghost btn-sm gr-line-access" onClick={() => setGranting(line as LineDto)} aria-label={t('lines.editAccessFor', { name: n.name })}>
+                          {accessText(line.access)}
+                        </button>
+                      </td>
+                    )}
+                    <td>
+                      {canEdit && n.provider === 'sample' && (
+                        <div className="gr-number-actions">
+                          <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(n)}>
+                            {t('sample.clear')}
+                          </button>
+                        </div>
+                      )}
+                      {canEdit && n.provider !== 'sample' && (
+                        <div className="gr-number-actions">
+                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConnecting(n)}>
+                            {n.status === 'connected' ? t('numbers.status') : n.status === 'disconnected' || n.status === 'error' ? t('numbers.reconnect') : t('numbers.connect')}
+                          </button>
+                          {n.caps.groups && n.status === 'connected' && (
+                            <button type="button" className="btn btn-ghost btn-sm" onClick={() => void act(n, 'sync')}>
+                              {t('numbers.sync')}
+                            </button>
+                          )}
+                          {(n.provider === 'managed' || n.provider === 'evolution') && n.status === 'connected' && (
+                            <span className="gr-reimport" title={t('wa.reimportHelp')}>
+                              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void reimport(n)} disabled={Boolean(importing)}>
+                                {t('wa.reimport')}
+                              </button>
+                              <select className="select" value={perChat} onChange={(e) => setPerChat(Number(e.target.value))} aria-label={t('wa.perChat')}>
+                                {[20, 50, 100, 200].map((v) => (
+                                  <option key={v} value={v}>
+                                    {v}
+                                  </option>
+                                ))}
+                              </select>
+                            </span>
+                          )}
+                          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(n)}>
+                            {t('numbers.edit')}
+                          </button>
+                          {n.status === 'connected' && (
+                            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDisconnecting(n)}>
+                              {t('numbers.disconnect')}
+                            </button>
+                          )}
+                          <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(n)}>
+                            {t('common.delete')}
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
+      {canEdit && numbers.length > 1 && <p className="ui-help">{lineAccess ? t('lines.accessOnHelp') : t('lines.accessOffHelp')}</p>}
 
+      <LineAccessModal
+        line={granting}
+        people={people}
+        teams={teams}
+        onClose={() => setGranting(null)}
+        onSaved={(id, access) => {
+          setGranting(null);
+          setNumbers((list) => list.map((x) => (x.id === id ? { ...x, access } : x)));
+          showToast(t('common.saved'));
+        }}
+      />
       <NumberForm
         open={adding || !!editing}
         editing={editing}
@@ -252,6 +349,7 @@ function NumberForm({
   const hasManaged = providers.includes('managed');
   const advanced = hasManaged ? providers.filter((p) => ADVANCED.includes(p)) : providers;
   const [name, setName] = useState('');
+  const [color, setColor] = useState('');
   const [config, setConfig] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -259,6 +357,7 @@ function NumberForm({
     if (!open) return;
     setProvider(editing?.provider ?? (providers.includes('managed') ? 'managed' : providers.includes('waha') ? 'waha' : providers[0]));
     setName(editing?.name ?? '');
+    setColor(editing?.color ?? '');
     setConfig(editing ? Object.fromEntries(Object.entries(editing.settings).filter(([, v]) => v).map(([k, v]) => [k, String(v)])) : {});
     setError('');
   }, [open, editing, providers]);
@@ -267,7 +366,7 @@ function NumberForm({
     setBusy(true);
     setError('');
     const res = editing
-      ? await api<NumberDto>(`/api/groups/numbers/${editing.id}`, { method: 'PATCH', body: { name, config } })
+      ? await api<NumberDto>(`/api/groups/numbers/${editing.id}`, { method: 'PATCH', body: { name, config, color } })
       : await api<NumberDto>('/api/groups/numbers', { body: { name, provider, config } });
     setBusy(false);
     if (!res.data) return setError(errText(res.error));
@@ -329,6 +428,22 @@ function NumberForm({
           <span className="label">{t('numbers.name')}</span>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder={t('numbers.namePlaceholder')} />
         </label>
+        {editing && (
+          <fieldset className="gr-color-pick">
+            <legend className="label">{t('lines.color')}</legend>
+            <label className={`gr-color-swatch is-auto${!color ? ' is-on' : ''}`}>
+              <input type="radio" name="line-color" checked={!color} onChange={() => setColor('')} />
+              <span className="gr-line-dot" style={{ background: lineColor({ id: editing.id }) }} aria-hidden="true" />
+              {t('lines.colorAuto')}
+            </label>
+            {LINE_COLORS.map((c) => (
+              <label key={c} className={`gr-color-swatch${color === c ? ' is-on' : ''}`}>
+                <input type="radio" name="line-color" checked={color === c} onChange={() => setColor(c)} aria-label={c} />
+                <span className="gr-line-dot" style={{ background: c }} aria-hidden="true" />
+              </label>
+            ))}
+          </fieldset>
+        )}
         {FIELDS[provider].map((f) => (
           <label key={f.key} className="ui-field">
             <span className="label">
@@ -559,6 +674,98 @@ function ConnectModal({
             </p>
             <span className="ui-help">{number?.provider === 'cloud' ? t('numbers.webhookCloud') : t('numbers.webhookBridge')}</span>
           </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+/** Quién ve una línea con el acceso por línea prendido: equipos y personas. Admins y dueño ven todas siempre. */
+function LineAccessModal({
+  line,
+  people,
+  teams,
+  onClose,
+  onSaved,
+}: {
+  line: LineDto | null;
+  people: Array<{ id: string; name: string; email: string }>;
+  teams: Array<{ id: string; name: string; memberIds: string[] }>;
+  onClose: () => void;
+  onSaved: (id: string, access: LineAccess) => void;
+}) {
+  const t = useTranslations('groups');
+  const errText = useErrorText();
+  const [personIds, setPersonIds] = useState<Set<string>>(new Set());
+  const [teamIds, setTeamIds] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!line) return;
+    setPersonIds(new Set(line.access?.personIds ?? []));
+    setTeamIds(new Set(line.access?.teamIds ?? []));
+    setError('');
+  }, [line]);
+  const toggle = (set: Set<string>, id: string, on: boolean) => {
+    const next = new Set(set);
+    if (on) next.add(id);
+    else next.delete(id);
+    return next;
+  };
+
+  async function save() {
+    if (!line) return;
+    setBusy(true);
+    const res = await api<{ access: LineAccess }>('/api/groups/lines', { method: 'PUT', body: { numberId: line.id, personIds: [...personIds], teamIds: [...teamIds] } });
+    setBusy(false);
+    if (!res.data) return setError(errText(res.error));
+    onSaved(line.id, res.data.access);
+  }
+
+  return (
+    <Modal
+      open={!!line}
+      title={line ? t('lines.accessTitle', { name: line.name }) : ''}
+      onClose={onClose}
+      onSubmit={() => void save()}
+      busy={busy}
+      foot={
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            {t('common.cancel')}
+          </button>
+          <button type="submit" className="btn btn-primary" aria-busy={busy || undefined}>
+            {t('common.save')}
+          </button>
+        </>
+      }
+    >
+      <div className="ui-fields">
+        <p className="ui-help">{t('lines.accessIntro')}</p>
+        {teams.length > 0 && (
+          <fieldset className="gr-check-list">
+            <legend className="label">{t('lines.teams')}</legend>
+            {teams.map((tm) => (
+              <label key={tm.id} className="gr-check-label">
+                <input type="checkbox" className="ui-check" checked={teamIds.has(tm.id)} onChange={(e) => setTeamIds(toggle(teamIds, tm.id, e.target.checked))} />
+                {tm.name} <span className="ui-help">{t('lines.teamSize', { n: tm.memberIds.length })}</span>
+              </label>
+            ))}
+          </fieldset>
+        )}
+        <fieldset className="gr-check-list">
+          <legend className="label">{t('lines.people')}</legend>
+          {people.map((p) => (
+            <label key={p.id} className="gr-check-label">
+              <input type="checkbox" className="ui-check" checked={personIds.has(p.id)} onChange={(e) => setPersonIds(toggle(personIds, p.id, e.target.checked))} />
+              {p.name || p.email}
+            </label>
+          ))}
+        </fieldset>
+        {error && (
+          <p className="ui-error" role="alert">
+            {error}
+          </p>
         )}
       </div>
     </Modal>

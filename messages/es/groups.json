@@ -483,7 +483,7 @@
     "title": "Ajustes de Groups",
     "desc": "Números, etiquetas, respuestas rápidas, propiedades, asignación y reglas de tickets.",
     "tabs": {
-      "numbers": "Números",
+      "numbers": "Líneas",
       "labels": "Etiquetas",
       "quick": "Respuestas rápidas",
       "properties": "Propiedades",
@@ -494,7 +494,9 @@
       "access": "Acceso y privacidad",
       "audit": "Auditoría",
       "integrations": "Integraciones",
-      "apps": "Mobile y escritorio"
+      "apps": "Mobile y escritorio",
+      "team": "Equipo",
+      "migrate": "Migrar de Periskope"
     }
   },
   "numbers": {
@@ -809,7 +811,7 @@
     "invalid_day_of_month": "El día del mes va de 1 a 31.",
     "invalid_cron": "Expresión cron inválida (5 campos).",
     "no_next_run": "Con estos ajustes no corre nunca. Revisá la fecha de fin.",
-    "invalid_kind": "Integración desconocida.",
+    "invalid_kind": "Elegí qué tiene el archivo.",
     "invalid_slack_url": "Pegá una URL de Incoming Webhook de Slack (https://hooks.slack.com/...).",
     "invalid_domain": "Dominio de Freshdesk inválido.",
     "invalid_email": "Email inválido.",
@@ -832,7 +834,13 @@
     "media_too_large": "Pasa el tope de WhatsApp: 16 MB para notas de voz y 100 MB para cualquier otro archivo.",
     "invalid_media": "Ese archivo no se puede mandar como nota de voz.",
     "too_many_files": "Hasta 10 archivos a la vez.",
-    "client_upload_unavailable": "La subida directa no está disponible acá. Los archivos de hasta 10 MB se suben igual."
+    "client_upload_unavailable": "La subida directa no está disponible acá. Los archivos de hasta 10 MB se suben igual.",
+    "assignee_no_line_access": "Esa persona no ve esta línea. Dale la línea primero.",
+    "line_forbidden": "No tenés acceso a esa línea.",
+    "line_disconnected": "Esa línea no está conectada.",
+    "line_not_in_chat": "Esa línea no está en este grupo.",
+    "invalid_color": "Elegí uno de los colores.",
+    "empty_file": "El archivo está vacío."
   },
   "media": {
     "image": "Imagen",
@@ -937,7 +945,7 @@
     "somePeople": "Algunas personas",
     "team": "Equipo",
     "people": "Personas",
-    "onlyAvailable": "Se saltea a quien está ausente. Si no hay nadie disponible, el chat espera y va a la primera persona que vuelve.",
+    "onlyAvailable": "La rotación saltea a quien no cumple la condición de arriba y a quien no ve la línea del chat. Si no queda nadie, el chat espera y va a la primera persona que vuelve.",
     "ruleSummary": "{when} → {who}",
     "anyChat": "Cualquier chat",
     "nobody": "nadie",
@@ -949,7 +957,13 @@
     "deleteTeamTitle": "¿Borrar el equipo {name}?",
     "deleteTeamBody": "Sus chats siguen asignados a sus personas. Las reglas que rotan en este equipo se apagan.",
     "deleteRuleTitle": "¿Borrar la regla {name}?",
-    "deleteRuleBody": "Los chats ya asignados siguen con su persona."
+    "deleteRuleBody": "Los chats ya asignados siguen con su persona.",
+    "whenLabel": "Quién entra en la rotación",
+    "when": {
+      "online": "Solo en línea",
+      "online_away": "En línea o ausentes",
+      "any": "Todos, también desconectados"
+    }
   },
   "groupSettings": {
     "title": "Ajustes del grupo",
@@ -1166,7 +1180,13 @@
       "members": "Miembros",
       "ticket_created": "Ticket creado",
       "ticket_updated": "Ticket actualizado",
-      "ticket_deleted": "Ticket borrado"
+      "ticket_deleted": "Ticket borrado",
+      "auto_assigned": "Asignado por regla",
+      "reassigned": "Reasignado",
+      "line_access": "Acceso a líneas",
+      "line_status": "Estado de línea",
+      "availability": "Estado",
+      "imported": "Importación"
     },
     "actions": {
       "assigned": "asignó el chat a {to}",
@@ -1187,7 +1207,14 @@
       "ticket_deleted": "borró el ticket #{n}",
       "labelsAdded": "sumó etiquetas: {added}",
       "labelsRemoved": "sacó etiquetas: {removed}",
-      "assignedSelf": "se asignó el chat"
+      "assignedSelf": "se asignó el chat",
+      "auto_assigned": "la regla {rule} asignó el chat a {to}",
+      "reassigned": "devolvió el chat a la rotación porque {from} se desconectó",
+      "line_access": "cambió quién ve la línea {line}",
+      "line_status": "la línea {line} pasó de {from} a {state}",
+      "availability": "puso a {to} como {status}",
+      "availabilitySelf": "pasó a {status}",
+      "imported": "importó {kind} de Periskope ({applied} filas)"
     },
     "memberActions": {
       "add": "sumó",
@@ -1477,5 +1504,124 @@
     "aiTools": "AI: borrador y traducción",
     "writeNote": "Escribir una nota interna (N)",
     "backToWhatsApp": "Volver a WhatsApp (R)"
+  },
+  "lines": {
+    "replyFrom": "Responder desde",
+    "leftChat": "no está en este chat",
+    "filter": "Línea",
+    "filterAll": "Todas las líneas",
+    "colLine": "Línea",
+    "colStatus": "Estado",
+    "colLast": "Último mensaje",
+    "colChats": "Chats abiertos",
+    "colAccess": "Quién la ve",
+    "colActions": "Acciones",
+    "since": "desde {when}",
+    "importing": "Importando chats: {done} de {total}",
+    "importFailed": "La importación se cortó. Probá Reimportar.",
+    "noMessages": "Sin mensajes todavía",
+    "everyone": "Todos",
+    "adminsOnly": "Solo admins",
+    "accessMany": "{first} y {n} más",
+    "editAccessFor": "Quién ve {name}",
+    "accessOnHelp": "El acceso por línea está prendido: los miembros ven solo las líneas que se les dieron a ellos o a su equipo. Los admins y el dueño ven todas.",
+    "accessOffHelp": "Todo el workspace ve todas las líneas. Para limitarlo, prendé el acceso por línea en Ajustes › Equipo.",
+    "accessTitle": "Quién ve {name}",
+    "accessIntro": "Con el acceso por línea prendido, un miembro ve esta línea solo si se le dio a él o a uno de sus equipos. Los admins y el dueño la ven siempre.",
+    "teams": "Equipos",
+    "people": "Personas",
+    "teamSize": "{n, plural, one {# persona} other {# personas}}",
+    "color": "Color",
+    "colorAuto": "Automático"
+  },
+  "team": {
+    "intro": "Quién trabaja en Groups: rol, equipos, las líneas que ve cada persona, su estado y los chats abiertos que tiene.",
+    "invite": "Invitar",
+    "alone": "Por ahora estás solo. Invitá a tu equipo para responder desde las mismas líneas.",
+    "colPerson": "Persona",
+    "colRole": "Rol",
+    "colTeams": "Equipos",
+    "colLines": "Líneas",
+    "colStatus": "Estado",
+    "colOpen": "Chats abiertos",
+    "roleFor": "Rol de {name}",
+    "statusFor": "Estado de {name}",
+    "roles": {
+      "owner": "Dueño",
+      "admin": "Admin",
+      "member": "Miembro"
+    },
+    "status": {
+      "online": "En línea",
+      "away": "Ausente",
+      "offline": "Desconectado"
+    },
+    "allLines": "Todas las líneas",
+    "allLinesAdmin": "Todas las líneas (admin)",
+    "noLines": "Sin líneas",
+    "editLines": "Líneas",
+    "editLinesFor": "Líneas de {name}",
+    "rolesHelp": "El rol es el mismo en todas las apps del workspace. Los admins ven todas las líneas y cambian ajustes; los miembros responden los chats que pueden ver.",
+    "workspaceMembers": "Miembros del workspace",
+    "accessTitle": "Quién ve qué",
+    "lineAccess": "Acceso por línea: los miembros ven solo sus líneas",
+    "lineAccessHelp": "Dale cada línea a personas o equipos en Ajustes › Líneas o con el botón Líneas de arriba. A nadie se le asigna un chat de una línea que no ve.",
+    "teamAccess": "Acceso por equipo: los miembros ven solo los chats asignados a ellos o a sus equipos",
+    "teamAccessHelp": "Se suma al acceso por etiqueta.",
+    "labelAccessLink": "Acceso por etiqueta",
+    "reassign": "Cuando alguien se desconecta, sus chats sin responder vuelven a las reglas de asignación",
+    "reassignHelp": "Solo los chats abiertos que esperan respuesta. Ausente los conserva.",
+    "inviteTitle": "Invitar al workspace",
+    "emails": "Emails",
+    "sendInvite": "Mandar invitaciones",
+    "adminHelp": "Ve todas las líneas y cambia ajustes.",
+    "memberHelp": "Responde los chats que puede ver. Con el acceso por línea prendido, dale líneas cuando entre.",
+    "invalidEmails": "Revisá los emails: ninguno parece válido.",
+    "invited": "{n, plural, =0 {No se mandaron invitaciones nuevas} one {# invitación enviada} other {# invitaciones enviadas}}",
+    "linesTitle": "Líneas de {name}",
+    "linesIntro": "Líneas dadas a esta persona. También cuentan las de sus equipos."
+  },
+  "migrate": {
+    "intro": "Traé de Periskope las etiquetas, las respuestas rápidas y el orden de tus chats. Los mensajes vienen de WhatsApp al conectar cada línea por QR, no del archivo. Esta importación es parcial: Periskope no publica las columnas de sus exports, así que leemos los nombres comunes y te decimos qué quedó afuera.",
+    "step1": "Conectá tus líneas por QR en Ajustes › Líneas y esperá a que se importen los chats.",
+    "step2": "En Periskope, exportá la lista de chats o un CSV de Analytics › Data Exports. Para etiquetas y respuestas rápidas, usá una planilla con Nombre y Color, o Comando y Mensaje.",
+    "step3": "Subí cada archivo acá, revisá la vista previa e importá.",
+    "kind": "Qué tiene el archivo",
+    "kinds": {
+      "chats": "Chats (etiquetas, asignado, propiedades)",
+      "contacts": "Contactos (nombres y etiquetas)",
+      "labels": "Etiquetas",
+      "quick_replies": "Respuestas rápidas"
+    },
+    "columns": {
+      "chats": "Columnas: Chat ID (obligatoria), Chat Name, Chat Type, Org Phone, Labels, Assigned To (email) y una columna por propiedad propia con su nombre.",
+      "contacts": "Columnas: Phone (obligatoria), Name, Labels. Se aplica a los chats 1:1 con ese teléfono.",
+      "labels": "Columnas: Name (obligatoria), Color (nombre o hex).",
+      "quick_replies": "Columnas: Command (obligatoria, como /hola), Message (obligatoria)."
+    },
+    "file": "Archivo CSV",
+    "paste": "O pegá el CSV",
+    "tooBig": "El archivo pasa los 5 MB.",
+    "preview": "Vista previa",
+    "import": "Importar",
+    "previewResult": "Se aplicarían {applied} de {rows} filas.",
+    "done": "Importado: {applied} de {rows} filas.",
+    "created": "Etiquetas nuevas: {labels}. Respuestas rápidas nuevas: {replies}.",
+    "ignored": "Columnas sin usar: {cols}.",
+    "issueLine": "Fila {line}: {reason}",
+    "issues": {
+      "empty_file": "el archivo está vacío",
+      "missing_column": "falta la columna {detail}",
+      "too_many_rows": "solo se leen las primeras 5.000 filas",
+      "empty_name": "sin nombre",
+      "exists": "ya existe",
+      "invalid_shortcut": "sin comando",
+      "empty_message": "sin mensaje",
+      "unknown_line": "no hay una línea conectada con ese Org Phone",
+      "invalid_phone": "teléfono inválido",
+      "chat_not_found": "el chat todavía no está en Groups",
+      "unknown_assignee": "la persona asignada no está en el workspace",
+      "not_applied": "no se pudo aplicar (revisá el acceso por línea)"
+    }
   }
 }
