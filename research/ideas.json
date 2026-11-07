@@ -2580,5 +2580,41 @@
     "description": "UiPath has a dedicated Check/Uncheck activity that sets a checkbox to a known state instead of toggling it (https://docs.uipath.com/activities/other/latest/ui-automation/). Our Click step toggles, so a robot that runs on a page where the box starts checked flips it the wrong way. First scope: a check step with a checked/unchecked choice that uses the page's real state, and a recorder mapping from checkbox clicks to this step.",
     "product": "robots",
     "kind": "idea"
+  },
+  {
+    "title": "Board: Copy a link that opens the board zoomed on a frame or selection",
+    "description": "Miro lets you copy a link to a single object or frame so teammates land on that part of a large board (https://help.miro.com/hc/en-us/articles/360017730533). Our boards open at the last saved viewport and there is no deep link parameter, as lib/board-urls.ts only builds board-level URLs. In a retro or planning board with ten frames, people paste 'see the third column' in chat instead of a link. First scope: a 'Copy link' action on a selected frame or element that adds ?focus=<elementId>, and the editor and viewer scroll to it on load.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Star boards and pin them at the top of the list and sidebar",
+    "description": "Miro has Starred boards that stay pinned on the home screen (https://help.miro.com/hc/en-us/articles/360017730773). Our board list in components/board/BoardList.tsx sorts by update date only, with no per-user favorite. Teams that keep one living roadmap board plus many workshop boards lose it under the new ones. First scope: a per-user star toggle on each row and in the editor header, stored in a small table, with starred boards listed first and in the sidebar.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Let people request access from a private board link",
+    "description": "Miro shows 'Request access' to anyone who opens a board link they cannot see, and notifies the owner (https://help.miro.com/hc/en-us/articles/360017730693). Here a user without access gets a plain error page from app/[locale]/app/board/[id]. The result is a Chat message asking the owner to share it manually. First scope: a request button on the no-access page that creates a notification for the owner, who can grant viewer or editor from BoardAccessPanel in one click.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add emoji reactions that float on the canvas for workshops",
+    "description": "Miro has reactions that people trigger with a shortcut and that float up next to their cursor, used for quick feedback during a session (https://help.miro.com/hc/en-us/articles/360017731113). We have live cursors and presence (components/board/BoardPresence.tsx) but no way to react without adding a comment or a sticky. First scope: five fixed emojis in the live layer, sent over the existing live channel in lib/board-live.ts, shown for three seconds and never saved in the scene.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add a table object with rows, columns and paste from a spreadsheet",
+    "description": "Miro has a Table item with typed columns that can be filled by pasting from Sheets or Excel (https://help.miro.com/hc/en-us/articles/360017571174). Our canvas is Excalidraw, which has no table element, and nothing in lib/board-templates.ts or components/board creates one. Comparison matrices and prioritization grids are a common reason teams open a whiteboard. First scope: paste of tab-separated text creates a grid of bound text cells aligned on the canvas, grouped so it moves as one.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Add estimation sessions with hidden votes and a reveal button",
+    "description": "Miro offers a planning poker and estimation app where everyone picks a card and the facilitator reveals all at once (https://miro.com/templates/planning-poker/). We have dot voting and a shared timer in lib/board-workshop.ts but votes there are visible while people cast them. For sprint planning on Board plus Track, hidden votes avoid anchoring. First scope: a workshop mode with a fixed Fibonacci scale, hidden picks per person, a reveal action for the facilitator and a button that writes the median to the selected sticky.",
+    "product": "board",
+    "kind": "idea"
   }
 ]
