@@ -630,7 +630,8 @@
 .docs-block-outer[data-color]:not([data-color$='_bg']) .docs-editable,
 .docs-block-outer[data-color]:not([data-color$='_bg']) .docs-bulleted_list_item::before { color: color-mix(in oklab, var(--docs-c) 82%, var(--ink)); }
 .docs-block-outer[data-color]:not([data-color$='_bg']) .docs-bulleted_list_item::before { background: currentColor; }
-.docs-block-outer[data-color$='_bg'] > .docs-block { background: color-mix(in oklab, var(--docs-c) 16%, var(--bg)); border-radius: var(--radius-1); padding-left: 4px; padding-right: 4px; }
+.docs-block-outer[data-color$='_bg'] > .docs-block { background: color-mix(in oklab, var(--docs-c) 16%, var(--bg)); border-radius: var(--radius-1); margin: 0 -6px; padding-left: 6px; padding-right: 6px; }
+/* El texto con fondo no se corre: el fondo sobresale a los costados, como en Notion. */
 .docs-colored:not([data-color$='_bg']) { color: color-mix(in oklab, var(--docs-c) 82%, var(--ink)); }
 .docs-colored[data-color$='_bg'] { padding: 2px 4px; background: color-mix(in oklab, var(--docs-c) 16%, var(--bg)); border-radius: var(--radius-1); }
 .docs-color-swatch {
