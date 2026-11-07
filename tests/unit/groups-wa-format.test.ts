@@ -39,7 +39,7 @@ describe('formatos de la bandeja', () => {
 
 describe('quién edita o borra un mensaje propio', () => {
   const caps = { edit: true, deleteForAll: true };
-  const m = { direction: 'out' as const, status: 'sent', body: 'hola', media: null, deletedAt: null, createdAt: new Date().toISOString(), authorId: 'ana' };
+  const m = { direction: 'out' as const, status: 'sent', body: 'hola', media: null, deletedAt: null, createdAt: new Date().toISOString(), authorId: 'ana' as string | null, authorKind: 'person' };
   it('quien lo mandó o un admin; nadie más', () => {
     expect(messageActions(m, caps, { me: 'ana', isAdmin: false })).toMatchObject({ edit: true, delete: true });
     expect(messageActions(m, caps, { me: 'beto', isAdmin: false })).toMatchObject({ edit: false, delete: false });

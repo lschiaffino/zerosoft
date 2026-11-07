@@ -22,6 +22,7 @@ import Avatar from './wa/Avatar';
 import RichText from './wa/RichText';
 import EmojiPicker from './wa/EmojiPicker';
 import MediaViewer from './wa/MediaViewer';
+import AttachPreview from './wa/AttachPreview';
 import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
 import { colorIndex, dayLabel, extensionOf, linkify, localDayKey, onlyEmoji } from './wa/format';
 import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from './wa/MediaParts';
