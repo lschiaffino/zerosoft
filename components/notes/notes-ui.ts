@@ -149,3 +149,17 @@ export function highlightTerms(q: string): string[] {
     .filter((t) => t.length > 1)
     .slice(0, 8);
 }
+
+/** Cuerpo de POST /api/notes para duplicar una nota: mismos bloques con ids nuevos, sin fijar. */
+export function duplicateBody(
+  note: { content: Array<{ id: string }>; tags: string[]; notebook_id: string | null },
+  title: string,
+  newId: () => string,
+) {
+  return {
+    title: title.slice(0, 200),
+    content: note.content.map((b) => ({ ...b, id: newId() })),
+    tags: note.tags,
+    notebook_id: note.notebook_id,
+  };
+}
