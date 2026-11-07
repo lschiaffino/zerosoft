@@ -126,7 +126,7 @@ export interface ViewerScope {
   teamIds: string[];
 }
 
-export function viewerFrom(ws: string, me: string, role: TeamRole, settings: PlatformSettings, scope: ViewerScope = { lineIds: [], teamIds: [] }): GroupsViewer {
+export function viewerFrom(ws: string, me: string, role: TeamRole, settings: Partial<PlatformSettings>, scope: ViewerScope = { lineIds: [], teamIds: [] }): GroupsViewer {
   const s = normalizePlatform(settings);
   const limited = role === 'member' || role === 'guest';
   const labels = (s.labelAccess && role === 'member') || role === 'guest';
