@@ -8606,6 +8606,41 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE track_issue_templates ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0');
     },
   },
+  {
+    // Groups: importación de chats y mensajes al conectar un número (lib/groups-import.ts).
+    // Una fila por número con su fase y cursor (el cron la retoma con un claim), la cola
+    // de chats del proveedor a importar y el silencio de cada chat (como en WhatsApp).
+    id: '200_groups_import',
+    up: async (c) => {
+      await c.execute(`CREATE TABLE IF NOT EXISTS groups_imports (
+        number_id TEXT PRIMARY KEY REFERENCES groups_numbers(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'queued',
+        phase TEXT NOT NULL DEFAULT 'groups',
+        cursor INTEGER NOT NULL DEFAULT 0,
+        per_chat INTEGER NOT NULL DEFAULT 50,
+        chats_total INTEGER NOT NULL DEFAULT 0,
+        chats_done INTEGER NOT NULL DEFAULT 0,
+        messages INTEGER NOT NULL DEFAULT 0,
+        error TEXT NOT NULL DEFAULT '',
+        attempts INTEGER NOT NULL DEFAULT 0,
+        claimed_until TEXT,
+        started_at TEXT NOT NULL,
+        finished_at TEXT,
+        updated_at TEXT NOT NULL
+      )`);
+      await c.execute("CREATE INDEX IF NOT EXISTS idx_groups_imports_due ON groups_imports(status) WHERE status IN ('queued', 'running')");
+      await c.execute(`CREATE TABLE IF NOT EXISTS groups_import_chats (
+        number_id TEXT NOT NULL REFERENCES groups_numbers(id) ON DELETE CASCADE,
+        remote_jid TEXT NOT NULL,
+        chat_id TEXT NOT NULL,
+        last_at INTEGER NOT NULL DEFAULT 0,
+        done INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (number_id, remote_jid)
+      )`);
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN muted_until TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

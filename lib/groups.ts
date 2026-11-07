@@ -324,6 +324,11 @@ async function saveState(row: NumberRow, state: ConnectState | null, error = '')
   await getDb()
     .prepare('UPDATE groups_numbers SET status = ?, phone = ?, last_error = ?, updated_at = ? WHERE id = ?')
     .run(state?.status ?? 'error', state?.phone ? phoneDigits(state.phone) : row.phone, error, nowIso(), row.id);
+  // Recién conectado: se importan sus chats y mensajes (una vez; "Reimportar" lo repite).
+  if (state?.status === 'connected' && row.status !== 'connected' && (row.provider === 'managed' || row.provider === 'evolution')) {
+    const { queueImport, kickImport } = await import('./groups-import');
+    if (await queueImport(row, { restart: false }).catch(() => false)) await kickImport(row.id);
+  }
 }
 
 export async function connectNumber(ws: string, id: string, origin?: string | null): Promise<ConnectState> {
@@ -405,6 +410,7 @@ export interface ChatRow {
   locked?: number;
   ephemeral?: number;
   left_at?: string | null;
+  muted_until?: string | null;
 }
 
 export interface LabelDto {
@@ -444,6 +450,12 @@ export interface ChatDto {
   locked: boolean;
   ephemeral: number;
   leftAt: string | null;
+  /** Silenciado (sin avisos push), como en WhatsApp. */
+  muted: boolean;
+  /** El último mensaje (para la vista previa con tildes): dirección y estado. */
+  lastDirection?: string | null;
+  lastStatus?: string | null;
+  lastSender?: string | null;
   /** Fragmento del mensaje que coincide con la búsqueda. */
   match?: string;
 }
@@ -493,6 +505,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     locked: Boolean(row.locked),
     ephemeral: Number(row.ephemeral ?? 0),
     leftAt: row.left_at ?? null,
+    muted: Boolean(row.muted_until && row.muted_until > new Date().toISOString()),
   };
 }
 
@@ -635,13 +648,25 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const total = (await db.prepare(`SELECT COUNT(*) AS c FROM groups_chats c WHERE ${whereSql}`).get(...args)) as { c: number };
   const rows = (await db
     .prepare(
-      `SELECT c.*, ${matchSelect} FROM groups_chats c WHERE ${whereSql}
+      `SELECT c.*, ${matchSelect},
+         (SELECT m.direction || '|' || m.status || '|' || m.sender_name FROM groups_messages m WHERE m.chat_id = c.id AND m.direction IN ('in', 'out')
+           ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_info
+       FROM groups_chats c WHERE ${whereSql}
        ORDER BY (c.pinned_at IS NULL), c.pinned_at DESC, COALESCE(c.last_message_at, c.created_at) DESC, c.id LIMIT ? OFFSET ?`,
     )
-    .all(...matchArgs, ...args, limit, offset)) as Array<ChatRow & { match: string | null }>;
+    .all(...matchArgs, ...args, limit, offset)) as Array<ChatRow & { match: string | null; last_info: string | null }>;
   const labels = await labelsFor(rows.map((r) => r.id));
   return {
-    rows: rows.map((r) => maskChat(query.viewer, { ...toChatDto(r, labels.get(r.id) ?? []), ...(r.match ? { match: r.match.slice(0, 160) } : {}) })),
+    rows: rows.map((r) => {
+      const [dir, st, sender] = (r.last_info ?? '').split('|');
+      return maskChat(query.viewer, {
+        ...toChatDto(r, labels.get(r.id) ?? []),
+        lastDirection: dir || null,
+        lastStatus: st || null,
+        lastSender: sender || null,
+        ...(r.match ? { match: r.match.slice(0, 160) } : {}),
+      });
+    }),
     total: Number(total.c),
   };
 }
@@ -650,6 +675,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
 export async function upsertChat(
   number: Pick<NumberRow, 'id' | 'user_id'>,
   input: { providerChatId: string; kind: 'dm' | 'group'; name?: string; phone?: string },
+  opts: { silent?: boolean } = {},
 ): Promise<ChatRow> {
   const db = getDb();
   const now = nowIso();
@@ -667,7 +693,8 @@ export async function upsertChat(
     await db.prepare('UPDATE groups_chats SET name = ? WHERE id = ?').run(input.name.slice(0, 200), row.id);
     row.name = input.name.slice(0, 200);
   }
-  if (inserted.changes > 0) await emitEventSoon(number.user_id, 'groups.chat.created', { chat: chatEventInfo(row) });
+  // Importados del historial: no disparan flujos ni webhooks de "chat nuevo".
+  if (inserted.changes > 0 && !opts.silent) await emitEventSoon(number.user_id, 'groups.chat.created', { chat: chatEventInfo(row) });
   return row;
 }
 
@@ -691,6 +718,8 @@ export interface ChatPatch {
   properties?: Record<string, unknown>;
   labelIds?: string[];
   flagged?: boolean;
+  /** Silenciar (sin push) o volver a avisar. */
+  muted?: boolean;
 }
 
 async function assertWorkspacePerson(ws: string, personId: string): Promise<void> {
@@ -743,6 +772,7 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
   }
   if (patch.pinned !== undefined) set('pinned_at', patch.pinned ? row.pinned_at || nowIso() : null);
   if (patch.status) set('status', patch.status);
+  if (patch.muted !== undefined) set('muted_until', patch.muted ? '9999-12-31T00:00:00.000Z' : null);
   if (patch.crmContactId !== undefined) {
     if (patch.crmContactId) {
       const ok = await db.prepare('SELECT 1 AS x FROM crm_contacts WHERE id = ? AND user_id = ?').get(patch.crmContactId, ws);
@@ -907,19 +937,20 @@ export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll
 export async function listMessages(
   ws: string,
   chatId: string,
-  opts: { after?: string; limit?: number } = {},
+  opts: { after?: string; before?: string; limit?: number } = {},
 ): Promise<MessageDto[]> {
   const limit = Math.min(Math.max(1, opts.limit ?? 200), 500);
+  // `before`: los anteriores a ese momento (cargar más al subir en el hilo).
   const rows = (await getDb()
     .prepare(
       `SELECT * FROM (
          SELECT m.*, m.rowid AS rn, (SELECT t.id FROM groups_tickets t WHERE t.message_id = m.id) AS ticket_id,
            CASE WHEN m.poll != '' THEN (SELECT json_group_array(v.options) FROM groups_poll_votes v WHERE v.message_id = m.id) END AS poll_votes
-         FROM groups_messages m WHERE m.chat_id = ? AND m.user_id = ? AND (? IS NULL OR m.created_at > ?)
+         FROM groups_messages m WHERE m.chat_id = ? AND m.user_id = ? AND (? IS NULL OR m.created_at > ?) AND (? IS NULL OR m.created_at < ?)
          ORDER BY m.created_at DESC, m.rowid DESC LIMIT ?
        ) ORDER BY created_at ASC, rn ASC`,
     )
-    .all(chatId, ws, opts.after ?? null, opts.after ?? null, limit)) as Array<MessageRow & { ticket_id: string | null }>;
+    .all(chatId, ws, opts.after ?? null, opts.after ?? null, opts.before ?? null, opts.before ?? null, limit)) as Array<MessageRow & { ticket_id: string | null }>;
   return rows.map(toMessageDto);
 }
 
@@ -1150,7 +1181,7 @@ export async function reactToMessage(ws: string, actor: string, messageId: strin
   return toMessageDto((await getMessageRow(ws, messageId)) as MessageRow);
 }
 
-async function applyReaction(msg: MessageRow, r: Reaction): Promise<void> {
+export async function applyReaction(msg: MessageRow, r: Reaction): Promise<void> {
   const list = parseJson<Reaction[]>(msg.reactions, []).filter((x) => x.by !== r.by);
   if (r.emoji) list.push(r);
   await getDb().prepare('UPDATE groups_messages SET reactions = ? WHERE id = ?').run(JSON.stringify(list.slice(-50)), msg.id);
@@ -1169,7 +1200,7 @@ async function maybeTicketFromReaction(ws: string, msg: MessageRow, emoji: strin
 
 const LID_CHAT_NAME: Record<string, string> = { es: 'Contacto de WhatsApp', en: 'WhatsApp contact', pt: 'Contato do WhatsApp' };
 
-async function lidChatName(ws: string): Promise<string> {
+export async function lidChatName(ws: string): Promise<string> {
   const row = (await getDb().prepare('SELECT locale FROM users WHERE id = ?').get(ws)) as { locale?: string | null } | undefined;
   return LID_CHAT_NAME[String(row?.locale ?? '').slice(0, 2)] ?? LID_CHAT_NAME.es;
 }
@@ -1268,7 +1299,17 @@ export interface IngestResult {
   ignored: number;
 }
 
-export async function ingestEvents(number: NumberRow, events: InboundEvent[]): Promise<IngestResult> {
+export async function ingestEvents(number: NumberRow, events: InboundEvent[], opts: { history?: boolean } = {}): Promise<IngestResult> {
+  // Historial (messages.set al vincular, o la importación): se guarda sin avisos, reglas ni SLA.
+  if (opts.history || events.some((e) => e.type === 'message' && e.history)) {
+    const { ingestHistory } = await import('./groups-import');
+    const live = opts.history ? [] : events.filter((e) => !(e.type === 'message' && e.history));
+    const past = opts.history ? events : events.filter((e) => e.type === 'message' && e.history);
+    const h = await ingestHistory(number, past);
+    if (live.length === 0) return h;
+    const r = await ingestEvents(number, live);
+    return { messages: h.messages + r.messages, duplicates: h.duplicates + r.duplicates, ignored: h.ignored + r.ignored };
+  }
   const res: IngestResult = { messages: 0, duplicates: 0, ignored: 0 };
   const ws = number.user_id;
   const later: Array<{ messageId: string; ref: MediaRef }> = [];
@@ -1305,8 +1346,11 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[]): P
           body: ev.body,
           media: ev.media && (ev.media.type || ev.media.url) ? ev.media : null,
           replyToId,
-          status: ev.fromMe ? 'sent' : 'received',
+          status: ev.fromMe ? (ev.status ?? 'sent') : 'received',
           createdAt: at,
+          forwarded: ev.forwarded,
+          meta: ev.meta,
+          poll: ev.poll && ev.poll.options.length >= 2 ? ev.poll : null,
         });
         if (!row) {
           res.duplicates++;
@@ -1422,6 +1466,9 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[]): P
         await applyMemberChange(chat.id, ev.action, ev.phones);
       } else if (ev.type === 'session') {
         await saveState(number, { status: ev.status, phone: ev.phone });
+      } else if (ev.type === 'contact') {
+        const { applyContact } = await import('./groups-import');
+        await applyContact(number, ev);
       }
     } catch (err) {
       res.ignored++;
@@ -1444,7 +1491,9 @@ async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow): Prom
   }
   const { autoAssignChat } = await import('./groups-inbox');
   await autoAssignChat(ws, chat.id).catch(() => null);
-  if (chat.assigned_to) {
+  // Silenciado: sin push (el chat igual se marca sin leer).
+  const muted = Boolean(chat.muted_until && chat.muted_until > nowIso());
+  if (chat.assigned_to && !muted) {
     const { notifyPerson } = await import('./groups-push');
     await notifyPerson(ws, chat.assigned_to, {
       chatId: chat.id,
@@ -1517,7 +1566,7 @@ export async function refreshMemberCount(chatId: string): Promise<void> {
     .run(chatId, chatId);
 }
 
-async function applyMemberChange(chatId: string, action: ParticipantAction, phones: string[]): Promise<void> {
+export async function applyMemberChange(chatId: string, action: ParticipantAction, phones: string[]): Promise<void> {
   const db = getDb();
   const now = nowIso();
   if ((action === 'add' || action === 'remove') && phones.length) {

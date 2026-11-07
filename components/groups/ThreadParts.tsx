@@ -19,7 +19,21 @@ export interface MenuItem {
  * Menú de un mensaje (⋯): role="menu", flechas para moverse, Esc cierra y
  * devuelve el foco al botón, clic afuera también cierra.
  */
-export function MessageMenu({ label, items }: { label: string; items: MenuItem[] }) {
+export function MessageMenu({
+  label,
+  items,
+  trigger,
+  className = 'btn btn-ghost btn-sm',
+  align,
+}: {
+  label: string;
+  items: MenuItem[];
+  /** Contenido del botón (por defecto ⋯). */
+  trigger?: ReactNode;
+  className?: string;
+  /** Lado hacia el que abre la lista (por defecto, el del CSS). */
+  align?: 'left' | 'right';
+}) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLSpanElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -56,16 +70,17 @@ export function MessageMenu({ label, items }: { label: string; items: MenuItem[]
       <button
         ref={button}
         type="button"
-        className="btn btn-ghost btn-sm"
+        className={className}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={label}
+        title={label}
         onClick={() => setOpen((v) => !v)}
       >
-        ⋯
+        {trigger ?? '⋯'}
       </button>
       {open && (
-        <div className="gr-menu-list" role="menu" aria-label={label} ref={list} onKeyDown={onKey}>
+        <div className={`gr-menu-list${align ? ` is-${align}` : ''}`} role="menu" aria-label={label} ref={list} onKeyDown={onKey}>
           {items.map((it) => (
             <button
               key={it.key}

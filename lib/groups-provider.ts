@@ -181,7 +181,21 @@ export type InboundEvent =
       };
       replyToProviderId?: string;
       timestamp?: string;
+      /**
+       * Mensaje viejo (historial al conectar o reimportar): se guarda sin
+       * avisos, reglas, SLA ni marcas de "sin responder".
+       */
+      history?: boolean;
+      /** Estado de entrega conocido de un mensaje propio (historial). */
+      status?: 'sent' | 'delivered' | 'read';
+      /** Encuesta creada en WhatsApp. */
+      poll?: { question: string; options: string[]; multi: boolean };
+      forwarded?: boolean;
+      /** Datos de presentación: nota de voz, duración, ubicación, contacto compartido. */
+      meta?: Record<string, unknown>;
     }
+  /** Nombre o foto de un contacto o grupo (historial, contactos de WhatsApp). */
+  | { type: 'contact'; chatId: string; name?: string; pictureUrl?: string }
   | {
       type: 'reaction';
       chatId: string;
@@ -232,9 +246,45 @@ export interface WebhookRequest {
   rawBody: string;
 }
 
+/** Un chat del historial del proveedor (para importar al conectar). */
+export interface HistoryChat {
+  /** Id tal como lo guarda el proveedor (puede ser "@lid"): con él se piden los mensajes. */
+  remoteJid: string;
+  /** Id que usamos nosotros (el de teléfono cuando el proveedor lo conoce). */
+  chatId: string;
+  isGroup: boolean;
+  name: string;
+  pictureUrl: string;
+  unread: number;
+  /** Último mensaje (segundos). */
+  lastAt: number;
+}
+
+export interface HistoryContact {
+  chatId: string;
+  name: string;
+  pictureUrl: string;
+}
+
+/**
+ * Lectura del historial que el gateway ya guardó (Evolution con base de
+ * datos): chats, mensajes recientes de cada uno, contactos y fotos. Solo
+ * lectura y paginado, para importarlo en tandas.
+ */
+export interface HistorySource {
+  chats(page: number, size: number): Promise<HistoryChat[]>;
+  /** Los últimos `limit` mensajes del chat, ya normalizados (history: true). */
+  messages(remoteJid: string, limit: number): Promise<InboundEvent[]>;
+  contacts(page: number, size: number): Promise<HistoryContact[]>;
+  /** URL pública de la foto de perfil ('' si no tiene o no se ve). */
+  picture(chatId: string): Promise<string>;
+}
+
 export interface GroupsProvider {
   readonly kind: ProviderKind;
   readonly caps: ProviderCaps;
+  /** Historial guardado en el gateway (solo Evolution y el QR administrado). */
+  history?: HistorySource;
   /** Arranca la sesión (o valida las credenciales) y registra el webhook. */
   connect(webhookUrl: string): Promise<ConnectState>;
   state(): Promise<ConnectState>;

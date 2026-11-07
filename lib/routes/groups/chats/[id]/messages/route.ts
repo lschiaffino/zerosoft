@@ -20,8 +20,10 @@ export async function GET(req: Request, ctx: Ctx) {
   if (!chat) return groupsError(404, 'not_found');
   const p = new URL(req.url).searchParams;
   const after = p.get('after') || undefined;
+  // ?before=<createdAt>: los anteriores (el hilo carga más al subir).
+  const before = p.get('before') || undefined;
   const limit = Number(p.get('limit')) || undefined;
-  return NextResponse.json({ messages: (await listMessages(s.ws, id, { after, limit })).map((m) => maskMessage(guard.viewer, m)) });
+  return NextResponse.json({ messages: (await listMessages(s.ws, id, { after, before, limit })).map((m) => maskMessage(guard.viewer, m)) });
 }
 
 /** Manda texto, media, una encuesta ({ poll: { question, options, multi } }) o una nota interna ({ note: true }). */

@@ -42,6 +42,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (Array.isArray(b.labelIds)) patch.labelIds = strArr(b.labelIds, 20);
   if (typeof b.read === 'boolean') patch.read = b.read;
   if (typeof b.flagged === 'boolean') patch.flagged = b.flagged;
+  if (typeof b.muted === 'boolean') patch.muted = b.muted;
   try {
     return NextResponse.json(maskChat(guard.viewer, await patchChatAs(s.ws, { id: s.me }, id, patch)));
   } catch (err) {

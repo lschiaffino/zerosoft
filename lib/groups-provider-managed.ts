@@ -154,8 +154,9 @@ export function managedProvider(
       try {
         const body = JSON.parse(req.rawBody) as { instance?: unknown; apikey?: unknown };
         if (typeof body.instance !== 'string' || !safeEqual(body.instance, instance)) return false;
-        // Evolution manda el token de la instancia en el cuerpo: si viene, tiene que ser el nuestro.
-        if (body.apikey !== undefined && (typeof body.apikey !== 'string' || !safeEqual(body.apikey, token))) return false;
+        // Evolution manda el token de la instancia en el cuerpo, o null si el servidor no lo expone
+        // (AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false): null es como no mandarlo. Si viene, tiene que ser el nuestro.
+        if (body.apikey !== undefined && body.apikey !== null && (typeof body.apikey !== 'string' || !safeEqual(body.apikey, token))) return false;
         return true;
       } catch {
         return false;

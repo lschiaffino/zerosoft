@@ -32,6 +32,8 @@ import {
   type MediaRef,
   type GroupInfo,
   type GroupsProvider,
+  type HistoryChat,
+  type HistorySource,
   type InboundEvent,
   type MemberRole,
   type Participant,
@@ -505,6 +507,9 @@ export function wahaProvider(
 // ======================================================================
 
 export const EVOLUTION_EVENTS = [
+  'MESSAGES_SET',
+  'CONTACTS_UPSERT',
+  'CHATS_SET',
   'MESSAGES_UPSERT',
   'MESSAGES_UPDATE',
   'MESSAGES_DELETE',
@@ -545,47 +550,242 @@ const EVOLUTION_ACK: Record<string, 'sent' | 'delivered' | 'read' | 'failed'> = 
   ERROR: 'failed',
 };
 
-/** Texto y media de un `message` de Baileys (lo que manda Evolution). */
-function baileysContent(message: Json): {
+/** Envoltorios de Baileys que traen el mensaje real adentro (temporales, ver una vez, documento con texto). */
+const WRAPPERS = ['ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage', 'deviceSentMessage'];
+
+function unwrapMessage(message: Json): Json {
+  let m = message;
+  for (let i = 0; i < 4; i++) {
+    const key = WRAPPERS.find((k) => m[k] && typeof m[k] === 'object' && (m[k] as Json).message);
+    if (!key) break;
+    m = ((m[key] as Json).message ?? {}) as Json;
+  }
+  return m;
+}
+
+/**
+ * Nombre de perfil que sirve para mostrar. Evolution guarda "Você" en lo que
+ * manda el número y, en el historial sin nombre, los dígitos del teléfono o
+ * del lid: nada de eso es un nombre.
+ */
+export function cleanPushName(raw: unknown): string {
+  const s = typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim() : '';
+  if (!s || /^(você|voce|you|tú|tu)$/i.test(s)) return '';
+  if (/^\+?[\d\s().-]{5,}$/.test(s)) return '';
+  return s.slice(0, 120);
+}
+
+/** Teléfono de un vCard compartido (waid=... o TEL:). */
+function vcardPhone(vcard: string): string {
+  const waid = /waid=(\d{6,15})/.exec(vcard);
+  if (waid) return waid[1];
+  const tel = /TEL[^:]*:([+\d\s()-]{6,})/i.exec(vcard);
+  return tel ? tel[1].replace(/[^\d]/g, '') : '';
+}
+
+interface BaileysContent {
   body: string;
   media?: { url: string; type: string; name: string; size: number };
   replyTo?: string;
   reaction?: Json;
   /** protocolMessage: edición (texto nuevo) o borrado para todos del mensaje `target`. */
   protocol?: { kind: 'edit' | 'revoke'; target: string; body: string };
-} {
+  poll?: { question: string; options: string[]; multi: boolean };
+  forwarded?: boolean;
+  meta?: Record<string, unknown>;
+}
+
+/** Texto y media de un `message` de Baileys (lo que manda o guarda Evolution). `topContext`: el contextInfo que Evolution saca afuera. */
+export function baileysContent(raw: Json, topContext?: unknown): BaileysContent {
+  const message = unwrapMessage(raw);
   const proto = (message.protocolMessage ?? ((((message.editedMessage ?? {}) as Json).message ?? {}) as Json).protocolMessage) as Json | undefined;
   if (proto) {
     const target = String(((proto.key ?? {}) as Json).id ?? '');
     const type = String(proto.type ?? '').toUpperCase();
     if (target && (type === 'REVOKE' || type === '0')) return { body: '', protocol: { kind: 'revoke', target, body: '' } };
     if (target && (type === 'MESSAGE_EDIT' || type === '14')) {
-      const edited = (proto.editedMessage ?? {}) as Json;
+      const edited = unwrapMessage((proto.editedMessage ?? {}) as Json);
       const text = typeof edited.conversation === 'string' ? edited.conversation : String(((edited.extendedTextMessage ?? {}) as Json).text ?? '');
       return { body: text, protocol: { kind: 'edit', target, body: text } };
     }
     return { body: '' };
   }
   if (message.reactionMessage) return { body: '', reaction: message.reactionMessage as Json };
-  if (typeof message.conversation === 'string') return { body: message.conversation };
+  // Evolution guarda el contextInfo aparte (y convierte extendedTextMessage en conversation).
+  const withCtx = (out: BaileysContent, inner?: unknown): BaileysContent => {
+    const ctx = ((inner && typeof inner === 'object' ? inner : topContext) ?? {}) as Json;
+    const top = (topContext ?? {}) as Json;
+    const stanza = ctx.stanzaId ?? top.stanzaId;
+    if (stanza) out.replyTo = String(stanza);
+    if (ctx.isForwarded === true || top.isForwarded === true) out.forwarded = true;
+    return out;
+  };
+  if (typeof message.conversation === 'string') return withCtx({ body: message.conversation });
   const ext = message.extendedTextMessage as Json | undefined;
-  if (ext) {
-    const ctx = (ext.contextInfo ?? {}) as Json;
-    return { body: String(ext.text ?? ''), replyTo: ctx.stanzaId ? String(ctx.stanzaId) : undefined };
+  if (ext) return withCtx({ body: String(ext.text ?? '') }, ext.contextInfo);
+  const pollMsg = (message.pollCreationMessage ?? message.pollCreationMessageV2 ?? message.pollCreationMessageV3) as Json | undefined;
+  if (pollMsg) {
+    const options = (Array.isArray(pollMsg.options) ? (pollMsg.options as Json[]) : []).map((o) => String(o.optionName ?? '')).filter(Boolean);
+    const question = String(pollMsg.name ?? '');
+    return withCtx({ body: question, poll: { question, options, multi: Number(pollMsg.selectableOptionsCount ?? 1) !== 1 } }, pollMsg.contextInfo);
   }
-  for (const key of ['imageMessage', 'videoMessage', 'audioMessage', 'documentMessage', 'stickerMessage']) {
+  const loc = (message.locationMessage ?? message.liveLocationMessage) as Json | undefined;
+  if (loc) {
+    const lat = Number(loc.degreesLatitude);
+    const lng = Number(loc.degreesLongitude);
+    const name = String(loc.name ?? loc.address ?? '').trim();
+    return withCtx(
+      { body: name, meta: { location: { lat: Number.isFinite(lat) ? lat : 0, lng: Number.isFinite(lng) ? lng : 0, name, address: String(loc.address ?? '') } } },
+      loc.contextInfo,
+    );
+  }
+  const contact = message.contactMessage as Json | undefined;
+  if (contact) {
+    const name = String(contact.displayName ?? '').trim();
+    return withCtx({ body: name, meta: { contact: { name, phone: vcardPhone(String(contact.vcard ?? '')) } } }, contact.contextInfo);
+  }
+  const contacts = message.contactsArrayMessage as Json | undefined;
+  if (contacts) {
+    const list = (Array.isArray(contacts.contacts) ? (contacts.contacts as Json[]) : []).map((c) => ({ name: String(c.displayName ?? ''), phone: vcardPhone(String(c.vcard ?? '')) }));
+    return withCtx({ body: String(contacts.displayName ?? list.map((c) => c.name).join(', ')), meta: { contacts: list.slice(0, 20) } });
+  }
+  for (const key of ['imageMessage', 'videoMessage', 'ptvMessage', 'audioMessage', 'documentMessage', 'stickerMessage']) {
     const m = message[key] as Json | undefined;
     if (m) {
-      const ctx = (m.contextInfo ?? {}) as Json;
-      return {
-        body: String(m.caption ?? ''),
-        // La URL de WhatsApp está cifrada: el archivo se baja después por el gateway (fetchMedia).
-        media: { url: '', type: String(m.mimetype ?? key.replace('Message', '')), name: String(m.fileName ?? ''), size: byteLength(m.fileLength) },
-        replyTo: ctx.stanzaId ? String(ctx.stanzaId) : undefined,
-      };
+      const fallbackType = key === 'imageMessage' ? 'image/jpeg' : key === 'videoMessage' || key === 'ptvMessage' ? 'video/mp4' : key === 'audioMessage' ? 'audio/ogg' : key === 'stickerMessage' ? 'image/webp' : 'application/octet-stream';
+      const meta: Record<string, unknown> = {};
+      if (key === 'audioMessage' && m.ptt === true) meta.ptt = true;
+      if (key === 'stickerMessage') meta.sticker = true;
+      if (key === 'ptvMessage') meta.round = true;
+      const seconds = Number(m.seconds);
+      if (Number.isFinite(seconds) && seconds > 0) meta.seconds = seconds;
+      const size = byteLength(m.fileLength);
+      if (size > 0) meta.size = size;
+      const pages = Number(m.pageCount);
+      if (Number.isFinite(pages) && pages > 0) meta.pages = pages;
+      return withCtx(
+        {
+          body: String(m.caption ?? ''),
+          // La URL de WhatsApp está cifrada: el archivo se baja después por el gateway (fetchMedia).
+          media: { url: '', type: String(m.mimetype ?? '') || fallbackType, name: String(m.fileName ?? m.title ?? ''), size },
+          ...(Object.keys(meta).length ? { meta } : {}),
+        },
+        m.contextInfo,
+      );
     }
   }
   return { body: '' };
+}
+
+/** Estado de entrega de un mensaje guardado por Evolution (status o el último MessageUpdate). */
+function storedStatus(m: Json): 'sent' | 'delivered' | 'read' | undefined {
+  const rank = { sent: 1, delivered: 2, read: 3 } as const;
+  let best: 'sent' | 'delivered' | 'read' | undefined;
+  const consider = (raw: unknown) => {
+    const st = EVOLUTION_ACK[String(raw ?? '').toUpperCase()];
+    if (st && st !== 'failed' && (!best || rank[st] > rank[best])) best = st;
+  };
+  consider(m.status);
+  for (const u of Array.isArray(m.MessageUpdate) ? (m.MessageUpdate as Json[]) : []) consider(u.status);
+  return best;
+}
+
+/**
+ * Un mensaje de Evolution (webhook messages.upsert / messages.set, o un
+ * registro de findMessages) → eventos. `history`: viene del historial.
+ */
+export function evolutionMessageEvents(m: Json, history = false): InboundEvent[] {
+  const key = (m.key ?? {}) as Json;
+  // Chats con id "@lid": se usa el id con teléfono cuando Evolution lo da.
+  const chatId = pnJid(String(key.remoteJid ?? ''), key.remoteJidAlt, key.senderPn, m.senderPn);
+  const id = String(key.id ?? '');
+  if (!chatId || !id || chatId === 'status@broadcast' || /@(broadcast|newsletter)$/.test(chatId)) return [];
+  const isGroup = isGroupJid(chatId);
+  const fromMe = key.fromMe === true;
+  const participant = pnJid(String(key.participant ?? m.participant ?? ''), key.participantAlt, key.participantPn, m.participantPn);
+  const pushName = fromMe ? '' : cleanPushName(m.pushName);
+  const pollUpdate = ((m.message ?? {}) as Json).pollUpdateMessage as Json | undefined;
+  if (pollUpdate) {
+    // Evolution manda el voto descifrado en vote.selectedOptions (si el gateway lo descifra).
+    const target = String(((pollUpdate.pollCreationMessageKey ?? {}) as Json).id ?? '');
+    const vote = (pollUpdate.vote ?? m.pollVote ?? {}) as Json;
+    const selected = Array.isArray(vote.selectedOptions) ? (vote.selectedOptions as Array<string | number>) : null;
+    if (target && selected && !fromMe) {
+      return [{ type: 'poll_vote', chatId, pollProviderMessageId: target, voterPhone: phoneDigits(isGroup ? participant : chatId), voterName: pushName, options: selected }];
+    }
+    return [];
+  }
+  const content = baileysContent((m.message ?? {}) as Json, m.contextInfo);
+  const sender = isGroup ? participant : fromMe ? '' : chatId;
+  if (content.protocol) {
+    return [
+      content.protocol.kind === 'edit'
+        ? { type: 'edit', chatId, providerMessageId: content.protocol.target, body: content.protocol.body }
+        : { type: 'revoke', chatId, providerMessageId: content.protocol.target },
+    ];
+  }
+  if (content.reaction) {
+    const target = ((content.reaction.key ?? {}) as Json).id;
+    if (!target) return [];
+    return [
+      {
+        type: 'reaction',
+        chatId,
+        targetProviderMessageId: String(target),
+        emoji: String(content.reaction.text ?? ''),
+        senderPhone: phoneDigits(sender),
+        senderName: pushName,
+        fromMe,
+      },
+    ];
+  }
+  // Mensajes de sistema sin contenido (cambios de clave, avisos de cifrado): no son parte de la conversación.
+  if (!content.body && !content.media && !content.poll && !content.meta) return [];
+  const ts = Number(m.messageTimestamp);
+  const media = content.media;
+  const fits = media ? media.size <= MAX_INBOUND_MEDIA : false;
+  const out: InboundEvent = {
+    type: 'message',
+    chatId,
+    isGroup,
+    fromMe,
+    senderPhone: phoneDigits(sender),
+    senderName: pushName,
+    providerMessageId: id,
+    body: content.body,
+    media: media
+      ? {
+          // "evo:<id>": se baja después y se guarda en nuestro storage (ver storeInboundMedia).
+          url: fits ? `evo:${id}` : '',
+          type: media.type,
+          name: media.name,
+          // Más grande que el tope: queda el tipo y el nombre, sin bajarlo.
+          ...(fits ? { fetchRef: { providerMessageId: id, chatId: String(key.remoteJid ?? chatId), fromMe } } : {}),
+        }
+      : undefined,
+    replyToProviderId: content.replyTo,
+    timestamp: Number.isFinite(ts) && ts > 0 ? new Date(ts * 1000).toISOString() : undefined,
+    ...(history ? { history: true } : {}),
+    ...(fromMe ? { status: storedStatus(m) } : {}),
+    ...(content.poll ? { poll: content.poll } : {}),
+    ...(content.forwarded ? { forwarded: true } : {}),
+    ...(content.meta ? { meta: content.meta } : {}),
+  };
+  return [out];
+}
+
+/** Contactos de Evolution (contacts.upsert / findContacts) → nombre y foto por chat. */
+function evolutionContactEvents(rows: Json[]): InboundEvent[] {
+  const out: InboundEvent[] = [];
+  for (const c of rows) {
+    const jid = String(c.remoteJid ?? c.id ?? '');
+    if (!jid || !/@(s\.whatsapp\.net|g\.us|lid)$/.test(jid)) continue;
+    const name = cleanPushName(c.pushName ?? c.name ?? c.notify);
+    const pictureUrl = typeof c.profilePicUrl === 'string' && /^https:\/\//.test(c.profilePicUrl) ? c.profilePicUrl : '';
+    if (!name && !pictureUrl) continue;
+    out.push({ type: 'contact', chatId: jid, ...(name ? { name } : {}), ...(pictureUrl ? { pictureUrl } : {}) });
+  }
+  return out;
 }
 
 /** Webhook de Evolution API → eventos normalizados. */
@@ -594,87 +794,24 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
   const event = String(b.event ?? '').toLowerCase().replace(/_/g, '.');
   const d = (b.data ?? {}) as Json;
   switch (event) {
-    case 'messages.upsert': {
+    case 'messages.upsert':
+    case 'messages.set': {
+      // messages.set: el historial que WhatsApp manda al vincular (se guarda sin avisos).
+      const history = event === 'messages.set';
+      const rows = Array.isArray(d) ? (d as Json[]) : Array.isArray(d.messages) ? (d.messages as Json[]) : [d];
+      return rows.flatMap((m) => evolutionMessageEvents(m, history));
+    }
+    case 'contacts.upsert':
+    case 'contacts.update':
+    case 'contacts.set':
+      return evolutionContactEvents(Array.isArray(d) ? (d as Json[]) : [d]);
+    case 'chats.set':
+    case 'chats.upsert': {
+      // Solo los grupos traen un nombre confiable acá (en los 1:1 Evolution pone el pushName del último mensaje, que puede ser el nuestro).
       const rows = Array.isArray(d) ? (d as Json[]) : [d];
-      const out: InboundEvent[] = [];
-      for (const m of rows) {
-        const key = (m.key ?? {}) as Json;
-        // Chats con id "@lid": se usa el id con teléfono cuando Evolution lo da.
-        const chatId = pnJid(String(key.remoteJid ?? ''), key.remoteJidAlt, key.senderPn, m.senderPn);
-        const id = String(key.id ?? '');
-        if (!chatId || !id || chatId === 'status@broadcast') continue;
-        const isGroup = isGroupJid(chatId);
-        const fromMe = key.fromMe === true;
-        const participant = pnJid(String(key.participant ?? m.participant ?? ''), key.participantAlt, key.participantPn, m.participantPn);
-        const pollUpdate = ((m.message ?? {}) as Json).pollUpdateMessage as Json | undefined;
-        if (pollUpdate) {
-          // Evolution manda el voto descifrado en vote.selectedOptions (si el gateway lo descifra).
-          const target = String(((pollUpdate.pollCreationMessageKey ?? {}) as Json).id ?? '');
-          const vote = (pollUpdate.vote ?? m.pollVote ?? {}) as Json;
-          const selected = Array.isArray(vote.selectedOptions) ? (vote.selectedOptions as Array<string | number>) : null;
-          if (target && selected && !fromMe) {
-            out.push({
-              type: 'poll_vote',
-              chatId,
-              pollProviderMessageId: target,
-              voterPhone: phoneDigits(isGroup ? participant : chatId),
-              voterName: String(m.pushName ?? ''),
-              options: selected,
-            });
-          }
-          continue;
-        }
-        const content = baileysContent((m.message ?? {}) as Json);
-        const sender = isGroup ? participant : fromMe ? '' : chatId;
-        if (content.protocol) {
-          out.push(
-            content.protocol.kind === 'edit'
-              ? { type: 'edit', chatId, providerMessageId: content.protocol.target, body: content.protocol.body }
-              : { type: 'revoke', chatId, providerMessageId: content.protocol.target },
-          );
-          continue;
-        }
-        if (content.reaction) {
-          const target = ((content.reaction.key ?? {}) as Json).id;
-          if (!target) continue;
-          out.push({
-            type: 'reaction',
-            chatId,
-            targetProviderMessageId: String(target),
-            emoji: String(content.reaction.text ?? ''),
-            senderPhone: phoneDigits(sender),
-            senderName: String(m.pushName ?? ''),
-            fromMe,
-          });
-          continue;
-        }
-        const ts = Number(m.messageTimestamp);
-        out.push({
-          type: 'message',
-          chatId,
-          isGroup,
-          fromMe,
-          senderPhone: phoneDigits(sender),
-          senderName: String(m.pushName ?? ''),
-          providerMessageId: id,
-          body: content.body,
-          media: content.media
-            ? {
-                // "evo:<id>": se baja después y se guarda en nuestro storage (ver storeInboundMedia).
-                url: content.media.size <= MAX_INBOUND_MEDIA ? `evo:${id}` : '',
-                type: content.media.type,
-                name: content.media.name,
-                // Más grande que el tope: queda el tipo y el nombre, sin bajarlo.
-                ...(content.media.size <= MAX_INBOUND_MEDIA
-                  ? { fetchRef: { providerMessageId: id, chatId: String(key.remoteJid ?? chatId), fromMe } }
-                  : {}),
-              }
-            : undefined,
-          replyToProviderId: content.replyTo,
-          timestamp: Number.isFinite(ts) && ts > 0 ? new Date(ts * 1000).toISOString() : undefined,
-        });
-      }
-      return out;
+      return rows
+        .filter((c) => isGroupJid(String(c.remoteJid ?? c.id ?? '')) && cleanPushName(c.name))
+        .map((c) => ({ type: 'contact' as const, chatId: String(c.remoteJid ?? c.id), name: cleanPushName(c.name) }));
     }
     case 'messages.update': {
       const rows = Array.isArray(d) ? (d as Json[]) : [d];
@@ -804,6 +941,51 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     return out;
   }
 
+  const history: HistorySource = {
+    async chats(page, size) {
+      const rows = (await api(`/chat/findChats/${instance}`, 'POST', { take: size, skip: page * size }, { maxBytes: 8 * 1024 * 1024 })) as unknown;
+      return (Array.isArray(rows) ? (rows as Json[]) : []).flatMap((c): HistoryChat[] => {
+        const remoteJid = String(c.remoteJid ?? '');
+        if (!remoteJid || /@(broadcast|newsletter)$/.test(remoteJid)) return [];
+        const last = (c.lastMessage ?? {}) as Json;
+        const lk = (last.key ?? {}) as Json;
+        const chatId = pnJid(remoteJid, lk.remoteJidAlt, lk.senderPn);
+        const isGroup = isGroupJid(chatId);
+        // En un 1:1, el nombre del contacto; si no hay, el pushName del último mensaje que mandó la otra persona.
+        const name = cleanPushName(c.pushName) || (!isGroup && lk.fromMe !== true ? cleanPushName(last.pushName) : '');
+        const ts = Number(last.messageTimestamp);
+        const pic = typeof c.profilePicUrl === 'string' && /^https:\/\//.test(c.profilePicUrl) ? c.profilePicUrl : '';
+        return [{ remoteJid, chatId, isGroup, name, pictureUrl: pic, unread: Math.max(0, Number(c.unreadCount) || 0), lastAt: Number.isFinite(ts) ? ts : 0 }];
+      });
+    },
+    async messages(remoteJid, limit) {
+      const r = (await api(
+        `/chat/findMessages/${instance}`,
+        'POST',
+        { where: { key: { remoteJid } }, offset: Math.max(1, Math.min(limit, 500)), page: 1 },
+        { maxBytes: 16 * 1024 * 1024 },
+      )) as Json;
+      const records = ((r.messages ?? {}) as Json).records;
+      const list = Array.isArray(records) ? (records as Json[]) : [];
+      // Vienen del más nuevo al más viejo: se devuelven en orden (las respuestas encuentran su cita).
+      return list
+        .slice()
+        .sort((a, b) => Number(a.messageTimestamp ?? 0) - Number(b.messageTimestamp ?? 0))
+        .flatMap((m) => evolutionMessageEvents(m, true));
+    },
+    async contacts(page, size) {
+      const rows = (await api(`/chat/findContacts/${instance}`, 'POST', { offset: size, page: page + 1 }, { maxBytes: 8 * 1024 * 1024 })) as unknown;
+      return evolutionContactEvents(Array.isArray(rows) ? (rows as Json[]) : []).flatMap((e) =>
+        e.type === 'contact' ? [{ chatId: e.chatId, name: e.name ?? '', pictureUrl: e.pictureUrl ?? '' }] : [],
+      );
+    },
+    async picture(chatId) {
+      const r = (await api(`/chat/fetchProfilePictureUrl/${instance}`, 'POST', { number: chatId }).catch(() => null)) as Json | null;
+      const url = r ? String(r.profilePictureUrl ?? '') : '';
+      return /^https?:\/\//.test(url) ? url : '';
+    },
+  };
+
   async function update(groupId: string, action: ParticipantAction, phones: string[]): Promise<ParticipantResult[]> {
     const r = (await api(`/group/updateParticipant/${instance}${q(groupId)}`, 'POST', {
       action,
@@ -821,6 +1003,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
   return {
     kind: 'evolution',
     caps: PROVIDER_CAPS.evolution,
+    history,
     async connect(webhookUrl) {
       const webhook = { enabled: true, url: webhookUrl, byEvents: false, base64: false, events: EVOLUTION_EVENTS };
       try {
