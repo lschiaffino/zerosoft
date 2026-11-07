@@ -8614,6 +8614,24 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE links ADD COLUMN do_index INTEGER NOT NULL DEFAULT 0');
     },
   },
+  {
+    // Track: reacciones en los updates de un project y en sus comentarios (como Linear).
+    // target_id es el id del update o del comentario; update_id permite listarlas juntas.
+    id: '250_track_plan_update_reactions',
+    up: async (c) => {
+      await c.execute(`CREATE TABLE IF NOT EXISTS track_plan_update_reactions (
+        target_id TEXT NOT NULL,
+        update_id TEXT NOT NULL REFERENCES track_plan_updates(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        emoji TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (target_id, user_id, emoji)
+      )`);
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_track_plan_update_reactions_update ON track_plan_update_reactions(update_id)');
+      // Resources del project (links), como en Linear.
+      await addColumn(c, "ALTER TABLE track_plans ADD COLUMN links TEXT NOT NULL DEFAULT '[]'");
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

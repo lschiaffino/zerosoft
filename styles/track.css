@@ -2957,3 +2957,14 @@ a.track-board-card-title:hover {
     margin-inline: 0;
   }
 }
+
+/* ---------- Lista de issues compartida (TrackIssueList): cabecera compacta como Linear ---------- */
+.track-issue-list { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.track-list-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; min-width: 0; border-bottom: 1px solid var(--line); }
+.track-list-tabs { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.track-list-tools { flex: 1 1 320px; min-width: 0; }
+.track-list-tools .track-filters { padding: 4px 0; border-top: 0; border-bottom: 0; }
+.track-list-loading { display: flex; flex-direction: column; gap: 2px; }
+.track-list-more { margin: 4px 0 0; }
+.track-list-title { margin: 0; font-size: 0.9375rem; font-weight: 600; line-height: 32px; white-space: nowrap; }
+.track-list-tabs .track-list-pagetabs { margin: 0; border-bottom: 0; }

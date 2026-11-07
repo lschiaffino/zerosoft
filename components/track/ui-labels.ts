@@ -140,6 +140,8 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
         cycle: t('display.groups.cycle'),
         label: t('display.groups.label'),
         project: t('display.groups.project'),
+        planMilestone: t('display.groups.planMilestone'),
+        plan: t('display.groups.plan'),
       },
       sorts: {
         manual: t('display.sorts.manual'),
@@ -148,6 +150,7 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
         updated: t('display.sorts.updated'),
         priority: t('display.sorts.priority'),
         due: t('display.sorts.due'),
+        estimate: t('display.sorts.estimate'),
         identifier: t('display.sorts.identifier'),
         customers: t('display.sorts.customers'),
         revenue: t('display.sorts.revenue'),

@@ -670,7 +670,9 @@
       "priority": "Prioridad",
       "cycle": "Ciclo",
       "label": "Etiqueta",
-      "project": "Equipo"
+      "project": "Equipo",
+      "planMilestone": "Milestone",
+      "plan": "Project"
     },
     "sorts": {
       "manual": "Manual",
@@ -681,7 +683,8 @@
       "due": "Vencimiento",
       "identifier": "Identificador",
       "customers": "Cantidad de clientes",
-      "revenue": "Ingresos de clientes"
+      "revenue": "Ingresos de clientes",
+      "estimate": "Estimación"
     }
   },
   "subscription": {
@@ -1482,7 +1485,9 @@
         "created": "Creado",
         "updated": "Actualizado",
         "relation": "Relaciones",
-        "hierarchy": "Sub-issues"
+        "hierarchy": "Sub-issues",
+        "team": "Team",
+        "project": "Project"
       },
       "noAssignee": "Sin asignar",
       "noCycle": "Sin cycle",
@@ -1546,7 +1551,8 @@
       "hint": "Tipeá para filtrar, ↵ para elegir, ← para volver",
       "and": "y",
       "or": "o",
-      "matchToggle": "Cambiar a {next}"
+      "matchToggle": "Cambiar a {next}",
+      "noProject": "Sin project"
     },
     "peek": {
       "title": "Vista rápida del issue",
@@ -1586,7 +1592,14 @@
       "reset": "Volver a lo predeterminado",
       "collapse": "Contraer {name}",
       "expand": "Expandir {name}",
-      "addInGroup": "Nuevo issue en {name}"
+      "addInGroup": "Nuevo issue en {name}",
+      "completedIssues": "Issues terminados",
+      "completedWindow": {
+        "all": "Todos",
+        "week": "Última semana",
+        "none": "Ninguno"
+      },
+      "showEmptyGroups": "Mostrar grupos vacíos"
     },
     "team": {
       "all": "Todos los issues",
@@ -1689,5 +1702,12 @@
       "copyLink": "Copiar link",
       "more": "Más acciones"
     }
+  },
+  "list": {
+    "loadError": "No se pudieron cargar los issues.",
+    "retry": "Reintentar",
+    "noMilestone": "Sin milestone",
+    "noProject": "Sin project",
+    "showingFirst": "Se ven los primeros {shown} de {total}. Sumá un filtro para acotar."
   }
 }

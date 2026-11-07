@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import { ISSUE_SORTS } from '@/lib/track-views';
-import { listAllIssues } from '@/lib/track-data';
+import { listAllIssues, MY_ISSUES_TABS, type MyIssuesTab } from '@/lib/track-data';
 import { decodeFilter } from '@/lib/track-filter';
 import { dayParam, pageParams, sortParam, unauthorized } from '@/lib/track-http';
 
@@ -20,6 +20,10 @@ export async function GET(req: NextRequest) {
     filter: decodeFilter(sp.get('filter')),
     today: dayParam(sp.get('today')),
     topLevel: sp.get('topLevel') === '1',
+    // Lista compartida: ?mine=assigned|created|subscribed|activity (Mis issues), ?planId= (project), ?projectId= (team).
+    mine: (MY_ISSUES_TABS as readonly string[]).includes(sp.get('mine') ?? '') ? { userId: realUserId(user), tab: sp.get('mine') as MyIssuesTab } : undefined,
+    planId: sp.get('planId') ?? undefined,
+    projectId: sp.get('projectId') ?? undefined,
     page,
     pageSize,
   });

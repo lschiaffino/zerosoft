@@ -9,7 +9,10 @@ import { MarkdownView } from '@/components/track/MarkdownView';
 import RichEditor from '@/components/track/RichEditor';
 import KeyPicker from '@/components/track/KeyPicker';
 import type { PlanSummary, PlanEvent } from '@/lib/track-plans';
-import type { PlanUpdate, PlanUpdateComment } from '@/lib/track-plan-updates';
+import type { PlanUpdate, PlanUpdateComment, PlanUpdateReaction } from '@/lib/track-plan-updates';
+import { TRACK_REACTIONS } from '@/lib/track-ux';
+import { Popover } from '@/components/track/InlineEditors';
+import TrackIcon from '@/components/track/TrackIcon';
 import { PLAN_HEALTH, type PlanHealth } from '@/lib/track-planning-schema';
 import { api, fmtDay, fmtWhen, HealthDot, LoadingRows, personName } from './shared';
 import type { PlansMeta } from './PlansList';
@@ -210,6 +213,15 @@ export default function PlanUpdates({
                       })()}
                     </p>
                   )}
+                  <Reactions
+                    updateId={it.update.id}
+                    targetId={it.update.id}
+                    reactions={(it.update.reactions ?? []).filter((r) => r.target_id === it.update.id)}
+                    me={me}
+                    onChange={(all) =>
+                      setUpdates((cur) => (cur ?? []).map((u) => (u.id === it.update.id ? { ...u, reactions: all } : u)))
+                    }
+                  />
                   <Comments updateId={it.update.id} count={Number(it.update.comment_count)} />
                 </li>
               ),
@@ -290,14 +302,16 @@ function Comments({ updateId, count }: { updateId: string; count: number }) {
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<PlanUpdateComment[] | null>(null);
+  const [reactions, setReactions] = useState<PlanUpdateReaction[]>([]);
   const [me, setMe] = useState('');
   const [body, setBody] = useState('');
   const [n, setN] = useState(count);
 
   const load = useCallback(async () => {
-    const res = await api<{ rows: PlanUpdateComment[]; me: string }>(`/api/track/plan-updates/${updateId}/comments`);
+    const res = await api<{ rows: PlanUpdateComment[]; reactions: PlanUpdateReaction[]; me: string }>(`/api/track/plan-updates/${updateId}/comments`);
     if (res.ok) {
       setRows(res.data.rows);
+      setReactions(res.data.reactions ?? []);
       setMe(res.data.me);
       setN(res.data.rows.length);
     }
@@ -331,6 +345,13 @@ function Comments({ updateId, count }: { updateId: string; count: number }) {
                 </button>
               )}
               <p className="tp-comment-body">{c.body}</p>
+              <Reactions
+                updateId={updateId}
+                targetId={c.id}
+                reactions={reactions.filter((r) => r.target_id === c.id)}
+                me={me}
+                onChange={setReactions}
+              />
             </div>
           ))}
           <form
@@ -352,6 +373,80 @@ function Comments({ updateId, count }: { updateId: string; count: number }) {
           </form>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Reacciones (como en los comentarios de issues): las puestas con su cuenta y
+ * un botón con la grilla de emojis. Clic en una propia la saca.
+ */
+function Reactions({
+  updateId,
+  targetId,
+  reactions,
+  me,
+  onChange,
+}: {
+  updateId: string;
+  targetId: string;
+  reactions: PlanUpdateReaction[];
+  me: string;
+  /** Todas las reacciones del update (las del update y las de sus comentarios). */
+  onChange: (all: PlanUpdateReaction[]) => void;
+}) {
+  const t = useTranslations('trackPlanning');
+  const groups = new Map<string, PlanUpdateReaction[]>();
+  for (const r of reactions) groups.set(r.emoji, [...(groups.get(r.emoji) ?? []), r]);
+  const toggle = async (emoji: string) => {
+    const res = await api<{ reactions: PlanUpdateReaction[] }>(`/api/track/plan-updates/${updateId}/comments`, 'PUT', {
+      emoji,
+      commentId: targetId === updateId ? undefined : targetId,
+    });
+    if (res.ok) onChange(res.data.reactions);
+  };
+  return (
+    <div className="track-reactions tp-reactions" role="group" aria-label={t('updates.reactions')}>
+      {[...groups.entries()].map(([emoji, list]) => {
+        const mine = list.some((r) => r.user_id === me);
+        const who = list.map((r) => (r.user_id === me ? t('updates.you') : (r.user_name ?? '?'))).join(', ');
+        return (
+          <button
+            key={emoji}
+            type="button"
+            className={`track-reaction${mine ? ' is-mine' : ''}`}
+            aria-pressed={mine}
+            title={who}
+            aria-label={t('updates.reactionLabel', { emoji, count: list.length, who })}
+            onClick={() => void toggle(emoji)}
+            data-testid="tp-reaction"
+          >
+            <span aria-hidden>{emoji}</span>
+            <span className="track-reaction-count">{list.length}</span>
+          </button>
+        );
+      })}
+      <Popover ariaLabel={t('updates.addReaction')} className="track-comment-tool" width={232} trigger={<TrackIcon name="smile" size={14} />}>
+        {(close) => (
+          <div className="track-emoji-grid">
+            {TRACK_REACTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                role="menuitem"
+                className="track-emoji"
+                aria-label={emoji}
+                onClick={() => {
+                  close();
+                  void toggle(emoji);
+                }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+      </Popover>
     </div>
   );
 }

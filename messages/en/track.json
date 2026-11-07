@@ -670,7 +670,9 @@
       "priority": "Priority",
       "cycle": "Cycle",
       "label": "Label",
-      "project": "Team"
+      "project": "Team",
+      "planMilestone": "Milestone",
+      "plan": "Project"
     },
     "sorts": {
       "manual": "Manual",
@@ -681,7 +683,8 @@
       "due": "Due date",
       "identifier": "Identifier",
       "customers": "Customer count",
-      "revenue": "Customer revenue"
+      "revenue": "Customer revenue",
+      "estimate": "Estimate"
     }
   },
   "subscription": {
@@ -1482,7 +1485,9 @@
         "created": "Created",
         "updated": "Updated",
         "relation": "Relations",
-        "hierarchy": "Sub-issues"
+        "hierarchy": "Sub-issues",
+        "team": "Team",
+        "project": "Project"
       },
       "noAssignee": "No assignee",
       "noCycle": "No cycle",
@@ -1546,7 +1551,8 @@
       "hint": "Type to filter, ↵ to pick, ← to go back",
       "and": "and",
       "or": "or",
-      "matchToggle": "Switch to {next}"
+      "matchToggle": "Switch to {next}",
+      "noProject": "No project"
     },
     "peek": {
       "title": "Issue preview",
@@ -1586,7 +1592,14 @@
       "reset": "Reset to default",
       "collapse": "Collapse {name}",
       "expand": "Expand {name}",
-      "addInGroup": "New issue in {name}"
+      "addInGroup": "New issue in {name}",
+      "completedIssues": "Completed issues",
+      "completedWindow": {
+        "all": "All",
+        "week": "Past week",
+        "none": "None"
+      },
+      "showEmptyGroups": "Show empty groups"
     },
     "team": {
       "all": "All issues",
@@ -1689,5 +1702,12 @@
       "copyLink": "Copy link",
       "more": "More actions"
     }
+  },
+  "list": {
+    "loadError": "Couldn't load the issues.",
+    "retry": "Try again",
+    "noMilestone": "No milestone",
+    "noProject": "No project",
+    "showingFirst": "Showing the first {shown} of {total}. Add a filter to narrow it down."
   }
 }

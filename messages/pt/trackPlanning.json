@@ -45,7 +45,8 @@
     "saveError": "Não foi possível salvar a mudança. Tente de novo.",
     "copyLink": "Copiar link",
     "linkCopied": "Link copiado",
-    "copyFailed": "Não foi possível copiar o link"
+    "copyFailed": "Não foi possível copiar o link",
+    "dismiss": "Fechar"
   },
   "status": {
     "backlog": "Backlog",
@@ -102,7 +103,26 @@
     "namePlaceholder": "Checkout mobile",
     "summaryLabel": "Resumo",
     "summaryPlaceholder": "Uma linha sobre o que este projeto entrega",
-    "display": "Display"
+    "display": "Display",
+    "filterHealth": "Saúde",
+    "anyHealth": "Qualquer saúde",
+    "orderBy": "Ordenar por",
+    "sorts": {
+      "manual": "Manual",
+      "name": "Nome",
+      "target": "Data alvo",
+      "progress": "Progresso",
+      "created": "Criação",
+      "updated": "Atualização"
+    },
+    "teamTitle": "Projects de {team}",
+    "colName": "Nome",
+    "colHealth": "Saúde",
+    "colLead": "Lead",
+    "colTarget": "Data alvo",
+    "colIssues": "Issues",
+    "colProgress": "Progresso",
+    "issuesCount": "{count, plural, one {# issue} other {# issues}}"
   },
   "plan": {
     "tabs": {
@@ -174,7 +194,24 @@
     "noIssuesBody": "Crie um issue acima ou busque os existentes para adicioná-los.",
     "removeFromPlan": "Tirar {id} do projeto",
     "labels": "Labels",
-    "createLabel": "Criar label “{name}”"
+    "createLabel": "Criar label “{name}”",
+    "more": "Mais ações",
+    "unfollow": "Deixar de seguir",
+    "icon": "Ícone do project",
+    "noIcon": "Sem ícone",
+    "lastUpdateOn": "Último update {date}",
+    "scope": "Escopo",
+    "started": "Iniciados",
+    "completed": "Concluídos",
+    "progressChart": "Escopo e concluídos ao longo do tempo",
+    "chartEmpty": "O gráfico aparece quando o project tem issues.",
+    "resources": "Recursos",
+    "addLink": "Adicionar link",
+    "resourcesEmpty": "Links para docs, designs ou specs do project.",
+    "removeLink": "Remover {name}",
+    "linkUrl": "URL do link",
+    "linkTitle": "Título (opcional)",
+    "invalidLink": "Esse link não é válido."
   },
   "updates": {
     "composerTitle": "Novo update",
@@ -200,7 +237,11 @@
       "targetDate": "{actor} moveu a data-alvo de {from} para {to}",
       "members": "{actor} adicionou {names}",
       "milestone": "{actor} adicionou o milestone {name}"
-    }
+    },
+    "reactions": "Reações",
+    "you": "Você",
+    "reactionLabel": "{emoji} {count}: {who}",
+    "addReaction": "Adicionar reação"
   },
   "initiatives": {
     "title": "Iniciativas",

@@ -670,7 +670,9 @@
       "priority": "Prioridade",
       "cycle": "Ciclo",
       "label": "Etiqueta",
-      "project": "Equipe"
+      "project": "Equipe",
+      "planMilestone": "Milestone",
+      "plan": "Project"
     },
     "sorts": {
       "manual": "Manual",
@@ -681,7 +683,8 @@
       "due": "Vencimento",
       "identifier": "Identificador",
       "customers": "Quantidade de clientes",
-      "revenue": "Receita de clientes"
+      "revenue": "Receita de clientes",
+      "estimate": "Estimativa"
     }
   },
   "subscription": {
@@ -1482,7 +1485,9 @@
         "created": "Criado",
         "updated": "Atualizado",
         "relation": "Relações",
-        "hierarchy": "Sub-issues"
+        "hierarchy": "Sub-issues",
+        "team": "Team",
+        "project": "Project"
       },
       "noAssignee": "Sem responsável",
       "noCycle": "Sem cycle",
@@ -1546,7 +1551,8 @@
       "hint": "Digite para filtrar, ↵ para escolher, ← para voltar",
       "and": "e",
       "or": "ou",
-      "matchToggle": "Mudar para {next}"
+      "matchToggle": "Mudar para {next}",
+      "noProject": "Sem project"
     },
     "peek": {
       "title": "Prévia do issue",
@@ -1586,7 +1592,14 @@
       "reset": "Voltar ao padrão",
       "collapse": "Recolher {name}",
       "expand": "Expandir {name}",
-      "addInGroup": "Novo issue em {name}"
+      "addInGroup": "Novo issue em {name}",
+      "completedIssues": "Issues concluídos",
+      "completedWindow": {
+        "all": "Todos",
+        "week": "Última semana",
+        "none": "Nenhum"
+      },
+      "showEmptyGroups": "Mostrar grupos vazios"
     },
     "team": {
       "all": "Todos os issues",
@@ -1689,5 +1702,12 @@
       "copyLink": "Copiar link",
       "more": "Mais ações"
     }
+  },
+  "list": {
+    "loadError": "Não foi possível carregar os issues.",
+    "retry": "Tentar de novo",
+    "noMilestone": "Sem milestone",
+    "noProject": "Sem project",
+    "showingFirst": "Mostrando os primeiros {shown} de {total}. Adicione um filtro para reduzir."
   }
 }

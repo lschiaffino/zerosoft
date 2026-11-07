@@ -45,7 +45,8 @@
     "saveError": "Could not save the change. Try again.",
     "copyLink": "Copy link",
     "linkCopied": "Link copied",
-    "copyFailed": "Could not copy the link"
+    "copyFailed": "Could not copy the link",
+    "dismiss": "Dismiss"
   },
   "status": {
     "backlog": "Backlog",
@@ -102,7 +103,26 @@
     "namePlaceholder": "Mobile checkout",
     "summaryLabel": "Summary",
     "summaryPlaceholder": "One line on what this project delivers",
-    "display": "Display"
+    "display": "Display",
+    "filterHealth": "Health",
+    "anyHealth": "Any health",
+    "orderBy": "Order by",
+    "sorts": {
+      "manual": "Manual",
+      "name": "Name",
+      "target": "Target date",
+      "progress": "Progress",
+      "created": "Created",
+      "updated": "Updated"
+    },
+    "teamTitle": "{team} projects",
+    "colName": "Name",
+    "colHealth": "Health",
+    "colLead": "Lead",
+    "colTarget": "Target date",
+    "colIssues": "Issues",
+    "colProgress": "Progress",
+    "issuesCount": "{count, plural, one {# issue} other {# issues}}"
   },
   "plan": {
     "tabs": {
@@ -174,7 +194,24 @@
     "noIssuesBody": "Create an issue above or search for existing ones to add them.",
     "removeFromPlan": "Remove {id} from the project",
     "labels": "Labels",
-    "createLabel": "Create label “{name}”"
+    "createLabel": "Create label “{name}”",
+    "more": "More actions",
+    "unfollow": "Unfollow",
+    "icon": "Project icon",
+    "noIcon": "No icon",
+    "lastUpdateOn": "Last update {date}",
+    "scope": "Scope",
+    "started": "Started",
+    "completed": "Completed",
+    "progressChart": "Scope and completed over time",
+    "chartEmpty": "The chart appears once the project has issues.",
+    "resources": "Resources",
+    "addLink": "Add link",
+    "resourcesEmpty": "Links to docs, designs or specs for this project.",
+    "removeLink": "Remove {name}",
+    "linkUrl": "Link URL",
+    "linkTitle": "Title (optional)",
+    "invalidLink": "That link is not valid."
   },
   "updates": {
     "composerTitle": "New update",
@@ -200,7 +237,11 @@
       "targetDate": "{actor} moved the target date from {from} to {to}",
       "members": "{actor} added {names}",
       "milestone": "{actor} added the milestone {name}"
-    }
+    },
+    "reactions": "Reactions",
+    "you": "You",
+    "reactionLabel": "{emoji} {count}: {who}",
+    "addReaction": "Add reaction"
   },
   "initiatives": {
     "title": "Initiatives",

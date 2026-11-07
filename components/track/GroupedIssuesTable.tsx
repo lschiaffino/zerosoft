@@ -30,7 +30,11 @@ interface GroupedIssuesTableProps {
   statusByName?: boolean;
   locale: string;
   labels: Parameters<typeof IssuesTable>[0]["labels"];
-  groupLabels: { noCycle: string; noLabel: string };
+  groupLabels: { noCycle: string; noLabel: string; noMilestone?: string; noProject?: string };
+  /** Milestones del project en orden (agrupar por milestone). */
+  milestones?: Array<{ id: string; name: string }>;
+  /** "Show empty groups": status, prioridad y milestones sin issues también se ven. */
+  showEmpty?: boolean;
   priorities: Array<{ value: string; label: string }>;
   editing: IssuesTableEditing;
   /** "+ New issue" al pie de cada grupo que se puede asignar, con su valor preseteado. */
@@ -66,6 +70,8 @@ function dropTargetFor(groupBy: string, key: string, byName: boolean): string | 
   if (groupBy === "cycle") return `cycle:${key || "none"}`;
   if (groupBy === "assignee") return `assignee:${key || "none"}`;
   if (groupBy === "project") return key ? `team:${key}` : undefined;
+  if (groupBy === "planMilestone") return `planMilestone:${key || "none"}`;
+  if (groupBy === "plan") return `plan:${key || "none"}`;
   return undefined;
 }
 
@@ -87,20 +93,23 @@ export default function GroupedIssuesTable({
   selection,
   nested = false,
   onAddInGroup,
+  milestones,
+  showEmpty = false,
 }: GroupedIssuesTableProps) {
   const td = useTranslations("track.ux.display");
   // Grupos contraídos (clic o Enter en el encabezado), como en Linear.
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const idWidth = useMemo(() => identifierWidth(issues), [issues]);
   const groups = useMemo(() => {
-    if (!nested) return groupIssues(issues, groupBy, { statuses, projectNames, statusByName, activeFirst: true });
+    const ctx = { statuses, projectNames, statusByName, activeFirst: true, milestones, includeEmpty: showEmpty };
+    if (!nested) return groupIssues(issues, groupBy, ctx);
     // Árbol: se agrupan las raíces y cada sub-issue va bajo su padre, en el grupo del padre.
     const { roots, expand } = treeRoots(issues);
-    return groupIssues(roots, groupBy, { statuses, projectNames, statusByName, activeFirst: true }).map((g) => ({
+    return groupIssues(roots, groupBy, ctx).map((g) => ({
       ...g,
       issues: expand(g.issues),
     }));
-  }, [issues, groupBy, statuses, projectNames, statusByName, nested]);
+  }, [issues, groupBy, statuses, projectNames, statusByName, nested, milestones, showEmpty]);
 
   if (groups.length === 0) return <EmptyState quiet title={labels.empty} />;
 
@@ -111,6 +120,8 @@ export default function GroupedIssuesTable({
     if (groupBy === "assignee") return labels.noAssignee;
     if (groupBy === "cycle") return groupLabels.noCycle;
     if (groupBy === "label") return groupLabels.noLabel;
+    if (groupBy === "planMilestone") return groupLabels.noMilestone ?? name;
+    if (groupBy === "plan") return groupLabels.noProject ?? name;
     return name;
   };
 
@@ -181,6 +192,8 @@ export default function GroupedIssuesTable({
                     aria-hidden
                   />
                 )}
+                {groupBy === "planMilestone" && <span className="tp-ms-diamond" aria-hidden />}
+                {groupBy === "plan" && <TrackIcon name="plans" size={13} />}
                 <span className="track-group-name">{title(g.key, g.name)}</span>
                 <span className="track-mytasks-count">{g.issues.length}</span>
               </button>

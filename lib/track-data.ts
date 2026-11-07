@@ -150,6 +150,10 @@ export interface ListIssuesOptions {
 
 export interface ListAllIssuesOptions extends ListIssuesOptions {
   projectId?: string;
+  /** Issues de un project (track_plans), como la pestaña Issues del project. */
+  planId?: string;
+  /** Mis issues: las pestañas Assigned, Created, Subscribed y Activity de esa persona. */
+  mine?: { userId: string; tab: MyIssuesTab };
 }
 
 // ---------- Saved views ----------
@@ -1045,6 +1049,29 @@ export async function listAllIssues(
     where.push('i.project_id = ?');
     args.push(options.projectId);
   }
+  if (options.planId) {
+    where.push('i.plan_id = ?');
+    args.push(options.planId);
+  }
+  if (options.mine) {
+    const me = options.mine.userId;
+    if (options.mine.tab === 'assigned') {
+      where.push('i.assignee_id = ?');
+      args.push(me);
+    } else if (options.mine.tab === 'created') {
+      where.push('i.creator_id = ?');
+      args.push(me);
+    } else if (options.mine.tab === 'subscribed') {
+      where.push(
+        `((i.creator_id = ? OR i.assignee_id = ? OR EXISTS (SELECT 1 FROM track_issue_subscriptions su WHERE su.issue_id = i.id AND su.user_id = ? AND su.subscribed = 1))
+          AND NOT EXISTS (SELECT 1 FROM track_issue_subscriptions sx WHERE sx.issue_id = i.id AND sx.user_id = ? AND sx.subscribed = 0))`,
+      );
+      args.push(me, me, me, me);
+    } else {
+      where.push('EXISTS (SELECT 1 FROM track_issue_activities ma WHERE ma.issue_id = i.id AND ma.user_id = ?)');
+      args.push(me);
+    }
+  }
 
   const statusIds = toArray(options.statusId);
   if (statusIds) {
@@ -1087,7 +1114,9 @@ export async function listAllIssues(
     where.push(`(${placeholders})`);
     args.push(...labelIds.map(labelIdLike));
   }
-  const advanced = filterToSql(options.filter, options.today ?? new Date().toISOString().slice(0, 10));
+  const advanced = filterToSql(options.filter, options.today ?? new Date().toISOString().slice(0, 10), {
+    milestoneColumn: options.planId ? 'i.plan_milestone_id' : undefined,
+  });
   if (advanced) {
     where.push(advanced.sql);
     args.push(...advanced.args);
@@ -1475,6 +1504,13 @@ export async function createIssue(
 
   if (payload.planId) {
     await db.prepare('INSERT OR IGNORE INTO track_plan_teams (plan_id, project_id) VALUES (?, ?)').run(payload.planId, projectId);
+    // Creado en un grupo de milestone del project: el milestone tiene que ser de ese project.
+    const planMilestoneId = (payload as { planMilestoneId?: string | null }).planMilestoneId;
+    if (planMilestoneId) {
+      await db
+        .prepare('UPDATE track_issues SET plan_milestone_id = ? WHERE id = ? AND EXISTS (SELECT 1 FROM track_plan_milestones WHERE id = ? AND plan_id = ?)')
+        .run(planMilestoneId, id, planMilestoneId, payload.planId);
+    }
   }
   await createIssueActivity(id, creatorId, 'created', source === 'app' ? {} : { source });
   if (payload.parentId) {

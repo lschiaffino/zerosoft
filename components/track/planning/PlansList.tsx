@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import type { PlanSummary } from '@/lib/track-plans';
 import { PLAN_STATUSES, type PlanStatus } from '@/lib/track-planning-schema';
+import { PLAN_LIST_SORTS, sortPlans, type PlanListSort } from '@/lib/track-plan-metrics';
 import { api, fmtDay, HealthDot, LoadingRows, Modal, PlanStatusIcon, ProgressBar, personName, type Person } from './shared';
 import { projectPath } from '@/lib/track-routes';
 import KeyPicker, { type KeyPickerHandle } from '@/components/track/KeyPicker';
@@ -44,6 +45,8 @@ export default function PlansList() {
   const lead = sp.get('lead') ?? '';
   const team = sp.get('team') ?? '';
   const group = (sp.get('group') as Group) || 'status';
+  const health = sp.get('health') ?? '';
+  const sort: PlanListSort = (PLAN_LIST_SORTS as readonly string[]).includes(sp.get('sort') ?? '') ? (sp.get('sort') as PlanListSort) : 'manual';
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -72,6 +75,7 @@ export default function PlansList() {
   const statusRef = useRef<KeyPickerHandle>(null);
   const leadRef = useRef<KeyPickerHandle>(null);
   const teamRef = useRef<KeyPickerHandle>(null);
+  const healthRef = useRef<KeyPickerHandle>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'f' || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat || isTypingTarget(e.target)) return;
@@ -98,22 +102,24 @@ export default function PlansList() {
       if (status !== 'all' && status !== 'active' && p.status !== status) return false;
       if (lead && p.lead_id !== lead) return false;
       if (team && !p.teams.some((x) => x.id === team)) return false;
+      if (health && p.health !== health) return false;
       return true;
     });
-  }, [rows, status, lead, team]);
+  }, [rows, status, lead, team, health]);
 
   const groups = useMemo(() => {
-    if (group === 'none') return [{ key: 'all', label: '', rows: filtered }];
+    if (group === 'none') return [{ key: 'all', label: '', rows: sortPlans(filtered, sort) }];
     if (group === 'lead') {
       const keys = [...new Set(filtered.map((p) => p.lead_id ?? ''))];
       return keys.map((k) => ({
         key: k || 'none',
         label: k ? personName(meta?.members.find((m) => m.id === k)) || filtered.find((p) => p.lead_id === k)?.lead_name || '' : t('common.noLead'),
-        rows: filtered.filter((p) => (p.lead_id ?? '') === k),
+        rows: sortPlans(filtered.filter((p) => (p.lead_id ?? '') === k), sort),
       }));
     }
-    return PLAN_STATUSES.map((s) => ({ key: s, label: t(`status.${s}`), rows: filtered.filter((p) => p.status === s) })).filter((g) => g.rows.length);
-  }, [filtered, group, meta, t]);
+    return PLAN_STATUSES.map((s) => ({ key: s, label: t(`status.${s}`), rows: sortPlans(filtered.filter((p) => p.status === s), sort) })).filter((g) => g.rows.length);
+  }, [filtered, group, meta, t, sort]);
+  const teamName = team ? meta?.teams.find((m) => m.id === team)?.name : undefined;
 
   return (
     <>
@@ -128,9 +134,10 @@ export default function PlansList() {
             { value: 'status', label: t('plans.filterStatus'), icon: <PlanStatusIcon status="in_progress" /> },
             { value: 'lead', label: t('plans.filterLead'), icon: <TrackIcon name="user" size={13} /> },
             { value: 'team', label: t('plans.filterTeam'), icon: <TrackIcon name="team" size={13} /> },
+            { value: 'health', label: t('plans.filterHealth'), icon: <HealthDot health="on_track" label="" /> },
           ]}
           onSelect={(v) => {
-            const next = v === 'status' ? statusRef : v === 'lead' ? leadRef : teamRef;
+            const next = v === 'status' ? statusRef : v === 'lead' ? leadRef : v === 'health' ? healthRef : teamRef;
             // En el mismo tick (no se pierden letras tipeadas enseguida): el de valores toma el foco al montarse.
             next.current?.open();
           }}
@@ -187,6 +194,19 @@ export default function PlansList() {
           onSelect={(v) => setParam('team', v)}
           trigger={<span className="track-inline-text">{team ? (meta?.teams.find((m) => m.id === team)?.name ?? '') : t('plans.anyTeam')}</span>}
         />
+        <KeyPicker
+          ref={healthRef}
+          ariaLabel={t('plans.filterHealth')}
+          className={`tp-chip${health ? '' : ' is-empty'}`}
+          testId="tp-filter-health"
+          value={health}
+          options={[
+            { value: '', label: t('plans.anyHealth') },
+            ...(['on_track', 'at_risk', 'off_track', 'missing', 'none'] as const).map((h) => ({ value: h, label: t(`health.${h}`), icon: <HealthDot health={h} label="" /> })),
+          ]}
+          onSelect={(v) => setParam('health', v)}
+          trigger={<span className="track-inline-text">{health ? t(`health.${health}`) : t('plans.anyHealth')}</span>}
+        />
         <span className="tp-toolbar-end">
           {/* Display: agrupación (y la vista de línea de tiempo), como el botón Display de Linear. */}
           <KeyPicker
@@ -206,6 +226,15 @@ export default function PlansList() {
                 <span>{t('plans.display')}</span>
               </>
             }
+          />
+          <KeyPicker
+            ariaLabel={t('plans.orderBy')}
+            className="btn btn-ghost btn-sm"
+            testId="tp-sort"
+            value={sort}
+            options={PLAN_LIST_SORTS.map((v) => ({ value: v, label: t(`plans.sorts.${v}`) }))}
+            onSelect={(v) => setParam('sort', v === 'manual' ? '' : v)}
+            trigger={<span className="track-inline-text">{t(`plans.sorts.${sort}`)}</span>}
           />
           <Link href="/app/track/roadmap" className="btn btn-sm btn-ghost">
             {t('plans.timeline')}
@@ -239,7 +268,16 @@ export default function PlansList() {
       ) : filtered.length === 0 ? (
         <EmptyState quiet title={t('plans.noMatches')} />
       ) : (
-        <div className="tp-list" data-testid="tp-plans-list">
+        <div className="tp-list tp-plans-table" data-testid="tp-plans-list" aria-label={teamName ? t('plans.teamTitle', { team: teamName }) : t('plans.title')}>
+          {/* Encabezado visual de columnas (cada celda ya dice lo suyo a los lectores de pantalla). */}
+          <div className="tp-row tp-row-headrow" aria-hidden="true">
+            <span>{t('plans.colName')}</span>
+            <span className="tp-row-health">{t('plans.colHealth')}</span>
+            <span className="tp-row-lead">{t('plans.colLead')}</span>
+            <span className="tp-row-date">{t('plans.colTarget')}</span>
+            <span className="tp-row-issues">{t('plans.colIssues')}</span>
+            <span className="tp-row-progress">{t('plans.colProgress')}</span>
+          </div>
           {groups.map((g) => (
             <section key={g.key} className="tp-group" aria-label={g.label || t('plans.title')}>
               {g.label && (
@@ -251,7 +289,7 @@ export default function PlansList() {
               )}
               <ul className="tp-rows" role="list">
                 {g.rows.map((p) => (
-                  <li key={p.id} className="tp-row">
+                  <li key={p.id} className="tp-row" data-testid="tp-plan-row">
                     <Link href={projectPath(p.id)} className="tp-row-link">
                       <span className="tp-row-icon" aria-hidden="true">
                         {p.icon || <PlanStatusIcon status={p.status} />}
@@ -262,8 +300,22 @@ export default function PlansList() {
                     <span className="tp-row-cell tp-row-health">
                       <HealthDot health={p.health} label={t(`health.${p.health}`)} />
                     </span>
-                    <span className="tp-row-cell tp-row-lead">{p.lead_name || p.lead_email || t('common.noLead')}</span>
+                    <span className="tp-row-cell tp-row-lead">
+                      {p.lead_id ? (
+                        <>
+                          <span className="track-avatar" aria-hidden>
+                            {(p.lead_name || p.lead_email || '?').trim().charAt(0).toUpperCase()}
+                          </span>
+                          <span className="track-inline-text">{p.lead_name || p.lead_email}</span>
+                        </>
+                      ) : (
+                        <span className="tp-muted">{t('common.noLead')}</span>
+                      )}
+                    </span>
                     <span className="tp-row-cell tp-row-date">{p.target_date ? fmtDay(p.target_date, locale) : ''}</span>
+                    <span className="tp-row-cell tp-row-issues" aria-label={t('plans.issuesCount', { count: p.progress.total })}>
+                      {p.progress.total}
+                    </span>
                     <span className="tp-row-cell tp-row-progress">
                       <ProgressBar percent={p.progress.percent} label={t('plan.progress')} />
                     </span>
@@ -278,6 +330,7 @@ export default function PlansList() {
       <NewPlanModal
         open={creating}
         meta={meta}
+        defaultTeamId={team || undefined}
         onClose={() => setCreating(false)}
         onCreated={(id) => {
           setCreating(false);
@@ -297,12 +350,15 @@ export function NewPlanModal({
   onClose,
   onCreated,
   initiativeId,
+  defaultTeamId,
 }: {
   open: boolean;
   meta: PlansMeta | null;
   onClose: () => void;
   onCreated: (id: string) => void;
   initiativeId?: string;
+  /** Lista de projects de un team (?team=): el project nuevo nace en ese team, como en Linear. */
+  defaultTeamId?: string;
 }) {
   const t = useTranslations('trackPlanning');
   const locale = useLocale();
@@ -322,12 +378,12 @@ export function NewPlanModal({
       setSummary(planDraft?.summary ?? '');
       setStatus('planned');
       setLead(meta?.me ?? '');
-      setTeam('');
+      setTeam(defaultTeamId ?? '');
       setStart('');
       setTarget('');
       setError(null);
     }
-  }, [open, meta?.me]);
+  }, [open, meta?.me, defaultTeamId]);
 
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();

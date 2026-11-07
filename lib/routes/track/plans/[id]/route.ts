@@ -3,20 +3,29 @@ import { planningContext, readJson } from '@/lib/track-planning-http';
 import { deletePlan, getAccessiblePlan, getPlanSummary, isFollowingPlan, listPlanMilestones, updatePlan } from '@/lib/track-plans';
 import { planUpdateSchema } from '@/lib/track-planning-schema';
 import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
+import { loadPlanProgressSeries } from '@/lib/track-plan-metrics';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 type Props = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, props: Props) {
+/** El project con sus milestones; con ?series=1 suma el gráfico de progreso (alcance contra terminado por día). */
+export async function GET(req: NextRequest, props: Props) {
   const { id } = await props.params;
   const ctx = await planningContext();
   if (!ctx) return unauthorized();
   const plan = await getPlanSummary(id, ctx.scope);
   if (!plan) return notFound();
-  const [milestones, following] = await Promise.all([listPlanMilestones(id), isFollowingPlan(id, ctx.actorId)]);
-  return NextResponse.json({ plan, milestones, following });
+  const today = /^\d{4}-\d{2}-\d{2}$/.test(req.nextUrl.searchParams.get('today') ?? '')
+    ? (req.nextUrl.searchParams.get('today') as string)
+    : new Date().toISOString().slice(0, 10);
+  const [milestones, following, series] = await Promise.all([
+    listPlanMilestones(id),
+    isFollowingPlan(id, ctx.actorId),
+    req.nextUrl.searchParams.get('series') === '1' ? loadPlanProgressSeries(plan, today) : Promise.resolve(undefined),
+  ]);
+  return NextResponse.json({ plan, milestones, following, series });
 }
 
 export async function PATCH(req: NextRequest, props: Props) {

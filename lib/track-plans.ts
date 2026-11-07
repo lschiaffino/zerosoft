@@ -51,6 +51,8 @@ export interface TrackPlanRow {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  /** JSON con los resources del project: [{ url, title }]. */
+  links?: string;
 }
 
 export interface PlanMember {
@@ -359,6 +361,7 @@ export async function updatePlan(
   }
   if (payload.updateCadence !== undefined) set('update_cadence', payload.updateCadence);
   if (payload.updateDay !== undefined) set('update_day', payload.updateDay);
+  if (payload.links !== undefined) set('links', JSON.stringify(payload.links.map((l) => ({ url: l.url, title: l.title ?? '' }))));
   if (fields.length) {
     set('updated_at', nowIso());
     await getDb()
