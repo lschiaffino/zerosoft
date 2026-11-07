@@ -3,7 +3,7 @@ import type { DocsBlock } from '@/lib/docs-types';
 import { listDepths, listNumbers, numberedMarker } from '@/lib/docs-blocks';
 import { matchInlineMarkdown } from '@/lib/docs-richtext';
 import { htmlToBlocks } from '@/lib/docs-paste';
-import { sanitizeDocsHtml } from '@/lib/docs-sanitize';
+import { sanitizeBlocks, sanitizeDocsHtml } from '@/lib/docs-sanitize';
 
 /**
  * Docs como reemplazo de Notion: marcas de lista por nivel, Markdown en línea
@@ -99,6 +99,26 @@ describe('Docs: pegar desde Notion', () => {
     expect(blocks.map((x) => x.checked)).toEqual([true, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined]);
     expect(blocks[5]).toMatchObject({ level: 3, toggle: true });
     expect(blocks[7].icon).toBe('⚠️');
+  });
+
+  it('pegar de Notion conserva el color del bloque (texto o fondo)', () => {
+    const blocks = htmlToBlocks(
+      '<p class="block-color-red">Rojo</p><ul><li class="block-color-blue_background">Fondo azul</li></ul><h2 class="block-color-default">Sin color</h2>',
+      opts(),
+    );
+    expect(blocks.map((b) => [b.type, b.content, b.color ?? null])).toEqual([
+      ['paragraph', 'Rojo', 'red'],
+      ['bulleted_list_item', 'Fondo azul', 'blue_bg'],
+      ['heading', 'Sin color', null],
+    ]);
+  });
+
+  it('solo se guardan los colores de la lista', () => {
+    const out = sanitizeBlocks([
+      { id: 'a', type: 'paragraph', content: 'x', color: 'green_bg' },
+      { id: 'b', type: 'paragraph', content: 'y', color: 'url(javascript:1)' as never },
+    ]);
+    expect(out.map((b) => b.color ?? null)).toEqual(['green_bg', null]);
   });
 
   it('el <aside> del Markdown de Notion es un callout', () => {

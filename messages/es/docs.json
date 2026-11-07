@@ -86,7 +86,9 @@
       "moveUp": "Subir",
       "moveDown": "Bajar",
       "insertBelow": "Insertar debajo",
-      "dragHandle": "Opciones del bloque. Arrastrá para reordenar."
+      "dragHandle": "Opciones del bloque. Arrastrá para reordenar.",
+      "color": "Color",
+      "copyLink": "Copiar link al bloque"
     },
     "commands": {
       "p": "Texto",
@@ -324,7 +326,30 @@
     },
     "codeLanguage": "Lenguaje del código",
     "copyCode": "Copiar",
-    "codeCopied": "Copiado"
+    "codeCopied": "Copiado",
+    "colors": {
+      "text": "Texto",
+      "background": "Fondo",
+      "default": "Predeterminado",
+      "gray": "Gris",
+      "bg_gray": "Fondo gris",
+      "brown": "Marrón",
+      "bg_brown": "Fondo marrón",
+      "orange": "Naranja",
+      "bg_orange": "Fondo naranja",
+      "yellow": "Amarillo",
+      "bg_yellow": "Fondo amarillo",
+      "green": "Verde",
+      "bg_green": "Fondo verde",
+      "blue": "Azul",
+      "bg_blue": "Fondo azul",
+      "purple": "Violeta",
+      "bg_purple": "Fondo violeta",
+      "pink": "Rosa",
+      "bg_pink": "Fondo rosa",
+      "red": "Rojo",
+      "bg_red": "Fondo rojo"
+    }
   },
   "database": {
     "database": "Base de datos",

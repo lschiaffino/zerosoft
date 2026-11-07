@@ -86,7 +86,9 @@
       "moveUp": "Move up",
       "moveDown": "Move down",
       "insertBelow": "Insert below",
-      "dragHandle": "Block options. Drag to reorder."
+      "dragHandle": "Block options. Drag to reorder.",
+      "color": "Color",
+      "copyLink": "Copy link to block"
     },
     "commands": {
       "p": "Text",
@@ -324,7 +326,30 @@
     },
     "codeLanguage": "Code language",
     "copyCode": "Copy",
-    "codeCopied": "Copied"
+    "codeCopied": "Copied",
+    "colors": {
+      "text": "Text",
+      "background": "Background",
+      "default": "Default",
+      "gray": "Gray",
+      "bg_gray": "Gray background",
+      "brown": "Brown",
+      "bg_brown": "Brown background",
+      "orange": "Orange",
+      "bg_orange": "Orange background",
+      "yellow": "Yellow",
+      "bg_yellow": "Yellow background",
+      "green": "Green",
+      "bg_green": "Green background",
+      "blue": "Blue",
+      "bg_blue": "Blue background",
+      "purple": "Purple",
+      "bg_purple": "Purple background",
+      "pink": "Pink",
+      "bg_pink": "Pink background",
+      "red": "Red",
+      "bg_red": "Red background"
+    }
   },
   "database": {
     "database": "Database",

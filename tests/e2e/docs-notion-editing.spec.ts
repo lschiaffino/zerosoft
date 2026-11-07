@@ -7,7 +7,7 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
-type Block = { id: string; type: string; content: string; indent?: number; checked?: boolean; level?: number; toggle?: boolean; icon?: string; language?: string };
+type Block = { id: string; type: string; content: string; indent?: number; checked?: boolean; level?: number; toggle?: boolean; icon?: string; language?: string; color?: string };
 
 async function newDoc(request: APIRequestContext, title: string, content?: Block[]) {
   const doc = (await (await request.post('/api/docs/pages', { data: { title } })).json()) as { id: string };
@@ -182,4 +182,29 @@ test('Listas en oscuro y a 390px: sin scroll horizontal y con la marca en la pri
   expect(markerTop).toBeLessThan(textTop + 24);
   const { scroll, inner } = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, inner: window.innerWidth }));
   expect(scroll).toBeLessThanOrEqual(inner + 1);
+});
+
+test('Color de bloque desde el menú del asa y link a un bloque', async ({ request, page, context, baseURL }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: baseURL! });
+  const doc = await newDoc(request, `Color ${uid()}`, [
+    { id: 'a', type: 'paragraph', content: 'Primero' },
+    { id: 'b', type: 'bulleted_list_item', content: 'Pintado' },
+  ]);
+  await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+  await editable(page, 'Pintado').hover();
+  await page.locator('.docs-block-outer[data-bi="1"] .docs-block-grip').click();
+  await page.getByTestId('docs-bmenu-color').click();
+  await page.getByRole('menuitemradio', { name: 'Red background' }).click();
+  await expect(page.locator('.docs-block-outer[data-bi="1"]')).toHaveAttribute('data-color', 'red_bg');
+  await expect.poll(async () => (await blocksOf(request, doc.id))[1].color).toBe('red_bg');
+
+  await editable(page, 'Pintado').hover();
+  await page.locator('.docs-block-outer[data-bi="1"] .docs-block-grip').click();
+  await page.getByTestId('docs-bmenu-copy-link').click();
+  const link = await page.evaluate(() => navigator.clipboard.readText());
+  expect(link).toMatch(new RegExp(`/app/docs/${doc.id}#b$`));
+  // Abrir el link en una carga nueva (solo cambiar el hash no recarga la página).
+  await page.goto('about:blank');
+  await page.goto(link, { waitUntil: 'networkidle' });
+  await expect(page.locator('.docs-block-outer[data-block-anchor="b"]')).toHaveClass(/is-linked/);
 });

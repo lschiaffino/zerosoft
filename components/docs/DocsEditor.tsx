@@ -20,6 +20,8 @@ import { createPortal } from 'react-dom';
 import { Link } from '@/i18n/navigation';
 import {
   defaultBlocks,
+  DOCS_COLOR_NAMES,
+  type DocsBlockColor,
   type DocsBlock,
   type DocsButtonConfig,
   type DocsDatabase,
@@ -601,6 +603,7 @@ export default function DocsEditor({
   /** Índice del bloque con menú contextual abierto (click en el grip ⋮⋮). */
   const [blockMenu, setBlockMenu] = useState<number | null>(null);
   const [turnIntoOpen, setTurnIntoOpen] = useState(false);
+  const [colorOpen, setColorOpen] = useState(false);
   /** Índice del bloque que se está arrastrando (para atenuarlo). */
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   /** Top (px, relativo a .docs-blocks) de la línea indicadora de drop; null si no hay drag. */
@@ -1705,6 +1708,7 @@ export default function DocsEditor({
   const closeBlockMenu = useCallback(() => {
     setBlockMenu(null);
     setTurnIntoOpen(false);
+    setColorOpen(false);
   }, []);
 
   // ---------- Formato en línea (fase C): toolbar flotante + atajos ----------
@@ -3587,6 +3591,39 @@ export default function DocsEditor({
     [setBlocks, triggerSave],
   );
 
+  // Link a un bloque (#<id>, "Copiar link al bloque"): al abrir la página se va a ese bloque y se marca un momento.
+  const hashDone = useRef(false);
+  useEffect(() => {
+    if (hashDone.current || embedded) return;
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (!id) return;
+    const el = document.querySelector<HTMLElement>(`[data-block-anchor="${CSS.escape(id)}"]`);
+    if (!el) return;
+    hashDone.current = true;
+    el.scrollIntoView({ block: 'center' });
+    el.classList.add('is-linked');
+    window.setTimeout(() => el.classList.remove('is-linked'), 2400);
+  }, [blocks, embedded]);
+
+  /** Color del bloque (texto o fondo); sin color, se borra el campo. Con varios seleccionados, a todos. */
+  const setBlockColor = useCallback(
+    (index: number, color: DocsBlockColor | undefined) => {
+      const [from, to] = blockSel && index >= selMin && index <= selMax ? [selMin, selMax] : [index, index];
+      setBlocks((prev) => {
+        const next = prev.map((b, i) => {
+          if (i < from || i > to || !isTextBlockType(b.type)) return b;
+          const out = { ...b };
+          if (color) out.color = color;
+          else delete out.color;
+          return out;
+        });
+        triggerSave(next);
+        return next;
+      });
+    },
+    [blockSel, selMin, selMax, setBlocks, triggerSave],
+  );
+
   /** Un bloque suelto (no contenedor) con su asa, menú, comentarios y el "+" de abajo. */
   const renderLeaf = (block: DocsBlock, index: number) => {
           const commentCount = commentCounts?.[block.id] ?? 0;
@@ -3603,6 +3640,7 @@ export default function DocsEditor({
                 data-bi={index}
                 data-in={containerOf(blocks, index)}
                 data-block-anchor={block.id}
+                data-color={block.color}
                 aria-hidden={isHidden || undefined}
               >
                 <button
@@ -3640,7 +3678,10 @@ export default function DocsEditor({
                       <button
                         type="button"
                         className="docs-bmenu-item"
-                        onClick={() => setTurnIntoOpen((v) => !v)}
+                        onClick={() => {
+                          setColorOpen(false);
+                          setTurnIntoOpen((v) => !v);
+                        }}
                       >
                         {t('editor.blockMenu.turnInto')}
                         <span className="docs-bmenu-caret" aria-hidden>
@@ -3670,6 +3711,64 @@ export default function DocsEditor({
                         </div>
                       )}
                     </div>
+                    {isTextBlockType(block.type) && (
+                      <div className="docs-bmenu-turninto">
+                        <button
+                          type="button"
+                          className="docs-bmenu-item"
+                          data-testid="docs-bmenu-color"
+                          onClick={() => {
+                            setTurnIntoOpen(false);
+                            setColorOpen((v) => !v);
+                          }}
+                        >
+                          {t('editor.blockMenu.color')}
+                          <span className="docs-bmenu-caret" aria-hidden>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M9 6l6 6-6 6" />
+                            </svg>
+                          </span>
+                        </button>
+                        {colorOpen && (
+                          <div className="docs-bmenu-sub docs-bmenu-colors" role="menu">
+                            <div className="docs-command-title">{t('editor.colors.text')}</div>
+                            {[undefined, ...DOCS_COLOR_NAMES].map((c) => (
+                              <button
+                                key={c ?? 'default'}
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={(block.color ?? undefined) === c}
+                                className="docs-bmenu-item"
+                                onClick={() => {
+                                  closeBlockMenu();
+                                  setBlockColor(index, c);
+                                }}
+                              >
+                                <span className="docs-color-swatch" data-color={c ?? 'default'} aria-hidden>A</span>
+                                {t(`editor.colors.${c ?? 'default'}`)}
+                              </button>
+                            ))}
+                            <div className="docs-command-title">{t('editor.colors.background')}</div>
+                            {DOCS_COLOR_NAMES.map((c) => (
+                              <button
+                                key={`${c}_bg`}
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={block.color === `${c}_bg`}
+                                className="docs-bmenu-item"
+                                onClick={() => {
+                                  closeBlockMenu();
+                                  setBlockColor(index, `${c}_bg`);
+                                }}
+                              >
+                                <span className="docs-color-swatch" data-color={`${c}_bg`} aria-hidden>A</span>
+                                {t(`editor.colors.bg_${c}`)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <button
                       type="button"
                       className="docs-bmenu-item"
@@ -3680,6 +3779,20 @@ export default function DocsEditor({
                     >
                       {t('editor.blockMenu.duplicate')}
                     </button>
+                    {!embedded && (
+                      <button
+                        type="button"
+                        className="docs-bmenu-item"
+                        data-testid="docs-bmenu-copy-link"
+                        onClick={() => {
+                          closeBlockMenu();
+                          const url = `${window.location.origin}${window.location.pathname}#${block.id}`;
+                          void navigator.clipboard?.writeText(url).catch(() => {});
+                        }}
+                      >
+                        {t('editor.blockMenu.copyLink')}
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="docs-bmenu-item"

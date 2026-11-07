@@ -1,4 +1,4 @@
-import { DOCS_MAX_INDENT, type DocsBlock, type DocsBlockType } from './docs-types';
+import { DOCS_COLOR_NAMES, DOCS_MAX_INDENT, type DocsBlock, type DocsBlockColor, type DocsBlockType } from './docs-types';
 import { decodeEntities } from './docs-markdown';
 import { DOCS_IMPORT_MAX_BLOCKS } from './docs-import';
 
@@ -57,6 +57,7 @@ interface Current {
   checked?: boolean;
   toggle?: boolean;
   icon?: string;
+  color?: DocsBlockColor;
   indent: number;
   html: string;
 }
@@ -105,6 +106,7 @@ export function htmlToBlocks(html: string, opts: HtmlToBlocksOptions): DocsBlock
       if (cur.level) b.level = cur.level;
       if (cur.toggle) b.toggle = true;
       if (cur.icon) b.icon = cur.icon;
+      if (cur.color) b.color = cur.color;
       if (cur.type === 'todo') b.checked = Boolean(cur.checked);
       if (cur.indent > 0) b.indent = cur.indent;
       push(b);
@@ -113,13 +115,21 @@ export function htmlToBlocks(html: string, opts: HtmlToBlocksOptions): DocsBlock
     // Las marcas abiertas siguen en el bloque que viene (se reabren).
   };
 
+  /** Color de bloque de Notion (class="block-color-red" o "block-color-red_background") para el próximo bloque. */
+  let pendingColor: DocsBlockColor | undefined;
+  const takeColor = () => {
+    const c = pendingColor;
+    pendingColor = undefined;
+    return c ? { color: c } : {};
+  };
+
   const start = (c: Omit<Current, 'html'>) => {
     flush();
-    cur = { ...c, html: inlineStack.map((x) => x.open).join('') };
+    cur = { ...c, ...takeColor(), html: inlineStack.map((x) => x.open).join('') };
   };
 
   const appendInline = (frag: string) => {
-    if (!cur) cur = { type: textType(), indent: paraIndent(), html: inlineStack.map((x) => x.open).join('') };
+    if (!cur) cur = { type: textType(), indent: paraIndent(), ...takeColor(), html: inlineStack.map((x) => x.open).join('') };
     cur.html += frag;
   };
 
@@ -154,6 +164,15 @@ export function htmlToBlocks(html: string, opts: HtmlToBlocksOptions): DocsBlock
         if (table.cell !== null) table.cell += raw;
       } else if (raw.trim() || cur) appendInline(raw.replace(/\s+/g, ' '));
       continue;
+    }
+
+    if (!closing) {
+      const color = /\bblock-color-([a-z]+?)(_background)?\b/.exec(attr(attrs, 'class') ?? '');
+      if (color && (DOCS_COLOR_NAMES as readonly string[]).includes(color[1]) && color[1] !== 'default') {
+        const value = `${color[1]}${color[2] ? '_bg' : ''}` as DocsBlockColor;
+        if (cur && !(cur as Current).html.replace(/<[^>]*>/g, '').trim() && !(cur as Current).color) (cur as Current).color = value;
+        else pendingColor = value;
+      }
     }
 
     if (SKIP.has(tag)) {

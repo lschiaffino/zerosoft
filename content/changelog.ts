@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-07-docs-notion-move',
+    date: '2026-11-07',
+    title: {
+      en: 'Docs: lists that work like Notion, and a smoother move from Notion',
+      es: 'Docs: listas que andan como en Notion y una mudanza desde Notion más simple',
+      pt: 'Docs: listas que funcionam como no Notion e uma mudança do Notion mais simples',
+    },
+    items: [
+      {
+        product: 'docs',
+        en: 'Bullets, numbers and checkboxes share one column, so their text lines up, and nested items start under the text of their parent. Each level changes its marker (1. a. i.), numbers 10 and up no longer push the text, and Backspace at the start of an item turns it into text first, as in Notion. Typing **bold**, *italic*, `code` or ~~strikethrough~~ formats the text.',
+        es: 'Viñetas, números y casillas comparten una columna, así el texto queda alineado, y los ítems anidados arrancan debajo del texto de su padre. Cada nivel cambia de marca (1. a. i.), los números desde el 10 ya no corren el texto y Backspace al inicio de un ítem primero lo vuelve texto, como en Notion. Escribir **negrita**, *cursiva*, `código` o ~~tachado~~ da formato al texto.',
+        pt: 'Marcadores, números e caixas de seleção dividem uma coluna, então o texto fica alinhado, e os itens aninhados começam embaixo do texto do pai. Cada nível muda de marcador (1. a. i.), números a partir do 10 não empurram mais o texto e Backspace no início de um item primeiro o transforma em texto, como no Notion. Digitar **negrito**, *itálico*, `código` ou ~~tachado~~ formata o texto.',
+      },
+      {
+        product: 'docs',
+        en: 'Pasting from Notion keeps to-dos with their check, toggles with what is inside, toggle headings and callouts. @ also finds pages, [[ shows your latest pages before you type, code blocks have a language list and a copy button, and Share has Copy link.',
+        es: 'Pegar desde Notion conserva las tareas con su casilla, los toggles con lo de adentro, los títulos plegables y los callouts. @ también encuentra páginas, [[ muestra tus últimas páginas antes de escribir, los bloques de código tienen lista de lenguajes y botón de copiar, y Compartir tiene Copiar link.',
+        pt: 'Colar do Notion mantém as tarefas com a caixa marcada, os toggles com o que tem dentro, os títulos recolhíveis e os callouts. @ também encontra páginas, [[ mostra suas últimas páginas antes de digitar, os blocos de código têm lista de linguagens e botão de copiar, e Compartilhar tem Copiar link.',
+      },
+      {
+        product: 'docs',
+        en: 'Importing a Notion export now keeps relations between databases, turns columns with workspace members into people, keeps date ranges with their end, and brings toggles and heading levels as they were. Database pages open at full width.',
+        es: 'Importar un export de Notion ahora conserva las relaciones entre bases, convierte en personas las columnas con miembros del workspace, guarda los rangos de fechas con su fin y trae los toggles y los niveles de título como estaban. Las páginas de bases se abren a ancho completo.',
+        pt: 'Importar um export do Notion agora mantém as relações entre bancos, transforma em pessoas as colunas com membros do workspace, guarda os intervalos de datas com o fim e traz os toggles e os níveis de título como estavam. As páginas de bancos abrem em largura total.',
+      },
+    ],
+  },
+  {
     id: '2026-11-07-track-default-template',
     date: '2026-11-07',
     title: {

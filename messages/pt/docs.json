@@ -86,7 +86,9 @@
       "moveUp": "Mover para cima",
       "moveDown": "Mover para baixo",
       "insertBelow": "Inserir abaixo",
-      "dragHandle": "Opções do bloco. Arraste para reordenar."
+      "dragHandle": "Opções do bloco. Arraste para reordenar.",
+      "color": "Cor",
+      "copyLink": "Copiar link do bloco"
     },
     "commands": {
       "p": "Texto",
@@ -324,7 +326,30 @@
     },
     "codeLanguage": "Linguagem do código",
     "copyCode": "Copiar",
-    "codeCopied": "Copiado"
+    "codeCopied": "Copiado",
+    "colors": {
+      "text": "Texto",
+      "background": "Fundo",
+      "default": "Padrão",
+      "gray": "Cinza",
+      "bg_gray": "Fundo cinza",
+      "brown": "Marrom",
+      "bg_brown": "Fundo marrom",
+      "orange": "Laranja",
+      "bg_orange": "Fundo laranja",
+      "yellow": "Amarelo",
+      "bg_yellow": "Fundo amarelo",
+      "green": "Verde",
+      "bg_green": "Fundo verde",
+      "blue": "Azul",
+      "bg_blue": "Fundo azul",
+      "purple": "Roxo",
+      "bg_purple": "Fundo roxo",
+      "pink": "Rosa",
+      "bg_pink": "Fundo rosa",
+      "red": "Vermelho",
+      "bg_red": "Fundo vermelho"
+    }
   },
   "database": {
     "database": "Banco de dados",

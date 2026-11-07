@@ -1,5 +1,6 @@
 import sanitizeHtml from 'sanitize-html';
 import type { DbAction, DbAutomation, DbFile, DbProperty, DbRow, DbValue, DbViewConfig, DocsBlock, DocsButtonConfig, DocsDatabase, DocsLinkPreview } from './docs-types';
+import { DOCS_BLOCK_COLORS } from './docs-types';
 import { isPageLinkId, pageLinkHref } from './docs-page-links';
 import { DB_MAX_BODY_BLOCKS, isComputedType, isOptionType, isTextType, normalizeDatabase } from './docs-database';
 import { cleanFileName, isDocsUploadUrl, sanitizeFileFields } from './docs-files';
@@ -301,6 +302,8 @@ const CAPTIONED = new Set(['image', 'video', 'audio', 'pdf', 'file', 'bookmark',
 function sanitizeExtraFields(block: DocsBlock): DocsBlock {
   const { width, align, caption, ratio, link, height, synced_id, synced_at, button, suggestion, meeting_id, ...rest } = block;
   const out: DocsBlock = rest;
+  // Color de bloque: solo los de la lista (es una clase CSS, nunca estilo libre).
+  if (out.color !== undefined && !DOCS_BLOCK_COLORS.includes(out.color)) delete out.color;
   // Bloque sugerido (modo sugerir): id y autor con forma de id.
   if (suggestion && typeof suggestion === 'object' && ID_RE.test(String(suggestion.id)) && ID_RE.test(String(suggestion.by))) {
     out.suggestion = { id: String(suggestion.id), by: String(suggestion.by) };
