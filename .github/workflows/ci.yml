@@ -20,6 +20,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # SPDX header on every ee/ file, and core only imports ee/lib/license.ts.
+      - run: npx tsx scripts/check-ee-boundary.ts
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test

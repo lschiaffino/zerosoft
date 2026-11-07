@@ -1,0 +1,34 @@
+# Changes to these paths need a review from the owner.
+# Everything else can be reviewed by any maintainer.
+
+# Repository settings, CI and the CLA bot
+/.github/                     @lschiaffino
+
+# Enterprise code and its license
+/ee/                          @lschiaffino
+
+# Database schema
+/lib/schema/migrations.ts     @lschiaffino
+
+# Auth, sessions and access control
+/middleware.ts                @lschiaffino
+/lib/auth.ts                  @lschiaffino
+/lib/session.ts               @lschiaffino
+/lib/api-auth.ts              @lschiaffino
+/lib/desktop-auth.ts          @lschiaffino
+/lib/oauth/                   @lschiaffino
+/lib/teams.ts                 @lschiaffino
+/lib/workspace.ts             @lschiaffino
+/app/api/auth/                @lschiaffino
+/app/api/oauth/               @lschiaffino
+/app/api/keys/                @lschiaffino
+
+# Legal and contributor terms
+/LICENSE                      @lschiaffino
+/CLA.md                       @lschiaffino
+/TRADEMARK.md                 @lschiaffino
+/SECURITY.md                  @lschiaffino
+
+# Instructions for coding agents
+/AGENTS.md                    @lschiaffino
+/CLAUDE.md                    @lschiaffino
