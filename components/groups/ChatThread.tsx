@@ -42,6 +42,9 @@ import {
   Sparkle,
   Ticks,
   Trash,
+  UserPlus,
+  CheckCircle,
+  GroupIcon,
   ViewOnce,
   Retry,
 } from './wa/icons';
@@ -150,6 +153,7 @@ export default function ChatThread(props: ThreadProps) {
   const [sendError, setSendError] = useState('');
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [summary, setSummary] = useState<{ text: string; error: string; busy: boolean } | null>(null);
   const [schedule, setSchedule] = useState<{ open: boolean; at: string; busy: boolean; error: string }>({ open: false, at: '', busy: false, error: '' });
@@ -325,9 +329,22 @@ export default function ChatThread(props: ThreadProps) {
     }
   }, [loadingOlder, hasOlder, messages, chat.id, merge]);
 
+  const scrollIdle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function markStuck(box: HTMLDivElement) {
+    const top = box.getBoundingClientRect().top;
+    box.querySelectorAll<HTMLElement>('.wa-dayblock').forEach((b) => {
+      const chip = b.firstElementChild as HTMLElement | null;
+      chip?.classList.toggle('is-stuck', b.getBoundingClientRect().top < top - 4);
+    });
+  }
+
   function onScroll() {
     const box = boxRef.current;
     if (!box) return;
+    markStuck(box);
+    box.classList.add('is-scrolling');
+    if (scrollIdle.current) clearTimeout(scrollIdle.current);
+    scrollIdle.current = setTimeout(() => box.classList.remove('is-scrolling'), 1200);
     const fromEnd = box.scrollHeight - box.scrollTop - box.clientHeight;
     const bottom = fromEnd < 80;
     if (bottom !== atBottom) setAtBottom(bottom);
@@ -895,24 +912,20 @@ export default function ChatThread(props: ThreadProps) {
   const quoteLine = (q: MessageDto) => q.body.slice(0, 160) || mediaText({ media: q.media });
   const quoteAuthor = (q: MessageDto) => (q.direction === 'in' ? (chat.kind === 'group' ? inName(q) : chat.name) : q.direction === 'note' ? t('thread.modeNote') : t('wa.you'));
 
+  const assignee = chat.assignedTo ? nameOf(chat.assignedTo) : '';
+  const teamName = props.teams.find((tm) => tm.id === chat.assignedTeamId)?.name ?? '';
   const subtitle = chat.kind === 'group' ? `${t('thread.groupMeta', { n: chat.memberCount })} · ${props.numberName}` : `${chat.phone ? `+${chat.phone}` : t('wa.whatsappContact')} · ${props.numberName}`;
 
-  const rows: ReactNode[] = [];
-  let prevDay = '';
+  // Un bloque por día: su chip de fecha queda arriba (y flota solo mientras se recorre ese día).
+  const days: Array<{ key: string; at: string; items: ReactNode[] }> = [];
   let prev: MessageDto | null = null;
   for (const m of messages) {
     const day = localDayKey(m.createdAt);
-    if (day !== prevDay) {
-      rows.push(
-        <div key={`d-${day}`} className="wa-day" role="separator">
-          <span>
-            <LocalText>{dayLabel(m.createdAt, locale)}</LocalText>
-          </span>
-        </div>,
-      );
+    if (days.at(-1)?.key !== day) {
+      days.push({ key: day, at: m.createdAt, items: [] });
       prev = null;
     }
-    prevDay = day;
+    const rows = days[days.length - 1].items;
     if (m.direction === 'system') {
       rows.push(<SystemLine key={m.id} m={m} nameOf={nameOf} />);
       prev = null;
@@ -930,6 +943,16 @@ export default function ChatThread(props: ThreadProps) {
     prev = m;
     rows.push(renderMessage(m, cont));
   }
+  const rows = days.map((d) => (
+    <section key={`d-${d.key}`} className="wa-dayblock">
+      <div className="wa-day" role="separator">
+        <span>
+          <LocalText>{dayLabel(d.at, locale)}</LocalText>
+        </span>
+      </div>
+      {d.items}
+    </section>
+  ));
 
   function renderMessage(m: MessageDto, cont: boolean) {
     const quoted = m.replyToId ? byId.get(m.replyToId) : null;
@@ -968,7 +991,7 @@ export default function ChatThread(props: ThreadProps) {
                 </>
               ) : (
                 <>
-                  <span>{author}</span>
+                  <span className="wa-author-name">{author}</span>
                   {m.direction === 'in' && chat.kind === 'group' && m.senderName && m.senderPhone && <span className="wa-phone">+{m.senderPhone}</span>}
                 </>
               )}
@@ -1239,40 +1262,47 @@ export default function ChatThread(props: ThreadProps) {
             </div>
           </div>
           <div className="gr-thread-actions">
-            <select className="select wa-assign" value={chat.assignedTo ?? ''} onChange={(e) => void patchChat({ assignedTo: e.target.value || null })} aria-label={t('thread.assignee')}>
-              <option value="">{t('thread.unassigned')}</option>
-              {props.people.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name || p.email}
-                </option>
-              ))}
-            </select>
-            {props.teams.length > 0 && (
-              <select className="select wa-assign" value={chat.assignedTeamId ?? ''} onChange={(e) => void patchChat({ assignedTeamId: e.target.value || null })} aria-label={t('thread.team')}>
-                <option value="">{t('thread.noTeam')}</option>
-                {props.teams.map((tm) => (
-                  <option key={tm.id} value={tm.id}>
-                    {tm.name}
+            {/* Capa del equipo, compacta: a quién está asignado (avatar), el equipo y cerrar. */}
+            <span className="wa-pick" title={assignee ? `${t('thread.assignee')}: ${assignee}` : t('thread.unassigned')}>
+              {assignee ? <Avatar name={assignee} kind="dm" size={30} seed={chat.assignedTo ?? ''} /> : <UserPlus size={22} />}
+              <select value={chat.assignedTo ?? ''} onChange={(e) => void patchChat({ assignedTo: e.target.value || null })} aria-label={t('thread.assignee')}>
+                <option value="">{t('thread.unassigned')}</option>
+                {props.people.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name || p.email}
                   </option>
                 ))}
               </select>
+            </span>
+            {props.teams.length > 0 && (
+              <span className={`wa-pick${chat.assignedTeamId ? ' is-on' : ''}`} title={teamName ? `${t('thread.team')}: ${teamName}` : t('thread.noTeam')}>
+                <GroupIcon size={21} />
+                <select value={chat.assignedTeamId ?? ''} onChange={(e) => void patchChat({ assignedTeamId: e.target.value || null })} aria-label={t('thread.team')}>
+                  <option value="">{t('thread.noTeam')}</option>
+                  {props.teams.map((tm) => (
+                    <option key={tm.id} value={tm.id}>
+                      {tm.name}
+                    </option>
+                  ))}
+                </select>
+              </span>
             )}
-            <button type="button" className="btn btn-secondary btn-sm wa-close-btn" onClick={() => void patchChat({ status: chat.status === 'open' ? 'closed' : 'open' })}>
-              {chat.status === 'open' ? t('thread.close') : t('thread.reopen')} <kbd className="kbd">E</kbd>
-            </button>
-            <button type="button" className="wa-icon-btn" onClick={() => void summarize()} aria-busy={summary?.busy || undefined} aria-label={t('thread.summary')} title={t('thread.summary')}>
-              <Sparkle />
-            </button>
-            <button type="button" className={`wa-icon-btn${translateOn ? ' is-on' : ''}`} onClick={toggleTranslate} aria-pressed={translateOn} aria-label={`${t('thread.translate')} (L)`} title={`${t('thread.translate')} (L)`}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M4 5h9M8.5 3v2M6 5c.6 3.3 2.7 6 6 7.5M11 5c-.7 3.6-3 6.4-6.5 8M13 21l4-9 4 9M14.3 18h5.4" />
-              </svg>
+            <button
+              type="button"
+              className="wa-icon-btn"
+              onClick={() => void patchChat({ status: chat.status === 'open' ? 'closed' : 'open' })}
+              aria-label={`${chat.status === 'open' ? t('thread.close') : t('thread.reopen')} (E)`}
+              title={`${chat.status === 'open' ? t('thread.close') : t('thread.reopen')} (E)`}
+            >
+              {chat.status === 'open' ? <CheckCircle /> : <Retry />}
             </button>
             <MessageMenu
               label={t('thread.chatMenu')}
               className="wa-icon-btn"
               align="right"
               items={[
+                { key: 'summary', label: t('thread.summary'), onSelect: () => void summarize() },
+                { key: 'translate', label: `${translateOn ? t('thread.translateOff') : t('thread.translate')} (L)`, onSelect: toggleTranslate },
                 { key: 'unread', label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
                 { key: 'pin', label: chat.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void patchChat({ pinned: !chat.pinned }) },
                 { key: 'mute', label: chat.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void toggleMute() },
@@ -1343,39 +1373,36 @@ export default function ChatThread(props: ThreadProps) {
         </div>
 
         <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`}>
-          <div className="wa-team-row">
-            <div className="gr-composer-tabs wa-mode" role="tablist" aria-label={t('wa.composeAs')}>
-              <button type="button" role="tab" className="wa-mode-tab" aria-selected={mode === 'reply'} onClick={() => setMode('reply')}>
-                {t('thread.modeReply')} <kbd className="kbd">R</kbd>
+          {mode === 'note' && (
+            <p className="wa-note-strip">
+              <Lock size={12} /> {t('thread.notePlaceholder')} {t('thread.noteHint')}
+            </p>
+          )}
+          {aiOpen && mode === 'reply' && (
+            <div className="wa-ai-row" role="group" aria-label={t('wa.aiTools')}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void aiDraft()} aria-busy={aiBusy === 'draft' || aiBusy === 'polish' || undefined}>
+                <Sparkle size={15} /> {text.trim() ? t('thread.aiPolish') : t('thread.aiDraft')}
               </button>
-              <button type="button" role="tab" className="wa-mode-tab" aria-selected={mode === 'note'} onClick={() => setMode('note')}>
-                <Lock size={12} /> {t('thread.modeNote')} <kbd className="kbd">N</kbd>
+              <select
+                className="select gr-translate-select"
+                value=""
+                onChange={(e) => void translateReply(e.target.value)}
+                aria-label={t('thread.translateReply')}
+                aria-busy={aiBusy === 'translate' || undefined}
+              >
+                <option value="">{t('thread.translateReply')}</option>
+                {customerLang && <option value={customerLang}>{t('thread.toCustomerLang', { lang: t(`langs.${customerLang}`) })}</option>}
+                {Object.keys(TRANSLATE_LANGS).map((code) => (
+                  <option key={code} value={code}>
+                    {t(`langs.${code}`)}
+                  </option>
+                ))}
+              </select>
+              <button type="button" className="wa-icon-btn wa-ai-close" onClick={() => setAiOpen(false)} aria-label={t('common.close')} title={t('common.close')}>
+                <Close size={16} />
               </button>
             </div>
-            {mode === 'reply' && (
-              <span className="wa-team-tools">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => void aiDraft()} aria-busy={aiBusy === 'draft' || aiBusy === 'polish' || undefined}>
-                  <Sparkle size={15} /> {text.trim() ? t('thread.aiPolish') : t('thread.aiDraft')}
-                </button>
-                <select
-                  className="select gr-translate-select"
-                  value=""
-                  onChange={(e) => void translateReply(e.target.value)}
-                  aria-label={t('thread.translateReply')}
-                  aria-busy={aiBusy === 'translate' || undefined}
-                >
-                  <option value="">{t('thread.translateReply')}</option>
-                  {customerLang && <option value={customerLang}>{t('thread.toCustomerLang', { lang: t(`langs.${customerLang}`) })}</option>}
-                  {Object.keys(TRANSLATE_LANGS).map((code) => (
-                    <option key={code} value={code}>
-                      {t(`langs.${code}`)}
-                    </option>
-                  ))}
-                </select>
-              </span>
-            )}
-            <span className="ui-help gr-composer-hint">{mode === 'note' ? t('thread.noteHint') : t('thread.hint')}</span>
-          </div>
+          )}
           {replyTo && (
             <div className="wa-replying">
               <span className={`gr-quote ${replyTo.direction === 'in' ? 'wa-q-them' : 'wa-q-me'}`}>
@@ -1583,6 +1610,31 @@ export default function ChatThread(props: ThreadProps) {
                   }
                 }}
               />
+              <button
+                type="button"
+                className={`wa-icon-btn wa-note-toggle${mode === 'note' ? ' is-on' : ''}`}
+                onClick={() => {
+                  setMode(mode === 'note' ? 'reply' : 'note');
+                  inputRef.current?.focus();
+                }}
+                aria-pressed={mode === 'note'}
+                aria-label={mode === 'note' ? t('wa.backToWhatsApp') : t('wa.writeNote')}
+                title={mode === 'note' ? t('wa.backToWhatsApp') : t('wa.writeNote')}
+              >
+                <Lock size={20} />
+              </button>
+              {mode === 'reply' && (
+                <button
+                  type="button"
+                  className={`wa-icon-btn${aiOpen ? ' is-on' : ''}`}
+                  onClick={() => setAiOpen((v) => !v)}
+                  aria-expanded={aiOpen}
+                  aria-label={t('wa.aiTools')}
+                  title={t('wa.aiTools')}
+                >
+                  <Sparkle size={20} />
+                </button>
+              )}
               {canSend || mode === 'note' || !voiceSupported ? (
                 <button
                   type="button"

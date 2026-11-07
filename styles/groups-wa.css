@@ -554,3 +554,52 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-head-avatar { display: inline-flex; padding: 0; background: none; border: 0; border-radius: 50%; cursor: pointer; }
 .wa-head-avatar:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
 .wa-head-who .gr-thread-title { cursor: pointer; }
+
+/* ---------- Ajustes de la segunda pasada ---------- */
+/* Avatares sin foto: tonos apagados derivados del nombre. */
+.wa-c0 { background: #a7738a; } .wa-c1 { background: #5f8f84; } .wa-c2 { background: #a58463; } .wa-c3 { background: #7d76a8; }
+.wa-c4 { background: #5f84a0; } .wa-c5 { background: #a0756a; } .wa-c6 { background: #6b93a3; } .wa-c7 { background: #8a7aa0; }
+.wa-c8 { background: #6a9475; } .wa-c9 { background: #9a7590; } .wa-c10 { background: #958560; } .wa-c11 { background: #5d8f8a; }
+
+/* Lista: búsqueda y filtros en una fila; el resto en un panel. */
+.wa-search-row { display: flex; align-items: center; gap: 4px; }
+.wa-search-row .wa-search { flex: 1; min-width: 0; }
+.wa-filter-btn { position: relative; width: 36px; height: 36px; }
+.wa-filter-dot { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; background: var(--wa-badge); border-radius: 50%; }
+.wa-filter-panel { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--wa-chip-bg); border-radius: var(--radius-1); }
+.gr-inbox .gr-list-head { gap: 8px; }
+.gr-inbox .gr-list-save { margin: 0; }
+.gr-inbox .gr-sample-banner.is-warn { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; padding: 6px 10px; font-size: 0.8125rem; }
+.gr-inbox .gr-sample-banner.is-warn > span:first-child { flex: 0 1 auto; }
+.gr-inbox .gr-sample-banner.is-warn .gr-start { flex: none; margin: 0; }
+.gr-inbox .gr-sample-banner.is-warn .gr-start-actions { flex: none; flex-wrap: nowrap; gap: 10px; margin: 0; }
+.gr-inbox .gr-sample-banner.is-warn .btn { height: auto; min-height: 0; padding: 0; color: var(--wa-primary-ink); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; background: none; border: 0; box-shadow: none; }
+
+/* Fechas: el chip de cada día queda arriba de su día. */
+.wa-dayblock { display: flex; flex-direction: column; gap: 2px; }
+
+/* Encabezado: asignado y equipo como avatar con un select invisible encima (accesible y con teclado). */
+.wa-pick { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: var(--wa-icon); border-radius: 50%; }
+.wa-pick:hover { background: color-mix(in srgb, var(--wa-icon) 12%, transparent); }
+.wa-pick.is-on { color: var(--wa-primary); }
+.wa-pick select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
+.wa-pick:has(select:focus-visible) { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
+
+/* Composer: una sola fila como WhatsApp; nota y AI son íconos. */
+.wa-note-strip { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 0.75rem; color: var(--wa-text-2); }
+.wa-ai-row { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; padding: 4px 6px; background: var(--wa-panel); border-radius: 8px; }
+.wa-ai-row .wa-ai-close { width: 30px; height: 30px; margin-left: auto; }
+.wa-bar .wa-note-toggle.is-on { color: #b7791f; background: color-mix(in srgb, #e8c46a 25%, transparent); }
+
+/* Remitente en grupos: nombre en color y teléfono gris, en una línea. */
+.gr-inbox .gr-msg-author { min-width: 0; white-space: nowrap; }
+.gr-inbox .gr-msg-author .wa-author-name { overflow: hidden; text-overflow: ellipsis; }
+.gr-inbox .gr-msg-author .wa-phone { flex: none; margin-left: auto; padding-left: 12px; }
+@media (max-width: 1023px) {
+  .gr-inbox .wa-head { flex-wrap: nowrap; }
+  .gr-inbox .gr-thread-actions { flex-basis: auto; flex-wrap: nowrap; }
+}
+
+.wa-day { transition: opacity 0.2s; }
+.wa-messages:not(.is-scrolling) .wa-day.is-stuck { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .wa-day { transition: none; } }

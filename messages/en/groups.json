@@ -1471,6 +1471,11 @@
     "viewOnce": "View once message. Open it on the phone.",
     "liveLocation": "Live location",
     "retry": "Retry sending",
-    "unreadCount": "{n, plural, one {# unread message} other {# unread messages}}"
+    "unreadCount": "{n, plural, one {# unread message} other {# unread messages}}",
+    "filtersMenu": "Filters and lists",
+    "clearFilters": "Clear filters",
+    "aiTools": "AI: draft and translate",
+    "writeNote": "Write an internal note (N)",
+    "backToWhatsApp": "Back to WhatsApp (R)"
   }
 }

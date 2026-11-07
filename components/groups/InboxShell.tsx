@@ -13,7 +13,7 @@ import { filterOptions } from './PropertyInput';
 import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useToast } from './ui';
 import Avatar from './wa/Avatar';
 import { listTime } from './wa/format';
-import { MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
+import { FilterIcon, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
 import type { ImportStatus } from '@/lib/groups-import';
 
 const FILTERS: ChatFilter[] = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'];
@@ -303,6 +303,8 @@ export default function InboxShell({
   const propDef = properties.find((p) => p.key === propKey) ?? null;
   const propOpts = propDef ? filterOptions(propDef) : [];
   const listSuffix = listId ? `?list=${listId}` : '';
+  // Filtros del panel (fuera de las pestañas) que están puestos: el botón lo marca.
+  const extraFilters = [kind, label, assignee, team, propKey].filter(Boolean).length;
 
   async function saveChanges() {
     if (!activeList) return;
@@ -390,6 +392,7 @@ export default function InboxShell({
                 )}
               </p>
             )}
+            <div className="wa-search-row">
             <span className="wa-search">
               <Search size={18} />
             <input
@@ -405,6 +408,19 @@ export default function InboxShell({
               aria-label={t('inbox.search')}
             />
             </span>
+            <button
+              type="button"
+              className={`wa-icon-btn wa-filter-btn${moreOpen ? ' is-on' : ''}`}
+              aria-expanded={moreOpen}
+              aria-controls="wa-filter-panel"
+              aria-label={t('wa.filtersMenu')}
+              title={t('wa.filtersMenu')}
+              onClick={() => setMoreOpen((v) => !v)}
+            >
+              <FilterIcon size={20} />
+              {extraFilters > 0 && <span className="wa-filter-dot" aria-hidden="true" />}
+            </button>
+            </div>
             <div className="gr-filters" role="tablist" aria-label={t('inbox.filters')}>
               {FILTERS.map((f) => (
                 <button
@@ -419,6 +435,8 @@ export default function InboxShell({
                 </button>
               ))}
             </div>
+            {moreOpen && (
+            <div className="wa-filter-panel" id="wa-filter-panel">
             <div className="gr-list-selects">
               <select className="select" value={kind} onChange={(e) => set({ kind: e.target.value })} aria-label={t('inbox.kind')}>
                 <option value="">{t('inbox.kindAll')}</option>
@@ -434,7 +452,6 @@ export default function InboxShell({
                 ))}
               </select>
             </div>
-            {moreOpen && (
               <div className="gr-list-selects">
                 <select className="select" value={assignee} onChange={(e) => set({ assignee: e.target.value })} aria-label={t('lists.assignee')}>
                   <option value="">{t('tickets.anyone')}</option>
@@ -488,15 +505,16 @@ export default function InboxShell({
                     />
                   ))}
               </div>
-            )}
             <div className="gr-list-save">
-              <button type="button" className="btn btn-ghost btn-sm" aria-expanded={moreOpen} onClick={() => setMoreOpen((v) => !v)}>
-                {t('lists.moreFilters')}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ kind: '', label: '', assignee: '', team: '', propKey: '', propValue: '' })} disabled={extraFilters === 0}>
+                {t('wa.clearFilters')}
               </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSaving('new')}>
                 {t('lists.save')}
               </button>
             </div>
+            </div>
+            )}
           </div>
           {visibleSelected.length > 0 && (
             <div className="gr-bulkbar" role="toolbar" aria-label={t('bulkInbox.label')}>
@@ -614,7 +632,7 @@ export default function InboxShell({
                       <span className="gr-row-bottom">
                         <span className="gr-row-preview">
                           {!c.match && c.lastDirection === 'out' && c.lastStatus && c.lastStatus !== 'received' && <Ticks status={c.lastStatus} label={t(`status.${c.lastStatus}`)} />}
-                          {!c.match && c.kind === 'group' && c.lastDirection === 'in' && c.lastSender && <span className="gr-row-sender">{c.lastSender}: </span>}
+                          {!c.match && c.kind === 'group' && c.lastDirection === 'in' && c.lastSender && <span className="gr-row-sender">{c.lastSender}:&nbsp;</span>}
                           {c.match ?? mediaText({ preview: c.lastMessagePreview })}
                         </span>
                         <span className="gr-row-icons">

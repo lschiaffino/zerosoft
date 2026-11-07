@@ -237,6 +237,7 @@ test('listas guardadas: guardar los filtros, sidebar, renombrar y borrar', async
   await inbound(request, n, `120363${Date.now()}3@g.us`, 'hola', `Cliente ${who}`);
   await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: 'Unanswered' }).click();
+  await page.getByRole('button', { name: 'Filters and lists' }).click();
   await page.getByLabel('Type').selectOption('group');
   await page.getByRole('button', { name: 'Save as list' }).click();
   const save = page.getByRole('dialog', { name: 'Save as list' });

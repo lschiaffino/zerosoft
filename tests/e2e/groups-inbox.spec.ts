@@ -197,7 +197,8 @@ test('AI: traducir entrantes, traducir la respuesta, borrador y error sin AI', a
   await inbound(request, n, dm(), 'Hola, ¿cuándo llega la factura?', who);
   await openChat(page, who);
 
-  await page.getByRole('button', { name: /^Translate/ }).click();
+  await page.getByRole('button', { name: 'More chat actions' }).click();
+  await page.getByRole('menuitem', { name: /^Translate/ }).click();
   const msg = page.locator('.gr-msg-in');
   await expect(msg.getByText('[en] Hola, ¿cuándo llega la factura?')).toBeVisible();
   await expect(msg.getByText('Translated from Spanish')).toBeVisible();
@@ -207,6 +208,7 @@ test('AI: traducir entrantes, traducir la respuesta, borrador y error sin AI', a
   // Respuesta traducida al idioma del cliente, editable antes de mandar.
   const composer = page.getByLabel('WhatsApp', { exact: true });
   await composer.fill('It arrives tomorrow');
+  await page.getByRole('button', { name: 'AI: draft and translate' }).click();
   await page.getByLabel('Translate reply').selectOption({ label: "Customer's language (Spanish)" });
   await expect(composer).toHaveValue('[es] It arrives tomorrow');
   await page.getByRole('button', { name: 'Undo' }).click();

@@ -1471,6 +1471,11 @@
     "viewOnce": "Mensaje de ver una vez. Abrilo en el teléfono.",
     "liveLocation": "Ubicación en tiempo real",
     "retry": "Reintentar envío",
-    "unreadCount": "{n, plural, one {# mensaje sin leer} other {# mensajes sin leer}}"
+    "unreadCount": "{n, plural, one {# mensaje sin leer} other {# mensajes sin leer}}",
+    "filtersMenu": "Filtros y listas",
+    "clearFilters": "Limpiar filtros",
+    "aiTools": "AI: borrador y traducción",
+    "writeNote": "Escribir una nota interna (N)",
+    "backToWhatsApp": "Volver a WhatsApp (R)"
   }
 }

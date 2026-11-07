@@ -1471,6 +1471,11 @@
     "viewOnce": "Mensagem de visualização única. Abra no celular.",
     "liveLocation": "Localização em tempo real",
     "retry": "Tentar enviar de novo",
-    "unreadCount": "{n, plural, one {# mensagem não lida} other {# mensagens não lidas}}"
+    "unreadCount": "{n, plural, one {# mensagem não lida} other {# mensagens não lidas}}",
+    "filtersMenu": "Filtros e listas",
+    "clearFilters": "Limpar filtros",
+    "aiTools": "IA: rascunho e tradução",
+    "writeNote": "Escrever uma nota interna (N)",
+    "backToWhatsApp": "Voltar ao WhatsApp (R)"
   }
 }

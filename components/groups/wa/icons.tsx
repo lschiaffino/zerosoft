@@ -231,6 +231,23 @@ export const Retry = (p: P) => (
     <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4.5v4h4" />
   </Svg>
 );
+export const UserPlus = (p: P) => (
+  <Svg {...p}>
+    <circle cx="10" cy="8.5" r="3.6" />
+    <path d="M3.5 20c.9-3.5 3.6-5.3 6.5-5.3 1.6 0 3.1.5 4.3 1.5M18.5 13v6M15.5 16h6" />
+  </Svg>
+);
+export const CheckCircle = (p: P) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="m8.3 12.3 2.5 2.5 5-5.3" />
+  </Svg>
+);
+export const FilterIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 6h16M7 12h10M10 18h4" />
+  </Svg>
+);
 export const Panel = (p: P) => (
   <Svg {...p}>
     <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />

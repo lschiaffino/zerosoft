@@ -661,7 +661,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const rows = (await db
     .prepare(
       `SELECT c.*, ${matchSelect},
-         (SELECT m.direction || '|' || m.status || '|' || m.sender_name FROM groups_messages m WHERE m.chat_id = c.id AND m.direction IN ('in', 'out')
+         (SELECT m.direction || '|' || m.status || '|' || CASE WHEN m.sender_name != '' THEN m.sender_name WHEN m.sender_phone != '' THEN '+' || m.sender_phone ELSE '' END FROM groups_messages m WHERE m.chat_id = c.id AND m.direction IN ('in', 'out')
            ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_info
        FROM groups_chats c WHERE ${whereSql}
        ORDER BY (c.pinned_at IS NULL), c.pinned_at DESC, COALESCE(c.last_message_at, c.created_at) DESC, c.id LIMIT ? OFFSET ?`,
