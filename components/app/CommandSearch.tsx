@@ -145,6 +145,8 @@ function useGroupOrder() {
         'shopCollections',
         'shopDiscounts',
         'shopCustomers',
+        'shopPages',
+        'shopPurchaseOrders',
         'hiringJobs',
         'hiringCandidates',
         'booksInvoices',

@@ -19,6 +19,7 @@ interface VariantDraft {
   compareAtCents: number | null;
   weightGrams: number;
   trackInventory: boolean;
+  continueSelling: boolean;
   initialStock: number;
   stock: number;
   inventory: Array<{ locationId: string; available: number; reserved: number }>;
@@ -27,7 +28,7 @@ interface VariantDraft {
 const comboKey = (values: string[]) => values.map((v) => v.trim().toLowerCase()).join('|');
 
 function draftFrom(product: ProductDto | null): VariantDraft[] {
-  if (!product) return [{ key: 'v0', options: [], sku: '', barcode: '', priceCents: null, compareAtCents: null, weightGrams: 0, trackInventory: true, initialStock: 0, stock: 0, inventory: [] }];
+  if (!product) return [{ key: 'v0', options: [], sku: '', barcode: '', priceCents: null, compareAtCents: null, weightGrams: 0, trackInventory: true, continueSelling: false, initialStock: 0, stock: 0, inventory: [] }];
   return product.variants.map((v) => ({
     key: v.id,
     id: v.id,
@@ -38,6 +39,7 @@ function draftFrom(product: ProductDto | null): VariantDraft[] {
     compareAtCents: v.compareAtCents,
     weightGrams: v.weightGrams,
     trackInventory: v.trackInventory,
+    continueSelling: v.continueSelling,
     initialStock: 0,
     stock: v.stock,
     inventory: v.inventory,
@@ -119,6 +121,7 @@ export default function ProductEditor({
             compareAtCents: base?.compareAtCents ?? null,
             weightGrams: base?.weightGrams ?? 0,
             trackInventory: base?.trackInventory ?? true,
+            continueSelling: base?.continueSelling ?? false,
             initialStock: 0,
             stock: 0,
             inventory: [],
@@ -175,6 +178,7 @@ export default function ProductEditor({
         compareAtCents: v.compareAtCents,
         weightGrams: v.weightGrams,
         trackInventory: v.trackInventory,
+        continueSelling: v.continueSelling,
         ...(!v.id && v.initialStock > 0 ? { initialStock: v.initialStock } : {}),
       })),
     };
@@ -386,6 +390,12 @@ export default function ProductEditor({
                             <input type="checkbox" checked={v.trackInventory} onChange={(e) => setVariant(v.key, { trackInventory: e.target.checked })} />
                             <span>{t('editor.track')}</span>
                           </label>
+                          {v.trackInventory && (
+                            <label className="ui-check shop-track">
+                              <input type="checkbox" checked={v.continueSelling} onChange={(e) => setVariant(v.key, { continueSelling: e.target.checked })} />
+                              <span>{t('editor.continueSelling')}</span>
+                            </label>
+                          )}
                           {v.trackInventory &&
                             (v.id ? (
                               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAdjust({ variant: v, locationId: locations[0]?.id ?? '', value: String(v.inventory.find((x) => x.locationId === locations[0]?.id)?.available ?? 0) })}>

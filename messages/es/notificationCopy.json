@@ -30,6 +30,7 @@
   "socialInbox": "Bandeja de Social",
   "orderPaid": "Pagaron el pedido #{number}",
   "orderAwaitingTransfer": "Pedido nuevo #{number} a la espera de la transferencia",
+  "orderReturnRequested": "Pidieron una devolución del pedido #{number}",
   "orderPaidAfterCancel": "Pagaron el pedido #{number} después de cancelarlo",
   "orderRefundBody": "Devolvé {amount} a {email}",
   "lowStockOne": "Poco stock: {product}",

@@ -48,6 +48,7 @@ export default function CartView({ handle, locale, t }: { handle: string; locale
                   {l.variantTitle && <span className="sf-muted">{l.variantTitle}</span>}
                   <span className="sf-muted">{money(l.unitCents)}</span>
                   {l.short && <span className="sf-warn">{l.stock ? fmt(t.onlyLeft, { n: l.stock }) : t.soldOut}</span>}
+                  {l.backorder && <span className="sf-muted">{t.backorder}</span>}
                 </span>
                 <span className="sf-line-qty">
                   <label>
@@ -68,6 +69,12 @@ export default function CartView({ handle, locale, t }: { handle: string; locale
               <span>{t.subtotal}</span>
               <strong data-testid="sf-subtotal">{money(cart.totals.subtotalCents)}</strong>
             </p>
+            {cart.totals.discountCents > 0 && cart.applied && (
+              <p className="sf-row" data-testid="sf-cart-discount">
+                <span>{t.discount} ({cart.applied.label})</span>
+                <span>−{money(cart.totals.discountCents)}</span>
+              </p>
+            )}
             <p className="sf-muted">{t.shippingAtCheckout}</p>
             <Link
               className={`sf-btn sf-btn-primary sf-btn-block${cart.lines.some((l) => l.short) || !cart.lines.length ? ' is-disabled' : ''}`}

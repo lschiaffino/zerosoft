@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ProductListItem } from '@/lib/shop';
 import { ShopDialog, StatusBadge, useErrorText, useMoney, useToast } from './shop-ui';
@@ -31,6 +32,18 @@ export default function ProductsList({ initial, total, currency, q, status }: { 
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [update, setUpdate] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkAction, setBulkAction] = useState<'active' | 'draft' | 'archived' | 'delete'>('active');
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  const toggle = (id: string) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  const allSelected = initial.length > 0 && selected.length === initial.length;
+  const runBulk = async () => {
+    setConfirmBulk(false);
+    const res = await fetch('/api/shop/products/bulk', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids: selected, action: bulkAction }) });
+    if (!res.ok) return;
+    setSelected([]);
+    router.refresh();
+  };
 
   const search = (e: FormEvent) => {
     e.preventDefault();
@@ -115,10 +128,30 @@ export default function ProductsList({ initial, total, currency, q, status }: { 
         )
       ) : (
         <div className="table-wrap">
+          {selected.length > 0 && (
+            <div className="shop-bulkbar" role="region" aria-label={t('products.bulkLabel')} data-testid="shop-bulkbar">
+              <span>{t('products.selected', { n: selected.length })}</span>
+              <select className="select" value={bulkAction} onChange={(e) => setBulkAction(e.target.value as typeof bulkAction)} aria-label={t('products.bulkLabel')}>
+                <option value="active">{t('products.bulkActive')}</option>
+                <option value="draft">{t('products.bulkDraft')}</option>
+                <option value="archived">{t('products.bulkArchive')}</option>
+                <option value="delete">{t('products.bulkDelete')}</option>
+              </select>
+              <button type="button" className={`btn btn-sm ${bulkAction === 'delete' ? 'btn-danger' : 'btn-primary'}`} onClick={() => (bulkAction === 'delete' ? setConfirmBulk(true) : void runBulk())}>
+                {t('products.bulkApply')}
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelected([])}>
+                {t('common.cancel')}
+              </button>
+            </div>
+          )}
           <table className="table shop-table">
             <caption className="sr-only">{t('products.caption', { n: total })}</caption>
             <thead>
               <tr>
+                <th scope="col" className="shop-check-col">
+                  <input type="checkbox" checked={allSelected} aria-label={t('products.selectAll')} onChange={(e) => setSelected(e.target.checked ? initial.map((p) => p.id) : [])} />
+                </th>
                 <th scope="col">{t('products.colProduct')}</th>
                 <th scope="col">{t('products.colStatus')}</th>
                 <th scope="col" className="num">
@@ -131,7 +164,10 @@ export default function ProductsList({ initial, total, currency, q, status }: { 
             </thead>
             <tbody>
               {initial.map((p) => (
-                <tr key={p.id}>
+                <tr key={p.id} aria-selected={selected.includes(p.id) || undefined}>
+                  <td className="shop-check-col">
+                    <input type="checkbox" checked={selected.includes(p.id)} aria-label={t('products.selectOne', { title: p.title })} onChange={() => toggle(p.id)} />
+                  </td>
                   <th scope="row">
                     <Link href={`/app/shop/products/${p.id}`} className="shop-rowlink">
                       <span className="shop-thumb">{p.image ? <img src={p.image} alt="" /> : null}</span>
@@ -154,6 +190,16 @@ export default function ProductsList({ initial, total, currency, q, status }: { 
           </table>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmBulk}
+        danger
+        title={t('products.bulkDeleteTitle', { n: selected.length })}
+        body={t('products.bulkDeleteBody')}
+        confirmLabel={t('editor.delete')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => void runBulk()}
+        onCancel={() => setConfirmBulk(false)}
+      />
       <ShopDialog open={importOpen} title={t('products.importTitle')} onClose={() => !busy && (setImportOpen(false), setSummary(null))}>
         <form onSubmit={doImport}>
           <div className="ui-modal-body">

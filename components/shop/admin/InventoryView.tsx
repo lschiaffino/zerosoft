@@ -32,6 +32,8 @@ export default function InventoryView({
   const [q, setQ] = useState(sp.get('q') ?? '');
   const [loc, setLoc] = useState('');
   const [edit, setEdit] = useState<{ row: InventoryRow; mode: 'delta' | 'set'; value: string; reason: string } | null>(null);
+  const [transfer, setTransfer] = useState<{ row: InventoryRow; to: string; quantity: string } | null>(null);
+  const multi = locations.length > 1;
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
     return initial.filter((r) => (!loc || r.locationId === loc) && (!term || `${r.productTitle} ${r.variantTitle} ${r.sku}`.toLowerCase().includes(term)));
@@ -52,12 +54,26 @@ export default function InventoryView({
     router.refresh();
   };
 
+  const doTransfer = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!transfer) return;
+    const res = await api('/api/shop/transfers', { method: 'POST', json: { variantId: transfer.row.variantId, fromLocationId: transfer.row.locationId, toLocationId: transfer.to, quantity: Number(transfer.quantity) } });
+    if (!res.ok) return push(errText(res.data.error), 'bad');
+    setTransfer(null);
+    push(t('inventory.transferred'));
+    router.refresh();
+  };
+
   return (
     <div className="app-page ui-page shop-page">
-      <PageHeader title={t('nav.inventory')} description={t('inventory.desc', { n: threshold })} />
+      <PageHeader
+        title={t('nav.inventory')}
+        description={t('inventory.desc', { n: threshold })}
+        actions={<Link className="btn btn-secondary" href="/app/shop/purchase-orders">{t('purchasing.title')}</Link>}
+      />
       <div className="shop-toolbar">
         <input className="input shop-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('inventory.search')} aria-label={t('inventory.search')} />
-        {locations.length > 1 && (
+        {multi && (
           <select className="select" value={loc} onChange={(e) => setLoc(e.target.value)} aria-label={t('inventory.location')}>
             <option value="">{t('inventory.allLocations')}</option>
             {locations.map((l) => (
@@ -76,6 +92,11 @@ export default function InventoryView({
           </Link>
         </div>
       </div>
+      {!multi && initial.length > 0 && (
+        <p className="ui-help shop-note">
+          {t('inventory.oneLocation')} <Link href="/app/shop/settings?tab=locations">{t('inventory.addLocation')}</Link>
+        </p>
+      )}
       {rows.length === 0 ? (
         <EmptyState
           product="shop"
@@ -90,7 +111,7 @@ export default function InventoryView({
             <thead>
               <tr>
                 <th scope="col">{t('products.colProduct')}</th>
-                {locations.length > 1 && <th scope="col" className="shop-hide-sm">{t('inventory.location')}</th>}
+                {multi && <th scope="col" className="shop-hide-sm">{t('inventory.location')}</th>}
                 <th scope="col" className="num">
                   {t('inventory.reserved')}
                 </th>
@@ -111,16 +132,25 @@ export default function InventoryView({
                       <span className="shop-rowmeta">{[r.variantTitle !== 'Default' ? r.variantTitle : '', r.sku].filter(Boolean).join(' · ')}</span>
                     </Link>
                   </th>
-                  {locations.length > 1 && <td className="shop-hide-sm" data-label={t('inventory.location')}>{r.locationName}</td>}
+                  {multi && <td className="shop-hide-sm" data-label={t('inventory.location')}>{r.locationName}</td>}
                   <td className="num" data-label={t('inventory.reserved')}>{r.reserved}</td>
                   <td className="num" data-label={t('inventory.available')}>
-                    {r.available}
-                    {r.low && <span className="badge badge-warn shop-low">{t('inventory.low')}</span>}
+                    <span className="shop-stock-value">
+                      {r.low && <span className="badge badge-warn">{t('inventory.low')}</span>}
+                      <span>{r.available}</span>
+                    </span>
                   </td>
                   <td className="table-stack-actions">
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEdit({ row: r, mode: 'delta', value: '', reason: 'received' })}>
-                      {t('inventory.adjust')}
-                    </button>
+                    <span className="shop-row-actions">
+                      {multi && (
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTransfer({ row: r, to: locations.find((l) => l.id !== r.locationId)?.id ?? '', quantity: '1' })}>
+                          {t('inventory.transfer')}
+                        </button>
+                      )}
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEdit({ row: r, mode: 'delta', value: '', reason: 'received' })}>
+                        {t('inventory.adjust')}
+                      </button>
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -147,6 +177,34 @@ export default function InventoryView({
           </ul>
         )}
       </section>
+
+      <ShopDialog open={!!transfer} title={t('inventory.transferTitle')} onClose={() => setTransfer(null)}>
+        {transfer && (
+          <form onSubmit={doTransfer}>
+            <div className="ui-modal-body">
+              <p>
+                {transfer.row.productTitle}
+                {transfer.row.variantTitle !== 'Default' ? ` (${transfer.row.variantTitle})` : ''}
+              </p>
+              <p className="ui-help">{t('inventory.transferFrom', { from: transfer.row.locationName, n: Math.max(0, transfer.row.available - transfer.row.reserved) })}</p>
+              <label className="ui-field">
+                <span className="label">{t('inventory.transferTo')}</span>
+                <select className="select" value={transfer.to} onChange={(e) => setTransfer({ ...transfer, to: e.target.value })}>
+                  {locations.filter((l) => l.id !== transfer.row.locationId).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+              </label>
+              <label className="ui-field">
+                <span className="label">{t('drafts.quantity')}</span>
+                <input className="input" type="number" min={1} max={Math.max(1, transfer.row.available - transfer.row.reserved)} required autoFocus value={transfer.quantity} onChange={(e) => setTransfer({ ...transfer, quantity: e.target.value })} />
+              </label>
+            </div>
+            <div className="ui-modal-foot">
+              <button type="button" className="btn btn-secondary" onClick={() => setTransfer(null)}>{t('common.cancel')}</button>
+              <button type="submit" className="btn btn-primary">{t('inventory.transfer')}</button>
+            </div>
+          </form>
+        )}
+      </ShopDialog>
 
       <ShopDialog open={!!edit} title={t('inventory.adjustTitle')} onClose={() => setEdit(null)}>
         {edit && (

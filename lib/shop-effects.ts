@@ -14,6 +14,7 @@ import { personAppAccess } from './api-auth';
 import { DEFAULT_BRAND, normalizeBrand, normalizeSettings, parseJson } from './shop-schema';
 import { formatMoney } from './shop-money';
 import { addOrderEvent, type OrderItemRow, type OrderRow } from './shop-orders';
+import { claimShopEmail, releaseEmailClaim, type ShopEmailKind } from './shop-email-guard';
 import { nowDb, type StoreRow } from './shop';
 
 function appUrl(): string {
@@ -106,6 +107,12 @@ const COPY = {
     shippedHeading: 'Your order shipped',
     shipped: 'Order #{n} left our warehouse.',
     tracking: 'Tracking',
+    invoiceSubject: 'Invoice for order #{n}',
+    invoiceHeading: 'Your order is ready to pay',
+    invoice: 'Order #{n} is waiting for your payment. Open it to see how to pay.',
+    partSubject: 'Part of order #{n} is on its way',
+    partHeading: 'Part of your order shipped',
+    part: 'Part of order #{n} left our warehouse. We will write again when the rest ships.',
   },
   es: {
     confirmSubject: 'Pedido #{n} confirmado',
@@ -120,6 +127,12 @@ const COPY = {
     shippedHeading: 'Tu pedido salió',
     shipped: 'El pedido #{n} ya salió.',
     tracking: 'Seguimiento',
+    invoiceSubject: 'Factura del pedido #{n}',
+    invoiceHeading: 'Tu pedido está listo para pagar',
+    invoice: 'El pedido #{n} espera tu pago. Abrilo para ver cómo pagar.',
+    partSubject: 'Parte del pedido #{n} está en camino',
+    partHeading: 'Salió parte de tu pedido',
+    part: 'Parte del pedido #{n} ya salió. Te escribimos de nuevo cuando salga el resto.',
   },
   pt: {
     confirmSubject: 'Pedido #{n} confirmado',
@@ -134,6 +147,12 @@ const COPY = {
     shippedHeading: 'Seu pedido foi enviado',
     shipped: 'O pedido #{n} já saiu.',
     tracking: 'Rastreio',
+    invoiceSubject: 'Fatura do pedido #{n}',
+    invoiceHeading: 'Seu pedido está pronto para pagar',
+    invoice: 'O pedido #{n} aguarda seu pagamento. Abra para ver como pagar.',
+    partSubject: 'Parte do pedido #{n} está a caminho',
+    partHeading: 'Parte do seu pedido foi enviada',
+    part: 'Parte do pedido #{n} já saiu. Escreveremos de novo quando o resto sair.',
   },
 } as const;
 
@@ -141,32 +160,46 @@ function copyFor(locale: string) {
   return COPY[(locale in COPY ? locale : 'en') as keyof typeof COPY];
 }
 
-async function sendOrderEmail(store: StoreRow, o: OrderRow, items: OrderItemRow[], kind: 'confirmation' | 'pending' | 'shipped'): Promise<void> {
+type OrderEmail = 'confirmation' | 'pending' | 'shipped' | 'shipped_part' | 'invoice';
+
+const EMAIL_KIND: Record<OrderEmail, ShopEmailKind> = { confirmation: 'order_confirmation', pending: 'order_pending', shipped: 'order_shipped', shipped_part: 'order_shipped', invoice: 'invoice' };
+const EVENT_LABEL: Record<OrderEmail, string> = { confirmation: 'Confirmation', pending: 'Order received', shipped: 'Shipping', shipped_part: 'Shipping', invoice: 'Invoice' };
+
+/** true si salió. Topes por destinatario y tienda, y una sola vez por pedido y tipo (lib/shop-email-guard.ts). */
+export async function sendOrderEmail(store: StoreRow, o: OrderRow, items: OrderItemRow[], kind: OrderEmail, ref?: string): Promise<boolean> {
+  const emailRef = ref ?? o.id;
+  const claim = await claimShopEmail(o.workspace_id, o.email, EMAIL_KIND[kind], emailRef);
+  if (!claim.ok) {
+    if (claim.reason !== 'duplicate') await addOrderEvent(o, 'email', `${EVENT_LABEL[kind]} email not sent to ${o.email}: limit reached`);
+    return false;
+  }
   const c = copyFor(o.locale);
   const brand = normalizeBrand(parseJson(store.brand, DEFAULT_BRAND));
   const n = String(o.number);
   const url = `${appUrl()}/store/${store.handle}/orders/${o.status_token}`;
   const money = (cents: number) => formatMoney(cents, o.currency, o.locale);
   const lines = items.map((i) => `${escapeHtml(i.title)}${i.variant_title ? ` (${escapeHtml(i.variant_title)})` : ''} × ${i.quantity}: ${escapeHtml(money(i.total_cents))}`);
-  const subject = (kind === 'shipped' ? c.shippedSubject : kind === 'pending' ? c.pendingSubject : c.confirmSubject).replace('{n}', n);
-  const heading = kind === 'shipped' ? c.shippedHeading : kind === 'pending' ? c.pendingHeading : c.confirmHeading;
-  const lead = (kind === 'shipped' ? c.shipped : kind === 'pending' ? c.pending : c.paid).replace('{n}', n);
+  const shippedKind = kind === 'shipped' || kind === 'shipped_part';
+  const subject = (kind === 'shipped' ? c.shippedSubject : kind === 'shipped_part' ? c.partSubject : kind === 'invoice' ? c.invoiceSubject : kind === 'pending' ? c.pendingSubject : c.confirmSubject).replace('{n}', n);
+  const heading = kind === 'shipped' ? c.shippedHeading : kind === 'shipped_part' ? c.partHeading : kind === 'invoice' ? c.invoiceHeading : kind === 'pending' ? c.pendingHeading : c.confirmHeading;
+  const lead = (kind === 'shipped' ? c.shipped : kind === 'shipped_part' ? c.part : kind === 'invoice' ? c.invoice : kind === 'pending' ? c.pending : c.paid).replace('{n}', n);
   const paragraphs = [escapeHtml(lead)];
-  if (kind === 'shipped' && o.tracking_number) {
+  if (shippedKind && o.tracking_number) {
     const label = `${o.tracking_company ? `${o.tracking_company} ` : ''}${o.tracking_number}`;
     paragraphs.push(`${escapeHtml(c.tracking)}: ${o.tracking_url ? `<a href="${escapeHtml(o.tracking_url)}">${escapeHtml(label)}</a>` : escapeHtml(label)}`);
   }
-  if (kind !== 'shipped') {
-    paragraphs.push(lines.join('<br>'));
-    paragraphs.push(`<strong>${escapeHtml(c.total)}: ${escapeHtml(money(o.total_cents))}</strong>`);
-  }
+  // La factura sale por decisión del comercio a la dirección que escribió: sin texto suyo, solo el total y el link.
+  if (!shippedKind && kind !== 'invoice') paragraphs.push(lines.join('<br>'));
+  if (!shippedKind) paragraphs.push(`<strong>${escapeHtml(c.total)}: ${escapeHtml(money(o.total_cents))}</strong>`);
   paragraphs.push(`<a href="${escapeHtml(url)}">${escapeHtml(c.view)}</a>`);
   const logo = brand.logoUrl ? (brand.logoUrl.startsWith('/') ? `${appUrl()}${brand.logoUrl}` : brand.logoUrl) : null;
   const html = renderBrandedHtml({ heading, paragraphs, brandColor: brand.accent, logoUrl: logo, eyebrow: store.name });
-  const text = [lead, ...(kind !== 'shipped' ? items.map((i) => `${i.title}${i.variant_title ? ` (${i.variant_title})` : ''} x${i.quantity}`) : []), `${c.total}: ${money(o.total_cents)}`, url].join('\n');
+  const text = [lead, ...(!shippedKind && kind !== 'invoice' ? items.map((i) => `${i.title}${i.variant_title ? ` (${i.variant_title})` : ''} x${i.quantity}`) : []), `${c.total}: ${money(o.total_cents)}`, url].join('\n');
   const from = namedSender(store.name);
-  const res = await sendEmail({ to: o.email, subject, text, html, from, ...(store.contact_email ? { replyTo: store.contact_email } : {}) });
-  await addOrderEvent(o, 'email', `${kind === 'shipped' ? 'Shipping' : kind === 'pending' ? 'Order received' : 'Confirmation'} email ${res.ok ? 'sent' : 'failed'} to ${o.email}`);
+  const res = await sendEmail({ to: o.email, subject, text, html, from, idempotencyKey: `shop:${EMAIL_KIND[kind]}:${emailRef}`, ...(store.contact_email ? { replyTo: store.contact_email } : {}) });
+  if (!res.ok) await releaseEmailClaim(claim.id);
+  await addOrderEvent(o, 'email', `${EVENT_LABEL[kind]} email ${res.ok ? 'sent' : 'failed'} to ${o.email}`);
+  return res.ok;
 }
 
 // ---------- CRM ----------
@@ -223,10 +256,11 @@ export async function onOrderPaid(store: StoreRow, o: OrderRow, items: OrderItem
   await getDb().prepare('UPDATE shop_orders SET updated_at = ? WHERE id = ?').run(nowDb(), o.id);
 }
 
-export async function onOrderFulfilled(store: StoreRow, o: OrderRow, items: OrderItemRow[], notify: boolean): Promise<void> {
+export async function onOrderFulfilled(store: StoreRow, o: OrderRow, items: OrderItemRow[], notify: boolean, shipment?: { fulfillmentId: string; complete: boolean }): Promise<void> {
   const settings = normalizeSettings(parseJson(store.settings, {}));
-  if (notify && settings.emailShipped) await sendOrderEmail(store, o, items, 'shipped').catch(() => undefined);
-  await emit(store, 'shop.order.fulfilled', orderPayload(store, o, items));
+  if (notify && settings.emailShipped) await sendOrderEmail(store, o, items, shipment && !shipment.complete ? 'shipped_part' : 'shipped', shipment?.fulfillmentId).catch(() => undefined);
+  // El evento de Flow sale una vez, cuando salió todo el pedido.
+  if (!shipment || shipment.complete) await emit(store, 'shop.order.fulfilled', orderPayload(store, o, items));
 }
 
 const lowSent = new Map<string, number>();
