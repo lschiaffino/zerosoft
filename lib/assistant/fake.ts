@@ -43,8 +43,29 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
       const rows = (out.members as Array<{ email: string }>) ?? [];
       return { text: `Members: ${rows.map((r) => r.email).join(', ')}.` };
     }
+    if (done.tool === 'run_operation') {
+      const data = out.data as Record<string, unknown> | unknown[] | undefined;
+      const list = Array.isArray(data) ? data : Array.isArray((data as { data?: unknown })?.data) ? ((data as { data: unknown[] }).data) : null;
+      if (list) return { text: `Found ${list.length} items: ${list.slice(0, 5).map((r) => String((r as Record<string, unknown>).name ?? (r as Record<string, unknown>).title ?? (r as Record<string, unknown>).body ?? '')).join(', ')}.` };
+      const rec = ((data as { data?: unknown })?.data ?? data) as Record<string, unknown> | undefined;
+      return { text: out.ok === false ? `That failed (${String(out.error ?? out.status)}).` : `This is "${String(rec?.title ?? rec?.name ?? rec?.identifier ?? 'the record')}".` };
+    }
     return { text: 'Done looking that up.' };
   }
+  const record = /CURRENT_RECORD:([a-z0-9._]+):([A-Za-z0-9_-]+)/.exec(info.system);
+  if (/^(what is this|summari[sz]e this)/i.test(last)) {
+    if (!record) return { text: 'Open a record first.' };
+    return { tool: 'run_operation', input: { operation: record[1], args: { path: { id: record[2] } } } };
+  }
+  const say = /^(send|note) "([^"]+)" (?:to|in) this chat$/i.exec(last);
+  if (say) {
+    if (!record || !record[1].startsWith('v1.groups.chats')) return { text: 'Open a Groups chat first.' };
+    return {
+      tool: 'propose_destructive_operation',
+      input: { operation: 'v1.groups.chats.messages.create', args: { path: { id: record[2] }, body: { body: say[2], note: say[1].toLowerCase() === 'note' } }, summary: `Send "${say[2]}" to this chat` },
+    };
+  }
+  if (/^list (?:my )?group chats/i.test(last)) return { tool: 'run_operation', input: { operation: 'v1.groups.chats.list' } };
   const pipeline = /^create (?:a )?pipeline "?([^"]+?)"? with stages (.+)$/i.exec(last);
   if (pipeline) {
     if (!can.includes('crm')) return { text: 'I cannot use CRM in this workspace.' };

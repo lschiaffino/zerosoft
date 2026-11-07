@@ -103,6 +103,12 @@ export default function AssistantPanel() {
     };
   }, [open, show, close]);
 
+  // Con el panel abierto, navegar cambia el contexto: "esto" es la página nueva.
+  useEffect(() => {
+    if (open) capture();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   // Esc cierra (salvo que un modal abierto lo use antes, como ⌘K o una confirmación).
   useEffect(() => {
     if (!open) return;

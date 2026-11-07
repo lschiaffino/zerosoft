@@ -208,3 +208,26 @@ test('390px: el panel es una hoja a pantalla completa y no hay scroll horizontal
   ({ scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth })));
   expect(scroll).toBeLessThanOrEqual(inner + 1);
 });
+
+test('catálogo del MCP y contexto de la página: "what is this" en un doc, en oscuro', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  await page.emulateMedia({ colorScheme: 'dark' });
+  const title = `Runbook ${uid()}`;
+  const doc = await ok<{ id: string }>(request.post('/api/docs/pages', { data: { title } }));
+  await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+  await page.keyboard.press('ControlOrMeta+j');
+  const panel = page.getByTestId('assistant-panel');
+  const input = panel.getByRole('textbox', { name: /Ask anything/ });
+  await input.fill('What is this?');
+  await input.press('Enter');
+  // Lee la página abierta por el catálogo, con la misma operación que usa el servidor MCP.
+  const cards = panel.locator('[data-testid="assistant-tool-card"][data-tool="run_operation"]');
+  await expect(cards.first()).toBeVisible();
+  await expect(panel.getByTestId('assistant-msg-assistant').last()).toContainText(`This is "${title}"`);
+
+  await input.fill('list group chats');
+  await input.press('Enter');
+  await expect(cards.nth(1)).toBeVisible();
+  await expect(panel.getByTestId('assistant-msg-assistant').last()).toContainText('Found');
+  expect(errors, errors.join('\n')).toEqual([]);
+});
