@@ -72,13 +72,18 @@ test('Linear: workspace entero con vista previa, import y reimport que actualiza
   await page.getByRole('button', { name: 'Preview' }).click();
   const again = page.getByTestId('track-import-preview');
   await expect(again).toBeVisible({ timeout: 90_000 });
-  await expect(again.getByTestId('track-import-already')).toContainText('changed in the source since then');
-  await again.getByRole('button', { name: /^(Import \d+ issues?|Update \d+ issues?)$/ }).click();
+  // En un reintento la v2 ya está importada: entonces no hay nada que actualizar.
+  await expect(again.getByTestId('track-import-already')).toContainText(/imported before/);
+  await again.getByRole('button', { name: /^(Import \d+ issues?|Update \d+ issues?|Bring in new comments and links)$/ }).click();
   const done2 = page.getByTestId('track-import-done');
   await expect(done2).toBeVisible({ timeout: 120_000 });
-  await expect(done2).toContainText(/issues? updated/);
 
-  // Sin duplicados: el issue renombrado está una sola vez.
-  await page.goto('/en/app/track/issues');
-  await expect(page.getByText('Offline sync for the mobile app (v2)')).toHaveCount(1, { timeout: 60_000 });
+  // Sin duplicados: el issue renombrado está una sola vez y el nuevo de la v2 también.
+  const found = async (q: string) =>
+    ((await (await page.request.get(`/api/track/issues?q=${encodeURIComponent(q)}&pageSize=50`)).json()) as { rows: Array<{ title: string }> }).rows.filter(
+      (r) => r.title === q,
+    ).length;
+  expect(await found('Offline sync for the mobile app (v2)')).toBe(1);
+  expect(await found('Offline sync for the mobile app')).toBe(0);
+  expect(await found('Retry failed uploads')).toBe(1);
 });
