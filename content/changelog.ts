@@ -110,6 +110,23 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-05-crm-clone-deal',
+    date: '2026-11-05',
+    title: {
+      en: 'CRM: clone a deal',
+      es: 'CRM: clonar un deal',
+      pt: 'CRM: clonar um negócio',
+    },
+    items: [
+      {
+        product: 'crm',
+        en: 'The More menu on a deal has Clone deal. The copy keeps amount, close date, priority, source, description, custom properties, contacts and companies, and opens right away. Notes, tasks, line items and history are not copied.',
+        es: 'El menú Más de un deal tiene Clonar deal. La copia conserva monto, fecha de cierre, prioridad, fuente, descripción, campos propios, contactos y empresas, y se abre enseguida. Las notas, tareas, líneas de producto y el historial no se copian.',
+        pt: 'O menu Mais de um negócio tem Clonar negócio. A cópia mantém valor, data de fechamento, prioridade, origem, descrição, campos personalizados, contatos e empresas, e abre na hora. Notas, tarefas, itens de produto e histórico não são copiados.',
+      },
+    ],
+  },
+  {
     id: '2026-11-04-link-api-filters',
     date: '2026-11-04',
     title: {
@@ -332,6 +349,23 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'A zerosoft command line with the same reach, for the terminal and for scripts. It runs from the repository for now and is not on npm.',
         es: 'Una línea de comandos de zerosoft con el mismo alcance, para la terminal y para scripts. Por ahora corre desde el repositorio y no está en npm.',
         pt: 'Uma linha de comando da zerosoft com o mesmo alcance, para o terminal e para scripts. Por enquanto roda a partir do repositório e não está no npm.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-01-notes-duplicar',
+    date: '2026-11-01',
+    title: {
+      en: 'Notes: duplicate a note',
+      es: 'Notes: duplicar una nota',
+      pt: 'Notes: duplicar uma nota',
+    },
+    items: [
+      {
+        product: 'notes',
+        en: 'Notes: the note menu has a new Duplicate action that copies the content, tags and notebook into a new note. Deleting the original forever no longer removes attachments that a copy still uses.',
+        es: 'Notes: el menú de la nota tiene la acción Duplicar, que copia el contenido, las etiquetas y la libreta en una nota nueva. Borrar el original para siempre ya no elimina los adjuntos que una copia sigue usando.',
+        pt: 'Notes: o menu da nota tem a ação Duplicar, que copia o conteúdo, as etiquetas e o caderno para uma nota nova. Apagar o original de vez não remove mais os anexos que uma cópia ainda usa.',
       },
     ],
   },
@@ -622,6 +656,23 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-31-agents-duplicate',
+    date: '2026-10-31',
+    title: {
+      en: 'Agents: duplicate an agent',
+      es: 'Agents: duplicar un agente',
+      pt: 'Agents: duplicar um agente',
+    },
+    items: [
+      {
+        product: 'agents',
+        en: 'Duplicate an agent from its Settings tab to try new instructions on a copy. The copy keeps instructions, knowledge, tools, handoff and guardrails; the public link, integrations, secret headers and MCP servers stay with the original.',
+        es: 'Duplicá un agente desde su pestaña Ajustes para probar instrucciones nuevas en una copia. La copia conserva instrucciones, conocimiento, herramientas, derivación y guardarraíles; el link público, las integraciones, los headers secretos y los servidores MCP quedan en el original.',
+        pt: 'Duplique um agente na aba Ajustes para testar novas instruções em uma cópia. A cópia mantém instruções, conhecimento, ferramentas, transferência e guardrails; o link público, as integrações, os headers secretos e os servidores MCP ficam no original.',
+      },
+    ],
+  },
+  {
     id: '2026-10-30-notes-parity-tasks-home',
     date: '2026-10-30',
     title: {
@@ -663,6 +714,18 @@ export const CHANGELOG: ChangelogEntry[] = [
       { product: 'platform', en: 'Besides Google, you can sign in with a 6-digit code sent to your email. It works once, expires in 10 minutes and stops working after 5 wrong tries. An invitation link opened without a session offers both options with the invited email already filled in.', es: 'Además de Google, podés entrar con un código de 6 dígitos que te llega por email. Sirve una vez, vence a los 10 minutos y deja de servir después de 5 intentos fallidos. Un link de invitación abierto sin sesión ofrece las dos opciones, con el email invitado ya puesto.', pt: 'Além do Google, você pode entrar com um código de 6 dígitos que chega por email. Funciona uma vez, vence em 10 minutos e para de funcionar depois de 5 tentativas erradas. Um link de convite aberto sem sessão oferece as duas opções, com o email convidado já preenchido.' },
       { product: 'platform', en: 'When you invite someone with access to only some apps, the email, the invitation page and the pending list name those apps. Choosing more than 20 apps for an invitation or a member no longer fails.', es: 'Cuando invitás a alguien con acceso a algunas apps, el email, la página de la invitación y la lista de pendientes nombran esas apps. Elegir más de 20 apps para una invitación o un miembro ya no falla.', pt: 'Quando você convida alguém com acesso a só alguns apps, o email, a página do convite e a lista de pendentes mostram esses apps. Escolher mais de 20 apps para um convite ou um membro não falha mais.' },
       { product: 'platform', en: 'With most apps granted, the invitation and the members list say "all apps except Track" instead of listing every app. Revoking an invitation asks for confirmation, and an email with too many wrong codes in a day is locked until the next day.', es: 'Con la mayoría de las apps, la invitación y la lista de miembros dicen "todas las apps menos Track" en vez de nombrarlas todas. Revocar una invitación pide confirmación, y un email con demasiados códigos equivocados en el día queda bloqueado hasta el día siguiente.', pt: 'Com a maioria dos apps, o convite e a lista de membros dizem "todos os apps menos Track" em vez de listar todos. Revogar um convite pede confirmação, e um email com códigos errados demais no dia fica bloqueado até o dia seguinte.' },
+    ],
+  },
+  {
+    id: '2026-10-30-flow-list',
+    date: '2026-10-30',
+    title: {
+      en: 'Flow: a List step to sort, limit and remove duplicates',
+      es: 'Flow: un paso Lista para ordenar, limitar y sacar repetidos',
+      pt: 'Flow: um passo Lista para ordenar, limitar e remover repetidos',
+    },
+    items: [
+      { product: 'flow', en: 'The new List step takes a list from an earlier node and sorts it by a field (numbers by value, text in natural order, empty values last), keeps the first N items or removes repeated items by a field. The result is in the items output, up to 10,000 items.', es: 'El nuevo paso Lista toma una lista de un nodo anterior y la ordena por un campo (números por valor, texto en orden natural, vacíos al final), se queda con los primeros N ítems o saca los repetidos por un campo. El resultado queda en la salida items, hasta 10.000 ítems.', pt: 'O novo passo Lista pega uma lista de um nó anterior e a ordena por um campo (números por valor, texto em ordem natural, vazios no fim), mantém os primeiros N itens ou remove os repetidos por um campo. O resultado fica na saída items, até 10.000 itens.' },
     ],
   },
   {
@@ -843,6 +906,18 @@ export const CHANGELOG: ChangelogEntry[] = [
       { product: 'platform', en: 'Press ⌘J on any page to open the assistant in a side panel. It knows the page you are on and the text you selected. Asking from the home page opens a full-page chat with your history, where you rename, delete and search your chats.', es: 'Apretá ⌘J en cualquier página para abrir el asistente en un panel lateral. Sabe en qué página estás y qué texto seleccionaste. Preguntar desde el inicio abre el chat a página completa con tu historial, donde renombrás, borrás y buscás tus charlas.', pt: 'Aperte ⌘J em qualquer página para abrir o assistente em um painel lateral. Ele sabe em que página você está e o texto que selecionou. Perguntar pelo início abre o chat em página inteira com o seu histórico, onde você renomeia, exclui e busca suas conversas.' },
       { product: 'platform', en: 'It reads CRM deals and pipelines, Track projects, Docs, Notes, Link, Cal, Flow, Robots, Agents, Talk, Voice, Chat, Groups and Board, and diagnoses webhooks, flow and robot runs, imports, invitation emails and connected accounts. It only sees the apps you can use in the workspace.', es: 'Lee deals y pipelines del CRM, proyectos de Track, Docs, Notes, Link, Cal, Flow, Robots, Agents, Talk, Voice, Chat, Groups y Board, y diagnostica webhooks, corridas de flows y robots, importaciones, emails de invitación y cuentas conectadas. Solo ve las apps que podés usar en el workspace.', pt: 'Lê deals e pipelines do CRM, projetos do Track, Docs, Notes, Link, Cal, Flow, Robots, Agents, Talk, Voice, Chat, Groups e Board, e diagnostica webhooks, execuções de flows e robôs, importações, e-mails de convite e contas conectadas. Só vê os apps que você pode usar no workspace.' },
       { product: 'platform', en: 'Changes such as a new pipeline, an invitation or an issue show up as a card with what changes, and run only when you click Confirm. Deleting asks you to type the name. Self-host: add OPENROUTER_API_KEY; it runs DeepSeek by default and uses the workspace AI quota.', es: 'Los cambios, como un pipeline nuevo, una invitación o un issue, aparecen en una tarjeta con lo que cambia y se aplican recién cuando hacés clic en Confirmar. Para borrar te pide escribir el nombre. Self-host: agregá OPENROUTER_API_KEY; usa DeepSeek por defecto y la cuota de IA del workspace.', pt: 'As mudanças, como um pipeline novo, um convite ou uma issue, aparecem num cartão com o que muda e só se aplicam quando você clica em Confirmar. Para excluir, pede que você digite o nome. Self-host: adicione OPENROUTER_API_KEY; usa DeepSeek por padrão e a cota de IA do workspace.' },
+    ],
+  },
+  {
+    id: '2026-10-29-docs-word-count',
+    date: '2026-10-29',
+    title: {
+      en: 'Docs: word count in the page menu',
+      es: 'Docs: conteo de palabras en el menú de la página',
+      pt: 'Docs: contagem de palavras no menu da página',
+    },
+    items: [
+      { product: 'docs', en: 'The page menu shows the words, characters and estimated reading time of the page.', es: 'El menú de la página muestra las palabras, los caracteres y el tiempo estimado de lectura.', pt: 'O menu da página mostra as palavras, os caracteres e o tempo estimado de leitura.' },
     ],
   },
   {
@@ -1414,6 +1489,23 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-10-25-crm-stalled',
+    date: '2026-10-25',
+    title: {
+      en: 'CRM: filter stalled deals',
+      es: 'CRM: filtrá los deals estancados',
+      pt: 'CRM: filtre os negócios parados',
+    },
+    items: [
+      {
+        product: 'crm',
+        en: 'The deals table has a Stalled filter that lists open deals past the rotting threshold of their stage, counting activities and emails, with the same rule as the board warning.',
+        es: 'La tabla de deals tiene un filtro Estancados que lista los deals abiertos que pasaron el umbral de su etapa, contando actividades y emails, con la misma regla que el aviso del board.',
+        pt: 'A tabela de negócios tem um filtro Parados que lista os negócios abertos que passaram do limite da etapa, contando atividades e emails, com a mesma regra do aviso do quadro.',
+      },
+    ],
+  },
+  {
     id: '2026-10-24-groups-inbox',
     date: '2026-10-24',
     title: {
@@ -1557,6 +1649,18 @@ export const CHANGELOG: ChangelogEntry[] = [
       { product: 'crm', en: 'Call contacts from the browser with your Twilio account. Each call is logged with duration and outcome, can be recorded with a notice to the other person, and gets a transcript and an AI summary. Calls to the workspace number ring in the browser.', es: 'Llamá a tus contactos desde el navegador con tu cuenta de Twilio. Cada llamada queda registrada con duración y resultado, se puede grabar con aviso a la otra persona y suma transcripción y resumen con IA. Las llamadas al número del workspace suenan en el navegador.', pt: 'Ligue para seus contatos pelo navegador com sua conta da Twilio. Cada chamada fica registrada com duração e resultado, pode ser gravada com aviso à outra pessoa e ganha transcrição e resumo com IA. As chamadas para o número do workspace tocam no navegador.' },
       { product: 'crm', en: 'A Chrome extension for Gmail shows the sender\'s contact, deals and tasks next to each email, creates contacts and tasks, logs emails, inserts CRM templates and tracks opens from compose. Download it from Settings › Integrations.', es: 'Una extensión de Chrome para Gmail muestra contacto, deals y tareas del remitente al lado de cada email, crea contactos y tareas, registra emails, inserta templates del CRM y trackea aperturas desde la redacción. Se descarga desde Configuración › Integraciones.', pt: 'Uma extensão do Chrome para Gmail mostra contato, negócios e tarefas do remetente ao lado de cada email, cria contatos e tarefas, registra emails, insere templates do CRM e rastreia aberturas na redação. Baixe em Configurações › Integrações.' },
       { product: 'crm', en: 'On the phone, lists turn into cards with large call and WhatsApp buttons and the deal board shows one stage per screen with a Move to menu. The CRM installs on the home screen, opens views you already visited without signal and syncs changes when the connection is back.', es: 'En el teléfono las listas pasan a tarjetas con botones grandes de llamar y WhatsApp, y el board de deals muestra una etapa por pantalla con menú Mover a. El CRM se instala en la pantalla de inicio, abre sin señal las vistas que ya visitaste y sincroniza los cambios al volver la red.', pt: 'No celular as listas viram cartões com botões grandes de ligar e WhatsApp, e o quadro de negócios mostra uma etapa por tela com menu Mover para. O CRM se instala na tela inicial, abre sem sinal as telas que você já visitou e sincroniza as alterações quando a conexão volta.' },
+    ],
+  },
+  {
+    id: '2026-10-24-link',
+    date: '2026-10-24',
+    title: {
+      en: 'Link: short links stay out of search results unless you say otherwise',
+      es: 'Link: los links cortos quedan fuera de los buscadores salvo que lo pidas',
+      pt: 'Link: os links curtos ficam fora dos buscadores a menos que você peça',
+    },
+    items: [
+      { product: 'link', en: 'Every redirect now sends X-Robots-Tag: noindex. A new checkbox in the link settings, and the doIndex field in the API, lets search engines index a short link when you want that.', es: 'Todos los redirects envían X-Robots-Tag: noindex. Una opción nueva en los ajustes del link, y el campo doIndex en la API, deja que los buscadores indexen un link corto cuando lo querés.', pt: 'Todos os redirecionamentos agora enviam X-Robots-Tag: noindex. Uma nova opção nas configurações do link, e o campo doIndex na API, deixa os buscadores indexarem um link curto quando você quiser.' },
     ],
   },
   {

@@ -784,13 +784,26 @@ async function trashedAttachmentUrls(owner: NoteOwner, id: string | null): Promi
   return [...urls];
 }
 
+/** Saca los adjuntos que otra nota del workspace sigue usando (por ejemplo una copia de la nota). */
+async function unreferencedUrls(owner: NoteOwner, urls: string[]): Promise<string[]> {
+  const db = getDb();
+  const out: string[] = [];
+  for (const url of urls) {
+    const hit = await db
+      .prepare('SELECT 1 AS x FROM notes WHERE workspace_id = ? AND instr(content, ?) > 0 LIMIT 1')
+      .get(owner.workspaceId, url);
+    if (!hit) out.push(url);
+  }
+  return out;
+}
+
 /** Borrado definitivo: solo desde la papelera (los adjuntos se borran del storage). */
 export async function deleteNoteForever(owner: NoteOwner, id: string): Promise<boolean> {
   const urls = await trashedAttachmentUrls(owner, id);
   const res = await getDb()
     .prepare(`DELETE FROM notes WHERE id = ? AND trashed_at IS NOT NULL AND ${OWNER_WHERE}`)
     .run(id, ...ownerArgs(owner));
-  if (res.changes > 0) await deleteUploads(urls);
+  if (res.changes > 0) await deleteUploads(await unreferencedUrls(owner, urls));
   return res.changes > 0;
 }
 
@@ -799,7 +812,7 @@ export async function emptyNotesTrash(owner: NoteOwner): Promise<number> {
   const res = await getDb()
     .prepare(`DELETE FROM notes WHERE trashed_at IS NOT NULL AND ${OWNER_WHERE}`)
     .run(...ownerArgs(owner));
-  if (res.changes > 0) await deleteUploads(urls);
+  if (res.changes > 0) await deleteUploads(await unreferencedUrls(owner, urls));
   return res.changes;
 }
 

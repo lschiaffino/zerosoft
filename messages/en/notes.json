@@ -76,6 +76,9 @@
     "emptyStateBody": "Notes you move to the trash stay here until you restore or delete them."
   },
   "editor": {
+    "duplicate": "Duplicate",
+    "copyOf": "Copy of {title}",
+    "duplicated": "Note duplicated",
     "back": "Notes",
     "moveTo": "Move to notebook",
     "noNotebook": "No notebook",

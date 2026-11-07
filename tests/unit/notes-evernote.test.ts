@@ -608,6 +608,17 @@ describe('notes: adjuntos', () => {
     await deleteNoteForever(a, n.id);
     expect(storage.deleted).toContain(up.url);
   });
+
+  it('borrar el original para siempre no borra adjuntos que usa una copia', async () => {
+    const { a } = await ownerPair();
+    const url = '/api/uploads/docs/shared-copy.png';
+    const block: DocsBlock = { id: 'i1', type: 'image', content: '', url, name: 'x.png', size: 1, mime: 'image/png' };
+    const orig = await createNote(a, { title: 'Original', content: [block] });
+    await createNote(a, { title: 'Copia', content: [{ ...block, id: 'i2' }] });
+    await trashNote(a, orig.id);
+    await deleteNoteForever(a, orig.id);
+    expect(storage.deleted).not.toContain(url);
+  });
 });
 
 // ---------- Export ----------

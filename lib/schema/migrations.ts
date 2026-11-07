@@ -8608,6 +8608,14 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Link: los redirects llevan X-Robots-Tag: noindex salvo que el link
+    // active la indexación (como el doIndex de Dub).
+    id: '200_link_do_index',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE links ADD COLUMN do_index INTEGER NOT NULL DEFAULT 0');
+    },
+  },
+  {
     // Books: impuesto incluido, cobros por lote, presupuestos, bienes de uso, reglas bancarias, centros de costo y portal de cliente.
     id: '220_books_parity',
     up: booksParityUp,

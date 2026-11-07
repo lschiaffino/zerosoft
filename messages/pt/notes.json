@@ -76,6 +76,9 @@
     "emptyStateBody": "As notas que você manda para a lixeira ficam aqui até você restaurar ou apagar."
   },
   "editor": {
+    "duplicate": "Duplicar",
+    "copyOf": "Cópia de {title}",
+    "duplicated": "Nota duplicada",
     "back": "Notas",
     "moveTo": "Mover para caderno",
     "noNotebook": "Sem caderno",

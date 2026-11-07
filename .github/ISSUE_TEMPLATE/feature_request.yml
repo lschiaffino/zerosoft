@@ -1,17 +1,70 @@
 name: Feature request
-description: Something you miss from the tool you're replacing
-labels: [enhancement]
+description: Something you miss from the tool you're replacing, or a new idea
+labels: [enhancement, needs triage]
 body:
-  - type: dropdown
-    id: product
+  - type: markdown
     attributes:
-      label: Product
-      options: [Link, CRM, Track, Cal, Chat, Docs, Other]
+      value: |
+        Please search the existing issues first. For anything big, agree on the approach with a
+        maintainer in the issue before writing code (see CONTRIBUTING.md).
+
+        Features that only large organizations need (SSO/SAML, SCIM, audit export, custom roles,
+        white-label, multi-workspace admin) live in `ee/` and are built by the core team.
+  - type: dropdown
+    id: app
+    attributes:
+      label: App
+      options:
+        - Agents
+        - Analytics
+        - Board
+        - Books
+        - Cal
+        - Chat
+        - CRM
+        - Design
+        - Docs
+        - Flow
+        - Forms
+        - Groups
+        - Hiring
+        - Link
+        - Notes
+        - People
+        - Rec
+        - Robots
+        - Send
+        - Shop
+        - Sign
+        - Social
+        - Talk
+        - Track
+        - Voice
+        - Platform (sign-in, workspaces, settings, search, assistant)
+        - Site, blog or API docs
+        - Self-hosting or Docker
+        - Other
     validations:
       required: true
   - type: textarea
     id: need
     attributes:
-      label: What do you need, and which tool does it today?
+      label: What do you need, and why?
+      description: Describe the problem first, then the solution you have in mind.
     validations:
       required: true
+  - type: input
+    id: reference
+    attributes:
+      label: Which tool does this today?
+      description: For example "Linear cycles" or "HubSpot sequences". A link helps.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, mockups or anything else
+  - type: checkboxes
+    id: pr
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to open a PR for this.
