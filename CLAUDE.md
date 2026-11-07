@@ -16,12 +16,11 @@ commit with your own name and email, and open a PR as CONTRIBUTING.md says.
   `Lautaro Schiaffino <lschiaffino@users.noreply.github.com>` (Vercel rejects
   deploys from other authors) with the trailer
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Vercel deploys
-  `main` automatically.
-- **Backlog:** `research/ideas.json` feeds the public roadmap board (see
-  `research/README.md`). When you build an idea, set `status: "done"` and its
-  `content/changelog.ts` entry. When you add or remove a capability, update
-  `content/feature-parity/<product>.ts` (`status` and `lastReviewed`).
-  Security bugs never go to the public board: fix them directly.
+  `main` automatically, and only `main` (`vercel.json` turns off branch
+  previews).
+- **Backlog, feature parity and security bugs:** follow the Conventions in
+  AGENTS.md (`research/ideas.json`, `content/changelog.ts`,
+  `content/feature-parity/<app>.ts`).
 - **Routine prompts:** the daily blog routine is `docs/blog-routine.md`.
   Internal material (product strategy, brand drafts, design reviews) lives in
   the private repo `lschiaffino/zerosoft-internal`.
