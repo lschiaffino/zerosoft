@@ -1109,6 +1109,18 @@ export const NODE_DEFS = {
       },
     ],
   },
+  'data.list': {
+    type: 'data.list',
+    category: 'data',
+    outputs: ['out'],
+    fields: [
+      { key: 'items', kind: 'text', template: true, placeholder: '{{nodes.deals.output.deals}}' },
+      { key: 'operation', kind: 'select', options: ['sort', 'limit', 'dedupe'], default: 'sort' },
+      { key: 'field', kind: 'text', placeholder: 'amount', showIf: { key: 'operation', values: ['sort', 'dedupe'] } },
+      { key: 'order', kind: 'select', options: ['asc', 'desc'], default: 'asc', showIf: { key: 'operation', values: ['sort'] } },
+      { key: 'count', kind: 'number', default: 10, showIf: { key: 'operation', values: ['limit'] } },
+    ],
+  },
   'data.code': {
     type: 'data.code',
     category: 'data',
