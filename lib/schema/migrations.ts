@@ -8610,7 +8610,7 @@ export const MIGRATIONS: Migration[] = [
     // Groups: importación de chats y mensajes al conectar un número (lib/groups-import.ts).
     // Una fila por número con su fase y cursor (el cron la retoma con un claim), la cola
     // de chats del proveedor a importar y el silencio de cada chat (como en WhatsApp).
-    id: '200_groups_import',
+    id: '201_groups_import',
     up: async (c) => {
       await c.execute(`CREATE TABLE IF NOT EXISTS groups_imports (
         number_id TEXT PRIMARY KEY REFERENCES groups_numbers(id) ON DELETE CASCADE,

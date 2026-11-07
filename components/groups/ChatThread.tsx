@@ -1583,6 +1583,7 @@ export default function ChatThread(props: ThreadProps) {
                       { key: 'photo', label: t('wa.photos'), onSelect: () => photoRef.current?.click() },
                       { key: 'poll', label: t('polls.button'), onSelect: () => (setPollError(''), setPollOpen(true)) },
                       { key: 'schedule', label: t('thread.schedule'), onSelect: () => setSchedule({ open: true, at: '', busy: false, error: '' }) },
+                      { key: 'ai', label: t('wa.aiTools'), onSelect: () => setAiOpen(true) },
                     ]}
                   />
                 </>
@@ -1626,7 +1627,7 @@ export default function ChatThread(props: ThreadProps) {
               {mode === 'reply' && (
                 <button
                   type="button"
-                  className={`wa-icon-btn${aiOpen ? ' is-on' : ''}`}
+                  className={`wa-icon-btn wa-ai-btn${aiOpen ? ' is-on' : ''}`}
                   onClick={() => setAiOpen((v) => !v)}
                   aria-expanded={aiOpen}
                   aria-label={t('wa.aiTools')}

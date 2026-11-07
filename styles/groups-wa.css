@@ -603,3 +603,4 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-day { transition: opacity 0.2s; }
 .wa-messages:not(.is-scrolling) .wa-day.is-stuck { opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .wa-day { transition: none; } }
+@media (max-width: 720px) { .wa-bar .wa-ai-btn { display: none; } .wa-bar .wa-icon-btn { width: 38px; } }

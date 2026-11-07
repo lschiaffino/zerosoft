@@ -632,7 +632,7 @@ export default function InboxShell({
                       <span className="gr-row-bottom">
                         <span className="gr-row-preview">
                           {!c.match && c.lastDirection === 'out' && c.lastStatus && c.lastStatus !== 'received' && <Ticks status={c.lastStatus} label={t(`status.${c.lastStatus}`)} />}
-                          {!c.match && c.kind === 'group' && c.lastDirection === 'in' && c.lastSender && <span className="gr-row-sender">{c.lastSender}:&nbsp;</span>}
+                          {!c.match && c.kind === 'group' && c.lastDirection === 'in' && c.lastSender && <span className="gr-row-sender">{c.lastSender}:</span>}
                           {c.match ?? mediaText({ preview: c.lastMessagePreview })}
                         </span>
                         <span className="gr-row-icons">
