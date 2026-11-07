@@ -142,6 +142,7 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
         project: t('display.groups.project'),
       },
       sorts: {
+        manual: t('display.sorts.manual'),
         newest: t('display.sorts.newest'),
         oldest: t('display.sorts.oldest'),
         updated: t('display.sorts.updated'),
