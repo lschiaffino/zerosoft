@@ -87,13 +87,14 @@
     "finishConnect": "Terminar de conectar"
   },
   "filters": {
-    "all": "Abertas",
+    "all": "Todas",
     "unread": "Não lidas",
-    "unanswered": "Sem resposta",
+    "unanswered": "Aguardando",
     "flagged": "Atrasadas",
     "mine": "Minhas",
     "unassigned": "Sem responsável",
-    "closed": "Fechadas"
+    "closed": "Fechadas",
+    "groups": "Grupos"
   },
   "thread": {
     "back": "Conversas",
@@ -249,7 +250,10 @@
     "description": "Descrição",
     "descriptionPlaceholder": "Sobre o que é o grupo",
     "descriptionHelp": "Também muda no WhatsApp.",
-    "sampleInvite": "É um grupo de exemplo: não tem um link de convite real."
+    "sampleInvite": "É um grupo de exemplo: não tem um link de convite real.",
+    "searchMembers": "Buscar membros",
+    "memberOptions": "Opções de {name}",
+    "removeMember": "Remover do grupo"
   },
   "roles": {
     "member": "Membro",
@@ -832,7 +836,7 @@
     "media_too_large": "Passa do limite do WhatsApp: 16 MB para mensagens de voz e 100 MB para qualquer outro arquivo.",
     "invalid_media": "Esse arquivo não pode ser enviado como mensagem de voz.",
     "too_many_files": "Até 10 arquivos por vez.",
-    "client_upload_unavailable": "O envio direto não está disponível aqui. Arquivos de até 10 MB funcionam.",
+    "client_upload_unavailable": "O envio direto não está disponível aqui. Arquivos de até 4,5 MB funcionam.",
     "edit_failed_whatsapp": "Não foi possível editar no WhatsApp. A mensagem ficou como estava.",
     "file_too_large_local": "Este servidor aceita arquivos de até 4,5 MB. Para enviar até 100 MB, um admin precisa configurar o armazenamento Blob."
   },
@@ -1420,9 +1424,15 @@
     "location": "Localização",
     "emoji": "Emojis",
     "emojiSets": {
-      "smileys": "Carinhas",
-      "gestures": "Gestos",
-      "symbols": "Símbolos e objetos"
+      "recent": "Recentes",
+      "smileys": "Carinhas e pessoas",
+      "nature": "Animais e natureza",
+      "food": "Comida e bebida",
+      "activities": "Atividades",
+      "travel": "Viagens e lugares",
+      "objects": "Objetos",
+      "symbols": "Símbolos",
+      "flags": "Bandeiras"
     },
     "viewer": "Visualizador de fotos e vídeos",
     "download": "Baixar",
@@ -1478,6 +1488,42 @@
     "clearFilters": "Limpar filtros",
     "aiTools": "IA: rascunho e tradução",
     "writeNote": "Escrever uma nota interna (N)",
-    "backToWhatsApp": "Voltar ao WhatsApp (R)"
+    "backToWhatsApp": "Voltar ao WhatsApp (R)",
+    "messageInfo": "Dados da mensagem",
+    "star": "Favoritar",
+    "unstar": "Desfavoritar",
+    "starred": "Favoritada",
+    "select": "Selecionar",
+    "selectMessage": "Selecionar mensagem",
+    "selectedN": "{n, plural, one {# selecionada} other {# selecionadas}}",
+    "youDeleted": "Você apagou esta mensagem",
+    "showDeleted": "Ver original",
+    "editMessage": "Editar mensagem",
+    "saveEdit": "Salvar edição",
+    "paused": "Pausado",
+    "resume": "Continuar gravando",
+    "camera": "Câmera",
+    "audio": "Áudio",
+    "infoSent": "Enviada",
+    "infoNoTime": "Sem horário informado",
+    "infoBy": "Enviada por",
+    "contactMessage": "Enviar mensagem",
+    "contactSave": "Salvar",
+    "contactSaved": "{name} foi salvo no CRM",
+    "assignMe": "Atribuir a mim",
+    "unassignMe": "Tirar de mim",
+    "selectChats": "Selecionar conversas",
+    "closeChat": "Fechar conversa",
+    "chatOptions": "Opções de {name}",
+    "draft": "Rascunho:",
+    "searchChats": "Conversas",
+    "searchMessages": "Mensagens",
+    "markedUnread": "Marcada como não lida",
+    "emojiCategories": "Categorias de emojis",
+    "emojiSearch": "Buscar emoji",
+    "emojiResults": "Resultados",
+    "emojiNone": "Nenhum emoji encontrado",
+    "sendFiles": "{n, plural, one {Enviar # arquivo} other {Enviar # arquivos}}",
+    "importNothingNew": "Já estava tudo importado ({chats} conversas)."
   }
 }

@@ -87,13 +87,14 @@
     "finishConnect": "Finish connecting"
   },
   "filters": {
-    "all": "Open",
+    "all": "All",
     "unread": "Unread",
-    "unanswered": "Unanswered",
+    "unanswered": "Waiting",
     "flagged": "Overdue",
     "mine": "Mine",
     "unassigned": "Unassigned",
-    "closed": "Closed"
+    "closed": "Closed",
+    "groups": "Groups"
   },
   "thread": {
     "back": "Chats",
@@ -249,7 +250,10 @@
     "description": "Description",
     "descriptionPlaceholder": "What the group is about",
     "descriptionHelp": "It also changes in WhatsApp.",
-    "sampleInvite": "This is a sample group: it has no real invite link."
+    "sampleInvite": "This is a sample group: it has no real invite link.",
+    "searchMembers": "Search members",
+    "memberOptions": "Options for {name}",
+    "removeMember": "Remove from group"
   },
   "roles": {
     "member": "Member",
@@ -832,7 +836,7 @@
     "media_too_large": "Over WhatsApp's limit: 16 MB for voice notes and 100 MB for any other file.",
     "invalid_media": "That file can't be sent as a voice note.",
     "too_many_files": "Up to 10 files at a time.",
-    "client_upload_unavailable": "Direct upload is not available here. Files up to 10 MB still work.",
+    "client_upload_unavailable": "Direct upload is not available here. Files up to 4.5 MB still work.",
     "edit_failed_whatsapp": "WhatsApp did not accept the edit. The message stays as it was.",
     "file_too_large_local": "This server takes files up to 4.5 MB. To send files up to 100 MB an admin has to set up Blob storage."
   },
@@ -1420,9 +1424,15 @@
     "location": "Location",
     "emoji": "Emoji",
     "emojiSets": {
-      "smileys": "Smileys",
-      "gestures": "Gestures",
-      "symbols": "Symbols and objects"
+      "recent": "Recent",
+      "smileys": "Smileys and people",
+      "nature": "Animals and nature",
+      "food": "Food and drink",
+      "activities": "Activities",
+      "travel": "Travel and places",
+      "objects": "Objects",
+      "symbols": "Symbols",
+      "flags": "Flags"
     },
     "viewer": "Media viewer",
     "download": "Download",
@@ -1478,6 +1488,42 @@
     "clearFilters": "Clear filters",
     "aiTools": "AI: draft and translate",
     "writeNote": "Write an internal note (N)",
-    "backToWhatsApp": "Back to WhatsApp (R)"
+    "backToWhatsApp": "Back to WhatsApp (R)",
+    "messageInfo": "Message info",
+    "star": "Star",
+    "unstar": "Unstar",
+    "starred": "Starred",
+    "select": "Select",
+    "selectMessage": "Select message",
+    "selectedN": "{n, plural, one {# selected} other {# selected}}",
+    "youDeleted": "You deleted this message",
+    "showDeleted": "See original",
+    "editMessage": "Edit message",
+    "saveEdit": "Save edit",
+    "paused": "Paused",
+    "resume": "Resume recording",
+    "camera": "Camera",
+    "audio": "Audio",
+    "infoSent": "Sent",
+    "infoNoTime": "Time not reported",
+    "infoBy": "Sent by",
+    "contactMessage": "Message",
+    "contactSave": "Save contact",
+    "contactSaved": "{name} saved in CRM",
+    "assignMe": "Assign to me",
+    "unassignMe": "Unassign me",
+    "selectChats": "Select chats",
+    "closeChat": "Close chat",
+    "chatOptions": "Options for {name}",
+    "draft": "Draft:",
+    "searchChats": "Chats",
+    "searchMessages": "Messages",
+    "markedUnread": "Marked as unread",
+    "emojiCategories": "Emoji categories",
+    "emojiSearch": "Search emoji",
+    "emojiResults": "Results",
+    "emojiNone": "No emoji found",
+    "sendFiles": "{n, plural, one {Send # file} other {Send # files}}",
+    "importNothingNew": "Everything was already imported ({chats} chats)."
   }
 }

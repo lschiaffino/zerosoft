@@ -16,6 +16,8 @@ export interface TrayItem {
   url?: string;
   error?: string;
   uploaded?: UploadedFile;
+  /** Comentario de este archivo (como en WhatsApp, uno por archivo). */
+  caption?: string;
 }
 
 /** Hasta cuántos archivos van juntos (como WhatsApp, que deja 30). */
@@ -82,6 +84,8 @@ function uploadLarge(file: File, onProgress: (p: number) => void): { done: Promi
       if (ctrl.signal.aborted) throw new Error('aborted');
       const msg = String((err as Error)?.message ?? '');
       if (/client_upload_unavailable|501/.test(msg)) {
+        // Sin Blob en el servidor: hasta 4,5 MB por la ruta común; más, un aviso claro.
+        if (file.size > SMALL_UPLOAD) throw new Error('file_too_large_local');
         const small = uploadSmall(file, onProgress);
         fallback = small;
         return small.done;
@@ -161,6 +165,8 @@ export function useAttachTray() {
     });
   }, []);
 
+  const setCaption = useCallback((key: string, caption: string) => patch(key, { caption }), [patch]);
+
   const clear = useCallback(() => {
     aborts.current.forEach((a) => a());
     setItems((list) => {
@@ -177,7 +183,7 @@ export function useAttachTray() {
     [],
   );
 
-  return { items, add, retry, remove, clear };
+  return { items, add, retry, remove, clear, setCaption };
 }
 
 /** Archivos de un evento de arrastre o de pegado. */

@@ -144,7 +144,10 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => void reimport(n)}>
                         {t('wa.reimport')}
                       </button>
-                      <select className="select" value={perChat} onChange={(e) => setPerChat(Number(e.target.value))} aria-label={t('wa.perChat')}>
+                      <label className="gr-reimport-label" htmlFor={`per-chat-${n.id}`}>
+                        {t('wa.perChat')}
+                      </label>
+                      <select id={`per-chat-${n.id}`} className="select" value={perChat} onChange={(e) => setPerChat(Number(e.target.value))}>
                         {[20, 50, 100, 200].map((v) => (
                           <option key={v} value={v}>
                             {v}

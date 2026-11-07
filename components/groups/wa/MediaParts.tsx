@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { colorIndex, duration, extensionOf, fileSize } from './format';
-import { DocIcon, Download, MapPin, Mic, Pause, Person, Play } from './icons';
+import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, Play } from './icons';
 
 /** Barras fijas por mensaje (parecen una onda, sin decodificar el audio). */
 function bars(seed: string, n = 36): number[] {
@@ -19,7 +19,7 @@ function bars(seed: string, n = 36): number[] {
 const SPEEDS = [1, 1.5, 2];
 
 /** Nota de voz o audio: reproducir, avanzar, velocidad (como WhatsApp). */
-export function VoicePlayer({ id, src, seconds, voice }: { id: string; src: string; seconds?: number; voice?: boolean }) {
+export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src: string; seconds?: number; voice?: boolean; name?: string }) {
   const t = useTranslations('groups.wa');
   const ref = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -51,7 +51,7 @@ export function VoicePlayer({ id, src, seconds, voice }: { id: string; src: stri
         ref={ref}
         className="wa-audio-el"
         src={src}
-        preload="none"
+        preload={voice ? 'none' : 'metadata'}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => {
@@ -66,11 +66,20 @@ export function VoicePlayer({ id, src, seconds, voice }: { id: string; src: stri
         {playing ? <Pause size={24} /> : <Play size={24} />}
       </button>
       <div className="wa-voice-track">
-        <div className="wa-voice-bars" aria-hidden="true">
-          {shape.map((v, i) => (
-            <i key={i} style={{ height: `${Math.round(v * 100)}%` }} className={i / shape.length < progress ? 'is-on' : ''} />
-          ))}
-        </div>
+        {voice ? (
+          <div className="wa-voice-bars" aria-hidden="true">
+            {shape.map((v, i) => (
+              <i key={i} style={{ height: `${Math.round(v * 100)}%` }} className={i / shape.length < progress ? 'is-on' : ''} />
+            ))}
+          </div>
+        ) : (
+          <div className="wa-audio-line" aria-hidden="true">
+            {name && <span className="wa-audio-name">{name}</span>}
+            <span className="wa-audio-bar">
+              <i style={{ width: `${progress * 100}%` }} />
+            </span>
+          </div>
+        )}
         <input
           type="range"
           className="wa-voice-seek"
@@ -94,8 +103,8 @@ export function VoicePlayer({ id, src, seconds, voice }: { id: string; src: stri
           )}
         </span>
       </div>
-      <span className={`wa-voice-badge${voice ? ' is-ptt' : ''}`} aria-hidden="true">
-        <Mic size={14} />
+      <span className={`wa-voice-badge${voice ? ' is-ptt' : ' is-audio'}`} aria-hidden="true">
+        {voice ? <Mic size={14} /> : <MusicIcon size={18} />}
       </span>
     </div>
   );
@@ -255,17 +264,34 @@ export function LocationCard({ lat, lng, name, address, url, live }: { lat: numb
   );
 }
 
-/** Contacto compartido. */
-export function ContactCard({ name, phone }: { name: string; phone: string }) {
+/** Contacto compartido, con "Enviar mensaje" (busca su chat) y "Guardar" (lo agrega al CRM). */
+export function ContactCard({ name, phone, onMessage, onSave }: { name: string; phone: string; onMessage?: () => void; onSave?: () => void }) {
+  const t = useTranslations('groups.wa');
   return (
-    <span className="wa-contact">
-      <span className="wa-contact-avatar" aria-hidden="true">
-        <Person size={22} />
+    <span className="wa-contact-card">
+      <span className="wa-contact">
+        <span className="wa-contact-avatar" aria-hidden="true">
+          <Person size={22} />
+        </span>
+        <span className="wa-contact-text">
+          <strong>{name}</strong>
+          {phone && <span>+{phone}</span>}
+        </span>
       </span>
-      <span className="wa-contact-text">
-        <strong>{name}</strong>
-        {phone && <span>+{phone}</span>}
-      </span>
+      {phone && (onMessage || onSave) && (
+        <span className="wa-contact-actions">
+          {onMessage && (
+            <button type="button" onClick={onMessage}>
+              {t('contactMessage')}
+            </button>
+          )}
+          {onSave && (
+            <button type="button" onClick={onSave}>
+              {t('contactSave')}
+            </button>
+          )}
+        </span>
+      )}
     </span>
   );
 }

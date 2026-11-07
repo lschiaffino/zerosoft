@@ -33,7 +33,7 @@ export function listTime(iso: string | null | undefined, locale: string, now = n
   const d = parseDbUtc(iso);
   if (Number.isNaN(d.getTime())) return '';
   const days = Math.round((startOfDay(now) - startOfDay(d)) / DAY);
-  if (days <= 0) return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  if (days <= 0) return d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
   if (days === 1) return relativeDay(-1, locale);
   if (days < 7) return capitalize(d.toLocaleDateString(locale, { weekday: 'long' }), locale);
   return d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });

@@ -74,7 +74,8 @@ test('mensajes: editar, fijar, reenviar y borrar para todos', async ({ page, req
   await mine.hover();
   await mine.getByRole('button', { name: 'More actions' }).click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();
-  const editor = mine.getByLabel('Edit message');
+  // Como WhatsApp: el texto pasa al composer con la barra "Edit message".
+  const editor = page.getByLabel('Edit message', { exact: true });
   await editor.fill('Sending it today, before 5 pm');
   await editor.press('Enter');
   const edited = page.locator('.gr-msg-out', { hasText: 'before 5 pm' });
@@ -103,7 +104,7 @@ test('mensajes: editar, fijar, reenviar y borrar para todos', async ({ page, req
   await edited.getByRole('button', { name: 'More actions' }).click();
   await page.getByRole('menuitem', { name: 'Delete for everyone' }).click();
   await page.getByRole('alertdialog', { name: 'Delete for everyone?' }).getByRole('button', { name: 'Delete for everyone' }).click();
-  await expect(page.locator('.gr-msg-out.is-deleted').getByText('Deleted for everyone')).toBeVisible();
+  await expect(page.locator('.gr-msg-out.is-deleted').getByText('You deleted this message')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Pinned messages' })).toHaveCount(0);
   await expect(page.locator('.gr-row', { hasText: a })).toContainText('Message deleted');
 
@@ -136,8 +137,8 @@ test('notas con @mención, editar y borrar; asignar deja historial', async ({ pa
   await saved.hover();
   await saved.getByRole('button', { name: 'More actions' }).click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();
-  await saved.getByLabel('Edit message').fill('Ping @Demo User about this invoice');
-  await saved.getByRole('button', { name: 'Save' }).click();
+  await page.getByLabel('Edit message', { exact: true }).fill('Ping @Demo User about this invoice');
+  await page.getByRole('button', { name: 'Save edit' }).click();
   const editedNote = page.locator('.gr-msg-note', { hasText: 'about this invoice' });
   await expect(editedNote.getByText('Edited')).toBeVisible();
   await editedNote.hover();
@@ -169,6 +170,7 @@ test('acciones en masa: no leído, fijar y cerrar varios chats', async ({ page, 
   await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
   await page.getByRole('searchbox', { name: 'Search chats and messages' }).fill(tag);
   await expect(page.locator('.gr-row')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Select chats' }).click();
   await page.getByLabel(`Select chat ${x}`).check();
   await page.getByLabel(`Select chat ${y}`).check();
   const bar = page.getByRole('toolbar', { name: 'Bulk actions' });
