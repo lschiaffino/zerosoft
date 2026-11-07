@@ -95,9 +95,9 @@ test('Notion: export real con árbol, relación entre bases, toggles e imagen; r
   await done.getByRole('link', { name: `Open ${wikiTitle}` }).click();
   await expect(page).toHaveURL(/\/app\/docs\/[0-9a-f-]{36}$/, { timeout: 45_000 });
   // Árbol en el sidebar: Engineering cuelga de la wiki y la base de Engineering.
-  const side = page.locator('.docs-sidebar');
-  await expect(side.getByText(wikiTitle)).toBeVisible();
-  await expect(side.getByText('Engineering').first()).toBeVisible();
+  const side = page.getByRole('navigation', { name: 'Docs' });
+  await expect(side.getByRole('link', { name: wikiTitle })).toBeVisible();
+  await expect(side.getByRole('link', { name: 'Engineering' }).first()).toBeVisible();
   // Contenido: link interno, listas anidadas, tarea hecha, toggle con su hijo e imagen subida.
   await expect(page.locator('a[data-page]', { hasText: 'Engineering' }).first()).toBeVisible();
   await expect(page.locator('.docs-editable.docs-bulleted_list_item', { hasText: 'Nested' })).toHaveAttribute('data-depth', '1');

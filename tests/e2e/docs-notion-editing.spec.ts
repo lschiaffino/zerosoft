@@ -81,7 +81,7 @@ test('Listas: Tab y Shift+Tab anidan, Enter en un ítem vacío sale, Backspace v
   const [uno, primero, tarea, hijo] = [await textX('Uno'), await textX('Primero'), await textX('Tarea'), await textX('Hijo')];
   expect(Math.abs(uno - primero)).toBeLessThanOrEqual(1);
   expect(Math.abs(uno - tarea)).toBeLessThanOrEqual(1);
-  const hijoBox = (await page.locator('.docs-block-outer', { has: editable(page, 'Hijo') }).first().boundingBox())!;
+  const hijoBox = (await page.locator('.docs-block-outer[data-bi="1"]').boundingBox())!;
   expect(Math.abs(hijoBox.x - uno)).toBeLessThanOrEqual(1);
   expect(hijo).toBeGreaterThan(uno);
 
