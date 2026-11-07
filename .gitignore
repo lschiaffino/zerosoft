@@ -22,3 +22,9 @@ public/uploads/
 # Tests
 /test-results/
 /playwright-report/
+
+# Salida local de herramientas de diseño y capturas (el material interno vive en
+# el repo privado zerosoft-internal; ver CLAUDE.md)
+/.impeccable/
+/screenshots/
+/PRODUCT.md
