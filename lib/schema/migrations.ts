@@ -8639,6 +8639,7 @@ export const MIGRATIONS: Migration[] = [
         PRIMARY KEY (number_id, remote_jid)
       )`);
       await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN muted_until TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN marked_unread INTEGER NOT NULL DEFAULT 0');
     },
   },
 ];

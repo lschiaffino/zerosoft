@@ -1,7 +1,8 @@
 'use client';
 
 import LocalText from '@/components/ui/LocalText';
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ChatDto, MessageDto } from '@/lib/groups';
 import { MAX_FORWARD_TARGETS, formatDuration } from '@/lib/groups-inbox-rules';
@@ -13,11 +14,17 @@ export interface MenuItem {
   label: string;
   onSelect: () => void;
   danger?: boolean;
+  /** Ícono a la izquierda (el menú de adjuntar los muestra en círculos de color). */
+  icon?: ReactNode;
+  /** Separa este ítem de los anteriores (acciones del equipo debajo de las de WhatsApp). */
+  divider?: boolean;
 }
 
 /**
- * Menú de un mensaje (⋯): role="menu", flechas para moverse, Esc cierra y
- * devuelve el foco al botón, clic afuera también cierra.
+ * Menú (⋯ o la flecha de un mensaje): role="menu", flechas para moverse, Esc
+ * cierra y devuelve el foco al botón, clic afuera también cierra. La lista va
+ * en un portal con posición fija: se abre hacia arriba si abajo no entra y
+ * nunca queda tapada por el composer ni cortada por el borde de la ventana.
  */
 export function MessageMenu({
   label,
@@ -25,28 +32,73 @@ export function MessageMenu({
   trigger,
   className = 'btn btn-ghost btn-sm',
   align,
+  onOpenChange,
 }: {
   label: string;
   items: MenuItem[];
   /** Contenido del botón (por defecto ⋯). */
   trigger?: ReactNode;
   className?: string;
-  /** Lado hacia el que abre la lista (por defecto, el del CSS). */
+  /** Lado hacia el que abre la lista (por defecto, alineada a la derecha del botón). */
   align?: 'left' | 'right';
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const wrap = useRef<HTMLSpanElement>(null);
+  const [open, setOpenState] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
+  const setOpen = (v: boolean | ((p: boolean) => boolean)) =>
+    setOpenState((prev) => {
+      const next = typeof v === 'function' ? v(prev) : v;
+      if (next !== prev) onOpenChange?.(next);
+      return next;
+    });
+
+  // Posición: debajo del botón si entra; si no, arriba. Siempre dentro de la ventana.
+  useLayoutEffect(() => {
+    if (!open || !button.current || !list.current) return;
+    const b = button.current.getBoundingClientRect();
+    const l = list.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const gap = 4;
+    const below = vh - b.bottom - gap - 8;
+    const above = b.top - gap - 8;
+    const up = l.height > below && above > below;
+    const maxHeight = Math.max(120, up ? above : below);
+    const h = Math.min(l.height, maxHeight);
+    const top = up ? b.top - gap - h : b.bottom + gap;
+    let left = align === 'left' ? b.left : b.right - l.width;
+    left = Math.min(Math.max(8, left), vw - l.width - 8);
+    setPos({ top, left, maxHeight });
+  }, [open, align, items.length]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setPos(null);
+      return;
+    }
     list.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
     const onDown = (e: MouseEvent) => {
-      if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (button.current?.contains(t) || list.current?.contains(t)) return;
+      setOpen(false);
     };
+    const close = () => setOpen(false);
     document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
+    window.addEventListener('resize', close);
+    // Si se scrollea lo de atrás (no el propio menú), se cierra: la posición dejó de valer.
+    const onScroll = (e: Event) => {
+      if (list.current && e.target instanceof Node && list.current.contains(e.target)) return;
+      close();
+    };
+    window.addEventListener('scroll', onScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', onScroll, true);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   function onKey(e: KeyboardEvent<HTMLDivElement>) {
@@ -56,6 +108,9 @@ export function MessageMenu({
       e.preventDefault();
       const next = all[(i + (e.key === 'ArrowDown' ? 1 : -1) + all.length) % all.length];
       next?.focus();
+    } else if (e.key === 'Home' || e.key === 'End') {
+      e.preventDefault();
+      (e.key === 'Home' ? all[0] : all[all.length - 1])?.focus();
     } else if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
@@ -65,8 +120,34 @@ export function MessageMenu({
   }
 
   if (items.length === 0) return null;
+  const listEl = open ? (
+    <div
+      className={`gr-menu-list is-portal${items.some((it) => it.icon) ? ' has-icons' : ''}`}
+      role="menu"
+      aria-label={label}
+      ref={list}
+      onKeyDown={onKey}
+      style={pos ? { top: pos.top, left: pos.left, maxHeight: pos.maxHeight } : { top: -9999, left: -9999 }}
+    >
+      {items.map((it) => (
+        <button
+          key={it.key}
+          type="button"
+          role="menuitem"
+          className={`gr-menu-item${it.danger ? ' gr-danger' : ''}${it.divider ? ' has-divider' : ''}`}
+          onClick={() => {
+            setOpen(false);
+            it.onSelect();
+          }}
+        >
+          {it.icon && <span className={`gr-menu-icon is-${it.key}`}>{it.icon}</span>}
+          <span>{it.label}</span>
+        </button>
+      ))}
+    </div>
+  ) : null;
   return (
-    <span className="gr-menu" ref={wrap}>
+    <span className="gr-menu">
       <button
         ref={button}
         type="button"
@@ -79,24 +160,7 @@ export function MessageMenu({
       >
         {trigger ?? '⋯'}
       </button>
-      {open && (
-        <div className={`gr-menu-list${align ? ` is-${align}` : ''}`} role="menu" aria-label={label} ref={list} onKeyDown={onKey}>
-          {items.map((it) => (
-            <button
-              key={it.key}
-              type="button"
-              role="menuitem"
-              className={`gr-menu-item${it.danger ? ' gr-danger' : ''}`}
-              onClick={() => {
-                setOpen(false);
-                it.onSelect();
-              }}
-            >
-              {it.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {listEl && typeof document !== 'undefined' ? createPortal(listEl, document.body) : null}
     </span>
   );
 }

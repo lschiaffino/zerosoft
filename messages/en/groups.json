@@ -714,7 +714,7 @@
     "no_recipients": "Pick at least one chat or group.",
     "too_many_recipients": "Up to 2,000 recipients per broadcast.",
     "upload_failed": "The file did not upload.",
-    "file_too_large": "The file is over 10 MB.",
+    "file_too_large": "The file is over 100 MB, the limit for attachments.",
     "file_type_not_allowed": "That file type is not allowed.",
     "storage_unavailable": "File storage is not configured.",
     "send_failed": "WhatsApp did not accept the message.",
@@ -832,7 +832,9 @@
     "media_too_large": "Over WhatsApp's limit: 16 MB for voice notes and 100 MB for any other file.",
     "invalid_media": "That file can't be sent as a voice note.",
     "too_many_files": "Up to 10 files at a time.",
-    "client_upload_unavailable": "Direct upload is not available here. Files up to 10 MB still work."
+    "client_upload_unavailable": "Direct upload is not available here. Files up to 10 MB still work.",
+    "edit_failed_whatsapp": "WhatsApp did not accept the edit. The message stays as it was.",
+    "file_too_large_local": "This server takes files up to 4.5 MB. To send files up to 100 MB an admin has to set up Blob storage."
   },
   "media": {
     "image": "Image",

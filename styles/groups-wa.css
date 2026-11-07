@@ -604,3 +604,18 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-messages:not(.is-scrolling) .wa-day.is-stuck { opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .wa-day { transition: none; } }
 @media (max-width: 720px) { .wa-bar .wa-ai-btn { display: none; } .wa-bar .wa-icon-btn { width: 38px; } }
+
+/* ---------- Menús en portal (se abren hacia arriba si no entran) ---------- */
+.gr-menu-list.is-portal { position: fixed; z-index: 2000; overflow-y: auto; right: auto; box-shadow: 0 6px 20px rgba(11, 20, 26, 0.18); }
+.gr-menu-item { display: flex; align-items: center; gap: 10px; }
+.gr-menu-item.has-divider { margin-top: 4px; border-top: 1px solid var(--line); border-radius: 0; padding-top: 9px; }
+.gr-menu-list.has-icons .gr-menu-item { padding: 6px 12px 6px 8px; }
+.gr-menu-icon { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 30px; height: 30px; color: #fff; border-radius: 50%; background: var(--ink-3); }
+.gr-menu-icon.is-doc { background: #7f66ff; }
+.gr-menu-icon.is-photo { background: #007bfc; }
+.gr-menu-icon.is-camera { background: #ff2e74; }
+.gr-menu-icon.is-audio { background: #ff8a1b; }
+.gr-menu-icon.is-poll { background: #e6a700; }
+.gr-menu-icon.is-schedule { background: #02a698; }
+.gr-menu-icon.is-ai { background: #8b5fd0; }
+.gr-pinned-tag { text-transform: none; letter-spacing: 0; font-family: inherit; font-size: 0.75rem; font-weight: 600; }

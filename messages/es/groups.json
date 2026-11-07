@@ -714,7 +714,7 @@
     "no_recipients": "Elegí al menos un chat o grupo.",
     "too_many_recipients": "Hasta 2.000 destinatarios por envío masivo.",
     "upload_failed": "El archivo no se subió.",
-    "file_too_large": "El archivo pesa más de 10 MB.",
+    "file_too_large": "El archivo pesa más de 100 MB, el límite para adjuntos.",
     "file_type_not_allowed": "Ese tipo de archivo no está permitido.",
     "storage_unavailable": "El almacenamiento de archivos no está configurado.",
     "send_failed": "WhatsApp no aceptó el mensaje.",
@@ -832,7 +832,9 @@
     "media_too_large": "Pasa el tope de WhatsApp: 16 MB para notas de voz y 100 MB para cualquier otro archivo.",
     "invalid_media": "Ese archivo no se puede mandar como nota de voz.",
     "too_many_files": "Hasta 10 archivos a la vez.",
-    "client_upload_unavailable": "La subida directa no está disponible acá. Los archivos de hasta 10 MB se suben igual."
+    "client_upload_unavailable": "La subida directa no está disponible acá. Los archivos de hasta 10 MB se suben igual.",
+    "edit_failed_whatsapp": "No se pudo editar en WhatsApp. El mensaje quedó como estaba.",
+    "file_too_large_local": "Este servidor acepta archivos de hasta 4,5 MB. Para mandar hasta 100 MB, un admin tiene que configurar el almacenamiento Blob."
   },
   "media": {
     "image": "Imagen",

@@ -416,7 +416,8 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
         if (!c.isGroup && !name && isLidJid(c.chatId)) name = lid ??= await lidChatName(number.user_id);
         const chat = await upsertChat(number, { providerChatId: c.chatId, kind: c.isGroup ? 'group' : 'dm', name, phone: c.isGroup ? '' : phoneDigits(c.chatId) }, { silent: true });
         // No leídos como en el teléfono (solo si acá no había nada pendiente).
-        if (c.unread > 0) await db.prepare('UPDATE groups_chats SET unread_count = ? WHERE id = ? AND unread_count = 0').run(Math.min(c.unread, 9999), chat.id);
+        // Solo en chats que trajo esta importación: un chat que el equipo ya leyó no vuelve a quedar sin leer.
+        if (c.unread > 0 && chat.created_at >= job.started_at) await db.prepare('UPDATE groups_chats SET unread_count = ? WHERE id = ? AND unread_count = 0').run(Math.min(c.unread, 9999), chat.id);
         await db
           .prepare('INSERT OR IGNORE INTO groups_import_chats (number_id, remote_jid, chat_id, last_at, done) VALUES (?, ?, ?, ?, 0)')
           .run(number.id, c.remoteJid, chat.id, Math.floor(c.lastAt));

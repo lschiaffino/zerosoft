@@ -714,7 +714,7 @@
     "no_recipients": "Escolha pelo menos uma conversa ou grupo.",
     "too_many_recipients": "Até 2.000 destinatários por envio em massa.",
     "upload_failed": "O arquivo não foi enviado.",
-    "file_too_large": "O arquivo tem mais de 10 MB.",
+    "file_too_large": "O arquivo tem mais de 100 MB, o limite para anexos.",
     "file_type_not_allowed": "Esse tipo de arquivo não é permitido.",
     "storage_unavailable": "O armazenamento de arquivos não está configurado.",
     "send_failed": "O WhatsApp não aceitou a mensagem.",
@@ -832,7 +832,9 @@
     "media_too_large": "Passa do limite do WhatsApp: 16 MB para mensagens de voz e 100 MB para qualquer outro arquivo.",
     "invalid_media": "Esse arquivo não pode ser enviado como mensagem de voz.",
     "too_many_files": "Até 10 arquivos por vez.",
-    "client_upload_unavailable": "O envio direto não está disponível aqui. Arquivos de até 10 MB funcionam."
+    "client_upload_unavailable": "O envio direto não está disponível aqui. Arquivos de até 10 MB funcionam.",
+    "edit_failed_whatsapp": "Não foi possível editar no WhatsApp. A mensagem ficou como estava.",
+    "file_too_large_local": "Este servidor aceita arquivos de até 4,5 MB. Para enviar até 100 MB, um admin precisa configurar o armazenamento Blob."
   },
   "media": {
     "image": "Imagem",
