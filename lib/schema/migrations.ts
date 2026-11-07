@@ -8641,6 +8641,31 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN muted_until TEXT');
     },
   },
+  {
+    // Groups, varias líneas y equipo (lib/groups-lines.ts): color de cada línea y
+    // cuándo cambió su estado, acceso por línea (personas o equipos del
+    // workspace, groups_teams es el espejo de workspace_groups), estado
+    // en línea / ausente / desconectado por persona y la condición de
+    // disponibilidad de cada regla de asignación.
+    id: '240_groups_lines',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE groups_numbers ADD COLUMN color TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, 'ALTER TABLE groups_numbers ADD COLUMN status_at TEXT');
+      await c.execute(`CREATE TABLE IF NOT EXISTS groups_line_access (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        number_id TEXT NOT NULL REFERENCES groups_numbers(id) ON DELETE CASCADE,
+        subject_kind TEXT NOT NULL CHECK (subject_kind IN ('person', 'team')),
+        subject_id TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (number_id, subject_kind, subject_id)
+      )`);
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_groups_line_access_subject ON groups_line_access(user_id, subject_kind, subject_id)');
+      await addColumn(c, "ALTER TABLE groups_availability ADD COLUMN status TEXT NOT NULL DEFAULT 'online'");
+      await c.execute("UPDATE groups_availability SET status = 'offline' WHERE available = 0 AND status = 'online'");
+      await addColumn(c, "ALTER TABLE groups_assign_rules ADD COLUMN availability TEXT NOT NULL DEFAULT 'online'");
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_groups_chats_provider ON groups_chats(user_id, provider_chat_id)');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

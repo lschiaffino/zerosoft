@@ -86,6 +86,10 @@ export interface NumberRow {
   created_by: string;
   created_at: string;
   updated_at: string;
+  /** Color de la línea en la bandeja (hex) o '' (lib/groups-lines.ts). */
+  color?: string;
+  /** Cuándo cambió el estado por última vez (conectó, se cayó). */
+  status_at?: string | null;
 }
 
 export interface NumberDto {
@@ -101,6 +105,10 @@ export interface NumberDto {
   /** Campos no secretos, para editar. */
   settings: { baseUrl?: string; session?: string; phoneNumberId?: string; wabaId?: string };
   createdAt: string;
+  /** Color de la línea (hex, '' = automático por id: lineColor en lib/groups-lines-shared.ts). */
+  color: string;
+  /** Cuándo cambió el estado (conectado desde, desconectado desde). */
+  statusAt: string | null;
 }
 
 const SECRET_KEYS = ['accessToken', 'appSecret', 'verifyToken', 'apiKey'] as const;
@@ -132,6 +140,8 @@ export function toNumberDto(row: NumberRow): NumberDto {
     // La instancia administrada es nuestra: su servidor y su nombre no se muestran.
     settings: row.provider === 'managed' || row.provider === 'sample' ? {} : { baseUrl: cfg.baseUrl, session: cfg.session, phoneNumberId: cfg.phoneNumberId, wabaId: cfg.wabaId },
     createdAt: row.created_at,
+    color: row.color ?? '',
+    statusAt: row.status_at ?? null,
   };
 }
 
@@ -228,7 +238,7 @@ function defaultNumberName(kind: ProviderKind): string {
 export async function updateNumber(
   ws: string,
   id: string,
-  input: { name?: string; config?: Record<string, unknown> },
+  input: { name?: string; config?: Record<string, unknown>; color?: string },
 ): Promise<NumberDto> {
   const row = await getNumberRow(ws, id);
   if (!row) throw new GroupsError('not_found', 404);
@@ -237,6 +247,11 @@ export async function updateNumber(
   if (typeof input.name === 'string') {
     sets.push('name = ?');
     args.push(input.name.trim().slice(0, 80) || row.name);
+  }
+  if (typeof input.color === 'string') {
+    if (input.color && !/^#[0-9a-fA-F]{6}$/.test(input.color)) throw new GroupsError('invalid_color');
+    sets.push('color = ?');
+    args.push(input.color.toLowerCase());
   }
   if (input.config) {
     sets.push('config = ?');
@@ -333,9 +348,17 @@ export function providerErrorCode(err: unknown): string {
 }
 
 async function saveState(row: NumberRow, state: ConnectState | null, error = ''): Promise<void> {
+  const status = state?.status ?? 'error';
+  const now = nowIso();
   await getDb()
-    .prepare('UPDATE groups_numbers SET status = ?, phone = ?, last_error = ?, updated_at = ? WHERE id = ?')
-    .run(state?.status ?? 'error', state?.phone ? phoneDigits(state.phone) : row.phone, error, nowIso(), row.id);
+    .prepare(
+      'UPDATE groups_numbers SET status = ?, phone = ?, last_error = ?, status_at = CASE WHEN status != ? OR status_at IS NULL THEN ? ELSE status_at END, updated_at = ? WHERE id = ?',
+    )
+    .run(status, state?.phone ? phoneDigits(state.phone) : row.phone, error, status, now, now, row.id);
+  if (status !== row.status) {
+    const { lineStatusChanged } = await import('./groups-lines');
+    await lineStatusChanged(row, status).catch(() => null);
+  }
   // Recién conectado: se importan sus chats y mensajes (una vez; "Reimportar" lo repite).
   if (state?.status === 'connected' && row.status !== 'connected' && (row.provider === 'managed' || row.provider === 'evolution')) {
     const { queueImport, kickImport } = await import('./groups-import');
@@ -470,6 +493,19 @@ export interface ChatDto {
   lastSender?: string | null;
   /** Fragmento del mensaje que coincide con la búsqueda. */
   match?: string;
+  /**
+   * Líneas de la org que están en este chat (el mismo grupo o contacto en
+   * varias líneas se lista una vez). Solo en la bandeja y si hay más de una.
+   */
+  lines?: ChatLineRef[];
+}
+
+/** Una línea de un chat listado una sola vez (ver ChatDto.lines). */
+export interface ChatLineRef {
+  chatId: string;
+  numberId: string;
+  unread: number;
+  lastMessageAt: string | null;
 }
 
 function parseJson<T>(raw: string | null | undefined, fallback: T): T {
@@ -575,6 +611,8 @@ export interface ChatQuery {
   offset?: number;
   /** Quién mira: acceso por etiqueta y teléfonos ocultos (lib/groups-access.ts). */
   viewer?: GroupsViewer;
+  /** false: una fila por línea (sin juntar el mismo chat de varias líneas). */
+  merge?: boolean;
 }
 
 function likeArg(q: string): string {
@@ -657,22 +695,55 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const offset = Math.max(0, query.offset ?? 0);
   const whereSql = where.join(' AND ');
   const db = getDb();
-  const total = (await db.prepare(`SELECT COUNT(*) AS c FROM groups_chats c WHERE ${whereSql}`).get(...args)) as { c: number };
+  // El mismo chat en varias líneas (lib/groups-lines.ts) se lista una vez: la fila más reciente, con las demás en `lines`.
+  const merge = query.merge !== false;
+  const { lineKeySql } = await import('./groups-lines');
+  const key = lineKeySql('c');
+  const total = (await db.prepare(`SELECT COUNT(${merge ? `DISTINCT ${key}` : '*'}) AS c FROM groups_chats c WHERE ${whereSql}`).get(...args)) as { c: number };
+  const source = merge
+    ? `(SELECT * FROM (SELECT c.*, ${key} AS line_key,
+          ROW_NUMBER() OVER (PARTITION BY ${key} ORDER BY (c.pinned_at IS NULL), COALESCE(c.last_message_at, c.created_at) DESC, c.id) AS line_rank,
+          COUNT(*) OVER (PARTITION BY ${key}) AS line_count,
+          SUM(c.unread_count) OVER (PARTITION BY ${key}) AS line_unread
+        FROM groups_chats c WHERE ${whereSql}) WHERE line_rank = 1)`
+    : 'groups_chats';
   const rows = (await db
     .prepare(
       `SELECT c.*, ${matchSelect},
          (SELECT m.direction || '|' || m.status || '|' || CASE WHEN m.sender_name != '' THEN m.sender_name WHEN m.sender_phone != '' THEN '+' || m.sender_phone ELSE '' END FROM groups_messages m WHERE m.chat_id = c.id AND m.direction IN ('in', 'out')
            ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_info
-       FROM groups_chats c WHERE ${whereSql}
+       FROM ${source} c${merge ? '' : ` WHERE ${whereSql}`}
        ORDER BY (c.pinned_at IS NULL), c.pinned_at DESC, COALESCE(c.last_message_at, c.created_at) DESC, c.id LIMIT ? OFFSET ?`,
     )
-    .all(...matchArgs, ...args, limit, offset)) as Array<ChatRow & { match: string | null; last_info: string | null }>;
+    .all(...matchArgs, ...args, limit, offset)) as Array<
+    ChatRow & { match: string | null; last_info: string | null; line_key?: string; line_count?: number; line_unread?: number }
+  >;
   const labels = await labelsFor(rows.map((r) => r.id));
+  // Las otras líneas de los chats juntados (solo las que la persona ve).
+  const multi = rows.filter((r) => Number(r.line_count ?? 1) > 1).map((r) => r.line_key as string);
+  const linesByKey = new Map<string, ChatLineRef[]>();
+  if (multi.length) {
+    const access = chatAccessSql(query.viewer);
+    const sib = (await db
+      .prepare(
+        `SELECT c.id, c.number_id, c.unread_count, c.last_message_at, ${key} AS line_key FROM groups_chats c
+         WHERE c.user_id = ? AND ${key} IN (${multi.map(() => '?').join(',')})${access ? ` AND ${access.sql}` : ''}
+         ORDER BY COALESCE(c.last_message_at, c.created_at) DESC`,
+      )
+      .all(ws, ...multi, ...(access?.args ?? []))) as Array<{ id: string; number_id: string; unread_count: number; last_message_at: string | null; line_key: string }>;
+    for (const r of sib) {
+      const list = linesByKey.get(r.line_key) ?? [];
+      list.push({ chatId: r.id, numberId: r.number_id, unread: Number(r.unread_count), lastMessageAt: r.last_message_at });
+      linesByKey.set(r.line_key, list);
+    }
+  }
   return {
     rows: rows.map((r) => {
       const [dir, st, sender] = (r.last_info ?? '').split('|');
+      const lines = r.line_key ? linesByKey.get(r.line_key) : undefined;
       return maskChat(query.viewer, {
         ...toChatDto(r, labels.get(r.id) ?? []),
+        ...(lines && lines.length > 1 ? { lines, unread: lines.reduce((n, l) => n + l.unread, 0) } : {}),
         lastDirection: dir || null,
         lastStatus: st || null,
         lastSender: sender || null,
@@ -772,7 +843,13 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
     if (description !== undefined) set('description', description);
   }
   if (patch.assignedTo !== undefined) {
-    if (patch.assignedTo) await assertWorkspacePerson(ws, patch.assignedTo);
+    if (patch.assignedTo) {
+      await assertWorkspacePerson(ws, patch.assignedTo);
+      // Acceso por línea: nunca se asigna un chat a quien no ve su línea.
+      const { peopleWithLine } = await import('./groups-lines');
+      const allowed = await peopleWithLine(ws, row.number_id);
+      if (allowed && !allowed.has(patch.assignedTo)) throw new GroupsError('assignee_no_line_access');
+    }
     set('assigned_to', patch.assignedTo || null);
   }
   if (patch.assignedTeamId !== undefined) {
@@ -808,7 +885,14 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
     if (patch.agentId !== row.agent_id) set('agent_conversation_id', null);
   }
   if (patch.properties !== undefined) set('properties', JSON.stringify(await cleanProperties(ws, patch.properties)));
-  if (patch.read === true) set('unread_count', 0);
+  if (patch.read === true) {
+    set('unread_count', 0);
+    // El mismo chat en otras líneas se ve una sola vez en la bandeja: se leen juntos.
+    const { lineKeySql } = await import('./groups-lines');
+    await db
+      .prepare(`UPDATE groups_chats SET unread_count = 0 WHERE user_id = ? AND id != ? AND unread_count > 0 AND ${lineKeySql('groups_chats')} = ?`)
+      .run(ws, id, `${row.kind}|${row.kind === 'dm' && row.phone ? row.phone : row.provider_chat_id}`);
+  }
   if (patch.read === false && row.unread_count === 0) set('unread_count', 1);
   if (patch.flagged === false) {
     set('flagged_at', null);
@@ -912,6 +996,12 @@ export interface MessageDto {
   needsReply?: boolean | null;
   /** Encuesta con sus resultados (votos por webhook). */
   poll?: PollDto | null;
+  /** Línea por la que entró o salió (el hilo junta el mismo chat de varias líneas). */
+  numberId?: string;
+  /** Saliente: nombre de quien lo mandó desde Groups (o '' si no hay persona). */
+  authorName?: string;
+  /** Saliente mandado desde el teléfono (WhatsApp en el celular), no desde Groups. */
+  fromPhone?: boolean;
 }
 
 /**
@@ -956,7 +1046,7 @@ function mediaUrlFor(row: MessageRow): string {
   return row.media_url;
 }
 
-export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll_votes?: string | null }): MessageDto {
+export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll_votes?: string | null; author_name?: string | null }): MessageDto {
   const poll = parsePoll(row.poll);
   const { media: storedMedia, location, contacts, ...meta } = parseJson<StoredMeta>(row.meta ?? '', {});
   return {
@@ -984,6 +1074,9 @@ export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll
     translations: parseJson<MessageTranslations>(row.translations, {}),
     meta,
     needsReply: row.needs_reply == null ? null : Boolean(row.needs_reply),
+    numberId: row.number_id,
+    authorName: row.author_name ?? '',
+    fromPhone: row.direction === 'out' && row.author_kind === 'phone',
     ...(poll ? { poll: tallyPoll(poll, parseJson<string[]>(row.poll_votes, []).map((v) => parseJson<string[]>(v, []))) } : {}),
   };
 }
@@ -991,21 +1084,37 @@ export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll
 export async function listMessages(
   ws: string,
   chatId: string,
-  opts: { after?: string; before?: string; limit?: number } = {},
+  opts: { after?: string; before?: string; limit?: number; chatIds?: string[] } = {},
 ): Promise<MessageDto[]> {
   const limit = Math.min(Math.max(1, opts.limit ?? 200), 500);
+  // El mismo chat en varias líneas: un solo hilo. Un mensaje de grupo llega a cada línea con el mismo id de WhatsApp.
+  const ids = [...new Set([chatId, ...(opts.chatIds ?? [])])].slice(0, 20);
   // `before`: los anteriores a ese momento (cargar más al subir en el hilo).
   const rows = (await getDb()
     .prepare(
       `SELECT * FROM (
          SELECT m.*, m.rowid AS rn, (SELECT t.id FROM groups_tickets t WHERE t.message_id = m.id) AS ticket_id,
-           CASE WHEN m.poll != '' THEN (SELECT json_group_array(v.options) FROM groups_poll_votes v WHERE v.message_id = m.id) END AS poll_votes
-         FROM groups_messages m WHERE m.chat_id = ? AND m.user_id = ? AND (? IS NULL OR m.created_at > ?) AND (? IS NULL OR m.created_at < ?)
+           CASE WHEN m.poll != '' THEN (SELECT json_group_array(v.options) FROM groups_poll_votes v WHERE v.message_id = m.id) END AS poll_votes,
+           (SELECT COALESCE(NULLIF(u.name, ''), u.email) FROM users u WHERE u.id = m.author_id) AS author_name
+         FROM groups_messages m WHERE m.chat_id IN (${ids.map(() => '?').join(',')}) AND m.user_id = ? AND (? IS NULL OR m.created_at > ?) AND (? IS NULL OR m.created_at < ?)
          ORDER BY m.created_at DESC, m.rowid DESC LIMIT ?
        ) ORDER BY created_at ASC, rn ASC`,
     )
-    .all(chatId, ws, opts.after ?? null, opts.after ?? null, opts.before ?? null, opts.before ?? null, limit)) as Array<MessageRow & { ticket_id: string | null }>;
-  return rows.map(toMessageDto);
+    .all(...ids, ws, opts.after ?? null, opts.after ?? null, opts.before ?? null, opts.before ?? null, limit * (ids.length > 1 ? 2 : 1))) as Array<
+    MessageRow & { ticket_id: string | null; author_name: string | null }
+  >;
+  if (ids.length === 1) return rows.map(toMessageDto);
+  // Sin repetidos entre líneas: gana el saliente (lo mandó la org) y si no, el primero.
+  const byProvider = new Map<string, MessageRow & { author_name: string | null }>();
+  for (const r of rows) {
+    if (!r.provider_message_id) continue;
+    const prev = byProvider.get(r.provider_message_id);
+    if (!prev || (prev.direction !== 'out' && r.direction === 'out')) byProvider.set(r.provider_message_id, r);
+  }
+  return rows
+    .filter((r) => !r.provider_message_id || byProvider.get(r.provider_message_id) === r)
+    .slice(-limit)
+    .map(toMessageDto);
 }
 
 export async function getMessageRow(ws: string, id: string): Promise<MessageRow | null> {

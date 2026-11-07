@@ -25,6 +25,12 @@ export const AUDIT_ACTIONS = [
   'ticket_created',
   'ticket_updated',
   'ticket_deleted',
+  'auto_assigned',
+  'reassigned',
+  'line_access',
+  'line_status',
+  'availability',
+  'imported',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

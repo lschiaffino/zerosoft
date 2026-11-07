@@ -22,7 +22,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const body = await readJson(req);
   try {
     const config = body.config && typeof body.config === 'object' ? (body.config as Record<string, unknown>) : undefined;
-    return NextResponse.json(await updateNumber(s.ws, (await ctx.params).id, { name: str(body.name, 80), config }));
+    return NextResponse.json(await updateNumber(s.ws, (await ctx.params).id, { name: str(body.name, 80), config, color: str(body.color, 7) }));
   } catch (err) {
     return handleGroupsError(err);
   }

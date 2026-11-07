@@ -4,13 +4,17 @@ import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, str
 import { maskMessage } from '@/lib/groups-access';
 import { normalizePoll } from '@/lib/groups-polls';
 import { mediaFromBody } from '@/lib/groups-media-input';
+import { resolveReplyChat, siblingChats } from '@/lib/groups-lines';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** Mensajes del chat. ?after=<iso> trae solo los nuevos (la pantalla consulta cada pocos segundos). */
+/**
+ * Mensajes del chat. ?after=<iso> trae solo los nuevos (la pantalla consulta cada pocos segundos).
+ * Si el mismo chat está en varias líneas, el hilo las junta (sin repetidos); ?lines=0 trae solo esta línea.
+ */
 export async function GET(req: Request, ctx: Ctx) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
@@ -24,10 +28,14 @@ export async function GET(req: Request, ctx: Ctx) {
   // ?before=<createdAt>: los anteriores (el hilo carga más al subir).
   const before = p.get('before') || undefined;
   const limit = Number(p.get('limit')) || undefined;
-  return NextResponse.json({ messages: (await listMessages(s.ws, id, { after, before, limit })).map((m) => maskMessage(guard.viewer, m)) });
+  const chatIds = p.get('lines') === '0' ? [] : (await siblingChats(s.ws, guard.viewer, id)).map((c) => c.id);
+  return NextResponse.json({ messages: (await listMessages(s.ws, id, { after, before, limit, chatIds })).map((m) => maskMessage(guard.viewer, m)) });
 }
 
-/** Manda texto, media (ver mediaFromBody), una encuesta ({ poll: { question, options, multi } }) o una nota interna ({ note: true }). */
+/**
+ * Manda texto, media (ver mediaFromBody), una encuesta ({ poll: { question, options, multi } }) o una nota interna ({ note: true }).
+ * { numberId }: "Responder desde" esa línea (el mismo chat en otra línea; en un 1:1 lo crea). Las notas quedan en el chat abierto.
+ */
 export async function POST(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
@@ -45,7 +53,10 @@ export async function POST(req: Request, ctx: Ctx) {
         throw new GroupsError((err as Error).message);
       }
     }
-    const msg = await sendMessage(s.ws, s.me, (await ctx.params).id, {
+    const openId = (await ctx.params).id;
+    const numberId = str(b.numberId, 100);
+    const target = b.note === true ? openId : await resolveReplyChat(s.ws, guard.viewer, openId, numberId);
+    const msg = await sendMessage(s.ws, s.me, target, {
       poll,
       body: str(b.body) ?? '',
       replyToId: str(b.replyToId, 100) || null,

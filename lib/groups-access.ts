@@ -1,5 +1,12 @@
 /**
- * Groups: quién ve qué. Dos ajustes del workspace (groups_platform):
+ * Groups: quién ve qué. Ajustes del workspace (groups_platform):
+ *
+ * - Acceso por línea: con `lineAccess`, un miembro ve solo los chats de las
+ *   líneas que se le dieron a él o a uno de sus equipos (groups_line_access).
+ *   Es un corte duro: ni una asignación ni una etiqueta lo saltean.
+ * - Acceso por equipo: con `teamAccess`, un miembro ve los chats asignados a
+ *   sus equipos (además de los suyos y los de sus etiquetas si hay acceso
+ *   por etiqueta).
  *
  * - Acceso por etiqueta: con `labelAccess`, un miembro (rol member) ve solo
  *   los chats que tienen alguna de sus etiquetas (groups_label_access) o que
@@ -22,14 +29,26 @@ export interface PlatformSettings {
   labelAccess: boolean;
   /** Roles que ven los teléfonos ocultos. */
   maskRoles: Array<'member' | 'admin'>;
+  /** Un miembro ve solo las líneas que tiene (él o su equipo). */
+  lineAccess: boolean;
+  /** Un miembro ve también los chats asignados a sus equipos (y solo esos, los suyos y los de sus etiquetas). */
+  teamAccess: boolean;
+  /** Quien pasa a desconectado devuelve sus chats sin responder a la asignación automática. */
+  reassignOnOffline: boolean;
 }
 
-export const DEFAULT_PLATFORM: PlatformSettings = { labelAccess: false, maskRoles: [] };
+export const DEFAULT_PLATFORM: PlatformSettings = { labelAccess: false, maskRoles: [], lineAccess: false, teamAccess: false, reassignOnOffline: false };
 
 export function normalizePlatform(raw: unknown): PlatformSettings {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const roles = Array.isArray(r.maskRoles) ? r.maskRoles.filter((x): x is 'member' | 'admin' => x === 'member' || x === 'admin') : [];
-  return { labelAccess: r.labelAccess === true, maskRoles: [...new Set(roles)] };
+  return {
+    labelAccess: r.labelAccess === true,
+    maskRoles: [...new Set(roles)],
+    lineAccess: r.lineAccess === true,
+    teamAccess: r.teamAccess === true,
+    reassignOnOffline: r.reassignOnOffline === true,
+  };
 }
 
 export async function getPlatformSettings(ws: string): Promise<PlatformSettings> {
@@ -87,24 +106,79 @@ export interface GroupsViewer {
   ws: string;
   me: string;
   role: TeamRole;
-  /** Ve solo sus etiquetas y sus chats asignados. */
+  /** Tiene algún recorte (línea, etiqueta o equipo): no ve todo. */
   restricted: boolean;
   /** Teléfonos ocultos. */
   mask: boolean;
+  /** Líneas que puede ver (null = todas). Corte duro. */
+  lineIds?: string[] | null;
+  /** Dentro de sus líneas, ve solo lo asignado a él más lo de `labels` y `teamIds`. */
+  scoped?: boolean;
+  /** Ve los chats con etiquetas que tiene (acceso por etiqueta). */
+  labels?: boolean;
+  /** Ve los chats asignados a estos equipos (acceso por equipo). */
+  teamIds?: string[];
 }
 
-export function viewerFrom(ws: string, me: string, role: TeamRole, settings: PlatformSettings): GroupsViewer {
+/** Líneas y equipos de una persona (lo arma groupsViewer desde la base). */
+export interface ViewerScope {
+  lineIds: string[];
+  teamIds: string[];
+}
+
+export function viewerFrom(ws: string, me: string, role: TeamRole, settings: PlatformSettings, scope: ViewerScope = { lineIds: [], teamIds: [] }): GroupsViewer {
+  const s = normalizePlatform(settings);
+  const limited = role === 'member' || role === 'guest';
+  const labels = (s.labelAccess && role === 'member') || role === 'guest';
+  const teams = s.teamAccess && role === 'member';
+  const lineIds = limited && s.lineAccess ? [...new Set(scope.lineIds)] : null;
+  const scoped = labels || teams;
   return {
     ws,
     me,
     role,
-    restricted: (settings.labelAccess && role === 'member') || role === 'guest',
-    mask: role === 'guest' || (role !== 'owner' && settings.maskRoles.includes(role)),
+    restricted: scoped || lineIds !== null,
+    mask: role === 'guest' || (role !== 'owner' && s.maskRoles.includes(role)),
+    lineIds,
+    scoped,
+    labels,
+    teamIds: teams ? [...new Set(scope.teamIds)] : [],
   };
 }
 
+/** Equipos de Groups (espejo de los subequipos del workspace) de una persona. */
+export async function personTeamIds(ws: string, personId: string): Promise<string[]> {
+  const rows = (await getDb()
+    .prepare('SELECT m.team_id FROM groups_team_members m JOIN groups_teams t ON t.id = m.team_id WHERE t.user_id = ? AND m.person_id = ?')
+    .all(ws, personId)) as Array<{ team_id: string }>;
+  return rows.map((r) => r.team_id);
+}
+
+/** Líneas dadas a la persona o a uno de sus equipos. */
+export async function personLineIds(ws: string, personId: string, teamIds?: string[]): Promise<string[]> {
+  const teams = teamIds ?? (await personTeamIds(ws, personId));
+  const rows = (await getDb()
+    .prepare(
+      `SELECT DISTINCT a.number_id FROM groups_line_access a JOIN groups_numbers n ON n.id = a.number_id AND n.user_id = a.user_id
+       WHERE a.user_id = ? AND ((a.subject_kind = 'person' AND a.subject_id = ?)${teams.length ? ` OR (a.subject_kind = 'team' AND a.subject_id IN (${teams.map(() => '?').join(',')}))` : ''})`,
+    )
+    .all(ws, personId, ...teams)) as Array<{ number_id: string }>;
+  return rows.map((r) => r.number_id);
+}
+
 export async function groupsViewer(ws: string, me: string, role: TeamRole): Promise<GroupsViewer> {
-  return viewerFrom(ws, me, role, await getPlatformSettings(ws));
+  const settings = await getPlatformSettings(ws);
+  const limited = role === 'member' || role === 'guest';
+  if (!limited || (!settings.lineAccess && !settings.teamAccess)) return viewerFrom(ws, me, role, settings);
+  const teamIds = await personTeamIds(ws, me);
+  const lineIds = settings.lineAccess ? await personLineIds(ws, me, teamIds) : [];
+  return viewerFrom(ws, me, role, settings, { lineIds, teamIds });
+}
+
+/** ¿La persona puede ver (y usar) esa línea? Admins y dueño, siempre. */
+export async function personCanUseLine(ws: string, personId: string, role: TeamRole, numberId: string): Promise<boolean> {
+  const v = await groupsViewer(ws, personId, role);
+  return v.lineIds == null || v.lineIds.includes(numberId);
 }
 
 /** Sin restricciones (cron, webhooks, Flow): ve todo y sin máscara. */
@@ -118,11 +192,32 @@ export function systemViewer(ws: string): GroupsViewer {
  */
 export function chatAccessSql(viewer: GroupsViewer | null | undefined, alias = 'c'): { sql: string; args: string[] } | null {
   if (!viewer?.restricted) return null;
-  return {
-    sql: `(${alias}.assigned_to = ? OR EXISTS (SELECT 1 FROM groups_chat_labels zl JOIN groups_label_access za ON za.label_id = zl.label_id
-           WHERE zl.chat_id = ${alias}.id AND za.person_id = ?))`,
-    args: [viewer.me, viewer.me],
-  };
+  // Viewer viejo (armado a mano, sin los campos nuevos): etiquetas y asignados, como antes.
+  const legacy = viewer.scoped === undefined && viewer.lineIds === undefined;
+  const parts: string[] = [];
+  const args: string[] = [];
+  const lineIds = legacy ? null : (viewer.lineIds ?? null);
+  if (lineIds) {
+    parts.push(lineIds.length ? `${alias}.number_id IN (${lineIds.map(() => '?').join(',')})` : '0');
+    args.push(...lineIds);
+  }
+  if (legacy || viewer.scoped) {
+    const ors = [`${alias}.assigned_to = ?`];
+    args.push(viewer.me);
+    if (legacy || viewer.labels) {
+      ors.push(`EXISTS (SELECT 1 FROM groups_chat_labels zl JOIN groups_label_access za ON za.label_id = zl.label_id
+           WHERE zl.chat_id = ${alias}.id AND za.person_id = ?)`);
+      args.push(viewer.me);
+    }
+    const teams = legacy ? [] : (viewer.teamIds ?? []);
+    if (teams.length) {
+      ors.push(`${alias}.assigned_team_id IN (${teams.map(() => '?').join(',')})`);
+      args.push(...teams);
+    }
+    parts.push(`(${ors.join(' OR ')})`);
+  }
+  if (parts.length === 0) return null;
+  return { sql: `(${parts.join(' AND ')})`, args };
 }
 
 export async function canSeeChat(viewer: GroupsViewer | null | undefined, chatId: string): Promise<boolean> {
