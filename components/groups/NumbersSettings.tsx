@@ -197,7 +197,7 @@ export default function NumbersSettings({
                     <td>{line.openChats ?? '·'}</td>
                     {canEdit && (
                       <td>
-                        <button type="button" className="btn btn-ghost btn-sm gr-line-access" onClick={() => setGranting(line as LineDto)} aria-label={t('lines.editAccessFor', { name: n.name })}>
+                        <button type="button" className="btn btn-ghost btn-sm gr-line-access" onClick={() => setGranting(line as LineDto)} title={t('lines.editAccessFor', { name: n.name })}>
                           {accessText(line.access)}
                         </button>
                       </td>

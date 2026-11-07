@@ -1272,6 +1272,13 @@ export interface SendInput {
   poll?: PollInput | null;
 }
 
+/** Nombre de quien mandó (el DTO recién guardado no lo trae: lo agrega listMessages). */
+async function withAuthorName(dto: MessageDto): Promise<MessageDto> {
+  if (!dto.authorId || dto.authorName) return dto;
+  const u = (await getDb().prepare('SELECT name, email FROM users WHERE id = ?').get(dto.authorId)) as { name: string | null; email: string } | undefined;
+  return u ? { ...dto, authorName: u.name || u.email } : dto;
+}
+
 export async function sendMessage(ws: string, actor: string | null, chatId: string, input: SendInput): Promise<MessageDto> {
   const chat = await getChatRow(ws, chatId);
   if (!chat) throw new GroupsError('not_found', 404);
@@ -1293,7 +1300,7 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
     });
     const { afterNoteSaved } = await import('./groups-inbox');
     const saved = await afterNoteSaved(ws, actor, chat, row as MessageRow, '');
-    return toMessageDto(saved);
+    return withAuthorName(toMessageDto(saved));
   }
 
   const number = await getNumberRow(ws, chat.number_id);
@@ -1348,7 +1355,7 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
     }
   }
   // Un webhook con el mismo id del proveedor (eco de lo que mandamos) no duplica: lo frena el índice único.
-  return toMessageDto(row as MessageRow);
+  return withAuthorName(toMessageDto(row as MessageRow));
 }
 
 /**
@@ -1490,7 +1497,7 @@ async function sendMediaMessage(
       await sendMessage(ws, actor, chat.id, { body, authorKind, forwarded: input.forwarded }).catch(() => null);
     }
   }
-  return toMessageDto(saved);
+  return withAuthorName(toMessageDto(saved));
 }
 
 /**

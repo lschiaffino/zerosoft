@@ -177,6 +177,7 @@ describe('el mismo chat en dos líneas', () => {
     expect(target).toBe(other.chatId);
     const sent = await sendMessage(user.id, user.id, target, { body: 'respondo desde la otra' });
     expect(sent.chatId).toBe(other.chatId);
+    expect(sent.authorName).toBeTruthy();
     expect(fakeSent(other.numberId).some((s) => s.text === 'respondo desde la otra')).toBe(true);
     expect(fakeSent(lines.find((l) => l.isDefault)!.numberId).some((s) => s.text === 'respondo desde la otra')).toBe(false);
     // Leer el chat lee las dos líneas.

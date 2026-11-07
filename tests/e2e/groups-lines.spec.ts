@@ -123,12 +123,12 @@ test('Ajustes › Líneas: tabla con estado, color y quién ve cada línea; en o
   expect(lines.lines.find((l) => l.id === a.id)?.color).toBe('#9b51e0');
 
   // Quién la ve.
-  await row.getByRole('button', { name: `Who sees ${a.name}` }).click();
+  await row.locator('.gr-line-access').click();
   const dlg = page.getByRole('dialog', { name: `Who sees ${a.name}` });
   await dlg.getByRole('checkbox').first().check();
   await dlg.getByRole('button', { name: 'Save' }).click();
   await expect(dlg).toBeHidden();
-  await expect(row.getByRole('button', { name: `Who sees ${a.name}` })).not.toHaveText('Everyone');
+  await expect(row.locator('.gr-line-access')).not.toHaveText('Everyone');
 
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.setViewportSize({ width: 390, height: 844 });
