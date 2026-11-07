@@ -1228,13 +1228,16 @@ export default function ChatThread(props: ThreadProps) {
               <path d="M15 5 8 12l7 7" />
             </svg>
           </Link>
-          <button type="button" className="wa-head-who" onClick={() => setDetailsOpen((v) => !v)} aria-label={t('wa.openInfo', { name: chat.name })}>
-            <Avatar name={chat.name} kind={chat.kind} src={chat.pictureUrl} size={40} seed={chat.id} />
-            <span className="gr-thread-title">
+          {/* El avatar abre la info del chat (como en WhatsApp); el nombre también, con el mouse. El título queda como encabezado. */}
+          <div className="wa-head-who">
+            <button type="button" className="wa-head-avatar" onClick={() => setDetailsOpen((v) => !v)} aria-label={t('wa.openInfo', { name: chat.name })} aria-expanded={detailsOpen}>
+              <Avatar name={chat.name} kind={chat.kind} src={chat.pictureUrl} size={40} seed={chat.id} />
+            </button>
+            <div className="gr-thread-title" onClick={() => setDetailsOpen((v) => !v)}>
               <h2>{chat.name}</h2>
               <span className="wa-head-sub">{subtitle}</span>
-            </span>
-          </button>
+            </div>
+          </div>
           <div className="gr-thread-actions">
             <select className="select wa-assign" value={chat.assignedTo ?? ''} onChange={(e) => void patchChat({ assignedTo: e.target.value || null })} aria-label={t('thread.assignee')}>
               <option value="">{t('thread.unassigned')}</option>
