@@ -158,19 +158,20 @@ describe('adjuntos del asistente: acciones de punta a punta (rutas reales)', () 
     const { user, owner } = await person();
     const ctx = toolCtx(user, 'en');
     const att = await createAttachment(owner, { name: 'drop.png', type: 'image/png', bytes: PNG });
+    const call = async (id: string, args: Record<string, unknown>): Promise<unknown> => ((await runCatalog(ctx, op(id), args, {})) as { data?: unknown }).data;
 
-    const team = (await runCatalog(ctx, op('v1.track.teams.create'), { body: { name: 'Eng', key: 'ENG' } }, {})).data as { id: string };
-    const issue = (await runCatalog(ctx, op('v1.track.issues.create'), { body: { projectId: team.id, title: 'Bug' } }, {})).data as { id: string; identifier: string };
+    const team = (await call('v1.track.teams.create', { body: { name: 'Eng', key: 'ENG' } })) as { id: string };
+    const issue = (await call('v1.track.issues.create', { body: { projectId: team.id, title: 'Bug' } })) as { id: string; identifier: string };
     const toIssue = (await attachTool().prepare(ctx, { target: 'track_issue', id: issue.identifier, attachment: att.id })) as { input: Record<string, unknown>; summary: string };
     expect(toIssue.summary).toBe(`Attach "drop.png" to ${issue.identifier}`);
     expect(await attachTool().execute(ctx, toIssue.input)).toMatchObject({ ok: true });
-    const rows = ((await runCatalog(ctx, op('track.issues.attachments.list'), { path: { id: issue.id } }, {})).data as { rows: Array<{ filename: string }> }).rows;
+    const rows = ((await call('track.issues.attachments.list', { path: { id: issue.id } })) as { rows: Array<{ filename: string }> }).rows;
     expect(rows.map((r) => r.filename)).toEqual(['drop.png']);
 
-    const page = ((await runCatalog(ctx, op('v1.docs.pages.create'), { body: { title: 'Specs' } }, {})).data as { data: { id: string } }).data;
+    const page = ((await call('v1.docs.pages.create', { body: { title: 'Specs' } })) as { data: { id: string } }).data;
     const toPage = (await attachTool().prepare(ctx, { target: 'docs_page', id: page.id, attachment: att.id })) as { input: Record<string, unknown> };
     expect(await attachTool().execute(ctx, toPage.input)).toMatchObject({ ok: true });
-    const blocks = ((await runCatalog(ctx, op('v1.docs.pages.blocks.list'), { path: { id: page.id } }, {})).data as { data: Array<{ type: string; url?: string }> }).data;
+    const blocks = ((await call('v1.docs.pages.blocks.list', { path: { id: page.id } })) as { data: Array<{ type: string; url?: string }> }).data;
     expect(blocks.find((b) => b.type === 'image')?.url).toMatch(/^\/uploads\/docs\/.+-drop\.png$/);
 
     // Un adjunto ajeno no se puede usar.
