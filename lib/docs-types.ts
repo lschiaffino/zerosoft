@@ -42,6 +42,12 @@ export type DocsBlockType =
   // en docs_meetings; el bloque guarda el id y el resumen como texto.
   | 'meeting';
 
+/** Colores de bloque de Notion: el texto, o el fondo (`_bg`). */
+export const DOCS_COLOR_NAMES = ['gray', 'brown', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'red'] as const;
+export type DocsColorName = (typeof DOCS_COLOR_NAMES)[number];
+export type DocsBlockColor = DocsColorName | `${DocsColorName}_bg`;
+export const DOCS_BLOCK_COLORS: DocsBlockColor[] = [...DOCS_COLOR_NAMES, ...DOCS_COLOR_NAMES.map((c) => `${c}_bg` as const)];
+
 /** Niveles de anidado (Tab): el bloque cuelga del anterior con un nivel menos. */
 export const DOCS_MAX_INDENT = 6;
 
@@ -439,6 +445,10 @@ export interface DocsBlock {
   suggestion?: { id: string; by: string } | null;
   /** Notas de reunión: id en docs_meetings (el resumen va en content). */
   meeting_id?: string;
+  /** Tabla simple: la primera fila es encabezado. */
+  header_row?: boolean;
+  /** Color del bloque (como Notion): del texto, o de fondo con `_bg`. */
+  color?: DocsBlockColor;
 }
 
 export interface DocsLinkPreview {
@@ -502,6 +512,8 @@ export type DocsPageSummary = Pick<DocsPage, 'id' | 'parent_id' | 'title' | 'ico
   teamspace_id?: string | null;
   /** Wiki: verificada o vencida (null/ausente = sin verificar). */
   verified?: 'verified' | 'expired' | null;
+  /** Sidebar: cuántas hijas tiene (llegan al desplegar, lib/docs-sidebar.ts). */
+  child_count?: number;
 };
 
 export interface DocsPageShare {

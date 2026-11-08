@@ -94,7 +94,7 @@
 .cr-button:disabled { opacity: 0.6; cursor: progress; }
 .cr-button-ghost { background: transparent; color: var(--cr-ink); }
 .cr-button-ghost:hover { color: #ffffff; }
-.cr-done { padding: 16px; border: 1px solid var(--cr-line); border-left: 3px solid var(--cr-accent); background: var(--cr-soft); }
+.cr-done { padding: 16px; border: 1px solid var(--cr-line); background: var(--cr-soft); }
 .cr-letter { white-space: pre-wrap; font-family: inherit; background: var(--cr-soft); padding: 16px; border-radius: 4px; overflow-wrap: anywhere; }
 .cr-offer-facts { display: flex; flex-wrap: wrap; gap: 24px; margin: 16px 0; }
 .cr-offer-facts dt { color: var(--cr-muted); font-size: 0.8125rem; }
