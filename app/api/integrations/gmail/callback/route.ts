@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, realUserId } from '@/lib/session';
+import { getCurrentUser, realUserId, userCanUseApp } from '@/lib/session';
 import { registerMailbox } from '@/lib/crm-email-sync';
 import { exchangeCode, gmailProfileEmail, upsertIntegration } from '@/lib/integrations';
 import { OAUTH_RETURN_COOKIE, returnUrl } from '@/lib/oauth-return';
@@ -18,6 +18,8 @@ function redirectToSettings(req: NextRequest, params: string): NextResponse {
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  // El correo se sincroniza en el CRM del workspace: sin CRM, no.
+  if (!userCanUseApp(user, 'crm')) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const sp = req.nextUrl.searchParams;
   const code = sp.get('code');

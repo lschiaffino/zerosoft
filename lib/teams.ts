@@ -236,6 +236,11 @@ export async function addMember(
     .prepare('INSERT OR IGNORE INTO team_members (team_id, user_id, role, apps, invited_by) VALUES (?, ?, ?, ?, ?)')
     .run(teamId, userId, role, serializeApps(opts.apps ?? '*'), opts.invitedBy ?? null);
   if (res.changes === 0) return;
+  // Una ficha vieja de "quitado" ya no vale: lo que manda es lo de ahora.
+  await getDb()
+    .prepare('DELETE FROM workspace_removed_members WHERE team_id = ? AND user_id = ?')
+    .run(teamId, userId)
+    .catch(() => undefined);
   // Hook "persona se unió" (lib/workspace-lifecycle.ts): cada app engancha lo suyo ahí.
   const team = await getTeamById(teamId);
   if (team && team.owner_id !== userId) {
@@ -289,9 +294,14 @@ export async function createInvite(
   const groups = JSON.stringify([...new Set((opts.groupIds ?? []).filter((g) => typeof g === 'string'))].slice(0, 50));
   const locale = opts.locale === 'es' || opts.locale === 'pt' ? opts.locale : 'en';
   const expires = new Date(Date.now() + INVITE_TTL_DAYS * 86_400_000).toISOString();
-  const pending = (await db
-    .prepare("SELECT * FROM team_invites WHERE team_id = ? AND email = ? AND status = 'pending' AND kind = 'invite' ORDER BY created_at DESC LIMIT 1")
-    .get(teamId, clean)) as TeamInviteRow | undefined;
+  // Sin email es un link de invitación (de un solo uso): cada uno es nuevo.
+  const pending = !clean
+    ? undefined
+    : ((await db
+        .prepare("SELECT * FROM team_invites WHERE team_id = ? AND email = ? AND status = 'pending' AND kind = 'invite' ORDER BY created_at DESC LIMIT 1")
+        .get(teamId, clean)) as TeamInviteRow | undefined);
+  // Un link sin email nunca es de admin: lo podría abrir cualquiera.
+  if (!clean && role === 'admin') throw new Error('admin_link');
   // Una invitación de admin solo se acepta con el email invitado.
   const anyEmail = opts.anyEmail && role !== 'admin' ? 1 : 0;
   if (pending && inviteUsable(pending)) {

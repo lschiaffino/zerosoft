@@ -1,5 +1,5 @@
 import { after, NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, realUserId } from '@/lib/session';
+import { getCurrentUser, realUserId, userCanUseApp } from '@/lib/session';
 import { upsertIntegration } from '@/lib/integrations';
 import { exchangeOutlookCode, graphMe, OUTLOOK_PROVIDER } from '@/lib/microsoft';
 import { registerOutlookMailbox, syncOutlookMailbox } from '@/lib/crm-outlook-sync';
@@ -14,6 +14,8 @@ const STATE_COOKIE = 'zs-outlook-state';
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  // El correo se sincroniza en el CRM del workspace: sin CRM, no.
+  if (!userCanUseApp(user, 'crm')) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const sp = req.nextUrl.searchParams;
   const code = sp.get('code');
