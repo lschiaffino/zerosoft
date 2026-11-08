@@ -41,6 +41,9 @@ import { usePopover } from '@/components/notes/usePopover';
 import RowMenu from '@/components/notes/RowMenu';
 import { notifyBoardsChanged } from './BoardBranch';
 import { parseDbUtc } from '@/lib/utils';
+import { isStickyLike } from '@/lib/board-canvas-tools';
+import { DEFAULT_INK } from '@/lib/board-dark';
+import { STICKY_TEXT_INK, type SceneEl } from '@/lib/board-stickies';
 
 const ExcalidrawCanvas = dynamic(() => import('./ExcalidrawCanvas'), {
   ssr: false,
@@ -140,7 +143,7 @@ export default function BoardEditor({
   /** Invitado con rol "ver": el lienzo queda en modo lectura y no se guarda nada. */
   const readOnly = board.my_access === 'view';
   const apiBase = guest ? `/api/boards/guest/${encodeURIComponent(guestToken ?? '')}` : `/api/boards/${board.id}`;
-  const workshop = useWorkshop(board.id, !guest);
+  const workshop = useWorkshop(board.id, true, guestToken);
   /** Clave de quien edita: la persona, o una por navegador para el invitado. */
   const [me] = useState<string | null>(() => {
     if (meId) return meId;
@@ -705,6 +708,31 @@ export default function BoardEditor({
     return () => clearTimeout(h);
   }, [canvasApi, commentId]);
 
+  // Stickies de antes con la tinta común: pasan a la tinta de stickies (igual a la vista en claro)
+  // para que en oscuro su letra quede oscura sobre el color claro. Una vez, al abrir, quien edita.
+  useEffect(() => {
+    if (!canvasApi || readOnly) return;
+    const h = setTimeout(() => {
+      const els = canvasApi.getSceneElementsIncludingDeleted() as SceneEl[];
+      const byId = new Map(els.map((e) => [e.id, e]));
+      const texts = new Set<string>();
+      for (const el of els) {
+        if (!isStickyLike(el)) continue;
+        for (const b of el.boundElements ?? []) {
+          const tx = b.type === 'text' ? (byId.get(b.id) as (SceneEl & { strokeColor?: string }) | undefined) : undefined;
+          if (tx && !tx.isDeleted && tx.strokeColor === DEFAULT_INK) texts.add(tx.id);
+        }
+      }
+      if (!texts.size) return;
+      canvasApi.updateScene({
+        elements: els.map((e) =>
+          texts.has(e.id) ? { ...e, strokeColor: STICKY_TEXT_INK, version: (e.version ?? 0) + 1, versionNonce: Math.floor(Math.random() * 2 ** 31), updated: Date.now() } : e,
+        ),
+      });
+    }, 400);
+    return () => clearTimeout(h);
+  }, [canvasApi, readOnly]);
+
   // Pizarra creada desde una plantilla (o restaurada sin miniatura): la grilla
   // muestra la miniatura sin esperar a la primera edición.
   useEffect(() => {
@@ -1018,8 +1046,8 @@ export default function BoardEditor({
         >
           {readOnly ? t('access.viewOnly') : statusText}
         </span>
-        {!guest && <TimerChip timer={workshop.timer} skew={workshop.skew} />}
-        {!guest && workshop.privateMode && (
+        <TimerChip timer={workshop.timer} skew={workshop.skew} />
+        {workshop.privateMode && (
           <span className="board-private-chip" role="status" title={t('workshop.privateOn')} data-testid="board-private-chip">
             <NotesIcon name="eyeOff" size={13} />
             <span className="board-bar-label">{t('workshop.privateChip')}</span>
@@ -1346,19 +1374,20 @@ export default function BoardEditor({
             onExportPdf={() => void exportPdf()}
           />
         )}
-        {!guest && (
-          <BoardOverlays
-            api={canvasApi}
-            cards={track.cards}
-            voting={workshop.voting}
-            canVote
-            onVote={(elementId, delta) => void workshop.send({ vote: { action: 'vote', elementId, delta } })}
-            me={me}
-            canReact={!readOnly}
-            privateMode={workshop.privateMode}
-          />
+        {/* El invitado también ve el modo privado y reacciona (votar pide cuenta). */}
+        <BoardOverlays
+          api={canvasApi}
+          cards={track.cards}
+          voting={workshop.voting}
+          canVote={!guest}
+          onVote={(elementId, delta) => void workshop.send({ vote: { action: 'vote', elementId, delta } })}
+          me={me}
+          canReact={!readOnly}
+          privateMode={workshop.privateMode}
+        />
+        {!presenting && (
+          <BoardCanvasTools api={canvasApi} me={me} canEdit={!readOnly} hostRef={canvasRef} attachUrl={guest || readOnly ? null : `/api/boards/${board.id}/attachments`} onMessage={showToast} />
         )}
-        {!presenting && <BoardCanvasTools api={canvasApi} me={me} canEdit={!readOnly} hostRef={canvasRef} />}
         {!guest && (
           <CanvasComments
             boardId={board.id}

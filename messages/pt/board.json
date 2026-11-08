@@ -549,10 +549,24 @@
     "tableCol": "Coluna {n}",
     "minimap": "Minimapa",
     "minimapHint": "Minimapa (M)",
-    "tableHint": "Inserir uma tabela. Colar células de uma planilha também cria uma."
+    "tableHint": "Inserir uma tabela. Colar células de uma planilha também cria uma.",
+    "file": "Anexar um arquivo",
+    "fileHint": "Anexe um PDF, documento, planilha ou apresentação como cartão. Também dá para soltar arquivos no quadro.",
+    "fileType": "{name} não pode ir para o quadro. Use um PDF, documento, planilha, apresentação, texto ou zip.",
+    "fileTooBig": "{name} passa de {mb} MB.",
+    "fileError": "Não conseguimos enviar {name}. Tente de novo."
   },
   "reactions": {
     "add": "Adicionar uma reação",
     "count": "{emoji} {count, plural, one {# reação} other {# reações}}. Clique para adicionar ou tirar a sua."
+  },
+  "table": {
+    "label": "Tabela",
+    "addRow": "Adicionar uma linha abaixo",
+    "addCol": "Adicionar uma coluna à direita",
+    "removeRow": "Remover esta linha",
+    "removeCol": "Remover esta coluna",
+    "removeLastRow": "Remover a última linha",
+    "removeLastCol": "Remover a última coluna"
   }
 }

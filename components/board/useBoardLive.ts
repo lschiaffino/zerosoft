@@ -40,7 +40,9 @@ export function usePoll(fn: () => Promise<void>, ms: number, enabled: boolean) {
   }, [ms, enabled]);
 }
 
-export function useWorkshop(boardId: string, enabled: boolean) {
+/** `guestToken`: link de invitado (solo lee el timer y el modo privado). */
+export function useWorkshop(boardId: string, enabled: boolean, guestToken: string | null = null) {
+  const readUrl = guestToken ? `/api/boards/guest/${encodeURIComponent(guestToken)}/workshop` : `/api/boards/${boardId}/workshop`;
   const [state, setState] = useState<WorkshopState>({ timer: null, voting: null, privateMode: false, skew: 0 });
   const [error, setError] = useState(false);
 
@@ -49,9 +51,9 @@ export function useWorkshop(boardId: string, enabled: boolean) {
   }, []);
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/boards/${boardId}/workshop`).catch(() => null);
+    const res = await fetch(readUrl).catch(() => null);
     if (res?.ok) apply(await res.json());
-  }, [boardId, apply]);
+  }, [readUrl, apply]);
 
   const active = state.timer?.status === 'running' || state.timer?.status === 'paused' || state.voting?.status === 'open' || state.privateMode;
   usePoll(load, active ? WORKSHOP_ACTIVE_MS : WORKSHOP_IDLE_MS, enabled);

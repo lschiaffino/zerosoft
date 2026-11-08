@@ -61,6 +61,12 @@ export const CHANGELOG: ChangelogEntry[] = [
         es: 'Plantillas nuevas de diagrama de flujo y mapa de historias de usuario, guías de alineación prendidas de entrada y stickies importados desde un CSV, el nuestro o el de Miro.',
         pt: 'Novos modelos de fluxograma e mapa de histórias de usuário, guias de alinhamento ligadas por padrão e post-its importados de um CSV, o nosso ou o do Miro.',
       },
+      {
+        product: 'board',
+        en: 'In dark mode stickies keep their light color with dark text. Tables gain and lose rows and columns, PDFs and documents go on the board as cards, and "- " starts a bullet list.',
+        es: 'En modo oscuro los stickies conservan su color claro con letra oscura. Las tablas suman y sacan filas y columnas, los PDF y documentos van a la pizarra como tarjetas y "- " arranca una lista.',
+        pt: 'No modo escuro os post-its mantêm a cor clara com letra escura. As tabelas ganham e perdem linhas e colunas, PDFs e documentos vão para o quadro como cartões e "- " começa uma lista.',
+      },
     ],
   },
   {

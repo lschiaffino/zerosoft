@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { elementBox, isSticky, stickyTags, type SceneEl } from '@/lib/board-stickies';
-import { REACTIONS, hiddenInPrivate, reactionsOf, toggleReaction } from '@/lib/board-canvas-tools';
+import { REACTIONS, editTable, hiddenInPrivate, reactionsOf, selectedTable, tableShape, toggleReaction, type TableOp } from '@/lib/board-canvas-tools';
 import NotesIcon from '@/components/notes/NotesIcon';
 import { sceneToView, type CanvasView } from '@/lib/board-view';
 import type { BoardTrackCard } from '@/lib/board-track';
@@ -154,8 +154,73 @@ export default function BoardOverlays({
   const open = voting?.status === 'open';
   const closed = voting?.status === 'closed';
 
+  /** Tabla elegida: barra para sumar y sacar filas y columnas, arriba de la tabla. */
+  const table = useMemo(() => {
+    if (!canReact) return null;
+    const pick = selectedTable(elements, selected ? selected.split(',') : []);
+    if (!pick) return null;
+    const shape = tableShape(elements, pick.tableId);
+    if (!shape.cells.length) return null;
+    const left = Math.min(...shape.cells.map((c) => Number(c.x)));
+    const top = Math.min(...shape.cells.map((c) => Number(c.y)));
+    const p = sceneToView({ x: left, y: top }, view);
+    return { ...pick, rows: shape.rows, cols: shape.cols, x: p.x, y: p.y };
+  }, [canReact, elements, selected, view]);
+
+  async function runTable(op: TableOp) {
+    if (!api || !table) return;
+    const { skeletonsToElements, UNDOABLE, ensureFonts } = await import('./ExcalidrawCanvas');
+    await ensureFonts();
+    const edit = editTable(api.getSceneElements() as SceneEl[], table.tableId, op);
+    if (!edit) return;
+    const updated = new Map(edit.updated.map((e) => [e.id, e]));
+    const removed = new Set(edit.removed);
+    const added = skeletonsToElements(edit.added) as SceneEl[];
+    const next = (api.getSceneElementsIncludingDeleted() as SceneEl[]).map((e) =>
+      removed.has(e.id) ? { ...e, isDeleted: true, version: (e.version ?? 0) + 1, updated: Date.now() } : (updated.get(e.id) ?? e),
+    );
+    // Queda elegida la tabla entera (con sus celdas nuevas): la barra sigue a mano para otro cambio.
+    const all = [...next, ...added];
+    const tableIds = all.filter((e) => !e.isDeleted && e.customData?.table === table.tableId).map((e) => e.id);
+    api.updateScene({
+      elements: all,
+      appState: { selectedElementIds: Object.fromEntries(tableIds.map((tid) => [tid, true])), selectedGroupIds: { [table.tableId]: true } },
+      captureUpdate: UNDOABLE,
+    });
+  }
+
   return (
-    <div ref={wrapRef} className="board-overlays" aria-hidden={items.length === 0 ? true : undefined}>
+    <div ref={wrapRef} className="board-overlays" aria-hidden={items.length === 0 && !table ? true : undefined}>
+      {table && (
+        <div className="board-table-bar" role="toolbar" aria-label={t('table.label')} style={{ left: table.x, top: table.y }} data-testid="board-table-bar">
+          <button type="button" className="board-canvas-tool" onClick={() => void runTable({ kind: 'addRow', after: table.cell?.row ?? table.rows - 1 })} title={t('table.addRow')} aria-label={t('table.addRow')}>
+            <NotesIcon name="rowAdd" size={15} />
+          </button>
+          <button type="button" className="board-canvas-tool" onClick={() => void runTable({ kind: 'addCol', after: table.cell?.col ?? table.cols - 1 })} title={t('table.addCol')} aria-label={t('table.addCol')}>
+            <NotesIcon name="colAdd" size={15} />
+          </button>
+          <button
+            type="button"
+            className="board-canvas-tool"
+            disabled={table.rows <= 1}
+            onClick={() => void runTable({ kind: 'removeRow', index: table.cell?.row ?? table.rows - 1 })}
+            title={table.cell ? t('table.removeRow') : t('table.removeLastRow')}
+            aria-label={table.cell ? t('table.removeRow') : t('table.removeLastRow')}
+          >
+            <NotesIcon name="rowRemove" size={15} />
+          </button>
+          <button
+            type="button"
+            className="board-canvas-tool"
+            disabled={table.cols <= 1}
+            onClick={() => void runTable({ kind: 'removeCol', index: table.cell?.col ?? table.cols - 1 })}
+            title={table.cell ? t('table.removeCol') : t('table.removeLastCol')}
+            aria-label={table.cell ? t('table.removeCol') : t('table.removeLastCol')}
+          >
+            <NotesIcon name="colRemove" size={15} />
+          </button>
+        </div>
+      )}
       {items.map(({ el, box }) => {
         const tags = view.zoom >= TAGS_MIN_ZOOM ? stickyTags(el) : [];
         const card = cardByEl.get(el.id);

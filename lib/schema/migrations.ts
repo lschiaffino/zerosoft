@@ -8625,6 +8625,14 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE board_comment_threads ADD COLUMN anchor_y REAL');
     },
   },
+  {
+    // Board: archivos sueltos en el lienzo (PDF, documentos, planillas): el
+    // nombre original para descargarlo con su nombre.
+    id: '281_board_file_name',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE board_files ADD COLUMN name TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

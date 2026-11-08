@@ -260,3 +260,102 @@ test('390 px táctil: se ve y se edita sin scroll horizontal', async ({ browser 
   await page.screenshot({ path: shot('board-390.png') });
   await ctx.close();
 });
+
+test('oscuro: los stickies conservan su color claro con letra oscura; el resto del lienzo es oscuro', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  const id = await fromTemplate(page, 'retro', 'Retro oscura');
+  await openEditor(page, id);
+  const note = (await elements(page)).find((e) => e.type === 'rectangle' && e.width === 140)!;
+  const at = await toScreen(page, note.x + 6, note.y + 6);
+  const bg = await toScreen(page, note.x - 400, note.y - 300);
+  // Pixel del canvas de la escena (sin filtro CSS): el sticky es el verde claro de la paleta y el fondo es oscuro.
+  const px = await page.evaluate(
+    ([p, q]) => {
+      const canvas = document.querySelector<HTMLCanvasElement>('.excalidraw__canvas-wrapper canvas')!;
+      const r = canvas.getBoundingClientRect();
+      const ctx = canvas.getContext('2d')!;
+      const scale = canvas.width / r.width;
+      const read = (pt: { x: number; y: number }) => [...ctx.getImageData(Math.round((pt.x - r.left) * scale), Math.round((pt.y - r.top) * scale), 1, 1).data].slice(0, 3);
+      return { sticky: read(p), bg: read(q), filter: getComputedStyle(canvas).filter };
+    },
+    [at, bg],
+  );
+  expect(px.filter).toBe('none');
+  expect(px.sticky[0] + px.sticky[1] + px.sticky[2]).toBeGreaterThan(600);
+  expect(px.bg[0] + px.bg[1] + px.bg[2]).toBeLessThan(120);
+  // La letra de las notas usa la tinta de stickies (queda oscura en oscuro).
+  await expect
+    .poll(async () => (await elements(page)).filter((e) => e.type === 'text' && e.containerId === note.id).map((e) => (e as unknown as { strokeColor: string }).strokeColor))
+    .toEqual(['#1e1e1f']);
+  await page.screenshot({ path: shot('board-dark-stickies.png') });
+  await page.emulateMedia({ colorScheme: 'light' });
+});
+
+test('tablas: sumar y sacar filas y columnas; archivo adjunto como tarjeta', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const res = await page.request.post('/api/boards', { data: { name: 'Tabla y archivo' } });
+  const id = ((await res.json()) as { id: string }).id;
+  await openEditor(page, id);
+  await page.getByTestId('board-tool-table').click();
+  const cells = async () => (await elements(page)).filter((e) => e.type === 'rectangle' && (e.customData as { table?: string } | undefined)?.table);
+  await expect.poll(async () => (await cells()).length).toBe(12);
+  const bar = page.getByTestId('board-table-bar');
+  await expect(bar).toBeVisible();
+  await bar.getByRole('button', { name: 'Sumar una fila abajo' }).click();
+  await expect.poll(async () => (await cells()).length).toBe(15);
+  await bar.getByRole('button', { name: 'Sumar una columna a la derecha' }).click();
+  await expect.poll(async () => (await cells()).length).toBe(20);
+  await bar.getByRole('button', { name: 'Sacar la última fila' }).click();
+  await expect.poll(async () => (await cells()).length).toBe(16);
+  await bar.getByRole('button', { name: 'Sacar la última columna' }).click();
+  await expect.poll(async () => (await cells()).length).toBe(12);
+  // Sin huecos ni superposiciones: 4 filas por 3 columnas.
+  const rows = new Set((await cells()).map((c) => (c.customData as { row: number }).row));
+  const cols = new Set((await cells()).map((c) => (c.customData as { col: number }).col));
+  expect([rows.size, cols.size]).toEqual([4, 3]);
+  await page.keyboard.press('Escape');
+
+  // Un PDF como tarjeta con su nombre; el link lo baja con su nombre.
+  await page.getByTestId('board-file-input').setInputFiles({ name: 'Propuesta Q1.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n% prueba\n') });
+  await expect.poll(async () => (await elements(page)).find((e) => (e.customData as { file?: unknown } | undefined)?.file)?.id ?? null).not.toBeNull();
+  const card = (await elements(page)).find((e) => (e.customData as { file?: unknown } | undefined)?.file)! as unknown as { link: string };
+  expect(card.link).toMatch(/^\/api\/boards\/[0-9a-f-]+\/files\/att_[0-9a-f]+$/);
+  const texts = (await elements(page)).filter((e) => e.type === 'text').map((e) => e.text ?? '');
+  expect(texts.some((tx) => tx.includes('Propuesta Q1.pdf') && tx.includes('PDF'))).toBe(true);
+  const file = await page.request.get(card.link);
+  expect(file.status()).toBe(200);
+  expect(file.headers()['content-disposition']).toContain('attachment');
+  expect(file.headers()['content-disposition']).toContain('Propuesta%20Q1.pdf');
+  // Un tipo no permitido se rechaza con un aviso.
+  await page.getByTestId('board-file-input').setInputFiles({ name: 'script.html', mimeType: 'text/html', buffer: Buffer.from('<b>x</b>') });
+  await expect(page.locator('.ui-toast')).toContainText('no puede ir a la pizarra');
+  await expect(page.locator('.board-status')).toHaveText('Guardado', { timeout: 15_000 });
+  await page.screenshot({ path: shot('board-table-file.png') });
+});
+
+test('modo privado: tapa las notas de plantilla y el invitado del link de edición también lo ve', async ({ page, browser }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const id = await fromTemplate(page, 'retro', 'Retro privada');
+  const res = await page.request.patch(`/api/boards/${id}/access`, { data: { guest: true } });
+  const token = ((await res.json()) as { guest_token: string }).guest_token;
+  await openEditor(page, id);
+  const notes = (await elements(page)).filter((e) => e.type === 'rectangle' && e.width === 140).length;
+  expect(notes).toBe(5);
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const g = await ctx.newPage();
+  await g.goto(`/es/b/e/${token}`);
+  await expect(g.locator('.excalidraw')).toBeVisible();
+  await barAction(page, 'Taller');
+  await page.getByTestId('board-private-toggle').click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('board-private-cover')).toHaveCount(notes);
+  await expect(g.getByTestId('board-private-chip')).toBeVisible({ timeout: 10_000 });
+  await expect(g.getByTestId('board-private-cover')).toHaveCount(notes);
+  await g.screenshot({ path: shot('board-private-guest.png') });
+  await barAction(page, 'Taller');
+  await page.getByTestId('board-private-toggle').click();
+  await page.keyboard.press('Escape');
+  await expect(g.getByTestId('board-private-cover')).toHaveCount(0, { timeout: 10_000 });
+  await ctx.close();
+});

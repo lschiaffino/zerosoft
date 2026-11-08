@@ -10,6 +10,9 @@
  */
 import { normalizeTag } from './notes-types';
 
+/** Tinta del texto de los stickies (lib/board-dark.ts la deja oscura en el lienzo oscuro). */
+export const STICKY_TEXT_INK = '#1e1e1f';
+
 /** Colores de la paleta de Excalidraw (los mismos tonos de las plantillas). */
 export const STICKY_COLORS = [
   { key: 'yellow', fill: '#ffec99' },
@@ -161,7 +164,7 @@ export function stickySkeleton(draft: StickyDraft, pos: { x: number; y: number }
     strokeWidth: 1,
     roughness: 1,
     roundness: { type: 3 },
-    label: { text: draft.text, fontSize: 18 },
+    label: { text: draft.text, fontSize: 18, strokeColor: STICKY_TEXT_INK },
     customData: { sticky: true, tags: draft.tags },
   };
 }

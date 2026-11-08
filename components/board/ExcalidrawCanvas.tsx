@@ -24,7 +24,23 @@ import {
 import '@excalidraw/excalidraw/index.css';
 import { isAllowedLibraryUrl, type BoardScene } from '@/lib/boards-types';
 import { excalidrawLang } from '@/lib/board-view';
+import { isBoardFileLink } from '@/lib/board-canvas-tools';
+
+/** Link de una tarjeta de archivo: se baja con su nombre, sin salir de la pizarra. */
+function openLink(element: unknown, event: CustomEvent) {
+  const link = (element as { link?: string | null }).link;
+  if (!isBoardFileLink(link)) return;
+  event.preventDefault();
+  const a = document.createElement('a');
+  a.href = link!;
+  a.rel = 'noopener';
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 import { useResolvedTheme } from '@/components/theme/ThemeProvider';
+import { setDarkCanvas, setExportingImage, withRealColorsAsync } from './darkCanvas';
 
 // Tipos laxos: los .d.ts de Excalidraw arrastran paquetes internos.
 export interface CanvasApi {
@@ -282,7 +298,20 @@ function ExcalidrawCanvas({
 }) {
   // El lienzo sigue el modo de color del sitio (selector sistema/claro/oscuro).
   const theme = useResolvedTheme();
+  // Antes de que Excalidraw dibuje: en oscuro, los colores se transforman en JS y los stickies quedan claros.
+  setDarkCanvas(theme === 'dark');
+  useEffect(() => () => setDarkCanvas(false), []);
   const [api, setApi] = useState<unknown>(null);
+  // El diálogo de exportar imagen dibuja con colores reales (y su propio filtro si se pide oscuro).
+  useEffect(() => {
+    const a = api as CanvasApi | null;
+    if (!a) return;
+    const off = a.onChange((_els, appState) => setExportingImage((appState.openDialog as { name?: string } | null)?.name === 'imageExport'));
+    return () => {
+      off();
+      setExportingImage(false);
+    };
+  }, [api]);
   const hostRef = useRef<HTMLDivElement>(null);
   usePanelLimit(hostRef);
   useTranslateTtd(ttdTexts);
@@ -408,6 +437,7 @@ function ExcalidrawCanvas({
         onChange={hasOnChange ? handleChange : undefined}
         onPointerUpdate={hasPointer ? handlePointer : undefined}
         isCollaborating={collaborating}
+        onLinkOpen={openLink as never}
         aiEnabled={hasAi}
         UIOptions={uiOptions}
       >
@@ -475,7 +505,7 @@ export function fitContent(api: CanvasApi, maxZoom = 1) {
 export async function exportFrameJpeg(api: CanvasApi, frame: unknown, maxSide = 2000): Promise<Uint8Array> {
   const elements = api.getSceneElements();
   const appState = api.getAppState();
-  const blob = await exportToBlob({
+  const blob = await withRealColorsAsync(() => exportToBlob({
     elements: elements as never,
     appState: { exportBackground: true, viewBackgroundColor: (appState.viewBackgroundColor as string) ?? '#ffffff', exportWithDarkMode: false } as never,
     files: api.getFiles() as never,
@@ -484,20 +514,22 @@ export async function exportFrameJpeg(api: CanvasApi, frame: unknown, maxSide = 
     mimeType: 'image/jpeg',
     quality: 0.9,
     exportPadding: 0,
-  });
+  }));
   return new Uint8Array(await blob.arrayBuffer());
 }
 
 /** PNG de un frame en data URL (lo que ve la IA en wireframe a código). */
 export async function exportFramePngDataUrl(api: CanvasApi, frame: unknown, maxSide = 1200): Promise<string> {
-  const blob = await exportToBlob({
-    elements: api.getSceneElements() as never,
-    appState: { exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false } as never,
-    files: api.getFiles() as never,
-    exportingFrame: frame as never,
-    maxWidthOrHeight: maxSide,
-    mimeType: 'image/png',
-  });
+  const blob = await withRealColorsAsync(() =>
+    exportToBlob({
+      elements: api.getSceneElements() as never,
+      appState: { exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false } as never,
+      files: api.getFiles() as never,
+      exportingFrame: frame as never,
+      maxWidthOrHeight: maxSide,
+      mimeType: 'image/png',
+    }),
+  );
   return await new Promise<string>((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result));

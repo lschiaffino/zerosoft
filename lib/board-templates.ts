@@ -5,6 +5,7 @@
  * servidor la usa para crear la pizarra y el cliente para la vista previa.
  */
 import type { BoardScene } from './boards-types';
+import { STICKY_TEXT_INK } from './board-stickies';
 
 export const BOARD_TEMPLATES = [
   'retro',
@@ -112,7 +113,7 @@ class Builder {
     y: number,
     width: number,
     height: number,
-    opts: { fill?: string; label?: string; fontSize?: number; stroke?: string; dashed?: boolean; rounded?: boolean } = {},
+    opts: { fill?: string; label?: string; fontSize?: number; stroke?: string; dashed?: boolean; rounded?: boolean; ink?: string } = {},
   ): El {
     const el = this.base(type, x, y, width, height, {
       backgroundColor: opts.fill ?? 'transparent',
@@ -120,16 +121,16 @@ class Builder {
       strokeStyle: opts.dashed ? 'dashed' : 'solid',
       roundness: opts.rounded === false ? null : type === 'rectangle' ? { type: 3 } : { type: 2 },
     });
-    if (opts.label) this.label(el, opts.label, opts.fontSize ?? 20);
+    if (opts.label) this.label(el, opts.label, opts.fontSize ?? 20, opts.ink);
     return el;
   }
 
-  /** Nota adhesiva: rectángulo de color con texto. */
+  /** Nota adhesiva: rectángulo de color con texto (con la tinta de stickies: en oscuro queda oscura). */
   sticky(x: number, y: number, label: string, fill = YELLOW, width = 160, height = 120): El {
-    return this.shape('rectangle', x, y, width, height, { fill, label, fontSize: 18 });
+    return this.shape('rectangle', x, y, width, height, { fill, label, fontSize: 18, ink: STICKY_TEXT_INK });
   }
 
-  private label(container: El, text: string, fontSize: number) {
+  private label(container: El, text: string, fontSize: number, ink?: string) {
     // Las formas de Excalidraw dejan menos lugar útil que el rectángulo que las contiene.
     const inner = container.type === 'rectangle' ? container.width - 20 : container.width * 0.6;
     const wrapped = wrap(text, Math.max(4, Math.floor(inner / (fontSize * CHAR_W))));
@@ -143,6 +144,7 @@ class Builder {
       containerId: container.id,
       width,
       autoResize: true,
+      ...(ink ? { strokeColor: ink } : {}),
     });
     container.boundElements = [...((container.boundElements as unknown[] | null) ?? []), { type: 'text', id: t.id }];
   }

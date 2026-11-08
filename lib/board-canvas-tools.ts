@@ -59,6 +59,35 @@ export function freeSpot(size: { width: number; height: number }, center: { x: n
   return { x: first.x, y: bottom + margin };
 }
 
+// ---------- Listas en el texto ----------
+
+const BULLET = '• ';
+
+/**
+ * Listas al escribir en un sticky o un texto (el texto de Excalidraw es plano:
+ * no hay negrita ni cursiva por partes). "- " o "* " al empezar la línea pasa
+ * a "• "; Enter en una línea con viñeta sigue la lista, y en una viñeta vacía
+ * la termina. Null si la tecla no cambia nada.
+ */
+export function bulletEdit(value: string, start: number, end: number, key: string, modified: boolean): { value: string; caret: number } | null {
+  if (modified || start !== end) return null;
+  const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+  const before = value.slice(lineStart, start);
+  if (key === ' ' && (before === '-' || before === '*')) {
+    return { value: value.slice(0, lineStart) + BULLET + value.slice(start), caret: lineStart + BULLET.length };
+  }
+  if (key === 'Enter') {
+    const lineEndAt = value.indexOf('\n', start);
+    const line = value.slice(lineStart, lineEndAt === -1 ? value.length : lineEndAt);
+    if (!line.startsWith(BULLET)) return null;
+    if (line.trim() === BULLET.trim()) {
+      return { value: value.slice(0, lineStart) + value.slice(lineStart + BULLET.length), caret: lineStart };
+    }
+    return { value: `${value.slice(0, start)}\n${BULLET}${value.slice(start)}`, caret: start + 1 + BULLET.length };
+  }
+  return null;
+}
+
 // ---------- Reacciones ----------
 
 /** Reacciones que se ofrecen (las de siempre en Miro y Slack). */
@@ -102,11 +131,31 @@ export function stickyAuthor(el: SceneEl | null | undefined): string | null {
   return typeof a === 'string' && a ? a : null;
 }
 
-/** En modo privado, los stickies con autor que no es `me` se tapan. Sin autor (plantillas) se ven. */
+const STICKY_FILLS = new Set(STICKY_COLORS.map((c) => c.fill));
+
+/**
+ * ¿Parece un sticky? Uno de la herramienta (customData.sticky) o un rectángulo
+ * con texto y fondo de la paleta de stickies (las notas de las plantillas, o
+ * uno dibujado a mano con esos colores).
+ */
+export function isStickyLike(el: SceneEl | null | undefined): boolean {
+  if (!el || el.isDeleted) return false;
+  if (el.customData?.sticky === true) return true;
+  return el.type === 'rectangle' && STICKY_FILLS.has(String(el.backgroundColor ?? '').toLowerCase()) && Boolean(el.boundElements?.some((b) => b.type === 'text'));
+}
+
+/**
+ * En modo privado se tapa todo lo que parece un sticky salvo lo que escribió
+ * `me`: las notas de ejemplo de una plantilla (sin autor) también se tapan.
+ */
 export function hiddenInPrivate(el: SceneEl, me: string, privateMode: boolean): boolean {
-  if (!privateMode) return false;
-  const author = stickyAuthor(el);
-  return author !== null && author !== me;
+  if (!privateMode || !isStickyLike(el)) return false;
+  return stickyAuthor(el) !== me;
+}
+
+/** El elemento con autor (versión subida): lo que se crea en modo privado queda de quien lo escribió. */
+export function withAuthor<T extends SceneEl>(el: T, author: string, nonce = Math.floor(Math.random() * 2 ** 31)): T {
+  return { ...el, customData: { ...(el.customData ?? {}), author }, version: (el.version ?? 0) + 1, versionNonce: nonce, updated: Date.now() };
 }
 
 // ---------- Minimapa ----------
@@ -212,6 +261,120 @@ export function tableSkeletons(
   return out;
 }
 
+type TableCell = SceneEl & { customData: { table: string; row: number; col: number } };
+
+function tableCellsOf(elements: readonly SceneEl[], tableId: string): TableCell[] {
+  return elements.filter(
+    (e): e is TableCell => !e.isDeleted && e.customData?.table === tableId && typeof e.customData?.row === 'number' && typeof e.customData?.col === 'number',
+  );
+}
+
+/** Tabla de los elementos elegidos (todos de la misma) y la celda puntual si hay una sola. */
+export function selectedTable(elements: readonly SceneEl[], selectedIds: readonly string[]): { tableId: string; cell: { row: number; col: number } | null } | null {
+  const byId = new Map(elements.map((e) => [e.id, e]));
+  const picked = new Set<SceneEl>();
+  for (const id of selectedIds) {
+    let el = byId.get(id);
+    if (el?.type === 'text' && el.containerId) el = byId.get(el.containerId);
+    if (el && !el.isDeleted) picked.add(el);
+  }
+  const tables = new Set([...picked].map((e) => e.customData?.table));
+  if (picked.size === 0 || tables.size !== 1) return null;
+  const tableId = [...tables][0];
+  if (typeof tableId !== 'string') return null;
+  const only = picked.size === 1 ? [...picked][0] : null;
+  return { tableId, cell: only ? { row: Number(only.customData?.row), col: Number(only.customData?.col) } : null };
+}
+
+export type TableOp = { kind: 'addRow' | 'addCol'; after: number } | { kind: 'removeRow' | 'removeCol'; index: number };
+
+export interface TableEdit {
+  /** Elementos que cambian (celdas corridas, con su texto), con versión subida. */
+  updated: SceneEl[];
+  /** Ids a borrar (celdas de la fila o columna sacada y su texto). */
+  removed: string[];
+  /** Celdas nuevas, como esqueletos para convertToExcalidrawElements. */
+  added: Array<Record<string, unknown>>;
+}
+
+/** Tamaño de cada fila y columna, y cuántas hay. */
+export function tableShape(elements: readonly SceneEl[], tableId: string) {
+  const cells = tableCellsOf(elements, tableId);
+  const rows = Math.max(0, ...cells.map((c) => c.customData.row + 1));
+  const cols = Math.max(0, ...cells.map((c) => c.customData.col + 1));
+  const rowTop = (r: number) => Math.min(...cells.filter((c) => c.customData.row === r).map((c) => Number(c.y)));
+  const rowH = (r: number) => Math.max(...cells.filter((c) => c.customData.row === r).map((c) => Number(c.height)));
+  const colLeft = (c: number) => Math.min(...cells.filter((x) => x.customData.col === c).map((x) => Number(x.x)));
+  const colW = (c: number) => Math.max(...cells.filter((x) => x.customData.col === c).map((x) => Number(x.width)));
+  return { cells, rows, cols, rowTop, rowH, colLeft, colW };
+}
+
+/**
+ * Sumar o sacar una fila o columna de una tabla: corre las celdas de abajo
+ * (o de la derecha) con su texto y arma las celdas nuevas con el estilo de la
+ * fila o columna vecina. No saca la última fila ni la última columna.
+ */
+export function editTable(elements: readonly SceneEl[], tableId: string, op: TableOp, nonce = () => Math.floor(Math.random() * 2 ** 31)): TableEdit | null {
+  const { cells, rows, cols, rowTop, rowH, colLeft, colW } = tableShape(elements, tableId);
+  if (!cells.length) return null;
+  const byId = new Map(elements.map((e) => [e.id, e]));
+  const group = (cells[0] as SceneEl & { groupIds?: string[] }).groupIds ?? [tableId];
+  const textOf = (c: SceneEl) => c.boundElements?.filter((b) => b.type === 'text').map((b) => byId.get(b.id)).filter(Boolean) as SceneEl[];
+  const updated: SceneEl[] = [];
+  const bump = <T extends SceneEl>(el: T, patch: Partial<SceneEl>): T => ({ ...el, ...patch, version: (el.version ?? 0) + 1, versionNonce: nonce(), updated: Date.now() });
+  const shift = (c: TableCell, dx: number, dy: number, data: Partial<TableCell['customData']>) => {
+    updated.push(bump(c, { x: Number(c.x) + dx, y: Number(c.y) + dy, customData: { ...c.customData, ...data } }));
+    for (const t of textOf(c)) updated.push(bump(t, { x: Number(t.x) + dx, y: Number(t.y) + dy }));
+  };
+  const cellSkeleton = (x: number, y: number, width: number, height: number, row: number, col: number, like?: SceneEl) => ({
+    type: 'rectangle',
+    x,
+    y,
+    width,
+    height,
+    strokeColor: like?.strokeColor ?? '#868e96',
+    backgroundColor: row === 0 ? (like?.backgroundColor ?? '#e9ecef') : '#ffffff',
+    fillStyle: 'solid',
+    strokeWidth: 1,
+    roughness: 0,
+    roundness: null,
+    groupIds: group,
+    label: { text: ' ', fontSize: 16, fontFamily: 6 },
+    customData: { table: tableId, row, col },
+  });
+  const removed: string[] = [];
+  const added: Array<Record<string, unknown>> = [];
+  if (op.kind === 'addRow') {
+    const after = Math.min(Math.max(op.after, 0), rows - 1);
+    const h = rowH(after);
+    const top = rowTop(after) + h;
+    for (const c of cells) if (c.customData.row > after) shift(c, 0, h, { row: c.customData.row + 1 });
+    for (let col = 0; col < cols; col++) added.push(cellSkeleton(colLeft(col), top, colW(col), h, after + 1, col));
+  } else if (op.kind === 'addCol') {
+    const after = Math.min(Math.max(op.after, 0), cols - 1);
+    const w = colW(after);
+    const left = colLeft(after) + w;
+    const header = cells.find((c) => c.customData.row === 0);
+    for (const c of cells) if (c.customData.col > after) shift(c, w, 0, { col: c.customData.col + 1 });
+    for (let row = 0; row < rows; row++) added.push(cellSkeleton(left, rowTop(row), w, rowH(row), row, after + 1, row === 0 ? header : undefined));
+  } else if (op.kind === 'removeRow') {
+    if (rows <= 1 || op.index < 0 || op.index >= rows) return null;
+    const h = rowH(op.index);
+    for (const c of cells) {
+      if (c.customData.row === op.index) removed.push(c.id, ...textOf(c).map((t) => t.id));
+      else if (c.customData.row > op.index) shift(c, 0, -h, { row: c.customData.row - 1 });
+    }
+  } else {
+    if (cols <= 1 || op.index < 0 || op.index >= cols) return null;
+    const w = colW(op.index);
+    for (const c of cells) {
+      if (c.customData.col === op.index) removed.push(c.id, ...textOf(c).map((t) => t.id));
+      else if (c.customData.col > op.index) shift(c, -w, 0, { col: c.customData.col - 1 });
+    }
+  }
+  return { updated, removed, added };
+}
+
 /**
  * Texto pegado de una planilla (Sheets, Excel): filas por línea y celdas por
  * tab. Null si no parece una tabla (menos de 2 columnas o 2 filas).
@@ -226,6 +389,72 @@ export function parseSpreadsheetPaste(text: string): string[][] | null {
     .map((l) => l.split('\t').slice(0, TABLE_MAX));
   const cols = Math.max(0, ...rows.map((r) => r.length));
   return rows.length >= 2 && cols >= 2 ? rows : null;
+}
+
+// ---------- Archivos en el lienzo ----------
+
+export interface FileCardData {
+  fileId: string;
+  url: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+const KINDS: Array<{ exts: string[]; icon: string; label: string }> = [
+  { exts: ['pdf'], icon: '📕', label: 'PDF' },
+  { exts: ['doc', 'docx', 'odt', 'rtf'], icon: '📄', label: 'DOC' },
+  { exts: ['xls', 'xlsx', 'ods', 'csv'], icon: '📊', label: 'XLS' },
+  { exts: ['ppt', 'pptx', 'odp'], icon: '📽️', label: 'PPT' },
+  { exts: ['txt', 'md'], icon: '📝', label: 'TXT' },
+  { exts: ['zip'], icon: '🗜️', label: 'ZIP' },
+];
+
+/** Ícono y tipo corto de un archivo por su extensión. */
+export function fileKind(name: string): { icon: string; label: string } {
+  const ext = /\.([A-Za-z0-9]{1,8})$/.exec(name)?.[1]?.toLowerCase() ?? '';
+  const hit = KINDS.find((k) => k.exts.includes(ext));
+  return hit ? { icon: hit.icon, label: hit.label } : { icon: '📎', label: ext.toUpperCase() || 'FILE' };
+}
+
+/** Tamaño legible: 820 B, 14 KB, 1.2 MB. */
+export function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+export const FILE_CARD = { width: 300, height: 84 };
+
+/**
+ * Tarjeta de un archivo: rectángulo con ícono, nombre, tipo y tamaño, y el
+ * link del archivo (Excalidraw muestra el ícono de link y lo abre). Los datos
+ * del archivo quedan en customData.file.
+ */
+export function fileCardSkeleton(file: FileCardData, pos: { x: number; y: number }): Record<string, unknown> {
+  const kind = fileKind(file.name);
+  const name = file.name.length > 60 ? `${file.name.slice(0, 57)}…` : file.name;
+  return {
+    type: 'rectangle',
+    x: pos.x,
+    y: pos.y,
+    width: FILE_CARD.width,
+    height: FILE_CARD.height,
+    strokeColor: '#868e96',
+    backgroundColor: '#ffffff',
+    fillStyle: 'solid',
+    strokeWidth: 1,
+    roughness: 0,
+    roundness: { type: 3 },
+    link: file.url,
+    label: { text: `${kind.icon} ${name}\n${kind.label} · ${formatBytes(file.size)}`, fontSize: 16, fontFamily: 6, textAlign: 'left' },
+    customData: { file: { fileId: file.fileId, name: file.name, mime: file.mime, size: file.size } },
+  };
+}
+
+/** ¿Es un link a un archivo de esta app (adjunto o imagen de una pizarra)? */
+export function isBoardFileLink(link: string | null | undefined): boolean {
+  return typeof link === 'string' && /^\/api\/boards\/[A-Za-z0-9_-]{1,64}\/files\/[A-Za-z0-9_-]{1,128}$/.test(link);
 }
 
 // ---------- Importar stickies desde CSV ----------

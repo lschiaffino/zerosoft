@@ -1,12 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bulletEdit,
   contentBounds,
   elementAt,
+  fileCardSkeleton,
+  fileKind,
+  formatBytes,
   freeSpot,
+  isBoardFileLink,
   hiddenInPrivate,
+  isStickyLike,
+  stickyAuthor,
+  withAuthor,
   minimapLayout,
   minimapToScene,
   nextStickyBox,
+  editTable,
+  selectedTable,
+  tableShape,
   parseCsvRows,
   parseSpreadsheetPaste,
   parseStickyCsv,
@@ -17,6 +28,7 @@ import {
 } from '@/lib/board-canvas-tools';
 import { buildTemplateScene, isBoardTemplate } from '@/lib/board-templates';
 import { stickiesToCsv } from '@/lib/board-stickies';
+import { attachmentExtension, cleanAttachmentName } from '@/lib/board-file-refs';
 
 const box = (x: number, y: number, width = 200, height = 150) => ({ x, y, width, height });
 
@@ -29,6 +41,37 @@ describe('nextStickyBox', () => {
   });
   it('skips over occupied spots in the same direction', () => {
     expect(nextStickyBox(box(0, 0), 'right', [box(224, 0)])).toEqual(box(448, 0));
+  });
+});
+
+describe('file cards', () => {
+  it('shows icon, name, kind and size, links the file and keeps its data', () => {
+    const card = fileCardSkeleton({ fileId: 'att_1', url: '/api/boards/b1/files/att_1', name: 'Contrato final.pdf', mime: 'application/pdf', size: 1258291 }, { x: 0, y: 0 });
+    expect((card.label as { text: string }).text).toBe('📕 Contrato final.pdf\nPDF · 1.2 MB');
+    expect(card.link).toBe('/api/boards/b1/files/att_1');
+    expect((card.customData as { file: { fileId: string } }).file.fileId).toBe('att_1');
+    expect(fileKind('plan.xlsx').label).toBe('XLS');
+    expect(fileKind('raro.bin').icon).toBe('📎');
+    expect(formatBytes(820)).toBe('820 B');
+    expect(isBoardFileLink('/api/boards/b1/files/att_1')).toBe(true);
+    expect(isBoardFileLink('https://evil.test/api/boards/b1/files/x')).toBe(false);
+  });
+  it('attachment names are cleaned and only allowed extensions pass', () => {
+    expect(cleanAttachmentName('C:\\tmp\\a"b.pdf')).toBe('ab.pdf');
+    expect(attachmentExtension('x.PDF')).toBe('pdf');
+    expect(attachmentExtension('x.exe')).toBeNull();
+    expect(attachmentExtension('x.html')).toBeNull();
+  });
+});
+
+describe('bullets while typing', () => {
+  it('turns "- " into a bullet, continues the list on Enter and ends it on an empty bullet', () => {
+    expect(bulletEdit('Ideas\n-', 7, 7, ' ', false)).toEqual({ value: 'Ideas\n• ', caret: 8 });
+    expect(bulletEdit('• uno', 5, 5, 'Enter', false)).toEqual({ value: '• uno\n• ', caret: 8 });
+    expect(bulletEdit('• uno\n• ', 8, 8, 'Enter', false)).toEqual({ value: '• uno\n', caret: 6 });
+    expect(bulletEdit('texto', 5, 5, 'Enter', false)).toBeNull();
+    expect(bulletEdit('a-', 2, 2, ' ', false)).toBeNull();
+    expect(bulletEdit('• uno', 5, 5, 'Enter', true)).toBeNull();
   });
 });
 
@@ -66,11 +109,21 @@ describe('private mode', () => {
   const mine = { id: '1', customData: { sticky: true, author: 'me' } };
   const theirs = { id: '2', customData: { sticky: true, author: 'other' } };
   const template = { id: '3', customData: { sticky: true } };
-  it('hides only stickies written by someone else, and only while it is on', () => {
+  it('hides every sticky-like element not written by me, and only while it is on', () => {
     expect(hiddenInPrivate(mine, 'me', true)).toBe(false);
     expect(hiddenInPrivate(theirs, 'me', true)).toBe(true);
-    expect(hiddenInPrivate(template, 'me', true)).toBe(false);
+    expect(hiddenInPrivate(template, 'me', true)).toBe(true);
     expect(hiddenInPrivate(theirs, 'me', false)).toBe(false);
+  });
+  it('treats template notes (palette fill + text) as stickies, not plain shapes', () => {
+    const note = { id: 'n', type: 'rectangle', backgroundColor: '#FFEC99', boundElements: [{ id: 't', type: 'text' }] };
+    const column = { id: 'c', type: 'rectangle', backgroundColor: '#ebfbee', boundElements: null };
+    const flow = { id: 'f', type: 'ellipse', backgroundColor: '#b2f2bb', boundElements: [{ id: 't', type: 'text' }] };
+    expect(isStickyLike(note)).toBe(true);
+    expect(isStickyLike(column)).toBe(false);
+    expect(isStickyLike(flow)).toBe(false);
+    expect(hiddenInPrivate(column, 'me', true)).toBe(false);
+    expect(stickyAuthor(withAuthor(note, 'me'))).toBe('me');
   });
 });
 
@@ -101,6 +154,32 @@ describe('table', () => {
     expect((cells[0].label as { text: string }).text).toBe('A');
     expect(cells[0].backgroundColor).not.toBe(cells[4].backgroundColor);
     expect(tableSkeletons(99, 99, { x: 0, y: 0 }, 'g')).toHaveLength(144);
+  });
+  it('adds and removes rows and columns, shifting cells and their text', () => {
+    // 2×2 de 100×50 con texto en cada celda.
+    const els: Array<Record<string, unknown> & { id: string }> = [];
+    for (let r = 0; r < 2; r++)
+      for (let c = 0; c < 2; c++) {
+        const id = `c${r}${c}`;
+        els.push({ id, type: 'rectangle', x: c * 100, y: r * 50, width: 100, height: 50, version: 1, groupIds: ['g'], boundElements: [{ id: `t${r}${c}`, type: 'text' }], customData: { table: 'g', row: r, col: c } });
+        els.push({ id: `t${r}${c}`, type: 'text', x: c * 100 + 10, y: r * 50 + 10, width: 20, height: 20, version: 1, containerId: id });
+      }
+    const pick = selectedTable(els, ['t11']);
+    expect(pick).toEqual({ tableId: 'g', cell: { row: 1, col: 1 } });
+    expect(selectedTable(els, ['c00', 'c01'])?.cell).toBeNull();
+    const addRow = editTable(els, 'g', { kind: 'addRow', after: 0 })!;
+    expect(addRow.added).toHaveLength(2);
+    expect(addRow.added[0]).toMatchObject({ y: 50, x: 0, customData: { row: 1, col: 0 } });
+    const moved = addRow.updated.find((e) => e.id === 'c10')!;
+    expect(moved).toMatchObject({ y: 100, customData: { row: 2 } });
+    expect(addRow.updated.find((e) => e.id === 't10')!.y).toBe(110);
+    const addCol = editTable(els, 'g', { kind: 'addCol', after: 1 })!;
+    expect(addCol.added.map((a) => a.x)).toEqual([200, 200]);
+    const delCol = editTable(els, 'g', { kind: 'removeCol', index: 0 })!;
+    expect(delCol.removed.sort()).toEqual(['c00', 'c10', 't00', 't10']);
+    expect(delCol.updated.find((e) => e.id === 'c01')).toMatchObject({ x: 0, customData: { col: 0 } });
+    expect(editTable(els.filter((e) => String(e.id).endsWith('0') || e.id === 'c00'), 'g', { kind: 'removeCol', index: 0 })).toBeNull();
+    expect(tableShape(els, 'g')).toMatchObject({ rows: 2, cols: 2 });
   });
   it('turns a spreadsheet paste into rows and cells, and ignores plain text', () => {
     expect(parseSpreadsheetPaste('Name\tScore\r\nAna\t3\nLeo\t5\n')).toEqual([['Name', 'Score'], ['Ana', '3'], ['Leo', '5']]);

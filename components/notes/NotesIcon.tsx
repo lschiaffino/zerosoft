@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type NotesIconName = 'pin' | 'share' | 'trash' | 'pencil' | 'close' | 'plus' | 'back' | 'search' | 'clip' | 'ask' | 'grip' | 'more' | 'bell' | 'history' | 'import' | 'link' | 'sticky' | 'timer' | 'vote' | 'track' | 'lock' | 'users' | 'template' | 'focus' | 'mic' | 'scan' | 'check' | 'chevron' | 'export' | 'saved' | 'cloudOff' | 'play' | 'folder' | 'sparkle' | 'clock' | 'home' | 'highlighter' | 'table' | 'map' | 'smile' | 'eyeOff';
+export type NotesIconName = 'pin' | 'share' | 'trash' | 'pencil' | 'close' | 'plus' | 'back' | 'search' | 'clip' | 'ask' | 'grip' | 'more' | 'bell' | 'history' | 'import' | 'link' | 'sticky' | 'timer' | 'vote' | 'track' | 'lock' | 'users' | 'template' | 'focus' | 'mic' | 'scan' | 'check' | 'chevron' | 'export' | 'saved' | 'cloudOff' | 'play' | 'folder' | 'sparkle' | 'clock' | 'home' | 'highlighter' | 'table' | 'map' | 'smile' | 'eyeOff' | 'paperclip' | 'rowAdd' | 'colAdd' | 'rowRemove' | 'colRemove';
 
 /**
  * Íconos de Notes y Board: mismo trazo que components/app/icons (1.5px,
@@ -62,6 +62,11 @@ const PATHS: Record<NotesIconName, ReactNode> = {
       <path d="M8.5 14a4 4 0 0 0 7 0M9.5 9.5h.01M14.5 9.5h.01" />
     </>
   ),
+  paperclip: <path d="M20 11.5l-7.8 7.8a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8" />,
+  rowAdd: <path d="M4 4h16v6H4zM12 14v6M9 17h6" />,
+  colAdd: <path d="M4 4h6v16H4zM14 12h6M17 9v6" />,
+  rowRemove: <path d="M4 4h16v6H4zM9 17h6" />,
+  colRemove: <path d="M4 4h6v16H4zM14 12h6" />,
   eyeOff: <path d="M3 3l18 18M10.6 6.1A9 9 0 0 1 21 12a12 12 0 0 1-2.2 2.9M6.4 6.5A12 12 0 0 0 3 12a9.5 9.5 0 0 0 12.6 5.1M9.9 9.9a3 3 0 0 0 4.2 4.2" />,
 };
 

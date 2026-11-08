@@ -3,7 +3,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { STICKY_H, STICKY_W, elementBox, isSticky, stickyFill, stickySkeleton, type SceneEl } from '@/lib/board-stickies';
-import { freeSpot, nextStickyBox, parseSpreadsheetPaste, tableSkeletons, type Direction } from '@/lib/board-canvas-tools';
+import {
+  FILE_CARD,
+  bulletEdit,
+  fileCardSkeleton,
+  freeSpot,
+  isStickyLike,
+  nextStickyBox,
+  parseSpreadsheetPaste,
+  stickyAuthor,
+  tableSkeletons,
+  withAuthor,
+  type Direction,
+  type FileCardData,
+} from '@/lib/board-canvas-tools';
+import { ATTACHMENT_EXTENSIONS, BOARD_MAX_FILE_BYTES, attachmentExtension } from '@/lib/board-file-refs';
 import { viewToScene } from '@/lib/board-view';
 import type { CanvasApi } from './ExcalidrawCanvas';
 import { authoredSkeleton, stickyColor, viewportCenter } from './BoardStickyTool';
@@ -57,15 +71,16 @@ function selectedSticky(api: CanvasApi): SceneEl | null {
   return unique.length === 1 && isSticky(unique[0]) ? unique[0] : null;
 }
 
-/** Abre el editor de texto de un sticky: el doble clic de Excalidraw en su centro. */
-function editSticky(api: CanvasApi, box: { x: number; y: number; width: number; height: number }) {
+/**
+ * Abre el editor de texto del sticky recién creado (queda seleccionado). Excalidraw
+ * 0.18 no tiene una API pública para empezar a editar: se usa su propio atajo
+ * (Enter con una forma con texto seleccionada), mandado al contenedor del editor,
+ * que es donde Excalidraw escucha el teclado.
+ */
+function editSelected() {
   setTimeout(() => {
-    const s = api.getAppState();
-    const zoom = Number((s.zoom as { value?: number })?.value) || 1;
-    const clientX = (box.x + box.width / 2 + Number(s.scrollX)) * zoom + Number(s.offsetLeft);
-    const clientY = (box.y + box.height / 2 + Number(s.scrollY)) * zoom + Number(s.offsetTop);
-    const canvas = document.querySelector('.excalidraw canvas.interactive');
-    canvas?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true, clientX, clientY }));
+    const host = document.querySelector('.excalidraw');
+    host?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
     // El sticky nuevo trae un espacio de texto: queda elegido y lo primero que se escribe lo reemplaza.
     setTimeout(() => document.querySelector<HTMLTextAreaElement>('.excalidraw-wysiwyg')?.select(), 30);
   }, 60);
@@ -81,13 +96,21 @@ export default function BoardCanvasTools({
   me,
   canEdit,
   hostRef,
+  attachUrl = null,
+  onMessage,
 }: {
   api: CanvasApi | null;
   me: string | null;
   canEdit: boolean;
   hostRef: React.RefObject<HTMLDivElement | null>;
+  /** Dónde se suben los archivos adjuntos (null: sin adjuntos, como el invitado). */
+  attachUrl?: string | null;
+  /** Aviso corto para la persona (errores al subir un archivo). */
+  onMessage?: (text: string, tone?: 'error' | 'info') => void;
 }) {
   const t = useTranslations('board.tools');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(0);
   const [minimap, setMinimap] = useState(false);
   const [highlighter, setHighlighter] = useState(false);
   const pointerRef = useRef<{ x: number; y: number } | null>(null);
@@ -143,7 +166,7 @@ export default function BoardCanvasTools({
       if (full.x < view.x || full.y < view.y || full.x + full.width > view.x + view.w || full.y + full.height > view.y + view.h) {
         api.scrollToContent([sticky], { fitToContent: false, animate: false });
       }
-      editSticky(api, full);
+      editSelected();
     },
     [api, me],
   );
@@ -178,6 +201,17 @@ export default function BoardCanvasTools({
       const target = e.target as HTMLElement | null;
       // Escribiendo en un sticky: Tab lo cierra y abre el siguiente (Shift+Tab, abajo).
       if (target?.classList?.contains('excalidraw-wysiwyg')) {
+        // Listas: "- " o "* " al empezar una línea pasa a "• ", y Enter sigue la lista.
+        const area = target as HTMLTextAreaElement;
+        const edit = bulletEdit(area.value, area.selectionStart, area.selectionEnd, e.key, e.shiftKey || e.altKey || e.metaKey || e.ctrlKey);
+        if (edit) {
+          e.preventDefault();
+          e.stopPropagation();
+          area.value = edit.value;
+          area.setSelectionRange(edit.caret, edit.caret);
+          area.dispatchEvent(new Event('input', { bubbles: true }));
+          return;
+        }
         if (e.key !== 'Tab' || e.altKey || e.metaKey || e.ctrlKey) return;
         const editing = s.editingTextElement as SceneEl | null;
         const container = editing?.containerId ? (api.getSceneElements() as SceneEl[]).find((x) => x.id === editing.containerId) : null;
@@ -307,6 +341,89 @@ export default function BoardCanvasTools({
     return () => window.removeEventListener('paste', onPaste, true);
   }, [api, canEdit, insertTable]);
 
+  /** Sube archivos adjuntos y deja una tarjeta por archivo, desde `at` (escena) hacia la derecha. */
+  const attachFiles = useCallback(
+    async (files: File[], at?: { x: number; y: number }) => {
+      if (!api || !attachUrl || !files.length) return;
+      const { skeletonsToElements, UNDOABLE, ensureFonts } = await import('./ExcalidrawCanvas');
+      await ensureFonts();
+      const occupied = (api.getSceneElements() as SceneEl[]).filter((e) => !e.isDeleted && !e.containerId).map(elementBox);
+      let origin = at ?? freeSpot({ width: FILE_CARD.width, height: files.length * (FILE_CARD.height + 16) }, viewportCenter(api), occupied);
+      for (const f of files) {
+        if (!attachmentExtension(f.name)) {
+          onMessage?.(t('fileType', { name: f.name }), 'error');
+          continue;
+        }
+        if (f.size > BOARD_MAX_FILE_BYTES) {
+          onMessage?.(t('fileTooBig', { name: f.name, mb: Math.round(BOARD_MAX_FILE_BYTES / 1024 / 1024) }), 'error');
+          continue;
+        }
+        setUploading((n) => n + 1);
+        try {
+          const res = await fetch(attachUrl, { method: 'POST', headers: { 'x-file-name': encodeURIComponent(f.name), 'content-type': 'application/octet-stream' }, body: f });
+          if (!res.ok) throw new Error(String(res.status));
+          const data = (await res.json()) as FileCardData;
+          const created = skeletonsToElements([fileCardSkeleton(data, origin)]) as SceneEl[];
+          api.updateScene({
+            elements: [...api.getSceneElementsIncludingDeleted(), ...created],
+            appState: { selectedElementIds: Object.fromEntries(created.filter((e) => !e.containerId).map((e) => [e.id, true])) },
+            captureUpdate: UNDOABLE,
+          });
+          origin = { x: origin.x, y: origin.y + FILE_CARD.height + 16 };
+        } catch {
+          onMessage?.(t('fileError', { name: f.name }), 'error');
+        } finally {
+          setUploading((n) => n - 1);
+        }
+      }
+    },
+    [api, attachUrl, onMessage, t],
+  );
+
+  // Soltar archivos que no son imágenes sobre el lienzo: tarjeta en el punto donde caen.
+  // Las imágenes siguen yendo a Excalidraw.
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || !api || !canEdit || !attachUrl) return;
+    const onDrop = (e: DragEvent) => {
+      const files = [...(e.dataTransfer?.files ?? [])];
+      if (!files.length || files.every((f) => f.type.startsWith('image/'))) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const r = host.getBoundingClientRect();
+      const s = api.getAppState();
+      const view = { scrollX: Number(s.scrollX) || 0, scrollY: Number(s.scrollY) || 0, zoom: Number((s.zoom as { value?: number })?.value) || 1 };
+      const p = viewToScene({ x: e.clientX - r.left, y: e.clientY - r.top }, view);
+      void attachFiles(files.filter((f) => !f.type.startsWith('image/')), { x: Math.round(p.x - FILE_CARD.width / 2), y: Math.round(p.y - FILE_CARD.height / 2) });
+    };
+    host.addEventListener('drop', onDrop, true);
+    return () => host.removeEventListener('drop', onDrop, true);
+  }, [api, canEdit, attachUrl, hostRef, attachFiles]);
+
+  // Lo que dibuja o escribe esta persona y parece un sticky queda a su nombre: en modo
+  // privado sigue viéndolo (y los demás no). Se marca al terminar de dibujar o escribir.
+  const mineRef = useRef(new Set<string>());
+  useEffect(() => {
+    if (!api || !canEdit || !me) return;
+    let pending = false;
+    return api.onChange((els, s) => {
+      const drawing = s.newElement as { id?: string } | null;
+      const editing = s.editingTextElement as SceneEl | null;
+      if (drawing?.id) mineRef.current.add(drawing.id);
+      if (editing?.containerId) mineRef.current.add(editing.containerId);
+      if (drawing || editing || pending || !mineRef.current.size) return;
+      const todo = (els as SceneEl[]).filter((e) => mineRef.current.has(e.id) && !e.isDeleted && isStickyLike(e) && !stickyAuthor(e));
+      if (!todo.length) return;
+      pending = true;
+      const ids = new Set(todo.map((e) => e.id));
+      setTimeout(() => {
+        pending = false;
+        for (const id of ids) mineRef.current.delete(id);
+        api.updateScene({ elements: (api.getSceneElementsIncludingDeleted() as SceneEl[]).map((e) => (ids.has(e.id) && !stickyAuthor(e) ? withAuthor(e, me) : e)) });
+      }, 0);
+    });
+  }, [api, canEdit, me]);
+
   if (!api) return null;
   return (
     <>
@@ -331,6 +448,34 @@ export default function BoardCanvasTools({
             <button type="button" className="board-canvas-tool" onClick={() => void insertTable()} title={t('tableHint')} aria-label={t('table')} data-testid="board-tool-table">
               <NotesIcon name="table" size={16} />
             </button>
+            {attachUrl && (
+              <>
+                <button
+                  type="button"
+                  className="board-canvas-tool"
+                  onClick={() => fileRef.current?.click()}
+                  title={t('fileHint')}
+                  aria-label={t('file')}
+                  aria-busy={uploading > 0}
+                  data-testid="board-tool-file"
+                >
+                  <NotesIcon name="paperclip" size={16} />
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  multiple
+                  hidden
+                  accept={ATTACHMENT_EXTENSIONS.map((x) => `.${x}`).join(',')}
+                  data-testid="board-file-input"
+                  onChange={(e) => {
+                    const files = [...(e.currentTarget.files ?? [])];
+                    e.currentTarget.value = '';
+                    void attachFiles(files);
+                  }}
+                />
+              </>
+            )}
           </>
         )}
         <button

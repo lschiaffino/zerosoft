@@ -1949,6 +1949,8 @@ export interface BoardFileRow {
   url: string;
   mime: string;
   size: number;
+  /** Nombre original de un archivo adjunto (null en las imágenes de la escena). */
+  name?: string | null;
   created_at: string;
 }
 

@@ -5,6 +5,7 @@ import { contentBounds, minimapLayout, minimapToScene, type MinimapLayout } from
 import { elementBox, type SceneEl } from '@/lib/board-stickies';
 import { elementsSignature } from '@/lib/board-signature';
 import type { CanvasApi } from './ExcalidrawCanvas';
+import { withRealColors } from './darkCanvas';
 
 const W = 200;
 const H = 128;
@@ -41,7 +42,8 @@ export default function BoardMinimap({ api, label }: { api: CanvasApi; label: st
     };
     readColors();
 
-    const draw = () => {
+    const draw = () => withRealColors(paint);
+    const paint = () => {
       frame = 0;
       const all = api.getSceneElements() as SceneEl[];
       const sig = elementsSignature(all);

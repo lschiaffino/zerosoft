@@ -1030,3 +1030,29 @@ section.board-templates { padding: 0; }
 }
 /* Pin pegado a un objeto: un halo lo separa del objeto que comenta. */
 .board-pin.is-attached { box-shadow: 0 0 0 2px var(--bg); }
+
+/*
+ * Lienzo oscuro con stickies claros: el canvas de la escena no lleva el filtro de
+ * Excalidraw (los colores se pasan a oscuro al dibujar, components/board/darkCanvas.ts).
+ * El canvas interactivo (selección, cursores) sigue con su filtro. Al escribir en un
+ * sticky (tinta #1e1e1f) el texto tampoco se invierte: letra oscura sobre el sticky claro.
+ */
+.board-excalidraw .excalidraw.theme--dark .excalidraw__canvas-wrapper canvas,
+.board-excalidraw .excalidraw.theme--dark canvas.excalidraw__canvas:not(.interactive) { filter: none; }
+.board-excalidraw .excalidraw.theme--dark .excalidraw-wysiwyg[style*='rgb(30, 30, 31)'] { filter: none !important; }
+
+/* Barra de la tabla elegida: sumar y sacar filas y columnas. */
+.board-table-bar {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  transform: translateY(calc(-100% - 10px));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+  pointer-events: auto;
+}
+.board-table-bar .board-canvas-tool:disabled { opacity: 0.4; cursor: default; }

@@ -549,10 +549,24 @@
     "tableCol": "Columna {n}",
     "minimap": "Minimapa",
     "minimapHint": "Minimapa (M)",
-    "tableHint": "Insertar una tabla. Pegar celdas de una planilla también arma una."
+    "tableHint": "Insertar una tabla. Pegar celdas de una planilla también arma una.",
+    "file": "Adjuntar un archivo",
+    "fileHint": "Adjuntá un PDF, documento, planilla o presentación como tarjeta. También podés soltar archivos sobre la pizarra.",
+    "fileType": "{name} no puede ir a la pizarra. Usá un PDF, documento, planilla, presentación, texto o zip.",
+    "fileTooBig": "{name} pasa de {mb} MB.",
+    "fileError": "No pudimos subir {name}. Probá de nuevo."
   },
   "reactions": {
     "add": "Agregar una reacción",
     "count": "{emoji} {count, plural, one {# reacción} other {# reacciones}}. Tocá para sumar o sacar la tuya."
+  },
+  "table": {
+    "label": "Tabla",
+    "addRow": "Sumar una fila abajo",
+    "addCol": "Sumar una columna a la derecha",
+    "removeRow": "Sacar esta fila",
+    "removeCol": "Sacar esta columna",
+    "removeLastRow": "Sacar la última fila",
+    "removeLastCol": "Sacar la última columna"
   }
 }

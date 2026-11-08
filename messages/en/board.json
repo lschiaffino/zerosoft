@@ -549,10 +549,24 @@
     "tableCol": "Column {n}",
     "minimap": "Minimap",
     "minimapHint": "Minimap (M)",
-    "tableHint": "Insert a table. Pasting cells from a spreadsheet also creates one."
+    "tableHint": "Insert a table. Pasting cells from a spreadsheet also creates one.",
+    "file": "Attach a file",
+    "fileHint": "Attach a PDF, document, spreadsheet or presentation as a card. You can also drop files on the board.",
+    "fileType": "{name} can't go on the board. Use a PDF, document, spreadsheet, presentation, text or zip file.",
+    "fileTooBig": "{name} is over {mb} MB.",
+    "fileError": "Couldn't upload {name}. Try again."
   },
   "reactions": {
     "add": "Add a reaction",
     "count": "{emoji} {count, plural, one {# reaction} other {# reactions}}. Click to add or remove yours."
+  },
+  "table": {
+    "label": "Table",
+    "addRow": "Add a row below",
+    "addCol": "Add a column to the right",
+    "removeRow": "Remove this row",
+    "removeCol": "Remove this column",
+    "removeLastRow": "Remove the last row",
+    "removeLastCol": "Remove the last column"
   }
 }
