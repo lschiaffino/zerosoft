@@ -30,23 +30,30 @@ async function noHorizontalScroll(page: Page) {
   expect(scroll, `scrollWidth ${scroll} > innerWidth ${inner}`).toBeLessThanOrEqual(inner + 1);
 }
 
-test.describe.configure({ mode: 'serial' });
+test.describe.configure({ timeout: 120_000 });
 
 const tag = uid();
 
-test('constructor: cuenta contactos por mes, guarda y aparece en la lista y el sidebar', async ({ page, request }) => {
-  const errors = watchErrors(page);
+test.beforeAll(async ({ request }) => {
   for (const n of ['Ana', 'Beto', 'Caro']) {
     const r = await request.post('/api/crm/contacts', { data: { firstName: `${n} ${tag}`, email: `${n.toLowerCase()}-${tag}@example.com` } });
     expect(r.ok(), await r.text()).toBe(true);
   }
+});
+
+test('constructor: cuenta contactos por mes, guarda y aparece en la lista y el sidebar', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors = watchErrors(page);
   await page.goto('/en/app/analytics/questions/new', { waitUntil: 'networkidle' });
   const builder = page.getByTestId('bi-builder');
   await expect(builder).toBeVisible();
   await builder.getByRole('combobox', { name: 'Table' }).selectOption('contacts');
   await builder.getByRole('button', { name: '+ Add metric' }).click();
   await builder.getByRole('button', { name: '+ Add grouping' }).click();
+  const compiled = page.waitForResponse((r) => r.url().includes('/api/bi/compile') && r.request().postData()?.includes('created_at') === true, { timeout: 60_000 });
   await builder.getByRole('combobox', { name: 'Column' }).last().selectOption('created_at');
+  const res = await compiled;
+  expect(res.status(), await res.text()).toBe(200);
   // El SQL del constructor se ve siempre.
   await expect(page.getByTestId('bi-sql-shown')).toContainText('COUNT(*)');
   await page.getByTestId('bi-run').click();
@@ -72,7 +79,7 @@ test('SQL: autocompletado con teclado, variables y error claro', async ({ page }
   await editor.press('Tab');
   await expect(editor).toHaveValue('SELECT COUNT(*) AS n FROM contacts');
   await editor.pressSequentially(' WHERE 1=1 [[AND first_name = {{who}}]]');
-  await expect(page.getByText('{{who}}')).toBeVisible();
+  await expect(page.locator('.bi-param code')).toHaveText('{{who}}');
   await editor.press('ControlOrMeta+Enter');
   await expect(page.getByTestId('bi-number')).toBeVisible();
   // Escribir no está permitido: el error lo dice.
