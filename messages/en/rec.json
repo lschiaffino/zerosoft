@@ -168,7 +168,8 @@
       "comment_forbidden": "You can watch but not comment on this video.",
       "invalid_link": "This link was already used or expired."
     },
-    "downloading": "Downloading {pct}%"
+    "downloading": "Downloading {pct}%",
+    "preparingMp4": "Preparing MP4…"
   },
   "watch": {
     "copyLink": "Copy link",

@@ -168,7 +168,8 @@
       "comment_forbidden": "Você pode assistir, mas não comentar.",
       "invalid_link": "Este link já foi usado ou venceu."
     },
-    "downloading": "Baixando {pct}%"
+    "downloading": "Baixando {pct}%",
+    "preparingMp4": "Preparando o MP4…"
   },
   "watch": {
     "copyLink": "Copiar link",

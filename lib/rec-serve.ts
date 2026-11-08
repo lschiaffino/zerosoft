@@ -43,6 +43,13 @@ export async function serveRecKind(
   if (!url) return NextResponse.json({ error: 'processing' }, { status: 409 });
   const wantDownload = sp.get('download') === '1';
   if (wantDownload && !opts.allowDownload) return NextResponse.json({ error: 'download_disabled' }, { status: 403 });
+  if (wantDownload) {
+    // Se descarga en MP4 (H.264/AAC), la versión que ven los demás; la primera vez se arma y responde 202.
+    const { downloadMp4, mp4Filename } = await import('./rec-mp4');
+    const mp4 = await downloadMp4(v);
+    if (mp4.state === 'preparing') return NextResponse.json({ status: 'preparing' }, { status: 202, headers: { 'retry-after': '3', 'cache-control': 'no-store' } });
+    if (mp4.state === 'ready') return opts.serveRecFile(req, mp4.url, 'video/mp4', { download: mp4Filename(v.title), size: mp4.size || undefined });
+  }
   const ext = v.content_type.includes('mp4') ? 'mp4' : v.content_type.includes('quicktime') ? 'mov' : 'webm';
   const filename = `${(v.title || 'video').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 100) || 'video'}.${ext}`;
   return opts.serveRecFile(req, url, v.content_type, { download: wantDownload ? filename : null, size: url === v.url ? v.size : undefined });

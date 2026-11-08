@@ -24,6 +24,8 @@ jobs:
       - run: npx tsx scripts/check-ee-boundary.ts
       - run: npm run typecheck
       - run: npm run lint
+      # ffmpeg: Rec arma el MP4 de descarga con él (lib/rec-mp4.ts); los tests lo verifican con ffprobe.
+      - run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
       - run: npm test
       - run: npm run build
         env:
@@ -57,6 +59,8 @@ jobs:
           name: next-build
       - run: tar -xf next-build.tar && rm next-build.tar
       - run: npx playwright install --with-deps chromium
+      # ffmpeg: Rec arma el MP4 de descarga con él (lib/rec-mp4.ts); los tests lo verifican con ffprobe.
+      - run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
       # Un worker por shard: los tests comparten el workspace demo de la base de cada corrida.
       - run: npx playwright test --shard=${{ matrix.shard }}/4
         env:

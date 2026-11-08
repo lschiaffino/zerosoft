@@ -411,8 +411,8 @@ export async function applyRetention(opts: { budgetMs?: number; limit?: number }
     const cutoff = dateDb(Date.now() - w.retention_days * 86_400_000);
     const asked = left;
     const videos = (await db
-      .prepare("SELECT id, created_by, url, audio_url, thumb_url, gif_url, trimmed_url FROM rec_videos WHERE workspace_id = ? AND status = 'ready' AND created_at < ? LIMIT ?")
-      .all(w.workspace_id, cutoff, left)) as Array<Pick<RecVideoRow, 'id' | 'created_by' | 'url' | 'audio_url' | 'thumb_url' | 'gif_url' | 'trimmed_url'>>;
+      .prepare("SELECT id, created_by, url, audio_url, thumb_url, gif_url, trimmed_url, mp4_url FROM rec_videos WHERE workspace_id = ? AND status = 'ready' AND created_at < ? LIMIT ?")
+      .all(w.workspace_id, cutoff, left)) as Array<Pick<RecVideoRow, 'id' | 'created_by' | 'url' | 'audio_url' | 'thumb_url' | 'gif_url' | 'trimmed_url' | 'mp4_url'>>;
     let here = 0;
     let stopped = false;
     const byAuthor = new Map<string, number>();
@@ -425,7 +425,7 @@ export async function applyRetention(opts: { budgetMs?: number; limit?: number }
       if (!res.changes) continue;
       here++;
       byAuthor.set(v.created_by, (byAuthor.get(v.created_by) ?? 0) + 1);
-      await dropRecFiles([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url].filter((u): u is string => !!u)).catch(() => undefined);
+      await dropRecFiles([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url, v.mp4_url].filter((u): u is string => !!u)).catch(() => undefined);
     }
     left -= here;
     deleted += here;

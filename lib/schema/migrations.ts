@@ -8755,6 +8755,18 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Rec: MP4 (H.264/AAC) para descargar, armado una vez por versión del video.
+    id: '285_rec_mp4',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_url TEXT');
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_size INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_for TEXT');
+      await addColumn(c, "ALTER TABLE rec_videos ADD COLUMN mp4_status TEXT NOT NULL DEFAULT 'none'");
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_started_at TEXT');
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_job TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

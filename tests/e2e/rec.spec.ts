@@ -420,14 +420,25 @@ test('subir un video que ya tenés: mismo camino por partes, con miniatura y des
   const id = /rec\/([0-9a-f-]{36})/.exec(page.url())![1];
   await expect(page.getByTestId('rec-player')).toBeVisible();
   // La descarga se arma de a partes en el navegador (las respuestas van de a 4 MB como máximo).
-  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('rec-download').click()]);
-  expect(download.suggestedFilename()).toMatch(/\.webm$/);
-  const { statSync } = await import('fs');
-  expect(statSync(await download.path()).size).toBeGreaterThan(body.length - 64);
+  // Con ffmpeg en el servidor se baja en MP4 (H.264/AAC), armado la primera vez; sin ffmpeg, el original.
+  const { execFileSync } = await import('child_process');
+  let mp4 = true;
+  try {
+    execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' });
+  } catch {
+    mp4 = false;
+  }
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 120_000 }), page.getByTestId('rec-download').click()]);
+  expect(download.suggestedFilename()).toMatch(mp4 ? /\.mp4$/ : /\.webm$/);
+  const { readFileSync, statSync } = await import('fs');
+  if (mp4) expect(readFileSync(await download.path()).subarray(4, 8).toString()).toBe('ftyp');
+  else expect(statSync(await download.path()).size).toBeGreaterThan(body.length - 64);
   const dl = await page.request.get(`/api/rec/videos/${id}/file?download=1`, { headers: { range: 'bytes=0-' } });
+  expect(dl.status()).not.toBe(202);
   expect(dl.headers()['content-disposition']).toContain('attachment');
+  expect(dl.headers()['content-type']).toBe(mp4 ? 'video/mp4' : 'video/webm');
   expect(dl.headers()['location']).toBeUndefined();
-  expect((await dl.body()).length).toBeGreaterThan(body.length - 64);
+  if (!mp4) expect((await dl.body()).length).toBeGreaterThan(body.length - 64);
 });
 
 test('red cortada 60 s mientras se graba: guarda en el navegador, lo dice y sube todo al volver', async ({ page, context }) => {

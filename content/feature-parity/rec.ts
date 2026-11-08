@@ -215,6 +215,13 @@ const parity: ProductParity = {
         'Quem não tem acesso pede com a conta ou com um email; o autor recebe um aviso e aprova ou recusa em Compartilhar, e ao aprovar chega um link mágico nesse email. Uma pessoa convidada que perdeu o link pede um novo do mesmo jeito. "Pedir email para assistir" pede um email a quem não entrou com a conta: não é verificado',
       ],
     }),
+    row('mp4-download', 'sharing', ['Download as MP4', 'Descargar en MP4', 'Baixar em MP4'], 'partial', {
+      detail: [
+        'Downloads come as H.264/AAC MP4 named after the video, of the version others see (trim applied), built once and kept. Recording stays WebM so trimming and joining work without re-encoding. With ffmpeg on the server (self-host, CI) it is tested with ffprobe; on Vercel it runs in a Vercel Sandbox microVM, not yet tried in production. Without either, the original file downloads',
+        'La descarga sale en MP4 H.264/AAC con el nombre del video, de la versión que ven los demás (con el recorte aplicado), armada una vez y guardada. La grabación sigue en WebM para recortar y unir sin recodificar. Con ffmpeg en el servidor (self-host, CI) está probado con ffprobe; en Vercel corre en una microVM de Vercel Sandbox, todavía sin probar en producción. Sin ninguno, se baja el archivo original',
+        'O download sai em MP4 H.264/AAC com o nome do vídeo, da versão que os outros veem (com o corte aplicado), montado uma vez e guardado. A gravação continua em WebM para cortar e juntar sem recodificar. Com ffmpeg no servidor (self-host, CI) está testado com ffprobe; na Vercel roda numa microVM do Vercel Sandbox, ainda sem testar em produção. Sem nenhum, baixa o arquivo original',
+      ],
+    }),
     row('download-restriction', 'privacy', ['Block downloads', 'Bloquear la descarga', 'Bloquear o download'], 'have', {
       detail: [
         'Per video and as a workspace default for new videos: the download button, the download link and the browser "save video" menu stop working. The video still streams, so it can be captured',

@@ -49,6 +49,12 @@ export const CHANGELOG: ChangelogEntry[] = [
         es: 'Compartir funciona como en Drive: invitás a miembros del workspace o a cualquier email como lector o comentador, ves quién tiene acceso y quién lo vio, cambiás roles y quitás personas. A la gente de afuera le llega un link por mail para entrar; quien no tiene acceso lo puede pedir desde la página del video.',
         pt: 'Compartilhar funciona como no Drive: você convida membros do workspace ou qualquer email como leitor ou comentador, vê quem tem acesso e quem assistiu, muda papéis e remove pessoas. Quem é de fora recebe um link por email para entrar; quem não tem acesso pode pedir na página do vídeo.',
       },
+      {
+        product: 'rec',
+        en: 'Downloads come as MP4 (H.264 and AAC) named after the video, so they open in QuickTime, WhatsApp or Slides. The first download of each version takes a moment to prepare.',
+        es: 'Las descargas salen en MP4 (H.264 y AAC) con el nombre del video, así se abren en QuickTime, WhatsApp o Slides. La primera descarga de cada versión tarda un momento en prepararse.',
+        pt: 'Os downloads saem em MP4 (H.264 e AAC) com o nome do vídeo, para abrir no QuickTime, WhatsApp ou Slides. O primeiro download de cada versão leva um momento para ficar pronto.',
+      },
     ],
   },
   {

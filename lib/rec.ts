@@ -199,6 +199,13 @@ export interface RecVideoRow {
   summary_trim: string | null;
   trimmed_url: string | null;
   trimmed_for: string | null;
+  /** MP4 (H.264/AAC) para descargar, de la versión que ven los demás (lib/rec-mp4.ts). */
+  mp4_url: string | null;
+  mp4_size: number;
+  mp4_for: string | null;
+  mp4_status: 'none' | 'processing' | 'failed';
+  mp4_started_at: string | null;
+  mp4_job: string | null;
   comments_require_account: number;
   processing_at: string | null;
   views: number;
@@ -965,7 +972,7 @@ export async function deleteVideo(a: RecActor, id: string): Promise<void> {
   await getDb().prepare('DELETE FROM rec_videos WHERE id = ?').run(id);
   const { deleteRecParts } = await import('./rec-upload');
   await deleteRecParts(id).catch(() => undefined);
-  await dropRecFiles([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url].filter((u): u is string => !!u));
+  await dropRecFiles([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url, v.mp4_url].filter((u): u is string => !!u));
 }
 
 /**
@@ -1664,14 +1671,14 @@ export const STALE_RECORDING_DAYS = 7;
 export async function cleanupStaleRecordings(limit = 20): Promise<number> {
   const cutoff = new Date(Date.now() - STALE_RECORDING_DAYS * 24 * 3600_000).toISOString().slice(0, 19).replace('T', ' ');
   const rows = (await getDb()
-    .prepare("SELECT id, url, audio_url, thumb_url, gif_url FROM rec_videos WHERE status = 'recording' AND created_at < ? LIMIT ?")
-    .all(cutoff, limit)) as Array<Pick<RecVideoRow, 'id' | 'url' | 'audio_url' | 'thumb_url' | 'gif_url'>>;
+    .prepare("SELECT id, url, audio_url, thumb_url, gif_url, mp4_url FROM rec_videos WHERE status = 'recording' AND created_at < ? LIMIT ?")
+    .all(cutoff, limit)) as Array<Pick<RecVideoRow, 'id' | 'url' | 'audio_url' | 'thumb_url' | 'gif_url' | 'mp4_url'>>;
   const { deleteRecParts } = await import('./rec-upload');
   for (const r of rows) {
     const res = await getDb().prepare("DELETE FROM rec_videos WHERE id = ? AND status = 'recording'").run(r.id);
     if (!res.changes) continue;
     await deleteRecParts(r.id).catch(() => undefined);
-    await dropRecFiles([r.url, r.audio_url, r.thumb_url, r.gif_url].filter((u): u is string => !!u));
+    await dropRecFiles([r.url, r.audio_url, r.thumb_url, r.gif_url, r.mp4_url].filter((u): u is string => !!u));
   }
   const { cleanEmptyPartDirs } = await import('./rec-upload');
   await cleanEmptyPartDirs().catch(() => undefined);
