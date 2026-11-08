@@ -270,22 +270,44 @@ test('link vencido: frena al link (sin decir el título si hay contraseña) pero
   await inv.ctx.close();
 });
 
-test('modal de compartir a 390 px, claro y oscuro: sin scroll horizontal y con teclado', async ({ page, request }) => {
+test('modal de compartir en el teléfono (390 y 360 px, claro y oscuro): pantalla completa, sin scroll horizontal, toques de 40 px y teclado', async ({ page, request }) => {
+  test.setTimeout(90_000);
   const v = await upload(request, `Angosto ${'x'.repeat(70)} ${uid()}`);
   await ok(request.post(`/api/rec/videos/${v.id}/people`, { data: { emails: [`un-email-bastante-largo-${uid()}@una-empresa-con-nombre-largo.dev`], role: 'viewer', notify: false } }));
-  for (const scheme of ['light', 'dark'] as const) {
+  for (const [width, scheme] of [[390, 'light'], [390, 'dark'], [360, 'light'], [360, 'dark']] as const) {
     await page.emulateMedia({ colorScheme: scheme });
-    await page.setViewportSize({ width: 390, height: 844 });
+    await page.setViewportSize({ width, height: 800 });
     await page.goto(`/en/app/rec/${v.id}`);
     await page.getByTestId('rec-share').click();
     const share = page.getByRole('dialog', { name: /Share/ });
-    await expect(share.getByTestId('rec-share-person')).toHaveCount(1);
-    const overflow = await page.evaluate(() => {
+    await expect(share.getByTestId('rec-share-person')).toHaveCount(1, { timeout: 30_000 });
+    const m = await page.evaluate(() => {
       const d = document.querySelector('dialog.rec-share') as HTMLElement;
-      return { page: document.documentElement.scrollWidth > window.innerWidth, dialog: d.scrollWidth > d.clientWidth + 1 };
+      const r = d.getBoundingClientRect();
+      const foot = d.querySelector('.ui-modal-foot')!.getBoundingClientRect();
+      const visible = (el: Element) => (el as HTMLElement).offsetParent !== null;
+      const small = [...d.querySelectorAll('button, select, input:not([type=checkbox]):not([type=radio]), summary, label.ui-check')]
+        .filter(visible)
+        .filter((el) => el.getBoundingClientRect().height < 40)
+        .map((el) => `${el.tagName}.${(el as HTMLElement).className}:${Math.round(el.getBoundingClientRect().height)}`);
+      const tinyText = [...d.querySelectorAll('input:not([type=checkbox]):not([type=radio]), select, textarea')]
+        .filter(visible)
+        .filter((el) => parseFloat(getComputedStyle(el).fontSize) < 16)
+        .map((el) => (el as HTMLElement).id || el.tagName);
+      return {
+        pageOverflow: document.documentElement.scrollWidth > window.innerWidth,
+        dialogOverflow: d.scrollWidth > d.clientWidth + 1,
+        fullScreen: Math.round(r.left) === 0 && Math.round(r.width) === window.innerWidth && Math.round(r.height) === window.innerHeight,
+        footInView: foot.bottom <= window.innerHeight + 1 && foot.top >= 0,
+        small,
+        tinyText,
+      };
     });
-    expect(overflow).toEqual({ page: false, dialog: false });
-    if (process.env.REC_SHOTS) await page.screenshot({ path: `test-results/rec-share-390-${scheme}.png`, fullPage: true });
+    expect(m).toEqual({ pageOverflow: false, dialogOverflow: false, fullScreen: true, footInView: true, small: [], tinyText: [] });
+    if (process.env.REC_SHOTS) await page.screenshot({ path: `test-results/rec-share-${width}-${scheme}.png` });
+    // Teclado: el foco arranca adentro, Tab no se escapa del diálogo y Esc cierra.
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => !!document.activeElement?.closest('dialog.rec-share'))).toBe(true);
     await page.keyboard.press('Escape');
     await expect(share).toBeHidden();
   }

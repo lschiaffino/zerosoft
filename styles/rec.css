@@ -295,7 +295,39 @@ section.rec-edit-block { padding-bottom: 20px; }
 .rec-stats > div { padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-1); }
 .rec-stats dt { font-size: 0.8125rem; color: var(--dim); }
 .rec-stats dd { margin: 4px 0 0; font-size: 1.5rem; }
-dialog.rec-share { width: min(620px, calc(100vw - 32px)); }
+dialog.rec-share { width: min(620px, calc(100vw - 32px)); overflow: hidden; }
+/* Cabecera y pie fijos; solo el cuerpo se desplaza (el pie con Copiar link y Guardar siempre a mano). */
+dialog.rec-share[open] { display: flex; flex-direction: column; }
+dialog.rec-share > form { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+dialog.rec-share .ui-modal-body { flex: 1 1 auto; min-height: 0; overscroll-behavior: contain; }
+dialog.rec-share .ui-modal-head, dialog.rec-share .ui-modal-foot { flex: 0 0 auto; }
+@media (max-width: 520px) {
+  /* En el teléfono, pantalla completa: sin márgenes, sin scroll horizontal y con todo a 40 px o más. */
+  dialog.rec-share {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+  dialog.rec-share .ui-modal-head { padding: 8px 16px; min-height: 52px; }
+  dialog.rec-share .ui-modal-title { font-size: 1.125rem; }
+  dialog.rec-share .ui-modal-body { padding: 16px; }
+  dialog.rec-share .ui-modal-foot { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+  dialog.rec-share .input,
+  dialog.rec-share .select,
+  dialog.rec-share .textarea { font-size: 16px; min-height: 44px; }
+  dialog.rec-share .btn { min-height: 44px; }
+  dialog.rec-share .ui-check { min-height: 40px; align-items: center; }
+  dialog.rec-share .rec-share-more summary { min-height: 44px; display: flex; align-items: center; }
+  .rec-share-add .select { flex: 1 1 auto; }
+  .rec-share-foot { gap: 8px; }
+  .rec-share-copy { flex: 1 1 100%; margin-right: 0; }
+  .rec-share-copy .btn { width: 100%; }
+  .rec-share-foot > .btn { flex: 1 1 0; }
+}
 .rec-share-body { display: flex; flex-direction: column; gap: 18px; }
 .rec-share-group { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .rec-share-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
