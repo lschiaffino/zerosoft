@@ -122,7 +122,8 @@ export default function BoardStickyTool({ api, me = null }: { api: CanvasApi | n
 
   async function add(list: Array<{ text: string; tags: string[]; fill?: string | null; x?: number | null; y?: number | null }>) {
     if (!api || !list.length) return;
-    const { skeletonsToElements, UNDOABLE } = await import('./ExcalidrawCanvas');
+    const { skeletonsToElements, UNDOABLE, ensureFonts } = await import('./ExcalidrawCanvas');
+    await ensureFonts();
     // En un hueco cerca del centro de la vista: no tapan lo que ya está ni sus tags.
     const occupied = (api.getSceneElements() as SceneEl[]).filter((e) => !e.isDeleted && !e.containerId).map(elementBox);
     const free = layoutStickiesInFreeSpace(list.length, viewportCenter(api), occupied);

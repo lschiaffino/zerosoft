@@ -425,6 +425,16 @@ export function reconcile(local: readonly unknown[], remote: readonly unknown[],
   return reconcileElements(local as never, remote as never, appState as never) as unknown[];
 }
 
+/**
+ * Carga las letras de los stickies y tablas antes de armar elementos: Excalidraw
+ * corta el texto en líneas midiendo con la letra cargada, y en una pizarra
+ * vacía todavía no lo está (el texto quedaba más ancho que el sticky).
+ */
+export async function ensureFonts(): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  await Promise.all([document.fonts.load('18px Excalifont'), document.fonts.load('16px Nunito')]).catch(() => undefined);
+}
+
 /** Elementos de Excalidraw a partir de esqueletos (stickies con su texto ligado). */
 export function skeletonsToElements(skeletons: Array<Record<string, unknown>>): unknown[] {
   return convertToExcalidrawElements(skeletons as never) as unknown[];

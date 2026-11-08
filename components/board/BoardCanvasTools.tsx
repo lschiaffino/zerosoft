@@ -124,7 +124,8 @@ export default function BoardCanvasTools({
   const createSticky = useCallback(
     async (box: { x: number; y: number; width?: number; height?: number }, fill: string) => {
       if (!api) return;
-      const { skeletonsToElements, UNDOABLE } = await import('./ExcalidrawCanvas');
+      const { skeletonsToElements, UNDOABLE, ensureFonts } = await import('./ExcalidrawCanvas');
+      await ensureFonts();
       const sk = { ...stickySkeleton({ text: ' ', tags: [] }, box, fill), width: box.width ?? STICKY_W, height: box.height ?? STICKY_H };
       const created = skeletonsToElements([authoredSkeleton(sk, me)]) as SceneEl[];
       const sticky = created.find((e) => e.customData?.sticky);
@@ -270,7 +271,8 @@ export default function BoardCanvasTools({
   const insertTable = useCallback(
     async (texts?: string[][]) => {
       if (!api) return;
-      const { skeletonsToElements, UNDOABLE } = await import('./ExcalidrawCanvas');
+      const { skeletonsToElements, UNDOABLE, ensureFonts } = await import('./ExcalidrawCanvas');
+      await ensureFonts();
       const rows = texts ? texts.length : 4;
       const cols = texts ? Math.max(...texts.map((r) => r.length)) : 3;
       const center = viewportCenter(api);
