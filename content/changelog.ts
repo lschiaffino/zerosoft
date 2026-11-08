@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-inbox',
+    date: '2026-11-08',
+    title: {
+      en: 'Inbox: your WhatsApp and Gmail in one keyboard-first inbox',
+      es: 'Inbox: tu WhatsApp y tu Gmail en una bandeja manejada con el teclado',
+      pt: 'Inbox: seu WhatsApp e seu Gmail em uma caixa guiada pelo teclado',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'New personal app. Link your WhatsApp with a QR code and connect Gmail, then triage both from one list: done, snooze, remind me if there is no reply, send later, folders with rules, snippets, AI drafts and dictation, all from the keyboard.',
+        es: 'App personal nueva. Vinculá tu WhatsApp con un QR y conectá Gmail, y ordená los dos desde una sola lista: hecho, posponer, recordame si no contesta, enviar más tarde, carpetas con reglas, snippets, borradores con IA y dictado, todo con el teclado.',
+        pt: 'Novo app pessoal. Vincule seu WhatsApp com um QR e conecte o Gmail, e organize os dois em uma lista só: concluir, adiar, lembrar se não responder, enviar mais tarde, pastas com regras, snippets, rascunhos com IA e ditado, tudo pelo teclado.',
+      },
+      {
+        product: 'inbox',
+        en: 'Your inbox is private to you: the workspace and its admins never see it. If you used the local inbox-zero app, a script exports its folders, scheduled messages, drafts, snoozes, notes and history to import them in Inbox settings.',
+        es: 'Tu bandeja es privada: el workspace y sus admins no la ven. Si usabas la app local inbox-zero, un script exporta sus carpetas, programados, borradores, pospuestos, notas e historial para importarlos en Ajustes de Inbox.',
+        pt: 'Sua caixa é privada: o workspace e seus admins não a veem. Se você usava o app local inbox-zero, um script exporta pastas, agendadas, rascunhos, adiadas, notas e histórico para importar nas configurações do Inbox.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-lifecycle-emails',
     date: '2026-11-08',
     title: {

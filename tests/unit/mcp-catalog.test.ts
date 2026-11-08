@@ -72,9 +72,9 @@ describe('cobertura del catálogo', () => {
     for (const o of OPERATIONS) expect(excludeReason(o.path, o.method), o.path).toBeNull();
   });
 
-  it('las 25 apps tienen operaciones', () => {
+  it('todas las apps tienen operaciones (salvo Inbox, privada de la persona)', () => {
     const apps = new Set(OPERATIONS.map((o) => o.app));
-    for (const k of PRODUCT_KEYS) expect(apps.has(k), k).toBe(true);
+    for (const k of PRODUCT_KEYS) expect(apps.has(k), k).toBe(k !== 'inbox');
   });
 
   it('los ids son únicos y cada operación tiene su handler en la tabla', () => {
