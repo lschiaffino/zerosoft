@@ -43,6 +43,7 @@ import '@/styles/workspace.css';
 import '@/styles/assistant.css';
 import NavProgress from '@/components/app/NavProgress';
 import RouterNudge from '@/components/app/RouterNudge';
+import IntentPrefetch from '@/components/app/IntentPrefetch';
 import { Suspense } from 'react';
 
 export const dynamic = 'force-dynamic';
@@ -680,6 +681,7 @@ export default async function AppLayout(
           }}
         />
         <RouterNudge />
+        <IntentPrefetch />
         <div className="app-main-scroll">
           <Suspense fallback={null}>
             <NavProgress />

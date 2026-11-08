@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { signIn, signOut } from 'next-auth/react';
-import { clearOfflineData } from '@/lib/offline-queue';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import LocaleSwitcher from './LocaleSwitcher';
@@ -32,6 +30,16 @@ interface HeaderClientProps {
 }
 
 const noSubscribe = () => () => {};
+
+// next-auth y el borrado de datos sin conexión se cargan al hacer clic: no pesan en cada página del sitio.
+function signInWithGoogle(callbackUrl: string) {
+  void import('next-auth/react').then(({ signIn }) => signIn('google', { callbackUrl }));
+}
+function signOutHere() {
+  void Promise.all([import('next-auth/react'), import('@/lib/offline-queue')]).then(([{ signOut }, { clearOfflineData }]) =>
+    clearOfflineData().finally(() => signOut({ callbackUrl: '/' })),
+  );
+}
 
 /**
  * ¿Hay sesión en este navegador? Pista de la cookie zs_who (lib/session-hint.ts).
@@ -237,7 +245,7 @@ export default function HeaderClient({ locale, labels }: HeaderClientProps) {
               <button
                 type="button"
                 className="hd-link hd-signin"
-                onClick={() => signIn('google', { callbackUrl: `/${locale}${appHref}` })}
+                onClick={() => signInWithGoogle(`/${locale}${appHref}`)}
               >
                 {labels.signIn}
               </button>
@@ -296,14 +304,14 @@ export default function HeaderClient({ locale, labels }: HeaderClientProps) {
           <ThemeSwitcher />
           <LocaleSwitcher locale={locale} />
           {signedIn ? (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void clearOfflineData().finally(() => signOut({ callbackUrl: '/' }))}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={signOutHere}>
               {labels.signOut}
             </button>
           ) : (
             <button
               type="button"
               className="btn btn-secondary btn-sm"
-              onClick={() => signIn('google', { callbackUrl: `/${locale}${appHref}` })}
+              onClick={() => signInWithGoogle(`/${locale}${appHref}`)}
             >
               {labels.signIn}
             </button>
