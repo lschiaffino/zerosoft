@@ -351,7 +351,8 @@
 .docs-db-bcard-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; font-weight: 600; }
 .docs-db-bcard-title.empty,
 .docs-db-card-title.empty { color: var(--brand-gray-3); font-weight: 400; }
-.docs-db-bcard-prop { display: flex; min-width: 0; overflow: hidden; }
+.docs-db-bcard-prop { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
+.docs-db-bcard-prop-icon { display: inline-flex; flex-shrink: 0; color: var(--brand-gray-2); }
 .docs-db-bdrop { height: 3px; background: var(--ink); }
 .docs-db-board-empty { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 0; font-size: 0.875rem; color: var(--brand-gray-2); }
 .docs-db-board-empty p { margin: 0; }

@@ -121,7 +121,7 @@ body:has(.dz-editor) .fl-root { display: none; }
 .dz-move { display: flex; flex-direction: column; gap: 4px; }
 .dz-move-opt { text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg); color: var(--ink); font: inherit; cursor: pointer; }
 .dz-move-opt:hover, .dz-move-opt:focus-visible { border-color: var(--ink); outline: none; }
-.dz-move-opt.is-on { border-color: var(--c-design); box-shadow: inset 3px 0 0 var(--c-design); }
+.dz-move-opt.is-on { border-color: var(--ink); background: var(--ui-selected); }
 .dz-wh { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .dz-wh .ui-error { grid-column: 1 / -1; margin: 0; }
 
@@ -240,7 +240,7 @@ body:has(.dz-editor) .fl-root { display: none; }
   cursor: pointer;
 }
 .dz-side-tab:hover { background: var(--ui-hover); color: var(--ink); }
-.dz-side-tab.is-active { background: var(--ui-press); color: var(--ink); box-shadow: inset 3px 0 0 var(--c-design); }
+.dz-side-tab.is-active { background: var(--ui-selected); color: var(--ink); }
 .dz-side-tab:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .dz-side-body { width: 280px; padding: 12px; overflow-y: auto; }
 .dz-side-sections { display: flex; flex-direction: column; gap: 16px; }
@@ -476,7 +476,7 @@ body:has(.dz-editor) .fl-root { display: none; }
 .dz-seg-opt:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
 .dz-export-board { border-top: 1px solid var(--line); padding-top: 12px; }
 .dz-magic-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.dz-magic-result { margin: 0; padding: 10px 12px; border-left: 3px solid var(--c-design); background: var(--bg-soft); white-space: pre-wrap; }
+.dz-magic-result { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg-soft); white-space: pre-wrap; }
 .dz-presets-mini { display: flex; flex-wrap: wrap; gap: 4px; }
 .dz-shortcuts { display: grid; gap: 6px; margin: 0; }
 .dz-shortcuts > div { display: grid; grid-template-columns: minmax(130px, 40%) 1fr; gap: 12px; align-items: baseline; }

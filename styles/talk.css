@@ -140,12 +140,12 @@ body:has(.talk-composer) #zs-chat-root {
 }
 
 .talk-side-item:hover {
-  background: var(--brand-enamel);
+  background: var(--ui-hover);
   color: var(--ink);
 }
 
 .talk-side-item[aria-current='page'] {
-  background: var(--ui-hover);
+  background: var(--ui-selected);
   color: var(--ink);
   font-weight: 600;
 }
@@ -509,7 +509,7 @@ section.talk-pane,
 }
 
 .talk-msg.is-pinned {
-  box-shadow: inset 3px 0 0 var(--talk-accent);
+  background: color-mix(in srgb, var(--talk-accent) 7%, transparent);
 }
 
 .talk-msg-gutter {
@@ -921,7 +921,7 @@ section.talk-pane,
 
 .talk-ref {
   border: 1px solid var(--line);
-  border-left: 3px solid var(--talk-accent);
+  background: var(--bg-soft);
   border-radius: var(--radius-1);
 }
 

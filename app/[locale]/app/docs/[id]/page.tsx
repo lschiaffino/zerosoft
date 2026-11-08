@@ -1,7 +1,8 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
-import { realUserId, requireUser } from '@/lib/session';
+import type { Metadata } from 'next';
+import { getCurrentUser, realUserId, requireUser } from '@/lib/session';
 import { getUserById } from '@/lib/db';
 import {
   DOC_INTERNAL_READ,
@@ -20,7 +21,7 @@ import {
 } from '@/lib/docs';
 import { getHelpFeedbackStats } from '@/lib/docs-help';
 import { sanitizeBlocks } from '@/lib/docs-sanitize';
-import { stripFileUrls } from '@/lib/docs-files';
+import { ICON_IMAGE_PREFIX, stripFileUrls } from '@/lib/docs-files';
 import { visibleBlocks } from '@/lib/docs-visible';
 import { listDocFavorites } from '@/lib/docs-favorites';
 import { pageLinkHref, resolveBlocksPageLinks } from '@/lib/docs-page-links';
@@ -32,10 +33,11 @@ import {
   reorderDocPageAction,
 } from '@/lib/docs-actions';
 import { canShareAccess, coeditEnvOverride, getDocsSettings, getTeamspace, listTeamspaces } from '@/lib/docs-access';
-import { canCreateDocPage, docsAllowed, docsHidden, editorBlocks } from '@/lib/docs-guard';
+import { canCreateDocPage, docsAdmin, docsHidden, editorBlocks } from '@/lib/docs-guard';
 import { listPageInvites } from '@/lib/docs-guests';
 import { cleanForReaders } from '@/lib/docs-marks';
 import DocsSidebar from '@/components/docs/DocsSidebar';
+import { sidebarSlice } from '@/lib/docs-sidebar';
 import DocsEditorClient from '@/components/docs/DocsEditorClient';
 import DocsReadOnlyView from '@/components/docs/DocsReadOnlyView';
 import DocsPageIcon from '@/components/docs/DocsPageIcon';
@@ -43,6 +45,18 @@ import { verifiedSiteHost } from '@/lib/docs-site';
 import '@/styles/help.css';
 
 export const dynamic = 'force-dynamic';
+
+/** La pestaña lleva el título de la página (con su emoji si tiene), como en Notion. */
+export async function generateMetadata(props: { params: Promise<{ locale: string; id: string }> }): Promise<Metadata> {
+  const { locale, id } = await props.params;
+  const t = await getTranslations({ locale, namespace: 'docs' });
+  const user = await getCurrentUser();
+  const resolved = user ? await resolveDocAccess(user, id).catch(() => null) : null;
+  if (!resolved) return { title: 'Docs' };
+  const { row } = resolved;
+  const icon = row.icon && !row.icon.startsWith(ICON_IMAGE_PREFIX) ? `${row.icon} ` : '';
+  return { title: `${icon}${row.title?.trim() || t('untitled')}` };
+}
 
 export default async function DocsPageEditor(
   props: {
@@ -63,48 +77,57 @@ export default async function DocsPageEditor(
   if (!resolved) notFound();
   const { row, access } = resolved;
   const page = toDocPage(row);
-  // Bloques sincronizados: el contenido actual (puede haberse editado en otra
-  // página); sin acceso a su página de origen, "sin acceso" (como Notion).
-  page.content = await visibleBlocks(row, row.content, { actor: user });
   const isOwner = access === 'owner';
   // Miembro del workspace (con cualquier rol): ve el árbol y los ancestros.
   const inWorkspace = row.user_id === user.id;
-  // El historial no se expone a quien solo llega porque la página está publicada.
-  const canSeeVersions =
-    access !== 'view' || (await getDocAccess(row, user, DOC_INTERNAL_READ)) !== null;
+  const canShare = canShareAccess(access);
 
-  // El árbol va sin content (solo título, ícono y orden); sin las páginas de
-  // teamspaces cerrados o privados de los que no es miembro.
-  const hide = await docsHidden(user);
-  const [allPages, shared, comments, favorites, teamspaces] = await Promise.all([
+  // Cada consulta es un viaje a la base (Turso): lo que no depende entre sí va
+  // en paralelo, en dos tandas (la segunda necesita los teamspaces ocultos).
+  const [hide, settings, ts, mentionables, canSeeVersions, blocksNow, ancestors, shares, invites, subpages, feedback, siteHost, owner, canCreateRoot] =
+    await Promise.all([
+      // El árbol va sin las páginas de teamspaces cerrados o privados de los que no es miembro.
+      docsHidden(user),
+      getDocsSettings(row.user_id),
+      row.teamspace_id ? getTeamspace(row.teamspace_id) : Promise.resolve(null),
+      listPageMentionables(row),
+      // El historial no se expone a quien solo llega porque la página está publicada.
+      access !== 'view' ? Promise.resolve(true) : getDocAccess(row, user, DOC_INTERNAL_READ).then((a) => a !== null),
+      // Lectura: sincronizados con su contenido actual ("sin acceso" si no ve el origen). Edición:
+      // lo mismo que el polling en vivo y la respuesta de guardar (editorBlocks), base de la fusión.
+      access === 'view' ? visibleBlocks(row, row.content, { actor: user }) : editorBlocks(row, user),
+      // A un invitado no se le muestran los ancestros (títulos de otro workspace).
+      inWorkspace ? getDocPageAncestors(user.id, id) : Promise.resolve([]),
+      // Propios y heredados de los ancestros (el diálogo dice de dónde viene cada uno).
+      canShare ? listEffectiveDocShares(row).then((list) => decorateShares(row.user_id, list)) : Promise.resolve([]),
+      canShare ? listPageInvites(id) : Promise.resolve([]),
+      // Un invitado no tiene el árbol del workspace: navega el subárbol compartido desde acá.
+      inWorkspace ? Promise.resolve([]) : listAccessibleSubpages(user, id),
+      isOwner && page.published ? getHelpFeedbackStats(user.id, id) : Promise.resolve(null),
+      // Con dominio propio verificado, el link público es el del dominio.
+      isOwner && user.handle ? verifiedSiteHost(user.id) : Promise.resolve(null),
+      inWorkspace ? Promise.resolve(null) : getUserById(row.user_id),
+      inWorkspace ? canCreateDocPage(user, {}) : Promise.resolve(false),
+    ]);
+  const [allPages, shared, comments, favorites, teamspaces, backlinks] = await Promise.all([
+    // El árbol va sin content (solo título, ícono y orden).
     listDocPageSummaries(user.id, { archived: false, hide }),
     listSharedWithMe(realUserId(user), user.id),
     listDocComments(id),
     listDocFavorites(realUserId(user), user.id),
     listTeamspaces(user.id, realUserId(user)),
+    inWorkspace ? listDocBacklinks(user.id, id, hide) : Promise.resolve([]),
   ]);
-  // A un invitado no se le muestran los ancestros (títulos de otro workspace).
-  const ancestors = inWorkspace ? await getDocPageAncestors(user.id, id) : [];
-  // Propios y heredados de los ancestros (el diálogo dice de dónde viene cada uno).
-  const canShare = canShareAccess(access);
-  const shares = canShare ? await decorateShares(row.user_id, await listEffectiveDocShares(row)) : [];
-  const invites = canShare ? await listPageInvites(id) : [];
-  // Un invitado no tiene el árbol del workspace: navega el subárbol compartido desde acá.
-  const subpages = inWorkspace ? [] : await listAccessibleSubpages(user, id);
-  const backlinks = inWorkspace ? await listDocBacklinks(user.id, id, hide) : [];
-  const settings = await getDocsSettings(row.user_id);
+  if (access === 'view') page.content = blocksNow;
   // Edición simultánea (beta): DOCS_COEDIT manda; si no está, el ajuste del workspace (apagada: guardar y fusionar como antes).
   const coedit = coeditEnvOverride() ?? settings.coedit;
-  const allowExport = await docsAllowed(user, row.user_id, 'allow_export');
+  // Exportar: como docsAllowed, con los ajustes ya leídos (sin otra consulta).
+  const allowExport = settings.allow_export || (user.id === row.user_id && docsAdmin(user));
   // Rol que hereda la página si no fija uno: el del teamspace o el de Ajustes.
-  const ts = row.teamspace_id ? await getTeamspace(row.teamspace_id) : null;
   const memberRoleDefault = ts?.member_role ?? settings.member_role;
   // Personas del workspace dueño (autores de sugerencias y dueño de la wiki).
-  const people = Object.fromEntries((await listPageMentionables(row)).map((m) => [m.id, m.name?.trim() || m.email]));
+  const people = Object.fromEntries(mentionables.map((m) => [m.id, m.name?.trim() || m.email]));
   const canVerify = isOwner || (row.page_owner_id === realUserId(user) && access !== 'view' && access !== 'comment');
-  const feedback = isOwner && page.published ? await getHelpFeedbackStats(user.id, id) : null;
-  // Con dominio propio verificado, el link público es el del dominio.
-  const siteHost = isOwner && user.handle ? await verifiedSiteHost(user.id) : null;
   const helpBase = isOwner && user.handle ? (siteHost ? `https://${siteHost}` : `/${locale}/h/${user.handle}`) : null;
   const t = await getTranslations({ locale, namespace: 'docs' });
 
@@ -122,9 +145,8 @@ export default async function DocsPageEditor(
           href: `/${locale}${pageLinkHref(pageId)}`,
           title: titles.get(pageId) ?? null,
         }))
-      : await editorBlocks(row, user);
+      : blocksNow;
 
-  const owner = inWorkspace ? null : await getUserById(row.user_id);
   // Lectura: nombres de las personas de las bases (solo si la página tiene una).
   const dbPeople = access === 'view' && page.content.some((b) => b.type === 'database') ? people : undefined;
   const sharedBy = owner ? owner.name || owner.email : null;
@@ -132,7 +154,7 @@ export default async function DocsPageEditor(
   return (
     <div className="docs-layout">
       <DocsSidebar
-        pages={allPages}
+        {...sidebarSlice(allPages, id)}
         currentId={id}
         shared={shared}
         favorites={favorites}
@@ -140,7 +162,7 @@ export default async function DocsPageEditor(
         meId={realUserId(user)}
         moveToTeamspaceAction={moveDocPageToTeamspaceAction}
         createAction={createDocPageAction.bind(null, locale)}
-        canCreateRoot={inWorkspace && (await canCreateDocPage(user, {}))}
+        canCreateRoot={inWorkspace && canCreateRoot}
         moveAction={moveDocPageAction}
         reorderAction={reorderDocPageAction}
         stepAction={moveDocPageStepAction}
