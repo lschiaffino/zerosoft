@@ -639,6 +639,8 @@ dialog.ui-drawer {
   line-height: 1.1;
 }
 .ui-modal-body, .ui-drawer-body { padding: 20px; overflow-y: auto; }
+/* Campos sueltos dentro del cuerpo (sin .ui-fields): aire entre uno y otro, no el label pegado al input de arriba. */
+:is(.ui-modal-body, .ui-drawer-body) > :is(.ui-field + .ui-field, .ui-field + p, p + .ui-field) { margin-top: 16px; }
 .ui-drawer { display: flex; flex-direction: column; }
 dialog.ui-drawer[open] { display: flex; }
 .ui-drawer-body { flex: 1; }
