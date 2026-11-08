@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-docs-editor-notion',
+    date: '2026-11-08',
+    title: {
+      en: 'Docs: selecting, moving and coloring like in Notion',
+      es: 'Docs: seleccionar, mover y pintar como en Notion',
+      pt: 'Docs: selecionar, mover e colorir como no Notion',
+    },
+    items: [
+      {
+        product: 'docs',
+        en: 'Drag from one block to another, or draw a box from the margin, to select several blocks, then copy, delete, indent or move them. The block menu has a search box, shortcuts and Move to, which sends a block with what is nested under it to another page. The selection toolbar turns the block into another type and colors the selected text.',
+        es: 'Arrastrá de un bloque a otro, o dibujá un rectángulo desde el margen, para seleccionar varios bloques y después copiarlos, borrarlos, anidarlos o moverlos. El menú del bloque tiene buscador, atajos y Mover a, que manda el bloque con lo que tiene anidado a otra página. La barra de la selección convierte el bloque en otro tipo y pinta el texto elegido.',
+        pt: 'Arraste de um bloco a outro, ou desenhe um retângulo a partir da margem, para selecionar vários blocos e depois copiá-los, apagá-los, aninhá-los ou movê-los. O menu do bloco tem busca, atalhos e Mover para, que envia o bloco com o que está aninhado nele a outra página. A barra da seleção transforma o bloco em outro tipo e colore o texto escolhido.',
+      },
+      {
+        product: 'docs',
+        en: 'Typing > makes a toggle, " a quote and --- a divider, and shortcuts like 1. or [] also work inside a list item. Tables move between cells with Enter and Tab, add columns with + and can have a header row. Undo after a / command brings back the line without the command.',
+        es: 'Escribir > arma un toggle, " una cita y --- un separador, y atajos como 1. o [] también andan dentro de un ítem de lista. Las tablas pasan de celda con Enter y Tab, suman columnas con + y pueden tener fila de encabezado. Deshacer después de un comando / vuelve a la línea sin el comando.',
+        pt: 'Digitar > cria um toggle, " uma citação e --- um separador, e atalhos como 1. ou [] também funcionam dentro de um item de lista. As tabelas passam de célula com Enter e Tab, ganham colunas com + e podem ter linha de cabeçalho. Desfazer depois de um comando / volta para a linha sem o comando.',
+      },
+      {
+        product: 'docs',
+        en: 'Importing an updated Notion export again updates the pages that changed in Notion, unless someone edited them here. Inline equations and @dates from Notion come in as equations and dates.',
+        es: 'Volver a importar un export de Notion actualizado actualiza las páginas que cambiaron en Notion, salvo que alguien las haya editado acá. Las ecuaciones en línea y las @fechas de Notion entran como ecuaciones y fechas.',
+        pt: 'Importar de novo um export do Notion atualizado atualiza as páginas que mudaram no Notion, a menos que alguém as tenha editado aqui. As equações em linha e as @datas do Notion entram como equações e datas.',
+      },
+    ],
+  },
+  {
     id: '2026-11-07-docs-notion-move',
     date: '2026-11-07',
     title: {

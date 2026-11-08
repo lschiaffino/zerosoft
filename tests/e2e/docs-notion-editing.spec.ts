@@ -242,7 +242,9 @@ test('Arrastrar del texto de un bloque a otro selecciona bloques; Cmd+K con text
   await expect.poll(async () => (await blocksOf(request, doc.id)).map((b) => b.content)).toEqual(['Cuatro']);
 
   // Cmd+K con texto seleccionado: el link del editor, no la paleta.
-  await editable(page, 'Cuatro').dblclick();
+  await editable(page, 'Cuatro').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Shift+Home');
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
   await expect(page.locator('.docs-link-popover')).toBeVisible();
   await expect(page.locator('.cmdk')).toHaveCount(0);

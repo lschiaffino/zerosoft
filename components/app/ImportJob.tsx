@@ -25,6 +25,7 @@ export interface ImportJobView {
   error: string | null;
   options: Record<string, unknown>;
   created_at: string;
+  updated_at?: string;
   finished_at: string | null;
 }
 
@@ -87,7 +88,7 @@ export function useImportJob(app: ImportJobView['app'], sources?: readonly strin
             (j) =>
               (RUNNING.includes(j.status) ||
                 // Una vista previa vieja (otra sesión) no se retoma: queda el formulario limpio.
-                (j.status === 'preview' && Date.now() - Date.parse(j.updated_at) < PREVIEW_RESUME_MS)) &&
+                (j.status === 'preview' && Date.now() - Date.parse(j.updated_at ?? j.created_at) < PREVIEW_RESUME_MS)) &&
               (!sourcesKey || sourcesKey.split(',').includes(j.source)),
           )
         : undefined;

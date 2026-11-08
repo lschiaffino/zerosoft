@@ -40,9 +40,21 @@ export default function DocsTableBlock({
 
   const copy = () => rows.map((r) => Array.from({ length: cols }, (_, c) => r[c] ?? ''));
   const cellAt = (r: number, c: number) => rootRef.current?.querySelector<HTMLInputElement>(`input[data-cell="${r}:${c}"]`) ?? null;
+  // La celda destino de una fila recién agregada aparece en el próximo render: se enfoca después.
+  const pendingFocus = useRef<[number, number] | null>(null);
+  useEffect(() => {
+    const p = pendingFocus.current;
+    if (!p) return;
+    const el = cellAt(p[0], p[1]);
+    if (el) {
+      pendingFocus.current = null;
+      el.focus();
+    }
+  });
   const focusCell = (r: number, c: number) => {
-    // La fila o columna nueva aparece en el próximo render.
-    requestAnimationFrame(() => cellAt(r, c)?.focus());
+    const el = cellAt(r, c);
+    if (el) el.focus();
+    else pendingFocus.current = [r, c];
   };
 
   // Recién creada (vacía y enfocada sin que el foco esté en una celda): a la primera celda.

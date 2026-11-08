@@ -251,7 +251,6 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   const inTrack = pathname.startsWith('/app/track');
   const inDocs = pathname.startsWith('/app/docs');
   const inCrm = pathname.startsWith('/app/crm');
-  const inDocs = pathname.startsWith('/app/docs');
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [items, setItems] = useState<ResultItem[]>([]);
