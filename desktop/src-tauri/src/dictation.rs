@@ -97,6 +97,7 @@ pub fn start(app: &AppHandle, hands_free: bool) {
     };
     hud::show(app, HudState { phase: "recording", label, hint, started_at: Some(now_ms()), max_ms: MAX_MS });
     set_escape(app, true);
+    tauri::async_runtime::spawn(crate::api::warm(app.clone()));
     crate::tray::rebuild(app);
     // La app de adelante y el micrófono, fuera del hilo de eventos.
     let app2 = app.clone();
@@ -254,14 +255,18 @@ pub fn stop(app: &AppHandle) {
             Outcome::Ok(text) => {
                 wait_keys_released(&app).await;
                 let how = insert_text(&app, &text).await;
-                let total = released_at.elapsed().as_millis() as u64;
-                log::info!(
-                    "dictation: {total} ms from release to text (audio {}, server {}, paste {})",
-                    (audio_at - released_at).as_millis(),
-                    (server_at - audio_at).as_millis(),
-                    server_at.elapsed().as_millis()
-                );
-                *app.state::<AppState>().last_latency_ms.lock().unwrap() = Some(total);
+                let timing = Latency {
+                    total_ms: released_at.elapsed().as_millis() as u64,
+                    audio_ms: (audio_at - released_at).as_millis() as u64,
+                    request_ms: (server_at - audio_at).as_millis() as u64,
+                    paste_ms: server_at.elapsed().as_millis() as u64,
+                    transcribe_ms: server_ms(res.body.as_ref(), "transcribeMs"),
+                    cleanup_ms: server_ms(res.body.as_ref(), "cleanupMs"),
+                    server_ms: server_ms(res.body.as_ref(), "totalMs"),
+                    ai: res.body.as_ref().and_then(|b| b.get("ai")).and_then(|v| v.as_bool()).unwrap_or(false),
+                };
+                eprintln!("zs-timing dictation {}", serde_json::to_string(&timing).unwrap_or_default());
+                *app.state::<AppState>().last_latency.lock().unwrap() = Some(timing);
                 finish_idle(&app, generation);
                 show_then_hide(&app, "done", pasted_label(&app, how));
             }
@@ -272,6 +277,28 @@ pub fn stop(app: &AppHandle) {
             }
         }
     });
+}
+
+/// Dónde se fue el tiempo de un dictado (Ajustes › Historial lo muestra).
+#[derive(Debug, Clone, Copy, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Latency {
+    /// Desde soltar el atajo hasta el texto pegado.
+    pub total_ms: u64,
+    /// Cerrar el micrófono y armar el WAV.
+    pub audio_ms: u64,
+    /// El pedido entero (subida, servidor y respuesta).
+    pub request_ms: u64,
+    pub paste_ms: u64,
+    /// Lo que dice el servidor (si lo manda).
+    pub transcribe_ms: Option<u64>,
+    pub cleanup_ms: Option<u64>,
+    pub server_ms: Option<u64>,
+    pub ai: bool,
+}
+
+fn server_ms(body: Option<&serde_json::Value>, key: &str) -> Option<u64> {
+    body?.get("timings")?.get(key)?.as_u64()
 }
 
 fn finish_idle(app: &AppHandle, generation: u64) {
@@ -378,16 +405,31 @@ impl ClipboardPort for SystemClipboard {
     }
 }
 
+/// La tecla de la "v" con la distribución de teclado actual. En Mac se busca en el hilo principal
+/// (las APIs de teclado de macOS lo exigen); si no contesta a tiempo, la V de QWERTY.
+async fn paste_keycode(app: &AppHandle) -> u16 {
+    if !cfg!(target_os = "macos") {
+        return 0;
+    }
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    if app.run_on_main_thread(move || drop(tx.send(platform::paste_keycode()))).is_err() {
+        return 9;
+    }
+    tokio::time::timeout(Duration::from_millis(400), rx).await.ok().and_then(|r| r.ok()).unwrap_or(9)
+}
+
 /// Pega en la app con el foco (o deja copiado si no hay permiso). Corre en un hilo aparte.
 pub async fn insert_text(app: &AppHandle, text: &str) -> How {
     *app.state::<AppState>().last_text.lock().unwrap() = text.to_string();
     let restore = app.state::<AppState>().settings.lock().unwrap().restore_clipboard;
+    let can_paste = platform::can_simulate_paste();
+    let keycode = if can_paste { paste_keycode(app).await } else { 0 };
     let text = text.to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let Ok(cb) = arboard::Clipboard::new() else { return How::Copied };
         let mut port = SystemClipboard(cb);
-        let mut tap = platform::tap_paste;
-        let tap: Option<&mut dyn FnMut() -> bool> = if platform::can_simulate_paste() { Some(&mut tap) } else { None };
+        let mut tap = move || platform::tap_paste(keycode);
+        let tap: Option<&mut dyn FnMut() -> bool> = if can_paste { Some(&mut tap) } else { None };
         paste_via_clipboard(&mut port, &text, tap, restore, &mut |d| std::thread::sleep(d)).0
     })
     .await

@@ -6,7 +6,10 @@
 # artefacto y no publica nada.
 #
 # Firma:
-#   Mac: firma ad hoc (signingIdentity "-") hasta tener una cuenta de Apple Developer.
+#   Mac: con MACOS_SIGNING_P12 + MACOS_SIGNING_P12_PASSWORD (un certificado propio, lo crea
+#   desktop/scripts/macos-signing-cert.sh) la firma es estable: macOS mantiene Accesibilidad y el
+#   micrófono entre versiones. Sin esos secretos, firma ad hoc (signingIdentity "-"): macOS ata los
+#   permisos a cada build y después de cada actualización hay que volver a darlos.
 #   Actualizaciones: TAURI_SIGNING_PRIVATE_KEY (+ TAURI_SIGNING_PRIVATE_KEY_PASSWORD si tiene)
 #   firman los paquetes del updater; la clave pública va en src-tauri/tauri.conf.json. Sin el
 #   secreto, los instaladores salen igual pero sin actualizaciones automáticas.
@@ -20,6 +23,16 @@ on:
   push:
     tags: ['desktop-v*']
   workflow_dispatch:
+    inputs:
+      signing_selftest:
+        description: Firmar con un certificado descartable (prueba el camino de la firma estable sin los secretos)
+        type: boolean
+        default: false
+  # En los PR que tocan el escritorio: tests y builds, sin publicar.
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/desktop.yml'
 
 permissions:
   contents: write
@@ -121,6 +134,51 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./desktop/scripts/provision-nsis.ps1
 
+      # Firma estable en Mac: el certificado de los secretos se importa en un llavero temporal y se
+      # marca de confianza para firmar código (codesign no firma con un certificado sin confianza).
+      # Tauri firma con APPLE_SIGNING_IDENTITY en vez de la firma ad hoc.
+      - name: Certificado de firma (Mac)
+        id: macsign
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          P12: ${{ secrets.MACOS_SIGNING_P12 }}
+          P12_PASSWORD: ${{ secrets.MACOS_SIGNING_P12_PASSWORD }}
+          SELFTEST: ${{ github.event_name == 'workflow_dispatch' && inputs.signing_selftest && 'yes' || 'no' }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/macsign"
+          mkdir -p "$work"
+          if [ -z "$P12" ] && [ "$SELFTEST" = "yes" ]; then
+            P12_PASSWORD="$(openssl rand -hex 16)"
+            printf '[req]\ndistinguished_name=dn\nprompt=no\nx509_extensions=ext\n[dn]\nCN=zerosoft desktop\n[ext]\nbasicConstraints=critical,CA:false\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=critical,codeSigning\n' > "$work/cert.cnf"
+            openssl req -x509 -newkey rsa:2048 -nodes -days 30 -keyout "$work/key.pem" -out "$work/cert.pem" -config "$work/cert.cnf" 2>/dev/null
+            openssl pkcs12 -export -legacy -inkey "$work/key.pem" -in "$work/cert.pem" -name "zerosoft desktop" -out "$work/cert.p12" -passout "pass:$P12_PASSWORD" 2>/dev/null \
+              || openssl pkcs12 -export -inkey "$work/key.pem" -in "$work/cert.pem" -name "zerosoft desktop" -out "$work/cert.p12" -passout "pass:$P12_PASSWORD"
+            echo "Prueba: certificado descartable (este build no se publica)."
+          elif [ -n "$P12" ]; then
+            printf '%s' "$P12" | base64 --decode > "$work/cert.p12"
+          else
+            echo "Sin MACOS_SIGNING_P12: firma ad hoc (los permisos de macOS se piden de nuevo en cada versión)."
+            echo "kind=adhoc" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          kc="$work/signing.keychain-db"
+          kcpw="$(openssl rand -hex 16)"
+          security create-keychain -p "$kcpw" "$kc"
+          security set-keychain-settings -lut 21600 "$kc"
+          security unlock-keychain -p "$kcpw" "$kc"
+          security import "$work/cert.p12" -k "$kc" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$kcpw" "$kc" >/dev/null
+          security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+          security find-certificate -c "zerosoft desktop" -p "$kc" > "$work/cert.pem"
+          sudo security authorizationdb write com.apple.trust-settings.admin allow
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$work/cert.pem"
+          rm -f "$work/cert.p12" "$work/key.pem"
+          security find-identity -v -p codesigning "$kc"
+          echo "APPLE_SIGNING_IDENTITY=zerosoft desktop" >> "$GITHUB_ENV"
+          echo "kind=stable" >> "$GITHUB_OUTPUT"
+
       - uses: tauri-apps/tauri-action@v0
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -147,12 +205,22 @@ jobs:
               cp "$(ls "$b"/macos/*.app.tar.gz.sig | head -1)" "out/zerosoft-$v-${{ matrix.name }}.app.tar.gz.sig"
             fi
             app="$(ls -d "$b"/macos/*.app | head -1)"
-            codesign -dv "$app" 2>&1 | grep -E "Signature|Identifier" || true
+            codesign -dv "$app" 2>&1 | grep -E "Signature|Identifier|TeamIdentifier" || true
+            # Requisito designado: con el certificado tiene que nombrar el certificado, no un cdhash
+            # (un cdhash cambia en cada build y macOS pierde los permisos).
+            req="$(codesign -d -r- "$app" 2>&1 | grep 'designated =>' || true)"
+            echo "$req"
+            if [ "${{ steps.macsign.outputs.kind }}" = "stable" ] && ! echo "$req" | grep -q 'certificate leaf'; then
+              echo "::error::La app no salió firmada con el certificado estable"; exit 1
+            fi
+            codesign -d --entitlements - "$app" 2>/dev/null | grep -E "device\.(camera|audio-input)" || { echo "::error::Faltan los permisos de cámara o micrófono"; exit 1; }
+            plutil -extract NSCameraUsageDescription raw "$app/Contents/Info.plist" >/dev/null || { echo "::error::Falta NSCameraUsageDescription"; exit 1; }
             {
               echo "### ${{ matrix.name }}"
               echo "- .app: $(du -sh "$app" | cut -f1)"
               echo "- binario: $(du -h "$app/Contents/MacOS/"* | cut -f1 | head -1)"
               echo "- .dmg: $(du -h out/*.dmg | cut -f1)"
+              echo "- firma: ${{ steps.macsign.outputs.kind || 'adhoc' }} ($req)"
             } >> "$GITHUB_STEP_SUMMARY"
           else
             exe="$(ls "$b"/nsis/*-setup.exe | head -1)"

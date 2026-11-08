@@ -38,7 +38,7 @@ export async function voiceAiAvailable(): Promise<boolean> {
   return aiEnabled();
 }
 
-async function voiceModel(ws: string, fake: (info: FakeCallInfo) => FakeStep): Promise<{ model: LanguageModel; modelId: string }> {
+async function voiceModel(ws: string, fake: (info: FakeCallInfo) => FakeStep, preferredId?: string): Promise<{ model: LanguageModel; modelId: string }> {
   const state = await voiceAiFakeState();
   if (state === 'on') {
     await assertAiQuota(ws);
@@ -46,7 +46,7 @@ async function voiceModel(ws: string, fake: (info: FakeCallInfo) => FakeStep): P
   }
   if (state === 'off') throw new AiError('ai_disabled');
   await assertAiAvailable(ws);
-  return resolveAiModel();
+  return resolveAiModel(preferredId);
 }
 
 async function record(ws: string, feature: string, modelId: string, usage: { inputTokens?: number; outputTokens?: number } | undefined) {
@@ -91,6 +91,37 @@ export function cleanupInstructions(opts: { context: VoiceContext; tone: VoiceTo
 }
 
 /**
+ * Modelo de la limpieza de dictados: uno chico y rápido (la tarea es puntuar y
+ * sacar muletillas, y cada dictado espera esta respuesta para pegarse).
+ * VOICE_CLEANUP_MODEL lo cambia.
+ */
+export const FAST_CLEANUP_MODEL = 'anthropic/claude-haiku-4.5';
+
+export function cleanupModelId(): string {
+  return process.env.VOICE_CLEANUP_MODEL?.trim() || FAST_CLEANUP_MODEL;
+}
+
+/** Frases de hasta este largo se limpian por reglas en el modo rápido (la app de escritorio). */
+export const FAST_RULES_MAX_WORDS = 16;
+
+/** En el modo rápido, la limpieza con IA espera como mucho esto y si no, reglas. */
+export function fastCleanupTimeoutMs(raw: string): number {
+  const words = raw.trim().split(/\s+/).filter(Boolean).length;
+  return Math.min(6000, 2000 + words * 15);
+}
+
+/**
+ * Frase corta sin nada que pida la IA: las reglas (muletillas, "no, quise
+ * decir", listas, saltos y mayúsculas) alcanzan y se ahorra la vuelta al
+ * modelo. Con tono formal se usa la IA igual (reescribe, no solo puntúa).
+ */
+export function canSkipAiCleanup(raw: string, tone: VoiceTone): boolean {
+  if (tone === 'formal') return false;
+  const words = raw.trim().split(/\s+/).filter(Boolean).length;
+  return words > 0 && words <= FAST_RULES_MAX_WORDS;
+}
+
+/**
  * Limpia un dictado. Con la IA apagada o sin cuota devuelve la limpieza por
  * reglas y `ai: false` (el dictado no se pierde). Los reemplazos del
  * diccionario siempre se aplican al final.
@@ -102,22 +133,41 @@ export async function cleanupDictation(opts: {
   tone: VoiceTone;
   dictionary: VoiceDictionaryEntry[];
   useAi: boolean;
+  /**
+   * Modo rápido (la app de escritorio espera el texto para pegarlo): frases
+   * cortas por reglas, la IA con un tope de tiempo y sin reintentos.
+   */
+  fast?: boolean;
 }): Promise<{ text: string; ai: boolean; aiError: string | null }> {
   const raw = opts.raw.trim();
   if (!raw) return { text: '', ai: false, aiError: null };
   if (!opts.useAi) return { text: ruleCleanup(raw, opts.dictionary), ai: false, aiError: null };
-  try {
-    const { model, modelId } = await voiceModel(opts.workspaceId, () => ({ text: ruleCleanup(raw, []) }));
-    const words = opts.dictionary.filter((d) => d.kind === 'word').map((d) => d.phrase);
+  if (opts.fast && canSkipAiCleanup(raw, opts.tone)) return { text: ruleCleanup(raw, opts.dictionary), ai: false, aiError: null };
+  const words = opts.dictionary.filter((d) => d.kind === 'word').map((d) => d.phrase);
+  const run = async (preferredId: string) => {
+    const { model, modelId } = await voiceModel(opts.workspaceId, () => ({ text: ruleCleanup(raw, []) }), preferredId);
     const res = await generateText({
       model,
       instructions: cleanupInstructions({ context: opts.context, tone: opts.tone, words }),
       prompt: raw.slice(0, 20_000),
       temperature: 0,
-      maxOutputTokens: 4000,
-      timeout: 30_000,
-      maxRetries: 1,
+      maxOutputTokens: Math.min(4000, 64 + raw.length),
+      timeout: opts.fast ? fastCleanupTimeoutMs(raw) : 30_000,
+      maxRetries: opts.fast ? 0 : 1,
     });
+    return { res, modelId };
+  };
+  try {
+    let out: Awaited<ReturnType<typeof run>>;
+    try {
+      out = await run(cleanupModelId());
+    } catch (err) {
+      // El modelo rápido no está (otro gateway, un id viejo): el de siempre, sin perder la IA.
+      // Un tope de tiempo vencido no reintenta (ya se esperó lo que se podía).
+      if (err instanceof AiError || isTimeout(err) || cleanupModelId() === resolveAiModel().modelId) throw err;
+      out = await run(resolveAiModel().modelId);
+    }
+    const { res, modelId } = out;
     await record(opts.workspaceId, 'voice_cleanup', modelId, res.totalUsage);
     const text = applyDictionary(res.text.trim(), opts.dictionary) || ruleCleanup(raw, opts.dictionary);
     return { text, ai: true, aiError: null };
@@ -126,6 +176,10 @@ export async function cleanupDictation(opts: {
     console.error('[voice] cleanup failed', err instanceof Error ? err.message : 'error');
     return { text: ruleCleanup(raw, opts.dictionary), ai: false, aiError: 'ai_failed' };
   }
+}
+
+function isTimeout(err: unknown): boolean {
+  return err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError' || /timeout|aborted/i.test(err.message));
 }
 
 // ---------- Nota mejorada ----------

@@ -12,7 +12,14 @@ export interface DesktopBridge {
   dictation: boolean;
   /** Login con Google en el navegador del sistema; vuelve por zerosoft://. */
   startLogin: () => void;
+  /** Abre la ventana de Ajustes de la app de escritorio. */
   openSettings: () => void;
+  /**
+   * Avisa que una reunión empezó o terminó de grabarse: con la ventana en
+   * segundo plano, la app muestra un indicador flotante con Abrir y Cortar
+   * (Cortar manda el evento DESKTOP_STOP_RECORDING_EVENT). Desde la 0.3.0.
+   */
+  recording?: (state: { active: boolean; startedAt?: number; path?: string }) => Promise<void> | void;
   /**
    * Canjea el nonce de "tomar notas" (?autostart=<nonce>): lo crea la app al
    * tocar su aviso o su menú y vale una sola vez. Un link con autostart que
@@ -20,6 +27,9 @@ export interface DesktopBridge {
    */
   consumeAutostart?: (nonce: string) => Promise<boolean>;
 }
+
+/** Lo manda la app de escritorio cuando se toca Cortar en su indicador de grabación. */
+export const DESKTOP_STOP_RECORDING_EVENT = 'zerosoft:stop-recording';
 
 /** Forma del nonce de autostart (desktop/src/shared/nonce.ts). */
 export const AUTOSTART_NONCE_RE = /^[A-Za-z0-9_-]{22,64}$/;

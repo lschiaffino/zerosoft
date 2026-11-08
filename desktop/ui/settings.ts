@@ -9,7 +9,7 @@ import {
   formatClock,
   type DictionaryEntryView,
   type PendingMeta,
-  type PermissionKind,
+  type PermissionAsk,
   type SettingsInput,
   type SettingsView,
   type VoiceServerSettings,
@@ -172,8 +172,19 @@ function renderStart(panel: HTMLElement) {
   }
   const acc = v.permissions.accessibility;
   if (mac && acc !== 'not-needed') {
-    step(acc === 'granted', s('stepAccessibility'), s('stepAccessibilityHelp'), [
+    // La llave prendida en Ajustes del Sistema puede ser de otra build (firma ad hoc): se explica
+    // y "Restablecer permiso" borra esa entrada y la pide de nuevo para esta build.
+    const stale = v.accessibilityHint === 'updated' || v.accessibilityHint === 'adhoc';
+    const help = h(
+      'span',
+      {},
+      s('stepAccessibilityHelp'),
+      stale ? h('span', { class: 'step-note', id: 'acc-hint' }, s(v.accessibilityHint === 'updated' ? 'accessibilityUpdated' : 'accessibilityAdhoc')) : null,
+      v.signature === 'adhoc' ? h('span', { class: 'step-note muted' }, s('accessibilityAdhocUpdates')) : null,
+    );
+    step(acc === 'granted', s('stepAccessibility'), help, [
       h('button', { class: 'btn', type: 'button', onclick: () => void ask('accessibility') }, s('openSystemSettings')),
+      stale ? h('button', { class: 'btn', type: 'button', id: 'acc-reset', onclick: () => void ask('accessibility-reset') }, s('accessibilityReset')) : null,
       h('button', { class: 'btn link', type: 'button', onclick: () => void reload(false) }, s('checkAgain')),
     ]);
   }
@@ -197,6 +208,8 @@ function renderStart(panel: HTMLElement) {
   panel.append(
     h('h1', {}, s('startTitle')),
     h('p', { class: 'lead' }, s('startIntro')),
+    // La primera vez la ventana se abre sola: se dice por qué y dónde volver a encontrarla.
+    ...(v.onboarded ? [] : [h('p', { class: 'notice info', id: 'first-run' }, s('firstRunNotice', { where: s(mac ? 'settingsWhereMac' : 'settingsWhereWin') }))]),
     steps,
     ...blocks,
     h(
@@ -219,10 +232,10 @@ function renderStart(panel: HTMLElement) {
   );
   // Mientras falte algo, el estado se relee solo (Accesibilidad no devuelve el foco a la ventana).
   const missing = !acct.signedIn || (mic !== 'granted' && mic !== 'not-needed') || (mac && acc !== 'granted');
-  if (missing) poll = window.setInterval(() => void reload(false), 2500);
+  if (missing) poll = window.setInterval(() => void reload(false), 1500);
 }
 
-async function ask(kind: PermissionKind) {
+async function ask(kind: PermissionAsk) {
   const next = await api.ask(kind);
   if (next) {
     view = next;
@@ -268,7 +281,15 @@ function renderGeneral(panel: HTMLElement) {
       h('p', { class: 'help' }, s('pasteLastHint'), ': ', kbd(v.pasteLastShortcut)),
       check('restore', v.restoreClipboard, s('restoreClipboard'), 'restoreClipboard'),
     ),
+    h(
+      'section',
+      {},
+      h('h2', {}, s('meetings')),
+      check('indicator', v.recordingIndicator, s('recordingIndicator'), 'recordingIndicator'),
+      h('p', { class: 'help', style: 'margin-top:0' }, s('recordingIndicatorHelp')),
+    ),
     h('section', {}, h('h2', {}, s('general')), check('login', v.openAtLogin, s('openAtLogin'), 'openAtLogin')),
+    h('section', {}, h('h2', {}, s('settingsWhereTitle')), h('p', { class: 'help', style: 'margin:0' }, s(v.platform === 'darwin' ? 'settingsWhereMac' : 'settingsWhereWin'))),
   );
 }
 
@@ -438,7 +459,24 @@ async function renderHistory(panel: HTMLElement) {
   const st = status();
   const holdKey = v.shortcuts.find((x) => x.id === v.shortcut)?.label ?? v.shortcut;
   panel.append(h('div', { class: 'row' }, h('h1', {}, s('tabHistory')), h('span', { class: 'spacer' }), st), h('p', { class: 'lead' }, s('histIntro')));
-  if (v.lastLatencyMs !== null) panel.append(h('p', { class: 'help', id: 'latency' }, s('lastLatency', { s: (v.lastLatencyMs / 1000).toFixed(1) })));
+  const lat = v.lastLatency;
+  if (lat) {
+    const sec = (ms: number | null) => (ms === null ? '?' : (ms / 1000).toFixed(1));
+    const detail =
+      lat.serverMs !== null
+        ? s('lastLatencyDetail', { server: sec(lat.serverMs), tr: sec(lat.transcribeMs), cl: sec(lat.cleanupMs), net: sec(Math.max(0, lat.requestMs - lat.serverMs)), paste: sec(lat.pasteMs) })
+        : '';
+    panel.append(
+      h(
+        'p',
+        { class: 'help', id: 'latency' },
+        s('lastLatency', { s: sec(lat.totalMs) }),
+        detail ? h('br') : null,
+        detail,
+        !lat.ai && lat.cleanupMs === 0 ? ` ${s('lastLatencyRules')}` : '',
+      ),
+    );
+  }
   if (v.pending.length) {
     const plist = h('ul', { class: 'list', id: 'pending' });
     for (const m of v.pending) {
