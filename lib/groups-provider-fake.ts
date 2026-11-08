@@ -42,7 +42,7 @@ interface FakeGroup extends GroupInfo {
 export interface FakeSent {
   chatId: string;
   text: string;
-  kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll';
+  kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read';
   at: number;
 }
 
@@ -145,6 +145,8 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       throw new ProviderError('unsupported');
     },
     sendPoll: async (chatId, poll) => send(chatId, `${poll.question} [${poll.options.join(' | ')}]`, 'poll'),
+    sendContact: async (chatId, contacts) => send(chatId, contacts.map((c) => `${c.name} +${c.phone}`).join(' | '), 'contact'),
+    markRead: async (chatId, ids) => void send(chatId, ids.join(','), 'read'),
     listTemplates: async () => [],
     async listGroups() {
       requireConnected();
@@ -257,7 +259,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       if (!Array.isArray(events)) return [];
       return events.filter((e): e is InboundEvent => {
         const t = (e as { type?: unknown })?.type;
-        return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote'].includes(String(t));
+        return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote', 'contact', 'presence'].includes(String(t));
       });
     },
   };

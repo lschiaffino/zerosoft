@@ -51,6 +51,7 @@
     "building": "Em construção"
   },
   "sidebar": {
+    "desktopSettings": "Ajustes do app para desktop",
     "newReadOnly": "Seu papel aqui é ver ou comentar: peça a um admin para criar a página.",
     "search": "Buscar",
     "new": "Novo",
@@ -213,7 +214,8 @@
     "groupBooksBankAccounts": "Contas bancárias",
     "groupBooksRecurring": "Faturas recorrentes",
     "groupForms": "Formulários",
-    "groupSend": "Documentos para enviar"
+    "groupSend": "Documentos para enviar",
+    "untitled": "Sem título"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",

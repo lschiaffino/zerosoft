@@ -133,7 +133,8 @@ export async function CrmTasksBlock({
                 <span className="home-row-label">{task.subject}</span>
                 <span className={`home-row-meta${task.overdue ? ' is-late' : ''}`}>
                   {task.overdue ? t('today.overdue') : t('today.dueToday')}
-                  {task.context ? ` · ${task.context}` : task.source ? ` · ${tl(task.source.app)} · ${task.source.label}` : ''}
+                  {/* El registro del CRM si tiene; si no, el chat o la página de donde salió. Con origen, la app adelante. */}
+                  {task.source ? ` · ${tl(task.source.app)} · ${task.context ?? task.source.label}` : task.context ? ` · ${task.context}` : ''}
                 </span>
               </Link>
             </li>

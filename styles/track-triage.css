@@ -46,7 +46,7 @@
 @media (max-width: 640px) {
   .track-triage-keys { display: none; }
 }
-.track-triage-item.is-active { background: var(--ui-hover); box-shadow: inset 2px 0 0 var(--ink); }
+.track-triage-item.is-active { background: var(--ui-selected); }
 .track-triage-list > .track-triage-item { padding-left: 10px; padding-right: 8px; }
 .track-triage-item:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .track-triage-sla { display: inline-flex; }

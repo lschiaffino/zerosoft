@@ -253,7 +253,8 @@
     "sampleInvite": "Es un grupo de ejemplo: no tiene un link de invitación real.",
     "searchMembers": "Buscar miembros",
     "memberOptions": "Opciones de {name}",
-    "removeMember": "Sacar del grupo"
+    "removeMember": "Sacar del grupo",
+    "moreMembers": "Mostrar {n} más"
   },
   "roles": {
     "member": "Miembro",
@@ -684,7 +685,11 @@
     "slaEmailAssignee": "A la persona asignada al ticket",
     "slaEmailAdmins": "A los admins del workspace",
     "slaEmailExtra": "Otros emails",
-    "slaEmailHelp": "Separados por comas, hasta 10. Cada vencimiento manda un email por dirección."
+    "slaEmailHelp": "Separados por comas, hasta 10. Cada vencimiento manda un email por dirección.",
+    "whatsapp": "WhatsApp",
+    "readReceipts": "Marcar los chats como leídos en WhatsApp cuando alguien del equipo los lee",
+    "readReceiptsHelp": "El cliente ve las tildes azules. Solo en líneas conectadas por QR.",
+    "keepArchived": "Mantener archivados los chats archivados cuando llega un mensaje nuevo"
   },
   "api": {
     "intro": "Leé chats, enviá mensajes y creá tickets desde tus propios sistemas con la API pública.",
@@ -838,7 +843,10 @@
     "too_many_files": "Hasta 10 archivos a la vez.",
     "client_upload_unavailable": "La subida directa no está disponible acá. Los archivos de hasta 4,5 MB se suben igual.",
     "edit_failed_whatsapp": "No se pudo editar en WhatsApp. El mensaje quedó como estaba.",
-    "file_too_large_local": "Este servidor acepta archivos de hasta 4,5 MB. Para mandar hasta 100 MB, un admin tiene que configurar el almacenamiento Blob."
+    "file_too_large_local": "Este servidor acepta archivos de hasta 4,5 MB. Para mandar hasta 100 MB, un admin tiene que configurar el almacenamiento Blob.",
+    "send_rate_limited": "Esta línea mandó demasiados mensajes en un minuto. Esperá un poco antes de seguir, así WhatsApp no la bloquea.",
+    "contacts_unsupported": "Esta línea no puede mandar contactos.",
+    "invalid_contact_card": "Revisá el número: tiene que llevar el código de país."
   },
   "media": {
     "image": "Imagen",
@@ -1536,6 +1544,35 @@
     "importNothingNew": "Ya estaba todo importado ({chats} chats).",
     "historyOnPhone": "Los mensajes anteriores están en el teléfono.",
     "historyFetch": "Traer más",
-    "historyAll": "Este es el principio del historial que tenemos."
+    "historyAll": "Este es el principio del historial que tenemos.",
+    "online": "en línea",
+    "typing": "escribiendo…",
+    "typingBy": "{name} está escribiendo…",
+    "recordingAudio": "grabando audio…",
+    "recordingBy": "{name} está grabando un audio…",
+    "contact": "Contacto",
+    "contactTitle": "Enviar contactos",
+    "contactSearch": "Buscar chats",
+    "contactNone": "Todavía no hay chats 1 a 1 con número.",
+    "contactOther": "Otro número",
+    "contactName": "Nombre",
+    "contactPhone": "Número",
+    "contactSend": "Enviar contacto",
+    "contactSendN": "Enviar {n} contactos",
+    "contactPickOne": "Elegí un contacto o escribí un número.",
+    "archive": "Archivar chat",
+    "unarchive": "Desarchivar chat",
+    "archived": "Chat archivado",
+    "unarchived": "Chat desarchivado",
+    "archivedTitle": "Archivados",
+    "archivedEmpty": "No hay chats archivados.",
+    "deleteChat": "Eliminar chat",
+    "deleteChatTitle": "¿Eliminar el chat con {name}?",
+    "deleteChatBody": "Sale de la lista para todo el equipo. En WhatsApp no cambia nada y, si llega un mensaje nuevo, el chat vuelve a aparecer con su historial.",
+    "chatDeleted": "Chat eliminado",
+    "lineDropped": "{name} perdió la conexión con WhatsApp. Los mensajes nuevos no llegan hasta que la reconectes.",
+    "line": "Tu línea",
+    "rescan": "Escanear el QR de nuevo",
+    "reconnect": "Reconectar"
   }
 }

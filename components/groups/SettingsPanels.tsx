@@ -562,6 +562,18 @@ export function TicketRulesPanel({ initial, canEdit, aiAvailable = true }: { ini
         {t('rules.unflagOnTicket')}
       </label>
       <fieldset className="ui-field">
+        <legend className="label">{t('rules.whatsapp')}</legend>
+        <label className="gr-check-label">
+          <input type="checkbox" className="ui-check" checked={s.readReceipts} onChange={(e) => setS({ ...s, readReceipts: e.target.checked })} disabled={!canEdit} />
+          {t('rules.readReceipts')}
+        </label>
+        <span className="ui-help">{t('rules.readReceiptsHelp')}</span>
+        <label className="gr-check-label">
+          <input type="checkbox" className="ui-check" checked={s.keepArchived} onChange={(e) => setS({ ...s, keepArchived: e.target.checked })} disabled={!canEdit} />
+          {t('rules.keepArchived')}
+        </label>
+      </fieldset>
+      <fieldset className="ui-field">
         <legend className="label">{t('rules.slaEmail')}</legend>
         <label className="gr-check-label">
           <input type="checkbox" className="ui-check" checked={s.slaEmail} onChange={(e) => setS({ ...s, slaEmail: e.target.checked })} disabled={!canEdit} />

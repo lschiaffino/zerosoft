@@ -72,8 +72,8 @@
 }
 
 .notes-nav-item svg { flex-shrink: 0; color: var(--brand-gray-2); }
-.notes-nav-item:hover { background: var(--brand-enamel); color: var(--ink); }
-.notes-nav-item[aria-current='true'] { background: var(--ui-hover); color: var(--ink); font-weight: 600; }
+.notes-nav-item:hover { background: var(--ui-hover); color: var(--ink); }
+.notes-nav-item[aria-current='true'] { background: var(--ui-selected); color: var(--ink); font-weight: 600; }
 .notes-nav-item[aria-current='true'] svg { color: var(--ink); }
 
 .notes-nav-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -98,11 +98,11 @@
 
 /* Renombrar y borrar viven en un menú "…" por libreta; en desktop aparece
    al pasar o enfocar la fila, tapando el conteo. */
-.notes-nav-menu { position: absolute; right: 2px; display: none; background: var(--brand-enamel); }
+.notes-nav-menu { position: absolute; right: 2px; display: none; background: var(--ui-hover); }
 .notes-nav-row:hover .notes-nav-menu,
 .notes-nav-row:focus-within .notes-nav-menu,
 .notes-nav-menu:has([aria-expanded='true']) { display: flex; }
-.notes-nav-row .notes-nav-item[aria-current='true'] ~ .notes-nav-menu { background: var(--ui-hover); }
+.notes-nav-row .notes-nav-item[aria-current='true'] ~ .notes-nav-menu { background: var(--ui-selected); }
 .notes-nav-menu .btn-icon { min-height: 28px; width: 28px; }
 .notes-nav-menu .row-menu { top: calc(100% + 4px); }
 
@@ -201,8 +201,9 @@
   transition: background-color var(--ui-dur) var(--ease);
 }
 
-.notes-item:hover { background: var(--brand-enamel); }
-.notes-item[aria-current='true'] { background: var(--ui-hover); }
+.notes-item:hover { background: var(--ui-hover); }
+.notes-item[aria-current='true'] { background: var(--ui-selected); }
+.notes-item[aria-current='true']:hover { background: var(--ui-selected-hover); }
 
 /* block: en un flex el texto suelto no toma los puntos suspensivos y se corta en seco. */
 .notes-item-title {

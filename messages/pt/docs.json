@@ -64,7 +64,7 @@
     "noCommands": "Sem comandos",
     "headingPlaceholder": "Cabeçalho",
     "quotePlaceholder": "Citação vazia",
-    "languagePlaceholder": "linguagem",
+    "languagePlaceholder": "Texto simples",
     "addRow": "+ linha",
     "addColumn": "+ coluna",
     "format": {
@@ -76,7 +76,8 @@
       "link": "Link",
       "linkPlaceholder": "Cole um link…",
       "addLink": "Adicionar link",
-      "removeLink": "Remover link"
+      "removeLink": "Remover link",
+      "color": "Cor do texto"
     },
     "blockMenu": {
       "turnInto": "Transformar em",
@@ -86,7 +87,15 @@
       "moveUp": "Mover para cima",
       "moveDown": "Mover para baixo",
       "insertBelow": "Inserir abaixo",
-      "dragHandle": "Opções do bloco. Arraste para reordenar."
+      "dragHandle": "Opções do bloco. Arraste para reordenar.",
+      "color": "Cor",
+      "copyLink": "Copiar link do bloco",
+      "title": "Opções do bloco",
+      "search": "Buscar ações…",
+      "noResults": "Nenhuma ação corresponde",
+      "moveTo": "Mover para",
+      "moveToSearch": "Mover para uma página…",
+      "moveFailed": "Não foi possível mover para lá. Confira se você pode editar essa página."
     },
     "commands": {
       "p": "Texto",
@@ -112,8 +121,8 @@
       "video": "Vídeo",
       "audio": "Áudio",
       "pdf": "PDF",
-      "bookmark": "Bookmark web",
-      "embed": "Embed",
+      "bookmark": "Marcador web",
+      "embed": "Incorporar conteúdo",
       "col2": "2 colunas",
       "col3": "3 colunas",
       "col4": "4 colunas",
@@ -122,7 +131,7 @@
       "equation": "Equação em bloco",
       "toc": "Sumário",
       "button": "Botão",
-      "breadcrumb": "Breadcrumb",
+      "breadcrumb": "Caminho da página",
       "date": "Data",
       "reminder": "Lembrete",
       "inlineEquation": "Equação em linha",
@@ -149,7 +158,9 @@
       "untitledFile": "Arquivo sem nome",
       "imageLabel": "Imagem: {name}",
       "fileLabel": "Arquivo: {name}",
-      "videoLabel": "Vídeo: {name}"
+      "videoLabel": "Vídeo: {name}",
+      "imageUnavailable": "Não foi possível carregar esta imagem",
+      "imageUnavailableHelp": "O arquivo não está no armazenamento ou o envio não terminou. Envie de novo ou remova o bloco."
     },
     "togglePlaceholder": "Recolhível",
     "calloutPlaceholder": "Escreva uma nota…",
@@ -321,6 +332,37 @@
       "loading": "Carregando…",
       "pages": "{n, plural, one {# página} other {# páginas}}",
       "create": "Criar um design"
+    },
+    "codeLanguage": "Linguagem do código",
+    "copyCode": "Copiar",
+    "codeCopied": "Copiado",
+    "colors": {
+      "text": "Texto",
+      "background": "Fundo",
+      "default": "Padrão",
+      "gray": "Cinza",
+      "bg_gray": "Fundo cinza",
+      "brown": "Marrom",
+      "bg_brown": "Fundo marrom",
+      "orange": "Laranja",
+      "bg_orange": "Fundo laranja",
+      "yellow": "Amarelo",
+      "bg_yellow": "Fundo amarelo",
+      "green": "Verde",
+      "bg_green": "Fundo verde",
+      "blue": "Azul",
+      "bg_blue": "Fundo azul",
+      "purple": "Roxo",
+      "bg_purple": "Fundo roxo",
+      "pink": "Rosa",
+      "bg_pink": "Fundo rosa",
+      "red": "Vermelho",
+      "bg_red": "Fundo vermelho"
+    },
+    "table": {
+      "cell": "Linha {row}, coluna {col}",
+      "addColumn": "Adicionar coluna",
+      "headerRow": "Linha de cabeçalho"
     }
   },
   "database": {
@@ -759,7 +801,8 @@
     "today": "Hoje",
     "tomorrow": "Amanhã",
     "remindAt": "Lembrar-me {when}",
-    "reminderHint": "Avisa você no app e por email"
+    "reminderHint": "Avisa você no app e por email",
+    "pages": "Páginas"
   },
   "emoji": {
     "pick": "Escolher ícone",
@@ -840,7 +883,8 @@
     "inheritRole": "Padrão ({role})",
     "invitePending": "Convidado por email · pendente",
     "revokeInvite": "Revogar convite",
-    "sharedCommentBanner": "{name} compartilhou esta página com você para comentar e sugerir mudanças."
+    "sharedCommentBanner": "{name} compartilhou esta página com você para comentar e sugerir mudanças.",
+    "copyPageLink": "Copiar link"
   },
   "templates": {
     "title": "Começar de um modelo",
@@ -1053,8 +1097,8 @@
     "lead": "Traga páginas do Notion, Confluence, Google Docs, Word ou Evernote com sua árvore, imagens, arquivos e links entre páginas.",
     "loadingJobs": "Carregando…",
     "dismiss": "Fechar",
-    "step1": "No Notion, abra Settings › Export all workspace content, ou ··· › Export em uma página.",
-    "step2": "Escolha Markdown & CSV, com subpáginas e com arquivos e imagens.",
+    "step1": "No Notion, abra Configurações › Geral › Exportar todo o conteúdo do espaço de trabalho (ou ••• › Exportar em uma página).",
+    "step2": "Escolha Markdown e CSV, inclua subpáginas e arquivos, e baixe o .zip.",
     "step3": "Envie aqui o .zip que o Notion gera.",
     "file": "Arquivo exportado (.zip)",
     "fileHelp": "Até 1 GB. O arquivo é apagado quando a importação termina.",
@@ -1066,7 +1110,7 @@
       "size": "Tamanho",
       "rows": "Páginas de linhas"
     },
-    "already": "{count} páginas já foram importadas antes e serão puladas.",
+    "already": "{count, plural, one {# página já foi importada} other {# páginas já foram importadas}}: as que não mudaram são puladas e as que mudaram no Notion são atualizadas, a menos que alguém as tenha editado aqui.",
     "treeTitle": "Páginas",
     "databaseTag": "base",
     "more": "e mais {count}",
@@ -1084,8 +1128,8 @@
     "sources": {
       "notion": {
         "name": "Notion",
-        "step1": "No Notion, abra Settings › Export all workspace content, ou ··· › Export em uma página.",
-        "step2": "Escolha Markdown & CSV (ou HTML), com subpáginas e com arquivos e imagens.",
+        "step1": "No Notion, abra Configurações › Geral › Exportar todo o conteúdo do espaço de trabalho (ou ••• › Exportar em uma página).",
+        "step2": "Escolha Markdown e CSV, inclua subpáginas e arquivos, e baixe o .zip.",
         "step3": "Envie aqui o .zip que o Notion gera.",
         "file": "Arquivo do export (.zip)"
       },
@@ -1131,8 +1175,17 @@
     "noDestination": "Seu papel não pode criar páginas neste workspace. Peça acesso de edição a um admin.",
     "capped": "O arquivo tem mais de {max} páginas: entram só as primeiras {max}.",
     "skippedFiles": "Pulados por serem grandes demais: {files}. O resto entra.",
-    "skippedNote": "{count, plural, one {# página já tinha sido importada e ficou onde estava.} other {# páginas já tinham sido importadas e ficaram onde estavam.}} Para importar de novo, apague essas páginas antes.",
-    "tooLarge": "{count, plural, one {# página entrou vazia: seu arquivo tem mais de 8 MB.} other {# páginas entraram vazias: seus arquivos têm mais de 8 MB.}}"
+    "skippedNote": "{count, plural, one {# página já estava importada e não tinha mudanças.} other {# páginas já estavam importadas e não tinham mudanças.}}",
+    "tooLarge": "{count, plural, one {# página entrou vazia: seu arquivo tem mais de 8 MB.} other {# páginas entraram vazias: seus arquivos têm mais de 8 MB.}}",
+    "confirmItems": "Importar {pages, plural, one {# página} other {# páginas}} e {databases, plural, one {# banco} other {# bancos}}",
+    "confirmUpdate": "Trazer as mudanças",
+    "doneUpdated": "{count, plural, one {# página mudou no Notion e foi atualizada.} other {# páginas mudaram no Notion e foram atualizadas.}}",
+    "doneKeptEdited": "{count, plural, one {# página mudou no Notion mas foi editada aqui, então ficou como estava.} other {# páginas mudaram no Notion mas foram editadas aqui, então ficaram como estavam.}}",
+    "apiTitle": "Ou conecte o Notion com um token",
+    "apiLead": "Importa direto do Notion com o token de uma integração, sem arquivo de export.",
+    "apiLink": "Importar do Notion por API",
+    "chooseFile": "Escolher arquivo",
+    "noFile": "Nenhum arquivo escolhido"
   },
   "reminderEmail": {
     "subject": "Lembrete: {title}",

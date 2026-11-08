@@ -198,6 +198,13 @@ const parity: ProductParity = {
         "Sem bot: o navegador grava seu microfone, ou o microfone e uma aba com Meet, Zoom ou Teams web. O áudio do sistema dos apps de chamada nativos não está disponível: o app desktop atual não grava",
       ],
     }),
+    row('auto-start', 'capture', ['Starts listening when the meeting opens', 'Empieza a escuchar al abrir la reunión', 'Começa a escutar ao abrir a reunião'], 'have', {
+      detail: [
+        "New meeting, Take notes on a calendar event or ⌘K open the meeting already recording the microphone (in the desktop app, also the system audio when allowed). Tab audio in the browser needs one more click because the browser asks to pick the tab. A blocked or missing microphone is shown with a retry, and a link never turns the microphone on",
+        "Nueva reunión, Tomar notas de un evento del calendario o ⌘K abren la reunión ya grabando el micrófono (en la app de escritorio, también el audio del sistema si tiene permiso). El audio de una pestaña en el navegador necesita un clic más porque el navegador pide elegirla. Un micrófono bloqueado o ausente se avisa con un botón para reintentar, y un link nunca prende el micrófono",
+        "Nova reunião, Fazer notas de um evento do calendário ou ⌘K abrem a reunião já gravando o microfone (no app desktop, também o áudio do sistema se tiver permissão). O áudio de uma aba no navegador precisa de mais um clique porque o navegador pede para escolher a aba. Um microfone bloqueado ou ausente é avisado com um botão para tentar de novo, e um link nunca liga o microfone",
+      ],
+    }),
     row('live-transcript', 'capture', ['Live transcript', 'Transcripción en vivo', 'Transcrição ao vivo'], 'have', {
       weight: 2,
       detail: [
@@ -271,14 +278,18 @@ const parity: ProductParity = {
     // Chat
     row('chat-meeting', 'chat', ['Chat with one meeting', 'Chat sobre una reunión', 'Chat sobre uma reunião'], 'have', {
       weight: 2,
-      detail: ['Granola Chat before, during and after the meeting', 'Granola Chat antes, durante y después de la reunión', 'Granola Chat antes, durante e depois da reunião'],
+      detail: [
+        'During and after the meeting, with suggested questions for each moment. The answer appears as it is written and cites the transcript time, which jumps to that line. Uses the model of the ⌘J assistant when it is set up, and the suite model otherwise. Checked end to end with a test model; the quality of citations with real models is not measured yet',
+        'Durante y después de la reunión, con preguntas sugeridas para cada momento. La respuesta aparece mientras se escribe y cita la hora de la transcripción, que lleva a esa línea. Usa el modelo del asistente ⌘J cuando está configurado, y si no, el de la suite. Probado de punta a punta con un modelo de prueba; la calidad de las citas con modelos reales todavía no está medida',
+        'Durante e depois da reunião, com perguntas sugeridas para cada momento. A resposta aparece enquanto é escrita e cita o horário da transcrição, que leva até essa linha. Usa o modelo do assistente ⌘J quando está configurado, e senão o da suíte. Testado de ponta a ponta com um modelo de teste; a qualidade das citações com modelos reais ainda não foi medida',
+      ],
     }),
-    row('chat-across', 'chat', ['Chat across meetings', 'Chat sobre muchas reuniones', 'Chat sobre várias reuniões'], 'have', {
+    row('chat-across', 'chat', ['Chat across meetings', 'Chat sobre muchas reuniones', 'Chat sobre várias reuniões'], 'partial', {
       weight: 2,
       detail: [
-        "Questions across your meetings, answered from the ones that mention the topic, with links to each",
-        "Preguntas sobre tus reuniones, respondidas con las que mencionan el tema y links a cada una",
-        "Perguntas sobre suas reuniões, respondidas com as que citam o assunto e links para cada uma",
+        'Questions across your meetings and the ones teammates shared with you (only what each share lets you see), with follow-ups, dates like "last week" and names of attendees. Answers stream in and link to each meeting and moment. Meetings are picked by words, names and dates, up to six of yours and three shared; there is no semantic search, so a question worded differently from what was said can miss a meeting',
+        'Preguntas sobre tus reuniones y las que te compartió el equipo (solo lo que deja ver cada link), con preguntas de seguimiento, fechas como "la semana pasada" y nombres de asistentes. Las respuestas llegan de a pedazos y llevan a cada reunión y momento. Las reuniones se eligen por palabras, nombres y fechas, hasta seis propias y tres compartidas; no hay búsqueda semántica, así que una pregunta dicha con otras palabras puede no encontrar una reunión',
+        'Perguntas sobre suas reuniões e as que a equipe compartilhou com você (só o que cada link deixa ver), com perguntas de seguimento, datas como "semana passada" e nomes de participantes. As respostas chegam aos poucos e levam a cada reunião e momento. As reuniões são escolhidas por palavras, nomes e datas, até seis suas e três compartilhadas; não há busca semântica, então uma pergunta dita com outras palavras pode não encontrar uma reunião',
       ],
     }),
     row('recipes', 'chat', ['Saved prompts (recipes)', 'Prompts guardados (recipes)', 'Prompts salvos (recipes)'], 'have', {

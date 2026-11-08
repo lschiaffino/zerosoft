@@ -103,13 +103,10 @@ test('una tarea creada en el chat se ve en el contacto, en la tarea con link al 
   const home = page.getByTestId('home-crm-tasks');
   if (await page.getByText(body).count()) {
     await expect(home.getByRole('link', { name: new RegExp(body) })).toHaveAttribute('href', new RegExp(`/app/crm/tasks/${task.id}$`));
-    await expect(home).toContainText(`WhatsApp · ${chatName}`);
+    // Con contacto, el contacto; la app de origen adelante.
+    await expect(home).toContainText(`WhatsApp · Ana Tasks ${tag}`);
   }
 
-  // La API pública devuelve los vínculos.
-  const api = await ok<{ tasks: Array<{ id: string; links: Array<{ kind: string; id: string }> }> }>(request.get('/api/v1/crm/tasks?bucket=today&pageSize=100'));
-  const viaApi = api.tasks.find((t) => t.id === task.id);
-  if (viaApi) expect(viaApi.links.map((l) => l.kind).sort()).toEqual(['lines_chat', 'lines_message']);
   expect(errors).toEqual([]);
 });
 

@@ -29,6 +29,7 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+<<<<<<< HEAD
     id: '2026-11-08-tasks-across-apps',
     date: '2026-11-08',
     title: {
@@ -54,6 +55,85 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Send a task to Track from the task page: it becomes a linked issue, and when the issue is done the task is completed.',
         es: 'Desde la tarea, Pasar a Track crea un issue vinculado; cuando el issue se completa, la tarea también.',
         pt: 'Na tarefa, Enviar para o Track cria uma issue vinculada; quando a issue é concluída, a tarefa também.',
+=======
+    id: '2026-11-08-lifecycle-emails',
+    date: '2026-11-08',
+    title: {
+      en: 'Getting started emails, and a say in which ones you get',
+      es: 'Emails de primeros pasos, y vos elegís cuáles recibir',
+      pt: 'Emails de primeiros passos, e você escolhe quais receber',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'New accounts get a welcome email and then, at most one every two days, the next useful step: create the first thing in the app you picked, import from the tool you came from, connect your calendar or WhatsApp line, invite your team. Steps you already did are skipped, and nothing is sent on a day you used the app.',
+        es: 'Las cuentas nuevas reciben un email de bienvenida y después, como mucho uno cada dos días, el próximo paso útil: crear lo primero en la app que elegiste, importar desde la herramienta de la que venís, conectar tu calendario o tu línea de WhatsApp, invitar a tu equipo. Lo que ya hiciste se saltea, y el día que usaste la app no llega nada.',
+        pt: 'Contas novas recebem um email de boas-vindas e depois, no máximo um a cada dois dias, o próximo passo útil: criar a primeira coisa no app que você escolheu, importar da ferramenta de onde vem, conectar sua agenda ou sua linha de WhatsApp, convidar sua equipe. O que você já fez é pulado, e no dia em que usou o app não chega nada.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Notifications lets you turn each kind of email on or off, opt in to a Monday summary of your workspace, or stop them all. Every email has a one-click unsubscribe. Account emails (sign-in codes, invites, bookings) are not affected. Self-hosted installs without an email provider send nothing.',
+        es: 'En Ajustes › Avisos prendés o apagás cada tipo de email, activás un resumen de tu workspace los lunes o los apagás todos. Cada email trae baja en un clic. Los emails de tu cuenta (códigos de ingreso, invitaciones, reservas) no cambian. Una instalación propia sin proveedor de email no manda nada.',
+        pt: 'Em Configurações › Avisos você liga ou desliga cada tipo de email, ativa um resumo do seu workspace às segundas ou desliga todos. Cada email tem descadastro em um clique. Os emails da sua conta (códigos de acesso, convites, reservas) não mudam. Uma instalação própria sem provedor de email não envia nada.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-docs-editor-notion',
+    date: '2026-11-08',
+    title: {
+      en: 'Docs: selecting, moving and coloring like in Notion',
+      es: 'Docs: seleccionar, mover y pintar como en Notion',
+      pt: 'Docs: selecionar, mover e colorir como no Notion',
+    },
+    items: [
+      {
+        product: 'docs',
+        en: 'Drag from one block to another, or draw a box from the margin, to select several blocks, then copy, delete, indent or move them. The block menu has a search box, shortcuts and Move to, which sends a block with what is nested under it to another page. The selection toolbar turns the block into another type and colors the selected text.',
+        es: 'Arrastrá de un bloque a otro, o dibujá un rectángulo desde el margen, para seleccionar varios bloques y después copiarlos, borrarlos, anidarlos o moverlos. El menú del bloque tiene buscador, atajos y Mover a, que manda el bloque con lo que tiene anidado a otra página. La barra de la selección convierte el bloque en otro tipo y pinta el texto elegido.',
+        pt: 'Arraste de um bloco a outro, ou desenhe um retângulo a partir da margem, para selecionar vários blocos e depois copiá-los, apagá-los, aninhá-los ou movê-los. O menu do bloco tem busca, atalhos e Mover para, que envia o bloco com o que está aninhado nele a outra página. A barra da seleção transforma o bloco em outro tipo e colore o texto escolhido.',
+      },
+      {
+        product: 'docs',
+        en: 'Typing > makes a toggle, " a quote and --- a divider, and shortcuts like 1. or [] also work inside a list item. Tables move between cells with Enter and Tab, add columns with + and can have a header row. Undo after a / command brings back the line without the command.',
+        es: 'Escribir > arma un toggle, " una cita y --- un separador, y atajos como 1. o [] también andan dentro de un ítem de lista. Las tablas pasan de celda con Enter y Tab, suman columnas con + y pueden tener fila de encabezado. Deshacer después de un comando / vuelve a la línea sin el comando.',
+        pt: 'Digitar > cria um toggle, " uma citação e --- um separador, e atalhos como 1. ou [] também funcionam dentro de um item de lista. As tabelas passam de célula com Enter e Tab, ganham colunas com + e podem ter linha de cabeçalho. Desfazer depois de um comando / volta para a linha sem o comando.',
+      },
+      {
+        product: 'docs',
+        en: 'Importing an updated Notion export again updates the pages that changed in Notion, unless someone edited them here. Inline equations and @dates from Notion come in as equations and dates.',
+        es: 'Volver a importar un export de Notion actualizado actualiza las páginas que cambiaron en Notion, salvo que alguien las haya editado acá. Las ecuaciones en línea y las @fechas de Notion entran como ecuaciones y fechas.',
+        pt: 'Importar de novo um export do Notion atualizado atualiza as páginas que mudaram no Notion, a menos que alguém as tenha editado aqui. As equações em linha e as @datas do Notion entram como equações e datas.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-voice-chat-autostart',
+    date: '2026-11-08',
+    title: {
+      en: 'Voice: meetings start listening right away, and chat cites the transcript',
+      es: 'Voice: las reuniones escuchan apenas se abren y el chat cita la transcripción',
+      pt: 'Voice: as reuniões escutam assim que abrem e o chat cita a transcrição',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'A new meeting starts recording the microphone as soon as it opens, from New meeting, Take notes or ⌘K. If the browser blocks the microphone or there is none, the meeting says so and you can retry. A link someone sends you never turns the microphone on.',
+        es: 'Una reunión nueva empieza a grabar el micrófono apenas se abre, desde Nueva reunión, Tomar notas o ⌘K. Si el navegador bloquea el micrófono o no hay uno, la reunión lo dice y se puede reintentar. Un link que te mandan nunca prende el micrófono.',
+        pt: 'Uma reunião nova começa a gravar o microfone assim que abre, por Nova reunião, Fazer notas ou ⌘K. Se o navegador bloquear o microfone ou não houver um, a reunião avisa e dá para tentar de novo. Um link que te mandam nunca liga o microfone.',
+      },
+      {
+        product: 'voice',
+        en: 'Chat answers appear as they are written and cite the moment in the transcript: click a time to jump there. Suggested questions change while the meeting is on and after it ends.',
+        es: 'Las respuestas del chat aparecen mientras se escriben y citan el momento de la transcripción: un clic en la hora lleva ahí. Las preguntas sugeridas cambian durante la reunión y cuando termina.',
+        pt: 'As respostas do chat aparecem enquanto são escritas e citam o momento da transcrição: um clique no horário leva até lá. As perguntas sugeridas mudam durante a reunião e quando ela termina.',
+      },
+      {
+        product: 'voice',
+        en: 'Ask across your meetings with follow-up questions and dates like "last week". Answers link to each meeting and moment, and include meetings teammates shared with you, using only what the share lets you see.',
+        es: 'Preguntá sobre tus reuniones con preguntas de seguimiento y fechas como "la semana pasada". Las respuestas llevan a cada reunión y momento, y suman las reuniones que te compartió el equipo, con lo que el link deja ver y nada más.',
+        pt: 'Pergunte sobre suas reuniões com perguntas de seguimento e datas como "semana passada". As respostas levam a cada reunião e momento, e incluem as reuniões que a equipe compartilhou com você, só com o que o link deixa ver.',
+>>>>>>> origin/main
       },
     ],
   },
@@ -71,6 +151,35 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'The inbox has a Sort menu: newest activity, oldest activity or waiting longest. Waiting counts from the visitor\'s first message after the last reply from a person or the bot; internal notes do not count.',
         es: 'La bandeja tiene un menú de orden: actividad más reciente, más vieja o espera más larga. La espera cuenta desde el primer mensaje del visitante después de la última respuesta de una persona o del bot; las notas internas no cuentan.',
         pt: 'A caixa de entrada tem um menu de ordem: atividade mais recente, mais antiga ou espera mais longa. A espera conta a partir da primeira mensagem do visitante depois da última resposta de uma pessoa ou do bot; notas internas não contam.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-07-docs-notion-move',
+    date: '2026-11-07',
+    title: {
+      en: 'Docs: lists that work like Notion, and a smoother move from Notion',
+      es: 'Docs: listas que andan como en Notion y una mudanza desde Notion más simple',
+      pt: 'Docs: listas que funcionam como no Notion e uma mudança do Notion mais simples',
+    },
+    items: [
+      {
+        product: 'docs',
+        en: 'Bullets, numbers and checkboxes share one column, so their text lines up, and nested items start under the text of their parent. Each level changes its marker (1. a. i.), numbers 10 and up no longer push the text, and Backspace at the start of an item turns it into text first, as in Notion. Typing **bold**, *italic*, `code` or ~~strikethrough~~ formats the text.',
+        es: 'Viñetas, números y casillas comparten una columna, así el texto queda alineado, y los ítems anidados arrancan debajo del texto de su padre. Cada nivel cambia de marca (1. a. i.), los números desde el 10 ya no corren el texto y Backspace al inicio de un ítem primero lo vuelve texto, como en Notion. Escribir **negrita**, *cursiva*, `código` o ~~tachado~~ da formato al texto.',
+        pt: 'Marcadores, números e caixas de seleção dividem uma coluna, então o texto fica alinhado, e os itens aninhados começam embaixo do texto do pai. Cada nível muda de marcador (1. a. i.), números a partir do 10 não empurram mais o texto e Backspace no início de um item primeiro o transforma em texto, como no Notion. Digitar **negrito**, *itálico*, `código` ou ~~tachado~~ formata o texto.',
+      },
+      {
+        product: 'docs',
+        en: 'Pasting from Notion keeps to-dos with their check, toggles with what is inside, toggle headings and callouts. @ also finds pages, [[ shows your latest pages before you type, code blocks have a language list and a copy button, and Share has Copy link.',
+        es: 'Pegar desde Notion conserva las tareas con su casilla, los toggles con lo de adentro, los títulos plegables y los callouts. @ también encuentra páginas, [[ muestra tus últimas páginas antes de escribir, los bloques de código tienen lista de lenguajes y botón de copiar, y Compartir tiene Copiar link.',
+        pt: 'Colar do Notion mantém as tarefas com a caixa marcada, os toggles com o que tem dentro, os títulos recolhíveis e os callouts. @ também encontra páginas, [[ mostra suas últimas páginas antes de digitar, os blocos de código têm lista de linguagens e botão de copiar, e Compartilhar tem Copiar link.',
+      },
+      {
+        product: 'docs',
+        en: 'Importing a Notion export now keeps relations between databases, turns columns with workspace members into people, keeps date ranges with their end, and brings toggles and heading levels as they were. Database pages open at full width.',
+        es: 'Importar un export de Notion ahora conserva las relaciones entre bases, convierte en personas las columnas con miembros del workspace, guarda los rangos de fechas con su fin y trae los toggles y los niveles de título como estaban. Las páginas de bases se abren a ancho completo.',
+        pt: 'Importar um export do Notion agora mantém as relações entre bancos, transforma em pessoas as colunas com membros do workspace, guarda os intervalos de datas com o fim e traz os toggles e os níveis de título como estavam. As páginas de bancos abrem em largura total.',
       },
     ],
   },
@@ -152,6 +261,12 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'The conversation now looks like WhatsApp Web: bubbles with read ticks, date chips, quoted replies, reactions, photos and videos in a full-screen viewer, voice notes with speed control, document cards, locations and contacts. Drag files onto the chat or paste an image to attach it, and record voice notes from the composer.',
         es: 'La conversación ahora se ve como WhatsApp Web: burbujas con tildes de leído, separadores de día, respuestas citadas, reacciones, fotos y videos en un visor a pantalla completa, notas de voz con velocidad, tarjetas de documentos, ubicaciones y contactos. Arrastrá archivos al chat o pegá una imagen para adjuntarla, y grabá notas de voz desde el composer.',
         pt: 'A conversa agora parece o WhatsApp Web: balões com tiques de leitura, separadores de data, respostas citadas, reações, fotos e vídeos em um visualizador de tela cheia, mensagens de voz com velocidade, cartões de documentos, localizações e contatos. Arraste arquivos para a conversa ou cole uma imagem para anexar, e grave mensagens de voz pelo compositor.',
+      },
+      {
+        product: 'groups',
+        en: 'Archive chats into an Archived section and delete chats from the list, send contact cards from the + menu, and see when someone is typing, recording or online. PDFs show their first page. If a line loses its connection, the inbox says so and takes you to scan the QR again. Optional in Settings > Tickets and SLA: mark chats as read on WhatsApp when the team reads them.',
+        es: 'Archivá chats en la sección Archivados y eliminá chats de la lista, mandá contactos desde el menú + y mirá cuándo alguien está escribiendo, grabando o en línea. Los PDF muestran su primera página. Si una línea pierde la conexión, la bandeja avisa y te lleva a escanear el QR de nuevo. Opcional en Ajustes > Tickets y SLA: marcar los chats como leídos en WhatsApp cuando el equipo los lee.',
+        pt: 'Arquive conversas na seção Arquivadas e apague conversas da lista, envie contatos pelo menu + e veja quando alguém está digitando, gravando ou online. Os PDFs mostram a primeira página. Se uma linha perde a conexão, a caixa avisa e leva você a escanear o QR de novo. Opcional em Configurações > Tickets e SLA: marcar as conversas como lidas no WhatsApp quando a equipe as lê.',
       },
     ],
   },

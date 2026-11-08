@@ -28,6 +28,8 @@ jobs:
       - run: npm run build
         env:
           NEXTAUTH_SECRET: ci-build-secret
+          # El build de producción pasa los ~3,5 GB del heap por defecto (el runner tiene 16 GB).
+          NODE_OPTIONS: --max-old-space-size=6144
       # En un tar: .next es una carpeta oculta y lleva symlinks, que el artifact no conserva sueltos.
       - run: tar -cf next-build.tar --exclude=.next/cache .next
       - uses: actions/upload-artifact@v4
