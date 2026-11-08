@@ -8632,6 +8632,27 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, "ALTER TABLE track_plans ADD COLUMN links TEXT NOT NULL DEFAULT '[]'");
     },
   },
+  {
+    // Track: vistas guardadas personales de las listas que no son de un team
+    // (Issues, My issues, la pestaña Issues de un project). list_key es la
+    // lista (workspace-issues, mine:assigned, plan:<id>); scope_id el workspace.
+    id: '251_track_list_views',
+    up: async (c) => {
+      await c.execute(`CREATE TABLE IF NOT EXISTS track_list_views (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        scope_id TEXT NOT NULL DEFAULT '',
+        list_key TEXT NOT NULL,
+        name TEXT NOT NULL,
+        view_type TEXT NOT NULL DEFAULT 'list',
+        filters TEXT NOT NULL DEFAULT '{}',
+        sort TEXT NOT NULL DEFAULT 'manual',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`);
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_track_list_views_user ON track_list_views(user_id, scope_id, list_key)');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
