@@ -104,7 +104,13 @@ El workflow `.github/workflows/desktop.yml` corre con un tag `desktop-vX.Y.Z` (i
 silicon y Intel (`macos-15`) y Windows x64 con `tauri-action`, sin publicar. Un único job `publish`
 crea el release, sube los instaladores con nombres fijos (`zerosoft-X.Y.Z-mac-arm64.dmg`,
 `-mac-x64.dmg`, `-win-x64.exe`, que busca `/download`) y arma `latest.json` para el updater. Volver a
-correr el workflow completa el release en vez de duplicarlo.
+correr el workflow completa el release en vez de duplicarlo. Si una plataforma falla, `publish` sube
+igual las que salieron; "Re-run failed jobs" en esa corrida rearma la que faltó y completa el release.
+
+En Windows, NSIS (para el instalador) se deja antes del build en `%LOCALAPPDATA%\tauri\NSIS`, donde lo
+busca tauri-bundler, desde un caché o con `scripts/provision-nsis.ps1` (varias fuentes, reintentos y el
+mismo SHA-1 que fija Tauri). Así el build no depende de bajar NSIS de releases de GitHub, que respondió
+504 en desktop-v0.2.0.
 
 Secretos:
 
