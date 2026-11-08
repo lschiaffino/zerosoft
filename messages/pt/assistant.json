@@ -20,7 +20,9 @@
     "network": "Não foi possível chegar ao servidor. Verifique a conexão e tente de novo.",
     "status": "Não foi possível carregar o assistente. Recarregue a página.",
     "load": "Não foi possível carregar esta conversa.",
-    "attachment_not_found": "Um arquivo anexado não está mais disponível. Remova e anexe de novo."
+    "attachment_not_found": "Um arquivo anexado não está mais disponível. Remova e anexe de novo.",
+    "offline": "Você está sem conexão. Sua mensagem voltou ao campo: envie de novo quando a conexão voltar.",
+    "server_error": "O servidor teve um problema. Sua mensagem voltou ao campo: tente de novo."
   },
   "notConfigured": {
     "title": "O assistente ainda não está configurado",
@@ -230,6 +232,7 @@
       "invalid_input": "O arquivo está vazio.",
       "attachment_not_found": "Um arquivo anexado não está mais disponível. Remova e anexe de novo.",
       "rate_limited": "Muitos envios. Tente mais tarde."
-    }
+    },
+    "removeFailed": "Remova os arquivos que não puderam ser anexados para enviar a mensagem."
   }
 }

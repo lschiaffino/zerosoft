@@ -8652,8 +8652,8 @@ export const MIGRATIONS: Migration[] = [
   },
   {
     // Adjuntos del asistente (⌘J): imágenes y archivos pegados o arrastrados.
-    // El archivo vive en /uploads/assistant (o Blob, como los de Groups); acá
-    // queda de quién es y el texto ya extraído de un PDF o un texto plano.
+    // Privados (lib/private-files.ts: Blob privado o cifrado); `ref` es la
+    // referencia del store. Acá queda de quién es y el texto ya extraído.
     id: '270_assistant_files',
     up: async (c) => {
       await c.execute(`CREATE TABLE IF NOT EXISTS assistant_files (
@@ -8661,7 +8661,7 @@ export const MIGRATIONS: Migration[] = [
         workspace_id TEXT NOT NULL,
         person_id TEXT NOT NULL,
         conversation_id TEXT,
-        url TEXT NOT NULL,
+        ref TEXT NOT NULL,
         name TEXT NOT NULL,
         mime TEXT NOT NULL,
         size INTEGER NOT NULL,
@@ -8669,6 +8669,7 @@ export const MIGRATIONS: Migration[] = [
         created_at TEXT NOT NULL
       )`);
       await c.execute('CREATE INDEX IF NOT EXISTS idx_assistant_files_owner ON assistant_files(workspace_id, person_id, created_at)');
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_assistant_files_conv ON assistant_files(conversation_id, created_at)');
     },
   },
 ];

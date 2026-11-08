@@ -132,7 +132,9 @@ export async function deleteConversation(o: AssistantOwner, id: string): Promise
   const db = getDb();
   const conv = await getConversation(o, id);
   if (!conv) return false;
-  // Sin depender de foreign_keys: mensajes y acciones se borran a mano.
+  // Sin depender de foreign_keys: mensajes, acciones y adjuntos (archivo y fila) se borran a mano.
+  const { deleteConversationFiles } = await import('./files');
+  await deleteConversationFiles(o, id);
   await db.prepare('DELETE FROM assistant_messages WHERE conversation_id = ?').run(id);
   await db.prepare('DELETE FROM assistant_actions WHERE conversation_id = ?').run(id);
   await db.prepare('DELETE FROM assistant_conversations WHERE id = ?').run(id);

@@ -20,7 +20,9 @@
     "network": "Could not reach the server. Check your connection and try again.",
     "status": "Could not load the assistant. Reload the page to try again.",
     "load": "Could not load this chat.",
-    "attachment_not_found": "An attached file is no longer available. Remove it and attach it again."
+    "attachment_not_found": "An attached file is no longer available. Remove it and attach it again.",
+    "offline": "You are offline. Your message is back in the box: send it again when you are connected.",
+    "server_error": "The server had a problem. Your message is back in the box: try again."
   },
   "notConfigured": {
     "title": "The assistant is not set up yet",
@@ -230,6 +232,7 @@
       "invalid_input": "The file is empty.",
       "attachment_not_found": "An attached file is no longer available. Remove it and attach it again.",
       "rate_limited": "Too many uploads. Try again later."
-    }
+    },
+    "removeFailed": "Remove the files that could not be attached to send your message."
   }
 }

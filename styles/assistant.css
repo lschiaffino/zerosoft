@@ -135,6 +135,8 @@ a.asst-file:hover { border-color: var(--ink-2); }
 .asst-file-remove:focus-visible, .asst-attach:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .asst-file-limit { margin: 0; font-size: 0.75rem; }
 .asst-notice { margin: 0; font-size: 0.8125rem; }
+/* Confirmar deshabilitado (falta tipear la palabra): la etiqueta se lee en claro y en oscuro. */
+.asst-action-buttons .btn.btn-primary:disabled { --btn-bg: transparent; --btn-fg: var(--ink-2); --btn-bd: var(--line); color: var(--ink-2); background: transparent; border-color: var(--line); opacity: 1; }
 
 /* ---------- Página /app/assistant ---------- */
 .asst-page { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 0; height: max(440px, calc(100dvh - var(--band-h, 48px) - 188px)); overflow: hidden; border: 1px solid var(--line); border-radius: var(--r-xs); }

@@ -86,8 +86,7 @@ export async function fileBlockResponse(
 // workspace: logos de los workspaces (se ven en el switcher y en los emails de invitación).
 // social: las redes (Meta, Threads) bajan las fotos y videos por URL para publicarlos.
 // shop: fotos de productos y logos de tiendas (se ven en la tienda pública).
-// assistant: adjuntos del asistente; se mandan por WhatsApp como los de Groups (el proveedor baja la URL).
-const PUBLIC_UPLOAD_FOLDERS = new Set(['chat', 'track', 'tasks', 'robots', 'workspace', 'shop', 'social', 'assistant']);
+const PUBLIC_UPLOAD_FOLDERS = new Set(['chat', 'track', 'tasks', 'robots', 'workspace', 'shop', 'social']);
 /** Lo único que se muestra en línea: imágenes raster, audio y video. El resto se descarga. */
 const INLINE_BY_EXT: Record<string, string> = {
   png: 'image/png',

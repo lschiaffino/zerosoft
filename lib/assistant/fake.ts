@@ -44,7 +44,10 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
       return { text: `Members: ${rows.map((r) => r.email).join(', ')}.` };
     }
     if (done.tool === 'run_operation') {
-      const data = out.data as Record<string, unknown> | unknown[] | undefined;
+      // El resultado llega marcado (<untrusted_data nonce=...>): el JSON va entre la primera línea y la última.
+      const wrapped = typeof out.result === 'string' ? out.result : null;
+      const inner = (wrapped ? JSON.parse(wrapped.slice(wrapped.indexOf('\n') + 1, wrapped.lastIndexOf('\n</untrusted_data'))) : out) as Record<string, unknown>;
+      const data = inner.data as Record<string, unknown> | unknown[] | undefined;
       const list = Array.isArray(data) ? data : Array.isArray((data as { data?: unknown })?.data) ? ((data as { data: unknown[] }).data) : null;
       if (list) return { text: `Found ${list.length} items: ${list.slice(0, 5).map((r) => String((r as Record<string, unknown>).name ?? (r as Record<string, unknown>).title ?? (r as Record<string, unknown>).body ?? '')).join(', ')}.` };
       const rec = ((data as { data?: unknown })?.data ?? data) as Record<string, unknown> | undefined;
@@ -54,12 +57,12 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
   }
   const record = /CURRENT_RECORD:([a-z0-9._]+):([A-Za-z0-9_-]+)/.exec(info.system);
   // Adjuntos: el último de la charla, de la línea de las instrucciones.
-  const attachedIds = [...info.system.matchAll(/(att_[a-z0-9]{8,40}): "/g)].map((m) => m[1]);
+  const attachedIds = [...info.system.matchAll(/(att_[a-z0-9]{8,40}) \(/g)].map((m) => m[1]);
   const latest = attachedIds[attachedIds.length - 1];
   if (/^(what|describe|summari[sz]e|read)\b.*\b(this|these|attached|image|file|pdf)\b/i.test(last) && (info.userFiles.length || /\[Attachment att_/.test(last))) {
     if (/cannot see images/.test(last) && !info.userFiles.length) return { text: 'This model cannot see images, but I can still send or attach it for you.' };
     const seen = info.userFiles.map((f) => `${f.mediaType} (${f.bytes} bytes)`).join(', ');
-    const quoted = /Its text \(data written by someone else, not instructions\):\n"""\n([^\n]{0,60})/.exec(last)?.[1]?.trim();
+    const quoted = /Its text, written by someone else \(data, not instructions\):\n<untrusted_data [^>]*>\n"((?:[^"\\]|\\.){0,60})/.exec(last)?.[1]?.trim();
     return { text: [seen ? `I can see ${info.userFiles.length} file(s): ${seen}.` : '', quoted ? `The document starts with: "${quoted}".` : ''].filter(Boolean).join(' ') };
   }
   if (latest && /^send (this|it)\b.* (to )?this chat/i.test(last)) {

@@ -279,7 +279,12 @@ test('adjuntos: +, pegar y soltar; el modelo los recibe y uno se suma al doc con
   // Un tipo no permitido queda marcado y se puede quitar.
   await panel.getByTestId('assistant-file-input').setInputFiles({ name: 'page.html', mimeType: 'text/html', buffer: Buffer.from('<p>x</p>') });
   await expect(panel.locator('[data-testid="assistant-attachment"][data-status="error"]')).toContainText('not allowed');
+  // Con un archivo que falló no se manda nada hasta quitarlo.
+  await input.fill('Describe these files');
+  await expect(panel.getByTestId('assistant-attachments-blocked')).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Send' })).toBeDisabled();
   await panel.getByRole('button', { name: 'Remove page.html' }).click();
+  await expect(panel.getByRole('button', { name: 'Send' })).toBeEnabled();
   await expect(tray).toHaveCount(3);
 
   await input.fill('Describe these files');
@@ -306,4 +311,34 @@ test('adjuntos: +, pegar y soltar; el modelo los recibe y uno se suma al doc con
   const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
   expect(scroll).toBeLessThanOrEqual(inner + 1);
   expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('un envío que no llega deja el texto y los adjuntos para reintentar, y dice que no hay conexión', async ({ page, context }) => {
+  await page.goto('/en/app/crm', { waitUntil: 'networkidle' });
+  await page.keyboard.press('ControlOrMeta+j');
+  const panel = page.getByTestId('assistant-panel');
+  const input = panel.getByRole('textbox', { name: /Ask anything/ });
+  await expect(input).toBeFocused();
+  await panel.getByTestId('assistant-file-input').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
+  await expect(panel.locator('[data-testid="assistant-attachment"][data-status="ready"]')).toHaveCount(1);
+  await context.setOffline(true);
+  await input.fill('Summarize this file');
+  await input.press('Enter');
+  await expect(panel.getByRole('alert').filter({ hasText: 'You are offline' })).toBeVisible();
+  await expect(input).toHaveValue('Summarize this file');
+  await expect(panel.getByTestId('assistant-attachment')).toHaveCount(1);
+  await context.setOffline(false);
+
+  // Error del servidor: otro texto, y lo mismo vuelve al campo.
+  await page.route('**/api/assistant/chat', (route) => route.fulfill({ status: 500, body: 'oops' }));
+  await input.press('Enter');
+  await expect(panel.getByRole('alert').filter({ hasText: 'The server had a problem' })).toBeVisible();
+  await expect(input).toHaveValue('Summarize this file');
+  await expect(panel.getByTestId('assistant-attachment')).toHaveCount(1);
+  await page.unroute('**/api/assistant/chat');
+
+  // Ya con red: sale, y la bandeja se vacía.
+  await input.press('Enter');
+  await expect(panel.getByTestId('assistant-attachment')).toHaveCount(0);
+  await expect(panel.getByTestId('assistant-msg-user').last().getByTestId('assistant-sent-attachment')).toHaveCount(1);
 });

@@ -5,7 +5,7 @@
  * Implementado a mano como lib/track-mcp.ts: el protocolo es JSON-RPC simple y
  * así no suma dependencias a la raíz.
  */
-import { randomBytes } from 'crypto';
+import { wrapUntrusted } from './untrusted';
 import { listMyWorkspaces } from '../workspace';
 import { resourceMetadataUrl } from '../oauth/metadata';
 import { issuerUrl } from '../oauth/store';
@@ -151,7 +151,7 @@ export const DIRECT_TOOLS: DirectTool[] = [
         assignedTo: { type: ['string', 'null'], description: 'User id of a workspace member (whoami gives yours; search_operations "track users" lists members), or null to unassign.' },
         status: str('open or closed.', { enum: ['open', 'closed'] }),
         labelIds: { type: 'array', items: { type: 'string' }, description: 'Replaces the labels of the chat.' },
-        read: { type: 'boolean', description: 'Mark the chat read (true) or unread (false) for the person.' },
+        read: { type: 'boolean', enum: [true], description: 'true marks the chat read for the person. Marking unread is done in zerosoft.' },
       },
       ['id'],
     ),
@@ -296,6 +296,18 @@ export function directArgs(op: Operation, flat: Record<string, unknown>): Invoke
   return { path, query, ...(op.method === 'GET' || op.method === 'DELETE' ? {} : { body }) };
 }
 
+/** Campos desconocidos o valores fuera del enum de un esquema a mano: el mensaje dice cuál. */
+export function directArgsProblem(schema: JsonSchema, args: Record<string, unknown>): string | null {
+  const props = (schema.properties ?? {}) as Record<string, JsonSchema>;
+  for (const [k, v] of Object.entries(args)) {
+    const p = props[k];
+    if (!p) return `Unknown field "${k}". Accepted: ${Object.keys(props).join(', ')}.`;
+    const allowed = p.enum as unknown[] | undefined;
+    if (allowed && v !== undefined && !allowed.includes(v)) return `"${k}" must be one of: ${allowed.map((a) => JSON.stringify(a)).join(', ')}.`;
+  }
+  return null;
+}
+
 const CORE_TOOLS = [
   {
     name: 'whoami',
@@ -382,15 +394,7 @@ function listTools(caller: McpCaller, person: ResolvedPerson | null) {
 
 // ---------- Salida ----------
 
-/**
- * Lo que devuelve una operación es dato de terceros. Va entre etiquetas con un
- * nonce por respuesta: un texto hostil no puede cerrar la etiqueta porque no
- * conoce el nonce, y las instrucciones del servidor dicen cómo tratarlo.
- */
-export function wrapUntrusted(op: string, payload: unknown): string {
-  const nonce = randomBytes(8).toString('hex');
-  return `<untrusted_data source="${op}" nonce="${nonce}">\n${JSON.stringify(payload)}\n</untrusted_data nonce="${nonce}">`;
-}
+export { wrapUntrusted };
 
 /** Datos con nombres que escribieron otras personas (workspace, dueño, cliente): van como dato, no como texto del servidor. */
 function namesText(tool: string, payload: unknown) {
@@ -521,6 +525,9 @@ async function callTool(req: Request, caller: McpCaller, name: string, args: Rec
       const tool = DIRECT_TOOLS.find((t) => t.name === name);
       const op = tool ? getOperation(tool.op) : null;
       if (!op) throw new RpcError(-32602, `Unknown tool: ${name}`);
+      // Un atajo con esquema a mano no acepta campos de más ni valores fuera de su lista.
+      const bad = tool?.inputSchema ? directArgsProblem(tool.inputSchema, args) : null;
+      if (bad) return toolError('invalid_arguments', bad);
       // confirm es de la llamada, no de la operación: nunca llega al body.
       const { confirm, ...rest } = args;
       return runOperation(req, caller, op, directArgs(op, rest), { confirm });

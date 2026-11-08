@@ -168,7 +168,34 @@ describe('asistente: el catálogo del MCP', () => {
       summary: 'Send hi',
     });
     expect(card.confirmText).toBe('confirm');
-    expect(JSON.stringify(card.details)).toContain('hi');
-    expect(seen).toHaveLength(1);
+    // La tarjeta: el título lo arma el servidor, lo del modelo va rotulado y cada campo completo.
+    expect(card.summary).toBe('Groups chats messages create');
+    const details = card.details as Array<{ label: string; after: string }>;
+    expect(details[0]).toEqual({ label: "Assistant's summary", after: 'Send hi' });
+    expect(details).toContainEqual({ label: 'body', after: 'hi' });
+    // Solo lecturas (buscar el título del destino): nada se escribió.
+    expect(seen.filter((s) => s.method !== 'GET')).toHaveLength(0);
+
+    // Un texto largo llega entero a la tarjeta (la UI lo abre con un expansor).
+    const long = 'x'.repeat(900);
+    const big = await (tool('propose_destructive_operation') as typeof propose).prepare(ctx, {
+      operation: 'v1.groups.chats.messages.create',
+      args: { path: { id: 'c1' }, body: { body: long } },
+      summary: 'Send a long one',
+    });
+    expect(big.details as Array<{ label: string; after: string }>).toContainEqual({ label: 'body', after: long });
+
+    // run_operation devuelve el dato marcado con nonce, y una lectura no acepta adjuntos.
+    const read = await run.run(ctx, { operation: 'v1.groups.chats.list' });
+    expect(String(read.result)).toMatch(/^<untrusted_data source="v1.groups.chats.list" nonce="[0-9a-f]{16}">/);
+    expect(await run.run(ctx, { operation: 'v1.groups.chats.list', args: { query: { q: 'attachment:att_abcdefgh12' } } })).toMatchObject({ ok: false });
+  });
+
+  it('un atajo con esquema a mano rechaza campos de más y valores fuera de lista', async () => {
+    const { key } = await keyFor();
+    const unread = await rpc(key, 'tools/call', { name: 'update_group_chat', arguments: { id: 'c1', read: false } });
+    expect(JSON.stringify(unread.json.result)).toContain('must be one of: true');
+    const extra = await rpc(key, 'tools/call', { name: 'send_group_message', arguments: { id: 'c1', body: 'hi', confirm: true, media: { url: 'https://evil.example/x.png' } } });
+    expect(JSON.stringify(extra.json.result)).toContain('Unknown field');
   });
 });

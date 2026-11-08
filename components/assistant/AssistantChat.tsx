@@ -22,7 +22,7 @@ export interface PageInfo {
   selection?: string;
 }
 
-const ERROR_KEYS = new Set(['attachment_not_found', 'not_configured', 'ai_disabled', 'quota_exceeded', 'rate_limited', 'provider_auth', 'provider_error', 'network']);
+const ERROR_KEYS = new Set(['attachment_not_found', 'offline', 'server_error', 'not_configured', 'ai_disabled', 'quota_exceeded', 'rate_limited', 'provider_auth', 'provider_error', 'network']);
 
 function errorKey(code: string | undefined): string {
   return `errors.${code && ERROR_KEYS.has(code) ? code : 'provider_error'}`;
@@ -287,9 +287,8 @@ export default function AssistantChat({
     async (raw: string) => {
       const text = raw.trim();
       const files = att.ready;
-      if ((!text && !files.length) || busy || att.uploading) return;
+      if ((!text && !files.length) || busy || att.uploading || att.failed) return;
       setDraft('');
-      att.clear();
       setBusy(true);
       const userItem: ChatItem = { id: `u-${Date.now()}`, role: 'user', content: text, parts: [], attachments: files };
       const replyId = `a-${Date.now()}`;
@@ -301,11 +300,17 @@ export default function AssistantChat({
         body: JSON.stringify({ conversationId, message: text, page, locale, ...(files.length ? { attachments: files.map((f) => f.id) } : {}) }),
       }).catch(() => null);
       if (!res || !res.ok || !res.body) {
+        // No llegó: el texto y los adjuntos vuelven al campo para reintentar. Sin red, sin respuesta del servidor o un error con código.
         const data = (await res?.json().catch(() => null)) as { error?: string } | null;
-        patch((m) => ({ ...m, streaming: false, error: data?.error ?? 'network' }));
+        const code = !res ? (typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'network') : (data?.error ?? (res.status >= 500 ? 'server_error' : 'provider_error'));
+        setItems((prev) => prev.filter((m) => m.id !== userItem.id).map((m) => (m.id === replyId ? { ...m, streaming: false, error: code } : m)));
+        setDraft(text);
         setBusy(false);
+        window.setTimeout(() => inputRef.current?.focus(), 0);
         return;
       }
+      // El servidor la tomó: la bandeja se vacía.
+      att.clear();
       await readEvents(res, (e) => {
         if (e.type === 'conversation') {
           createdRef.current = e.id;
@@ -484,6 +489,8 @@ export default function AssistantChat({
           </label>
           <textarea
             id={compact ? 'asst-input-panel' : 'asst-input-page'}
+            // El panel tiene su propio + y poco lugar: sin el micrófono flotante del dictado.
+            data-voice-off={compact ? '' : undefined}
             ref={inputRef}
             className="textarea"
             rows={2}
@@ -505,7 +512,7 @@ export default function AssistantChat({
               }
             }}
           />
-          <button type="submit" className="btn btn-primary btn-sm" disabled={busy || att.uploading || (!draft.trim() && !att.ready.length)}>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={busy || att.uploading || att.failed || (!draft.trim() && !att.ready.length)}>
             {busy ? t('sending') : t('send')}
           </button>
         </div>

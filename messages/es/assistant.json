@@ -20,7 +20,9 @@
     "network": "No se pudo llegar al servidor. Revisá la conexión y probá de nuevo.",
     "status": "No se pudo cargar el asistente. Recargá la página.",
     "load": "No se pudo cargar esta charla.",
-    "attachment_not_found": "Un archivo adjunto ya no está. Quitalo y adjuntalo de nuevo."
+    "attachment_not_found": "Un archivo adjunto ya no está. Quitalo y adjuntalo de nuevo.",
+    "offline": "Estás sin conexión. Tu mensaje volvió al campo: mandalo de nuevo cuando vuelva la conexión.",
+    "server_error": "El servidor tuvo un problema. Tu mensaje volvió al campo: probá de nuevo."
   },
   "notConfigured": {
     "title": "El asistente todavía no está configurado",
@@ -230,6 +232,7 @@
       "invalid_input": "El archivo está vacío.",
       "attachment_not_found": "Un archivo adjunto ya no está. Quitalo y adjuntalo de nuevo.",
       "rate_limited": "Demasiadas subidas. Probá más tarde."
-    }
+    },
+    "removeFailed": "Quitá los archivos que no se pudieron adjuntar para mandar el mensaje."
   }
 }

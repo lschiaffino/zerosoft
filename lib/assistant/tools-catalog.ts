@@ -15,6 +15,7 @@ import { APP_NAMES, getOperation, getWebOnly, OPERATIONS, operationTitle, search
 import { personCanUseApp, type McpCaller } from '../mcp/caller';
 import { invokeOperation, OperationError } from '../mcp/invoke';
 import { readTool, writeTool, type AssistantTool, type ToolCtx } from './registry';
+import { wrapUntrusted } from '../mcp/untrusted';
 import { AttachmentRefError, getAttachments, referencedAttachmentIds, resolveAttachmentRefs } from './files';
 
 /** El asistente no se llama a sí mismo ni toca sus propias charlas por el catálogo. */
@@ -63,6 +64,10 @@ function resolveOp(ctx: ToolCtx, id: string): Operation | { error: string; hint?
 /** Corre una operación del catálogo como la persona, con las referencias a adjuntos resueltas. */
 export async function runCatalog(ctx: ToolCtx, op: Operation, args: Record<string, unknown> | undefined, opts: { confirm?: boolean; offset?: number; limit?: number }) {
   try {
+    // Un adjunto solo viaja en una escritura confirmada (puede crear una copia pública): nunca en una lectura.
+    if (op.access === 'read' && referencedAttachmentIds(args ?? {}).size) {
+      return { ok: false, status: 400, error: 'attachment_in_read', message: 'Attachments can only be used in changes (propose_operation).' };
+    }
     const resolved = await resolveAttachmentRefs({ workspaceId: ctx.workspaceId, personId: ctx.personId }, args ?? {});
     const r = await invokeOperation(new Request(issuerUrl()), sessionCaller(ctx.user), op, resolved, opts);
     return {
@@ -87,16 +92,44 @@ function short(value: unknown, max = 160): string {
   return (text ?? '').length > max ? `${text.slice(0, max - 1)}…` : (text ?? '');
 }
 
-/** Lo que va a pasar, para la tarjeta: la operación y cada campo que se manda. */
-function describe(op: Operation, args: Record<string, unknown> | undefined) {
-  const a = (args ?? {}) as { path?: Record<string, unknown>; query?: Record<string, unknown>; body?: unknown };
+/** Valor completo para la tarjeta: la UI abre lo largo con un expansor, nada se corta. */
+function full(value: unknown): string {
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value, null, 2) ?? String(value);
+}
+
+/** Lo que va a pasar, para la tarjeta: la operación y cada campo que se manda, completos. */
+export function describeOperation(op: Operation, args: Record<string, unknown> | undefined) {
+  const a = (args ?? {}) as { path?: Record<string, unknown>; query?: Record<string, unknown>; body?: unknown; files?: unknown };
   const details: Array<{ label: string; after: string }> = [{ label: 'Operation', after: `${op.id} (${APP_NAMES[op.app] ?? op.app})` }];
-  for (const [k, v] of Object.entries(a.path ?? {})) details.push({ label: k, after: short(v) });
-  for (const [k, v] of Object.entries(a.query ?? {})) details.push({ label: k, after: short(v) });
+  for (const [k, v] of Object.entries(a.path ?? {})) details.push({ label: k, after: full(v) });
+  for (const [k, v] of Object.entries(a.query ?? {})) details.push({ label: k, after: full(v) });
   if (a.body && typeof a.body === 'object' && !Array.isArray(a.body)) {
-    for (const [k, v] of Object.entries(a.body as Record<string, unknown>).slice(0, 12)) details.push({ label: k, after: short(v) });
-  } else if (a.body !== undefined) details.push({ label: 'body', after: short(a.body) });
+    for (const [k, v] of Object.entries(a.body as Record<string, unknown>)) details.push({ label: k, after: full(v) });
+  } else if (a.body !== undefined) details.push({ label: 'body', after: full(a.body) });
   return details;
+}
+
+/**
+ * El título del registro que se toca: la lectura del mismo recurso (el path
+ * hasta el último parámetro) devuelve su title, name o identifier.
+ */
+export async function targetTitle(ctx: ToolCtx, op: Operation, args: Record<string, unknown> | undefined): Promise<string | null> {
+  const path = ((args ?? {}) as { path?: Record<string, unknown> }).path ?? {};
+  const segs = op.path.split('/');
+  const last = segs.map((s, i) => (s.startsWith('[') ? i : -1)).filter((i) => i >= 0).pop();
+  if (last === undefined) return null;
+  const base = segs.slice(0, last + 1).join('/');
+  const reader = OPERATIONS.find((o) => o.method === 'GET' && o.path === base && o.app === op.app && usable(ctx.user, o));
+  if (!reader) return null;
+  const params = Object.fromEntries(Object.entries(path).filter(([k]) => reader.params.includes(k)));
+  const r = await runCatalog(ctx, reader, { path: params }, {}).catch(() => null);
+  if (!r?.ok || !('data' in r) || !r.data || typeof r.data !== 'object') return null;
+  const d = r.data as Record<string, unknown>;
+  const rec = (d.data && typeof d.data === 'object' && !Array.isArray(d.data) ? d.data : d) as Record<string, unknown>;
+  const pick = ['identifier', 'title', 'name', 'subject', 'email'].map((k) => rec[k]).filter((v): v is string => typeof v === 'string' && v.trim() !== '');
+  if (!pick.length) return null;
+  return [...new Set(pick)].slice(0, 2).join(' ').slice(0, 200);
 }
 
 function propose(destructive: boolean) {
@@ -121,9 +154,16 @@ function propose(destructive: boolean) {
       const refs = [...referencedAttachmentIds(input.args ?? {})];
       const files = refs.length ? await getAttachments({ workspaceId: ctx.workspaceId, personId: ctx.personId }, refs) : [];
       if (files.length !== refs.length) return { error: 'unknown_attachment', hint: 'Use the attachment ids listed in the instructions.' };
+      // El título de la tarjeta lo arma el servidor; lo que escribió el modelo va aparte y dice que es suyo.
+      const target = await targetTitle(ctx, op, input.args);
       return {
-        summary: input.summary,
-        details: [...describe(op, input.args), ...files.map((f) => ({ label: 'File', after: `${f.name} (${f.mime})` }))],
+        summary: `${operationTitle(op)}${target ? `: ${target}` : ''}`,
+        details: [
+          { label: "Assistant's summary", after: input.summary },
+          ...(target ? [{ label: 'Target', after: target }] : []),
+          ...describeOperation(op, input.args),
+          ...files.map((f) => ({ label: 'File', after: `${f.name} (${f.mime})` })),
+        ],
         input: { operation: op.id, args: input.args ?? {} },
         ...(destructive ? { confirmText: op.method === 'DELETE' ? 'delete' : 'confirm' } : {}),
       };
@@ -179,7 +219,10 @@ export const catalogTools: AssistantTool[] = [
       if (op.access !== 'read') {
         return { error: 'needs_confirmation', hint: op.access === 'destructive' ? 'Use propose_destructive_operation.' : 'Use propose_operation.' };
       }
-      return run(ctx, op, input.args, { offset: input.offset, limit: input.limit ?? 25 });
+      const r = await run(ctx, op, input.args, { offset: input.offset, limit: input.limit ?? 25 });
+      // Lo que vuelve lo escribió otra gente: marcado con nonce, como en el servidor MCP.
+      const { ok, status, ...payload } = r;
+      return { ok, status, ...(ok ? {} : { error: `status_${status}` }), result: wrapUntrusted(op.id, payload) };
     },
   }),
   propose(false),

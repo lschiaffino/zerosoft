@@ -92,7 +92,9 @@ export function useAttachments() {
 
   const ready = items.filter((it) => it.status === 'ready' && it.file).map((it) => it.file!);
   const uploading = items.some((it) => it.status === 'uploading');
-  return { items, ready, uploading, limitHit, add, remove, clear };
+  /** Uno no se pudo adjuntar: no se manda hasta quitarlo (que la persona no crea que fue). */
+  const failed = items.some((it) => it.status === 'error');
+  return { items, ready, uploading, failed, limitHit, add, remove, clear };
 }
 
 /** Bandeja sobre el campo: miniaturas o chips, cada uno con quitar. */
@@ -118,6 +120,11 @@ export function PendingTray({ items, limitHit, onRemove }: { items: PendingAttac
             </li>
           ))}
         </ul>
+      )}
+      {items.some((it) => it.status === 'error') && (
+        <p className="asst-file-limit" role="status" data-testid="assistant-attachments-blocked">
+          {t('removeFailed')}
+        </p>
       )}
       {limitHit && <p className="asst-file-limit muted" role="status">{t('limit', { max: MAX_ATTACHMENTS })}</p>}
     </div>

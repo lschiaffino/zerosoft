@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AttachmentError, attachmentView, createAttachment, MAX_ATTACHMENTS_PER_MESSAGE, type AttachmentView } from '@/lib/assistant/files';
 import { assistantUser, owner } from '@/lib/assistant/http';
+import { sameSiteRequest } from '@/lib/oauth/consent';
 import { rateLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
@@ -20,6 +21,8 @@ const STATUS: Record<AttachmentError['code'] | 'upload_failed', number> = {
  * Si ninguno se pudo subir, el status es el del primer error.
  */
 export async function POST(req: NextRequest) {
+  // Sube con la sesión: solo desde una página de este sitio (como la pantalla de permisos).
+  if (!sameSiteRequest(req)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const user = await assistantUser();
   if (user instanceof NextResponse) return user;
   const who = owner(user);
