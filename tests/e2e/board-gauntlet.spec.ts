@@ -393,9 +393,27 @@ test('modo privado: tapa las notas de plantilla y el invitado del link de ediciÃ
   await expect(g.getByTestId('board-private-chip')).toBeVisible({ timeout: 10_000 });
   await expect(g.getByTestId('board-private-cover')).toHaveCount(notes);
   await g.screenshot({ path: shot('board-private-guest.png') });
+
+  // El invitado escribe en privado: a la persona le llega solo una tarjeta tapada, sin el texto
+  // (ni en su escena, ni en la escena guardada, ni en la bÃºsqueda).
+  await g.waitForFunction(() => Boolean((window as unknown as { __boardApi?: unknown }).__boardApi));
+  await g.mouse.move(300, 650);
+  await g.keyboard.press('n');
+  await g.keyboard.type('secreto del invitado', { delay: 30 });
+  await g.keyboard.press('Escape');
+  await expect(page.getByTestId('board-private-cover')).toHaveCount(notes + 1, { timeout: 15_000 });
+  const textsA = async () => (await elements(page)).filter((e) => e.type === 'text').map((e) => e.text ?? '');
+  expect((await textsA()).some((tx) => tx.includes('secreto'))).toBe(false);
+  const saved = await (await page.request.get(`/api/boards/${id}`)).text();
+  expect(saved).not.toContain('secreto del invitado');
+  const search = await (await page.request.get(`/api/boards?q=${encodeURIComponent('secreto')}`)).text();
+  expect(search).not.toContain('Retro privada');
+
+  // Al revelar, entra a la pizarra y todos lo ven.
   await barAction(page, 'Taller');
   await page.getByTestId('board-private-toggle').click();
   await page.keyboard.press('Escape');
   await expect(g.getByTestId('board-private-cover')).toHaveCount(0, { timeout: 10_000 });
+  await expect.poll(async () => (await textsA()).some((tx) => tx.includes('secreto del invitado')), { timeout: 15_000 }).toBe(true);
   await ctx.close();
 });
