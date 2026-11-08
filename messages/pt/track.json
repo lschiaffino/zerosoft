@@ -172,7 +172,9 @@
     "removeBody": "O arquivo é removido desta issue para todos.",
     "removeError": "Não foi possível excluir o arquivo. Tente de novo.",
     "storageNotConfigured": "Este servidor não tem onde guardar arquivos. Um admin precisa adicionar um store privado do Blob.",
-    "tooLargeAny": "O arquivo é maior do que este servidor aceita."
+    "tooLargeAny": "O arquivo é maior do que este servidor aceita.",
+    "limitHint": "Até {limit} por arquivo",
+    "tooLargeLimit": "O arquivo tem mais de {limit}, o limite deste servidor."
   },
   "activity": {
     "title": "Atividade",

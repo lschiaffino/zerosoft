@@ -15,8 +15,14 @@
  *   manda el archivo a la app en el cuerpo del pedido y se guarda cifrado en
  *   UPLOADS_DIR/<app> (privateFileStore, en stream). Tope:
  *   FILES_LOCAL_MAX_BYTES (por defecto 2 GiB).
- * - 'unavailable': en Vercel sin store privado. Se responde 503
- *   `storage_not_configured`; nunca se cae a un store público.
+ * - 'legacy': en Vercel sin store privado pero con el store de siempre
+ *   (BLOB_READ_WRITE_TOKEN) y `legacyFolder` configurado: mientras no se
+ *   provisione el store privado, sube como antes (saveUpload, solo los tipos
+ *   de su lista, URL pública como los adjuntos viejos) con el tope de una
+ *   función de Vercel (LEGACY_MAX_BYTES, 4 MB; el cuerpo de un pedido no
+ *   puede pasar de 4,5 MB). El cliente avisa el tope antes de subir.
+ * - 'unavailable': en Vercel sin ningún store. Se responde 503
+ *   `storage_not_configured`.
  *
  * API (ejemplo con Track; para otra app cambian app, envPrefix y los callbacks):
  *
@@ -51,14 +57,17 @@ import { contentDisposition } from './docs-files';
 import { privateFileStore, SealedFileTooLargeError, type PrivateFileStore } from './private-files';
 import { getCurrentUser, type SessionUser } from './session';
 import { appFromPath } from './products';
-import { deleteUploads } from './uploads';
+import { deleteUploads, saveUpload, UploadError, type UploadFolder } from './uploads';
 import { userCanUseApp } from './workspace';
 import { limitWrites } from './write-limit';
 
 /** Subidas (o permisos de subida a Blob) por persona y minuto. */
 export const UPLOADS_PER_MINUTE = 120;
 
-export type StorageMode = 'blob' | 'local' | 'unavailable';
+export type StorageMode = 'blob' | 'local' | 'legacy' | 'unavailable';
+
+/** Tope del modo 'legacy': el archivo pasa por una función de Vercel (cuerpo de hasta 4,5 MB). */
+export const LEGACY_MAX_BYTES = 4 * 1024 * 1024;
 
 export interface FileAttachmentsOptions {
   /** Carpeta en Blob y en disco, y prefijo de los pathnames: 'track', 'crm', 'lines'. */
@@ -67,18 +76,21 @@ export interface FileAttachmentsOptions {
   envPrefix: string;
   /** Máximo por archivo en Blob (por defecto 5 GiB). */
   maxBytes?: number;
+  /** Carpeta de saveUpload para el modo 'legacy' (sin ella, en Vercel sin store privado: 'unavailable'). */
+  legacyFolder?: UploadFolder;
 }
 
 export interface FileAttachments {
   app: string;
   envPrefix: string;
   maxBytes: number;
+  legacyFolder?: UploadFolder;
   store: PrivateFileStore;
 }
 
 /** Lo que queda guardado después de subir: va a la fila de la app. */
 export interface StoredFile {
-  /** "blobp:<pathname>" o "local:<uuid>.bin": va en la columna url de la fila. */
+  /** "blobp:<pathname>", "local:<uuid>.bin" o, en modo 'legacy', la URL de saveUpload: va en la columna url de la fila. */
   ref: string;
   filename: string;
   contentType: string;
@@ -99,6 +111,7 @@ export function fileAttachments(o: FileAttachmentsOptions): FileAttachments {
     app: o.app,
     envPrefix: o.envPrefix,
     maxBytes: o.maxBytes ?? 5 * GiB,
+    legacyFolder: o.legacyFolder,
     store: privateFileStore({
       folder: `${o.app}-files`,
       envPrefix: o.envPrefix,
@@ -114,10 +127,19 @@ export function privateToken(f: Pick<FileAttachments, 'envPrefix'>): string | nu
   return process.env[`${f.envPrefix}_BLOB_READ_WRITE_TOKEN`]?.trim() || process.env.FILES_BLOB_READ_WRITE_TOKEN?.trim() || null;
 }
 
-export function storageMode(f: Pick<FileAttachments, 'envPrefix'>): StorageMode {
+export function storageMode(f: Pick<FileAttachments, 'envPrefix' | 'legacyFolder'>): StorageMode {
   if (privateToken(f)) return 'blob';
-  if (process.env.VERCEL) return 'unavailable';
-  return 'local';
+  if (!process.env.VERCEL) return 'local';
+  // Sin store privado todavía: lo de antes (store público de la suite), para no romper los adjuntos.
+  if (f.legacyFolder && process.env.BLOB_READ_WRITE_TOKEN?.trim()) return 'legacy';
+  return 'unavailable';
+}
+
+/** Tope por archivo según el modo (lo que el cliente chequea antes de subir). */
+export function maxBytesFor(f: FileAttachments, mode: StorageMode): number {
+  if (mode === 'blob') return f.maxBytes;
+  if (mode === 'legacy') return LEGACY_MAX_BYTES;
+  return localMaxBytes();
 }
 
 export function localMaxBytes(): number {
@@ -364,7 +386,7 @@ export function attachmentRoutes<Row>(o: AttachmentRoutesOptions<Row>) {
     if (c instanceof Response) return c;
     const mode = storageMode(files);
     if (mode === 'unavailable') return json({ error: 'storage_not_configured', mode }, 503);
-    return json({ mode, prefix: prefixFor(files, c.recordId), maxBytes: mode === 'blob' ? files.maxBytes : localMaxBytes() });
+    return json({ mode, prefix: prefixFor(files, c.recordId), maxBytes: maxBytesFor(files, mode) });
   }
 
   /**
@@ -410,6 +432,8 @@ export function attachmentRoutes<Row>(o: AttachmentRoutesOptions<Row>) {
       }
     }
 
+    if (mode === 'legacy') return legacyUpload(req, c);
+
     // Modo local: el cuerpo es el archivo, en stream y cifrado a disco.
     if (!req.body) return json({ error: 'invalid_input' }, 400);
     const declared = Number(req.headers.get('content-length'));
@@ -439,6 +463,39 @@ export function attachmentRoutes<Row>(o: AttachmentRoutesOptions<Row>) {
       return json(row, 201);
     } catch (err) {
       await files.store.removeOne(saved.ref);
+      throw err;
+    }
+  }
+
+  /** Modo 'legacy': el archivo en el cuerpo (hasta LEGACY_MAX_BYTES) va a saveUpload como antes. */
+  async function legacyUpload(req: NextRequest, c: AttachmentRouteContext & { recordId: string }) {
+    const declared = Number(req.headers.get('content-length'));
+    if (Number.isFinite(declared) && declared > LEGACY_MAX_BYTES) return json({ error: 'too_large' }, 413);
+    const chunks: Buffer[] = [];
+    let size = 0;
+    if (!req.body) return json({ error: 'invalid_input' }, 400);
+    for await (const chunk of req.body as unknown as AsyncIterable<Uint8Array>) {
+      size += chunk.byteLength;
+      if (size > LEGACY_MAX_BYTES) return json({ error: 'too_large' }, 413);
+      chunks.push(Buffer.from(chunk));
+    }
+    if (size === 0) return json({ error: 'invalid_input' }, 400);
+    if (req.headers.get('content-length') !== null && Number.isFinite(declared) && size !== declared) {
+      return json({ error: 'incomplete_upload' }, 400);
+    }
+    const filename = cleanDisplayName(req.nextUrl.searchParams.get('name'));
+    const contentType = cleanMime(req.headers.get('content-type'));
+    let url: string;
+    try {
+      url = await saveUpload(files.legacyFolder!, filename, contentType, Buffer.concat(chunks));
+    } catch (err) {
+      if (err instanceof UploadError) return json({ error: err.code }, err.status);
+      throw err;
+    }
+    try {
+      return json(await o.save({ ...c, file: { ref: url, filename, contentType, size } }), 201);
+    } catch (err) {
+      await deleteUploads([url]);
       throw err;
     }
   }

@@ -14,7 +14,7 @@ vi.mock('@vercel/blob', () => ({
   head: blob.head,
   get: vi.fn(),
   del: vi.fn(),
-  put: vi.fn(),
+  put: vi.fn(async (pathname: string) => ({ url: `https://store.public.blob.vercel-storage.com/${pathname}` })),
 }));
 vi.mock('@vercel/blob/client', () => ({
   handleUpload: async (opts: { body: { payload: { pathname: string } }; onBeforeGenerateToken: (p: string) => Promise<unknown> }) => {
@@ -268,9 +268,57 @@ describe('file-attachments: Blob privado', () => {
     blob.head.mockReset();
   });
 
-  it('en Vercel sin store privado: storage_not_configured (nunca público)', async () => {
+  it('modo según el entorno', () => {
+    const legacyFiles = fa.fileAttachments({ app: 'track', envPrefix: 'TESTAPP', legacyFolder: 'track' });
+    // Fuera de Vercel: disco local, con o sin store público.
+    expect(fa.storageMode(legacyFiles)).toBe('local');
+    process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_public';
+    expect(fa.storageMode(legacyFiles)).toBe('local');
+    // En Vercel sin store privado: lo de antes si la app lo pide, si no, sin almacenamiento.
+    process.env.VERCEL = '1';
+    expect(fa.storageMode(legacyFiles)).toBe('legacy');
+    expect(fa.storageMode(files)).toBe('unavailable');
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    expect(fa.storageMode(legacyFiles)).toBe('unavailable');
+    // Con store privado, siempre privado (cualquier tipo y tamaño).
+    process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_public';
+    process.env.TESTAPP_BLOB_READ_WRITE_TOKEN = 'own';
+    expect(fa.storageMode(legacyFiles)).toBe('blob');
+    expect(fa.maxBytesFor(legacyFiles, 'legacy')).toBe(fa.LEGACY_MAX_BYTES);
+    expect(fa.maxBytesFor(legacyFiles, 'blob')).toBe(5 * 1024 * 1024 * 1024);
+  });
+
+  it('modo legacy: avisa el tope en la config, sube con saveUpload como antes y rechaza tipos y tamaños de más', async () => {
     process.env.VERCEL = '1';
     process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_public';
+    process.env.RATE_LIMIT_DISABLED = 'true';
+    const legacyFiles = fa.fileAttachments({ app: 'track', envPrefix: 'TESTAPP', legacyFolder: 'track' });
+    const saved: unknown[] = [];
+    const legacy = fa.attachmentRoutes({
+      files: legacyFiles,
+      authorize: async () => RECORD,
+      save: async ({ file }) => {
+        saved.push(file);
+        return { id: 'row', ...file };
+      },
+      find: async () => null,
+    });
+    const cfg = await legacy.upload.GET(req('/x/upload'), ctx());
+    expect(await cfg.json()).toMatchObject({ mode: 'legacy', maxBytes: fa.LEGACY_MAX_BYTES });
+
+    const up = (name: string, body: Buffer, type: string) =>
+      legacy.upload.POST(req(`/x/upload?name=${name}`, { method: 'POST', body, headers: { 'content-type': type } }), ctx());
+    const ok = await up('informe.pdf', Buffer.from('%PDF-1.4'), 'application/pdf');
+    expect(ok.status).toBe(201);
+    expect(await ok.json()).toMatchObject({ ref: expect.stringMatching(/^https:\/\/store\.public\.blob\.vercel-storage\.com\/track\//), filename: 'informe.pdf', size: 8 });
+    expect((await up('setup.exe', Buffer.from('MZ'), 'application/x-msdownload')).status).toBe(415);
+    expect((await up('grande.zip', Buffer.alloc(fa.LEGACY_MAX_BYTES + 1), 'application/zip')).status).toBe(413);
+    expect(saved).toHaveLength(1);
+  });
+
+  it('en Vercel sin ningún store: storage_not_configured', async () => {
+    process.env.VERCEL = '1';
+    delete process.env.BLOB_READ_WRITE_TOKEN;
     expect(fa.storageMode(files)).toBe('unavailable');
     const res = await routes.upload.GET(req('/x/upload'), ctx());
     expect(res.status).toBe(503);

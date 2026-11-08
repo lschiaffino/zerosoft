@@ -1515,6 +1515,14 @@ dialog.ui-drawer.track-drawer {
   gap: 6px;
 }
 
+.track-attach-head {
+  flex-wrap: wrap;
+}
+
+.track-attach-limit {
+  margin-left: auto;
+}
+
 .track-attach-main {
   display: flex;
   flex: 1;

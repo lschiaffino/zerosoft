@@ -15,14 +15,30 @@
  * registra el archivo con finalizeUrl; en modo 'local' manda el archivo en el
  * cuerpo de un POST a uploadUrl (XHR, para tener progreso).
  *
- * Errores: AttachmentUploadError con code 'aborted' | 'too_large' |
- * 'storage_not_configured' | 'forbidden' | 'not_found' | 'generic'.
+ * En modo 'legacy' (Vercel sin store privado todavía) también va en el
+ * cuerpo, con tope de 4 MB y solo los tipos de lib/uploads.ts: el tope se
+ * conoce antes de subir (getAttachmentConfig) y se avisa sin mandar nada.
+ *
+ * Errores: AttachmentUploadError con code 'aborted' | 'too_large' (con
+ * maxBytes) | 'type_not_allowed' | 'storage_not_configured' | 'forbidden' |
+ * 'not_found' | 'generic'.
  */
 
-export type AttachmentUploadErrorCode = 'aborted' | 'too_large' | 'storage_not_configured' | 'forbidden' | 'not_found' | 'generic';
+export type AttachmentUploadErrorCode =
+  | 'aborted'
+  | 'too_large'
+  | 'type_not_allowed'
+  | 'storage_not_configured'
+  | 'forbidden'
+  | 'not_found'
+  | 'generic';
 
 export class AttachmentUploadError extends Error {
-  constructor(public code: AttachmentUploadErrorCode) {
+  constructor(
+    public code: AttachmentUploadErrorCode,
+    /** Con too_large: el tope del modo actual, si se conoce. */
+    public maxBytes?: number,
+  ) {
     super(code);
   }
 }
@@ -34,8 +50,8 @@ export interface UploadAttachmentOptions {
   signal?: AbortSignal;
 }
 
-interface UploadConfig {
-  mode: 'blob' | 'local';
+export interface AttachmentConfig {
+  mode: 'blob' | 'local' | 'legacy';
   prefix: string;
   maxBytes: number;
 }
@@ -44,6 +60,7 @@ const MULTIPART_FROM = 8 * 1024 * 1024;
 
 function codeFor(status: number, body?: { error?: string } | null): AttachmentUploadErrorCode {
   if (body?.error === 'storage_not_configured') return 'storage_not_configured';
+  if (status === 415 || body?.error === 'file_type_not_allowed') return 'type_not_allowed';
   if (status === 413 || body?.error === 'too_large') return 'too_large';
   if (status === 403) return 'forbidden';
   if (status === 404) return 'not_found';
@@ -65,16 +82,22 @@ async function readJson(res: Response): Promise<{ error?: string } | null> {
   return (await res.json().catch(() => null)) as { error?: string } | null;
 }
 
-export async function uploadAttachment<Row>(file: File, o: UploadAttachmentOptions): Promise<Row> {
-  if (o.signal?.aborted) throw new AttachmentUploadError('aborted');
-  const cfgRes = await fetch(o.uploadUrl, { signal: o.signal, cache: 'no-store' }).catch((err: unknown) => {
-    throw new AttachmentUploadError(o.signal?.aborted || (err as Error)?.name === 'AbortError' ? 'aborted' : 'generic');
+/** Modo y tope por archivo del registro (GET uploadUrl), para avisar antes de subir. */
+export async function getAttachmentConfig(uploadUrl: string, signal?: AbortSignal): Promise<AttachmentConfig> {
+  const res = await fetch(uploadUrl, { signal, cache: 'no-store' }).catch((err: unknown) => {
+    throw new AttachmentUploadError(signal?.aborted || (err as Error)?.name === 'AbortError' ? 'aborted' : 'generic');
   });
-  const cfg = (await readJson(cfgRes)) as (UploadConfig & { error?: string }) | null;
-  if (!cfgRes.ok || !cfg) throw new AttachmentUploadError(codeFor(cfgRes.status, cfg));
-  if (file.size > cfg.maxBytes) throw new AttachmentUploadError('too_large');
+  const cfg = (await readJson(res)) as (AttachmentConfig & { error?: string }) | null;
+  if (!res.ok || !cfg) throw new AttachmentUploadError(codeFor(res.status, cfg));
+  return cfg;
+}
 
-  if (cfg.mode === 'local') return uploadLocal<Row>(file, o);
+export async function uploadAttachment<Row>(file: File, o: UploadAttachmentOptions & { config?: AttachmentConfig }): Promise<Row> {
+  if (o.signal?.aborted) throw new AttachmentUploadError('aborted');
+  const cfg = o.config ?? (await getAttachmentConfig(o.uploadUrl, o.signal));
+  if (file.size > cfg.maxBytes) throw new AttachmentUploadError('too_large', cfg.maxBytes);
+
+  if (cfg.mode === 'local' || cfg.mode === 'legacy') return uploadLocal<Row>(file, o);
 
   const { upload } = await import('@vercel/blob/client');
   let blob: { pathname: string };

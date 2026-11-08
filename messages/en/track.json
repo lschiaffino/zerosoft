@@ -172,7 +172,9 @@
     "removeBody": "The file is removed from this issue for everyone.",
     "removeError": "Couldn’t delete the file. Try again.",
     "storageNotConfigured": "File storage isn’t set up on this server. An admin needs to add a private Blob store.",
-    "tooLargeAny": "The file is larger than this server accepts."
+    "tooLargeAny": "The file is larger than this server accepts.",
+    "limitHint": "Up to {limit} per file",
+    "tooLargeLimit": "The file is larger than {limit}, the limit on this server."
   },
   "activity": {
     "title": "Activity",

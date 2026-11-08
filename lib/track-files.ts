@@ -3,9 +3,11 @@ import { fileAttachments, isPrivateRef } from './file-attachments';
 /**
  * Adjuntos de issues de Track (lib/file-attachments.ts): store privado
  * TRACK_BLOB_READ_WRITE_TOKEN o FILES_BLOB_READ_WRITE_TOKEN; en self-host,
- * disco local cifrado (UPLOADS_DIR/track-files).
+ * disco local cifrado (UPLOADS_DIR/track-files); en Vercel sin store privado,
+ * el modo 'legacy' (saveUpload como antes).
  */
-export const trackFiles = fileAttachments({ app: 'track', envPrefix: 'TRACK' });
+// Sin store privado en Vercel: los adjuntos siguen yendo al store de siempre (hasta 4 MB).
+export const trackFiles = fileAttachments({ app: 'track', envPrefix: 'TRACK', legacyFolder: 'track' });
 
 /** Ruta autorizada que sirve un adjunto privado (las refs "blobp:"/"local:" no son URLs). */
 export function trackAttachmentHref(issueId: string, attachmentId: string): string {

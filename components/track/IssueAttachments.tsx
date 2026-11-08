@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import LocalText from '@/components/ui/LocalText';
-import { AttachmentUploadError, uploadAttachment } from '@/lib/file-attachments-client';
+import { AttachmentUploadError, getAttachmentConfig, uploadAttachment, type AttachmentConfig } from '@/lib/file-attachments-client';
 import type { TrackIssueAttachmentWithAuthor } from '@/lib/track-data';
 import { relDate } from '@/lib/utils';
 import { Modal } from './planning/shared';
@@ -92,6 +92,14 @@ export default function IssueAttachments({
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const base = `/api/track/issues/${issueId}/attachments`;
+  // Modo y tope del servidor: en modo 'legacy' (sin store privado) el tope es chico y se avisa antes de subir.
+  const [config, setConfig] = useState<AttachmentConfig | null>(null);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    getAttachmentConfig(`${base}/upload`, ctrl.signal).then(setConfig, () => undefined);
+    return () => ctrl.abort();
+  }, [base]);
+  const limitHint = config?.mode === 'legacy' ? t('limitHint', { limit: formatBytes(config.maxBytes) }) : null;
 
   useEffect(() => {
     if (pickSignal > 0) inputRef.current?.click();
@@ -115,6 +123,7 @@ export default function IssueAttachments({
           uploadUrl: `${base}/upload`,
           finalizeUrl: `${base}/finalize`,
           signal: controller.signal,
+          config: config ?? undefined,
           onProgress: (loaded) => patch(key, { loaded }),
         })
           .then(async () => {
@@ -123,6 +132,7 @@ export default function IssueAttachments({
           })
           .catch((err: unknown) => {
             const code = err instanceof AttachmentUploadError ? err.code : 'generic';
+            const max = err instanceof AttachmentUploadError ? err.maxBytes : undefined;
             if (code === 'aborted') {
               setUploads((list) => list.filter((u) => u.key !== key));
               return;
@@ -131,13 +141,17 @@ export default function IssueAttachments({
               code === 'storage_not_configured'
                 ? t('storageNotConfigured')
                 : code === 'too_large'
-                  ? t('tooLargeAny')
-                  : t('uploadError');
+                  ? max
+                    ? t('tooLargeLimit', { limit: formatBytes(max) })
+                    : t('tooLargeAny')
+                  : code === 'type_not_allowed'
+                    ? t('typeNotAllowed')
+                    : t('uploadError');
             patch(key, { error: message });
           });
       }
     },
-    [base, onChange, patch, t],
+    [base, config, onChange, patch, t],
   );
 
   // Soltar archivos en cualquier parte de la página (fuera de los editores,
@@ -237,6 +251,11 @@ export default function IssueAttachments({
         <section className="track-detail-section track-issue-block" data-testid="track-attachments" aria-label={t('title')}>
           <div className="track-attach-head">
             <h2 className="track-section-title">{t('title')}</h2>
+            {limitHint && (
+              <span className="track-attachment-meta track-attach-limit" data-testid="track-attach-limit">
+                {limitHint}
+              </span>
+            )}
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => inputRef.current?.click()}>
               <TrackIcon name="plus" size={12} />
               <span>{t('upload')}</span>
