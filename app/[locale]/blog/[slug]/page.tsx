@@ -43,6 +43,10 @@ export async function generateMetadata(props: { params: Promise<Params> }): Prom
   });
 }
 
+// Solo los de generateStaticParams: otro valor es un 404 sin caché (con dynamicParams el CDN
+// guardaba cada 404 inventado por un año).
+export const dynamicParams = false;
+
 export function generateStaticParams() {
   return getAllSlugs().map((slug) => ({ slug }));
 }

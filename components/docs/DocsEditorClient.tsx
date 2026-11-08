@@ -929,6 +929,18 @@ export default function DocsEditorClient({
   }, [page.id, router]);
 
   const toggle = (panel: 'comments' | 'versions' | 'analytics') => setSide((cur) => (cur === panel ? null : panel));
+  // Esc cierra el panel lateral (comentarios, versiones, analítica), salvo que lo use el editor o un diálogo.
+  useEffect(() => {
+    if (!side) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el?.isContentEditable || el?.closest('dialog[open], [role="dialog"], [role="menu"], [role="listbox"]')) return;
+      setSide(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [side]);
   const verified = current.verified_at
     ? current.verified_until && Date.parse(current.verified_until) <= Date.now()
       ? 'expired'

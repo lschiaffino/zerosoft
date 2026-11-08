@@ -3,9 +3,11 @@ import { realUserId, requireUser } from '@/lib/session';
 import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import NotionImportPanel from '@/components/docs/NotionImportPanel';
+import '@/styles/import-shared.css';
 import { IMPORT_SOURCES, type ImportSource } from '@/lib/docs-import-sources';
 import { listTeamspaces } from '@/lib/docs-access';
 import { canCreateDocPage } from '@/lib/docs-guard';
+import { importHubHref } from '@/lib/import-registry';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +50,18 @@ export default async function DocsImportPage(props: { params: Promise<{ locale: 
           {t('notionImport.noDestination')}
         </p>
       )}
+      {/* La otra vía para Notion: por API con un token (sin export), en el hub de importación. */}
+      <section className="ximp-section docs-import-api" aria-labelledby="docs-import-api-title" data-testid="docs-import-api">
+        <h2 id="docs-import-api-title" className="ui-section-title">
+          {t('notionImport.apiTitle')}
+        </h2>
+        <p className="ui-help">{t('notionImport.apiLead')}</p>
+        <p>
+          <Link href={importHubHref({ source: 'docs:notion_api' })} className="btn">
+            {t('notionImport.apiLink')}
+          </Link>
+        </p>
+      </section>
     </div>
   );
 }

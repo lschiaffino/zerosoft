@@ -160,7 +160,13 @@
     "pickTitle": "Elegí una conversación",
     "keysNav": "Siguiente y anterior",
     "keysSearch": "Buscar",
-    "keysSend": "Enviar la respuesta (Shift+Enter para otra línea)"
+    "keysSend": "Enviar la respuesta (Shift+Enter para otra línea)",
+    "sort": {
+      "label": "Orden",
+      "recent": "Actividad más reciente",
+      "oldest": "Actividad más vieja",
+      "waiting": "Espera más larga"
+    }
   },
   "conversation": {
     "open": "Abierta",

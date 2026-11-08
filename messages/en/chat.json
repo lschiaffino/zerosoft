@@ -160,7 +160,13 @@
     "pickTitle": "Pick a conversation",
     "keysNav": "Next and previous",
     "keysSearch": "Search",
-    "keysSend": "Send the reply (Shift+Enter for a new line)"
+    "keysSend": "Send the reply (Shift+Enter for a new line)",
+    "sort": {
+      "label": "Sort",
+      "recent": "Newest activity",
+      "oldest": "Oldest activity",
+      "waiting": "Waiting longest"
+    }
   },
   "conversation": {
     "open": "Open",

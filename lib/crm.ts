@@ -3369,61 +3369,56 @@ export async function getCrmOverview(userId: string, ownerScope?: OwnerScope): P
   const ds = scopeAnd('d', ownerScope);
   const as = activityScopeAnd('a', ownerScope);
 
-  const totalContacts = (
-    (await db.prepare(`SELECT COUNT(*) AS c FROM crm_contacts c WHERE c.user_id = ?${cs.sql}`).get(userId, ...cs.args)) as {
-      c: number;
-    }
-  ).c;
+  // Todas las lecturas son independientes: van juntas (en Turso cada query es una ida y vuelta).
+  const totalContactsP = db.prepare(`SELECT COUNT(*) AS c FROM crm_contacts c WHERE c.user_id = ?${cs.sql}`).get(userId, ...cs.args) as Promise<{
+    c: number;
+  }>;
 
-  const open = (await db
+  const openP = db
     .prepare(
       `SELECT COUNT(*) AS c, COALESCE(SUM(${baseAmountSql('d')}), 0) AS a FROM crm_deals d WHERE d.user_id = ? AND d.closed_at IS NULL${ds.sql}`,
     )
-    .get(userId, ...ds.args)) as { c: number; a: number };
+    .get(userId, ...ds.args) as Promise<{ c: number; a: number }>;
 
-  const forecastWeighted = (
-    (await db
-      .prepare(
-        `SELECT COALESCE(SUM(${baseAmountSql('d')} * s.probability / 100.0), 0) AS f
-         FROM crm_deals d
-         JOIN crm_stages s ON s.id = d.stage_id
-         WHERE d.user_id = ? AND d.closed_at IS NULL${ds.sql}`,
-      )
-      .get(userId, ...ds.args)) as { f: number }
-  ).f;
+  const forecastWeightedP = db
+    .prepare(
+      `SELECT COALESCE(SUM(${baseAmountSql('d')} * s.probability / 100.0), 0) AS f
+       FROM crm_deals d
+       JOIN crm_stages s ON s.id = d.stage_id
+       WHERE d.user_id = ? AND d.closed_at IS NULL${ds.sql}`,
+    )
+    .get(userId, ...ds.args) as Promise<{ f: number }>;
 
-  const wonThisMonth = (await db
+  const wonThisMonthP = db
     .prepare(
       `SELECT COUNT(*) AS c, COALESCE(SUM(${baseAmountSql('d')}), 0) AS a
        FROM crm_deals d
        JOIN crm_stages s ON s.id = d.stage_id
        WHERE d.user_id = ? AND s.is_won = 1 AND substr(d.closed_at, 1, 7) = ?${ds.sql}`,
     )
-    .get(userId, month, ...ds.args)) as { c: number; a: number };
+    .get(userId, month, ...ds.args) as Promise<{ c: number; a: number }>;
 
-  const tasksDueToday = (
-    (await db
-      .prepare(
-        `SELECT COUNT(*) AS c FROM crm_activities a
-         WHERE a.user_id = ? AND a.type = 'task' AND a.done = 0 AND a.due_at >= ? AND a.due_at <= ?${as.sql}`,
-      )
-      .get(userId, start, end, ...as.args)) as { c: number }
-  ).c;
+  const tasksDueTodayP = db
+    .prepare(
+      `SELECT COUNT(*) AS c FROM crm_activities a
+       WHERE a.user_id = ? AND a.type = 'task' AND a.done = 0 AND a.due_at >= ? AND a.due_at <= ?${as.sql}`,
+    )
+    .get(userId, start, end, ...as.args) as Promise<{ c: number }>;
 
-  const recentActivities = (await db
+  const recentActivitiesP = db
     .prepare(`${ACTIVITY_SELECT} WHERE a.user_id = ?${as.sql} ORDER BY a.created_at DESC LIMIT 8`)
-    .all(userId, ...as.args)) as ActivityListRow[];
+    .all(userId, ...as.args) as Promise<ActivityListRow[]>;
 
-  const upcomingTasks = (await db
+  const upcomingTasksP = db
     .prepare(
       `${ACTIVITY_SELECT}
        WHERE a.user_id = ? AND a.type = 'task' AND a.done = 0 AND (a.due_at IS NULL OR a.due_at >= ?)${as.sql}
        ORDER BY a.due_at IS NULL, a.due_at ASC, a.created_at DESC
        LIMIT 6`,
     )
-    .all(userId, start, ...as.args)) as ActivityListRow[];
+    .all(userId, start, ...as.args) as Promise<ActivityListRow[]>;
 
-  const closingThisMonth = (await db
+  const closingThisMonthP = db
     .prepare(
       `SELECT d.id, d.name, d.amount, d.currency, d.close_date, s.name AS stage_name
        FROM crm_deals d
@@ -3432,7 +3427,21 @@ export async function getCrmOverview(userId: string, ownerScope?: OwnerScope): P
        ORDER BY d.close_date ASC
        LIMIT 8`,
     )
-    .all(userId, month, ...ds.args)) as ClosingDealRow[];
+    .all(userId, month, ...ds.args) as Promise<ClosingDealRow[]>;
+
+  const [totalContacts, open, forecastWeighted, wonThisMonth, tasksDueToday, recentActivities, upcomingTasks, closingThisMonth, funnel, wonLost] =
+    await Promise.all([
+      totalContactsP.then((r) => r.c),
+      openP,
+      forecastWeightedP.then((r) => r.f),
+      wonThisMonthP,
+      tasksDueTodayP.then((r) => r.c),
+      recentActivitiesP,
+      upcomingTasksP,
+      closingThisMonthP,
+      defaultPipelineId(userId).then((id) => funnelForPipeline(userId, id, ownerScope)),
+      wonLostByMonth(userId, ownerScope),
+    ]);
 
   return {
     totalContacts,
@@ -3442,8 +3451,8 @@ export async function getCrmOverview(userId: string, ownerScope?: OwnerScope): P
     wonThisMonth: { count: wonThisMonth.c, amount: wonThisMonth.a },
     tasksDueToday,
     closingThisMonth,
-    funnel: await funnelForPipeline(userId, await defaultPipelineId(userId), ownerScope),
-    wonLostByMonth: await wonLostByMonth(userId, ownerScope),
+    funnel,
+    wonLostByMonth: wonLost,
     recentActivities,
     upcomingTasks,
   };

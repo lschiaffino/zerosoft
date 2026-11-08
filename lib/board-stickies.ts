@@ -10,6 +10,9 @@
  */
 import { normalizeTag } from './notes-types';
 
+/** Tinta del texto de los stickies (lib/board-dark.ts la deja oscura en el lienzo oscuro). */
+export const STICKY_TEXT_INK = '#1e1e1f';
+
 /** Colores de la paleta de Excalidraw (los mismos tonos de las plantillas). */
 export const STICKY_COLORS = [
   { key: 'yellow', fill: '#ffec99' },
@@ -100,7 +103,8 @@ export function layoutStickies(count: number, center: { x: number; y: number }):
 }
 
 function gridSize(count: number): { cols: number; width: number; height: number } {
-  const cols = Math.min(6, Math.max(1, Math.ceil(Math.sqrt(count))));
+  // Una lista pegada (hasta 100) va en filas de 6; un CSV grande arma una grilla más ancha (no una columna eterna).
+  const cols = Math.min(count > STICKY_PASTE_MAX ? 25 : 6, Math.max(1, Math.ceil(Math.sqrt(count))));
   const rows = Math.ceil(count / cols);
   return { cols, width: cols * STICKY_W + (cols - 1) * GAP, height: rows * STICKY_H + (rows - 1) * ROW_GAP };
 }
@@ -161,7 +165,7 @@ export function stickySkeleton(draft: StickyDraft, pos: { x: number; y: number }
     strokeWidth: 1,
     roughness: 1,
     roundness: { type: 3 },
-    label: { text: draft.text, fontSize: 18 },
+    label: { text: draft.text, fontSize: 18, strokeColor: STICKY_TEXT_INK },
     customData: { sticky: true, tags: draft.tags },
   };
 }
@@ -181,6 +185,7 @@ export interface SceneEl {
   containerId?: string | null;
   boundElements?: ReadonlyArray<{ id: string; type: string }> | null;
   backgroundColor?: string;
+  strokeColor?: string;
   customData?: Record<string, unknown> | null;
   version?: number;
   versionNonce?: number;

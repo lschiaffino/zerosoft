@@ -8651,6 +8651,100 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Adjuntos del asistente (⌘J): imágenes y archivos pegados o arrastrados.
+    // Privados (lib/private-files.ts: Blob privado o cifrado); `ref` es la
+    // referencia del store. Acá queda de quién es y el texto ya extraído.
+    id: '270_assistant_files',
+    up: async (c) => {
+      await c.execute(`CREATE TABLE IF NOT EXISTS assistant_files (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        person_id TEXT NOT NULL,
+        conversation_id TEXT,
+        ref TEXT NOT NULL,
+        name TEXT NOT NULL,
+        mime TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        text TEXT,
+        created_at TEXT NOT NULL
+      )`);
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_assistant_files_owner ON assistant_files(workspace_id, person_id, created_at)');
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_assistant_files_conv ON assistant_files(conversation_id, created_at)');
+    },
+  },
+  {
+    // Board: modo privado del taller (cada uno ve solo sus stickies hasta
+    // revelar) y comentarios pegados a un objeto (dónde estaba el objeto al
+    // anclarlo, para que el pin lo siga cuando se mueve).
+    id: '280_board_private_mode_comment_anchor',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE boards ADD COLUMN private_mode INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, 'ALTER TABLE board_comment_threads ADD COLUMN anchor_x REAL');
+      await addColumn(c, 'ALTER TABLE board_comment_threads ADD COLUMN anchor_y REAL');
+    },
+  },
+  {
+    // Board: archivos sueltos en el lienzo (PDF, documentos, planillas): el
+    // nombre original para descargarlo con su nombre.
+    id: '281_board_file_name',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE board_files ADD COLUMN name TEXT');
+    },
+  },
+  {
+    // Board: lo que cada uno escribe en modo privado queda acá (fuera de la
+    // escena compartida) hasta que se revela.
+    id: '282_board_private_drafts',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS board_private_drafts (
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          author TEXT NOT NULL,
+          elements TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (board_id, author)
+        );
+      `);
+    },
+  },
+  {
+    // Board: votos de invitados del link de edición. board_votes ata el
+    // votante a users; el invitado no tiene cuenta y vota con la clave de su
+    // navegador, así que va en su tabla.
+    id: '283_board_guest_votes',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS board_guest_votes (
+          session_id TEXT NOT NULL REFERENCES board_vote_sessions(id) ON DELETE CASCADE,
+          guest_key TEXT NOT NULL,
+          element_id TEXT NOT NULL,
+          count INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (session_id, guest_key, element_id)
+        );
+      `);
+    },
+  },
+  {
+    // Reimportar un export de Notion actualizado: el hash del archivo de origen
+    // dice si cambió (y la página se actualiza si nadie la editó en zerosoft).
+    id: '260_import_external_hash',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE import_external_ids ADD COLUMN source_hash TEXT');
+    },
+  },
+  {
+    // Groups: chats archivados y ocultos (como WhatsApp) y presencia del contacto
+    // (escribiendo, grabando, en línea) que llega por webhook.
+    id: '284_groups_archive_presence',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN archived_at TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN hidden_at TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_who TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_at TEXT');
+    },
+  },
+  {
     // Groups, varias líneas y equipo (lib/groups-lines.ts): color de cada línea y
     // cuándo cambió su estado, acceso por línea (personas o equipos del
     // workspace, groups_teams es el espejo de workspace_groups), estado

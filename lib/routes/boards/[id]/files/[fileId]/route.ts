@@ -7,6 +7,13 @@ import { boardViewer, getBoardAccess } from '@/lib/board-access';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+/** Las imágenes de la escena se ven en el navegador; los adjuntos se bajan con su nombre. */
+function disposition(row: { name?: string | null }): string {
+  if (!row.name) return 'inline';
+  const ascii = row.name.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(row.name)}`;
+}
+
 /**
  * Sirve una imagen de la pizarra con los permisos de la pizarra: alguien del
  * workspace que la pueda ver, o el link público o de invitado vigente (?t=<token>). Sin acceso: 404 (no se
@@ -26,7 +33,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string;
   return new NextResponse(body as BodyInit, {
     headers: {
       'Content-Type': row.mime,
-      'Content-Disposition': 'inline',
+      'Content-Disposition': disposition(row),
       'X-Content-Type-Options': 'nosniff',
       'Content-Security-Policy': "default-src 'none'; sandbox",
       // El permiso se chequea en cada request: nada de caches compartidos.

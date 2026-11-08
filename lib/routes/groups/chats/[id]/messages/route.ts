@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GroupsError, getChatRow, listMessages, sendMessage } from '@/lib/groups';
+import { GroupsError, getChatRow, listMessages, presenceWithName, sendMessage } from '@/lib/groups';
 import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
 import { maskMessage } from '@/lib/groups-access';
 import { normalizePoll } from '@/lib/groups-polls';
@@ -29,11 +29,15 @@ export async function GET(req: Request, ctx: Ctx) {
   const before = p.get('before') || undefined;
   const limit = Number(p.get('limit')) || undefined;
   const chatIds = p.get('lines') === '0' ? [] : (await siblingChats(s.ws, guard.viewer, id)).map((c) => c.id);
-  return NextResponse.json({ messages: (await listMessages(s.ws, id, { after, before, limit, chatIds })).map((m) => maskMessage(guard.viewer, m)) });
+  return NextResponse.json({
+    messages: (await listMessages(s.ws, id, { after, before, limit, chatIds })).map((m) => maskMessage(guard.viewer, m)),
+    // Escribiendo, grabando o en línea (llega por webhook; dura unos segundos).
+    presence: await presenceWithName(chat).catch(() => null),
+  });
 }
 
 /**
- * Manda texto, media (ver mediaFromBody), una encuesta ({ poll: { question, options, multi } }) o una nota interna ({ note: true }).
+ * Manda texto, media (ver mediaFromBody), una encuesta ({ poll: { question, options, multi } }), contactos ({ contacts: [{ name, phone }] }) o una nota interna ({ note: true }).
  * { numberId }: "Responder desde" esa línea (el mismo chat en otra línea; en un 1:1 lo crea). Las notas quedan en el chat abierto.
  */
 export async function POST(req: Request, ctx: Ctx) {
@@ -43,8 +47,8 @@ export async function POST(req: Request, ctx: Ctx) {
   if (guard instanceof NextResponse) return guard;
   const b = await readJson(req);
   // { url, mimetype, filename, size?, kind?: 'voice' | 'sticker' | 'document' | ..., width?, height?, duration? }
-  const media = mediaFromBody(b.media, req);
   try {
+    const media = mediaFromBody(b.media, req);
     let poll = null;
     if (b.poll != null) {
       try {
@@ -62,6 +66,7 @@ export async function POST(req: Request, ctx: Ctx) {
       replyToId: str(b.replyToId, 100) || null,
       note: b.note === true,
       media,
+      ...(Array.isArray(b.contacts) ? { contacts: b.contacts as Array<{ name: string; phone: string }> } : {}),
     });
     return NextResponse.json(maskMessage(guard.viewer, msg), { status: 201 });
   } catch (err) {

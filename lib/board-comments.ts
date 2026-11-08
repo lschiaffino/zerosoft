@@ -37,6 +37,9 @@ export interface BoardThreadView {
   x: number;
   y: number;
   element_id: string | null;
+  /** Posición del objeto al anclar (null = hilo suelto en el lienzo). */
+  anchor_x: number | null;
+  anchor_y: number | null;
   created_by: string | null;
   resolved_at: string | null;
   resolved_by_name: string | null;
@@ -131,6 +134,8 @@ export async function listThreads(workspaceId: string, boardId: string): Promise
     x: Number(t.x),
     y: Number(t.y),
     element_id: t.element_id,
+    anchor_x: t.element_id && t.anchor_x != null ? Number(t.anchor_x) : null,
+    anchor_y: t.element_id && t.anchor_y != null ? Number(t.anchor_y) : null,
     created_by: t.created_by,
     resolved_at: t.resolved_at,
     resolved_by_name: t.resolved_by_name ?? t.resolved_by_email ?? null,
@@ -222,16 +227,29 @@ export async function createThread(
   workspaceId: string,
   boardId: string,
   personId: string,
-  input: { x: number; y: number; elementId?: string | null; body: string },
+  input: { x: number; y: number; elementId?: string | null; anchorX?: number | null; anchorY?: number | null; body: string },
 ): Promise<BoardThreadView> {
   const id = crypto.randomUUID();
   const now = nowIso();
+  const anchored = Boolean(input.elementId) && input.anchorX != null && input.anchorY != null;
   await getDb()
     .prepare(
-      `INSERT INTO board_comment_threads (id, board_id, workspace_id, x, y, element_id, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO board_comment_threads (id, board_id, workspace_id, x, y, element_id, anchor_x, anchor_y, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, boardId, workspaceId, input.x, input.y, input.elementId ?? null, personId, now, now);
+    .run(
+      id,
+      boardId,
+      workspaceId,
+      input.x,
+      input.y,
+      anchored ? (input.elementId ?? null) : null,
+      anchored ? (input.anchorX ?? null) : null,
+      anchored ? (input.anchorY ?? null) : null,
+      personId,
+      now,
+      now,
+    );
   const commentId = await insertComment(id, boardId, personId, input.body);
   await notifyComment({ workspaceId, boardId, threadId: id, actorId: personId, body: input.body, isReply: false });
   await emitCommentEvent(workspaceId, boardId, id, commentId, personId, input.body, false);
@@ -280,7 +298,7 @@ export async function updateThread(
   boardId: string,
   threadId: string,
   personId: string,
-  patch: { resolved?: boolean; x?: number; y?: number },
+  patch: { resolved?: boolean; x?: number; y?: number; elementId?: string | null; anchorX?: number | null; anchorY?: number | null },
 ): Promise<BoardThreadView | null> {
   const t = await threadRow(workspaceId, boardId, threadId);
   if (!t) return null;
@@ -291,7 +309,11 @@ export async function updateThread(
       .run(patch.resolved ? now : null, patch.resolved ? personId : null, now, threadId);
   }
   if (patch.x !== undefined && patch.y !== undefined) {
-    await getDb().prepare('UPDATE board_comment_threads SET x = ?, y = ?, updated_at = ? WHERE id = ?').run(patch.x, patch.y, now, threadId);
+    // Mover el pin lo vuelve a anclar al objeto que quedó abajo (o lo suelta).
+    const anchored = Boolean(patch.elementId) && patch.anchorX != null && patch.anchorY != null;
+    await getDb()
+      .prepare('UPDATE board_comment_threads SET x = ?, y = ?, element_id = ?, anchor_x = ?, anchor_y = ?, updated_at = ? WHERE id = ?')
+      .run(patch.x, patch.y, anchored ? (patch.elementId ?? null) : null, anchored ? (patch.anchorX ?? null) : null, anchored ? (patch.anchorY ?? null) : null, now, threadId);
   }
   return getThread(workspaceId, boardId, threadId);
 }

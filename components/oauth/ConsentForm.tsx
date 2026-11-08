@@ -44,7 +44,8 @@ export default function ConsentForm({
   const t = useTranslations('settings.oauth');
   const canWrite = askedScope.split(' ').includes('write');
   const [scope, setScope] = useState(canWrite && mode === 'code' ? 'read write' : 'read');
-  const [team, setTeam] = useState(activeTeamId ?? '');
+  // Lo que se manda es siempre una opción de la lista: un activo que no figura cae al propio.
+  const [team, setTeam] = useState(workspaces.some((w) => (w.teamId ?? '') === (activeTeamId ?? '')) ? (activeTeamId ?? '') : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

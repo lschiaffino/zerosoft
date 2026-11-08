@@ -4,6 +4,7 @@ import { getCurrentUser, realUserId } from '@/lib/session';
 import {
   listChatConversations,
   countChatConversations,
+  parseConversationSort,
   reopenExpiredSnoozesThrottled,
 } from '@/lib/chat-data';
 
@@ -53,6 +54,7 @@ export async function GET(req: Request) {
     priority: pick('priority', ['low', 'medium', 'high', 'urgent']),
     channel: pick('channel', ['web', 'email']),
     followedBy: searchParams.get('following') === '1' ? realUserId(user) : undefined,
+    sort: parseConversationSort(searchParams.get('sort')),
     limit,
     offset,
   };

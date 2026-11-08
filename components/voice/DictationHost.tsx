@@ -7,6 +7,7 @@ import { parseShortcut, DEFAULT_VOICE_SETTINGS, type VoicePrompt, type VoiceSett
 import { useDictation } from './useDictation';
 import { contextFor, copyText, editableTarget, insertIntoField, replaceSelection, selectionIn, type FieldSelection } from './insert';
 import { LevelBars, MicIcon, voiceErrorKey } from './voice-icons';
+import { whenIdle } from '@/lib/idle';
 
 /** Mantener el atajo al menos esto empieza a dictar; un toque más corto deja pasar la tecla. */
 const HOLD_MS = 300;
@@ -294,11 +295,13 @@ export default function DictationHost() {
           if (alive) setSettings(data?.settings ?? DEFAULT_VOICE_SETTINGS);
         })
         .catch(() => alive && setSettings(DEFAULT_VOICE_SETTINGS));
-    void load();
+    // Con el navegador libre: corre en todas las páginas y no compite con los datos de la página.
+    const cancel = whenIdle(() => void load());
     const onChange = () => void load();
     window.addEventListener('zs:voice-settings', onChange);
     return () => {
       alive = false;
+      cancel();
       window.removeEventListener('zs:voice-settings', onChange);
     };
   }, []);
@@ -488,7 +491,8 @@ export default function DictationHost() {
   const shortcut = settings?.shortcut ?? DEFAULT_VOICE_SETTINGS.shortcut;
   const busy = d.state !== 'idle';
   const onDictationPage = pathname.startsWith('/app/voice/dictation');
-  const barWanted = !busy && !onDictationPage && !!focused && (settings?.showBar ?? false);
+  // data-dictation-bar="off": editores de bloques (Docs) donde el botón flotante tapa el texto; el atajo sigue andando.
+  const barWanted = !busy && !onDictationPage && !!focused && !focused.closest('[data-dictation-bar="off"]') && (settings?.showBar ?? false);
   const barPos = useBarPosition(barWanted ? focused : null, barRef);
   const showBar = barWanted && !!barPos;
 

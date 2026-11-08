@@ -368,7 +368,9 @@ test('login completo, herramientas, y operaciones en muchas apps vistas en el na
   const list = (await (await mcp.raw('tools/list')).json()) as any;
   const names = list.result.tools.map((t: any) => t.name);
   for (const n of ['whoami', 'list_apps', 'search_operations', 'get_operation_schema', 'invoke_operation']) expect(names).toContain(n);
-  expect(names.length).toBeLessThanOrEqual(15);
+  // Descubrimiento progresivo más los atajos de las apps prioritarias: una lista corta igual.
+  for (const n of ['list_group_chats', 'send_group_message', 'list_track_issues', 'search_docs', 'list_boards']) expect(names).toContain(n);
+  expect(names.length).toBeLessThanOrEqual(30);
   expect(list.result.tools.find((t: any) => t.name === 'search_operations').annotations.readOnlyHint).toBe(true);
   expect(list.result.tools.find((t: any) => t.name === 'invoke_operation').annotations.destructiveHint).toBe(true);
 

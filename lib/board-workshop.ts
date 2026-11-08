@@ -95,6 +95,20 @@ export async function applyTimer(workspaceId: string, boardId: string, act: Time
   return timerView(next, nowMs);
 }
 
+// ---------- Modo privado ----------
+
+/** ¿Está prendido el modo privado (cada uno ve solo sus stickies)? */
+export async function getPrivateMode(workspaceId: string, boardId: string): Promise<boolean> {
+  const row = (await getDb().prepare('SELECT private_mode FROM boards WHERE id = ? AND workspace_id = ?').get(boardId, workspaceId)) as
+    | { private_mode: number | null }
+    | undefined;
+  return Number(row?.private_mode) === 1;
+}
+
+export async function setPrivateMode(workspaceId: string, boardId: string, on: boolean): Promise<void> {
+  await getDb().prepare('UPDATE boards SET private_mode = ? WHERE id = ? AND workspace_id = ?').run(on ? 1 : 0, boardId, workspaceId);
+}
+
 // ---------- Votación ----------
 
 export interface VoteSessionRow {
@@ -146,9 +160,18 @@ async function currentSession(boardId: string): Promise<VoteSessionRow | null> {
     .get(boardId)) as VoteSessionRow | undefined) ?? null;
 }
 
+/** Prefijo de los votantes invitados (link de edición): sus votos van en board_guest_votes. */
+export const GUEST_VOTER_PREFIX = 'guest:';
+
+/** Tabla y columna del votante: personas en board_votes, invitados en board_guest_votes. Puro. */
+export function voteTable(voterId: string): { table: 'board_votes' | 'board_guest_votes'; column: 'voter_id' | 'guest_key' } {
+  return voterId.startsWith(GUEST_VOTER_PREFIX) ? { table: 'board_guest_votes', column: 'guest_key' } : { table: 'board_votes', column: 'voter_id' };
+}
+
 async function myVotes(sessionId: string, voterId: string): Promise<Record<string, number>> {
+  const { table, column } = voteTable(voterId);
   const rows = (await getDb()
-    .prepare('SELECT element_id, count FROM board_votes WHERE session_id = ? AND voter_id = ? AND count > 0')
+    .prepare(`SELECT element_id, count FROM ${table} WHERE session_id = ? AND ${column} = ? AND count > 0`)
     .all(sessionId, voterId)) as Array<{ element_id: string; count: number }>;
   return Object.fromEntries(rows.map((r) => [r.element_id, Number(r.count)]));
 }
@@ -158,14 +181,17 @@ export async function getVoting(boardId: string, voterId: string): Promise<Votin
   if (!s) return null;
   const mine = await myVotes(s.id, voterId);
   const voters = (await getDb()
-    .prepare('SELECT COUNT(DISTINCT voter_id) AS n FROM board_votes WHERE session_id = ? AND count > 0')
-    .get(s.id)) as { n: number };
+    .prepare(
+      `SELECT (SELECT COUNT(DISTINCT voter_id) FROM board_votes WHERE session_id = ? AND count > 0)
+            + (SELECT COUNT(DISTINCT guest_key) FROM board_guest_votes WHERE session_id = ? AND count > 0) AS n`,
+    )
+    .get(s.id, s.id)) as { n: number };
   const closed = s.status === 'closed';
   let results: VotingView['results'] = null;
   if (closed) {
     const rows = (await getDb()
-      .prepare('SELECT element_id, count FROM board_votes WHERE session_id = ?')
-      .all(s.id)) as Array<{ element_id: string; count: number }>;
+      .prepare('SELECT element_id, count FROM board_votes WHERE session_id = ? UNION ALL SELECT element_id, count FROM board_guest_votes WHERE session_id = ?')
+      .all(s.id, s.id)) as Array<{ element_id: string; count: number }>;
     results = tallyVotes(rows);
   }
   const used = Object.values(mine).reduce((a, b) => a + b, 0);
@@ -217,16 +243,17 @@ export async function castVote(boardId: string, voterId: string, elementId: stri
   if (s.status !== 'open') return 'closed';
   const mine = await myVotes(s.id, voterId);
   if (!canVote(mine, elementId, delta, Number(s.votes_per_person))) return 'limit';
+  const { table, column } = voteTable(voterId);
   if (delta === 1) {
     await getDb()
       .prepare(
-        `INSERT INTO board_votes (session_id, voter_id, element_id, count) VALUES (?, ?, ?, 1)
-         ON CONFLICT(session_id, voter_id, element_id) DO UPDATE SET count = count + 1`,
+        `INSERT INTO ${table} (session_id, ${column}, element_id, count) VALUES (?, ?, ?, 1)
+         ON CONFLICT(session_id, ${column}, element_id) DO UPDATE SET count = count + 1`,
       )
       .run(s.id, voterId, elementId);
   } else {
     await getDb()
-      .prepare('UPDATE board_votes SET count = count - 1 WHERE session_id = ? AND voter_id = ? AND element_id = ? AND count > 0')
+      .prepare(`UPDATE ${table} SET count = count - 1 WHERE session_id = ? AND ${column} = ? AND element_id = ? AND count > 0`)
       .run(s.id, voterId, elementId);
   }
   return 'ok';

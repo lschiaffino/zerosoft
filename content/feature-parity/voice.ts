@@ -24,12 +24,12 @@ function row(
 /**
  * Voice contra Wispr Flow (dictado) y Granola (notas de reunión). Fuente:
  * docs/benchmark/voice.md. Primera versión web (tanda 4b): dictado en toda la
- * suite y notas de reunión. App de escritorio (desktop/, Electron): dictado en
- * cualquier app y reuniones con audio del sistema; sin firma todavía.
+ * suite y notas de reunión. App de escritorio nativa (desktop/, Tauri): dictado en
+ * cualquier app hecho en Rust; sin firma de Apple todavía y sin audio del sistema.
  */
 const parity: ProductParity = {
   competitor: 'Wispr Flow + Granola',
-  lastReviewed: '2026-10-29',
+  lastReviewed: '2026-11-08',
   areas: [
     { id: 'dictation', label: loc(['Dictation in any app', 'Dictado en cualquier app', 'Ditado em qualquer app']) },
     { id: 'cleanup', label: loc(['AI cleanup and formatting', 'Limpieza y formato con IA', 'Limpeza e formatação com IA']) },
@@ -48,16 +48,16 @@ const parity: ProductParity = {
     row('dictate-any-app', 'dictation', ['Dictate into any text field with a shortcut', 'Dictar en cualquier campo de texto con un atajo', 'Ditar em qualquer campo de texto com um atalho'], 'partial', {
       weight: 2,
       detail: [
-        "Hold Alt+Space (or the field button) in any zerosoft field and the clean text is inserted at the cursor. In any other app, the desktop app: hold Control + Option (Mac) or Ctrl + Windows and the text is pasted where the cursor is. Fn is not available as the shortcut",
-        "Mantener Alt+Space (o el botón del campo) en cualquier campo de zerosoft inserta el texto limpio donde está el cursor. En cualquier otra app, la app de escritorio: mantener Control + Option (Mac) o Ctrl + Windows pega el texto donde está el cursor. Fn no está disponible como atajo",
-        "Segurar Alt+Space (ou o botão do campo) em qualquer campo do zerosoft insere o texto limpo no cursor. Em qualquer outro app, o app desktop: segurar Control + Option (Mac) ou Ctrl + Windows cola o texto onde está o cursor. Fn não está disponível como atalho",
+        "Hold Alt+Space (or the field button) in any zerosoft field and the clean text is inserted at the cursor. In any other app, the native desktop app (Tauri, Mac and Windows): hold Option + Space on Mac or Ctrl + Alt + Space on Windows (configurable), or tap it to start and stop, and the text is pasted where the cursor is, with the clipboard put back afterwards. A small HUD shows the level and a timer. Shortcuts made only of modifiers (Fn, Control + Option) are not available. Tested with the parts in Rust unit tests; the real paste into other apps and real microphone audio are checked by hand, not automatically",
+        "Mantener Alt+Space (o el botón del campo) en cualquier campo de zerosoft inserta el texto limpio donde está el cursor. En cualquier otra app, la app de escritorio nativa (Tauri, Mac y Windows): mantener Option + Espacio en Mac o Ctrl + Alt + Espacio en Windows (configurable), o tocarlo para empezar y terminar, pega el texto donde está el cursor y después devuelve el portapapeles. Un HUD chico muestra el nivel y un reloj. Los atajos de solo modificadores (Fn, Control + Option) no están disponibles. Las piezas tienen tests unitarios en Rust; el pegado real en otras apps y el micrófono real se prueban a mano, no de forma automática",
+        "Segurar Alt+Space (ou o botão do campo) em qualquer campo do zerosoft insere o texto limpo no cursor. Em qualquer outro app, o app desktop nativo (Tauri, Mac e Windows): segurar Option + Espaço no Mac ou Ctrl + Alt + Espaço no Windows (configurável), ou tocar para começar e terminar, cola o texto onde está o cursor e depois devolve a área de transferência. Um HUD pequeno mostra o nível e um relógio. Atalhos só de modificadores (Fn, Control + Option) não estão disponíveis. As peças têm testes unitários em Rust; a colagem real em outros apps e o microfone real são testados à mão, não de forma automática",
       ],
     }),
     row('hands-free', 'dictation', ['Hands-free mode', 'Modo manos libres', 'Modo mãos livres'], 'have', {
       detail: [
-        "Double tap the shortcut, or click the field button, and Voice listens until you tap again",
-        "Doble toque al atajo, o clic en el botón del campo, y Voice escucha hasta el próximo toque",
-        "Toque duplo no atalho, ou clique no botão do campo, e o Voice ouve até o próximo toque",
+        "Double tap the shortcut, or click the field button, and Voice listens until you tap again. In the desktop app, a quick tap of the shortcut keeps listening until the next tap, in any app; Esc cancels",
+        "Doble toque al atajo, o clic en el botón del campo, y Voice escucha hasta el próximo toque. En la app de escritorio, un toque corto al atajo sigue escuchando hasta el próximo toque, en cualquier app; Esc cancela",
+        "Toque duplo no atalho, ou clique no botão do campo, e o Voice ouve até o próximo toque. No app desktop, um toque curto no atalho continua ouvindo até o próximo toque, em qualquer app; Esc cancela",
       ],
     }),
     row('languages', 'dictation', ['More than 100 languages', 'Más de 100 idiomas', 'Mais de 100 idiomas'], 'partial', {
@@ -121,9 +121,9 @@ const parity: ProductParity = {
     }),
     row('styles-by-app', 'personalization', ['Tone by app', 'Tono según la app', 'Tom conforme o app'], 'have', {
       detail: [
-        "Formal, neutral or casual tone per context (email, chat, note, other), picked from the app and the field",
-        "Tono formal, neutro o informal por contexto (email, chat, nota, otros), según la app y el campo",
-        "Tom formal, neutro ou informal por contexto (email, chat, nota, outros), conforme o app e o campo",
+        "Formal, neutral or casual tone per context (email, chat, note, other), picked from the app and the field. A cleanup mode on top: raw (as spoken), clean, formal everywhere or by app, the same on the web and in the desktop app",
+        "Tono formal, neutro o informal por contexto (email, chat, nota, otros), según la app y el campo. Encima, un modo de limpieza: sin limpieza (tal cual), limpio, formal en todas las apps o según la app, el mismo en la web y en la app de escritorio",
+        "Tom formal, neutro ou informal por contexto (email, chat, nota, outros), conforme o app e o campo. Por cima, um modo de limpeza: sem limpeza (como falado), limpo, formal em todos os apps ou por app, o mesmo na web e no app desktop",
       ],
     }),
     row('context-names', 'personalization', ['Spell names from screen context', 'Escribir nombres según el contexto de la pantalla', 'Escrever nomes pelo contexto da tela'], 'missing'),
@@ -155,9 +155,16 @@ const parity: ProductParity = {
     row('desktop-apps', 'apps', ['Mac and Windows desktop apps', 'Apps de escritorio para Mac y Windows', 'Apps desktop para Mac e Windows'], 'partial', {
       weight: 2,
       detail: [
-        "One Electron app for Mac and Windows (source in desktop/): hold-to-talk dictation in any app with a small overlay, and meeting notes with mic plus system audio, offered when a calendar event starts or Zoom, Meet or Teams is in a call, without a bot. Downloads arrive on /download with the first published release, unsigned at first",
-        "Una app de Electron para Mac y Windows (código en desktop/): dictado manteniendo un atajo en cualquier app con un overlay chico, y notas de reuniones con micrófono y audio del sistema, que se ofrecen cuando empieza un evento del calendario o Zoom, Meet o Teams están en llamada, sin bot. La descarga aparece en /download con la primera versión publicada, al principio sin firmar",
-        "Um app Electron para Mac e Windows (código em desktop/): ditado segurando um atalho em qualquer app com um overlay pequeno, e notas de reuniões com microfone e áudio do sistema, oferecidas quando começa um evento do calendário ou o Zoom, o Meet ou o Teams estão em chamada, sem bot. O download aparece em /download com a primeira versão publicada, no começo sem assinatura",
+        "A native app for Mac and Windows built with Tauri (source in desktop/): the system webview instead of a bundled Chromium, dictation in any app done in Rust (global shortcut, microphone, HUD, paste), a guided first run for the microphone and Accessibility, settings with language, cleanup, dictionary and history (the same ones as Voice on the web), menu bar menu, native notifications and signed updates. Not signed by Apple yet. Meeting notes with system audio are not in this version",
+        "Una app nativa para Mac y Windows hecha con Tauri (código en desktop/): el webview del sistema en vez de un Chromium propio, dictado en cualquier app hecho en Rust (atajo global, micrófono, HUD, pegado), primeros pasos guiados para el micrófono y Accesibilidad, ajustes con idioma, limpieza, diccionario e historial (los mismos que Voice en la web), menú en la barra, avisos nativos y actualizaciones firmadas. Todavía sin firma de Apple. Las notas de reuniones con audio del sistema no están en esta versión",
+        "Um app nativo para Mac e Windows feito com Tauri (código em desktop/): o webview do sistema em vez de um Chromium próprio, ditado em qualquer app feito em Rust (atalho global, microfone, HUD, colagem), primeiros passos guiados para o microfone e a Acessibilidade, ajustes com idioma, limpeza, dicionário e histórico (os mesmos do Voice na web), menu na barra, avisos nativos e atualizações assinadas. Ainda sem assinatura da Apple. As notas de reuniões com áudio do sistema não estão nesta versão",
+      ],
+    }),
+    row('offline-retry', 'apps', ['Keep dictations without a connection', 'Guardar dictados sin conexión', 'Guardar ditados sem conexão'], 'partial', {
+      detail: [
+        "In the desktop app, a dictation that cannot reach the server stays on the computer and is sent again from the menu bar or the history. Transcription still needs the server: there is no on-device model",
+        "En la app de escritorio, un dictado que no llega al servidor queda en la compu y se manda de nuevo desde la barra de menú o el historial. La transcripción sigue necesitando el servidor: no hay modelo en el dispositivo",
+        "No app desktop, um ditado que não chega ao servidor fica no computador e é enviado de novo pela barra de menus ou pelo histórico. A transcrição ainda precisa do servidor: não há modelo no dispositivo",
       ],
     }),
     row('mobile-apps', 'apps', ['iOS and Android', 'iOS y Android', 'iOS e Android'], 'missing', {
@@ -186,9 +193,9 @@ const parity: ProductParity = {
     row('botless-capture', 'capture', ['Record meetings without a bot', 'Grabar reuniones sin bot', 'Gravar reuniões sem bot'], 'partial', {
       weight: 2,
       detail: [
-        "No bot: the browser records your mic, or your mic plus a tab with Meet, Zoom or Teams on the web. The desktop app adds the system audio of native call apps; its download shows up on /download with the first published release",
-        "Sin bot: el navegador graba tu micrófono, o el micrófono y una pestaña con Meet, Zoom o Teams web. La app de escritorio suma el audio del sistema de las apps de llamadas nativas; se descarga en /download cuando salga la primera versión publicada",
-        "Sem bot: o navegador grava seu microfone, ou o microfone e uma aba com Meet, Zoom ou Teams web. O app desktop adiciona o áudio do sistema dos apps de chamada nativos; o download aparece em /download com a primeira versão publicada",
+        "No bot: the browser records your mic, or your mic plus a tab with Meet, Zoom or Teams on the web. System audio of native call apps is not available: the current desktop app does not record it",
+        "Sin bot: el navegador graba tu micrófono, o el micrófono y una pestaña con Meet, Zoom o Teams web. El audio del sistema de las apps de llamadas nativas no está disponible: la app de escritorio actual no lo graba",
+        "Sem bot: o navegador grava seu microfone, ou o microfone e uma aba com Meet, Zoom ou Teams web. O áudio do sistema dos apps de chamada nativos não está disponível: o app desktop atual não grava",
       ],
     }),
     row('live-transcript', 'capture', ['Live transcript', 'Transcripción en vivo', 'Transcrição ao vivo'], 'have', {

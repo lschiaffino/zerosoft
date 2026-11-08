@@ -28,7 +28,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Slack',
-  lastReviewed: '2026-10-31',
+  lastReviewed: '2026-11-08',
   areas: [
     { id: 'channels', label: loc(['Channels', 'Canales', 'Canais']) },
     { id: 'dms', label: loc(['Direct messages', 'Mensajes directos', 'Mensagens diretas']) },
@@ -458,9 +458,9 @@ const BUILT: Record<string, Built> = {
   'desktop-app': {
     status: 'partial',
     detail: [
-      'One app for Mac and Windows with the whole platform (desktop/, Electron): dock or taskbar badge with unread mentions and DMs, native notifications that open the message, sign-in through the browser. Downloads arrive on /download with the first published release, unsigned at first; no Linux build',
-      'Una app para Mac y Windows con toda la plataforma (desktop/, Electron): contador en el dock o la barra de tareas con menciones y DMs sin leer, avisos nativos que abren el mensaje, login por el navegador. La descarga aparece en /download con la primera versión publicada, al principio sin firmar; sin versión para Linux',
-      'Um app para Mac e Windows com toda a plataforma (desktop/, Electron): contador no dock ou na barra de tarefas com menções e DMs não lidas, avisos nativos que abrem a mensagem, login pelo navegador. O download aparece em /download com a primeira versão publicada, no começo sem assinatura; sem versão para Linux',
+      'A native app for Mac and Windows with the whole platform (desktop/, Tauri): dock badge with unread mentions and DMs, native notifications (clicking one brings the app to the front, not to the message yet), sign-in with Google through the browser. Not signed by Apple yet; no Linux build',
+      'Una app nativa para Mac y Windows con toda la plataforma (desktop/, Tauri): contador en el dock con menciones y DMs sin leer, avisos nativos (tocar uno trae la app adelante, todavía no abre el mensaje), login con Google por el navegador. Todavía sin firma de Apple; sin versión para Linux',
+      'Um app nativo para Mac e Windows com toda a plataforma (desktop/, Tauri): contador no dock com menções e DMs não lidas, avisos nativos (clicar em um traz o app para a frente, ainda não abre a mensagem), login com Google pelo navegador. Ainda sem assinatura da Apple; sem versão para Linux',
     ],
   },
 };

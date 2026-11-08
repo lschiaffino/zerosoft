@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-voice-get"
+description = "Enables the voice_get command without any pre-configured scope."
+commands.allow = ["voice_get"]
+
+[[permission]]
+identifier = "deny-voice-get"
+description = "Denies the voice_get command without any pre-configured scope."
+commands.deny = ["voice_get"]

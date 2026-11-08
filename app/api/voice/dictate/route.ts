@@ -9,7 +9,7 @@ export const maxDuration = 60;
 
 /**
  * Dictado: multipart con audio, context (email|chat|note|other), sourceApp
- * y durationMs. Transcribe, limpia con IA (o por reglas si no hay IA) y lo
+ * durationMs y capture (mic | desktop, la app de escritorio). Transcribe, limpia con IA (o por reglas si no hay IA) y lo
  * guarda en el historial. Devuelve { text, raw, ai, aiError, session }.
  */
 export async function POST(req: NextRequest) {
@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
       context: String(fields.get('context') ?? 'other'),
       sourceApp: String(fields.get('sourceApp') ?? '').slice(0, 200),
       durationMs: Number(fields.get('durationMs')) || 0,
+      capture: fields.get('capture') === 'desktop' ? 'desktop' : 'mic',
       fakeText: await fakeTextFromRequest(),
     });
     return NextResponse.json(res, { status: 201 });

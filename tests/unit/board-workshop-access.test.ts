@@ -281,6 +281,21 @@ describe('board-workshop: votación con puntos', () => {
     await startVoting(ws.owner.id, board.id, ws.a.id, 3);
     expect((await getVoting(board.id, ws.b.id))?.mine).toEqual({});
   });
+
+  it('un invitado del link de edición vota sin cuenta y su voto cuenta en los resultados', async () => {
+    const ws = await workspace('wg');
+    const board = await createBoard(ws.owner.id, ws.a.id, 'Votos con invitado');
+    await startVoting(ws.owner.id, board.id, ws.a.id, 2);
+    const guest = 'guest:abc123:guest-k1';
+    expect(await castVote(board.id, guest, 's1', 1)).toBe('ok');
+    expect(await castVote(board.id, guest, 's1', 1)).toBe('ok');
+    expect(await castVote(board.id, guest, 's2', 1)).toBe('limit');
+    expect(await castVote(board.id, ws.a.id, 's1', 1)).toBe('ok');
+    expect((await getVoting(board.id, guest))?.mine).toEqual({ s1: 2 });
+    expect((await getVoting(board.id, ws.a.id))?.voters).toBe(2);
+    await closeVoting(board.id);
+    expect((await getVoting(board.id, ws.a.id))?.results).toEqual([{ element_id: 's1', count: 3 }]);
+  });
 });
 
 describe('board-track: stickies → issues', () => {

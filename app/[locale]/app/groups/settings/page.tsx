@@ -63,7 +63,7 @@ const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
   notifications: 'apps',
 };
 
-export default async function GroupsSettingsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ tab?: string; new?: string }> }) {
+export default async function GroupsSettingsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ tab?: string; new?: string; reconnect?: string }> }) {
   const { locale } = await props.params;
   const sp = await props.searchParams;
   const user = await requireUser(locale);
@@ -87,6 +87,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
         providers={availableProviders()}
         canEdit={admin}
         openNew={sp.new === '1'}
+        reconnect={sp.reconnect ?? null}
         people={people}
         teams={teams}
         lineAccess={platform.lineAccess}

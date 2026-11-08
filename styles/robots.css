@@ -321,7 +321,7 @@
   transition: background-color var(--ui-dur) var(--ease);
 }
 .robots-run-item:hover { background: var(--brand-enamel); }
-.robots-run-item[aria-current='true'] { background: var(--ui-hover); }
+.robots-run-item[aria-current='true'] { background: var(--ui-selected); }
 .robots-run-item:focus-visible { outline-offset: -2px; }
 .robots-run-item.is-pending { cursor: default; }
 .robots-run-when { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

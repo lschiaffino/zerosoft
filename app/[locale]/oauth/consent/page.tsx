@@ -5,6 +5,7 @@ import ConsentForm from '@/components/oauth/ConsentForm';
 import { getClient, isLoopbackHost, openAuthRequest } from '@/lib/oauth/store';
 import { requireUser } from '@/lib/session';
 import { listMyWorkspaces } from '@/lib/workspace';
+import { consentTeamId } from '@/lib/oauth/consent';
 import '@/styles/oauth.css';
 
 export const dynamic = 'force-dynamic';
@@ -49,7 +50,7 @@ export default async function OAuthConsentPage(props: { params: Promise<{ locale
           askedScope={pending.scope}
           personEmail={real.email}
           workspaces={workspaces.map((w) => ({ teamId: w.teamId, name: w.name, own: w.own }))}
-          activeTeamId={real.active_team_id ?? null}
+          activeTeamId={await consentTeamId(real, real.active_team_id)}
         />
       </div>
     </main>

@@ -56,7 +56,7 @@ const parity: ProductParity = {
         'Até 50 linhas com nome, cor e filtro por linha; o mesmo grupo ou contato em duas linhas aparece uma vez com um só fio e "Responder de" escolhe a linha. Testado com o gateway simulado, falta com dois telefones reais; o seletor do composer é colocado pela caixa',
       ],
     }),
-    row('line-health', 'numbers', ['Line status and health', 'Estado y salud de cada línea', 'Status e saúde de cada linha'], 'partial', {
+    row('line-status', 'numbers', ['Line status and health', 'Estado y salud de cada línea', 'Status e saúde de cada linha'], 'partial', {
       detail: [
         'Lines table with status and since when, last message, open chats and import progress, and a notice to admins when a line drops. Phone battery is not shown: Evolution does not expose it',
         'Tabla de líneas con estado y desde cuándo, último mensaje, chats abiertos y avance de la importación, y aviso a los admins cuando una línea se cae. La batería del teléfono no se muestra: Evolution no la expone',
@@ -111,6 +111,13 @@ const parity: ProductParity = {
     row('whatsapp-look', 'inbox', ['Looks and works like WhatsApp Web (bubbles, ticks, media, voice notes, drag and drop)', 'Se ve y se usa como WhatsApp Web (burbujas, tildes, media, notas de voz, arrastrar y soltar)', 'Parece e funciona como o WhatsApp Web (balões, tiques, mídia, mensagens de voz, arrastar e soltar)'], 'partial', {
       detail: ['No link previews or message search inside a chat yet', 'Todavía sin vista previa de links ni búsqueda dentro de un chat', 'Ainda sem prévia de links nem busca dentro de uma conversa'],
     }),
+    row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list', 'Archivar chats con la sección Archivados y eliminar un chat de la lista', 'Arquivar conversas com a seção Arquivadas e apagar uma conversa da lista'], 'have'),
+    row('presence', 'inbox', ['Typing, recording and online indicators', 'Indicadores de escribiendo, grabando y en línea', 'Indicadores de digitando, gravando e online'], 'have', {
+      detail: ['QR lines (Evolution); 1:1 chats that WhatsApp identifies only by a hidden id do not show it', 'Líneas por QR (Evolution); los 1 a 1 que WhatsApp identifica solo con un id oculto no lo muestran', 'Linhas por QR (Evolution); conversas 1 a 1 que o WhatsApp identifica só por um id oculto não mostram'],
+    }),
+    row('read-receipts', 'inbox', ['Mark chats as read on WhatsApp when the team reads them (optional)', 'Marcar leído en WhatsApp cuando el equipo lee (opcional)', 'Marcar como lida no WhatsApp quando a equipe lê (opcional)'], 'have'),
+    row('send-contact', 'inbox', ['Send contact cards', 'Mandar tarjetas de contacto', 'Enviar cartões de contato'], 'have'),
+    row('line-health', 'numbers', ['Warning when a line disconnects, with QR re-scan', 'Aviso cuando una línea se desconecta, con QR de nuevo', 'Aviso quando uma linha desconecta, com QR de novo'], 'have'),
     row('quick-replies', 'inbox', ['Quick replies with /shortcut', 'Respuestas rápidas con /atajo', 'Respostas rápidas com /atalho'], 'have'),
     row('filters', 'inbox', ['Filters: unread, unanswered, mine, label', 'Filtros: sin leer, sin responder, míos, etiqueta', 'Filtros: não lidas, sem resposta, minhas, etiqueta'], 'have'),
     row('message-search', 'inbox', ['Search chats and message text', 'Buscar chats y texto de mensajes', 'Buscar chats e texto das mensagens'], 'have'),
