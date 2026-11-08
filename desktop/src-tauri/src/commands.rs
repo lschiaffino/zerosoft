@@ -1,0 +1,417 @@
+//! Comandos de la ventana de Ajustes (archivo local) y del puente de la página remota.
+//! Cada comando revisa quién lo llama además de los permisos de capabilities/: Ajustes solo desde
+//! la ventana "settings"; el puente solo desde la ventana "main" con el origen del servidor.
+
+use serde::Serialize;
+use serde_json::{json, Value};
+use std::sync::atomic::Ordering;
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri_plugin_autostart::ManagerExt;
+use tauri_plugin_notification::NotificationExt;
+use tauri_plugin_opener::OpenerExt;
+
+use crate::api;
+use crate::config::{self, SHORTCUTS};
+use crate::dictation::{self, shortcut_label};
+use crate::platform::{self, PermissionStatus};
+use crate::retry::PendingMeta;
+use crate::state::{now_ms, AppState};
+use crate::strings;
+
+type CmdResult<T> = Result<T, String>;
+
+fn from_settings(w: &WebviewWindow) -> CmdResult<()> {
+    if w.label() == "settings" {
+        Ok(())
+    } else {
+        Err("forbidden".into())
+    }
+}
+
+fn from_app(app: &AppHandle, w: &WebviewWindow) -> CmdResult<()> {
+    let server = api::server(app);
+    let ok = w.label() == "main" && w.url().map(|u| crate::nav::classify(&u, &server) == crate::nav::Nav::Allow).unwrap_or(false);
+    if ok {
+        Ok(())
+    } else {
+        Err("forbidden".into())
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Account {
+    signed_in: bool,
+    email: String,
+    name: String,
+    offline: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shortcut {
+    id: String,
+    label: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SettingsView {
+    locale: &'static str,
+    platform: &'static str,
+    version: String,
+    server: String,
+    mode: String,
+    shortcut: String,
+    shortcuts: Vec<Shortcut>,
+    shortcut_taken: bool,
+    paste_last_shortcut: String,
+    restore_clipboard: bool,
+    open_at_login: bool,
+    onboarded: bool,
+    permissions: Value,
+    account: Account,
+    pending: Vec<PendingMeta>,
+    last_latency_ms: Option<u64>,
+    updates: &'static str,
+    strings: serde_json::Map<String, Value>,
+}
+
+async fn account(app: &AppHandle) -> Account {
+    // La misma ruta que el contador del dock (getCurrentUser): 401 = sin sesión.
+    let res = api::get(app, "/api/desktop/badge").await;
+    match res.status {
+        None => Account { signed_in: false, email: String::new(), name: String::new(), offline: true },
+        Some(200) => {
+            let email = res.body.as_ref().and_then(|b| b.pointer("/user/email")).and_then(Value::as_str).unwrap_or("").to_string();
+            let name = res.body.as_ref().and_then(|b| b.pointer("/user/name")).and_then(Value::as_str).unwrap_or("").to_string();
+            Account { signed_in: !email.is_empty(), email, name, offline: false }
+        }
+        Some(_) => Account { signed_in: false, email: String::new(), name: String::new(), offline: false },
+    }
+}
+
+async fn view(app: &AppHandle) -> SettingsView {
+    let account = account(app).await;
+    let st = app.state::<AppState>();
+    let s = st.settings.lock().unwrap().clone();
+    let mut list: Vec<String> = SHORTCUTS.iter().map(|x| x.to_string()).collect();
+    if !list.contains(&s.shortcut) {
+        list.push(s.shortcut.clone());
+    }
+    let mac = cfg!(target_os = "macos");
+    let last_latency_ms = *st.last_latency_ms.lock().unwrap();
+    SettingsView {
+        locale: st.locale,
+        platform: if mac { "darwin" } else { "win32" },
+        version: app.package_info().version.to_string(),
+        server: s.server.clone(),
+        mode: s.mode.clone(),
+        shortcut: s.shortcut.clone(),
+        shortcuts: list.into_iter().map(|id| Shortcut { label: shortcut_label(&id), id }).collect(),
+        shortcut_taken: st.shortcut_taken.load(Ordering::Relaxed),
+        paste_last_shortcut: shortcut_label(config::paste_last_shortcut(if mac { "macos" } else { "windows" })),
+        restore_clipboard: s.restore_clipboard,
+        open_at_login: app.autolaunch().is_enabled().unwrap_or(false),
+        onboarded: s.onboarded,
+        permissions: json!({ "microphone": platform::microphone_status(), "accessibility": platform::accessibility_status() }),
+        account,
+        pending: st.pending.list(now_ms()),
+        last_latency_ms,
+        updates: if cfg!(debug_assertions) { "dev" } else if crate::updater::enabled(app) { "auto" } else { "off" },
+        strings: strings::table(st.locale),
+    }
+}
+
+pub fn refresh_settings(app: &AppHandle) {
+    let _ = app.emit_to("settings", "settings://refresh", ());
+}
+
+pub fn open_settings_window(app: &AppHandle, tab: Option<&str>) {
+    if let Some(w) = app.get_webview_window("settings") {
+        if let Some(t) = tab {
+            let _ = app.emit_to("settings", "settings://tab", t);
+        }
+        let _ = w.show();
+        let _ = w.set_focus();
+        return;
+    }
+    let path = match tab {
+        Some(t) => format!("settings.html#{t}"),
+        None => "settings.html".into(),
+    };
+    let title = strings::t(app.state::<AppState>().locale, "settingsTitle");
+    let _ = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App(path.into()))
+        .title(title)
+        .inner_size(720.0, 640.0)
+        .min_inner_size(380.0, 480.0)
+        .center()
+        .build();
+}
+
+// ---------- Ajustes ----------
+
+#[tauri::command]
+pub async fn settings_get(app: AppHandle, window: WebviewWindow) -> CmdResult<SettingsView> {
+    from_settings(&window)?;
+    Ok(view(&app).await)
+}
+
+#[tauri::command]
+pub async fn settings_save(app: AppHandle, window: WebviewWindow, input: Value) -> CmdResult<Value> {
+    from_settings(&window)?;
+    let st = app.state::<AppState>();
+    let prev = st.settings.lock().unwrap().clone();
+    let mut next = config::merge_input(&prev, &input);
+    if let Some(raw) = input.get("server").and_then(Value::as_str) {
+        match config::normalize_server(raw) {
+            Some(s) => next.server = s,
+            None => return Ok(json!({ "ok": false, "error": "server" })),
+        }
+    }
+    if let Some(b) = input.get("openAtLogin").and_then(Value::as_bool) {
+        let al = app.autolaunch();
+        let _ = if b { al.enable() } else { al.disable() };
+    }
+    *st.settings.lock().unwrap() = next.clone();
+    if config::save(&st.config_dir, &next).is_err() {
+        return Ok(json!({ "ok": false }));
+    }
+    if next.shortcut != prev.shortcut {
+        dictation::register_shortcuts(&app, Some(&prev.shortcut));
+    }
+    if next.server != prev.server {
+        crate::allow_server(&app);
+        crate::load_app_path(&app, "/app");
+    }
+    crate::tray::rebuild(&app);
+    Ok(json!({ "ok": true, "view": view(&app).await }))
+}
+
+#[tauri::command]
+pub async fn permission_ask(app: AppHandle, window: WebviewWindow, kind: String) -> CmdResult<SettingsView> {
+    from_settings(&window)?;
+    match kind.as_str() {
+        "microphone" => {
+            if platform::microphone_status() == PermissionStatus::NotDetermined {
+                // Abrir el micrófono un momento dispara el aviso del sistema.
+                let _ = tauri::async_runtime::spawn_blocking(|| crate::audio::start().map(|c| c.finish())).await;
+            } else {
+                let _ = app.opener().open_url(platform::PANE_MIC, None::<&str>);
+            }
+        }
+        "accessibility" => {
+            if !platform::prompt_accessibility() {
+                let _ = app.opener().open_url(platform::PANE_ACCESSIBILITY, None::<&str>);
+            }
+        }
+        _ => return Err("kind".into()),
+    }
+    Ok(view(&app).await)
+}
+
+fn remote(res: &api::ApiResponse) -> Option<Value> {
+    if res.status.is_some_and(|s| (200..300).contains(&s)) {
+        res.body.clone()
+    } else {
+        None
+    }
+}
+
+fn remote_err(res: &api::ApiResponse) -> Value {
+    json!({ "ok": false, "error": api::remote_error(res.status) })
+}
+
+fn pick_voice(b: &Value) -> Option<Value> {
+    let s = b.get("settings")?;
+    s.get("styles")?;
+    Some(json!({ "ok": true, "settings": {
+        "language": s.get("language").cloned().unwrap_or(json!("auto")),
+        "cleanupMode": s.get("cleanupMode").cloned().unwrap_or(json!("per_app")),
+        "aiCleanup": s.get("aiCleanup").cloned().unwrap_or(json!(true)),
+        "styles": s.get("styles").cloned().unwrap_or(json!({})),
+    }}))
+}
+
+#[tauri::command]
+pub async fn voice_get(app: AppHandle, window: WebviewWindow) -> CmdResult<Value> {
+    from_settings(&window)?;
+    let res = api::get(&app, "/api/voice/settings").await;
+    Ok(remote(&res).and_then(|b| pick_voice(&b)).unwrap_or_else(|| remote_err(&res)))
+}
+
+#[tauri::command]
+pub async fn voice_save(app: AppHandle, window: WebviewWindow, patch: Value) -> CmdResult<Value> {
+    from_settings(&window)?;
+    // El servidor valida cada campo: acá solo se filtra la forma.
+    let mut body = serde_json::Map::new();
+    for k in ["language", "cleanupMode", "aiCleanup", "styles"] {
+        if let Some(v) = patch.get(k) {
+            body.insert(k.into(), v.clone());
+        }
+    }
+    let res = api::send_json(&app, reqwest::Method::PATCH, "/api/voice/settings", &Value::Object(body)).await;
+    Ok(remote(&res).and_then(|b| pick_voice(&b)).unwrap_or_else(|| remote_err(&res)))
+}
+
+#[tauri::command]
+pub async fn dictionary_list(app: AppHandle, window: WebviewWindow) -> CmdResult<Value> {
+    from_settings(&window)?;
+    let res = api::get(&app, "/api/voice/dictionary").await;
+    Ok(match remote(&res).and_then(|b| b.get("entries").cloned()) {
+        Some(Value::Array(entries)) => json!({ "ok": true, "entries": entries }),
+        _ => remote_err(&res),
+    })
+}
+
+#[tauri::command]
+pub async fn dictionary_add(app: AppHandle, window: WebviewWindow, input: Value) -> CmdResult<Value> {
+    from_settings(&window)?;
+    let kind = if input.get("kind").and_then(Value::as_str) == Some("replace") { "replace" } else { "word" };
+    let phrase: String = input.get("phrase").and_then(Value::as_str).unwrap_or("").trim().chars().take(100).collect();
+    let mut body = json!({ "kind": kind, "phrase": phrase });
+    if kind == "replace" {
+        body["replacement"] = json!(input.get("replacement").and_then(Value::as_str).unwrap_or("").chars().take(2000).collect::<String>());
+    }
+    let res = api::send_json(&app, reqwest::Method::POST, "/api/voice/dictionary", &body).await;
+    Ok(match remote(&res).and_then(|b| b.get("id").and_then(Value::as_str).map(String::from)) {
+        Some(id) => json!({ "ok": true, "id": id }),
+        None => remote_err(&res),
+    })
+}
+
+#[tauri::command]
+pub async fn dictionary_delete(app: AppHandle, window: WebviewWindow, id: String) -> CmdResult<Value> {
+    from_settings(&window)?;
+    if id.is_empty() || id.len() > 64 || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+        return Err("id".into());
+    }
+    let res = api::delete(&app, &format!("/api/voice/dictionary/{id}")).await;
+    Ok(if remote(&res).is_some() { json!({ "ok": true, "deleted": true }) } else { remote_err(&res) })
+}
+
+#[tauri::command]
+pub async fn history_list(app: AppHandle, window: WebviewWindow) -> CmdResult<Value> {
+    from_settings(&window)?;
+    let res = api::get(&app, "/api/voice/sessions?kind=dictation&limit=50").await;
+    Ok(match remote(&res).and_then(|b| b.get("sessions").cloned()) {
+        Some(Value::Array(items)) => json!({ "ok": true, "items": items }),
+        _ => remote_err(&res),
+    })
+}
+
+#[tauri::command]
+pub fn history_copy(window: WebviewWindow, text: String) -> CmdResult<bool> {
+    from_settings(&window)?;
+    let text: String = text.chars().take(20_000).collect();
+    Ok(arboard::Clipboard::new().and_then(|mut c| c.set_text(text)).is_ok())
+}
+
+#[tauri::command]
+pub async fn history_paste(app: AppHandle, window: WebviewWindow, text: String) -> CmdResult<&'static str> {
+    from_settings(&window)?;
+    // Se esconde zerosoft para que el foco vuelva a la app anterior y ahí se pega.
+    let _ = window.hide();
+    #[cfg(target_os = "macos")]
+    let _ = app.hide();
+    tokio::time::sleep(std::time::Duration::from_millis(350)).await;
+    let text: String = text.chars().take(20_000).collect();
+    Ok(match dictation::insert_text(&app, &text).await {
+        crate::clipboard::How::Pasted => "pasted",
+        crate::clipboard::How::Copied => "copied",
+    })
+}
+
+#[tauri::command]
+pub async fn pending_retry(app: AppHandle, window: WebviewWindow, id: String) -> CmdResult<Value> {
+    from_settings(&window)?;
+    let r = dictation::retry_pending(&app, &id).await;
+    let v = view(&app).await;
+    Ok(match r {
+        Ok(text) => json!({ "ok": true, "text": text, "view": v }),
+        Err(f) => json!({ "ok": false, "failure": f, "view": v }),
+    })
+}
+
+#[tauri::command]
+pub async fn pending_discard(app: AppHandle, window: WebviewWindow, id: String) -> CmdResult<SettingsView> {
+    from_settings(&window)?;
+    app.state::<AppState>().pending.remove(&id);
+    crate::tray::rebuild(&app);
+    Ok(view(&app).await)
+}
+
+#[tauri::command]
+pub fn account_sign_in(app: AppHandle, window: WebviewWindow) -> CmdResult<()> {
+    from_settings(&window)?;
+    crate::auth::begin_login(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn account_sign_out(app: AppHandle, window: WebviewWindow) -> CmdResult<SettingsView> {
+    from_settings(&window)?;
+    crate::auth::sign_out(&app).await;
+    crate::load_app_path(&app, "/app");
+    Ok(view(&app).await)
+}
+
+#[tauri::command]
+pub fn open_voice(app: AppHandle, window: WebviewWindow, which: String) -> CmdResult<()> {
+    from_settings(&window)?;
+    match which.as_str() {
+        "download" => {
+            let _ = app.opener().open_url(format!("{}/download", api::server(&app)), None::<&str>);
+        }
+        "settings" => crate::load_app_path(&app, "/app/voice/settings"),
+        _ => crate::load_app_path(&app, "/app/voice/dictation"),
+    }
+    crate::show_main(&app);
+    Ok(())
+}
+
+// ---------- Puente de la página (window.zerosoftDesktop) ----------
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopInfo {
+    version: String,
+    platform: &'static str,
+    system_audio: bool,
+    dictation: bool,
+}
+
+#[tauri::command]
+pub fn desktop_info(app: AppHandle, window: WebviewWindow) -> CmdResult<DesktopInfo> {
+    from_app(&app, &window)?;
+    Ok(DesktopInfo {
+        version: app.package_info().version.to_string(),
+        platform: if cfg!(target_os = "macos") { "darwin" } else { "win32" },
+        system_audio: false,
+        dictation: !app.state::<AppState>().shortcut_taken.load(Ordering::Relaxed),
+    })
+}
+
+#[tauri::command]
+pub fn desktop_start_login(app: AppHandle, window: WebviewWindow) -> CmdResult<()> {
+    from_app(&app, &window)?;
+    crate::auth::begin_login(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn desktop_open_settings(app: AppHandle, window: WebviewWindow) -> CmdResult<()> {
+    from_app(&app, &window)?;
+    open_settings_window(&app, None);
+    Ok(())
+}
+
+/// Aviso nativo pedido por la página (shim de window.Notification). Solo con la ventana sin foco.
+#[tauri::command]
+pub fn desktop_notify(app: AppHandle, window: WebviewWindow, title: String, body: Option<String>) -> CmdResult<bool> {
+    from_app(&app, &window)?;
+    let title: String = title.chars().take(200).collect();
+    let body: String = body.unwrap_or_default().chars().take(500).collect();
+    Ok(app.notification().builder().title(title).body(body).show().is_ok())
+}
+

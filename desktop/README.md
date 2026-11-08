@@ -1,112 +1,119 @@
-# zerosoft para escritorio (Electron)
+# zerosoft para escritorio (Tauri 2)
 
-Una sola app para toda la plataforma, como Slack o Notion: carga `https://zerosoft.ai/app` (o tu
-servidor, si usás zerosoft self-hosted) y suma lo que una pestaña del navegador no puede.
+Una app nativa para Mac y Windows: carga `https://zerosoft.ai/app` (o tu servidor) con el webview del
+sistema (WKWebView en Mac, WebView2 en Windows) y hace en Rust lo que una pestaña no puede. No trae un
+Chromium propio.
 
-- **Ventana y bandeja:** recuerda tamaño y posición; cerrar la esconde (sigue en la barra de menú de
-  Mac o en la bandeja de Windows con el dictado y los avisos); Salir la cierra.
-- **Contador y avisos:** el ícono del dock (Mac) o un punto en la barra de tareas (Windows) muestra
-  menciones y DMs sin leer de Talk más los avisos sin leer de la campana. Con la ventana sin foco,
-  cada aviso nuevo sale como notificación del sistema y el clic abre su página
-  (`GET /api/desktop/badge`, cada 30 s).
-- **Login con Google en el navegador del sistema** (Google no deja entrar desde una webview):
-  PKCE + código de un solo uso que vuelve por `zerosoft://auth/callback` y se canjea en
-  `POST /api/desktop/token` (ver `lib/desktop-auth.ts`). La cookie de sesión queda en el cookie store
-  de la ventana y una copia cifrada con `safeStorage` (Keychain / DPAPI) en `session.bin`.
-- **Deep links** `zerosoft://open?path=/app/talk`, `zerosoft://notes` (validados campo por campo).
-- **Abrir al iniciar sesión** (Ajustes) y **actualizaciones automáticas** (electron-updater contra
-  `https://zerosoft.ai/api/desktop/update`, que sirve el `latest*.yml` del último release
-  `desktop-v*` de GitHub).
-- **Dictado en cualquier app (Wispr Flow):** mantener **Control + Option** en Mac o
-  **Ctrl + Windows** en Windows (configurable: Option derecho, Control + Command, etc.) graba el
-  micrófono con un overlay chico abajo al centro; al soltar, el audio va a `POST /api/voice/dictate`
-  con la sesión, vuelve limpio (diccionario y estilo de Voice, contexto según la app de adelante) y
-  se pega en la app que tiene el foco (portapapeles + Cmd/Ctrl+V simulado, y después se devuelve lo
-  que había en el portapapeles). **Control + Option + Espacio** alterna sin mantener. Fn no está
-  disponible: el hook de teclado (uiohook) no la expone.
-- **Notas de reuniones (Granola), sin bot:** avisa cuando empieza un evento del calendario
-  (`/api/voice/events`) o cuando Zoom, Meet o Teams están en llamada (proceso `CptHost` de Zoom y
-  títulos de ventanas). "Tomar notas" abre Voice, crea la reunión y el grabador de la web empieza con
-  **micrófono + audio del sistema**: `getDisplayMedia` con loopback (WASAPI en Windows,
-  ScreenCaptureKit en Mac 13+), sin selector. Las notas quedan en Voice igual que una grabación web.
+Medido en una Mac mini con Apple silicon (build 0.2.0 del workflow, firma ad hoc):
 
-## Seguridad
+| | Tauri 0.2.0 | Electron 0.1.2 |
+|---|---|---|
+| .dmg (Apple silicon) | 3,4 MB | 131 MB |
+| .app instalada | 6,7 MB | 311 MB |
+| Instalador de Windows | 2,6 MB | |
+| Ventana creada, primer arranque | 1,4 s (2,1 s desde el exec, con la verificación de macOS) | |
+| Ventana creada, arranques siguientes | 0,29 s (0,6 s desde el exec) | |
+| Memoria en reposo (huella, todos los procesos) | 110 a 116 MB, de los que la app son 24 a 28 MB y el resto los procesos de WebKit (página, Ajustes y HUD) | |
 
-- Todas las ventanas: `contextIsolation`, `sandbox`, sin `nodeIntegration`, sin `<webview>`.
-- El preload de la app (`src/preload/app.ts`) expone `window.zerosoftDesktop` (versión, plataforma,
-  `startLogin`, `openSettings`) solo si la página es del servidor configurado; main valida el origen
-  del frame en cada IPC.
-- Navegación estricta (`src/shared/nav.ts`): adentro solo el origen exacto del servidor; Google login
-  va al navegador del sistema; el resto de http(s), mailto y tel, al navegador; cualquier otro
-  esquema se bloquea. Permisos (micrófono, captura, avisos, portapapeles) solo para ese origen.
-- Deep links validados (`src/shared/deeplink.ts`): forma y largo de código y state, paths solo de
-  `/app`.
+La medición de memoria de Electron no salió comparable (no llegó a abrir el proceso de la página), por
+eso queda vacía. Cómo se midió: el .app copiado del .dmg, abierto desde la terminal; la app escribe en
+stderr `zs-timing main_window_created_ms` y `first_page_loaded_ms`, y la memoria es la suma de
+`footprint` del proceso y de los procesos de WebKit nuevos, 25 s después de abrir.
+
+## Qué hace
+
+- **Ventana y bandeja:** recuerda tamaño y posición (`tauri-plugin-window-state`); cerrar la esconde
+  (sigue en la barra de menú de Mac o en la bandeja de Windows con el dictado y los avisos); Salir la
+  cierra. Menú de la app con Ajustes (Cmd+,), edición, atrás y adelante.
+- **Sesión:** se entra con email dentro de la ventana, o con **Google en el navegador del sistema**
+  (Google no deja entrar desde un webview): PKCE + código de un solo uso que vuelve por
+  `zerosoft://auth/callback` y se canjea en `POST /api/desktop/token`; la cookie de sesión va al cookie
+  store del webview, que la guarda. La app no guarda una copia propia del token: para sus pedidos lee la
+  cookie del webview (`src/api.rs`, `src/auth.rs`).
+- **Deep links** `zerosoft://open?path=/app/talk` (validados campo por campo, `src/deeplink.rs`).
+- **Puente con la página** (`window.zerosoftDesktop`): versión, plataforma, `startLogin`, `openSettings` y
+  `notify`, más un `window.Notification` que manda avisos nativos. Solo existe con el origen del
+  servidor; la página solo puede llamar a esos cuatro comandos (capabilities) y cada comando revisa la
+  ventana y el origen.
+- **Contador y avisos:** el ícono del dock muestra menciones, DMs y avisos sin leer; con la ventana sin
+  foco, cada aviso nuevo sale como notificación del sistema (`GET /api/desktop/badge`, cada 30 s).
+- **Abrir al iniciar sesión** (`tauri-plugin-autostart`) y **actualizaciones** firmadas
+  (`tauri-plugin-updater` contra `https://zerosoft.ai/api/desktop/update/latest.json`).
+
+### Dictado en cualquier app, en Rust
+
+- **Atajo global** (`tauri-plugin-global-shortcut`: Carbon en Mac, RegisterHotKey en Windows) con
+  apretar y soltar, **sin pedir Accesibilidad**. Por defecto **Option + Espacio** en Mac y
+  **Ctrl + Alt + Espacio** en Windows. Modo "los dos": mantener para hablar, o un toque corto para manos
+  libres hasta el próximo toque; o solo uno de los dos. Esc cancela (se registra solo mientras graba).
+  Un atajo de solo modificadores (Control + Option, Fn) no se puede registrar así: necesitaría un hook
+  de teclado con Accesibilidad.
+- **Micrófono** con cpal, en su propio hilo; se pasa a WAV de 16 kHz mono (`src/audio.rs`).
+- **HUD** chico, sin foco y siempre encima, abajo al centro: nivel, reloj y pista (`ui/hud.*`).
+- **Transcripción** en `POST /api/voice/dictate` con la sesión (`capture=desktop`): idioma, modo de
+  limpieza, diccionario y estilos de Voice; contexto según la app de adelante (`lsappinfo`, sin permiso
+  de automatización).
+- **Pegado:** portapapeles + Cmd/Ctrl+V simulado (enigo) y 450 ms después se devuelve lo que había
+  (texto o imagen), salvo que la persona haya copiado otra cosa en el medio (`src/clipboard.rs`). Sin
+  Accesibilidad el texto queda copiado.
+- **Sin conexión:** si el dictado no llega (red, sesión, servidor), el audio queda en
+  `<datos>/pending/` (hasta 20, una semana) y se manda de nuevo desde la bandeja o el historial
+  (`src/retry.rs`).
+- **Pegar el último:** Control + Command + V (Mac) o Ctrl + Alt + Shift + V.
+- **Velocidad:** cada dictado anota cuánto tardó desde soltar el atajo hasta el texto (se ve en
+  Ajustes › Historial).
+
+### Ajustes (`ui/settings.*`)
+
+Primeros pasos (sesión, micrófono, Accesibilidad con links a Ajustes del Sistema y estado al día, y un
+cuadro para probar), General (modo, atajo, portapapeles, abrir al iniciar), Voice (idioma, limpieza,
+tono por app), Diccionario, Historial (copiar, pegar de nuevo, mandar de nuevo los guardados) y Cuenta.
+Voice, Diccionario e Historial se leen y guardan en el servidor: son los mismos que
+`/app/voice/settings` y `/app/voice/dictation`.
+
+### Lo que la versión de Electron hacía y esta todavía no
+
+- Notas de reuniones con el **audio del sistema** (getDisplayMedia con loopback) y el aviso cuando
+  Zoom, Meet o Teams están en llamada. Las reuniones se graban desde la web (micrófono o pestaña).
+- Tocar un aviso nativo no abre su página (el plugin de avisos de escritorio no tiene clic); abre la app.
+
+## Permisos en Mac
+
+- **Micrófono:** el dictado (diálogo del sistema la primera vez).
+- **Accesibilidad:** solo para simular el pegado. El atajo anda sin ella; sin ella el texto queda
+  copiado. Con firma ad hoc, macOS ata el permiso a la build exacta: **después de cada actualización
+  hay que volver a darlo** (con un certificado de Developer ID eso deja de pasar).
 
 ## Desarrollo
 
-Requisitos: Node 20+. Las dependencias viven en `desktop/package.json` (nunca en la raíz).
+Requisitos: Node 20+, Rust estable (`rustup`), y en Mac las Command Line Tools de Xcode.
 
 ```bash
 cd desktop
 npm install
-npm start                                  # build + electron . contra https://zerosoft.ai
-ZEROSOFT_SERVER=http://localhost:3000 npm start   # contra un next dev local
-npm run typecheck
-npm run pack                               # app sin firmar en release/mac-arm64/ (o win-unpacked)
-npm run dist:mac                           # .dmg y .zip para arm64 y x64
-npm run dist:win                           # instalador NSIS
+ZEROSOFT_SERVER=http://localhost:3000 npm run dev   # contra un next dev local (solo en debug)
+npm run typecheck                                   # páginas locales (TypeScript)
+npm test                                            # cargo test: atajo, portapapeles, reintentos, deep links, navegación, audio
+npm run build                                       # .app y .dmg (Mac) o instalador NSIS (Windows)
 ```
-
-Los tests de la lógica pura (deep links, navegación, atajo, reuniones) están en
-`tests/unit/desktop-app.test.ts` y el e2e con Playwright `_electron` en
-`tests/e2e/desktop-electron.spec.ts` (corre si `desktop/dist` está compilado).
-
-## Permisos en Mac
-
-La primera vez se abren los Ajustes de la app con el estado de cada permiso:
-
-- **Micrófono:** dictado y reuniones (diálogo del sistema).
-- **Accesibilidad:** escuchar el atajo en otras apps y simular el pegado. Sin ella sigue andando el
-  atajo de alternar y el texto queda copiado para pegar a mano.
-- **Grabación de pantalla y audio del sistema:** el audio de la llamada y los títulos de ventanas de
-  Meet y Teams. Sin ella se graba solo el micrófono.
 
 ## Publicar
 
 El workflow `.github/workflows/desktop.yml` corre con un tag `desktop-vX.Y.Z` (igual a la versión de
-`desktop/package.json`), arma Mac (arm64 + x64) y Windows (x64) y los sube a un release de GitHub con
-ese tag. La página `/download` toma los links del último release.
+`package.json`, `src-tauri/tauri.conf.json` y `src-tauri/Cargo.toml`): tests de Rust, luego Mac Apple
+silicon y Intel (`macos-15`) y Windows x64 con `tauri-action`, sin publicar. Un único job `publish`
+crea el release, sube los instaladores con nombres fijos (`zerosoft-X.Y.Z-mac-arm64.dmg`,
+`-mac-x64.dmg`, `-win-x64.exe`, que busca `/download`) y arma `latest.json` para el updater. Volver a
+correr el workflow completa el release en vez de duplicarlo.
 
-Sin secretos los instaladores salen **sin firmar**: en Mac la primera vez hay que ir a Ajustes del
-Sistema › Privacidad y seguridad › Abrir igualmente (macOS 15+; en 14 o anterior, clic derecho › Abrir)
-y las actualizaciones automáticas no se instalan (Squirrel exige firma); en Windows SmartScreen avisa.
-
-**Actualizaciones en Windows sin certificado:** electron-updater baja el instalador que indica
-`latest.yml` y solo verifica su **sha512** contra ese archivo (servido por zerosoft.ai desde el release
-de GitHub). Sin firma de código no hay verificación de publisher: la integridad depende de que nadie
-pueda cambiar el release ni el feed. Cuando exista el certificado, poner `win.publisherName` en
-`electron-builder.yml` (el CN del certificado) para que cada actualización verifique también la firma.
-
-**Endurecimiento del binario:** `electronFuses` en `electron-builder.yml` apaga `ELECTRON_RUN_AS_NODE`,
-`NODE_OPTIONS` y `--inspect`, obliga a cargar solo `app.asar` y verifica su integridad. La app
-empaquetada además ignora `ZEROSOFT_SERVER`, `ZEROSOFT_UPDATE_URL`, `ZEROSOFT_USER_DATA` y
-`ZEROSOFT_DESKTOP_TEST` (solo valen en desarrollo, `src/main/dev-env.ts`). Por eso los e2e con
-Playwright corren contra `electron .` (dist/), no contra la app empaquetada.
-
-**Grabar sola:** solo el aviso o el menú de la app arrancan la grabación de una reunión, con un nonce
-de un solo uso (`src/shared/nonce.ts`) que la página canjea por el puente. Un link con `autostart`
-(pegado en Talk, un mail o `zerosoft://open`) abre la reunión sin grabar.
-
-Secretos del repo para firmar:
+Secretos:
 
 | Secreto | Qué es |
 |---|---|
-| `CSC_LINK` | Certificado **Developer ID Application** exportado como .p12, en base64 |
-| `CSC_KEY_PASSWORD` | Contraseña del .p12 |
-| `APPLE_ID` | Apple ID de la cuenta de Apple Developer (USD 99/año) |
-| `APPLE_APP_SPECIFIC_PASSWORD` | Contraseña de app de ese Apple ID (appleid.apple.com) |
-| `APPLE_TEAM_ID` | Team ID de la cuenta de Apple Developer |
-| `WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD` | Opcional: certificado de firma de código para Windows (OV o EV) |
+| `TAURI_SIGNING_PRIVATE_KEY` | Clave privada del updater (la pública está en `tauri.conf.json`). Sin ella no hay actualizaciones automáticas. |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Opcional, si la clave tiene contraseña. |
 
-Del lado del servidor, opcionales: `DESKTOP_RELEASES_REPO` (otro repo de releases, p. ej. un fork) y
-`DESKTOP_RELEASES_TOKEN` (token de GitHub de solo lectura, para no depender del cupo anónimo de la API).
+Firma de código: en Mac, firma **ad hoc** hasta que exista la cuenta de Apple Developer (la primera vez
+hay que ir a Ajustes del Sistema › Privacidad y seguridad › Abrir igualmente). En Windows, sin
+certificado, SmartScreen avisa. Las actualizaciones no dependen de esa firma: el updater verifica su
+propia firma (minisign) con la clave pública de la app.
