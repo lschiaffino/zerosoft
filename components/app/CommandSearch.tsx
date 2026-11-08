@@ -24,6 +24,7 @@ import { SETTINGS_SECTION_KEYS, settingsSectionHref } from '@/lib/settings-nav';
 import { hrefAllowed, PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref, type AllowedApps, type ProductKey } from '@/lib/products';
 import { RIVALS } from '@/components/site/catalog';
 import { IMPORT_SOURCES, importHubHref } from '@/lib/import-registry';
+import { focusReturnTarget, useLayer } from '@/lib/ui/layers';
 
 interface ResultItem {
   group: string;
@@ -271,6 +272,10 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   }, [q, pages]);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevFocusRef = useRef<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // ⌘K es una capa de diálogo: al abrirse cierra los menús abiertos (la cuenta, el switcher). Esc y el clic
+  // en el fondo los maneja la paleta.
+  useLayer(open, () => setOpen(false), { root: dialogRef, kind: 'dialog', outside: false, escape: false });
   const groupOrder = useGroupOrder();
   const groupLabel = useGroupLabel(t);
 
@@ -404,7 +409,9 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   // Se guarda al pedir la apertura: en el efecto, el input ya tomó el foco.
   const rememberFocus = useCallback(() => {
     const el = document.activeElement as HTMLElement | null;
-    if (el && !el.closest('.cmdk')) prevFocusRef.current = el;
+    if (!el || el.closest('.cmdk')) return;
+    // Desde un ítem de un menú abierto (que se cierra al abrir ⌘K): el foco vuelve a su botón, no a un nodo desmontado.
+    prevFocusRef.current = focusReturnTarget(el);
   }, []);
 
   useEffect(() => {
@@ -711,6 +718,7 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   return (
     <div className={`cmdk-backdrop${anchored ? ' is-anchored' : ''}`} onMouseDown={() => setOpen(false)}>
       <div
+        ref={dialogRef}
         className={`cmdk${anchored ? ' is-anchored' : ''}`}
         role="dialog"
         aria-modal="true"

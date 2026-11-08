@@ -1421,6 +1421,7 @@ export default function ChatThread(props: ThreadProps) {
               type="button"
               className="wa-react-btn"
               onClick={() => setPickerFor(pickerFor === m.id ? null : m.id)}
+              aria-haspopup="true"
               aria-expanded={pickerFor === m.id}
               aria-label={t('thread.react')}
               title={t('thread.react')}
@@ -1778,6 +1779,7 @@ export default function ChatThread(props: ThreadProps) {
                   className={`wa-icon-btn${emojiOpen ? ' is-on' : ''}`}
                   data-emoji-toggle
                   onClick={() => setEmojiOpen((v) => !v)}
+                  aria-haspopup="dialog"
                   aria-expanded={emojiOpen}
                   aria-label={t('wa.emoji')}
                   title={t('wa.emoji')}
