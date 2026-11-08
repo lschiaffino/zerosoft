@@ -312,7 +312,8 @@ export default function BoardCanvasTools({
   useEffect(() => {
     if (!api || !canEdit) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.isComposing) return;
+      // El Enter que mandamos para abrir el editor (sintético) pasa directo a Excalidraw.
+      if (e.isComposing || !e.isTrusted) return;
       // Abriendo un sticky: todo lo que se tipea se guarda para el editor (no dispara atajos).
       if (pendingRef.current) {
         const k = typedKey(e);
