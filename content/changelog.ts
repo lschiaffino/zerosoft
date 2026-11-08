@@ -29,7 +29,6 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-<<<<<<< HEAD
     id: '2026-11-08-tasks-across-apps',
     date: '2026-11-08',
     title: {
@@ -55,7 +54,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Send a task to Track from the task page: it becomes a linked issue, and when the issue is done the task is completed.',
         es: 'Desde la tarea, Pasar a Track crea un issue vinculado; cuando el issue se completa, la tarea también.',
         pt: 'Na tarefa, Enviar para o Track cria uma issue vinculada; quando a issue é concluída, a tarefa também.',
-=======
+      },
+    ],
+  },
+  {
     id: '2026-11-08-lifecycle-emails',
     date: '2026-11-08',
     title: {
@@ -133,7 +135,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Ask across your meetings with follow-up questions and dates like "last week". Answers link to each meeting and moment, and include meetings teammates shared with you, using only what the share lets you see.',
         es: 'Preguntá sobre tus reuniones con preguntas de seguimiento y fechas como "la semana pasada". Las respuestas llevan a cada reunión y momento, y suman las reuniones que te compartió el equipo, con lo que el link deja ver y nada más.',
         pt: 'Pergunte sobre suas reuniões com perguntas de seguimento e datas como "semana passada". As respostas levam a cada reunião e momento, e incluem as reuniões que a equipe compartilhou com você, só com o que o link deixa ver.',
->>>>>>> origin/main
       },
     ],
   },
