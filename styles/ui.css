@@ -447,15 +447,15 @@ select.select,
   .btn, .app-frame .btn,
   .btn-sm, .btn-small, .app-frame .btn-sm, .app-frame .btn-small { --btn-h: 40px; }
   /* Algunas apps fijan su propio alto denso (28-32px): con el dedo gana el piso de 40. */
-  .btn { min-height: max(40px, var(--btn-h)) !important; }
+  .btn { min-height: max(40px, var(--btn-h)) !important; min-width: 40px !important; }
   .btn-icon { min-width: 40px !important; }
   .ui-tab { min-height: 44px; }
   .ui-settings-link { min-height: 44px; }
-  .icon-btn { min-width: 40px; min-height: 40px; }
+  .icon-btn { min-width: 40px !important; min-height: 40px !important; }
   /* Filas de menús y listas de opciones de cualquier app. */
   [role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox'], [role='option'] { min-height: 44px; }
   /* Campos: 40px de alto (si no, con la letra de 16px el texto del select queda cortado). */
-  :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='hidden'], [type='image'], [type='submit'], [type='button'], [type='reset']), select):not([class*='title']) { min-height: 40px; }
+  :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='hidden'], [type='image'], [type='submit'], [type='button'], [type='reset']), select) { min-height: 40px !important; }
   /* Fecha y hora con letra de 16px: que el valor entre entero ("09:00 AM", "10/10/2026"). */
   input[type='time'] { min-width: 124px; }
   input:is([type='date'], [type='month'], [type='week']) { min-width: 156px; }

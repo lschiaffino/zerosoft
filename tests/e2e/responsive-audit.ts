@@ -73,7 +73,9 @@ export async function auditView(page: Page, opts: { tap?: boolean } = {}): Promi
     };
     // Dentro de un overlay abierto, solo se mira ese overlay (lo de atrás queda inerte).
     const modal = [...document.querySelectorAll('dialog[open]')].find((d) => (d as HTMLDialogElement).matches(':modal'));
-    const scope: Element = modal ?? document.body;
+    // Un drawer o panel modal abierto (el sidebar en el teléfono, el switcher) tapa la página: se mira solo eso.
+    const sheet = [...document.querySelectorAll('.side.open, .band-menu-panel, [aria-modal="true"]')].find((el) => visible(el));
+    const scope: Element = modal ?? sheet ?? document.body;
 
     // 1. Scroll horizontal de la página.
     const sw = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
@@ -132,8 +134,8 @@ export async function auditView(page: Page, opts: { tap?: boolean } = {}): Promi
         }
         const r = target.getBoundingClientRect();
         if (r.right < 0 || r.left > vw) continue;
-        // Escondido arriba hasta recibir foco (el "saltar al contenido").
-        if (r.bottom <= 0 && window.scrollY === 0) continue;
+        // Escondido arriba hasta recibir foco (el "saltar al contenido"; a veces el foco cae ahí al cerrar un overlay).
+        if ((r.bottom <= 0 && window.scrollY === 0) || el.classList.contains('skip-link')) continue;
         const field = el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || (isInput && !['checkbox', 'radio', 'range', 'color', 'submit', 'button', 'reset', 'image'].includes(type));
         targets.push({ el, t: target, r, field });
       }

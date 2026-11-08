@@ -662,10 +662,11 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
 /* ---------- Tacto: piso de 40px para los controles densos de cada app ----------
    En escritorio estas apps copian la densidad de Linear, HubSpot o Notion (chips y filas
    de 24-32px). Con el dedo cada control mide al menos 40px; las filas de menú, 44px.
-   min-height le gana al height fijo de cada regla sin tener que repetirlas. */
+   min-height le gana al height fijo; el !important, a los min-height densos más específicos
+   de cada app (es un piso, no un estilo). */
 @media (pointer: coarse) {
   /* Menús y listas propias (las que no llevan role="menuitem"). */
-  :is(.track-menu-item, .record-more-item, .docs-menu-item, .gr-menu-item) { min-height: 44px; }
+  :is(.track-menu-item, .record-more-item, .docs-menu-item, .gr-menu-item) { min-height: 44px !important; }
   /* Chips, pestañas y botones de herramienta. */
   :is(
     .track-inline-trigger, .track-prop-chip, .track-qc-chip, .track-tool, .track-team-tab,
@@ -673,9 +674,15 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
     .stage-step-btn, .lead-path-step, .view-tab, .record-tags-plus, .dash-widget-x, .report-tab, .report-type-tab,
     .cell-inline, .filter-more, .column-toggle-btn, .tpl-var, .phone-touch-btn,
     .gr-filter, .wa-icon-btn, .docs-tree-btn, .chat-swatch, .board-swatch, .board-canvas-tool, .board-folder-tab,
-    .board-back, .dz-tab, .ui-page-back, .home-block-more, .record-summary-more
-  ) { min-height: 40px; min-width: 40px; }
+    .board-back, .dz-tab, .ui-page-back, .home-block-more, .record-summary-more, .track-filter-prop, .track-qc-team,
+    .docs-tree-search, .chip, .rb-viz > button, .locale-switcher a, .home-block-scope a
+  ) { min-height: 40px !important; min-width: 40px !important; }
+  :is(.home-block-scope a, .phone-touch-btn, .track-breadcrumb a, .track-team-crumb) { display: inline-flex; align-items: center; justify-content: center; }
+  :is(.track-breadcrumb a, .track-team-crumb) { min-height: 40px; }
+  /* Excalidraw (Board): sus botones de herramienta usan esta variable. */
+  .excalidraw { --default-button-size: 2.5rem; }
   /* Filas que son links: la fila entera se toca. */
-  :is(.docs-tree-link, .an-row-link, .cal-row-main, .st-lc-template, .qm-link) { min-height: 40px; }
-  :is(.track-keypicker-input, .tp-summary-input) { min-height: 40px; }
+  :is(.docs-tree-link, .an-row-link, .cal-row-main, .st-lc-template, .qm-link, .home-row) { min-height: 40px !important; }
+  /* Lista de issues de Track: la fila entera (título) mide 44px. */
+  .track-table-wrap.is-linear td.track-col-title > a { min-height: 44px; }
 }

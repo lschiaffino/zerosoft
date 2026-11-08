@@ -522,6 +522,10 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   .band-search .kbd { display: none; }
   /* El asistente y el de CRM quedan como ícono: del mismo tamaño que la búsqueda. */
   .band-search.band-ai { width: 40px; padding: 0; }
+  /* Un nombre de app largo ("Analytics") se corta antes de empujar los íconos fuera de la banda. */
+  .band-switcher { flex-shrink: 1; min-width: 0; }
+  .band-product { max-width: 100%; min-width: 0; }
+  .band-product-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .side {
     position: fixed;
