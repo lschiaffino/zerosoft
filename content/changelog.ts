@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-chat-inbox-sort',
+    date: '2026-11-08',
+    title: {
+      en: 'Chat: sort the inbox by longest wait',
+      es: 'Chat: ordená la bandeja por la espera más larga',
+      pt: 'Chat: ordene a caixa de entrada pela espera mais longa',
+    },
+    items: [
+      {
+        product: 'chat',
+        en: 'The inbox has a Sort menu: newest activity, oldest activity or waiting longest. Waiting counts from the visitor\'s first message after the last reply from a person or the bot; internal notes do not count.',
+        es: 'La bandeja tiene un menú de orden: actividad más reciente, más vieja o espera más larga. La espera cuenta desde el primer mensaje del visitante después de la última respuesta de una persona o del bot; las notas internas no cuentan.',
+        pt: 'A caixa de entrada tem um menu de ordem: atividade mais recente, mais antiga ou espera mais longa. A espera conta a partir da primeira mensagem do visitante depois da última resposta de uma pessoa ou do bot; notas internas não contam.',
+      },
+    ],
+  },
+  {
     id: '2026-11-07-board-daily-use',
     date: '2026-11-07',
     title: {

@@ -2814,5 +2814,43 @@
     "kind": "idea",
     "status": "done",
     "changelog": "2026-10-24-link"
+  },
+  {
+    "title": "Chat: Block a visitor or mark a conversation as spam from the inbox",
+    "description": "Intercom lets teammates mark a conversation as spam and block the sender so they stop reaching the inbox (Intercom help center, Inbox section). Our inbox has no way to ban a visitor: lib/chat-data.ts and app/api/chat/messages/route.ts accept messages from any visitor key and the only recourse is resolving each conversation. A small team on a public widget gets junk quickly and has nobody to filter it. First scope: a blocked flag on chat_visitors, a Block action in the visitor panel, new messages from that visitor dropped silently by the widget endpoint, and a list of blocked visitors in widget settings with unblock.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Show expected reply time in the widget header",
+    "description": "Intercom's Messenger can show a reply time expectation such as a few minutes or a day (Intercom help center, Messenger settings). Our widget (app/api/chat/widget.js/route.ts) shows office hours state but never says how long a visitor should wait. Visitors who write outside the first minutes assume nobody is there and leave. First scope: a per-widget choice among a few fixed options in WidgetSettings, rendered under the widget title in en/es/pt, and hidden when the team is away per office hours.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Schedule an agent reply to send later",
+    "description": "Intercom lets teammates schedule a message to go out at a chosen time, useful when replying across time zones (Intercom help center, inbox composer). Our composer in components/chat/ConversationClient.tsx only sends immediately or saves an internal note. A team in Buenos Aires answering a visitor in Madrid ends up writing at the wrong hour or forgetting the reply. First scope: a Send later option with a date and time, a pending row in the conversation that can be edited or cancelled, and delivery from the minute cron with a compare-and-set claim.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Show how long each visitor has been waiting in the inbox rows",
+    "description": "Intercom shows a waiting-since time on each conversation row so the team sees at a glance who is overdue (https://www.intercom.com/help/en/articles/6989006-inbox-sorting). Our rows in components/chat/ConversationList.tsx show the last message and SLA badges only when a policy exists, so a team without SLA policies cannot see who waits longest. First scope: a short relative label such as 12m or 3h on rows where the last message is from the visitor, computed from the same waiting-since rule used for the Waiting longest sort.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Combine priority and waiting time in one inbox sort",
+    "description": "Intercom users ask for sorting that puts urgent conversations first and then the longest waiting, because the two sorts cannot be combined today (https://community.intercom.com/ideas/combined-sorting-for-priority-and-non-priority-conversations-13151). Our inbox now sorts by newest, oldest or waiting longest (lib/chat-data.ts conversationOrderBy) but priority is only a filter. First scope: a fourth sort option, Priority then waiting, ordering urgent, high, medium and low and breaking ties by waiting since.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Chat: Sort the inbox by newest, oldest or longest wait",
+    "description": "Intercom lets the team sort the inbox by Waiting since, ascending, so the visitor who has waited longest comes first (https://www.intercom.com/help/en/articles/6989006-inbox-sorting). Our inbox was fixed to latest activity (lib/chat-data.ts). A small team with no SLA policy had no way to see who was overdue. Built: a Sort select in the inbox with newest, oldest and waiting longest, where waiting counts from the visitor's first message after the last human or bot reply and ignores internal notes.",
+    "product": "chat",
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-08-chat-inbox-sort"
   }
 ]
