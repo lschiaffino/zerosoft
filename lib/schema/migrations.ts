@@ -8799,7 +8799,7 @@ export const MIGRATIONS: Migration[] = [
   },
   {
     // Inbox (personal): WhatsApp y Gmail de una persona. Ver lib/schema/inbox-migration.ts.
-    id: '285_inbox',
+    id: '289_inbox',
     up: inboxUp,
   },
 ];
