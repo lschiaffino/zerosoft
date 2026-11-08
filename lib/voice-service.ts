@@ -38,12 +38,23 @@ import {
   type VoiceSource,
 } from './voice-types';
 
+export interface DictateTimings {
+  /** Ajustes y diccionario de la persona. */
+  setupMs: number;
+  transcribeMs: number;
+  cleanupMs: number;
+  /** Guardar en el historial (0 si se guarda después de contestar). */
+  saveMs: number;
+  totalMs: number;
+}
+
 export interface DictateResult {
   session: VoiceSessionSummary;
   text: string;
   raw: string;
   ai: boolean;
   aiError: string | null;
+  timings: DictateTimings;
 }
 
 export async function dictate(args: {
@@ -57,8 +68,17 @@ export async function dictate(args: {
   fakeText?: string;
   /** No guardar en el historial (p. ej. una prueba). */
   save?: boolean;
+  /**
+   * Modo rápido (la app de escritorio pega el texto apenas llega): limpieza
+   * corta por reglas o con tope de tiempo, y el historial se guarda con
+   * `later` después de contestar.
+   */
+  fast?: boolean;
+  later?: (job: () => Promise<unknown>) => void;
 }): Promise<DictateResult> {
+  const t0 = Date.now();
   const [settings, dictionary] = await Promise.all([getVoiceSettings(args.owner), listDictionary(args.owner)]);
+  const t1 = Date.now();
   const context: VoiceContext = (VOICE_CONTEXTS as readonly string[]).includes(args.context ?? '') ? (args.context as VoiceContext) : 'other';
   const tr = await transcribeAudio({
     workspaceId: args.owner.workspaceId,
@@ -69,13 +89,29 @@ export async function dictate(args: {
     durationHintMs: args.durationMs,
     fakeText: args.fakeText,
   });
+  const t2 = Date.now();
   const tone = dictationTone(settings, context);
   // raw: la transcripción tal cual, solo con los reemplazos y snippets del diccionario.
   const cleaned = tone
-    ? await cleanupDictation({ workspaceId: args.owner.workspaceId, raw: tr.text, context, tone, dictionary, useAi: settings.aiCleanup })
+    ? await cleanupDictation({ workspaceId: args.owner.workspaceId, raw: tr.text, context, tone, dictionary, useAi: settings.aiCleanup, fast: args.fast })
     : { text: applyDictionary(tr.text.replace(/\s+/g, ' ').trim(), dictionary), ai: false, aiError: null };
+  const t3 = Date.now();
+  const timings = (saveMs: number): DictateTimings => ({ setupMs: t1 - t0, transcribeMs: t2 - t1, cleanupMs: t3 - t2, saveMs, totalMs: t3 - t0 + saveMs });
   const durationMs = tr.durationMs || args.durationMs || 0;
-  if (args.save === false || !cleaned.text) {
+  const input = {
+    kind: 'dictation' as const,
+    status: 'done' as const,
+    capture: args.capture ?? 'mic',
+    context,
+    sourceApp: args.sourceApp,
+    rawText: tr.text,
+    text: cleaned.text,
+    language: tr.language,
+    durationMs,
+  };
+  const deferred = args.save !== false && !!cleaned.text && !!args.fast && !!args.later;
+  if (deferred) args.later!(() => createSession(args.owner, input));
+  if (args.save === false || !cleaned.text || deferred) {
     const now = new Date().toISOString();
     return {
       session: {
@@ -101,19 +137,11 @@ export async function dictate(args: {
       raw: tr.text,
       ai: cleaned.ai,
       aiError: cleaned.aiError,
+      timings: timings(0),
     };
   }
-  const row = await createSession(args.owner, {
-    kind: 'dictation',
-    status: 'done',
-    capture: args.capture ?? 'mic',
-    context,
-    sourceApp: args.sourceApp,
-    rawText: tr.text,
-    text: cleaned.text,
-    language: tr.language,
-    durationMs,
-  });
+  const row = await createSession(args.owner, input);
+  const t4 = Date.now();
   const [summary] = (await listSessions(args.owner, { kind: 'dictation', limit: 1 })).filter((s) => s.id === row.id);
   return {
     session: summary ?? {
@@ -139,6 +167,7 @@ export async function dictate(args: {
     raw: tr.text,
     ai: cleaned.ai,
     aiError: cleaned.aiError,
+    timings: timings(t4 - t3),
   };
 }
 

@@ -69,10 +69,15 @@ pub struct SettingsView {
     restore_clipboard: bool,
     open_at_login: bool,
     onboarded: bool,
+    recording_indicator: bool,
     permissions: Value,
+    /// Qué decir de Accesibilidad si falta (accessibility_hint).
+    accessibility_hint: &'static str,
+    /// "adhoc" | "stable" | "unknown" (Mac).
+    signature: &'static str,
     account: Account,
     pending: Vec<PendingMeta>,
-    last_latency_ms: Option<u64>,
+    last_latency: Option<dictation::Latency>,
     updates: &'static str,
     strings: serde_json::Map<String, Value>,
 }
@@ -100,11 +105,21 @@ async fn view(app: &AppHandle) -> SettingsView {
         list.push(s.shortcut.clone());
     }
     let mac = cfg!(target_os = "macos");
-    let last_latency_ms = *st.last_latency_ms.lock().unwrap();
+    let last_latency = *st.last_latency.lock().unwrap();
+    let version = app.package_info().version.to_string();
+    let accessibility = platform::accessibility_status();
+    let granted = accessibility != PermissionStatus::Denied;
+    // Se anota con qué versión se vio permitida: si después de actualizar ya no, es la build vieja.
+    if granted && mac && s.accessibility_seen_in != version {
+        let mut cur = st.settings.lock().unwrap();
+        cur.accessibility_seen_in = version.clone();
+        let _ = config::save(&st.config_dir, &cur);
+    }
+    let signature = platform::signature_kind();
     SettingsView {
         locale: st.locale,
         platform: if mac { "darwin" } else { "win32" },
-        version: app.package_info().version.to_string(),
+        version: version.clone(),
         server: s.server.clone(),
         mode: s.mode.clone(),
         shortcut: s.shortcut.clone(),
@@ -114,12 +129,33 @@ async fn view(app: &AppHandle) -> SettingsView {
         restore_clipboard: s.restore_clipboard,
         open_at_login: app.autolaunch().is_enabled().unwrap_or(false),
         onboarded: s.onboarded,
-        permissions: json!({ "microphone": platform::microphone_status(), "accessibility": platform::accessibility_status() }),
+        recording_indicator: s.recording_indicator,
+        permissions: json!({ "microphone": platform::microphone_status(), "accessibility": accessibility }),
+        accessibility_hint: accessibility_hint(granted, &s.accessibility_seen_in, &version, signature),
+        signature,
         account,
         pending: st.pending.list(now_ms()),
-        last_latency_ms,
+        last_latency,
         updates: if cfg!(debug_assertions) { "dev" } else if crate::updater::enabled(app) { "auto" } else { "off" },
         strings: strings::table(st.locale),
+    }
+}
+
+/// Qué mostrar en el paso de Accesibilidad cuando falta:
+/// - "updated": se vio permitida con otra versión. Con firma ad hoc macOS guarda el permiso para
+///   la build vieja (la llave sigue prendida) y hay que borrarlo y darlo de nuevo.
+/// - "adhoc": nunca se vio permitida y la firma es ad hoc: si la llave ya está prendida, es de
+///   otra build (la misma receta).
+/// - "off": falta prenderla.
+pub fn accessibility_hint(granted: bool, seen_in: &str, version: &str, signature: &str) -> &'static str {
+    if granted {
+        "ok"
+    } else if !seen_in.is_empty() && seen_in != version {
+        "updated"
+    } else if signature == "adhoc" {
+        "adhoc"
+    } else {
+        "off"
     }
 }
 
@@ -180,6 +216,9 @@ pub async fn settings_save(app: AppHandle, window: WebviewWindow, input: Value) 
     if next.shortcut != prev.shortcut {
         dictation::register_shortcuts(&app, Some(&prev.shortcut));
     }
+    if next.recording_indicator != prev.recording_indicator {
+        crate::indicator::update(&app);
+    }
     if next.server != prev.server {
         crate::allow_server(&app);
         crate::load_app_path(&app, "/app");
@@ -201,6 +240,14 @@ pub async fn permission_ask(app: AppHandle, window: WebviewWindow, kind: String)
             }
         }
         "accessibility" => {
+            if !platform::prompt_accessibility() {
+                let _ = app.opener().open_url(platform::PANE_ACCESSIBILITY, None::<&str>);
+            }
+        }
+        // La llave está prendida pero macOS no la reconoce (es de otra build): se borra la entrada
+        // vieja, se pide de nuevo (macOS suma esta build, apagada) y se abre la lista para prenderla.
+        "accessibility-reset" => {
+            platform::reset_accessibility(&app.config().identifier);
             if !platform::prompt_accessibility() {
                 let _ = app.opener().open_url(platform::PANE_ACCESSIBILITY, None::<&str>);
             }
@@ -406,6 +453,60 @@ pub fn desktop_open_settings(app: AppHandle, window: WebviewWindow) -> CmdResult
     Ok(())
 }
 
+/// La página empezó o terminó de grabar una reunión (para el indicador flotante).
+#[tauri::command]
+pub fn desktop_recording(app: AppHandle, window: WebviewWindow, active: bool, started_at: Option<f64>, path: Option<String>) -> CmdResult<()> {
+    from_app(&app, &window)?;
+    let rec = if active {
+        let path = path.unwrap_or_default();
+        let now = now_ms();
+        // Un inicio razonable (no en el futuro ni de hace más de un día); si no, ahora.
+        let started = started_at.map(|v| v as u64).filter(|v| *v <= now && now - *v < 86_400_000).unwrap_or(now);
+        Some(crate::state::Recording { started_at: started, path: if crate::indicator::valid_path(&path) { path } else { String::new() } })
+    } else {
+        None
+    };
+    crate::indicator::set_recording(&app, rec);
+    Ok(())
+}
+
+// ---------- Indicador de grabación ----------
+
+fn from_indicator(w: &WebviewWindow) -> CmdResult<()> {
+    if w.label() == crate::indicator::LABEL {
+        Ok(())
+    } else {
+        Err("forbidden".into())
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IndicatorView {
+    recording: Option<crate::state::Recording>,
+    strings: serde_json::Map<String, Value>,
+}
+
+#[tauri::command]
+pub fn indicator_state(app: AppHandle, window: WebviewWindow) -> CmdResult<IndicatorView> {
+    from_indicator(&window)?;
+    let st = app.state::<AppState>();
+    let rec = st.recording.lock().unwrap().clone();
+    Ok(IndicatorView { recording: rec, strings: strings::table(st.locale) })
+}
+
+#[tauri::command]
+pub fn indicator_action(app: AppHandle, window: WebviewWindow, action: String) -> CmdResult<()> {
+    from_indicator(&window)?;
+    match action.as_str() {
+        "open" => crate::indicator::open(&app),
+        "stop" => crate::indicator::stop(&app),
+        "hide" => crate::indicator::dismiss(&app),
+        _ => return Err("action".into()),
+    }
+    Ok(())
+}
+
 /// Aviso nativo pedido por la página (shim de window.Notification). Solo con la ventana sin foco.
 #[tauri::command]
 pub fn desktop_notify(app: AppHandle, window: WebviewWindow, title: String, body: Option<String>) -> CmdResult<bool> {
@@ -415,3 +516,18 @@ pub fn desktop_notify(app: AppHandle, window: WebviewWindow, title: String, body
     Ok(app.notification().builder().title(title).body(body).show().is_ok())
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::accessibility_hint;
+
+    #[test]
+    fn accessibility_hints() {
+        assert_eq!(accessibility_hint(true, "", "0.3.0", "adhoc"), "ok");
+        // Se vio permitida en otra versión: la entrada de macOS es de la build vieja.
+        assert_eq!(accessibility_hint(false, "0.2.1", "0.3.0", "stable"), "updated");
+        assert_eq!(accessibility_hint(false, "", "0.3.0", "adhoc"), "adhoc");
+        assert_eq!(accessibility_hint(false, "0.3.0", "0.3.0", "stable"), "off");
+        assert_eq!(accessibility_hint(false, "", "0.3.0", "unknown"), "off");
+    }
+}

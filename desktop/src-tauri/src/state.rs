@@ -28,6 +28,15 @@ pub struct Dictation {
     pub generation: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Recording {
+    /// ms desde epoch.
+    pub started_at: u64,
+    /// Página de la reunión (/app/...), para "Abrir".
+    pub path: String,
+}
+
 pub struct AuthPending {
     pub state: String,
     pub verifier: String,
@@ -42,7 +51,9 @@ pub struct AppState {
     pub dictation: Mutex<Dictation>,
     pub locale: &'static str,
     pub last_text: Mutex<String>,
-    pub last_latency_ms: Mutex<Option<u64>>,
+    pub last_latency: Mutex<Option<crate::dictation::Latency>>,
+    /// Reunión grabándose en la ventana principal (la avisa la página por el puente).
+    pub recording: Mutex<Option<Recording>>,
     pub http: reqwest::Client,
     pub auth: Mutex<Option<AuthPending>>,
     pub shortcut_taken: AtomicBool,

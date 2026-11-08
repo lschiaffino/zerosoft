@@ -7,6 +7,7 @@ import { Link, usePathname } from '@/i18n/navigation';
 import { ChunkRecorder, getMic, getTabAudio, mediaErrorCode, stopStream, type AudioChunk } from './audio';
 import { formatDuration, VOICE_CHUNK_MS, type VoiceSegment, type VoiceSource } from '@/lib/voice-types';
 import { chunkKey, deleteFailedChunk, loadFailedChunks, saveFailedChunk } from './failedStore';
+import { desktopBridge, DESKTOP_STOP_RECORDING_EVENT } from '@/lib/desktop-bridge';
 
 export type RecorderState = 'idle' | 'starting' | 'recording' | 'stopping';
 export type CaptureMode = 'mic' | 'mic_tab';
@@ -527,6 +528,33 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
       window.removeEventListener('pagehide', onPageHide);
     };
   }, [state]);
+
+  // App de escritorio: con la ventana en segundo plano muestra un indicador flotante mientras se
+  // graba (como Granola), y su botón Cortar llega como evento.
+  const desktopStartedAt = useRef(0);
+  useEffect(() => {
+    const bridge = desktopBridge();
+    if (!bridge?.recording) return;
+    const active = state === 'recording' && !!sessionId;
+    if (active && !desktopStartedAt.current) desktopStartedAt.current = Date.now() - elapsed;
+    if (!active) desktopStartedAt.current = 0;
+    void Promise.resolve(bridge.recording(active ? { active, startedAt: desktopStartedAt.current, path: `/app/voice/meetings/${sessionId}` } : { active: false })).catch(() => undefined);
+    // elapsed solo cuenta al empezar: no se re-avisa cada segundo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, sessionId]);
+  useEffect(() => {
+    const onStop = () => {
+      if (stateRef.current === 'recording') void stop();
+    };
+    window.addEventListener(DESKTOP_STOP_RECORDING_EVENT, onStop);
+    return () => window.removeEventListener(DESKTOP_STOP_RECORDING_EVENT, onStop);
+  }, [stop]);
+  useEffect(
+    () => () => {
+      void Promise.resolve(desktopBridge()?.recording?.({ active: false })).catch(() => undefined);
+    },
+    [],
+  );
 
   // Si el grabador se desmonta (se sale de la app) con una grabación en curso: cortar y cerrar.
   useEffect(
