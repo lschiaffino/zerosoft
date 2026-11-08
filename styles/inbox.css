@@ -65,9 +65,9 @@ body:has(.ib-composer) #zs-chat-root { display: none !important; }
 }
 .ib-item { position: relative; display: block; }
 .ib-row-btn:hover { background: var(--ui-hover); }
-li.ib-item.is-cursor > .ib-row-btn { box-shadow: inset 3px 0 0 var(--c-inbox); background: var(--ui-hover); }
-li.ib-item.is-open > .ib-row-btn { background: var(--ib-soft); }
-li.ib-item.is-selected > .ib-row-btn { background: var(--ib-soft); }
+li.ib-item.is-cursor > .ib-row-btn { background: var(--ui-hover); }
+li.ib-item.is-open > .ib-row-btn, li.ib-item.is-selected > .ib-row-btn { background: var(--ui-selected); }
+li.ib-item.is-open > .ib-row-btn:hover, li.ib-item.is-selected > .ib-row-btn:hover { background: var(--ui-selected-hover); }
 .ib-check { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); margin: 0; opacity: 0; z-index: 1; }
 li.ib-item:hover .ib-check, li.ib-item.is-selected .ib-check, .ib-check:focus-visible, .ib-app:has(.ib-bulk) .ib-check { opacity: 1; }
 
@@ -144,7 +144,7 @@ li.ib-item.is-unread .ib-row-when { color: var(--ib-ink); font-weight: 600; }
 .ib-media-doc, .ib-media-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--radius-1); font-size: 0.8125rem; color: inherit; }
 
 .ib-mail { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-1); padding: 12px 14px; margin: 4px 0 8px; min-width: 0; }
-.ib-mail.is-me { border-left: 3px solid var(--c-inbox); }
+.ib-mail.is-me { background: var(--ib-mine); }
 .ib-mail-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 0.875rem; }
 .ib-mail-time { margin-left: auto; font-size: 0.75rem; }
 .ib-mail-subject { margin: 4px 0 8px; font-weight: 600; font-size: 0.875rem; }
