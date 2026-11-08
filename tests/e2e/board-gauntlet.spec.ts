@@ -267,7 +267,8 @@ test('oscuro: los stickies conservan su color claro con letra oscura; el resto d
   const id = await fromTemplate(page, 'retro', 'Retro oscura');
   await openEditor(page, id);
   const note = (await elements(page)).find((e) => e.type === 'rectangle' && e.width === 140)!;
-  const at = await toScreen(page, note.x + 6, note.y + 6);
+  // Arriba al centro: adentro del borde redondeado y lejos del texto.
+  const at = await toScreen(page, note.x + note.width / 2, note.y + 12);
   const bg = await toScreen(page, note.x - 400, note.y - 300);
   // Pixel del canvas de la escena (sin filtro CSS): el sticky es el verde claro de la paleta y el fondo es oscuro.
   const px = await page.evaluate(

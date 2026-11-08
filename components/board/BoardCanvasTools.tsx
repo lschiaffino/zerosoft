@@ -71,6 +71,14 @@ function selectedSticky(api: CanvasApi): SceneEl | null {
   return unique.length === 1 && isSticky(unique[0]) ? unique[0] : null;
 }
 
+/** Lo que se ve del lienzo (escena), sin la franja de arriba de la barra de herramientas. */
+function visibleArea(api: CanvasApi) {
+  const s = api.getAppState();
+  const zoom = Number((s.zoom as { value?: number })?.value) || 1;
+  const top = 110 / zoom;
+  return { x: -Number(s.scrollX) + 24 / zoom, y: -Number(s.scrollY) + top, width: (Number(s.width) - 48) / zoom, height: (Number(s.height) - 110 - 70) / zoom };
+}
+
 /**
  * Abre el editor de texto del sticky recién creado (queda seleccionado). Excalidraw
  * 0.18 no tiene una API pública para empezar a editar: se usa su propio atajo
@@ -313,7 +321,7 @@ export default function BoardCanvasTools({
       const group = Math.random().toString(36).slice(2, 12);
       const header = Array.from({ length: cols }, (_, j) => t('tableCol', { n: j + 1 }));
       const occupied = (api.getSceneElements() as SceneEl[]).filter((e) => !e.isDeleted && !e.containerId).map(elementBox);
-      const origin = freeSpot({ width: cols * 180, height: rows * 56 }, center, occupied);
+      const origin = freeSpot({ width: cols * 180, height: rows * 56 }, center, occupied, 32, visibleArea(api));
       const cells = tableSkeletons(rows, cols, origin, group, texts ?? [header]);
       const created = skeletonsToElements(cells) as SceneEl[];
       api.updateScene({
@@ -348,7 +356,7 @@ export default function BoardCanvasTools({
       const { skeletonsToElements, UNDOABLE, ensureFonts } = await import('./ExcalidrawCanvas');
       await ensureFonts();
       const occupied = (api.getSceneElements() as SceneEl[]).filter((e) => !e.isDeleted && !e.containerId).map(elementBox);
-      let origin = at ?? freeSpot({ width: FILE_CARD.width, height: files.length * (FILE_CARD.height + 16) }, viewportCenter(api), occupied);
+      let origin = at ?? freeSpot({ width: FILE_CARD.width, height: files.length * (FILE_CARD.height + 16) }, viewportCenter(api), occupied, 32, visibleArea(api));
       for (const f of files) {
         if (!attachmentExtension(f.name)) {
           onMessage?.(t('fileType', { name: f.name }), 'error');

@@ -35,9 +35,19 @@ export function nextStickyBox(from: Box, dir: Direction, occupied: readonly Box[
  * una tabla nueva, que no caiga encima de lo que hay). Prueba anillos cada vez
  * más lejos; si no encuentra, va debajo de todo.
  */
-export function freeSpot(size: { width: number; height: number }, center: { x: number; y: number }, occupied: readonly Box[], margin = 32): { x: number; y: number } {
+export function freeSpot(
+  size: { width: number; height: number },
+  center: { x: number; y: number },
+  occupied: readonly Box[],
+  margin = 32,
+  /** Si se da, el hueco tiene que quedar adentro (lo que se ve, sin la barra de herramientas). */
+  within?: Box,
+): { x: number; y: number } {
   const at = (cx: number, cy: number) => ({ x: Math.round(cx - size.width / 2), y: Math.round(cy - size.height / 2) });
+  const inside = (p: { x: number; y: number }) =>
+    !within || (p.x >= within.x && p.y >= within.y && p.x + size.width <= within.x + within.width && p.y + size.height <= within.y + within.height);
   const fits = (p: { x: number; y: number }) =>
+    inside(p) &&
     !occupied.some((o) => p.x < o.x + o.width + margin && o.x < p.x + size.width + margin && p.y < o.y + o.height + margin && o.y < p.y + size.height + margin);
   const first = at(center.x, center.y);
   if (fits(first)) return first;
@@ -253,7 +263,7 @@ export function tableSkeletons(
         roughness: 0,
         roundness: null,
         groupIds: [groupId],
-        label: { text: (texts[i]?.[j] ?? '').trim().slice(0, 500) || ' ', fontSize: 16, fontFamily: 6 },
+        label: { text: (texts[i]?.[j] ?? '').trim().slice(0, 500) || ' ', fontSize: 16, fontFamily: 6, strokeColor: '#1e1e1e' },
         customData: { table: groupId, row: i, col: j },
       });
     }
@@ -343,7 +353,7 @@ export function editTable(elements: readonly SceneEl[], tableId: string, op: Tab
     roughness: 0,
     roundness: null,
     groupIds: group,
-    label: { text: ' ', fontSize: 16, fontFamily: 6 },
+    label: { text: ' ', fontSize: 16, fontFamily: 6, strokeColor: '#1e1e1e' },
     customData: { table: tableId, row, col },
   });
   const removed: string[] = [];
@@ -451,7 +461,7 @@ export function fileCardSkeleton(file: FileCardData, pos: { x: number; y: number
     roughness: 0,
     roundness: { type: 3 },
     link: file.url,
-    label: { text: `${kind.icon} ${name}\n${kind.label} · ${formatBytes(file.size)}`, fontSize: 16, fontFamily: 6, textAlign: 'left' },
+    label: { text: `${kind.icon} ${name}\n${kind.label} · ${formatBytes(file.size)}`, fontSize: 16, fontFamily: 6, textAlign: 'left', strokeColor: '#1e1e1e' },
     customData: { file: { fileId: file.fileId, name: file.name, mime: file.mime, size: file.size } },
   };
 }

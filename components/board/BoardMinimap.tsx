@@ -6,6 +6,7 @@ import { elementBox, type SceneEl } from '@/lib/board-stickies';
 import { elementsSignature } from '@/lib/board-signature';
 import type { CanvasApi } from './ExcalidrawCanvas';
 import { withRealColors } from './darkCanvas';
+import { darkColor } from '@/lib/board-dark';
 
 const W = 200;
 const H = 128;
@@ -59,6 +60,7 @@ export default function BoardMinimap({ api, label }: { api: CanvasApi; label: st
       layoutRef.current = layout;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
+      const dark = Boolean(canvas.closest('.board-canvas')?.querySelector('.excalidraw.theme--dark'));
       const ink = colors.ink;
       for (const el of elements) {
         const b = elementBox(el);
@@ -66,7 +68,9 @@ export default function BoardMinimap({ api, label }: { api: CanvasApi; label: st
         const y = b.y * layout.scale + layout.offsetY;
         const w = Math.max(1, b.width * layout.scale);
         const h = Math.max(1, b.height * layout.scale);
-        const fill = el.backgroundColor && el.backgroundColor !== 'transparent' ? el.backgroundColor : null;
+        const raw = el.backgroundColor && el.backgroundColor !== 'transparent' ? el.backgroundColor : null;
+        // En oscuro, mismos colores que el lienzo (los stickies quedan claros, lo demás oscuro).
+        const fill = raw && dark ? darkColor(raw) : raw;
         if (el.type === 'frame') {
           ctx.strokeStyle = ink;
           ctx.lineWidth = 1;

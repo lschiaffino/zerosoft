@@ -81,6 +81,11 @@ describe('freeSpot', () => {
     const p = freeSpot({ width: 100, height: 100 }, { x: 0, y: 0 }, [box(-60, -60, 120, 120)]);
     expect(p.x + 100 <= -60 - 32 || p.x >= 60 + 32 || p.y + 100 <= -60 - 32 || p.y >= 60 + 32).toBe(true);
   });
+  it('stays inside the visible area when given (never under the toolbar)', () => {
+    const p = freeSpot({ width: 100, height: 100 }, { x: 0, y: 0 }, [box(-60, -60, 120, 120)], 32, box(-400, -100, 800, 600));
+    expect(p.y).toBeGreaterThanOrEqual(-100);
+    expect(p.y + 100 <= -60 - 32 || p.y >= 60 + 32 || p.x + 100 <= -92 || p.x >= 92).toBe(true);
+  });
 });
 
 describe('reactions', () => {
