@@ -16,7 +16,9 @@ Medido en una Mac mini con Apple silicon (build 0.2.0 del workflow, firma ad hoc
 | Memoria en reposo (huella, todos los procesos) | 110 a 116 MB, de los que la app son 24 a 28 MB y el resto los procesos de WebKit (página, Ajustes y HUD) | |
 
 La medición de memoria de Electron no salió comparable (no llegó a abrir el proceso de la página), por
-eso queda vacía. El script está en el informe del PR.
+eso queda vacía. Cómo se midió: el .app copiado del .dmg, abierto desde la terminal; la app escribe en
+stderr `zs-timing main_window_created_ms` y `first_page_loaded_ms`, y la memoria es la suma de
+`footprint` del proceso y de los procesos de WebKit nuevos, 25 s después de abrir.
 
 ## Qué hace
 
