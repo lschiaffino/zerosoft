@@ -5,7 +5,7 @@ import { voiceJsonError } from '@/lib/voice-http';
 import { getVoiceSettings, saveVoiceSettings } from '@/lib/voice';
 import { transcriptionConfigured } from '@/lib/voice-transcribe';
 import { voiceAiAvailable } from '@/lib/voice-ai';
-import { VOICE_CONTEXTS, VOICE_REMINDER_MINUTES, VOICE_RETENTION_DAYS, VOICE_SHORTCUTS, VOICE_TONES } from '@/lib/voice-types';
+import { VOICE_CLEANUP_MODES, VOICE_CONTEXTS, VOICE_REMINDER_MINUTES, VOICE_RETENTION_DAYS, VOICE_SHORTCUTS, VOICE_TONES } from '@/lib/voice-types';
 import { noStore } from '@/lib/no-store';
 
 export const runtime = 'nodejs';
@@ -28,6 +28,7 @@ const schema = z.object({
   language: z.string().regex(/^(auto|[a-z]{2})$/).optional(),
   shortcut: z.enum(VOICE_SHORTCUTS).optional(),
   showBar: z.boolean().optional(),
+  cleanupMode: z.enum(VOICE_CLEANUP_MODES).optional(),
   aiCleanup: z.boolean().optional(),
   commandMode: z.boolean().optional(),
   learnCorrections: z.boolean().optional(),

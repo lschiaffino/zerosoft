@@ -190,6 +190,7 @@ describe('desktop: contador y avisos', () => {
     expect(data.bell).toBe(1);
     expect(data.total).toBeGreaterThanOrEqual(1);
     expect(data.notifications.map((n) => n.title)).toEqual(['Ana te mencionó']);
+    expect((data as unknown as { user: { email: string } }).user.email).toBe(u.email);
     const later = (await (await badgeGet(new NextRequest(`http://x/api/desktop/badge?since=${encodeURIComponent(data.now)}`))).json()) as typeof data;
     expect(later.notifications).toEqual([]);
     session.user = null;
