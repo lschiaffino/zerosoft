@@ -19,11 +19,27 @@ servidor, si usás zerosoft self-hosted) y suma lo que una pestaña del navegado
   `desktop-v*` de GitHub).
 - **Dictado en cualquier app (Wispr Flow):** mantener **Control + Option** en Mac o
   **Ctrl + Windows** en Windows (configurable: Option derecho, Control + Command, etc.) graba el
-  micrófono con un overlay chico abajo al centro; al soltar, el audio va a `POST /api/voice/dictate`
-  con la sesión, vuelve limpio (diccionario y estilo de Voice, contexto según la app de adelante) y
-  se pega en la app que tiene el foco (portapapeles + Cmd/Ctrl+V simulado, y después se devuelve lo
-  que había en el portapapeles). **Control + Option + Espacio** alterna sin mantener. Fn no está
-  disponible: el hook de teclado (uiohook) no la expone.
+  micrófono con un overlay chico abajo al centro (nivel, reloj, "Esc cancela"); al soltar, el audio va
+  a `POST /api/voice/dictate` con la sesión (`capture=desktop`), vuelve limpio (idioma, modo de
+  limpieza, diccionario y estilos de Voice, contexto según la app de adelante, leída con `lsappinfo`
+  sin pedir permiso de automatización) y se pega en la app que tiene el foco: portapapeles +
+  Cmd/Ctrl+V simulado y, 450 ms después, se devuelve lo que había (texto, HTML, imágenes), salvo que
+  la persona haya copiado otra cosa en el medio (`src/shared/clipboard.ts`).
+  - **Modos:** mantener, alternar (**Control + Option + Espacio** u otro atajo de la lista) o los dos.
+    Dos toques rápidos al atajo de mantener: manos libres hasta volver a apretarlo. Esc cancela.
+  - **Pegar el último:** Control + Command + V (Mac) o Ctrl + Alt + Shift + V, igual que en la web.
+  - **Sin conexión:** si el dictado no llega (red, sesión vencida, error del servidor), el audio queda
+    en `<userData>/pending/` (hasta 20, una semana) y se manda de nuevo desde la bandeja o el
+    historial; el texto queda copiado (`src/main/pending.ts`, `src/shared/retry.ts`).
+  - **Velocidad:** cada dictado anota cuánto tardó desde soltar las teclas hasta el texto (audio,
+    servidor, pegado); el último se ve en Ajustes › Historial y en la consola.
+  - Fn no está disponible: el hook de teclado (uiohook) no la expone.
+- **Ajustes** (ventana propia, se abre sola la primera vez): Primeros pasos (sesión, micrófono,
+  Accesibilidad con links a Ajustes del Sistema y estado al día, y un cuadro para probar), General
+  (modo, atajos, portapapeles, abrir al iniciar, avisos), Voice (idioma, limpieza, tono por app),
+  Diccionario e Historial (copiar, pegar de nuevo, mandar de nuevo los guardados) y Cuenta. Voice,
+  Diccionario e Historial se leen y guardan en el servidor con la sesión de la app: son los mismos que
+  `/app/voice/settings` y `/app/voice/dictation`.
 - **Notas de reuniones (Granola), sin bot:** avisa cuando empieza un evento del calendario
   (`/api/voice/events`) o cuando Zoom, Meet o Teams están en llamada (proceso `CptHost` de Zoom y
   títulos de ventanas). "Tomar notas" abre Voice, crea la reunión y el grabador de la web empieza con
@@ -58,8 +74,12 @@ npm run dist:win                           # instalador NSIS
 ```
 
 Los tests de la lógica pura (deep links, navegación, atajo, reuniones) están en
-`tests/unit/desktop-app.test.ts` y el e2e con Playwright `_electron` en
-`tests/e2e/desktop-electron.spec.ts` (corre si `desktop/dist` está compilado).
+`tests/unit/desktop-app.test.ts`; los del dictado (portapapeles, ajustes, manos libres, reintentos) en
+`tests/unit/desktop-voice.test.ts`. Los e2e con Playwright `_electron` están en
+`tests/e2e/desktop-electron.spec.ts` y `tests/e2e/desktop-voice.spec.ts` (corren si `desktop/dist`
+está compilado). El de Voice pasa una voz de verdad (un WAV hecho con `say`) por el micrófono falso de
+Chromium (`ZEROSOFT_FAKE_AUDIO`, solo en modo test) y, con `DESKTOP_SHOTS=<carpeta>`, guarda capturas
+del overlay y de Ajustes.
 
 ## Permisos en Mac
 
@@ -67,7 +87,8 @@ La primera vez se abren los Ajustes de la app con el estado de cada permiso:
 
 - **Micrófono:** dictado y reuniones (diálogo del sistema).
 - **Accesibilidad:** escuchar el atajo en otras apps y simular el pegado. Sin ella sigue andando el
-  atajo de alternar y el texto queda copiado para pegar a mano.
+  atajo de alternar y el texto queda copiado para pegar a mano. Cuando se da el permiso, el atajo de
+  mantener arranca solo a los pocos segundos (la app revisa cada 2 s), sin reabrir.
 - **Grabación de pantalla y audio del sistema:** el audio de la llamada y los títulos de ventanas de
   Meet y Teams. Sin ella se graba solo el micrófono.
 
@@ -80,6 +101,12 @@ ese tag. La página `/download` toma los links del último release.
 Sin secretos los instaladores salen **sin firmar**: en Mac la primera vez hay que ir a Ajustes del
 Sistema › Privacidad y seguridad › Abrir igualmente (macOS 15+; en 14 o anterior, clic derecho › Abrir)
 y las actualizaciones automáticas no se instalan (Squirrel exige firma); en Windows SmartScreen avisa.
+
+**Actualizaciones en Mac con firma ad hoc:** Squirrel.Mac solo acepta una versión nueva que cumpla el
+"designated requirement" de la instalada, y una firma ad hoc solo se cumple a sí misma. Por eso la
+app detecta la firma ad hoc (`codesign -dv`) y, en vez de bajar la actualización, avisa que hay una
+versión nueva y el aviso abre `/download`. Con el certificado de Developer ID, vuelve sola al modo
+automático.
 
 **Actualizaciones en Windows sin certificado:** electron-updater baja el instalador que indica
 `latest.yml` y solo verifica su **sha512** contra ese archivo (servido por zerosoft.ai desde el release

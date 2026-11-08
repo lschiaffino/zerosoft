@@ -7,6 +7,9 @@
  *   MIN_HOLD_MS, cancela (fue un toque, no un dictado).
  * - Si mientras graba se aprieta otra tecla (Ctrl+Option+K es un atajo de
  *   otra app), cancela.
+ * - Manos libres (como en la web): dos toques rápidos al atajo empiezan una
+ *   grabación que sigue sin mantener ('handsfree'). Termina al volver a
+ *   apretar el atajo ('stop'); Esc cancela.
  */
 
 export type HotkeyId = 'ctrl+alt' | 'ctrl+meta' | 'alt+meta' | 'right-alt' | 'right-ctrl';
@@ -21,6 +24,8 @@ export const KEY = {
   ShiftRight: 54,
   Meta: 3675,
   MetaRight: 3676,
+  Space: 57,
+  Escape: 1,
 } as const;
 
 type Part = 'ctrl' | 'alt' | 'meta' | 'shift' | 'alt-right' | 'ctrl-right';
@@ -85,12 +90,17 @@ function partsOf(code: number): Part[] {
 
 export const MIN_HOLD_MS = 250;
 
-export type PttAction = 'start' | 'stop' | 'cancel';
+export type PttAction = 'start' | 'stop' | 'cancel' | 'handsfree';
+
+/** Entre el primer toque (soltado) y el segundo, para manos libres. */
+export const DOUBLE_TAP_MS = 400;
 
 export class PushToTalk {
   private down = new Set<number>();
   private active = false;
+  private locked = false;
   private startedAt = 0;
+  private lastTapAt = -Infinity;
 
   constructor(private combo: HotkeyId) {}
 
@@ -98,10 +108,22 @@ export class PushToTalk {
     this.combo = combo;
     this.down.clear();
     this.active = false;
+    this.locked = false;
   }
 
   get recording() {
     return this.active;
+  }
+
+  /** Grabando en manos libres (ya no hace falta mantener). */
+  get handsFree() {
+    return this.active && this.locked;
+  }
+
+  /** Main terminó la grabación por otro lado (alternar, tope de tiempo): se olvida el estado. */
+  release() {
+    this.active = false;
+    this.locked = false;
   }
 
   /** Queda alguna tecla apretada (para no simular el pegado con un modificador abajo). */
@@ -127,6 +149,18 @@ export class PushToTalk {
   keyDown(code: number, now: number): PttAction | null {
     if (this.down.has(code)) return null; // autorepetición
     this.down.add(code);
+    if (this.active && this.locked) {
+      if (code === KEY.Escape) {
+        this.release();
+        return 'cancel';
+      }
+      // Volver a apretar el atajo termina; cualquier otra tecla se ignora.
+      if (this.matches()) {
+        this.release();
+        return 'stop';
+      }
+      return null;
+    }
     if (this.active) {
       if (!this.matches()) {
         this.active = false;
@@ -137,6 +171,11 @@ export class PushToTalk {
     if (this.matches()) {
       this.active = true;
       this.startedAt = now;
+      if (now - this.lastTapAt <= DOUBLE_TAP_MS) {
+        this.locked = true;
+        this.lastTapAt = -Infinity;
+        return 'handsfree';
+      }
       return 'start';
     }
     return null;
@@ -144,16 +183,20 @@ export class PushToTalk {
 
   keyUp(code: number, now: number): PttAction | null {
     this.down.delete(code);
-    if (!this.active) return null;
+    if (!this.active || this.locked) return null;
     this.active = false;
-    return now - this.startedAt < MIN_HOLD_MS ? 'cancel' : 'stop';
+    if (now - this.startedAt < MIN_HOLD_MS) {
+      this.lastTapAt = now;
+      return 'cancel';
+    }
+    return 'stop';
   }
 
   /** El hook perdió eventos (bloqueo de pantalla, permiso revocado): todo suelto. */
   reset(): PttAction | null {
     this.down.clear();
     if (!this.active) return null;
-    this.active = false;
+    this.release();
     return 'cancel';
   }
 }

@@ -6,19 +6,11 @@
 import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { defaultHotkey, isHotkeyId, type HotkeyId } from '../shared/hotkey';
 import { DEFAULT_SERVER, normalizeServer } from '../shared/nav';
+import { normalizeSettings, type DesktopSettings } from '../shared/settings';
 import { devEnv } from './dev-env';
 
-export interface Settings {
-  server: string;
-  hotkey: HotkeyId;
-  /** Atajo de alternar (sin mantener), con globalShortcut: funciona aunque no haya hook. */
-  toggleShortcut: string;
-  meetingAlerts: boolean;
-  /** Ya vio los permisos de la primera vez. */
-  onboarded: boolean;
-}
+export type Settings = DesktopSettings;
 
 export interface WindowState {
   x?: number;
@@ -56,13 +48,7 @@ export function getSettings(): Settings {
   const raw = readJson<Settings>('settings.json');
   // ZEROSOFT_SERVER (solo desarrollo y e2e) pisa lo guardado.
   const server = normalizeServer(devEnv('ZEROSOFT_SERVER')) ?? normalizeServer(raw.server) ?? DEFAULT_SERVER;
-  cached = {
-    server,
-    hotkey: isHotkeyId(raw.hotkey) ? raw.hotkey : defaultHotkey(process.platform),
-    toggleShortcut: typeof raw.toggleShortcut === 'string' && raw.toggleShortcut.length < 60 ? raw.toggleShortcut : 'Control+Alt+Space',
-    meetingAlerts: raw.meetingAlerts !== false,
-    onboarded: raw.onboarded === true,
-  };
+  cached = normalizeSettings(raw, process.platform, server);
   return cached;
 }
 

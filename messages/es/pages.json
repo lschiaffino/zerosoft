@@ -3723,10 +3723,10 @@
     "unsignedTitle": "Las versiones todavía no están firmadas",
     "unsignedMac": "En Mac: abrí el .dmg y arrastrá zerosoft a Aplicaciones. La primera vez macOS la bloquea porque todavía no está notarizada: en macOS 15 o posterior andá a Ajustes del Sistema › Privacidad y seguridad y tocá Abrir igualmente; en macOS 14 o anterior, hacé clic derecho en la app y elegí Abrir.",
     "unsignedWin": "En Windows: SmartScreen puede decir que protegió tu PC. Tocá Más información y después Ejecutar de todas formas.",
-    "unsignedUpdates": "En Mac las actualizaciones automáticas necesitan una versión firmada. Hasta entonces, bajá las versiones nuevas desde esta página.",
+    "unsignedUpdates": "Las actualizaciones automáticas en Mac necesitan una versión firmada por Apple. Mientras tanto, la app avisa cuando sale una nueva y abre esta página. En Windows se instalan solas.",
     "featuresTitle": "Qué suma la app de escritorio",
     "f1t": "Dictado en cualquier app",
-    "f1d": "Mantené Control + Option en Mac o Ctrl + Windows en Windows, hablá y soltá. El texto limpio se pega donde está el cursor, con tu diccionario y tu estilo de Voice.",
+    "f1d": "Mantené Control + Option en Mac o Ctrl + Windows en Windows, hablá y soltá: el texto limpio se pega donde está el cursor y el portapapeles vuelve a como estaba. Dos toques para manos libres, o un atajo para empezar y terminar. Idioma, limpieza y diccionario son los mismos que en Voice en la web, y el historial también.",
     "f2t": "Notas de reuniones sin bot",
     "f2d": "Cuando empieza una reunión del calendario, o Zoom, Meet o Teams están en llamada, zerosoft ofrece tomar notas. Graba tu micrófono y el audio del sistema, y las notas quedan en Voice.",
     "f3t": "Talk y la campana, nativos",
@@ -3738,7 +3738,9 @@
     "reqWin": "Windows 10 u 11, de 64 bits.",
     "mobileTitle": "En el teléfono",
     "mobileBody": "Abrí zerosoft.ai/app en Safari o Chrome y agregala a la pantalla de inicio: se abre como una app, con todas las apps de zerosoft. Las versiones nativas de iOS y Android todavía no están en las tiendas.",
-    "openApp": "Abrir en el navegador"
+    "openApp": "Abrir en el navegador",
+    "f5t": "Sigue andando sin conexión",
+    "f5d": "Si un dictado no llega al servidor, la grabación queda en tu compu y la mandás de nuevo desde la barra de menú cuando vuelve la conexión."
   },
   "compare": {
     "crumb": "Comparar",

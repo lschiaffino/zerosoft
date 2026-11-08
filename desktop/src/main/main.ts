@@ -18,9 +18,10 @@ import { IPC, type AppInfo } from '../shared/ipc';
 import { getSettings } from './config';
 import { beginLogin, completeLogin, restoreSession, watchSessionCookie } from './auth';
 import { pollBadge, startBadgePolling } from './badge';
-import { dictationAvailable, setupDictation, startDictation, startHotkeys, stopDictation, stopHotkeys } from './dictation';
+import { dictationAvailable, onDictationChange, retryPending, setupDictation, startDictation, startHotkeys, stopDictation, stopHotkeys } from './dictation';
+import { listPending, onPendingChange } from './pending';
 import { consumeNotesNonce, startMeetingWatch, startNotes } from './meetings';
-import { openSettings, setupSettingsIpc } from './settings-window';
+import { openSettings, refreshSettings, setupSettingsIpc, type SettingsTab } from './settings-window';
 import { getMainWindow, server, TEST_MODE } from './state';
 import { buildTrayMenu, createTray } from './tray';
 import { setupUpdater } from './updater';
@@ -31,10 +32,13 @@ import { devEnv } from './dev-env';
 // Audio del sistema en Mac 13+ (ScreenCaptureKit) para getDisplayMedia con loopback.
 app.commandLine.appendSwitch('enable-features', 'MacLoopbackAudioForScreenShare,MacSckSystemAudioLoopbackOverride');
 
-// e2e: micrófono falso sin diálogo (el overlay graba un tono de prueba).
+// e2e: micrófono falso sin diálogo (el overlay graba un tono de prueba, o un archivo de audio
+// con ZEROSOFT_FAKE_AUDIO=/ruta.wav para pasar una voz real por el mismo camino).
 if (TEST_MODE) {
   app.commandLine.appendSwitch('use-fake-device-for-media-stream');
   app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
+  const fakeAudio = devEnv('ZEROSOFT_FAKE_AUDIO');
+  if (fakeAudio) app.commandLine.appendSwitch('use-file-for-fake-audio-capture', path.resolve(fakeAudio));
 }
 
 // Datos aparte en los e2e (no pisan la sesión de la app instalada).
@@ -181,12 +185,24 @@ if (!app.requestSingleInstanceLock()) {
     setupMenu();
     setupSessionPermissions();
     setupAppIpc();
-    setupSettingsIpc((prev) => {
-      startHotkeys();
+    setupSettingsIpc(
+      (prev) => {
+        startHotkeys();
+        buildTrayMenu();
+        if (prev.server !== server()) {
+          void restoreSession().finally(() => void getMainWindow()?.loadURL(new URL('/app', server()).toString()));
+        }
+      },
+      (pathname) => openAppPath(pathname),
+    );
+    // La bandeja y Ajustes siguen el dictado y los guardados para reintentar.
+    onDictationChange(() => {
       buildTrayMenu();
-      if (prev.server !== server()) {
-        void restoreSession().finally(() => void getMainWindow()?.loadURL(new URL('/app', server()).toString()));
-      }
+      refreshSettings();
+    });
+    onPendingChange(() => {
+      buildTrayMenu();
+      refreshSettings();
     });
     await restoreSession();
     watchSessionCookie();
@@ -196,7 +212,8 @@ if (!app.requestSingleInstanceLock()) {
     startBadgePolling();
     startMeetingWatch();
     setupUpdater();
-    if (!getSettings().onboarded && process.platform === 'darwin' && !TEST_MODE) openSettings();
+    // Primeros pasos (sesión, permisos y una prueba del dictado) la primera vez, en Mac y en Windows.
+    if (!getSettings().onboarded && !TEST_MODE) openSettings('start');
     ready = true;
     const pending = queuedLink ?? deepLinkFromArgv(process.argv);
     queuedLink = null;
@@ -217,3 +234,6 @@ testHooks.pollBadge = pollBadge;
 testHooks.startDictation = startDictation;
 testHooks.stopDictation = stopDictation;
 testHooks.startNotes = startNotes;
+testHooks.retryPending = (id: string) => retryPending(id);
+testHooks.listPending = () => listPending();
+testHooks.settingsTab = (tab: string) => openSettings(tab as SettingsTab);

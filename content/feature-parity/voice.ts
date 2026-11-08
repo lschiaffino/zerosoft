@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Wispr Flow + Granola',
-  lastReviewed: '2026-10-29',
+  lastReviewed: '2026-11-07',
   areas: [
     { id: 'dictation', label: loc(['Dictation in any app', 'Dictado en cualquier app', 'Ditado em qualquer app']) },
     { id: 'cleanup', label: loc(['AI cleanup and formatting', 'Limpieza y formato con IA', 'Limpeza e formatação com IA']) },
@@ -48,16 +48,16 @@ const parity: ProductParity = {
     row('dictate-any-app', 'dictation', ['Dictate into any text field with a shortcut', 'Dictar en cualquier campo de texto con un atajo', 'Ditar em qualquer campo de texto com um atalho'], 'partial', {
       weight: 2,
       detail: [
-        "Hold Alt+Space (or the field button) in any zerosoft field and the clean text is inserted at the cursor. In any other app, the desktop app: hold Control + Option (Mac) or Ctrl + Windows and the text is pasted where the cursor is. Fn is not available as the shortcut",
-        "Mantener Alt+Space (o el botón del campo) en cualquier campo de zerosoft inserta el texto limpio donde está el cursor. En cualquier otra app, la app de escritorio: mantener Control + Option (Mac) o Ctrl + Windows pega el texto donde está el cursor. Fn no está disponible como atajo",
-        "Segurar Alt+Space (ou o botão do campo) em qualquer campo do zerosoft insere o texto limpo no cursor. Em qualquer outro app, o app desktop: segurar Control + Option (Mac) ou Ctrl + Windows cola o texto onde está o cursor. Fn não está disponível como atalho",
+        "Hold Alt+Space (or the field button) in any zerosoft field and the clean text is inserted at the cursor. In any other app, the desktop app: hold Control + Option (Mac) or Ctrl + Windows, or press a start and stop shortcut, and the text is pasted where the cursor is, with the clipboard put back afterwards. A small overlay shows the level and a timer. Fn is not available as the shortcut. The pipeline is tested end to end with a recorded voice file and a fake transcription; the real paste into other apps and real transcription were not tested automatically",
+        "Mantener Alt+Space (o el botón del campo) en cualquier campo de zerosoft inserta el texto limpio donde está el cursor. En cualquier otra app, la app de escritorio: mantener Control + Option (Mac) o Ctrl + Windows, o apretar un atajo para empezar y terminar, pega el texto donde está el cursor y después devuelve el portapapeles. Un overlay chico muestra el nivel y un reloj. Fn no está disponible como atajo. El camino completo está probado con un archivo de voz grabada y una transcripción falsa; el pegado real en otras apps y la transcripción real no se probaron de forma automática",
+        "Segurar Alt+Space (ou o botão do campo) em qualquer campo do zerosoft insere o texto limpo no cursor. Em qualquer outro app, o app desktop: segurar Control + Option (Mac) ou Ctrl + Windows, ou apertar um atalho para começar e terminar, cola o texto onde está o cursor e depois devolve a área de transferência. Um overlay pequeno mostra o nível e um relógio. Fn não está disponível como atalho. O caminho completo foi testado com um arquivo de voz gravada e uma transcrição falsa; a colagem real em outros apps e a transcrição real não foram testadas de forma automática",
       ],
     }),
     row('hands-free', 'dictation', ['Hands-free mode', 'Modo manos libres', 'Modo mãos livres'], 'have', {
       detail: [
-        "Double tap the shortcut, or click the field button, and Voice listens until you tap again",
-        "Doble toque al atajo, o clic en el botón del campo, y Voice escucha hasta el próximo toque",
-        "Toque duplo no atalho, ou clique no botão do campo, e o Voice ouve até o próximo toque",
+        "Double tap the shortcut, or click the field button, and Voice listens until you tap again. The same in the desktop app, in any app, where Esc cancels",
+        "Doble toque al atajo, o clic en el botón del campo, y Voice escucha hasta el próximo toque. Igual en la app de escritorio, en cualquier app, donde Esc cancela",
+        "Toque duplo no atalho, ou clique no botão do campo, e o Voice ouve até o próximo toque. Igual no app desktop, em qualquer app, onde Esc cancela",
       ],
     }),
     row('languages', 'dictation', ['More than 100 languages', 'Más de 100 idiomas', 'Mais de 100 idiomas'], 'partial', {
@@ -121,9 +121,9 @@ const parity: ProductParity = {
     }),
     row('styles-by-app', 'personalization', ['Tone by app', 'Tono según la app', 'Tom conforme o app'], 'have', {
       detail: [
-        "Formal, neutral or casual tone per context (email, chat, note, other), picked from the app and the field",
-        "Tono formal, neutro o informal por contexto (email, chat, nota, otros), según la app y el campo",
-        "Tom formal, neutro ou informal por contexto (email, chat, nota, outros), conforme o app e o campo",
+        "Formal, neutral or casual tone per context (email, chat, note, other), picked from the app and the field. A cleanup mode on top: raw (as spoken), clean, formal everywhere or by app, the same on the web and in the desktop app",
+        "Tono formal, neutro o informal por contexto (email, chat, nota, otros), según la app y el campo. Encima, un modo de limpieza: sin limpieza (tal cual), limpio, formal en todas las apps o según la app, el mismo en la web y en la app de escritorio",
+        "Tom formal, neutro ou informal por contexto (email, chat, nota, outros), conforme o app e o campo. Por cima, um modo de limpeza: sem limpeza (como falado), limpo, formal em todos os apps ou por app, o mesmo na web e no app desktop",
       ],
     }),
     row('context-names', 'personalization', ['Spell names from screen context', 'Escribir nombres según el contexto de la pantalla', 'Escrever nomes pelo contexto da tela'], 'missing'),
@@ -155,9 +155,16 @@ const parity: ProductParity = {
     row('desktop-apps', 'apps', ['Mac and Windows desktop apps', 'Apps de escritorio para Mac y Windows', 'Apps desktop para Mac e Windows'], 'partial', {
       weight: 2,
       detail: [
-        "One Electron app for Mac and Windows (source in desktop/): hold-to-talk dictation in any app with a small overlay, and meeting notes with mic plus system audio, offered when a calendar event starts or Zoom, Meet or Teams is in a call, without a bot. Downloads arrive on /download with the first published release, unsigned at first",
-        "Una app de Electron para Mac y Windows (código en desktop/): dictado manteniendo un atajo en cualquier app con un overlay chico, y notas de reuniones con micrófono y audio del sistema, que se ofrecen cuando empieza un evento del calendario o Zoom, Meet o Teams están en llamada, sin bot. La descarga aparece en /download con la primera versión publicada, al principio sin firmar",
-        "Um app Electron para Mac e Windows (código em desktop/): ditado segurando um atalho em qualquer app com um overlay pequeno, e notas de reuniões com microfone e áudio do sistema, oferecidas quando começa um evento do calendário ou o Zoom, o Meet ou o Teams estão em chamada, sem bot. O download aparece em /download com a primeira versão publicada, no começo sem assinatura",
+        "One Electron app for Mac and Windows (source in desktop/): dictation in any app with a small overlay, a guided first run for the microphone and Accessibility, settings with language, cleanup, dictionary and history (the same ones as Voice on the web), a menu bar menu, and meeting notes with mic plus system audio without a bot. Not signed by Apple yet: on Mac it says when a new version is out instead of installing it",
+        "Una app de Electron para Mac y Windows (código en desktop/): dictado en cualquier app con un overlay chico, primeros pasos guiados para el micrófono y Accesibilidad, ajustes con idioma, limpieza, diccionario e historial (los mismos que Voice en la web), menú en la barra, y notas de reuniones con micrófono y audio del sistema sin bot. Todavía sin firma de Apple: en Mac avisa que hay versión nueva en vez de instalarla",
+        "Um app Electron para Mac e Windows (código em desktop/): ditado em qualquer app com um overlay pequeno, primeiros passos guiados para o microfone e a Acessibilidade, ajustes com idioma, limpeza, dicionário e histórico (os mesmos do Voice na web), menu na barra, e notas de reuniões com microfone e áudio do sistema sem bot. Ainda sem assinatura da Apple: no Mac avisa que há versão nova em vez de instalá-la",
+      ],
+    }),
+    row('offline-retry', 'apps', ['Keep dictations without a connection', 'Guardar dictados sin conexión', 'Guardar ditados sem conexão'], 'partial', {
+      detail: [
+        "In the desktop app, a dictation that cannot reach the server stays on the computer and is sent again from the menu bar or the history. Transcription still needs the server: there is no on-device model",
+        "En la app de escritorio, un dictado que no llega al servidor queda en la compu y se manda de nuevo desde la barra de menú o el historial. La transcripción sigue necesitando el servidor: no hay modelo en el dispositivo",
+        "No app desktop, um ditado que não chega ao servidor fica no computador e é enviado de novo pela barra de menus ou pelo histórico. A transcrição ainda precisa do servidor: não há modelo no dispositivo",
       ],
     }),
     row('mobile-apps', 'apps', ['iOS and Android', 'iOS y Android', 'iOS e Android'], 'missing', {

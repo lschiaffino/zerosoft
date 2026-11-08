@@ -24,6 +24,13 @@ export const testHooks = {
   mintedNonces: [] as string[],
   /** El overlay no consiguió el micrófono (permiso del sistema, dispositivo colgado). */
   dictationError: '' as '' | 'mic',
+  /** Último dictado que no llegó al servidor (se guarda para reintentar si corresponde). */
+  lastFailure: '' as string,
+  /** Tiempos de cada dictado: soltar → audio listo → respuesta del servidor → pegado. */
+  timings: [] as Array<{ audioMs: number; serverMs: number; pasteMs: number; totalMs: number }>,
+  retryPending: (async () => ({ ok: false })) as (id: string) => Promise<{ ok: boolean; text?: string; failure?: string }>,
+  listPending: (() => []) as () => Array<{ id: string; failure: string }>,
+  settingsTab: (() => undefined) as (tab: string) => void,
   consumedNonces: [] as string[],
   /** Pedidos de captura (getDisplayMedia) atendidos: con loopback o sin pantalla. */
   displayRequests: [] as Array<'loopback' | 'none'>,

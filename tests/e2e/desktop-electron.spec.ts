@@ -86,7 +86,7 @@ test.describe('app de escritorio', () => {
       const b = (window as unknown as { zerosoftDesktop?: Record<string, unknown> }).zerosoftDesktop;
       return b ? { version: b.version, startLogin: typeof b.startLogin, keys: Object.keys(b).sort() } : null;
     });
-    expect(bridge).toEqual({ version: '0.1.0', startLogin: 'function', keys: ['consumeAutostart', 'dictation', 'openSettings', 'platform', 'startLogin', 'systemAudio', 'version'] });
+    expect(bridge).toEqual({ version: JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version, startLogin: 'function', keys: ['consumeAutostart', 'dictation', 'openSettings', 'platform', 'startLogin', 'systemAudio', 'version'] });
     // Sin Node en la página.
     expect(await win.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined');
     // Un link externo va al navegador del sistema y la ventana no se mueve.
