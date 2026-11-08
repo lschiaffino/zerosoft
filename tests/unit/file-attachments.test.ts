@@ -307,7 +307,7 @@ describe('file-attachments: Blob privado', () => {
     expect(await cfg.json()).toMatchObject({ mode: 'legacy', maxBytes: fa.LEGACY_MAX_BYTES });
 
     const up = (name: string, body: Buffer, type: string) =>
-      legacy.upload.POST(req(`/x/upload?name=${name}`, { method: 'POST', body, headers: { 'content-type': type } }), ctx());
+      legacy.upload.POST(req(`/x/upload?name=${name}`, { method: 'POST', body: new Uint8Array(body), headers: { 'content-type': type } }), ctx());
     const ok = await up('informe.pdf', Buffer.from('%PDF-1.4'), 'application/pdf');
     expect(ok.status).toBe(201);
     expect(await ok.json()).toMatchObject({ ref: expect.stringMatching(/^https:\/\/store\.public\.blob\.vercel-storage\.com\/track\//), filename: 'informe.pdf', size: 8 });
