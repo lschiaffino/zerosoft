@@ -84,7 +84,7 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
     if (!record || !record[1].startsWith('v1.groups.chats')) return { text: 'Open a Groups chat first.' };
     return {
       tool: 'propose_destructive_operation',
-      input: { operation: 'v1.groups.chats.messages.create', args: { path: { id: record[2] }, body: { body: say[2], note: say[1].toLowerCase() === 'note' } }, summary: `Send "${say[2]}" to this chat` },
+      input: { operation: 'v1.groups.chats.messages.create', args: { path: { id: record[2] }, body: { body: say[2], note: say[1].toLowerCase() === 'note' } }, summary: `Send "${say[2].length > 120 ? `${say[2].slice(0, 117)}...` : say[2]}" to this chat` },
     };
   }
   if (/^list (?:my )?group chats/i.test(last)) return { tool: 'run_operation', input: { operation: 'v1.groups.chats.list' } };

@@ -141,7 +141,7 @@ function propose(destructive: boolean) {
       ? 'Prepare a destructive catalog operation (access "destructive": deletes, sends a message or email outside the workspace, moves money). The person reviews a card and types a word to confirm. Nothing runs until then.'
       : 'Prepare a catalog operation that writes (access "write"): create or update an issue, a doc page, a contact, assign a chat... The person reviews a card and clicks Confirm. Nothing runs until then.',
     input: opInput.pick({ operation: true, args: true }).extend({
-      summary: z.string().trim().min(3).max(200).describe('One sentence, in the language of the chat, saying what will change. Shown on the card.'),
+      summary: z.string().trim().min(3).max(500).describe('One sentence, in the language of the chat, saying what will change. Shown on the card.'),
     }),
     prepare: async (ctx, input: { operation: string; args?: Record<string, unknown>; summary: string }) => {
       const op = resolveOp(ctx, input.operation);
