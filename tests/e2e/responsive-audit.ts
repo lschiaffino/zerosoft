@@ -134,6 +134,8 @@ export async function auditView(page: Page, opts: { tap?: boolean } = {}): Promi
         }
         const r = target.getBoundingClientRect();
         if (r.right < 0 || r.left > vw) continue;
+        // Un telón que cierra el panel (botón invisible a pantalla completa) no compite con nadie.
+        if (r.width >= vw * 0.9 && r.height >= vh * 0.5 && !(el.textContent ?? '').trim()) continue;
         // Escondido arriba hasta recibir foco (el "saltar al contenido"; a veces el foco cae ahí al cerrar un overlay).
         if ((r.bottom <= 0 && window.scrollY === 0) || el.classList.contains('skip-link')) continue;
         const field = el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || (isInput && !['checkbox', 'radio', 'range', 'color', 'submit', 'button', 'reset', 'image'].includes(type));

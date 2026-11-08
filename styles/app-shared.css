@@ -677,10 +677,19 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
     .board-back, .dz-tab, .ui-page-back, .home-block-more, .record-summary-more, .track-filter-prop, .track-qc-team,
     .docs-tree-search, .chip, .rb-viz > button, .locale-switcher a, .home-block-scope a
   ) { min-height: 40px !important; min-width: 40px !important; }
-  :is(.home-block-scope a, .phone-touch-btn, .track-breadcrumb a, .track-team-crumb) { display: inline-flex; align-items: center; justify-content: center; }
-  :is(.track-breadcrumb a, .track-team-crumb) { min-height: 40px; }
-  /* Excalidraw (Board): sus botones de herramienta usan esta variable. */
-  .excalidraw { --default-button-size: 2.5rem; }
+  :is(.home-block-scope a, .phone-touch-btn, .track-breadcrumb a, .track-team-crumb, .asst-home-foot a, .ui-modal-foot a) { display: inline-flex; align-items: center; justify-content: center; }
+  :is(.track-breadcrumb a, .track-team-crumb, .asst-home-foot a, .ui-modal-foot a) { min-height: 40px; }
+  .tp-row-link { display: flex; align-items: center; min-height: 40px; }
+  /* Hoja de "Agregar widget" (CRM): cada opción es una fila de 44px. */
+  .dash-add-menu button { min-height: 44px; }
+  /* Emojis de Groups: 8 columnas de 40px en vez de 9 de 38. */
+  .wa-emoji .wa-emoji-grid { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); }
+  .wa-emoji .wa-emoji-grid button { height: 40px; }
+  /* Excalidraw (Board): sus botones de herramienta usan estas variables (definidas en .excalidraw). */
+  .excalidraw.excalidraw { --default-button-size: 2.5rem; --lg-button-size: 2.5rem; }
+  .excalidraw .dropdown-menu-button { min-width: 40px; min-height: 40px; }
+  /* El dictado de escritorio dentro de los campos sobra: el teclado del teléfono ya dicta. */
+  .vc-bar { display: none !important; }
   /* Filas que son links: la fila entera se toca. */
   :is(.docs-tree-link, .an-row-link, .cal-row-main, .st-lc-template, .qm-link, .home-row) { min-height: 40px !important; }
   /* Lista de issues de Track: la fila entera (título) mide 44px. */

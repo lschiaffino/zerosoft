@@ -90,4 +90,5 @@
 @media (pointer: coarse) {
   .cmp-links { gap: 0; }
   .cmp-links a { display: flex; align-items: center; min-height: 40px; }
+  .cmp-index .cmp-app a { min-height: 40px; }
 }
