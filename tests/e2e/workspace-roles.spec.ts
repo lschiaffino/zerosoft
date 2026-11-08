@@ -272,7 +272,8 @@ test('admin desde la UI: invita en lote, cambia roles y saca a un member; quien 
     await expect.poll(roleOf).toBe('member');
     expect((await p.request.delete('/api/teams/members/demo')).status()).toBe(403);
     // Sacar: el acceso se corta en el pedido siguiente.
-    await row.getByRole('button', { name: 'Remove' }).click();
+    await row.getByRole('button', { name: /^See what/ }).click();
+    await p.getByRole('dialog').getByRole('button', { name: /^Remove/ }).click();
     await p.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click();
     await expect(p.locator(`[data-email="${mem.email}"]`)).toHaveCount(0);
     await mem.p.goto('/en/app/settings/members', { waitUntil: 'networkidle' });

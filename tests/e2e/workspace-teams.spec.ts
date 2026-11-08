@@ -164,7 +164,8 @@ test('crear equipo, invitar a dos, aceptar con otra sesión, ver los datos en to
     await leoPage.goto('/en/app/crm/contacts', { waitUntil: 'networkidle' });
     await expect(leoPage.getByText(contact).first()).toBeVisible();
     const leoRow = page.getByRole('row').filter({ hasText: leo });
-    await leoRow.getByRole('button', { name: /^Remove/ }).click();
+    await leoRow.getByRole('button', { name: /^See what/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /^Remove/ }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click();
     await expect(page.getByTestId('member-row').filter({ hasText: leo })).toHaveCount(0);
     await leoPage.reload({ waitUntil: 'networkidle' });

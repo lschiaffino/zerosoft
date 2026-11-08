@@ -189,13 +189,20 @@ export default function MembersPanel({
   // Un cambio en curso (pedido y recarga de la lista): los controles esperan, así el siguiente parte de lo nuevo.
   const [syncing, setSyncing] = useState(false);
   const locked = busy || syncing;
+  // Los checkboxes del acceso no se deshabilitan mientras guardan (perderían el foco y Esc dejaría de cerrar):
+  // un segundo cambio espera a que termine el primero.
+  const inflight = useRef<Promise<void>>(Promise.resolve());
   async function synced(run: () => Promise<void>) {
-    setSyncing(true);
-    try {
-      await run();
-    } finally {
-      setSyncing(false);
-    }
+    const next = inflight.current.then(async () => {
+      setSyncing(true);
+      try {
+        await run();
+      } finally {
+        setSyncing(false);
+      }
+    });
+    inflight.current = next.catch(() => undefined);
+    await next;
   }
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'' | Role>('');
@@ -935,7 +942,17 @@ export default function MembersPanel({
             {
               key: 'apps',
               header: t('colApps'),
-              cell: (m: MemberDto) => <span className="ws-cell-muted ws-apps-cell">{appsLabel(m.apps, m.role)}</span>,
+              cell: (m: MemberDto) => (
+                <>
+                  <span className="ws-cell-muted ws-apps-cell">{appsLabel(m.apps, m.role)}</span>
+                  {/* El pedido sigue a la vista aunque el aviso ya se haya leído. */}
+                  {answerable(m).length > 0 && manageable(m) && (
+                    <button type="button" className="ws-link-btn ws-requested-marker" onClick={() => openAccess(m, true)} data-testid="request-marker">
+                      {t('requestedMarker', { apps: answerable(m).map((a) => PRODUCT_CONFIG[a].name).join(', ') })}
+                    </button>
+                  )}
+                </>
+              ),
             },
             ...(dir.groups.length
               ? [
@@ -956,22 +973,9 @@ export default function MembersPanel({
               header: tp('colLastActive'),
               cell: (m: MemberDto) => (
                 <span className="ws-cell-muted" title={m.lastActiveAt ? fmt(m.lastActiveAt) : undefined}>
-                  {m.userId === me ? tp('statusActive') : ago(m.lastActiveAt)}
+                  {m.userId === me ? new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(0, 'second') : ago(m.lastActiveAt)}
                 </span>
               ),
-            },
-            {
-              key: 'status',
-              header: tp('colStatus'),
-              cell: (m: MemberDto) =>
-                answerable(m).length > 0 && manageable(m) ? (
-                  // El pedido sigue a la vista aunque el aviso ya se haya leído.
-                  <button type="button" className="ws-link-btn ws-requested-marker" onClick={() => openAccess(m, true)} data-testid="request-marker">
-                    {t('requestedMarker', { apps: answerable(m).map((a) => PRODUCT_CONFIG[a].name).join(', ') })}
-                  </button>
-                ) : (
-                  <span className="ws-cell-muted">{m.role === 'guest' ? t('guestAccess') : tp('statusActive')}</span>
-                ),
             },
             {
               key: 'actions',
@@ -982,17 +986,6 @@ export default function MembersPanel({
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => openAccess(m)} aria-label={tp('accessOf', { name: nameOf(m) })} disabled={locked}>
                       {tp('access')}
                     </button>
-                    {manageable(m) && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-danger btn-sm"
-                        onClick={() => void askRemove([m])}
-                        disabled={locked}
-                        aria-label={t('removeOf', { name: m.name || m.email })}
-                      >
-                        {t('remove')}
-                      </button>
-                    )}
                   </div>
                 ) : null,
             },
@@ -1233,10 +1226,27 @@ export default function MembersPanel({
         error={viewing ? error : null}
         width={560}
         footExtra={
-          viewingNow && answerable(viewingNow).length > 0 && canEditViewing ? (
-            <button type="button" className="btn btn-secondary" onClick={() => void deny()} disabled={locked} data-testid="deny-request">
-              {t('denyRequest')}
-            </button>
+          viewingNow && canEditViewing ? (
+            <>
+              {answerable(viewingNow).length > 0 && (
+                <button type="button" className="btn btn-secondary" onClick={() => void deny()} disabled={locked} data-testid="deny-request">
+                  {t('denyRequest')}
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-ghost btn-danger"
+                onClick={() => {
+                  const m = viewingNow;
+                  closeAccess();
+                  void askRemove([m]);
+                }}
+                disabled={locked}
+                aria-label={t('removeOf', { name: viewingNow.name || viewingNow.email })}
+              >
+                {t('remove')}
+              </button>
+            </>
           ) : undefined
         }
       >
@@ -1288,7 +1298,7 @@ export default function MembersPanel({
                       <input
                         type="checkbox"
                         checked={viewingNow.apps === '*'}
-                        disabled={locked || (appsLimit !== '*' && viewingNow.apps !== '*')}
+                        disabled={appsLimit !== '*' && viewingNow.apps !== '*'}
                         onChange={(e) => void changeApps(viewingNow, e.target.checked ? '*' : [...appOrder], tp('toast.apps', { name: nameOf(viewingNow) }))}
                       />
                       <span>{t('allApps')}</span>
@@ -1307,7 +1317,7 @@ export default function MembersPanel({
                               id={`ws-acc-${k}`}
                               type="checkbox"
                               checked={on}
-                              disabled={locked || !(canToggle || canTurnOff)}
+                              disabled={!(canToggle || canTurnOff)}
                               onChange={(e) => toggleApp(viewingNow, k, e.target.checked)}
                             />
                             <span>{PRODUCT_CONFIG[k].name}</span>

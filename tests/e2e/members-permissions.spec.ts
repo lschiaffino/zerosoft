@@ -35,6 +35,10 @@ async function as(browser: Browser, email: string, opts: { width?: number; dark?
 /** Una persona del workspace demo con ese rol y apps, ya con su cuenta creada. */
 async function person(browser: Browser, role: 'admin' | 'member' | 'guest', apps: string, name: string) {
   const email = `${role}-${uid()}@perm-e2e.io`;
+  // El workspace demo existe desde el primer pedido del usuario demo.
+  const demo = await as(browser, 'session-demo');
+  await demo.request.get('/api/teams/members');
+  await demo.close();
   const c = await as(browser, email);
   await c.request.get('/api/teams/members');
   const id = String((await sql('SELECT id FROM users WHERE email = ?', [email]))[0].id);
@@ -101,7 +105,8 @@ test('owner: rol y apps en línea con deshacer, lote, qué puede ver, quitar con
     await expect(bar).toHaveCount(0);
 
     // Quitar a Ana pasándole su contacto a Leo: sale de la tabla y aparece en Quitados.
-    await row(page, ana.email).getByRole('button', { name: `Remove ${ana.name}` }).click();
+    await row(page, ana.email).getByRole('button', { name: `See what ${ana.name} can see` }).click();
+    await page.getByRole('dialog').getByRole('button', { name: `Remove ${ana.name}` }).click();
     const confirm = page.getByRole('alertdialog');
     await expect(confirm).toContainText('1 CRM record');
     await confirm.getByLabel('Pass their work to').selectOption({ label: leo.name });
@@ -131,20 +136,19 @@ test('owner: rol y apps en línea con deshacer, lote, qué puede ver, quitar con
     await expect(page.getByTestId('invite-result').first()).toContainText('Invite link ready');
     await expect(page.getByTestId('invite-row').filter({ hasText: 'Invite link' }).first()).toBeVisible();
   } finally {
-    await ana.ctx.close();
-    await leo.ctx.close();
+    for (const c of [ana.ctx, leo.ctx]) await c.close().catch(() => undefined);
   }
 });
 
 test('admin, member y guest: cada uno ve y hace solo lo suyo; 390px oscuro', async ({ browser }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   const adm = await person(browser, 'admin', '*', `Adm ${uid()}`);
   const mem = await person(browser, 'member', '["docs"]', `Mem ${uid()}`);
   const gst = await person(browser, 'guest', '[]', `Gst ${uid()}`);
   try {
     // Admin: puede cambiar a members, no ofrece Admin, no toca al owner.
     const a = await adm.ctx.newPage();
-    await a.goto('/en/app/settings/members', { waitUntil: 'networkidle' });
+    await a.goto('/en/app/settings/members', { waitUntil: 'load' });
     const memRow = row(a, mem.email);
     await expect(memRow.getByRole('combobox').locator('option', { hasText: 'Admin' })).toHaveCount(0);
     await expect(row(a, 'demo@zerosoft.ai').getByRole('checkbox')).toHaveCount(0);
@@ -157,7 +161,7 @@ test('admin, member y guest: cada uno ve y hace solo lo suyo; 390px oscuro', asy
 
     // Member: lista y leyenda, sin invitar, sin selección, sin acciones; la API lo frena.
     const m = await mem.ctx.newPage();
-    await m.goto('/en/app/settings/members', { waitUntil: 'networkidle' });
+    await m.goto('/en/app/settings/members', { waitUntil: 'load' });
     await expect(m.locator(`[data-testid="member-row"][data-email="${adm.email}"]`)).toBeVisible();
     await expect(m.getByRole('heading', { name: /^Invite people/ })).toHaveCount(0);
     await expect(m.getByRole('checkbox')).toHaveCount(0);
@@ -171,22 +175,20 @@ test('admin, member y guest: cada uno ve y hace solo lo suyo; 390px oscuro', asy
 
     // Guest: no ve a la gente del workspace.
     const g = await gst.ctx.newPage();
-    await g.goto('/en/app/settings/members', { waitUntil: 'networkidle' });
+    await g.goto('/en/app/settings/members', { waitUntil: 'load' });
     await expect(g.locator(`[data-testid="member-row"][data-email="${adm.email}"]`)).toHaveCount(0);
     expect((await g.request.patch(`/api/teams/members/${mem.id}`, { data: { apps: '*' } })).status()).not.toBe(200);
 
     // 390px en oscuro, con el diálogo de acceso abierto, sin scroll horizontal.
     const narrow = await as(browser, adm.email, { width: 390, dark: true });
     const n = await narrow.newPage();
-    await n.goto('/en/app/settings/members', { waitUntil: 'networkidle' });
+    await n.goto('/en/app/settings/members', { waitUntil: 'load' });
     expect(await overflow(n)).toBeLessThanOrEqual(0);
     await row(n, mem.email).getByRole('button', { name: /^See what/ }).click();
     await expect(n.getByRole('dialog').getByTestId('access-view')).toBeVisible();
     expect(await overflow(n)).toBeLessThanOrEqual(0);
     await narrow.close();
   } finally {
-    await adm.ctx.close();
-    await mem.ctx.close();
-    await gst.ctx.close();
+    for (const c of [adm.ctx, mem.ctx, gst.ctx]) await c.close().catch(() => undefined);
   }
 });

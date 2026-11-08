@@ -377,8 +377,10 @@ body:has(.wl-page) .zs-support-launcher { display: none; }
 .ws-select { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); cursor: pointer; }
 .ws-select:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .ws-members .ws-person-name { overflow-wrap: anywhere; }
-.ws-members .ws-apps-cell { max-width: 220px; overflow-wrap: anywhere; }
-.ws-invite-foot { display: flex; flex-wrap: wrap; gap: 8px; }
+.ws-members .ws-apps-cell { display: block; max-width: 200px; overflow-wrap: anywhere; }
+.ws-members .ws-person { min-width: 200px; }
+.ws-members td:last-child { white-space: nowrap; }
+.st-form-foot.ws-invite-foot { display: flex; flex-flow: row wrap; justify-content: flex-start; gap: 8px; }
 .ws-invite-link-help { margin: -6px 0 0; }
 .ws-invite-role { max-width: 260px; }
 .ws-matrix-wrap { margin: 10px 0 12px; }
