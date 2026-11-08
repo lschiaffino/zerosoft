@@ -359,7 +359,7 @@ async function runSandbox(id: string, key: string): Promise<void> {
     { path: `${SANDBOX_ROOT}/run.cjs`, content: Buffer.from(sandboxRunner()) },
     { path: `${SANDBOX_ROOT}/job.json`, content: Buffer.from(JSON.stringify(job)) },
   ]);
-  await getDb().prepare('UPDATE rec_videos SET mp4_job = ? WHERE id = ? AND mp4_for = ?').run(sbx.sandboxId, id, key);
+  await getDb().prepare('UPDATE rec_videos SET mp4_job = ? WHERE id = ? AND mp4_for = ?').run(sbx.name, id, key);
   await sbx.runCommand({ cmd: 'node', args: [`${SANDBOX_ROOT}/run.cjs`, `${SANDBOX_ROOT}/job.json`], cwd: SANDBOX_ROOT, detached: true });
 }
 
@@ -373,7 +373,7 @@ export async function sandboxDone(id: string, key: string, body: { url?: string;
   if (row.mp4_job) {
     try {
       const { Sandbox } = await import('@vercel/sandbox');
-      const sbx = await Sandbox.get({ ...sandboxCredentials(), sandboxId: row.mp4_job } as Parameters<SandboxModule['Sandbox']['get']>[0]);
+      const sbx = await Sandbox.get({ ...sandboxCredentials(), name: row.mp4_job } as Parameters<SandboxModule['Sandbox']['get']>[0]);
       await sbx.stop();
     } catch {
       /* se apaga sola al vencer */
