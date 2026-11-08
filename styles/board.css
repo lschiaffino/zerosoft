@@ -907,3 +907,126 @@ section.board-templates { padding: 0; }
 .board-audit-detail { display: block; }
 .board-search-count { margin: 0 0 12px; font-size: 0.875rem; color: var(--brand-gray-1); }
 .board-search-empty .board-search-count { font-size: 1rem; color: var(--ink); margin-bottom: 4px; }
+
+/* ---------- Herramientas del lienzo: sticky (N), resaltador, tabla, minimapa ---------- */
+.board-canvas-tools {
+  position: absolute;
+  right: 64px;
+  bottom: 16px;
+  z-index: 4;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+}
+.board-canvas-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 30px;
+  min-width: 30px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.board-canvas-tool:hover { background: var(--ui-hover); }
+.board-canvas-tool.is-on { background: color-mix(in srgb, var(--c-board-ink) 14%, var(--bg)); border-color: var(--c-board-ink); }
+.board-canvas-tool:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.board-canvas-tool kbd { font: 500 0.6875rem/1 var(--font-mono, monospace); color: var(--brand-gray-1); }
+
+.board-minimap {
+  position: absolute;
+  right: 16px;
+  bottom: 60px;
+  z-index: 4;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+  overflow: hidden;
+  --minimap-ink: #adb5bd;
+  --minimap-view: var(--c-board-ink);
+}
+.board-minimap canvas { display: block; cursor: crosshair; touch-action: none; }
+:root[data-theme='dark'] .board-minimap { --minimap-ink: #5c636a; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .board-minimap { --minimap-ink: #5c636a; }
+}
+/* En el teléfono Excalidraw usa la franja de abajo para sus herramientas. */
+@media (max-width: 760px) {
+  .board-canvas-tools, .board-minimap { display: none; }
+}
+.is-presenting .board-canvas-tools, .is-presenting .board-minimap { display: none; }
+
+/* Reacciones con emoji debajo de un objeto. */
+.board-reactions { position: absolute; z-index: 3; display: flex; flex-wrap: wrap; gap: 3px; max-width: 320px; pointer-events: auto; }
+.board-reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  color: var(--ink);
+  font: 500 0.75rem/1 var(--font-ui);
+  cursor: pointer;
+}
+.board-reaction .num { font-variant-numeric: tabular-nums; }
+.board-reaction.is-mine { border-color: var(--c-board-ink); background: color-mix(in srgb, var(--c-board-ink) 12%, var(--bg)); }
+.board-reaction:hover:not(:disabled) { border-color: var(--ink); }
+.board-reaction:disabled { cursor: default; }
+.board-reaction:focus-visible, .board-reaction-pick:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.board-reaction.is-add { color: var(--brand-gray-1); }
+.board-reaction.is-add.is-on { color: var(--ink); border-color: var(--ink); }
+.board-reaction-wrap { position: relative; display: inline-flex; }
+.board-reaction-picker {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+}
+.board-reaction-pick { width: 30px; height: 30px; border: 0; border-radius: var(--radius-1); background: none; font-size: 1.05rem; cursor: pointer; }
+.board-reaction-pick:hover { background: var(--ui-hover); }
+
+/* Modo privado: los stickies de los demás quedan tapados. */
+.board-private-cover {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--brand-gray-2);
+  border-radius: var(--radius-1);
+  background: repeating-linear-gradient(135deg, var(--ui-hover) 0 8px, var(--bg) 8px 16px);
+  color: var(--brand-gray-1);
+  pointer-events: auto;
+}
+.board-private-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  min-height: 28px;
+  border: 1px solid var(--c-board-ink);
+  border-radius: var(--radius-1);
+  color: var(--c-board-ink);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+/* Pin pegado a un objeto: un halo lo separa del objeto que comenta. */
+.board-pin.is-attached { box-shadow: 0 0 0 2px var(--bg); }

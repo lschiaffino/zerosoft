@@ -19,7 +19,7 @@ const loadBoard = cache(async (locale: string, id: string) => {
   const user = await requireUser(locale);
   const access = await getBoardAccess(boardViewer(user), id);
   const board = access ? await getBoard(user.id, id) : null;
-  return board && access ? { board, access } : null;
+  return board && access ? { board, access, personId: boardViewer(user).personId } : null;
 });
 
 export async function generateMetadata(props: Props) {
@@ -39,6 +39,7 @@ export default async function BoardPage(props: Props) {
       board={{ ...loaded.board, my_access: loaded.access }}
       locale={locale}
       commentId={typeof comment === 'string' ? comment : null}
+      meId={loaded.personId}
     />
   );
 }

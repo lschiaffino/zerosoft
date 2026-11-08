@@ -5,6 +5,9 @@ import { useFormatter, useTranslations } from 'next-intl';
 import type { BoardThreadView } from '@/lib/board-comments';
 import type { MentionMember } from '@/lib/board-mentions';
 import { sceneToView, viewToScene, type CanvasView } from '@/lib/board-view';
+import { elementAt, pinPosition } from '@/lib/board-canvas-tools';
+import type { SceneEl } from '@/lib/board-stickies';
+import { elementsSignature } from '@/lib/board-signature';
 import type { CanvasApi } from './ExcalidrawCanvas';
 import MentionTextarea from './MentionTextarea';
 import NotesIcon from '@/components/notes/NotesIcon';
@@ -17,7 +20,8 @@ const DRAG_PX = 4;
 /**
  * Comentarios anclados al lienzo: pins sobre la escena (siguen el scroll y el
  * zoom de Excalidraw), el hilo en un popover y la lista en un panel lateral.
- * `placing` = el próximo clic en el lienzo crea un hilo ahí.
+ * `placing` = el próximo clic en el lienzo crea un hilo ahí; si cae sobre un
+ * objeto, el hilo queda pegado a él y lo sigue cuando se mueve.
  */
 export default function CanvasComments({
   boardId,
@@ -45,7 +49,9 @@ export default function CanvasComments({
   const [me, setMe] = useState<string | null>(null);
   const [view, setView] = useState<CanvasView>({ scrollX: 0, scrollY: 0, zoom: 1 });
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{ x: number; y: number } | null>(null);
+  const [draft, setDraft] = useState<{ x: number; y: number; elementId: string | null; anchorX: number | null; anchorY: number | null } | null>(null);
+  /** Elementos del lienzo por id (para que los pins sigan a su objeto). */
+  const [byId, setById] = useState<ReadonlyMap<string, SceneEl>>(new Map());
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -85,6 +91,38 @@ export default function CanvasComments({
     onCountChange(threads.filter((th) => !th.resolved_at).length);
   }, [threads, onCountChange]);
 
+  // Los pins pegados a un objeto lo siguen: se relee la escena cuando cambia algún elemento.
+  useEffect(() => {
+    if (!api) return;
+    let frame = 0;
+    let lastSig = '';
+    const read = () => {
+      frame = 0;
+      const all = api.getSceneElements() as SceneEl[];
+      const sig = elementsSignature(all);
+      if (sig === lastSig) return;
+      lastSig = sig;
+      setById(new Map(all.map((e) => [e.id, e])));
+    };
+    read();
+    const off = api.onChange(() => {
+      if (!frame) frame = requestAnimationFrame(read);
+    });
+    return () => {
+      off();
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [api]);
+
+  /** Dónde está el objeto que hay en `p` (para anclar un hilo), o nada. */
+  const anchorAt = useCallback(
+    (p: { x: number; y: number }) => {
+      const el = elementAt([...byId.values()], p);
+      return el ? { elementId: el.id, anchorX: Number(el.x) || 0, anchorY: Number(el.y) || 0 } : { elementId: null, anchorX: null, anchorY: null };
+    },
+    [byId],
+  );
+
   // Los pins siguen el scroll y el zoom del lienzo.
   useEffect(() => {
     if (!api) return;
@@ -93,7 +131,15 @@ export default function CanvasComments({
     return api.onScrollChange((scrollX, scrollY, zoom) => setView({ scrollX, scrollY, zoom: zoom.value }));
   }, [api]);
 
-  const numbered = useMemo(() => threads.map((th, i) => ({ ...th, n: i + 1 })), [threads]);
+  // Posición en la escena de cada hilo: la propia o corrida con su objeto.
+  const numbered = useMemo(
+    () =>
+      threads.map((th, i) => {
+        const pos = pinPosition(th, byId);
+        return { ...th, n: i + 1, x: pos.x, y: pos.y, attached: pos.attached };
+      }),
+    [threads, byId],
+  );
   const visible = numbered.filter((th) => showResolved || !th.resolved_at || th.id === activeId);
   const active = numbered.find((th) => th.id === activeId) ?? null;
 
@@ -146,7 +192,8 @@ export default function CanvasComments({
 
   function place(e: React.MouseEvent<HTMLDivElement>) {
     const box = e.currentTarget.getBoundingClientRect();
-    setDraft(viewToScene({ x: e.clientX - box.left, y: e.clientY - box.top }, view));
+    const p = viewToScene({ x: e.clientX - box.left, y: e.clientY - box.top }, view);
+    setDraft({ ...p, ...anchorAt(p) });
     setActiveId(null);
     setText('');
     setError(false);
@@ -183,7 +230,7 @@ export default function CanvasComments({
     const body = text.trim();
     if (!body || busy) return;
     if (draft) {
-      const th = await send(`/api/boards/${boardId}/comments`, 'POST', { x: draft.x, y: draft.y, body });
+      const th = await send(`/api/boards/${boardId}/comments`, 'POST', { ...draft, body });
       if (th) {
         upsert(th);
         setDraft(null);
@@ -225,7 +272,7 @@ export default function CanvasComments({
   }
 
   /** Arrastrar un pin lo mueve; un clic sin moverse lo abre. */
-  function onPinPointerDown(e: React.PointerEvent<HTMLButtonElement>, th: BoardThreadView) {
+  function onPinPointerDown(e: React.PointerEvent<HTMLButtonElement>, th: { id: string; x: number; y: number }) {
     if (e.button !== 0) return;
     const startX = e.clientX;
     const startY = e.clientY;
@@ -250,9 +297,13 @@ export default function CanvasComments({
       }
       const x = origin.x + (ev.clientX - startX) / view.zoom;
       const y = origin.y + (ev.clientY - startY) / view.zoom;
-      setThreads((list) => list.map((p) => (p.id === th.id ? { ...p, x, y } : p)));
+      // Soltarlo sobre un objeto lo pega a ese objeto; en el vacío queda suelto.
+      const anchor = anchorAt({ x, y });
+      setThreads((list) =>
+        list.map((p) => (p.id === th.id ? { ...p, x, y, element_id: anchor.elementId, anchor_x: anchor.anchorX, anchor_y: anchor.anchorY } : p)),
+      );
       setDrag(null);
-      void send(`/api/boards/${boardId}/comments/${th.id}`, 'PATCH', { x, y });
+      void send(`/api/boards/${boardId}/comments/${th.id}`, 'PATCH', { x, y, ...anchor });
     }
     target.addEventListener('pointermove', onMove);
     target.addEventListener('pointerup', onUp);
@@ -283,7 +334,7 @@ export default function CanvasComments({
           <button
             key={th.id}
             type="button"
-            className={`board-pin${th.resolved_at ? ' is-resolved' : ''}${th.id === activeId ? ' is-active' : ''}`}
+            className={`board-pin${th.resolved_at ? ' is-resolved' : ''}${th.id === activeId ? ' is-active' : ''}${th.attached ? ' is-attached' : ''}`}
             style={{ left: p.x, top: p.y }}
             onPointerDown={(e) => onPinPointerDown(e, th)}
             onKeyDown={(e) => {

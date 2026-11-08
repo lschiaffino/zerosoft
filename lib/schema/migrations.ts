@@ -8614,6 +8614,17 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE links ADD COLUMN do_index INTEGER NOT NULL DEFAULT 0');
     },
   },
+  {
+    // Board: modo privado del taller (cada uno ve solo sus stickies hasta
+    // revelar) y comentarios pegados a un objeto (dónde estaba el objeto al
+    // anclarlo, para que el pin lo siga cuando se mueve).
+    id: '280_board_private_mode_comment_anchor',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE boards ADD COLUMN private_mode INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, 'ALTER TABLE board_comment_threads ADD COLUMN anchor_x REAL');
+      await addColumn(c, 'ALTER TABLE board_comment_threads ADD COLUMN anchor_y REAL');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -13,6 +13,8 @@ const TRACK_MS = 30_000;
 export interface WorkshopState {
   timer: TimerView | null;
   voting: VotingView | null;
+  /** Modo privado: cada uno ve solo sus stickies hasta que se revelan. */
+  privateMode: boolean;
   /** Diferencia reloj del servidor − reloj local (ms), para la cuenta regresiva. */
   skew: number;
 }
@@ -39,11 +41,11 @@ export function usePoll(fn: () => Promise<void>, ms: number, enabled: boolean) {
 }
 
 export function useWorkshop(boardId: string, enabled: boolean) {
-  const [state, setState] = useState<WorkshopState>({ timer: null, voting: null, skew: 0 });
+  const [state, setState] = useState<WorkshopState>({ timer: null, voting: null, privateMode: false, skew: 0 });
   const [error, setError] = useState(false);
 
-  const apply = useCallback((data: { now: number; timer: TimerView | null; voting: VotingView | null }) => {
-    setState({ timer: data.timer, voting: data.voting, skew: data.now - Date.now() });
+  const apply = useCallback((data: { now: number; timer: TimerView | null; voting: VotingView | null; privateMode?: boolean }) => {
+    setState({ timer: data.timer, voting: data.voting, privateMode: Boolean(data.privateMode), skew: data.now - Date.now() });
   }, []);
 
   const load = useCallback(async () => {
@@ -51,7 +53,7 @@ export function useWorkshop(boardId: string, enabled: boolean) {
     if (res?.ok) apply(await res.json());
   }, [boardId, apply]);
 
-  const active = state.timer?.status === 'running' || state.timer?.status === 'paused' || state.voting?.status === 'open';
+  const active = state.timer?.status === 'running' || state.timer?.status === 'paused' || state.voting?.status === 'open' || state.privateMode;
   usePoll(load, active ? WORKSHOP_ACTIVE_MS : WORKSHOP_IDLE_MS, enabled);
 
   /** Manda una acción ({ timer } o { vote }) y aplica el estado que vuelve. */

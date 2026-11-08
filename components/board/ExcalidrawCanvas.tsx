@@ -37,6 +37,7 @@ export interface CanvasApi {
   getFiles: () => Record<string, unknown>;
   onScrollChange: (cb: (scrollX: number, scrollY: number, zoom: { value: number }) => void) => () => void;
   onUserFollow: (cb: (payload: { userToFollow: { socketId: string; username: string }; action: 'FOLLOW' | 'UNFOLLOW' }) => void) => () => void;
+  setActiveTool: (tool: { type: string; locked?: boolean }) => void;
 }
 
 /** Puntero de esta pestaña (Excalidraw lo avisa en cada movimiento). */
@@ -353,7 +354,8 @@ function ExcalidrawCanvas({
   const initialData = useMemo(
     () => ({
       elements: scene.elements as never,
-      appState: { ...scene.appState, collaborators: undefined } as never,
+      // Guías de alineación al mover (snap a objetos) prendidas de entrada, como en Miro.
+      appState: { objectsSnapModeEnabled: true, ...scene.appState, collaborators: undefined } as never,
       files: scene.files as never,
       scrollToContent: true,
     }),

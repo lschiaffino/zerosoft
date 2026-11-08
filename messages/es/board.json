@@ -178,6 +178,34 @@
       "segments": "Segmentos de clientes",
       "costs": "Estructura de costos",
       "revenue": "Fuentes de ingresos"
+    },
+    "flowchart": {
+      "name": "Diagrama de flujo",
+      "description": "Pasos, una decisión y una vuelta atrás, con flechas con etiqueta.",
+      "title": "Diagrama de flujo",
+      "hint": "Elegí una forma y apretá Cmd+flecha para sumar el paso siguiente.",
+      "start": "Inicio",
+      "input": "Recibir el pedido",
+      "process": "Hacer el trabajo",
+      "check": "¿Está bien?",
+      "output": "Entregar",
+      "end": "Fin",
+      "fix": "Corregir",
+      "yes": "Sí",
+      "no": "No"
+    },
+    "storyMap": {
+      "name": "Mapa de historias de usuario",
+      "description": "Actividades, pasos e historias divididas en releases.",
+      "title": "Mapa de historias de usuario",
+      "hint": "Arriba las actividades, abajo sus pasos y las historias en cada carril de release.",
+      "activity1": "Buscar un producto",
+      "activity2": "Comprarlo",
+      "activity3": "Pedir ayuda",
+      "step": "Un paso",
+      "release1": "Release 1",
+      "release2": "Después",
+      "story": "Una historia de usuario"
     }
   },
   "history": {
@@ -248,7 +276,10 @@
     "boardTags": "Tags de esta pizarra",
     "selectTag": "Seleccionar todos los stickies con {tag}",
     "exportAll": "Exportar todos los stickies a CSV",
-    "exportSelected": "Exportar {count} seleccionados a CSV"
+    "exportSelected": "Exportar {count} seleccionados a CSV",
+    "importCsv": "Importar CSV",
+    "importHint": "Desde un CSV de stickies exportado acá o desde Miro. Un sticky por fila.",
+    "importError": "No encontramos stickies en ese archivo. Usá un CSV con una columna de texto."
   },
   "track": {
     "button": "Track",
@@ -299,7 +330,14 @@
     "votes": "{count, plural, one {# voto} other {# votos}}",
     "deletedElement": "Borrado de la pizarra",
     "untitledElement": "Sin texto",
-    "error": "No se pudo actualizar el taller. Probá de nuevo."
+    "error": "No se pudo actualizar el taller. Probá de nuevo.",
+    "privateTitle": "Modo privado",
+    "privateHint": "Mientras está prendido, cada uno ve solo sus stickies. Al apagarlo se revelan todos juntos.",
+    "privateOn": "El modo privado está prendido: los stickies de los demás quedan ocultos hasta que alguien los revele.",
+    "privateStart": "Prender el modo privado",
+    "privateReveal": "Revelar los stickies de todos",
+    "privateChip": "Privado",
+    "privateCover": "Oculto hasta que termine el modo privado"
   },
   "access": {
     "title": "Quién puede abrir esta pizarra",
@@ -501,5 +539,20 @@
     "mermaidTitle": "Mermaid a diagrama",
     "prompt": "Descripción",
     "frameTool": "Herramienta de frame"
+  },
+  "tools": {
+    "label": "Herramientas del lienzo",
+    "sticky": "Sticky nuevo",
+    "stickyHint": "Sticky nuevo (N). Con un sticky elegido, Tab suma el siguiente a la derecha, Shift+Tab abajo y Alt+flecha en cualquier dirección.",
+    "highlighter": "Resaltador",
+    "table": "Insertar una tabla",
+    "tableCol": "Columna {n}",
+    "minimap": "Minimapa",
+    "minimapHint": "Minimapa (M)",
+    "tableHint": "Insertar una tabla. Pegar celdas de una planilla también arma una."
+  },
+  "reactions": {
+    "add": "Agregar una reacción",
+    "count": "{emoji} {count, plural, one {# reacción} other {# reacciones}}. Tocá para sumar o sacar la tuya."
   }
 }

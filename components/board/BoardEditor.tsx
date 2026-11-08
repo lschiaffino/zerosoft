@@ -19,6 +19,7 @@ import BoardOverlays from './BoardOverlays';
 import BoardStickyTool from './BoardStickyTool';
 import BoardTrackTool from './BoardTrackTool';
 import BoardWorkshop, { TimerChip } from './BoardWorkshop';
+import BoardCanvasTools from './BoardCanvasTools';
 import { usePoll, useTrackCards, useWorkshop } from './useBoardLive';
 import {
   ambiguousToServer,
@@ -118,9 +119,12 @@ export default function BoardEditor({
   locale,
   commentId = null,
   guestToken = null,
+  meId = null,
 }: {
   board: BoardDetail;
   locale: string;
+  /** Persona que abre la pizarra (autoría de stickies y reacciones); los invitados usan una clave de la pestaña. */
+  meId?: string | null;
   /** ?comment=<hilo>: abre ese hilo (link de una notificación). */
   commentId?: string | null;
   /**
@@ -137,6 +141,19 @@ export default function BoardEditor({
   const readOnly = board.my_access === 'view';
   const apiBase = guest ? `/api/boards/guest/${encodeURIComponent(guestToken ?? '')}` : `/api/boards/${board.id}`;
   const workshop = useWorkshop(board.id, !guest);
+  /** Clave de quien edita: la persona, o una por navegador para el invitado. */
+  const [me] = useState<string | null>(() => {
+    if (meId) return meId;
+    if (typeof window === 'undefined') return null;
+    try {
+      const k = 'board.guest.key';
+      const v = window.localStorage.getItem(k) ?? `guest-${Math.random().toString(36).slice(2, 12)}`;
+      window.localStorage.setItem(k, v);
+      return v;
+    } catch {
+      return `guest-${Math.random().toString(36).slice(2, 12)}`;
+    }
+  });
   const track = useTrackCards(board.id, !guest);
   const [name, setName] = useState(board.name);
   /** Último nombre que confirmó el servidor. */
@@ -519,6 +536,7 @@ export default function BoardEditor({
     onSaved: (version, by) => void onRemoteVersion(version, by),
     onResync: () => void checkVersion(),
     onRevoked: () => setRevoked(true),
+    onWorkshop: () => void workshop.reload(),
   });
   socketIdRef.current = collab.socketId;
 
@@ -586,6 +604,8 @@ export default function BoardEditor({
   const onCanvasApi = useCallback((api: CanvasApi) => {
     apiRef.current = api;
     setCanvasApi(api);
+    // Los e2e leen la escena y la vista por acá (no da nada que la página no tenga ya).
+    (window as unknown as { __boardApi?: CanvasApi }).__boardApi = api;
   }, []);
 
   // Borrador de una visita anterior que no llegó al servidor: se ofrece recuperarlo.
@@ -988,6 +1008,12 @@ export default function BoardEditor({
           {readOnly ? t('access.viewOnly') : statusText}
         </span>
         {!guest && <TimerChip timer={workshop.timer} skew={workshop.skew} />}
+        {!guest && workshop.privateMode && (
+          <span className="board-private-chip" role="status" title={t('workshop.privateOn')} data-testid="board-private-chip">
+            <NotesIcon name="eyeOff" size={13} />
+            <span className="board-bar-label">{t('workshop.privateChip')}</span>
+          </span>
+        )}
         <span className="board-bar-first" aria-hidden="true" />
         <BoardPresence
           people={collab.people}
@@ -1002,7 +1028,7 @@ export default function BoardEditor({
           <NotesIcon name="play" size={14} />
           <span className="board-bar-label">{t('present.button')}</span>
         </button>
-        {!readOnly && <BoardStickyTool api={canvasApi} />}
+        {!readOnly && <BoardStickyTool api={canvasApi} me={me} />}
         {!guest && !readOnly && (
           <BoardTrackTool
             className="board-bar-extra"
@@ -1018,6 +1044,7 @@ export default function BoardEditor({
             api={canvasApi}
             timer={workshop.timer}
             voting={workshop.voting}
+            privateMode={workshop.privateMode}
             skew={workshop.skew}
             canRun={!readOnly}
             error={workshop.error}
@@ -1315,8 +1342,12 @@ export default function BoardEditor({
             voting={workshop.voting}
             canVote
             onVote={(elementId, delta) => void workshop.send({ vote: { action: 'vote', elementId, delta } })}
+            me={me}
+            canReact={!readOnly}
+            privateMode={workshop.privateMode}
           />
         )}
+        {!presenting && <BoardCanvasTools api={canvasApi} me={me} canEdit={!readOnly} hostRef={canvasRef} />}
         {!guest && (
           <CanvasComments
             boardId={board.id}

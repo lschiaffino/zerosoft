@@ -35,7 +35,7 @@ const HEARTBEAT_MS = 10_000;
 
 interface LiveEvent {
   id: number;
-  kind: 'update' | 'presence' | 'summon' | 'leave' | 'saved' | 'access';
+  kind: 'update' | 'presence' | 'summon' | 'leave' | 'saved' | 'access' | 'workshop';
   socketId: string;
   user: PeerUser | null;
   payload: {
@@ -66,6 +66,8 @@ export function useBoardCollab(opts: {
   onResync: () => void;
   /** Se perdió el acceso a la pizarra (lo sacaron o la borraron). */
   onRevoked: () => void;
+  /** Cambió el taller (timer, votación, modo privado): se vuelve a leer. */
+  onWorkshop?: () => void;
 }) {
   const { boardId, guestToken, api, canEdit, guestLabel } = opts;
   const handlers = useRef(opts);
@@ -227,6 +229,10 @@ export function useBoardCollab(opts: {
           continue;
         }
         if (e.kind === 'access') continue;
+        if (e.kind === 'workshop') {
+          handlers.current.onWorkshop?.();
+          continue;
+        }
         if (e.kind === 'leave') {
           peersChanged = peersRef.current.delete(e.socketId) || peersChanged;
           continue;

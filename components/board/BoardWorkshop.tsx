@@ -52,6 +52,7 @@ export default function BoardWorkshop({
   api,
   timer,
   voting,
+  privateMode = false,
   skew,
   canRun,
   error,
@@ -62,6 +63,7 @@ export default function BoardWorkshop({
   api: CanvasApi | null;
   timer: TimerView | null;
   voting: VotingView | null;
+  privateMode?: boolean;
   skew: number;
   canRun: boolean;
   error: boolean;
@@ -88,7 +90,7 @@ export default function BoardWorkshop({
   }
 
   const status = timer?.status ?? 'idle';
-  const active = status === 'running' || status === 'paused' || voting?.status === 'open';
+  const active = status === 'running' || status === 'paused' || voting?.status === 'open' || privateMode;
 
   /** Texto de un elemento votado (para la lista de resultados). */
   function label(id: string): string {
@@ -191,6 +193,23 @@ export default function BoardWorkshop({
               )}
             </>
           )}
+
+          <div className="board-pop-section">
+            <p className="board-pop-title">{t('privateTitle')}</p>
+            <p className="board-pop-hint">{privateMode ? t('privateOn') : t('privateHint')}</p>
+            {canRun ? (
+              <button
+                type="button"
+                className={`btn btn-sm board-pop-start${privateMode ? ' btn-primary' : ''}`}
+                disabled={busy}
+                onClick={() => void run({ private: { on: !privateMode } })}
+                data-testid="board-private-toggle"
+              >
+                <NotesIcon name={privateMode ? 'eyeOff' : 'lock'} size={14} />
+                {privateMode ? t('privateReveal') : t('privateStart')}
+              </button>
+            ) : null}
+          </div>
 
           <div className="board-pop-section">
             <p className="board-pop-title">{t('votingTitle')}</p>

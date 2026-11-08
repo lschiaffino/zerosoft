@@ -17,6 +17,8 @@ export const BOARD_TEMPLATES = [
   'priorityMatrix',
   'journey',
   'leanCanvas',
+  'flowchart',
+  'storyMap',
 ] as const;
 export type BoardTemplateKey = (typeof BOARD_TEMPLATES)[number];
 
@@ -146,7 +148,7 @@ class Builder {
   }
 
   /** Flecha unida a dos formas (se mueve con ellas), del borde de una al borde de la otra. */
-  arrow(from: El, to: El, opts: { head?: boolean } = {}): El {
+  arrow(from: El, to: El, opts: { head?: boolean; label?: string } = {}): El {
     const a = edgePoint(from, center(to));
     const b = edgePoint(to, center(from));
     const el = this.base('arrow', a.x, a.y, Math.abs(b.x - a.x), Math.abs(b.y - a.y), {
@@ -164,6 +166,18 @@ class Builder {
     });
     for (const target of [from, to]) {
       target.boundElements = [...((target.boundElements as unknown[] | null) ?? []), { type: 'arrow', id: el.id }];
+    }
+    if (opts.label) {
+      // Etiqueta de la flecha: texto ligado (se mueve con ella y se edita con doble clic).
+      const fontSize = 16;
+      const width = Math.ceil(opts.label.length * fontSize * CHAR_W);
+      const height = Math.ceil(fontSize * LINE_HEIGHT);
+      const t = this.text((a.x + b.x) / 2 - width / 2, (a.y + b.y) / 2 - height / 2, opts.label, fontSize, {
+        textAlign: 'center',
+        verticalAlign: 'middle',
+        containerId: el.id,
+      });
+      el.boundElements = [{ type: 'text', id: t.id }];
     }
     return el;
   }
@@ -318,7 +332,48 @@ function quadrants(b: Builder, t: TemplateText, prefix: string, keys: string[], 
   });
 }
 
-const MORE_BUILDERS: Record<'swot' | 'mindMap' | 'priorityMatrix' | 'journey' | 'leanCanvas', (b: Builder, t: TemplateText) => void> = {
+const MORE_BUILDERS: Record<'swot' | 'mindMap' | 'priorityMatrix' | 'journey' | 'leanCanvas' | 'flowchart' | 'storyMap', (b: Builder, t: TemplateText) => void> = {
+  flowchart(b, t) {
+    b.text(0, -110, t('flowchart.title'), 36);
+    b.text(0, -60, t('flowchart.hint'), 18, { strokeColor: '#495057' });
+    const start = b.shape('ellipse', 0, 20, 180, 80, { fill: GREEN, label: t('flowchart.start') });
+    const input = b.shape('rectangle', 260, 20, 200, 80, { fill: TINT_GRAY, label: t('flowchart.input') });
+    const process = b.shape('rectangle', 540, 20, 200, 80, { fill: BLUE, label: t('flowchart.process') });
+    const check = b.shape('diamond', 820, -20, 220, 160, { fill: YELLOW, label: t('flowchart.check'), fontSize: 18 });
+    const output = b.shape('rectangle', 1120, 20, 200, 80, { fill: TINT_GRAY, label: t('flowchart.output') });
+    const end = b.shape('ellipse', 1400, 20, 160, 80, { fill: RED, label: t('flowchart.end') });
+    const fix = b.shape('rectangle', 820, 240, 220, 80, { fill: VIOLET, label: t('flowchart.fix') });
+    b.arrow(start, input);
+    b.arrow(input, process);
+    b.arrow(process, check);
+    b.arrow(check, output, { label: t('flowchart.yes') });
+    b.arrow(output, end);
+    b.arrow(check, fix, { label: t('flowchart.no') });
+    b.arrow(fix, process);
+  },
+  storyMap(b, t) {
+    b.text(0, -130, t('storyMap.title'), 36);
+    b.text(0, -80, t('storyMap.hint'), 18, { strokeColor: '#495057' });
+    const COL = 240;
+    const LANE = 200;
+    const activities = ['activity1', 'activity2', 'activity3'];
+    const releases = ['release1', 'release2'];
+    // Fila 1: actividades; fila 2: pasos de cada una (dos por actividad); abajo, carriles por release.
+    activities.forEach((a, i) => {
+      const x = LANE + i * 2 * COL;
+      b.sticky(x, 0, t(`storyMap.${a}`), BLUE, 2 * COL - 24, 90);
+      for (let k = 0; k < 2; k++) b.sticky(x + k * COL, 120, t('storyMap.step'), YELLOW, COL - 24, 100);
+    });
+    const width = LANE + activities.length * 2 * COL;
+    releases.forEach((r, j) => {
+      const y = 260 + j * 220;
+      b.shape('rectangle', 0, y, width, 200, { rounded: false, stroke: '#ced4da', fill: j === 0 ? TINT_GREEN : TINT_GRAY, dashed: true });
+      b.text(20, y + 20, t(`storyMap.${r}`), 22);
+      activities.forEach((_, i) => {
+        b.sticky(LANE + i * 2 * COL, y + 40, t('storyMap.story'), j === 0 ? GREEN : RED, COL - 24, 110);
+      });
+    });
+  },
   swot(b, t) {
     b.text(0, -70, t('swot.title'), 36);
     quadrants(b, t, 'swot', ['strengths', 'weaknesses', 'opportunities', 'threats'], [TINT_GREEN, TINT_RED, TINT_BLUE, TINT_GRAY], 'note');

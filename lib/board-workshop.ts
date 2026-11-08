@@ -95,6 +95,20 @@ export async function applyTimer(workspaceId: string, boardId: string, act: Time
   return timerView(next, nowMs);
 }
 
+// ---------- Modo privado ----------
+
+/** ¿Está prendido el modo privado (cada uno ve solo sus stickies)? */
+export async function getPrivateMode(workspaceId: string, boardId: string): Promise<boolean> {
+  const row = (await getDb().prepare('SELECT private_mode FROM boards WHERE id = ? AND workspace_id = ?').get(boardId, workspaceId)) as
+    | { private_mode: number | null }
+    | undefined;
+  return Number(row?.private_mode) === 1;
+}
+
+export async function setPrivateMode(workspaceId: string, boardId: string, on: boolean): Promise<void> {
+  await getDb().prepare('UPDATE boards SET private_mode = ? WHERE id = ? AND workspace_id = ?').run(on ? 1 : 0, boardId, workspaceId);
+}
+
 // ---------- Votación ----------
 
 export interface VoteSessionRow {

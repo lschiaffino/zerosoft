@@ -1929,6 +1929,8 @@ export interface BoardRow {
   timer_ends_at?: string | null;
   timer_seconds?: number | null;
   timer_paused_left?: number | null;
+  /** Modo privado del taller: cada uno ve solo sus stickies hasta que se revelan. */
+  private_mode?: number;
   /** Papelera: cuándo y quién la borró (null = viva). */
   deleted_at?: string | null;
   deleted_by?: string | null;
@@ -1972,6 +1974,9 @@ export interface BoardCommentThreadRow {
   x: number;
   y: number;
   element_id: string | null;
+  /** Dónde estaba el objeto (element_id) al anclar el hilo: el pin se corre lo que se movió el objeto. */
+  anchor_x?: number | null;
+  anchor_y?: number | null;
   created_by: string | null;
   resolved_at: string | null;
   resolved_by: string | null;

@@ -178,6 +178,34 @@
       "segments": "Customer segments",
       "costs": "Cost structure",
       "revenue": "Revenue streams"
+    },
+    "flowchart": {
+      "name": "Flowchart",
+      "description": "Steps, a decision and a loop back, with labeled arrows.",
+      "title": "Flowchart",
+      "hint": "Select a shape and press Cmd+arrow to add the next step.",
+      "start": "Start",
+      "input": "Get the request",
+      "process": "Do the work",
+      "check": "Is it OK?",
+      "output": "Deliver",
+      "end": "End",
+      "fix": "Fix it",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "storyMap": {
+      "name": "User story map",
+      "description": "Activities, steps and stories sliced into releases.",
+      "title": "User story map",
+      "hint": "Activities on top, the steps under them, and stories in each release lane.",
+      "activity1": "Find a product",
+      "activity2": "Buy it",
+      "activity3": "Get support",
+      "step": "A step",
+      "release1": "Release 1",
+      "release2": "Later",
+      "story": "A user story"
     }
   },
   "history": {
@@ -248,7 +276,10 @@
     "boardTags": "Tags on this board",
     "selectTag": "Select every sticky tagged {tag}",
     "exportAll": "Export all stickies to CSV",
-    "exportSelected": "Export {count} selected to CSV"
+    "exportSelected": "Export {count} selected to CSV",
+    "importCsv": "Import CSV",
+    "importHint": "From a stickies CSV exported here or from Miro. One sticky per row.",
+    "importError": "No stickies found in that file. Use a CSV with a text column."
   },
   "track": {
     "button": "Track",
@@ -299,7 +330,14 @@
     "votes": "{count, plural, one {# vote} other {# votes}}",
     "deletedElement": "Deleted from the board",
     "untitledElement": "No text",
-    "error": "Couldn’t update the workshop. Try again."
+    "error": "Couldn’t update the workshop. Try again.",
+    "privateTitle": "Private mode",
+    "privateHint": "While it is on, everyone sees only their own stickies. Turn it off to reveal them all at once.",
+    "privateOn": "Private mode is on: stickies from others stay hidden until someone reveals them.",
+    "privateStart": "Start private mode",
+    "privateReveal": "Reveal everyone's stickies",
+    "privateChip": "Private",
+    "privateCover": "Hidden until private mode ends"
   },
   "access": {
     "title": "Who can open this board",
@@ -501,5 +539,20 @@
     "mermaidTitle": "Mermaid to diagram",
     "prompt": "Description",
     "frameTool": "Frame tool"
+  },
+  "tools": {
+    "label": "Canvas tools",
+    "sticky": "New sticky",
+    "stickyHint": "New sticky (N). With a sticky selected, Tab adds the next one to the right, Shift+Tab below, Alt+arrow in any direction.",
+    "highlighter": "Highlighter",
+    "table": "Insert a table",
+    "tableCol": "Column {n}",
+    "minimap": "Minimap",
+    "minimapHint": "Minimap (M)",
+    "tableHint": "Insert a table. Pasting cells from a spreadsheet also creates one."
+  },
+  "reactions": {
+    "add": "Add a reaction",
+    "count": "{emoji} {count, plural, one {# reaction} other {# reactions}}. Click to add or remove yours."
   }
 }

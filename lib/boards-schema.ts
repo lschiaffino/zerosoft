@@ -38,6 +38,8 @@ export const boardCommentCreateSchema = z.object({
   x: z.number().finite(),
   y: z.number().finite(),
   elementId: z.string().max(128).nullish(),
+  anchorX: z.number().finite().nullish(),
+  anchorY: z.number().finite().nullish(),
   body: z.string().trim().min(1).max(5000),
 });
 
@@ -50,6 +52,9 @@ export const boardThreadPatchSchema = z
     resolved: z.boolean().optional(),
     x: z.number().finite().optional(),
     y: z.number().finite().optional(),
+    elementId: z.string().max(128).nullish(),
+    anchorX: z.number().finite().nullish(),
+    anchorY: z.number().finite().nullish(),
   })
   .refine((v) => v.resolved !== undefined || (v.x !== undefined && v.y !== undefined), { message: 'empty' });
 
@@ -75,6 +80,9 @@ export const boardTimerSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('stop') }),
   z.object({ action: z.literal('add'), seconds: z.number().int().min(-3600).max(3600) }),
 ]);
+
+/** Modo privado del taller: prender o apagar (al apagarlo se revelan los stickies). */
+export const boardPrivateSchema = z.object({ on: z.boolean() });
 
 /** Votación: abrir (votos por persona), cerrar, descartar resultados o votar (+1 / -1 a un elemento). */
 export const boardVoteSchema = z.discriminatedUnion('action', [
