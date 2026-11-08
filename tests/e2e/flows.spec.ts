@@ -269,6 +269,10 @@ test('Docs: subpágina desde el árbol y papelera que arrastra a los hijos', asy
 
   await page.locator('#trash summary').click();
   await page.locator('.docs-trash-row', { hasText: parent.title }).getByRole('button', { name: 'Restore' }).click();
+  // Vuelve con su subpágina: el árbol arranca plegado (como Notion), se despliega la madre.
+  const restored = page.locator('.docs-tree-row', { hasText: parent.title }).first();
+  await expect(restored).toBeVisible({ timeout: 15_000 });
+  await restored.locator('.docs-tree-chevron').click();
   await expect(page.locator('.docs-tree-title', { hasText: child.title })).toBeVisible({ timeout: 15_000 });
 });
 

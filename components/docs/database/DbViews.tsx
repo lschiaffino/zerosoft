@@ -175,7 +175,9 @@ export function DbCalendar({
     const d = new Date(Date.UTC(y, m - 1 + n, 1));
     setMonth(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
   };
-  const monthLabel = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  // "Noviembre de 2026": en es y pt el mes va en minúscula; como título, la primera letra en mayúscula.
+  const rawMonth = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const monthLabel = rawMonth.charAt(0).toLocaleUpperCase(locale) + rawMonth.slice(1);
   const dayNames = Array.from({ length: 7 }, (_, i) =>
     new Date(Date.UTC(2024, 0, 7 + ((i + weekStart) % 7))).toLocaleDateString(locale, { weekday: 'short', timeZone: 'UTC' }),
   );
@@ -478,10 +480,18 @@ export function DbTimeline({
     const [yy, mm] = key.split('-').map(Number);
     const next = Math.round(Date.UTC(yy, mm, 1) / 86_400_000);
     const endI = Math.min(to + 1, next);
+    const width = (endI - i) * dayW;
+    const date = new Date(Date.UTC(yy, mm - 1, 1));
+    // Un mes que entra a medias (el primero o el último) no se corta: mes sin año, o nada si no hay lugar.
     months.push({
-      label: new Date(Date.UTC(yy, mm - 1, 1)).toLocaleDateString(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' }),
+      label:
+        width >= 84
+          ? date.toLocaleDateString(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' })
+          : width >= 40
+            ? date.toLocaleDateString(locale, { month: 'short', timeZone: 'UTC' })
+            : '',
       left: (i - from) * dayW,
-      width: (endI - i) * dayW,
+      width,
     });
     i = endI;
   }
@@ -577,9 +587,16 @@ export function DbTimeline({
                         {(e - from + 1) * dayW < viewport.left + 4 ? '‹' : '›'}
                       </button>
                     )}
+                    {s !== null && e !== null && Math.max(dayW, (e - s + 1) * dayW) < 72 && (
+                      // Barra corta (un día): el título va afuera, a la derecha, y entero.
+                      <span className="docs-db-tl-outside" style={{ left: (s - from) * dayW + Math.max(dayW, (e - s + 1) * dayW) + 6 }} aria-hidden="true">
+                        {title}
+                      </span>
+                    )}
                     {s !== null && e !== null ? (
                       <div
-                        className={`docs-db-tl-bar${live ? ' dragging' : ''}`}
+                        className={`docs-db-tl-bar${live ? ' dragging' : ''}${Math.max(dayW, (e - s + 1) * dayW) < 72 ? ' is-short' : ''}`}
+                        title={title}
                         style={{ left: (s - from) * dayW, width: Math.max(dayW, (e - s + 1) * dayW) }}
                         onPointerDown={(ev) => startDrag(ev, row.id, 'move', start!, end!)}
                       >

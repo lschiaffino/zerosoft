@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "24 open-source business apps: CRM, chat, docs and more",
-      "description": "Twenty-five open-source apps, from CRM and support chat to docs, invoicing and forms. On your own server or on zerosoft Cloud with a free plan."
+      "description": "Twenty-six open-source apps, from CRM and support chat to docs, invoicing and forms. On your own server or on zerosoft Cloud with a free plan."
     },
     "hero": {
-      "title1": "Twenty-five apps.",
+      "title1": "Twenty-six apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all twenty-five apps.",
+      "title1": "Try all twenty-six apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -2302,7 +2302,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Twenty-five apps, same login.",
+    "suiteTitleDim": "Twenty-six apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -3777,7 +3777,7 @@
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across {apps} of the 25 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across {apps} of the 26 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",
@@ -3923,7 +3923,7 @@
   "docsMcp": {
     "meta": {
       "title": "Connect Claude and the CLI",
-      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 25 apps as yourself."
+      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 26 apps as yourself."
     }
   }
 }

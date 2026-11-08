@@ -22,6 +22,11 @@ export async function GET(req: NextRequest) {
     const rows = [...own, ...shared.filter((h) => !seen.has(h.id))];
     return NextResponse.json({ rows, q });
   }
+  // recent=1 (`[[` sin texto): las últimas páginas editadas.
+  if (req.nextUrl.searchParams.get('recent') === '1') {
+    const pages = await searchDocPages(user.id, '', hide);
+    return NextResponse.json({ rows: pages.slice(0, 8).map((p) => ({ id: p.id, title: p.title, icon: p.icon })), q: '' });
+  }
   // Páginas y, después, filas de bases (link a una fila: row_id).
   const [pages, dbRows] =
     q.trim().length > 0 ? await Promise.all([searchDocPages(user.id, q, hide), searchDocRows(user.id, q, 10, hide)]) : [[], []];

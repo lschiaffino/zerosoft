@@ -8726,6 +8726,14 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Reimportar un export de Notion actualizado: el hash del archivo de origen
+    // dice si cambió (y la página se actualiza si nadie la editó en zerosoft).
+    id: '260_import_external_hash',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE import_external_ids ADD COLUMN source_hash TEXT');
+    },
+  },
+  {
     // Inbox (personal): WhatsApp y Gmail de una persona. Ver lib/schema/inbox-migration.ts.
     id: '284_inbox',
     up: inboxUp,

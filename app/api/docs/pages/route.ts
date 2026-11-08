@@ -5,6 +5,7 @@ import { createDocPage, getDocPageRow, listDocPageSummaries } from '@/lib/docs';
 import { docPageCreateSchema } from '@/lib/docs-schema';
 import { forbidden, unauthorized, invalidBody } from '@/lib/docs-http';
 import { canCreateDocPage, docsHidden } from '@/lib/docs-guard';
+import { sidebarChildren } from '@/lib/docs-sidebar';
 import { logDocsAudit, requestIp } from '@/lib/docs-audit';
 
 export const runtime = 'nodejs';
@@ -23,6 +24,12 @@ export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const sp = req.nextUrl.searchParams;
+  // ?parent=<id>: las hijas de una página, para desplegarla en el sidebar (con cuántas hijas tiene cada una).
+  const parent = sp.get('parent');
+  if (parent) {
+    const all = await listDocPageSummaries(user.id, { archived: false, hide: await docsHidden(user) });
+    return NextResponse.json({ rows: sidebarChildren(all, parent), nextOffset: null });
+  }
   const limit = Math.min(Math.max(Number(sp.get('limit')) || DOCS_PAGES_LIMIT, 1), DOCS_PAGES_MAX);
   const offset = Math.max(Math.floor(Number(sp.get('offset')) || 0), 0);
   // Uno de más para saber si hay otra página sin un COUNT aparte.
