@@ -5,6 +5,11 @@
 #   Mac:     CSC_LINK (certificado "Developer ID Application" en .p12, base64), CSC_KEY_PASSWORD,
 #            APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID (notarización).
 #   Windows: WIN_CSC_LINK y WIN_CSC_KEY_PASSWORD (certificado de firma de código, opcional).
+#
+# Publicar: los jobs de build NUNCA publican (--publish never) y suben todo como artefacto. Un solo
+# job (publish) crea el release una vez y sube todos los archivos. Antes cada electron-builder
+# publicaba por su cuenta: los publicadores en paralelo (dos en Mac, uno en Windows) veían "el release
+# no existe" a la vez y creaban releases duplicados con el mismo tag, con los archivos repartidos.
 name: desktop
 
 on:
@@ -26,7 +31,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-15
             target: --mac --arm64 --x64
           - os: windows-latest
             target: --win --x64
@@ -71,38 +76,86 @@ jobs:
       - name: Instaladores firmados (Mac)
         if: runner.os == 'macOS' && steps.sign.outputs.mac == 'yes'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npx electron-builder ${{ matrix.target }} --publish ${{ startsWith(github.ref, 'refs/tags/desktop-v') && 'always' || 'never' }} ${{ steps.sign.outputs.notarize == 'yes' && '-c.mac.notarize=true' || '-c.mac.notarize=false' }}
+        run: npx electron-builder ${{ matrix.target }} --publish never ${{ steps.sign.outputs.notarize == 'yes' && '-c.mac.notarize=true' || '-c.mac.notarize=false' }}
 
       - name: Instaladores firmados (Windows)
         if: runner.os == 'Windows' && steps.sign.outputs.win == 'yes'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-        run: npx electron-builder ${{ matrix.target }} --publish ${{ startsWith(github.ref, 'refs/tags/desktop-v') && 'always' || 'never' }}
+        run: npx electron-builder ${{ matrix.target }} --publish never
 
-      # Sin certificado: instaladores sin firmar (la página /download explica cómo abrirlos).
+      # Sin certificado: instaladores sin firmar (en Mac, firma ad hoc en afterSign; la página
+      # /download explica cómo abrirlos).
       - name: Instaladores sin firmar
         if: (runner.os == 'macOS' && steps.sign.outputs.mac != 'yes') || (runner.os == 'Windows' && steps.sign.outputs.win != 'yes')
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: npx electron-builder ${{ matrix.target }} --publish ${{ startsWith(github.ref, 'refs/tags/desktop-v') && 'always' || 'never' }} -c.mac.identity=null -c.mac.notarize=false
+        run: npx electron-builder ${{ matrix.target }} --publish never -c.mac.identity=null -c.mac.notarize=false
+
+      # Lo que el release necesita de esta plataforma, o el job falla acá (y no en el release).
+      - name: Archivos esperados
+        shell: bash
+        run: |
+          v="$(node -p "require('./package.json').version")"
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            want="latest-mac.yml zerosoft-$v-mac-arm64.dmg zerosoft-$v-mac-x64.dmg zerosoft-$v-mac-arm64.zip zerosoft-$v-mac-x64.zip"
+          else
+            want="latest.yml zerosoft-$v-win-x64.exe"
+          fi
+          missing=0
+          for f in $want; do [ -f "release/$f" ] || { echo "Falta release/$f"; missing=1; }; done
+          ls -la release
+          exit $missing
 
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: desktop-${{ runner.os }}
           path: |
             desktop/release/*.dmg
             desktop/release/*.zip
             desktop/release/*.exe
-            desktop/release/*.yml
-          if-no-files-found: ignore
+            desktop/release/*.blockmap
+            desktop/release/latest*.yml
+          if-no-files-found: error
+
+  # Un solo job publica: crea el release (si no existe) y sube todo, pisando lo que haya con el mismo
+  # nombre. Así un tag vuelto a correr completa el release en vez de duplicarlo.
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/desktop-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: assets
+          merge-multiple: true
+
+      - name: Release con todos los archivos
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          v="${TAG#desktop-v}"
+          ls -la assets
+          for f in latest-mac.yml latest.yml "zerosoft-$v-mac-arm64.dmg" "zerosoft-$v-mac-x64.dmg" "zerosoft-$v-mac-arm64.zip" "zerosoft-$v-mac-x64.zip" "zerosoft-$v-win-x64.exe"; do
+            [ -f "assets/$f" ] || { echo "Falta $f"; exit 1; }
+          done
+          # Releases con este tag (puede haber duplicados viejos): se usa el primero y se avisa del resto.
+          count="$(gh api "repos/$GH_REPO/releases?per_page=100" --jq "[.[] | select(.tag_name == \"$TAG\")] | length")"
+          if [ "$count" = "0" ]; then
+            gh release create "$TAG" --verify-tag --title "zerosoft $v para escritorio" --notes "Instaladores de Mac (Apple silicon e Intel) y Windows. Descarga y notas: https://zerosoft.ai/download"
+          elif [ "$count" != "1" ]; then
+            echo "::warning::Hay $count releases con el tag $TAG: conviene borrar los duplicados."
+          fi
+          gh release upload "$TAG" assets/* --clobber
+          gh release view "$TAG" --json assets --jq '.assets[].name'
