@@ -14,7 +14,7 @@ import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRe
 import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
-import { Ban, CheckIcon, Chevron, FilterIcon, Mic, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
+import { ArchiveIcon, ArrowLeft, Ban, CheckIcon, Chevron, FilterIcon, Mic, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
 import { longPress } from './wa/longPress';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
@@ -53,6 +53,14 @@ interface InboxCtx {
   refresh: () => void;
 }
 const Ctx = createContext<InboxCtx>({ rows: [], refresh: () => {} });
+
+interface DroppedNumber {
+  id: string;
+  name: string;
+  phone: string;
+  status: string;
+  qr: boolean;
+}
 export const useGroupsInbox = () => useContext(Ctx);
 
 interface Controls {
@@ -153,6 +161,10 @@ export default function InboxShell({
   const mediaText = useMediaText();
   const locale = useLocale();
   const [imports, setImports] = useState<ImportStatus[]>([]);
+  const [archivedView, setArchivedView] = useState(false);
+  const [archivedInfo, setArchivedInfo] = useState({ total: 0, unread: 0 });
+  const [dropped, setDropped] = useState<DroppedNumber[]>([]);
+  const [hiding, setHiding] = useState<ChatDto | null>(null);
   const [pageSize, setPageSize] = useState(100);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
@@ -228,6 +240,7 @@ export default function InboxShell({
 
   const query = useMemo(() => {
     const p = new URLSearchParams({ filter, limit: String(pageSize) });
+    if (archivedView) p.set('archived', '1');
     if (debounced) p.set('q', debounced);
     if (label) p.set('label', label);
     if (kind) p.set('kind', kind);
@@ -235,7 +248,7 @@ export default function InboxShell({
     if (team) p.set('team', team);
     if (propKey) p.set('props', JSON.stringify([propValue ? { key: propKey, op: 'is', value: propValue } : { key: propKey, op: 'set' }]));
     return p.toString();
-  }, [filter, debounced, label, kind, assignee, team, propKey, propValue, pageSize]);
+  }, [filter, debounced, label, kind, assignee, team, propKey, propValue, pageSize, archivedView]);
 
   const load = useCallback(
     async (silent: boolean) => {
@@ -244,7 +257,14 @@ export default function InboxShell({
       try {
         const res = await fetch(`/api/groups/chats?${query}`);
         if (!res.ok) throw new Error('failed');
-        const data = (await res.json()) as { rows: ChatDto[]; total: number; imports?: ImportStatus[]; unreadChats?: number };
+        const data = (await res.json()) as {
+          rows: ChatDto[];
+          total: number;
+          imports?: ImportStatus[];
+          unreadChats?: number;
+          archived?: { total: number; unread: number };
+          dropped?: DroppedNumber[];
+        };
         if (mine !== seq.current) return;
         if (filter === 'unread' && lastQuery.current === query && current && !data.rows.some((r) => r.id === current)) {
           const prevIdx = rowsRef.current.findIndex((r) => r.id === current);
@@ -255,6 +275,8 @@ export default function InboxShell({
         setRows(data.rows);
         setTotal(data.total);
         setImports(data.imports ?? []);
+        if (data.archived) setArchivedInfo(data.archived);
+        setDropped(data.dropped ?? []);
         if (typeof data.unreadChats === 'number') setUnreadTotal(data.unreadChats);
         setError(false);
       } catch {
@@ -365,11 +387,19 @@ export default function InboxShell({
 
   function rowMenu(c: ChatDto): MenuItem[] {
     return [
+      {
+        key: 'archive',
+        label: c.archived ? t('wa.unarchive') : t('wa.archive'),
+        onSelect: () => {
+          void rowAction(c, { archived: !c.archived }).then(() => showToast(c.archived ? t('wa.unarchived') : t('wa.archived')));
+        },
+      },
       { key: 'close', label: c.status === 'open' ? t('wa.closeChat') : t('thread.reopen'), onSelect: () => void rowAction(c, { status: c.status === 'open' ? 'closed' : 'open' }) },
       { key: 'mute', label: c.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void rowAction(c, { muted: !c.muted }) },
       { key: 'pin', label: c.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
       { key: 'unread', label: c.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void rowAction(c, { read: c.unread > 0 }) },
       { key: 'assign', label: c.assignedTo === me ? t('wa.unassignMe') : t('wa.assignMe'), onSelect: () => void rowAction(c, { assignedTo: c.assignedTo === me ? null : me }) },
+      { key: 'hide', label: t('wa.deleteChat'), danger: true, divider: true, onSelect: () => setHiding(c) },
     ];
   }
 
@@ -422,6 +452,12 @@ export default function InboxShell({
                     <span className="gr-row-draft">{t('wa.draft')}</span>
                     <span>{draft}</span>
                   </>
+                ) : c.presence && c.presence.state !== 'available' ? (
+                  <span className="gr-row-typing">
+                    {c.kind === 'group' && c.presence.name
+                      ? t(c.presence.state === 'recording' ? 'wa.recordingBy' : 'wa.typingBy', { name: c.presence.name })
+                      : t(c.presence.state === 'recording' ? 'wa.recordingAudio' : 'wa.typing')}
+                  </span>
                 ) : c.lastKind === 'deleted' || c.lastMessagePreview === '[deleted]' ? (
                   <span className="gr-row-deleted">
                     <Ban size={14} /> {c.lastDirection === 'out' ? t('wa.youDeleted') : t('wa.deletedMessage')}
@@ -476,6 +512,17 @@ export default function InboxShell({
       </li>
     );
   }
+  // Fila "Archivados" arriba de la lista (como WhatsApp), solo en la vista común.
+  const archivedRow =
+    !archivedView && !debounced && !activeList && filter === 'all' && archivedInfo.total > 0 ? (
+      <button type="button" className="wa-archived-row" onClick={() => setArchivedView(true)}>
+        <span className="wa-archived-icon">
+          <ArchiveIcon size={20} />
+        </span>
+        <span className="wa-archived-label">{t('wa.archivedTitle')}</span>
+        {archivedInfo.unread > 0 && <span className="wa-archived-count">{archivedInfo.unread}</span>}
+      </button>
+    ) : null;
   const filters = controlsToFilters({ ...controls, q: debounced });
   const dirty = activeList ? JSON.stringify(filters) !== JSON.stringify(activeList.filters) : false;
   const canEditList = activeList ? activeList.ownerId === me || activeList.shared : false;
@@ -757,6 +804,22 @@ export default function InboxShell({
               </button>
             </div>
           )}
+          {dropped.map((n) => (
+            <div key={n.id} className="wa-import is-bad wa-dropped" role="alert">
+              <span>{t('wa.lineDropped', { name: n.name || (n.phone ? `+${n.phone}` : t('wa.line')) })}</span>
+              <Link className="btn btn-secondary btn-sm" href={`/app/groups/settings?tab=numbers&reconnect=${n.id}`}>
+                {n.qr ? t('wa.rescan') : t('wa.reconnect')}
+              </Link>
+            </div>
+          ))}
+          {archivedView && (
+            <div className="wa-archived-head">
+              <button type="button" className="wa-icon-btn" onClick={() => setArchivedView(false)} aria-label={t('thread.back')} title={t('thread.back')}>
+                <ArrowLeft size={22} />
+              </button>
+              <h3>{t('wa.archivedTitle')}</h3>
+            </div>
+          )}
           {imports.map((im) => (
             <div key={im.numberId} className={`wa-import${im.status === 'error' ? ' is-bad' : im.status === 'done' ? ' is-done' : ''}`} role="status">
               <span>
@@ -792,7 +855,10 @@ export default function InboxShell({
               ))}
             </div>
           ) : rows.length === 0 && !error ? (
-            <p className="gr-list-empty">{debounced ? t('inbox.noResults') : activeList ? t('lists.empty') : t(`inbox.empty.${filter}`)}</p>
+            <>
+              {archivedRow}
+              <p className="gr-list-empty">{debounced ? t('inbox.noResults') : archivedView ? t('wa.archivedEmpty') : activeList ? t('lists.empty') : t(`inbox.empty.${filter}`)}</p>
+            </>
           ) : (
             <ul
               className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}`}
@@ -802,6 +868,7 @@ export default function InboxShell({
                 if (el.scrollHeight - el.scrollTop - el.clientHeight < 400 && total > rows.length && pageSize < 500) setPageSize((n) => Math.min(500, n + 100));
               }}
             >
+              {archivedRow && <li>{archivedRow}</li>}
               {debounced ? (
                 <>
                   {rows.some((c) => nameHit(c)) && <li className="gr-rows-head">{t('wa.searchChats')}</li>}
@@ -829,6 +896,24 @@ export default function InboxShell({
           notifyListsChanged();
           router.push(`/app/groups/inbox${current ? `/${current}` : ''}?list=${l.id}`);
         }}
+      />
+      <ConfirmDialog
+        open={!!hiding}
+        title={t('wa.deleteChatTitle', { name: hiding?.name ?? '' })}
+        body={t('wa.deleteChatBody')}
+        confirmLabel={t('wa.deleteChat')}
+        cancelLabel={t('common.cancel')}
+        danger
+        onConfirm={() => {
+          const c = hiding;
+          setHiding(null);
+          if (!c) return;
+          void rowAction(c, { hidden: true }).then(() => {
+            showToast(t('wa.chatDeleted'));
+            if (c.id === current) router.push(`/app/groups/inbox${listSuffix}`);
+          });
+        }}
+        onCancel={() => setHiding(null)}
       />
       <ConfirmDialog
         open={removing}

@@ -134,6 +134,8 @@ export default function ChatDetails({
   }
 
   const [memberQ, setMemberQ] = useState('');
+  // Grupos grandes (1.000 miembros): se dibujan de a 200.
+  const [memberLimit, setMemberLimit] = useState(200);
   const shownMembers = memberQ.trim()
     ? members.filter((m) => `${m.name} ${m.phone}`.toLowerCase().includes(memberQ.trim().toLowerCase().replace(/^\+/, '')))
     : members;
@@ -426,7 +428,7 @@ export default function ChatDetails({
                 />
               )}
               <ul className="gr-members">
-                {shownMembers.slice(0, compact && !memberQ ? 30 : 2000).map((m) => (
+                {shownMembers.slice(0, compact && !memberQ ? 30 : memberLimit).map((m) => (
                   <li key={m.phone}>
                     <span className="gr-member-who">
                       <span className="gr-member-name">{m.name || `+${m.phone}`}</span>
@@ -448,6 +450,11 @@ export default function ChatDetails({
                   </li>
                 ))}
               </ul>
+              {!(compact && !memberQ) && shownMembers.length > memberLimit && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMemberLimit((n) => n + 200)}>
+                  {t('details.moreMembers', { n: shownMembers.length - memberLimit })}
+                </button>
+              )}
               {compact && !memberQ && members.length > 30 && (
                 <Link href={`/app/groups/list/${chat.id}`} className="ui-help">
                   {t('details.allMembers', { n: members.length })}

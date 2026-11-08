@@ -42,7 +42,7 @@ interface FakeGroup extends GroupInfo {
 export interface FakeSent {
   chatId: string;
   text: string;
-  kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll';
+  kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read';
   at: number;
 }
 
@@ -145,6 +145,8 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       throw new ProviderError('unsupported');
     },
     sendPoll: async (chatId, poll) => send(chatId, `${poll.question} [${poll.options.join(' | ')}]`, 'poll'),
+    sendContact: async (chatId, contacts) => send(chatId, contacts.map((c) => `${c.name} +${c.phone}`).join(' | '), 'contact'),
+    markRead: async (chatId, ids) => void send(chatId, ids.join(','), 'read'),
     listTemplates: async () => [],
     async listGroups() {
       requireConnected();

@@ -49,6 +49,12 @@ export const CHANGELOG: ChangelogEntry[] = [
         es: 'La conversación ahora se ve como WhatsApp Web: burbujas con tildes de leído, separadores de día, respuestas citadas, reacciones, fotos y videos en un visor a pantalla completa, notas de voz con velocidad, tarjetas de documentos, ubicaciones y contactos. Arrastrá archivos al chat o pegá una imagen para adjuntarla, y grabá notas de voz desde el composer.',
         pt: 'A conversa agora parece o WhatsApp Web: balões com tiques de leitura, separadores de data, respostas citadas, reações, fotos e vídeos em um visualizador de tela cheia, mensagens de voz com velocidade, cartões de documentos, localizações e contatos. Arraste arquivos para a conversa ou cole uma imagem para anexar, e grave mensagens de voz pelo compositor.',
       },
+      {
+        product: 'groups',
+        en: 'Archive chats into an Archived section and delete chats from the list, send contact cards from the + menu, and see when someone is typing, recording or online. PDFs show their first page. If a line loses its connection, the inbox says so and takes you to scan the QR again. Optional in Settings > Rules: mark chats as read on WhatsApp when the team reads them.',
+        es: 'Archivá chats en la sección Archivados y eliminá chats de la lista, mandá contactos desde el menú + y mirá cuándo alguien está escribiendo, grabando o en línea. Los PDF muestran su primera página. Si una línea pierde la conexión, la bandeja avisa y te lleva a escanear el QR de nuevo. Opcional en Ajustes > Reglas: marcar los chats como leídos en WhatsApp cuando el equipo los lee.',
+        pt: 'Arquive conversas na seção Arquivadas e apague conversas da lista, envie contatos pelo menu + e veja quando alguém está digitando, gravando ou online. Os PDFs mostram a primeira página. Se uma linha perde a conexão, a caixa avisa e leva você a escanear o QR de novo. Opcional em Configurações > Regras: marcar as conversas como lidas no WhatsApp quando a equipe as lê.',
+      },
     ],
   },
   {

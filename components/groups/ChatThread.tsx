@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import type { ChatDto, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDef, QuickReply } from '@/lib/groups';
+import type { ChatDto, ChatPresence, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDef, QuickReply } from '@/lib/groups';
 import type { ProviderCaps } from '@/lib/groups-provider';
 import { mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
 import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
@@ -56,7 +56,9 @@ import {
   GroupIcon,
   ViewOnce,
   Retry,
+  Person,
 } from './wa/icons';
+import ContactPicker from './wa/ContactPicker';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const TRANSLATE_STORE = 'zs-groups-translate';
@@ -184,6 +186,8 @@ export default function ChatThread(props: ThreadProps) {
   const [summary, setSummary] = useState<{ text: string; error: string; busy: boolean } | null>(null);
   const [schedule, setSchedule] = useState<{ open: boolean; at: string; busy: boolean; error: string }>({ open: false, at: '', busy: false, error: '' });
   const [pollOpen, setPollOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [presence, setPresence] = useState<ChatPresence | null>(props.chat.presence ?? null);
   const [poll, setPoll] = useState({ question: '', options: ['', ''], multi: false });
   const [pollBusy, setPollBusy] = useState(false);
   const [pollError, setPollError] = useState('');
@@ -408,8 +412,9 @@ export default function ChatThread(props: ThreadProps) {
   useEffect(() => {
     const id = setInterval(async () => {
       if (document.visibilityState !== 'visible') return;
-      const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=60`);
+      const res = await api<{ messages: MessageDto[]; presence?: ChatPresence | null }>(`/api/groups/chats/${chat.id}/messages?limit=60`);
       if (!res.data) return;
+      setPresence(res.data.presence ?? null);
       const fresh = res.data.messages.filter((m) => !knownIds.current.has(m.id));
       merge(res.data.messages);
       // Con el chat abierto y a la vista, lo que llega queda leído (como en WhatsApp).
@@ -1104,6 +1109,16 @@ export default function ChatThread(props: ThreadProps) {
     .slice(0, 12)
     .map((mb) => mb.name || `+${mb.phone}`)
     .filter(Boolean);
+  // Como WhatsApp: "escribiendo…" o "grabando audio…" reemplaza la línea de abajo del nombre; "en línea" solo en un 1 a 1.
+  const presenceText = presence
+    ? presence.state === 'available'
+      ? chat.kind === 'dm'
+        ? t('wa.online')
+        : ''
+      : chat.kind === 'group' && presence.name
+        ? t(presence.state === 'recording' ? 'wa.recordingBy' : 'wa.typingBy', { name: presence.name })
+        : t(presence.state === 'recording' ? 'wa.recordingAudio' : 'wa.typing')
+    : '';
   const subtitle =
     chat.kind === 'group'
       ? memberList.length
@@ -1413,7 +1428,12 @@ export default function ChatThread(props: ThreadProps) {
   const unseen = atBottom ? 0 : messages.filter((m) => m.direction === 'in' && m.createdAt > bottomAt).length;
   const viewerItems = messages
     .filter((m) => m.media?.url && /^(image|video)\//.test(m.media.type) && !(m.meta as Record<string, unknown>).sticker)
-    .map((m) => ({ id: m.id, url: m.media!.url, type: m.media!.type, name: m.media!.name, caption: m.body, author: m.direction === 'in' ? (chat.kind === 'group' ? inName(m) : chat.name) : t('wa.you'), createdAt: m.createdAt }));
+    .map((m) => {
+      const author = m.direction === 'in' ? (chat.kind === 'group' ? inName(m) : chat.name) : t('wa.you');
+      // En un 1 a 1 lo recibido lleva la foto del chat; en un grupo, iniciales de quien lo mandó.
+      const avatar = m.direction === 'in' && chat.kind === 'dm' ? { src: chat.pictureUrl, seed: chat.id, kind: 'dm' as const } : { src: '', seed: m.senderPhone || author, kind: 'dm' as const };
+      return { id: m.id, url: m.media!.url, type: m.media!.type, name: m.media!.name, caption: m.body, author, createdAt: m.createdAt, avatar };
+    });
   const viewerIndex = viewerAt ? viewerItems.findIndex((v) => v.id === viewerAt) : -1;
 
   return (
@@ -1465,7 +1485,9 @@ export default function ChatThread(props: ThreadProps) {
             </button>
             <div className="gr-thread-title" onClick={() => setDetailsOpen((v) => !v)}>
               <h2>{chat.name}</h2>
-              <span className="wa-head-sub">{subtitle}</span>
+              <span className={`wa-head-sub${presenceText && presence?.state !== 'available' ? ' is-typing' : ''}`} aria-live="polite">
+                {presenceText || subtitle}
+              </span>
             </div>
           </div>
           <div className="gr-thread-actions">
@@ -1791,6 +1813,7 @@ export default function ChatThread(props: ThreadProps) {
                       { key: 'photo', icon: <PhotoIcon size={17} />, label: t('wa.photos'), onSelect: () => photoRef.current?.click() },
                       ...(hasCamera ? [{ key: 'camera', icon: <CameraIcon size={17} />, label: t('wa.camera'), onSelect: () => cameraRef.current?.click() }] : []),
                       { key: 'audio', icon: <MusicIcon size={17} />, label: t('wa.audio'), onSelect: () => audioRef.current?.click() },
+                      ...(props.caps.contacts ? [{ key: 'contact', icon: <Person size={17} />, label: t('wa.contact'), onSelect: () => setContactOpen(true) }] : []),
                       { key: 'poll', icon: <PollIcon size={17} />, label: t('polls.button'), onSelect: () => (setPollError(''), setPollOpen(true)) },
                       { key: 'schedule', icon: <ClockIcon size={17} />, label: t('thread.schedule'), onSelect: () => setSchedule({ open: true, at: '', busy: false, error: '' }) },
                       { key: 'ai', icon: <Sparkle size={17} />, label: t('wa.aiTools'), onSelect: () => setAiOpen(true) },
@@ -2099,6 +2122,17 @@ export default function ChatThread(props: ThreadProps) {
           </dl>
         )}
       </Modal>
+      <ContactPicker
+        open={contactOpen}
+        chatId={chat.id}
+        onClose={() => setContactOpen(false)}
+        onSent={(m) => {
+          merge([m]);
+          setContactOpen(false);
+          if (m.status === 'failed') showToast(errText(m.error || 'send_failed'), true);
+          refresh();
+        }}
+      />
       {viewerIndex >= 0 && <MediaViewer items={viewerItems} index={viewerIndex} onIndex={(i) => setViewerAt(viewerItems[i]?.id ?? null)} onClose={() => setViewerAt(null)} />}
       {toast}
     </>

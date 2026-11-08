@@ -39,14 +39,27 @@ const ADVANCED: ProviderKind[] = ['cloud', 'waha', 'evolution', 'fake'];
  * conectar con QR, ver la URL del webhook, traer los grupos, desconectar y
  * borrar. Las credenciales se escriben y no se vuelven a mostrar.
  */
-export default function NumbersSettings({ initial, providers, canEdit, openNew }: { initial: NumberDto[]; providers: ProviderKind[]; canEdit: boolean; openNew: boolean }) {
+export default function NumbersSettings({
+  initial,
+  providers,
+  canEdit,
+  openNew,
+  reconnect = null,
+}: {
+  initial: NumberDto[];
+  providers: ProviderKind[];
+  canEdit: boolean;
+  openNew: boolean;
+  /** Llega desde el aviso "se cayó la línea" de la bandeja: abre la conexión (QR) de ese número. */
+  reconnect?: string | null;
+}) {
   const t = useTranslations('groups');
   const errText = useErrorText();
   const router = useRouter();
   const [toast, showToast] = useToast();
   const [numbers, setNumbers] = useState(initial);
   const [adding, setAdding] = useState(openNew && canEdit);
-  const [connecting, setConnecting] = useState<NumberDto | null>(null);
+  const [connecting, setConnecting] = useState<NumberDto | null>(() => (canEdit && reconnect ? (initial.find((n) => n.id === reconnect) ?? null) : null));
   // Número recién agregado: si se cierra el QR sin escanear, no queda uno "esperando".
   const [freshId, setFreshId] = useState<string | null>(null);
   const [removing, setRemoving] = useState<NumberDto | null>(null);
