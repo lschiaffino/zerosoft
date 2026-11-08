@@ -14,6 +14,8 @@ import { canSeeOwner, scopeDealDetail, sessionScope, scopeAnd } from '@/lib/crm-
 import { getDb, type CrmStageRow } from '@/lib/db';
 import { getDeal, listTimeline, nextTaskFor, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
 import DangerDelete from '@/components/crm/DangerDelete';
+import CloneDeal from '@/components/crm/CloneDeal';
+import { buildDealCloneBody } from '@/lib/crm-deal-clone';
 import AssociationPanel from '@/components/crm/AssociationPanel';
 import {
   associateCompanyToDeal,
@@ -179,6 +181,17 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
     ),
   };
 
+  const cloneBody = buildDealCloneBody(
+    deal,
+    stages,
+    {
+      contactIds: contacts.map((c) => c.id),
+      companyId: company?.id ?? null,
+      companyIds: dealCompanies.map((c) => c.id),
+    },
+    t('deals.detail.cloneSuffix'),
+  );
+
   const header = (
     <>
       <PageHeader
@@ -245,6 +258,16 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
                     />
                   ),
                 },
+                ...(cloneBody && user.role !== 'guest'
+                  ? [
+                      {
+                        key: 'clone',
+                        label: t('record.more.cloneDeal'),
+                        title: t('deals.detail.cloneTitle'),
+                        content: <CloneDeal body={cloneBody} name={deal.name} />,
+                      },
+                    ]
+                  : []),
                 {
                   key: 'delete',
                   label: t('record.more.deleteDeal'),

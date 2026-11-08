@@ -193,6 +193,7 @@
       "key": "Tecla",
       "ms": "Milisegundos",
       "waitSelector": "O hasta que aparezca este selector",
+      "waitUntil": "Esperar a que el elemento",
       "name": "Guardar como variable",
       "mode": "Qué extraer",
       "attribute": "Atributo",
@@ -233,6 +234,11 @@
       "aiFieldDesc": "Descripción (opcional)",
       "aiScope": "Solo dentro de este selector (opcional)",
       "origin": "Sitio del login"
+    },
+    "waitUntil": {
+      "appears": "Aparezca en la página",
+      "visible": "Sea visible",
+      "disappears": "Desaparezca"
     },
     "modes": {
       "text": "Texto del primer resultado",

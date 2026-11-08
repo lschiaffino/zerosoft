@@ -76,6 +76,9 @@
     "emptyStateBody": "Las notas que mandás a la papelera quedan acá hasta que las restaures o las borres."
   },
   "editor": {
+    "duplicate": "Duplicar",
+    "copyOf": "Copia de {title}",
+    "duplicated": "Nota duplicada",
     "back": "Notas",
     "moveTo": "Mover a libreta",
     "noNotebook": "Sin libreta",

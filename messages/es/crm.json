@@ -429,6 +429,7 @@
     },
     "ageDays": "{days}d de antigüedad",
     "rotting": "Sin actividad en {days} días",
+    "filterStalled": "Estancados",
     "sortNewest": "Más nuevos",
     "sortOldest": "Más viejos",
     "sortAmount": "Monto",
@@ -484,7 +485,13 @@
       "ownershipSection": "Asignación",
       "customFieldsSection": "Campos personalizados",
       "viewAllProperties": "Ver todas las propiedades",
-      "companies": "Empresas"
+      "companies": "Empresas",
+      "cloneTitle": "Clonar deal",
+      "cloneDesc": "Crea un deal nuevo a partir de “{name}” con el mismo monto, fecha de cierre, prioridad, fuente, descripción, campos propios, contactos y empresas. Las notas, tareas, líneas de producto y el historial no se copian.",
+      "cloneButton": "Clonar deal",
+      "cloning": "Clonando…",
+      "cloneError": "No se pudo clonar el deal. Probá de nuevo.",
+      "cloneSuffix": "(copia)"
     },
     "addPipeline": "+ Agregar pipeline",
     "pipelineNamePlaceholder": "Nombre del pipeline",
@@ -2013,7 +2020,8 @@
       "history": "Historial",
       "deleteContact": "Eliminar contacto",
       "deleteCompany": "Eliminar empresa",
-      "deleteDeal": "Eliminar deal"
+      "deleteDeal": "Eliminar deal",
+      "cloneDeal": "Clonar deal"
     },
     "back": {
       "contacts": "Contactos",

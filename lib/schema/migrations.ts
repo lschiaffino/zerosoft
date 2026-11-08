@@ -8607,6 +8607,14 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Link: los redirects llevan X-Robots-Tag: noindex salvo que el link
+    // active la indexación (como el doIndex de Dub).
+    id: '200_link_do_index',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE links ADD COLUMN do_index INTEGER NOT NULL DEFAULT 0');
+    },
+  },
+  {
     // Groups: importación de chats y mensajes al conectar un número (lib/groups-import.ts).
     // Una fila por número con su fase y cursor (el cron la retoma con un claim), la cola
     // de chats del proveedor a importar y el silencio de cada chat (como en WhatsApp).

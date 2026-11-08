@@ -79,6 +79,9 @@
     "enabled": "Agent active",
     "shortcut": "Save with ⌘S or Ctrl+S.",
     "loading": "Loading agent",
+    "duplicate": "Duplicate agent",
+    "duplicateBody": "Creates a copy with the same instructions, knowledge, tools and settings. The public link, voice number, integrations, secret headers and MCP servers are not copied, and neither are conversations.",
+    "duplicateName": "{name} (copy)",
     "dangerTitle": "Delete agent",
     "dangerBody": "Deletes the agent, its conversations and logs. Chat widgets that used it go back to the AI bot."
   },
