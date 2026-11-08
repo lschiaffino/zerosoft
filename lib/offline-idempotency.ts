@@ -31,7 +31,7 @@ export function idempotencyKey(req: Request): string | null {
  * Corre `run` una sola vez por (persona, clave). Sin clave en el pedido, corre
  * siempre (los pedidos de siempre no cambian).
  */
-export async function withIdempotency(req: Request, userId: string, run: () => Promise<Response>): Promise<Response> {
+export async function withIdempotency(req: Request, userId: string, run: () => Promise<NextResponse>): Promise<NextResponse> {
   const key = idempotencyKey(req);
   if (!key) return run();
   const db = getDb();
@@ -54,7 +54,7 @@ export async function withIdempotency(req: Request, userId: string, run: () => P
     // La primera todavía corre (o se cortó a mitad): que el worker pruebe después.
     return NextResponse.json({ error: 'in_progress' }, { status: 503, headers: { [RETRY_HEADER]: '1', 'retry-after': '5' } });
   }
-  let res: Response;
+  let res: NextResponse;
   try {
     res = await run();
   } catch (err) {
