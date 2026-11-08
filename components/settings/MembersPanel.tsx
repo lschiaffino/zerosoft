@@ -181,6 +181,8 @@ export default function MembersPanel({
   const locale = useLocale();
   const router = useRouter();
   const [dir, setDir] = useState<DirectoryDto>(initialDir);
+  // La página se vuelve a armar (aviso de la campana, router.refresh): la lista toma lo nuevo.
+  useEffect(() => setDir(initialDir), [initialDir]);
   const actor = { role, apps: actorApps };
   const admin = can(actor, 'members.invite');
   const inviteRoles = assignableRoles(role);
