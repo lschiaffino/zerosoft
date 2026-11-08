@@ -880,5 +880,23 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 
 /* Líneas: la fila es de tabla (la clase vieja gr-number es flex). */
 .gr-lines-table td { vertical-align: middle; }
-.gr-lines-table td:last-child { min-width: 240px; }
+.gr-lines-table .gr-line-actions { width: 1%; white-space: nowrap; }
+.gr-lines-table .gr-number-actions { flex-wrap: nowrap; justify-content: flex-end; }
 .gr-lines-table th { white-space: nowrap; }
+
+/* El hilo cuando ya no hay acceso al chat. */
+.gr-thread-lost { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 16px; min-height: 320px; padding: 48px 24px; text-align: center; }
+.gr-thread-lost p { margin: 0; max-width: 360px; color: var(--ink-2); }
+
+/* Líneas a 390: cada línea es una tarjeta, como en Equipo. */
+@media (max-width: 640px) {
+  .gr-lines-wrap { overflow-x: visible; border: 0; }
+  .gr-lines-wrap .gr-table.gr-lines-table { min-width: 0; width: 100%; }
+  .gr-lines-table thead { display: none; }
+  .gr-lines-table, .gr-lines-table tbody, .gr-lines-table tr, .gr-lines-table td { display: block; width: 100%; }
+  .gr-lines-table tr { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-1); margin-bottom: 8px; }
+  .gr-lines-table td { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0; border: 0; min-width: 0; }
+  .gr-lines-table td[data-label]::before { content: attr(data-label); font-size: 0.75rem; color: var(--ink-3); flex: none; }
+  .gr-lines-table td:first-child::before { display: none; }
+  .gr-lines-table .gr-line-actions { width: 100%; justify-content: flex-end; }
+}

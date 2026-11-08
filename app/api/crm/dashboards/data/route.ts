@@ -19,6 +19,6 @@ export async function POST(req: NextRequest) {
 
   const scope = await sessionScope(user);
   const owners = await listReportOwners(user, scope);
-  const data = await getWidgetData(user.id, parsed.data, owners, scope);
+  const data = await getWidgetData(user.id, parsed.data, owners, scope, await (await import('@/lib/groups-access')).crmGroupsTaskFilterFor(user));
   return NextResponse.json(data);
 }

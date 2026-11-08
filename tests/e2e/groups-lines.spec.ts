@@ -128,11 +128,17 @@ test('Ajustes › Líneas: tabla con estado, color y quién ve cada línea; en o
   // La fila es una fila de tabla: las celdas arrancan a la misma altura y las acciones de la última fila se ven.
   const tops = await row.locator('td').evaluateAll((tds) => tds.map((td) => Math.round(td.getBoundingClientRect().top)));
   expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(1);
-  await expect(page.locator('.gr-line-row').last().getByRole('button', { name: 'Delete' })).toBeVisible();
+  // Las acciones de la última fila se ven sin scroll interno a 1280 (van en el menú ⋯).
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const lastActions = page.locator('.gr-line-row').last().getByRole('button', { name: 'Line actions' });
+  await expect(lastActions).toBeInViewport();
+  const wrap = await page.locator('.gr-lines-wrap').evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+  expect(wrap.scroll).toBeLessThanOrEqual(wrap.client + 1);
   await expect(page.getByRole('columnheader', { name: 'Who sees it' })).toBeVisible();
 
   // Color.
-  await row.getByRole('button', { name: 'Edit' }).click();
+  await row.getByRole('button', { name: 'Line actions' }).click();
+  await page.getByRole('menuitem', { name: 'Edit' }).click();
   const edit = page.getByRole('dialog', { name: 'Edit number' });
   await edit.getByLabel('#9b51e0').check();
   await edit.getByRole('button', { name: 'Save' }).click();
@@ -190,6 +196,9 @@ test('Equipo: invitar, estado y ajustes de acceso; un miembro solo ve su línea'
     await page.getByLabel('Line access: members see only their lines').check();
     await expect(page.getByText('Saved').first()).toBeVisible();
     expect((await request.put('/api/groups/lines', { data: { numberId: mine.id, personIds: [demo] } })).ok()).toBe(true);
+    // Como admin: una tarea en el chat de la línea ajena (queda también en CRM › Tareas).
+    const theirsChat = String((await db.execute({ sql: 'SELECT id FROM groups_chats WHERE number_id = ?', args: [theirs.id] })).rows[0].id);
+    const hiddenTask = (await (await request.post('/api/groups/tasks', { data: { chatId: theirsChat, title: `Oculta ${tag}` } })).json()) as { activityId: string };
 
     // Pasa a miembro: ve solo la línea suya.
     await db.execute({ sql: "UPDATE team_members SET role = 'member' WHERE team_id = ? AND user_id = ?", args: [team, demo] });
@@ -216,6 +225,13 @@ test('Equipo: invitar, estado y ajustes de acceso; un miembro solo ve su línea'
     // El equipo, sin emails ni líneas.
     const teamView = (await (await request.get('/api/groups/team')).json()) as { people: Array<{ email: string; lineIds: unknown }> };
     expect(teamView.people.every((p) => p.email === '')).toBe(true);
+    // La tarea del chat ajeno tampoco se edita ni se borra por id en el CRM.
+    expect((await request.patch(`/api/crm/activities/${hiddenTask.activityId}`, { data: { subject: 'x' } })).status()).toBe(404);
+    expect((await request.delete(`/api/crm/activities/${hiddenTask.activityId}`)).status()).toBe(404);
+    // API con key del miembro: solo sus líneas.
+    const key = ((await (await request.post('/api/keys', { data: { name: `lines ${tag}`, scopes: ['groups:read'] } })).json()) as { key: string }).key;
+    const v1 = (await (await request.get('/api/v1/groups/numbers', { headers: { authorization: `Bearer ${key}` } })).json()) as { data: Array<{ id: string }> };
+    expect(v1.data.map((n) => n.id)).toEqual([mine.id]);
     // Estado inválido.
     expect((await request.put('/api/groups/availability', { data: { status: 'nope' } })).status()).toBe(400);
   } finally {

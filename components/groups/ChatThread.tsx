@@ -1130,6 +1130,8 @@ export default function ChatThread(props: ThreadProps) {
   // Un bloque por día: su chip de fecha queda arriba (y flota solo mientras se recorre ese día).
   const days: Array<{ key: string; at: string; items: ReactNode[] }> = [];
   let prev: MessageDto | null = null;
+  // Chat en varias líneas: la línea se dice cada vez que cambia entre un mensaje y el siguiente.
+  let lastLine: string | undefined;
   for (const m of messages) {
     const day = localDayKey(m.createdAt);
     if (days.at(-1)?.key !== day) {
@@ -1150,9 +1152,11 @@ export default function ChatThread(props: ThreadProps) {
       );
       prev = null;
     }
-    const cont = Boolean(prev && senderKey(prev) === senderKey(m));
+    const lineChanged = multiLine && m.direction !== 'note' && Boolean(m.numberId) && m.numberId !== lastLine;
+    if (m.direction !== 'note' && m.numberId) lastLine = m.numberId;
+    const cont = Boolean(prev && senderKey(prev) === senderKey(m)) && !lineChanged;
     prev = m;
-    rows.push(renderMessage(m, cont));
+    rows.push(renderMessage(m, cont, lineChanged));
   }
   const rows = days.map((d) => (
     <section key={`d-${d.key}`} className="wa-dayblock">
@@ -1165,16 +1169,16 @@ export default function ChatThread(props: ThreadProps) {
     </section>
   ));
 
-  function renderMessage(m: MessageDto, cont: boolean) {
+  function renderMessage(m: MessageDto, cont: boolean, lineChanged = false) {
     const quoted = m.replyToId ? byId.get(m.replyToId) : null;
     const isNote = m.direction === 'note';
     // Lo propio mandado desde el teléfono no lleva firma (como en WhatsApp); lo del equipo, agentes o envíos sí.
-    // Chat en varias líneas: cada mensaje dice por qué línea entró o salió.
+    // Chat en varias líneas: el primer mensaje después de un cambio de línea dice por cuál entró o salió.
     const showName =
-      !cont && (isNote || (m.direction === 'in' && chat.kind === 'group') || (m.direction === 'out' && m.authorKind !== 'phone') || (multiLine && Boolean(lineName(m.numberId))));
+      !cont && (isNote || (m.direction === 'in' && chat.kind === 'group') || (m.direction === 'out' && m.authorKind !== 'phone') || (lineChanged && Boolean(lineName(m.numberId))));
     const baseAuthor = isNote ? nameOf(m.authorId) : m.direction === 'in' ? inName(m) : outAuthor(m);
     // Chat en varias líneas: lo saliente dice por qué línea salió.
-    const viaLine = multiLine && !isNote ? lineName(m.numberId) : '';
+    const viaLine = lineChanged && !isNote ? lineName(m.numberId) : '';
     const author = viaLine ? (m.direction === 'in' && chat.kind !== 'group' ? viaLine : `${baseAuthor} · ${viaLine}`) : baseAuthor;
     const tr = translateOn && m.direction === 'in' ? translations[m.id] : undefined;
     const showTr = tr && tr.text && !showOriginal.has(m.id);
@@ -1438,7 +1442,10 @@ export default function ChatThread(props: ThreadProps) {
   if (lost) {
     return (
       <section className="gr-thread gr-thread-lost" aria-live="polite">
-        <p className="ui-help">{t('wa.noAccess')}</p>
+        <p>{t('wa.noAccess')}</p>
+        <Link href="/app/groups/inbox" className="btn btn-secondary">
+          {t('wa.backToInbox')}
+        </Link>
       </section>
     );
   }

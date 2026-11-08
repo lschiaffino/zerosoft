@@ -250,16 +250,40 @@ export async function resolveReplyChat(ws: string, viewer: GroupsViewer | null, 
   }
   if (chat.kind === 'group' || !chat.phone || number.provider === 'sample') throw new GroupsError('line_not_in_chat');
   const phone = phoneDigits(chat.phone);
-  const row = await upsertChat(number, { providerChatId: dmProviderChatId(number.provider, phone), kind: 'dm', name: chat.name, phone });
   const db = getDb();
-  // Recién creado: hereda quién lo atiende y sus etiquetas (compare-and-set: no pisa una fila que ya tenía datos).
+  // Quién lo atiende en la línea nueva: el mismo, solo si ve esa línea (si no, queda para las reglas).
+  const lineOk = await peopleWithLine(ws, numberId);
+  const keepAssignee = chat.assigned_to && (!lineOk || lineOk.has(chat.assigned_to)) ? chat.assigned_to : null;
+  // Antes de crear nada: ¿la persona va a ver el chat nuevo? (mismas etiquetas y equipo; asignado solo si se conserva)
+  if (viewer?.scoped) {
+    const viaMe = keepAssignee === viewer.me;
+    const viaTeam = Boolean(chat.assigned_team_id && (viewer.teamIds ?? []).includes(chat.assigned_team_id));
+    const viaLabel =
+      Boolean(viewer.labels) &&
+      Boolean(
+        await db
+          .prepare('SELECT 1 AS x FROM groups_chat_labels zl JOIN groups_label_access za ON za.label_id = zl.label_id WHERE zl.chat_id = ? AND za.person_id = ?')
+          .get(chat.id, viewer.me),
+      );
+    if (!viaMe && !viaTeam && !viaLabel) throw new GroupsError('line_forbidden', 403);
+  }
+  const row = await upsertChat(number, { providerChatId: dmProviderChatId(number.provider, phone), kind: 'dm', name: chat.name, phone });
+  // Recién creado: hereda equipo, etiquetas y (si ve la línea) quién lo atiende. Compare-and-set: no pisa una fila con datos.
   await db
     .prepare('UPDATE groups_chats SET assigned_to = ?, assigned_team_id = ? WHERE id = ? AND assigned_to IS NULL AND assigned_team_id IS NULL')
-    .run(chat.assigned_to, chat.assigned_team_id ?? null, row.id);
+    .run(keepAssignee, chat.assigned_team_id ?? null, row.id);
   await db
     .prepare('INSERT OR IGNORE INTO groups_chat_labels (chat_id, label_id) SELECT ?, label_id FROM groups_chat_labels WHERE chat_id = ?')
     .run(row.id, chat.id);
-  if (viewer && !(await canSeeChat(viewer, row.id))) throw new GroupsError('line_forbidden', 403);
+  if (viewer && !(await canSeeChat(viewer, row.id))) {
+    // No debería pasar (se comprobó antes); si pasa, no queda una fila vacía.
+    await db.prepare("DELETE FROM groups_chats WHERE id = ? AND last_message_at IS NULL AND NOT EXISTS (SELECT 1 FROM groups_messages m WHERE m.chat_id = groups_chats.id)").run(row.id);
+    throw new GroupsError('line_forbidden', 403);
+  }
+  if (!keepAssignee && chat.assigned_to) {
+    const { autoAssignChat } = await import('./groups-inbox');
+    await autoAssignChat(ws, row.id).catch(() => null);
+  }
   return row.id;
 }
 

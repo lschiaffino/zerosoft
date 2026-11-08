@@ -15,6 +15,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   if (!(await canSeeActivity(user.id, params.id, await sessionScope(user)))) return notFound();
+  if (await (await import('@/lib/groups-access')).crmActivityHidden(user.id, params.id, user)) return notFound();
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = activityUpdateSchema.safeParse(body);
@@ -43,6 +44,7 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   if (!(await canSeeActivity(user.id, params.id, await sessionScope(user)))) return notFound();
+  if (await (await import('@/lib/groups-access')).crmActivityHidden(user.id, params.id, user)) return notFound();
   if (!(await deleteActivity(user.id, params.id, user.actingUser?.email ?? user.email))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

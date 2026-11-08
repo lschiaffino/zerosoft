@@ -68,6 +68,7 @@ export default async function CrmDashboardsPage(
   const defaultPipelineId = pipelines[0]?.id ?? null;
 
   // Prefetch del dataset de cada tipo de widget (pipeline default, rango 30d).
+  const groupsExtra = await (await import('@/lib/groups-access')).crmGroupsTaskFilterFor(user);
   const entries = await Promise.all(
     DASHBOARD_WIDGET_TYPES.map(
       async (type) =>
@@ -78,6 +79,7 @@ export default async function CrmDashboardsPage(
             { type, pipelineId: defaultPipelineId, range: '30d' },
             owners,
             scope,
+            groupsExtra,
           ),
         ] as const,
     ),

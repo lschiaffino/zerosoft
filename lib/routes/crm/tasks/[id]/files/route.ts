@@ -17,6 +17,7 @@ async function access(id: string) {
   if (!user) return { res: unauthorized() } as const;
   const activity = await getActivity(user.id, id);
   if (!activity || !(await canSeeActivity(user.id, id, await sessionScope(user)))) return { res: notFound() } as const;
+  if (await (await import('@/lib/groups-access')).crmActivityHidden(user.id, id, user)) return { res: notFound() } as const;
   return { user, activity } as const;
 }
 

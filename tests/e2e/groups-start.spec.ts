@@ -180,7 +180,8 @@ test('QR administrado: escanear, traer grupos solo, recibir y responder, borrar 
 
     // Borrar el número cierra la sesión y borra la instancia del servidor.
     await page.goto('/en/app/groups/settings?tab=numbers', { waitUntil: 'networkidle' });
-    await page.locator('.gr-line-row').getByRole('button', { name: 'Delete' }).click();
+    await page.locator('.gr-line-row').getByRole('button', { name: 'Line actions' }).click();
+    await page.getByRole('menuitem', { name: 'Delete' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
     await expect.poll(() => hits.some((h) => h.method === 'DELETE' && h.path === `/instance/delete/${instance}` && h.apikey === GLOBAL_KEY)).toBe(true);
     await expect(page.locator('.gr-line-row')).toHaveCount(0);

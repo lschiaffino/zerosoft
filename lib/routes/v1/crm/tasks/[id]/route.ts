@@ -18,6 +18,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (!(await canSeeActivity(auth.user.id, params.id, await apiScope(auth)))) {
     return apiError(404, 'not_found', 'Task not found.');
   }
+  if (await (await import('@/lib/groups-access')).crmActivityHiddenFor(auth.user.id, auth.personId, auth.role, params.id)) {
+    return apiError(404, 'not_found', 'Task not found.');
+  }
 
   const existing = (await getDb()
     .prepare('SELECT type FROM crm_activities WHERE id = ? AND user_id = ?')

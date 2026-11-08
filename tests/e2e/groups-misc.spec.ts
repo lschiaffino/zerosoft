@@ -138,7 +138,8 @@ test('ConfirmDialog destructivo: el foco arranca en Cancelar (Enter no borra)', 
   const n = await fakeNumber(request);
   await page.goto('/en/app/groups/settings?tab=numbers', { waitUntil: 'networkidle' });
   const card = page.locator('.gr-line-row', { hasText: n.name });
-  await card.getByRole('button', { name: 'Disconnect' }).click();
+  await card.getByRole('button', { name: 'Line actions' }).click();
+  await page.getByRole('menuitem', { name: 'Disconnect' }).click();
   const confirm = page.getByRole('alertdialog', { name: `Disconnect ${n.name}?` });
   await expect(confirm.getByRole('button', { name: 'Cancel' })).toBeFocused();
   await page.keyboard.press('Enter');

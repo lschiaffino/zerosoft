@@ -9,6 +9,7 @@ import type { ConnectState, ProviderKind } from '@/lib/groups-provider';
 import type { LineAccess, LineDto } from '@/lib/groups-lines';
 import { LINE_COLORS, lineColor } from '@/lib/groups-lines-shared';
 import { Modal, api, useErrorText, useRelativeTime, useToast } from './ui';
+import { MessageMenu } from './ThreadParts';
 
 const FIELDS: Record<ProviderKind, Array<{ key: string; secret?: boolean; placeholder?: string; optional?: boolean }>> = {
   cloud: [
@@ -102,8 +103,7 @@ export default function NumbersSettings({
     router.refresh();
   }
 
-  const [perChat, setPerChat] = useState(50);
-  async function reimport(n: NumberDto) {
+  async function reimport(n: NumberDto, perChat: number) {
     const res = await api(`/api/groups/numbers/${n.id}/connect`, { body: { action: 'import', perChat } });
     if (!res.data) return showToast(errText(res.error), true);
     showToast(t('wa.reimportStarted'));
@@ -144,7 +144,7 @@ export default function NumbersSettings({
       {numbers.length === 0 ? (
         <p className="ui-help">{t('numbers.empty')}</p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap gr-lines-wrap">
           <table className="table gr-table gr-lines-table">
             <thead>
               <tr>
@@ -164,7 +164,7 @@ export default function NumbersSettings({
                 const importing = line.import && (line.import.status === 'queued' || line.import.status === 'running');
                 return (
                   <tr key={n.id} className="gr-line-row">
-                    <td>
+                    <td data-label={t('lines.colLine')}>
                       <div className="gr-line-cell">
                         <span className="gr-line-dot" style={{ background: line.displayColor ?? lineColor(n) }} aria-hidden="true" />
                         <span className="gr-line-name">
@@ -176,7 +176,7 @@ export default function NumbersSettings({
                         </span>
                       </div>
                     </td>
-                    <td>
+                    <td data-label={t('lines.colStatus')}>
                       {n.provider === 'sample' ? (
                         <span className="badge">{t('sample.badge')}</span>
                       ) : (
@@ -193,16 +193,16 @@ export default function NumbersSettings({
                       )}
                       {n.lastError && <span className="ui-error gr-line-error">{errText(n.lastError)}</span>}
                     </td>
-                    <td>{line.lastMessageAt ? rel(line.lastMessageAt) : <span className="ui-help">{t('lines.noMessages')}</span>}</td>
-                    <td>{line.openChats ?? '·'}</td>
+                    <td data-label={t('lines.colLast')}>{line.lastMessageAt ? rel(line.lastMessageAt) : <span className="ui-help">{t('lines.noMessages')}</span>}</td>
+                    <td data-label={t('lines.colChats')}>{line.openChats ?? '·'}</td>
                     {canEdit && (
-                      <td>
+                      <td data-label={t('lines.colAccess')}>
                         <button type="button" className="btn btn-ghost btn-sm gr-line-access" onClick={() => setGranting(line as LineDto)} title={t('lines.editAccessFor', { name: n.name })}>
                           {accessText(line.access)}
                         </button>
                       </td>
                     )}
-                    <td>
+                    <td className="gr-line-actions">
                       {canEdit && n.provider === 'sample' && (
                         <div className="gr-number-actions">
                           <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(n)}>
@@ -215,39 +215,18 @@ export default function NumbersSettings({
                           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConnecting(n)}>
                             {n.status === 'connected' ? t('numbers.status') : n.status === 'disconnected' || n.status === 'error' ? t('numbers.reconnect') : t('numbers.connect')}
                           </button>
-                          {n.caps.groups && n.status === 'connected' && (
-                            <button type="button" className="btn btn-ghost btn-sm" onClick={() => void act(n, 'sync')}>
-                              {t('numbers.sync')}
-                            </button>
-                          )}
-                          {(n.provider === 'managed' || n.provider === 'evolution') && n.status === 'connected' && (
-                            <span className="gr-reimport" title={t('wa.reimportHelp')}>
-                              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void reimport(n)} disabled={Boolean(importing)}>
-                                {t('wa.reimport')}
-                              </button>
-                              <label className="gr-reimport-label" htmlFor={`per-chat-${n.id}`}>
-                                {t('wa.perChat')}
-                              </label>
-                              <select id={`per-chat-${n.id}`} className="select" value={perChat} onChange={(e) => setPerChat(Number(e.target.value))}>
-                                {[20, 50, 100, 200].map((v) => (
-                                  <option key={v} value={v}>
-                                    {v}
-                                  </option>
-                                ))}
-                              </select>
-                            </span>
-                          )}
-                          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(n)}>
-                            {t('numbers.edit')}
-                          </button>
-                          {n.status === 'connected' && (
-                            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDisconnecting(n)}>
-                              {t('numbers.disconnect')}
-                            </button>
-                          )}
-                          <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(n)}>
-                            {t('common.delete')}
-                          </button>
+                          <MessageMenu
+                            label={t('lines.moreActions')}
+                            items={[
+                              ...(n.caps.groups && n.status === 'connected' ? [{ key: 'sync', label: t('numbers.sync'), onSelect: () => void act(n, 'sync') }] : []),
+                              ...((n.provider === 'managed' || n.provider === 'evolution') && n.status === 'connected' && !importing
+                                ? [50, 200].map((v) => ({ key: `import-${v}`, label: t('lines.reimportN', { n: v }), onSelect: () => void reimport(n, v) }))
+                                : []),
+                              { key: 'edit', label: t('numbers.edit'), onSelect: () => setEditing(n) },
+                              ...(n.status === 'connected' ? [{ key: 'disconnect', label: t('numbers.disconnect'), onSelect: () => setDisconnecting(n) }] : []),
+                              { key: 'delete', label: t('common.delete'), onSelect: () => setRemoving(n), danger: true, divider: true },
+                            ]}
+                          />
                         </div>
                       )}
                     </td>

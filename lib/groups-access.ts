@@ -315,8 +315,30 @@ export function crmGroupsTaskFilterFor(user: { id: string; actingUser?: { id: st
 
 /** ¿Esta actividad del CRM es una tarea de un chat que la persona no ve? */
 export async function crmActivityHidden(ws: string, activityId: string, user: { id: string; actingUser?: { id: string } | null; role?: TeamRole }): Promise<boolean> {
-  const f = await crmGroupsTaskFilterFor(user);
+  return crmActivityHiddenFor(ws, user.actingUser?.id ?? user.id, user.role ?? 'owner', activityId);
+}
+
+/** Lo mismo con persona y rol (API con key, asistentes). */
+export async function crmActivityHiddenFor(ws: string, personId: string, role: TeamRole, activityId: string): Promise<boolean> {
+  const f = await crmGroupsTaskFilter(ws, personId, role);
   if (!f) return false;
   const row = await getDb().prepare(`SELECT 1 AS x FROM crm_activities a WHERE a.id = ? AND a.user_id = ? AND ${f.sql}`).get(activityId, ws, ...f.args);
   return !row;
+}
+
+/** crmGroupsTaskFilter para una persona sin sesión (asistentes): el rol se lee del workspace. */
+export async function crmGroupsTaskFilterForPerson(ws: string, personId: string): Promise<{ sql: string; args: string[] } | null> {
+  const { workspaceRole } = await import('./api-auth');
+  return crmGroupsTaskFilter(ws, personId, await workspaceRole(ws, personId));
+}
+
+/**
+ * Para texto compartido entre personas (resúmenes AI de un registro, que se
+ * guardan una vez y los lee cualquiera que ve el registro): si el workspace
+ * recorta el acceso de Groups, las tareas creadas desde chats quedan afuera.
+ */
+export async function crmGroupsSharedFilter(ws: string, alias = 'a'): Promise<{ sql: string; args: string[] } | null> {
+  const s = await getPlatformSettings(ws);
+  if (!s.labelAccess && !s.lineAccess && !s.teamAccess) return null;
+  return { sql: `NOT EXISTS (SELECT 1 FROM groups_tasks zgt WHERE zgt.activity_id = ${alias}.id)`, args: [] };
 }

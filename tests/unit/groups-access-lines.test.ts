@@ -206,3 +206,49 @@ describe('importar de Periskope', () => {
     await expect(importPeriskope(user.id, user.id, 'labels', `Name\n${'x'.repeat(4 * 1024 * 1024 + 10)}\n`)).rejects.toThrow('file_too_large');
   });
 });
+
+describe('segunda ronda de refuerzos', () => {
+  it('una tarea de un chat oculto no se abre por id ni llega a los asistentes ni al resumen AI', async () => {
+    const { user, m, chatB } = await scene('acc-r2-crm');
+    const { crmActivityHiddenFor, crmGroupsTaskFilterForPerson, crmGroupsSharedFilter } = await import('@/lib/groups-access');
+    const task = await createGroupTask(user.id, user.id, { chatId: chatB.id, title: 'Tarea oculta r2' });
+    expect(await crmActivityHiddenFor(user.id, m.id, 'member', task.activityId)).toBe(true);
+    expect(await crmActivityHiddenFor(user.id, user.id, 'owner', task.activityId)).toBe(false);
+    // Asistentes: el filtro por persona lee el rol del workspace.
+    const extra = await crmGroupsTaskFilterForPerson(user.id, m.id);
+    expect((await listTasks(user.id, { bucket: 'upcoming', extra })).some((t) => t.id === task.activityId)).toBe(false);
+    // Resumen AI compartido: con acceso recortado, las tareas de chats quedan afuera para todos.
+    const shared = await crmGroupsSharedFilter(user.id);
+    expect(shared).not.toBeNull();
+    expect((await listTasks(user.id, { bucket: 'upcoming', extra: shared })).some((t) => t.id === task.activityId)).toBe(false);
+  });
+
+  it('el 1:1 nuevo en otra línea no hereda un asignado que no ve esa línea; un intento rechazado no deja filas', async () => {
+    const user = await makeUser('acc-r2-dm');
+    const a = await addLine(user.id, 'A', '5491100000051');
+    const b = await addLine(user.id, 'B', '5491100000052');
+    const m = await teammate(user.id, 'Uma');
+    await ingestEvents(a, [msg('5491100000555@c.us', 'r2-1', 'hola')]);
+    const chat = (await listChats(user.id, user.id)).rows[0];
+    await setLineAccess(user.id, user.id, a.id, { personIds: [m.id] });
+    await updatePlatformSettings(user.id, { lineAccess: true });
+    await updateChat(user.id, chat.id, { assignedTo: m.id });
+    const count = async () => Number(((await getDb().prepare('SELECT COUNT(*) AS c FROM groups_chats WHERE user_id = ?').get(user.id)) as { c: number }).c);
+    // El miembro no tiene B: rechazado antes de crear nada.
+    const before = await count();
+    await expect(resolveReplyChat(user.id, await groupsViewer(user.id, m.id, 'member'), chat.id, b.id)).rejects.toThrow('line_forbidden');
+    expect(await count()).toBe(before);
+    // El admin responde desde B: el chat nuevo queda sin el asignado que no ve B.
+    const created = await resolveReplyChat(user.id, null, chat.id, b.id);
+    const row = (await getDb().prepare('SELECT assigned_to FROM groups_chats WHERE id = ?').get(created)) as { assigned_to: string | null };
+    expect(row.assigned_to).toBeNull();
+  });
+
+  it('cada línea nueva toma el siguiente color libre de la paleta', async () => {
+    const { LINE_COLORS } = await import('@/lib/groups-lines-shared');
+    const user = await makeUser('acc-r2-color');
+    const a = await createNumber(user.id, user.id, { provider: 'fake', name: 'A' });
+    const b = await createNumber(user.id, user.id, { provider: 'fake', name: 'B' });
+    expect([a.color, b.color]).toEqual([LINE_COLORS[0], LINE_COLORS[1]]);
+  });
+});

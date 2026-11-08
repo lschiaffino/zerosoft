@@ -88,7 +88,7 @@ export default async function ObjectRecordPage(props: {
 
   if (tab === 'activity') {
     const [timeline, links] = await Promise.all([
-      listTimeline(user.id, { objectRecordId: record.id, limit: 100 }),
+      listTimeline(user.id, { objectRecordId: record.id, limit: 100, extra: await (await import('@/lib/groups-access')).crmGroupsTaskFilterFor(user) }),
       recordLinks(user.id, record.id),
     ]);
     const items = await withActivityFiles(timeline);

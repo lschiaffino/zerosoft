@@ -13,6 +13,7 @@ export async function POST(_req: NextRequest, props: { params: Promise<{ id: str
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   if (!(await canSeeActivity(user.id, id, await sessionScope(user)))) return notFound();
+  if (await (await import('@/lib/groups-access')).crmActivityHidden(user.id, id, user)) return notFound();
   try {
     return NextResponse.json(await createZoomForActivity(user.id, id));
   } catch (err) {

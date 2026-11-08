@@ -118,7 +118,7 @@ export default async function LeadPage(props: {
   );
 
   if (tab === 'activity') {
-    const timeline = await listTimeline(user.id, { leadId: lead.id, limit: 100 });
+    const timeline = await listTimeline(user.id, { leadId: lead.id, limit: 100, extra: await (await import('@/lib/groups-access')).crmGroupsTaskFilterFor(user) });
     const items = await withActivityFiles(timeline);
     const open = timeline
       .filter((a) => a.type === 'task' && !a.done)

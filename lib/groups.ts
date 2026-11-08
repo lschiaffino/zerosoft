@@ -222,12 +222,16 @@ export async function createNumber(
   if (kind === 'managed') Object.assign(cfg, newManagedInstance());
   const id = newId();
   const now = nowIso();
+  // Color: el siguiente de la paleta que ninguna línea usa todavía (dos líneas no se confunden).
+  const { LINE_COLORS, lineColor } = await import('./groups-lines-shared');
+  const used = new Set(((await getDb().prepare('SELECT id, color FROM groups_numbers WHERE user_id = ?').all(ws)) as Array<{ id: string; color: string | null }>).map((n) => lineColor(n)));
+  const color = LINE_COLORS.find((c) => !used.has(c)) ?? LINE_COLORS[used.size % LINE_COLORS.length];
   await getDb()
     .prepare(
-      `INSERT INTO groups_numbers (id, user_id, name, provider, status, config, webhook_secret, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
+      `INSERT INTO groups_numbers (id, user_id, name, provider, status, config, webhook_secret, created_by, created_at, updated_at, color)
+       VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, ws, (input.name ?? '').trim().slice(0, 80) || defaultNumberName(kind), kind, seal(JSON.stringify(cfg)), randomBytes(24).toString('hex'), actor, now, now);
+    .run(id, ws, (input.name ?? '').trim().slice(0, 80) || defaultNumberName(kind), kind, seal(JSON.stringify(cfg)), randomBytes(24).toString('hex'), actor, now, now, color);
   return toNumberDto((await getNumberRow(ws, id)) as NumberRow);
 }
 

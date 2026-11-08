@@ -1556,7 +1556,8 @@
     "historyOnPhone": "Older messages are on the phone.",
     "historyFetch": "Bring more",
     "historyAll": "This is the start of the history we have.",
-    "noAccess": "You no longer have access to this chat."
+    "noAccess": "You no longer have access to this chat.",
+    "backToInbox": "Back to the inbox"
   },
   "lines": {
     "replyFrom": "Reply from",
@@ -1585,7 +1586,9 @@
     "people": "People",
     "teamSize": "{n, plural, one {# person} other {# people}}",
     "color": "Color",
-    "colorAuto": "Automatic"
+    "colorAuto": "Automatic",
+    "moreActions": "Line actions",
+    "reimportN": "Reimport the last {n} messages per chat"
   },
   "team": {
     "intro": "Who works in Groups: role, teams, the lines each person sees, status and open chats assigned.",
