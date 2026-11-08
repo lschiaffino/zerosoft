@@ -85,8 +85,8 @@ export function toChatItems(messages: StoredMessage[], actions: ActionView[]): C
   }));
 }
 
-/** Lee el stream NDJSON de POST /api/assistant/chat y llama `on` por evento. */
-export async function readEvents(res: Response, on: (e: AssistantEvent) => void): Promise<void> {
+/** Lee un stream NDJSON (POST /api/assistant/chat, el chat de Voice) y llama `on` por evento. */
+export async function readEvents<E = AssistantEvent>(res: Response, on: (e: E) => void): Promise<void> {
   if (!res.body) return;
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -101,7 +101,7 @@ export async function readEvents(res: Response, on: (e: AssistantEvent) => void)
       buf = buf.slice(nl + 1);
       if (line) {
         try {
-          on(JSON.parse(line) as AssistantEvent);
+          on(JSON.parse(line) as E);
         } catch {
           // Línea cortada: se ignora.
         }
@@ -112,7 +112,7 @@ export async function readEvents(res: Response, on: (e: AssistantEvent) => void)
   const rest = buf.trim();
   if (rest) {
     try {
-      on(JSON.parse(rest) as AssistantEvent);
+      on(JSON.parse(rest) as E);
     } catch {
       // nada
     }

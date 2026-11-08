@@ -329,7 +329,7 @@ describe('voice helpers', () => {
   });
 
   it('extracts question keywords and renders markdown', () => {
-    expect(questionKeywords('What did Ana say about pricing?')).toEqual(['pricing']);
+    expect(questionKeywords('What did Ana say about pricing?')).toEqual(['ana', 'pricing']);
     const md = meetingMarkdown(
       {
         id: 'x',
