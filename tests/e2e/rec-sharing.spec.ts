@@ -282,6 +282,8 @@ test('modal de compartir en el teléfono (390 y 360 px, claro y oscuro): pantall
     await page.getByTestId('rec-share').click();
     const share = page.getByRole('dialog', { name: /Share/ });
     await expect(share.getByTestId('rec-share-person')).toHaveCount(1, { timeout: 30_000 });
+    // Medir con la animación de entrada terminada (sube desde abajo).
+    await page.waitForFunction(() => (document.querySelector('dialog.rec-share') as HTMLElement | null)?.getAnimations().length === 0);
     const m = await page.evaluate(() => {
       const d = document.querySelector('dialog.rec-share') as HTMLElement;
       const r = d.getBoundingClientRect();
