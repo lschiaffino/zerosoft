@@ -7,6 +7,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { TeamRow, UserRow } from './db';
 import { getCurrentUser, realUserId, type SessionUser } from './session';
 import { roleAtLeast, type TeamRole } from './teams';
+import { canManageRole } from './permissions';
 import { ensureWorkspace } from './workspace';
 
 export function teamsError(code: string, status = 400): NextResponse {
@@ -47,12 +48,7 @@ export function requestLocale(req: NextRequest, explicit?: unknown): string {
   return m ? m[1] : 'en';
 }
 
-/**
- * ¿`actor` puede cambiar a `target`? El owner, a cualquiera menos a sí
- * mismo; un admin, a members y guests (a otro admin no).
- */
+/** ¿`actor` puede cambiar a `target`? La regla vive en lib/permissions.ts. */
 export function canManage(actor: TeamRole, target: TeamRole): boolean {
-  if (target === 'owner') return false;
-  if (actor === 'owner') return true;
-  return actor === 'admin' && (target === 'member' || target === 'guest');
+  return canManageRole(actor, target);
 }

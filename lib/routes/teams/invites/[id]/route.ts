@@ -4,6 +4,7 @@ import { canGrantApps, parseApps } from '@/lib/workspace';
 import { canHandleInvite } from '@/lib/workspace-directory';
 import { isResponse, publicBase, teamsCtx, teamsError } from '@/lib/teams-http';
 import { resendInvite } from '@/lib/workspace-invites';
+import { audit } from '@/lib/workspace-admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,12 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   const params = await props.params;
   const ctx = await teamsCtx('admin');
   if (isResponse(ctx)) return ctx;
+  const current = await getInvite(params.id, ctx.team.id);
+  if (!current) return teamsError('not_found', 404);
+  // Revocar es manejar la invitación: solo quien la podría haber hecho (un pedido de ingreso lo cierra cualquier admin).
+  if (current.kind !== 'request' && !canHandleInvite(ctx.role, ctx.user.apps ?? '*', current)) return teamsError('forbidden', 403);
   if (!(await revokeInvite(params.id, ctx.team.id))) return teamsError('not_found', 404);
+  await audit({ teamId: ctx.team.id, actorId: ctx.realId, targetLabel: current.email, action: 'invite.revoke', before: { role: current.role, inviteId: current.id } });
   return NextResponse.json({ ok: true });
 }
 
@@ -36,6 +42,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   }
   const current = await getInvite(params.id, ctx.team.id);
   if (!current) return teamsError('not_found', 404);
+  if (!current.email) return teamsError('link_invite');
   // Reenviar da el link: solo quien podría haber hecho esa invitación.
   if (!canHandleInvite(ctx.role, ctx.user.apps ?? '*', current)) return teamsError('apps_not_yours', 403);
   // Abrirla a otro email es mandarla a otra persona: solo quien la hizo o el owner.
