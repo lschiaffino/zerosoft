@@ -5,16 +5,20 @@ import { ZeroRule } from '@/components/zero/ZeroTexture';
 import ZeroArt from '@/components/zero/ZeroArt';
 import '@/styles/pages.css';
 
-export async function generateMetadata() {
-  const t = await getTranslations('common.notFound');
-  return { title: t('meta') };
-}
-
-/** 404 dentro de /[locale]: el cartel negro, el título de lectura y un solo botón. */
+/**
+ * 404 dentro de /[locale]: el cartel negro, el título de lectura y un solo botón.
+ *
+ * Sin generateMetadata: la metadata se resuelve antes que el layout fije el
+ * idioma (setRequestLocale) y sin params next-intl lo buscaría en los headers,
+ * lo que en una página estática (un /blog/tag/x que no existe) es un error 500.
+ * El componente sí corre dentro del layout: el <title> va acá y React lo sube
+ * al <head>.
+ */
 export default async function LocaleNotFound() {
   const t = await getTranslations('common.notFound');
   return (
     <main className="nf">
+      <title>{`${t('meta')} · zerosoft`}</title>
       <div className="sign-band">
         <div className="container sign-inner">
           <BrandSymbol size={28} className="sign-mark" />
