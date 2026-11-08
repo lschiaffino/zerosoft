@@ -8725,6 +8725,14 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Reimportar un export de Notion actualizado: el hash del archivo de origen
+    // dice si cambió (y la página se actualiza si nadie la editó en zerosoft).
+    id: '260_import_external_hash',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE import_external_ids ADD COLUMN source_hash TEXT');
+    },
+  },
+  {
     // Track: reacciones en los updates de un project y en sus comentarios (como Linear).
     // target_id es el id del update o del comentario; update_id permite listarlas juntas.
     id: '284_track_plan_update_reactions',
