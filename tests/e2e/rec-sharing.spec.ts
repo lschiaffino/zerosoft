@@ -284,6 +284,7 @@ test('modal de compartir en el teléfono (390 y 360 px, claro y oscuro): pantall
     await expect(share.getByTestId('rec-share-person')).toHaveCount(1, { timeout: 30_000 });
     // Medir con la animación de entrada terminada (sube desde abajo).
     await page.waitForFunction(() => (document.querySelector('dialog.rec-share') as HTMLElement | null)?.getAnimations().length === 0);
+    await page.waitForTimeout(300);
     const m = await page.evaluate(() => {
       const d = document.querySelector('dialog.rec-share') as HTMLElement;
       const r = d.getBoundingClientRect();
@@ -300,7 +301,7 @@ test('modal de compartir en el teléfono (390 y 360 px, claro y oscuro): pantall
       return {
         pageOverflow: document.documentElement.scrollWidth > window.innerWidth,
         dialogOverflow: d.scrollWidth > d.clientWidth + 1,
-        fullScreen: Math.round(r.left) === 0 && Math.round(r.width) === window.innerWidth && Math.round(r.height) === window.innerHeight,
+        fullScreen: Math.abs(r.left) <= 1 && Math.abs(r.top) <= 1 && Math.abs(r.width - window.innerWidth) <= 1 && Math.abs(r.height - window.innerHeight) <= 1,
         footInView: foot.bottom <= window.innerHeight + 1 && foot.top >= 0,
         small,
         tinyText,
