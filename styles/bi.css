@@ -37,15 +37,16 @@
 .bi-ask .input { flex: 1 1 260px; min-width: 0; }
 .bi-ask-off { flex-basis: 100%; margin: 0; font-size: 0.8125rem; }
 .bi-ask-inline { padding: 8px; }
-.bi-explain { margin: 0; padding: 8px 12px; border-left: 3px solid var(--c-analytics); font-size: 0.875rem; color: var(--ink); }
+.bi-explain { margin: 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--ui-hover); font-size: 0.875rem; color: var(--ink); }
 
 /* ---------- Explorar ---------- */
 .bi-browse { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: start; }
 .bi-cols ul { list-style: none; margin: 0 0 12px; padding: 0; }
 .bi-cols-head { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 4px; font-size: 0.75rem; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 0.04em; }
 .bi-cols-empty { padding: 4px 8px; font-size: 0.8125rem; }
-.bi-col-row { display: flex; align-items: center; gap: 4px; border-left: 2px solid transparent; }
-.bi-col-row.active { border-left-color: var(--c-analytics); background: var(--ui-hover); }
+.bi-col-row { display: flex; align-items: center; gap: 4px; }
+.bi-col-row.active { background: var(--ui-hover); }
+.bi-col-row.active .bi-col-link { font-weight: 600; }
 .bi-col-row:hover { background: var(--ui-hover); }
 .bi-col-link { flex: 1; min-width: 0; padding: 6px 8px; color: var(--ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; }
 .bi-col-link:focus-visible { outline: 2px solid var(--c-analytics); outline-offset: -2px; }
@@ -189,8 +190,6 @@ a.bi-card-title:hover { text-decoration: underline; }
 @media (max-width: 900px) {
   .bi-browse { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .bi-cols ul { display: flex; flex-wrap: wrap; gap: 4px; }
-  .bi-col-row { border-left: 0; border-bottom: 2px solid transparent; }
-  .bi-col-row.active { border-bottom-color: var(--c-analytics); }
   .bi-sql { grid-template-columns: minmax(0, 1fr); }
   .bi-schema { max-height: 200px; }
 }
