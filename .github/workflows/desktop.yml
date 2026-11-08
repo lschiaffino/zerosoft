@@ -172,10 +172,19 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$kcpw" "$kc" >/dev/null
           security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
           security find-certificate -c "zerosoft desktop" -p "$kc" > "$work/cert.pem"
-          sudo security authorizationdb write com.apple.trust-settings.admin allow
-          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$work/cert.pem"
           rm -f "$work/cert.p12" "$work/key.pem"
-          security find-identity -v -p codesigning "$kc"
+          # Confianza para firmar código: en el dominio de administración y, si no deja, en el del usuario.
+          sudo security authorizationdb write com.apple.trust-settings.admin allow || true
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k "$kc" "$work/cert.pem" \
+            || security add-trusted-cert -r trustRoot -p codeSign -k "$kc" "$work/cert.pem" \
+            || sudo security add-trusted-cert -r trustRoot -p codeSign -k "$kc" "$work/cert.pem" || true
+          security find-identity -v -p codesigning "$kc" || true
+          if ! security find-identity -v -p codesigning "$kc" | grep -q '1 valid identities found'; then
+            if [ "$SELFTEST" = "yes" ]; then echo "::error::macOS no dejó confiar en el certificado"; exit 1; fi
+            echo "::warning::macOS no dejó confiar en el certificado: este build sale con firma ad hoc."
+            echo "kind=adhoc" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           echo "APPLE_SIGNING_IDENTITY=zerosoft desktop" >> "$GITHUB_ENV"
           echo "kind=stable" >> "$GITHUB_OUTPUT"
 
