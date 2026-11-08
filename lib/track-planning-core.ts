@@ -21,19 +21,26 @@ export interface Progress {
   points: number;
   donePoints: number;
   startedPoints: number;
-  /** 0..100: hechos (y la mitad de los empezados, como Linear) sobre el alcance (por puntos si hay estimaciones, si no por cantidad). */
+  /** 0..100: lo terminado sobre el alcance, en la misma unidad (puntos si hay estimaciones, si no issues). */
   percent: number;
   byPoints: boolean;
 }
 
 /**
- * Progreso como Linear: los cancelados salen del alcance, los empezados
- * cuentan por la mitad y con estimaciones va por puntos (un issue sin estimar
- * vale 1), si no por cantidad.
+ * Progreso de un project (y de un milestone o una iniciativa), una sola
+ * definición para el porcentaje, las cifras y el gráfico:
+ *
+ *   progreso = terminado / alcance
+ *
+ * - Alcance: los issues del project sin los cancelados (ni los de triage ni
+ *   los archivados, que tampoco entran al gráfico).
+ * - Unidad: puntos de estimación si algún issue tiene (uno sin estimar vale
+ *   1), si no cantidad de issues. Las cifras de "Alcance / Empezados /
+ *   Terminados" y las líneas del gráfico usan la misma unidad (byPoints).
+ * - Los empezados no suman al porcentaje: se muestran aparte (como la banda
+ *   "Started" del gráfico de Linear). Contarlos "a medias" hacía que "1 de 5
+ *   hechos" dijera 46%, y nada en la UI explicaba de dónde salía ese número.
  */
-/** Cuánto vale un issue empezado en el progreso del proyecto (Linear lo cuenta parcialmente). */
-export const STARTED_WEIGHT = 0.5;
-
 export function computeProgress(issues: ProgressIssue[]): Progress {
   const scope = issues.filter((i) => i.category !== 'cancelled');
   const byPoints = scope.some((i) => (i.estimate ?? 0) > 0);
@@ -53,11 +60,52 @@ export function computeProgress(issues: ProgressIssue[]): Progress {
       startedPoints += w(i);
     }
   }
-  const percent = points > 0 ? Math.round(((donePoints + startedPoints * STARTED_WEIGHT) / points) * 100) : 0;
+  const percent = points > 0 ? Math.round((donePoints / points) * 100) : 0;
   return { total: scope.length, started, done, points, donePoints, startedPoints, percent, byPoints };
 }
 
+// ---------- Fechas y autores de updates ----------
+
+/**
+ * Instante guardado (ISO con zona, ISO sin zona o "YYYY-MM-DD HH:MM:SS" de
+ * SQLite, ambos en UTC) → Date. Lo usan todas las fechas de updates y eventos,
+ * así la tarjeta, el feed y la columna derecha muestran el mismo día local.
+ */
+export function parseInstant(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const s = iso.includes('T') ? iso : iso.replace(' ', 'T');
+  const zoned = /(Z|[+-]\d{2}:?\d{2})$/.test(s) || s.length <= 10 ? s : `${s}Z`;
+  const d = new Date(zoned);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Iniciales para el avatar ("Ana Pérez" → "AP"; un mail → su primera letra). */
+export function initialsOf(name: string | null | undefined): string {
+  const parts = (name ?? '').trim().split(/[\s@.]+/).filter(Boolean);
+  if (!parts.length) return '?';
+  if ((name ?? '').includes('@') || parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
 // ---------- Updates y recordatorios ----------
+
+/**
+ * Autor original de un update importado (de Linear): el update queda a nombre
+ * de quien importó, con el autor real en meta.importedAuthor. Null si no es importado.
+ */
+export function importedAuthor(meta: string | null | undefined): { name: string; email: string | null } | null {
+  if (!meta) return null;
+  try {
+    const m = JSON.parse(meta) as { importedAuthor?: { name?: unknown; email?: unknown } };
+    const a = m?.importedAuthor;
+    if (!a || typeof a !== 'object') return null;
+    const name = typeof a.name === 'string' && a.name.trim() ? a.name.trim() : typeof a.email === 'string' ? a.email : '';
+    if (!name) return null;
+    return { name, email: typeof a.email === 'string' && a.email ? a.email : null };
+  } catch {
+    return null;
+  }
+}
 
 export type HealthState = 'on_track' | 'at_risk' | 'off_track' | 'missing' | 'none';
 

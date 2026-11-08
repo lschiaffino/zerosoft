@@ -68,7 +68,9 @@ test('Project: cabecera, Overview, Issues con la lista compartida y Updates con 
   // Una fila de propiedades y, a la derecha, el resumen; sin botón rojo de borrar.
   await expect(page.getByTestId('tp-chips')).toBeVisible();
   await expect(page.getByTestId('tp-side-props')).toContainText(t.name);
-  await expect(page.getByTestId('tp-side-progress-detail')).toContainText('1 of 2 done');
+  // Un solo panel de progreso (a la derecha): terminado / alcance, en issues.
+  await expect(page.getByTestId('tp-progress')).toHaveCount(1);
+  await expect(page.getByTestId('tp-progress-detail')).toContainText('1 of 2 issues completed · 50%');
   await expect(page.getByRole('img', { name: 'Scope and completed over time' })).toBeVisible();
   await expect(page.locator('.btn-danger')).toHaveCount(0);
   // Resources: agregar un link.

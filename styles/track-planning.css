@@ -495,3 +495,61 @@
   .tp-row-issues, .tp-plans-table .tp-row-lead { display: none; }
   .tp-ms-bar { display: none; }
 }
+
+/* ---------- Tabla de projects como Linear: el nombre primero, celdas editables ---------- */
+.tp-plans-table .tp-row { grid-template-columns: minmax(0, 1fr) 104px 64px 148px 112px 84px; gap: 8px; }
+/* El nombre toma su ancho; el resumen se queda con lo que sobra (y se corta primero). */
+.tp-plans-table .tp-row-name { flex: 0 1 auto; min-width: 48px; }
+.tp-plans-table .tp-row-summary { flex: 1 1 0; min-width: 0; }
+.tp-row-tag { flex: none; padding: 0 6px; font-size: 0.6875rem; line-height: 18px; color: var(--brand-gray-2); border: 1px solid var(--line); border-radius: var(--radius-1); }
+.tp-row.is-archived .tp-row-name { color: var(--brand-gray-1); }
+.tp-row-cell:has(.tp-cell-chip) { overflow: visible; }
+/* Chips de celda: sin borde hasta el hover/foco, como las celdas de Linear. */
+.track-inline-trigger.tp-chip.tp-cell-chip { height: 26px; min-height: 26px; max-width: 100%; padding: 0 6px; border-color: transparent; }
+.track-inline-trigger.tp-chip.tp-cell-chip:hover:not(:disabled),
+.track-inline-trigger.tp-chip.tp-cell-chip[aria-expanded="true"] { border-color: var(--line); }
+.track-inline-trigger.tp-chip.tp-cell-chip.is-icon { width: 28px; padding: 0; justify-content: center; }
+.tp-row-date .tp-cell-chip { font-family: var(--font-data); font-size: 0.75rem; }
+.tp-row-pct { font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-1); }
+.tp-row-headrow .tp-row-priority,
+.tp-row-headrow .tp-row-lead,
+.tp-row-headrow .tp-row-date,
+.tp-row-headrow .tp-row-progress { padding-left: 7px; }
+@media (max-width: 1100px) {
+  .tp-plans-table .tp-row-summary { display: none; }
+}
+@media (max-width: 900px) {
+  .tp-plans-table .tp-row { grid-template-columns: minmax(0, 1fr) 104px 40px 112px 84px; }
+  .tp-plans-table .tp-row-lead { display: none; }
+}
+@media (max-width: 767px) {
+  /* Angosto: nombre arriba y una fila de celdas abajo (salud, prioridad, fecha, estado). */
+  .tp-plans-table .tp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; padding: 6px 8px; }
+  .tp-plans-table .tp-row.tp-row-headrow { display: none; }
+  .tp-plans-table .tp-row-date .tp-chip.is-empty { display: none; }
+  .tp-plans-table .tp-row-link { flex: 1 1 100%; min-height: 28px; }
+  .tp-plans-table .tp-row-health { margin-right: auto; padding-left: 26px; }
+  .tp-plans-table .tp-row-lead { display: none; }
+  .tp-plans-table .tp-row-date, .tp-plans-table .tp-row-priority, .tp-plans-table .tp-row-progress { display: inline-flex; }
+}
+
+/* Página de project: aviso de archivado. */
+.tp-archived-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 10px; font-size: 0.8125rem; color: var(--brand-gray-1); background: var(--brand-enamel); border: 1px solid var(--line); border-radius: var(--radius-1); }
+.tp-archived-note > span { flex: 1 1 200px; min-width: 0; }
+
+/* Progreso en la columna derecha: cifras con el color de su línea, en la unidad del gráfico. */
+.tp-progress-sec .tp-progress-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.tp-progress-sec .tp-progress-stat { gap: 2px; min-width: 0; }
+.tp-progress-sec .tp-progress-stat dd { margin: 0; }
+.tp-progress-sec .tp-progress-stat-label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tp-progress-stat-pct { font-size: 0.75rem; color: var(--brand-gray-2); }
+.tp-swatch { display: inline-block; width: 8px; height: 8px; flex: none; border-radius: 2px; }
+.tp-swatch.is-scope { background: var(--ink); }
+.tp-swatch.is-started { background: var(--c-notes); }
+.tp-swatch.is-completed { background: var(--accent); }
+
+/* Avatares de miembros en el chip y autor de los updates. */
+.tp-chip-avatars { display: inline-flex; }
+.tp-chip-avatars .track-avatar + .track-avatar { margin-left: -4px; box-shadow: 0 0 0 1px var(--chrome-bg); }
+.tp-latest-by, .tp-update-author { display: inline-flex; align-items: center; gap: 6px; }
+.tp-latest-by .track-avatar, .tp-update-author .track-avatar { width: 18px; height: 18px; font-size: 0.625rem; }

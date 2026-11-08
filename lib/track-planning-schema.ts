@@ -59,7 +59,10 @@ export const planCreateSchema = z.object({
     .optional(),
 });
 
-export const planUpdateSchema = planCreateSchema.partial();
+export const planUpdateSchema = planCreateSchema.partial().extend({
+  /** Archivar (true) o desarchivar (false) el project. */
+  archived: z.boolean().optional(),
+});
 
 export const planIssuesSchema = z.object({
   action: z.enum(['add', 'remove']),

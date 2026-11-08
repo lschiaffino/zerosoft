@@ -78,8 +78,8 @@ describe('planificación: cálculos puros', () => {
       byPoints: false,
     });
     const p = computeProgress([{ category: 'done', estimate: 3 }, { category: 'in_progress', estimate: 1 }, { category: 'todo', estimate: null }]);
-    // Como Linear, el empezado suma la mitad: (3 + 0,5) / 5.
-    expect(p).toMatchObject({ byPoints: true, points: 5, donePoints: 3, percent: 70, started: 1 });
+    // Terminado sobre alcance, en puntos: 3 / 5 (el empezado se muestra aparte, no suma).
+    expect(p).toMatchObject({ byPoints: true, points: 5, donePoints: 3, startedPoints: 1, percent: 60, started: 1 });
   });
 
   it('salud: último update, o "falta el update" pasado el ciclo + 3 días', () => {

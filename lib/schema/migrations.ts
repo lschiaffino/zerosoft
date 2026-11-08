@@ -8653,6 +8653,14 @@ export const MIGRATIONS: Migration[] = [
       await c.execute('CREATE INDEX IF NOT EXISTS idx_track_list_views_user ON track_list_views(user_id, scope_id, list_key)');
     },
   },
+  {
+    // Track: archivar un project (como Linear). Sale de las listas y del
+    // roadmap; se ve con "Mostrar archivados" y se desarchiva desde su página.
+    id: '252_track_plans_archived',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE track_plans ADD COLUMN archived_at TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

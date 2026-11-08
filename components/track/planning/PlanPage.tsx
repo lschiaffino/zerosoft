@@ -13,15 +13,16 @@ import { PriorityIcon, TrackToast } from '@/components/track/InlineEditors';
 import TrackIcon from '@/components/track/TrackIcon';
 import TrackIssueList from '@/components/track/TrackIssueList';
 import { TRACK_ISSUES_CHANGED } from '@/components/track/TrackBranch';
+import { pushUndo } from '@/components/track/trackUndo';
 import { DateChip } from './pickers';
 import { LineChart } from './charts';
 import type { PlanMilestone, PlanSummary } from '@/lib/track-plans';
 import type { PlanProgressSeries } from '@/lib/track-plan-metrics';
 import { PLAN_PRIORITIES, PLAN_STATUSES } from '@/lib/track-planning-schema';
 import { PLAN_ISSUE_GROUPS } from '@/lib/track-views';
-import { api, copyText, fmtDay, HealthDot, LoadingRows, PlanStatusIcon, ProgressBar, personName } from './shared';
+import { api, copyText, fmtDay, fmtInstantDay, HealthDot, initialsOf, LoadingRows, PlanStatusIcon, personName } from './shared';
 import type { PlansMeta } from './PlansList';
-import PlanUpdates from './PlanUpdates';
+import PlanUpdates, { updateAuthor } from './PlanUpdates';
 import TitleInput from '@/components/ui/TitleInput';
 
 type Tab = 'overview' | 'issues' | 'updates';
@@ -38,6 +39,7 @@ interface LatestUpdate {
   body: string;
   user_name: string | null;
   user_email: string;
+  meta?: string | null;
   created_at: string;
 }
 
@@ -86,7 +88,7 @@ export default function PlanPage({ planId }: { planId: string }) {
 
   const load = useCallback(async () => {
     const [res, m] = await Promise.all([
-      api<PlanResponse>(`/api/track/plans/${planId}?series=1`),
+      api<PlanResponse>(`/api/track/plans/${planId}?series=1&tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')}`),
       api<PlansMeta & { rows: unknown[] }>('/api/track/plans?meta=only'),
     ]);
     if (res.status === 404) return setState('missing');
@@ -156,6 +158,21 @@ export default function PlanPage({ planId }: { planId: string }) {
     else setError(t('common.saveError'));
   };
 
+  // Archivar como Linear: al instante, con Deshacer en el toast (y ⌘Z); se desarchiva desde el ⋯ o el aviso.
+  const archive = async (archived: boolean) => {
+    if (!(await patch({ archived }))) return;
+    const planName = data?.plan.name ?? '';
+    pushUndo(
+      archived ? t('plan.archivedToast', { name: planName }) : t('plan.unarchivedToast', { name: planName }),
+      async () => {
+        await patch({ archived: !archived });
+      },
+      async () => {
+        await patch({ archived });
+      },
+    );
+  };
+
   const follow = async (following: boolean) => {
     const res = await api<{ following: boolean }>(`/api/track/plans/${planId}/follow`, 'PUT', { following });
     if (res.ok) setData((d) => (d ? { ...d, following: res.data.following } : d));
@@ -209,17 +226,30 @@ export default function PlanPage({ planId }: { planId: string }) {
               { value: 'follow', label: data.following ? t('plan.unfollow') : t('plan.followAction'), icon: <TrackIcon name="bell" size={13} /> },
               { value: 'update', label: t('plan.writeUpdate'), icon: <TrackIcon name="pencil" size={13} /> },
               { value: 'copy', label: t('common.copyLink'), icon: <TrackIcon name="link" size={13} /> },
+              plan.archived_at
+                ? { value: 'unarchive', label: t('plan.unarchive'), icon: <TrackIcon name="archive" size={13} /> }
+                : { value: 'archive', label: t('plan.archive'), icon: <TrackIcon name="archive" size={13} /> },
               { value: 'delete', label: t('plan.delete'), icon: <TrackIcon name="close" size={13} /> },
             ]}
             onSelect={(v) => {
               if (v === 'follow') void follow(!data.following);
               else if (v === 'update') writeUpdate();
               else if (v === 'copy') void copyText(window.location.href.split('?')[0]).then((ok) => setNotice(ok ? t('common.linkCopied') : null));
+              else if (v === 'archive' || v === 'unarchive') void archive(v === 'archive');
               else if (v === 'delete') setConfirmDelete(true);
             }}
             trigger={<TrackIcon name="more" size={14} />}
           />
         </div>
+        {plan.archived_at && (
+          <div className="tp-archived-note" role="status" data-testid="tp-archived-note">
+            <TrackIcon name="archive" size={13} />
+            <span>{t('plan.archivedNote', { date: fmtInstantDay(plan.archived_at, locale) })}</span>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => void archive(false)} data-testid="tp-unarchive">
+              {t('plan.unarchive')}
+            </button>
+          </div>
+        )}
         <div className="tp-plan-head">
           <PlanIconPicker plan={plan} onPatch={patch} />
           <TitleInput
@@ -288,7 +318,7 @@ export default function PlanPage({ planId }: { planId: string }) {
 
       {tab !== 'issues' && (
         <aside className="tp-plan-side" aria-label={t('plan.properties')}>
-          <SidePanel data={data} latest={latest} locale={locale} onPatch={patch} onWrite={writeUpdate} />
+          <SidePanel data={data} meta={meta} latest={latest} locale={locale} onPatch={patch} onWrite={writeUpdate} />
         </aside>
       )}
 
@@ -333,12 +363,14 @@ function PlanIconPicker({ plan, onPatch }: { plan: PlanSummary; onPatch: (b: Rec
  */
 function SidePanel({
   data,
+  meta,
   latest,
   locale,
   onPatch,
   onWrite,
 }: {
   data: PlanResponse;
+  meta: PlansMeta | null;
   latest: LatestUpdate | null | undefined;
   locale: string;
   onPatch: (b: Record<string, unknown>) => Promise<boolean>;
@@ -346,8 +378,11 @@ function SidePanel({
 }) {
   const t = useTranslations('trackPlanning');
   const { plan, milestones } = data;
-  const p = plan.progress;
   const today = localDay();
+  const memberNames = plan.member_ids
+    .filter((id) => id !== plan.lead_id)
+    .map((id) => personName(meta?.members.find((m) => m.id === id)))
+    .filter(Boolean);
   return (
     <>
       <section className="tp-side-sec" aria-labelledby="tp-side-props">
@@ -365,6 +400,8 @@ function SidePanel({
           </dd>
           <dt>{t('plan.lead')}</dt>
           <dd>{plan.lead_id ? plan.lead_name || plan.lead_email : <span className="tp-muted">{t('common.noLead')}</span>}</dd>
+          <dt>{t('plan.members')}</dt>
+          <dd data-testid="tp-side-members">{memberNames.length ? memberNames.join(', ') : <span className="tp-muted">{t('common.none')}</span>}</dd>
           <dt>{t('plan.targetDate')}</dt>
           <dd>{plan.target_date ? fmtDay(plan.target_date, locale, true) : <span className="tp-muted">{t('common.noDate')}</span>}</dd>
           <dt>{t('plan.teams')}</dt>
@@ -372,15 +409,7 @@ function SidePanel({
         </dl>
       </section>
 
-      <section className="tp-side-sec" aria-labelledby="tp-side-progress">
-        <h3 id="tp-side-progress" className="tp-side-title">
-          {t('plan.progress')}
-        </h3>
-        <ProgressBar percent={p.percent} label={t('plan.progress')} />
-        <p className="ui-help" data-testid="tp-side-progress-detail">
-          {t('plan.progressDetail', { done: p.done, total: p.total, started: p.started })}
-        </p>
-      </section>
+      <ProgressSection data={data} locale={locale} />
 
       {milestones.length > 0 && (
         <section className="tp-side-sec" aria-labelledby="tp-side-ms">
@@ -405,7 +434,7 @@ function SidePanel({
         </h3>
         <div className="tp-side-health">
           <HealthDot health={plan.health} label={t(`health.${plan.health}`)} />
-          {latest && <span className="ui-help">{t('plan.lastUpdateOn', { date: fmtDay(latest.created_at, locale) })}</span>}
+          {latest && <span className="ui-help">{t('plan.lastUpdateOn', { date: fmtInstantDay(latest.created_at, locale) })}</span>}
         </div>
         <button type="button" className="btn btn-sm" onClick={onWrite} data-testid="tp-side-write-update">
           {t('plan.writeUpdate')}
@@ -466,7 +495,9 @@ function PlanChips({
   const t = useTranslations('trackPlanning');
   const tp = useTranslations('trackPlanning.pickers');
   const members = meta?.members ?? [];
-  const memberNames = plan.member_ids.map((id) => personName(members.find((m) => m.id === id))).filter(Boolean);
+  // Lead y miembros son personas distintas (como Linear): el chip de miembros no repite al lead.
+  const memberIds = plan.member_ids.filter((id) => id !== plan.lead_id);
+  const memberNames = memberIds.map((id) => personName(members.find((m) => m.id === id))).filter(Boolean);
   const initials = (s: string) => (s.trim()[0] ?? '?').toUpperCase();
   return (
     <div className="tp-chips" role="group" aria-label={t('plan.properties')} data-testid="tp-chips">
@@ -524,12 +555,24 @@ function PlanChips({
         multi
         className={`tp-chip${memberNames.length ? '' : ' is-empty'}`}
         testId="tp-prop-members"
-        value={plan.member_ids}
-        options={members.map((m) => ({ value: m.id, label: personName(m), keywords: m.email, icon: <span className="track-avatar">{initials(personName(m))}</span> }))}
-        onSelect={(id) => void onPatch({ memberIds: toggleId(plan.member_ids, id) })}
+        value={memberIds}
+        options={members
+          .filter((m) => m.id !== plan.lead_id)
+          .map((m) => ({ value: m.id, label: personName(m), keywords: m.email, icon: <span className="track-avatar">{initials(personName(m))}</span> }))}
+        onSelect={(id) => void onPatch({ memberIds: toggleId(memberIds, id) })}
         trigger={
           <>
-            <TrackIcon name="users" size={13} />
+            {memberNames.length ? (
+              <span className="tp-chip-avatars" aria-hidden>
+                {memberNames.slice(0, 3).map((n, i) => (
+                  <span key={i} className="track-avatar">
+                    {initials(n)}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              <TrackIcon name="users" size={13} />
+            )}
             <span className="track-inline-text">{memberNames.length ? (memberNames.length > 2 ? tp('people', { count: memberNames.length }) : memberNames.join(', ')) : t('plan.members')}</span>
           </>
         }
@@ -705,67 +748,97 @@ function Overview({
         ) : (
           <div className="tp-latest">
             <HealthDot health={latest.health as 'on_track'} label={t(`health.${latest.health}`)} />
-            <span className="ui-help">
-              {latest.user_name || latest.user_email} · {fmtDay(latest.created_at, locale)}
+            <span className="ui-help tp-latest-by">
+              <span className="track-avatar" aria-hidden>
+                {initialsOf(updateAuthor(latest))}
+              </span>
+              {updateAuthor(latest)} · {fmtInstantDay(latest.created_at, locale)}
             </span>
             {latest.body && <MarkdownView source={latest.body} className="tp-update-body" />}
           </div>
         )}
       </section>
 
-      <ProgressCard data={data} locale={locale} />
-
       <Milestones planId={plan.id} milestones={milestones} locale={locale} onChanged={onReload} />
     </div>
   );
 }
 
-/** Progreso del project: números y el gráfico de alcance contra terminado en el tiempo (como Linear). */
-function ProgressCard({ data, locale }: { data: PlanResponse; locale: string }) {
+/**
+ * Progreso del project (columna derecha, como Linear): alcance, empezados y
+ * terminados con el gráfico, todo en la misma unidad (puntos si hay
+ * estimaciones, si no issues) y el mismo porcentaje: terminado / alcance
+ * (ver computeProgress en lib/track-planning-core). Es el único panel de
+ * progreso de la página.
+ */
+function ProgressSection({ data, locale }: { data: PlanResponse; locale: string }) {
   const t = useTranslations('trackPlanning');
   const p = data.plan.progress;
   const points = data.series?.points ?? [];
+  const unit = p.byPoints ? 'points' : 'issues';
+  const scope = p.byPoints ? p.points : p.total;
+  const started = p.byPoints ? p.startedPoints : p.started;
+  const done = p.byPoints ? p.donePoints : p.done;
+  const pct = (n: number) => (scope > 0 ? Math.round((n / scope) * 100) : 0);
   return (
-    <section className="tp-card" aria-labelledby="tp-progress-h">
-      <h3 id="tp-progress-h" className="tp-card-title">
+    <section className="tp-side-sec tp-progress-sec" aria-labelledby="tp-side-progress" data-testid="tp-progress">
+      <h3 id="tp-side-progress" className="tp-side-title">
         {t('plan.progress')}
       </h3>
-      <div className="tp-progress-stats">
-        <span className="tp-progress-stat">
-          <span className="tp-progress-stat-label">{t('plan.scope')}</span>
-          <span className="tp-progress-stat-num">{p.total}</span>
-        </span>
-        <span className="tp-progress-stat">
-          <span className="tp-progress-stat-label">{t('plan.started')}</span>
-          <span className="tp-progress-stat-num">{p.started}</span>
-        </span>
-        <span className="tp-progress-stat">
-          <span className="tp-progress-stat-label">{t('plan.completed')}</span>
-          <span className="tp-progress-stat-num">
-            {p.done} <span className="ui-help">· {p.percent}%</span>
-          </span>
-        </span>
-      </div>
-      <p className="ui-help" data-testid="tp-progress-detail">
-        {t('plan.progressDetail', { done: p.done, total: p.total, started: p.started })}
-        {p.byPoints ? ` · ${t('plan.byPoints', { done: p.donePoints, total: p.points })}` : ''}
-      </p>
-      {points.length > 1 ? (
-        <LineChart
-          label={t('plan.progressChart')}
-          labels={points.map((x) => fmtDay(x.day, locale))}
-          series={[
-            { key: 'scope', label: t('plan.scope'), color: 'var(--ink)', values: points.map((x) => x.scope) },
-            { key: 'started', label: t('plan.started'), color: 'var(--c-notes)', values: points.map((x) => x.started + x.completed), area: true },
-            { key: 'completed', label: t('plan.completed'), color: 'var(--accent)', values: points.map((x) => x.completed), area: true },
-          ]}
-        />
-      ) : (
+      {scope === 0 ? (
         <p className="ui-help">{t('plan.chartEmpty')}</p>
+      ) : (
+        <>
+          <p className="ui-help" data-testid="tp-progress-detail">
+            {t(`plan.progressOf.${unit}`, { done: fmtNum(done), total: fmtNum(scope), percent: p.percent })}
+          </p>
+          <dl className="tp-progress-stats">
+            <div className="tp-progress-stat">
+              <dt className="tp-progress-stat-label">
+                <span className="tp-swatch is-scope" aria-hidden />
+                {t('plan.scope')}
+              </dt>
+              <dd className="tp-progress-stat-num">{fmtNum(scope)}</dd>
+            </div>
+            <div className="tp-progress-stat">
+              <dt className="tp-progress-stat-label">
+                <span className="tp-swatch is-started" aria-hidden />
+                {t('plan.started')}
+              </dt>
+              <dd className="tp-progress-stat-num">
+                {fmtNum(started)} <span className="tp-progress-stat-pct">{pct(started)}%</span>
+              </dd>
+            </div>
+            <div className="tp-progress-stat">
+              <dt className="tp-progress-stat-label">
+                <span className="tp-swatch is-completed" aria-hidden />
+                {t('plan.completed')}
+              </dt>
+              <dd className="tp-progress-stat-num">
+                {fmtNum(done)} <span className="tp-progress-stat-pct">{p.percent}%</span>
+              </dd>
+            </div>
+          </dl>
+          {points.length > 1 ? (
+            <LineChart
+              height={points.length <= 7 ? 140 : 180}
+              legend={false}
+              label={t('plan.progressChart')}
+              labels={points.map((x) => fmtDay(x.day, locale))}
+              series={[
+                { key: 'scope', label: t('plan.scope'), color: 'var(--ink)', values: points.map((x) => x.scope) },
+                { key: 'started', label: t('plan.started'), color: 'var(--c-notes)', values: points.map((x) => x.started + x.completed), area: true },
+                { key: 'completed', label: t('plan.completed'), color: 'var(--accent)', values: points.map((x) => x.completed), area: true },
+              ]}
+            />
+          ) : null}
+        </>
       )}
     </section>
   );
 }
+
+const fmtNum = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 interface PlanLink {
   url: string;

@@ -76,7 +76,7 @@ test('plan: crear desde la lista, propiedades, issues y update con salud', async
   await expect(page.getByTestId('tp-update').first()).toContainText('Falta el diseño final');
   await expect(page.getByTestId('tp-updates-feed')).toContainText('target date');
   await page.getByTestId('tp-tab-overview').click();
-  await expect(page.getByTestId('tp-progress-detail')).toContainText('2 of 2 done');
+  await expect(page.getByTestId('tp-progress-detail')).toContainText('2 of 2 issues completed');
 
   // La lista lo muestra con su salud; renombrar se ve en la lista.
   await page.goto('/en/app/track/projects', { waitUntil: 'networkidle' });

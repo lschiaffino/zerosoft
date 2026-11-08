@@ -94,7 +94,7 @@
     "groupStatus": "Agrupar por estado",
     "groupLead": "Agrupar por lead",
     "groupNone": "Sin agrupar",
-    "timeline": "Timeline",
+    "timeline": "Línea de tiempo",
     "emptyTitle": "Todavía no hay proyectos",
     "emptyBody": "Un proyecto junta los issues detrás de un resultado, como un lanzamiento. Ponele lead y fecha objetivo, y publicá updates a medida que avanza.",
     "linearNote": "Un proyecto agrupa issues de uno o más equipos detrás de un resultado.",
@@ -103,7 +103,7 @@
     "namePlaceholder": "Checkout mobile",
     "summaryLabel": "Resumen",
     "summaryPlaceholder": "Una línea sobre lo que entrega este proyecto",
-    "display": "Display",
+    "display": "Mostrar",
     "filterHealth": "Salud",
     "anyHealth": "Cualquier salud",
     "orderBy": "Ordenar por",
@@ -115,14 +115,19 @@
       "created": "Creación",
       "updated": "Actualización"
     },
-    "teamTitle": "Projects de {team}",
+    "teamTitle": "Proyectos de {team}",
     "colName": "Nombre",
     "colHealth": "Salud",
     "colLead": "Lead",
     "colTarget": "Fecha objetivo",
-    "colIssues": "Issues",
-    "colProgress": "Progreso",
-    "issuesCount": "{count, plural, one {# issue} other {# issues}}"
+    "filter": "Filtrar",
+    "grouping": "Agrupar",
+    "show": "Ver",
+    "showArchived": "Proyectos archivados",
+    "colPriority": "Prioridad",
+    "colStatus": "Estado",
+    "progressAria": "{percent}% completado",
+    "updated": "Se actualizó {name}"
   },
   "plan": {
     "tabs": {
@@ -169,8 +174,6 @@
     "back": "Todos los proyectos",
     "invalidRange": "La fecha objetivo tiene que ser igual o posterior al inicio.",
     "progress": "Progreso",
-    "progressDetail": "{done} de {total} hechos, {started} en curso",
-    "byPoints": "{done} de {total} puntos",
     "latestUpdate": "Último update",
     "noUpdateYet": "Todavía no hay updates.",
     "writeUpdate": "Escribir update",
@@ -211,7 +214,17 @@
     "removeLink": "Quitar {name}",
     "linkUrl": "URL del link",
     "linkTitle": "Título (opcional)",
-    "invalidLink": "Ese link no es válido."
+    "invalidLink": "Ese link no es válido.",
+    "archive": "Archivar",
+    "unarchive": "Desarchivar",
+    "archived": "Archivado",
+    "archivedToast": "Se archivó {name}",
+    "unarchivedToast": "Se desarchivó {name}",
+    "archivedNote": "Este proyecto se archivó el {date}. No aparece en las listas ni en el roadmap.",
+    "progressOf": {
+      "issues": "{done} de {total} issues terminados · {percent}%",
+      "points": "{done} de {total} puntos terminados · {percent}%"
+    }
   },
   "updates": {
     "composerTitle": "Nuevo update",
@@ -236,7 +249,9 @@
       "startDate": "{actor} movió el inicio de {from} a {to}",
       "targetDate": "{actor} movió la fecha objetivo de {from} a {to}",
       "members": "{actor} sumó a {names}",
-      "milestone": "{actor} agregó el milestone {name}"
+      "milestone": "{actor} agregó el milestone {name}",
+      "archived": "{actor} archivó el proyecto",
+      "unarchived": "{actor} desarchivó el proyecto"
     },
     "reactions": "Reacciones",
     "you": "Vos",

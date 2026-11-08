@@ -3,7 +3,7 @@ import { planningContext, readJson } from '@/lib/track-planning-http';
 import { deletePlan, getAccessiblePlan, getPlanSummary, isFollowingPlan, listPlanMilestones, updatePlan } from '@/lib/track-plans';
 import { planUpdateSchema } from '@/lib/track-planning-schema';
 import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
-import { loadPlanProgressSeries } from '@/lib/track-plan-metrics';
+import { loadPlanProgressSeries, todayIn, validTimeZone } from '@/lib/track-plan-metrics';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,12 +17,13 @@ export async function GET(req: NextRequest, props: Props) {
   if (!ctx) return unauthorized();
   const plan = await getPlanSummary(id, ctx.scope);
   if (!plan) return notFound();
-  // Días en UTC, como las fechas de creación y de la actividad (un "hoy" local las dejaría afuera de noche).
-  const today = new Date().toISOString().slice(0, 10);
+  // Días en la zona de quien mira (?tz= del navegador); sin zona válida, UTC.
+  const tz = validTimeZone(req.nextUrl.searchParams.get('tz'));
+  const today = tz ? todayIn(tz) : new Date().toISOString().slice(0, 10);
   const [milestones, following, series] = await Promise.all([
     listPlanMilestones(id),
     isFollowingPlan(id, ctx.actorId),
-    req.nextUrl.searchParams.get('series') === '1' ? loadPlanProgressSeries(plan, today) : Promise.resolve(undefined),
+    req.nextUrl.searchParams.get('series') === '1' ? loadPlanProgressSeries(plan, today, tz) : Promise.resolve(undefined),
   ]);
   return NextResponse.json({ plan, milestones, following, series });
 }

@@ -120,9 +120,14 @@
     "colHealth": "Health",
     "colLead": "Lead",
     "colTarget": "Target date",
-    "colIssues": "Issues",
-    "colProgress": "Progress",
-    "issuesCount": "{count, plural, one {# issue} other {# issues}}"
+    "filter": "Filter",
+    "grouping": "Grouping",
+    "show": "Show",
+    "showArchived": "Archived projects",
+    "colPriority": "Priority",
+    "colStatus": "Status",
+    "progressAria": "{percent}% complete",
+    "updated": "Updated {name}"
   },
   "plan": {
     "tabs": {
@@ -169,8 +174,6 @@
     "back": "All projects",
     "invalidRange": "The target date has to be on or after the start date.",
     "progress": "Progress",
-    "progressDetail": "{done} of {total} done, {started} in progress",
-    "byPoints": "{done} of {total} points",
     "latestUpdate": "Latest update",
     "noUpdateYet": "No updates yet.",
     "writeUpdate": "Write update",
@@ -211,7 +214,17 @@
     "removeLink": "Remove {name}",
     "linkUrl": "Link URL",
     "linkTitle": "Title (optional)",
-    "invalidLink": "That link is not valid."
+    "invalidLink": "That link is not valid.",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "archived": "Archived",
+    "archivedToast": "Archived {name}",
+    "unarchivedToast": "Unarchived {name}",
+    "archivedNote": "This project was archived on {date}. It is hidden from lists and the roadmap.",
+    "progressOf": {
+      "issues": "{done} of {total} issues completed · {percent}%",
+      "points": "{done} of {total} points completed · {percent}%"
+    }
   },
   "updates": {
     "composerTitle": "New update",
@@ -236,7 +249,9 @@
       "startDate": "{actor} moved the start date from {from} to {to}",
       "targetDate": "{actor} moved the target date from {from} to {to}",
       "members": "{actor} added {names}",
-      "milestone": "{actor} added the milestone {name}"
+      "milestone": "{actor} added the milestone {name}",
+      "archived": "{actor} archived the project",
+      "unarchived": "{actor} unarchived the project"
     },
     "reactions": "Reactions",
     "you": "You",

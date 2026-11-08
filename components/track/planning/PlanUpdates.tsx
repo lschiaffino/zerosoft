@@ -13,11 +13,17 @@ import type { PlanUpdate, PlanUpdateComment, PlanUpdateReaction } from '@/lib/tr
 import { Popover } from '@/components/track/InlineEditors';
 import TrackIcon from '@/components/track/TrackIcon';
 import { PLAN_HEALTH, type PlanHealth } from '@/lib/track-planning-schema';
-import { api, fmtDay, fmtWhen, HealthDot, LoadingRows, personName } from './shared';
+import { api, fmtDay, fmtWhen, HealthDot, initialsOf, LoadingRows, parseInstant, personName } from './shared';
+import { importedAuthor } from '@/lib/track-planning-core';
 import type { PlansMeta } from './PlansList';
 
 /** Los mismos de los comentarios de issues (TRACK_REACTIONS de lib/track-ux, que lee la base y no entra al cliente). */
 const TRACK_REACTIONS = ['👍', '👎', '❤️', '🎉', '😄', '😕', '👀', '🚀'];
+
+/** Quién escribió el update: el autor original si vino importado de Linear. */
+export function updateAuthor(u: { meta?: string | null; user_name: string | null; user_email: string }): string {
+  return importedAuthor(u.meta)?.name ?? (u.user_name || u.user_email);
+}
 
 type Item = { kind: 'update'; at: string; update: PlanUpdate } | { kind: 'event'; at: string; event: PlanEvent };
 
@@ -38,6 +44,7 @@ export default function PlanUpdates({
   const [updates, setUpdates] = useState<PlanUpdate[] | null>(null);
   const [events, setEvents] = useState<PlanEvent[]>([]);
   const [me, setMe] = useState('');
+  const [admin, setAdmin] = useState(false);
   const [failed, setFailed] = useState(false);
   const [health, setHealth] = useState<PlanHealth>((plan.last_update_health as PlanHealth) ?? 'on_track');
   const [body, setBody] = useState('');
@@ -49,11 +56,14 @@ export default function PlanUpdates({
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const res = await api<{ rows: PlanUpdate[]; events: PlanEvent[]; me: string }>(`/api/track/plans/${plan.id}/updates`);
+    const res = await api<{ rows: PlanUpdate[]; events: PlanEvent[]; me: string; admin?: boolean }>(`/api/track/plans/${plan.id}/updates`);
     setFailed(!res.ok);
     setUpdates(res.ok ? res.data.rows : []);
     setEvents(res.ok ? res.data.events : []);
-    if (res.ok) setMe(res.data.me);
+    if (res.ok) {
+      setMe(res.data.me);
+      setAdmin(Boolean(res.data.admin));
+    }
   }, [plan.id]);
   useEffect(() => {
     void load();
@@ -76,7 +86,7 @@ export default function PlanUpdates({
   const items: Item[] = [
     ...(updates ?? []).map((u) => ({ kind: 'update' as const, at: u.created_at, update: u })),
     ...events.map((e) => ({ kind: 'event' as const, at: e.created_at, event: e })),
-  ].sort((a, b) => b.at.localeCompare(a.at));
+  ].sort((a, b) => (parseInstant(b.at)?.getTime() ?? 0) - (parseInstant(a.at)?.getTime() ?? 0));
 
   const memberName = (id: unknown) => personName(meta?.members.find((m) => m.id === id)) || t('common.noLead');
   const eventText = (e: PlanEvent) => {
@@ -103,6 +113,10 @@ export default function PlanUpdates({
         return t('updates.events.targetDate', { actor, from: day(m.from), to: day(m.to) });
       case 'members':
         return t('updates.events.members', { actor, names: (Array.isArray(m.added) ? m.added : []).map(memberName).join(', ') });
+      case 'archived':
+        return t('updates.events.archived', { actor });
+      case 'unarchived':
+        return t('updates.events.unarchived', { actor });
       case 'milestone_added':
         return t('updates.events.milestone', { actor, name: String(m.name ?? '') });
       default:
@@ -176,16 +190,29 @@ export default function PlanUpdates({
                 <li key={`u-${it.update.id}`} className="tp-card tp-update" data-testid="tp-update">
                   <div className="tp-update-head">
                     <HealthDot health={it.update.health} label={t(`health.${it.update.health}`)} />
-                    <span className="tp-update-author">{it.update.user_name || it.update.user_email}</span>
+                    {(() => {
+                      // Importado de Linear: el autor real, no quien importó.
+                      const name = updateAuthor(it.update);
+                      return (
+                        <span className="tp-update-author">
+                          <span className="track-avatar" aria-hidden>
+                            {initialsOf(name)}
+                          </span>
+                          {name}
+                        </span>
+                      );
+                    })()}
                     <time className="ui-help">
                       <LocalText>{fmtWhen(it.update.created_at, locale)}</LocalText>
                       {it.update.updated_at ? ` · ${t('updates.edited')}` : ''}
                     </time>
-                    {it.update.user_id === me && (
+                    {(importedAuthor(it.update.meta) ? admin : it.update.user_id === me) && (
                       <span className="tp-update-actions">
-                        <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditing(it.update.id)}>
-                          {t('common.edit')}
-                        </button>
+                        {!importedAuthor(it.update.meta) && (
+                          <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditing(it.update.id)}>
+                            {t('common.edit')}
+                          </button>
+                        )}
                         <button type="button" className="btn btn-sm btn-ghost" onClick={() => setDeleting(it.update.id)}>
                           {t('common.delete')}
                         </button>
