@@ -32,8 +32,8 @@
 
     --ui-hover: #1d1c1a;
     --ui-press: #2a2927;
-    --ui-selected: #262523;
-    --ui-selected-hover: #2e2d2b;
+    --ui-selected: #2a2927;
+    --ui-selected-hover: #33322f;
     /* Borde de un campo: 3,8:1 sobre el fondo, 3,3:1 sobre #1d1c1a. */
     --ui-field: #6f6e69;
     --ui-backdrop: rgb(0 0 0 / 0.62);
@@ -158,8 +158,8 @@
 
   --ui-hover: #1d1c1a;
   --ui-press: #2a2927;
-  --ui-selected: #262523;
-  --ui-selected-hover: #2e2d2b;
+  --ui-selected: #2a2927;
+  --ui-selected-hover: #33322f;
   /* Borde de un campo: 3,8:1 sobre el fondo, 3,3:1 sobre #1d1c1a. */
   --ui-field: #6f6e69;
   --ui-backdrop: rgb(0 0 0 / 0.62);
