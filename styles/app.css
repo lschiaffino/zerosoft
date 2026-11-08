@@ -520,6 +520,8 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   .band-search:hover { background: var(--chrome-hover); }
   .band-search-label,
   .band-search .kbd { display: none; }
+  /* El asistente y el de CRM quedan como ícono: del mismo tamaño que la búsqueda. */
+  .band-search.band-ai { width: 40px; padding: 0; }
 
   .side {
     position: fixed;
@@ -1364,4 +1366,14 @@ td.cell-actions > * + * { margin-left: 4px; }
   .side-handle,
   .side-menu-item { height: 44px; }
   .band-search { height: 40px; }
+  .cmdk-item, .cmdk.is-anchored .cmdk-item { min-height: 44px; }
+  .cmdk.is-anchored .cmdk-input { height: 44px; font-size: 1rem; }
+  .column-toggle-row { min-height: 44px; }
+}
+
+/* Teléfono: ⌘K arriba, pegado a la banda, con los resultados por encima del teclado. */
+@media (max-width: 640px) {
+  .cmdk-backdrop:not(.is-anchored) { padding-top: 8px; }
+  .cmdk:not(.is-anchored) { width: calc(100vw - 16px); }
+  .cmdk:not(.is-anchored) .cmdk-results { max-height: 50dvh; }
 }

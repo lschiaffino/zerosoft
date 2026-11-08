@@ -637,3 +637,45 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   .table-stack .bk-ellipsis { max-width: none; }
   .table-stack a.cell-link { white-space: normal; overflow-wrap: anywhere; }
 }
+
+/* ---------- Teléfono: menús anclados como hoja de acciones ----------
+   Un menú que se abre pegado a su botón (Más, Playbooks, Agendar, Agregar widget,
+   Columnas, Alertas) se salía de la pantalla cuando el botón estaba cerca de un borde.
+   A 640px o menos baja al pie, a todo el ancho y con telón, como una hoja de acciones. */
+@media (max-width: 640px) {
+  :is(.record-more-menu, .book-meeting-menu, .dash-add-menu, .chat-alerts-panel, .column-toggle-menu) {
+    position: fixed !important;
+    top: auto !important;
+    right: 8px !important;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 8px !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    max-height: 70dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-shadow: 0 0 0 100vmax var(--ui-backdrop);
+  }
+}
+
+/* ---------- Tacto: piso de 40px para los controles densos de cada app ----------
+   En escritorio estas apps copian la densidad de Linear, HubSpot o Notion (chips y filas
+   de 24-32px). Con el dedo cada control mide al menos 40px; las filas de menú, 44px.
+   min-height le gana al height fijo de cada regla sin tener que repetirlas. */
+@media (pointer: coarse) {
+  /* Menús y listas propias (las que no llevan role="menuitem"). */
+  :is(.track-menu-item, .record-more-item, .docs-menu-item, .gr-menu-item) { min-height: 44px; }
+  /* Chips, pestañas y botones de herramienta. */
+  :is(
+    .track-inline-trigger, .track-prop-chip, .track-qc-chip, .track-tool, .track-team-tab,
+    .track-display-choice-btn, .track-display-prop, .track-group-toggle, .track-quick-add-btn, .track-color-swatch,
+    .stage-step-btn, .lead-path-step, .view-tab, .record-tags-plus, .dash-widget-x, .report-tab, .report-type-tab,
+    .cell-inline, .filter-more, .column-toggle-btn, .tpl-var, .phone-touch-btn,
+    .gr-filter, .wa-icon-btn, .docs-tree-btn, .chat-swatch, .board-swatch, .board-canvas-tool, .board-folder-tab,
+    .board-back, .dz-tab, .ui-page-back, .home-block-more, .record-summary-more
+  ) { min-height: 40px; min-width: 40px; }
+  /* Filas que son links: la fila entera se toca. */
+  :is(.docs-tree-link, .an-row-link, .cal-row-main, .st-lc-template, .qm-link) { min-height: 40px; }
+  :is(.track-keypicker-input, .tp-summary-input) { min-height: 40px; }
+}

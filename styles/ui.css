@@ -446,8 +446,22 @@ select.select,
 @media (pointer: coarse) {
   .btn, .app-frame .btn,
   .btn-sm, .btn-small, .app-frame .btn-sm, .app-frame .btn-small { --btn-h: 40px; }
+  /* Algunas apps fijan su propio alto denso (28-32px): con el dedo gana el piso de 40. */
+  .btn { min-height: max(40px, var(--btn-h)) !important; }
+  .btn-icon { min-width: 40px !important; }
   .ui-tab { min-height: 44px; }
   .ui-settings-link { min-height: 44px; }
+  .icon-btn { min-width: 40px; min-height: 40px; }
+  /* Filas de menús y listas de opciones de cualquier app. */
+  [role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox'], [role='option'] { min-height: 44px; }
+  /* Campos: 40px de alto (si no, con la letra de 16px el texto del select queda cortado). */
+  :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='hidden'], [type='image'], [type='submit'], [type='button'], [type='reset']), select):not([class*='title']) { min-height: 40px; }
+  /* Fecha y hora con letra de 16px: que el valor entre entero ("09:00 AM", "10/10/2026"). */
+  input[type='time'] { min-width: 124px; }
+  input:is([type='date'], [type='month'], [type='week']) { min-width: 156px; }
+  input[type='datetime-local'] { min-width: 228px; }
+  /* Casillas y radios con su texto: la fila entera es el objetivo. */
+  label:has(> :is(input[type='checkbox'], input[type='radio'])):not([class*='switch']) { min-height: 40px; }
 }
 
 /* Datos: cifras alineadas, cero con barra. */
@@ -459,6 +473,21 @@ select.select,
 /* Filas de 36px (cabecera de 32px), filetes de 1px, cifras tabulares.
    Envolver en .table-wrap para scroll horizontal propio. */
 .table-wrap { width: 100%; overflow-x: auto; }
+/* Teléfono: una tabla que no entra scrollea en su caja con la primera columna fija,
+   así cada fila sigue diciendo de qué es (las que pasan a tarjetas llevan .table-stack). */
+@media (max-width: 640px) {
+  .table-wrap:not(.table-stack) > .table :is(th, td):first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--bg);
+    box-shadow: inset -1px 0 0 var(--line);
+  }
+  /* La fija lleva el nombre: que se lea (no tres letras por línea) sin comerse la pantalla. */
+  .table-wrap:not(.table-stack) > .table tbody :is(th, td):first-child { min-width: 128px; max-width: 52vw; }
+  .table-wrap:not(.table-stack) > .table tbody tr:hover > :first-child { background: var(--brand-enamel); }
+  .table-wrap:not(.table-stack) > .table tbody tr[aria-selected='true'] > :first-child { background: var(--ui-hover); }
+}
 .table {
   width: 100%;
   border-collapse: collapse;
