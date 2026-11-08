@@ -8804,7 +8804,7 @@ export const MIGRATIONS: Migration[] = [
     // Backfill idempotente desde groups_tasks y las tareas de reuniones de Docs
     // mandadas al CRM; no hay FK a crm_activities porque la papelera del CRM
     // borra y restaura la fila con el mismo id.
-    id: '284_tasks_unified',
+    id: '289_tasks_unified',
     up: async (c) => {
       await addColumn(c, "ALTER TABLE crm_activities ADD COLUMN priority TEXT NOT NULL DEFAULT ''");
       await c.executeMultiple(`
