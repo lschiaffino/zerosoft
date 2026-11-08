@@ -738,8 +738,36 @@ export interface ConversationListOptions {
   channel?: string;
   /** Conversaciones que sigue esta persona. */
   followedBy?: string;
+  /** Orden de la bandeja: lo último primero (por defecto), lo más viejo primero o quien espera hace más. */
+  sort?: ConversationSort;
   limit?: number;
   offset?: number;
+}
+
+export const CONVERSATION_SORTS = ['recent', 'oldest', 'waiting'] as const;
+export type ConversationSort = (typeof CONVERSATION_SORTS)[number];
+
+export function parseConversationSort(v: string | null | undefined): ConversationSort | undefined {
+  return (CONVERSATION_SORTS as readonly string[]).includes(v ?? '') ? (v as ConversationSort) : undefined;
+}
+
+/**
+ * Desde cuándo espera una respuesta el visitante: su primer mensaje después de
+ * la última respuesta de una persona o del bot (notas y borrados no cuentan).
+ * Null si la última palabra fue del equipo.
+ */
+const WAITING_SINCE_SQL = `(SELECT MIN(vm.created_at) FROM chat_messages vm
+  WHERE vm.conversation_id = c.id AND vm.sender_type = 'visitor' AND vm.is_note = 0 AND vm.deleted_at IS NULL
+    AND vm.created_at > COALESCE((SELECT MAX(am.created_at) FROM chat_messages am
+      WHERE am.conversation_id = c.id AND am.sender_type IN ('user', 'bot') AND am.is_note = 0 AND am.deleted_at IS NULL), ''))`;
+
+/** ORDER BY de la bandeja. Con "waiting" van primero las que esperan hace más; el resto, por actividad reciente. */
+export function conversationOrderBy(sort: ConversationSort | undefined): string {
+  if (sort === 'oldest') return 'c.updated_at ASC';
+  if (sort === 'waiting') {
+    return `(${WAITING_SINCE_SQL} IS NULL) ASC, ${WAITING_SINCE_SQL} ASC, c.updated_at DESC`;
+  }
+  return 'c.updated_at DESC';
 }
 
 /** WHERE común de la lista y el conteo de la bandeja. */
@@ -984,7 +1012,7 @@ export async function listChatConversations(
        JOIN chat_visitors v ON v.id = c.visitor_id
        LEFT JOIN users u ON u.id = c.assigned_to
        WHERE ${where.join(' AND ')}
-       ORDER BY c.updated_at DESC
+       ORDER BY ${conversationOrderBy(options.sort)}
        LIMIT ? OFFSET ?`,
     )
     .all(...(options.q ? [`%${escapeLike(options.q.trim())}%`] : []), ...args, limit, offset)) as Array<

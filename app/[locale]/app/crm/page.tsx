@@ -55,12 +55,16 @@ export default async function CrmOverviewPage(
   const user = await requireUser(locale);
   const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
-  const o = await getCrmOverview(user.id, scope);
-  // Totales en la moneda base (los deals en otras monedas se convierten).
-  const base = (await getCrmSettings(user.id)).baseCurrency;
-  const members = workspaceTeamId(user)
-    ? await listMembers(workspaceTeamId(user)!)
-    : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
+  // Independientes entre sí: van juntas (en Turso cada query es una ida y vuelta).
+  const [o, settings, members] = await Promise.all([
+    getCrmOverview(user.id, scope),
+    // Totales en la moneda base (los deals en otras monedas se convierten).
+    getCrmSettings(user.id),
+    workspaceTeamId(user)
+      ? listMembers(workspaceTeamId(user)!)
+      : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null }]),
+  ]);
+  const base = settings.baseCurrency;
   const quotas = await quotaProgress(user.id, {
     ownerIds: scope,
     people: members.map((m) => ({ id: m.user_id, name: m.name || m.email })),

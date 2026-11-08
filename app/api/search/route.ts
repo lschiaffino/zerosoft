@@ -41,6 +41,7 @@ import { actorOf as formsActorOf } from '@/lib/forms/http';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
 import { listConversations } from '@/lib/assistant/store';
+import { noStore } from '@/lib/no-store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -58,7 +59,7 @@ export interface SearchResponse {
   items: SearchResultItem[];
 }
 
-export async function GET(req: NextRequest) {
+async function getPrivate(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
@@ -309,4 +310,9 @@ export async function GET(req: NextRequest) {
     return !app || userCanUseApp(user, app);
   });
   return NextResponse.json<SearchResponse>({ q, items: allowed });
+}
+
+/** Datos de la persona: sin caché (lib/no-store.ts). */
+export async function GET(...args: Parameters<typeof getPrivate>) {
+  return noStore(await getPrivate(...args));
 }

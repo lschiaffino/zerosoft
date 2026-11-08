@@ -10,7 +10,10 @@
  *  - avisa cuándo reconectó (`onConnect`) o cuándo el servidor pide
  *    recargar el estado por un hueco grande (`onReset`), para que la app
  *    rehaga su estado solo en esos casos.
- * Con la pestaña oculta el polling se espacia. Reutilizable por cualquier app.
+ * Con la pestaña oculta el polling se espacia, y el stream SSE se cierra si
+ * sigue oculta más de HIDDEN_CLOSE_MS: al volver se reabre desde el cursor
+ * (llega lo que pasó mientras tanto, o un reset si fue mucho) y `onConnect`
+ * avisa para refrescar. Reutilizable por cualquier app.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -43,6 +46,8 @@ export interface RealtimeOptions<E> {
 
 const SSE_RETRY_MIN = 30_000;
 const SSE_RETRY_MAX = 5 * 60_000;
+/** Pestaña oculta: el stream se cierra pasado este tiempo (un cambio de pestaña corto no lo corta). */
+export const HIDDEN_CLOSE_MS = 60_000;
 
 export class RealtimeClient<E> {
   private cursor: number;
@@ -58,6 +63,9 @@ export class RealtimeClient<E> {
   private lastFrame = 0;
   private connectedOnce = false;
   private sseBackoff = SSE_RETRY_MIN;
+  private hiddenTimer: ReturnType<typeof setTimeout> | null = null;
+  /** El stream está cerrado porque la pestaña quedó oculta: se reabre al volver. */
+  private paused = false;
 
   constructor(private opts: RealtimeOptions<E>) {
     this.cursor = opts.cursor;
@@ -69,7 +77,11 @@ export class RealtimeClient<E> {
     this.stopped = false;
     if (this.mode === 'sse' && typeof EventSource !== 'undefined') this.openStream();
     else this.schedulePoll(0);
-    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.onVisibility);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.onVisibility);
+      // Abierta en una pestaña de fondo: el reloj de cierre arranca ya.
+      if (document.visibilityState === 'hidden') this.onVisibility();
+    }
   }
 
   stop() {
@@ -77,7 +89,10 @@ export class RealtimeClient<E> {
     this.closeStream();
     if (this.timer) clearTimeout(this.timer);
     if (this.sseRetry) clearTimeout(this.sseRetry);
+    if (this.hiddenTimer) clearTimeout(this.hiddenTimer);
     this.timer = null;
+    this.hiddenTimer = null;
+    this.paused = false;
     if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.onVisibility);
   }
 
@@ -203,14 +218,46 @@ export class RealtimeClient<E> {
       this.sseRetry = setTimeout(() => {
         if (this.stopped) return;
         this.failures = 0;
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+          // Oculta: no vale la pena reconectar ahora; se reabre al volver.
+          this.pauseStream();
+          return;
+        }
         this.openStream();
       }, wait);
     }
   }
 
   private onVisibility = () => {
-    if (this.mode === 'poll' && document.visibilityState === 'visible') this.schedulePoll(0);
+    if (this.stopped) return;
+    if (document.visibilityState === 'hidden') {
+      if (this.mode === 'sse' && this.es && !this.hiddenTimer) {
+        this.hiddenTimer = setTimeout(() => {
+          this.hiddenTimer = null;
+          if (!this.stopped && document.visibilityState === 'hidden' && this.mode === 'sse') this.pauseStream();
+        }, HIDDEN_CLOSE_MS);
+      }
+      return;
+    }
+    if (this.hiddenTimer) clearTimeout(this.hiddenTimer);
+    this.hiddenTimer = null;
+    if (this.paused) {
+      this.paused = false;
+      this.openStream();
+    } else if (this.mode === 'poll') {
+      this.schedulePoll(0);
+    }
   };
+
+  /** Cierra el stream por pestaña oculta. Al reabrir, `ready` dispara onConnect (connectedOnce). */
+  private pauseStream() {
+    this.closeStream();
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+    this.mode = 'sse';
+    this.paused = true;
+    this.setStatus('connecting');
+  }
 
   private schedulePoll(delay: number) {
     if (this.stopped || this.mode !== 'poll') return;

@@ -29,6 +29,81 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-chat-inbox-sort',
+    date: '2026-11-08',
+    title: {
+      en: 'Chat: sort the inbox by longest wait',
+      es: 'Chat: ordená la bandeja por la espera más larga',
+      pt: 'Chat: ordene a caixa de entrada pela espera mais longa',
+    },
+    items: [
+      {
+        product: 'chat',
+        en: 'The inbox has a Sort menu: newest activity, oldest activity or waiting longest. Waiting counts from the visitor\'s first message after the last reply from a person or the bot; internal notes do not count.',
+        es: 'La bandeja tiene un menú de orden: actividad más reciente, más vieja o espera más larga. La espera cuenta desde el primer mensaje del visitante después de la última respuesta de una persona o del bot; las notas internas no cuentan.',
+        pt: 'A caixa de entrada tem um menu de ordem: atividade mais recente, mais antiga ou espera mais longa. A espera conta a partir da primeira mensagem do visitante depois da última resposta de uma pessoa ou do bot; notas internas não contam.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-07-board-daily-use',
+    date: '2026-11-07',
+    title: {
+      en: 'Board: faster stickies, private brainstorming, reactions and a minimap',
+      es: 'Board: stickies más rápidos, brainstorming privado, reacciones y minimapa',
+      pt: 'Board: post-its mais rápidos, brainstorming privado, reações e minimapa',
+    },
+    items: [
+      {
+        product: 'board',
+        en: 'Press N for a sticky at the cursor, and Tab or Alt+arrow for the next one beside it, even while typing.',
+        es: 'N pone un sticky en el cursor, y Tab o Alt+flecha suma el siguiente al lado, también mientras escribís.',
+        pt: 'N coloca um post-it no cursor, e Tab ou Alt+seta adiciona o próximo ao lado, também enquanto você digita.',
+      },
+      {
+        product: 'board',
+        en: 'Private mode in Workshop: everyone writes without seeing the others until the facilitator reveals all stickies at once.',
+        es: 'Modo privado en Taller: cada uno escribe sin ver a los demás hasta que quien facilita revela todos los stickies juntos.',
+        pt: 'Modo privado no Workshop: cada um escreve sem ver os outros até quem facilita revelar todos os post-its de uma vez.',
+      },
+      {
+        product: 'board',
+        en: 'Emoji reactions on any object, comments that stay attached to the object they are on, a minimap (M), a highlighter and tables, also from cells pasted from a spreadsheet.',
+        es: 'Reacciones con emoji sobre cualquier objeto, comentarios que siguen al objeto donde están, minimapa (M), resaltador y tablas, también pegando celdas de una planilla.',
+        pt: 'Reações com emoji em qualquer objeto, comentários que acompanham o objeto onde estão, minimapa (M), marca-texto e tabelas, também colando células de uma planilha.',
+      },
+      {
+        product: 'board',
+        en: 'New flowchart and user story map templates, alignment guides on by default, and stickies imported from a CSV, ours or Miro\'s.',
+        es: 'Plantillas nuevas de diagrama de flujo y mapa de historias de usuario, guías de alineación prendidas de entrada y stickies importados desde un CSV, el nuestro o el de Miro.',
+        pt: 'Novos modelos de fluxograma e mapa de histórias de usuário, guias de alinhamento ligadas por padrão e post-its importados de um CSV, o nosso ou o do Miro.',
+      },
+      {
+        product: 'board',
+        en: 'In dark mode stickies keep their light color with dark text. Tables gain and lose rows and columns, PDFs and documents go on the board as cards, and "- " starts a bullet list.',
+        es: 'En modo oscuro los stickies conservan su color claro con letra oscura. Las tablas suman y sacan filas y columnas, los PDF y documentos van a la pizarra como tarjetas y "- " arranca una lista.',
+        pt: 'No modo escuro os post-its mantêm a cor clara com letra escura. As tabelas ganham e perdem linhas e colunas, PDFs e documentos vão para o quadro como cartões e "- " começa uma lista.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-07-voice-cleanup-mode',
+    date: '2026-11-07',
+    title: {
+      en: 'Voice: pick how much each dictation gets cleaned up',
+      es: 'Voice: elegí cuánto se limpia cada dictado',
+      pt: 'Voice: escolha quanto cada ditado é limpo',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'A new Cleanup setting in Voice: raw (word for word, only your dictionary replacements), clean, formal everywhere, or by app with the tones you already set. Dictations made from the desktop app now show as such in the history.',
+        es: 'Un ajuste nuevo de Limpieza en Voice: sin limpieza (palabra por palabra, solo con los reemplazos del diccionario), limpio, formal en todas las apps, o según la app con los tonos que ya tenías. Los dictados hechos desde la app de escritorio ahora figuran así en el historial.',
+        pt: 'Um novo ajuste de Limpeza no Voice: sem limpeza (palavra por palavra, só com as substituições do dicionário), limpo, formal em todos os apps, ou por app com os tons que você já tinha. Os ditados feitos pelo app desktop agora aparecem assim no histórico.',
+      },
+    ],
+  },
+  {
     id: '2026-11-07-groups-whatsapp-web',
     date: '2026-11-07',
     title: {

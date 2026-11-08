@@ -39,8 +39,8 @@ export async function POST(req: Request, ctx: Ctx) {
   if (guard instanceof NextResponse) return guard;
   const b = await readJson(req);
   // { url, mimetype, filename, size?, kind?: 'voice' | 'sticker' | 'document' | ..., width?, height?, duration? }
-  const media = mediaFromBody(b.media, req);
   try {
+    const media = mediaFromBody(b.media, req);
     let poll = null;
     if (b.poll != null) {
       try {

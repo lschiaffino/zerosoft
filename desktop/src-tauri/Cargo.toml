@@ -1,0 +1,52 @@
+[package]
+name = "zerosoft-desktop"
+version = "0.2.1"
+description = "zerosoft for Mac and Windows: the whole platform in a native window and dictation in any app."
+authors = ["zerosoft <hello@zerosoft.ai>"]
+license = "AGPL-3.0-only"
+edition = "2021"
+rust-version = "1.80"
+
+[lib]
+name = "zerosoft_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-api"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-deep-link = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+tauri-plugin-window-state = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-process = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "multipart"] }
+tokio = { version = "1", features = ["time", "sync", "macros"] }
+cpal = "0.15"
+arboard = { version = "3", default-features = false, features = ["image-data"] }
+enigo = "0.2"
+cookie = "0.18"
+sys-locale = "0.3"
+sha2 = "0.10"
+base64 = "0.22"
+rand = "0.8"
+url = "2"
+log = "0.4"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.5"
+objc2-foundation = { version = "0.2", features = ["NSString"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

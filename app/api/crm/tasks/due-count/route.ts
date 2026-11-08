@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { countDueTasks } from '@/lib/crm';
 import { unauthorized } from '@/lib/crm-http';
+import { noStore } from '@/lib/no-store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic';
  * escribió, en vez de refrescar la página entera. Como el badge del layout,
  * un error (p. ej. sin la tabla) devuelve 0 y queda en el log, no un 500.
  */
-export async function GET() {
+async function getPrivate() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const count = await countDueTasks(user.id).catch((err: unknown) => {
@@ -20,4 +21,9 @@ export async function GET() {
     return 0;
   });
   return NextResponse.json({ count });
+}
+
+/** Datos de la persona: sin caché (lib/no-store.ts). */
+export async function GET(...args: Parameters<typeof getPrivate>) {
+  return noStore(await getPrivate(...args));
 }

@@ -11,6 +11,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import {
   VOICE_BUILTIN_TEMPLATES,
+  VOICE_CLEANUP_MODES,
   VOICE_CONTEXTS,
   VOICE_LANGUAGES,
   VOICE_SHORTCUTS,
@@ -100,6 +101,7 @@ function DictationSettings({ initial }: { initial: VoiceSettings }) {
           save({
             shortcut: String(fd.get('shortcut')),
             language: String(fd.get('language')),
+            cleanupMode: String(fd.get('cleanupMode')) as VoiceSettings['cleanupMode'],
             showBar: fd.get('showBar') === 'on',
             aiCleanup: fd.get('aiCleanup') === 'on',
             commandMode: fd.get('commandMode') === 'on',
@@ -132,6 +134,19 @@ function DictationSettings({ initial }: { initial: VoiceSettings }) {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor="vc-cleanup">
+              {t('cleanupMode')}
+            </label>
+            <select id="vc-cleanup" name="cleanupMode" className="select" defaultValue={s.cleanupMode}>
+              {VOICE_CLEANUP_MODES.map((m) => (
+                <option key={m} value={m}>
+                  {t(`cleanupModes.${m}`)}
+                </option>
+              ))}
+            </select>
+            <p className="ui-help">{t('cleanupModeHelp')}</p>
           </div>
         </div>
         <label className="ui-switch">
@@ -173,6 +188,7 @@ function DictationSettings({ initial }: { initial: VoiceSettings }) {
             </div>
           ))}
         </div>
+        <p className="ui-help">{t('stylesNote')}</p>
       </FormSection>
     </>
   );
@@ -466,6 +482,8 @@ function DesktopSettings({ provider }: { provider: string }) {
           <li>{t('what1')}</li>
           <li>{t('what2')}</li>
           <li>{t('what3')}</li>
+          <li>{t('what4')}</li>
+          <li>{t('what5')}</li>
         </ul>
         <p className="ui-help">{t('provider', { provider })}</p>
       </FormSection>

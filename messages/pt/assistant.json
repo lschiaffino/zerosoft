@@ -19,7 +19,10 @@
     "provider_error": "O assistente não conseguiu responder. Tente de novo.",
     "network": "Não foi possível chegar ao servidor. Verifique a conexão e tente de novo.",
     "status": "Não foi possível carregar o assistente. Recarregue a página.",
-    "load": "Não foi possível carregar esta conversa."
+    "load": "Não foi possível carregar esta conversa.",
+    "attachment_not_found": "Um arquivo anexado não está mais disponível. Remova e anexe de novo.",
+    "offline": "Você está sem conexão. Sua mensagem voltou ao campo: envie de novo quando a conexão voltar.",
+    "server_error": "O servidor teve um problema. Sua mensagem voltou ao campo: tente de novo."
   },
   "notConfigured": {
     "title": "O assistente ainda não está configurado",
@@ -209,5 +212,27 @@
     "viewAll": "Todas as conversas",
     "shortcut": "Abra de qualquer lugar com {key}"
   },
-  "loadEarlier": "Carregar mensagens anteriores"
+  "loadEarlier": "Carregar mensagens anteriores",
+  "attach": {
+    "add": "Anexar arquivos",
+    "remove": "Remover {name}",
+    "drop": "Solte os arquivos para anexá-los",
+    "uploading": "Enviando…",
+    "failed": "Não anexado",
+    "limit": "Até {max} arquivos por mensagem.",
+    "noVision": "Este modelo não vê imagens. Ainda assim pode enviá-las ou anexá-las por você.",
+    "list": "Arquivos anexados",
+    "open": "Abrir {name}",
+    "errors": {
+      "file_too_large": "O arquivo tem mais de 10 MB.",
+      "file_type_not_allowed": "Este tipo de arquivo não é permitido.",
+      "too_many_files": "Até 5 arquivos por mensagem.",
+      "upload_failed": "Não foi possível enviar o arquivo. Tente de novo.",
+      "storage_unavailable": "Este servidor não tem onde guardar arquivos.",
+      "invalid_input": "O arquivo está vazio.",
+      "attachment_not_found": "Um arquivo anexado não está mais disponível. Remova e anexe de novo.",
+      "rate_limited": "Muitos envios. Tente mais tarde."
+    },
+    "removeFailed": "Remova os arquivos que não puderam ser anexados para enviar a mensagem."
+  }
 }

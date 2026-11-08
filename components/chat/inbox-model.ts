@@ -17,7 +17,12 @@ export interface InboxFilters {
   following?: boolean;
   /** Asignadas a un agente puntual (vistas guardadas). */
   assigneeId?: string;
+  /** Orden de la lista (no se guarda en las vistas). */
+  sort?: InboxSort;
 }
+
+export type InboxSort = 'recent' | 'oldest' | 'waiting';
+export const INBOX_SORTS: InboxSort[] = ['recent', 'oldest', 'waiting'];
 
 /**
  * Parámetros de /api/chat/conversations para los filtros de la bandeja.
@@ -36,6 +41,7 @@ export function inboxQuery(f: InboxFilters, widgetIds: string[], currentUserId: 
   if (f.priority) out.priority = f.priority;
   if (f.channel) out.channel = f.channel;
   if (f.following) out.following = '1';
+  if (f.sort && f.sort !== 'recent') out.sort = f.sort;
   return out;
 }
 

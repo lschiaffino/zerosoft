@@ -2,7 +2,7 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    # The web app and the desktop app (Electron), each with its own lockfile.
+    # The web app and the desktop app's build tools (Tauri CLI, esbuild), each with its own lockfile.
     directories: ['/', '/desktop']
     schedule:
       interval: weekly
@@ -24,3 +24,14 @@ updates:
     groups:
       actions:
         patterns: ['*']
+  - package-ecosystem: cargo
+    # The desktop app (desktop/src-tauri, Tauri 2).
+    directory: /desktop/src-tauri
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    groups:
+      cargo-minor-and-patch:
+        update-types: [minor, patch]

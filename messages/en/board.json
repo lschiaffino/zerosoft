@@ -178,6 +178,34 @@
       "segments": "Customer segments",
       "costs": "Cost structure",
       "revenue": "Revenue streams"
+    },
+    "flowchart": {
+      "name": "Flowchart",
+      "description": "Steps, a decision and a loop back, with labeled arrows.",
+      "title": "Flowchart",
+      "hint": "Select a shape and press Cmd+arrow to add the next step.",
+      "start": "Start",
+      "input": "Get the request",
+      "process": "Do the work",
+      "check": "Is it OK?",
+      "output": "Deliver",
+      "end": "End",
+      "fix": "Fix it",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "storyMap": {
+      "name": "User story map",
+      "description": "Activities, steps and stories sliced into releases.",
+      "title": "User story map",
+      "hint": "Activities on top, the steps under them, and stories in each release lane.",
+      "activity1": "Find a product",
+      "activity2": "Buy it",
+      "activity3": "Get support",
+      "step": "A step",
+      "release1": "Release 1",
+      "release2": "Later",
+      "story": "A user story"
     }
   },
   "history": {
@@ -248,7 +276,12 @@
     "boardTags": "Tags on this board",
     "selectTag": "Select every sticky tagged {tag}",
     "exportAll": "Export all stickies to CSV",
-    "exportSelected": "Export {count} selected to CSV"
+    "exportSelected": "Export {count} selected to CSV",
+    "importCsv": "Import CSV",
+    "importHint": "From a stickies CSV exported here or from Miro. One sticky per row.",
+    "importError": "No stickies found in that file. Use a CSV with a text column.",
+    "importTruncated": "Imported the first {count} of {total} rows. Split the file to bring the rest.",
+    "imported": "{count, plural, one {Imported # sticky} other {Imported # stickies}}"
   },
   "track": {
     "button": "Track",
@@ -299,7 +332,15 @@
     "votes": "{count, plural, one {# vote} other {# votes}}",
     "deletedElement": "Deleted from the board",
     "untitledElement": "No text",
-    "error": "Couldn’t update the workshop. Try again."
+    "error": "Couldn’t update the workshop. Try again.",
+    "privateTitle": "Private mode",
+    "privateHint": "While it is on, everyone sees only their own stickies. Turn it off to reveal them all at once.",
+    "privateOn": "Private mode is on: stickies from others stay hidden until someone reveals them.",
+    "privateStart": "Start private mode",
+    "privateReveal": "Reveal everyone's stickies",
+    "privateChip": "Private",
+    "privateCover": "Hidden until private mode ends",
+    "timeUpDismiss": "Click to hide"
   },
   "access": {
     "title": "Who can open this board",
@@ -352,7 +393,9 @@
     "summonError": "Couldn’t bring the others. Try again.",
     "revoked": "You no longer have access to this board, or it was moved to the trash.",
     "following": "Following {name}. Move the canvas or press Esc to stop.",
-    "presenting": "{name} is presenting. You follow their slides."
+    "presenting": "{name} is presenting. You follow their slides.",
+    "offlineShort": "Offline",
+    "offlineNet": "Offline. We save your changes when you're back online."
   },
   "present": {
     "button": "Present",
@@ -500,6 +543,39 @@
     "placeholderMermaid": "Write the Mermaid diagram here…",
     "mermaidTitle": "Mermaid to diagram",
     "prompt": "Description",
-    "frameTool": "Frame tool"
+    "frameTool": "Frame tool",
+    "findOnCanvas": "Find on canvas",
+    "noMatch": "No matches found...",
+    "following": "Following",
+    "help": "Help and shortcuts"
+  },
+  "tools": {
+    "label": "Canvas tools",
+    "sticky": "New sticky",
+    "stickyHint": "New sticky (N). With a sticky selected, Tab adds the next one to the right, Shift+Tab below, Alt+arrow in any direction.",
+    "highlighter": "Highlighter",
+    "table": "Insert a table",
+    "tableCol": "Column {n}",
+    "minimap": "Minimap",
+    "minimapHint": "Minimap (M)",
+    "tableHint": "Insert a table. Pasting cells from a spreadsheet also creates one.",
+    "file": "Attach a file",
+    "fileHint": "Attach a PDF, document, spreadsheet or presentation as a card. You can also drop files on the board.",
+    "fileType": "{name} can't go on the board. Use a PDF, document, spreadsheet, presentation, text or zip file.",
+    "fileTooBig": "{name} is over {mb} MB.",
+    "fileError": "Couldn't upload {name}. Try again."
+  },
+  "reactions": {
+    "add": "Add a reaction",
+    "count": "{emoji} {count, plural, one {# reaction} other {# reactions}}. Click to add or remove yours."
+  },
+  "table": {
+    "label": "Table",
+    "addRow": "Add a row below",
+    "addCol": "Add a column to the right",
+    "removeRow": "Remove this row",
+    "removeCol": "Remove this column",
+    "removeLastRow": "Remove the last row",
+    "removeLastCol": "Remove the last column"
   }
 }

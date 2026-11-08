@@ -35,6 +35,7 @@ import { pruneDeferredClicks } from '@/lib/link-deferred';
 import { pruneLinkHistory } from '@/lib/link-activity';
 import { backfillSearchText, purgeExpiredTrash as purgeBoardTrash } from '@/lib/boards';
 import { pruneBoardEvents } from '@/lib/board-live';
+import { sweepUnclaimedAttachments } from '@/lib/assistant/files';
 import { runAnalyticsCron } from '@/lib/analytics/cron';
 import { runSubscriptionsCron } from '@/lib/analytics/subscriptions';
 import { runAlertsCron } from '@/lib/analytics/alerts';
@@ -143,6 +144,8 @@ export async function GET(req: NextRequest) {
   // Board: papelera de más de 30 días y eventos de tiempo real viejos (son efímeros).
   const boardTrashPurged = await purgeBoardTrash().catch(() => null);
   const boardEventsPruned = await pruneBoardEvents().catch(() => null);
+  // Asistente: adjuntos que se subieron y nunca se mandaron (más de 24 h), con claim por fila.
+  const assistantFilesSwept = await sweepUnclaimedAttachments({ limit: 200 }).catch(() => null);
   // Board: texto buscable de las pizarras de antes (por lotes, con claim por fila).
   const boardSearchBackfill = await backfillSearchText({ limit: 200 }).catch(() => null);
   // Docs: dominios del sitio publicado que nadie verificó en UNVERIFIED_TTL_DAYS se liberan.
@@ -184,6 +187,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, boardSearchBackfill,
+  return NextResponse.json({ groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

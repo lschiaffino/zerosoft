@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type NotesIconName = 'pin' | 'share' | 'trash' | 'pencil' | 'close' | 'plus' | 'back' | 'search' | 'clip' | 'ask' | 'grip' | 'more' | 'bell' | 'history' | 'import' | 'link' | 'sticky' | 'timer' | 'vote' | 'track' | 'lock' | 'users' | 'template' | 'focus' | 'mic' | 'scan' | 'check' | 'chevron' | 'export' | 'saved' | 'cloudOff' | 'play' | 'folder' | 'sparkle' | 'clock' | 'home';
+export type NotesIconName = 'pin' | 'share' | 'trash' | 'pencil' | 'close' | 'plus' | 'back' | 'search' | 'clip' | 'ask' | 'grip' | 'more' | 'bell' | 'history' | 'import' | 'link' | 'sticky' | 'timer' | 'vote' | 'track' | 'lock' | 'users' | 'template' | 'focus' | 'mic' | 'scan' | 'check' | 'chevron' | 'export' | 'saved' | 'cloudOff' | 'play' | 'folder' | 'sparkle' | 'clock' | 'home' | 'highlighter' | 'table' | 'map' | 'smile' | 'eyeOff' | 'paperclip' | 'rowAdd' | 'colAdd' | 'rowRemove' | 'colRemove';
 
 /**
  * Íconos de Notes y Board: mismo trazo que components/app/icons (1.5px,
@@ -53,6 +53,21 @@ const PATHS: Record<NotesIconName, ReactNode> = {
   play: <path d="M7 5l12 7-12 7z" />,
   folder: <path d="M3 6h7l2 2h9v11H3z" />,
   sparkle: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z" />,
+  highlighter: <path d="M9 15l-3 3v2h4l3-3M9 15l7-11 4 3-7 10zM9 15l4 2M4 21h16" />,
+  table: <path d="M4 5h16v14H4zM4 10h16M4 15h16M10 5v14" />,
+  map: <path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14" />,
+  smile: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M8.5 14a4 4 0 0 0 7 0M9.5 9.5h.01M14.5 9.5h.01" />
+    </>
+  ),
+  paperclip: <path d="M20 11.5l-7.8 7.8a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8" />,
+  rowAdd: <path d="M4 4h16v6H4zM12 14v6M9 17h6" />,
+  colAdd: <path d="M4 4h6v16H4zM14 12h6M17 9v6" />,
+  rowRemove: <path d="M4 4h16v6H4zM9 17h6" />,
+  colRemove: <path d="M4 4h6v16H4zM14 12h6" />,
+  eyeOff: <path d="M3 3l18 18M10.6 6.1A9 9 0 0 1 21 12a12 12 0 0 1-2.2 2.9M6.4 6.5A12 12 0 0 0 3 12a9.5 9.5 0 0 0 12.6 5.1M9.9 9.9a3 3 0 0 0 4.2 4.2" />,
 };
 
 export default function NotesIcon({ name, size = 16 }: { name: NotesIconName; size?: number }) {

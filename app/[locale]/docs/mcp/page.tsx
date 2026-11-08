@@ -1,5 +1,5 @@
 import { setRequestLocale } from 'next-intl/server';
-import { MCP_DOCS } from '@/content/mcp-docs';
+import { MCP_DOCS, MCP_NAMED_TOOLS } from '@/content/mcp-docs';
 import { staticPageMetadata } from '@/lib/seo-pages';
 import { issuerUrl } from '@/lib/oauth/store';
 import '@/styles/api-docs.css';
@@ -68,6 +68,55 @@ export default async function McpDocsPage(props: { params: Promise<{ locale: str
           <p>{c.claudeAiSteps[2]}</p>
         </section>
       )}
+
+      <section id="cursor" className="mcp-docs-section">
+        <h2>{c.cursorTitle}</h2>
+        <p>{c.cursorBody}</p>
+        <pre className="code-block"><code>{`{
+  "mcpServers": {
+    "zerosoft": { "url": "${endpoint}" }
+  }
+}`}</code></pre>
+      </section>
+
+      <section id="harness" className="mcp-docs-section">
+        <h2>{c.harnessTitle}</h2>
+        {c.harnessBody.map((p) => <p key={p}>{p}</p>)}
+        <pre className="code-block"><code>{`# Claude Code with an API key
+claude mcp add --transport http zerosoft \\
+  ${endpoint} \\
+  --header "Authorization: Bearer $ZEROSOFT_API_KEY"
+
+# Any client: JSON config with a header
+{
+  "mcpServers": {
+    "zerosoft": {
+      "type": "http",
+      "url": "${endpoint}",
+      "headers": { "Authorization": "Bearer zs_..." }
+    }
+  }
+}
+
+# Raw HTTP
+curl -s ${endpoint} \\
+  -H "Authorization: Bearer $ZEROSOFT_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -H "Accept: application/json, text/event-stream" \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`}</code></pre>
+        <p className="code-label">{c.harnessToolsLabel}</p>
+        <p className="mcp-docs-tools">
+          {MCP_NAMED_TOOLS.map((name, i) => (
+            <span key={name}>
+              {i > 0 && ', '}
+              <code className="mcp-docs-cmd">{name}</code>
+            </span>
+          ))}
+        </p>
+        <p className="code-label">OAuth</p>
+        <pre className="code-block"><code>{`${issuerUrl()}/.well-known/oauth-protected-resource/api/mcp
+${issuerUrl()}/.well-known/oauth-authorization-server`}</code></pre>
+      </section>
 
       <section id="cli" className="mcp-docs-section">
         <h2>{c.cliTitle}</h2>

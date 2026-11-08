@@ -139,8 +139,11 @@ export async function latestDesktopRelease(): Promise<GhRelease | null> {
   return releases ? pickDesktopRelease(releases) : null;
 }
 
-/** El latest*.yml del último release, con URLs absolutas. null si no hay. */
-export async function updateFeed(file: 'latest-mac.yml' | 'latest.yml'): Promise<string | null> {
+/**
+ * El feed de actualizaciones del último release: latest.json (updater de Tauri, ya con URLs
+ * absolutas) o los latest*.yml de la app de Electron anterior, con URLs absolutas. null si no hay.
+ */
+export async function updateFeed(file: 'latest-mac.yml' | 'latest.yml' | 'latest.json'): Promise<string | null> {
   const release = await latestDesktopRelease();
   const asset = release?.assets.find((a) => a.name === file);
   if (!release || !asset) return null;
@@ -155,7 +158,8 @@ export async function updateFeed(file: 'latest-mac.yml' | 'latest.yml'): Promise
       // GitHub responde la descarga con un 302 a su CDN.
       const res = await safeFetch(asset.browser_download_url, {}, 5000, { maxRedirects: 3 });
       if (!res.ok) return null;
-      return rewriteUpdateYml(await res.text(), release.assets);
+      const text = await res.text();
+      return file === 'latest.json' ? text : rewriteUpdateYml(text, release.assets);
     } catch {
       return null;
     }

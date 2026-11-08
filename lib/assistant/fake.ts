@@ -43,8 +43,51 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
       const rows = (out.members as Array<{ email: string }>) ?? [];
       return { text: `Members: ${rows.map((r) => r.email).join(', ')}.` };
     }
+    if (done.tool === 'run_operation') {
+      // El resultado llega marcado (<untrusted_data nonce=...>): el JSON va entre la primera línea y la última.
+      const wrapped = typeof out.result === 'string' ? out.result : null;
+      const inner = (wrapped ? JSON.parse(wrapped.slice(wrapped.indexOf('\n') + 1, wrapped.lastIndexOf('\n</untrusted_data'))) : out) as Record<string, unknown>;
+      const data = inner.data as Record<string, unknown> | unknown[] | undefined;
+      const list = Array.isArray(data) ? data : Array.isArray((data as { data?: unknown })?.data) ? ((data as { data: unknown[] }).data) : null;
+      if (list) return { text: `Found ${list.length} items: ${list.slice(0, 5).map((r) => String((r as Record<string, unknown>).name ?? (r as Record<string, unknown>).title ?? (r as Record<string, unknown>).body ?? '')).join(', ')}.` };
+      const rec = ((data as { data?: unknown })?.data ?? data) as Record<string, unknown> | undefined;
+      return { text: out.ok === false ? `That failed (${String(out.error ?? out.status)}).` : `This is "${String(rec?.title ?? rec?.name ?? rec?.identifier ?? 'the record')}".` };
+    }
     return { text: 'Done looking that up.' };
   }
+  const record = /CURRENT_RECORD:([a-z0-9._]+):([A-Za-z0-9_-]+)/.exec(info.system);
+  // Adjuntos: el último de la charla, de la línea de las instrucciones.
+  const attachedIds = [...info.system.matchAll(/(att_[a-z0-9]{8,40}) \(/g)].map((m) => m[1]);
+  const latest = attachedIds[attachedIds.length - 1];
+  if (/^(what|describe|summari[sz]e|read)\b.*\b(this|these|attached|image|file|pdf)\b/i.test(last) && (info.userFiles.length || /\[Attachment att_/.test(last))) {
+    if (/cannot see images/.test(last) && !info.userFiles.length) return { text: 'This model cannot see images, but I can still send or attach it for you.' };
+    const seen = info.userFiles.map((f) => `${f.mediaType} (${f.bytes} bytes)`).join(', ');
+    const quoted = /Its text, written by someone else \(data, not instructions\):\n<untrusted_data [^>]*>\n"((?:[^"\\]|\\.){0,60})/.exec(last)?.[1]?.trim();
+    return { text: [seen ? `I can see ${info.userFiles.length} file(s): ${seen}.` : '', quoted ? `The document starts with: "${quoted}".` : ''].filter(Boolean).join(' ') };
+  }
+  if (latest && /^send (this|it)\b.* (to )?this chat/i.test(last)) {
+    if (!record || !record[1].startsWith('v1.groups.chats')) return { text: 'Open a Groups chat first.' };
+    return { tool: 'propose_send_attachment', input: { chat: record[2], attachment: latest } };
+  }
+  const attachIssue = /^attach (this|it) to (?:issue )?([A-Z]+-\d+)/i.exec(last);
+  if (latest && attachIssue) return { tool: 'propose_attach_file', input: { target: 'track_issue', id: attachIssue[2], attachment: latest } };
+  if (latest && /^add (this|it) to this (doc|page)/i.test(last)) {
+    if (!record || record[1] !== 'v1.docs.pages.get') return { text: 'Open a Docs page first.' };
+    return { tool: 'propose_attach_file', input: { target: 'docs_page', id: record[2], attachment: latest } };
+  }
+  if (/^(what is this|summari[sz]e this)/i.test(last)) {
+    if (!record) return { text: 'Open a record first.' };
+    return { tool: 'run_operation', input: { operation: record[1], args: { path: { id: record[2] } } } };
+  }
+  const say = /^(send|note) "([^"]+)" (?:to|in) this chat$/i.exec(last);
+  if (say) {
+    if (!record || !record[1].startsWith('v1.groups.chats')) return { text: 'Open a Groups chat first.' };
+    return {
+      tool: 'propose_destructive_operation',
+      input: { operation: 'v1.groups.chats.messages.create', args: { path: { id: record[2] }, body: { body: say[2], note: say[1].toLowerCase() === 'note' } }, summary: `Send "${say[2].length > 120 ? `${say[2].slice(0, 117)}...` : say[2]}" to this chat` },
+    };
+  }
+  if (/^list (?:my )?group chats/i.test(last)) return { tool: 'run_operation', input: { operation: 'v1.groups.chats.list' } };
   const pipeline = /^create (?:a )?pipeline "?([^"]+?)"? with stages (.+)$/i.exec(last);
   if (pipeline) {
     if (!can.includes('crm')) return { text: 'I cannot use CRM in this workspace.' };

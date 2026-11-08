@@ -83,6 +83,10 @@
 
 .hd-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 
+/* Con sesión o sin ella (lib/session-hint.ts pone html[data-session="in"] antes del primer paint). */
+html:not([data-session='in']) .hd-in,
+html[data-session='in'] .hd-out { display: none !important; }
+
 /* Selector de idioma: tres placas rectas. */
 .locale-switcher { display: inline-flex; border: 1px solid var(--line); }
 .locale-switcher a {

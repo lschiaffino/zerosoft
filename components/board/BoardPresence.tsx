@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { peerName, type Peer } from '@/lib/board-collab';
 import type { RealtimeStatus } from '@/lib/realtime-client';
@@ -45,7 +45,21 @@ export default function BoardPresence({
   const pop = usePopover();
   const [summoned, setSummoned] = useState<'ok' | 'error' | null>(null);
   const guest = t('guest');
-  const offline = status === 'offline';
+  // Sin red (el navegador lo sabe antes que el canal en vivo) o el canal cayó.
+  const [netOff, setNetOff] = useState(false);
+  useEffect(() => {
+    const update = () => setNetOff(typeof navigator !== 'undefined' && navigator.onLine === false);
+    update();
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
+  }, []);
+  const offline = status === 'offline' || netOff;
+  // Sin red, guardar tampoco anda (reintenta y guarda al volver); sin canal en vivo pero con red, sí guarda.
+  const offlineText = netOff ? t('offlineNet') : t('offline');
   const shown = people.slice(0, 3);
   const label = people.length ? t('here', { count: people.length }) : t('alone');
   return (
@@ -60,8 +74,8 @@ export default function BoardPresence({
         }}
         aria-expanded={pop.open}
         aria-haspopup="dialog"
-        aria-label={`${label}${offline ? ` · ${t('offline')}` : ''}`}
-        title={offline ? t('offline') : label}
+        aria-label={`${label}${offline ? ` · ${offlineText}` : ''}`}
+        title={offline ? offlineText : label}
         data-testid="board-presence"
       >
         {shown.length === 0 ? (
@@ -79,13 +93,14 @@ export default function BoardPresence({
             {people.length > shown.length && <span className="board-avatar is-more">+{people.length - shown.length}</span>}
           </span>
         )}
-        <span className={`board-live-dot${status === 'live' || status === 'polling' ? ' is-on' : ''}`} aria-hidden="true" />
+        <span className={`board-live-dot${!offline && (status === 'live' || status === 'polling') ? ' is-on' : ''}`} aria-hidden="true" />
+        {offline && <span className="board-offline-label">{t('offlineShort')}</span>}
       </button>
       {pop.open && (
         <div className="board-pop board-presence-pop" role="dialog" aria-label={t('title')}>
           <p className="board-pop-title">{t('title')}</p>
           <p className="board-pop-hint" role="status">
-            {offline ? t('offline') : status === 'connecting' ? t('connecting') : people.length ? label : t('aloneHint')}
+            {offline ? offlineText : status === 'connecting' ? t('connecting') : people.length ? label : t('aloneHint')}
           </p>
           {people.length > 0 && (
             <ul className="board-presence-list">

@@ -6,7 +6,7 @@ import { API_PATH_HEADER, RETURN_PATH_HEADER, signInPath, WORKSPACE_HEADER } fro
 import { authOptions } from './auth';
 import { getUserByEmail, upsertUser, type TeamRow, type UserRow } from './db';
 import { resolveWorkspace, roleAtLeast, type TeamRole } from './teams';
-import { appFromPath, ensureWorkspace, hasAllApps, userCanUseApp, workspaceTeamId, type AppAccess } from './workspace';
+import { appFromPath, ensureWorkspace, getWorkspace, hasAllApps, userCanUseApp, workspaceTeamId, type AppAccess } from './workspace';
 import type { ProductKey } from './products';
 import { seedUserIfNeeded } from './seed';
 import { delegatedIdentity } from './mcp/identity';
@@ -118,17 +118,25 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
   const delegated = delegatedIdentity();
   if (delegated) return delegatedUser(delegated);
   let real: UserRow | null;
+  // Ficha del workspace propio, pedida junto con el usuario (no después): en Turso cada query es
+  // una ida y vuelta, y esta resolución corre en cada página y cada API.
+  let ownWorkspace: Promise<TeamRow | null> | null = null;
   const e2e = DEMO_MODE ? await e2eIdentity() : null;
   if (DEMO_MODE && e2e !== 'session') {
+    if (!e2e && demoSeededId) ownWorkspace = getWorkspace(demoSeededId);
+    ownWorkspace?.catch(() => {});
     real = e2e ?? (await getDemoUser());
   } else {
     const session = await getServerSession(authOptions);
     const email = session?.user?.email;
     if (!email) return null;
+    const uid = (session.user as { id?: unknown }).id;
+    if (typeof uid === 'string' && uid) ownWorkspace = getWorkspace(uid);
+    ownWorkspace?.catch(() => {});
     real = (await getUserByEmail(email)) ?? null;
   }
   if (!real) return null;
-  const { owner, team, workspace, role, apps } = await resolveWorkspace(real);
+  const { owner, team, workspace, role, apps } = await resolveWorkspace(real, ownWorkspace);
   const user: SessionUser =
     owner.id === real.id ? { ...real, team, workspace, role, apps } : { ...owner, actingUser: real, team, workspace, role, apps };
   // La pestaña escribe pensando en otro workspace (la sacaron, o cambió en otra pestaña): nada se
