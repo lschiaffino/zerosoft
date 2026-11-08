@@ -53,6 +53,16 @@ test.describe('escritorio: dictado y Ajustes de Voice', () => {
     throw new Error('sin ventana de Ajustes');
   }
 
+  /** En el modo test las ventanas no se muestran solas: Ajustes se muestra sin foco para capturarla. */
+  type Win = { webContents: { getURL: () => string }; showInactive: () => void };
+  async function showSettings() {
+    await app.evaluate(({ BrowserWindow }) =>
+      (BrowserWindow.getAllWindows() as unknown as Win[]).forEach((w: Win) => {
+        if (w.webContents.getURL().includes('settings.html')) w.showInactive();
+      }),
+    );
+  }
+
   async function overlayPage(): Promise<Page> {
     for (let i = 0; i < 120; i++) {
       const w = app.windows().find((p) => p.url().includes('overlay.html'));
@@ -164,7 +174,7 @@ test.describe('escritorio: dictado y Ajustes de Voice', () => {
     );
     await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.settingsTab('history'));
     const page = await settingsPage();
-    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach((w) => w.webContents.getURL().includes('settings.html') && w.showInactive()));
+    await showSettings();
     await expect(page.locator('#pending li')).toHaveCount(1);
     await shot(page, 'settings-history-pending');
     await page.locator('#pending button', { hasText: /send again/i }).click();
@@ -180,7 +190,7 @@ test.describe('escritorio: dictado y Ajustes de Voice', () => {
   test('Ajustes: bienvenida, General, Voice en el servidor, Diccionario y Cuenta', async ({ request }) => {
     await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.settingsTab('start'));
     const page = await settingsPage();
-    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach((w) => w.webContents.getURL().includes('settings.html') && w.showInactive()));
+    await showSettings();
     await expect(page.locator('[data-panel="start"] h1')).toBeVisible();
     await expect(page.locator('.step').first()).toContainText(/sign/i);
     await expect(page.locator('#try')).toBeVisible();
