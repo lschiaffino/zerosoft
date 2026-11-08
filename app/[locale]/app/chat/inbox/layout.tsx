@@ -24,6 +24,11 @@ export const dynamic = 'force-dynamic';
 export default async function ChatInboxLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   const user = await requireUser(locale);
+  // Lo que no depende de los widgets arranca junto con ellos (en Turso cada query es una ida y vuelta).
+  const awayP = isChatAgentAway(realUserId(user));
+  const teamsP = listChatTeams(user.id);
+  awayP.catch(() => {});
+  teamsP.catch(() => {});
   const t = await getTranslations({ locale, namespace: 'chat' });
   const widgets = await listAccessibleChatWidgets(user);
 
@@ -47,10 +52,10 @@ export default async function ChatInboxLayout(props: { children: ReactNode; para
   const allAgents = await listChatAgents(widgets[0].user_id, widgets[0].team_id);
   // Con una bandeja restringida solo aparecen quienes ven alguna de las de esta persona.
   const seen = new Set<string>();
-  for (const w of widgets) for (const a of await filterWidgetAudience(w, allAgents)) seen.add(a.id);
+  for (const list of await Promise.all(widgets.map((w) => filterWidgetAudience(w, allAgents)))) for (const a of list) seen.add(a.id);
   const agents = allAgents.filter((a) => seen.has(a.id));
-  const away = await isChatAgentAway(realUserId(user));
-  const teams = (await listChatTeams(user.id)).map((x) => ({ id: x.id, name: x.name }));
+  const away = await awayP;
+  const teams = (await teamsP).map((x) => ({ id: x.id, name: x.name }));
 
   return (
     <>
