@@ -704,6 +704,12 @@ section.talk-pane,
   background: var(--ui-hover);
 }
 
+/* Táctil: tocar el mensaje lo enfoca (tabIndex -1) y muestra la barra, con botones de dedo. */
+@media (hover: none) {
+  .talk-msg-actions { top: -22px; right: 8px; }
+  .talk-act { min-width: 40px; height: 40px; }
+}
+
 .talk-menu {
   position: absolute;
   top: 32px;

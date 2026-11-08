@@ -32,7 +32,8 @@
   max-width: 100%;
   display: block;
 }
-.sf a {
+/* Sin peso: un link con clase de botón (.sf-btn-primary) mantiene su color de texto. */
+:where(.sf) a {
   color: inherit;
 }
 .sf :focus-visible {
