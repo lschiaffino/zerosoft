@@ -41,6 +41,11 @@ pub struct Settings {
     pub shortcut: String,
     pub restore_clipboard: bool,
     pub onboarded: bool,
+    /// Indicador flotante mientras se graba una reunión con la ventana en segundo plano.
+    pub recording_indicator: bool,
+    /// Versión con la que se vio Accesibilidad permitida por última vez (para avisar que una
+    /// actualización la dejó atada a la build vieja).
+    pub accessibility_seen_in: String,
 }
 
 /// http(s) con host; http solo para localhost (desarrollo). Devuelve el origen sin barra final.
@@ -103,6 +108,8 @@ pub fn normalize(raw: &Value, platform: &str, server: String) -> Settings {
         shortcut,
         restore_clipboard: raw.get("restoreClipboard").and_then(Value::as_bool) != Some(false),
         onboarded: raw.get("onboarded").and_then(Value::as_bool) == Some(true),
+        recording_indicator: raw.get("recordingIndicator").and_then(Value::as_bool) != Some(false),
+        accessibility_seen_in: raw.get("accessibilitySeenIn").and_then(Value::as_str).filter(|v| v.len() <= 40).unwrap_or("").to_string(),
     }
 }
 
@@ -121,6 +128,9 @@ pub fn merge_input(current: &Settings, input: &Value) -> Settings {
     }
     if let Some(b) = input.get("restoreClipboard").and_then(Value::as_bool) {
         next.restore_clipboard = b;
+    }
+    if let Some(b) = input.get("recordingIndicator").and_then(Value::as_bool) {
+        next.recording_indicator = b;
     }
     if input.get("onboarded").and_then(Value::as_bool) == Some(true) {
         next.onboarded = true;
@@ -170,6 +180,8 @@ mod tests {
         assert_eq!(mac.shortcut, "Alt+Space");
         assert!(mac.restore_clipboard);
         assert!(!mac.onboarded);
+        assert!(mac.recording_indicator);
+        assert_eq!(mac.accessibility_seen_in, "");
         assert_eq!(normalize(&Value::Null, "windows", DEFAULT_SERVER.into()).shortcut, "Control+Alt+Space");
     }
 
@@ -192,9 +204,10 @@ mod tests {
     #[test]
     fn merge_only_valid() {
         let cur = normalize(&Value::Null, "macos", DEFAULT_SERVER.into());
-        let next = merge_input(&cur, &json!({"mode": "toggle", "shortcut": "Control+Shift+Space", "restoreClipboard": false}));
-        assert_eq!((next.mode.as_str(), next.shortcut.as_str(), next.restore_clipboard), ("toggle", "Control+Shift+Space", false));
-        assert_eq!(merge_input(&cur, &json!({"mode": "x", "shortcut": "Q", "server": "http://evil"})), cur);
+        let next = merge_input(&cur, &json!({"mode": "toggle", "shortcut": "Control+Shift+Space", "restoreClipboard": false, "recordingIndicator": false}));
+        assert_eq!((next.mode.as_str(), next.shortcut.as_str(), next.restore_clipboard, next.recording_indicator), ("toggle", "Control+Shift+Space", false, false));
+        // La versión de Accesibilidad no se cambia desde Ajustes.
+        assert_eq!(merge_input(&cur, &json!({"mode": "x", "shortcut": "Q", "server": "http://evil", "accessibilitySeenIn": "9.9.9"})), cur);
     }
 
     #[test]
@@ -202,6 +215,8 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("zs-cfg-{}", std::process::id()));
         let mut s = normalize(&Value::Null, "macos", DEFAULT_SERVER.into());
         s.mode = "hold".into();
+        s.recording_indicator = false;
+        s.accessibility_seen_in = "0.3.0".into();
         save(&dir, &s).unwrap();
         assert_eq!(load(&dir, "macos", None), s);
         assert_eq!(load(&dir, "macos", Some("http://localhost:3210")).server, "http://localhost:3210");

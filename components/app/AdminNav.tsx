@@ -2,12 +2,13 @@ import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 
-type AdminSection = 'feedback' | 'roadmap' | 'changelog';
+type AdminSection = 'feedback' | 'roadmap' | 'changelog' | 'lifecycle';
 
 const SECTIONS: Array<{ key: AdminSection; href: string }> = [
   { key: 'feedback', href: '/app/settings/feedback' },
   { key: 'roadmap', href: '/app/settings/roadmap' },
   { key: 'changelog', href: '/app/settings/changelog' },
+  { key: 'lifecycle', href: '/app/settings/lifecycle' },
 ];
 
 /** Grupo de links pegados (segmented) con el activo en tinta. Para vistas y filtros por URL. */
@@ -45,7 +46,7 @@ export default async function AdminNav({
       <div className="st-admin-bar">
         <LinkGroup
           label={t('nav')}
-          items={SECTIONS.map((s) => ({ key: s.key, href: s.href, label: t(s.key), active: s.key === current }))}
+          items={SECTIONS.map((s) => ({ key: s.key, href: s.href, label: t(s.key === 'lifecycle' ? 'lifecycle.emails' : s.key), active: s.key === current }))}
         />
         {aside && <div className="st-admin-aside">{aside}</div>}
       </div>

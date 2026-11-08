@@ -7,6 +7,7 @@ import { Link, usePathname } from '@/i18n/navigation';
 import { ChunkRecorder, getMic, getTabAudio, mediaErrorCode, stopStream, type AudioChunk } from './audio';
 import { formatDuration, VOICE_CHUNK_MS, type VoiceSegment, type VoiceSource } from '@/lib/voice-types';
 import { chunkKey, deleteFailedChunk, loadFailedChunks, saveFailedChunk } from './failedStore';
+import { desktopBridge, DESKTOP_STOP_RECORDING_EVENT } from '@/lib/desktop-bridge';
 
 export type RecorderState = 'idle' | 'starting' | 'recording' | 'stopping';
 export type CaptureMode = 'mic' | 'mic_tab';
@@ -65,6 +66,11 @@ interface Job {
 export interface RecorderApi {
   /** Reunión que se está grabando en esta pestaña (o la última). */
   sessionId: string | null;
+  /**
+   * Reunión del último intento de empezar (puede no haber arrancado): ahí se
+   * muestran "abriendo el micrófono" y los errores del permiso.
+   */
+  attemptId: string | null;
   /** Id de esta pestaña como grabador (claim de la grabación en el servidor). */
   recorderId: string;
   state: RecorderState;
@@ -135,6 +141,7 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
   const t = useTranslations('voice.recorder');
   const pathname = usePathname();
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
   const [state, setState] = useState<RecorderState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(0);
@@ -413,6 +420,7 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
     async (args: StartArgs) => {
       if (stateRef.current !== 'idle') return;
       setError(null);
+      setAttemptId(args.sessionId);
       set('starting');
       setMode(args.mode);
       const id = args.sessionId;
@@ -528,6 +536,33 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
     };
   }, [state]);
 
+  // App de escritorio: con la ventana en segundo plano muestra un indicador flotante mientras se
+  // graba (como Granola), y su botón Cortar llega como evento.
+  const desktopStartedAt = useRef(0);
+  useEffect(() => {
+    const bridge = desktopBridge();
+    if (!bridge?.recording) return;
+    const active = state === 'recording' && !!sessionId;
+    if (active && !desktopStartedAt.current) desktopStartedAt.current = Date.now() - elapsed;
+    if (!active) desktopStartedAt.current = 0;
+    void Promise.resolve(bridge.recording(active ? { active, startedAt: desktopStartedAt.current, path: `/app/voice/meetings/${sessionId}` } : { active: false })).catch(() => undefined);
+    // elapsed solo cuenta al empezar: no se re-avisa cada segundo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, sessionId]);
+  useEffect(() => {
+    const onStop = () => {
+      if (stateRef.current === 'recording') void stop();
+    };
+    window.addEventListener(DESKTOP_STOP_RECORDING_EVENT, onStop);
+    return () => window.removeEventListener(DESKTOP_STOP_RECORDING_EVENT, onStop);
+  }, [stop]);
+  useEffect(
+    () => () => {
+      void Promise.resolve(desktopBridge()?.recording?.({ active: false })).catch(() => undefined);
+    },
+    [],
+  );
+
   // Si el grabador se desmonta (se sale de la app) con una grabación en curso: cortar y cerrar.
   useEffect(
     () => () => {
@@ -545,6 +580,7 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
   const api = useMemo<RecorderApi>(
     () => ({
       sessionId,
+      attemptId,
       recorderId: recorderIdRef.current,
       state,
       error,
@@ -562,7 +598,7 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
       stop: () => stop(),
       subscribe,
     }),
-    [sessionId, state, error, pending, waiting, elapsed, level, tabLive, mode, failed, recovered, retryFailed, start, stop, subscribe],
+    [sessionId, attemptId, state, error, pending, waiting, elapsed, level, tabLive, mode, failed, recovered, retryFailed, start, stop, subscribe],
   );
 
   // Menú compacto: Esc o un clic afuera lo cierran y el foco vuelve al disparador.

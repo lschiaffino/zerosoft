@@ -18,6 +18,7 @@ mod config;
 mod deeplink;
 mod dictation;
 mod hud;
+mod indicator;
 mod nav;
 mod platform;
 mod retry;
@@ -69,7 +70,7 @@ pub fn allow_server(app: &AppHandle) {
         return;
     }
     let mut cap = CapabilityBuilder::new(format!("remote-{}", server.replace([':', '/', '.'], "-"))).remote(format!("{server}/*")).window("main");
-    for p in ["allow-desktop-info", "allow-desktop-start-login", "allow-desktop-open-settings", "allow-desktop-notify"] {
+    for p in ["allow-desktop-info", "allow-desktop-start-login", "allow-desktop-open-settings", "allow-desktop-notify", "allow-desktop-recording"] {
         cap = cap.permission(p);
     }
     let _ = app.add_capability(cap);
@@ -91,8 +92,14 @@ fn bridge_script(server: &str, version: &str) -> String {
     platform: '{platform}',
     systemAudio: false,
     dictation: true,
+    recordingIndicator: true,
     startLogin: function () {{ inv('desktop_start_login'); }},
     openSettings: function () {{ inv('desktop_open_settings'); }},
+    // Una reunión empezó o terminó de grabarse: el indicador flotante (indicator.rs).
+    recording: function (s) {{
+      s = s || {{}};
+      return inv('desktop_recording', {{ active: !!s.active, startedAt: typeof s.startedAt === 'number' ? s.startedAt : null, path: typeof s.path === 'string' ? s.path : null }});
+    }},
     notify: function (title, body) {{ return inv('desktop_notify', {{ title: String(title), body: body == null ? null : String(body) }}); }}
   }});
   Object.defineProperty(window, 'zerosoftDesktop', {{ value: bridge }});
@@ -118,6 +125,18 @@ fn create_main_window(app: &AppHandle) -> tauri::Result<()> {
         .min_inner_size(400.0, 500.0)
         .initialization_script(bridge_script(&server, &app.package_info().version.to_string()))
         .on_navigation(move |u| route(&nav_app, u))
+        // Cámara y micrófono para la página de zerosoft (Rec, Voice, Talk) sin un segundo aviso del
+        // webview: macOS ya pregunta una vez por la app (Info.plist). Otro origen no recibe nada.
+        .on_permission_request(|webview, kind| {
+            use tauri::webview::{PermissionKind, PermissionResponse};
+            let server = api::server(webview.app_handle());
+            let ours = webview.url().map(|u| nav::classify(&u, &server) == nav::Nav::Allow).unwrap_or(false);
+            match kind {
+                PermissionKind::Camera | PermissionKind::Microphone if ours => PermissionResponse::Allow,
+                PermissionKind::Camera | PermissionKind::Microphone => PermissionResponse::Deny,
+                _ => PermissionResponse::Default,
+            }
+        })
         .on_new_window(move |u, _| {
             // Links con target=_blank: adentro si son de la app, si no al navegador.
             if route(&new_win_app, &u) {
@@ -197,6 +216,9 @@ pub fn run() {
             commands::desktop_start_login,
             commands::desktop_open_settings,
             commands::desktop_notify,
+            commands::desktop_recording,
+            commands::indicator_state,
+            commands::indicator_action,
             commands::settings_get,
             commands::settings_save,
             commands::permission_ask,
@@ -229,7 +251,8 @@ pub fn run() {
                 dictation: Mutex::new(Dictation { phase: Phase::Idle, capture: None, hands_free: false, pressed_at: None, source_app: String::new(), generation: 0 }),
                 locale: strings::system_locale(),
                 last_text: Mutex::new(String::new()),
-                last_latency_ms: Mutex::new(None),
+                last_latency: Mutex::new(None),
+                recording: Mutex::new(None),
                 http: api::client(),
                 auth: Mutex::new(None),
                 shortcut_taken: AtomicBool::new(false),
@@ -272,9 +295,12 @@ pub fn run() {
                 api.prevent_close();
                 let _ = w.hide();
             }
-            WindowEvent::Focused(true) if w.label() == "main" => {
-                let app = w.app_handle().clone();
-                tauri::async_runtime::spawn(async move { badge::poll(&app).await });
+            WindowEvent::Focused(focused) if w.label() == "main" => {
+                indicator::update(w.app_handle());
+                if *focused {
+                    let app = w.app_handle().clone();
+                    tauri::async_runtime::spawn(async move { badge::poll(&app).await });
+                }
             }
             WindowEvent::Focused(true) if w.label() == "settings" => commands::refresh_settings(w.app_handle()),
             WindowEvent::Destroyed if w.label() == "settings" => {
