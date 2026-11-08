@@ -716,7 +716,7 @@ section.lk-block { padding-bottom: 0; }
 
 /* ---------- Paridad 123: atajos de fila, eventos en vivo, conversiones, IA, actividad, QR y bio ---------- */
 .links-table .lk-row:focus { outline: none; }
-.links-table .lk-row[data-active] { background: var(--ui-hover); box-shadow: inset 2px 0 0 var(--accent); }
+.links-table .lk-row[data-active] { background: var(--ui-selected); }
 .links-table .lk-row:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 
 .lk-events-actions { display: flex; align-items: center; gap: 8px; }
@@ -742,7 +742,7 @@ section.lk-block { padding-bottom: 0; }
 .lk-ai-form { display: flex; gap: 8px; }
 .lk-ai-form .input { flex: 1; min-width: 0; }
 .lk-ai-suggest { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-.lk-ai-answer { margin: 12px 0 0; padding: 12px 14px; border-left: 3px solid var(--accent); background: var(--brand-enamel); line-height: 1.55; white-space: pre-line; }
+.lk-ai-answer { margin: 12px 0 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg-soft); line-height: 1.55; white-space: pre-line; }
 
 .lk-activity { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
 .lk-activity-item { padding: 12px 0; border-bottom: 1px solid var(--line); min-width: 0; }

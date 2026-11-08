@@ -119,7 +119,8 @@
   transition: background-color var(--ui-dur) var(--ease);
 }
 .chat-row:hover { background: var(--brand-enamel); }
-.chat-row[aria-current='page'] { background: var(--ui-hover); }
+.chat-row[aria-current='page'] { background: var(--ui-selected); }
+.chat-row[aria-current='page']:hover { background: var(--ui-selected-hover); }
 .chat-row:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .chat-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .chat-row-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
