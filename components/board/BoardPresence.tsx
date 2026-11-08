@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { peerName, type Peer } from '@/lib/board-collab';
 import type { RealtimeStatus } from '@/lib/realtime-client';
@@ -45,7 +45,19 @@ export default function BoardPresence({
   const pop = usePopover();
   const [summoned, setSummoned] = useState<'ok' | 'error' | null>(null);
   const guest = t('guest');
-  const offline = status === 'offline';
+  // Sin red (el navegador lo sabe antes que el canal en vivo) o el canal cayó.
+  const [netOff, setNetOff] = useState(false);
+  useEffect(() => {
+    const update = () => setNetOff(typeof navigator !== 'undefined' && navigator.onLine === false);
+    update();
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
+  }, []);
+  const offline = status === 'offline' || netOff;
   const shown = people.slice(0, 3);
   const label = people.length ? t('here', { count: people.length }) : t('alone');
   return (
@@ -79,7 +91,8 @@ export default function BoardPresence({
             {people.length > shown.length && <span className="board-avatar is-more">+{people.length - shown.length}</span>}
           </span>
         )}
-        <span className={`board-live-dot${status === 'live' || status === 'polling' ? ' is-on' : ''}`} aria-hidden="true" />
+        <span className={`board-live-dot${!offline && (status === 'live' || status === 'polling') ? ' is-on' : ''}`} aria-hidden="true" />
+        {offline && <span className="board-offline-label">{t('offlineShort')}</span>}
       </button>
       {pop.open && (
         <div className="board-pop board-presence-pop" role="dialog" aria-label={t('title')}>

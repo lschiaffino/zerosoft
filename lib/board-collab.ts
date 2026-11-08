@@ -86,6 +86,16 @@ export function countChanged(elements: readonly CollabEl[], sent: Broadcasted, s
   return n;
 }
 
+/**
+ * Espera antes de reintentar después de `failures` rechazos seguidos (429):
+ * 1 s, 2 s, 4 s… hasta 30 s, más hasta un 30 % al azar para que dos pestañas
+ * no reintenten juntas.
+ */
+export function liveBackoffMs(failures: number, random: () => number = Math.random): number {
+  const base = Math.min(30_000, 1000 * 2 ** Math.max(0, failures - 1));
+  return Math.round(base * (1 + 0.3 * random()));
+}
+
 /** Más que esto en un envío: se deja para el guardado (los demás traen la versión guardada). */
 export const LIVE_BULK_MAX = 200;
 

@@ -4,7 +4,7 @@
  * del taller, el minimapa, insertar una tabla, importar stickies desde un CSV
  * (el nuestro o el de Miro) y a qué objeto se pega un comentario. Sin DOM.
  */
-import { STICKY_COLORS, STICKY_H, STICKY_W, STICKY_PASTE_MAX, STICKY_TEXT_MAX, cleanStickyTags, elementBox, type SceneEl } from './board-stickies';
+import { STICKY_COLORS, STICKY_H, STICKY_W, STICKY_TEXT_MAX, cleanStickyTags, elementBox, type SceneEl } from './board-stickies';
 
 type Box = { x: number; y: number; width: number; height: number };
 
@@ -67,6 +67,57 @@ export function freeSpot(
   }
   const bottom = Math.max(...occupied.map((o) => o.y + o.height));
   return { x: first.x, y: bottom + margin };
+}
+
+// ---------- Teclas mientras se abre un sticky ----------
+
+/** Una tecla que llegó antes de que el editor del sticky tuviera el foco. */
+export type TypedKey = { kind: 'char'; ch: string } | { kind: 'back' } | { kind: 'enter' } | { kind: 'tab'; shift: boolean } | { kind: 'esc' };
+
+/** La tecla (de un keydown) como algo para repetir en el editor, o null si no escribe nada. */
+export function typedKey(e: { key: string; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }): TypedKey | null {
+  if (e.ctrlKey || e.metaKey) return null;
+  if (e.key === 'Backspace') return { kind: 'back' };
+  if (e.key === 'Enter') return { kind: 'enter' };
+  if (e.key === 'Tab') return { kind: 'tab', shift: e.shiftKey };
+  if (e.key === 'Escape') return { kind: 'esc' };
+  return [...e.key].length === 1 ? { kind: 'char', ch: e.key } : null;
+}
+
+/**
+ * Aplica las teclas guardadas al texto del editor (con la selección dada, que
+ * se reemplaza). Corta en el primer Tab o Esc: lo que sigue queda para el
+ * sticky siguiente.
+ */
+export function replayKeys(
+  value: string,
+  start: number,
+  end: number,
+  keys: readonly TypedKey[],
+): { value: string; caret: number; stop: 'tab' | 'esc' | null; shift: boolean; rest: TypedKey[] } {
+  let v = value;
+  let a = start;
+  let b = end;
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    if (k.kind === 'tab' || k.kind === 'esc') {
+      return { value: v, caret: a, stop: k.kind, shift: k.kind === 'tab' && k.shift, rest: keys.slice(i + 1) };
+    }
+    if (k.kind === 'back') {
+      if (a !== b) v = v.slice(0, a) + v.slice(b);
+      else if (a > 0) {
+        v = v.slice(0, a - 1) + v.slice(a);
+        a -= 1;
+      }
+      b = a;
+      continue;
+    }
+    const ins = k.kind === 'enter' ? '\n' : k.ch;
+    v = v.slice(0, a) + ins + v.slice(b);
+    a += ins.length;
+    b = a;
+  }
+  return { value: v, caret: a, stop: null, shift: false, rest: [] };
 }
 
 // ---------- Listas en el texto ----------
@@ -163,9 +214,36 @@ export function hiddenInPrivate(el: SceneEl, me: string, privateMode: boolean): 
   return stickyAuthor(el) !== me;
 }
 
+/** ¿Lo escribió alguien en modo privado y todavía no se reveló? (no se guarda ni viaja en vivo) */
+export function isPrivateDraft(el: { customData?: Record<string, unknown> | null } | null | undefined): boolean {
+  return el?.customData?.private === true;
+}
+
+/** Los elementos sin los borradores privados (ni sus textos ligados): lo que se guarda y viaja. */
+export function withoutPrivate<T extends { id: string; containerId?: string | null; customData?: Record<string, unknown> | null }>(elements: readonly T[]): T[] {
+  const priv = new Set(elements.filter((e) => isPrivateDraft(e)).map((e) => e.id));
+  if (!priv.size) return elements as T[];
+  return elements.filter((e) => !priv.has(e.id) && !(e.containerId && priv.has(e.containerId)));
+}
+
+/** Solo los borradores privados de `me` y sus textos (lo que se manda como borrador). */
+export function privateDraftsOf<T extends { id: string; type?: string; containerId?: string | null; customData?: Record<string, unknown> | null; isDeleted?: boolean }>(
+  elements: readonly T[],
+  me: string,
+): T[] {
+  const mine = new Set(elements.filter((e) => !e.isDeleted && isPrivateDraft(e) && e.customData?.author === me).map((e) => e.id));
+  return elements.filter((e) => !e.isDeleted && (mine.has(e.id) || (e.containerId != null && mine.has(e.containerId))));
+}
+
 /** El elemento con autor (versión subida): lo que se crea en modo privado queda de quien lo escribió. */
-export function withAuthor<T extends SceneEl>(el: T, author: string, nonce = Math.floor(Math.random() * 2 ** 31)): T {
-  return { ...el, customData: { ...(el.customData ?? {}), author }, version: (el.version ?? 0) + 1, versionNonce: nonce, updated: Date.now() };
+export function withAuthor<T extends SceneEl>(el: T, author: string, nonce = Math.floor(Math.random() * 2 ** 31), privateDraft = false): T {
+  return {
+    ...el,
+    customData: { ...(el.customData ?? {}), author, ...(privateDraft ? { private: true } : {}) },
+    version: (el.version ?? 0) + 1,
+    versionNonce: nonce,
+    updated: Date.now(),
+  };
 }
 
 // ---------- Minimapa ----------
@@ -553,7 +631,10 @@ function unguard(v: string): string {
  * stickies de Miro (una columna de contenido, con o sin encabezado) o una
  * planilla cualquiera (se usa la columna de texto, o la primera).
  */
-export function parseStickyCsv(text: string): CsvSticky[] {
+/** Tope de stickies por archivo importado (más filas: se avisa cuántas entraron). */
+export const STICKY_IMPORT_MAX = 500;
+
+export function parseStickyCsv(text: string, max: number = STICKY_IMPORT_MAX): CsvSticky[] {
   const rows = parseCsvRows(text);
   if (!rows.length) return [];
   const head = rows[0].map((h) => h.trim().toLowerCase());
@@ -580,7 +661,7 @@ export function parseStickyCsv(text: string): CsvSticky[] {
       x: num(xCol),
       y: num(yCol),
     });
-    if (out.length >= STICKY_PASTE_MAX) break;
+    if (out.length >= max) break;
   }
   return out;
 }

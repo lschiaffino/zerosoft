@@ -279,7 +279,9 @@
     "exportSelected": "Export {count} selected to CSV",
     "importCsv": "Import CSV",
     "importHint": "From a stickies CSV exported here or from Miro. One sticky per row.",
-    "importError": "No stickies found in that file. Use a CSV with a text column."
+    "importError": "No stickies found in that file. Use a CSV with a text column.",
+    "importTruncated": "Imported the first {count} of {total} rows. Split the file to bring the rest.",
+    "imported": "{count, plural, one {Imported # sticky} other {Imported # stickies}}"
   },
   "track": {
     "button": "Track",
@@ -337,7 +339,8 @@
     "privateStart": "Start private mode",
     "privateReveal": "Reveal everyone's stickies",
     "privateChip": "Private",
-    "privateCover": "Hidden until private mode ends"
+    "privateCover": "Hidden until private mode ends",
+    "timeUpDismiss": "Click to hide"
   },
   "access": {
     "title": "Who can open this board",
@@ -390,7 +393,8 @@
     "summonError": "Couldn’t bring the others. Try again.",
     "revoked": "You no longer have access to this board, or it was moved to the trash.",
     "following": "Following {name}. Move the canvas or press Esc to stop.",
-    "presenting": "{name} is presenting. You follow their slides."
+    "presenting": "{name} is presenting. You follow their slides.",
+    "offlineShort": "Offline"
   },
   "present": {
     "button": "Present",
@@ -538,7 +542,10 @@
     "placeholderMermaid": "Write the Mermaid diagram here…",
     "mermaidTitle": "Mermaid to diagram",
     "prompt": "Description",
-    "frameTool": "Frame tool"
+    "frameTool": "Frame tool",
+    "findOnCanvas": "Find on canvas",
+    "noMatch": "No matches found...",
+    "following": "Following"
   },
   "tools": {
     "label": "Canvas tools",

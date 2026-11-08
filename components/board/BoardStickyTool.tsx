@@ -22,7 +22,7 @@ import {
   type StickyColorKey,
 } from '@/lib/board-stickies';
 import { viewToScene } from '@/lib/board-view';
-import { parseStickyCsv } from '@/lib/board-canvas-tools';
+import { STICKY_IMPORT_MAX, nextStickyBox, parseStickyCsv } from '@/lib/board-canvas-tools';
 import type { CanvasApi } from './ExcalidrawCanvas';
 import NotesIcon from '@/components/notes/NotesIcon';
 import { usePopover } from '@/components/notes/usePopover';
@@ -70,9 +70,13 @@ function rememberColor(key: StickyColorKey) {
   }
 }
 
-/** Esqueleto de sticky con su autor (para el modo privado del taller). */
-export function authoredSkeleton(sk: Record<string, unknown>, author: string | null): Record<string, unknown> {
-  return author ? { ...sk, customData: { ...((sk.customData as Record<string, unknown>) ?? {}), author } } : sk;
+/**
+ * Esqueleto de sticky con su autor; en modo privado, además marcado como
+ * borrador (no se guarda en la escena ni viaja hasta revelar).
+ */
+export function authoredSkeleton(sk: Record<string, unknown>, author: string | null, privateDraft = false): Record<string, unknown> {
+  if (!author) return sk;
+  return { ...sk, customData: { ...((sk.customData as Record<string, unknown>) ?? {}), author, ...(privateDraft ? { private: true } : {}) } };
 }
 
 /** Centro de lo que se ve del lienzo, en coordenadas de la escena. */
@@ -90,7 +94,18 @@ export function viewportCenter(api: CanvasApi): { x: number; y: number } {
  * un sticky, los #tags de cada línea pasan a ser tags), tags y color de los
  * seleccionados, y elegir todos los de un tag.
  */
-export default function BoardStickyTool({ api, me = null }: { api: CanvasApi | null; me?: string | null }) {
+export default function BoardStickyTool({
+  api,
+  me = null,
+  onMessage,
+  privateMode = false,
+}: {
+  api: CanvasApi | null;
+  me?: string | null;
+  privateMode?: boolean;
+  /** Aviso corto (cuántas filas entraron de un CSV grande). */
+  onMessage?: (text: string, tone?: 'error' | 'info') => void;
+}) {
   const t = useTranslations('board.stickies');
   const pop = usePopover();
   const [color, setColorState] = useState<StickyColorKey>(() => (typeof window === 'undefined' ? 'yellow' : stickyColor()));
@@ -130,13 +145,12 @@ export default function BoardStickyTool({ api, me = null }: { api: CanvasApi | n
     await ensureFonts();
     // En un hueco cerca del centro de la vista: no tapan lo que ya está ni sus tags.
     const occupied = (api.getSceneElements() as SceneEl[]).filter((e) => !e.isDeleted && !e.containerId).map(elementBox);
-    const free = layoutStickiesInFreeSpace(list.length, viewportCenter(api), occupied);
-    // Un CSV con x e y en todas las filas (nuestro export) conserva el dibujo, corrido al hueco libre.
-    const placed = list.every((d) => d.x != null && d.y != null);
-    const minX = placed ? Math.min(...list.map((d) => d.x!)) : 0;
-    const minY = placed ? Math.min(...list.map((d) => d.y!)) : 0;
-    const positions = placed ? list.map((d) => ({ x: free[0].x + d.x! - minX, y: free[0].y + d.y! - minY })) : free;
-    const created = skeletonsToElements(list.map((d, i) => authoredSkeleton(stickySkeleton(d, positions[i], d.fill ?? fill), me))) as SceneEl[];
+    // Uno solo con un sticky elegido: va al lado del elegido (como Tab). Si no, en grilla en un hueco libre.
+    const prev = list.length === 1 ? selectedStickies(api)[0] : undefined;
+    const positions = prev
+      ? [nextStickyBox(elementBox(prev), 'right', occupied)]
+      : layoutStickiesInFreeSpace(list.length, viewportCenter(api), occupied);
+    const created = skeletonsToElements(list.map((d, i) => authoredSkeleton(stickySkeleton(d, positions[i], d.fill ?? fill), me, privateMode))) as SceneEl[];
     const ids = Object.fromEntries(created.filter((e) => e.customData?.sticky).map((e) => [e.id, true]));
     api.updateScene({
       elements: [...api.getSceneElementsIncludingDeleted(), ...created],
@@ -189,9 +203,12 @@ export default function BoardStickyTool({ api, me = null }: { api: CanvasApi | n
   async function importCsv(file: File) {
     setCsvError(false);
     try {
-      const rows = parseStickyCsv(await file.text());
-      if (!rows.length) throw new Error('empty');
+      const all = parseStickyCsv(await file.text(), Number.MAX_SAFE_INTEGER);
+      if (!all.length) throw new Error('empty');
+      const rows = all.slice(0, STICKY_IMPORT_MAX);
       await add(rows);
+      if (all.length > rows.length) onMessage?.(t('importTruncated', { count: rows.length, total: all.length }), 'error');
+      else onMessage?.(t('imported', { count: rows.length }));
     } catch {
       setCsvError(true);
     }

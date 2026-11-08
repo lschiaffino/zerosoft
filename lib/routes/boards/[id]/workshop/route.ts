@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/session';
 import { isDenied, requireBoardAccess } from '@/lib/board-access-http';
 import { applyTimer, castVote, clearVoting, closeVoting, getPrivateMode, getTimerRow, getVoting, setPrivateMode, startVoting, timerView } from '@/lib/board-workshop';
 import { publishBoardEvent } from '@/lib/board-live';
+import { cleanDrafts, draftsView, listPrivateDrafts, revealPrivateDrafts, savePrivateDrafts } from '@/lib/board-private';
 import { boardPrivateSchema, boardTimerSchema, boardVoteSchema } from '@/lib/boards-schema';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
 
@@ -14,11 +15,14 @@ type Ctx = { params: Promise<{ id: string }> };
 async function state(workspaceId: string, boardId: string, personId: string) {
   const now = Date.now();
   const row = await getTimerRow(workspaceId, boardId);
+  const privateMode = await getPrivateMode(workspaceId, boardId);
   return {
     now,
     timer: row ? timerView(row, now) : null,
     voting: await getVoting(boardId, personId),
-    privateMode: await getPrivateMode(workspaceId, boardId),
+    privateMode,
+    // Lo propio completo; de los demás, solo dónde están (sin texto).
+    drafts: privateMode ? draftsView(await listPrivateDrafts(boardId), personId) : null,
   };
 }
 
@@ -43,14 +47,30 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const { workspaceId, personId } = access.viewer;
   const limited = await limitWrites('boards:workshop', personId, 240);
   if (limited) return limited;
-  const body = (await req.json().catch(() => null)) as { timer?: unknown; vote?: unknown; private?: unknown } | null;
+  const body = (await req.json().catch(() => null)) as { timer?: unknown; vote?: unknown; private?: unknown; drafts?: unknown } | null;
   const canRun = access.level !== 'view';
   /** El resto de los editores abiertos vuelve a leer el taller enseguida (votar solo no avisa: es secreto). */
   let announce = true;
-  if (body?.private !== undefined) {
+  if (body?.drafts !== undefined) {
+    // Lo que esta persona escribió en modo privado (fuera de la escena compartida).
+    if (access.level === 'view') return jsonError(403, 'forbidden');
+    if (!(await getPrivateMode(workspaceId, id))) return jsonError(409, 'not_private');
+    const drafts = cleanDrafts(body.drafts, personId);
+    if (!drafts) return jsonError(400, 'invalid_input');
+    const saved = await savePrivateDrafts(id, personId, drafts);
+    if (saved === 'too_large') return jsonError(413, 'too_large');
+    if (saved !== 'ok') return jsonError(400, 'invalid_input');
+  } else if (body?.private !== undefined) {
     const parsed = boardPrivateSchema.safeParse(body.private);
     if (!parsed.success) return invalidInput(parsed.error);
     if (!canRun) return jsonError(403, 'forbidden');
+    if (!parsed.data.on) {
+      // Revelar: lo de todos entra a la escena en un guardado; los demás lo traen con el aviso "saved".
+      const version = await revealPrivateDrafts(workspaceId, id, personId);
+      if (version !== null) {
+        await publishBoardEvent({ boardId: id, workspaceId, socketId: 'server', kind: 'saved', payload: { version } }).catch(() => undefined);
+      }
+    }
     await setPrivateMode(workspaceId, id, parsed.data.on);
   } else if (body?.timer !== undefined) {
     const parsed = boardTimerSchema.safeParse(body.timer);

@@ -150,6 +150,10 @@ export interface TtdTexts {
   prompt: string;
   /** "Frame tool" de "más herramientas" (sin traducir en es de Excalidraw). */
   frameTool: string;
+  /** Textos de Excalidraw sin traducir en es/pt: buscar en el lienzo y la insignia de seguir. */
+  findOnCanvas: string;
+  noMatch: string;
+  following: string;
 }
 
 const TTD_SOURCE: Record<string, keyof TtdTexts> = {
@@ -166,6 +170,9 @@ const TTD_SOURCE: Record<string, keyof TtdTexts> = {
   // Traducción de Excalidraw en es: se usa la nuestra.
   Sugerencia: 'prompt',
   'Frame tool': 'frameTool',
+  'Find on canvas': 'findOnCanvas',
+  'No matches found...': 'noMatch',
+  Following: 'following',
 };
 
 /**
@@ -179,7 +186,9 @@ function useTranslateTtd(texts: TtdTexts | undefined) {
     let frame = 0;
     const apply = () => {
       frame = 0;
-      for (const root of document.querySelectorAll<HTMLElement>('.ttd-dialog, .App-toolbar .dropdown-menu, .dropdown-menu-container')) {
+      for (const root of document.querySelectorAll<HTMLElement>(
+        '.ttd-dialog, .App-toolbar .dropdown-menu, .dropdown-menu-container, .follow-mode__badge__label, .excalidraw .sidebar, .excalidraw .layer-ui__search-header',
+      )) {
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
         for (let n = walker.nextNode(); n; n = walker.nextNode()) {
           const raw = n.nodeValue ?? '';
@@ -273,6 +282,7 @@ function ExcalidrawCanvas({
   onWireframeToCode,
   canOpenFile = false,
   ttdTexts,
+  name,
 }: {
   scene: BoardScene;
   locale: string;
@@ -295,6 +305,8 @@ function ExcalidrawCanvas({
   canOpenFile?: boolean;
   /** Textos propios para el diálogo de texto a diagrama (estables). */
   ttdTexts?: TtdTexts;
+  /** Nombre de la pizarra: los archivos exportados (PNG, SVG, .excalidraw) salen con este nombre. */
+  name?: string;
 }) {
   // El lienzo sigue el modo de color del sitio (selector sistema/claro/oscuro).
   const theme = useResolvedTheme();
@@ -437,6 +449,8 @@ function ExcalidrawCanvas({
         onChange={hasOnChange ? handleChange : undefined}
         onPointerUpdate={hasPointer ? handlePointer : undefined}
         isCollaborating={collaborating}
+        autoFocus={!viewMode}
+        name={name}
         onLinkOpen={openLink as never}
         aiEnabled={hasAi}
         UIOptions={uiOptions}
@@ -493,10 +507,17 @@ export function fitContent(api: CanvasApi, maxZoom = 1) {
   const s = api.getAppState() as { width: number; height: number };
   const width = Number(s.width) || 1200;
   const height = Number(s.height) || 800;
-  const fit = Math.min((width * 0.9) / Math.max(1, x2 - x1), (height * 0.9) / Math.max(1, y2 - y1));
+  // El área libre: sin la barra de herramientas de arriba, la de zoom de abajo y, en pantallas
+  // anchas, el panel de propiedades que Excalidraw abre a la izquierda al elegir algo.
+  const inset = { top: 90, bottom: 70, left: width > 900 ? 240 : 16, right: width > 900 ? 24 : 16 };
+  const areaW = Math.max(200, width - inset.left - inset.right);
+  const areaH = Math.max(200, height - inset.top - inset.bottom);
+  const fit = Math.min((areaW * 0.94) / Math.max(1, x2 - x1), (areaH * 0.94) / Math.max(1, y2 - y1));
   const zoom = Math.max(0.1, Math.min(maxZoom, fit));
+  const cx = inset.left + areaW / 2;
+  const cy = inset.top + areaH / 2;
   api.updateScene({
-    appState: { zoom: { value: zoom }, scrollX: width / 2 / zoom - (x1 + x2) / 2, scrollY: height / 2 / zoom - (y1 + y2) / 2 },
+    appState: { zoom: { value: zoom }, scrollX: cx / zoom - (x1 + x2) / 2, scrollY: cy / zoom - (y1 + y2) / 2 },
     captureUpdate: REMOTE,
   });
 }
@@ -538,22 +559,40 @@ export async function exportFramePngDataUrl(api: CanvasApi, frame: unknown, maxS
   });
 }
 
-/** Miniatura SVG de la escena (sin imágenes, para que sea chica). */
+/** Tope de la miniatura (el servidor no guarda más de 150 KB). */
+const THUMB_MAX_CHARS = 140_000;
+/** Letra de las miniaturas: la del sistema (una <img> con SVG no carga las letras de la página). */
+const THUMB_FONT = 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+
+/**
+ * Miniatura SVG de la escena (sin imágenes, para que sea chica). En pizarras
+ * grandes se simplifica hasta que entre: primero sin trazo a mano, después sin
+ * textos y al final solo las formas más grandes. Si igual no entra, null.
+ */
 export async function sceneThumbnail(elements: readonly unknown[], viewBackgroundColor: string): Promise<string | null> {
-  const live = (elements as Array<{ isDeleted?: boolean; type?: string }>).filter((e) => !e.isDeleted && e.type !== 'image');
+  type Thumb = { isDeleted?: boolean; type?: string; containerId?: string | null; width?: number; height?: number; roughness?: number };
+  const live = (elements as Thumb[]).filter((e) => !e.isDeleted && e.type !== 'image');
   if (!live.length) return null;
-  try {
-    const svg = await exportToSvg({
-      elements: live as never,
-      appState: { exportBackground: false, viewBackgroundColor, exportEmbedScene: false } as never,
-      files: null,
-      exportPadding: 16,
-      skipInliningFonts: true,
-    });
-    svg.removeAttribute('width');
-    svg.removeAttribute('height');
-    return svg.outerHTML;
-  } catch {
-    return null;
+  const smooth = live.map((e) => ({ ...e, roughness: 0 }));
+  const shapes = smooth.filter((e) => e.type !== 'text');
+  const biggest = [...shapes].sort((a, b) => (b.width ?? 0) * (b.height ?? 0) - (a.width ?? 0) * (a.height ?? 0)).slice(0, 400);
+  for (const attempt of [live, smooth, shapes, biggest]) {
+    if (!attempt.length) continue;
+    try {
+      const svg = await exportToSvg({
+        elements: attempt as never,
+        appState: { exportBackground: false, viewBackgroundColor, exportEmbedScene: false } as never,
+        files: null,
+        exportPadding: 16,
+        skipInliningFonts: true,
+      });
+      svg.removeAttribute('width');
+      svg.removeAttribute('height');
+      const out = svg.outerHTML.replace(/font-family="[^"]*"/g, `font-family="${THUMB_FONT}"`);
+      if (out.length <= THUMB_MAX_CHARS) return out;
+    } catch {
+      return null;
+    }
   }
+  return null;
 }

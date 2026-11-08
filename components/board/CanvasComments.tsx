@@ -32,6 +32,7 @@ export default function CanvasComments({
   onPlaced,
   initialThreadId,
   onCountChange,
+  reloadSignal = 0,
 }: {
   boardId: string;
   api: CanvasApi | null;
@@ -41,6 +42,8 @@ export default function CanvasComments({
   onPlaced: () => void;
   initialThreadId: string | null;
   onCountChange: (open: number) => void;
+  /** Cambia cuando otro comenta en vivo: se vuelven a leer los hilos. */
+  reloadSignal?: number;
 }) {
   const t = useTranslations('board.comments');
   const format = useFormatter();
@@ -85,7 +88,7 @@ export default function CanvasComments({
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, reloadSignal]);
 
   useEffect(() => {
     onCountChange(threads.filter((th) => !th.resolved_at).length);

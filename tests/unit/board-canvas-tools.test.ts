@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   bulletEdit,
+  replayKeys,
+  typedKey,
   contentBounds,
   elementAt,
   fileCardSkeleton,
@@ -61,6 +63,25 @@ describe('file cards', () => {
     expect(attachmentExtension('x.PDF')).toBe('pdf');
     expect(attachmentExtension('x.exe')).toBeNull();
     expect(attachmentExtension('x.html')).toBeNull();
+  });
+});
+
+describe('keys typed while a sticky opens', () => {
+  const keys = (text: string) => [...text].map((ch) => typedKey({ key: ch, ctrlKey: false, metaKey: false, shiftKey: false })!);
+  it('replaces the placeholder space and keeps every key, in order', () => {
+    expect(replayKeys(' ', 0, 1, keys('una nota'))).toMatchObject({ value: 'una nota', caret: 8, stop: null });
+  });
+  it('stops at Tab and leaves the rest for the next sticky', () => {
+    const k = [...keys('uno'), { kind: 'tab', shift: false } as const, ...keys('dos')];
+    const r = replayKeys(' ', 0, 1, k);
+    expect(r).toMatchObject({ value: 'uno', stop: 'tab', shift: false });
+    expect(replayKeys(' ', 0, 1, r.rest).value).toBe('dos');
+  });
+  it('handles Backspace and Enter, and ignores shortcuts', () => {
+    expect(replayKeys(' ', 0, 1, [...keys('ab'), { kind: 'back' }, { kind: 'enter' }, ...keys('c')]).value).toBe('a\nc');
+    expect(typedKey({ key: 'z', ctrlKey: true, metaKey: false, shiftKey: false })).toBeNull();
+    expect(typedKey({ key: 'ArrowLeft', ctrlKey: false, metaKey: false, shiftKey: false })).toBeNull();
+    expect(typedKey({ key: 'N', ctrlKey: false, metaKey: false, shiftKey: true })).toEqual({ kind: 'char', ch: 'N' });
   });
 });
 

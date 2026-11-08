@@ -383,7 +383,8 @@ section.board-templates { padding: 0; }
   .board-bar-extra:not(.btn) { margin-right: calc(-1 * var(--bar-gap)); }
   .board-name { min-width: min(14ch, 40cqi); }
 }
-@container board-editor (max-width: 899px) {
+/* Con el sidebar abierto el editor ronda 1040px: los botones pasan a ícono antes de apretarse. */
+@container board-editor (max-width: 1099px) {
   .board-bar-label { display: none; }
   .board-bar .btn-sm { padding-inline: 8px; }
 }
@@ -1056,3 +1057,25 @@ section.board-templates { padding: 0; }
   pointer-events: auto;
 }
 .board-table-bar .board-canvas-tool:disabled { opacity: 0.4; cursor: default; }
+
+/* En el teléfono los popovers de la barra (Stickies, Taller, Compartir…) son una hoja desde abajo. */
+@media (max-width: 600px) {
+  .board-bar .board-pop {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: auto;
+    max-height: min(78dvh, 640px);
+    overflow-y: auto;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    border-width: 1px 0 0;
+    border-radius: var(--radius-1) var(--radius-1) 0 0;
+    box-shadow: 0 -8px 24px rgb(0 0 0 / 0.18);
+    z-index: 60;
+  }
+}
+.board-timer-chip.is-done { cursor: pointer; }
+
+.board-offline-label { font-size: 0.75rem; color: var(--bad-ink); white-space: nowrap; }

@@ -103,7 +103,8 @@ export function layoutStickies(count: number, center: { x: number; y: number }):
 }
 
 function gridSize(count: number): { cols: number; width: number; height: number } {
-  const cols = Math.min(6, Math.max(1, Math.ceil(Math.sqrt(count))));
+  // Una lista pegada (hasta 100) va en filas de 6; un CSV grande arma una grilla más ancha (no una columna eterna).
+  const cols = Math.min(count > STICKY_PASTE_MAX ? 25 : 6, Math.max(1, Math.ceil(Math.sqrt(count))));
   const rows = Math.ceil(count / cols);
   return { cols, width: cols * STICKY_W + (cols - 1) * GAP, height: rows * STICKY_H + (rows - 1) * ROW_GAP };
 }

@@ -279,7 +279,9 @@
     "exportSelected": "Exportar {count} seleccionados a CSV",
     "importCsv": "Importar CSV",
     "importHint": "Desde un CSV de stickies exportado acá o desde Miro. Un sticky por fila.",
-    "importError": "No encontramos stickies en ese archivo. Usá un CSV con una columna de texto."
+    "importError": "No encontramos stickies en ese archivo. Usá un CSV con una columna de texto.",
+    "importTruncated": "Se importaron las primeras {count} de {total} filas. Dividí el archivo para traer el resto.",
+    "imported": "{count, plural, one {Se importó # sticky} other {Se importaron # stickies}}"
   },
   "track": {
     "button": "Track",
@@ -337,7 +339,8 @@
     "privateStart": "Prender el modo privado",
     "privateReveal": "Revelar los stickies de todos",
     "privateChip": "Privado",
-    "privateCover": "Oculto hasta que termine el modo privado"
+    "privateCover": "Oculto hasta que termine el modo privado",
+    "timeUpDismiss": "Tocá para ocultarlo"
   },
   "access": {
     "title": "Quién puede abrir esta pizarra",
@@ -390,7 +393,8 @@
     "summonError": "No se pudo traer a los demás. Probá de nuevo.",
     "revoked": "Ya no tenés acceso a esta pizarra, o la mandaron a la papelera.",
     "following": "Siguiendo a {name}. Mové el lienzo o tocá Esc para dejar de seguir.",
-    "presenting": "{name} está presentando. Seguís sus slides."
+    "presenting": "{name} está presentando. Seguís sus slides.",
+    "offlineShort": "Sin conexión"
   },
   "present": {
     "button": "Presentar",
@@ -538,7 +542,10 @@
     "placeholderMermaid": "Escribí acá el diagrama de Mermaid…",
     "mermaidTitle": "Mermaid a diagrama",
     "prompt": "Descripción",
-    "frameTool": "Herramienta de frame"
+    "frameTool": "Herramienta de frame",
+    "findOnCanvas": "Buscar en el lienzo",
+    "noMatch": "No hay resultados.",
+    "following": "Siguiendo a"
   },
   "tools": {
     "label": "Herramientas del lienzo",

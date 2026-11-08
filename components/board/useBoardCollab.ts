@@ -14,8 +14,10 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRealtime, type RealtimeStatus } from '@/lib/realtime-client';
+import { withoutPrivate } from '@/lib/board-canvas-tools';
 import {
   LIVE_BULK_MAX,
+  liveBackoffMs,
   countChanged,
   markReceived,
   newSocketId,
@@ -37,7 +39,7 @@ const HEARTBEAT_MS = 10_000;
 
 interface LiveEvent {
   id: number;
-  kind: 'update' | 'presence' | 'summon' | 'leave' | 'saved' | 'access' | 'workshop';
+  kind: 'update' | 'presence' | 'summon' | 'leave' | 'saved' | 'access' | 'workshop' | 'comments';
   socketId: string;
   user: PeerUser | null;
   payload: {
@@ -70,6 +72,8 @@ export function useBoardCollab(opts: {
   onRevoked: () => void;
   /** Cambió el taller (timer, votación, modo privado): se vuelve a leer. */
   onWorkshop?: () => void;
+  /** Alguien comentó, respondió, resolvió o movió un pin: se vuelven a leer los comentarios. */
+  onComments?: () => void;
 }) {
   const { boardId, guestToken, api, canEdit, guestLabel } = opts;
   const handlers = useRef(opts);
@@ -98,6 +102,8 @@ export function useBoardCollab(opts: {
   const inFlight = useRef(false);
   const lastSent = useRef(0);
   const backoffUntil = useRef(0);
+  /** 429 seguidos: la espera crece al doble (con algo de azar) y vuelve a cero con el primer envío que entra. */
+  const failures = useRef(0);
   const stopped = useRef(false);
 
   const guestLabelRef = useRef(guestLabel);
@@ -120,7 +126,12 @@ export function useBoardCollab(opts: {
         body: JSON.stringify({ socketId, ...body }),
       }).catch(() => null);
       // Tope del servidor: se espera un rato antes del próximo envío en vez de reintentar cada 100 ms.
-      if (res?.status === 429) backoffUntil.current = Date.now() + 2000;
+      if (res?.status === 429 || (res && res.status >= 500)) {
+        failures.current = Math.min(failures.current + 1, 6);
+        backoffUntil.current = Date.now() + liveBackoffMs(failures.current);
+      } else if (res?.ok) {
+        failures.current = 0;
+      }
       if (res?.ok) {
         const data = (await res.json().catch(() => null)) as { socketId?: string } | null;
         if (data?.socketId) {
@@ -145,7 +156,8 @@ export function useBoardCollab(opts: {
     const body: Record<string, unknown> = {};
     if (dirtyElements.current && a && handlers.current.canEdit) {
       dirtyElements.current = false;
-      const all = a.getSceneElementsIncludingDeleted() as CollabEl[];
+      // Lo escrito en modo privado no viaja: queda como borrador del autor hasta revelar.
+      const all = withoutPrivate(a.getSceneElementsIncludingDeleted() as Array<CollabEl & { containerId?: string | null; customData?: Record<string, unknown> | null }>);
       // Un cambio masivo no viaja en vivo: lo lleva el guardado (evento "saved" → los demás lo traen).
       if (countChanged(all, sentRef.current, LIVE_BULK_MAX + 1) > LIVE_BULK_MAX) markReceived(all, sentRef.current);
       // Hasta ~30 KB por tick (el servidor corta en 32 KB); lo que queda sale en el próximo.
@@ -239,6 +251,10 @@ export function useBoardCollab(opts: {
         if (e.kind === 'access') continue;
         if (e.kind === 'workshop') {
           handlers.current.onWorkshop?.();
+          continue;
+        }
+        if (e.kind === 'comments') {
+          handlers.current.onComments?.();
           continue;
         }
         if (e.kind === 'leave') {

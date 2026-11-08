@@ -8633,6 +8633,22 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE board_files ADD COLUMN name TEXT');
     },
   },
+  {
+    // Board: lo que cada uno escribe en modo privado queda acá (fuera de la
+    // escena compartida) hasta que se revela.
+    id: '282_board_private_drafts',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS board_private_drafts (
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          author TEXT NOT NULL,
+          elements TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (board_id, author)
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

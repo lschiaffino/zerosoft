@@ -279,7 +279,9 @@
     "exportSelected": "Exportar {count} selecionados para CSV",
     "importCsv": "Importar CSV",
     "importHint": "De um CSV de post-its exportado aqui ou do Miro. Um post-it por linha.",
-    "importError": "Não encontramos post-its nesse arquivo. Use um CSV com uma coluna de texto."
+    "importError": "Não encontramos post-its nesse arquivo. Use um CSV com uma coluna de texto.",
+    "importTruncated": "Foram importadas as primeiras {count} de {total} linhas. Divida o arquivo para trazer o resto.",
+    "imported": "{count, plural, one {# post-it importado} other {# post-its importados}}"
   },
   "track": {
     "button": "Track",
@@ -337,7 +339,8 @@
     "privateStart": "Ligar o modo privado",
     "privateReveal": "Revelar os post-its de todos",
     "privateChip": "Privado",
-    "privateCover": "Oculto até o fim do modo privado"
+    "privateCover": "Oculto até o fim do modo privado",
+    "timeUpDismiss": "Clique para ocultar"
   },
   "access": {
     "title": "Quem pode abrir este quadro",
@@ -390,7 +393,8 @@
     "summonError": "Não foi possível trazer os outros. Tente de novo.",
     "revoked": "Você não tem mais acesso a este quadro, ou ele foi para a lixeira.",
     "following": "Seguindo {name}. Mova a tela ou aperte Esc para parar.",
-    "presenting": "{name} está apresentando. Você segue os slides."
+    "presenting": "{name} está apresentando. Você segue os slides.",
+    "offlineShort": "Sem conexão"
   },
   "present": {
     "button": "Apresentar",
@@ -538,7 +542,10 @@
     "placeholderMermaid": "Escreva aqui o diagrama Mermaid…",
     "mermaidTitle": "Mermaid para diagrama",
     "prompt": "Descrição",
-    "frameTool": "Ferramenta de frame"
+    "frameTool": "Ferramenta de frame",
+    "findOnCanvas": "Buscar na tela",
+    "noMatch": "Nenhum resultado.",
+    "following": "Seguindo"
   },
   "tools": {
     "label": "Ferramentas da tela",

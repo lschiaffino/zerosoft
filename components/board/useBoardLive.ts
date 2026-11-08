@@ -15,6 +15,8 @@ export interface WorkshopState {
   voting: VotingView | null;
   /** Modo privado: cada uno ve solo sus stickies hasta que se revelan. */
   privateMode: boolean;
+  /** En modo privado: lo propio (completo) y dónde hay notas de los demás (sin texto). */
+  drafts: { mine: Array<Record<string, unknown> & { id: string }>; others: Array<{ x: number; y: number; width: number; height: number }> } | null;
   /** Diferencia reloj del servidor − reloj local (ms), para la cuenta regresiva. */
   skew: number;
 }
@@ -40,14 +42,18 @@ export function usePoll(fn: () => Promise<void>, ms: number, enabled: boolean) {
   }, [ms, enabled]);
 }
 
-/** `guestToken`: link de invitado (solo lee el timer y el modo privado). */
-export function useWorkshop(boardId: string, enabled: boolean, guestToken: string | null = null) {
-  const readUrl = guestToken ? `/api/boards/guest/${encodeURIComponent(guestToken)}/workshop` : `/api/boards/${boardId}/workshop`;
-  const [state, setState] = useState<WorkshopState>({ timer: null, voting: null, privateMode: false, skew: 0 });
+/**
+ * `guestToken`: link de invitado con edición. Lee el timer, el modo privado y la
+ * votación, y vota con `guestKey` (la clave de su navegador); nada más.
+ */
+export function useWorkshop(boardId: string, enabled: boolean, guestToken: string | null = null, guestKey: string | null = null) {
+  const base = guestToken ? `/api/boards/guest/${encodeURIComponent(guestToken)}/workshop` : `/api/boards/${boardId}/workshop`;
+  const readUrl = guestToken && guestKey ? `${base}?k=${encodeURIComponent(guestKey)}` : base;
+  const [state, setState] = useState<WorkshopState>({ timer: null, voting: null, privateMode: false, drafts: null, skew: 0 });
   const [error, setError] = useState(false);
 
-  const apply = useCallback((data: { now: number; timer: TimerView | null; voting: VotingView | null; privateMode?: boolean }) => {
-    setState({ timer: data.timer, voting: data.voting, privateMode: Boolean(data.privateMode), skew: data.now - Date.now() });
+  const apply = useCallback((data: { now: number; timer: TimerView | null; voting: VotingView | null; privateMode?: boolean; drafts?: WorkshopState['drafts'] }) => {
+    setState({ timer: data.timer, voting: data.voting, privateMode: Boolean(data.privateMode), drafts: data.drafts ?? null, skew: data.now - Date.now() });
   }, []);
 
   const load = useCallback(async () => {
@@ -63,10 +69,10 @@ export function useWorkshop(boardId: string, enabled: boolean, guestToken: strin
     async (body: Record<string, unknown>): Promise<boolean> => {
       setError(false);
       try {
-        const res = await fetch(`/api/boards/${boardId}/workshop`, {
+        const res = await fetch(base, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify(guestToken ? { ...body, k: guestKey } : body),
         });
         if (!res.ok) throw new Error(String(res.status));
         apply(await res.json());
@@ -77,7 +83,7 @@ export function useWorkshop(boardId: string, enabled: boolean, guestToken: strin
         return false;
       }
     },
-    [boardId, apply, load],
+    [base, guestToken, guestKey, apply, load],
   );
 
   return { ...state, error, send, reload: load };

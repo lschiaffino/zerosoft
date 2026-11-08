@@ -41,7 +41,7 @@ import { usePopover } from '@/components/notes/usePopover';
 import RowMenu from '@/components/notes/RowMenu';
 import { notifyBoardsChanged } from './BoardBranch';
 import { parseDbUtc } from '@/lib/utils';
-import { isStickyLike } from '@/lib/board-canvas-tools';
+import { isPrivateDraft, isStickyLike, privateDraftsOf, withoutPrivate } from '@/lib/board-canvas-tools';
 import { DEFAULT_INK } from '@/lib/board-dark';
 import { STICKY_TEXT_INK, type SceneEl } from '@/lib/board-stickies';
 
@@ -77,12 +77,17 @@ const REMOTE_STATUS_MS = 6000;
 type El = { id: string; version?: number; isDeleted?: boolean; type?: string; fileId?: string | null };
 
 /** Firma barata de la escena: cambia con cualquier edición (cada edición sube `version`). */
-const signature = sceneSignature;
+/** Sin los borradores privados: escribir en modo privado no dispara guardados de la escena. */
+const signature = (elements: readonly unknown[], bg: unknown, files: number) =>
+  sceneSignature(withoutPrivate(elements as Array<{ id: string; containerId?: string | null; customData?: Record<string, unknown> | null }>), bg, files);
 
 /** Escena a guardar: sin elementos borrados y solo los archivos que usa alguna imagen. */
 function buildScene(elements: readonly unknown[], appState: Record<string, unknown>, files: Record<string, unknown>): BoardScene {
-  // El iframe de "wireframe a código" queda solo en esta pestaña (su HTML no se guarda).
-  const live = (elements as El[]).filter((e) => !e.isDeleted && e.type !== 'iframe');
+  // El iframe de "wireframe a código" queda solo en esta pestaña (su HTML no se guarda), y lo
+  // escrito en modo privado va aparte como borrador (lib/board-private.ts) hasta revelar.
+  const live = withoutPrivate(elements as Array<El & { containerId?: string | null; customData?: Record<string, unknown> | null }>).filter(
+    (e) => !e.isDeleted && e.type !== 'iframe',
+  );
   const used = new Set(live.filter((e) => e.type === 'image' && e.fileId).map((e) => e.fileId as string));
   const keptFiles: Record<string, unknown> = {};
   for (const id of used) if (files[id]) keptFiles[id] = files[id];
@@ -143,7 +148,6 @@ export default function BoardEditor({
   /** Invitado con rol "ver": el lienzo queda en modo lectura y no se guarda nada. */
   const readOnly = board.my_access === 'view';
   const apiBase = guest ? `/api/boards/guest/${encodeURIComponent(guestToken ?? '')}` : `/api/boards/${board.id}`;
-  const workshop = useWorkshop(board.id, true, guestToken);
   /** Clave de quien edita: la persona, o una por navegador para el invitado. */
   const [me] = useState<string | null>(() => {
     if (meId) return meId;
@@ -157,6 +161,7 @@ export default function BoardEditor({
       return `guest-${Math.random().toString(36).slice(2, 12)}`;
     }
   });
+  const workshop = useWorkshop(board.id, true, guestToken, me);
   const track = useTrackCards(board.id, !guest);
   const [name, setName] = useState(board.name);
   /** Último nombre que confirmó el servidor. */
@@ -193,6 +198,8 @@ export default function BoardEditor({
   const [commentsOpen, setCommentsOpen] = useState(Boolean(commentId));
   const [placing, setPlacing] = useState(false);
   const [openThreads, setOpenThreads] = useState(0);
+  /** Sube cuando otro comenta (evento en vivo): los comentarios se vuelven a leer. */
+  const [commentsSignal, setCommentsSignal] = useState(0);
   /** Menú "Más opciones" (barra angosta) y qué herramienta pidió abrir. */
   const [moreOpen, setMoreOpen] = useState(false);
   const [openTool, setOpenTool] = useState<{ tool: 'track' | 'workshop'; n: number } | null>(null);
@@ -540,6 +547,7 @@ export default function BoardEditor({
     onResync: () => void checkVersion(),
     onRevoked: () => setRevoked(true),
     onWorkshop: () => void workshop.reload(),
+    onComments: () => setCommentsSignal((n) => n + 1),
   });
   socketIdRef.current = collab.socketId;
 
@@ -707,6 +715,69 @@ export default function BoardEditor({
     }, 60);
     return () => clearTimeout(h);
   }, [canvasApi, commentId]);
+
+  // Modo privado: lo propio se manda como borrador (no a la escena) un rato después de cada cambio;
+  // al abrir se vuelve a dibujar; al revelar, lo propio pierde la marca y entra a la escena.
+  const workshopBase = guest ? `/api/boards/guest/${encodeURIComponent(guestToken ?? '')}/workshop` : `/api/boards/${board.id}/workshop`;
+  const privateOn = workshop.privateMode;
+  const draftsMine = workshop.drafts?.mine;
+  useEffect(() => {
+    if (!canvasApi || !privateOn || !draftsMine?.length) return;
+    const have = new Set((canvasApi.getSceneElementsIncludingDeleted() as SceneEl[]).map((e) => e.id));
+    const missing = draftsMine.filter((e) => !have.has(e.id));
+    if (missing.length) void import('./ExcalidrawCanvas').then(({ REMOTE }) => canvasApi.updateScene({ elements: [...canvasApi.getSceneElementsIncludingDeleted(), ...missing], captureUpdate: REMOTE }));
+  }, [canvasApi, privateOn, draftsMine]);
+  useEffect(() => {
+    if (!canvasApi || !privateOn || !me || readOnly) return;
+    let last = '';
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const send = () => {
+      timer = null;
+      const drafts = privateDraftsOf(canvasApi.getSceneElementsIncludingDeleted() as SceneEl[], me);
+      const sig = drafts.map((e) => `${e.id}:${e.version}`).join(',');
+      if (sig === last) return;
+      last = sig;
+      void fetch(workshopBase, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(guest ? { drafts, k: me } : { drafts }),
+      }).catch(() => {
+        last = '';
+      });
+    };
+    const off = canvasApi.onChange(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(send, 1200);
+    });
+    return () => {
+      off();
+      if (timer) {
+        clearTimeout(timer);
+        send();
+      }
+    };
+  }, [canvasApi, privateOn, me, readOnly, guest, workshopBase]);
+  const wasPrivate = useRef(false);
+  useEffect(() => {
+    if (!canvasApi) return;
+    if (privateOn) {
+      wasPrivate.current = true;
+      return;
+    }
+    if (!wasPrivate.current) return;
+    wasPrivate.current = false;
+    // Revelado: lo propio ya está en la escena del servidor; acá deja de ser borrador (y se guarda igual).
+    const els = canvasApi.getSceneElementsIncludingDeleted() as SceneEl[];
+    if (!els.some((e) => isPrivateDraft(e))) return;
+    canvasApi.updateScene({
+      elements: els.map((e) => {
+        if (!isPrivateDraft(e)) return e;
+        const c = { ...(e.customData ?? {}) };
+        delete c.private;
+        return { ...e, customData: c, version: (e.version ?? 0) + 1, versionNonce: Math.floor(Math.random() * 2 ** 31), updated: Date.now() };
+      }),
+    });
+  }, [canvasApi, privateOn]);
 
   // Stickies de antes con la tinta común: pasan a la tinta de stickies (igual a la vista en claro)
   // para que en oscuro su letra quede oscura sobre el color claro. Una vez, al abrir, quien edita.
@@ -979,6 +1050,9 @@ export default function BoardEditor({
       mermaidTitle: t('ttd.mermaidTitle'),
       prompt: t('ttd.prompt'),
       frameTool: t('ttd.frameTool'),
+      findOnCanvas: t('ttd.findOnCanvas'),
+      noMatch: t('ttd.noMatch'),
+      following: t('ttd.following'),
     }),
     [t],
   );
@@ -995,7 +1069,7 @@ export default function BoardEditor({
     [t, guest, readOnly],
   );
 
-  const shareUrl = shareToken && typeof window !== 'undefined' ? `${window.location.origin}/b/${shareToken}` : '';
+  const shareUrl = shareToken && typeof window !== 'undefined' ? `${window.location.origin}/${locale}/b/${shareToken}` : '';
   const statusText = nameError
     ? t('editor.renameError')
     : state === 'saving'
@@ -1067,7 +1141,7 @@ export default function BoardEditor({
           <NotesIcon name="play" size={14} />
           <span className="board-bar-label">{t('present.button')}</span>
         </button>
-        {!readOnly && <BoardStickyTool api={canvasApi} me={me} />}
+        {!readOnly && <BoardStickyTool api={canvasApi} me={me} onMessage={showToast} privateMode={workshop.privateMode} />}
         {!guest && !readOnly && (
           <BoardTrackTool
             className="board-bar-extra"
@@ -1363,6 +1437,7 @@ export default function BoardEditor({
           onWireframeToCode={guest || readOnly ? undefined : onWireframeToCode}
           canOpenFile={!readOnly}
           ttdTexts={ttdTexts}
+          name={name.trim() || board.name}
         />
         {presenting && canvasApi && (
           <BoardPresent
@@ -1374,19 +1449,20 @@ export default function BoardEditor({
             onExportPdf={() => void exportPdf()}
           />
         )}
-        {/* El invitado también ve el modo privado y reacciona (votar pide cuenta). */}
+        {/* El invitado también ve el modo privado, reacciona y vota con la clave de su navegador. */}
         <BoardOverlays
           api={canvasApi}
           cards={track.cards}
           voting={workshop.voting}
-          canVote={!guest}
+          canVote
           onVote={(elementId, delta) => void workshop.send({ vote: { action: 'vote', elementId, delta } })}
           me={me}
           canReact={!readOnly}
           privateMode={workshop.privateMode}
+          privateOthers={workshop.drafts?.others ?? []}
         />
         {!presenting && (
-          <BoardCanvasTools api={canvasApi} me={me} canEdit={!readOnly} hostRef={canvasRef} attachUrl={guest || readOnly ? null : `/api/boards/${board.id}/attachments`} onMessage={showToast} />
+          <BoardCanvasTools api={canvasApi} me={me} canEdit={!readOnly} hostRef={canvasRef} privateMode={workshop.privateMode} attachUrl={guest || readOnly ? null : `/api/boards/${board.id}/attachments`} onMessage={showToast} />
         )}
         {!guest && (
           <CanvasComments
@@ -1398,6 +1474,7 @@ export default function BoardEditor({
             onPlaced={() => setPlacing(false)}
             initialThreadId={commentId}
             onCountChange={setOpenThreads}
+            reloadSignal={commentsSignal}
           />
         )}
       </div>

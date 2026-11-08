@@ -43,7 +43,7 @@ export const PRESENCE_TTL_MS = 30_000;
 export const PRESENCE_FLUSH_MS = 250;
 
 /** `workshop`: cambió el timer, la votación o el modo privado (los editores vuelven a leer el taller). */
-export type BoardLiveKind = 'update' | 'summon' | 'leave' | 'saved' | 'access' | 'presence' | 'workshop';
+export type BoardLiveKind = 'update' | 'summon' | 'leave' | 'saved' | 'access' | 'presence' | 'workshop' | 'comments';
 
 export interface BoardLiveUser {
   /** Persona (null = invitado del link de edición). */

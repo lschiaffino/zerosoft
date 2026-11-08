@@ -6,6 +6,10 @@ import { STICKY_H, STICKY_W, elementBox, isSticky, stickyFill, stickySkeleton, t
 import {
   FILE_CARD,
   bulletEdit,
+  elementAt,
+  replayKeys,
+  typedKey,
+  type TypedKey,
   fileCardSkeleton,
   freeSpot,
   isStickyLike,
@@ -79,19 +83,18 @@ function visibleArea(api: CanvasApi) {
   return { x: -Number(s.scrollX) + 24 / zoom, y: -Number(s.scrollY) + top, width: (Number(s.width) - 48) / zoom, height: (Number(s.height) - 110 - 70) / zoom };
 }
 
+/** Editor de texto de Excalidraw abierto (el textarea del texto que se edita). */
+function openEditor(): HTMLTextAreaElement | null {
+  return document.querySelector<HTMLTextAreaElement>('textarea.excalidraw-wysiwyg');
+}
+
 /**
- * Abre el editor de texto del sticky recién creado (queda seleccionado). Excalidraw
- * 0.18 no tiene una API pública para empezar a editar: se usa su propio atajo
- * (Enter con una forma con texto seleccionada), mandado al contenedor del editor,
- * que es donde Excalidraw escucha el teclado.
+ * Pide a Excalidraw que edite el sticky elegido. Excalidraw 0.18 no tiene una API
+ * pública para empezar a editar un texto: se usa su propio atajo (Enter con una
+ * forma con texto elegida), mandado a su contenedor, que es donde escucha el teclado.
  */
-function editSelected() {
-  setTimeout(() => {
-    const host = document.querySelector('.excalidraw');
-    host?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
-    // El sticky nuevo trae un espacio de texto: queda elegido y lo primero que se escribe lo reemplaza.
-    setTimeout(() => document.querySelector<HTMLTextAreaElement>('.excalidraw-wysiwyg')?.select(), 30);
-  }, 60);
+function askToEdit() {
+  document.querySelector('.excalidraw')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
 }
 
 /**
@@ -106,6 +109,7 @@ export default function BoardCanvasTools({
   hostRef,
   attachUrl = null,
   onMessage,
+  privateMode = false,
 }: {
   api: CanvasApi | null;
   me: string | null;
@@ -115,7 +119,11 @@ export default function BoardCanvasTools({
   attachUrl?: string | null;
   /** Aviso corto para la persona (errores al subir un archivo). */
   onMessage?: (text: string, tone?: 'error' | 'info') => void;
+  /** Modo privado: lo que se crea queda como borrador hasta revelar. */
+  privateMode?: boolean;
 }) {
+  const privateRef = useRef(privateMode);
+  privateRef.current = privateMode;
   const t = useTranslations('board.tools');
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(0);
@@ -151,20 +159,98 @@ export default function BoardCanvasTools({
     };
   }, [hostRef]);
 
-  /** Crea un sticky en `box` (escena), lo selecciona y abre su texto. */
-  const createSticky = useCallback(
-    async (box: { x: number; y: number; width?: number; height?: number }, fill: string) => {
+  /**
+   * Teclas que llegan entre que se pide un sticky y su editor tiene el foco
+   * (crear el elemento y abrir el editor toma unos cuadros). Mientras no es
+   * null, todas las teclas se guardan acá (no llegan a los atajos de
+   * Excalidraw) y se repiten en el editor apenas abre.
+   */
+  const pendingRef = useRef<TypedKey[] | null>(null);
+  /** Funciones de Excalidraw ya cargadas: crear el sticky no espera a nada. */
+  const libRef = useRef<typeof import('./ExcalidrawCanvas') | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void import('./ExcalidrawCanvas').then(async (lib) => {
+      await lib.ensureFonts();
+      if (alive) libRef.current = lib;
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Se define más abajo (necesita nextSticky); el ref evita el ciclo entre callbacks.
+  const continueRef = useRef<(stickyId: string, shift: boolean) => void>(() => {});
+
+  /** Espera el editor del sticky `id` (pidiéndolo si hace falta) y le pasa las teclas guardadas. */
+  const typeInto = useCallback(
+    (id: string) => {
       if (!api) return;
-      const { skeletonsToElements, UNDOABLE, ensureFonts } = await import('./ExcalidrawCanvas');
-      await ensureFonts();
+      const started = performance.now();
+      let asked = 0;
+      const step = () => {
+        const area = openEditor();
+        const editing = api.getAppState().editingTextElement as SceneEl | null;
+        if (area && editing?.containerId === id) {
+          if (document.activeElement !== area) area.focus();
+          const keys = pendingRef.current ?? [];
+          // El sticky nuevo trae un espacio: lo primero que se escribe lo reemplaza.
+          const blank = !area.value.trim();
+          const r = replayKeys(area.value, blank ? 0 : area.selectionStart, blank ? area.value.length : area.selectionEnd, keys);
+          area.value = r.value;
+          area.setSelectionRange(r.caret, r.caret);
+          if (keys.length) area.dispatchEvent(new Event('input', { bubbles: true }));
+          if (r.stop === 'tab') {
+            pendingRef.current = r.rest;
+            continueRef.current(id, r.shift);
+          } else if (r.stop === 'esc') {
+            pendingRef.current = null;
+            area.blur();
+          } else {
+            pendingRef.current = null;
+            if (!r.value.trim()) area.select();
+          }
+          return;
+        }
+        const elapsed = performance.now() - started;
+        if (elapsed > 3000) {
+          // No abrió: lo escrito no se pierde en atajos, pero tampoco se puede ubicar.
+          pendingRef.current = null;
+          return;
+        }
+        const sel = (api.getAppState().selectedElementIds ?? {}) as Record<string, boolean>;
+        if (sel[id] && !area && (asked === 0 || elapsed > asked * 400)) {
+          asked += 1;
+          askToEdit();
+        }
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    },
+    [api],
+  );
+
+  /** Crea un sticky en `box` (escena), lo selecciona y abre su texto con las teclas guardadas. */
+  const createSticky = useCallback(
+    (box: { x: number; y: number; width?: number; height?: number }, fill: string) => {
+      if (!api) return;
+      const lib = libRef.current;
+      if (!lib) {
+        // Primer uso antes de que cargue Excalidraw: se reintenta en el próximo cuadro (las teclas siguen guardadas).
+        requestAnimationFrame(() => createSticky(box, fill));
+        return;
+      }
       const sk = { ...stickySkeleton({ text: ' ', tags: [] }, box, fill), width: box.width ?? STICKY_W, height: box.height ?? STICKY_H };
-      const created = skeletonsToElements([authoredSkeleton(sk, me)]) as SceneEl[];
+      const created = lib.skeletonsToElements([authoredSkeleton(sk, me, privateRef.current)]) as SceneEl[];
       const sticky = created.find((e) => e.customData?.sticky);
-      if (!sticky) return;
+      if (!sticky) {
+        pendingRef.current = null;
+        return;
+      }
       api.updateScene({
         elements: [...api.getSceneElementsIncludingDeleted(), ...created],
-        appState: { selectedElementIds: { [sticky.id]: true }, selectedGroupIds: {}, activeTool: { type: 'selection', customType: null, locked: false, lastActiveTool: null } },
-        captureUpdate: UNDOABLE,
+        appState: { selectedElementIds: { [sticky.id]: true }, selectedGroupIds: {}, editingGroupId: null, activeTool: { type: 'selection', customType: null, locked: false, lastActiveTool: null } },
+        captureUpdate: lib.UNDOABLE,
       });
       // Si quedó fuera de la vista, la vista lo sigue.
       const s = api.getAppState();
@@ -174,9 +260,9 @@ export default function BoardCanvasTools({
       if (full.x < view.x || full.y < view.y || full.x + full.width > view.x + view.w || full.y + full.height > view.y + view.h) {
         api.scrollToContent([sticky], { fitToContent: false, animate: false });
       }
-      editSelected();
+      typeInto(sticky.id);
     },
-    [api, me],
+    [api, me, typeInto],
   );
 
   /** Sticky nuevo con el color elegido: en el cursor, o en el centro de la vista. */
@@ -185,7 +271,7 @@ export default function BoardCanvasTools({
     const s = api.getAppState();
     const view = { scrollX: Number(s.scrollX) || 0, scrollY: Number(s.scrollY) || 0, zoom: Number((s.zoom as { value?: number })?.value) || 1 };
     const at = pointerRef.current ? viewToScene(pointerRef.current, view) : viewportCenter(api);
-    void createSticky({ x: Math.round(at.x - STICKY_W / 2), y: Math.round(at.y - STICKY_H / 2) }, stickyFill(stickyColor()));
+    createSticky({ x: Math.round(at.x - STICKY_W / 2), y: Math.round(at.y - STICKY_H / 2) }, stickyFill(stickyColor()));
   }, [api, createSticky]);
 
   /** El sticky siguiente a `from`, del mismo color y tamaño. */
@@ -194,16 +280,50 @@ export default function BoardCanvasTools({
       if (!api) return;
       const occupied = (api.getSceneElements() as SceneEl[]).filter((e) => !e.isDeleted && !e.containerId && e.type !== 'frame' && e.type !== 'arrow').map(elementBox);
       const box = nextStickyBox(elementBox(from), dir, occupied);
-      void createSticky(box, from.backgroundColor ?? stickyFill(stickyColor()));
+      createSticky(box, from.backgroundColor ?? stickyFill(stickyColor()));
     },
     [api, createSticky],
   );
+
+  /**
+   * Tab (o Shift+Tab) en el editor de un sticky: se cierra (Excalidraw guarda el
+   * texto al perder el foco) y se abre el siguiente. Las teclas que llegan en
+   * el medio quedan guardadas.
+   */
+  const continueFrom = useCallback(
+    (stickyId: string, shift: boolean) => {
+      if (!api) return;
+      pendingRef.current = pendingRef.current ?? [];
+      openEditor()?.blur();
+      const step = (tries: number) => {
+        const editing = api.getAppState().editingTextElement;
+        if (editing && tries < 30) return requestAnimationFrame(() => step(tries + 1));
+        const fresh = (api.getSceneElements() as SceneEl[]).find((x) => x.id === stickyId);
+        if (fresh) nextSticky(fresh, shift ? 'down' : 'right');
+        else pendingRef.current = null;
+      };
+      requestAnimationFrame(() => step(0));
+    },
+    [api, nextSticky],
+  );
+  continueRef.current = continueFrom;
 
   // Atajos. En captura: llegan antes que Excalidraw (Tab en el texto no indenta en un sticky).
   useEffect(() => {
     if (!api || !canEdit) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.isComposing) return;
+      if (e.isComposing) return;
+      // Abriendo un sticky: todo lo que se tipea se guarda para el editor (no dispara atajos).
+      if (pendingRef.current) {
+        const k = typedKey(e);
+        if (k || !['Shift', 'Alt', 'Meta', 'Control', 'CapsLock'].includes(e.key)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+        if (k) pendingRef.current.push(k);
+        return;
+      }
+      if (e.defaultPrevented) return;
       const s = api.getAppState();
       if (s.openDialog || s.viewModeEnabled) return;
       const target = e.target as HTMLElement | null;
@@ -225,20 +345,17 @@ export default function BoardCanvasTools({
         const container = editing?.containerId ? (api.getSceneElements() as SceneEl[]).find((x) => x.id === editing.containerId) : null;
         if (!container || !isSticky(container)) return;
         e.preventDefault();
-        e.stopPropagation();
-        (target as HTMLTextAreaElement).blur();
-        const id = container.id;
-        setTimeout(() => {
-          const fresh = (api.getSceneElements() as SceneEl[]).find((x) => x.id === id);
-          if (fresh) nextSticky(fresh, e.shiftKey ? 'down' : 'right');
-        }, 30);
+        e.stopImmediatePropagation();
+        pendingRef.current = [];
+        continueFrom(container.id, e.shiftKey);
         return;
       }
       if (typingIn(target)) return;
       const plain = !e.altKey && !e.metaKey && !e.ctrlKey;
       if (plain && !e.shiftKey && (e.key === 'n' || e.key === 'N')) {
         e.preventDefault();
-        e.stopPropagation();
+        e.stopImmediatePropagation();
+        pendingRef.current = [];
         newSticky();
         return;
       }
@@ -261,12 +378,13 @@ export default function BoardCanvasTools({
       const from = selectedSticky(api);
       if (!from) return;
       e.preventDefault();
-      e.stopPropagation();
+      e.stopImmediatePropagation();
+      pendingRef.current = [];
       nextSticky(from, dir);
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [api, canEdit, newSticky, nextSticky, toggleMinimap]);
+  }, [api, canEdit, newSticky, nextSticky, toggleMinimap, continueFrom]);
 
   // Minimapa con M también para quien solo mira.
   useEffect(() => {
@@ -388,6 +506,30 @@ export default function BoardCanvasTools({
     [api, attachUrl, onMessage, t],
   );
 
+  // Doble clic en una celda de tabla: se edita esa celda directo (sin el paso de entrar al grupo).
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || !api || !canEdit) return;
+    const onDbl = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement | null)?.closest?.('canvas')) return;
+      const s = api.getAppState();
+      if (s.editingTextElement) return;
+      const r = host.getBoundingClientRect();
+      const view = { scrollX: Number(s.scrollX) || 0, scrollY: Number(s.scrollY) || 0, zoom: Number((s.zoom as { value?: number })?.value) || 1 };
+      const p = viewToScene({ x: e.clientX - r.left, y: e.clientY - r.top }, view);
+      const cell = elementAt(api.getSceneElements() as SceneEl[], p);
+      const tableId = cell?.customData?.table;
+      if (!cell || typeof tableId !== 'string') return;
+      e.preventDefault();
+      e.stopPropagation();
+      api.updateScene({ appState: { editingGroupId: tableId, selectedGroupIds: {}, selectedElementIds: { [cell.id]: true } } });
+      pendingRef.current = [];
+      typeInto(cell.id);
+    };
+    host.addEventListener('dblclick', onDbl, true);
+    return () => host.removeEventListener('dblclick', onDbl, true);
+  }, [api, canEdit, hostRef, typeInto]);
+
   // Soltar archivos que no son imágenes sobre el lienzo: tarjeta en el punto donde caen.
   // Las imágenes siguen yendo a Excalidraw.
   useEffect(() => {
@@ -427,7 +569,9 @@ export default function BoardCanvasTools({
       setTimeout(() => {
         pending = false;
         for (const id of ids) mineRef.current.delete(id);
-        api.updateScene({ elements: (api.getSceneElementsIncludingDeleted() as SceneEl[]).map((e) => (ids.has(e.id) && !stickyAuthor(e) ? withAuthor(e, me) : e)) });
+        api.updateScene({
+          elements: (api.getSceneElementsIncludingDeleted() as SceneEl[]).map((e) => (ids.has(e.id) && !stickyAuthor(e) ? withAuthor(e, me, undefined, privateRef.current) : e)),
+        });
       }, 0);
     });
   }, [api, canEdit, me]);
@@ -438,7 +582,11 @@ export default function BoardCanvasTools({
       <div className="board-canvas-tools" role="toolbar" aria-label={t('label')}>
         {canEdit && (
           <>
-            <button type="button" className="board-canvas-tool" onClick={newSticky} title={t('stickyHint')} aria-label={t('sticky')} data-testid="board-tool-sticky">
+            <button type="button" className="board-canvas-tool" onClick={() => {
+                pendingRef.current = [];
+                newSticky();
+              }}
+              title={t('stickyHint')} aria-label={t('sticky')} data-testid="board-tool-sticky">
               <NotesIcon name="sticky" size={16} />
               <kbd>N</kbd>
             </button>

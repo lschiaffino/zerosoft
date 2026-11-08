@@ -39,6 +39,7 @@ export default function BoardOverlays({
   me = null,
   canReact = false,
   privateMode = false,
+  privateOthers = [],
 }: {
   api: CanvasApi | null;
   cards: BoardTrackCard[];
@@ -50,6 +51,8 @@ export default function BoardOverlays({
   canReact?: boolean;
   /** Modo privado del taller: se tapan los stickies de los demás. */
   privateMode?: boolean;
+  /** Dónde escribieron los demás en modo privado (sin texto: llega solo la caja). */
+  privateOthers?: ReadonlyArray<{ x: number; y: number; width: number; height: number }>;
 }) {
   const t = useTranslations('board');
   const [view, setView] = useState<CanvasView>({ scrollX: 0, scrollY: 0, zoom: 1 });
@@ -190,7 +193,25 @@ export default function BoardOverlays({
   }
 
   return (
-    <div ref={wrapRef} className="board-overlays" aria-hidden={items.length === 0 && !table ? true : undefined}>
+    <div ref={wrapRef} className="board-overlays" aria-hidden={items.length === 0 && !table && !privateOthers.length ? true : undefined}>
+      {privateMode &&
+        privateOthers.map((b, i) => {
+          const p = sceneToView({ x: b.x, y: b.y }, view);
+          const w = b.width * view.zoom;
+          const h = b.height * view.zoom;
+          if (p.x + w < -40 || p.y + h < -40 || p.x > size.width + 40 || p.y > size.height + 40) return null;
+          return (
+            <div
+              key={`priv-${i}`}
+              className="board-private-cover"
+              style={{ left: p.x, top: p.y, width: w, height: h }}
+              title={t('workshop.privateCover')}
+              data-testid="board-private-cover"
+            >
+              {w > 60 && <NotesIcon name="eyeOff" size={Math.min(20, Math.max(12, w / 10))} />}
+            </div>
+          );
+        })}
       {table && (
         <div className="board-table-bar" role="toolbar" aria-label={t('table.label')} style={{ left: table.x, top: table.y }} data-testid="board-table-bar">
           <button type="button" className="board-canvas-tool" onClick={() => void runTable({ kind: 'addRow', after: table.cell?.row ?? table.rows - 1 })} title={t('table.addRow')} aria-label={t('table.addRow')}>

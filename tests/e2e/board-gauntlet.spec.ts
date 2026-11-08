@@ -88,24 +88,35 @@ test('stickies: N crea uno en el cursor, Tab el siguiente, y se reacciona con em
   const res = await page.request.post('/api/boards', { data: { name: 'Rápido' } });
   const id = ((await res.json()) as { id: string }).id;
   await openEditor(page, id);
-  await page.mouse.move(700, 450);
+  // Sin esperar el foco y a ritmo normal (30 ms por tecla): N, texto, Tab, texto… cinco veces.
+  // Ninguna tecla se pierde ni dispara atajos (n, e, a, r) mientras abre cada sticky.
+  await page.mouse.move(500, 400);
+  const words = ['Primera nueva idea', 'Segunda era rara', 'Tercera nena', 'Cuarta nota', 'Quinta y ultima'];
   await page.keyboard.press('n');
-  await expect(page.locator('.excalidraw-wysiwyg')).toBeFocused();
-  await page.keyboard.type('Primera idea');
-  // Tab mientras se escribe: cierra este y abre el siguiente a la derecha.
-  await page.keyboard.press('Tab');
-  await expect(page.locator('.excalidraw-wysiwyg')).toBeFocused();
-  await page.keyboard.type('Segunda idea');
-  await page.keyboard.press('Escape');
-  await expect.poll(async () => (await elements(page)).filter((e) => e.customData?.sticky).length).toBe(2);
+  for (let i = 0; i < words.length; i++) {
+    await page.keyboard.type(words[i], { delay: 30 });
+    await page.keyboard.press(i < words.length - 1 ? 'Tab' : 'Escape');
+  }
+  await expect.poll(async () => (await elements(page)).filter((e) => e.customData?.sticky).length, { timeout: 10_000 }).toBe(words.length);
+  const stickyTexts = async () => {
+    const all = await elements(page);
+    return all
+      .filter((e) => e.customData?.sticky)
+      .sort((a, b) => a.x - b.x)
+      .map((s) => all.find((t) => t.containerId === s.id)?.text ?? '');
+  };
+  await expect.poll(stickyTexts, { timeout: 10_000 }).toEqual(words);
   const stickies = (await elements(page)).filter((e) => e.customData?.sticky).sort((a, b) => a.x - b.x);
   expect(stickies[1].x).toBeGreaterThan(stickies[0].x + stickies[0].width);
   expect(Math.abs(stickies[1].y - stickies[0].y)).toBeLessThan(2);
   expect(stickies[0].customData?.author).toBeTruthy();
-  const texts = (await elements(page)).filter((e) => e.type === 'text').map((e) => e.text);
-  expect(texts).toEqual(expect.arrayContaining(['Primera idea', 'Segunda idea']));
+  // Ningún atajo de herramienta se disparó: sigue la de selección.
+  expect(await page.evaluate(() => (window as unknown as { __boardApi: { getAppState: () => { activeTool: { type: string } } } }).__boardApi.getAppState().activeTool.type)).toBe('selection');
 
-  // Reaccionar al seleccionado.
+  // Reaccionar a un sticky elegido.
+  await page.evaluate((sid) => {
+    (window as unknown as { __boardApi: { updateScene: (x: unknown) => void } }).__boardApi.updateScene({ appState: { selectedElementIds: { [sid]: true } } });
+  }, stickies[0].id);
   await page.getByTestId('board-react').click();
   await page.getByRole('button', { name: '🎉' }).click();
   const badge = page.locator('.board-reaction').filter({ hasText: '🎉' });
@@ -333,6 +344,34 @@ test('tablas: sumar y sacar filas y columnas; archivo adjunto como tarjeta', asy
   await expect(page.locator('.ui-toast')).toContainText('no puede ir a la pizarra');
   await expect(page.locator('.board-status')).toHaveText('Guardado', { timeout: 15_000 });
   await page.screenshot({ path: shot('board-table-file.png') });
+});
+
+test('invitado del link de edición: escribe stickies rápido sin perder teclas', async ({ page, browser }) => {
+  const res = await page.request.post('/api/boards', { data: { name: 'Invitado escribe' } });
+  const id = ((await res.json()) as { id: string }).id;
+  const access = await page.request.patch(`/api/boards/${id}/access`, { data: { guest: true } });
+  const token = ((await access.json()) as { guest_token: string }).guest_token;
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const g = await ctx.newPage();
+  await g.goto(`/es/b/e/${token}`);
+  await expect(g.locator('.excalidraw')).toBeVisible();
+  await g.waitForFunction(() => Boolean((window as unknown as { __boardApi?: unknown }).__boardApi));
+  await g.mouse.move(400, 400);
+  await g.keyboard.press('n');
+  await g.keyboard.type('Nota del invitado', { delay: 30 });
+  await g.keyboard.press('Tab');
+  await g.keyboard.type('Otra nota rapida', { delay: 30 });
+  await g.keyboard.press('Escape');
+  await expect
+    .poll(async () => {
+      const all = await elements(g);
+      return all
+        .filter((e) => e.customData?.sticky)
+        .sort((a, b) => a.x - b.x)
+        .map((s) => all.find((t) => t.containerId === s.id)?.text ?? '');
+    }, { timeout: 10_000 })
+    .toEqual(['Nota del invitado', 'Otra nota rapida']);
+  await ctx.close();
 });
 
 test('modo privado: tapa las notas de plantilla y el invitado del link de edición también lo ve', async ({ page, browser }) => {
