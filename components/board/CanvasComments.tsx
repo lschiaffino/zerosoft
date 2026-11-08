@@ -33,6 +33,7 @@ export default function CanvasComments({
   initialThreadId,
   onCountChange,
   reloadSignal = 0,
+  initial = null,
 }: {
   boardId: string;
   api: CanvasApi | null;
@@ -44,12 +45,15 @@ export default function CanvasComments({
   onCountChange: (open: number) => void;
   /** Cambia cuando otro comenta en vivo: se vuelven a leer los hilos. */
   reloadSignal?: number;
+  /** Hilos que vinieron con la página (no se piden al abrir). */
+  initial?: { threads: BoardThreadView[]; members: MentionMember[]; me: string } | null;
 }) {
   const t = useTranslations('board.comments');
   const format = useFormatter();
-  const [threads, setThreads] = useState<BoardThreadView[]>([]);
-  const [members, setMembers] = useState<MentionMember[]>([]);
-  const [me, setMe] = useState<string | null>(null);
+  const [threads, setThreads] = useState<BoardThreadView[]>(initial?.threads ?? []);
+  const [members, setMembers] = useState<MentionMember[]>(initial?.members ?? []);
+  const [me, setMe] = useState<string | null>(initial?.me ?? null);
+  const skipFirstLoad = useRef(Boolean(initial));
   const [view, setView] = useState<CanvasView>({ scrollX: 0, scrollY: 0, zoom: 1 });
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ x: number; y: number; elementId: string | null; anchorX: number | null; anchorY: number | null } | null>(null);
@@ -87,6 +91,10 @@ export default function CanvasComments({
   }, [boardId]);
 
   useEffect(() => {
+    if (skipFirstLoad.current) {
+      skipFirstLoad.current = false;
+      return;
+    }
     void load();
   }, [load, reloadSignal]);
 

@@ -22,16 +22,19 @@ export interface WorkshopState {
 }
 
 /** Corre `fn` cada `ms` mientras la pestaña está visible (y una vez al volver). */
-export function usePoll(fn: () => Promise<void>, ms: number, enabled: boolean) {
+export function usePoll(fn: () => Promise<void>, ms: number, enabled: boolean, skipFirst = false) {
   const fnRef = useRef(fn);
   fnRef.current = fn;
+  /** El dato ya vino con la página: la primera vuelta no pide nada. */
+  const skipRef = useRef(skipFirst);
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
     const tick = () => {
       if (alive && document.visibilityState === 'visible') void fnRef.current();
     };
-    tick();
+    if (skipRef.current) skipRef.current = false;
+    else tick();
     const h = setInterval(tick, ms);
     document.addEventListener('visibilitychange', tick);
     return () => {
@@ -46,10 +49,21 @@ export function usePoll(fn: () => Promise<void>, ms: number, enabled: boolean) {
  * `guestToken`: link de invitado con edición. Lee el timer, el modo privado y la
  * votación, y vota con `guestKey` (la clave de su navegador); nada más.
  */
-export function useWorkshop(boardId: string, enabled: boolean, guestToken: string | null = null, guestKey: string | null = null) {
+export function useWorkshop(
+  boardId: string,
+  enabled: boolean,
+  guestToken: string | null = null,
+  guestKey: string | null = null,
+  /** Estado que vino con la página (no se vuelve a pedir al abrir). */
+  initial: { now: number; timer: TimerView | null; voting: VotingView | null; privateMode?: boolean; drafts?: WorkshopState['drafts'] } | null = null,
+) {
   const base = guestToken ? `/api/boards/guest/${encodeURIComponent(guestToken)}/workshop` : `/api/boards/${boardId}/workshop`;
   const readUrl = guestToken && guestKey ? `${base}?k=${encodeURIComponent(guestKey)}` : base;
-  const [state, setState] = useState<WorkshopState>({ timer: null, voting: null, privateMode: false, drafts: null, skew: 0 });
+  const [state, setState] = useState<WorkshopState>(() =>
+    initial
+      ? { timer: initial.timer, voting: initial.voting, privateMode: Boolean(initial.privateMode), drafts: initial.drafts ?? null, skew: initial.now - Date.now() }
+      : { timer: null, voting: null, privateMode: false, drafts: null, skew: 0 },
+  );
   const [error, setError] = useState(false);
 
   const apply = useCallback((data: { now: number; timer: TimerView | null; voting: VotingView | null; privateMode?: boolean; drafts?: WorkshopState['drafts'] }) => {
@@ -62,7 +76,7 @@ export function useWorkshop(boardId: string, enabled: boolean, guestToken: strin
   }, [readUrl, apply]);
 
   const active = state.timer?.status === 'running' || state.timer?.status === 'paused' || state.voting?.status === 'open' || state.privateMode;
-  usePoll(load, active ? WORKSHOP_ACTIVE_MS : WORKSHOP_IDLE_MS, enabled);
+  usePoll(load, active ? WORKSHOP_ACTIVE_MS : WORKSHOP_IDLE_MS, enabled, Boolean(initial));
 
   /** Manda una acción ({ timer } o { vote }) y aplica el estado que vuelve. */
   const send = useCallback(
@@ -89,12 +103,12 @@ export function useWorkshop(boardId: string, enabled: boolean, guestToken: strin
   return { ...state, error, send, reload: load };
 }
 
-export function useTrackCards(boardId: string, enabled: boolean) {
-  const [cards, setCards] = useState<BoardTrackCard[]>([]);
+export function useTrackCards(boardId: string, enabled: boolean, initial: BoardTrackCard[] | null = null) {
+  const [cards, setCards] = useState<BoardTrackCard[]>(initial ?? []);
   const load = useCallback(async () => {
     const res = await fetch(`/api/boards/${boardId}/track`).catch(() => null);
     if (res?.ok) setCards(((await res.json()) as { cards: BoardTrackCard[] }).cards);
   }, [boardId]);
-  usePoll(load, TRACK_MS, enabled);
+  usePoll(load, TRACK_MS, enabled, Boolean(initial));
   return { cards, setCards, reload: load };
 }

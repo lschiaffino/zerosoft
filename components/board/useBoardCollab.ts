@@ -335,12 +335,14 @@ export function useBoardCollab(opts: {
         setSummon(null);
       }
     });
-    // Latido: sin moverse, los demás siguen viendo a esta pestaña (y si está oculta, como ausente).
+    // Latido: sin moverse, los demás siguen viendo a esta pestaña. Oculta no late (se avisó
+    // "ausente" al ocultarse y, si sigue así, los demás la dejan de mostrar a los 30 s).
     const beat = setInterval(() => {
-      presenceRef.current = { ...presenceRef.current, idle: document.visibilityState === 'hidden' };
+      if (prunePeers(peersRef.current, Date.now())) renderPeers();
+      if (document.visibilityState === 'hidden') return;
+      presenceRef.current = { ...presenceRef.current, idle: false };
       dirtyPresence.current = true;
       schedule();
-      if (prunePeers(peersRef.current, Date.now())) renderPeers();
     }, HEARTBEAT_MS);
     const onVisibility = () => {
       presenceRef.current = { ...presenceRef.current, idle: document.visibilityState === 'hidden' };

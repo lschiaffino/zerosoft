@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { isDenied, requireBoardAccess } from '@/lib/board-access-http';
-import { applyTimer, castVote, clearVoting, closeVoting, getPrivateMode, getTimerRow, getVoting, setPrivateMode, startVoting, timerView } from '@/lib/board-workshop';
+import { applyTimer, castVote, clearVoting, closeVoting, getPrivateMode, setPrivateMode, startVoting } from '@/lib/board-workshop';
+import { workshopState } from '@/lib/board-bootstrap';
 import { publishBoardEvent } from '@/lib/board-live';
-import { cleanDrafts, draftsView, listPrivateDrafts, revealPrivateDrafts, savePrivateDrafts } from '@/lib/board-private';
+import { cleanDrafts, revealPrivateDrafts, savePrivateDrafts } from '@/lib/board-private';
 import { boardPrivateSchema, boardTimerSchema, boardVoteSchema } from '@/lib/boards-schema';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
 
@@ -12,19 +13,7 @@ export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-async function state(workspaceId: string, boardId: string, personId: string) {
-  const now = Date.now();
-  const row = await getTimerRow(workspaceId, boardId);
-  const privateMode = await getPrivateMode(workspaceId, boardId);
-  return {
-    now,
-    timer: row ? timerView(row, now) : null,
-    voting: await getVoting(boardId, personId),
-    privateMode,
-    // Lo propio completo; de los demás, solo dónde están (sin texto).
-    drafts: privateMode ? draftsView(await listPrivateDrafts(boardId), personId) : null,
-  };
-}
+const state = workshopState;
 
 /** Estado del taller (timer y votación) para el sondeo del editor; `now` es la hora del servidor. */
 export async function GET(_req: NextRequest, ctx: Ctx) {

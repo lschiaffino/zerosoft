@@ -44,6 +44,7 @@ import { parseDbUtc } from '@/lib/utils';
 import { isPrivateDraft, isStickyLike, privateDraftsOf, withoutPrivate } from '@/lib/board-canvas-tools';
 import { DEFAULT_INK } from '@/lib/board-dark';
 import { STICKY_TEXT_INK, type SceneEl } from '@/lib/board-stickies';
+import type { BoardBootstrap } from '@/lib/board-bootstrap';
 
 const ExcalidrawCanvas = dynamic(() => import('./ExcalidrawCanvas'), {
   ssr: false,
@@ -128,11 +129,14 @@ export default function BoardEditor({
   commentId = null,
   guestToken = null,
   meId = null,
+  initial = null,
 }: {
   board: BoardDetail;
   locale: string;
   /** Persona que abre la pizarra (autoría de stickies y reacciones); los invitados usan una clave de la pestaña. */
   meId?: string | null;
+  /** Taller, Track y comentarios que vinieron con la página (lib/board-bootstrap.ts). */
+  initial?: BoardBootstrap | null;
   /** ?comment=<hilo>: abre ese hilo (link de una notificación). */
   commentId?: string | null;
   /**
@@ -161,8 +165,8 @@ export default function BoardEditor({
       return `guest-${Math.random().toString(36).slice(2, 12)}`;
     }
   });
-  const workshop = useWorkshop(board.id, true, guestToken, me);
-  const track = useTrackCards(board.id, !guest);
+  const workshop = useWorkshop(board.id, true, guestToken, me, initial?.workshop ?? null);
+  const track = useTrackCards(board.id, !guest, initial?.track ?? null);
   const [name, setName] = useState(board.name);
   /** Último nombre que confirmó el servidor. */
   const savedNameRef = useRef(board.name);
@@ -564,7 +568,8 @@ export default function BoardEditor({
   }, [following, stopFollowing]);
 
   // Red de seguridad: si el tiempo real no está conectado, se pregunta la versión cada tanto.
-  usePoll(checkVersion, collab.status === 'live' ? 60_000 : REMOTE_POLL_MS, true);
+  // La versión vino con la página: la primera vuelta no la vuelve a pedir.
+  usePoll(checkVersion, collab.status === 'live' ? 60_000 : REMOTE_POLL_MS, true, true);
 
   useEffect(() => {
     if (!remoteApplied) return;
@@ -1475,6 +1480,7 @@ export default function BoardEditor({
             initialThreadId={commentId}
             onCountChange={setOpenThreads}
             reloadSignal={commentsSignal}
+            initial={initial?.comments ?? null}
           />
         )}
       </div>
