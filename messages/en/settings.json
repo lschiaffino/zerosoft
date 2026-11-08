@@ -951,7 +951,7 @@
     },
     "connect": {
       "title": "Connect your accounts",
-      "sub": "So the apps you picked start with your real calendar, email and chats.",
+      "sub": "So the apps you picked start with your real accounts.",
       "calendar": {
         "name": "Google Calendar",
         "body": "Cal checks it for conflicts and adds bookings to it."

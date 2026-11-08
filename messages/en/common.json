@@ -216,7 +216,7 @@
     "groupForms": "Forms",
     "groupSend": "Documents to send",
     "untitled": "Untitled",
-    "downloadDesktop": "Download the desktop app"
+    "downloadDesktop": "Desktop app"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
@@ -929,6 +929,6 @@
     "f3t": "Native notifications",
     "f3d": "Mentions, direct messages and the bell as system notifications and a badge on the dock icon.",
     "f4t": "Light and fast",
-    "f4d": "About 3 MB. Every app in one window that opens in under a second."
+    "f4d": "About 3 MB to download. Every app in one window."
   }
 }

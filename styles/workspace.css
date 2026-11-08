@@ -383,7 +383,7 @@ body:has(.wl-page) .zs-support-launcher { display: none; }
 .wl-appcard-name { flex: 1; min-width: 0; font-size: 0.875rem; font-weight: 600; }
 .wl-appcard-check { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 16px; height: 16px; border: 1px solid var(--ui-field, var(--line)); border-radius: var(--radius-1); }
 .wl-appcard.is-on .wl-appcard-check { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-.wl-appcard-desc { font-size: 0.75rem; line-height: 1.4; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.wl-appcard-desc { font-size: 0.75rem; line-height: 1.4; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .wl-tile .product-zero, .wl-tile svg { flex: none; margin-right: 8px; }
 
 .wl-connect { display: grid; margin: 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: var(--radius-1); }

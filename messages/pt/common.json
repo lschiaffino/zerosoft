@@ -216,7 +216,7 @@
     "groupForms": "Formulários",
     "groupSend": "Documentos para enviar",
     "untitled": "Sem título",
-    "downloadDesktop": "Baixar o app para computador"
+    "downloadDesktop": "App para computador"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
@@ -929,6 +929,6 @@
     "f3t": "Notificações nativas",
     "f3d": "Menções, mensagens diretas e o sino como notificações do sistema e um contador no ícone do dock.",
     "f4t": "Leve e rápido",
-    "f4d": "Cerca de 3 MB. Todos os apps numa janela que abre em menos de um segundo."
+    "f4d": "Cerca de 3 MB para baixar. Todos os apps numa janela."
   }
 }

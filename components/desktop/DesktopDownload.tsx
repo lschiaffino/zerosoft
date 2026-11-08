@@ -190,7 +190,7 @@ export default function DesktopDownload({
 
           <div className="dd-cta">
             {href && (
-              <a className="btn btn-primary btn-lg dd-btn" href={href} onClick={onDownload} data-testid="desktop-download">
+              <a className={`btn ${offComputer ? 'btn-secondary' : 'btn-primary'} btn-lg dd-btn`} href={href} onClick={onDownload} data-testid="desktop-download">
                 <Icon name="download" size={18} />
                 {t(`download.${target}`)}
               </a>

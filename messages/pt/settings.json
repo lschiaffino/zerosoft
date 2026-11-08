@@ -951,7 +951,7 @@
     },
     "connect": {
       "title": "Conecte suas contas",
-      "sub": "Assim os apps que você escolheu começam com sua agenda, seu email e suas conversas de verdade.",
+      "sub": "Assim os apps que você escolheu começam com suas contas de verdade.",
       "calendar": {
         "name": "Google Agenda",
         "body": "O Cal consulta para evitar conflitos e adiciona as reservas."

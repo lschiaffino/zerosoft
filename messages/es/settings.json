@@ -951,7 +951,7 @@
     },
     "connect": {
       "title": "Conectá tus cuentas",
-      "sub": "Así las apps que elegiste arrancan con tu calendario, tu email y tus chats de verdad.",
+      "sub": "Así las apps que elegiste arrancan con tus cuentas de verdad.",
       "calendar": {
         "name": "Google Calendar",
         "body": "Cal lo mira para no superponer y le suma las reservas."

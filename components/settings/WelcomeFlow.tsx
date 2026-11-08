@@ -264,6 +264,8 @@ function ProfileFlow(props: Parameters<typeof WelcomeFlow>[0]) {
   const [requested, setRequested] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const firstRender = useRef(true);
+  // El aviso de "guardamos tus respuestas" vale hasta el primer cambio de paso.
+  const [moved, setMoved] = useState(false);
 
   const steps: ProfileStep[] = mode === 'team' ? ['use', 'team', 'you', 'apps', 'invite'] : ['use', 'you', 'apps'];
   const index = Math.max(0, steps.indexOf(step));
@@ -280,6 +282,7 @@ function ProfileFlow(props: Parameters<typeof WelcomeFlow>[0]) {
   }, [step]);
 
   function draft(nextStep: ProfileStep) {
+    setMoved(true);
     void post({ kind: 'draft', draft: { step: nextStep, mode: mode ?? undefined, teamName, size, name, role: role || undefined, apps: apps ?? undefined, sampleData: sample, invites } });
   }
 
@@ -298,7 +301,10 @@ function ProfileFlow(props: Parameters<typeof WelcomeFlow>[0]) {
 
   function back() {
     const i = steps.indexOf(step);
-    if (i > 0) setStep(steps[i - 1]);
+    if (i > 0) {
+      setStep(steps[i - 1]);
+      draft(steps[i - 1]);
+    }
   }
 
   function toggleApp(k: ProductKey) {
@@ -412,7 +418,7 @@ function ProfileFlow(props: Parameters<typeof WelcomeFlow>[0]) {
         value={step === 'use' ? 0.12 : (index + 1) / steps.length}
       />
 
-      {resumed && step === d.step && (
+      {resumed && !moved && (
         <p className="wl-resumed" role="status">
           {t('resumed')}
         </p>
@@ -536,7 +542,7 @@ function ProfileFlow(props: Parameters<typeof WelcomeFlow>[0]) {
           <p className="wl-sub">{t('apps.sub')}</p>
           <fieldset className="st-fieldset">
             <legend className="wl-apps-legend">
-              <span>{role ? t('apps.suggested', { role: t(`roles.${role}`).toLowerCase() }) : t('apps.suggestedNoRole')}</span>
+              <span>{picked.length === 0 ? '' : role ? t('apps.suggested', { role: t(`roles.${role}`).toLowerCase() }) : t('apps.suggestedNoRole')}</span>
               <span className="data wl-apps-count" aria-live="polite">
                 {t('apps.count', { n: picked.length })}
               </span>
@@ -739,9 +745,10 @@ function SetupFlow(props: SetupProps & { email: string }) {
                     {t('connect.connect')}
                   </a>
                 ) : (
-                  <Link className="btn btn-secondary btn-sm" href={c.settings}>
+                  // Navegación completa: el onboarding va sin el chrome de la app y una navegación del cliente lo dejaría así.
+                  <a className="btn btn-secondary btn-sm" href={`/${locale}${c.settings}`}>
                     {t('connect.openSettings')}
-                  </Link>
+                  </a>
                 )}
               </li>
             ))}
@@ -771,14 +778,14 @@ function SetupFlow(props: SetupProps & { email: string }) {
           {chosen && !chosen.importHref && <p className="ui-help">{t('import.soon', { tool: chosen.name })}</p>}
           {chosen?.importHref && (
             <div className="wl-import-go">
-              <Link
+              <a
                 className="btn btn-primary"
-                href={chosen.importHref}
+                href={`/${locale}${chosen.importHref}`}
                 onClick={() => void post({ kind: 'setup', step: steps[index + 1] ?? 'desktop' }, true)}
                 data-testid="wl-import-go"
               >
                 {t('import.go', { tool: chosen.name })}
-              </Link>
+              </a>
             </div>
           )}
         </>
@@ -808,7 +815,7 @@ function SetupFlow(props: SetupProps & { email: string }) {
         <div className="wl-actions-main">
           <button
             type="button"
-            className={`btn ${step === 'import' && chosen?.importHref ? 'btn-secondary' : 'btn-primary'}`}
+            className={`btn ${(step === 'import' && chosen?.importHref) || (step === 'desktop' && props.release && !props.desktopSeen) ? 'btn-secondary' : 'btn-primary'}`}
             onClick={() => go(index + 1)}
             disabled={busy}
             aria-busy={busy || undefined}
