@@ -213,13 +213,12 @@
   outline: none;
 }
 
-.track-subtask-row:hover,
-.track-subtask-row.is-kb-active {
+.track-subtask-row:hover {
   background: var(--ui-hover);
 }
 
 .track-subtask-row.is-kb-active {
-  box-shadow: inset 2px 0 0 var(--ink);
+  background: var(--ui-selected);
 }
 
 .track-subtask-row.is-dragging {
@@ -1367,8 +1366,7 @@ a.track-issue-link .track-status-glyph {
 /* Fila activa (J/K) y seleccionadas: fondo y filete en la fila entera. */
 .track-table-wrap.is-linear .track-table tr.is-kb-active,
 .track-table-wrap.is-linear .track-table tr.is-selected {
-  background: var(--ui-hover);
-  box-shadow: inset 2px 0 0 var(--ink);
+  background: var(--ui-selected);
 }
 
 .track-table-wrap.is-linear .track-table tr.is-kb-active td,
@@ -1677,8 +1675,7 @@ a.track-issue-link .track-status-glyph {
 }
 
 .track-filter-prop.is-active {
-  background: var(--ui-hover);
-  box-shadow: inset 2px 0 0 var(--ink);
+  background: var(--ui-selected);
 }
 
 .track-filter-chip-wrap {

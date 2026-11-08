@@ -145,7 +145,7 @@ a.asst-file:hover { border-color: var(--ink-2); }
 .asst-page-list { list-style: none; margin: 0; padding: 4px; overflow-y: auto; flex: 1; }
 .asst-page-item { display: flex; align-items: center; gap: 2px; border-radius: var(--r-xs); }
 .asst-page-item:hover, .asst-page-item:focus-within { background: var(--ui-hover); }
-.asst-page-item.is-current { background: var(--bg-soft); }
+.asst-page-item.is-current { background: var(--ui-selected); }
 .asst-page-link { flex: 1; min-width: 0; padding: 7px 8px; color: var(--ink); font-size: 0.875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
 .asst-page-item .btn { flex: none; }
 /* Renombrar y Borrar aparecen al pasar el mouse o con foco: el título usa todo el ancho de la columna. */

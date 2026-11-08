@@ -58,7 +58,7 @@
 .sc-day-num { font-size: 0.8125rem; color: var(--ink-2); font-family: var(--font-data); }
 .sc-day-add { opacity: 0; color: var(--ink-3); text-decoration: none; font-size: 1rem; line-height: 1; padding: 0 4px; border-radius: var(--radius-1); }
 .sc-day:hover .sc-day-add, .sc-day-add:focus-visible { opacity: 1; }
-.sc-chip { display: block; padding: 3px 6px; border: 1px solid var(--line); border-left: 3px solid var(--c-social); border-radius: var(--radius-1); background: var(--bg); color: var(--ink); text-decoration: none; font-size: 0.75rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.sc-chip { display: block; padding: 3px 6px; border: 1px solid color-mix(in srgb, var(--c-social) 30%, var(--line)); border-radius: var(--radius-1); background: color-mix(in srgb, var(--c-social) 8%, var(--bg)); color: var(--ink); text-decoration: none; font-size: 0.75rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .sc-chip:hover { background: var(--ui-hover); }
 .sc-chip[draggable='true'] { cursor: grab; }
 .sc-chip[data-s='published'] { border-left-color: var(--ok-ink); }
@@ -75,7 +75,7 @@
 .sc-item:last-child { border-bottom: 0; }
 .sc-item-btn { width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); font: inherit; color: var(--ink); cursor: pointer; }
 .sc-item:hover { background: var(--ui-hover); }
-.sc-item[aria-current='true'] { background: var(--bg-soft); box-shadow: inset 3px 0 0 var(--c-social); }
+.sc-item[aria-current='true'] { background: var(--ui-selected); }
 .sc-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .sc-item-text { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: break-word; }
 .sc-item-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; text-align: right; }
@@ -138,7 +138,7 @@
 .sc-inbox-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .sc-thread { display: flex; flex-direction: column; gap: 10px; }
 .sc-bubble { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg-soft); overflow-wrap: anywhere; white-space: pre-wrap; }
-.sc-bubble[data-us='true'] { background: var(--bg); border-left: 3px solid var(--c-social); }
+.sc-bubble[data-us='true'] { background: color-mix(in srgb, var(--c-social) 7%, var(--bg)); border-color: color-mix(in srgb, var(--c-social) 25%, var(--line)); }
 
 /* ---------- Métricas ---------- */
 

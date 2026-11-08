@@ -289,8 +289,8 @@ section.rec-edit-block { padding-bottom: 20px; }
 .rec-edit-block { display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
 .rec-edit-block:last-child { border-bottom: 0; }
 .rec-h { margin: 0; font-size: 0.9375rem; font-weight: 700; }
-.rec-status { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-left: 4px solid var(--c-rec); font-size: 0.875rem; }
-.rec-status.disabled, .rec-status.failed { border-left-color: var(--warn); }
+.rec-status { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg-soft); font-size: 0.875rem; }
+.rec-status.disabled, .rec-status.failed { border-color: color-mix(in srgb, var(--warn) 35%, var(--line)); background: var(--warn-soft); }
 .rec-stats { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
 .rec-stats > div { padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-1); }
 .rec-stats dt { font-size: 0.8125rem; color: var(--dim); }
@@ -379,7 +379,7 @@ select.rec-person-role { width: auto; }
 .rec-seg .data, .rec-chapter .data { color: var(--dim); font-size: 0.75rem; padding-top: 2px; }
 .rec-seg:hover, .rec-chapter:hover { background: var(--ui-hover); }
 .rec-seg:focus-visible, .rec-chapter:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
-.rec-seg.active { background: var(--accent-soft, var(--ui-hover)); box-shadow: inset 3px 0 0 var(--c-rec); }
+.rec-seg.active { background: var(--ui-selected); }
 .rec-prose { margin: 0; white-space: pre-wrap; line-height: 1.6; overflow-wrap: anywhere; }
 
 /* ---------- Página pública (/v/<id>) ---------- */
@@ -436,7 +436,7 @@ select.rec-person-role { width: auto; }
 .rec-net { color: var(--dim); }
 .rec-net.offline, .rec-net.waiting { color: var(--warn-ink); font-weight: 600; }
 .rec-confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.875rem; }
-.rec-pending { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; padding: 14px 16px; border: 1px solid var(--line); border-left: 4px solid var(--warn); border-radius: var(--radius-1); }
+.rec-pending { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--line)); border-radius: var(--radius-1); background: var(--warn-soft); }
 section.rec-pending { padding-top: 14px; padding-bottom: 14px; }
 .rec-pending .ui-help { margin: 0; }
 .rec-pending-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
