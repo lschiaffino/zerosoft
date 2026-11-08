@@ -693,9 +693,9 @@
         "undone": "Mudança desfeita"
       },
       "rolesTitle": "O que cada papel pode fazer",
-      "rolesDesc": "Além do papel, cada pessoa tem os apps que você liberar.",
+      "rolesDesc": "Além do papel, cada pessoa tem os apps que você habilitar.",
       "matrix": {
-        "useApps": "Usar os apps liberados para ela",
+        "useApps": "Usar os apps habilitados para ela",
         "invite": "Convidar pessoas",
         "manage": "Mudar papéis, apps e equipes; remover pessoas",
         "workspace": "Editar a configuração e as equipes do workspace",
