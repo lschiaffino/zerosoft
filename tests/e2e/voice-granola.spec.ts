@@ -12,6 +12,8 @@ test.use({
 });
 
 test.beforeEach(async ({ page, context, baseURL }) => {
+  // Graban de verdad (trozos de 1,5 s) y esperan a la IA falsa: más que el minuto por defecto.
+  test.setTimeout(180_000);
   await context.grantPermissions(['microphone'], { origin: baseURL! });
   await page.addInitScript(() => {
     (window as unknown as { __zsVoiceChunkMs: number }).__zsVoiceChunkMs = 1500;
@@ -29,8 +31,8 @@ async function noHorizontalScroll(page: Page, what: string) {
 async function recordMeeting(page: Page, title: string) {
   await page.goto('/en/app/voice', { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'New meeting' }).first().click();
-  await expect(page).toHaveURL(/\/app\/voice\/meetings\/[^?]+$/);
-  await expect(page.getByRole('timer')).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/voice\/meetings\/[^?]+$/, { timeout: 30_000 });
+  await expect(page.getByRole('timer')).toBeVisible({ timeout: 15_000 });
   const titleInput = page.getByRole('textbox', { name: 'Meeting title' });
   await titleInput.fill(title);
   await titleInput.press('Enter');
@@ -53,7 +55,7 @@ test('la reunión nueva escucha sola; un link externo con ?new=1 no prende el mi
   // Abrir /app/voice?new=1 de afuera (sin interacción): crea la reunión pero no escucha.
   const other = await page.context().newPage();
   await other.goto('/en/app/voice?new=1');
-  await expect(other).toHaveURL(/\/app\/voice\/meetings\/[^?]+$/);
+  await expect(other).toHaveURL(/\/app\/voice\/meetings\/[^?]+$/, { timeout: 30_000 });
   await expect(other.getByRole('button', { name: 'Start recording' })).toBeVisible();
   await other.waitForTimeout(800);
   await expect(other.getByRole('timer')).toHaveCount(0);
@@ -63,6 +65,15 @@ test('la reunión nueva escucha sola; un link externo con ?new=1 no prende el mi
   await page.reload({ waitUntil: 'networkidle' });
   await expect(page.getByRole('button', { name: 'Keep recording' })).toBeVisible();
   await expect(page.getByRole('timer')).toHaveCount(0);
+
+  // Desde ⌘K (navegación dentro de la app): escucha sola.
+  await page.keyboard.press('ControlOrMeta+k');
+  const dialog = page.getByRole('dialog', { name: 'Search' });
+  await dialog.getByRole('combobox').fill('New meeting');
+  await dialog.getByRole('option', { name: /New meeting/ }).first().click();
+  await expect(page).toHaveURL(new RegExp(`/app/voice/meetings/(?!${id})[^?]+$`), { timeout: 30_000 });
+  await expect(page.getByRole('timer')).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Stop', exact: true }).click();
 });
 
 for (const [name, error, message] of [
@@ -75,17 +86,17 @@ for (const [name, error, message] of [
     }, name);
     await page.goto('/en/app/voice', { waitUntil: 'networkidle' });
     await page.getByRole('button', { name: 'New meeting' }).first().click();
-    await expect(page).toHaveURL(/\/app\/voice\/meetings\//);
+    await expect(page).toHaveURL(/\/app\/voice\/meetings\//, { timeout: 30_000 });
     await expect(page.getByRole('alert').filter({ hasText: message })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Start recording' })).toBeEnabled();
     await expect(page.getByRole('timer')).toHaveCount(0);
     // Las notas se pueden escribir igual.
     await page.getByRole('textbox', { name: 'My notes' }).fill('Typed without audio');
-    await expect(page.getByText('Saved')).toBeVisible();
+    await expect(page.getByText('Saved')).toBeVisible({ timeout: 15_000 });
   });
 }
 
-test('chat: respuesta de a pedazos con citas que llevan a la transcripción, y entre reuniones', async ({ page }) => {
+test('chat: respuesta de a pedazos con citas que llevan a la transcripción, y entre reuniones', async ({ page, baseURL }) => {
   const title = `Billing call ${uid()}`;
   const id = await recordMeeting(page, title);
   await page.getByRole('button', { name: 'Stop', exact: true }).click();
@@ -99,7 +110,7 @@ test('chat: respuesta de a pedazos con citas que llevan a la transcripción, y e
   await page.getByRole('button', { name: 'Ask', exact: true }).click();
   expect((await streamed).headers()['content-type']).toContain('ndjson');
   const answer = page.locator('.vc-msg.is-assistant').last();
-  await expect(answer).toContainText(/annual billing/i);
+  await expect(answer).toContainText(/annual billing/i, { timeout: 20_000 });
   const cite = answer.locator('button.vc-cite').first();
   await expect(cite).toHaveText(/^\d{2}:\d{2}$/);
   await cite.click();
@@ -116,8 +127,8 @@ test('chat: respuesta de a pedazos con citas que llevan a la transcripción, y e
   await page.getByRole('combobox', { name: 'Ask your meetings' }).fill('Who wants annual billing?');
   await page.getByRole('button', { name: 'Ask', exact: true }).click();
   const turn = page.locator('.vc-turn').first();
-  await expect(turn.locator('.vc-answer')).toContainText(/annual billing/i);
-  await expect(turn.locator('.vc-sources')).toContainText(title);
+  await expect(turn.locator('.vc-answer')).toContainText(/annual billing/i, { timeout: 20_000 });
+  await expect(turn.locator('.vc-sources')).toContainText(title, { timeout: 20_000 });
   const link = turn.locator('a.vc-cite').first();
   await expect(link).toHaveAttribute('href', /\/app\/voice\/meetings\/[^?]+\?t=\d+/);
   await expect(page.getByRole('button', { name: 'New question' })).toBeVisible();
@@ -131,11 +142,11 @@ test('chat: respuesta de a pedazos con citas que llevan a la transcripción, y e
   await expect(page.locator('.vc-seg.is-focus')).toBeVisible();
 
   // Sin IA: el error se ve y la pregunta vuelve al campo.
-  await page.context().addCookies([{ name: 'voice_ai_fake', value: 'off', url: page.url() }]);
+  await page.context().addCookies([{ name: 'voice_ai_fake', value: 'off', url: baseURL! }]);
   await page.goto('/en/app/voice', { waitUntil: 'networkidle' });
   await page.getByRole('combobox', { name: 'Ask your meetings' }).fill('Who wants annual billing?');
   await page.getByRole('button', { name: 'Ask', exact: true }).click();
-  await expect(page.getByRole('alert').filter({ hasText: 'AI is not set up on this server' })).toBeVisible();
+  await expect(page.getByRole('alert').filter({ hasText: 'AI is not set up on this server' })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('combobox', { name: 'Ask your meetings' })).toHaveValue('Who wants annual billing?');
   await page.context().clearCookies({ name: 'voice_ai_fake' });
 });
@@ -163,7 +174,7 @@ test('chat y reunión: 1280 y 390, claro y oscuro, sin scroll horizontal', async
       await page.goto('/en/app/voice', { waitUntil: 'networkidle' });
       await page.getByRole('combobox', { name: 'Ask your meetings' }).fill('Who wants annual billing?');
       await page.getByRole('button', { name: 'Ask', exact: true }).click();
-      await expect(page.locator('.vc-turn .vc-cite').first()).toBeVisible({ timeout: 15_000 });
+      await expect(page.locator('.vc-turn .vc-cite').first()).toBeVisible({ timeout: 20_000 });
       await noHorizontalScroll(page, `home ${theme} ${width}`);
       await page.screenshot({ path: test.info().outputPath(`home-ask-${theme}-${width}.png`), fullPage: true });
     }

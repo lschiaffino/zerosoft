@@ -15,7 +15,7 @@ import { voiceErrorKey } from './voice-ui';
 import { checkRecordingFile, importRecording } from './importRecording';
 import RecipeInput from './RecipeInput';
 import { BriefModal } from './MeetingPrep';
-import { markAutostart, userActivated } from './autostart';
+import { arrivedInApp, markAutostart } from './autostart';
 import { CitedText, streamVoice, Suggestions, type AnswerSource } from './chat-ui';
 
 interface Props {
@@ -176,7 +176,7 @@ export default function MeetingsHome(props: Props) {
       if (existing) router.replace(`/app/voice/meetings/${existing}${query}`);
       // Escucha sola si se llegó desde la app (⌘K, sidebar, aviso); un link externo no prende el micrófono.
       // La app de escritorio manda su propio ?autostart (con el audio del sistema).
-      else void newMeeting({ replace: true, eventKey: ev ?? undefined, query, autostart: !query && userActivated() });
+      else void newMeeting({ replace: true, eventKey: ev ?? undefined, query, autostart: !query && arrivedInApp() });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);

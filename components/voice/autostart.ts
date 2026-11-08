@@ -31,11 +31,17 @@ export function takeAutostart(id: string): boolean {
 }
 
 /**
- * ¿La persona ya interactuó con esta página? Abrir /app/voice?new=1 desde un
- * link externo no cuenta; llegar con ⌘K o el sidebar (navegación dentro de
- * la app) sí. Sin la API (navegadores viejos) no se asume nada.
+ * ¿Se llegó a esta URL navegando dentro de la app (⌘K, sidebar, aviso)? Si el
+ * documento se cargó directo en ella (un link de afuera, la barra de
+ * direcciones), no: la carga del documento tiene la misma URL que la actual.
  */
-export function userActivated(): boolean {
-  const ua = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
-  return !!ua?.hasBeenActive;
+export function arrivedInApp(): boolean {
+  try {
+    const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    if (!nav?.name) return false;
+    const loaded = new URL(nav.name);
+    return loaded.pathname + loaded.search !== window.location.pathname + window.location.search;
+  } catch {
+    return false;
+  }
 }
