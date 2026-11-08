@@ -27,7 +27,7 @@ export default function AnalyticsMockup() {
       <aside className="mk-side">
         <div className="mk-brand">
           <ZeroMark size={16} />
-          <span>Analytics</span>
+          <span>Pulse</span>
         </div>
         <nav className="mk-nav" aria-hidden="true">
           <span>{t('navWeb')}</span>

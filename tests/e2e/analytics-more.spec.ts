@@ -142,11 +142,11 @@ test('encuestas: crear desde la UI, editar, vista previa y estado', async ({ pag
   const errors = watchErrors(page);
   await page.goto('/en/app/pulse/surveys', { waitUntil: 'networkidle' });
   await expect(page.getByRole('heading', { name: 'No surveys yet' })).toBeVisible();
-  await expect(page.locator('.side-line [aria-current="page"]')).toHaveAttribute('href', /\/app\/analytics\/surveys$/);
+  await expect(page.locator('.side-line [aria-current="page"]')).toHaveAttribute('href', /\/app\/pulse\/surveys$/);
   await page.getByRole('button', { name: 'New survey' }).first().click();
   await page.getByLabel('Name').fill('Launch NPS');
   await page.getByRole('button', { name: 'Create' }).click();
-  await expect(page).toHaveURL(/\/app\/analytics\/surveys\/asv_/);
+  await expect(page).toHaveURL(/\/app\/pulse\/surveys\/asv_/);
   const surveyId = page.url().split('/').pop()!;
   await expect(page.getByRole('heading', { name: 'Launch NPS' })).toBeVisible();
   await expect(page.getByTestId('an-sv-preview')).toContainText('How likely are you to recommend us');
@@ -387,7 +387,7 @@ test('errores: capturar, agrupar, huella del servidor, estado, responsable y reg
   await shots(page, 'errors-list');
 
   await page.getByRole('link', { name: 'PaymentError' }).click();
-  await expect(page).toHaveURL(/\/app\/analytics\/errors\/.+~[0-9a-f]{32}/);
+  await expect(page).toHaveURL(/\/app\/pulse\/errors\/.+~[0-9a-f]{32}/);
   const issuePath = new URL(page.url()).pathname;
   const ref = decodeURIComponent(issuePath.split('/').pop()!);
   await expect(page.getByTestId('an-issue-occurrences')).toHaveText('2');
@@ -494,7 +494,7 @@ test('LLM: ejemplo vacío, valores limpios, por modelo, trazas y detalle', async
   await page.getByLabel('Errors only').uncheck();
 
   await page.getByTestId('an-llm-generations').getByRole('link', { name: 'gpt-x' }).last().click();
-  await expect(page).toHaveURL(/\/app\/analytics\/llm\/\d+/);
+  await expect(page).toHaveURL(/\/app\/pulse\/llm\/\d+/);
   await expect(page.getByTestId('an-llm-detail')).toContainText('openai');
   await expect(page.getByText('<script>window.__pwned=1</script> hi')).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned)).toBeUndefined();

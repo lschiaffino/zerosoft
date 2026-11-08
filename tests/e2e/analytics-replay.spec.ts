@@ -139,7 +139,7 @@ test('apagado por defecto: nada se graba y la página explica cómo prenderlo', 
   await expect(page.getByRole('heading', { name: 'Session replay is off' })).toBeVisible();
   await shot(page, 'recordings-off');
   await page.getByRole('link', { name: 'Open settings' }).click();
-  await expect(page).toHaveURL(/analytics\/settings#replay/);
+  await expect(page).toHaveURL(/pulse\/settings#replay/);
 
   await page.goto('/en/app/pulse/heatmaps', { waitUntil: 'networkidle' });
   await expect(page.getByRole('heading', { name: 'Heatmaps are off' })).toBeVisible();
@@ -280,7 +280,7 @@ test('prender desde los ajustes, grabar en otro origen y reproducir', async ({ p
   // Esc vuelve a la lista.
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('Escape');
-  await expect(page).toHaveURL(/analytics\/replay$/);
+  await expect(page).toHaveURL(/pulse\/replay$/);
 
   expect(errors, errors.join('\n')).toEqual([]);
 });
