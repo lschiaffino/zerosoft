@@ -453,7 +453,9 @@ export function homeAppGroups(
   const can = (k: ProductKey) => !opts.allowed || opts.allowed === '*' || opts.allowed.includes(k);
   const all = APP_SWITCHER_ORDER.filter(can);
   const recent = (opts.recentApps ?? []).filter((k): k is ProductKey => (all as readonly string[]).includes(k));
-  const top = [...new Set([...recent, ...featuredApps({ mode: opts.mode ?? 'team', chosen: opts.chosen }).filter(can), ...all])].slice(0, HOME_APPS_LIMIT);
+  // Con apps elegidas en el onboarding, "Tus apps" son esas (y las recientes); si no, se completa con todas.
+  const chosen = opts.chosen?.length ? opts.chosen.filter(can) : null;
+  const top = [...new Set([...recent, ...featuredApps({ mode: opts.mode ?? 'team', chosen }).filter(can), ...(chosen ? [] : all)])].slice(0, HOME_APPS_LIMIT);
   const rest = all.filter((k) => !top.includes(k));
   const item = (line: ProductKey): NavItem => ({
     href: switcherHref(line),
