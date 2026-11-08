@@ -2,7 +2,21 @@
 
 Una app nativa para Mac y Windows: carga `https://zerosoft.ai/app` (o tu servidor) con el webview del
 sistema (WKWebView en Mac, WebView2 en Windows) y hace en Rust lo que una pestaña no puede. No trae un
-Chromium propio: el instalador pesa unos MB y la memoria en reposo es la de un webview del sistema.
+Chromium propio.
+
+Medido en una Mac mini con Apple silicon (build 0.2.0 del workflow, firma ad hoc):
+
+| | Tauri 0.2.0 | Electron 0.1.2 |
+|---|---|---|
+| .dmg (Apple silicon) | 3,4 MB | 131 MB |
+| .app instalada | 6,7 MB | 311 MB |
+| Instalador de Windows | 2,6 MB | |
+| Ventana creada, primer arranque | 1,4 s (2,1 s desde el exec, con la verificación de macOS) | |
+| Ventana creada, arranques siguientes | 0,29 s (0,6 s desde el exec) | |
+| Memoria en reposo (huella, todos los procesos) | 110 a 116 MB, de los que la app son 24 a 28 MB y el resto los procesos de WebKit (página, Ajustes y HUD) | |
+
+La medición de memoria de Electron no salió comparable (no llegó a abrir el proceso de la página), por
+eso queda vacía. El script está en el informe del PR.
 
 ## Qué hace
 
