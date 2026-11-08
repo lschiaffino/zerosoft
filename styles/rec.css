@@ -298,6 +298,31 @@ section.rec-edit-block { padding-bottom: 20px; }
 dialog.rec-share { width: min(620px, calc(100vw - 32px)); }
 .rec-share-body { display: flex; flex-direction: column; gap: 18px; }
 .rec-share-group { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.rec-share-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rec-share-add { display: flex; gap: 8px; align-items: center; }
+.rec-share-add .input { flex: 1 1 auto; min-width: 0; }
+.rec-share-add .select { flex: 0 0 auto; width: auto; }
+.rec-people { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.rec-person { display: flex; align-items: center; gap: 10px; padding: 8px 10px; min-height: 48px; }
+.rec-person + .rec-person { border-top: 1px solid var(--line); }
+.rec-person-avatar { flex: 0 0 28px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--radius-1); background: var(--bg-soft); color: var(--ink); font-size: 0.8125rem; font-weight: 600; }
+.rec-person-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.rec-person-name, .rec-person-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rec-person-meta { font-size: 0.8125rem; }
+.rec-person-role { flex: 0 0 auto; font-size: 0.875rem; }
+select.rec-person-role { width: auto; }
+.rec-person-empty { font-size: 0.875rem; }
+.rec-share-more summary { cursor: pointer; font-weight: 600; font-size: 0.875rem; padding: 4px 0; }
+.rec-share-more[open] summary { margin-bottom: 10px; }
+.rec-share-foot { flex-wrap: wrap; }
+.rec-share-copy { margin-right: auto; }
+@media (max-width: 520px) {
+  .rec-share-add { flex-wrap: wrap; }
+  .rec-share-add .input { flex-basis: 100%; }
+  .rec-person { flex-wrap: wrap; }
+  .rec-person-who { flex-basis: calc(100% - 38px); }
+  .rec-person-role { margin-left: 38px; }
+}
 
 /* ---------- Comentarios, transcripción, capítulos ---------- */
 
@@ -383,6 +408,7 @@ dialog.rec-share { width: min(620px, calc(100vw - 32px)); }
 .rec-gate-card { width: min(440px, 100%); display: flex; flex-direction: column; gap: 14px; padding: 28px; border: 1px solid var(--line); border-radius: var(--radius-1); }
 .rec-gate-card p { margin: 0; }
 .rec-gate-form { display: flex; flex-direction: column; gap: 12px; }
+.rec-gate-magic { padding-top: 14px; border-top: 1px solid var(--line); }
 
 /* Insertado en un iframe: solo el reproductor. */
 .rec-embed { min-height: 100dvh; display: flex; flex-direction: column; background: #000000; }

@@ -7,8 +7,11 @@
  * - Subida: el navegador sube por partes mientras graba (Blob multipart con
  *   un token de cliente para un path exacto, o partes al disco local en dev
  *   y self-host, que se juntan al completar). Ver lib/rec-upload.ts.
- * - Página pública /v/<share_id>: link (cualquiera) o workspace (miembros
- *   logueados), contraseña opcional y vencimiento. Cada espectador abre una
+ * - Página pública /v/<share_id>, con acceso general restringido (solo quien
+ *   grabó y las personas invitadas por email, el default de lo nuevo),
+ *   workspace (miembros logueados) o link (cualquiera); contraseña y
+ *   vencimiento para el link. Las personas invitadas entran con su cuenta o
+ *   con un link mágico por mail (lib/rec-share.ts). Cada espectador abre una
  *   vista con pings de lo visto; la primera vez de cada uno avisa al autor.
  * - Comentarios y reacciones con el segundo del video; avisan al autor.
  * - Transcripción, título, resumen y capítulos: lib/rec-ai.ts (cron/after).
@@ -37,6 +40,9 @@ import {
   type Range,
   clampTrim,
   cleanCtaUrl,
+  cleanRoles,
+  roleFor,
+  type RecRole,
   normalizeChapters,
   parseChapters,
   trimmedDuration,
@@ -170,6 +176,8 @@ export interface RecVideoRow {
   privacy: 'link' | 'workspace';
   people_only: number;
   allowed_emails: string;
+  /** Rol de cada email invitado ({email: 'viewer' | 'commenter'}); sin rol, comentador. */
+  people_roles: string;
   require_email: number;
   archived_at: string | null;
   space_id: string | null;
@@ -221,6 +229,8 @@ export interface RecVideoDto {
   privacy: RecPrivacy;
   /** Solo para quien administra el video. */
   allowedEmails: string[];
+  /** Rol de cada email invitado (solo para quien administra el video). */
+  peopleRoles: Record<string, RecRole>;
   requireEmail: boolean;
   archived: boolean;
   spaceId: string | null;
@@ -264,6 +274,12 @@ function parseJson<T>(text: string | null | undefined, fallback: T): T {
   }
 }
 
+/** Roles de la lista, completos: cada email de la lista con su rol. */
+export function rolesOf(v: Pick<RecVideoRow, 'allowed_emails'> & { people_roles?: string | null }): Record<string, RecRole> {
+  const stored = parseJson<Record<string, string>>(v.people_roles ?? '{}', {});
+  return Object.fromEntries(parseJson<string[]>(v.allowed_emails, []).map((e) => [e, roleFor(stored, e)]));
+}
+
 export function toDto(row: RecVideoRow & { author_name?: string | null }, actor: RecActor | null): RecVideoDto {
   const manager = actor ? canManage(actor, row) : false;
   const allChapters = parseJson<RecChapter[]>(row.chapters, []);
@@ -291,6 +307,7 @@ export function toDto(row: RecVideoRow & { author_name?: string | null }, actor:
     trimEnd: row.trim_end,
     privacy: row.people_only ? 'people' : row.privacy,
     allowedEmails: manager ? parseJson<string[]>(row.allowed_emails, []) : [],
+    peopleRoles: manager ? rolesOf(row) : {},
     requireEmail: !!row.require_email,
     archived: !!row.archived_at,
     spaceId: row.space_id ?? null,
@@ -711,12 +728,16 @@ export async function createVideo(
   const defaults = (await getDb().prepare('SELECT default_privacy, default_allow_download FROM rec_settings WHERE workspace_id = ?').get(a.ws)) as
     | { default_privacy: string; default_allow_download: number }
     | undefined;
+  // Lo nuevo nace restringido (solo quien graba), salvo que el workspace elija otra cosa.
+  // En un lugar compartido "restringido" es la gente de ese lugar: lo mismo que ya la ve en la biblioteca.
+  const wanted = defaults?.default_privacy === 'workspace' || defaults?.default_privacy === 'link' ? defaults.default_privacy : 'people';
+  const peopleOnly = wanted === 'people' && space === 'personal' ? 1 : 0;
   const id = crypto.randomUUID();
   const mode: RecMode = (['screen_camera', 'screen', 'camera'] as const).includes(input.mode) ? input.mode : 'screen_camera';
   await getDb()
     .prepare(
-      `INSERT INTO rec_videos (id, workspace_id, created_by, share_id, title, title_source, mode, content_type, folder_id, space, space_id, privacy, allow_download)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO rec_videos (id, workspace_id, created_by, share_id, title, title_source, mode, content_type, folder_id, space, space_id, privacy, people_only, allow_download)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -730,7 +751,8 @@ export async function createVideo(
       folderId,
       space,
       spaceId,
-      defaults?.default_privacy === 'workspace' ? 'workspace' : 'link',
+      wanted === 'link' ? 'link' : 'workspace',
+      peopleOnly,
       defaults ? (defaults.default_allow_download ? 1 : 0) : 1,
     );
   return (await rawVideo(id))!;
@@ -757,6 +779,8 @@ export interface RecVideoPatch {
   commentsRequireAccount?: boolean;
   spaceId?: string | null;
   allowedEmails?: string[];
+  /** Rol por email; los que no están en la lista se ignoran. */
+  peopleRoles?: Record<string, RecRole>;
   requireEmail?: boolean;
   archived?: boolean;
   overlays?: unknown;
@@ -828,12 +852,16 @@ export async function updateVideo(a: RecActor, id: string, patch: RecVideoPatch)
       set('space_id', null);
     }
   }
-  // "Solo estas personas" es de videos personales: en un espacio compartido lo ven sus miembros.
-  const finalPeople = patch.privacy !== undefined ? patch.privacy === 'people' : !!v.people_only;
-  if (finalPeople && finalSpace !== 'personal') throw new RecError('people_needs_personal');
+  // "Restringido" es de videos personales: en un espacio compartido lo ven sus miembros.
+  if (patch.privacy === 'people' && finalSpace !== 'personal') throw new RecError('people_needs_personal');
   if (patch.privacy !== undefined) {
     set('privacy', patch.privacy === 'link' ? 'link' : 'workspace');
     set('people_only', patch.privacy === 'people' ? 1 : 0);
+  }
+  // Un video restringido que entra a un lugar compartido lo pasa a ver la gente de ese lugar
+  // (lo mismo que ya la ve en la biblioteca); las personas invitadas siguen.
+  else if (v.people_only && finalSpace !== 'personal') {
+    set('people_only', 0);
   }
   // Igual que al borrar un espacio: "solo workspace" adentro era solo para sus miembros y en un video personal abriría a todos.
   else if (v.space_id && v.privacy === 'workspace' && !v.people_only && finalSpace === 'personal') {
@@ -841,7 +869,12 @@ export async function updateVideo(a: RecActor, id: string, patch: RecVideoPatch)
   }
   if (patch.allowedEmails !== undefined) {
     if (cleanEmails(patch.allowedEmails.slice(0, MAX_REC_ALLOWED)).length < new Set(cleanEmails(patch.allowedEmails)).size || patch.allowedEmails.length > MAX_REC_ALLOWED) throw new RecError('allowed_full');
-    set('allowed_emails', JSON.stringify(cleanEmails(patch.allowedEmails)));
+    const list = cleanEmails(patch.allowedEmails);
+    set('allowed_emails', JSON.stringify(list));
+    // Los roles siguen a la lista: quien sale pierde el suyo.
+    set('people_roles', JSON.stringify(cleanRoles({ ...rolesOf(v), ...(patch.peopleRoles ?? {}) }, list)));
+  } else if (patch.peopleRoles !== undefined) {
+    set('people_roles', JSON.stringify(cleanRoles({ ...rolesOf(v), ...patch.peopleRoles }, parseJson<string[]>(v.allowed_emails, []))));
   }
   if (patch.requireEmail !== undefined) set('require_email', patch.requireEmail ? 1 : 0);
   if (patch.archived !== undefined) set('archived_at', patch.archived ? nowDb() : null);
@@ -970,14 +1003,19 @@ export async function isWatchLater(a: RecActor, id: string): Promise<boolean> {
  * contraseñas distintas no se pueden combinar y se rechaza.
  */
 export function strictestAccess(
-  sources: Array<Pick<RecVideoRow, 'privacy' | 'people_only' | 'allowed_emails' | 'password_hash' | 'expires_at' | 'allow_download' | 'require_email' | 'comments_require_account' | 'space_id'>>,
-): { privacy: 'link' | 'workspace'; people_only: number; allowed_emails: string; password_hash: string | null; expires_at: string | null; allow_download: number; require_email: number; comments_require_account: number } {
+  sources: Array<Pick<RecVideoRow, 'privacy' | 'people_only' | 'allowed_emails' | 'password_hash' | 'expires_at' | 'allow_download' | 'require_email' | 'comments_require_account' | 'space_id'> & { people_roles?: string | null }>,
+): { privacy: 'link' | 'workspace'; people_only: number; allowed_emails: string; people_roles: string; password_hash: string | null; expires_at: string | null; allow_download: number; require_email: number; comments_require_account: number } {
   const limiting = sources.filter((s) => s.privacy === 'workspace' || s.people_only);
   const people = sources.some((s) => s.people_only || (s.privacy === 'workspace' && s.space_id));
   let list: string[] | null = null;
   for (const s of limiting) {
     const own = parseJson<string[]>(s.allowed_emails, []);
     list = list === null ? own : list.filter((e) => own.includes(e));
+  }
+  // Rol: el más chico entre las fuentes que tienen a esa persona (lector si alguna la tenía como lector).
+  const roles: Record<string, RecRole> = {};
+  for (const e of list ?? []) {
+    roles[e] = sources.some((s) => parseJson<string[]>(s.allowed_emails, []).includes(e) && rolesOf({ allowed_emails: s.allowed_emails, people_roles: s.people_roles })[e] === 'viewer') ? 'viewer' : 'commenter';
   }
   const passwords = [...new Set(sources.map((s) => s.password_hash).filter((p): p is string => !!p))];
   if (passwords.length > 1) throw new RecError('join_mixed_password');
@@ -986,6 +1024,7 @@ export function strictestAccess(
     privacy: limiting.length ? 'workspace' : 'link',
     people_only: people ? 1 : 0,
     allowed_emails: JSON.stringify(list ?? []),
+    people_roles: JSON.stringify(roles),
     password_hash: passwords[0] ?? null,
     expires_at: expiries[0] ?? null,
     allow_download: sources.every((s) => s.allow_download) ? 1 : 0,
@@ -1024,7 +1063,7 @@ export async function finalizeDerived(
   await getDb()
     .prepare(
       `UPDATE rec_videos SET status = 'ready', duration_sec = ?, width = ?, height = ?, transcript = ?, transcript_status = ?, transcript_lang = ?,
-         chapters = ?, summary = '', privacy = ?, people_only = ?, allowed_emails = ?, require_email = ?, password_hash = ?, expires_at = ?, allow_download = ?,
+         chapters = ?, summary = '', privacy = ?, people_only = ?, allowed_emails = ?, people_roles = ?, require_email = ?, password_hash = ?, expires_at = ?, allow_download = ?,
          comments_require_account = ?, updated_at = datetime('now')
        WHERE id = ? AND status = 'recording'`,
     )
@@ -1039,6 +1078,7 @@ export async function finalizeDerived(
       access.privacy,
       access.people_only,
       access.allowed_emails,
+      access.people_roles,
       access.require_email,
       access.password_hash,
       access.expires_at,
@@ -1125,6 +1165,18 @@ export interface PublicViewer {
   spaceMember?: boolean;
   /** Ya dejó su email para este video (sin login). */
   emailPassed?: boolean;
+  /** Email verificado por un link mágico de este video (cookie firmada, lib/rec-share.ts). */
+  inviteEmail?: string | null;
+}
+
+/** Email de la lista con el que entra esta persona (el de su sesión o el de su link mágico), o null. */
+export function listedEmail(v: Pick<RecVideoRow, 'allowed_emails'>, viewer: Pick<PublicViewer, 'email' | 'inviteEmail'>): string | null {
+  const list = parseJson<string[]>(v.allowed_emails, []);
+  for (const raw of [viewer.email, viewer.inviteEmail]) {
+    const e = raw?.trim().toLowerCase();
+    if (e && list.includes(e)) return e;
+  }
+  return null;
 }
 
 /** Valor de la cookie del pedido de email: cambia si se rota el link. */
@@ -1137,10 +1189,15 @@ export function emailGateCookie(shareId: string): string {
 }
 
 /**
- * ¿Puede ver este video quien abrió el link? Solo el autor saltea las
- * reglas (para revisarlo aun vencido o con contraseña). Un miembro del
- * workspace pasa "solo workspace" pero respeta contraseña y vencimiento
- * como cualquiera. `unlock` es el valor de la cookie de la contraseña.
+ * ¿Puede ver este video quien abrió el link? En orden:
+ * - quien lo grabó: siempre (para revisarlo aun vencido o con contraseña);
+ * - una persona invitada por email (con su sesión o su link mágico): siempre;
+ *   la contraseña, el vencimiento y el pedido de email son del link, no de ella;
+ * - el acceso general: restringido frena a todos los demás; workspace deja
+ *   pasar a los miembros (del espacio, si está en uno); link, a cualquiera.
+ *   Después, vencimiento, contraseña y pedido de email, también para miembros.
+ * La privacidad se mira antes que el vencimiento: a quien no tiene acceso no
+ * se le dice ni que el link venció. `unlock` es el valor de la cookie de la contraseña.
  */
 export function publicAccess(
   v: Pick<RecVideoRow, 'workspace_id' | 'created_by' | 'share_id' | 'password_hash' | 'expires_at' | 'privacy'> & Partial<Pick<RecVideoRow, 'people_only' | 'allowed_emails' | 'require_email' | 'space_id'>>,
@@ -1149,16 +1206,35 @@ export function publicAccess(
   now = Date.now(),
 ): PublicAccess {
   if (viewer.userId && viewer.userId === v.created_by && viewer.ws === v.workspace_id) return 'ok';
-  if (v.expires_at && dbTime(v.expires_at) <= now) return 'expired';
-  const listed = !!viewer.email && parseJson<string[]>(v.allowed_emails, []).includes(viewer.email.trim().toLowerCase());
+  if (listedEmail({ allowed_emails: v.allowed_emails ?? '[]' }, viewer)) return 'ok';
   const member = viewer.ws === v.workspace_id && (!v.space_id || viewer.spaceMember === true);
-  if (v.people_only ? !listed : v.privacy === 'workspace' && !member && !listed) return viewer.userId || viewer.ws ? 'forbidden' : 'signin';
+  if (v.people_only || (v.privacy === 'workspace' && !member)) return viewer.userId || viewer.ws ? 'forbidden' : 'signin';
+  if (v.expires_at && dbTime(v.expires_at) <= now) return 'expired';
   if (v.password_hash) {
     const want = unlockToken(v);
     if (!unlock || unlock.length !== want.length || !timingSafeEqual(Buffer.from(unlock), Buffer.from(want))) return 'password';
   }
   if (v.require_email && !viewer.userId && !viewer.emailPassed) return 'email';
   return 'ok';
+}
+
+/**
+ * ¿Puede comentar quien ya pasó publicAccess? Quien grabó, siempre. Si los
+ * comentarios están prendidos: quien entra por el acceso general (link o
+ * workspace) y, entre las personas invitadas, las que tienen rol de
+ * comentador. Con más de un camino vale el más amplio (como en Drive).
+ * "Solo con cuenta" se sigue pidiendo aparte (addComment).
+ */
+export function canCommentAs(
+  v: Pick<RecVideoRow, 'workspace_id' | 'created_by' | 'privacy' | 'people_only' | 'allowed_emails' | 'allow_comments' | 'space_id'> & { people_roles?: string | null },
+  viewer: PublicViewer,
+): boolean {
+  if (viewer.userId && viewer.userId === v.created_by && viewer.ws === v.workspace_id) return true;
+  if (!v.allow_comments) return false;
+  const member = viewer.ws === v.workspace_id && (!v.space_id || viewer.spaceMember === true);
+  if (!v.people_only && (v.privacy === 'link' || member)) return true;
+  const listed = listedEmail(v, viewer);
+  return !!listed && roleFor(parseJson<Record<string, string>>(v.people_roles ?? '{}', {}), listed) === 'commenter';
 }
 
 export interface PublicVideoDto {
@@ -1354,12 +1430,14 @@ export async function getAnalytics(a: RecActor, id: string): Promise<RecAnalytic
   if (!canManage(a, v)) throw new RecError('forbidden', 403);
   const rows = (await getDb()
     .prepare(
-      `SELECT w.viewer_key, w.user_id, w.viewer_name, w.watched_sec, w.max_position, w.duration_sec, w.cta_clicks, w.ranges, w.started_at, e.email AS gate_email
+      `SELECT w.viewer_key, w.user_id, w.viewer_name, w.watched_sec, w.max_position, w.duration_sec, w.cta_clicks, w.ranges, w.started_at, e.email AS gate_email, lower(u.email) AS user_email
        FROM rec_views w LEFT JOIN rec_viewer_emails e ON e.video_id = w.video_id AND e.viewer_key = w.viewer_key
+       LEFT JOIN users u ON u.id = w.user_id
        WHERE w.video_id = ? ORDER BY w.started_at DESC LIMIT 5000`,
     )
     .all(id)) as Array<{
     gate_email: string | null;
+    user_email: string | null;
     viewer_key: string;
     user_id: string | null;
     viewer_name: string;
@@ -1371,6 +1449,10 @@ export async function getAnalytics(a: RecActor, id: string): Promise<RecAnalytic
     started_at: string;
   }>;
   const visible = trimmedDuration(v.duration_sec, v.trim_start, v.trim_end);
+  // Quién miró: el email que dejó en el pedido, el de su link mágico, o el de su cuenta si es una persona invitada.
+  const invited = new Set(parseJson<string[]>(v.allowed_emails, []));
+  const emailOf = (r: { gate_email: string | null; user_email: string | null; viewer_key: string }) =>
+    r.gate_email ?? (r.viewer_key.startsWith('i:') ? r.viewer_key.slice(2) : r.user_email && invited.has(r.user_email) ? r.user_email : '');
   const by = new Map<string, RecViewerRow & { ranges: Range[] }>();
   let ctaClicks = 0;
   for (const r of rows) {
@@ -1383,7 +1465,7 @@ export async function getAnalytics(a: RecActor, id: string): Promise<RecAnalytic
       by.set(r.viewer_key, {
         viewerKey: r.viewer_key,
         name: r.viewer_name,
-        email: r.gate_email ?? '',
+        email: emailOf(r),
         signedIn: !!r.user_id,
         views: 1,
         watchedSec: r.watched_sec,

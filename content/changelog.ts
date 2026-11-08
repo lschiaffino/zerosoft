@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-rec-sharing',
+    date: '2026-11-08',
+    title: {
+      en: 'Rec: new videos are private, and you choose who watches',
+      es: 'Rec: los videos nuevos son privados y elegís quién los ve',
+      pt: 'Rec: os vídeos novos são privados e você escolhe quem assiste',
+    },
+    items: [
+      {
+        product: 'rec',
+        en: 'New recordings start restricted: only you and the people you invite can open the link. Admins can change the default in Rec settings. Videos already shared by link keep working and show as "Anyone with the link" in Share, so you can restrict them.',
+        es: 'Lo que grabás arranca restringido: el link lo abren solo vos y las personas que invites. Los admins pueden cambiar el default en los ajustes de Rec. Los videos que ya estaban compartidos por link siguen andando y aparecen como "Cualquiera con el link" en Compartir, para que los puedas restringir.',
+        pt: 'O que você grava começa restrito: só você e as pessoas que convidar abrem o link. Admins podem mudar o padrão nos ajustes do Rec. Os vídeos já compartilhados por link continuam funcionando e aparecem como "Qualquer pessoa com o link" em Compartilhar, para você poder restringir.',
+      },
+      {
+        product: 'rec',
+        en: 'Share works like Drive: invite workspace members or any email as viewer or commenter, see who has access and who watched, change roles and remove people. People outside the workspace get a sign-in link by email; anyone without access can ask for it from the video page.',
+        es: 'Compartir funciona como en Drive: invitás a miembros del workspace o a cualquier email como lector o comentador, ves quién tiene acceso y quién lo vio, cambiás roles y quitás personas. A la gente de afuera le llega un link por mail para entrar; quien no tiene acceso lo puede pedir desde la página del video.',
+        pt: 'Compartilhar funciona como no Drive: você convida membros do workspace ou qualquer email como leitor ou comentador, vê quem tem acesso e quem assistiu, muda papéis e remove pessoas. Quem é de fora recebe um link por email para entrar; quem não tem acesso pode pedir na página do vídeo.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-docs-editor-notion',
     date: '2026-11-08',
     title: {

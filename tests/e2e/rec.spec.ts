@@ -65,7 +65,8 @@ async function uploadVideo(request: APIRequestContext, body: Buffer, title: stri
   expect(put.status()).toBe(204);
   await ok(request.post(`/api/rec/videos/${video.id}/complete`, { data: { kind: 'video', contentType: 'video/webm', parts: 1 } }));
   await ok(request.post(`/api/rec/videos/${video.id}/finalize`, { data: { durationSec } }));
-  await ok(request.patch(`/api/rec/videos/${video.id}`, { data: { title } }));
+  // Lo nuevo nace restringido: estas pruebas son del link abierto.
+  await ok(request.patch(`/api/rec/videos/${video.id}`, { data: { title, privacy: 'link' } }));
   return video;
 }
 
@@ -224,7 +225,7 @@ test('biblioteca: carpeta nueva, mover, renombrar y borrar sin recargar; ⌘K', 
   await expect(again).toHaveCount(0);
 });
 
-test('mover: "solo estas personas" avisa y no deja mover a donde no se puede', async ({ page }) => {
+test('mover: un restringido avisa que en lo compartido lo ve esa gente', async ({ page }) => {
   await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
   const body = await makeWebm(page);
   const title = `People ${uid()}`;
@@ -234,11 +235,11 @@ test('mover: "solo estas personas" avisa y no deja mover a donde no se puede', a
   await page.getByRole('button', { name: 'Move', exact: true }).first().click();
   const move = page.getByRole('dialog', { name: 'Move video' });
   await move.getByText('Workspace', { exact: true }).click();
-  await expect(move.getByTestId('rec-move-notice')).toContainText('Only specific people');
-  // Si el aviso ya dice que no se puede, Mover no se ofrece y no hay un error repitiéndolo.
-  await expect(move.getByTestId('rec-move-submit')).toBeDisabled();
+  await expect(move.getByTestId('rec-move-notice')).toContainText('its members can watch');
+  // El aviso cuenta qué cambia, no frena.
+  await expect(move.getByTestId('rec-move-submit')).toBeEnabled();
   await expect(move.getByTestId('rec-move-error')).toHaveCount(0);
-  // Volviendo a un destino posible, se puede de nuevo.
+  // En Mis videos no cambia nada.
   await move.getByText('My videos', { exact: true }).click();
   await expect(move.getByTestId('rec-move-notice')).toHaveCount(0);
   await page.keyboard.press('Escape');
@@ -252,7 +253,8 @@ test('compartir: contraseña, vencimiento, solo workspace, comentarios, reaccion
   await page.goto(`/en/app/rec/${v.id}`, { waitUntil: 'networkidle' });
   await page.getByTestId('rec-share').click();
   const share = page.getByRole('dialog', { name: 'Share' });
-  await expect(share.getByRole('textbox', { name: 'Link', exact: true })).toHaveValue(new RegExp(`/en/v/${v.shareId}$`));
+  await expect(share.getByTestId('rec-share-access')).toHaveValue('link');
+  await share.getByText('Embed and reset link').click();
   await expect(share.getByRole('textbox', { name: 'Embed', exact: true })).toHaveValue(new RegExp(`/en/v/${v.shareId}/embed`));
   await share.getByLabel('Password (optional)').fill('secret12');
   await share.getByTestId('rec-share-save').click();

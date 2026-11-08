@@ -30,7 +30,7 @@ export async function resolvePublicPage(
   const jar = await cookies();
   const viewer = await publicViewerFor(v, user, (n) => jar.get(n)?.value);
   const access = publicAccess(v, viewer, jar.get(unlockCookieName(v.share_id))?.value ?? null);
-  // El título no se muestra si hay contraseña o es solo del workspace.
+  // El título no se muestra a quien no tiene acceso (restringido, workspace o contraseña).
   if (access !== 'ok') {
     let requestStatus: string | null = null;
     if (access === 'forbidden' && viewer.email) {
@@ -38,7 +38,8 @@ export async function resolvePublicPage(
       // Aprobado y sin acceso: se lo sacaron después, puede volver a pedirlo.
       requestStatus = row?.status === 'approved' ? null : row?.status ?? null;
     }
-    return { state: access, title: access === 'expired' ? v.title : '', signedIn: !!viewer.userId, requestStatus };
+    // Solo "venció" muestra el título, y solo a quien ya pasó la privacidad y sin contraseña de por medio.
+    return { state: access, title: access === 'expired' && !v.password_hash ? v.title : '', signedIn: !!viewer.userId, requestStatus };
   }
   const isAuthor = !!viewer.userId && viewer.userId === v.created_by && viewer.ws === v.workspace_id;
   // El autor ve todo, aun con recorte; los demás, lo que queda dentro.
