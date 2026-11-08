@@ -393,7 +393,16 @@
       "stylesDesc": "Un mismo dictado se escribe distinto en un email y en un chat. Voice toma el contexto de la app y del campo.",
       "commandMode": "Command Mode: con texto seleccionado, decí qué hacer con él",
       "commandModeHelp": "Seleccioná texto en un campo, mantené {shortcut} y decí \"hacelo más corto\" o \"traducilo al inglés\". La selección se reemplaza. Apagado por defecto.",
-      "learnCorrections": "Aprender de mis correcciones: corregir un dictado en el historial suma los nombres y términos corregidos al diccionario"
+      "learnCorrections": "Aprender de mis correcciones: corregir un dictado en el historial suma los nombres y términos corregidos al diccionario",
+      "cleanupMode": "Limpieza",
+      "cleanupModeHelp": "Vale acá y en la app de escritorio. Sin limpieza deja lo que dijiste palabra por palabra, solo con los reemplazos del diccionario.",
+      "cleanupModes": {
+        "raw": "Sin limpieza (tal cual)",
+        "clean": "Limpio",
+        "formal": "Formal en todas las apps",
+        "per_app": "Según la app (estilos de abajo)"
+      },
+      "stylesNote": "Se usan cuando la limpieza está en Según la app."
     },
     "dictionary": {
       "title": "Diccionario",
@@ -477,7 +486,9 @@
       "webhooksTitle": "Webhooks y Flow",
       "webhooksDesc": "voice.meeting.completed y voice.notes.ready llegan solo a los webhooks y flows que creó quien grabó la reunión. Crear webhooks y flows es de los admins, así que las reuniones de un member todavía no llegan a ningún webhook.",
       "webhooksLink": "Configurar webhooks",
-      "step2Link": "Ajustes > API"
+      "step2Link": "Ajustes > API",
+      "what4": "Los ajustes de la app (idioma, limpieza, diccionario) son los mismos que ves acá, y su historial muestra los mismos dictados, para copiarlos o pegarlos de nuevo.",
+      "what5": "Sin conexión, la grabación queda guardada en la compu y se puede mandar de nuevo desde la barra de menú o el historial."
     },
     "prompts": {
       "recipes": {

@@ -13,10 +13,10 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
 // Se arma en cada pedido: el release sale del data cache (10 min, lib/desktop-release.ts), no del build.
 export const dynamic = 'force-dynamic';
 
-const FEATURES = ['f1', 'f2', 'f3', 'f4'] as const;
+const FEATURES = ['f1', 'f5', 'f2', 'f3', 'f4'] as const;
 
 /**
- * /download: la app de escritorio (desktop/, Electron) para Mac y Windows.
+ * /download: la app de escritorio (desktop/, Tauri) para Mac y Windows.
  * Los links salen del último release desktop-v* de GitHub; el botón grande
  * es el del sistema de quien mira (DownloadButtons). Mientras no haya firma
  * ni notarización, la página lo dice y explica cómo abrirla.

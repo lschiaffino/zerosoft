@@ -19,6 +19,7 @@ import {
   countWords,
   DEFAULT_VOICE_SETTINGS,
   speakerKey,
+  VOICE_CLEANUP_MODES,
   VOICE_CONTEXTS,
   VOICE_DICTIONARY_MAX,
   VOICE_REMINDER_MINUTES,
@@ -150,6 +151,9 @@ export function normalizeSettings(raw: unknown): VoiceSettings {
     language: typeof v.language === 'string' && /^(auto|[a-z]{2})$/.test(v.language) ? v.language : DEFAULT_VOICE_SETTINGS.language,
     shortcut: typeof v.shortcut === 'string' && /^[A-Za-z+ ]{3,30}$/.test(v.shortcut) ? v.shortcut : DEFAULT_VOICE_SETTINGS.shortcut,
     showBar: typeof v.showBar === 'boolean' ? v.showBar : DEFAULT_VOICE_SETTINGS.showBar,
+    cleanupMode: (VOICE_CLEANUP_MODES as readonly string[]).includes(String(v.cleanupMode))
+      ? (v.cleanupMode as VoiceSettings['cleanupMode'])
+      : DEFAULT_VOICE_SETTINGS.cleanupMode,
     aiCleanup: typeof v.aiCleanup === 'boolean' ? v.aiCleanup : DEFAULT_VOICE_SETTINGS.aiCleanup,
     commandMode: typeof v.commandMode === 'boolean' ? v.commandMode : DEFAULT_VOICE_SETTINGS.commandMode,
     learnCorrections: typeof v.learnCorrections === 'boolean' ? v.learnCorrections : DEFAULT_VOICE_SETTINGS.learnCorrections,
