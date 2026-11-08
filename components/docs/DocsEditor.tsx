@@ -3850,12 +3850,27 @@ export default function DocsEditor({
   };
 
   /** Un bloque suelto (no contenedor) con su asa, menú, comentarios y el "+" de abajo. */
+  // Con 500 bloques, armar el JSX de todos en cada tecla costaba más de 100 ms: cada bloque
+  // reusa su elemento mientras no cambie nada de lo que muestra. Los handlers del asa y del
+  // "+" pasan por una ref con la versión más nueva, así un elemento reusado nunca llama a
+  // una versión vieja. Con el menú del bloque abierto se arma siempre de nuevo.
+  const leafLatest = useRef({ handleGripPointerDown, handleGripPointerMove, handleGripPointerUp, handleGripPointerCancel, handleGripClick, selectBlocks, insertBlock, onBlockComment, blockSel, focusIndex });
+  leafLatest.current = { handleGripPointerDown, handleGripPointerMove, handleGripPointerUp, handleGripPointerCancel, handleGripClick, selectBlocks, insertBlock, onBlockComment, blockSel, focusIndex };
+  const leafCache = useRef(new Map<string, { deps: unknown[]; el: ReactNode }>());
   const renderLeaf = (block: DocsBlock, index: number) => {
           const commentCount = commentCounts?.[block.id] ?? 0;
           const indent = visualIndent(blocks, index);
           const isHidden = hidden[index];
           const selected = !isHidden && index >= selMin && index <= selMax;
-          return (
+          const container = containerOf(blocks, index);
+          const deps: unknown[] = [
+            block, index, indent, isHidden, selected, dragIndex === index, commentCount, numbers[index], depths[index], focusIndex === index,
+            noEdit[index], mode, uploadsEnabled, embedded, pageLinks, container, t, Boolean(onBlockComment),
+            block.type === 'database' ? dbHooks : null, block.type === 'toc' ? toc : null, block.type === 'breadcrumb' ? trail : null,
+          ];
+          const cached = blockMenu === index ? undefined : leafCache.current.get(block.id);
+          if (cached && cached.deps.length === deps.length && cached.deps.every((d, i) => d === deps[i])) return cached.el;
+          const el = (
             <Fragment key={block.id}>
               <div
                 className={`docs-block-outer${dragIndex === index ? ' dragging' : ''}${blockMenu === index ? ' menu-open' : ''}${isHidden ? ' is-hidden' : ''}${selected ? ' is-selected' : ''}${block.suggestion ? ' is-suggested-block' : ''}`}
@@ -3863,7 +3878,7 @@ export default function DocsEditor({
                 style={indent ? ({ '--docs-indent': indent } as CSSProperties) : undefined}
                 data-indent={indent || undefined}
                 data-bi={index}
-                data-in={containerOf(blocks, index)}
+                data-in={container}
                 data-block-anchor={block.id}
                 data-color={block.color}
                 aria-hidden={isHidden || undefined}
@@ -3874,18 +3889,19 @@ export default function DocsEditor({
                   aria-label={t('editor.blockMenu.dragHandle')}
                   title={t('editor.blockMenu.dragHandle')}
                   data-no-drag
-                  onPointerDown={(e) => handleGripPointerDown(e, index)}
-                  onPointerMove={handleGripPointerMove}
-                  onPointerUp={handleGripPointerUp}
-                  onPointerCancel={handleGripPointerCancel}
+                  onPointerDown={(e) => leafLatest.current.handleGripPointerDown(e, index)}
+                  onPointerMove={(e) => leafLatest.current.handleGripPointerMove(e)}
+                  onPointerUp={(e) => leafLatest.current.handleGripPointerUp(e)}
+                  onPointerCancel={(e) => leafLatest.current.handleGripPointerCancel(e)}
                   onClick={(e) => {
+                    const L = leafLatest.current;
                     // Shift+click en el asa: extiende la selección de bloques.
                     if (e.shiftKey) {
                       e.preventDefault();
-                      selectBlocks(blockSel ? blockSel.anchor : focusIndex, index);
+                      L.selectBlocks(L.blockSel ? L.blockSel.anchor : L.focusIndex, index);
                       return;
                     }
-                    handleGripClick(index);
+                    L.handleGripClick(index);
                   }}
                 >
                   <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden>
@@ -3932,7 +3948,7 @@ export default function DocsEditor({
                   <button
                     type="button"
                     className={`docs-block-comment${commentCount > 0 ? ' has-comments' : ''}`}
-                    onClick={() => onBlockComment(block.id)}
+                    onClick={() => leafLatest.current.onBlockComment?.(block.id)}
                     aria-label={t('comments.commentBlock')}
                     title={t('comments.commentBlock')}
                   >
@@ -3987,13 +4003,16 @@ export default function DocsEditor({
                   title={t('editor.blockMenu.insertBelow')}
                   data-no-drag
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => insertBlock(index, 'paragraph')}
+                  onClick={() => leafLatest.current.insertBlock(index, 'paragraph')}
                 >
                   <DocsGlyph name="plus" size={12} />
                 </button>
               </div>
             </Fragment>
           );
+          if (blockMenu !== index) leafCache.current.set(block.id, { deps, el });
+          else leafCache.current.delete(block.id);
+          return el;
   };
 
   /** Asa de un contenedor (columnas, sincronizado): arrastra todo y abre su menú. */

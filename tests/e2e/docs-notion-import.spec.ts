@@ -87,7 +87,7 @@ test('Notion: export real con árbol, relación entre bases, toggles e imagen; r
   await expect(preview.getByText(wikiTitle)).toBeVisible();
   await expect(preview.getByText('Private & Shared')).toHaveCount(0);
   await expect(preview.getByText('Ship importer')).toHaveCount(0);
-  await preview.getByRole('button', { name: /^Import \d+ pages$/ }).click();
+  await preview.getByRole('button', { name: /^Import \d+ pages and 2 databases$/ }).click();
   const done = page.getByTestId('notion-import-done');
   await expect(done).toBeVisible({ timeout: 90_000 });
   await expect(done).toContainText('2 databases');

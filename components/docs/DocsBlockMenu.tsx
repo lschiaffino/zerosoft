@@ -141,6 +141,7 @@ const DocsBlockMenu = forwardRef<
       type="button"
       role="menuitem"
       className={`docs-bmenu-item${a.danger ? ' docs-bmenu-danger' : ''}${flat[active]?.id === a.id ? ' is-active' : ''}`}
+      data-testid={`docs-bmenu-${a.id === 'copy' ? 'copy-link' : a.id}`}
       disabled={a.disabled}
       onMouseEnter={() => setActive(i)}
       onClick={() => runAction(a)}

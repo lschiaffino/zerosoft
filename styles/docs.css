@@ -517,7 +517,7 @@
 /* Placeholder en ::after: ::before es la viñeta o el número de las listas.
    Como en Notion, solo en el bloque enfocado (los títulos vacíos lo muestran siempre). */
 .docs-editable:empty::after { content: attr(data-placeholder); display: inline-block; max-width: 100%; vertical-align: top; color: var(--brand-gray-3); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.docs-block:not(.focused) .docs-editable:not(.docs-heading):empty::after { content: none; }
+.docs-editable:not(.docs-heading):not(:focus):empty::after { content: none; }
 /* Un ítem de lista vacío conserva la altura de un renglón (la marca se apoya en él). */
 .docs-editable:empty { display: block; }
 .docs-editor-small { --docs-text: 0.9375rem; }

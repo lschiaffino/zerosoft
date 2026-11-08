@@ -244,7 +244,7 @@ test('Docs: export de Notion con árbol, links, imagen y base con filas', async 
   await expect(preview.getByText(dbName)).toBeVisible();
   // La fila no aparece como página: va como cuerpo de la fila.
   await expect(preview.getByText('Escribir spec')).toHaveCount(0);
-  await preview.getByRole('button', { name: 'Import 3 pages' }).click();
+  await preview.getByRole('button', { name: 'Import 2 pages and 1 database' }).click();
   const done = page.getByTestId('notion-import-done');
   await expect(done).toBeVisible({ timeout: 45_000 });
   await done.getByRole('link', { name: `Open ${root}` }).click();
