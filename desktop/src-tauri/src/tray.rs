@@ -23,8 +23,14 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let recording = dictation::is_recording(app);
     let key = shortcut_label(&shortcut);
     let hint = if mode == "toggle" { None } else { Some(fill(&t(l, "dictateHint"), &[("key", &key)])) };
-    let mut b = MenuBuilder::new(app)
-        .item(&MenuItem::with_id(app, "open", t(l, "open"), true, None::<&str>)?)
+    let recording_meeting = st.recording.lock().unwrap().is_some();
+    let mut b = MenuBuilder::new(app).item(&MenuItem::with_id(app, "open", t(l, "open"), true, None::<&str>)?);
+    if recording_meeting {
+        b = b
+            .item(&MenuItem::with_id(app, "rec-open", t(l, "recOpenItem"), true, None::<&str>)?)
+            .item(&MenuItem::with_id(app, "rec-stop", t(l, "recStopItem"), true, None::<&str>)?);
+    }
+    b = b
         .separator()
         .item(&MenuItem::with_id(app, "dictate", if recording { t(l, "dictateStop") } else { t(l, "dictateStart") }, true, None::<&str>)?);
     if let Some(h) = hint {
@@ -50,6 +56,8 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
 pub fn on_menu(app: &AppHandle, id: &str) {
     match id {
         "open" => crate::show_main(app),
+        "rec-open" => crate::indicator::open(app),
+        "rec-stop" => crate::indicator::stop(app),
         "dictate" => {
             if dictation::is_recording(app) {
                 dictation::stop(app);

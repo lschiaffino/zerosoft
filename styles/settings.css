@@ -531,3 +531,40 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
 .st-nowrap { white-space: nowrap; }
 /* Un nombre sin espacios (lo elige el cliente) no se sale del diálogo. */
 .ui-confirm .ui-modal-title, .ui-confirm .ui-modal-body { overflow-wrap: anywhere; }
+
+/* Avisos › Emails de zerosoft: una fila por categoría con su ayuda debajo. */
+.st-email-prefs { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.st-email-prefs:disabled .st-email-pref { opacity: 0.55; cursor: default; }
+.st-email-pref { display: flex; max-width: 62ch; }
+.st-email-pref > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.st-email-pref-label { font-weight: 500; }
+.st-email-pref-help { margin: 0; }
+.st-email-pref-all { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); max-width: none; }
+
+/* Admin › Emails: lista de plantillas a la izquierda, vista previa a la derecha. */
+.st-lc-mode { margin: 0; padding: 10px 12px; font-size: 0.875rem; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--brand-enamel); }
+.st-lc-mode-off { border-color: var(--ink); }
+.st-lc { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: start; }
+.st-lc-templates ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.st-lc-template { display: block; padding: 5px 8px; font-family: var(--font-data); font-size: 0.8125rem; color: var(--ink-2, var(--ink)); text-decoration: none; border-radius: var(--radius-1); overflow-wrap: anywhere; }
+.st-lc-template:hover { background: var(--ui-hover); color: var(--ink); }
+.st-lc-template[aria-current='page'] { background: var(--ink); color: var(--bg); }
+.st-lc-template:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.st-lc-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.st-lc-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.st-lc-meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 0; font-size: 0.875rem; }
+.st-lc-meta > div { display: contents; }
+.st-lc-meta dt { color: var(--muted, var(--ink)); }
+.st-lc-meta dd { margin: 0; overflow-wrap: anywhere; }
+.st-lc-frame { display: flex; justify-content: center; padding: 16px 0; border: 1px solid var(--line); border-radius: var(--radius-1); background: #f4f4f2; overflow: hidden; }
+.st-lc-frame-dark { background: #111111; }
+.st-lc-frame iframe { display: block; max-width: 100%; border: 0; background: transparent; }
+.st-lc-text summary { cursor: pointer; font-size: 0.875rem; }
+.st-lc-text pre { margin: 8px 0 0; padding: 12px; max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-data); font-size: 0.8125rem; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.st-lc-send { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.st-lc-log { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.st-lc-email { overflow-wrap: anywhere; }
+@media (max-width: 860px) {
+  .st-lc { grid-template-columns: minmax(0, 1fr); }
+  .st-lc-templates ul { flex-direction: row; flex-wrap: wrap; }
+}

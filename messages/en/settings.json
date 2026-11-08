@@ -323,7 +323,43 @@
     "colVotes": "Votes",
     "colVisibility": "Visibility",
     "colCreated": "Created",
-    "kanbanMore": "{count, plural, one {Show # more column} other {Show # more columns}}"
+    "kanbanMore": "{count, plural, one {Show # more column} other {Show # more columns}}",
+    "lifecycle": {
+      "emails": "Emails",
+      "emailsDesc": "Lifecycle emails: a preview of every template with sample data, and the latest sends.",
+      "mode": {
+        "resend": "Sent with Resend.",
+        "console": "Console mode: emails go to the server log, not to people.",
+        "off": "Off: no email provider is configured (RESEND_API_KEY). The cron sends nothing."
+      },
+      "template": "Template",
+      "language": "Language",
+      "theme": "Theme",
+      "width": "Width",
+      "light": "Light",
+      "dark": "Dark",
+      "subject": "Subject",
+      "preheader": "Preheader",
+      "textVersion": "Plain text version",
+      "previewTitle": "Email preview",
+      "sendTest": "Send it to me",
+      "sendTestHelp": "Sends this template to {email} with sample data.",
+      "testSent": "Sent to {email}.",
+      "testFailed": "Couldn't send: {error}",
+      "log": "Latest sends",
+      "logEmpty": "No lifecycle email has gone out yet.",
+      "colWhen": "When",
+      "colTo": "To",
+      "colTemplate": "Template",
+      "colLocale": "Language",
+      "colStatus": "Status",
+      "status": {
+        "sending": "Sending",
+        "sent": "Sent",
+        "failed": "Failed",
+        "skipped": "Skipped"
+      }
+    }
   },
   "groups": {
     "account": "Account and workspace",
@@ -1182,5 +1218,57 @@
     "originLocal": "App on a computer",
     "originDevice": "Signed in with a device code",
     "emptyAction": "How to connect"
+  },
+  "emailPrefs": {
+    "title": "Emails from zerosoft",
+    "desc": "What we send to help you get the most out of zerosoft. Account emails (sign-in codes, invites, bookings and app notifications) still arrive.",
+    "categories": {
+      "onboarding": {
+        "label": "Getting started",
+        "help": "What's left to set up in your first days."
+      },
+      "tips": {
+        "label": "Features and tips",
+        "help": "Features you haven't used yet that fit your apps."
+      },
+      "team": {
+        "label": "Your team",
+        "help": "If you manage a workspace: reminders to invite people."
+      },
+      "reengagement": {
+        "label": "Reminders",
+        "help": "A note if two weeks go by without you signing in."
+      },
+      "digest": {
+        "label": "Weekly summary",
+        "help": "Monday mornings, what happened in your workspace. If nothing happened, it doesn't arrive."
+      }
+    },
+    "all": "Stop all of these emails",
+    "allHelp": "Turns off everything above. Account emails still arrive.",
+    "saveError": "Couldn't save your preferences. Try again.",
+    "appsTitle": "App notifications",
+    "appsDesc": "Track has its own email notifications.",
+    "track": "Track notifications",
+    "unsub": {
+      "metaTitle": "Unsubscribe",
+      "title": "Unsubscribe",
+      "body": "You'll stop getting {category}. Account emails still arrive.",
+      "bodyAll": "You'll stop getting every zerosoft email that isn't about your account.",
+      "confirm": "Unsubscribe",
+      "working": "Saving…",
+      "done": "Done. You won't get {category} anymore.",
+      "doneAll": "Done. You won't get these emails anymore.",
+      "invalid": "This link is invalid or incomplete. You can choose which emails you get in Settings.",
+      "error": "Couldn't finish. Try again.",
+      "manage": "Choose which emails you get",
+      "categories": {
+        "onboarding": "getting started emails",
+        "tips": "feature tips",
+        "team": "team reminders",
+        "reengagement": "reminders",
+        "digest": "the weekly summary"
+      }
+    }
   }
 }

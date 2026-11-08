@@ -65,6 +65,10 @@ export interface GroupsSettings {
    * ni persona asignada (se configura desde Agents > Canales). null: ninguno.
    */
   defaultAgentId: string | null;
+  /** Al leer un chat en Groups, WhatsApp le muestra las tildes azules al cliente (solo QR: Evolution). */
+  readReceipts: boolean;
+  /** Los chats archivados siguen archivados cuando llega un mensaje nuevo (como WhatsApp hoy). */
+  keepArchived: boolean;
 }
 
 export const DEFAULT_SETTINGS: GroupsSettings = {
@@ -83,6 +87,8 @@ export const DEFAULT_SETTINGS: GroupsSettings = {
   slaEmailExtra: [],
   locale: 'en',
   defaultAgentId: null,
+  readReceipts: false,
+  keepArchived: true,
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -135,6 +141,8 @@ export function normalizeSettings(raw: unknown): GroupsSettings {
     slaEmailExtra: parseEmails(r.slaEmailExtra),
     locale: r.locale === 'es' || r.locale === 'pt' ? r.locale : 'en',
     defaultAgentId: typeof r.defaultAgentId === 'string' && /^[A-Za-z0-9-]{1,100}$/.test(r.defaultAgentId) ? r.defaultAgentId : null,
+    readReceipts: r.readReceipts === true,
+    keepArchived: typeof r.keepArchived === 'boolean' ? r.keepArchived : DEFAULT_SETTINGS.keepArchived,
   };
 }
 

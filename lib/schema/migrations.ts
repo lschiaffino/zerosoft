@@ -8724,10 +8724,83 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },  {
+    // Emails de ciclo de vida (lib/lifecycle): estado por persona (última
+    // actividad, claim del cron), señales que no salen de otras tablas, el log
+    // de envíos (una fila por persona y clave: nunca dos veces) y las
+    // preferencias de email por categoría. Las cuentas que ya existían quedan
+    // como legacy: no reciben la serie de bienvenida.
+    id: '288_lifecycle_emails',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS lifecycle_state (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          legacy INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          last_active_at TEXT,
+          next_check_at TEXT,
+          claimed_until TEXT,
+          done_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_lifecycle_state_next ON lifecycle_state(next_check_at);
+        CREATE TABLE IF NOT EXISTS lifecycle_events (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          event TEXT NOT NULL,
+          first_at TEXT NOT NULL,
+          PRIMARY KEY (user_id, event)
+        );
+        CREATE TABLE IF NOT EXISTS lifecycle_sends (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          send_key TEXT NOT NULL,
+          template TEXT NOT NULL,
+          category TEXT NOT NULL,
+          locale TEXT NOT NULL DEFAULT 'en',
+          status TEXT NOT NULL DEFAULT 'sending' CHECK (status IN ('sending', 'sent', 'failed', 'skipped')),
+          attempts INTEGER NOT NULL DEFAULT 1,
+          provider TEXT,
+          provider_id TEXT,
+          error TEXT,
+          created_at TEXT NOT NULL,
+          sent_at TEXT,
+          UNIQUE (user_id, send_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_lifecycle_sends_created ON lifecycle_sends(created_at DESC);
+        CREATE TABLE IF NOT EXISTS email_preferences (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          unsubscribed_all INTEGER NOT NULL DEFAULT 0,
+          opted_out TEXT NOT NULL DEFAULT '[]',
+          digest INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL
+        );
+        INSERT OR IGNORE INTO lifecycle_state (user_id, legacy, created_at) SELECT id, 1, created_at FROM users;
+      `);
+    },
+  },
+  {
+    // Reimportar un export de Notion actualizado: el hash del archivo de origen
+    // dice si cambió (y la página se actualiza si nadie la editó en zerosoft).
+    id: '260_import_external_hash',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE import_external_ids ADD COLUMN source_hash TEXT');
+    },
+  },
+  {
+    // Groups: chats archivados y ocultos (como WhatsApp) y presencia del contacto
+    // (escribiendo, grabando, en línea) que llega por webhook.
+    id: '284_groups_archive_presence',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN archived_at TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN hidden_at TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_who TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_at TEXT');
+    },
+  },
+  {
     // Modo sin conexión: altas que la app reenvía al volver la red llevan una
     // clave propia; acá queda la respuesta de la primera vez, así un reenvío
     // (la respuesta se perdió con la red) no crea dos veces lo mismo.
-    id: '284_offline_requests',
+    id: '289_offline_requests',
     up: async (c) => {
       await c.executeMultiple(`
         CREATE TABLE IF NOT EXISTS offline_requests (
@@ -8741,14 +8814,6 @@ export const MIGRATIONS: Migration[] = [
         );
         CREATE INDEX IF NOT EXISTS offline_requests_created ON offline_requests(created_at);
       `);
-    },
-  },
-  {
-    // Reimportar un export de Notion actualizado: el hash del archivo de origen
-    // dice si cambió (y la página se actualiza si nadie la editó en zerosoft).
-    id: '260_import_external_hash',
-    up: async (c) => {
-      await addColumn(c, 'ALTER TABLE import_external_ids ADD COLUMN source_hash TEXT');
     },
   },
 ];

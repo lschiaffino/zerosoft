@@ -15,6 +15,8 @@ import { voiceErrorKey } from './voice-ui';
 import { checkRecordingFile, importRecording } from './importRecording';
 import RecipeInput from './RecipeInput';
 import { BriefModal } from './MeetingPrep';
+import { arrivedInApp, markAutostart } from './autostart';
+import { CitedText, streamVoice, Suggestions, type AnswerSource } from './chat-ui';
 
 interface Props {
   initialSessions: VoiceSessionSummary[];
@@ -26,12 +28,15 @@ interface Props {
   initialShared: SharedWithMe[];
   transcription: boolean;
   ai: boolean;
+  /** Hay modelo para el chat (el del asistente ⌘J o el de la suite). */
+  chatAi?: boolean;
   blobPrefix: string | null;
   blobAccess: 'public' | 'private';
   importMaxBytes: number;
 }
 
-type Answer = { answer: string; meetings: Array<{ id: string; title: string; startedAt: string }> };
+/** Una pregunta entre reuniones y su respuesta (la charla sigue con preguntas de seguimiento). */
+type Turn = { q: string; answer: string; meetings: AnswerSource[] };
 
 /**
  * /app/voice: reuniones (como Granola). Próximas del calendario (Cal, Google
@@ -41,8 +46,10 @@ type Answer = { answer: string; meetings: Array<{ id: string; title: string; sta
  */
 export default function MeetingsHome(props: Props) {
   const { transcription, ai, blobPrefix, blobAccess, importMaxBytes } = props;
+  const chatAi = props.chatAi ?? ai;
   const t = useTranslations('voice.meetings');
   const tErr = useTranslations('voice.errors');
+  const tChat = useTranslations('voice.chat');
   const format = useFormatter();
   const locale = useLocale();
   const router = useRouter();
@@ -61,7 +68,8 @@ export default function MeetingsHome(props: Props) {
   const [deleting, setDeleting] = useState<VoiceSessionSummary | null>(null);
   const [question, setQuestion] = useState('');
   const [asking, setAsking] = useState(false);
-  const [answer, setAnswer] = useState<Answer | null>(null);
+  const [thread, setThread] = useState<Turn[]>([]);
+  const askCtrl = useRef<AbortController | null>(null);
   const [askError, setAskError] = useState<string | null>(null);
   const [folderEdit, setFolderEdit] = useState<{ id: string | null; parentId: string | null; name: string } | null>(null);
   const [folderDelete, setFolderDelete] = useState<VoiceFolder | null>(null);
@@ -121,7 +129,6 @@ export default function MeetingsHome(props: Props) {
     const v = next.view ?? 'all';
     setFolder(f);
     setView(v);
-    setAnswer(null);
     lastProps.current = `${v}:${f ?? ''}`;
     const qs = v === 'shared' ? '?view=shared' : f ? `?folder=${encodeURIComponent(f)}` : '';
     // Solo la URL (para recargar o compartir la vista): la lista ya la trae el efecto de arriba.
@@ -145,9 +152,11 @@ export default function MeetingsHome(props: Props) {
     return data.id;
   }
 
-  async function newMeeting(opts: { eventKey?: string; replace?: boolean; query?: string } = {}) {
+  async function newMeeting(opts: { eventKey?: string; replace?: boolean; query?: string; autostart?: boolean } = {}) {
     const id = await create({ title: '', eventKey: opts.eventKey, locale }, opts.eventKey ?? 'new');
     if (!id) return;
+    // Como Granola: la reunión nueva ya escucha al abrirse (sin otro clic en Grabar).
+    if (opts.autostart !== false) markAutostart(id);
     // Con ?new=1 la URL se reemplaza: "Atrás" desde la reunión no vuelve a crear otra.
     if (opts.replace) router.replace(`/app/voice/meetings/${id}${opts.query ?? ''}`);
     else router.push(`/app/voice/meetings/${id}`);
@@ -165,7 +174,9 @@ export default function MeetingsHome(props: Props) {
       const nonce = params.get('autostart') ?? '';
       const query = AUTOSTART_NONCE_RE.test(nonce) ? `?autostart=${nonce}` : '';
       if (existing) router.replace(`/app/voice/meetings/${existing}${query}`);
-      else void newMeeting({ replace: true, eventKey: ev ?? undefined, query });
+      // Escucha sola si se llegó desde la app (⌘K, sidebar, aviso); un link externo no prende el micrófono.
+      // La app de escritorio manda su propio ?autostart (con el audio del sistema).
+      else void newMeeting({ replace: true, eventKey: ev ?? undefined, query, autostart: !query && arrivedInApp() });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
@@ -286,23 +297,47 @@ export default function MeetingsHome(props: Props) {
     if (folder === id || folders.some((f) => f.id === folder && f.parentId === id)) pick({ folder: null });
   }
 
-  async function ask(body: Record<string, unknown>) {
+  async function ask(body: { question?: string; recipeId?: string }, shown: string) {
     if (asking) return;
     setAsking(true);
     setAskError(null);
-    const res = await fetch('/api/voice/ask', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...body, locale }),
-    }).catch(() => null);
-    const data = (await res?.json().catch(() => null)) as (Answer & { error?: string }) | null;
-    setAsking(false);
-    if (!res?.ok || !data) {
-      setAskError(data?.error ?? 'network');
-      return;
+    const history = thread.flatMap((x) => [{ role: 'user' as const, text: x.q }, { role: 'assistant' as const, text: x.answer }]).slice(-8);
+    setThread((list) => [...list, { q: shown, answer: '', meetings: [] }]);
+    setQuestion('');
+    const update = (patch: (turn: Turn) => Turn) => setThread((list) => list.map((x, i) => (i === list.length - 1 ? patch(x) : x)));
+    let code: string | null = null;
+    if (body.recipeId) {
+      // Un recipe corre entero (salida armada): JSON, sin stream.
+      const res = await fetch('/api/voice/ask', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...body, locale }),
+      }).catch(() => null);
+      const data = (await res?.json().catch(() => null)) as { answer?: string; meetings?: AnswerSource[]; error?: string } | null;
+      if (!res?.ok || !data) code = data?.error ?? 'network';
+      else update((x) => ({ ...x, answer: data.answer ?? '', meetings: data.meetings ?? [] }));
+    } else {
+      askCtrl.current = new AbortController();
+      code = await streamVoice(
+        '/api/voice/ask',
+        { question: body.question, locale, history },
+        (e) => {
+          if (e.type === 'meetings') update((x) => ({ ...x, meetings: e.meetings }));
+          else if (e.type === 'text') update((x) => ({ ...x, answer: x.answer + e.delta }));
+        },
+        askCtrl.current.signal,
+      );
+      askCtrl.current = null;
     }
-    setAnswer({ answer: data.answer ?? '', meetings: data.meetings ?? [] });
+    setAsking(false);
+    if (code) {
+      setThread((list) => list.slice(0, -1));
+      setQuestion(shown);
+      if (code !== 'aborted') setAskError(code);
+    }
   }
+
+  useEffect(() => () => askCtrl.current?.abort(), []);
 
   const now = Date.now();
   const upcoming = props.events.filter((e) => Date.parse(e.endsAt) >= now && Date.parse(e.startsAt) <= now + 3 * 86_400_000).slice(0, 6);
@@ -434,37 +469,67 @@ export default function MeetingsHome(props: Props) {
         <h2 id="vc-ask" className="ui-section-title">
           {t('askTitle')}
         </h2>
+        {thread.length > 0 && (
+          <ol className="vc-thread">
+            {thread.map((turn, i) => {
+              const last = i === thread.length - 1;
+              return (
+                <li key={i} className="vc-turn">
+                  <p className="vc-turn-q">
+                    <span className="sr-only">{tChat('you')}: </span>
+                    {turn.q}
+                  </p>
+                  <div className="vc-answer" aria-busy={(last && asking) || undefined}>
+                    <p>{turn.answer ? <CitedText text={turn.answer} sources={turn.meetings} /> : last && asking ? t('asking') : t('askNothing')}</p>
+                    {turn.meetings.length > 0 && (
+                      <p className="vc-muted vc-sources">
+                        {t('askSources')}{' '}
+                        {turn.meetings.map((m, j) => (
+                          <span key={m.label}>
+                            {j > 0 && ', '}
+                            {m.sharedBy ? <a href={`/${locale}${m.href}`}>{m.title || t('untitled')}</a> : <Link href={m.href}>{m.title || t('untitled')}</Link>}
+                            {m.sharedBy && <span> ({t('sharedBy', { name: m.sharedBy })})</span>}
+                          </span>
+                        ))}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+        <div aria-live="polite" className="sr-only">
+          {!asking && thread.length > 0 ? thread[thread.length - 1].answer : ''}
+        </div>
+        {thread.length === 0 && chatAi && <Suggestions items={t.raw('askSuggestions') as string[]} disabled={asking} onPick={(q) => void ask({ question: q }, q)} />}
         <RecipeInput
           value={question}
           onChange={setQuestion}
-          onAsk={(qq) => void ask({ question: qq })}
-          onRecipe={(r, topic) => void ask({ recipeId: r.id, question: topic })}
-          placeholder={t('askPlaceholder')}
+          onAsk={(qq) => void ask({ question: qq }, qq)}
+          onRecipe={(r, topic) => void ask({ recipeId: r.id, question: topic }, `/${r.name}${topic ? ` ${topic}` : ''}`)}
+          placeholder={thread.length ? t('askFollowup') : t('askPlaceholder')}
           label={t('askTitle')}
           busy={asking}
           submitLabel={asking ? t('asking') : t('ask')}
         />
-        <p className="vc-muted vc-hint">{t('recipesHint')}</p>
+        <div className="vc-ask-foot">
+          <p className="vc-muted vc-hint">{t('recipesHint')}</p>
+          {asking && askCtrl.current && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => askCtrl.current?.abort()}>
+              {tChat('stop')}
+            </button>
+          )}
+          {!asking && thread.length > 0 && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setThread([])}>
+              {t('askClear')}
+            </button>
+          )}
+        </div>
         {askError && (
           <p className="ui-error" role="alert">
             {tErr(voiceErrorKey(askError))}
           </p>
-        )}
-        {answer && (
-          <div className="vc-answer" role="status">
-            <p>{answer.answer || t('askNothing')}</p>
-            {answer.meetings.length > 0 && (
-              <p className="vc-muted">
-                {t('askSources')}{' '}
-                {answer.meetings.map((m, i) => (
-                  <span key={m.id}>
-                    {i > 0 && ', '}
-                    <Link href={`/app/voice/meetings/${m.id}`}>{m.title || t('untitled')}</Link>
-                  </span>
-                ))}
-              </p>
-            )}
-          </div>
         )}
       </section>
 

@@ -154,6 +154,9 @@ export async function GET(req: NextRequest) {
   // Docs: dominios del sitio publicado que nadie verificó en UNVERIFIED_TTL_DAYS se liberan.
   const docsDomainsPurged = await purgeExpiredSiteDomains().catch(() => null);
   // Flow: corridas y pasos más viejos que la retención del workspace (lotes acotados).
+  // Emails de ciclo de vida: claim por persona (lifecycle_state) y por envío (UNIQUE en lifecycle_sends).
+  // Sin RESEND_API_KEY no hace nada (lo dice una vez en el log).
+  const lifecycle = await import('@/lib/lifecycle/scheduler').then((m) => m.runLifecycleEmails({ limit: 100, budgetMs: 15_000 })).catch(() => null);
   const flowPruned = await pruneFlowRuns({ budgetMs: 15_000 }).catch(() => null);
   // Primero el sync (detecta respuestas → salen de la secuencia), después los envíos.
   // Van antes de la cola de Flow: son acotados y no pueden quedar sin correr.
@@ -190,6 +193,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
+  return NextResponse.json({ lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }
