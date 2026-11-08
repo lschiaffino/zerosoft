@@ -179,7 +179,7 @@ export type IssueGroupBy =
   | (typeof WORKSPACE_ISSUE_GROUPS)[number];
 
 /** Agrupados disponibles en el tablero (las columnas): sin "ninguno". */
-export const BOARD_GROUPS = ['status', 'assignee', 'priority', 'cycle', 'label', 'project'] as const;
+export const BOARD_GROUPS = ['status', 'assignee', 'priority', 'cycle', 'label', 'project', 'plan', 'planMilestone'] as const;
 export type BoardGroupBy = (typeof BOARD_GROUPS)[number];
 
 export function parseIssueGroup(value: unknown, allowed: readonly IssueGroupBy[] = ISSUE_GROUPS): IssueGroupBy {
@@ -292,7 +292,7 @@ export function groupIssues<T extends GroupableIssue>(
     switch (groupBy) {
       case 'status':
         add(
-          issue.status_id ? (ctx.statusByName ? `${STATUS_NAME_KEY}${issue.status_name ?? ''}` : issue.status_id) : '',
+          issue.status_id ? (ctx.statusByName ? `${STATUS_NAME_KEY}${(issue.status_name ?? '').toLowerCase()}` : issue.status_id) : '',
           { name: issue.status_name ?? '', color: issue.status_color, category: issue.status_category },
           issue,
         );
@@ -389,6 +389,23 @@ export function groupPreset(groupBy: IssueGroupBy, key: string, opts: { movable?
     default:
       return null;
   }
+}
+
+/**
+ * Destino de arrastre de un grupo o columna (TrackIssueDnd lee
+ * data-track-drop): status, prioridad, cycle, asignado, team, project o
+ * milestone del project. Label no (un issue tiene varios) ni los status
+ * juntados por nombre de varios teams (cada team tiene los suyos).
+ */
+export function groupDropTarget(groupBy: IssueGroupBy, key: string, byName = false): string | undefined {
+  if (groupBy === 'status') return key && !byName && !key.startsWith(STATUS_NAME_KEY) ? `status:${key}` : undefined;
+  if (groupBy === 'priority') return key ? `priority:${key}` : undefined;
+  if (groupBy === 'cycle') return `cycle:${key || 'none'}`;
+  if (groupBy === 'assignee') return `assignee:${key || 'none'}`;
+  if (groupBy === 'project') return key ? `team:${key}` : undefined;
+  if (groupBy === 'planMilestone') return `planMilestone:${key || 'none'}`;
+  if (groupBy === 'plan') return `plan:${key || 'none'}`;
+  return undefined;
 }
 
 // ---------- Sub-issues bajo el padre ----------

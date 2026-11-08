@@ -9,8 +9,9 @@ import { formatDate } from '@/lib/utils';
 import type { ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
 import type { TrackStatusRow } from '@/lib/db';
 import type { IssuePatch } from '@/lib/track-tasks';
-import { groupIssues, groupPreset, type BoardGroupBy } from '@/lib/track-views';
+import { groupDropTarget, groupIssues, groupPreset, type BoardGroupBy } from '@/lib/track-views';
 import type { IssueDraft } from './useIssueStore';
+import type { IssueSelection } from './BulkEdit';
 import StatusBadge from './StatusBadge';
 import TrackIcon from './TrackIcon';
 import { openCommandMenu } from '@/lib/cmdk-context';
@@ -32,16 +33,28 @@ interface IssuesBoardProps {
   projectNames?: Record<string, string>;
   /** Total por status en el servidor (con los filtros): si una columna tiene más que lo cargado, lo dice. */
   statusTotals?: Record<string, number>;
+  /** Total real de cada columna (clave de la columna), para cualquier agrupado. */
+  counts?: Record<string, number>;
   /** Trae la página siguiente (columnas incompletas). */
   onLoadMore?: () => void;
+  /** Mover varios issues a la vez (la selección arrastrada a una columna). */
+  onMoveMany?: (issueIds: string[], patch: IssuePatch) => void;
+  /** Selección múltiple (X, Shift o ⌘ clic en una card): se arrastra junta. */
+  selection?: IssueSelection & { label: string };
+  /** Varios teams con status juntados por nombre: las columnas de status no son de un team. */
+  statusByName?: boolean;
+  /** Milestones del project en orden (columnas por milestone). */
+  milestones?: Array<{ id: string; name: string }>;
   labels: {
     noAssignee: string;
     empty: string;
     /** "Cargar más" al pie de una columna incompleta. */
     loadMore?: string;
-    /** Columnas "sin valor" al agrupar por cycle / label. */
+    /** Columnas "sin valor" al agrupar por cycle / label / milestone / project. */
     noCycle?: string;
     noLabel?: string;
+    noMilestone?: string;
+    noProject?: string;
   };
   /** Edición inline en las cards (checkbox, prioridad, asignado, fecha). */
   editing?: {
@@ -80,19 +93,26 @@ export default function IssuesBoard({
   onQuickCreate,
   show: showProps = DEFAULT_DISPLAY_PROPS,
   statusTotals,
+  counts: countsProp,
   onLoadMore,
+  onMoveMany,
+  selection,
+  statusByName = false,
+  milestones,
 }: IssuesBoardProps) {
   const t = useTranslations('track');
   const show = new Set<DisplayProp>(showProps);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStatusId, setOverStatusId] = useState<string | null>(null);
+  const counts = countsProp ?? (groupBy === 'status' ? statusTotals : undefined);
 
-  // Status y prioridad muestran todas sus columnas aunque estén vacías; el
-  // resto, solo los valores que tienen issues (más "sin valor" al final).
+  // Status, prioridad y milestones muestran todas sus columnas aunque estén
+  // vacías; el resto, solo los valores que tienen issues (más "sin valor" al final).
   const columns = groupIssues(issues, groupBy, {
     statuses,
     projectNames,
-    includeEmpty: groupBy === 'status' || groupBy === 'priority',
+    milestones,
+    includeEmpty: groupBy === 'status' || groupBy === 'priority' || (groupBy === 'planMilestone' && Boolean(milestones?.length)),
   }).filter((g) => groupBy !== 'status' || g.key !== '' || g.issues.length > 0);
 
   /** Patch que aplica soltar en una columna (o null si ese agrupado no se puede mover). */
@@ -103,18 +123,26 @@ export default function IssuesBoard({
       ? issue.status_id === key
       : groupBy === 'priority'
         ? issue.priority === key
-        : (issue.assignee_id ?? '') === key;
+        : groupBy === 'planMilestone'
+          ? (issue.plan_milestone_id ?? '') === key
+          : (issue.assignee_id ?? '') === key;
 
-  const canDrag = Boolean(onMove) && (groupBy === 'status' || groupBy === 'priority' || groupBy === 'assignee');
+  // Las columnas con data-track-drop las maneja TrackIssueDnd (con la selección);
+  // el arrastre propio queda para las que no lo tienen (status de varios teams).
+  const dropFor = (key: string) => (onMove || onMoveMany ? groupDropTarget(groupBy, key, statusByName) : undefined);
+  const canDrag = Boolean(onMove) && (groupBy === 'status' || groupBy === 'priority' || groupBy === 'assignee' || groupBy === 'planMilestone');
   const priorityName = (key: string) => editing?.ui.priorities.find((p) => p.value === key)?.label ?? key;
   const columnName = (key: string, name: string) => {
     if (groupBy === 'priority') return priorityName(key);
-    if (key) return name;
+    if (key) return name || projectNames?.[key] || key;
     if (groupBy === 'assignee') return labels.noAssignee;
     if (groupBy === 'cycle') return labels.noCycle ?? '';
     if (groupBy === 'label') return labels.noLabel ?? '';
+    if (groupBy === 'planMilestone') return labels.noMilestone ?? '';
+    if (groupBy === 'plan') return labels.noProject ?? '';
     return name;
   };
+  const selected = (id: string) => Boolean(selection?.selected.has(id));
 
   const onColumnDragOver = (e: DragEvent<HTMLDivElement>, statusId: string) => {
     if (!dragId && !e.dataTransfer.types.includes(DRAG_TYPE)) return;
@@ -135,9 +163,16 @@ export default function IssuesBoard({
     setDragId(null);
     setOverStatusId(null);
     if (!id || !onMove) return;
-    const issue = issues.find((i) => i.id === id);
     const patch = dropPatch(statusId);
-    if (issue && patch && !sameColumn(issue, statusId)) onMove(id, patch);
+    if (!patch) return;
+    // La card arrastrada estaba seleccionada: se mueve toda la selección.
+    const ids = (selected(id) ? [...(selection?.selected ?? [])] : [id]).filter((x) => {
+      const issue = issues.find((i) => i.id === x);
+      return issue && !sameColumn(issue, statusId);
+    });
+    if (ids.length === 0) return;
+    if (onMoveMany) onMoveMany(ids, patch);
+    else ids.forEach((x) => onMove(x, patch));
   };
 
   return (
@@ -149,13 +184,18 @@ export default function IssuesBoard({
         const isOver = overStatusId === colKey;
         const isSource = dragId !== null && colIssues.some((i) => i.id === dragId);
         const preset = presetFor(colKey);
+        const drop = dropFor(colKey);
+        const ownDrop = canDrag && !drop;
+        const total = counts ? Math.max(counts[colKey] ?? 0, colIssues.length) : colIssues.length;
         return (
           <div
             key={colKey || 'none'}
             className={`track-board-column${isOver && !isSource ? ' is-drop-target' : ''}`}
-            onDragOver={canDrag ? (e) => onColumnDragOver(e, colKey) : undefined}
-            onDragLeave={canDrag ? (e) => onColumnDragLeave(e, colKey) : undefined}
-            onDrop={canDrag ? (e) => onColumnDrop(e, colKey) : undefined}
+            data-track-drop={drop}
+            data-testid="track-board-column"
+            onDragOver={ownDrop ? (e) => onColumnDragOver(e, colKey) : undefined}
+            onDragLeave={ownDrop ? (e) => onColumnDragLeave(e, colKey) : undefined}
+            onDrop={ownDrop ? (e) => onColumnDrop(e, colKey) : undefined}
             aria-label={title}
           >
             <div className="track-board-header">
@@ -170,39 +210,56 @@ export default function IssuesBoard({
                   {groupBy === 'label' && column.color && (
                     <span className="track-label-tag-dot" style={{ background: column.color }} aria-hidden />
                   )}
+                  {groupBy === 'planMilestone' && <span className="tp-ms-diamond" aria-hidden />}
+                  {groupBy === 'plan' && <TrackIcon name="plans" size={13} />}
                   {title}
                 </span>
               )}
               <span className="track-board-count" data-testid="track-board-count">
-                {groupBy === 'status' && statusTotals ? Math.max(statusTotals[colKey] ?? 0, colIssues.length) : colIssues.length}
+                {total}
               </span>
             </div>
             <div className="track-board-cards">
               {colIssues.length === 0 && !(onQuickCreate && preset) && <p className="track-board-empty">{labels.empty}</p>}
               {colIssues.map((issue) => {
                 const pending = isPendingIssue(issue);
-                const draggable = canDrag && !pending;
+                const draggable = (canDrag || Boolean(drop)) && !pending;
                 const completed = issue.status_category === 'done' || issue.status_category === 'cancelled';
+                const isSelected = selected(issue.id);
                 return (
                   <div
                     key={issue.id}
                     className={[
                       'track-board-card',
-                      dragId === issue.id ? 'is-dragging' : '',
+                      dragId === issue.id || (dragId && isSelected && selected(dragId)) ? 'is-dragging' : '',
                       pending ? 'is-pending' : '',
                       editing && completed ? 'is-completed' : '',
                       draggable ? 'is-draggable' : '',
+                      isSelected ? 'is-selected' : '',
                     ]
                       .filter(Boolean)
                       .join(' ')}
                     draggable={draggable}
                     data-issue-key={pending ? undefined : issue.id}
-                data-issue-identifier={issue.identifier}
-                data-issue-team={issue.project_id}
-                data-sort-order={issue.sub_order ?? undefined}
+                    data-issue-id={pending || !selection ? undefined : issue.id}
+                    data-issue-identifier={issue.identifier}
+                    data-issue-team={issue.project_id}
+                    data-sort-order={issue.sub_order ?? undefined}
                     data-issue-row={pending ? undefined : ''}
                     data-href={pending ? undefined : `/app/track/issues/${issue.id}`}
                     title={draggable && editing ? editing.ui.inline.dragHint : undefined}
+                    // Shift + clic suma un rango a la selección (⌘ clic lo maneja TrackIssueDnd con la casilla).
+                    onClickCapture={
+                      selection && !pending
+                        ? (e) => {
+                            if (!e.shiftKey || e.metaKey || e.ctrlKey) return;
+                            if ((e.target as Element).closest('input, textarea, select, [role="menu"]')) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            selection.toggle(issue.id, true);
+                          }
+                        : undefined
+                    }
                     onDragStart={
                       draggable
                         ? (e) => {
@@ -218,6 +275,22 @@ export default function IssuesBoard({
                       setOverStatusId(null);
                     }}
                   >
+                    {selection && !pending && (
+                      // Casilla para lectores de pantalla y para ⌘ clic (TrackIssueDnd la clickea).
+                      <input
+                        type="checkbox"
+                        className="track-sr-only"
+                        tabIndex={-1}
+                        aria-label={`${selection.label} ${issue.identifier}`}
+                        checked={isSelected}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          selection.toggle(issue.id, e.shiftKey);
+                        }}
+                        onChange={() => undefined}
+                        data-testid="track-select-card"
+                      />
+                    )}
                     {editing ? (
                       <>
                         <div className="track-board-card-head">
@@ -357,7 +430,7 @@ export default function IssuesBoard({
                   onCreate={(title) => onQuickCreate(title, preset)}
                 />
               )}
-              {groupBy === 'status' && statusTotals && onLoadMore && labels.loadMore && (statusTotals[colKey] ?? 0) > colIssues.length && (
+              {counts && onLoadMore && labels.loadMore && (counts[colKey] ?? 0) > colIssues.length && (
                 <button type="button" className="btn btn-sm btn-ghost track-board-more" onClick={onLoadMore} data-testid="track-board-more">
                   {labels.loadMore}
                 </button>

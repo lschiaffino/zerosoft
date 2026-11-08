@@ -49,6 +49,8 @@ interface IssueDisplayOptionsProps {
   groups: readonly IssueGroupBy[];
   sort: IssueSort;
   onGroupChange: (group: IssueGroupBy) => void;
+  /** "Sub-grouping" (lista agrupada), como Linear. */
+  subGroup?: { value: IssueGroupBy; options: readonly IssueGroupBy[]; onChange: (g: IssueGroupBy) => void; label: string };
   onSortChange: (sort: IssueSort) => void;
   labels: DisplayLabels;
   /** Lista / tablero (y calendario y cronograma como secundarios). */
@@ -165,6 +167,7 @@ export default function IssueDisplayOptions({
   groups,
   sort,
   onGroupChange,
+  subGroup,
   onSortChange,
   labels,
   layout,
@@ -245,6 +248,16 @@ export default function IssueDisplayOptions({
             onChange={onGroupChange}
             testId="track-group-by"
           />
+          {subGroup && (
+            <Choice
+              label={subGroup.label}
+              value={subGroup.value}
+              options={subGroup.options}
+              optionLabel={(g) => labels.groups[g]}
+              onChange={subGroup.onChange}
+              testId="track-subgroup-by"
+            />
+          )}
           <Choice
             label={t('ordering')}
             value={sort}

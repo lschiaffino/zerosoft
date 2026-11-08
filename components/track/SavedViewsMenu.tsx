@@ -22,6 +22,8 @@ interface SavedViewsMenuProps {
   onCopyLink: (id: string) => void;
   /** Abre el menú al montar (sidebar › team › Views). */
   defaultOpen?: boolean;
+  /** Vistas personales (listas que no son de un team): sin favoritas, compartir ni por defecto. */
+  personal?: boolean;
   labels: {
     title: string;
     empty: string;
@@ -50,6 +52,7 @@ export default function SavedViewsMenu({
   onUpdate,
   onCopyLink,
   defaultOpen = false,
+  personal = false,
   labels,
 }: SavedViewsMenuProps) {
   const t = useTranslations('track.ux.views');
@@ -115,6 +118,7 @@ export default function SavedViewsMenu({
           </button>
         )}
         <span className="track-saved-view-actions">
+          {!personal && (
           <button
             type="button"
             className={`btn btn-ghost btn-sm btn-icon track-fav${view.favorite ? ' is-on' : ''}`}
@@ -126,6 +130,7 @@ export default function SavedViewsMenu({
           >
             <TrackIcon name="star" size={13} />
           </button>
+          )}
           <button
             type="button"
             className="btn btn-ghost btn-sm btn-icon"
@@ -137,6 +142,7 @@ export default function SavedViewsMenu({
           </button>
           {own && (
             <>
+              {!personal && (
               <button
                 type="button"
                 className={`btn btn-ghost btn-sm btn-icon${view.shared ? ' is-on' : ''}`}
@@ -148,7 +154,8 @@ export default function SavedViewsMenu({
               >
                 <TrackIcon name="users" size={13} />
               </button>
-              {!view.is_default && (
+              )}
+              {!personal && !view.is_default && (
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm btn-icon"

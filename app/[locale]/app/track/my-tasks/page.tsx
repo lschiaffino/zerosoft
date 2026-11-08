@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { realUserId, requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { listProjectMetas, MY_ISSUES_TABS, type MyIssuesTab } from '@/lib/track-data';
 import TrackIssueList from '@/components/track/TrackIssueList';
 import EmptyState from '@/components/ui/EmptyState';
@@ -67,6 +67,7 @@ export default async function MyTasksPage(props: {
           groups={WORKSPACE_ISSUE_GROUPS}
           defaults={DEFAULTS}
           initialProjects={projects}
+          canDelete={isWorkspaceAdmin(user)}
           // Lo creado en "Assigned" se asigna a mí (en Created queda sin asignar).
           createDefaults={tab === 'assigned' ? { assigneeId: me } : undefined}
           tabs={tabs}

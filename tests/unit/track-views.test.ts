@@ -94,8 +94,8 @@ describe('track-views', () => {
       { statusByName: true },
     );
     expect(cross.map((g) => [g.key, g.issues.length])).toEqual([
-      [`${STATUS_NAME_KEY}Todo`, 2],
-      [`${STATUS_NAME_KEY}Done`, 1],
+      [`${STATUS_NAME_KEY}todo`, 2],
+      [`${STATUS_NAME_KEY}done`, 1],
     ]);
   });
 

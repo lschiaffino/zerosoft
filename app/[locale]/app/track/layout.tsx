@@ -18,7 +18,7 @@ import '@/styles/track-issue.css';
 export default async function TrackLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   return (
-    <ClientMessages locale={locale} namespaces={['track', 'trackPlanning', 'trackTriage']}>
+    <ClientMessages locale={locale} namespaces={['track', 'trackPlanning', 'trackTriage', 'trackList']}>
       {props.children}
       <Suspense fallback={null}>
         <TrackShortcuts />

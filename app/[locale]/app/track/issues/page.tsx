@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { realUserId, requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { listProjectMetas } from '@/lib/track-data';
 import TrackIssueList from '@/components/track/TrackIssueList';
 import EmptyState from '@/components/ui/EmptyState';
@@ -38,6 +38,7 @@ export default async function IssuesPage(props: { params: Promise<{ locale: stri
           groups={WORKSPACE_ISSUE_GROUPS}
           defaults={DEFAULTS}
           initialProjects={projects}
+          canDelete={isWorkspaceAdmin(user)}
           tabs={<h1 className="track-list-title">{t('issues.pageTitle')}</h1>}
           empty={{ title: t('issues.empty') }}
         />

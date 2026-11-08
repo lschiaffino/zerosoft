@@ -119,6 +119,10 @@ export interface ListIssuesResult {
   total: number;
   /** Total por status con los mismos filtros (las columnas del board muestran el real, no solo lo cargado). */
   statusCounts?: Record<string, number>;
+  /** Total por grupo del agrupado pedido (`groupBy`), con los mismos filtros; '' = sin valor. */
+  groupCounts?: Record<string, number>;
+  /** Total por grupo y sub-grupo (`subGroupBy`), con clave `grupo\u0001subgrupo`. */
+  subGroupCounts?: Record<string, number>;
   page: number;
   pageSize: number;
 }
@@ -154,6 +158,58 @@ export interface ListAllIssuesOptions extends ListIssuesOptions {
   planId?: string;
   /** Mis issues: las pestañas Assigned, Created, Subscribed y Activity de esa persona. */
   mine?: { userId: string; tab: MyIssuesTab };
+  /** Agrupado de la vista: devuelve `groupCounts` (total real de cada grupo, para los encabezados). */
+  groupBy?: string;
+  /** Sub-agrupado: devuelve `subGroupCounts`. */
+  subGroupBy?: string;
+  /** "Completed issues" de la vista: todos, los cerrados en la última semana o ninguno. */
+  completed?: 'all' | 'week' | 'none';
+}
+
+/** Columna de cada agrupado (label se cuenta aparte, un issue por cada label). */
+const GROUP_COLUMNS: Record<string, string> = {
+  status: 'i.status_id',
+  priority: 'i.priority',
+  assignee: 'i.assignee_id',
+  cycle: 'i.cycle_id',
+  project: 'i.project_id',
+  plan: 'i.plan_id',
+  planMilestone: 'i.plan_milestone_id',
+};
+
+export const COUNTABLE_GROUPS = [...Object.keys(GROUP_COLUMNS), 'label'] as const;
+
+/** Separador de grupo y sub-grupo en `subGroupCounts`. */
+export const SUBGROUP_SEP = '\u0001';
+
+/**
+ * Totales por grupo (y sub-grupo) con el mismo WHERE de la lista: los
+ * encabezados muestran el total real aunque solo se haya cargado una página.
+ */
+async function countByGroups(
+  whereSql: string,
+  args: Array<string | number>,
+  groupBy: string,
+  subGroupBy?: string,
+): Promise<Record<string, number>> {
+  const fields = [groupBy, ...(subGroupBy ? [subGroupBy] : [])];
+  if (!fields.every((f) => f === 'label' || GROUP_COLUMNS[f])) return {};
+  const usesLabel = fields.includes('label');
+  const join = usesLabel
+    ? "LEFT JOIN json_each(CASE WHEN json_valid(i.labels) AND json_type(i.labels) = 'array' THEN i.labels ELSE '[]' END) lj"
+    : '';
+  const expr = (f: string) => (f === 'label' ? "COALESCE(json_extract(lj.value, '$.id'), '')" : `COALESCE(${GROUP_COLUMNS[f]}, '')`);
+  const cols = fields.map((f, n) => `${expr(f)} AS g${n}`).join(', ');
+  const by = fields.map((_, n) => `g${n}`).join(', ');
+  const rows = (await getDb()
+    .prepare(`SELECT ${cols}, COUNT(DISTINCT i.id) AS c FROM track_issues i ${join} WHERE ${whereSql} GROUP BY ${by}`)
+    .all(...args)) as Array<Record<string, string | number>>;
+  const out: Record<string, number> = {};
+  for (const r of rows) {
+    const key = fields.length === 2 ? `${r.g0}${SUBGROUP_SEP}${r.g1}` : String(r.g0);
+    out[key] = (out[key] ?? 0) + Number(r.c);
+  }
+  return out;
 }
 
 // ---------- Saved views ----------
@@ -1122,6 +1178,17 @@ export async function listAllIssues(
     args.push(...advanced.args);
   }
   if (options.topLevel) where.push('i.parent_id IS NULL');
+  // Completados: ninguno, o solo los tocados en la última semana (como Linear).
+  if (options.completed === 'none' || options.completed === 'week') {
+    const open = "(i.status_id IS NULL OR i.status_id NOT IN (SELECT ds.id FROM track_statuses ds WHERE ds.category IN ('done', 'cancelled')))";
+    if (options.completed === 'none') where.push(open);
+    else {
+      const today = options.today ?? new Date().toISOString().slice(0, 10);
+      const cutoff = new Date(Date.parse(`${today}T00:00:00Z`) - 7 * 86_400_000).toISOString().slice(0, 10);
+      where.push(`(${open} OR i.updated_at >= ?)`);
+      args.push(cutoff);
+    }
+  }
 
   const whereSql = where.join(' AND ');
   const orderBy = issueOrderBy(options.sort);
@@ -1131,6 +1198,15 @@ export async function listAllIssues(
       .prepare(`SELECT COUNT(*) AS c FROM track_issues i WHERE ${whereSql}`)
       .get(...args)) as { c: number }
   ).c;
+  const counts = (await db
+    .prepare(`SELECT i.status_id AS s, COUNT(*) AS c FROM track_issues i WHERE ${whereSql} GROUP BY i.status_id`)
+    .all(...args)) as Array<{ s: string | null; c: number }>;
+  const statusCounts = Object.fromEntries(counts.map((r) => [r.s ?? '', Number(r.c)]));
+  const groupCounts = options.groupBy && options.groupBy !== 'none' ? await countByGroups(whereSql, args, options.groupBy) : undefined;
+  const subGroupCounts =
+    groupCounts && options.subGroupBy && options.subGroupBy !== 'none' && options.subGroupBy !== options.groupBy
+      ? await countByGroups(whereSql, args, options.groupBy!, options.subGroupBy)
+      : undefined;
 
   // Con texto, como Linear: el ID exacto primero, después los que empiezan con ese ID y después por título.
   const needle = options.q?.trim() ?? '';
@@ -1146,7 +1222,7 @@ export async function listAllIssues(
     )
     .all(...args, ...rank.args, pageSize, (page - 1) * pageSize)) as TrackIssueWithStatus[];
 
-  return { rows, total, page, pageSize };
+  return { rows, total, page, pageSize, statusCounts, ...(groupCounts ? { groupCounts } : {}), ...(subGroupCounts ? { subGroupCounts } : {}) };
 }
 
 /**
