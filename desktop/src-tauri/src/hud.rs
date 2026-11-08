@@ -5,7 +5,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindowBuilder};
 
 pub const LABEL: &str = "hud";
-const W: f64 = 340.0;
+const W: f64 = 400.0;
 const H: f64 = 56.0;
 
 #[derive(Serialize, Clone)]
