@@ -8,6 +8,7 @@ import { requestLocale } from './lib/request-locale';
 import { API_PATH_HEADER, RETURN_PATH_HEADER } from './lib/return-path';
 import { quickCreateRedirect } from './lib/quick-create-redirect';
 import { DOCS_SITE_HEADER } from './lib/docs-site-header';
+import { WHO_COOKIE } from './lib/session-hint';
 import { BRAND_COOKIE, BRAND_HEADER, BRAND_PARAM, DEFAULT_BRAND, forcedBrandForPath, isBrandTheme } from './lib/brand-theme';
 
 const intlMiddleware = createMiddleware(routing);
@@ -258,8 +259,6 @@ async function withWhoCookie(req: NextRequest, res: NextResponse): Promise<NextR
   res.cookies.set(WHO_COOKIE, who, { path: '/', maxAge: 30 * 24 * 60 * 60, sameSite: 'lax', secure: req.nextUrl.protocol === 'https:' });
   return res;
 }
-
-const WHO_COOKIE = 'zs_who';
 
 /**
  * Path + query de la request en un header interno: si la página pide login,

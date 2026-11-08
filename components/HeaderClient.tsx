@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { signIn, signOut } from 'next-auth/react';
 import { clearOfflineData } from '@/lib/offline-queue';
 import { useTranslations } from 'next-intl';
@@ -12,10 +12,10 @@ import { CATEGORY_PRODUCTS, GITHUB_URL, PRODUCT_NAMES } from './site/catalog';
 import Logo from './brand/Logo';
 import ProductGlyph from './brand/ProductGlyph';
 import { BUILDING_PRODUCTS, PRODUCT_CONFIG, isBuildingProduct, isProductKey } from '@/lib/products';
+import { hasSessionHint } from '@/lib/session-hint';
 
 interface HeaderClientProps {
   locale: string;
-  user: { name: string | null; email: string; image: string | null } | null;
   labels: {
     products: string;
     blog: string;
@@ -31,7 +31,19 @@ interface HeaderClientProps {
   };
 }
 
-export default function HeaderClient({ locale, user, labels }: HeaderClientProps) {
+const noSubscribe = () => () => {};
+
+/**
+ * ¿Hay sesión en este navegador? Pista de la cookie zs_who (lib/session-hint.ts).
+ * En el servidor y al hidratar es false (el HTML es el mismo para todos); el
+ * render siguiente ya usa la cookie.
+ */
+function useSignedIn(): boolean {
+  return useSyncExternalStore(noSubscribe, () => hasSessionHint(document.cookie), () => false);
+}
+
+export default function HeaderClient({ locale, labels }: HeaderClientProps) {
+  const signedIn = useSignedIn();
   /** Mega menú de productos (desktop). */
   const [megaOpen, setMegaOpen] = useState(false);
   /** Panel hamburguesa (≤960px). */
@@ -216,8 +228,8 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         <div className="hd-right">
           <ThemeSwitcher />
           <LocaleSwitcher locale={locale} />
-          {user ? (
-            <Link className="btn btn-chrome btn-sm" href={appHref} title={user.email}>
+          {signedIn ? (
+            <Link className="btn btn-chrome btn-sm" href={appHref}>
               {labels.dashboard}
             </Link>
           ) : (
@@ -283,7 +295,7 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         <div className="mobile-panel-foot">
           <ThemeSwitcher />
           <LocaleSwitcher locale={locale} />
-          {user ? (
+          {signedIn ? (
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => void clearOfflineData().finally(() => signOut({ callbackUrl: '/' }))}>
               {labels.signOut}
             </button>

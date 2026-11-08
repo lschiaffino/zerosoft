@@ -29,6 +29,8 @@ import { SIDEBAR_COLLAPSED_SCRIPT } from '@/lib/sidebar-collapsed';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import { settingsSectionHref, settingsSectionKeys } from '@/lib/settings-nav';
 import AppPwa from '@/components/app/AppPwa';
+import ThemeProvider from '@/components/theme/ThemeProvider';
+import { getThemePref } from '@/lib/color-theme-server';
 // CSS común a toda la app: link.css trae la base de páginas, tablas y filtros
 // que usan todas las apps, app-shared.css las reglas de otras hojas que se usan
 // fuera de su app (ver su encabezado). Cada app importa su hoja en su layout.
@@ -84,8 +86,16 @@ export default async function AppLayout(
   if (user.blockedApp) redirect(`/${locale}/app?blocked=${user.blockedApp}`);
   // Entrada activa del switcher: el workspace ajeno, un equipo propio de antes de 128, o el propio (null).
   const effective = user.actingUser ? (user.workspace?.id ?? null) : user.team ? (real.active_team_id ?? null) : null;
-  const workspaces: SwitcherEntry[] = (await listMyWorkspaces(real).catch(() => [])).map((w) => ({ ...w, current: w.teamId === effective }));
-  if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
+  // Las lecturas de la base arrancan juntas (en Turso cada query es un RTT): el switcher, el permiso
+  // de crear en Docs y la firma del widget de soporte no esperan a las traducciones ni entre sí.
+  const workspacesP = listMyWorkspaces(real).catch(() => []);
+  const docsCanCreateP = canCreateDocPage(user, {}).catch(() => true);
+  // Widget de soporte: el email de la persona logueada va firmado (HMAC con el
+  // secreto del widget, calculado acá) para que el inbox lo marque verificado.
+  const supportId = DEMO_MODE ? null : supportWidgetId();
+  const supportEmail = user.actingUser?.email ?? user.email;
+  const supportUserHashP = supportId ? signVisitorIdentity(supportId, supportEmail) : Promise.resolve(null);
+  supportUserHashP.catch(() => {}); // se espera abajo; esto solo evita un rechazo sin manejar mientras tanto
   const tGuard = await getTranslations({ locale, namespace: 'settings.access' });
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   const tAnalyticsReplay = await getTranslations({ locale, namespace: 'analyticsReplay' });
@@ -130,16 +140,18 @@ export default async function AppLayout(
       getWorkspaceMode(user),
       getTranslations({ locale, namespace: 'common.categories' }),
     ]);
-  // Widget de soporte: el email de la persona logueada va firmado (HMAC con el
-  // secreto del widget, calculado acá) para que el inbox lo marque verificado.
-  const supportId = DEMO_MODE ? null : supportWidgetId();
-  const supportEmail = user.actingUser?.email ?? user.email;
-  const supportUserHash = supportId ? await signVisitorIdentity(supportId, supportEmail) : null;
+  const [workspaceRows, docsCanCreate, supportUserHash] = await Promise.all([workspacesP, docsCanCreateP, supportUserHashP]);
+  const workspaces: SwitcherEntry[] = workspaceRows.map((w) => ({ ...w, current: w.teamId === effective }));
+  if (workspaces.length && !workspaces.some((w) => w.current)) workspaces[0].current = true;
+  // El layout raíz es estático y no conoce la cookie del modo de color: la app, que ya es
+  // dinámica, la pasa desde el servidor (el selector y Excalidraw arrancan con el modo correcto).
+  const themePref = await getThemePref();
 
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
     <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'notes.nav', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut', 'assistant']}>
+      <ThemeProvider initial={themePref}>
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
@@ -147,7 +159,7 @@ export default async function AppLayout(
         <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
         <AppPwa />
         <AppSidebar
-          docsCanCreate={await canCreateDocPage(user, {}).catch(() => true)}
+          docsCanCreate={docsCanCreate}
           demo={DEMO_MODE}
           mode={mode}
           tasksDue={tasksDue}
@@ -715,6 +727,7 @@ export default async function AppLayout(
         )}
       </div>
       </RecorderProvider>
+      </ThemeProvider>
     </ClientMessages>
   );
 }

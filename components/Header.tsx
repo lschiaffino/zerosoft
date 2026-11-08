@@ -1,16 +1,15 @@
 import { getTranslations } from 'next-intl/server';
-import { getCurrentUser } from '@/lib/session';
 import HeaderClient from './HeaderClient';
 import '@/styles/site.css';
 
 export default async function Header({ locale }: { locale: string }) {
+  // Sin sesión acá: el header va en el HTML estático del sitio. HeaderClient
+  // sabe si hay alguien logueado por la cookie zs_who (ver lib/session-hint.ts).
   const t = await getTranslations({ locale, namespace: 'common.header' });
-  const user = await getCurrentUser();
 
   return (
     <HeaderClient
       locale={locale}
-      user={user ? { name: user.name, email: user.email, image: user.image } : null}
       labels={{
         products: t('products'),
         blog: t('blog'),
