@@ -6,7 +6,7 @@ import { contactLabel } from '@/lib/voice-integrations';
 import { listFolders } from '@/lib/voice-library';
 import { getShare } from '@/lib/voice-share';
 import { transcribeProvider, transcriptionConfigured } from '@/lib/voice-transcribe';
-import { voiceAiAvailable } from '@/lib/voice-ai';
+import { voiceAiAvailable, voiceChatAvailable } from '@/lib/voice-ai';
 import { voiceBlobAccess, voiceBlobEnabled, voiceBlobPrefix, voiceImportMaxBytes } from '@/lib/voice-blob';
 import MeetingView from '@/components/voice/MeetingView';
 
@@ -25,12 +25,13 @@ export default async function VoiceMeetingPage(props: { params: Promise<{ locale
   const owner = voiceOwner(user);
   const detail = await getSessionDetail(owner, id);
   if (!detail || detail.kind !== 'meeting') notFound();
-  const [templates, contact, ai, folders, share] = await Promise.all([
+  const [templates, contact, ai, folders, share, chatAi] = await Promise.all([
     listCustomTemplates(owner),
     contactLabel(owner.workspaceId, detail.contactId),
     voiceAiAvailable(),
     listFolders(owner),
     getShare(owner, id),
+    voiceChatAvailable(),
   ]);
   return (
     <MeetingView
@@ -40,6 +41,7 @@ export default async function VoiceMeetingPage(props: { params: Promise<{ locale
       folders={folders}
       transcription={transcriptionConfigured()}
       ai={ai}
+      chatAi={chatAi}
       blobPrefix={voiceBlobEnabled() ? voiceBlobPrefix(owner.personId) : null}
       blobAccess={voiceBlobAccess()}
       importMaxBytes={voiceImportMaxBytes(transcribeProvider(), voiceBlobEnabled())}

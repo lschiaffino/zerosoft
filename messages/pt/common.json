@@ -51,6 +51,7 @@
     "building": "Em construção"
   },
   "sidebar": {
+    "desktopSettings": "Ajustes do app para desktop",
     "newReadOnly": "Seu papel aqui é ver ou comentar: peça a um admin para criar a página.",
     "search": "Buscar",
     "new": "Novo",
