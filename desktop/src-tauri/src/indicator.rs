@@ -11,7 +11,7 @@ use tauri::{AppHandle, Emitter, LogicalPosition, Manager, WebviewUrl, WebviewWin
 use crate::state::{AppState, Recording};
 
 pub const LABEL: &str = "indicator";
-const W: f64 = 248.0;
+const W: f64 = 300.0;
 const H: f64 = 44.0;
 const MARGIN: f64 = 12.0;
 /// La persona lo cerró con la ×: no vuelve hasta la próxima grabación.
@@ -36,8 +36,12 @@ fn create(app: &AppHandle) -> tauri::Result<()> {
     if app.get_webview_window(LABEL).is_some() {
         return Ok(());
     }
-    WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("indicator.html".into()))
-        .title("zerosoft")
+    let mut b = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("indicator.html".into()));
+    // La posición va en la creación: un set_position justo después de crearla no siempre vale.
+    if let Some((x, y)) = target(app) {
+        b = b.position(x, y);
+    }
+    b.title("zerosoft")
         .inner_size(W, H)
         .resizable(false)
         .decorations(false)
@@ -55,19 +59,22 @@ fn create(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-fn place(app: &AppHandle) {
-    let Some(win) = app.get_webview_window(LABEL) else { return };
-    let monitor = app
+/// Arriba a la derecha del monitor de la ventana principal (en coordenadas lógicas).
+fn target(app: &AppHandle) -> Option<(f64, f64)> {
+    let m = app
         .get_webview_window("main")
         .and_then(|m| m.current_monitor().ok().flatten())
-        .or_else(|| app.primary_monitor().ok().flatten());
-    if let Some(m) = monitor {
-        let scale = m.scale_factor();
-        let area = m.work_area();
-        let (x, y) = (area.position.x as f64 / scale, area.position.y as f64 / scale);
-        let w = area.size.width as f64 / scale;
-        let _ = win.set_position(LogicalPosition::new(x + w - W - MARGIN, y + MARGIN));
-    }
+        .or_else(|| app.primary_monitor().ok().flatten())?;
+    let scale = m.scale_factor();
+    let area = m.work_area();
+    let (x, y) = (area.position.x as f64 / scale, area.position.y as f64 / scale);
+    let w = area.size.width as f64 / scale;
+    Some((x + w - W - MARGIN, y + MARGIN))
+}
+
+fn place(app: &AppHandle) {
+    let (Some(win), Some((x, y))) = (app.get_webview_window(LABEL), target(app)) else { return };
+    let _ = win.set_position(LogicalPosition::new(x, y));
 }
 
 /// Recalcula si se ve. Se llama cuando cambia la grabación, el foco de la ventana o el ajuste.
@@ -86,8 +93,8 @@ pub fn update(app: &AppHandle) {
             let _ = app2.emit_to(LABEL, "indicator://state", rec);
             if let Some(w) = app2.get_webview_window(LABEL) {
                 if !w.is_visible().unwrap_or(false) {
-                    place(&app2);
                     let _ = w.show();
+                    place(&app2);
                 }
             }
         } else if let Some(w) = app2.get_webview_window(LABEL) {

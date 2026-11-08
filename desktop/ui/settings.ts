@@ -53,6 +53,8 @@ function withKey(text: string, accel: string): Array<Node | string> {
   return b === undefined ? [text] : [a, kbd(accel), b];
 }
 
+const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
 function status(): HTMLSpanElement {
   return h('span', { class: 'status', role: 'status', 'aria-live': 'polite' });
 }
@@ -182,11 +184,14 @@ function renderStart(panel: HTMLElement) {
       stale ? h('span', { class: 'step-note', id: 'acc-hint' }, s(v.accessibilityHint === 'updated' ? 'accessibilityUpdated' : 'accessibilityAdhoc')) : null,
       v.signature === 'adhoc' ? h('span', { class: 'step-note muted' }, s('accessibilityAdhocUpdates')) : null,
     );
-    step(acc === 'granted', s('stepAccessibility'), help, [
+    const buttons = [
       h('button', { class: 'btn', type: 'button', onclick: () => void ask('accessibility') }, s('openSystemSettings')),
       stale ? h('button', { class: 'btn', type: 'button', id: 'acc-reset', onclick: () => void ask('accessibility-reset') }, s('accessibilityReset')) : null,
       h('button', { class: 'btn link', type: 'button', onclick: () => void reload(false) }, s('checkAgain')),
-    ]);
+    ];
+    // Con tres botones van abajo, en su fila: al lado del título lo aplastan.
+    const granted = acc === 'granted';
+    step(granted, s('stepAccessibility'), help, stale ? [] : buttons, stale && !granted ? h('div', { class: 'row step-row' }, ...buttons) : undefined);
   }
   const tryBox = h('textarea', { id: 'try', 'aria-label': s('stepTry'), placeholder: s('tryPlaceholder'), rows: 3 });
   step(
@@ -286,10 +291,10 @@ function renderGeneral(panel: HTMLElement) {
       {},
       h('h2', {}, s('meetings')),
       check('indicator', v.recordingIndicator, s('recordingIndicator'), 'recordingIndicator'),
-      h('p', { class: 'help', style: 'margin-top:0' }, s('recordingIndicatorHelp')),
+      h('p', { class: 'help check-help' }, s('recordingIndicatorHelp')),
     ),
     h('section', {}, h('h2', {}, s('general')), check('login', v.openAtLogin, s('openAtLogin'), 'openAtLogin')),
-    h('section', {}, h('h2', {}, s('settingsWhereTitle')), h('p', { class: 'help', style: 'margin:0' }, s(v.platform === 'darwin' ? 'settingsWhereMac' : 'settingsWhereWin'))),
+    h('section', {}, h('h2', {}, s('settingsWhereTitle')), h('p', { class: 'help', style: 'margin:0' }, capitalize(s(v.platform === 'darwin' ? 'settingsWhereMac' : 'settingsWhereWin')), '.')),
   );
 }
 
