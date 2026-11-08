@@ -455,16 +455,28 @@ function ConnectModal({
     });
   }, [number, errText, attempt]);
 
-  // Mientras espera el escaneo, consulta el estado (y el QR nuevo) cada 2 s.
+  // Mientras espera el escaneo, consulta el estado (y el QR nuevo) cada 2 s; con la pestaña oculta
+  // no consulta y, al volver, consulta en el acto. Ya conectado (o con error), deja de consultar.
+  const waiting = !!number && !!state && state.status !== 'connected' && state.status !== 'error';
   useEffect(() => {
-    if (!number || !state || state.status === 'connected' || state.status === 'error') return;
-    const id = setInterval(async () => {
+    if (!waiting || !number) return;
+    let alive = true;
+    const poll = async () => {
+      if (document.visibilityState !== 'visible') return;
       const r = await api<ConnectState>(`/api/groups/numbers/${number.id}/connect`);
+      if (!alive) return;
       if (r.data) setState(r.data);
       setNow(Date.now());
-    }, 2000);
-    return () => clearInterval(id);
-  }, [number, state]);
+    };
+    const id = setInterval(poll, 2000);
+    const onVisible = () => void poll();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [number, waiting]);
 
   const qr = state?.qr ?? '';
   useEffect(() => {

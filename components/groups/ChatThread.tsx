@@ -410,8 +410,17 @@ export default function ChatThread(props: ThreadProps) {
 
   // Cada 4 s, los últimos 60: lo nuevo y los cambios en lo reciente (estado, reacciones, ediciones, llamadas).
   useEffect(() => {
-    const id = setInterval(async () => {
-      if (document.visibilityState !== 'visible') return;
+    let busy = false;
+    const poll = async () => {
+      if (document.visibilityState !== 'visible' || busy) return;
+      busy = true;
+      try {
+        await pollOnce();
+      } finally {
+        busy = false;
+      }
+    };
+    const pollOnce = async () => {
       const res = await api<{ messages: MessageDto[]; presence?: ChatPresence | null }>(`/api/groups/chats/${chat.id}/messages?limit=60`);
       if (!res.data) return;
       setPresence(res.data.presence ?? null);
@@ -421,8 +430,17 @@ export default function ChatThread(props: ThreadProps) {
       if (fresh.some((m) => m.direction === 'in') && document.hasFocus()) {
         void api(`/api/groups/chats/${chat.id}`, { method: 'PATCH', body: { read: true } }).then(() => refresh());
       }
-    }, 4000);
-    return () => clearInterval(id);
+    };
+    const id = setInterval(() => void poll(), 4000);
+    // Al volver a la pestaña o a la ventana: lo nuevo en el acto (y queda leído si llegó algo).
+    const onBack = () => void poll();
+    document.addEventListener('visibilitychange', onBack);
+    window.addEventListener('focus', onBack);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onBack);
+      window.removeEventListener('focus', onBack);
+    };
   }, [chat.id, merge, refresh]);
 
   // Traducción: lo que ya está en caché viene con el mensaje; lo demás se pide (una vez por mensaje).

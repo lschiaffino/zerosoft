@@ -296,7 +296,21 @@ export default function InboxShell({
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') void load(true);
     }, 5000);
-    return () => clearInterval(id);
+    // Al volver a la pestaña (o a la ventana), al día en el acto: sin esperar al próximo intervalo.
+    // visibilitychange y focus llegan juntos al volver: una sola carga.
+    let lastBack = 0;
+    const onBack = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - lastBack < 1000) return;
+      lastBack = Date.now();
+      void load(true);
+    };
+    document.addEventListener('visibilitychange', onBack);
+    window.addEventListener('focus', onBack);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onBack);
+      window.removeEventListener('focus', onBack);
+    };
   }, [load]);
 
   const refresh = useCallback(() => void load(true), [load]);
