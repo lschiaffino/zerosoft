@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import LocaleSwitcher from './LocaleSwitcher';
@@ -10,7 +10,6 @@ import { CATEGORY_PRODUCTS, GITHUB_URL, PRODUCT_NAMES } from './site/catalog';
 import Logo from './brand/Logo';
 import ProductGlyph from './brand/ProductGlyph';
 import { BUILDING_PRODUCTS, PRODUCT_CONFIG, isBuildingProduct, isProductKey } from '@/lib/products';
-import { hasSessionHint } from '@/lib/session-hint';
 
 interface HeaderClientProps {
   locale: string;
@@ -29,8 +28,6 @@ interface HeaderClientProps {
   };
 }
 
-const noSubscribe = () => () => {};
-
 // next-auth y el borrado de datos sin conexión se cargan al hacer clic: no pesan en cada página del sitio.
 function signInWithGoogle(callbackUrl: string) {
   void import('next-auth/react').then(({ signIn }) => signIn('google', { callbackUrl }));
@@ -41,17 +38,7 @@ function signOutHere() {
   );
 }
 
-/**
- * ¿Hay sesión en este navegador? Pista de la cookie zs_who (lib/session-hint.ts).
- * En el servidor y al hidratar es false (el HTML es el mismo para todos); el
- * render siguiente ya usa la cookie.
- */
-function useSignedIn(): boolean {
-  return useSyncExternalStore(noSubscribe, () => hasSessionHint(document.cookie), () => false);
-}
-
 export default function HeaderClient({ locale, labels }: HeaderClientProps) {
-  const signedIn = useSignedIn();
   /** Mega menú de productos (desktop). */
   const [megaOpen, setMegaOpen] = useState(false);
   /** Panel hamburguesa (≤960px). */
@@ -236,24 +223,19 @@ export default function HeaderClient({ locale, labels }: HeaderClientProps) {
         <div className="hd-right">
           <ThemeSwitcher />
           <LocaleSwitcher locale={locale} />
-          {signedIn ? (
-            <Link className="btn btn-chrome btn-sm" href={appHref}>
-              {labels.dashboard}
-            </Link>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="hd-link hd-signin"
-                onClick={() => signInWithGoogle(`/${locale}${appHref}`)}
-              >
-                {labels.signIn}
-              </button>
-              <Link className="btn btn-chrome btn-sm" href={appHref}>
-                {labels.startFree}
-              </Link>
-            </>
-          )}
+          {/* Las dos variantes van en el HTML (estático, igual para todos); SESSION_HINT_SCRIPT marca
+              <html data-session="in"> antes del primer paint y el CSS muestra la que corresponde. */}
+          <button
+            type="button"
+            className="hd-link hd-signin hd-out"
+            onClick={() => signInWithGoogle(`/${locale}${appHref}`)}
+          >
+            {labels.signIn}
+          </button>
+          <Link className="btn btn-chrome btn-sm" href={appHref}>
+            <span className="hd-out">{labels.startFree}</span>
+            <span className="hd-in">{labels.dashboard}</span>
+          </Link>
           <button
             type="button"
             className="nav-burger"
@@ -303,19 +285,16 @@ export default function HeaderClient({ locale, labels }: HeaderClientProps) {
         <div className="mobile-panel-foot">
           <ThemeSwitcher />
           <LocaleSwitcher locale={locale} />
-          {signedIn ? (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={signOutHere}>
-              {labels.signOut}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => signInWithGoogle(`/${locale}${appHref}`)}
-            >
-              {labels.signIn}
-            </button>
-          )}
+          <button type="button" className="btn btn-secondary btn-sm hd-in" onClick={signOutHere}>
+            {labels.signOut}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm hd-out"
+            onClick={() => signInWithGoogle(`/${locale}${appHref}`)}
+          >
+            {labels.signIn}
+          </button>
         </div>
       </div>
     </header>

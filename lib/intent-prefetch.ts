@@ -11,9 +11,10 @@ export const INTENT_DWELL_MS = 70;
 export const INTENT_FRESH_MS = 30_000;
 /**
  * Si al llegar la precarga ya tenía más que esto, se refresca la página en
- * segundo plano: se ve al instante y en seguida con los datos de ahora.
+ * segundo plano: se ve al instante y un momento después con los datos de
+ * ahora (lo que cambiaron otras personas u otra pestaña mientras tanto).
  */
-export const INTENT_REFRESH_AFTER_MS = 5_000;
+export const INTENT_REFRESH_AFTER_MS = 1_000;
 
 /** Contenedores cuyos links se precargan: navegación, no listas de datos. */
 export const INTENT_SELECTOR = '#app-side a[href], .app-home-apps a[href], a.home-more-app[href]';

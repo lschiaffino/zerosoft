@@ -37,17 +37,46 @@ test('el modo oscuro de la cookie se aplica antes del primer paint en una págin
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(15, 14, 13)');
 });
 
-test('header del sitio: con la pista de sesión muestra Dashboard; sin ella, Entrar', async ({ page, context, baseURL }) => {
+test('header del sitio: con la pista de sesión muestra Dashboard desde el primer paint; sin ella, Entrar', async ({ page, context, baseURL }) => {
   await page.goto('/es/blog', { waitUntil: 'networkidle' });
   await expect(page.locator('.hd-right .hd-signin')).toBeVisible();
+  await expect(page.locator('.hd-right a.btn-chrome')).toHaveText('Empezá gratis', { useInnerText: true });
   await context.addCookies([{ name: 'zs_who', value: 'abc123', url: baseURL ?? 'http://localhost:3210' }]);
-  await page.reload({ waitUntil: 'networkidle' });
-  await expect(page.locator('.hd-right a.btn-chrome')).toHaveText('Dashboard');
-  await expect(page.locator('.hd-right .hd-signin')).toHaveCount(0);
+  // Sin el JavaScript de React: solo el script en línea y el CSS deciden qué se ve.
+  await page.route('**/_next/static/chunks/**', (route) => route.abort());
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.locator('html')).toHaveAttribute('data-session', 'in');
+  await expect(page.locator('.hd-right a.btn-chrome')).toHaveText('Dashboard', { useInnerText: true });
+  await expect(page.locator('.hd-right .hd-signin')).toBeHidden();
 });
 
 test('visitar la app deja la pista, y el sitio después muestra Dashboard', async ({ page }) => {
   await page.goto('/es/app/crm', { waitUntil: 'networkidle' });
   await page.goto('/es', { waitUntil: 'networkidle' });
-  await expect(page.locator('.hd-right a.btn-chrome')).toHaveText('Dashboard');
+  await expect(page.locator('.hd-right a.btn-chrome')).toHaveText('Dashboard', { useInnerText: true });
+});
+
+test('una página estática no manda Set-Cookie (cacheable en el CDN) y el idioma igual queda en la cookie', async ({ page, request, context }) => {
+  const res = await request.get('/es/blog', { headers: { 'accept-language': 'en-US,en;q=0.9' } });
+  expect(res.status()).toBe(200);
+  expect(res.headersArray().filter((h) => h.name.toLowerCase() === 'set-cookie')).toEqual([]);
+  await page.goto('/es/blog', { waitUntil: 'domcontentloaded' });
+  expect((await context.cookies()).find((c) => c.name === 'NEXT_LOCALE')?.value).toBe('es');
+});
+
+test('el 404 de una ruta estática lleva su título y no queda cacheado un año', async ({ request }) => {
+  for (const path of ['/es/blog/tag/no-existe-en-ninguno', '/es/products/nada', '/es/no-existe/para-nada']) {
+    const res = await request.get(path);
+    expect(res.status(), path).toBe(404);
+    expect(await res.text(), path).toContain('<title>Página no encontrada · zerosoft</title>');
+    expect(res.headers()['cache-control'] ?? '', path).not.toContain('s-maxage=31536000');
+  }
+});
+
+test('las APIs con datos de la persona no se cachean', async ({ request }) => {
+  for (const path of ['/api/notifications?limit=5', '/api/teams', '/api/voice/settings', '/api/search?q=a&locale=es']) {
+    const res = await request.get(path);
+    expect(res.status(), path).toBe(200);
+    expect(res.headers()['cache-control'], path).toBe('private, no-store');
+  }
 });

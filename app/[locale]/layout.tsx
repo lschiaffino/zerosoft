@@ -16,6 +16,8 @@ import BrandProvider from '@/components/brand/BrandProvider';
 import { DEFAULT_BRAND } from '@/lib/brand-theme';
 import ThemeProvider from '@/components/theme/ThemeProvider';
 import { THEME_INIT_SCRIPT } from '@/lib/color-theme';
+import { SESSION_HINT_SCRIPT } from '@/lib/session-hint';
+import { localeCookieScript } from '@/lib/locale-cookie';
 import { TZ_COOKIE_SCRIPT } from '@/lib/tz-client';
 import '@/styles/board-public.css';
 import type { ReactNode } from 'react';
@@ -109,7 +111,7 @@ export default async function LocaleLayout(
     // data-theme lo pone el script antes de hidratar: no es un desajuste.
     <html lang={locale} data-brand={brand} className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
       <body>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT + SESSION_HINT_SCRIPT + localeCookieScript(locale) }} />
         <BrandProvider brand={brand}>
         <ThemeProvider>
         {/* Al cliente va solo lo común (header, launcher de feedback); cada app

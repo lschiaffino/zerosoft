@@ -12,8 +12,8 @@ const FULL = 'full' as PrefetchKind;
  * Navegar entre apps sin esperar: con el puntero quieto un momento sobre un
  * link del sidebar o de las apps del inicio se precarga la página entera
  * (las rutas de la app son dinámicas y Next, solo, no las precarga). El clic
- * que sigue se resuelve con lo precargado. Si esa precarga ya tenía unos
- * segundos, se refresca en segundo plano: nunca queda a la vista algo viejo.
+ * que sigue se resuelve con lo precargado. Si esa precarga ya tenía más de
+ * un segundo, se refresca en segundo plano: nunca queda a la vista algo viejo.
  * Táctil no aplica (no hay hover); el teclado navega como siempre.
  */
 export default function IntentPrefetch() {
