@@ -303,10 +303,8 @@ function ProfileFlow(props: Parameters<typeof WelcomeFlow>[0]) {
 
   function toggleApp(k: ProductKey) {
     setTouched(true);
-    const cur = new Set(picked);
-    if (cur.has(k)) cur.delete(k);
-    else cur.add(k);
-    setApps(APP_SWITCHER_ORDER.filter((x) => cur.has(x)));
+    // Sacar deja el resto en su orden; sumar la pone al final.
+    setApps(picked.includes(k) ? picked.filter((x) => x !== k) : [...picked, k]);
   }
 
   async function finish() {

@@ -30,13 +30,13 @@ async function freshUser(label: string) {
 
 describe('onboarding: apps, borrador y segundo tramo', () => {
   it('sugiere apps por rol y modo, y limpia lo que llega del navegador', () => {
-    expect(suggestedApps('sales', 'team')).toEqual(cleanApps(['crm', 'cal', 'link', 'send', 'docs']));
+    expect(suggestedApps('sales', 'team')).toEqual(['crm', 'cal', 'link', 'send', 'docs']);
     expect(suggestedApps('support', 'team')).toEqual(expect.arrayContaining(['chat', 'groups']));
     // En uso personal suma Notes y Cal; sin rol, las destacadas del modo.
     expect(suggestedApps('engineering', 'personal')).toEqual(expect.arrayContaining(['track', 'notes', 'cal']));
     expect(suggestedApps(null, 'personal')).toEqual(cleanApps(featuredApps({ mode: 'personal' }).concat(['notes', 'cal'])));
     expect(suggestedApps('nope', 'team')).toEqual(cleanApps(featuredApps({ mode: 'team' })));
-    expect(cleanApps(['crm', 'crm', 'x', 3, 'track'])).toEqual(['track', 'crm']);
+    expect(cleanApps(['crm', 'crm', 'x', 3, 'track'])).toEqual(['crm', 'track']);
     expect(cleanDraft({ step: 'apps', mode: 'team', role: 'hacker', size: '2-10', apps: ['docs', 'zz'], teamName: 'A'.repeat(200), invites: 5 })).toEqual({
       step: 'apps',
       mode: 'team',
@@ -63,10 +63,10 @@ describe('onboarding: apps, borrador y segundo tramo', () => {
     await saveDraft(u.id, { step: 'you', mode: 'personal', name: 'Ana' });
     expect((await getProfile(u.id)).draft).toEqual({ step: 'you', mode: 'personal', name: 'Ana' });
     const profile = await saveOnboarding(u, { mode: 'personal', role: 'engineering', apps: ['docs', 'track', 'bogus'] });
-    expect(profile).toMatchObject({ v: 2, apps: ['track', 'docs'], entryApp: 'track', setupStep: 'connect' });
+    expect(profile).toMatchObject({ v: 2, apps: ['docs', 'track'], entryApp: 'docs', setupStep: 'connect' });
     const saved = await getProfile(u.id);
     expect(saved.draft).toBeUndefined();
-    expect(saved.apps).toEqual(['track', 'docs']);
+    expect(saved.apps).toEqual(['docs', 'track']);
     await saveSetupProgress(u.id, { step: 'desktop', sourceTool: 'linear' });
     expect(await getProfile(u.id)).toMatchObject({ setupStep: 'desktop', sourceTool: 'linear' });
     await saveSetupProgress(u.id, { sourceTool: 'not-a-tool' });

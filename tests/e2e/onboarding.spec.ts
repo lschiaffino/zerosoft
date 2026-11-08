@@ -146,7 +146,7 @@ test('persona nueva: borrador retomable, apps, Google Calendar, origen, escritor
     const state = (await (await ctx.request.get('/api/onboarding')).json()) as { state: { pending: string[]; desktop: { seenAt: string | null }; apps: string[] } };
     expect(state.state.pending).toEqual(['import']);
     expect(state.state.desktop.seenAt).toBeTruthy();
-    expect(state.state.apps).toEqual(['track', 'docs', 'cal', 'notes', 'talk']);
+    expect(state.state.apps).toEqual(['track', 'docs', 'talk', 'notes', 'cal']);
   } finally {
     await ctx.close();
   }
@@ -213,8 +213,10 @@ test('dentro de la app de escritorio: sin paso de descarga, sin entrada en el me
       .toBe('darwin');
     const row = await sql('SELECT profile FROM users WHERE email = ?', [email]);
     expect(JSON.parse(String(row[0].profile))).toMatchObject({ desktopVersion: '0.1.0' });
+    // Lo único pendiente era el escritorio: con eso hecho, "Primeros pasos" dice que está todo.
     await p.reload({ waitUntil: 'networkidle' });
-    await expect(p.getByTestId('gs-desktop')).toHaveAttribute('data-done', '1');
+    await expect(p.getByTestId('getting-started-progress')).toHaveText('2 de 2 listos');
+    await expect(p.getByTestId('getting-started')).toContainText('Ya está todo.');
     await p.getByTestId('workspace-switcher').click();
     await expect(p.getByTestId('side-settings')).toBeVisible();
     await expect(p.getByTestId('side-download')).toHaveCount(0);

@@ -103,11 +103,14 @@ export function cleanDraft(raw: unknown): OnboardingDraft {
   return out;
 }
 
-/** Apps válidas, sin repetir, en el orden del switcher. */
+/**
+ * Apps válidas, sin repetir, en el orden en que llegan (primero las del rol,
+ * después las que la persona sumó): ese orden es el de "Tus apps" y la
+ * primera es la app de entrada.
+ */
 export function cleanApps(raw: unknown): ProductKey[] {
   if (!Array.isArray(raw)) return [];
-  const set = new Set(raw.filter((k): k is ProductKey => typeof k === 'string' && isProductKey(k)));
-  return APP_SWITCHER_ORDER.filter((k) => set.has(k));
+  return [...new Set(raw.filter((k): k is ProductKey => typeof k === 'string' && isProductKey(k)))].slice(0, APP_SWITCHER_ORDER.length);
 }
 
 /**
