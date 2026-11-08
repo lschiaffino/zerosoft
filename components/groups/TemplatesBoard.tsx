@@ -134,7 +134,7 @@ export default function TemplatesBoard({
         labels={labels}
         onClose={() => {
           setEditing(null);
-          if (openNew) router.replace('/app/groups/templates');
+          if (openNew) router.replace('/app/lines/templates');
         }}
         onSaved={(tpl, isNew) => {
           setEditing(null);
@@ -417,7 +417,7 @@ function UseTemplateModal({ template, numbers, onClose }: { template: TemplateDt
             <ul className="gr-mini-list">
               {results.map((r, i) => (
                 <li key={`${r.name}-${i}`}>
-                  {r.ok && r.chatId ? <Link href={`/app/groups/list/${r.chatId}`}>{r.name}</Link> : <span>{r.name || '-'}</span>}
+                  {r.ok && r.chatId ? <Link href={`/app/lines/list/${r.chatId}`}>{r.name}</Link> : <span>{r.name || '-'}</span>}
                   {r.ok ? (
                     r.notAdded && r.notAdded.length > 0 ? (
                       <span className="badge badge-warn">{t('csv.notAdded', { n: r.notAdded.length })}</span>

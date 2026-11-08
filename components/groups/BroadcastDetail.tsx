@@ -98,7 +98,7 @@ export default function BroadcastDetail({ initial }: { initial: { broadcast: Bro
             {data.recipients.map((r) => (
               <tr key={r.id}>
                 <td>
-                  <Link href={`/app/groups/inbox/${r.chatId}`}>{r.chatName}</Link>
+                  <Link href={`/app/lines/inbox/${r.chatId}`}>{r.chatName}</Link>
                 </td>
                 <td data-label={t('broadcasts.colStatus')}>
                   <span className={`badge ${r.status === 'sent' ? 'badge-ok' : r.status === 'failed' ? 'badge-bad' : 'badge-outline'}`}>{t(`recipientStatus.${r.status}`)}</span>

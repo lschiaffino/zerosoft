@@ -424,8 +424,8 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/agents/${i.id}`))),
   },
   {
-    app: 'Groups',
-    list: '/en/app/groups/list',
+    app: 'Lines',
+    list: '/en/app/lines/list',
     create: async (request, name) => {
       const numberId = await groupsNumber(request);
       const res = await ok<{ results: Array<{ ok: boolean; chatId?: string; error?: string }> }>(
@@ -434,7 +434,7 @@ const APPS: AppCase[] = [
       expect(res.results[0].ok, res.results[0].error).toBe(true);
       return { id: res.results[0].chatId!, name };
     },
-    detail: (i) => `/en/app/groups/list/${i.id}`,
+    detail: (i) => `/en/app/lines/list/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/chats/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/groups/chats/${i.id}`))),
   },
@@ -590,18 +590,18 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await request.delete(`/api/design/folders/${i.id}`)),
   },
   {
-    app: 'Groups templates',
-    list: '/en/app/groups/templates',
+    app: 'Lines templates',
+    list: '/en/app/lines/templates',
     create: async (request, name) =>
       ({ id: (await ok<{ id: string }>(request.post('/api/groups/templates', { data: { name, members: ['+15550009002'] } }))).id, name }),
     // Abrir una plantilla es usarla (el modal con su nombre).
-    detail: (i) => `/en/app/groups/templates?use=${i.id}`,
+    detail: (i) => `/en/app/lines/templates?use=${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/templates/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/groups/templates/${i.id}`))),
   },
   {
-    app: 'Groups saved lists',
-    list: '/en/app/groups/inbox',
+    app: 'Lines saved lists',
+    list: '/en/app/lines/inbox',
     // Cuelgan de "Bandeja" en el sidebar (GroupsListsBranch).
     sidebar: true,
     create: async (request, name) => {
@@ -609,27 +609,27 @@ const APPS: AppCase[] = [
       await groupsNumber(request);
       return { id: (await ok<{ id: string }>(request.post('/api/groups/lists', { data: { name, shared: true, filters: { kind: 'group' } } }))).id, name };
     },
-    detail: (i) => `/en/app/groups/inbox?list=${i.id}`,
+    detail: (i) => `/en/app/lines/inbox?list=${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/lists/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/groups/lists/${i.id}`))),
   },
   {
-    app: 'Groups tasks',
-    list: '/en/app/groups/tasks',
+    app: 'Lines tasks',
+    list: '/en/app/lines/tasks',
     create: async (request, name) => {
       const numberId = await groupsNumber(request);
       const res = await ok<{ results: Array<{ chatId?: string }> }>(request.post('/api/groups/create', { data: { numberId, name: `Task chat ${uid()}`, phones: [] } }));
       const task = await ok<{ id: string }>(request.post('/api/groups/tasks', { data: { chatId: res.results[0].chatId, title: name } }));
       return { id: task.id, name };
     },
-    detail: (i) => `/en/app/groups/tasks?open=${i.id}`,
+    detail: (i) => `/en/app/lines/tasks?open=${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/tasks/${i.id}`, { data: { title: name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/groups/tasks/${i.id}`))),
   },
   {
     // Groups: mensajes recurrentes (lista en Envíos, detalle con su editor).
-    app: 'Groups recurring',
-    list: '/en/app/groups/broadcasts',
+    app: 'Lines recurring',
+    list: '/en/app/lines/broadcasts',
     create: async (request, name) => {
       const numberId = await groupsNumber(request);
       const g = await ok<{ results: Array<{ ok: boolean; chatId?: string }> }>(
@@ -640,7 +640,7 @@ const APPS: AppCase[] = [
       );
       return { id: rec.id, name };
     },
-    detail: (i) => `/en/app/groups/broadcasts/recurring/${i.id}`,
+    detail: (i) => `/en/app/lines/broadcasts/recurring/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/groups/recurring/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/groups/recurring/${i.id}`))),
   },

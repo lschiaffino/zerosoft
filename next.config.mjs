@@ -44,6 +44,17 @@ const nextConfig = {
         { source: `/:locale(en|es|pt)/blog/${from}`, destination: `/:locale/blog/${to}`, permanent: true },
         { source: `/blog/${from}`, destination: `/blog/${to}`, permanent: true },
       ]),
+      // Groups pasó a llamarse Lines: las URLs viejas (con o sin idioma, y cualquier subruta) van a las nuevas.
+      // La API (/api/groups, incluido el webhook de Evolution) no cambia.
+      ...[
+        ['app/groups', 'app/lines'],
+        ['products/groups', 'products/lines'],
+      ].flatMap(([from, to]) => [
+        { source: `/:locale(en|es|pt)/${from}`, destination: `/:locale/${to}`, permanent: true },
+        { source: `/:locale(en|es|pt)/${from}/:path*`, destination: `/:locale/${to}/:path*`, permanent: true },
+        { source: `/${from}`, destination: `/${to}`, permanent: true },
+        { source: `/${from}/:path*`, destination: `/${to}/:path*`, permanent: true },
+      ]),
     ];
   },
   // Subidas locales (sin Blob): /uploads/* siempre pasa por la ruta que

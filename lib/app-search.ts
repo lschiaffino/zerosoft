@@ -576,9 +576,9 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       (id) => `/app/agents/${id}`,
     ),
     ...map(robots, 'robots', (id) => `/app/robots/${id}`),
-    ...map(groupChats.map(gMask), 'groupsChats', (id) => `/app/groups/inbox/${id}`),
-    ...map(groupTickets.map(gMask), 'groupsTickets', (id) => `/app/groups/tickets?open=${id}`),
-    ...map(groupRecurring, 'groupsRecurring', (id) => `/app/groups/broadcasts/recurring/${id}`),
+    ...map(groupChats.map(gMask), 'groupsChats', (id) => `/app/lines/inbox/${id}`),
+    ...map(groupTickets.map(gMask), 'groupsTickets', (id) => `/app/lines/tickets?open=${id}`),
+    ...map(groupRecurring, 'groupsRecurring', (id) => `/app/lines/broadcasts/recurring/${id}`),
     ...map(playbooks, 'playbooks', (id) => `/app/crm/playbooks/${id}`),
     ...map(forms, 'crmForms', (id) => `/app/crm/forms/${id}`),
     ...map(quotes, 'crmQuotes', (id) => `/app/crm/quotes/${id}`),
@@ -586,10 +586,10 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(scores, 'crmScores', () => '/app/crm/settings?tab=automation'),
     ...groupMessages.map(gMask).map((r) => {
       const [chatId, ...rest] = String(r.meta ?? '').split('|');
-      return { id: r.id, group: 'groupsMessages' as const, label: r.label, meta: rest.join('|'), href: `/app/groups/inbox/${chatId}#m-${r.id}` };
+      return { id: r.id, group: 'groupsMessages' as const, label: r.label, meta: rest.join('|'), href: `/app/lines/inbox/${chatId}#m-${r.id}` };
     }),
-    ...map(groupLists, 'groupsLists', (id) => `/app/groups/inbox?list=${id}`),
-    ...map(groupTemplates, 'groupsTemplates', (id) => `/app/groups/templates?use=${id}`),
+    ...map(groupLists, 'groupsLists', (id) => `/app/lines/inbox?list=${id}`),
+    ...map(groupTemplates, 'groupsTemplates', (id) => `/app/lines/templates?use=${id}`),
     ...map(voiceSessions, 'voiceSessions', (id) =>
       id.startsWith('vf:') ? `/app/voice?folder=${id.slice(3)}` : id.startsWith('vp:') ? `/app/voice/settings?tab=prompts&prompt=${id.slice(3)}` : `/app/voice/meetings/${id}`,
     ),

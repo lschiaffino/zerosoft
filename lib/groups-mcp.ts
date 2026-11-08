@@ -51,7 +51,7 @@ const TOOLS: ToolDef[] = [
     name: 'list_chats',
     title: 'List chats and groups',
     description:
-      'Lists WhatsApp chats and groups in the Groups inbox, newest activity first. Filter by unread, unanswered, flagged, mine, unassigned or closed; search names, phones and message text with q.',
+      'Lists WhatsApp chats and groups in the Lines inbox, newest activity first. Filter by unread, unanswered, flagged, mine, unassigned or closed; search names, phones and message text with q.',
     scope: 'groups:read',
     readOnly: true,
     inputSchema: {
@@ -326,7 +326,7 @@ export async function handleRpc(ctx: McpContext, req: RpcRequest): Promise<RpcRe
         result: {
           protocolVersion: version,
           capabilities: { tools: { listChanged: false } },
-          serverInfo: { name: 'zerosoft-groups', title: 'zerosoft Groups', version: '1.0.0' },
+          serverInfo: { name: 'zerosoft-groups', title: 'zerosoft Lines', version: '1.0.0' },
           instructions:
             'WhatsApp inbox of a zerosoft workspace. Use list_chats to find a chat or group, get_messages to read it, send_message to reply and create_ticket to track a request.',
         },

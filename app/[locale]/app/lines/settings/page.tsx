@@ -60,7 +60,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
   const alias = sp.tab ? TAB_ALIASES[sp.tab] : undefined;
-  if (alias) redirect(`/${locale}/app/groups/settings?tab=${alias}`);
+  if (alias) redirect(`/${locale}/app/lines/settings?tab=${alias}`);
   const tab = (TABS as readonly string[]).includes(sp.tab ?? '') ? (sp.tab as (typeof TABS)[number]) : 'numbers';
   const admin = isWorkspaceAdmin(user);
 
@@ -146,7 +146,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
           ))}
         </ul>
         <p className="ui-help">
-          {t('api.webhooksManage')} <Link href="/app/groups/settings?tab=integrations">{t('settings.tabs.integrations')}</Link>
+          {t('api.webhooksManage')} <Link href="/app/lines/settings?tab=integrations">{t('settings.tabs.integrations')}</Link>
         </p>
         <p className="ui-help">
           {t('api.flow')} <Link href="/app/flow">Flow</Link>

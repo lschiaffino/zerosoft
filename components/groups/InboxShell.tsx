@@ -322,7 +322,7 @@ export default function InboxShell({
       const next = rows[Math.min(rows.length - 1, Math.max(0, i < 0 ? 0 : i + delta))];
       if (next) {
         markChatSwitch(next.id);
-        router.push(`/app/groups/inbox/${next.id}${listId ? `?list=${listId}` : ''}`);
+        router.push(`/app/lines/inbox/${next.id}${listId ? `?list=${listId}` : ''}`);
       }
     },
     [rows, current, router, listId],
@@ -380,7 +380,7 @@ export default function InboxShell({
   const unreadChats = unreadTotal ?? rows.filter((r) => r.unread > 0 && !r.muted).length;
   useEffect(() => {
     const prev = document.title;
-    document.title = `${unreadChats ? `(${unreadChats}) ` : ''}${activeList ? activeList.name : t('inbox.title')} · Groups`;
+    document.title = `${unreadChats ? `(${unreadChats}) ` : ''}${activeList ? activeList.name : t('inbox.title')} · Lines`;
     return () => {
       document.title = prev;
     };
@@ -436,7 +436,7 @@ export default function InboxShell({
           <input type="checkbox" className="gr-row-check" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} aria-label={t('bulkInbox.select', { name: c.name })} />
         )}
         <Link
-          href={`/app/groups/inbox/${c.id}${listSuffix}`}
+          href={`/app/lines/inbox/${c.id}${listSuffix}`}
           onClick={(e) => {
             if (showCheck) {
               e.preventDefault();
@@ -563,7 +563,7 @@ export default function InboxShell({
     if (!r.data) return showToast(errText(r.error), true);
     setLists((ls) => ls.filter((l) => l.id !== activeList.id));
     notifyListsChanged();
-    router.push(current ? `/app/groups/inbox/${current}` : '/app/groups/inbox');
+    router.push(current ? `/app/lines/inbox/${current}` : '/app/lines/inbox');
   }
 
   return (
@@ -590,7 +590,7 @@ export default function InboxShell({
             {lists.length > 0 && (
               <nav className="gr-list-views" aria-label={t('lists.sidebar')}>
                 <Link
-                  href={`/app/groups/inbox${current ? `/${current}` : ''}`}
+                  href={`/app/lines/inbox${current ? `/${current}` : ''}`}
                   className={`gr-view${!listId ? ' is-on' : ''}`}
                   aria-current={!listId ? 'page' : undefined}
                   onClick={() => setControls(EMPTY)}
@@ -600,7 +600,7 @@ export default function InboxShell({
                 {lists.map((l) => (
                   <Link
                     key={l.id}
-                    href={`/app/groups/inbox${current ? `/${current}` : ''}?list=${l.id}`}
+                    href={`/app/lines/inbox${current ? `/${current}` : ''}?list=${l.id}`}
                     className={`gr-view${l.id === listId ? ' is-on' : ''}`}
                     aria-current={l.id === listId ? 'page' : undefined}
                   >
@@ -619,7 +619,7 @@ export default function InboxShell({
                         {t('lists.saveChanges')}
                       </button>
                     )}
-                    <Link href={`/app/groups/broadcasts/new?list=${activeList.id}`} className="btn btn-ghost btn-sm">
+                    <Link href={`/app/lines/broadcasts/new?list=${activeList.id}`} className="btn btn-ghost btn-sm">
                       {t('lists.broadcast')}
                     </Link>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSaving('rename')}>
@@ -821,7 +821,7 @@ export default function InboxShell({
           {dropped.map((n) => (
             <div key={n.id} className="wa-import is-bad wa-dropped" role="alert">
               <span>{t('wa.lineDropped', { name: n.name || (n.phone ? `+${n.phone}` : t('wa.line')) })}</span>
-              <Link className="btn btn-secondary btn-sm" href={`/app/groups/settings?tab=numbers&reconnect=${n.id}`}>
+              <Link className="btn btn-secondary btn-sm" href={`/app/lines/settings?tab=numbers&reconnect=${n.id}`}>
                 {n.qr ? t('wa.rescan') : t('wa.reconnect')}
               </Link>
             </div>
@@ -908,7 +908,7 @@ export default function InboxShell({
           setSaving(null);
           void reloadLists();
           notifyListsChanged();
-          router.push(`/app/groups/inbox${current ? `/${current}` : ''}?list=${l.id}`);
+          router.push(`/app/lines/inbox${current ? `/${current}` : ''}?list=${l.id}`);
         }}
       />
       <ConfirmDialog
@@ -924,7 +924,7 @@ export default function InboxShell({
           if (!c) return;
           void rowAction(c, { hidden: true }).then(() => {
             showToast(t('wa.chatDeleted'));
-            if (c.id === current) router.push(`/app/groups/inbox${listSuffix}`);
+            if (c.id === current) router.push(`/app/lines/inbox${listSuffix}`);
           });
         }}
         onCancel={() => setHiding(null)}

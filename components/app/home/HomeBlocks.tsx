@@ -240,7 +240,7 @@ export async function UnreadBlock({ user, locale, hideWhenEmpty }: { user: HomeU
           )}
           {groups !== null && groups > 0 && (
             <li>
-              <Link href="/app/groups/inbox" className="home-row">
+              <Link href="/app/lines/inbox" className="home-row">
                 <span className="home-row-label">
                   <ProductGlyph product="groups" size={12} /> {t('today.groupsUnread', { n: groups })}
                 </span>

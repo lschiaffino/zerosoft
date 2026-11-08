@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-groups-is-now-lines',
+    date: '2026-11-08',
+    title: {
+      en: 'Groups is now Lines',
+      es: 'Groups ahora se llama Lines',
+      pt: 'Groups agora se chama Lines',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The WhatsApp app for teams is now called Lines, and it lives at /app/lines. Old /app/groups links, bookmarks and installed apps redirect on their own, and connected numbers keep working with no changes.',
+        es: 'La app de WhatsApp para equipos ahora se llama Lines y vive en /app/lines. Los links, favoritos y apps instaladas con /app/groups redirigen solos, y los números conectados siguen funcionando sin cambios.',
+        pt: 'O app de WhatsApp para equipes agora se chama Lines e fica em /app/lines. Links, favoritos e apps instalados com /app/groups redirecionam sozinhos, e os números conectados continuam funcionando sem mudanças.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-members-permissions',
     date: '2026-11-08',
     title: {

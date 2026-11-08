@@ -96,7 +96,7 @@ test('Talk: un link a un canal de otro workspace de la persona la lleva ahí', a
 
 test('más ids desconocidos responden 404 y los válidos abren', async ({ request, browser, baseURL }) => {
   // Sin números el layout de la bandeja no renderiza la página hija: el id igual da 404.
-  expect((await request.get('/en/app/groups/inbox/zzz')).status()).toBe(404);
+  expect((await request.get('/en/app/lines/inbox/zzz')).status()).toBe(404);
   for (const path of [
     'chat/inbox/zzz',
     'crm/tasks/zzz',

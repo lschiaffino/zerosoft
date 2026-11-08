@@ -490,7 +490,7 @@ self.addEventListener('message', (event) => {
 // ---------- Push de Groups ----------
 
 const GROUPS_ICON = '/api/pwa-icon/192';
-const GROUPS_INBOX = '/app/groups/inbox';
+const GROUPS_INBOX = '/app/lines/inbox';
 
 self.addEventListener('push', (event) => {
   event.waitUntil(
@@ -504,11 +504,11 @@ self.addEventListener('push', (event) => {
       }
       if (list.length === 0) {
         // El navegador exige mostrar algo por cada push.
-        await self.registration.showNotification('Groups', { body: '', tag: 'groups', data: { url: GROUPS_INBOX }, icon: GROUPS_ICON });
+        await self.registration.showNotification('Lines', { body: '', tag: 'groups', data: { url: GROUPS_INBOX }, icon: GROUPS_ICON });
         return;
       }
       for (const n of list) {
-        await self.registration.showNotification(n.title || 'Groups', {
+        await self.registration.showNotification(n.title || 'Lines', {
           body: n.body || '',
           tag: n.url || n.id,
           renotify: true,

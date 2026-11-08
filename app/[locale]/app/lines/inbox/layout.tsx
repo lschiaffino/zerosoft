@@ -33,7 +33,7 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
 
   if (numbers.length === 0) {
     // Sin números no se renderiza la página hija: un id en la ruta no puede existir. Da 404 con el aviso de
-    // Groups dentro de la app (app/[locale]/app/groups/not-found.tsx), p. ej. un link viejo tras borrar el ejemplo.
+    // Groups dentro de la app (app/[locale]/app/lines/not-found.tsx), p. ej. un link viejo tras borrar el ejemplo.
     if (/\/inbox\/[^/?#]+/.test((await headers()).get(RETURN_PATH_HEADER) ?? '')) notFound();
     return (
       <div className="ui-page">

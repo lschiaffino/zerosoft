@@ -24,7 +24,7 @@ export default async function CrmGroupsBlock({ ws, kind, recordId, locale }: { w
           {chats.map(({ chat, messages, openTickets }) => (
             <li key={chat.id}>
               <div className="gr-crm-chat-head">
-                <Link href={`/app/groups/inbox/${chat.id}`}>{chat.name}</Link>
+                <Link href={`/app/lines/inbox/${chat.id}`}>{chat.name}</Link>
                 <span className="muted">
                   {chat.kind === 'group' ? t('thread.groupMeta', { n: chat.memberCount }) : `+${chat.phone}`}
                   {openTickets > 0 ? ` · ${t('crmBlock.tickets', { n: openTickets })}` : ''}

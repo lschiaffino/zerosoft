@@ -241,10 +241,10 @@
     "tickets": "Tickets",
     "noTickets": "No hay tickets en este chat.",
     "scheduled": "Mensajes programados",
-    "since": "En Groups desde {time}",
+    "since": "En Lines desde {time}",
     "exportMessages": "Exportar mensajes",
-    "remove": "Quitar de Groups",
-    "removeTitle": "¿Quitar este chat de Groups?",
+    "remove": "Quitar de Lines",
+    "removeTitle": "¿Quitar este chat de Lines?",
     "removeBody": "Sus mensajes, notas y etiquetas se borran acá. El chat o grupo sigue en WhatsApp y un mensaje nuevo lo trae de vuelta.",
     "removeConfirm": "Quitar",
     "description": "Descripción",
@@ -462,13 +462,13 @@
     "volume": "Mensajes por día",
     "volumeAria": "{inbound} recibidos y {outbound} enviados en el período",
     "byAgent": "Por persona",
-    "noAgents": "Nadie respondió desde Groups en este período.",
+    "noAgents": "Nadie respondió desde Lines en este período.",
     "person": "Persona",
     "replies": "Respuestas",
     "resolved": "Tickets resueltos",
     "byChat": "Por chat o grupo",
     "chat": "Chat",
-    "note": "La primera respuesta cuenta las respuestas desde Groups, desde el teléfono y de los agentes. Los envíos masivos no cuentan.",
+    "note": "La primera respuesta cuenta las respuestas desde Lines, desde el teléfono y de los agentes. Los envíos masivos no cuentan.",
     "exportChats": "Exportar chats",
     "exportTickets": "Exportar tickets",
     "filters": "Filtros del reporte",
@@ -485,7 +485,7 @@
     "rangeInverted": "La fecha de fin es anterior a la de inicio. Elegí una fecha de fin igual o posterior para aplicar el rango."
   },
   "settings": {
-    "title": "Ajustes de Groups",
+    "title": "Ajustes de Lines",
     "desc": "Números, etiquetas, respuestas rápidas, propiedades, asignación y reglas de tickets.",
     "tabs": {
       "numbers": "Números",
@@ -513,7 +513,7 @@
     "edit": "Editar",
     "disconnect": "Desconectar",
     "deleteTitle": "¿Borrar este número?",
-    "deleteBody": "Sus chats, grupos, mensajes y tickets se borran de Groups. En WhatsApp no cambia nada.",
+    "deleteBody": "Sus chats, grupos, mensajes y tickets se borran de Lines. En WhatsApp no cambia nada.",
     "addTitle": "Agregar un número de WhatsApp",
     "editTitle": "Editar número",
     "addAndConnect": "Guardar y conectar",
@@ -564,7 +564,7 @@
     "syncing": "Trayendo tus grupos...",
     "syncedAuto": "{n, plural, =0 {Todavía no hay grupos en este número.} one {Trajimos # grupo.} other {Trajimos # grupos.}}",
     "openInbox": "Ir a la bandeja",
-    "deleteBodyManaged": "Sus chats, grupos, mensajes y tickets se borran de Groups y se cierra la sesión vinculada en el teléfono.",
+    "deleteBodyManaged": "Sus chats, grupos, mensajes y tickets se borran de Lines y se cierra la sesión vinculada en el teléfono.",
     "adminOnly": "Solo los admins del workspace agregan, conectan y borran números."
   },
   "providers": {
@@ -662,7 +662,7 @@
   "rules": {
     "intro": "Cuándo un chat cuenta como sin responder, qué crea un ticket y cuánto tiempo tiene cada prioridad.",
     "emoji": "Emoji de ticket",
-    "emojiHelp": "Reaccionar con él a un mensaje, desde Groups o desde el teléfono, crea un ticket. Vacío lo desactiva.",
+    "emojiHelp": "Reaccionar con él a un mensaje, desde Lines o desde el teléfono, crea un ticket. Vacío lo desactiva.",
     "keywords": "Palabras clave de ticket",
     "keywordsPlaceholder": "urgente, roto, reembolso",
     "keywordsHelp": "Un mensaje de un cliente con alguna de estas palabras crea un ticket. Separadas por comas.",
@@ -696,14 +696,14 @@
     "scopes": "Creá una clave con los permisos groups:read y groups:write en",
     "keys": "los ajustes del workspace",
     "webhooks": "Webhooks salientes y disparadores de Flow para estos eventos:",
-    "flow": "Flow también puede mandar un mensaje de WhatsApp con el paso Groups: mandar mensaje de WhatsApp.",
+    "flow": "Flow también puede mandar un mensaje de WhatsApp con el paso Lines: mandar mensaje de WhatsApp.",
     "docs": "Cada endpoint con ejemplos está en",
     "docsLink": "la documentación de la API",
     "webhooksManage": "Creá endpoints, mirá el log de entregas y reenviá desde"
   },
   "crmBlock": {
     "title": "WhatsApp",
-    "empty": "No hay chat ni grupo vinculado. Vinculá uno desde su panel de detalles en Groups.",
+    "empty": "No hay chat ni grupo vinculado. Vinculá uno desde su panel de detalles en Lines.",
     "tickets": "{n, plural, one {# ticket abierto} other {# tickets abiertos}}",
     "waiting": "Esperando respuesta"
   },
@@ -986,14 +986,14 @@
     "help": "Los cambios se aplican en WhatsApp. El número conectado tiene que ser admin del grupo.",
     "leave": "Salir del grupo",
     "leaveTitle": "¿Salir de {name}?",
-    "leaveBody": "El número sale del grupo en WhatsApp. El chat queda en Groups como historial, cerrado y sin miembros."
+    "leaveBody": "El número sale del grupo en WhatsApp. El chat queda en Lines como historial, cerrado y sin miembros."
   },
   "join": {
     "button": "Entrar con link",
     "title": "Entrar a un grupo por invitación",
     "submit": "Entrar al grupo",
     "link": "Link de invitación",
-    "help": "Pegá el link de invitación de WhatsApp o su código. El grupo aparece en Groups con sus miembros.",
+    "help": "Pegá el link de invitación de WhatsApp o su código. El grupo aparece en Lines con sus miembros.",
     "done": "Entraste al grupo"
   },
   "templates": {
@@ -1129,7 +1129,7 @@
     "firstResponse": "primera respuesta",
     "resolution": "resolución",
     "open": "Abrir el ticket",
-    "why": "Te llega este email porque los avisos de SLA están activos en los ajustes de Groups."
+    "why": "Te llega este email porque los avisos de SLA están activos en los ajustes de Lines."
   },
   "taskEmail": {
     "subject": "Recordatorio: {title}",
@@ -1137,7 +1137,7 @@
     "body": "\"{title}\" vence {when}.",
     "chat": "Del chat {chat}.",
     "open": "Abrir el chat",
-    "why": "Te llega este email porque la tarea es tuya en Groups.",
+    "why": "Te llega este email porque la tarea es tuya en Lines.",
     "notification": "Recordatorio: {title}"
   },
   "access": {
@@ -1175,7 +1175,7 @@
       "reopened": "Reabierto",
       "labels": "Etiquetas",
       "renamed": "Renombrado",
-      "deleted": "Sacado de Groups",
+      "deleted": "Sacado de Lines",
       "exported": "Exportado",
       "members": "Miembros",
       "ticket_created": "Ticket creado",
@@ -1193,7 +1193,7 @@
       "crm_link": "cambió el vínculo con el CRM",
       "agent": "cambió el agente AI",
       "flag_cleared": "quitó la marca de sin responder",
-      "deleted": "sacó el chat de Groups",
+      "deleted": "sacó el chat de Lines",
       "exported": "exportó {type}",
       "members": "{action} {count} miembros",
       "ticket_created": "creó el ticket #{n}",
@@ -1311,9 +1311,9 @@
   },
   "apps": {
     "installTitle": "Instalar la app",
-    "installIntro": "Groups se instala como app en el teléfono y la computadora: ícono y ventana propios, y avisos de los chats que tenés asignados.",
+    "installIntro": "Lines se instala como app en el teléfono y la computadora: ícono y ventana propios, y avisos de los chats que tenés asignados.",
     "installed": "Instalada en este dispositivo.",
-    "install": "Instalar Groups",
+    "install": "Instalar Lines",
     "howDesktop": "Chrome o Edge en la computadora: el ícono de instalar al final de la barra de direcciones.",
     "howAndroid": "Android: menú del navegador y después Instalar app.",
     "howIos": "iPhone: Compartir en Safari y después Agregar a inicio. Los avisos funcionan desde la app instalada (iOS 16.4 o más).",
@@ -1329,7 +1329,7 @@
     "disable": "Desactivar acá",
     "enabled": "Notificaciones activadas",
     "test": "Mandar una prueba",
-    "testTitle": "Groups",
+    "testTitle": "Lines",
     "testBody": "Los avisos funcionan en este dispositivo.",
     "testSent": "Prueba enviada"
   },
@@ -1418,7 +1418,7 @@
     "composerNote": "Número de ejemplo: el mensaje queda como enviado y no sale a WhatsApp."
   },
   "notFound": {
-    "title": "Esto ya no está en Groups",
+    "title": "Esto ya no está en Lines",
     "body": "El chat, grupo o ticket se borró o ya no tenés acceso.",
     "action": "Ir a la bandeja"
   },
