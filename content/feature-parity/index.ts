@@ -25,6 +25,7 @@ import books from './books';
 import sign from './sign';
 import forms from './forms';
 import send from './send';
+import inbox from './inbox';
 
 /**
  * Paridad de cada app contra su competidor principal. Al sumar o quitar una
@@ -57,6 +58,7 @@ export const PARITY: Record<ProductKey, ProductParity> = {
   sign,
   forms,
   send,
+  inbox,
 };
 
 export type { ProductParity, ParityRow, ParityStatus, ParityArea, Localized } from './types';

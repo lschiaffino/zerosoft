@@ -11,6 +11,7 @@ import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
 import { sendUp } from './send-migration';
+import { inboxUp } from './inbox-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -8795,6 +8796,11 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_who TEXT');
       await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_at TEXT');
     },
+  },
+  {
+    // Inbox (personal): WhatsApp y Gmail de una persona. Ver lib/schema/inbox-migration.ts.
+    id: '289_inbox',
+    up: inboxUp,
   },
 ];
 
