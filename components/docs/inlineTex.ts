@@ -1,4 +1,4 @@
-import katex from 'katex';
+import { katexNow, loadKatex } from '@/lib/docs-math';
 
 /**
  * Dibuja una ecuación en línea dentro de su span sin tocar el texto del span
@@ -8,6 +8,12 @@ import katex from 'katex';
  */
 export function renderInlineTex(span: HTMLElement, tex: string): void {
   if (typeof span.attachShadow !== 'function') return;
+  // KaTeX se baja recién con la primera ecuación de la página.
+  const katex = katexNow();
+  if (!katex) {
+    void loadKatex().then(() => renderInlineTex(span, tex));
+    return;
+  }
   const root = span.shadowRoot ?? span.attachShadow({ mode: 'open' });
   if (root.host.getAttribute('data-rendered') === tex) return;
   let html = '';
