@@ -10,7 +10,10 @@
     "customers": "Customers",
     "workspace": "Workspace",
     "yourTeams": "Your teams",
-    "more": "More"
+    "more": "More",
+    "newIssue": "New issue",
+    "newPlan": "New project",
+    "newTeam": "New team"
   },
   "common": {
     "viewAll": "View all",
@@ -1006,7 +1009,7 @@
     "exportAll": "All teams",
     "exportButton": "Download CSV",
     "createdPart": {
-      "projects": "{count, plural, one {# project} other {# projects}}",
+      "projects": "{count, plural, one {# team} other {# teams}}",
       "statuses": "{count, plural, one {# status} other {# statuses}}",
       "cycles": "{count, plural, one {# cycle} other {# cycles}}",
       "milestones": "{count, plural, one {# milestone} other {# milestones}}",
@@ -1044,7 +1047,10 @@
     "doneUpdated": "{count, plural, one {# issue updated.} other {# issues updated.}}",
     "doneLinks": "{relations, plural, one {# relation} other {# relations}}, {attachments, plural, one {# link} other {# links}} and {updates, plural, one {# project update} other {# project updates}} imported.",
     "openPlan": "Open project {name}",
-    "linearTokenNote": "Used only for this import. It is kept encrypted until the import finishes, to copy the files you uploaded to Linear, and deleted then."
+    "linearTokenNote": "Used only for this import. It is kept encrypted until the import finishes, to copy the files you uploaded to Linear, and deleted then.",
+    "doneRenumbered": "{count, plural, one {# issue got a new ID because its number was already used in Track: {list}.} other {# issues got new IDs because their numbers were already used in Track: {list}.}} To avoid it, keep creating issues in Linear until the final import.",
+    "inviteCopyLink": "Copy invite link",
+    "inviteLinkCopied": "Copied"
   },
   "integrations": {
     "tab": "Integrations",
@@ -1336,7 +1342,8 @@
       "startOn": "Starts {date}",
       "currentCycle": "Current",
       "upcomingCycle": "Upcoming",
-      "addToCycle": "Add to cycle {name}"
+      "addToCycle": "Add to cycle {name}",
+      "deleteNotAllowed": "You don’t have permission to delete issues. Ask a workspace admin."
     },
     "editor": {
       "todo": "Checklist",
@@ -1703,8 +1710,13 @@
       "due": "Due date",
       "copyId": "Copy ID",
       "copyLink": "Copy link",
-      "more": "More actions"
-    }
+      "more": "More actions",
+      "copyBranch": "Copy branch name",
+      "delete": "Delete"
+    },
+    "deleted": "{id} deleted",
+    "deletedMany": "{count} issues deleted",
+    "deleteNotAllowed": "You don’t have permission to delete issues. Ask a workspace admin."
   },
   "list": {
     "loadError": "Couldn't load the issues.",

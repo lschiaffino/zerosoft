@@ -10,7 +10,10 @@
     "customers": "Clientes",
     "workspace": "Workspace",
     "yourTeams": "Suas equipes",
-    "more": "Mais"
+    "more": "Mais",
+    "newIssue": "Novo issue",
+    "newPlan": "Novo projeto",
+    "newTeam": "Nova equipe"
   },
   "common": {
     "viewAll": "Ver tudo",
@@ -1006,7 +1009,7 @@
     "exportAll": "Todas as equipes",
     "exportButton": "Baixar CSV",
     "createdPart": {
-      "projects": "{count, plural, one {# projeto} other {# projetos}}",
+      "projects": "{count, plural, one {# equipe} other {# equipes}}",
       "statuses": "{count, plural, one {# status} other {# status}}",
       "cycles": "{count, plural, one {# cycle} other {# cycles}}",
       "milestones": "{count, plural, one {# milestone} other {# milestones}}",
@@ -1044,7 +1047,10 @@
     "doneUpdated": "{count, plural, one {# issue atualizado.} other {# issues atualizados.}}",
     "doneLinks": "Foram importados {relations, plural, one {# relação} other {# relações}}, {attachments, plural, one {# link} other {# links}} e {updates, plural, one {# update de project} other {# updates de projects}}.",
     "openPlan": "Abrir o project {name}",
-    "linearTokenNote": "Usada só para este import. Fica criptografada até o import terminar, para copiar os arquivos que você enviou ao Linear, e depois é apagada."
+    "linearTokenNote": "Usada só para este import. Fica criptografada até o import terminar, para copiar os arquivos que você enviou ao Linear, e depois é apagada.",
+    "doneRenumbered": "{count, plural, one {# issue ficou com outro ID porque o número já era usado no Track: {list}.} other {# issues ficaram com outro ID porque os números já eram usados no Track: {list}.}} Para evitar, continue criando issues no Linear até o import final.",
+    "inviteCopyLink": "Copiar link do convite",
+    "inviteLinkCopied": "Copiado"
   },
   "integrations": {
     "tab": "Integrações",
@@ -1336,7 +1342,8 @@
       "startOn": "Começa em {date}",
       "currentCycle": "Atual",
       "upcomingCycle": "Próximo",
-      "addToCycle": "Adicionar ao cycle {name}"
+      "addToCycle": "Adicionar ao cycle {name}",
+      "deleteNotAllowed": "Você não tem permissão para excluir issues. Peça a um admin do workspace."
     },
     "editor": {
       "todo": "Lista de tarefas",
@@ -1703,8 +1710,13 @@
       "due": "Prazo",
       "copyId": "Copiar ID",
       "copyLink": "Copiar link",
-      "more": "Mais ações"
-    }
+      "more": "Mais ações",
+      "copyBranch": "Copiar nome da branch",
+      "delete": "Excluir"
+    },
+    "deleted": "{id} excluído",
+    "deletedMany": "{count} issues excluídos",
+    "deleteNotAllowed": "Você não tem permissão para excluir issues. Peça a um admin do workspace."
   },
   "list": {
     "loadError": "Não foi possível carregar os issues.",

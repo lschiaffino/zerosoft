@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import { createIssue, createProject, getIssue } from '@/lib/track-data';
+import { createIssue, createProject, getIssue, moveIssueToTeam } from '@/lib/track-data';
 import { signGithubPayload } from '@/lib/track-github';
 import { makeUser } from './helpers';
 
@@ -118,5 +118,29 @@ describe('Track GitHub: payload real de pull_request', () => {
     const merged = await deliver(conf.config.id, conf.secret, githubPrPayload('closed', { number: 7, branch, title: 'Fix login on Safari', body: 'Small fix.', merged: true }));
     expect(await merged.json()).toEqual({ linked: 1, moved: 1 });
     expect((await getIssue(issue.id))?.status_category).toBe('done');
+  });
+
+  it('el ID de antes de mover de team (alias) sigue moviendo el issue desde un PR', async () => {
+    const u = await makeUser('ghalias');
+    const from = await createProject(u.id, null, { name: 'Old', slug: `old${Math.random().toString(36).slice(2, 6)}` });
+    const to = await createProject(u.id, null, { name: 'New', slug: `new${Math.random().toString(36).slice(2, 6)}` });
+    const issue = await createIssue(from.id, u.id, { title: 'Moved', description: [] }, { source: 'app' });
+    const oldId = issue.identifier;
+    const moved = await moveIssueToTeam(issue.id, to.id, u.id);
+    expect(moved?.identifier).not.toBe(oldId);
+    // Ningún issue tiene hoy el ID viejo: solo lo conoce el alias.
+    // Y la clave vieja ya no es de ningún team: el prefijo sale solo de los alias.
+    await (await import('@/lib/db')).getDb().prepare('UPDATE track_projects SET slug = ? WHERE id = ?').run(`gone${Math.random().toString(36).slice(2, 6)}`, from.id);
+
+    session.user = { ...u, team: null, role: 'owner' };
+    const conf = (await (await configRoute.PUT(new NextRequest('http://x/api/track/github', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ repos: ['acme/web'] }),
+    }) as never)).json()) as { secret: string; config: { id: string } };
+    const branch = `octocat/${oldId.toLowerCase()}-moved`;
+    const opened = await deliver(conf.config.id, conf.secret, githubPrPayload('opened', { number: 9, branch, title: 'Old branch', body: '' }));
+    expect(await opened.json()).toEqual({ linked: 1, moved: 1 });
+    expect((await getIssue(issue.id))?.status_category).toBe('in_progress');
   });
 });

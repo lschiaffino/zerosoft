@@ -21,7 +21,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { openCommandMenu } from '@/lib/cmdk-context';
-import { pushUndo } from './trackUndo';
+import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
+import { branchNameFor } from '@/lib/track-branch';
 import { TRACK_ISSUES_CHANGED } from './TrackBranch';
 
 export const ISSUES_DRAG_TYPE = 'application/x-track-issues';
@@ -36,6 +37,7 @@ type IssueSnapshot = {
   priority: string;
   assignee_id: string | null;
   cycle_id: string | null;
+  milestone_id?: string | null;
   plan_id: string | null;
   plan_milestone_id?: string | null;
   sub_order?: number | null;
@@ -50,6 +52,22 @@ interface MenuState {
 }
 
 const MENU_PAGES = ['status', 'assignee', 'priority', 'labels', 'project', 'cycle', 'move-team', 'estimate', 'due'] as const;
+/** Atajo de cada opción, como en el menú contextual de Linear. */
+const MENU_KEYS: Record<string, string> = {
+  status: 'S',
+  assignee: 'A',
+  priority: 'P',
+  labels: 'L',
+  project: '⇧P',
+  cycle: '⇧C',
+  'move-team': '⌘⇧M',
+  estimate: '⇧E',
+  due: '⇧D',
+  copyId: '⌘.',
+  copyLink: '⌘⇧,',
+  copyBranch: '⌘⇧.',
+  delete: '⌘⌫',
+};
 
 async function json<T>(res: Response | null): Promise<T | null> {
   if (!res?.ok) return null;
@@ -139,7 +157,12 @@ export default function TrackIssueDnd() {
           async () => {
             for (const { b } of ok) {
               await moveIssue(b.id, b.project_id, b.identifier);
-              if (dropped.length) await patchIssue(b.id, { labels: JSON.parse(b.labels || '[]') });
+              // Mover de team saca el cycle, el milestone del team y sus labels: deshacer los devuelve.
+              const restore: Record<string, unknown> = {};
+              if (b.cycle_id) restore.cycleId = b.cycle_id;
+              if (b.milestone_id) restore.milestoneId = b.milestone_id;
+              if (dropped.length) restore.labels = JSON.parse(b.labels || '[]');
+              if (Object.keys(restore).length) await patchIssue(b.id, restore);
             }
             changed();
           },
@@ -395,11 +418,34 @@ export default function TrackIssueDnd() {
     // Sobre la selección si la fila está seleccionada; si no, solo sobre esa fila.
     window.setTimeout(() => openCommandMenu(page, m.selected ? {} : { targetId: m.id }), 0);
   };
-  const copy = (what: 'id' | 'link') => {
-    const row = document.querySelector<HTMLElement>(`[data-issue-key="${CSS.escape(menu.id)}"]`);
-    const ident = row?.dataset.issueIdentifier ?? menu.id;
-    void navigator.clipboard?.writeText(what === 'id' ? ident : `${window.location.origin}/app/track/issue/${ident}`).catch(() => undefined);
+  const copy = (what: 'id' | 'link' | 'branch') => {
+    const m = menu;
+    const row = document.querySelector<HTMLElement>(`[data-issue-key="${CSS.escape(m.id)}"]`);
+    const ident = row?.dataset.issueIdentifier ?? m.id;
     setMenu(null);
+    if (what === 'branch') {
+      void getIssue(m.id).then((i) => i && navigator.clipboard?.writeText(branchNameFor(i.identifier, (i as IssueSnapshot & { title?: string }).title ?? '')));
+      return;
+    }
+    void navigator.clipboard?.writeText(what === 'id' ? ident : `${window.location.origin}/app/track/issue/${ident}`).catch(() => undefined);
+  };
+  // Borrar con la ventana de Deshacer de siempre; si no hay permiso (miembro), avisa y vuelve a mostrarlo.
+  const remove = () => {
+    const m = menu;
+    setMenu(null);
+    const ids = m.selected ? [...document.querySelectorAll<HTMLElement>(`${ROW}.is-selected`)].map((el) => el.dataset.issueKey!) : [m.id];
+    const row = document.querySelector<HTMLElement>(`[data-issue-key="${CSS.escape(m.id)}"]`);
+    scheduleDelete({
+      ids,
+      label: ids.length === 1 ? t('deleted', { id: row?.dataset.issueIdentifier ?? '' }) : t('deletedMany', { count: ids.length }),
+      commit: async (keepalive) => {
+        const res = await Promise.all(ids.map((id) => fetch(`/api/track/issues/${id}`, { method: 'DELETE', keepalive }).catch(() => null)));
+        if (res.some((r) => r?.status === 403)) pushNotice(t('deleteNotAllowed'));
+        changed();
+      },
+      restore: changed,
+    });
+    changed();
   };
   const left = Math.min(menu.x, window.innerWidth - 240);
   const top = Math.min(menu.y, window.innerHeight - 420);
@@ -407,18 +453,30 @@ export default function TrackIssueDnd() {
     <div ref={menuRef} className="track-context-menu" role="menu" aria-label={t('menu.label')} style={{ left: Math.max(8, left), top: Math.max(8, top) }} data-testid="track-context-menu">
       {MENU_PAGES.map((p) => (
         <button key={p} type="button" role="menuitem" className="track-context-item" onClick={() => pick(p)}>
-          {t(`menu.${p}`)}
+          <span>{t(`menu.${p}`)}</span>
+          <kbd className="track-context-key">{MENU_KEYS[p]}</kbd>
         </button>
       ))}
       <hr className="track-context-sep" />
       <button type="button" role="menuitem" className="track-context-item" onClick={() => copy('id')}>
-        {t('menu.copyId')}
+        <span>{t('menu.copyId')}</span>
+        <kbd className="track-context-key">{MENU_KEYS.copyId}</kbd>
       </button>
       <button type="button" role="menuitem" className="track-context-item" onClick={() => copy('link')}>
-        {t('menu.copyLink')}
+        <span>{t('menu.copyLink')}</span>
+        <kbd className="track-context-key">{MENU_KEYS.copyLink}</kbd>
+      </button>
+      <button type="button" role="menuitem" className="track-context-item" onClick={() => copy('branch')}>
+        <span>{t('menu.copyBranch')}</span>
+        <kbd className="track-context-key">{MENU_KEYS.copyBranch}</kbd>
       </button>
       <button type="button" role="menuitem" className="track-context-item" onClick={() => pick()}>
-        {t('menu.more')}
+        <span>{t('menu.more')}</span>
+      </button>
+      <hr className="track-context-sep" />
+      <button type="button" role="menuitem" className="track-context-item is-danger" onClick={remove} data-testid="track-context-delete">
+        <span>{t('menu.delete')}</span>
+        <kbd className="track-context-key">{MENU_KEYS.delete}</kbd>
       </button>
     </div>
   );

@@ -145,7 +145,7 @@ export interface TrackImportPreview {
   projects: Array<{ name: string; issues: number; existing: string | null }>;
   plans: Array<{ name: string; issues: number; milestones: number; updates: number; existing: boolean }>;
   statuses: Array<{ name: string; category: string; issues: number; existing: boolean }>;
-  people: Array<{ label: string; issues: number; member: string | null }>;
+  people: Array<{ label: string; issues: number; member: string | null; inactive?: boolean }>;
   labels: { total: number; existing: number };
   cycles: number;
   milestones: number;
@@ -198,7 +198,9 @@ export async function trackPreview(job: ImportJob, items: StagedItem[]): Promise
 
   const projects = new Map<string, { name: string; issues: number; existing: string | null }>();
   const statuses = new Map<string, { name: string; category: string; issues: number; existing: boolean }>();
-  const people = new Map<string, { label: string; issues: number; member: string | null }>();
+  const people = new Map<string, { label: string; issues: number; member: string | null; inactive?: boolean }>();
+  // Desactivados en la fuente: aparecen, pero no se ofrece invitarlos.
+  const inactive = new Set(users.filter((u) => !u.active).map((u) => personLabel(u).toLowerCase()).filter(Boolean));
   const plans = new Map<string, { name: string; issues: number; milestones: number; updates: number; existing: boolean }>();
   const labelNames = new Set<string>();
   const cycles = new Set<string>();
@@ -261,7 +263,7 @@ export async function trackPreview(job: ImportJob, items: StagedItem[]): Promise
 
     if (issue.assignee && personLabel(issue.assignee)) {
       const label = personLabel(issue.assignee);
-      const p = people.get(label.toLowerCase()) ?? { label, issues: 0, member: null as string | null };
+      const p = people.get(label.toLowerCase()) ?? { label, issues: 0, member: null as string | null, inactive: inactive.has(label.toLowerCase()) || undefined };
       const m = matchMember(members, issue.assignee);
       p.member = m ? m.name || m.email : null;
       p.issues += 1;
@@ -293,7 +295,8 @@ export async function trackPreview(job: ImportJob, items: StagedItem[]): Promise
     toUpdate,
     projects: [...projects.values()],
     plans: [...plans.values()],
-    statuses: [...statuses.values()].sort((a, b) => b.issues - a.issues),
+    // Sin nombre (Triage de Linear, GitHub): van al primero de su categoría; no es un status a crear ni a mapear.
+    statuses: [...statuses.values()].filter((x) => x.name).sort((a, b) => b.issues - a.issues),
     people: [...people.values()].sort((a, b) => Number(!!a.member) - Number(!!b.member) || b.issues - a.issues).slice(0, 100),
     labels: { total: labelNames.size, existing: [...labelNames].filter((n) => existingLabels.has(n)).length },
     cycles: cycles.size,
@@ -337,6 +340,8 @@ export interface TrackImportReport {
   uploadsFailed: number;
   unassigned: number;
   parents: number;
+  /** Issues que no pudieron quedar con su ID de la fuente (número tomado en Track): sigue resolviendo como alias solo si está libre. */
+  renumbered: Array<{ from: string; to: string }>;
   projects: Array<{ id: string; name: string }>;
   plans: Array<{ id: string; name: string }>;
 }
@@ -360,6 +365,7 @@ export function emptyTrackReport(): TrackImportReport {
     uploadsFailed: 0,
     unassigned: 0,
     parents: 0,
+    renumbered: [],
     projects: [],
     plans: [],
   };
@@ -625,13 +631,14 @@ async function ensurePlan(ctx: WriteCtx, plan: LinearPlanItem): Promise<string> 
   for (const u of plan.updates) {
     if (await getExternalId(ctx.ws, ctx.src, 'plan_update', u.extId)) continue;
     const author = matchMember(ctx.members, u.user);
-    const original = (u.user?.name || u.user?.email || '').trim();
-    const body = author || !original ? u.body : `**${original}**\n\n${u.body}`;
+    // Autor que no es miembro: el update queda a nombre suyo (meta.importedAuthor), no de quien importa,
+    // y no es editable como propio (la UI lo muestra con su nombre y sin editar).
+    const meta = author || !u.user ? { source: 'linear' } : { source: 'linear', importedAuthor: { name: u.user.name ?? null, email: u.user.email ?? null } };
     const uid = crypto.randomUUID();
     const at = u.createdAt ?? new Date().toISOString();
     await db
-      .prepare('INSERT INTO track_plan_updates (id, plan_id, user_id, health, body, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(uid, id, author?.id ?? ctx.job.user_id, u.health, body, at);
+      .prepare('INSERT INTO track_plan_updates (id, plan_id, user_id, health, body, meta, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(uid, id, author?.id ?? ctx.job.user_id, u.health, u.body, JSON.stringify(meta), at);
     await setExternalId(ctx.ws, ctx.src, 'plan_update', u.extId, uid);
     ctx.report.planUpdates += 1;
   }
@@ -889,6 +896,9 @@ async function upsertIssue(ctx: WriteCtx, issue: NormalizedIssue): Promise<void>
   }
   // Sin el mismo identificador (otra clave o número tomado): el de la fuente queda como alias y sigue resolviendo.
   const key = issue.key?.trim().toUpperCase();
+  if (key && /^[A-Z][A-Z0-9]*-\d+$/.test(key) && key !== identifier.toUpperCase() && key.split('-')[0] === identifier.split('-')[0] && ctx.report.renumbered.length < 200) {
+    ctx.report.renumbered.push({ from: key, to: identifier });
+  }
   if (key && /^[A-Z][A-Z0-9]*-\d+$/.test(key) && key !== identifier.toUpperCase() && !(await identifierTaken(projectId, key))) {
     await db.prepare('INSERT OR IGNORE INTO track_issue_aliases (project_id, identifier, issue_id, created_at) VALUES (?, ?, ?, ?)').run(projectId, key, id, createdAt);
   }

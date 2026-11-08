@@ -292,7 +292,16 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
       { group: 'track', label: tTrack('cmdk.allIssues'), meta: '', href: '/app/track/issues' },
       { group: 'track', label: tTrack('cmdk.inbox'), meta: '', href: '/app/track/inbox' },
       // Planificación (como Linear): plans, initiatives, roadmap, cycles, insights y dashboards.
-      { group: 'track', label: tPlanning('newPlan'), meta: '', href: '/app/track/projects?new=1' },
+      // En un team, el project nuevo queda en ese team (como Linear).
+      {
+        group: 'track',
+        label: tPlanning('newPlan'),
+        meta: '',
+        href: (() => {
+          const key = /\/app\/track\/team\/([^/?#]+)/.exec(pathname ?? '')?.[1];
+          return key ? `/app/track/projects/new?team=${encodeURIComponent(key)}` : '/app/track/projects/new';
+        })(),
+      },
       { group: 'track', label: tPlanning('newInitiative'), meta: '', href: '/app/track/initiatives?new=1' },
       { group: 'track', label: tPlanning('plans'), meta: '', href: '/app/track/projects' },
       { group: 'track', label: tPlanning('roadmap'), meta: '', href: '/app/track/roadmap' },

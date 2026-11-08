@@ -24,6 +24,7 @@ import {
   type CsvMapping,
 } from '@/lib/track-import-map';
 import { projectPath, teamPath } from '@/lib/track-routes';
+import { TRACK_ISSUES_CHANGED } from './TrackBranch';
 
 type Source = 'linear' | 'linear_csv' | 'jira' | 'jira_csv' | 'github' | 'asana' | 'shortcut' | 'csv';
 const SOURCES: Source[] = ['linear', 'linear_csv', 'jira', 'jira_csv', 'github', 'asana', 'shortcut', 'csv'];
@@ -71,7 +72,7 @@ interface Preview {
   archived?: number;
   projects: Array<{ name: string; issues: number; existing: string | null }>;
   statuses: Array<{ name: string; category: string; issues: number; existing: boolean }>;
-  people: Array<{ label: string; issues: number; member: string | null }>;
+  people: Array<{ label: string; issues: number; member: string | null; inactive?: boolean }>;
   labels: { total: number; existing: number };
   cycles: number;
   milestones: number;
@@ -89,6 +90,7 @@ interface Report {
   relations?: number;
   attachments?: number;
   plans?: Array<{ id: string; name: string }>;
+  renumbered?: Array<{ from: string; to: string }>;
   comments: number;
   projectsCreated: number;
   statusesCreated: number;
@@ -589,7 +591,7 @@ function PreviewView({ job, onConfirm, onCancel }: { job: ImportJobView; onConfi
           {unmatched.length > 0 && (
             <div className="ximp-note" data-tone="warn">
               <p>{t('unmatchedNote', { count: unmatched.length })}</p>
-              <InviteMissing emails={unmatched.map((x) => x.label).filter((l) => l.includes('@'))} />
+              <InviteMissing emails={unmatched.filter((x) => !x.inactive).map((x) => x.label).filter((l) => l.includes('@'))} />
             </div>
           )}
           <div className="table-wrap">
@@ -647,6 +649,9 @@ function InviteMissing({ emails }: { emails: string[] }) {
   const t = useTranslations('track.importer');
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
   const [sent, setSent] = useState(0);
+  // Invitaciones creadas sin mail (sin proveedor de email): su link para mandarlo a mano.
+  const [links, setLinks] = useState<Array<{ email: string; url: string }>>([]);
+  const [copied, setCopied] = useState<string | null>(null);
   if (!emails.length) return null;
   const invite = async () => {
     setState('busy');
@@ -655,19 +660,32 @@ function InviteMissing({ emails }: { emails: string[] }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ emails: emails.join(', '), role: 'member' }),
     }).catch(() => null);
-    const data = (await res?.json().catch(() => null)) as { results?: Array<{ status: string }> } | null;
+    const data = (await res?.json().catch(() => null)) as { results?: Array<{ email?: string; status: string; url?: string }> } | null;
     if (!res?.ok || !data?.results) {
       setState('error');
       return;
     }
     setSent(data.results.filter((r) => r.status === 'sent' || r.status === 'member').length);
+    setLinks(data.results.filter((r) => r.status !== 'sent' && r.status !== 'member' && r.url).map((r) => ({ email: r.email ?? '', url: r.url! })));
     setState('done');
   };
   if (state === 'done') {
     return (
-      <p role="status" data-testid="track-import-invited">
-        {t('invitedNote', { count: sent })}
-      </p>
+      <div role="status" data-testid="track-import-invited">
+        <p>{t('invitedNote', { count: sent })}</p>
+        {links.length > 0 && (
+          <ul className="ximp-links">
+            {links.map((l) => (
+              <li key={l.url}>
+                {l.email}{' '}
+                <button type="button" className="btn btn-sm" onClick={() => void navigator.clipboard?.writeText(l.url).then(() => setCopied(l.url))}>
+                  {copied === l.url ? t('inviteLinkCopied') : t('inviteCopyLink')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     );
   }
   return (
@@ -700,6 +718,10 @@ function DoneView({ job, onAgain }: { job: ImportJobView; onAgain: () => void })
   ] as const;
   const created = parts.filter(([, n]) => n > 0).map(([k, n]) => t(`createdPart.${k}`, { count: n }));
   const createdTotal = parts.reduce((sum, [, n]) => sum + n, 0);
+  // Teams y projects nuevos aparecen en el sidebar sin recargar.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(TRACK_ISSUES_CHANGED));
+  }, []);
   return (
     <div className="ximp-done" data-testid="track-import-done">
       <p role="status">
@@ -712,6 +734,11 @@ function DoneView({ job, onAgain }: { job: ImportJobView; onAgain: () => void })
       {created.length > 0 && (
         <p className="ui-help">
           {t('doneCreated', { count: createdTotal, list: new Intl.ListFormat(locale, { type: 'conjunction' }).format(created) })}
+        </p>
+      )}
+      {(r.renumbered ?? []).length > 0 && (
+        <p className="ximp-note" data-tone="warn" data-testid="track-import-renumbered">
+          {t('doneRenumbered', { count: r.renumbered!.length, list: r.renumbered!.slice(0, 8).map((x) => `${x.from} → ${x.to}`).join(', ') })}
         </p>
       )}
       {r.unassigned > 0 && (

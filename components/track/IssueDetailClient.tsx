@@ -725,7 +725,15 @@ export default function IssueDetailClient({
       const team = moved[0].after;
       if (opts.undo === false) pushNotice(tx('side.moved', { team: teamKeyOf(team), id: team.identifier }));
       else {
-        const back = moved.map((m) => ({ id: m.before.id, teamId: m.before.project_id }));
+        // Deshacer vuelve con el mismo ID, cycle, milestone y labels (mover de team los saca).
+        const back = moved.map((m) => ({
+          id: m.before.id,
+          teamId: m.before.project_id,
+          identifier: m.before.identifier,
+          cycleId: m.before.cycle_id,
+          milestoneId: m.before.milestone_id ?? null,
+          labels: m.before.labels,
+        }));
         pushUndo(
           tx('side.moved', { team: teamKeyOf(team), id: team.identifier }),
           async () => {
@@ -733,7 +741,16 @@ export default function IssueDetailClient({
               await fetch(`/api/track/issues/${b.id}/move`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ teamId: b.teamId }),
+                body: JSON.stringify({ teamId: b.teamId, identifier: b.identifier }),
+              }).catch(() => null);
+              await fetch(`/api/track/issues/${b.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ...(b.cycleId ? { cycleId: b.cycleId } : {}),
+                  ...(b.milestoneId ? { milestoneId: b.milestoneId } : {}),
+                  labels: JSON.parse(b.labels || '[]'),
+                }),
               }).catch(() => null);
             }
             await handleIssueChange();
@@ -1033,10 +1050,11 @@ export default function IssueDetailClient({
         e.preventDefault();
         e.stopImmediatePropagation();
         goSibling(e.key === 'j' ? 1 : -1);
-      } else if (e.key === 'Escape' && listNav) {
+      } else if (e.key === 'Escape') {
+        // Esc vuelve a la lista de la que se vino; si se entró por un link, a los issues del team (como Linear).
         e.preventDefault();
         restoreCursorOnReturn(issueRef.current.id);
-        router.push(listNav.href);
+        router.push(listNav ? listNav.href : teamPath(teamKeyOf(issueRef.current)));
       }
     };
     window.addEventListener('keydown', onKey, true);

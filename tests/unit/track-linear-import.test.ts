@@ -134,8 +134,10 @@ describe('track import de Linear: workspace entero', () => {
     expect(offline.plan_milestone_id).toBe(ms[0].id);
     const updates = (await db.prepare('SELECT health, body FROM track_plan_updates WHERE plan_id = ? ORDER BY created_at').all(plan.id)) as Array<{ health: string; body: string }>;
     expect(updates.map((x) => x.health)).toEqual(['on_track', 'at_risk']);
-    // Bo no es miembro: su update queda firmado con el nombre original.
-    expect(updates[0].body).toMatch(/^\*\*Bo Lindqvist\*\*/);
+    // Bo no es miembro: el update queda a su nombre (meta), sin pegar el nombre en el texto.
+    expect(updates[0].body).toBe('Kickoff done, API contract agreed.');
+    const metaRow = (await db.prepare("SELECT meta FROM track_plan_updates WHERE plan_id = ? AND body LIKE 'Kickoff%'").get(plan.id)) as { meta: string };
+    expect(JSON.parse(metaRow.meta).importedAuthor).toMatchObject({ name: 'Bo Lindqvist' });
 
     // Initiative de Linear con sus dos projects.
     const init = (await db.prepare('SELECT id, status, lead_id FROM track_initiatives WHERE owner_id = ? AND name = ?').get(u.id, 'Mobile launch')) as Row;
