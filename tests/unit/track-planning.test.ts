@@ -122,6 +122,19 @@ describe('planificación: cálculos puros', () => {
     expect(m).toMatchObject({ initialScope: 2, added: 1, removed: 1, carriedOver: 1, scopeCreepPercent: 50, completionPercent: 50 });
   });
 
+  it('burn-up: el punto de hoy cuenta lo cerrado con fecha UTC de mañana (navegador detrás de UTC)', () => {
+    // 22:30 en Buenos Aires del 3: en UTC ya es el 4, el navegador manda hoy = 3.
+    const m = computeCycleMetrics({
+      start: '2026-10-01',
+      end: '2026-10-14',
+      today: '2026-10-03',
+      issues: [
+        { id: 'a', estimate: null, createdAt: '2026-09-20T10:00:00Z', category: 'done', inCycle: true, moves: [{ at: '2026-09-25T10:00:00Z', kind: 'join' }], statusChanges: [{ at: '2026-10-04T01:30:00Z', from: 'todo', to: 'done' }] },
+      ],
+    });
+    expect(m.points.map((p) => p.completed)).toEqual([0, 0, 1]);
+  });
+
   it('velocidad y capacidad', () => {
     expect(velocity([])).toBeNull();
     expect(velocity([10, 4, 6, 8])).toBe(6);

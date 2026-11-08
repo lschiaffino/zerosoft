@@ -233,7 +233,9 @@ export function computeCycleMetrics(args: {
   const lastDay = args.end.slice(0, 10) < args.today ? args.end.slice(0, 10) : args.today;
   const days = dayList(args.start, lastDay < args.start.slice(0, 10) ? args.start : lastDay);
   const points: CycleDayPoint[] = days.map((d) => {
-    const eod = `${d}T23:59:59`;
+    // El punto de hoy es el estado actual: con el hoy del navegador detrás de UTC (Argentina
+    // después de las 21) lo cerrado esta noche ya tiene fecha UTC de mañana y quedaba afuera.
+    const eod = d === args.today ? '9999-12-31T23:59:59' : `${d}T23:59:59`;
     let scope = 0;
     let started = 0;
     let completed = 0;
