@@ -10,6 +10,7 @@
  */
 import { fakeProvider, fakeProviderAllowed } from '../groups-provider-fake';
 import { deleteManagedInstance, managedEnv, managedProvider, newManagedInstance, queueManagedDelete, validManagedConfig, type ManagedEnv } from '../groups-provider-managed';
+import { cleanPushName } from '../groups-provider-bridge';
 import { ProviderError, phoneDigits, type ConnectState, type GroupsProvider, type InboundEvent } from '../groups-provider';
 import { getDb } from '../db';
 import {
@@ -62,7 +63,8 @@ export function waProviderFor(account: AccountRow): GroupsProvider {
     const cfg = readAccountConfig<{ session: string; instanceToken: string }>(account);
     const env = inboxBridgeEnv();
     if (!validManagedConfig(cfg) || !env) throw new InboxError('not_connected', 409);
-    return managedProvider(cfg, { env });
+    // Inbox pide el historial completo al vincular (Groups no).
+    return managedProvider(cfg, { env, fullHistory: true });
   }
   throw new InboxError('not_connected', 409);
 }
@@ -123,8 +125,9 @@ async function applyState(account: AccountRow, state: ConnectState): Promise<voi
   const status = statusOf(state.status);
   const patch: Parameters<typeof setAccountState>[1] = { status, error: status === 'error' ? account.error || 'provider_error' : '' };
   if (state.phone) patch.address = phoneDigits(state.phone);
-  // Primera conexión: arranca la importación de chats recientes que guardó el servidor.
-  if (status === 'connected' && !account.sync_cursor) patch.sync_cursor = JSON.stringify({ phase: 'chats', page: 0 });
+  // Primera conexión: arranca la importación de lo que guardó el servidor, con un margen
+  // para que WhatsApp termine de mandar el historial (cada tanda nueva la vuelve a correr).
+  if (status === 'connected' && !account.sync_cursor) patch.sync_cursor = backfillCursor(Date.now() + BACKFILL_DELAY_MS);
   await setAccountState(account.id, patch);
   Object.assign(account, patch);
 }
@@ -244,6 +247,61 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
   return { messages };
 }
 
+/**
+ * Chats del historial que manda WhatsApp al vincular (CHATS_SET de Evolution:
+ * [{ remoteJid, instanceId, name }]). Aparecen en la lista aunque todavía no
+ * haya mensajes. Los "@lid" se saltean: el chat queda con el id con teléfono
+ * cuando llegan sus mensajes (si no, quedaría duplicado).
+ */
+export async function ingestHistoryChats(account: AccountRow, rows: unknown): Promise<number> {
+  const list = Array.isArray(rows) ? rows : [];
+  let n = 0;
+  for (const raw of list.slice(0, 2000)) {
+    const c = (raw ?? {}) as { remoteJid?: unknown; id?: unknown; name?: unknown };
+    const jid = String(c.remoteJid ?? c.id ?? '');
+    if (!/^[\d-]{5,40}@(s\.whatsapp\.net|g\.us)$/.test(jid)) continue;
+    const isGroup = jid.endsWith('@g.us');
+    try {
+      await upsertThread(account, { externalId: jid, kind: isGroup ? 'group' : 'dm', title: cleanPushName(c.name) || undefined, handle: isGroup ? '' : phoneDigits(jid) });
+      n++;
+    } catch {
+      /* uno roto no frena el resto */
+    }
+  }
+  return n;
+}
+
+const BACKFILL_DELAY_MS = 60_000;
+
+function backfillCursor(after: number): string {
+  return JSON.stringify({ phase: 'chats', page: 0, after } satisfies Backfill);
+}
+
+/**
+ * Vuelve a correr la importación desde el principio en un minuto. Se llama con
+ * cada tanda de historial: mientras WhatsApp sigue mandando, se corre el
+ * arranque; cuando termina, la importación trae lo que guardó el servidor
+ * (también lo que no entró por el webhook por tamaño). Es idempotente.
+ */
+export async function scheduleWhatsappBackfill(accountId: string, now = Date.now()): Promise<void> {
+  await getDb()
+    .prepare("UPDATE inbox_accounts SET sync_cursor = ?, updated_at = ? WHERE id = ? AND kind = 'whatsapp'")
+    .run(backfillCursor(now + BACKFILL_DELAY_MS), new Date(now).toISOString(), accountId);
+}
+
+/**
+ * "Volver a sincronizar": WhatsApp manda el historial solo al vincular un
+ * dispositivo. Cierra la sesión del servidor, crea una instancia nueva que
+ * pide el historial completo y devuelve el QR para escanear de nuevo. Los
+ * chats guardados quedan (no se duplican: el id de cada mensaje es el mismo).
+ */
+export async function resyncWhatsapp(owner: string): Promise<{ account: AccountRow; state: ConnectState }> {
+  const account = (await listAccounts(owner)).find((a) => a.kind === 'whatsapp');
+  if (!account) throw new InboxError('not_connected', 409);
+  await disconnectWhatsapp(account);
+  return connectWhatsapp(owner);
+}
+
 /** Manda un texto al chat y lo guarda como enviado. */
 export async function sendWhatsappText(account: AccountRow, thread: ThreadRow, text: string): Promise<string> {
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
@@ -294,6 +352,8 @@ interface Backfill {
   phase: 'chats' | 'messages' | 'done';
   page: number;
   queue?: string[];
+  /** No antes de (ms): deja que WhatsApp termine de mandar el historial. */
+  after?: number;
 }
 
 const CHATS_PAGE = 50;
@@ -313,6 +373,8 @@ export async function runWhatsappBackfill(account: AccountRow, deadline: number,
     return false;
   }
   if (!cursor?.phase || cursor.phase === 'done' || account.status !== 'connected') return false;
+  if (cursor.after && cursor.after > now.getTime()) return false;
+  const original = account.sync_cursor;
   const db = getDb();
   const nowS = now.toISOString();
   const claim = await db
@@ -355,8 +417,10 @@ export async function runWhatsappBackfill(account: AccountRow, deadline: number,
   } catch {
     // El servidor falló a mitad: se sigue en la próxima corrida desde el mismo punto.
   }
+  // Si llegó historial nuevo mientras corría (scheduleWhatsappBackfill), gana ese reinicio.
   await db
-    .prepare('UPDATE inbox_accounts SET sync_cursor = ?, sync_claimed_until = NULL, last_sync_at = ?, updated_at = ? WHERE id = ?')
-    .run(JSON.stringify(cursor), nowS, nowS, account.id);
+    .prepare('UPDATE inbox_accounts SET sync_cursor = ?, last_sync_at = ?, updated_at = ? WHERE id = ? AND sync_cursor = ?')
+    .run(JSON.stringify(cursor), nowS, nowS, account.id, original);
+  await db.prepare('UPDATE inbox_accounts SET sync_claimed_until = NULL WHERE id = ?').run(account.id);
   return true;
 }
