@@ -61,7 +61,7 @@ test('owner: rol y apps en línea con deshacer, lote, qué puede ver, quitar con
     await sql("INSERT INTO crm_contacts (id, user_id, owner_id, first_name) VALUES (?, 'demo', ?, 'Para Leo')", [contact, ana.id]);
 
     await page.goto('/en/app/settings/members', { waitUntil: 'networkidle' });
-    await expect(page.getByRole('heading', { name: 'Members and permissions', level: 1 })).toBeVisible();
+    await expect(page.locator('.st-layout nav').first().getByRole('link', { name: 'Members and permissions', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(row(page, ana.email)).toContainText('CRM, Docs');
 
     // Rol en línea y deshacer.
