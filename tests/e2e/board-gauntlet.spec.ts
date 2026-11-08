@@ -113,10 +113,11 @@ test('stickies: N crea uno en el cursor, Tab el siguiente, y se reacciona con em
   // Ningún atajo de herramienta se disparó: sigue la de selección.
   expect(await page.evaluate(() => (window as unknown as { __boardApi: { getAppState: () => { activeTool: { type: string } } } }).__boardApi.getAppState().activeTool.type)).toBe('selection');
 
-  // Reaccionar a un sticky elegido.
+  // Reaccionar a un sticky elegido (el último, que quedó a la vista).
   await page.evaluate((sid) => {
     (window as unknown as { __boardApi: { updateScene: (x: unknown) => void } }).__boardApi.updateScene({ appState: { selectedElementIds: { [sid]: true } } });
-  }, stickies[0].id);
+  }, stickies[stickies.length - 1].id);
+  // El último quedó a la vista (la vista sigue al sticky nuevo).
   await page.getByTestId('board-react').click();
   await page.getByRole('button', { name: '🎉' }).click();
   const badge = page.locator('.board-reaction').filter({ hasText: '🎉' });
