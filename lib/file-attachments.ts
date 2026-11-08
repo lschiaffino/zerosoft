@@ -50,7 +50,9 @@ import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { contentDisposition } from './docs-files';
 import { privateFileStore, SealedFileTooLargeError, type PrivateFileStore } from './private-files';
 import { getCurrentUser, type SessionUser } from './session';
+import { appFromPath } from './products';
 import { deleteUploads } from './uploads';
+import { userCanUseApp } from './workspace';
 import { limitWrites } from './write-limit';
 
 /** Subidas (o permisos de subida a Blob) por persona y minuto. */
@@ -329,6 +331,12 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, { status, 
 async function context(req: NextRequest, ctx: Ctx): Promise<AttachmentRouteContext | Response> {
   const user = await getCurrentUser();
   if (!user) return json({ error: 'unauthorized' }, 401);
+  // La subida no pasa por el middleware (cortaría el cuerpo en 10 MB), así que
+  // el acceso por app en un workspace ajeno se chequea acá con el path real.
+  if (user.actingUser) {
+    const app = appFromPath(req.nextUrl.pathname);
+    if (app && !userCanUseApp(user, app)) return json({ error: 'unauthorized' }, 401);
+  }
   const raw = await ctx.params;
   const params: Record<string, string> = {};
   for (const [k, v] of Object.entries(raw)) if (typeof v === 'string') params[k] = v;
@@ -419,6 +427,12 @@ export function attachmentRoutes<Row>(o: AttachmentRoutesOptions<Row>) {
     if (saved.size === 0) {
       await files.store.removeOne(saved.ref);
       return json({ error: 'invalid_input' }, 400);
+    }
+    // Un cuerpo cortado en el camino (proxy, middleware) no se guarda como si estuviera completo.
+    if (Number.isFinite(declared) && req.headers.get('content-length') !== null && saved.size !== declared) {
+      await files.store.removeOne(saved.ref);
+      console.error(`[${files.app}-files] cuerpo incompleto: ${saved.size} de ${declared} bytes`);
+      return json({ error: 'incomplete_upload' }, 400);
     }
     try {
       const row = await o.save({ ...c, file: { ref: saved.ref, filename, contentType, size: saved.size } });

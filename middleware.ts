@@ -295,6 +295,9 @@ export const config = {
   // Las APIs de las apps entran solo para el header de acceso por app (arriba).
   matcher: [
     '/((?!api/|r/|s/|_next/|_vercel/|apple-icon|.*\\..*).*)',
-    '/api/:family(crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk|design|shop|analytics|social|hiring|people|books|sign|forms|send)/:path*',
+    // Menos las subidas de adjuntos (lib/file-attachments.ts): el middleware
+    // clona el cuerpo hasta 10 MB y corta el resto. Esas rutas chequean el
+    // acceso por app ellas mismas.
+    '/api/((?!(?:.*/)?attachments/upload$)(?:crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk|design|shop|analytics|social|hiring|people|books|sign|forms|send)(?:/.*)?)',
   ],
 };

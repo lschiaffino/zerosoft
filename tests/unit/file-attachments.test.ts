@@ -221,6 +221,31 @@ describe('file-attachments: rutas en modo local', () => {
     }
   });
 
+  it('un cuerpo más corto que su Content-Length (cortado en el camino) se rechaza y no queda en disco', async () => {
+    const folder = path.join(dir, 'testapp-files');
+    const before = readdirSync(folder).length;
+    const r = req('/x/upload?name=big.bin', { method: 'POST', body: Buffer.alloc(1000, 3), headers: { 'content-length': '5000' } });
+    expect(r.headers.get('content-length')).toBe('5000');
+    const res = await routes.upload.POST(r, ctx());
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: 'incomplete_upload' });
+    expect(readdirSync(folder)).toHaveLength(before);
+    // Con el largo correcto, se guarda.
+    const okRes = await routes.upload.POST(
+      req('/x/upload?name=ok.bin', { method: 'POST', body: Buffer.alloc(1000, 3), headers: { 'content-length': '1000' } }),
+      ctx(),
+    );
+    expect(okRes.status).toBe(201);
+  });
+
+  it('sin el middleware, el acceso por app se chequea en la ruta: sin Track en el workspace ajeno, 401', async () => {
+    const path = `/api/track/issues/${RECORD}/attachments/upload`;
+    session.user = { id: 'owner', email: 'o@x.test', actingUser: { id: 'miembro' }, role: 'member', apps: ['crm'] } as never;
+    expect((await routes.upload.GET(req(path), ctx())).status).toBe(401);
+    session.user = { id: 'owner', email: 'o@x.test', actingUser: { id: 'miembro' }, role: 'member', apps: ['track'] } as never;
+    expect((await routes.upload.GET(req(path), ctx())).status).toBe(200);
+  });
+
   it('un archivo vacío no se guarda', async () => {
     const res = await routes.upload.POST(req('/x/upload?name=vacio.txt', { method: 'POST', body: new Uint8Array(0) }), ctx());
     expect(res.status).toBe(400);
