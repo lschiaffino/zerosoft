@@ -118,6 +118,19 @@ describe('onboarding: apps, borrador y segundo tramo', () => {
     expect((await getOnboardingState(u.id))!.showChecklist).toBe(true);
   });
 
+  it('los emails del ciclo de vida leen las apps elegidas y la app de escritorio del onboarding', async () => {
+    const { dbSignalsSource } = await import('@/lib/lifecycle/signals');
+    const u = await freshUser('life');
+    await saveOnboarding(u, { mode: 'personal', role: 'sales', apps: ['crm', 'cal'] });
+    let sig = (await dbSignalsSource.load(u.id))!;
+    expect(sig.apps).toEqual(['crm', 'cal']);
+    expect(sig.desktopInstalled).toBe(false);
+    await markDesktopSeen(u.id, { platform: 'win32' });
+    sig = (await dbSignalsSource.load(u.id))!;
+    expect(sig.desktopInstalled).toBe(true);
+    expect((await getOnboardingState(u.id))!.steps.find((s) => s.key === 'desktop')?.done).toBe(true);
+  });
+
   it('quien usaba zerosoft antes (sin perfil v2) no ve "Primeros pasos"', async () => {
     const u = await makeUser('old');
     const s = (await getOnboardingState(u.id))!;

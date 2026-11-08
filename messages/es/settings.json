@@ -323,7 +323,43 @@
     "colVotes": "Votos",
     "colVisibility": "Visibilidad",
     "colCreated": "Creado",
-    "kanbanMore": "{count, plural, one {Ver # columna más} other {Ver # columnas más}}"
+    "kanbanMore": "{count, plural, one {Ver # columna más} other {Ver # columnas más}}",
+    "lifecycle": {
+      "emails": "Emails",
+      "emailsDesc": "Emails de ciclo de vida: vista previa de cada plantilla con datos de ejemplo y los últimos envíos.",
+      "mode": {
+        "resend": "Se mandan con Resend.",
+        "console": "Modo consola: los emails van al log del servidor, no a las personas.",
+        "off": "Apagado: no hay proveedor de email configurado (RESEND_API_KEY). El cron no manda nada."
+      },
+      "template": "Plantilla",
+      "language": "Idioma",
+      "theme": "Tema",
+      "width": "Ancho",
+      "light": "Claro",
+      "dark": "Oscuro",
+      "subject": "Asunto",
+      "preheader": "Preheader",
+      "textVersion": "Versión en texto",
+      "previewTitle": "Vista previa del email",
+      "sendTest": "Mandármelo",
+      "sendTestHelp": "Manda esta plantilla a {email} con datos de ejemplo.",
+      "testSent": "Enviado a {email}.",
+      "testFailed": "No se pudo mandar: {error}",
+      "log": "Últimos envíos",
+      "logEmpty": "Todavía no salió ningún email de ciclo de vida.",
+      "colWhen": "Cuándo",
+      "colTo": "Para",
+      "colTemplate": "Plantilla",
+      "colLocale": "Idioma",
+      "colStatus": "Estado",
+      "status": {
+        "sending": "Enviando",
+        "sent": "Enviado",
+        "failed": "Falló",
+        "skipped": "Salteado"
+      }
+    }
   },
   "groups": {
     "account": "Cuenta y workspace",
@@ -1236,5 +1272,57 @@
     "originLocal": "App en una computadora",
     "originDevice": "Entró con un código de dispositivo",
     "emptyAction": "Cómo conectar"
+  },
+  "emailPrefs": {
+    "title": "Emails de zerosoft",
+    "desc": "Lo que te mandamos para ayudarte a usar zerosoft. Los emails de tu cuenta (códigos de ingreso, invitaciones, reservas y avisos de las apps) llegan igual.",
+    "categories": {
+      "onboarding": {
+        "label": "Primeros pasos",
+        "help": "Lo que te falta configurar en tus primeros días."
+      },
+      "tips": {
+        "label": "Funciones y consejos",
+        "help": "Funciones que todavía no usaste y sirven para tus apps."
+      },
+      "team": {
+        "label": "Tu equipo",
+        "help": "Si administrás un workspace: recordatorios para invitar personas."
+      },
+      "reengagement": {
+        "label": "Recordatorios",
+        "help": "Un aviso si pasan dos semanas sin que entres."
+      },
+      "digest": {
+        "label": "Resumen semanal",
+        "help": "Los lunes a la mañana, lo que pasó en tu workspace. Si no pasó nada, no llega."
+      }
+    },
+    "all": "Dejar de recibir todos estos emails",
+    "allHelp": "Apaga todo lo de arriba. Los emails de tu cuenta siguen llegando.",
+    "saveError": "No se pudieron guardar tus preferencias. Probá de nuevo.",
+    "appsTitle": "Avisos de las apps",
+    "appsDesc": "Track tiene sus propios avisos por email.",
+    "track": "Avisos de Track",
+    "unsub": {
+      "metaTitle": "Darte de baja",
+      "title": "Darte de baja",
+      "body": "Vas a dejar de recibir {category}. Los emails de tu cuenta siguen llegando.",
+      "bodyAll": "Vas a dejar de recibir todos los emails de zerosoft que no son de tu cuenta.",
+      "confirm": "Darme de baja",
+      "working": "Guardando…",
+      "done": "Listo. Ya no vas a recibir {category}.",
+      "doneAll": "Listo. Ya no vas a recibir estos emails.",
+      "invalid": "Este link no es válido o está incompleto. Podés elegir qué emails recibir desde Ajustes.",
+      "error": "No se pudo completar. Probá de nuevo.",
+      "manage": "Elegir qué emails recibir",
+      "categories": {
+        "onboarding": "los emails de primeros pasos",
+        "tips": "los consejos sobre funciones",
+        "team": "los avisos sobre tu equipo",
+        "reengagement": "los recordatorios",
+        "digest": "el resumen semanal"
+      }
+    }
   }
 }

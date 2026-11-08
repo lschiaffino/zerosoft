@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "indicator",
+  "description": "Indicador de grabación (archivo local): su estado, abrir o cortar, y los eventos que recibe.",
+  "windows": [
+    "indicator"
+  ],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-indicator-state",
+    "allow-indicator-action"
+  ]
+}

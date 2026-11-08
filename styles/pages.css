@@ -837,7 +837,7 @@ section.parity-beyond { padding-top: 0; padding-bottom: 0; margin-top: 48px; }
 .mk-brand { display: flex; align-items: center; gap: 9px; padding: 0 6px; font-size: 15px; font-weight: 700; }
 .mk-nav { display: flex; flex-direction: column; gap: 2px; }
 .mk-nav span { padding: 8px 10px; font-size: 14px; color: var(--brand-gray-1); }
-.mk-nav span.active { color: var(--ink); font-weight: 600; background: var(--brand-white); box-shadow: inset 0 0 0 1px var(--line); }
+.mk-nav span.active { color: var(--ink); font-weight: 600; background: var(--ui-selected); }
 .mk-side-foot { margin-top: auto; padding: 0 6px; font-size: 12px; color: var(--brand-gray-2); }
 
 .mk-main { padding: 24px 26px; min-width: 0; }
@@ -984,7 +984,7 @@ section.parity-beyond { padding-top: 0; padding-bottom: 0; margin-top: 48px; }
 .mk-chat-list-head h4 { font-size: 16px; font-weight: 700; }
 .mk-chat-count { color: var(--brand-gray-2); }
 .mk-chat-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 8px; }
-.mk-chat-row.active { background: var(--brand-white); box-shadow: inset 0 0 0 1px var(--line); }
+.mk-chat-row.active { background: var(--ui-selected); }
 .mk-chat-row-main { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
 .mk-chat-row-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .mk-chat-name { font-size: 14px; font-weight: 600; }
@@ -1109,7 +1109,7 @@ section.parity-beyond { padding-top: 0; padding-bottom: 0; margin-top: 48px; }
 .mk-notes-list { display: flex; flex-direction: column; gap: 2px; padding: 16px 12px; border-right: 1px solid var(--line); }
 .mk-notes-list .mk-filter { width: auto; margin-bottom: 8px; }
 .mk-notes-row { display: flex; flex-direction: column; gap: 2px; padding: 10px 8px; border-bottom: 1px solid var(--line); }
-.mk-notes-row.active { background: var(--brand-enamel); }
+.mk-notes-row.active { background: var(--ui-selected); }
 .mk-notes-meta { font-size: 12px; color: var(--brand-gray-2); }
 .mk-notes-title { margin-top: 8px; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
 .mk-notes-p { max-width: 46ch; margin-top: 10px; font-size: 14px; line-height: 1.55; color: var(--brand-gray-1); }

@@ -33,6 +33,7 @@ export function sampleProvider(numberId: string): GroupsProvider {
     sendText: done,
     sendMedia: done,
     sendPoll: done,
+    sendContact: done,
     react: async () => undefined,
     sendTemplate: async () => {
       throw new ProviderError('unsupported');

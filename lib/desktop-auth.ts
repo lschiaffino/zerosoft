@@ -17,6 +17,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { encode } from 'next-auth/jwt';
 import { authOptions } from './auth';
 import { getDb, getUserById, type UserRow } from './db';
+import { recordLifecycleEvent } from './lifecycle/signals';
 
 export const DESKTOP_CODE_TTL_MS = 2 * 60_000;
 /** Igual que la sesión web (NextAuth, 30 días). */
@@ -78,6 +79,8 @@ export async function exchangeDesktopLoginCode(code: unknown, verifier: unknown,
   const expected = Buffer.from(row.challenge);
   const got = Buffer.from(pkceChallenge(verifier));
   if (expected.length !== got.length || !timingSafeEqual(expected, got)) return null;
+  // Señal de los emails de ciclo de vida: ya instaló la app de escritorio.
+  await recordLifecycleEvent(row.user_id, 'desktop_installed');
   return (await getUserById(row.user_id)) ?? null;
 }
 

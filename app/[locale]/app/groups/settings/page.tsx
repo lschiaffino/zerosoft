@@ -54,7 +54,7 @@ const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
   notifications: 'apps',
 };
 
-export default async function GroupsSettingsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ tab?: string; new?: string }> }) {
+export default async function GroupsSettingsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ tab?: string; new?: string; reconnect?: string }> }) {
   const { locale } = await props.params;
   const sp = await props.searchParams;
   const user = await requireUser(locale);
@@ -65,7 +65,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
   const admin = isWorkspaceAdmin(user);
 
   let body;
-  if (tab === 'numbers') body = <NumbersSettings initial={await listNumbers(user.id)} providers={availableProviders()} canEdit={admin} openNew={sp.new === '1'} />;
+  if (tab === 'numbers') body = <NumbersSettings initial={await listNumbers(user.id)} providers={availableProviders()} canEdit={admin} openNew={sp.new === '1'} reconnect={sp.reconnect ?? null} />;
   else if (tab === 'labels') body = <LabelsPanel initial={await listLabels(user.id)} />;
   else if (tab === 'quick') body = <QuickRepliesPanel initial={await listQuickReplies(user.id)} />;
   else if (tab === 'properties') body = <PropertiesPanel initial={await listPropertyDefs(user.id)} canEdit={admin} />;

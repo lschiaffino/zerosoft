@@ -8,6 +8,7 @@ import { speakerKey, type VoiceAttendee, type VoiceChatMessage, type VoiceSegmen
 import type { LinkableBooking } from '@/lib/voice-integrations';
 import { voiceErrorKey } from './voice-ui';
 import RecipeInput, { type RecipeOption } from './RecipeInput';
+import { CitedText, streamVoice, Suggestions } from './chat-ui';
 
 function mmss(ms: number): string {
   const t = Math.floor(ms / 1000);
@@ -21,6 +22,7 @@ export function TranscriptPanel({
   onRenameSpeaker,
   recording,
   deletedAt,
+  focus,
 }: {
   segments: VoiceSegment[];
   speakers: Record<string, string>;
@@ -28,6 +30,8 @@ export function TranscriptPanel({
   recording: boolean;
   /** La transcripción se borró sola por la retención. */
   deletedAt?: string | null;
+  /** Momento a mostrar (una cita del chat o ?t= en el link); `n` cambia en cada pedido. */
+  focus?: { ms: number; n: number } | null;
 }) {
   const t = useTranslations('voice.transcript');
   const format = useFormatter();
@@ -35,11 +39,32 @@ export function TranscriptPanel({
   const [editing, setEditing] = useState<{ segId: string; key: string; name: string } | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
+  const [focused, setFocused] = useState<string | null>(null);
+
   useEffect(() => {
     // Solo se desplaza el panel (no la página: la persona puede estar escribiendo sus notas).
     const panel = endRef.current?.closest('.vc-panel');
-    if (recording && panel) panel.scrollTop = panel.scrollHeight;
-  }, [segments.length, recording]);
+    if (recording && panel && !focused) panel.scrollTop = panel.scrollHeight;
+  }, [segments.length, recording, focused]);
+
+  // Ir al momento citado: el último segmento que empieza antes (o el primero).
+  useEffect(() => {
+    if (!focus || !segments.length) return;
+    const target = segments.reduce<VoiceSegment>((best, s) => (s.startMs <= focus.ms + 999 && s.startMs >= best.startMs ? s : best), segments[0]);
+    setFilter('');
+    setFocused(target.id);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`vc-seg-${target.id}`);
+      const panel = el?.closest('.vc-panel');
+      if (!el || !panel) return;
+      // El panel tiene su propio scroll en escritorio; en el celular se mueve la página.
+      if (panel.scrollHeight > panel.clientHeight + 4) panel.scrollTop += el.getBoundingClientRect().top - panel.getBoundingClientRect().top - 48;
+      else el.scrollIntoView({ block: 'center' });
+    });
+    const timer = setTimeout(() => setFocused(null), 4000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.n, segments.length > 0]);
 
   const name = (s: VoiceSegment) => {
     const key = speakerKey(s.source, s.speaker);
@@ -78,7 +103,7 @@ export function TranscriptPanel({
           {shown.map((s) => {
             const key = speakerKey(s.source, s.speaker);
             return (
-              <li key={s.id} className={`vc-seg is-${s.source}`}>
+              <li key={s.id} id={`vc-seg-${s.id}`} className={`vc-seg is-${s.source}${focused === s.id ? ' is-focus' : ''}`} aria-current={focused === s.id ? 'true' : undefined}>
                 <span className="vc-seg-time data">{mmss(s.startMs)}</span>
                 {editing?.segId === s.id ? (
                   <input
@@ -113,56 +138,127 @@ export function TranscriptPanel({
   );
 }
 
-/** Chat sobre la reunión ("¿qué dijo Ana del precio?"). */
-export function ChatPanel({ sessionId, initial, ai }: { sessionId: string; initial: VoiceChatMessage[]; ai: boolean }) {
+/**
+ * Chat sobre la reunión ("¿qué dijo Ana del precio?"), durante y después:
+ * la respuesta llega de a pedazos y cita los momentos de la transcripción.
+ */
+export function ChatPanel({
+  sessionId,
+  initial,
+  ai,
+  live,
+  onSeek,
+}: {
+  sessionId: string;
+  initial: VoiceChatMessage[];
+  ai: boolean;
+  /** La reunión se está grabando: sugerencias para el durante. */
+  live: boolean;
+  onSeek: (ms: number) => void;
+}) {
   const t = useTranslations('voice.chat');
   const tErr = useTranslations('voice.errors');
   const locale = useLocale();
   const [messages, setMessages] = useState(initial);
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
+  const [streaming, setStreaming] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const ctrl = useRef<AbortController | null>(null);
+  const listRef = useRef<HTMLOListElement>(null);
+
+  useEffect(() => () => ctrl.current?.abort(), []);
+  useEffect(() => {
+    const panel = listRef.current?.closest('.vc-panel');
+    if (panel) panel.scrollTop = panel.scrollHeight;
+  }, [messages.length, streaming]);
 
   async function send(question: string, recipe?: RecipeOption) {
     if ((!question && !recipe) || busy) return;
     setBusy(true);
     setError(null);
-    setMessages((m) => [...m, { role: 'user', text: recipe ? `/${recipe.name}` : question, at: new Date().toISOString() }]);
+    setStreaming('');
+    const shown = recipe ? `/${recipe.name}` : question;
+    const before = messages;
+    setMessages((m) => [...m, { role: 'user', text: shown, at: new Date().toISOString() }]);
     setQ('');
-    const res = await fetch(`/api/voice/sessions/${sessionId}/chat`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(recipe ? { recipeId: recipe.id, locale } : { question, locale }),
-    }).catch(() => null);
-    const data = (await res?.json().catch(() => null)) as { chat?: VoiceChatMessage[]; error?: string } | null;
-    setBusy(false);
-    if (!res?.ok || !data?.chat) {
-      setMessages((m) => m.slice(0, -1));
-      setQ(recipe ? `/${recipe.name}` : question);
-      setError(data?.error ?? 'network');
+    const fail = (code: string) => {
+      setMessages(before);
+      setStreaming('');
+      setQ(shown);
+      if (code !== 'aborted') setError(code);
+    };
+    if (recipe) {
+      // Los recipes corren enteros (salida armada): JSON, sin stream.
+      const res = await fetch(`/api/voice/sessions/${sessionId}/chat`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ recipeId: recipe.id, locale }),
+      }).catch(() => null);
+      const data = (await res?.json().catch(() => null)) as { chat?: VoiceChatMessage[]; error?: string } | null;
+      setBusy(false);
+      if (!res?.ok || !data?.chat) return fail(data?.error ?? 'network');
+      setMessages(data.chat);
       return;
     }
-    setMessages(data.chat);
+    ctrl.current = new AbortController();
+    let text = '';
+    let saved: VoiceChatMessage[] | null = null;
+    const code = await streamVoice(
+      `/api/voice/sessions/${sessionId}/chat`,
+      { question, locale },
+      (e) => {
+        if (e.type === 'text') {
+          text += e.delta;
+          setStreaming(text);
+        } else if (e.type === 'done' && Array.isArray(e.chat)) saved = e.chat as VoiceChatMessage[];
+      },
+      ctrl.current.signal,
+    );
+    ctrl.current = null;
+    setBusy(false);
+    if (code || !saved) return fail(code ?? 'generic');
+    setStreaming('');
+    setMessages(saved);
   }
+
+  const suggestions = (t.raw(live ? 'suggestLive' : 'suggestAfter') as string[]) ?? [];
 
   return (
     <div className="vc-chat">
       {!ai && <p className="vc-notice">{tErr('ai_disabled')}</p>}
       {messages.length === 0 ? (
-        <p className="vc-muted">{t('empty')}</p>
+        <>
+          <p className="vc-muted">{live ? t('emptyLive') : t('empty')}</p>
+          {ai && <Suggestions items={suggestions} disabled={busy} onPick={(s) => void send(s)} />}
+        </>
       ) : (
-        <ol className="vc-chat-list" aria-live="polite">
+        <ol className="vc-chat-list" ref={listRef}>
           {messages.map((m, i) => (
             <li key={i} className={`vc-msg is-${m.role}`}>
               <span className="sr-only">{m.role === 'user' ? t('you') : t('assistant')}: </span>
-              {m.text}
+              {m.role === 'assistant' ? <CitedText text={m.text} onSeek={onSeek} /> : m.text}
             </li>
           ))}
+          {busy && streaming && (
+            <li className="vc-msg is-assistant is-streaming" aria-busy="true">
+              <span className="sr-only">{t('assistant')}: </span>
+              <CitedText text={streaming} onSeek={onSeek} />
+            </li>
+          )}
         </ol>
       )}
+      <div aria-live="polite" className="sr-only">
+        {!busy && messages[messages.length - 1]?.role === 'assistant' ? messages[messages.length - 1].text : ''}
+      </div>
       {busy && (
-        <p className="vc-muted" role="status">
-          {t('thinking')}
+        <p className="vc-muted vc-chat-status" role="status">
+          {streaming ? t('writing') : t('thinking')}
+          {ctrl.current && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => ctrl.current?.abort()}>
+              {t('stop')}
+            </button>
+          )}
         </p>
       )}
       {error && (

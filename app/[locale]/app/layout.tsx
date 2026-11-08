@@ -47,6 +47,8 @@ import NavProgress from '@/components/app/NavProgress';
 import RouterNudge from '@/components/app/RouterNudge';
 import IntentPrefetch from '@/components/app/IntentPrefetch';
 import { Suspense } from 'react';
+import { after } from 'next/server';
+import { touchLifecycleActivity } from '@/lib/lifecycle/scheduler';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,6 +70,12 @@ export default async function AppLayout(
 
   const user = await requireUser(locale);
   const real = user.actingUser ?? user;
+  // Última actividad para los emails de ciclo de vida (después de responder; nunca frena la página).
+  try {
+    after(() => touchLifecycleActivity(real));
+  } catch {
+    /* fuera de una request */
+  }
   const path = (await headers()).get(RETURN_PATH_HEADER) ?? '';
   const welcome = /^\/(?:en|es|pt)\/app\/welcome(?:[/?]|$)/.test(path);
   // Primer ingreso: el onboarding (salvo el usuario demo compartido).

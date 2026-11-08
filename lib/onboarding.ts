@@ -118,6 +118,9 @@ export async function markDesktopSeen(userId: string, info: { platform?: unknown
   const profile = await getProfile(userId);
   const platform = info.platform === 'darwin' || info.platform === 'win32' ? info.platform : undefined;
   const version = typeof info.version === 'string' && /^[0-9A-Za-z.+-]{1,32}$/.test(info.version) ? info.version : undefined;
+  // Los emails del ciclo de vida (lib/lifecycle) también lo cuentan como instalada.
+  const { recordLifecycleEvent } = await import('./lifecycle/signals');
+  await recordLifecycleEvent(userId, 'desktop_installed');
   await patchProfile(userId, {
     desktopSeenAt: profile.desktopSeenAt ?? new Date().toISOString(),
     ...(platform ? { desktopPlatform: platform } : {}),

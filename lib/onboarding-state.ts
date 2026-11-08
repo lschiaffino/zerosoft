@@ -99,7 +99,7 @@ export async function getOnboardingState(userId: string, opts: { workspaceId?: s
   const uses = (k: ProductKey) => (apps ? apps.includes(k) : false);
   const tool = profile.sourceTool ? SOURCE_TOOLS[profile.sourceTool] : undefined;
 
-  const [invited, imported, calendar, email, whatsapp] = await Promise.all([
+  const [invited, imported, calendar, email, whatsapp, desktopLogin] = await Promise.all([
     team
       ? (async () =>
           (await exists("SELECT 1 FROM team_members WHERE team_id = ? AND user_id != ? AND role != 'guest' LIMIT 1", [team.id, team.owner_id])) ||
@@ -113,6 +113,8 @@ export async function getOnboardingState(userId: string, opts: { workspaceId?: s
     exists('SELECT 1 FROM integrations WHERE user_id = ? AND provider IN (?, ?) LIMIT 1', [userId, GOOGLE_CALENDAR_PROVIDER, OUTLOOK_CALENDAR_PROVIDER]),
     exists("SELECT 1 FROM integrations WHERE user_id = ? AND provider IN ('gmail', ?) LIMIT 1", [userId, OUTLOOK_PROVIDER]),
     exists("SELECT 1 FROM groups_numbers WHERE user_id = ? AND provider != 'sample' AND status = 'connected' LIMIT 1", [ws]),
+    // Iniciar sesión en la app de escritorio también la cuenta (lib/desktop-auth.ts → lifecycle_events).
+    exists("SELECT 1 FROM lifecycle_events WHERE user_id = ? AND event = 'desktop_installed' LIMIT 1", [userId]),
   ]);
 
   const steps: OnboardingStep[] = [
@@ -127,7 +129,7 @@ export async function getOnboardingState(userId: string, opts: { workspaceId?: s
     { key: 'calendar', relevant: uses('cal'), done: calendar, href: '/app/calendar/settings?tab=connections' },
     { key: 'email', relevant: uses('crm'), done: email, href: '/app/crm/settings?tab=integrations' },
     { key: 'whatsapp', relevant: admin && uses('groups'), done: whatsapp, href: '/app/groups/settings?tab=numbers' },
-    { key: 'desktop', relevant: true, done: Boolean(profile.desktopSeenAt), href: '/app/download' },
+    { key: 'desktop', relevant: true, done: Boolean(profile.desktopSeenAt) || desktopLogin, href: '/app/download' },
   ];
   const relevant = steps.filter((s) => s.relevant);
   const pending = relevant.filter((s) => !s.done).map((s) => s.key);

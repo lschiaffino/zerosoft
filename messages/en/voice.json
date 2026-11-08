@@ -79,7 +79,8 @@
     "slack_failed": "Slack did not accept the message. Check that the app is in the channel.",
     "notion_not_connected": "That Notion connection is not available.",
     "notion_failed": "Notion did not respond. Try again.",
-    "notion_parent": "Notion cannot find that page. Paste its link and share it with the integration."
+    "notion_parent": "Notion cannot find that page. Paste its link and share it with the integration.",
+    "ai_failed": "The AI could not answer. Try again."
   },
   "meetings": {
     "title": "Meetings",
@@ -142,7 +143,14 @@
     "sharedBadge": "shared",
     "searchShared": "Search shared meetings",
     "moveTo": "Folder of “{title}”",
-    "noFolder": "No folder"
+    "noFolder": "No folder",
+    "askSuggestions": [
+      "What did we agree on last week?",
+      "Which action items are still open this week?",
+      "What did customers ask for most this month?"
+    ],
+    "askFollowup": "Ask a follow-up",
+    "askClear": "New question"
   },
   "notes": {
     "summary": "Summary",
@@ -179,7 +187,25 @@
     "thinking": "Reading the meeting…",
     "placeholder": "Ask about this meeting",
     "send": "Ask",
-    "recipesHint": "Type / for recipes like action items or a follow-up."
+    "recipesHint": "Type / for recipes like action items or a follow-up.",
+    "emptyLive": "Ask anything while the meeting goes on. Voice reads the transcript so far.",
+    "suggestionsLabel": "Try asking",
+    "suggestLive": [
+      "What did I miss in the last few minutes?",
+      "What has been decided so far?",
+      "What could I ask next?"
+    ],
+    "suggestAfter": [
+      "What are the action items and who owns them?",
+      "What concerns or objections came up?",
+      "Write a short recap I can send"
+    ],
+    "writing": "Writing…",
+    "stop": "Stop",
+    "citeAt": "Go to {time} in the transcript",
+    "citeMeeting": "Open {title}",
+    "citeMeetingAt": "Open {title} at {time}",
+    "untitled": "Untitled meeting"
   },
   "details": {
     "calTitle": "Cal booking",
@@ -277,7 +303,8 @@
     "sendSlackNotion": "Slack or Notion",
     "sharedBadge": "Shared by link",
     "folder": "Folder",
-    "noFolder": "No folder"
+    "noFolder": "No folder",
+    "attendeesOpen": "See attendees"
   },
   "templates": {
     "builtin": {

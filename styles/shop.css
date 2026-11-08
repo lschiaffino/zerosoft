@@ -546,8 +546,7 @@ section.ui-section.shop-section {
 .shop-alert {
   margin: 0 0 16px;
   padding: 12px 16px;
-  border: 1px solid var(--bad);
-  border-left-width: 4px;
+  border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--line));
   border-radius: var(--radius-1);
   background: var(--bad-soft);
   color: var(--ink);

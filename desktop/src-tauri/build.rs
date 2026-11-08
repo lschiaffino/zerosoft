@@ -7,6 +7,10 @@ const COMMANDS: &[&str] = &[
     "desktop_start_login",
     "desktop_open_settings",
     "desktop_notify",
+    "desktop_recording",
+    // Indicador de grabación (ventana local).
+    "indicator_state",
+    "indicator_action",
     // Ajustes (ventana local).
     "settings_get",
     "settings_save",

@@ -7,6 +7,7 @@ import RecSignOutDialog from '@/components/rec/RecSignOutDialog';
 import NotesSignOutDialog from '@/components/notes/NotesSignOutDialog';
 import { useTranslations } from 'next-intl';
 import { TZ_CHANGED_EVENT } from '@/lib/tz-client';
+import { desktopBridge, type DesktopBridge } from '@/lib/desktop-bridge';
 import { collapsedFrom, denseRoute, storageKey } from '@/lib/sidebar-collapsed';
 import { Link, usePathname } from '@/i18n/navigation';
 import Icon from './icons';
@@ -145,6 +146,9 @@ export default function AppSidebar({
   crumb?: ReactNode;
 }) {
   const t = useTranslations('common.sidebar');
+  // Dentro de la app de escritorio: sus Ajustes (dictado, permisos, indicador) en el menú de la cuenta.
+  const [desktop, setDesktop] = useState<DesktopBridge | null>(null);
+  useEffect(() => setDesktop(desktopBridge()), []);
   const pathname = usePathname();
   const product = appProductFromPath(pathname);
   // En la plataforma (Ajustes) no hay app activa: el shell va en tinta, sin color de producto.
@@ -679,6 +683,12 @@ export default function AppSidebar({
                 <Icon name={settingsItem.icon} size={14} />
                 {settingsItem.label}
               </Link>
+              {desktop && (
+                <button type="button" role="menuitem" className="side-menu-item ws-switcher-item" onClick={() => desktop.openSettings()} data-testid="side-desktop-settings">
+                  <Icon name={settingsItem.icon} size={14} />
+                  {t('desktopSettings')}
+                </button>
+              )}
               {importItem && (
                 <Link
                   href={importItem.href}
