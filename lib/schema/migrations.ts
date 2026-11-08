@@ -8648,6 +8648,9 @@ export const MIGRATIONS: Migration[] = [
       )`);
       await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN muted_until TEXT');
       await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN marked_unread INTEGER NOT NULL DEFAULT 0');
+    },
+  },
+  {
     // Board: modo privado del taller (cada uno ve solo sus stickies hasta
     // revelar) y comentarios pegados a un objeto (dónde estaba el objeto al
     // anclarlo, para que el pin lo siga cuando se mueve).
