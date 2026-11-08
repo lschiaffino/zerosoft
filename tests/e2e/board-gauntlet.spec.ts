@@ -130,12 +130,14 @@ test('comentario pegado a un sticky: el pin lo sigue cuando se mueve; minimapa',
   await expect(pin).toHaveCount(1);
   await page.keyboard.press('Escape');
   const before = await pin.boundingBox();
-  // Mover el sticky con el teclado (Shift+flecha = 10 px x3).
+  // Mover el sticky (como lo haría otra persona en vivo): el pin va con él.
   await page.evaluate((nid) => {
-    const api = (window as unknown as { __boardApi: { updateScene: (s: unknown) => void } }).__boardApi;
-    api.updateScene({ appState: { selectedElementIds: { [nid]: true } } });
+    const api = (window as unknown as { __boardApi: { getSceneElementsIncludingDeleted: () => Array<Record<string, unknown>>; updateScene: (s: unknown) => void } }).__boardApi;
+    const els = api.getSceneElementsIncludingDeleted().map((e) =>
+      e.id === nid || e.containerId === nid ? { ...e, x: (e.x as number) + 120, version: (e.version as number) + 1, versionNonce: 99 } : e,
+    );
+    api.updateScene({ elements: els });
   }, note.id);
-  for (let i = 0; i < 6; i++) await page.keyboard.press('Shift+ArrowRight');
   await expect.poll(async () => ((await pin.boundingBox())?.x ?? 0) - (before?.x ?? 0)).toBeGreaterThan(40);
 
   // Minimapa: clic lleva la vista.

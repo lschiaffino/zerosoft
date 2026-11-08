@@ -122,6 +122,8 @@ export default function BoardStickyTool({ api, me = null }: { api: CanvasApi | n
 
   async function add(list: Array<{ text: string; tags: string[]; fill?: string | null; x?: number | null; y?: number | null }>) {
     if (!api || !list.length) return;
+    // Se cierra enseguida: la carga de letras puede tardar y no tiene que cerrar un popover que se volvió a abrir.
+    pop.close();
     const { skeletonsToElements, UNDOABLE, ensureFonts } = await import('./ExcalidrawCanvas');
     await ensureFonts();
     // En un hueco cerca del centro de la vista: no tapan lo que ya está ni sus tags.
@@ -148,7 +150,6 @@ export default function BoardStickyTool({ api, me = null }: { api: CanvasApi | n
       if (shown.length) api.scrollToContent(shown, { fitToContent: false, animate: true });
     }
     setBulk('');
-    pop.close();
   }
 
   /** Reemplaza los stickies seleccionados con `change` aplicado (entra al deshacer). */
