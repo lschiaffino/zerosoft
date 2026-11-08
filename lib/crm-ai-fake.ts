@@ -26,6 +26,8 @@ export interface FakeCallInfo {
   userTexts: string[];
   /** Resultados de herramientas ya ejecutadas en esta corrida (en orden). */
   toolResults: Array<{ tool: string; output: unknown }>;
+  /** Partes que no son texto del último mensaje del usuario (imágenes, archivos), con su tipo. */
+  userFiles: Array<{ mediaType: string; bytes: number }>;
 }
 
 let cookieDisabled: (() => Promise<boolean>) | null = null;
@@ -77,10 +79,23 @@ function callInfo(prompt: unknown): FakeCallInfo {
   const userTexts: string[] = [];
   const toolResults: Array<{ tool: string; output: unknown }> = [];
   let system = '';
-  if (!Array.isArray(prompt)) return { system, userTexts, toolResults };
+  let userFiles: FakeCallInfo['userFiles'] = [];
+  if (!Array.isArray(prompt)) return { system, userTexts, toolResults, userFiles };
   for (const m of prompt as Array<{ role: string; content: unknown }>) {
     if (m.role === 'system') system += textOf(m.content);
-    if (m.role === 'user') userTexts.push(textOf(m.content));
+    if (m.role === 'user') {
+      userTexts.push(textOf(m.content));
+      const parts = Array.isArray(m.content) ? (m.content as Array<{ type?: string; mediaType?: string; data?: unknown; image?: unknown }>) : [];
+      userFiles = parts
+        .filter((p) => p.type === 'file' || p.type === 'image')
+        .map((p) => {
+          // V4: { type: 'data', data } (bytes o base64) o { type: 'url', url }.
+          const raw = p.data ?? p.image;
+          const d = raw && typeof raw === 'object' && !(raw instanceof Uint8Array) && 'data' in raw ? (raw as { data: unknown }).data : raw;
+          const bytes = d instanceof Uint8Array ? d.length : typeof d === 'string' ? Math.floor((d.length * 3) / 4) : 0;
+          return { mediaType: String(p.mediaType ?? 'application/octet-stream'), bytes };
+        });
+    }
     if (m.role === 'tool' && Array.isArray(m.content)) {
       for (const part of m.content as Array<{ type?: string; toolName?: string; output?: { type?: string; value?: unknown } }>) {
         if (part.type !== 'tool-result') continue;
@@ -88,7 +103,7 @@ function callInfo(prompt: unknown): FakeCallInfo {
       }
     }
   }
-  return { system, userTexts, toolResults };
+  return { system, userTexts, toolResults, userFiles };
 }
 
 function contentFor(step: FakeStep, i: number) {

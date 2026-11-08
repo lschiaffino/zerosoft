@@ -537,10 +537,16 @@ export function SemanticStatus({ agentId, on, dirty }: { agentId: string; on: bo
       if (!cancelled && res.ok && res.data.semantic) setStatus(res.data.semantic);
     };
     void load();
-    const timer = window.setInterval(() => void load(), 15_000);
+    // Con la pestaña oculta no se consulta; al volver, sí.
+    const tick = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
+    const timer = window.setInterval(tick, 15_000);
+    document.addEventListener('visibilitychange', tick);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', tick);
     };
   }, [agentId, on, dirty]);
   if (!on) return null;

@@ -9,6 +9,7 @@ import {
   type NotificationType,
 } from '@/lib/notifications';
 import { unauthorized } from '@/lib/track-http';
+import { noStore } from '@/lib/no-store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,7 +20,7 @@ function hiddenAppPaths(user: Parameters<typeof userCanUseApp>[0] & { actingUser
   return (Object.keys(PRODUCT_CONFIG) as ProductKey[]).filter((k) => !userCanUseApp(user, k)).map((k) => PRODUCT_CONFIG[k].launch);
 }
 
-export async function GET(req: NextRequest) {
+async function getPrivate(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ rows: visible, unreadCount });
 }
 
-export async function PATCH(req: NextRequest) {
+async function patchPrivate(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
@@ -60,4 +61,14 @@ export async function PATCH(req: NextRequest) {
 
   const unreadCount = await countUnreadNotifications(realUserId(user), { hidePaths: hiddenAppPaths(user) });
   return NextResponse.json({ ok: true, unreadCount });
+}
+
+/** Datos de la persona: sin caché (lib/no-store.ts). */
+export async function GET(...args: Parameters<typeof getPrivate>) {
+  return noStore(await getPrivate(...args));
+}
+
+/** Datos de la persona: sin caché (lib/no-store.ts). */
+export async function PATCH(...args: Parameters<typeof patchPrivate>) {
+  return noStore(await patchPrivate(...args));
 }

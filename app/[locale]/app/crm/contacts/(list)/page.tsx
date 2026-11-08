@@ -85,7 +85,17 @@ export default async function ContactsPage(props: ContactsPageProps) {
   } = params;
 
   const user = await requireUser(locale);
-  const scope = await sessionScope(user);
+  // Las lecturas que no dependen de la lista de contactos arrancan juntas (en Turso cada query
+  // es una ida y vuelta); se esperan donde se usan.
+  const scopeP = sessionScope(user);
+  const fieldAccessP = fieldAccessFor(sessionFieldViewer(user), 'contacts');
+  const tagsP = listTags(user.id);
+  const scoresP = listScores(user.id);
+  const companiesP = scopeP.then((scope) => listCompanies(user.id, { pageSize: 200, sort: 'name', ownerScope: scope }));
+  const membersP = workspaceTeamId(user) ? listMembers(workspaceTeamId(user)!) : null;
+  const sequencesP = listSequences(user.id);
+  for (const p of [scopeP, fieldAccessP, tagsP, scoresP, companiesP, membersP, sequencesP]) p?.catch(() => {});
+  const scope = await scopeP;
   const t = await getTranslations({ locale, namespace: 'crm' });
 
   // Vista guardada activa: sus filtros sirven de default; los params explícitos ganan.
@@ -108,7 +118,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
   const page = Number(one(searchParams.page) ?? '1') || 1;
 
   // Permisos por campo: sin los ocultos; los de solo lectura no se editan en masa.
-  const customFieldDefs = (await fieldAccessFor(sessionFieldViewer(user), 'contacts')).visible;
+  const customFieldDefs = (await fieldAccessP).visible;
   const customTypes = customFilterTypes(customFieldDefs);
   const sort: ContactSort =
     SORTS.includes(sortParam as ContactSort) || isExtraSort(sortParam, customTypes)
@@ -137,20 +147,20 @@ export default async function ContactsPage(props: ContactsPageProps) {
   });
   const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
   const [allTags, rowTags, scores] = await Promise.all([
-    listTags(user.id),
+    tagsP,
     tagsForRecords(user.id, 'contact', rows.map((r) => r.id)),
-    listScores(user.id),
+    scoresP,
   ]);
   const primaryScore = scores.find((s) => s.isPrimary);
   const tagOptions = allTags.map((x) => ({ id: x.id, name: x.name }));
 
-  const companies = (await listCompanies(user.id, { pageSize: 200, sort: 'name', ownerScope: scope })).rows.map((c) => ({
+  const companies = (await companiesP).rows.map((c) => ({
     value: c.id,
     label: c.name,
   }));
 
-  const teamMembers = workspaceTeamId(user)
-    ? await listMembers(workspaceTeamId(user)!)
+  const teamMembers = membersP
+    ? await membersP
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
@@ -377,7 +387,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
             sort={sort}
             companies={companies}
             locale={locale}
-            sequences={(await listSequences(user.id)).map((sq) => ({ id: sq.id, name: sq.name }))}
+            sequences={(await sequencesP).map((sq) => ({ id: sq.id, name: sq.name }))}
             allTags={tagOptions}
             bulkFields={bulkFields}
             owners={owners}

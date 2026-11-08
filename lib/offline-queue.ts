@@ -11,6 +11,7 @@
  */
 
 import { NOTES_DB_PREFIX, notesDbName } from '@/components/notes/notesOffline';
+import { clearSessionHint } from '@/lib/session-hint';
 
 export const QUEUED_HEADER = 'x-zs-queued';
 /** Evento de window: un cambio quedó en la cola (detail: { url }). */
@@ -134,6 +135,8 @@ export const WORKSPACE_GUARD_KEY = 'zs-workspace-guard';
  */
 export async function clearOfflineData(owner?: { userId: string; ws: string }): Promise<void> {
   if (typeof window === 'undefined') return;
+  // El header del sitio deja de mostrar "Ir a la app" (lib/session-hint.ts).
+  clearSessionHint();
   try {
     // El aviso de pestaña vieja nombra un workspace: no queda para quien use esta pestaña después.
     sessionStorage.removeItem(WORKSPACE_GUARD_KEY);
