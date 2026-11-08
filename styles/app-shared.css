@@ -684,8 +684,12 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   /* Hoja de "Agregar widget" (CRM): cada opción es una fila de 44px. */
   .dash-add-menu button { min-height: 44px; }
   /* Emojis de Groups: 8 columnas de 40px en vez de 9 de 38. */
-  .wa-emoji .wa-emoji-grid { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); }
-  .wa-emoji .wa-emoji-grid button { height: 40px; }
+  .wa-emoji .wa-emoji-grid { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)) !important; }
+  .wa-emoji .wa-emoji-grid button { height: 40px !important; }
+  /* Casilla de selección de Track: la celda de 40px es el objetivo y la casilla se ve (no hay hover que la muestre). */
+  .track-table-wrap.is-linear .track-col-select { flex: 0 0 40px !important; width: 40px !important; align-self: stretch; display: flex; align-items: center; justify-content: center; }
+  .track-select-box { width: 20px !important; height: 20px !important; }
+  .track-table-wrap.is-linear:not(.has-selection) tr:not(:hover):not(.is-kb-active):not(.is-selected) .track-select-box:not(:focus-visible) { opacity: 0.35 !important; }
   /* Excalidraw (Board): sus botones de herramienta usan estas variables (definidas en .excalidraw). */
   .excalidraw.excalidraw { --default-button-size: 2.5rem; --lg-button-size: 2.5rem; }
   .excalidraw .dropdown-menu-button { min-width: 40px; min-height: 40px; }
