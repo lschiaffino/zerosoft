@@ -36,7 +36,8 @@
         "Over the next few days we'll send a few short emails about what's left to set up. If you've already done it, you won't get them."
       ],
       "bodyApp": "You started with {app}. {action}",
-      "cta": "Open zerosoft"
+      "cta": "Open zerosoft",
+      "ctaApp": "Open {app}"
     },
     "setup_first_item": {
       "subject": "Create {thing} in {app}",

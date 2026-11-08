@@ -36,7 +36,8 @@
         "Nos próximos dias vamos mandar alguns emails curtos com o que falta configurar. Se você já fez, eles não chegam."
       ],
       "bodyApp": "Você começou pelo {app}. {action}",
-      "cta": "Abrir o zerosoft"
+      "cta": "Abrir o zerosoft",
+      "ctaApp": "Abrir o {app}"
     },
     "setup_first_item": {
       "subject": "Crie {thing} no {app}",

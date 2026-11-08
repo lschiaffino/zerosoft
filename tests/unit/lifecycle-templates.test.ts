@@ -38,7 +38,7 @@ describe('plantillas de ciclo de vida', () => {
         // Un solo botón, a la pantalla de la app con el idioma.
         expect(out.html.match(/class="lc-btn"/g)).toHaveLength(1);
         expect(out.ctaUrl.startsWith(`https://zerosoft.ai/${locale}/`)).toBe(true);
-        expect(out.html).toContain(out.ctaUrl);
+        expect(out.html).toContain(out.ctaUrl.replace(/&/g, "&amp;"));
         expect(out.text).toContain(out.ctaUrl);
         // Baja y preferencias en el pie, en HTML y en texto.
         for (const part of [out.html, out.text]) {

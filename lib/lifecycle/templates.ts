@@ -137,6 +137,7 @@ export function renderLifecycleEmail(input: RenderInput): RenderedEmail {
     body: string[];
     cta: string;
     bodyApp?: string;
+    ctaApp?: string;
     rows?: Record<keyof DigestCounts, string>;
   };
   const app = input.app ?? (input.tool ? TOOL_APP[input.tool] : null) ?? null;
@@ -162,7 +163,7 @@ export function renderLifecycleEmail(input: RenderInput): RenderedEmail {
           .filter((k) => (input.digest?.[k] ?? 0) > 0)
           .map((k) => fill(t.rows![k], { count: String(input.digest![k]) }))
       : [];
-  const ctaLabel = fill(t.cta, vars);
+  const ctaLabel = fill(input.template === 'welcome' && app && t.ctaApp ? t.ctaApp : t.cta, vars);
   const origin = input.origin.replace(/\/$/, '');
   const ctaUrl = `${origin}/${input.locale}${ctaPath(input.template, { app, tool: input.tool })}`;
   const category = c.common.categories[input.category];
