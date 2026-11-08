@@ -25,10 +25,13 @@ export interface ImportJobView {
   error: string | null;
   options: Record<string, unknown>;
   created_at: string;
+  updated_at?: string;
   finished_at: string | null;
 }
 
 const RUNNING: ImportStatus[] = ['fetching', 'importing'];
+/** Una vista previa se retoma solo si es reciente (la misma sesión de trabajo). */
+const PREVIEW_RESUME_MS = 30 * 60 * 1000;
 
 async function api<T>(url: string, init?: RequestInit): Promise<{ ok: boolean; status: number; data: T & { error?: string } }> {
   const res = await fetch(url, { ...init, headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) } });
@@ -81,7 +84,13 @@ export function useImportJob(app: ImportJobView['app'], sources?: readonly strin
       setLoading(false);
       // Retoma el último si sigue abierto (lectura, vista previa o escritura).
       const open = res?.ok
-        ? res.data.jobs.find((j) => ['fetching', 'preview', 'importing'].includes(j.status) && (!sourcesKey || sourcesKey.split(',').includes(j.source)))
+        ? res.data.jobs.find(
+            (j) =>
+              (RUNNING.includes(j.status) ||
+                // Una vista previa vieja (otra sesión) no se retoma: queda el formulario limpio.
+                (j.status === 'preview' && Date.now() - Date.parse(j.updated_at ?? j.created_at) < PREVIEW_RESUME_MS)) &&
+              (!sourcesKey || sourcesKey.split(',').includes(j.source)),
+          )
         : undefined;
       if (open) {
         setJob(open);

@@ -529,6 +529,7 @@ export const EVOLUTION_EVENTS = [
   'MESSAGES_UPDATE',
   'MESSAGES_DELETE',
   'CONNECTION_UPDATE',
+  'PRESENCE_UPDATE',
   'QRCODE_UPDATED',
   'GROUP_PARTICIPANTS_UPDATE',
   'CALL',
@@ -810,6 +811,27 @@ function evolutionContactEvents(rows: Json[]): InboundEvent[] {
   return out;
 }
 
+const PRESENCE_STATES = new Set(['composing', 'recording', 'available', 'unavailable', 'paused']);
+
+/**
+ * PRESENCE_UPDATE de Evolution (Baileys): { id, presences: { [jid]: { lastKnownPresence } } }.
+ * En un grupo, cada participante trae la suya: gana quien escribe o graba.
+ */
+export function evolutionPresence(d: Json): InboundEvent[] {
+  const chatId = String(d.id ?? '');
+  if (!/@(s\.whatsapp\.net|g\.us|lid)$/.test(chatId)) return [];
+  const presences = (d.presences && typeof d.presences === 'object' ? d.presences : {}) as Record<string, Json>;
+  let best: { who: string; state: string } | null = null;
+  for (const [jid, p] of Object.entries(presences)) {
+    const state = String((p ?? {}).lastKnownPresence ?? '');
+    if (!PRESENCE_STATES.has(state)) continue;
+    const who = /@lid$/.test(jid) ? '' : phoneDigits(jid);
+    if (!best || ((state === 'composing' || state === 'recording') && best.state !== 'composing' && best.state !== 'recording')) best = { who, state };
+  }
+  if (!best) return [];
+  return [{ type: 'presence', chatId, who: isGroupJid(chatId) ? best.who : '', state: best.state as 'composing' }];
+}
+
 /** Webhook de Evolution API → eventos normalizados. */
 export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
   const b = (body ?? {}) as Json;
@@ -889,6 +911,8 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
       }
       return out;
     }
+    case 'presence.update':
+      return evolutionPresence(d);
     case 'connection.update':
       return [{ type: 'session', status: evolutionStatus(d.state), phone: d.wuid ? phoneDigits(String(d.wuid)) : undefined }];
     case 'qrcode.updated': {
@@ -1101,6 +1125,25 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         values: poll.options,
       })) as Json;
       return { id: String(((r.key ?? {}) as Json).id ?? '') };
+    },
+    /** /message/sendContact: una vCard por contacto (Evolution arma el waid con los dígitos). */
+    async sendContact(chatId, contacts) {
+      const r = (await api(`/message/sendContact/${instance}`, 'POST', {
+        number: chatId,
+        contact: contacts.slice(0, 10).map((c) => {
+          const digits = phoneDigits(c.phone);
+          return { fullName: c.name.slice(0, 100) || `+${digits}`, wuid: digits, phoneNumber: `+${digits}` };
+        }),
+      })) as Json;
+      const id = String(((r.key ?? {}) as Json).id ?? '');
+      if (!id) throw new ProviderError('provider_error');
+      return { id };
+    },
+    async markRead(chatId, messageIds) {
+      if (!messageIds.length) return;
+      await api(`/chat/markMessageAsRead/${instance}`, 'POST', {
+        readMessages: messageIds.slice(0, 50).map((id) => ({ remoteJid: chatId, fromMe: false, id })),
+      });
     },
     sendTemplate: async () => {
       throw new ProviderError('unsupported');

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GroupsError, getChatRow, listMessages, sendMessage } from '@/lib/groups';
+import { GroupsError, getChatRow, listMessages, presenceWithName, sendMessage } from '@/lib/groups';
 import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
 import { maskMessage } from '@/lib/groups-access';
 import { normalizePoll } from '@/lib/groups-polls';
@@ -24,10 +24,14 @@ export async function GET(req: Request, ctx: Ctx) {
   // ?before=<createdAt>: los anteriores (el hilo carga más al subir).
   const before = p.get('before') || undefined;
   const limit = Number(p.get('limit')) || undefined;
-  return NextResponse.json({ messages: (await listMessages(s.ws, id, { after, before, limit })).map((m) => maskMessage(guard.viewer, m)) });
+  return NextResponse.json({
+    messages: (await listMessages(s.ws, id, { after, before, limit })).map((m) => maskMessage(guard.viewer, m)),
+    // Escribiendo, grabando o en línea (llega por webhook; dura unos segundos).
+    presence: await presenceWithName(chat).catch(() => null),
+  });
 }
 
-/** Manda texto, media (ver mediaFromBody), una encuesta ({ poll: { question, options, multi } }) o una nota interna ({ note: true }). */
+/** Manda texto, media (ver mediaFromBody), una encuesta ({ poll: { question, options, multi } }), contactos ({ contacts: [{ name, phone }] }) o una nota interna ({ note: true }). */
 export async function POST(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
@@ -51,6 +55,7 @@ export async function POST(req: Request, ctx: Ctx) {
       replyToId: str(b.replyToId, 100) || null,
       note: b.note === true,
       media,
+      ...(Array.isArray(b.contacts) ? { contacts: b.contacts as Array<{ name: string; phone: string }> } : {}),
     });
     return NextResponse.json(maskMessage(guard.viewer, msg), { status: 201 });
   } catch (err) {

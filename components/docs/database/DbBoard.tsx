@@ -7,6 +7,7 @@ import type { DbProperty, DbRow, DocsDatabase } from '@/lib/docs-types';
 import { groupRows, cardHidesValue, cellValue, rowTitle, type DbGroup } from '@/lib/docs-database';
 import DocsGlyph from '../DocsGlyphs';
 import DbValueView, { StatusGlyph, type DbRefs } from './DbValueView';
+import { PropertyTypeIcon } from './DbPropertyMenu';
 import { groupLabel } from './DbTable';
 
 /** Tarjetas por columna antes de "Mostrar más" (1.000 filas en un board no se pintan de una). */
@@ -75,6 +76,11 @@ const Card = memo(function Card({
         if (cardHidesValue(p, cellValue(p, row))) return null;
         return (
           <div key={p.id} className="docs-db-bcard-prop" title={p.name}>
+            {/* El ícono del tipo dice qué propiedad es (como Notion); el nombre va en el title y para lectores de pantalla. */}
+            <span className="docs-db-bcard-prop-icon" aria-hidden="true">
+              <PropertyTypeIcon type={p.type} />
+            </span>
+            <span className="sr-only">{p.name}: </span>
             <DbValueView prop={p} row={row} people={people} locale={locale} refs={refs} />
           </div>
         );

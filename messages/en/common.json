@@ -217,7 +217,8 @@
     "groupBooksBankAccounts": "Bank accounts",
     "groupBooksRecurring": "Recurring invoices",
     "groupForms": "Forms",
-    "groupSend": "Documents to send"
+    "groupSend": "Documents to send",
+    "untitled": "Untitled"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",

@@ -8725,11 +8725,31 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Reimportar un export de Notion actualizado: el hash del archivo de origen
+    // dice si cambió (y la página se actualiza si nadie la editó en zerosoft).
+    id: '260_import_external_hash',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE import_external_ids ADD COLUMN source_hash TEXT');
+    },
+  },
+  {
+    // Groups: chats archivados y ocultos (como WhatsApp) y presencia del contacto
+    // (escribiendo, grabando, en línea) que llega por webhook.
+    id: '284_groups_archive_presence',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN archived_at TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN hidden_at TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_who TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_at TEXT');
+    },
+  },
+  {
     // La app de analítica de producto (eventos, embudos, grabaciones) pasa a
     // llamarse Pulse: la clave guardada de la app cambia de 'analytics' a
     // 'pulse' en accesos, invitaciones, pedidos de acceso y la taxonomía de
     // feedback, roadmap y changelog. Las tablas analytics_* no cambian.
-    id: '284_pulse_app_key',
+    id: '285_pulse_app_key',
     up: async (c) => {
       const stmts = [
         `UPDATE team_members SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
@@ -8754,7 +8774,7 @@ export const MIGRATIONS: Migration[] = [
     // tableros con tarjetas, links públicos firmados, suscripciones y caché
     // de resultados. Todo por workspace; las credenciales de las bases van
     // cifradas (lib/bi/secrets.ts).
-    id: '285_bi_analytics',
+    id: '286_bi_analytics',
     up: async (c) => {
       await c.executeMultiple(`
         CREATE TABLE IF NOT EXISTS bi_collections (
