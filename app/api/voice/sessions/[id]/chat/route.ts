@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { voiceAuth, readBody } from '@/lib/voice-route';
-import { builtinPrompts, meetingLabels, voiceErrorResponse, voiceJsonError } from '@/lib/voice-http';
-import { chat } from '@/lib/voice-service';
+import { builtinPrompts, meetingLabels, voiceErrorResponse, voiceJsonError, voiceNdjson } from '@/lib/voice-http';
+import { chat, chatStream } from '@/lib/voice-service';
 import { recipePrompt, runRecipeOnMeeting } from '@/lib/voice-prep';
 
 export const runtime = 'nodejs';
@@ -12,6 +12,9 @@ export const maxDuration = 60;
  * Pregunta sobre la reunión. Body: { question, locale? } o { recipeId, locale? }
  * (un recipe propio, del equipo o de fábrica "builtin:<clave>", que queda en
  * el chat como "/Nombre"). Devuelve el chat completo.
+ *
+ * Con { stream: true } (y una pregunta) responde NDJSON: { type: 'text', delta }
+ * por pedazo y al final { type: 'done', chat }, o { type: 'error', code }.
  */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -27,6 +30,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       const recipe = await recipePrompt(auth.owner, recipeId, builtinPrompts(locale, 'recipe'));
       if (!recipe) return voiceJsonError(404, 'recipe_not_found');
       return NextResponse.json({ chat: await runRecipeOnMeeting({ owner: auth.owner, sessionId: id, recipe, locale, labels: meetingLabels(locale) }) });
+    }
+    if (body.stream === true) {
+      // La reunión y la cuota se miran antes de abrir el stream: esos errores salen con su status.
+      const { deltas, finish } = await chatStream({ owner: auth.owner, sessionId: id, question, locale, labels: meetingLabels(locale), abortSignal: req.signal });
+      return voiceNdjson(async (send) => {
+        let text = '';
+        for await (const delta of deltas) {
+          text += delta;
+          send({ type: 'text', delta });
+        }
+        if (!text.trim()) throw new Error('empty_answer');
+        send({ type: 'done', chat: await finish(text) });
+      });
     }
     const messages = await chat({ owner: auth.owner, sessionId: id, question, locale, labels: meetingLabels(locale) });
     return NextResponse.json({ chat: messages });

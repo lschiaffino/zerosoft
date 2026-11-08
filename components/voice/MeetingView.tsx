@@ -23,6 +23,8 @@ import { copyText } from './insert';
 import { checkRecordingFile, importRecording } from './importRecording';
 import { BriefPanel, FollowupModal, SendModal, ShareModal } from './MeetingPrep';
 import { AUTOSTART_NONCE_RE, desktopBridge } from '@/lib/desktop-bridge';
+import { seekParam } from '@/lib/voice-cite';
+import { takeAutostart } from './autostart';
 
 type Detail = VoiceSessionDetail & { contact: { id: string; name: string; email: string } | null; share: VoiceShareInfo | null };
 
@@ -32,6 +34,8 @@ interface Props {
   folders: VoiceFolder[];
   transcription: boolean;
   ai: boolean;
+  /** Hay modelo para el chat (el del asistente ⌘J o el de la suite). */
+  chatAi?: boolean;
   blobPrefix: string | null;
   blobAccess: 'public' | 'private';
   importMaxBytes: number;
@@ -43,7 +47,7 @@ interface Props {
  * A la derecha, la transcripción en vivo, el chat sobre la reunión y los
  * vínculos (Cal, CRM, Docs, Notes).
  */
-export default function MeetingView({ initial, templates, folders, transcription, ai, blobPrefix, blobAccess, importMaxBytes }: Props) {
+export default function MeetingView({ initial, templates, folders, transcription, ai, chatAi = ai, blobPrefix, blobAccess, importMaxBytes }: Props) {
   const t = useTranslations('voice.meeting');
   const tTpl = useTranslations('voice.templates.builtin');
   const tErr = useTranslations('voice.errors');
@@ -107,7 +111,9 @@ export default function MeetingView({ initial, templates, folders, transcription
   // El grabador vive en el layout de la app: sigue grabando si se navega a otra página.
   const recorder = useRecorder();
   const active = recorder.sessionId === d.id;
-  const recordingElsewhere = !!recorder.sessionId && !active && recorder.state !== 'idle';
+  // El último intento de empezar fue en esta reunión (aunque el micrófono no haya abierto).
+  const attempted = recorder.attemptId === d.id;
+  const recordingElsewhere = recorder.state !== 'idle' && !!recorder.attemptId && !attempted;
   // Otra pestaña u otro dispositivo tomó la grabación de esta reunión (claim con latido en el servidor).
   // Se decide con el estado fresco del servidor: al recargar una pestaña que grababa, el cierre
   // (sendBeacon) puede llegar después del render y la reunión ya no está grabando.
@@ -116,8 +122,8 @@ export default function MeetingView({ initial, templates, folders, transcription
   const failedParts = recorder.failed[d.id] ?? 0;
   const recoveredParts = recorder.recovered[d.id] ?? 0;
   const rec = {
-    state: active ? recorder.state : ('idle' as const),
-    error: active ? recorder.error : null,
+    state: active || (attempted && recorder.state === 'starting') ? recorder.state : ('idle' as const),
+    error: attempted ? recorder.error : null,
     pending: active ? recorder.pending : 0,
     lagging: active && recorder.lagging,
     elapsed: active ? recorder.elapsed : 0,
@@ -343,10 +349,35 @@ export default function MeetingView({ initial, templates, folders, transcription
       void recorder.start({ sessionId: d.id, mode: bridge.systemAudio ? 'mic_tab' : 'mic', baseOffsetMs: d.durationMs, desktop: true });
     });
   }, [serverChecked, canRecord, rec.state, recordingElsewhere, otherRecorder, recorder, d.id, d.durationMs]);
+  // Reunión recién creada con un clic (Nueva reunión, Tomar notas, ⌘K): empieza a escuchar sola,
+  // como Granola. En la app de escritorio, con el audio del sistema si está disponible.
+  const selfStarted = useRef(false);
+  useEffect(() => {
+    if (selfStarted.current || !serverChecked) return;
+    selfStarted.current = true;
+    if (!takeAutostart(d.id)) return;
+    if (!canRecord || rec.state !== 'idle' || recordingElsewhere || otherRecorder || d.segments.length > 0) return;
+    const bridge = desktopBridge();
+    void recorder.start({ sessionId: d.id, mode: bridge?.systemAudio ? 'mic_tab' : 'mic', baseOffsetMs: d.durationMs, desktop: !!bridge?.systemAudio });
+  }, [serverChecked, canRecord, rec.state, recordingElsewhere, otherRecorder, recorder, d.id, d.durationMs, d.segments.length]);
+
+  // Ir a un momento de la transcripción: una cita del chat o ?t=<segundos> en el link.
+  const [focus, setFocus] = useState<{ ms: number; n: number } | null>(null);
+  const seek = useCallback((ms: number) => {
+    setTab('transcript');
+    setFocus({ ms, n: Date.now() });
+  }, []);
+  useEffect(() => {
+    const ms = seekParam(new URLSearchParams(window.location.search).get('t'));
+    if (ms !== null) seek(ms);
+  }, [seek]);
+
   const recError = rec.error;
   const hasContent = d.segments.length > 0 || notes.trim().length > 0;
   const hasNotes = !!d.enhanced || notes.trim().length > 0;
   const topFolders = folders.filter((f) => !f.parentId);
+  // Asistentes (del calendario o cargados a mano), sin repetir el contacto del CRM.
+  const attendeeNames = d.attendees.filter((a) => !d.contact || a.email !== d.contact.email).map((a) => a.name || a.email).filter(Boolean);
 
   return (
     <div className="app-page ui-page vc-page vc-meeting">
@@ -379,6 +410,15 @@ export default function MeetingView({ initial, templates, folders, transcription
           <LocalText>{format.dateTime(new Date(d.startedAt), { dateStyle: 'full', timeStyle: 'short' })}</LocalText>
           {(rec.state === 'recording' ? rec.elapsed : d.durationMs) > 0 && ` · ${formatDuration(rec.state === 'recording' ? rec.elapsed : d.durationMs)}`}
           {d.contact && ` · ${d.contact.name}`}
+          {attendeeNames.length > 0 && (
+            <>
+              {' · '}
+              <button type="button" className="vc-link-btn" title={t('attendeesOpen')} onClick={() => setTab('details')}>
+                {attendeeNames.slice(0, 3).join(', ')}
+                {attendeeNames.length > 3 && ` +${attendeeNames.length - 3}`}
+              </button>
+            </>
+          )}
           {d.share && ` · ${t('sharedBadge')}`}
         </p>
         <div className="vc-head-actions">
@@ -536,7 +576,8 @@ export default function MeetingView({ initial, templates, folders, transcription
         )}
       </section>
 
-      {(d.brief || ((d.attendees.length > 0 || !!d.contactId) && d.segments.length === 0)) && (
+      {/* Hasta que está la nota con IA: con la reunión que ya escucha sola, el brief sigue a mano. */}
+      {(d.brief || ((d.attendees.length > 0 || !!d.contactId) && !d.enhanced)) && (
         <BriefPanel key={`${d.attendees.length}:${d.contactId ?? ''}`} sessionId={d.id} initial={d.brief} canBrief={d.attendees.length > 0 || !!d.contactId} />
       )}
 
@@ -649,9 +690,10 @@ export default function MeetingView({ initial, templates, folders, transcription
                 onRenameSpeaker={(k, n) => void renameSpeaker(k, n)}
                 recording={recording}
                 deletedAt={d.transcriptDeletedAt}
+                focus={focus}
               />
             )}
-            {tab === 'chat' && <ChatPanel sessionId={d.id} initial={d.chat} ai={ai} />}
+            {tab === 'chat' && <ChatPanel sessionId={d.id} initial={d.chat} ai={chatAi} live={recording} onSeek={seek} />}
             {tab === 'details' && (
               <DetailsPanel
                 sessionId={d.id}

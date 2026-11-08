@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>zerosoft recording</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; -webkit-user-select: none; user-select: none; cursor: default; }
+      body { display: flex; align-items: stretch; justify-content: stretch; padding: 2px; box-sizing: border-box; font: 500 12px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+      .bar { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding: 0 6px 0 10px; background: #0d0d0d; color: #f4f4f4; border: 1px solid #2a2a2a; border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28); }
+      body[data-on='false'] .bar { visibility: hidden; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #e5484d; flex: none; animation: pulse 1.6s ease-in-out infinite; }
+      .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+      .clock { font-variant-numeric: tabular-nums; color: #bdbdbd; flex: none; }
+      .spacer { flex: 1; }
+      button { all: unset; flex: none; height: 26px; padding: 0 8px; border-radius: 4px; color: #f4f4f4; font-size: 12px; cursor: pointer; border: 1px solid #333; box-sizing: border-box; display: inline-flex; align-items: center; }
+      button:hover { background: #222; }
+      button:focus-visible { outline: 2px solid #3b82f6; outline-offset: 1px; }
+      button.stop { background: #e5484d; border-color: #e5484d; color: #fff; }
+      button.stop:hover { background: #d13d42; }
+      button.close { border-color: transparent; color: #8f8f8f; padding: 0 6px; }
+      button.close:hover { color: #f4f4f4; }
+      @keyframes pulse { 50% { opacity: 0.35; } }
+      @media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
+    </style>
+  </head>
+  <body data-on="false">
+    <div class="bar" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="label" id="label"></span>
+      <span class="clock" id="clock"></span>
+      <span class="spacer"></span>
+      <button type="button" id="open"></button>
+      <button type="button" class="stop" id="stop"></button>
+      <button type="button" class="close" id="hide">×</button>
+    </div>
+    <script src="indicator.js"></script>
+  </body>
+</html>

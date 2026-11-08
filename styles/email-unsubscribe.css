@@ -1,0 +1,30 @@
+/* Página de baja de los emails de ciclo de vida (/[locale]/email/unsubscribe). */
+.eu-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(32px, 12vh, 120px) 16px 32px;
+  background: var(--brand-enamel);
+  color: var(--brand-ink);
+  font-family: var(--font-ui);
+}
+.eu-card {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px;
+  border: 1px solid var(--brand-rule);
+  border-radius: var(--radius-1);
+  background: var(--brand-white);
+}
+.eu-brand { margin: 0 0 6px; font-family: var(--font-data); font-size: 13px; color: var(--brand-ink); }
+.eu-title { margin: 0; font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; }
+.eu-body { margin: 0; line-height: 1.55; color: var(--brand-gray-1); }
+.eu-action { align-self: flex-start; }
+.eu-link { align-self: flex-start; font-size: 0.875rem; color: var(--brand-gray-2); text-decoration: underline; text-underline-offset: 3px; }
+.eu-link:hover { color: var(--brand-ink); }
+.eu-link:focus-visible { outline: 2px solid var(--brand-ink); outline-offset: 2px; }
+@media (max-width: 480px) { .eu-card { padding: 22px 18px; } }

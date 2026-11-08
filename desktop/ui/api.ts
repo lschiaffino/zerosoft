@@ -6,6 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
 export type PermissionKind = 'microphone' | 'accessibility';
+export type PermissionAsk = PermissionKind | 'accessibility-reset';
 export type PermissionStatus = 'granted' | 'denied' | 'not-determined' | 'restricted' | 'not-needed';
 export type Failure = 'offline' | 'signed_out' | 'rate_limited' | 'server' | 'too_large' | 'empty' | 'rejected';
 export type Mode = 'both' | 'hold' | 'toggle';
@@ -41,12 +42,28 @@ export interface SettingsView {
   restoreClipboard: boolean;
   openAtLogin: boolean;
   onboarded: boolean;
+  recordingIndicator: boolean;
   permissions: Record<PermissionKind, PermissionStatus>;
+  /** Qué decir si falta Accesibilidad: ok, off, adhoc (la llave puede ser de otra build) o updated. */
+  accessibilityHint: 'ok' | 'off' | 'adhoc' | 'updated';
+  signature: 'adhoc' | 'stable' | 'unknown';
   account: AccountView;
   pending: PendingMeta[];
-  lastLatencyMs: number | null;
+  lastLatency: Latency | null;
   updates: 'auto' | 'off' | 'dev';
   strings: Record<string, string>;
+}
+
+/** Dónde se fue el tiempo del último dictado (dictation.rs, Latency). */
+export interface Latency {
+  totalMs: number;
+  audioMs: number;
+  requestMs: number;
+  pasteMs: number;
+  transcribeMs: number | null;
+  cleanupMs: number | null;
+  serverMs: number | null;
+  ai: boolean;
 }
 
 export interface SettingsInput {
@@ -56,6 +73,7 @@ export interface SettingsInput {
   restoreClipboard?: boolean;
   openAtLogin?: boolean;
   onboarded?: boolean;
+  recordingIndicator?: boolean;
 }
 
 export type RemoteError = 'signed_out' | 'offline' | 'failed';
@@ -96,7 +114,7 @@ export interface HudState {
 export const api = {
   get: () => invoke<SettingsView>('settings_get'),
   save: (input: SettingsInput) => invoke<{ ok: boolean; error?: string; view?: SettingsView }>('settings_save', { input }),
-  ask: (kind: PermissionKind) => invoke<SettingsView>('permission_ask', { kind }),
+  ask: (kind: PermissionAsk) => invoke<SettingsView>('permission_ask', { kind }),
   onRefresh: (cb: () => void) => void listen('settings://refresh', () => cb()),
   onTab: (cb: (tab: string) => void) => void listen<string>('settings://tab', (e) => cb(String(e.payload))),
   voiceGet: () => invoke<Remote<{ settings: VoiceServerSettings }>>('voice_get'),

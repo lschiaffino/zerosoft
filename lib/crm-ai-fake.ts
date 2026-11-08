@@ -143,7 +143,16 @@ export function fakeModel(respond: (info: FakeCallInfo) => FakeStep): LanguageMo
       const c = res.content[0];
       const chunks: unknown[] =
         c.type === 'text'
-          ? [{ type: 'text-start', id: 't' }, { type: 'text-delta', id: 't', delta: c.text }, { type: 'text-end', id: 't' }]
+          ? [
+              { type: 'text-start', id: 't' },
+              // De a pocas palabras, como un modelo real (la UI muestra el texto mientras llega).
+              ...(c.text.match(/\S+\s*|\s+/g) ?? [c.text]).reduce<string[]>((acc, w, i) => {
+                if (i % 4 === 0) acc.push(w);
+                else acc[acc.length - 1] += w;
+                return acc;
+              }, []).map((delta) => ({ type: 'text-delta', id: 't', delta })),
+              { type: 'text-end', id: 't' },
+            ]
           : [c];
       chunks.push({ type: 'finish', finishReason: res.finishReason, usage: USAGE });
       return {
