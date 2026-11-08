@@ -633,7 +633,12 @@ export function coeditFilter(viewer: CoeditViewer, pageId: string, initial: Docs
   return filter;
 }
 
-const CHECK_MS = 5_000;
+/**
+ * Revalidación periódica de cada conexión: solo red de seguridad. Un cambio de
+ * acceso (share, rol, teamspace, papelera) emite un evento `access` y se
+ * revalida en el momento (coeditFilter); el resultado vale este tiempo.
+ */
+const CHECK_MS = 30_000;
 
 /** Stream SSE de una página para esta persona (ya chequeado su acceso). */
 export function coeditStream(viewer: CoeditViewer, pageId: string, access: DocsAccess, cursor: number, signal?: AbortSignal): Response {
@@ -658,7 +663,7 @@ export function coeditStream(viewer: CoeditViewer, pageId: string, access: DocsA
         push({ events: visible, cursor: events[events.length - 1]?.id ?? 0 });
       });
     },
-    // Red de seguridad: además de los avisos de cambio de acceso, cada 5 s.
+    // Red de seguridad: además de los avisos de cambio de acceso, cada 30 s.
     // Falla cerrado: si no se puede revalidar se corta (sin `revoked`: el navegador reconecta y se vuelve a chequear).
     check: async () => {
       // Recién revalidado por un aviso de cambio de acceso: no hace falta otra consulta.
