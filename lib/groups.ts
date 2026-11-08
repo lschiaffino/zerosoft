@@ -922,7 +922,7 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
   if (patch.read === true) {
     set('unread_count', 0);
     set('marked_unread', 0);
-    // Tildes azules en WhatsApp (opcional en Ajustes > Reglas): después de responder.
+    // Tildes azules en WhatsApp (opcional en Ajustes > Tickets y SLA): después de responder.
     if (row.unread_count > 0) await runAfter(() => sendReadReceipts(ws, row));
   }
   if (patch.read === false && row.unread_count === 0) {
@@ -951,7 +951,7 @@ export async function sendReadReceipts(ws: string, chat: ChatRow): Promise<void>
   try {
     if (!(await getSettings(ws)).readReceipts) return;
     const number = await getNumberRow(ws, chat.number_id);
-    if (!number || number.status !== 'connected') return;
+    if (!number) return;
     const provider = providerFor(number);
     if (!provider.markRead) return;
     const n = Math.min(50, Math.max(1, chat.unread_count));

@@ -45,13 +45,13 @@ export default function ContactPicker({ open, chatId, onClose, onSent }: { open:
       const res = await api<{ rows: ChatDto[] }>(`/api/groups/chats?${p}`, { method: 'GET' });
       if (!alive) return;
       setLoadError(!res.data);
-      setRows(res.data ? res.data.rows.filter((r) => r.phone) : []);
+      setRows(res.data ? res.data.rows.filter((r) => r.phone && r.id !== chatId) : []);
     }, q ? 200 : 0);
     return () => {
       alive = false;
       clearTimeout(id);
     };
-  }, [open, q]);
+  }, [open, q, chatId]);
 
   function toggle(c: ChatDto) {
     setPicked((prev) =>
@@ -126,7 +126,7 @@ export default function ContactPicker({ open, chatId, onClose, onSent }: { open:
             })}
           </ul>
         )}
-        <fieldset className="ui-field">
+        <fieldset className="ui-field wa-contact-other">
           <legend className="label">{t('wa.contactOther')}</legend>
           <div className="wa-contact-manual">
             <input className="input" value={manual.name} onChange={(e) => setManual({ ...manual, name: e.target.value })} placeholder={t('wa.contactName')} aria-label={t('wa.contactName')} maxLength={100} />

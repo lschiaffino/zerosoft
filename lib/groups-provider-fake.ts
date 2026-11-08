@@ -259,7 +259,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       if (!Array.isArray(events)) return [];
       return events.filter((e): e is InboundEvent => {
         const t = (e as { type?: unknown })?.type;
-        return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote'].includes(String(t));
+        return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote', 'contact', 'presence'].includes(String(t));
       });
     },
   };

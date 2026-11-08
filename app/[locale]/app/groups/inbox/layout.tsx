@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
-import { listLabels, listNumbers, listPeople, listPropertyDefs } from '@/lib/groups';
+import { droppedNumbers, listLabels, listNumbers, listPeople, listPropertyDefs } from '@/lib/groups';
 import { managedAvailable } from '@/lib/groups-provider-managed';
 import { listTeams } from '@/lib/groups-inbox';
 import { listSavedLists } from '@/lib/groups-org';
@@ -52,7 +52,8 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   const onlySample = numbers.every((n) => n.provider === 'sample');
   const hasSample = numbers.some((n) => n.provider === 'sample');
   // Números agregados que nunca terminaron de conectar: cómo seguir, o probar con el ejemplo.
-  const nothingConnected = !hasSample && numbers.every((n) => n.status !== 'connected');
+  // Una línea que ya tuvo chats y se cayó tiene su propio aviso en la lista (reconectar con QR).
+  const nothingConnected = !hasSample && numbers.every((n) => n.status !== 'connected') && (await droppedNumbers(user.id).catch(() => [])).length === 0;
   return (
     <>
       <InboxShell

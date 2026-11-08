@@ -83,7 +83,7 @@ test('archivar, la vista Archivados y eliminar un chat', async ({ page, request 
 
   await rowMenu(page, other);
   await page.getByRole('menuitem', { name: 'Delete chat' }).click();
-  const confirm = page.getByRole('dialog', { name: `Delete the chat with ${other}?` });
+  const confirm = page.getByRole('alertdialog', { name: `Delete the chat with ${other}?` });
   await expect(confirm).toBeVisible();
   await confirm.getByRole('button', { name: 'Delete chat' }).click();
   await expect(page.getByText('Chat deleted')).toBeVisible();

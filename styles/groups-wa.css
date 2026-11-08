@@ -188,6 +188,8 @@
 .wa-contact-pick-main { display: flex; flex-direction: column; min-width: 0; }
 .wa-contact-pick-main span, .wa-contact-pick-main small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wa-contact-pick-main small { color: var(--ink-2); }
+.wa-contact-other { margin: 0; padding: 0; border: 0; min-width: 0; }
+.wa-contact-other legend { padding: 0; margin-bottom: 6px; }
 .wa-contact-manual { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 @media (max-width: 480px) { .wa-contact-manual { grid-template-columns: 1fr; } }
 .gr-inbox .gr-thread-actions { flex-wrap: nowrap; gap: 4px; }

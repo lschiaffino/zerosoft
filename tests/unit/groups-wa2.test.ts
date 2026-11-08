@@ -137,11 +137,11 @@ describe('Tarjetas de contacto', () => {
     const { user, row } = await setup('wa2-contact');
     await ingestEvents(row, [inbound('5491100000004@s.whatsapp.net', 'C-1', 'pasame el contacto')]);
     const [c] = (await listChats(user.id, user.id)).rows;
-    const m = await sendMessage(user.id, user.id, c.id, { contacts: [{ name: 'Soporte', phone: '+54 9 11 4444-0000' }] });
+    const m = await sendMessage(user.id, user.id, c.id, { body: '', contacts: [{ name: 'Soporte', phone: '+54 9 11 4444-0000' }] });
     expect(m).toMatchObject({ status: 'sent', body: '', contacts: [{ name: 'Soporte', phones: ['5491144440000'] }] });
     expect(fakeSent(row.id).at(-1)).toMatchObject({ kind: 'contact', text: 'Soporte +5491144440000' });
     expect((await getChat(user.id, c.id))!.lastMessagePreview).toBe('[contact]');
-    await expect(sendMessage(user.id, user.id, c.id, { contacts: [{ name: 'x', phone: '1' }] })).rejects.toMatchObject({ code: 'invalid_contact_card' });
+    await expect(sendMessage(user.id, user.id, c.id, { body: '', contacts: [{ name: 'x', phone: '1' }] })).rejects.toMatchObject({ code: 'invalid_contact_card' });
   });
 
   it('Evolution: /message/sendContact con wuid y teléfono con +', async () => {
