@@ -185,11 +185,13 @@ export default function ShareDialog({
   const [origin, setOrigin] = useState('');
   useEffect(() => setOrigin(window.location.origin), []);
 
+  const [copiedPage, setCopiedPage] = useState(false);
   async function copy(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      const set = text.startsWith(`${window.location.origin}${window.location.pathname}`) ? setCopiedPage : setCopied;
+      set(true);
+      setTimeout(() => set(false), 1500);
     } catch {
       /* sin permiso de portapapeles */
     }
@@ -541,13 +543,17 @@ export default function ShareDialog({
       </div>
 
       {/* Publicada, "Abrir" ya lleva al artículo: el pie solo aparece sin publicar. */}
-      {helpBase && !(page.published && publicPath) && (
-        <div className="ui-modal-foot">
+      {/* Copiar el link de la página (como Notion): sirve a quien tenga acceso. */}
+      <div className="ui-modal-foot">
+        {helpBase && !(page.published && publicPath) ? (
           <a href={helpBase} target="_blank" rel="noopener noreferrer" className="ui-foot-note docs-inline-link">
             {t('share.openHelpCenter')}
           </a>
-        </div>
-      )}
+        ) : null}
+        <button type="button" className="btn btn-secondary btn-sm" data-testid="docs-share-copy-link" onClick={() => copy(`${window.location.origin}${window.location.pathname}`)}>
+          {copiedPage ? t('share.copied') : t('share.copyPageLink')}
+        </button>
+      </div>
     </dialog>
   );
 }

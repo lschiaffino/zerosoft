@@ -96,3 +96,14 @@
 @media (max-width: 640px) {
   .mig-invite-list li { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Selector de archivo propio (el nativo no se traduce): botón + nombre; el input sigue con su label. */
+.ximp-file { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ximp-file-native { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.ximp-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; color: var(--ink); }
+.ximp-file-name[data-empty] { color: var(--brand-gray-2); }
+.ximp-file:focus-within .btn { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Docs › Importar: la vía por API debajo del import de archivos. */
+.docs-import-api { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+.docs-import-api p { margin: 0; }
