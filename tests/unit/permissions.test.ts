@@ -220,6 +220,24 @@ describe('cada rol contra las rutas', () => {
     const back = (await getDb().prepare('SELECT 1 AS x FROM workspace_group_members WHERE group_id = ? AND user_id = ?').get(g, c.mem.id)) as { x: number } | undefined;
     expect(back?.x).toBe(1);
     expect((await member.POST(send(U, 'POST', { action: 'reactivate' }), params({ userId: c.mem.id }))).status).toBe(404);
+    // Si después se va por su cuenta, nadie la vuelve a sumar sin que quiera.
+    await actAs(c.owner, c.owner, 'owner');
+    expect((await del(c.mem.id)).status).toBe(200);
+    await actAs(c.owner, c.mem, 'member');
+    expect((await del('self')).status).toBe(404);
+    await actAs(c.owner, c.owner, 'owner');
+    await addMember(c.team.id, c.mem.id, 'member', { apps: ['docs'] });
+    await actAs(c.owner, c.mem, 'member');
+    expect((await del('self')).status).toBe(200);
+    await actAs(c.owner, c.owner, 'owner');
+    expect((await member.POST(send(U, 'POST', { action: 'reactivate' }), params({ userId: c.mem.id }))).status).toBe(404);
+    // A quien no usa el CRM no se le pasan registros del CRM.
+    const sol = await makeUser('sol');
+    await addMember(c.team.id, sol.id, 'member', { apps: ['docs'] });
+    await addMember(c.team.id, c.mem.id, 'member', { apps: ['crm'] });
+    await getDb().prepare("UPDATE crm_contacts SET owner_id = ? WHERE id = ?").run(c.mem.id, `c-${project}`);
+    expect((await del(c.mem.id, { transferTo: sol.id })).status).toBe(200);
+    expect(((await getDb().prepare('SELECT owner_id FROM crm_contacts WHERE id = ?').get(`c-${project}`)) as { owner_id: string }).owner_id).toBe(c.mem.id);
 
     // Un admin quitado solo vuelve por el owner.
     await actAs(c.owner, c.owner, 'owner');

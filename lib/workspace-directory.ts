@@ -93,7 +93,7 @@ export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: s
     admin ? listPendingInvites(team.id) : Promise.resolve([]),
     listGroups(team.owner_id),
     admin ? pendingRequests(team.id) : Promise.resolve(new Map<string, ProductKey[]>()),
-    lastActiveByPerson(team.id),
+    admin ? lastActiveByPerson(team.id) : Promise.resolve(new Map<string, string>()),
     admin ? listDeactivated(team.id) : Promise.resolve([]),
     admin ? listAudit(team.id, { limit: 50 }).catch(() => []) : Promise.resolve([]),
   ]);

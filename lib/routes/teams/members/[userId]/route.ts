@@ -4,7 +4,7 @@ import { can, canGiveApps } from '@/lib/permissions';
 import { rateLimit } from '@/lib/rate-limit';
 import { getMemberRole, removeMember, setMemberApps, setMemberRole } from '@/lib/teams';
 import { isResponse, requestLocale, teamsCtx, teamsError } from '@/lib/teams-http';
-import { getMembership, parseApps, type AppAccess } from '@/lib/workspace';
+import { canUseApp, getMembership, parseApps, type AppAccess } from '@/lib/workspace';
 import { audit, deactivateMember, forgetDeactivated, getDeactivated, ownedStuff, reactivateMember, snapshotMember, transferStuff } from '@/lib/workspace-admin';
 import { personAccess } from '@/lib/workspace-access-view';
 import { grantedApps, notifyAppsGranted, notifyRemoved, notifyRoleChanged, resolveRequests } from '@/lib/workspace-access-request';
@@ -60,6 +60,7 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ userId
   if (isSelf) {
     if (!can(ctx.user, 'members.leave')) return teamsError('owner_cant_leave');
     await removeMember(ctx.team.id, targetId);
+    await forgetDeactivated(ctx.team.id, targetId);
     await audit({ teamId: ctx.team.id, actorId: ctx.realId, targetId, targetLabel: await label(targetId), action: 'member.remove', before: { role: targetRole }, after: { left: true } });
     return NextResponse.json({ ok: true });
   }
@@ -73,7 +74,8 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ userId
   if (!limit.ok) return teamsError('rate_limited', 429);
   let moved = null;
   if (body.transferTo) {
-    moved = await transferStuff(ctx.team, targetId, body.transferTo);
+    const to = await getMembership(ctx.team, body.transferTo);
+    moved = await transferStuff(ctx.team, targetId, body.transferTo, { track: Boolean(to && canUseApp(to, 'track')), crm: Boolean(to && canUseApp(to, 'crm')) });
     await audit({ teamId: ctx.team.id, actorId: ctx.realId, targetId, targetLabel: await label(targetId), action: 'member.transfer', after: { to: body.transferTo, toLabel: await label(body.transferTo), ...moved } });
   }
   const snap = await deactivateMember(ctx.team, targetId, ctx.realId);

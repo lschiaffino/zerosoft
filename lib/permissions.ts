@@ -20,12 +20,12 @@ export * from './roles';
 
 /** ¿Puede usar la app? (rol + apps habilitadas). */
 export function canUse(actor: Actor, app: ProductKey): boolean {
-  return canUseApp({ role: normalizeRole(actor.role ?? 'owner'), apps: (actor.apps ?? '*') as AppAccess | string }, app);
+  return canUseApp({ role: normalizeRole(actor.role ?? 'guest'), apps: (actor.apps ?? '*') as AppAccess | string }, app);
 }
 
 /** ¿Puede dejarle `requested` a alguien que hoy tiene `current`? (nadie da apps que no tiene). */
 export function canGiveApps(actor: Actor, requested: AppAccess | readonly string[], current: AppAccess = []): boolean {
-  const mine = normalizeRole(actor.role ?? 'owner') === 'owner' ? '*' : parseApps(actor.apps ?? '*');
+  const mine = normalizeRole(actor.role ?? 'guest') === 'owner' ? '*' : parseApps(actor.apps ?? '*');
   const req = requested === '*' ? '*' : parseApps([...requested]);
   return canGrantApps(mine, req, current);
 }

@@ -73,7 +73,8 @@ export function assignableRoles(actor: Role | string | null | undefined): Array<
 
 /** La regla única. Sin contexto, contesta por el caso general de la acción. */
 export function can(actor: Actor, action: Action, ctx: ActionContext = {}): boolean {
-  const role = normalizeRole(actor.role ?? 'owner');
+  // Sin rol no hay permisos: nunca se asume owner.
+  const role = normalizeRole(actor.role ?? 'guest');
   const admin = roleAtLeast(role, 'admin');
   switch (action) {
     case 'members.view':

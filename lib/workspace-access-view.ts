@@ -82,7 +82,7 @@ async function appDetails(ws: string, teamId: string, person: string, role: Work
       out.chat = { key: 'chatRestricted', values: { count: total - mine } };
     })(),
     (async () => {
-      if (!admin) out.calendar = { key: 'calOwn' };
+      if (!admin) out.cal = { key: 'calOwn' };
     })(),
     (async () => {
       if (role === 'owner') return;

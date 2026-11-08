@@ -236,6 +236,11 @@ export async function addMember(
     .prepare('INSERT OR IGNORE INTO team_members (team_id, user_id, role, apps, invited_by) VALUES (?, ?, ?, ?, ?)')
     .run(teamId, userId, role, serializeApps(opts.apps ?? '*'), opts.invitedBy ?? null);
   if (res.changes === 0) return;
+  // Una ficha vieja de "quitado" ya no vale: lo que manda es lo de ahora.
+  await getDb()
+    .prepare('DELETE FROM workspace_removed_members WHERE team_id = ? AND user_id = ?')
+    .run(teamId, userId)
+    .catch(() => undefined);
   // Hook "persona se unió" (lib/workspace-lifecycle.ts): cada app engancha lo suyo ahí.
   const team = await getTeamById(teamId);
   if (team && team.owner_id !== userId) {

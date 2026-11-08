@@ -16,6 +16,7 @@ import { getDb, type Db, type TeamRow } from './db';
 import { addMember, removeMember } from './teams';
 import { getMembership, normalizeWorkspaceRole, parseApps, serializeApps, type AppAccess, type WorkspaceRole } from './workspace';
 import { groupIdsOf, setPersonGroups } from './workspace-groups';
+import { trackVisibleExpr } from './track-access';
 
 export type AuditAction =
   | 'member.role'
@@ -161,14 +162,27 @@ export async function ownedStuff(team: Pick<TeamRow, 'id' | 'owner_id'>, userId:
 }
 
 /** Pasa a `to` los issues abiertos de Track asignados a `from` y los registros del CRM de los que es dueño. */
-export async function transferStuff(team: Pick<TeamRow, 'id' | 'owner_id'>, from: string, to: string, db: Db = getDb()): Promise<OwnedStuff> {
-  const moved = await ownedStuff(team, from, db);
+export async function transferStuff(
+  team: Pick<TeamRow, 'id' | 'owner_id'>,
+  from: string,
+  to: string,
+  /** Qué apps usa quien recibe: solo se le pasa lo de esas apps. */
+  can: { track: boolean; crm: boolean },
+  db: Db = getDb(),
+): Promise<OwnedStuff> {
+  const all = await ownedStuff(team, from, db);
+  const moved = { trackIssues: can.track ? all.trackIssues : 0, crmRecords: can.crm ? all.crmRecords : 0 };
   const steps: Array<[string, string[]]> = [
-    [`UPDATE track_issues SET assignee_id = ? WHERE assignee_id = ? AND archived_at IS NULL AND project_id IN (${TRACK_PROJECTS})`, [to, from, team.owner_id, team.id]],
+    [
+      // Solo los de proyectos que quien recibe ve (la misma regla que Track).
+      `UPDATE track_issues SET assignee_id = ? WHERE assignee_id = ? AND archived_at IS NULL
+       AND project_id IN (SELECT tp.id FROM track_projects tp WHERE tp.owner_id IN (?, ?) AND ${trackVisibleExpr('tp', '?')})`,
+      [to, from, team.owner_id, team.id, to, to, to],
+    ],
     ['UPDATE crm_contacts SET owner_id = ? WHERE user_id = ? AND owner_id = ?', [to, team.owner_id, from]],
     ['UPDATE crm_companies SET owner_id = ? WHERE user_id = ? AND owner_id = ?', [to, team.owner_id, from]],
     ['UPDATE crm_deals SET owner_id = ? WHERE user_id = ? AND owner_id = ?', [to, team.owner_id, from]],
-  ];
+  ].filter(([sql]) => (sql.includes('track_') ? can.track : can.crm)) as Array<[string, string[]]>;
   for (const [sql, args] of steps) {
     try {
       await db.prepare(sql).run(...args);
