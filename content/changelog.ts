@@ -83,6 +83,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Importing a Notion export now keeps relations between databases, turns columns with workspace members into people, keeps date ranges with their end, and brings toggles and heading levels as they were. Database pages open at full width.',
         es: 'Importar un export de Notion ahora conserva las relaciones entre bases, convierte en personas las columnas con miembros del workspace, guarda los rangos de fechas con su fin y trae los toggles y los niveles de título como estaban. Las páginas de bases se abren a ancho completo.',
         pt: 'Importar um export do Notion agora mantém as relações entre bancos, transforma em pessoas as colunas com membros do workspace, guarda os intervalos de datas com o fim e traz os toggles e os níveis de título como estavam. As páginas de bancos abrem em largura total.',
+      },
+    ],
+  },
+  {
     id: '2026-11-07-voice-cleanup-mode',
     date: '2026-11-07',
     title: {
