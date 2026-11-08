@@ -9,7 +9,8 @@ import { teamKeyCandidates } from './track-team-key';
 import { after } from 'next/server';
 import { getDb, getClient, txDb, getUserById } from './db';
 import { emitEvent } from './events';
-import { deleteUploads } from './uploads';
+import { deleteStoredFiles } from './file-attachments';
+import { presentTrackAttachment, trackFiles } from './track-files';
 import { filterToSql, type IssueFilter } from './track-filter';
 import type {
   TrackCycleRow,
@@ -640,7 +641,7 @@ export async function deleteProject(id: string): Promise<boolean> {
     )
     .all(id)) as Array<{ url: string }>;
   const res = await db.prepare('DELETE FROM track_projects WHERE id = ?').run(id);
-  if (res.changes > 0) await deleteUploads(files.map((f) => f.url));
+  if (res.changes > 0) await deleteStoredFiles(trackFiles, files.map((f) => f.url));
   if (res.changes > 0 && snapshot) notifyTrackEvent({ type: 'project.deleted', project: snapshot });
   return res.changes > 0;
 }
@@ -2038,7 +2039,7 @@ export async function deleteIssueTree(id: string): Promise<string[]> {
     .all(id)) as Array<{ url: string }>;
   // Un solo DELETE: atómico, y las filas hijas de otras tablas se borran por FK.
   await db.prepare(`DELETE FROM track_issues WHERE id IN (${ISSUE_TREE_CTE} SELECT id FROM tree)`).run(id);
-  await deleteUploads(files.map((f) => f.url));
+  await deleteStoredFiles(trackFiles, files.map((f) => f.url));
   if (snapshot) notifyTrackEvent({ type: 'issue.deleted', issue: snapshot, count: ids.length });
   return ids;
 }
@@ -2555,7 +2556,7 @@ export async function deleteIssueRelation(id: string, issueId: string, userId: s
 // ---------- Attachments ----------
 
 export async function listIssueAttachments(issueId: string): Promise<TrackIssueAttachmentWithAuthor[]> {
-  return (await getDb()
+  return ((await getDb()
     .prepare(
       `SELECT a.*, u.name AS user_name, u.email AS user_email
        FROM track_issue_attachments a
@@ -2563,7 +2564,18 @@ export async function listIssueAttachments(issueId: string): Promise<TrackIssueA
        WHERE a.issue_id = ?
        ORDER BY a.created_at DESC`,
     )
-    .all(issueId)) as TrackIssueAttachmentWithAuthor[];
+    .all(issueId)) as TrackIssueAttachmentWithAuthor[]).map(presentTrackAttachment);
+}
+
+/** Fila cruda de un adjunto del issue (con la ref guardada), para servirlo. */
+export async function getIssueAttachmentFile(
+  id: string,
+  issueId: string,
+): Promise<{ url: string; filename: string; contentType: string } | null> {
+  const row = (await getDb()
+    .prepare('SELECT url, filename, content_type FROM track_issue_attachments WHERE id = ? AND issue_id = ?')
+    .get(id, issueId)) as { url: string; filename: string; content_type: string } | undefined;
+  return row ? { url: row.url, filename: row.filename, contentType: row.content_type } : null;
 }
 
 export interface AttachmentCreatePayload {
@@ -2589,7 +2601,7 @@ export async function createIssueAttachment(
 
   await createIssueActivity(issueId, userId, 'attachment_added', { attachmentId: id, filename: payload.filename });
 
-  return (await db
+  const row = (await db
     .prepare(
       `SELECT a.*, u.name AS user_name, u.email AS user_email
        FROM track_issue_attachments a
@@ -2597,6 +2609,7 @@ export async function createIssueAttachment(
        WHERE a.id = ?`,
     )
     .get(id)) as TrackIssueAttachmentWithAuthor;
+  return presentTrackAttachment(row);
 }
 
 export async function deleteIssueAttachment(id: string, issueId: string): Promise<boolean> {
@@ -2606,7 +2619,7 @@ export async function deleteIssueAttachment(id: string, issueId: string): Promis
     .get(id, issueId)) as { url: string } | undefined;
   if (!row) return false;
   const res = await db.prepare('DELETE FROM track_issue_attachments WHERE id = ? AND issue_id = ?').run(id, issueId);
-  if (res.changes > 0) await deleteUploads([row.url]);
+  if (res.changes > 0) await deleteStoredFiles(trackFiles, [row.url]);
   return res.changes > 0;
 }
 

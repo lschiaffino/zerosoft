@@ -158,7 +158,21 @@
     "size": "Tamaño",
     "tooLarge": "El archivo pesa más de 10 MB.",
     "typeNotAllowed": "Ese tipo de archivo no está permitido.",
-    "uploadError": "No se pudo subir el archivo. Probá de nuevo."
+    "uploadError": "No se pudo subir el archivo. Probá de nuevo.",
+    "dropHere": "Soltá los archivos para adjuntarlos a este issue",
+    "uploadingName": "Subiendo {name}",
+    "progress": "{loaded} de {total} · {pct}%",
+    "cancel": "Cancelar",
+    "dismiss": "Descartar",
+    "download": "Descargar",
+    "previewName": "Ver {name}",
+    "openNewTab": "Abrir en otra pestaña",
+    "close": "Cerrar",
+    "removeTitle": "¿Eliminar “{name}”?",
+    "removeBody": "El archivo se quita de este issue para todos.",
+    "removeError": "No se pudo eliminar el archivo. Probá de nuevo.",
+    "storageNotConfigured": "Este servidor no tiene configurado dónde guardar archivos. Un admin tiene que agregar un store privado de Blob.",
+    "tooLargeAny": "El archivo pesa más de lo que acepta este servidor."
   },
   "activity": {
     "title": "Actividad",

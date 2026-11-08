@@ -158,7 +158,21 @@
     "size": "Tamanho",
     "tooLarge": "O arquivo tem mais de 10 MB.",
     "typeNotAllowed": "Esse tipo de arquivo não é permitido.",
-    "uploadError": "Não foi possível enviar o arquivo. Tente de novo."
+    "uploadError": "Não foi possível enviar o arquivo. Tente de novo.",
+    "dropHere": "Solte os arquivos para anexá-los a esta issue",
+    "uploadingName": "Enviando {name}",
+    "progress": "{loaded} de {total} · {pct}%",
+    "cancel": "Cancelar",
+    "dismiss": "Descartar",
+    "download": "Baixar",
+    "previewName": "Ver {name}",
+    "openNewTab": "Abrir em outra aba",
+    "close": "Fechar",
+    "removeTitle": "Excluir “{name}”?",
+    "removeBody": "O arquivo é removido desta issue para todos.",
+    "removeError": "Não foi possível excluir o arquivo. Tente de novo.",
+    "storageNotConfigured": "Este servidor não tem onde guardar arquivos. Um admin precisa adicionar um store privado do Blob.",
+    "tooLargeAny": "O arquivo é maior do que este servidor aceita."
   },
   "activity": {
     "title": "Atividade",

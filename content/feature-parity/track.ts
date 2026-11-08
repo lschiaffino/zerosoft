@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Linear',
   alsoCompared: ['Jira', 'GitHub Projects'],
-  lastReviewed: '2026-11-07',
+  lastReviewed: '2026-11-08',
   areas: [
     { id: 'issues', label: { en: 'Issues and data model', es: 'Issues y modelo de datos', pt: 'Issues e modelo de dados' } },
     { id: 'views', label: { en: 'Views and navigation', es: 'Vistas y navegación', pt: 'Visualizações e navegação' } },
@@ -50,7 +50,7 @@ const parity: ProductParity = {
       id: 'attachments',
       area: 'issues',
       label: { en: 'Attachments on issues', es: 'Adjuntos en issues', pt: 'Anexos em issues' },
-      detail: { en: 'Up to 10 MB per file', es: 'Hasta 10 MB por archivo', pt: 'Até 10 MB por arquivo' },
+      detail: { en: 'Any file type and size, private, with image and PDF preview', es: 'Cualquier tipo y tamaño, privados, con vista previa de imágenes y PDF', pt: 'Qualquer tipo e tamanho, privados, com prévia de imagens e PDF' },
       status: 'have',
       competitorHas: true,
     },

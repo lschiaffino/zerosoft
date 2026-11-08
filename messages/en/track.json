@@ -158,7 +158,21 @@
     "size": "Size",
     "tooLarge": "The file is larger than 10 MB.",
     "typeNotAllowed": "This file type isn’t allowed.",
-    "uploadError": "Couldn’t upload the file. Try again."
+    "uploadError": "Couldn’t upload the file. Try again.",
+    "dropHere": "Drop files to attach them to this issue",
+    "uploadingName": "Uploading {name}",
+    "progress": "{loaded} of {total} · {pct}%",
+    "cancel": "Cancel",
+    "dismiss": "Dismiss",
+    "download": "Download",
+    "previewName": "Preview {name}",
+    "openNewTab": "Open in new tab",
+    "close": "Close",
+    "removeTitle": "Delete “{name}”?",
+    "removeBody": "The file is removed from this issue for everyone.",
+    "removeError": "Couldn’t delete the file. Try again.",
+    "storageNotConfigured": "File storage isn’t set up on this server. An admin needs to add a private Blob store.",
+    "tooLargeAny": "The file is larger than this server accepts."
   },
   "activity": {
     "title": "Activity",
