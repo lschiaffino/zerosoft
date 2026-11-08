@@ -72,7 +72,7 @@ describe('cron de ciclo de vida', () => {
   it('manda la bienvenida una sola vez aunque corran dos crons a la vez', async () => {
     const now = new Date();
     const u = await newUser(HOUR, { entryApp: 'docs' }, now);
-    await ensureStateRows(now);
+    await ensureStateRows(now, 1_000_000);
     await onlyDue(u.id);
     const { send, calls } = fakeSender();
     const [a, b] = await Promise.all([runLifecycleEmails({ mode: 'console', send, now }), runLifecycleEmails({ mode: 'console', send, now })]);
@@ -94,7 +94,7 @@ describe('cron de ciclo de vida', () => {
   it('después de la bienvenida, el paso que falta; y lo deja cuando ya lo hizo', async () => {
     const now = new Date();
     const u = await newUser(3 * DAY, { entryApp: 'docs' }, now);
-    await ensureStateRows(now);
+    await ensureStateRows(now, 1_000_000);
     await getDb()
       .prepare("INSERT INTO lifecycle_sends (id, user_id, send_key, template, category, status, created_at, sent_at) VALUES (?, ?, 'welcome', 'welcome', 'onboarding', 'sent', ?, ?)")
       .run(`lcs_${crypto.randomUUID()}`, u.id, new Date(now.getTime() - 3 * DAY).toISOString(), new Date(now.getTime() - 3 * DAY).toISOString());
@@ -118,7 +118,7 @@ describe('cron de ciclo de vida', () => {
   it('no manda empujones si entró hoy', async () => {
     const now = new Date();
     const u = await newUser(5 * DAY, { entryApp: 'docs' }, now);
-    await ensureStateRows(now);
+    await ensureStateRows(now, 1_000_000);
     await getDb()
       .prepare("INSERT INTO lifecycle_sends (id, user_id, send_key, template, category, status, created_at) VALUES (?, ?, 'welcome', 'welcome', 'onboarding', 'sent', ?)")
       .run(`lcs_${crypto.randomUUID()}`, u.id, new Date(now.getTime() - 5 * DAY).toISOString());
@@ -137,7 +137,7 @@ describe('cron de ciclo de vida', () => {
   it('un fallo se reintenta (hasta 3 veces) sin duplicar', async () => {
     const now = new Date();
     const u = await newUser(HOUR, { entryApp: 'docs' }, now);
-    await ensureStateRows(now);
+    await ensureStateRows(now, 1_000_000);
     await onlyDue(u.id);
     const bad = fakeSender(false);
     await runLifecycleEmails({ mode: 'console', send: bad.send, now });
@@ -152,7 +152,7 @@ describe('cron de ciclo de vida', () => {
   it('las cuentas de antes del motor no reciben la serie', async () => {
     const now = new Date();
     const u = await newUser(60 * DAY, { entryApp: 'docs' }, now);
-    await ensureStateRows(now);
+    await ensureStateRows(now, 1_000_000);
     const st = (await getDb().prepare('SELECT legacy, next_check_at FROM lifecycle_state WHERE user_id = ?').get(u.id)) as { legacy: number; next_check_at: string | null };
     expect(st).toEqual({ legacy: 1, next_check_at: null });
     // Aunque entre a la app, sigue sin serie.
@@ -164,7 +164,7 @@ describe('cron de ciclo de vida', () => {
   it('respeta la baja: nada de la categoría ni, con baja total, nada', async () => {
     const now = new Date();
     const u = await newUser(HOUR, { entryApp: 'docs' }, now);
-    await ensureStateRows(now);
+    await ensureStateRows(now, 1_000_000);
     await onlyDue(u.id);
     await applyUnsubscribe(u.id, 'all');
     const { send, calls } = fakeSender();
@@ -177,7 +177,7 @@ describe('cron de ciclo de vida', () => {
   it('el digest vacío no se manda; con actividad, sí (una vez por semana)', async () => {
     const monday = new Date('2026-11-09T10:00:00Z');
     const u = await newUser(30 * DAY, { entryApp: 'docs' }, monday);
-    await ensureStateRows(monday);
+    await ensureStateRows(monday, 1_000_000);
     await saveEmailPrefs(u.id, { unsubscribedAll: false, optedOut: [], digest: true });
     await getDb().prepare('UPDATE lifecycle_state SET next_check_at = ?, legacy = 1 WHERE user_id = ?').run(monday.toISOString(), u.id);
     await onlyDue(u.id);
