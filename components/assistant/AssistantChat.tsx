@@ -14,6 +14,7 @@ import {
   type ChatPart,
   type StoredMessage,
 } from './client';
+import { MessageAttachments, PendingTray, useAttachments } from './Attachments';
 
 export interface PageInfo {
   path: string;
@@ -21,7 +22,7 @@ export interface PageInfo {
   selection?: string;
 }
 
-const ERROR_KEYS = new Set(['not_configured', 'ai_disabled', 'quota_exceeded', 'rate_limited', 'provider_auth', 'provider_error', 'network']);
+const ERROR_KEYS = new Set(['attachment_not_found', 'offline', 'server_error', 'not_configured', 'ai_disabled', 'quota_exceeded', 'rate_limited', 'provider_auth', 'provider_error', 'network']);
 
 function errorKey(code: string | undefined): string {
   return `errors.${code && ERROR_KEYS.has(code) ? code : 'provider_error'}`;
@@ -228,6 +229,10 @@ export default function AssistantChat({
   /** La charla que creó este componente al mandar (no se recarga encima del stream). */
   const createdRef = useRef<string | null>(null);
   const sentInitial = useRef(false);
+  const att = useAttachments();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
 
   const [hasMore, setHasMore] = useState(false);
   const [loadingEarlier, setLoadingEarlier] = useState(false);
@@ -281,24 +286,31 @@ export default function AssistantChat({
   const send = useCallback(
     async (raw: string) => {
       const text = raw.trim();
-      if (!text || busy) return;
+      const files = att.ready;
+      if ((!text && !files.length) || busy || att.uploading || att.failed) return;
       setDraft('');
       setBusy(true);
-      const userItem: ChatItem = { id: `u-${Date.now()}`, role: 'user', content: text, parts: [] };
+      const userItem: ChatItem = { id: `u-${Date.now()}`, role: 'user', content: text, parts: [], attachments: files };
       const replyId = `a-${Date.now()}`;
       setItems((prev) => [...prev, userItem, { id: replyId, role: 'assistant', content: '', parts: [], streaming: true }]);
       const patch = (fn: (m: ChatItem) => ChatItem) => setItems((prev) => prev.map((m) => (m.id === replyId ? fn(m) : m)));
       const res = await fetch('/api/assistant/chat', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ conversationId, message: text, page, locale }),
+        body: JSON.stringify({ conversationId, message: text, page, locale, ...(files.length ? { attachments: files.map((f) => f.id) } : {}) }),
       }).catch(() => null);
       if (!res || !res.ok || !res.body) {
+        // No llegó: el texto y los adjuntos vuelven al campo para reintentar. Sin red, sin respuesta del servidor o un error con código.
         const data = (await res?.json().catch(() => null)) as { error?: string } | null;
-        patch((m) => ({ ...m, streaming: false, error: data?.error ?? 'network' }));
+        const code = !res ? (typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'network') : (data?.error ?? (res.status >= 500 ? 'server_error' : 'provider_error'));
+        setItems((prev) => prev.filter((m) => m.id !== userItem.id).map((m) => (m.id === replyId ? { ...m, streaming: false, error: code } : m)));
+        setDraft(text);
         setBusy(false);
+        window.setTimeout(() => inputRef.current?.focus(), 0);
         return;
       }
+      // El servidor la tomó: la bandeja se vacía.
+      att.clear();
       await readEvents(res, (e) => {
         if (e.type === 'conversation') {
           createdRef.current = e.id;
@@ -315,6 +327,8 @@ export default function AssistantChat({
           }));
         } else if (e.type === 'action') {
           patch((m) => ({ ...m, parts: [...m.parts, { type: 'action', action: e.action }] }));
+        } else if (e.type === 'notice') {
+          patch((m) => ({ ...m, notice: e.code }));
         } else if (e.type === 'error') {
           patch((m) => ({ ...m, error: e.code }));
         } else if (e.type === 'done') {
@@ -325,7 +339,7 @@ export default function AssistantChat({
       setBusy(false);
       window.setTimeout(() => inputRef.current?.focus(), 0);
     },
-    [busy, conversationId, page, locale, onConversation, inputRef],
+    [busy, conversationId, page, locale, onConversation, inputRef, att],
   );
 
   // Pregunta que llega desde el inicio (?q=) o desde ⌘K: se manda una vez.
@@ -359,7 +373,35 @@ export default function AssistantChat({
   }
 
   return (
-    <div className={`asst-chat${compact ? ' is-compact' : ''}`}>
+    <div
+      className={`asst-chat${compact ? ' is-compact' : ''}${dragging ? ' is-dragging' : ''}`}
+      onDragEnter={(e) => {
+        if (!e.dataTransfer.types.includes('Files')) return;
+        e.preventDefault();
+        dragDepth.current += 1;
+        setDragging(true);
+      }}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes('Files')) e.preventDefault();
+      }}
+      onDragLeave={() => {
+        dragDepth.current = Math.max(0, dragDepth.current - 1);
+        if (!dragDepth.current) setDragging(false);
+      }}
+      onDrop={(e) => {
+        if (!e.dataTransfer.files.length) return;
+        e.preventDefault();
+        dragDepth.current = 0;
+        setDragging(false);
+        att.add(e.dataTransfer.files);
+        inputRef.current?.focus();
+      }}
+    >
+      {dragging && (
+        <div className="asst-drop" data-testid="assistant-drop" aria-hidden="true">
+          <p>{t('attach.drop')}</p>
+        </div>
+      )}
       <div className="asst-messages" ref={listRef} aria-live="polite" aria-busy={busy || loading}>
         {loading ? (
           <p className="muted" role="status">
@@ -395,6 +437,12 @@ export default function AssistantChat({
               {m.parts.map((p) =>
                 p.type === 'tool' ? <ToolCard key={p.callId} part={p} /> : <ActionCard key={p.action.id} action={p.action} onDecided={updateAction} />,
               )}
+              {m.attachments && m.attachments.length > 0 && <MessageAttachments files={m.attachments} />}
+              {m.notice === 'no_vision' && (
+                <p className="asst-notice muted" role="status" data-testid="assistant-notice">
+                  {t('attach.noVision')}
+                </p>
+              )}
               {m.content && <p className="asst-msg-text">{m.content}</p>}
               {m.streaming && !m.content && !m.error && (
                 <p className="muted asst-thinking" role="status">
@@ -419,12 +467,30 @@ export default function AssistantChat({
         }}
       >
         {page?.selection && <p className="asst-context muted">{t('usingSelection')}</p>}
+        <PendingTray items={att.items} limitHit={att.limitHit} onRemove={att.remove} />
         <div className="asst-form-row">
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            hidden
+            data-testid="assistant-file-input"
+            onChange={(e) => {
+              if (e.target.files) att.add(e.target.files);
+              e.target.value = '';
+              inputRef.current?.focus();
+            }}
+          />
+          <button type="button" className="btn btn-ghost btn-sm asst-attach" aria-label={t('attach.add')} title={t('attach.add')} onClick={() => fileRef.current?.click()}>
+            +
+          </button>
           <label className="sr-only" htmlFor={compact ? 'asst-input-panel' : 'asst-input-page'}>
             {t('placeholder')}
           </label>
           <textarea
             id={compact ? 'asst-input-panel' : 'asst-input-page'}
+            // El panel tiene su propio + y poco lugar: sin el micrófono flotante del dictado.
+            data-voice-off={compact ? '' : undefined}
             ref={inputRef}
             className="textarea"
             rows={2}
@@ -432,6 +498,13 @@ export default function AssistantChat({
             maxLength={4000}
             placeholder={t('placeholder')}
             onChange={(e) => setDraft(e.target.value)}
+            onPaste={(e) => {
+              // Una imagen o archivo copiado se adjunta; el texto se pega como siempre.
+              const files = Array.from(e.clipboardData.files);
+              if (!files.length) return;
+              e.preventDefault();
+              att.add(files);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
@@ -439,7 +512,7 @@ export default function AssistantChat({
               }
             }}
           />
-          <button type="submit" className="btn btn-primary btn-sm" disabled={busy || !draft.trim()}>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={busy || att.uploading || att.failed || (!draft.trim() && !att.ready.length)}>
             {busy ? t('sending') : t('send')}
           </button>
         </div>

@@ -16,8 +16,10 @@ export function sha256(input: string): string {
 
 export function extractBearer(req: Request): string | null {
   const header = req.headers.get('authorization');
-  if (!header?.startsWith('Bearer ')) return null;
-  const key = header.slice(7).trim();
+  // RFC 7235: el esquema no distingue mayúsculas ("bearer" llega de algunos harnesses).
+  const m = /^bearer\s+(.+)$/i.exec(header?.trim() ?? '');
+  if (!m) return null;
+  const key = m[1].trim();
   return key.length > 0 ? key : null;
 }
 

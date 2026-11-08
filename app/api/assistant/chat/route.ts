@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { assistantState } from '@/lib/assistant/config';
 import { runAssistantTurn } from '@/lib/assistant/engine';
 import { assistantUser, localeOf, owner } from '@/lib/assistant/http';
+import { attachmentView, claimAttachments, getAttachments, MAX_ATTACHMENTS_PER_MESSAGE } from '@/lib/assistant/files';
 import { addMessage, createConversation, getConversation } from '@/lib/assistant/store';
 import { rateLimit } from '@/lib/rate-limit';
 import { AiError, assertAiMonthlyQuota } from '@/lib/ai';
@@ -13,7 +14,9 @@ export const maxDuration = 300;
 
 const bodySchema = z.object({
   conversationId: z.string().max(64).nullish(),
-  message: z.string().trim().min(1).max(4000),
+  message: z.string().trim().max(4000),
+  /** Adjuntos ya subidos con POST /api/assistant/files. */
+  attachments: z.array(z.string().max(64)).max(MAX_ATTACHMENTS_PER_MESSAGE).optional(),
   page: z
     .object({ path: z.string().max(300).optional(), title: z.string().max(200).optional(), selection: z.string().max(4000).optional() })
     .nullish(),
@@ -44,12 +47,18 @@ export async function POST(req: NextRequest) {
     if (err instanceof AiError) return NextResponse.json({ error: err.code }, { status: 429 });
     throw err;
   }
-  const { message, page, locale: rawLocale } = parsed.data;
+  const { page, locale: rawLocale } = parsed.data;
+  const atts = parsed.data.attachments?.length ? await getAttachments(who, parsed.data.attachments) : [];
+  if (atts.length !== (parsed.data.attachments?.length ?? 0)) return NextResponse.json({ error: 'attachment_not_found' }, { status: 400 });
+  if (!parsed.data.message && !atts.length) return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
+  // Solo un adjunto: el pedido es "esto". El texto que guarda la charla lo dice.
+  const message = parsed.data.message || (atts.length === 1 ? `(${atts[0].name})` : `(${atts.length} files)`);
   let conversation = parsed.data.conversationId ? await getConversation(who, parsed.data.conversationId) : null;
   if (parsed.data.conversationId && !conversation) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   const created = !conversation;
   conversation ??= await createConversation(who, message);
-  await addMessage(conversation.id, 'user', message);
+  await addMessage(conversation.id, 'user', parsed.data.message, atts.map((a) => ({ type: 'attachment' as const, ...attachmentView(a) })));
+  if (atts.length) await claimAttachments(who, conversation.id, atts.map((a) => a.id));
   const conv = conversation;
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({

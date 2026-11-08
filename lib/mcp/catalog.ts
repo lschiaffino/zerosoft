@@ -133,6 +133,9 @@ export function searchOperations(input: {
       score += (inId ? 5 : 0) + (inPath ? 2 : 0) + (inDoc ? 1 : 0);
     }
     if (!all) continue;
+    // Cada parte del id que nadie pidió la aleja: "issue create" prefiere track.issues.create a track.plans.issues.create.
+    const segments = op.id.replace(/^v1\./, '').split('.').slice(1);
+    score -= segments.filter((s) => !words.some((w) => s.includes(w.replace(/s$/, '')))).length * 2;
     // Las operaciones de la app van antes que sus equivalentes de la API v1.
     if (!op.id.startsWith('v1.')) score += 1;
     scored.push({ op, score });

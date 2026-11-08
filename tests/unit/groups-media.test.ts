@@ -291,14 +291,21 @@ describe('cuerpo de la ruta y vista previa', () => {
       size: 1234,
       duration: 4,
     });
-    expect(mediaFromBody({ url: 'https://x.com/a.png', mimetype: 'image/png', filename: 'a.png', kind: 'nope', width: 10, height: 20 }, req)).toEqual({
-      url: 'https://x.com/a.png',
+    expect(mediaFromBody({ url: 'https://store1.public.blob.vercel-storage.com/chat/a.png', mimetype: 'image/png', filename: 'a.png', kind: 'nope', width: 10, height: 20 }, req)).toEqual({
+      url: 'https://store1.public.blob.vercel-storage.com/chat/a.png',
       mimetype: 'image/png',
       filename: 'a.png',
       width: 10,
       height: 20,
     });
     expect(mediaFromBody({ url: 'javascript:alert(1)' }, req)).toBeNull();
+    // El proveedor baja la URL desde su red: solo hosts propios, Blob o GROUPS_MEDIA_HOSTS.
+    for (const bad of ['https://x.com/a.png', 'https://169.254.169.254/latest/meta-data', 'https://10.0.0.5/a.png', 'https://metadata.google.internal/a', 'https://u:p@localhost/a.png']) {
+      expect(mediaFromBody({ url: bad, mimetype: 'image/png', filename: 'a.png' }, req), bad).toBeNull();
+    }
+    expect(mediaFromBody({ url: 'https://localhost:3000/uploads/chat/a.png', mimetype: 'image/png', filename: 'a.png' }, req)?.url).toBe('https://localhost:3000/uploads/chat/a.png');
+    vi.stubEnv('GROUPS_MEDIA_HOSTS', 'cdn.example.com');
+    expect(mediaFromBody({ url: 'https://cdn.example.com/a.pdf', mimetype: 'application/pdf', filename: 'a.pdf' }, req)?.url).toBe('https://cdn.example.com/a.pdf');
     vi.unstubAllEnvs();
   });
 
