@@ -18,7 +18,7 @@ import SlaChip from './triage/SlaChip';
 import TriageSuggestions from './triage/TriageSuggestions';
 import IssueFromTextDialog from './triage/IssueFromTextDialog';
 import { call } from './triage/api';
-import { TRACK_VIEWS_CHANGED } from './TrackBranch';
+import { TRACK_VIEWS_CHANGED } from './trackEvents';
 import { isTypingTarget, issueHref } from './trackCommands';
 
 const MarkdownView = dynamic(() => import('./MarkdownView').then((m) => m.MarkdownView));

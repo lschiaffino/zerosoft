@@ -23,7 +23,7 @@ import { useTranslations } from 'next-intl';
 import { openCommandMenu } from '@/lib/cmdk-context';
 import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
 import { branchNameFor } from '@/lib/track-branch';
-import { TRACK_ISSUES_CHANGED } from './TrackBranch';
+import { TRACK_ISSUES_CHANGED } from './trackEvents';
 
 export const ISSUES_DRAG_TYPE = 'application/x-track-issues';
 const ROW = '[data-issue-row][data-issue-key]';

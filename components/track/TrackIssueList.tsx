@@ -54,7 +54,7 @@ import { useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } fr
 import { labelsForTeam, useWorkspaceLabels } from './LabelPicker';
 import { rowTargetId, useTrackCommands } from './trackCommands';
 import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
-import { TRACK_ISSUES_CHANGED } from './TrackBranch';
+import { TRACK_ISSUES_CHANGED } from './trackEvents';
 import { useTrackLive } from './useTrackLive';
 import { useIssuePages } from './useIssuePages';
 import { useListViews, type ListViewsSource } from './useListViews';

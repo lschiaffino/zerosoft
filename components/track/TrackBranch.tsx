@@ -13,6 +13,9 @@ import TrackIcon, { type TrackIconName } from './TrackIcon';
 import { StatusDot } from './glyphs';
 import { isTeamPath, projectPath, teamPath } from '@/lib/track-routes';
 import { setTopbarLabel } from '@/components/app/AppTopbar';
+import { TRACK_ISSUES_CHANGED, TRACK_VIEWS_CHANGED } from './trackEvents';
+
+export { TRACK_ISSUES_CHANGED, TRACK_VIEWS_CHANGED };
 
 type ProjectItem = Pick<TrackProjectRow, 'id' | 'name' | 'slug' | 'icon' | 'status' | 'visibility' | 'triage_enabled'> & { triage_count?: number };
 type FavoriteView = { id: string; name: string; project_id: string; project_name?: string };
@@ -33,13 +36,9 @@ function personalViewHref(v: PersonalView): string | null {
 type BranchPlan = { id: string; name: string; icon: string | null; teams: Array<{ id: string }> };
 type FavoriteIssue = { id: string; identifier: string; title: string; status_color: string | null; status_category: string | null };
 
-/** Evento que avisan las vistas al marcar/desmarcar favoritas o renombrarlas. */
-export const TRACK_VIEWS_CHANGED = 'zs:track-views-changed';
 
 const EXPANDED_KEY = 'zs:track-branch-open';
 
-/** Evento al mover issues desde otro lado (arrastrar al sidebar, menú contextual): las listas se recargan. */
-export const TRACK_ISSUES_CHANGED = 'zs:track-issues-changed';
 
 /**
  * Sidebar de Track como el de Linear: vistas favoritas arriba y "Your teams"

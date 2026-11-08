@@ -18,7 +18,7 @@ import TrackIssueList, { type TrackListTeam } from './TrackIssueList';
 import TrackIcon from './TrackIcon';
 import { TrackToast, useToday } from './InlineEditors';
 import { openTrackNewIssue } from './useIssueStore';
-import { TRACK_ISSUES_CHANGED } from './TrackBranch';
+import { TRACK_ISSUES_CHANGED } from './trackEvents';
 import type { CycleWithProgress } from './CyclesPanel';
 import { buildTrackUiLabels } from './ui-labels';
 

@@ -24,7 +24,7 @@ import {
   type CsvMapping,
 } from '@/lib/track-import-map';
 import { projectPath, teamPath } from '@/lib/track-routes';
-import { TRACK_ISSUES_CHANGED } from './TrackBranch';
+import { TRACK_ISSUES_CHANGED } from './trackEvents';
 
 type Source = 'linear' | 'linear_csv' | 'jira' | 'jira_csv' | 'github' | 'asana' | 'shortcut' | 'csv';
 const SOURCES: Source[] = ['linear', 'linear_csv', 'jira', 'jira_csv', 'github', 'asana', 'shortcut', 'csv'];

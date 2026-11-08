@@ -30,7 +30,7 @@ import { useIssueStore, type ProjectContext } from './useIssueStore';
 import { issueHref, isTypingTarget as isTextTarget, rowTargetId, useTrackCommands } from './trackCommands';
 import { readListNav } from './trackNav';
 import { restoreCursorOnReturn } from './kbCursor';
-import { TRACK_VIEWS_CHANGED } from './TrackBranch';
+import { TRACK_VIEWS_CHANGED } from './trackEvents';
 import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
 import { useTrackLive } from './useTrackLive';
 import type { TrackUiLabels } from './ui-labels';

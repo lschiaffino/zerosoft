@@ -12,7 +12,7 @@ import KeyPicker from '@/components/track/KeyPicker';
 import { PriorityIcon, TrackToast } from '@/components/track/InlineEditors';
 import TrackIcon from '@/components/track/TrackIcon';
 import TrackIssueList from '@/components/track/TrackIssueList';
-import { TRACK_ISSUES_CHANGED } from '@/components/track/TrackBranch';
+import { TRACK_ISSUES_CHANGED } from '@/components/track/trackEvents';
 import { pushUndo } from '@/components/track/trackUndo';
 import { DateChip } from './pickers';
 import { LineChart } from './charts';
