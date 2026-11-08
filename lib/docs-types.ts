@@ -512,6 +512,8 @@ export type DocsPageSummary = Pick<DocsPage, 'id' | 'parent_id' | 'title' | 'ico
   teamspace_id?: string | null;
   /** Wiki: verificada o vencida (null/ausente = sin verificar). */
   verified?: 'verified' | 'expired' | null;
+  /** Sidebar: cuántas hijas tiene (llegan al desplegar, lib/docs-sidebar.ts). */
+  child_count?: number;
 };
 
 export interface DocsPageShare {

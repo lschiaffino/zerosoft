@@ -15,7 +15,12 @@ import { DOCS_FAVORITES_EVENT, type DocsFavoriteRow } from './favorites';
 import type { DocsTeamspaceWithMe } from '@/lib/docs-access';
 
 interface DocsSidebarProps {
+  /** El primer nivel y la rama abierta (lib/docs-sidebar.ts); el resto llega al desplegar. */
   pages: DocsPageSummary[];
+  /** Total de páginas que ve (el contador); sin esto, las que llegaron. */
+  total?: number;
+  /** Las últimas editadas (⌘P sin escribir). */
+  recent?: DocsPageSummary[];
   currentId?: string;
   /** En mobile el árbol arranca abierto (landing) o plegado (editor). */
   mobileOpenByDefault?: boolean;
@@ -56,7 +61,8 @@ function zoneFor(e: React.DragEvent<HTMLElement>): DropZone {
   return 'inside';
 }
 
-const COLLAPSED_KEY = 'docs.sidebar.collapsed';
+/** Ramas desplegadas a mano (como Notion, el árbol arranca plegado). */
+const EXPANDED_KEY = 'docs.sidebar.expanded';
 
 /**
  * Árbol de páginas de Docs, como el sidebar de Notion. En ≥1024px vive bajo
@@ -68,7 +74,9 @@ const COLLAPSED_KEY = 'docs.sidebar.collapsed';
  * Nueva página y Papelera ya están en el sidebar del shell: acá no se repiten.
  */
 export default function DocsSidebar({
-  pages,
+  pages: initialPages,
+  total,
+  recent,
   currentId,
   mobileOpenByDefault = false,
   createAction,
@@ -87,11 +95,21 @@ export default function DocsSidebar({
   const router = useRouter();
   const [dropZone, setDropZone] = useState<DropZone>('inside');
   const [menuId, setMenuId] = useState<string | null>(null);
+  // Hijas que se bajaron al desplegar una rama (se suman a las que vinieron del server).
+  const [loaded, setLoaded] = useState<DocsPageSummary[]>([]);
+  const [loading, setLoading] = useState<Set<string>>(new Set());
+  // Otra navegación o un cambio en el árbol: lo bajado a mano se vuelve a pedir (puede haber cambiado).
+  useEffect(() => setLoaded([]), [initialPages]);
+  const pages = useMemo(() => {
+    if (!loaded.length) return initialPages;
+    const seen = new Set(initialPages.map((p) => p.id));
+    return [...initialPages, ...loaded.filter((p) => !seen.has(p.id))];
+  }, [initialPages, loaded]);
   const tree = useMemo(() => buildPageTree(pages) as TreeNode[], [pages]);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [mobileOpen, setMobileOpen] = useState(mobileOpenByDefault);
   const menuRef = useRef<HTMLSpanElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -161,15 +179,42 @@ export default function DocsSidebar({
     reorderFavorites(ids);
   };
 
-  // Ramas plegadas: preferencia local del navegador.
+  // Ramas desplegadas: preferencia local del navegador (sus hijas se piden al montar).
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(COLLAPSED_KEY);
-      if (raw) setCollapsed(new Set(JSON.parse(raw) as string[]));
+      const raw = localStorage.getItem(EXPANDED_KEY);
+      if (raw) setExpanded(new Set((JSON.parse(raw) as string[]).slice(0, 200)));
     } catch {
       /* storage bloqueado */
     }
   }, []);
+
+  /** Pide las hijas de una rama que todavía no llegaron. */
+  const loadChildren = useCallback(
+    async (id: string) => {
+      setLoading((prev) => new Set(prev).add(id));
+      try {
+        const res = await fetch(`/api/docs/pages?parent=${encodeURIComponent(id)}`);
+        const data = (await res.json().catch(() => ({ rows: [] }))) as { rows?: DocsPageSummary[] };
+        if (res.ok && data.rows?.length) setLoaded((prev) => [...prev.filter((p) => p.parent_id !== id), ...data.rows!]);
+      } finally {
+        setLoading((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+    },
+    [],
+  );
+  // Una rama desplegada (guardada o recién abierta) cuyas hijas no están: se piden.
+  useEffect(() => {
+    const present = new Set(pages.map((p) => p.parent_id).filter(Boolean) as string[]);
+    for (const p of pages) {
+      if (expanded.has(p.id) && (p.child_count ?? 0) > 0 && !present.has(p.id) && !loading.has(p.id)) void loadChildren(p.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, pages]);
 
   // Menú de fila: el foco entra al primer ítem; clic afuera lo cierra.
   useEffect(() => {
@@ -194,16 +239,26 @@ export default function DocsSidebar({
     return out;
   }, [pages, currentId]);
 
-  const toggle = (id: string) => {
-    setCollapsed((prev) => {
+  const [forcedClosed, setForcedClosed] = useState<Set<string>>(new Set());
+  useEffect(() => setForcedClosed(new Set()), [currentId]);
+  const toggle = (id: string, isOpen: boolean) => {
+    setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
+      if (isOpen) next.delete(id);
       else next.add(id);
       try {
-        localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]));
+        localStorage.setItem(EXPANDED_KEY, JSON.stringify([...next]));
       } catch {
         /* storage bloqueado */
       }
+      return next;
+    });
+    // Plegar una rama que está abierta por ser ancestro de la actual: queda plegada hasta otra navegación.
+    if (isOpen && (ancestorsOfCurrent.has(id) || id === currentId)) setForcedClosed((prev) => new Set(prev).add(id));
+    else if (!isOpen) setForcedClosed((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
       return next;
     });
   };
@@ -298,8 +353,10 @@ export default function DocsSidebar({
 
   const renderNode = (node: TreeNode, depth: number) => {
     const active = node.id === currentId;
-    const hasChildren = !!node.children?.length;
-    const open = hasChildren && (!collapsed.has(node.id) || ancestorsOfCurrent.has(node.id));
+    const hasChildren = !!node.children?.length || (node.child_count ?? 0) > 0;
+    // Como Notion: plegado salvo lo que se desplegó a mano y la rama de la página abierta.
+    const onBranch = ancestorsOfCurrent.has(node.id) || node.id === currentId;
+    const open = hasChildren && (expanded.has(node.id) || (onBranch && !forcedClosed.has(node.id)));
     return (
       <li key={node.id} style={{ '--d': depth } as CSSProperties}>
         <div
@@ -328,7 +385,8 @@ export default function DocsSidebar({
             <button
               type="button"
               className={`docs-tree-chevron${open ? ' open' : ''}`}
-              onClick={() => toggle(node.id)}
+              onClick={() => toggle(node.id, open)}
+              aria-busy={loading.has(node.id) || undefined}
               aria-label={`${open ? t('sidebar.collapse') : t('sidebar.expand')}: ${node.title || t('untitled')}`}
               aria-expanded={open}
             >
@@ -434,7 +492,7 @@ export default function DocsSidebar({
     );
   };
 
-  const count = t('sidebar.count', { count: pages.length });
+  const count = t('sidebar.count', { count: total ?? pages.length });
   // Páginas de primer nivel por teamspace (las de teamspaces que no ve no llegan del server).
   const tsIds = new Set(teamspaces.map((ts) => ts.id));
   const workspaceRoots = tree.filter((n) => !n.teamspace_id || !tsIds.has(n.teamspace_id));
@@ -631,7 +689,7 @@ export default function DocsSidebar({
   );
 
   // ≥1024px con el sidebar abierto: el árbol cuelga de "Páginas".
-  const switcher = <DocsPageSwitcher pages={pages} />;
+  const switcher = <DocsPageSwitcher pages={recent ?? pages} />;
 
   if (branch) {
     return (

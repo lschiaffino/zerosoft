@@ -37,6 +37,7 @@ import { canCreateDocPage, docsAdmin, docsHidden, editorBlocks } from '@/lib/doc
 import { listPageInvites } from '@/lib/docs-guests';
 import { cleanForReaders } from '@/lib/docs-marks';
 import DocsSidebar from '@/components/docs/DocsSidebar';
+import { sidebarSlice } from '@/lib/docs-sidebar';
 import DocsEditorClient from '@/components/docs/DocsEditorClient';
 import DocsReadOnlyView from '@/components/docs/DocsReadOnlyView';
 import DocsPageIcon from '@/components/docs/DocsPageIcon';
@@ -153,7 +154,7 @@ export default async function DocsPageEditor(
   return (
     <div className="docs-layout">
       <DocsSidebar
-        pages={allPages}
+        {...sidebarSlice(allPages, id)}
         currentId={id}
         shared={shared}
         favorites={favorites}

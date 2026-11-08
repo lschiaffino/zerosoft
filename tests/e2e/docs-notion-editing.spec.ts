@@ -129,6 +129,52 @@ test('Un ítem nuevo y vacío conserva la viñeta o el número y el placeholder 
   expect(after).toBe('none');
 });
 
+for (const size of [3, 500]) {
+  test(`Lo tipeado se guarda y sigue ahí al recargar en otra sesión (${size} bloques)`, async ({ request, page, browser, baseURL }) => {
+    test.setTimeout(120_000);
+    const blocks = Array.from({ length: size }, (_, i) => ({ id: `p${i}`, type: i % 5 === 0 ? 'bulleted_list_item' : 'paragraph', content: `Bloque ${i} con algo de texto` }));
+    const doc = await newDoc(request, `Guardado ${size} ${uid()}`, blocks);
+    await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+    const target = page.locator('.docs-blocks .docs-editable').nth(Math.floor(size / 2));
+    await target.scrollIntoViewIfNeeded();
+    await target.click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' GUARDADO', { delay: 30 });
+    await expect(page.getByTestId('docs-save-status')).toHaveText('Saved', { timeout: 20_000 });
+    const ctx = await browser.newContext({ baseURL });
+    const other = await ctx.newPage();
+    await other.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+    await expect(other.locator('.docs-blocks .docs-editable').nth(Math.floor(size / 2))).toContainText('GUARDADO');
+    await ctx.close();
+  });
+}
+
+test('Sidebar como Notion: plegado, la rama abierta desplegada y las hijas se piden al desplegar', async ({ request, page }) => {
+  const tag = uid();
+  const a = await newDoc(request, `Raíz ${tag}`);
+  const mk = async (title: string, parent: string) =>
+    (await (await request.post('/api/docs/pages', { data: { title, parent_id: parent } })).json()) as { id: string };
+  const a1 = await mk(`Hija ${tag}`, a.id);
+  await mk(`Nieta ${tag}`, a1.id);
+  const other = await newDoc(request, `Otra ${tag}`);
+  const nav = page.getByRole('navigation', { name: 'Docs' });
+
+  // Desde otra página: la raíz llega plegada (con flecha) y sin sus hijas.
+  await page.goto(`/en/app/docs/${other.id}`, { waitUntil: 'networkidle' });
+  const rootRow = page.locator('.docs-tree-row', { hasText: `Raíz ${tag}` });
+  await expect(rootRow.locator('.docs-tree-chevron')).toHaveAttribute('aria-expanded', 'false');
+  await expect(nav.getByRole('link', { name: `Hija ${tag}` })).toHaveCount(0);
+  // Desplegar pide las hijas; la hija trae su flecha y se despliega igual.
+  await rootRow.locator('.docs-tree-chevron').click();
+  await expect(nav.getByRole('link', { name: `Hija ${tag}` })).toBeVisible();
+  await page.locator('.docs-tree-row', { hasText: `Hija ${tag}` }).locator('.docs-tree-chevron').click();
+  await expect(nav.getByRole('link', { name: `Nieta ${tag}` })).toBeVisible();
+
+  // Abriendo la nieta, su rama llega desplegada desde el server.
+  await page.goto(`/en/app/docs/${a1.id}`, { waitUntil: 'networkidle' });
+  await expect(nav.getByRole('link', { name: `Hija ${tag}` })).toBeVisible();
+});
+
 test('Markdown en línea al tipear: negrita, cursiva, código y tachado; lo que sigue va sin formato', async ({ request, page }) => {
   const doc = await newDoc(request, `Marcas ${uid()}`);
   await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
