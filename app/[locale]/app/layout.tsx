@@ -331,6 +331,7 @@ export default async function AppLayout(
                 { href: '/app/pulse/projects', label: tAnalytics('sidebar.projects') },
                 { href: '/app/analytics', label: tBi('nav.browse') },
                 { href: '/app/analytics/data', label: tBi('nav.data') },
+                { href: '/app/analytics/settings', label: tSide('appSettings') },
                 { href: '/app/social', label: tSocial('sidebar.calendar') },
                 { href: '/app/social/posts', label: tSocial('sidebar.posts') },
                 { href: '/app/social/inbox', label: tSocial('sidebar.inbox') },
