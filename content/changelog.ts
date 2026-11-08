@@ -104,6 +104,35 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-08-voice-chat-autostart',
+    date: '2026-11-08',
+    title: {
+      en: 'Voice: meetings start listening right away, and chat cites the transcript',
+      es: 'Voice: las reuniones escuchan apenas se abren y el chat cita la transcripción',
+      pt: 'Voice: as reuniões escutam assim que abrem e o chat cita a transcrição',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'A new meeting starts recording the microphone as soon as it opens, from New meeting, Take notes or ⌘K. If the browser blocks the microphone or there is none, the meeting says so and you can retry. A link someone sends you never turns the microphone on.',
+        es: 'Una reunión nueva empieza a grabar el micrófono apenas se abre, desde Nueva reunión, Tomar notas o ⌘K. Si el navegador bloquea el micrófono o no hay uno, la reunión lo dice y se puede reintentar. Un link que te mandan nunca prende el micrófono.',
+        pt: 'Uma reunião nova começa a gravar o microfone assim que abre, por Nova reunião, Fazer notas ou ⌘K. Se o navegador bloquear o microfone ou não houver um, a reunião avisa e dá para tentar de novo. Um link que te mandam nunca liga o microfone.',
+      },
+      {
+        product: 'voice',
+        en: 'Chat answers appear as they are written and cite the moment in the transcript: click a time to jump there. Suggested questions change while the meeting is on and after it ends.',
+        es: 'Las respuestas del chat aparecen mientras se escriben y citan el momento de la transcripción: un clic en la hora lleva ahí. Las preguntas sugeridas cambian durante la reunión y cuando termina.',
+        pt: 'As respostas do chat aparecem enquanto são escritas e citam o momento da transcrição: um clique no horário leva até lá. As perguntas sugeridas mudam durante a reunião e quando ela termina.',
+      },
+      {
+        product: 'voice',
+        en: 'Ask across your meetings with follow-up questions and dates like "last week". Answers link to each meeting and moment, and include meetings teammates shared with you, using only what the share lets you see.',
+        es: 'Preguntá sobre tus reuniones con preguntas de seguimiento y fechas como "la semana pasada". Las respuestas llevan a cada reunión y momento, y suman las reuniones que te compartió el equipo, con lo que el link deja ver y nada más.',
+        pt: 'Pergunte sobre suas reuniões com perguntas de seguimento e datas como "semana passada". As respostas levam a cada reunião e momento, e incluem as reuniões que a equipe compartilhou com você, só com o que o link deixa ver.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-chat-inbox-sort',
     date: '2026-11-08',
     title: {
