@@ -63,6 +63,27 @@ export function voiceErrorResponse(err: unknown): NextResponse {
   return voiceJsonError(500, 'server_error');
 }
 
+/**
+ * Respuesta NDJSON (un evento JSON por línea, como el asistente ⌘J). Lo que
+ * tira `run` llega como { type: 'error', code }.
+ */
+export function voiceNdjson(run: (send: (e: Record<string, unknown>) => void) => Promise<void>): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (e: Record<string, unknown>) => controller.enqueue(encoder.encode(`${JSON.stringify(e)}\n`));
+      try {
+        await run(send);
+      } catch (err) {
+        if (!(err instanceof AiError)) console.error('[voice] stream failed', err instanceof Error ? err.name : 'error');
+        send({ type: 'error', code: err instanceof AiError ? err.code : err instanceof VoiceError ? err.code : 'ai_failed' });
+      }
+      controller.close();
+    },
+  });
+  return new Response(stream, { headers: { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store' } });
+}
+
 export interface AudioUpload {
   bytes: Uint8Array;
   type: string;

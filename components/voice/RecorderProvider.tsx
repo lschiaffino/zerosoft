@@ -66,6 +66,11 @@ interface Job {
 export interface RecorderApi {
   /** Reunión que se está grabando en esta pestaña (o la última). */
   sessionId: string | null;
+  /**
+   * Reunión del último intento de empezar (puede no haber arrancado): ahí se
+   * muestran "abriendo el micrófono" y los errores del permiso.
+   */
+  attemptId: string | null;
   /** Id de esta pestaña como grabador (claim de la grabación en el servidor). */
   recorderId: string;
   state: RecorderState;
@@ -136,6 +141,7 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
   const t = useTranslations('voice.recorder');
   const pathname = usePathname();
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
   const [state, setState] = useState<RecorderState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(0);
@@ -414,6 +420,7 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
     async (args: StartArgs) => {
       if (stateRef.current !== 'idle') return;
       setError(null);
+      setAttemptId(args.sessionId);
       set('starting');
       setMode(args.mode);
       const id = args.sessionId;
@@ -573,6 +580,7 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
   const api = useMemo<RecorderApi>(
     () => ({
       sessionId,
+      attemptId,
       recorderId: recorderIdRef.current,
       state,
       error,
@@ -590,7 +598,7 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
       stop: () => stop(),
       subscribe,
     }),
-    [sessionId, state, error, pending, waiting, elapsed, level, tabLive, mode, failed, recovered, retryFailed, start, stop, subscribe],
+    [sessionId, attemptId, state, error, pending, waiting, elapsed, level, tabLive, mode, failed, recovered, retryFailed, start, stop, subscribe],
   );
 
   // Menú compacto: Esc o un clic afuera lo cierran y el foco vuelve al disparador.

@@ -59,11 +59,19 @@ test('calendario: eventos de Google con asistentes, brief, tomar notas y aviso p
   else await open.click();
   await expect(page).toHaveURL(/\/app\/voice\/meetings\//);
   await expect(page.getByRole('textbox', { name: 'Meeting title' })).toHaveValue('Pricing review');
+  // Los asistentes del evento se ven arriba.
+  await expect(page.locator('.vc-meeting-head')).toContainText('Ana Guest');
   await page.getByRole('tab', { name: 'Links' }).click();
   await expect(page.locator('.vc-attendees')).toContainText('Ana Guest');
-  // Brief dentro de la reunión.
+  // Brief dentro de la reunión (sigue a mano mientras graba).
   await page.getByRole('button', { name: /Prepare a brief|Update brief/ }).click();
   await expect(page.locator('.vc-brief')).toContainText(/no previous meetings|Based on/);
+  // "Tomar notas" la primera vez empieza a escuchar sola: se corta antes de seguir.
+  const stop = page.getByRole('button', { name: 'Stop', exact: true });
+  if (await stop.isVisible()) {
+    await stop.click();
+    await expect(page.getByRole('button', { name: /Start recording|Keep recording/ })).toBeVisible({ timeout: 25_000 });
+  }
 
   // De vuelta, el evento ya abre esas notas.
   await page.goto('/en/app/voice', { waitUntil: 'networkidle' });

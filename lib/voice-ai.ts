@@ -11,7 +11,7 @@
  * modelo falso de lib/crm-ai-fake.ts con respuestas deterministas; la cookie
  * voice_ai_fake=off hace que el request se comporte como sin IA.
  */
-import { generateText, Output, type LanguageModel } from 'ai';
+import { generateText, Output, streamText, type LanguageModel } from 'ai';
 import { z } from 'zod';
 import { AiError, assertAiAvailable, assertAiQuota, recordAiUsage, resolveAiModel } from './ai';
 import { fakeModel, type FakeCallInfo, type FakeStep } from './crm-ai-fake';
@@ -278,7 +278,14 @@ export async function enhanceMeeting(opts: {
 
 // ---------- Chat ----------
 
-/** Respuesta del modelo falso: la línea de la transcripción con la palabra más larga de la pregunta. */
+const TS_LINE = /^\[(\d{1,3}:\d{2})\]\s*/;
+const MEETING_HEAD = /^#\s*\[(M\d+)\]/;
+
+/**
+ * Respuesta del modelo falso: la línea de la transcripción con la palabra más
+ * larga de la pregunta, citada como lo pide el prompt ([mm:ss] en una reunión,
+ * [M1 mm:ss] entre varias).
+ */
 export function fakeAnswer(question: string, context: string): string {
   const words = question
     .toLowerCase()
@@ -287,15 +294,67 @@ export function fakeAnswer(question: string, context: string): string {
     .sort((a, b) => b.length - a.length);
   // Primero las líneas de la transcripción ("[mm:ss] Nombre: texto"), después el resto.
   const all = context.split('\n');
-  const lines = [...all.filter((l) => /^\[[\d:]+\]/.test(l)), ...all.filter((l) => !/^\[[\d:]+\]/.test(l))];
+  let label = '';
+  const tagged = all.map((l) => {
+    const head = l.match(MEETING_HEAD);
+    if (head) label = head[1];
+    return { line: l, label };
+  });
+  const lines = [...tagged.filter((x) => TS_LINE.test(x.line)), ...tagged.filter((x) => !TS_LINE.test(x.line))];
   for (const w of words) {
-    const hit = lines.find((l) => l.toLowerCase().includes(w));
-    if (hit) return hit.replace(/^\[[\d:]+\]\s*/, '');
+    const hit = lines.find((x) => x.line.toLowerCase().includes(w));
+    if (!hit) continue;
+    const ts = hit.line.match(TS_LINE)?.[1];
+    const text = hit.line.replace(TS_LINE, '').replace(MEETING_HEAD, '').replace(/^#\s*/, '').trim();
+    const cite = hit.label ? (ts ? `[${hit.label} ${ts}]` : `[${hit.label}]`) : ts ? `[${ts}]` : '';
+    return cite ? `${text} ${cite}` : text;
   }
   return 'The meeting does not mention that.';
 }
 
-export async function askMeetings(opts: {
+export function chatInstructions(opts: { across: boolean; locale: string; context: string; live?: boolean }): string {
+  return [
+    opts.across
+      ? 'Answer questions about the user\'s meetings using only the meetings below. Each meeting starts with a label like [M1], its title and date.'
+      : 'Answer questions about this meeting using only its notes and transcript. When someone said something, say who.',
+    opts.live ? 'The meeting is still going on: the transcript ends where the conversation is now.' : '',
+    opts.across
+      ? 'Cite every fact right after it with the meeting label and, when it comes from the transcript, the timestamp of the line, like [M2 14:05] or [M1]. Never cite a label or a time that is not below.'
+      : 'Cite facts from the transcript right after them with the timestamp of the line, like [14:05]. Never cite a time that is not in the transcript.',
+    'If the answer is not there, say so. Be brief. Quote short phrases when useful. Plain text or short bullet lists, no headings.',
+    `Answer in the language of the question; if unclear, ${LANG_NAME[opts.locale] ?? 'English'}.`,
+    `<meetings>\n${opts.context}\n</meetings>`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+/**
+ * Modelo del chat de Voice: el del asistente de la plataforma (⌘J, DeepSeek por
+ * OpenRouter) si está configurado; si no, el de la suite (lib/ai.ts). En los
+ * dos casos cuenta la cuota y el rate limit del workspace.
+ */
+async function voiceChatModel(ws: string, fake: (info: FakeCallInfo) => FakeStep): Promise<{ model: LanguageModel; modelId: string }> {
+  if (await voiceAiFakeState()) return voiceModel(ws, fake);
+  const { assistantState, resolveAssistantModel } = await import('./assistant/config');
+  if (process.env.AI_ENABLED !== 'false' && assistantState() === 'ready') {
+    const resolved = resolveAssistantModel(() => fakeModel(fake));
+    if (resolved) {
+      await assertAiQuota(ws);
+      return resolved;
+    }
+  }
+  return voiceModel(ws, fake);
+}
+
+/** ¿Hay modelo para el chat (el del asistente o el de la suite)? */
+export async function voiceChatAvailable(): Promise<boolean> {
+  if (await voiceAiFakeState()) return voiceAiAvailable();
+  const { assistantState } = await import('./assistant/config');
+  return assistantState() === 'ready' || voiceAiAvailable();
+}
+
+export interface AskMeetingsOptions {
   workspaceId: string;
   question: string;
   /** Una o varias reuniones, cada una con su título y transcripción/notas. */
@@ -303,18 +362,14 @@ export async function askMeetings(opts: {
   history: Array<{ role: 'user' | 'assistant'; text: string }>;
   locale: string;
   across: boolean;
-}): Promise<string> {
-  const { model, modelId } = await voiceModel(opts.workspaceId, () => ({ text: fakeAnswer(opts.question, opts.context) }));
-  const res = await generateText({
-    model,
-    instructions: [
-      opts.across
-        ? 'Answer questions about the user\'s meetings using only the meetings below. Name the meeting (title and date) each fact comes from.'
-        : 'Answer questions about this meeting using only its notes and transcript. When someone said something, say who.',
-      'If the answer is not there, say so. Be brief. Quote short phrases when useful.',
-      `Answer in the language of the question; if unclear, ${LANG_NAME[opts.locale] ?? 'English'}.`,
-      `<meetings>\n${opts.context}\n</meetings>`,
-    ].join('\n'),
+  /** La reunión sigue grabando. */
+  live?: boolean;
+  abortSignal?: AbortSignal;
+}
+
+function chatCall(opts: AskMeetingsOptions) {
+  return {
+    instructions: chatInstructions(opts),
     messages: [
       ...opts.history.slice(-8).map((m) => ({ role: m.role, content: m.text })),
       { role: 'user' as const, content: opts.question.slice(0, 2000) },
@@ -323,9 +378,32 @@ export async function askMeetings(opts: {
     maxOutputTokens: 1500,
     timeout: 60_000,
     maxRetries: 1,
-  });
+    abortSignal: opts.abortSignal,
+  };
+}
+
+export async function askMeetings(opts: AskMeetingsOptions): Promise<string> {
+  const { model, modelId } = await voiceChatModel(opts.workspaceId, () => ({ text: fakeAnswer(opts.question, opts.context) }));
+  const res = await generateText({ model, ...chatCall(opts) });
   await record(opts.workspaceId, 'voice_chat', modelId, res.totalUsage);
   return res.text.trim();
+}
+
+/**
+ * Igual que askMeetings pero de a pedazos. La cuota se mira antes (un
+ * AiError tira acá, antes del primer pedazo) y el consumo se registra al
+ * terminar.
+ */
+export async function streamAskMeetings(opts: AskMeetingsOptions): Promise<AsyncIterable<string>> {
+  const { model, modelId } = await voiceChatModel(opts.workspaceId, () => ({ text: fakeAnswer(opts.question, opts.context) }));
+  const res = streamText({ model, ...chatCall(opts) });
+  return (async function* () {
+    for await (const part of res.stream) {
+      if (part.type === 'text-delta') yield part.text;
+      else if (part.type === 'finish') await record(opts.workspaceId, 'voice_chat', modelId, part.totalUsage);
+      else if (part.type === 'error') throw part.error instanceof Error ? part.error : new Error('ai_failed');
+    }
+  })();
 }
 
 // ---------- Brief antes de la reunión ----------
