@@ -1,0 +1,177 @@
+{
+  "common": {
+    "greeting": "Hi {name},",
+    "greetingNoName": "Hi,",
+    "signoff": "The zerosoft team",
+    "why": "You're getting this because you have a zerosoft account with {email}.",
+    "unsubscribe": "Stop getting {category}",
+    "unsubscribeAll": "Stop getting all of these emails",
+    "preferences": "Email preferences",
+    "fallbackLink": "If the button doesn't work, copy this link:",
+    "categories": {
+      "onboarding": "getting started emails",
+      "tips": "feature tips",
+      "team": "team reminders",
+      "reengagement": "check-in reminders",
+      "digest": "the weekly summary"
+    }
+  },
+  "apps": {
+    "docs": { "thing": "your first page", "action": "Write a page or import one from Notion. Type / to add tables, to-do lists and databases." },
+    "track": { "thing": "your first issue", "action": "Press C anywhere in Track to create an issue, then add it to a cycle." },
+    "crm": { "thing": "your first deal", "action": "Add a deal to the pipeline and drag it between stages as it moves." },
+    "notes": { "thing": "your first note", "action": "Write a note and file it in a notebook. Tags help you find it later." },
+    "board": { "thing": "your first board", "action": "Open a blank board or a template and add stickies, shapes and arrows." },
+    "link": { "thing": "your first short link", "action": "Paste a long URL, pick the slug and see clicks by country and device." },
+    "cal": { "thing": "your first event type", "action": "Set the length and your hours, then share the link so people can book you." }
+  },
+  "templates": {
+    "welcome": {
+      "subject": "Your zerosoft account is ready",
+      "preheader": "Where to start and how to find things.",
+      "heading": "Welcome to zerosoft",
+      "body": [
+        "Your workspace is set up. Every app shares the same account, search and permissions.",
+        "To find anything, press ⌘K (Ctrl+K on Windows). To ask the assistant, press ⌘J.",
+        "Over the next few days we'll send a few short emails about what's left to set up. If you've already done it, you won't get them."
+      ],
+      "bodyApp": "You started with {app}. {action}",
+      "cta": "Open zerosoft"
+    },
+    "setup_first_item": {
+      "subject": "Create {thing} in {app}",
+      "preheader": "One step to make {app} useful.",
+      "heading": "Create {thing}",
+      "body": [
+        "You picked {app} when you signed up and haven't created anything there yet.",
+        "{action}"
+      ],
+      "cta": "Open {app}"
+    },
+    "setup_import": {
+      "subject": "Bring your data over from {tool}",
+      "preheader": "The importer copies what you already have.",
+      "heading": "Import from {tool}",
+      "body": [
+        "You told us you're coming from {tool}. The {app} importer brings your data in and shows a preview before saving.",
+        "Everything you import lives in your workspace and can be edited or deleted like anything else."
+      ],
+      "cta": "Import from {tool}"
+    },
+    "setup_calendar": {
+      "subject": "Connect your calendar to Cal",
+      "preheader": "So nobody books a time you're already busy.",
+      "heading": "Connect your calendar",
+      "body": [
+        "Cal can't see your calendar yet. Connect Google, Outlook or iCloud and your busy times stop showing as free.",
+        "New bookings are added to that calendar automatically."
+      ],
+      "cta": "Connect calendar"
+    },
+    "setup_whatsapp": {
+      "subject": "Connect your WhatsApp line to Groups",
+      "preheader": "Scan a QR code and your chats show up in the inbox.",
+      "heading": "Connect a WhatsApp line",
+      "body": [
+        "Groups doesn't have a line connected yet. Scan the QR code from WhatsApp on your phone and your groups show up in the shared inbox.",
+        "From there you assign chats, leave internal notes and reply with your team."
+      ],
+      "cta": "Connect a line"
+    },
+    "team_invite": {
+      "subject": "Bring your team into {team}",
+      "preheader": "Seats aren't billed, so invite whoever you need.",
+      "heading": "Invite your team",
+      "body": [
+        "Right now you're the only person in {team}. Invite teammates by email or share an invite link.",
+        "You choose which apps each person sees and their role. Seats aren't billed."
+      ],
+      "cta": "Invite people"
+    },
+    "team_pending": {
+      "subject": "Your invites to {team} haven't been accepted",
+      "preheader": "You can resend them or share the link another way.",
+      "heading": "Pending invites",
+      "body": [
+        "You sent invites to {team} a few days ago and nobody has accepted yet. Sometimes they land in spam.",
+        "In Members you can resend them, or copy the invite link and send it over chat."
+      ],
+      "cta": "See invites"
+    },
+    "feature_assistant": {
+      "subject": "Ask the assistant with ⌘J",
+      "preheader": "It searches, summarizes and creates across your apps.",
+      "heading": "The assistant",
+      "body": [
+        "Press ⌘J (Ctrl+J on Windows) on any screen and type what you need: \"summarize the open issues in this cycle\" or \"make a page from yesterday's notes\".",
+        "It works with your permissions and asks you to confirm before changing anything."
+      ],
+      "cta": "Try the assistant"
+    },
+    "feature_voice": {
+      "subject": "Dictate instead of typing",
+      "preheader": "Hold Alt+Space in any zerosoft text field.",
+      "heading": "Voice: dictation and meeting notes",
+      "body": [
+        "Hold Alt+Space (Option+Space on Mac) in any text field, talk, and let go. The text appears where your cursor was.",
+        "In Voice you can also record meetings and keep the transcript and a summary."
+      ],
+      "cta": "Open Voice"
+    },
+    "feature_desktop": {
+      "subject": "zerosoft as a desktop app",
+      "preheader": "For Mac and Windows, with system notifications.",
+      "heading": "The desktop app",
+      "body": [
+        "There's a zerosoft app for Mac and Windows. It opens straight into your workspace and shows system notifications.",
+        "You sign in with your usual account through the browser."
+      ],
+      "cta": "Download the app"
+    },
+    "feature_mcp": {
+      "subject": "Connect Claude or another MCP client to zerosoft",
+      "preheader": "Your agent reads and creates in your apps with your permissions.",
+      "heading": "zerosoft over MCP",
+      "body": [
+        "zerosoft has an MCP server. Connect it to Claude, Cursor or another client and your agent can search, read and create issues, pages or contacts with your permissions.",
+        "The guide covers how to connect it and what each app supports."
+      ],
+      "cta": "Read the MCP guide"
+    },
+    "tip_search": {
+      "subject": "One shortcut for everything: ⌘K",
+      "preheader": "Search all your apps from one place.",
+      "heading": "Find anything with ⌘K",
+      "body": [
+        "⌘K (Ctrl+K on Windows) searches every app at once: pages, issues, contacts, boards and notes.",
+        "You can also use it to jump to an app or create something new without the mouse."
+      ],
+      "cta": "Open zerosoft"
+    },
+    "reengage": {
+      "subject": "Your zerosoft workspace is waiting",
+      "preheader": "Everything is where you left it.",
+      "heading": "It's been a while",
+      "body": [
+        "Your workspace is exactly how you left it. If something didn't work the way you expected, tell us with the feedback button in the app.",
+        "If you'd rather not get reminders, the unsubscribe link is below."
+      ],
+      "cta": "Back to zerosoft"
+    },
+    "digest": {
+      "subject": "Your week in {team}",
+      "preheader": "What happened in your workspace in the last 7 days.",
+      "heading": "Your week in {team}",
+      "body": [
+        "Here's what happened in your workspace in the last 7 days."
+      ],
+      "rows": {
+        "docs": "New pages in Docs: {count}",
+        "issues": "Issues created in Track: {count}",
+        "deals": "New deals in CRM: {count}",
+        "members": "New people in the workspace: {count}"
+      },
+      "cta": "Open zerosoft"
+    }
+  }
+}

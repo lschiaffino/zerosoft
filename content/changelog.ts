@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-lifecycle-emails',
+    date: '2026-11-08',
+    title: {
+      en: 'Getting started emails, and a say in which ones you get',
+      es: 'Emails de primeros pasos, y vos elegís cuáles recibir',
+      pt: 'Emails de primeiros passos, e você escolhe quais receber',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'New accounts get a welcome email and then, at most one every two days, the next useful step: create the first thing in the app you picked, import from the tool you came from, connect your calendar or WhatsApp line, invite your team. Steps you already did are skipped, and nothing is sent on a day you used the app.',
+        es: 'Las cuentas nuevas reciben un email de bienvenida y después, como mucho uno cada dos días, el próximo paso útil: crear lo primero en la app que elegiste, importar desde la herramienta de la que venís, conectar tu calendario o tu línea de WhatsApp, invitar a tu equipo. Lo que ya hiciste se saltea, y el día que usaste la app no llega nada.',
+        pt: 'Contas novas recebem um email de boas-vindas e depois, no máximo um a cada dois dias, o próximo passo útil: criar a primeira coisa no app que você escolheu, importar da ferramenta de onde vem, conectar sua agenda ou sua linha de WhatsApp, convidar sua equipe. O que você já fez é pulado, e no dia em que usou o app não chega nada.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Notifications lets you turn each kind of email on or off, opt in to a Monday summary of your workspace, or stop them all. Every email has a one-click unsubscribe. Account emails (sign-in codes, invites, bookings) are not affected. Self-hosted installs without an email provider send nothing.',
+        es: 'En Ajustes › Avisos prendés o apagás cada tipo de email, activás un resumen de tu workspace los lunes o los apagás todos. Cada email trae baja en un clic. Los emails de tu cuenta (códigos de ingreso, invitaciones, reservas) no cambian. Una instalación propia sin proveedor de email no manda nada.',
+        pt: 'Em Configurações › Avisos você liga ou desliga cada tipo de email, ativa um resumo do seu workspace às segundas ou desliga todos. Cada email tem descadastro em um clique. Os emails da sua conta (códigos de acesso, convites, reservas) não mudam. Uma instalação própria sem provedor de email não envia nada.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-chat-inbox-sort',
     date: '2026-11-08',
     title: {
