@@ -123,7 +123,7 @@ test('Notion: export real con árbol, relación entre bases, toggles e imagen; r
   // Reimportar el mismo export: todo figura como ya importado y no se duplica.
   const again = await upload();
   await expect(again).toContainText(/already imported|imported before/i);
-  await again.getByRole('button', { name: /^Import/ }).first().click();
+  await again.getByRole('button', { name: /^(Import|Bring changes)/ }).first().click();
   await expect(page.getByTestId('notion-import-done')).toBeVisible({ timeout: 90_000 });
   const after = (await (await request.get(`/api/docs/search?q=${encodeURIComponent(wikiTitle)}`)).json()) as { rows: Array<{ title: string }> };
   expect(after.rows.filter((r) => r.title === wikiTitle)).toHaveLength(1);

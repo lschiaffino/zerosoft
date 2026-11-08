@@ -3,6 +3,7 @@
 import { pageStats } from '@/lib/docs-stats';
 import {
   Fragment,
+  startTransition,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -2888,7 +2889,12 @@ export default function DocsEditor({
         return;
       }
       if (modeRef.current === 'readonly' || noEditRef.current[index]) return;
-      updateBlock(index, patch);
+      // Tipear (solo cambia el texto): el navegador ya muestra la letra en el contenteditable; el
+      // modelo se actualiza en una transición, así React no frena el pintado de cada tecla en
+      // páginas largas. Lo demás (Enter, Backspace, atajos) lee el DOM o va en orden después.
+      const keys = Object.keys(patch);
+      if (keys.length === 1 && keys[0] === 'content') startTransition(() => updateBlock(index, patch));
+      else updateBlock(index, patch);
       if (patch.content !== undefined) handleInput(index, patch.content);
     },
     [handleInput, updateBlock, blocks, suggestChange],
