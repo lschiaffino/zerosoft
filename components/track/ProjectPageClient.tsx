@@ -104,6 +104,12 @@ export default function ProjectPageClient({
   const [recurring, setRecurring] = useState<TrackRecurringIssueRow[]>(initialRecurring ?? []);
   const [triageIssues, setTriageIssues] = useState<TrackIssueWithStatus[]>(initialTriage ?? []);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Al cerrar el drawer de ajustes (Esc o ×) el foco vuelve al botón que lo abrió, después de que la lista se re-renderiza.
+  const settingsButton = useRef<HTMLButtonElement | null>(null);
+  const closeSettings = useCallback(() => {
+    setSettingsOpen(false);
+    window.setTimeout(() => settingsButton.current?.focus(), 0);
+  }, []);
   const [notice, setNotice] = useState<string | null>(null);
   const [tab, setTab] = useState<'issues' | 'triage'>(() => (searchParams.get('tab') === 'triage' ? 'triage' : 'issues'));
 
@@ -238,6 +244,7 @@ export default function ProjectPageClient({
           <button
             type="button"
             className="btn btn-ghost btn-sm btn-icon"
+            ref={settingsButton}
             onClick={() => setSettingsOpen(true)}
             aria-haspopup="dialog"
             aria-label={t('project.settings')}
@@ -310,7 +317,7 @@ export default function ProjectPageClient({
           projectName={project.name}
           projectId={projectId}
           isAdmin={isAdmin}
-          onClose={() => setSettingsOpen(false)}
+          onClose={closeSettings}
           panels={{
             cycles: (
               <>
