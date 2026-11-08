@@ -172,7 +172,7 @@ test('tendencia y embudo de 2 pasos desde el editor', async ({ page, baseURL }) 
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Name').fill('Pageviews this week');
   await dialog.getByLabel('Name').press('Enter');
-  await expect(page).toHaveURL(/\/en\/app\/analytics\/insights\/ai_/);
+  await expect(page).toHaveURL(/\/en\/app\/pulse\/insights\/ai_/);
   await expect(page.getByLabel('Name')).toHaveValue('Pageviews this week');
 
   // Embudo: $pageview → signed_up.
@@ -194,7 +194,7 @@ test('feature flag: crear, ajustar y evaluar (UI y /decide)', async ({ page, req
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Key').fill(key);
   await dialog.getByRole('button', { name: 'Create' }).click();
-  await expect(page).toHaveURL(/\/en\/app\/analytics\/flags\/af_/);
+  await expect(page).toHaveURL(/\/en\/app\/pulse\/flags\/af_/);
   await expect(page.getByRole('heading', { name: key })).toBeVisible();
   await page.getByLabel('Description').fill('New checkout');
   await page.getByRole('button', { name: 'Save' }).click();
