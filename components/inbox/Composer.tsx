@@ -204,6 +204,7 @@ const Composer = forwardRef<
           }
           if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
             e.preventDefault();
+            e.stopPropagation();
             void draft();
             return;
           }

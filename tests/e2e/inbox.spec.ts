@@ -79,7 +79,7 @@ test('vincular WhatsApp por QR desde Ajustes', async ({ page }) => {
     const dialog = page.getByRole('dialog', { name: 'Link WhatsApp' });
     await expect(dialog).toBeVisible();
     // El QR del proveedor falso y, a los segundos, vinculado.
-    await expect(dialog.getByText(/Linked|Point your phone/)).toBeVisible();
+    await expect(dialog.getByText(/^Linked|Point your phone/).first()).toBeVisible();
     await expect(dialog.getByText(/^Linked/)).toBeVisible({ timeout: 10_000 });
     await dialog.getByRole('button', { name: 'Done' }).click();
   }
@@ -192,7 +192,7 @@ test('carpetas: nueva desde el sidebar, V para sumar un chat y la carpeta lo mue
   const folder = `Casa ${uid()}`;
   await page.locator('#side-branch').getByRole('button', { name: /New folder/ }).click();
   const dialog = page.getByRole('dialog', { name: 'New folder' });
-  await dialog.getByLabel('Name').fill(folder);
+  await dialog.getByLabel('Name', { exact: true }).fill(folder);
   await dialog.getByRole('button', { name: 'Create folder' }).click();
   await expect(page).toHaveURL(/\/app\/inbox\/f\//);
   await expect(page.locator('#side-branch').getByRole('link', { name: folder })).toHaveAttribute('aria-current', 'page');
