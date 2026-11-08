@@ -420,7 +420,7 @@ export default function IssueFilters({
     if (plans.length) list.push('project');
     list.push('estimate', 'due', 'start', 'created', 'updated', 'relation', 'hierarchy');
     return list;
-  }, [cycles.length, milestones.length, teams.length, plans.length]);
+  }, [teams.length, plans.length]);
 
   const avatar = (name: string | null | undefined) => <span className="track-avatar">{initial(name)}</span>;
   const swatch = (color: string) => (

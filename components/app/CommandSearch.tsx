@@ -355,7 +355,7 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
       { group, label: tVoice('dictation'), meta: '', href: '/app/voice/dictation' },
     ];
     return inTrack ? [...track, ...rest] : [...rest, ...track];
-  }, [t, tNotes, tBoard, tTrack, tPlanning, tVoice, inTrack, inCrm, inDocs]);
+  }, [t, tNotes, tBoard, tTrack, tPlanning, tVoice, inTrack, inCrm, inDocs, pathname]);
 
   // Las apps (y el inicio): "crm", "hubspot" o "vender" llevan a la app. Solo al buscar.
   const appItems = useMemo<ResultItem[]>(
