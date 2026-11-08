@@ -61,5 +61,12 @@ export async function GET(req: Request) {
     offset: Number(p.get('offset')) || 0,
     viewer: await sessionViewer(s),
   });
-  return NextResponse.json(res);
+  // Importación en curso al conectar un número: la bandeja muestra el progreso.
+  const { activeImports, kickImport } = await import('@/lib/groups-import');
+  const imports = await activeImports(s.ws).catch(() => []);
+  const { countUnreadChats } = await import('@/lib/groups');
+  const unreadChats = await countUnreadChats(s.ws, await sessionViewer(s)).catch(() => 0);
+  // Mientras alguien mira la bandeja, la importación avanza sin esperar al cron (cada tanda reclama su fila).
+  for (const im of imports) if (im.status === 'queued' || im.status === 'running') await kickImport(im.numberId);
+  return NextResponse.json({ ...res, imports, unreadChats });
 }

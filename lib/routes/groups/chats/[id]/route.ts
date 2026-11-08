@@ -42,6 +42,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (Array.isArray(b.labelIds)) patch.labelIds = strArr(b.labelIds, 20);
   if (typeof b.read === 'boolean') patch.read = b.read;
   if (typeof b.flagged === 'boolean') patch.flagged = b.flagged;
+  if (typeof b.muted === 'boolean') patch.muted = b.muted;
   try {
     return NextResponse.json(maskChat(guard.viewer, await patchChatAs(s.ws, { id: s.me }, id, patch)));
   } catch (err) {
@@ -50,6 +51,23 @@ export async function PATCH(req: Request, ctx: Ctx) {
 }
 
 /** Saca el chat de Groups (el grupo sigue en WhatsApp). */
+/** { action: 'importOlder' }: trae del teléfono los mensajes anteriores a lo importado. */
+export async function POST(req: Request, ctx: Ctx) {
+  const s = await groupsSession({ write: true });
+  if (s instanceof NextResponse) return s;
+  const id = (await ctx.params).id;
+  const guard = await chatGuard(s, id);
+  if (guard instanceof NextResponse) return guard;
+  const b = (await req.json().catch(() => ({}))) as { action?: string };
+  if (b.action !== 'importOlder') return groupsError(400, 'invalid_action');
+  try {
+    const { importOlder } = await import('@/lib/groups-import');
+    return NextResponse.json(await importOlder(s.ws, id));
+  } catch (err) {
+    return handleGroupsError(err);
+  }
+}
+
 export async function DELETE(_req: Request, ctx: Ctx) {
   // Quitar un chat de Groups (con su historial) es de admins, como los números (docs/permissions.md).
   const s = await groupsSession({ write: true, admin: true });

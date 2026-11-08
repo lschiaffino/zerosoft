@@ -236,7 +236,8 @@ test('listas guardadas: guardar los filtros, sidebar, renombrar y borrar', async
   const who = `Lisa${uid()}`;
   await inbound(request, n, `120363${Date.now()}3@g.us`, 'hola', `Cliente ${who}`);
   await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
-  await page.getByRole('tab', { name: 'Unanswered' }).click();
+  await page.getByRole('tab', { name: 'Waiting' }).click();
+  await page.getByRole('button', { name: 'Filters and lists' }).click();
   await page.getByLabel('Type').selectOption('group');
   await page.getByRole('button', { name: 'Save as list' }).click();
   const save = page.getByRole('dialog', { name: 'Save as list' });
@@ -252,9 +253,9 @@ test('listas guardadas: guardar los filtros, sidebar, renombrar y borrar', async
 
   // Desde otra vista, la lista vuelve a cargar sus filtros.
   await page.getByRole('link', { name: 'All chats' }).click();
-  await expect(page.getByRole('tab', { name: 'Open' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true');
   await branch.getByRole('link', { name: new RegExp(list) }).click();
-  await expect(page.getByRole('tab', { name: 'Unanswered' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'Waiting' })).toHaveAttribute('aria-selected', 'true');
 
   await page.getByRole('button', { name: 'Rename' }).click();
   const rename = page.getByRole('dialog', { name: 'Rename list' });
@@ -387,7 +388,8 @@ test('tareas: desde un mensaje, en el chat y en Tareas, con aviso a su hora', as
   await page.goto(`/en/app/groups/inbox/${chat.id}`, { waitUntil: 'networkidle' });
   const msg = page.locator('.gr-msg-in', { hasText: body });
   await msg.hover();
-  await msg.getByRole('button', { name: 'Task', exact: true }).click();
+  await msg.getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Task', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Task from message' });
   await expect(dialog.getByLabel('Task')).toHaveValue(body);
   await dialog.getByRole('button', { name: 'In 1 hour' }).click();
@@ -433,7 +435,8 @@ test('tarea creada desde Groups: CRM › Tareas (hoy y próximas) abre sin error
   await page.goto(`/en/app/groups/inbox/${chat.id}`, { waitUntil: 'networkidle' });
   const msg = page.locator('.gr-msg-in', { hasText: body });
   await msg.hover();
-  await msg.getByRole('button', { name: 'Task', exact: true }).click();
+  await msg.getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Task', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Task from message' });
   await dialog.getByRole('button', { name: 'In 1 hour' }).click();
   await dialog.getByRole('button', { name: 'Create task' }).click();
