@@ -105,9 +105,10 @@ describe('desktop: mantener para dictar', () => {
     expect(p.keyDown(KEY.AltRight, 0)).toBe('start');
     expect(p.keyUp(KEY.Ctrl, 100)).toBe('cancel');
     p.keyUp(KEY.AltRight, 110);
-    p.keyDown(KEY.Ctrl, 200);
-    expect(p.keyDown(KEY.Alt, 210)).toBe('start');
-    expect(p.keyDown(30 /* K */, 600)).toBe('cancel');
+    // Fuera de la ventana del doble toque (si no, sería manos libres).
+    p.keyDown(KEY.Ctrl, 1000);
+    expect(p.keyDown(KEY.Alt, 1010)).toBe('start');
+    expect(p.keyDown(30 /* K */, 1400)).toBe('cancel');
     // Con otra tecla ya apretada no empieza.
     const q = new PushToTalk('ctrl+alt');
     q.keyDown(KEY.Shift, 0);
