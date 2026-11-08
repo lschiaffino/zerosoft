@@ -412,7 +412,9 @@ async fn paste_keycode(app: &AppHandle) -> u16 {
         return 0;
     }
     let (tx, rx) = tokio::sync::oneshot::channel();
-    if app.run_on_main_thread(move || drop(tx.send(platform::paste_keycode()))).is_err() {
+    if app.run_on_main_thread(move || {
+        let _ = tx.send(platform::paste_keycode());
+    }).is_err() {
         return 9;
     }
     tokio::time::timeout(Duration::from_millis(400), rx).await.ok().and_then(|r| r.ok()).unwrap_or(9)
