@@ -40,6 +40,7 @@
       "shop": "Loja online com checkout e pedidos",
       "design": "Design gráfico a partir de modelos, com sua marca",
       "pulse": "Analytics de produto e feature flags",
+      "analytics": "Perguntas e painéis sobre seus dados",
       "social": "Agendamento, caixa de entrada e métricas de redes sociais",
       "people": "Diretório, folgas e avaliações",
       "hiring": "Recrutamento com página de vagas",
@@ -195,6 +196,9 @@
     "groupAnalyticsSurveys": "Pesquisas do Pulse",
     "groupAnalyticsCohorts": "Coortes do Pulse",
     "groupAnalyticsProjects": "Projetos do Pulse",
+    "groupBiQuestions": "Perguntas do Analytics",
+    "groupBiDashboards": "Painéis do Analytics",
+    "groupBiCollections": "Coleções do Analytics",
     "groupSocialPosts": "Publicações do Social",
     "groupSocialLibrary": "Biblioteca do Social",
     "yourApps": "Seus apps",
@@ -277,6 +281,9 @@
     },
     "pulse": {
       "desc": "Eventos, funis, retenção e feature flags para o seu produto."
+    },
+    "analytics": {
+      "desc": "Perguntas, SQL e painéis sobre seu workspace e seus bancos de dados."
     },
     "social": {
       "desc": "Planeje, publique e responda nas redes sociais."
@@ -513,6 +520,9 @@
       },
       "pulse": {
         "line": "Analytics de produto, analytics web e feature flags."
+      },
+      "analytics": {
+        "line": "Perguntas, SQL e painéis sobre seus dados."
       },
       "building": "Em construção · como {rival}",
       "social": {

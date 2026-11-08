@@ -163,6 +163,24 @@ function tokenize(sql: string): Token[] | SqlCheck {
  * la base (sqlite_master): ninguno puede aparecer como identificador.
  */
 export function checkSql(input: string, realTables: Iterable<string>): SqlCheck {
+  return checkSqlWith(input, realTables, { virtual: VIRTUAL_TABLES, joinKeys: JOIN_KEYS, maxRefs: SQL_MAX_TABLE_REFS });
+}
+
+/** Reglas de un conjunto de tablas virtuales (Pulse, o las de Analytics en lib/bi). */
+export interface SqlGuardConfig {
+  virtual: readonly string[];
+  /** Pares `tabla.col=tabla.col` (en los dos sentidos) por los que se puede unir. */
+  joinKeys: ReadonlySet<string>;
+  /** Referencias a tablas (FROM/JOIN, con CTEs expandidas) como mucho. */
+  maxRefs: number;
+}
+
+/** Arma el set de claves de join en los dos sentidos. */
+export function joinKeySet(pairs: ReadonlyArray<readonly [string, string]>): Set<string> {
+  return new Set(pairs.flatMap(([a, b]) => [`${a}=${b}`, `${b}=${a}`]));
+}
+
+export function checkSqlWith(input: string, realTables: Iterable<string>, cfg: SqlGuardConfig): SqlCheck {
   const sql = input.trim();
   if (!sql) return { ok: false, error: 'empty' };
   if (sql.length > 10_000) return { ok: false, error: 'too_long' };
@@ -175,7 +193,7 @@ export function checkSql(input: string, realTables: Iterable<string>): SqlCheck 
   const first = toks[0].text.toLowerCase();
   if (toks[0].kind !== 'word' || (first !== 'select' && first !== 'with')) return { ok: false, error: 'must_start_with_select' };
 
-  const virtual = new Set<string>(VIRTUAL_TABLES);
+  const virtual = new Set<string>(cfg.virtual);
   const forbidden = new Set<string>();
   for (const t of realTables) {
     const n = t.toLowerCase();
@@ -204,7 +222,7 @@ export function checkSql(input: string, realTables: Iterable<string>): SqlCheck 
     if (t.text === ')' && --depth < 0) return { ok: false, error: 'unbalanced_parentheses' };
   }
   if (depth !== 0) return { ok: false, error: 'unbalanced_parentheses' };
-  const joins = checkJoins(toks, virtual);
+  const joins = checkJoins(toks, virtual, cfg);
   if (joins) return { ok: false, error: joins };
   return { ok: true, sql };
 }
@@ -234,7 +252,7 @@ const JOIN_KEYS = new Set(
 
 type JoinError = 'join_without_condition' | 'too_many_tables' | 'join_not_allowed';
 
-function checkJoins(toks: Token[], virtual: Set<string>): JoinError | null {
+function checkJoins(toks: Token[], virtual: Set<string>, cfg: SqlGuardConfig): JoinError | null {
   const lower = toks.map((t) => (t.kind === 'word' ? t.text.toLowerCase() : t.text));
   const depthAt: number[] = [];
   let d = 0;
@@ -294,7 +312,7 @@ function checkJoins(toks: Token[], virtual: Set<string>): JoinError | null {
   };
   for (const [a, b, name] of cteRanges) cte.set(name, refsIn(a, b, false));
   const total = refsIn(0, toks.length, true) + 0;
-  if (total > SQL_MAX_TABLE_REFS) return 'too_many_tables';
+  if (total > cfg.maxRefs) return 'too_many_tables';
 
   // Cada FROM: sin comas; cada JOIN entre dos tablas virtuales por una clave.
   let joins = 0;
@@ -341,7 +359,7 @@ function checkJoins(toks: Token[], virtual: Set<string>): JoinError | null {
       if (d1 !== '.' || d2 !== '.' || (eq !== '=' && eq !== '==') || a === b) return 'join_not_allowed';
       const ta = aliases.get(a);
       const tb = aliases.get(b);
-      if (!ta || !tb || !JOIN_KEYS.has(`${ta}.${ca}=${tb}.${cb}`)) return 'join_not_allowed';
+      if (!ta || !tb || !cfg.joinKeys.has(`${ta}.${ca}=${tb}.${cb}`)) return 'join_not_allowed';
       j += 8;
       // Lo que sigue en el ON solo puede ser AND (sin OR a este nivel).
       while (j < toks.length && depthAt[j] >= base) {
@@ -351,7 +369,7 @@ function checkJoins(toks: Token[], virtual: Set<string>): JoinError | null {
       }
     }
   }
-  if (total === 2 && joins !== 1) return 'too_many_tables';
+  if (total > 1 && joins !== total - 1) return 'too_many_tables';
   return null;
 }
 

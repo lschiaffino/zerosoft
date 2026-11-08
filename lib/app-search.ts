@@ -75,6 +75,9 @@ export interface AppSearchItem {
     | 'analyticsAlerts'
     | 'analyticsSubscriptions'
     | 'analyticsProjects'
+    | 'biQuestions'
+    | 'biDashboards'
+    | 'biCollections'
     | 'socialPosts'
     | 'socialLibrary';
   label: string;
@@ -438,6 +441,30 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       user.id,
       like,
     );
+  // Analytics (tipo Metabase): preguntas, tableros y colecciones; lo de una colección personal ajena no aparece (salvo admins).
+  const biPerson = user.actingUser?.id ?? user.id;
+  const biAdmin = user.role === 'owner' || user.role === 'admin' || !user.role ? 1 : 0;
+  const biVisible = `(r.collection_id IS NULL OR ? = 1 OR NOT EXISTS (SELECT 1 FROM bi_collections zc WHERE zc.id = r.collection_id AND zc.personal_owner IS NOT NULL AND zc.personal_owner <> ?))`;
+  const biIn = (table: string) =>
+    all(
+      `SELECT r.id, r.name AS label, c.name AS meta FROM ${table} r LEFT JOIN bi_collections c ON c.id = r.collection_id
+       WHERE r.workspace_id = ? AND r.name LIKE ? ESCAPE '\\' AND ${biVisible} ORDER BY r.updated_at DESC LIMIT ?`,
+      user.id,
+      like,
+      biAdmin,
+      biPerson,
+    ).catch(() => [] as Row[]);
+  const [biQuestions, biDashboards, biCollections] = await Promise.all([
+    biIn('bi_questions'),
+    biIn('bi_dashboards'),
+    all(
+      `SELECT id, name AS label FROM bi_collections WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' AND (personal_owner IS NULL OR personal_owner = ? OR ? = 1) ORDER BY name LIMIT ?`,
+      user.id,
+      like,
+      biPerson,
+      biAdmin,
+    ).catch(() => [] as Row[]),
+  ]);
   const [anInsights, anDashboards, anFlags, anCohorts, anProjects, anActions, anExperiments, anAlerts, anSurveys, anSubscriptions] = await Promise.all([
     analyticsIn('analytics_insights'),
     analyticsIn('analytics_dashboards'),
@@ -616,5 +643,8 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(anSubscriptions, 'analyticsSubscriptions', () => `/app/pulse/subscriptions`),
     ...map(anSurveys, 'analyticsSurveys', (id) => `/app/pulse/surveys/${id}`),
     ...map(anProjects, 'analyticsProjects', (id) => `/app/pulse/settings?project=${id}`),
+    ...map(biQuestions, 'biQuestions', (id) => `/app/analytics/questions/${id}`),
+    ...map(biDashboards, 'biDashboards', (id) => `/app/analytics/dashboards/${id}`),
+    ...map(biCollections, 'biCollections', (id) => `/app/analytics?collection=${id}`),
   ];
 }

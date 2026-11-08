@@ -1610,6 +1610,92 @@
         "button": "Open Pulse"
       }
     },
+    "analytics": {
+      "meta": {
+        "title": "Analytics: open-source questions and dashboards over your data",
+        "description": "Ask questions with a builder, SQL or plain words, chart the answers and share dashboards. Reads your zerosoft data and your Postgres or MySQL. An open-source alternative to Metabase."
+      },
+      "hero": {
+        "sub": "Ask about your CRM, Track, Books, Groups and Pulse data, or about your own Postgres or MySQL. Build a question without code, write SQL with autocomplete, or type it in plain words and read the SQL it writes. Put the answers on dashboards with filters and send them by email or to Talk."
+      },
+      "featuresTitle": "Ask your data.",
+      "featuresTitleDim": "Share the answer.",
+      "f1": {
+        "t": "Your workspace as tables",
+        "d": "Contacts, companies, deals, projects, issues, invoices, chats, messages and Pulse events, read-only. Each person sees only the rows they can see in each app."
+      },
+      "f2": {
+        "t": "Builder without code",
+        "d": "Pick a table, filter, count or sum, group by day, week, month or year, join related tables and sort. The SQL it writes is always one click away."
+      },
+      "f3": {
+        "t": "SQL editor",
+        "d": "Autocomplete of tables and columns, a schema browser, variables with defaults and optional filters, and results you can page through or download as CSV."
+      },
+      "f4": {
+        "t": "Ask in plain words",
+        "d": "Type a question and AI writes the SQL over the tables you can read. The SQL is shown before you trust the result, and it goes through the same read-only checks."
+      },
+      "f5": {
+        "t": "Dashboards",
+        "d": "A grid of cards with numbers, lines, bars, areas, pies and funnels, text, filters wired to each card, auto-refresh, full screen and collections to keep it tidy."
+      },
+      "f6": {
+        "t": "Share and subscribe",
+        "d": "Public links and iframes that never show the query, and summaries by email to your team or to a Talk channel, daily or weekly."
+      },
+      "steps": {
+        "s1": {
+          "t": "Pick your data",
+          "d": "Your workspace is ready. To add Postgres or MySQL, an admin connects it with a read-only user."
+        },
+        "s2": {
+          "t": "Ask a question",
+          "d": "Use the builder, write SQL or ask in plain words. Pick the chart or let it choose one."
+        },
+        "s3": {
+          "t": "Build a dashboard",
+          "d": "Add the questions you saved, wire filters and share it or subscribe your team."
+        }
+      },
+      "compare": {
+        "rival": "Metabase",
+        "price": "By plan",
+        "per": "Metabase Cloud: a monthly price plus each extra user",
+        "teamLabel": "10 people",
+        "team": "see Metabase pricing",
+        "zero": "$0",
+        "note": "Metabase open source is free if you host it yourself; Metabase Cloud charges per month plus per user. We could not verify every current price, so check metabase.com/pricing. Analytics on your server costs $0 plus your database."
+      },
+      "faq": {
+        "f1": {
+          "q": "Which data can it read?",
+          "a": "Your zerosoft workspace (CRM, Track, Books, Groups and Pulse) and PostgreSQL or MySQL databases an admin connects. BigQuery, Snowflake and other engines are not supported yet."
+        },
+        "f2": {
+          "q": "Can a question change my data?",
+          "a": "No. Workspace tables are read through a whitelist of read-only SQL. External databases run each query in a read-only transaction with a time limit, one statement at a time. Still, connect with a database user that can only read."
+        },
+        "f3": {
+          "q": "Who sees what?",
+          "a": "Each person sees the workspace rows they can see in each app: CRM visibility, private Track projects, Books roles and Groups chats. Personal collections stay private. On an external database, admins decide if members can write SQL or only use the builder."
+        },
+        "f4": {
+          "q": "How does asking in plain words work?",
+          "a": "AI gets the names of the tables and columns you can read, never the rows, and writes one SELECT. You see the SQL and can edit it. It needs AI turned on in the workspace."
+        },
+        "f5": {
+          "q": "What is missing compared to Metabase?",
+          "a": "Maps, pivot tables, drill-through by clicking a chart, alerts on a question, models and metrics, row-level sandboxing by group, signed JWT embedding and more database engines. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Ask the question.",
+        "title2": "Read the answer.",
+        "sub": "Open Analytics and ask something about your data.",
+        "button": "Open Analytics"
+      }
+    },
     "social": {
       "meta": {
         "title": "Social: open-source Hootsuite alternative",
@@ -2299,6 +2385,7 @@
       "design": "fig. 0 · a shape changing on its artboard",
       "shop": "fig. 0 · a catalog of six products",
       "pulse": "fig. 0 · a bar chart with sample data",
+      "analytics": "fig. 0 · bars of a dashboard with sample data",
       "social": "fig. 0 · posts on a calendar",
       "hiring": "fig. 0 · candidates moving through stages",
       "people": "fig. 0 · time off on a calendar",
@@ -2656,6 +2743,22 @@
       "s1": "Viewed pricing",
       "s2": "Started signup",
       "s3": "Created a project"
+    },
+    "analytics": {
+      "navBrowse": "Browse",
+      "navData": "Data",
+      "navDashboard": "Sales",
+      "title": "Sales this year",
+      "new": "New question",
+      "ask": "deals won per month this year",
+      "statRevenue": "Revenue won",
+      "statWon": "Deals won",
+      "chartLabel": "Deals won per month",
+      "tableTitle": "Top customers",
+      "tableValue": "Revenue",
+      "r1": "Acme",
+      "r2": "Globex",
+      "r3": "Initech"
     },
     "social": {
       "sketch": "Sketch",
@@ -3618,6 +3721,8 @@
     "paramAnalyticsCohort": "Only persons in this cohort id.",
     "scope_analytics_read": "Read Pulse projects, events, persons and run queries.",
     "scope_analytics_write": "Change Pulse projects, insights, dashboards, cohorts and flags.",
+    "scope_bi_read": "Read Analytics questions, dashboards and collections and run queries.",
+    "scope_bi_write": "Create and change Analytics questions, dashboards, collections and subscriptions.",
     "scope_social_read": "Read Social posts on the accounts you can see.",
     "scope_people_read": "Read the People directory: public profile fields only, never salary or personal data.",
     "scope_hiring_read": "Read Hiring jobs and the candidates the key's owner can see.",

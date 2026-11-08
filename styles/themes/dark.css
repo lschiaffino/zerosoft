@@ -83,6 +83,9 @@
   --c-pulse-ink: #8f8af2;
   --c-pulse: #8f8af2;
   --c-pulse-on: #111111;
+  --c-analytics-ink: #6fa8ec;
+  --c-analytics: #6fa8ec;
+  --c-analytics-on: #111111;
   /* Hiring: el verde azulado base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
   --c-hiring-ink: #3bbfae;
   --c-hiring: #3bbfae;
@@ -207,6 +210,9 @@
   --c-pulse-ink: #8f8af2;
   --c-pulse: #8f8af2;
   --c-pulse-on: #111111;
+  --c-analytics-ink: #6fa8ec;
+  --c-analytics: #6fa8ec;
+  --c-analytics-on: #111111;
   /* Hiring: el verde azulado base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
   --c-hiring-ink: #3bbfae;
   --c-hiring: #3bbfae;

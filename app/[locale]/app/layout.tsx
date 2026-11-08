@@ -101,6 +101,7 @@ export default async function AppLayout(
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   const tAnalyticsReplay = await getTranslations({ locale, namespace: 'analyticsReplay' });
   const tAnalyticsMore = await getTranslations({ locale, namespace: 'analyticsMore' });
+  const tBi = await getTranslations({ locale, namespace: 'bi' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
   const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tSend, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
@@ -328,6 +329,8 @@ export default async function AppLayout(
                 { href: '/app/pulse/llm', label: tAnalyticsMore('sidebar.llm') },
                 { href: '/app/pulse/sql', label: tAnalytics('sidebar.sql') },
                 { href: '/app/pulse/projects', label: tAnalytics('sidebar.projects') },
+                { href: '/app/analytics', label: tBi('nav.browse') },
+                { href: '/app/analytics/data', label: tBi('nav.data') },
                 { href: '/app/social', label: tSocial('sidebar.calendar') },
                 { href: '/app/social/posts', label: tSocial('sidebar.posts') },
                 { href: '/app/social/inbox', label: tSocial('sidebar.inbox') },
@@ -544,6 +547,7 @@ export default async function AppLayout(
               store: tShop('nav.store'),
               newProduct: tShop('products.new'),
             },
+            bi: { browse: tBi('nav.browse'), data: tBi('nav.data'), newQuestion: tBi('nav.newQuestion'), newSql: tBi('nav.newSql'), newDashboard: tBi('nav.newDashboard') },
             analytics: {
               web: tAnalytics('sidebar.web'),
               events: tAnalytics('sidebar.events'),

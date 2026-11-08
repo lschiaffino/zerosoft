@@ -28,6 +28,7 @@ export const PRODUCT_FIGURES: Record<ProductKey, FigureRef> = {
   design: ['shapes', 'design'],
   shop: ['shapes', 'shop'],
   pulse: ['chart', 'bars'],
+  analytics: ['chart', 'bars'],
   social: ['days', 'social'],
   hiring: ['board', 'hiring'],
   people: ['days', 'people'],

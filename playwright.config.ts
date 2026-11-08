@@ -95,6 +95,10 @@ export default defineConfig({
       // IA de Track (triage, resúmenes, agentes) contra el mismo modelo falso
       // (lib/track-ai.ts); con la cookie track_ai_fake=off se ve ai_disabled.
       TRACK_AI_FAKE: '1',
+      // Analytics: preguntar en lenguaje natural contra el modelo falso (lib/bi/ai.ts; la cookie bi_ai_fake=off
+      // se comporta como sin IA) y bases externas en 127.0.0.1 (el Postgres en proceso de tests/e2e/bi.spec.ts).
+      BI_AI_FAKE: '1',
+      ANALYTICS_ALLOW_PRIVATE_DB: '1',
       // Importadores: Linear, GitHub, Jira, Asana, Shortcut y Calendly apuntan a un mock local
       // (tests/e2e/importers.spec.ts lo levanta en PORT + 1). Nada sale a internet.
       IMPORT_LINEAR_API_URL: `http://127.0.0.1:${PORT + 1}/linear`,

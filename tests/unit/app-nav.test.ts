@@ -14,8 +14,8 @@ import {
 } from '@/components/app/sidebar-nav';
 import { pageExists } from './page-exists';
 
-const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'rec', 'hiring', 'sign', 'agents', 'robots', 'pulse'];
-const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'pulse', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send'];
+const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'rec', 'hiring', 'sign', 'agents', 'robots', 'analytics', 'pulse'];
+const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'pulse', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send'];
 
 
 /**
@@ -32,7 +32,7 @@ const appDir = join(root, 'app', '[locale]');
 function fakeLabels(): SidebarLabels {
   const proxy = (prefix: string): unknown =>
     new Proxy({}, { get: (_t, key) => (typeof key === 'string' ? `${prefix}${key}` : undefined) });
-  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'notifications'];
+  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'bi', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'notifications'];
   return new Proxy({} as SidebarLabels, {
     get: (_t, key) => (typeof key === 'string' && nested.includes(key) ? proxy(`${key}.`) : String(key)),
   });

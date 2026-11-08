@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-analytics-questions-dashboards',
+    date: '2026-11-08',
+    title: {
+      en: 'Analytics: questions and dashboards over your data',
+      es: 'Analytics: preguntas y tableros sobre tus datos',
+      pt: 'Analytics: perguntas e painéis sobre seus dados',
+    },
+    items: [
+      {
+        product: 'analytics',
+        en: 'A new app to ask questions about your CRM, Track, Books, Groups and Pulse data, with each person seeing only what they can see in each app. Build a question without code, write SQL with autocomplete and variables, or ask in plain words and read the SQL it writes.',
+        es: 'Una app nueva para hacer preguntas sobre tus datos de CRM, Track, Books, Groups y Pulse, donde cada persona ve solo lo que puede ver en cada app. Armá una pregunta sin código, escribí SQL con autocompletado y variables, o preguntá con tus palabras y leé el SQL que arma.',
+        pt: 'Um app novo para fazer perguntas sobre seus dados de CRM, Track, Books, Groups e Pulse, em que cada pessoa vê só o que pode ver em cada app. Monte uma pergunta sem código, escreva SQL com autocompletar e variáveis, ou pergunte com suas palavras e leia o SQL que ele monta.',
+      },
+      {
+        product: 'analytics',
+        en: 'Admins can connect PostgreSQL or MySQL. Queries run read-only with a time and row limit, and admins choose who can write SQL on each database.',
+        es: 'Los admins pueden conectar PostgreSQL o MySQL. Las consultas corren de solo lectura con tope de tiempo y de filas, y los admins eligen quién puede escribir SQL en cada base.',
+        pt: 'Os admins podem conectar PostgreSQL ou MySQL. As consultas rodam só de leitura com limite de tempo e de linhas, e os admins escolhem quem pode escrever SQL em cada banco.',
+      },
+      {
+        product: 'analytics',
+        en: 'Dashboards with filters wired to each card, auto-refresh and full screen, collections, public links and iframes, and daily or weekly summaries by email or to a Talk channel.',
+        es: 'Tableros con filtros conectados a cada tarjeta, actualización automática y pantalla completa, colecciones, links públicos e iframes, y resúmenes diarios o semanales por email o a un canal de Talk.',
+        pt: 'Painéis com filtros conectados a cada cartão, atualização automática e tela cheia, coleções, links públicos e iframes, e resumos diários ou semanais por email ou para um canal do Talk.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-pulse-rename',
     date: '2026-11-08',
     title: {

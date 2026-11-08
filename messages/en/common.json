@@ -40,6 +40,7 @@
       "shop": "Online store with checkout and orders",
       "design": "Graphic design from templates, with your brand",
       "pulse": "Product analytics and feature flags",
+      "analytics": "Questions and dashboards over your data",
       "social": "Schedule, inbox and analytics for social media",
       "people": "Employee directory, time off and reviews",
       "hiring": "Applicant tracking with a careers page",
@@ -195,6 +196,9 @@
     "groupAnalyticsSurveys": "Pulse surveys",
     "groupAnalyticsCohorts": "Pulse cohorts",
     "groupAnalyticsProjects": "Pulse projects",
+    "groupBiQuestions": "Analytics questions",
+    "groupBiDashboards": "Analytics dashboards",
+    "groupBiCollections": "Analytics collections",
     "groupSocialPosts": "Social posts",
     "groupSocialLibrary": "Social library",
     "yourApps": "Your apps",
@@ -277,6 +281,9 @@
     },
     "pulse": {
       "desc": "Events, funnels, retention and feature flags for your product."
+    },
+    "analytics": {
+      "desc": "Questions, SQL and dashboards over your workspace and your databases."
     },
     "social": {
       "desc": "Plan, publish and answer on social media."
@@ -513,6 +520,9 @@
       },
       "pulse": {
         "line": "Product analytics, web analytics and feature flags."
+      },
+      "analytics": {
+        "line": "Questions, SQL and dashboards over your data."
       },
       "building": "In the works · like {rival}",
       "social": {
