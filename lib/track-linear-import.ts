@@ -77,6 +77,9 @@ export const LINEAR_QUERIES = {
     nodes { id name description content icon status targetDate updatedAt owner ${PERSON} projects(first: 50) { nodes { id } } }
   }
 }`,
+  documents: `query Documents($after: String) {
+  documents(first: 50, after: $after) { ${PAGE} nodes { id title content icon createdAt updatedAt project { id } } }
+}`,
   cycles: `query Cycles($after: String) {
   cycles(first: 100, after: $after, includeArchived: true) { ${PAGE} nodes { id number name startsAt endsAt team { key name } } }
 }`,
@@ -112,12 +115,13 @@ export const LINEAR_QUERIES = {
 } as const;
 
 export type LinearPhase = keyof typeof LINEAR_QUERIES;
-export const LINEAR_PHASES: LinearPhase[] = ['viewer', 'users', 'teams', 'projects', 'initiatives', 'cycles', 'issues', 'comments', 'attachments', 'relations'];
+export const LINEAR_PHASES: LinearPhase[] = ['viewer', 'users', 'teams', 'projects', 'initiatives', 'documents', 'cycles', 'issues', 'comments', 'attachments', 'relations'];
 const ROOT_FIELD: Record<Exclude<LinearPhase, 'viewer'>, string> = {
   users: 'users',
   teams: 'teams',
   projects: 'projects',
   initiatives: 'initiatives',
+  documents: 'documents',
   cycles: 'cycles',
   issues: 'issues',
   comments: 'comments',
@@ -180,6 +184,17 @@ export interface LinearInitiativeItem {
   updatedAt: string | null;
   owner: ImportPerson | null;
   planExtIds: string[];
+}
+
+/** Documento de Linear: página de Docs del workspace, enlazada como recurso de su project. */
+export interface LinearDocumentItem {
+  extId: string;
+  title: string;
+  markdown: string;
+  icon: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  planExtId: string | null;
 }
 
 export interface LinearCycleItem {
@@ -377,6 +392,21 @@ function nodeToItems(phase: LinearPhase, n: any): Array<{ kind: string; data: un
         },
       ];
     }
+    case 'documents':
+      return [
+        {
+          kind: 'document',
+          data: {
+            extId: String(n.id),
+            title: clip(String(n.title ?? '').trim(), 300) || 'Untitled',
+            markdown: String(n.content ?? ''),
+            icon: null,
+            createdAt: normalizeDate(n.createdAt),
+            updatedAt: normalizeDate(n.updatedAt),
+            planExtId: n.project?.id ? String(n.project.id) : null,
+          } satisfies LinearDocumentItem,
+        },
+      ];
     case 'cycles': {
       const c = linearCycleToItem(n);
       return c ? [{ kind: 'cycle', data: c }] : [];

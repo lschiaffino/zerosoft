@@ -68,6 +68,7 @@ interface Preview {
   relations?: number;
   attachments?: number;
   initiatives?: number;
+  documents?: number;
   triage?: number;
   archived?: number;
   projects: Array<{ name: string; issues: number; existing: string | null }>;
@@ -86,6 +87,7 @@ interface Report {
   skipped: number;
   plansCreated?: number;
   initiativesCreated?: number;
+  documents?: number;
   planUpdates?: number;
   relations?: number;
   attachments?: number;
@@ -502,6 +504,7 @@ function PreviewView({ job, onConfirm, onCancel }: { job: ImportJobView; onConfi
         <ImportStat value={p.projects.length} label={t('stat.projects')} />
         {plans.length > 0 && <ImportStat value={plans.length} label={t('stat.plans')} />}
         {(p.initiatives ?? 0) > 0 && <ImportStat value={p.initiatives ?? 0} label={t('stat.initiatives')} />}
+        {(p.documents ?? 0) > 0 && <ImportStat value={p.documents ?? 0} label={t('stat.documents')} />}
         <ImportStat value={p.labels.total} label={t('stat.labels')} />
         <ImportStat value={p.cycles} label={t('stat.cycles')} />
         <ImportStat value={p.milestones} label={t('stat.milestones')} />
@@ -714,6 +717,7 @@ function DoneView({ job, onAgain }: { job: ImportJobView; onAgain: () => void })
     ['cycles', r.cyclesCreated],
     ['plans', r.plansCreated ?? 0],
     ['initiatives', r.initiativesCreated ?? 0],
+    ['documents', r.documents ?? 0],
     ['milestones', r.milestonesCreated],
   ] as const;
   const created = parts.filter(([, n]) => n > 0).map(([k, n]) => t(`createdPart.${k}`, { count: n }));

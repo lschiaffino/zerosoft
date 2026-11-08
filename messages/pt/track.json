@@ -952,7 +952,8 @@
       "plans": "Projects",
       "relations": "Relações",
       "attachments": "Links",
-      "initiatives": "Initiatives"
+      "initiatives": "Initiatives",
+      "documents": "Documentos"
     },
     "already": "{count, plural, one {# issue já foi importado antes e será pulado.} other {# issues já foram importados antes e serão pulados.}}",
     "truncated": "A origem tem mais issues do que cabem numa importação. O resto ficou de fora.",
@@ -994,7 +995,8 @@
       "read_comments": "Lendo comentários",
       "read_attachments": "Lendo links",
       "read_relations": "Lendo relações",
-      "read_initiatives": "Lendo initiatives"
+      "read_initiatives": "Lendo initiatives",
+      "read_documents": "Lendo documentos"
     },
     "doneTitle": "Importação concluída.",
     "doneSummary": "{issues, plural, one {# issue} other {# issues}} e {comments, plural, one {# comentário} other {# comentários}} importados, {skipped, number} pulados.",
@@ -1014,7 +1016,8 @@
       "cycles": "{count, plural, one {# cycle} other {# cycles}}",
       "milestones": "{count, plural, one {# milestone} other {# milestones}}",
       "plans": "{count, plural, one {# project} other {# projects}}",
-      "initiatives": "{count, plural, one {# initiative} other {# initiatives}}"
+      "initiatives": "{count, plural, one {# initiative} other {# initiatives}}",
+      "documents": "{count, plural, one {# documento} other {# documentos}}"
     },
     "jiraSite": "Site do Jira",
     "jiraEmail": "Email da conta Atlassian",
@@ -1048,7 +1051,7 @@
     "doneLinks": "Foram importados {relations, plural, one {# relação} other {# relações}}, {attachments, plural, one {# link} other {# links}} e {updates, plural, one {# update de project} other {# updates de projects}}.",
     "openPlan": "Abrir o project {name}",
     "linearTokenNote": "Usada só para este import. Fica criptografada até o import terminar, para copiar os arquivos que você enviou ao Linear, e depois é apagada.",
-    "doneRenumbered": "{count, plural, one {# issue ficou com outro ID porque o número já era usado no Track: {list}.} other {# issues ficaram com outro ID porque os números já eram usados no Track: {list}.}} Para evitar, continue criando issues no Linear até o import final.",
+    "doneRenumbered": "{count, plural, one {Mudou # ID para que cada ID do Linear continue levando ao seu issue do Linear: {list}.} other {Mudaram # IDs para que cada ID do Linear continue levando ao seu issue do Linear: {list}.}} Os issues criados no Track durante a mudança tinham pegado números que o Linear já usava.",
     "inviteCopyLink": "Copiar link do convite",
     "inviteLinkCopied": "Copiado"
   },

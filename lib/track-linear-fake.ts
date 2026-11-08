@@ -272,6 +272,17 @@ export function linearFakeWorkspace(token: string, now = Date.now()): Record<str
     comments,
     attachments,
     issueRelations: relations,
+    documents: [
+      {
+        id: 'doc-spec',
+        title: 'Offline sync spec',
+        content: '# Offline sync\n\nWrites queue locally and replay on reconnect.\n\n- Max queue: 5 MB\n- Conflicts: last writer wins',
+        icon: null,
+        createdAt: day(-25, base),
+        updatedAt: v2 ? day(0, base) : day(-5, base),
+        project: { id: 'p-mobile' },
+      },
+    ],
     initiatives: [
       {
         id: 'in-launch',

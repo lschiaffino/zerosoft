@@ -952,7 +952,8 @@
       "plans": "Projects",
       "relations": "Relations",
       "attachments": "Links",
-      "initiatives": "Initiatives"
+      "initiatives": "Initiatives",
+      "documents": "Documents"
     },
     "already": "{count, plural, one {# issue was imported before and will be skipped.} other {# issues were imported before and will be skipped.}}",
     "truncated": "The source has more issues than one import accepts. The rest were left out.",
@@ -994,7 +995,8 @@
       "read_comments": "Reading comments",
       "read_attachments": "Reading links",
       "read_relations": "Reading relations",
-      "read_initiatives": "Reading initiatives"
+      "read_initiatives": "Reading initiatives",
+      "read_documents": "Reading documents"
     },
     "doneTitle": "Import finished.",
     "doneSummary": "{issues, plural, one {# issue} other {# issues}} and {comments, plural, one {# comment} other {# comments}} imported, {skipped, number} skipped.",
@@ -1014,7 +1016,8 @@
       "cycles": "{count, plural, one {# cycle} other {# cycles}}",
       "milestones": "{count, plural, one {# milestone} other {# milestones}}",
       "plans": "{count, plural, one {# project} other {# projects}}",
-      "initiatives": "{count, plural, one {# initiative} other {# initiatives}}"
+      "initiatives": "{count, plural, one {# initiative} other {# initiatives}}",
+      "documents": "{count, plural, one {# document} other {# documents}}"
     },
     "jiraSite": "Jira site",
     "jiraEmail": "Atlassian account email",
@@ -1048,7 +1051,7 @@
     "doneLinks": "{relations, plural, one {# relation} other {# relations}}, {attachments, plural, one {# link} other {# links}} and {updates, plural, one {# project update} other {# project updates}} imported.",
     "openPlan": "Open project {name}",
     "linearTokenNote": "Used only for this import. It is kept encrypted until the import finishes, to copy the files you uploaded to Linear, and deleted then.",
-    "doneRenumbered": "{count, plural, one {# issue got a new ID because its number was already used in Track: {list}.} other {# issues got new IDs because their numbers were already used in Track: {list}.}} To avoid it, keep creating issues in Linear until the final import.",
+    "doneRenumbered": "{count, plural, one {# ID changed so every Linear ID keeps pointing to its Linear issue: {list}.} other {# IDs changed so every Linear ID keeps pointing to its Linear issue: {list}.}} Issues created in Track during the move took numbers Linear was already using.",
     "inviteCopyLink": "Copy invite link",
     "inviteLinkCopied": "Copied"
   },

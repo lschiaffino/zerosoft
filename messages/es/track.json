@@ -952,7 +952,8 @@
       "plans": "Projects",
       "relations": "Relaciones",
       "attachments": "Links",
-      "initiatives": "Initiatives"
+      "initiatives": "Initiatives",
+      "documents": "Documentos"
     },
     "already": "{count, plural, one {# issue ya se importó antes y se va a saltear.} other {# issues ya se importaron antes y se van a saltear.}}",
     "truncated": "La fuente tiene más issues de los que entran en un import. El resto quedó afuera.",
@@ -994,7 +995,8 @@
       "read_comments": "Leyendo comentarios",
       "read_attachments": "Leyendo links",
       "read_relations": "Leyendo relaciones",
-      "read_initiatives": "Leyendo initiatives"
+      "read_initiatives": "Leyendo initiatives",
+      "read_documents": "Leyendo documentos"
     },
     "doneTitle": "Import terminado.",
     "doneSummary": "{issues, plural, one {# issue} other {# issues}} y {comments, plural, one {# comentario} other {# comentarios}} importados, {skipped, number} salteados.",
@@ -1014,7 +1016,8 @@
       "cycles": "{count, plural, one {# cycle} other {# cycles}}",
       "milestones": "{count, plural, one {# milestone} other {# milestones}}",
       "plans": "{count, plural, one {# project} other {# projects}}",
-      "initiatives": "{count, plural, one {# initiative} other {# initiatives}}"
+      "initiatives": "{count, plural, one {# initiative} other {# initiatives}}",
+      "documents": "{count, plural, one {# documento} other {# documentos}}"
     },
     "jiraSite": "Sitio de Jira",
     "jiraEmail": "Email de la cuenta de Atlassian",
@@ -1048,7 +1051,7 @@
     "doneLinks": "Se importaron {relations, plural, one {# relación} other {# relaciones}}, {attachments, plural, one {# link} other {# links}} y {updates, plural, one {# update de project} other {# updates de projects}}.",
     "openPlan": "Abrir el project {name}",
     "linearTokenNote": "Se usa solo para este import. Queda cifrada hasta que termina, para copiar los archivos que subiste a Linear, y después se borra.",
-    "doneRenumbered": "{count, plural, one {# issue quedó con otro ID porque su número ya se usaba en Track: {list}.} other {# issues quedaron con otro ID porque sus números ya se usaban en Track: {list}.}} Para evitarlo, seguí creando issues en Linear hasta el import final.",
+    "doneRenumbered": "{count, plural, one {Cambió # ID para que cada ID de Linear siga llevando a su issue de Linear: {list}.} other {Cambiaron # IDs para que cada ID de Linear siga llevando a su issue de Linear: {list}.}} Los issues creados en Track durante la mudanza habían tomado números que Linear ya usaba.",
     "inviteCopyLink": "Copiar link de invitación",
     "inviteLinkCopied": "Copiado"
   },

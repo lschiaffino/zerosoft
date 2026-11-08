@@ -5,7 +5,7 @@ import { runImportJob, startImportJob } from '@/lib/import-runner';
 import { parseOperation, validateOperation, type GqlSchemaMap } from '@/lib/graphql-lite';
 import { LINEAR_QUERIES } from '@/lib/track-linear-import';
 import { fakeLinearGraphql } from '@/lib/track-linear-fake';
-import { listIssues, listStatuses, nextIdentifier } from '@/lib/track-data';
+import { createIssue, listIssues, listStatuses, nextIdentifier, resolveIssueRef } from '@/lib/track-data';
 import schemaJson from '@/lib/fixtures/linear-schema.json';
 import { makeUser } from './helpers';
 
@@ -83,7 +83,7 @@ describe('track import de Linear: workspace entero', () => {
     // La key se guarda cifrada y se borra al terminar de leer.
     expect((await getImportJobRow(job.id))?.secret).toBeNull();
     const p = preview.preview as Record<string, unknown>;
-    expect(p).toMatchObject({ sourceName: 'Acme', issues: 11, comments: 4, relations: 4, attachments: 4, initiatives: 1, triage: 1, archived: 1, cycles: 3 });
+    expect(p).toMatchObject({ sourceName: 'Acme', issues: 11, comments: 4, relations: 4, attachments: 4, initiatives: 1, documents: 1, triage: 1, archived: 1, cycles: 3 });
     expect((p.projects as Array<{ name: string }>).map((t) => t.name).sort()).toEqual(['Design', 'Engineering']);
     expect((p.plans as Array<{ name: string }>).map((x) => x.name)).toEqual(['Mobile app v2', 'Billing revamp']);
     const people = p.people as Array<{ label: string; member: string | null }>;
@@ -183,6 +183,16 @@ describe('track import de Linear: workspace entero', () => {
     // Una edición hecha en Track después del import se respeta.
     await db.prepare("UPDATE track_issues SET title = 'Edited in Track', updated_at = ? WHERE id = ?").run(new Date().toISOString(), (await issue('Resolve conflicts on reconnect')).id);
 
+    // Documento de Linear → página de Docs del workspace, enlazada como recurso del project.
+    const docPage = (await db.prepare("SELECT id, user_id, content FROM docs_pages WHERE user_id = ? AND title = 'Offline sync spec'").get(u.id)) as Row;
+    expect(String(docPage.content)).toContain('Writes queue locally');
+    const planLinks = JSON.parse(String(((await db.prepare('SELECT links FROM track_plans WHERE id = ?').get(plan.id)) as Row).links)) as Array<{ url: string }>;
+    expect(planLinks.map((l) => l.url)).toContain(`/app/docs/${docPage.id}`);
+
+    // Mientras dura la mudanza alguien crea un issue en Track: toma ENG-10, que Linear también va a usar.
+    const local = await createIssue(eng.id, u.id, { title: 'Created in Track during the move', description: [] }, { source: 'app' });
+    expect(local.identifier).toBe('ENG-10');
+
     // Un día después en Linear: un issue renombrado y movido, un comentario y un issue nuevos.
     const v2 = await importLinear(u.id, 'lin_api_fake_v2');
     expect(v2.preview.preview).toMatchObject({ issues: 12, alreadyImported: 11, toUpdate: 1 });
@@ -191,11 +201,15 @@ describe('track import de Linear: workspace entero', () => {
     expect(renamed.title).toBe('Offline sync for the mobile app (v2)');
     expect((await listStatuses(eng.id)).find((s) => s.id === renamed.status_id)?.name).toBe('In Review');
     expect(await issue('Edited in Track')).toBeTruthy();
-    expect((await issue('Retry failed uploads')).identifier).toBe('ENG-10');
-    // Un issue nuevo en Track sigue la numeración de Linear.
-    expect(await nextIdentifier(eng.id)).toBe('ENG-11');
+    // El ID de Linear es del issue de Linear; el local pasó al siguiente y el informe lo dice.
+    const retry = await issue('Retry failed uploads');
+    expect(retry.identifier).toBe('ENG-10');
+    expect((await issue('Created in Track during the move')).identifier).toBe('ENG-11');
+    expect(v2.done.report).toMatchObject({ renumbered: [{ from: 'ENG-10', to: 'ENG-11' }], documents: 1 });
+    expect(await resolveIssueRef('ENG-10', null, u.id)).toBe(retry.id);
+    expect(await nextIdentifier(eng.id)).toBe('ENG-12');
     const total = (await db.prepare('SELECT COUNT(*) AS n FROM track_issues WHERE project_id IN (?, ?)').get(teams[0].id, eng.id)) as { n: number };
-    expect(Number(total.n)).toBe(12);
+    expect(Number(total.n)).toBe(13);
 
     // Una página de 2 issues trae igual el total por status (las columnas del board dicen el real).
     const page = await listIssues(eng.id, { pageSize: 2, page: 1 });

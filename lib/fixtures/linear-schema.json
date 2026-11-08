@@ -522,6 +522,169 @@
    "type": "PageInfo"
   }
  },
+ "Document": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "collaborators": {
+   "args": [],
+   "type": "DocumentCollaborator"
+  },
+  "color": {
+   "args": [],
+   "type": "String"
+  },
+  "comments": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "CommentConnection"
+  },
+  "content": {
+   "args": [],
+   "type": "String"
+  },
+  "contentState": {
+   "args": [],
+   "type": "String"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "creator": {
+   "args": [],
+   "type": "User"
+  },
+  "cycle": {
+   "args": [],
+   "type": "Cycle"
+  },
+  "documentContentId": {
+   "args": [],
+   "type": "String"
+  },
+  "generalAccess": {
+   "args": [],
+   "type": "DocumentShareRole"
+  },
+  "hiddenAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "icon": {
+   "args": [],
+   "type": "String"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "initiative": {
+   "args": [],
+   "type": "Initiative"
+  },
+  "issue": {
+   "args": [],
+   "type": "Issue"
+  },
+  "lastAppliedTemplate": {
+   "args": [],
+   "type": "Template"
+  },
+  "owner": {
+   "args": [],
+   "type": "User"
+  },
+  "parentDocument": {
+   "args": [],
+   "type": "Document"
+  },
+  "personalUser": {
+   "args": [],
+   "type": "User"
+  },
+  "project": {
+   "args": [],
+   "type": "Project"
+  },
+  "release": {
+   "args": [],
+   "type": "Release"
+  },
+  "slugId": {
+   "args": [],
+   "type": "String"
+  },
+  "sortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "subDocumentSortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "subscribers": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "includeDisabled",
+    "last",
+    "orderBy"
+   ],
+   "type": "UserConnection"
+  },
+  "summary": {
+   "args": [],
+   "type": "String"
+  },
+  "team": {
+   "args": [],
+   "type": "Team"
+  },
+  "title": {
+   "args": [],
+   "type": "String"
+  },
+  "trashed": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "updatedBy": {
+   "args": [],
+   "type": "User"
+  },
+  "url": {
+   "args": [],
+   "type": "String"
+  },
+  "viewerCanComment": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "viewerCanEdit": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "viewerCanManageAccess": {
+   "args": [],
+   "type": "Boolean"
+  }
+ },
  "DocumentConnection": {
   "edges": {
    "args": [],
@@ -2931,6 +3094,19 @@
     "orderBy"
    ],
    "type": "CycleConnection"
+  },
+  "documents": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "DocumentConnection"
   },
   "initiatives": {
    "args": [

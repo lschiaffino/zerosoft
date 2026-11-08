@@ -48,7 +48,10 @@ import { upsertExternalRef } from './track-integrations';
 import type { NormalizedComment, NormalizedIssue, TrackImportSource } from './track-import-map';
 import { fetchLinearUpload, LINEAR_UPLOAD_RE } from './track-linear-import';
 import { saveUpload } from './uploads';
-import type { ImportPerson, LinearInitiativeItem, LinearAttachmentItem, LinearCycleItem, LinearPlanItem, LinearRelationItem, LinearTeamItem, LinearUserItem } from './track-linear-import';
+import { markdownToBlocks } from './docs-import';
+import { sanitizeDocsHtml } from './docs-sanitize';
+import { stringifyBlocks } from './docs-types';
+import type { ImportPerson, LinearDocumentItem, LinearInitiativeItem, LinearAttachmentItem, LinearCycleItem, LinearPlanItem, LinearRelationItem, LinearTeamItem, LinearUserItem } from './track-linear-import';
 
 export interface TrackImportOptions {
   /** 'new' = un proyecto por proyecto de la fuente; si no, el id del proyecto destino. */
@@ -153,6 +156,7 @@ export interface TrackImportPreview {
   relations: number;
   attachments: number;
   initiatives: number;
+  documents: number;
   triage: number;
   archived: number;
   priorities: Record<string, number>;
@@ -305,6 +309,7 @@ export async function trackPreview(job: ImportJob, items: StagedItem[]): Promise
     relations: items.filter((i) => i.kind === 'relation').length,
     attachments: items.filter((i) => i.kind === 'attachment').length,
     initiatives: items.filter((i) => i.kind === 'initiative').length,
+    documents: items.filter((i) => i.kind === 'document').length,
     triage,
     archived,
     priorities,
@@ -332,6 +337,8 @@ export interface TrackImportReport {
   milestonesCreated: number;
   plansCreated: number;
   initiativesCreated: number;
+  /** Documentos de Linear → páginas de Docs (nuevas y actualizadas). */
+  documents: number;
   planUpdates: number;
   relations: number;
   attachments: number;
@@ -358,6 +365,7 @@ export function emptyTrackReport(): TrackImportReport {
     milestonesCreated: 0,
     plansCreated: 0,
     initiativesCreated: 0,
+    documents: 0,
     planUpdates: 0,
     relations: 0,
     attachments: 0,
@@ -793,13 +801,34 @@ async function identifierTaken(projectId: string, identifier: string): Promise<b
   return !!row;
 }
 
-async function sourceIdentifier(projectId: string, key: string | null | undefined): Promise<string | null> {
+/**
+ * El ID de la fuente para el issue nuevo (ENG-457), si el team tiene esa clave.
+ * La numeración es de Linear mientras dure la mudanza: si un issue creado en
+ * Track (no importado) ya tomó ese número, ese issue local pasa al siguiente
+ * número libre (queda en el informe) y el ID de Linear sigue llevando al issue
+ * de Linear, nunca al local.
+ */
+async function sourceIdentifier(ctx: WriteCtx, projectId: string, key: string | null | undefined): Promise<string | null> {
   const id = key?.trim().toUpperCase();
   const m = id ? /^([A-Z][A-Z0-9]*)-(\d+)$/.exec(id) : null;
   if (!m || Number(m[2]) < 1) return null;
-  const team = (await getDb().prepare('SELECT slug FROM track_projects WHERE id = ?').get(projectId)) as { slug: string } | undefined;
+  const db = getDb();
+  const team = (await db.prepare('SELECT slug FROM track_projects WHERE id = ?').get(projectId)) as { slug: string } | undefined;
   if (!team || team.slug.toUpperCase() !== m[1]) return null;
-  return (await identifierTaken(projectId, id!)) ? null : `${m[1]}-${Number(m[2])}`;
+  const wanted = `${m[1]}-${Number(m[2])}`;
+  const holder = (await db.prepare('SELECT id FROM track_issues WHERE project_id = ? AND UPPER(identifier) = ?').get(projectId, wanted)) as { id: string } | undefined;
+  if (holder) {
+    const imported = await db
+      .prepare("SELECT 1 FROM import_external_ids WHERE workspace_id = ? AND local_id = ? AND kind IN ('issue', 'issue_uuid') LIMIT 1")
+      .get(ctx.ws, holder.id);
+    if (imported) return null;
+    const next = await nextIdentifier(projectId);
+    await db.prepare('UPDATE track_issues SET identifier = ?, updated_at = updated_at WHERE id = ?').run(next, holder.id);
+    if (ctx.report.renumbered.length < 200) ctx.report.renumbered.push({ from: wanted, to: next });
+    return wanted;
+  }
+  // Un alias (ID viejo de un issue movido) no lo bloquea: el ID directo resuelve antes que un alias.
+  return wanted;
 }
 
 async function upsertIssue(ctx: WriteCtx, issue: NormalizedIssue): Promise<void> {
@@ -856,7 +885,7 @@ async function upsertIssue(ctx: WriteCtx, issue: NormalizedIssue): Promise<void>
 
   // El identificador de la fuente (ENG-457) si el team tiene esa clave y está libre:
   // branches, PRs y links viejos siguen apuntando al mismo issue. Los nuevos siguen después.
-  let identifier = (await sourceIdentifier(projectId, issue.key)) ?? (await nextIdentifier(projectId));
+  let identifier = (await sourceIdentifier(ctx, projectId, issue.key)) ?? (await nextIdentifier(projectId));
   for (let attempt = 0; ; attempt++) {
     try {
       await db
@@ -1001,6 +1030,50 @@ async function ensureInitiative(ctx: WriteCtx, it: LinearInitiativeItem): Promis
   await setExternalId(ctx.ws, ctx.src, 'initiative', it.extId, id);
 }
 
+/**
+ * Documento de Linear → página de Docs del workspace (user_id = el workspace,
+ * como el resto de las apps), con sus imágenes copiadas, y enlazada como
+ * recurso del project al que pertenece. Reimportar actualiza si cambió.
+ */
+async function ensureDocument(ctx: WriteCtx, doc: LinearDocumentItem): Promise<void> {
+  const db = getDb();
+  const content = stringifyBlocks(markdownToBlocks(await rehostUploads(ctx, doc.markdown), { sanitize: sanitizeDocsHtml }));
+  let id = await getExternalId(ctx.ws, ctx.src, 'document', doc.extId);
+  const row = id
+    ? ((await db.prepare('SELECT id, updated_at FROM docs_pages WHERE id = ? AND user_id = ?').get(id, ctx.job.workspace_id)) as { id: string; updated_at: string } | undefined)
+    : undefined;
+  const now = new Date().toISOString();
+  if (row) {
+    if (doc.updatedAt && doc.updatedAt > row.updated_at) {
+      await db.prepare('UPDATE docs_pages SET title = ?, content = ?, updated_at = ? WHERE id = ?').run(doc.title, content, doc.updatedAt, row.id);
+      ctx.report.documents += 1;
+    }
+  } else {
+    id = crypto.randomUUID();
+    await db
+      .prepare('INSERT INTO docs_pages (id, user_id, parent_id, title, icon, content, teamspace_id, created_at, updated_at) VALUES (?, ?, NULL, ?, ?, ?, NULL, ?, ?)')
+      .run(id, ctx.job.workspace_id, doc.title, doc.icon, content, doc.createdAt ?? now, doc.updatedAt ?? doc.createdAt ?? now);
+    await setExternalId(ctx.ws, ctx.src, 'document', doc.extId, id);
+    ctx.report.documents += 1;
+  }
+  if (!doc.planExtId || !id) return;
+  const planId = ctx.plans.get(doc.planExtId) ?? (await getExternalId(ctx.ws, ctx.src, 'plan', doc.planExtId));
+  if (!planId) return;
+  const plan = (await db.prepare('SELECT links FROM track_plans WHERE id = ?').get(planId)) as { links: string } | undefined;
+  if (!plan) return;
+  const url = `/app/docs/${id}`;
+  let links: Array<{ url: string; title: string }> = [];
+  try {
+    links = JSON.parse(plan.links || '[]') as Array<{ url: string; title: string }>;
+  } catch {
+    links = [];
+  }
+  const existing = links.find((l) => l.url === url);
+  if (existing) existing.title = doc.title;
+  else links.push({ url, title: doc.title });
+  await db.prepare('UPDATE track_plans SET links = ? WHERE id = ?').run(JSON.stringify(links), planId);
+}
+
 async function insertCycleItem(ctx: WriteCtx, c: LinearCycleItem): Promise<void> {
   const projectId = await mappedProject(ctx, c.teamExtId);
   if (projectId) await ensureCycle(ctx, projectId, c);
@@ -1037,6 +1110,9 @@ export async function trackWriteStep(job: ImportJob, stage: string, items: Stage
           break;
         case 'plan':
           await ensurePlan(ctx, item.data as unknown as LinearPlanItem);
+          break;
+        case 'document':
+          await ensureDocument(ctx, item.data as unknown as LinearDocumentItem);
           break;
         case 'initiative':
           await ensureInitiative(ctx, item.data as unknown as LinearInitiativeItem);
