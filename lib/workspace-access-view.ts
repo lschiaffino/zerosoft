@@ -170,7 +170,8 @@ export async function personAccess(team: TeamRow, userId: string, locale = 'en')
     n('SELECT COUNT(*) AS n FROM track_project_access a JOIN track_projects p ON p.id = a.project_id WHERE a.user_id = ? AND p.owner_id IN (?, ?)', userId, ws, team.id),
     n('SELECT COUNT(*) AS n FROM docs_teamspace_members m JOIN docs_teamspaces t ON t.id = m.teamspace_id WHERE m.user_id = ? AND t.workspace_id = ?', userId, ws),
   ]);
-  const apps = APP_SWITCHER_ORDER.map((app) => {
+  // Inbox es personal (la tiene todo el mundo): no es un permiso del workspace.
+  const apps = APP_SWITCHER_ORDER.filter((app) => app !== 'inbox').map((app) => {
     const allowed = canUseApp(m, app);
     const d = allowed ? details[app] : undefined;
     return { app, allowed, detail: d ? detailText(d, locale) || null : null };

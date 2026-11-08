@@ -152,7 +152,7 @@ interface Toast {
 export default function MembersPanel({
   openPerson = null,
   actorApps = '*',
-  appOrder = APP_SWITCHER_ORDER,
+  appOrder: sidebarOrder = APP_SWITCHER_ORDER,
   initial: initialDir,
   me,
   role,
@@ -178,6 +178,8 @@ export default function MembersPanel({
 }) {
   const t = useTranslations('settings.members');
   const tp = useTranslations('settings.members.perm');
+  // Inbox es personal (la tiene todo el mundo): no se da ni se quita.
+  const appOrder = useMemo(() => sidebarOrder.filter((k) => k !== 'inbox'), [sidebarOrder]);
   const locale = useLocale();
   const router = useRouter();
   const [dir, setDir] = useState<DirectoryDto>(initialDir);

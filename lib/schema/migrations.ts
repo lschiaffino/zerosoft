@@ -11,6 +11,7 @@ import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
 import { sendUp } from './send-migration';
+import { inboxUp } from './inbox-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -8797,10 +8798,15 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Inbox (personal): WhatsApp y Gmail de una persona. Ver lib/schema/inbox-migration.ts.
+    id: '289_inbox',
+    up: inboxUp,
+  },
+  {
     // Ajustes › Miembros y permisos: registro de cambios (con lo de antes para
     // deshacer), última actividad por persona y la ficha de quien se desactivó
     // (para reactivarlo con el mismo rol, apps y equipos).
-    id: '289_workspace_permissions',
+    id: '290_workspace_permissions',
     up: async (c) => {
       await c.executeMultiple(`
         CREATE TABLE IF NOT EXISTS workspace_audit (
