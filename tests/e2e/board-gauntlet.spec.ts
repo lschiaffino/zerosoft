@@ -124,7 +124,7 @@ test('comentario pegado a un sticky: el pin lo sigue cuando se mueve; minimapa',
   const at = await toScreen(page, note.x + 30, note.y + 30);
   await barAction(page, 'Comentar');
   await page.mouse.click(at.x, at.y);
-  await page.getByRole('textbox').last().fill('¿Esto es de este sprint?');
+  await page.getByRole('combobox', { name: 'Comentario nuevo' }).fill('¿Esto es de este sprint?');
   await page.locator('.board-thread').getByRole('button', { name: 'Comentar', exact: true }).click();
   const pin = page.locator('.board-pin.is-attached');
   await expect(pin).toHaveCount(1);
@@ -225,7 +225,10 @@ test('exportar el tablero a PNG y SVG desde el menú', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   // Sin el selector de archivos de Chromium, Excalidraw baja el archivo como descarga común.
   await page.addInitScript(() => {
-    delete (window as unknown as { showSaveFilePicker?: unknown }).showSaveFilePicker;
+    for (const key of ['showOpenFilePicker', 'showSaveFilePicker']) {
+      delete (window as unknown as Record<string, unknown>)[key];
+      delete (Window.prototype as unknown as Record<string, unknown>)[key];
+    }
   });
   const id = await fromTemplate(page, 'retro', 'Para exportar');
   await openEditor(page, id);
