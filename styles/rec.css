@@ -319,9 +319,9 @@ select.rec-person-role { width: auto; }
 @media (max-width: 520px) {
   .rec-share-add { flex-wrap: wrap; }
   .rec-share-add .input { flex-basis: 100%; }
-  .rec-person { flex-wrap: wrap; }
-  .rec-person-who { flex-basis: calc(100% - 38px); }
-  .rec-person-role { margin-left: 38px; }
+  .rec-person:has(select) { flex-wrap: wrap; }
+  .rec-person:has(select) .rec-person-who { flex-basis: calc(100% - 38px); }
+  select.rec-person-role { margin-left: 38px; }
 }
 
 /* ---------- Comentarios, transcripción, capítulos ---------- */

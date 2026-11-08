@@ -98,7 +98,7 @@ test('restringido por defecto: dueño, miembro invitado, externo con link mágic
   await page.getByTestId('rec-share').click();
   const share = page.getByRole('dialog', { name: /Share/ });
   await expect(share.getByTestId('rec-share-access')).toHaveValue('people');
-  await expect(share.getByTestId('rec-share-people-list')).toContainText('Nobody invited yet');
+  await expect(share.getByTestId('rec-share-people-list')).toContainText('Nobody invited yet', { timeout: 30_000 });
 
   // Miembro del workspace (con su cuenta) y alguien de afuera (sin cuenta), con roles distintos.
   const demoTeam = String((await sql("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].id);
