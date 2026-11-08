@@ -234,7 +234,11 @@ export default function PlansList() {
             value={sort}
             options={PLAN_LIST_SORTS.map((v) => ({ value: v, label: t(`plans.sorts.${v}`) }))}
             onSelect={(v) => setParam('sort', v === 'manual' ? '' : v)}
-            trigger={<span className="track-inline-text">{t(`plans.sorts.${sort}`)}</span>}
+            trigger={
+              <span className="track-inline-text">
+                <span className="tp-sort-label">{t('plans.orderBy')}:</span> {t(`plans.sorts.${sort}`)}
+              </span>
+            }
           />
           <Link href="/app/track/roadmap" className="btn btn-sm btn-ghost">
             {t('plans.timeline')}

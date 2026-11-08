@@ -17,9 +17,8 @@ export async function GET(req: NextRequest, props: Props) {
   if (!ctx) return unauthorized();
   const plan = await getPlanSummary(id, ctx.scope);
   if (!plan) return notFound();
-  const today = /^\d{4}-\d{2}-\d{2}$/.test(req.nextUrl.searchParams.get('today') ?? '')
-    ? (req.nextUrl.searchParams.get('today') as string)
-    : new Date().toISOString().slice(0, 10);
+  // Días en UTC, como las fechas de creación y de la actividad (un "hoy" local las dejaría afuera de noche).
+  const today = new Date().toISOString().slice(0, 10);
   const [milestones, following, series] = await Promise.all([
     listPlanMilestones(id),
     isFollowingPlan(id, ctx.actorId),

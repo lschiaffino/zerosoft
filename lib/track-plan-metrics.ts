@@ -44,7 +44,9 @@ export function planProgressSeries(args: {
   if (issues.length === 0) return { points: [], byPoints: false, start: null, end: null };
   const firstIssue = issues.reduce((min, i) => (isoDay(i.created_at) < min ? isoDay(i.created_at) : min), today);
   let start = args.startDate ?? (firstIssue < isoDay(args.createdAt) ? firstIssue : isoDay(args.createdAt));
-  if (start > today) start = today;
+  // Al menos dos días (ayer y hoy): un project recién empezado ya muestra la línea desde cero.
+  const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  if (start > yesterday) start = yesterday;
   // Hasta hoy (lo que falta no se dibuja); si la fecha objetivo ya pasó, hasta hoy igual: se ve el atraso.
   const end = today;
   // Más de 180 días: se empieza 180 días atrás para que el gráfico se lea.

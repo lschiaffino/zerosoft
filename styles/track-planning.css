@@ -433,7 +433,9 @@
 .tp-row-headrow { min-height: 32px; font-size: 0.75rem; font-weight: 500; color: var(--brand-gray-2); border-bottom: 1px solid var(--line); }
 .tp-row-headrow:hover { background: transparent; }
 .tp-row-issues { font-family: var(--font-data); font-size: 0.75rem; text-align: right; }
-.tp-row-headrow .tp-row-issues { font-family: inherit; }
+.tp-row-headrow .tp-row-issues,
+.tp-row-headrow .tp-row-date { font-family: inherit; font-size: inherit; }
+.tp-sort-label { color: var(--brand-gray-2); }
 .tp-row-lead { display: inline-flex; align-items: center; gap: 6px; }
 .tp-muted { color: var(--brand-gray-2); }
 
@@ -490,6 +492,6 @@
 @media (max-width: 767px) {
   .tp-plans-table .tp-row { grid-template-columns: minmax(0, 1fr) auto; }
   .tp-row-headrow { display: none; }
-  .tp-row-issues { display: none; }
+  .tp-row-issues, .tp-plans-table .tp-row-lead { display: none; }
   .tp-ms-bar { display: none; }
 }

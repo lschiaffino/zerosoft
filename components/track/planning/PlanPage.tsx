@@ -86,7 +86,7 @@ export default function PlanPage({ planId }: { planId: string }) {
 
   const load = useCallback(async () => {
     const [res, m] = await Promise.all([
-      api<PlanResponse>(`/api/track/plans/${planId}?series=1&today=${localDay()}`),
+      api<PlanResponse>(`/api/track/plans/${planId}?series=1`),
       api<PlansMeta & { rows: unknown[] }>('/api/track/plans?meta=only'),
     ]);
     if (res.status === 404) return setState('missing');

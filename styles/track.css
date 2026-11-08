@@ -2967,4 +2967,4 @@ a.track-board-card-title:hover {
 .track-list-loading { display: flex; flex-direction: column; gap: 2px; }
 .track-list-more { margin: 4px 0 0; }
 .track-list-title { margin: 0; font-size: 0.9375rem; font-weight: 600; line-height: 32px; white-space: nowrap; }
-.track-list-tabs .track-list-pagetabs { margin: 0; border-bottom: 0; }
+.track-list-tabs .track-list-pagetabs { margin: 0; padding: 0; border-top: 0; border-bottom: 0; min-width: 0; }
