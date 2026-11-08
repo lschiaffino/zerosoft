@@ -24,7 +24,6 @@ export interface LivePulse {
 
 const FAST_MS = 1500;
 const ALONE_MS = 4000;
-const HIDDEN_MS = 15000;
 /** Sin noticias de una sesión en este tiempo, su cursor deja de verse. */
 const PEER_STALE_MS = 30_000;
 
@@ -107,8 +106,10 @@ export function useDocsLive(opts: {
     const schedule = () => {
       if (stopped) return;
       if (timer) clearTimeout(timer);
+      // Pestaña oculta: no se pregunta nada (vuelve a preguntar apenas se ve, ver onVisible).
       const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
-      timer = setTimeout(tick, hidden ? HIDDEN_MS : peersRef.current.length > 0 ? FAST_MS : ALONE_MS);
+      if (hidden) return;
+      timer = setTimeout(tick, peersRef.current.length > 0 ? FAST_MS : ALONE_MS);
     };
     kick.current = () => {
       if (timer) clearTimeout(timer);

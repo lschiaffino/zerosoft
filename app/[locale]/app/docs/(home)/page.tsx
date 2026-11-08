@@ -27,6 +27,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import DataTable from '@/components/ui/DataTable';
 import DocsSidebar from '@/components/docs/DocsSidebar';
+import { sidebarSlice } from '@/lib/docs-sidebar';
 import DocsTrashList from '@/components/docs/DocsTrashList';
 import DocsAutoCreate from '@/components/docs/DocsAutoCreate';
 import WorkspaceTemplateCard from '@/components/docs/WorkspaceTemplateCard';
@@ -92,7 +93,7 @@ export default async function DocsLandingPage(props: {
   return (
     <div className="docs-layout">
       <DocsSidebar
-        pages={pages}
+        {...sidebarSlice(pages)}
         shared={shared}
         favorites={favorites}
         teamspaces={teamspaces}

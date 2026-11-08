@@ -304,7 +304,8 @@
   transition: background-color var(--ui-dur) var(--ease);
 }
 .docs-tree-row:hover { background: var(--ui-hover); color: var(--ink); }
-.docs-tree-row.active { background: var(--ui-hover); color: var(--ink); }
+.docs-tree-row.active { background: var(--ui-selected); color: var(--ink); }
+.docs-tree-row.active:hover { background: var(--ui-selected-hover); }
 .docs-tree-row.dragging { opacity: 0.4; }
 .docs-tree-chevron-spacer {
   flex: 0 0 20px;
