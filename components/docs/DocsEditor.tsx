@@ -3866,7 +3866,7 @@ export default function DocsEditor({
           const deps: unknown[] = [
             block, index, indent, isHidden, selected, dragIndex === index, commentCount, numbers[index], depths[index], focusIndex === index,
             noEdit[index], mode, uploadsEnabled, embedded, pageLinks, container, t, Boolean(onBlockComment),
-            block.type === 'database' ? dbHooks : null, block.type === 'toc' ? toc : null, block.type === 'breadcrumb' ? trail : null,
+            block.type === 'database' || block.type === 'meeting' ? dbHooks : null, block.type === 'toc' ? toc : null, block.type === 'breadcrumb' ? trail : null,
           ];
           const cached = blockMenu === index ? undefined : leafCache.current.get(block.id);
           if (cached && cached.deps.length === deps.length && cached.deps.every((d, i) => d === deps[i])) return cached.el;
@@ -3982,7 +3982,7 @@ export default function DocsEditor({
                   focused={focusIndex === index}
                   fileHref={uploadsEnabled ? stable.fileHref : undefined}
                   pageLinks={pageLinks}
-                  database={block.type === 'database' ? dbHooks : undefined}
+                  database={block.type === 'database' || block.type === 'meeting' ? dbHooks : undefined}
                   onPasteFiles={uploadsEnabled && mode === 'edit' ? stable.onPasteFiles : undefined}
                   onPasteBlocks={mode === 'edit' ? stable.onPasteBlocks : undefined}
                   onPasteUrl={(embedded && !pageLinks) || mode !== 'edit' ? undefined : stable.onPasteUrl}
