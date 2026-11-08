@@ -78,6 +78,13 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
     router.refresh();
   }
 
+  const [perChat, setPerChat] = useState(50);
+  async function reimport(n: NumberDto) {
+    const res = await api(`/api/groups/numbers/${n.id}/connect`, { body: { action: 'import', perChat } });
+    if (!res.data) return showToast(errText(res.error), true);
+    showToast(t('wa.reimportStarted'));
+  }
+
   async function remove() {
     if (!removing) return;
     const res = await api(`/api/groups/numbers/${removing.id}`, { method: 'DELETE' });
@@ -131,6 +138,23 @@ export default function NumbersSettings({ initial, providers, canEdit, openNew }
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => void act(n, 'sync')}>
                       {t('numbers.sync')}
                     </button>
+                  )}
+                  {(n.provider === 'managed' || n.provider === 'evolution') && n.status === 'connected' && (
+                    <span className="gr-reimport" title={t('wa.reimportHelp')}>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => void reimport(n)}>
+                        {t('wa.reimport')}
+                      </button>
+                      <label className="gr-reimport-label" htmlFor={`per-chat-${n.id}`}>
+                        {t('wa.perChat')}
+                      </label>
+                      <select id={`per-chat-${n.id}`} className="select" value={perChat} onChange={(e) => setPerChat(Number(e.target.value))}>
+                        {[20, 50, 100, 200].map((v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ))}
+                      </select>
+                    </span>
                   )}
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(n)}>
                     {t('numbers.edit')}

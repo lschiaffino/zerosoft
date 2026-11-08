@@ -70,6 +70,29 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-07-groups-whatsapp-web',
+    date: '2026-11-07',
+    title: {
+      en: 'Groups: your chats come in when you connect, and the inbox works like WhatsApp Web',
+      es: 'Groups: tus chats llegan al conectar y la bandeja se usa como WhatsApp Web',
+      pt: 'Groups: suas conversas chegam ao conectar e a caixa funciona como o WhatsApp Web',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'When you scan the QR code, Groups brings in your chats and groups with their names, photos, unread counts and the latest messages, with a progress bar in the inbox. Old messages do not trigger rules, notifications or response times. Reimport from Settings > Numbers and choose how many messages per chat.',
+        es: 'Al escanear el QR, Groups trae tus chats y grupos con sus nombres, fotos, no leídos y los últimos mensajes, con el avance a la vista en la bandeja. Los mensajes viejos no disparan reglas, avisos ni tiempos de respuesta. Podés reimportar desde Ajustes > Números y elegir cuántos mensajes por chat.',
+        pt: 'Ao escanear o QR, o Groups traz suas conversas e grupos com nomes, fotos, não lidas e as últimas mensagens, com o progresso visível na caixa. Mensagens antigas não disparam regras, avisos nem tempos de resposta. Reimporte em Configurações > Números e escolha quantas mensagens por conversa.',
+      },
+      {
+        product: 'groups',
+        en: 'The conversation now looks like WhatsApp Web: bubbles with read ticks, date chips, quoted replies, reactions, photos and videos in a full-screen viewer, voice notes with speed control, document cards, locations and contacts. Drag files onto the chat or paste an image to attach it, and record voice notes from the composer.',
+        es: 'La conversación ahora se ve como WhatsApp Web: burbujas con tildes de leído, separadores de día, respuestas citadas, reacciones, fotos y videos en un visor a pantalla completa, notas de voz con velocidad, tarjetas de documentos, ubicaciones y contactos. Arrastrá archivos al chat o pegá una imagen para adjuntarla, y grabá notas de voz desde el composer.',
+        pt: 'A conversa agora parece o WhatsApp Web: balões com tiques de leitura, separadores de data, respostas citadas, reações, fotos e vídeos em um visualizador de tela cheia, mensagens de voz com velocidade, cartões de documentos, localizações e contatos. Arraste arquivos para a conversa ou cole uma imagem para anexar, e grave mensagens de voz pelo compositor.',
+      },
+    ],
+  },
+  {
     id: '2026-11-07-track-default-template',
     date: '2026-11-07',
     title: {

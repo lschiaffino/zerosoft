@@ -1,5 +1,6 @@
 'use client';
 
+import { MessageMenu } from './ThreadParts';
 import LocalText from '@/components/ui/LocalText';
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -131,6 +132,11 @@ export default function ChatDetails({
     } else showToast(errText(res.error), true);
     return res.data;
   }
+
+  const [memberQ, setMemberQ] = useState('');
+  const shownMembers = memberQ.trim()
+    ? members.filter((m) => `${m.name} ${m.phone}`.toLowerCase().includes(memberQ.trim().toLowerCase().replace(/^\+/, '')))
+    : members;
 
   async function memberAction(action: 'add' | 'remove' | 'promote' | 'demote', list: string[]) {
     setMemberBusy(true);
@@ -409,26 +415,40 @@ export default function ChatDetails({
                   {t('details.notAdded', { phones: memberResult.filter((r) => !r.ok).map((r) => `+${r.phone}`).join(', ') })}
                 </p>
               )}
+              {members.length > 8 && (
+                <input
+                  className="input gr-member-search"
+                  type="search"
+                  value={memberQ}
+                  onChange={(e) => setMemberQ(e.target.value)}
+                  placeholder={t('details.searchMembers')}
+                  aria-label={t('details.searchMembers')}
+                />
+              )}
               <ul className="gr-members">
-                {members.slice(0, compact ? 30 : 2000).map((m) => (
+                {shownMembers.slice(0, compact && !memberQ ? 30 : 2000).map((m) => (
                   <li key={m.phone}>
-                    {m.name && <span className="gr-member-name">{m.name}</span>}
-                    <span className={m.name ? 'gr-member-phone ui-help' : 'gr-member-phone'}>+{m.phone}</span>
+                    <span className="gr-member-who">
+                      <span className="gr-member-name">{m.name || `+${m.phone}`}</span>
+                      {m.name && <span className="gr-member-phone ui-help">+{m.phone}</span>}
+                    </span>
                     {m.role !== 'member' && <span className="badge badge-outline">{t(`roles.${m.role}`)}</span>}
                     {m.role !== 'superadmin' && !(m as MemberDto & { masked?: boolean }).masked && (
                       <span className="gr-member-actions">
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => void memberAction(m.role === 'admin' ? 'demote' : 'promote', [m.phone])} disabled={memberBusy}>
-                          {m.role === 'admin' ? t('details.demote') : t('details.promote')}
-                        </button>
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => void memberAction('remove', [m.phone])} disabled={memberBusy}>
-                          {t('common.remove')}
-                        </button>
+                        <MessageMenu
+                          label={t('details.memberOptions', { name: m.name || `+${m.phone}` })}
+                          align="right"
+                          items={[
+                            { key: 'role', label: m.role === 'admin' ? t('details.demote') : t('details.promote'), onSelect: () => void memberAction(m.role === 'admin' ? 'demote' : 'promote', [m.phone]) },
+                            { key: 'remove', label: t('details.removeMember'), danger: true, onSelect: () => void memberAction('remove', [m.phone]) },
+                          ]}
+                        />
                       </span>
                     )}
                   </li>
                 ))}
               </ul>
-              {compact && members.length > 30 && (
+              {compact && !memberQ && members.length > 30 && (
                 <Link href={`/app/groups/list/${chat.id}`} className="ui-help">
                   {t('details.allMembers', { n: members.length })}
                 </Link>
