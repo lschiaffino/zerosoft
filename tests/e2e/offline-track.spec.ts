@@ -36,14 +36,15 @@ async function openAndCache(page: Page, url: string) {
   await page.reload({ waitUntil: 'networkidle' });
   await expect
     .poll(() =>
-      page.evaluate(async (path) => {
+      // La página de un issue pasa a su URL canónica (/issue/<ref>/<slug>): esa es la que se guarda y se recarga.
+      page.evaluate(async () => {
         for (const name of await caches.keys()) {
           if (!name.includes('-pages-')) continue;
           const c = await caches.open(name);
-          if (await c.match(location.origin + path, { ignoreSearch: true })) return true;
+          if (await c.match(location.origin + location.pathname, { ignoreSearch: true })) return true;
         }
         return false;
-      }, url),
+      }),
     )
     .toBe(true);
 }
