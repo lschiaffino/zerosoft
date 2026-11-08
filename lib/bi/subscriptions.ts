@@ -12,7 +12,7 @@ import { appSender, escapeHtml, sendEmail } from '../email';
 import { isValidTimezone } from '../cron';
 import { canEditItem, isBiAdmin, viewerCan, type BiViewer } from './access';
 import { runQuery } from './run';
-import { dashboardById, getDashboard, questionById, BiStoreError } from './store';
+import { getDashboard, getQuestion, BiStoreError } from './store';
 import { pickViz, formatValue } from './viz';
 
 export const subscriptionInputSchema = z.object({
@@ -151,7 +151,7 @@ export async function deleteSubscription(viewer: BiViewer, id: string): Promise<
 
 /** Resumen de un tablero: por tarjeta, el número o las primeras filas. */
 export async function buildDigest(viewer: BiViewer, dashboardId: string, baseUrl: string): Promise<{ subject: string; text: string; html: string } | null> {
-  const d = await dashboardById(viewer.workspaceId, dashboardId);
+  const d = await getDashboard(viewer, dashboardId);
   if (!d) return null;
   const textParts: string[] = [d.name, ''];
   const htmlParts: string[] = [`<h2 style="font:600 18px system-ui;margin:0 0 12px">${escapeHtml(d.name)}</h2>`];
@@ -163,7 +163,7 @@ export async function buildDigest(viewer: BiViewer, dashboardId: string, baseUrl
       }
       continue;
     }
-    const q = c.questionId ? await questionById(viewer.workspaceId, c.questionId) : null;
+    const q = c.questionId ? await getQuestion(viewer, c.questionId) : null;
     if (!q) continue;
     try {
       const values: Record<string, string> = {};

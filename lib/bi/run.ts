@@ -18,7 +18,9 @@ import { ZS_SOURCE, type BiQuery, type BiResult, type ColumnType, type SchemaTab
 export const BI_MAX_ROWS = 2000;
 /** Segundos que vale un resultado en caché. */
 export const BI_CACHE_TTL = Number(process.env.ANALYTICS_CACHE_TTL) || 300;
-const CONCURRENCY = Number(process.env.ANALYTICS_QUERY_CONCURRENCY) || 4;
+const CONCURRENCY = Number(process.env.ANALYTICS_QUERY_CONCURRENCY) || 8;
+/** Consultas a la vez por workspace (en esta instancia): uno no deja sin turno a los demás. */
+const PER_WORKSPACE = Number(process.env.ANALYTICS_QUERY_PER_WORKSPACE) || 3;
 
 export class RunError extends Error {
   constructor(
@@ -31,6 +33,7 @@ export class RunError extends Error {
 }
 
 let running = 0;
+const runningBy = new Map<string, number>();
 let tableNames: { at: number; names: string[] } | null = null;
 
 async function realTables(): Promise<string[]> {
@@ -89,17 +92,22 @@ export interface RunOptions {
   values?: Record<string, string | undefined>;
   /** Saltar la caché (botón Actualizar, auto-refresh). */
   fresh?: boolean;
-  /** Persona dueña de la ejecución para la caché (links públicos: quien lo creó). */
+  /**
+   * SQL escrito en el momento (editor). En una base donde solo los admins
+   * escriben SQL, un miembro no puede correr SQL propio; las preguntas
+   * guardadas (por un admin) sí corren.
+   */
+  adhoc?: boolean;
 }
 
 /** SQL final (sin CTEs) de una pregunta, con variables aplicadas. */
-export async function compileQuery(viewer: BiViewer, source: string, query: BiQuery, values: Record<string, string | undefined> = {}): Promise<{ sql: string; dialect: 'sqlite' | 'postgres' | 'mysql' }> {
+export async function compileQuery(viewer: BiViewer, source: string, query: BiQuery, values: Record<string, string | undefined> = {}, adhoc = true): Promise<{ sql: string; dialect: 'sqlite' | 'postgres' | 'mysql' }> {
   let dialect: 'sqlite' | 'postgres' | 'mysql' = 'sqlite';
   if (source !== ZS_SOURCE) {
     const cfg = await databaseConfig(viewer.workspaceId, source);
     if (!cfg) throw new RunError('database_not_found', undefined, 404);
     dialect = cfg.engine;
-    if (query.kind === 'sql' && cfg.sqlAccess === 'admins' && !isBiAdmin(viewer)) throw new RunError('sql_admins_only', undefined, 403);
+    if (adhoc && query.kind === 'sql' && cfg.sqlAccess === 'admins' && !isBiAdmin(viewer)) throw new RunError('sql_admins_only', undefined, 403);
   }
   try {
     if (query.kind === 'sql') return { sql: applyParams(query.sql, query.params, values, dialect), dialect };
@@ -112,14 +120,16 @@ export async function compileQuery(viewer: BiViewer, source: string, query: BiQu
 }
 
 export async function runQuery(viewer: BiViewer, source: string, query: BiQuery, opts: RunOptions = {}): Promise<BiResult> {
-  const { sql, dialect } = await compileQuery(viewer, source, query, opts.values);
+  const { sql, dialect } = await compileQuery(viewer, source, query, opts.values, opts.adhoc === true);
   const key = createHash('sha256').update(JSON.stringify([viewer.workspaceId, viewer.personId, viewer.role, source, sql])).digest('hex');
   if (!opts.fresh) {
     const hit = await cacheGet(key);
     if (hit) return { ...(JSON.parse(hit) as BiResult), cached: true };
   }
-  if (running >= CONCURRENCY) throw new RunError('busy', undefined, 429);
+  const mine = runningBy.get(viewer.workspaceId) ?? 0;
+  if (running >= CONCURRENCY || mine >= PER_WORKSPACE) throw new RunError('busy', undefined, 429);
   running++;
+  runningBy.set(viewer.workspaceId, mine + 1);
   const started = Date.now();
   try {
     let result: BiResult;
@@ -148,5 +158,8 @@ export async function runQuery(viewer: BiViewer, source: string, query: BiQuery,
     throw toRunError(err);
   } finally {
     running--;
+    const left = (runningBy.get(viewer.workspaceId) ?? 1) - 1;
+    if (left > 0) runningBy.set(viewer.workspaceId, left);
+    else runningBy.delete(viewer.workspaceId);
   }
 }

@@ -106,7 +106,10 @@
     "too_many_shares": "Ya tiene 5 links activos. Apagá uno antes.",
     "too_many_cards": "Un tablero lleva hasta 40 tarjetas.",
     "too_many_subscriptions": "Un tablero lleva hasta 10 suscripciones.",
-    "invalid_input": "Revisá los campos y probá de nuevo."
+    "invalid_input": "Revisá los campos y probá de nuevo.",
+    "param_in_quotes": "Poné las variables donde va un valor, sin comillas alrededor.",
+    "password_required": "Escribí la contraseña de nuevo: solo se reusa para el mismo host, puerto y usuario.",
+    "database_not_found": "Esa base ya no está conectada."
   },
   "result": {
     "noRows": "Sin filas.",
@@ -123,13 +126,22 @@
   },
   "sql": {
     "suggestions": "Sugerencias",
-    "kind": { "table": "tabla", "column": "columna", "keyword": "SQL" },
+    "kind": {
+      "table": "tabla",
+      "column": "columna",
+      "keyword": "SQL"
+    },
     "hint": "Cmd o Ctrl + Enter corre la consulta. Las variables van como '{{nombre}}'; los filtros opcionales, entre [[ … ]].",
     "schema": "Tablas",
     "filterTables": "Filtrar tablas",
     "noTables": "Acá no hay tablas que puedas leer.",
     "insert": "Insertar {name}",
-    "type": { "text": "Texto", "number": "Número", "date": "Fecha", "bool": "Sí o no" }
+    "type": {
+      "text": "Texto",
+      "number": "Número",
+      "date": "Fecha",
+      "bool": "Sí o no"
+    }
   },
   "editor": {
     "name": "Nombre de la pregunta",
@@ -233,7 +245,12 @@
       "min": "Mínimo de",
       "max": "Máximo de"
     },
-    "bucketOf": { "day": "Día", "week": "Semana", "month": "Mes", "year": "Año" }
+    "bucketOf": {
+      "day": "Día",
+      "week": "Semana",
+      "month": "Mes",
+      "year": "Año"
+    }
   },
   "dash": {
     "addFilter": "Sumar filtro",
@@ -249,7 +266,12 @@
     "edit": "Editar",
     "filters": "Filtros",
     "anyTime": "Cualquier fecha",
-    "range": { "last_7": "Últimos 7 días", "last_30": "Últimos 30 días", "last_90": "Últimos 90 días", "last_365": "Últimos 365 días" },
+    "range": {
+      "last_7": "Últimos 7 días",
+      "last_30": "Últimos 30 días",
+      "last_90": "Últimos 90 días",
+      "last_365": "Últimos 365 días"
+    },
     "emptyTitle": "Este tablero está vacío",
     "emptyBody": "Editalo para sumar preguntas guardadas, texto y filtros.",
     "emptyBodyReadonly": "Quien lo creó todavía no sumó nada.",
@@ -331,7 +353,12 @@
     "rateLimited": "Demasiados pedidos. Probá en un minuto.",
     "error": "No se pudo calcular esta tarjeta.",
     "anyTime": "Cualquier fecha",
-    "range": { "last_7": "Últimos 7 días", "last_30": "Últimos 30 días", "last_90": "Últimos 90 días", "last_365": "Últimos 365 días" },
+    "range": {
+      "last_7": "Últimos 7 días",
+      "last_30": "Últimos 30 días",
+      "last_90": "Últimos 90 días",
+      "last_365": "Últimos 365 días"
+    },
     "apply": "Aplicar",
     "empty": "Este tablero está vacío."
   }

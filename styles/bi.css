@@ -49,8 +49,9 @@
 .bi-col-row:hover { background: var(--ui-hover); }
 .bi-col-link { flex: 1; min-width: 0; padding: 6px 8px; color: var(--ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; }
 .bi-col-link:focus-visible { outline: 2px solid var(--c-analytics); outline-offset: -2px; }
-.bi-col-tools { display: none; }
-.bi-col-row:hover .bi-col-tools, .bi-col-row:focus-within .bi-col-tools { display: inline-flex; }
+.bi-col-tools { display: inline-flex; opacity: 0; }
+.bi-col-row:hover .bi-col-tools, .bi-col-row:focus-within .bi-col-tools { opacity: 1; }
+@media (hover: none) { .bi-col-tools { opacity: 1; } }
 .bi-items { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 .bi-items-head { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; }
 .bi-filter { width: 220px; max-width: 100%; }
@@ -190,7 +191,6 @@ a.bi-card-title:hover { text-decoration: underline; }
   .bi-cols ul { display: flex; flex-wrap: wrap; gap: 4px; }
   .bi-col-row { border-left: 0; border-bottom: 2px solid transparent; }
   .bi-col-row.active { border-bottom-color: var(--c-analytics); }
-  .bi-col-tools { display: none !important; }
   .bi-sql { grid-template-columns: minmax(0, 1fr); }
   .bi-schema { max-height: 200px; }
 }

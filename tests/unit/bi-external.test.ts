@@ -69,6 +69,12 @@ describe('Postgres externo', () => {
     expect(String((err as ExternalDbError).detail)).not.toContain('s3cret-pw');
   });
 
+  it('un resultado enorme corta la conexión antes de juntarlo en memoria', async () => {
+    await expect(runExternal(cfg, "SELECT repeat('x', 1000000) AS big FROM generate_series(1, 40)", 100)).rejects.toMatchObject({ code: 'result_too_large' });
+    const ok = await runExternal(cfg, 'SELECT 1 AS one', 1);
+    expect(ok.rows[0][0]).toBe(1);
+  });
+
   it('sin permiso para la red privada, 127.0.0.1 se rechaza antes de conectar', async () => {
     delete process.env.ANALYTICS_ALLOW_PRIVATE_DB;
     try {

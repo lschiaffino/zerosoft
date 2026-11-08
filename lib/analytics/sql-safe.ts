@@ -215,6 +215,29 @@ export function checkSqlWith(input: string, realTables: Iterable<string>, cfg: S
       return { ok: false, error: 'function_not_allowed', detail: t.text };
     }
   }
+  // FROM y JOIN solo leen tablas virtuales o CTEs de la propia consulta (ni
+  // módulos de SQLite sin paréntesis, que toman argumentos como columnas).
+  const words = toks.map((t) => (t.kind === 'word' ? t.text.toLowerCase() : t.text));
+  const cteNames = new Set<string>();
+  for (let k = 0; k < toks.length - 2; k++) {
+    if (toks[k].kind !== 'word') continue;
+    if (words[k + 1] === 'as' && words[k + 2] === '(') cteNames.add(words[k]);
+    if (words[k + 1] === '(') {
+      let d = 0;
+      let j = k + 1;
+      for (; j < toks.length; j++) {
+        if (words[j] === '(') d++;
+        if (words[j] === ')' && --d === 0) break;
+      }
+      if (words[j + 1] === 'as' && words[j + 2] === '(' && toks.slice(k + 2, j).every((t) => t.kind === 'word' || t.text === ',')) cteNames.add(words[k]);
+    }
+  }
+  for (let k = 0; k < toks.length - 1; k++) {
+    if (words[k] !== 'from' && words[k] !== 'join') continue;
+    const next = toks[k + 1];
+    if (next.text === '(') continue;
+    if (next.kind !== 'word' || (!virtual.has(words[k + 1]) && !cteNames.has(words[k + 1]))) return { ok: false, error: 'table_not_allowed', detail: next.text };
+  }
   // Paréntesis balanceados (la consulta va dentro de un SELECT * FROM (…)).
   let depth = 0;
   for (const t of toks) {

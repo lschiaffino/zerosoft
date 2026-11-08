@@ -34,13 +34,16 @@ export function literal(value: unknown, dialect: Dialect): string {
   if (value === null || value === undefined) return 'NULL';
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) throw new BuildError('bad_value');
-    return String(value);
+    // Entre paréntesis: un negativo después de un "-" no arma un comentario (--5).
+    return value < 0 ? `(${value})` : String(value);
   }
   if (typeof value === 'boolean') return value ? '1' : '0';
   let s = String(value);
   // Sin caracteres de control (NUL corta strings en algunos drivers).
   s = s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
   if (dialect === 'mysql') s = s.replace(/\\/g, '\\\\');
+  // Postgres: E'…' interpreta la barra igual con cualquier standard_conforming_strings.
+  if (dialect === 'postgres' && s.includes('\\')) return `E'${s.replace(/\\/g, '\\\\').replace(/'/g, "''")}'`;
   return `'${s.replace(/'/g, "''")}'`;
 }
 
@@ -245,11 +248,49 @@ export function applyParams(
     if (p?.type === 'date' && !/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$/.test(v)) throw new BuildError('param_not_date', name);
     return literal(v, dialect);
   };
+  assertPlaceholdersInCode(sql);
   const optional = sql.replace(/\[\[([\s\S]*?)\]\]/g, (_m, inner: string) => {
     const names = [...inner.matchAll(/\{\{\s*([a-z_][a-z0-9_]*)\s*\}\}/gi)].map((m) => m[1]);
     return names.every((n) => valueOf(n) !== undefined) ? inner : '';
   });
   return optional.replace(/\{\{\s*([a-z_][a-z0-9_]*)\s*\}\}/gi, (_m, name: string) => lit(name));
+}
+
+/**
+ * Una variable va donde iría un valor, nunca adentro de comillas ni de un
+ * comentario: ahí el valor dejaría de ser un literal.
+ */
+export function assertPlaceholdersInCode(sql: string): void {
+  let i = 0;
+  while (i < sql.length) {
+    const c = sql[i];
+    const two = sql.slice(i, i + 2);
+    if (two === '{{') {
+      i += 2;
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') {
+      const end = sql.indexOf(c, i + 1);
+      const body = end < 0 ? sql.slice(i + 1) : sql.slice(i + 1, end);
+      if (body.includes('{{')) throw new BuildError('param_in_quotes');
+      // Comilla doble escapada ('' o "") sigue el mismo literal.
+      i = end < 0 ? sql.length : end + 1;
+      continue;
+    }
+    if (two === '--') {
+      const end = sql.indexOf('\n', i);
+      if ((end < 0 ? sql.slice(i) : sql.slice(i, end)).includes('{{')) throw new BuildError('param_in_quotes');
+      i = end < 0 ? sql.length : end + 1;
+      continue;
+    }
+    if (two === '/*') {
+      const end = sql.indexOf('*/', i + 2);
+      if ((end < 0 ? sql.slice(i) : sql.slice(i, end)).includes('{{')) throw new BuildError('param_in_quotes');
+      i = end < 0 ? sql.length : end + 2;
+      continue;
+    }
+    i++;
+  }
 }
 
 /** Variables que usa un SQL (para armar el formulario). */

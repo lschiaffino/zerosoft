@@ -106,7 +106,10 @@
     "too_many_shares": "This already has 5 active links. Turn one off first.",
     "too_many_cards": "A dashboard holds up to 40 cards.",
     "too_many_subscriptions": "A dashboard holds up to 10 subscriptions.",
-    "invalid_input": "Check the fields and try again."
+    "invalid_input": "Check the fields and try again.",
+    "param_in_quotes": "Put variables where a value goes, without quotes around them.",
+    "password_required": "Type the password again: it is only reused for the same host, port and user.",
+    "database_not_found": "That database is no longer connected."
   },
   "result": {
     "noRows": "No rows.",
@@ -123,13 +126,22 @@
   },
   "sql": {
     "suggestions": "Suggestions",
-    "kind": { "table": "table", "column": "column", "keyword": "SQL" },
+    "kind": {
+      "table": "table",
+      "column": "column",
+      "keyword": "SQL"
+    },
     "hint": "Cmd or Ctrl + Enter runs the query. Variables go as '{{name}}'; wrap optional filters in [[ … ]].",
     "schema": "Tables",
     "filterTables": "Filter tables",
     "noTables": "There are no tables you can read here.",
     "insert": "Insert {name}",
-    "type": { "text": "Text", "number": "Number", "date": "Date", "bool": "Yes or no" }
+    "type": {
+      "text": "Text",
+      "number": "Number",
+      "date": "Date",
+      "bool": "Yes or no"
+    }
   },
   "editor": {
     "name": "Question name",
@@ -233,7 +245,12 @@
       "min": "Minimum of",
       "max": "Maximum of"
     },
-    "bucketOf": { "day": "Day", "week": "Week", "month": "Month", "year": "Year" }
+    "bucketOf": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "year": "Year"
+    }
   },
   "dash": {
     "addFilter": "Add filter",
@@ -249,7 +266,12 @@
     "edit": "Edit",
     "filters": "Filters",
     "anyTime": "Any time",
-    "range": { "last_7": "Last 7 days", "last_30": "Last 30 days", "last_90": "Last 90 days", "last_365": "Last 365 days" },
+    "range": {
+      "last_7": "Last 7 days",
+      "last_30": "Last 30 days",
+      "last_90": "Last 90 days",
+      "last_365": "Last 365 days"
+    },
     "emptyTitle": "This dashboard is empty",
     "emptyBody": "Edit it to add saved questions, text and filters.",
     "emptyBodyReadonly": "Its owner has not added anything yet.",
@@ -331,7 +353,12 @@
     "rateLimited": "Too many requests. Try again in a minute.",
     "error": "This card could not be calculated.",
     "anyTime": "Any time",
-    "range": { "last_7": "Last 7 days", "last_30": "Last 30 days", "last_90": "Last 90 days", "last_365": "Last 365 days" },
+    "range": {
+      "last_7": "Last 7 days",
+      "last_30": "Last 30 days",
+      "last_90": "Last 90 days",
+      "last_365": "Last 365 days"
+    },
     "apply": "Apply",
     "empty": "This dashboard is empty."
   }

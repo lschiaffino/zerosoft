@@ -21,6 +21,18 @@ export class BiApiError extends Error {
 }
 
 export async function biApi<T>(url: string, init?: { method?: string; body?: unknown; signal?: AbortSignal }): Promise<T> {
+  // Un tablero pide todas sus tarjetas a la vez: si el servidor dice "ocupado", se espera un poco y se reintenta.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await biApiOnce<T>(url, init);
+    } catch (err) {
+      if (!(err instanceof BiApiError) || err.code !== 'busy' || attempt >= 8) throw err;
+      await new Promise((r) => setTimeout(r, 300 + attempt * 300));
+    }
+  }
+}
+
+async function biApiOnce<T>(url: string, init?: { method?: string; body?: unknown; signal?: AbortSignal }): Promise<T> {
   const res = await fetch(url, {
     method: init?.method ?? (init?.body ? 'POST' : 'GET'),
     headers: init?.body ? { 'content-type': 'application/json' } : undefined,
@@ -54,6 +66,9 @@ const KNOWN = new Set([
   'sql_parameters_not_allowed',
   'sql_admins_only',
   'param_required',
+  'param_in_quotes',
+  'password_required',
+  'database_not_found',
   'param_not_number',
   'param_not_date',
   'unknown_column',

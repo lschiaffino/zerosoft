@@ -65,12 +65,12 @@ export default async function PublicBiShare(props: Props) {
     const v = sp[`f_${f.id}`];
     if (typeof v === 'string' && v.length <= 200) values[f.id] = v;
   }
-  const cards = await Promise.all(
-    dash.cards.slice(0, 30).map(async (c) => {
-      if (c.kind === 'text' || !c.questionId) return { card: c, out: null };
-      return { card: c, out: await runSharedQuestion(viewer, c.questionId, values, dash, c.id).catch(() => null) };
-    }),
-  );
+  // Una tarjeta por vez: respeta el tope de consultas simultáneas del workspace.
+  const cards: Array<{ card: (typeof dash.cards)[number]; out: Awaited<ReturnType<typeof runSharedQuestion>> | null }> = [];
+  for (const c of dash.cards.slice(0, 30)) {
+    if (c.kind === 'text' || !c.questionId) cards.push({ card: c, out: null });
+    else cards.push({ card: c, out: await runSharedQuestion(viewer, c.questionId, values, dash, c.id).catch(() => null) });
+  }
   return (
     <ClientMessages locale={locale} namespaces={['bi']}>
       <main className={`bi-public${embed ? ' is-embed' : ''}`} data-testid="bi-public">

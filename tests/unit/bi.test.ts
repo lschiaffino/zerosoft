@@ -220,6 +220,50 @@ describe('bases externas: host y configuración', () => {
   });
 });
 
+describe('revisión: casos que no tienen que pasar', () => {
+  it('IPv6 escrita larga, mapeada o NAT64 hacia la red interna', async () => {
+    for (const ip of ['0:0:0:0:0:0:0:1', '0::1', '0:0:0:0:0:ffff:7f00:1', '::ffff:10.0.0.1', '64:ff9b::7f00:1', '64:ff9b:0::a9fe:a9fe', 'fe80::1', 'fd00:ec2::254', 'fd00:ec2:0::254']) {
+      await expect(resolveDbHost(ip), ip).rejects.toBeInstanceOf(UnsafeHostError);
+    }
+    process.env.ANALYTICS_ALLOW_PRIVATE_DB = '1';
+    try {
+      for (const ip of ['::ffff:a9fe:a9fe', '169.254.10.1', 'fe80::1', 'fd00:ec2::254']) await expect(resolveDbHost(ip), ip).rejects.toBeInstanceOf(UnsafeHostError);
+      expect(await resolveDbHost('0:0:0:0:0:0:0:1')).toBe('0:0:0:0:0:0:0:1');
+    } finally {
+      delete process.env.ANALYTICS_ALLOW_PRIVATE_DB;
+    }
+    expect(await resolveDbHost('2606:4700::1111')).toBe('2606:4700::1111');
+  });
+
+  it('módulos de SQLite sin paréntesis no entran por FROM', () => {
+    for (const sql of [
+      'SELECT count(*) FROM generate_series WHERE start=1 AND stop=1000000000000',
+      'SELECT name FROM dbstat',
+      "SELECT * FROM json_each WHERE json='[1]'",
+      'SELECT * FROM contacts JOIN dbstat ON contacts.id = dbstat.name',
+    ]) {
+      expect(checkSqlWith(sql, [], ZS_GUARD).ok, sql).toBe(false);
+    }
+    expect(checkSqlWith('WITH x AS (SELECT id FROM contacts) SELECT count(*) FROM x', [], ZS_GUARD).ok).toBe(true);
+  });
+
+  it('variables entre comillas o en comentarios se rechazan; negativos van entre paréntesis', () => {
+    const p = [{ name: 's', type: 'text' as const }, { name: 'n', type: 'number' as const }];
+    expect(() => applyParams("SELECT 1 WHERE x = '{{s}}'", p, { s: ' OR 1=1 ' }, 'sqlite')).toThrow(BuildError);
+    expect(() => applyParams('SELECT 1 -- {{s}}', p, { s: 'x' }, 'postgres')).toThrow(BuildError);
+    expect(applyParams('SELECT 5 -{{n}}', p, { n: '-5' }, 'sqlite')).toBe('SELECT 5 -(-5)');
+    expect(literal("a\\' OR 1=1 --", 'postgres')).toBe("E'a\\\\'' OR 1=1 --'");
+  });
+
+  it('una subcolección de la colección personal sigue siendo personal', async () => {
+    const mine = await personalCollection(member, 'Mine');
+    const sub = await createCollection(member, { name: 'Private sub', parentId: mine.id });
+    expect(sub.personal).toBe(true);
+    const q = await createQuestion(member, { name: 'Deep private', collectionId: sub.id, query: { kind: 'sql', sql: 'SELECT 1 AS one', params: [] } });
+    expect(await getQuestion(noCrm, q.id)).toBeNull();
+  });
+});
+
 describe('suscripciones y AI', () => {
   it('próximo envío a la hora local pedida', () => {
     const after = new Date('2026-11-09T12:30:00Z'); // lunes

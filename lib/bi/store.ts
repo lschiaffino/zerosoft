@@ -101,17 +101,20 @@ const nameSchema = z.string().trim().min(1).max(120);
 export async function createCollection(viewer: BiViewer, input: { name: unknown; parentId?: unknown }): Promise<CollectionDto> {
   const name = nameSchema.parse(input.name);
   let parentId: string | null = null;
+  let personalOwner: string | null = null;
   if (typeof input.parentId === 'string' && input.parentId) {
     const parent = await collectionRow(viewer, input.parentId);
     if (!parent) throw new BiStoreError('collection_not_found', 404);
     parentId = parent.id;
+    // Adentro de una colección personal, también es personal (de la misma persona).
+    personalOwner = parent.personal_owner;
   }
   const id = `bic_${nanoid(12)}`;
   const t = now();
   await db()
-    .prepare('INSERT INTO bi_collections (id, workspace_id, parent_id, name, personal_owner, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, NULL, ?, ?, ?)')
-    .run(id, viewer.workspaceId, parentId, name, viewer.personId, t, t);
-  return { id, parentId, name, personal: false, mine: false, createdBy: viewer.personId, updatedAt: t };
+    .prepare('INSERT INTO bi_collections (id, workspace_id, parent_id, name, personal_owner, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, viewer.workspaceId, parentId, name, personalOwner, viewer.personId, t, t);
+  return { id, parentId, name, personal: !!personalOwner, mine: personalOwner === viewer.personId, createdBy: viewer.personId, updatedAt: t };
 }
 
 export async function updateCollection(viewer: BiViewer, id: string, input: { name?: unknown }): Promise<CollectionDto> {
@@ -223,7 +226,7 @@ export const databaseInputSchema = z.object({
   dbname: z.string().trim().min(1).max(128),
   username: z.string().trim().min(1).max(128),
   password: z.string().max(1024).optional(),
-  ssl: z.enum(['require', 'verify', 'disable']).default('require'),
+  ssl: z.enum(['require', 'verify', 'disable']).default('verify'),
   sqlAccess: z.enum(['admins', 'members']).default('admins'),
 });
 export type DatabaseInput = z.infer<typeof databaseInputSchema>;
@@ -415,14 +418,16 @@ export const questionInputSchema = z.object({
   viz: vizSchema.default({ type: 'auto' }),
 });
 
-async function checkSource(viewer: BiViewer, source: string): Promise<void> {
+async function checkSource(viewer: BiViewer, source: string, query?: BiQuery): Promise<void> {
   if (source === ZS_SOURCE) return;
-  if (!(await dbRow(viewer.workspaceId, source))) throw new BiStoreError('database_not_found', 404);
+  const row = await dbRow(viewer.workspaceId, source);
+  if (!row) throw new BiStoreError('database_not_found', 404);
+  if (query?.kind === 'sql' && sqlAccessOf(row) === 'admins' && !isBiAdmin(viewer)) throw new BiStoreError('sql_admins_only', 403);
 }
 
 export async function createQuestion(viewer: BiViewer, raw: unknown): Promise<QuestionDto> {
   const input = questionInputSchema.parse(raw);
-  await checkSource(viewer, input.source);
+  await checkSource(viewer, input.source, input.query);
   const collectionId = await checkCollection(viewer, input.collectionId);
   const id = `biq_${nanoid(12)}`;
   const t = now();
@@ -442,7 +447,7 @@ export async function updateQuestion(viewer: BiViewer, id: string, raw: unknown)
   const cur = questionDto(r, viewer);
   const input = questionInputSchema.partial().parse(raw);
   const source = input.source ?? cur.source;
-  await checkSource(viewer, source);
+  if (input.source !== undefined || input.query !== undefined) await checkSource(viewer, source, input.query ?? cur.query);
   const collectionId = input.collectionId === undefined ? cur.collectionId : await checkCollection(viewer, input.collectionId);
   const query = input.query ?? cur.query;
   await db()

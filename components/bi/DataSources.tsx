@@ -12,7 +12,7 @@ import type { SchemaTable } from '@/lib/bi/types';
 import { PRODUCT_CONFIG, isProductKey } from '@/lib/products';
 
 type Form = { id?: string; name: string; engine: 'postgres' | 'mysql'; host: string; port: string; dbname: string; username: string; password: string; ssl: 'require' | 'verify' | 'disable'; sqlAccess: 'admins' | 'members' };
-const EMPTY: Form = { name: '', engine: 'postgres', host: '', port: '5432', dbname: '', username: '', password: '', ssl: 'require', sqlAccess: 'admins' };
+const EMPTY: Form = { name: '', engine: 'postgres', host: '', port: '5432', dbname: '', username: '', password: '', ssl: 'verify', sqlAccess: 'admins' };
 
 /** Datos: las tablas propias del workspace y las bases externas (conectar, sincronizar, editar, borrar). */
 export default function DataSources({ initialDatabases, zsTables, isAdmin }: { initialDatabases: DatabaseDto[]; zsTables: SchemaTable[]; isAdmin: boolean }) {

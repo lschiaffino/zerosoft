@@ -37,6 +37,21 @@ export const EXT_TIMEOUT_MS = Number(process.env.ANALYTICS_DB_TIMEOUT_MS) || 15_
 const CONNECT_TIMEOUT_MS = 8_000;
 const MAX_CELL = 2_000;
 const MAX_RESULT_BYTES = 10 * 1024 * 1024;
+/** Bytes que se aceptan leer del socket por consulta: más que eso corta la conexión antes de juntarlo en memoria. */
+const MAX_WIRE_BYTES = 24 * 1024 * 1024;
+
+/** Cuenta lo que llega por el socket (TLS incluido) y lo corta al pasar el tope. */
+function capWire(stream: { on(ev: 'data', fn: (d: Buffer) => void): unknown; destroy(err?: Error): unknown } | undefined, onExceeded: () => void): void {
+  if (!stream) return;
+  let n = 0;
+  stream.on('data', (d: Buffer) => {
+    n += d.length;
+    if (n > MAX_WIRE_BYTES) {
+      onExceeded();
+      stream.destroy(new Error('result_too_large'));
+    }
+  });
+}
 
 export function validateConfig(c: Partial<DbConfig>): c is DbConfig {
   return (
@@ -135,13 +150,20 @@ async function runPostgres(cfg: DbConfig, sql: string, maxRows: number, timeoutM
       if (err instanceof ExternalDbError) throw err;
       throw new ExternalDbError('connect_failed', scrub(String((err as Error).message ?? err), cfg));
     });
+    let tooLarge = false;
+    capWire((client as unknown as { connection?: { stream?: Parameters<typeof capWire>[0] } }).connection?.stream, () => {
+      tooLarge = true;
+    });
     await client.query('BEGIN TRANSACTION READ ONLY');
     await client.query(`SET LOCAL statement_timeout = ${Math.floor(timeoutMs)}`);
     const res = await withTimeout(
       client.query({ text: `SELECT * FROM (\n${sql}\n) AS zs_q LIMIT ${maxRows + 1}`, rowMode: 'array', queryMode: 'extended' }),
       timeoutMs + 2000,
       kill,
-    );
+    ).catch((err) => {
+      if (tooLarge) throw new ExternalDbError('result_too_large');
+      throw err;
+    });
     await client.query('ROLLBACK').catch(() => undefined);
     const columns = res.fields.map((f) => ({ name: f.name, type: (PG_NUMBER.has(f.dataTypeID) ? 'number' : PG_DATE.has(f.dataTypeID) ? 'date' : f.dataTypeID === 16 ? 'bool' : 'text') as ColumnType }));
     const rows = res.rows.slice(0, maxRows).map((r) => r.map((v, i) => (columns[i].type === 'number' && typeof v === 'string' ? Number(v) : cell(v))));
@@ -190,13 +212,22 @@ async function runMysql(cfg: DbConfig, sql: string, maxRows: number, timeoutMs: 
       if (err instanceof ExternalDbError) throw err;
       throw new ExternalDbError('connect_failed', scrub(String((err as Error).message ?? err), cfg));
     });
+    let tooLarge = false;
+    capWire((conn as unknown as { connection?: { stream?: Parameters<typeof capWire>[0] } }).connection?.stream, () => {
+      tooLarge = true;
+    });
+    // En MySQL una transacción de solo lectura igual toma locks con FOR UPDATE / FOR SHARE.
+    if (/\bfor\s+(update|share)\b|\block\s+in\s+share\s+mode\b/i.test(sql)) throw new ExternalDbError('sql_error', 'locking reads are not allowed');
     await conn.query(`SET SESSION max_execution_time = ${Math.floor(timeoutMs)}`);
     await conn.query('START TRANSACTION READ ONLY');
     const [rows, fields] = await withTimeout(
       conn.query({ sql: `SELECT * FROM (\n${sql}\n) AS zs_q LIMIT ${maxRows + 1}`, rowsAsArray: true, timeout: timeoutMs }),
       timeoutMs + 2000,
       kill,
-    );
+    ).catch((err) => {
+      if (tooLarge) throw new ExternalDbError('result_too_large');
+      throw err;
+    });
     await conn.query('ROLLBACK').catch(() => undefined);
     const list = (fields ?? []) as Array<{ name: string; columnType?: number; type?: number }>;
     const columns = list.map((f) => {

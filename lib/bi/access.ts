@@ -47,7 +47,9 @@ export async function biActor(req: NextRequest | Request, need: 'read' | 'write'
     if ('res' in auth) return auth.res;
     const access = await personAppAccess(auth.user.id, auth.personId);
     if (!access) return biError(403, 'forbidden');
-    return { workspaceId: auth.user.id, personId: auth.personId, role: access.role, apps: access.apps };
+    const viewer: BiViewer = { workspaceId: auth.user.id, personId: auth.personId, role: access.role, apps: access.apps };
+    if (!viewerCan(viewer, 'analytics')) return biError(403, 'forbidden');
+    return viewer;
   }
   const user = await getCurrentUser();
   if (!user) return biError(401, 'unauthorized');

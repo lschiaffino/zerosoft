@@ -17,6 +17,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (!cur) throw new BiStoreError('not_found', 404);
     const input = databaseInputSchema.parse({ ...cur, ...body });
     const saved = await databaseConfig(viewer.workspaceId, id);
+    // La contraseña guardada solo viaja al mismo destino: otro host, puerto, motor o usuario la pide de nuevo.
+    const moved = input.host !== cur.host || input.port !== cur.port || input.engine !== cur.engine || input.username !== cur.username;
+    if (moved && !input.password) throw new BiStoreError('password_required');
     let tables;
     try {
       tables = await introspect({ ...input, password: input.password || saved?.password || '' });

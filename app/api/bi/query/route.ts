@@ -9,6 +9,6 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   return withViewer(req, 'read', async (viewer, body) => {
     const query = querySchema.parse(body.query);
-    return { result: await runQuery(viewer, str(body.source) || ZS_SOURCE, query, { values: values(body.values), fresh: body.fresh === true }) };
+    return { result: await runQuery(viewer, str(body.source) || ZS_SOURCE, query, { values: values(body.values), fresh: body.fresh === true, adhoc: true }) };
   });
 }

@@ -5,7 +5,7 @@
 import { personAppAccess } from '../api-auth';
 import { viewerCan, type BiViewer } from './access';
 import { runQuery, RunError } from './run';
-import { getQuestion, questionById, type DashboardDto, type QuestionDto } from './store';
+import { getQuestion, type DashboardDto, type QuestionDto } from './store';
 import type { BiQuery, BiResult, DashFilter } from './types';
 
 /** Valor de un filtro de fecha: last_7, last_30… → días. */
@@ -70,7 +70,7 @@ export async function ownerViewer(workspaceId: string, personId: string): Promis
 
 /** Pregunta de un link público (ya validado), corrida como quien lo creó. */
 export async function runSharedQuestion(viewer: BiViewer, questionId: string, values: Record<string, string>, dashboard?: DashboardDto, cardId?: string): Promise<{ question: QuestionDto; result: BiResult } | { question: QuestionDto; error: string }> {
-  const q = await questionById(viewer.workspaceId, questionId);
+  const q = await getQuestion(viewer, questionId);
   if (!q) throw new RunError('not_found', undefined, 404);
   let query = q.query;
   let vals = values;
