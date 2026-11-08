@@ -219,7 +219,7 @@ jobs:
             # (un cdhash cambia en cada build y macOS pierde los permisos).
             req="$(codesign -d -r- "$app" 2>&1 | grep 'designated =>' || true)"
             echo "$req"
-            if [ "${{ steps.macsign.outputs.kind }}" = "stable" ] && ! echo "$req" | grep -q 'certificate leaf'; then
+            if [ "${{ steps.macsign.outputs.kind }}" = "stable" ] && ! echo "$req" | grep -Eq 'certificate (leaf|root) = H'; then
               echo "::error::La app no salió firmada con el certificado estable"; exit 1
             fi
             codesign -d --entitlements - "$app" 2>/dev/null | grep -E "device\.(camera|audio-input)" || { echo "::error::Faltan los permisos de cámara o micrófono"; exit 1; }
