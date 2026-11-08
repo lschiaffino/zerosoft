@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 /**
  * Vista previa local de lo recién subido (storage URL → blob: del archivo del
@@ -29,6 +30,7 @@ const RETRIES = 3;
  * se guardó, la ruta responde 404 un momento: se reintenta.
  */
 export default function DocsEditorImage({ storageUrl, href, alt }: { storageUrl: string; href: string; alt: string }) {
+  const t = useTranslations('docs');
   const local = previews.get(storageUrl);
   const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
@@ -37,6 +39,15 @@ export default function DocsEditorImage({ storageUrl, href, alt }: { storageUrl:
     setFailed(false);
   }, [href]);
   const src = local ?? (attempt === 0 ? href : `${href}${href.includes('?') ? '&' : '?'}retry=${attempt}`);
+  // Nunca el ícono de imagen rota: un aviso claro de que el archivo no está en el almacenamiento.
+  if (failed) {
+    return (
+      <div className="docs-image-error" role="alert" data-testid="docs-image-error">
+        <strong>{t('editor.upload.imageUnavailable')}</strong>
+        <span>{t('editor.upload.imageUnavailableHelp')}</span>
+      </div>
+    );
+  }
   return (
     // URL de nuestro origen con permisos: next/image no suma nada acá.
     // eslint-disable-next-line @next/next/no-img-element

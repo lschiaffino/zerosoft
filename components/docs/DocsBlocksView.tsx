@@ -222,9 +222,13 @@ export default function DocsBlocksView({
               <tbody>
                 {(b.rows ?? []).map((row, r) => (
                   <tr key={r}>
-                    {row.map((cell, c) => (
-                      <td key={c}>{cell}</td>
-                    ))}
+                    {row.map((cell, c) =>
+                      b.header_row && r === 0 ? (
+                        <th key={c} scope="col">{cell}</th>
+                      ) : (
+                        <td key={c}>{cell}</td>
+                      ),
+                    )}
                   </tr>
                 ))}
               </tbody>

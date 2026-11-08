@@ -8614,6 +8614,14 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE links ADD COLUMN do_index INTEGER NOT NULL DEFAULT 0');
     },
   },
+  {
+    // Reimportar un export de Notion actualizado: el hash del archivo de origen
+    // dice si cambió (y la página se actualiza si nadie la editó en zerosoft).
+    id: '260_import_external_hash',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE import_external_ids ADD COLUMN source_hash TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

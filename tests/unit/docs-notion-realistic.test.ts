@@ -4,7 +4,8 @@ import path from 'path';
 import { mkdtemp, rm } from 'fs/promises';
 import { createImportJob, getImportJob, type ImportJobView } from '@/lib/import-jobs';
 import { runImportJob, startImportJob } from '@/lib/import-runner';
-import { appendLocalChunk, csvToDatabaseBlock, localZipRef, notionIdIn } from '@/lib/docs-notion-import';
+import { appendLocalChunk, csvToDatabaseBlock, inlineNotionMarks, localZipRef, notionIdIn } from '@/lib/docs-notion-import';
+import { plainTextToBlocks } from '@/lib/docs-import';
 import { markdownToBlocks } from '@/lib/docs-import';
 import { sanitizeDocsHtml } from '@/lib/docs-sanitize';
 import { buildZip } from '@/lib/zip-reader';
@@ -28,7 +29,7 @@ const ROW_FIX = `Fix lists ${hex('e')}`;
 const P_MIG = `Docs Migration ${hex('f')}`;
 const P_WEB = `Website ${'1'.repeat(32)}`;
 
-function zip(personName: string): Buffer {
+function zip(personName: string, changes: { wikiExtra?: string; projLead?: string } = {}): Buffer {
   const root = 'Private & Shared';
   const rel = (p: string) => `${p.split(' ').slice(0, -1).join(' ')} (../${enc(PROJ)}/${enc(p)}.md)`;
   const tasksCsv = [
@@ -56,6 +57,7 @@ function zip(personName: string): Buffer {
         '</details>',
         '',
         `See [Tasks](${enc(WIKI)}/${enc(TASKS)}.csv).`,
+        ...(changes.wikiExtra ? ['', changes.wikiExtra] : []),
       ].join('\n'),
     },
     { name: `${root}/${WIKI}/${TASKS}.csv`, data: `﻿${tasksCsv.split('\n').slice(0, 2).join('\n')}\n` },
@@ -63,7 +65,7 @@ function zip(personName: string): Buffer {
     { name: `${root}/${WIKI}/${TASKS}/${ROW_SHIP}.md`, data: `# Ship importer\n\nStatus: In progress\nAssignee: ${personName}\n\nBody of the task.\n` },
     { name: `${root}/${WIKI}/${TASKS}/${ROW_FIX}.md`, data: '# Fix lists\n\nStatus: Done\n' },
     { name: `${root}/${WIKI}/${PROJ}.csv`, data: '﻿Name,Lead\nDocs Migration,Ana\nWebsite,Leo\n' },
-    { name: `${root}/${WIKI}/${PROJ}_all.csv`, data: '﻿Name,Lead\nDocs Migration,Ana\nWebsite,Leo\n' },
+    { name: `${root}/${WIKI}/${PROJ}_all.csv`, data: `\uFEFFName,Lead\nDocs Migration,${changes.projLead ?? 'Ana'}\nWebsite,Leo\n` },
     { name: `${root}/${WIKI}/${PROJ}/${P_MIG}.md`, data: '# Docs Migration\n\nLead: Ana\n' },
     { name: `${root}/${WIKI}/${PROJ}/${P_WEB}.md`, data: '# Website\n\nLead: Leo\n' },
     { name: `${root}/.DS_Store`, data: 'x' },
@@ -107,6 +109,27 @@ describe('Notion: piezas del export real', () => {
     expect(b.values[props[2].id]).toBeUndefined();
     expect(a.values[props[3].id]).toBe('X');
     expect(a.values[props[4].id]).toEqual(['user-ana']);
+  });
+
+  it('ecuaciones en línea y menciones de fecha del Markdown de Notion', () => {
+    expect(inlineNotionMarks('Energía $$E=mc^2$$ y $`a<b`$')).toBe('Energía <span data-tex="E=mc^2">E=mc^2</span> y <span data-tex="a&lt;b">a&lt;b</span>');
+    expect(inlineNotionMarks('Entrega @November 10, 2026.')).toBe('Entrega <span data-date="2026-11-10">November 10, 2026</span>.');
+    // Una línea que es solo $$…$$ es una ecuación en bloque: queda igual.
+    expect(inlineNotionMarks('$$x^2$$')).toBe('$$x^2$$');
+    expect(inlineNotionMarks('Cuesta $5 y $10')).toBe('Cuesta $5 y $10');
+  });
+
+  it('texto plano en una lista: cada línea sigue la lista y los tabs anidan', () => {
+    let n = 0;
+    const blocks = plainTextToBlocks('uno\n\tdos\n\t\ttres\ncuatro', () => `p${++n}`, { as: 'bulleted_list_item' });
+    expect(blocks.map((b) => [b.type, b.content, b.indent ?? 0])).toEqual([
+      ['bulleted_list_item', 'uno', 0],
+      ['bulleted_list_item', 'dos', 1],
+      ['bulleted_list_item', 'tres', 2],
+      ['bulleted_list_item', 'cuatro', 0],
+    ]);
+    // En un párrafo, los espacios del principio no anidan (solo los tabs).
+    expect(plainTextToBlocks('a\n  b', () => 'x').map((b) => [b.content, b.indent ?? 0])).toEqual([['a', 0], ['  b', 0]]);
   });
 
   it('Markdown de Notion: ## es H2, ### es H3 y <details> es un toggle con su contenido adentro', () => {
@@ -198,5 +221,23 @@ describe('Notion: export realista de punta a punta', () => {
     expect(done2.report).toMatchObject({ pages: 0, databases: 0, skipped: 3 });
     const count = (await getDb().prepare('SELECT COUNT(*) AS n FROM docs_pages WHERE user_id = ?').get(u.id)) as { n: number };
     expect(count.n).toBe(3);
+
+    // Export actualizado: la wiki cambió en Notion y no se tocó acá → se actualiza en el lugar;
+    // Projects cambió pero se editó en zerosoft → queda como estaba.
+    await getDb().prepare('UPDATE docs_pages SET updated_at = ? WHERE id = ?').run('2999-01-01T00:00:00.000Z', by('Projects').id);
+    const updated = zip('Ana Gómez', { wikiExtra: 'New paragraph from Notion.', projLead: 'Bea' });
+    const third = await createImportJob({ workspaceId: u.id, teamId: null, userId: u.id, app: 'docs', source: 'notion', status: 'fetching', options: { size: updated.length } });
+    await getDb().prepare('UPDATE import_jobs SET payload = ? WHERE id = ?').run(localZipRef(third.id), third.id);
+    await appendLocalChunk(third.id, 0, updated);
+    await runToEnd(third.id);
+    await startImportJob((await getImportJob(third.id))!);
+    const done3 = await runToEnd(third.id);
+    expect(done3.report).toMatchObject({ pages: 0, databases: 0, updated: 1, keptEdited: 1 });
+    const wikiAfter = (await getDb().prepare('SELECT content FROM docs_pages WHERE id = ?').get(by('Wiki').id)) as { content: string };
+    expect(wikiAfter.content).toContain('New paragraph from Notion.');
+    const projAfter = (await getDb().prepare('SELECT content FROM docs_pages WHERE id = ?').get(by('Projects').id)) as { content: string };
+    expect(projAfter.content).not.toContain('Bea');
+    const count2 = (await getDb().prepare('SELECT COUNT(*) AS n FROM docs_pages WHERE user_id = ?').get(u.id)) as { n: number };
+    expect(count2.n).toBe(3);
   });
 });

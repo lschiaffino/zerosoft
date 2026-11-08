@@ -28,6 +28,7 @@ import { del, put } from '@vercel/blob';
 import { getDb } from './db';
 import {
   getExternalIds,
+  getExternalImport,
   ImportError,
   listImportItems,
   setExternalId,
@@ -647,9 +648,15 @@ export function rewriteNotionMarkdown(md: string, ctx: ConvertContext): { md: st
       .map((l) => `> ${l}`)
       .join('\n')}`,
   );
+  let fence = false;
   const lines = asides.split('\n').map((line) => {
     const trimmed = line.trim();
-    return line.replace(MD_LINK, (whole, bang: string, text: string, rawHref: string) => {
+    if (/^(```|~~~)/.test(trimmed)) {
+      fence = !fence;
+      return line;
+    }
+    if (fence) return line;
+    return inlineNotionMarks(line).replace(MD_LINK, (whole, bang: string, text: string, rawHref: string) => {
       const href = safeDecode(rawHref);
       if (/^https?:\/\//i.test(href)) {
         const nid = /notion\.(?:so|site)\/[^?#]*?([0-9a-f]{32})(?:[?#]|$)/i.exec(href)?.[1]?.toLowerCase();
@@ -675,6 +682,29 @@ export function rewriteNotionMarkdown(md: string, ctx: ConvertContext): { md: st
     });
   });
   return { md: lines.join('\n'), attachments };
+}
+
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+
+/**
+ * Lo que el Markdown de Notion deja como texto y Docs tiene como marca:
+ * ecuaciones en línea (`$$x$$` o `` $`x`$ ``) y menciones de fecha
+ * ("@November 10, 2026"). Una línea que es solo `$$…$$` queda igual (es un bloque).
+ */
+export function inlineNotionMarks(line: string): string {
+  const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const tex = (v: string) => `<span data-tex="${esc(v.trim())}">${esc(v.trim())}</span>`;
+  let out = line;
+  if (!/^\s*\$\$[^$]+\$\$\s*$/.test(out)) out = out.replace(/\$\$([^$\n]{1,500})\$\$/g, (_m, v: string) => tex(v));
+  out = out.replace(/\$`([^`\n]{1,500})`\$/g, (_m, v: string) => tex(v));
+  out = out.replace(/@(January|February|March|April|May|June|July|August|September|October|November|December) (\d{1,2}), (\d{4})\b/g, (whole: string, mon: string, d: string, y: string) => {
+    const m = MONTHS.indexOf(mon.toLowerCase()) + 1;
+    const day = Number(d);
+    if (!m || day < 1 || day > 31) return whole;
+    const date = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return `<span data-date="${date}">${esc(whole.slice(1))}</span>`;
+  });
+  return out;
 }
 
 /** HTML-lite con `zspage:` → links `[[ ]]` canónicos, saneado. */
@@ -919,6 +949,10 @@ export interface NotionImportReport {
   roots: Array<{ id: string; title: string }>;
   /** Páginas con un archivo de texto más grande que el tope: quedaron vacías. */
   tooLarge?: number;
+  /** Reimport: ya importadas que cambiaron en Notion y se actualizaron. */
+  updated?: number;
+  /** Reimport: cambiaron en Notion pero se editaron en zerosoft; se dejaron como estaban. */
+  keptEdited?: number;
 }
 
 export function emptyNotionReport(): NotionImportReport {
@@ -1044,6 +1078,16 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
   if (destTeamspace && !(await canWriteTeamspace(job.workspace_id, job.user_id, destTeamspace))) throw new ImportError('forbidden');
   const enexCache = new Map<string, Buffer>();
 
+  /** Hash del origen de una página (texto) o base (CSV y los .md de sus filas); null para formatos binarios. */
+  const sourceHashOf = async (page: NotionPageItem): Promise<string | null> => {
+    const fmt = page.kind === 'database' ? 'csv' : (page.format ?? 'md');
+    if (fmt !== 'md' && fmt !== 'html' && fmt !== 'txt' && fmt !== 'csv') return null;
+    const h = createHash('sha1');
+    h.update(await readText(idx, page.path).catch(() => ''));
+    if (fmt === 'csv') for (const row of all.filter((p) => p.rowOf === page.path).sort((a, b) => a.path.localeCompare(b.path))) h.update(`\n${row.path}\n${await readText(idx, row.path).catch(() => '')}`);
+    return h.digest('hex');
+  };
+
   // Personas del workspace por nombre y email: las columnas de personas de un CSV pasan a ser propiedades persona.
   const people = new Map<string, string>();
   for (const p of await workspacePeople(job.workspace_id, db)) {
@@ -1120,9 +1164,33 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
   for (const page of pages) {
     // Las filas se escriben con su base (cuerpo de la fila), no como páginas.
     if (page.rowOf) continue;
-    if (page.existing && (await db.prepare('SELECT 1 AS one FROM docs_pages WHERE id = ?').get(page.localId))) {
+    const key = page.format === 'folder' ? `folder:${page.path.replace(/\/$/, '')}` : page.format === 'enex' ? `enex:${page.path}` : (page.notionId ?? page.path);
+    // Hash del origen (el .md/.html/.txt, o el CSV con los .md de sus filas): dice si un reimport trae cambios.
+    const sourceHash = await sourceHashOf(page);
+    let updating = false;
+    const existingRow = page.existing
+      ? ((await db.prepare('SELECT updated_at FROM docs_pages WHERE id = ? AND user_id = ?').get(page.localId, job.workspace_id)) as { updated_at: string } | undefined)
+      : undefined;
+    if (page.existing && !existingRow && (await db.prepare('SELECT 1 AS one FROM docs_pages WHERE id = ?').get(page.localId))) {
       report.skipped += 1;
       continue;
+    }
+    if (existingRow) {
+      const ext = await getExternalImport(job.workspace_id, provider, 'page', key);
+      const changed = Boolean(sourceHash && ext?.source_hash && ext.source_hash !== sourceHash);
+      if (!changed) {
+        // Igual: se saltea. Un import viejo sin hash lo guarda para la próxima.
+        if (sourceHash && ext && !ext.source_hash) await setExternalId(job.workspace_id, provider, 'page', key, page.localId, sourceHash);
+        report.skipped += 1;
+        continue;
+      }
+      // Cambió en Notion, pero alguien la editó en zerosoft después de importarla: no se pisa.
+      if (ext?.imported_at && existingRow.updated_at > ext.imported_at) {
+        report.skipped += 1;
+        report.keptEdited = (report.keptEdited ?? 0) + 1;
+        continue;
+      }
+      updating = true;
     }
     const direct = page.parentPath ? byPath.get(page.parentPath) : undefined;
     // Subpágina de una fila: queda debajo de la página de la base.
@@ -1240,12 +1308,20 @@ export async function notionWriteStep(job: ImportJob, items: StagedItem[], repor
     const { icon, title: cleanTitle } = splitIcon(title);
     const content = blocks.length ? blocks.slice(0, DOCS_IMPORT_MAX_BLOCKS) : [{ id: crypto.randomUUID(), type: 'paragraph' as const, content: '' }];
     const now = new Date().toISOString();
+    if (updating) {
+      // Reimport con cambios en Notion y sin ediciones en zerosoft: se actualiza en el lugar (mismo id, links y lugar en el árbol).
+      await db
+        .prepare('UPDATE docs_pages SET title = ?, icon = ?, content = ?, updated_at = ? WHERE id = ? AND user_id = ?')
+        .run(cleanTitle.slice(0, 500), icon, stringifyBlocks(sanitizeBlocks(content)), now, page.localId, job.workspace_id);
+      await setExternalId(job.workspace_id, provider, 'page', key, page.localId, sourceHash);
+      report.updated = (report.updated ?? 0) + 1;
+      continue;
+    }
     await db
       // Una base a página completa usa todo el ancho, como en Notion.
       .prepare('INSERT INTO docs_pages (id, user_id, parent_id, title, icon, content, teamspace_id, full_width, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(page.localId, job.workspace_id, parentId, cleanTitle.slice(0, 500), icon, stringifyBlocks(sanitizeBlocks(content)), teamspaceId, page.kind === 'database' ? 1 : 0, position, created ?? now, updated ?? now);
-    const key = page.format === 'folder' ? `folder:${page.path.replace(/\/$/, '')}` : page.format === 'enex' ? `enex:${page.path}` : (page.notionId ?? page.path);
-    await setExternalId(job.workspace_id, provider, 'page', key, page.localId);
+    await setExternalId(job.workspace_id, provider, 'page', key, page.localId, sourceHash);
     if (page.kind === 'database') report.databases += 1;
     else report.pages += 1;
     if (!parentId && report.roots.length < 10) report.roots.push({ id: page.localId, title: cleanTitle.slice(0, 200) });

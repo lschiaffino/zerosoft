@@ -76,7 +76,8 @@
       "link": "Link",
       "linkPlaceholder": "Paste a link…",
       "addLink": "Add link",
-      "removeLink": "Remove link"
+      "removeLink": "Remove link",
+      "color": "Text color"
     },
     "blockMenu": {
       "turnInto": "Turn into",
@@ -88,7 +89,13 @@
       "insertBelow": "Insert below",
       "dragHandle": "Block options. Drag to reorder.",
       "color": "Color",
-      "copyLink": "Copy link to block"
+      "copyLink": "Copy link to block",
+      "title": "Block options",
+      "search": "Search actions…",
+      "noResults": "No matching actions",
+      "moveTo": "Move to",
+      "moveToSearch": "Move to a page…",
+      "moveFailed": "Couldn't move it there. Check that you can edit that page."
     },
     "commands": {
       "p": "Text",
@@ -151,7 +158,9 @@
       "untitledFile": "Untitled file",
       "imageLabel": "Image: {name}",
       "fileLabel": "File: {name}",
-      "videoLabel": "Video: {name}"
+      "videoLabel": "Video: {name}",
+      "imageUnavailable": "This image couldn't be loaded",
+      "imageUnavailableHelp": "The file isn't in storage or the upload didn't finish. Upload it again or remove the block."
     },
     "togglePlaceholder": "Toggle",
     "calloutPlaceholder": "Write a note…",
@@ -349,6 +358,11 @@
       "bg_pink": "Pink background",
       "red": "Red",
       "bg_red": "Red background"
+    },
+    "table": {
+      "cell": "Row {row}, column {col}",
+      "addColumn": "Add column",
+      "headerRow": "Header row"
     }
   },
   "database": {
@@ -1083,8 +1097,8 @@
     "lead": "Bring pages from Notion, Confluence, Google Docs, Word or Evernote with their tree, images, files and links between pages.",
     "loadingJobs": "Loading…",
     "dismiss": "Close",
-    "step1": "In Notion, open Settings › Export all workspace content, or ··· › Export on a single page.",
-    "step2": "Choose Markdown & CSV, include subpages, and include files and images.",
+    "step1": "In Notion, open Settings › General › Export all workspace content (or ••• › Export on a single page).",
+    "step2": "Choose Markdown & CSV, include subpages and files, and download the .zip.",
     "step3": "Upload the .zip that Notion gives you here.",
     "file": "Export file (.zip)",
     "fileHelp": "Up to 1 GB. The file is deleted when the import ends.",
@@ -1096,7 +1110,7 @@
       "size": "Size",
       "rows": "Row pages"
     },
-    "already": "{count} pages were imported before and will be skipped.",
+    "already": "{count, plural, one {# page was} other {# pages were}} imported before: unchanged ones are skipped, and ones changed in Notion are updated unless someone edited them here.",
     "treeTitle": "Pages",
     "databaseTag": "database",
     "more": "and {count} more",
@@ -1114,8 +1128,8 @@
     "sources": {
       "notion": {
         "name": "Notion",
-        "step1": "In Notion, open Settings › Export all workspace content, or ··· › Export on a single page.",
-        "step2": "Choose Markdown & CSV (or HTML), include subpages, and include files and images.",
+        "step1": "In Notion, open Settings › General › Export all workspace content (or ••• › Export on a single page).",
+        "step2": "Choose Markdown & CSV, include subpages and files, and download the .zip.",
         "step3": "Upload the .zip that Notion gives you here.",
         "file": "Export file (.zip)"
       },
@@ -1161,8 +1175,17 @@
     "noDestination": "Your role cannot create pages in this workspace. Ask an admin for edit access.",
     "capped": "The file has more than {max} pages: only the first {max} come in.",
     "skippedFiles": "Skipped because they are too large: {files}. The rest comes in.",
-    "skippedNote": "{count, plural, one {# page was already imported before and stayed where it is.} other {# pages were already imported before and stayed where they are.}} To import them again, delete those pages first.",
-    "tooLarge": "{count, plural, one {# page came in empty: its file is larger than 8 MB.} other {# pages came in empty: their files are larger than 8 MB.}}"
+    "skippedNote": "{count, plural, one {# page was already imported and had no changes.} other {# pages were already imported and had no changes.}}",
+    "tooLarge": "{count, plural, one {# page came in empty: its file is larger than 8 MB.} other {# pages came in empty: their files are larger than 8 MB.}}",
+    "confirmItems": "Import {pages, plural, one {# page} other {# pages}} and {databases, plural, one {# database} other {# databases}}",
+    "confirmUpdate": "Bring changes",
+    "doneUpdated": "{count, plural, one {# page changed in Notion and was updated.} other {# pages changed in Notion and were updated.}}",
+    "doneKeptEdited": "{count, plural, one {# page changed in Notion but was edited here, so it stayed as it was.} other {# pages changed in Notion but were edited here, so they stayed as they were.}}",
+    "apiTitle": "Or connect Notion with a token",
+    "apiLead": "Imports straight from Notion with an integration token, no export file needed.",
+    "apiLink": "Import from Notion by API",
+    "chooseFile": "Choose file",
+    "noFile": "No file chosen"
   },
   "reminderEmail": {
     "subject": "Reminder: {title}",

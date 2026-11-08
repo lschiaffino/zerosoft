@@ -111,7 +111,7 @@ export function markdownToBlocks(md: string, opts: MarkdownToBlocksOptions): Doc
         case 'table': {
           const t = tok as Tokens.Table;
           const rows = [t.header.map((c) => c.text), ...t.rows.map((r) => r.map((c) => c.text))].slice(0, 200);
-          push({ type: 'table', content: '', rows: rows.map((r) => r.slice(0, 20)) }, indent);
+          push({ type: 'table', content: '', rows: rows.map((r) => r.slice(0, 20)), header_row: true }, indent);
           break;
         }
         case 'html': {
@@ -161,12 +161,27 @@ export function looksLikeMarkdown(text: string): boolean {
 }
 
 /** Texto plano de varias líneas → un párrafo por línea (sin interpretar Markdown). */
-export function plainTextToBlocks(text: string, newId: () => string = () => crypto.randomUUID()): DocsBlock[] {
-  return text
-    .replace(/\r\n?/g, '\n')
-    .split('\n')
-    .slice(0, DOCS_IMPORT_MAX_BLOCKS)
-    .map((line) => ({ id: newId(), type: 'paragraph' as const, content: esc(line) }));
+export function plainTextToBlocks(
+  text: string,
+  newId: () => string = () => crypto.randomUUID(),
+  opts: { as?: 'paragraph' | 'bulleted_list_item' | 'numbered_list_item' | 'todo' } = {},
+): DocsBlock[] {
+  const type = opts.as ?? 'paragraph';
+  const lines = text.replace(/\r\n?/g, '\n').split('\n').slice(0, DOCS_IMPORT_MAX_BLOCKS);
+  // Sangría de la línea (tabs, o de a 2 espacios si no hay tabs) → nivel de anidado, sin saltar niveles.
+  let prev = -1;
+  return lines.map((line) => {
+    const lead = /^[\t ]*/.exec(line)?.[0] ?? '';
+    const tabs = (lead.match(/\t/g) ?? []).length;
+    // En párrafos solo cuentan los tabs (un texto con espacios al principio no se anida).
+    const spaces = opts.as ? Math.floor(lead.length / 2) : 0;
+    const level = Math.min(tabs > 0 ? tabs : spaces, prev + 1, DOCS_MAX_INDENT);
+    prev = level;
+    const b: DocsBlock = { id: newId(), type, content: esc(level > 0 || opts.as ? line.slice(lead.length) : line) };
+    if (type === 'todo') b.checked = false;
+    if (level > 0) b.indent = level;
+    return b;
+  });
 }
 
 /** Tipo de archivo importable en una página (por extensión). */

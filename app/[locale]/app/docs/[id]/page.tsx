@@ -1,7 +1,8 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
-import { realUserId, requireUser } from '@/lib/session';
+import type { Metadata } from 'next';
+import { getCurrentUser, realUserId, requireUser } from '@/lib/session';
 import { getUserById } from '@/lib/db';
 import {
   DOC_INTERNAL_READ,
@@ -20,7 +21,7 @@ import {
 } from '@/lib/docs';
 import { getHelpFeedbackStats } from '@/lib/docs-help';
 import { sanitizeBlocks } from '@/lib/docs-sanitize';
-import { stripFileUrls } from '@/lib/docs-files';
+import { ICON_IMAGE_PREFIX, stripFileUrls } from '@/lib/docs-files';
 import { visibleBlocks } from '@/lib/docs-visible';
 import { listDocFavorites } from '@/lib/docs-favorites';
 import { pageLinkHref, resolveBlocksPageLinks } from '@/lib/docs-page-links';
@@ -43,6 +44,18 @@ import { verifiedSiteHost } from '@/lib/docs-site';
 import '@/styles/help.css';
 
 export const dynamic = 'force-dynamic';
+
+/** La pestaña lleva el título de la página (con su emoji si tiene), como en Notion. */
+export async function generateMetadata(props: { params: Promise<{ locale: string; id: string }> }): Promise<Metadata> {
+  const { locale, id } = await props.params;
+  const t = await getTranslations({ locale, namespace: 'docs' });
+  const user = await getCurrentUser();
+  const resolved = user ? await resolveDocAccess(user, id).catch(() => null) : null;
+  if (!resolved) return { title: 'Docs' };
+  const { row } = resolved;
+  const icon = row.icon && !row.icon.startsWith(ICON_IMAGE_PREFIX) ? `${row.icon} ` : '';
+  return { title: `${icon}${row.title?.trim() || t('untitled')}` };
+}
 
 export default async function DocsPageEditor(
   props: {

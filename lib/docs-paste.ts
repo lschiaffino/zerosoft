@@ -389,6 +389,14 @@ export function htmlToBlocks(html: string, opts: HtmlToBlocksOptions): DocsBlock
       continue;
     }
     if (/\/\s*$/.test(attrs)) continue;
+    // Resaltado de color de Notion (<mark class="highlight-red">, "highlight-blue_background"): color en línea.
+    const hl = /\bhighlight-([a-z]+?)(_background)?\b/.exec(attr(attrs, 'class') ?? '');
+    if (hl && (DOCS_COLOR_NAMES as readonly string[]).includes(hl[1])) {
+      const open = `<span data-color="${hl[1]}${hl[2] ? '_bg' : ''}">`;
+      appendInline(open);
+      inlineStack.push({ tag, open, close: '</span>' });
+      continue;
+    }
     let marks: string[] = [];
     const base = INLINE_MARKS[tag];
     if (base && !(base === 'strong' && /font-weight\s*:\s*(normal|[1-4]00)/i.test(style))) marks.push(base);

@@ -96,6 +96,39 @@ test('Listas: Tab y Shift+Tab anidan, Enter en un ítem vacío sale, Backspace v
   await expect.poll(async () => shape(await blocksOf(request, doc.id))[2]).toBe('    bulleted_list_item:NietoHijo dos');
 });
 
+test('Un ítem nuevo y vacío conserva la viñeta o el número y el placeholder va en una línea', async ({ request, page }) => {
+  const doc = await newDoc(request, `Vacío ${uid()}`);
+  await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+  await page.locator('.docs-blocks .docs-editable').first().click();
+  await page.keyboard.type('- first');
+  await page.keyboard.press('Enter');
+  const check = async (selector: string) => {
+    const empty = page.locator(selector).last();
+    await expect(empty).toBeEmpty();
+    const m = await empty.evaluate((el) => {
+      const before = getComputedStyle(el, '::before');
+      const after = getComputedStyle(el, '::after');
+      const lineH = parseFloat(getComputedStyle(el).lineHeight);
+      return { marker: before.content, markerW: parseFloat(before.width), placeholder: after.content, h: el.getBoundingClientRect().height, lineH };
+    });
+    // La marca sigue ahí (no la tapa el placeholder) y el placeholder no se parte letra por letra.
+    expect(m.marker).not.toBe('none');
+    expect(m.markerW).toBeLessThan(40);
+    expect(m.placeholder).not.toBe('none');
+    expect(m.h).toBeLessThan(m.lineH * 1.6);
+  };
+  await check('.docs-blocks .docs-bulleted_list_item');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('1. one');
+  await page.keyboard.press('Enter');
+  await check('.docs-blocks .docs-numbered_list_item');
+  await expect(page.locator('.docs-blocks .docs-numbered_list_item').last()).toHaveAttribute('data-marker', '2');
+  // Fuera de foco, un ítem vacío no muestra placeholder (como Notion).
+  await page.locator('.docs-title').click();
+  const after = await page.locator('.docs-blocks .docs-numbered_list_item').last().evaluate((el) => getComputedStyle(el, '::after').content);
+  expect(after).toBe('none');
+});
+
 test('Markdown en línea al tipear: negrita, cursiva, código y tachado; lo que sigue va sin formato', async ({ request, page }) => {
   const doc = await newDoc(request, `Marcas ${uid()}`);
   await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
@@ -155,6 +188,64 @@ test('Pegar desde Notion, Google Docs y Markdown arma los bloques', async ({ req
 
   const md = await paste({ 'text/plain': '# Título\n\n- uno\n  - dos\n\n1. a\n2. b\n\n- [x] hecha\n' });
   expect(shape(md)).toEqual(['heading:Título', 'bulleted_list_item:uno', '  bulleted_list_item:dos', 'numbered_list_item:a', 'numbered_list_item:b', 'todo+:hecha']);
+});
+
+test('Atajos de Notion: > toggle, " cita, --- separador, y convertir dentro de una lista; deshacer no vuelve el /comando', async ({ request, page }) => {
+  const doc = await newDoc(request, `Atajos ${uid()}`);
+  await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+  await page.locator('.docs-blocks .docs-editable').first().click();
+  const k = page.keyboard;
+  await k.type('> Plegable');
+  await k.press('Enter');
+  await k.press('Shift+Tab');
+  await k.type('" Cita');
+  await k.press('Enter');
+  await k.press('Enter');
+  await k.type('---');
+  await k.type('- viñeta');
+  await k.press('Home');
+  await k.type('[] ');
+  await expect
+    .poll(async () => (await blocksOf(request, doc.id)).map((b) => b.type), { timeout: 10_000 })
+    .toEqual(['toggle', 'quote', 'divider', 'todo']);
+
+  // /tarea convierte; Cmd+Z vuelve al bloque sin "/tarea".
+  await k.press('End');
+  await k.press('Enter');
+  await k.press('Enter');
+  await k.type('/todo');
+  await expect(page.locator('.docs-command-menu')).toBeVisible();
+  await k.press('Enter');
+  await expect.poll(async () => (await blocksOf(request, doc.id)).at(-1)?.type).toBe('todo');
+  await k.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+  await expect.poll(async () => (await blocksOf(request, doc.id)).at(-1)?.type).toBe('paragraph');
+  expect((await blocksOf(request, doc.id)).at(-1)?.content).toBe('');
+});
+
+test('Arrastrar del texto de un bloque a otro selecciona bloques; Cmd+K con texto seleccionado abre el link', async ({ request, page }) => {
+  const doc = await newDoc(request, `Selección ${uid()}`, [
+    { id: 'a', type: 'paragraph', content: 'Uno uno uno' },
+    { id: 'b', type: 'bulleted_list_item', content: 'Dos dos dos' },
+    { id: 'c', type: 'paragraph', content: 'Tres tres tres' },
+    { id: 'd', type: 'paragraph', content: 'Cuatro' },
+  ]);
+  await page.goto(`/en/app/docs/${doc.id}`, { waitUntil: 'networkidle' });
+  const a = (await editable(page, 'Uno').boundingBox())!;
+  const c = (await editable(page, 'Tres').boundingBox())!;
+  await page.mouse.move(a.x + 20, a.y + a.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(a.x + 60, a.y + a.height / 2 + 20, { steps: 4 });
+  await page.mouse.move(c.x + 40, c.y + c.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await expect(page.locator('.docs-block-outer.is-selected')).toHaveCount(3);
+  await page.keyboard.press('Backspace');
+  await expect.poll(async () => (await blocksOf(request, doc.id)).map((b) => b.content)).toEqual(['Cuatro']);
+
+  // Cmd+K con texto seleccionado: el link del editor, no la paleta.
+  await editable(page, 'Cuatro').dblclick();
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+  await expect(page.locator('.docs-link-popover')).toBeVisible();
+  await expect(page.locator('.cmdk')).toHaveCount(0);
 });
 
 test('Listas en oscuro y a 390px: sin scroll horizontal y con la marca en la primera línea', async ({ request, page }) => {

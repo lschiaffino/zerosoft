@@ -20,7 +20,7 @@ const OPTIONS: sanitizeHtml.IOptions = {
   allowedAttributes: {
     a: ['href', 'target', 'rel', 'data-page', 'data-row'],
     // Menciones de fecha (lib/docs-dates.ts) y ecuaciones en línea.
-    span: ['data-date', 'data-time', 'data-remind', 'data-rid', 'data-tex', 'data-comment', 'data-sug', 'data-sug-kind', 'data-sug-by'],
+    span: ['data-date', 'data-time', 'data-remind', 'data-rid', 'data-tex', 'data-comment', 'data-sug', 'data-sug-kind', 'data-sug-by', 'data-color'],
   },
   allowedSchemes: ['http', 'https', 'mailto', 'tel'],
   allowProtocolRelative: false,
@@ -43,6 +43,11 @@ const OPTIONS: sanitizeHtml.IOptions = {
     span: (tagName, attribs): sanitizeHtml.Tag => {
       const tex = attribs['data-tex'];
       if (typeof tex === 'string' && tex.length > 0 && tex.length <= 2000) return { tagName, attribs: { 'data-tex': tex } };
+      // Color de texto en línea: solo los de la lista (es un atributo, nunca un estilo libre).
+      const color = attribs['data-color'];
+      if (typeof color === 'string' && /^(gray|brown|orange|yellow|green|blue|purple|pink|red)(_bg)?$/.test(color) && !attribs['data-comment'] && !attribs['data-sug']) {
+        return { tagName, attribs: { 'data-color': color } };
+      }
       // Resaltado de un comentario sobre texto y sugerencias (lib/docs-marks.ts).
       const comment = attribs['data-comment'];
       if (typeof comment === 'string' && ID_RE.test(comment)) return { tagName, attribs: { 'data-comment': comment } };

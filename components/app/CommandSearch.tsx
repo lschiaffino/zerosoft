@@ -249,6 +249,7 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   const router = useRouter();
   const pathname = usePathname();
   const inTrack = pathname.startsWith('/app/track');
+  const inDocs = pathname.startsWith('/app/docs');
   const inCrm = pathname.startsWith('/app/crm');
   const inDocs = pathname.startsWith('/app/docs');
   const [open, setOpen] = useState(false);
@@ -424,7 +425,8 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
       );
     }
     function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      // Un editor que ya usó Cmd+K (link sobre texto seleccionado) lo marca con preventDefault.
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && !e.defaultPrevented) {
         e.preventDefault();
         setPages([]);
         setAnchor(null);
@@ -545,8 +547,19 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   const search = useCallback(
     async (query: string) => {
       if (!query.trim()) {
-        setItems(actionItems.filter((a) => hrefAllowed(allowedApps, a.href, a.app)));
+        const actions = actionItems.filter((a) => hrefAllowed(allowedApps, a.href, a.app));
+        setItems(actions);
         setLoading(false);
+        // En Docs, sin tipear, primero las páginas editadas hace poco (como Notion).
+        if (inDocs) {
+          fetch('/api/docs/search?recent=1')
+            .then((r) => (r.ok ? r.json() : { rows: [] }))
+            .then((data: { rows?: Array<{ id: string; title: string }> }) => {
+              const recent: ResultItem[] = (data.rows ?? []).slice(0, 6).map((p) => ({ group: 'docs', label: p.title || t('untitled'), meta: '', href: `/app/docs/${p.id}` }));
+              if (recent.length) setItems((cur) => (cur === actions ? [...recent, ...actions] : cur));
+            })
+            .catch(() => {});
+        }
         return;
       }
       setLoading(true);
@@ -583,7 +596,7 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
         setSel(0);
       }
     },
-    [appItems, actionItems, settingsItems, groupOrder, locale, allowedApps],
+    [appItems, actionItems, settingsItems, groupOrder, locale, allowedApps, inDocs, t],
   );
 
   useEffect(() => {

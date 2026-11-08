@@ -257,6 +257,7 @@ const docsBaseBlockSchema = z.object({
   suggestion: z.object({ id: z.string().max(64), by: z.string().max(64) }).nullish(),
   // Notas de reunión (sanitizeBlocks lo descarta si el bloque no es meeting).
   meeting_id: z.string().max(64).optional(),
+  header_row: z.boolean().optional(),
   color: z.enum(DOCS_BLOCK_COLORS as [DocsBlockColor, ...DocsBlockColor[]]).optional(),
 });
 

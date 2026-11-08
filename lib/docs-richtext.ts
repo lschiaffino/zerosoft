@@ -25,6 +25,31 @@ import { DAY_RE, RID_RE, TIME_RE } from './docs-dates';
 
 export type DocsMarkTag = 'strong' | 'em' | 'u' | 's' | 'code';
 
+/** Colores de texto en línea (los mismos de los bloques: texto o fondo con `_bg`). */
+export const INLINE_COLOR_RE = /^(gray|brown|orange|yellow|green|blue|purple|pink|red)(_bg)?$/;
+
+/**
+ * Pinta (o despinta, con `null`) el tramo [start, end) de texto plano:
+ * saca los colores que hubiera adentro y lo envuelve en un span data-color.
+ */
+export function applyColor(html: string, start: number, end: number, color: string | null): string {
+  if (end <= start) return html;
+  const [before, rest] = splitHtmlAt(html, start);
+  const [mid, after] = splitHtmlAt(rest, end - start);
+  if (!mid) return html;
+  const host = domFromHtml(mid);
+  for (const el of [...host.querySelectorAll('span[data-color]')]) {
+    const parent = el.parentNode!;
+    while (el.firstChild) parent.insertBefore(el.firstChild, el);
+    parent.removeChild(el);
+  }
+  const out: string[] = [];
+  serializeChildren(host, out, null, null);
+  const inner = out.join('');
+  const painted = color && INLINE_COLOR_RE.test(color) ? `<span data-color="${color}">${inner}</span>` : inner;
+  return sanitizeHtml(`${before}${painted}${after}`);
+}
+
 /** Markdown en línea que se acaba de cerrar con el caret (`**negrita**`, `*cursiva*`, `` `código` ``, `~~tachado~~`). */
 export interface InlineMarkdownMatch {
   tag: DocsMarkTag;
@@ -218,6 +243,19 @@ function serializeNode(
     if (tex !== null) {
       if (!tex) return;
       out.push(`<span data-tex="${escapeAttr(tex.slice(0, 2000))}">${escapeHtml(tex.slice(0, 2000))}</span>`);
+      return;
+    }
+    // Color de texto en línea (como Notion): solo los colores de la lista.
+    const color = el.getAttribute('data-color');
+    if (color !== null && el.getAttribute('data-comment') === null && el.getAttribute('data-sug') === null) {
+      if ((el.textContent ?? '') === '') return;
+      if (!INLINE_COLOR_RE.test(color)) {
+        serializeChildren(el, out, parentMark, stripMark);
+        return;
+      }
+      out.push(`<span data-color="${color}">`);
+      serializeChildren(el, out, parentMark, stripMark);
+      out.push('</span>');
       return;
     }
     // Resaltado de comentario y sugerencias (lib/docs-marks.ts): el span

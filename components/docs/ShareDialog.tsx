@@ -550,7 +550,7 @@ export default function ShareDialog({
             {t('share.openHelpCenter')}
           </a>
         ) : null}
-        <button type="button" className="ui-btn" data-testid="docs-share-copy-link" onClick={() => copy(`${window.location.origin}${window.location.pathname}`)}>
+        <button type="button" className="btn btn-secondary btn-sm" data-testid="docs-share-copy-link" onClick={() => copy(`${window.location.origin}${window.location.pathname}`)}>
           {copiedPage ? t('share.copied') : t('share.copyPageLink')}
         </button>
       </div>

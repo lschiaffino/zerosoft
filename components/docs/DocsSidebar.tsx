@@ -246,8 +246,9 @@ export default function DocsSidebar({
     [router, meId],
   );
 
-  // "C" crea una página nueva desde cualquier vista de Docs (fuera de campos editables).
-  useKeyShortcut('c', () => create(null), !isPending && canCreateRoot);
+  // "C" crea una página nueva desde el listado de Docs. Con una página abierta no: una "c"
+  // suelta (bloque seleccionado, imagen enfocada) creaba páginas vacías sin querer.
+  useKeyShortcut('c', () => create(null), !isPending && canCreateRoot && !currentId);
 
   const handleDrop = useCallback(
     (e: React.DragEvent, targetId: string | null, zone: DropZone = 'inside') => {

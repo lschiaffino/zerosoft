@@ -445,6 +445,8 @@ export interface DocsBlock {
   suggestion?: { id: string; by: string } | null;
   /** Notas de reunión: id en docs_meetings (el resumen va en content). */
   meeting_id?: string;
+  /** Tabla simple: la primera fila es encabezado. */
+  header_row?: boolean;
   /** Color del bloque (como Notion): del texto, o de fondo con `_bg`. */
   color?: DocsBlockColor;
 }

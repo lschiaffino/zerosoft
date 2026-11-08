@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, forwardRef, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useContext, forwardRef, useLayoutEffect, useMemo, useRef } from 'react';
 import { DocsTodoAccessory } from './DocsTodoAccessory';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
@@ -25,6 +25,7 @@ import DocsDatabaseBlock, { type DbHooks } from './DocsDatabaseBlock';
 import { DocsBoardPicker, DocsBoardPreview } from './DocsBoardEmbed';
 import { DocsDesignPicker, DocsDesignPreview } from './DocsDesignEmbed';
 import DocsMediaBlock from './DocsMediaBlock';
+import DocsTableBlock from './DocsTableBlock';
 import DocsLinkBlock from './DocsLinkBlocks';
 import { BreadcrumbBlock, ButtonBlock, EquationBlock, TocBlock } from './DocsAdvancedBlocks';
 import { renderInlineTex } from './inlineTex';
@@ -76,10 +77,12 @@ const SEMANTIC_HTML_RE = /<(h[1-6]|ul|ol|li|blockquote|pre|table|hr)\b/i;
  * Bloques de un pegado, si el contenido tiene estructura; null si es un
  * pegado en línea (un solo párrafo de texto). Todo pasa por el saneado del editor.
  */
-function pastedBlocks(html: string, text: string): DocsBlock[] | null {
+function pastedBlocks(html: string, text: string, into: DocsBlockType): DocsBlock[] | null {
+  // Texto plano en un ítem de lista: cada línea sigue la lista (con tabs, anidada), como en Notion.
+  const as = into === 'bulleted_list_item' || into === 'numbered_list_item' || into === 'todo' ? into : undefined;
   const textBlocks = (): DocsBlock[] | null => {
     if (!/\n/.test(text.trim())) return null;
-    return looksLikeMarkdown(text) ? markdownToBlocks(text, { sanitize: sanitizeHtml }) : plainTextToBlocks(text.trim());
+    return looksLikeMarkdown(text) ? markdownToBlocks(text, { sanitize: sanitizeHtml }) : plainTextToBlocks(text.replace(/^\n+|\s+$/g, ''), undefined, { as });
   };
   if (html && SEMANTIC_HTML_RE.test(html)) {
     const blocks = htmlToBlocks(html, { sanitize: sanitizeHtml });
@@ -366,44 +369,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
     }
 
     if (block.type === 'table') {
-      return (
-        <div className="docs-table-wrap" data-index={index}>
-          <table className="docs-table">
-            <tbody>
-              {(block.rows?.length ? block.rows : [['', ''], ['', '']]).map((row, r) => (
-                <tr key={r}>
-                  {row.map((cell, c) => (
-                    <td key={c}>
-                      <input
-                        className="docs-table-cell"
-                        value={cell}
-                        onChange={(e) => {
-                          const rows = block.rows?.length ? block.rows.map((rr) => [...rr]) : [['', ''], ['', '']];
-                          rows[r][c] = e.target.value;
-                          onChange(index, { rows });
-                        }}
-                        onKeyDown={(e) => onKeyDown(index, e)}
-                        onFocus={() => onFocus(index)}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button
-            type="button"
-            className="docs-table-add"
-            onClick={() => {
-              const rows = block.rows?.length ? block.rows.map((rr) => [...rr]) : [['', ''], ['', '']];
-              rows.push(new Array(rows[0]?.length || 2).fill(''));
-              onChange(index, { rows });
-            }}
-          >
-            {t('editor.addRow')}
-          </button>
-        </div>
-      );
+      return <DocsTableBlock block={block} index={index} focused={focused} readOnly={readOnly} onChange={onChange} onKeyDown={onKeyDown} onFocus={onFocus} />;
     }
 
     const isCheck = block.type === 'todo';
@@ -531,7 +497,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
             }
             // Varios párrafos, listas, headings o Markdown: bloques reales.
             if (onPasteBlocks && block.type !== 'code') {
-              const blocks = pastedBlocks(html, cd.getData('text/plain'));
+              const blocks = pastedBlocks(html, cd.getData('text/plain'), block.type);
               if (blocks) {
                 onPasteBlocks(index, blocks);
                 return;
@@ -568,7 +534,8 @@ function TodoAccessorySlot({ block }: { block: DocsBlock }) {
 
 DocsBlockEditor.displayName = 'DocsBlockEditor';
 
-export default DocsBlockEditor;
+/** Memo: con 500 bloques, tipear en uno no vuelve a dibujar los otros (el editor pasa props estables). */
+export default memo(DocsBlockEditor);
 
 function blockRole(type: DocsBlockType, level?: number): string | undefined {
   if (type === 'heading') {
