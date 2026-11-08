@@ -273,6 +273,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
 .band-offline-btn:hover,
 .band-offline-btn[aria-expanded='true'] { background: var(--chrome-hover); }
 .band-offline-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.band-offline-count { display: none; }
 .band-offline-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--ok); }
 .band-offline-btn.is-off { border-color: var(--warn); }
 .band-offline-btn.is-off .band-offline-dot,
@@ -575,7 +576,9 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   .band-search-label,
   .band-search .kbd { display: none; }
   /* Sin conexión en el teléfono: el texto corto se recorta y el panel ocupa el ancho. */
-  .band-offline-btn { max-width: 150px; height: 40px; padding: 0 8px; }
+  .band-offline-btn { height: 40px; padding: 0 10px; gap: 6px; border: 0; }
+  .band-offline-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .band-offline-count { display: inline; font-variant-numeric: tabular-nums; }
   .band-offline-panel { position: fixed; top: calc(var(--band-h) + 4px); left: 16px; right: 16px; width: auto; }
 
   .side {

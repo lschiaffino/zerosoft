@@ -290,6 +290,12 @@ export default function OfflineStatus({ owner }: { owner: string }) {
         <span className="band-offline-text" role="status" aria-live="polite">
           {text}
         </span>
+        {/* En el teléfono la banda no tiene lugar para el texto: solo el punto y cuántos. */}
+        {(failed || pending) > 0 && (
+          <span className="band-offline-count" aria-hidden="true">
+            {failed || pending}
+          </span>
+        )}
       </button>
       {open && (
         <div ref={panelRef} className="band-offline-panel" role="dialog" aria-label={t('panelTitle')} data-testid="offline-panel">
