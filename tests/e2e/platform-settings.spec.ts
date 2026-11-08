@@ -10,7 +10,7 @@ import { expect, test, type Page } from '@playwright/test';
 const SECTIONS: Array<[string, string]> = [
   ['/app/settings', 'Profile'],
   ['/app/settings/workspace', 'Workspace'],
-  ['/app/settings/members', 'Members'],
+  ['/app/settings/members', 'Members and permissions'],
   ['/app/settings/teams', 'Teams'],
   ['/app/settings/billing', 'Plan and usage'],
   ['/app/settings/api', 'API and webhooks'],

@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-members-permissions',
+    date: '2026-11-08',
+    title: {
+      en: 'Members and permissions in one place',
+      es: 'Miembros y permisos en un solo lugar',
+      pt: 'Membros e permissões em um só lugar',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Settings › Members and permissions shows each person with role, apps, teams and last activity. Change a role or an app right in the table, select several people to change them together, and undo any change from the notice or with ⌘Z.',
+        es: 'Ajustes › Miembros y permisos muestra a cada persona con su rol, apps, equipos y última actividad. Cambiá el rol o una app desde la tabla, seleccioná varias personas para cambiarlas juntas y deshacé cualquier cambio desde el aviso o con ⌘Z.',
+        pt: 'Configurações › Membros e permissões mostra cada pessoa com papel, apps, equipes e última atividade. Mude o papel ou um app direto na tabela, selecione várias pessoas para mudá-las juntas e desfaça qualquer mudança pelo aviso ou com ⌘Z.',
+      },
+      {
+        product: 'platform',
+        en: '"What can they see?" lists, for one person, the apps they use and their level inside each one (for example their Books role or which CRM records they see), what was shared with them and what they have assigned.',
+        es: '"Qué puede ver" muestra, para una persona, las apps que usa y su nivel dentro de cada una (por ejemplo su rol en Books o qué registros del CRM ve), lo que le compartieron y lo que tiene asignado.',
+        pt: '"O que pode ver" mostra, para uma pessoa, os apps que usa e o nível dentro de cada um (por exemplo o papel no Books ou quais registros do CRM vê), o que compartilharam com ela e o que está atribuído a ela.',
+      },
+      {
+        product: 'platform',
+        en: 'Removing someone can pass their open Track issues and CRM records to another person, and Removed lets you add them back with the same role, apps and teams. Invite links work once and carry the role you pick. A change log records who changed what.',
+        es: 'Al quitar a alguien podés pasarle sus issues abiertos de Track y sus registros del CRM a otra persona, y desde Quitados la sumás de nuevo con el mismo rol, apps y equipos. Los links de invitación sirven una vez y llevan el rol que elijas. Un registro guarda quién cambió qué.',
+        pt: 'Ao remover alguém você pode passar as issues abertas no Track e os registros do CRM para outra pessoa, e em Removidos pode adicioná-la de novo com o mesmo papel, apps e equipes. Links de convite funcionam uma vez e levam o papel escolhido. Um registro guarda quem mudou o quê.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-inbox',
     date: '2026-11-08',
     title: {
