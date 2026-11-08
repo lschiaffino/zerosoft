@@ -8733,12 +8733,24 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Groups: chats archivados y ocultos (como WhatsApp) y presencia del contacto
+    // (escribiendo, grabando, en línea) que llega por webhook.
+    id: '284_groups_archive_presence',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN archived_at TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN hidden_at TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_who TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_at TEXT');
+    },
+  },
+  {
     // Rec, compartir como Drive: rol por persona invitada, links mágicos para
     // quien no tiene cuenta y lo nuevo nace restringido. Los videos que ya
     // estaban abiertos por link siguen igual (el modal los muestra como
     // "Cualquiera con el link"); el default de los workspaces pasa a
     // restringido.
-    id: '284_rec_sharing_people',
+    id: '285_rec_sharing_people',
     up: async (c) => {
       await addColumn(c, "ALTER TABLE rec_videos ADD COLUMN people_roles TEXT NOT NULL DEFAULT '{}'");
       await c.executeMultiple(`
@@ -8757,7 +8769,7 @@ export const MIGRATIONS: Migration[] = [
   },
   {
     // Rec: MP4 (H.264/AAC) para descargar, armado una vez por versión del video.
-    id: '285_rec_mp4',
+    id: '286_rec_mp4',
     up: async (c) => {
       await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_url TEXT');
       await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_size INTEGER NOT NULL DEFAULT 0');

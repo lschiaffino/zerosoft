@@ -71,17 +71,19 @@ export interface ProviderCaps {
   ephemeral: boolean;
   /** Encuestas nativas de WhatsApp (la Cloud API de Meta no las tiene). */
   polls: boolean;
+  /** Mandar tarjetas de contacto (vCard). */
+  contacts: boolean;
 }
 
 export const PROVIDER_CAPS: Record<ProviderKind, ProviderCaps> = {
   // Cloud API: los mensajes no se editan ni se borran; las llamadas llegan por el webhook "calls" (Calling API).
-  cloud: { groups: false, qr: false, templates: true, ephemeral: false, polls: false, edit: false, deleteForAll: false, pin: false, forward: false, calls: true },
-  waha: { groups: true, qr: true, templates: false, ephemeral: false, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
+  cloud: { groups: false, qr: false, templates: true, ephemeral: false, polls: false, edit: false, deleteForAll: false, pin: false, forward: false, calls: true, contacts: false },
+  waha: { groups: true, qr: true, templates: false, ephemeral: false, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true, contacts: false },
   // Evolution API v2 edita y borra; no tiene endpoint para fijar ni reenviar.
-  evolution: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true },
-  managed: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true },
-  sample: { groups: true, qr: false, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: false },
-  fake: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true },
+  evolution: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true, contacts: true },
+  managed: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true, contacts: true },
+  sample: { groups: true, qr: false, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: false, contacts: true },
+  fake: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true, contacts: true },
 };
 
 export type ConnectStatus = 'pending' | 'qr' | 'connected' | 'disconnected' | 'error';
@@ -209,6 +211,8 @@ export type InboundEvent =
     }
   /** Nombre o foto de un contacto o grupo (historial, contactos de WhatsApp). */
   | { type: 'contact'; chatId: string; name?: string; pictureUrl?: string }
+  /** El contacto escribe, graba un audio, está en línea o se fue (Evolution: PRESENCE_UPDATE). */
+  | { type: 'presence'; chatId: string; who: string; state: 'composing' | 'recording' | 'available' | 'unavailable' | 'paused' }
   | {
       type: 'reaction';
       chatId: string;
@@ -308,6 +312,10 @@ export interface GroupsProvider {
   sendTemplate(chatId: string, name: string, language: string, params: string[]): Promise<SendResult>;
   /** Encuesta nativa (solo si caps.polls). */
   sendPoll?(chatId: string, poll: { question: string; options: string[]; multi: boolean }): Promise<SendResult>;
+  /** Tarjeta de contacto (vCard) nativa de WhatsApp. */
+  sendContact?(chatId: string, contacts: Array<{ name: string; phone: string }>): Promise<SendResult>;
+  /** Tildes azules: marca leídos en WhatsApp los mensajes recibidos de un chat. */
+  markRead?(chatId: string, messageIds: string[]): Promise<void>;
   listTemplates(): Promise<Template[]>;
   /** Baja un archivo recibido (solo los proveedores que lo dejan, con tope de tamaño). */
   fetchMedia?(ref: MediaRef, maxBytes: number): Promise<FetchedMedia>;

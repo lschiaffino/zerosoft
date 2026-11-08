@@ -253,7 +253,8 @@
     "sampleInvite": "É um grupo de exemplo: não tem um link de convite real.",
     "searchMembers": "Buscar membros",
     "memberOptions": "Opções de {name}",
-    "removeMember": "Remover do grupo"
+    "removeMember": "Remover do grupo",
+    "moreMembers": "Mostrar mais {n}"
   },
   "roles": {
     "member": "Membro",
@@ -684,7 +685,11 @@
     "slaEmailAssignee": "Para a pessoa responsável pelo ticket",
     "slaEmailAdmins": "Para os admins do workspace",
     "slaEmailExtra": "Outros emails",
-    "slaEmailHelp": "Separados por vírgula, até 10. Cada vencimento envia um email por endereço."
+    "slaEmailHelp": "Separados por vírgula, até 10. Cada vencimento envia um email por endereço.",
+    "whatsapp": "WhatsApp",
+    "readReceipts": "Marcar as conversas como lidas no WhatsApp quando alguém da equipe as lê",
+    "readReceiptsHelp": "O cliente vê os tiques azuis. Só em linhas conectadas por QR.",
+    "keepArchived": "Manter arquivadas as conversas arquivadas quando chega uma mensagem nova"
   },
   "api": {
     "intro": "Leia conversas, envie mensagens e crie tickets a partir dos seus próprios sistemas com a API pública.",
@@ -838,7 +843,10 @@
     "too_many_files": "Até 10 arquivos por vez.",
     "client_upload_unavailable": "O envio direto não está disponível aqui. Arquivos de até 4,5 MB funcionam.",
     "edit_failed_whatsapp": "Não foi possível editar no WhatsApp. A mensagem ficou como estava.",
-    "file_too_large_local": "Este servidor aceita arquivos de até 4,5 MB. Para enviar até 100 MB, um admin precisa configurar o armazenamento Blob."
+    "file_too_large_local": "Este servidor aceita arquivos de até 4,5 MB. Para enviar até 100 MB, um admin precisa configurar o armazenamento Blob.",
+    "send_rate_limited": "Esta linha enviou mensagens demais em um minuto. Espere um pouco antes de continuar, para o WhatsApp não bloqueá-la.",
+    "contacts_unsupported": "Esta linha não pode enviar contatos.",
+    "invalid_contact_card": "Confira o número: ele precisa do código do país."
   },
   "media": {
     "image": "Imagem",
@@ -1527,6 +1535,35 @@
     "importNothingNew": "Já estava tudo importado ({chats} conversas).",
     "historyOnPhone": "As mensagens anteriores estão no celular.",
     "historyFetch": "Trazer mais",
-    "historyAll": "Este é o começo do histórico que temos."
+    "historyAll": "Este é o começo do histórico que temos.",
+    "online": "online",
+    "typing": "digitando…",
+    "typingBy": "{name} está digitando…",
+    "recordingAudio": "gravando áudio…",
+    "recordingBy": "{name} está gravando um áudio…",
+    "contact": "Contato",
+    "contactTitle": "Enviar contatos",
+    "contactSearch": "Buscar conversas",
+    "contactNone": "Ainda não há conversas 1 a 1 com número.",
+    "contactOther": "Outro número",
+    "contactName": "Nome",
+    "contactPhone": "Número",
+    "contactSend": "Enviar contato",
+    "contactSendN": "Enviar {n} contatos",
+    "contactPickOne": "Escolha um contato ou digite um número.",
+    "archive": "Arquivar conversa",
+    "unarchive": "Desarquivar conversa",
+    "archived": "Conversa arquivada",
+    "unarchived": "Conversa desarquivada",
+    "archivedTitle": "Arquivadas",
+    "archivedEmpty": "Nenhuma conversa arquivada.",
+    "deleteChat": "Apagar conversa",
+    "deleteChatTitle": "Apagar a conversa com {name}?",
+    "deleteChatBody": "Ela sai da lista para toda a equipe. Nada muda no WhatsApp e, se chegar uma mensagem nova, a conversa volta a aparecer com o histórico.",
+    "chatDeleted": "Conversa apagada",
+    "lineDropped": "{name} perdeu a conexão com o WhatsApp. As mensagens novas não chegam até você reconectar.",
+    "line": "Sua linha",
+    "rescan": "Escanear o QR de novo",
+    "reconnect": "Reconectar"
   }
 }
