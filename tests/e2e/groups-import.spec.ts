@@ -105,7 +105,7 @@ test('importar al conectar: 212 chats con nombres, fotos y mensajes; el hilo se 
     await photo.scrollIntoViewIfNeeded();
     await photo.click();
     const viewer = page.getByRole('dialog', { name: 'Media viewer' });
-    await expect(viewer.locator('img')).toBeVisible();
+    await expect(viewer.locator('.wa-viewer-stage img')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(viewer).toHaveCount(0);
 

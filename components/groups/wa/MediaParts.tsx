@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { colorIndex, duration, extensionOf, fileSize } from './format';
 import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, Play } from './icons';
+import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 
 /** Barras fijas por mensaje (parecen una onda, sin decodificar el audio). */
 function bars(seed: string, n = 36): number[] {
@@ -115,9 +116,13 @@ export function DocCard({ url, name, type, size, pages }: { url: string; name: s
   const t = useTranslations('groups');
   const locale = useLocale();
   const ext = extensionOf(name, type);
-  const meta = [pages ? t('wa.pages', { n: pages }) : '', ext, size ? fileSize(size, locale) : ''].filter(Boolean).join(' · ');
+  const [pdfPages, setPdfPages] = useState<number | null>(null);
+  const shownPages = pages || pdfPages || 0;
+  const meta = [shownPages ? t('wa.pages', { n: shownPages }) : '', ext, size ? fileSize(size, locale) : ''].filter(Boolean).join(' · ');
+  const isPdf = ext.toLowerCase() === 'pdf' || type === 'application/pdf';
   const inner = (
     <>
+      {url && isPdf && !(size && size > PDF_THUMB_MAX_BYTES) && <PdfThumb url={url} onPages={setPdfPages} />}
       <span className={`wa-doc-icon wa-doc-${ext.toLowerCase().replace(/[^a-z]/g, '').slice(0, 4) || 'file'}`} aria-hidden="true">
         <DocIcon size={26} />
         <b>{ext.slice(0, 4)}</b>
