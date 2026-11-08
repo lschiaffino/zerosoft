@@ -271,7 +271,7 @@ test('link vencido: frena al link (sin decir el título si hay contraseña) pero
   await inv.ctx.close();
 });
 
-test('modal de compartir en el teléfono (390 y 360 px, claro y oscuro): pantalla completa, sin scroll horizontal, toques de 40 px y teclado', async ({ page, request }) => {
+test('modal de compartir en el teléfono (390 y 360 px, claro y oscuro): hoja de abajo, sin scroll horizontal, toques de 40 px y teclado', async ({ page, request }) => {
   test.setTimeout(90_000);
   const v = await upload(request, `Angosto ${'x'.repeat(70)} ${uid()}`);
   await ok(request.post(`/api/rec/videos/${v.id}/people`, { data: { emails: [`un-email-bastante-largo-${uid()}@una-empresa-con-nombre-largo.dev`], role: 'viewer', notify: false } }));
@@ -301,13 +301,14 @@ test('modal de compartir en el teléfono (390 y 360 px, claro y oscuro): pantall
       return {
         pageOverflow: document.documentElement.scrollWidth > window.innerWidth,
         dialogOverflow: d.scrollWidth > d.clientWidth + 1,
-        fullScreen: Math.abs(r.left) <= 1 && Math.abs(r.top) <= 1 && Math.abs(r.width - window.innerWidth) <= 1 && Math.abs(r.height - window.innerHeight) <= 1,
+        // Hoja de abajo a todo el ancho (ui.css), pegada al borde inferior.
+        sheet: Math.abs(r.left) <= 1 && Math.abs(r.width - window.innerWidth) <= 1 && Math.abs(r.bottom - window.innerHeight) <= 1,
         footInView: foot.bottom <= window.innerHeight + 1 && foot.top >= 0,
         small,
         tinyText,
       };
     });
-    expect(m).toEqual({ pageOverflow: false, dialogOverflow: false, fullScreen: true, footInView: true, small: [], tinyText: [] });
+    expect(m).toEqual({ pageOverflow: false, dialogOverflow: false, sheet: true, footInView: true, small: [], tinyText: [] });
     if (process.env.REC_SHOTS) await page.screenshot({ path: `test-results/rec-share-${width}-${scheme}.png` });
     // Teclado: el foco arranca adentro, Tab no se escapa del diálogo y Esc cierra.
     await page.keyboard.press('Tab');
