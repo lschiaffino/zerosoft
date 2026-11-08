@@ -297,8 +297,22 @@ section.rec-edit-block { padding-bottom: 20px; }
 
 /* ---------- Detalle ---------- */
 
-.rec-detail-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: -4px 0 16px; }
-.rec-detail-badges { margin-left: auto; font-size: 0.8125rem; }
+.rec-detail-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: -4px 0 4px; }
+.rec-detail-badges { margin: 0 0 16px; font-size: 0.8125rem; }
+/* Teléfono: las acciones en una sola fila que se desliza, en vez de tres renglones de texto suelto. */
+@media (max-width: 600px) {
+  .rec-detail-tools {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: -16px;
+    padding-inline: 12px;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%);
+  }
+  .rec-detail-tools::-webkit-scrollbar { display: none; }
+  .rec-detail-tools > * { flex: 0 0 auto; white-space: nowrap; }
+}
 .rec-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
 .rec-detail-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .rec-detail-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
@@ -419,7 +433,6 @@ dialog.rec-share { width: min(620px, calc(100vw - 32px)); }
   .rec-player-time { display: none; }
   .rec-player-chapter { display: none; }
   .rec-grid { grid-template-columns: minmax(0, 1fr); }
-  .rec-detail-badges { margin-left: 0; width: 100%; }
 }
 
 /* ---------- Subida a prueba de cortes, recuperación, confirmaciones ---------- */

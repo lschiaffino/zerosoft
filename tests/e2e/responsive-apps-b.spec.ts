@@ -235,7 +235,7 @@ async function overlayTriggers(page: Page): Promise<number> {
       const name = `${b.getAttribute('aria-label') || ''} ${b.innerText || ''} ${b.getAttribute('title') || ''}`;
       const opener = b.hasAttribute('aria-haspopup') || b.hasAttribute('aria-expanded') || re.test(name);
       if (!opener && risky.test(name)) continue;
-      if (/delete|remove|archive|discard|offboard|revoke|disconnect|sign out|log out/i.test(name)) continue;
+      if (/delete|remove|archive|discard|offboard|revoke|disconnect|sign out|log out|huddle/i.test(name)) continue;
       b.setAttribute('data-resp-trigger', String(n++));
     }
     return n;
@@ -285,7 +285,10 @@ async function settle(page: Page) {
 
 async function crawlPage(page: Page, url: string, vp: string, scheme: string, findings: Finding[], shotDir: string | null, withOverlays: boolean) {
   const res = await page.goto(url, { waitUntil: 'domcontentloaded' }).catch(() => null);
-  if (!res || res.status() >= 400) return;
+  if (!res || res.status() >= 400) {
+    findings.push({ url, vp, scheme, issues: [{ kind: 'http', detail: String(res?.status() ?? 'no response') }] });
+    return;
+  }
   await settle(page);
   const slug = url.replace(/[^a-z0-9]+/gi, '_').slice(0, 80);
   const base: Finding = { url, vp, scheme, issues: await check(page, null) };
@@ -295,11 +298,16 @@ async function crawlPage(page: Page, url: string, vp: string, scheme: string, fi
   }
   findings.push(base);
   if (!withOverlays) return;
-  const n = Math.min(await overlayTriggers(page), AUDIT ? 24 : 10);
-  for (let i = 0; i < n; i++) {
+  const n = Math.min(await overlayTriggers(page), 40);
+  const tried = new Set<string>();
+  for (let i = 0; i < n && tried.size < (AUDIT ? 24 : 10); i++) {
     const trig = page.locator(`[data-resp-trigger="${i}"]`);
     if (!(await trig.isVisible().catch(() => false))) continue;
     const label = ((await trig.getAttribute('aria-label').catch(() => null)) || (await trig.innerText().catch(() => '')) || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+    // Un "Renombrar" por fila abre el mismo diálogo: alcanza con uno.
+    const kind = label.replace(/\s+(for|de|para)\s.*$/i, '').replace(/\d+/g, '#');
+    if (tried.has(kind)) continue;
+    tried.add(kind);
     await markFloating(page);
     await trig.click({ timeout: 2_000 }).catch(() => null);
     await page.waitForTimeout(350);
@@ -331,10 +339,11 @@ async function crawlPage(page: Page, url: string, vp: string, scheme: string, fi
 }
 
 /** Lo que bloquea en CI. tap-small queda como aviso: hay íconos de 32px a propósito en barras densas. */
-const BLOCKING = new Set(['hscroll', 'offscreen', 'overlay-offscreen', 'input-zoom']);
+const BLOCKING = new Set(['hscroll', 'offscreen', 'overlay-offscreen', 'input-zoom', 'http']);
 
 test.describe('celular: apps (segunda mitad)', () => {
-  test.use({ hasTouch: true, isMobile: true });
+  // Micrófono y cámara falsos: sin ellos getUserMedia se cuelga en headless (grabar, huddle, dictar).
+  test.use({ hasTouch: true, isMobile: true, permissions: ['microphone', 'camera'], launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] } });
   test.setTimeout(AUDIT ? 3_600_000 : 600_000);
 
   test('cada pantalla y overlay entra en 390 y 360 de ancho', async ({ browser, request, baseURL }) => {
@@ -366,7 +375,7 @@ test.describe('celular: apps (segunda mitad)', () => {
       for (const vp of VIEWPORTS) {
         // Oscuro cambia colores, no medidas: alcanza con 390.
         if (scheme === 'dark' && vp.name !== '390') continue;
-        const ctx = await browser.newContext({ baseURL, viewport: { width: vp.width, height: vp.height }, hasTouch: true, isMobile: true, colorScheme: scheme });
+        const ctx = await browser.newContext({ baseURL, viewport: { width: vp.width, height: vp.height }, hasTouch: true, isMobile: true, colorScheme: scheme, permissions: ['microphone', 'camera'] });
         const page = await ctx.newPage();
         // Overlays solo en 390 claro (y 360 en la auditoría): el resto repite lo mismo.
         const withOverlays = vp.name === '390';
