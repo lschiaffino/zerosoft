@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, realUserId } from '@/lib/session';
+import { getCurrentUser, realUserId, userCanUseApp } from '@/lib/session';
 import { gmailAuthUrl } from '@/lib/integrations';
 
 export const runtime = 'nodejs';
@@ -11,6 +11,8 @@ const STATE_COOKIE = 'zs-gmail-state';
 export async function GET(_req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  // El correo se sincroniza en el CRM del workspace: sin CRM, no.
+  if (!userCanUseApp(user, 'crm')) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     return NextResponse.json({ error: 'not_configured' }, { status: 500 });
   }

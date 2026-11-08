@@ -10,7 +10,7 @@ import { expect, test, type Page } from '@playwright/test';
 const SECTIONS: Array<[string, string]> = [
   ['/app/settings', 'Profile'],
   ['/app/settings/workspace', 'Workspace'],
-  ['/app/settings/members', 'Members'],
+  ['/app/settings/members', 'Members and permissions'],
   ['/app/settings/teams', 'Teams'],
   ['/app/settings/billing', 'Plan and usage'],
   ['/app/settings/api', 'API and webhooks'],
@@ -52,7 +52,7 @@ test('la nav tiene dos grupos y marca la sección abierta en cada ruta', async (
   }
   await expect(nav.getByRole('group', { name: 'Account and workspace' })).toBeVisible();
   const products = nav.getByRole('group', { name: 'Products' });
-  await expect(products.getByRole('link')).toHaveCount(25);
+  await expect(products.getByRole('link')).toHaveCount(26);
 
   // Productos lleva a los ajustes de la app, y de ahí se vuelve a la plataforma.
   await products.getByRole('link', { name: 'Docs', exact: true }).click();

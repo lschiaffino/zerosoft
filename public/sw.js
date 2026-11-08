@@ -22,6 +22,22 @@
  *   sin red. Lo que se escribe sin red lo guarda el editor en el dispositivo
  *   (lib/docs-offline.ts) y lo manda al volver: acá no se encola nada de Docs.
  *
+ * Track sin conexión (y cualquier app que lo pida):
+ * - Navegaciones a /<locale>/app/track/**: network-first con la última versión
+ *   guardada (lo que la persona ya abrió: listas, issues, proyectos).
+ * - Escrituras con el header `x-zs-offline: 1` (lib/offline-fetch.ts) a una
+ *   API de OPT_IN_PREFIXES: si falla la red se encolan igual que las del CRM,
+ *   con su clave de idempotencia, la versión sobre la que se editó (x-zs-base)
+ *   y un nombre para la lista de pendientes (x-zs-label).
+ *
+ * Cola (replayQueue, igual que lib/offline-queue.ts):
+ * - En orden; solo lo de la persona de la sesión (owner) y su workspace.
+ * - 5xx, 429 o `x-zs-retry`: se corta y se reintenta después, sin perder nada.
+ * - Otro 4xx: el cambio pasa a `failed` (la barra de estado ofrece reintentar
+ *   o descartar). Un DELETE que da 404 ya está hecho.
+ * - Respuesta con `x-zs-conflict: 1`: se guardó (gana lo último) pero alguien
+ *   había guardado otra versión; queda en `conflicts` para avisar.
+ *
  * Por persona (re-QA D5): las vistas guardadas son de quien estaba en la
  * sesión. La app avisa quién es ({type:'zs-user', id: '<persona>:<workspace>'},
  * components/app/OfflineIdentity.tsx); cada persona tiene su caché
@@ -35,16 +51,28 @@
  * - notificationclick: abre (o enfoca) el chat del aviso.
  * - La bandeja de Groups no se cachea: siempre se ve al día.
  */
-const VERSION = 'zs-app-v6';
+const VERSION = 'zs-app-v7';
 const PAGES = `${VERSION}-pages`;
 const META = `${VERSION}-meta`;
 const USER_KEY = '/__zs-user';
 const STATIC = `${VERSION}-static`;
 const DB_NAME = 'zs-offline';
 const STORE = 'queue';
+const FAILED = 'failed';
+const CONFLICTS = 'conflicts';
+const DB_VERSION = 2;
+/** Tope de vistas guardadas por persona (las más viejas salen primero). */
+const MAX_PAGES = 300;
 const SYNC_TAG = 'zs-crm-queue';
 const QUEUED_HEADER = 'x-zs-queued';
 const WORKSPACE_HEADER = 'x-zs-workspace';
+const OPT_IN_HEADER = 'x-zs-offline';
+const IDEMPOTENCY_HEADER = 'x-zs-idempotency-key';
+const BASE_HEADER = 'x-zs-base';
+const LABEL_HEADER = 'x-zs-label';
+const CONFLICT_HEADER = 'x-zs-conflict';
+const RETRY_HEADER = 'x-zs-retry';
+const REPLAY_HEADER = 'x-zs-replay';
 
 const NEVER_QUEUE = [
   '/api/crm/emails',
@@ -57,35 +85,53 @@ const NEVER_QUEUE = [
   '/api/crm/calls',
 ];
 
-function shouldQueue(pathname, method, contentType) {
+// APIs que aceptan encolar cuando la página lo pide (header x-zs-offline).
+const OPT_IN_PREFIXES = ['/api/track/'];
+// Nunca se encolan aunque se pida: integraciones, exportar, importar, en vivo.
+const NEVER_OPT_IN = ['/api/track/export', '/api/track/github', '/api/track/slack', '/api/track/integrations', '/api/track/live', '/api/track/import'];
+
+function shouldQueue(pathname, method, contentType, optIn) {
   const m = String(method).toUpperCase();
   if (m !== 'POST' && m !== 'PATCH' && m !== 'PUT' && m !== 'DELETE') return false;
-  if (!pathname.startsWith('/api/crm/')) return false;
-  if (NEVER_QUEUE.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return false;
-  if (pathname.endsWith('/draft') || pathname.includes('/ai')) return false;
   const ct = String(contentType || '').toLowerCase();
-  return ct === '' || ct.startsWith('application/json');
+  if (ct !== '' && !ct.startsWith('application/json')) return false;
+  if (pathname.endsWith('/draft') || pathname.includes('/ai')) return false;
+  if (pathname.startsWith('/api/crm/')) return !NEVER_QUEUE.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  if (!optIn) return false;
+  if (!OPT_IN_PREFIXES.some((p) => pathname.startsWith(p))) return false;
+  if (NEVER_OPT_IN.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return false;
+  return !/\/(attachments|agent)(\/|$)/.test(pathname);
 }
 
-async function replayQueue(store, doFetch) {
+/**
+ * Reenvía la cola en orden (la misma lógica que lib/offline-queue.ts, que la testea).
+ * `owner`: persona:workspace de la sesión; lo de otra persona no se envía.
+ */
+async function replayQueue(store, doFetch, owner) {
   const items = (await store.all()).sort((a, b) => a.createdAt - b.createdAt || a.id - b.id);
   let done = 0;
   let failed = 0;
+  let conflicts = 0;
   const blocked = new Set();
   let unknown = 0;
+  const keyOf = (it) => (it.owner ? `o:${it.owner}|${it.workspace}` : `w:${it.workspace}`);
   for (let i = 0; i < items.length; i += 1) {
-    // De antes de guardar el workspace: no se sabe de cuál es. No se envía; se avisa y se puede descartar.
-    if (!items[i].workspace) {
+    const it = items[i];
+    // Sin workspace o sin persona (cola de antes de este cambio): no se sabe de quién es.
+    // No se envía con ninguna sesión; se avisa y se puede descartar.
+    if (!it.workspace || !it.owner) {
       unknown += 1;
       continue;
     }
-    const key = items[i].workspace;
+    const key = keyOf(it);
+    // De otra persona (o sin sesión confirmada): espera a que vuelva la suya.
+    if (it.owner && it.owner !== owner) blocked.add(key);
     if (blocked.has(key)) continue;
     let res;
     try {
-      res = await doFetch(items[i]);
+      res = await doFetch(it);
     } catch {
-      return { done, failed, remaining: items.length - i };
+      return { done, failed, conflicts, remaining: items.length - i };
     }
     // Sin sesión o con otro workspace activo: el item no se pierde ni se escribe en otro lado.
     // Queda, y lo que sigue del mismo workspace espera para no cambiar el orden.
@@ -93,14 +139,29 @@ async function replayQueue(store, doFetch) {
       blocked.add(key);
       continue;
     }
-    await store.remove(items[i].id);
-    if (res.ok) done += 1;
-    else failed += 1;
+    // El servidor no pudo ahora (caído, saturado o la misma alta en curso): se prueba después, en orden.
+    if (res.status >= 500 || res.status === 429 || res.status === 408 || res.retry) {
+      return { done, failed, conflicts, remaining: items.length - i, retry: true };
+    }
+    const gone = String(it.method).toUpperCase() === 'DELETE' && (res.status === 404 || res.status === 410);
+    if (res.ok || gone) {
+      await store.remove(it.id);
+      done += 1;
+      if (res.conflict && store.conflict) {
+        await store.conflict(it);
+        conflicts += 1;
+      }
+      continue;
+    }
+    // Rechazado (403, 404, 400...): no se pierde; queda aparte para reintentar o descartar.
+    if (store.fail) await store.fail(it, res.status);
+    else await store.remove(it.id);
+    failed += 1;
   }
   let remaining = unknown;
-  for (const it of items) if (it.workspace && blocked.has(it.workspace)) remaining += 1;
-  if (!remaining) return { done, failed, remaining: 0 };
-  return unknown ? { done, failed, remaining, blocked: true, unknown } : { done, failed, remaining, blocked: true };
+  for (const it of items) if (it.workspace && it.owner && blocked.has(keyOf(it))) remaining += 1;
+  if (!remaining) return { done, failed, conflicts, remaining: 0 };
+  return unknown ? { done, failed, conflicts, remaining, blocked: true, unknown } : { done, failed, conflicts, remaining, blocked: true };
 }
 
 // El CRM entero, Notes y el inicio de la app (/app, sin subruta). Notes
@@ -108,6 +169,10 @@ async function replayQueue(store, doFetch) {
 // solo se guarda la página para poder abrirla sin red.
 const CRM_PAGE = /^\/(en|es|pt)\/app(\/crm(\/|$)|\/notes\/?$|\/?$)/;
 const CRM_ROOT = /^\/app(\/crm(\/|$)|\/notes\/?$|\/?$)/;
+
+// Track: listas, issues, proyectos y vistas que la persona abrió.
+const TRACK_PAGE = /^\/(en|es|pt)\/app\/track(\/|$)/;
+const TRACK_ROOT = /^\/app\/track(\/|$)/;
 
 // Docs: el editor y la lista (D5).
 const DOCS_PAGE = /^\/(en|es|pt)\/app\/docs(\/|$)/;
@@ -127,42 +192,75 @@ function isCrmNavigation(url) {
   return CRM_PAGE.test(url.pathname) || CRM_ROOT.test(url.pathname);
 }
 
-/** Navegaciones que se guardan para abrir sin red: el CRM, el inicio y Docs. */
+/** Navegaciones que se guardan para abrir sin red: el CRM, el inicio, Docs, Notes y Track. Nunca el sitio público. */
 function isOfflineNavigation(url) {
-  return isCrmNavigation(url) || DOCS_PAGE.test(url.pathname) || DOCS_ROOT.test(url.pathname);
+  return (
+    isCrmNavigation(url) ||
+    DOCS_PAGE.test(url.pathname) ||
+    DOCS_ROOT.test(url.pathname) ||
+    TRACK_PAGE.test(url.pathname) ||
+    TRACK_ROOT.test(url.pathname)
+  );
 }
 
 // ---------- IndexedDB ----------
 
 function openDb() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+      if (!db.objectStoreNames.contains(FAILED)) db.createObjectStore(FAILED, { keyPath: 'id' });
+      if (!db.objectStoreNames.contains(CONFLICTS)) db.createObjectStore(CONFLICTS, { keyPath: 'id', autoIncrement: true });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
 
-function tx(mode, fn) {
+function tx(mode, fn, name) {
+  const storeName = name || STORE;
   return openDb().then(
     (db) =>
       new Promise((resolve, reject) => {
-        const t = db.transaction(STORE, mode);
-        const out = fn(t.objectStore(STORE));
-        t.oncomplete = () => resolve(out && 'result' in out ? out.result : undefined);
-        t.onerror = () => reject(t.error);
+        const t = db.transaction(storeName, mode);
+        const out = fn(t.objectStore(storeName));
+        t.oncomplete = () => {
+          db.close();
+          resolve(out && 'result' in out ? out.result : undefined);
+        };
+        t.onerror = () => {
+          db.close();
+          reject(t.error);
+        };
       }),
   );
 }
 
 const idbStore = {
   add: (item) => tx('readwrite', (s) => s.add(item)),
+  put: (item) => tx('readwrite', (s) => s.put(item)),
   all: () => tx('readonly', (s) => s.getAll()),
   remove: (id) => tx('readwrite', (s) => s.delete(id)),
   count: () => tx('readonly', (s) => s.count()),
+  /** Rechazado por el servidor: pasa a `failed` con el código. */
+  fail: async (item, status) => {
+    await tx('readwrite', (s) => s.put({ ...item, status, failedAt: Date.now() }), FAILED);
+    await tx('readwrite', (s) => s.delete(item.id));
+  },
+  /** Se guardó encima de una versión más nueva de otra persona: se avisa. */
+  conflict: (item) =>
+    tx('readwrite', (s) => s.add({ url: item.url, method: item.method, label: item.label || null, owner: item.owner || null, at: Date.now() }), CONFLICTS),
+};
+
+const failedStore = {
+  all: () => tx('readonly', (s) => s.getAll(), FAILED),
+  remove: (id) => tx('readwrite', (s) => s.delete(id), FAILED),
+};
+const conflictStore = {
+  all: () => tx('readonly', (s) => s.getAll(), CONFLICTS),
+  remove: (id) => tx('readwrite', (s) => s.delete(id), CONFLICTS),
 };
 
 // ---------- Mensajes a la página ----------
@@ -172,9 +270,25 @@ async function broadcast(msg) {
   for (const c of clients) c.postMessage(msg);
 }
 
+/** Lo que la barra de estado muestra: pendientes, rechazados y avisos de "editado en otro lado" de la persona actual. */
 async function broadcastCount() {
-  const count = await idbStore.count().catch(() => 0);
-  await broadcast({ type: 'zs-queue', count });
+  const owner = await getUser().catch(() => null);
+  const mine = (it) => Boolean(owner) && it.owner === owner;
+  const all = await idbStore.all().catch(() => []);
+  const queue = all.filter(mine);
+  // Sin persona o sin workspace: no se muestra qué son, solo cuántos (para descartarlos).
+  const unknown = all.filter((it) => !it.owner || !it.workspace).length;
+  const failed = (await failedStore.all().catch(() => [])).filter(mine);
+  const conflicts = (await conflictStore.all().catch(() => [])).filter(mine);
+  const brief = (it) => ({ id: it.id, url: it.url, method: it.method || null, label: it.label || null, status: it.status || null, at: it.failedAt || it.at || it.createdAt });
+  await broadcast({
+    type: 'zs-queue',
+    count: queue.length,
+    unknown,
+    pending: queue.slice(0, 50).map(brief),
+    failed: failed.slice(0, 50).map(brief),
+    conflicts: conflicts.slice(-20).map(brief),
+  });
 }
 
 let replaying = null;
@@ -184,16 +298,36 @@ function replay() {
     const pending = await idbStore.count().catch(() => 0);
     if (!pending) return { done: 0, failed: 0, remaining: 0 };
     await broadcast({ type: 'zs-sync-start', count: pending });
-    const result = await replayQueue(idbStore, (item) =>
-      fetch(item.url, {
-        method: item.method,
-        headers: {
-          ...(item.contentType ? { 'content-type': item.contentType } : {}),
-          ...(item.workspace ? { [WORKSPACE_HEADER]: item.workspace } : {}),
-        },
-        body: item.body === null ? undefined : item.body,
-        credentials: 'same-origin',
-      }),
+    // Solo con la sesión de quien escribió (zs_who igual al confirmado): si no, nada tiene dueño válido y todo espera.
+    const owner = (await sessionMatches().catch(() => false)) ? await getUser().catch(() => null) : null;
+    // Varios cambios al mismo registro: el segundo se apoya en lo que dejó el primero, no en la base vieja.
+    const latest = new Map();
+    const result = await replayQueue(
+      idbStore,
+      async (item) => {
+        const base = latest.get(item.url) || item.base;
+        const res = await fetch(item.url, {
+          method: item.method,
+          headers: {
+            ...(item.contentType ? { 'content-type': item.contentType } : {}),
+            ...(item.workspace ? { [WORKSPACE_HEADER]: item.workspace } : {}),
+            ...(item.idem ? { [IDEMPOTENCY_HEADER]: item.idem } : {}),
+            ...(base ? { [BASE_HEADER]: base } : {}),
+            [REPLAY_HEADER]: '1',
+          },
+          body: item.body === null ? undefined : item.body,
+          credentials: 'same-origin',
+        });
+        if (res.ok) {
+          const data = await res
+            .clone()
+            .json()
+            .catch(() => null);
+          if (data && typeof data.updated_at === 'string') latest.set(item.url, data.updated_at);
+        }
+        return { ok: res.ok, status: res.status, conflict: res.headers.get(CONFLICT_HEADER) === '1', retry: res.headers.get(RETRY_HEADER) === '1' };
+      },
+      owner,
     );
     await broadcast({ type: 'zs-sync-done', ...result });
     await broadcastCount();
@@ -321,12 +455,23 @@ async function networkFirst(request) {
     const res = await fetch(request);
     if (res && res.ok && res.status === 200 && res.type === 'basic' && !res.redirected && storable(new URL(request.url))) {
       await cache.put(request, res.clone()).catch(() => undefined);
+      await trimPages(cache);
     }
     return res;
   } catch (err) {
     const hit = await cache.match(request, { ignoreVary: true });
     if (hit) return hit;
     throw err;
+  }
+}
+
+/** Que las vistas guardadas no crezcan sin fin: fuera las más viejas. */
+async function trimPages(cache) {
+  try {
+    const keys = await cache.keys();
+    for (const k of keys.slice(0, Math.max(0, keys.length - MAX_PAGES))) await cache.delete(k);
+  } catch {
+    /* nada que recortar */
   }
 }
 
@@ -337,7 +482,7 @@ async function crmNavigation(request) {
   } catch {
     const cache = (await pagesCache()) || (await caches.open(`${PAGES}-none`));
     // /app, /app/crm o /app/docs sin locale (como abre la app instalada): la versión cacheada en cualquier idioma.
-    if (CRM_ROOT.test(url.pathname) || DOCS_ROOT.test(url.pathname)) {
+    if (CRM_ROOT.test(url.pathname) || DOCS_ROOT.test(url.pathname) || TRACK_ROOT.test(url.pathname)) {
       for (const l of ['en', 'es', 'pt']) {
         const hit = await cache.match(`${url.origin}/${l}${url.pathname}`, { ignoreSearch: true });
         if (hit) return hit;
@@ -345,7 +490,19 @@ async function crmNavigation(request) {
     }
     const loose = await cache.match(request, { ignoreSearch: true, ignoreVary: true });
     if (loose) return loose;
-    const locale = (CRM_PAGE.exec(url.pathname) || DOCS_PAGE.exec(url.pathname) || [])[1] || 'en';
+    // Un issue de Track cambia de slug con el título (/issue/<ref>/<slug>): sin red vale la copia del mismo issue.
+    const ISSUE_PAGE = /^(\/(?:en|es|pt))?\/app\/track\/issue\/([^/]+)(?:\/|$)/;
+    const issue = ISSUE_PAGE.exec(url.pathname);
+    if (issue) {
+      for (const key of await cache.keys()) {
+        const m = ISSUE_PAGE.exec(new URL(key.url).pathname);
+        if (m && m[2] === issue[2] && (!issue[1] || m[1] === issue[1])) {
+          const hit = await cache.match(key);
+          if (hit) return hit;
+        }
+      }
+    }
+    const locale = (CRM_PAGE.exec(url.pathname) || DOCS_PAGE.exec(url.pathname) || TRACK_PAGE.exec(url.pathname) || [])[1] || 'en';
     return new Response(offlineHtml(locale), { status: 503, headers: { 'content-type': 'text/html; charset=utf-8' } });
   }
 }
@@ -359,11 +516,27 @@ async function cacheFirst(request) {
   return res;
 }
 
+function newKey() {
+  return self.crypto && self.crypto.randomUUID ? self.crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function decodeLabel(raw) {
+  if (!raw) return null;
+  try {
+    return decodeURIComponent(raw).slice(0, 120);
+  } catch {
+    return null;
+  }
+}
+
 async function queueOrSend(request) {
   const clone = request.clone();
   try {
     return await fetch(request);
-  } catch {
+  } catch (err) {
+    // Sin persona confirmada no se guarda nada: el cambio falla como sin worker.
+    const owner = (await sessionMatches().catch(() => false)) ? await getUser().catch(() => null) : null;
+    if (!owner) throw err;
     const body = clone.method === 'DELETE' ? await clone.text().catch(() => '') : await clone.text();
     await idbStore.add({
       url: clone.url,
@@ -371,6 +544,12 @@ async function queueOrSend(request) {
       contentType: clone.headers.get('content-type'),
       // El workspace de la pestaña que escribió: al reenviar se exige el mismo.
       workspace: clone.headers.get(WORKSPACE_HEADER),
+      // La persona de la sesión: lo suyo no se manda con la sesión de otra.
+      owner,
+      // La misma clave en cada reenvío: un alta que ya llegó no se crea dos veces.
+      idem: clone.headers.get(IDEMPOTENCY_HEADER) || newKey(),
+      base: clone.headers.get(BASE_HEADER),
+      label: decodeLabel(clone.headers.get(LABEL_HEADER)),
       body: body === '' ? null : body,
       createdAt: Date.now(),
     });
@@ -412,7 +591,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (shouldQueue(url.pathname, request.method, request.headers.get('content-type'))) {
+  if (shouldQueue(url.pathname, request.method, request.headers.get('content-type'), request.headers.get(OPT_IN_HEADER) === '1')) {
     event.respondWith(queueOrSend(request));
   }
 });
@@ -429,7 +608,7 @@ self.addEventListener('message', (event) => {
     // La persona descarta lo que no se sabe de qué workspace es.
     event.waitUntil(
       (async () => {
-        for (const it of await idbStore.all()) if (!it.workspace) await idbStore.remove(it.id);
+        for (const it of await idbStore.all()) if (!it.workspace || !it.owner) await idbStore.remove(it.id);
         await broadcastCount();
         await broadcast({ type: 'zs-sync-done', done: 0, failed: 0 });
       })(),
@@ -460,6 +639,48 @@ self.addEventListener('message', (event) => {
     );
   }
   else if (data.type === 'zs-count') event.waitUntil(broadcastCount());
+  else if (data.type === 'zs-retry-failed') {
+    // Reintentar lo rechazado (uno o todos los de la persona): vuelve a la cola en su orden original.
+    event.waitUntil(
+      (async () => {
+        const owner = await getUser().catch(() => null);
+        for (const it of await failedStore.all()) {
+          if (data.id != null && it.id !== data.id) continue;
+          if (it.owner !== owner) continue;
+          const back = { ...it };
+          delete back.status;
+          delete back.failedAt;
+          await idbStore.put(back);
+          await failedStore.remove(it.id);
+        }
+        await broadcastCount();
+        await replay();
+      })(),
+    );
+  }
+  else if (data.type === 'zs-discard-failed') {
+    event.waitUntil(
+      (async () => {
+        const owner = await getUser().catch(() => null);
+        for (const it of await failedStore.all()) {
+          if (data.id != null && it.id !== data.id) continue;
+          if (it.owner !== owner) continue;
+          await failedStore.remove(it.id);
+        }
+        await broadcastCount();
+      })(),
+    );
+  }
+  else if (data.type === 'zs-clear-conflicts') {
+    // Solo los avisos de la persona actual.
+    event.waitUntil(
+      (async () => {
+        const owner = await getUser().catch(() => null);
+        for (const it of await conflictStore.all()) if (it.owner === owner) await conflictStore.remove(it.id);
+        await broadcastCount();
+      })(),
+    );
+  }
   else if (data.type === 'zs-warm' && Array.isArray(data.urls)) {
     // La página ya cargó su JS y CSS antes de que el worker la controlara: se guardan ahora.
     event.waitUntil(
@@ -540,4 +761,4 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // Para tests/unit/offline-queue.test.ts (en el navegador no molesta).
-self.__zsOffline = { shouldQueue, replayQueue, NEVER_QUEUE, isOfflineNavigation, setUser, getUser, pagesCache, sessionMatches };
+self.__zsOffline = { shouldQueue, replayQueue, NEVER_QUEUE, NEVER_OPT_IN, OPT_IN_PREFIXES, isOfflineNavigation, setUser, getUser, pagesCache, sessionMatches };

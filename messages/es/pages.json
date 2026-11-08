@@ -1,16 +1,16 @@
 {
   "products": {
     "meta": {
-      "title": "25 apps open source para empresas: CRM, chat, docs y más",
-      "description": "Veinticinco apps open source, del CRM y el chat de soporte a los docs, las facturas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
+      "title": "26 apps open source para empresas: CRM, chat, docs y más",
+      "description": "Veintiséis apps open source, del CRM y el chat de soporte a los docs, las facturas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
     },
     "hero": {
-      "title1": "Veinticinco apps.",
+      "title1": "Veintiséis apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las veinticinco apps.",
+      "title1": "Probá las veintiséis apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -2201,6 +2201,92 @@
         "sub": "Abrí Send, subí un documento y armá tu primer link.",
         "button": "Abrir Send"
       }
+    },
+    "inbox": {
+      "meta": {
+        "title": "Inbox: tu WhatsApp y tu Gmail con los atajos de Superhuman",
+        "description": "Una bandeja personal para WhatsApp, vinculado por QR, y Gmail: carpetas, posponer, enviar más tarde, recordatorios si no contestan, borradores con IA, dictado y atajos de teclado. Open source."
+      },
+      "hero": {
+        "sub": "Vinculá tu WhatsApp con un QR y conectá Gmail. Los chats se ven como en WhatsApp Web y se ordenan como en Superhuman: J y K para moverte, E para hecho, H para posponer, y todo lo demás con el teclado."
+      },
+      "featuresTitle": "Cada chat resuelto.",
+      "featuresTitleDim": "Con el teclado.",
+      "f1": {
+        "t": "WhatsApp y Gmail en una lista",
+        "d": "Tu WhatsApp personal vinculado por QR, como WhatsApp Web, y Gmail con tu cuenta de Google. Hecho también archiva en Gmail."
+      },
+      "f2": {
+        "t": "Carpetas que se llenan solas",
+        "d": "Juntá chats de los dos canales en tus carpetas, con reglas opcionales por canal, tipo o nombre. Aparecen en la barra con sus no leídos."
+      },
+      "f3": {
+        "t": "Posponer, enviar después, recordame",
+        "d": "Posponé un chat hasta mañana, programá un mensaje para el lunes a las 9 o hacé que vuelva si para el viernes no te contestaron."
+      },
+      "f4": {
+        "t": "Escribí con IA o dictá",
+        "d": "Un borrador con la conversación y tus notas como contexto, reescribir lo que pusiste o dictar con Voice. No sale nada sin vos."
+      },
+      "f5": {
+        "t": "Primero el teclado",
+        "d": "Atajos de Superhuman, snippets con ;, Cmd+K en toda la suite, búsqueda en todos los mensajes y deshacer con Z."
+      },
+      "f6": {
+        "t": "Solo tuyo",
+        "d": "Tu bandeja es de tu persona, no del workspace: los admins no la ven. Los tokens van cifrados y lo que te borran para todos lo seguís viendo vos."
+      },
+      "steps": {
+        "s1": {
+          "t": "Vinculá WhatsApp",
+          "d": "Escaneá un QR desde Dispositivos vinculados."
+        },
+        "s2": {
+          "t": "Conectá Gmail",
+          "d": "Entrá con Google, o importá desde inbox-zero."
+        },
+        "s3": {
+          "t": "Llegá a cero",
+          "d": "J, K, E y H hasta vaciar la lista."
+        }
+      },
+      "compare": {
+        "rival": "Superhuman",
+        "price": "Planes pagos por persona",
+        "per": "por persona, solo correo",
+        "teamLabel": "Una persona, WhatsApp y Gmail",
+        "team": "mirá los precios de Superhuman",
+        "zero": "$0",
+        "note": "Superhuman es solo correo y no verificamos su precio actual, así que no lo citamos: mirá superhuman.com. Inbox en tu servidor cuesta $0 más tu base de datos y tu servidor de WhatsApp."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Vincular WhatsApp por QR es seguro para mi número?",
+          "a": "Funciona como WhatsApp Web, con una sesión no oficial en un servidor propio. WhatsApp puede restringir números que mandan en masa o reciben denuncias, así que Inbox es para tus conversaciones, no para campañas."
+        },
+        "f2": {
+          "q": "¿El admin de mi workspace puede leer mis mensajes?",
+          "a": "Los datos de Inbox son de tu usuario y no del workspace: no hay vista de admin y no se llega a ellos con las API keys del workspace ni con el servidor MCP. Al quitar una cuenta, se borra lo que Inbox guardó."
+        },
+        "f3": {
+          "q": "¿Qué pasa con los chats en mi teléfono?",
+          "a": "En el teléfono no cambia nada. Hecho, posponer y carpetas viven en Inbox. En Gmail el archivado se refleja: Hecho saca el hilo de tu bandeja de Gmail."
+        },
+        "f4": {
+          "q": "¿Puedo traer lo que tengo en inbox-zero?",
+          "a": "Sí. Un script lee tu inbox.db local y arma un archivo con carpetas, programados, borradores, pospuestos, notas e historial guardado. Lo subís en Ajustes de Inbox, e importar dos veces no duplica nada."
+        },
+        "f5": {
+          "q": "¿Qué le falta frente a Superhuman?",
+          "a": "Confirmación de lectura en correos, splits ordenados por IA, calendario dentro de la bandeja, compartir con el equipo y apps móviles, entre otras. La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Bandeja en cero.",
+        "title2": "También en WhatsApp.",
+        "sub": "Abrí Inbox, vinculá WhatsApp y empezá a ordenar.",
+        "button": "Abrir Inbox"
+      }
     }
   },
   "product": {
@@ -2216,7 +2302,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Veinticinco apps, el mismo login.",
+    "suiteTitleDim": "Veintiséis apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -2305,7 +2391,8 @@
       "books": "fig. 0 · movimientos que se concilian",
       "sign": "fig. 0 · una firma al pie de un contrato",
       "forms": "fig. 0 · un formulario que se completa",
-      "send": "fig. 0 · páginas que se leen, con el tiempo de cada una"
+      "send": "fig. 0 · páginas que se leen, con el tiempo de cada una",
+      "inbox": "fig. 0 · un chat y un correo en la misma lista"
     },
     "heroFigHint": "arrastrá para girar"
   },
@@ -2776,6 +2863,27 @@
       "p3time": "0:25",
       "p4label": "Página 4",
       "p4time": "0:08"
+    },
+    "inbox": {
+      "listTitle": "Bandeja",
+      "r1name": "Ana Pérez",
+      "r1time": "14:05",
+      "r1meta": "¿Me mandás el contrato hoy?",
+      "r2name": "Familia",
+      "r2time": "13:40",
+      "r2meta": "Mamá: almuerzo el domingo a la 1",
+      "r3name": "Martín",
+      "r3time": "lun",
+      "r3meta": "Sin respuesta · Volvió",
+      "r4name": "Banco",
+      "r4time": "lun",
+      "r4meta": "Tu resumen está disponible",
+      "status": "WhatsApp",
+      "m1": "Hola! ¿Me mandás el contrato hoy?",
+      "m2": "Sí, estoy terminando la última página.",
+      "m3": "Genial, gracias",
+      "draft": "Acá está. Avisame si hay que cambiar algo.",
+      "draftTag": "Borrador con IA"
     }
   },
   "status": {
@@ -3669,7 +3777,7 @@
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de {apps} de las 25 apps: {average} %. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de {apps} de las 26 apps: {average} %. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",
@@ -3740,7 +3848,17 @@
     "mobileBody": "Abrí zerosoft.ai/app en Safari o Chrome y agregala a la pantalla de inicio: se abre como una app, con todas las apps de zerosoft. Las versiones nativas de iOS y Android todavía no están en las tiendas.",
     "openApp": "Abrir en el navegador",
     "f5t": "Sigue andando sin conexión",
-    "f5d": "Si un dictado no llega al servidor, la grabación queda en tu compu y la mandás de nuevo desde la barra de menú cuando vuelve la conexión."
+    "f5d": "Si un dictado no llega al servidor, la grabación queda en tu compu y la mandás de nuevo desde la barra de menú cuando vuelve la conexión.",
+    "offlineTitle": "Sin conexión",
+    "offlineLead": "En el navegador y en la app instalada desde el navegador, algunas apps siguen andando sin red. Lo que cambies queda guardado en tu dispositivo y se manda solo al volver la conexión; la banda de arriba muestra cuántos cambios esperan y cuáles no se pudieron guardar. En la app de escritorio todavía no lo probamos.",
+    "offCrm": "Contactos, empresas y negocios que ya abriste se leen sin red. Notas, tareas y cambios de campos se guardan y se mandan al reconectar. Emails, archivos e importaciones necesitan conexión.",
+    "offDocs": "Las páginas que abriste, y las que marcaste \"Disponible sin conexión\" con sus subpáginas. Lo que escribís se guarda en el dispositivo y al volver se fusiona por bloque con lo que otros cambiaron.",
+    "offNotes": "Una copia de tus notas en el dispositivo: se buscan, se crean y se editan sin red. Si alguien cambió la misma nota, lo tuyo queda como copia aparte.",
+    "offTrack": "Las listas, issues y proyectos que abriste se leen sin red. Cambiar estado, prioridad, asignado, fechas, título o descripción, crear issues y comentar se guarda y se manda al reconectar. Si alguien editó el mismo issue mientras tanto, queda lo último que llegó y te avisamos. Adjuntos, IA e integraciones necesitan conexión.",
+    "offOtherT": "Todavía no",
+    "offOther": "Board, Chat, Calendar, Voice, Talk y el resto de las apps necesitan conexión por ahora.",
+    "offPrivacyT": "Tu dispositivo",
+    "offPrivacy": "Lo guardado es de tu sesión: al cerrar sesión se borra todo, incluidos los cambios que no se mandaron, y otra persona en el mismo equipo no ve nada tuyo."
   },
   "compare": {
     "crumb": "Comparar",
@@ -3815,7 +3933,7 @@
   "docsMcp": {
     "meta": {
       "title": "Conectar Claude y la CLI",
-      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 25 apps como vos."
+      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 26 apps como vos."
     }
   }
 }

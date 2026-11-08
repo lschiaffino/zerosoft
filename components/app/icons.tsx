@@ -77,7 +77,9 @@ export type IconName =
   | 'live'
   | 'people'
   | 'timeoff'
-  | 'orgchart';
+  | 'orgchart'
+  | 'clock'
+  | 'check';
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
@@ -235,6 +237,13 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M13.73 21a2 2 0 0 1-3.46 0" />
     </>
   ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <polyline points="12 7 12 12 15 14" />
+    </>
+  ),
+  check: <polyline points="4 12.5 9.5 18 20 6.5" />,
   inbox: (
     <>
       <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />

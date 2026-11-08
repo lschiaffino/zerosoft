@@ -11,6 +11,7 @@ import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
 import { sendUp } from './send-migration';
+import { inboxUp } from './inbox-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -8797,11 +8798,71 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Inbox (personal): WhatsApp y Gmail de una persona. Ver lib/schema/inbox-migration.ts.
+    id: '289_inbox',
+    up: inboxUp,
+  },
+  {
+    // Ajustes › Miembros y permisos: registro de cambios (con lo de antes para
+    // deshacer), última actividad por persona y la ficha de quien se desactivó
+    // (para reactivarlo con el mismo rol, apps y equipos).
+    id: '290_workspace_permissions',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS workspace_audit (
+          id TEXT PRIMARY KEY,
+          team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+          actor_id TEXT NOT NULL,
+          target_id TEXT,
+          target_label TEXT NOT NULL DEFAULT '',
+          action TEXT NOT NULL,
+          before TEXT NOT NULL DEFAULT '{}',
+          after TEXT NOT NULL DEFAULT '{}',
+          undo_of TEXT,
+          undone_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_workspace_audit_team ON workspace_audit(team_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS workspace_removed_members (
+          team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'member',
+          apps TEXT NOT NULL DEFAULT '*',
+          group_ids TEXT NOT NULL DEFAULT '[]',
+          removed_by TEXT,
+          removed_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (team_id, user_id)
+        );
+      `);
+      await addColumn(c, 'ALTER TABLE team_members ADD COLUMN last_active_at TEXT');
+    },
+  },
+  {
+    // Modo sin conexión: altas que la app reenvía al volver la red llevan una
+    // clave propia; acá queda la respuesta de la primera vez, así un reenvío
+    // (la respuesta se perdió con la red) no crea dos veces lo mismo.
+    id: '291_offline_requests',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS offline_requests (
+          user_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          scope TEXT NOT NULL DEFAULT '',
+          status INTEGER,
+          body TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, key)
+        );
+        CREATE INDEX IF NOT EXISTS offline_requests_created ON offline_requests(created_at);
+      `);
+    },
+  },
+  {
     // La app de analítica de producto (eventos, embudos, grabaciones) pasa a
     // llamarse Pulse: la clave guardada de la app cambia de 'analytics' a
     // 'pulse' en accesos, invitaciones, pedidos de acceso y la taxonomía de
     // feedback, roadmap y changelog. Las tablas analytics_* no cambian.
-    id: '289_pulse_app_key',
+    id: '292_pulse_app_key',
     up: async (c) => {
       const stmts = [
         `UPDATE team_members SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,

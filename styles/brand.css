@@ -35,6 +35,7 @@
   --c-books-ink: #1e3a8a;
   --c-sign-ink: #7f1d1d;
   --c-send-ink: #0b7285;
+  --c-inbox-ink: #3d5a80;
   --c-forms-ink: #6e730d;
 
   /* Texto sobre un relleno del color del producto. */
@@ -62,6 +63,7 @@
   --c-books-on: #ffffff;
   --c-sign-on: #ffffff;
   --c-send-on: #ffffff;
+  --c-inbox-on: #ffffff;
   --c-forms-on: #ffffff;
 
   /* Escala (px a 1440): lectura y datos. Los títulos (--t-display, --t-h1,

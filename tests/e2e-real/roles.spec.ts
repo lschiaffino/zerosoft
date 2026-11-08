@@ -99,8 +99,9 @@ test('la campana abre el pedido aunque ya esté en Miembros; Esc y recargar no l
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await expect(page.getByTestId('request-line')).toContainText('Track');
-    // Lo pedido ya viene tildado.
-    await expect(dialog.getByRole('checkbox', { name: /Track/ })).toBeChecked();
+    // Lo pedido se da con un botón (las apps se prenden al instante: nada queda tildado sin guardar).
+    await expect(dialog.getByTestId('approve-request')).toContainText('Track');
+    await expect(dialog.getByRole('checkbox', { name: /^Track/ })).not.toBeChecked();
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(page).toHaveURL(/\/app\/settings\/members$/, { timeout: 15_000 });
@@ -109,8 +110,8 @@ test('la campana abre el pedido aunque ya esté en Miembros; Esc y recargar no l
     // Quitar sigue a la vista a 1280: la tabla no scrollea por dentro.
     const wrap = page.locator('.ws-members').first();
     expect(await wrap.evaluate((e) => e.scrollWidth - e.clientWidth)).toBeLessThanOrEqual(0);
-    // "Edit access" también cierra con Esc desde que abre.
-    await page.locator('tr', { has: page.locator(`[data-email="${mel.email}"]`) }).getByRole('button', { name: 'Edit access' }).click();
+    // "Qué puede ver" también cierra con Esc desde que abre.
+    await page.locator('tr', { has: page.locator(`[data-email="${mel.email}"]`) }).getByRole('button', { name: /^See what/ }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -140,7 +141,9 @@ test('rechazar: la persona se entera y vuelve a pedir; aprobar cierra el aviso d
     const again = await mel.ctx.request.post('/api/teams/access-request', { data: { app: 'crm' } });
     expect(await again.json()).toEqual({ ok: true });
     await ada.page.goto(`/en${href}`, { waitUntil: 'networkidle' });
-    await ada.page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+    await ada.page.getByRole('dialog').getByTestId('approve-request').click();
+    await expect(ada.page.getByRole('dialog').getByRole('checkbox', { name: /^CRM/ })).toBeChecked();
+    await ada.page.getByRole('dialog').getByRole('button', { name: 'Done' }).click();
     await expect(ada.page.getByRole('dialog')).toHaveCount(0);
     expect((await unread(olga)).some((r) => r.href.includes(mel.id))).toBe(false);
     await mel.page.goto('/en/app/crm', { waitUntil: 'networkidle' });
@@ -433,7 +436,7 @@ test('pedido respondido en parte: el aviso dice lo que falta y la fila de Miembr
     await olga.page.goto('/en/app/settings/members', { waitUntil: 'networkidle' });
     await olga.page.getByTestId('request-marker').click();
     await expect(olga.page.getByTestId('request-line')).toContainText('Link');
-    await expect(olga.page.getByRole('dialog').getByRole('checkbox', { name: /^Link/ })).toBeChecked();
+    await expect(olga.page.getByRole('dialog').getByTestId('approve-request')).toContainText('Link');
   } finally {
     await closeAll(olga, mel);
   }

@@ -27,6 +27,7 @@ export const PRODUCT_KEYS = [
   'sign',
   'forms',
   'send',
+  'inbox',
   'platform',
   'site',
   'other',
@@ -65,6 +66,7 @@ export const PRODUCT_COLOR: Record<ProductKey, string> = {
   sign: 'var(--c-sign)',
   forms: 'var(--c-forms)',
   send: 'var(--c-send)',
+  inbox: 'var(--c-inbox)',
   platform: 'var(--ink)',
   site: 'var(--ink)',
   other: 'var(--dim)',
@@ -132,6 +134,8 @@ export function productFromPath(pathname: string): ProductKey {
       return 'forms';
     case 'send':
       return 'send';
+    case 'inbox':
+      return 'inbox';
     default:
       return 'link';
   }
