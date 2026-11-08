@@ -92,6 +92,9 @@ test('reunión: grabar, transcripción en vivo, nota con IA, tareas, chat, busca
   await page.goto('/en/app/voice', { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'New meeting' }).first().click();
   await expect(page).toHaveURL(/\/app\/voice\/meetings\//);
+  // Como Granola: la reunión nueva ya escucha, sin otro clic.
+  await expect(page.getByRole('timer')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start recording' })).toHaveCount(0);
   const title = `Acme call ${uid()}`;
   const titleInput = page.getByRole('textbox', { name: 'Meeting title' });
   await titleInput.fill(title);
@@ -99,9 +102,6 @@ test('reunión: grabar, transcripción en vivo, nota con IA, tareas, chat, busca
 
   await page.getByRole('textbox', { name: 'My notes' }).fill('Pricing per seat\nAnnual billing?');
   await expect(page.getByText('Saved')).toBeVisible();
-
-  await page.getByRole('button', { name: 'Start recording' }).click();
-  await expect(page.getByRole('timer')).toBeVisible();
   // Transcripción en vivo (trozos de 1,5 s).
   await expect(page.locator('.vc-seg').first()).toBeVisible({ timeout: 20_000 });
   await page.getByRole('button', { name: 'Stop', exact: true }).click();

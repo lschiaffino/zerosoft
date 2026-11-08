@@ -53,9 +53,15 @@ stderr `zs-timing main_window_created_ms` y `first_page_loaded_ms`, y la memoria
 - **Transcripción** en `POST /api/voice/dictate` con la sesión (`capture=desktop`): idioma, modo de
   limpieza, diccionario y estilos de Voice; contexto según la app de adelante (`lsappinfo`, sin permiso
   de automatización).
-- **Pegado:** portapapeles + Cmd/Ctrl+V simulado (enigo) y 450 ms después se devuelve lo que había
-  (texto o imagen), salvo que la persona haya copiado otra cosa en el medio (`src/clipboard.rs`). Sin
-  Accesibilidad el texto queda copiado.
+- **Pegado:** portapapeles + Cmd+V simulado y 450 ms después se devuelve lo que había (texto o
+  imagen), salvo que la persona haya copiado otra cosa en el medio (`src/clipboard.rs`). En Mac el
+  Cmd+V es un CGEvent con solo Command (aunque Option siga apretado) y la tecla de la "v" se busca
+  con la distribución de teclado actual en el hilo principal (las APIs de teclado de macOS lo
+  exigen); en Windows, Ctrl+V con enigo. Sin Accesibilidad el texto queda copiado.
+- **Velocidad:** mientras se graba se abre la conexión con el servidor; el pedido va con `fast=1`:
+  frases de hasta 16 palabras se limpian por reglas, la IA (un modelo chico, `VOICE_CLEANUP_MODEL`)
+  tiene un tope de 2 a 6 s y el historial se guarda después de contestar. El servidor devuelve
+  `timings` (y `Server-Timing`) y Ajustes › Historial muestra dónde se fue el tiempo.
 - **Sin conexión:** si el dictado no llega (red, sesión, servidor), el audio queda en
   `<datos>/pending/` (hasta 20, una semana) y se manda de nuevo desde la bandeja o el historial
   (`src/retry.rs`).
@@ -63,7 +69,19 @@ stderr `zs-timing main_window_created_ms` y `first_page_loaded_ms`, y la memoria
 - **Velocidad:** cada dictado anota cuánto tardó desde soltar el atajo hasta el texto (se ve en
   Ajustes › Historial).
 
+### Indicador de grabación (`ui/indicator.*`, `src/indicator.rs`)
+
+Mientras una reunión de Voice se graba en la ventana y la ventana no está adelante (minimizada,
+escondida o detrás de otra app), un recuadro chico arriba a la derecha, encima de todo, muestra el
+reloj y deja Abrir la reunión o Cortar. La página avisa por el puente (`recording`); Cortar le
+manda `zerosoft:stop-recording`. Se apaga en Ajustes › General. La bandeja también muestra Abrir y
+Cortar mientras se graba.
+
 ### Ajustes (`ui/settings.*`)
+
+Es el lugar de todos los ajustes de la app. Se abre desde el ícono de la barra de menú (o la
+bandeja) › Ajustes, el menú zerosoft › Ajustes (Cmd+,) y el menú de la cuenta en la página ›
+Ajustes de la app de escritorio. La primera vez se abre sola y lo explica.
 
 Primeros pasos (sesión, micrófono, Accesibilidad con links a Ajustes del Sistema y estado al día, y un
 cuadro para probar), General (modo, atajo, portapapeles, abrir al iniciar), Voice (idioma, limpieza,
@@ -80,9 +98,16 @@ Voice, Diccionario e Historial se leen y guardan en el servidor: son los mismos 
 ## Permisos en Mac
 
 - **Micrófono:** el dictado (diálogo del sistema la primera vez).
+- **Cámara:** Talk y Rec (NSCameraUsageDescription y `com.apple.security.device.camera`; sin las dos,
+  macOS niega la cámara al webview y Rec no arrancaba ni la cámara ni el micrófono). La página de
+  zerosoft recibe cámara y micrófono sin un segundo aviso del webview; otro origen, no.
 - **Accesibilidad:** solo para simular el pegado. El atajo anda sin ella; sin ella el texto queda
-  copiado. Con firma ad hoc, macOS ata el permiso a la build exacta: **después de cada actualización
-  hay que volver a darlo** (con un certificado de Developer ID eso deja de pasar).
+  copiado. Con firma ad hoc el requisito de firma es el cdhash de la build: después de cada
+  actualización la llave sigue prendida en Ajustes del Sistema pero es de la build vieja y
+  `AXIsProcessTrusted` da false. Ajustes › Primeros pasos lo detecta (anota con qué versión se vio
+  permitida), lo explica y **Restablecer permiso** borra la entrada vieja (`tccutil reset`), la pide
+  de nuevo y abre la lista. Con el certificado propio (`MACOS_SIGNING_P12`, abajo) el requisito
+  nombra el certificado y el permiso sigue entre versiones.
 
 ## Desarrollo
 
@@ -118,8 +143,12 @@ Secretos:
 |---|---|
 | `TAURI_SIGNING_PRIVATE_KEY` | Clave privada del updater (la pública está en `tauri.conf.json`). Sin ella no hay actualizaciones automáticas. |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Opcional, si la clave tiene contraseña. |
+| `MACOS_SIGNING_P12`, `MACOS_SIGNING_P12_PASSWORD` | Certificado propio para firmar la app de Mac (lo crea y sube `sh desktop/scripts/macos-signing-cert.sh`). Sin ellos, firma ad hoc. |
 
-Firma de código: en Mac, firma **ad hoc** hasta que exista la cuenta de Apple Developer (la primera vez
-hay que ir a Ajustes del Sistema › Privacidad y seguridad › Abrir igualmente). En Windows, sin
+Firma de código: en Mac, con los secretos de arriba, un certificado propio y fijo (los permisos de
+macOS siguen entre versiones; el workflow falla si la app sale sin él y verifica cámara y micrófono).
+Sin ellos, firma **ad hoc**. En los dos casos Gatekeeper pide la primera vez Ajustes del Sistema ›
+Privacidad y seguridad › Abrir igualmente, hasta tener Developer ID. `workflow_dispatch` con
+`signing_selftest` prueba el camino del certificado con uno descartable. En Windows, sin
 certificado, SmartScreen avisa. Las actualizaciones no dependen de esa firma: el updater verifica su
 propia firma (minisign) con la clave pública de la app.
