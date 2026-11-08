@@ -3707,10 +3707,10 @@
   "download": {
     "meta": {
       "title": "Download zerosoft for Mac and Windows",
-      "description": "The desktop app: every zerosoft app in one window, dictation in any app and meeting notes with system audio. Also on your phone as an installable web app."
+      "description": "The native desktop app for Mac and Windows: every zerosoft app in one window and dictation in any app. About 3 MB to download. Also on your phone as an installable web app."
     },
     "title": "zerosoft for your computer.",
-    "sub": "Every app in one window, plus what a browser tab cannot do: dictation in any app and meeting notes with your computer audio.",
+    "sub": "Every app in one window, plus what a browser tab cannot do: dictation in any app, with the clean text pasted where your cursor is.",
     "macArm": "Download for Mac (Apple silicon)",
     "macIntel": "Download for Mac (Intel)",
     "win": "Download for Windows",
@@ -3723,22 +3723,24 @@
     "unsignedTitle": "The builds are not signed yet",
     "unsignedMac": "On Mac: open the .dmg and drag zerosoft to Applications. The first time, macOS blocks it because it is not notarized yet: on macOS 15 or later go to System Settings › Privacy & Security and click Open Anyway; on macOS 14 or earlier, right-click the app and choose Open.",
     "unsignedWin": "On Windows: SmartScreen may say it protected your PC. Click More info, then Run anyway.",
-    "unsignedUpdates": "Automatic updates on Mac need a signed build. Until then, download new versions from this page.",
+    "unsignedUpdates": "The app checks for new versions in the background and installs them when you restart it. On Mac, while the app is not signed by Apple, you may need to allow Accessibility again after an update.",
     "featuresTitle": "What the desktop app adds",
     "f1t": "Dictation in any app",
-    "f1d": "Hold Control + Option on Mac or Ctrl + Windows on Windows, speak, and let go. The clean text is pasted where your cursor is, with your Voice dictionary and style.",
-    "f2t": "Meeting notes without a bot",
-    "f2d": "When a calendar meeting starts, or Zoom, Meet or Teams is in a call, zerosoft offers to take notes. It records your mic and the system audio, and the notes land in Voice.",
+    "f1d": "Hold Option + Space on Mac or Ctrl + Alt + Space on Windows (you can change it), speak, and let go: the clean text is pasted where your cursor is and your clipboard comes back as it was. A quick tap keeps listening until you tap again. Language, cleanup, dictionary and history are the same as Voice on the web.",
+    "f2t": "Native and light",
+    "f2d": "Built with Tauri: it uses the webview your system already has instead of bundling a browser. About 3 MB to download and 7 MB installed on Mac; after the first launch it opens in under a second.",
     "f3t": "Talk and the bell, native",
-    "f3d": "Unread mentions and direct messages on the dock or taskbar icon, and system notifications that open the right page.",
+    "f3d": "Unread mentions, direct messages and bell notifications on the dock icon, and system notifications while the window is in the background.",
     "f4t": "Sign in with Google in your browser",
     "f4d": "The app sends you to your browser to sign in and comes back on its own. It also works with your own server if you self-host.",
     "reqTitle": "Requirements",
-    "reqMac": "macOS 12 or later. System audio in meetings needs macOS 13 or later.",
-    "reqWin": "Windows 10 or 11, 64-bit.",
+    "reqMac": "macOS 11 or later, Apple silicon or Intel.",
+    "reqWin": "Windows 10 or 11, 64-bit. It uses Microsoft Edge WebView2, which comes with Windows 11; on Windows 10 the installer adds it if it is missing.",
     "mobileTitle": "On your phone",
     "mobileBody": "Open zerosoft.ai/app in Safari or Chrome and add it to the home screen: it opens like an app, with every zerosoft app. Native iOS and Android builds are not in the stores yet.",
-    "openApp": "Open in the browser"
+    "openApp": "Open in the browser",
+    "f5t": "Keeps working without a connection",
+    "f5d": "If a dictation cannot reach the server, the recording stays on your computer and you send it again from the menu bar when you are back online."
   },
   "compare": {
     "crumb": "Compare",

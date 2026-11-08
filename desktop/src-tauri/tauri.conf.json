@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "zerosoft",
+  "version": "0.2.1",
+  "identifier": "ai.zerosoft.desktop",
+  "build": {
+    "frontendDist": "../dist-ui",
+    "beforeBuildCommand": "npm run build:ui",
+    "beforeDevCommand": "npm run build:ui"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "macOSPrivateApi": true,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ipc: http://ipc.localhost",
+      "dangerousDisableAssetCspModification": false
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "nsis"],
+    "createUpdaterArtifacts": true,
+    "category": "Productivity",
+    "shortDescription": "zerosoft for Mac and Windows",
+    "longDescription": "The whole zerosoft platform in a native window, and dictation in any app with your Voice dictionary and history.",
+    "copyright": "Copyright © 2026 zerosoft",
+    "publisher": "zerosoft",
+    "homepage": "https://zerosoft.ai/download",
+    "license": "AGPL-3.0-only",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "signingIdentity": "-",
+      "entitlements": "entitlements.plist",
+      "hardenedRuntime": true,
+      "dmg": { "windowSize": { "width": 540, "height": 360 } }
+    },
+    "windows": {
+      "nsis": { "installMode": "currentUser", "displayLanguageSelector": false },
+      "webviewInstallMode": { "type": "downloadBootstrapper" }
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": { "schemes": ["zerosoft"] }
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDBGREEwNEM3QUYxQzc1NkUKUldSdWRSeXZ4d1RhRDJkb0pvMW1Sc0NrOS9EVGhPNUV2WXVqTFY5b3pUNnBORXFxdEsrR0djQnIK",
+      "endpoints": ["https://zerosoft.ai/api/desktop/update/latest.json"],
+      "windows": { "installMode": "passive" }
+    }
+  }
+}

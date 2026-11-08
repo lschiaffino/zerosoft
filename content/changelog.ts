@@ -70,6 +70,23 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-07-voice-cleanup-mode',
+    date: '2026-11-07',
+    title: {
+      en: 'Voice: pick how much each dictation gets cleaned up',
+      es: 'Voice: elegí cuánto se limpia cada dictado',
+      pt: 'Voice: escolha quanto cada ditado é limpo',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'A new Cleanup setting in Voice: raw (word for word, only your dictionary replacements), clean, formal everywhere, or by app with the tones you already set. Dictations made from the desktop app now show as such in the history.',
+        es: 'Un ajuste nuevo de Limpieza en Voice: sin limpieza (palabra por palabra, solo con los reemplazos del diccionario), limpio, formal en todas las apps, o según la app con los tonos que ya tenías. Los dictados hechos desde la app de escritorio ahora figuran así en el historial.',
+        pt: 'Um novo ajuste de Limpeza no Voice: sem limpeza (palavra por palavra, só com as substituições do dicionário), limpo, formal em todos os apps, ou por app com os tons que você já tinha. Os ditados feitos pelo app desktop agora aparecem assim no histórico.',
+      },
+    ],
+  },
+  {
     id: '2026-11-07-groups-whatsapp-web',
     date: '2026-11-07',
     title: {

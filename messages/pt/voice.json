@@ -393,7 +393,16 @@
       "stylesDesc": "O mesmo ditado se escreve diferente num email e num chat. O Voice pega o contexto do app e do campo.",
       "commandMode": "Command Mode: com texto selecionado, diga o que fazer com ele",
       "commandModeHelp": "Selecione texto em um campo, segure {shortcut} e diga \"deixa mais curto\" ou \"traduz para o inglês\". A seleção é substituída. Desligado por padrão.",
-      "learnCorrections": "Aprender com minhas correções: corrigir um ditado no histórico adiciona os nomes e termos corrigidos ao dicionário"
+      "learnCorrections": "Aprender com minhas correções: corrigir um ditado no histórico adiciona os nomes e termos corrigidos ao dicionário",
+      "cleanupMode": "Limpeza",
+      "cleanupModeHelp": "Vale aqui e no app desktop. Sem limpeza mantém o que você disse palavra por palavra, só com as substituições do dicionário.",
+      "cleanupModes": {
+        "raw": "Sem limpeza (como falado)",
+        "clean": "Limpo",
+        "formal": "Formal em todos os apps",
+        "per_app": "Por app (estilos abaixo)"
+      },
+      "stylesNote": "Usados quando a limpeza está em Por app."
     },
     "dictionary": {
       "title": "Dicionário",
@@ -477,7 +486,9 @@
       "webhooksTitle": "Webhooks e Flow",
       "webhooksDesc": "voice.meeting.completed e voice.notes.ready chegam só aos webhooks e flows criados por quem gravou a reunião. Criar webhooks e flows é para admins, então as reuniões de um member ainda não chegam a nenhum webhook.",
       "webhooksLink": "Configurar webhooks",
-      "step2Link": "Ajustes > API"
+      "step2Link": "Ajustes > API",
+      "what4": "Os ajustes do app (idioma, limpeza, dicionário) são os mesmos que você vê aqui, e o histórico mostra os mesmos ditados, para copiar ou colar de novo.",
+      "what5": "Sem conexão, a gravação fica guardada no computador e pode ser enviada de novo pela barra de menus ou pelo histórico."
     },
     "prompts": {
       "recipes": {
