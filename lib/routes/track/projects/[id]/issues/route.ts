@@ -1,5 +1,6 @@
 import { after, NextRequest, NextResponse } from 'next/server';
 import { emitEvent } from '@/lib/events';
+import { withIdempotency } from '@/lib/offline-idempotency';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { validateIssueRefs } from '@/lib/track-bulk';
 import { createIssue, getProject, listIssues, canAccessTrackProject } from '@/lib/track-data';
@@ -56,26 +57,29 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const project = await accessibleProject(params.id, user.team?.id ?? null, user.id);
   if (!project) return notFound();
 
-  const body: unknown = await req.json().catch(() => null);
-  const parsed = issueCreateSchema.safeParse(body);
-  if (!parsed.success) return invalidBody(parsed.error);
+  // Un alta hecha sin conexión puede llegar dos veces (lib/offline-idempotency.ts).
+  return withIdempotency(req, realUserId(user), async () => {
+    const body: unknown = await req.json().catch(() => null);
+    const parsed = issueCreateSchema.safeParse(body);
+    if (!parsed.success) return invalidBody(parsed.error);
 
-  const invalid = await validateIssueRefs(project, parsed.data, { ownerId: user.id });
-  if (invalid) return trackError(400, invalid);
+    const invalid = await validateIssueRefs(project, parsed.data, { ownerId: user.id });
+    if (invalid) return trackError(400, invalid);
 
-  const issue = await createIssue(params.id, realUserId(user), parsed.data, { source: 'app' });
-  after(() =>
-    emitEvent(user.id, 'issue.created', {
-      issue: {
-        id: issue.id,
-        identifier: issue.identifier,
-        title: issue.title,
-        priority: issue.priority,
-        status: issue.status_name ?? null,
-        assigneeId: issue.assignee_id,
-      },
-      project: { id: project.id, name: project.name },
-    }),
-  );
-  return NextResponse.json(issue, { status: 201 });
+    const issue = await createIssue(params.id, realUserId(user), parsed.data, { source: 'app' });
+    after(() =>
+      emitEvent(user.id, 'issue.created', {
+        issue: {
+          id: issue.id,
+          identifier: issue.identifier,
+          title: issue.title,
+          priority: issue.priority,
+          status: issue.status_name ?? null,
+          assigneeId: issue.assignee_id,
+        },
+        project: { id: project.id, name: project.name },
+      }),
+    );
+    return NextResponse.json(issue, { status: 201 });
+  });
 }

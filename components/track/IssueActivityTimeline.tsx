@@ -15,6 +15,8 @@ import { Popover } from './InlineEditors';
 import { PriorityIcon, StatusDot } from './glyphs';
 import TrackIcon, { type TrackIconName } from './TrackIcon';
 import { pushNotice } from './trackUndo';
+import { offlineFetch } from '@/lib/offline-fetch';
+import { usePendingWrites } from '@/components/app/usePendingWrites';
 
 interface ActivityLabels {
   title: string;
@@ -234,13 +236,28 @@ export default function IssueActivityTimeline({
     return map;
   }, [reactions]);
 
+  // Comentarios escritos sin conexión que esperan en este dispositivo.
+  const commentsPath = `/api/track/issues/${issueId}/comments`;
+  const queuedRows = usePendingWrites(commentsPath, (p, m) => m === 'POST' && p === commentsPath);
+  const queuedComments = queuedRows.flatMap((r) => {
+    try {
+      const data = JSON.parse(r.body ?? 'null') as { body?: unknown } | null;
+      return typeof data?.body === 'string' ? [{ body: data.body, createdAt: r.createdAt }] : [];
+    } catch {
+      return [];
+    }
+  });
+
   async function post(body: string, parentId?: string): Promise<boolean> {
     setError(null);
-    const res = await fetch(`/api/track/issues/${issueId}/comments`, {
+    // Sin red queda en el dispositivo y se publica al volver (se ve abajo como pendiente).
+    const { res, queued } = await offlineFetch(`/api/track/issues/${issueId}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(parentId ? { body, parentId } : { body }),
-    }).catch(() => null);
+      label: body.slice(0, 80),
+    });
+    if (queued) return true;
     if (!res?.ok) {
       setError(tt('postError'));
       return false;
@@ -791,6 +808,17 @@ export default function IssueActivityTimeline({
             ),
           )}
         </ol>
+      )}
+
+      {queuedComments.length > 0 && (
+        <ul className="track-activity-queued" data-testid="track-queued-comments">
+          {queuedComments.map((c) => (
+            <li key={`${c.createdAt}-${c.body.length}`}>
+              <p className="track-activity-queued-body">{c.body}</p>
+              <p className="track-activity-queued-note">{tt('savedOffline')}</p>
+            </li>
+          ))}
+        </ul>
       )}
 
       {error && (

@@ -8837,6 +8837,26 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE team_members ADD COLUMN last_active_at TEXT');
     },
   },
+  {
+    // Modo sin conexión: altas que la app reenvía al volver la red llevan una
+    // clave propia; acá queda la respuesta de la primera vez, así un reenvío
+    // (la respuesta se perdió con la red) no crea dos veces lo mismo.
+    id: '291_offline_requests',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS offline_requests (
+          user_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          scope TEXT NOT NULL DEFAULT '',
+          status INTEGER,
+          body TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, key)
+        );
+        CREATE INDEX IF NOT EXISTS offline_requests_created ON offline_requests(created_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
