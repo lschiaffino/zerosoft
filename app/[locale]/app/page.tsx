@@ -65,8 +65,10 @@ export default async function PlatformHomePage(props: {
   const more = moreAppsByCategory({ mode, chosen })
     .map((g) => ({ ...g, apps: g.apps.filter(can) }))
     .filter((g) => g.apps.length > 0);
+  // Apps del workspace (Inbox es personal: la tiene todo el mundo y no cuenta como acceso al workspace).
+  const workspaceApps = [...featured, ...more.flatMap((g) => g.apps)].filter((k) => k !== 'inbox');
   // Sin apps no hay nada que invitar a usar ni que importar: solo lo que esa persona puede hacer.
-  const canShowCards = admin && (featured.length > 0 || more.length > 0);
+  const canShowCards = admin && workspaceApps.length > 0;
   const blockedKey = (await props.searchParams).blocked;
   // El link puede quedar viejo: si ya tiene la app (se la dieron), no hay nada que avisar.
   const blocked = typeof blockedKey === 'string' && blockedKey in PRODUCT_CONFIG && !userCanUseApp(user, blockedKey as ProductKey) ? (blockedKey as ProductKey) : null;
@@ -197,7 +199,7 @@ export default async function PlatformHomePage(props: {
         </section>
       )}
 
-      {featured.length === 0 && more.length === 0 && (
+      {workspaceApps.length === 0 && (
         <div className="home-no-apps" data-testid="home-no-apps">
           <p className="home-blocked-title">{t('noApps.title')}</p>
           <p className="home-blocked-body">{t(user.role === 'admin' ? 'noApps.bodyAdmin' : 'noApps.body', { workspace: user.workspace?.name ?? '' })}</p>

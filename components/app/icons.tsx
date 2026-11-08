@@ -78,6 +78,7 @@ export type IconName =
   | 'people'
   | 'timeoff'
   | 'orgchart'
+  | 'clock'
   | 'check'
   | 'download'
   | 'desktop'
@@ -239,6 +240,13 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M13.73 21a2 2 0 0 1-3.46 0" />
     </>
   ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <polyline points="12 7 12 12 15 14" />
+    </>
+  ),
+  check: <polyline points="4 12.5 9.5 18 20 6.5" />,
   inbox: (
     <>
       <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
@@ -520,7 +528,6 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   themeDark: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
-  check: <path d="M5 12.5l4.5 4.5L19 7" />,
   download: <path d="M12 4v11M7 10.5l5 5 5-5M5 20h14" />,
   // App de escritorio: una ventana con su barra.
   desktop: (

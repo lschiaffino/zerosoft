@@ -178,6 +178,14 @@ describe('app de escritorio: sistema, chip y release', () => {
     expect(d.sizes).toEqual({ macArm64: 3_000_000, macX64: null, win: 4_000_000 });
   });
 
+  it('el asunto de la invitación lleva el nombre limpio, como el remitente', async () => {
+    const { renderInviteEmail } = await import('@/lib/invite-email');
+    const { subject } = renderInviteEmail({ to: 'a@b.c', url: 'https://x/i', workspaceName: 'Acme', inviterName: '<img src=x> "Ana" @evil\r\nBcc: x', role: 'member', expiresAt: null, locale: 'en' });
+    expect(subject).not.toMatch(/[<>"@\r\n]/);
+    expect(subject).toContain('img src=x Ana evil');
+    expect(subject).toContain('invited you to Acme');
+  });
+
   it('la vuelta del OAuth solo acepta rutas propias de la app', () => {
     expect(safeReturnPath('/es/app/welcome')).toBe('/es/app/welcome');
     expect(safeReturnPath('/en/app')).toBe('/en/app');
