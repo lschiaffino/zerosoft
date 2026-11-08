@@ -78,7 +78,7 @@ export function accountDto(r: AccountRow): InboxAccountDto {
   let backfilling = false;
   try {
     const c = r.sync_cursor ? (JSON.parse(r.sync_cursor) as { phase?: string }) : null;
-    backfilling = r.kind === 'whatsapp' && !!c?.phase && c.phase !== 'done';
+    backfilling = r.kind === 'whatsapp' && r.provider === 'managed' && !!c?.phase && c.phase !== 'done';
   } catch {
     backfilling = false;
   }

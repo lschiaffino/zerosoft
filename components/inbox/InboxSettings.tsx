@@ -608,7 +608,7 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
           ))}
         </dl>
         <p className="ib-help">
-          {th('dictation')} <Link href="/app/voice/settings">{t('voiceSettings')}</Link>
+          <Link href="/app/voice/settings">{th('dictation')}</Link>
         </p>
       </section>
     </div>

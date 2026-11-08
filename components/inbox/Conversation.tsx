@@ -105,7 +105,11 @@ function Bubble({ m, group, email }: { m: MessageDto; group: boolean; email: boo
           {m.revoked && <span className="ib-revoked">{t('revoked')}</span>}
           {m.edited && <span>{t('edited')}</span>}
           <time dateTime={m.sentAt}>{time}</time>
-          {m.fromMe && m.status && <span className={`ib-ack ib-ack-${m.status}`} aria-label={t(`status.${['sent', 'delivered', 'read', 'failed'].includes(m.status) ? m.status : 'sent'}`)} />}
+          {m.fromMe && m.status && (
+            <span className={`ib-ack ib-ack-${m.status}`} role="img" aria-label={t(`status.${['sent', 'delivered', 'read', 'failed'].includes(m.status) ? m.status : 'sent'}`)}>
+              {m.status === 'failed' ? '!' : m.status === 'sent' ? '✓' : '✓✓'}
+            </span>
+          )}
         </span>
       </div>
     </div>

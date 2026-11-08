@@ -135,7 +135,7 @@ li.ib-item.is-unread .ib-row-when { color: var(--ib-ink); font-weight: 600; }
 .ib-text a, .ib-mail-body a { color: inherit; text-decoration: underline; }
 .ib-meta { display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 2px; font-size: 0.6875rem; color: var(--brand-gray-2); font-variant-numeric: tabular-nums; }
 .ib-revoked { color: var(--bad-ink); font-weight: 600; }
-.ib-ack { display: inline-block; width: 12px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(40deg) scale(0.7); transform-origin: center; }
+.ib-ack { font-size: 0.6875rem; letter-spacing: -0.15em; font-weight: 700; }
 .ib-ack-read { color: #34b7f1; }
 .ib-ack-failed { color: var(--bad-ink); }
 .ib-media-img img { display: block; max-width: 100%; max-height: 320px; border-radius: 2px; }
@@ -255,7 +255,7 @@ li.ib-item.is-unread .ib-row-when { color: var(--ib-ink); font-weight: 600; }
   .ib-convo-head { gap: 8px; padding: 8px 10px; }
   .ib-convo-head .ib-avatar { display: none; }
   .ib-composer { padding: 8px 10px; }
-  .ib-composer-hint { display: none; }
+  .ib-composer-hint, .ib-keys-hint { display: none; }
   .ib-sched { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .ib-key-row dt { min-width: 80px; }
 }
