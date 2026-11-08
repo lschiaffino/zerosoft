@@ -28,8 +28,11 @@ function dataOf<T>(r: Data): T | null {
 
 function failure(r: Data): string {
   const d = r.data as { error?: unknown; message?: unknown } | undefined;
-  const e = r.error ?? (typeof d?.error === 'object' ? (d.error as { code?: string }).code : d?.error) ?? d?.message ?? `status ${r.status ?? 'error'}`;
-  return String(e).slice(0, 200);
+  const nested = typeof d?.error === 'object' && d.error ? (d.error as { code?: string; message?: string }) : null;
+  const code = r.error ?? nested?.code ?? (typeof d?.error === 'string' ? d.error : null) ?? `status ${r.status ?? 'error'}`;
+  // El código y, si la ruta lo dice, por qué: "invalid_input: Required".
+  const why = nested?.message ?? (typeof d?.message === 'string' ? d.message : null);
+  return (why ? `${code}: ${why}` : String(code)).slice(0, 200);
 }
 
 export const attachmentTools: AssistantTool[] = [
@@ -123,7 +126,7 @@ export const attachmentTools: AssistantTool[] = [
       const stored = dataOf<{ url: string; name: string; size: number; mime: string }>(up);
       if (!stored?.url) return { ok: false, error: failure(up) };
       const kind = attachmentKind(file.mime);
-      const block = { type: kind === 'image' ? 'image' : kind === 'pdf' ? 'pdf' : 'file', url: stored.url, name: stored.name, size: stored.size, mime: stored.mime };
+      const block = { id: crypto.randomUUID(), content: '', type: kind === 'image' ? 'image' : kind === 'pdf' ? 'pdf' : 'file', url: stored.url, name: stored.name, size: stored.size, mime: stored.mime };
       const r = await runCatalog(ctx, op('v1.docs.pages.blocks.create'), { path: { id: String(input.id) }, body: { blocks: [block] } }, {});
       if (!r.ok) return { ok: false, error: failure(r) };
       return { ok: true, message: 'Added to the page.', href: `/app/docs/${String(input.id)}` };

@@ -20,6 +20,13 @@ import { addMessage, createConversation } from '@/lib/assistant/store';
 import { fakeAssistantStep } from '@/lib/assistant/fake';
 import { scriptedModel } from './ai-mock';
 import { fakeModel } from '@/lib/crm-ai-fake';
+import { toolCtx, type WriteTool } from '@/lib/assistant/registry';
+import { attachmentTools } from '@/lib/assistant/tools-attachments';
+import { runCatalog } from '@/lib/assistant/tools-catalog';
+import { getOperation, type Operation } from '@/lib/mcp/catalog';
+
+// Sin cookie de sesión: todo corre con la identidad delegada del asistente.
+vi.mock('next-auth', async (orig) => ({ ...(await orig<object>()), getServerSession: async () => null }));
 
 process.env.NEXTAUTH_URL = 'https://zerosoft.test';
 process.env.RATE_LIMIT_DISABLED = 'true';
@@ -140,6 +147,35 @@ describe('adjuntos del asistente: lo que ve el modelo', () => {
     const seen = fakeAssistantStep({ ...info, userTexts: ['what is in this image'], userFiles: [{ mediaType: 'image/png', bytes: 70 }] });
     expect(seen).toEqual({ text: 'I can see 1 file(s): image/png (70 bytes).' });
     expect(fakeAssistantStep({ ...info, userTexts: ['send this image to this chat'], userFiles: [] })).toEqual({ tool: 'propose_send_attachment', input: { chat: 'chat1', attachment: 'att_abcdef12345' } });
+  });
+});
+
+describe('adjuntos del asistente: acciones de punta a punta (rutas reales)', () => {
+  const op = (id: string) => getOperation(id) as Operation;
+  const attachTool = () => attachmentTools.find((t) => t.name === 'propose_attach_file') as WriteTool;
+
+  it('a un issue de Track por su identificador y al final de una página de Docs', async () => {
+    const { user, owner } = await person();
+    const ctx = toolCtx(user, 'en');
+    const att = await createAttachment(owner, { name: 'drop.png', type: 'image/png', bytes: PNG });
+
+    const team = (await runCatalog(ctx, op('v1.track.teams.create'), { body: { name: 'Eng', key: 'ENG' } }, {})).data as { id: string };
+    const issue = (await runCatalog(ctx, op('v1.track.issues.create'), { body: { projectId: team.id, title: 'Bug' } }, {})).data as { id: string; identifier: string };
+    const toIssue = (await attachTool().prepare(ctx, { target: 'track_issue', id: issue.identifier, attachment: att.id })) as { input: Record<string, unknown>; summary: string };
+    expect(toIssue.summary).toBe(`Attach "drop.png" to ${issue.identifier}`);
+    expect(await attachTool().execute(ctx, toIssue.input)).toMatchObject({ ok: true });
+    const rows = ((await runCatalog(ctx, op('track.issues.attachments.list'), { path: { id: issue.id } }, {})).data as { rows: Array<{ filename: string }> }).rows;
+    expect(rows.map((r) => r.filename)).toEqual(['drop.png']);
+
+    const page = ((await runCatalog(ctx, op('v1.docs.pages.create'), { body: { title: 'Specs' } }, {})).data as { data: { id: string } }).data;
+    const toPage = (await attachTool().prepare(ctx, { target: 'docs_page', id: page.id, attachment: att.id })) as { input: Record<string, unknown> };
+    expect(await attachTool().execute(ctx, toPage.input)).toMatchObject({ ok: true });
+    const blocks = ((await runCatalog(ctx, op('v1.docs.pages.blocks.list'), { path: { id: page.id } }, {})).data as { data: Array<{ type: string; url?: string }> }).data;
+    expect(blocks.find((b) => b.type === 'image')?.url).toMatch(/^\/uploads\/docs\/.+-drop\.png$/);
+
+    // Un adjunto ajeno no se puede usar.
+    const other = await person();
+    expect(await attachTool().prepare(toolCtx(other.user, 'en'), { target: 'docs_page', id: page.id, attachment: att.id })).toMatchObject({ error: 'unknown_attachment' });
   });
 });
 
