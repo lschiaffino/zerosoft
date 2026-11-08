@@ -84,7 +84,7 @@ export function githubIssueToNormalized(repo: string, i: GithubIssue): Normalize
     title: i.title || `#${i.number}`,
     description: i.body ?? '',
     status: { name: null, category: i.state === 'closed' ? closedAs : 'todo' },
-    priority: priorityFromLabels(labels.map((l) => l.name)) ?? 'medium',
+    priority: priorityFromLabels(labels.map((l) => l.name)) ?? 'none',
     assignee: i.assignee ? { email: null, name: i.assignee.login } : null,
     estimate: null,
     labels,

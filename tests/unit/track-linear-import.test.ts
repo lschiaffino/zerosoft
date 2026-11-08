@@ -83,7 +83,7 @@ describe('track import de Linear: workspace entero', () => {
     // La key se guarda cifrada y se borra al terminar de leer.
     expect((await getImportJobRow(job.id))?.secret).toBeNull();
     const p = preview.preview as Record<string, unknown>;
-    expect(p).toMatchObject({ sourceName: 'Acme', issues: 11, comments: 4, relations: 4, attachments: 4, triage: 1, archived: 1, cycles: 3 });
+    expect(p).toMatchObject({ sourceName: 'Acme', issues: 11, comments: 4, relations: 4, attachments: 4, initiatives: 1, triage: 1, archived: 1, cycles: 3 });
     expect((p.projects as Array<{ name: string }>).map((t) => t.name).sort()).toEqual(['Design', 'Engineering']);
     expect((p.plans as Array<{ name: string }>).map((x) => x.name)).toEqual(['Mobile app v2', 'Billing revamp']);
     const people = p.people as Array<{ label: string; member: string | null }>;
@@ -91,7 +91,7 @@ describe('track import de Linear: workspace entero', () => {
     expect(people.find((x) => x.label === 'bo@acme-linear.test')?.member).toBeNull();
 
     expect(done.status).toBe('done');
-    expect(done.report).toMatchObject({ issues: 11, updated: 0, projectsCreated: 2, plansCreated: 2, planUpdates: 2, relations: 4, attachments: 4, parents: 2, comments: 4 });
+    expect(done.report).toMatchObject({ issues: 11, updated: 0, projectsCreated: 2, plansCreated: 2, initiativesCreated: 1, planUpdates: 2, relations: 4, attachments: 4, parents: 2, comments: 4 });
 
     const teams = (await db.prepare('SELECT id, slug, triage_enabled FROM track_projects WHERE owner_id = ? ORDER BY slug').all(u.id)) as Array<{ id: string; slug: string; triage_enabled: number }>;
     expect(teams.map((t) => t.slug.toUpperCase())).toEqual(['DES', 'ENG']);
@@ -137,6 +137,12 @@ describe('track import de Linear: workspace entero', () => {
     // Bo no es miembro: su update queda firmado con el nombre original.
     expect(updates[0].body).toMatch(/^\*\*Bo Lindqvist\*\*/);
 
+    // Initiative de Linear con sus dos projects.
+    const init = (await db.prepare('SELECT id, status, lead_id FROM track_initiatives WHERE owner_id = ? AND name = ?').get(u.id, 'Mobile launch')) as Row;
+    expect(init).toMatchObject({ status: 'active', lead_id: u.id });
+    const linked = (await db.prepare('SELECT COUNT(*) AS n FROM track_initiative_plans WHERE initiative_id = ?').get(init.id)) as { n: number };
+    expect(Number(linked.n)).toBe(2);
+
     // Sub-issues, triage, archivados.
     expect((await issue('Queue writes while offline')).parent_id).toBe(offline.id);
     expect((await issue('Customer reports slow search')).triage).toBe(1);
@@ -170,7 +176,7 @@ describe('track import de Linear: workspace entero', () => {
     // Reimportar lo mismo: nada nuevo, nada duplicado.
     const again = await importLinear(u.id, 'lin_api_fake');
     expect((again.preview.preview as Record<string, unknown>).alreadyImported).toBe(11);
-    expect(again.done.report).toMatchObject({ issues: 0, updated: 0, skipped: 11, comments: 0, projectsCreated: 0, plansCreated: 0, relations: 0, attachments: 0, planUpdates: 0 });
+    expect(again.done.report).toMatchObject({ issues: 0, updated: 0, skipped: 11, comments: 0, projectsCreated: 0, plansCreated: 0, initiativesCreated: 0, relations: 0, attachments: 0, planUpdates: 0 });
 
     // Una edición hecha en Track después del import se respeta.
     await db.prepare("UPDATE track_issues SET title = 'Edited in Track', updated_at = ? WHERE id = ?").run(new Date().toISOString(), (await issue('Resolve conflicts on reconnect')).id);

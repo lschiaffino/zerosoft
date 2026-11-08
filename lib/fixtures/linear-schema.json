@@ -634,6 +634,269 @@
    "type": "PageInfo"
   }
  },
+ "Initiative": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "canceledAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "color": {
+   "args": [],
+   "type": "String"
+  },
+  "completedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "content": {
+   "args": [],
+   "type": "String"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "creator": {
+   "args": [],
+   "type": "User"
+  },
+  "description": {
+   "args": [],
+   "type": "String"
+  },
+  "documentContent": {
+   "args": [],
+   "type": "DocumentContent"
+  },
+  "documents": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "DocumentConnection"
+  },
+  "facets": {
+   "args": [],
+   "type": "Facet"
+  },
+  "frequencyResolution": {
+   "args": [],
+   "type": "FrequencyResolutionType"
+  },
+  "health": {
+   "args": [],
+   "type": "InitiativeUpdateHealthType"
+  },
+  "healthUpdatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "history": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "InitiativeHistoryConnection"
+  },
+  "icon": {
+   "args": [],
+   "type": "String"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "identifier": {
+   "args": [],
+   "type": "String"
+  },
+  "initiativeUpdates": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "InitiativeUpdateConnection"
+  },
+  "integrationsSettings": {
+   "args": [],
+   "type": "IntegrationsSettings"
+  },
+  "labelIds": {
+   "args": [],
+   "type": "String"
+  },
+  "labels": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "InitiativeLabelConnection"
+  },
+  "lastUpdate": {
+   "args": [],
+   "type": "InitiativeUpdate"
+  },
+  "leadTeam": {
+   "args": [],
+   "type": "Team"
+  },
+  "links": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "EntityExternalLinkConnection"
+  },
+  "name": {
+   "args": [],
+   "type": "String"
+  },
+  "organization": {
+   "args": [],
+   "type": "Organization"
+  },
+  "owner": {
+   "args": [],
+   "type": "User"
+  },
+  "parentInitiative": {
+   "args": [],
+   "type": "Initiative"
+  },
+  "parentInitiatives": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "InitiativeConnection"
+  },
+  "previousIdentifiers": {
+   "args": [],
+   "type": "String"
+  },
+  "priority": {
+   "args": [],
+   "type": "Int"
+  },
+  "prioritySortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "projects": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "includeSubInitiatives",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "ProjectConnection"
+  },
+  "slugId": {
+   "args": [],
+   "type": "String"
+  },
+  "sortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "startedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "status": {
+   "args": [],
+   "type": "InitiativeStatus"
+  },
+  "subInitiatives": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "InitiativeConnection"
+  },
+  "targetDate": {
+   "args": [],
+   "type": "TimelessDate"
+  },
+  "targetDateResolution": {
+   "args": [],
+   "type": "DateResolutionType"
+  },
+  "trashed": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "updateReminderFrequency": {
+   "args": [],
+   "type": "Float"
+  },
+  "updateReminderFrequencyInWeeks": {
+   "args": [],
+   "type": "Float"
+  },
+  "updateRemindersDay": {
+   "args": [],
+   "type": "Day"
+  },
+  "updateRemindersHour": {
+   "args": [],
+   "type": "Float"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "url": {
+   "args": [],
+   "type": "String"
+  },
+  "visibility": {
+   "args": [],
+   "type": "InitiativeVisibility"
+  }
+ },
  "InitiativeConnection": {
   "edges": {
    "args": [],
@@ -648,6 +911,34 @@
    "type": "PageInfo"
   }
  },
+ "InitiativeHistoryConnection": {
+  "edges": {
+   "args": [],
+   "type": "InitiativeHistoryEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "InitiativeHistory"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "InitiativeLabelConnection": {
+  "edges": {
+   "args": [],
+   "type": "InitiativeLabelEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "InitiativeLabel"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
  "InitiativeToProjectConnection": {
   "edges": {
    "args": [],
@@ -656,6 +947,20 @@
   "nodes": {
    "args": [],
    "type": "InitiativeToProject"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "InitiativeUpdateConnection": {
+  "edges": {
+   "args": [],
+   "type": "InitiativeUpdateEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "InitiativeUpdate"
   },
   "pageInfo": {
    "args": [],
@@ -2627,6 +2932,19 @@
    ],
    "type": "CycleConnection"
   },
+  "initiatives": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "InitiativeConnection"
+  },
   "issue": {
    "args": [
     "id"
@@ -3696,6 +4014,13 @@
    "type": "PageInfo"
   }
  },
+ "enum:InitiativeStatus": [
+  "Active",
+  "Canceled",
+  "Completed",
+  "Planned",
+  "Proposed"
+ ],
  "enum:PaginationOrderBy": [
   "createdAt",
   "updatedAt"

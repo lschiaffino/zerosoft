@@ -10,7 +10,7 @@
  *
  * Keys:
  * - lin_api_fake: workspace chico con todo (2 teams con workflows propios,
- *   triage, 2 projects con milestones y updates, cycles, sub-issues,
+ *   triage, 2 projects con milestones y updates, una initiative, cycles, sub-issues,
  *   relaciones, adjuntos, comentarios con hilo, archivados, personas que no
  *   son miembros).
  * - lin_api_fake_v2: el mismo workspace un día después (un issue renombrado
@@ -272,6 +272,20 @@ export function linearFakeWorkspace(token: string, now = Date.now()): Record<str
     comments,
     attachments,
     issueRelations: relations,
+    initiatives: [
+      {
+        id: 'in-launch',
+        name: 'Mobile launch',
+        description: 'Everything for the mobile launch',
+        content: '## Why\n\nOne launch, two projects.',
+        icon: null,
+        status: 'Active',
+        targetDate: dateOnly(45, base),
+        updatedAt: day(-3, base),
+        owner: users.ana,
+        projects: { nodes: [{ id: 'p-mobile' }, { id: 'p-billing' }] },
+      },
+    ],
   };
 }
 

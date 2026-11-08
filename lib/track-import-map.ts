@@ -14,7 +14,7 @@ export const TRACK_IMPORT_SOURCES = ['linear', 'jira', 'github', 'asana', 'short
 export type TrackImportSource = (typeof TRACK_IMPORT_SOURCES)[number];
 
 export type ImportStatusCategory = 'backlog' | 'todo' | 'in_progress' | 'done' | 'cancelled';
-export type ImportPriority = 'urgent' | 'high' | 'medium' | 'low';
+export type ImportPriority = 'none' | 'urgent' | 'high' | 'medium' | 'low';
 
 export interface NormalizedComment {
   extId: string;
@@ -67,14 +67,14 @@ const LABELS_MAX = 10;
 
 // ---------- Normalización de valores ----------
 
-/** Prioridad de Linear (0 a 4), de Jira (Highest…Lowest) o texto libre. */
+/** Prioridad de Linear (0 a 4, 0 = sin prioridad), de Jira (Highest…Lowest) o texto libre. Sin dato: sin prioridad. */
 export function normalizePriority(raw: unknown): ImportPriority {
   if (typeof raw === 'number' || (typeof raw === 'string' && /^\s*\d+\s*$/.test(raw))) {
     const n = Number(raw);
-    return n === 1 ? 'urgent' : n === 2 ? 'high' : n === 4 ? 'low' : 'medium';
+    return n === 1 ? 'urgent' : n === 2 ? 'high' : n === 3 ? 'medium' : n === 4 ? 'low' : 'none';
   }
   const v = String(raw ?? '').trim().toLowerCase();
-  if (!v) return 'medium';
+  if (!v || /^(no priority|none|sin prioridad|sem prioridade|-)$/.test(v)) return 'none';
   if (/urgent|blocker|critical|highest|^p0\b|urgente|cr[ií]tic/.test(v)) return 'urgent';
   if (/^high|^p1\b|^alta|^alto/.test(v)) return 'high';
   if (/low|lowest|minor|trivial|^p[34]\b|^baja|^baixa/.test(v)) return 'low';

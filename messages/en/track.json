@@ -948,7 +948,8 @@
       "milestones": "Milestones",
       "plans": "Projects",
       "relations": "Relations",
-      "attachments": "Links"
+      "attachments": "Links",
+      "initiatives": "Initiatives"
     },
     "already": "{count, plural, one {# issue was imported before and will be skipped.} other {# issues were imported before and will be skipped.}}",
     "truncated": "The source has more issues than one import accepts. The rest were left out.",
@@ -989,7 +990,8 @@
       "read_issues": "Reading issues",
       "read_comments": "Reading comments",
       "read_attachments": "Reading links",
-      "read_relations": "Reading relations"
+      "read_relations": "Reading relations",
+      "read_initiatives": "Reading initiatives"
     },
     "doneTitle": "Import finished.",
     "doneSummary": "{issues, plural, one {# issue} other {# issues}} and {comments, plural, one {# comment} other {# comments}} imported, {skipped, number} skipped.",
@@ -1008,7 +1010,8 @@
       "statuses": "{count, plural, one {# status} other {# statuses}}",
       "cycles": "{count, plural, one {# cycle} other {# cycles}}",
       "milestones": "{count, plural, one {# milestone} other {# milestones}}",
-      "plans": "{count, plural, one {# project} other {# projects}}"
+      "plans": "{count, plural, one {# project} other {# projects}}",
+      "initiatives": "{count, plural, one {# initiative} other {# initiatives}}"
     },
     "jiraSite": "Jira site",
     "jiraEmail": "Atlassian account email",

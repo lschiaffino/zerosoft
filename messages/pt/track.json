@@ -948,7 +948,8 @@
       "milestones": "Milestones",
       "plans": "Projects",
       "relations": "Relações",
-      "attachments": "Links"
+      "attachments": "Links",
+      "initiatives": "Initiatives"
     },
     "already": "{count, plural, one {# issue já foi importado antes e será pulado.} other {# issues já foram importados antes e serão pulados.}}",
     "truncated": "A origem tem mais issues do que cabem numa importação. O resto ficou de fora.",
@@ -989,7 +990,8 @@
       "read_issues": "Lendo issues",
       "read_comments": "Lendo comentários",
       "read_attachments": "Lendo links",
-      "read_relations": "Lendo relações"
+      "read_relations": "Lendo relações",
+      "read_initiatives": "Lendo initiatives"
     },
     "doneTitle": "Importação concluída.",
     "doneSummary": "{issues, plural, one {# issue} other {# issues}} e {comments, plural, one {# comentário} other {# comentários}} importados, {skipped, number} pulados.",
@@ -1008,7 +1010,8 @@
       "statuses": "{count, plural, one {# status} other {# status}}",
       "cycles": "{count, plural, one {# cycle} other {# cycles}}",
       "milestones": "{count, plural, one {# milestone} other {# milestones}}",
-      "plans": "{count, plural, one {# project} other {# projects}}"
+      "plans": "{count, plural, one {# project} other {# projects}}",
+      "initiatives": "{count, plural, one {# initiative} other {# initiatives}}"
     },
     "jiraSite": "Site do Jira",
     "jiraEmail": "Email da conta Atlassian",

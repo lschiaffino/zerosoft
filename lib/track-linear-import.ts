@@ -71,6 +71,12 @@ export const LINEAR_QUERIES = {
     }
   }
 }`,
+  initiatives: `query Initiatives($after: String) {
+  initiatives(first: 50, after: $after) {
+    ${PAGE}
+    nodes { id name description content icon status targetDate updatedAt owner ${PERSON} projects(first: 50) { nodes { id } } }
+  }
+}`,
   cycles: `query Cycles($after: String) {
   cycles(first: 100, after: $after, includeArchived: true) { ${PAGE} nodes { id number name startsAt endsAt team { key name } } }
 }`,
@@ -106,11 +112,12 @@ export const LINEAR_QUERIES = {
 } as const;
 
 export type LinearPhase = keyof typeof LINEAR_QUERIES;
-export const LINEAR_PHASES: LinearPhase[] = ['viewer', 'users', 'teams', 'projects', 'cycles', 'issues', 'comments', 'attachments', 'relations'];
+export const LINEAR_PHASES: LinearPhase[] = ['viewer', 'users', 'teams', 'projects', 'initiatives', 'cycles', 'issues', 'comments', 'attachments', 'relations'];
 const ROOT_FIELD: Record<Exclude<LinearPhase, 'viewer'>, string> = {
   users: 'users',
   teams: 'teams',
   projects: 'projects',
+  initiatives: 'initiatives',
   cycles: 'cycles',
   issues: 'issues',
   comments: 'comments',
@@ -159,6 +166,20 @@ export interface LinearPlanItem {
   teamExtIds: string[];
   milestones: Array<{ extId: string; name: string; description: string; targetDate: string | null }>;
   updates: Array<{ extId: string; health: PlanHealth; body: string; createdAt: string | null; user: ImportPerson | null }>;
+}
+
+export type InitiativeStatus = 'proposed' | 'planned' | 'active' | 'completed' | 'canceled';
+
+export interface LinearInitiativeItem {
+  extId: string;
+  name: string;
+  description: string;
+  icon: string | null;
+  status: InitiativeStatus;
+  targetDate: string | null;
+  updatedAt: string | null;
+  owner: ImportPerson | null;
+  planExtIds: string[];
 }
 
 export interface LinearCycleItem {
@@ -337,6 +358,25 @@ function nodeToItems(phase: LinearPhase, n: any): Array<{ kind: string; data: un
       return [{ kind: 'team', data: linearTeamToItem(n) }];
     case 'projects':
       return [{ kind: 'plan', data: linearProjectToItem(n) }];
+    case 'initiatives': {
+      const status = String(n.status ?? '').toLowerCase();
+      return [
+        {
+          kind: 'initiative',
+          data: {
+            extId: String(n.id),
+            name: clip(String(n.name ?? '').trim(), 200) || 'Initiative',
+            description: clip(String(n.content || n.description || ''), 20_000),
+            icon: null,
+            status: (['proposed', 'planned', 'active', 'completed', 'canceled'].includes(status) ? status : 'planned') as InitiativeStatus,
+            targetDate: normalizeDay(n.targetDate),
+            updatedAt: normalizeDate(n.updatedAt),
+            owner: person(n.owner),
+            planExtIds: ((n.projects?.nodes ?? []) as any[]).map((pr) => String(pr.id)),
+          } satisfies LinearInitiativeItem,
+        },
+      ];
+    }
     case 'cycles': {
       const c = linearCycleToItem(n);
       return c ? [{ kind: 'cycle', data: c }] : [];

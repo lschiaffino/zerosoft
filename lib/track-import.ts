@@ -43,11 +43,12 @@ import { createCycle, createProject, createStatus, DEFAULT_STATUS_NAMES, getProj
 import { projectSlug, shortProjectKey } from './track-tasks';
 import { normalizeIssueLabels, trackWorkspaceId, listLabels } from './track-labels';
 import { createPlan, createPlanMilestone, type WorkspaceScope } from './track-plans';
+import { createInitiative } from './track-initiatives';
 import { upsertExternalRef } from './track-integrations';
 import type { NormalizedComment, NormalizedIssue, TrackImportSource } from './track-import-map';
 import { fetchLinearUpload, LINEAR_UPLOAD_RE } from './track-linear-import';
 import { saveUpload } from './uploads';
-import type { ImportPerson, LinearAttachmentItem, LinearCycleItem, LinearPlanItem, LinearRelationItem, LinearTeamItem, LinearUserItem } from './track-linear-import';
+import type { ImportPerson, LinearInitiativeItem, LinearAttachmentItem, LinearCycleItem, LinearPlanItem, LinearRelationItem, LinearTeamItem, LinearUserItem } from './track-linear-import';
 
 export interface TrackImportOptions {
   /** 'new' = un proyecto por proyecto de la fuente; si no, el id del proyecto destino. */
@@ -151,6 +152,7 @@ export interface TrackImportPreview {
   estimates: number;
   relations: number;
   attachments: number;
+  initiatives: number;
   triage: number;
   archived: number;
   priorities: Record<string, number>;
@@ -201,7 +203,7 @@ export async function trackPreview(job: ImportJob, items: StagedItem[]): Promise
   const labelNames = new Set<string>();
   const cycles = new Set<string>();
   const milestones = new Set<string>();
-  const priorities: Record<string, number> = { urgent: 0, high: 0, medium: 0, low: 0 };
+  const priorities: Record<string, number> = { none: 0, urgent: 0, high: 0, medium: 0, low: 0 };
   let comments = items.filter((i) => i.kind === 'comment').length;
   let estimates = 0;
   let triage = 0;
@@ -299,6 +301,7 @@ export async function trackPreview(job: ImportJob, items: StagedItem[]): Promise
     estimates,
     relations: items.filter((i) => i.kind === 'relation').length,
     attachments: items.filter((i) => i.kind === 'attachment').length,
+    initiatives: items.filter((i) => i.kind === 'initiative').length,
     triage,
     archived,
     priorities,
@@ -325,6 +328,7 @@ export interface TrackImportReport {
   cyclesCreated: number;
   milestonesCreated: number;
   plansCreated: number;
+  initiativesCreated: number;
   planUpdates: number;
   relations: number;
   attachments: number;
@@ -348,6 +352,7 @@ export function emptyTrackReport(): TrackImportReport {
     cyclesCreated: 0,
     milestonesCreated: 0,
     plansCreated: 0,
+    initiativesCreated: 0,
     planUpdates: 0,
     relations: 0,
     attachments: 0,
@@ -942,6 +947,50 @@ async function insertRelation(ctx: WriteCtx, r: LinearRelationItem): Promise<voi
   await setExternalId(ctx.ws, ctx.src, 'relation', r.extId, from);
 }
 
+/** Initiative de Linear → initiative de Track con sus projects (por id externo o por nombre). */
+async function ensureInitiative(ctx: WriteCtx, it: LinearInitiativeItem): Promise<void> {
+  const db = getDb();
+  const scope = scopeOf(ctx.job);
+  const planIds: string[] = [];
+  for (const ext of it.planExtIds) {
+    const id = ctx.plans.get(ext) ?? (await getExternalId(ctx.ws, ctx.src, 'plan', ext));
+    if (id && !planIds.includes(id)) planIds.push(id);
+  }
+  let id = await getExternalId(ctx.ws, ctx.src, 'initiative', it.extId);
+  if (id && !(await db.prepare('SELECT 1 FROM track_initiatives WHERE id = ?').get(id))) id = null;
+  if (!id) {
+    const byName = (await db
+      .prepare(
+        scope.teamId
+          ? 'SELECT id FROM track_initiatives WHERE team_id = ? AND lower(name) = lower(?) LIMIT 1'
+          : 'SELECT id FROM track_initiatives WHERE team_id IS NULL AND owner_id = ? AND lower(name) = lower(?) LIMIT 1',
+      )
+      .get(scope.teamId ?? scope.ownerId, it.name)) as { id: string } | undefined;
+    id = byName?.id ?? null;
+  }
+  if (!id) {
+    const created = await createInitiative(scope, ctx.job.user_id, {
+      name: it.name,
+      description: it.description,
+      status: it.status,
+      leadId: matchMember(ctx.members, it.owner)?.id ?? null,
+      targetDate: it.targetDate,
+      planIds,
+    });
+    id = created.id;
+    ctx.report.initiativesCreated += 1;
+  } else {
+    const row = (await db.prepare('SELECT updated_at FROM track_initiatives WHERE id = ?').get(id)) as { updated_at: string };
+    if (it.updatedAt && it.updatedAt > row.updated_at) {
+      await db
+        .prepare('UPDATE track_initiatives SET name = ?, description = ?, status = ?, target_date = ?, updated_at = ? WHERE id = ?')
+        .run(it.name, it.description, it.status, it.targetDate, it.updatedAt, id);
+    }
+    for (const pid of planIds) await db.prepare('INSERT OR IGNORE INTO track_initiative_plans (initiative_id, plan_id) VALUES (?, ?)').run(id, pid);
+  }
+  await setExternalId(ctx.ws, ctx.src, 'initiative', it.extId, id);
+}
+
 async function insertCycleItem(ctx: WriteCtx, c: LinearCycleItem): Promise<void> {
   const projectId = await mappedProject(ctx, c.teamExtId);
   if (projectId) await ensureCycle(ctx, projectId, c);
@@ -978,6 +1027,9 @@ export async function trackWriteStep(job: ImportJob, stage: string, items: Stage
           break;
         case 'plan':
           await ensurePlan(ctx, item.data as unknown as LinearPlanItem);
+          break;
+        case 'initiative':
+          await ensureInitiative(ctx, item.data as unknown as LinearInitiativeItem);
           break;
         case 'cycle':
           await insertCycleItem(ctx, item.data as unknown as LinearCycleItem);

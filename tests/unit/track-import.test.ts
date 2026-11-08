@@ -39,7 +39,7 @@ async function trackJob(userId: string, source: string, opts: Record<string, unk
 
 describe('track import: mapeo', () => {
   it('normaliza prioridades de Linear, Jira y texto', () => {
-    expect([1, 2, 3, 4, 0].map(normalizePriority)).toEqual(['urgent', 'high', 'medium', 'low', 'medium']);
+    expect([1, 2, 3, 4, 0].map(normalizePriority)).toEqual(['urgent', 'high', 'medium', 'low', 'none']);
     expect(['Highest', 'Blocker', 'High', 'Medium', 'Low', 'Lowest', 'No priority', ''].map(normalizePriority)).toEqual([
       'urgent',
       'urgent',
@@ -47,8 +47,8 @@ describe('track import: mapeo', () => {
       'medium',
       'low',
       'low',
-      'medium',
-      'medium',
+      'none',
+      'none',
     ]);
   });
 
@@ -251,7 +251,7 @@ describe('track import: job de punta a punta', () => {
       .all(u.id)) as Array<{ title: string; priority: string; assignee_id: string | null; category: string }>;
     expect(rows).toEqual([
       { title: 'Crash on save', priority: 'urgent', assignee_id: u.id, category: 'done' },
-      { title: 'Not planned', priority: 'medium', assignee_id: null, category: 'cancelled' },
+      { title: 'Not planned', priority: 'none', assignee_id: null, category: 'cancelled' },
     ]);
   });
 
