@@ -10,6 +10,7 @@ import { inviteExpired, listPendingInvites, normalizeInviteRole, type TeamRole }
 import { canGrantApps, listTeamPeople, parseApps, type AppAccess, type WorkspaceRole } from './workspace';
 import { listGroups } from './workspace-groups';
 import { inviteUrl } from './workspace-invites';
+import { lastActiveByPerson, listAudit, listDeactivated, type AuditEntry, type DeactivatedDto } from './workspace-admin';
 
 export interface MemberDto {
   /** Apps que pidió y nadie respondió todavía (solo se cargan para admins). */
@@ -22,6 +23,8 @@ export interface MemberDto {
   apps: AppAccess;
   groupIds: string[];
   joinedAt: string;
+  /** Última vez que usó el workspace (null = nunca o antes de que se registrara). */
+  lastActiveAt: string | null;
 }
 
 export interface InviteDto {
@@ -44,6 +47,8 @@ export interface InviteDto {
   anyEmail: boolean;
   /** Puede reenviarla (ve el link): la podría haber hecho. */
   canResend: boolean;
+  /** Puede revocarla: la podría haber hecho (los pedidos de ingreso, cualquier admin). */
+  canRevoke: boolean;
   /** Puede abrirla a otro email: quien la hizo o el owner. */
   canAllowAnyEmail: boolean;
 }
@@ -65,6 +70,10 @@ export interface DirectoryDto {
   members: MemberDto[];
   invites: InviteDto[];
   groups: GroupDto[];
+  /** Personas desactivadas que se pueden reactivar (solo para admins). */
+  deactivated: DeactivatedDto[];
+  /** Últimos cambios de permisos (solo para admins). */
+  audit: AuditEntry[];
 }
 
 /**
@@ -79,11 +88,14 @@ export function canHandleInvite(role: TeamRole, apps: AppAccess, invite: Pick<Te
 
 export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: string, viewerApps: AppAccess = '*', viewerId?: string): Promise<DirectoryDto> {
   const admin = viewerRole === 'owner' || viewerRole === 'admin';
-  const [people, invites, groups, requests] = await Promise.all([
+  const [people, invites, groups, requests, lastActive, deactivated, audit] = await Promise.all([
     listTeamPeople(team, { includeGuests: true }),
     admin ? listPendingInvites(team.id) : Promise.resolve([]),
     listGroups(team.owner_id),
     admin ? pendingRequests(team.id) : Promise.resolve(new Map<string, ProductKey[]>()),
+    admin ? lastActiveByPerson(team.id) : Promise.resolve(new Map<string, string>()),
+    admin ? listDeactivated(team.id) : Promise.resolve([]),
+    admin ? listAudit(team.id, { limit: 50 }).catch(() => []) : Promise.resolve([]),
   ]);
   const groupsOf = new Map<string, string[]>();
   for (const g of groups) for (const m of g.members) groupsOf.set(m.user_id, [...(groupsOf.get(m.user_id) ?? []), g.id]);
@@ -98,6 +110,7 @@ export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: s
       apps: p.apps,
       groupIds: groupsOf.get(p.user_id) ?? [],
       joinedAt: p.created_at,
+      lastActiveAt: lastActive.get(p.user_id) ?? null,
       requestedApps: requests.get(p.user_id) ?? [],
     })),
     invites: invites.map((i) => {
@@ -122,8 +135,9 @@ export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: s
         expired: inviteExpired(i),
         createdAt: i.created_at,
         url: i.kind === 'request' || !canHandleInvite(viewerRole, viewerApps, i) ? undefined : inviteUrl(base, i.token, i.locale ?? 'en'),
-        canResend: i.kind !== 'request' && canHandleInvite(viewerRole, viewerApps, i),
-        canAllowAnyEmail: i.kind !== 'request' && normalizeInviteRole(i.role) !== 'admin' && (viewerRole === 'owner' || (i.invited_by === viewerId && canHandleInvite(viewerRole, viewerApps, i))),
+        canResend: i.kind !== 'request' && Boolean(i.email) && canHandleInvite(viewerRole, viewerApps, i),
+        canRevoke: i.kind === 'request' || canHandleInvite(viewerRole, viewerApps, i),
+        canAllowAnyEmail: i.kind !== 'request' && Boolean(i.email) && normalizeInviteRole(i.role) !== 'admin' && (viewerRole === 'owner' || (i.invited_by === viewerId && canHandleInvite(viewerRole, viewerApps, i))),
         kind: i.kind === 'request' ? 'request' : 'invite',
         anyEmail: Number(i.any_email ?? 0) === 1,
       };
@@ -138,5 +152,7 @@ export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: s
       leadIds: g.members.filter((m) => m.role === 'lead').map((m) => m.user_id),
       apps: g.apps,
     })),
+    deactivated,
+    audit,
   };
 }

@@ -126,8 +126,10 @@ test('member con CRM y Docs: app bloqueada, pide acceso y el owner lo habilita d
     expect(n!.href).toContain('&ws=');
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await dialog.getByLabel('Track').check();
-    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(dialog.getByTestId('request-line')).toContainText('Track');
+    await dialog.getByTestId('approve-request').click();
+    await expect(dialog.getByLabel('Track', { exact: true })).toBeChecked();
+    await dialog.getByRole('button', { name: 'Done' }).click();
     await expect(dialog).toHaveCount(0);
     // Se entera, el link viejo ya no muestra el bloqueo y la app abre.
     const mine = (await (await p.request.get('/api/notifications?type=workspace_access&limit=10')).json()) as { rows: Array<{ title: string }> };
@@ -270,7 +272,8 @@ test('admin desde la UI: invita en lote, cambia roles y saca a un member; quien 
     await expect.poll(roleOf).toBe('member');
     expect((await p.request.delete('/api/teams/members/demo')).status()).toBe(403);
     // Sacar: el acceso se corta en el pedido siguiente.
-    await row.getByRole('button', { name: 'Remove' }).click();
+    await row.getByRole('button', { name: /^See what/ }).click();
+    await p.getByRole('dialog').getByRole('button', { name: /^Remove/ }).click();
     await p.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click();
     await expect(p.locator(`[data-email="${mem.email}"]`)).toHaveCount(0);
     await mem.p.goto('/en/app/settings/members', { waitUntil: 'networkidle' });

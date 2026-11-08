@@ -120,6 +120,27 @@ const STEPS: Step[] = [
     },
   },
   {
+    // Accesos puntuales dentro de las apps (bandejas de Chat, etiquetas de Groups, equipos de
+    // ventas del CRM, espacios de Rec, puestos de Hiring): no vuelven solos si la suman de nuevo.
+    name: 'app_grants',
+    run: async (e) => {
+      const steps: Array<[string, string[]]> = [
+        ['DELETE FROM chat_widget_access WHERE user_id = ? AND widget_id IN (SELECT id FROM chat_widgets WHERE user_id = ? OR team_id IN (SELECT id FROM teams WHERE owner_id = ?))', [e.userId, e.ownerId, e.ownerId]],
+        ['DELETE FROM groups_label_access WHERE user_id = ? AND person_id = ?', [e.ownerId, e.userId]],
+        ['DELETE FROM crm_sales_team_members WHERE user_id = ? AND person_id = ?', [e.ownerId, e.userId]],
+        ['DELETE FROM rec_space_members WHERE user_id = ? AND space_id IN (SELECT id FROM rec_spaces WHERE workspace_id = ?)', [e.userId, e.ownerId]],
+        ['DELETE FROM hiring_job_members WHERE user_id = ? AND job_id IN (SELECT id FROM hiring_jobs WHERE workspace_id = ?)', [e.userId, e.ownerId]],
+      ];
+      for (const [sql, args] of steps) {
+        try {
+          await db().prepare(sql).run(...args);
+        } catch (err) {
+          if (!/no such table|no such column/i.test(String(err))) throw err;
+        }
+      }
+    },
+  },
+  {
     // Track: accesos a proyectos privados del workspace.
     name: 'track',
     run: (e) =>
@@ -170,6 +191,12 @@ const STEPS: Step[] = [
         .prepare('DELETE FROM link_folder_members WHERE user_id = ? AND folder_id IN (SELECT id FROM link_folders WHERE user_id = ?)')
         .run(e.userId, e.ownerId);
       await db().prepare('DELETE FROM note_shares WHERE workspace_id = ? AND person_id = ?').run(e.ownerId, e.userId);
+      await db()
+        .prepare('DELETE FROM design_members WHERE user_id = ? AND design_id IN (SELECT id FROM design_designs WHERE workspace_id = ?)')
+        .run(e.userId, e.ownerId)
+        .catch((err: unknown) => {
+          if (!/no such table/i.test(String(err))) throw err;
+        });
     },
   },
   {
