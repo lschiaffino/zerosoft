@@ -14,6 +14,7 @@ import {
   getAttachments,
   claimAttachments,
   modelParts,
+  isSendOperation,
   readAttachmentBytes,
   referencedAttachmentIds,
   sweepUnclaimedAttachments,
@@ -25,7 +26,7 @@ import { scriptedModel } from './ai-mock';
 import { fakeModel } from '@/lib/crm-ai-fake';
 import { toolCtx, type WriteTool } from '@/lib/assistant/registry';
 import { attachmentTools } from '@/lib/assistant/tools-attachments';
-import { runCatalog } from '@/lib/assistant/tools-catalog';
+import { catalogTools, runCatalog } from '@/lib/assistant/tools-catalog';
 import { getOperation, type Operation } from '@/lib/mcp/catalog';
 
 // Sin cookie de sesión: todo corre con la identidad delegada del asistente.
@@ -80,7 +81,7 @@ describe('adjuntos del asistente: subida', () => {
     const img = await createAttachment(a.owner, { name: 'a.png', type: 'image/png', bytes: PNG });
     expect(await getAttachments(a.owner, [img.id])).toHaveLength(1);
     expect(await getAttachments(b.owner, [img.id])).toHaveLength(0);
-    await expect(resolveAttachmentRefs(b.owner, { media: { $attachment: img.id } })).rejects.toThrow(/Unknown attachment/);
+    await expect(resolveAttachmentRefs(b.owner, { media: { $attachment: img.id } }, { allowPublic: true })).rejects.toThrow(/Unknown attachment/);
   });
 
   it('las referencias se resuelven: media, URL y multipart en base64', async () => {
@@ -88,7 +89,13 @@ describe('adjuntos del asistente: subida', () => {
     const img = await createAttachment(owner, { name: 'p.png', type: 'image/png', bytes: PNG });
     const args = { body: { media: { $attachment: img.id }, link: `attachment:${img.id}` }, files: [{ field: 'file', attachment: img.id }] };
     expect([...referencedAttachmentIds(args)]).toEqual([img.id]);
-    const r = (await resolveAttachmentRefs(owner, args)) as { body: { media: Record<string, unknown>; link: string }; files: Array<Record<string, unknown>> };
+    // Fuera de un envío no hay copia pública: ni media ni URL, solo el contenido (files).
+    await expect(resolveAttachmentRefs(owner, args)).rejects.toThrow(/only when it is sent to a Groups chat/);
+    const onlyFiles = (await resolveAttachmentRefs(owner, { files: args.files })) as { files: Array<Record<string, unknown>> };
+    expect(onlyFiles.files[0]).toMatchObject({ filename: 'p.png' });
+    expect(isSendOperation('v1.groups.chats.messages.create')).toBe(true);
+    expect(isSendOperation('v1.docs.pages.update')).toBe(false);
+    const r = (await resolveAttachmentRefs(owner, args, { allowPublic: true })) as { body: { media: Record<string, unknown>; link: string }; files: Array<Record<string, unknown>> };
     // Solo para la acción confirmada: una copia pública aparte (como las subidas de Groups); el original sigue privado.
     expect(r.body.media).toMatchObject({ url: expect.stringMatching(/^\/uploads\/chat\/[0-9a-f-]{36}-p\.png$/), mimetype: 'image/png', filename: 'p.png' });
     expect(r.body.link).toBe(`https://zerosoft.test${r.body.media.url as string}`);
@@ -224,7 +231,7 @@ describe('adjuntos del asistente: acciones de punta a punta (rutas reales)', () 
     const team = (await call('v1.track.teams.create', { body: { name: 'Eng', key: 'ENG' } })) as { id: string };
     const issue = (await call('v1.track.issues.create', { body: { projectId: team.id, title: 'Bug' } })) as { id: string; identifier: string };
     const toIssue = (await attachTool().prepare(ctx, { target: 'track_issue', id: issue.identifier, attachment: att.id })) as { input: Record<string, unknown>; summary: string };
-    expect(toIssue.summary).toBe(`Attach "drop.png" to ${issue.identifier}`);
+    expect(toIssue.summary).toBe(`Attach file to issue ${issue.identifier}`);
     expect(await attachTool().execute(ctx, toIssue.input)).toMatchObject({ ok: true });
     const rows = ((await call('track.issues.attachments.list', { path: { id: issue.id } })) as { rows: Array<{ filename: string }> }).rows;
     expect(rows.map((r) => r.filename)).toEqual(['drop.png']);
@@ -238,6 +245,10 @@ describe('adjuntos del asistente: acciones de punta a punta (rutas reales)', () 
     // Un adjunto ajeno no se puede usar.
     const other = await person();
     expect(await attachTool().prepare(toolCtx(other.user, 'en'), { target: 'docs_page', id: page.id, attachment: att.id })).toMatchObject({ error: 'unknown_attachment' });
+
+    // Una escritura que no es un envío no puede pedir una copia pública (URL o media).
+    const propose = catalogTools.find((t) => t.name === 'propose_operation') as WriteTool;
+    expect(await propose.prepare(ctx, { operation: 'v1.docs.pages.update', args: { path: { id: page.id }, body: { markdown: `attachment:${att.id}` } }, summary: 'Link the file' })).toMatchObject({ error: 'attachment_not_sendable' });
   });
 });
 

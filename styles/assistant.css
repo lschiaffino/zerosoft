@@ -201,3 +201,4 @@ a.asst-file:hover { border-color: var(--ink-2); }
   .asst-home-form { flex-direction: column; align-items: stretch; }
 }
 .asst-home-pending > * { visibility: hidden; }
+.asst-detail-full { white-space: pre-wrap; overflow-wrap: anywhere; }

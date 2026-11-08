@@ -341,4 +341,6 @@ test('un envío que no llega deja el texto y los adjuntos para reintentar, y dic
   await input.press('Enter');
   await expect(panel.getByTestId('assistant-attachment')).toHaveCount(0);
   await expect(panel.getByTestId('assistant-msg-user').last().getByTestId('assistant-sent-attachment')).toHaveCount(1);
+  // Los avisos de los intentos que no llegaron se van con el que sí.
+  await expect(panel.getByRole('alert').filter({ hasText: /You are offline|The server had a problem/ })).toHaveCount(0);
 });

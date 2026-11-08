@@ -4,7 +4,7 @@ import { assistantState } from '@/lib/assistant/config';
 import { runAssistantTurn } from '@/lib/assistant/engine';
 import { assistantUser, localeOf, owner } from '@/lib/assistant/http';
 import { attachmentView, claimAttachments, getAttachments, MAX_ATTACHMENTS_PER_MESSAGE } from '@/lib/assistant/files';
-import { addMessage, createConversation, getConversation } from '@/lib/assistant/store';
+import { addMessage, createConversation, deleteConversation, getConversation } from '@/lib/assistant/store';
 import { rateLimit } from '@/lib/rate-limit';
 import { AiError, assertAiMonthlyQuota } from '@/lib/ai';
 
@@ -57,8 +57,13 @@ export async function POST(req: NextRequest) {
   if (parsed.data.conversationId && !conversation) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   const created = !conversation;
   conversation ??= await createConversation(who, message);
-  await addMessage(conversation.id, 'user', parsed.data.message, atts.map((a) => ({ type: 'attachment' as const, ...attachmentView(a) })));
-  if (atts.length) await claimAttachments(who, conversation.id, atts.map((a) => a.id));
+  // Primero se atan los adjuntos (compare-and-set contra el cron); recién con eso se guarda el mensaje.
+  const claimed = atts.length ? await claimAttachments(who, conversation.id, atts.map((a) => a.id)) : new Map<string, string>();
+  if (!claimed) {
+    if (created) await deleteConversation(who, conversation.id);
+    return NextResponse.json({ error: 'attachment_not_found' }, { status: 400 });
+  }
+  await addMessage(conversation.id, 'user', parsed.data.message, atts.map((a) => ({ type: 'attachment' as const, ...attachmentView({ ...a, id: claimed.get(a.id) ?? a.id }) })));
   const conv = conversation;
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({

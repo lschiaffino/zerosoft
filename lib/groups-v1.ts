@@ -31,6 +31,7 @@ const MESSAGES: Record<string, string> = {
   empty_message: 'The message is empty.',
   no_recipients: 'No valid recipients.',
   invalid_phones: 'No valid phone numbers.',
+  invalid_media: 'media.url must be a file uploaded to zerosoft (/uploads/...), its Blob storage, or a host in GROUPS_MEDIA_HOSTS.',
 };
 
 export function v1Error(err: unknown): NextResponse {

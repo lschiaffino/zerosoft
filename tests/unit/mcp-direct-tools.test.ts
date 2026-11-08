@@ -169,7 +169,7 @@ describe('asistente: el catálogo del MCP', () => {
     });
     expect(card.confirmText).toBe('confirm');
     // La tarjeta: el título lo arma el servidor, lo del modelo va rotulado y cada campo completo.
-    expect(card.summary).toBe('Groups chats messages create');
+    expect(card.summary).toBe('Send WhatsApp message to the chat');
     const details = card.details as Array<{ label: string; after: string }>;
     expect(details[0]).toEqual({ label: "Assistant's summary", after: 'Send hi' });
     expect(details).toContainEqual({ label: 'body', after: 'hi' });
@@ -197,5 +197,18 @@ describe('asistente: el catálogo del MCP', () => {
     expect(JSON.stringify(unread.json.result)).toContain('must be one of: true');
     const extra = await rpc(key, 'tools/call', { name: 'send_group_message', arguments: { id: 'c1', body: 'hi', confirm: true, media: { url: 'https://evil.example/x.png' } } });
     expect(JSON.stringify(extra.json.result)).toContain('Unknown field');
+  });
+});
+
+describe('títulos de las tarjetas en palabras de persona', () => {
+  const op = (id: string) => getOperation(id) as Operation;
+  it('mensajes, notas, comentarios y el genérico', async () => {
+    const { humanTitle } = await import('@/lib/assistant/tools-catalog');
+    expect(humanTitle(op('v1.groups.chats.messages.create'), { body: { body: 'hi' } }, 'Card Customer')).toBe('Send WhatsApp message to Card Customer');
+    expect(humanTitle(op('v1.groups.chats.messages.create'), { body: { body: 'hi', note: true } }, 'Card Customer')).toBe('Internal note on Card Customer');
+    expect(humanTitle(op('v1.track.issues.comments.create'), { body: { body: 'x' } }, 'ENG-12 Bug')).toBe('Comment on ENG-12 Bug');
+    expect(humanTitle(op('v1.track.issues.update'), {}, 'ENG-12 Bug')).toBe('Update issue ENG-12 Bug');
+    expect(humanTitle(op('v1.crm.contacts.create'), { body: {} }, null)).toBe('Create contact');
+    expect(humanTitle(op('v1.docs.pages.delete'), {}, 'Runbook')).toBe('Delete page Runbook');
   });
 });

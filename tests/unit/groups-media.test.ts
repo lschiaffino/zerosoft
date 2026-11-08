@@ -298,10 +298,13 @@ describe('cuerpo de la ruta y vista previa', () => {
       width: 10,
       height: 20,
     });
-    expect(mediaFromBody({ url: 'javascript:alert(1)' }, req)).toBeNull();
+    // Una media que vino y no sirve es un 400 (no se manda el texto solo).
+    expect(() => mediaFromBody({ url: 'javascript:alert(1)' }, req)).toThrow(expect.objectContaining({ code: 'invalid_media', status: 400 }));
+    expect(mediaFromBody(null, req)).toBeNull();
+    expect(mediaFromBody(undefined, req)).toBeNull();
     // El proveedor baja la URL desde su red: solo hosts propios, Blob o GROUPS_MEDIA_HOSTS.
     for (const bad of ['https://x.com/a.png', 'https://169.254.169.254/latest/meta-data', 'https://10.0.0.5/a.png', 'https://metadata.google.internal/a', 'https://u:p@localhost/a.png']) {
-      expect(mediaFromBody({ url: bad, mimetype: 'image/png', filename: 'a.png' }, req), bad).toBeNull();
+      expect(() => mediaFromBody({ url: bad, mimetype: 'image/png', filename: 'a.png' }, req), bad).toThrow(expect.objectContaining({ code: 'invalid_media' }));
     }
     expect(mediaFromBody({ url: 'https://localhost:3000/uploads/chat/a.png', mimetype: 'image/png', filename: 'a.png' }, req)?.url).toBe('https://localhost:3000/uploads/chat/a.png');
     vi.stubEnv('GROUPS_MEDIA_HOSTS', 'cdn.example.com');

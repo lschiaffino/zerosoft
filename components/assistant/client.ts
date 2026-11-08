@@ -40,6 +40,8 @@ export interface ChatItem {
   attachments?: ChatAttachment[];
   /** Aviso del turno (no_vision). */
   notice?: string;
+  /** El envío no llegó al servidor: el aviso se va cuando uno sale bien. */
+  failedSend?: boolean;
   error?: string;
   streaming?: boolean;
 }

@@ -11,12 +11,12 @@
 import { z } from 'zod';
 import type { SessionUser } from '../session';
 import { issuerUrl } from '../oauth/store';
-import { APP_NAMES, getOperation, getWebOnly, OPERATIONS, operationTitle, searchOperations, summarize, webOnlyMessage, type Operation } from '../mcp/catalog';
+import { APP_NAMES, getOperation, getWebOnly, OPERATIONS, searchOperations, summarize, webOnlyMessage, type Operation } from '../mcp/catalog';
 import { personCanUseApp, type McpCaller } from '../mcp/caller';
 import { invokeOperation, OperationError } from '../mcp/invoke';
 import { readTool, writeTool, type AssistantTool, type ToolCtx } from './registry';
 import { wrapUntrusted } from '../mcp/untrusted';
-import { AttachmentRefError, getAttachments, referencedAttachmentIds, resolveAttachmentRefs } from './files';
+import { AttachmentRefError, AttachmentUseError, getAttachments, isSendOperation, publicRefIds, referencedAttachmentIds, resolveAttachmentRefs } from './files';
 
 /** El asistente no se llama a sí mismo ni toca sus propias charlas por el catálogo. */
 const SELF = /^\/api\/assistant(\/|$)/;
@@ -68,7 +68,7 @@ export async function runCatalog(ctx: ToolCtx, op: Operation, args: Record<strin
     if (op.access === 'read' && referencedAttachmentIds(args ?? {}).size) {
       return { ok: false, status: 400, error: 'attachment_in_read', message: 'Attachments can only be used in changes (propose_operation).' };
     }
-    const resolved = await resolveAttachmentRefs({ workspaceId: ctx.workspaceId, personId: ctx.personId }, args ?? {});
+    const resolved = await resolveAttachmentRefs({ workspaceId: ctx.workspaceId, personId: ctx.personId }, args ?? {}, { allowPublic: isSendOperation(op.id) });
     const r = await invokeOperation(new Request(issuerUrl()), sessionCaller(ctx.user), op, resolved, opts);
     return {
       ok: r.ok,
@@ -81,6 +81,7 @@ export async function runCatalog(ctx: ToolCtx, op: Operation, args: Record<strin
   } catch (err) {
     if (err instanceof OperationError) return { ok: false, status: 400, error: err.code, message: err.message };
     if (err instanceof AttachmentRefError) return { ok: false, status: 400, error: 'unknown_attachment', message: err.message };
+    if (err instanceof AttachmentUseError) return { ok: false, status: 400, error: 'attachment_not_sendable', message: err.message };
     throw err;
   }
 }
@@ -96,6 +97,46 @@ function short(value: unknown, max = 160): string {
 function full(value: unknown): string {
   if (typeof value === 'string') return value;
   return JSON.stringify(value, null, 2) ?? String(value);
+}
+
+const VERB: Record<Operation['method'], string> = { GET: 'Read', POST: 'Create', PUT: 'Update', PATCH: 'Update', DELETE: 'Delete' };
+
+/** "contacts" → "contact", "issues" → "issue", "boxes" → "box". */
+function singular(word: string): string {
+  if (/ies$/.test(word)) return `${word.slice(0, -3)}y`;
+  if (/(ss|x|ch|sh)es$/.test(word)) return word.slice(0, -2);
+  if (/s$/.test(word) && !/ss$/.test(word)) return word.slice(0, -1);
+  return word;
+}
+
+/**
+ * El título de la tarjeta, en palabras de persona: "Send WhatsApp message to
+ * Card Customer", "Internal note on …", "Update issue ENG-12". Lo arma el
+ * servidor con la operación y el registro; el modelo no lo elige.
+ */
+export function humanTitle(op: Operation, args: Record<string, unknown> | undefined, target: string | null): string {
+  const body = ((args ?? {}) as { body?: Record<string, unknown> }).body ?? {};
+  const on = (t: string | null, fallback: string) => t || fallback;
+  const id = op.id.replace(/^v1\./, '');
+  if (id === 'groups.chats.messages.create') {
+    if (body.note === true) return `Internal note on ${on(target, 'the chat')}`;
+    if (body.poll) return `Send WhatsApp poll to ${on(target, 'the chat')}`;
+    return `Send WhatsApp message to ${on(target, 'the chat')}`;
+  }
+  if (id === 'groups.broadcasts.create') return 'Send WhatsApp broadcast';
+  if (id === 'groups.recurring.create') return 'Schedule recurring WhatsApp message';
+  if (id === 'track.issues.comments.create') return `Comment on ${on(target, 'the issue')}`;
+  if (id === 'track.issues.create' && typeof body.title === 'string') return `Create issue "${body.title.slice(0, 120)}"`;
+  if (id === 'docs.pages.create' && typeof body.title === 'string') return `Create page "${body.title.slice(0, 120)}"`;
+  if (id === 'crm.contacts.create') return 'Create contact';
+  // Genérico: verbo del método y el recurso (el último tramo del path que no es un parámetro).
+  const segs = op.path.split('/').filter((x) => x && x !== 'api' && x !== 'v1');
+  const resources = segs.filter((x) => !x.startsWith('['));
+  const last = resources[resources.length - 1] ?? op.app;
+  const endsInParam = segs[segs.length - 1]?.startsWith('[');
+  const noun = singular(last.replace(/[-_]/g, ' '));
+  const verb = op.method === 'POST' && !endsInParam ? 'Create' : VERB[op.method];
+  return `${verb} ${noun}${target ? ` ${target}` : ''}`.replace(/^./, (c) => c.toUpperCase());
 }
 
 /** Lo que va a pasar, para la tarjeta: la operación y cada campo que se manda, completos. */
@@ -154,10 +195,11 @@ function propose(destructive: boolean) {
       const refs = [...referencedAttachmentIds(input.args ?? {})];
       const files = refs.length ? await getAttachments({ workspaceId: ctx.workspaceId, personId: ctx.personId }, refs) : [];
       if (files.length !== refs.length) return { error: 'unknown_attachment', hint: 'Use the attachment ids listed in the instructions.' };
+      if (!isSendOperation(op.id) && publicRefIds(input.args ?? {}).length) return { error: 'attachment_not_sendable', hint: new AttachmentUseError().message };
       // El título de la tarjeta lo arma el servidor; lo que escribió el modelo va aparte y dice que es suyo.
       const target = await targetTitle(ctx, op, input.args);
       return {
-        summary: `${operationTitle(op)}${target ? `: ${target}` : ''}`,
+        summary: humanTitle(op, input.args, target),
         details: [
           { label: "Assistant's summary", after: input.summary },
           ...(target ? [{ label: 'Target', after: target }] : []),
@@ -176,7 +218,7 @@ function propose(destructive: boolean) {
         const data = 'data' in r ? (r.data as { error?: unknown; message?: unknown } | null) : null;
         return { ok: false, error: short(('error' in r && r.error) || data?.error || data?.message || `status ${r.status ?? 'error'}`, 200) };
       }
-      return { ok: true, message: `${operationTitle(op)}: done.` };
+      return { ok: true, message: `${humanTitle(op, input.args as Record<string, unknown>, null)}: done.` };
     },
   });
 }
