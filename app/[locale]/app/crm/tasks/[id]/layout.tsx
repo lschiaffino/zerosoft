@@ -10,5 +10,6 @@ export default async function Layout(props: { children: ReactNode; params: Promi
   const user = await requireUser(locale);
   const task = await getActivity(user.id, id);
   if (!task || task.type !== 'task' || !(await canSeeActivity(user.id, id, await sessionScope(user)))) notFound();
+  if (await (await import('@/lib/groups-access')).crmActivityHidden(user.id, id, user)) notFound();
   return props.children;
 }

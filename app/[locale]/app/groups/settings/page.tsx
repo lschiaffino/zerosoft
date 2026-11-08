@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { isWorkspaceAdmin } from '@/lib/session';
-import { availableProviders, getSettings, groupsBaseUrl, listLabels, listNumbers, listPeople, listPropertyDefs, listQuickReplies } from '@/lib/groups';
+import { availableProviders, getSettings, groupsBaseUrl, listLabels, listPeople, listPropertyDefs, listQuickReplies } from '@/lib/groups';
 import { getAvailability, getAvailabilityStatus, listRules, listTeams, workspacePeople } from '@/lib/groups-inbox';
 import AssignmentSettings from '@/components/groups/AssignmentSettings';
 import { aiEnabled } from '@/lib/ai';
@@ -19,8 +19,8 @@ import { LabelsPanel, PropertiesPanel, QuickRepliesPanel, TicketRulesPanel } fro
 import { AccessPanel, AppsPanel, AuditLog, IntegrationsPanel } from '@/components/groups/PlatformPanels';
 import TeamPanel from '@/components/groups/TeamPanel';
 import PeriskopeImport from '@/components/groups/PeriskopeImport';
-import { listLines, teamOverview } from '@/lib/groups-lines';
-import { pageViewer } from '@/lib/groups-page';
+import { listLines, teamForViewer, teamOverview } from '@/lib/groups-lines';
+import { pageViewer, pageNumbers } from '@/lib/groups-page';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,7 +97,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
     body = (
       <TeamPanel
         initial={{
-          people,
+          people: teamForViewer(people, admin),
           teams,
           lineAccess: platform.lineAccess,
           teamAccess: platform.teamAccess,
@@ -120,7 +120,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
       listTeams(user.id),
       listRules(user.id),
       workspacePeople(user.id),
-      listNumbers(user.id),
+      pageNumbers(user),
       listLabels(user.id),
       getAvailability(user.id),
       getAvailabilityStatus(user.id),

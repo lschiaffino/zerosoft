@@ -255,6 +255,7 @@ export function AuditLog({ chatId, people, compact = false }: { chatId?: string;
       applied: String(d.applied ?? ''),
     };
     if (e.action === 'availability' && d.to && e.actorId && String(d.to) === e.actorId) return t('audit.actions.availabilitySelf', v);
+    if (e.action === 'reassigned' && d.reason === 'no_access') return t('audit.actions.reassignedNoAccess', v);
     // Sin "sacó: " vacío ni "asignó el chat a <sí mismo>".
     if (e.action === 'labels' && (!v.added || !v.removed)) {
       if (v.added) return t('audit.actions.labelsAdded', v);

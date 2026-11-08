@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectNumber, disconnectNumber, getNumberRow, refreshNumber, syncGroups } from '@/lib/groups';
-import { groupsError, groupsSession, handleGroupsError } from '@/lib/groups-http';
+import { groupsError, groupsSession, handleGroupsError, sessionViewer } from '@/lib/groups-http';
 import { getImportStatus, kickImport, reimport } from '@/lib/groups-import';
 
 export const runtime = 'nodejs';
@@ -16,7 +16,9 @@ export async function GET(_req: Request, ctx: Ctx) {
   // El QR vincula el número: solo lo ven los admins. Los demás ven el último estado guardado, sin consultar al proveedor.
   if (!s.isAdmin) {
     const row = await getNumberRow(s.ws, id);
-    if (!row) return groupsError(404, 'not_found');
+    const viewer = await sessionViewer(s);
+    // Acceso por línea: una línea que no ve no existe para esa persona.
+    if (!row || (viewer.lineIds && !viewer.lineIds.includes(id))) return groupsError(404, 'not_found');
     const imp = await getImportStatus(s.ws, id);
     return NextResponse.json({ status: row.status, phone: row.phone || undefined, ...(imp ? { import: imp } : {}) });
   }

@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
       const seen = new Set(own.map((h) => h.id));
       return [...own, ...shared.filter((h) => !seen.has(h.id))];
     }),
-    searchTasks(user.id, q, scope),
+    import('@/lib/groups-access').then(async ({ crmGroupsTaskFilterFor }) => searchTasks(user.id, q, scope, await crmGroupsTaskFilterFor(user))),
     // Notas: solo las de la persona logueada (son privadas aunque el workspace sea compartido).
     searchNotesForPalette(user, q),
     // Pizarras, Track, Cal, widgets, Flow, Agents y Robots: por nombre.

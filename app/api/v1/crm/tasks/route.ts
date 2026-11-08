@@ -28,9 +28,10 @@ export async function GET(req: NextRequest) {
     if (!BUCKETS.includes(bucket as TaskBucket)) {
       return apiError(400, 'invalid_input', 'bucket must be one of: overdue, today, upcoming, done.');
     }
-    rows = await listTasks(auth.user.id, { bucket: bucket as TaskBucket, ownerScope: await apiScope(auth) });
+    const { crmGroupsTaskFilter } = await import('@/lib/groups-access');
+    rows = await listTasks(auth.user.id, { bucket: bucket as TaskBucket, ownerScope: await apiScope(auth), extra: await crmGroupsTaskFilter(auth.user.id, auth.personId, auth.role) });
   } else {
-    rows = await listTimeline(auth.user.id, { type: 'task', limit: 500, ownerScope: await apiScope(auth) });
+    rows = await listTimeline(auth.user.id, { type: 'task', limit: 500, ownerScope: await apiScope(auth), extra: await (await import('@/lib/groups-access')).crmGroupsTaskFilter(auth.user.id, auth.personId, auth.role) });
   }
 
   const { page, pageSize } = pageParams(sp);

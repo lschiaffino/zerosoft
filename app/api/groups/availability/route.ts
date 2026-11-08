@@ -31,6 +31,8 @@ export async function PUT(req: Request) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const b = await readJson(req);
+  if (b.status !== undefined && !cleanAvailability(b.status)) return groupsError(400, 'invalid_status');
+  if (b.status === undefined && typeof b.available !== 'boolean') return groupsError(400, 'invalid_status');
   const status = cleanAvailability(b.status) ?? (b.available === false ? 'away' : 'online');
   const others = strArr(b.personIds, 200).filter((id) => id !== s.me);
   if (others.length && !s.isAdmin) return groupsError(403, 'forbidden');

@@ -123,8 +123,12 @@ test('Ajustes › Líneas: tabla con estado, color y quién ve cada línea; en o
   const tag = uid();
   const a = await fakeNumber(request, `Color ${tag}`);
   await page.goto('/en/app/groups/settings?tab=numbers', { waitUntil: 'networkidle' });
-  const row = page.locator('.gr-number', { hasText: a.name });
+  const row = page.locator('.gr-line-row', { hasText: a.name });
   await expect(row.getByText('Connected', { exact: true })).toBeVisible();
+  // La fila es una fila de tabla: las celdas arrancan a la misma altura y las acciones de la última fila se ven.
+  const tops = await row.locator('td').evaluateAll((tds) => tds.map((td) => Math.round(td.getBoundingClientRect().top)));
+  expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(1);
+  await expect(page.locator('.gr-line-row').last().getByRole('button', { name: 'Delete' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'Who sees it' })).toBeVisible();
 
   // Color.
@@ -201,6 +205,19 @@ test('Equipo: invitar, estado y ajustes de acceso; un miembro solo ve su línea'
     expect((await request.post(`/api/groups/chats/${own.id}/messages`, { data: { body: 'x', numberId: theirs.id } })).status()).toBe(403);
     await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
     await expect(page.locator('body')).not.toContainText(`Theirs ${tag}`);
+    // La línea ajena no existe para esta persona, ni su conexión.
+    expect((await request.get(`/api/groups/numbers/${theirs.id}`)).status()).toBe(404);
+    expect((await request.get(`/api/groups/numbers/${theirs.id}/connect`)).status()).toBe(404);
+    // Tareas de chats de la línea ajena: ni en la lista ni para crear.
+    const hiddenChat = String(hidden.rows[0].id);
+    expect((await request.post('/api/groups/tasks', { data: { chatId: hiddenChat, title: 'x' } })).status()).toBe(404);
+    const tasks = (await (await request.get('/api/groups/tasks?status=all')).json()) as { tasks: Array<{ chatId: string }> };
+    expect(tasks.tasks.some((x) => x.chatId === hiddenChat)).toBe(false);
+    // El equipo, sin emails ni líneas.
+    const teamView = (await (await request.get('/api/groups/team')).json()) as { people: Array<{ email: string; lineIds: unknown }> };
+    expect(teamView.people.every((p) => p.email === '')).toBe(true);
+    // Estado inválido.
+    expect((await request.put('/api/groups/availability', { data: { status: 'nope' } })).status()).toBe(400);
   } finally {
     await db.execute({ sql: 'UPDATE users SET active_team_id = NULL WHERE id = ?', args: [demo] });
   }

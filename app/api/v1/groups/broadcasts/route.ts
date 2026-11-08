@@ -12,7 +12,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   const auth = await requireApiUser(req, 'groups:read');
   if ('res' in auth) return auth.res;
-  return NextResponse.json({ data: await listBroadcasts(auth.user.id) });
+  const { groupsViewer } = await import('@/lib/groups-access');
+  return NextResponse.json({ data: await listBroadcasts(auth.user.id, { viewer: await groupsViewer(auth.user.id, auth.personId, auth.role) }) });
 }
 
 /**

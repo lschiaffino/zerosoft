@@ -11,7 +11,7 @@ export default async function BroadcastPage(props: { params: Promise<{ locale: s
   const { locale, id } = await props.params;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
-  const data = await getBroadcast(user.id, id);
+  const data = await getBroadcast(user.id, id, await (await import('@/lib/groups-page')).pageViewer(user));
   if (!data) notFound();
   return (
     <div className="ui-page">

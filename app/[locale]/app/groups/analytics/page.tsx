@@ -1,10 +1,10 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
-import { listChats, listLabels, listNumbers, listPeople } from '@/lib/groups';
+import { listChats, listLabels, listPeople } from '@/lib/groups';
 import { groupsAnalytics } from '@/lib/groups-analytics';
 import { visibleChatIds } from '@/lib/groups-access';
-import { pageViewer } from '@/lib/groups-page';
+import { pageViewer, pageNumbers } from '@/lib/groups-page';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 
@@ -25,7 +25,7 @@ export default async function GroupsAnalyticsPage(props: { params: Promise<{ loc
   const [people, labels, numbers, groups] = await Promise.all([
     listPeople(user.id),
     listLabels(user.id),
-    listNumbers(user.id),
+    pageNumbers(user),
     listChats(user.id, viewer.me, { kind: 'group', limit: 200, viewer }),
   ]);
   const day = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);

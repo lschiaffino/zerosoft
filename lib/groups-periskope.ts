@@ -21,6 +21,7 @@
 import { getDb } from './db';
 import { parseCsv } from './csv-parse';
 import {
+  GroupsError,
   LABEL_COLORS,
   createLabel,
   createQuickReply,
@@ -39,6 +40,9 @@ export const PERISKOPE_KINDS = ['chats', 'contacts', 'labels', 'quick_replies'] 
 export type PeriskopeKind = (typeof PERISKOPE_KINDS)[number];
 
 const MAX_ROWS = 5000;
+const MAX_CHAT_ROWS = 1500;
+/** Tope del archivo: lo que entra en un request (más grande, se divide en partes). */
+export const MAX_CSV_BYTES = 4 * 1024 * 1024;
 
 /** Encabezado normalizado: "Chat ID" → "chatid". */
 export const normHeader = (h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -145,7 +149,8 @@ const REQUIRED: Record<PeriskopeKind, string[]> = {
  */
 export async function importPeriskope(ws: string, actor: string, kind: PeriskopeKind, csv: string, opts: { dryRun?: boolean } = {}): Promise<PeriskopeResult> {
   const dryRun = opts.dryRun === true;
-  const rows = parseCsv(csv.slice(0, 5_000_000)).filter((r) => r.some((c) => c.trim()));
+  if (Buffer.byteLength(csv) > MAX_CSV_BYTES) throw new GroupsError('file_too_large', 413);
+  const rows = parseCsv(csv).filter((r) => r.some((c) => c.trim()));
   const result: PeriskopeResult = { kind, dryRun, rows: 0, applied: 0, created: { labels: 0, quickReplies: 0 }, ignoredColumns: [], issues: [] };
   if (rows.length === 0) {
     result.issues.push({ line: 1, reason: 'empty_file' });
@@ -158,9 +163,11 @@ export async function importPeriskope(ws: string, actor: string, kind: Periskope
     result.issues.push({ line: 1, reason: `missing_column:${missing.join(',')}` });
     return result;
   }
-  const data = body.slice(0, MAX_ROWS);
+  // Chats y contactos tocan varias tablas por fila: menos filas por archivo para que termine dentro del request.
+  const maxRows = kind === 'chats' || kind === 'contacts' ? MAX_CHAT_ROWS : MAX_ROWS;
+  const data = body.slice(0, maxRows);
   result.rows = data.length;
-  if (body.length > MAX_ROWS) result.issues.push({ line: MAX_ROWS + 2, reason: 'too_many_rows' });
+  if (body.length > maxRows) result.issues.push({ line: maxRows + 2, reason: `too_many_rows:${maxRows}` });
   const cell = (r: string[], f: string) => (cols[f] === undefined ? '' : (r[cols[f]] ?? '').trim());
 
   // ---------- Etiquetas ----------
@@ -245,6 +252,15 @@ export async function importPeriskope(ws: string, actor: string, kind: Periskope
       }
       const isGroup = /@g\.us$/.test(rawId) || /group/i.test(cell(r, 'chatType'));
       const phone = isGroup ? '' : phoneDigits(rawId.replace(/@.*$/, ''));
+      // Un 1:1 sin teléfono no se cruza con nada (nunca con los chats sin teléfono).
+      if (!isGroup && phone.length < 6) {
+        result.issues.push({ line, reason: 'invalid_phone' });
+        continue;
+      }
+      if (isGroup && !/^[0-9-]+@g\.us$/.test(rawId)) {
+        result.issues.push({ line, reason: 'chat_not_found' });
+        continue;
+      }
       chats = (await db
         .prepare(
           `SELECT * FROM groups_chats WHERE user_id = ? AND ${isGroup ? 'provider_chat_id = ?' : "kind = 'dm' AND (phone = ? OR provider_chat_id = ?)"}${number ? ' AND number_id = ?' : ''}`,
@@ -252,7 +268,7 @@ export async function importPeriskope(ws: string, actor: string, kind: Periskope
         .all(ws, ...(isGroup ? [rawId] : [phone, rawId]), ...(number ? [number.id] : []))) as ChatRow[];
     } else {
       const phone = phoneDigits(cell(r, 'phone').replace(/@.*$/, ''));
-      if (!phone) {
+      if (phone.length < 6) {
         result.issues.push({ line, reason: 'invalid_phone' });
         continue;
       }

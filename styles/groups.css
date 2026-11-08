@@ -857,3 +857,28 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 }
 .wa-replyfrom-row { display: flex; align-items: center; padding: 4px 8px 0; min-width: 0; }
 .gr-row-line { width: 8px; height: 8px; }
+
+/* Equipo: columnas angostas en escritorio y filas apiladas en mobile. */
+.gr-team-table th { white-space: normal; vertical-align: bottom; }
+.gr-team-table td { vertical-align: middle; }
+.gr-team-table .select { max-width: 130px; }
+.gr-team-person { overflow-wrap: anywhere; }
+.gr-team-person .ui-help { word-break: break-all; }
+.gr-team-lines span { overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .gr-team-wrap { overflow-x: visible; border: 0; }
+  .gr-team-wrap .gr-table.gr-team-table { min-width: 0; width: 100%; }
+  .gr-team-table thead { display: none; }
+  .gr-team-table, .gr-team-table tbody, .gr-team-table tr, .gr-team-table td { display: block; width: 100%; }
+  .gr-team-table tr { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-1); margin-bottom: 8px; }
+  .gr-team-table td { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0; border: 0; min-width: 0; }
+  .gr-team-table td::before { content: attr(data-label); font-size: 0.75rem; color: var(--ink-3); flex: none; }
+  .gr-team-table td:first-child::before { display: none; }
+  .gr-team-table td > * { min-width: 0; text-align: right; }
+  .gr-team-table td:first-child > * { text-align: left; }
+}
+
+/* Líneas: la fila es de tabla (la clase vieja gr-number es flex). */
+.gr-lines-table td { vertical-align: middle; }
+.gr-lines-table td:last-child { min-width: 240px; }
+.gr-lines-table th { white-space: nowrap; }

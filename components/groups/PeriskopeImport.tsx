@@ -73,7 +73,8 @@ export default function PeriskopeImport() {
             const f = e.target.files?.[0];
             setResult(null);
             if (!f) return;
-            if (f.size > 5_000_000) return setError(t('migrate.tooBig'));
+            setError('');
+            if (f.size > 4 * 1024 * 1024) return setError(t('migrate.tooBig'));
             setFileName(f.name);
             setCsv(await f.text());
           }}

@@ -182,6 +182,8 @@ export default function ChatThread(props: ThreadProps) {
   const [sending, setSending] = useState(false);
   // Línea elegida en "Responder desde" (null: la del chat). Las notas quedan siempre en este chat.
   const [replyLine, setReplyLine] = useState<string | null>(null);
+  // Le sacaron el acceso con la pestaña abierta: el hilo se vacía y lo dice.
+  const [lost, setLost] = useState(false);
   const multiLine = (props.lines?.length ?? 0) > 1;
   const lineName = (numberId: string | undefined) => (numberId ? (props.lines?.find((l) => l.numberId === numberId)?.name ?? '') : '');
   const [sendError, setSendError] = useState('');
@@ -417,7 +419,10 @@ export default function ChatThread(props: ThreadProps) {
     const id = setInterval(async () => {
       if (document.visibilityState !== 'visible') return;
       const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=60`);
-      if (!res.data) return;
+      if (!res.data) {
+        if (res.error === 'not_found' || res.error === 'unauthorized') setLost(true);
+        return;
+      }
       const fresh = res.data.messages.filter((m) => !knownIds.current.has(m.id));
       merge(res.data.messages);
       // Con el chat abierto y a la vista, lo que llega queda leído (como en WhatsApp).
@@ -518,6 +523,7 @@ export default function ChatThread(props: ThreadProps) {
   async function post(body: Record<string, unknown>): Promise<MessageDto | null> {
     const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: replyLine && !body.note ? { ...body, numberId: replyLine } : body });
     if (!res.data) {
+      if (res.error === 'not_found') setLost(true);
       setSendError(errText(res.error));
       return null;
     }
@@ -1163,10 +1169,13 @@ export default function ChatThread(props: ThreadProps) {
     const quoted = m.replyToId ? byId.get(m.replyToId) : null;
     const isNote = m.direction === 'note';
     // Lo propio mandado desde el teléfono no lleva firma (como en WhatsApp); lo del equipo, agentes o envíos sí.
-    const showName = !cont && (isNote || (m.direction === 'in' && chat.kind === 'group') || (m.direction === 'out' && m.authorKind !== 'phone'));
+    // Chat en varias líneas: cada mensaje dice por qué línea entró o salió.
+    const showName =
+      !cont && (isNote || (m.direction === 'in' && chat.kind === 'group') || (m.direction === 'out' && m.authorKind !== 'phone') || (multiLine && Boolean(lineName(m.numberId))));
     const baseAuthor = isNote ? nameOf(m.authorId) : m.direction === 'in' ? inName(m) : outAuthor(m);
     // Chat en varias líneas: lo saliente dice por qué línea salió.
-    const author = multiLine && m.direction === 'out' && lineName(m.numberId) ? `${baseAuthor} · ${lineName(m.numberId)}` : baseAuthor;
+    const viaLine = multiLine && !isNote ? lineName(m.numberId) : '';
+    const author = viaLine ? (m.direction === 'in' && chat.kind !== 'group' ? viaLine : `${baseAuthor} · ${viaLine}`) : baseAuthor;
     const tr = translateOn && m.direction === 'in' ? translations[m.id] : undefined;
     const showTr = tr && tr.text && !showOriginal.has(m.id);
     const isEditing = editing?.id === m.id;
@@ -1425,6 +1434,14 @@ export default function ChatThread(props: ThreadProps) {
     .filter((m) => m.media?.url && /^(image|video)\//.test(m.media.type) && !(m.meta as Record<string, unknown>).sticker)
     .map((m) => ({ id: m.id, url: m.media!.url, type: m.media!.type, name: m.media!.name, caption: m.body, author: m.direction === 'in' ? (chat.kind === 'group' ? inName(m) : chat.name) : t('wa.you'), createdAt: m.createdAt }));
   const viewerIndex = viewerAt ? viewerItems.findIndex((v) => v.id === viewerAt) : -1;
+
+  if (lost) {
+    return (
+      <section className="gr-thread gr-thread-lost" aria-live="polite">
+        <p className="ui-help">{t('wa.noAccess')}</p>
+      </section>
+    );
+  }
 
   return (
     <>

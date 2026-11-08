@@ -12,7 +12,7 @@
  */
 import { getDb } from './db';
 import { GroupsError, getChatRow, getNumberRow, listNumbers, listPeople, upsertChat, type ChatRow, type NumberDto, type NumberRow } from './groups';
-import { personLineIds, personTeamIds, type GroupsViewer } from './groups-access';
+import { canSeeChat, chatAccessSql, personLineIds, personTeamIds, type GroupsViewer } from './groups-access';
 import { recordAudit } from './groups-audit';
 import { lineColor, type Availability, type ReplyLine } from './groups-lines-shared';
 import { phoneDigits } from './groups-provider';
@@ -79,7 +79,29 @@ export async function setLineAccess(ws: string, actor: string | null, numberId: 
     await db.prepare("INSERT OR IGNORE INTO groups_line_access (user_id, number_id, subject_kind, subject_id) VALUES (?, ?, 'team', ?)").run(ws, numberId, id);
   }
   await recordAudit(ws, { chatId: null, chatName: number.name, actorId: actor, action: 'line_access', detail: { numberId, ...next } });
+  await releaseLostLines(ws, [numberId]);
   return next;
+}
+
+/**
+ * Con el acceso por línea prendido, quien perdió una línea deja de tener
+ * asignados sus chats abiertos (vuelven a las reglas). Lo llaman el cambio
+ * de acceso de una línea y el prender el ajuste.
+ */
+export async function releaseLostLines(ws: string, numberIds?: string[]): Promise<number> {
+  const db = getDb();
+  const ids = numberIds ?? ((await db.prepare('SELECT id FROM groups_numbers WHERE user_id = ?').all(ws)) as Array<{ id: string }>).map((r) => r.id);
+  const { releaseChat } = await import('./groups-inbox');
+  let n = 0;
+  for (const numberId of ids) {
+    const allowed = await peopleWithLine(ws, numberId);
+    if (!allowed) return 0;
+    const rows = (await db
+      .prepare("SELECT * FROM groups_chats WHERE user_id = ? AND number_id = ? AND status = 'open' AND assigned_to IS NOT NULL LIMIT 1000")
+      .all(ws, numberId)) as ChatRow[];
+    for (const chat of rows) if (chat.assigned_to && !allowed.has(chat.assigned_to) && (await releaseChat(ws, chat, chat.assigned_to, 'no_access'))) n++;
+  }
+  return n;
 }
 
 /** Líneas que la persona ve, con su salud. Admins reciben además quién tiene acceso. */
@@ -148,33 +170,42 @@ async function adminIds(ws: string): Promise<string[]> {
 // El mismo chat en varias líneas
 // ======================================================================
 
-/** Filas del mismo chat en todas las líneas que la persona ve (incluida esta). */
-export async function siblingChats(ws: string, viewer: GroupsViewer | null, chatId: string): Promise<ChatRow[]> {
+/**
+ * Filas del mismo chat en otras líneas. Por defecto solo las que la persona
+ * puede ver con sus reglas de acceso (línea, etiqueta, equipo); el chat
+ * abierto siempre va (quien llama ya comprobó que lo ve). `all` trae todas,
+ * solo para decisiones internas (nunca para mostrar ni para escribir).
+ */
+export async function siblingChats(ws: string, viewer: GroupsViewer | null, chatId: string, opts: { all?: boolean } = {}): Promise<ChatRow[]> {
   const db = getDb();
-  const lines = viewer?.lineIds ?? null;
+  const access = opts.all ? null : chatAccessSql(viewer, 'c');
   const rows = (await db
     .prepare(
       `SELECT c.* FROM groups_chats c JOIN groups_chats me ON me.id = ? AND me.user_id = c.user_id
-       WHERE c.user_id = ? AND ${lineKeySql('c')} = ${lineKeySql('me')}${lines ? ` AND (c.id = me.id OR c.number_id IN (${lines.map(() => '?').join(',') || "''"}))` : ''}
+       WHERE c.user_id = ? AND ${lineKeySql('c')} = ${lineKeySql('me')}${access ? ` AND (c.id = me.id OR ${access.sql})` : ''}
        ORDER BY c.id = me.id DESC, COALESCE(c.last_message_at, c.created_at) DESC`,
     )
-    .all(chatId, ws, ...(lines ?? []))) as ChatRow[];
+    .all(chatId, ws, ...(access?.args ?? []))) as ChatRow[];
   return rows;
 }
 
 /**
  * Líneas por las que se puede responder este chat ("Responder desde"):
- * las que ya tienen el chat y, en un 1:1, también las demás líneas
- * conectadas que la persona ve (empieza la conversación desde esa línea).
+ * las que ya tienen el chat y la persona lo ve ahí, y en un 1:1 también las
+ * demás líneas conectadas que ve y donde todavía no hay chat (empieza la
+ * conversación desde esa línea). Una línea donde el chat existe pero la
+ * persona no lo ve no se ofrece.
  */
 export async function chatLines(ws: string, viewer: GroupsViewer | null, chatId: string): Promise<ReplyLine[]> {
   const chat = await getChatRow(ws, chatId);
   if (!chat) return [];
-  const siblings = await siblingChats(ws, viewer, chatId);
+  const all = await siblingChats(ws, viewer, chatId, { all: true });
+  const visible = new Set((await siblingChats(ws, viewer, chatId)).map((c) => c.id));
   const numbers = (await listNumbers(ws)).filter((n) => !viewer?.lineIds || viewer.lineIds.includes(n.id));
   const out: ReplyLine[] = [];
   for (const n of numbers) {
-    const row = siblings.find((s) => s.number_id === n.id);
+    const row = all.find((s) => s.number_id === n.id);
+    if (row && !visible.has(row.id)) continue;
     // Un grupo solo se responde por las líneas que están en el grupo; un 1:1, por cualquier línea con teléfono real.
     if (!row && (chat.kind === 'group' || !chat.phone || n.provider === 'sample')) continue;
     out.push({
@@ -184,7 +215,7 @@ export async function chatLines(ws: string, viewer: GroupsViewer | null, chatId:
       phone: n.phone,
       color: lineColor(n),
       status: n.status,
-      canSend: n.status === 'connected' && !(row?.left_at),
+      canSend: n.status === 'connected' && !row?.left_at,
       isDefault: n.id === chat.number_id,
     });
   }
@@ -199,8 +230,10 @@ function dmProviderChatId(provider: NumberRow['provider'], phone: string): strin
 
 /**
  * El chat por el que sale una respuesta "desde" una línea. Sin línea o la
- * misma: el chat abierto. Otra línea que ya tiene el chat: esa fila. Un
- * 1:1 en una línea que nunca le habló: se crea el chat en esa línea.
+ * misma: el chat abierto. Otra línea que ya tiene el chat: esa fila, solo
+ * si la persona la ve. Un 1:1 en una línea que nunca le habló: se crea el
+ * chat en esa línea con la misma asignación, equipo y etiquetas que el
+ * abierto (así queda visible para las mismas personas).
  */
 export async function resolveReplyChat(ws: string, viewer: GroupsViewer | null, chatId: string, numberId: string | null | undefined): Promise<string> {
   const chat = await getChatRow(ws, chatId);
@@ -210,11 +243,23 @@ export async function resolveReplyChat(ws: string, viewer: GroupsViewer | null, 
   const number = await getNumberRow(ws, numberId);
   if (!number) throw new GroupsError('not_found', 404);
   if (number.status !== 'connected') throw new GroupsError('line_disconnected', 409);
-  const sibling = (await siblingChats(ws, viewer, chatId)).find((s) => s.number_id === numberId);
-  if (sibling) return sibling.id;
+  const sibling = (await siblingChats(ws, viewer, chatId, { all: true })).find((s) => s.number_id === numberId);
+  if (sibling) {
+    if (viewer && !(await canSeeChat(viewer, sibling.id))) throw new GroupsError('line_forbidden', 403);
+    return sibling.id;
+  }
   if (chat.kind === 'group' || !chat.phone || number.provider === 'sample') throw new GroupsError('line_not_in_chat');
   const phone = phoneDigits(chat.phone);
   const row = await upsertChat(number, { providerChatId: dmProviderChatId(number.provider, phone), kind: 'dm', name: chat.name, phone });
+  const db = getDb();
+  // Recién creado: hereda quién lo atiende y sus etiquetas (compare-and-set: no pisa una fila que ya tenía datos).
+  await db
+    .prepare('UPDATE groups_chats SET assigned_to = ?, assigned_team_id = ? WHERE id = ? AND assigned_to IS NULL AND assigned_team_id IS NULL')
+    .run(chat.assigned_to, chat.assigned_team_id ?? null, row.id);
+  await db
+    .prepare('INSERT OR IGNORE INTO groups_chat_labels (chat_id, label_id) SELECT ?, label_id FROM groups_chat_labels WHERE chat_id = ?')
+    .run(row.id, chat.id);
+  if (viewer && !(await canSeeChat(viewer, row.id))) throw new GroupsError('line_forbidden', 403);
   return row.id;
 }
 
@@ -349,4 +394,21 @@ export async function peopleWithLine(ws: string, numberId: string): Promise<Set<
     .all(ws, numberId, ws, numberId)) as Array<{ id: string }>;
   for (const r of rows) out.add(r.id);
   return out;
+}
+
+/** Lo que un miembro ve del equipo: nombre, rol, equipos y estado. Emails, líneas y chats abiertos son de los admins. */
+export function teamForViewer(people: TeamPersonDto[], isAdmin: boolean): TeamPersonDto[] {
+  if (isAdmin) return people;
+  return people.map((p) => ({
+    id: p.id,
+    name: p.name || p.email.split('@')[0],
+    email: '',
+    role: p.role,
+    teamIds: p.teamIds,
+    lineIds: [],
+    directLineIds: [],
+    availability: p.availability,
+    availabilityAt: p.availabilityAt,
+    openChats: 0,
+  }));
 }

@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   const b = await readJson(req);
   const kind = str(b.kind, 20) as PeriskopeKind;
   if (!(PERISKOPE_KINDS as readonly string[]).includes(kind)) return groupsError(400, 'invalid_kind');
-  const csv = str(b.csv, 5_000_000) ?? '';
+  const csv = typeof b.csv === 'string' ? b.csv : '';
   if (!csv.trim()) return groupsError(400, 'empty_file');
   try {
     return NextResponse.json(await importPeriskope(s.ws, s.me, kind, csv, { dryRun: b.preview === true }));

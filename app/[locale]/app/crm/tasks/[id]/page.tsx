@@ -64,6 +64,8 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
   const task = await getActivity(user.id, id);
   if (!task || task.type !== 'task') notFound();
   if (!(await canSeeActivity(user.id, id, scope))) notFound();
+  // Tarea creada desde un chat de Groups que esta persona no ve.
+  if (await (await import('@/lib/groups-access')).crmActivityHidden(user.id, id, user)) notFound();
 
   const files = await listTaskFiles(id);
   const projects = await listTaskProjects(user.id, true);

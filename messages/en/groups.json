@@ -763,7 +763,7 @@
     "duplicate_shortcut": "That shortcut is taken.",
     "invalid_message": "That message is not in this chat.",
     "invalid_title": "Write a title.",
-    "invalid_status": "Unknown status.",
+    "invalid_status": "Pick online, away or offline.",
     "invalid_priority": "Unknown priority.",
     "not_editable": "It already started sending.",
     "invalid_number": "Pick a number.",
@@ -1220,7 +1220,8 @@
       "line_status": "line {line} went from {from} to {state}",
       "availability": "set the status of {to} to {status}",
       "availabilitySelf": "is now {status}",
-      "imported": "imported {kind} from Periskope ({applied} rows)"
+      "imported": "imported {kind} from Periskope ({applied} rows)",
+      "reassignedNoAccess": "put the chat back in the rotation because {from} lost access to its line"
     },
     "memberActions": {
       "add": "added",
@@ -1554,7 +1555,8 @@
     "importNothingNew": "Everything was already imported ({chats} chats).",
     "historyOnPhone": "Older messages are on the phone.",
     "historyFetch": "Bring more",
-    "historyAll": "This is the start of the history we have."
+    "historyAll": "This is the start of the history we have.",
+    "noAccess": "You no longer have access to this chat."
   },
   "lines": {
     "replyFrom": "Reply from",
@@ -1652,7 +1654,7 @@
     },
     "file": "CSV file",
     "paste": "Or paste the CSV",
-    "tooBig": "The file is larger than 5 MB.",
+    "tooBig": "The file is larger than 4 MB. Split it and import each part.",
     "preview": "Preview",
     "import": "Import",
     "previewResult": "{applied} of {rows} rows would be applied.",
@@ -1663,7 +1665,7 @@
     "issues": {
       "empty_file": "the file is empty",
       "missing_column": "missing column {detail}",
-      "too_many_rows": "only the first 5,000 rows are read",
+      "too_many_rows": "only the first {detail} rows are read; split the file",
       "empty_name": "no name",
       "exists": "already exists",
       "invalid_shortcut": "no command",

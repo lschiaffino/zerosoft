@@ -62,13 +62,19 @@ export async function getPlatformSettings(ws: string): Promise<PlatformSettings>
 }
 
 export async function updatePlatformSettings(ws: string, patch: Partial<PlatformSettings>): Promise<PlatformSettings> {
-  const next = normalizePlatform({ ...(await getPlatformSettings(ws)), ...patch });
+  const prev = await getPlatformSettings(ws);
+  const next = normalizePlatform({ ...prev, ...patch });
   await getDb()
     .prepare(
       `INSERT INTO groups_platform (user_id, data, updated_at) VALUES (?, ?, ?)
        ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
     )
     .run(ws, JSON.stringify(next), new Date().toISOString());
+  // Prender el acceso por línea saca a cada persona de los chats de líneas que no ve.
+  if (next.lineAccess && !prev.lineAccess) {
+    const { releaseLostLines } = await import('./groups-lines');
+    await releaseLostLines(ws).catch(() => 0);
+  }
   return next;
 }
 
@@ -275,4 +281,42 @@ export async function ticketsForViewer<T extends { chatId: string | null; chatNa
   return tickets
     .filter((t) => !visible || (t.chatId !== null && visible.has(t.chatId)))
     .map((t) => (viewer?.mask ? { ...t, chatName: maskPhoneText(t.chatName) } : t));
+}
+
+/** Viewer de una persona sin request (avisos, menciones, asignaciones): su rol se lee del workspace. */
+export async function personViewer(ws: string, personId: string): Promise<GroupsViewer> {
+  const { workspaceRole } = await import('./api-auth');
+  return groupsViewer(ws, personId, await workspaceRole(ws, personId));
+}
+
+/** ¿Esa persona ve el chat? (para no avisarle de chats que no ve). */
+export async function personCanSeeChat(ws: string, personId: string, chatId: string): Promise<boolean> {
+  return canSeeChat(await personViewer(ws, personId), chatId);
+}
+
+/**
+ * CRM: las tareas que se crearon desde un chat de Groups (groups_tasks)
+ * quedan también en CRM › Tareas con el texto del mensaje. Esta condición
+ * (alias de crm_activities) las oculta a quien no ve ese chat. null = ve todo.
+ */
+export async function crmGroupsTaskFilter(ws: string, personId: string, role: TeamRole, alias = 'a'): Promise<{ sql: string; args: string[] } | null> {
+  const access = chatAccessSql(await groupsViewer(ws, personId, role), 'zgc');
+  if (!access) return null;
+  return {
+    sql: `NOT EXISTS (SELECT 1 FROM groups_tasks zgt JOIN groups_chats zgc ON zgc.id = zgt.chat_id WHERE zgt.activity_id = ${alias}.id AND NOT COALESCE(${access.sql}, 0))`,
+    args: access.args,
+  };
+}
+
+/** Lo mismo para una sesión de la app (dueño del workspace, persona y rol). */
+export function crmGroupsTaskFilterFor(user: { id: string; actingUser?: { id: string } | null; role?: TeamRole }): Promise<{ sql: string; args: string[] } | null> {
+  return crmGroupsTaskFilter(user.id, user.actingUser?.id ?? user.id, user.role ?? 'owner');
+}
+
+/** ¿Esta actividad del CRM es una tarea de un chat que la persona no ve? */
+export async function crmActivityHidden(ws: string, activityId: string, user: { id: string; actingUser?: { id: string } | null; role?: TeamRole }): Promise<boolean> {
+  const f = await crmGroupsTaskFilterFor(user);
+  if (!f) return false;
+  const row = await getDb().prepare(`SELECT 1 AS x FROM crm_activities a WHERE a.id = ? AND a.user_id = ? AND ${f.sql}`).get(activityId, ws, ...f.args);
+  return !row;
 }

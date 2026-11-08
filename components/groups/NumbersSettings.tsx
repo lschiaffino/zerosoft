@@ -163,7 +163,7 @@ export default function NumbersSettings({
                 const line = n as Partial<LineDto> & NumberDto;
                 const importing = line.import && (line.import.status === 'queued' || line.import.status === 'running');
                 return (
-                  <tr key={n.id} className="gr-number">
+                  <tr key={n.id} className="gr-line-row">
                     <td>
                       <div className="gr-line-cell">
                         <span className="gr-line-dot" style={{ background: line.displayColor ?? lineColor(n) }} aria-hidden="true" />

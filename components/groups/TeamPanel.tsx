@@ -107,16 +107,16 @@ export default function TeamPanel({ initial, lines: initialLines, isOwner }: { i
       {data.people.length <= 1 ? (
         <p className="ui-help">{t('team.alone')}</p>
       ) : null}
-      <div className="table-wrap">
+      <div className="table-wrap gr-team-wrap">
         <table className="table gr-table gr-team-table">
           <thead>
             <tr>
               <th scope="col">{t('team.colPerson')}</th>
               <th scope="col">{t('team.colRole')}</th>
               <th scope="col">{t('team.colTeams')}</th>
-              <th scope="col">{t('team.colLines')}</th>
+              {canEdit && <th scope="col">{t('team.colLines')}</th>}
               <th scope="col">{t('team.colStatus')}</th>
-              <th scope="col">{t('team.colOpen')}</th>
+              {canEdit && <th scope="col">{t('team.colOpen')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -125,13 +125,13 @@ export default function TeamPanel({ initial, lines: initialLines, isOwner }: { i
               const editStatus = p.id === data.me || canEdit;
               return (
                 <tr key={p.id} className="gr-team-row">
-                  <td>
+                  <td data-label={t('team.colPerson')}>
                     <span className="gr-team-person">
                       <strong>{p.name || p.email}</strong>
                       {p.name && <span className="ui-help">{p.email}</span>}
                     </span>
                   </td>
-                  <td>
+                  <td data-label={t('team.colRole')}>
                     {editRole ? (
                       <select className="select" value={p.role} onChange={(e) => void setRole(p, e.target.value as 'admin' | 'member')} aria-label={t('team.roleFor', { name: p.name || p.email })}>
                         <option value="member">{t('team.roles.member')}</option>
@@ -141,8 +141,9 @@ export default function TeamPanel({ initial, lines: initialLines, isOwner }: { i
                       t(`team.roles.${p.role}`)
                     )}
                   </td>
-                  <td>{p.teamIds.length ? p.teamIds.map(teamName).filter(Boolean).join(', ') : <span className="ui-help">·</span>}</td>
-                  <td>
+                  <td data-label={t('team.colTeams')}>{p.teamIds.length ? p.teamIds.map(teamName).filter(Boolean).join(', ') : <span className="ui-help">·</span>}</td>
+                  {canEdit && (
+                  <td data-label={t('team.colLines')}>
                     <span className="gr-team-lines">
                       {p.lineIds === 'all' ? (
                         <span>{data.lineAccess && p.role !== 'member' ? t('team.allLinesAdmin') : t('team.allLines')}</span>
@@ -166,7 +167,8 @@ export default function TeamPanel({ initial, lines: initialLines, isOwner }: { i
                       )}
                     </span>
                   </td>
-                  <td>
+                  )}
+                  <td data-label={t('team.colStatus')}>
                     {editStatus ? (
                       <span className="gr-avail">
                         <span className={`gr-avail-dot is-${p.availability}`} aria-hidden="true" />
@@ -185,7 +187,7 @@ export default function TeamPanel({ initial, lines: initialLines, isOwner }: { i
                       </span>
                     )}
                   </td>
-                  <td>{p.openChats}</td>
+                  {canEdit && <td data-label={t('team.colOpen')}>{p.openChats}</td>}
                 </tr>
               );
             })}

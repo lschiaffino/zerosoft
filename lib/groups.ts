@@ -911,13 +911,15 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
   if (patch.read === true) {
     set('unread_count', 0);
     set('marked_unread', 0);
-    // El mismo chat en otras líneas se ve una sola vez en la bandeja: se leen juntos.
+    // El mismo chat en otras líneas se ve una sola vez en la bandeja: se leen juntos, solo los que quien lee puede ver.
     const { lineKeySql } = await import('./groups-lines');
+    const { chatAccessSql, personViewer } = await import('./groups-access');
+    const access = actor ? chatAccessSql(await personViewer(ws, actor), 'groups_chats') : null;
     await db
       .prepare(
-        `UPDATE groups_chats SET unread_count = 0, marked_unread = 0 WHERE user_id = ? AND id != ? AND (unread_count > 0 OR marked_unread = 1) AND ${lineKeySql('groups_chats')} = ?`,
+        `UPDATE groups_chats SET unread_count = 0, marked_unread = 0 WHERE user_id = ? AND id != ? AND (unread_count > 0 OR marked_unread = 1) AND ${lineKeySql('groups_chats')} = ?${access ? ` AND ${access.sql}` : ''}`,
       )
-      .run(ws, id, `${row.kind}|${row.kind === 'dm' && row.phone ? row.phone : row.provider_chat_id}`);
+      .run(ws, id, `${row.kind}|${row.kind === 'dm' && row.phone ? row.phone : row.provider_chat_id}`, ...(access?.args ?? []));
   }
   if (patch.read === false && row.unread_count === 0) {
     set('unread_count', 1);

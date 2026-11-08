@@ -21,6 +21,13 @@ import { isWorkspaceAdmin } from './session';
 import { canSeeChat, groupsViewer, maskChat, maskMember, maskMessage, type GroupsViewer } from './groups-access';
 import { chatLines, siblingChats } from './groups-lines';
 
+/** Las líneas que esta persona ve (acceso por línea). */
+export async function pageNumbers(user: SessionUser) {
+  const { listNumbers } = await import('./groups');
+  const viewer = await pageViewer(user);
+  return (await listNumbers(user.id)).filter((n) => !viewer.lineIds || viewer.lineIds.includes(n.id));
+}
+
 /** Quién mira en una página de Groups (acceso por etiqueta y teléfonos ocultos). */
 export function pageViewer(user: SessionUser): Promise<GroupsViewer> {
   return groupsViewer(user.id, user.actingUser?.id ?? user.id, user.role);

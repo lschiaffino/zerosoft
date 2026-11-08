@@ -763,7 +763,7 @@
     "duplicate_shortcut": "Esse atalho já está em uso.",
     "invalid_message": "Essa mensagem não está nesta conversa.",
     "invalid_title": "Escreva um título.",
-    "invalid_status": "Status desconhecido.",
+    "invalid_status": "Escolha online, ausente ou offline.",
     "invalid_priority": "Prioridade desconhecida.",
     "not_editable": "O envio já começou.",
     "invalid_number": "Escolha um número.",
@@ -1220,7 +1220,8 @@
       "line_status": "a linha {line} passou de {from} para {state}",
       "availability": "colocou {to} como {status}",
       "availabilitySelf": "agora está {status}",
-      "imported": "importou {kind} do Periskope ({applied} linhas)"
+      "imported": "importou {kind} do Periskope ({applied} linhas)",
+      "reassignedNoAccess": "devolveu o chat ao rodízio porque {from} perdeu o acesso à linha"
     },
     "memberActions": {
       "add": "adicionou",
@@ -1554,7 +1555,8 @@
     "importNothingNew": "Já estava tudo importado ({chats} conversas).",
     "historyOnPhone": "As mensagens anteriores estão no celular.",
     "historyFetch": "Trazer mais",
-    "historyAll": "Este é o começo do histórico que temos."
+    "historyAll": "Este é o começo do histórico que temos.",
+    "noAccess": "Você não tem mais acesso a este chat."
   },
   "lines": {
     "replyFrom": "Responder de",
@@ -1652,7 +1654,7 @@
     },
     "file": "Arquivo CSV",
     "paste": "Ou cole o CSV",
-    "tooBig": "O arquivo passa de 5 MB.",
+    "tooBig": "O arquivo passa de 4 MB. Divida e importe cada parte.",
     "preview": "Prévia",
     "import": "Importar",
     "previewResult": "{applied} de {rows} linhas seriam aplicadas.",
@@ -1663,7 +1665,7 @@
     "issues": {
       "empty_file": "o arquivo está vazio",
       "missing_column": "falta a coluna {detail}",
-      "too_many_rows": "só as primeiras 5.000 linhas são lidas",
+      "too_many_rows": "só as primeiras {detail} linhas são lidas; divida o arquivo",
       "empty_name": "sem nome",
       "exists": "já existe",
       "invalid_shortcut": "sem comando",

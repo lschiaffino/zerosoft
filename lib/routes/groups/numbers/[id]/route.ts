@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { deleteNumber, getNumberRow, toNumberDto, updateNumber, webhookUrlFor } from '@/lib/groups';
-import { groupsError, groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,6 +13,8 @@ export async function GET(req: Request, ctx: Ctx) {
   if (s instanceof NextResponse) return s;
   const row = await getNumberRow(s.ws, (await ctx.params).id);
   if (!row) return groupsError(404, 'not_found');
+  const viewer = await sessionViewer(s);
+  if (viewer.lineIds && !viewer.lineIds.includes(row.id)) return groupsError(404, 'not_found');
   return NextResponse.json({ ...toNumberDto(row), webhookUrl: s.isAdmin ? webhookUrlFor(row, new URL(req.url).origin) : null });
 }
 

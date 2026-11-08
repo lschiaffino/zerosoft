@@ -2638,6 +2638,8 @@ export interface TimelineFilter {
   limit?: number;
   /** Visibilidad por owner: solo actividades de registros visibles. */
   ownerScope?: OwnerScope;
+  /** Condición extra (alias a), p. ej. crmGroupsTaskFilter. */
+  extra?: { sql: string; args: string[] } | null;
 }
 
 /** Timeline de un registro (contacto, empresa o deal), más reciente primero. */
@@ -2676,6 +2678,10 @@ export async function listTimeline(
   if (scope.sql) {
     where.push(scope.sql);
     args.push(...scope.args);
+  }
+  if (f.extra) {
+    where.push(f.extra.sql);
+    args.push(...f.extra.args);
   }
   const limit = Math.min(Math.max(f.limit ?? 200, 1), 500);
   return (await db
@@ -2722,6 +2728,8 @@ export type TaskBucket = 'overdue' | 'today' | 'upcoming' | 'done';
 
 export interface ListTasksFilter {
   bucket: TaskBucket;
+  /** Condición extra (alias a): p. ej. ocultar tareas de chats de Groups que no se ven (crmGroupsTaskFilter). */
+  extra?: { sql: string; args: string[] } | null;
   projectId?: string;
   ownerId?: string;
   ownerScope?: OwnerScope;
@@ -2763,6 +2771,10 @@ export async function listTasks(userId: string, filter: TaskBucket | ListTasksFi
     cond += ` AND ${scope.sql}`;
     args.push(...scope.args);
   }
+  if (f.extra) {
+    cond += ` AND ${f.extra.sql}`;
+    args.push(...f.extra.args);
+  }
   const order =
     f.bucket === 'done'
       ? 'a.done_at DESC, a.updated_at DESC'
@@ -2777,7 +2789,7 @@ export async function listTasks(userId: string, filter: TaskBucket | ListTasksFi
 }
 
 /** Busca tareas por subject, body o entidad asociada. */
-export async function searchTasks(userId: string, q: string, ownerScope?: OwnerScope): Promise<ActivityListRow[]> {
+export async function searchTasks(userId: string, q: string, ownerScope?: OwnerScope, extra?: { sql: string; args: string[] } | null): Promise<ActivityListRow[]> {
   const db = getDb();
   const like = `%${escapeLike(q)}%`;
   const scope = activityScopeSql('a', ownerScope);
@@ -2787,11 +2799,11 @@ export async function searchTasks(userId: string, q: string, ownerScope?: OwnerS
        WHERE a.user_id = ? AND a.type = 'task'
          AND (a.subject LIKE ? ESCAPE '\\' OR a.body LIKE ? ESCAPE '\\'
               OR c.first_name LIKE ? ESCAPE '\\' OR c.last_name LIKE ? ESCAPE '\\'
-              OR co.name LIKE ? ESCAPE '\\' OR d.name LIKE ? ESCAPE '\\')${scope.sql ? ` AND ${scope.sql}` : ''}
+              OR co.name LIKE ? ESCAPE '\\' OR d.name LIKE ? ESCAPE '\\')${scope.sql ? ` AND ${scope.sql}` : ''}${extra ? ` AND ${extra.sql}` : ''}
        ORDER BY a.updated_at DESC
        LIMIT 10`,
     )
-    .all(userId, like, like, like, like, like, like, ...scope.args)) as ActivityListRow[];
+    .all(userId, like, like, like, like, like, like, ...scope.args, ...(extra?.args ?? []))) as ActivityListRow[];
 }
 
 /** Tareas abiertas vencidas o que vencen hoy (badge de la sidebar). */

@@ -326,7 +326,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   // ---------- Actividad ----------
   if (tab === 'activity') {
     const [activities, threads, emailTemplates, emailSettings, nextTask] = await Promise.all([
-      listTimeline(user.id, { dealId: id, limit: 100, ownerScope: scope }),
+      listTimeline(user.id, { dealId: id, limit: 100, ownerScope: scope, extra: await (await import('@/lib/groups-access')).crmGroupsTaskFilterFor(user) }),
       listEmailThreads(user.id, { dealId: id, limit: 100 }),
       listEmailTemplates(user.id),
       getEmailSettings(user.id),

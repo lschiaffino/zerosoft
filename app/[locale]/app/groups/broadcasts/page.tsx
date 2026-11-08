@@ -1,11 +1,10 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
-import { listNumbers } from '@/lib/groups';
 import { listBroadcasts } from '@/lib/groups-broadcasts';
 import { listRecurring } from '@/lib/groups-recurring';
 import { visibleChatIds } from '@/lib/groups-access';
-import { pageViewer } from '@/lib/groups-page';
+import { pageViewer, pageNumbers } from '@/lib/groups-page';
 import RecurringTable from '@/components/groups/RecurringTable';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
@@ -18,8 +17,8 @@ export default async function GroupsBroadcastsPage(props: { params: Promise<{ lo
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
   const [broadcasts, numbers, recurringAll, visible] = await Promise.all([
-    listBroadcasts(user.id),
-    listNumbers(user.id),
+    listBroadcasts(user.id, { viewer: await pageViewer(user) }),
+    pageNumbers(user),
     listRecurring(user.id),
     pageViewer(user).then(visibleChatIds),
   ]);

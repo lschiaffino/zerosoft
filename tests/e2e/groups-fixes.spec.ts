@@ -78,7 +78,7 @@ test('desconectar un número pide confirmación', async ({ page, request }) => {
   const errors = watchErrors(page);
   const n = await fakeNumber(request);
   await page.goto('/en/app/groups/settings?tab=numbers', { waitUntil: 'networkidle' });
-  const card = page.locator('.gr-number', { hasText: n.name });
+  const card = page.locator('.gr-line-row', { hasText: n.name });
   await card.getByRole('button', { name: 'Disconnect' }).click();
   const confirm = page.getByRole('alertdialog', { name: `Disconnect ${n.name}?` });
   await expect(confirm).toBeVisible();
