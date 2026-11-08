@@ -135,24 +135,59 @@ export async function createAttachment(owner: AssistantOwner, file: { name: stri
 
 const ID_RE = /^att_[a-z0-9]{8,40}$/;
 
-/** Los adjuntos de esa persona con esos ids, en el orden pedido. Los ajenos o inexistentes no vuelven. */
+/** Marcas internas de conversation_id (en limpieza): esas filas no son de nadie. */
+const SWEEPING = '__sweeping__';
+const DELETING = '__deleting__';
+const ORPHAN = '__orphan__';
+const MARKERS = [SWEEPING, DELETING, ORPHAN];
+
+/** Los adjuntos de esa persona con esos ids, en el orden pedido. Los ajenos, inexistentes o en limpieza no vuelven. */
 export async function getAttachments(owner: AssistantOwner, ids: string[]): Promise<AttachmentRow[]> {
   const clean = [...new Set(ids.filter((id) => typeof id === 'string' && ID_RE.test(id)))].slice(0, 50);
   if (!clean.length) return [];
   const rows = (await getDb()
-    .prepare(`SELECT * FROM assistant_files WHERE workspace_id = ? AND person_id = ? AND id IN (${clean.map(() => '?').join(', ')})`)
-    .all(owner.workspaceId, owner.personId, ...clean)) as AttachmentRow[];
+    .prepare(
+      `SELECT * FROM assistant_files WHERE workspace_id = ? AND person_id = ? AND id IN (${clean.map(() => '?').join(', ')})
+       AND (conversation_id IS NULL OR conversation_id NOT IN (?, ?, ?))`,
+    )
+    .all(owner.workspaceId, owner.personId, ...clean, ...MARKERS)) as AttachmentRow[];
   const byId = new Map(rows.map((r) => [r.id, r]));
   return clean.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
 }
 
-/** Ata los adjuntos a la charla (solo los que todavía no están en otra). */
-export async function claimAttachments(owner: AssistantOwner, conversationId: string, ids: string[]): Promise<void> {
+/**
+ * Ata los adjuntos a la charla antes de guardar el mensaje. Devuelve el id que
+ * queda en esta charla para cada uno, o null si ya no está (el cron lo reclamó
+ * primero: compare-and-set, nunca los dos). Uno que ya es de otra charla se
+ * reusa con una fila nueva que apunta al mismo archivo: el archivo se borra
+ * recién cuando no queda ninguna fila (cuenta de referencias por `ref`).
+ */
+export async function claimAttachments(owner: AssistantOwner, conversationId: string, ids: string[]): Promise<Map<string, string> | null> {
+  const db = getDb();
+  const out = new Map<string, string>();
   for (const id of ids) {
-    await getDb()
+    const fresh = await db
       .prepare('UPDATE assistant_files SET conversation_id = ? WHERE id = ? AND workspace_id = ? AND person_id = ? AND (conversation_id IS NULL OR conversation_id = ?)')
       .run(conversationId, id, owner.workspaceId, owner.personId, conversationId);
+    if (fresh.changes) {
+      out.set(id, id);
+      continue;
+    }
+    const [row] = await getAttachments(owner, [id]);
+    if (!row || !row.conversation_id) return null;
+    const copyId = `att_${crypto.randomUUID().replace(/-/g, '').slice(0, 20)}`;
+    // Solo si la fila original sigue viva en su charla: si la están borrando, no se suma una referencia a un archivo que se va.
+    const added = await db
+      .prepare(
+        `INSERT INTO assistant_files (id, workspace_id, person_id, conversation_id, ref, name, mime, size, text, created_at)
+         SELECT ?, workspace_id, person_id, ?, ref, name, mime, size, text, ? FROM assistant_files
+         WHERE id = ? AND workspace_id = ? AND person_id = ? AND conversation_id = ?`,
+      )
+      .run(copyId, conversationId, new Date().toISOString(), id, owner.workspaceId, owner.personId, row.conversation_id);
+    if (!added.changes) return null;
+    out.set(id, copyId);
   }
+  return out;
 }
 
 /** Bytes del archivo, descifrados. null si ya no está. */
@@ -160,35 +195,78 @@ export async function readAttachmentBytes(a: Pick<AttachmentRow, 'ref'>): Promis
   return store.read(a.ref);
 }
 
-/** Borra los archivos y las filas de una charla (al borrar la charla). */
-export async function deleteConversationFiles(owner: AssistantOwner, conversationId: string): Promise<number> {
-  const rows = (await getDb()
-    .prepare('SELECT id, ref FROM assistant_files WHERE workspace_id = ? AND person_id = ? AND conversation_id = ?')
-    .all(owner.workspaceId, owner.personId, conversationId)) as Array<{ id: string; ref: string }>;
-  await store.remove(rows.map((r) => r.ref));
-  await getDb().prepare('DELETE FROM assistant_files WHERE workspace_id = ? AND person_id = ? AND conversation_id = ?').run(owner.workspaceId, owner.personId, conversationId);
-  return rows.length;
+/**
+ * Suelta una fila ya reclamada (marca `claimedAs`): borra el archivo solo si
+ * ninguna otra fila lo usa. Si el borrado falla, la fila queda como huérfana
+ * para que el cron lo reintente; nunca se pierde la pista de un archivo.
+ */
+async function releaseRow(id: string, ref: string, claimedAs: string): Promise<'removed' | 'kept_shared' | 'retry'> {
+  const db = getDb();
+  const others = (await db.prepare('SELECT COUNT(*) AS c FROM assistant_files WHERE ref = ? AND id != ?').get(ref, id)) as { c: number };
+  if (Number(others.c) > 0) {
+    await db.prepare('DELETE FROM assistant_files WHERE id = ? AND conversation_id = ?').run(id, claimedAs);
+    return 'kept_shared';
+  }
+  if (!(await store.removeOne(ref))) {
+    await db.prepare('UPDATE assistant_files SET conversation_id = ? WHERE id = ? AND conversation_id = ?').run(ORPHAN, id, claimedAs);
+    return 'retry';
+  }
+  await db.prepare('DELETE FROM assistant_files WHERE id = ? AND conversation_id = ?').run(id, claimedAs);
+  return 'removed';
 }
 
-const SWEEPING = '__sweeping__';
+/** Borra las filas de una charla y los archivos que no usa otra (al borrar la charla). */
+export async function deleteConversationFiles(owner: AssistantOwner, conversationId: string): Promise<number> {
+  const db = getDb();
+  const rows = (await db
+    .prepare('SELECT id, ref FROM assistant_files WHERE workspace_id = ? AND person_id = ? AND conversation_id = ?')
+    .all(owner.workspaceId, owner.personId, conversationId)) as Array<{ id: string; ref: string }>;
+  let done = 0;
+  for (const r of rows) {
+    try {
+      const claimed = await db.prepare('UPDATE assistant_files SET conversation_id = ? WHERE id = ? AND conversation_id = ?').run(DELETING, r.id, conversationId);
+      if (!claimed.changes) continue;
+      await releaseRow(r.id, r.ref, DELETING);
+      done += 1;
+    } catch (err) {
+      // Una fila que falla no corta las demás; queda huérfana para el cron.
+      await db.prepare('UPDATE assistant_files SET conversation_id = ? WHERE id = ? AND conversation_id = ?').run(ORPHAN, r.id, DELETING).catch(() => undefined);
+      console.error('[assistant] delete file', err instanceof Error ? err.name : 'error');
+    }
+  }
+  return done;
+}
 
 /**
- * Cron: borra lo que se subió y nunca se mandó (más de 24 h sin charla). Cada
- * fila se reclama con compare-and-set, así dos corridas no borran lo mismo.
+ * Cron: borra lo que se subió y nunca se mandó (más de 24 h sin charla) y
+ * reintenta los huérfanos (un borrado que falló). Cada fila se reclama con
+ * compare-and-set (dos corridas no la tocan a la vez) y una que falla no
+ * corta el lote: vuelve a quedar para la próxima.
  */
 export async function sweepUnclaimedAttachments(opts: { limit?: number; now?: number } = {}): Promise<number> {
   const db = getDb();
   const cutoff = new Date((opts.now ?? Date.now()) - UNCLAIMED_TTL_MS).toISOString();
   const rows = (await db
-    .prepare('SELECT id, ref FROM assistant_files WHERE conversation_id IS NULL AND created_at < ? ORDER BY created_at LIMIT ?')
-    .all(cutoff, opts.limit ?? 200)) as Array<{ id: string; ref: string }>;
+    .prepare(
+      `SELECT id, ref, conversation_id FROM assistant_files
+       WHERE (conversation_id IS NULL AND created_at < ?) OR conversation_id = ?
+       ORDER BY created_at LIMIT ?`,
+    )
+    .all(cutoff, ORPHAN, opts.limit ?? 200)) as Array<{ id: string; ref: string; conversation_id: string | null }>;
   let removed = 0;
   for (const r of rows) {
-    const claimed = await db.prepare('UPDATE assistant_files SET conversation_id = ? WHERE id = ? AND conversation_id IS NULL').run(SWEEPING, r.id);
+    const claimed = r.conversation_id === ORPHAN
+      ? await db.prepare('UPDATE assistant_files SET conversation_id = ? WHERE id = ? AND conversation_id = ?').run(SWEEPING, r.id, ORPHAN)
+      : await db.prepare('UPDATE assistant_files SET conversation_id = ? WHERE id = ? AND conversation_id IS NULL').run(SWEEPING, r.id);
     if (!claimed.changes) continue;
-    await store.remove([r.ref]);
-    await db.prepare('DELETE FROM assistant_files WHERE id = ? AND conversation_id = ?').run(r.id, SWEEPING);
-    removed += 1;
+    try {
+      const outcome = await releaseRow(r.id, r.ref, SWEEPING);
+      if (outcome !== 'retry') removed += 1;
+    } catch (err) {
+      // Se suelta el reclamo: la próxima corrida lo reintenta.
+      await db.prepare('UPDATE assistant_files SET conversation_id = ? WHERE id = ? AND conversation_id = ?').run(ORPHAN, r.id, SWEEPING).catch(() => undefined);
+      console.error('[assistant] sweep file', err instanceof Error ? err.name : 'error');
+    }
   }
   return removed;
 }
@@ -312,9 +390,29 @@ export class AttachmentRefError extends Error {
  * al ejecutar una escritura confirmada). $attachment y "attachment:" llevan a
  * una copia pública aparte; files: [{ attachment }] al contenido en base64.
  */
-export async function resolveAttachmentRefs(owner: AssistantOwner, args: Record<string, unknown>): Promise<Record<string, unknown>> {
+/** Operaciones que mandan el archivo afuera (WhatsApp lo baja de una URL): las únicas que crean una copia pública. */
+export function isSendOperation(opId: string): boolean {
+  return /^(v1\.)?groups\.(chats\.messages\.create|broadcasts\.create|recurring\.create)$/.test(opId);
+}
+
+/** Ids usados como URL o media ($attachment, "attachment:<id>"): los que pedirían una copia pública. */
+export function publicRefIds(args: Record<string, unknown>): string[] {
+  const { files: _files, ...rest } = args;
+  void _files;
+  return [...referencedAttachmentIds(rest)];
+}
+
+export class AttachmentUseError extends Error {
+  constructor() {
+    super('A file can go as a media or a URL only when it is sent to a Groups chat. To attach it to an issue or a page, use propose_attach_file or files: [{ field, attachment }].');
+  }
+}
+
+export async function resolveAttachmentRefs(owner: AssistantOwner, args: Record<string, unknown>, opts: { allowPublic?: boolean } = {}): Promise<Record<string, unknown>> {
   const ids = [...referencedAttachmentIds(args)];
   if (!ids.length) return args;
+  // Una copia pública solo para mandar afuera: cualquier otra escritura usa el contenido (files).
+  if (!opts.allowPublic && publicRefIds(args).length) throw new AttachmentUseError();
   const rows = await getAttachments(owner, ids);
   const byId = new Map(rows.map((r) => [r.id, r]));
   for (const id of ids) if (!byId.has(id)) throw new AttachmentRefError(id);

@@ -53,7 +53,7 @@ export const attachmentTools: AssistantTool[] = [
       const chat = dataOf<{ id: string; name?: string }>(await runCatalog(ctx, op('v1.groups.chats.get'), { path: { id: input.chat } }, {}));
       if (!chat) return { error: 'chat_not_found', hint: 'Look the chat up with run_operation v1.groups.chats.list.' };
       return {
-        summary: `Send "${file.name}" to ${chat.name || 'the chat'}`,
+        summary: `Send WhatsApp file to ${chat.name || 'the chat'}`,
         details: [
           { label: 'Chat', after: chat.name || chat.id },
           { label: 'File', after: `${file.name} (${file.mime})` },
@@ -93,7 +93,7 @@ export const attachmentTools: AssistantTool[] = [
         const issue = dataOf<{ id: string; identifier?: string; title?: string }>(await runCatalog(ctx, op('v1.track.issues.get'), { path: { id: input.id } }, {}));
         if (!issue) return { error: 'issue_not_found', hint: 'Check the identifier with run_operation v1.track.issues.list.' };
         return {
-          summary: `Attach "${file.name}" to ${issue.identifier ?? 'the issue'}`,
+          summary: `Attach file to issue ${issue.identifier ?? ''}`.trim(),
           details: [
             { label: 'Issue', after: `${issue.identifier ?? ''} ${issue.title ?? ''}`.trim() },
             { label: 'File', after: `${file.name} (${file.mime})` },
@@ -104,7 +104,7 @@ export const attachmentTools: AssistantTool[] = [
       const page = dataOf<{ id: string; title?: string }>(await runCatalog(ctx, op('v1.docs.pages.get'), { path: { id: input.id } }, {}));
       if (!page) return { error: 'page_not_found', hint: 'Look the page up with run_operation v1.docs.search.list.' };
       return {
-        summary: `Add "${file.name}" to "${page.title || 'Untitled'}"`,
+        summary: `Add file to page "${page.title || 'Untitled'}"`,
         details: [
           { label: 'Page', after: page.title || page.id },
           { label: 'File', after: `${file.name} (${file.mime})` },

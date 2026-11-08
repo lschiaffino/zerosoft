@@ -64,7 +64,8 @@ function ToolCard({ part }: { part: Extract<ChatPart, { type: 'tool' }> }) {
 /** Valor de un campo de la tarjeta: completo; si es largo, se abre con un expansor (se ve todo lo que se va a escribir). */
 function DetailValue({ value }: { value: string }) {
   const t = useTranslations('assistant');
-  if (value.length <= 160 && !value.includes('\n')) return <span>{value}</span>;
+  // Hasta unos 600 caracteres se ve entero (un mensaje común); más largo, se abre con el expansor.
+  if (value.length <= 600) return <span className="asst-detail-full">{value}</span>;
   return (
     <details className="asst-action-long">
       <summary>
@@ -303,14 +304,15 @@ export default function AssistantChat({
         // No llegó: el texto y los adjuntos vuelven al campo para reintentar. Sin red, sin respuesta del servidor o un error con código.
         const data = (await res?.json().catch(() => null)) as { error?: string } | null;
         const code = !res ? (typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'network') : (data?.error ?? (res.status >= 500 ? 'server_error' : 'provider_error'));
-        setItems((prev) => prev.filter((m) => m.id !== userItem.id).map((m) => (m.id === replyId ? { ...m, streaming: false, error: code } : m)));
+        setItems((prev) => prev.filter((m) => m.id !== userItem.id).map((m) => (m.id === replyId ? { ...m, streaming: false, error: code, failedSend: true } : m)));
         setDraft(text);
         setBusy(false);
         window.setTimeout(() => inputRef.current?.focus(), 0);
         return;
       }
-      // El servidor la tomó: la bandeja se vacía.
+      // El servidor la tomó: la bandeja se vacía y los avisos de los intentos que no llegaron se van.
       att.clear();
+      setItems((prev) => prev.filter((m) => !m.failedSend));
       await readEvents(res, (e) => {
         if (e.type === 'conversation') {
           createdRef.current = e.id;

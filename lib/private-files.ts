@@ -45,6 +45,8 @@ export interface PrivateFileStore {
   store(bytes: Buffer, mime: string): Promise<string>;
   read(ref: string): Promise<Buffer | null>;
   remove(refs: Array<string | null | undefined>): Promise<void>;
+  /** true si el archivo ya no está; false si hay que reintentar. */
+  removeOne(ref: string): Promise<boolean>;
 }
 
 const LOCAL_NAME = /^[0-9a-f-]{36}\.bin$/;
@@ -144,23 +146,34 @@ export function privateFileStore(o: PrivateFileStoreOptions): PrivateFileStore {
     return null;
   }
 
-  async function remove(refs: Array<string | null | undefined>): Promise<void> {
-    for (const ref of refs) {
-      if (!ref) continue;
-      try {
-        if (ref.startsWith('blobp:')) {
-          const token = privateToken();
-          if (token) await del(ref.slice(6), { token });
-        } else if (ref.startsWith('blobe:')) {
-          if (process.env.BLOB_READ_WRITE_TOKEN) await del(ref.slice(6));
-        } else if (ref.startsWith('local:') && LOCAL_NAME.test(ref.slice(6))) {
-          await unlink(path.join(uploadsRoot(), o.folder, ref.slice(6)));
-        }
-      } catch {
-        /* best effort: la fila ya se borró */
+  /**
+   * Borra un archivo. true si ya no está (incluido el que no existía); false si
+   * el borrado falló y conviene reintentar (sin token para borrar, error de red).
+   */
+  async function removeOne(ref: string): Promise<boolean> {
+    try {
+      if (ref.startsWith('blobp:')) {
+        const token = privateToken();
+        if (!token) return false;
+        await del(ref.slice(6), { token });
+      } else if (ref.startsWith('blobe:')) {
+        if (!process.env.BLOB_READ_WRITE_TOKEN) return false;
+        await del(ref.slice(6));
+      } else if (ref.startsWith('local:') && LOCAL_NAME.test(ref.slice(6))) {
+        await unlink(path.join(uploadsRoot(), o.folder, ref.slice(6))).catch((err: NodeJS.ErrnoException) => {
+          if (err.code !== 'ENOENT') throw err;
+        });
       }
+      return true;
+    } catch {
+      return false;
     }
   }
 
-  return { seal, open, store, read, remove };
+  async function remove(refs: Array<string | null | undefined>): Promise<void> {
+    // Best effort: la fila ya se borró.
+    for (const ref of refs) if (ref) await removeOne(ref);
+  }
+
+  return { seal, open, store, read, remove, removeOne };
 }
