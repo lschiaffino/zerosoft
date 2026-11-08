@@ -30,6 +30,16 @@ export default function BoardMinimap({ api, label }: { api: CanvasApi; label: st
     let lastSig = '';
     let elements: SceneEl[] = [];
     let bounds: ReturnType<typeof contentBounds> = null;
+    // Colores del tema: se leen una vez y al cambiar el tema (getComputedStyle en cada frame fuerza estilos).
+    let colors = { ink: '#868e96', view: '#1971c2' };
+    const readColors = () => {
+      const styles = getComputedStyle(canvas);
+      colors = {
+        ink: styles.getPropertyValue('--minimap-ink').trim() || '#868e96',
+        view: styles.getPropertyValue('--minimap-view').trim() || '#1971c2',
+      };
+    };
+    readColors();
 
     const draw = () => {
       frame = 0;
@@ -45,10 +55,9 @@ export default function BoardMinimap({ api, label }: { api: CanvasApi; label: st
       const view = { x: -Number(s.scrollX) || 0, y: -Number(s.scrollY) || 0, width: (Number(s.width) || 1200) / zoom, height: (Number(s.height) || 800) / zoom };
       const layout = minimapLayout(bounds, view, { width: W, height: H });
       layoutRef.current = layout;
-      const styles = getComputedStyle(canvas);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
-      const ink = styles.getPropertyValue('--minimap-ink').trim() || '#868e96';
+      const ink = colors.ink;
       for (const el of elements) {
         const b = elementBox(el);
         const x = b.x * layout.scale + layout.offsetX;
@@ -71,7 +80,7 @@ export default function BoardMinimap({ api, label }: { api: CanvasApi; label: st
         }
       }
       const v = layout.viewport;
-      ctx.strokeStyle = styles.getPropertyValue('--minimap-view').trim() || '#1971c2';
+      ctx.strokeStyle = colors.view;
       ctx.lineWidth = 1.5;
       ctx.strokeRect(v.x, v.y, v.width, v.height);
     };
@@ -82,12 +91,19 @@ export default function BoardMinimap({ api, label }: { api: CanvasApi; label: st
     const offChange = api.onChange(schedule);
     const offScroll = api.onScrollChange(schedule);
     // El tema (claro/oscuro) cambia los colores de las variables.
-    const mo = new MutationObserver(schedule);
+    const retheme = () => {
+      readColors();
+      schedule();
+    };
+    const mo = new MutationObserver(retheme);
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    media.addEventListener('change', retheme);
     return () => {
       offChange();
       offScroll();
       mo.disconnect();
+      media.removeEventListener('change', retheme);
       if (frame) cancelAnimationFrame(frame);
     };
   }, [api]);

@@ -30,6 +30,35 @@ export function nextStickyBox(from: Box, dir: Direction, occupied: readonly Box[
   return box;
 }
 
+/**
+ * Esquina de un hueco libre de `size` lo más cerca posible de `center` (para
+ * una tabla nueva, que no caiga encima de lo que hay). Prueba anillos cada vez
+ * más lejos; si no encuentra, va debajo de todo.
+ */
+export function freeSpot(size: { width: number; height: number }, center: { x: number; y: number }, occupied: readonly Box[], margin = 32): { x: number; y: number } {
+  const at = (cx: number, cy: number) => ({ x: Math.round(cx - size.width / 2), y: Math.round(cy - size.height / 2) });
+  const fits = (p: { x: number; y: number }) =>
+    !occupied.some((o) => p.x < o.x + o.width + margin && o.x < p.x + size.width + margin && p.y < o.y + o.height + margin && o.y < p.y + size.height + margin);
+  const first = at(center.x, center.y);
+  if (fits(first)) return first;
+  const stepX = Math.max(120, size.width / 2);
+  const stepY = Math.max(90, size.height / 2);
+  for (let ring = 1; ring <= 12; ring++) {
+    const options: Array<{ p: { x: number; y: number }; d: number }> = [];
+    for (let i = -ring; i <= ring; i++) {
+      for (let j = -ring; j <= ring; j++) {
+        if (Math.max(Math.abs(i), Math.abs(j)) !== ring) continue;
+        options.push({ p: at(center.x + i * stepX, center.y + j * stepY), d: Math.hypot(i * stepX, j * stepY) });
+      }
+    }
+    options.sort((a, b) => a.d - b.d);
+    const hit = options.find((o) => fits(o.p));
+    if (hit) return hit.p;
+  }
+  const bottom = Math.max(...occupied.map((o) => o.y + o.height));
+  return { x: first.x, y: bottom + margin };
+}
+
 // ---------- Reacciones ----------
 
 /** Reacciones que se ofrecen (las de siempre en Miro y Slack). */

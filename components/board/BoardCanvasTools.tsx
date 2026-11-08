@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { STICKY_H, STICKY_W, elementBox, isSticky, stickyFill, stickySkeleton, type SceneEl } from '@/lib/board-stickies';
-import { nextStickyBox, parseSpreadsheetPaste, tableSkeletons, type Direction } from '@/lib/board-canvas-tools';
+import { freeSpot, nextStickyBox, parseSpreadsheetPaste, tableSkeletons, type Direction } from '@/lib/board-canvas-tools';
 import { viewToScene } from '@/lib/board-view';
 import type { CanvasApi } from './ExcalidrawCanvas';
 import { authoredSkeleton, stickyColor, viewportCenter } from './BoardStickyTool';
@@ -12,7 +12,7 @@ import NotesIcon from '@/components/notes/NotesIcon';
 
 const MINIMAP_KEY = 'board.minimap';
 /** Resaltador: trazo grueso, amarillo y translúcido (se vuelve al lápiz de antes al cambiar de herramienta). */
-const HIGHLIGHTER = { currentItemStrokeColor: '#fab005', currentItemStrokeWidth: 4, currentItemOpacity: 35 };
+const HIGHLIGHTER = { currentItemStrokeColor: '#fab005', currentItemStrokeWidth: 10, currentItemOpacity: 35 };
 
 function readFlag(key: string, fallback: boolean): boolean {
   try {
@@ -57,13 +57,18 @@ function selectedSticky(api: CanvasApi): SceneEl | null {
   return unique.length === 1 && isSticky(unique[0]) ? unique[0] : null;
 }
 
-/** Abre el editor de texto del elemento seleccionado (lo que hace Enter en Excalidraw). */
-function editSelected() {
+/** Abre el editor de texto de un sticky: el doble clic de Excalidraw en su centro. */
+function editSticky(api: CanvasApi, box: { x: number; y: number; width: number; height: number }) {
   setTimeout(() => {
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    const s = api.getAppState();
+    const zoom = Number((s.zoom as { value?: number })?.value) || 1;
+    const clientX = (box.x + box.width / 2 + Number(s.scrollX)) * zoom + Number(s.offsetLeft);
+    const clientY = (box.y + box.height / 2 + Number(s.scrollY)) * zoom + Number(s.offsetTop);
+    const canvas = document.querySelector('.excalidraw canvas.interactive');
+    canvas?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true, clientX, clientY }));
     // El sticky nuevo trae un espacio de texto: queda elegido y lo primero que se escribe lo reemplaza.
     setTimeout(() => document.querySelector<HTMLTextAreaElement>('.excalidraw-wysiwyg')?.select(), 30);
-  }, 40);
+  }, 60);
 }
 
 /**
@@ -133,10 +138,11 @@ export default function BoardCanvasTools({
       const s = api.getAppState();
       const zoom = Number((s.zoom as { value?: number })?.value) || 1;
       const view = { x: -Number(s.scrollX), y: -Number(s.scrollY), w: Number(s.width) / zoom, h: Number(s.height) / zoom };
-      if (box.x < view.x || box.y < view.y || box.x + (box.width ?? STICKY_W) > view.x + view.w || box.y + (box.height ?? STICKY_H) > view.y + view.h) {
-        api.scrollToContent([sticky], { fitToContent: false, animate: true });
+      const full = { x: box.x, y: box.y, width: box.width ?? STICKY_W, height: box.height ?? STICKY_H };
+      if (full.x < view.x || full.y < view.y || full.x + full.width > view.x + view.w || full.y + full.height > view.y + view.h) {
+        api.scrollToContent([sticky], { fitToContent: false, animate: false });
       }
-      editSelected();
+      editSticky(api, full);
     },
     [api, me],
   );
@@ -270,13 +276,16 @@ export default function BoardCanvasTools({
       const center = viewportCenter(api);
       const group = Math.random().toString(36).slice(2, 12);
       const header = Array.from({ length: cols }, (_, j) => t('tableCol', { n: j + 1 }));
-      const cells = tableSkeletons(rows, cols, { x: Math.round(center.x - (cols * 180) / 2), y: Math.round(center.y - (rows * 56) / 2) }, group, texts ?? [header]);
+      const occupied = (api.getSceneElements() as SceneEl[]).filter((e) => !e.isDeleted && !e.containerId).map(elementBox);
+      const origin = freeSpot({ width: cols * 180, height: rows * 56 }, center, occupied);
+      const cells = tableSkeletons(rows, cols, origin, group, texts ?? [header]);
       const created = skeletonsToElements(cells) as SceneEl[];
       api.updateScene({
         elements: [...api.getSceneElementsIncludingDeleted(), ...created],
         appState: { selectedElementIds: Object.fromEntries(created.map((e) => [e.id, true])), selectedGroupIds: { [group]: true } },
         captureUpdate: UNDOABLE,
       });
+      api.scrollToContent(created.filter((e) => !e.containerId), { fitToContent: false, animate: true });
     },
     [api, t],
   );

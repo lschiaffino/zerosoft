@@ -694,6 +694,17 @@ export default function BoardEditor({
     void save();
   }
 
+  // Al abrir, todo el contenido entra en la vista (como Miro), sin agrandar más que el 100 %.
+  const fittedRef = useRef(false);
+  useEffect(() => {
+    if (!canvasApi || fittedRef.current || commentId) return;
+    const h = setTimeout(() => {
+      fittedRef.current = true;
+      void import('./ExcalidrawCanvas').then(({ fitContent }) => fitContent(canvasApi));
+    }, 60);
+    return () => clearTimeout(h);
+  }, [canvasApi, commentId]);
+
   // Pizarra creada desde una plantilla (o restaurada sin miniatura): la grilla
   // muestra la miniatura sin esperar a la primera edición.
   useEffect(() => {

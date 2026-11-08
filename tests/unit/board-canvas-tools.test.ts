@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   contentBounds,
   elementAt,
+  freeSpot,
   hiddenInPrivate,
   minimapLayout,
   minimapToScene,
@@ -31,13 +32,21 @@ describe('nextStickyBox', () => {
   });
 });
 
+describe('freeSpot', () => {
+  it('uses the center when free and moves off occupied areas', () => {
+    expect(freeSpot({ width: 100, height: 100 }, { x: 0, y: 0 }, [])).toEqual({ x: -50, y: -50 });
+    const p = freeSpot({ width: 100, height: 100 }, { x: 0, y: 0 }, [box(-60, -60, 120, 120)]);
+    expect(p.x + 100 <= -60 - 32 || p.x >= 60 + 32 || p.y + 100 <= -60 - 32 || p.y >= 60 + 32).toBe(true);
+  });
+});
+
 describe('reactions', () => {
   const el = { id: 'a', type: 'rectangle', version: 3 };
   it('toggles a person in and out and bumps the version', () => {
     const on = toggleReaction(el, '👍', 'u1', 7);
     expect(reactionsOf(on)).toEqual({ '👍': ['u1'] });
     expect(on.version).toBe(4);
-    expect(on.versionNonce).toBe(7);
+    expect((on as { versionNonce?: number }).versionNonce).toBe(7);
     const two = toggleReaction(on, '👍', 'u2');
     expect(reactionsOf(two)['👍']).toEqual(['u1', 'u2']);
     const off = toggleReaction(toggleReaction(two, '👍', 'u1'), '👍', 'u2');

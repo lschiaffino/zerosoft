@@ -33,6 +33,14 @@ async function toScreen(page: Page, x: number, y: number) {
   );
 }
 
+/** Botón de la barra o, si la barra es angosta, el mismo ítem del menú "Más opciones". */
+async function barAction(page: Page, name: string) {
+  const btn = page.locator('.board-bar').getByRole('button', { name, exact: true });
+  if (await btn.isVisible()) return btn.click();
+  await page.getByRole('button', { name: 'Más opciones de la pizarra' }).click();
+  await page.getByRole('menuitem', { name, exact: true }).click();
+}
+
 async function fromTemplate(page: Page, template: string, name: string) {
   const res = await page.request.post('/api/boards', { data: { name, template, locale: 'es' } });
   expect(res.ok()).toBe(true);
@@ -114,13 +122,10 @@ test('comentario pegado a un sticky: el pin lo sigue cuando se mueve; minimapa',
   const els = await elements(page);
   const note = els.find((e) => e.type === 'rectangle' && e.width === 140)!;
   const at = await toScreen(page, note.x + 30, note.y + 30);
-  await page.locator('.board-bar').getByRole('button', { name: 'Comentar', exact: true }).click().catch(async () => {
-    await page.getByRole('button', { name: /Más/ }).click();
-    await page.getByRole('menuitem', { name: 'Comentar' }).click();
-  });
+  await barAction(page, 'Comentar');
   await page.mouse.click(at.x, at.y);
   await page.getByRole('textbox').last().fill('¿Esto es de este sprint?');
-  await page.getByRole('button', { name: 'Publicar' }).click();
+  await page.locator('.board-thread').getByRole('button', { name: 'Comentar', exact: true }).click();
   const pin = page.locator('.board-pin.is-attached');
   await expect(pin).toHaveCount(1);
   await page.keyboard.press('Escape');
@@ -160,9 +165,9 @@ test('taller: votación con puntos, modo privado (en vivo en otra pestaña) y CS
   await expect(page.locator('.board-status')).toHaveText('Guardado', { timeout: 15_000 });
 
   // Votación: 2 votos cada uno, se cierra y se ven los totales.
-  await page.getByRole('button', { name: 'Taller', exact: true }).click();
+  await barAction(page, 'Taller');
   await page.locator('.board-workshop-pop').getByRole('spinbutton').last().fill('2');
-  await page.getByRole('button', { name: 'Arrancar la votación' }).click();
+  await page.getByRole('button', { name: 'Abrir votación' }).click();
   await page.keyboard.press('Escape');
   const plus = page.locator('.board-vote-btn').filter({ hasText: '+' });
   await expect(plus).toHaveCount(2);
@@ -170,8 +175,8 @@ test('taller: votación con puntos, modo privado (en vivo en otra pestaña) y CS
   await expect(page.locator('.board-vote-btn.is-mine')).toHaveCount(1);
   await page.locator('.board-vote-btn.is-mine').click();
   await expect(page.locator('.board-vote-btn.is-mine')).toHaveText('2');
-  await page.getByRole('button', { name: 'Taller', exact: true }).click();
-  await page.getByRole('button', { name: 'Cerrar y mostrar resultados' }).click();
+  await barAction(page, 'Taller');
+  await page.getByRole('button', { name: 'Cerrar y ver resultados' }).click();
   await expect(page.locator('.board-results-count').first()).toHaveText('2');
   await page.keyboard.press('Escape');
   await expect(page.locator('.board-vote-total.is-top')).toHaveText('2');
@@ -189,14 +194,14 @@ test('taller: votación con puntos, modo privado (en vivo en otra pestaña) y CS
     api.updateScene({ elements: [...els, other] });
   });
   await expect(page.locator('.board-status')).toHaveText('Guardado', { timeout: 15_000 });
-  await page.getByRole('button', { name: 'Taller', exact: true }).click();
+  await barAction(page, 'Taller');
   await page.getByTestId('board-private-toggle').click();
   await expect(page.getByTestId('board-private-chip')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('board-private-cover')).toHaveCount(1);
   await expect(b.getByTestId('board-private-chip')).toBeVisible({ timeout: 5_000 });
   await page.screenshot({ path: shot('board-private.png') });
-  await page.getByRole('button', { name: 'Taller', exact: true }).click();
+  await barAction(page, 'Taller');
   await page.getByTestId('board-private-toggle').click();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('board-private-cover')).toHaveCount(0);
@@ -218,6 +223,10 @@ test('taller: votación con puntos, modo privado (en vivo en otra pestaña) y CS
 
 test('exportar el tablero a PNG y SVG desde el menú', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
+  // Sin el selector de archivos de Chromium, Excalidraw baja el archivo como descarga común.
+  await page.addInitScript(() => {
+    delete (window as unknown as { showSaveFilePicker?: unknown }).showSaveFilePicker;
+  });
   const id = await fromTemplate(page, 'retro', 'Para exportar');
   await openEditor(page, id);
   for (const kind of ['PNG', 'SVG'] as const) {

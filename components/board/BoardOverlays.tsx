@@ -128,7 +128,17 @@ export default function BoardOverlays({
     const out: Array<{ el: SceneEl; box: { x: number; y: number; width: number; height: number } }> = [];
     for (const el of elements) {
       if (el.containerId) continue;
-      const relevant = cardByEl.has(el.id) || isSticky(el) || el.id === reactTarget || Boolean(el.customData?.reactions);
+      // Solo lo que tiene algo que mostrar: con 1000+ stickies no se arman divs vacíos en cada scroll.
+      const sticky = isSticky(el);
+      const relevant =
+        cardByEl.has(el.id) ||
+        el.id === reactTarget ||
+        Boolean(el.customData?.reactions) ||
+        (sticky &&
+          ((voting?.status === 'open') ||
+            totals.has(el.id) ||
+            (view.zoom >= TAGS_MIN_ZOOM && stickyTags(el).length > 0) ||
+            (me !== null && hiddenInPrivate(el, me, privateMode))));
       if (!relevant) continue;
       const b = elementBox(el);
       const p = sceneToView({ x: b.x, y: b.y }, view);
@@ -139,7 +149,7 @@ export default function BoardOverlays({
       out.push({ el, box: { x: p.x, y: p.y, width: w, height: h } });
     }
     return out;
-  }, [elements, cardByEl, view, size, reactTarget]);
+  }, [elements, cardByEl, view, size, reactTarget, voting?.status, totals, me, privateMode]);
 
   const open = voting?.status === 'open';
   const closed = voting?.status === 'closed';

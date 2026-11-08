@@ -16,6 +16,7 @@ import {
   convertToExcalidrawElements,
   exportToBlob,
   exportToSvg,
+  getCommonBounds,
   reconcileElements,
   useHandleLibrary,
   zoomToFitBounds,
@@ -439,6 +440,25 @@ export function fitBounds(api: CanvasApi, bounds: [number, number, number, numbe
   const { appState } = zoomToFitBounds({ bounds: bounds as never, appState: api.getAppState() as never, fitToViewport: true, viewportZoomFactor: 1 });
   const next = appState as unknown as { scrollX: number; scrollY: number; zoom: { value: number } };
   api.updateScene({ appState: { scrollX: next.scrollX, scrollY: next.scrollY, zoom: next.zoom }, captureUpdate: REMOTE });
+}
+
+/**
+ * Todo el contenido en la vista con un margen, sin agrandar más que `maxZoom`
+ * (una pizarra con dos stickies no abre al 250 %). Sin animación.
+ */
+export function fitContent(api: CanvasApi, maxZoom = 1) {
+  const els = (api.getSceneElements() as Array<{ isDeleted?: boolean }>).filter((e) => !e.isDeleted);
+  if (!els.length) return;
+  const [x1, y1, x2, y2] = getCommonBounds(els as never) as unknown as [number, number, number, number];
+  const s = api.getAppState() as { width: number; height: number };
+  const width = Number(s.width) || 1200;
+  const height = Number(s.height) || 800;
+  const fit = Math.min((width * 0.9) / Math.max(1, x2 - x1), (height * 0.9) / Math.max(1, y2 - y1));
+  const zoom = Math.max(0.1, Math.min(maxZoom, fit));
+  api.updateScene({
+    appState: { zoom: { value: zoom }, scrollX: width / 2 / zoom - (x1 + x2) / 2, scrollY: height / 2 / zoom - (y1 + y2) / 2 },
+    captureUpdate: REMOTE,
+  });
 }
 
 /** JPEG de un frame (con todo lo que tiene adentro), para el PDF de slides. */
