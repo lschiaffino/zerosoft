@@ -50,6 +50,11 @@
   /* Superficies de la interfaz (ver styles/ui.css). */
   --ui-hover: #f3f3f3;
   --ui-press: #e8e8e8;
+  /* Fila elegida (sidebar, ajustes, listas): un gris neutro, como el sidebar
+     de macOS; se distingue del hover sobre --side-bg y sobre blanco.
+     Hover < elegido < elegido + hover; el foco es el contorno de tinta. */
+  --ui-selected: #ebebeb;
+  --ui-selected-hover: #e3e3e3;
   /* Borde de un campo: 3,3:1 sobre blanco (WCAG 1.4.11). */
   --ui-field: #8c8c8c;
 

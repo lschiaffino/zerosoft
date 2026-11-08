@@ -198,8 +198,8 @@
   color: var(--brand-gray-1);
   text-decoration: none;
 }
-.docs-shared-row:hover,
-.docs-shared-row.active { background: var(--brand-enamel); color: var(--ink); }
+.docs-shared-row:hover { background: var(--ui-hover); color: var(--ink); }
+.docs-shared-row.active { background: var(--ui-selected); color: var(--ink); }
 .docs-shared-row.active { font-weight: 600; }
 .docs-shared-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .docs-shared-role { flex-shrink: 0; font-size: 0.75rem; color: var(--brand-gray-2); }
@@ -2000,7 +2000,7 @@ dialog.docs-share { width: min(560px, calc(100vw - 32px)); }
 
 .docs-banner-quiet { background: var(--bg-soft); color: var(--ink-2); }
 .docs-banner-quiet svg { flex: 0 0 auto; }
-.docs-banner-suggest { box-shadow: inset 3px 0 0 var(--ok); }
+.docs-banner-suggest { background: var(--ok-soft); color: var(--ink); }
 
 .docs-locked-badge,
 .docs-verified-badge {
