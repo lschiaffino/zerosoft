@@ -4,7 +4,8 @@
  *
  * - `system` (default, sin cookie): <html> no lleva data-theme y el CSS sigue
  *   a `prefers-color-scheme`.
- * - `light` / `dark`: el layout renderiza <html data-theme="light|dark">.
+ * - `light` / `dark`: <html data-theme="light|dark">, que pone THEME_INIT_SCRIPT
+ *   antes del primer paint.
  *
  * Los tokens oscuros viven en styles/themes/dark.css.
  * Sin imports de Node ni de React: lo usan el layout y el cliente.
@@ -52,4 +53,18 @@ export function themeAttr(pref: ThemePref): 'light' | 'dark' | undefined {
 export function themeCookieString(pref: ThemePref): string {
   if (pref === 'system') return `${THEME_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`;
   return `${THEME_COOKIE}=${pref}; Path=/; Max-Age=${THEME_COOKIE_MAX_AGE}; SameSite=Lax`;
+}
+
+/**
+ * Script en línea al principio del <body>: lee zs_theme y pone <html data-theme>
+ * antes del primer paint. Así el HTML del sitio no depende de la cookie (puede
+ * ser estático y salir del CDN) y no hay parpadeo de color.
+ */
+export const THEME_INIT_SCRIPT =
+  "try{var m=document.cookie.match(/(?:^|;\\s*)zs_theme=([^;]*)/),v=m?decodeURIComponent(m[1]).trim().toLowerCase():'',r=document.documentElement;" +
+  "if(v==='light'||v==='dark')r.setAttribute('data-theme',v);else r.removeAttribute('data-theme')}catch(e){}";
+
+/** La preferencia guardada en este navegador (solo cliente; en el servidor, system). */
+export function themePrefFromDocument(): ThemePref {
+  return typeof document === 'undefined' ? DEFAULT_THEME_PREF : themePrefFromCookieHeader(document.cookie);
 }

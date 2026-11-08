@@ -571,14 +571,25 @@ export interface ResolvedWorkspace {
  * su id). Si el equipo ya no existe o lo sacaron, limpia la preferencia: el
  * acceso se corta en ese mismo request.
  */
-export async function resolveWorkspace(user: UserRow): Promise<ResolvedWorkspace> {
-  const own = async (): Promise<ResolvedWorkspace> => ({
-    owner: user,
-    team: null,
-    workspace: await ensureWorkspace(user.id),
-    role: 'owner',
-    apps: '*',
-  });
+export async function resolveWorkspace(
+  user: UserRow,
+  /**
+   * La ficha propia ya pedida en paralelo con el usuario (lib/session.ts, con el id del JWT):
+   * en el caso común (su workspace) ahorra una ida a la base en cada request. Si no llegó o es
+   * de otro, se lee como siempre.
+   */
+  prefetchedOwn?: Promise<TeamRow | null> | null,
+): Promise<ResolvedWorkspace> {
+  const own = async (): Promise<ResolvedWorkspace> => {
+    const pre = prefetchedOwn ? await prefetchedOwn.catch(() => null) : null;
+    return {
+      owner: user,
+      team: null,
+      workspace: pre && pre.owner_id === user.id ? pre : await ensureWorkspace(user.id),
+      role: 'owner',
+      apps: '*',
+    };
+  };
   if (!user.active_team_id) return own();
   const team = await getTeamById(user.active_team_id);
   if (team && team.owner_id === user.id) {

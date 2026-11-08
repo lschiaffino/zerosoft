@@ -1,3 +1,4 @@
+import type { Metadata, ResolvingMetadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import BrandSymbol from '@/components/brand/BrandSymbol';
@@ -5,8 +6,16 @@ import { ZeroRule } from '@/components/zero/ZeroTexture';
 import ZeroArt from '@/components/zero/ZeroArt';
 import '@/styles/pages.css';
 
-export async function generateMetadata() {
-  const t = await getTranslations('common.notFound');
+/**
+ * El 404 no recibe params y la metadata se resuelve antes que el layout fije el
+ * idioma: sin locale explícito next-intl lo buscaría en los headers, y en una
+ * página estática (un /blog/tag/x que no existe) eso es un error 500. El idioma
+ * sale de la metadata del layout padre (openGraph.locale, que arma con sus params).
+ */
+export async function generateMetadata(_props: unknown, parent: ResolvingMetadata): Promise<Metadata> {
+  const og = (await parent).openGraph?.locale ?? '';
+  const locale = og.startsWith('es') ? 'es' : og.startsWith('pt') ? 'pt' : 'en';
+  const t = await getTranslations({ locale, namespace: 'common.notFound' });
   return { title: t('meta') };
 }
 

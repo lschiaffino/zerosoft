@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { signIn, signOut } from 'next-auth/react';
-import { clearOfflineData } from '@/lib/offline-queue';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import LocaleSwitcher from './LocaleSwitcher';
@@ -15,7 +13,6 @@ import { BUILDING_PRODUCTS, PRODUCT_CONFIG, isBuildingProduct, isProductKey } fr
 
 interface HeaderClientProps {
   locale: string;
-  user: { name: string | null; email: string; image: string | null } | null;
   labels: {
     products: string;
     blog: string;
@@ -31,7 +28,17 @@ interface HeaderClientProps {
   };
 }
 
-export default function HeaderClient({ locale, user, labels }: HeaderClientProps) {
+// next-auth y el borrado de datos sin conexión se cargan al hacer clic: no pesan en cada página del sitio.
+function signInWithGoogle(callbackUrl: string) {
+  void import('next-auth/react').then(({ signIn }) => signIn('google', { callbackUrl }));
+}
+function signOutHere() {
+  void Promise.all([import('next-auth/react'), import('@/lib/offline-queue')]).then(([{ signOut }, { clearOfflineData }]) =>
+    clearOfflineData().finally(() => signOut({ callbackUrl: '/' })),
+  );
+}
+
+export default function HeaderClient({ locale, labels }: HeaderClientProps) {
   /** Mega menú de productos (desktop). */
   const [megaOpen, setMegaOpen] = useState(false);
   /** Panel hamburguesa (≤960px). */
@@ -216,24 +223,19 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         <div className="hd-right">
           <ThemeSwitcher />
           <LocaleSwitcher locale={locale} />
-          {user ? (
-            <Link className="btn btn-chrome btn-sm" href={appHref} title={user.email}>
-              {labels.dashboard}
-            </Link>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="hd-link hd-signin"
-                onClick={() => signIn('google', { callbackUrl: `/${locale}${appHref}` })}
-              >
-                {labels.signIn}
-              </button>
-              <Link className="btn btn-chrome btn-sm" href={appHref}>
-                {labels.startFree}
-              </Link>
-            </>
-          )}
+          {/* Las dos variantes van en el HTML (estático, igual para todos); SESSION_HINT_SCRIPT marca
+              <html data-session="in"> antes del primer paint y el CSS muestra la que corresponde. */}
+          <button
+            type="button"
+            className="hd-link hd-signin hd-out"
+            onClick={() => signInWithGoogle(`/${locale}${appHref}`)}
+          >
+            {labels.signIn}
+          </button>
+          <Link className="btn btn-chrome btn-sm" href={appHref}>
+            <span className="hd-out">{labels.startFree}</span>
+            <span className="hd-in">{labels.dashboard}</span>
+          </Link>
           <button
             type="button"
             className="nav-burger"
@@ -283,19 +285,16 @@ export default function HeaderClient({ locale, user, labels }: HeaderClientProps
         <div className="mobile-panel-foot">
           <ThemeSwitcher />
           <LocaleSwitcher locale={locale} />
-          {user ? (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void clearOfflineData().finally(() => signOut({ callbackUrl: '/' }))}>
-              {labels.signOut}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => signIn('google', { callbackUrl: `/${locale}${appHref}` })}
-            >
-              {labels.signIn}
-            </button>
-          )}
+          <button type="button" className="btn btn-secondary btn-sm hd-in" onClick={signOutHere}>
+            {labels.signOut}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm hd-out"
+            onClick={() => signInWithGoogle(`/${locale}${appHref}`)}
+          >
+            {labels.signIn}
+          </button>
         </div>
       </div>
     </header>

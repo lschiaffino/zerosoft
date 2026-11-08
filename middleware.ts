@@ -8,6 +8,8 @@ import { requestLocale } from './lib/request-locale';
 import { API_PATH_HEADER, RETURN_PATH_HEADER } from './lib/return-path';
 import { quickCreateRedirect } from './lib/quick-create-redirect';
 import { DOCS_SITE_HEADER } from './lib/docs-site-header';
+import { WHO_COOKIE } from './lib/session-hint';
+import { stripLocaleSetCookie } from './lib/locale-cookie';
 import { BRAND_COOKIE, BRAND_HEADER, BRAND_PARAM, DEFAULT_BRAND, forcedBrandForPath, isBrandTheme } from './lib/brand-theme';
 
 const intlMiddleware = createMiddleware(routing);
@@ -232,7 +234,20 @@ export default async function middleware(incoming: NextRequest) {
   const quick = quickCreateRedirect(pathname, req.nextUrl.search);
   if (quick) return NextResponse.redirect(new URL(quick, req.url), 307);
 
-  return withWhoCookie(req, await intlMiddleware(withReturnPath(req)));
+  return withWhoCookie(req, withoutSiteLocaleCookie(req, await intlMiddleware(withReturnPath(req))));
+}
+
+/**
+ * Páginas del sitio (todo lo que no es /app): sin Set-Cookie de NEXT_LOCALE,
+ * así su HTML estático se puede cachear en el CDN. La cookie la escribe el
+ * navegador (localeCookieScript en el layout). Las redirecciones (la raíz → el
+ * idioma) y la app la siguen recibiendo del servidor.
+ */
+function withoutSiteLocaleCookie(req: NextRequest, res: NextResponse): NextResponse {
+  if (/^\/(en|es|pt)\/app(\/|$)/.test(req.nextUrl.pathname)) return res;
+  if (res.status >= 300 && res.status < 400) return res;
+  stripLocaleSetCookie(res.headers);
+  return res;
 }
 
 /**
@@ -258,8 +273,6 @@ async function withWhoCookie(req: NextRequest, res: NextResponse): Promise<NextR
   res.cookies.set(WHO_COOKIE, who, { path: '/', maxAge: 30 * 24 * 60 * 60, sameSite: 'lax', secure: req.nextUrl.protocol === 'https:' });
   return res;
 }
-
-const WHO_COOKIE = 'zs_who';
 
 /**
  * Path + query de la request en un header interno: si la página pide login,

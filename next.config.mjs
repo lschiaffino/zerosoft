@@ -12,6 +12,9 @@ const nextConfig = {
   // con la hidratación (error #418 intermitente en rutas con loading.tsx).
   htmlLimitedBots: /.*/,
   reactStrictMode: true,
+  // Caché del router en el navegador: una precarga completa (IntentPrefetch, al dejar el puntero
+  // sobre un link de la app) sirve 30 s, no los 5 min de Next; las páginas dinámicas, nada.
+  experimental: { staleTimes: { dynamic: 0, static: 30 } },
   // geoip-lite reads its .dat data files from paths relative to its own
   // __dirname at require time, which breaks when webpack bundles it.
   // Keep it external so it is required from node_modules at runtime.

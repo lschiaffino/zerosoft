@@ -117,11 +117,18 @@ export default async function DealsPage(props: DealsPageProps) {
   } = params;
 
   const user = await requireUser(locale);
-  const pendingApprovals = await countPendingFor(user.id, realUserId(user));
-  const scope = await sessionScope(user);
+  // Lecturas independientes, juntas (en Turso cada query es una ida y vuelta); se esperan donde se usan.
+  const membersP = workspaceTeamId(user) ? listMembers(workspaceTeamId(user)!) : null;
+  const fieldAccessP = fieldAccessFor(sessionFieldViewer(user), 'deals');
+  const tagsCurrencyP = Promise.all([listTags(user.id), getCurrencyContext(user.id)]);
+  for (const p of [membersP, fieldAccessP, tagsCurrencyP]) p?.catch(() => {});
+  const [pendingApprovals, scope, pipelines] = await Promise.all([
+    countPendingFor(user.id, realUserId(user)),
+    sessionScope(user),
+    listPipelinesWithStages(user.id),
+  ]);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const pipelines = await listPipelinesWithStages(user.id);
   const pipelineParam = one(searchParams.pipeline);
   const pipeline = pipelines.find((p) => p.id === pipelineParam) ?? pipelines[0];
   const view = one(searchParams.view) === 'table' ? 'table' : 'board';
@@ -145,14 +152,14 @@ export default async function DealsPage(props: DealsPageProps) {
   const viewQuery = (p: string, v: 'board' | 'table'): Record<string, string> =>
     v === 'table' ? { pipeline: p, view: 'table' } : { pipeline: p };
 
-  const teamMembers = workspaceTeamId(user)
-    ? await listMembers(workspaceTeamId(user)!)
+  const teamMembers = membersP
+    ? await membersP
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
   const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
   // Permisos por campo: sin los ocultos; los de solo lectura no se editan en masa.
-  const customFieldDefs = (await fieldAccessFor(sessionFieldViewer(user), 'deals')).visible;
-  const [allTags, currencyCtx] = await Promise.all([listTags(user.id), getCurrencyContext(user.id)]);
+  const customFieldDefs = (await fieldAccessP).visible;
+  const [allTags, currencyCtx] = await tagsCurrencyP;
   const tagOptions = allTags.map((x) => ({ id: x.id, name: x.name }));
   const customFields = customFieldDefs
     .filter((cf) => cf.type === 'select')
