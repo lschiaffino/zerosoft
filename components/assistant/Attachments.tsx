@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-img-element -- miniaturas de adjuntos: object URLs locales y subidas propias, no pasan por el optimizador. */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';

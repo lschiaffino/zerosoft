@@ -19,6 +19,7 @@ import {
 import { addMessage, createConversation } from '@/lib/assistant/store';
 import { fakeAssistantStep } from '@/lib/assistant/fake';
 import { scriptedModel } from './ai-mock';
+import { fakeModel } from '@/lib/crm-ai-fake';
 
 process.env.NEXTAUTH_URL = 'https://zerosoft.test';
 process.env.RATE_LIMIT_DISABLED = 'true';
@@ -120,6 +121,18 @@ describe('adjuntos del asistente: lo que ve el modelo', () => {
         expect(events).toContainEqual({ type: 'notice', code: 'no_vision' });
       }
     }
+  });
+
+  it('el modelo falso recibe los bytes de la imagen por el camino real del turno', async () => {
+    process.env.ASSISTANT_VISION = '1';
+    const { user, owner } = await person();
+    const img = await createAttachment(owner, { name: 'p.png', type: 'image/png', bytes: PNG });
+    setAssistantModelOverride(fakeModel(fakeAssistantStep));
+    const conv = await createConversation(owner, 'what is this');
+    await addMessage(conv.id, 'user', 'what is this', [{ type: 'attachment', ...attachmentView(img) }]);
+    let text = '';
+    for await (const e of runAssistantTurn({ user, conversationId: conv.id, message: 'what is this', page: null, locale: 'en' })) if (e.type === 'text') text += e.delta;
+    expect(text).toBe(`I can see 1 file(s): image/png (${PNG.length} bytes).`);
   });
 
   it('el modelo falso describe lo que recibió y propone usar el adjunto', () => {

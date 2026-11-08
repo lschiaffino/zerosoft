@@ -288,7 +288,7 @@ test('adjuntos: +, pegar y soltar; el modelo los recibe y uno se suma al doc con
   await expect(panel.getByTestId('assistant-msg-user').last().getByTestId('assistant-sent-attachment')).toHaveCount(3);
   // El modelo (falso) recibió las dos imágenes como partes y el texto del archivo.
   const reply = panel.getByTestId('assistant-msg-assistant').last();
-  await expect(reply).toContainText('I can see 2 file(s): image/png');
+  await expect(reply).toContainText('I can see 2 file(s): image/png (70 bytes), image/png (70 bytes)');
   await expect(reply).toContainText('The document starts with: "Launch on Friday at noon."');
 
   // Usar el adjunto en una acción: pasa por la tarjeta y recién al confirmar entra al doc.

@@ -89,7 +89,9 @@ function callInfo(prompt: unknown): FakeCallInfo {
       userFiles = parts
         .filter((p) => p.type === 'file' || p.type === 'image')
         .map((p) => {
-          const d = p.data ?? p.image;
+          // V4: { type: 'data', data } (bytes o base64) o { type: 'url', url }.
+          const raw = p.data ?? p.image;
+          const d = raw && typeof raw === 'object' && !(raw instanceof Uint8Array) && 'data' in raw ? (raw as { data: unknown }).data : raw;
           const bytes = d instanceof Uint8Array ? d.length : typeof d === 'string' ? Math.floor((d.length * 3) / 4) : 0;
           return { mediaType: String(p.mediaType ?? 'application/octet-stream'), bytes };
         });
