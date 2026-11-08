@@ -208,6 +208,52 @@ export function listNumbers(blocks: DocsBlock[]): number[] {
   });
 }
 
+const LIST_ITEM_TYPES = new Set(['bulleted_list_item', 'numbered_list_item', 'todo']);
+
+/**
+ * Nivel de anidado de cada ítem dentro de su lista: cuántos ancestros son
+ * ítems de lista (viñeta, número o tarea). Un ítem que cuelga de un párrafo o
+ * de un toggle empieza en 0, como en Notion. Define la marca (viñeta llena,
+ * hueca, chica; 1. → a. → i.).
+ */
+export function listDepths(blocks: DocsBlock[]): number[] {
+  const stack: Array<{ indent: number; list: boolean }> = [];
+  return blocks.map((b) => {
+    const d = blockIndent(b);
+    while (stack.length && stack[stack.length - 1].indent >= d) stack.pop();
+    let depth = 0;
+    for (let i = stack.length - 1; i >= 0 && stack[i].list; i--) depth++;
+    stack.push({ indent: d, list: LIST_ITEM_TYPES.has(b.type) });
+    return depth;
+  });
+}
+
+function toRoman(n: number): string {
+  const table: Array<[number, string]> = [[1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'], [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'], [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']];
+  let out = '';
+  for (const [v, s] of table) while (n >= v) { out += s; n -= v; }
+  return out;
+}
+
+function toLetters(n: number): string {
+  let out = '';
+  while (n > 0) {
+    n -= 1;
+    out = String.fromCharCode(97 + (n % 26)) + out;
+    n = Math.floor(n / 26);
+  }
+  return out;
+}
+
+/** Marca de un ítem numerado según su nivel: 1, 2… → a, b… → i, ii… y vuelve a empezar. */
+export function numberedMarker(n: number, depth: number): string {
+  if (n <= 0) return '';
+  const kind = depth % 3;
+  if (kind === 1) return toLetters(n);
+  if (kind === 2) return toRoman(n);
+  return String(n);
+}
+
 export interface DocsBlockNode {
   block: DocsBlock;
   children: DocsBlockNode[];
