@@ -120,10 +120,12 @@ export default function BoardStickyTool({ api, me = null }: { api: CanvasApi | n
   const fill = STICKY_COLORS.find((c) => c.key === color)?.fill ?? STICKY_COLORS[0].fill;
   const drafts = parseBulkStickies(bulk, bulkTags.split(/[,\s]+/));
 
-  async function add(list: Array<{ text: string; tags: string[]; fill?: string | null; x?: number | null; y?: number | null }>) {
+  async function add(list: Array<{ text: string; tags: string[]; fill?: string | null; x?: number | null; y?: number | null }>, fromBulk = false) {
     if (!api || !list.length) return;
-    // Se cierra enseguida: la carga de letras puede tardar y no tiene que cerrar un popover que se volvió a abrir.
+    // Se cierra (y se vacía la lista pegada) enseguida: la carga de letras puede tardar y al
+    // terminar no tiene que tocar un popover que se volvió a abrir.
     pop.close();
+    if (fromBulk) setBulk('');
     const { skeletonsToElements, UNDOABLE, ensureFonts } = await import('./ExcalidrawCanvas');
     await ensureFonts();
     // En un hueco cerca del centro de la vista: no tapan lo que ya está ni sus tags.
@@ -149,7 +151,6 @@ export default function BoardStickyTool({ api, me = null }: { api: CanvasApi | n
       const shown = (api.getSceneElements() as SceneEl[]).filter((e) => ids[e.id]);
       if (shown.length) api.scrollToContent(shown, { fitToContent: false, animate: true });
     }
-    setBulk('');
   }
 
   /** Reemplaza los stickies seleccionados con `change` aplicado (entra al deshacer). */
@@ -303,7 +304,7 @@ export default function BoardStickyTool({ api, me = null }: { api: CanvasApi | n
               aria-label={t('bulkTags')}
               maxLength={200}
             />
-            <button type="button" className="btn btn-sm board-pop-start" disabled={drafts.length === 0} onClick={() => void add(drafts)}>
+            <button type="button" className="btn btn-sm board-pop-start" disabled={drafts.length === 0} onClick={() => void add(drafts, true)}>
               {t('bulkAdd', { count: drafts.length })}
             </button>
           </div>
