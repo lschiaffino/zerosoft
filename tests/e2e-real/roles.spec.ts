@@ -584,7 +584,7 @@ test('Analytics: sin sesión, con un token inventado o sin la app, la API dice 4
     expect((await olga.ctx.request.get('/api/analytics/projects')).status()).toBe(200);
     // La página no se abre sin sesión.
     const page = await anon.newPage();
-    await page.goto('/en/app/analytics');
+    await page.goto('/en/app/pulse');
     await page.waitForURL((u) => !u.pathname.includes('/app/'), { timeout: 20_000 });
   } finally {
     await anon.close();

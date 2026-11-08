@@ -38,7 +38,7 @@ test.beforeAll(async ({ request }) => {
 
 async function open(page: Page, baseURL: string) {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL }]);
-  await page.goto('/en/app/analytics/insights/new', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/insights/new', { waitUntil: 'networkidle' });
   await page.getByLabel('Event', { exact: true }).first().fill('buy');
   await expect(totalCell(page, 0)).toHaveText('4', { timeout: 15_000 });
 }
@@ -181,7 +181,7 @@ test('vistas de totales y series que se prenden y apagan', async ({ page, baseUR
 test('aperturas: dos propiedades, en rangos y cargar más', async ({ page, baseURL, request }) => {
   for (let i = 0; i < 30; i++) await send(request, 'many', `m${i}`, 2 * DAY, { code: `v${String(i).padStart(2, '0')}`, $browser: i % 2 ? 'Chrome' : 'Safari', $os: 'Mac', amount: i });
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await page.goto('/en/app/analytics/insights/new', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/insights/new', { waitUntil: 'networkidle' });
   await page.getByLabel('Event', { exact: true }).first().fill('many');
   await page.getByLabel('Display', { exact: true }).selectOption('table');
   await page.getByLabel('Breakdown property').first().fill('$browser');

@@ -140,7 +140,7 @@ test('encuestas: crear desde la UI, editar, vista previa y estado', async ({ pag
   test.setTimeout(180_000);
   await ensureProject(request, baseURL!, page);
   const errors = watchErrors(page);
-  await page.goto('/en/app/analytics/surveys', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/surveys', { waitUntil: 'networkidle' });
   await expect(page.getByRole('heading', { name: 'No surveys yet' })).toBeVisible();
   await expect(page.locator('.side-line [aria-current="page"]')).toHaveAttribute('href', /\/app\/analytics\/surveys$/);
   await page.getByRole('button', { name: 'New survey' }).first().click();
@@ -262,7 +262,7 @@ test('encuestas: el popover en el sitio, teclado, Esc, eventos y resultados', as
   });
   expect(hostile.status()).toBe(200);
 
-  await page.goto(`/en/app/analytics/surveys/${survey.id}/results`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/surveys/${survey.id}/results`, { waitUntil: 'networkidle' });
   const stats = page.getByTestId('an-sv-stats');
   await expect(stats).toContainText('3'); // respuestas
   await expect(page.getByTestId('an-sv-nps')).toContainText('0');
@@ -283,7 +283,7 @@ test('encuestas: el popover en el sitio, teclado, Esc, eventos y resultados', as
   await shots(page, 'survey-results');
 
   // Lista con estado y cuenta.
-  await page.goto('/en/app/analytics/surveys', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/surveys', { waitUntil: 'networkidle' });
   await expect(page.getByTestId('an-list-surveys')).toContainText('3 responses');
   await expect(page.getByTestId('an-list-surveys')).toContainText('Running');
   await shots(page, 'survey-list');
@@ -311,12 +311,12 @@ test('errores: capturar, agrupar, huella del servidor, estado, responsable y reg
   await ensureProject(request, baseURL!, page);
   const errors = watchErrors(page);
 
-  await page.goto('/en/app/analytics/errors', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/errors', { waitUntil: 'networkidle' });
   await expect(page.getByTestId('an-errors-off')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'No errors in this period' })).toBeVisible();
 
   // Prender desde Ajustes.
-  await page.goto('/en/app/analytics/settings', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/settings', { waitUntil: 'networkidle' });
   await page.getByTestId('an-capture-exceptions').check();
   await page.getByTestId('an-web-vitals').check();
   await page.getByRole('button', { name: 'Save' }).first().click();
@@ -373,7 +373,7 @@ test('errores: capturar, agrupar, huella del servidor, estado, responsable y reg
     expect(r.status()).toBe(200);
   }
 
-  await page.goto('/en/app/analytics/errors', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/errors', { waitUntil: 'networkidle' });
   const list = page.getByTestId('an-list-errors');
   const row = list.locator('tr', { hasText: 'PaymentError' });
   await expect(row).toHaveCount(1);
@@ -409,7 +409,7 @@ test('errores: capturar, agrupar, huella del servidor, estado, responsable y reg
   // Resolver: sale de la lista por defecto.
   await page.getByTestId('an-issue-status').selectOption('resolved');
   await expect(page.locator('.an-issue-controls .badge')).toHaveText('Resolved');
-  await page.goto('/en/app/analytics/errors', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/errors', { waitUntil: 'networkidle' });
   await expect(page.getByTestId('an-list-errors').locator('tr', { hasText: 'PaymentError' })).toHaveCount(0);
 
   // Vuelve a pasar: es una regresión, también antes de que pase el cron.
@@ -433,7 +433,7 @@ test('errores: capturar, agrupar, huella del servidor, estado, responsable y reg
 
   // De otro workspace / inventado: 404.
   expect((await request.get(`/api/analytics/errors/${encodeURIComponent(`ap_nope~${'a'.repeat(32)}`)}`)).status()).toBe(404);
-  expect((await page.goto(`/en/app/analytics/errors/${encodeURIComponent(`${projectId}~${'b'.repeat(32)}`)}`))?.status()).toBe(404);
+  expect((await page.goto(`/en/app/pulse/errors/${encodeURIComponent(`${projectId}~${'b'.repeat(32)}`)}`))?.status()).toBe(404);
   await page.goto(issuePath, { waitUntil: 'networkidle' });
   await expect(page.locator('.an-issue-controls .badge')).toHaveText('Regression');
   await shots(page, 'error-detail');
@@ -442,7 +442,7 @@ test('errores: capturar, agrupar, huella del servidor, estado, responsable y reg
 
 test('Cmd+K encuentra un error por su mensaje', async ({ page, baseURL }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await page.goto('/en/app/analytics/errors', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/errors', { waitUntil: 'networkidle' });
   await page.keyboard.press('ControlOrMeta+k');
   const dialog = page.getByRole('dialog', { name: 'Search' });
   await expect(dialog).toBeVisible();
@@ -455,7 +455,7 @@ test('LLM: ejemplo vacío, valores limpios, por modelo, trazas y detalle', async
   test.setTimeout(180_000);
   await ensureProject(request, baseURL!, page);
   const errors = watchErrors(page);
-  await page.goto('/en/app/analytics/llm', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/llm', { waitUntil: 'networkidle' });
   await expect(page.getByTestId('an-llm-example')).toContainText('$ai_generation');
   await shots(page, 'llm-empty');
 
@@ -499,7 +499,7 @@ test('LLM: ejemplo vacío, valores limpios, por modelo, trazas y detalle', async
   await expect(page.getByText('<script>window.__pwned=1</script> hi')).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned)).toBeUndefined();
   await shots(page, 'llm-detail');
-  expect((await page.goto('/en/app/analytics/llm/999999999'))?.status()).toBe(404);
+  expect((await page.goto('/en/app/pulse/llm/999999999'))?.status()).toBe(404);
   expect(errors.filter((e) => !/404/.test(e)), errors.join('\n')).toEqual([]);
 });
 
@@ -538,7 +538,7 @@ test('web: filtros con chips y URL, canales, en vivo y web vitals', async ({ pag
     data: JSON.stringify({ api_key: publicKey, event: '$web_vitals', distinct_id: 'x', properties: { $pathname: '/vitals-page', $web_vitals_LCP_value: 1e12, $web_vitals_CLS_value: -3 } }),
   });
 
-  await page.goto('/en/app/analytics', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse', { waitUntil: 'networkidle' });
   await expect(page.getByTestId('an-live-visitors')).toContainText(/visitor/);
   const channels = page.getByTestId('an-top-channels');
   await expect(channels).toContainText('Organic search');
@@ -570,7 +570,7 @@ test('web: filtros con chips y URL, canales, en vivo y web vitals', async ({ pag
   await shots(page, 'web-filtered');
 
   // Filtros sin resultados: se explica, no se pide instalar el snippet.
-  await page.goto('/en/app/analytics?country=ZZ', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse?country=ZZ', { waitUntil: 'networkidle' });
   await expect(page.getByText('No pageviews with these filters')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Install the snippet' })).toHaveCount(0);
 
@@ -587,7 +587,7 @@ test('una persona sin la app queda afuera de todo; textos en es y pt', async ({ 
   for (const locale of ['es', 'pt']) {
     for (const path of ['surveys', 'errors', 'llm']) {
       const errors = watchErrors(page);
-      await page.goto(`/${locale}/app/analytics/${path}`, { waitUntil: 'networkidle' });
+      await page.goto(`/${locale}/app/pulse/${path}`, { waitUntil: 'networkidle' });
       await expect(page.locator('.ui-page-title')).not.toBeEmpty();
       await noHorizontalScroll(page, `${locale} ${path}`);
       expect(errors, errors.join('\n')).toEqual([]);

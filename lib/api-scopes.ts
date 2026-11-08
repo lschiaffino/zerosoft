@@ -99,7 +99,7 @@ export const SCOPE_APP: Record<string, string> = {
   boards: 'board',
   design: 'design',
   shop: 'shop',
-  analytics: 'analytics',
+  analytics: 'pulse',
   social: 'social',
   hiring: 'hiring',
   people: 'people',

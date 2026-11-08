@@ -103,7 +103,7 @@ test('proyecto, snippet en otro sitio y eventos en vivo', async ({ page, request
   await site.close();
   server.close();
 
-  await page.goto('/en/app/analytics/events', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/events', { waitUntil: 'networkidle' });
   const table = page.getByTestId('an-live-table');
   await expect(table).toBeVisible();
   // La tabla ocupa el ancho de la página, sin correrse ni encogerse.
@@ -124,7 +124,7 @@ test('proyecto, snippet en otro sitio y eventos en vivo', async ({ page, request
   await expect(table.getByRole('button', { name: 'late_event' })).toBeVisible({ timeout: 15_000 });
 
   // Web analytics.
-  await page.goto('/en/app/analytics', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse', { waitUntil: 'networkidle' });
   await expect(page.locator('.an-stat').first()).toBeVisible();
   await expect(page.getByRole('cell', { name: '/pricing' }).first()).toBeVisible();
   await shot(page, 'web-overview');
@@ -162,7 +162,7 @@ test('tendencia y embudo de 2 pasos desde el editor', async ({ page, baseURL }) 
   test.setTimeout(90_000);
   const errors = watchErrors(page);
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await page.goto('/en/app/analytics/insights/new', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/insights/new', { waitUntil: 'networkidle' });
   const result = page.getByTestId('an-result');
   // Tendencia por defecto: $pageview de los últimos 7 días.
   await expect(result.locator('svg[role="img"]')).toBeVisible();
@@ -176,7 +176,7 @@ test('tendencia y embudo de 2 pasos desde el editor', async ({ page, baseURL }) 
   await expect(page.getByLabel('Name')).toHaveValue('Pageviews this week');
 
   // Embudo: $pageview → signed_up.
-  await page.goto('/en/app/analytics/insights/new?kind=funnel', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/insights/new?kind=funnel', { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: 'Funnel' }).click();
   await page.getByLabel('Step 2', { exact: true }).fill('signed_up');
   await expect(result.locator('.an-funnel-step')).toHaveCount(2);
@@ -190,7 +190,7 @@ test('feature flag: crear, ajustar y evaluar (UI y /decide)', async ({ page, req
   const errors = watchErrors(page);
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
   const key = `new-checkout-${uid()}`;
-  await page.goto('/en/app/analytics/flags?new=1', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/flags?new=1', { waitUntil: 'networkidle' });
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Key').fill(key);
   await dialog.getByRole('button', { name: 'Create' }).click();
@@ -208,14 +208,14 @@ test('feature flag: crear, ajustar y evaluar (UI y /decide)', async ({ page, req
   const json = (await decide.json()) as { featureFlags: Record<string, boolean | string> };
   expect(json.featureFlags[key]).toBe(true);
   // En la lista, con su estado.
-  await page.goto('/en/app/analytics/flags', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/flags', { waitUntil: 'networkidle' });
   await expect(page.getByTestId('an-list-flags')).toContainText(key);
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
 test('SQL: lee el proyecto y rechaza otras tablas', async ({ page, baseURL }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await page.goto('/en/app/analytics/sql', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/sql', { waitUntil: 'networkidle' });
   const editor = page.getByRole('textbox', { name: 'Query' });
   await editor.fill("SELECT event, count() AS n FROM events WHERE event = 'signed_up' GROUP BY event");
   await page.getByRole('button', { name: 'Run', exact: true }).click();
@@ -239,12 +239,12 @@ test('oscuro y 390px: web analytics y el editor sin scroll horizontal', async ({
     { name: 'zs_analytics_project', value: projectId, url: baseURL! },
     { name: 'zs_theme', value: 'dark', url: baseURL! },
   ]);
-  await page.goto('/en/app/analytics', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse', { waitUntil: 'networkidle' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('.an-stat').first()).toBeVisible();
   await shot(page, 'web-dark');
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const path of ['/en/app/analytics', '/en/app/analytics/insights/new', '/en/app/analytics/events', '/en/app/analytics/settings']) {
+  for (const path of ['/en/app/pulse', '/en/app/pulse/insights/new', '/en/app/pulse/events', '/en/app/pulse/settings']) {
     await page.goto(path, { waitUntil: 'networkidle' });
     const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
     expect(scroll, `${path}: scrollWidth ${scroll} > innerWidth ${inner}`).toBeLessThanOrEqual(inner + 1);
@@ -253,7 +253,7 @@ test('oscuro y 390px: web analytics y el editor sin scroll horizontal', async ({
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('acceso por app: una persona sin Analytics no ve páginas, APIs ni búsqueda', async ({ browser, baseURL, request }) => {
+test('acceso por app: una persona sin Pulse no ve páginas, APIs ni búsqueda', async ({ browser, baseURL, request }) => {
   test.setTimeout(90_000);
   // Algo con nombre buscable en el workspace demo.
   const name = `Secret dashboard ${uid()}`;
@@ -270,19 +270,19 @@ test('acceso por app: una persona sin Analytics no ve páginas, APIs ni búsqued
     await sql(`INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', '["crm"]')`, [demoTeam, me]);
     await sql('UPDATE users SET active_team_id = ? WHERE id = ?', [demoTeam, me]);
 
-    await p.goto('/en/app/analytics', { waitUntil: 'networkidle' });
-    await expect(p).toHaveURL(/\/en\/app\?blocked=analytics/);
-    await p.goto(`/en/app/analytics/flags`, { waitUntil: 'networkidle' });
-    await expect(p).toHaveURL(/\/en\/app\?blocked=analytics/);
+    await p.goto('/en/app/pulse', { waitUntil: 'networkidle' });
+    await expect(p).toHaveURL(/\/en\/app\?blocked=pulse/);
+    await p.goto(`/en/app/pulse/flags`, { waitUntil: 'networkidle' });
+    await expect(p).toHaveURL(/\/en\/app\?blocked=pulse/);
     for (const path of ['/api/analytics/projects', `/api/analytics/dashboards?project=${projectId}`, `/api/analytics/events?project=${projectId}`]) {
       expect((await ctx.request.get(path)).status(), path).toBe(401);
     }
     expect((await ctx.request.post('/api/analytics/query', { data: { projectId, query: { kind: 'sql', sql: 'SELECT 1' } } })).status()).toBe(401);
     const search = (await (await ctx.request.get(`/api/search?q=${encodeURIComponent(name)}`)).json()) as { items: Array<{ href: string }> };
-    expect(search.items.filter((i) => i.href.startsWith('/app/analytics'))).toEqual([]);
+    expect(search.items.filter((i) => i.href.startsWith('/app/pulse'))).toEqual([]);
     // La app no aparece en su inicio.
     await p.goto('/en/app', { waitUntil: 'networkidle' });
-    await expect(p.locator('a[href$="/app/analytics"]')).toHaveCount(0);
+    await expect(p.locator('a[href$="/app/pulse"]')).toHaveCount(0);
   } finally {
     await ctx.close();
   }

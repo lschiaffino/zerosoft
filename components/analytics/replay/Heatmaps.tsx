@@ -148,7 +148,7 @@ export default function Heatmaps({ projectId, initialPaths }: { projectId: strin
   }, [result]);
 
   if (paths.length === 0 && range === '-7d' && !error) {
-    return <EmptyState product="analytics" title={t('emptyTitle')} body={t('emptyBody')} />;
+    return <EmptyState product="pulse" title={t('emptyTitle')} body={t('emptyBody')} />;
   }
 
   const scale = result && boxWidth ? Math.min(1, boxWidth / result.width) : 1;

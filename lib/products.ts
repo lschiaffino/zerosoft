@@ -45,7 +45,7 @@ export const PRODUCT_CONFIG = {
   talk: { name: 'Talk', launch: '/app/talk', path: 'talk', color: '#8e3a80', category: 'daily', audience: 'team' },
   design: { name: 'Design', launch: '/app/design', path: 'design', color: '#00a5c8', category: 'build', audience: 'team' },
   shop: { name: 'Shop', launch: '/app/shop', path: 'shop', color: '#15803d', category: 'sell', audience: 'team' },
-  analytics: { name: 'Analytics', launch: '/app/analytics', path: 'analytics', color: '#4f46e5', category: 'build', audience: 'team' },
+  pulse: { name: 'Pulse', launch: '/app/pulse', path: 'pulse', color: '#4f46e5', category: 'build', audience: 'team' },
   social: { name: 'Social', launch: '/app/social', path: 'social', color: '#7e22ce', category: 'sell', audience: 'team' },
   hiring: { name: 'Hiring', launch: '/app/hiring', path: 'hiring', color: '#0f766e', category: 'run', audience: 'team' },
   people: { name: 'People', launch: '/app/people', path: 'people', color: '#8b5e34', category: 'run', audience: 'team' },
@@ -84,7 +84,7 @@ export const APP_SWITCHER_ORDER = [
   'sign',
   'agents',
   'robots',
-  'analytics',
+  'pulse',
 ] as const satisfies readonly (keyof typeof PRODUCT_CONFIG)[];
 
 /** Todas las apps de la suite. */
@@ -141,11 +141,11 @@ export function productSettingsHref(key: ProductKey): string {
 const PATH_APPS: Record<string, ProductKey> = (() => {
   const out: Record<string, ProductKey> = {};
   for (const key of Object.keys(PRODUCT_CONFIG) as ProductKey[]) out[PRODUCT_CONFIG[key].path] = key;
-  // Familias de API con otro nombre que su página.
-  out.boards = 'board';
-  out.link = 'link';
   return out;
 })();
+
+/** Familias de API con otro nombre que su página (Pulse conserva /api/analytics de cuando se llamaba Analytics). */
+const API_APPS: Record<string, ProductKey> = { ...PATH_APPS, boards: 'board', link: 'link', analytics: 'pulse' };
 
 /** App de un path de página (/<locale>/app/<x>/…, /app/<x>/…) o de API (/api/<x>/…). null si no es de una app. */
 export function appFromPath(path: string | null | undefined): ProductKey | null {
@@ -153,8 +153,8 @@ export function appFromPath(path: string | null | undefined): ProductKey | null 
   const clean = path.split(/[?#]/)[0];
   const page = /^(?:\/(?:en|es|pt))?\/app\/([^/]+)/.exec(clean);
   const api = /^\/api\/([^/]+)/.exec(clean);
-  const seg = page?.[1] ?? api?.[1];
-  return seg ? (PATH_APPS[seg] ?? null) : null;
+  if (page) return PATH_APPS[page[1]] ?? null;
+  return api ? (API_APPS[api[1]] ?? null) : null;
 }
 
 /** Lo que la persona puede abrir de las apps: '*' o su lista (rol y team_members.apps). */

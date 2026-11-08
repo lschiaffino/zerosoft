@@ -51,11 +51,11 @@ test('/products muestra el porcentaje de cada app', async ({ page }) => {
   await expect(tags.first()).toHaveText(/^\d{1,3}% parity with .+/);
 });
 
-test('Analytics no publica porcentaje en /products, /compare ni en su comparación', async ({ page, request }) => {
+test('Pulse no publica porcentaje en /products, /compare ni en su comparación', async ({ page, request }) => {
   await page.goto('/en/products');
   const tag = page.locator('.suite-vs', { hasText: 'PostHog' }).locator('.suite-parity');
   await expect(tag).toHaveText(/included, \d+ partial of \d+$/);
-  const row = page.locator('#paridad .parity-overview-table tbody tr', { hasText: 'Analytics' });
+  const row = page.locator('#paridad .parity-overview-table tbody tr', { hasText: 'Pulse' });
   await expect(row).toContainText('Not comparable');
   expect(await row.textContent()).not.toMatch(/\d%/);
   await page.goto('/en/compare');

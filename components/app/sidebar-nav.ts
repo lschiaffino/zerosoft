@@ -315,7 +315,7 @@ export type AppProduct =
   | 'talk'
   | 'design'
   | 'shop'
-  | 'analytics'
+  | 'pulse'
   | 'social'
   | 'hiring'
   | 'people'
@@ -341,7 +341,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/talk', 'talk'],
   ['/app/design', 'design'],
   ['/app/shop', 'shop'],
-  ['/app/analytics', 'analytics'],
+  ['/app/pulse', 'pulse'],
   ['/app/social', 'social'],
   ['/app/hiring', 'hiring'],
   ['/app/people', 'people'],
@@ -389,7 +389,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   talk: 'talk',
   design: 'design',
   shop: 'shop',
-  analytics: 'analytics',
+  pulse: 'analytics',
   social: 'social',
   hiring: 'hiring',
   people: 'people',
@@ -843,52 +843,52 @@ export function buildNav(
         },
         appSettingsGroup('/app/design/settings'),
       ];
-    case 'analytics': {
+    case 'pulse': {
       const a = labels.analytics;
       return [
         {
           items: [
-            { href: '/app/analytics', label: a.web, active: pathname === '/app/analytics', icon: 'analytics' },
-            { href: '/app/analytics/events', label: a.events, active: at('/app/analytics/events'), icon: 'live' },
+            { href: '/app/pulse', label: a.web, active: pathname === '/app/pulse', icon: 'analytics' },
+            { href: '/app/pulse/events', label: a.events, active: at('/app/pulse/events'), icon: 'live' },
           ],
         },
         {
           section: labels.insights,
           items: [
-            { href: '/app/analytics/insights', label: a.insights, active: at('/app/analytics/insights'), icon: 'insights' },
+            { href: '/app/pulse/insights', label: a.insights, active: at('/app/pulse/insights'), icon: 'insights' },
             // Los tableros cuelgan del ítem (AnalyticsBranch en el hueco #side-branch), como en PostHog.
-            { href: '/app/analytics/dashboards', label: a.dashboards, active: at('/app/analytics/dashboards'), icon: 'dashboards', branch: true },
-            { href: '/app/analytics/sql', label: a.sql, active: at('/app/analytics/sql'), icon: 'sql' },
-            { href: '/app/analytics/alerts', label: a.alerts, active: at('/app/analytics/alerts'), icon: 'bell' },
-            { href: '/app/analytics/subscriptions', label: a.subscriptions, active: at('/app/analytics/subscriptions'), icon: 'calendar' },
+            { href: '/app/pulse/dashboards', label: a.dashboards, active: at('/app/pulse/dashboards'), icon: 'dashboards', branch: true },
+            { href: '/app/pulse/sql', label: a.sql, active: at('/app/pulse/sql'), icon: 'sql' },
+            { href: '/app/pulse/alerts', label: a.alerts, active: at('/app/pulse/alerts'), icon: 'bell' },
+            { href: '/app/pulse/subscriptions', label: a.subscriptions, active: at('/app/pulse/subscriptions'), icon: 'calendar' },
           ],
         },
         {
           section: labels.records,
           items: [
-            { href: '/app/analytics/persons', label: a.persons, active: at('/app/analytics/persons'), icon: 'contacts' },
-            { href: '/app/analytics/cohorts', label: a.cohorts, active: at('/app/analytics/cohorts'), icon: 'groups' },
-            { href: '/app/analytics/groups', label: a.groups, active: at('/app/analytics/groups'), icon: 'companies' },
-            { href: '/app/analytics/flags', label: a.flags, active: at('/app/analytics/flags'), icon: 'flag' },
-            { href: '/app/analytics/surveys', label: a.surveys, active: at('/app/analytics/surveys'), icon: 'forms' },
-            { href: '/app/analytics/errors', label: a.errors, active: at('/app/analytics/errors'), icon: 'bug' },
-            { href: '/app/analytics/llm', label: a.llm, active: at('/app/analytics/llm'), icon: 'assistant' },
-            ...(a.recordings ? [{ href: '/app/analytics/replay', label: a.recordings, active: at('/app/analytics/replay'), icon: 'rec' as const }] : []),
-            ...(a.heatmaps ? [{ href: '/app/analytics/heatmaps', label: a.heatmaps, active: at('/app/analytics/heatmaps'), icon: 'reports' as const }] : []),
-            { href: '/app/analytics/experiments', label: a.experiments, active: at('/app/analytics/experiments'), icon: 'forecast' },
+            { href: '/app/pulse/persons', label: a.persons, active: at('/app/pulse/persons'), icon: 'contacts' },
+            { href: '/app/pulse/cohorts', label: a.cohorts, active: at('/app/pulse/cohorts'), icon: 'groups' },
+            { href: '/app/pulse/groups', label: a.groups, active: at('/app/pulse/groups'), icon: 'companies' },
+            { href: '/app/pulse/flags', label: a.flags, active: at('/app/pulse/flags'), icon: 'flag' },
+            { href: '/app/pulse/surveys', label: a.surveys, active: at('/app/pulse/surveys'), icon: 'forms' },
+            { href: '/app/pulse/errors', label: a.errors, active: at('/app/pulse/errors'), icon: 'bug' },
+            { href: '/app/pulse/llm', label: a.llm, active: at('/app/pulse/llm'), icon: 'assistant' },
+            ...(a.recordings ? [{ href: '/app/pulse/replay', label: a.recordings, active: at('/app/pulse/replay'), icon: 'rec' as const }] : []),
+            ...(a.heatmaps ? [{ href: '/app/pulse/heatmaps', label: a.heatmaps, active: at('/app/pulse/heatmaps'), icon: 'reports' as const }] : []),
+            { href: '/app/pulse/experiments', label: a.experiments, active: at('/app/pulse/experiments'), icon: 'forecast' },
           ],
         },
         {
           items: [
-            { href: '/app/analytics/actions', label: a.actions, active: at('/app/analytics/actions'), icon: 'workflows' },
-            { href: '/app/analytics/data', label: a.data, active: at('/app/analytics/data'), icon: 'objects' },
-            { href: '/app/analytics/annotations', label: a.annotations, active: at('/app/analytics/annotations'), icon: 'notes' },
+            { href: '/app/pulse/actions', label: a.actions, active: at('/app/pulse/actions'), icon: 'workflows' },
+            { href: '/app/pulse/data', label: a.data, active: at('/app/pulse/data'), icon: 'objects' },
+            { href: '/app/pulse/annotations', label: a.annotations, active: at('/app/pulse/annotations'), icon: 'notes' },
           ],
         },
         {
           items: [
-            { href: '/app/analytics/projects', label: a.projects, active: at('/app/analytics/projects'), icon: 'folder' },
-            { href: '/app/analytics/settings', label: labels.appSettings, active: at('/app/analytics/settings'), icon: 'settings' },
+            { href: '/app/pulse/projects', label: a.projects, active: at('/app/pulse/projects'), icon: 'folder' },
+            { href: '/app/pulse/settings', label: labels.appSettings, active: at('/app/pulse/settings'), icon: 'settings' },
           ],
         },
       ];
@@ -1122,12 +1122,12 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/send/new', labels.send.newDocument, 'send')];
     case 'sign':
       return [item('/app/sign/new', labels.sign.newEnvelope, 'sign')];
-    case 'analytics':
+    case 'pulse':
       return [
-        item('/app/analytics/insights/new', labels.analytics.newInsight, 'insights'),
-        item('/app/analytics/dashboards?new=1', labels.analytics.dashboards, 'dashboards'),
-        item('/app/analytics/flags?new=1', labels.analytics.flags, 'flag'),
-        item('/app/analytics/surveys?new=1', labels.analytics.surveys, 'forms'),
+        item('/app/pulse/insights/new', labels.analytics.newInsight, 'insights'),
+        item('/app/pulse/dashboards?new=1', labels.analytics.dashboards, 'dashboards'),
+        item('/app/pulse/flags?new=1', labels.analytics.flags, 'flag'),
+        item('/app/pulse/surveys?new=1', labels.analytics.surveys, 'forms'),
       ];
     case 'home':
     case 'talk':

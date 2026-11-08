@@ -722,8 +722,8 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/people/cycles/${i.id}`))),
   },
   {
-    app: 'Analytics insights',
-    list: '/en/app/analytics/insights',
+    app: 'Pulse insights',
+    list: '/en/app/pulse/insights',
     create: async (request, name) => {
       const projectId = await analyticsProject(request);
       const { insight } = await ok<{ insight: { id: string } }>(
@@ -731,72 +731,72 @@ const APPS: AppCase[] = [
       );
       return { id: insight.id, name };
     },
-    detail: (i) => `/en/app/analytics/insights/${i.id}`,
+    detail: (i) => `/en/app/pulse/insights/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/insights/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/analytics/insights/${i.id}`))),
   },
   {
-    app: 'Analytics dashboards',
-    list: '/en/app/analytics/dashboards',
+    app: 'Pulse dashboards',
+    list: '/en/app/pulse/dashboards',
     // Cuelgan de "Dashboards" en el sidebar (AnalyticsBranch).
     sidebar: true,
     create: async (request, name) => {
       const projectId = await analyticsProject(request);
       return { id: (await ok<{ dashboard: { id: string } }>(request.post('/api/analytics/dashboards', { data: { projectId, name } }))).dashboard.id, name };
     },
-    detail: (i) => `/en/app/analytics/dashboards/${i.id}`,
+    detail: (i) => `/en/app/pulse/dashboards/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/dashboards/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/analytics/dashboards/${i.id}`))),
   },
   {
-    app: 'Analytics flags',
-    list: '/en/app/analytics/flags',
+    app: 'Pulse flags',
+    list: '/en/app/pulse/flags',
     create: async (request, name) => {
       const projectId = await analyticsProject(request);
       const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       return { id: (await ok<{ flag: { id: string } }>(request.post('/api/analytics/flags', { data: { projectId, key, name } }))).flag.id, name };
     },
-    detail: (i) => `/en/app/analytics/flags/${i.id}`,
+    detail: (i) => `/en/app/pulse/flags/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/flags/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/analytics/flags/${i.id}`))),
   },
   {
-    app: 'Analytics surveys',
-    list: '/en/app/analytics/surveys',
+    app: 'Pulse surveys',
+    list: '/en/app/pulse/surveys',
     create: async (request, name) => {
       const projectId = await analyticsProject(request);
       return { id: (await ok<{ survey: { id: string } }>(request.post('/api/analytics/surveys', { data: { projectId, name } }))).survey.id, name };
     },
-    detail: (i) => `/en/app/analytics/surveys/${i.id}`,
+    detail: (i) => `/en/app/pulse/surveys/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/surveys/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/analytics/surveys/${i.id}`))),
   },
   {
-    app: 'Analytics cohorts',
-    list: '/en/app/analytics/cohorts',
+    app: 'Pulse cohorts',
+    list: '/en/app/pulse/cohorts',
     create: async (request, name) => {
       const projectId = await analyticsProject(request);
       const definition = { properties: [], behavior: { event: '$pageview', days: 30, minCount: 1 } };
       return { id: (await ok<{ cohort: { id: string } }>(request.post('/api/analytics/cohorts', { data: { projectId, name, definition } }))).cohort.id, name };
     },
-    detail: (i) => `/en/app/analytics/cohorts?open=${i.id}`,
+    detail: (i) => `/en/app/pulse/cohorts?open=${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/cohorts/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/analytics/cohorts/${i.id}`))),
   },
   {
-    app: 'Analytics actions',
-    list: '/en/app/analytics/actions',
+    app: 'Pulse actions',
+    list: '/en/app/pulse/actions',
     create: async (request, name) => {
       const projectId = await analyticsProject(request);
       return { id: (await ok<{ action: { id: string } }>(request.post('/api/analytics/actions', { data: { projectId, name, steps: [{ event: '$pageview' }] } }))).action.id, name };
     },
-    detail: (i) => `/en/app/analytics/actions/${i.id}`,
+    detail: (i) => `/en/app/pulse/actions/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/actions/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/analytics/actions/${i.id}`))),
   },
   {
-    app: 'Analytics experiments',
-    list: '/en/app/analytics/experiments',
+    app: 'Pulse experiments',
+    list: '/en/app/pulse/experiments',
     create: async (request, name) => {
       const projectId = await analyticsProject(request);
       const key = `exp-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`.slice(0, 90);
@@ -808,18 +808,18 @@ const APPS: AppCase[] = [
       );
       return { id: experiment.id, name };
     },
-    detail: (i) => `/en/app/analytics/experiments/${i.id}`,
+    detail: (i) => `/en/app/pulse/experiments/${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/experiments/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/analytics/experiments/${i.id}`))),
   },
   {
-    app: 'Analytics projects',
-    list: '/en/app/analytics/projects',
+    app: 'Pulse projects',
+    list: '/en/app/pulse/projects',
     create: async (request, name) => {
       await analyticsProject(request);
       return { id: (await ok<{ project: { id: string } }>(request.post('/api/analytics/projects', { data: { name } }))).project.id, name };
     },
-    detail: (i) => `/en/app/analytics/settings?project=${i.id}`,
+    detail: (i) => `/en/app/pulse/settings?project=${i.id}`,
     rename: async (request, i, name) => void (await ok(request.patch(`/api/analytics/projects/${i.id}`, { data: { name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/analytics/projects/${i.id}`))),
   },

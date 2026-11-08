@@ -106,14 +106,14 @@ export default function RecordingsList({
     if (!enabled) {
       return (
         <EmptyState
-          product="analytics"
+          product="pulse"
           title={t('offTitle')}
           body={canManage ? t('offBody') : t('offBodyMember')}
-          action={canManage ? { label: t('openSettings'), href: '/app/analytics/settings#replay' } : undefined}
+          action={canManage ? { label: t('openSettings'), href: '/app/pulse/settings#replay' } : undefined}
         />
       );
     }
-    return <EmptyState product="analytics" title={t('emptyTitle')} body={t('emptyBody')} />;
+    return <EmptyState product="pulse" title={t('emptyTitle')} body={t('emptyBody')} />;
   }
 
   return (
@@ -122,7 +122,7 @@ export default function RecordingsList({
         <div className="an-callout" role="status">
           <p>{canManage ? t('offNotice') : t('offNoticeMember')}</p>
           {canManage && (
-            <Link href="/app/analytics/settings#replay" className="btn btn-sm">
+            <Link href="/app/pulse/settings#replay" className="btn btn-sm">
               {t('openSettings')}
             </Link>
           )}
@@ -146,7 +146,7 @@ export default function RecordingsList({
         </p>
       )}
       {rows.length === 0 ? (
-        <EmptyState product="analytics" compact title={error ? undefined : t('noMatch')} body={error ? t('error') : undefined} />
+        <EmptyState product="pulse" compact title={error ? undefined : t('noMatch')} body={error ? t('error') : undefined} />
       ) : (
         <div className="table-wrap table-stack">
           <table className="table table-compact an-table" data-testid="an-recordings">
@@ -166,7 +166,7 @@ export default function RecordingsList({
               {rows.map((r) => (
                 <tr key={r.id} data-testid="an-recording-row">
                   <td>
-                    <Link href={`/app/analytics/replay/${r.id}`} className="an-row-link an-replay-person">
+                    <Link href={`/app/pulse/replay/${r.id}`} className="an-row-link an-replay-person">
                       {r.person}
                     </Link>
                   </td>
@@ -183,7 +183,7 @@ export default function RecordingsList({
                     </span>
                   </td>
                   <td className="an-replay-rowactions">
-                    <Link href={`/app/analytics/replay/${r.id}`} className="btn btn-sm">
+                    <Link href={`/app/pulse/replay/${r.id}`} className="btn btn-sm">
                       {t('watch')}
                     </Link>
                     <button

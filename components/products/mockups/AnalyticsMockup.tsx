@@ -20,7 +20,7 @@ function points(values: readonly number[]): string {
  * embudo de tres pasos. Todo HTML, CSS y SVG.
  */
 export default function AnalyticsMockup() {
-  const t = useTranslations('pages.mockups.analytics');
+  const t = useTranslations('pages.mockups.pulse');
 
   return (
     <div className="mk mk-link">

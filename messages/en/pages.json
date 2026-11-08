@@ -1524,9 +1524,9 @@
         "button": "Open Design"
       }
     },
-    "analytics": {
+    "pulse": {
       "meta": {
-        "title": "Analytics: open-source product analytics",
+        "title": "Pulse: open-source product analytics",
         "description": "Events from a small JS snippet, trends, funnels, retention, dashboards, feature flags and web analytics. An open-source alternative to PostHog."
       },
       "hero": {
@@ -1579,7 +1579,7 @@
         "teamLabel": "5 million events a month",
         "team": "see PostHog pricing",
         "zero": "$0",
-        "note": "PostHog charges product analytics by usage: the first million events each month are free and the rest are billed per event, cheaper at higher volumes. We could not verify the current per-event price, so check posthog.com/pricing. Analytics on your server costs $0 plus your database."
+        "note": "PostHog charges product analytics by usage: the first million events each month are free and the rest are billed per event, cheaper at higher volumes. We could not verify the current per-event price, so check posthog.com/pricing. Pulse on your server costs $0 plus your database."
       },
       "faq": {
         "f1": {
@@ -1588,7 +1588,7 @@
         },
         "f2": {
           "q": "Does it record sessions?",
-          "a": "No. Session replay is not built. Analytics records events and their properties, never the screen."
+          "a": "Yes, if you turn it on for the project. Fields are masked and the player shows the page with the clicks and events on a timeline. Console and network logs are not recorded."
         },
         "f3": {
           "q": "What does autocapture collect?",
@@ -1600,14 +1600,14 @@
         },
         "f5": {
           "q": "What is missing compared to PostHog?",
-          "a": "Session replay, heatmaps, the toolbar, experiments, surveys, the data warehouse and pipelines, alerts and server or mobile SDKs. The SQL editor speaks SQLite, not HogQL. The parity table above has the full list."
+          "a": "The toolbar, the data warehouse and pipelines, and native mobile SDKs. Replay, heatmaps, experiments, surveys and alerts exist but do less than PostHog. The SQL editor speaks SQLite, not HogQL. The parity table above has the full list."
         }
       },
       "cta": {
         "title1": "Paste the script.",
         "title2": "Read the numbers.",
-        "sub": "Open Analytics, create a project and add the snippet to your site.",
-        "button": "Open Analytics"
+        "sub": "Open Pulse, create a project and add the snippet to your site.",
+        "button": "Open Pulse"
       }
     },
     "social": {
@@ -2298,7 +2298,7 @@
       "talk": "fig. 0 · messages arriving in a channel",
       "design": "fig. 0 · a shape changing on its artboard",
       "shop": "fig. 0 · a catalog of six products",
-      "analytics": "fig. 0 · a bar chart with sample data",
+      "pulse": "fig. 0 · a bar chart with sample data",
       "social": "fig. 0 · posts on a calendar",
       "hiring": "fig. 0 · candidates moving through stages",
       "people": "fig. 0 · time off on a calendar",
@@ -2641,7 +2641,7 @@
       "posterCta": "Shop now",
       "pages": "Page 1 of 3"
     },
-    "analytics": {
+    "pulse": {
       "navWeb": "Web analytics",
       "navInsights": "Insights",
       "navFlags": "Feature flags",
@@ -3592,7 +3592,7 @@
     "paramDesignView": "recent (default), mine, shared, starred or templates",
     "paramDesignId": "A design id: returns that design with its pages",
     "scope_design_read": "Read Design designs and their pages.",
-    "analyticsApiTitle": "Analytics",
+    "analyticsApiTitle": "Pulse",
     "analyticsApiDesc": "Product analytics. The ingest endpoints (/api/ingest/*) take the project key, not an API key: the public key (zsp_…) in the body from a browser, or the project secret key as Bearer zss_… from a server. Query endpoints accept a signed-in session or an API key with analytics:read.",
     "analyticsCaptureTitle": "Capture events",
     "analyticsCaptureDesc": "One event or a batch of up to 200, 512 KB per request. With the secret key as Bearer there is no origin check. Events with a repeated uuid are ignored. Rate limited per project.",
@@ -3616,8 +3616,8 @@
     "paramAnalyticsEvent": "Only this event name.",
     "paramAnalyticsAfter": "Only events with a larger id.",
     "paramAnalyticsCohort": "Only persons in this cohort id.",
-    "scope_analytics_read": "Read Analytics projects, events, persons and run queries.",
-    "scope_analytics_write": "Change Analytics projects, insights, dashboards, cohorts and flags.",
+    "scope_analytics_read": "Read Pulse projects, events, persons and run queries.",
+    "scope_analytics_write": "Change Pulse projects, insights, dashboards, cohorts and flags.",
     "scope_social_read": "Read Social posts on the accounts you can see.",
     "scope_people_read": "Read the People directory: public profile fields only, never salary or personal data.",
     "scope_hiring_read": "Read Hiring jobs and the candidates the key's owner can see.",

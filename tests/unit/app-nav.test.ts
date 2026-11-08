@@ -14,8 +14,8 @@ import {
 } from '@/components/app/sidebar-nav';
 import { pageExists } from './page-exists';
 
-const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'rec', 'hiring', 'sign', 'agents', 'robots', 'analytics'];
-const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send'];
+const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'rec', 'hiring', 'sign', 'agents', 'robots', 'pulse'];
+const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'pulse', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send'];
 
 
 /**
@@ -60,7 +60,7 @@ describe('sidebar de la app', () => {
     expect(appProductFromPath('/app/talk')).toBe('talk');
     expect(appProductFromPath('/app/social/posts')).toBe('social');
     expect(appProductFromPath('/app/design/abc')).toBe('design');
-    expect(appProductFromPath('/app/analytics/insights')).toBe('analytics');
+    expect(appProductFromPath('/app/pulse/insights')).toBe('pulse');
     expect(appProductFromPath('/app/links/analytics')).toBe('link');
     // El asistente es de la plataforma: shell neutro, nunca el de Link.
     expect(appProductFromPath('/app/assistant')).toBe('home');

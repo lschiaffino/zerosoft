@@ -120,7 +120,7 @@ function InternalToggle({ value, onChange, available }: { value: boolean; onChan
       {!available && (
         <span className="ui-help">
           {t('excludeInternalOff')}{' '}
-          <Link href="/app/analytics/settings#an-internal" className="an-link">
+          <Link href="/app/pulse/settings#an-internal" className="an-link">
             {t('settingsLink')}
           </Link>
         </span>
@@ -1034,7 +1034,7 @@ export default function InsightEditor({
           body: { projectId, name: newName ?? t('untitled'), query: cleaned },
         });
         notifyChanged();
-        router.replace(`/app/analytics/insights/${created.id}`);
+        router.replace(`/app/pulse/insights/${created.id}`);
       }
       setAskName(false);
     } catch (err) {
@@ -1050,7 +1050,7 @@ export default function InsightEditor({
     try {
       const { insight: created } = await api<{ insight: InsightDto }>('/api/analytics/insights', { body: { projectId, name: t('copyName', { name: (name || t('untitled')).slice(0, 180) }), query: cleaned as AnyQuery } });
       notifyChanged();
-      router.push(`/app/analytics/insights/${created.id}`);
+      router.push(`/app/pulse/insights/${created.id}`);
     } catch (err) {
       setError(apiErrorText(err, tc));
     } finally {
@@ -1075,7 +1075,7 @@ export default function InsightEditor({
   return (
     <div className="app-page ui-page an-page an-editor">
       <PageHeader
-        back={{ href: '/app/analytics/insights', label: t('back') }}
+        back={{ href: '/app/pulse/insights', label: t('back') }}
         title={
           insight ? (
             <TitleInput
@@ -1186,7 +1186,7 @@ export default function InsightEditor({
             <InsightResultView
               result={result}
               display={query.kind === 'trends' ? query.display : 'line'}
-              peopleHref={(ids) => `/app/analytics/persons?ids=${encodeURIComponent(ids.join(','))}`}
+              peopleHref={(ids) => `/app/pulse/persons?ids=${encodeURIComponent(ids.join(','))}`}
               annotations={annotations}
               query={cleaned}
               onLoadMore={
@@ -1201,7 +1201,7 @@ export default function InsightEditor({
                       void runQuery(projectId, { ...q, drill: cell })
                         .then((r) => {
                           const ids = r.kind === 'retention' ? (r.drillPersons ?? []) : [];
-                          if (ids.length) router.push(`/app/analytics/persons?ids=${encodeURIComponent(ids.join(','))}&from=retention`);
+                          if (ids.length) router.push(`/app/pulse/persons?ids=${encodeURIComponent(ids.join(','))}&from=retention`);
                         })
                         .catch(() => setError(t('errors.request_failed')));
                     }
@@ -1212,7 +1212,7 @@ export default function InsightEditor({
           {!running && !result && !error && kind === 'sql' && <p className="an-muted">{t('runHint')}</p>}
           {insight && (
             <p className="an-muted an-small">
-              <Link href="/app/analytics/dashboards" className="an-link">
+              <Link href="/app/pulse/dashboards" className="an-link">
                 {t('dashboardsLink')}
               </Link>
             </p>

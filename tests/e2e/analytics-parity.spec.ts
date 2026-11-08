@@ -61,7 +61,7 @@ test('stickiness, ciclo de vida, matemáticas, fórmula y CSV en el editor', asy
   const errors = watchErrors(page);
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
 
-  await page.goto('/en/app/analytics/insights/new', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/insights/new', { waitUntil: 'networkidle' });
   const result = page.getByTestId('an-result');
 
   // Suma de una propiedad.
@@ -111,7 +111,7 @@ test('correlación en un embudo y embudo guardado como cohorte estática', async
       data: { projectId, name: `Signup ${uid()}`, query: { kind: 'funnel', steps: [{ event: 'signup' }, { event: 'paid' }] } },
     })
   ).json();
-  await page.goto(`/en/app/analytics/insights/${insight.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/insights/${insight.id}`, { waitUntil: 'networkidle' });
   const panel = page.getByTestId('an-correlation');
   await panel.getByRole('button', { name: 'Analyze' }).click();
   await expect(panel).toContainText('Converted (2)', { timeout: 15_000 });
@@ -136,7 +136,7 @@ test('correlación en un embudo y embudo guardado como cohorte estática', async
 test('acción: se crea, se usa en una tendencia, se busca con Cmd+K y se borra', async ({ page, request, baseURL }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
   const name = `Convirtió ${uid()}`;
-  await page.goto('/en/app/analytics/actions', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/actions', { waitUntil: 'networkidle' });
   await expect(page.getByText('No actions yet')).toBeVisible();
   await page.getByRole('button', { name: 'New action' }).first().click();
   await page.getByRole('dialog').getByRole('textbox').fill(name);
@@ -154,7 +154,7 @@ test('acción: se crea, se usa en una tendencia, se busca con Cmd+K y se borra',
   const search = await request.get(`/api/search?q=${encodeURIComponent(name)}`);
   if (search.ok()) expect(JSON.stringify(await search.json())).toContain(name);
 
-  await page.goto('/en/app/analytics/actions', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/actions', { waitUntil: 'networkidle' });
   await expect(page.getByRole('link', { name })).toBeVisible();
   await page.getByRole('button', { name: `Delete: ${name}` }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
@@ -164,14 +164,14 @@ test('acción: se crea, se usa en una tendencia, se busca con Cmd+K y se borra',
 test('anotación: se ve en la lista y como marca en el gráfico', async ({ page, baseURL, request }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
   const note = `Lanzamiento ${uid()}`;
-  await page.goto('/en/app/analytics/annotations', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/annotations', { waitUntil: 'networkidle' });
   await page.getByRole('textbox', { name: 'Note' }).fill(note);
   await page.keyboard.press('Enter');
   await expect(page.getByRole('cell', { name: note, exact: true })).toBeVisible();
   const { insight } = await (await request.post('/api/analytics/insights', { data: { projectId, name: `T ${uid()}`, query: { kind: 'trends', series: [{ event: 'used_app' }], dateRange: { from: '-7d' } } } })).json();
-  await page.goto(`/en/app/analytics/insights/${insight.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/insights/${insight.id}`, { waitUntil: 'networkidle' });
   await expect(page.locator('.an-annotation-mark title').filter({ hasText: note })).toHaveCount(1);
-  await page.goto('/en/app/analytics/annotations', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/annotations', { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: `Delete: ${note}` }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
   await expect(page.getByRole('cell', { name: note, exact: true })).toHaveCount(0);
@@ -182,7 +182,7 @@ test('experimento con el snippet real en otro origen: exposición, conversión y
   const errors = watchErrors(page);
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
   const name = `Botón ${uid()}`;
-  await page.goto('/en/app/analytics/experiments', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/experiments', { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'New experiment' }).first().click();
   await page.getByRole('dialog').getByRole('textbox').fill(name);
   await page.keyboard.press('Enter');
@@ -252,7 +252,7 @@ test('flag con grupos de release y payload, y /decide', async ({ page, request, 
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
   const key = `promo-${uid()}`;
   const { flag } = await (await request.post('/api/analytics/flags', { data: { projectId, key } })).json();
-  await page.goto(`/en/app/analytics/flags/${flag.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/flags/${flag.id}`, { waitUntil: 'networkidle' });
   await page.getByTestId('an-flag-group').getByRole('button', { name: '+ Filter' }).click();
   await page.getByTestId('an-flag-group').getByLabel('Property').fill('plan');
   await page.getByTestId('an-flag-group').getByLabel('Value').fill('pro');
@@ -292,7 +292,7 @@ test('link público: se ve sin sesión, sin la consulta ni personas, y revocar l
       data: { projectId, name: `Público ${uid()}`, query: { kind: 'funnel', steps: [{ event: 'signup', filters: [{ key: 'email', op: 'not_contains', value: 'filtro-secreto', type: 'person' }] }, { event: 'paid' }] } },
     })
   ).json();
-  await page.goto(`/en/app/analytics/insights/${insight.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/insights/${insight.id}`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Share' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByText('No public links yet.')).toBeVisible();
@@ -335,14 +335,14 @@ test('un insight SQL no se puede hacer público', async ({ page, request, baseUR
   const res = await request.post('/api/analytics/shares', { data: { projectId, insightId: insight.id } });
   expect(res.status()).toBe(400);
   expect((await res.json()).error).toBe('sql_not_shareable');
-  await page.goto(`/en/app/analytics/insights/${insight.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/insights/${insight.id}`, { waitUntil: 'networkidle' });
   await expect(page.getByRole('button', { name: 'Share' })).toBeDisabled();
 });
 
 test('alerta desde un insight: aparece en el panel y en la lista, se pausa y se borra', async ({ page, request, baseURL }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
   const { insight } = await (await request.post('/api/analytics/insights', { data: { projectId, name: `Alertable ${uid()}`, query: { kind: 'trends', series: [{ event: 'used_app' }], dateRange: { from: '-7d' } } } })).json();
-  await page.goto(`/en/app/analytics/insights/${insight.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/insights/${insight.id}`, { waitUntil: 'networkidle' });
   const panel = page.getByTestId('an-alerts-panel');
   await expect(panel.getByText('No alerts on this insight.')).toBeVisible();
   await panel.getByRole('spinbutton', { name: 'Value' }).fill('5');
@@ -351,7 +351,7 @@ test('alerta desde un insight: aparece en el panel y en la lista, se pausa y se 
   await shot(page, 'alerts-panel');
   await panel.getByRole('button', { name: 'Pause' }).click();
   await expect(panel.getByText('Paused')).toBeVisible();
-  await page.goto('/en/app/analytics/alerts', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/alerts', { waitUntil: 'networkidle' });
   const list = page.getByTestId('an-list-alerts');
   await expect(list).toContainText(insight.name);
   await list.getByRole('button', { name: /^Delete:/ }).first().click();
@@ -391,7 +391,7 @@ test('proxy inverso real: el snippet y la ingesta pasan por otro origen', async 
 
 test('gestión de datos: ocultar un evento lo saca de los selectores; exportar da CSV', async ({ page, request, baseURL }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await page.goto('/en/app/analytics/data', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/data', { waitUntil: 'networkidle' });
   await page.getByRole('checkbox', { name: 'used_app hidden' }).check();
   await expect
     .poll(async () => ((await (await request.get(`/api/analytics/properties?project=${projectId}`)).json()) as { events: string[] }).events.includes('used_app'))
@@ -416,7 +416,7 @@ test('zona horaria: se elige en ajustes y los días del gráfico cortan a median
   const res = await request.post('/api/analytics/projects', { data: { name: `Zona ${uid()}` } });
   const { project } = (await res.json()) as { project: { id: string; publicKey: string } };
   await page.context().addCookies([{ name: 'zs_analytics_project', value: project.id, url: baseURL! }]);
-  await page.goto('/en/app/analytics/settings', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/settings', { waitUntil: 'networkidle' });
   await expect(page.getByTestId('an-timezone')).toHaveValue('');
   await page.getByTestId('an-timezone').selectOption('Asia/Tokyo');
   await shot(page, 'settings-timezone');
@@ -440,7 +440,7 @@ test('zona horaria: se elige en ajustes y los días del gráfico cortan a median
   expect(tokyoDay(stamp('14'))).not.toBe(tokyoDay(stamp('16')));
   expect(counts[tokyoDay(stamp('14'))]).toBe(1);
   expect(counts[tokyoDay(stamp('16'))]).toBe(1);
-  await page.goto('/en/app/analytics/insights/new', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/insights/new', { waitUntil: 'networkidle' });
   await page.getByRole('combobox', { name: 'Event' }).first().fill('tz_event');
   await expect(page.getByTestId('an-result').getByRole('cell', { name: '2', exact: true })).toBeVisible({ timeout: 10_000 });
 });
@@ -449,7 +449,7 @@ test('sin cookies con el snippet real: nada en el navegador, visitantes contados
   test.setTimeout(120_000);
   const { project } = (await (await request.post('/api/analytics/projects', { data: { name: `Cookieless ${uid()}` } })).json()) as { project: { id: string; publicKey: string } };
   await page.context().addCookies([{ name: 'zs_analytics_project', value: project.id, url: baseURL! }]);
-  await page.goto('/en/app/analytics/settings', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/settings', { waitUntil: 'networkidle' });
   await page.getByTestId('an-cookieless').check();
   await page.getByRole('button', { name: 'Save' }).first().click();
   await expect(page.getByRole('status').filter({ hasText: /saved/i }).first()).toBeVisible();

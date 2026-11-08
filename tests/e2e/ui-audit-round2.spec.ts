@@ -271,7 +271,7 @@ test('otra zona horaria no rompe la hidratación y el título va en el head', as
   const page = await ctx.newPage();
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  for (const path of ['/en/app/shop/inventory', '/en/app/analytics/events', '/en/app/people/reports', '/en/app/social/library', '/en/app/calendar/settings?tab=activity']) {
+  for (const path of ['/en/app/shop/inventory', '/en/app/pulse/events', '/en/app/people/reports', '/en/app/social/library', '/en/app/calendar/settings?tab=activity']) {
     const res = await page.goto(path, { waitUntil: 'networkidle' });
     expect(errors, path).toEqual([]);
     const html = (await res?.text()) ?? '';

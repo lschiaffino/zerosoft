@@ -410,7 +410,7 @@ export function SubscriptionsPage({ projectId, canManage, insights, dashboards }
       )}
       {rows === null && !error && <span className="ui-skeleton ui-skeleton-block" />}
       {rows !== null && rows.length === 0 && (
-        <EmptyState product="analytics" title={t('emptyTitle')} body={insights.length || dashboards.length ? t('emptyBody') : t('emptyBodyNothing')} action={insights.length || dashboards.length ? undefined : { label: t('newInsight'), href: '/app/analytics/insights/new' }} />
+        <EmptyState product="pulse" title={t('emptyTitle')} body={insights.length || dashboards.length ? t('emptyBody') : t('emptyBodyNothing')} action={insights.length || dashboards.length ? undefined : { label: t('newInsight'), href: '/app/pulse/insights/new' }} />
       )}
       {rows !== null && rows.length > 0 && (
         <>
