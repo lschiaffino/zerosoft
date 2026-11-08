@@ -51,8 +51,10 @@ test('plantillas: flowchart con flechas que siguen a la forma al moverla, y stor
   await page.setViewportSize({ width: 1440, height: 900 });
   // La galería muestra las plantillas nuevas y crea la pizarra.
   await page.goto('/es/app/board');
-  await page.locator('.board-templates-details summary, .board-templates-title').first().click().catch(() => {});
+  // Con pizarras en la lista la galería arranca plegada: se abre solo si hace falta.
   const storyMap = page.locator('.board-template').filter({ hasText: 'Mapa de historias de usuario' });
+  await expect(page.locator('.board-templates-title').first()).toBeVisible();
+  if (!(await storyMap.isVisible())) await page.locator('.board-templates-title').first().click();
   await expect(storyMap).toBeVisible();
   await expect(page.locator('.board-template').filter({ hasText: 'Diagrama de flujo' })).toBeVisible();
   await storyMap.click();
