@@ -106,7 +106,7 @@ test.describe('Track: adjuntos de cualquier tipo y tamaño', () => {
 
     // Quitar con confirmación.
     await exeRow.getByRole('button', { name: 'Delete' }).click();
-    const dialog = page.getByRole('dialog');
+    const dialog = page.getByRole('alertdialog');
     await expect(dialog).toContainText('setup.exe');
     await dialog.getByRole('button', { name: 'Delete' }).click();
     await expect(exeRow).toHaveCount(0);

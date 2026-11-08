@@ -145,7 +145,16 @@ test('los grupos dicen el total real y Load more trae lo que falta', async ({ pa
   await expect(page.getByTestId('track-group-count').first()).toHaveText('104');
   // El resto llega con "Load more" del grupo o, si la ventana es alta, con el scroll infinito antes del clic.
   const more = page.getByTestId('track-group-more').first();
-  if (await more.isVisible().catch(() => false)) await more.click().catch(() => undefined);
-  await expect(page.locator('tr[data-issue-row]')).toHaveCount(104);
+  const rows = page.locator('tr[data-issue-row]');
+  await expect
+    .poll(
+      async () => {
+        if (await more.isVisible().catch(() => false)) await more.click().catch(() => undefined);
+        else await page.mouse.wheel(0, 4000);
+        return rows.count();
+      },
+      { timeout: 60_000 },
+    )
+    .toBe(104);
   await expect(page.getByTestId('track-list-load-more')).toHaveCount(0);
 });
