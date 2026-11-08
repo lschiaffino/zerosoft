@@ -106,7 +106,7 @@ test('mensajes: editar, fijar, reenviar y borrar para todos', async ({ page, req
   await page.getByRole('alertdialog', { name: 'Delete for everyone?' }).getByRole('button', { name: 'Delete for everyone' }).click();
   await expect(page.locator('.gr-msg-out.is-deleted').getByText('You deleted this message')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Pinned messages' })).toHaveCount(0);
-  await expect(page.locator('.gr-row', { hasText: a })).toContainText('Message deleted');
+  await expect(page.locator('.gr-row', { hasText: a })).toContainText('You deleted this message');
 
   // La copia reenviada está en el otro chat.
   await openChat(page, b);
