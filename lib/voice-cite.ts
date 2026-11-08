@@ -37,7 +37,7 @@ function parseBracket(inner: string): VoiceCite[] | null {
       continue;
     }
     // "[M1 03:10, 04:20]": el segundo tiempo es de la misma reunión.
-    const meeting = m[1] ?? lastMeeting;
+    const meeting: string | null = m[1] ?? lastMeeting;
     lastMeeting = meeting;
     // "[M1, 03:10]": la reunión y su tiempo son una sola cita.
     const prev = out[out.length - 1];
