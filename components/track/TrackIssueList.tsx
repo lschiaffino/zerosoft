@@ -649,6 +649,13 @@ export default function TrackIssueList({
     // El link de la vista solo mientras no se cambió nada (si no, mandan los filtros).
     if (activeViewId && !viewDirty) sp.set('savedView', activeViewId);
     for (const [k, v] of Object.entries(JSON.parse(extraKey) as Record<string, string>)) sp.set(k, v);
+    // Pedidos de una sola vez que lee otro componente (?newIssue=1 lo toma TrackShortcuts, que hidrata
+    // después dentro de un Suspense): no se pisan al escribir el estado de la lista.
+    const current = new URLSearchParams(window.location.search);
+    for (const k of ['newIssue']) {
+      const v = current.get(k);
+      if (v !== null) sp.set(k, v);
+    }
     const qs = sp.toString();
     if (window.location.search.replace(/^\?/, '') === qs) return;
     router.replace(`${team.href}?${qs}`, { scroll: false });
