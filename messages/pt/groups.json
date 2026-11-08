@@ -1070,7 +1070,7 @@
     "noDate": "Sem data",
     "owner": "Para",
     "notes": "Notas",
-    "help": "Nesse horário a pessoa recebe um aviso e um email. A tarefa também aparece em CRM › Tarefas.",
+    "help": "Nesse horário a pessoa recebe um aviso e um email. A tarefa também aparece em CRM › Tarefas, no contato do chat e nas tarefas dela no início.",
     "section": "Tarefas ({n})",
     "add": "Adicionar tarefa",
     "chatEmpty": "Este chat não tem tarefas.",
@@ -1096,7 +1096,16 @@
     "actions": "Ações",
     "editTitle": "Editar tarefa",
     "deleteTitle": "Apagar {title}?",
-    "deleteBody": "Ela também sai de CRM › Tarefas."
+    "deleteBody": "Ela também sai de CRM › Tarefas.",
+    "priority": "Prioridade",
+    "priorities": {
+      "none": "Sem prioridade",
+      "low": "Baixa",
+      "medium": "Média",
+      "high": "Alta"
+    },
+    "fromCrm": "Do CRM",
+    "fromCrmHint": "Tarefa do contato ou da empresa deste chat no CRM"
   },
   "ticketFields": {
     "filter": "Filtrar por campo",

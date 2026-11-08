@@ -8,10 +8,16 @@
  * A la hora de la tarea, /api/cron/minute avisa a quien la tiene (en la app y
  * por email). El claim es reminded_for: el UPDATE compara contra el
  * vencimiento leído, así dos corridas no avisan dos veces y si la tarea se
- * mueve a otra hora vuelve a avisar en la nueva. Server-only.
+ * mueve a otra hora vuelve a avisar en la nueva.
+ *
+ * Las tareas del CRM sobre el contacto o la empresa del chat también se ven
+ * en el chat (source 'crm'), para quien usa el CRM y las ve allá: una tarea
+ * creada en el contacto aparece en su WhatsApp y al revés. Server-only.
  */
 import { getDb } from './db';
 import { createActivity, deleteActivity, updateActivity } from './crm';
+import { activityScopeSql, type OwnerScope } from './crm-visibility';
+import { cleanPriority, type TaskPriority } from './tasks-shared';
 import { appSender, escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
 import { siteUrl } from './board-urls';
@@ -46,6 +52,9 @@ export interface GroupTaskDto {
   ownerId: string | null;
   ownerName: string;
   createdAt: string;
+  priority: TaskPriority;
+  /** 'lines': salió de este chat; 'crm': es del contacto o la empresa del chat. */
+  source: 'lines' | 'crm';
 }
 
 interface TaskJoin {
@@ -61,6 +70,8 @@ interface TaskJoin {
   owner_id: string | null;
   owner_name: string | null;
   owner_email: string | null;
+  priority: string | null;
+  source: string;
   chat_name: string;
   chat_phone: string;
   chat_pid: string;
@@ -68,13 +79,40 @@ interface TaskJoin {
 }
 
 const SELECT = `SELECT t.id, t.activity_id, t.chat_id, t.message_id, t.created_at,
-    a.subject, a.body, a.due_at, a.done, a.owner_id, u.name AS owner_name, u.email AS owner_email,
+    a.subject, a.body, a.due_at, a.done, a.owner_id, u.name AS owner_name, u.email AS owner_email, a.priority, 'lines' AS source,
     c.name AS chat_name, c.phone AS chat_phone, c.provider_chat_id AS chat_pid, m.body AS message_body
   FROM groups_tasks t
   JOIN crm_activities a ON a.id = t.activity_id
   JOIN groups_chats c ON c.id = t.chat_id
   LEFT JOIN users u ON u.id = a.owner_id
   LEFT JOIN groups_messages m ON m.id = t.message_id`;
+
+/**
+ * Tareas del CRM sobre el contacto o la empresa de un chat que no salieron de
+ * ese chat. Mismas columnas que SELECT; el id es el de la tarea del CRM.
+ */
+const SELECT_RECORD = `SELECT a.id AS id, a.id AS activity_id, c.id AS chat_id, NULL AS message_id, a.created_at,
+    a.subject, a.body, a.due_at, a.done, a.owner_id, u.name AS owner_name, u.email AS owner_email, a.priority, 'crm' AS source,
+    c.name AS chat_name, c.phone AS chat_phone, c.provider_chat_id AS chat_pid, NULL AS message_body
+  FROM crm_activities a
+  JOIN groups_chats c ON c.user_id = a.user_id
+    AND ((a.contact_id IS NOT NULL AND c.crm_contact_id = a.contact_id) OR (a.company_id IS NOT NULL AND c.crm_company_id = a.company_id))
+  LEFT JOIN users u ON u.id = a.owner_id
+  WHERE a.type = 'task' AND NOT EXISTS (SELECT 1 FROM groups_tasks gt WHERE gt.activity_id = a.id AND gt.chat_id = c.id)`;
+
+/** Visibilidad del CRM de quien mira, o false si no usa el CRM (entonces solo ve las tareas que salieron de chats). */
+export async function crmTaskScope(user: { id: string; role: import('./teams').TeamRole; actingUser?: { id: string } | null; apps?: import('./workspace').AppAccess }): Promise<OwnerScope | false> {
+  const { canUseApp } = await import('./workspace');
+  if (!canUseApp({ role: user.role, apps: user.apps ?? '*' }, 'crm')) return false;
+  const { sessionScope } = await import('./crm-visibility');
+  return sessionScope(user);
+}
+
+/** Las tareas del CRM del registro del chat, con la visibilidad del CRM de quien mira (null: no usa el CRM). */
+function recordScope(crm: OwnerScope | false | undefined): { sql: string; args: string[] } | null {
+  if (crm === false || crm === undefined) return null;
+  return activityScopeSql('a', crm);
+}
 
 function toDto(r: TaskJoin): GroupTaskDto {
   return {
@@ -91,6 +129,8 @@ function toDto(r: TaskJoin): GroupTaskDto {
     ownerId: r.owner_id,
     ownerName: r.owner_name || r.owner_email || '',
     createdAt: r.created_at,
+    priority: cleanPriority(r.priority),
+    source: r.source === 'crm' ? 'crm' : 'lines',
   };
 }
 
@@ -120,9 +160,19 @@ async function assertPerson(ws: string, personId: string): Promise<void> {
   if (!(await isWorkspacePerson(ws, personId))) throw new GroupsError('invalid_assignee');
 }
 
-export async function getGroupTask(ws: string, id: string): Promise<GroupTaskDto | null> {
+/**
+ * La tarea de un chat. Con `crm` (la visibilidad del CRM de quien mira),
+ * también una tarea del CRM sobre el contacto o la empresa de algún chat.
+ */
+export async function getGroupTask(ws: string, id: string, crm?: OwnerScope | false): Promise<GroupTaskDto | null> {
   const r = (await getDb().prepare(`${SELECT} WHERE t.id = ? AND t.user_id = ?`).get(id, ws)) as TaskJoin | undefined;
-  return r ? toDto(r) : null;
+  if (r) return toDto(r);
+  const scope = recordScope(crm);
+  if (!scope) return null;
+  const rec = (await getDb()
+    .prepare(`${SELECT_RECORD} AND a.id = ? AND a.user_id = ?${scope.sql ? ` AND ${scope.sql}` : ''} LIMIT 1`)
+    .get(id, ws, ...scope.args)) as TaskJoin | undefined;
+  return rec ? toDto(rec) : null;
 }
 
 export interface CreateTaskInput {
@@ -134,6 +184,7 @@ export interface CreateTaskInput {
   ownerId?: string | null;
   locale?: string;
   timezone?: string;
+  priority?: TaskPriority;
 }
 
 /** Crea la tarea (del CRM) ligada al chat y, si viene, al mensaje. */
@@ -158,6 +209,7 @@ export async function createGroupTask(ws: string, actor: string, input: CreateTa
     body: notes || (messageBody ? `${chatDisplayName(chat)}: ${messageBody.slice(0, 1000)}` : chatDisplayName(chat)),
     dueAt,
     ownerId,
+    priority: cleanPriority(input.priority),
     contactId: chat.crm_contact_id,
     companyId: chat.crm_company_id,
   });
@@ -169,6 +221,12 @@ export async function createGroupTask(ws: string, actor: string, input: CreateTa
       'INSERT INTO groups_tasks (id, user_id, chat_id, message_id, activity_id, created_by, locale, timezone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(id, ws, chat.id, input.messageId ?? null, activity.id, actor, locale, safeTimezone(input.timezone), now.toISOString());
+  // Vínculos de la tarea de la suite (lib/tasks.ts): el CRM, el inicio y la API muestran de qué chat salió.
+  const link = getDb().prepare(
+    'INSERT OR IGNORE INTO task_links (task_id, workspace_id, kind, ref_id, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+  );
+  await link.run(id, ws, 'lines_chat', chat.id, actor, now.toISOString());
+  if (input.messageId) await link.run(id, ws, 'lines_message', input.messageId, actor, now.toISOString());
   return (await getGroupTask(ws, id)) as GroupTaskDto;
 }
 
@@ -179,6 +237,8 @@ export interface TaskQuery {
   ownerId?: string;
   q?: string;
   limit?: number;
+  /** Con chatId: sumar las tareas del CRM del contacto o la empresa del chat, con esta visibilidad. */
+  crm?: OwnerScope | false;
 }
 
 /** Tareas de Groups: abiertas primero por vencimiento (las sin fecha al final). */
@@ -205,7 +265,37 @@ export async function listGroupTasks(ws: string, me: string, query: TaskQuery = 
   const rows = (await getDb()
     .prepare(`${SELECT} WHERE ${where.join(' AND ')} ORDER BY a.done ASC, CASE WHEN a.due_at IS NULL THEN 1 ELSE 0 END, a.due_at ASC, t.created_at DESC LIMIT ?`)
     .all(...args, limit)) as TaskJoin[];
-  return rows.map(toDto);
+  const scope = query.chatId ? recordScope(query.crm) : null;
+  if (scope) {
+    const rWhere = ['c.id = ?', 'a.user_id = ?'];
+    const rArgs: Array<string | number> = [query.chatId as string, ws];
+    if (status === 'open') rWhere.push('a.done = 0');
+    if (status === 'done') rWhere.push('a.done = 1');
+    if (query.ownerId) {
+      rWhere.push('a.owner_id = ?');
+      rArgs.push(query.ownerId === 'me' ? me : query.ownerId);
+    }
+    if (query.q?.trim()) {
+      rWhere.push(`a.subject LIKE ? ESCAPE '\\'`);
+      rArgs.push(`%${query.q.trim().slice(0, 100).replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`);
+    }
+    if (scope.sql) {
+      rWhere.push(scope.sql);
+      rArgs.push(...scope.args);
+    }
+    const extra = (await getDb()
+      .prepare(`${SELECT_RECORD} AND ${rWhere.join(' AND ')} LIMIT ?`)
+      .all(...rArgs, limit)) as TaskJoin[];
+    rows.push(...extra);
+    rows.sort(
+      (x, y) =>
+        x.done - y.done ||
+        (x.due_at ? 0 : 1) - (y.due_at ? 0 : 1) ||
+        (x.due_at ?? '').localeCompare(y.due_at ?? '') ||
+        y.created_at.localeCompare(x.created_at),
+    );
+  }
+  return rows.slice(0, limit).map(toDto);
 }
 
 export interface TaskPatch {
@@ -214,10 +304,11 @@ export interface TaskPatch {
   dueAt?: string | null;
   ownerId?: string | null;
   done?: boolean;
+  priority?: TaskPriority;
 }
 
-export async function updateGroupTask(ws: string, id: string, patch: TaskPatch): Promise<GroupTaskDto> {
-  const task = await getGroupTask(ws, id);
+export async function updateGroupTask(ws: string, id: string, patch: TaskPatch, crm?: OwnerScope | false): Promise<GroupTaskDto> {
+  const task = await getGroupTask(ws, id, crm);
   if (!task) throw new GroupsError('not_found', 404);
   const data: Parameters<typeof updateActivity>[2] = {};
   if (patch.title !== undefined) {
@@ -232,10 +323,12 @@ export async function updateGroupTask(ws: string, id: string, patch: TaskPatch):
     data.ownerId = patch.ownerId || null;
   }
   if (patch.done !== undefined) data.done = patch.done;
+  if (patch.priority !== undefined) data.priority = cleanPriority(patch.priority);
   await updateActivity(ws, task.activityId, data);
-  return (await getGroupTask(ws, id)) as GroupTaskDto;
+  return (await getGroupTask(ws, id, crm)) as GroupTaskDto;
 }
 
+/** Borra una tarea que salió de un chat (las del CRM se borran en el CRM). */
 export async function deleteGroupTask(ws: string, id: string): Promise<boolean> {
   const task = await getGroupTask(ws, id);
   if (!task) return false;

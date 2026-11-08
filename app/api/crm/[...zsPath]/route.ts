@@ -80,19 +80,20 @@ import * as m74 from '@/lib/routes/crm/t/u/[token]/route';
 import * as m75 from '@/lib/routes/crm/tags/[id]/route';
 import * as m76 from '@/lib/routes/crm/tasks/[id]/files/route';
 import * as m77 from '@/lib/routes/crm/tasks/[id]/snooze/route';
-import * as m78 from '@/lib/routes/crm/tasks/projects/[id]/route';
-import * as m79 from '@/lib/routes/crm/trash/[id]/restore/route';
-import * as m80 from '@/lib/routes/crm/v/[token]/file/route';
-import * as m81 from '@/lib/routes/crm/v/[token]/track/route';
-import * as m82 from '@/lib/routes/crm/videos/[id]/route';
-import * as m83 from '@/lib/routes/crm/videos/[id]/file/route';
-import * as m84 from '@/lib/routes/crm/views/[id]/route';
-import * as m85 from '@/lib/routes/crm/voice/calls/[id]/route';
-import * as m86 from '@/lib/routes/crm/voice/calls/[id]/end/route';
-import * as m87 from '@/lib/routes/crm/voice/calls/[id]/recording/route';
-import * as m88 from '@/lib/routes/crm/workflows/[id]/route';
-import * as m89 from '@/lib/routes/crm/workflows/[id]/run/route';
-import * as m90 from '@/lib/routes/crm/workflows/[id]/toggle/route';
+import * as m78 from '@/lib/routes/crm/tasks/[id]/track/route';
+import * as m79 from '@/lib/routes/crm/tasks/projects/[id]/route';
+import * as m80 from '@/lib/routes/crm/trash/[id]/restore/route';
+import * as m81 from '@/lib/routes/crm/v/[token]/file/route';
+import * as m82 from '@/lib/routes/crm/v/[token]/track/route';
+import * as m83 from '@/lib/routes/crm/videos/[id]/route';
+import * as m84 from '@/lib/routes/crm/videos/[id]/file/route';
+import * as m85 from '@/lib/routes/crm/views/[id]/route';
+import * as m86 from '@/lib/routes/crm/voice/calls/[id]/route';
+import * as m87 from '@/lib/routes/crm/voice/calls/[id]/end/route';
+import * as m88 from '@/lib/routes/crm/voice/calls/[id]/recording/route';
+import * as m89 from '@/lib/routes/crm/workflows/[id]/route';
+import * as m90 from '@/lib/routes/crm/workflows/[id]/run/route';
+import * as m91 from '@/lib/routes/crm/workflows/[id]/toggle/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -176,19 +177,20 @@ const d = createDispatcher('zsPath', [
   { pattern: 'tags/[id]', mod: m75 }, // lib/routes/crm/tags/[id]
   { pattern: 'tasks/[id]/files', mod: m76 }, // lib/routes/crm/tasks/[id]/files
   { pattern: 'tasks/[id]/snooze', mod: m77 }, // lib/routes/crm/tasks/[id]/snooze
-  { pattern: 'tasks/projects/[id]', mod: m78 }, // lib/routes/crm/tasks/projects/[id]
-  { pattern: 'trash/[id]/restore', mod: m79 }, // lib/routes/crm/trash/[id]/restore
-  { pattern: 'v/[token]/file', mod: m80 }, // lib/routes/crm/v/[token]/file
-  { pattern: 'v/[token]/track', mod: m81 }, // lib/routes/crm/v/[token]/track
-  { pattern: 'videos/[id]', mod: m82 }, // lib/routes/crm/videos/[id]
-  { pattern: 'videos/[id]/file', mod: m83 }, // lib/routes/crm/videos/[id]/file
-  { pattern: 'views/[id]', mod: m84 }, // lib/routes/crm/views/[id]
-  { pattern: 'voice/calls/[id]', mod: m85 }, // lib/routes/crm/voice/calls/[id]
-  { pattern: 'voice/calls/[id]/end', mod: m86 }, // lib/routes/crm/voice/calls/[id]/end
-  { pattern: 'voice/calls/[id]/recording', mod: m87 }, // lib/routes/crm/voice/calls/[id]/recording
-  { pattern: 'workflows/[id]', mod: m88 }, // lib/routes/crm/workflows/[id]
-  { pattern: 'workflows/[id]/run', mod: m89 }, // lib/routes/crm/workflows/[id]/run
-  { pattern: 'workflows/[id]/toggle', mod: m90 }, // lib/routes/crm/workflows/[id]/toggle
+  { pattern: 'tasks/[id]/track', mod: m78 }, // lib/routes/crm/tasks/[id]/track
+  { pattern: 'tasks/projects/[id]', mod: m79 }, // lib/routes/crm/tasks/projects/[id]
+  { pattern: 'trash/[id]/restore', mod: m80 }, // lib/routes/crm/trash/[id]/restore
+  { pattern: 'v/[token]/file', mod: m81 }, // lib/routes/crm/v/[token]/file
+  { pattern: 'v/[token]/track', mod: m82 }, // lib/routes/crm/v/[token]/track
+  { pattern: 'videos/[id]', mod: m83 }, // lib/routes/crm/videos/[id]
+  { pattern: 'videos/[id]/file', mod: m84 }, // lib/routes/crm/videos/[id]/file
+  { pattern: 'views/[id]', mod: m85 }, // lib/routes/crm/views/[id]
+  { pattern: 'voice/calls/[id]', mod: m86 }, // lib/routes/crm/voice/calls/[id]
+  { pattern: 'voice/calls/[id]/end', mod: m87 }, // lib/routes/crm/voice/calls/[id]/end
+  { pattern: 'voice/calls/[id]/recording', mod: m88 }, // lib/routes/crm/voice/calls/[id]/recording
+  { pattern: 'workflows/[id]', mod: m89 }, // lib/routes/crm/workflows/[id]
+  { pattern: 'workflows/[id]/run', mod: m90 }, // lib/routes/crm/workflows/[id]/run
+  { pattern: 'workflows/[id]/toggle', mod: m91 }, // lib/routes/crm/workflows/[id]/toggle
 ]);
 
 export const GET = d.GET;

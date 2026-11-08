@@ -638,7 +638,7 @@
     "viewAll": "Ver todo",
     "today": {
       "title": "Para hoy",
-      "crm": "Tareas del CRM",
+      "crm": "Tareas",
       "crmEmpty": "No tenés tareas vencidas ni para hoy.",
       "overdue": "Atrasada",
       "dueToday": "Hoy",

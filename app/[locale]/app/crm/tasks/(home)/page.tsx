@@ -9,6 +9,8 @@ import { relDate, parseDbUtc } from '@/lib/utils';
 import { getUserTimeZone } from '@/lib/user-tz';
 import TasksView, { type TaskRow } from '@/components/crm/TasksView';
 import TaskProjectsManager from '@/components/crm/TaskProjectsManager';
+import { primaryLink } from '@/lib/tasks-shared';
+import { taskLinksFor } from '@/lib/tasks';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +54,8 @@ export default async function TasksPage(props: TasksPageProps) {
       parseDbUtc(iso),
     );
 
+  // De dónde viene cada tarea fuera del CRM (chat de WhatsApp, página, issue).
+  const links = await taskLinksFor(user, tasks.map((a) => a.id));
   const ownerMap = new Map(teamMembers.map((m) => [m.user_id, m.name ?? m.email]));
 
   const rows: TaskRow[] = tasks.map((a) => {
@@ -80,6 +84,11 @@ export default async function TasksPage(props: TasksPageProps) {
       projectName: a.project_name ?? undefined,
       projectColor: a.project_color ?? undefined,
       repeat: a.repeat && a.repeat !== 'none' && a.done !== 1 ? a.repeat : undefined,
+      priority: a.priority === 'low' || a.priority === 'medium' || a.priority === 'high' ? a.priority : undefined,
+      source: (() => {
+        const l = primaryLink(links.get(a.id));
+        return l && l.href ? { href: l.href, app: l.app, label: l.label } : undefined;
+      })(),
     };
   });
 

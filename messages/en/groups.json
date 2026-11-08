@@ -1070,7 +1070,7 @@
     "noDate": "No date",
     "owner": "For",
     "notes": "Notes",
-    "help": "At that time the person gets a notification and an email. The task also shows in CRM › Tasks.",
+    "help": "At that time the person gets a notification and an email. The task also shows in CRM › Tasks, on the chat’s contact and in their tasks on Home.",
     "section": "Tasks ({n})",
     "add": "Add task",
     "chatEmpty": "No tasks for this chat.",
@@ -1096,7 +1096,16 @@
     "actions": "Actions",
     "editTitle": "Edit task",
     "deleteTitle": "Delete {title}?",
-    "deleteBody": "It is also removed from CRM › Tasks."
+    "deleteBody": "It is also removed from CRM › Tasks.",
+    "priority": "Priority",
+    "priorities": {
+      "none": "No priority",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "fromCrm": "From the CRM",
+    "fromCrmHint": "Task on this chat’s contact or company in the CRM"
   },
   "ticketFields": {
     "filter": "Filter by field",

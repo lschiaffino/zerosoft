@@ -638,7 +638,7 @@
     "viewAll": "View all",
     "today": {
       "title": "For today",
-      "crm": "CRM tasks",
+      "crm": "Tasks",
       "crmEmpty": "No overdue tasks or tasks due today.",
       "overdue": "Overdue",
       "dueToday": "Today",

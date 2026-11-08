@@ -69,7 +69,7 @@ export default async function PlatformHomePage(props: {
   // "Pedido enviado" sigue al recargar: sale de la base, no del estado del botón.
   const alreadyAsked = Boolean(blocked && user.actingUser && user.workspace && (await isRequestPending(user.workspace.id, person.id, blocked)));
   const lost = await lostAccessNotice(person.id);
-  const todayBlocks = can('crm') || can('track') || can('cal') || (can('chat') && can('groups'));
+  const todayBlocks = can('crm') || can('track') || can('cal') || can('groups');
 
   const appCard = (k: ProductKey) => (
     <li key={k}>
@@ -114,8 +114,10 @@ export default async function PlatformHomePage(props: {
           <Suspense
             fallback={<HomeBlockLoading locale={locale} product="crm" titleKey="today.crm" href="/app/crm/tasks" testId="home-crm-tasks" />}
           >
-            {/* En uso personal el CRM no está destacado: el bloque aparece solo si hay tareas. */}
-            {can('crm') && <CrmTasksBlock user={user} locale={locale} hideWhenEmpty={!team} scope={taskScope} />}
+            {/* Tareas de toda la suite. En uso personal, o sin CRM, el bloque aparece solo si hay tareas. */}
+            {(can('crm') || can('groups')) && (
+              <CrmTasksBlock user={user} locale={locale} hideWhenEmpty={!team && can('crm')} scope={taskScope} />
+            )}
           </Suspense>
           <Suspense
             fallback={
