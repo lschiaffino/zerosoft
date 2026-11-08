@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, realUserId } from '@/lib/session';
+import { getCurrentUser, realUserId, userCanUseApp } from '@/lib/session';
 import { syncOutlookMailbox } from '@/lib/crm-outlook-sync';
 import { limitAction } from '@/lib/crm-http';
 
@@ -14,6 +14,8 @@ export const maxDuration = 60;
 export async function POST() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  // El correo se sincroniza en el CRM del workspace: sin CRM, no.
+  if (!userCanUseApp(user, 'crm')) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const personId = realUserId(user);
   const limited = await limitAction(personId, 'outlook-sync', 20, 3600);
   if (limited) return limited;

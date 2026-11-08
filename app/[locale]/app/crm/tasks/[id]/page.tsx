@@ -17,7 +17,7 @@ import TaskFiles from '@/components/crm/TaskFiles';
 import TaskDonePin from '@/components/crm/TaskDonePin';
 import TaskLinksPanel from '@/components/crm/TaskLinksPanel';
 import { taskLinksFor } from '@/lib/tasks';
-import { canUseApp } from '@/lib/workspace';
+import { canUse } from '@/lib/permissions';
 import { ACTIVITY_TYPES } from '@/lib/crm-constants';
 import { TASK_REPEATS } from '@/lib/crm-task-repeat';
 import { parseDbUtc } from '@/lib/utils';
@@ -71,7 +71,7 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
   const files = await listTaskFiles(id);
   const links = (await taskLinksFor(user, [id])).get(id) ?? [];
   // Pasar a Track: solo si la persona usa Track (los proyectos que ve).
-  const trackProjects = canUseApp({ role: user.role, apps: user.apps ?? '*' }, 'track')
+  const trackProjects = canUse(user, 'track')
     ? (await (await import('@/lib/track-data')).listProjectMetas(user.team?.id ?? null, user.id)).map((p) => ({ id: p.id, name: p.name }))
     : null;
   const projects = await listTaskProjects(user.id, true);

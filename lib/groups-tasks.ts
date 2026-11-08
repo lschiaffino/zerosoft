@@ -102,8 +102,8 @@ const SELECT_RECORD = `SELECT a.id AS id, a.id AS activity_id, c.id AS chat_id, 
 
 /** Visibilidad del CRM de quien mira, o false si no usa el CRM (entonces solo ve las tareas que salieron de chats). */
 export async function crmTaskScope(user: { id: string; role: import('./teams').TeamRole; actingUser?: { id: string } | null; apps?: import('./workspace').AppAccess }): Promise<OwnerScope | false> {
-  const { canUseApp } = await import('./workspace');
-  if (!canUseApp({ role: user.role, apps: user.apps ?? '*' }, 'crm')) return false;
+  const { canUse } = await import('./permissions');
+  if (!canUse(user, 'crm')) return false;
   return sessionScope(user);
 }
 

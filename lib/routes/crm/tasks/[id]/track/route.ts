@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getCurrentUser } from '@/lib/session';
 import { canSeeActivity, sessionScope } from '@/lib/crm-visibility';
 import { crmError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
-import { canUseApp } from '@/lib/workspace';
+import { canUse } from '@/lib/permissions';
 import { limitWrites } from '@/lib/write-limit';
 
 export const runtime = 'nodejs';
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!canUseApp({ role: user.role, apps: user.apps ?? '*' }, 'track')) return crmError(403, 'forbidden');
+  if (!canUse(user, 'track')) return crmError(403, 'forbidden');
   if (!(await canSeeActivity(user.id, id, await sessionScope(user)))) return notFound();
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);

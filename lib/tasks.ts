@@ -316,8 +316,8 @@ export async function taskLinksFor(
 ): Promise<Map<string, TaskLink[]>> {
   const all = await taskLinks(user.id, taskIds);
   if (!all.size) return all;
-  const { canUseApp } = await import('./workspace');
-  const can = (app: TaskLink['app']) => canUseApp({ role: user.role, apps: user.apps ?? '*' }, app);
+  const { canUse } = await import('./permissions');
+  const can = (app: TaskLink['app']) => canUse(user, app);
   let chats: Set<string> | null = null;
   let mask: ((s: string) => string) | null = null;
   if (can('groups') && [...all.values()].some((ls) => ls.some((l) => l.chatId))) {
