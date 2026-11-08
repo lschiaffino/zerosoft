@@ -119,12 +119,13 @@ test('importar al conectar: 212 chats con nombres, fotos y mensajes; el hilo se 
     await thread.dispatchEvent('dragenter', { dataTransfer: dt });
     await expect(page.getByText('Drop to attach')).toBeVisible();
     await thread.dispatchEvent('drop', { dataTransfer: dt });
-    const tray = page.getByRole('list', { name: 'Files to send' });
-    await expect(tray.getByText('nota.txt')).toBeVisible();
+    // Vista previa como WhatsApp: el archivo, su comentario, la tira de miniaturas y mandar.
+    const tray = page.getByRole('dialog', { name: 'Files to send' });
+    await expect(tray.getByText('nota.txt').first()).toBeVisible();
     await expect(tray.getByRole('progressbar')).toHaveCount(0, { timeout: 15_000 });
-    const composer = page.getByLabel('WhatsApp', { exact: true });
-    await composer.fill('Te mando la nota');
-    await composer.press('Enter');
+    const caption = tray.getByLabel('Add a caption');
+    await caption.fill('Te mando la nota');
+    await caption.press('Enter');
     await expect(page.locator('.gr-msg-out', { hasText: 'Te mando la nota' }).locator('.wa-doc')).toBeVisible();
     await expect(tray).toHaveCount(0);
     expect(hits.some((p) => p.startsWith('/message/sendMedia/'))).toBe(true);

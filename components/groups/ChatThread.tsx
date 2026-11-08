@@ -3,7 +3,7 @@
 import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDef, QuickReply } from '@/lib/groups';
@@ -14,13 +14,18 @@ import { useGroupsInbox } from './InboxShell';
 import ChatDetails from './ChatDetails';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import TaskModal from './TaskModal';
+import ReplyFromSelect from './ReplyFromSelect';
+import type { ReplyLine } from '@/lib/groups-lines-shared';
 import { Modal, api, isLeavingChat, useErrorText, useLeavingChat, useMediaText, useToast } from './ui';
 import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezone, checkRule, endsIso } from './RecurringParts';
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
+import RichText from './wa/RichText';
+import { longPress } from './wa/longPress';
 import EmojiPicker from './wa/EmojiPicker';
 import MediaViewer from './wa/MediaViewer';
+import AttachPreview from './wa/AttachPreview';
 import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
 import { colorIndex, dayLabel, extensionOf, linkify, localDayKey, onlyEmoji } from './wa/format';
 import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from './wa/MediaParts';
@@ -42,6 +47,12 @@ import {
   Sparkle,
   Ticks,
   Trash,
+  PhotoIcon,
+  CameraIcon,
+  MusicIcon,
+  PollIcon,
+  CheckIcon,
+  Pause,
   UserPlus,
   CheckCircle,
   GroupIcon,
@@ -75,6 +86,8 @@ export interface ThreadProps {
   ticketEmoji: string;
   pinned: MessageDto[];
   teams: Array<{ id: string; name: string }>;
+  /** Líneas por las que se puede responder ("Responder desde", lib/groups-lines.ts). */
+  lines?: ReplyLine[];
 }
 
 function readTranslatePref(chatId: string): boolean {
@@ -130,6 +143,10 @@ export default function ChatThread(props: ThreadProps) {
   const mediaText = useMediaText();
   const { refresh } = useGroupsInbox();
   const [toast, showToast] = useToast();
+  const router = useRouter();
+  const [selecting, setSelecting] = useState<Set<string> | null>(null);
+  const [infoFor, setInfoFor] = useState<MessageDto | null>(null);
+  const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [chat, setChat] = useState(props.chat);
   const [messages, setMessages] = useState(props.messages);
   const [pinned, setPinned] = useState(props.pinned);
@@ -141,6 +158,19 @@ export default function ChatThread(props: ThreadProps) {
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
   const [viewerAt, setViewerAt] = useState<string | null>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLInputElement>(null);
+  const [hasCamera, setHasCamera] = useState(false);
+  useEffect(() => setHasCamera(window.matchMedia('(pointer: coarse)').matches && Boolean(navigator.mediaDevices)), []);
+  const previewOpen = mode === 'reply' && tray.items.length > 0;
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 720px)');
+    const on = () => setNarrow(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
   // Separador "N mensajes sin leer" antes del primero sin leer (solo al abrir, como WhatsApp).
   const [unreadMark] = useState(() => {
     const n = props.chat.unread;
@@ -150,6 +180,10 @@ export default function ChatThread(props: ThreadProps) {
     return first ? { id: first.id, n } : null;
   });
   const [sending, setSending] = useState(false);
+  // Línea elegida en "Responder desde" (null: la del chat). Las notas quedan siempre en este chat.
+  const [replyLine, setReplyLine] = useState<string | null>(null);
+  const multiLine = (props.lines?.length ?? 0) > 1;
+  const lineName = (numberId: string | undefined) => (numberId ? (props.lines?.find((l) => l.numberId === numberId)?.name ?? '') : '');
   const [sendError, setSendError] = useState('');
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -185,8 +219,8 @@ export default function ChatThread(props: ThreadProps) {
   const [hasOlder, setHasOlder] = useState(props.messages.length >= 200);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
-  const [unseen, setUnseen] = useState(0);
-  const [recording, setRecording] = useState<{ startedAt: number; elapsed: number } | null>(null);
+  const [bottomAt, setBottomAt] = useState(props.messages[props.messages.length - 1]?.createdAt ?? '');
+  const [recording, setRecording] = useState<{ startedAt: number; elapsed: number; paused: boolean; carried: number } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -196,6 +230,8 @@ export default function ChatThread(props: ThreadProps) {
   const pendingCaret = useRef<number | null>(null);
   const keepOffset = useRef<number | null>(null);
   const lastCount = useRef(props.messages.length);
+  const latestAt = useRef(props.messages[props.messages.length - 1]?.createdAt ?? '');
+  const knownIds = useRef(new Set(props.messages.map((m) => m.id)));
   const lastId = useRef(props.messages[props.messages.length - 1]?.id ?? '');
   const recordedSecs = useRef(0);
   const recorder = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream; cancel: boolean } | null>(null);
@@ -255,7 +291,7 @@ export default function ChatThread(props: ThreadProps) {
     const box = boxRef.current;
     if (!box) return;
     box.scrollTo({ top: box.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
-    setUnseen(0);
+    setBottomAt(latestAt.current);
   }, []);
 
   // Al abrir: con #m-<id> (Cmd+K, tickets, avisos) va a ese mensaje y lo marca; si no, al final.
@@ -293,8 +329,8 @@ export default function ChatThread(props: ThreadProps) {
     const last = messages[messages.length - 1];
     if (last && last.id !== lastId.current) {
       const mine = last.direction === 'out' || last.direction === 'note';
+      latestAt.current = last.createdAt;
       if (atBottom || mine) scrollToEnd();
-      else setUnseen((n) => n + Math.max(1, messages.length - lastCount.current));
       lastId.current = last.id;
     }
     lastCount.current = messages.length;
@@ -309,12 +345,34 @@ export default function ChatThread(props: ThreadProps) {
 
   const merge = useCallback((incoming: MessageDto[]) => {
     if (incoming.length === 0) return;
+    for (const m of incoming) knownIds.current.add(m.id);
     setMessages((prev) => {
       const map = new Map(prev.map((m) => [m.id, m]));
       for (const m of incoming) map.set(m.id, m);
       return [...map.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     });
   }, []);
+
+  const [olderDone, setOlderDone] = useState(false);
+  const [fetchingOlder, setFetchingOlder] = useState(false);
+  /** Trae del teléfono (el historial del gateway) los mensajes anteriores a lo importado. */
+  async function fetchOlderFromPhone() {
+    if (fetchingOlder) return;
+    setFetchingOlder(true);
+    const res = await api<{ added: number; done: boolean }>(`/api/groups/chats/${chat.id}`, { body: { action: 'importOlder' } });
+    setFetchingOlder(false);
+    if (!res.data) return showToast(errText(res.error), true);
+    if (res.data.added === 0 || res.data.done) setOlderDone(true);
+    if (res.data.added > 0) {
+      const first = messages[0];
+      const older = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=${OLDER_PAGE}&before=${encodeURIComponent(first.createdAt)}`);
+      if (older.data?.messages.length) {
+        const box = boxRef.current;
+        if (box) keepOffset.current = box.scrollHeight - box.scrollTop;
+        merge(older.data.messages);
+      }
+    }
+  }
 
   const loadOlder = useCallback(async () => {
     if (loadingOlder || !hasOlder || messages.length === 0) return;
@@ -350,7 +408,7 @@ export default function ChatThread(props: ThreadProps) {
     const fromEnd = box.scrollHeight - box.scrollTop - box.clientHeight;
     const bottom = fromEnd < 80;
     if (bottom !== atBottom) setAtBottom(bottom);
-    if (bottom && unseen) setUnseen(0);
+    if (bottom && bottomAt !== latestAt.current) setBottomAt(latestAt.current);
     if (box.scrollTop < 240) void loadOlder();
   }
 
@@ -359,10 +417,16 @@ export default function ChatThread(props: ThreadProps) {
     const id = setInterval(async () => {
       if (document.visibilityState !== 'visible') return;
       const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=60`);
-      if (res.data) merge(res.data.messages);
+      if (!res.data) return;
+      const fresh = res.data.messages.filter((m) => !knownIds.current.has(m.id));
+      merge(res.data.messages);
+      // Con el chat abierto y a la vista, lo que llega queda leído (como en WhatsApp).
+      if (fresh.some((m) => m.direction === 'in') && document.hasFocus()) {
+        void api(`/api/groups/chats/${chat.id}`, { method: 'PATCH', body: { read: true } }).then(() => refresh());
+      }
     }, 4000);
     return () => clearInterval(id);
-  }, [chat.id, merge]);
+  }, [chat.id, merge, refresh]);
 
   // Traducción: lo que ya está en caché viene con el mensaje; lo demás se pide (una vez por mensaje).
   useEffect(() => {
@@ -452,13 +516,12 @@ export default function ChatThread(props: ThreadProps) {
   }
 
   async function post(body: Record<string, unknown>): Promise<MessageDto | null> {
-    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body });
+    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: replyLine && !body.note ? { ...body, numberId: replyLine } : body });
     if (!res.data) {
       setSendError(errText(res.error));
       return null;
     }
     merge([res.data]);
-    if (res.data.status === 'failed') setSendError(errText(res.data.error || 'send_failed'));
     return res.data;
   }
 
@@ -467,11 +530,12 @@ export default function ChatThread(props: ThreadProps) {
    * va como pie del primero, como en WhatsApp), o una nota de voz.
    */
   async function send(voice?: { url: string; mimetype: string; filename: string }) {
-    const files = mode === 'note' ? [] : tray.items;
+    const pending = mode === 'note' ? [] : tray.items;
+    const files = pending.filter((f) => f.status === 'ready');
     if (sending) return;
     if (!voice && !text.trim() && files.length === 0) return;
-    if (files.some((f) => f.status !== 'ready')) {
-      setSendError(t(files.some((f) => f.status === 'error') ? 'wa.fixUploads' : 'wa.waitUploads'));
+    if (pending.some((f) => f.status === 'uploading')) {
+      setSendError(t('wa.waitUploads'));
       return;
     }
     // Ya se está abriendo otro chat: no se manda (el texto queda como borrador de este chat).
@@ -483,9 +547,9 @@ export default function ChatThread(props: ThreadProps) {
     if (voice) {
       ok = Boolean(await post({ ...base, body: '', media: { ...voice, kind: 'voice', voice: true, duration: recordedSecs.current || undefined } }));
     } else if (files.length) {
-      for (let i = 0; i < files.length && ok; i++) {
+      for (let i = 0; i < files.length; i++) {
         const f = files[i];
-        const caption = i === 0 ? text : '';
+        const caption = (f.caption ?? '').trim();
         const up = f.uploaded;
         const kind = f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : f.type.startsWith('audio/') ? 'audio' : 'document';
         // Audio no lleva pie: el texto va aparte, después.
@@ -496,10 +560,12 @@ export default function ChatThread(props: ThreadProps) {
           body: withCaption ? caption : '',
           media: { url: f.url, mimetype: f.type, filename: f.name, size: up?.size ?? f.size, kind, width: up?.width, height: up?.height, duration: up?.duration },
         });
-        if (sent && !withCaption && caption.trim()) await post({ ...base, replyToId: null, body: caption, media: null });
-        ok = Boolean(sent && sent.status !== 'failed');
-        if (ok) tray.remove(f.key);
+        if (sent && !withCaption && caption) await post({ ...base, replyToId: null, body: caption, media: null });
+        // Con burbuja creada (mandada o no), sale de la bandeja: si falló, se reintenta desde la burbuja, sin duplicar.
+        if (sent) tray.remove(f.key);
+        else ok = false;
       }
+      if (ok && text.trim() && !previewOpen) ok = Boolean(await post({ ...base, replyToId: null, body: text, media: null }));
     } else {
       ok = Boolean(await post({ ...base, body: text, media: null }));
     }
@@ -507,7 +573,7 @@ export default function ChatThread(props: ThreadProps) {
     if (!ok) return;
     // Respondido: el chat deja de esperar (el servidor ya lo marcó).
     if (mode === 'reply') setChat((c) => ({ ...c, awaitingSince: null, flagged: false }));
-    if (!voice) setText('');
+    if (!voice && !files.length) setText('');
     setReplyTo(null);
     setUndoText(null);
     setDraftSources([]);
@@ -515,19 +581,26 @@ export default function ChatThread(props: ThreadProps) {
     inputRef.current?.focus();
   }
 
-  /** Vuelve a mandar un mensaje que no salió (el original queda marcado como no enviado). */
+  /** Vuelve a mandar el MISMO mensaje que no salió (misma burbuja: enviando, después enviado o no enviado). */
   async function retrySend(m: MessageDto) {
     setSendError('');
-    const media = m.media?.url ? { url: m.media.url, mimetype: m.media.type, filename: m.media.name, size: m.media.size, kind: m.media.kind, duration: m.media.duration } : null;
-    const sent = await post({ note: false, replyToId: m.replyToId, body: m.body, media });
-    if (sent && sent.status !== 'failed') refresh();
+    merge([{ ...m, status: 'pending', error: '' }]);
+    const res = await api<MessageDto>(`/api/groups/messages/${m.id}`, { body: { action: 'retry' } });
+    if (!res.data) {
+      merge([m]);
+      return setSendError(errText(res.error));
+    }
+    merge([res.data]);
+    if (res.data.status === 'failed') setSendError(errText(res.data.error || 'send_failed'));
+    else refresh();
   }
 
   function addFiles(files: File[]) {
     if (files.length === 0) return;
     setMode('reply');
     setSendError('');
-    tray.add(files);
+    tray.add(files, text.trim() && tray.items.length === 0 ? text : undefined);
+    if (text.trim() && tray.items.length === 0) setText('');
     inputRef.current?.focus();
   }
 
@@ -551,12 +624,15 @@ export default function ChatThread(props: ThreadProps) {
     }
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      void send();
+      if (editing) void saveEdit();
+      else void send();
     }
     if (e.key === 'Escape') {
+      // Primero lo del composer; si no hay nada, Esc sigue de largo (cierra los detalles y después el chat, como WhatsApp).
+      if (emojiOpen || editing || replyTo) e.preventDefault();
       if (emojiOpen) setEmojiOpen(false);
+      else if (editing) setEditing(null);
       else if (replyTo) setReplyTo(null);
-      else (e.target as HTMLTextAreaElement).blur();
     }
   }
 
@@ -591,7 +667,7 @@ export default function ChatThread(props: ThreadProps) {
     const state = { rec, chunks: [] as Blob[], stream, cancel: false };
     rec.ondataavailable = (e) => e.data.size && state.chunks.push(e.data);
     rec.onstop = async () => {
-      recordedSecs.current = Math.max(1, Math.round((Date.now() - started) / 1000));
+      recordedSecs.current = Math.max(1, Math.round(recSecs() || 1));
       stream.getTracks().forEach((tr) => tr.stop());
       recorder.current = null;
       setRecording(null);
@@ -602,9 +678,28 @@ export default function ChatThread(props: ThreadProps) {
       if (up) await send(up);
     };
     recorder.current = state;
-    const started = Date.now();
     rec.start(250);
-    setRecording({ startedAt: Date.now(), elapsed: 0 });
+    setRecording({ startedAt: Date.now(), elapsed: 0, paused: false, carried: 0 });
+  }
+  const recordingRef = useRef(recording);
+  recordingRef.current = recording;
+  /** Segundos grabados (sin contar las pausas). */
+  function recSecs(): number {
+    const r = recordingRef.current;
+    if (!r) return 0;
+    return r.carried + (r.paused ? 0 : (Date.now() - r.startedAt) / 1000);
+  }
+  function togglePause() {
+    const r = recorder.current;
+    const st = recordingRef.current;
+    if (!r || !st) return;
+    if (st.paused) {
+      r.rec.resume();
+      setRecording({ ...st, paused: false, startedAt: Date.now() });
+    } else {
+      r.rec.pause();
+      setRecording({ ...st, paused: true, carried: st.carried + (Date.now() - st.startedAt) / 1000 });
+    }
   }
   function stopRecording(cancel: boolean) {
     const r = recorder.current;
@@ -614,7 +709,7 @@ export default function ChatThread(props: ThreadProps) {
   }
   useEffect(() => {
     if (!recording) return;
-    const id = setInterval(() => setRecording((r) => (r ? { ...r, elapsed: Math.floor((Date.now() - r.startedAt) / 1000) } : r)), 250);
+    const id = setInterval(() => setRecording((r) => (r ? { ...r, elapsed: Math.floor(r.carried + (r.paused ? 0 : (Date.now() - r.startedAt) / 1000)) } : r)), 250);
     return () => clearInterval(id);
   }, [recording]);
   // Salir del chat con una grabación abierta la descarta (y suelta el micrófono).
@@ -772,7 +867,7 @@ export default function ChatThread(props: ThreadProps) {
     if (options.length < 2) return setPollError(errText('poll_options'));
     setPollBusy(true);
     setPollError('');
-    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: { poll: { ...poll, options } } });
+    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: { poll: { ...poll, options }, ...(replyLine ? { numberId: replyLine } : {}) } });
     setPollBusy(false);
     if (!res.data) return setPollError(errText(res.error));
     merge([res.data]);
@@ -854,11 +949,39 @@ export default function ChatThread(props: ThreadProps) {
   useKeyShortcut('u', () => void toggleUnread());
   useKeyShortcut('p', () => void patchChat({ pinned: !chat.pinned }));
   useKeyShortcut('l', () => toggleTranslate());
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.closest('[role="dialog"], [role="menu"], [role="alertdialog"]') || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && !el.classList.contains('wa-input'))) return;
+      if (document.querySelector('dialog[open], [role="dialog"]:not(dialog):not([hidden]), [role="alertdialog"]:not(dialog), [role="menu"], .wa-viewer')) return;
+      if (detailsOpen) {
+        setDetailsOpen(false);
+        return;
+      }
+      if (selecting) {
+        setSelecting(new Set());
+        return;
+      }
+      router.push(`/app/groups/inbox${window.location.search}`);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  /** Abre el menú (la flecha) de un mensaje o una fila. */
+  function openMenuIn(el: HTMLElement) {
+    el.querySelector<HTMLButtonElement>('.wa-chevron, .wa-row-chevron')?.click();
+  }
 
   function menuItems(m: MessageDto): MenuItem[] {
     const can = messageActions(m, props.caps, viewer);
     const items: MenuItem[] = [];
     const live = m.direction !== 'note' && !m.deletedAt;
+    const starred = (m.meta as Record<string, unknown>).starred === true;
+    const mayRetry = props.isAdmin || m.authorId === props.me;
+    if (m.direction === 'out' && m.status === 'failed' && mayRetry) items.push({ key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) });
+    if (m.direction === 'out') items.push({ key: 'info', label: t('wa.messageInfo'), onSelect: () => setInfoFor(m) });
     if (live)
       items.push({
         key: 'reply',
@@ -870,13 +993,13 @@ export default function ChatThread(props: ThreadProps) {
         },
       });
     if (live) items.push({ key: 'react', label: t('thread.react'), onSelect: () => setPickerFor(m.id) });
-    if (m.body.trim()) items.push({ key: 'copy', label: t('thread.copy'), onSelect: () => void copyText(m) });
+    if (m.media?.url && !m.deletedAt) items.push({ key: 'download', label: t('wa.download'), onSelect: () => downloadMedia(m) });
     if (can.forward) items.push({ key: 'forward', label: t('thread.forward'), onSelect: () => setForwarding(m) });
     if (can.pin) items.push({ key: 'pin', label: m.pinnedAt ? t('thread.unpin') : t('thread.pin'), onSelect: () => void togglePin(m) });
-    if (can.edit) items.push({ key: 'edit', label: t('thread.edit'), onSelect: () => setEditing({ id: m.id, text: m.body, busy: false }) });
-    if (m.direction === 'out' && m.status === 'failed') items.unshift({ key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) });
-    if (live && !m.ticketId) items.push({ key: 'ticket', label: t('wa.createTicket'), onSelect: () => openTicket(m) });
-    items.push({ key: 'task', label: t('thread.task'), onSelect: () => setTaskFor(m) });
+    if (!m.deletedAt) items.push({ key: 'star', label: starred ? t('wa.unstar') : t('wa.star'), onSelect: () => void toggleStar(m) });
+    if (can.edit) items.push({ key: 'edit', label: t('thread.edit'), onSelect: () => startEdit(m) });
+    if (m.body.trim() && !m.deletedAt) items.push({ key: 'copy', label: t('thread.copy'), onSelect: () => void copyText(m) });
+    items.push({ key: 'select', label: t('wa.select'), onSelect: () => setSelecting(new Set([m.id])) });
     if (can.delete)
       items.push({
         key: 'delete',
@@ -884,7 +1007,74 @@ export default function ChatThread(props: ThreadProps) {
         onSelect: () => setDeleting(m),
         danger: true,
       });
-    return items;
+    // Capa del equipo, debajo.
+    const team: MenuItem[] = [];
+    if (live && !m.ticketId) team.push({ key: 'ticket', label: t('wa.createTicket'), onSelect: () => openTicket(m) });
+    team.push({ key: 'task', label: t('thread.task'), onSelect: () => setTaskFor(m) });
+    if (team.length) team[0] = { ...team[0], divider: true };
+    return [...items, ...team];
+  }
+
+  function downloadMedia(m: MessageDto) {
+    if (!m.media?.url) return;
+    const a = document.createElement('a');
+    a.href = m.media.url;
+    a.download = m.media.name || '';
+    a.rel = 'noreferrer';
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  async function toggleStar(m: MessageDto) {
+    const starred = (m.meta as Record<string, unknown>).starred === true;
+    const res = await api<MessageDto>(`/api/groups/messages/${m.id}`, { body: { action: starred ? 'unstar' : 'star' } });
+    if (res.data) merge([res.data]);
+    else showToast(errText(res.error), true);
+  }
+
+  /** Guarda un contacto compartido en el CRM. */
+  async function saveContact(name: string, phone: string) {
+    const [first, ...rest] = name.trim().split(/\s+/);
+    const res = await api('/api/crm/contacts', { body: { firstName: first || name, lastName: rest.join(' '), phone: phone ? `+${phone}` : '' } });
+    showToast(res.data ? t('wa.contactSaved', { name }) : errText(res.error), !res.data);
+  }
+
+  /** Editar como en WhatsApp: el texto va al composer con la barra "Editar mensaje". */
+  function startEdit(m: MessageDto) {
+    setEditing({ id: m.id, text: m.body, busy: false });
+    setReplyTo(null);
+    setMode(m.direction === 'note' ? 'note' : 'reply');
+    setTimeout(() => {
+      inputRef.current?.focus();
+      const len = inputRef.current?.value.length ?? 0;
+      inputRef.current?.setSelectionRange(len, len);
+    }, 0);
+  }
+
+  async function copySelected() {
+    if (!selecting) return;
+    const text = messages
+      .filter((m) => selecting.has(m.id) && m.body.trim())
+      .map((m) => `[${parseDbUtc(m.createdAt).toLocaleString(locale, { day: 'numeric', month: 'numeric', hour: 'numeric', minute: '2-digit' })}] ${m.direction === 'in' ? inName(m) : m.direction === 'note' ? nameOf(m.authorId) : t('wa.you')}: ${m.body}`)
+      .join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(t('common.copied'));
+    } catch {
+      showToast(errText('generic'), true);
+    }
+    setSelecting(null);
+  }
+
+  async function starSelected() {
+    if (!selecting) return;
+    for (const id of selecting) {
+      const res = await api<MessageDto>(`/api/groups/messages/${id}`, { body: { action: 'star' } });
+      if (res.data) merge([res.data]);
+    }
+    setSelecting(null);
   }
 
   /** Quién mandó un mensaje propio (la capa del equipo; WhatsApp no lo muestra). */
@@ -903,7 +1093,7 @@ export default function ChatThread(props: ThreadProps) {
       case 'api':
         return 'API';
       default:
-        return nameOf(m.authorId);
+        return m.authorName || nameOf(m.authorId);
     }
   }
 
@@ -916,7 +1106,20 @@ export default function ChatThread(props: ThreadProps) {
 
   const assignee = chat.assignedTo ? nameOf(chat.assignedTo) : '';
   const teamName = props.teams.find((tm) => tm.id === chat.assignedTeamId)?.name ?? '';
-  const subtitle = chat.kind === 'group' ? `${t('thread.groupMeta', { n: chat.memberCount })} · ${props.numberName}` : `${chat.phone ? `+${chat.phone}` : t('wa.whatsappContact')} · ${props.numberName}`;
+  // Primero los que tienen nombre (como WhatsApp), después los teléfonos.
+  const memberList = [...props.members]
+    .sort((a, b) => Number(!a.name) - Number(!b.name))
+    .slice(0, 12)
+    .map((mb) => mb.name || `+${mb.phone}`)
+    .filter(Boolean);
+  const subtitle =
+    chat.kind === 'group'
+      ? memberList.length
+        ? `${memberList.join(', ')}${chat.memberCount > memberList.length ? '…' : ''}`
+        : t('thread.groupMeta', { n: chat.memberCount })
+      : chat.phone
+        ? `+${chat.phone}`
+        : t('wa.whatsappContact');
 
   // Un bloque por día: su chip de fecha queda arriba (y flota solo mientras se recorre ese día).
   const days: Array<{ key: string; at: string; items: ReactNode[] }> = [];
@@ -941,7 +1144,7 @@ export default function ChatThread(props: ThreadProps) {
       );
       prev = null;
     }
-    const cont = Boolean(prev && senderKey(prev) === senderKey(m) && parseDbUtc(m.createdAt).getTime() - parseDbUtc(prev.createdAt).getTime() < GROUP_GAP_MS);
+    const cont = Boolean(prev && senderKey(prev) === senderKey(m));
     prev = m;
     rows.push(renderMessage(m, cont));
   }
@@ -961,7 +1164,9 @@ export default function ChatThread(props: ThreadProps) {
     const isNote = m.direction === 'note';
     // Lo propio mandado desde el teléfono no lleva firma (como en WhatsApp); lo del equipo, agentes o envíos sí.
     const showName = !cont && (isNote || (m.direction === 'in' && chat.kind === 'group') || (m.direction === 'out' && m.authorKind !== 'phone'));
-    const author = isNote ? nameOf(m.authorId) : m.direction === 'in' ? inName(m) : outAuthor(m);
+    const baseAuthor = isNote ? nameOf(m.authorId) : m.direction === 'in' ? inName(m) : outAuthor(m);
+    // Chat en varias líneas: lo saliente dice por qué línea salió.
+    const author = multiLine && m.direction === 'out' && lineName(m.numberId) ? `${baseAuthor} · ${lineName(m.numberId)}` : baseAuthor;
     const tr = translateOn && m.direction === 'in' ? translations[m.id] : undefined;
     const showTr = tr && tr.text && !showOriginal.has(m.id);
     const isEditing = editing?.id === m.id;
@@ -975,15 +1180,43 @@ export default function ChatThread(props: ThreadProps) {
     const color = m.direction === 'in' && chat.kind === 'group' ? `wa-n${colorIndex(m.senderPhone || m.senderName)}` : '';
     const reactions = new Map<string, number>();
     for (const r of m.reactions) reactions.set(r.emoji, (reactions.get(r.emoji) ?? 0) + 1);
-    const time = parseDbUtc(m.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+    const time = parseDbUtc(m.createdAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
     const items = isEditing ? [] : menuItems(m);
-    const flush = (kind === 'image' || kind === 'video') && Boolean(media?.url);
+    const flush = (kind === 'image' || kind === 'video') && Boolean(media?.url) && !(m.deletedAt && !revealed.has(m.id));
+    const groupIn = m.direction === 'in' && chat.kind === 'group';
+    const starred = (m.meta as Record<string, unknown>).starred === true;
+    // Borrado: "Se eliminó este mensaje"; un admin puede ver el original.
+    const hidden = Boolean(m.deletedAt) && !revealed.has(m.id);
+    const selected = selecting?.has(m.id) ?? false;
     return (
       <article
         key={m.id}
-        className={`gr-msg gr-msg-${m.direction}${m.deletedAt ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.size ? ' has-reactions' : ''}`}
+        className={`gr-msg gr-msg-${m.direction}${m.deletedAt ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.size ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${selected ? ' is-selected' : ''}`}
         id={`m-${m.id}`}
+        onContextMenu={(e) => {
+          if (selecting || (e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
+          e.preventDefault();
+          openMenuIn(e.currentTarget);
+        }}
+        {...longPress((el) => openMenuIn(el))}
+        onClick={
+          selecting
+            ? () =>
+                setSelecting((prevSel) => {
+                  const next = new Set(prevSel ?? []);
+                  if (next.has(m.id)) next.delete(m.id);
+                  else next.add(m.id);
+                  return next;
+                })
+            : undefined
+        }
       >
+        {selecting && <input type="checkbox" className="wa-select-check" checked={selected} readOnly aria-label={t('wa.selectMessage')} />}
+        {groupIn && (
+          <span className="wa-sender-avatar" aria-hidden="true">
+            {!cont && <Avatar name={inName(m)} kind="dm" size={28} seed={m.senderPhone || m.senderName} />}
+          </span>
+        )}
         <div className={`gr-bubble${flush ? ' is-media' : ''}`}>
           {showName && author && (
             <p className={`gr-msg-author ${color}`}>
@@ -1011,15 +1244,30 @@ export default function ChatThread(props: ThreadProps) {
               onClick={() => jumpTo(quoted)}
             >
               <strong>{quoteAuthor(quoted)}</strong>
-              <span>{quoteLine(quoted)}</span>
+              <span>
+                <RichText text={quoteLine(quoted)} inline />
+              </span>
             </button>
           )}
-          {m.deletedAt && m.direction === 'in' && !m.body && !media ? (
+          {hidden ? (
             <p className="wa-deleted">
-              <Ban size={15} /> {t('wa.deletedMessage')}
+              <Ban size={15} /> {m.direction === 'out' ? t('wa.youDeleted') : t('wa.deletedMessage')}
+              {props.isAdmin && (m.body || media) && (
+                <button
+                  type="button"
+                  className="gr-link-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRevealed((r) => new Set(r).add(m.id));
+                  }}
+                >
+                  {t('wa.showDeleted')}
+                </button>
+              )}
+              <span className="wa-spacer" aria-hidden="true" style={{ width: `${Math.ceil(time.length * 6.6 + 8)}px` }} />
             </p>
           ) : null}
-          {media && (
+          {media && !hidden && (
             <div className="gr-media">
               {media.viewOnce ? (
                 <span className="wa-viewonce">
@@ -1041,56 +1289,29 @@ export default function ChatThread(props: ThreadProps) {
               ) : kind === 'video' ? (
                 <VideoView url={media.url} seconds={media.duration} thumbnail={media.thumbnail} width={media.width} height={media.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'audio' || kind === 'voice' ? (
-                <VoicePlayer id={m.id} src={media.url} seconds={media.duration} voice={kind === 'voice' || media.ptt === true} />
+                <VoicePlayer id={m.id} src={media.url} seconds={media.duration} voice={kind === 'voice' || media.ptt === true} name={kind === 'audio' ? media.name : undefined} />
               ) : (
                 <DocCard url={media.url} name={media.name} type={media.type} size={media.size} pages={media.pages} />
               )}
             </div>
           )}
-          {location && <LocationCard lat={location.lat} lng={location.lng} name={location.name ?? ''} address={location.address} url={location.url} live={location.live} />}
-          {contacts.map((c, i) => (
-            <ContactCard key={i} name={c.name} phone={c.phones?.[0] ?? ''} />
-          ))}
-          {m.poll ? (
-            <PollResults poll={m.poll} />
-          ) : isEditing ? (
-            <form
-              className="gr-edit"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void saveEdit();
-              }}
-            >
-              <textarea
-                className="textarea"
-                rows={3}
-                value={editing.text}
-                autoFocus
-                aria-label={t('thread.editLabel')}
-                onChange={(e) => setEditing({ ...editing, text: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                    e.preventDefault();
-                    void saveEdit();
-                  }
-                  if (e.key === 'Escape') {
-                    e.preventDefault();
-                    setEditing(null);
-                  }
-                }}
+          {location && !hidden && <LocationCard lat={location.lat} lng={location.lng} name={location.name ?? ''} address={location.address} url={location.url} live={location.live} />}
+          {!hidden &&
+            contacts.map((c, i) => (
+              <ContactCard
+                key={i}
+                name={c.name}
+                phone={(c.phones?.[0] ?? '').replace(/[^\d]/g, '')}
+                onMessage={() => router.push(`/app/groups/inbox?q=${encodeURIComponent((c.phones?.[0] ?? '').replace(/[^\d]/g, ''))}`)}
+                onSave={() => void saveContact(c.name, (c.phones?.[0] ?? '').replace(/[^\d]/g, ''))}
               />
-              <span className="gr-edit-foot">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(null)}>
-                  {t('common.cancel')}
-                </button>
-                <button type="submit" className="btn btn-primary btn-sm" disabled={!editing.text.trim()} aria-busy={editing.busy || undefined}>
-                  {t('common.save')}
-                </button>
-              </span>
-            </form>
+            ))}
+          {m.poll && !hidden ? (
+            <PollResults poll={m.poll} />
           ) : (
-            caption && (
-              <p className={`gr-pre wa-text${bigEmoji ? ' is-emoji' : ''}`}>
+            caption &&
+            !hidden && (
+              <p className={`gr-pre wa-text${bigEmoji ? ' is-emoji' : ''}${isEditing ? ' is-editing' : ''}`}>
                 {showTr
                   ? tr.text
                   : isNote
@@ -1103,15 +1324,7 @@ export default function ChatThread(props: ThreadProps) {
                           <span key={i}>{seg.text}</span>
                         ),
                       )
-                    : linkify(m.body).map((p, i) =>
-                        p.href ? (
-                          <a key={i} href={p.href} target="_blank" rel="noreferrer noopener">
-                            {p.text}
-                          </a>
-                        ) : (
-                          <span key={i}>{p.text}</span>
-                        ),
-                      )}
+                    : <RichText text={m.body} />}
                 {/* Lugar para la hora flotante (como en WhatsApp: el texto no se pisa con la hora). */}
                 <span className="wa-spacer" aria-hidden="true" style={{ width: `${Math.ceil(time.length * 6.6 + (m.direction === 'out' ? 26 : 8) + (m.editedAt ? 52 : 0) + (m.pinnedAt ? 16 : 0))}px` }} />
               </p>
@@ -1138,9 +1351,9 @@ export default function ChatThread(props: ThreadProps) {
               </button>
             </p>
           )}
-          {(m.ticketId || (m.direction === 'in' && m.needsReply === true) || m.deletedAt) && (
+          {(m.ticketId || (m.direction === 'in' && m.needsReply === true) || (m.deletedAt && !hidden)) && (
             <p className="wa-tags">
-              {m.deletedAt && <span className="gr-deleted-tag">{t('thread.deletedTag')}</span>}
+              {m.deletedAt && !hidden && <span className="gr-deleted-tag">{t('thread.deletedTag')}</span>}
               {m.ticketId && (
                 <Link href={`/app/groups/tickets?open=${m.ticketId}`} className="gr-ticket-tag">
                   {t('thread.hasTicket')}
@@ -1150,19 +1363,20 @@ export default function ChatThread(props: ThreadProps) {
             </p>
           )}
           <p className="gr-msg-foot">
+            {starred && <span className="wa-star" role="img" aria-label={t('wa.starred')}>★</span>}
             {m.pinnedAt && <PinIcon size={12} label={t('thread.pinned')} />}
             {m.editedAt && !m.deletedAt && <span className="wa-edited">{t('thread.edited')}</span>}
             <time dateTime={m.createdAt}>
               <LocalText>{time}</LocalText>
             </time>
             {m.direction === 'out' && !m.deletedAt && <Ticks status={m.status} label={t(`status.${m.status}`)} />}
-            {m.direction === 'out' && m.status === 'failed' && (
+            {m.direction === 'out' && m.status === 'failed' && (props.isAdmin || m.authorId === props.me) && (
               <button type="button" className="wa-retry" onClick={() => void retrySend(m)} aria-label={t('wa.retry')} title={t('wa.retry')}>
                 <Retry size={14} />
               </button>
             )}
           </p>
-          {items.length > 0 && (
+          {items.length > 0 && !selecting && (
             <span className="wa-hover">
               <MessageMenu label={t('thread.moreActions')} items={items} trigger={<Chevron size={18} />} className="wa-chevron" align={m.direction === 'out' ? 'right' : 'left'} />
             </span>
@@ -1178,7 +1392,7 @@ export default function ChatThread(props: ThreadProps) {
             ))}
           </p>
         )}
-        {!isNote && !m.deletedAt && !isEditing && (
+        {!isNote && !m.deletedAt && !isEditing && !selecting && (
           <div className="gr-msg-actions">
             <button
               type="button"
@@ -1206,6 +1420,7 @@ export default function ChatThread(props: ThreadProps) {
   }
 
   const canSend = Boolean(text.trim() || (mode === 'reply' && tray.items.length > 0));
+  const unseen = atBottom ? 0 : messages.filter((m) => m.direction === 'in' && m.createdAt > bottomAt).length;
   const viewerItems = messages
     .filter((m) => m.media?.url && /^(image|video)\//.test(m.media.type) && !(m.meta as Record<string, unknown>).sticker)
     .map((m) => ({ id: m.id, url: m.media!.url, type: m.media!.type, name: m.media!.name, caption: m.body, author: m.direction === 'in' ? (chat.kind === 'group' ? inName(m) : chat.name) : t('wa.you'), createdAt: m.createdAt }));
@@ -1291,7 +1506,7 @@ export default function ChatThread(props: ThreadProps) {
             )}
             <button
               type="button"
-              className="wa-icon-btn"
+              className="wa-icon-btn wa-close-icon"
               onClick={() => void patchChat({ status: chat.status === 'open' ? 'closed' : 'open' })}
               aria-label={`${chat.status === 'open' ? t('thread.close') : t('thread.reopen')} (E)`}
               title={`${chat.status === 'open' ? t('thread.close') : t('thread.reopen')} (E)`}
@@ -1303,6 +1518,13 @@ export default function ChatThread(props: ThreadProps) {
               className="wa-icon-btn"
               align="right"
               items={[
+                // En el teléfono el encabezado deja solo el nombre: asignar, cerrar y la info van acá.
+                ...(narrow
+                  ? [
+                      { key: 'assign', label: chat.assignedTo === props.me ? t('wa.unassignMe') : t('wa.assignMe'), onSelect: () => void patchChat({ assignedTo: chat.assignedTo === props.me ? null : props.me }) },
+                      { key: 'close', label: chat.status === 'open' ? t('thread.close') : t('thread.reopen'), onSelect: () => void patchChat({ status: chat.status === 'open' ? 'closed' : 'open' }) },
+                    ]
+                  : []),
                 { key: 'summary', label: t('thread.summary'), onSelect: () => void summarize() },
                 { key: 'translate', label: `${translateOn ? t('thread.translateOff') : t('thread.translate')} (L)`, onSelect: toggleTranslate },
                 { key: 'unread', label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
@@ -1350,7 +1572,17 @@ export default function ChatThread(props: ThreadProps) {
         <PinnedBar pinned={pinned} onJump={jumpTo} onUnpin={(m) => void togglePin(m)} />
 
         <div className="wa-scroll">
-          <div className="gr-messages wa-messages" role="log" aria-live="polite" ref={boxRef} onScroll={onScroll}>
+          <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} role="log" aria-live="polite" ref={boxRef} onScroll={onScroll} data-voice-off>
+            {!hasOlder && messages.length > 0 && (messages[0].meta as Record<string, unknown>).imported === true && (
+              <p className="wa-history-note">
+                <span>{olderDone ? t('wa.historyAll') : t('wa.historyOnPhone')}</span>
+                {!olderDone && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => void fetchOlderFromPhone()} aria-busy={fetchingOlder || undefined}>
+                    {t('wa.historyFetch')}
+                  </button>
+                )}
+              </p>
+            )}
             {hasOlder && (
               <p className="wa-older">
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => void loadOlder()} aria-busy={loadingOlder || undefined}>
@@ -1374,10 +1606,15 @@ export default function ChatThread(props: ThreadProps) {
           )}
         </div>
 
-        <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`}>
+        <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`} data-voice-off>
+          {multiLine && mode === 'reply' && (
+            <div className="wa-replyfrom-row">
+              <ReplyFromSelect chatId={chat.id} lines={props.lines} onChange={(id) => setReplyLine(id)} />
+            </div>
+          )}
           {mode === 'note' && (
             <p className="wa-note-strip">
-              <Lock size={12} /> {t('thread.notePlaceholder')} {t('thread.noteHint')}
+              {t('thread.noteHint')}
             </p>
           )}
           {aiOpen && mode === 'reply' && (
@@ -1402,6 +1639,17 @@ export default function ChatThread(props: ThreadProps) {
               </select>
               <button type="button" className="wa-icon-btn wa-ai-close" onClick={() => setAiOpen(false)} aria-label={t('common.close')} title={t('common.close')}>
                 <Close size={16} />
+              </button>
+            </div>
+          )}
+          {editing && (
+            <div className="wa-replying wa-editing">
+              <span className="gr-quote wa-q-me">
+                <strong>{t('wa.editMessage')}</strong>
+                <span>{messages.find((x) => x.id === editing.id)?.body ?? ''}</span>
+              </span>
+              <button type="button" className="wa-icon-btn" onClick={() => setEditing(null)} aria-label={t('common.cancel')} title={t('common.cancel')}>
+                <Close size={18} />
               </button>
             </div>
           )}
@@ -1444,51 +1692,6 @@ export default function ChatThread(props: ThreadProps) {
               ))}
             </ul>
           )}
-          {mode === 'reply' && tray.items.length > 0 && (
-            <ul className="wa-tray" aria-label={t('wa.attachments')}>
-              {tray.items.map((f) => (
-                <li key={f.key} className={`wa-tray-item is-${f.status}`}>
-                  {f.preview && f.type.startsWith('image/') ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={f.preview} alt="" />
-                  ) : f.preview && f.type.startsWith('video/') ? (
-                    <video src={f.preview} muted preload="metadata" aria-hidden="true" />
-                  ) : (
-                    <span className="wa-tray-doc" aria-hidden="true">
-                      <DocIcon size={22} />
-                      <b>{extensionOf(f.name, f.type)}</b>
-                    </span>
-                  )}
-                  <span className="wa-tray-name" title={f.name}>
-                    {f.name}
-                  </span>
-                  {f.status === 'uploading' && (
-                    <span className="wa-tray-bar" role="progressbar" aria-label={t('wa.uploading', { name: f.name })} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(f.progress * 100)}>
-                      <i style={{ width: `${Math.max(4, f.progress * 100)}%` }} />
-                    </span>
-                  )}
-                  {f.status === 'error' && (
-                    <span className="wa-tray-err" role="alert">
-                      {errText(f.error)}
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => tray.retry(f.key)}>
-                        {t('common.retry')}
-                      </button>
-                    </span>
-                  )}
-                  <button type="button" className="wa-tray-x" onClick={() => tray.remove(f.key)} aria-label={t('wa.removeFile', { name: f.name })} title={t('common.remove')}>
-                    <Close size={14} />
-                  </button>
-                </li>
-              ))}
-              {tray.items.length < MAX_TRAY && (
-                <li className="wa-tray-add">
-                  <button type="button" onClick={() => fileRef.current?.click()} aria-label={t('wa.addMore')} title={t('wa.addMore')}>
-                    <Plus size={22} />
-                  </button>
-                </li>
-              )}
-            </ul>
-          )}
           {(undoText !== null || draftSources.length > 0) && (
             <p className="gr-ai-note">
               {draftSources.length > 0 && <span className="ui-help">{t('thread.draftSources', { list: draftSources.join(', ') })}</span>}
@@ -1512,16 +1715,32 @@ export default function ChatThread(props: ThreadProps) {
               {sendError}
             </p>
           )}
-          {recording ? (
+          {selecting ? (
+            <div className="wa-bar wa-selectbar" role="toolbar" aria-label={t('wa.selectedN', { n: selecting.size })}>
+              <button type="button" className="wa-icon-btn" onClick={() => setSelecting(null)} aria-label={t('common.cancel')} title={t('common.cancel')}>
+                <Close />
+              </button>
+              <span className="wa-rec-label">{t('wa.selectedN', { n: selecting.size })}</span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void starSelected()} disabled={selecting.size === 0}>
+                {t('wa.star')}
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void copySelected()} disabled={selecting.size === 0}>
+                {t('thread.copy')}
+              </button>
+            </div>
+          ) : recording ? (
             <div className="wa-bar wa-recording" role="group" aria-label={t('wa.recording')}>
               <button type="button" className="wa-icon-btn" onClick={() => stopRecording(true)} aria-label={t('wa.discardVoice')} title={t('wa.discardVoice')}>
                 <Trash />
               </button>
-              <span className="wa-rec-dot" aria-hidden="true" />
+              <span className={`wa-rec-dot${recording.paused ? ' is-paused' : ''}`} aria-hidden="true" />
               <span className="wa-rec-time" aria-live="off">
                 {Math.floor(recording.elapsed / 60)}:{String(recording.elapsed % 60).padStart(2, '0')}
               </span>
-              <span className="wa-rec-label">{t('wa.recording')}</span>
+              <span className="wa-rec-label">{recording.paused ? t('wa.paused') : t('wa.recording')}</span>
+              <button type="button" className="wa-icon-btn" onClick={togglePause} aria-label={recording.paused ? t('wa.resume') : t('wa.pause')} title={recording.paused ? t('wa.resume') : t('wa.pause')}>
+                {recording.paused ? <Mic size={22} /> : <Pause size={22} />}
+              </button>
               <button type="button" className="wa-send" onClick={() => stopRecording(false)} aria-label={t('wa.sendVoice')} title={t('wa.sendVoice')}>
                 <SendIcon />
               </button>
@@ -1575,17 +1794,21 @@ export default function ChatThread(props: ThreadProps) {
                       e.target.value = '';
                     }}
                   />
+                  <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => (addFiles([...(e.target.files ?? [])]), (e.target.value = ''))} />
+                  <input ref={audioRef} type="file" accept="audio/*" multiple hidden onChange={(e) => (addFiles([...(e.target.files ?? [])]), (e.target.value = ''))} />
                   <MessageMenu
                     label={t('thread.attach')}
                     className="wa-icon-btn wa-attach"
                     align="left"
                     trigger={<Plus size={24} />}
                     items={[
-                      { key: 'doc', label: t('wa.document'), onSelect: () => fileRef.current?.click() },
-                      { key: 'photo', label: t('wa.photos'), onSelect: () => photoRef.current?.click() },
-                      { key: 'poll', label: t('polls.button'), onSelect: () => (setPollError(''), setPollOpen(true)) },
-                      { key: 'schedule', label: t('thread.schedule'), onSelect: () => setSchedule({ open: true, at: '', busy: false, error: '' }) },
-                      { key: 'ai', label: t('wa.aiTools'), onSelect: () => setAiOpen(true) },
+                      { key: 'doc', icon: <DocIcon size={17} />, label: t('wa.document'), onSelect: () => fileRef.current?.click() },
+                      { key: 'photo', icon: <PhotoIcon size={17} />, label: t('wa.photos'), onSelect: () => photoRef.current?.click() },
+                      ...(hasCamera ? [{ key: 'camera', icon: <CameraIcon size={17} />, label: t('wa.camera'), onSelect: () => cameraRef.current?.click() }] : []),
+                      { key: 'audio', icon: <MusicIcon size={17} />, label: t('wa.audio'), onSelect: () => audioRef.current?.click() },
+                      { key: 'poll', icon: <PollIcon size={17} />, label: t('polls.button'), onSelect: () => (setPollError(''), setPollOpen(true)) },
+                      { key: 'schedule', icon: <ClockIcon size={17} />, label: t('thread.schedule'), onSelect: () => setSchedule({ open: true, at: '', busy: false, error: '' }) },
+                      { key: 'ai', icon: <Sparkle size={17} />, label: t('wa.aiTools'), onSelect: () => setAiOpen(true) },
                     ]}
                   />
                 </>
@@ -1594,9 +1817,13 @@ export default function ChatThread(props: ThreadProps) {
                 ref={inputRef}
                 className="textarea gr-input wa-input"
                 rows={1}
-                value={text}
+                value={editing ? editing.text : text}
                 disabled={leaving}
                 onChange={(e) => {
+                  if (editing) {
+                    setEditing({ ...editing, text: e.target.value });
+                    return;
+                  }
                   setText(e.target.value);
                   setCaret(e.target.selectionStart ?? e.target.value.length);
                   setMentionIndex(0);
@@ -1604,7 +1831,7 @@ export default function ChatThread(props: ThreadProps) {
                 onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
                 onKeyDown={onComposerKey}
                 placeholder={mode === 'note' ? t('thread.notePlaceholder') : tray.items.length ? t('wa.addCaption') : t('wa.typeMessage')}
-                aria-label={mode === 'note' ? t('thread.modeNote') : t('thread.modeReply')}
+                aria-label={editing ? t('thread.editLabel') : mode === 'note' ? t('thread.modeNote') : t('thread.modeReply')}
                 onPaste={(e) => {
                   const files = filesFrom(e.clipboardData);
                   if (files.length && mode === 'reply') {
@@ -1638,17 +1865,29 @@ export default function ChatThread(props: ThreadProps) {
                   <Sparkle size={20} />
                 </button>
               )}
-              {canSend || mode === 'note' || !voiceSupported ? (
+              {editing ? (
                 <button
                   type="button"
                   className="wa-send"
+                  onClick={() => void saveEdit()}
+                  disabled={editing.busy || !editing.text.trim()}
+                  aria-busy={editing.busy || undefined}
+                  aria-label={t('wa.saveEdit')}
+                  title={t('wa.saveEdit')}
+                >
+                  <CheckIcon size={22} />
+                </button>
+              ) : canSend || mode === 'note' || !voiceSupported ? (
+                <button
+                  type="button"
+                  className={`wa-send${mode === 'note' ? ' is-note' : ''}`}
                   onClick={() => void send()}
                   disabled={sending || !canSend}
                   aria-busy={sending || tray.items.some((f) => f.status === 'uploading') || undefined}
                   aria-label={mode === 'note' ? t('thread.saveNote') : t('thread.send')}
                   title={mode === 'note' ? t('thread.saveNote') : t('thread.send')}
                 >
-                  {mode === 'note' ? <Lock size={20} /> : <SendIcon />}
+                  <SendIcon />
                 </button>
               ) : (
                 <button type="button" className="wa-send is-mic" onClick={() => void startRecording()} aria-label={t('wa.recordVoice')} title={t('wa.recordVoice')}>
@@ -1663,6 +1902,19 @@ export default function ChatThread(props: ThreadProps) {
             </p>
           )}
         </div>
+        {previewOpen && (
+          <AttachPreview
+            items={tray.items}
+            errText={errText}
+            onCaption={tray.setCaption}
+            onRemove={tray.remove}
+            onRetry={tray.retry}
+            onAdd={() => fileRef.current?.click()}
+            onSend={() => void send()}
+            onClose={tray.clear}
+            sending={sending}
+          />
+        )}
       </section>
 
       <aside className={`gr-details${detailsOpen ? ' is-open' : ''}`} aria-label={t('thread.details')}>
@@ -1835,6 +2087,32 @@ export default function ChatThread(props: ThreadProps) {
             </p>
           )}
         </div>
+      </Modal>
+      <Modal open={!!infoFor} title={t('wa.messageInfo')} onClose={() => setInfoFor(null)} foot={<button type="button" className="btn btn-primary" onClick={() => setInfoFor(null)}>{t('common.close')}</button>}>
+        {infoFor && (
+          <dl className="wa-info">
+            <div>
+              <dt>{t('wa.infoSent')}</dt>
+              <dd>{parseDbUtc(infoFor.createdAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</dd>
+            </div>
+            {(['delivered', 'read'] as const).map((k) => {
+              const at = ((infoFor.meta as { ack?: Record<string, string> }).ack ?? {})[k];
+              const reached = infoFor.status === 'read' || (k === 'delivered' && infoFor.status === 'delivered');
+              return (
+                <div key={k}>
+                  <dt>
+                    <Ticks status={k} label={t(`status.${k}`)} /> {t(`status.${k}`)}
+                  </dt>
+                  <dd>{at ? parseDbUtc(at).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' }) : reached ? t('wa.infoNoTime') : '—'}</dd>
+                </div>
+              );
+            })}
+            <div>
+              <dt>{t('wa.infoBy')}</dt>
+              <dd>{outAuthor(infoFor) || t('thread.byPhone')}</dd>
+            </div>
+          </dl>
+        )}
       </Modal>
       {viewerIndex >= 0 && <MediaViewer items={viewerItems} index={viewerIndex} onIndex={(i) => setViewerAt(viewerItems[i]?.id ?? null)} onClose={() => setViewerAt(null)} />}
       {toast}

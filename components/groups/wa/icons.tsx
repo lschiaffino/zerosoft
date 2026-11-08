@@ -231,6 +231,24 @@ export const Retry = (p: P) => (
     <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4.5v4h4" />
   </Svg>
 );
+export const CameraIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 8h3.5L9 5.5h6L16.5 8H20v11H4z" />
+    <circle cx="12" cy="13" r="3.4" />
+  </Svg>
+);
+export const MusicIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M9 18V5.5l10-2V16" />
+    <circle cx="6.5" cy="18" r="2.5" />
+    <circle cx="16.5" cy="16" r="2.5" />
+  </Svg>
+);
+export const CheckIcon = (p: P) => (
+  <Svg strokeWidth={2.4} {...p}>
+    <path d="m5 12.5 4.5 4.5L19 7.5" />
+  </Svg>
+);
 export const UserPlus = (p: P) => (
   <Svg {...p}>
     <circle cx="10" cy="8.5" r="3.6" />

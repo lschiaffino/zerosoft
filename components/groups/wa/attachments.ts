@@ -16,6 +16,8 @@ export interface TrayItem {
   url?: string;
   error?: string;
   uploaded?: UploadedFile;
+  /** Comentario de este archivo (como en WhatsApp, uno por archivo). */
+  caption?: string;
 }
 
 /** Hasta cuántos archivos van juntos (como WhatsApp, que deja 30). */
@@ -81,7 +83,17 @@ function uploadLarge(file: File, onProgress: (p: number) => void): { done: Promi
     } catch (err) {
       if (ctrl.signal.aborted) throw new Error('aborted');
       const msg = String((err as Error)?.message ?? '');
+      // El cliente de Blob no siempre dice el código: se pregunta si el servidor tiene Blob.
+      const probe = await fetch('/api/groups/upload/blob', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(() => null);
+      if (probe?.status === 501) {
+        if (file.size > SMALL_UPLOAD) throw new Error('file_too_large_local');
+        const small = uploadSmall(file, onProgress);
+        fallback = small;
+        return small.done;
+      }
       if (/client_upload_unavailable|501/.test(msg)) {
+        // Sin Blob en el servidor: hasta 4,5 MB por la ruta común; más, un aviso claro.
+        if (file.size > SMALL_UPLOAD) throw new Error('file_too_large_local');
         const small = uploadSmall(file, onProgress);
         fallback = small;
         return small.done;
@@ -123,7 +135,7 @@ export function useAttachTray() {
   );
 
   const add = useCallback(
-    (files: File[]) => {
+    (files: File[], firstCaption?: string) => {
       const room = MAX_TRAY - itemsRef.current.length;
       const next = files.slice(0, Math.max(0, room)).map<TrayItem>((file) => ({
         key: `a${++seq}`,
@@ -135,6 +147,7 @@ export function useAttachTray() {
         progress: 0,
         status: 'uploading',
       }));
+      if (firstCaption && next[0]) next[0].caption = firstCaption;
       if (next.length === 0) return;
       setItems((list) => [...list, ...next]);
       next.forEach(start);
@@ -161,6 +174,8 @@ export function useAttachTray() {
     });
   }, []);
 
+  const setCaption = useCallback((key: string, caption: string) => patch(key, { caption }), [patch]);
+
   const clear = useCallback(() => {
     aborts.current.forEach((a) => a());
     setItems((list) => {
@@ -177,7 +192,7 @@ export function useAttachTray() {
     [],
   );
 
-  return { items, add, retry, remove, clear };
+  return { items, add, retry, remove, clear, setCaption };
 }
 
 /** Archivos de un evento de arrastre o de pegado. */

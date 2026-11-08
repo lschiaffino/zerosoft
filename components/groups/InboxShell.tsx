@@ -12,11 +12,40 @@ import { LISTS_CHANGED, notifyListsChanged } from './GroupsListsBranch';
 import { filterOptions } from './PropertyInput';
 import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useToast } from './ui';
 import Avatar from './wa/Avatar';
-import { listTime } from './wa/format';
-import { FilterIcon, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
+import { duration, listTime } from './wa/format';
+import { plainWa } from './wa/rich';
+import { Ban, CheckIcon, Chevron, FilterIcon, Mic, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
+import { longPress } from './wa/longPress';
+import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 
 const FILTERS: ChatFilter[] = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'];
+/** Pestañas de la lista, como WhatsApp (Todos, No leídos, Grupos) y después las del equipo. */
+const CHIPS: Array<ChatFilter | 'groups'> = ['all', 'unread', 'groups', 'unanswered', 'mine', 'unassigned', 'flagged', 'closed'];
+
+/** Texto con lo buscado en negrita (sin HTML). */
+function Highlight({ text, q }: { text: string; q: string }) {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return <>{text}</>;
+  const parts: ReactNode[] = [];
+  let i = 0;
+  const lower = text.toLowerCase();
+  for (let at = lower.indexOf(needle); at >= 0; at = lower.indexOf(needle, i)) {
+    if (at > i) parts.push(text.slice(i, at));
+    parts.push(<b key={at}>{text.slice(at, at + needle.length)}</b>);
+    i = at + needle.length;
+  }
+  if (i < text.length) parts.push(text.slice(i));
+  return <>{parts}</>;
+}
+
+function readDraft(chatId: string): string {
+  try {
+    return window.sessionStorage.getItem(`gr-draft:${chatId}`) ?? '';
+  } catch {
+    return '';
+  }
+}
 const STORE = 'zs-groups-inbox';
 
 interface InboxCtx {
@@ -134,6 +163,10 @@ export default function InboxShell({
   const [imports, setImports] = useState<ImportStatus[]>([]);
   const [pageSize, setPageSize] = useState(100);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
+  const [unreadTotal, setUnreadTotal] = useState<number | null>(null);
+  const lastQuery = useRef('');
+  const rowsRef = useRef<ChatDto[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null);
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p.name || p.email])), [people]);
@@ -220,11 +253,18 @@ export default function InboxShell({
       try {
         const res = await fetch(`/api/groups/chats?${query}`);
         if (!res.ok) throw new Error('failed');
-        const data = (await res.json()) as { rows: ChatDto[]; total: number; imports?: ImportStatus[] };
+        const data = (await res.json()) as { rows: ChatDto[]; total: number; imports?: ImportStatus[]; unreadChats?: number };
         if (mine !== seq.current) return;
+        if (filter === 'unread' && lastQuery.current === query && current && !data.rows.some((r) => r.id === current)) {
+          const prevIdx = rowsRef.current.findIndex((r) => r.id === current);
+          if (prevIdx >= 0) data.rows.splice(Math.min(prevIdx, data.rows.length), 0, { ...rowsRef.current[prevIdx], unread: 0, markedUnread: false });
+        }
+        lastQuery.current = query;
+        rowsRef.current = data.rows;
         setRows(data.rows);
         setTotal(data.total);
         setImports(data.imports ?? []);
+        if (typeof data.unreadChats === 'number') setUnreadTotal(data.unreadChats);
         setError(false);
       } catch {
         if (mine === seq.current && !silent) setError(true);
@@ -232,7 +272,8 @@ export default function InboxShell({
         if (mine === seq.current) setLoaded(true);
       }
     },
-    [query],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [query, current],
   );
 
   useEffect(() => {
@@ -265,7 +306,10 @@ export default function InboxShell({
   useKeyShortcut('x', () => {
     if (current) toggleSelect(current);
   });
-  useKeyShortcut('escape', () => setSelected(new Set()), selected.size > 0);
+  useKeyShortcut('escape', () => {
+    setSelected(new Set());
+    setSelectMode(false);
+  }, selected.size > 0 || selectMode);
 
   // Lo seleccionado que ya no está en la lista (otro filtro) no cuenta.
   const visibleSelected = useMemo(() => rows.filter((r) => selected.has(r.id)).map((r) => r.id), [rows, selected]);
@@ -306,6 +350,146 @@ export default function InboxShell({
   }
 
   const value = useMemo(() => ({ rows, refresh }), [rows, refresh]);
+  const unreadChats = unreadTotal ?? rows.filter((r) => r.unread > 0 && !r.muted).length;
+  useEffect(() => {
+    const prev = document.title;
+    document.title = `${unreadChats ? `(${unreadChats}) ` : ''}${activeList ? activeList.name : t('inbox.title')} · Groups`;
+    return () => {
+      document.title = prev;
+    };
+  }, [unreadChats, activeList, t]);
+
+  async function rowAction(c: ChatDto, body: Record<string, unknown>) {
+    const res = await api(`/api/groups/chats/${c.id}`, { method: 'PATCH', body });
+    if (!res.data) showToast(errText(res.error), true);
+    void load(true);
+  }
+
+  /** El chat coincide por nombre o teléfono (va en "Chats"; lo que coincide en mensajes va en "Mensajes"). */
+  function nameHit(c: ChatDto): boolean {
+    const q = debounced.trim().toLowerCase();
+    const digits = q.replace(/[^\d]/g, '');
+    return !c.match || c.name.toLowerCase().includes(q) || (digits.length >= 3 && c.phone.includes(digits));
+  }
+
+  function rowMenu(c: ChatDto): MenuItem[] {
+    return [
+      { key: 'close', label: c.status === 'open' ? t('wa.closeChat') : t('thread.reopen'), onSelect: () => void rowAction(c, { status: c.status === 'open' ? 'closed' : 'open' }) },
+      { key: 'mute', label: c.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void rowAction(c, { muted: !c.muted }) },
+      { key: 'pin', label: c.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
+      { key: 'unread', label: c.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void rowAction(c, { read: c.unread > 0 }) },
+      { key: 'assign', label: c.assignedTo === me ? t('wa.unassignMe') : t('wa.assignMe'), onSelect: () => void rowAction(c, { assignedTo: c.assignedTo === me ? null : me }) },
+    ];
+  }
+
+  /** Una fila de la lista (también en los resultados de búsqueda). */
+  function renderRow(c: ChatDto, opts: { snippet?: boolean } = {}) {
+    const draft = c.id !== current ? readDraft(c.id) : '';
+    const showCheck = selectMode || visibleSelected.length > 0;
+    return (
+      <li
+        key={`${opts.snippet ? 'm' : 'c'}-${c.id}`}
+        className={`gr-row-item${c.muted ? ' is-muted' : ''}`}
+        onContextMenu={(e) => {
+          if (showCheck) return;
+          e.preventDefault();
+          e.currentTarget.querySelector<HTMLButtonElement>('.wa-row-chevron')?.click();
+        }}
+        {...longPress((el) => el.querySelector<HTMLButtonElement>('.wa-row-chevron')?.click())}
+      >
+        {showCheck && (
+          <input type="checkbox" className="gr-row-check" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} aria-label={t('bulkInbox.select', { name: c.name })} />
+        )}
+        <Link
+          href={`/app/groups/inbox/${c.id}${listSuffix}`}
+          onClick={(e) => {
+            if (showCheck) {
+              e.preventDefault();
+              toggleSelect(c.id);
+              return;
+            }
+            // Abrir en otra pestaña no cambia el chat de esta.
+            if (!e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0 && c.id !== current) markChatSwitch(c.id);
+          }}
+          className={`gr-row${c.id === current ? ' is-active' : ''}${c.unread > 0 ? ' is-unread' : ''}`}
+          aria-current={c.id === current ? 'page' : undefined}
+        >
+          <Avatar name={c.name} kind={c.kind} src={c.pictureUrl} seed={c.id} />
+          <span className="gr-row-main">
+            <span className="gr-row-top">
+              <span className="gr-row-name">{debounced && !opts.snippet ? <Highlight text={c.name} q={debounced} /> : c.name}</span>
+              <span className={`gr-row-time${c.unread > 0 ? ' is-unread' : ''}`}>{listTime(c.lastMessageAt ?? c.createdAt, locale)}</span>
+            </span>
+            <span className="gr-row-bottom">
+              <span className="gr-row-preview">
+                {opts.snippet && c.match ? (
+                  <span>
+                    <Highlight text={c.match} q={debounced} />
+                  </span>
+                ) : draft ? (
+                  <>
+                    <span className="gr-row-draft">{t('wa.draft')}</span>
+                    <span>{draft}</span>
+                  </>
+                ) : c.lastKind === 'deleted' || c.lastMessagePreview === '[deleted]' ? (
+                  <span className="gr-row-deleted">
+                    <Ban size={14} /> {c.lastDirection === 'out' ? t('wa.youDeleted') : t('wa.deletedMessage')}
+                  </span>
+                ) : (
+                  <>
+                    {c.lastDirection === 'out' && c.lastStatus && c.lastStatus !== 'received' && <Ticks status={c.lastStatus} label={t(`status.${c.lastStatus}`)} />}
+                    {c.kind === 'group' && c.lastDirection === 'in' && c.lastSender && <span className="gr-row-sender">{c.lastSender}:</span>}
+                    {c.lastKind === 'voice' || c.lastMessagePreview === '[voice]' ? (
+                      <span className="gr-row-voice">
+                        <Mic size={15} /> {c.lastDuration ? duration(c.lastDuration) : t('media.audio')}
+                      </span>
+                    ) : (
+                      <span>{plainWa(mediaText({ preview: c.lastMessagePreview }))}</span>
+                    )}
+                  </>
+                )}
+              </span>
+              <span className="gr-row-icons">
+                {lines.length > 1 &&
+                  (c.lines?.map((l) => l.numberId) ?? [c.numberId]).map((id) => {
+                    const ln = lines.find((x) => x.id === id);
+                    return ln ? <span key={id} className="gr-line-dot gr-row-line" style={{ background: ln.color }} role="img" aria-label={ln.name} title={ln.name} /> : null;
+                  })}
+                {c.muted && <MuteIcon size={16} label={t('wa.muted')} />}
+                {c.unread > 0 &&
+                  (c.markedUnread && c.unread <= 1 ? (
+                    <span className="gr-unread is-dot" role="img" aria-label={t('wa.markedUnread')} />
+                  ) : (
+                    <span className="gr-unread" aria-label={t('inbox.unread', { n: c.unread })}>
+                      {c.unread > 999 ? '999+' : c.unread}
+                    </span>
+                  ))}
+                {c.pinned && <PinIcon size={16} className="gr-pin-icon" label={t('inbox.pinned')} />}
+              </span>
+            </span>
+            {(c.flagged || c.awaitingSince || c.labels.length > 0 || c.assignedTo) && (
+              <span className="gr-row-meta">
+                {c.flagged ? (
+                  <span className="badge badge-bad">{t('inbox.flagged')}</span>
+                ) : c.awaitingSince ? (
+                  <span className="badge badge-warn">{t('inbox.waiting', { time: rel(c.awaitingSince) })}</span>
+                ) : null}
+                {c.labels.slice(0, 2).map((l) => (
+                  <LabelTag key={l.id} name={l.name} color={l.color} />
+                ))}
+                {c.assignedTo && <span className="gr-row-assignee">{peopleById.get(c.assignedTo) ?? ''}</span>}
+              </span>
+            )}
+          </span>
+        </Link>
+        {!showCheck && (
+          <span className="gr-row-menu">
+            <MessageMenu label={t('wa.chatOptions', { name: c.name })} items={rowMenu(c)} trigger={<Chevron size={20} />} className="wa-row-chevron" align="right" />
+          </span>
+        )}
+      </li>
+    );
+  }
   const filters = controlsToFilters({ ...controls, q: debounced });
   const dirty = activeList ? JSON.stringify(filters) !== JSON.stringify(activeList.filters) : false;
   const canEditList = activeList ? activeList.ownerId === me || activeList.shared : false;
@@ -429,20 +613,36 @@ export default function InboxShell({
               <FilterIcon size={20} />
               {extraFilters > 0 && <span className="wa-filter-dot" aria-hidden="true" />}
             </button>
+            <button
+              type="button"
+              className={`wa-icon-btn wa-filter-btn${selectMode ? ' is-on' : ''}`}
+              aria-pressed={selectMode}
+              aria-label={t('wa.selectChats')}
+              title={t('wa.selectChats')}
+              onClick={() => {
+                setSelectMode((v) => !v);
+                setSelected(new Set());
+              }}
+            >
+              <CheckIcon size={20} />
+            </button>
             </div>
             <div className="gr-filters" role="tablist" aria-label={t('inbox.filters')}>
-              {FILTERS.map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === f}
-                  className={`gr-filter${filter === f ? ' is-on' : ''}`}
-                  onClick={() => set({ filter: f })}
-                >
-                  {t(`filters.${f}`)}
-                </button>
-              ))}
+              {CHIPS.map((f) => {
+                const on = f === 'groups' ? filter === 'all' && kind === 'group' : f === 'all' ? filter === 'all' && kind !== 'group' : filter === f;
+                return (
+                  <button
+                    key={f}
+                    type="button"
+                    role="tab"
+                    aria-selected={on}
+                    className={`gr-filter${on ? ' is-on' : ''}`}
+                    onClick={() => (f === 'groups' ? set({ filter: 'all', kind: 'group' }) : set({ filter: f, kind: kind === 'group' ? '' : kind }))}
+                  >
+                    {t(`filters.${f}`)}
+                  </button>
+                );
+              })}
             </div>
             {moreOpen && (
             <div className="wa-filter-panel" id="wa-filter-panel">
@@ -586,7 +786,9 @@ export default function InboxShell({
             <div key={im.numberId} className={`wa-import${im.status === 'error' ? ' is-bad' : im.status === 'done' ? ' is-done' : ''}`} role="status">
               <span>
                 {im.status === 'done'
-                  ? t('wa.importDone', { chats: im.chatsTotal, messages: im.messages })
+                  ? im.messages === 0
+                    ? t('wa.importNothingNew', { chats: im.chatsTotal })
+                    : t('wa.importDone', { chats: im.chatsTotal, messages: im.messages })
                   : im.status === 'error'
                     ? t('wa.importFailed')
                     : im.phase === 'messages' || im.phase === 'pictures'
@@ -618,70 +820,23 @@ export default function InboxShell({
             <p className="gr-list-empty">{debounced ? t('inbox.noResults') : activeList ? t('lists.empty') : t(`inbox.empty.${filter}`)}</p>
           ) : (
             <ul
-              className={`gr-rows${visibleSelected.length > 0 ? ' is-selecting' : ''}`}
+              className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}`}
               onScroll={(e) => {
                 const el = e.currentTarget;
                 // Más chats al llegar al final (de a 100, hasta 500 en pantalla).
                 if (el.scrollHeight - el.scrollTop - el.clientHeight < 400 && total > rows.length && pageSize < 500) setPageSize((n) => Math.min(500, n + 100));
               }}
             >
-              {rows.map((c) => (
-                <li key={c.id} className="gr-row-item">
-                  <input
-                    type="checkbox"
-                    className="gr-row-check"
-                    checked={selected.has(c.id)}
-                    onChange={() => toggleSelect(c.id)}
-                    aria-label={t('bulkInbox.select', { name: c.name })}
-                  />
-                  <Link
-                    href={`/app/groups/inbox/${c.id}${listSuffix}`}
-                    onClick={(e) => {
-                      // Abrir en otra pestaña no cambia el chat de esta.
-                      if (!e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0 && c.id !== current) markChatSwitch(c.id);
-                    }}
-                    className={`gr-row${c.id === current ? ' is-active' : ''}${c.unread > 0 ? ' is-unread' : ''}`}
-                    aria-current={c.id === current ? 'page' : undefined}
-                  >
-                    <Avatar name={c.name} kind={c.kind} src={c.pictureUrl} seed={c.id} />
-                    <span className="gr-row-main">
-                      <span className="gr-row-top">
-                        <span className="gr-row-name">{c.name}</span>
-                        <span className={`gr-row-time${c.unread > 0 ? ' is-unread' : ''}`}>{listTime(c.lastMessageAt ?? c.createdAt, locale)}</span>
-                      </span>
-                      <span className="gr-row-bottom">
-                        <span className="gr-row-preview">
-                          {!c.match && c.lastDirection === 'out' && c.lastStatus && c.lastStatus !== 'received' && <Ticks status={c.lastStatus} label={t(`status.${c.lastStatus}`)} />}
-                          {!c.match && c.kind === 'group' && c.lastDirection === 'in' && c.lastSender && <span className="gr-row-sender">{c.lastSender}:</span>}
-                          {c.match ?? mediaText({ preview: c.lastMessagePreview })}
-                        </span>
-                        <span className="gr-row-icons">
-                          {c.muted && <MuteIcon size={16} label={t('wa.muted')} />}
-                          {c.unread > 0 && (
-                            <span className="gr-unread" aria-label={t('inbox.unread', { n: c.unread })}>
-                              {c.unread > 999 ? '999+' : c.unread}
-                            </span>
-                          )}
-                          {c.pinned && <PinIcon size={16} className="gr-pin-icon" label={t('inbox.pinned')} />}
-                        </span>
-                      </span>
-                      {(c.flagged || c.awaitingSince || c.labels.length > 0 || c.assignedTo) && (
-                        <span className="gr-row-meta">
-                          {c.flagged ? (
-                            <span className="badge badge-bad">{t('inbox.flagged')}</span>
-                          ) : c.awaitingSince ? (
-                            <span className="badge badge-warn">{t('inbox.waiting', { time: rel(c.awaitingSince) })}</span>
-                          ) : null}
-                          {c.labels.slice(0, 2).map((l) => (
-                            <LabelTag key={l.id} name={l.name} color={l.color} />
-                          ))}
-                          {c.assignedTo && <span className="gr-row-assignee">{peopleById.get(c.assignedTo) ?? ''}</span>}
-                        </span>
-                      )}
-                    </span>
-                  </Link>
-                </li>
-              ))}
+              {debounced ? (
+                <>
+                  {rows.some((c) => nameHit(c)) && <li className="gr-rows-head">{t('wa.searchChats')}</li>}
+                  {rows.filter((c) => nameHit(c)).map((c) => renderRow(c))}
+                  {rows.some((c) => c.match) && <li className="gr-rows-head">{t('wa.searchMessages')}</li>}
+                  {rows.filter((c) => c.match).map((c) => renderRow(c, { snippet: true }))}
+                </>
+              ) : (
+                rows.map((c) => renderRow(c))
+              )}
             </ul>
           )}
           {loaded && total > rows.length && <p className="ui-help gr-list-more">{t('inbox.showing', { shown: rows.length, total })}</p>}

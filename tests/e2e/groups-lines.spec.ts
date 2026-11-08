@@ -101,6 +101,20 @@ test('el mismo grupo en dos líneas: una fila, hilo junto, Responder desde y fil
   // El thread muestra lo enviado por la otra línea.
   await page.locator('.gr-row', { hasText: name }).click();
   await expect(page.getByText(`desde la otra ${tag}`)).toBeVisible();
+  // "Responder desde" en el composer: se elige la línea A y el mensaje sale por ahí.
+  const from = page.getByLabel('Reply from');
+  await expect(from).toBeVisible();
+  await from.selectOption(a.id);
+  const composer = page.getByLabel('WhatsApp', { exact: true });
+  await composer.fill(`por la A ${tag}`);
+  await composer.press('Enter');
+  await expect(page.getByText(`por la A ${tag}`)).toBeVisible();
+  await expect
+    .poll(async () => {
+      const r = (await (await request.get(`/api/groups/chats/${chatId}/messages`)).json()) as { messages: Array<{ body: string; numberId?: string }> };
+      return r.messages.find((m) => m.body === `por la A ${tag}`)?.numberId;
+    })
+    .toBe(a.id);
   expect(errors, errors.join('\n')).toEqual([]);
 });
 

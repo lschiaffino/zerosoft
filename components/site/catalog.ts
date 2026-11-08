@@ -8,8 +8,8 @@ import {
   type SiteProductKey as ProductKey,
 } from '@/lib/products';
 
-/** Repositorio público (self-host, estrellas, issues). */
-export const GITHUB_URL = 'https://github.com/lschiaffino/zerosoft';
+/** Repositorio público (self-host, estrellas, issues). Sale de lib/repo.ts (NEXT_PUBLIC_GITHUB_REPO). */
+export { GITHUB_URL } from '@/lib/repo';
 
 /** Orden de los productos en el sitio de marketing (el de lib/products). */
 export const SITE_PRODUCTS: readonly ProductKey[] = PRODUCT_KEYS;

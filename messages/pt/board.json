@@ -246,7 +246,9 @@
     "bulkTags": "Tags para todos (opcional)",
     "bulkAdd": "{count, plural, =0 {Adicionar stickies} one {Adicionar # sticky} other {Adicionar # stickies}}",
     "boardTags": "Tags deste quadro",
-    "selectTag": "Selecionar todos os stickies com {tag}"
+    "selectTag": "Selecionar todos os stickies com {tag}",
+    "exportAll": "Exportar todos os stickies para CSV",
+    "exportSelected": "Exportar {count} selecionados para CSV"
   },
   "track": {
     "button": "Track",

@@ -188,6 +188,8 @@ const waitStep = z.object({
   type: z.literal('wait'),
   ms: z.number().int().min(0).max(30_000).optional().default(0),
   selector: selector.optional().default(''),
+  /** Con selector: esperar a que aparezca (default), sea visible o desaparezca (un spinner, un banner). */
+  until: z.enum(['appears', 'visible', 'disappears']).optional(),
   ...heal,
   ...retry,
 });

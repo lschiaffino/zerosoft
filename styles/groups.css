@@ -855,3 +855,5 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
   .gr-replyfrom-label { display: none; }
   .gr-replyfrom .select { max-width: 160px; }
 }
+.wa-replyfrom-row { display: flex; align-items: center; padding: 4px 8px 0; min-width: 0; }
+.gr-row-line { width: 8px; height: 8px; }

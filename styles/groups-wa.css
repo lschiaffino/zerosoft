@@ -604,3 +604,170 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-messages:not(.is-scrolling) .wa-day.is-stuck { opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .wa-day { transition: none; } }
 @media (max-width: 720px) { .wa-bar .wa-ai-btn { display: none; } .wa-bar .wa-icon-btn { width: 38px; } }
+
+/* ---------- Menús en portal (se abren hacia arriba si no entran) ---------- */
+.gr-menu-list.is-portal { position: fixed; z-index: 2000; overflow-y: auto; right: auto; box-shadow: 0 6px 20px rgba(11, 20, 26, 0.18); }
+.gr-menu-item { display: flex; align-items: center; gap: 10px; }
+.gr-menu-item.has-divider { margin-top: 4px; border-top: 1px solid var(--line); border-radius: 0; padding-top: 9px; }
+.gr-menu-list.has-icons .gr-menu-item { padding: 6px 12px 6px 8px; }
+.gr-menu-icon { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 30px; height: 30px; color: #fff; border-radius: 50%; background: var(--ink-3); }
+.gr-menu-icon.is-doc { background: #7f66ff; }
+.gr-menu-icon.is-photo { background: #007bfc; }
+.gr-menu-icon.is-camera { background: #ff2e74; }
+.gr-menu-icon.is-audio { background: #ff8a1b; }
+.gr-menu-icon.is-poll { background: #e6a700; }
+.gr-menu-icon.is-schedule { background: #02a698; }
+.gr-menu-icon.is-ai { background: #8b5fd0; }
+.gr-pinned-tag { text-transform: none; letter-spacing: 0; font-family: inherit; font-size: 0.75rem; font-weight: 600; }
+
+/* ---------- Tercera pasada (QA) ---------- */
+/* Lista: avatar siempre a la vista; casillas solo en modo selección; flecha de opciones por fila. */
+.gr-row-item:hover .wa-avatar,
+.gr-row-item:has(.gr-row-check:focus-visible) .wa-avatar { visibility: visible; }
+.gr-rows.is-selecting .wa-avatar { visibility: hidden; }
+.gr-rows.is-selecting .gr-row-check { opacity: 1; }
+.gr-row-menu { position: absolute; right: 12px; bottom: 14px; z-index: 2; opacity: 0; transition: opacity 0.1s; }
+.gr-row-item:hover .gr-row-menu, .gr-row-menu:focus-within { opacity: 1; }
+.gr-row-item:hover .gr-row-icons { margin-right: 26px; }
+@media (hover: none) { .gr-row-menu { display: none; } }
+.wa-row-chevron { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; color: var(--wa-text-2); background: none; border: 0; border-radius: 4px; cursor: pointer; }
+.wa-row-chevron:focus-visible { outline: 2px solid var(--wa-primary); }
+.gr-rows-head { padding: 14px 16px 6px; font-size: 0.8125rem; font-weight: 500; color: var(--wa-primary-ink); list-style: none; }
+.gr-row-preview b { font-weight: 600; color: var(--wa-text); }
+.gr-row-name b { font-weight: 700; }
+.gr-row-draft { flex: none; font-weight: 500; color: var(--wa-primary-ink); }
+.gr-inbox .gr-unread.is-dot { min-width: 12px; width: 12px; height: 12px; padding: 0; border-radius: 50%; }
+.gr-row-item.is-muted .gr-unread { background: var(--wa-text-2); color: var(--wa-panel); }
+.gr-row-item.is-muted .gr-row-time.is-unread { color: var(--wa-text-2); }
+
+/* Hilo: avatar del remitente en grupos, selección, destacados, borrados, código. */
+.gr-inbox .gr-msg.has-avatar { padding-left: 36px; }
+.wa-sender-avatar { position: absolute; left: 0; top: 0; width: 28px; height: 28px; }
+.gr-inbox .wa-messages.is-selecting .gr-msg { cursor: pointer; }
+.wa-select-check { position: absolute; top: 6px; width: 18px; height: 18px; margin: 0; accent-color: var(--wa-primary); pointer-events: none; }
+.gr-msg-in .wa-select-check, .gr-msg-note .wa-select-check { right: calc(100% + 10px); }
+.gr-msg-out .wa-select-check { right: calc(100% + 10px); }
+.gr-msg.has-avatar .wa-select-check { right: calc(100% - 26px); left: auto; }
+.gr-inbox .wa-messages.is-selecting { padding-left: clamp(40px, 7%, 70px); }
+.gr-inbox .gr-msg.is-selected .gr-bubble { box-shadow: 0 0 0 2px var(--wa-primary); }
+.wa-star { font-size: 0.75rem; color: #e0a800; }
+.gr-inbox .wa-deleted { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 0; font-style: italic; color: var(--wa-text-2); }
+.gr-inbox .wa-deleted .gr-link-btn { font-style: normal; font-size: 0.75rem; }
+.wa-code, .wa-pre { font-family: var(--font-data, ui-monospace, monospace); font-size: 0.8125rem; background: var(--wa-quote-bg); border-radius: 3px; padding: 0 3px; }
+.wa-pre { display: block; padding: 6px 8px; margin: 2px 0; white-space: pre-wrap; }
+.gr-inbox .wa-text.is-editing { opacity: 0.55; }
+/* La flecha queda arriba y chica: no tapa la hora. */
+.wa-chevron { height: 20px; width: 26px; }
+
+/* Composer: edición, nota, grabación en pausa. */
+.wa-editing .gr-quote { border-left-color: var(--wa-primary); }
+.wa-send.is-note { background: #b7791f; }
+.wa-rec-dot.is-paused { animation: none; background: var(--wa-text-2); }
+.wa-selectbar { align-items: center; min-height: 42px; gap: 8px; }
+
+/* Vista previa de adjuntos (cubre el hilo y el composer, como WhatsApp). */
+.wa-thread { position: relative; }
+.wa-attach-pane { position: absolute; inset: 59px 0 0 0; z-index: 50; display: flex; flex-direction: column; background: var(--wa-panel-header); }
+.wa-attach-head { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 0 12px; }
+.wa-attach-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9375rem; color: var(--wa-text); text-align: center; padding-right: 40px; }
+.wa-attach-stage { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 12px 48px; }
+.wa-attach-stage > img, .wa-attach-stage > video { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 1px 6px rgba(11, 20, 26, 0.15); }
+.wa-attach-doc { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 32px 40px; color: var(--wa-text-2); background: var(--wa-panel); border-radius: 8px; text-align: center; max-width: 100%; }
+.wa-attach-doc strong { font-size: 1.0625rem; font-weight: 500; color: var(--wa-text); overflow-wrap: anywhere; }
+.wa-attach-err { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; max-width: min(520px, 100%); margin: 0; padding: 8px 12px; font-size: 0.875rem; color: var(--bad-ink); background: var(--bad-soft); border-radius: var(--radius-1); text-align: center; }
+.wa-attach-caption { display: flex; justify-content: center; padding: 0 16px 10px; }
+.wa-attach-caption .input { width: min(650px, 100%); height: 42px; border: 0; border-radius: 8px; background: var(--wa-input); color: var(--wa-text); }
+.wa-attach-foot { display: flex; align-items: center; gap: 12px; padding: 10px 16px 14px; border-top: 1px solid var(--wa-border); }
+.wa-attach-strip { flex: 1; min-width: 0; display: flex; justify-content: center; gap: 8px; margin: 0; padding: 4px; list-style: none; overflow-x: auto; }
+.wa-attach-thumb { position: relative; flex: none; width: 52px; }
+.wa-attach-pick { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; padding: 0; overflow: hidden; color: var(--wa-icon); background: var(--wa-panel); border: 2px solid transparent; border-radius: 6px; cursor: pointer; }
+.wa-attach-pick img { width: 100%; height: 100%; object-fit: cover; }
+.wa-attach-thumb.is-on .wa-attach-pick { border-color: var(--wa-primary); }
+.wa-attach-thumb.is-error .wa-attach-pick { border-color: var(--wa-danger); }
+.wa-attach-thumb.is-add .wa-attach-pick { border: 1.5px dashed var(--wa-border-strong); background: none; }
+.wa-attach-pick:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
+.wa-attach-thumb .wa-tray-bar { position: absolute; left: 4px; right: 4px; bottom: 4px; }
+.wa-attach-thumb .wa-tray-x { top: -6px; right: -6px; width: 18px; height: 18px; opacity: 0; }
+.wa-attach-thumb:hover .wa-tray-x, .wa-attach-thumb .wa-tray-x:focus-visible { opacity: 1; }
+.wa-attach-send { position: relative; width: 56px; height: 56px; }
+.wa-attach-count { position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; font-size: 0.75rem; line-height: 20px; color: var(--wa-primary-ink); background: #fff; border-radius: 10px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); }
+@media (max-width: 1023px) { .wa-attach-pane { inset: 0; z-index: 80; } .wa-attach-stage { padding: 8px; } }
+
+/* Emoji: pestañas, búsqueda y grilla (como WhatsApp Web). */
+.wa-emoji { width: min(420px, calc(100vw - 24px)); max-height: none; height: 360px; display: flex; flex-direction: column; padding: 6px 8px 8px; overflow: hidden; }
+.wa-emoji-tabs { display: flex; gap: 2px; padding-bottom: 6px; border-bottom: 1px solid var(--wa-border); }
+.wa-emoji-tabs button { flex: 1; height: 32px; font-size: 1.125rem; background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer; filter: grayscale(0.6); }
+.wa-emoji-tabs button[aria-selected='true'] { border-bottom-color: var(--wa-primary); filter: none; }
+.wa-emoji-tabs button:focus-visible { outline: 2px solid var(--wa-primary); }
+.wa-emoji-search { margin: 8px 2px 2px; height: 32px; padding: 0 10px; font: inherit; font-size: 0.875rem; color: var(--wa-text); background: var(--wa-search-bg); border: 0; border-radius: 8px; }
+.wa-emoji-search:focus-visible { outline: 2px solid var(--wa-primary); }
+.wa-emoji .wa-emoji-title { position: static; padding: 6px 4px 2px; }
+.wa-emoji .wa-emoji-grid { flex: 1; min-height: 0; overflow-y: auto; grid-template-columns: repeat(9, minmax(0, 1fr)); align-content: start; }
+.wa-emoji .wa-emoji-grid button { height: 38px; font-size: 1.5rem; }
+.wa-emoji-empty { grid-column: 1 / -1; padding: 16px; text-align: center; font-size: 0.875rem; color: var(--wa-text-2); }
+
+/* Audio (no nota de voz): nombre, barra y la nota musical. */
+.wa-audio-line { display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 26px; }
+.wa-audio-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; color: var(--wa-text); }
+.wa-audio-bar { display: block; height: 4px; background: color-mix(in srgb, var(--wa-text-2) 35%, transparent); border-radius: 2px; overflow: hidden; }
+.wa-audio-bar i { display: block; height: 100%; background: var(--wa-primary); }
+.wa-voice-badge.is-audio { width: 34px; height: 34px; color: #fff; background: #ff8a1b; border-radius: 50%; }
+
+/* Contacto compartido con botones. */
+.wa-contact-card { display: flex; flex-direction: column; min-width: 240px; }
+.wa-contact-actions { display: flex; border-top: 1px solid color-mix(in srgb, var(--wa-text-2) 25%, transparent); margin: 4px -7px -4px -9px; }
+.wa-contact-actions button { flex: 1; height: 38px; font: inherit; font-size: 0.875rem; color: var(--wa-primary-ink); background: none; border: 0; cursor: pointer; }
+.wa-contact-actions button + button { border-left: 1px solid color-mix(in srgb, var(--wa-text-2) 25%, transparent); }
+.wa-contact-actions button:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+
+/* Info del mensaje. */
+.wa-info { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+.wa-info > div { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.wa-info dt { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.wa-info dd { margin: 0; color: var(--ink-2); text-align: right; }
+
+/* Teléfono: el encabezado deja solo el nombre; lo demás va al menú ⋯. */
+@media (max-width: 720px) {
+  .gr-inbox .wa-head .wa-pick, .gr-inbox .wa-head .wa-close-icon, .gr-inbox .wa-head .gr-details-toggle { display: none; }
+  .gr-inbox .gr-msg.has-avatar { padding-left: 32px; }
+}
+.gr-reimport-label { font-size: 0.8125rem; color: var(--ink-2); }
+
+/* Miembros de grupos grandes: buscar y acciones en un menú por fila. */
+.gr-member-search { width: 100%; }
+.gr-member-who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.gr-member-who .gr-member-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Cuarta pasada (QA 2) ---------- */
+/* La hora y el reintentar quedan por encima de la flecha (se pueden tocar). */
+.gr-inbox .gr-msg-foot { z-index: 3; }
+.gr-inbox .wa-day { z-index: 6; }
+/* Táctil: sin flechas a la vista; el menú se abre con un toque largo (y en la lista igual). */
+@media (hover: none) {
+  .gr-inbox .wa-hover { opacity: 0; pointer-events: none; }
+  .gr-inbox .gr-row-menu { display: block; opacity: 0; pointer-events: none; }
+  .gr-inbox .gr-bubble, .gr-inbox .gr-row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+}
+/* "Esperando respuesta": una franja chica en el flujo, no un cartel. */
+.gr-inbox .gr-thread > .gr-banner.wa-strip { margin: 0; padding: 4px 16px; font-size: 0.8125rem; border: 0; border-bottom: 1px solid var(--wa-border); border-radius: 0; background: var(--wa-panel-header); color: var(--wa-text-2); }
+.gr-inbox .gr-thread > .gr-banner.wa-strip.is-bad { color: var(--bad-ink); background: var(--bad-soft); }
+.gr-inbox .gr-thread > .gr-banner.wa-strip .btn { --btn-h: 24px; }
+/* Historial: lo anterior quedó en el teléfono. */
+.wa-history-note { align-self: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px; margin: 8px 0 4px; padding: 5px 12px; font-size: 0.78rem; color: var(--wa-text-2); background: var(--wa-system-chip); border-radius: 7.5px; box-shadow: var(--wa-shadow-bubble); }
+.wa-history-note .btn { --btn-h: 24px; color: var(--wa-primary-ink); }
+/* Lista: borrado y nota de voz en la vista previa. */
+.gr-row-deleted { display: inline-flex; align-items: center; gap: 4px; font-style: italic; }
+.gr-row-voice { display: inline-flex; align-items: center; gap: 3px; color: var(--wa-text-2); }
+/* Citas y listas dentro del texto (como WhatsApp). */
+.wa-bq { display: inline-block; padding-left: 8px; border-left: 3px solid color-mix(in srgb, var(--wa-text-2) 45%, transparent); color: var(--wa-text-2); }
+.wa-li { display: inline-flex; gap: 6px; padding-left: 4px; }
+.wa-li-mark { flex: none; color: var(--wa-text-2); }
+/* Visor: zoom con clic y tira de miniaturas. */
+.wa-viewer-stage img { cursor: zoom-in; transition: transform 0.15s ease-out; }
+.wa-viewer-stage img.is-zoomed { cursor: zoom-out; transform: scale(2); }
+.wa-viewer-strip { display: flex; justify-content: center; gap: 8px; margin: 0; padding: 8px 16px 16px; list-style: none; overflow-x: auto; }
+.wa-viewer-strip button { display: block; width: 60px; height: 60px; padding: 0; overflow: hidden; background: #000; border: 2px solid transparent; border-radius: 4px; opacity: 0.6; cursor: pointer; }
+.wa-viewer-strip button.is-on { opacity: 1; border-color: var(--wa-primary); }
+.wa-viewer-strip img, .wa-viewer-strip video { width: 100%; height: 100%; object-fit: cover; }
+.wa-attach-pick video { width: 100%; height: 100%; object-fit: cover; }
+@media (prefers-reduced-motion: reduce) { .wa-viewer-stage img { transition: none; } }

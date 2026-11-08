@@ -2254,3 +2254,6 @@ body:has(.docs-touchbar) .docs-editor { padding-bottom: 220px; }
 .docs-shared-first-row:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .docs-shared-first-title { min-width: 0; overflow-wrap: anywhere; }
 .docs-shared-first-meta { flex-shrink: 0; color: var(--ink-2); font-size: 0.8125rem; }
+
+/* Conteo de palabras al final del menú "…" de la página. */
+.docs-menu-stats { padding: 6px 10px; font-size: 0.75rem; color: var(--brand-gray-2); }

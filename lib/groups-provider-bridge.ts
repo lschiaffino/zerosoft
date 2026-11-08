@@ -982,11 +982,11 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         return [{ remoteJid, chatId, isGroup, name, pictureUrl: pic, unread: Math.max(0, Number(c.unreadCount) || 0), lastAt: Number.isFinite(ts) ? ts : 0 }];
       });
     },
-    async messages(remoteJid, limit) {
+    async messages(remoteJid, limit, page = 1) {
       const r = (await api(
         `/chat/findMessages/${instance}`,
         'POST',
-        { where: { key: { remoteJid } }, offset: Math.max(1, Math.min(limit, 500)), page: 1 },
+        { where: { key: { remoteJid } }, offset: Math.max(1, Math.min(limit, 500)), page: Math.max(1, Math.floor(page)) },
         { maxBytes: 16 * 1024 * 1024 },
       )) as Json;
       const records = ((r.messages ?? {}) as Json).records;

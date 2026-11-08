@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LicenseRef-Zerosoft-EE
+// Copyright (c) 2026 Zerosoft. Licensed under the Zerosoft Enterprise License (ee/LICENSE).
+
 import { createPublicKey, verify } from 'crypto';
 
 /**
@@ -6,7 +9,8 @@ import { createPublicKey, verify } from 'crypto';
  * Sin key válida, todo lo de /ee queda apagado y el core funciona igual.
  */
 
-export type EnterpriseFeature = 'sso' | 'audit' | 'roles' | 'whitelabel';
+/** sso: SSO/SAML · scim: SCIM provisioning · audit: audit export and long retention · roles: custom roles · whitelabel: white-label and custom domain · multiworkspace: multi-workspace admin. */
+export type EnterpriseFeature = 'sso' | 'scim' | 'audit' | 'roles' | 'whitelabel' | 'multiworkspace';
 
 export interface LicensePayload {
   customer: string;

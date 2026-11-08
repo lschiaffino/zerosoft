@@ -446,6 +446,7 @@ export interface ChatRow {
   ephemeral?: number;
   left_at?: string | null;
   muted_until?: string | null;
+  marked_unread?: number;
 }
 
 export interface LabelDto {
@@ -487,10 +488,15 @@ export interface ChatDto {
   leftAt: string | null;
   /** Silenciado (sin avisos push), como en WhatsApp. */
   muted: boolean;
+  /** Marcado como no leído a mano (WhatsApp muestra un punto, sin número). */
+  markedUnread: boolean;
   /** El último mensaje (para la vista previa con tildes): dirección y estado. */
   lastDirection?: string | null;
   lastStatus?: string | null;
   lastSender?: string | null;
+  /** Duración (segundos) si el último fue audio o nota de voz; tipo de media o "deleted". */
+  lastDuration?: number | null;
+  lastKind?: string | null;
   /** Fragmento del mensaje que coincide con la búsqueda. */
   match?: string;
   /**
@@ -554,6 +560,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     ephemeral: Number(row.ephemeral ?? 0),
     leftAt: row.left_at ?? null,
     muted: Boolean(row.muted_until && row.muted_until > new Date().toISOString()),
+    markedUnread: Boolean(row.marked_unread),
   };
 }
 
@@ -710,7 +717,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const rows = (await db
     .prepare(
       `SELECT c.*, ${matchSelect},
-         (SELECT m.direction || '|' || m.status || '|' || CASE WHEN m.sender_name != '' THEN m.sender_name WHEN m.sender_phone != '' THEN '+' || m.sender_phone ELSE '' END FROM groups_messages m WHERE m.chat_id = c.id AND m.direction IN ('in', 'out')
+         (SELECT m.direction || '|' || m.status || '|' || COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.duration'), '') || '|' || CASE WHEN m.deleted_at IS NOT NULL THEN 'deleted' ELSE COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.kind'), '') END || '|' || CASE WHEN m.sender_name != '' THEN m.sender_name WHEN m.sender_phone != '' THEN '+' || m.sender_phone ELSE '' END FROM groups_messages m WHERE m.chat_id = c.id AND m.direction IN ('in', 'out')
            ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_info
        FROM ${source} c${merge ? '' : ` WHERE ${whereSql}`}
        ORDER BY (c.pinned_at IS NULL), c.pinned_at DESC, COALESCE(c.last_message_at, c.created_at) DESC, c.id LIMIT ? OFFSET ?`,
@@ -739,7 +746,8 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   }
   return {
     rows: rows.map((r) => {
-      const [dir, st, sender] = (r.last_info ?? '').split('|');
+      const [dir, st, dur, lastKind, ...rest] = (r.last_info ?? '').split('|');
+      const sender = rest.join('|');
       const lines = r.line_key ? linesByKey.get(r.line_key) : undefined;
       return maskChat(query.viewer, {
         ...toChatDto(r, labels.get(r.id) ?? []),
@@ -747,11 +755,26 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
         lastDirection: dir || null,
         lastStatus: st || null,
         lastSender: sender || null,
+        lastDuration: Number(dur) || null,
+        lastKind: lastKind || null,
         ...(r.match ? { match: r.match.slice(0, 160) } : {}),
       });
     }),
     total: Number(total.c),
   };
+}
+
+/** Chats abiertos con algo sin leer (sin los silenciados), con el mismo acceso que la bandeja. */
+export async function countUnreadChats(ws: string, viewer?: GroupsViewer): Promise<number> {
+  const where = ["c.user_id = ?", "c.status = 'open'", 'c.unread_count > 0', '(c.muted_until IS NULL OR c.muted_until < ?)'];
+  const args: Array<string | number> = [ws, nowIso()];
+  const access = chatAccessSql(viewer);
+  if (access) {
+    where.push(access.sql);
+    args.push(...access.args);
+  }
+  const r = (await getDb().prepare(`SELECT COUNT(*) AS n FROM groups_chats c WHERE ${where.join(' AND ')}`).get(...args)) as { n: number };
+  return Number(r.n);
 }
 
 /** Busca o crea el chat de un número (por id del proveedor). */
@@ -887,13 +910,19 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
   if (patch.properties !== undefined) set('properties', JSON.stringify(await cleanProperties(ws, patch.properties)));
   if (patch.read === true) {
     set('unread_count', 0);
+    set('marked_unread', 0);
     // El mismo chat en otras líneas se ve una sola vez en la bandeja: se leen juntos.
     const { lineKeySql } = await import('./groups-lines');
     await db
-      .prepare(`UPDATE groups_chats SET unread_count = 0 WHERE user_id = ? AND id != ? AND unread_count > 0 AND ${lineKeySql('groups_chats')} = ?`)
+      .prepare(
+        `UPDATE groups_chats SET unread_count = 0, marked_unread = 0 WHERE user_id = ? AND id != ? AND (unread_count > 0 OR marked_unread = 1) AND ${lineKeySql('groups_chats')} = ?`,
+      )
       .run(ws, id, `${row.kind}|${row.kind === 'dm' && row.phone ? row.phone : row.provider_chat_id}`);
   }
-  if (patch.read === false && row.unread_count === 0) set('unread_count', 1);
+  if (patch.read === false && row.unread_count === 0) {
+    set('unread_count', 1);
+    set('marked_unread', 1);
+  }
   if (patch.flagged === false) {
     set('flagged_at', null);
     set('awaiting_since', null);
@@ -1129,9 +1158,9 @@ export function previewOf(body: string, mediaType: string, mediaName = '', meta:
   const text = body.replace(/\s+/g, ' ').trim();
   if (text) return text.slice(0, 140);
   if (meta.media?.viewOnce) return '[viewOnce]';
-  if (mediaName.trim()) return mediaName.trim().slice(0, 140);
-  if (meta.media?.kind === 'voice') return '[voice]';
+  if (meta.media?.kind === 'voice' || meta.media?.ptt) return '[voice]';
   if (meta.media?.kind === 'sticker') return '[sticker]';
+  if (mediaName.trim()) return mediaName.trim().slice(0, 140);
   if (mediaType) return `[${mediaKind(mediaType)}]`;
   if (meta.location) return '[location]';
   if (meta.contacts?.length) return '[contact]';
@@ -1216,7 +1245,7 @@ export async function touchChat(chatId: string, at: string, preview: string, inc
   if (incoming) {
     await db
       .prepare(
-        `UPDATE groups_chats SET last_message_at = ?, last_message_preview = ?, unread_count = unread_count + 1,
+        `UPDATE groups_chats SET last_message_at = ?, last_message_preview = ?, unread_count = unread_count + 1 - COALESCE(marked_unread, 0), marked_unread = 0,
            awaiting_since = COALESCE(awaiting_since, ?), status = 'open', updated_at = ? WHERE id = ?`,
       )
       .run(at, preview, at, at, chatId);
@@ -1343,6 +1372,7 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
     forwarded: input.forwarded,
     poll,
   });
+  if (status === 'failed') await touchChat(chatId, at, poll ? pollPreview(poll) : previewOf(body, '', ''), false);
   if (status === 'sent') {
     await touchChat(chatId, at, poll ? pollPreview(poll) : previewOf(body, input.media?.mimetype ?? '', input.media?.filename ?? ''), false);
     // Un envío masivo no es una respuesta: el chat sigue esperando y el ticket sin primera respuesta.
@@ -1476,6 +1506,7 @@ async function sendMediaMessage(
   }
   await settleOutgoing(row.id, chat.number_id, providerId, status, error);
   const saved = ((await getDb().prepare('SELECT * FROM groups_messages WHERE id = ?').get(row.id)) as MessageRow | undefined) ?? row;
+  if (status === 'failed') await touchChat(chat.id, at, previewOfRow(saved), false);
   if (status === 'sent') {
     await touchChat(chat.id, at, previewOfRow(saved), false);
     // Un envío masivo no es una respuesta: el chat sigue esperando.
@@ -1498,6 +1529,67 @@ async function sendMediaMessage(
     }
   }
   return withAuthorName(toMessageDto(saved));
+}
+
+/**
+ * Vuelve a mandar un mensaje propio que no salió, en la misma fila (no crea
+ * otra burbuja): pasa a "pending" y después a sent o failed.
+ */
+export async function retryMessage(ws: string, actor: string | null, messageId: string, isAdmin = false): Promise<MessageDto> {
+  const row = await getMessageRow(ws, messageId);
+  if (!row || row.direction !== 'out') throw new GroupsError('not_found', 404);
+  if (!isAdmin && row.author_id !== actor) throw new GroupsError('forbidden', 403);
+  if (row.status !== 'failed') return toMessageDto(row);
+  const chat = await getChatRow(ws, row.chat_id);
+  const number = chat ? await getNumberRow(ws, chat.number_id) : null;
+  if (!chat || !number) throw new GroupsError('not_found', 404);
+  // Claim: si dos clics llegan juntos, solo uno reintenta.
+  const claimed = await getDb().prepare("UPDATE groups_messages SET status = 'pending', error = '' WHERE id = ? AND status = 'failed'").run(row.id);
+  if (claimed.changes === 0) return toMessageDto((await getMessageRow(ws, row.id)) as MessageRow);
+  const provider = providerFor(number);
+  let replyProviderId: string | undefined;
+  if (row.reply_to_id) replyProviderId = (await getMessageRow(ws, row.reply_to_id))?.provider_message_id ?? undefined;
+  let providerId: string | null = null;
+  let status = 'sent';
+  let error = '';
+  try {
+    const poll = parsePoll(row.poll);
+    if (poll && provider.sendPoll) providerId = (await provider.sendPoll(chat.provider_chat_id, poll)).id || null;
+    else if (row.media_url) {
+      const stored = parseJson<StoredMeta>(row.meta ?? '', {}).media;
+      const bridged = provider.kind === 'evolution' || provider.kind === 'managed';
+      const local = bridged ? await localChatUpload(row.media_url) : null;
+      const base64 = local ? (await (await import('fs/promises')).readFile(local.path)).toString('base64') : undefined;
+      const kind = stored?.kind ?? planOutboundKind(row.media_type, local?.size ?? stored?.size, null);
+      providerId =
+        (
+          await provider.sendMedia(chat.provider_chat_id, {
+            url: row.media_url,
+            mimetype: row.media_type,
+            filename: row.media_name,
+            caption: row.body,
+            kind,
+            ...(base64 ? { base64 } : {}),
+            ...(replyProviderId ? { replyTo: replyProviderId } : {}),
+          })
+        ).id || null;
+    } else providerId = (await provider.sendText(chat.provider_chat_id, row.body, { replyTo: replyProviderId })).id || null;
+  } catch (err) {
+    status = 'failed';
+    error = providerErrorCode(err);
+  }
+  await settleOutgoing(row.id, chat.number_id, providerId, status, error);
+  const saved = (await getMessageRow(ws, row.id)) as MessageRow;
+  if (status === 'sent') {
+    const at = nowIso();
+    await touchChat(chat.id, at, previewOfRow(saved), false);
+    await markAnswered(chat.id, at);
+    await emitEventSoon(ws, 'groups.message.sent', {
+      message: { id: saved.id, body: saved.body, authorId: actor, authorKind: saved.author_kind, status, createdAt: saved.created_at },
+      chat: chatEventInfo(chat),
+    });
+  }
+  return toMessageDto(saved);
 }
 
 /**
@@ -1814,7 +1906,10 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           .prepare('SELECT id, status FROM groups_messages WHERE number_id = ? AND provider_message_id = ?')
           .get(number.id, ev.providerMessageId)) as { id: string; status: string } | undefined;
         if (row && (rank[ev.status] ?? 0) > (rank[row.status] ?? 0)) {
-          await getDb().prepare('UPDATE groups_messages SET status = ? WHERE id = ?').run(ev.status, row.id);
+          // La hora de cada estado queda en meta.ack (Info del mensaje).
+          await getDb()
+            .prepare("UPDATE groups_messages SET status = ?, meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.' || ?, ?) WHERE id = ?")
+            .run(ev.status, ev.status, nowIso(), row.id);
         }
       } else if (ev.type === 'edit' || ev.type === 'revoke') {
         const msg = (await getDb()

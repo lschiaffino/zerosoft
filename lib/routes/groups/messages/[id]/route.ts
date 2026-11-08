@@ -39,6 +39,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       });
       return NextResponse.json(res, { status: res.created ? 201 : 200 });
     }
+    if (b.action === 'retry') {
+      const { retryMessage } = await import('@/lib/groups');
+      return NextResponse.json(await retryMessage(s.ws, s.me, id, s.isAdmin));
+    }
+    if (b.action === 'star' || b.action === 'unstar') {
+      const { starMessage } = await import('@/lib/groups-inbox');
+      return NextResponse.json(await starMessage(s.ws, id, b.action === 'star'));
+    }
     if (b.action === 'edit') return NextResponse.json(await editMessage(s.ws, { me: s.me, isAdmin: s.isAdmin }, id, str(b.body) ?? ''));
     if (b.action === 'pin' || b.action === 'unpin') return NextResponse.json(await pinMessage(s.ws, s.me, id, b.action === 'pin'));
     if (b.action === 'forward') {

@@ -1,8 +1,12 @@
 # Rutina diaria del blog y del SEO
 
+> **Maintainer automation (zerosoft team only).** Es el prompt de la rutina
+> diaria del equipo. Si contribuís desde afuera no lo necesitás: seguí
+> `AGENTS.md` y `CONTRIBUTING.md`.
+
 Este archivo es el prompt de la rutina en la nube que corre una vez por día.
 Copialo entero como instrucción de la rutina. Si algo de acá choca con
-`CLAUDE.md`, gana `CLAUDE.md`.
+`CLAUDE.md` o `AGENTS.md`, ganan esos.
 
 ---
 
@@ -12,7 +16,7 @@ tres flojos.
 
 ## 0. Antes de empezar
 
-1. Leé `CLAUDE.md`, `docs/voice.md` (entera, es obligatoria) y `docs/seo.md`.
+1. Leé `CLAUDE.md` (incluida la sección "Maintainer automation"), `AGENTS.md`, `docs/voice.md` (entera, es obligatoria) y `docs/seo.md`.
 2. `git checkout main && git pull`. Creá una rama `seo/<YYYY-MM-DD>`.
 3. `npm ci` si no hay `node_modules`.
 4. `node scripts/blog-gaps.mjs` y leé la línea "Hoy:". Esa es la tarea del día, salvo que el paso 3 de abajo
@@ -90,12 +94,8 @@ ciertos:
    `npx vitest run`, y con el build del paso 3: `CI=1 E2E_PORT=3998 npx playwright test tests/e2e/seo.spec.ts --retries=0`.
 2. Si escribiste un post, abrilo en el navegador (`/es/blog/<slug>`, `/en/...`, `/pt/...`) a 390 px y a 1280 px, en
    claro y oscuro: que no haya scroll horizontal y que tablas y bloques de código se lean.
-3. Commit con esta identidad (si no, Vercel rechaza el deploy):
-
-   ```
-   git add <archivos>
-   git -c user.name="Lautaro Schiaffino" -c user.email="lschiaffino@users.noreply.github.com" commit -m "Blog: <qué>" -m "<por qué y qué verificaste>" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-   ```
+3. Commit con la identidad y el trailer de la sección "Maintainer automation" de `CLAUDE.md` (si no, Vercel
+   rechaza el deploy). Mensaje: `Blog: <qué>`, y en el cuerpo por qué y qué verificaste.
 
 4. Pusheá la rama y abrí un PR contra `main` con `gh pr create`. No mergees: lo revisa una persona.
 
