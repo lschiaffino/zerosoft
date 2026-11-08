@@ -159,7 +159,8 @@ test('ticket desde un mensaje: la fila deja de decir Overdue sin recargar; audit
   await expect(row.locator('.badge', { hasText: 'Overdue' })).toBeVisible();
   const msg = page.locator('.gr-msg-in', { hasText: 'The export is broken' });
   await msg.hover();
-  await msg.getByRole('button', { name: 'Ticket' }).click();
+  await msg.getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Create ticket' }).click();
   await page.getByRole('dialog', { name: 'New ticket' }).getByRole('button', { name: 'Create ticket' }).click();
   await expect(msg.getByRole('link', { name: 'Ticket' })).toBeVisible();
   await expect(row.locator('.badge', { hasText: 'Overdue' })).toHaveCount(0);

@@ -393,7 +393,16 @@
       "stylesDesc": "The same dictation reads differently in an email and in a chat. Voice picks the context from the app and the field.",
       "commandMode": "Command Mode: with text selected, say what to do with it",
       "commandModeHelp": "Select text in a field, hold {shortcut} and say \"make it shorter\" or \"translate it to English\". The selection is replaced. Off by default.",
-      "learnCorrections": "Learn from my corrections: fixing a dictation in the history adds the corrected names and terms to the dictionary"
+      "learnCorrections": "Learn from my corrections: fixing a dictation in the history adds the corrected names and terms to the dictionary",
+      "cleanupMode": "Cleanup",
+      "cleanupModeHelp": "Applies here and in the desktop app. Raw keeps what you said word for word, with only your dictionary replacements.",
+      "cleanupModes": {
+        "raw": "Raw (as spoken)",
+        "clean": "Clean",
+        "formal": "Formal everywhere",
+        "per_app": "By app (styles below)"
+      },
+      "stylesNote": "Used when Cleanup is set to By app."
     },
     "dictionary": {
       "title": "Dictionary",
@@ -477,7 +486,9 @@
       "webhooksTitle": "Webhooks and Flow",
       "webhooksDesc": "voice.meeting.completed and voice.notes.ready reach only the webhooks and flows created by the person who recorded the meeting. Creating webhooks and flows is for admins, so a member’s meetings do not reach any webhook yet.",
       "webhooksLink": "Set up webhooks",
-      "step2Link": "Settings > API"
+      "step2Link": "Settings > API",
+      "what4": "Settings in the app (language, cleanup, dictionary) are the same ones you see here, and its history lists the same dictations, with copy and paste again.",
+      "what5": "Without a connection the recording is kept on the computer and can be sent again from the menu bar or the history."
     },
     "prompts": {
       "recipes": {

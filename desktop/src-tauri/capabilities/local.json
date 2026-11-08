@@ -1,0 +1,27 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "local",
+  "description": "Ajustes y HUD (archivos locales de la app): sus comandos y los eventos que reciben.",
+  "windows": ["settings", "hud"],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:window:allow-close",
+    "allow-settings-get",
+    "allow-settings-save",
+    "allow-permission-ask",
+    "allow-voice-get",
+    "allow-voice-save",
+    "allow-dictionary-list",
+    "allow-dictionary-add",
+    "allow-dictionary-delete",
+    "allow-history-list",
+    "allow-history-copy",
+    "allow-history-paste",
+    "allow-pending-retry",
+    "allow-pending-discard",
+    "allow-account-sign-in",
+    "allow-account-sign-out",
+    "allow-open-voice"
+  ]
+}

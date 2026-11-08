@@ -187,6 +187,7 @@ export async function editMessage(ws: string, viewer: { me: string; isAdmin: boo
   if (!actionsFor(msg, caps, viewer).edit) {
     if (msg.direction === 'out' && !caps.edit) throw new GroupsError('unsupported');
     if (msg.direction === 'note') throw new GroupsError('forbidden', 403);
+    if (msg.direction === 'out' && !viewer.isAdmin && msg.author_id !== viewer.me) throw new GroupsError('forbidden', 403);
     throw new GroupsError('edit_window');
   }
   if (body === msg.body) return toMessageDto(msg);
@@ -194,7 +195,8 @@ export async function editMessage(ws: string, viewer: { me: string; isAdmin: boo
     try {
       await providerFor(number).editMessage(chat.provider_chat_id, msg.provider_message_id as string, body);
     } catch (err) {
-      throw new GroupsError(providerErrorCode(err), 502);
+      const code = providerErrorCode(err);
+      throw new GroupsError(code === 'not_found' || code === 'provider_error' ? 'edit_failed_whatsapp' : code, 502);
     }
   }
   await getDb().prepare('UPDATE groups_messages SET body = ?, edited_at = ? WHERE id = ?').run(body, nowIso(), msg.id);
@@ -219,6 +221,7 @@ export async function deleteMessage(
   if (!actionsFor(msg, caps, viewer).delete) {
     if (msg.direction === 'out' && !caps.deleteForAll) throw new GroupsError('unsupported');
     if (msg.direction === 'note') throw new GroupsError('forbidden', 403);
+    if (msg.direction === 'out' && !viewer.isAdmin && msg.author_id !== viewer.me) throw new GroupsError('forbidden', 403);
     if (msg.direction === 'out') throw new GroupsError('delete_window');
     throw new GroupsError('message_not_deletable');
   }
@@ -234,6 +237,16 @@ export async function deleteMessage(
   await getDb().prepare('UPDATE groups_messages SET deleted_at = ?, pinned_at = NULL, pinned_by = NULL WHERE id = ?').run(nowIso(), msg.id);
   await refreshChatPreview(msg.id);
   return { removed: false, message: await freshDto(ws, msg.id) };
+}
+
+/** Destaca (o no) un mensaje para el equipo: queda en meta.starred. */
+export async function starMessage(ws: string, messageId: string, star: boolean): Promise<MessageDto> {
+  const msg = await getMessageRow(ws, messageId);
+  if (!msg || msg.direction === 'system') throw new GroupsError('not_found', 404);
+  await getDb()
+    .prepare("UPDATE groups_messages SET meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.starred', json(?)) WHERE id = ? AND user_id = ?")
+    .run(star ? 'true' : 'false', msg.id, ws);
+  return freshDto(ws, msg.id);
 }
 
 /**

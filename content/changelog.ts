@@ -83,6 +83,42 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Importing a Notion export now keeps relations between databases, turns columns with workspace members into people, keeps date ranges with their end, and brings toggles and heading levels as they were. Database pages open at full width.',
         es: 'Importar un export de Notion ahora conserva las relaciones entre bases, convierte en personas las columnas con miembros del workspace, guarda los rangos de fechas con su fin y trae los toggles y los niveles de título como estaban. Las páginas de bases se abren a ancho completo.',
         pt: 'Importar um export do Notion agora mantém as relações entre bancos, transforma em pessoas as colunas com membros do workspace, guarda os intervalos de datas com o fim e traz os toggles e os níveis de título como estavam. As páginas de bancos abrem em largura total.',
+    id: '2026-11-07-voice-cleanup-mode',
+    date: '2026-11-07',
+    title: {
+      en: 'Voice: pick how much each dictation gets cleaned up',
+      es: 'Voice: elegí cuánto se limpia cada dictado',
+      pt: 'Voice: escolha quanto cada ditado é limpo',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'A new Cleanup setting in Voice: raw (word for word, only your dictionary replacements), clean, formal everywhere, or by app with the tones you already set. Dictations made from the desktop app now show as such in the history.',
+        es: 'Un ajuste nuevo de Limpieza en Voice: sin limpieza (palabra por palabra, solo con los reemplazos del diccionario), limpio, formal en todas las apps, o según la app con los tonos que ya tenías. Los dictados hechos desde la app de escritorio ahora figuran así en el historial.',
+        pt: 'Um novo ajuste de Limpeza no Voice: sem limpeza (palavra por palavra, só com as substituições do dicionário), limpo, formal em todos os apps, ou por app com os tons que você já tinha. Os ditados feitos pelo app desktop agora aparecem assim no histórico.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-07-groups-whatsapp-web',
+    date: '2026-11-07',
+    title: {
+      en: 'Groups: your chats come in when you connect, and the inbox works like WhatsApp Web',
+      es: 'Groups: tus chats llegan al conectar y la bandeja se usa como WhatsApp Web',
+      pt: 'Groups: suas conversas chegam ao conectar e a caixa funciona como o WhatsApp Web',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'When you scan the QR code, Groups brings in your chats and groups with their names, photos, unread counts and the latest messages, with a progress bar in the inbox. Old messages do not trigger rules, notifications or response times. Reimport from Settings > Numbers and choose how many messages per chat.',
+        es: 'Al escanear el QR, Groups trae tus chats y grupos con sus nombres, fotos, no leídos y los últimos mensajes, con el avance a la vista en la bandeja. Los mensajes viejos no disparan reglas, avisos ni tiempos de respuesta. Podés reimportar desde Ajustes > Números y elegir cuántos mensajes por chat.',
+        pt: 'Ao escanear o QR, o Groups traz suas conversas e grupos com nomes, fotos, não lidas e as últimas mensagens, com o progresso visível na caixa. Mensagens antigas não disparam regras, avisos nem tempos de resposta. Reimporte em Configurações > Números e escolha quantas mensagens por conversa.',
+      },
+      {
+        product: 'groups',
+        en: 'The conversation now looks like WhatsApp Web: bubbles with read ticks, date chips, quoted replies, reactions, photos and videos in a full-screen viewer, voice notes with speed control, document cards, locations and contacts. Drag files onto the chat or paste an image to attach it, and record voice notes from the composer.',
+        es: 'La conversación ahora se ve como WhatsApp Web: burbujas con tildes de leído, separadores de día, respuestas citadas, reacciones, fotos y videos en un visor a pantalla completa, notas de voz con velocidad, tarjetas de documentos, ubicaciones y contactos. Arrastrá archivos al chat o pegá una imagen para adjuntarla, y grabá notas de voz desde el composer.',
+        pt: 'A conversa agora parece o WhatsApp Web: balões com tiques de leitura, separadores de data, respostas citadas, reações, fotos e vídeos em um visualizador de tela cheia, mensagens de voz com velocidade, cartões de documentos, localizações e contatos. Arraste arquivos para a conversa ou cole uma imagem para anexar, e grave mensagens de voz pelo compositor.',
       },
     ],
   },

@@ -65,6 +65,8 @@ export async function POST(req: Request, ctx: Ctx) {
     return new NextResponse('invalid json', { status: 400 });
   }
   const events = provider.parseWebhook(body);
-  const result = await ingestEvents(row, events);
+  // Historial que WhatsApp manda al vincular (Evolution MESSAGES_SET): se guarda sin avisos, reglas ni SLA.
+  const history = /^messages[._]set$/i.test(String((body as { event?: unknown } | null)?.event ?? ''));
+  const result = await ingestEvents(row, events, { history });
   return NextResponse.json({ ok: true, ...result });
 }

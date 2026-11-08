@@ -26,7 +26,9 @@ import {
 import { BUILTIN_TEMPLATE_SECTIONS, builtinTemplateInstructions, isBuiltinTemplate } from './voice-templates';
 import { contactLabel, logMeetingToContact, type MeetingLabels } from './voice-integrations';
 import type { OwnerScope } from './crm-visibility';
+import { applyDictionary } from './voice-cleanup';
 import {
+  dictationTone,
   VOICE_CONTEXTS,
   type VoiceChatMessage,
   type VoiceContext,
@@ -67,14 +69,11 @@ export async function dictate(args: {
     durationHintMs: args.durationMs,
     fakeText: args.fakeText,
   });
-  const cleaned = await cleanupDictation({
-    workspaceId: args.owner.workspaceId,
-    raw: tr.text,
-    context,
-    tone: settings.styles[context],
-    dictionary,
-    useAi: settings.aiCleanup,
-  });
+  const tone = dictationTone(settings, context);
+  // raw: la transcripción tal cual, solo con los reemplazos y snippets del diccionario.
+  const cleaned = tone
+    ? await cleanupDictation({ workspaceId: args.owner.workspaceId, raw: tr.text, context, tone, dictionary, useAi: settings.aiCleanup })
+    : { text: applyDictionary(tr.text.replace(/\s+/g, ' ').trim(), dictionary), ai: false, aiError: null };
   const durationMs = tr.durationMs || args.durationMs || 0;
   if (args.save === false || !cleaned.text) {
     const now = new Date().toISOString();
