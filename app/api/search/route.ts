@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, realUserId } from '@/lib/session';
+import { getCurrentUser } from '@/lib/session';
 import { appFromPath, userCanUseApp } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import { searchAll, searchTasks } from '@/lib/crm';
@@ -113,7 +113,7 @@ async function getPrivate(req: NextRequest) {
     // Send: documentos y espacios por título, solo los que la persona ve.
     userCanUseApp(user, 'send') && user.role !== 'guest' ? searchSend(sendActorOf(user), q).catch(() => []) : Promise.resolve([]),
     // Inbox: chats y correos de la persona (los suyos, nunca de otra persona del workspace).
-    searchInbox(realUserId(user), q).catch(() => []),
+    searchInbox(user.actingUser?.id ?? user.id, q).catch(() => []),
   ]);
 
   const items: SearchResultItem[] = [];

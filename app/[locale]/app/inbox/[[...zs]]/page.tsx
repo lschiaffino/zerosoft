@@ -34,11 +34,24 @@ export default async function InboxPage(props: Props) {
   const [accounts, folders, counts, snippets] = await Promise.all([listAccounts(owner), listFolders(owner), inboxCounts(owner), listSnippets(owner)]);
   const state = { accounts: accounts.map(accountDto), folders, counts, snippets, available: { whatsapp: whatsappAvailable(), gmail: gmailAvailable() } };
 
-  if (section === 'settings') return <InboxSettings initial={state} gmailResult={sp.gmail ?? null} />;
-
-  const view: InboxView = section === 'v' && isInboxView(id) ? id : 'inbox';
-  const folder = section === 'f' ? (folders.find((f) => f.id === id) ?? null) : null;
-  if (section === 'f' && !folder) notFound();
+  let view: InboxView = 'inbox';
+  let folder: (typeof folders)[number] | null = null;
+  switch (section) {
+    case undefined:
+      break;
+    case 'settings':
+      return <InboxSettings initial={state} gmailResult={sp.gmail ?? null} />;
+    case 'v':
+      if (!isInboxView(id)) notFound();
+      view = id;
+      break;
+    case 'f':
+      folder = folders.find((f) => f.id === id) ?? null;
+      if (!folder) notFound();
+      break;
+    default:
+      notFound();
+  }
   const threads = await listThreads(owner, { view, folderId: folder?.id });
   const openId = typeof sp.t === 'string' && /^ibt_[a-f0-9]{20}$/.test(sp.t) ? sp.t : null;
   return (
