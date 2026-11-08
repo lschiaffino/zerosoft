@@ -4,6 +4,7 @@ import ClientMessages from '@/components/i18n/ClientMessages';
 import GroupsListsBranch from '@/components/groups/GroupsListsBranch';
 import GroupsPwa from '@/components/groups/GroupsPwa';
 import '@/styles/groups.css';
+import '@/styles/groups-wa.css';
 
 /** Instalable en iOS desde "Agregar a inicio" (el manifest de la suite sale de app/manifest.ts). */
 export const metadata: Metadata = {

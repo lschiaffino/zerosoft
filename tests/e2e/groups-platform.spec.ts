@@ -108,7 +108,8 @@ test('encuesta desde el chat con resultados que llegan por webhook', async ({ pa
   await events(request, n, [message(gid, 'hola', `Poll${tag}`)]);
   const chat = await chatByName(request, `Poll${tag}`);
   await page.goto(`/en/app/groups/inbox/${chat.id}`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Poll', exact: true }).click();
+  await page.getByRole('button', { name: 'Attach' }).click();
+  await page.getByRole('menuitem', { name: 'Poll', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'New poll' });
   await dialog.getByLabel('Question').fill('Which day works?');
   await dialog.getByLabel('Option 1').fill('Monday');

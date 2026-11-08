@@ -7,6 +7,8 @@ const TEXT_INPUTS = new Set(['text', 'search', 'email', 'url', 'tel', '']);
 /** Campo donde se puede dictar: input de texto, textarea o contenteditable (no contraseñas). */
 export function editableTarget(el: Element | null): HTMLElement | null {
   if (!el || !(el instanceof HTMLElement)) return null;
+  // Campos con su propio micrófono (el composer de Groups, como WhatsApp): sin el botón flotante.
+  if (el.closest('[data-voice-off]')) return null;
   if (el instanceof HTMLTextAreaElement) return el.readOnly || el.disabled ? null : el;
   if (el instanceof HTMLInputElement) {
     return TEXT_INPUTS.has(el.type) && !el.readOnly && !el.disabled ? el : null;

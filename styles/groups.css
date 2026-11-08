@@ -816,3 +816,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 @media (max-width: 640px) {
   .gr-table:not(.gr-tickets-table) { min-width: 560px; }
 }
+
+/* Ajustes > Números: reimportar con cuántos mensajes por chat. */
+.gr-reimport { display: inline-flex; align-items: center; gap: 4px; }
+.gr-reimport .select { width: auto; height: 28px; font-size: 0.8125rem; }

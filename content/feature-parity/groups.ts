@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-03',
+  lastReviewed: '2026-11-07',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -61,6 +61,14 @@ const parity: ProductParity = {
       ],
     }),
     row('number-ops', 'numbers', ['Reconnect, resync groups and remove a number', 'Reconectar, resincronizar grupos y borrar un número', 'Reconectar, ressincronizar grupos e remover um número'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
+    row('history-import', 'numbers', ['Import chats and recent messages when a number connects', 'Importar chats y mensajes recientes al conectar un número', 'Importar conversas e mensagens recentes ao conectar um número'], 'partial', {
+      detail: [
+        'Chats, groups, names, photos, unread counts and the last messages per chat, in resumable batches and without triggering rules or notifications. Tested against a simulated Evolution with 200 chats; payload shapes checked against a real instance.',
+        'Chats, grupos, nombres, fotos, no leídos y los últimos mensajes de cada chat, en tandas que se retoman y sin disparar reglas ni avisos. Probado contra un Evolution simulado con 200 chats; los formatos se verificaron contra una instancia real.',
+        'Conversas, grupos, nomes, fotos, não lidas e as últimas mensagens de cada conversa, em lotes retomáveis e sem disparar regras nem avisos. Testado contra um Evolution simulado com 200 conversas; os formatos foram conferidos com uma instância real.',
+      ],
+      weight: 2,
+    }),
     row('self-host', 'numbers', ['Self-hosted, your data on your server', 'Self-host, los datos en tu servidor', 'Self-host, os dados no seu servidor'], 'better', { competitorHas: false }),
 
     // Bandeja
@@ -88,6 +96,9 @@ const parity: ProductParity = {
         '@menciones con autocompletado y aviso, editar y borrar, marcadas como internas en el hilo',
         '@menções com autocompletar e aviso, editar e apagar, marcadas como internas no fio',
       ],
+    }),
+    row('whatsapp-look', 'inbox', ['Looks and works like WhatsApp Web (bubbles, ticks, media, voice notes, drag and drop)', 'Se ve y se usa como WhatsApp Web (burbujas, tildes, media, notas de voz, arrastrar y soltar)', 'Parece e funciona como o WhatsApp Web (balões, tiques, mídia, mensagens de voz, arrastar e soltar)'], 'partial', {
+      detail: ['No link previews or message search inside a chat yet', 'Todavía sin vista previa de links ni búsqueda dentro de un chat', 'Ainda sem prévia de links nem busca dentro de uma conversa'],
     }),
     row('quick-replies', 'inbox', ['Quick replies with /shortcut', 'Respuestas rápidas con /atajo', 'Respostas rápidas com /atalho'], 'have'),
     row('filters', 'inbox', ['Filters: unread, unanswered, mine, label', 'Filtros: sin leer, sin responder, míos, etiqueta', 'Filtros: não lidas, sem resposta, minhas, etiqueta'], 'have'),
