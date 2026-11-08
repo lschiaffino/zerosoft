@@ -413,9 +413,9 @@ export default function IssueFilters({
   };
 
   const fields: FilterField[] = useMemo(() => {
-    const list: FilterField[] = ['status', 'priority', 'assignee', 'creator', 'label'];
-    if (cycles.length) list.push('cycle');
-    if (milestones.length) list.push('milestone');
+    // Todas las propiedades, como Linear (cycle y milestone aunque la página no tenga valores todavía:
+    // ofrecen "sin cycle" / "sin milestone"); team y project se ocultan solo donde la lista ya es de uno.
+    const list: FilterField[] = ['status', 'priority', 'assignee', 'creator', 'label', 'cycle', 'milestone'];
     if (teams.length > 1) list.push('team');
     if (plans.length) list.push('project');
     list.push('estimate', 'due', 'start', 'created', 'updated', 'relation', 'hierarchy');

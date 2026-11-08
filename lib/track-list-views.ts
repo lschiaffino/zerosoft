@@ -54,6 +54,14 @@ function toView(row: ListViewRow): TrackSavedView {
   };
 }
 
+/** Todas las vistas personales de la persona (sidebar: favoritas), con la lista de cada una. */
+export async function listAllListViews(userId: string, scopeId: string): Promise<Array<{ id: string; name: string; listKey: string }>> {
+  const rows = (await getDb()
+    .prepare('SELECT id, name, list_key FROM track_list_views WHERE user_id = ? AND scope_id = ? ORDER BY name ASC LIMIT 50')
+    .all(userId, scopeId)) as Array<{ id: string; name: string; list_key: string }>;
+  return rows.map((r) => ({ id: r.id, name: r.name, listKey: r.list_key }));
+}
+
 export async function listListViews(userId: string, scopeId: string, listKey: string): Promise<TrackSavedView[]> {
   const rows = (await getDb()
     .prepare('SELECT * FROM track_list_views WHERE user_id = ? AND scope_id = ? AND list_key = ? ORDER BY name ASC LIMIT 100')

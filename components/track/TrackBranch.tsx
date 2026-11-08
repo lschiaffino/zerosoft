@@ -16,6 +16,20 @@ import { setTopbarLabel } from '@/components/app/AppTopbar';
 
 type ProjectItem = Pick<TrackProjectRow, 'id' | 'name' | 'slug' | 'icon' | 'status' | 'visibility' | 'triage_enabled'> & { triage_count?: number };
 type FavoriteView = { id: string; name: string; project_id: string; project_name?: string };
+type PersonalView = { id: string; name: string; listKey: string };
+
+/** Página de una vista personal según su lista (Mis issues, Issues o la pestaña de un project). */
+function personalViewHref(v: PersonalView): string | null {
+  const q = `savedView=${encodeURIComponent(v.id)}`;
+  if (v.listKey.startsWith('mine:')) {
+    const tab = v.listKey.slice(5);
+    return tab === 'assigned' ? `/app/track/my-tasks?${q}` : `/app/track/my-tasks?tab=${encodeURIComponent(tab)}&${q}`;
+  }
+  if (v.listKey === 'workspace-issues') return `/app/track/issues?${q}`;
+  if (v.listKey.startsWith('plan:')) return `${projectPath(v.listKey.slice(5))}?tab=issues&${q}`;
+  return null;
+}
+
 type BranchPlan = { id: string; name: string; icon: string | null; teams: Array<{ id: string }> };
 type FavoriteIssue = { id: string; identifier: string; title: string; status_color: string | null; status_category: string | null };
 
@@ -43,6 +57,7 @@ export default function TrackBranch() {
   const [favoriteIssues, setFavoriteIssues] = useState<FavoriteIssue[]>([]);
   // Projects activos de cada team: se abren bajo "Projects" y reciben issues arrastrados.
   const [plans, setPlans] = useState<BranchPlan[]>([]);
+  const [personalViews, setPersonalViews] = useState<PersonalView[]>([]);
   const [tick, setTick] = useState(0);
   // En la página de un issue se marca su team (el issue deja su team en data-track-project-id).
   const [contextTeam, setContextTeam] = useState<string | null>(null);
@@ -110,6 +125,12 @@ export default function TrackBranch() {
         if (alive && d) setFavorites(d.rows);
       })
       .catch(() => null);
+    fetch('/api/track/list-views?all=1')
+      .then((r) => (r.ok ? (r.json() as Promise<{ rows: PersonalView[] }>) : null))
+      .then((d) => {
+        if (alive && d) setPersonalViews(d.rows);
+      })
+      .catch(() => null);
     fetch('/api/track/plans?status=planned,in_progress')
       .then((r) => (r.ok ? (r.json() as Promise<{ rows: BranchPlan[] }>) : null))
       .then((d) => {
@@ -138,7 +159,7 @@ export default function TrackBranch() {
   const currentView = searchParams.get('savedView');
   return createPortal(
     <nav className="docs-branch track-branch" aria-label={t('label')}>
-      {(favorites.length > 0 || favoriteIssues.length > 0) && (
+      {(favorites.length > 0 || favoriteIssues.length > 0 || personalViews.length > 0) && (
         <>
           <p className="track-branch-section">{tv('favorites')}</p>
           <ul className="docs-tree" role="list" data-testid="track-branch-favorites">
@@ -158,6 +179,22 @@ export default function TrackBranch() {
                       <StatusDot color={i.status_color} category={i.status_category} />
                     </span>
                     <span className="docs-tree-title">{i.title || i.identifier}</span>
+                  </Link>
+                </li>
+              );
+            })}
+            {personalViews.map((v) => {
+              const href = personalViewHref(v);
+              if (!href) return null;
+              const active = currentView === v.id;
+              return (
+                <li key={`pv-${v.id}`} className={`docs-tree-row${active ? ' active' : ''}`}>
+                  <span className="docs-tree-chevron-spacer" aria-hidden="true" />
+                  <Link href={href} className="docs-tree-link" aria-current={active ? 'page' : undefined} data-testid="track-branch-personal-view">
+                    <span className="docs-tree-icon" aria-hidden="true">
+                      <TrackIcon name="views" size={13} />
+                    </span>
+                    <span className="docs-tree-title">{v.name}</span>
                   </Link>
                 </li>
               );

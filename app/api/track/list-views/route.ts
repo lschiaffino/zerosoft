@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { createListView, deleteListView, isListKey, listListViews, updateListView } from '@/lib/track-list-views';
+import { createListView, deleteListView, isListKey, listListViews, updateListView, listAllListViews } from '@/lib/track-list-views';
 import { ISSUE_SORTS } from '@/lib/track-views';
 import { invalidBody, notFound, unauthorized } from '@/lib/track-http';
 
@@ -38,6 +38,7 @@ async function who() {
 export async function GET(req: NextRequest) {
   const u = await who();
   if (!u) return unauthorized();
+  if (req.nextUrl.searchParams.get('all') === '1') return NextResponse.json({ rows: await listAllListViews(u.me, u.scope) });
   const key = req.nextUrl.searchParams.get('key');
   if (!isListKey(key)) return NextResponse.json({ rows: [] });
   return NextResponse.json({ rows: await listListViews(u.me, u.scope, key) });

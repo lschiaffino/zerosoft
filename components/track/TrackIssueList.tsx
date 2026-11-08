@@ -406,11 +406,27 @@ export default function TrackIssueList({
     for (const i of store.issues) if (i.cycle_id && i.cycle_name) seen.set(i.cycle_id, { id: i.cycle_id, name: i.cycle_name } as TrackCycleRow);
     return [...seen.values()];
   }, [store.issues, team]);
+  // Projects del workspace para el filtro (no solo los de los issues cargados); en la pestaña de un project no hace falta.
+  const [workspacePlans, setWorkspacePlans] = useState<Array<{ id: string; name: string }>>([]);
+  useEffect(() => {
+    if (scope.planId) return;
+    let alive = true;
+    fetch('/api/track/plans')
+      .then((r) => (r.ok ? (r.json() as Promise<{ rows: Array<{ id: string; name: string }> }>) : null))
+      .then((d) => {
+        if (alive && d) setWorkspacePlans(d.rows.map((p) => ({ id: p.id, name: p.name })));
+      })
+      .catch(() => null);
+    return () => {
+      alive = false;
+    };
+  }, [scope.planId]);
   const plans = useMemo(() => {
     const seen = new Map<string, { id: string; name: string }>();
+    for (const p of workspacePlans) seen.set(p.id, p);
     for (const i of store.issues) if (i.plan_id && i.plan_name) seen.set(i.plan_id, { id: i.plan_id, name: i.plan_name });
     return [...seen.values()];
-  }, [store.issues]);
+  }, [store.issues, workspacePlans]);
   const projectNames = useMemo(() => Object.fromEntries((projects ?? []).map((p) => [p.id, p.name])), [projects]);
   const cmdLabels = useMemo(() => (team ? labelsForTeam(labelsList, team.projectId) : labelsList), [labelsList, team]);
   const filterMilestones = milestones ?? team?.milestones;
