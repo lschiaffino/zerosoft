@@ -79,7 +79,8 @@
     "slack_failed": "Slack no aceptó el mensaje. Revisá que la app esté en el canal.",
     "notion_not_connected": "Esa conexión de Notion no está disponible.",
     "notion_failed": "Notion no respondió. Probá de nuevo.",
-    "notion_parent": "Notion no encuentra esa página. Pegá su link y compartila con la integración."
+    "notion_parent": "Notion no encuentra esa página. Pegá su link y compartila con la integración.",
+    "ai_failed": "La IA no pudo responder. Probá de nuevo."
   },
   "meetings": {
     "title": "Reuniones",
@@ -142,7 +143,14 @@
     "sharedBadge": "compartida",
     "searchShared": "Buscar en las compartidas",
     "moveTo": "Carpeta de “{title}”",
-    "noFolder": "Sin carpeta"
+    "noFolder": "Sin carpeta",
+    "askSuggestions": [
+      "¿Qué acordamos la semana pasada?",
+      "¿Qué próximos pasos siguen abiertos esta semana?",
+      "¿Qué pidieron más los clientes este mes?"
+    ],
+    "askFollowup": "Hacé otra pregunta",
+    "askClear": "Nueva pregunta"
   },
   "notes": {
     "summary": "Resumen",
@@ -179,7 +187,25 @@
     "thinking": "Leyendo la reunión…",
     "placeholder": "Preguntá sobre esta reunión",
     "send": "Preguntar",
-    "recipesHint": "Escribí / para recipes como próximos pasos o un seguimiento."
+    "recipesHint": "Escribí / para recipes como próximos pasos o un seguimiento.",
+    "emptyLive": "Preguntá lo que quieras mientras sigue la reunión. Voice lee la transcripción hasta ahora.",
+    "suggestionsLabel": "Probá con",
+    "suggestLive": [
+      "¿Qué me perdí en los últimos minutos?",
+      "¿Qué se decidió hasta ahora?",
+      "¿Qué podría preguntar ahora?"
+    ],
+    "suggestAfter": [
+      "¿Cuáles son los próximos pasos y quién se encarga?",
+      "¿Qué dudas u objeciones aparecieron?",
+      "Escribí un resumen corto para mandar"
+    ],
+    "writing": "Escribiendo…",
+    "stop": "Detener",
+    "citeAt": "Ir a {time} en la transcripción",
+    "citeMeeting": "Abrir {title}",
+    "citeMeetingAt": "Abrir {title} en {time}",
+    "untitled": "Reunión sin título"
   },
   "details": {
     "calTitle": "Reserva de Cal",
@@ -277,7 +303,8 @@
     "sendSlackNotion": "Slack o Notion",
     "sharedBadge": "Compartida por link",
     "folder": "Carpeta",
-    "noFolder": "Sin carpeta"
+    "noFolder": "Sin carpeta",
+    "attendeesOpen": "Ver asistentes"
   },
   "templates": {
     "builtin": {

@@ -373,7 +373,7 @@ test('grabación hostil: el <script> y los manejadores inline no corren', async 
 
   // Entrando por la lista: navegación del lado del cliente, sin el encabezado de la página.
   await page.goto('/en/app/pulse/replay', { waitUntil: 'networkidle' });
-  await page.locator(`a[href*="/analytics/replay/${rec.id}"]`).first().click();
+  await page.locator(`a[href*="/pulse/replay/${rec.id}"]`).first().click();
   await expect(page).toHaveURL(new RegExp(`/replay/${rec.id}`));
   const frame = page.frameLocator('.replayer-wrapper iframe');
   await expect(frame.locator('#hostile-marker')).toHaveText('Hostile page', { timeout: 30_000 });

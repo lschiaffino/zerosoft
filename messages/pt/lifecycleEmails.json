@@ -1,0 +1,178 @@
+{
+  "common": {
+    "greeting": "Olá, {name},",
+    "greetingNoName": "Olá,",
+    "signoff": "Equipe zerosoft",
+    "why": "Você recebe isto porque tem uma conta do zerosoft com {email}.",
+    "unsubscribe": "Parar de receber {category}",
+    "unsubscribeAll": "Parar de receber todos estes emails",
+    "preferences": "Preferências de email",
+    "fallbackLink": "Se o botão não funcionar, copie este link:",
+    "categories": {
+      "onboarding": "os primeiros passos",
+      "tips": "dicas de funções",
+      "team": "avisos sobre a sua equipe",
+      "reengagement": "lembretes",
+      "digest": "o resumo semanal"
+    }
+  },
+  "apps": {
+    "docs": { "thing": "a sua primeira página", "action": "Escreva uma página ou importe uma do Notion. Com / você insere tabelas, listas de tarefas e bancos de dados." },
+    "track": { "thing": "a sua primeira issue", "action": "Aperte C em qualquer tela do Track para criar uma issue e coloque-a em um ciclo." },
+    "crm": { "thing": "o seu primeiro negócio", "action": "Cadastre um negócio no pipeline e arraste entre as etapas conforme ele avança." },
+    "notes": { "thing": "a sua primeira nota", "action": "Escreva uma nota e guarde em um caderno. As etiquetas ajudam a encontrá-la depois." },
+    "board": { "thing": "o seu primeiro quadro", "action": "Abra um quadro em branco ou um modelo e adicione stickies, formas e setas." },
+    "link": { "thing": "o seu primeiro link curto", "action": "Cole uma URL longa, escolha o slug e veja os cliques por país e dispositivo." },
+    "cal": { "thing": "o seu primeiro tipo de evento", "action": "Defina a duração e seus horários e compartilhe o link para que reservem com você." }
+  },
+  "templates": {
+    "welcome": {
+      "subject": "Sua conta do zerosoft está pronta",
+      "preheader": "Por onde começar e como encontrar cada coisa.",
+      "heading": "Boas-vindas ao zerosoft",
+      "body": [
+        "Seu workspace já está pronto. Todos os apps compartilham a mesma conta, a mesma busca e as mesmas permissões.",
+        "Para encontrar qualquer coisa, aperte ⌘K (Ctrl+K no Windows). Para pedir algo ao assistente, ⌘J.",
+        "Nos próximos dias vamos mandar alguns emails curtos com o que falta configurar. Se você já fez, eles não chegam."
+      ],
+      "bodyApp": "Você começou pelo {app}. {action}",
+      "cta": "Abrir o zerosoft",
+      "ctaApp": "Abrir o {app}"
+    },
+    "setup_first_item": {
+      "subject": "Crie {thing} no {app}",
+      "preheader": "Um passo para o {app} começar a ser útil.",
+      "heading": "Crie {thing}",
+      "body": [
+        "Você escolheu o {app} ao se cadastrar e ainda não criou nada lá.",
+        "{action}"
+      ],
+      "cta": "Abrir o {app}"
+    },
+    "setup_import": {
+      "subject": "Traga seus dados do {tool}",
+      "preheader": "O importador copia o que você já tem.",
+      "heading": "Importe do {tool}",
+      "body": [
+        "Você contou que vem do {tool}. O importador do {app} traz seus dados e mostra uma prévia antes de salvar.",
+        "O que você importar fica no seu workspace e pode ser editado ou apagado como qualquer outra coisa."
+      ],
+      "cta": "Importar do {tool}"
+    },
+    "setup_calendar": {
+      "subject": "Conecte sua agenda ao Cal",
+      "preheader": "Assim ninguém reserva um horário em que você está ocupado.",
+      "heading": "Conecte sua agenda",
+      "body": [
+        "O Cal ainda não vê a sua agenda. Conecte Google, Outlook ou iCloud e os horários ocupados deixam de aparecer como livres.",
+        "As reservas novas entram nessa agenda automaticamente."
+      ],
+      "cta": "Conectar agenda"
+    },
+    "setup_whatsapp": {
+      "subject": "Conecte sua linha de WhatsApp ao Groups",
+      "preheader": "Você escaneia um QR e os chats aparecem na caixa de entrada.",
+      "heading": "Conecte uma linha de WhatsApp",
+      "body": [
+        "O Groups ainda não tem uma linha conectada. Escaneie o QR pelo WhatsApp no seu celular e os grupos aparecem na caixa de entrada compartilhada.",
+        "Dali você atribui chats, deixa notas internas e responde com a sua equipe."
+      ],
+      "cta": "Conectar linha"
+    },
+    "team_invite": {
+      "subject": "Traga sua equipe para {team}",
+      "preheader": "Os assentos não são cobrados: convide quem precisar.",
+      "heading": "Convide sua equipe",
+      "body": [
+        "Por enquanto você é a única pessoa em {team}. Convide colegas por email ou compartilhe um link de convite.",
+        "Você escolhe quais apps cada pessoa vê e com qual papel. Os assentos não são cobrados."
+      ],
+      "cta": "Convidar pessoas"
+    },
+    "team_pending": {
+      "subject": "Seus convites para {team} ainda não foram aceitos",
+      "preheader": "Você pode reenviar ou mandar o link por outro canal.",
+      "heading": "Convites pendentes",
+      "body": [
+        "Você mandou convites para {team} há alguns dias e ninguém aceitou ainda. Às vezes eles caem no spam.",
+        "Em Membros você pode reenviar ou copiar o link de convite e mandar pelo chat."
+      ],
+      "cta": "Ver convites"
+    },
+    "feature_assistant": {
+      "subject": "Peça coisas ao assistente com ⌘J",
+      "preheader": "Ele busca, resume e cria nos seus apps.",
+      "heading": "O assistente",
+      "body": [
+        "Aperte ⌘J (Ctrl+J no Windows) em qualquer tela e escreva o que precisa: \"resuma as issues abertas deste ciclo\" ou \"monte uma página com as notas de ontem\".",
+        "Ele trabalha com as suas permissões e pede confirmação antes de mudar qualquer coisa."
+      ],
+      "cta": "Testar o assistente"
+    },
+    "feature_voice": {
+      "subject": "Dite em vez de digitar",
+      "preheader": "Segure Alt+Espaço em qualquer campo do zerosoft.",
+      "heading": "Voice: ditado e notas de reuniões",
+      "body": [
+        "Segure Alt+Espaço (Option+Espaço no Mac) em qualquer campo de texto, fale e solte. O texto aparece onde estava o cursor.",
+        "No Voice você também grava reuniões e fica com a transcrição e um resumo."
+      ],
+      "cta": "Abrir o Voice"
+    },
+    "feature_desktop": {
+      "subject": "O zerosoft como app de desktop",
+      "preheader": "Para Mac e Windows, com notificações do sistema.",
+      "heading": "O app de desktop",
+      "body": [
+        "Existe um app do zerosoft para Mac e Windows. Ele abre direto no seu workspace e avisa com notificações do sistema.",
+        "Você entra com a sua conta de sempre pelo navegador."
+      ],
+      "cta": "Baixar o app"
+    },
+    "feature_mcp": {
+      "subject": "Conecte o Claude ou outro cliente MCP ao zerosoft",
+      "preheader": "Seu agente lê e cria nos seus apps com as suas permissões.",
+      "heading": "zerosoft por MCP",
+      "body": [
+        "O zerosoft tem um servidor MCP. Conecte ao Claude, ao Cursor ou a outro cliente e seu agente pode buscar, ler e criar issues, páginas ou contatos com as suas permissões.",
+        "O guia explica como conectar e o que cada app permite."
+      ],
+      "cta": "Ver o guia de MCP"
+    },
+    "tip_search": {
+      "subject": "Um atalho para tudo: ⌘K",
+      "preheader": "Busque em todos os seus apps de um lugar só.",
+      "heading": "Encontre qualquer coisa com ⌘K",
+      "body": [
+        "⌘K (Ctrl+K no Windows) busca em todos os apps ao mesmo tempo: páginas, issues, contatos, quadros e notas.",
+        "Também serve para pular para um app ou criar algo novo sem usar o mouse."
+      ],
+      "cta": "Abrir o zerosoft"
+    },
+    "reengage": {
+      "subject": "Seu workspace do zerosoft está esperando",
+      "preheader": "O que você deixou continua no lugar.",
+      "heading": "Faz um tempo que você não entra",
+      "body": [
+        "Seu workspace está do jeito que você deixou. Se algo não funcionou como você esperava, conte pra gente pelo botão de feedback do app.",
+        "Se preferir não receber mais lembretes, o link para cancelar está aqui embaixo."
+      ],
+      "cta": "Voltar ao zerosoft"
+    },
+    "digest": {
+      "subject": "Sua semana em {team}",
+      "preheader": "O que aconteceu no seu workspace nos últimos 7 dias.",
+      "heading": "Sua semana em {team}",
+      "body": [
+        "Isto é o que aconteceu no seu workspace nos últimos 7 dias."
+      ],
+      "rows": {
+        "docs": "Páginas novas no Docs: {count}",
+        "issues": "Issues criadas no Track: {count}",
+        "deals": "Negócios novos no CRM: {count}",
+        "members": "Pessoas novas no workspace: {count}"
+      },
+      "cta": "Abrir o zerosoft"
+    }
+  }
+}
