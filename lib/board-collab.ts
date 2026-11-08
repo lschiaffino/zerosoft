@@ -71,6 +71,34 @@ export function withoutGenerated<T extends CollabEl & { customData?: unknown }>(
 }
 
 /** Marca como ya viajados los elementos que llegaron de otro (para no devolverlos). */
+/**
+ * Cuántos elementos cambiaron desde lo último mandado. Con muchos (pegar una
+ * planilla, la normalización de una pizarra importada al abrirla) no conviene
+ * mandarlos en vivo: llegan a los demás con el guardado, sin tocar el tope.
+ */
+export function countChanged(elements: readonly CollabEl[], sent: Broadcasted, stopAt = Infinity): number {
+  let n = 0;
+  for (const el of elements) {
+    if (!el || typeof el.id !== 'string') continue;
+    if ((sent.get(el.id) ?? -1) < (el.version ?? 0)) n += 1;
+    if (n >= stopAt) break;
+  }
+  return n;
+}
+
+/**
+ * Espera antes de reintentar después de `failures` rechazos seguidos (429):
+ * 1 s, 2 s, 4 s… hasta 30 s, más hasta un 30 % al azar para que dos pestañas
+ * no reintenten juntas.
+ */
+export function liveBackoffMs(failures: number, random: () => number = Math.random): number {
+  const base = Math.min(30_000, 1000 * 2 ** Math.max(0, failures - 1));
+  return Math.round(base * (1 + 0.3 * random()));
+}
+
+/** Más que esto en un envío: se deja para el guardado (los demás traen la versión guardada). */
+export const LIVE_BULK_MAX = 200;
+
 export function markReceived(elements: readonly CollabEl[], sent: Broadcasted): void {
   for (const el of elements) {
     const v = el.version ?? 0;

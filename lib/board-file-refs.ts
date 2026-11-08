@@ -26,6 +26,22 @@ export function isBoardUploadUrl(url: unknown): url is string {
   return typeof url === 'string' && (LOCAL_URL.test(url) || BLOB_URL.test(url));
 }
 
+/** Archivos adjuntos (tarjeta en el lienzo): documentos, planillas, presentaciones, texto y zip. */
+export const ATTACHMENT_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'txt', 'md', 'csv', 'zip'] as const;
+
+/** Extensión de un nombre de archivo adjunto si está permitida, o null. */
+export function attachmentExtension(name: string): string | null {
+  const ext = /\.([A-Za-z0-9]{1,8})$/.exec(name.trim())?.[1]?.toLowerCase() ?? '';
+  return (ATTACHMENT_EXTENSIONS as readonly string[]).includes(ext) ? ext : null;
+}
+
+/** Nombre de archivo limpio para mostrar y descargar (sin rutas ni caracteres de control). */
+export function cleanAttachmentName(raw: string): string {
+  const base = raw.split(/[\\/]/).pop() ?? '';
+  const visible = [...base].filter((ch) => ch.charCodeAt(0) >= 32 && ch.charCodeAt(0) !== 127 && ch !== '"').join('');
+  return visible.trim().slice(0, 180) || 'file';
+}
+
 export function isUploadableMime(mime: string | null | undefined): boolean {
   return UPLOADABLE_MIME.test(mime ?? '');
 }

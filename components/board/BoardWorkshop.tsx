@@ -29,19 +29,62 @@ export function useCountdown(timer: TimerView | null, skew: number): number {
 export function TimerChip({ timer, skew }: { timer: TimerView | null; skew: number }) {
   const t = useTranslations('board.workshop');
   const left = useCountdown(timer, skew);
+  const done = Boolean(timer && (timer.status === 'done' || (timer.status === 'running' && left <= 0)));
+  /** Fin del timer que ya se avisó y se cerró (clic o a los pocos segundos). */
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  const endKey = timer?.ends_at ?? (done ? 'done' : null);
+  const wasDone = useRef(false);
+  useEffect(() => {
+    if (done && !wasDone.current) {
+      chime();
+      const h = setTimeout(() => setDismissed(endKey), DONE_SHOWN_MS);
+      wasDone.current = true;
+      return () => clearTimeout(h);
+    }
+    if (!done) wasDone.current = false;
+  }, [done, endKey]);
   if (!timer || timer.status === 'idle') return null;
-  const done = timer.status === 'done' || (timer.status === 'running' && left <= 0);
+  if (done && dismissed === endKey) return null;
   return (
     <span
       className={`board-timer-chip mono${done ? ' is-done' : ''}${timer.status === 'paused' ? ' is-paused' : ''}`}
       role="timer"
       aria-live={done ? 'assertive' : 'off'}
+      onClick={done ? () => setDismissed(endKey) : undefined}
+      title={done ? t('timeUpDismiss') : undefined}
+      data-testid="board-timer-chip"
     >
       <NotesIcon name="timer" size={13} />
       {done ? t('timeUp') : formatCountdown(left)}
       {timer.status === 'paused' && <span className="sr-only">{t('paused')}</span>}
     </span>
   );
+}
+
+/** Cuánto queda a la vista el "Se terminó el tiempo" antes de irse solo. */
+const DONE_SHOWN_MS = 8000;
+
+/** Dos notas cortas al terminar el timer (si el navegador deja reproducir sonido). */
+function chime() {
+  try {
+    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return;
+    const ac = new AC();
+    [0, 0.18].forEach((at, i) => {
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.frequency.value = i === 0 ? 880 : 1320;
+      g.gain.setValueAtTime(0.0001, ac.currentTime + at);
+      g.gain.exponentialRampToValueAtTime(0.15, ac.currentTime + at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + at + 0.3);
+      o.connect(g).connect(ac.destination);
+      o.start(ac.currentTime + at);
+      o.stop(ac.currentTime + at + 0.32);
+    });
+    setTimeout(() => void ac.close().catch(() => undefined), 800);
+  } catch {
+    // Sin audio (permiso o navegador): queda el aviso visual.
+  }
 }
 
 /**
@@ -52,6 +95,7 @@ export default function BoardWorkshop({
   api,
   timer,
   voting,
+  privateMode = false,
   skew,
   canRun,
   error,
@@ -62,6 +106,7 @@ export default function BoardWorkshop({
   api: CanvasApi | null;
   timer: TimerView | null;
   voting: VotingView | null;
+  privateMode?: boolean;
   skew: number;
   canRun: boolean;
   error: boolean;
@@ -88,7 +133,7 @@ export default function BoardWorkshop({
   }
 
   const status = timer?.status ?? 'idle';
-  const active = status === 'running' || status === 'paused' || voting?.status === 'open';
+  const active = status === 'running' || status === 'paused' || voting?.status === 'open' || privateMode;
 
   /** Texto de un elemento votado (para la lista de resultados). */
   function label(id: string): string {
@@ -191,6 +236,23 @@ export default function BoardWorkshop({
               )}
             </>
           )}
+
+          <div className="board-pop-section">
+            <p className="board-pop-title">{t('privateTitle')}</p>
+            <p className="board-pop-hint">{privateMode ? t('privateOn') : t('privateHint')}</p>
+            {canRun ? (
+              <button
+                type="button"
+                className={`btn btn-sm board-pop-start${privateMode ? ' btn-primary' : ''}`}
+                disabled={busy}
+                onClick={() => void run({ private: { on: !privateMode } })}
+                data-testid="board-private-toggle"
+              >
+                <NotesIcon name={privateMode ? 'eyeOff' : 'lock'} size={14} />
+                {privateMode ? t('privateReveal') : t('privateStart')}
+              </button>
+            ) : null}
+          </div>
 
           <div className="board-pop-section">
             <p className="board-pop-title">{t('votingTitle')}</p>

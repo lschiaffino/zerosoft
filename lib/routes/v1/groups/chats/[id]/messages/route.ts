@@ -34,7 +34,12 @@ export async function POST(req: Request, ctx: Ctx) {
   const g = await v1Chat(auth, id);
   if ('res' in g) return g.res;
   const b = await v1Json(req);
-  const media = mediaFromBody(b.media, req);
+  let media;
+  try {
+    media = mediaFromBody(b.media, req);
+  } catch (err) {
+    return v1Error(err);
+  }
   let poll = null;
   if (b.poll != null) {
     try {

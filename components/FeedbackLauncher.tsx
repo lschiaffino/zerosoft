@@ -7,6 +7,7 @@ import FeedbackForm from '@/components/FeedbackForm';
 import BoardVote from '@/components/board/BoardVote';
 import { productFromPath } from '@/lib/product-taxonomy';
 import { ROADMAP_VOTABLE_STATUSES } from '@/lib/roadmap-constants';
+import { whenIdle } from '@/lib/idle';
 
 /**
  * Launcher de feedback: botón chico abajo a la derecha (a la izquierda del
@@ -69,9 +70,10 @@ export default function FeedbackLauncher({ locale, hasSupport = false }: { local
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Novedades: se cargan al montar para el badge. Primera visita: todo cuenta como visto.
+  // Con el navegador libre: es solo un badge y no compite con lo que pinta la página.
   useEffect(() => {
     let alive = true;
-    fetch(`/api/board/changelog?locale=${encodeURIComponent(locale)}`)
+    const cancel = whenIdle(() => void fetch(`/api/board/changelog?locale=${encodeURIComponent(locale)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { entries?: NewsEntry[] } | null) => {
         if (!alive || !data?.entries) return;
@@ -85,9 +87,10 @@ export default function FeedbackLauncher({ locale, hasSupport = false }: { local
           setUnread(ids.filter((id) => !seen.includes(id)));
         }
       })
-      .catch(() => {});
+      .catch(() => {}));
     return () => {
       alive = false;
+      cancel();
     };
   }, [locale]);
 

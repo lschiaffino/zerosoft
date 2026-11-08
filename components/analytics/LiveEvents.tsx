@@ -50,7 +50,11 @@ export default function LiveEvents({ projectId, initial }: { projectId: string; 
 
   useEffect(() => {
     if (paused) return;
+    let busy = false;
     const tick = async () => {
+      // Pestaña oculta: no se pide nada; al volver se trae lo nuevo enseguida.
+      if (busy || document.visibilityState !== 'visible') return;
+      busy = true;
       try {
         const { events: rows } = await api<{ events: LiveEvent[] }>(q({ after: String(latest.current) }));
         if (rows.length) {
@@ -60,10 +64,16 @@ export default function LiveEvents({ projectId, initial }: { projectId: string; 
         setError(false);
       } catch {
         setError(true);
+      } finally {
+        busy = false;
       }
     };
     const id = setInterval(tick, POLL_MS);
-    return () => clearInterval(id);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', tick);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paused, projectId]);
 

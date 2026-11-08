@@ -103,6 +103,12 @@ export default function AssistantPanel() {
     };
   }, [open, show, close]);
 
+  // Con el panel abierto, navegar cambia el contexto: "esto" es la página nueva.
+  useEffect(() => {
+    if (open) capture();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   // Esc cierra (salvo que un modal abierto lo use antes, como ⌘K o una confirmación).
   useEffect(() => {
     if (!open) return;
@@ -116,8 +122,17 @@ export default function AssistantPanel() {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, close]);
 
+  // ⌘J deja el foco en el campo: se reintenta un rato porque el campo aparece cuando llega el estado
+  // y un editor de la página (Docs) puede recuperar el foco justo después del atajo.
   useEffect(() => {
-    if (open && status?.state === 'ready') window.setTimeout(() => inputRef.current?.focus(), 30);
+    if (!open || status?.state !== 'ready') return;
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      const el = inputRef.current;
+      if (el && document.activeElement !== el && !panelRef.current?.contains(document.activeElement)) el.focus();
+      if ((el && document.activeElement === el) || ++tries > 12) window.clearInterval(timer);
+    }, 50);
+    return () => window.clearInterval(timer);
   }, [open, status]);
 
   // La página del asistente ya tiene su charla: el panel no se abre encima.

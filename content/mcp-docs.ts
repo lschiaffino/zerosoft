@@ -9,6 +9,11 @@ export interface McpDocsCopy {
   claudeCodeSteps: string[];
   claudeAiTitle: string;
   claudeAiSteps: string[];
+  cursorTitle: string;
+  cursorBody: string;
+  harnessTitle: string;
+  harnessBody: string[];
+  harnessToolsLabel: string;
   cliTitle: string;
   cliIntro: string;
   cliRunNote: string;
@@ -39,6 +44,15 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
     claudeCodeSteps: ['Add the server:', 'Run /mcp inside Claude Code, pick zerosoft and sign in. Your browser opens the permissions screen.'],
     claudeAiTitle: 'claude.ai',
     claudeAiSteps: ['Open Settings, then Connectors, and choose Add custom connector.', 'Paste this URL:', 'Connect and approve in the permissions screen.'],
+    cursorTitle: 'Cursor and other editors',
+    cursorBody: 'Add zerosoft to .cursor/mcp.json (or the MCP settings of your editor) with the URL below. Cursor opens the browser to sign in the first time. If your editor does not support OAuth for remote servers, use the API key version.',
+    harnessTitle: 'Any MCP client or agent harness',
+    harnessBody: [
+      'The server speaks Streamable HTTP (MCP 2025-11-25, also 2025-06-18 and 2025-03-26) at a single URL, answers in JSON and keeps no session. Clients that do OAuth find everything from the 401: the WWW-Authenticate header points to the protected resource metadata, which points to the authorization server with dynamic client registration and PKCE.',
+      'Harnesses that cannot open a browser use an API key as a Bearer token. Create it in Settings, API and webhooks, turn on MCP access and pick its scopes: the key acts as you, limited by those scopes. Each key allows 300 reads and 60 writes per minute.',
+      'Most used tools have their own name, so a model does not need to search for them. Everything else is reached with search_operations, get_operation_schema and invoke_operation.',
+    ],
+    harnessToolsLabel: 'Tools with their own name',
     cliTitle: 'The zerosoft CLI',
     cliIntro: 'Same reach, for the terminal and for scripts. It prints tables in a terminal and JSON when piped or with --json.',
     cliRunNote: 'The CLI is not on npm yet. From a copy of the repository, run it with:',
@@ -89,6 +103,15 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
     claudeCodeSteps: ['Agregá el servidor:', 'Corré /mcp dentro de Claude Code, elegí zerosoft e iniciá sesión. El navegador abre la pantalla de permisos.'],
     claudeAiTitle: 'claude.ai',
     claudeAiSteps: ['Abrí Settings, después Connectors, y elegí Add custom connector.', 'Pegá esta URL:', 'Conectá y aprobá en la pantalla de permisos.'],
+    cursorTitle: 'Cursor y otros editores',
+    cursorBody: 'Agregá zerosoft a .cursor/mcp.json (o a los ajustes de MCP de tu editor) con la URL de abajo. Cursor abre el navegador para iniciar sesión la primera vez. Si tu editor no hace OAuth con servidores remotos, usá la versión con API key.',
+    harnessTitle: 'Cualquier cliente MCP o harness de agentes',
+    harnessBody: [
+      'El servidor habla Streamable HTTP (MCP 2025-11-25, también 2025-06-18 y 2025-03-26) en una sola URL, responde en JSON y no guarda sesión. Los clientes con OAuth encuentran todo desde el 401: el header WWW-Authenticate apunta a los metadatos del recurso protegido, y esos al servidor de autorización, con registro dinámico de clientes y PKCE.',
+      'Los harnesses que no pueden abrir un navegador usan una API key como Bearer. Creala en Ajustes, API y webhooks, prendé el acceso al MCP y elegí sus scopes: la key actúa como vos, con el tope de esos scopes. Cada key tiene 300 lecturas y 60 escrituras por minuto.',
+      'Las herramientas más usadas tienen nombre propio, así un modelo no las tiene que buscar. Al resto se llega con search_operations, get_operation_schema e invoke_operation.',
+    ],
+    harnessToolsLabel: 'Herramientas con nombre propio',
     cliTitle: 'La CLI de zerosoft',
     cliIntro: 'El mismo alcance, para la terminal y para scripts. Muestra tablas en una terminal y JSON con un pipe o con --json.',
     cliRunNote: 'La CLI todavía no está en npm. Desde una copia del repositorio, se corre con:',
@@ -139,6 +162,15 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
     claudeCodeSteps: ['Adicione o servidor:', 'Rode /mcp dentro do Claude Code, escolha zerosoft e entre. O navegador abre a tela de permissões.'],
     claudeAiTitle: 'claude.ai',
     claudeAiSteps: ['Abra Settings, depois Connectors, e escolha Add custom connector.', 'Cole esta URL:', 'Conecte e aprove na tela de permissões.'],
+    cursorTitle: 'Cursor e outros editores',
+    cursorBody: 'Adicione a zerosoft ao .cursor/mcp.json (ou às configurações de MCP do seu editor) com a URL abaixo. O Cursor abre o navegador para entrar na primeira vez. Se o seu editor não faz OAuth com servidores remotos, use a versão com chave de API.',
+    harnessTitle: 'Qualquer cliente MCP ou harness de agentes',
+    harnessBody: [
+      'O servidor fala Streamable HTTP (MCP 2025-11-25, também 2025-06-18 e 2025-03-26) em uma única URL, responde em JSON e não guarda sessão. Clientes com OAuth encontram tudo a partir do 401: o header WWW-Authenticate aponta para os metadados do recurso protegido, que apontam para o servidor de autorização, com registro dinâmico de clientes e PKCE.',
+      'Harnesses que não conseguem abrir um navegador usam uma chave de API como Bearer. Crie-a em Ajustes, API e webhooks, ative o acesso ao MCP e escolha os scopes: a chave age como você, limitada por esses scopes. Cada chave tem 300 leituras e 60 escritas por minuto.',
+      'As ferramentas mais usadas têm nome próprio, então um modelo não precisa procurá-las. O resto se alcança com search_operations, get_operation_schema e invoke_operation.',
+    ],
+    harnessToolsLabel: 'Ferramentas com nome próprio',
     cliTitle: 'A CLI da zerosoft',
     cliIntro: 'O mesmo alcance, para o terminal e para scripts. Mostra tabelas em um terminal e JSON com um pipe ou com --json.',
     cliRunNote: 'A CLI ainda não está no npm. A partir de uma cópia do repositório, rode com:',
@@ -180,3 +212,14 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
     apiLink: 'Referência da API REST',
   },
 };
+
+/** Herramientas con nombre propio del servidor (lib/mcp/server.ts). tests/unit/mcp-direct-tools.test.ts las compara. */
+export const MCP_NAMED_TOOLS = [
+  'whoami', 'list_workspaces', 'list_apps', 'search_operations', 'get_operation_schema', 'invoke_operation',
+  'search_workspace', 'list_notifications',
+  'list_crm_contacts', 'create_crm_contact',
+  'list_group_chats', 'read_group_messages', 'send_group_message', 'update_group_chat',
+  'list_track_issues', 'get_track_issue', 'create_track_issue', 'update_track_issue', 'comment_on_track_issue',
+  'search_docs', 'get_doc_page', 'create_doc_page', 'update_doc_page',
+  'list_boards', 'get_board',
+] as const;

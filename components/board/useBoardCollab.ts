@@ -14,7 +14,11 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRealtime, type RealtimeStatus } from '@/lib/realtime-client';
+import { withoutPrivate } from '@/lib/board-canvas-tools';
 import {
+  LIVE_BULK_MAX,
+  liveBackoffMs,
+  countChanged,
   markReceived,
   newSocketId,
   prunePeers,
@@ -35,7 +39,7 @@ const HEARTBEAT_MS = 10_000;
 
 interface LiveEvent {
   id: number;
-  kind: 'update' | 'presence' | 'summon' | 'leave' | 'saved' | 'access';
+  kind: 'update' | 'presence' | 'summon' | 'leave' | 'saved' | 'access' | 'workshop' | 'comments';
   socketId: string;
   user: PeerUser | null;
   payload: {
@@ -66,6 +70,10 @@ export function useBoardCollab(opts: {
   onResync: () => void;
   /** Se perdió el acceso a la pizarra (lo sacaron o la borraron). */
   onRevoked: () => void;
+  /** Cambió el taller (timer, votación, modo privado): se vuelve a leer. */
+  onWorkshop?: () => void;
+  /** Alguien comentó, respondió, resolvió o movió un pin: se vuelven a leer los comentarios. */
+  onComments?: () => void;
 }) {
   const { boardId, guestToken, api, canEdit, guestLabel } = opts;
   const handlers = useRef(opts);
@@ -93,6 +101,9 @@ export function useBoardCollab(opts: {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlight = useRef(false);
   const lastSent = useRef(0);
+  const backoffUntil = useRef(0);
+  /** 429 seguidos: la espera crece al doble (con algo de azar) y vuelve a cero con el primer envío que entra. */
+  const failures = useRef(0);
   const stopped = useRef(false);
 
   const guestLabelRef = useRef(guestLabel);
@@ -114,6 +125,13 @@ export function useBoardCollab(opts: {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ socketId, ...body }),
       }).catch(() => null);
+      // Tope del servidor: se espera un rato antes del próximo envío en vez de reintentar cada 100 ms.
+      if (res?.status === 429 || (res && res.status >= 500)) {
+        failures.current = Math.min(failures.current + 1, 6);
+        backoffUntil.current = Date.now() + liveBackoffMs(failures.current);
+      } else if (res?.ok) {
+        failures.current = 0;
+      }
       if (res?.ok) {
         const data = (await res.json().catch(() => null)) as { socketId?: string } | null;
         if (data?.socketId) {
@@ -138,8 +156,12 @@ export function useBoardCollab(opts: {
     const body: Record<string, unknown> = {};
     if (dirtyElements.current && a && handlers.current.canEdit) {
       dirtyElements.current = false;
+      // Lo escrito en modo privado no viaja: queda como borrador del autor hasta revelar.
+      const all = withoutPrivate(a.getSceneElementsIncludingDeleted() as Array<CollabEl & { containerId?: string | null; customData?: Record<string, unknown> | null }>);
+      // Un cambio masivo no viaja en vivo: lo lleva el guardado (evento "saved" → los demás lo traen).
+      if (countChanged(all, sentRef.current, LIVE_BULK_MAX + 1) > LIVE_BULK_MAX) markReceived(all, sentRef.current);
       // Hasta ~30 KB por tick (el servidor corta en 32 KB); lo que queda sale en el próximo.
-      const changed = takeChangedBytes(a.getSceneElementsIncludingDeleted() as CollabEl[], sentRef.current);
+      const changed = takeChangedBytes(all, sentRef.current);
       if (changed.elements.length) body.elements = changed.elements;
       if (changed.rest) dirtyElements.current = true;
     }
@@ -169,7 +191,7 @@ export function useBoardCollab(opts: {
 
   const schedule = useCallback(() => {
     if (timerRef.current || stopped.current) return;
-    const wait = Math.max(0, SEND_EVERY_MS - (Date.now() - lastSent.current));
+    const wait = Math.max(0, SEND_EVERY_MS - (Date.now() - lastSent.current), backoffUntil.current - Date.now());
     timerRef.current = setTimeout(() => void flush(), wait);
   }, [flush]);
 
@@ -227,6 +249,14 @@ export function useBoardCollab(opts: {
           continue;
         }
         if (e.kind === 'access') continue;
+        if (e.kind === 'workshop') {
+          handlers.current.onWorkshop?.();
+          continue;
+        }
+        if (e.kind === 'comments') {
+          handlers.current.onComments?.();
+          continue;
+        }
         if (e.kind === 'leave') {
           peersChanged = peersRef.current.delete(e.socketId) || peersChanged;
           continue;
@@ -305,12 +335,14 @@ export function useBoardCollab(opts: {
         setSummon(null);
       }
     });
-    // Latido: sin moverse, los demás siguen viendo a esta pestaña (y si está oculta, como ausente).
+    // Latido: sin moverse, los demás siguen viendo a esta pestaña. Oculta no late (se avisó
+    // "ausente" al ocultarse y, si sigue así, los demás la dejan de mostrar a los 30 s).
     const beat = setInterval(() => {
-      presenceRef.current = { ...presenceRef.current, idle: document.visibilityState === 'hidden' };
+      if (prunePeers(peersRef.current, Date.now())) renderPeers();
+      if (document.visibilityState === 'hidden') return;
+      presenceRef.current = { ...presenceRef.current, idle: false };
       dirtyPresence.current = true;
       schedule();
-      if (prunePeers(peersRef.current, Date.now())) renderPeers();
     }, HEARTBEAT_MS);
     const onVisibility = () => {
       presenceRef.current = { ...presenceRef.current, idle: document.visibilityState === 'hidden' };
@@ -339,9 +371,20 @@ export function useBoardCollab(opts: {
     };
   }, [api, url, socketId, schedule, renderPeers, followBounds]);
 
-  // Lo que ya está en el lienzo al abrir no se vuelve a mandar.
+  // Lo que ya está en el lienzo al abrir no se vuelve a mandar, tampoco lo que Excalidraw
+  // vuelve a medir cuando terminan de cargar las letras (sube versiones sin que nadie edite).
   useEffect(() => {
-    if (api) markReceived(api.getSceneElementsIncludingDeleted() as CollabEl[], sentRef.current);
+    if (!api) return;
+    const settle = () => markReceived(api.getSceneElementsIncludingDeleted() as CollabEl[], sentRef.current);
+    settle();
+    let alive = true;
+    const fonts = typeof document !== 'undefined' && document.fonts ? document.fonts.ready : Promise.resolve();
+    void fonts.then(() => {
+      if (alive) setTimeout(() => alive && settle(), 300);
+    });
+    return () => {
+      alive = false;
+    };
   }, [api]);
 
   /** Traer a todos a mi vista (y, presentando, que me sigan). */

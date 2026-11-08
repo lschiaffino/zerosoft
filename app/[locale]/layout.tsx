@@ -11,15 +11,13 @@ import SupportWidget from '@/components/SupportWidget';
 import { WorkspaceNoticeOutsideApp } from '@/components/app/WorkspaceGuard';
 import FeedbackLauncher from '@/components/FeedbackLauncher';
 import { supportWidgetId } from '@/lib/support';
-import { surfaceForHost } from '@/lib/host-rewrite';
-import { DOCS_SITE_HEADER } from '@/lib/docs-site-header';
-import { headers } from 'next/headers';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import BrandProvider from '@/components/brand/BrandProvider';
-import { getBrandTheme } from '@/lib/brand-theme-server';
+import { DEFAULT_BRAND } from '@/lib/brand-theme';
 import ThemeProvider from '@/components/theme/ThemeProvider';
-import { getThemePref } from '@/lib/color-theme-server';
-import { themeAttr } from '@/lib/color-theme';
+import { THEME_INIT_SCRIPT } from '@/lib/color-theme';
+import { SESSION_HINT_SCRIPT } from '@/lib/session-hint';
+import { localeCookieScript } from '@/lib/locale-cookie';
 import { TZ_COOKIE_SCRIPT } from '@/lib/tz-client';
 import '@/styles/board-public.css';
 import type { ReactNode } from 'react';
@@ -99,27 +97,23 @@ export default async function LocaleLayout(
 
   setRequestLocale(locale);
   const supportId = supportWidgetId();
-  // feedback.zerosoft.ai / branding.zerosoft.ai: chrome propio (ver ChromeGate).
-  // El layout ya es dinámico (el Header lee la sesión), leer el host no cambia eso.
-  const hdrs = await headers();
-  const surface = surfaceForHost(hdrs.get('host'));
-  // Dominio propio de un sitio de Docs (el middleware marca el pedido): solo el sitio del cliente.
-  const docsSite = Boolean(hdrs.get(DOCS_SITE_HEADER));
-  // Tema de marca (hoy solo default; ver lib/brand-theme.ts).
-  const brand = await getBrandTheme();
-  // Modo de color: cookie zs_theme (light/dark); sin cookie sigue al sistema.
-  const themePref = await getThemePref();
+  // Este layout no lee la request (ni cookies, ni headers, ni la sesión): así
+  // las páginas del sitio salen estáticas del CDN. Lo que depende de la
+  // request se resuelve en otro lado:
+  // - modo de color: THEME_INIT_SCRIPT antes del primer paint (cookie zs_theme);
+  // - chrome de feedback.zerosoft.ai, branding.zerosoft.ai y los sitios de Docs:
+  //   ChromeGate mira la ruta real (reescrita por el middleware);
+  // - el header logueado: HeaderClient, con la cookie zs_who.
+  // Tema de marca: hoy solo default (ver lib/brand-theme.ts).
+  const brand = DEFAULT_BRAND;
 
   return (
-    <html
-      lang={locale}
-      data-brand={brand}
-      data-theme={themeAttr(themePref)}
-      className={`${sans.variable} ${mono.variable}`}
-    >
+    // data-theme lo pone el script antes de hidratar: no es un desajuste.
+    <html lang={locale} data-brand={brand} className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT + SESSION_HINT_SCRIPT + localeCookieScript(locale) }} />
         <BrandProvider brand={brand}>
-        <ThemeProvider initial={themePref}>
+        <ThemeProvider>
         {/* Al cliente va solo lo común (header, launcher de feedback); cada app
             y página pública suma sus namespaces en su layout. */}
         <WorkspaceNoticeOutsideApp />
@@ -129,8 +123,6 @@ export default async function LocaleLayout(
             footer={<Footer locale={locale} />}
             support={supportId ? <SupportWidget widgetId={supportId} /> : null}
             launcher={<FeedbackLauncher locale={locale} hasSupport={Boolean(supportId)} />}
-            surface={surface}
-            docsSite={docsSite}
           >
             {children}
           </ChromeGate>

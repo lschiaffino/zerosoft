@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
+import { publishBoardEvent } from '@/lib/board-live';
 import { isDenied, requireBoardAccess } from '@/lib/board-access-http';
 import { replyToThread, updateThread } from '@/lib/board-comments';
 import { boardCommentReplySchema, boardThreadPatchSchema } from '@/lib/boards-schema';
@@ -7,6 +8,10 @@ import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+/** Los demás editores abiertos vuelven a leer los comentarios (evento en vivo, sin el texto). */
+const announce = (workspaceId: string, boardId: string) =>
+  publishBoardEvent({ boardId, workspaceId, socketId: 'server', kind: 'comments' }).catch(() => undefined);
+
 
 type Ctx = { params: Promise<{ id: string; threadId: string }> };
 
@@ -24,6 +29,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   if (!parsed.success) return invalidInput(parsed.error);
   const thread = await replyToThread(user.id, id, threadId, personId, parsed.data.body);
   if (!thread) return jsonError(404, 'not_found');
+  await announce(user.id, id);
   return NextResponse.json(thread, { status: 201 });
 }
 
@@ -41,5 +47,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (!parsed.success) return invalidInput(parsed.error);
   const thread = await updateThread(user.id, id, threadId, personId, parsed.data);
   if (!thread) return jsonError(404, 'not_found');
+  await announce(user.id, id);
   return NextResponse.json(thread);
 }

@@ -14,7 +14,8 @@ import type { DelegatedIdentity } from './identity';
 import type { Operation } from './catalog';
 
 export interface McpCaller {
-  kind: 'oauth' | 'api_key';
+  /** session: el asistente del panel, con la sesión de la persona (lib/assistant/tools-catalog.ts). */
+  kind: 'oauth' | 'api_key' | 'session';
   personId: string;
   /** Workspace fijado en la conexión; null = el propio de la persona. */
   teamId: string | null;
@@ -127,7 +128,7 @@ const ALL_API_SCOPES = parseScopes('*');
  */
 export function credentialAllows(caller: McpCaller, op: Pick<Operation, 'app' | 'access'>): boolean {
   const isRead = op.access === 'read';
-  if (caller.kind === 'oauth') return isRead || caller.canWrite;
+  if (caller.kind !== 'api_key') return isRead || caller.canWrite;
   const scopes = caller.apiScopes ?? [];
   const resource = APP_SCOPE[op.app];
   if (!resource) return ALL_API_SCOPES.every((s) => scopes.includes(s));
