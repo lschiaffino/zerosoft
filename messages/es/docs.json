@@ -64,7 +64,7 @@
     "noCommands": "Sin comandos",
     "headingPlaceholder": "Encabezado",
     "quotePlaceholder": "Cita vacía",
-    "languagePlaceholder": "lenguaje",
+    "languagePlaceholder": "Texto plano",
     "addRow": "+ fila",
     "addColumn": "+ columna",
     "format": {
@@ -76,7 +76,8 @@
       "link": "Enlace",
       "linkPlaceholder": "Pegá un enlace…",
       "addLink": "Agregar enlace",
-      "removeLink": "Quitar enlace"
+      "removeLink": "Quitar enlace",
+      "color": "Color del texto"
     },
     "blockMenu": {
       "turnInto": "Convertir en",
@@ -86,7 +87,15 @@
       "moveUp": "Subir",
       "moveDown": "Bajar",
       "insertBelow": "Insertar debajo",
-      "dragHandle": "Opciones del bloque. Arrastrá para reordenar."
+      "dragHandle": "Opciones del bloque. Arrastrá para reordenar.",
+      "color": "Color",
+      "copyLink": "Copiar link al bloque",
+      "title": "Opciones del bloque",
+      "search": "Buscar acciones…",
+      "noResults": "Ninguna acción coincide",
+      "moveTo": "Mover a",
+      "moveToSearch": "Mover a una página…",
+      "moveFailed": "No se pudo mover ahí. Revisá que puedas editar esa página."
     },
     "commands": {
       "p": "Texto",
@@ -112,8 +121,8 @@
       "video": "Video",
       "audio": "Audio",
       "pdf": "PDF",
-      "bookmark": "Bookmark web",
-      "embed": "Embed",
+      "bookmark": "Marcador web",
+      "embed": "Insertar contenido",
       "col2": "2 columnas",
       "col3": "3 columnas",
       "col4": "4 columnas",
@@ -122,7 +131,7 @@
       "equation": "Ecuación en bloque",
       "toc": "Índice",
       "button": "Botón",
-      "breadcrumb": "Breadcrumb",
+      "breadcrumb": "Ruta de la página",
       "date": "Fecha",
       "reminder": "Recordatorio",
       "inlineEquation": "Ecuación en línea",
@@ -149,7 +158,9 @@
       "untitledFile": "Archivo sin nombre",
       "imageLabel": "Imagen: {name}",
       "fileLabel": "Archivo: {name}",
-      "videoLabel": "Video: {name}"
+      "videoLabel": "Video: {name}",
+      "imageUnavailable": "No se pudo cargar esta imagen",
+      "imageUnavailableHelp": "El archivo no está en el almacenamiento o la subida no terminó. Volvé a subirla o borrá el bloque."
     },
     "togglePlaceholder": "Desplegable",
     "calloutPlaceholder": "Escribí una nota…",
@@ -321,6 +332,37 @@
       "loading": "Cargando…",
       "pages": "{n, plural, one {# página} other {# páginas}}",
       "create": "Creá un diseño"
+    },
+    "codeLanguage": "Lenguaje del código",
+    "copyCode": "Copiar",
+    "codeCopied": "Copiado",
+    "colors": {
+      "text": "Texto",
+      "background": "Fondo",
+      "default": "Predeterminado",
+      "gray": "Gris",
+      "bg_gray": "Fondo gris",
+      "brown": "Marrón",
+      "bg_brown": "Fondo marrón",
+      "orange": "Naranja",
+      "bg_orange": "Fondo naranja",
+      "yellow": "Amarillo",
+      "bg_yellow": "Fondo amarillo",
+      "green": "Verde",
+      "bg_green": "Fondo verde",
+      "blue": "Azul",
+      "bg_blue": "Fondo azul",
+      "purple": "Violeta",
+      "bg_purple": "Fondo violeta",
+      "pink": "Rosa",
+      "bg_pink": "Fondo rosa",
+      "red": "Rojo",
+      "bg_red": "Fondo rojo"
+    },
+    "table": {
+      "cell": "Fila {row}, columna {col}",
+      "addColumn": "Agregar columna",
+      "headerRow": "Fila de encabezado"
     }
   },
   "database": {
@@ -759,7 +801,8 @@
     "today": "Hoy",
     "tomorrow": "Mañana",
     "remindAt": "Recordarme {when}",
-    "reminderHint": "Te avisa en la app y por email"
+    "reminderHint": "Te avisa en la app y por email",
+    "pages": "Páginas"
   },
   "emoji": {
     "pick": "Elegir ícono",
@@ -840,7 +883,8 @@
     "inheritRole": "Por defecto ({role})",
     "invitePending": "Invitado por email · pendiente",
     "revokeInvite": "Revocar invitación",
-    "sharedCommentBanner": "{name} te compartió esta página para comentar y sugerir cambios."
+    "sharedCommentBanner": "{name} te compartió esta página para comentar y sugerir cambios.",
+    "copyPageLink": "Copiar link"
   },
   "templates": {
     "title": "Empezar desde una plantilla",
@@ -1053,8 +1097,8 @@
     "lead": "Traé páginas de Notion, Confluence, Google Docs, Word o Evernote con su árbol, imágenes, archivos y links entre páginas.",
     "loadingJobs": "Cargando…",
     "dismiss": "Cerrar",
-    "step1": "En Notion, abrí Settings › Export all workspace content, o ··· › Export en una página.",
-    "step2": "Elegí Markdown & CSV, con subpáginas y con archivos e imágenes.",
+    "step1": "En Notion, abrí Configuración › General › Exportar todo el contenido del espacio de trabajo (o ••• › Exportar en una sola página).",
+    "step2": "Elegí Markdown y CSV, incluí subpáginas y archivos, y bajá el .zip.",
     "step3": "Subí acá el .zip que te da Notion.",
     "file": "Archivo exportado (.zip)",
     "fileHelp": "Hasta 1 GB. El archivo se borra cuando termina el import.",
@@ -1066,7 +1110,7 @@
       "size": "Tamaño",
       "rows": "Páginas de filas"
     },
-    "already": "{count} páginas ya se importaron antes y se van a saltear.",
+    "already": "{count, plural, one {# página ya se importó} other {# páginas ya se importaron}}: las que no cambiaron se saltean y las que cambiaron en Notion se actualizan, salvo que alguien las haya editado acá.",
     "treeTitle": "Páginas",
     "databaseTag": "base",
     "more": "y {count} más",
@@ -1084,8 +1128,8 @@
     "sources": {
       "notion": {
         "name": "Notion",
-        "step1": "En Notion, abrí Settings › Export all workspace content, o ··· › Export en una página.",
-        "step2": "Elegí Markdown & CSV (o HTML), con subpáginas y con archivos e imágenes.",
+        "step1": "En Notion, abrí Configuración › General › Exportar todo el contenido del espacio de trabajo (o ••• › Exportar en una sola página).",
+        "step2": "Elegí Markdown y CSV, incluí subpáginas y archivos, y bajá el .zip.",
         "step3": "Subí acá el .zip que te da Notion.",
         "file": "Archivo del export (.zip)"
       },
@@ -1131,8 +1175,17 @@
     "noDestination": "Tu rol no puede crear páginas en este workspace. Pedile a un admin acceso de edición.",
     "capped": "El archivo tiene más de {max} páginas: entran solo las primeras {max}.",
     "skippedFiles": "Se omitieron por ser demasiado grandes: {files}. El resto entra.",
-    "skippedNote": "{count, plural, one {# página ya se había importado y quedó donde estaba.} other {# páginas ya se habían importado y quedaron donde estaban.}} Para importarlas de nuevo, borrá esas páginas antes.",
-    "tooLarge": "{count, plural, one {# página entró vacía: su archivo pesa más de 8 MB.} other {# páginas entraron vacías: sus archivos pesan más de 8 MB.}}"
+    "skippedNote": "{count, plural, one {# página ya estaba importada y no tenía cambios.} other {# páginas ya estaban importadas y no tenían cambios.}}",
+    "tooLarge": "{count, plural, one {# página entró vacía: su archivo pesa más de 8 MB.} other {# páginas entraron vacías: sus archivos pesan más de 8 MB.}}",
+    "confirmItems": "Importar {pages, plural, one {# página} other {# páginas}} y {databases, plural, one {# base} other {# bases}}",
+    "confirmUpdate": "Traer los cambios",
+    "doneUpdated": "{count, plural, one {# página cambió en Notion y se actualizó.} other {# páginas cambiaron en Notion y se actualizaron.}}",
+    "doneKeptEdited": "{count, plural, one {# página cambió en Notion pero se editó acá, así que quedó como estaba.} other {# páginas cambiaron en Notion pero se editaron acá, así que quedaron como estaban.}}",
+    "apiTitle": "O conectá Notion con un token",
+    "apiLead": "Importa directo desde Notion con el token de una integración, sin archivo de export.",
+    "apiLink": "Importar desde Notion por API",
+    "chooseFile": "Elegir archivo",
+    "noFile": "Ningún archivo elegido"
   },
   "reminderEmail": {
     "subject": "Recordatorio: {title}",

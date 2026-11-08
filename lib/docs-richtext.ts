@@ -25,6 +25,68 @@ import { DAY_RE, RID_RE, TIME_RE } from './docs-dates';
 
 export type DocsMarkTag = 'strong' | 'em' | 'u' | 's' | 'code';
 
+/** Colores de texto en línea (los mismos de los bloques: texto o fondo con `_bg`). */
+export const INLINE_COLOR_RE = /^(gray|brown|orange|yellow|green|blue|purple|pink|red)(_bg)?$/;
+
+/**
+ * Pinta (o despinta, con `null`) el tramo [start, end) de texto plano:
+ * saca los colores que hubiera adentro y lo envuelve en un span data-color.
+ */
+export function applyColor(html: string, start: number, end: number, color: string | null): string {
+  if (end <= start) return html;
+  const [before, rest] = splitHtmlAt(html, start);
+  const [mid, after] = splitHtmlAt(rest, end - start);
+  if (!mid) return html;
+  const host = domFromHtml(mid);
+  for (const el of [...host.querySelectorAll('span[data-color]')]) {
+    const parent = el.parentNode!;
+    while (el.firstChild) parent.insertBefore(el.firstChild, el);
+    parent.removeChild(el);
+  }
+  const out: string[] = [];
+  serializeChildren(host, out, null, null);
+  const inner = out.join('');
+  const painted = color && INLINE_COLOR_RE.test(color) ? `<span data-color="${color}">${inner}</span>` : inner;
+  return sanitizeHtml(`${before}${painted}${after}`);
+}
+
+/** Markdown en línea que se acaba de cerrar con el caret (`**negrita**`, `*cursiva*`, `` `código` ``, `~~tachado~~`). */
+export interface InlineMarkdownMatch {
+  tag: DocsMarkTag;
+  /** Offset plano donde empieza la marca de apertura. */
+  start: number;
+  /** Largo de la marca de apertura y de cierre. */
+  delim: number;
+  /** Texto de adentro. */
+  inner: string;
+}
+
+/**
+ * Como Notion: al tipear el cierre, el texto entre marcas toma el formato y
+ * las marcas se van. Se mira solo el texto plano antes del caret. El texto de
+ * adentro no puede empezar ni terminar con espacio (así `2 * 3 * 4` queda
+ * igual) y una sola marca no se confunde con la doble (`**a*` no es cursiva).
+ */
+export function matchInlineMarkdown(before: string): InlineMarkdownMatch | null {
+  const rules: Array<{ re: RegExp; tag: DocsMarkTag; delim: number }> = [
+    { re: /(^|[^*])\*\*([^*\s](?:[^*\n]*[^*\s])?)\*\*$/, tag: 'strong', delim: 2 },
+    { re: /(^|[^_\w])__([^_\s](?:[^_\n]*[^_\s])?)__$/, tag: 'strong', delim: 2 },
+    { re: /(^|[^~])~~([^~\s](?:[^~\n]*[^~\s])?)~~$/, tag: 's', delim: 2 },
+    { re: /(^|[^*])\*([^*\s](?:[^*\n]*[^*\s])?)\*$/, tag: 'em', delim: 1 },
+    { re: /(^|[^_\w])_([^_\s](?:[^_\n]*[^_\s])?)_$/, tag: 'em', delim: 1 },
+    { re: /(^|[^`])`([^`\n]+)`$/, tag: 'code', delim: 1 },
+    { re: /(^|[^~])~([^~\s](?:[^~\n]*[^~\s])?)~$/, tag: 's', delim: 1 },
+  ];
+  for (const { re, tag, delim } of rules) {
+    const m = re.exec(before);
+    if (!m) continue;
+    const inner = m[2];
+    const start = m.index + m[1].length;
+    return { tag, start, delim, inner };
+  }
+  return null;
+}
+
 /** Aliases aceptados al sanitizar (paste desde la web, HTML de otros editores). */
 const TAG_MAP: Record<string, DocsMarkTag> = {
   STRONG: 'strong',
@@ -181,6 +243,19 @@ function serializeNode(
     if (tex !== null) {
       if (!tex) return;
       out.push(`<span data-tex="${escapeAttr(tex.slice(0, 2000))}">${escapeHtml(tex.slice(0, 2000))}</span>`);
+      return;
+    }
+    // Color de texto en línea (como Notion): solo los colores de la lista.
+    const color = el.getAttribute('data-color');
+    if (color !== null && el.getAttribute('data-comment') === null && el.getAttribute('data-sug') === null) {
+      if ((el.textContent ?? '') === '') return;
+      if (!INLINE_COLOR_RE.test(color)) {
+        serializeChildren(el, out, parentMark, stripMark);
+        return;
+      }
+      out.push(`<span data-color="${color}">`);
+      serializeChildren(el, out, parentMark, stripMark);
+      out.push('</span>');
       return;
     }
     // Resaltado de comentario y sugerencias (lib/docs-marks.ts): el span

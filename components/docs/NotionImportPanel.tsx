@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
@@ -48,6 +48,8 @@ interface Report {
   skipped: number;
   roots: Array<{ id: string; title: string }>;
   tooLarge?: number;
+  updated?: number;
+  keptEdited?: number;
 }
 
 /**
@@ -74,6 +76,7 @@ export default function NotionImportPanel({
   const router = useRouter();
   const { job, setJob, error, setError, loading, create, start, cancel, reset, finishUpload } = useImportJob('docs', IMPORT_SOURCES);
   const [file, setFile] = useState<File | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const [percent, setPercent] = useState<number | null>(null);
 
   async function upload() {
@@ -178,15 +181,25 @@ export default function NotionImportPanel({
           <label className="label" htmlFor="notion-file">
             {t(`sources.${source}.file`)}
           </label>
-          <input
-            key={source}
-            id="notion-file"
-            className="input ximp-file-input"
-            type="file"
-            accept={ACCEPT[source]}
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            aria-describedby="notion-file-help"
-          />
+          {/* El selector nativo no se traduce: botón propio y el input queda escondido (sigue con su label). */}
+          <div className="ximp-file">
+            <input
+              key={source}
+              id="notion-file"
+              ref={fileRef}
+              className="ximp-file-native"
+              type="file"
+              accept={ACCEPT[source]}
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              aria-describedby="notion-file-help"
+            />
+            <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
+              {t('chooseFile')}
+            </button>
+            <span className="ximp-file-name" data-empty={file ? undefined : ''}>
+              {file ? file.name : t('noFile')}
+            </span>
+          </div>
           <p id="notion-file-help" className="ui-help">
             {t('fileHelp')}
           </p>
@@ -265,6 +278,16 @@ function PreviewView({ job, onConfirm, onCancel }: { job: ImportJobView; onConfi
   const t = useTranslations('docs.notionImport');
   const p = job.preview as unknown as Preview;
   const count = p.pages + p.databases - p.alreadyImported;
+  // Sin nada importado antes: "Importar 5 páginas y 2 bases" (como las cifras de arriba).
+  // Todo ya importado: el botón trae los cambios (lo que cambió en Notion se actualiza).
+  const label =
+    p.alreadyImported === 0
+      ? p.databases > 0
+        ? t('confirmItems', { pages: p.pages, databases: p.databases })
+        : t('confirm', { count: p.pages })
+      : count > 0
+        ? t('confirm', { count })
+        : t('confirmUpdate');
   return (
     <div className="ximp" data-testid="notion-import-preview">
       <div className="ximp-stats">
@@ -298,7 +321,7 @@ function PreviewView({ job, onConfirm, onCancel }: { job: ImportJobView; onConfi
         </ul>
         {p.pages + p.databases > p.tree.length && <p className="ui-help">{t('more', { count: p.pages + p.databases - p.tree.length })}</p>}
       </section>
-      <ImportConfirm label={t('confirm', { count: Math.max(0, count) })} onConfirm={onConfirm} onCancel={onCancel} disabled={count <= 0} />
+      <ImportConfirm label={label} onConfirm={onConfirm} onCancel={onCancel} disabled={p.pages + p.databases <= 0} />
     </div>
   );
 }
@@ -312,7 +335,9 @@ function DoneView({ job, onAgain }: { job: ImportJobView; onAgain: () => void })
         <strong>{t('doneTitle')}</strong> {t('doneSummary', { pages: r.pages, databases: r.databases, files: r.files, skipped: r.skipped })}
       </p>
       {(r.rows ?? 0) > 0 && <p className="ui-help">{t('doneRows', { count: r.rows ?? 0 })}</p>}
-      {r.skipped > 0 && <p className="ui-help">{t('skippedNote', { count: r.skipped })}</p>}
+      {(r.updated ?? 0) > 0 && <p className="ui-help">{t('doneUpdated', { count: r.updated ?? 0 })}</p>}
+      {(r.keptEdited ?? 0) > 0 && <p className="ximp-note">{t('doneKeptEdited', { count: r.keptEdited ?? 0 })}</p>}
+      {r.skipped - (r.keptEdited ?? 0) > 0 && <p className="ui-help">{t('skippedNote', { count: r.skipped - (r.keptEdited ?? 0) })}</p>}
       {(r.tooLarge ?? 0) > 0 && (
         <p className="ximp-note" data-tone="warn">
           {t('tooLarge', { count: r.tooLarge ?? 0 })}

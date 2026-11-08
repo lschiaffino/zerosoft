@@ -222,9 +222,13 @@ export default function DocsBlocksView({
               <tbody>
                 {(b.rows ?? []).map((row, r) => (
                   <tr key={r}>
-                    {row.map((cell, c) => (
-                      <td key={c}>{cell}</td>
-                    ))}
+                    {row.map((cell, c) =>
+                      b.header_row && r === 0 ? (
+                        <th key={c} scope="col">{cell}</th>
+                      ) : (
+                        <td key={c}>{cell}</td>
+                      ),
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -253,7 +257,7 @@ export default function DocsBlocksView({
         const items: DocsBlockNode[] = [];
         while (i < nodes.length && nodes[i].block.type === type) items.push(nodes[i++]);
         const children = items.map((it) => (
-          <li key={it.block.id}>
+          <li key={it.block.id} className={it.block.color ? 'docs-colored' : undefined} data-color={it.block.color}>
             <span dangerouslySetInnerHTML={rich(it.block.content)} />
             {it.children.length > 0 && renderNodes(it.children)}
           </li>
@@ -299,7 +303,14 @@ export default function DocsBlocksView({
         continue;
       }
       const own = renderBlock(b);
-      if (own) out.push(own);
+      // Color del bloque (texto o fondo), como en el editor.
+      if (own && b.color) {
+        out.push(
+          <div key={`${b.id}-color`} className="docs-colored" data-color={b.color}>
+            {own}
+          </div>,
+        );
+      } else if (own) out.push(own);
       if (node.children.length > 0) {
         out.push(
           <div key={`${b.id}-children`} className="dbv-children">

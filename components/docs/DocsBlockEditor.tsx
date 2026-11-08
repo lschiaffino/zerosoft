@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, forwardRef, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useContext, forwardRef, useLayoutEffect, useMemo, useRef } from 'react';
 import { DocsTodoAccessory } from './DocsTodoAccessory';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
@@ -17,7 +17,7 @@ import { isPageLinkId, pageLinkHref, type PageLinkSource } from '@/lib/docs-page
 import { isFileBlockType } from '@/lib/docs-files';
 import { htmlToBlocks, shouldSplitPaste } from '@/lib/docs-paste';
 import { looksLikeMarkdown, markdownToBlocks, plainTextToBlocks } from '@/lib/docs-import';
-import { isToggleBlock } from '@/lib/docs-blocks';
+import { isToggleBlock, numberedMarker } from '@/lib/docs-blocks';
 import { pastedUrl } from '@/lib/docs-embeds';
 import DocsGlyph from './DocsGlyphs';
 import EmojiPicker from './EmojiPicker';
@@ -25,10 +25,14 @@ import DocsDatabaseBlock, { type DbHooks } from './DocsDatabaseBlock';
 import { DocsBoardPicker, DocsBoardPreview } from './DocsBoardEmbed';
 import { DocsDesignPicker, DocsDesignPreview } from './DocsDesignEmbed';
 import DocsMediaBlock from './DocsMediaBlock';
+import DocsTableBlock from './DocsTableBlock';
 import DocsLinkBlock from './DocsLinkBlocks';
 import { BreadcrumbBlock, ButtonBlock, EquationBlock, TocBlock } from './DocsAdvancedBlocks';
 import { renderInlineTex } from './inlineTex';
 import DocsMeetingBlock from './DocsMeetingBlock';
+
+/** Sugerencias del campo de lenguaje del bloque de código (se puede escribir cualquier otro). */
+const CODE_LANGUAGES = ['Plain text', 'Bash', 'C', 'C#', 'C++', 'CSS', 'Dart', 'Diff', 'Docker', 'Go', 'GraphQL', 'HTML', 'Java', 'JavaScript', 'JSON', 'Kotlin', 'Markdown', 'Mermaid', 'PHP', 'Python', 'R', 'Ruby', 'Rust', 'Scala', 'Shell', 'SQL', 'Swift', 'TypeScript', 'YAML'];
 
 interface DocsBlockEditorProps {
   /** Solo lectura (página bloqueada o permiso de comentar): se selecciona para comentar, no se escribe. */
@@ -36,6 +40,8 @@ interface DocsBlockEditorProps {
   block: DocsBlock;
   index: number;
   listIndex?: number;
+  /** Nivel dentro de la lista (lib/docs-blocks.ts listDepths): elige la viñeta y el formato del número. */
+  listDepth?: number;
   onChange: (index: number, patch: Partial<DocsBlock>) => void;
   onKeyDown: (index: number, e: React.KeyboardEvent<HTMLElement>) => void;
   onFocus: (index: number) => void;
@@ -71,10 +77,12 @@ const SEMANTIC_HTML_RE = /<(h[1-6]|ul|ol|li|blockquote|pre|table|hr)\b/i;
  * Bloques de un pegado, si el contenido tiene estructura; null si es un
  * pegado en línea (un solo párrafo de texto). Todo pasa por el saneado del editor.
  */
-function pastedBlocks(html: string, text: string): DocsBlock[] | null {
+function pastedBlocks(html: string, text: string, into: DocsBlockType): DocsBlock[] | null {
+  // Texto plano en un ítem de lista: cada línea sigue la lista (con tabs, anidada), como en Notion.
+  const as = into === 'bulleted_list_item' || into === 'numbered_list_item' || into === 'todo' ? into : undefined;
   const textBlocks = (): DocsBlock[] | null => {
     if (!/\n/.test(text.trim())) return null;
-    return looksLikeMarkdown(text) ? markdownToBlocks(text, { sanitize: sanitizeHtml }) : plainTextToBlocks(text.trim());
+    return looksLikeMarkdown(text) ? markdownToBlocks(text, { sanitize: sanitizeHtml }) : plainTextToBlocks(text.replace(/^\n+|\s+$/g, ''), undefined, { as });
   };
   if (html && SEMANTIC_HTML_RE.test(html)) {
     const blocks = htmlToBlocks(html, { sanitize: sanitizeHtml });
@@ -95,7 +103,7 @@ function pastedBlocks(html: string, text: string): DocsBlock[] | null {
 }
 
 const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
-  ({ readOnly = false, block, index, listIndex, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles, onPasteBlocks, database, toc, trail, onRunButton, onInlineEquation, onPasteUrl, onPasteSynced }, ref) => {
+  ({ readOnly = false, block, index, listIndex, listDepth = 0, onChange, onKeyDown, onFocus, focused, fileHref, pageLinks, onPasteFiles, onPasteBlocks, database, toc, trail, onRunButton, onInlineEquation, onPasteUrl, onPasteSynced }, ref) => {
     const t = useTranslations('docs');
     const locale = useLocale();
     const router = useRouter();
@@ -361,44 +369,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
     }
 
     if (block.type === 'table') {
-      return (
-        <div className="docs-table-wrap" data-index={index}>
-          <table className="docs-table">
-            <tbody>
-              {(block.rows?.length ? block.rows : [['', ''], ['', '']]).map((row, r) => (
-                <tr key={r}>
-                  {row.map((cell, c) => (
-                    <td key={c}>
-                      <input
-                        className="docs-table-cell"
-                        value={cell}
-                        onChange={(e) => {
-                          const rows = block.rows?.length ? block.rows.map((rr) => [...rr]) : [['', ''], ['', '']];
-                          rows[r][c] = e.target.value;
-                          onChange(index, { rows });
-                        }}
-                        onKeyDown={(e) => onKeyDown(index, e)}
-                        onFocus={() => onFocus(index)}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button
-            type="button"
-            className="docs-table-add"
-            onClick={() => {
-              const rows = block.rows?.length ? block.rows.map((rr) => [...rr]) : [['', ''], ['', '']];
-              rows.push(new Array(rows[0]?.length || 2).fill(''));
-              onChange(index, { rows });
-            }}
-          >
-            {t('editor.addRow')}
-          </button>
-        </div>
-      );
+      return <DocsTableBlock block={block} index={index} focused={focused} readOnly={readOnly} onChange={onChange} onKeyDown={onKeyDown} onFocus={onFocus} />;
     }
 
     const isCheck = block.type === 'todo';
@@ -446,9 +417,33 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
             <input
               className="docs-lang-input"
               value={block.language ?? ''}
+              list="docs-code-languages"
+              aria-label={t('editor.codeLanguage')}
               placeholder={t('editor.languagePlaceholder')}
+              readOnly={readOnly}
               onChange={(e) => onChange(index, { language: e.target.value })}
             />
+            <datalist id="docs-code-languages">
+              {CODE_LANGUAGES.map((l) => (
+                <option key={l} value={l} />
+              ))}
+            </datalist>
+            <button
+              type="button"
+              className="docs-code-copy"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                const btn = e.currentTarget;
+                void navigator.clipboard?.writeText(htmlToFlatText(block.content)).then(() => {
+                  btn.textContent = t('editor.codeCopied');
+                  window.setTimeout(() => {
+                    btn.textContent = t('editor.copyCode');
+                  }, 1500);
+                });
+              }}
+            >
+              {t('editor.copyCode')}
+            </button>
           </div>
         )}
         <div
@@ -460,6 +455,8 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
           role={blockRole(block.type, block.level)}
           aria-level={block.type === 'heading' ? block.level ?? 2 : undefined}
           data-index={listIndex}
+          data-marker={block.type === 'numbered_list_item' && listIndex ? numberedMarker(listIndex, listDepth) : undefined}
+          data-depth={block.type === 'bulleted_list_item' || block.type === 'numbered_list_item' ? listDepth % 3 : undefined}
           // .docs-toggle ya es el interruptor del menú de página: el texto del toggle usa otro nombre.
           className={`docs-editable docs-${block.type === 'toggle' ? 'toggle-text' : block.type}${block.level ? ` docs-h${block.level}` : ''}`}
           contentEditable={!readOnly}
@@ -500,7 +497,7 @@ const DocsBlockEditor = forwardRef<HTMLDivElement, DocsBlockEditorProps>(
             }
             // Varios párrafos, listas, headings o Markdown: bloques reales.
             if (onPasteBlocks && block.type !== 'code') {
-              const blocks = pastedBlocks(html, cd.getData('text/plain'));
+              const blocks = pastedBlocks(html, cd.getData('text/plain'), block.type);
               if (blocks) {
                 onPasteBlocks(index, blocks);
                 return;
@@ -537,7 +534,8 @@ function TodoAccessorySlot({ block }: { block: DocsBlock }) {
 
 DocsBlockEditor.displayName = 'DocsBlockEditor';
 
-export default DocsBlockEditor;
+/** Memo: con 500 bloques, tipear en uno no vuelve a dibujar los otros (el editor pasa props estables). */
+export default memo(DocsBlockEditor);
 
 function blockRole(type: DocsBlockType, level?: number): string | undefined {
   if (type === 'heading') {
