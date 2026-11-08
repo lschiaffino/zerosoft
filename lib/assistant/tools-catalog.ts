@@ -74,8 +74,8 @@ export async function runCatalog(ctx: ToolCtx, op: Operation, args: Record<strin
       ...(r.message ? { message: r.message } : {}),
     };
   } catch (err) {
-    if (err instanceof OperationError) return { ok: false, error: err.code, message: err.message };
-    if (err instanceof AttachmentRefError) return { ok: false, error: 'unknown_attachment', message: err.message };
+    if (err instanceof OperationError) return { ok: false, status: 400, error: err.code, message: err.message };
+    if (err instanceof AttachmentRefError) return { ok: false, status: 400, error: 'unknown_attachment', message: err.message };
     throw err;
   }
 }
