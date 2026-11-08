@@ -11,9 +11,8 @@
   padding: 10px 12px;
   font-size: 0.875rem;
   color: var(--ink-2);
-  background: var(--bg-soft);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--warn-ink);
+  background: var(--warn-soft);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--line));
   border-radius: var(--radius-1);
 }
 .vc-h3 { margin: 0 0 6px; font-size: 0.9375rem; font-weight: 600; }

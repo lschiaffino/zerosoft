@@ -269,7 +269,7 @@
   transition: background-color var(--ui-dur) var(--ease);
 }
 .ag-conv-item:hover { background: var(--brand-enamel); }
-.ag-conv-item[aria-current='true'] { background: var(--ui-hover); }
+.ag-conv-item[aria-current='true'] { background: var(--ui-selected); }
 .ag-conv-item[aria-current='true'] .ag-conv-title { font-weight: 600; }
 .ag-conv-item:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .ag-conv-title { grid-column: 1; font-size: 0.875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

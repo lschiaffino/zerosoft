@@ -46,6 +46,35 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-08-docs-editor-notion',
+    date: '2026-11-08',
+    title: {
+      en: 'Docs: selecting, moving and coloring like in Notion',
+      es: 'Docs: seleccionar, mover y pintar como en Notion',
+      pt: 'Docs: selecionar, mover e colorir como no Notion',
+    },
+    items: [
+      {
+        product: 'docs',
+        en: 'Drag from one block to another, or draw a box from the margin, to select several blocks, then copy, delete, indent or move them. The block menu has a search box, shortcuts and Move to, which sends a block with what is nested under it to another page. The selection toolbar turns the block into another type and colors the selected text.',
+        es: 'Arrastrá de un bloque a otro, o dibujá un rectángulo desde el margen, para seleccionar varios bloques y después copiarlos, borrarlos, anidarlos o moverlos. El menú del bloque tiene buscador, atajos y Mover a, que manda el bloque con lo que tiene anidado a otra página. La barra de la selección convierte el bloque en otro tipo y pinta el texto elegido.',
+        pt: 'Arraste de um bloco a outro, ou desenhe um retângulo a partir da margem, para selecionar vários blocos e depois copiá-los, apagá-los, aninhá-los ou movê-los. O menu do bloco tem busca, atalhos e Mover para, que envia o bloco com o que está aninhado nele a outra página. A barra da seleção transforma o bloco em outro tipo e colore o texto escolhido.',
+      },
+      {
+        product: 'docs',
+        en: 'Typing > makes a toggle, " a quote and --- a divider, and shortcuts like 1. or [] also work inside a list item. Tables move between cells with Enter and Tab, add columns with + and can have a header row. Undo after a / command brings back the line without the command.',
+        es: 'Escribir > arma un toggle, " una cita y --- un separador, y atajos como 1. o [] también andan dentro de un ítem de lista. Las tablas pasan de celda con Enter y Tab, suman columnas con + y pueden tener fila de encabezado. Deshacer después de un comando / vuelve a la línea sin el comando.',
+        pt: 'Digitar > cria um toggle, " uma citação e --- um separador, e atalhos como 1. ou [] também funcionam dentro de um item de lista. As tabelas passam de célula com Enter e Tab, ganham colunas com + e podem ter linha de cabeçalho. Desfazer depois de um comando / volta para a linha sem o comando.',
+      },
+      {
+        product: 'docs',
+        en: 'Importing an updated Notion export again updates the pages that changed in Notion, unless someone edited them here. Inline equations and @dates from Notion come in as equations and dates.',
+        es: 'Volver a importar un export de Notion actualizado actualiza las páginas que cambiaron en Notion, salvo que alguien las haya editado acá. Las ecuaciones en línea y las @fechas de Notion entran como ecuaciones y fechas.',
+        pt: 'Importar de novo um export do Notion atualizado atualiza as páginas que mudaram no Notion, a menos que alguém as tenha editado aqui. As equações em linha e as @datas do Notion entram como equações e datas.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-chat-inbox-sort',
     date: '2026-11-08',
     title: {
@@ -59,6 +88,35 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'The inbox has a Sort menu: newest activity, oldest activity or waiting longest. Waiting counts from the visitor\'s first message after the last reply from a person or the bot; internal notes do not count.',
         es: 'La bandeja tiene un menú de orden: actividad más reciente, más vieja o espera más larga. La espera cuenta desde el primer mensaje del visitante después de la última respuesta de una persona o del bot; las notas internas no cuentan.',
         pt: 'A caixa de entrada tem um menu de ordem: atividade mais recente, mais antiga ou espera mais longa. A espera conta a partir da primeira mensagem do visitante depois da última resposta de uma pessoa ou do bot; notas internas não contam.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-07-docs-notion-move',
+    date: '2026-11-07',
+    title: {
+      en: 'Docs: lists that work like Notion, and a smoother move from Notion',
+      es: 'Docs: listas que andan como en Notion y una mudanza desde Notion más simple',
+      pt: 'Docs: listas que funcionam como no Notion e uma mudança do Notion mais simples',
+    },
+    items: [
+      {
+        product: 'docs',
+        en: 'Bullets, numbers and checkboxes share one column, so their text lines up, and nested items start under the text of their parent. Each level changes its marker (1. a. i.), numbers 10 and up no longer push the text, and Backspace at the start of an item turns it into text first, as in Notion. Typing **bold**, *italic*, `code` or ~~strikethrough~~ formats the text.',
+        es: 'Viñetas, números y casillas comparten una columna, así el texto queda alineado, y los ítems anidados arrancan debajo del texto de su padre. Cada nivel cambia de marca (1. a. i.), los números desde el 10 ya no corren el texto y Backspace al inicio de un ítem primero lo vuelve texto, como en Notion. Escribir **negrita**, *cursiva*, `código` o ~~tachado~~ da formato al texto.',
+        pt: 'Marcadores, números e caixas de seleção dividem uma coluna, então o texto fica alinhado, e os itens aninhados começam embaixo do texto do pai. Cada nível muda de marcador (1. a. i.), números a partir do 10 não empurram mais o texto e Backspace no início de um item primeiro o transforma em texto, como no Notion. Digitar **negrito**, *itálico*, `código` ou ~~tachado~~ formata o texto.',
+      },
+      {
+        product: 'docs',
+        en: 'Pasting from Notion keeps to-dos with their check, toggles with what is inside, toggle headings and callouts. @ also finds pages, [[ shows your latest pages before you type, code blocks have a language list and a copy button, and Share has Copy link.',
+        es: 'Pegar desde Notion conserva las tareas con su casilla, los toggles con lo de adentro, los títulos plegables y los callouts. @ también encuentra páginas, [[ muestra tus últimas páginas antes de escribir, los bloques de código tienen lista de lenguajes y botón de copiar, y Compartir tiene Copiar link.',
+        pt: 'Colar do Notion mantém as tarefas com a caixa marcada, os toggles com o que tem dentro, os títulos recolhíveis e os callouts. @ também encontra páginas, [[ mostra suas últimas páginas antes de digitar, os blocos de código têm lista de linguagens e botão de copiar, e Compartilhar tem Copiar link.',
+      },
+      {
+        product: 'docs',
+        en: 'Importing a Notion export now keeps relations between databases, turns columns with workspace members into people, keeps date ranges with their end, and brings toggles and heading levels as they were. Database pages open at full width.',
+        es: 'Importar un export de Notion ahora conserva las relaciones entre bases, convierte en personas las columnas con miembros del workspace, guarda los rangos de fechas con su fin y trae los toggles y los niveles de título como estaban. Las páginas de bases se abren a ancho completo.',
+        pt: 'Importar um export do Notion agora mantém as relações entre bancos, transforma em pessoas as colunas com membros do workspace, guarda os intervalos de datas com o fim e traz os toggles e os níveis de título como estavam. As páginas de bancos abrem em largura total.',
       },
     ],
   },
@@ -140,6 +198,12 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'The conversation now looks like WhatsApp Web: bubbles with read ticks, date chips, quoted replies, reactions, photos and videos in a full-screen viewer, voice notes with speed control, document cards, locations and contacts. Drag files onto the chat or paste an image to attach it, and record voice notes from the composer.',
         es: 'La conversación ahora se ve como WhatsApp Web: burbujas con tildes de leído, separadores de día, respuestas citadas, reacciones, fotos y videos en un visor a pantalla completa, notas de voz con velocidad, tarjetas de documentos, ubicaciones y contactos. Arrastrá archivos al chat o pegá una imagen para adjuntarla, y grabá notas de voz desde el composer.',
         pt: 'A conversa agora parece o WhatsApp Web: balões com tiques de leitura, separadores de data, respostas citadas, reações, fotos e vídeos em um visualizador de tela cheia, mensagens de voz com velocidade, cartões de documentos, localizações e contatos. Arraste arquivos para a conversa ou cole uma imagem para anexar, e grave mensagens de voz pelo compositor.',
+      },
+      {
+        product: 'groups',
+        en: 'Archive chats into an Archived section and delete chats from the list, send contact cards from the + menu, and see when someone is typing, recording or online. PDFs show their first page. If a line loses its connection, the inbox says so and takes you to scan the QR again. Optional in Settings > Tickets and SLA: mark chats as read on WhatsApp when the team reads them.',
+        es: 'Archivá chats en la sección Archivados y eliminá chats de la lista, mandá contactos desde el menú + y mirá cuándo alguien está escribiendo, grabando o en línea. Los PDF muestran su primera página. Si una línea pierde la conexión, la bandeja avisa y te lleva a escanear el QR de nuevo. Opcional en Ajustes > Tickets y SLA: marcar los chats como leídos en WhatsApp cuando el equipo los lee.',
+        pt: 'Arquive conversas na seção Arquivadas e apague conversas da lista, envie contatos pelo menu + e veja quando alguém está digitando, gravando ou online. Os PDFs mostram a primeira página. Se uma linha perde a conexão, a caixa avisa e leva você a escanear o QR de novo. Opcional em Configurações > Tickets e SLA: marcar as conversas como lidas no WhatsApp quando a equipe as lê.',
       },
     ],
   },

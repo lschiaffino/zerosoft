@@ -491,7 +491,8 @@ export default function DictationHost() {
   const shortcut = settings?.shortcut ?? DEFAULT_VOICE_SETTINGS.shortcut;
   const busy = d.state !== 'idle';
   const onDictationPage = pathname.startsWith('/app/voice/dictation');
-  const barWanted = !busy && !onDictationPage && !!focused && (settings?.showBar ?? false);
+  // data-dictation-bar="off": editores de bloques (Docs) donde el botón flotante tapa el texto; el atajo sigue andando.
+  const barWanted = !busy && !onDictationPage && !!focused && !focused.closest('[data-dictation-bar="off"]') && (settings?.showBar ?? false);
   const barPos = useBarPosition(barWanted ? focused : null, barRef);
   const showBar = barWanted && !!barPos;
 

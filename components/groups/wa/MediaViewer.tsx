@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 import { parseDbUtc } from '@/lib/utils';
+import Avatar from './Avatar';
 import { Close, Download } from './icons';
 
 export interface ViewerItem {
@@ -14,6 +15,8 @@ export interface ViewerItem {
   caption: string;
   author: string;
   createdAt: string;
+  /** Foto de quien lo mandó (la del chat en un 1 a 1; en un grupo, iniciales). */
+  avatar?: { src: string; seed: string; kind: 'dm' | 'group' };
 }
 
 /**
@@ -48,8 +51,11 @@ export default function MediaViewer({ items, index, onIndex, onClose }: { items:
     <div className="wa-viewer" role="dialog" aria-modal="true" aria-label={t('viewer')}>
       <header className="wa-viewer-head">
         <span className="wa-viewer-who">
-          <strong>{it.author}</strong>
-          <span>{when}</span>
+          <Avatar name={it.author} kind={it.avatar?.kind ?? 'dm'} src={it.avatar?.src ?? ''} seed={it.avatar?.seed ?? it.author} size={40} />
+          <span className="wa-viewer-who-text">
+            <strong>{it.author}</strong>
+            <span>{when}</span>
+          </span>
         </span>
         <span className="wa-viewer-count">
           {index + 1} / {items.length}

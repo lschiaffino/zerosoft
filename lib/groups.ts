@@ -189,6 +189,21 @@ export async function listNumbers(ws: string): Promise<NumberDto[]> {
   return rows.map(toNumberDto);
 }
 
+/**
+ * Líneas caídas: tenían chats (estuvieron conectadas) y ahora piden QR, se
+ * desconectaron o dan error. La bandeja muestra un aviso para reconectarlas.
+ */
+export async function droppedNumbers(ws: string): Promise<Array<{ id: string; name: string; phone: string; status: string; qr: boolean }>> {
+  const rows = (await getDb()
+    .prepare(
+      `SELECT n.id, n.name, n.phone, n.status, n.provider FROM groups_numbers n
+       WHERE n.user_id = ? AND n.status IN ('qr', 'disconnected', 'error')
+         AND EXISTS (SELECT 1 FROM groups_chats c WHERE c.number_id = n.id) ORDER BY n.created_at`,
+    )
+    .all(ws)) as Array<{ id: string; name: string; phone: string; status: string; provider: ProviderKind }>;
+  return rows.map((r) => ({ id: r.id, name: r.name, phone: r.phone, status: r.status, qr: PROVIDER_CAPS[r.provider]?.qr ?? false }));
+}
+
 export async function getNumberRow(ws: string, id: string): Promise<NumberRow | null> {
   return ((await getDb().prepare('SELECT * FROM groups_numbers WHERE id = ? AND user_id = ?').get(id, ws)) as NumberRow) ?? null;
 }
@@ -424,6 +439,11 @@ export interface ChatRow {
   left_at?: string | null;
   muted_until?: string | null;
   marked_unread?: number;
+  archived_at?: string | null;
+  hidden_at?: string | null;
+  presence?: string | null;
+  presence_who?: string | null;
+  presence_at?: string | null;
 }
 
 export interface LabelDto {
@@ -467,6 +487,10 @@ export interface ChatDto {
   muted: boolean;
   /** Marcado como no leído a mano (WhatsApp muestra un punto, sin número). */
   markedUnread: boolean;
+  /** Archivado: fuera de la lista principal, en "Archivados". */
+  archived: boolean;
+  /** Lo que hace el contacto ahora (escribiendo, grabando, en línea), si es reciente. */
+  presence?: ChatPresence | null;
   /** El último mensaje (para la vista previa con tildes): dirección y estado. */
   lastDirection?: string | null;
   lastStatus?: string | null;
@@ -476,6 +500,32 @@ export interface ChatDto {
   lastKind?: string | null;
   /** Fragmento del mensaje que coincide con la búsqueda. */
   match?: string;
+}
+
+export interface ChatPresence {
+  state: 'composing' | 'recording' | 'available';
+  /** En grupos: el nombre de quien escribe, si lo conocemos (nunca el teléfono). */
+  name: string;
+  at: string;
+}
+
+/** Cuánto vale cada presencia: "escribiendo" se renueva cada pocos segundos; "en línea" dura hasta que se va. */
+const PRESENCE_TTL_MS: Record<ChatPresence['state'], number> = { composing: 25_000, recording: 25_000, available: 10 * 60_000 };
+
+export function chatPresence(row: Pick<ChatRow, 'presence' | 'presence_who' | 'presence_at'>, now = Date.now()): ChatPresence | null {
+  const state = row.presence as ChatPresence['state'] | null | undefined;
+  if (!state || !(state in PRESENCE_TTL_MS) || !row.presence_at) return null;
+  const at = Date.parse(row.presence_at);
+  if (!Number.isFinite(at) || now - at > PRESENCE_TTL_MS[state]) return null;
+  return { state, name: '', at: row.presence_at };
+}
+
+/** Presencia con el nombre de quien escribe en un grupo (de los miembros guardados). */
+export async function presenceWithName(row: ChatRow): Promise<ChatPresence | null> {
+  const p = chatPresence(row);
+  if (!p || row.kind !== 'group' || !row.presence_who) return p;
+  const m = (await getDb().prepare('SELECT name FROM groups_members WHERE chat_id = ? AND phone = ?').get(row.id, row.presence_who)) as { name: string } | undefined;
+  return { ...p, name: m?.name ?? '' };
 }
 
 function parseJson<T>(raw: string | null | undefined, fallback: T): T {
@@ -525,6 +575,8 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     leftAt: row.left_at ?? null,
     muted: Boolean(row.muted_until && row.muted_until > new Date().toISOString()),
     markedUnread: Boolean(row.marked_unread),
+    archived: Boolean(row.archived_at),
+    presence: chatPresence(row),
   };
 }
 
@@ -582,6 +634,8 @@ export interface ChatQuery {
   offset?: number;
   /** Quién mira: acceso por etiqueta y teléfonos ocultos (lib/groups-access.ts). */
   viewer?: GroupsViewer;
+  /** Solo los archivados (sin esto, la lista los deja afuera salvo al buscar). */
+  archived?: boolean;
 }
 
 function likeArg(q: string): string {
@@ -589,9 +643,12 @@ function likeArg(q: string): string {
 }
 
 export async function listChats(ws: string, me: string, query: ChatQuery = {}): Promise<{ rows: ChatDto[]; total: number }> {
-  const where: string[] = ['c.user_id = ?'];
+  const where: string[] = ['c.user_id = ?', 'c.hidden_at IS NULL'];
   const args: Array<string | number> = [ws];
   const filter = query.filter ?? 'all';
+  // Como WhatsApp: los archivados van aparte, pero la búsqueda los encuentra.
+  if (query.archived) where.push('c.archived_at IS NOT NULL');
+  else if (!(query.q ?? '').trim()) where.push('c.archived_at IS NULL');
   if (filter === 'closed') where.push("c.status = 'closed'");
   else where.push("c.status = 'open'");
   if (filter === 'unread') where.push('c.unread_count > 0');
@@ -675,6 +732,8 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     )
     .all(...matchArgs, ...args, limit, offset)) as Array<ChatRow & { match: string | null; last_info: string | null }>;
   const labels = await labelsFor(rows.map((r) => r.id));
+  const presences = new Map<string, ChatPresence | null>();
+  for (const r of rows) if (r.kind === 'group' && chatPresence(r)) presences.set(r.id, await presenceWithName(r));
   return {
     rows: rows.map((r) => {
       const [dir, st, dur, lastKind, ...rest] = (r.last_info ?? '').split('|');
@@ -686,6 +745,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
         lastSender: sender || null,
         lastDuration: Number(dur) || null,
         lastKind: lastKind || null,
+        ...(presences.has(r.id) ? { presence: presences.get(r.id) } : {}),
         ...(r.match ? { match: r.match.slice(0, 160) } : {}),
       });
     }),
@@ -695,7 +755,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
 
 /** Chats abiertos con algo sin leer (sin los silenciados), con el mismo acceso que la bandeja. */
 export async function countUnreadChats(ws: string, viewer?: GroupsViewer): Promise<number> {
-  const where = ["c.user_id = ?", "c.status = 'open'", 'c.unread_count > 0', '(c.muted_until IS NULL OR c.muted_until < ?)'];
+  const where = ["c.user_id = ?", "c.status = 'open'", 'c.unread_count > 0', '(c.muted_until IS NULL OR c.muted_until < ?)', 'c.hidden_at IS NULL', 'c.archived_at IS NULL'];
   const args: Array<string | number> = [ws, nowIso()];
   const access = chatAccessSql(viewer);
   if (access) {
@@ -704,6 +764,21 @@ export async function countUnreadChats(ws: string, viewer?: GroupsViewer): Promi
   }
   const r = (await getDb().prepare(`SELECT COUNT(*) AS n FROM groups_chats c WHERE ${where.join(' AND ')}`).get(...args)) as { n: number };
   return Number(r.n);
+}
+
+/** Archivados que ve quien mira: cuántos hay y cuántos tienen algo sin leer (la fila "Archivados"). */
+export async function countArchivedChats(ws: string, viewer?: GroupsViewer): Promise<{ total: number; unread: number }> {
+  const where = ['c.user_id = ?', 'c.archived_at IS NOT NULL', 'c.hidden_at IS NULL'];
+  const args: Array<string | number> = [ws];
+  const access = chatAccessSql(viewer);
+  if (access) {
+    where.push(access.sql);
+    args.push(...access.args);
+  }
+  const r = (await getDb()
+    .prepare(`SELECT COUNT(*) AS n, SUM(CASE WHEN c.unread_count > 0 THEN 1 ELSE 0 END) AS u FROM groups_chats c WHERE ${where.join(' AND ')}`)
+    .get(...args)) as { n: number; u: number | null };
+  return { total: Number(r.n), unread: Number(r.u ?? 0) };
 }
 
 /** Busca o crea el chat de un número (por id del proveedor). */
@@ -755,6 +830,10 @@ export interface ChatPatch {
   flagged?: boolean;
   /** Silenciar (sin push) o volver a avisar. */
   muted?: boolean;
+  /** Archivar o desarchivar (como WhatsApp). */
+  archived?: boolean;
+  /** "Eliminar chat": sale de la lista hasta que llegue o salga un mensaje nuevo. */
+  hidden?: boolean;
 }
 
 async function assertWorkspacePerson(ws: string, personId: string): Promise<void> {
@@ -808,6 +887,15 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
   if (patch.pinned !== undefined) set('pinned_at', patch.pinned ? row.pinned_at || nowIso() : null);
   if (patch.status) set('status', patch.status);
   if (patch.muted !== undefined) set('muted_until', patch.muted ? '9999-12-31T00:00:00.000Z' : null);
+  if (patch.archived !== undefined) set('archived_at', patch.archived ? row.archived_at || nowIso() : null);
+  if (patch.hidden !== undefined) {
+    set('hidden_at', patch.hidden ? nowIso() : null);
+    // Oculto no queda fijado ni archivado (como "Eliminar chat" en WhatsApp).
+    if (patch.hidden) {
+      set('pinned_at', null);
+      set('archived_at', null);
+    }
+  }
   if (patch.crmContactId !== undefined) {
     if (patch.crmContactId) {
       const ok = await db.prepare('SELECT 1 AS x FROM crm_contacts WHERE id = ? AND user_id = ?').get(patch.crmContactId, ws);
@@ -834,6 +922,8 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
   if (patch.read === true) {
     set('unread_count', 0);
     set('marked_unread', 0);
+    // Tildes azules en WhatsApp (opcional en Ajustes > Tickets y SLA): después de responder.
+    if (row.unread_count > 0) await runAfter(() => sendReadReceipts(ws, row));
   }
   if (patch.read === false && row.unread_count === 0) {
     set('unread_count', 1);
@@ -851,6 +941,30 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
   const { afterChatChange } = await import('./groups-inbox');
   await afterChatChange(ws, actor, row, patch);
   return (await getChat(ws, id)) as ChatDto;
+}
+
+/**
+ * Marca leídos en WhatsApp los últimos recibidos de un chat (lo que estaba sin
+ * leer, hasta 50) si el workspace activó las tildes azules y el proveedor puede.
+ */
+export async function sendReadReceipts(ws: string, chat: ChatRow): Promise<void> {
+  try {
+    if (!(await getSettings(ws)).readReceipts) return;
+    const number = await getNumberRow(ws, chat.number_id);
+    if (!number) return;
+    const provider = providerFor(number);
+    if (!provider.markRead) return;
+    const n = Math.min(50, Math.max(1, chat.unread_count));
+    const rows = (await getDb()
+      .prepare(
+        `SELECT provider_message_id AS pid FROM groups_messages WHERE chat_id = ? AND direction = 'in' AND provider_message_id IS NOT NULL
+         ORDER BY created_at DESC LIMIT ?`,
+      )
+      .all(chat.id, n)) as Array<{ pid: string }>;
+    if (rows.length) await provider.markRead(chat.provider_chat_id, rows.map((r) => r.pid));
+  } catch {
+    // Best effort: si WhatsApp no lo toma, el chat igual queda leído en Groups.
+  }
 }
 
 /**
@@ -1137,12 +1251,12 @@ export async function touchChat(chatId: string, at: string, preview: string, inc
     await db
       .prepare(
         `UPDATE groups_chats SET last_message_at = ?, last_message_preview = ?, unread_count = unread_count + 1 - COALESCE(marked_unread, 0), marked_unread = 0,
-           awaiting_since = COALESCE(awaiting_since, ?), status = 'open', updated_at = ? WHERE id = ?`,
+           awaiting_since = COALESCE(awaiting_since, ?), status = 'open', hidden_at = NULL, presence = NULL, updated_at = ? WHERE id = ?`,
       )
       .run(at, preview, at, at, chatId);
   } else {
     await db
-      .prepare('UPDATE groups_chats SET last_message_at = ?, last_message_preview = ?, updated_at = ? WHERE id = ?')
+      .prepare('UPDATE groups_chats SET last_message_at = ?, last_message_preview = ?, hidden_at = NULL, updated_at = ? WHERE id = ?')
       .run(at, preview, at, chatId);
   }
 }
@@ -1190,15 +1304,42 @@ export interface SendInput {
   forwarded?: boolean;
   /** Encuesta nativa (WAHA y Evolution; la Cloud API de Meta no tiene). */
   poll?: PollInput | null;
+  /** Tarjetas de contacto (vCard) para mandar. */
+  contacts?: Array<{ name: string; phone: string }> | null;
+}
+
+/** Tope de envíos por número: WhatsApp bloquea líneas que mandan en ráfaga. Los envíos masivos llevan su propio ritmo. */
+export const SEND_RATE = { limit: 40, windowSec: 60 };
+
+async function sendGate(numberId: string, authorKind?: string): Promise<void> {
+  if (authorKind === 'broadcast' || process.env.RATE_LIMIT_DISABLED === 'true') return;
+  const { rateLimit } = await import('./rate-limit');
+  const r = await rateLimit(`groups-send:${numberId}`, SEND_RATE.limit, SEND_RATE.windowSec);
+  if (!r.ok) throw new GroupsError('send_rate_limited', 429);
+}
+
+/** Contactos a mandar → válidos (nombre corto y teléfono con dígitos suficientes), hasta 10. */
+export function cleanContacts(raw: unknown): Array<{ name: string; phone: string }> {
+  if (!Array.isArray(raw)) return [];
+  const out: Array<{ name: string; phone: string }> = [];
+  for (const c of raw.slice(0, 10)) {
+    const o = (c ?? {}) as Record<string, unknown>;
+    const phone = phoneDigits(String(o.phone ?? ''));
+    if (!isValidPhone(phone)) continue;
+    out.push({ name: String(o.name ?? '').trim().slice(0, 100), phone });
+  }
+  return out;
 }
 
 export async function sendMessage(ws: string, actor: string | null, chatId: string, input: SendInput): Promise<MessageDto> {
   const chat = await getChatRow(ws, chatId);
   if (!chat) throw new GroupsError('not_found', 404);
   const poll = input.poll ?? null;
-  const body = poll ? poll.question : (input.body ?? '').slice(0, 4096);
-  if (!body.trim() && !input.media) throw new GroupsError('empty_message');
-  if (poll && input.note) throw new GroupsError('invalid_poll');
+  const contacts = input.contacts ? cleanContacts(input.contacts) : [];
+  if (input.contacts && contacts.length === 0) throw new GroupsError('invalid_contact_card');
+  const body = poll ? poll.question : contacts.length ? '' : (input.body ?? '').slice(0, 4096);
+  if (!body.trim() && !input.media && !contacts.length) throw new GroupsError('empty_message');
+  if ((poll || contacts.length) && input.note) throw new GroupsError('invalid_poll');
 
   if (input.note) {
     const row = await insertMessage({
@@ -1226,14 +1367,18 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
   }
   const provider = providerFor(number);
   if (poll && (!provider.caps.polls || !provider.sendPoll)) throw new GroupsError('polls_unsupported');
-  if (input.media && !poll) return sendMediaMessage(ws, actor, chat, provider, input, body, replyProviderId);
+  if (contacts.length && !provider.sendContact) throw new GroupsError('contacts_unsupported');
+  await sendGate(number.id, input.authorKind);
+  if (input.media && !poll && !contacts.length) return sendMediaMessage(ws, actor, chat, provider, input, body, replyProviderId);
   let providerId: string | null = null;
   let status = 'sent';
   let error = '';
   try {
     const res = poll
       ? await provider.sendPoll!(chat.provider_chat_id, poll)
-      : await provider.sendText(chat.provider_chat_id, body, { replyTo: replyProviderId });
+      : contacts.length
+        ? await provider.sendContact!(chat.provider_chat_id, contacts)
+        : await provider.sendText(chat.provider_chat_id, body, { replyTo: replyProviderId });
     providerId = res.id || null;
   } catch (err) {
     status = 'failed';
@@ -1255,10 +1400,12 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
     createdAt: at,
     forwarded: input.forwarded,
     poll,
+    ...(contacts.length ? { meta: { contacts: contacts.map((c) => ({ name: c.name || `+${c.phone}`, phones: [c.phone] })) } } : {}),
   });
-  if (status === 'failed') await touchChat(chatId, at, poll ? pollPreview(poll) : previewOf(body, '', ''), false);
+  const preview = poll ? pollPreview(poll) : contacts.length ? '[contact]' : previewOf(body, input.media?.mimetype ?? '', input.media?.filename ?? '');
+  if (status === 'failed') await touchChat(chatId, at, preview, false);
   if (status === 'sent') {
-    await touchChat(chatId, at, poll ? pollPreview(poll) : previewOf(body, input.media?.mimetype ?? '', input.media?.filename ?? ''), false);
+    await touchChat(chatId, at, preview, false);
     // Un envío masivo no es una respuesta: el chat sigue esperando y el ticket sin primera respuesta.
     if (input.authorKind !== 'broadcast') await markAnswered(chatId, at);
     if (row) {
@@ -1427,6 +1574,7 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
   const chat = await getChatRow(ws, row.chat_id);
   const number = chat ? await getNumberRow(ws, chat.number_id) : null;
   if (!chat || !number) throw new GroupsError('not_found', 404);
+  await sendGate(number.id);
   // Claim: si dos clics llegan juntos, solo uno reintenta.
   const claimed = await getDb().prepare("UPDATE groups_messages SET status = 'pending', error = '' WHERE id = ? AND status = 'failed'").run(row.id);
   if (claimed.changes === 0) return toMessageDto((await getMessageRow(ws, row.id)) as MessageRow);
@@ -1438,8 +1586,11 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
   let error = '';
   try {
     const poll = parsePoll(row.poll);
+    const cards = parseJson<StoredMeta>(row.meta ?? '', {}).contacts ?? [];
     if (poll && provider.sendPoll) providerId = (await provider.sendPoll(chat.provider_chat_id, poll)).id || null;
-    else if (row.media_url) {
+    else if (cards.length && provider.sendContact) {
+      providerId = (await provider.sendContact(chat.provider_chat_id, cards.map((c) => ({ name: c.name, phone: c.phones[0] ?? '' })))).id || null;
+    } else if (row.media_url) {
       const stored = parseJson<StoredMeta>(row.meta ?? '', {}).media;
       const bridged = provider.kind === 'evolution' || provider.kind === 'managed';
       const local = bridged ? await localChatUpload(row.media_url) : null;
@@ -1718,9 +1869,14 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           later.push({ messageId: row.id, ref });
         }
         await touchChat(chat.id, at, previewOfRow(row), !ev.fromMe);
-        // Modo "preguntas": el chat espera recién cuando la AI dice que el mensaje pide respuesta (lib/groups-flag.ts).
-        if (!ev.fromMe && (await getSettings(ws)).flagMode === 'questions') {
-          await getDb().prepare('UPDATE groups_chats SET awaiting_since = NULL WHERE id = ? AND awaiting_since = ?').run(chat.id, at);
+        if (!ev.fromMe) {
+          const st = await getSettings(ws);
+          // Modo "preguntas": el chat espera recién cuando la AI dice que el mensaje pide respuesta (lib/groups-flag.ts).
+          if (st.flagMode === 'questions') {
+            await getDb().prepare('UPDATE groups_chats SET awaiting_since = NULL WHERE id = ? AND awaiting_since = ?').run(chat.id, at);
+          }
+          // Archivado: vuelve a la lista con un mensaje nuevo solo si el workspace lo pidió.
+          if (chat.archived_at && !st.keepArchived) await getDb().prepare('UPDATE groups_chats SET archived_at = NULL WHERE id = ?').run(chat.id);
         }
         // Grupo que no conocíamos: se traen sus miembros una vez (best effort).
         if (chat.kind === 'group' && chat.member_count === 0 && PROVIDER_CAPS[number.provider].groups) {
@@ -1827,6 +1983,12 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
       } else if (ev.type === 'contact') {
         const { applyContact } = await import('./groups-import');
         await applyContact(number, ev);
+      } else if (ev.type === 'presence') {
+        // Solo los chats que ya existen: la presencia no crea chats.
+        const state = ev.state === 'paused' || ev.state === 'unavailable' ? null : ev.state;
+        await getDb()
+          .prepare('UPDATE groups_chats SET presence = ?, presence_who = ?, presence_at = ? WHERE number_id = ? AND provider_chat_id = ?')
+          .run(state, ev.who.slice(0, 30), nowIso(), number.id, ev.chatId);
       }
     } catch (err) {
       res.ignored++;
@@ -1982,11 +2144,13 @@ export async function syncMembers(ws: string, chatId: string): Promise<MemberDto
     ]),
   );
   await db.prepare('DELETE FROM groups_members WHERE chat_id = ?').run(chatId);
-  for (const p of list.slice(0, 2000)) {
-    if (!p.phone) continue;
+  // De a 200 filas por INSERT: un grupo de 1.000 miembros son 5 viajes a la base, no 1.000.
+  const rows = list.slice(0, 2000).filter((p) => p.phone);
+  for (let i = 0; i < rows.length; i += 200) {
+    const chunk = rows.slice(i, i + 200);
     await db
-      .prepare('INSERT OR REPLACE INTO groups_members (chat_id, phone, name, role, created_at) VALUES (?, ?, ?, ?, ?)')
-      .run(chatId, p.phone, (p.name || known.get(p.phone) || '').slice(0, 120), p.role, now);
+      .prepare(`INSERT OR REPLACE INTO groups_members (chat_id, phone, name, role, created_at) VALUES ${chunk.map(() => '(?, ?, ?, ?, ?)').join(', ')}`)
+      .run(...chunk.flatMap((p) => [chatId, p.phone, (p.name || known.get(p.phone) || '').slice(0, 120), p.role, now]));
   }
   await refreshMemberCount(chatId);
   return listMembers(ws, chatId);
