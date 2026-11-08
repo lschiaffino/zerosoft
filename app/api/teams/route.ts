@@ -4,12 +4,13 @@ import { rateLimit } from '@/lib/rate-limit';
 import { isResponse, teamsCtx, teamsError } from '@/lib/teams-http';
 import { setActiveTeam } from '@/lib/teams';
 import { ensureWorkspace, listMyWorkspaces, updateWorkspace } from '@/lib/workspace';
+import { noStore } from '@/lib/no-store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /** GET: mis workspaces (el propio y los ajenos donde soy parte), para el switcher. */
-export async function GET() {
+async function getPrivate() {
   const ctx = await teamsCtx();
   if (isResponse(ctx)) return ctx;
   const rows = await listMyWorkspaces(ctx.real);
@@ -34,4 +35,9 @@ export async function POST(req: NextRequest) {
   await setActiveTeam(ctx.realId, null);
   const row = await getDb().prepare('SELECT * FROM teams WHERE id = ?').get(own.id);
   return NextResponse.json(row, { status: 201 });
+}
+
+/** Datos de la persona: sin caché (lib/no-store.ts). */
+export async function GET(...args: Parameters<typeof getPrivate>) {
+  return noStore(await getPrivate(...args));
 }

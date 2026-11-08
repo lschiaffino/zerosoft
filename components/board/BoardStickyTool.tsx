@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   STICKY_COLORS,
@@ -22,6 +22,7 @@ import {
   type StickyColorKey,
 } from '@/lib/board-stickies';
 import { viewToScene } from '@/lib/board-view';
+import { STICKY_IMPORT_MAX, nextStickyBox, parseStickyCsv } from '@/lib/board-canvas-tools';
 import type { CanvasApi } from './ExcalidrawCanvas';
 import NotesIcon from '@/components/notes/NotesIcon';
 import { usePopover } from '@/components/notes/usePopover';
@@ -45,8 +46,41 @@ function selectedStickies(api: CanvasApi): SceneEl[] {
   return [...out.values()];
 }
 
+const COLOR_KEY = 'board.sticky.color';
+let lastColor: StickyColorKey | null = null;
+
+/** Color de sticky elegido (lo comparten la barra, la tecla N y Tab). */
+export function stickyColor(): StickyColorKey {
+  if (lastColor) return lastColor;
+  try {
+    const v = window.localStorage.getItem(COLOR_KEY);
+    if (v && STICKY_COLORS.some((c) => c.key === v)) lastColor = v as StickyColorKey;
+  } catch {
+    // Sin localStorage (modo privado): amarillo.
+  }
+  return lastColor ?? 'yellow';
+}
+
+function rememberColor(key: StickyColorKey) {
+  lastColor = key;
+  try {
+    window.localStorage.setItem(COLOR_KEY, key);
+  } catch {
+    // Sin localStorage: queda en memoria.
+  }
+}
+
+/**
+ * Esqueleto de sticky con su autor; en modo privado, además marcado como
+ * borrador (no se guarda en la escena ni viaja hasta revelar).
+ */
+export function authoredSkeleton(sk: Record<string, unknown>, author: string | null, privateDraft = false): Record<string, unknown> {
+  if (!author) return sk;
+  return { ...sk, customData: { ...((sk.customData as Record<string, unknown>) ?? {}), author, ...(privateDraft ? { private: true } : {}) } };
+}
+
 /** Centro de lo que se ve del lienzo, en coordenadas de la escena. */
-function viewportCenter(api: CanvasApi): { x: number; y: number } {
+export function viewportCenter(api: CanvasApi): { x: number; y: number } {
   const s = api.getAppState();
   const zoom = Number((s.zoom as { value?: number })?.value) || 1;
   return viewToScene(
@@ -60,10 +94,27 @@ function viewportCenter(api: CanvasApi): { x: number; y: number } {
  * un sticky, los #tags de cada línea pasan a ser tags), tags y color de los
  * seleccionados, y elegir todos los de un tag.
  */
-export default function BoardStickyTool({ api }: { api: CanvasApi | null }) {
+export default function BoardStickyTool({
+  api,
+  me = null,
+  onMessage,
+  privateMode = false,
+}: {
+  api: CanvasApi | null;
+  me?: string | null;
+  privateMode?: boolean;
+  /** Aviso corto (cuántas filas entraron de un CSV grande). */
+  onMessage?: (text: string, tone?: 'error' | 'info') => void;
+}) {
   const t = useTranslations('board.stickies');
   const pop = usePopover();
-  const [color, setColor] = useState<StickyColorKey>('yellow');
+  const [color, setColorState] = useState<StickyColorKey>(() => (typeof window === 'undefined' ? 'yellow' : stickyColor()));
+  const setColor = (key: StickyColorKey) => {
+    rememberColor(key);
+    setColorState(key);
+  };
+  const csvRef = useRef<HTMLInputElement>(null);
+  const [csvError, setCsvError] = useState(false);
   const [bulk, setBulk] = useState('');
   const [bulkTags, setBulkTags] = useState('');
   const [selection, setSelection] = useState<SceneEl[]>([]);
@@ -84,13 +135,22 @@ export default function BoardStickyTool({ api }: { api: CanvasApi | null }) {
   const fill = STICKY_COLORS.find((c) => c.key === color)?.fill ?? STICKY_COLORS[0].fill;
   const drafts = parseBulkStickies(bulk, bulkTags.split(/[,\s]+/));
 
-  async function add(list: Array<{ text: string; tags: string[] }>) {
+  async function add(list: Array<{ text: string; tags: string[]; fill?: string | null; x?: number | null; y?: number | null }>, fromBulk = false) {
     if (!api || !list.length) return;
-    const { skeletonsToElements, UNDOABLE } = await import('./ExcalidrawCanvas');
+    // Se cierra (y se vacía la lista pegada) enseguida: la carga de letras puede tardar y al
+    // terminar no tiene que tocar un popover que se volvió a abrir.
+    pop.close();
+    if (fromBulk) setBulk('');
+    const { skeletonsToElements, UNDOABLE, ensureFonts } = await import('./ExcalidrawCanvas');
+    await ensureFonts();
     // En un hueco cerca del centro de la vista: no tapan lo que ya está ni sus tags.
     const occupied = (api.getSceneElements() as SceneEl[]).filter((e) => !e.isDeleted && !e.containerId).map(elementBox);
-    const positions = layoutStickiesInFreeSpace(list.length, viewportCenter(api), occupied);
-    const created = skeletonsToElements(list.map((d, i) => stickySkeleton(d, positions[i], fill))) as SceneEl[];
+    // Uno solo con un sticky elegido: va al lado del elegido (como Tab). Si no, en grilla en un hueco libre.
+    const prev = list.length === 1 ? selectedStickies(api)[0] : undefined;
+    const positions = prev
+      ? [nextStickyBox(elementBox(prev), 'right', occupied)]
+      : layoutStickiesInFreeSpace(list.length, viewportCenter(api), occupied);
+    const created = skeletonsToElements(list.map((d, i) => authoredSkeleton(stickySkeleton(d, positions[i], d.fill ?? fill), me, privateMode))) as SceneEl[];
     const ids = Object.fromEntries(created.filter((e) => e.customData?.sticky).map((e) => [e.id, true]));
     api.updateScene({
       elements: [...api.getSceneElementsIncludingDeleted(), ...created],
@@ -105,8 +165,6 @@ export default function BoardStickyTool({ api }: { api: CanvasApi | null }) {
       const shown = (api.getSceneElements() as SceneEl[]).filter((e) => ids[e.id]);
       if (shown.length) api.scrollToContent(shown, { fitToContent: false, animate: true });
     }
-    setBulk('');
-    pop.close();
   }
 
   /** Reemplaza los stickies seleccionados con `change` aplicado (entra al deshacer). */
@@ -139,6 +197,21 @@ export default function BoardStickyTool({ api }: { api: CanvasApi | null }) {
     a.download = 'stickies.csv';
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  /** Importar stickies de un CSV (el export de acá o el de stickies de Miro). */
+  async function importCsv(file: File) {
+    setCsvError(false);
+    try {
+      const all = parseStickyCsv(await file.text(), Number.MAX_SAFE_INTEGER);
+      if (!all.length) throw new Error('empty');
+      const rows = all.slice(0, STICKY_IMPORT_MAX);
+      await add(rows);
+      if (all.length > rows.length) onMessage?.(t('importTruncated', { count: rows.length, total: all.length }), 'error');
+      else onMessage?.(t('imported', { count: rows.length }));
+    } catch {
+      setCsvError(true);
+    }
   }
 
   function selectTag(tag: string) {
@@ -248,15 +321,38 @@ export default function BoardStickyTool({ api }: { api: CanvasApi | null }) {
               aria-label={t('bulkTags')}
               maxLength={200}
             />
-            <button type="button" className="btn btn-sm board-pop-start" disabled={drafts.length === 0} onClick={() => void add(drafts)}>
+            <button type="button" className="btn btn-sm board-pop-start" disabled={drafts.length === 0} onClick={() => void add(drafts, true)}>
               {t('bulkAdd', { count: drafts.length })}
             </button>
           </div>
 
           <div className="board-pop-section">
-            <button type="button" className="btn btn-sm" onClick={exportCsv} data-testid="board-stickies-csv">
-              {selection.length > 0 ? t('exportSelected', { count: selection.length }) : t('exportAll')}
-            </button>
+            <div className="board-pop-actions">
+              <button type="button" className="btn btn-sm" onClick={exportCsv} data-testid="board-stickies-csv">
+                {selection.length > 0 ? t('exportSelected', { count: selection.length }) : t('exportAll')}
+              </button>
+              <button type="button" className="btn btn-sm" onClick={() => csvRef.current?.click()} data-testid="board-stickies-import">
+                {t('importCsv')}
+              </button>
+              <input
+                ref={csvRef}
+                type="file"
+                accept=".csv,text/csv"
+                hidden
+                data-testid="board-stickies-import-input"
+                onChange={(e) => {
+                  const f = e.currentTarget.files?.[0];
+                  e.currentTarget.value = '';
+                  if (f) void importCsv(f);
+                }}
+              />
+            </div>
+            <p className="board-pop-hint">{t('importHint')}</p>
+            {csvError && (
+              <p className="ui-error" role="alert">
+                {t('importError')}
+              </p>
+            )}
           </div>
 
           {boardTags.length > 0 && (

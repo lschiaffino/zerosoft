@@ -4,6 +4,7 @@ import Logo from '@/components/brand/Logo';
 import DeviceForm from '@/components/oauth/DeviceForm';
 import { requireUser } from '@/lib/session';
 import { listMyWorkspaces } from '@/lib/workspace';
+import { consentTeamId } from '@/lib/oauth/consent';
 import '@/styles/oauth.css';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +31,7 @@ export default async function OAuthDevicePage(props: { params: Promise<{ locale:
           initialCode={clean}
           personEmail={real.email}
           workspaces={workspaces.map((w) => ({ teamId: w.teamId, name: w.name, own: w.own }))}
-          activeTeamId={real.active_team_id ?? null}
+          activeTeamId={await consentTeamId(real, real.active_team_id)}
         />
       </div>
     </main>

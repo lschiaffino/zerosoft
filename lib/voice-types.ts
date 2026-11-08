@@ -15,6 +15,14 @@ export type VoiceSource = (typeof VOICE_SOURCES)[number];
 export const VOICE_CAPTURES = ['mic', 'mic_tab', 'file', 'desktop'] as const;
 export type VoiceCapture = (typeof VOICE_CAPTURES)[number];
 
+/**
+ * Cómo se limpia un dictado: 'raw' deja la transcripción tal cual (solo el
+ * diccionario), 'clean' la ordena con tono neutro, 'formal' con tono formal en
+ * todas las apps y 'per_app' usa el tono de cada contexto (styles).
+ */
+export const VOICE_CLEANUP_MODES = ['raw', 'clean', 'formal', 'per_app'] as const;
+export type VoiceCleanupMode = (typeof VOICE_CLEANUP_MODES)[number];
+
 export const VOICE_DICTIONARY_KINDS = ['word', 'replace', 'snippet'] as const;
 export type VoiceDictionaryKind = (typeof VOICE_DICTIONARY_KINDS)[number];
 
@@ -67,6 +75,8 @@ export interface VoiceSettings {
   shortcut: string;
   /** Mostrar el botón de dictado al enfocar un campo de texto. */
   showBar: boolean;
+  /** Modo de limpieza del dictado (web y escritorio). */
+  cleanupMode: VoiceCleanupMode;
   /** Limpieza con IA (si está apagada, solo reglas: diccionario, muletillas y puntuación). */
   aiCleanup: boolean;
   /** Command Mode: con texto seleccionado, lo que se dice es una instrucción para reescribirlo (apagado por defecto, como Wispr Flow). */
@@ -90,6 +100,7 @@ export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   language: 'auto',
   shortcut: 'Alt+Space',
   showBar: true,
+  cleanupMode: 'per_app',
   aiCleanup: true,
   commandMode: false,
   learnCorrections: true,
@@ -104,6 +115,14 @@ export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
 export const VOICE_REMINDER_MINUTES = [1, 2, 5, 10] as const;
 /** Opciones de borrado automático de transcripciones (0 = nunca). */
 export const VOICE_RETENTION_DAYS = [0, 1, 7, 30, 90, 365] as const;
+
+/** Tono con el que se limpia un dictado según el modo; null = sin limpieza (raw). */
+export function dictationTone(settings: Pick<VoiceSettings, 'cleanupMode' | 'styles'>, context: VoiceContext): VoiceTone | null {
+  if (settings.cleanupMode === 'raw') return null;
+  if (settings.cleanupMode === 'formal') return 'formal';
+  if (settings.cleanupMode === 'clean') return 'neutral';
+  return settings.styles[context];
+}
 
 /** Ajustes del workspace (los administra un admin). */
 export interface VoiceWorkspaceSettings {

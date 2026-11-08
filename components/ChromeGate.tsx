@@ -1,9 +1,13 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useSelectedLayoutSegments } from 'next/navigation';
 import { usePathname } from '@/i18n/navigation';
 import type { ReactNode } from 'react';
-import type { HostSurface } from '@/lib/host-rewrite';
+import { SURFACE_PREFIX } from '@/lib/host-rewrite';
+
+/** Primer segmento de las rutas a las que el middleware reescribe un host (superficies y sitios de Docs). */
+const REWRITE_TARGETS = new Set<string>([...Object.values(SURFACE_PREFIX), 'h']);
 
 /**
  * Separa el chrome del sitio (header/footer de marketing) del chrome de las
@@ -15,17 +19,20 @@ import type { HostSurface } from '@/lib/host-rewrite';
  * El board público (feedback.zerosoft.ai o /feedback-board) y la página de
  * marca (branding.zerosoft.ai o /brand, y las exploraciones de
  * /nuevo-branding) tienen su propio chrome mínimo: acá
- * no se pone el de marketing ni el launcher de feedback. `surface` viene del
- * host (el layout lo resuelve en el servidor), así server y cliente coinciden
- * aunque el middleware haya reescrito el path.
+ * no se pone el de marketing ni el launcher de feedback.
+ *
+ * El middleware reescribe esos hosts (feedback.zerosoft.ai → /feedback-board,
+ * branding.zerosoft.ai → /brand, el dominio propio de un sitio de Docs →
+ * /h/<handle>): el navegador ve otro path que el servidor. Para esas rutas se
+ * decide con la ruta real (los segmentos del árbol, iguales en servidor y
+ * cliente) y no con el host: así el layout no lee la request y el sitio puede
+ * ser estático.
  */
 export default function ChromeGate({
   header,
   footer,
   support = null,
   launcher = null,
-  surface = null,
-  docsSite = false,
   children,
 }: {
   header: ReactNode;
@@ -34,31 +41,13 @@ export default function ChromeGate({
   support?: ReactNode;
   /** Launcher de feedback (ideas, enviar, novedades): en el sitio y en la app. */
   launcher?: ReactNode;
-  /** Superficie del host (board, brand) o null para el sitio normal. */
-  surface?: HostSurface | null;
-  /**
-   * Sitio de Docs en el dominio propio de un cliente (docs.empresa.com): el
-   * path que ve el navegador es /<slug>, no /h/…; va sin chrome de marketing.
-   */
-  docsSite?: boolean;
   children: ReactNode;
 }) {
-  const pathname = usePathname();
+  const browserPath = usePathname();
+  const segments = useSelectedLayoutSegments().filter((s) => !s.startsWith('(') && !s.startsWith('__'));
+  const pathname = segments.length && REWRITE_TARGETS.has(segments[0]) ? `/${segments.join('/')}` : browserPath;
   const t = useTranslations('common.publicPage');
-  if (docsSite) {
-    return (
-      <>
-        {children}
-        <p className="powered-by">
-          <a href="https://zerosoft.ai" target="_blank" rel="noreferrer">
-            {t('poweredBy')}
-          </a>
-        </p>
-      </>
-    );
-  }
   if (
-    surface ||
     pathname.startsWith('/feedback-board') ||
     pathname === '/brand' ||
     pathname.startsWith('/brand/') ||

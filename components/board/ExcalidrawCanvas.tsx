@@ -16,6 +16,7 @@ import {
   convertToExcalidrawElements,
   exportToBlob,
   exportToSvg,
+  getCommonBounds,
   reconcileElements,
   useHandleLibrary,
   zoomToFitBounds,
@@ -23,7 +24,23 @@ import {
 import '@excalidraw/excalidraw/index.css';
 import { isAllowedLibraryUrl, type BoardScene } from '@/lib/boards-types';
 import { excalidrawLang } from '@/lib/board-view';
+import { isBoardFileLink } from '@/lib/board-canvas-tools';
+
+/** Link de una tarjeta de archivo: se baja con su nombre, sin salir de la pizarra. */
+function openLink(element: unknown, event: CustomEvent) {
+  const link = (element as { link?: string | null }).link;
+  if (!isBoardFileLink(link)) return;
+  event.preventDefault();
+  const a = document.createElement('a');
+  a.href = link!;
+  a.rel = 'noopener';
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 import { useResolvedTheme } from '@/components/theme/ThemeProvider';
+import { setDarkCanvas, setExportingImage, withRealColorsAsync } from './darkCanvas';
 
 // Tipos laxos: los .d.ts de Excalidraw arrastran paquetes internos.
 export interface CanvasApi {
@@ -37,6 +54,7 @@ export interface CanvasApi {
   getFiles: () => Record<string, unknown>;
   onScrollChange: (cb: (scrollX: number, scrollY: number, zoom: { value: number }) => void) => () => void;
   onUserFollow: (cb: (payload: { userToFollow: { socketId: string; username: string }; action: 'FOLLOW' | 'UNFOLLOW' }) => void) => () => void;
+  setActiveTool: (tool: { type: string; locked?: boolean }) => void;
 }
 
 /** Puntero de esta pestaña (Excalidraw lo avisa en cada movimiento). */
@@ -132,6 +150,12 @@ export interface TtdTexts {
   prompt: string;
   /** "Frame tool" de "más herramientas" (sin traducir en es de Excalidraw). */
   frameTool: string;
+  /** Textos de Excalidraw sin traducir en es/pt: buscar en el lienzo y la insignia de seguir. */
+  findOnCanvas: string;
+  noMatch: string;
+  following: string;
+  /** Ítem de ayuda del menú (el de Excalidraw se leía "Ayuda?" con el atajo pegado). */
+  help: string;
 }
 
 const TTD_SOURCE: Record<string, keyof TtdTexts> = {
@@ -148,6 +172,9 @@ const TTD_SOURCE: Record<string, keyof TtdTexts> = {
   // Traducción de Excalidraw en es: se usa la nuestra.
   Sugerencia: 'prompt',
   'Frame tool': 'frameTool',
+  'Find on canvas': 'findOnCanvas',
+  'No matches found...': 'noMatch',
+  Following: 'following',
 };
 
 /**
@@ -161,7 +188,9 @@ function useTranslateTtd(texts: TtdTexts | undefined) {
     let frame = 0;
     const apply = () => {
       frame = 0;
-      for (const root of document.querySelectorAll<HTMLElement>('.ttd-dialog, .App-toolbar .dropdown-menu, .dropdown-menu-container')) {
+      for (const root of document.querySelectorAll<HTMLElement>(
+        '.ttd-dialog, .App-toolbar .dropdown-menu, .dropdown-menu-container, .follow-mode__badge__label, .excalidraw .sidebar, .excalidraw .layer-ui__search-header',
+      )) {
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
         for (let n = walker.nextNode(); n; n = walker.nextNode()) {
           const raw = n.nodeValue ?? '';
@@ -255,6 +284,7 @@ function ExcalidrawCanvas({
   onWireframeToCode,
   canOpenFile = false,
   ttdTexts,
+  name,
 }: {
   scene: BoardScene;
   locale: string;
@@ -277,10 +307,25 @@ function ExcalidrawCanvas({
   canOpenFile?: boolean;
   /** Textos propios para el diálogo de texto a diagrama (estables). */
   ttdTexts?: TtdTexts;
+  /** Nombre de la pizarra: los archivos exportados (PNG, SVG, .excalidraw) salen con este nombre. */
+  name?: string;
 }) {
   // El lienzo sigue el modo de color del sitio (selector sistema/claro/oscuro).
   const theme = useResolvedTheme();
+  // Antes de que Excalidraw dibuje: en oscuro, los colores se transforman en JS y los stickies quedan claros.
+  setDarkCanvas(theme === 'dark');
+  useEffect(() => () => setDarkCanvas(false), []);
   const [api, setApi] = useState<unknown>(null);
+  // El diálogo de exportar imagen dibuja con colores reales (y su propio filtro si se pide oscuro).
+  useEffect(() => {
+    const a = api as CanvasApi | null;
+    if (!a) return;
+    const off = a.onChange((_els, appState) => setExportingImage((appState.openDialog as { name?: string } | null)?.name === 'imageExport'));
+    return () => {
+      off();
+      setExportingImage(false);
+    };
+  }, [api]);
   const hostRef = useRef<HTMLDivElement>(null);
   usePanelLimit(hostRef);
   useTranslateTtd(ttdTexts);
@@ -353,7 +398,8 @@ function ExcalidrawCanvas({
   const initialData = useMemo(
     () => ({
       elements: scene.elements as never,
-      appState: { ...scene.appState, collaborators: undefined } as never,
+      // Guías de alineación al mover (snap a objetos) prendidas de entrada, como en Miro.
+      appState: { objectsSnapModeEnabled: true, ...scene.appState, collaborators: undefined } as never,
       files: scene.files as never,
       scrollToContent: true,
     }),
@@ -369,7 +415,13 @@ function ExcalidrawCanvas({
         {!viewMode && <MainMenu.DefaultItems.Export />}
         <MainMenu.DefaultItems.SaveAsImage />
         <MainMenu.DefaultItems.SearchMenu />
-        <MainMenu.DefaultItems.Help />
+        <MainMenu.Item
+          onSelect={() => (api as CanvasApi | null)?.updateScene({ appState: { openDialog: { name: 'help' } } })}
+          shortcut="?"
+          data-testid="board-menu-help"
+        >
+          {ttdTexts?.help ?? 'Help'}
+        </MainMenu.Item>
         <MainMenu.DefaultItems.ClearCanvas />
         {!viewMode && <MainMenu.Separator />}
         <MainMenu.DefaultItems.ChangeCanvasBackground />
@@ -405,6 +457,9 @@ function ExcalidrawCanvas({
         onChange={hasOnChange ? handleChange : undefined}
         onPointerUpdate={hasPointer ? handlePointer : undefined}
         isCollaborating={collaborating}
+        autoFocus={!viewMode}
+        name={name}
+        onLinkOpen={openLink as never}
         aiEnabled={hasAi}
         UIOptions={uiOptions}
       >
@@ -420,6 +475,16 @@ function ExcalidrawCanvas({
 /** Merge por elemento de Excalidraw (versión mayor gana; empate por versionNonce). */
 export function reconcile(local: readonly unknown[], remote: readonly unknown[], appState: Record<string, unknown>): unknown[] {
   return reconcileElements(local as never, remote as never, appState as never) as unknown[];
+}
+
+/**
+ * Carga las letras de los stickies y tablas antes de armar elementos: Excalidraw
+ * corta el texto en líneas midiendo con la letra cargada, y en una pizarra
+ * vacía todavía no lo está (el texto quedaba más ancho que el sticky).
+ */
+export async function ensureFonts(): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  await Promise.all([document.fonts.load('18px Excalifont'), document.fonts.load('16px Nunito')]).catch(() => undefined);
 }
 
 /** Elementos de Excalidraw a partir de esqueletos (stickies con su texto ligado). */
@@ -439,11 +504,37 @@ export function fitBounds(api: CanvasApi, bounds: [number, number, number, numbe
   api.updateScene({ appState: { scrollX: next.scrollX, scrollY: next.scrollY, zoom: next.zoom }, captureUpdate: REMOTE });
 }
 
+/**
+ * Todo el contenido en la vista con un margen, sin agrandar más que `maxZoom`
+ * (una pizarra con dos stickies no abre al 250 %). Sin animación.
+ */
+export function fitContent(api: CanvasApi, maxZoom = 1) {
+  const els = (api.getSceneElements() as Array<{ isDeleted?: boolean }>).filter((e) => !e.isDeleted);
+  if (!els.length) return;
+  const [x1, y1, x2, y2] = getCommonBounds(els as never) as unknown as [number, number, number, number];
+  const s = api.getAppState() as { width: number; height: number };
+  const width = Number(s.width) || 1200;
+  const height = Number(s.height) || 800;
+  // El área libre: sin la barra de herramientas de arriba, la de zoom de abajo y, en pantallas
+  // anchas, el panel de propiedades que Excalidraw abre a la izquierda al elegir algo.
+  const inset = { top: 90, bottom: 70, left: width > 900 ? 240 : 16, right: width > 900 ? 24 : 16 };
+  const areaW = Math.max(200, width - inset.left - inset.right);
+  const areaH = Math.max(200, height - inset.top - inset.bottom);
+  const fit = Math.min((areaW * 0.94) / Math.max(1, x2 - x1), (areaH * 0.94) / Math.max(1, y2 - y1));
+  const zoom = Math.max(0.1, Math.min(maxZoom, fit));
+  const cx = inset.left + areaW / 2;
+  const cy = inset.top + areaH / 2;
+  api.updateScene({
+    appState: { zoom: { value: zoom }, scrollX: cx / zoom - (x1 + x2) / 2, scrollY: cy / zoom - (y1 + y2) / 2 },
+    captureUpdate: REMOTE,
+  });
+}
+
 /** JPEG de un frame (con todo lo que tiene adentro), para el PDF de slides. */
 export async function exportFrameJpeg(api: CanvasApi, frame: unknown, maxSide = 2000): Promise<Uint8Array> {
   const elements = api.getSceneElements();
   const appState = api.getAppState();
-  const blob = await exportToBlob({
+  const blob = await withRealColorsAsync<Blob>(() => exportToBlob({
     elements: elements as never,
     appState: { exportBackground: true, viewBackgroundColor: (appState.viewBackgroundColor as string) ?? '#ffffff', exportWithDarkMode: false } as never,
     files: api.getFiles() as never,
@@ -452,20 +543,22 @@ export async function exportFrameJpeg(api: CanvasApi, frame: unknown, maxSide = 
     mimeType: 'image/jpeg',
     quality: 0.9,
     exportPadding: 0,
-  });
+  }));
   return new Uint8Array(await blob.arrayBuffer());
 }
 
 /** PNG de un frame en data URL (lo que ve la IA en wireframe a código). */
 export async function exportFramePngDataUrl(api: CanvasApi, frame: unknown, maxSide = 1200): Promise<string> {
-  const blob = await exportToBlob({
-    elements: api.getSceneElements() as never,
-    appState: { exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false } as never,
-    files: api.getFiles() as never,
-    exportingFrame: frame as never,
-    maxWidthOrHeight: maxSide,
-    mimeType: 'image/png',
-  });
+  const blob = await withRealColorsAsync<Blob>(() =>
+    exportToBlob({
+      elements: api.getSceneElements() as never,
+      appState: { exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false } as never,
+      files: api.getFiles() as never,
+      exportingFrame: frame as never,
+      maxWidthOrHeight: maxSide,
+      mimeType: 'image/png',
+    }),
+  );
   return await new Promise<string>((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result));
@@ -474,22 +567,40 @@ export async function exportFramePngDataUrl(api: CanvasApi, frame: unknown, maxS
   });
 }
 
-/** Miniatura SVG de la escena (sin imágenes, para que sea chica). */
+/** Tope de la miniatura (el servidor no guarda más de 150 KB). */
+const THUMB_MAX_CHARS = 140_000;
+/** Letra de las miniaturas: la del sistema (una <img> con SVG no carga las letras de la página). */
+const THUMB_FONT = 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+
+/**
+ * Miniatura SVG de la escena (sin imágenes, para que sea chica). En pizarras
+ * grandes se simplifica hasta que entre: primero sin trazo a mano, después sin
+ * textos y al final solo las formas más grandes. Si igual no entra, null.
+ */
 export async function sceneThumbnail(elements: readonly unknown[], viewBackgroundColor: string): Promise<string | null> {
-  const live = (elements as Array<{ isDeleted?: boolean; type?: string }>).filter((e) => !e.isDeleted && e.type !== 'image');
+  type Thumb = { isDeleted?: boolean; type?: string; containerId?: string | null; width?: number; height?: number; roughness?: number };
+  const live = (elements as Thumb[]).filter((e) => !e.isDeleted && e.type !== 'image');
   if (!live.length) return null;
-  try {
-    const svg = await exportToSvg({
-      elements: live as never,
-      appState: { exportBackground: false, viewBackgroundColor, exportEmbedScene: false } as never,
-      files: null,
-      exportPadding: 16,
-      skipInliningFonts: true,
-    });
-    svg.removeAttribute('width');
-    svg.removeAttribute('height');
-    return svg.outerHTML;
-  } catch {
-    return null;
+  const smooth = live.map((e) => ({ ...e, roughness: 0 }));
+  const shapes = smooth.filter((e) => e.type !== 'text');
+  const biggest = [...shapes].sort((a, b) => (b.width ?? 0) * (b.height ?? 0) - (a.width ?? 0) * (a.height ?? 0)).slice(0, 400);
+  for (const attempt of [live, smooth, shapes, biggest]) {
+    if (!attempt.length) continue;
+    try {
+      const svg = await exportToSvg({
+        elements: attempt as never,
+        appState: { exportBackground: false, viewBackgroundColor, exportEmbedScene: false } as never,
+        files: null,
+        exportPadding: 16,
+        skipInliningFonts: true,
+      });
+      svg.removeAttribute('width');
+      svg.removeAttribute('height');
+      const out = svg.outerHTML.replace(/font-family="[^"]*"/g, `font-family="${THUMB_FONT}"`);
+      if (out.length <= THUMB_MAX_CHARS) return out;
+    } catch {
+      return null;
+    }
   }
+  return null;
 }

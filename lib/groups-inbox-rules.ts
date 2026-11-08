@@ -49,9 +49,11 @@ export function messageActions(
   const delivered = m.status !== 'failed' && m.status !== 'pending';
   const forward = delivered && (Boolean(m.body.trim()) || Boolean(m.media));
   if (m.direction === 'in') return { edit: false, delete: false, pin: true, forward };
+  // Lo que mandó otra persona del equipo (o el teléfono) solo lo toca un admin.
+  const own = viewer.isAdmin || (Boolean(m.authorId) && m.authorId === viewer.me);
   return {
-    edit: caps.edit && delivered && !m.media && Boolean(m.body.trim()) && age <= EDIT_WINDOW_MS,
-    delete: caps.deleteForAll && delivered && age <= DELETE_WINDOW_MS,
+    edit: own && caps.edit && delivered && !m.media && Boolean(m.body.trim()) && age <= EDIT_WINDOW_MS,
+    delete: own && caps.deleteForAll && delivered && age <= DELETE_WINDOW_MS,
     pin: delivered,
     forward,
   };

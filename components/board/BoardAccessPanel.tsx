@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { BoardAccessLevel, BoardAccessMember, BoardAccessMode, BoardMemberRole } from '@/lib/board-access';
 import type { BoardMember } from '@/lib/board-comments';
@@ -22,6 +22,8 @@ interface AccessState {
  */
 export default function BoardAccessPanel({ boardId, onModeChange }: { boardId: string; onModeChange?: (mode: BoardAccessMode) => void }) {
   const t = useTranslations('board.access');
+  // El link lleva el idioma de quien lo comparte: el invitado ve la pizarra en ese idioma.
+  const locale = useLocale();
   const [state, setState] = useState<AccessState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -74,7 +76,7 @@ export default function BoardAccessPanel({ boardId, onModeChange }: { boardId: s
   const manage = state.level === 'manage';
   const invited = new Set(state.members.map((m) => m.id));
   const options = state.candidates.filter((c) => !invited.has(c.id) && c.id !== state.created_by);
-  const guestUrl = state.guest_token && typeof window !== 'undefined' ? `${window.location.origin}/b/e/${state.guest_token}` : '';
+  const guestUrl = state.guest_token && typeof window !== 'undefined' ? `${window.location.origin}/${locale}/b/e/${state.guest_token}` : '';
 
   return (
     <div className="board-pop-section board-access">

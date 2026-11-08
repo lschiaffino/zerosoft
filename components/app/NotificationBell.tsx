@@ -6,6 +6,7 @@ import { useLocale } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import Icon from './icons';
 import { relDate } from '@/lib/utils';
+import { useVisiblePoll } from '@/lib/use-visible-poll';
 import { notificationTitle, type NotificationTextLabels } from '@/lib/notification-text';
 
 /** Evento que dispara quien cambia avisos (la bandeja) para que la campana se actualice. */
@@ -60,15 +61,13 @@ export default function NotificationBell({ labels, onCountChange }: Notification
     onCountChange?.(data.unreadCount ?? 0);
   }, [onCountChange]);
 
+  // Cada 30 s con la pestaña visible, y al volver a ella; oculta no pide nada.
+  // La primera, con el navegador libre: no compite con los datos de la página.
+  useVisiblePoll(load, 30_000, { idleStart: true });
   useEffect(() => {
-    void load();
-    const id = setInterval(load, 30000);
     const onChanged = () => void load();
     window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
-    return () => {
-      clearInterval(id);
-      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
-    };
+    return () => window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
   }, [load]);
 
   useEffect(() => {

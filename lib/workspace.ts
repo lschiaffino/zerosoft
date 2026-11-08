@@ -464,9 +464,20 @@ export interface WorkspaceEntry {
  * después los ajenos donde es miembro (no guest).
  */
 export async function listMyWorkspaces(real: Pick<UserRow, 'id'>, db: Db = getDb()): Promise<WorkspaceEntry[]> {
-  const ficha = await ensureWorkspace(real.id, db);
+  // Las tres lecturas van juntas (en Turso cada query es un RTT).
+  const [ficha, ownRows, foreignRows] = await Promise.all([
+    ensureWorkspace(real.id, db),
+    db.prepare('SELECT * FROM teams WHERE owner_id = ? ORDER BY created_at ASC, id ASC').all(real.id),
+    db
+      .prepare(
+        `SELECT t.*, m.role AS member_role FROM teams t JOIN team_members m ON m.team_id = t.id
+         WHERE m.user_id = ? AND t.owner_id != ? AND m.role != 'guest'
+         ORDER BY t.name COLLATE NOCASE ASC`,
+      )
+      .all(real.id, real.id),
+  ]);
+  const own = ownRows as TeamRow[];
   const out: WorkspaceEntry[] = [];
-  const own = (await db.prepare('SELECT * FROM teams WHERE owner_id = ? ORDER BY created_at ASC, id ASC').all(real.id)) as TeamRow[];
   if (teamKeyed(ficha)) {
     // Owner de antes de 128: su espacio personal y cada equipo, como hasta ahora.
     out.push({ teamId: null, name: '', logoUrl: null, own: true, role: 'owner', mode: 'personal', personal: true });
@@ -488,13 +499,7 @@ export async function listMyWorkspaces(real: Pick<UserRow, 'id'>, db: Db = getDb
       out.push({ teamId: t.id, name: t.name, logoUrl: t.logo_url ?? null, own: true, role: 'owner', mode: workspaceModeOf(t), personal: false });
     }
   }
-  const foreign = (await db
-    .prepare(
-      `SELECT t.*, m.role AS member_role FROM teams t JOIN team_members m ON m.team_id = t.id
-       WHERE m.user_id = ? AND t.owner_id != ? AND m.role != 'guest'
-       ORDER BY t.name COLLATE NOCASE ASC`,
-    )
-    .all(real.id, real.id)) as Array<TeamRow & { member_role: string }>;
+  const foreign = foreignRows as Array<TeamRow & { member_role: string }>;
   for (const t of foreign) {
     out.push({
       teamId: t.id,

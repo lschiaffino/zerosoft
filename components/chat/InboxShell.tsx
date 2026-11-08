@@ -13,6 +13,7 @@ import AwayStatus from './AwayStatus';
 import InboxAlerts, { playNewMessageSound, soundEnabled } from './InboxAlerts';
 import { notifyChatViewsChanged } from './ChatInboxBranch';
 import {
+  INBOX_SORTS,
   INBOX_STATUSES,
   conversationIdFromPath,
   filtersToView,
@@ -22,6 +23,7 @@ import {
   viewToFilters,
   type InboxAssignee,
   type InboxFilters,
+  type InboxSort,
   type InboxStatus,
 } from './inbox-model';
 
@@ -107,6 +109,7 @@ export default function InboxShell({
   const [assigneeId, setAssigneeId] = useState<string | undefined>(undefined);
   const [teamId, setTeamId] = useState('');
   const [priority, setPriority] = useState('');
+  const [sort, setSort] = useState<InboxSort>('recent');
   const [channel, setChannel] = useState('');
   const [following, setFollowing] = useState(false);
   const [view, setView] = useState<SavedView | null>(null);
@@ -194,8 +197,8 @@ export default function InboxShell({
   }, [q]);
 
   const filters: InboxFilters = useMemo(
-    () => ({ status, assignee, assigneeId, q: debouncedQ, tag, teamId: teamId || undefined, priority: priority || undefined, channel: channel || undefined, following }),
-    [status, assignee, assigneeId, debouncedQ, tag, teamId, priority, channel, following],
+    () => ({ status, assignee, assigneeId, q: debouncedQ, tag, teamId: teamId || undefined, priority: priority || undefined, channel: channel || undefined, following, sort }),
+    [status, assignee, assigneeId, debouncedQ, tag, teamId, priority, channel, following, sort],
   );
   const query = useMemo(() => inboxQuery(filters, widgetIds, currentUserId), [filters, widgetIds, currentUserId]);
 
@@ -484,6 +487,16 @@ export default function InboxShell({
                 <option value="">{t('channels.all')}</option>
                 <option value="web">{t('channels.web')}</option>
                 <option value="email">{t('channels.email')}</option>
+              </select>
+              <label className="sr-only" htmlFor="chat-sort">
+                {t('inbox.sort.label')}
+              </label>
+              <select id="chat-sort" className="select" value={sort} onChange={(e) => setSort(e.target.value as InboxSort)}>
+                {INBOX_SORTS.map((s) => (
+                  <option key={s} value={s}>
+                    {t(`inbox.sort.${s}`)}
+                  </option>
+                ))}
               </select>
               {tags.length > 0 && (
                 <>

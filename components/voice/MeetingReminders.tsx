@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import type { VoiceCalendarEvent } from '@/lib/voice-types';
+import { whenIdle } from '@/lib/idle';
 
 const POLL_MS = 5 * 60_000;
 const TICK_MS = 15_000;
@@ -65,11 +66,13 @@ export default function MeetingReminders({ owner }: { owner: string }) {
   }, [events.length]);
 
   useEffect(() => {
-    void load();
+    // La primera, con el navegador libre: corre en todas las páginas y no compite con los datos de la página.
+    const cancel = whenIdle(() => void load());
     const poll = setInterval(() => void load(), POLL_MS);
     const onSettings = () => void load();
     window.addEventListener('zs:voice-settings', onSettings);
     return () => {
+      cancel();
       clearInterval(poll);
       window.removeEventListener('zs:voice-settings', onSettings);
     };

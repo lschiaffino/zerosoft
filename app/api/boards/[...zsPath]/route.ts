@@ -25,6 +25,8 @@ import * as m19 from '@/lib/routes/boards/guest/[token]/route';
 import * as m20 from '@/lib/routes/boards/guest/[token]/files/route';
 import * as m21 from '@/lib/routes/boards/guest/[token]/scene/route';
 import * as m22 from '@/lib/routes/boards/guest/[token]/version/route';
+import * as m23 from '@/lib/routes/boards/guest/[token]/workshop/route';
+import * as m24 from '@/lib/routes/boards/[id]/attachments/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -53,6 +55,8 @@ const d = createDispatcher('zsPath', [
   { pattern: 'guest/[token]/files', mod: m20 }, // lib/routes/boards/guest/[token]/files
   { pattern: 'guest/[token]/scene', mod: m21 }, // lib/routes/boards/guest/[token]/scene
   { pattern: 'guest/[token]/version', mod: m22 }, // lib/routes/boards/guest/[token]/version
+  { pattern: 'guest/[token]/workshop', mod: m23 }, // lib/routes/boards/guest/[token]/workshop
+  { pattern: '[id]/attachments', mod: m24 }, // lib/routes/boards/[id]/attachments
 ]);
 
 export const GET = d.GET;

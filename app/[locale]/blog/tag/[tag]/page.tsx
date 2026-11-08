@@ -9,6 +9,10 @@ import { breadcrumbLd, graphLd, jsonLdString, pageMetadata } from '@/lib/seo';
 
 type Params = { locale: string; tag: string };
 
+// Solo los de generateStaticParams: otro valor es un 404 sin caché (con dynamicParams el CDN
+// guardaba cada 404 inventado por un año).
+export const dynamicParams = false;
+
 export function generateStaticParams() {
   const slugs = new Set<string>();
   for (const l of BLOG_LOCALES) for (const tag of getTags(l)) slugs.add(tag.slug);

@@ -5,13 +5,14 @@ import { voiceJsonError } from '@/lib/voice-http';
 import { getVoiceSettings, saveVoiceSettings } from '@/lib/voice';
 import { transcriptionConfigured } from '@/lib/voice-transcribe';
 import { voiceAiAvailable } from '@/lib/voice-ai';
-import { VOICE_CONTEXTS, VOICE_REMINDER_MINUTES, VOICE_RETENTION_DAYS, VOICE_SHORTCUTS, VOICE_TONES } from '@/lib/voice-types';
+import { VOICE_CLEANUP_MODES, VOICE_CONTEXTS, VOICE_REMINDER_MINUTES, VOICE_RETENTION_DAYS, VOICE_SHORTCUTS, VOICE_TONES } from '@/lib/voice-types';
+import { noStore } from '@/lib/no-store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /** Ajustes de dictado de la persona + si hay con qué transcribir y limpiar. */
-export async function GET() {
+async function getPrivate() {
   const auth = await voiceAuth();
   if (auth.res) return auth.res;
   return NextResponse.json({
@@ -27,6 +28,7 @@ const schema = z.object({
   language: z.string().regex(/^(auto|[a-z]{2})$/).optional(),
   shortcut: z.enum(VOICE_SHORTCUTS).optional(),
   showBar: z.boolean().optional(),
+  cleanupMode: z.enum(VOICE_CLEANUP_MODES).optional(),
   aiCleanup: z.boolean().optional(),
   commandMode: z.boolean().optional(),
   learnCorrections: z.boolean().optional(),
@@ -51,4 +53,9 @@ export async function PATCH(req: NextRequest) {
   const { styles, ...rest } = parsed.data;
   const clean = Object.fromEntries(Object.entries(styles ?? {}).filter(([, v]) => v)) as Record<string, (typeof VOICE_TONES)[number]>;
   return NextResponse.json({ settings: await saveVoiceSettings(auth.owner, { ...rest, ...(styles ? { styles: clean as never } : {}) }) });
+}
+
+/** Datos de la persona: sin caché (lib/no-store.ts). */
+export async function GET(...args: Parameters<typeof getPrivate>) {
+  return noStore(await getPrivate(...args));
 }

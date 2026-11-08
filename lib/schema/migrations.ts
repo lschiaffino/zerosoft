@@ -8615,9 +8615,119 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Groups: importación de chats y mensajes al conectar un número (lib/groups-import.ts).
+    // Una fila por número con su fase y cursor (el cron la retoma con un claim), la cola
+    // de chats del proveedor a importar y el silencio de cada chat (como en WhatsApp).
+    id: '201_groups_import',
+    up: async (c) => {
+      await c.execute(`CREATE TABLE IF NOT EXISTS groups_imports (
+        number_id TEXT PRIMARY KEY REFERENCES groups_numbers(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'queued',
+        phase TEXT NOT NULL DEFAULT 'groups',
+        cursor INTEGER NOT NULL DEFAULT 0,
+        per_chat INTEGER NOT NULL DEFAULT 50,
+        chats_total INTEGER NOT NULL DEFAULT 0,
+        chats_done INTEGER NOT NULL DEFAULT 0,
+        messages INTEGER NOT NULL DEFAULT 0,
+        error TEXT NOT NULL DEFAULT '',
+        attempts INTEGER NOT NULL DEFAULT 0,
+        claimed_until TEXT,
+        started_at TEXT NOT NULL,
+        finished_at TEXT,
+        updated_at TEXT NOT NULL
+      )`);
+      await c.execute("CREATE INDEX IF NOT EXISTS idx_groups_imports_due ON groups_imports(status) WHERE status IN ('queued', 'running')");
+      await c.execute(`CREATE TABLE IF NOT EXISTS groups_import_chats (
+        number_id TEXT NOT NULL REFERENCES groups_numbers(id) ON DELETE CASCADE,
+        remote_jid TEXT NOT NULL,
+        chat_id TEXT NOT NULL,
+        last_at INTEGER NOT NULL DEFAULT 0,
+        done INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (number_id, remote_jid)
+      )`);
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN muted_until TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN marked_unread INTEGER NOT NULL DEFAULT 0');
+    },
+  },
+  {
+    // Adjuntos del asistente (⌘J): imágenes y archivos pegados o arrastrados.
+    // Privados (lib/private-files.ts: Blob privado o cifrado); `ref` es la
+    // referencia del store. Acá queda de quién es y el texto ya extraído.
+    id: '270_assistant_files',
+    up: async (c) => {
+      await c.execute(`CREATE TABLE IF NOT EXISTS assistant_files (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        person_id TEXT NOT NULL,
+        conversation_id TEXT,
+        ref TEXT NOT NULL,
+        name TEXT NOT NULL,
+        mime TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        text TEXT,
+        created_at TEXT NOT NULL
+      )`);
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_assistant_files_owner ON assistant_files(workspace_id, person_id, created_at)');
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_assistant_files_conv ON assistant_files(conversation_id, created_at)');
+    },
+  },
+  {
+    // Board: modo privado del taller (cada uno ve solo sus stickies hasta
+    // revelar) y comentarios pegados a un objeto (dónde estaba el objeto al
+    // anclarlo, para que el pin lo siga cuando se mueve).
+    id: '280_board_private_mode_comment_anchor',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE boards ADD COLUMN private_mode INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, 'ALTER TABLE board_comment_threads ADD COLUMN anchor_x REAL');
+      await addColumn(c, 'ALTER TABLE board_comment_threads ADD COLUMN anchor_y REAL');
+    },
+  },
+  {
+    // Board: archivos sueltos en el lienzo (PDF, documentos, planillas): el
+    // nombre original para descargarlo con su nombre.
+    id: '281_board_file_name',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE board_files ADD COLUMN name TEXT');
+    },
+  },
+  {
+    // Board: lo que cada uno escribe en modo privado queda acá (fuera de la
+    // escena compartida) hasta que se revela.
+    id: '282_board_private_drafts',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS board_private_drafts (
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          author TEXT NOT NULL,
+          elements TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (board_id, author)
+        );
+      `);
+    },
+  },
+  {
+    // Board: votos de invitados del link de edición. board_votes ata el
+    // votante a users; el invitado no tiene cuenta y vota con la clave de su
+    // navegador, así que va en su tabla.
+    id: '283_board_guest_votes',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS board_guest_votes (
+          session_id TEXT NOT NULL REFERENCES board_vote_sessions(id) ON DELETE CASCADE,
+          guest_key TEXT NOT NULL,
+          element_id TEXT NOT NULL,
+          count INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (session_id, guest_key, element_id)
+        );
+      `);
+    },
+  },
+  {
     // Track: reacciones en los updates de un project y en sus comentarios (como Linear).
     // target_id es el id del update o del comentario; update_id permite listarlas juntas.
-    id: '250_track_plan_update_reactions',
+    id: '284_track_plan_update_reactions',
     up: async (c) => {
       await c.execute(`CREATE TABLE IF NOT EXISTS track_plan_update_reactions (
         target_id TEXT NOT NULL,
@@ -8636,7 +8746,7 @@ export const MIGRATIONS: Migration[] = [
     // Track: vistas guardadas personales de las listas que no son de un team
     // (Issues, My issues, la pestaña Issues de un project). list_key es la
     // lista (workspace-issues, mine:assigned, plan:<id>); scope_id el workspace.
-    id: '251_track_list_views',
+    id: '285_track_list_views',
     up: async (c) => {
       await c.execute(`CREATE TABLE IF NOT EXISTS track_list_views (
         id TEXT PRIMARY KEY,
@@ -8656,7 +8766,7 @@ export const MIGRATIONS: Migration[] = [
   {
     // Track: archivar un project (como Linear). Sale de las listas y del
     // roadmap; se ve con "Mostrar archivados" y se desarchiva desde su página.
-    id: '252_track_plans_archived',
+    id: '286_track_plans_archived',
     up: async (c) => {
       await addColumn(c, 'ALTER TABLE track_plans ADD COLUMN archived_at TEXT');
     },

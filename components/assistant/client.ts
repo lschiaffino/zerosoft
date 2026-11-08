@@ -22,11 +22,26 @@ export type ChatPart =
   | { type: 'tool'; callId: string; tool: string; input: unknown; output?: unknown; ok?: boolean; running: boolean }
   | { type: 'action'; action: ActionView };
 
+/** Un adjunto ya subido (POST /api/assistant/files). */
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+  url: string;
+  kind: 'image' | 'pdf' | 'text' | 'file';
+}
+
 export interface ChatItem {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   parts: ChatPart[];
+  attachments?: ChatAttachment[];
+  /** Aviso del turno (no_vision). */
+  notice?: string;
+  /** El envío no llegó al servidor: el aviso se va cuando uno sale bien. */
+  failedSend?: boolean;
   error?: string;
   streaming?: boolean;
 }
@@ -50,7 +65,7 @@ export interface StoredMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  parts: Array<{ type: 'tool'; tool: string; input: unknown; output: unknown; ok: boolean } | { type: 'action'; actionId: string }>;
+  parts: Array<{ type: 'tool'; tool: string; input: unknown; output: unknown; ok: boolean } | { type: 'action'; actionId: string } | ({ type: 'attachment' } & ChatAttachment)>;
 }
 
 /** Mensajes guardados → ítems de la UI (las acciones con su estado actual). */
@@ -60,7 +75,9 @@ export function toChatItems(messages: StoredMessage[], actions: ActionView[]): C
     id: m.id,
     role: m.role,
     content: m.content,
+    attachments: m.parts.flatMap((p) => (p.type === 'attachment' ? [{ id: p.id, name: p.name, mime: p.mime, size: p.size, url: p.url, kind: p.kind }] : [])),
     parts: m.parts.flatMap((p, i): ChatPart[] => {
+      if (p.type === 'attachment') return [];
       if (p.type === 'tool') return [{ type: 'tool', callId: `${m.id}-${i}`, tool: p.tool, input: p.input, output: p.output, ok: p.ok, running: false }];
       const a = byId.get(p.actionId);
       return a ? [{ type: 'action', action: a }] : [];
