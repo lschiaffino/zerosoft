@@ -231,8 +231,7 @@ a.ppl-rowtitle:not(:hover) {
   margin: 8px 0 0;
 }
 .ppl-error-box {
-  border: 1px solid var(--bad-ink);
-  border-left-width: 4px;
+  border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--line));
   border-radius: var(--radius-1);
   padding: 12px 16px;
   background: var(--bad-soft);
