@@ -266,9 +266,11 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   const [asyncItems, setAsyncItems] = useState<CommandAction[]>([]);
   // Tipear o cambiar de página vuelve a la primera opción (el mouse quieto
   // sobre la lista no deja elegida una que el filtro ya sacó).
+  // Lo que llega del servidor también: "Create …" (siempre al final) no queda
+  // elegido por haber estado primero mientras cargaban las opciones existentes.
   useEffect(() => {
     setSel(0);
-  }, [q, pages]);
+  }, [q, pages, asyncItems]);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevFocusRef = useRef<HTMLElement | null>(null);
   const groupOrder = useGroupOrder();
@@ -774,7 +776,8 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
                     aria-selected={i === sel}
                     tabIndex={-1}
                     className={`cmdk-item${i === sel ? ' sel' : ''}`}
-                    onMouseEnter={() => setSel(i)}
+                    // Solo con el mouse en movimiento: una lista que cambia debajo del puntero quieto no cambia la elegida.
+                    onMouseMove={() => (i === sel ? undefined : setSel(i))}
                     onClick={() => go(item)}
                   >
                     <span className="cmdk-item-label">
