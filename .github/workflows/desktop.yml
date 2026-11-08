@@ -125,7 +125,8 @@ jobs:
           mkdir -p out
           if [ "${{ runner.os }}" = "macOS" ]; then
             cp "$(ls "$b"/dmg/*.dmg | head -1)" "out/zerosoft-$v-${{ matrix.name }}.dmg"
-            if ls "$b"/macos/*.app.tar.gz >/dev/null 2>&1; then
+            # El paquete del updater solo sirve firmado (sin TAURI_SIGNING_PRIVATE_KEY no hay .sig).
+            if ls "$b"/macos/*.app.tar.gz.sig >/dev/null 2>&1; then
               cp "$(ls "$b"/macos/*.app.tar.gz | head -1)" "out/zerosoft-$v-${{ matrix.name }}.app.tar.gz"
               cp "$(ls "$b"/macos/*.app.tar.gz.sig | head -1)" "out/zerosoft-$v-${{ matrix.name }}.app.tar.gz.sig"
             fi
