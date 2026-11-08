@@ -95,8 +95,10 @@ La primera vez se abren los Ajustes de la app con el estado de cada permiso:
 ## Publicar
 
 El workflow `.github/workflows/desktop.yml` corre con un tag `desktop-vX.Y.Z` (igual a la versión de
-`desktop/package.json`), arma Mac (arm64 + x64) y Windows (x64) y los sube a un release de GitHub con
-ese tag. La página `/download` toma los links del último release.
+`desktop/package.json`), arma Mac (arm64 + x64, en `macos-15`) y Windows (x64) sin publicar
+(`--publish never`), revisa que estén los instaladores y `latest-mac.yml` / `latest.yml`, y un único job
+`publish` crea el release con ese tag y sube todo (`gh release upload --clobber`: volver a correr el
+workflow completa el release en vez de duplicarlo). La página `/download` toma los links del último release.
 
 Sin secretos los instaladores salen **sin firmar**: en Mac la primera vez hay que ir a Ajustes del
 Sistema › Privacidad y seguridad › Abrir igualmente (macOS 15+; en 14 o anterior, clic derecho › Abrir)
