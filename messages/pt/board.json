@@ -394,7 +394,8 @@
     "revoked": "Você não tem mais acesso a este quadro, ou ele foi para a lixeira.",
     "following": "Seguindo {name}. Mova a tela ou aperte Esc para parar.",
     "presenting": "{name} está apresentando. Você segue os slides.",
-    "offlineShort": "Sem conexão"
+    "offlineShort": "Sem conexão",
+    "offlineNet": "Sem conexão. Salvamos suas mudanças quando ela voltar."
   },
   "present": {
     "button": "Apresentar",
@@ -545,7 +546,8 @@
     "frameTool": "Ferramenta de frame",
     "findOnCanvas": "Buscar na tela",
     "noMatch": "Nenhum resultado.",
-    "following": "Seguindo"
+    "following": "Seguindo",
+    "help": "Ajuda e atalhos"
   },
   "tools": {
     "label": "Ferramentas da tela",

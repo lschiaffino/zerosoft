@@ -394,7 +394,8 @@
     "revoked": "You no longer have access to this board, or it was moved to the trash.",
     "following": "Following {name}. Move the canvas or press Esc to stop.",
     "presenting": "{name} is presenting. You follow their slides.",
-    "offlineShort": "Offline"
+    "offlineShort": "Offline",
+    "offlineNet": "Offline. We save your changes when you're back online."
   },
   "present": {
     "button": "Present",
@@ -545,7 +546,8 @@
     "frameTool": "Frame tool",
     "findOnCanvas": "Find on canvas",
     "noMatch": "No matches found...",
-    "following": "Following"
+    "following": "Following",
+    "help": "Help and shortcuts"
   },
   "tools": {
     "label": "Canvas tools",

@@ -197,8 +197,8 @@ test('taller: votación con puntos, modo privado (en vivo en otra pestaña) y CS
   await page.keyboard.press('Escape');
   await expect(page.locator('.board-vote-total.is-top')).toHaveText('2');
 
-  // Modo privado: un sticky escrito por otra persona queda tapado hasta revelar;
-  // la otra pestaña ve prenderse y apagarse el modo al instante (evento en vivo).
+  // Modo privado: lo que ya estaba en la pizarra se sigue viendo (no se tapa); la otra
+  // pestaña ve prenderse y apagarse el modo al instante (evento en vivo).
   const ctxB = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const b = await ctxB.newPage();
   await openEditor(b, id);
@@ -214,7 +214,7 @@ test('taller: votación con puntos, modo privado (en vivo en otra pestaña) y CS
   await page.getByTestId('board-private-toggle').click();
   await expect(page.getByTestId('board-private-chip')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.getByTestId('board-private-cover')).toHaveCount(1);
+  await expect(page.getByTestId('board-private-cover')).toHaveCount(0);
   await expect(b.getByTestId('board-private-chip')).toBeVisible({ timeout: 5_000 });
   await page.screenshot({ path: shot('board-private.png') });
   await barAction(page, 'Taller');
@@ -375,7 +375,7 @@ test('invitado del link de edición: escribe stickies rápido sin perder teclas'
   await ctx.close();
 });
 
-test('modo privado: tapa las notas de plantilla y el invitado del link de edición también lo ve', async ({ page, browser }) => {
+test('modo privado: las notas de plantilla se ven, lo que escribe el invitado se tapa hasta revelar', async ({ page, browser }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const id = await fromTemplate(page, 'retro', 'Retro privada');
   const res = await page.request.patch(`/api/boards/${id}/access`, { data: { guest: true } });
@@ -390,10 +390,10 @@ test('modo privado: tapa las notas de plantilla y el invitado del link de edici�
   await barAction(page, 'Taller');
   await page.getByTestId('board-private-toggle').click();
   await page.keyboard.press('Escape');
-  await expect(page.getByTestId('board-private-cover')).toHaveCount(notes);
+  // Las notas de ejemplo de la plantilla no son de nadie: se siguen viendo, para quien la creó y para el invitado.
   await expect(g.getByTestId('board-private-chip')).toBeVisible({ timeout: 10_000 });
-  await expect(g.getByTestId('board-private-cover')).toHaveCount(notes);
-  await g.screenshot({ path: shot('board-private-guest.png') });
+  await expect(page.getByTestId('board-private-cover')).toHaveCount(0);
+  await expect(g.getByTestId('board-private-cover')).toHaveCount(0);
 
   // El invitado escribe en privado: a la persona le llega solo una tarjeta tapada, sin el texto
   // (ni en su escena, ni en la escena guardada, ni en la búsqueda).
@@ -402,7 +402,8 @@ test('modo privado: tapa las notas de plantilla y el invitado del link de edici�
   await g.keyboard.press('n');
   await g.keyboard.type('secreto del invitado', { delay: 30 });
   await g.keyboard.press('Escape');
-  await expect(page.getByTestId('board-private-cover')).toHaveCount(notes + 1, { timeout: 15_000 });
+  await expect(page.getByTestId('board-private-cover')).toHaveCount(1, { timeout: 15_000 });
+  await g.screenshot({ path: shot('board-private-guest.png') });
   const textsA = async () => (await elements(page)).filter((e) => e.type === 'text').map((e) => e.text ?? '');
   expect((await textsA()).some((tx) => tx.includes('secreto'))).toBe(false);
   const saved = await (await page.request.get(`/api/boards/${id}`)).text();
@@ -416,5 +417,30 @@ test('modo privado: tapa las notas de plantilla y el invitado del link de edici�
   await page.keyboard.press('Escape');
   await expect(g.getByTestId('board-private-cover')).toHaveCount(0, { timeout: 10_000 });
   await expect.poll(async () => (await textsA()).some((tx) => tx.includes('secreto del invitado')), { timeout: 15_000 }).toBe(true);
+  await ctx.close();
+});
+
+test('invitado del link de edición: vota con puntos y su voto cuenta en los resultados', async ({ page, browser }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const id = await fromTemplate(page, 'retro', 'Retro con invitado que vota');
+  const access = await page.request.patch(`/api/boards/${id}/access`, { data: { guest: true } });
+  const token = ((await access.json()) as { guest_token: string }).guest_token;
+  const open = await page.request.post(`/api/boards/${id}/workshop`, { data: { vote: { action: 'start', votesPerPerson: 2 } } });
+  expect(open.ok()).toBe(true);
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const g = await ctx.newPage();
+  await g.goto(`/es/b/e/${token}`);
+  await expect(g.locator('.excalidraw')).toBeVisible();
+  const plus = g.locator('.board-vote-btn').filter({ hasText: '+' }).first();
+  await expect(plus).toBeVisible({ timeout: 15_000 });
+  await plus.click();
+  await expect(g.locator('.board-vote-btn.is-mine')).toHaveCount(1);
+  await expect(g.locator('.board-vote-btn.is-mine')).toHaveText('1');
+  // Cuenta como una persona más y entra en los resultados al cerrar.
+  const state = (await (await page.request.get(`/api/boards/${id}/workshop`)).json()) as { voting: { voters: number } };
+  expect(state.voting.voters).toBe(1);
+  await page.request.post(`/api/boards/${id}/workshop`, { data: { vote: { action: 'close' } } });
+  const closed = (await (await page.request.get(`/api/boards/${id}/workshop`)).json()) as { voting: { results: Array<{ count: number }> } };
+  expect(closed.voting.results[0].count).toBe(1);
   await ctx.close();
 });

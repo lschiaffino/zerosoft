@@ -394,7 +394,8 @@
     "revoked": "Ya no tenés acceso a esta pizarra, o la mandaron a la papelera.",
     "following": "Siguiendo a {name}. Mové el lienzo o tocá Esc para dejar de seguir.",
     "presenting": "{name} está presentando. Seguís sus slides.",
-    "offlineShort": "Sin conexión"
+    "offlineShort": "Sin conexión",
+    "offlineNet": "Sin conexión. Guardamos tus cambios cuando vuelva."
   },
   "present": {
     "button": "Presentar",
@@ -545,7 +546,8 @@
     "frameTool": "Herramienta de frame",
     "findOnCanvas": "Buscar en el lienzo",
     "noMatch": "No hay resultados.",
-    "following": "Siguiendo a"
+    "following": "Siguiendo a",
+    "help": "Ayuda y atajos"
   },
   "tools": {
     "label": "Herramientas del lienzo",

@@ -8685,6 +8685,23 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Board: votos de invitados del link de edición. board_votes ata el
+    // votante a users; el invitado no tiene cuenta y vota con la clave de su
+    // navegador, así que va en su tabla.
+    id: '283_board_guest_votes',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS board_guest_votes (
+          session_id TEXT NOT NULL REFERENCES board_vote_sessions(id) ON DELETE CASCADE,
+          guest_key TEXT NOT NULL,
+          element_id TEXT NOT NULL,
+          count INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (session_id, guest_key, element_id)
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

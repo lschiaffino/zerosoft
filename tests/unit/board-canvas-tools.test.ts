@@ -135,11 +135,13 @@ describe('private mode', () => {
   const mine = { id: '1', customData: { sticky: true, author: 'me' } };
   const theirs = { id: '2', customData: { sticky: true, author: 'other' } };
   const template = { id: '3', customData: { sticky: true } };
-  it('hides every sticky-like element not written by me, and only while it is on', () => {
+  it('hides only what someone else wrote in private mode; template notes stay visible', () => {
+    const theirsPrivate = { id: '4', customData: { sticky: true, author: 'other', private: true } };
     expect(hiddenInPrivate(mine, 'me', true)).toBe(false);
-    expect(hiddenInPrivate(theirs, 'me', true)).toBe(true);
-    expect(hiddenInPrivate(template, 'me', true)).toBe(true);
-    expect(hiddenInPrivate(theirs, 'me', false)).toBe(false);
+    expect(hiddenInPrivate(theirsPrivate, 'me', true)).toBe(true);
+    expect(hiddenInPrivate(theirs, 'me', true)).toBe(false);
+    expect(hiddenInPrivate(template, 'me', true)).toBe(false);
+    expect(hiddenInPrivate(theirsPrivate, 'me', false)).toBe(false);
   });
   it('treats template notes (palette fill + text) as stickies, not plain shapes', () => {
     const note = { id: 'n', type: 'rectangle', backgroundColor: '#FFEC99', boundElements: [{ id: 't', type: 'text' }] };
@@ -148,6 +150,7 @@ describe('private mode', () => {
     expect(isStickyLike(note)).toBe(true);
     expect(isStickyLike(column)).toBe(false);
     expect(isStickyLike(flow)).toBe(false);
+    expect(hiddenInPrivate({ ...note, customData: { author: 'x', private: true } }, 'me', true)).toBe(true);
     expect(hiddenInPrivate(column, 'me', true)).toBe(false);
     expect(stickyAuthor(withAuthor(note, 'me'))).toBe('me');
   });
@@ -199,8 +202,10 @@ describe('table', () => {
     const moved = addRow.updated.find((e) => e.id === 'c10')!;
     expect(moved).toMatchObject({ y: 100, customData: { row: 2 } });
     expect(addRow.updated.find((e) => e.id === 't10')!.y).toBe(110);
-    const addCol = editTable(els, 'g', { kind: 'addCol', after: 1 })!;
+    const addCol = editTable(els, 'g', { kind: 'addCol', after: 1 }, undefined, (c) => `Columna ${c + 1}`)!;
     expect(addCol.added.map((a) => a.x)).toEqual([200, 200]);
+    expect((addCol.added[0].label as { text: string }).text).toBe('Columna 3');
+    expect((addCol.added[1].label as { text: string }).text).toBe(' ');
     const delCol = editTable(els, 'g', { kind: 'removeCol', index: 0 })!;
     expect(delCol.removed.sort()).toEqual(['c00', 'c10', 't00', 't10']);
     expect(delCol.updated.find((e) => e.id === 'c01')).toMatchObject({ x: 0, customData: { col: 0 } });

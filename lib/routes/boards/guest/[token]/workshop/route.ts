@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { castVote, getPrivateMode, getTimerRow, getVoting, timerView } from '@/lib/board-workshop';
+import { GUEST_VOTER_PREFIX, castVote, getPrivateMode, getTimerRow, getVoting, timerView } from '@/lib/board-workshop';
 import { cleanDrafts, draftsView, listPrivateDrafts, savePrivateDrafts } from '@/lib/board-private';
 import { publishBoardEvent } from '@/lib/board-live';
 import { boardVoteSchema } from '@/lib/boards-schema';
@@ -15,7 +15,7 @@ const KEY_RE = /^guest-[a-z0-9]{6,20}$/;
 
 /** Votante del invitado: su clave de navegador, atada al link (no choca con personas ni con otro link). */
 function guestVoter(token: string, key: string): string {
-  return `guest:${createHash('sha256').update(token).digest('hex').slice(0, 16)}:${key}`;
+  return `${GUEST_VOTER_PREFIX}${createHash('sha256').update(token).digest('hex').slice(0, 16)}:${key}`;
 }
 
 async function boardOf(token: string) {

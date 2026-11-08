@@ -154,6 +154,8 @@ export interface TtdTexts {
   findOnCanvas: string;
   noMatch: string;
   following: string;
+  /** Ítem de ayuda del menú (el de Excalidraw se leía "Ayuda?" con el atajo pegado). */
+  help: string;
 }
 
 const TTD_SOURCE: Record<string, keyof TtdTexts> = {
@@ -413,7 +415,13 @@ function ExcalidrawCanvas({
         {!viewMode && <MainMenu.DefaultItems.Export />}
         <MainMenu.DefaultItems.SaveAsImage />
         <MainMenu.DefaultItems.SearchMenu />
-        <MainMenu.DefaultItems.Help />
+        <MainMenu.Item
+          onSelect={() => (api as CanvasApi | null)?.updateScene({ appState: { openDialog: { name: 'help' } } })}
+          shortcut="?"
+          data-testid="board-menu-help"
+        >
+          {ttdTexts?.help ?? 'Help'}
+        </MainMenu.Item>
         <MainMenu.DefaultItems.ClearCanvas />
         {!viewMode && <MainMenu.Separator />}
         <MainMenu.DefaultItems.ChangeCanvasBackground />

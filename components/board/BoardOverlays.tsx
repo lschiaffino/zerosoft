@@ -14,6 +14,8 @@ import { elementsSignature } from '@/lib/board-signature';
 
 /** Con menos zoom que esto, los tags no se muestran (el lienzo se llena de texto). */
 const TAGS_MIN_ZOOM = 0.45;
+/** Con stickies más chicos que esto en pantalla (zoom lejos), no se dibuja el botón de votar: los tapaba. */
+const VOTE_MIN_PX = 56;
 /** Reacciones: con menos zoom se ocultan las insignias. */
 const REACTIONS_MIN_ZOOM = 0.3;
 
@@ -174,7 +176,7 @@ export default function BoardOverlays({
     if (!api || !table) return;
     const { skeletonsToElements, UNDOABLE, ensureFonts } = await import('./ExcalidrawCanvas');
     await ensureFonts();
-    const edit = editTable(api.getSceneElements() as SceneEl[], table.tableId, op);
+    const edit = editTable(api.getSceneElements() as SceneEl[], table.tableId, op, undefined, (col) => t('tools.tableCol', { n: col + 1 }));
     if (!edit) return;
     const updated = new Map(edit.updated.map((e) => [e.id, e]));
     const removed = new Set(edit.removed);
@@ -190,6 +192,8 @@ export default function BoardOverlays({
       appState: { selectedElementIds: Object.fromEntries(tableIds.map((tid) => [tid, true])), selectedGroupIds: { [table.tableId]: true } },
       captureUpdate: UNDOABLE,
     });
+    // El foco vuelve al lienzo: Cmd+Z deshace el cambio enseguida (el botón de la barra se lo quedaba).
+    document.querySelector<HTMLElement>('.excalidraw-container, .excalidraw')?.focus();
   }
 
   return (
@@ -329,7 +333,7 @@ export default function BoardOverlays({
                 ))}
               </span>
             )}
-            {open && sticky && (
+            {open && sticky && box.width >= VOTE_MIN_PX && (
               <span className="board-vote" style={{ left: box.x + box.width, top: box.y }}>
                 {mine > 0 && canVote && (
                   <button

@@ -58,6 +58,8 @@ export default function BoardPresence({
     };
   }, []);
   const offline = status === 'offline' || netOff;
+  // Sin red, guardar tampoco anda (reintenta y guarda al volver); sin canal en vivo pero con red, sí guarda.
+  const offlineText = netOff ? t('offlineNet') : t('offline');
   const shown = people.slice(0, 3);
   const label = people.length ? t('here', { count: people.length }) : t('alone');
   return (
@@ -72,8 +74,8 @@ export default function BoardPresence({
         }}
         aria-expanded={pop.open}
         aria-haspopup="dialog"
-        aria-label={`${label}${offline ? ` · ${t('offline')}` : ''}`}
-        title={offline ? t('offline') : label}
+        aria-label={`${label}${offline ? ` · ${offlineText}` : ''}`}
+        title={offline ? offlineText : label}
         data-testid="board-presence"
       >
         {shown.length === 0 ? (
@@ -98,7 +100,7 @@ export default function BoardPresence({
         <div className="board-pop board-presence-pop" role="dialog" aria-label={t('title')}>
           <p className="board-pop-title">{t('title')}</p>
           <p className="board-pop-hint" role="status">
-            {offline ? t('offline') : status === 'connecting' ? t('connecting') : people.length ? label : t('aloneHint')}
+            {offline ? offlineText : status === 'connecting' ? t('connecting') : people.length ? label : t('aloneHint')}
           </p>
           {people.length > 0 && (
             <ul className="board-presence-list">

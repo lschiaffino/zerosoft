@@ -1058,6 +1058,7 @@ export default function BoardEditor({
       findOnCanvas: t('ttd.findOnCanvas'),
       noMatch: t('ttd.noMatch'),
       following: t('ttd.following'),
+      help: t('ttd.help'),
     }),
     [t],
   );
@@ -1082,7 +1083,9 @@ export default function BoardEditor({
       : state === 'dirty'
         ? t('editor.unsaved')
         : state === 'error'
-          ? t('editor.saveError')
+          ? typeof navigator !== 'undefined' && navigator.onLine === false
+            ? t('live.offlineNet')
+            : t('editor.saveError')
           : state === 'saved'
             ? remoteApplied
               ? remoteApplied.by

@@ -230,7 +230,7 @@ const parity: ProductParity = {
       id: 'private-mode',
       area: 'collaboration',
       label: { en: 'Private mode for brainstorming', es: 'Modo privado para brainstorming', pt: 'Modo privado para brainstorming' },
-      detail: { en: 'What each person writes stays off the shared board (not sent to others, not in search or exports) until the facilitator reveals it; others see covered cards, template notes are covered too, guests included', es: 'Lo que escribe cada uno queda fuera de la pizarra compartida (no les llega a los demás ni aparece en búsquedas o exports) hasta que quien facilita lo revela; los demás ven tarjetas tapadas, las notas de las plantillas también se tapan, invitados incluidos', pt: 'O que cada um escreve fica fora do quadro compartilhado (não chega aos outros nem aparece em buscas ou exports) até quem facilita revelar; os outros veem cartões cobertos, as notas dos modelos também ficam cobertas, convidados incluídos' },
+      detail: { en: 'What each person writes stays off the shared board (not sent to others, not in search or exports) until the facilitator reveals it; others see covered cards; guests included', es: 'Lo que escribe cada uno queda fuera de la pizarra compartida (no les llega a los demás ni aparece en búsquedas o exports) hasta que quien facilita lo revela; los demás ven tarjetas tapadas; invitados incluidos', pt: 'O que cada um escreve fica fora do quadro compartilhado (não chega aos outros nem aparece em buscas ou exports) até quem facilita revelar; os outros veem cartões cobertos; convidados incluídos' },
       status: 'better',
       competitorHas: false,
     },

@@ -206,11 +206,13 @@ export function isStickyLike(el: SceneEl | null | undefined): boolean {
 }
 
 /**
- * En modo privado se tapa todo lo que parece un sticky salvo lo que escribió
- * `me`: las notas de ejemplo de una plantilla (sin autor) también se tapan.
+ * En modo privado se tapa solo lo que otro escribió en privado (las notas de
+ * plantilla y lo que ya estaba en la pizarra se ven). Lo de los demás casi
+ * nunca llega a la escena (va como borrador al servidor y se ve como caja
+ * tapada); esto cubre lo que llegó igual, p. ej. pegado de otra pestaña.
  */
 export function hiddenInPrivate(el: SceneEl, me: string, privateMode: boolean): boolean {
-  if (!privateMode || !isStickyLike(el)) return false;
+  if (!privateMode || !isPrivateDraft(el)) return false;
   return stickyAuthor(el) !== me;
 }
 
@@ -406,7 +408,14 @@ export function tableShape(elements: readonly SceneEl[], tableId: string) {
  * (o de la derecha) con su texto y arma las celdas nuevas con el estilo de la
  * fila o columna vecina. No saca la última fila ni la última columna.
  */
-export function editTable(elements: readonly SceneEl[], tableId: string, op: TableOp, nonce = () => Math.floor(Math.random() * 2 ** 31)): TableEdit | null {
+export function editTable(
+  elements: readonly SceneEl[],
+  tableId: string,
+  op: TableOp,
+  nonce = () => Math.floor(Math.random() * 2 ** 31),
+  /** Texto del encabezado de una columna nueva ("Columna 4"); `col` cuenta desde 0. */
+  headerLabel: (col: number) => string = () => ' ',
+): TableEdit | null {
   const { cells, rows, cols, rowTop, rowH, colLeft, colW } = tableShape(elements, tableId);
   if (!cells.length) return null;
   const byId = new Map(elements.map((e) => [e.id, e]));
@@ -418,7 +427,7 @@ export function editTable(elements: readonly SceneEl[], tableId: string, op: Tab
     updated.push(bump(c, { x: Number(c.x) + dx, y: Number(c.y) + dy, customData: { ...c.customData, ...data } }));
     for (const t of textOf(c)) updated.push(bump(t, { x: Number(t.x) + dx, y: Number(t.y) + dy }));
   };
-  const cellSkeleton = (x: number, y: number, width: number, height: number, row: number, col: number, like?: SceneEl) => ({
+  const cellSkeleton = (x: number, y: number, width: number, height: number, row: number, col: number, like?: SceneEl, text = ' ') => ({
     type: 'rectangle',
     x,
     y,
@@ -431,7 +440,7 @@ export function editTable(elements: readonly SceneEl[], tableId: string, op: Tab
     roughness: 0,
     roundness: null,
     groupIds: group,
-    label: { text: ' ', fontSize: 16, fontFamily: 6, strokeColor: '#1e1e1e' },
+    label: { text, fontSize: 16, fontFamily: 6, strokeColor: '#1e1e1e' },
     customData: { table: tableId, row, col },
   });
   const removed: string[] = [];
@@ -448,7 +457,9 @@ export function editTable(elements: readonly SceneEl[], tableId: string, op: Tab
     const left = colLeft(after) + w;
     const header = cells.find((c) => c.customData.row === 0);
     for (const c of cells) if (c.customData.col > after) shift(c, w, 0, { col: c.customData.col + 1 });
-    for (let row = 0; row < rows; row++) added.push(cellSkeleton(left, rowTop(row), w, rowH(row), row, after + 1, row === 0 ? header : undefined));
+    for (let row = 0; row < rows; row++) {
+      added.push(cellSkeleton(left, rowTop(row), w, rowH(row), row, after + 1, row === 0 ? header : undefined, row === 0 ? headerLabel(after + 1) || ' ' : ' '));
+    }
   } else if (op.kind === 'removeRow') {
     if (rows <= 1 || op.index < 0 || op.index >= rows) return null;
     const h = rowH(op.index);
