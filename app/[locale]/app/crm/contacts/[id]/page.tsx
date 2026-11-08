@@ -251,7 +251,7 @@ export default async function ContactDetailPage(props: {
     const primaryScore = (await listScores(user.id)).find((x) => x.isPrimary);
     const primaryTier = primaryScore ? scoreTier(contact.score ?? 0, primaryScore.thresholds) : null;
     const [timeline, threads, emailTemplates, emailSettings, nextTask] = await Promise.all([
-      listTimeline(user.id, { contactId: id, limit: 100, ownerScope: scope }),
+      listTimeline(user.id, { contactId: id, limit: 100, ownerScope: scope, extra: await (await import('@/lib/groups-access')).crmGroupsTaskFilterFor(user) }),
       listEmailThreads(user.id, { contactId: id, limit: 100 }),
       listEmailTemplates(user.id),
       getEmailSettings(user.id),

@@ -12,7 +12,7 @@ export async function GET() {
   return NextResponse.json({ settings: await getPlatformSettings(s.ws), access: await listLabelAccess(s.ws) });
 }
 
-/** { labelAccess?, maskRoles? } */
+/** { labelAccess?, maskRoles?, lineAccess?, teamAccess?, reassignOnOffline? } */
 export async function PATCH(req: Request) {
   const s = await groupsSession({ write: true, admin: true });
   if (s instanceof NextResponse) return s;
@@ -20,6 +20,7 @@ export async function PATCH(req: Request) {
   const patch: Record<string, unknown> = {};
   if (typeof b.labelAccess === 'boolean') patch.labelAccess = b.labelAccess;
   if (Array.isArray(b.maskRoles)) patch.maskRoles = strArr(b.maskRoles, 5);
+  for (const k of ['lineAccess', 'teamAccess', 'reassignOnOffline'] as const) if (typeof b[k] === 'boolean') patch[k] = b[k];
   return NextResponse.json({ settings: await updatePlatformSettings(s.ws, patch) });
 }
 

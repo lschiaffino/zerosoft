@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
   const parsed = bodySchema.safeParse({ activityId: req.nextUrl.searchParams.get('activityId') });
   if (!parsed.success) return invalidBody(parsed.error);
   if (!(await canSeeActivity(user.id, parsed.data.activityId, await sessionScope(user)))) return notFound();
+  if (await (await import('@/lib/groups-access')).crmActivityHidden(user.id, parsed.data.activityId, user)) return notFound();
   return NextResponse.json({ summary: await getCallSummary(user.id, parsed.data.activityId) });
 }
 

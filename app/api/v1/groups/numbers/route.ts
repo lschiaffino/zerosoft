@@ -12,7 +12,8 @@ export async function GET(req: Request) {
   const auth = await requireApiUser(req, 'groups:read');
   if ('res' in auth) return auth.res;
   const viewer = await v1Viewer(auth);
-  const rows = await listNumbers(auth.user.id);
+  // Acceso por línea: solo las líneas que esa persona ve.
+  const rows = (await listNumbers(auth.user.id)).filter((n) => !viewer.lineIds || viewer.lineIds.includes(n.id));
   return NextResponse.json({
     data: rows.map((n) => ({
       id: n.id,

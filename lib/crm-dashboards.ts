@@ -315,6 +315,8 @@ export async function getWidgetData(
   req: DashboardDataRequest,
   owners: DashboardOwner[],
   scope?: OwnerScope,
+  /** Tareas de chats de Groups que la persona no ve (crmGroupsTaskFilter). */
+  extra?: { sql: string; args: string[] } | null,
 ): Promise<WidgetData> {
   const rangeLabel = req.range ?? '30d';
   const range = reportRange(rangeLabel);
@@ -344,9 +346,9 @@ export async function getWidgetData(
     case 'leaderboard':
       return { leaderboard: await reportActivityLeaderboard(userId, range, owners) };
     case 'tasks':
-      return { tasks: (await listTasks(userId, { bucket: 'upcoming', ownerScope: scope })).slice(0, 8) };
+      return { tasks: (await listTasks(userId, { bucket: 'upcoming', ownerScope: scope, extra })).slice(0, 8) };
     case 'recent_activity':
-      return { activities: await listTimeline(userId, { limit: 8, ownerScope: scope }) };
+      return { activities: await listTimeline(userId, { limit: 8, ownerScope: scope, extra }) };
     case 'custom_report': {
       const report = req.reportId ? await getCustomReport(userId, req.reportId) : null;
       if (!report) return { report: null };

@@ -160,9 +160,11 @@ export async function notifyPerson(ws: string, personId: string, n: Notification
     const keys = vapidKeys();
     if (!keys) return 0;
     // Si la persona tiene los teléfonos ocultos, el aviso tampoco los muestra.
-    const { groupsViewer } = await import('./groups-access');
+    const { canSeeChat, groupsViewer } = await import('./groups-access');
     const { workspaceRole } = await import('./api-auth');
     const viewer = await groupsViewer(ws, personId, await workspaceRole(ws, personId));
+    // Nunca un aviso (con su vista previa) de un chat que la persona ya no ve.
+    if (n.chatId && !(await canSeeChat(viewer, n.chatId))) return 0;
     const clean = (t: string) => (viewer.mask ? maskPhoneText(t) : t);
     await db
       .prepare('INSERT INTO groups_notifications (id, user_id, person_id, chat_id, title, body, url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')

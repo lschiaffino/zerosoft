@@ -9,6 +9,7 @@
  * envío y un tope por número (lib/groups-rules.ts). Server-only.
  */
 import { randomUUID } from 'crypto';
+import type { GroupsViewer } from './groups-access';
 import { getDb } from './db';
 import { GroupsError, chatDisplayName, getNumberRow, sendMessage, type ChatRow } from './groups';
 import { PROVIDER_CAPS } from './groups-provider';
@@ -177,9 +178,19 @@ async function getBroadcastRow(ws: string, id: string): Promise<BroadcastRow | n
   return ((await getDb().prepare('SELECT * FROM groups_broadcasts WHERE id = ? AND user_id = ?').get(id, ws)) as BroadcastRow) ?? null;
 }
 
-export async function listBroadcasts(ws: string, opts: { kind?: 'broadcast' | 'scheduled'; chatId?: string } = {}): Promise<BroadcastDto[]> {
+export async function listBroadcasts(
+  ws: string,
+  opts: { kind?: 'broadcast' | 'scheduled'; chatId?: string; viewer?: GroupsViewer | null } = {},
+): Promise<BroadcastDto[]> {
   const where = ['b.user_id = ?'];
   const args: string[] = [ws];
+  // Con acceso recortado: solo los envíos con algún destinatario que la persona ve.
+  const { chatAccessSql } = await import('./groups-access');
+  const access = chatAccessSql(opts.viewer, 'vc');
+  if (access) {
+    where.push(`EXISTS (SELECT 1 FROM groups_broadcast_recipients vr JOIN groups_chats vc ON vc.id = vr.chat_id WHERE vr.broadcast_id = b.id AND ${access.sql})`);
+    args.push(...access.args);
+  }
   if (opts.kind) {
     where.push('b.kind = ?');
     args.push(opts.kind);
@@ -194,15 +205,21 @@ export async function listBroadcasts(ws: string, opts: { kind?: 'broadcast' | 's
   return rows.map(toBroadcastDto);
 }
 
-export async function getBroadcast(ws: string, id: string): Promise<{ broadcast: BroadcastDto; recipients: RecipientDto[] } | null> {
+export async function getBroadcast(
+  ws: string,
+  id: string,
+  viewer?: GroupsViewer | null,
+): Promise<{ broadcast: BroadcastDto; recipients: RecipientDto[] } | null> {
   const row = await getBroadcastRow(ws, id);
   if (!row) return null;
+  const { chatAccessSql, maskedChatName } = await import('./groups-access');
+  const access = chatAccessSql(viewer, 'c');
   const rec = (await getDb()
     .prepare(
       `SELECT r.*, c.name, c.phone, c.provider_chat_id, c.kind FROM groups_broadcast_recipients r JOIN groups_chats c ON c.id = r.chat_id
-       WHERE r.broadcast_id = ? ORDER BY CASE r.status WHEN 'failed' THEN 0 WHEN 'sending' THEN 1 WHEN 'pending' THEN 2 ELSE 3 END, c.name`,
+       WHERE r.broadcast_id = ?${access ? ` AND ${access.sql}` : ''} ORDER BY CASE r.status WHEN 'failed' THEN 0 WHEN 'sending' THEN 1 WHEN 'pending' THEN 2 ELSE 3 END, c.name`,
     )
-    .all(id)) as Array<{
+    .all(id, ...(access?.args ?? []))) as Array<{
     id: string;
     chat_id: string;
     status: RecipientDto['status'];
@@ -213,12 +230,14 @@ export async function getBroadcast(ws: string, id: string): Promise<{ broadcast:
     provider_chat_id: string;
     kind: 'dm' | 'group';
   }>;
+  // Nada visible: para esa persona el envío no existe.
+  if (access && rec.length === 0) return null;
   return {
     broadcast: toBroadcastDto(row),
     recipients: rec.map((r) => ({
       id: r.id,
       chatId: r.chat_id,
-      chatName: chatDisplayName(r),
+      chatName: viewer?.mask ? maskedChatName(viewer, r) : chatDisplayName(r),
       kind: r.kind,
       status: r.status,
       error: r.error,

@@ -70,24 +70,27 @@ interface Controls {
   assignee: string;
   /** Equipo asignado (filtro de la bandeja; no se guarda en las listas). */
   team: string;
+  /** Línea de WhatsApp (numberId). */
+  line: string;
   propKey: string;
   propValue: string;
   q: string;
 }
 
-const EMPTY: Controls = { filter: 'all', label: '', kind: '', assignee: '', team: '', propKey: '', propValue: '', q: '' };
+const EMPTY: Controls = { filter: 'all', label: '', kind: '', assignee: '', team: '', line: '', propKey: '', propValue: '', q: '' };
 
 function readSaved(): Partial<Controls> | null {
   try {
     const raw = window.sessionStorage.getItem(STORE);
     if (!raw) return null;
-    const v = JSON.parse(raw) as { filter?: string; label?: string; kind?: string; assignee?: string; team?: string };
+    const v = JSON.parse(raw) as { filter?: string; label?: string; kind?: string; assignee?: string; team?: string; line?: string };
     return {
       filter: FILTERS.includes(v.filter as ChatFilter) ? (v.filter as ChatFilter) : 'all',
       label: typeof v.label === 'string' ? v.label : '',
       kind: v.kind === 'group' || v.kind === 'dm' ? v.kind : '',
       assignee: typeof v.assignee === 'string' ? v.assignee : '',
       team: typeof v.team === 'string' ? v.team : '',
+      line: typeof v.line === 'string' ? v.line : '',
     };
   } catch {
     return null;
@@ -102,6 +105,7 @@ export function controlsToFilters(c: Controls): SavedListFilters {
   if (c.label) f.labelIds = [c.label];
   if (c.assignee) f.assignee = c.assignee;
   if (c.kind === 'dm' || c.kind === 'group') f.kind = c.kind;
+  if (c.line) f.numberId = c.line;
   if (c.propKey) f.props = [c.propValue ? { key: c.propKey, op: 'is', value: c.propValue } : { key: c.propKey, op: 'set' }];
   return f;
 }
@@ -114,6 +118,7 @@ export function filtersToControls(f: SavedListFilters): Controls {
     kind: f.kind ?? '',
     assignee: f.assignee ?? '',
     team: '',
+    line: f.numberId ?? '',
     propKey: p?.key ?? '',
     propValue: p?.op === 'is' ? (p.value ?? '') : '',
     q: f.q ?? '',
@@ -138,6 +143,7 @@ export default function InboxShell({
   labels,
   people = [],
   teams = [],
+  lines = [],
   properties = [],
   me = '',
   initialLists = [],
@@ -147,6 +153,8 @@ export default function InboxShell({
   labels: LabelDto[];
   people?: GroupsPerson[];
   teams?: Array<{ id: string; name: string }>;
+  /** Líneas que la persona ve (filtro por línea si hay más de una). */
+  lines?: Array<{ id: string; name: string; phone: string; color: string }>;
   properties?: PropertyDef[];
   me?: string;
   initialLists?: SavedListDto[];
@@ -180,7 +188,7 @@ export default function InboxShell({
   const listId = params.get('list');
   const current = chatIdFromPath(pathname);
   const [controls, setControls] = useState<Controls>(EMPTY);
-  const { filter, label, kind, assignee, team, propKey, propValue, q } = controls;
+  const { filter, label, kind, assignee, team, line, propKey, propValue, q } = controls;
   const set = (patch: Partial<Controls>) => setControls((c) => ({ ...c, ...patch }));
   const [debounced, setDebounced] = useState('');
   const [rows, setRows] = useState<ChatDto[]>([]);
@@ -201,7 +209,7 @@ export default function InboxShell({
     const saved = readSaved();
     if (saved) {
       setControls((c) => ({ ...c, ...saved }));
-      if (saved.assignee || saved.team) setMoreOpen(true);
+      if (saved.assignee || saved.team || saved.line) setMoreOpen(true);
     }
     // Solo al entrar: una lista abierta manda sobre lo guardado en la pestaña.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -218,11 +226,11 @@ export default function InboxShell({
   useEffect(() => {
     if (listId) return;
     try {
-      window.sessionStorage.setItem(STORE, JSON.stringify({ filter, label, kind, assignee, team }));
+      window.sessionStorage.setItem(STORE, JSON.stringify({ filter, label, kind, assignee, team, line }));
     } catch {
       // Sin storage: los filtros duran lo que dura la página.
     }
-  }, [filter, label, kind, assignee, team, listId]);
+  }, [filter, label, kind, assignee, team, line, listId]);
   useEffect(() => {
     const id = setTimeout(() => setDebounced(q.trim()), 250);
     return () => clearTimeout(id);
@@ -246,9 +254,10 @@ export default function InboxShell({
     if (kind) p.set('kind', kind);
     if (assignee) p.set('assignee', assignee);
     if (team) p.set('team', team);
+    if (line) p.set('number', line);
     if (propKey) p.set('props', JSON.stringify([propValue ? { key: propKey, op: 'is', value: propValue } : { key: propKey, op: 'set' }]));
     return p.toString();
-  }, [filter, debounced, label, kind, assignee, team, propKey, propValue, pageSize, archivedView]);
+  }, [filter, debounced, label, kind, assignee, team, line, propKey, propValue, pageSize, archivedView]);
 
   const load = useCallback(
     async (silent: boolean) => {
@@ -491,6 +500,11 @@ export default function InboxShell({
                 )}
               </span>
               <span className="gr-row-icons">
+                {lines.length > 1 &&
+                  (c.lines?.map((l) => l.numberId) ?? [c.numberId]).map((id) => {
+                    const ln = lines.find((x) => x.id === id);
+                    return ln ? <span key={id} className="gr-line-dot gr-row-line" style={{ background: ln.color }} role="img" aria-label={ln.name} title={ln.name} /> : null;
+                  })}
                 {c.muted && <MuteIcon size={16} label={t('wa.muted')} />}
                 {c.unread > 0 &&
                   (c.markedUnread && c.unread <= 1 ? (
@@ -544,7 +558,7 @@ export default function InboxShell({
   const propOpts = propDef ? filterOptions(propDef) : [];
   const listSuffix = listId ? `?list=${listId}` : '';
   // Filtros del panel (fuera de las pestañas) que están puestos: el botón lo marca.
-  const extraFilters = [kind, label, assignee, team, propKey].filter(Boolean).length;
+  const extraFilters = [kind, label, assignee, team, line, propKey].filter(Boolean).length;
 
   async function saveChanges() {
     if (!activeList) return;
@@ -721,6 +735,17 @@ export default function InboxShell({
                       </option>
                     ))}
                 </select>
+                {lines.length > 1 && (
+                  <select className="select" value={line} onChange={(e) => set({ line: e.target.value })} aria-label={t('lines.filter')}>
+                    <option value="">{t('lines.filterAll')}</option>
+                    {lines.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                        {l.phone ? ` · +${l.phone}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 {teams.length > 0 && (
                   <select className="select" value={team} onChange={(e) => set({ team: e.target.value })} aria-label={t('inbox.team')}>
                     <option value="">{t('inbox.teamAll')}</option>
@@ -762,7 +787,7 @@ export default function InboxShell({
                   ))}
               </div>
             <div className="gr-list-save">
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ kind: '', label: '', assignee: '', team: '', propKey: '', propValue: '' })} disabled={extraFilters === 0}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ kind: '', label: '', assignee: '', team: '', line: '', propKey: '', propValue: '' })} disabled={extraFilters === 0}>
                 {t('wa.clearFilters')}
               </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSaving('new')}>

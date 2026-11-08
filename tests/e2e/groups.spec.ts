@@ -81,7 +81,7 @@ test('conectar un número por QR desde Ajustes', async ({ page }) => {
   await expect(connect.getByText(/^Connected/)).toBeVisible({ timeout: 15_000 });
   await expect(connect.getByLabel('Webhook URL')).toHaveValue(/\/api\/groups\/webhook\//);
   await connect.getByRole('button', { name: 'Done' }).click();
-  await expect(page.locator('.gr-number', { hasText: name }).getByText('Connected', { exact: true })).toBeVisible();
+  await expect(page.locator('.gr-line-row', { hasText: name }).getByText('Connected', { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

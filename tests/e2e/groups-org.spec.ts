@@ -100,7 +100,7 @@ test('QR: un número que se desvincula muestra Reconectar y vuelve con un QR nue
   // La sesión se cerró (en el gateway real lo avisa el webhook de sesión).
   await request.post(`/api/groups/numbers/${n.id}/connect`, { data: { action: 'disconnect' } });
   await page.goto('/en/app/groups/settings?tab=numbers', { waitUntil: 'networkidle' });
-  const row = page.locator('.gr-number', { hasText: name });
+  const row = page.locator('.gr-line-row', { hasText: name });
   await expect(row.getByText('Disconnected', { exact: true })).toBeVisible();
   await row.getByRole('button', { name: 'Reconnect' }).click();
   const dialog = page.getByRole('dialog', { name: `Connect ${name}` });

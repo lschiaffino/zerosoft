@@ -1,8 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
-import { getChat, listChats, listLabels, listNumbers, listPropertyDefs, type ChatDto } from '@/lib/groups';
+import { getChat, listChats, listLabels, listPropertyDefs, type ChatDto } from '@/lib/groups';
 import { savedListChatIds } from '@/lib/groups-org';
-import { pageViewer } from '@/lib/groups-page';
+import { pageViewer, pageNumbers } from '@/lib/groups-page';
 import { canSeeChat, maskChat } from '@/lib/groups-access';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
@@ -18,7 +18,7 @@ export default async function NewBroadcastPage(props: { params: Promise<{ locale
   const me = user.actingUser?.id ?? user.id;
   const viewer = await pageViewer(user);
   const [numbers, chats, labels, properties] = await Promise.all([
-    listNumbers(user.id),
+    pageNumbers(user),
     listChats(user.id, me, { limit: 200, viewer }),
     listLabels(user.id),
     listPropertyDefs(user.id),

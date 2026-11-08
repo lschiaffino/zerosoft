@@ -268,7 +268,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   // ---------- Actividad ----------
   if (tab === 'activity') {
     const [timeline, threads, nextTask] = await Promise.all([
-      listTimeline(user.id, { companyId: id, limit: 100, ownerScope: scope }),
+      listTimeline(user.id, { companyId: id, limit: 100, ownerScope: scope, extra: await (await import('@/lib/groups-access')).crmGroupsTaskFilterFor(user) }),
       listEmailThreads(user.id, { companyId: id, limit: 100 }),
       nextTaskFor(user.id, { companyId: id }),
     ]);

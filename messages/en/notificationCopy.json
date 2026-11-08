@@ -89,5 +89,7 @@
   "peopleHireUndone": "The hire of {name} was undone: their profile is still in People",
   "peopleExitFinished": "{name}'s exit date has passed: their profile is now closed",
   "sendLinksTransferred": "{count} Send links by {who} passed to you",
-  "sendLinksStopped": "{count} stopped because their documents are private. Each link says what to do."
+  "sendLinksStopped": "{count} stopped because their documents are private. Each link says what to do.",
+  "groupsLineDown": "WhatsApp line disconnected: {line}",
+  "groupsLineDownBody": "Reconnect it with the QR in Groups › Settings › Lines. Messages to this line are not arriving."
 }

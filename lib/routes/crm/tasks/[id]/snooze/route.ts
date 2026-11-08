@@ -18,6 +18,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   if (!(await canSeeActivity(user.id, id, await sessionScope(user)))) return notFound();
+  if (await (await import('@/lib/groups-access')).crmActivityHidden(user.id, id, user)) return notFound();
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
   const task = await getActivity(user.id, id);

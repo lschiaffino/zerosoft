@@ -8,6 +8,8 @@ import { droppedNumbers, listLabels, listNumbers, listPeople, listPropertyDefs }
 import { managedAvailable } from '@/lib/groups-provider-managed';
 import { listTeams } from '@/lib/groups-inbox';
 import { listSavedLists } from '@/lib/groups-org';
+import { pageViewer } from '@/lib/groups-page';
+import { lineColor } from '@/lib/groups-lines-shared';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import InboxShell from '@/components/groups/InboxShell';
@@ -30,6 +32,10 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
     listPropertyDefs(user.id),
     listSavedLists(user.id, me),
   ]);
+
+  // Acceso por línea: el filtro ofrece solo las líneas que la persona ve.
+  const viewer = await pageViewer(user);
+  const myLines = numbers.filter((n) => n.provider !== 'sample' && (!viewer.lineIds || viewer.lineIds.includes(n.id)));
 
   if (numbers.length === 0) {
     // Sin números no se renderiza la página hija: un id en la ruta no puede existir. Da 404 con el aviso de
@@ -70,6 +76,7 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
         labels={labels.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
         people={people}
         teams={teams.map((tm) => ({ id: tm.id, name: tm.name }))}
+        lines={myLines.map((n) => ({ id: n.id, name: n.name, phone: n.phone, color: lineColor(n) }))}
         properties={properties}
         me={me}
         initialLists={lists}

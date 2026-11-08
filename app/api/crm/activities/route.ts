@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       rows: await listTasks(user.id, {
         ownerScope: await sessionScope(user),
+        extra: await (await import('@/lib/groups-access')).crmGroupsTaskFilterFor(user),
         bucket: bucket as TaskBucket,
         projectId: sp.get('projectId') ?? undefined,
         ownerId: sp.get('ownerId') ?? undefined,
@@ -43,6 +44,7 @@ export async function GET(req: NextRequest) {
   }
   const rows = await listTimeline(user.id, {
     ownerScope: await sessionScope(user),
+    extra: await (await import('@/lib/groups-access')).crmGroupsTaskFilterFor(user),
     contactId: sp.get('contactId') ?? undefined,
     companyId: sp.get('companyId') ?? undefined,
     dealId: sp.get('dealId') ?? undefined,

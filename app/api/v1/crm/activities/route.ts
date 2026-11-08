@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const typeParam = sp.get('type');
   const type = (ACTIVITY_TYPES as readonly string[]).includes(typeParam ?? '') ? (typeParam as ActivityType) : undefined;
   const limit = Math.min(Math.max(Number(sp.get('limit') ?? '50') || 50, 1), 200);
-  const rows = await listTimeline(auth.user.id, { contactId, companyId, dealId, type, limit, ownerScope: await apiScope(auth) });
+  const rows = await listTimeline(auth.user.id, { contactId, companyId, dealId, type, limit, ownerScope: await apiScope(auth), extra: await (await import('@/lib/groups-access')).crmGroupsTaskFilter(auth.user.id, auth.personId, auth.role) });
   return NextResponse.json({ activities: rows.map(cleanRow) });
 }
 

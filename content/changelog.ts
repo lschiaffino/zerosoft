@@ -266,6 +266,35 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-07-groups-lines-team',
+    date: '2026-11-07',
+    title: {
+      en: 'Groups: several lines in one inbox, line access per team and assignment by status',
+      es: 'Groups: varias líneas en una bandeja, acceso por línea y equipo y asignación según el estado',
+      pt: 'Groups: várias linhas em uma caixa, acesso por linha e equipe e atribuição conforme o status',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Settings > Lines is now a table with each line’s color, status and since when, last message, open chats and who sees it. When a group or contact is on two of your lines it shows once, with one thread, and you choose the line that replies. Filter the inbox by line.',
+        es: 'Ajustes > Líneas ahora es una tabla con el color, el estado y desde cuándo, el último mensaje, los chats abiertos y quién ve cada línea. Si un grupo o contacto está en dos de tus líneas se ve una vez, con un solo hilo, y elegís por qué línea responder. Filtrá la bandeja por línea.',
+        pt: 'Configurações > Linhas agora é uma tabela com a cor, o status e desde quando, a última mensagem, os chats abertos e quem vê cada linha. Se um grupo ou contato está em duas linhas suas, ele aparece uma vez, com um só fio, e você escolhe por qual linha responder. Filtre a caixa por linha.',
+      },
+      {
+        product: 'groups',
+        en: 'Settings > Team: invite teammates, change roles, give lines to people or teams, and set who is online, away or offline. Members can be limited to their lines and to their team’s chats, and nobody gets a chat from a line they cannot see.',
+        es: 'Ajustes > Equipo: invitá a tu equipo, cambiá roles, dale líneas a personas o equipos y marcá quién está en línea, ausente o desconectado. Podés limitar a los miembros a sus líneas y a los chats de su equipo, y a nadie le llega un chat de una línea que no ve.',
+        pt: 'Configurações > Equipe: convide a equipe, mude papéis, dê linhas a pessoas ou equipes e marque quem está online, ausente ou offline. Dá para limitar os membros às suas linhas e aos chats da sua equipe, e ninguém recebe um chat de uma linha que não vê.',
+      },
+      {
+        product: 'groups',
+        en: 'Round-robin rules choose by status (online, online or away, everyone), can hand back unanswered chats when someone goes offline, and notify the assignee in the app and by push. Bring your labels, quick replies and chat assignments from Periskope with a CSV.',
+        es: 'Las reglas round-robin eligen según el estado (en línea, en línea o ausente, todos), pueden devolver los chats sin responder cuando alguien se desconecta y avisan a quien recibe en la app y por push. Traé de Periskope tus etiquetas, respuestas rápidas y asignaciones con un CSV.',
+        pt: 'As regras round-robin escolhem conforme o status (online, online ou ausente, todos), podem devolver os chats sem resposta quando alguém fica offline e avisam quem recebe no app e por push. Traga do Periskope suas etiquetas, respostas rápidas e atribuições com um CSV.',
+      },
+    ],
+  },
+  {
     id: '2026-11-07-groups-whatsapp-web',
     date: '2026-11-07',
     title: {

@@ -179,7 +179,27 @@ export function AccessPanel({
 // Log de auditoría (del chat o del workspace)
 // ======================================================================
 
-const AUDIT_FILTERS = ['', 'assigned', 'unassigned', 'closed', 'reopened', 'labels', 'renamed', 'deleted', 'exported', 'members', 'ticket_created', 'ticket_updated', 'ticket_deleted'];
+const AUDIT_FILTERS = [
+  '',
+  'assigned',
+  'auto_assigned',
+  'reassigned',
+  'unassigned',
+  'closed',
+  'reopened',
+  'labels',
+  'renamed',
+  'deleted',
+  'exported',
+  'members',
+  'ticket_created',
+  'ticket_updated',
+  'ticket_deleted',
+  'line_access',
+  'line_status',
+  'availability',
+  'imported',
+];
 
 export function AuditLog({ chatId, people, compact = false }: { chatId?: string; people: GroupsPerson[]; compact?: boolean }) {
   const t = useTranslations('groups');
@@ -226,8 +246,16 @@ export function AuditLog({ chatId, people, compact = false }: { chatId?: string;
       type: String(d.type ?? ''),
       count: String(d.count ?? ''),
       action: d.action ? t(`audit.memberActions.${String(d.action)}`) : '',
-      status: d.status ? t(`ticketStatus.${String(d.status)}`) : '',
+      status: d.status ? (e.action === 'availability' ? t(`team.status.${String(d.status)}`) : t(`ticketStatus.${String(d.status)}`)) : '',
+      line: e.chatName,
+      rule: String(d.rule ?? ''),
+      from: d.from ? (e.action === 'line_status' ? t(`numberStatus.${String(d.from)}`) : nameOf(String(d.from), 'person')) : '',
+      state: d.to && e.action === 'line_status' ? t(`numberStatus.${String(d.to)}`) : '',
+      kind: d.kind ? t(`migrate.kinds.${String(d.kind)}`) : '',
+      applied: String(d.applied ?? ''),
     };
+    if (e.action === 'availability' && d.to && e.actorId && String(d.to) === e.actorId) return t('audit.actions.availabilitySelf', v);
+    if (e.action === 'reassigned' && d.reason === 'no_access') return t('audit.actions.reassignedNoAccess', v);
     // Sin "sacó: " vacío ni "asignó el chat a <sí mismo>".
     if (e.action === 'labels' && (!v.added || !v.removed)) {
       if (v.added) return t('audit.actions.labelsAdded', v);

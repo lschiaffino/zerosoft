@@ -48,9 +48,20 @@ const parity: ProductParity = {
         'Escanear pelo celular no nosso servidor de Evolution API, ou com seu próprio gateway WAHA ou Evolution API: o QR se atualiza sozinho, o status acompanha o telefone e os grupos chegam ao conectar. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
-    row('multi-number', 'numbers', ['Several numbers in one inbox', 'Varios números en una bandeja', 'Vários números em uma caixa'], 'have', {
+    row('multi-number', 'numbers', ['Several numbers in one inbox', 'Varios números en una bandeja', 'Vários números em uma caixa'], 'partial', {
       weight: 2,
-      detail: ['Up to 50 numbers per workspace, filter by number', 'Hasta 50 números por workspace, filtro por número', 'Até 50 números por workspace, filtro por número'],
+      detail: [
+        'Up to 50 lines with name, color and line filter; the same group or contact on two lines is listed once with one thread and "Reply from" picks the line. Tested with the simulated gateway, not yet with two real phones; the composer selector is wired by the inbox',
+        'Hasta 50 líneas con nombre, color y filtro por línea; el mismo grupo o contacto en dos líneas se lista una vez con un solo hilo y "Responder desde" elige la línea. Probado con el gateway simulado, falta con dos teléfonos reales; el selector del composer lo coloca la bandeja',
+        'Até 50 linhas com nome, cor e filtro por linha; o mesmo grupo ou contato em duas linhas aparece uma vez com um só fio e "Responder de" escolhe a linha. Testado com o gateway simulado, falta com dois telefones reais; o seletor do composer é colocado pela caixa',
+      ],
+    }),
+    row('line-status', 'numbers', ['Line status and health', 'Estado y salud de cada línea', 'Status e saúde de cada linha'], 'partial', {
+      detail: [
+        'Lines table with status and since when, last message, open chats and import progress, and a notice to admins when a line drops. Phone battery is not shown: Evolution does not expose it',
+        'Tabla de líneas con estado y desde cuándo, último mensaje, chats abiertos y avance de la importación, y aviso a los admins cuando una línea se cae. La batería del teléfono no se muestra: Evolution no la expone',
+        'Tabela de linhas com status e desde quando, última mensagem, chats abertos e progresso da importação, e aviso aos admins quando uma linha cai. A bateria do telefone não aparece: o Evolution não a expõe',
+      ],
     }),
     row('official-api', 'numbers', ['Official WhatsApp Cloud API numbers', 'Números de la API oficial (Cloud API)', 'Números da API oficial (Cloud API)'], 'partial', {
       competitorHas: false,
@@ -85,9 +96,9 @@ const parity: ProductParity = {
     row('assignment', 'inbox', ['Assign chats', 'Asignar chats', 'Atribuir chats'], 'have', {
       weight: 2,
       detail: [
-        'To a person and a team, Mine, Unassigned and team filters, history in the thread and a notification to the assignee',
-        'A una persona y a un equipo, filtros Míos, Sin asignar y por equipo, historial en el hilo y aviso a quien lo recibe',
-        'A uma pessoa e a uma equipe, filtros Minhas, Sem atribuição e por equipe, histórico no fio e aviso para quem recebe',
+        'To a person and a team, Mine, Unassigned and team filters, history in the thread and by API, in-app and push notification to the assignee; never to someone who cannot see the line',
+        'A una persona y a un equipo, filtros Míos, Sin asignar y por equipo, historial en el hilo y por API, aviso en la app y push a quien lo recibe; nunca a quien no ve la línea',
+        'A uma pessoa e a uma equipe, filtros Minhas, Sem atribuição e por equipe, histórico no fio e pela API, aviso no app e push para quem recebe; nunca para quem não vê a linha',
       ],
     }),
     row('private-notes', 'inbox', ['Internal notes', 'Notas internas', 'Notas internas'], 'have', {
@@ -259,9 +270,9 @@ const parity: ProductParity = {
     row('send-action', 'automation', ['Send a WhatsApp message from an automation', 'Mandar un WhatsApp desde una automatización', 'Enviar um WhatsApp por uma automação'], 'have'),
     row('auto-assign', 'automation', ['Round-robin auto assignment', 'Asignación automática round-robin', 'Atribuição automática round-robin'], 'have', {
       detail: [
-        'Rules by number, label or chat type that rotate among a team or some people, only those marked available',
-        'Reglas por número, etiqueta o tipo de chat que rotan entre un equipo o algunas personas, solo entre quienes están disponibles',
-        'Regras por número, etiqueta ou tipo de chat que revezam entre uma equipe ou algumas pessoas, só entre quem está disponível',
+        'Rules by line, label or chat type that rotate among a team or some people, by status (online, online or away, everyone), and optionally hand back unanswered chats when someone goes offline. No shift schedules yet',
+        'Reglas por línea, etiqueta o tipo de chat que rotan entre un equipo o algunas personas, según el estado (en línea, en línea o ausente, todos), y opcionalmente devuelven los chats sin responder cuando alguien se desconecta. Todavía sin horarios por turno',
+        'Regras por linha, etiqueta ou tipo de chat que revezam entre uma equipe ou algumas pessoas, conforme o status (online, online ou ausente, todos), e opcionalmente devolvem os chats sem resposta quando alguém fica offline. Ainda sem horários por turno',
       ],
     }),
     row('ai-summary', 'automation', ['AI summary of a chat', 'Resumen AI de un chat', 'Resumo IA de um chat'], 'have'),
@@ -312,7 +323,33 @@ const parity: ProductParity = {
 
     // Permisos
     row('roles', 'admin', ['Admin and member roles', 'Roles admin y miembro', 'Papéis admin e membro'], 'have', {
-      detail: ['Admins connect numbers and change rules; members work the inbox', 'Admins conectan números y cambian reglas; miembros atienden la bandeja', 'Admins conectam números e mudam regras; membros atendem a caixa'],
+      detail: [
+        'Owner, admin and member, the same in every app; invite, change roles, teams, lines and status from Settings › Team',
+        'Dueño, admin y miembro, los mismos en todas las apps; invitar, cambiar roles, equipos, líneas y estado desde Ajustes › Equipo',
+        'Dono, admin e membro, os mesmos em todos os apps; convidar, mudar papéis, equipes, linhas e status em Configurações › Equipe',
+      ],
+    }),
+    row('line-access', 'admin', ['Members see only their lines', 'Miembros ven solo sus líneas', 'Membros veem só suas linhas'], 'have', {
+      detail: [
+        'Each line given to people or teams; a hard limit for inbox, search, API, MCP and assignment. Team access also limits members to their team chats',
+        'Cada línea se da a personas o equipos; es un corte duro en bandeja, búsqueda, API, MCP y asignación. El acceso por equipo además limita a los chats de su equipo',
+        'Cada linha é dada a pessoas ou equipes; é um corte rígido na caixa, busca, API, MCP e atribuição. O acesso por equipe também limita aos chats da equipe',
+      ],
+    }),
+    row('agent-status', 'admin', ['Online, away and offline status per agent', 'Estado en línea, ausente y desconectado por persona', 'Status online, ausente e offline por pessoa'], 'partial', {
+      detail: [
+        'Each person sets it and admins can set it for others; shift schedules are missing',
+        'Cada persona lo marca y los admins lo cambian por otros; faltan los horarios por turno',
+        'Cada pessoa marca e os admins mudam por outros; faltam os horários por turno',
+      ],
+    }),
+    row('migrate-periskope', 'admin', ['Move from Periskope', 'Migrar desde Periskope', 'Migrar do Periskope'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'CSV import of labels, quick replies, and labels, assignee and properties onto the chats synced from WhatsApp. Periskope does not publish its export columns, so the column names are inferred',
+        'Importa por CSV etiquetas, respuestas rápidas y, sobre los chats que llegan de WhatsApp, etiquetas, asignado y propiedades. Periskope no publica las columnas de sus exports: los nombres se infieren',
+        'Importa por CSV etiquetas, respostas rápidas e, sobre os chats que chegam do WhatsApp, etiquetas, responsável e propriedades. O Periskope não publica as colunas dos exports: os nomes são inferidos',
+      ],
     }),
     row('label-access', 'admin', ['Members see only chats with their labels', 'Miembros ven solo chats con sus etiquetas', 'Membros veem só chats com suas etiquetas'], 'have', {
       detail: [

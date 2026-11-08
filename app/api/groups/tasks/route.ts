@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createGroupTask, listGroupTasks } from '@/lib/groups-tasks';
-import { groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
 import { requestLocale } from '@/lib/request-locale';
 
 export const runtime = 'nodejs';
@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
       status: status === 'done' || status === 'all' ? status : 'open',
       ownerId: p.get('owner') || undefined,
       q: p.get('q') ?? undefined,
+      viewer: await sessionViewer(s),
     }),
   });
 }
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
       ownerId: str(b.ownerId, 100) || null,
       timezone: str(b.timezone, 60) ?? req.cookies.get('tz')?.value,
       locale: requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language')),
+      viewer: await sessionViewer(s),
     });
     return NextResponse.json(task, { status: 201 });
   } catch (err) {

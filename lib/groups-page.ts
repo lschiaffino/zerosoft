@@ -19,6 +19,14 @@ import { PROVIDER_CAPS } from './groups-provider';
 import { listPinned, listTeams } from './groups-inbox';
 import { isWorkspaceAdmin } from './session';
 import { canSeeChat, groupsViewer, maskChat, maskMember, maskMessage, type GroupsViewer } from './groups-access';
+import { chatLines, siblingChats } from './groups-lines';
+
+/** Las líneas que esta persona ve (acceso por línea). */
+export async function pageNumbers(user: SessionUser) {
+  const { listNumbers } = await import('./groups');
+  const viewer = await pageViewer(user);
+  return (await listNumbers(user.id)).filter((n) => !viewer.lineIds || viewer.lineIds.includes(n.id));
+}
 
 /** Quién mira en una página de Groups (acceso por etiqueta y teléfonos ocultos). */
 export function pageViewer(user: SessionUser): Promise<GroupsViewer> {
@@ -33,8 +41,9 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
   if (!raw) return null;
   const chat = maskChat(viewer, raw);
   const db = getDb();
+  const siblings = (await siblingChats(ws, viewer, chatId)).map((c) => c.id);
   const [messages, members, people, labels, quickReplies, properties, number, settings, agents, pinned, teams] = await Promise.all([
-    listMessages(ws, chatId),
+    listMessages(ws, chatId, { chatIds: siblings }),
     listMembers(ws, chatId),
     listPeople(ws),
     listLabels(ws),
@@ -77,5 +86,7 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
     caps: number ? PROVIDER_CAPS[number.provider] : PROVIDER_CAPS.cloud,
     sample: number?.provider === 'sample',
     ticketEmoji: settings.ticketEmoji,
+    /** "Responder desde": las líneas por las que se puede contestar (ver components/groups/ReplyFromSelect.tsx). */
+    lines: await chatLines(ws, viewer, chatId),
   };
 }

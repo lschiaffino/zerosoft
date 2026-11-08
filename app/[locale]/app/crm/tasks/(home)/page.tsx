@@ -43,7 +43,8 @@ export default async function TasksPage(props: TasksPageProps) {
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
 
   const projects = await listTaskProjects(user.id, true);
-  const tasks = await listTasks(user.id, { bucket, ownerId, projectId, ownerScope: scope });
+  const { crmGroupsTaskFilterFor } = await import('@/lib/groups-access');
+  const tasks = await listTasks(user.id, { bucket, ownerId, projectId, ownerScope: scope, extra: await crmGroupsTaskFilterFor(user) });
 
   const timeZone = await getUserTimeZone();
   const queueCount = await countQueueTasks(user.id, { ownerId: realUserId(user), timeZone, ownerScope: scope });

@@ -108,9 +108,11 @@ export async function homeCrmTasks(
   const limit = opts.limit ?? 5;
   const me = user.actingUser?.id ?? user.id;
   const scope = await sessionScope(user);
+  const { crmGroupsTaskFilterFor } = await import('@/lib/groups-access');
+  const extra = await crmGroupsTaskFilterFor(user);
   const [overdue, today] = await Promise.all([
-    listTasks(user.id, { bucket: 'overdue', ownerScope: scope }),
-    listTasks(user.id, { bucket: 'today', ownerScope: scope }),
+    listTasks(user.id, { bucket: 'overdue', ownerScope: scope, extra }),
+    listTasks(user.id, { bucket: 'today', ownerScope: scope, extra }),
   ]);
   const mine = (r: { owner_id: string | null }) => opts.scope === 'all' || (r.owner_id ?? user.id) === me;
   const rows = [

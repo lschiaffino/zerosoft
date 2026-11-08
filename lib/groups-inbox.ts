@@ -38,6 +38,7 @@ import {
 } from './groups';
 import { PROVIDER_CAPS, phoneDigits, type InboundEvent } from './groups-provider';
 import { MAX_FORWARD_TARGETS, MAX_PINNED, callStatusRank, messageActions, nextInRotation, ruleMatches } from './groups-inbox-rules';
+import { RULE_AVAILABILITY, availableFor, cleanAvailability, type Availability, type RuleAvailability } from './groups-lines-shared';
 
 const nowIso = () => new Date().toISOString();
 
@@ -72,6 +73,7 @@ async function personName(id: string | null): Promise<string> {
 export type ChatEvent =
   | { event: 'assigned' | 'unassigned'; to: string | null; by: string | null }
   | { event: 'auto_assigned'; to: string; rule: string }
+  | { event: 'reassigned'; from: string; to: null; reason: 'offline' | 'no_access' }
   | { event: 'team'; team: string | null; teamName: string; by: string | null }
   | { event: 'closed' | 'reopened'; by: string | null };
 
@@ -93,8 +95,15 @@ async function logEvent(ws: string, chat: Pick<ChatRow, 'id' | 'number_id'>, act
 const chatHref = (chatId: string, messageId?: string) => `/app/groups/inbox/${chatId}${messageId ? `#m-${messageId}` : ''}`;
 
 async function notifyAssigned(actor: string | null, chat: ChatRow, personId: string, rule?: string): Promise<void> {
+  const { personCanSeeChat } = await import('./groups-access');
+  if (!(await personCanSeeChat(chat.user_id, personId, chat.id))) return;
   const actorName = rule ? '' : await personName(actor);
   const chatName = chatDisplayName(chat);
+  // Por regla: también push (la asignación manual la avisa patchChatAs en lib/groups-chat-ops.ts).
+  if (rule) {
+    const { notifyPerson } = await import('./groups-push');
+    await notifyPerson(chat.user_id, personId, { chatId: chat.id, title: chatName, body: chat.last_message_preview || '' }).catch(() => null);
+  }
   await createNotification({
     userId: personId,
     type: 'assigned',
@@ -134,7 +143,10 @@ export async function afterNoteSaved(ws: string, actor: string | null, chat: Cha
   const mentions = findMentions(row.body, people);
   const meta = { ...parseJson<Record<string, unknown>>(row.meta, {}), mentions };
   await getDb().prepare('UPDATE groups_messages SET meta = ? WHERE id = ?').run(JSON.stringify(meta), row.id);
-  const fresh = newMentions(previousBody, row.body, people).filter((id) => id !== actor);
+  const { personCanSeeChat } = await import('./groups-access');
+  const fresh: string[] = [];
+  // Solo se avisa a quien ve el chat: la nota no sale hacia afuera de sus reglas de acceso.
+  for (const id of newMentions(previousBody, row.body, people)) if (id !== actor && (await personCanSeeChat(ws, id, chat.id))) fresh.push(id);
   if (fresh.length) {
     const actorName = await personName(actor);
     const chatName = chatDisplayName(chat);
@@ -478,24 +490,76 @@ async function syncWorkspaceGroup(ws: string, id: string): Promise<void> {
   await syncGroupFromApp('groups', ws, id);
 }
 
-/** Disponibilidad por persona. Sin fila = disponible. */
+/** Disponibilidad por persona (en línea = true). Sin fila = disponible. */
 export async function getAvailability(ws: string): Promise<Record<string, boolean>> {
-  const rows = (await getDb().prepare('SELECT person_id, available FROM groups_availability WHERE user_id = ?').all(ws)) as Array<{
-    person_id: string;
-    available: number;
-  }>;
-  return Object.fromEntries(rows.map((r) => [r.person_id, r.available === 1]));
+  const all = await getAvailabilityStatus(ws);
+  return Object.fromEntries(Object.entries(all).map(([k, v]) => [k, v === 'online']));
 }
 
-export async function setAvailability(ws: string, personId: string, available: boolean): Promise<void> {
-  await getDb()
+/** Estado por persona: en línea, ausente o desconectado. Sin fila = en línea. */
+export async function getAvailabilityStatus(ws: string): Promise<Record<string, Availability>> {
+  const rows = (await getDb().prepare('SELECT person_id, available, status FROM groups_availability WHERE user_id = ?').all(ws)) as Array<{
+    person_id: string;
+    available: number;
+    status: string | null;
+  }>;
+  // `available` manda para "en línea" (escrituras viejas solo la tocan); `status` distingue ausente de desconectado.
+  return Object.fromEntries(
+    rows.map((r) => [r.person_id, r.available === 1 ? 'online' : cleanAvailability(r.status) === 'away' ? 'away' : 'offline'] as const),
+  );
+}
+
+/**
+ * Cambia el estado de una persona (true/false por compatibilidad: en línea o
+ * ausente, como el botón de la bandeja). Al volver, los chats que esperaban sin nadie pueden ir a
+ * esa persona. Al desconectarse, si el workspace lo pide, sus chats sin
+ * responder vuelven a la asignación automática.
+ */
+export async function setAvailability(ws: string, personId: string, input: boolean | Availability, actor: string | null = personId): Promise<Availability> {
+  const status: Availability = typeof input === 'boolean' ? (input ? 'online' : 'away') : input;
+  const db = getDb();
+  const prev = (await getAvailabilityStatus(ws))[personId] ?? 'online';
+  await db
     .prepare(
-      `INSERT INTO groups_availability (user_id, person_id, available, updated_at) VALUES (?, ?, ?, ?)
-       ON CONFLICT(user_id, person_id) DO UPDATE SET available = excluded.available, updated_at = excluded.updated_at`,
+      `INSERT INTO groups_availability (user_id, person_id, available, status, updated_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(user_id, person_id) DO UPDATE SET available = excluded.available, status = excluded.status, updated_at = excluded.updated_at`,
     )
-    .run(ws, personId, available ? 1 : 0, nowIso());
-  // Alguien volvió: los chats que esperaban sin nadie pueden ir a esa persona.
-  if (available) await sweepAutoAssign({ ws, limit: 50 }).catch(() => null);
+    .run(ws, personId, status === 'online' ? 1 : 0, status, nowIso());
+  if (prev !== status) {
+    const { recordAudit } = await import('./groups-audit');
+    await recordAudit(ws, { chatId: null, actorId: actor, action: 'availability', detail: { to: personId, from: prev, status } });
+  }
+  if (status === 'offline' && prev !== 'offline') await reassignOnOffline(ws, personId).catch(() => 0);
+  if (status !== 'offline') await sweepAutoAssign({ ws, limit: 50 }).catch(() => null);
+  return status;
+}
+
+/** Chats abiertos y sin responder de quien se desconectó: vuelven a la rotación (si el ajuste está prendido). */
+export async function reassignOnOffline(ws: string, personId: string): Promise<number> {
+  const { getPlatformSettings } = await import('./groups-access');
+  if (!(await getPlatformSettings(ws)).reassignOnOffline) return 0;
+  const db = getDb();
+  const rows = (await db
+    .prepare("SELECT * FROM groups_chats WHERE user_id = ? AND assigned_to = ? AND status = 'open' AND awaiting_since IS NOT NULL ORDER BY awaiting_since LIMIT 200")
+    .all(ws, personId)) as ChatRow[];
+  let n = 0;
+  for (const chat of rows) if (await releaseChat(ws, chat, personId, 'offline')) n++;
+  return n;
+}
+
+/**
+ * Saca a una persona de un chat (compare-and-set: si otra persona lo tomó
+ * mientras tanto, no se toca), deja el evento y la auditoría y lo devuelve a
+ * las reglas, sin volver a dárselo a esa persona.
+ */
+export async function releaseChat(ws: string, chat: ChatRow, personId: string, reason: 'offline' | 'no_access'): Promise<boolean> {
+  const freed = await getDb().prepare('UPDATE groups_chats SET assigned_to = NULL, updated_at = ? WHERE id = ? AND assigned_to = ?').run(nowIso(), chat.id, personId);
+  if (freed.changes === 0) return false;
+  await logEvent(ws, chat, null, { event: 'reassigned', from: personId, to: null, reason });
+  const { recordAudit } = await import('./groups-audit');
+  await recordAudit(ws, { chatId: chat.id, chatName: chatDisplayName(chat), actorId: null, actorKind: 'system', action: 'reassigned', detail: { from: personId, reason } });
+  await autoAssignChat(ws, chat.id, { exclude: [personId] }).catch(() => null);
+  return true;
 }
 
 // ======================================================================
@@ -514,6 +578,7 @@ interface RuleRow {
   team_id: string | null;
   person_ids: string;
   last_person_id: string | null;
+  availability?: string | null;
 }
 
 export interface AssignRuleDto {
@@ -526,7 +591,11 @@ export interface AssignRuleDto {
   teamId: string | null;
   personIds: string[];
   lastPersonId: string | null;
+  /** Quiénes entran en la rotación: solo en línea (por defecto), en línea o ausentes, o todos. */
+  availability: RuleAvailability;
 }
+
+const cleanRuleAvailability = (v: unknown): RuleAvailability | null => ((RULE_AVAILABILITY as readonly string[]).includes(String(v)) ? (v as RuleAvailability) : null);
 
 function toRuleDto(r: RuleRow): AssignRuleDto {
   return {
@@ -539,6 +608,7 @@ function toRuleDto(r: RuleRow): AssignRuleDto {
     teamId: r.team_id,
     personIds: parseJson<string[]>(r.person_ids, []),
     lastPersonId: r.last_person_id,
+    availability: cleanRuleAvailability(r.availability) ?? 'online',
   };
 }
 
@@ -555,6 +625,7 @@ interface RuleInput {
   kind?: unknown;
   teamId?: unknown;
   personIds?: unknown;
+  availability?: unknown;
 }
 
 async function cleanRule(ws: string, input: RuleInput, prev?: AssignRuleDto): Promise<Omit<AssignRuleDto, 'id' | 'lastPersonId'>> {
@@ -574,6 +645,7 @@ async function cleanRule(ws: string, input: RuleInput, prev?: AssignRuleDto): Pr
     kind: input.kind !== undefined ? (input.kind === 'dm' || input.kind === 'group' ? input.kind : null) : (prev?.kind ?? null),
     teamId: await ref(input.teamId, 'groups_teams', prev?.teamId ?? null),
     personIds: input.personIds !== undefined ? await cleanMemberIds(ws, input.personIds) : (prev?.personIds ?? []),
+    availability: cleanRuleAvailability(input.availability) ?? prev?.availability ?? 'online',
   };
   // A quién rota: un equipo o una lista de personas.
   if (out.teamId) out.personIds = [];
@@ -590,10 +662,10 @@ export async function createRule(ws: string, input: RuleInput): Promise<AssignRu
   const now = nowIso();
   await db
     .prepare(
-      `INSERT INTO groups_assign_rules (id, user_id, name, enabled, position, number_id, label_id, kind, team_id, person_ids, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO groups_assign_rules (id, user_id, name, enabled, position, number_id, label_id, kind, team_id, person_ids, availability, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, ws, r.name, r.enabled ? 1 : 0, Number(count.c), r.numberId, r.labelId, r.kind, r.teamId, JSON.stringify(r.personIds), now, now);
+    .run(id, ws, r.name, r.enabled ? 1 : 0, Number(count.c), r.numberId, r.labelId, r.kind, r.teamId, JSON.stringify(r.personIds), r.availability, now, now);
   if (r.enabled) await sweepAutoAssign({ ws, limit: 50 }).catch(() => null);
   return (await listRules(ws)).find((x) => x.id === id) as AssignRuleDto;
 }
@@ -604,10 +676,10 @@ export async function updateRule(ws: string, id: string, input: RuleInput): Prom
   const r = await cleanRule(ws, input, prev);
   await getDb()
     .prepare(
-      `UPDATE groups_assign_rules SET name = ?, enabled = ?, number_id = ?, label_id = ?, kind = ?, team_id = ?, person_ids = ?, updated_at = ?
+      `UPDATE groups_assign_rules SET name = ?, enabled = ?, number_id = ?, label_id = ?, kind = ?, team_id = ?, person_ids = ?, availability = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
-    .run(r.name, r.enabled ? 1 : 0, r.numberId, r.labelId, r.kind, r.teamId, JSON.stringify(r.personIds), nowIso(), id, ws);
+    .run(r.name, r.enabled ? 1 : 0, r.numberId, r.labelId, r.kind, r.teamId, JSON.stringify(r.personIds), r.availability, nowIso(), id, ws);
   if (r.enabled) await sweepAutoAssign({ ws, limit: 50 }).catch(() => null);
   return (await listRules(ws)).find((x) => x.id === id) as AssignRuleDto;
 }
@@ -622,7 +694,7 @@ export async function deleteRule(ws: string, id: string): Promise<boolean> {
  * last_person_id y el chat se reclama con assigned_to IS NULL: dos mensajes
  * a la vez (o webhook y cron) no asignan dos veces ni saltean a nadie.
  */
-export async function autoAssignChat(ws: string, chatId: string): Promise<string | null> {
+export async function autoAssignChat(ws: string, chatId: string, opts: { exclude?: string[] } = {}): Promise<string | null> {
   const db = getDb();
   const chat = await getChatRow(ws, chatId);
   if (!chat || chat.status !== 'open' || chat.assigned_to) return null;
@@ -634,7 +706,10 @@ export async function autoAssignChat(ws: string, chatId: string): Promise<string
     (r) => r.label_id,
   );
   const people = new Set((await workspacePeople(ws)).map((p) => p.id));
-  const availability = await getAvailability(ws);
+  const availability = await getAvailabilityStatus(ws);
+  // Acceso por línea: solo quienes ven la línea del chat.
+  const { peopleWithLine } = await import('./groups-lines');
+  const lineOk = await peopleWithLine(ws, chat.number_id);
   for (const rule of rules) {
     if (!ruleMatches({ ...toRuleDto(rule), enabled: true }, { numberId: chat.number_id, kind: chat.kind, labelIds })) continue;
     const pool = rule.team_id
@@ -642,7 +717,10 @@ export async function autoAssignChat(ws: string, chatId: string): Promise<string
           (r) => r.person_id,
         )
       : parseJson<string[]>(rule.person_ids, []);
-    const candidates = pool.filter((id) => people.has(id) && availability[id] !== false);
+    const when = cleanRuleAvailability(rule.availability) ?? 'online';
+    const candidates = pool.filter(
+      (id) => people.has(id) && !opts.exclude?.includes(id) && availableFor(when, availability[id]) && (!lineOk || lineOk.has(id)),
+    );
     if (candidates.length === 0) continue;
     for (let attempt = 0; attempt < 5; attempt++) {
       const current = (await db.prepare('SELECT last_person_id FROM groups_assign_rules WHERE id = ?').get(rule.id)) as
@@ -662,6 +740,8 @@ export async function autoAssignChat(ws: string, chatId: string): Promise<string
         .run(pick, rule.team_id, nowIso(), chat.id);
       if (claimed.changes === 0) return null;
       await logEvent(ws, chat, null, { event: 'auto_assigned', to: pick, rule: rule.name });
+      const { recordAudit } = await import('./groups-audit');
+      await recordAudit(ws, { chatId: chat.id, chatName: chatDisplayName(chat), actorId: null, actorKind: 'system', action: 'auto_assigned', detail: { to: pick, rule: rule.name } });
       await notifyAssigned(null, chat, pick, rule.name);
       return pick;
     }

@@ -362,7 +362,9 @@ function buildTools(ctx: ToolContext): ToolSet {
       inputSchema: z.object({ bucket: z.enum(['overdue', 'today', 'upcoming']), mine: z.boolean().optional() }),
       execute: async ({ bucket, mine }) => {
         note('list_tasks');
-        const rows = await listTasks(ctx.workspaceId, { bucket, ownerScope: ctx.scope, ownerId: mine ? ctx.personId : undefined });
+        const { crmGroupsTaskFilterForPerson } = await import('./groups-access');
+        const extra = await crmGroupsTaskFilterForPerson(ctx.workspaceId, ctx.personId);
+        const rows = await listTasks(ctx.workspaceId, { bucket, ownerScope: ctx.scope, ownerId: mine ? ctx.personId : undefined, extra });
         const top = rows.slice(0, 20);
         top.forEach((t) => ctx.records.set(`task:${t.id}`, { type: 'task', id: t.id, name: t.subject || 'Task', href: `/app/crm/tasks/${t.id}`, meta: t.due_at?.slice(0, 10) }));
         return {

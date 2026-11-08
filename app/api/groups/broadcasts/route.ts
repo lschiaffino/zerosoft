@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   if (s instanceof NextResponse) return s;
   const p = new URL(req.url).searchParams;
   const kind = p.get('kind') === 'scheduled' || p.get('kind') === 'broadcast' ? (p.get('kind') as 'scheduled' | 'broadcast') : undefined;
-  return NextResponse.json({ broadcasts: await listBroadcasts(s.ws, { kind, chatId: p.get('chat') || undefined }) });
+  return NextResponse.json({ broadcasts: await listBroadcasts(s.ws, { kind, chatId: p.get('chat') || undefined, viewer: await sessionViewer(s) }) });
 }
 
 /**

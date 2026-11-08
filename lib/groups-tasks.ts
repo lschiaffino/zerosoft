@@ -10,6 +10,7 @@
  * vencimiento leído, así dos corridas no avisan dos veces y si la tarea se
  * mueve a otra hora vuelve a avisar en la nueva. Server-only.
  */
+import type { GroupsViewer } from './groups-access';
 import { getDb } from './db';
 import { createActivity, deleteActivity, updateActivity } from './crm';
 import { appSender, escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
@@ -76,6 +77,21 @@ const SELECT = `SELECT t.id, t.activity_id, t.chat_id, t.message_id, t.created_a
   LEFT JOIN users u ON u.id = a.owner_id
   LEFT JOIN groups_messages m ON m.id = t.message_id`;
 
+/** Acceso del que mira (lib/groups-access.ts): sin viewer, todo (cron, sistema). */
+type Viewer = GroupsViewer | null | undefined;
+
+async function accessFor(viewer: Viewer): Promise<{ sql: string; args: string[] } | null> {
+  if (!viewer) return null;
+  const { chatAccessSql } = await import('./groups-access');
+  return chatAccessSql(viewer, 'c');
+}
+
+async function masked(viewer: Viewer, dto: GroupTaskDto): Promise<GroupTaskDto> {
+  if (!viewer?.mask) return dto;
+  const { maskPhoneText } = await import('./groups-mask');
+  return { ...dto, chatName: maskPhoneText(dto.chatName), messageBody: maskPhoneText(dto.messageBody), notes: maskPhoneText(dto.notes) };
+}
+
 function toDto(r: TaskJoin): GroupTaskDto {
   return {
     id: r.id,
@@ -120,9 +136,13 @@ async function assertPerson(ws: string, personId: string): Promise<void> {
   if (!(await isWorkspacePerson(ws, personId))) throw new GroupsError('invalid_assignee');
 }
 
-export async function getGroupTask(ws: string, id: string): Promise<GroupTaskDto | null> {
-  const r = (await getDb().prepare(`${SELECT} WHERE t.id = ? AND t.user_id = ?`).get(id, ws)) as TaskJoin | undefined;
-  return r ? toDto(r) : null;
+/** La tarea si existe y quien mira ve su chat (si no, null: el mismo 404). */
+export async function getGroupTask(ws: string, id: string, viewer?: Viewer): Promise<GroupTaskDto | null> {
+  const access = await accessFor(viewer);
+  const r = (await getDb()
+    .prepare(`${SELECT} WHERE t.id = ? AND t.user_id = ?${access ? ` AND ${access.sql}` : ''}`)
+    .get(id, ws, ...(access?.args ?? []))) as TaskJoin | undefined;
+  return r ? masked(viewer, toDto(r)) : null;
 }
 
 export interface CreateTaskInput {
@@ -134,12 +154,18 @@ export interface CreateTaskInput {
   ownerId?: string | null;
   locale?: string;
   timezone?: string;
+  /** Quien crea: el chat tiene que estar entre los que ve. */
+  viewer?: Viewer;
 }
 
 /** Crea la tarea (del CRM) ligada al chat y, si viene, al mensaje. */
 export async function createGroupTask(ws: string, actor: string, input: CreateTaskInput, now = new Date()): Promise<GroupTaskDto> {
   const chat = await getChatRow(ws, input.chatId);
   if (!chat) throw new GroupsError('not_found', 404);
+  if (input.viewer) {
+    const { canSeeChat } = await import('./groups-access');
+    if (!(await canSeeChat(input.viewer, chat.id))) throw new GroupsError('not_found', 404);
+  }
   let messageBody = '';
   if (input.messageId) {
     const msg = await getMessageRow(ws, input.messageId);
@@ -169,7 +195,7 @@ export async function createGroupTask(ws: string, actor: string, input: CreateTa
       'INSERT INTO groups_tasks (id, user_id, chat_id, message_id, activity_id, created_by, locale, timezone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .run(id, ws, chat.id, input.messageId ?? null, activity.id, actor, locale, safeTimezone(input.timezone), now.toISOString());
-  return (await getGroupTask(ws, id)) as GroupTaskDto;
+  return (await getGroupTask(ws, id, input.viewer)) as GroupTaskDto;
 }
 
 export interface TaskQuery {
@@ -179,6 +205,8 @@ export interface TaskQuery {
   ownerId?: string;
   q?: string;
   limit?: number;
+  /** Solo las tareas de chats que quien mira ve. */
+  viewer?: Viewer;
 }
 
 /** Tareas de Groups: abiertas primero por vencimiento (las sin fecha al final). */
@@ -201,11 +229,16 @@ export async function listGroupTasks(ws: string, me: string, query: TaskQuery = 
     const like = `%${query.q.trim().slice(0, 100).replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
     args.push(like, like);
   }
+  const access = await accessFor(query.viewer);
+  if (access) {
+    where.push(access.sql);
+    args.push(...access.args);
+  }
   const limit = Math.min(Math.max(1, query.limit ?? 200), 500);
   const rows = (await getDb()
     .prepare(`${SELECT} WHERE ${where.join(' AND ')} ORDER BY a.done ASC, CASE WHEN a.due_at IS NULL THEN 1 ELSE 0 END, a.due_at ASC, t.created_at DESC LIMIT ?`)
     .all(...args, limit)) as TaskJoin[];
-  return rows.map(toDto);
+  return Promise.all(rows.map((r) => masked(query.viewer, toDto(r))));
 }
 
 export interface TaskPatch {
@@ -216,8 +249,8 @@ export interface TaskPatch {
   done?: boolean;
 }
 
-export async function updateGroupTask(ws: string, id: string, patch: TaskPatch): Promise<GroupTaskDto> {
-  const task = await getGroupTask(ws, id);
+export async function updateGroupTask(ws: string, id: string, patch: TaskPatch, viewer?: Viewer): Promise<GroupTaskDto> {
+  const task = await getGroupTask(ws, id, viewer);
   if (!task) throw new GroupsError('not_found', 404);
   const data: Parameters<typeof updateActivity>[2] = {};
   if (patch.title !== undefined) {
@@ -233,11 +266,11 @@ export async function updateGroupTask(ws: string, id: string, patch: TaskPatch):
   }
   if (patch.done !== undefined) data.done = patch.done;
   await updateActivity(ws, task.activityId, data);
-  return (await getGroupTask(ws, id)) as GroupTaskDto;
+  return (await getGroupTask(ws, id, viewer)) as GroupTaskDto;
 }
 
-export async function deleteGroupTask(ws: string, id: string): Promise<boolean> {
-  const task = await getGroupTask(ws, id);
+export async function deleteGroupTask(ws: string, id: string, viewer?: Viewer): Promise<boolean> {
+  const task = await getGroupTask(ws, id, viewer);
   if (!task) return false;
   await deleteActivity(ws, task.activityId).catch(() => false);
   return (await getDb().prepare('DELETE FROM groups_tasks WHERE id = ? AND user_id = ?').run(id, ws)).changes > 0;

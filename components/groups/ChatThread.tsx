@@ -14,6 +14,8 @@ import { useGroupsInbox } from './InboxShell';
 import ChatDetails from './ChatDetails';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import TaskModal from './TaskModal';
+import ReplyFromSelect from './ReplyFromSelect';
+import type { ReplyLine } from '@/lib/groups-lines-shared';
 import { Modal, api, isLeavingChat, useErrorText, useLeavingChat, useMediaText, useToast } from './ui';
 import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezone, checkRule, endsIso } from './RecurringParts';
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
@@ -86,6 +88,8 @@ export interface ThreadProps {
   ticketEmoji: string;
   pinned: MessageDto[];
   teams: Array<{ id: string; name: string }>;
+  /** Líneas por las que se puede responder ("Responder desde", lib/groups-lines.ts). */
+  lines?: ReplyLine[];
 }
 
 function readTranslatePref(chatId: string): boolean {
@@ -178,6 +182,12 @@ export default function ChatThread(props: ThreadProps) {
     return first ? { id: first.id, n } : null;
   });
   const [sending, setSending] = useState(false);
+  // Línea elegida en "Responder desde" (null: la del chat). Las notas quedan siempre en este chat.
+  const [replyLine, setReplyLine] = useState<string | null>(null);
+  // Le sacaron el acceso con la pestaña abierta: el hilo se vacía y lo dice.
+  const [lost, setLost] = useState(false);
+  const multiLine = (props.lines?.length ?? 0) > 1;
+  const lineName = (numberId: string | undefined) => (numberId ? (props.lines?.find((l) => l.numberId === numberId)?.name ?? '') : '');
   const [sendError, setSendError] = useState('');
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -422,7 +432,10 @@ export default function ChatThread(props: ThreadProps) {
     };
     const pollOnce = async () => {
       const res = await api<{ messages: MessageDto[]; presence?: ChatPresence | null }>(`/api/groups/chats/${chat.id}/messages?limit=60`);
-      if (!res.data) return;
+      if (!res.data) {
+        if (res.error === 'not_found' || res.error === 'unauthorized') setLost(true);
+        return;
+      }
       setPresence(res.data.presence ?? null);
       const fresh = res.data.messages.filter((m) => !knownIds.current.has(m.id));
       merge(res.data.messages);
@@ -531,8 +544,9 @@ export default function ChatThread(props: ThreadProps) {
   }
 
   async function post(body: Record<string, unknown>): Promise<MessageDto | null> {
-    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body });
+    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: replyLine && !body.note ? { ...body, numberId: replyLine } : body });
     if (!res.data) {
+      if (res.error === 'not_found') setLost(true);
       setSendError(errText(res.error));
       return null;
     }
@@ -882,7 +896,7 @@ export default function ChatThread(props: ThreadProps) {
     if (options.length < 2) return setPollError(errText('poll_options'));
     setPollBusy(true);
     setPollError('');
-    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: { poll: { ...poll, options } } });
+    const res = await api<MessageDto>(`/api/groups/chats/${chat.id}/messages`, { body: { poll: { ...poll, options }, ...(replyLine ? { numberId: replyLine } : {}) } });
     setPollBusy(false);
     if (!res.data) return setPollError(errText(res.error));
     merge([res.data]);
@@ -1108,7 +1122,7 @@ export default function ChatThread(props: ThreadProps) {
       case 'api':
         return 'API';
       default:
-        return nameOf(m.authorId);
+        return m.authorName || nameOf(m.authorId);
     }
   }
 
@@ -1149,6 +1163,8 @@ export default function ChatThread(props: ThreadProps) {
   // Un bloque por día: su chip de fecha queda arriba (y flota solo mientras se recorre ese día).
   const days: Array<{ key: string; at: string; items: ReactNode[] }> = [];
   let prev: MessageDto | null = null;
+  // Chat en varias líneas: la línea se dice cada vez que cambia entre un mensaje y el siguiente.
+  let lastLine: string | undefined;
   for (const m of messages) {
     const day = localDayKey(m.createdAt);
     if (days.at(-1)?.key !== day) {
@@ -1169,9 +1185,11 @@ export default function ChatThread(props: ThreadProps) {
       );
       prev = null;
     }
-    const cont = Boolean(prev && senderKey(prev) === senderKey(m));
+    const lineChanged = multiLine && m.direction !== 'note' && Boolean(m.numberId) && m.numberId !== lastLine;
+    if (m.direction !== 'note' && m.numberId) lastLine = m.numberId;
+    const cont = Boolean(prev && senderKey(prev) === senderKey(m)) && !lineChanged;
     prev = m;
-    rows.push(renderMessage(m, cont));
+    rows.push(renderMessage(m, cont, lineChanged));
   }
   const rows = days.map((d) => (
     <section key={`d-${d.key}`} className="wa-dayblock">
@@ -1184,12 +1202,17 @@ export default function ChatThread(props: ThreadProps) {
     </section>
   ));
 
-  function renderMessage(m: MessageDto, cont: boolean) {
+  function renderMessage(m: MessageDto, cont: boolean, lineChanged = false) {
     const quoted = m.replyToId ? byId.get(m.replyToId) : null;
     const isNote = m.direction === 'note';
     // Lo propio mandado desde el teléfono no lleva firma (como en WhatsApp); lo del equipo, agentes o envíos sí.
-    const showName = !cont && (isNote || (m.direction === 'in' && chat.kind === 'group') || (m.direction === 'out' && m.authorKind !== 'phone'));
-    const author = isNote ? nameOf(m.authorId) : m.direction === 'in' ? inName(m) : outAuthor(m);
+    // Chat en varias líneas: el primer mensaje después de un cambio de línea dice por cuál entró o salió.
+    const showName =
+      !cont && (isNote || (m.direction === 'in' && chat.kind === 'group') || (m.direction === 'out' && m.authorKind !== 'phone') || (lineChanged && Boolean(lineName(m.numberId))));
+    const baseAuthor = isNote ? nameOf(m.authorId) : m.direction === 'in' ? inName(m) : outAuthor(m);
+    // Chat en varias líneas: lo saliente dice por qué línea salió.
+    const viaLine = lineChanged && !isNote ? lineName(m.numberId) : '';
+    const author = viaLine ? (m.direction === 'in' && chat.kind !== 'group' ? viaLine : `${baseAuthor} · ${viaLine}`) : baseAuthor;
     const tr = translateOn && m.direction === 'in' ? translations[m.id] : undefined;
     const showTr = tr && tr.text && !showOriginal.has(m.id);
     const isEditing = editing?.id === m.id;
@@ -1454,6 +1477,17 @@ export default function ChatThread(props: ThreadProps) {
     });
   const viewerIndex = viewerAt ? viewerItems.findIndex((v) => v.id === viewerAt) : -1;
 
+  if (lost) {
+    return (
+      <section className="gr-thread gr-thread-lost" aria-live="polite">
+        <p>{t('wa.noAccess')}</p>
+        <Link href="/app/groups/inbox" className="btn btn-secondary">
+          {t('wa.backToInbox')}
+        </Link>
+      </section>
+    );
+  }
+
   return (
     <>
       <section
@@ -1637,6 +1671,11 @@ export default function ChatThread(props: ThreadProps) {
         </div>
 
         <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`} data-voice-off>
+          {multiLine && mode === 'reply' && (
+            <div className="wa-replyfrom-row">
+              <ReplyFromSelect chatId={chat.id} lines={props.lines} onChange={(id) => setReplyLine(id)} />
+            </div>
+          )}
           {mode === 'note' && (
             <p className="wa-note-strip">
               {t('thread.noteHint')}

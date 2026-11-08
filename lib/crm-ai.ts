@@ -314,7 +314,8 @@ export async function buildRecordContext(
     }
   }
 
-  const activities = await listTimeline(workspaceId, { ...filter, limit: 40, ownerScope: scope });
+  const { crmGroupsSharedFilter } = await import('./groups-access');
+  const activities = await listTimeline(workspaceId, { ...filter, limit: 40, ownerScope: scope, extra: await crmGroupsSharedFilter(workspaceId) });
   const emails = await emailsFor(workspaceId, contactIds);
   if (activities.length) {
     lines.push('Activity (newest first):');
