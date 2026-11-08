@@ -2970,6 +2970,9 @@ a.track-board-card-title:hover {
 .track-list-tabs .track-list-pagetabs { margin: 0; padding: 0; border-top: 0; border-bottom: 0; min-width: 0; }
 /* Team: pestañas (All, Active, Backlog, vistas, Triage) a la izquierda y Filter/Display a la derecha. */
 .track-list-head.is-team .track-list-tabs { flex: 0 1 auto; }
+/* Con chips de filtro la barra ocupa dos líneas: las pestañas quedan a la altura de la primera. */
+.track-list-head { align-items: flex-start; }
+.track-list-tabs { min-height: 40px; }
 .track-list-head.is-team .track-list-tools { flex: 1 1 360px; }
 .track-list-more { display: flex; align-items: center; gap: 12px; margin: 8px 0 0; }
 .track-list-more .track-pagination-count { margin: 0; }
@@ -2992,5 +2995,6 @@ body:has(.track-bulk-bar) .track-undo-toasts { bottom: 72px; }
 }
 
 /* Tablero: cards seleccionadas (X, Shift o ⌘ clic) se arrastran juntas. */
-.track-board-card.is-selected { border-color: var(--ink); background: var(--ui-hover); }
+.track-board-card.is-selected,
+.track-board-card.is-selected.is-draggable:hover { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 .track-board-column[data-track-drop].is-drop-target { outline: 1px solid var(--ink); outline-offset: -1px; }
