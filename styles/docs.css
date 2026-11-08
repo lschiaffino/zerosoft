@@ -585,6 +585,14 @@
   color: var(--brand-gray-2);
   font-variant-numeric: tabular-nums;
 }
+/* Ítem de lista vacío: la viñeta y el número quedan en ::before y el texto de ayuda va en ::after
+   (si comparten ::before, el texto se dibuja dentro de la viñeta de 6px, una letra por renglón). */
+.docs-bulleted_list_item:empty::before { content: ''; }
+.docs-numbered_list_item:empty::before { content: attr(data-index) '.'; color: var(--brand-gray-2); }
+.docs-bulleted_list_item:empty::after,
+.docs-numbered_list_item:empty::after { content: attr(data-placeholder); color: var(--brand-gray-3); pointer-events: none; }
+.docs-block:not(.focused) .docs-bulleted_list_item:empty::after,
+.docs-block:not(.focused) .docs-numbered_list_item:empty::after { content: none; }
 
 /* Anidado (Tab): cada nivel corre el bloque (con su asa y su "+") hacia la derecha. */
 .docs-block-outer[data-indent] { margin-left: calc(var(--docs-indent, 0) * 1.625rem); }
