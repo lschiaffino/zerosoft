@@ -126,6 +126,13 @@ test('restringido por defecto: dueño, miembro invitado, externo con link mágic
   await expect(share.getByTestId('rec-share-person').filter({ hasText: outsider })).toBeVisible();
   await expect(share.getByTestId('rec-share-add-msg')).toContainText('Invitation sent');
   await expect(share.getByTestId('rec-share-person').filter({ hasText: outsider })).toContainText('Not watched yet');
+  if (process.env.REC_SHOTS) {
+    for (const scheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.screenshot({ path: `test-results/rec-share-1280-${scheme}.png` });
+    }
+    await page.emulateMedia({ colorScheme: 'light' });
+  }
   await page.keyboard.press('Escape');
   await expect(share).toBeHidden();
 
@@ -196,6 +203,13 @@ test('desconocido: no ve nada, pide acceso con su email y el dueño aprueba', as
   await expectLockedOut(stranger.request, v.shareId, title);
   await stranger.page.goto(`/en/v/${v.shareId}`);
   await expect(stranger.page.getByTestId('rec-gate')).toHaveAttribute('data-state', 'signin');
+  if (process.env.REC_SHOTS) {
+    for (const [w, scheme] of [[1280, 'light'], [390, 'dark']] as const) {
+      await stranger.page.setViewportSize({ width: w, height: 844 });
+      await stranger.page.emulateMedia({ colorScheme: scheme });
+      await stranger.page.screenshot({ path: `test-results/rec-gate-${w}-${scheme}.png`, fullPage: true });
+    }
+  }
   await stranger.page.locator('#rec-magic-email').fill(asker);
   await stranger.page.locator('#rec-magic-name').fill('Persona Que Pide');
   await stranger.page.getByTestId('rec-magic-submit').click();
