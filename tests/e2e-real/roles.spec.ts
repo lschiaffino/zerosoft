@@ -594,7 +594,7 @@ test('Analytics: sin sesión, con un token inventado o sin la app, la API dice 4
 
 test('Analytics: lo que está en un link público y los flags los cambia un admin; lo demás, cualquiera con la app', async ({ browser }) => {
   const olga = await owner(browser);
-  const mia = await join(browser, olga, 'Mia', 'member', ['analytics']);
+  const mia = await join(browser, olga, 'Mia', 'member', ['pulse']);
   const post = async (path: string, data: unknown) => {
     const res = await olga.ctx.request.post(path, { data });
     expect(res.status(), await res.text()).toBeLessThan(300);
