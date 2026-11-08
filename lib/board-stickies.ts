@@ -184,6 +184,7 @@ export interface SceneEl {
   containerId?: string | null;
   boundElements?: ReadonlyArray<{ id: string; type: string }> | null;
   backgroundColor?: string;
+  strokeColor?: string;
   customData?: Record<string, unknown> | null;
   version?: number;
   versionNonce?: number;

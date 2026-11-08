@@ -505,7 +505,7 @@ export function fitContent(api: CanvasApi, maxZoom = 1) {
 export async function exportFrameJpeg(api: CanvasApi, frame: unknown, maxSide = 2000): Promise<Uint8Array> {
   const elements = api.getSceneElements();
   const appState = api.getAppState();
-  const blob = await withRealColorsAsync(() => exportToBlob({
+  const blob = await withRealColorsAsync<Blob>(() => exportToBlob({
     elements: elements as never,
     appState: { exportBackground: true, viewBackgroundColor: (appState.viewBackgroundColor as string) ?? '#ffffff', exportWithDarkMode: false } as never,
     files: api.getFiles() as never,
@@ -520,7 +520,7 @@ export async function exportFrameJpeg(api: CanvasApi, frame: unknown, maxSide = 
 
 /** PNG de un frame en data URL (lo que ve la IA en wireframe a código). */
 export async function exportFramePngDataUrl(api: CanvasApi, frame: unknown, maxSide = 1200): Promise<string> {
-  const blob = await withRealColorsAsync(() =>
+  const blob = await withRealColorsAsync<Blob>(() =>
     exportToBlob({
       elements: api.getSceneElements() as never,
       appState: { exportBackground: true, viewBackgroundColor: '#ffffff', exportWithDarkMode: false } as never,

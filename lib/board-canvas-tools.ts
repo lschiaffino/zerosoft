@@ -131,7 +131,7 @@ export function stickyAuthor(el: SceneEl | null | undefined): string | null {
   return typeof a === 'string' && a ? a : null;
 }
 
-const STICKY_FILLS = new Set(STICKY_COLORS.map((c) => c.fill));
+const STICKY_FILLS = new Set<string>(STICKY_COLORS.map((c) => c.fill));
 
 /**
  * ¿Parece un sticky? Uno de la herramienta (customData.sticky) o un rectángulo
@@ -286,7 +286,11 @@ export function selectedTable(elements: readonly SceneEl[], selectedIds: readonl
   return { tableId, cell: only ? { row: Number(only.customData?.row), col: Number(only.customData?.col) } : null };
 }
 
-export type TableOp = { kind: 'addRow' | 'addCol'; after: number } | { kind: 'removeRow' | 'removeCol'; index: number };
+export type TableOp =
+  | { kind: 'addRow'; after: number }
+  | { kind: 'addCol'; after: number }
+  | { kind: 'removeRow'; index: number }
+  | { kind: 'removeCol'; index: number };
 
 export interface TableEdit {
   /** Elementos que cambian (celdas corridas, con su texto), con versión subida. */
