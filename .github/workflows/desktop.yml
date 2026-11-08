@@ -105,6 +105,22 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: echo "signed=$([ -n "$TAURI_SIGNING_PRIVATE_KEY" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
 
+      # NSIS para el instalador de Windows, en la carpeta donde lo busca tauri-bundler: así no lo
+      # baja de releases de GitHub en pleno build (respondió 504 en desktop-v0.2.0).
+      - name: NSIS en caché (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: ~/AppData/Local/tauri/NSIS
+          key: tauri-nsis-3.13-utils-0.5.3
+
+      - name: NSIS verificado (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./desktop/scripts/provision-nsis.ps1
+
       - uses: tauri-apps/tauri-action@v0
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -158,9 +174,11 @@ jobs:
 
   # Un solo job publica: crea el release (si no existe), arma latest.json y sube todo pisando lo que
   # haya con el mismo nombre (volver a correr el workflow completa el release en vez de duplicarlo).
+  # Publica lo que salió bien aunque falle una plataforma; "Re-run failed jobs" en esa corrida
+  # rearma la que faltó y este job vuelve a subir todo (los artefactos de la corrida se conservan).
   publish:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/desktop-v')
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/desktop-v') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -179,9 +197,12 @@ jobs:
         run: |
           set -euo pipefail
           v="${TAG#desktop-v}"
+          mkdir -p assets
+          found=0
           for f in "zerosoft-$v-mac-arm64.dmg" "zerosoft-$v-mac-x64.dmg" "zerosoft-$v-win-x64.exe"; do
-            [ -f "assets/$f" ] || { echo "Falta $f"; exit 1; }
+            if [ -f "assets/$f" ]; then found=$((found + 1)); else echo "::warning::Falta $f: re-correr el job que falló completa el release."; fi
           done
+          [ "$found" -gt 0 ] || { echo "No salió ningún instalador"; exit 1; }
           # latest.json del updater, solo si los paquetes vienen firmados.
           node desktop/scripts/latest-json.mjs assets "$v" "https://github.com/$GH_REPO/releases/download/$TAG"
           ls -la assets
