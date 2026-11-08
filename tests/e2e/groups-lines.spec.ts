@@ -131,6 +131,7 @@ test('Ajustes › Líneas: tabla con estado, color y quién ve cada línea; en o
   // Las acciones de la última fila se ven sin scroll interno a 1280 (van en el menú ⋯).
   await page.setViewportSize({ width: 1280, height: 900 });
   const lastActions = page.locator('.gr-line-row').last().getByRole('button', { name: 'Line actions' });
+  await lastActions.scrollIntoViewIfNeeded();
   await expect(lastActions).toBeInViewport();
   const wrap = await page.locator('.gr-lines-wrap').evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
   expect(wrap.scroll).toBeLessThanOrEqual(wrap.client + 1);
