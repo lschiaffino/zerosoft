@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { getDb } from '@/lib/db';
 import { isWorkspaceAdmin, realUserId, requireUser, userCanUseApp } from '@/lib/session';
 import { featuredApps, moreAppsByCategory } from '@/lib/workspace-mode';
+import { isAlwaysOnApp } from '@/lib/products';
 import { settingsSectionMetadata } from '@/lib/settings-meta';
 import { ensureWorkspace, listMyWorkspaces, workspaceModeOf } from '@/lib/workspace';
 import { loadDirectory } from '@/lib/workspace-directory';
@@ -62,7 +63,8 @@ export default async function MembersSettingsPage(props: { params: Promise<{ loc
     }
   }
   const mode = workspaceModeOf(team);
-  const appOrder = [...featuredApps({ mode }), ...moreAppsByCategory({ mode }).flatMap((g) => g.apps)];
+  // Inbox es personal: no se habilita por miembro.
+  const appOrder = [...featuredApps({ mode }), ...moreAppsByCategory({ mode }).flatMap((g) => g.apps)].filter((k) => !isAlwaysOnApp(k));
   return (
     <>
       {other && <RequestWorkspaceNotice {...other} />}

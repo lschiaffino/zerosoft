@@ -2,7 +2,7 @@ import { importHubHref } from '@/lib/import-registry';
 import type { IconName } from './icons';
 import { isNewLinkPath } from '@/lib/link-detail-tabs';
 import type { NotificationTextLabels } from '@/lib/notification-text';
-import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, isBuildingProduct, type ProductCategory, type ProductKey } from '@/lib/products';
+import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, appAllowed, isBuildingProduct, type ProductCategory, type ProductKey } from '@/lib/products';
 import { featuredApps, type WorkspaceMode } from '@/lib/workspace-mode';
 
 /** Resumen de Link (antes vivía en /app, que ahora es el inicio de la plataforma). */
@@ -455,7 +455,7 @@ export function homeAppGroups(
   labels: SidebarLabels,
   opts: { allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode } = {},
 ): NavGroup[] {
-  const can = (k: ProductKey) => !opts.allowed || opts.allowed === '*' || opts.allowed.includes(k);
+  const can = (k: ProductKey) => appAllowed(opts.allowed, k);
   const all = APP_SWITCHER_ORDER.filter(can);
   const recent = (opts.recentApps ?? []).filter((k): k is ProductKey => (all as readonly string[]).includes(k));
   const top = [...new Set([...recent, ...featuredApps({ mode: opts.mode ?? 'team' }).filter(can), ...all])].slice(0, HOME_APPS_LIMIT);
