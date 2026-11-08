@@ -178,6 +178,34 @@
       "segments": "Segmentos de clientes",
       "costs": "Estrutura de custos",
       "revenue": "Fontes de receita"
+    },
+    "flowchart": {
+      "name": "Fluxograma",
+      "description": "Etapas, uma decisão e um retorno, com setas rotuladas.",
+      "title": "Fluxograma",
+      "hint": "Selecione uma forma e aperte Cmd+seta para adicionar a próxima etapa.",
+      "start": "Início",
+      "input": "Receber o pedido",
+      "process": "Fazer o trabalho",
+      "check": "Está certo?",
+      "output": "Entregar",
+      "end": "Fim",
+      "fix": "Corrigir",
+      "yes": "Sim",
+      "no": "Não"
+    },
+    "storyMap": {
+      "name": "Mapa de histórias de usuário",
+      "description": "Atividades, etapas e histórias divididas em releases.",
+      "title": "Mapa de histórias de usuário",
+      "hint": "Em cima as atividades, embaixo as etapas e as histórias em cada faixa de release.",
+      "activity1": "Encontrar um produto",
+      "activity2": "Comprar",
+      "activity3": "Pedir ajuda",
+      "step": "Uma etapa",
+      "release1": "Release 1",
+      "release2": "Depois",
+      "story": "Uma história de usuário"
     }
   },
   "history": {
@@ -248,7 +276,12 @@
     "boardTags": "Tags deste quadro",
     "selectTag": "Selecionar todos os stickies com {tag}",
     "exportAll": "Exportar todos os stickies para CSV",
-    "exportSelected": "Exportar {count} selecionados para CSV"
+    "exportSelected": "Exportar {count} selecionados para CSV",
+    "importCsv": "Importar CSV",
+    "importHint": "De um CSV de post-its exportado aqui ou do Miro. Um post-it por linha.",
+    "importError": "Não encontramos post-its nesse arquivo. Use um CSV com uma coluna de texto.",
+    "importTruncated": "Foram importadas as primeiras {count} de {total} linhas. Divida o arquivo para trazer o resto.",
+    "imported": "{count, plural, one {# post-it importado} other {# post-its importados}}"
   },
   "track": {
     "button": "Track",
@@ -299,7 +332,15 @@
     "votes": "{count, plural, one {# voto} other {# votos}}",
     "deletedElement": "Apagado do quadro",
     "untitledElement": "Sem texto",
-    "error": "Não foi possível atualizar o workshop. Tente de novo."
+    "error": "Não foi possível atualizar o workshop. Tente de novo.",
+    "privateTitle": "Modo privado",
+    "privateHint": "Enquanto está ligado, cada um vê só os próprios post-its. Ao desligar, todos aparecem de uma vez.",
+    "privateOn": "O modo privado está ligado: os post-its dos outros ficam ocultos até alguém revelar.",
+    "privateStart": "Ligar o modo privado",
+    "privateReveal": "Revelar os post-its de todos",
+    "privateChip": "Privado",
+    "privateCover": "Oculto até o fim do modo privado",
+    "timeUpDismiss": "Clique para ocultar"
   },
   "access": {
     "title": "Quem pode abrir este quadro",
@@ -352,7 +393,9 @@
     "summonError": "Não foi possível trazer os outros. Tente de novo.",
     "revoked": "Você não tem mais acesso a este quadro, ou ele foi para a lixeira.",
     "following": "Seguindo {name}. Mova a tela ou aperte Esc para parar.",
-    "presenting": "{name} está apresentando. Você segue os slides."
+    "presenting": "{name} está apresentando. Você segue os slides.",
+    "offlineShort": "Sem conexão",
+    "offlineNet": "Sem conexão. Salvamos suas mudanças quando ela voltar."
   },
   "present": {
     "button": "Apresentar",
@@ -500,6 +543,39 @@
     "placeholderMermaid": "Escreva aqui o diagrama Mermaid…",
     "mermaidTitle": "Mermaid para diagrama",
     "prompt": "Descrição",
-    "frameTool": "Ferramenta de frame"
+    "frameTool": "Ferramenta de frame",
+    "findOnCanvas": "Buscar na tela",
+    "noMatch": "Nenhum resultado.",
+    "following": "Seguindo",
+    "help": "Ajuda e atalhos"
+  },
+  "tools": {
+    "label": "Ferramentas da tela",
+    "sticky": "Novo post-it",
+    "stickyHint": "Novo post-it (N). Com um post-it selecionado, Tab adiciona o próximo à direita, Shift+Tab embaixo e Alt+seta em qualquer direção.",
+    "highlighter": "Marca-texto",
+    "table": "Inserir uma tabela",
+    "tableCol": "Coluna {n}",
+    "minimap": "Minimapa",
+    "minimapHint": "Minimapa (M)",
+    "tableHint": "Inserir uma tabela. Colar células de uma planilha também cria uma.",
+    "file": "Anexar um arquivo",
+    "fileHint": "Anexe um PDF, documento, planilha ou apresentação como cartão. Também dá para soltar arquivos no quadro.",
+    "fileType": "{name} não pode ir para o quadro. Use um PDF, documento, planilha, apresentação, texto ou zip.",
+    "fileTooBig": "{name} passa de {mb} MB.",
+    "fileError": "Não conseguimos enviar {name}. Tente de novo."
+  },
+  "reactions": {
+    "add": "Adicionar uma reação",
+    "count": "{emoji} {count, plural, one {# reação} other {# reações}}. Clique para adicionar ou tirar a sua."
+  },
+  "table": {
+    "label": "Tabela",
+    "addRow": "Adicionar uma linha abaixo",
+    "addCol": "Adicionar uma coluna à direita",
+    "removeRow": "Remover esta linha",
+    "removeCol": "Remover esta coluna",
+    "removeLastRow": "Remover a última linha",
+    "removeLastCol": "Remover a última coluna"
   }
 }

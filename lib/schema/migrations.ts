@@ -8672,6 +8672,58 @@ export const MIGRATIONS: Migration[] = [
       await c.execute('CREATE INDEX IF NOT EXISTS idx_assistant_files_conv ON assistant_files(conversation_id, created_at)');
     },
   },
+  {
+    // Board: modo privado del taller (cada uno ve solo sus stickies hasta
+    // revelar) y comentarios pegados a un objeto (dónde estaba el objeto al
+    // anclarlo, para que el pin lo siga cuando se mueve).
+    id: '280_board_private_mode_comment_anchor',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE boards ADD COLUMN private_mode INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, 'ALTER TABLE board_comment_threads ADD COLUMN anchor_x REAL');
+      await addColumn(c, 'ALTER TABLE board_comment_threads ADD COLUMN anchor_y REAL');
+    },
+  },
+  {
+    // Board: archivos sueltos en el lienzo (PDF, documentos, planillas): el
+    // nombre original para descargarlo con su nombre.
+    id: '281_board_file_name',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE board_files ADD COLUMN name TEXT');
+    },
+  },
+  {
+    // Board: lo que cada uno escribe en modo privado queda acá (fuera de la
+    // escena compartida) hasta que se revela.
+    id: '282_board_private_drafts',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS board_private_drafts (
+          board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+          author TEXT NOT NULL,
+          elements TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (board_id, author)
+        );
+      `);
+    },
+  },
+  {
+    // Board: votos de invitados del link de edición. board_votes ata el
+    // votante a users; el invitado no tiene cuenta y vota con la clave de su
+    // navegador, así que va en su tabla.
+    id: '283_board_guest_votes',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS board_guest_votes (
+          session_id TEXT NOT NULL REFERENCES board_vote_sessions(id) ON DELETE CASCADE,
+          guest_key TEXT NOT NULL,
+          element_id TEXT NOT NULL,
+          count INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (session_id, guest_key, element_id)
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

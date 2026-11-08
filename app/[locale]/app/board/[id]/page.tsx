@@ -5,6 +5,7 @@ import { requireUser } from '@/lib/session';
 import { getBoard } from '@/lib/boards';
 import { boardViewer, getBoardAccess } from '@/lib/board-access';
 import BoardEditor from '@/components/board/BoardEditor';
+import { boardBootstrap } from '@/lib/board-bootstrap';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ const loadBoard = cache(async (locale: string, id: string) => {
   const user = await requireUser(locale);
   const access = await getBoardAccess(boardViewer(user), id);
   const board = access ? await getBoard(user.id, id) : null;
-  return board && access ? { board, access } : null;
+  return board && access ? { board, access, personId: boardViewer(user).personId, workspaceId: user.id } : null;
 });
 
 export async function generateMetadata(props: Props) {
@@ -34,11 +35,15 @@ export default async function BoardPage(props: Props) {
   setRequestLocale(locale);
   const loaded = await loadBoard(locale, id);
   if (!loaded) notFound();
+  // Taller, Track y comentarios llegan con la página: el editor no los pide al abrir.
+  const initial = await boardBootstrap(loaded.workspaceId, id, loaded.personId).catch(() => null);
   return (
     <BoardEditor
       board={{ ...loaded.board, my_access: loaded.access }}
       locale={locale}
       commentId={typeof comment === 'string' ? comment : null}
+      meId={loaded.personId}
+      initial={initial}
     />
   );
 }

@@ -150,13 +150,22 @@ interface FeedState<E> {
   timer?: ReturnType<typeof setTimeout> | null;
   running?: boolean;
   again?: boolean;
+  /** Último momento con eventos (o con una suscripción nueva): define si el feed está quieto. */
+  lastActive?: number;
 }
 
 const FEEDS_KEY = Symbol.for('zerosoft.realtime.feeds');
 
 export function sharedFeed<E extends { id: number }>(
   key: string,
-  opts: { start: () => Promise<number>; fetchSince: (cursor: number) => Promise<E[]>; intervalMs?: number },
+  opts: {
+    start: () => Promise<number>;
+    fetchSince: (cursor: number) => Promise<E[]>;
+    intervalMs?: number;
+    /** Sin eventos por este tiempo, el feed lee más espaciado (idleIntervalMs). */
+    idleAfterMs?: number;
+    idleIntervalMs?: number;
+  },
 ): SharedFeed<E> {
   const g = globalThis as unknown as Record<symbol, Map<string, FeedState<E>>>;
   g[FEEDS_KEY] ??= new Map();
@@ -167,6 +176,10 @@ export function sharedFeed<E extends { id: number }>(
   }
   const s = state;
   const interval = Math.max(200, opts.intervalMs ?? 700);
+  // Quieto (nadie escribe hace un rato): se lee cada segundo en vez de cada `interval`. Una
+  // escritura en esta instancia hace poke() y se lee al instante igual.
+  const idleAfter = opts.idleAfterMs ?? 10_000;
+  const idleInterval = Math.max(interval, opts.idleIntervalMs ?? 1000);
   const loop = async () => {
     s.timer = null;
     if (!s.listeners.size) {
@@ -182,6 +195,7 @@ export function sharedFeed<E extends { id: number }>(
       }
       const events = await opts.fetchSince(s.cursor);
       if (events.length) {
+        s.lastActive = Date.now();
         s.cursor = events[events.length - 1].id;
         await Promise.all([...s.listeners].map((fn) => Promise.resolve(fn(events)).catch(() => undefined)));
       }
@@ -191,7 +205,8 @@ export function sharedFeed<E extends { id: number }>(
     s.running = false;
     const again = s.again;
     s.again = false;
-    if (s.listeners.size) s.timer = setTimeout(() => void loop(), again ? 0 : interval);
+    const quiet = Date.now() - (s.lastActive ?? 0) > idleAfter;
+    if (s.listeners.size) s.timer = setTimeout(() => void loop(), again ? 0 : quiet ? idleInterval : interval);
     else {
       // Sin nadie conectado se deja de leer; al volver se toma el cursor de nuevo.
       s.started = false;
@@ -201,6 +216,7 @@ export function sharedFeed<E extends { id: number }>(
   return {
     subscribe(fn) {
       s.listeners.add(fn);
+      s.lastActive = Date.now();
       if (!s.started) {
         s.started = true;
         // El cursor se toma ya, en el momento de la suscripción: lo que pase después

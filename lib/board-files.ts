@@ -13,10 +13,12 @@
  */
 import { readFile } from 'fs/promises';
 import { getDb, type BoardFileRow } from './db';
-import { deleteUploads, localUploadPath, saveUpload } from './uploads';
+import { deleteUploads, localUploadPath, mimeForUploadName, saveUpload } from './uploads';
 import {
   BOARD_MAX_FILE_BYTES,
+  attachmentExtension,
   boardFileHref,
+  cleanAttachmentName,
   extensionFor,
   isDataUrl,
   isBoardUploadUrl,
@@ -38,10 +40,36 @@ export async function getBoardFile(boardId: string, fileId: string): Promise<Boa
 async function insertFileRow(row: Omit<BoardFileRow, 'created_at'>): Promise<void> {
   await getDb()
     .prepare(
-      `INSERT OR IGNORE INTO board_files (board_id, file_id, workspace_id, url, mime, size, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR IGNORE INTO board_files (board_id, file_id, workspace_id, url, mime, size, name, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(row.board_id, row.file_id, row.workspace_id, row.url, row.mime, row.size, nowIso());
+    .run(row.board_id, row.file_id, row.workspace_id, row.url, row.mime, row.size, row.name ?? null, nowIso());
+}
+
+export type StoreAttachmentResult =
+  | { ok: true; fileId: string; url: string; name: string; mime: string; size: number }
+  | { ok: false; code: 'invalid_input' | 'file_type_not_allowed' | 'too_large' | 'storage_unavailable' };
+
+/**
+ * Sube un archivo adjunto (PDF, documento, planilla) para una tarjeta del
+ * lienzo. El tipo sale de la extensión permitida, no del que manda el cliente.
+ */
+export async function storeBoardAttachment(workspaceId: string, boardId: string, rawName: string, bytes: Uint8Array): Promise<StoreAttachmentResult> {
+  const name = cleanAttachmentName(rawName);
+  const ext = attachmentExtension(name);
+  if (!ext) return { ok: false, code: 'file_type_not_allowed' };
+  if (bytes.length === 0) return { ok: false, code: 'invalid_input' };
+  if (bytes.length > BOARD_MAX_FILE_BYTES) return { ok: false, code: 'too_large' };
+  const mime = mimeForUploadName(name);
+  const fileId = `att_${crypto.randomUUID().replace(/-/g, '')}`;
+  let url: string;
+  try {
+    url = await saveUpload('boards', `${fileId}.${ext}`, mime, Buffer.from(bytes));
+  } catch {
+    return { ok: false, code: 'storage_unavailable' };
+  }
+  await insertFileRow({ board_id: boardId, file_id: fileId, workspace_id: workspaceId, url, mime, size: bytes.length, name });
+  return { ok: true, fileId, url: boardFileHref(boardId, fileId), name, mime, size: bytes.length };
 }
 
 export type StoreFileResult =

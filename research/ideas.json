@@ -2611,7 +2611,9 @@
     "title": "Board: Add a table object with rows, columns and paste from a spreadsheet",
     "description": "Miro has a Table item with typed columns that can be filled by pasting from Sheets or Excel (https://help.miro.com/hc/en-us/articles/360017571174). Our canvas is Excalidraw, which has no table element, and nothing in lib/board-templates.ts or components/board creates one. Comparison matrices and prioritization grids are a common reason teams open a whiteboard. First scope: paste of tab-separated text creates a grid of bound text cells aligned on the canvas, grouped so it moves as one.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-07-board-daily-use"
   },
   {
     "title": "Board: Add estimation sessions with hidden votes and a reveal button",
