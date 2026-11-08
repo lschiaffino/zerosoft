@@ -455,11 +455,16 @@ export async function stillAllowed(actor: BoardLiveActor): Promise<boolean> {
   }
   const viewer = await freshBoardViewer(actor.workspaceId, actor.viewer.personId);
   if (!viewer) return false;
-  // Sin Board entre sus apps, solo sigue si la pizarra se le compartió a ella.
-  const access = await personAppAccess(actor.workspaceId, actor.viewer.personId);
-  if (access && access.apps !== '*' && !access.apps.includes('board')) {
-    const shared = await getDb().prepare('SELECT 1 AS x FROM board_members WHERE board_id = ? AND user_id = ?').get(actor.boardId, actor.viewer.personId);
+  // Sin Board entre sus apps (o guest), solo sigue si la pizarra se le compartió a ella, con ese rol.
+  const access = actor.viewer.personId === actor.workspaceId ? { apps: '*' as const } : await personAppAccess(actor.workspaceId, actor.viewer.personId);
+  if (!access || (access.apps !== '*' && !access.apps.includes('board'))) {
+    const shared = (await getDb().prepare('SELECT role FROM board_members WHERE board_id = ? AND user_id = ?').get(actor.boardId, actor.viewer.personId)) as
+      | { role: string }
+      | undefined;
     if (!shared) return false;
+    actor.viewer = { ...viewer, isAdmin: false };
+    actor.level = shared.role === 'view' ? 'view' : 'edit';
+    return true;
   }
   const level = await getBoardAccess(viewer, actor.boardId);
   if (!level) return false;

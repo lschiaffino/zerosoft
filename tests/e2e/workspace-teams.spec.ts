@@ -131,14 +131,22 @@ test('crear equipo, invitar a dos, aceptar con otra sesión, ver los datos en to
 
     // 5. Ana solo con Docs: el CRM muestra el aviso y su API corta.
     const anaRow = page.getByRole('row').filter({ hasText: ana });
-    await anaRow.getByRole('button', { name: 'Edit access' }).click();
+    // "Qué puede ver": cada app se prende o apaga al instante.
+    await anaRow.getByRole('button', { name: /^See what .* can see$/ }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('All apps').uncheck();
-    for (const app of ['CRM', 'Track', 'Talk', 'Link', 'Chat', 'Groups', 'Flow', 'Agents', 'Robots', 'Notes', 'Cal', 'Board', 'Voice', 'Rec']) {
-      const box = dialog.getByLabel(app, { exact: true });
-      if (await box.isChecked()) await box.uncheck();
+    await expect(dialog.getByLabel('All apps')).not.toBeChecked();
+    for (const box of await dialog.locator('.ws-access-app input[type="checkbox"]').all()) {
+      const label = (await box.locator('xpath=..').innerText()).trim();
+      if (label === 'Docs') continue;
+      await expect(box).toBeEnabled();
+      if (await box.isChecked()) {
+        await box.uncheck();
+        await expect(box).not.toBeChecked();
+      }
     }
-    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByTestId('members-toast')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Done' }).click();
     await expect(anaRow).toContainText('Docs');
     await anaPage.goto('/en/app/crm', { waitUntil: 'networkidle' });
     await expect(anaPage).toHaveURL(/\/en\/app\?blocked=crm/);

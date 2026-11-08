@@ -8723,6 +8723,40 @@ export const MIGRATIONS: Migration[] = [
         );
       `);
     },
+  },  {
+    // Ajustes › Miembros y permisos: registro de cambios (con lo de antes para
+    // deshacer), última actividad por persona y la ficha de quien se desactivó
+    // (para reactivarlo con el mismo rol, apps y equipos).
+    id: '284_workspace_permissions',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS workspace_audit (
+          id TEXT PRIMARY KEY,
+          team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+          actor_id TEXT NOT NULL,
+          target_id TEXT,
+          target_label TEXT NOT NULL DEFAULT '',
+          action TEXT NOT NULL,
+          before TEXT NOT NULL DEFAULT '{}',
+          after TEXT NOT NULL DEFAULT '{}',
+          undo_of TEXT,
+          undone_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_workspace_audit_team ON workspace_audit(team_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS workspace_removed_members (
+          team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'member',
+          apps TEXT NOT NULL DEFAULT '*',
+          group_ids TEXT NOT NULL DEFAULT '[]',
+          removed_by TEXT,
+          removed_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (team_id, user_id)
+        );
+      `);
+      await addColumn(c, 'ALTER TABLE team_members ADD COLUMN last_active_at TEXT');
+    },
   },
 ];
 

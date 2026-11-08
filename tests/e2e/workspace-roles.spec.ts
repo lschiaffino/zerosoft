@@ -126,8 +126,10 @@ test('member con CRM y Docs: app bloqueada, pide acceso y el owner lo habilita d
     expect(n!.href).toContain('&ws=');
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await dialog.getByLabel('Track').check();
-    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(dialog.getByTestId('request-line')).toContainText('Track');
+    await dialog.getByTestId('approve-request').click();
+    await expect(dialog.getByLabel('Track', { exact: true })).toBeChecked();
+    await dialog.getByRole('button', { name: 'Done' }).click();
     await expect(dialog).toHaveCount(0);
     // Se entera, el link viejo ya no muestra el bloqueo y la app abre.
     const mine = (await (await p.request.get('/api/notifications?type=workspace_access&limit=10')).json()) as { rows: Array<{ title: string }> };

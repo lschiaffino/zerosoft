@@ -289,9 +289,14 @@ export async function createInvite(
   const groups = JSON.stringify([...new Set((opts.groupIds ?? []).filter((g) => typeof g === 'string'))].slice(0, 50));
   const locale = opts.locale === 'es' || opts.locale === 'pt' ? opts.locale : 'en';
   const expires = new Date(Date.now() + INVITE_TTL_DAYS * 86_400_000).toISOString();
-  const pending = (await db
-    .prepare("SELECT * FROM team_invites WHERE team_id = ? AND email = ? AND status = 'pending' AND kind = 'invite' ORDER BY created_at DESC LIMIT 1")
-    .get(teamId, clean)) as TeamInviteRow | undefined;
+  // Sin email es un link de invitación (de un solo uso): cada uno es nuevo.
+  const pending = !clean
+    ? undefined
+    : ((await db
+        .prepare("SELECT * FROM team_invites WHERE team_id = ? AND email = ? AND status = 'pending' AND kind = 'invite' ORDER BY created_at DESC LIMIT 1")
+        .get(teamId, clean)) as TeamInviteRow | undefined);
+  // Un link sin email nunca es de admin: lo podría abrir cualquiera.
+  if (!clean && role === 'admin') throw new Error('admin_link');
   // Una invitación de admin solo se acepta con el email invitado.
   const anyEmail = opts.anyEmail && role !== 'admin' ? 1 : 0;
   if (pending && inviteUsable(pending)) {

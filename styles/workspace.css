@@ -355,3 +355,61 @@ body:has(.wl-page) .zs-support-launcher { display: none; }
 .ws-switcher-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .wl-notyou-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .wl-notyou-actions .btn { white-space: normal; height: auto; min-height: 30px; text-align: left; overflow-wrap: anywhere; }
+
+/* ---------- Miembros y permisos: filtros, lote, matriz de roles, acceso, registro ---------- */
+.ws-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.ws-toolbar .ws-search { flex: 1 1 220px; max-width: 320px; margin: 0; }
+.ws-filter { width: auto; min-width: 0; max-width: 180px; }
+.ws-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+}
+.ws-bulk-count { margin-right: 4px; font-size: 0.875rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ws-bulk-select { width: auto; min-width: 0; max-width: 170px; height: 30px; padding-top: 0; padding-bottom: 0; font-size: 0.8125rem; }
+.ws-bulk-clear { margin-left: auto; }
+.ws-select { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); cursor: pointer; }
+.ws-select:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ws-members .ws-person-name { overflow-wrap: anywhere; }
+.ws-members .ws-apps-cell { max-width: 220px; overflow-wrap: anywhere; }
+.ws-invite-foot { display: flex; flex-wrap: wrap; gap: 8px; }
+.ws-invite-link-help { margin: -6px 0 0; }
+.ws-invite-role { max-width: 260px; }
+.ws-matrix-wrap { margin: 10px 0 12px; }
+.ws-matrix th[scope='row'] { font-weight: 400; color: var(--ink); text-align: left; }
+.ws-matrix td { white-space: nowrap; font-size: 0.8125rem; }
+.ws-matrix .ws-yes { color: var(--ink); font-weight: 500; }
+.ws-matrix .ws-no { color: var(--ink-3); }
+.ws-log { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.ws-log-item { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.875rem; }
+.ws-log-line { min-width: 0; overflow-wrap: anywhere; }
+.ws-log-time { flex-shrink: 0; font-size: 12px; }
+.ws-access { display: flex; flex-direction: column; gap: 18px; }
+.ws-access-head { display: flex; align-items: center; gap: 10px; }
+.ws-access-head .ws-person-text { flex: 1; overflow-wrap: anywhere; }
+.ws-access-block { display: flex; flex-direction: column; gap: 6px; }
+.ws-access-title { margin: 0; font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }
+.ws-access-apps { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.ws-access-app { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.ws-access-app .ws-access-detail { text-align: right; overflow-wrap: anywhere; }
+.ws-access-app:not(.is-on) .ws-access-detail { color: var(--ink-3); }
+.ws-access-list { margin: 0; padding-left: 18px; font-size: 0.875rem; line-height: 1.6; }
+.ws-access .ws-request-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0; padding: 10px 12px; border: 1px solid var(--line); }
+.ws-access .ws-request-line p { margin: 0; flex: 1 1 200px; }
+.ws-remove-body { display: flex; flex-direction: column; gap: 12px; }
+.ws-remove-body p { margin: 0; }
+.ws-removed .ws-person { min-width: 150px; }
+@media (max-width: 640px) {
+  .ws-filter { flex: 1 1 140px; max-width: none; }
+  .ws-bulk-select { flex: 1 1 140px; max-width: none; }
+  .ws-bulk-clear { margin-left: 0; }
+  .ws-access-app { align-items: flex-start; flex-direction: column; gap: 0; }
+  .ws-access-app .ws-access-detail { text-align: left; padding-left: 26px; }
+  .ws-matrix td { white-space: normal; }
+}
