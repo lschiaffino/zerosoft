@@ -11,6 +11,7 @@ import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
 import { sendUp } from './send-migration';
+import { inboxUp } from './inbox-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -8797,12 +8798,17 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Inbox (personal): WhatsApp y Gmail de una persona. Ver lib/schema/inbox-migration.ts.
+    id: '289_inbox',
+    up: inboxUp,
+  },
+  {
     // Rec, compartir como Drive: rol por persona invitada, links mágicos para
     // quien no tiene cuenta y lo nuevo nace restringido. Los videos que ya
     // estaban abiertos por link siguen igual (el modal los muestra como
     // "Cualquiera con el link"); el default de los workspaces pasa a
     // restringido.
-    id: '285_rec_sharing_people',
+    id: '290_rec_sharing_people',
     up: async (c) => {
       await addColumn(c, "ALTER TABLE rec_videos ADD COLUMN people_roles TEXT NOT NULL DEFAULT '{}'");
       await c.executeMultiple(`
@@ -8821,7 +8827,7 @@ export const MIGRATIONS: Migration[] = [
   },
   {
     // Rec: MP4 (H.264/AAC) para descargar, armado una vez por versión del video.
-    id: '286_rec_mp4',
+    id: '291_rec_mp4',
     up: async (c) => {
       await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_url TEXT');
       await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_size INTEGER NOT NULL DEFAULT 0');
