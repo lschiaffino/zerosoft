@@ -64,7 +64,7 @@ export interface OnboardingState {
   showChecklist: boolean;
 }
 
-async function exists(sql: string, args: unknown[]): Promise<boolean> {
+async function exists(sql: string, args: Array<string | number | null>): Promise<boolean> {
   try {
     return Boolean(await getDb().prepare(sql).get(...args));
   } catch {
