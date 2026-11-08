@@ -2201,6 +2201,92 @@
         "sub": "Abrí Send, subí un documento y armá tu primer link.",
         "button": "Abrir Send"
       }
+    },
+    "inbox": {
+      "meta": {
+        "title": "Inbox: tu WhatsApp y tu Gmail con los atajos de Superhuman",
+        "description": "Una bandeja personal para WhatsApp, vinculado por QR, y Gmail: carpetas, posponer, enviar más tarde, recordatorios si no contestan, borradores con IA, dictado y atajos de teclado. Open source."
+      },
+      "hero": {
+        "sub": "Vinculá tu WhatsApp con un QR y conectá Gmail. Los chats se ven como en WhatsApp Web y se ordenan como en Superhuman: J y K para moverte, E para hecho, H para posponer, y todo lo demás con el teclado."
+      },
+      "featuresTitle": "Cada chat resuelto.",
+      "featuresTitleDim": "Con el teclado.",
+      "f1": {
+        "t": "WhatsApp y Gmail en una lista",
+        "d": "Tu WhatsApp personal vinculado por QR, como WhatsApp Web, y Gmail con tu cuenta de Google. Hecho también archiva en Gmail."
+      },
+      "f2": {
+        "t": "Carpetas que se llenan solas",
+        "d": "Juntá chats de los dos canales en tus carpetas, con reglas opcionales por canal, tipo o nombre. Aparecen en la barra con sus no leídos."
+      },
+      "f3": {
+        "t": "Posponer, enviar después, recordame",
+        "d": "Posponé un chat hasta mañana, programá un mensaje para el lunes a las 9 o hacé que vuelva si para el viernes no te contestaron."
+      },
+      "f4": {
+        "t": "Escribí con IA o dictá",
+        "d": "Un borrador con la conversación y tus notas como contexto, reescribir lo que pusiste o dictar con Voice. No sale nada sin vos."
+      },
+      "f5": {
+        "t": "Primero el teclado",
+        "d": "Atajos de Superhuman, snippets con ;, Cmd+K en toda la suite, búsqueda en todos los mensajes y deshacer con Z."
+      },
+      "f6": {
+        "t": "Solo tuyo",
+        "d": "Tu bandeja es de tu persona, no del workspace: los admins no la ven. Los tokens van cifrados y lo que te borran para todos lo seguís viendo vos."
+      },
+      "steps": {
+        "s1": {
+          "t": "Vinculá WhatsApp",
+          "d": "Escaneá un QR desde Dispositivos vinculados."
+        },
+        "s2": {
+          "t": "Conectá Gmail",
+          "d": "Entrá con Google, o importá desde inbox-zero."
+        },
+        "s3": {
+          "t": "Llegá a cero",
+          "d": "J, K, E y H hasta vaciar la lista."
+        }
+      },
+      "compare": {
+        "rival": "Superhuman",
+        "price": "Planes pagos por persona",
+        "per": "por persona, solo correo",
+        "teamLabel": "Una persona, WhatsApp y Gmail",
+        "team": "mirá los precios de Superhuman",
+        "zero": "$0",
+        "note": "Superhuman es solo correo y no verificamos su precio actual, así que no lo citamos: mirá superhuman.com. Inbox en tu servidor cuesta $0 más tu base de datos y tu servidor de WhatsApp."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Vincular WhatsApp por QR es seguro para mi número?",
+          "a": "Funciona como WhatsApp Web, con una sesión no oficial en un servidor propio. WhatsApp puede restringir números que mandan en masa o reciben denuncias, así que Inbox es para tus conversaciones, no para campañas."
+        },
+        "f2": {
+          "q": "¿El admin de mi workspace puede leer mis mensajes?",
+          "a": "Los datos de Inbox son de tu usuario y no del workspace: no hay vista de admin y no se llega a ellos con las API keys del workspace ni con el servidor MCP. Al quitar una cuenta, se borra lo que Inbox guardó."
+        },
+        "f3": {
+          "q": "¿Qué pasa con los chats en mi teléfono?",
+          "a": "En el teléfono no cambia nada. Hecho, posponer y carpetas viven en Inbox. En Gmail el archivado se refleja: Hecho saca el hilo de tu bandeja de Gmail."
+        },
+        "f4": {
+          "q": "¿Puedo traer lo que tengo en inbox-zero?",
+          "a": "Sí. Un script lee tu inbox.db local y arma un archivo con carpetas, programados, borradores, pospuestos, notas e historial guardado. Lo subís en Ajustes de Inbox, e importar dos veces no duplica nada."
+        },
+        "f5": {
+          "q": "¿Qué le falta frente a Superhuman?",
+          "a": "Confirmación de lectura en correos, splits ordenados por IA, calendario dentro de la bandeja, compartir con el equipo y apps móviles, entre otras. La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Bandeja en cero.",
+        "title2": "También en WhatsApp.",
+        "sub": "Abrí Inbox, vinculá WhatsApp y empezá a ordenar.",
+        "button": "Abrir Inbox"
+      }
     }
   },
   "product": {
@@ -2305,7 +2391,8 @@
       "books": "fig. 0 · movimientos que se concilian",
       "sign": "fig. 0 · una firma al pie de un contrato",
       "forms": "fig. 0 · un formulario que se completa",
-      "send": "fig. 0 · páginas que se leen, con el tiempo de cada una"
+      "send": "fig. 0 · páginas que se leen, con el tiempo de cada una",
+      "inbox": "fig. 0 · un chat y un correo en la misma lista"
     },
     "heroFigHint": "arrastrá para girar"
   },
@@ -2776,6 +2863,27 @@
       "p3time": "0:25",
       "p4label": "Página 4",
       "p4time": "0:08"
+    },
+    "inbox": {
+      "listTitle": "Bandeja",
+      "r1name": "Ana Pérez",
+      "r1time": "14:05",
+      "r1meta": "¿Me mandás el contrato hoy?",
+      "r2name": "Familia",
+      "r2time": "13:40",
+      "r2meta": "Mamá: almuerzo el domingo a la 1",
+      "r3name": "Martín",
+      "r3time": "lun",
+      "r3meta": "Sin respuesta · Volvió",
+      "r4name": "Banco",
+      "r4time": "lun",
+      "r4meta": "Tu resumen está disponible",
+      "status": "WhatsApp",
+      "m1": "Hola! ¿Me mandás el contrato hoy?",
+      "m2": "Sí, estoy terminando la última página.",
+      "m3": "Genial, gracias",
+      "draft": "Acá está. Avisame si hay que cambiar algo.",
+      "draftTag": "Borrador con IA"
     }
   },
   "status": {

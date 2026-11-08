@@ -46,7 +46,8 @@
       "sign": "Assinatura eletrônica com trilha de auditoria",
       "books": "Faturas, despesas, bancos e contabilidade",
       "forms": "Formulários e pesquisas, uma pergunta por vez",
-      "send": "Compartilhe documentos por link e veja quem leu o quê"
+      "send": "Compartilhe documentos por link e veja quem leu o quê",
+      "inbox": "Seu WhatsApp e seu Gmail em uma caixa guiada pelo teclado"
     },
     "building": "Em construção"
   },
@@ -213,7 +214,8 @@
     "groupBooksBankAccounts": "Contas bancárias",
     "groupBooksRecurring": "Faturas recorrentes",
     "groupForms": "Formulários",
-    "groupSend": "Documentos para enviar"
+    "groupSend": "Documentos para enviar",
+    "groupInbox": "Inbox"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
@@ -298,6 +300,9 @@
     },
     "send": {
       "desc": "Compartilhe documentos por link e veja quem leu cada página."
+    },
+    "inbox": {
+      "desc": "Seu WhatsApp e seu Gmail, organizados em uma lista só pelo teclado."
     }
   },
   "model": {
@@ -535,6 +540,9 @@
       },
       "send": {
         "line": "Compartilhe documentos por link e veja quem leu o quê."
+      },
+      "inbox": {
+        "line": "Seu WhatsApp e seu Gmail em uma caixa guiada pelo teclado."
       }
     },
     "stack": {

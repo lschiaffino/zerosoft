@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import { appFromPath, userCanUseApp } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import { searchAll, searchTasks } from '@/lib/crm';
@@ -37,6 +37,7 @@ import { signActorOf } from '@/lib/sign/http';
 import { searchForms } from '@/lib/forms/search';
 import { searchSend } from '@/lib/send/search';
 import { sendActorOf } from '@/lib/send/actor';
+import { searchInbox } from '@/lib/inbox/search';
 import { actorOf as formsActorOf } from '@/lib/forms/http';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
@@ -67,7 +68,7 @@ async function getPrivate(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people, books, sign, forms, send] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people, books, sign, forms, send, inbox] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -111,6 +112,8 @@ async function getPrivate(req: NextRequest) {
     userCanUseApp(user, 'forms') && user.role !== 'guest' ? searchForms(formsActorOf(user), q).catch(() => []) : Promise.resolve([]),
     // Send: documentos y espacios por título, solo los que la persona ve.
     userCanUseApp(user, 'send') && user.role !== 'guest' ? searchSend(sendActorOf(user), q).catch(() => []) : Promise.resolve([]),
+    // Inbox: chats y correos de la persona (los suyos, nunca de otra persona del workspace).
+    searchInbox(realUserId(user), q).catch(() => []),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -213,6 +216,7 @@ async function getPrivate(req: NextRequest) {
   for (const b of books) items.push({ id: b.id, group: b.group, label: b.label, meta: b.meta, href: b.href });
   for (const f of forms) items.push({ id: `forms:${f.id}`, group: 'forms', label: f.label, meta: f.meta, href: f.href });
   for (const f of send) items.push({ id: `send:${f.id}`, group: 'send', label: f.label, meta: f.meta, href: f.href });
+  for (const f of inbox) items.push({ id: `inbox:${f.id}`, group: 'inbox', label: f.label, meta: f.meta, href: f.href });
 
   const PEOPLE_GROUP = { person: 'people', template: 'peopleTemplates', cycle: 'peopleCycles', survey: 'peopleSurveys', report: 'peopleReports' } as const;
   const PEOPLE_HREF = { person: (id: string) => `/app/people/${id}`, template: (id: string) => `/app/people/onboarding/templates/${id}`, cycle: (id: string) => `/app/people/reviews/${id}`, survey: () => '/app/people/reviews#surveys', report: (id: string) => `/app/people/reports?report=${id}` } as const;

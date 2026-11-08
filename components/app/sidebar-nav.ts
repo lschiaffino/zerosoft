@@ -253,6 +253,8 @@ export interface SidebarLabels {
   };
   /** Send (DocSend): documentos con links y espacios. */
   send: { documents: string; spaces: string; newDocument: string };
+  /** Inbox (personal): WhatsApp y Gmail. */
+  inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string };
   /** Sign (DocuSign): sobres, plantillas. */
   sign: {
     home: string;
@@ -322,7 +324,8 @@ export type AppProduct =
   | 'books'
   | 'sign'
   | 'forms'
-  | 'send';
+  | 'send'
+  | 'inbox';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -349,6 +352,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/sign', 'sign'],
   ['/app/forms', 'forms'],
   ['/app/send', 'send'],
+  ['/app/inbox', 'inbox'],
 ];
 
 /** La app del shell para una clave de producto (Cal vive en /app/calendar). */
@@ -397,6 +401,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   sign: 'sign',
   forms: 'forms',
   send: 'send',
+  inbox: 'inbox',
 };
 
 /** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
@@ -425,6 +430,8 @@ export function settingsNavItem(pathname: string, labels: SidebarLabels): NavIte
 export function importNavItem(product: AppProduct, labels: SidebarLabels): NavItem | null {
   // En el inicio y en Ajustes (shell neutro) no va: la lista de apps necesita el alto y el inicio ya tiene su tarjeta de importar.
   if (!labels.importData || product === 'home') return null;
+  // Inbox importa desde su propia pantalla (la exportación de la app local inbox-zero).
+  if (product === 'inbox') return { href: '/app/inbox/settings#import', label: labels.importData, active: false, icon: 'bulk' };
   const app = product === 'calendar' ? 'cal' : product;
   return {
     href: importHubHref({ app }),
@@ -928,6 +935,25 @@ export function buildNav(
         appSettingsGroup('/app/send/settings'),
       ];
 
+    case 'inbox': {
+      const l = labels.inbox;
+      const view = (v: string) => pathname === `/app/inbox/v/${v}`;
+      return [
+        {
+          items: [
+            // Carpetas propias debajo (InboxBranch en el hueco #side-branch).
+            { href: '/app/inbox', label: l.inbox, active: pathname === '/app/inbox' || ['whatsapp', 'email', 'groups', 'unread', 'pinned'].some(view), icon: 'inbox', branch: true },
+            { href: '/app/inbox/v/reply', label: l.reply, active: view('reply'), icon: 'chat' },
+            { href: '/app/inbox/v/waiting', label: l.waiting, active: view('waiting'), icon: 'timeoff' },
+            { href: '/app/inbox/v/snoozed', label: l.snoozed, active: view('snoozed'), icon: 'clock' },
+            { href: '/app/inbox/v/scheduled', label: l.scheduled, active: view('scheduled'), icon: 'send' },
+            { href: '/app/inbox/v/done', label: l.done, active: view('done'), icon: 'check' },
+          ],
+        },
+        appSettingsGroup('/app/inbox/settings'),
+      ];
+    }
+
     case 'sign': {
       const s = labels.sign;
       return [
@@ -1120,6 +1146,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/hiring/jobs/new', labels.hiring.newJob, 'hiring')];
     case 'send':
       return [item('/app/send/new', labels.send.newDocument, 'send')];
+    case 'inbox':
+      return [item('/app/inbox?new=1', labels.inbox.compose, 'inbox')];
     case 'sign':
       return [item('/app/sign/new', labels.sign.newEnvelope, 'sign')];
     case 'analytics':

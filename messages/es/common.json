@@ -46,7 +46,8 @@
       "sign": "Firma electrónica con registro de auditoría",
       "books": "Facturas, gastos, bancos y contabilidad",
       "forms": "Formularios y encuestas, una pregunta a la vez",
-      "send": "Compartí documentos por link y mirá quién leyó qué"
+      "send": "Compartí documentos por link y mirá quién leyó qué",
+      "inbox": "Tu WhatsApp y tu Gmail en una bandeja manejada con el teclado"
     },
     "building": "En construcción"
   },
@@ -213,7 +214,8 @@
     "groupBooksBankAccounts": "Cuentas bancarias",
     "groupBooksRecurring": "Facturas recurrentes",
     "groupForms": "Formularios",
-    "groupSend": "Documentos para enviar"
+    "groupSend": "Documentos para enviar",
+    "groupInbox": "Inbox"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",
@@ -298,6 +300,9 @@
     },
     "send": {
       "desc": "Compartí documentos por link y mirá quién leyó cada página."
+    },
+    "inbox": {
+      "desc": "Tu WhatsApp y tu Gmail, ordenados desde una sola lista con el teclado."
     }
   },
   "model": {
@@ -535,6 +540,9 @@
       },
       "send": {
         "line": "Compartí documentos por link y mirá quién leyó qué."
+      },
+      "inbox": {
+        "line": "Tu WhatsApp y tu Gmail en una bandeja manejada con el teclado."
       }
     },
     "stack": {

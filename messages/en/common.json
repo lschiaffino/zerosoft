@@ -46,7 +46,8 @@
       "sign": "Electronic signatures with an audit trail",
       "books": "Invoices, expenses, banking and accounting",
       "forms": "Forms and surveys, one question at a time",
-      "send": "Share documents by link and see who read what"
+      "send": "Share documents by link and see who read what",
+      "inbox": "Your WhatsApp and Gmail in one keyboard-first inbox"
     },
     "building": "In the works"
   },
@@ -213,7 +214,8 @@
     "groupBooksBankAccounts": "Bank accounts",
     "groupBooksRecurring": "Recurring invoices",
     "groupForms": "Forms",
-    "groupSend": "Documents to send"
+    "groupSend": "Documents to send",
+    "groupInbox": "Inbox"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
@@ -298,6 +300,9 @@
     },
     "send": {
       "desc": "Share documents by link and see who read each page."
+    },
+    "inbox": {
+      "desc": "Your WhatsApp and Gmail, triaged from one list with the keyboard."
     }
   },
   "model": {
@@ -535,6 +540,9 @@
       },
       "send": {
         "line": "Share documents by link and see who read what."
+      },
+      "inbox": {
+        "line": "Your WhatsApp and Gmail in one keyboard-first inbox."
       }
     },
     "stack": {

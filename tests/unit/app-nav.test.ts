@@ -14,8 +14,8 @@ import {
 } from '@/components/app/sidebar-nav';
 import { pageExists } from './page-exists';
 
-const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'rec', 'hiring', 'sign', 'agents', 'robots', 'analytics'];
-const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send'];
+const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'inbox', 'rec', 'hiring', 'sign', 'agents', 'robots', 'analytics'];
+const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
 
 
 /**
@@ -32,7 +32,7 @@ const appDir = join(root, 'app', '[locale]');
 function fakeLabels(): SidebarLabels {
   const proxy = (prefix: string): unknown =>
     new Proxy({}, { get: (_t, key) => (typeof key === 'string' ? `${prefix}${key}` : undefined) });
-  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'notifications'];
+  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox', 'notifications'];
   return new Proxy({} as SidebarLabels, {
     get: (_t, key) => (typeof key === 'string' && nested.includes(key) ? proxy(`${key}.`) : String(key)),
   });
@@ -115,7 +115,7 @@ describe('sidebar de la app', () => {
     expect(readFileSync(join(appDir, 'app', 'docs', '(home)', 'page.tsx'), 'utf8')).toMatch(/sp\.new === '1'/);
   });
 
-  it('el switcher sale de PRODUCT_CONFIG: las 25 apps, en el orden de siempre', () => {
+  it('el switcher sale de PRODUCT_CONFIG: las apps, en el orden de siempre', () => {
     expect(SWITCHER_PRODUCTS.map((p) => p.key)).toEqual(PRODUCTS.filter((p) => p !== 'home').sort((a, b) => SWITCHER_ORDER.indexOf(a) - SWITCHER_ORDER.indexOf(b)));
     expect(SWITCHER_PRODUCTS.find((p) => p.key === 'calendar')).toMatchObject({ line: 'cal', name: 'Cal', href: '/app/calendar' });
     expect(SWITCHER_PRODUCTS[0]).toMatchObject({ key: 'track', href: '/app/track' });
