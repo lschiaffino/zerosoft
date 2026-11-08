@@ -323,7 +323,43 @@
     "colVotes": "Votes",
     "colVisibility": "Visibility",
     "colCreated": "Created",
-    "kanbanMore": "{count, plural, one {Show # more column} other {Show # more columns}}"
+    "kanbanMore": "{count, plural, one {Show # more column} other {Show # more columns}}",
+    "lifecycle": {
+      "emails": "Emails",
+      "emailsDesc": "Lifecycle emails: a preview of every template with sample data, and the latest sends.",
+      "mode": {
+        "resend": "Sent with Resend.",
+        "console": "Console mode: emails go to the server log, not to people.",
+        "off": "Off: no email provider is configured (RESEND_API_KEY). The cron sends nothing."
+      },
+      "template": "Template",
+      "language": "Language",
+      "theme": "Theme",
+      "width": "Width",
+      "light": "Light",
+      "dark": "Dark",
+      "subject": "Subject",
+      "preheader": "Preheader",
+      "textVersion": "Plain text version",
+      "previewTitle": "Email preview",
+      "sendTest": "Send it to me",
+      "sendTestHelp": "Sends this template to {email} with sample data.",
+      "testSent": "Sent to {email}.",
+      "testFailed": "Couldn't send: {error}",
+      "log": "Latest sends",
+      "logEmpty": "No lifecycle email has gone out yet.",
+      "colWhen": "When",
+      "colTo": "To",
+      "colTemplate": "Template",
+      "colLocale": "Language",
+      "colStatus": "Status",
+      "status": {
+        "sending": "Sending",
+        "sent": "Sent",
+        "failed": "Failed",
+        "skipped": "Skipped"
+      }
+    }
   },
   "groups": {
     "account": "Account and workspace",
@@ -332,7 +368,7 @@
   "sections": {
     "profile": "Profile",
     "workspace": "Workspace",
-    "members": "Members",
+    "members": "Members and permissions",
     "teams": "Teams",
     "billing": "Plan and usage",
     "api": "API and webhooks",
@@ -544,7 +580,11 @@
       "cant_change_own_role": "You can't change your own role.",
       "not_found": "That person or invitation no longer exists. Reload the page.",
       "wrong_workspace": "You switched workspace in another tab. Reload and try again.",
-      "apps_not_yours": "You can only give access to apps you have yourself."
+      "apps_not_yours": "You can only give access to apps you have yourself.",
+      "invalid_transfer": "Pick someone who is still in the workspace to pass their work to.",
+      "already_member": "That person is already in the workspace.",
+      "admin_link": "Admins are invited by email, not with a link.",
+      "link_invite": "An invite link has no email to resend to. Copy the link instead."
     },
     "approve": "Approve",
     "allowAnyEmail": "Allow another email",
@@ -591,7 +631,118 @@
     "requestLine": "{name} asked for {apps}.",
     "rolesLegendAppsAdmin": "Inside each app some actions are for admins only, like deleting pipelines or changing the app's settings.",
     "appsLimitAllHelp": "This person has every app. You can narrow it to the apps you have.",
-    "requestedMarker": "Requested {apps}"
+    "requestedMarker": "Requested {apps}",
+    "perm": {
+      "inviteLink": "Create invite link",
+      "inviteLinkHelp": "Or make a link that works once for whoever opens it, with the role and apps above. Not for admins.",
+      "inviteLinkReady": "Invite link ready. It works once and expires in 14 days.",
+      "linkInvite": "Invite link",
+      "filterRole": "Filter by role",
+      "filterTeam": "Filter by team",
+      "allRoles": "All roles",
+      "allTeams": "All teams",
+      "colLastActive": "Last active",
+      "colStatus": "Status",
+      "never": "Not yet",
+      "statusActive": "Active",
+      "statusAsked": "Asked for access",
+      "selectAll": "Select everyone shown",
+      "selectPerson": "Select {name}",
+      "selected": "{count} selected",
+      "bulkRole": "Change role",
+      "bulkGive": "Give app",
+      "bulkTake": "Take away app",
+      "bulkTeam": "Add to team",
+      "bulkRemove": "Remove",
+      "clear": "Clear selection",
+      "access": "Access",
+      "accessOf": "See what {name} can see",
+      "accessTitle": "What {name} can see",
+      "done": "Done",
+      "appsHelp": "Changes apply right away. You can only give apps you have.",
+      "allowed": "Can use",
+      "notAllowed": "No access",
+      "ownerAll": "The owner uses every app and can change anything.",
+      "guestApps": "Guests don’t use the apps. They see only what people share with them.",
+      "sharedTitle": "Shared with them",
+      "sharedNone": "Nothing shared with them person to person.",
+      "shared": {
+        "docs": "{count, plural, one {# Docs page} other {# Docs pages}}",
+        "boards": "{count, plural, one {# board} other {# boards}}",
+        "notes": "{count, plural, one {# note} other {# notes}}",
+        "links": "{count, plural, one {# link folder} other {# link folders}}",
+        "track": "{count, plural, one {# private Track project} other {# private Track projects}}",
+        "docsTeamspaces": "{count, plural, one {# Docs teamspace} other {# Docs teamspaces}}"
+      },
+      "workTitle": "Their work",
+      "workNone": "Nothing assigned to them.",
+      "work": {
+        "trackIssues": "{count, plural, one {# open Track issue} other {# open Track issues}}",
+        "crmRecords": "{count, plural, one {# CRM record they own} other {# CRM records they own}}"
+      },
+      "historyTitle": "Recent changes",
+      "historyNone": "No changes yet.",
+      "loading": "Loading…",
+      "loadError": "Couldn’t load their access.",
+      "retry": "Try again",
+      "removeManyTitle": "Remove {count, plural, one {# person} other {# people}} from {workspace}?",
+      "removeBody": "They lose access to every app right away. You can add them back later, with the same role, apps and teams, from Removed.",
+      "transfer": "Pass their work to",
+      "transferNone": "Nobody, leave it unassigned",
+      "transferHelp": "Their open Track issues and the CRM records they own.",
+      "transferCount": "{issues, plural, one {# open Track issue} other {# open Track issues}} and {records, plural, one {# CRM record} other {# CRM records}}.",
+      "removedTitle": "Removed ({count})",
+      "removedDesc": "People you removed. Adding them back restores their role, apps and teams.",
+      "removedOn": "Removed {date}",
+      "addBack": "Add back",
+      "addBackOf": "Add {name} back",
+      "forget": "Forget",
+      "forgetOf": "Forget {name}",
+      "logTitle": "Change log",
+      "logDesc": "Who changed what among this workspace’s people and invitations.",
+      "logEmpty": "No changes yet.",
+      "log": {
+        "role": "{actor} changed {target} from {from} to {to}",
+        "apps": "{actor} changed the apps of {target} to {to}",
+        "teams": "{actor} changed the teams of {target}",
+        "remove": "{actor} removed {target}",
+        "left": "{target} left the workspace",
+        "reactivate": "{actor} added {target} back",
+        "transfer": "{actor} passed the work of {target} to {to}",
+        "invite": "{actor} invited {target}",
+        "link": "{actor} created an invite link",
+        "revoke": "{actor} revoked the invitation for {target}"
+      },
+      "someone": "someone",
+      "undo": "Undo",
+      "dismiss": "Dismiss",
+      "toast": {
+        "role": "{name} is now {role}",
+        "appOn": "{name} can use {app}",
+        "appOff": "{name} no longer sees {app}",
+        "apps": "Updated the apps of {name}",
+        "teams": "Updated the teams of {name}",
+        "removed": "{count, plural, one {Removed {name}} other {Removed # people}}",
+        "addedBack": "{name} is back",
+        "bulk": "{count, plural, one {Updated # person} other {Updated # people}}",
+        "skipped": "{count, plural, one {# skipped: you can’t change them} other {# skipped: you can’t change them}}",
+        "undone": "Change undone"
+      },
+      "rolesTitle": "What each role can do",
+      "rolesDesc": "On top of the role, each person has the apps you turn on for them.",
+      "matrix": {
+        "useApps": "Use the apps turned on for them",
+        "invite": "Invite people",
+        "manage": "Change roles, apps and teams; remove people",
+        "workspace": "Edit workspace settings and teams",
+        "own": "Name and remove admins; ask to close the workspace"
+      },
+      "matrixGuest": "Only what’s shared",
+      "yes": "Yes",
+      "no": "No",
+      "approveRequest": "Give {apps}",
+      "noTeams": "Not in any team"
+    }
   },
   "teamsForm": {
     "createTitle": "Create a team",
@@ -1182,5 +1333,57 @@
     "originLocal": "App on a computer",
     "originDevice": "Signed in with a device code",
     "emptyAction": "How to connect"
+  },
+  "emailPrefs": {
+    "title": "Emails from zerosoft",
+    "desc": "What we send to help you get the most out of zerosoft. Account emails (sign-in codes, invites, bookings and app notifications) still arrive.",
+    "categories": {
+      "onboarding": {
+        "label": "Getting started",
+        "help": "What's left to set up in your first days."
+      },
+      "tips": {
+        "label": "Features and tips",
+        "help": "Features you haven't used yet that fit your apps."
+      },
+      "team": {
+        "label": "Your team",
+        "help": "If you manage a workspace: reminders to invite people."
+      },
+      "reengagement": {
+        "label": "Reminders",
+        "help": "A note if two weeks go by without you signing in."
+      },
+      "digest": {
+        "label": "Weekly summary",
+        "help": "Monday mornings, what happened in your workspace. If nothing happened, it doesn't arrive."
+      }
+    },
+    "all": "Stop all of these emails",
+    "allHelp": "Turns off everything above. Account emails still arrive.",
+    "saveError": "Couldn't save your preferences. Try again.",
+    "appsTitle": "App notifications",
+    "appsDesc": "Track has its own email notifications.",
+    "track": "Track notifications",
+    "unsub": {
+      "metaTitle": "Unsubscribe",
+      "title": "Unsubscribe",
+      "body": "You'll stop getting {category}. Account emails still arrive.",
+      "bodyAll": "You'll stop getting every zerosoft email that isn't about your account.",
+      "confirm": "Unsubscribe",
+      "working": "Saving…",
+      "done": "Done. You won't get {category} anymore.",
+      "doneAll": "Done. You won't get these emails anymore.",
+      "invalid": "This link is invalid or incomplete. You can choose which emails you get in Settings.",
+      "error": "Couldn't finish. Try again.",
+      "manage": "Choose which emails you get",
+      "categories": {
+        "onboarding": "getting started emails",
+        "tips": "feature tips",
+        "team": "team reminders",
+        "reengagement": "reminders",
+        "digest": "the weekly summary"
+      }
+    }
   }
 }

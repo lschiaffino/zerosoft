@@ -206,9 +206,12 @@ export interface ListSessionsOptions {
   folderId?: string | null;
   limit?: number;
   offset?: number;
+  /** Empezadas desde (ISO, incluido) y hasta (ISO, excluido). */
+  from?: string | null;
+  to?: string | null;
 }
 
-/** Lista propia, más nueva primero. Con `q`, busca en título, texto, notas y transcripción. */
+/** Lista propia, más nueva primero. Con `q`, busca en título, texto, asistentes, notas y transcripción. */
 export async function listSessions(owner: VoiceOwner, opts: ListSessionsOptions = {}): Promise<VoiceSessionSummary[]> {
   const where = ['s.workspace_id = ?', 's.person_id = ?', `NOT (${UNTOUCHED_SQL})`];
   const args: Array<string | number> = [owner.workspaceId, owner.personId];
@@ -228,12 +231,20 @@ export async function listSessions(owner: VoiceOwner, opts: ListSessionsOptions 
   const matchArgs: string[] = [];
   if (q) {
     const like = likeContains(q.slice(0, 200));
-    where.push(`(s.title LIKE ? ESCAPE '\\' OR s.text LIKE ? ESCAPE '\\'
+    where.push(`(s.title LIKE ? ESCAPE '\\' OR s.text LIKE ? ESCAPE '\\' OR s.attendees LIKE ? ESCAPE '\\'
       OR EXISTS (SELECT 1 FROM voice_notes n WHERE n.session_id = s.id AND n.my_notes LIKE ? ESCAPE '\\')
       OR EXISTS (SELECT 1 FROM voice_segments g WHERE g.session_id = s.id AND g.text LIKE ? ESCAPE '\\'))`);
-    args.push(like, like, like, like);
+    args.push(like, like, like, like, like);
     matchSql = `(SELECT g.text FROM voice_segments g WHERE g.session_id = s.id AND g.text LIKE ? ESCAPE '\\' ORDER BY g.start_ms LIMIT 1)`;
     matchArgs.push(like);
+  }
+  if (opts.from) {
+    where.push('s.started_at >= ?');
+    args.push(opts.from);
+  }
+  if (opts.to) {
+    where.push('s.started_at < ?');
+    args.push(opts.to);
   }
   const limit = Math.min(Math.max(opts.limit ?? 200, 1), 500);
   const offset = Math.max(opts.offset ?? 0, 0);

@@ -29,6 +29,7 @@ const KNOWN_ERRORS = new Set([
   'chunks_failed',
   'recording_elsewhere',
   'not_recorder',
+  'ai_failed',
 ]);
 
 /** Código de error de la API o del navegador → clave en voice.errors. */

@@ -2,11 +2,16 @@
 
 Qué puede hacer cada rol del workspace (owner, admin, member, guest) en la
 plataforma y en cada app. Sale del código (rutas y helpers citados); si cambiás
-una regla, actualizá esta tabla. Revisado: 2026-10-31.
+una regla, actualizá esta tabla. Revisado: 2026-11-08.
 
 ## Cómo funciona
 
-- **Roles:** guest < member < admin < owner (`roleAtLeast`, `lib/teams.ts`).
+- **Una sola regla:** `can(actor, acción, contexto)` en `lib/roles.ts` (sin
+  dependencias, la usa también la pantalla) y `lib/permissions.ts` para el
+  servidor (suma `canUse` y `canGiveApps`). Las rutas de `/api/teams/*`,
+  `isWorkspaceAdmin` y la matriz de Ajustes › Miembros y permisos salen de ahí;
+  `tests/unit/permissions.test.ts` prueba cada rol contra las rutas.
+- **Roles:** guest < member < admin < owner (`roleAtLeast`).
   `isWorkspaceAdmin` es admin u owner (`lib/session.ts`).
 - **Apps por persona:** `team_members.apps` ('*' o una lista). `canUseApp`
   (`lib/workspace.ts`): el owner entra a todas, admin y member a las de su
@@ -35,7 +40,10 @@ una regla, actualizá esta tabla. Revisado: 2026-10-31.
 | Invitar admins / nombrar admins | Sí | No | No | No |
 | Revocar o reenviar invitaciones | Sí | Sí | No | No |
 | Cambiar rol, apps y subequipos de alguien | Sí (a cualquiera menos a sí) | Solo a members y guests | No | No |
-| Sacar a alguien | Sí | Solo members y guests | No | No |
+| Sacar a alguien (con traspaso de sus issues de Track y registros del CRM) | Sí | Solo members y guests | No | No |
+| Sumar de nuevo a alguien que se sacó (mismo rol, apps y equipos) | Sí | Solo members y guests, con apps que tiene | No | No |
+| Ver "qué puede ver" una persona y el registro de cambios | Sí | Sí | No | No |
+| Crear un link de invitación (sin email, un solo uso) | Sí (nunca de admin) | Sí (members y guests) | No | No |
 | Salir del workspace | No (el owner no sale) | Sí, en Miembros | Sí, en Miembros | Sí, en Ajustes › Miembros de su cuenta (`/api/teams/guest-of`) |
 | Subequipos (crear, editar, borrar) | Sí | Sí | Solo ver | No |
 | Aprobar pedidos de ingreso por dominio | Sí | Sí | No | No |
@@ -47,7 +55,7 @@ una regla, actualizá esta tabla. Revisado: 2026-10-31.
 | API keys | Ve y revoca todas | Ve y revoca todas | Crea las suyas (scopes de sus apps), ve y revoca solo las suyas | No |
 | Webhooks | Sí | Si tiene todas las apps | No | No |
 | Importar | Sí | Sí | Solo archivos de Docs | No |
-| Transferir la propiedad | Todavía no existe (Ajustes › Workspace lo dice) | No | No | No |
+| Transferir la propiedad del workspace | Todavía no existe (Ajustes › Workspace lo dice) | No | No | No |
 | Cerrar el workspace | Todavía no está en el producto: se pide por email y se responde a mano (Ajustes › Workspace) | No | No | No |
 
 Rutas: `app/api/teams/*`, `lib/routes/teams/*`, `canManage` en

@@ -29,6 +29,81 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-members-permissions',
+    date: '2026-11-08',
+    title: {
+      en: 'Members and permissions in one place',
+      es: 'Miembros y permisos en un solo lugar',
+      pt: 'Membros e permissões em um só lugar',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Settings › Members and permissions shows each person with role, apps, teams and last activity. Change a role or an app right in the table, select several people to change them together, and undo any change from the notice or with ⌘Z.',
+        es: 'Ajustes › Miembros y permisos muestra a cada persona con su rol, apps, equipos y última actividad. Cambiá el rol o una app desde la tabla, seleccioná varias personas para cambiarlas juntas y deshacé cualquier cambio desde el aviso o con ⌘Z.',
+        pt: 'Configurações › Membros e permissões mostra cada pessoa com papel, apps, equipes e última atividade. Mude o papel ou um app direto na tabela, selecione várias pessoas para mudá-las juntas e desfaça qualquer mudança pelo aviso ou com ⌘Z.',
+      },
+      {
+        product: 'platform',
+        en: '"What can they see?" lists, for one person, the apps they use and their level inside each one (for example their Books role or which CRM records they see), what was shared with them and what they have assigned.',
+        es: '"Qué puede ver" muestra, para una persona, las apps que usa y su nivel dentro de cada una (por ejemplo su rol en Books o qué registros del CRM ve), lo que le compartieron y lo que tiene asignado.',
+        pt: '"O que pode ver" mostra, para uma pessoa, os apps que usa e o nível dentro de cada um (por exemplo o papel no Books ou quais registros do CRM vê), o que compartilharam com ela e o que está atribuído a ela.',
+      },
+      {
+        product: 'platform',
+        en: 'Removing someone can pass their open Track issues and CRM records to another person, and Removed lets you add them back with the same role, apps and teams. Invite links work once and carry the role you pick. A change log records who changed what.',
+        es: 'Al quitar a alguien podés pasarle sus issues abiertos de Track y sus registros del CRM a otra persona, y desde Quitados la sumás de nuevo con el mismo rol, apps y equipos. Los links de invitación sirven una vez y llevan el rol que elijas. Un registro guarda quién cambió qué.',
+        pt: 'Ao remover alguém você pode passar as issues abertas no Track e os registros do CRM para outra pessoa, e em Removidos pode adicioná-la de novo com o mesmo papel, apps e equipes. Links de convite funcionam uma vez e levam o papel escolhido. Um registro guarda quem mudou o quê.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-inbox',
+    date: '2026-11-08',
+    title: {
+      en: 'Inbox: your WhatsApp and Gmail in one keyboard-first inbox',
+      es: 'Inbox: tu WhatsApp y tu Gmail en una bandeja manejada con el teclado',
+      pt: 'Inbox: seu WhatsApp e seu Gmail em uma caixa guiada pelo teclado',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'New personal app. Link your WhatsApp with a QR code and connect Gmail, then triage both from one list: done, snooze, remind me if there is no reply, send later, folders with rules, snippets, AI drafts and dictation, all from the keyboard.',
+        es: 'App personal nueva. Vinculá tu WhatsApp con un QR y conectá Gmail, y ordená los dos desde una sola lista: hecho, posponer, recordame si no contesta, enviar más tarde, carpetas con reglas, snippets, borradores con IA y dictado, todo con el teclado.',
+        pt: 'Novo app pessoal. Vincule seu WhatsApp com um QR e conecte o Gmail, e organize os dois em uma lista só: concluir, adiar, lembrar se não responder, enviar mais tarde, pastas com regras, snippets, rascunhos com IA e ditado, tudo pelo teclado.',
+      },
+      {
+        product: 'inbox',
+        en: 'Your inbox is private to you: the workspace and its admins never see it. If you used the local inbox-zero app, a script exports its folders, scheduled messages, drafts, snoozes, notes and history to import them in Inbox settings.',
+        es: 'Tu bandeja es privada: el workspace y sus admins no la ven. Si usabas la app local inbox-zero, un script exporta sus carpetas, programados, borradores, pospuestos, notas e historial para importarlos en Ajustes de Inbox.',
+        pt: 'Sua caixa é privada: o workspace e seus admins não a veem. Se você usava o app local inbox-zero, um script exporta pastas, agendadas, rascunhos, adiadas, notas e histórico para importar nas configurações do Inbox.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-lifecycle-emails',
+    date: '2026-11-08',
+    title: {
+      en: 'Getting started emails, and a say in which ones you get',
+      es: 'Emails de primeros pasos, y vos elegís cuáles recibir',
+      pt: 'Emails de primeiros passos, e você escolhe quais receber',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'New accounts get a welcome email and then, at most one every two days, the next useful step: create the first thing in the app you picked, import from the tool you came from, connect your calendar or WhatsApp line, invite your team. Steps you already did are skipped, and nothing is sent on a day you used the app.',
+        es: 'Las cuentas nuevas reciben un email de bienvenida y después, como mucho uno cada dos días, el próximo paso útil: crear lo primero en la app que elegiste, importar desde la herramienta de la que venís, conectar tu calendario o tu línea de WhatsApp, invitar a tu equipo. Lo que ya hiciste se saltea, y el día que usaste la app no llega nada.',
+        pt: 'Contas novas recebem um email de boas-vindas e depois, no máximo um a cada dois dias, o próximo passo útil: criar a primeira coisa no app que você escolheu, importar da ferramenta de onde vem, conectar sua agenda ou sua linha de WhatsApp, convidar sua equipe. O que você já fez é pulado, e no dia em que usou o app não chega nada.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Notifications lets you turn each kind of email on or off, opt in to a Monday summary of your workspace, or stop them all. Every email has a one-click unsubscribe. Account emails (sign-in codes, invites, bookings) are not affected. Self-hosted installs without an email provider send nothing.',
+        es: 'En Ajustes › Avisos prendés o apagás cada tipo de email, activás un resumen de tu workspace los lunes o los apagás todos. Cada email trae baja en un clic. Los emails de tu cuenta (códigos de ingreso, invitaciones, reservas) no cambian. Una instalación propia sin proveedor de email no manda nada.',
+        pt: 'Em Configurações › Avisos você liga ou desliga cada tipo de email, ativa um resumo do seu workspace às segundas ou desliga todos. Cada email tem descadastro em um clique. Os emails da sua conta (códigos de acesso, convites, reservas) não mudam. Uma instalação própria sem provedor de email não envia nada.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-docs-editor-notion',
     date: '2026-11-08',
     title: {
@@ -54,6 +129,35 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Importing an updated Notion export again updates the pages that changed in Notion, unless someone edited them here. Inline equations and @dates from Notion come in as equations and dates.',
         es: 'Volver a importar un export de Notion actualizado actualiza las páginas que cambiaron en Notion, salvo que alguien las haya editado acá. Las ecuaciones en línea y las @fechas de Notion entran como ecuaciones y fechas.',
         pt: 'Importar de novo um export do Notion atualizado atualiza as páginas que mudaram no Notion, a menos que alguém as tenha editado aqui. As equações em linha e as @datas do Notion entram como equações e datas.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-voice-chat-autostart',
+    date: '2026-11-08',
+    title: {
+      en: 'Voice: meetings start listening right away, and chat cites the transcript',
+      es: 'Voice: las reuniones escuchan apenas se abren y el chat cita la transcripción',
+      pt: 'Voice: as reuniões escutam assim que abrem e o chat cita a transcrição',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'A new meeting starts recording the microphone as soon as it opens, from New meeting, Take notes or ⌘K. If the browser blocks the microphone or there is none, the meeting says so and you can retry. A link someone sends you never turns the microphone on.',
+        es: 'Una reunión nueva empieza a grabar el micrófono apenas se abre, desde Nueva reunión, Tomar notas o ⌘K. Si el navegador bloquea el micrófono o no hay uno, la reunión lo dice y se puede reintentar. Un link que te mandan nunca prende el micrófono.',
+        pt: 'Uma reunião nova começa a gravar o microfone assim que abre, por Nova reunião, Fazer notas ou ⌘K. Se o navegador bloquear o microfone ou não houver um, a reunião avisa e dá para tentar de novo. Um link que te mandam nunca liga o microfone.',
+      },
+      {
+        product: 'voice',
+        en: 'Chat answers appear as they are written and cite the moment in the transcript: click a time to jump there. Suggested questions change while the meeting is on and after it ends.',
+        es: 'Las respuestas del chat aparecen mientras se escriben y citan el momento de la transcripción: un clic en la hora lleva ahí. Las preguntas sugeridas cambian durante la reunión y cuando termina.',
+        pt: 'As respostas do chat aparecem enquanto são escritas e citam o momento da transcrição: um clique no horário leva até lá. As perguntas sugeridas mudam durante a reunião e quando ela termina.',
+      },
+      {
+        product: 'voice',
+        en: 'Ask across your meetings with follow-up questions and dates like "last week". Answers link to each meeting and moment, and include meetings teammates shared with you, using only what the share lets you see.',
+        es: 'Preguntá sobre tus reuniones con preguntas de seguimiento y fechas como "la semana pasada". Las respuestas llevan a cada reunión y momento, y suman las reuniones que te compartió el equipo, con lo que el link deja ver y nada más.',
+        pt: 'Pergunte sobre suas reuniões com perguntas de seguimento e datas como "semana passada". As respostas levam a cada reunião e momento, e incluem as reuniões que a equipe compartilhou com você, só com o que o link deixa ver.',
       },
     ],
   },

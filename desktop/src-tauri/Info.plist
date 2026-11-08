@@ -3,6 +3,8 @@
 <plist version="1.0">
   <dict>
     <key>NSMicrophoneUsageDescription</key>
-    <string>zerosoft records your microphone while you dictate.</string>
+    <string>zerosoft uses the microphone for dictation, meeting notes, calls and screen recordings.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>zerosoft uses the camera for video calls and for screen recordings with your camera.</string>
   </dict>
 </plist>

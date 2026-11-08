@@ -323,7 +323,43 @@
     "colVotes": "Votos",
     "colVisibility": "Visibilidade",
     "colCreated": "Criado",
-    "kanbanMore": "{count, plural, one {Ver mais # coluna} other {Ver mais # colunas}}"
+    "kanbanMore": "{count, plural, one {Ver mais # coluna} other {Ver mais # colunas}}",
+    "lifecycle": {
+      "emails": "Emails",
+      "emailsDesc": "Emails de ciclo de vida: prévia de cada modelo com dados de exemplo e os últimos envios.",
+      "mode": {
+        "resend": "Enviados com o Resend.",
+        "console": "Modo console: os emails vão para o log do servidor, não para as pessoas.",
+        "off": "Desligado: não há provedor de email configurado (RESEND_API_KEY). O cron não envia nada."
+      },
+      "template": "Modelo",
+      "language": "Idioma",
+      "theme": "Tema",
+      "width": "Largura",
+      "light": "Claro",
+      "dark": "Escuro",
+      "subject": "Assunto",
+      "preheader": "Preheader",
+      "textVersion": "Versão em texto",
+      "previewTitle": "Prévia do email",
+      "sendTest": "Enviar para mim",
+      "sendTestHelp": "Envia este modelo para {email} com dados de exemplo.",
+      "testSent": "Enviado para {email}.",
+      "testFailed": "Não foi possível enviar: {error}",
+      "log": "Últimos envios",
+      "logEmpty": "Nenhum email de ciclo de vida saiu ainda.",
+      "colWhen": "Quando",
+      "colTo": "Para",
+      "colTemplate": "Modelo",
+      "colLocale": "Idioma",
+      "colStatus": "Status",
+      "status": {
+        "sending": "Enviando",
+        "sent": "Enviado",
+        "failed": "Falhou",
+        "skipped": "Pulado"
+      }
+    }
   },
   "groups": {
     "account": "Conta e workspace",
@@ -332,7 +368,7 @@
   "sections": {
     "profile": "Perfil",
     "workspace": "Workspace",
-    "members": "Membros",
+    "members": "Membros e permissões",
     "teams": "Equipes",
     "billing": "Plano e uso",
     "api": "API e webhooks",
@@ -544,7 +580,11 @@
       "cant_change_own_role": "Você não pode mudar o seu próprio papel.",
       "not_found": "Essa pessoa ou convite não existe mais. Recarregue a página.",
       "wrong_workspace": "Você mudou de workspace em outra aba. Recarregue e tente de novo.",
-      "apps_not_yours": "Você só pode dar acesso a apps que você tem."
+      "apps_not_yours": "Você só pode dar acesso a apps que você tem.",
+      "invalid_transfer": "Escolha alguém que ainda esteja no workspace para receber o trabalho.",
+      "already_member": "Essa pessoa já está no workspace.",
+      "admin_link": "Admins são convidados por email, não com um link.",
+      "link_invite": "Um link de convite não tem email para reenviar. Copie o link."
     },
     "approve": "Aprovar",
     "allowAnyEmail": "Permitir outro email",
@@ -591,7 +631,118 @@
     "requestLine": "{name} pediu {apps}.",
     "rolesLegendAppsAdmin": "Dentro de cada app há ações só para admins, como excluir pipelines ou mudar as configurações do app.",
     "appsLimitAllHelp": "Esta pessoa tem todos os apps. Você pode limitar aos que você tem.",
-    "requestedMarker": "Pediu {apps}"
+    "requestedMarker": "Pediu {apps}",
+    "perm": {
+      "inviteLink": "Criar link de convite",
+      "inviteLinkHelp": "Ou crie um link que funciona uma vez para quem abrir, com o papel e os apps acima. Nunca para admins.",
+      "inviteLinkReady": "Link pronto. Funciona uma vez e expira em 14 dias.",
+      "linkInvite": "Link de convite",
+      "filterRole": "Filtrar por papel",
+      "filterTeam": "Filtrar por equipe",
+      "allRoles": "Todos os papéis",
+      "allTeams": "Todas as equipes",
+      "colLastActive": "Última atividade",
+      "colStatus": "Status",
+      "never": "Ainda não",
+      "statusActive": "Ativo",
+      "statusAsked": "Pediu acesso",
+      "selectAll": "Selecionar todos os visíveis",
+      "selectPerson": "Selecionar {name}",
+      "selected": "{count} selecionados",
+      "bulkRole": "Mudar papel",
+      "bulkGive": "Dar app",
+      "bulkTake": "Tirar app",
+      "bulkTeam": "Adicionar à equipe",
+      "bulkRemove": "Remover",
+      "clear": "Limpar seleção",
+      "access": "Acesso",
+      "accessOf": "Ver o que {name} pode ver",
+      "accessTitle": "O que {name} pode ver",
+      "done": "Pronto",
+      "appsHelp": "As mudanças valem na hora. Você só pode dar apps que você tem.",
+      "allowed": "Pode usar",
+      "notAllowed": "Sem acesso",
+      "ownerAll": "O owner usa todos os apps e pode mudar tudo.",
+      "guestApps": "Convidados não usam os apps. Veem só o que compartilham com eles.",
+      "sharedTitle": "Compartilhado com essa pessoa",
+      "sharedNone": "Nada compartilhado pessoa a pessoa.",
+      "shared": {
+        "docs": "{count, plural, one {# página do Docs} other {# páginas do Docs}}",
+        "boards": "{count, plural, one {# quadro} other {# quadros}}",
+        "notes": "{count, plural, one {# nota} other {# notas}}",
+        "links": "{count, plural, one {# pasta de links} other {# pastas de links}}",
+        "track": "{count, plural, one {# projeto privado do Track} other {# projetos privados do Track}}",
+        "docsTeamspaces": "{count, plural, one {# teamspace do Docs} other {# teamspaces do Docs}}"
+      },
+      "workTitle": "O que está com essa pessoa",
+      "workNone": "Nada atribuído a essa pessoa.",
+      "work": {
+        "trackIssues": "{count, plural, one {# issue aberta no Track} other {# issues abertas no Track}}",
+        "crmRecords": "{count, plural, one {# registro do CRM em seu nome} other {# registros do CRM em seu nome}}"
+      },
+      "historyTitle": "Últimas mudanças",
+      "historyNone": "Ainda sem mudanças.",
+      "loading": "Carregando…",
+      "loadError": "Não foi possível carregar o acesso.",
+      "retry": "Tentar de novo",
+      "removeManyTitle": "Remover {count, plural, one {# pessoa} other {# pessoas}} de {workspace}?",
+      "removeBody": "Perdem o acesso a todos os apps na hora. Depois você pode adicioná-las de novo, com o mesmo papel, apps e equipes, em Removidos.",
+      "transfer": "Passar o trabalho para",
+      "transferNone": "Ninguém, deixar sem responsável",
+      "transferHelp": "As issues abertas no Track e os registros do CRM em seu nome.",
+      "transferCount": "{issues, plural, one {# issue aberta no Track} other {# issues abertas no Track}} e {records, plural, one {# registro do CRM} other {# registros do CRM}}.",
+      "removedTitle": "Removidos ({count})",
+      "removedDesc": "Pessoas que você removeu. Ao adicioná-las de novo, voltam com o papel, os apps e as equipes.",
+      "removedOn": "Removido em {date}",
+      "addBack": "Adicionar de novo",
+      "addBackOf": "Adicionar {name} de novo",
+      "forget": "Esquecer",
+      "forgetOf": "Esquecer {name}",
+      "logTitle": "Registro de mudanças",
+      "logDesc": "Quem mudou o quê nas pessoas e convites deste workspace.",
+      "logEmpty": "Ainda sem mudanças.",
+      "log": {
+        "role": "{actor} mudou {target} de {from} para {to}",
+        "apps": "{actor} mudou os apps de {target}: {to}",
+        "teams": "{actor} mudou as equipes de {target}",
+        "remove": "{actor} removeu {target}",
+        "left": "{target} saiu do workspace",
+        "reactivate": "{actor} adicionou {target} de novo",
+        "transfer": "{actor} passou o trabalho de {target} para {to}",
+        "invite": "{actor} convidou {target}",
+        "link": "{actor} criou um link de convite",
+        "revoke": "{actor} revogou o convite de {target}"
+      },
+      "someone": "alguém",
+      "undo": "Desfazer",
+      "dismiss": "Fechar",
+      "toast": {
+        "role": "{name} agora é {role}",
+        "appOn": "{name} pode usar {app}",
+        "appOff": "{name} não vê mais {app}",
+        "apps": "Apps de {name} atualizados",
+        "teams": "Equipes de {name} atualizadas",
+        "removed": "{count, plural, one {{name} removido} other {# pessoas removidas}}",
+        "addedBack": "{name} voltou",
+        "bulk": "{count, plural, one {# pessoa atualizada} other {# pessoas atualizadas}}",
+        "skipped": "{count, plural, one {# sem mudar: você não pode editá-la} other {# sem mudar: você não pode editá-las}}",
+        "undone": "Mudança desfeita"
+      },
+      "rolesTitle": "O que cada papel pode fazer",
+      "rolesDesc": "Além do papel, cada pessoa tem os apps que você habilitar.",
+      "matrix": {
+        "useApps": "Usar os apps habilitados para ela",
+        "invite": "Convidar pessoas",
+        "manage": "Mudar papéis, apps e equipes; remover pessoas",
+        "workspace": "Editar a configuração e as equipes do workspace",
+        "own": "Nomear e remover admins; pedir o encerramento do workspace"
+      },
+      "matrixGuest": "Só o compartilhado",
+      "yes": "Sim",
+      "no": "Não",
+      "approveRequest": "Dar {apps}",
+      "noTeams": "Não está em nenhuma equipe"
+    }
   },
   "teamsForm": {
     "createTitle": "Criar uma equipe",
@@ -1182,5 +1333,57 @@
     "originLocal": "App em um computador",
     "originDevice": "Entrou com um código de dispositivo",
     "emptyAction": "Como conectar"
+  },
+  "emailPrefs": {
+    "title": "Emails do zerosoft",
+    "desc": "O que mandamos para ajudar você a usar o zerosoft. Os emails da sua conta (códigos de acesso, convites, reservas e avisos dos apps) continuam chegando.",
+    "categories": {
+      "onboarding": {
+        "label": "Primeiros passos",
+        "help": "O que falta configurar nos seus primeiros dias."
+      },
+      "tips": {
+        "label": "Funções e dicas",
+        "help": "Funções que você ainda não usou e servem para os seus apps."
+      },
+      "team": {
+        "label": "Sua equipe",
+        "help": "Se você administra um workspace: lembretes para convidar pessoas."
+      },
+      "reengagement": {
+        "label": "Lembretes",
+        "help": "Um aviso se passarem duas semanas sem você entrar."
+      },
+      "digest": {
+        "label": "Resumo semanal",
+        "help": "Nas segundas de manhã, o que aconteceu no seu workspace. Se nada aconteceu, não chega."
+      }
+    },
+    "all": "Parar de receber todos estes emails",
+    "allHelp": "Desliga tudo acima. Os emails da sua conta continuam chegando.",
+    "saveError": "Não foi possível salvar suas preferências. Tente de novo.",
+    "appsTitle": "Avisos dos apps",
+    "appsDesc": "O Track tem seus próprios avisos por email.",
+    "track": "Avisos do Track",
+    "unsub": {
+      "metaTitle": "Cancelar inscrição",
+      "title": "Cancelar inscrição",
+      "body": "Você vai parar de receber {category}. Os emails da sua conta continuam chegando.",
+      "bodyAll": "Você vai parar de receber todos os emails do zerosoft que não são da sua conta.",
+      "confirm": "Cancelar inscrição",
+      "working": "Salvando…",
+      "done": "Pronto. Você não vai mais receber {category}.",
+      "doneAll": "Pronto. Você não vai mais receber estes emails.",
+      "invalid": "Este link não é válido ou está incompleto. Você pode escolher quais emails receber em Configurações.",
+      "error": "Não foi possível concluir. Tente de novo.",
+      "manage": "Escolher quais emails receber",
+      "categories": {
+        "onboarding": "os emails de primeiros passos",
+        "tips": "as dicas de funções",
+        "team": "os avisos sobre a sua equipe",
+        "reengagement": "os lembretes",
+        "digest": "o resumo semanal"
+      }
+    }
   }
 }

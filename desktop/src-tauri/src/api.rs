@@ -88,8 +88,19 @@ pub async fn dictate(app: &AppHandle, wav: Vec<u8>, source_app: &str, context: &
         .text("sourceApp", if source_app.is_empty() { "desktop".to_string() } else { source_app.to_string() })
         .text("durationMs", duration_ms.to_string())
         .text("capture", "desktop")
+        // Respuesta rápida: el servidor salta la limpieza con IA en frases cortas, le pone un tope
+        // de tiempo y guarda el historial después de contestar.
+        .text("fast", "1")
         .part("audio", part);
     finish(http.post(url).header("cookie", cookie).header("origin", server(app)).multipart(form).send().await).await
+}
+
+/// Abre la conexión con el servidor (TCP + TLS) mientras se graba: al soltar el atajo, el audio
+/// sale por una conexión ya lista del pool de reqwest.
+pub async fn warm(app: AppHandle) {
+    let url = format!("{}/robots.txt", server(&app));
+    let http = app.state::<AppState>().http.clone();
+    let _ = http.head(url).timeout(Duration::from_secs(5)).send().await;
 }
 
 /// Si la respuesta dice "sin sesión" o "sin conexión", para los errores de Ajustes.

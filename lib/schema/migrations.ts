@@ -11,6 +11,7 @@ import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
 import { sendUp } from './send-migration';
+import { inboxUp } from './inbox-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -8723,6 +8724,58 @@ export const MIGRATIONS: Migration[] = [
         );
       `);
     },
+  },  {
+    // Emails de ciclo de vida (lib/lifecycle): estado por persona (última
+    // actividad, claim del cron), señales que no salen de otras tablas, el log
+    // de envíos (una fila por persona y clave: nunca dos veces) y las
+    // preferencias de email por categoría. Las cuentas que ya existían quedan
+    // como legacy: no reciben la serie de bienvenida.
+    id: '288_lifecycle_emails',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS lifecycle_state (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          legacy INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          last_active_at TEXT,
+          next_check_at TEXT,
+          claimed_until TEXT,
+          done_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_lifecycle_state_next ON lifecycle_state(next_check_at);
+        CREATE TABLE IF NOT EXISTS lifecycle_events (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          event TEXT NOT NULL,
+          first_at TEXT NOT NULL,
+          PRIMARY KEY (user_id, event)
+        );
+        CREATE TABLE IF NOT EXISTS lifecycle_sends (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          send_key TEXT NOT NULL,
+          template TEXT NOT NULL,
+          category TEXT NOT NULL,
+          locale TEXT NOT NULL DEFAULT 'en',
+          status TEXT NOT NULL DEFAULT 'sending' CHECK (status IN ('sending', 'sent', 'failed', 'skipped')),
+          attempts INTEGER NOT NULL DEFAULT 1,
+          provider TEXT,
+          provider_id TEXT,
+          error TEXT,
+          created_at TEXT NOT NULL,
+          sent_at TEXT,
+          UNIQUE (user_id, send_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_lifecycle_sends_created ON lifecycle_sends(created_at DESC);
+        CREATE TABLE IF NOT EXISTS email_preferences (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          unsubscribed_all INTEGER NOT NULL DEFAULT 0,
+          opted_out TEXT NOT NULL DEFAULT '[]',
+          digest INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL
+        );
+        INSERT OR IGNORE INTO lifecycle_state (user_id, legacy, created_at) SELECT id, 1, created_at FROM users;
+      `);
+    },
   },
   {
     // Reimportar un export de Notion actualizado: el hash del archivo de origen
@@ -8742,6 +8795,46 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence TEXT');
       await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_who TEXT');
       await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_at TEXT');
+    },
+  },
+  {
+    // Inbox (personal): WhatsApp y Gmail de una persona. Ver lib/schema/inbox-migration.ts.
+    id: '289_inbox',
+    up: inboxUp,
+  },
+  {
+    // Ajustes › Miembros y permisos: registro de cambios (con lo de antes para
+    // deshacer), última actividad por persona y la ficha de quien se desactivó
+    // (para reactivarlo con el mismo rol, apps y equipos).
+    id: '290_workspace_permissions',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS workspace_audit (
+          id TEXT PRIMARY KEY,
+          team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+          actor_id TEXT NOT NULL,
+          target_id TEXT,
+          target_label TEXT NOT NULL DEFAULT '',
+          action TEXT NOT NULL,
+          before TEXT NOT NULL DEFAULT '{}',
+          after TEXT NOT NULL DEFAULT '{}',
+          undo_of TEXT,
+          undone_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_workspace_audit_team ON workspace_audit(team_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS workspace_removed_members (
+          team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'member',
+          apps TEXT NOT NULL DEFAULT '*',
+          group_ids TEXT NOT NULL DEFAULT '[]',
+          removed_by TEXT,
+          removed_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (team_id, user_id)
+        );
+      `);
+      await addColumn(c, 'ALTER TABLE team_members ADD COLUMN last_active_at TEXT');
     },
   },
   {

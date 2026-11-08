@@ -45,6 +45,8 @@ import NavProgress from '@/components/app/NavProgress';
 import RouterNudge from '@/components/app/RouterNudge';
 import IntentPrefetch from '@/components/app/IntentPrefetch';
 import { Suspense } from 'react';
+import { after } from 'next/server';
+import { touchLifecycleActivity } from '@/lib/lifecycle/scheduler';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,6 +68,12 @@ export default async function AppLayout(
 
   const user = await requireUser(locale);
   const real = user.actingUser ?? user;
+  // Última actividad para los emails de ciclo de vida (después de responder; nunca frena la página).
+  try {
+    after(() => touchLifecycleActivity(real));
+  } catch {
+    /* fuera de una request */
+  }
   const path = (await headers()).get(RETURN_PATH_HEADER) ?? '';
   const welcome = /^\/(?:en|es|pt)\/app\/welcome(?:[/?]|$)/.test(path);
   // Primer ingreso: el onboarding (salvo el usuario demo compartido).
@@ -102,7 +110,7 @@ export default async function AppLayout(
   const tAnalyticsReplay = await getTranslations({ locale, namespace: 'analyticsReplay' });
   const tAnalyticsMore = await getTranslations({ locale, namespace: 'analyticsMore' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
-  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tSend, tasksDue, serverTz, tPlanning, mode, tCat] =
+  const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tSend, tInbox, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
       getTranslations({ locale, namespace: 'settings' }),
       getTranslations({ locale, namespace: 'common.sidebar' }),
@@ -131,6 +139,7 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'sign' }),
       getTranslations({ locale, namespace: 'forms' }),
       getTranslations({ locale, namespace: 'send' }),
+      getTranslations({ locale, namespace: 'inbox' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
       countDueTasks(user.id).catch((err) => {
         console.error('[app layout] countDueTasks', err);
@@ -206,6 +215,7 @@ export default async function AppLayout(
                 { href: '/app/books/settings', label: tSide('appSettings') },
                 { href: '/app/forms/settings', label: tSide('appSettings') },
                 { href: '/app/send/settings', label: tSide('appSettings') },
+                { href: '/app/inbox/settings', label: tSide('appSettings') },
                 { href: '/app/crm', label: tCrm('tabs.overview') },
                 { href: '/app/crm/contacts', label: tCrm('tabs.contacts') },
                 { href: '/app/crm/companies', label: tCrm('tabs.companies') },
@@ -369,6 +379,12 @@ export default async function AppLayout(
                 { href: '/app/forms/new', label: tForms('nav.templates') },
                 { href: '/app/send', label: tSend('nav.documents') },
                 { href: '/app/send/spaces', label: tSend('nav.spaces') },
+                { href: '/app/inbox', label: tInbox('nav.inbox') },
+                { href: '/app/inbox/v/reply', label: tInbox('nav.reply') },
+                { href: '/app/inbox/v/waiting', label: tInbox('nav.waiting') },
+                { href: '/app/inbox/v/snoozed', label: tInbox('nav.snoozed') },
+                { href: '/app/inbox/v/scheduled', label: tInbox('nav.scheduled') },
+                { href: '/app/inbox/v/done', label: tInbox('nav.done') },
                 { href: '/app/assistant', label: tSide('assistant') },
               ]}
             />
@@ -598,6 +614,15 @@ export default async function AppLayout(
               newPerson: tPeople('directory.add'),
             },
             send: { documents: tSend('nav.documents'), spaces: tSend('nav.spaces'), newDocument: tSend('nav.new') },
+            inbox: {
+              inbox: tInbox('nav.inbox'),
+              reply: tInbox('nav.reply'),
+              waiting: tInbox('nav.waiting'),
+              snoozed: tInbox('nav.snoozed'),
+              scheduled: tInbox('nav.scheduled'),
+              done: tInbox('nav.done'),
+              compose: tInbox('nav.compose'),
+            },
             forms: { forms: tForms('nav.forms'), templates: tForms('nav.templates'), newForm: tForms('list.new') },
             books: {
               overview: tBooks('nav.overview'),

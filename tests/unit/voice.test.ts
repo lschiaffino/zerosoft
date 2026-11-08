@@ -6,9 +6,10 @@ import { createProject } from '@/lib/track-data';
 import { FAKE_DICTATION } from '@/lib/voice-transcribe';
 import { ruleCleanup } from '@/lib/voice-cleanup';
 import { isVoiceBlobUrl, voiceBlobPrefix } from '@/lib/voice-blob';
-import { questionKeywords } from '@/lib/voice-service';
+import { dictate, questionKeywords } from '@/lib/voice-service';
+import { canSkipAiCleanup, fastCleanupTimeoutMs, FAST_RULES_MAX_WORDS } from '@/lib/voice-ai';
 import { meetingMarkdown } from '@/lib/voice-integrations';
-import { normalizeSettings } from '@/lib/voice';
+import { normalizeSettings, voiceOwner } from '@/lib/voice';
 import type { VoiceSessionDetail } from '@/lib/voice-types';
 import { makeUser } from './helpers';
 
@@ -98,6 +99,37 @@ describe('voice dictation', () => {
     expect(usage.map((r) => r.feature)).toEqual(['voice_cleanup', 'voice_transcribe']);
     const list = await sessionsRoute.GET(new Request('http://t/api/voice/sessions?kind=dictation') as never);
     expect(((await list.json()) as { sessions: unknown[] }).sessions).toHaveLength(1);
+  });
+
+  it('fast mode (desktop): short sentences skip the AI, long ones use it, and the history is saved after answering', async () => {
+    const u = await asUser();
+    const owner = voiceOwner({ id: u.id, role: 'owner' });
+    const jobs: Array<() => Promise<unknown>> = [];
+    const later = (job: () => Promise<unknown>) => void jobs.push(job);
+    const audio = new Uint8Array(2048).fill(7);
+    const short = await dictate({ owner, audio, type: 'audio/wav', context: 'chat', capture: 'desktop', fakeText: 'um can you send me the deck before lunch', fast: true, later });
+    expect(short.ai).toBe(false);
+    expect(short.text).toBe('Can you send me the deck before lunch.');
+    expect(short.timings.saveMs).toBe(0);
+    expect(short.timings.totalMs).toBeGreaterThanOrEqual(short.timings.transcribeMs);
+    const long = await dictate({ owner, audio, type: 'audio/wav', context: 'chat', capture: 'desktop', fast: true, later });
+    expect(long.ai).toBe(true);
+    expect(long.text).toContain('1. The landing');
+    // Nada guardado hasta que corre lo de después de contestar.
+    const count = async () => ((await getDb().prepare("SELECT COUNT(*) AS n FROM voice_sessions WHERE workspace_id = ? AND kind = 'dictation'").get(u.id)) as { n: number }).n;
+    expect(await count()).toBe(0);
+    expect(jobs).toHaveLength(2);
+    await Promise.all(jobs.map((j) => j()));
+    expect(await count()).toBe(2);
+  });
+
+  it('only short, non-formal dictations can skip the AI cleanup', () => {
+    expect(canSkipAiCleanup('send me the deck', 'neutral')).toBe(true);
+    expect(canSkipAiCleanup('send me the deck', 'formal')).toBe(false);
+    expect(canSkipAiCleanup('', 'neutral')).toBe(false);
+    expect(canSkipAiCleanup(Array.from({ length: FAST_RULES_MAX_WORDS + 1 }, () => 'word').join(' '), 'casual')).toBe(false);
+    expect(fastCleanupTimeoutMs('a b c')).toBeLessThan(2100);
+    expect(fastCleanupTimeoutMs('word '.repeat(2000))).toBe(6000);
   });
 
   it('applies dictionary replacements and falls back to rules without AI', async () => {
@@ -329,7 +361,7 @@ describe('voice helpers', () => {
   });
 
   it('extracts question keywords and renders markdown', () => {
-    expect(questionKeywords('What did Ana say about pricing?')).toEqual(['pricing']);
+    expect(questionKeywords('What did Ana say about pricing?')).toEqual(['ana', 'pricing']);
     const md = meetingMarkdown(
       {
         id: 'x',

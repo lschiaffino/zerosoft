@@ -1,0 +1,271 @@
+/**
+ * Inbox: tipos y funciones puras (sin base ni red). Las comparte el cliente.
+ */
+
+export type InboxChannel = 'whatsapp' | 'gmail';
+export type ThreadKind = 'dm' | 'group' | 'email';
+export type AccountStatus = 'disconnected' | 'pending' | 'qr' | 'connected' | 'error';
+
+/** Vistas fijas de la barra (como los splits de Superhuman). Las carpetas propias van aparte. */
+export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done'] as const;
+export type InboxView = (typeof INBOX_VIEWS)[number];
+
+export function isInboxView(v: unknown): v is InboxView {
+  return typeof v === 'string' && (INBOX_VIEWS as readonly string[]).includes(v);
+}
+
+/** Hace cuánto se espera respuesta para que un chat cuente como "esperando" (mandaste y no contestaron). */
+export const WAITING_AFTER_MS = 24 * 60 * 60 * 1000;
+
+export class InboxError extends Error {
+  constructor(
+    public code: string,
+    public status = 400,
+    public detail?: Record<string, unknown>,
+  ) {
+    super(code);
+  }
+}
+
+export interface InboxAccountDto {
+  id: string;
+  kind: InboxChannel;
+  label: string;
+  address: string;
+  status: AccountStatus;
+  error: string;
+  lastSyncAt: string | null;
+  /** Hay importación del historial de WhatsApp en curso. */
+  backfilling: boolean;
+}
+
+export interface ThreadDto {
+  id: string;
+  accountId: string;
+  channel: InboxChannel;
+  kind: ThreadKind;
+  title: string;
+  handle: string;
+  preview: string;
+  lastMessageAt: string | null;
+  lastFromMe: boolean;
+  unread: number;
+  pinned: boolean;
+  done: boolean;
+  snoozedUntil: string | null;
+  woke: '' | 'snooze' | 'followup';
+  followUpAt: string | null;
+  mutedUntil: string | null;
+  draft: string;
+  folderIds: string[];
+  scheduledCount: number;
+}
+
+export interface MessageDto {
+  id: string;
+  fromMe: boolean;
+  senderName: string;
+  senderHandle: string;
+  subject: string;
+  body: string;
+  emailTo: string;
+  mediaType: string;
+  mediaName: string;
+  hasMedia: boolean;
+  status: string;
+  edited: boolean;
+  revoked: boolean;
+  sentAt: string;
+}
+
+export interface FolderRule {
+  channel?: InboxChannel;
+  kind?: ThreadKind;
+  /** Texto que tiene que aparecer en el nombre, el teléfono o el email. */
+  from?: string;
+}
+
+export interface FolderDto {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  position: number;
+  parentId: string | null;
+  rule: FolderRule | null;
+  count: number;
+}
+
+export interface SnippetDto {
+  id: string;
+  shortcut: string;
+  title: string;
+  body: string;
+}
+
+export type ScheduledStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'missed' | 'cancelled';
+
+export interface ScheduledDto {
+  id: string;
+  threadId: string;
+  threadTitle: string;
+  channel: InboxChannel;
+  body: string;
+  sendAt: string;
+  status: ScheduledStatus;
+  error: string;
+}
+
+export const FOLDER_COLORS = ['#3d5a80', '#0e9f6e', '#7b4dff', '#e23d7f', '#c2700a', '#0284c7', '#6b7280', '#b91c1c'] as const;
+
+export const LIMITS = {
+  folderName: 60,
+  snippetTitle: 80,
+  snippetShortcut: 24,
+  snippetBody: 5000,
+  message: 8000,
+  notes: 20_000,
+  draft: 8000,
+  searchQuery: 200,
+  folders: 200,
+  snippets: 500,
+} as const;
+
+/** Texto plano corto para la vista previa de la lista. */
+export function previewOf(body: string, mediaType = ''): string {
+  const clean = body.replace(/\s+/g, ' ').trim();
+  if (clean) return clean.slice(0, 160);
+  return mediaType ? `[${mediaType}]` : '';
+}
+
+/** "5491155550000@s.whatsapp.net" o "...@c.us" → "5491155550000@s.whatsapp.net". Grupos y lids quedan igual. */
+export function normalizeWaJid(raw: string): string {
+  const id = String(raw ?? '').trim();
+  if (/@c\.us$/i.test(id)) return id.replace(/@c\.us$/i, '@s.whatsapp.net');
+  return id;
+}
+
+export function waKindOf(jid: string): ThreadKind {
+  return /@g\.us$/i.test(jid) ? 'group' : 'dm';
+}
+
+/** Dígitos del teléfono de un jid de persona ('' en grupos y lids). */
+export function waPhoneOf(jid: string): string {
+  const m = /^(\d{6,16})@(s\.whatsapp\.net|c\.us)$/i.exec(jid);
+  return m ? m[1] : '';
+}
+
+/** ¿La regla de una carpeta incluye este chat? Sin regla, solo los que se agregaron a mano. */
+export function ruleMatches(rule: FolderRule | null, t: { channel: InboxChannel; kind: ThreadKind; title: string; handle: string }): boolean {
+  if (!rule) return false;
+  const keys = Object.values(rule).filter((v) => v !== undefined && v !== '');
+  if (!keys.length) return false;
+  if (rule.channel && rule.channel !== t.channel) return false;
+  if (rule.kind && rule.kind !== t.kind) return false;
+  if (rule.from) {
+    const needle = foldText(rule.from);
+    if (!foldText(`${t.title} ${t.handle}`).includes(needle)) return false;
+  }
+  return true;
+}
+
+/** Minúsculas y sin tildes, para buscar como en WhatsApp. */
+export function foldText(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+export function parseRule(raw: unknown): FolderRule | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const out: FolderRule = {};
+  if (r.channel === 'whatsapp' || r.channel === 'gmail') out.channel = r.channel;
+  if (r.kind === 'dm' || r.kind === 'group' || r.kind === 'email') out.kind = r.kind;
+  if (typeof r.from === 'string' && r.from.trim()) out.from = r.from.trim().slice(0, 80);
+  return Object.keys(out).length ? out : null;
+}
+
+/** Atajo de un snippet: letras, números y guiones, sin espacios ("gracias", "cbu"). */
+export function cleanShortcut(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/^[;/]+/, '')
+    .replace(/[^a-z0-9_-]/g, '')
+    .slice(0, LIMITS.snippetShortcut);
+}
+
+/**
+ * Variables de un snippet: {nombre} y {primer_nombre} con el nombre del chat.
+ * {first_name} y {primeiro_nome} también funcionan.
+ */
+export function fillSnippet(body: string, chatTitle: string): string {
+  const name = chatTitle.trim();
+  const first = name.split(/\s+/)[0] ?? '';
+  return body
+    .replace(/\{(nombre|name|nome)\}/gi, name)
+    .replace(/\{(primer_nombre|first_name|primeiro_nome)\}/gi, first);
+}
+
+/**
+ * Presets de "posponer" y "recordame si no contesta" a partir de ahora, en la
+ * zona del navegador: más tarde (3 h), esta noche (20 h), mañana (8 h), el
+ * fin de semana (sábado 9 h), la semana que viene (lunes 8 h), en una semana.
+ */
+export type SnoozePreset = 'later' | 'tonight' | 'tomorrow' | 'weekend' | 'nextWeek' | 'inWeek';
+export const SNOOZE_PRESETS: readonly SnoozePreset[] = ['later', 'tonight', 'tomorrow', 'weekend', 'nextWeek', 'inWeek'];
+
+export function presetDate(preset: SnoozePreset, now = new Date()): Date {
+  const d = new Date(now);
+  const at = (h: number) => {
+    d.setHours(h, 0, 0, 0);
+    return d;
+  };
+  switch (preset) {
+    case 'later':
+      return new Date(now.getTime() + 3 * 3600_000);
+    case 'tonight': {
+      at(20);
+      if (d.getTime() <= now.getTime() + 30 * 60_000) d.setDate(d.getDate() + 1);
+      return d;
+    }
+    case 'tomorrow':
+      d.setDate(d.getDate() + 1);
+      return at(8);
+    case 'weekend': {
+      const add = (6 - d.getDay() + 7) % 7 || 7;
+      d.setDate(d.getDate() + add);
+      return at(9);
+    }
+    case 'nextWeek': {
+      const add = (8 - d.getDay()) % 7 || 7;
+      d.setDate(d.getDate() + add);
+      return at(8);
+    }
+    case 'inWeek':
+      d.setDate(d.getDate() + 7);
+      return at(8);
+  }
+}
+
+/** Atajos de teclado (como Superhuman). Se muestran en la ayuda (?) y en Ajustes. */
+export const SHORTCUTS: ReadonlyArray<{ keys: string; id: string }> = [
+  { keys: 'j / k', id: 'navigate' },
+  { keys: 'Enter', id: 'open' },
+  { keys: 'Esc', id: 'back' },
+  { keys: 'e', id: 'done' },
+  { keys: '⇧E', id: 'undone' },
+  { keys: 'h', id: 'snooze' },
+  { keys: 'f', id: 'followUp' },
+  { keys: 'r', id: 'reply' },
+  { keys: 'c', id: 'compose' },
+  { keys: 'u', id: 'unread' },
+  { keys: 'p', id: 'pin' },
+  { keys: 'v', id: 'moveFolder' },
+  { keys: '/', id: 'search' },
+  { keys: 'g i / g d / g s', id: 'goto' },
+  { keys: '⌘J', id: 'ai' },
+  { keys: ';', id: 'snippet' },
+  { keys: '⌘Enter', id: 'send' },
+  { keys: 'z', id: 'undo' },
+  { keys: '?', id: 'help' },
+];

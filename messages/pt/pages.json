@@ -1,16 +1,16 @@
 {
   "products": {
     "meta": {
-      "title": "25 apps open source para empresas: CRM, chat, docs e mais",
-      "description": "Vinte e cinco apps open source, do CRM e do chat de suporte aos docs, faturas e formulários. No seu servidor ou na zerosoft Cloud com plano grátis."
+      "title": "26 apps open source para empresas: CRM, chat, docs e mais",
+      "description": "Vinte e seis apps open source, do CRM e do chat de suporte aos docs, faturas e formulários. No seu servidor ou na zerosoft Cloud com plano grátis."
     },
     "hero": {
-      "title1": "Vinte e cinco apps.",
+      "title1": "Vinte e seis apps.",
       "title2": "Um só workspace.",
       "sub": "Para a sua empresa: CRM, suporte, agentes de IA, automações, robôs, projetos e links. Para você: docs, notas, agenda e quadro branco. O core de cada um é open source e roda no seu servidor por $0."
     },
     "cta": {
-      "title1": "Teste os vinte e cinco apps.",
+      "title1": "Teste os vinte e seis apps.",
       "title2": "Com uma só conta.",
       "sub": "Entre com o Google, crie um workspace e comece no plano grátis. Se depois preferir o seu servidor, o código está no GitHub.",
       "button": "Abrir o app"
@@ -2201,6 +2201,92 @@
         "sub": "Abra o Send, envie um documento e crie seu primeiro link.",
         "button": "Abrir Send"
       }
+    },
+    "inbox": {
+      "meta": {
+        "title": "Inbox: seu WhatsApp e seu Gmail com os atalhos do Superhuman",
+        "description": "Uma caixa pessoal para o WhatsApp, vinculado por QR, e o Gmail: pastas, adiar, enviar mais tarde, lembretes quando não respondem, rascunhos com IA, ditado e atalhos de teclado. Open source."
+      },
+      "hero": {
+        "sub": "Vincule seu WhatsApp com um QR e conecte o Gmail. As conversas parecem o WhatsApp Web e a triagem funciona como no Superhuman: J e K para navegar, E para concluir, H para adiar, e todo o resto pelo teclado."
+      },
+      "featuresTitle": "Cada conversa resolvida.",
+      "featuresTitleDim": "Pelo teclado.",
+      "f1": {
+        "t": "WhatsApp e Gmail em uma lista",
+        "d": "Seu WhatsApp pessoal vinculado por QR, como o WhatsApp Web, e o Gmail com a sua conta Google. Concluir também arquiva no Gmail."
+      },
+      "f2": {
+        "t": "Pastas que se enchem sozinhas",
+        "d": "Junte conversas dos dois canais nas suas pastas, com regras opcionais por canal, tipo ou nome. Elas aparecem na barra com os não lidos."
+      },
+      "f3": {
+        "t": "Adiar, enviar depois, me lembrar",
+        "d": "Adie uma conversa até amanhã, agende uma mensagem para segunda às 9 ou faça ela voltar se até sexta ninguém responder."
+      },
+      "f4": {
+        "t": "Escreva com IA ou dite",
+        "d": "Um rascunho com a conversa e suas notas como contexto, reescrever o que você digitou ou ditar com o Voice. Nada sai sem você."
+      },
+      "f5": {
+        "t": "O teclado primeiro",
+        "d": "Atalhos do Superhuman, snippets com ;, Cmd+K em toda a suíte, busca em todas as mensagens e desfazer com Z."
+      },
+      "f6": {
+        "t": "Só seu",
+        "d": "Sua caixa é da sua pessoa, não do workspace: os admins não veem. Os tokens são criptografados e o que apagam para todos continua visível para você."
+      },
+      "steps": {
+        "s1": {
+          "t": "Vincule o WhatsApp",
+          "d": "Escaneie um QR em Dispositivos conectados."
+        },
+        "s2": {
+          "t": "Conecte o Gmail",
+          "d": "Entre com o Google, ou importe do inbox-zero."
+        },
+        "s3": {
+          "t": "Chegue a zero",
+          "d": "J, K, E e H até esvaziar a lista."
+        }
+      },
+      "compare": {
+        "rival": "Superhuman",
+        "price": "Planos pagos por pessoa",
+        "per": "por pessoa, só e-mail",
+        "teamLabel": "Uma pessoa, WhatsApp e Gmail",
+        "team": "veja os preços do Superhuman",
+        "zero": "$0",
+        "note": "O Superhuman é só e-mail e não verificamos o preço atual, então não citamos: veja superhuman.com. O Inbox no seu servidor custa $0 mais o seu banco de dados e o seu servidor de WhatsApp."
+      },
+      "faq": {
+        "f1": {
+          "q": "Vincular o WhatsApp por QR é seguro para o meu número?",
+          "a": "Funciona como o WhatsApp Web, com uma sessão não oficial em um servidor próprio. O WhatsApp pode restringir números que enviam em massa ou recebem denúncias, então o Inbox é para as suas conversas, não para campanhas."
+        },
+        "f2": {
+          "q": "O admin do meu workspace pode ler minhas mensagens?",
+          "a": "Os dados do Inbox são do seu usuário e não do workspace: não há visão de admin, e as API keys do workspace e o servidor MCP não chegam até eles. Ao remover uma conta, o que o Inbox salvou é apagado."
+        },
+        "f3": {
+          "q": "O que acontece com as conversas no meu celular?",
+          "a": "Nada muda no celular. Concluir, adiar e pastas ficam no Inbox. No Gmail o arquivamento é espelhado: concluir tira a conversa da sua caixa do Gmail."
+        },
+        "f4": {
+          "q": "Posso trazer o que tenho no inbox-zero?",
+          "a": "Sim. Um script lê o seu inbox.db local e gera um arquivo com pastas, agendadas, rascunhos, adiadas, notas e histórico salvo. Você envia nas configurações do Inbox, e importar duas vezes não duplica nada."
+        },
+        "f5": {
+          "q": "O que falta em relação ao Superhuman?",
+          "a": "Confirmação de leitura em e-mails, splits ordenados por IA, calendário dentro da caixa, compartilhar com a equipe e apps móveis, entre outros. A tabela de paridade acima tem a lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Caixa zerada.",
+        "title2": "No WhatsApp também.",
+        "sub": "Abra o Inbox, vincule o WhatsApp e comece a organizar.",
+        "button": "Abrir o Inbox"
+      }
     }
   },
   "product": {
@@ -2216,7 +2302,7 @@
     "apiDocs": "Docs da API",
     "howTitle": "Como funciona.",
     "suiteTitle": "Um workspace.",
-    "suiteTitleDim": "Vinte e cinco apps, o mesmo login.",
+    "suiteTitleDim": "Vinte e seis apps, o mesmo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Localização",
     "navLabel": "Seções do {name}",
@@ -2305,7 +2391,8 @@
       "books": "fig. 0 · movimentos sendo conciliados",
       "sign": "fig. 0 · uma assinatura ao pé de um contrato",
       "forms": "fig. 0 · um formulário sendo preenchido",
-      "send": "fig. 0 · páginas sendo lidas, com o tempo de cada uma"
+      "send": "fig. 0 · páginas sendo lidas, com o tempo de cada uma",
+      "inbox": "fig. 0 · uma conversa e um e-mail na mesma lista"
     },
     "heroFigHint": "arraste para girar"
   },
@@ -2776,6 +2863,27 @@
       "p3time": "0:25",
       "p4label": "Página 4",
       "p4time": "0:08"
+    },
+    "inbox": {
+      "listTitle": "Caixa de entrada",
+      "r1name": "Ana Pérez",
+      "r1time": "14:05",
+      "r1meta": "Você me manda o contrato hoje?",
+      "r2name": "Família",
+      "r2time": "13:40",
+      "r2meta": "Mãe: almoço domingo à 1",
+      "r3name": "Martín",
+      "r3time": "seg",
+      "r3meta": "Sem resposta · Voltou",
+      "r4name": "Banco",
+      "r4time": "seg",
+      "r4meta": "Seu extrato está disponível",
+      "status": "WhatsApp",
+      "m1": "Oi! Você me manda o contrato hoje?",
+      "m2": "Sim, estou terminando a última página.",
+      "m3": "Ótimo, obrigada",
+      "draft": "Aqui está. Me avisa se precisar mudar algo.",
+      "draftTag": "Rascunho com IA"
     }
   },
   "status": {
@@ -3669,7 +3777,7 @@
   "parityOverview": {
     "title": "Paridade de funções, app por app.",
     "titleDim": "Medida contra cada concorrente.",
-    "lead": "Paridade média de {apps} dos 25 apps: {average} %. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
+    "lead": "Paridade média de {apps} dos 26 apps: {average} %. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
     "col": {
       "app": "App",
       "competitor": "Comparado com",
@@ -3815,7 +3923,7 @@
   "docsMcp": {
     "meta": {
       "title": "Conectar o Claude e a CLI",
-      "description": "Conecte o Claude Code ou a CLI da zerosoft à sua conta com seu login de sempre, e trabalhe nos 25 apps como você."
+      "description": "Conecte o Claude Code ou a CLI da zerosoft à sua conta com seu login de sempre, e trabalhe nos 26 apps como você."
     }
   }
 }

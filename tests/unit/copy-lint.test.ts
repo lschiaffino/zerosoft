@@ -13,7 +13,7 @@ import { PRODUCT_KEYS } from '@/lib/products';
 
 const root = join(__dirname, '..', '..');
 const LOCALES = ['es', 'en', 'pt'] as const;
-const NAMESPACES = ['common', 'pages', 'tools', 'brand', 'settings', 'changelog', 'feedbackBoard', 'roadmap', 'feedback', 'videos'] as const;
+const NAMESPACES = ['common', 'pages', 'tools', 'brand', 'settings', 'changelog', 'feedbackBoard', 'roadmap', 'feedback', 'videos', 'lifecycleEmails'] as const;
 
 const RULES: Record<string, RegExp> = {
   'raya larga (—)': /—/,
