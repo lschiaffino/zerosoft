@@ -2245,3 +2245,11 @@ tr.is-drop-after {
 .track-context-item.is-danger {
   color: var(--bad-ink);
 }
+
+/* Carga de páginas de Track (loading.tsx). */
+.track-skeleton { display: grid; gap: 16px; }
+.track-skeleton-split { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 32px; }
+@media (max-width: 767px) {
+  .track-skeleton-split { grid-template-columns: minmax(0, 1fr); }
+  .track-skeleton-side { display: none; }
+}

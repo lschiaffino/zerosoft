@@ -1727,5 +1727,8 @@
     "noMilestone": "Sem milestone",
     "noProject": "Sem project",
     "showingFirst": "Mostrando os primeiros {shown} de {total}. Adicione um filtro para reduzir."
+  },
+  "skeleton": {
+    "loading": "Carregando…"
   }
 }

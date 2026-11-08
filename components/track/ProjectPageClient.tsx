@@ -43,6 +43,12 @@ interface ProjectPageClientProps {
   initialStatuses: TrackStatusRow[];
   initialMembers: ProjectMember[];
   initialViews: TrackSavedView[];
+  /** Lo demás del team, cargado en el servidor (un solo viaje): cycles, milestones, plantillas, repeticiones y triage. */
+  initialCycles?: CycleWithProgress[];
+  initialMilestones?: TrackMilestoneWithProgress[];
+  initialTemplates?: TrackIssueTemplateRow[];
+  initialRecurring?: TrackRecurringIssueRow[];
+  initialTriage?: TrackIssueWithStatus[];
 }
 
 /** Agrupados de la lista de un team (por team no tiene sentido acá), como Linear. */
@@ -66,7 +72,20 @@ const changed = () => window.dispatchEvent(new CustomEvent(TRACK_ISSUES_CHANGED)
  * ajustes del team (cycles, milestones, plantillas, status, triage) van en
  * un panel lateral.
  */
-export default function ProjectPageClient({ project: initialProject, teamKey, userId, isAdmin = false, initialStatuses, initialMembers, initialViews }: ProjectPageClientProps) {
+export default function ProjectPageClient({
+  project: initialProject,
+  teamKey,
+  userId,
+  isAdmin = false,
+  initialStatuses,
+  initialMembers,
+  initialViews,
+  initialCycles,
+  initialMilestones,
+  initialTemplates,
+  initialRecurring,
+  initialTriage,
+}: ProjectPageClientProps) {
   const t = useTranslations('track');
   const tt = useTranslations('track.ux.team');
   const locale = useLocale();
@@ -79,11 +98,11 @@ export default function ProjectPageClient({ project: initialProject, teamKey, us
   const [project, setProject] = useState<TrackProjectRow>(initialProject);
   const [statuses, setStatuses] = useState<TrackStatusRow[]>(initialStatuses);
   const [members] = useState<ProjectMember[]>(initialMembers);
-  const [cycles, setCycles] = useState<CycleWithProgress[]>([]);
-  const [milestones, setMilestones] = useState<TrackMilestoneWithProgress[]>([]);
-  const [templates, setTemplates] = useState<TrackIssueTemplateRow[]>([]);
-  const [recurring, setRecurring] = useState<TrackRecurringIssueRow[]>([]);
-  const [triageIssues, setTriageIssues] = useState<TrackIssueWithStatus[]>([]);
+  const [cycles, setCycles] = useState<CycleWithProgress[]>(initialCycles ?? []);
+  const [milestones, setMilestones] = useState<TrackMilestoneWithProgress[]>(initialMilestones ?? []);
+  const [templates, setTemplates] = useState<TrackIssueTemplateRow[]>(initialTemplates ?? []);
+  const [recurring, setRecurring] = useState<TrackRecurringIssueRow[]>(initialRecurring ?? []);
+  const [triageIssues, setTriageIssues] = useState<TrackIssueWithStatus[]>(initialTriage ?? []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [tab, setTab] = useState<'issues' | 'triage'>(() => (searchParams.get('tab') === 'triage' ? 'triage' : 'issues'));
@@ -109,13 +128,15 @@ export default function ProjectPageClient({ project: initialProject, teamKey, us
     if (data) setTriageIssues(data.rows);
   }, [projectId]);
 
-  // Cycles, milestones, plantillas, repeticiones y triage no bloquean la lista.
+  // Lo que no vino del servidor se pide al montar (no bloquea la lista); con todo precargado, ningún pedido.
+  const preloaded = useRef({ c: !!initialCycles, m: !!initialMilestones, t: !!initialTemplates, r: !!initialRecurring, tr: !!initialTriage });
   useEffect(() => {
-    void reloadCycles();
-    void reloadMilestones();
-    void reloadTemplates();
-    void reloadRecurring();
-    void loadTriage();
+    const p = preloaded.current;
+    if (!p.c) void reloadCycles();
+    if (!p.m) void reloadMilestones();
+    if (!p.t) void reloadTemplates();
+    if (!p.r) void reloadRecurring();
+    if (!p.tr) void loadTriage();
   }, [reloadCycles, reloadMilestones, reloadTemplates, reloadRecurring, loadTriage]);
 
   // El progreso de cycles y milestones depende de los issues: se refresca (con espera) cuando cambian.

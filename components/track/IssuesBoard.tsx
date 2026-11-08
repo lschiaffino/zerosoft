@@ -4,7 +4,7 @@ import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { DragEvent } from 'react';
-import { Link } from '@/i18n/navigation';
+import IssueLink from './IssueLink';
 import { formatDate } from '@/lib/utils';
 import type { ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
 import type { TrackStatusRow } from '@/lib/db';
@@ -329,9 +329,9 @@ export default function IssuesBoard({
                         {pending ? (
                           <p className="track-board-card-title">{issue.title || t('issues.untitled')}</p>
                         ) : (
-                          <Link href={`/app/track/issues/${issue.id}`} className="track-board-card-title" draggable={false}>
+                          <IssueLink href={`/app/track/issues/${issue.id}`} className="track-board-card-title" draggable={false}>
                             {issue.title || t('issues.untitled')}
-                          </Link>
+                          </IssueLink>
                         )}
                         {show.has('labels') && cardLabels(issue.labels).length > 0 && (
                           <div className="track-board-card-labels">
@@ -383,7 +383,7 @@ export default function IssuesBoard({
                       </>
                     ) : (
                       <>
-                        <Link href={`/app/track/issues/${issue.id}`} className="track-board-card-link" draggable={false}>
+                        <IssueLink href={`/app/track/issues/${issue.id}`} className="track-board-card-link" draggable={false}>
                           <div className="track-board-card-head">
                             <span className="track-identifier">{issue.identifier}</span>
                             <PriorityIcon priority={issue.priority} />
@@ -402,7 +402,7 @@ export default function IssuesBoard({
                               <span className="track-board-due"><LocalText>{formatDate(issue.due_date, locale)}</LocalText></span>
                             )}
                           </div>
-                        </Link>
+                        </IssueLink>
                         {onMove && (
                           <div className="track-board-card-actions">
                             {/* Mover sin arrastrar: el mismo menú de estado que S (filtro, flechas, 1–9). */}
