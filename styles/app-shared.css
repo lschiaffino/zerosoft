@@ -643,7 +643,8 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
    Columnas, Alertas) se salía de la pantalla cuando el botón estaba cerca de un borde.
    A 640px o menos baja al pie, a todo el ancho y con telón, como una hoja de acciones. */
 @media (max-width: 640px) {
-  :is(.record-more-menu, .book-meeting-menu, .dash-add-menu, .chat-alerts-panel, .column-toggle-menu) {
+  /* "Mover a…" del tablero ya se ubica junto a su card dentro de la pantalla: queda anclado. */
+  :is(.record-more-menu:not(.kb-move-menu), .book-meeting-menu, .dash-add-menu, .chat-alerts-panel, .column-toggle-menu) {
     position: fixed !important;
     top: auto !important;
     right: 8px !important;
