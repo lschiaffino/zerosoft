@@ -297,22 +297,40 @@ test('onboarding de una cuenta nueva: equipo, invitaciones, rol y app de entrada
     await p.getByLabel('Your name').fill('Fer');
     await p.getByText('Sales', { exact: true }).click();
     await p.getByRole('button', { name: 'Continue' }).click();
+    // Las apps salen sugeridas para Ventas; se puede sumar o sacar.
+    await expect(p.getByRole('heading', { name: 'Which apps will you use?' })).toBeVisible();
+    await expect(p.locator('[data-testid="wl-app"][data-app="crm"] input')).toBeChecked();
+    await p.locator('[data-testid="wl-app"][data-app="groups"]').click();
+    await p.getByRole('button', { name: 'Continue' }).click();
     await expect(p.getByRole('heading', { name: 'Invite people to Acme Norte' })).toBeVisible();
     await p.getByLabel('Emails').fill(`uno-${uid()}@acme-e2e.io`);
     await p.getByRole('button', { name: 'Continue' }).click();
-    await expect(p.getByRole('heading', { name: 'Where do you start?' })).toBeVisible();
-    await p.getByText('HubSpot', { exact: true }).click();
-    await expect(p.getByRole('button', { name: 'Import from HubSpot' })).toBeVisible();
-    await p.getByRole('button', { name: 'Go to CRM' }).click();
     // Sin proveedor de email: muestra el link para copiar antes de seguir.
     await expect(p.getByRole('heading', { name: 'Almost there' })).toBeVisible();
     await p.getByRole('button', { name: 'Continue' }).click();
-    await p.waitForURL(/\/en\/app\/crm$/);
+    // Segundo tramo: Cal (calendario), CRM (email) y Groups (WhatsApp) piden su conexión.
+    await expect(p.getByRole('heading', { name: 'Connect your accounts' })).toBeVisible();
+    await expect(p.getByTestId('wl-connect-calendar')).toBeVisible();
+    await expect(p.getByTestId('wl-connect-email')).toBeVisible();
+    await expect(p.getByTestId('wl-connect-whatsapp')).toBeVisible();
+    await p.getByTestId('wl-next').click();
+    await expect(p.getByRole('heading', { name: 'Coming from another tool?' })).toBeVisible();
+    await p.getByText('HubSpot', { exact: true }).click();
+    await expect(p.getByTestId('wl-import-go')).toHaveAttribute('href', '/en/app/settings/import?source=crm:hubspot');
+    await p.getByRole('button', { name: 'Later' }).click();
+    await expect(p.getByRole('heading', { name: 'Get zerosoft on your computer' })).toBeVisible();
+    await p.getByRole('button', { name: 'Go to Home' }).click();
+    await p.waitForURL(/\/en\/app$/);
     await expect(p.getByTestId('workspace-switcher')).toContainText('Acme Norte');
     const row = (await sql('SELECT u.onboarded_at, u.profile, t.name, t.use_mode, t.size FROM users u JOIN teams t ON t.owner_id = u.id WHERE u.email = ?', [email]))[0];
     expect(row.onboarded_at).toBeTruthy();
-    expect(JSON.parse(String(row.profile))).toMatchObject({ role: 'sales', sourceTool: 'hubspot', entryApp: 'crm' });
+    expect(JSON.parse(String(row.profile))).toMatchObject({ role: 'sales', sourceTool: 'hubspot', entryApp: 'crm', v: 2 });
+    expect(JSON.parse(String(row.profile)).apps).toContain('groups');
     expect([row.name, row.use_mode, row.size]).toEqual(['Acme Norte', 'team', '11-50']);
+    // "Primeros pasos": la invitación ya cuenta (sale de la base) y lo demás queda pendiente.
+    await expect(p.getByTestId('gs-invite')).toHaveAttribute('data-done', '1');
+    await expect(p.getByTestId('gs-import')).toContainText('Bring your data from HubSpot');
+    await expect(p.getByTestId('gs-desktop')).toHaveAttribute('data-done', '0');
 
     // Switcher: abre con teclado, muestra el workspace y Esc cierra.
     await p.getByTestId('workspace-switcher').click();

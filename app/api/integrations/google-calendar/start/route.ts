@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { rememberReturn } from '@/lib/oauth-return';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { googleAuthUrl, googleCalendarRedirectUri, googleOAuthConfigured } from '@/lib/integrations';
 import { GOOGLE_CALENDAR_SCOPE } from '@/lib/google-calendar';
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic';
 const STATE_COOKIE = 'zs-gcal-state';
 
 /** Conecta el Google Calendar de la persona logueada (no del workspace). */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const fake = fakeGoogleCalendarAllowed();
@@ -30,5 +31,6 @@ export async function GET() {
     path: '/',
     maxAge: 600,
   });
+  rememberReturn(req, res);
   return res;
 }

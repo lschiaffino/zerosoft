@@ -213,7 +213,8 @@
     "groupBooksBankAccounts": "Cuentas bancarias",
     "groupBooksRecurring": "Facturas recurrentes",
     "groupForms": "Formularios",
-    "groupSend": "Documentos para enviar"
+    "groupSend": "Documentos para enviar",
+    "downloadDesktop": "Descargar la app de escritorio"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",
@@ -696,6 +697,54 @@
       "title": "Todavía no tenés apps habilitadas",
       "body": "Un admin de {workspace} te las puede habilitar en Ajustes › Miembros.",
       "bodyAdmin": "El owner de {workspace} te las puede habilitar en Ajustes › Miembros."
+    },
+    "start": {
+      "title": "Primeros pasos",
+      "progress": "{done} de {total} listos",
+      "hide": "Ocultar",
+      "hideLabel": "Ocultar primeros pasos",
+      "allSet": "Ya está todo. Lo que elegiste al empezar está conectado.",
+      "error": "No se pudo ocultar. Probá de nuevo.",
+      "continueSetup": "Seguir configurando",
+      "steps": {
+        "profile": {
+          "title": "Armá tu workspace",
+          "body": "Nombre, rol y las apps que usás.",
+          "cta": "Editar"
+        },
+        "invite": {
+          "title": "Invitá a tu equipo",
+          "body": "Todos comparten el mismo CRM, Docs y Track.",
+          "cta": "Invitar"
+        },
+        "import": {
+          "title": "Traé tus datos de {tool}",
+          "body": "Contactos, páginas o issues llegan con su historial.",
+          "cta": "Importar",
+          "titleAny": "Traé tus datos"
+        },
+        "calendar": {
+          "title": "Conectá tu calendario",
+          "body": "Cal lo mira para no superponer y le suma las reservas nuevas.",
+          "cta": "Conectar"
+        },
+        "email": {
+          "title": "Conectá tu email",
+          "body": "Los emails con tus contactos aparecen en el CRM y mandás desde tu dirección.",
+          "cta": "Conectar"
+        },
+        "whatsapp": {
+          "title": "Conectá una línea de WhatsApp",
+          "body": "Tus chats y grupos llegan a Groups, con su historial.",
+          "cta": "Conectar"
+        },
+        "desktop": {
+          "title": "Bajate la app de escritorio",
+          "body": "Dictado en cualquier app, notas de reuniones y avisos nativos.",
+          "cta": "Descargar"
+        }
+      },
+      "done": "Listo"
     }
   },
   "publicPage": {
@@ -829,5 +878,55 @@
     "errorTitle": "No pudimos cargar {app}",
     "errorBody": "Probá de nuevo en un momento.",
     "retry": "Reintentar"
+  },
+  "desktop": {
+    "pickLabel": "Tu computadora",
+    "macArm": "Mac con Apple silicon",
+    "macIntel": "Mac con Intel",
+    "win": "Windows",
+    "detected": "Detectada",
+    "probable": "Lo más probable",
+    "download": {
+      "mac-arm": "Descargar para Mac",
+      "mac-intel": "Descargar para Mac (Intel)",
+      "win": "Descargar para Windows"
+    },
+    "meta": "Versión {version}",
+    "metaSize": "Versión {version} · {size}",
+    "chipHelp": "¿No sabés qué Mac tenés? Menú Apple › Acerca de esta Mac: “Chip Apple M…” es Apple silicon, “Procesador Intel…” es Intel.",
+    "allFiles": "Todos los archivos en GitHub",
+    "noRelease": "Ahora no hay una versión publicada. Mientras tanto usá zerosoft en el navegador; en la página de releases están todas las anteriores.",
+    "releases": "Ver releases",
+    "mobile": "La app de escritorio es para Mac y Windows. Abrí esta página en tu computadora para descargarla.",
+    "copyLink": "Copiar link",
+    "copied": "Link copiado",
+    "linux": "Todavía no hay versión para Linux. zerosoft funciona igual en el navegador.",
+    "inApp": "Estás en la app de escritorio.",
+    "inAppBody": "El dictado, los avisos y el contador del dock están activos. Los ajustes del dictado están en el menú de la app.",
+    "installTitle": "Instalala",
+    "installTitleAfter": "Se está descargando. Ahora instalala",
+    "mac": {
+      "s1": "Abrí el .dmg que descargaste y arrastrá zerosoft a Aplicaciones.",
+      "s2": "Abrí zerosoft desde Aplicaciones. La primera vez macOS dice que no puede verificar al desarrollador: la versión todavía no está notarizada por Apple.",
+      "s3": "En macOS 15 o posterior, andá a Ajustes del Sistema › Privacidad y seguridad, bajá y tocá Abrir igualmente. En macOS 14 o anterior, hacé clic derecho en la app, elegí Abrir y confirmá.",
+      "s4": "Entrá con esta cuenta. El dictado pide el micrófono, y Accesibilidad para pegar donde está tu cursor."
+    },
+    "windows": {
+      "s1": "Ejecutá el .exe que descargaste.",
+      "s2": "Si SmartScreen dice “Windows protegió tu PC”, tocá Más información y después Ejecutar de todas formas. La versión todavía no está firmada.",
+      "s3": "El instalador suma Microsoft Edge WebView2 si a tu Windows 10 le falta, y abre zerosoft.",
+      "s4": "Entrá con esta cuenta."
+    },
+    "waiting": "Cuando entres en la app de escritorio, este paso se marca solo.",
+    "seen": "La app de escritorio ya está conectada a tu cuenta.",
+    "featuresTitle": "Qué suma",
+    "f1t": "Dictado en cualquier app",
+    "f1d": "Mantené Option + Espacio (Ctrl + Alt + Espacio en Windows), hablá y soltá: el texto limpio queda donde está tu cursor.",
+    "f2t": "Notas de reuniones con Voice",
+    "f2d": "Grabá una reunión desde la ventana de la app con tu micrófono y tené la transcripción y el resumen en Voice.",
+    "f3t": "Avisos nativos",
+    "f3d": "Menciones, mensajes directos y la campana como avisos del sistema y un contador en el ícono del dock.",
+    "f4t": "Liviana y rápida",
+    "f4d": "Unos 3 MB. Todas las apps en una ventana que abre en menos de un segundo."
   }
 }

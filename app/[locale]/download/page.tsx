@@ -1,9 +1,8 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { staticPageMetadata } from '@/lib/seo-pages';
 import { Link } from '@/i18n/navigation';
-import DownloadButtons from '@/components/site/DownloadButtons';
-import { desktopDownloads, latestDesktopRelease } from '@/lib/desktop-release';
-import { GITHUB_URL } from '@/components/site/catalog';
+import DesktopDownload from '@/components/desktop/DesktopDownload';
+import { desktopReleaseForClient } from '@/lib/desktop-release';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
@@ -17,58 +16,37 @@ const FEATURES = ['f1', 'f5', 'f2', 'f3', 'f4'] as const;
 
 /**
  * /download: la app de escritorio (desktop/, Tauri) para Mac y Windows.
- * Los links salen del último release desktop-v* de GitHub; el botón grande
- * es el del sistema de quien mira (DownloadButtons). Mientras no haya firma
- * ni notarización, la página lo dice y explica cómo abrirla.
+ * El instalador sale del último release desktop-v* de GitHub (resuelto en el
+ * servidor, con caché); DesktopDownload detecta sistema y chip, deja elegir a
+ * mano y explica cómo abrir una build sin firmar. Lo mismo se ve en
+ * /app/download y en el onboarding.
  */
 export default async function DownloadPage(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'pages.download' });
-  const release = await latestDesktopRelease();
-  const dl = release ? desktopDownloads(release) : null;
-  const date = dl?.publishedAt ? new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(dl.publishedAt)) : null;
+  const release = await desktopReleaseForClient();
 
   return (
     <main className="container">
       <header className="read-hero">
         <h1 className="read-title">{t('title')}</h1>
         <p className="read-intro">{t('sub')}</p>
-        {dl ? (
-          <>
-            <DownloadButtons
-              links={{ macArm64: dl.macArm64, macX64: dl.macX64, win: dl.win }}
-              labels={{ macArm: t('macArm'), macIntel: t('macIntel'), win: t('win'), otherMac: t('otherMac'), otherArm: t('otherArm') }}
-            />
-            <p className="read-meta">
-              {date ? t('versionLine', { version: dl.version, date }) : null}{' '}
-              <a href={dl.pageUrl} target="_blank" rel="noreferrer">
-                {t('allFiles', { version: dl.version })}
-              </a>
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="read-meta dl-empty" data-testid="download-empty">
-              {t('noRelease')}
-            </p>
-            <div className="read-actions">
-              <a className="btn btn-primary" href={`${GITHUB_URL}/tree/main/desktop`} target="_blank" rel="noreferrer">
-                {t('source')}
-              </a>
-              <Link className="btn btn-secondary" href="/app">
-                {t('openApp')}
-              </Link>
-            </div>
-          </>
+        <div className="dl-widget">
+          <DesktopDownload release={release} variant="page" />
+        </div>
+        {!release && (
+          <div className="read-actions">
+            <Link className="btn btn-secondary" href="/app">
+              {t('openApp')}
+            </Link>
+          </div>
         )}
       </header>
 
       <div className="read-body dl-body">
         <section className="status-note-block dl-unsigned" aria-labelledby="dl-unsigned">
           <h2 id="dl-unsigned">{t('unsignedTitle')}</h2>
-          <p>{t('unsignedMac')}</p>
-          <p>{t('unsignedWin')}</p>
           <p>{t('unsignedUpdates')}</p>
         </section>
 

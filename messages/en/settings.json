@@ -895,7 +895,61 @@
     "stepFirst": "Step 1",
     "notYouJoined": "You already joined {workspace} with {email}. Signing out doesn't undo that. To remove this account from {workspace}, leave it now; to come back with another account you'll need a new invitation.",
     "notYouLeave": "Leave {workspace} and sign out",
-    "notYouStay": "Only sign out"
+    "notYouStay": "Only sign out",
+    "skipStep": "Skip",
+    "skipAll": "Skip the rest",
+    "resumed": "We kept your answers from last time.",
+    "apps": {
+      "title": "Which apps will you use?",
+      "sub": "They go first on your Home, in the sidebar and in the app switcher. Every app stays one click away.",
+      "suggested": "Picked for {role}. Change anything.",
+      "suggestedNoRole": "A starting set. Change anything.",
+      "count": "{n, plural, =0 {None picked: we show the usual ones} one {# app} other {# apps}}",
+      "sample": "Add sample data to explore (contacts, a doc, a project and an event type)"
+    },
+    "setup": {
+      "savedTitle": "Your workspace is ready",
+      "stepOf": "Setup {step} of {total}",
+      "finish": "Go to Home",
+      "next": "Next"
+    },
+    "connect": {
+      "title": "Connect your accounts",
+      "sub": "So the apps you picked start with your real calendar, email and chats.",
+      "calendar": {
+        "name": "Google Calendar",
+        "body": "Cal checks it for conflicts and adds bookings to it."
+      },
+      "email": {
+        "name": "Gmail",
+        "body": "Emails with your contacts appear in the CRM; send from your address."
+      },
+      "whatsapp": {
+        "name": "WhatsApp line",
+        "body": "Scan a QR to bring your chats and groups into Groups, with their history."
+      },
+      "connect": "Connect",
+      "connected": "Connected",
+      "openSettings": "Set up",
+      "result": {
+        "connected": "{name} is connected.",
+        "denied": "{name} was not connected: the permission was declined.",
+        "error": "{name} could not be connected. Try again.",
+        "scopes": "{name} needs every permission it asks for. Try again and keep them all checked."
+      }
+    },
+    "import": {
+      "title": "Coming from another tool?",
+      "sub": "Bring your data over now or later from Settings › Import. Nothing in the other tool changes.",
+      "none": "Starting fresh",
+      "go": "Import from {tool}",
+      "soon": "No importer for {tool} yet. You can start fresh and import by CSV where the app has it.",
+      "later": "Later"
+    },
+    "desktop": {
+      "title": "Get zerosoft on your computer",
+      "sub": "The desktop app is the browser version plus what a tab cannot do."
+    }
   },
   "profileForm": {
     "title": "Your details",

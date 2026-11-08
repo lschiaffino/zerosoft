@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { gmailAuthUrl } from '@/lib/integrations';
+import { rememberReturn } from '@/lib/oauth-return';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 const STATE_COOKIE = 'zs-gmail-state';
 
 /** Inicia el OAuth de Gmail: state en cookie httpOnly + redirect a Google. */
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
@@ -24,5 +25,6 @@ export async function GET(_req: NextRequest) {
     path: '/',
     maxAge: 600,
   });
+  rememberReturn(req, res);
   return res;
 }

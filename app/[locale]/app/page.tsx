@@ -12,6 +12,9 @@ import HomeAsk from '@/components/assistant/HomeAsk';
 import RequestAccessButton from '@/components/app/RequestAccessButton';
 import LostAccessNotice from '@/components/app/LostAccessNotice';
 import { isRequestPending, lostAccessNotice } from '@/lib/workspace-access-request';
+import { chosenApps } from '@/lib/onboarding';
+import { getOnboardingState } from '@/lib/onboarding-state';
+import GettingStarted from '@/components/app/home/GettingStarted';
 import {
   CalBookingsBlock,
   CrmTasksBlock,
@@ -56,19 +59,26 @@ export default async function PlatformHomePage(props: {
   const admin = isWorkspaceAdmin(user);
   // Solo las apps que la persona tiene en este workspace.
   const can = (k: ProductKey) => homeCanUse(user, k);
-  const featured = featuredApps({ mode }).filter(can);
-  const more = moreAppsByCategory({ mode })
+  // Las apps que la persona eligió al empezar van primero (si no eligió, las del modo).
+  const chosen = chosenApps(person.profile);
+  const featured = featuredApps({ mode, chosen }).filter(can);
+  const more = moreAppsByCategory({ mode, chosen })
     .map((g) => ({ ...g, apps: g.apps.filter(can) }))
     .filter((g) => g.apps.length > 0);
   // Sin apps no hay nada que invitar a usar ni que importar: solo lo que esa persona puede hacer.
-  const showCards = admin && (featured.length > 0 || more.length > 0);
+  const canShowCards = admin && (featured.length > 0 || more.length > 0);
   const blockedKey = (await props.searchParams).blocked;
   // El link puede quedar viejo: si ya tiene la app (se la dieron), no hay nada que avisar.
   const blocked = typeof blockedKey === 'string' && blockedKey in PRODUCT_CONFIG && !userCanUseApp(user, blockedKey as ProductKey) ? (blockedKey as ProductKey) : null;
   const tAccess = blocked ? await getTranslations({ locale, namespace: 'settings.access' }) : null;
   // "Pedido enviado" sigue al recargar: sale de la base, no del estado del botón.
   const alreadyAsked = Boolean(blocked && user.actingUser && user.workspace && (await isRequestPending(user.workspace.id, person.id, blocked)));
-  const lost = await lostAccessNotice(person.id);
+  const [lost, onboarding] = await Promise.all([
+    lostAccessNotice(person.id),
+    getOnboardingState(person.id, { workspaceId: user.id, admin }).catch(() => null),
+  ]);
+  // Con "Primeros pasos" a la vista, invitar e importar ya están ahí.
+  const showCards = canShowCards && !onboarding?.showChecklist;
   const todayBlocks = can('crm') || can('track') || can('cal') || (can('chat') && can('groups'));
 
   const appCard = (k: ProductKey) => (
@@ -101,6 +111,8 @@ export default async function PlatformHomePage(props: {
       )}
 
       {lost && <LostAccessNotice id={lost.id} title={lost.title} body={lost.body} />}
+
+      {onboarding?.showChecklist && <GettingStarted state={onboarding} locale={locale} />}
 
       {/* El asistente de la plataforma: preguntar abre la charla a página completa. */}
       <HomeAsk />

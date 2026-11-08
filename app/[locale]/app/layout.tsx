@@ -11,6 +11,8 @@ import type { SwitcherEntry } from '@/components/app/WorkspaceSwitcher';
 import OfflineIdentity from '@/components/app/OfflineIdentity';
 import { countDueTasks } from '@/lib/crm';
 import { getWorkspaceMode } from '@/lib/home';
+import { chosenApps, parseProfile } from '@/lib/onboarding';
+import DesktopSeen from '@/components/desktop/DesktopSeen';
 import AppSidebar from '@/components/app/AppSidebar';
 import AppTopbar from '@/components/app/AppTopbar';
 import CommandSearch from '@/components/app/CommandSearch';
@@ -159,10 +161,13 @@ export default async function AppLayout(
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
         <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
         <AppPwa />
+        {/* La app de escritorio avisa una vez que se abrió con esta cuenta ("Primeros pasos"). */}
+        {!parseProfile(real.profile).desktopSeenAt && <DesktopSeen />}
         <AppSidebar
           docsCanCreate={docsCanCreate}
           demo={DEMO_MODE}
           mode={mode}
+          chosenApps={chosenApps(real.profile)}
           tasksDue={tasksDue}
           user={{
             name: user.actingUser?.name ?? user.name,
@@ -370,6 +375,7 @@ export default async function AppLayout(
                 { href: '/app/send', label: tSend('nav.documents') },
                 { href: '/app/send/spaces', label: tSend('nav.spaces') },
                 { href: '/app/assistant', label: tSide('assistant') },
+                { href: '/app/download', label: tSide('downloadDesktop') },
               ]}
             />
           }

@@ -213,7 +213,8 @@
     "groupBooksBankAccounts": "Bank accounts",
     "groupBooksRecurring": "Recurring invoices",
     "groupForms": "Forms",
-    "groupSend": "Documents to send"
+    "groupSend": "Documents to send",
+    "downloadDesktop": "Download the desktop app"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
@@ -696,6 +697,54 @@
       "title": "No apps turned on yet",
       "body": "An admin of {workspace} can turn apps on for you in Settings › Members.",
       "bodyAdmin": "The owner of {workspace} can turn apps on for you in Settings › Members."
+    },
+    "start": {
+      "title": "Getting started",
+      "progress": "{done} of {total} done",
+      "hide": "Hide",
+      "hideLabel": "Hide getting started",
+      "allSet": "You are all set. Everything from your setup is connected.",
+      "error": "Couldn't hide it. Try again.",
+      "continueSetup": "Continue setup",
+      "steps": {
+        "profile": {
+          "title": "Set up your workspace",
+          "body": "Name, role and the apps you use.",
+          "cta": "Edit"
+        },
+        "invite": {
+          "title": "Invite your team",
+          "body": "Everyone shares the same CRM, Docs and Track.",
+          "cta": "Invite"
+        },
+        "import": {
+          "title": "Bring your data from {tool}",
+          "body": "Contacts, pages or issues come over with their history.",
+          "cta": "Import",
+          "titleAny": "Bring your data"
+        },
+        "calendar": {
+          "title": "Connect your calendar",
+          "body": "Cal checks it for conflicts and adds new bookings to it.",
+          "cta": "Connect"
+        },
+        "email": {
+          "title": "Connect your email",
+          "body": "Emails with your contacts show up in the CRM and you send from your own address.",
+          "cta": "Connect"
+        },
+        "whatsapp": {
+          "title": "Connect a WhatsApp line",
+          "body": "Your chats and groups land in Groups, with their history.",
+          "cta": "Connect"
+        },
+        "desktop": {
+          "title": "Get the desktop app",
+          "body": "Dictation in any app, meeting notes and native notifications.",
+          "cta": "Download"
+        }
+      },
+      "done": "Done"
     }
   },
   "publicPage": {
@@ -829,5 +878,55 @@
     "errorTitle": "We couldn't load {app}",
     "errorBody": "Try again in a moment.",
     "retry": "Retry"
+  },
+  "desktop": {
+    "pickLabel": "Your computer",
+    "macArm": "Mac with Apple silicon",
+    "macIntel": "Mac with Intel",
+    "win": "Windows",
+    "detected": "Detected",
+    "probable": "Most likely",
+    "download": {
+      "mac-arm": "Download for Mac",
+      "mac-intel": "Download for Mac (Intel)",
+      "win": "Download for Windows"
+    },
+    "meta": "Version {version}",
+    "metaSize": "Version {version} · {size}",
+    "chipHelp": "Not sure which Mac? Apple menu › About This Mac: “Chip Apple M…” is Apple silicon, “Processor Intel…” is Intel.",
+    "allFiles": "All files on GitHub",
+    "noRelease": "There is no published build right now. Use zerosoft in the browser meanwhile; the releases page has every past version.",
+    "releases": "See releases",
+    "mobile": "The desktop app is for Mac and Windows. Open this page on your computer to download it.",
+    "copyLink": "Copy link",
+    "copied": "Link copied",
+    "linux": "There is no Linux build yet. zerosoft works the same in the browser.",
+    "inApp": "You are in the desktop app.",
+    "inAppBody": "Dictation, notifications and the dock badge are on. Settings for dictation are in the app menu.",
+    "installTitle": "Install it",
+    "installTitleAfter": "Downloading. Now install it",
+    "mac": {
+      "s1": "Open the .dmg you downloaded and drag zerosoft to Applications.",
+      "s2": "Open zerosoft from Applications. The first time, macOS says it cannot check the developer: the build is not notarized by Apple yet.",
+      "s3": "On macOS 15 or later, go to System Settings › Privacy & Security, scroll down and click Open Anyway. On macOS 14 or earlier, right-click the app, choose Open and confirm.",
+      "s4": "Sign in with this account. Dictation asks for the microphone, and for Accessibility so it can paste where your cursor is."
+    },
+    "windows": {
+      "s1": "Run the .exe you downloaded.",
+      "s2": "If SmartScreen says “Windows protected your PC”, click More info and then Run anyway. The build is not signed yet.",
+      "s3": "The installer adds Microsoft Edge WebView2 if your Windows 10 is missing it, and opens zerosoft.",
+      "s4": "Sign in with this account."
+    },
+    "waiting": "When you sign in on the desktop app, this step marks itself done.",
+    "seen": "Desktop app connected to your account.",
+    "featuresTitle": "What it adds",
+    "f1t": "Dictation in any app",
+    "f1d": "Hold Option + Space (Ctrl + Alt + Space on Windows), speak, let go: clean text lands where your cursor is.",
+    "f2t": "Meeting notes with Voice",
+    "f2d": "Record a meeting from the app window with your microphone and get the transcript and summary in Voice.",
+    "f3t": "Native notifications",
+    "f3d": "Mentions, direct messages and the bell as system notifications and a badge on the dock icon.",
+    "f4t": "Light and fast",
+    "f4d": "About 3 MB. Every app in one window that opens in under a second."
   }
 }

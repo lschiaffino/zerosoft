@@ -895,7 +895,61 @@
     "stepFirst": "Paso 1",
     "notYouJoined": "Ya te sumaste a {workspace} con {email}. Cerrar sesión no lo deshace. Para sacar esta cuenta de {workspace}, salí ahora; para volver con otra cuenta vas a necesitar una invitación nueva.",
     "notYouLeave": "Salir de {workspace} y cerrar sesión",
-    "notYouStay": "Solo cerrar sesión"
+    "notYouStay": "Solo cerrar sesión",
+    "skipStep": "Saltear",
+    "skipAll": "Saltear el resto",
+    "resumed": "Guardamos tus respuestas de la última vez.",
+    "apps": {
+      "title": "¿Qué apps vas a usar?",
+      "sub": "Van primero en tu inicio, en el sidebar y en el selector de apps. Las demás quedan a un clic.",
+      "suggested": "Elegidas para {role}. Cambiá lo que quieras.",
+      "suggestedNoRole": "Un punto de partida. Cambiá lo que quieras.",
+      "count": "{n, plural, =0 {Ninguna: mostramos las de siempre} one {# app} other {# apps}}",
+      "sample": "Sumar datos de ejemplo para explorar (contactos, un doc, un proyecto y un tipo de evento)"
+    },
+    "setup": {
+      "savedTitle": "Tu workspace está listo",
+      "stepOf": "Configuración {step} de {total}",
+      "finish": "Ir al inicio",
+      "next": "Siguiente"
+    },
+    "connect": {
+      "title": "Conectá tus cuentas",
+      "sub": "Así las apps que elegiste arrancan con tu calendario, tu email y tus chats de verdad.",
+      "calendar": {
+        "name": "Google Calendar",
+        "body": "Cal lo mira para no superponer y le suma las reservas."
+      },
+      "email": {
+        "name": "Gmail",
+        "body": "Los emails con tus contactos aparecen en el CRM; mandás desde tu dirección."
+      },
+      "whatsapp": {
+        "name": "Línea de WhatsApp",
+        "body": "Escaneá un QR para traer tus chats y grupos a Groups, con su historial."
+      },
+      "connect": "Conectar",
+      "connected": "Conectado",
+      "openSettings": "Configurar",
+      "result": {
+        "connected": "{name} quedó conectado.",
+        "denied": "{name} no se conectó: no se dio el permiso.",
+        "error": "{name} no se pudo conectar. Probá de nuevo.",
+        "scopes": "{name} necesita todos los permisos que pide. Probá de nuevo y dejalos todos marcados."
+      }
+    },
+    "import": {
+      "title": "¿Venís de otra herramienta?",
+      "sub": "Traé tus datos ahora o más tarde desde Ajustes › Importar. En la otra herramienta no cambia nada.",
+      "none": "Empiezo de cero",
+      "go": "Importar de {tool}",
+      "soon": "Todavía no hay importador de {tool}. Podés empezar de cero e importar por CSV donde la app lo tiene.",
+      "later": "Más tarde"
+    },
+    "desktop": {
+      "title": "Tené zerosoft en tu computadora",
+      "sub": "La app de escritorio es la versión del navegador más lo que una pestaña no puede hacer."
+    }
   },
   "profileForm": {
     "title": "Tus datos",

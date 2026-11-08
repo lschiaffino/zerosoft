@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { registerMailbox } from '@/lib/crm-email-sync';
 import { exchangeCode, gmailProfileEmail, upsertIntegration } from '@/lib/integrations';
+import { OAUTH_RETURN_COOKIE, returnUrl } from '@/lib/oauth-return';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,8 +26,11 @@ export async function GET(req: NextRequest) {
   const cookieState = req.cookies.get(STATE_COOKIE)?.value;
 
   function out(params: string): NextResponse {
-    const r = redirectToSettings(req, params);
+    // gmail=<resultado>: al onboarding vuelve como connected=email&result=<resultado>.
+    const back = returnUrl(req, 'email', params.replace(/^gmail=/, '').split('&')[0]);
+    const r = back ? NextResponse.redirect(back) : redirectToSettings(req, params);
     r.cookies.delete(STATE_COOKIE);
+    r.cookies.delete(OAUTH_RETURN_COOKIE);
     return r;
   }
 
