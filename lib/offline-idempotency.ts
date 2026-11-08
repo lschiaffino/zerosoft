@@ -7,7 +7,7 @@
  * perdió con la red, la cola lo reenvía: con la clave, la segunda vez se
  * devuelve la respuesta de la primera en vez de crear otra fila.
  *
- * La clave es de cada persona (user_id, key). Mientras la primera corre, otra
+ * La clave es de cada persona (user_id, key) y de un pedido (método y ruta). Mientras la primera corre, otra
  * con la misma clave recibe 503 con `x-zs-retry: 1` (el worker la deja en la
  * cola y prueba más tarde). Una respuesta de error libera la clave.
  * El cron horario borra las de más de 7 días.
@@ -35,13 +35,16 @@ export async function withIdempotency(req: Request, userId: string, run: () => P
   const key = idempotencyKey(req);
   if (!key) return run();
   const db = getDb();
+  // La clave vale para un pedido (método y ruta): reusarla en otro no devuelve aquella respuesta.
+  const scope = `${req.method.toUpperCase()} ${new URL(req.url).pathname}`.slice(0, 300);
   const claim = await db
-    .prepare('INSERT OR IGNORE INTO offline_requests (user_id, key) VALUES (?, ?)')
-    .run(userId, key);
+    .prepare('INSERT OR IGNORE INTO offline_requests (user_id, key, scope) VALUES (?, ?, ?)')
+    .run(userId, key, scope);
   if (claim.changes === 0) {
     const prev = (await db
-      .prepare('SELECT status, body FROM offline_requests WHERE user_id = ? AND key = ?')
-      .get(userId, key)) as { status: number | null; body: string | null } | undefined;
+      .prepare('SELECT scope, status, body FROM offline_requests WHERE user_id = ? AND key = ?')
+      .get(userId, key)) as { scope: string; status: number | null; body: string | null } | undefined;
+    if (prev && prev.scope !== scope) return NextResponse.json({ error: 'idempotency_key_reused' }, { status: 409 });
     if (prev?.status) {
       return new NextResponse(prev.body ?? '', {
         status: prev.status,

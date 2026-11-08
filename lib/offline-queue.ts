@@ -130,7 +130,8 @@ export async function replayQueue(
   const keyOf = (it: QueuedRequest) => (it.owner ? `o:${it.owner}|${it.workspace}` : `w:${it.workspace}`);
   for (let i = 0; i < items.length; i += 1) {
     const it = items[i];
-    if (!it.workspace) {
+    // Sin workspace o sin persona: no se sabe de quién es; no se manda con ninguna sesión.
+    if (!it.workspace || !it.owner) {
       unknown += 1;
       continue;
     }
@@ -165,7 +166,7 @@ export async function replayQueue(
     failed += 1;
   }
   let remaining = unknown;
-  for (const it of items) if (it.workspace && blocked.has(keyOf(it))) remaining += 1;
+  for (const it of items) if (it.workspace && it.owner && blocked.has(keyOf(it))) remaining += 1;
   if (!remaining) return { done, failed, conflicts, remaining: 0 };
   return unknown ? { done, failed, conflicts, remaining, blocked: true, unknown } : { done, failed, conflicts, remaining, blocked: true };
 }

@@ -864,6 +864,9 @@
     "signOutTitle": "{count, plural, one {# alteração ainda não foi sincronizada} other {# alterações ainda não foram sincronizadas}}",
     "signOutBody": "Elas estão salvas só neste dispositivo. Ao sair, elas são apagadas e não chegam ao servidor. Para mantê-las, espere ter conexão e a barra de cima mostrar Sincronizado.",
     "signOutConfirm": "Sair mesmo assim",
-    "signOutCancel": "Cancelar"
+    "signOutCancel": "Cancelar",
+    "unknownShort": "{count, plural, one {# alteração não enviada} other {# alterações não enviadas}}",
+    "unknownTitle": "Não enviadas",
+    "unknownBody": "{count, plural, one {Há # alteração antiga} other {Há # alterações antigas}} neste dispositivo que não dá para ligar a uma sessão. Elas não são enviadas com a sua. Descarte se não precisar delas."
   }
 }

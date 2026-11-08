@@ -45,7 +45,17 @@ function memoryStore(items: Array<Omit<QueuedRequest, 'id'>>): QueueStore & { le
   };
 }
 
+/** La persona de la sesión en los tests. */
+const ME = 'yo:ws1';
+type Replay = typeof replayQueue;
+/** replayQueue con la sesión de ME salvo que el test pase otra. */
+const withMe =
+  (f: Replay) =>
+  (store: Parameters<Replay>[0], doFetch: Parameters<Replay>[1], owner: string | null = ME) =>
+    f(store, doFetch, owner);
+
 const item = (url: string, createdAt: number): Omit<QueuedRequest, 'id'> => ({
+  owner: ME,
   url,
   method: 'POST',
   contentType: 'application/json',
@@ -92,7 +102,7 @@ describe('replayQueue', () => {
   it('reenvía en orden de creación y vacía la cola', async () => {
     const store = memoryStore([item('/b', 2), item('/a', 1), item('/c', 3)]);
     const seen: string[] = [];
-    const res = await replayQueue(store, async (r) => {
+    const res = await withMe(replayQueue)(store, async (r) => {
       seen.push(r.url);
       return { ok: true, status: 200 };
     });
@@ -104,7 +114,7 @@ describe('replayQueue', () => {
   it('se corta si vuelve a caer la red y deja el resto para después', async () => {
     const store = memoryStore([item('/a', 1), item('/b', 2), item('/c', 3)]);
     let calls = 0;
-    const res = await replayQueue(store, async () => {
+    const res = await withMe(replayQueue)(store, async () => {
       calls += 1;
       if (calls === 2) throw new TypeError('Failed to fetch');
       return { ok: true, status: 201 };
@@ -115,7 +125,7 @@ describe('replayQueue', () => {
 
   it('una respuesta de error del servidor saca el item y se cuenta como fallido', async () => {
     const store = memoryStore([item('/a', 1), item('/b', 2)]);
-    const res = await replayQueue(store, async (r) => (r.url === '/a' ? { ok: false, status: 404 } : { ok: true, status: 200 }));
+    const res = await withMe(replayQueue)(store, async (r) => (r.url === '/a' ? { ok: false, status: 404 } : { ok: true, status: 200 }));
     expect(res).toEqual({ done: 1, failed: 1, conflicts: 0, remaining: 0 });
     expect(store.left()).toEqual([]);
   });
@@ -129,7 +139,7 @@ describe('replayQueue con otro workspace activo', () => {
       { ...item('/c', 3), workspace: 'ws2' },
     ]);
     const seen: string[] = [];
-    const res = await replayQueue(store, async (r) => {
+    const res = await withMe(replayQueue)(store, async (r) => {
       seen.push(r.url);
       return r.workspace === 'ws1' ? { ok: false, status: 401 } : { ok: true, status: 200 };
     });
@@ -143,7 +153,7 @@ describe('replayQueue con items viejos', () => {
   it('sin workspace no se envía: queda retenido y se cuenta aparte', async () => {
     const store = memoryStore([{ ...item('/old', 1), workspace: undefined }, item('/new', 2)]);
     const seen: string[] = [];
-    const res = await replayQueue(store, async (r) => {
+    const res = await withMe(replayQueue)(store, async (r) => {
       seen.push(r.url);
       return { ok: true, status: 200 };
     });
@@ -180,7 +190,7 @@ describe('replayQueue: errores, conflictos y personas', () => {
   for (const [name, impl] of impls) {
     it(`${name}: un 4xx aparta el cambio (reintentar o descartar) y sigue con el resto`, async () => {
       const store = failStore([item('/a', 1), item('/b', 2)]);
-      const res = await impl()(store, async (r) => (r.url === '/a' ? { ok: false, status: 403 } : { ok: true, status: 200 }));
+      const res = await withMe(impl())(store, async (r) => (r.url === '/a' ? { ok: false, status: 403 } : { ok: true, status: 200 }));
       expect(res).toEqual({ done: 1, failed: 1, conflicts: 0, remaining: 0 });
       expect(store.failed).toEqual([{ url: '/a', status: 403 }]);
       expect(store.left()).toEqual([]);
@@ -189,7 +199,7 @@ describe('replayQueue: errores, conflictos y personas', () => {
     it(`${name}: un 5xx o 429 corta sin perder nada y pide reintentar`, async () => {
       for (const status of [500, 503, 429]) {
         const store = failStore([item('/a', 1), item('/b', 2)]);
-        const res = await impl()(store, async () => ({ ok: false, status }));
+        const res = await withMe(impl())(store, async () => ({ ok: false, status }));
         expect(res).toEqual({ done: 0, failed: 0, conflicts: 0, remaining: 2, retry: true });
         expect(store.left().map((r) => r.url)).toEqual(['/a', '/b']);
       }
@@ -197,21 +207,21 @@ describe('replayQueue: errores, conflictos y personas', () => {
 
     it(`${name}: la misma alta en curso en el servidor (x-zs-retry) también espera`, async () => {
       const store = failStore([item('/a', 1)]);
-      const res = await impl()(store, async () => ({ ok: false, status: 409, retry: true }));
+      const res = await withMe(impl())(store, async () => ({ ok: false, status: 409, retry: true }));
       expect(res.retry).toBe(true);
       expect(store.left()).toHaveLength(1);
     });
 
     it(`${name}: un DELETE que da 404 ya estaba hecho`, async () => {
       const store = failStore([{ ...item('/a', 1), method: 'DELETE' }]);
-      const res = await impl()(store, async () => ({ ok: false, status: 404 }));
+      const res = await withMe(impl())(store, async () => ({ ok: false, status: 404 }));
       expect(res).toEqual({ done: 1, failed: 0, conflicts: 0, remaining: 0 });
       expect(store.failed).toEqual([]);
     });
 
     it(`${name}: guardado sobre una versión más nueva se anota como conflicto`, async () => {
       const store = failStore([item('/a', 1), item('/b', 2)]);
-      const res = await impl()(store, async (r) => ({ ok: true, status: 200, conflict: r.url === '/b' }));
+      const res = await withMe(impl())(store, async (r) => ({ ok: true, status: 200, conflict: r.url === '/b' }));
       expect(res).toEqual({ done: 2, failed: 0, conflicts: 1, remaining: 0 });
       expect(store.conflicts).toEqual(['/b']);
     });
@@ -235,9 +245,20 @@ describe('replayQueue: errores, conflictos y personas', () => {
       expect(store.left().map((r) => r.url)).toEqual(['/ajeno']);
     });
 
+    it(`${name}: lo encolado sin persona no se manda con ninguna sesión`, async () => {
+      const store = failStore([{ ...item('/viejo', 1), owner: undefined }, item('/mio', 2)]);
+      const seen: string[] = [];
+      const res = await withMe(impl())(store, async (r) => {
+        seen.push(r.url);
+        return { ok: true, status: 200 };
+      });
+      expect(seen).toEqual(['/mio']);
+      expect(res).toEqual({ done: 1, failed: 0, conflicts: 0, remaining: 1, blocked: true, unknown: 1 });
+    });
+
     it(`${name}: sin sesión confirmada no se manda nada que tenga dueño`, async () => {
       const store = failStore([{ ...item('/a', 1), owner: 'yo:ws1' }]);
-      const res = await impl()(store, async () => ({ ok: true, status: 200 }), null);
+      const res = await withMe(impl())(store, async () => ({ ok: true, status: 200 }), null);
       expect(res.blocked).toBe(true);
       expect(store.left()).toHaveLength(1);
     });
@@ -288,7 +309,7 @@ describe('public/sw.js', () => {
 
     const store = memoryStore([item('/b', 2), item('/a', 1)]);
     const seen: string[] = [];
-    const res = await api.replayQueue(store, async (r) => {
+    const res = await withMe(api.replayQueue)(store, async (r) => {
       seen.push(r.url);
       return { ok: true, status: 200 };
     });

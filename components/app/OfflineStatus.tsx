@@ -97,7 +97,7 @@ export default function OfflineStatus({ owner }: { owner: string }) {
   const router = useRouter();
   const pathname = usePathname() ?? '';
   const [online, setOnline] = useState(true);
-  const [queue, setQueue] = useState<{ pending: Brief[]; failed: Brief[]; conflicts: Brief[]; count: number }>({ pending: [], failed: [], conflicts: [], count: 0 });
+  const [queue, setQueue] = useState<{ pending: Brief[]; failed: Brief[]; conflicts: Brief[]; count: number; unknown: number }>({ pending: [], failed: [], conflicts: [], count: 0, unknown: 0 });
   const [local, setLocal] = useState({ docs: 0, notes: 0 });
   const [sync, setSync] = useState<SyncState>('idle');
   const [open, setOpen] = useState(false);
@@ -123,12 +123,13 @@ export default function OfflineStatus({ owner }: { owner: string }) {
         pending?: Brief[];
         failed?: Brief[];
         conflicts?: Brief[];
+        unknown?: number;
         done?: number;
         failedCount?: number;
         retry?: boolean;
       };
       if (data.type === 'zs-queue') {
-        setQueue({ count: data.count ?? 0, pending: data.pending ?? [], failed: data.failed ?? [], conflicts: data.conflicts ?? [] });
+        setQueue({ count: data.count ?? 0, pending: data.pending ?? [], failed: data.failed ?? [], conflicts: data.conflicts ?? [], unknown: data.unknown ?? 0 });
       } else if (data.type === 'zs-sync-start') {
         setSync('syncing');
       } else if (data.type === 'zs-sync-done') {
@@ -262,6 +263,9 @@ export default function OfflineStatus({ owner }: { owner: string }) {
   } else if (pending > 0) {
     tone = 'warn';
     text = t('pendingShort', { count: pending });
+  } else if (queue.unknown > 0) {
+    tone = 'warn';
+    text = t('unknownShort', { count: queue.unknown });
   } else if (conflicts > 0) {
     tone = 'warn';
     text = t('conflictShort', { count: conflicts });
@@ -333,6 +337,15 @@ export default function OfflineStatus({ owner }: { owner: string }) {
                   </li>
                 ))}
               </ul>
+            </section>
+          )}
+          {queue.unknown > 0 && (
+            <section>
+              <h3>{t('unknownTitle')}</h3>
+              <p className="band-offline-note">{t('unknownBody', { count: queue.unknown })}</p>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => post({ type: 'zs-drop-unscoped' })}>
+                {t('discard')}
+              </button>
             </section>
           )}
           {conflicts > 0 && (

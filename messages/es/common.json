@@ -864,6 +864,9 @@
     "signOutTitle": "{count, plural, one {# cambio todavía no se sincronizó} other {# cambios todavía no se sincronizaron}}",
     "signOutBody": "Están guardados solo en este dispositivo. Al cerrar sesión se borran y no llegan al servidor. Si los querés conservar, esperá a tener conexión y a que la banda diga Sincronizado.",
     "signOutConfirm": "Cerrar sesión igual",
-    "signOutCancel": "Cancelar"
+    "signOutCancel": "Cancelar",
+    "unknownShort": "{count, plural, one {# cambio sin enviar} other {# cambios sin enviar}}",
+    "unknownTitle": "Sin enviar",
+    "unknownBody": "{count, plural, one {Hay # cambio} other {Hay # cambios}} de antes en este dispositivo que no se sabe de qué sesión son. No se mandan con la tuya. Descartalos si no los necesitás."
   }
 }

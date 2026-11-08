@@ -8733,6 +8733,7 @@ export const MIGRATIONS: Migration[] = [
         CREATE TABLE IF NOT EXISTS offline_requests (
           user_id TEXT NOT NULL,
           key TEXT NOT NULL,
+          scope TEXT NOT NULL DEFAULT '',
           status INTEGER,
           body TEXT,
           created_at TEXT NOT NULL DEFAULT (datetime('now')),

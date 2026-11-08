@@ -864,6 +864,9 @@
     "signOutTitle": "{count, plural, one {# change is not synced yet} other {# changes are not synced yet}}",
     "signOutBody": "They are only saved on this device. Signing out deletes them and they never reach the server. To keep them, wait until you are online and the top bar says Synced.",
     "signOutConfirm": "Sign out anyway",
-    "signOutCancel": "Cancel"
+    "signOutCancel": "Cancel",
+    "unknownShort": "{count, plural, one {# change not sent} other {# changes not sent}}",
+    "unknownTitle": "Not sent",
+    "unknownBody": "{count, plural, one {There is # older change} other {There are # older changes}} on this device that cannot be tied to a session. They are not sent with yours. Discard them if you do not need them."
   }
 }

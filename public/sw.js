@@ -117,8 +117,9 @@ async function replayQueue(store, doFetch, owner) {
   const keyOf = (it) => (it.owner ? `o:${it.owner}|${it.workspace}` : `w:${it.workspace}`);
   for (let i = 0; i < items.length; i += 1) {
     const it = items[i];
-    // De antes de guardar el workspace: no se sabe de cuál es. No se envía; se avisa y se puede descartar.
-    if (!it.workspace) {
+    // Sin workspace o sin persona (cola de antes de este cambio): no se sabe de quién es.
+    // No se envía con ninguna sesión; se avisa y se puede descartar.
+    if (!it.workspace || !it.owner) {
       unknown += 1;
       continue;
     }
@@ -158,7 +159,7 @@ async function replayQueue(store, doFetch, owner) {
     failed += 1;
   }
   let remaining = unknown;
-  for (const it of items) if (it.workspace && blocked.has(keyOf(it))) remaining += 1;
+  for (const it of items) if (it.workspace && it.owner && blocked.has(keyOf(it))) remaining += 1;
   if (!remaining) return { done, failed, conflicts, remaining: 0 };
   return unknown ? { done, failed, conflicts, remaining, blocked: true, unknown } : { done, failed, conflicts, remaining, blocked: true };
 }
@@ -259,7 +260,7 @@ const failedStore = {
 };
 const conflictStore = {
   all: () => tx('readonly', (s) => s.getAll(), CONFLICTS),
-  clear: () => tx('readwrite', (s) => s.clear(), CONFLICTS),
+  remove: (id) => tx('readwrite', (s) => s.delete(id), CONFLICTS),
 };
 
 // ---------- Mensajes a la página ----------
@@ -272,14 +273,18 @@ async function broadcast(msg) {
 /** Lo que la barra de estado muestra: pendientes, rechazados y avisos de "editado en otro lado" de la persona actual. */
 async function broadcastCount() {
   const owner = await getUser().catch(() => null);
-  const mine = (it) => !it.owner || it.owner === owner;
-  const queue = (await idbStore.all().catch(() => [])).filter(mine);
+  const mine = (it) => Boolean(owner) && it.owner === owner;
+  const all = await idbStore.all().catch(() => []);
+  const queue = all.filter(mine);
+  // Sin persona o sin workspace: no se muestra qué son, solo cuántos (para descartarlos).
+  const unknown = all.filter((it) => !it.owner || !it.workspace).length;
   const failed = (await failedStore.all().catch(() => [])).filter(mine);
   const conflicts = (await conflictStore.all().catch(() => [])).filter(mine);
   const brief = (it) => ({ id: it.id, url: it.url, method: it.method || null, label: it.label || null, status: it.status || null, at: it.failedAt || it.at || it.createdAt });
   await broadcast({
     type: 'zs-queue',
     count: queue.length,
+    unknown,
     pending: queue.slice(0, 50).map(brief),
     failed: failed.slice(0, 50).map(brief),
     conflicts: conflicts.slice(-20).map(brief),
@@ -293,7 +298,8 @@ function replay() {
     const pending = await idbStore.count().catch(() => 0);
     if (!pending) return { done: 0, failed: 0, remaining: 0 };
     await broadcast({ type: 'zs-sync-start', count: pending });
-    const owner = await getUser().catch(() => null);
+    // Solo con la sesión de quien escribió (zs_who igual al confirmado): si no, nada tiene dueño válido y todo espera.
+    const owner = (await sessionMatches().catch(() => false)) ? await getUser().catch(() => null) : null;
     // Varios cambios al mismo registro: el segundo se apoya en lo que dejó el primero, no en la base vieja.
     const latest = new Map();
     const result = await replayQueue(
@@ -515,7 +521,10 @@ async function queueOrSend(request) {
   const clone = request.clone();
   try {
     return await fetch(request);
-  } catch {
+  } catch (err) {
+    // Sin persona confirmada no se guarda nada: el cambio falla como sin worker.
+    const owner = (await sessionMatches().catch(() => false)) ? await getUser().catch(() => null) : null;
+    if (!owner) throw err;
     const body = clone.method === 'DELETE' ? await clone.text().catch(() => '') : await clone.text();
     await idbStore.add({
       url: clone.url,
@@ -524,7 +533,7 @@ async function queueOrSend(request) {
       // El workspace de la pestaña que escribió: al reenviar se exige el mismo.
       workspace: clone.headers.get(WORKSPACE_HEADER),
       // La persona de la sesión: lo suyo no se manda con la sesión de otra.
-      owner: await getUser().catch(() => null),
+      owner,
       // La misma clave en cada reenvío: un alta que ya llegó no se crea dos veces.
       idem: clone.headers.get(IDEMPOTENCY_HEADER) || newKey(),
       base: clone.headers.get(BASE_HEADER),
@@ -587,7 +596,7 @@ self.addEventListener('message', (event) => {
     // La persona descarta lo que no se sabe de qué workspace es.
     event.waitUntil(
       (async () => {
-        for (const it of await idbStore.all()) if (!it.workspace) await idbStore.remove(it.id);
+        for (const it of await idbStore.all()) if (!it.workspace || !it.owner) await idbStore.remove(it.id);
         await broadcastCount();
         await broadcast({ type: 'zs-sync-done', done: 0, failed: 0 });
       })(),
@@ -625,7 +634,7 @@ self.addEventListener('message', (event) => {
         const owner = await getUser().catch(() => null);
         for (const it of await failedStore.all()) {
           if (data.id != null && it.id !== data.id) continue;
-          if (it.owner && it.owner !== owner) continue;
+          if (it.owner !== owner) continue;
           const back = { ...it };
           delete back.status;
           delete back.failedAt;
@@ -643,14 +652,23 @@ self.addEventListener('message', (event) => {
         const owner = await getUser().catch(() => null);
         for (const it of await failedStore.all()) {
           if (data.id != null && it.id !== data.id) continue;
-          if (it.owner && it.owner !== owner) continue;
+          if (it.owner !== owner) continue;
           await failedStore.remove(it.id);
         }
         await broadcastCount();
       })(),
     );
   }
-  else if (data.type === 'zs-clear-conflicts') event.waitUntil(conflictStore.clear().then(broadcastCount, () => undefined));
+  else if (data.type === 'zs-clear-conflicts') {
+    // Solo los avisos de la persona actual.
+    event.waitUntil(
+      (async () => {
+        const owner = await getUser().catch(() => null);
+        for (const it of await conflictStore.all()) if (it.owner === owner) await conflictStore.remove(it.id);
+        await broadcastCount();
+      })(),
+    );
+  }
   else if (data.type === 'zs-warm' && Array.isArray(data.urls)) {
     // La página ya cargó su JS y CSS antes de que el worker la controlara: se guardan ahora.
     event.waitUntil(
