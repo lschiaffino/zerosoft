@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 const FEATURES = ['f1', 'f5', 'f2', 'f3', 'f4'] as const;
 
 /**
- * /download: la app de escritorio (desktop/, Electron) para Mac y Windows.
+ * /download: la app de escritorio (desktop/, Tauri) para Mac y Windows.
  * Los links salen del último release desktop-v* de GitHub; el botón grande
  * es el del sistema de quien mira (DownloadButtons). Mientras no haya firma
  * ni notarización, la página lo dice y explica cómo abrirla.

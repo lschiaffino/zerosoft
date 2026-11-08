@@ -1,21 +1,24 @@
-# App de escritorio (desktop/): instaladores de Mac y Windows en un release de GitHub.
+# App de escritorio (desktop/, Tauri 2): instaladores de Mac (Apple silicon e Intel) y Windows en un
+# release de GitHub.
 #
-# Se dispara con un tag desktop-vX.Y.Z (la versión de desktop/package.json tiene que coincidir).
-# Firma y notarización solo si están los secretos; sin ellos arma instaladores sin firmar:
-#   Mac:     CSC_LINK (certificado "Developer ID Application" en .p12, base64), CSC_KEY_PASSWORD,
-#            APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID (notarización).
-#   Windows: WIN_CSC_LINK y WIN_CSC_KEY_PASSWORD (certificado de firma de código, opcional).
+# Se dispara con un tag desktop-vX.Y.Z (igual a la versión de desktop/package.json,
+# src-tauri/tauri.conf.json y src-tauri/Cargo.toml). A mano (workflow_dispatch) arma todo como
+# artefacto y no publica nada.
 #
-# Publicar: los jobs de build NUNCA publican (--publish never) y suben todo como artefacto. Un solo
-# job (publish) crea el release una vez y sube todos los archivos. Antes cada electron-builder
-# publicaba por su cuenta: los publicadores en paralelo (dos en Mac, uno en Windows) veían "el release
-# no existe" a la vez y creaban releases duplicados con el mismo tag, con los archivos repartidos.
+# Firma:
+#   Mac: firma ad hoc (signingIdentity "-") hasta tener una cuenta de Apple Developer.
+#   Actualizaciones: TAURI_SIGNING_PRIVATE_KEY (+ TAURI_SIGNING_PRIVATE_KEY_PASSWORD si tiene)
+#   firman los paquetes del updater; la clave pública va en src-tauri/tauri.conf.json. Sin el
+#   secreto, los instaladores salen igual pero sin actualizaciones automáticas.
+#
+# Publicar: los builds no publican. Un solo job (publish) crea el release una vez, sube todo con
+# nombres fijos (los que busca /download) y arma latest.json para el updater. Así no hay releases
+# duplicados ni archivos de Mac perdidos.
 name: desktop
 
 on:
   push:
     tags: ['desktop-v*']
-  # A mano arma los instaladores como artefactos y no publica nada: publicar es solo con el tag.
   workflow_dispatch:
 
 permissions:
@@ -26,118 +29,147 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-15
-            target: --mac --arm64 --x64
-          - os: windows-latest
-            target: --win --x64
-    runs-on: ${{ matrix.os }}
+  test:
+    runs-on: macos-15
     defaults:
       run:
         working-directory: desktop
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build:ui
+      - name: Tests de Rust
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: aarch64-apple-darwin
+            name: mac-arm64
+            bundles: app,dmg
+          - os: macos-15
+            target: x86_64-apple-darwin
+            name: mac-x64
+            bundles: app,dmg
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: win-x64
+            bundles: nsis
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+          key: ${{ matrix.target }}
 
       - name: Versión del tag
         if: startsWith(github.ref, 'refs/tags/desktop-v')
         shell: bash
+        working-directory: desktop
         run: |
           tag="${GITHUB_REF_NAME#desktop-v}"
-          pkg="$(node -p "require('./package.json').version")"
-          if [ "$tag" != "$pkg" ]; then echo "El tag ($tag) no coincide con desktop/package.json ($pkg)"; exit 1; fi
+          for v in "$(node -p "require('./package.json').version")" "$(node -p "require('./src-tauri/tauri.conf.json').version")" "$(sed -n 's/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -1)"; do
+            if [ "$tag" != "$v" ]; then echo "El tag ($tag) no coincide con la versión del escritorio ($v)"; exit 1; fi
+          done
 
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm run build
+        working-directory: desktop
 
-      - name: Firma disponible
-        id: sign
+      - name: Clave del updater
+        id: updater
         shell: bash
         env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: echo "signed=$([ -n "$TAURI_SIGNING_PRIVATE_KEY" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: desktop
+          tauriScript: npx tauri
+          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} ${{ steps.updater.outputs.signed != 'yes' && '--config src-tauri/tauri.no-updater.conf.json' || '' }}
+
+      # Nombres fijos (los que busca /download) y tamaños en el resumen del job.
+      - name: Archivos del release
+        shell: bash
+        working-directory: desktop
         run: |
-          echo "mac=$([ -n "$CSC_LINK" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
-          echo "notarize=$([ -n "$CSC_LINK" ] && [ -n "$APPLE_ID" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
-          echo "win=$([ -n "$WIN_CSC_LINK" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
-
-      # Con certificado: firma (y notariza si están las credenciales de Apple).
-      - name: Instaladores firmados (Mac)
-        if: runner.os == 'macOS' && steps.sign.outputs.mac == 'yes'
-        env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npx electron-builder ${{ matrix.target }} --publish never ${{ steps.sign.outputs.notarize == 'yes' && '-c.mac.notarize=true' || '-c.mac.notarize=false' }}
-
-      - name: Instaladores firmados (Windows)
-        if: runner.os == 'Windows' && steps.sign.outputs.win == 'yes'
-        env:
-          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-        run: npx electron-builder ${{ matrix.target }} --publish never
-
-      # Sin certificado: instaladores sin firmar (en Mac, firma ad hoc en afterSign; la página
-      # /download explica cómo abrirlos).
-      - name: Instaladores sin firmar
-        if: (runner.os == 'macOS' && steps.sign.outputs.mac != 'yes') || (runner.os == 'Windows' && steps.sign.outputs.win != 'yes')
-        shell: bash
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: npx electron-builder ${{ matrix.target }} --publish never -c.mac.identity=null -c.mac.notarize=false
-
-      # Lo que el release necesita de esta plataforma, o el job falla acá (y no en el release).
-      - name: Archivos esperados
-        shell: bash
-        run: |
+          set -euo pipefail
           v="$(node -p "require('./package.json').version")"
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            want="latest-mac.yml zerosoft-$v-mac-arm64.dmg zerosoft-$v-mac-x64.dmg zerosoft-$v-mac-arm64.zip zerosoft-$v-mac-x64.zip"
+          b="src-tauri/target/${{ matrix.target }}/release/bundle"
+          mkdir -p out
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            cp "$(ls "$b"/dmg/*.dmg | head -1)" "out/zerosoft-$v-${{ matrix.name }}.dmg"
+            if ls "$b"/macos/*.app.tar.gz >/dev/null 2>&1; then
+              cp "$(ls "$b"/macos/*.app.tar.gz | head -1)" "out/zerosoft-$v-${{ matrix.name }}.app.tar.gz"
+              cp "$(ls "$b"/macos/*.app.tar.gz.sig | head -1)" "out/zerosoft-$v-${{ matrix.name }}.app.tar.gz.sig"
+            fi
+            app="$(ls -d "$b"/macos/*.app | head -1)"
+            codesign -dv "$app" 2>&1 | grep -E "Signature|Identifier" || true
+            {
+              echo "### ${{ matrix.name }}"
+              echo "- .app: $(du -sh "$app" | cut -f1)"
+              echo "- binario: $(du -h "$app/Contents/MacOS/"* | cut -f1 | head -1)"
+              echo "- .dmg: $(du -h out/*.dmg | cut -f1)"
+            } >> "$GITHUB_STEP_SUMMARY"
           else
-            want="latest.yml zerosoft-$v-win-x64.exe"
+            exe="$(ls "$b"/nsis/*-setup.exe | head -1)"
+            cp "$exe" "out/zerosoft-$v-${{ matrix.name }}.exe"
+            if [ -f "$exe.sig" ]; then cp "$exe.sig" "out/zerosoft-$v-${{ matrix.name }}.exe.sig"; fi
+            {
+              echo "### ${{ matrix.name }}"
+              echo "- instalador: $(du -h out/*.exe | cut -f1)"
+              echo "- binario: $(du -h src-tauri/target/${{ matrix.target }}/release/zerosoft*.exe | cut -f1 | head -1)"
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
-          missing=0
-          for f in $want; do [ -f "release/$f" ] || { echo "Falta release/$f"; missing=1; }; done
-          ls -la release
-          exit $missing
+          ls -la out
 
       - uses: actions/upload-artifact@v4
         with:
-          name: desktop-${{ runner.os }}
-          path: |
-            desktop/release/*.dmg
-            desktop/release/*.zip
-            desktop/release/*.exe
-            desktop/release/*.blockmap
-            desktop/release/latest*.yml
+          name: desktop-${{ matrix.name }}
+          path: desktop/out/*
           if-no-files-found: error
 
-  # Un solo job publica: crea el release (si no existe) y sube todo, pisando lo que haya con el mismo
-  # nombre. Así un tag vuelto a correr completa el release en vez de duplicarlo.
+  # Un solo job publica: crea el release (si no existe), arma latest.json y sube todo pisando lo que
+  # haya con el mismo nombre (volver a correr el workflow completa el release en vez de duplicarlo).
   publish:
     needs: build
     if: startsWith(github.ref, 'refs/tags/desktop-v')
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: desktop/scripts
       - uses: actions/download-artifact@v4
         with:
           pattern: desktop-*
           path: assets
           merge-multiple: true
-
       - name: Release con todos los archivos
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -146,11 +178,12 @@ jobs:
         run: |
           set -euo pipefail
           v="${TAG#desktop-v}"
-          ls -la assets
-          for f in latest-mac.yml latest.yml "zerosoft-$v-mac-arm64.dmg" "zerosoft-$v-mac-x64.dmg" "zerosoft-$v-mac-arm64.zip" "zerosoft-$v-mac-x64.zip" "zerosoft-$v-win-x64.exe"; do
+          for f in "zerosoft-$v-mac-arm64.dmg" "zerosoft-$v-mac-x64.dmg" "zerosoft-$v-win-x64.exe"; do
             [ -f "assets/$f" ] || { echo "Falta $f"; exit 1; }
           done
-          # Releases con este tag (puede haber duplicados viejos): se usa el primero y se avisa del resto.
+          # latest.json del updater, solo si los paquetes vienen firmados.
+          node desktop/scripts/latest-json.mjs assets "$v" "https://github.com/$GH_REPO/releases/download/$TAG"
+          ls -la assets
           count="$(gh api "repos/$GH_REPO/releases?per_page=100" --jq "[.[] | select(.tag_name == \"$TAG\")] | length")"
           if [ "$count" = "0" ]; then
             gh release create "$TAG" --verify-tag --title "zerosoft $v para escritorio" --notes "Instaladores de Mac (Apple silicon e Intel) y Windows. Descarga y notas: https://zerosoft.ai/download"
