@@ -8733,9 +8733,21 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Groups: chats archivados y ocultos (como WhatsApp) y presencia del contacto
+    // (escribiendo, grabando, en línea) que llega por webhook.
+    id: '284_groups_archive_presence',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN archived_at TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN hidden_at TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_who TEXT');
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN presence_at TEXT');
+    },
+  },
+  {
     // Track: reacciones en los updates de un project y en sus comentarios (como Linear).
     // target_id es el id del update o del comentario; update_id permite listarlas juntas.
-    id: '284_track_plan_update_reactions',
+    id: '285_track_plan_update_reactions',
     up: async (c) => {
       await c.execute(`CREATE TABLE IF NOT EXISTS track_plan_update_reactions (
         target_id TEXT NOT NULL,
@@ -8754,7 +8766,7 @@ export const MIGRATIONS: Migration[] = [
     // Track: vistas guardadas personales de las listas que no son de un team
     // (Issues, My issues, la pestaña Issues de un project). list_key es la
     // lista (workspace-issues, mine:assigned, plan:<id>); scope_id el workspace.
-    id: '285_track_list_views',
+    id: '286_track_list_views',
     up: async (c) => {
       await c.execute(`CREATE TABLE IF NOT EXISTS track_list_views (
         id TEXT PRIMARY KEY,
@@ -8774,7 +8786,7 @@ export const MIGRATIONS: Migration[] = [
   {
     // Track: archivar un project (como Linear). Sale de las listas y del
     // roadmap; se ve con "Mostrar archivados" y se desarchiva desde su página.
-    id: '286_track_plans_archived',
+    id: '287_track_plans_archived',
     up: async (c) => {
       await addColumn(c, 'ALTER TABLE track_plans ADD COLUMN archived_at TEXT');
     },

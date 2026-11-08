@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -224,6 +224,29 @@ describe('base compartida del rediseño', () => {
     expect(css).not.toMatch(/box-shadow:\s*\d+px\s+\d+px/);
     expect(css).not.toMatch(/border-radius:\s*([3-9]|\d{2,})px/);
     expect(css).not.toMatch(/gradient\(/);
+  });
+
+  it('lo elegido es un gris neutro: sin filetes de color a la izquierda en filas ni avisos', () => {
+    const dir = join(root, 'styles');
+    const stripe = /inset\s+[2-9]px\s+0\s+0|border-left(-width)?:\s*[3-9]px/;
+    // Excepciones con significado propio: el bloque sugerido de Docs (como una barra de cambios)
+    // y las citas de WhatsApp en Groups, que copian a WhatsApp.
+    // Las citas (blockquote) llevan su filete neutro, y los triángulos CSS usan border-left.
+    const allowed = ['docs-block-outer.is-suggested-block', 'docs-diff-block', 'docs-comment-quote', 'gr-quote', 'wa-bq', 'bp-vote-caret', 'blockquote', 'talk-unfurl', 'track-toggle'];
+    const offenders: string[] = [];
+    for (const f of readdirSync(dir).filter((n) => n.endsWith('.css'))) {
+      readFileSync(join(dir, f), 'utf8').split('\n').forEach((line, i, all) => {
+        if (!stripe.test(line)) return;
+        const ctx = all.slice(Math.max(0, i - 8), i + 1).join('\n');
+        if (!allowed.some((a) => ctx.includes(a))) offenders.push(`${f}:${i + 1}: ${line.trim()}`);
+      });
+    }
+    expect(offenders).toEqual([]);
+    for (const theme of ['default.css', 'dark.css']) {
+      const css = readFileSync(join(dir, 'themes', theme), 'utf8');
+      expect(css, theme).toMatch(/--ui-selected:/);
+      expect(css, theme).toMatch(/--ui-selected-hover:/);
+    }
   });
 });
 

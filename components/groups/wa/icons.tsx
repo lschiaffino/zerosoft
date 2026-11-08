@@ -272,3 +272,14 @@ export const Panel = (p: P) => (
     <path d="M15 4.5v15" />
   </Svg>
 );
+export const ArchiveIcon = (p: P) => (
+  <Svg {...p}>
+    <rect x="3.5" y="4.5" width="17" height="4" rx="1" />
+    <path d="M5 8.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.5M10 12.5h4" />
+  </Svg>
+);
+export const ArrowLeft = (p: P) => (
+  <Svg strokeWidth={2} {...p}>
+    <path d="M19 12H5M11 6l-6 6 6 6" />
+  </Svg>
+);

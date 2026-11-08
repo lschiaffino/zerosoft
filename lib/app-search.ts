@@ -240,7 +240,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     // Groups: chats y grupos de WhatsApp por nombre o teléfono.
     all(
       `SELECT c.id, CASE WHEN c.name != '' THEN c.name ELSE '+' || c.phone END AS label, CASE c.kind WHEN 'group' THEN ? ELSE '+' || c.phone END AS meta
-       FROM groups_chats c WHERE c.user_id = ?${gWhere} AND (c.name LIKE ? ESCAPE '\\' OR c.phone LIKE ? ESCAPE '\\') ORDER BY c.last_message_at DESC LIMIT ?`,
+       FROM groups_chats c WHERE c.user_id = ?${gWhere} AND c.hidden_at IS NULL AND (c.name LIKE ? ESCAPE '\\' OR c.phone LIKE ? ESCAPE '\\') ORDER BY c.last_message_at DESC LIMIT ?`,
       waGroup,
       user.id,
       ...gArgs,
