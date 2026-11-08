@@ -490,6 +490,18 @@ async function crmNavigation(request) {
     }
     const loose = await cache.match(request, { ignoreSearch: true, ignoreVary: true });
     if (loose) return loose;
+    // Un issue de Track cambia de slug con el título (/issue/<ref>/<slug>): sin red vale la copia del mismo issue.
+    const ISSUE_PAGE = /^(\/(?:en|es|pt))?\/app\/track\/issue\/([^/]+)(?:\/|$)/;
+    const issue = ISSUE_PAGE.exec(url.pathname);
+    if (issue) {
+      for (const key of await cache.keys()) {
+        const m = ISSUE_PAGE.exec(new URL(key.url).pathname);
+        if (m && m[2] === issue[2] && (!issue[1] || m[1] === issue[1])) {
+          const hit = await cache.match(key);
+          if (hit) return hit;
+        }
+      }
+    }
     const locale = (CRM_PAGE.exec(url.pathname) || DOCS_PAGE.exec(url.pathname) || TRACK_PAGE.exec(url.pathname) || [])[1] || 'en';
     return new Response(offlineHtml(locale), { status: 503, headers: { 'content-type': 'text/html; charset=utf-8' } });
   }

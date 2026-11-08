@@ -51,6 +51,7 @@ async function openAndCache(page: Page, url: string) {
 
 test.describe('Sin conexión: Track', () => {
   test.skip(!process.env.CI, 'El service worker solo se registra con el build de producción (CI=1).');
+  test.setTimeout(120_000);
 
   test('editar y comentar sin red, recargar sin red y sincronizar al volver', async ({ page, context, request }) => {
     const p = await ok<Project>(request.post('/api/track/projects', { data: { name: `Offline ${uid()}` } }));
@@ -125,6 +126,9 @@ test.describe('Sin conexión: Track', () => {
     await context.setOffline(false);
     const status = page.getByTestId('offline-status');
     await expect(status).toContainText('1 change was not saved', { timeout: 30_000 });
+    // El issue ya no existe (la página pasa a "no existe"): el aviso sigue en cualquier otra vista de la app.
+    await page.goto('/en/app/track', { waitUntil: 'networkidle' });
+    await expect(status).toContainText('1 change was not saved');
     await status.click();
     const panel = page.getByTestId('offline-panel');
     await expect(panel).toContainText('Could not be saved');
