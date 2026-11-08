@@ -2,7 +2,7 @@
  * Docs — schemas zod para payloads de rutas API.
  */
 import { z } from 'zod';
-import { DOCS_MAX_INDENT } from './docs-types';
+import { DOCS_BLOCK_COLORS, DOCS_MAX_INDENT, type DocsBlockColor } from './docs-types';
 
 /** Topes de un PATCH de página: el editor los chequea antes de mandar. */
 export const DOCS_BLOCK_MAX = 20000;
@@ -257,6 +257,8 @@ const docsBaseBlockSchema = z.object({
   suggestion: z.object({ id: z.string().max(64), by: z.string().max(64) }).nullish(),
   // Notas de reunión (sanitizeBlocks lo descarta si el bloque no es meeting).
   meeting_id: z.string().max(64).optional(),
+  header_row: z.boolean().optional(),
+  color: z.enum(DOCS_BLOCK_COLORS as [DocsBlockColor, ...DocsBlockColor[]]).optional(),
 });
 
 const dbFile = z.object({

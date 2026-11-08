@@ -369,14 +369,30 @@ export async function setExternalId(
   kind: string,
   externalId: string,
   localId: string,
+  sourceHash: string | null = null,
 ): Promise<void> {
   // imported_at: cuándo se escribió por última vez (lo editado después en zerosoft no se pisa al reimportar).
+  // source_hash: el del archivo de origen, para saber si un reimport trae cambios.
   await getDb()
     .prepare(
-      `INSERT INTO import_external_ids (workspace_id, source, kind, external_id, local_id, imported_at) VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT (workspace_id, source, kind, external_id) DO UPDATE SET local_id = excluded.local_id, imported_at = excluded.imported_at`,
+      `INSERT INTO import_external_ids (workspace_id, source, kind, external_id, local_id, imported_at, source_hash) VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (workspace_id, source, kind, external_id) DO UPDATE SET local_id = excluded.local_id, imported_at = excluded.imported_at,
+         source_hash = COALESCE(excluded.source_hash, import_external_ids.source_hash)`,
     )
-    .run(workspaceId, source, kind, externalId, localId, new Date().toISOString());
+    .run(workspaceId, source, kind, externalId, localId, new Date().toISOString(), sourceHash);
+}
+
+/** Lo guardado de un elemento ya importado: cuándo y con qué hash de origen. */
+export async function getExternalImport(
+  workspaceId: string,
+  source: string,
+  kind: string,
+  externalId: string,
+): Promise<{ local_id: string; imported_at: string | null; source_hash: string | null } | null> {
+  const row = (await getDb()
+    .prepare('SELECT local_id, imported_at, source_hash FROM import_external_ids WHERE workspace_id = ? AND source = ? AND kind = ? AND external_id = ?')
+    .get(workspaceId, source, kind, externalId)) as { local_id: string; imported_at: string | null; source_hash: string | null } | undefined;
+  return row ?? null;
 }
 
 // ---------- fetch a terceros ----------

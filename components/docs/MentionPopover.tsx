@@ -45,8 +45,10 @@ export default function MentionPopover({ query, style, onSelect, onClose, search
     }
   };
 
+  // Sin query: las páginas editadas hace poco (como Notion al abrir `[[`); con un buscador propio (Notes), nada.
+  const recent = !query.trim() && !search;
   useEffect(() => {
-    if (!query.trim()) {
+    if (!query.trim() && !recent) {
       setPages([]);
       return;
     }
@@ -54,7 +56,7 @@ export default function MentionPopover({ query, style, onSelect, onClose, search
     setLoading(true);
     const run = search
       ? search(query)
-      : fetch(`/api/docs/search?q=${encodeURIComponent(query)}`)
+      : fetch(recent ? '/api/docs/search?recent=1' : `/api/docs/search?q=${encodeURIComponent(query)}`)
           .then((r) => r.json())
           .then((data: { rows?: PageLinkCandidate[] }) => data.rows ?? []);
     run
@@ -64,7 +66,7 @@ export default function MentionPopover({ query, style, onSelect, onClose, search
     return () => {
       alive = false;
     };
-  }, [query, search]);
+  }, [query, search, recent]);
 
   // Nueva query: la selección vuelve al primer resultado.
   useEffect(() => {
@@ -104,7 +106,8 @@ export default function MentionPopover({ query, style, onSelect, onClose, search
       ?.scrollIntoView({ block: 'nearest' });
   }, [active]);
 
-  if (!query.trim()) return null;
+  if (!query.trim() && !recent) return null;
+  if (recent && !loading && pages.length === 0) return null;
 
   const sel = Math.min(active, Math.max(0, total - 1));
 
