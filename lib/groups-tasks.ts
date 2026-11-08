@@ -16,7 +16,7 @@
  */
 import { getDb } from './db';
 import { createActivity, deleteActivity, updateActivity } from './crm';
-import { activityScopeSql, type OwnerScope } from './crm-visibility';
+import { activityScopeSql, sessionScope, type OwnerScope } from './crm-visibility';
 import { cleanPriority, type TaskPriority } from './tasks-shared';
 import { appSender, escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
@@ -104,7 +104,6 @@ const SELECT_RECORD = `SELECT a.id AS id, a.id AS activity_id, c.id AS chat_id, 
 export async function crmTaskScope(user: { id: string; role: import('./teams').TeamRole; actingUser?: { id: string } | null; apps?: import('./workspace').AppAccess }): Promise<OwnerScope | false> {
   const { canUseApp } = await import('./workspace');
   if (!canUseApp({ role: user.role, apps: user.apps ?? '*' }, 'crm')) return false;
-  const { sessionScope } = await import('./crm-visibility');
   return sessionScope(user);
 }
 
