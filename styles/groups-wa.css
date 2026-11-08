@@ -726,13 +726,6 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-info dt { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
 .wa-info dd { margin: 0; color: var(--ink-2); text-align: right; }
 
-/* Detalles: entre 1100 y 1439 empujan la conversación en vez de taparla. */
-@media (min-width: 1100px) and (max-width: 1439px) {
-  .gr-inbox:has(.gr-details.is-open) { grid-template-columns: clamp(300px, 28%, 380px) minmax(0, 1fr) 320px; }
-  .gr-inbox .gr-details.is-open { position: static; width: auto; box-shadow: none; z-index: auto; }
-  .gr-inbox .gr-details.is-open .wa-details-close { display: inline-flex; }
-}
-
 /* Teléfono: el encabezado deja solo el nombre; lo demás va al menú ⋯. */
 @media (max-width: 720px) {
   .gr-inbox .wa-head .wa-pick, .gr-inbox .wa-head .wa-close-icon, .gr-inbox .wa-head .gr-details-toggle { display: none; }
@@ -744,3 +737,37 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-member-search { width: 100%; }
 .gr-member-who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .gr-member-who .gr-member-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Cuarta pasada (QA 2) ---------- */
+/* La hora y el reintentar quedan por encima de la flecha (se pueden tocar). */
+.gr-inbox .gr-msg-foot { z-index: 3; }
+.gr-inbox .wa-day { z-index: 6; }
+/* Táctil: sin flechas a la vista; el menú se abre con un toque largo (y en la lista igual). */
+@media (hover: none) {
+  .gr-inbox .wa-hover { opacity: 0; pointer-events: none; }
+  .gr-inbox .gr-row-menu { display: block; opacity: 0; pointer-events: none; }
+  .gr-inbox .gr-bubble, .gr-inbox .gr-row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+}
+/* "Esperando respuesta": una franja chica en el flujo, no un cartel. */
+.gr-inbox .gr-thread > .gr-banner.wa-strip { margin: 0; padding: 4px 16px; font-size: 0.8125rem; border: 0; border-bottom: 1px solid var(--wa-border); border-radius: 0; background: var(--wa-panel-header); color: var(--wa-text-2); }
+.gr-inbox .gr-thread > .gr-banner.wa-strip.is-bad { color: var(--bad-ink); background: var(--bad-soft); }
+.gr-inbox .gr-thread > .gr-banner.wa-strip .btn { --btn-h: 24px; }
+/* Historial: lo anterior quedó en el teléfono. */
+.wa-history-note { align-self: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px; margin: 8px 0 4px; padding: 5px 12px; font-size: 0.78rem; color: var(--wa-text-2); background: var(--wa-system-chip); border-radius: 7.5px; box-shadow: var(--wa-shadow-bubble); }
+.wa-history-note .btn { --btn-h: 24px; color: var(--wa-primary-ink); }
+/* Lista: borrado y nota de voz en la vista previa. */
+.gr-row-deleted { display: inline-flex; align-items: center; gap: 4px; font-style: italic; }
+.gr-row-voice { display: inline-flex; align-items: center; gap: 3px; color: var(--wa-text-2); }
+/* Citas y listas dentro del texto (como WhatsApp). */
+.wa-bq { display: inline-block; padding-left: 8px; border-left: 3px solid color-mix(in srgb, var(--wa-text-2) 45%, transparent); color: var(--wa-text-2); }
+.wa-li { display: inline-flex; gap: 6px; padding-left: 4px; }
+.wa-li-mark { flex: none; color: var(--wa-text-2); }
+/* Visor: zoom con clic y tira de miniaturas. */
+.wa-viewer-stage img { cursor: zoom-in; transition: transform 0.15s ease-out; }
+.wa-viewer-stage img.is-zoomed { cursor: zoom-out; transform: scale(2); }
+.wa-viewer-strip { display: flex; justify-content: center; gap: 8px; margin: 0; padding: 8px 16px 16px; list-style: none; overflow-x: auto; }
+.wa-viewer-strip button { display: block; width: 60px; height: 60px; padding: 0; overflow: hidden; background: #000; border: 2px solid transparent; border-radius: 4px; opacity: 0.6; cursor: pointer; }
+.wa-viewer-strip button.is-on { opacity: 1; border-color: var(--wa-primary); }
+.wa-viewer-strip img, .wa-viewer-strip video { width: 100%; height: 100%; object-fit: cover; }
+.wa-attach-pick video { width: 100%; height: 100%; object-fit: cover; }
+@media (prefers-reduced-motion: reduce) { .wa-viewer-stage img { transition: none; } }

@@ -287,7 +287,7 @@ export interface HistoryContact {
 export interface HistorySource {
   chats(page: number, size: number): Promise<HistoryChat[]>;
   /** Los últimos `limit` mensajes del chat, ya normalizados (history: true). */
-  messages(remoteJid: string, limit: number): Promise<InboundEvent[]>;
+  messages(remoteJid: string, limit: number, page?: number): Promise<InboundEvent[]>;
   contacts(page: number, size: number): Promise<HistoryContact[]>;
   /** URL pública de la foto de perfil ('' si no tiene o no se ve). */
   picture(chatId: string): Promise<string>;

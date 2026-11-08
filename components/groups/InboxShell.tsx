@@ -12,9 +12,10 @@ import { LISTS_CHANGED, notifyListsChanged } from './GroupsListsBranch';
 import { filterOptions } from './PropertyInput';
 import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useToast } from './ui';
 import Avatar from './wa/Avatar';
-import { listTime } from './wa/format';
+import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
-import { CheckIcon, Chevron, FilterIcon, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
+import { Ban, CheckIcon, Chevron, FilterIcon, Mic, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
+import { longPress } from './wa/longPress';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 
@@ -155,6 +156,7 @@ export default function InboxShell({
   const [pageSize, setPageSize] = useState(100);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
+  const [unreadTotal, setUnreadTotal] = useState<number | null>(null);
   const lastQuery = useRef('');
   const rowsRef = useRef<ChatDto[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -242,7 +244,7 @@ export default function InboxShell({
       try {
         const res = await fetch(`/api/groups/chats?${query}`);
         if (!res.ok) throw new Error('failed');
-        const data = (await res.json()) as { rows: ChatDto[]; total: number; imports?: ImportStatus[] };
+        const data = (await res.json()) as { rows: ChatDto[]; total: number; imports?: ImportStatus[]; unreadChats?: number };
         if (mine !== seq.current) return;
         if (filter === 'unread' && lastQuery.current === query && current && !data.rows.some((r) => r.id === current)) {
           const prevIdx = rowsRef.current.findIndex((r) => r.id === current);
@@ -253,6 +255,7 @@ export default function InboxShell({
         setRows(data.rows);
         setTotal(data.total);
         setImports(data.imports ?? []);
+        if (typeof data.unreadChats === 'number') setUnreadTotal(data.unreadChats);
         setError(false);
       } catch {
         if (mine === seq.current && !silent) setError(true);
@@ -338,7 +341,7 @@ export default function InboxShell({
   }
 
   const value = useMemo(() => ({ rows, refresh }), [rows, refresh]);
-  const unreadChats = rows.filter((r) => r.unread > 0 && !r.muted).length;
+  const unreadChats = unreadTotal ?? rows.filter((r) => r.unread > 0 && !r.muted).length;
   useEffect(() => {
     const prev = document.title;
     document.title = `${unreadChats ? `(${unreadChats}) ` : ''}${activeList ? activeList.name : t('inbox.title')} · Groups`;
@@ -351,6 +354,13 @@ export default function InboxShell({
     const res = await api(`/api/groups/chats/${c.id}`, { method: 'PATCH', body });
     if (!res.data) showToast(errText(res.error), true);
     void load(true);
+  }
+
+  /** El chat coincide por nombre o teléfono (va en "Chats"; lo que coincide en mensajes va en "Mensajes"). */
+  function nameHit(c: ChatDto): boolean {
+    const q = debounced.trim().toLowerCase();
+    const digits = q.replace(/[^\d]/g, '');
+    return !c.match || c.name.toLowerCase().includes(q) || (digits.length >= 3 && c.phone.includes(digits));
   }
 
   function rowMenu(c: ChatDto): MenuItem[] {
@@ -368,7 +378,16 @@ export default function InboxShell({
     const draft = c.id !== current ? readDraft(c.id) : '';
     const showCheck = selectMode || visibleSelected.length > 0;
     return (
-      <li key={`${opts.snippet ? 'm' : 'c'}-${c.id}`} className={`gr-row-item${c.muted ? ' is-muted' : ''}`}>
+      <li
+        key={`${opts.snippet ? 'm' : 'c'}-${c.id}`}
+        className={`gr-row-item${c.muted ? ' is-muted' : ''}`}
+        onContextMenu={(e) => {
+          if (showCheck) return;
+          e.preventDefault();
+          e.currentTarget.querySelector<HTMLButtonElement>('.wa-row-chevron')?.click();
+        }}
+        {...longPress((el) => el.querySelector<HTMLButtonElement>('.wa-row-chevron')?.click())}
+      >
         {showCheck && (
           <input type="checkbox" className="gr-row-check" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} aria-label={t('bulkInbox.select', { name: c.name })} />
         )}
@@ -403,11 +422,21 @@ export default function InboxShell({
                     <span className="gr-row-draft">{t('wa.draft')}</span>
                     <span>{draft}</span>
                   </>
+                ) : c.lastKind === 'deleted' || c.lastMessagePreview === '[deleted]' ? (
+                  <span className="gr-row-deleted">
+                    <Ban size={14} /> {c.lastDirection === 'out' ? t('wa.youDeleted') : t('wa.deletedMessage')}
+                  </span>
                 ) : (
                   <>
                     {c.lastDirection === 'out' && c.lastStatus && c.lastStatus !== 'received' && <Ticks status={c.lastStatus} label={t(`status.${c.lastStatus}`)} />}
                     {c.kind === 'group' && c.lastDirection === 'in' && c.lastSender && <span className="gr-row-sender">{c.lastSender}:</span>}
-                    <span>{plainWa(mediaText({ preview: c.lastMessagePreview }))}</span>
+                    {c.lastKind === 'voice' || c.lastMessagePreview === '[voice]' ? (
+                      <span className="gr-row-voice">
+                        <Mic size={15} /> {c.lastDuration ? duration(c.lastDuration) : t('media.audio')}
+                      </span>
+                    ) : (
+                      <span>{plainWa(mediaText({ preview: c.lastMessagePreview }))}</span>
+                    )}
                   </>
                 )}
               </span>
@@ -775,8 +804,8 @@ export default function InboxShell({
             >
               {debounced ? (
                 <>
-                  {rows.some((c) => !c.match || c.name.toLowerCase().includes(debounced.toLowerCase())) && <li className="gr-rows-head">{t('wa.searchChats')}</li>}
-                  {rows.filter((c) => !c.match || c.name.toLowerCase().includes(debounced.toLowerCase())).map((c) => renderRow(c))}
+                  {rows.some((c) => nameHit(c)) && <li className="gr-rows-head">{t('wa.searchChats')}</li>}
+                  {rows.filter((c) => nameHit(c)).map((c) => renderRow(c))}
                   {rows.some((c) => c.match) && <li className="gr-rows-head">{t('wa.searchMessages')}</li>}
                   {rows.filter((c) => c.match).map((c) => renderRow(c, { snippet: true }))}
                 </>

@@ -1524,6 +1524,9 @@
     "emojiResults": "Results",
     "emojiNone": "No emoji found",
     "sendFiles": "{n, plural, one {Send # file} other {Send # files}}",
-    "importNothingNew": "Everything was already imported ({chats} chats)."
+    "importNothingNew": "Everything was already imported ({chats} chats).",
+    "historyOnPhone": "Older messages are on the phone.",
+    "historyFetch": "Bring more",
+    "historyAll": "This is the start of the history we have."
   }
 }

@@ -20,6 +20,7 @@ import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
 import RichText from './wa/RichText';
+import { longPress } from './wa/longPress';
 import EmojiPicker from './wa/EmojiPicker';
 import MediaViewer from './wa/MediaViewer';
 import AttachPreview from './wa/AttachPreview';
@@ -344,6 +345,27 @@ export default function ChatThread(props: ThreadProps) {
     });
   }, []);
 
+  const [olderDone, setOlderDone] = useState(false);
+  const [fetchingOlder, setFetchingOlder] = useState(false);
+  /** Trae del teléfono (el historial del gateway) los mensajes anteriores a lo importado. */
+  async function fetchOlderFromPhone() {
+    if (fetchingOlder) return;
+    setFetchingOlder(true);
+    const res = await api<{ added: number; done: boolean }>(`/api/groups/chats/${chat.id}`, { body: { action: 'importOlder' } });
+    setFetchingOlder(false);
+    if (!res.data) return showToast(errText(res.error), true);
+    if (res.data.added === 0 || res.data.done) setOlderDone(true);
+    if (res.data.added > 0) {
+      const first = messages[0];
+      const older = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=${OLDER_PAGE}&before=${encodeURIComponent(first.createdAt)}`);
+      if (older.data?.messages.length) {
+        const box = boxRef.current;
+        if (box) keepOffset.current = box.scrollHeight - box.scrollTop;
+        merge(older.data.messages);
+      }
+    }
+  }
+
   const loadOlder = useCallback(async () => {
     if (loadingOlder || !hasOlder || messages.length === 0) return;
     setLoadingOlder(true);
@@ -492,7 +514,6 @@ export default function ChatThread(props: ThreadProps) {
       return null;
     }
     merge([res.data]);
-    if (res.data.status === 'failed') setSendError(errText(res.data.error || 'send_failed'));
     return res.data;
   }
 
@@ -570,7 +591,8 @@ export default function ChatThread(props: ThreadProps) {
     if (files.length === 0) return;
     setMode('reply');
     setSendError('');
-    tray.add(files);
+    tray.add(files, text.trim() && tray.items.length === 0 ? text : undefined);
+    if (text.trim() && tray.items.length === 0) setText('');
     inputRef.current?.focus();
   }
 
@@ -598,10 +620,11 @@ export default function ChatThread(props: ThreadProps) {
       else void send();
     }
     if (e.key === 'Escape') {
+      // Primero lo del composer; si no hay nada, Esc sigue de largo (cierra los detalles y después el chat, como WhatsApp).
+      if (emojiOpen || editing || replyTo) e.preventDefault();
       if (emojiOpen) setEmojiOpen(false);
       else if (editing) setEditing(null);
       else if (replyTo) setReplyTo(null);
-      else (e.target as HTMLTextAreaElement).blur();
     }
   }
 
@@ -922,8 +945,8 @@ export default function ChatThread(props: ThreadProps) {
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       const el = e.target as HTMLElement | null;
-      if (el && (el.closest('[role="dialog"], [role="menu"], [role="alertdialog"]') || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
-      if (document.querySelector('[role="dialog"], [role="alertdialog"], .wa-viewer')) return;
+      if (el && (el.closest('[role="dialog"], [role="menu"], [role="alertdialog"]') || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && !el.classList.contains('wa-input'))) return;
+      if (document.querySelector('dialog[open], [role="dialog"]:not(dialog):not([hidden]), [role="alertdialog"]:not(dialog), [role="menu"], .wa-viewer')) return;
       if (detailsOpen) {
         setDetailsOpen(false);
         return;
@@ -938,12 +961,18 @@ export default function ChatThread(props: ThreadProps) {
     return () => window.removeEventListener('keydown', onKey);
   });
 
+  /** Abre el menú (la flecha) de un mensaje o una fila. */
+  function openMenuIn(el: HTMLElement) {
+    el.querySelector<HTMLButtonElement>('.wa-chevron, .wa-row-chevron')?.click();
+  }
+
   function menuItems(m: MessageDto): MenuItem[] {
     const can = messageActions(m, props.caps, viewer);
     const items: MenuItem[] = [];
     const live = m.direction !== 'note' && !m.deletedAt;
     const starred = (m.meta as Record<string, unknown>).starred === true;
-    if (m.direction === 'out' && m.status === 'failed') items.push({ key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) });
+    const mayRetry = props.isAdmin || m.authorId === props.me;
+    if (m.direction === 'out' && m.status === 'failed' && mayRetry) items.push({ key: 'retry', label: t('wa.retry'), onSelect: () => void retrySend(m) });
     if (m.direction === 'out') items.push({ key: 'info', label: t('wa.messageInfo'), onSelect: () => setInfoFor(m) });
     if (live)
       items.push({
@@ -1154,6 +1183,12 @@ export default function ChatThread(props: ThreadProps) {
         key={m.id}
         className={`gr-msg gr-msg-${m.direction}${m.deletedAt ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.size ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${selected ? ' is-selected' : ''}`}
         id={`m-${m.id}`}
+        onContextMenu={(e) => {
+          if (selecting || (e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
+          e.preventDefault();
+          openMenuIn(e.currentTarget);
+        }}
+        {...longPress((el) => openMenuIn(el))}
         onClick={
           selecting
             ? () =>
@@ -1199,7 +1234,9 @@ export default function ChatThread(props: ThreadProps) {
               onClick={() => jumpTo(quoted)}
             >
               <strong>{quoteAuthor(quoted)}</strong>
-              <span>{quoteLine(quoted)}</span>
+              <span>
+                <RichText text={quoteLine(quoted)} inline />
+              </span>
             </button>
           )}
           {hidden ? (
@@ -1323,7 +1360,7 @@ export default function ChatThread(props: ThreadProps) {
               <LocalText>{time}</LocalText>
             </time>
             {m.direction === 'out' && !m.deletedAt && <Ticks status={m.status} label={t(`status.${m.status}`)} />}
-            {m.direction === 'out' && m.status === 'failed' && (
+            {m.direction === 'out' && m.status === 'failed' && (props.isAdmin || m.authorId === props.me) && (
               <button type="button" className="wa-retry" onClick={() => void retrySend(m)} aria-label={t('wa.retry')} title={t('wa.retry')}>
                 <Retry size={14} />
               </button>
@@ -1525,7 +1562,17 @@ export default function ChatThread(props: ThreadProps) {
         <PinnedBar pinned={pinned} onJump={jumpTo} onUnpin={(m) => void togglePin(m)} />
 
         <div className="wa-scroll">
-          <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} role="log" aria-live="polite" ref={boxRef} onScroll={onScroll}>
+          <div className={`gr-messages wa-messages${selecting ? ' is-selecting' : ''}`} role="log" aria-live="polite" ref={boxRef} onScroll={onScroll} data-voice-off>
+            {!hasOlder && messages.length > 0 && (messages[0].meta as Record<string, unknown>).imported === true && (
+              <p className="wa-history-note">
+                <span>{olderDone ? t('wa.historyAll') : t('wa.historyOnPhone')}</span>
+                {!olderDone && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => void fetchOlderFromPhone()} aria-busy={fetchingOlder || undefined}>
+                    {t('wa.historyFetch')}
+                  </button>
+                )}
+              </p>
+            )}
             {hasOlder && (
               <p className="wa-older">
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => void loadOlder()} aria-busy={loadingOlder || undefined}>
@@ -1552,7 +1599,7 @@ export default function ChatThread(props: ThreadProps) {
         <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`} data-voice-off>
           {mode === 'note' && (
             <p className="wa-note-strip">
-              <Lock size={12} /> {t('thread.notePlaceholder')} {t('thread.noteHint')}
+              {t('thread.noteHint')}
             </p>
           )}
           {aiOpen && mode === 'reply' && (

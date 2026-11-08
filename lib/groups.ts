@@ -471,6 +471,9 @@ export interface ChatDto {
   lastDirection?: string | null;
   lastStatus?: string | null;
   lastSender?: string | null;
+  /** Duración (segundos) si el último fue audio o nota de voz; tipo de media o "deleted". */
+  lastDuration?: number | null;
+  lastKind?: string | null;
   /** Fragmento del mensaje que coincide con la búsqueda. */
   match?: string;
 }
@@ -665,7 +668,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const rows = (await db
     .prepare(
       `SELECT c.*, ${matchSelect},
-         (SELECT m.direction || '|' || m.status || '|' || CASE WHEN m.sender_name != '' THEN m.sender_name WHEN m.sender_phone != '' THEN '+' || m.sender_phone ELSE '' END FROM groups_messages m WHERE m.chat_id = c.id AND m.direction IN ('in', 'out')
+         (SELECT m.direction || '|' || m.status || '|' || COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.duration'), '') || '|' || CASE WHEN m.deleted_at IS NOT NULL THEN 'deleted' ELSE COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.kind'), '') END || '|' || CASE WHEN m.sender_name != '' THEN m.sender_name WHEN m.sender_phone != '' THEN '+' || m.sender_phone ELSE '' END FROM groups_messages m WHERE m.chat_id = c.id AND m.direction IN ('in', 'out')
            ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_info
        FROM groups_chats c WHERE ${whereSql}
        ORDER BY (c.pinned_at IS NULL), c.pinned_at DESC, COALESCE(c.last_message_at, c.created_at) DESC, c.id LIMIT ? OFFSET ?`,
@@ -674,17 +677,33 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const labels = await labelsFor(rows.map((r) => r.id));
   return {
     rows: rows.map((r) => {
-      const [dir, st, sender] = (r.last_info ?? '').split('|');
+      const [dir, st, dur, lastKind, ...rest] = (r.last_info ?? '').split('|');
+      const sender = rest.join('|');
       return maskChat(query.viewer, {
         ...toChatDto(r, labels.get(r.id) ?? []),
         lastDirection: dir || null,
         lastStatus: st || null,
         lastSender: sender || null,
+        lastDuration: Number(dur) || null,
+        lastKind: lastKind || null,
         ...(r.match ? { match: r.match.slice(0, 160) } : {}),
       });
     }),
     total: Number(total.c),
   };
+}
+
+/** Chats abiertos con algo sin leer (sin los silenciados), con el mismo acceso que la bandeja. */
+export async function countUnreadChats(ws: string, viewer?: GroupsViewer): Promise<number> {
+  const where = ["c.user_id = ?", "c.status = 'open'", 'c.unread_count > 0', '(c.muted_until IS NULL OR c.muted_until < ?)'];
+  const args: Array<string | number> = [ws, nowIso()];
+  const access = chatAccessSql(viewer);
+  if (access) {
+    where.push(access.sql);
+    args.push(...access.args);
+  }
+  const r = (await getDb().prepare(`SELECT COUNT(*) AS n FROM groups_chats c WHERE ${where.join(' AND ')}`).get(...args)) as { n: number };
+  return Number(r.n);
 }
 
 /** Busca o crea el chat de un número (por id del proveedor). */
@@ -1030,9 +1049,9 @@ export function previewOf(body: string, mediaType: string, mediaName = '', meta:
   const text = body.replace(/\s+/g, ' ').trim();
   if (text) return text.slice(0, 140);
   if (meta.media?.viewOnce) return '[viewOnce]';
-  if (mediaName.trim()) return mediaName.trim().slice(0, 140);
-  if (meta.media?.kind === 'voice') return '[voice]';
+  if (meta.media?.kind === 'voice' || meta.media?.ptt) return '[voice]';
   if (meta.media?.kind === 'sticker') return '[sticker]';
+  if (mediaName.trim()) return mediaName.trim().slice(0, 140);
   if (mediaType) return `[${mediaKind(mediaType)}]`;
   if (meta.location) return '[location]';
   if (meta.contacts?.length) return '[contact]';
@@ -1237,6 +1256,7 @@ export async function sendMessage(ws: string, actor: string | null, chatId: stri
     forwarded: input.forwarded,
     poll,
   });
+  if (status === 'failed') await touchChat(chatId, at, poll ? pollPreview(poll) : previewOf(body, '', ''), false);
   if (status === 'sent') {
     await touchChat(chatId, at, poll ? pollPreview(poll) : previewOf(body, input.media?.mimetype ?? '', input.media?.filename ?? ''), false);
     // Un envío masivo no es una respuesta: el chat sigue esperando y el ticket sin primera respuesta.
@@ -1370,6 +1390,7 @@ async function sendMediaMessage(
   }
   await settleOutgoing(row.id, chat.number_id, providerId, status, error);
   const saved = ((await getDb().prepare('SELECT * FROM groups_messages WHERE id = ?').get(row.id)) as MessageRow | undefined) ?? row;
+  if (status === 'failed') await touchChat(chat.id, at, previewOfRow(saved), false);
   if (status === 'sent') {
     await touchChat(chat.id, at, previewOfRow(saved), false);
     // Un envío masivo no es una respuesta: el chat sigue esperando.
@@ -1398,9 +1419,10 @@ async function sendMediaMessage(
  * Vuelve a mandar un mensaje propio que no salió, en la misma fila (no crea
  * otra burbuja): pasa a "pending" y después a sent o failed.
  */
-export async function retryMessage(ws: string, actor: string | null, messageId: string): Promise<MessageDto> {
+export async function retryMessage(ws: string, actor: string | null, messageId: string, isAdmin = false): Promise<MessageDto> {
   const row = await getMessageRow(ws, messageId);
   if (!row || row.direction !== 'out') throw new GroupsError('not_found', 404);
+  if (!isAdmin && row.author_id !== actor) throw new GroupsError('forbidden', 403);
   if (row.status !== 'failed') return toMessageDto(row);
   const chat = await getChatRow(ws, row.chat_id);
   const number = chat ? await getNumberRow(ws, chat.number_id) : null;

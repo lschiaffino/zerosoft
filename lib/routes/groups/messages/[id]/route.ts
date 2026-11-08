@@ -41,7 +41,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
     if (b.action === 'retry') {
       const { retryMessage } = await import('@/lib/groups');
-      return NextResponse.json(await retryMessage(s.ws, s.me, id));
+      return NextResponse.json(await retryMessage(s.ws, s.me, id, s.isAdmin));
     }
     if (b.action === 'star' || b.action === 'unstar') {
       const { starMessage } = await import('@/lib/groups-inbox');

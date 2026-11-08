@@ -564,3 +564,32 @@ export async function reimport(ws: string, numberId: string, perChat?: number): 
   await kickImport(number.id);
   return getImportStatus(ws, numberId);
 }
+
+/**
+ * "Traer más": los mensajes anteriores de un chat, del historial que guardó el
+ * gateway (la importación trae los últimos N). Pide la página que sigue a lo
+ * que ya hay; lo repetido no se duplica. Devuelve cuántos mensajes nuevos.
+ */
+export async function importOlder(ws: string, chatId: string, pageSize = 50): Promise<{ added: number; done: boolean }> {
+  const db = getDb();
+  const chat = (await db.prepare('SELECT * FROM groups_chats WHERE id = ? AND user_id = ?').get(chatId, ws)) as ChatRow | undefined;
+  if (!chat) return { added: 0, done: true };
+  const number = await getNumberRow(ws, chat.number_id);
+  if (!number || !canImport(number.provider)) return { added: 0, done: true };
+  const provider = providerFor(number);
+  if (!provider.history) return { added: 0, done: true };
+  const jids = ((await db.prepare('SELECT remote_jid FROM groups_import_chats WHERE number_id = ? AND chat_id = ?').all(number.id, chat.id)) as Array<{ remote_jid: string }>).map(
+    (r) => r.remote_jid,
+  );
+  if (jids.length === 0) jids.push(chat.provider_chat_id);
+  const have = (await db.prepare("SELECT COUNT(*) AS n FROM groups_messages WHERE chat_id = ? AND provider_message_id IS NOT NULL").get(chat.id)) as { n: number };
+  let added = 0;
+  let got = 0;
+  for (const jid of jids) {
+    const page = Math.floor(Number(have.n) / pageSize) + 1;
+    const events = await provider.history.messages(jid, pageSize, page);
+    got += events.length;
+    added += (await ingestHistory(number, events)).messages;
+  }
+  return { added, done: got < pageSize };
+}

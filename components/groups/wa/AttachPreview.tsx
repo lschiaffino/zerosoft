@@ -109,6 +109,8 @@ export default function AttachPreview({
                 {f.preview && f.type.startsWith('image/') ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={f.preview} alt="" />
+                ) : f.preview && f.type.startsWith('video/') ? (
+                  <video src={`${f.preview}#t=0.1`} muted preload="metadata" tabIndex={-1} aria-hidden="true" />
                 ) : (
                   <span className="wa-tray-doc" aria-hidden="true">
                     <DocIcon size={18} />
