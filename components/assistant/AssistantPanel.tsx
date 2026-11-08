@@ -93,6 +93,8 @@ export default function AssistantPanel() {
   useEffect(() => {
     const onOpen = (e: Event) => show((e as CustomEvent<OpenAssistantDetail | undefined>).detail);
     const onKey = (e: KeyboardEvent) => {
+      // Un campo que ya usó ⌘J (el borrador con IA de Inbox) se lo queda.
+      if (e.defaultPrevented) return;
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'j') {
         e.preventDefault();
         if (open) close();

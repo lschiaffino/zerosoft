@@ -13,7 +13,7 @@ import { createContact, listContacts, searchAll } from '@/lib/crm';
 import { makeUser } from './helpers';
 
 const session = vi.hoisted(() => ({ user: null as null | { id: string; email: string } }));
-vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user }));
+vi.mock('@/lib/session', () => ({ getCurrentUser: async () => session.user, realUserId: (u: { id: string; actingUser?: { id: string } }) => u.actingUser?.id ?? u.id }));
 
 const searchRoute = await import('@/app/api/search/route');
 

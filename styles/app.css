@@ -1353,3 +1353,15 @@ td.cell-actions > * + * { margin-left: 4px; }
 
 /* Sin ningún bloque (todos vacíos en uso personal): no queda el título solo. */
 .home-section:has(> .home-today:empty) { display: none; }
+
+/* ---------- Tacto ---------- */
+/* Con el dedo, las filas de la banda, el drawer y sus menús miden 44px (guía de iOS y Android). */
+@media (pointer: coarse) {
+  .band-menu-item,
+  .band-switcher-panel .band-menu-item,
+  .side-stop,
+  .side-link,
+  .side-handle,
+  .side-menu-item { height: 44px; }
+  .band-search { height: 40px; }
+}
