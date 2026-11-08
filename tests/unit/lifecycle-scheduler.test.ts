@@ -52,10 +52,10 @@ beforeEach(async () => {
 
 describe('modo del motor', () => {
   it('sin proveedor no hace nada y lo dice en el log', async () => {
-    expect(lifecycleMode({} as NodeJS.ProcessEnv)).toBe('off');
-    expect(lifecycleMode({ RESEND_API_KEY: 're_x' } as NodeJS.ProcessEnv)).toBe('resend');
-    expect(lifecycleMode({ LIFECYCLE_EMAILS: 'console' } as NodeJS.ProcessEnv)).toBe('console');
-    expect(lifecycleMode({ LIFECYCLE_EMAILS: 'off', RESEND_API_KEY: 're_x' } as NodeJS.ProcessEnv)).toBe('off');
+    expect(lifecycleMode({})).toBe('off');
+    expect(lifecycleMode({ RESEND_API_KEY: 're_x' })).toBe('resend');
+    expect(lifecycleMode({ LIFECYCLE_EMAILS: 'console' })).toBe('console');
+    expect(lifecycleMode({ LIFECYCLE_EMAILS: 'off', RESEND_API_KEY: 're_x' })).toBe('off');
     const log = vi.spyOn(console, 'info').mockImplementation(() => {});
     const { send } = fakeSender();
     const u = await newUser();

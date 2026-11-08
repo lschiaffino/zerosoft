@@ -43,7 +43,7 @@ export type LifecycleMode = 'resend' | 'console' | 'off';
 let warnedOff = false;
 
 /** De dónde salen los emails: Resend, el log (LIFECYCLE_EMAILS=console) o ninguno. */
-export function lifecycleMode(env: NodeJS.ProcessEnv = process.env): LifecycleMode {
+export function lifecycleMode(env: Record<string, string | undefined> = process.env): LifecycleMode {
   const flag = env.LIFECYCLE_EMAILS?.trim().toLowerCase();
   if (flag === 'off') return 'off';
   if (env.RESEND_API_KEY) return 'resend';
@@ -145,7 +145,7 @@ async function history(userId: string): Promise<SentRecord[]> {
 export async function digestCounts(s: Pick<LifecycleSignals, 'workspaceOwnerId' | 'teamId'>, now = new Date()): Promise<DigestCounts> {
   const since = iso(now.getTime() - 7 * DAY).slice(0, 19);
   const after = "REPLACE(SUBSTR(created_at, 1, 19), ' ', 'T') > ?";
-  const n = async (sql: string, ...args: unknown[]) => {
+  const n = async (sql: string, ...args: Array<string | number | null>) => {
     try {
       const row = (await getDb().prepare(sql).get(...args)) as { n?: number } | undefined;
       return Number(row?.n ?? 0);

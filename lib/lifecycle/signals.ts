@@ -72,7 +72,7 @@ export function chosenApps(profile: { entryApp?: string; goals?: unknown; source
   return out;
 }
 
-async function exists(sql: string, ...args: unknown[]): Promise<boolean> {
+async function exists(sql: string, ...args: Array<string | number | null>): Promise<boolean> {
   try {
     return !!(await getDb().prepare(`SELECT 1 AS x FROM (${sql}) LIMIT 1`).get(...args));
   } catch {
@@ -80,7 +80,7 @@ async function exists(sql: string, ...args: unknown[]): Promise<boolean> {
   }
 }
 
-async function count(sql: string, ...args: unknown[]): Promise<number> {
+async function count(sql: string, ...args: Array<string | number | null>): Promise<number> {
   try {
     const row = (await getDb().prepare(sql).get(...args)) as { n?: number } | undefined;
     return Number(row?.n ?? 0);
