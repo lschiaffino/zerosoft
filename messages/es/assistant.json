@@ -19,7 +19,8 @@
     "provider_error": "El asistente no pudo responder. Probá de nuevo.",
     "network": "No se pudo llegar al servidor. Revisá la conexión y probá de nuevo.",
     "status": "No se pudo cargar el asistente. Recargá la página.",
-    "load": "No se pudo cargar esta charla."
+    "load": "No se pudo cargar esta charla.",
+    "attachment_not_found": "Un archivo adjunto ya no está. Quitalo y adjuntalo de nuevo."
   },
   "notConfigured": {
     "title": "El asistente todavía no está configurado",
@@ -209,5 +210,26 @@
     "viewAll": "Todas las charlas",
     "shortcut": "Abrilo desde cualquier lado con {key}"
   },
-  "loadEarlier": "Cargar mensajes anteriores"
+  "loadEarlier": "Cargar mensajes anteriores",
+  "attach": {
+    "add": "Adjuntar archivos",
+    "remove": "Quitar {name}",
+    "drop": "Soltá los archivos para adjuntarlos",
+    "uploading": "Subiendo…",
+    "failed": "No se adjuntó",
+    "limit": "Hasta {max} archivos por mensaje.",
+    "noVision": "Este modelo no ve imágenes. Igual las puede mandar o adjuntar por vos.",
+    "list": "Archivos adjuntos",
+    "open": "Abrir {name}",
+    "errors": {
+      "file_too_large": "El archivo pesa más de 10 MB.",
+      "file_type_not_allowed": "Este tipo de archivo no está permitido.",
+      "too_many_files": "Hasta 5 archivos por mensaje.",
+      "upload_failed": "No se pudo subir el archivo. Probá de nuevo.",
+      "storage_unavailable": "Este servidor no tiene dónde guardar archivos.",
+      "invalid_input": "El archivo está vacío.",
+      "attachment_not_found": "Un archivo adjunto ya no está. Quitalo y adjuntalo de nuevo.",
+      "rate_limited": "Demasiadas subidas. Probá más tarde."
+    }
+  }
 }

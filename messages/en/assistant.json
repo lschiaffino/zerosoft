@@ -19,7 +19,8 @@
     "provider_error": "The assistant could not answer. Try again.",
     "network": "Could not reach the server. Check your connection and try again.",
     "status": "Could not load the assistant. Reload the page to try again.",
-    "load": "Could not load this chat."
+    "load": "Could not load this chat.",
+    "attachment_not_found": "An attached file is no longer available. Remove it and attach it again."
   },
   "notConfigured": {
     "title": "The assistant is not set up yet",
@@ -209,5 +210,26 @@
     "viewAll": "All chats",
     "shortcut": "Open it from anywhere with {key}"
   },
-  "loadEarlier": "Load earlier messages"
+  "loadEarlier": "Load earlier messages",
+  "attach": {
+    "add": "Attach files",
+    "remove": "Remove {name}",
+    "drop": "Drop files to attach them",
+    "uploading": "Uploading…",
+    "failed": "Not attached",
+    "limit": "Up to {max} files per message.",
+    "noVision": "This model can't see images. It can still send or attach them for you.",
+    "list": "Attached files",
+    "open": "Open {name}",
+    "errors": {
+      "file_too_large": "The file is larger than 10 MB.",
+      "file_type_not_allowed": "This file type is not allowed.",
+      "too_many_files": "Up to 5 files per message.",
+      "upload_failed": "The file could not be uploaded. Try again.",
+      "storage_unavailable": "File storage is not set up on this server.",
+      "invalid_input": "The file is empty.",
+      "attachment_not_found": "An attached file is no longer available. Remove it and attach it again.",
+      "rate_limited": "Too many uploads. Try again later."
+    }
+  }
 }

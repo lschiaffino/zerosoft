@@ -21,6 +21,7 @@ import { assistantState, resolveAssistantModel } from './config';
 import { fakeAssistantStep } from './fake';
 import { pageRecord } from './page-context';
 import { redact } from './redact';
+import { assistantVision, attachmentKind, attachmentLine, getAttachments, modelParts } from './files';
 import { toolCtx, type AssistantTool, type ToolCtx } from './registry';
 import { toolsFor } from './tools';
 import {
@@ -29,6 +30,7 @@ import {
   createAction,
   listMessages,
   type ActionRow,
+  type AttachmentPart,
   type AssistantOwner,
   type MessagePart,
   type ToolCardPart,
@@ -74,7 +76,9 @@ export type AssistantEvent =
   | { type: 'tool-result'; callId: string; tool: string; ok: boolean; output: unknown }
   | { type: 'action'; action: ActionView }
   | { type: 'done'; messageId: string }
-  | { type: 'error'; code: string };
+  | { type: 'error'; code: string }
+  /** Aviso que no corta el turno (no_vision: el modelo no ve las imágenes adjuntas). */
+  | { type: 'notice'; code: string };
 
 function instructions(ctx: ToolCtx, tools: AssistantTool[], page: PageContext | null): string {
   const person = ctx.user.actingUser ?? ctx.user;
@@ -106,19 +110,47 @@ function recordLine(path: string): string {
 }
 
 /** Historial para el modelo: texto de los mensajes y una línea por acción propuesta (sin re-ejecutar nada). */
-async function history(conversationId: string): Promise<ModelMessage[]> {
+async function history(
+  conversationId: string,
+  owner: AssistantOwner,
+  vision: boolean,
+): Promise<{ messages: ModelMessage[]; attachments: AttachmentPart[]; unseenImages: number }> {
   const rows = await listMessages(conversationId, 30);
   const out: ModelMessage[] = [];
+  const attachments: AttachmentPart[] = [];
+  let unseenImages = 0;
+  const lastUser = [...rows].reverse().find((m) => m.role === 'user');
   for (const m of rows) {
     let content = m.content;
     if (m.role === 'assistant') {
       const tools = m.parts.filter((p): p is ToolCardPart => p.type === 'tool').map((p) => p.tool);
       if (tools.length) content += `\n[tools used: ${tools.join(', ')}]`;
     }
+    const atts = m.role === 'user' ? m.parts.filter((p): p is AttachmentPart => p.type === 'attachment') : [];
+    attachments.push(...atts);
+    if (atts.length && m === lastUser) {
+      // El mensaje de este turno: los adjuntos van como partes (imagen, texto extraído).
+      const rowsNow = await getAttachments(owner, atts.map((a) => a.id));
+      const parts = await modelParts(rowsNow, vision);
+      if (!vision) unseenImages = rowsNow.filter((a) => attachmentKind(a.mime) === 'image').length;
+      out.push({ role: 'user', content: [...(content.trim() ? [{ type: 'text' as const, text: content.slice(0, 8000) }] : []), ...parts] });
+      continue;
+    }
+    if (atts.length) content += `\n[attached earlier: ${atts.map((a) => attachmentLine(a)).join('; ')}]`;
     if (!content.trim()) continue;
     out.push({ role: m.role, content: content.slice(0, 8000) });
   }
-  return out;
+  return { messages: out, attachments, unseenImages };
+}
+
+/** Cómo usar los adjuntos de la charla en las herramientas. */
+function attachmentsLine(atts: AttachmentPart[]): string {
+  if (!atts.length) return '';
+  const list = atts.slice(-10).map((a) => attachmentLine(a)).join('; ');
+  return [
+    `Files the person attached in this chat: ${list}. "This image" or "this file" means the latest one.`,
+    'To use one in an action, use propose_attach_file (to a Track issue or a Docs page) or propose_send_attachment (to a Groups chat). With catalog operations, reference it as { "$attachment": "<id>" } for a media object ({ url, mimetype, filename }), "attachment:<id>" for a URL, or files: [{ "field": "file", "attachment": "<id>" }] for a multipart upload.',
+  ].join(' ');
 }
 
 function errorCode(err: unknown): string {
@@ -222,10 +254,13 @@ export async function* runAssistantTurn(opts: TurnOptions): AsyncGenerator<Assis
   let text = '';
   let usage = { inputTokens: 0, outputTokens: 0 };
   let failed: string | null = null;
+  const past = await history(opts.conversationId, owner, assistantVision(resolved.modelId));
+  // El modelo no ve imágenes: se dice antes de la respuesta (las puede usar en acciones igual).
+  if (past.unseenImages) yield { type: 'notice', code: 'no_vision' };
   const result = streamText({
     model: resolved.model,
-    instructions: instructions(ctx, tools, opts.page),
-    messages: await history(opts.conversationId),
+    instructions: [instructions(ctx, tools, opts.page), attachmentsLine(past.attachments)].filter(Boolean).join('\n'),
+    messages: past.messages,
     tools: sdkTools(ctx, tools, opts.conversationId, owner, actions),
     stopWhen: isStepCount(ASSISTANT_MAX_STEPS),
     // Cada llamada al modelo cuenta para el rate limit por minuto del workspace.

@@ -35,7 +35,18 @@ export interface ActionPart {
   actionId: string;
 }
 
-export type MessagePart = ToolCardPart | ActionPart;
+/** Adjunto de un mensaje de la persona (lib/assistant/files.ts). */
+export interface AttachmentPart {
+  type: 'attachment';
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+  url: string;
+  kind: 'image' | 'pdf' | 'text' | 'file';
+}
+
+export type MessagePart = ToolCardPart | ActionPart | AttachmentPart;
 
 export interface MessageRow {
   id: string;

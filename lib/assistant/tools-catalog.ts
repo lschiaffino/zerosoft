@@ -15,6 +15,7 @@ import { APP_NAMES, getOperation, getWebOnly, OPERATIONS, operationTitle, search
 import { personCanUseApp, type McpCaller } from '../mcp/caller';
 import { invokeOperation, OperationError } from '../mcp/invoke';
 import { readTool, writeTool, type AssistantTool, type ToolCtx } from './registry';
+import { AttachmentRefError, getAttachments, referencedAttachmentIds, resolveAttachmentRefs } from './files';
 
 /** El asistente no se llama a sí mismo ni toca sus propias charlas por el catálogo. */
 const SELF = /^\/api\/assistant(\/|$)/;
@@ -59,9 +60,11 @@ function resolveOp(ctx: ToolCtx, id: string): Operation | { error: string; hint?
   return op;
 }
 
-async function run(ctx: ToolCtx, op: Operation, args: Record<string, unknown> | undefined, opts: { confirm?: boolean; offset?: number; limit?: number }) {
+/** Corre una operación del catálogo como la persona, con las referencias a adjuntos resueltas. */
+export async function runCatalog(ctx: ToolCtx, op: Operation, args: Record<string, unknown> | undefined, opts: { confirm?: boolean; offset?: number; limit?: number }) {
   try {
-    const r = await invokeOperation(new Request(issuerUrl()), sessionCaller(ctx.user), op, args ?? {}, opts);
+    const resolved = await resolveAttachmentRefs({ workspaceId: ctx.workspaceId, personId: ctx.personId }, args ?? {});
+    const r = await invokeOperation(new Request(issuerUrl()), sessionCaller(ctx.user), op, resolved, opts);
     return {
       ok: r.ok,
       status: r.status,
@@ -72,9 +75,12 @@ async function run(ctx: ToolCtx, op: Operation, args: Record<string, unknown> | 
     };
   } catch (err) {
     if (err instanceof OperationError) return { ok: false, error: err.code, message: err.message };
+    if (err instanceof AttachmentRefError) return { ok: false, error: 'unknown_attachment', message: err.message };
     throw err;
   }
 }
+
+const run = runCatalog;
 
 function short(value: unknown, max = 160): string {
   const text = typeof value === 'string' ? value : JSON.stringify(value);
@@ -111,9 +117,13 @@ function propose(destructive: boolean) {
       if (destructive !== (op.access === 'destructive')) {
         return { error: destructive ? 'not_destructive' : 'destructive_operation', hint: destructive ? 'Use propose_operation for this one.' : 'Use propose_destructive_operation for this one.' };
       }
+      // Los adjuntos tienen que ser de la persona; la tarjeta muestra qué archivo va.
+      const refs = [...referencedAttachmentIds(input.args ?? {})];
+      const files = refs.length ? await getAttachments({ workspaceId: ctx.workspaceId, personId: ctx.personId }, refs) : [];
+      if (files.length !== refs.length) return { error: 'unknown_attachment', hint: 'Use the attachment ids listed in the instructions.' };
       return {
         summary: input.summary,
-        details: describe(op, input.args),
+        details: [...describe(op, input.args), ...files.map((f) => ({ label: 'File', after: `${f.name} (${f.mime})` }))],
         input: { operation: op.id, args: input.args ?? {} },
         ...(destructive ? { confirmText: op.method === 'DELETE' ? 'delete' : 'confirm' } : {}),
       };
