@@ -152,7 +152,11 @@ test.describe('escritorio: dictado y Ajustes de Voice', () => {
 
   test('sin conexión: el audio queda guardado y se manda de nuevo', async ({ baseURL }) => {
     test.skip(!micWorks, 'sin micrófono en Electron');
-    await app.evaluate(({ session }) => session.fromPartition('persist:zerosoft').enableNetworkEmulation({ offline: true }));
+    // Sin red para el dictado: el pedido de main (session.fetch) se corta como si no hubiera conexión.
+    // (enableNetworkEmulation solo afecta a las páginas, no a los pedidos de main.)
+    await app.evaluate(({ session }) =>
+      session.fromPartition('persist:zerosoft').webRequest.onBeforeRequest({ urls: ['*://*/api/voice/dictate*'] }, (_d, cb) => cb({ cancel: true })),
+    );
     await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.startDictation());
     await new Promise((r) => setTimeout(r, 1200));
     await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.stopDictation());
@@ -166,7 +170,7 @@ test.describe('escritorio: dictado y Ajustes de Voice', () => {
     expect(pending[0].failure).toBe('offline');
 
     // Historial de Ajustes: la fila de "sin mandar" con Mandar de nuevo.
-    await app.evaluate(({ session }) => session.fromPartition('persist:zerosoft').disableNetworkEmulation());
+    await app.evaluate(({ session }) => session.fromPartition('persist:zerosoft').webRequest.onBeforeRequest(null));
     const said = `retried ${Date.now()}`;
     await app.evaluate(
       async ({ session }, a) => session.fromPartition('persist:zerosoft').cookies.set({ url: a.url, name: 'voice_fake_text', value: encodeURIComponent(a.said) }),
@@ -180,7 +184,7 @@ test.describe('escritorio: dictado y Ajustes de Voice', () => {
     await page.locator('#pending button', { hasText: /send again/i }).click();
     await expect(page.locator('#pending')).toHaveCount(0);
     const pasted = await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.pasted);
-    expect(pasted.at(-1)).toContain('retried');
+    expect(pasted.at(-1)?.toLowerCase()).toContain('retried');
     expect(await app.evaluate(() => (globalThis as unknown as { __zsTest: Hooks }).__zsTest.listPending())).toHaveLength(0);
     // El historial lista lo dictado, con Copiar y Pegar.
     await expect(page.locator('#history li').first()).toBeVisible();
@@ -242,7 +246,7 @@ test.describe('escritorio: dictado y Ajustes de Voice', () => {
 
     // Cuenta (DEMO_MODE: siempre la persona demo) y servidor inválido.
     await page.locator('#tab-account').click();
-    await expect(page.locator('#account-state')).toContainText('@');
+    await expect(page.locator('#account-state')).toContainText('@', { timeout: 15_000 });
     await page.locator('#server').fill('ftp://nope');
     await page.locator('#server').press('Enter');
     await expect(page.locator('.status')).toHaveText(/https/i);

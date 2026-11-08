@@ -604,6 +604,13 @@ function renderAccount(panel: HTMLElement) {
     if (res.view) view = res.view;
     flash(st, s('saved'));
   });
+  // La sesión puede haber cambiado (login en el navegador, cierre en la web): se relee al abrir la pestaña.
+  void api.get().then((next) => {
+    if (!next || tab !== 'account') return;
+    const changed = JSON.stringify(next.account) !== JSON.stringify(view?.account);
+    view = next;
+    if (changed) go('account');
+  });
   const updates = v.updates === 'auto' ? s('updatesAuto') : v.updates === 'manual' ? s('updatesManual') : s('updatesDev');
   panel.append(
     h('div', { class: 'row' }, h('h1', {}, s('tabAccount')), h('span', { class: 'spacer' }), st),
