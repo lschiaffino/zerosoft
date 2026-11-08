@@ -74,8 +74,9 @@ async function asPerson(browser: Browser, baseURL: string, who: string) {
 async function expectLockedOut(request: APIRequestContext, shareId: string, title: string) {
   const html = await (await request.get(`/en/v/${shareId}`)).text();
   expect(html).not.toContain(title);
-  expect(html).not.toContain('og:image');
-  expect(html).not.toContain('og:title');
+  // Ni la miniatura ni el título en la vista previa del link (la imagen general del sitio sí puede estar).
+  expect(html).not.toContain(`/api/rec/v/${shareId}/file`);
+  expect(html).not.toContain('application/json+oembed');
   for (const kind of ['video', 'thumb', 'captions', 'gif']) expect((await request.get(`/api/rec/v/${shareId}/file?kind=${kind}`)).status()).toBe(403);
   expect((await request.get(`/api/rec/v/${shareId}/comments`)).status()).toBe(403);
   expect((await request.post(`/api/rec/v/${shareId}/comments`, { data: { kind: 'comment', body: 'hola', name: 'x' } })).status()).toBe(403);
@@ -255,7 +256,7 @@ test('link vencido: frena al link (sin decir el título si hay contraseña) pero
   const anon = await asPerson(browser, baseURL!, 'session');
   await anon.page.goto(`/en/v/${v.shareId}`);
   await expect(anon.page.getByTestId('rec-gate')).toHaveAttribute('data-state', 'expired');
-  expect((await anon.request.get(`/api/rec/v/${v.shareId}/file`)).status()).toBe(403);
+  expect((await anon.request.get(`/api/rec/v/${v.shareId}/file`)).status()).toBe(410);
   expect((await anon.request.get(`/api/rec/oembed?url=${encodeURIComponent(`https://x.test/en/v/${v.shareId}`)}`)).status()).toBe(404);
   // Con contraseña, ni el portón de vencido dice el título.
   await ok(request.patch(`/api/rec/videos/${v.id}`, { data: { password: 'clave-segura' } }));

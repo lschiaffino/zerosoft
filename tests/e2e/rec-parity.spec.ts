@@ -185,6 +185,7 @@ test('cambiar el link: confirma, el viejo deja de andar y el nuevo anda', async 
   const v = await upload(request, tiny, `Rotar ${uid()}`);
   await page.goto(`/en/app/rec/${v.id}`);
   await page.getByTestId('rec-share').click();
+  await page.getByText('Embed and reset link').click();
   await page.getByTestId('rec-share-rotate').click();
   await page.getByRole('button', { name: 'Reset link' }).last().click();
   await expect(page.getByTestId('rec-toast')).toContainText('New link');
