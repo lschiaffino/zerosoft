@@ -7,7 +7,6 @@ import Avatar from '@/components/groups/wa/Avatar';
 import RichText from '@/components/groups/wa/RichText';
 import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer';
 import { Ban, Close, DocIcon, MuteIcon, Search, Sparkle } from '@/components/groups/wa/icons';
-import { MessageMenu } from '@/components/groups/wa/Menu';
 import { fileSize, posterFrame } from '@/components/groups/wa/format';
 import { api, longWhen } from '../api';
 import { chatName, formatPhone } from './util';
@@ -72,6 +71,7 @@ export default function ContactPanel({
   const [viewerAt, setViewerAt] = useState<string | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [confirmBlock, setConfirmBlock] = useState(false);
+  const [muteOpen, setMuteOpen] = useState(false);
 
   const load = useCallback(
     async (kind: SharedKind) => {
@@ -156,7 +156,7 @@ export default function ContactPanel({
             {name}
           </p>
           <p className="ib-wa-hero-sub">
-            {group ? w('groupMembers', { n: wa?.size || wa?.participants.length || 0 }) : formatPhone(thread.handle)}
+            {group ? (wa?.size || wa?.participants.length ? w('groupMembers', { n: wa?.size || wa?.participants.length || 0 }) : w('group')) : formatPhone(thread.handle)}
             {!group && wa?.isBusiness && <span className="ib-wa-badge">{w('business')}</span>}
           </p>
         </section>
@@ -346,29 +346,42 @@ export default function ContactPanel({
         )}
 
         <section className="ib-wa-card ib-wa-actions">
-          <MessageMenu
-            label={w('muteNotifications')}
+          <button
+            type="button"
             className="ib-wa-row ib-wa-action"
-            align="left"
-            trigger={
-              <>
-                <MuteIcon size={20} />
-                <span className="ib-wa-row-main">
-                  <span className="ib-wa-row-name">{muted ? w('unmuteNotifications') : w('muteNotifications')}</span>
-                  {muted && thread.mutedUntil && <span className="ib-wa-muted">{w('mutedUntil', { when: longWhen(thread.mutedUntil, locale) })}</span>}
-                </span>
-              </>
-            }
-            items={
-              muted
-                ? [{ key: 'unmute', label: w('unmuteNotifications'), onSelect: () => onMute(null) }]
-                : [
-                    { key: '8h', label: w('mute8h'), onSelect: () => onMute(new Date(Date.now() + 8 * 3600_000).toISOString()) },
-                    { key: 'week', label: w('muteWeek'), onSelect: () => onMute(new Date(Date.now() + 7 * 86_400_000).toISOString()) },
-                    { key: 'always', label: w('muteAlways'), onSelect: () => onMute(new Date(Date.now() + 1000 * 86_400_000).toISOString()) },
-                  ]
-            }
-          />
+            aria-expanded={muted ? undefined : muteOpen}
+            onClick={() => (muted ? onMute(null) : setMuteOpen((v) => !v))}
+          >
+            <MuteIcon size={20} />
+            <span className="ib-wa-row-main">
+              <span className="ib-wa-row-name">{muted ? w('unmuteNotifications') : w('muteNotifications')}</span>
+              {muted && thread.mutedUntil && <span className="ib-wa-muted">{w('mutedUntil', { when: longWhen(thread.mutedUntil, locale) })}</span>}
+            </span>
+          </button>
+          {!muted && muteOpen && (
+            <div className="ib-wa-mute-options" role="group" aria-label={w('muteNotifications')}>
+              {(
+                [
+                  ['mute8h', 8 * 3600_000],
+                  ['muteWeek', 7 * 86_400_000],
+                  ['muteAlways', 1000 * 86_400_000],
+                ] as const
+              ).map(([key, ms], i) => (
+                <button
+                  key={key}
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  autoFocus={i === 0}
+                  onClick={() => {
+                    setMuteOpen(false);
+                    onMute(new Date(Date.now() + ms).toISOString());
+                  }}
+                >
+                  {w(key)}
+                </button>
+              ))}
+            </div>
+          )}
           {!group &&
             (confirmBlock ? (
               <div className="ib-confirm" role="alertdialog" aria-label={w('blockTitle', { name })}>

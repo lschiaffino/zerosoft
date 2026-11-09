@@ -281,7 +281,7 @@ test('info del grupo y del contacto: foto, integrantes, lo compartido, resumen c
   await shot(page, 'info-group-1440');
   // Silenciar desde el panel: la fila muestra el ícono.
   await panel.getByRole('button', { name: 'Mute notifications' }).click();
-  await page.getByRole('menuitem', { name: 'For 8 hours' }).click();
+  await panel.getByRole('button', { name: 'For 8 hours' }).click();
   await expect(page.locator('.ib-item', { hasText: title }).getByRole('img', { name: 'Muted' })).toBeVisible();
   // Esc cierra el panel (la conversación queda).
   await page.keyboard.press('Escape');

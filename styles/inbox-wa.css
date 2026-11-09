@@ -149,7 +149,7 @@
 .ib-wa-linkcard:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
 
 /* Encuesta (solo lectura: se vota en el teléfono). */
-.ib-wa-poll { min-width: min(280px, 62vw); padding: 2px 2px 14px; }
+.ib-wa-poll { width: min(280px, 62vw); max-width: 100%; box-sizing: border-box; padding: 2px 2px 14px; }
 .ib-wa-poll-q { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-weight: 500; color: var(--wa-text); }
 .ib-wa-poll ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .ib-wa-poll li { padding: 6px 10px; font-size: 0.875rem; color: var(--wa-text); background: var(--wa-quote-bg); border-radius: 6px; }
@@ -223,3 +223,4 @@
   /* El panel de info cubre la conversación (como WhatsApp en el teléfono). */
   .ib-wa-details { position: fixed; inset: var(--band-h, 0px) 0 0 0; z-index: 70; width: auto; border-left: 0; box-shadow: none; }
 }
+.ib-wa-mute-options { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 0 6px 34px; }

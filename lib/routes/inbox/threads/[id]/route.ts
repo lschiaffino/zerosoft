@@ -4,7 +4,7 @@ import { iJson, parseBody, withOwner } from '@/lib/inbox/http';
 import { threadPatchSchema } from '@/lib/inbox/schemas';
 import { threadAction } from '@/lib/inbox/send';
 import { markChatReadOnWhatsapp } from '@/lib/inbox/wa-actions';
-import { waDetails } from '@/lib/inbox/wa-meta';
+import { refreshStaleInfo, waDetails } from '@/lib/inbox/wa-meta';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,8 +15,15 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(_req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   return withOwner(async (owner) => {
+    let row = await getThreadRow(owner, id);
+    // Primera vez que se abre un chat de WhatsApp sin datos: nombre, foto e integrantes antes de mostrarlo.
+    if (row.channel === 'whatsapp' && !row.info_at) {
+      const account = await getAccount(owner, row.account_id);
+      await refreshStaleInfo(account, { ids: [row.id], limit: 1, deadline: Date.now() + 4000 }).catch(() => 0);
+      row = await getThreadRow(owner, id);
+    }
     const thread = await getThread(owner, id);
-    const [page, scheduled, row] = await Promise.all([listMessages(owner, id), listScheduled(owner, id), getThreadRow(owner, id)]);
+    const [page, scheduled] = await Promise.all([listMessages(owner, id), listScheduled(owner, id)]);
     const wa = row.channel === 'whatsapp' ? await waDetails(owner, row, await getAccount(owner, row.account_id)) : null;
     return iJson({ thread, messages: page.messages, more: page.more, scheduled, notes: row.notes, wa });
   });
