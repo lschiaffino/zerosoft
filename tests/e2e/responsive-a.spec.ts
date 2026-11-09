@@ -50,11 +50,17 @@ async function seed(request: APIRequestContext): Promise<Ids> {
   out.link = (await ok<{ id: string }>(request.post('/api/links', { data: { url: `https://example.com/${uid()}`, slug: `r-${uid()}`, title: long } }))).id;
   out.widget = (await ok<{ id: string }>(request.post('/api/chat/widgets', { data: { name: long } }))).id;
   out.design = (await ok<{ design: { id: string } }>(request.post('/api/design/designs', { data: { name: long, width: 1080, height: 1080 } }))).design.id;
-  const number = await ok<{ id: string }>(request.post('/api/groups/numbers', { data: { provider: 'fake', name: 'Responsive line' } }));
-  await ok(request.post(`/api/groups/numbers/${number.id}/connect`, { data: { action: 'connect' } }));
-  await expect
-    .poll(async () => ((await (await request.get(`/api/groups/numbers/${number.id}/connect`)).json()) as { status: string }).status, { timeout: 10_000 })
-    .toBe('connected');
+  // Un número falso ya conectado (de otra corrida o de otro spec) sirve; el plan limita cuántos se crean.
+  const { numbers } = await ok<{ numbers: Array<{ id: string; provider: string; status: string }> }>(request.get('/api/groups/numbers'));
+  let number = numbers.find((n) => n.provider === 'fake' && n.status === 'connected');
+  if (!number) {
+    const created = await ok<{ id: string }>(request.post('/api/groups/numbers', { data: { provider: 'fake', name: 'Responsive line' } }));
+    await ok(request.post(`/api/groups/numbers/${created.id}/connect`, { data: { action: 'connect' } }));
+    await expect
+      .poll(async () => ((await (await request.get(`/api/groups/numbers/${created.id}/connect`)).json()) as { status: string }).status, { timeout: 10_000 })
+      .toBe('connected');
+    number = { id: created.id, provider: 'fake', status: 'connected' };
+  }
   const g = await ok<{ results: Array<{ chatId?: string }> }>(request.post('/api/groups/create', { data: { numberId: number.id, name: long, phones: ['+15550009001'] } }));
   out.group = g.results[0].chatId!;
   const { projects } = await ok<{ projects: Array<{ id: string }> }>(request.get('/api/analytics/projects'));

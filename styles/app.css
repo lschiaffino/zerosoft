@@ -1385,6 +1385,8 @@ td.cell-actions > * + * { margin-left: 4px; }
   -webkit-box-orient: vertical;
   white-space: normal;
   line-height: 1.35;
+  /* Un título sin espacios (una URL, un hash) se corta en vez de ensanchar el bloque y la página. */
+  overflow-wrap: anywhere;
 }
 .home-recent-partial { padding: 8px 0 4px; font-size: 0.8125rem; color: var(--dim); border-top: 1px solid var(--line); }
 .home-split.home-split-full { grid-template-columns: minmax(0, 1fr); }
