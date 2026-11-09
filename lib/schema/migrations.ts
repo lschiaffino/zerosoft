@@ -9012,19 +9012,7 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
-];
-
-export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
-  await client.execute(
-    `CREATE TABLE IF NOT EXISTS schema_migrations (
-       id TEXT PRIMARY KEY,
-       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-     )`,
-  );
-  const done = new Set(
-    (await client.execute('SELECT id FROM schema_migrations')).rows.map((r) => String(r.id)),
-  );
-  const applied: string[] = [  {
+  {
     // Rec, compartir como Drive: rol por persona invitada, links mágicos para
     // quien no tiene cuenta y lo nuevo nace restringido. Los videos que ya
     // estaban abiertos por link siguen igual (el modal los muestra como
@@ -9060,6 +9048,18 @@ export async function runMigrations(client: Client, migrations: Migration[] = MI
     },
   },
 ];
+
+export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
+  await client.execute(
+    `CREATE TABLE IF NOT EXISTS schema_migrations (
+       id TEXT PRIMARY KEY,
+       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+     )`,
+  );
+  const done = new Set(
+    (await client.execute('SELECT id FROM schema_migrations')).rows.map((r) => String(r.id)),
+  );
+  const applied: string[] = [];
   for (const m of migrations) {
     if (done.has(m.id)) continue;
     await m.up(client);
