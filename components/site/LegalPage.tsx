@@ -7,7 +7,7 @@ interface LegalSection {
   ul?: string[];
 }
 
-export type LegalDoc = 'terms' | 'privacy' | 'security';
+export type LegalDoc = 'terms' | 'privacy' | 'security' | 'subprocessors';
 
 export async function legalMetadata(locale: string, doc: LegalDoc) {
   return staticPageMetadata(doc, locale);
