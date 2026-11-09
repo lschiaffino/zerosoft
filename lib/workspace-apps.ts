@@ -22,8 +22,10 @@ export async function loadWorkspaceAppRules(ownerId: string, db: Db = getDb()): 
   let rows: Array<{ app: string; mode: string; people: string; teams: string }>;
   try {
     rows = (await db.prepare('SELECT app, mode, people, teams FROM workspace_apps WHERE owner_id = ?').all(ownerId)) as typeof rows;
-  } catch {
-    return {};
+  } catch (err) {
+    // Solo una base sin la tabla (tests viejos) cuenta como "sin reglas"; cualquier otro error no abre nada.
+    if (/no such table/i.test(String(err))) return {};
+    throw err;
   }
   const out: WorkspaceAppRules = {};
   for (const r of rows) {

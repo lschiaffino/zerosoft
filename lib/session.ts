@@ -211,5 +211,10 @@ async function requestHeader(name: string): Promise<string | null> {
 export async function requireUser(locale: string, returnTo?: string): Promise<SessionUser> {
   const user = await getCurrentUser();
   if (!user) redirect(signInPath(locale, returnTo ?? (await requestHeader(RETURN_PATH_HEADER))));
+  // Página de una app cortada (Próximamente, Apps del workspace o la persona no la tiene). Se corta acá
+  // y no solo en el layout de /app: en una navegación del cliente ese layout no se vuelve a armar.
+  if (user.blockedApp) {
+    redirect(isComingSoon(user.blockedApp) ? `/${locale}/app/soon/${user.blockedApp}` : `/${locale}/app?blocked=${user.blockedApp}`);
+  }
   return user;
 }

@@ -29,7 +29,9 @@ describe('lista de espera', () => {
   it('suma una vez por app y email; repetir guarda el "para qué" y no duplica', async () => {
     const a = await joinWaitlist({ app: 'chat', email: ' Ana@Example.com ', source: 'site', locale: 'es' });
     expect(a).toMatchObject({ created: true, email: 'ana@example.com', app: 'chat' });
-    const b = await joinWaitlist({ app: 'chat', email: 'ana@example.com', useCase: 'Soporte de la web', source: 'site' });
+    // Desde el sitio (sin sesión) no se pisa lo que dejó otra persona.
+    await joinWaitlist({ app: 'chat', email: 'ana@example.com', useCase: 'spam', source: 'site' });
+    const b = await joinWaitlist({ app: 'chat', email: 'ana@example.com', userId: 'u-ana', useCase: 'Soporte de la web', source: 'app' });
     expect(b.created).toBe(false);
     const rows = (await waitlistRows('chat')).filter((r) => r.email === 'ana@example.com');
     expect(rows).toHaveLength(1);
@@ -61,7 +63,9 @@ describe('lista de espera', () => {
     expect((await post({ app: 'books', email: 'bot@example.com', website: 'http://spam' })).status).toBe(200);
     expect((await waitlistRows('books')).some((r) => r.email === 'bot@example.com')).toBe(false);
     const ok = await post({ app: 'books', email: 'caro@example.com', locale: 'es' });
-    expect(await ok.json()).toEqual({ ok: true, created: true, app: 'books' });
+    expect(await ok.json()).toEqual({ ok: true, app: 'books' });
+    // Repetirlo responde igual: no revela si el email ya estaba.
+    expect(await (await post({ app: 'books', email: 'caro@example.com' })).json()).toEqual({ ok: true, app: 'books' });
     expect(sent.list[0]).toEqual({ to: 'caro@example.com', subject: 'Estás en la lista de espera de Books' });
   });
 

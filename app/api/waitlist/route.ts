@@ -40,7 +40,8 @@ export async function POST(req: Request) {
     // Desde el sitio cualquiera escribe cualquier email: a lo sumo 3 confirmaciones por día a la misma dirección.
     const mailOk = person ? true : (await rateLimit(`waitlist:mail:${res.email}`, 3, 86400)).ok;
     if (res.created && mailOk) await sendWaitlistJoined(res.email, res.app, locale).catch(() => false);
-    return NextResponse.json({ ok: true, created: res.created, app: res.app, ...(person ? { email: res.email } : {}) });
+    // Sin sesión no se dice si el email ya estaba: no se puede averiguar quién espera qué.
+    return NextResponse.json(person ? { ok: true, created: res.created, app: res.app, email: res.email } : { ok: true, app: res.app });
   } catch (err) {
     if (err instanceof WaitlistError) return NextResponse.json({ error: err.code }, { status: 400 });
     throw err;

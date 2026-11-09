@@ -66,13 +66,14 @@ export async function joinWaitlist(input: JoinInput, db: Db = getDb()): Promise<
        ON CONFLICT(app, email) DO NOTHING`,
     )
     .run(`wl_${crypto.randomUUID()}`, input.app, email, input.userId ?? null, useCase, lang, input.source);
-  if (res.changes === 0) {
+  // Ya estaba: solo la persona logueada con ese email cambia su "para qué" (desde el sitio, cualquiera escribe cualquier email).
+  if (res.changes === 0 && input.userId) {
     await db
       .prepare(
         `UPDATE app_waitlist SET use_case = CASE WHEN ? != '' THEN ? ELSE use_case END, user_id = COALESCE(user_id, ?)
          WHERE app = ? AND email = ?`,
       )
-      .run(useCase, useCase, input.userId ?? null, input.app, email);
+      .run(useCase, useCase, input.userId, input.app, email);
   }
   return { created: res.changes > 0, email, app: input.app };
 }
