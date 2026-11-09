@@ -21,11 +21,10 @@ export default async function SettingsLayout(props: { children: ReactNode; param
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'settings' });
   const embed = isSettingsEmbed((await headers()).get('user-agent'));
-  const namespaces = ['settings', 'changelog.admin', 'feedback.admin', 'roadmap', 'link.common', 'common.theme'];
 
   if (embed) {
     return (
-      <ClientMessages locale={locale} namespaces={namespaces}>
+      <ClientMessages locale={locale} namespaces={['settings', 'changelog.admin', 'feedback.admin', 'roadmap', 'link.common', 'common.theme']}>
         <div className="ui-page st-page st-page-embed">{props.children}</div>
       </ClientMessages>
     );
@@ -34,7 +33,7 @@ export default async function SettingsLayout(props: { children: ReactNode; param
   const groups = await settingsNavGroups(user, locale);
   return (
     // Admin (changelog, feedback, roadmap) y las secciones movidas usan textos de esas apps.
-    <ClientMessages locale={locale} namespaces={namespaces}>
+    <ClientMessages locale={locale} namespaces={['settings', 'changelog.admin', 'feedback.admin', 'roadmap', 'link.common', 'common.theme']}>
       <div className="ui-page st-page">
         <PageHeader title={t('title')} description={t('desc')} />
         <div className="ui-settings st-layout">
