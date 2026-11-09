@@ -155,5 +155,11 @@
     },
     "saved": "Salvo. Vale para o Inbox e o Lines.",
     "error": "Não foi possível salvar. Tente de novo."
-  }
+  },
+  "transcribing": "Transcrevendo…",
+  "transcribeFailed": "Não foi possível transcrever este áudio.",
+  "showMore": "Ver mais",
+  "showLess": "Ver menos",
+  "audioSummary": "Resumo:",
+  "transcript": "Transcrição"
 }

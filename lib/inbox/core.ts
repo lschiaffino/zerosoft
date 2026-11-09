@@ -488,14 +488,15 @@ export async function listThreads(owner: string, opts: ListOptions = {}): Promis
     .prepare(
       `SELECT t.*,
          (SELECT group_concat(folder_id) FROM inbox_thread_folders f WHERE f.thread_id = t.id) AS folder_ids,
-         (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed')) AS scheduled_count
+         (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed')) AS scheduled_count,
+         CASE WHEN t.last_kind IN ('image', 'video') THEN (SELECT m.id FROM inbox_messages m WHERE m.thread_id = t.id AND m.hidden_at IS NULL ORDER BY m.sent_at DESC LIMIT 1) END AS last_media_id
        FROM inbox_threads t WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ${limit}`,
     )
     .all(...args)) as Array<ThreadRow & { folder_ids: string | null; scheduled_count: number }>;
   return rows.map((r) => threadDto(r, now));
 }
 
-export function threadDto(r: ThreadRow & { folder_ids?: string | null; scheduled_count?: number }, now = new Date()): ThreadDto {
+export function threadDto(r: ThreadRow & { folder_ids?: string | null; scheduled_count?: number; last_media_id?: string | null }, now = new Date()): ThreadDto {
   const snoozed = r.snoozed_until && r.snoozed_until > now.toISOString() ? r.snoozed_until : null;
   return {
     id: r.id,
@@ -525,6 +526,7 @@ export function threadDto(r: ThreadRow & { folder_ids?: string | null; scheduled
     presence: presenceOf(r, now),
     presenceWho: r.presence_who ?? '',
     lastSeenAt: r.last_seen_at ?? null,
+    lastMediaId: r.last_media_id ?? null,
   };
 }
 
@@ -533,7 +535,8 @@ export async function getThread(owner: string, id: string): Promise<ThreadDto> {
     .prepare(
       `SELECT t.*,
          (SELECT group_concat(folder_id) FROM inbox_thread_folders f WHERE f.thread_id = t.id) AS folder_ids,
-         (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed')) AS scheduled_count
+         (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed')) AS scheduled_count,
+         CASE WHEN t.last_kind IN ('image', 'video') THEN (SELECT m.id FROM inbox_messages m WHERE m.thread_id = t.id AND m.hidden_at IS NULL ORDER BY m.sent_at DESC LIMIT 1) END AS last_media_id
        FROM inbox_threads t WHERE t.id = ? AND t.owner_id = ?`,
     )
     .get(id, owner)) as (ThreadRow & { folder_ids: string | null; scheduled_count: number }) | undefined;

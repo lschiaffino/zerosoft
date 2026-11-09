@@ -90,7 +90,10 @@ test('lista como WhatsApp: asunto real del grupo, foto, quién mandó, tipo de m
   await expect(dmRow).toBeVisible();
   await expect(dmRow.locator('.wa-ticks.is-read')).toBeVisible();
   await expect(dmRow.locator('.wa-row-text')).toHaveText('Gracias!');
-  // La foto (número par en el WhatsApp falso) llega por /api/inbox/avatar con la sesión.
+  // La foto (número par en el WhatsApp falso) llega por /api/inbox/avatar con la sesión. Abrir el chat pide sus datos.
+  await dmRow.locator('.ib-row-btn').click();
+  await expect(page.locator('.ib-wa-thread .wa-head img.wa-avatar')).toBeVisible({ timeout: 20_000 });
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   await expect(dmRow.locator('img.wa-avatar')).toBeVisible({ timeout: 45_000 });
   await expect.poll(() => dmRow.locator('img.wa-avatar').evaluate((img) => (img as HTMLImageElement).naturalWidth), { timeout: 15_000 }).toBeGreaterThan(0);
 
@@ -124,6 +127,7 @@ async function seedGroup(request: APIRequestContext, acc: { id: string; secret: 
     message(gid, { providerMessageId: `g6-${tag}`, senderPhone: '15550001003', senderName: 'Carla Prueba', body: '', contacts: [{ name: 'Eva Prueba', phones: ['+1 555 000 1009'] }], timestamp: at(8) }),
     message(gid, { providerMessageId: `g7-${tag}`, senderPhone: '15550001002', senderName: 'Beto Prueba', body: '', poll: { question: '¿A qué hora?', options: ['12:00', '13:00', '14:00'], multi: false }, timestamp: at(9) }),
     message(gid, { providerMessageId: `g8-${tag}`, senderPhone: '15550001004', senderName: 'Dani Prueba', body: 'Les paso esto que me llegó', forwarded: true, timestamp: at(10) }),
+    message(gid, { providerMessageId: `g8b-${tag}`, senderPhone: '15550001004', senderName: 'Dani Prueba', body: 'La receta: https://example.test/receta', timestamp: at(10.5) }),
     message(gid, { providerMessageId: `g9-${tag}`, senderPhone: '15550001003', senderName: 'Carla Prueba', body: 'Mensaje que después se borra', timestamp: at(11) }),
     message(gid, { providerMessageId: `g10-${tag}`, fromMe: true, senderPhone: '', senderName: '', body: '👍', status: 'delivered', timestamp: at(12) }),
   ]);
@@ -166,6 +170,9 @@ test('conversación como WhatsApp: burbujas, nombres de color, cita, reacciones,
   await page.keyboard.press('Escape');
   await expect(page.locator('.wa-viewer')).toBeHidden();
   await expect(thread.locator('.wa-voice')).toBeVisible();
+  // Transcripción del audio (Voice falso en e2e) y vista previa del link (lector falso).
+  await expect(thread.locator('.wa-transcript').first()).toBeVisible({ timeout: 20_000 });
+  await expect(thread.locator('.wa-linkcard', { hasText: 'example.test page' })).toBeVisible();
   await expect(thread.locator('.wa-doc', { hasText: 'Lista de compras.pdf' })).toBeVisible();
   await expect(thread.locator('.wa-location', { hasText: 'Plaza de prueba' })).toBeVisible();
   await expect(thread.locator('.wa-contact', { hasText: 'Eva Prueba' })).toBeVisible();

@@ -71,6 +71,8 @@ export interface ThreadDto {
   /** En un grupo, quién escribe (teléfono). */
   presenceWho: string;
   lastSeenAt: string | null;
+  /** Último mensaje con foto o video (su miniatura en la fila). */
+  lastMediaId?: string | null;
 }
 
 /** Datos de presentación de un mensaje de WhatsApp (los que manda el servidor). */
@@ -88,6 +90,8 @@ export interface WaMessageMeta {
   thumb?: string;
   viewOnce?: boolean;
   animated?: boolean;
+  /** Forma de onda de la nota de voz (0 a 100). */
+  waveform?: number[];
   location?: { lat: number; lng: number; name?: string; address?: string; url?: string; live?: boolean };
   contacts?: Array<{ name: string; phones: string[] }>;
   poll?: { question: string; options: string[]; multi: boolean };

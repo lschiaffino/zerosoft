@@ -2,25 +2,37 @@
 
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { colorIndex, duration, extensionOf, fileSize, posterFrame } from './format';
+import { duration, extensionOf, fileSize, posterFrame, waveBars } from './format';
 import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, Play } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 
-/** Barras fijas por mensaje (parecen una onda, sin decodificar el audio). */
-function bars(seed: string, n = 36): number[] {
-  const out: number[] = [];
-  let h = colorIndex(seed, 9973) + 7;
-  for (let i = 0; i < n; i++) {
-    h = (h * 1103515245 + 12345) & 0x7fffffff;
-    out.push(0.25 + ((h >> 8) % 1000) / 1333);
+const SPEEDS = [1, 1.5, 2];
+const POS_KEY = 'wa-voice-pos:';
+const SPEED_KEY = 'wa-voice-speed';
+
+function readStore(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
   }
-  return out;
 }
 
-const SPEEDS = [1, 1.5, 2];
+function writeStore(key: string, value: string | null) {
+  try {
+    if (value === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, value);
+  } catch {
+    // Sin storage: no se recuerda.
+  }
+}
 
-/** Nota de voz o audio: reproducir, avanzar, velocidad (como WhatsApp). */
-export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src: string; seconds?: number; voice?: boolean; name?: string }) {
+/**
+ * Nota de voz o audio: reproducir, avanzar, velocidad 1×/1,5×/2× (queda
+ * elegida), forma de onda real si WhatsApp la manda, y sigue donde se dejó
+ * (la posición queda en este navegador hasta terminarlo).
+ */
+export function VoicePlayer({ id, src, seconds, voice, name, waveform }: { id: string; src: string; seconds?: number; voice?: boolean; name?: string; waveform?: number[] }) {
   const tw = useTranslations('groups.wa');
   const ref = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -28,13 +40,27 @@ export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src
   const [total, setTotal] = useState(seconds ?? 0);
   const [speed, setSpeed] = useState(1);
   const [failed, setFailed] = useState(false);
-  const shape = bars(id);
+  const shape = waveBars(waveform, id);
   const progress = total > 0 ? Math.min(1, time / total) : 0;
+
+  // Velocidad elegida y dónde había quedado este audio.
+  useEffect(() => {
+    const s = Number(readStore(SPEED_KEY));
+    if (SPEEDS.includes(s)) setSpeed(s);
+    const p = Number(readStore(POS_KEY + id));
+    if (p > 0) setTime(p);
+  }, [id]);
 
   useEffect(() => {
     const a = ref.current;
     if (a) a.playbackRate = speed;
   }, [speed]);
+
+  // Al empezar, retoma desde la posición guardada.
+  const resumed = useRef(false);
+  useEffect(() => {
+    resumed.current = false;
+  }, [id]);
 
   function toggle() {
     const a = ref.current;
@@ -42,6 +68,11 @@ export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src
     if (a.paused) {
       // Una sola a la vez, como en WhatsApp.
       document.querySelectorAll<HTMLAudioElement>('audio.wa-audio-el').forEach((x) => x !== a && x.pause());
+      if (!resumed.current) {
+        resumed.current = true;
+        if (time > 0 && (!total || time < total - 0.5)) a.currentTime = time;
+      }
+      a.playbackRate = speed;
       void a.play().catch(() => setFailed(true));
     } else a.pause();
   }
@@ -58,8 +89,13 @@ export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src
         onEnded={() => {
           setPlaying(false);
           setTime(0);
+          writeStore(POS_KEY + id, null);
         }}
-        onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+        onTimeUpdate={(e) => {
+          const pos = e.currentTarget.currentTime;
+          setTime(pos);
+          if (pos > 1) writeStore(POS_KEY + id, pos.toFixed(1));
+        }}
         onLoadedMetadata={(e) => Number.isFinite(e.currentTarget.duration) && setTotal(e.currentTarget.duration)}
         onError={() => setFailed(true)}
       />
@@ -97,8 +133,14 @@ export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src
         />
         <span className="wa-voice-meta">
           <span>{failed ? tw('audioUnavailable') : duration(playing || time > 0 ? time : total)}</span>
-          {playing && (
-            <button type="button" className="wa-voice-speed" onClick={() => setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length])} aria-label={tw('speed')}>
+          {(playing || time > 0) && (
+            <button type="button" className="wa-voice-speed" onClick={() => {
+                const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
+                setSpeed(next);
+                writeStore(SPEED_KEY, String(next));
+              }}
+              aria-label={tw('speed')}
+            >
               {speed}×
             </button>
           )}

@@ -208,7 +208,26 @@ const parity: ProductParity = {
       ],
     }),
     row('wa-link-previews', 'whatsapp', ['Link previews', 'Vista previa de links', 'Prévia de links'], 'partial', {
-      detail: ['The preview the other phone sends is shown. Messages sent from here go without a preview', 'Se ve la vista previa que manda el otro teléfono. Lo que se manda desde acá sale sin vista previa', 'Aparece a prévia que o outro celular envia. O que se envia daqui sai sem prévia'],
+      detail: [
+        'Title, description, image and domain: the one WhatsApp sends, or read on our server (never from the browser) and cached for a week. The other person does not get a preview of what you send from here',
+        'Título, descripción, imagen y dominio: la que manda WhatsApp, o leída en nuestro servidor (nunca desde el navegador) y guardada una semana. Del otro lado, lo que mandás desde acá llega sin vista previa',
+        'Título, descrição, imagem e domínio: a que o WhatsApp envia, ou lida no nosso servidor (nunca pelo navegador) e guardada por uma semana. Do outro lado, o que você envia daqui chega sem prévia',
+      ],
+    }),
+    row('wa-voice-notes', 'whatsapp', ['Voice notes: speed, waveform, resume', 'Notas de voz: velocidad, forma de onda, seguir', 'Notas de voz: velocidade, forma de onda, continuar'], 'have', {
+      detail: [
+        '1×, 1.5× and 2× (the choice is kept), the waveform WhatsApp sends, and an audio resumes where you left it in this browser',
+        '1×, 1,5× y 2× (queda elegida), la forma de onda que manda WhatsApp, y un audio sigue donde lo dejaste en este navegador',
+        '1×, 1,5× e 2× (a escolha fica), a forma de onda que o WhatsApp envia, e um áudio continua de onde você parou neste navegador',
+      ],
+    }),
+    row('wa-transcripts', 'whatsapp', ['Audio transcription and summary', 'Transcripción y resumen de audios', 'Transcrição e resumo de áudios'], 'better', {
+      competitorHas: false,
+      detail: [
+        'Every audio is transcribed with Voice when you see it and the text sits under the bubble; long ones get an AI summary. Saved once and only for you. Tested with the fake transcriber',
+        'Cada audio se transcribe con Voice al verlo y el texto queda debajo de la burbuja; los largos llevan un resumen con IA. Se guarda una vez y solo para vos. Probado con el transcriptor falso',
+        'Cada áudio é transcrito com o Voice ao ser visto e o texto fica embaixo do balão; os longos ganham um resumo com IA. Salvo uma vez e só para você. Testado com o transcritor falso',
+      ],
     }),
     row('wa-contact-info', 'whatsapp', ['Contact and group info', 'Info del contacto y del grupo', 'Dados do contato e do grupo'], 'partial', {
       detail: [

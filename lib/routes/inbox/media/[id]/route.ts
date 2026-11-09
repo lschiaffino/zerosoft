@@ -12,10 +12,25 @@ type Ctx = { params: Promise<{ id: string }> };
 const INLINE = /^(image\/(jpeg|png|webp|gif)|audio\/(ogg|mpeg|mp4|aac|webm|wav)|video\/(mp4|webm))$/;
 
 /** Archivo de un mensaje de WhatsApp (foto, audio, video, documento), bajado del servidor al pedirlo. */
-export async function GET(_req: Request, ctx: Ctx) {
+export async function GET(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
+  const thumbOnly = new URL(req.url).searchParams.get('thumb') === '1';
   return withOwner(async (owner) => {
     const msg = await getMessageRow(owner, id);
+    // ?thumb=1: la miniatura que mandó WhatsApp (sin bajar el archivo), para la lista y lo compartido.
+    if (thumbOnly) {
+      let thumb = '';
+      try {
+        thumb = msg.meta ? String((JSON.parse(msg.meta) as { thumb?: string }).thumb ?? '') : '';
+      } catch {
+        thumb = '';
+      }
+      const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(thumb);
+      if (!m) throw new InboxError('not_found', 404);
+      return new NextResponse(new Uint8Array(Buffer.from(m[1], 'base64')), {
+        headers: { 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=86400', 'x-content-type-options': 'nosniff' },
+      });
+    }
     const thread = await getThreadRow(owner, msg.thread_id);
     if (thread.channel !== 'whatsapp' || !msg.media_ref) throw new InboxError('not_found', 404);
     const account = await getAccount(owner, thread.account_id);

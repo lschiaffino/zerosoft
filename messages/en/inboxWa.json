@@ -155,5 +155,11 @@
     },
     "saved": "Saved. It applies to Inbox and Lines.",
     "error": "It could not be saved. Try again."
-  }
+  },
+  "transcribing": "Transcribing…",
+  "transcribeFailed": "Could not transcribe this audio.",
+  "showMore": "Show more",
+  "showLess": "Show less",
+  "audioSummary": "Summary:",
+  "transcript": "Transcript"
 }

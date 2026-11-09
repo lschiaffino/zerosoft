@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ThreadDto } from '@/lib/inbox/types';
 import Avatar from '@/components/groups/wa/Avatar';
@@ -20,6 +20,16 @@ const KIND_ICON: Record<Exclude<PreviewKind, ''>, (p: { size?: number }) => Reac
   contact: Person,
   poll: PollIcon,
 };
+
+/** Miniatura de la foto o el video del último mensaje (la que mandó WhatsApp; si no hay, no se ve). */
+function RowThumb({ id }: { id: string }) {
+  const [off, setOff] = useState(false);
+  if (off) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img className="wa-row-thumb" src={`/api/inbox/media/${id}?thumb=1`} alt="" loading="lazy" onError={() => setOff(true)} />
+  );
+}
 
 /**
  * Lo de adentro de una fila de la lista, como WhatsApp Web: foto, nombre,
@@ -63,6 +73,7 @@ export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra
                 {th.channel === 'whatsapp' && th.lastFromMe && th.lastStatus && <Ticks status={th.lastStatus} label={t(`message.status.${['sent', 'delivered', 'read', 'failed'].includes(th.lastStatus) ? th.lastStatus : 'sent'}`)} />}
                 {th.channel === 'gmail' && th.lastFromMe && <span className="wa-row-sender">{t('list.you')}</span>}
                 {th.kind === 'group' && !th.lastFromMe && th.lastSender && <span className="wa-row-sender">{th.lastSender}:</span>}
+                {(kind === 'image' || kind === 'video') && th.lastMediaId && <RowThumb id={th.lastMediaId} />}
                 {Icon && (
                   <span className="wa-row-kind">
                     <Icon size={15} />

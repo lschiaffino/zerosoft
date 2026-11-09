@@ -801,6 +801,29 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-attach-pick video { width: 100%; height: 100%; object-fit: cover; }
 @media (prefers-reduced-motion: reduce) { .wa-viewer-stage img { transition: none; } }
 
+/* Vista previa de link arriba del texto (la del teléfono o la que lee el servidor). */
+.wa-linkcard { display: flex; margin: 0 0 6px; max-width: 360px; overflow: hidden; color: var(--wa-text); text-decoration: none; background: var(--wa-quote-bg); border-radius: 6px; }
+.gr-msg-out .wa-linkcard { background: var(--wa-quote-out); }
+.wa-linkcard img { flex: none; width: 82px; height: 82px; object-fit: cover; }
+.wa-linkcard-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 6px 10px; }
+.wa-linkcard-text strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.875rem; font-weight: 500; }
+.wa-linkcard-text span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8125rem; color: var(--wa-text-2); }
+.wa-linkcard-text small { font-size: 0.75rem; color: var(--wa-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-linkcard:hover strong { text-decoration: underline; }
+.wa-linkcard:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
+@media (max-width: 480px) { .wa-linkcard img { width: 64px; height: 64px; } }
+
+/* Transcripción de un audio debajo del reproductor (plegada en tres líneas). */
+.wa-transcript { display: flex; flex-direction: column; gap: 3px; max-width: min(300px, 62vw); margin: 0 0 14px; padding: 6px 8px; font-size: 0.8125rem; line-height: 18px; color: var(--wa-text); background: var(--wa-quote-bg); border-radius: 6px; }
+.gr-msg-out .wa-transcript { background: var(--wa-quote-out); }
+.wa-transcript.is-busy, .wa-transcript.is-off { display: block; color: var(--wa-text-2); font-style: italic; }
+.wa-transcript-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.wa-transcript-text.is-clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.wa-transcript-summary { margin: 0; color: var(--wa-text); }
+.wa-transcript-summary b { font-weight: 600; }
+.wa-transcript-toggle { align-self: flex-start; padding: 0; font: inherit; font-size: 0.75rem; font-weight: 500; color: var(--wa-primary-ink); background: none; border: 0; cursor: pointer; }
+.wa-transcript-toggle:focus-visible { outline: 2px solid var(--wa-primary); }
+
 /* ============================================================
    Estilo de chats "zerosoft" (ajuste por persona, Inbox y Lines):
    data-chat-style="zerosoft" en el contenedor. Mismo layout y funciones,

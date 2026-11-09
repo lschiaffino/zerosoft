@@ -8,7 +8,8 @@ import { ProviderError } from '../groups-provider';
 import { getDb } from '../db';
 import { getAccount, getMessageRow, getThreadRow, nowIso, saveDraft, type AccountRow, type ThreadRow } from './core';
 import { InboxError, LIMITS } from './types';
-import { sendWhatsappText, waProviderFor } from './whatsapp';
+import { fetchWhatsappMedia, sendWhatsappText, waProviderFor } from './whatsapp';
+import { readTranscript, transcribeMessage, type TranscriptDto } from '../wa-extras';
 import { storeReaction } from './wa-meta';
 
 /** WhatsApp deja editar 15 minutos y borrar para todos unas 60 horas. */
@@ -140,6 +141,28 @@ export async function forwardMessage(owner: string, messageId: string, targetIds
     done.push(thread.id);
   }
   return done;
+}
+
+/**
+ * Transcripción (y resumen si es largo) de un audio del chat. `start`: si
+ * no está, se hace ahora; si no, solo se lee lo guardado. Privada de la dueña.
+ */
+export async function messageTranscript(owner: string, messageId: string, start: boolean): Promise<TranscriptDto | null> {
+  const { msg, account } = await context(owner, messageId);
+  if (msg.media_type !== 'audio' || !msg.media_ref) throw new InboxError('unsupported', 400);
+  const saved = await readTranscript('inbox', owner, msg.id);
+  if (saved && (saved.status === 'done' || saved.status === 'failed' || !start)) return saved;
+  if (!start) return null;
+  let seconds: number | undefined;
+  try {
+    seconds = msg.meta ? (JSON.parse(msg.meta) as { duration?: number }).duration : undefined;
+  } catch {
+    seconds = undefined;
+  }
+  return transcribeMessage('inbox', owner, msg.id, async () => {
+    const f = await fetchWhatsappMedia(account, msg.media_ref);
+    return { data: f.data, mimetype: f.mimetype, seconds };
+  });
 }
 
 /**

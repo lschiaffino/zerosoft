@@ -155,5 +155,11 @@
     },
     "saved": "Guardado. Vale para Inbox y Lines.",
     "error": "No se pudo guardar. Probá de nuevo."
-  }
+  },
+  "transcribing": "Transcribiendo…",
+  "transcribeFailed": "No se pudo transcribir este audio.",
+  "showMore": "Ver más",
+  "showLess": "Ver menos",
+  "audioSummary": "Resumen:",
+  "transcript": "Transcripción"
 }

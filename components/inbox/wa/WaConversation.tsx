@@ -9,7 +9,7 @@ import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
-import { colorIndex, dayLabel, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
+import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
 import { ArrowDown, ArrowLeft, Ban, CheckCircle, Chevron, ClockIcon, Forwarded, PinIcon, PollIcon, Plus, Smiley, Ticks } from '@/components/groups/wa/icons';
 import { api, longWhen } from '../api';
 import { Modal } from '../InboxDialogs';
@@ -18,6 +18,8 @@ import WaComposer, { ComposerBanner } from './WaComposer';
 import { chatName, formatPhone, groupReactions, senderLabel, withMentions } from './util';
 import { swipeAndHold } from './gestures';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
+import LinkPreview from '@/components/groups/wa/LinkPreview';
+import Transcript from '@/components/groups/wa/Transcript';
 import { AttachButton, useSendTray, VoiceBar } from './media-send';
 import AttachPreview from '@/components/groups/wa/AttachPreview';
 import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
@@ -401,26 +403,25 @@ const WaConversation = forwardRef<
               ) : kind === 'video' ? (
                 <VideoView url={url} seconds={meta.duration} thumbnail={meta.thumb} width={meta.width} height={meta.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'audio' ? (
-                <VoicePlayer id={m.id} src={url} seconds={meta.duration} voice={!!meta.ptt} name={meta.ptt ? undefined : m.mediaName || undefined} />
+                <VoicePlayer id={m.id} src={url} seconds={meta.duration} voice={!!meta.ptt} name={meta.ptt ? undefined : m.mediaName || undefined} waveform={meta.waveform} />
               ) : (
                 <DocCard url={url} name={m.mediaName || w('kind.document')} type={meta.mime ?? ''} size={meta.size} pages={meta.pages} />
               )}
             </div>
           )}
+          {kind === 'audio' && url && !hidden && !meta.viewOnce && (
+            <Transcript
+              endpoint={`/api/inbox/messages/${m.id}`}
+              labels={{ working: w('transcribing'), failed: w('transcribeFailed'), more: w('showMore'), less: w('showLess'), summary: w('audioSummary'), title: w('transcript') }}
+            />
+          )}
           {meta.location && !hidden && <LocationCard lat={meta.location.lat} lng={meta.location.lng} name={meta.location.name ?? ''} address={meta.location.address} url={meta.location.url} live={meta.location.live} />}
           {!hidden && meta.contacts?.map((c, i) => <ContactCard key={i} name={c.name} phone={(c.phones[0] ?? '').replace(/\D/g, '')} />)}
-          {meta.link && !hidden && !kind && (
-            <a className="ib-wa-linkcard" href={meta.link.url} target="_blank" rel="noopener noreferrer nofollow">
-              {meta.link.thumb && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={meta.link.thumb} alt="" />
-              )}
-              <span className="ib-wa-linkcard-text">
-                <strong>{meta.link.title}</strong>
-                {meta.link.description && <span>{meta.link.description}</span>}
-                <small>{meta.link.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}</small>
-              </span>
-            </a>
+          {!hidden && !kind && !poll && (meta.link || firstUrl(m.body)) && (
+            <LinkPreview
+              url={meta.link?.url ?? firstUrl(m.body)}
+              given={meta.link ? { url: meta.link.url, title: meta.link.title, description: meta.link.description, image: meta.link.thumb } : null}
+            />
           )}
           {poll && !hidden && (
             <div className="ib-wa-poll">

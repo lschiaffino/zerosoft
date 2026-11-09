@@ -129,3 +129,35 @@ export function onlyEmoji(text: string): boolean {
 export function posterFrame(url: string): string {
   return `${url}#t=0.1`;
 }
+
+/** Barras fijas por mensaje (parecen una onda, sin decodificar el audio). */
+export function bars(seed: string, n = 36): number[] {
+  const out: number[] = [];
+  let h = colorIndex(seed, 9973) + 7;
+  for (let i = 0; i < n; i++) {
+    h = (h * 1103515245 + 12345) & 0x7fffffff;
+    out.push(0.25 + ((h >> 8) % 1000) / 1333);
+  }
+  return out;
+}
+
+
+/** La forma de onda que manda WhatsApp (0..100) → 36 barras de 0,25 a 1. */
+export function waveBars(wave: number[] | undefined, seed: string, n = 36): number[] {
+  if (!wave || wave.length < 8) return bars(seed, n);
+  const out: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.floor((i * wave.length) / n);
+    const b = Math.max(a + 1, Math.floor(((i + 1) * wave.length) / n));
+    const slice = wave.slice(a, b);
+    const v = slice.reduce((s, x) => s + x, 0) / slice.length / 100;
+    out.push(0.18 + Math.min(1, v) * 0.82);
+  }
+  return out;
+}
+
+/** Primer link http(s) de un texto (sin la puntuación del final). */
+export function firstUrl(text: string): string {
+  const m = /\bhttps?:\/\/[^\s<>"']+/i.exec(text ?? '');
+  return m ? m[0].replace(/[).,;:!?]+$/, '') : '';
+}

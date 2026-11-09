@@ -137,16 +137,6 @@
 .gr-msg-out .ib-wa-react-full { right: 0; }
 .ib-wa-react-full .wa-emoji { position: static; }
 
-/* Vista previa de link (la que manda el teléfono), arriba del texto. */
-.ib-wa-linkcard { display: flex; gap: 0; margin: 0 0 6px; max-width: 360px; overflow: hidden; color: var(--wa-text); text-decoration: none; background: var(--wa-quote-bg); border-radius: 6px; }
-.gr-msg-out .ib-wa-linkcard { background: var(--wa-quote-out); }
-.ib-wa-linkcard img { flex: none; width: 82px; height: 82px; object-fit: cover; }
-.ib-wa-linkcard-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 6px 10px; }
-.ib-wa-linkcard-text strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.875rem; font-weight: 500; }
-.ib-wa-linkcard-text span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8125rem; color: var(--wa-text-2); }
-.ib-wa-linkcard-text small { font-size: 0.75rem; color: var(--wa-text-2); }
-.ib-wa-linkcard:hover strong { text-decoration: underline; }
-.ib-wa-linkcard:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
 
 /* Encuesta (solo lectura: se vota en el teléfono). */
 .ib-wa-poll { width: min(280px, 62vw); max-width: 100%; box-sizing: border-box; padding: 2px 2px 14px; }
@@ -231,5 +221,8 @@
 .ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-row-preview { font-size: 0.8125rem; }
 .ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-row-main { min-height: 64px; }
 .ib-app.gr-inbox[data-chat-style='zerosoft'] .ib-row-btn { min-height: 64px; }
-.ib-app.gr-inbox[data-chat-style='zerosoft'] .ib-wa-linkcard,
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-linkcard,
 .ib-app.gr-inbox[data-chat-style='zerosoft'] .ib-wa-poll li { border-radius: var(--radius-1); }
+
+/* Miniatura de la foto o el video del último mensaje en la fila. */
+.wa-row-thumb { flex: none; width: 18px; height: 18px; object-fit: cover; border-radius: 2px; }
