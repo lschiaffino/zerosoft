@@ -371,7 +371,15 @@ export default function IssuesTable({
                 }
               >
                 {selection && (
-                  <td className="track-col-select">
+                  // Con el dedo la celda entera (40px) marca la fila: la casilla sola es chica para acertarle.
+                  <td
+                    className="track-col-select tap-wrap"
+                    onClick={(e) => {
+                      if (e.target !== e.currentTarget || pending) return;
+                      e.stopPropagation();
+                      selection.toggle(issue.id, e.shiftKey);
+                    }}
+                  >
                     <input
                       type="checkbox"
                       className="track-select-box"

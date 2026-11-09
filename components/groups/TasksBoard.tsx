@@ -147,7 +147,9 @@ export default function TasksBoard({ initial, people, me, openId = null }: { ini
                 return (
                   <tr key={task.id} className={task.done ? 'is-done' : undefined}>
                     <td className="gr-check-col">
-                      <input type="checkbox" className="ui-check" checked={task.done} onChange={() => void patch(task, { done: !task.done })} aria-label={t('tasks.markDone', { title: task.title })} />
+                      <label className="tap-cell">
+                        <input type="checkbox" className="ui-check" checked={task.done} onChange={() => void patch(task, { done: !task.done })} aria-label={t('tasks.markDone', { title: task.title })} />
+                      </label>
                     </td>
                     <td>
                       <div className="gr-ticket-title">

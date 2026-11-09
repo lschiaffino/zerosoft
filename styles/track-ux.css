@@ -1358,6 +1358,12 @@ a.track-issue-link .track-status-glyph {
 .track-table-wrap.is-linear tr:not(:hover):not(.is-kb-active) .track-col-due:has(.track-inline-text.is-dim) > * {
   opacity: 0;
 }
+/* Sin hover no hay forma de hacerlo aparecer: con el dedo se ve, atenuado. */
+@media (hover: none) {
+  .track-table-wrap.is-linear tr:not(:hover):not(.is-kb-active) .track-col-due:has(.track-inline-text.is-dim) > * {
+    opacity: 1;
+  }
+}
 
 .track-table-wrap.is-linear .track-col-due .track-inline-text.is-dim {
   color: var(--brand-gray-3);
