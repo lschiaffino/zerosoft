@@ -12,6 +12,8 @@ export interface ThreadDetail {
   messages: MessageDto[];
   more: boolean;
   scheduled: ScheduledDto[];
+  /** Mensaje al que ir (resultado de búsqueda). */
+  focus?: string;
 }
 
 /** Partes de un texto con links clicables (con y sin https://) y emails. */
@@ -169,6 +171,17 @@ const Conversation = forwardRef<
     }
   }, [messages]);
 
+  // Ir al mensaje buscado: centrado y marcado un momento.
+  useEffect(() => {
+    if (!detail.focus) return;
+    const el = scroller.current?.querySelector<HTMLElement>(`[data-msg="${CSS.escape(detail.focus)}"]`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center' });
+    el.classList.add('ib-msg-hit');
+    const id = window.setTimeout(() => el.classList.remove('ib-msg-hit'), 2600);
+    return () => window.clearTimeout(id);
+  }, [detail.focus, detail.thread.id]);
+
   useEffect(() => {
     setTitle(thread.title);
     setRenaming(false);
@@ -311,7 +324,7 @@ const Conversation = forwardRef<
           const sep = day !== prevDay;
           prevDay = day;
           return (
-            <div key={m.id}>
+            <div key={m.id} data-msg={m.id}>
               {sep && (
                 <div className="ib-day" role="separator">
                   <span>{dayLabel(m.sentAt, locale, t('message.today'), t('message.yesterday'))}</span>

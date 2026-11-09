@@ -9,11 +9,13 @@ export const dynamic = 'force-dynamic';
 type Ctx = { params: Promise<{ id: string }> };
 
 /** El chat con sus últimos mensajes y los envíos programados. */
-export async function GET(_req: Request, ctx: Ctx) {
+/** El chat con sus mensajes. ?around=<mensaje> trae desde un poco antes de ese mensaje (ir desde la búsqueda). */
+export async function GET(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   return withOwner(async (owner) => {
     const thread = await getThread(owner, id);
-    const [page, scheduled, row] = await Promise.all([listMessages(owner, id), listScheduled(owner, id), getThreadRow(owner, id)]);
+    const around = new URL(req.url).searchParams.get('around')?.slice(0, 60) || undefined;
+    const [page, scheduled, row] = await Promise.all([listMessages(owner, id, { around }), listScheduled(owner, id), getThreadRow(owner, id)]);
     return iJson({ thread, messages: page.messages, more: page.more, scheduled, notes: row.notes });
   });
 }

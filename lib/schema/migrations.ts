@@ -8966,6 +8966,36 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Inbox: búsqueda de texto completo en los mensajes (FTS5, como Talk).
+    // Índice de contenido externo sobre inbox_messages (texto, asunto,
+    // nombre del archivo y de quien escribe), al día por triggers; al crearlo
+    // se llena con lo que ya hay. Sin FTS5 (algún SQLite viejo) no se crea y
+    // la búsqueda usa LIKE.
+    id: '296_inbox_messages_fts',
+    up: async (c) => {
+      try {
+        await c.execute(
+          "CREATE VIRTUAL TABLE IF NOT EXISTS inbox_messages_fts USING fts5(body, subject, media_name, sender_name, content='inbox_messages', content_rowid='rowid', tokenize='unicode61 remove_diacritics 2')",
+        );
+      } catch {
+        return;
+      }
+      await c.executeMultiple(`
+        CREATE TRIGGER IF NOT EXISTS inbox_messages_fts_ai AFTER INSERT ON inbox_messages BEGIN
+          INSERT INTO inbox_messages_fts(rowid, body, subject, media_name, sender_name) VALUES (new.rowid, new.body, new.subject, new.media_name, new.sender_name);
+        END;
+        CREATE TRIGGER IF NOT EXISTS inbox_messages_fts_ad AFTER DELETE ON inbox_messages BEGIN
+          INSERT INTO inbox_messages_fts(inbox_messages_fts, rowid, body, subject, media_name, sender_name) VALUES ('delete', old.rowid, old.body, old.subject, old.media_name, old.sender_name);
+        END;
+        CREATE TRIGGER IF NOT EXISTS inbox_messages_fts_au AFTER UPDATE OF body, subject, media_name, sender_name ON inbox_messages BEGIN
+          INSERT INTO inbox_messages_fts(inbox_messages_fts, rowid, body, subject, media_name, sender_name) VALUES ('delete', old.rowid, old.body, old.subject, old.media_name, old.sender_name);
+          INSERT INTO inbox_messages_fts(rowid, body, subject, media_name, sender_name) VALUES (new.rowid, new.body, new.subject, new.media_name, new.sender_name);
+        END;
+        INSERT INTO inbox_messages_fts(inbox_messages_fts) VALUES ('rebuild');
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

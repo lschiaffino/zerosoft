@@ -483,6 +483,50 @@ test('traer todo el historial de WhatsApp (servidor falso): espera, pagina, avan
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('buscar en el texto de los mensajes: resaltado, filtros, ir al mensaje y Cmd+K', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const tag = uid();
+  const name = `Seba ${tag}`;
+  const p = phone();
+  await inbound(request, acc, { phone: p, name, body: `El presupuesto de la cocina ${tag} es de 3 millones` });
+  // Muchos mensajes después, para que el buscado quede lejos del final.
+  for (let i = 0; i < 6; i++) await inbound(request, acc, { phone: p, name, body: `otra cosa ${i}` });
+  await inbound(request, acc, { phone: phone(), name: `Otro ${tag}`, body: `Mirá esto https://example.com/${tag}` });
+
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  const search = page.getByLabel('Search chats and messages');
+  await search.first().fill(`presupuesto ${tag}`);
+  const hit = page.getByTestId('inbox-search-hit').filter({ hasText: name });
+  await expect(hit).toBeVisible();
+  await expect(hit.locator('mark').first()).toHaveText(/presupuesto/i);
+  await hit.click();
+  const target = page.locator('.ib-msg-hit');
+  await expect(target).toBeVisible();
+  await expect(target).toContainText(`El presupuesto de la cocina ${tag}`);
+
+  // Filtros: has:link trae solo el del link; from:me no trae nada.
+  await search.first().fill(`${tag} has:link`);
+  await expect(page.getByTestId('inbox-search-hit')).toHaveCount(1);
+  await expect(page.getByTestId('inbox-search-hit')).toContainText(`Otro ${tag}`);
+  await search.first().fill(`presupuesto ${tag} from:me`);
+  await expect(page.getByTestId('inbox-search-hit')).toHaveCount(0);
+
+  // Cmd+K también encuentra el mensaje y abre el chat en él.
+  await search.first().fill('');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('ControlOrMeta+k');
+  const palette = page.getByRole('dialog', { name: 'Search' });
+  await expect(palette).toBeVisible();
+  await palette.getByRole('combobox').fill(`cocina ${tag}`);
+  const option = palette.getByRole('option', { name: new RegExp(`presupuesto de la cocina ${tag}`) });
+  await expect(option.first()).toBeVisible();
+  await option.first().click();
+  await expect(page).toHaveURL(/m=ibm_/);
+  await expect(page.locator('.ib-msg-hit')).toContainText(`presupuesto de la cocina ${tag}`);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('390px: un panel por vez, sin scroll horizontal, y vuelve a la lista', async ({ page, request }) => {
   const acc = await linkWhatsapp(request);
   const name = `Dani ${uid()}`;

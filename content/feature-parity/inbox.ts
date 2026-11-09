@@ -136,8 +136,12 @@ const parity: ProductParity = {
     row('command', 'navigation', ['Command palette', 'Paleta de comandos', 'Paleta de comandos'], 'partial', {
       detail: ['Cmd+K finds your chats and Inbox views across the suite; actions are shortcuts, not commands', 'Cmd+K encuentra tus chats y vistas de Inbox en toda la suite; las acciones son atajos, no comandos', 'Cmd+K encontra suas conversas e visões do Inbox em toda a suíte; as ações são atalhos, não comandos'],
     }),
-    row('search', 'navigation', ['Search', 'Búsqueda', 'Busca'], 'partial', {
-      detail: ['Names, numbers, emails and the text of every saved message, including Done. No search operators', 'Nombres, números, emails y el texto de todos los mensajes guardados, también Hechos. Sin operadores', 'Nomes, números, e-mails e o texto de todas as mensagens salvas, inclusive Concluídos. Sem operadores'],
+    row('search', 'navigation', ['Search', 'Búsqueda', 'Busca'], 'have', {
+      detail: [
+        'Full-text search over every message (text, transcribed audio, file names and senders) with highlighted results that jump to the message, plus from:, in:, has:, before: and after: filters. Also from Cmd+K',
+        'Texto completo en todos los mensajes (texto, audios transcriptos, nombres de archivo y quién escribió), con resultados resaltados que llevan al mensaje y filtros from:, in:, has:, before: y after:. También desde Cmd+K',
+        'Texto completo em todas as mensagens (texto, áudios transcritos, nomes de arquivo e quem escreveu), com resultados destacados que levam à mensagem e filtros from:, in:, has:, before: e after:. Também pelo Cmd+K',
+      ],
     }),
     row('contact-context', 'navigation', ['Context about the person', 'Contexto de la persona', 'Contexto da pessoa'], 'partial', {
       detail: ['Private notes per chat, used by the AI drafts. No social profiles', 'Notas privadas por chat, que usan los borradores con IA. Sin perfiles sociales', 'Notas privadas por conversa, usadas pelos rascunhos com IA. Sem perfis sociais'],

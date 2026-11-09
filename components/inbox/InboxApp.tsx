@@ -6,6 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ThreadAction } from '@/lib/inbox/core';
 import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
+import type { MessageHit } from '@/lib/inbox/message-search';
 import { api, avatarHue, INBOX_CHANGED, INBOX_DROP_THREADS, initials, longWhen, notifyInboxChanged, shortWhen, THREADS_MIME, typingIn, type DropThreadsDetail } from './api';
 import Conversation, { type ThreadDetail } from './Conversation';
 import type { ComposerHandle } from './Composer';
@@ -54,6 +55,18 @@ interface Toast {
   undo?: () => void;
 }
 
+const HIT_MARK_START = '\u0002';
+
+/** Texto de un resultado con lo encontrado resaltado (marcas \u0002…\u0003 del servidor; nunca HTML). */
+function Highlighted({ text }: { text: string }) {
+  const parts = text.split(/(\u0002[^\u0003]*\u0003)/);
+  return (
+    <>
+      {parts.map((p, i) => (p.startsWith('\u0002') ? <mark key={i}>{p.slice(1, -1)}</mark> : <span key={i}>{p}</span>))}
+    </>
+  );
+}
+
 function viewHref(v: InboxView): string {
   return v === 'inbox' ? '/app/inbox' : `/app/inbox/v/${v}`;
 }
@@ -69,6 +82,8 @@ export default function InboxApp(props: {
   initialThreads: ThreadDto[];
   initialState: InboxStateDto;
   initialOpenId: string | null;
+  /** Mensaje al que ir al abrir (desde Cmd+K). */
+  initialFocusId?: string | null;
   composeOnLoad: boolean;
 }) {
   const t = useTranslations('inbox');
@@ -79,6 +94,10 @@ export default function InboxApp(props: {
   const [state, setState] = useState(props.initialState);
   const [cursor, setCursor] = useState(0);
   const [openId, setOpenId] = useState<string | null>(props.initialOpenId);
+  // Mensaje al que ir cuando se abre el chat (resultado de búsqueda).
+  const focusRef = useRef<{ threadId: string; messageId: string } | null>(props.initialOpenId && props.initialFocusId ? { threadId: props.initialOpenId, messageId: props.initialFocusId } : null);
+  const [msgHits, setMsgHits] = useState<MessageHit[]>([]);
+  const [msgMore, setMsgMore] = useState(false);
   const [detail, setDetail] = useState<ThreadDetail | null>(null);
   const [detailErr, setDetailErr] = useState('');
   const [listErr, setListErr] = useState(false);
@@ -135,13 +154,47 @@ export default function InboxApp(props: {
 
   const loadDetail = useCallback(async (id: string, quiet = false) => {
     if (!quiet) setDetailErr('');
-    const r = await api<ThreadDetail>(`/api/inbox/threads/${id}`);
+    const focus = !quiet && focusRef.current?.threadId === id ? focusRef.current.messageId : '';
+    if (focus) focusRef.current = null;
+    const r = await api<ThreadDetail>(`/api/inbox/threads/${id}${focus ? `?around=${encodeURIComponent(focus)}` : ''}`);
     if (!r.ok) {
       if (!quiet) setDetailErr(r.data.error ?? 'generic');
       return;
     }
+    if (focus) {
+      setDetail({ ...r.data, focus });
+      return;
+    }
     setDetail((d) => (quiet && d && d.thread.id === id && d.messages.length > r.data.messages.length ? { ...r.data, messages: d.messages, more: d.more } : r.data));
   }, []);
+
+  /** Mensajes que coinciden con la búsqueda (texto completo y filtros). */
+  const searchMsgs = useCallback(
+    async (more = false) => {
+      const term = q.trim();
+      if (!term) {
+        setMsgHits([]);
+        setMsgMore(false);
+        return;
+      }
+      const last = more ? msgHits[msgHits.length - 1]?.sentAt : undefined;
+      const r = await api<{ messages: MessageHit[]; more: boolean }>(`/api/inbox/search?q=${encodeURIComponent(term)}${last ? `&before=${encodeURIComponent(last)}` : ''}`);
+      if (!r.ok) return;
+      setMsgHits((h) => (more ? [...h, ...r.data.messages] : r.data.messages));
+      setMsgMore(r.data.more);
+    },
+    [q, msgHits],
+  );
+
+  const openHit = (h: MessageHit) => {
+    focusRef.current = { threadId: h.threadId, messageId: h.id };
+    if (openId === h.threadId) void loadDetail(h.threadId);
+    else {
+      const idx = threads.findIndex((x) => x.id === h.threadId);
+      if (idx >= 0) setCursor(idx);
+      setOpenId(h.threadId);
+    }
+  };
 
   // Búsqueda: espera a que se deje de escribir.
   const firstSearch = useRef(true);
@@ -151,9 +204,12 @@ export default function InboxApp(props: {
       return;
     }
     setLoading(true);
-    const id = window.setTimeout(() => void reloadList().finally(() => setLoading(false)), 220);
+    const id = window.setTimeout(() => {
+      void reloadList().finally(() => setLoading(false));
+      void searchMsgs();
+    }, 220);
     return () => window.clearTimeout(id);
-  }, [reloadList]);
+  }, [reloadList]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Abrir un chat: lo trae, lo marca leído (y "volvió" visto) y deja la URL compartible.
   useEffect(() => {
@@ -659,7 +715,7 @@ export default function InboxApp(props: {
               <span key={i} className="ui-skeleton ui-skeleton-row" />
             ))}
           </div>
-        ) : threads.length === 0 ? (
+        ) : threads.length === 0 && !(q.trim() && msgHits.length) ? (
           <div className="ib-list-empty">
             {noAccounts && !q ? (
               <EmptyState
@@ -698,6 +754,35 @@ export default function InboxApp(props: {
         ) : (
           <ul className="ib-list" ref={listRef} aria-label={viewTitle} aria-busy={loading || undefined}>
             {threads.map(rowFor)}
+            {q.trim() !== '' && msgHits.length > 0 && (
+              <li className="ib-hits" role="presentation">
+                <h2 className="ib-hits-h" id="ib-hits-h">
+                  {t('list.messagesFound')}
+                </h2>
+                <ul className="ib-hits-list" aria-labelledby="ib-hits-h">
+                  {msgHits.map((h) => (
+                    <li key={h.id}>
+                      <button type="button" className="ib-hit" onClick={() => openHit(h)} data-testid="inbox-search-hit">
+                        <span className="ib-hit-top">
+                          <span className="ib-hit-chat">{h.threadTitle}</span>
+                          <span className="ib-row-when">{shortWhen(h.sentAt, locale)}</span>
+                        </span>
+                        <span className="ib-hit-text">
+                          <span className="ib-dim">{h.fromMe ? t('list.you') : h.kind === 'group' && h.senderName ? `${h.senderName}: ` : ''} </span>
+                          {h.mediaName && !h.snippet.includes(HIT_MARK_START) && <span className="ib-tag">{h.mediaName}</span>}
+                          <Highlighted text={h.snippet} />
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {msgMore && (
+                  <button type="button" className="btn btn-ghost btn-sm ib-hits-more" onClick={() => void searchMsgs(true)}>
+                    {t('list.moreMessages')}
+                  </button>
+                )}
+              </li>
+            )}
           </ul>
         )}
         <p className="ib-keys-hint">

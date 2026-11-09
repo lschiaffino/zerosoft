@@ -7,6 +7,7 @@
 import { randomBytes, randomUUID } from 'crypto';
 import { getDb } from '../db';
 import { open, seal } from '../secret-box';
+import { parseSearch, threadIdsMatching } from './message-search';
 import { canMoveFolder, depthOf, descendantIds, MAX_FOLDER_DEPTH, rollupUnread, siblingOrder } from './folder-tree';
 import {
   InboxError,
@@ -366,12 +367,21 @@ export async function listThreads(owner: string, opts: ListOptions = {}): Promis
   const view = opts.view ?? 'inbox';
   const active = '(t.done_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?))';
   if (q) {
-    where.push(
-      `(t.title LIKE ? ESCAPE '\\' OR t.handle LIKE ? ESCAPE '\\' OR t.preview LIKE ? ESCAPE '\\'
-        OR EXISTS (SELECT 1 FROM inbox_messages m WHERE m.thread_id = t.id AND (m.body LIKE ? ESCAPE '\\' OR m.subject LIKE ? ESCAPE '\\')))`,
-    );
-    const l = likeArg(q);
-    args.push(l, l, l, l, l);
+    // Nombre, número o vista previa del chat, o algún mensaje (índice de texto completo; sin él, LIKE).
+    const parsed = parseSearch(q);
+    const text = [...parsed.phrases, ...parsed.terms].join(' ') || q;
+    const l = likeArg(text);
+    const hits = await threadIdsMatching(owner, q);
+    if (hits === null) {
+      where.push(
+        `(t.title LIKE ? ESCAPE '\\' OR t.handle LIKE ? ESCAPE '\\' OR t.preview LIKE ? ESCAPE '\\'
+          OR EXISTS (SELECT 1 FROM inbox_messages m WHERE m.thread_id = t.id AND (m.body LIKE ? ESCAPE '\\' OR m.subject LIKE ? ESCAPE '\\')))`,
+      );
+      args.push(l, l, l, l, l);
+    } else {
+      where.push(`(t.title LIKE ? ESCAPE '\\' OR t.handle LIKE ? ESCAPE '\\' OR t.preview LIKE ? ESCAPE '\\'${hits.length ? ` OR t.id IN (${hits.map(() => '?').join(', ')})` : ''})`);
+      args.push(l, l, l, ...hits);
+    }
   }
   if (opts.folderId) {
     const folder = await getFolderRow(owner, opts.folderId);
@@ -527,8 +537,22 @@ function messageDto(r: MessageRow): MessageDto {
 }
 
 /** Los últimos `limit` mensajes (o los anteriores a `before`), en orden cronológico. */
-export async function listMessages(owner: string, threadId: string, opts: { before?: string; limit?: number } = {}): Promise<{ messages: MessageDto[]; more: boolean }> {
+export async function listMessages(owner: string, threadId: string, opts: { before?: string; limit?: number; around?: string } = {}): Promise<{ messages: MessageDto[]; more: boolean }> {
   await getThreadRow(owner, threadId);
+  if (opts.around) {
+    // Ir a un mensaje (desde la búsqueda): 40 anteriores y todo lo que sigue hasta el más nuevo (con tope).
+    const target = (await getDb().prepare('SELECT sent_at FROM inbox_messages WHERE id = ? AND thread_id = ? AND owner_id = ?').get(opts.around, threadId, owner)) as { sent_at: string } | undefined;
+    if (target) {
+      const older = (await getDb()
+        .prepare('SELECT sent_at FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND sent_at < ? ORDER BY sent_at DESC LIMIT 1 OFFSET 39')
+        .get(threadId, owner, target.sent_at)) as { sent_at: string } | undefined;
+      const from = older?.sent_at ?? '';
+      const rows = (await getDb()
+        .prepare('SELECT * FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND sent_at >= ? ORDER BY sent_at ASC, created_at ASC LIMIT 3000')
+        .all(threadId, owner, from)) as unknown as MessageRow[];
+      return { messages: rows.map(messageDto), more: !!older };
+    }
+  }
   const limit = Math.min(Math.max(opts.limit ?? 150, 1), 500);
   const before = validIso(opts.before);
   const rows = (await getDb()
