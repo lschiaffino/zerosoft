@@ -703,6 +703,7 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   :is(.track-status-color, .docs-tree-chevron, .saved-report-del) { min-width: 40px !important; min-height: 40px !important; }
   .panel-more { display: inline-flex; align-items: center; min-height: 40px; }
   :is(.docs-trash-summary, .gr-link-button) { display: flex; align-items: center; min-height: 40px; }
+  .book-meeting-menu a { display: flex; align-items: center; min-height: 40px; }
   /* Links de tabla y listas de links: la línea entera es el objetivo. */
   :is(td > a:only-child, td > a.cell-link, li > a:only-child) { display: inline-flex; align-items: center; min-height: 40px; }
 }
