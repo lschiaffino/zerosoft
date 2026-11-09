@@ -136,6 +136,11 @@
     "ai_failed": "La IA no respondió. Probá de nuevo.",
     "ai_not_configured": "La IA no está configurada en este servidor.",
     "too_deep": "Las carpetas llegan hasta cuatro niveles.",
+    "media_unsupported": "Los archivos programados salen solo por WhatsApp.",
+    "busy": "Se está enviando ahora. Probá en un momento.",
+    "file_type_not_allowed": "Ese tipo de archivo no se puede mandar.",
+    "storage_unavailable": "No hay dónde guardar archivos en este servidor.",
+    "upload_failed": "No se pudo subir el archivo. Probá de nuevo.",
     "invalid_file": "Ese archivo no es una exportación de inbox-zero.",
     "media_unavailable": "Este archivo ya no está disponible en WhatsApp."
   },
@@ -408,5 +413,45 @@
     "insert": "Insertar",
     "insertHint": "Lo pasa al campo para revisarlo (⌘Enter)",
     "notConfigured": "La IA no está configurada en este servidor. Quien lo administra tiene que cargar OPENROUTER_API_KEY (o AI_GATEWAY_API_KEY)."
+  },
+  "schedule": {
+    "title": "Enviar más tarde",
+    "editTitle": "Editar envío programado",
+    "messages": "Mensajes",
+    "messageN": "Mensaje {n}",
+    "messagePlaceholder": "Mensaje {n}",
+    "captionPlaceholder": "Texto que acompaña al archivo (opcional)",
+    "removeN": "Quitar el mensaje {n}",
+    "addMessage": "Agregar otro mensaje",
+    "waitLabel": "Después del anterior",
+    "delay": {
+      "0": "Enseguida",
+      "5": "A los 5 segundos",
+      "30": "A los 30 segundos",
+      "60": "Al minuto",
+      "300": "A los 5 minutos",
+      "1800": "A la media hora",
+      "3600": "A la hora",
+      "86400": "Al día siguiente"
+    },
+    "delayCustom": "A los {s} segundos",
+    "delayShort": {
+      "s": "{n} s",
+      "m": "{n} min",
+      "h": "{n} h",
+      "d": "{n, plural, one {# día} other {# días}}"
+    },
+    "after": "a los {wait}",
+    "attach": "Adjuntar archivo",
+    "uploading": "Subiendo…",
+    "file": "Archivo: {name}",
+    "removeFile": "Quitar archivo",
+    "uploadFailed": "No se pudo subir el archivo. Probá de nuevo.",
+    "emptyPart": "Cada mensaje necesita texto o un archivo.",
+    "whenFirst": "Cuándo sale el primero",
+    "schedule": "Programar",
+    "save": "Guardar",
+    "edit": "Editar",
+    "count": "{n, plural, one {# mensaje} other {# mensajes}}"
   }
 }

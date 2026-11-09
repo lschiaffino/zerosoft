@@ -10,6 +10,7 @@ import { api, avatarHue, INBOX_CHANGED, INBOX_DROP_THREADS, initials, longWhen, 
 import Conversation, { type ThreadDetail } from './Conversation';
 import type { ComposerHandle } from './Composer';
 import WhenDialog, { type WhenKind } from './WhenDialog';
+import ScheduleDialog, { type ScheduleTarget } from './ScheduleDialog';
 import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog } from './InboxDialogs';
 
 export interface InboxStateDto {
@@ -85,6 +86,7 @@ export default function InboxApp(props: {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [when, setWhen] = useState<{ kind: WhenKind; ids: string[]; text?: string } | null>(null);
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
+  const [plan, setPlan] = useState<ScheduleTarget | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [compose, setCompose] = useState(props.composeOnLoad);
   const [help, setHelp] = useState(false);
@@ -339,7 +341,7 @@ export default function InboxApp(props: {
     requestAnimationFrame(() => listRef.current?.querySelector<HTMLElement>(`[data-idx="${cursor}"] .ib-row-btn`)?.focus());
   }, [cursor]);
 
-  const modalOpen = !!when || !!moveIds || moreOpen || compose || help || !!folderEdit;
+  const modalOpen = !!when || !!plan || !!moveIds || moreOpen || compose || help || !!folderEdit;
 
   // Atajos de una letra (fuera de los campos y sin modales abiertos).
   useEffect(() => {
@@ -714,7 +716,7 @@ export default function InboxApp(props: {
               setDetail((d) => (d ? { ...d, messages } : d));
               void reloadList();
             }}
-            onSendLater={(text) => setWhen({ kind: 'sendLater', ids: [detail.thread.id], text })}
+            onSendLater={(text) => setPlan({ threadId: detail.thread.id, channel: detail.thread.channel, text })}
             onScheduledChange={() => {
               void loadDetail(detail.thread.id, true);
               void reloadState();
@@ -765,6 +767,20 @@ export default function InboxApp(props: {
             return;
           }
           await runAction(w.ids, w.kind === 'snooze' ? { action: 'snooze', until: iso } : { action: 'followUp', at: iso });
+        }}
+      />
+      <ScheduleDialog
+        target={plan}
+        onClose={() => setPlan(null)}
+        onDone={(_scheduled, sendAt) => {
+          const p = plan;
+          setPlan(null);
+          if (!p) return;
+          composer.current?.clear();
+          toast(t('toast.scheduled', { when: longWhen(sendAt, locale) }));
+          void loadDetail(p.threadId, true);
+          void reloadState();
+          void reloadList();
         }}
       />
       <MoveDialog

@@ -564,7 +564,7 @@ export type ThreadAction =
   | { action: 'removeFolder'; folderId: string }
   | { action: 'seen' };
 
-function futureIso(raw: string, now: Date): string {
+export function futureIso(raw: string, now: Date): string {
   const t = Date.parse(raw);
   if (!Number.isFinite(t) || t <= now.getTime() + 30_000) throw new InboxError('date_in_past', 400);
   if (t > now.getTime() + 3 * 365 * 86_400_000) throw new InboxError('invalid_input', 400);
@@ -925,7 +925,7 @@ export async function deleteSnippet(owner: string, id: string): Promise<void> {
 // Envíos programados
 // ---------------------------------------------------------------------------
 
-interface ScheduledRow {
+export interface ScheduledRow {
   id: string;
   owner_id: string;
   thread_id: string;
@@ -933,6 +933,12 @@ interface ScheduledRow {
   send_at: string;
   status: ScheduledStatus;
   error: string;
+  batch_id: string;
+  seq: number;
+  delay_s: number;
+  media_url: string;
+  media_name: string;
+  media_type: string;
 }
 
 export async function listScheduled(owner: string, threadId?: string): Promise<ScheduledDto[]> {
@@ -940,7 +946,7 @@ export async function listScheduled(owner: string, threadId?: string): Promise<S
     .prepare(
       `SELECT s.*, t.title AS thread_title, t.handle AS thread_handle, t.channel AS channel FROM inbox_scheduled s JOIN inbox_threads t ON t.id = s.thread_id
        WHERE s.owner_id = ? ${threadId ? 'AND s.thread_id = ?' : ''} AND s.status IN ('pending','sending','failed','missed')
-       ORDER BY s.send_at LIMIT 500`,
+       ORDER BY s.send_at, s.seq LIMIT 500`,
     )
     .all(...(threadId ? [owner, threadId] : [owner]))) as Array<ScheduledRow & { thread_title: string; thread_handle: string; channel: InboxChannel }>;
   return rows.map((r) => ({
@@ -952,6 +958,12 @@ export async function listScheduled(owner: string, threadId?: string): Promise<S
     sendAt: r.send_at,
     status: r.status,
     error: r.error,
+    batchId: r.batch_id || r.id,
+    seq: Number(r.seq ?? 0),
+    delaySec: Number(r.delay_s ?? 0),
+    mediaName: r.media_name ?? '',
+    mediaType: r.media_type ?? '',
+    mediaUrl: r.media_url ?? '',
   }));
 }
 

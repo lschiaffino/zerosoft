@@ -8895,6 +8895,22 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Inbox: envíos programados de varios mensajes. Cada mensaje es su fila
+    // (su burbuja), atados por batch_id y ordenados por seq; delay_s es la
+    // espera después del anterior. Un mensaje puede llevar un archivo
+    // (media_url, guardado aparte hasta que sale).
+    id: '293_inbox_scheduled_batches',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE inbox_scheduled ADD COLUMN batch_id TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, 'ALTER TABLE inbox_scheduled ADD COLUMN seq INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, 'ALTER TABLE inbox_scheduled ADD COLUMN delay_s INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, "ALTER TABLE inbox_scheduled ADD COLUMN media_url TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, "ALTER TABLE inbox_scheduled ADD COLUMN media_name TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, "ALTER TABLE inbox_scheduled ADD COLUMN media_type TEXT NOT NULL DEFAULT ''");
+      await c.execute("CREATE INDEX IF NOT EXISTS idx_inbox_scheduled_batch ON inbox_scheduled(batch_id, seq) WHERE batch_id <> ''");
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

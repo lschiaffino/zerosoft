@@ -16,6 +16,30 @@
 .ib-ai-refine { flex: 1 1 160px; min-width: 0; height: 30px; font-size: 0.8125rem; }
 .ib-ai-actions { display: flex; justify-content: flex-end; gap: 6px; }
 
+/* ---------- Enviar más tarde con varios mensajes ---------- */
+
+.ib-plan { max-height: min(72vh, 720px); overflow-y: auto; }
+.ib-plan-parts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.ib-plan-part { display: grid; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line); min-width: 0; }
+.ib-plan-delay { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ib-plan-delay .label { margin: 0; color: var(--brand-gray-2); font-weight: 500; }
+.ib-plan-delay .select { width: auto; min-width: 0; max-width: 100%; }
+.ib-plan-row { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+.ib-plan-text { flex: 1; min-width: 0; resize: vertical; min-height: 56px; line-height: 1.45; }
+.ib-plan-file { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.ib-plan-file .ib-media-tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ib-plan-add { justify-self: start; }
+.ib-plan-h { margin: 6px 0 0; }
+.ib-when-opt:disabled { opacity: 0.5; cursor: not-allowed; }
+.ib-sched.is-batch { align-items: flex-start; }
+.ib-sched-count { margin-left: 6px; font-weight: 500; color: var(--ink-2); }
+.ib-sched-parts { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; flex: 1; min-width: 0; }
+.ib-sched-part { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+@media (max-width: 640px) {
+  .ib-sched { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .ib-sched .ib-row { flex-wrap: wrap; }
+}
+
 /* ---------- Carpetas en el sidebar (árbol) ---------- */
 
 .ib-ftree .docs-tree-row { padding-left: calc(var(--d, 0) * 14px + 4px); }

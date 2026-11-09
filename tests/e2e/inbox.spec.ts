@@ -244,6 +244,66 @@ test('carpetas: nueva desde el sidebar, V para sumar un chat y la carpeta lo mue
   await expect(page.locator('.ib-item', { hasText: name })).toBeVisible();
 });
 
+test('más tarde con varios mensajes: cada uno su burbuja, editar, enviar ya y cancelar', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const name = `Juli ${uid()}`;
+  await inbound(request, acc, { phone: phone(), name, body: 'Mañana me pasás los datos?' });
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
+  const field = page.getByRole('textbox', { name: 'Message' });
+  await field.fill('Buen día!');
+  await page.getByRole('button', { name: 'Later', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Send later' });
+  await expect(dialog.getByRole('textbox', { name: 'Message 1' })).toHaveValue('Buen día!');
+  await dialog.getByRole('button', { name: 'Add another message' }).click();
+  await dialog.getByRole('textbox', { name: 'Message 2' }).fill('CBU 0000003100000000000001');
+  await dialog.getByLabel('After the previous one').selectOption('0');
+  await dialog.getByRole('button', { name: /Tomorrow morning/ }).click();
+  await expect(page.locator('.ib-toast', { hasText: 'Scheduled for' })).toBeVisible();
+  await expect(field).toHaveValue('');
+  const sched = page.locator('.ib-sched', { hasText: 'Buen día!' });
+  await expect(sched).toContainText('2 messages');
+  await expect(sched).toContainText('CBU 0000003100000000000001');
+
+  // Editar: se suma un tercero y se guarda a la misma hora.
+  await sched.getByRole('button', { name: 'Edit' }).click();
+  const edit = page.getByRole('dialog', { name: 'Edit scheduled send' });
+  await expect(edit.getByRole('textbox', { name: 'Message 2' })).toHaveValue('CBU 0000003100000000000001');
+  await edit.getByRole('button', { name: 'Add another message' }).click();
+  await edit.getByRole('textbox', { name: 'Message 3' }).fill('Avisame cuando llegue');
+  await edit.getByLabel('After the previous one').nth(1).selectOption('0');
+  await edit.getByRole('button', { name: 'Save' }).click();
+  await expect(edit).toBeHidden();
+  await expect(sched).toContainText('3 messages');
+
+  // Enviar ya: salen los tres, cada uno su burbuja y en orden.
+  await sched.getByRole('button', { name: 'Send now' }).click();
+  await expect(page.locator('.ib-sched')).toHaveCount(0);
+  const mine = page.locator('.ib-msg.is-me');
+  await expect(mine.filter({ hasText: 'Avisame cuando llegue' })).toBeVisible();
+  const texts = await mine.allInnerTexts();
+  const order = ['Buen día!', 'CBU 0000003100000000000001', 'Avisame cuando llegue'].map((x) => texts.findIndex((t) => t.includes(x)));
+  expect(order.every((i, k) => i >= 0 && (k === 0 || i > order[k - 1]))).toBe(true);
+
+  // Otra secuencia y cancelarla entera.
+  await field.fill('uno');
+  await page.getByRole('button', { name: 'Later', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Add another message' }).click();
+  await dialog.getByRole('textbox', { name: 'Message 2' }).fill('dos');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(field).toHaveValue('uno');
+  await page.getByRole('button', { name: 'Later', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Add another message' }).click();
+  await dialog.getByRole('textbox', { name: 'Message 2' }).fill('dos');
+  await dialog.getByRole('button', { name: /Later today/ }).click();
+  await expect(page.locator('.ib-sched', { hasText: 'dos' })).toBeVisible();
+  await page.locator('.ib-sched', { hasText: 'dos' }).getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.locator('.ib-sched')).toHaveCount(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('carpetas anidadas: subcarpeta, arrastrar chats con deshacer, no leídos que suben, renombrar y borrar', async ({ page, request }) => {
   const errors = watchErrors(page);
   const acc = await linkWhatsapp(request);

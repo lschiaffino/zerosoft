@@ -62,7 +62,18 @@ export const snippetCreateSchema = z.object({
 
 export const snippetPatchSchema = snippetCreateSchema.partial();
 
-export const scheduledCreateSchema = z.object({ threadId: id, body: z.string().min(1).max(LIMITS.message), sendAt: iso });
+const part = z.object({
+  body: z.string().max(LIMITS.message),
+  delaySec: z.number().int().min(0).max(7 * 86_400).optional(),
+  media: z.object({ url: z.string().min(1).max(500), name: z.string().max(200), type: z.string().max(100) }).nullable().optional(),
+});
+const parts = z.array(part).min(1).max(10);
+
+export const scheduledCreateSchema = z.union([
+  z.object({ threadId: id, sendAt: iso, parts, key: z.string().max(64).optional() }),
+  z.object({ threadId: id, body: z.string().min(1).max(LIMITS.message), sendAt: iso }),
+]);
+export const scheduledReplaceSchema = z.object({ sendAt: iso, parts });
 export const scheduledPatchSchema = z.object({ body: z.string().min(1).max(LIMITS.message).optional(), sendAt: iso.optional() });
 
 export const composeSchema = z.discriminatedUnion('channel', [
