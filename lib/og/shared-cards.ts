@@ -163,7 +163,7 @@ export async function sharedCard(kind: string, args: string[]): Promise<CardResu
         return {
           shared: true,
           spec: {
-            seed: `store:${store.row.id}:${p.id}`,
+            seed: `store:${store.dto.handle}:${p.id}`,
             product: 'shop',
             owner: store.dto.name,
             title: p.seoTitle || p.title,
@@ -173,7 +173,7 @@ export async function sharedCard(kind: string, args: string[]): Promise<CardResu
           },
         };
       }
-      return { shared: true, spec: { seed: `store:${store.row.id}`, product: 'shop', title: store.dto.name, theme: 'paper', url: `${host()}/store/${store.dto.handle}` } };
+      return { shared: true, spec: { seed: `store:${store.dto.handle}`, product: 'shop', title: store.dto.name, theme: 'paper', url: `${host()}/store/${store.dto.handle}` } };
     }
 
     // Página de empleos y cada puesto publicado (los confidenciales no se publican).
