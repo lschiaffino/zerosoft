@@ -223,7 +223,7 @@ describe('track import: job de punta a punta', () => {
       }),
     );
     const job = await trackJob(u.id, 'linear', { target: 'new' }, { secret: 'lin_api_testtoken' });
-    expect((await getImportJobRow(job.id))?.secret).toMatch(/^enc:v1:/);
+    expect((await getImportJobRow(job.id))?.secret).toMatch(/^enc:v2:/);
     const prev = (await runImportJob(job.id))!;
     expect(prev.status).toBe('preview');
     expect(calls).toEqual(['lin_api_testtoken', 'lin_api_testtoken']);
@@ -321,6 +321,6 @@ describe('track import: job de punta a punta', () => {
     expect(view.status).toBe('fetching');
     const row = await getImportJobRow(job.id);
     expect(new Date(row!.locked_until!).getTime()).toBeGreaterThan(Date.now() + 60_000);
-    expect(row!.secret).toMatch(/^enc:v1:/);
+    expect(row!.secret).toMatch(/^enc:v2:/);
   });
 });

@@ -139,7 +139,7 @@ describe('Social con datos', () => {
 
   it('los tokens se guardan cifrados y no salen en los DTO', async () => {
     const row = (await db().prepare('SELECT * FROM social_accounts WHERE id = ?').get(fb)) as Parameters<typeof credsOf>[0];
-    expect(String(row.access_token)).toMatch(/^enc:v1:/);
+    expect(String(row.access_token)).toMatch(/^enc:v2:/);
     expect(String(row.access_token)).not.toContain('abc123');
     expect(credsOf(row).accessToken).toBe(['tok', 'live', 'abc123'].join('_'));
     const dto = JSON.stringify(await listAccounts(owner));

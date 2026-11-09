@@ -190,7 +190,7 @@ describe('configuración de pagos', () => {
     const raw = (await getDb().prepare('SELECT stripe_secret_key FROM calendar_payment_settings WHERE user_id = ?').get(u.id)) as {
       stripe_secret_key: string;
     };
-    expect(raw.stripe_secret_key.startsWith('enc:v1:')).toBe(true);
+    expect(raw.stripe_secret_key.startsWith('enc:v2:')).toBe(true);
     expect(raw.stripe_secret_key).not.toContain('abcDEF');
     expect((await savePaymentSettings(u.id, { stripeSecretKey: '' })).configured).toBe(false);
   });

@@ -305,7 +305,7 @@ describe('TOTP', () => {
       data: string;
       totp_secret: string;
     };
-    expect(row.totp_secret.startsWith('enc:v1:')).toBe(true);
+    expect(row.totp_secret.startsWith('enc:v2:')).toBe(true);
     expect(row.totp_secret).not.toContain(RFC_SECRET);
     const resolved = await resolveCredential(user.id, 'site');
     expect(resolved?.data).toEqual({ username: 'ana', password: 'secret-pw', totpSecret: RFC_SECRET });

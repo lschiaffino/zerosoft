@@ -385,7 +385,7 @@ describe('números y credenciales', () => {
       config: { baseUrl: 'https://waha.example.com', apiKey: 'super-secret-key', session: 'acme' },
     });
     const raw = (await getDb().prepare('SELECT config FROM groups_numbers WHERE id = ?').get(n.id)) as { config: string };
-    expect(raw.config.startsWith('enc:v1:')).toBe(true);
+    expect(raw.config.startsWith('enc:v2:')).toBe(true);
     expect(raw.config).not.toContain('super-secret-key');
     const dto = (await listNumbers(user.id))[0];
     expect(JSON.stringify(dto)).not.toContain('super-secret-key');

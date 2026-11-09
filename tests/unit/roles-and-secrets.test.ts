@@ -44,7 +44,7 @@ describe('roles de team', () => {
 describe('tokens OAuth cifrados', () => {
   it('seal/open ida y vuelta, y texto plano heredado se lee igual', () => {
     const sealed = seal('ya29.token');
-    expect(sealed.startsWith('enc:v1:')).toBe(true);
+    expect(sealed.startsWith('enc:v2:0:')).toBe(true);
     expect(sealed).not.toContain('ya29');
     expect(open(sealed)).toBe('ya29.token');
     expect(open('legacy-plain')).toBe('legacy-plain');

@@ -406,7 +406,7 @@ describe('People con la base', () => {
     const entry = await addCompensation(w.hr, ids.carla, { amount: 98765.43, currency: 'usd', period: 'year', effectiveDate: '2026-01-01', reason: 'Raise' });
     expect(entry.currency).toBe('USD');
     const row = (await getDb().prepare('SELECT data FROM people_compensation WHERE id = ?').get(entry.id)) as { data: string };
-    expect(row.data.startsWith('enc:v1:')).toBe(true);
+    expect(row.data.startsWith('enc:v2:')).toBe(true);
     expect(row.data).not.toContain('98765');
     expect(JSON.parse(openSecret(row.data))).toMatchObject({ amount: 98765.43, currency: 'USD' });
     expect(openComp(row.data)?.amount).toBe(98765.43);
