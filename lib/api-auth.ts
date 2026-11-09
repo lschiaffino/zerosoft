@@ -5,7 +5,7 @@ import { getDb, type ApiKeyRow, type UserRow } from './db';
 import { clientIp, rateLimit } from './rate-limit';
 import { API_SCOPES, hasScope, keyHasMcpAccess, MCP_KEY_SCOPE, parseScopes, serializeScopes, type ApiScope, scopesForApps } from './api-scopes';
 import { normalizeRole, resolveWorkspace, type TeamRole } from './teams';
-import { parseApps } from './workspace';
+import { isPrincipalId, parseApps } from './workspace';
 import { delegatedIdentity } from './mcp/identity';
 
 export function sha256(input: string): string {
@@ -78,6 +78,8 @@ export async function personAppAccess(ownerId: string, personId: string): Promis
     )
     .all(ownerId, personId)) as Array<{ role: string; apps: string | null }>;
   if (!rows.length) return null;
+  // En un workspace de equipo con titular propio, el rol owner de team_members es el owner de verdad.
+  if (isPrincipalId(ownerId) && rows.some((r) => r.role === 'owner')) return { role: 'owner', apps: '*' };
   const role: TeamRole = rows.some((r) => r.role === 'admin' || r.role === 'owner') ? 'admin' : 'member';
   const lists = rows.map((r) => parseApps(r.apps));
   if (lists.includes('*')) return { role, apps: '*' };

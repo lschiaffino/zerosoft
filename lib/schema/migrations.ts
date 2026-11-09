@@ -8920,6 +8920,48 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Personal y equipo (lib/workspace-principal.ts): users.kind marca a los
+    // titulares de workspaces de equipo ('workspace'), que no son personas. A
+    // quien ya pasó el onboarding y no tiene ningún workspace de equipo (ni uno
+    // ajeno donde es parte, ni el propio en modo equipo o con más gente) se le
+    // crea "<Nombre> Team", vacío, con su propio titular; su ficha sin modo
+    // queda como la personal. Idempotente: quien ya tiene equipo no cambia.
+    id: '295_personal_and_team',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE users ADD COLUMN kind TEXT NOT NULL DEFAULT 'person'");
+      const others = "EXISTS (SELECT 1 FROM team_members o WHERE o.team_id = t.id AND o.user_id != t.owner_id AND o.role != 'guest')";
+      for (let round = 0; round < 10_000; round++) {
+        const rows = (
+          await c.execute(`
+            SELECT u.id, u.name, u.email FROM users u
+            WHERE COALESCE(u.kind, 'person') = 'person' AND u.onboarded_at IS NOT NULL AND u.id NOT LIKE 'wsp\\_%' ESCAPE '\\'
+              AND NOT EXISTS (
+                SELECT 1 FROM teams t WHERE (t.owner_id = u.id AND (t.use_mode = 'team' OR ${others}))
+                   OR EXISTS (SELECT 1 FROM team_members m WHERE m.team_id = t.id AND m.user_id = u.id AND m.role != 'guest' AND t.owner_id != u.id)
+              )
+            LIMIT 100`)
+        ).rows as unknown as Array<{ id: string; name: string | null; email: string }>;
+        if (!rows.length) break;
+        const stmts = rows.flatMap((u) => {
+          const pid = `wsp_${crypto.randomUUID().replace(/-/g, '')}`;
+          const first = (u.name ?? '').trim().split(/\s+/)[0] || String(u.email).split('@')[0] || 'My';
+          const name = `${first.slice(0, 60)} Team`;
+          const email = `${pid}@workspaces.zerosoft.invalid`;
+          return [
+            { sql: "INSERT INTO users (id, email, email_norm, name, kind, onboarded_at) VALUES (?, ?, ?, ?, 'workspace', datetime('now'))", args: [pid, email, email, name] },
+            { sql: "INSERT INTO teams (id, name, owner_id, keyed_by, use_mode) VALUES (?, ?, ?, 'owner', 'team')", args: [`ws_${pid}`, name, pid] },
+            { sql: "INSERT OR IGNORE INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'owner', '*')", args: [`ws_${pid}`, u.id] },
+            {
+              sql: `UPDATE teams SET use_mode = 'personal' WHERE owner_id = ? AND use_mode IS NULL AND NOT ${others.replace(/t\.id/g, 'teams.id').replace(/t\.owner_id/g, 'teams.owner_id')}`,
+              args: [u.id],
+            },
+          ];
+        });
+        await c.batch(stmts, 'write');
+      }
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

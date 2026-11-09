@@ -340,7 +340,8 @@ export async function listTeamPeople(
   const owner = (await db.prepare('SELECT id, email, name, image, created_at FROM users WHERE id = ?').get(team.owner_id)) as
     | { id: string; email: string; name: string | null; image: string | null; created_at: string }
     | undefined;
-  if (owner) {
+  // El titular de un workspace de equipo no es una persona: no se lista.
+  if (owner && !isPrincipalId(owner.id)) {
     const own = rows.find((r) => r.user_id === owner.id);
     out.push({
       user_id: owner.id,
@@ -363,8 +364,8 @@ export async function listTeamPeople(
       email: String(r.email),
       name: (r.name as string | null) ?? null,
       image: (r.image as string | null) ?? null,
-      role: role === 'owner' ? 'admin' : role,
-      apps: parseApps(r.apps),
+      role: role === 'owner' && !isPrincipalId(team.owner_id) ? 'admin' : role,
+      apps: role === 'owner' && isPrincipalId(team.owner_id) ? '*' : parseApps(r.apps),
       title: String(r.title ?? ''),
       created_at: String(r.created_at ?? ''),
     };
@@ -372,6 +373,15 @@ export async function listTeamPeople(
     out.push(member);
   }
   return out;
+}
+
+/**
+ * Titular de un workspace de equipo (lib/workspace-principal.ts): una fila de
+ * users que no es una persona. En sus workspaces, quien tiene el rol owner en
+ * team_members es el owner de verdad (en los demás, solo lo es owner_id).
+ */
+export function isPrincipalId(id: string | null | undefined): boolean {
+  return typeof id === 'string' && id.startsWith('wsp_');
 }
 
 /** Membresía de la persona en el equipo (null = no es parte). */
@@ -386,6 +396,7 @@ export async function getMembership(
     | undefined;
   if (!row) return null;
   const role = normalizeWorkspaceRole(row.role);
+  if (role === 'owner' && isPrincipalId(team.owner_id)) return { role: 'owner', apps: '*' };
   return { role: role === 'owner' ? 'admin' : role, apps: parseApps(row.apps) };
 }
 
