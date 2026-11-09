@@ -614,6 +614,9 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
 
 /* Teléfono: menos aire entre los íconos de la banda para que el nombre de la app ("CRM", "Docs") entre entero. */
 @media (max-width: 420px) {
+  /* El cero de inicio repite "Inicio" del switcher y del drawer: en el teléfono deja el lugar al nombre de la app. */
+  .band-home { display: none; }
+  .band-product { min-width: 64px; }
   .band-right { gap: 0; }
   .band-product { gap: 6px; padding: 0 4px 0 6px; }
   .app-band { gap: 0; }

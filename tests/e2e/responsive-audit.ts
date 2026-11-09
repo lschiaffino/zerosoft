@@ -62,14 +62,17 @@ export async function auditView(page: Page, opts: { tap?: boolean } = {}): Promi
       const s = getComputedStyle(el);
       return (s.clip !== 'auto' && s.clip !== '') || s.clipPath === 'inset(50%)' || el.closest('[aria-hidden="true"]') !== null;
     };
-    /** El ancestro más cercano que recorta o scrollea en horizontal (antes de llegar al body). */
-    const clipper = (el: Element): Element | null => {
+    /** Algún ancestro que recorta o scrollea en horizontal y entra entero en la pantalla (lo de adentro se ve por scroll). */
+    const clippedInside = (el: Element): boolean => {
       for (let p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
         const s = getComputedStyle(p);
-        if (s.overflowX !== 'visible' || s.contain.includes('paint')) return p;
-        if (s.position === 'fixed') return null;
+        if (s.overflowX !== 'visible' || s.contain.includes('paint')) {
+          const cr = p.getBoundingClientRect();
+          if (cr.right <= vw + 1 && cr.left >= -1) return true;
+        }
+        if (s.position === 'fixed') return false;
       }
-      return null;
+      return false;
     };
     // Dentro de un overlay abierto, solo se mira ese overlay (lo de atrás queda inerte).
     const modal = [...document.querySelectorAll('dialog[open]')].find((d) => (d as HTMLDialogElement).matches(':modal'));
@@ -90,12 +93,8 @@ export async function auditView(page: Page, opts: { tap?: boolean } = {}): Promi
       if (r.right <= vw + 1 && r.left >= -1) continue;
       // Algo que está entero fuera (un carrusel corrido, un drawer cerrado) no se ve: no es un corte.
       if (r.left >= vw || r.right <= 0) continue;
-      const c = clipper(el);
-      if (c) {
-        const cr = c.getBoundingClientRect();
-        // Recortado por un contenedor que sí entra en la pantalla: se ve por scroll o se corta adrede.
-        if (cr.right <= vw + 1 && cr.left >= -1) continue;
-      }
+      // Recortado por un contenedor que sí entra en la pantalla: se ve por scroll o se corta adrede.
+      if (clippedInside(el)) continue;
       if (el.parentElement && off.has(el.parentElement)) { off.add(el); continue; }
       off.add(el);
       issues.push({ kind: 'offscreen', what: describe(el), detail: `left ${Math.round(r.left)} right ${Math.round(r.right)} (vw ${vw})` });

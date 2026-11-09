@@ -681,6 +681,8 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   :is(.home-block-scope a, .phone-touch-btn, .track-breadcrumb a, .track-team-crumb, .asst-home-foot a, .ui-modal-foot a) { display: inline-flex; align-items: center; justify-content: center; }
   :is(.track-breadcrumb a, .track-team-crumb, .asst-home-foot a, .ui-modal-foot a) { min-height: 40px; }
   .tp-row-link { display: flex; align-items: center; min-height: 40px; }
+  /* El ID repite el link del título: en el teléfono se va y el título gana el ancho. */
+  @media (max-width: 640px) { .track-table-wrap.is-linear .track-col-id { display: none; } }
   /* Hoja de "Agregar widget" (CRM): cada opción es una fila de 44px. */
   .dash-add-menu button { min-height: 44px; }
   /* Emojis de Groups: 8 columnas de 40px en vez de 9 de 38. */
@@ -708,5 +710,10 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   .chat-row-check { width: 40px !important; height: 40px !important; top: 4px !important; left: 10px !important; }
   .gr-ticket-title .ui-help a { display: inline-flex; align-items: center; min-height: 40px; }
   /* Links de tabla y listas de links: la línea entera es el objetivo. */
-  :is(td > a:only-child, td > a.cell-link, li > a:only-child) { display: inline-flex; align-items: center; min-height: 40px; }
+  td > a.cell-link { display: inline-flex; align-items: center; min-height: 40px; }
+  :is(.gr-ticket-title a, .an-link) { display: inline-flex; align-items: center; min-height: 40px; }
+  /* Atajos de llamar y escribir del CRM: visibles con el dedo (sin hover) y de 40px. */
+  .cell-quick { display: inline-flex !important; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; }
+  /* Disclosure: la fila del resumen es el objetivo. */
+  details > summary { padding-block: 10px; }
 }
