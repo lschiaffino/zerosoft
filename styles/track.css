@@ -1503,6 +1503,181 @@ dialog.ui-drawer.track-drawer {
   color: var(--brand-gray-2);
 }
 
+/* Adjuntos: cabecera con "Subir", fila con miniatura o extensión, progreso y acciones. */
+.track-attach-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.track-attach-head .btn {
+  gap: 6px;
+}
+
+.track-attach-head {
+  flex-wrap: wrap;
+}
+
+.track-attach-limit {
+  margin-left: auto;
+}
+
+.track-attach-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.track-attach-main .track-attachment-name {
+  flex: none;
+  max-width: 100%;
+}
+
+.track-attach-main .track-attachment-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-attachment-name.is-button {
+  padding: 0;
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.track-attachment-name.is-button:focus-visible,
+.track-attach-thumb:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.track-attach-icon,
+.track-attach-thumb {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  font-family: var(--font-data);
+  font-size: 0.625rem;
+  color: var(--brand-gray-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+
+.track-attach-thumb {
+  padding: 0;
+  cursor: zoom-in;
+}
+
+.track-attach-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.track-attach-actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.track-attach-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.track-attach-bar {
+  position: relative;
+  flex: 1;
+  max-width: 240px;
+  height: 4px;
+  overflow: hidden;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.track-attach-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent);
+  transition: width 120ms linear;
+}
+
+.track-attach-error {
+  font-size: 0.75rem;
+  color: var(--bad-ink);
+}
+
+.track-attach-drop {
+  position: fixed;
+  inset: 12px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--ink);
+  pointer-events: none;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  border: 2px dashed var(--ink);
+  border-radius: var(--radius-1);
+}
+
+.track-attach-preview-img {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+.track-attach-preview-pdf {
+  display: block;
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--line);
+}
+
+dialog.tp-modal:has(.track-attach-preview-img, .track-attach-preview-pdf) {
+  width: min(960px, calc(100vw - 32px));
+}
+
+@media (max-width: 520px) {
+  .track-attachment {
+    flex-wrap: wrap;
+  }
+
+  .track-attach-main {
+    flex-basis: calc(100% - 48px);
+  }
+
+  .track-attach-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track-attach-bar > span {
+    transition: none;
+  }
+}
+
 .track-relation-group + .track-relation-group {
   margin-top: 12px;
 }
@@ -1801,6 +1976,12 @@ dialog.ui-drawer.track-drawer {
   font-size: 0.75rem;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
+  color: var(--brand-gray-2);
+}
+
+/* Columna incompleta (hay más issues en el servidor que los cargados). */
+.track-board-more {
+  align-self: flex-start;
   color: var(--brand-gray-2);
 }
 
@@ -2951,3 +3132,44 @@ a.track-board-card-title:hover {
     margin-inline: 0;
   }
 }
+
+/* ---------- Lista de issues compartida (TrackIssueList): cabecera compacta como Linear ---------- */
+.track-issue-list { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.track-list-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; min-width: 0; border-bottom: 1px solid var(--line); }
+.track-list-tabs { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.track-list-tools { flex: 1 1 320px; min-width: 0; }
+.track-list-tools .track-filters { padding: 4px 0; border-top: 0; border-bottom: 0; }
+.track-list-loading { display: flex; flex-direction: column; gap: 2px; }
+.track-list-more { margin: 4px 0 0; }
+.track-list-title { margin: 0; font-size: 0.9375rem; font-weight: 600; line-height: 32px; white-space: nowrap; }
+.track-list-tabs .track-list-pagetabs { margin: 0; padding: 0; border-top: 0; border-bottom: 0; min-width: 0; }
+/* Team: pestañas (All, Active, Backlog, vistas, Triage) a la izquierda y Filter/Display a la derecha. */
+.track-list-head.is-team .track-list-tabs { flex: 0 1 auto; }
+/* Con chips de filtro la barra ocupa dos líneas: las pestañas quedan a la altura de la primera. */
+.track-list-head { align-items: flex-start; }
+.track-list-tabs { min-height: 40px; }
+.track-list-head.is-team .track-list-tools { flex: 1 1 360px; }
+.track-list-more { display: flex; align-items: center; gap: 12px; margin: 8px 0 0; }
+.track-list-more .track-pagination-count { margin: 0; }
+
+/* Sub-grupos dentro de un grupo (Display › Sub-grouping), un escalón más adentro. */
+.track-subgroup { display: flex; flex-direction: column; }
+.track-subgroup-title { display: flex; align-items: center; margin: 0; padding: 0 8px 0 20px; font-size: 0.8125rem; border-top: 1px solid var(--line); }
+.track-subgroup-toggle { min-height: 28px; font-weight: 500; }
+.track-subgroup.is-collapsed .track-group-chevron { transform: rotate(-90deg); }
+.track-groups .track-subgroup .track-table-wrap.is-linear { border-top: 0; }
+.track-group-more-row { padding: 2px 8px 4px 24px; border-top: 1px solid var(--line); }
+.track-group-more { gap: 8px; color: var(--brand-gray-2); }
+.track-group-more:hover { color: var(--ink); }
+
+/* Con la barra de selección abajo, el toast de Deshacer sube para no taparla. */
+body:has(.track-bulk-bar) .track-undo-toasts { bottom: 72px; }
+/* Pestañas que no entran (390px): se desvanecen a la derecha para avisar que hay más. */
+@media (max-width: 640px) {
+  .track-list-tabs .track-list-pagetabs { mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+}
+
+/* Tablero: cards seleccionadas (X, Shift o ⌘ clic) se arrastran juntas. */
+.track-board-card.is-selected,
+.track-board-card.is-selected.is-draggable:hover { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.track-board-column[data-track-drop].is-drop-target { outline: 1px solid var(--ink); outline-offset: -1px; }

@@ -22,7 +22,9 @@
  */
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes, randomUUID } from 'crypto';
 import path from 'path';
-import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
+import { createReadStream } from 'fs';
+import { mkdir, open as fsOpen, readFile, rename, unlink, writeFile } from 'fs/promises';
+import { pipeline, Readable } from 'stream';
 import { del, get, put } from '@vercel/blob';
 import { uploadsRoot } from './uploads';
 
@@ -47,6 +49,10 @@ export interface PrivateFileStore {
   remove(refs: Array<string | null | undefined>): Promise<void>;
   /** true si el archivo ya no está; false si hay que reintentar. */
   removeOne(ref: string): Promise<boolean>;
+  /** Guarda en disco local, cifrado y en stream (sin cargarlo en memoria). */
+  writeSealed(source: AsyncIterable<Uint8Array>, maxBytes: number): Promise<{ ref: string; size: number }>;
+  /** Lee en stream un "local:" guardado con store() o writeSealed(). */
+  readSealedStream(ref: string): Promise<{ stream: ReadableStream<Uint8Array>; size: number } | null>;
 }
 
 const LOCAL_NAME = /^[0-9a-f-]{36}\.bin$/;
@@ -175,5 +181,86 @@ export function privateFileStore(o: PrivateFileStoreOptions): PrivateFileStore {
     for (const ref of refs) if (ref) await removeOne(ref);
   }
 
-  return { seal, open, store, read, remove, removeOne };
+  /**
+   * Como store() en disco local, pero en stream: no carga el archivo entero en
+   * memoria. Mismo formato que seal() (el tag se escribe al final en su lugar),
+   * así read() y removeOne() lo leen igual. Corta con SealedFileTooLargeError
+   * si pasa de maxBytes.
+   */
+  async function writeSealed(source: AsyncIterable<Uint8Array>, maxBytes: number): Promise<{ ref: string; size: number }> {
+    const name = `${randomUUID()}.bin`;
+    const dir = path.join(uploadsRoot(), o.folder);
+    await mkdir(dir, { recursive: true });
+    const final = path.join(dir, name);
+    const tmp = `${final}.part`;
+    const k = keys()[0];
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', k, iv);
+    const fh = await fsOpen(tmp, 'w');
+    let size = 0;
+    try {
+      await fh.write(Buffer.concat([MAGIC, keyId(k), iv, Buffer.alloc(16)]));
+      for await (const chunk of source) {
+        size += chunk.byteLength;
+        if (size > maxBytes) throw new SealedFileTooLargeError();
+        const enc = cipher.update(chunk);
+        if (enc.length) await fh.write(enc);
+      }
+      const last = cipher.final();
+      if (last.length) await fh.write(last);
+      await fh.write(cipher.getAuthTag(), 0, 16, 24);
+      await fh.close();
+      await rename(tmp, final);
+    } catch (err) {
+      await fh.close().catch(() => undefined);
+      await unlink(tmp).catch(() => undefined);
+      throw err;
+    }
+    return { ref: `local:${name}`, size };
+  }
+
+  /**
+   * Lee en stream un archivo local cifrado. El tag se verifica al final: si
+   * no coincide, el stream termina con error (la respuesta queda cortada).
+   */
+  async function readSealedStream(ref: string): Promise<{ stream: ReadableStream<Uint8Array>; size: number } | null> {
+    if (!ref.startsWith('local:') || !LOCAL_NAME.test(ref.slice(6))) return null;
+    const file = path.join(uploadsRoot(), o.folder, ref.slice(6));
+    let header: Buffer;
+    let total: number;
+    try {
+      const fh = await fsOpen(file, 'r');
+      try {
+        total = (await fh.stat()).size;
+        header = Buffer.alloc(40);
+        await fh.read(header, 0, 40, 0);
+      } finally {
+        await fh.close();
+      }
+    } catch {
+      return null;
+    }
+    if (total < 40 || !header.subarray(0, 4).equals(MAGIC)) return null;
+    const k = keys().find((x) => keyId(x).equals(header.subarray(4, 12)));
+    if (!k) {
+      console.error(`[${o.folder}] no está la clave de un archivo (¿se rotó el secreto sin ${o.envPrefix}_FILES_KEY_OLD?)`);
+      return null;
+    }
+    const decipher = createDecipheriv('aes-256-gcm', k, header.subarray(12, 24));
+    decipher.setAuthTag(header.subarray(24, 40));
+    const src = createReadStream(file, { start: 40 });
+    pipeline(src, decipher, (err) => {
+      if (err) console.error(`[${o.folder}] no se pudo descifrar un archivo`);
+    });
+    return { stream: Readable.toWeb(decipher) as unknown as ReadableStream<Uint8Array>, size: total - 40 };
+  }
+
+  return { seal, open, store, read, remove, removeOne, writeSealed, readSealedStream };
+}
+
+/** Un archivo que se guarda en stream pasó del máximo permitido. */
+export class SealedFileTooLargeError extends Error {
+  constructor() {
+    super('file_too_large');
+  }
 }
