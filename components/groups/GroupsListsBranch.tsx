@@ -26,7 +26,7 @@ export default function GroupsListsBranch() {
   const params = useSearchParams();
   const slot = useShellBranch();
   const [lists, setLists] = useState<SavedListDto[] | null>(null);
-  const current = pathname.startsWith('/app/groups/inbox') ? params.get('list') : null;
+  const current = pathname.startsWith('/app/lines/inbox') ? params.get('list') : null;
 
   useEffect(() => {
     let alive = true;
@@ -54,7 +54,7 @@ export default function GroupsListsBranch() {
           return (
             <li key={l.id} className={`docs-tree-row${active ? ' active' : ''}`}>
               <span className="docs-tree-chevron-spacer" aria-hidden="true" />
-              <Link href={`/app/groups/inbox?list=${l.id}`} className="docs-tree-link" aria-current={active ? 'page' : undefined}>
+              <Link href={`/app/lines/inbox?list=${l.id}`} className="docs-tree-link" aria-current={active ? 'page' : undefined}>
                 <span className="docs-tree-icon" aria-hidden="true">
                   <Icon name="lists" size={14} />
                 </span>

@@ -134,7 +134,7 @@ export function ShareDialog({ open, onClose, projectId, target }: { open: boolea
         {shares?.length === 0 && <p className="an-muted">{t('none')}</p>}
         {shares?.map((s) => {
           const url = `${origin}/${locale}/stats/a/${s.token}`;
-          const embed = `<iframe name="zs-${s.id}" src="${url}?embed=1" width="100%" height="480" style="border:0" title="zerosoft Analytics"></iframe>\n<script>addEventListener('message',function(e){if(e.data&&e.data.event==='zs:dimensions'&&e.data.name==='zs-${s.id}')document.querySelector('iframe[name="zs-${s.id}"]').height=e.data.height})</script>`;
+          const embed = `<iframe name="zs-${s.id}" src="${url}?embed=1" width="100%" height="480" style="border:0" title="zerosoft Pulse"></iframe>\n<script>addEventListener('message',function(e){if(e.data&&e.data.event==='zs:dimensions'&&e.data.name==='zs-${s.id}')document.querySelector('iframe[name="zs-${s.id}"]').height=e.data.height})</script>`;
           return (
             <div key={s.id} className="an-share-row" data-testid="an-share-row">
               <input className="input an-mono" readOnly value={url} aria-label={t('link')} onFocus={(e) => e.currentTarget.select()} />

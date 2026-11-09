@@ -108,7 +108,7 @@ export function WebVitalsPanel({ projectId, range, filters, enabled, canManage }
         <div className="an-callout" data-testid="an-vitals-off">
           <p>{canManage ? t('vitalsOff') : t('vitalsOffMember')}</p>
           {canManage && (
-            <Link href="/app/analytics/settings" className="btn btn-sm">
+            <Link href="/app/pulse/settings" className="btn btn-sm">
               {t('openSettings')}
             </Link>
           )}

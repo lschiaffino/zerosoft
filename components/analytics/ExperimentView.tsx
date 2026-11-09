@@ -62,7 +62,7 @@ export default function ExperimentView({ projectId, experiment, flags, canManage
   return (
     <div className="app-page ui-page an-page">
       <PageHeader
-        back={{ href: '/app/analytics/experiments', label: t('title') }}
+        back={{ href: '/app/pulse/experiments', label: t('title') }}
         title={experiment.name}
         description={t(`status.${experiment.status}`)}
         actions={
@@ -118,7 +118,7 @@ export default function ExperimentView({ projectId, experiment, flags, canManage
             <p className="an-mono an-flush">{experiment.flagKey}</p>
           )}
           <span className="ui-help">
-            <Link className="an-link" href={`/app/analytics/flags/${experiment.flagId}`}>
+            <Link className="an-link" href={`/app/pulse/flags/${experiment.flagId}`}>
               {t('openFlag')}
             </Link>{' '}
             {t('flagHelp')}
@@ -281,7 +281,7 @@ export default function ExperimentView({ projectId, experiment, flags, canManage
           try {
             await api(`/api/analytics/experiments/${experiment.id}`, { method: 'DELETE' });
             notifyChanged();
-            router.replace('/app/analytics/experiments');
+            router.replace('/app/pulse/experiments');
           } catch {
             setBusy(false);
             setDeleting(false);

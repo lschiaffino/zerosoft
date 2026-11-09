@@ -221,6 +221,16 @@ a.ppl-rowtitle:not(:hover) {
   justify-content: flex-end;
   flex-wrap: wrap;
 }
+/* En una tabla sigue siendo celda: con flex se salía de la grilla y cortaba "Editar"/"Borrar" en el teléfono.
+   Los botones no se parten; si no entran, la tabla scrollea en su .table-wrap. */
+td.ppl-actions {
+  display: table-cell;
+  white-space: nowrap;
+  text-align: right;
+}
+td.ppl-actions > * + * {
+  margin-left: 6px;
+}
 .ppl-hint {
   color: var(--muted);
   font-size: 0.8125rem;

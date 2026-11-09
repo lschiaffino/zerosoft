@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-07',
+  lastReviewed: '2026-11-08',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -77,9 +77,9 @@ const parity: ProductParity = {
     row('reactions', 'inbox', ['Reactions', 'Reacciones', 'Reações'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
     row('edit-delete-forward', 'inbox', ['Edit, delete, forward and pin messages', 'Editar, borrar, reenviar y fijar mensajes', 'Editar, apagar, encaminhar e fixar mensagens'], 'partial', {
       detail: [
-        'Edit (15 min) and delete for everyone on WAHA and Evolution numbers, also when it happens on the phone. Pins go to WhatsApp on WAHA and stay in Groups elsewhere. Forward is native on WAHA and a copy elsewhere. The Cloud API cannot edit or delete. Tested against a simulated gateway; not yet tried with real WhatsApp',
-        'Editar (15 min) y borrar para todos en números WAHA y Evolution, también cuando pasa desde el teléfono. Fijar llega a WhatsApp en WAHA y queda en Groups en el resto. Reenviar es nativo en WAHA y una copia en el resto. La Cloud API no deja editar ni borrar. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
-        'Editar (15 min) e apagar para todos em números WAHA e Evolution, também quando acontece no telefone. Fixar chega ao WhatsApp no WAHA e fica no Groups nos outros. Encaminhar é nativo no WAHA e uma cópia nos outros. A Cloud API não deixa editar nem apagar. Testado contra um gateway simulado; falta testar com WhatsApp real',
+        'Edit (15 min) and delete for everyone on WAHA and Evolution numbers, also when it happens on the phone. Pins go to WhatsApp on WAHA and stay in Lines elsewhere. Forward is native on WAHA and a copy elsewhere. The Cloud API cannot edit or delete. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Editar (15 min) y borrar para todos en números WAHA y Evolution, también cuando pasa desde el teléfono. Fijar llega a WhatsApp en WAHA y queda en Lines en el resto. Reenviar es nativo en WAHA y una copia en el resto. La Cloud API no deja editar ni borrar. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Editar (15 min) e apagar para todos em números WAHA e Evolution, também quando acontece no telefone. Fixar chega ao WhatsApp no WAHA e fica no Lines nos outros. Encaminhar é nativo no WAHA e uma cópia nos outros. A Cloud API não deixa editar nem apagar. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
     row('assignment', 'inbox', ['Assign chats', 'Asignar chats', 'Atribuir chats'], 'have', {
@@ -123,9 +123,9 @@ const parity: ProductParity = {
     }),
     row('calls', 'inbox', ['Voice calls with recording', 'Llamadas de voz con grabación', 'Chamadas de voz com gravação'], 'partial', {
       detail: [
-        'Call log in the chat: incoming, outgoing, missed and declined, with duration on the Cloud API (Calling API). Calling from Groups and recordings are not available: the providers do not expose the call audio',
-        'Registro de llamadas en el chat: entrantes, salientes, perdidas y rechazadas, con duración en la Cloud API (Calling API). Llamar desde Groups y grabar no están: los proveedores no dan el audio de la llamada',
-        'Registro de chamadas no chat: recebidas, feitas, perdidas e recusadas, com duração na Cloud API (Calling API). Ligar pelo Groups e gravar não estão disponíveis: os provedores não entregam o áudio da chamada',
+        'Call log in the chat: incoming, outgoing, missed and declined, with duration on the Cloud API (Calling API). Calling from Lines and recordings are not available: the providers do not expose the call audio',
+        'Registro de llamadas en el chat: entrantes, salientes, perdidas y rechazadas, con duración en la Cloud API (Calling API). Llamar desde Lines y grabar no están: los proveedores no dan el audio de la llamada',
+        'Registro de chamadas no chat: recebidas, feitas, perdidas e recusadas, com duração na Cloud API (Calling API). Ligar pelo Lines e gravar não estão disponíveis: os provedores não entregam o áudio da chamada',
       ],
     }),
     row('translation', 'inbox', ['Message translation', 'Traducción de mensajes', 'Tradução de mensagens'], 'have', {
@@ -192,7 +192,7 @@ const parity: ProductParity = {
     row('ticket-from-message', 'tickets', ['Ticket from a message', 'Ticket desde un mensaje', 'Ticket a partir de uma mensagem'], 'have', { weight: 2 }),
     row('emoji-ticket', 'tickets', ['Ticket by emoji reaction', 'Ticket por reacción con emoji', 'Ticket por reação com emoji'], 'have', {
       weight: 2,
-      detail: ['From Groups or from the phone, one ticket per message', 'Desde Groups o desde el teléfono, un ticket por mensaje', 'Pelo Groups ou pelo telefone, um ticket por mensagem'],
+      detail: ['From Lines or from the phone, one ticket per message', 'Desde Lines o desde el teléfono, un ticket por mensaje', 'Pelo Lines ou pelo telefone, um ticket por mensagem'],
     }),
     row('keyword-ticket', 'tickets', ['Ticket by keyword', 'Ticket por palabra clave', 'Ticket por palavra-chave'], 'have'),
     row('ticket-fields', 'tickets', ['Status, priority, assignee and due time', 'Estado, prioridad, asignado y vencimiento', 'Status, prioridade, responsável e vencimento'], 'have'),
@@ -222,9 +222,9 @@ const parity: ProductParity = {
     }),
     row('tasks-reminders', 'tickets', ['Tasks and reminders from a chat', 'Tareas y recordatorios desde el chat', 'Tarefas e lembretes pelo chat'], 'have', {
       detail: [
-        'From any message, with an in-app and email reminder on time; they are CRM tasks too',
-        'Desde cualquier mensaje, con aviso en la app y por email a la hora; también son tareas del CRM',
-        'De qualquer mensagem, com aviso no app e por email no horário; também são tarefas do CRM',
+        'From any message, with an in-app and email reminder on time; they are CRM tasks too, with a link back to the chat, and the chat shows the CRM tasks of its contact or company',
+        'Desde cualquier mensaje, con aviso en la app y por email a la hora; también son tareas del CRM, con link de vuelta al chat, y el chat muestra las tareas del CRM de su contacto o empresa',
+        'De qualquer mensagem, com aviso no app e por email no horário; também são tarefas do CRM, com link de volta ao chat, e o chat mostra as tarefas do CRM do seu contato ou empresa',
       ],
     }),
 

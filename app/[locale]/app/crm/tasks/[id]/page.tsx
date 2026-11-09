@@ -15,6 +15,9 @@ import PageHeader from '@/components/ui/PageHeader';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import TaskFiles from '@/components/crm/TaskFiles';
 import TaskDonePin from '@/components/crm/TaskDonePin';
+import TaskLinksPanel from '@/components/crm/TaskLinksPanel';
+import { taskLinksFor } from '@/lib/tasks';
+import { canUse } from '@/lib/permissions';
 import { ACTIVITY_TYPES } from '@/lib/crm-constants';
 import { TASK_REPEATS } from '@/lib/crm-task-repeat';
 import { parseDbUtc } from '@/lib/utils';
@@ -66,6 +69,11 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
   if (!(await canSeeActivity(user.id, id, scope))) notFound();
 
   const files = await listTaskFiles(id);
+  const links = (await taskLinksFor(user, [id])).get(id) ?? [];
+  // Pasar a Track: solo si la persona usa Track (los proyectos que ve).
+  const trackProjects = canUse(user, 'track')
+    ? (await (await import('@/lib/track-data')).listProjectMetas(user.team?.id ?? null, user.id)).map((p) => ({ id: p.id, name: p.name }))
+    : null;
   const projects = await listTaskProjects(user.id, true);
   const contacts = (await listContacts(user.id, { pageSize: 200, sort: 'name', ownerScope: scope })).rows;
   const companies = (await listCompanies(user.id, { pageSize: 200, sort: 'name', ownerScope: scope })).rows;
@@ -116,6 +124,16 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
       options: TASK_REPEATS.map((v) => ({ value: v, label: t(`tasks.repeat.${v}`) })),
     },
     {
+      key: 'priority',
+      label: t('tasks.form.priority'),
+      type: 'select',
+      value: task.priority ?? '',
+      options: [
+        { value: '', label: t('tasks.priority.none') },
+        ...(['low', 'medium', 'high'] as const).map((v) => ({ value: v, label: t(`tasks.priority.${v}`) })),
+      ],
+    },
+    {
       key: 'ownerId',
       label: t('tasks.form.owner'),
       type: 'select',
@@ -135,7 +153,7 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
 
   const sections: PropSection[] = [
     { title: t('tasks.detail.aboutSection'), keys: ['subject', 'type', 'body', 'dueAt', 'repeat'] },
-    { title: t('tasks.detail.ownershipSection'), keys: ['ownerId', 'projectId'] },
+    { title: t('tasks.detail.ownershipSection'), keys: ['ownerId', 'priority', 'projectId'] },
   ];
 
   const associatedRecord = buildAssociation(task);
@@ -210,6 +228,9 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
               <dd>{formatDateTime(task.updated_at, locale, timeZone)}</dd>
             </div>
           </dl>
+          <section className="record-summary-block">
+            <TaskLinksPanel taskId={task.id} links={links} projects={trackProjects} />
+          </section>
           <section className="record-summary-block">
             <AssociationPanel
               title={t('tasks.detail.contact')}

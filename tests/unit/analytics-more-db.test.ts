@@ -174,7 +174,7 @@ describe('errores', () => {
     const notif = (await getDb().prepare(`SELECT * FROM notifications WHERE user_id = ? AND type = 'analytics_regression' AND source_id = ?`).all(OWNER, `${p.id}:${fp}`)) as Array<{ title: string; href: string }>;
     expect(notif).toHaveLength(1);
     expect(notif[0].title).toContain('TypeError');
-    expect(notif[0].href).toBe(`/app/analytics/errors/${p.id}~${fp}`);
+    expect(notif[0].href).toBe(`/app/pulse/errors/${p.id}~${fp}`);
     // Otra corrida no repite.
     await getDb().prepare('UPDATE analytics_error_issues SET checked_at = NULL WHERE project_id = ?').run(p.id);
     await runErrorRegressions({ left: () => 5000, now: now + 3000 });

@@ -8,6 +8,7 @@ import type { GroupsPerson } from '@/lib/groups';
 import type { GroupTaskDto } from '@/lib/groups-tasks';
 import { Modal, api, useErrorText } from './ui';
 import { parseDbUtc } from '@/lib/utils';
+import { TASK_PRIORITIES, type TaskPriority } from '@/lib/tasks-shared';
 
 /** Evento que avisa que cambió una tarea (la lista del chat y la de Tareas se recargan). */
 export const TASKS_CHANGED = 'zs:groups-tasks-changed';
@@ -66,11 +67,13 @@ export default function TaskModal({
   const [due, setDue] = useState('');
   const [ownerId, setOwnerId] = useState(me);
   const [notes, setNotes] = useState('');
+  const [priority, setPriority] = useState<TaskPriority>('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!open) return;
+    setPriority('');
     setTitle((message?.body.split('\n').find((l) => l.trim()) ?? '').trim().slice(0, 120));
     setDue(quickDue('tomorrow'));
     setOwnerId(me);
@@ -90,6 +93,7 @@ export default function TaskModal({
         dueAt: localToIso(due),
         ownerId,
         notes,
+        priority,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       },
     });
@@ -146,6 +150,16 @@ export default function TaskModal({
             {people.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.id === me ? t('tickets.me', { name: p.name || p.email }) : p.name || p.email}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="ui-field">
+          <span className="label">{t('tasks.priority')}</span>
+          <select className="select" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
+            {TASK_PRIORITIES.map((p) => (
+              <option key={p || 'none'} value={p}>
+                {t(`tasks.priorities.${p || 'none'}`)}
               </option>
             ))}
           </select>
@@ -224,13 +238,22 @@ export function ChatTasksSection({ chatId, people, me }: { chatId: string; peopl
                 <span className="ui-help">
                   <LocalText>{task.dueAt ? parseDbUtc(task.dueAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' }) : t('tasks.noDate')}</LocalText>
                   {task.ownerName ? ` · ${task.ownerName}` : ''}
+                  {task.priority === 'high' ? ` · ${t('tasks.priorities.high')}` : ''}
+                  {task.source === 'crm' && (
+                    <>
+                      {' · '}
+                      <Link href={`/app/crm/tasks/${task.id}`} title={t('tasks.fromCrmHint')}>
+                        {t('tasks.fromCrm')}
+                      </Link>
+                    </>
+                  )}
                 </span>
               </span>
             </li>
           ))}
         </ul>
       )}
-      <Link href="/app/groups/tasks" className="ui-help">
+      <Link href="/app/lines/tasks" className="ui-help">
         {t('tasks.all')}
       </Link>
       <TaskModal open={open} chatId={chatId} message={null} people={people} me={me} onClose={() => setOpen(false)} onCreated={() => setOpen(false)} />

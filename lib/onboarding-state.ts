@@ -128,7 +128,7 @@ export async function getOnboardingState(userId: string, opts: { workspaceId?: s
     },
     { key: 'calendar', relevant: uses('cal'), done: calendar, href: '/app/calendar/settings?tab=connections' },
     { key: 'email', relevant: uses('crm'), done: email, href: '/app/crm/settings?tab=integrations' },
-    { key: 'whatsapp', relevant: admin && uses('groups'), done: whatsapp, href: '/app/groups/settings?tab=numbers' },
+    { key: 'whatsapp', relevant: admin && uses('groups'), done: whatsapp, href: '/app/lines/settings?tab=numbers' },
     { key: 'desktop', relevant: true, done: Boolean(profile.desktopSeenAt) || desktopLogin, href: '/app/download' },
   ];
   const relevant = steps.filter((s) => s.relevant);

@@ -9,6 +9,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { GroupsPerson } from '@/lib/groups';
 import type { GroupTaskDto } from '@/lib/groups-tasks';
 import { TASKS_CHANGED, isoToLocal, localToIso } from './TaskModal';
+import { TASK_PRIORITIES, type TaskPriority } from '@/lib/tasks-shared';
 import { Modal, api, useErrorText, useToast } from './ui';
 import { parseDbUtc } from '@/lib/utils';
 
@@ -121,7 +122,7 @@ export default function TasksBoard({ initial, people, me, openId = null }: { ini
           quiet
           title={q || owner || status !== 'open' ? t('tasks.noResults') : t('tasks.emptyTitle')}
           body={q || owner || status !== 'open' ? undefined : t('tasks.emptyBody')}
-          action={q || owner || status !== 'open' ? undefined : { label: t('tasks.goInbox'), href: '/app/groups/inbox' }}
+          action={q || owner || status !== 'open' ? undefined : { label: t('tasks.goInbox'), href: '/app/lines/inbox' }}
           product="groups"
         />
       ) : (
@@ -154,7 +155,7 @@ export default function TasksBoard({ initial, people, me, openId = null }: { ini
                           {task.title}
                         </button>
                         <span className="ui-help">
-                          <Link href={`/app/groups/inbox/${task.chatId}${task.messageId ? `#m-${task.messageId}` : ''}`}>{task.chatName}</Link>
+                          <Link href={`/app/lines/inbox/${task.chatId}${task.messageId ? `#m-${task.messageId}` : ''}`}>{task.chatName}</Link>
                           {task.messageBody ? ` · ${task.messageBody.slice(0, 80)}` : ''}
                         </span>
                       </div>
@@ -235,12 +236,14 @@ function EditTaskModal({
   const [title, setTitle] = useState('');
   const [due, setDue] = useState('');
   const [notes, setNotes] = useState('');
+  const [priority, setPriority] = useState<TaskPriority>('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!task) return;
     setTitle(task.title);
     setDue(isoToLocal(task.dueAt));
     setNotes(task.notes);
+    setPriority(task.priority ?? '');
   }, [task]);
   return (
     <Modal
@@ -250,7 +253,7 @@ function EditTaskModal({
       busy={busy}
       onSubmit={async () => {
         setBusy(true);
-        await onSave({ title, dueAt: localToIso(due), notes });
+        await onSave({ title, dueAt: localToIso(due), notes, priority });
         setBusy(false);
       }}
       foot={
@@ -276,6 +279,16 @@ function EditTaskModal({
         <label className="ui-field">
           <span className="label">{t('tasks.remindAt')}</span>
           <input className="input" type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
+        </label>
+        <label className="ui-field">
+          <span className="label">{t('tasks.priority')}</span>
+          <select className="select" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
+            {TASK_PRIORITIES.map((p) => (
+              <option key={p || 'none'} value={p}>
+                {t(`tasks.priorities.${p || 'none'}`)}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="ui-field">
           <span className="label">{t('tasks.notes')}</span>

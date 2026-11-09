@@ -11,6 +11,7 @@ import Conversation, { type ThreadDetail } from './Conversation';
 import type { ComposerHandle } from './Composer';
 import WhenDialog, { type WhenKind } from './WhenDialog';
 import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog } from './InboxDialogs';
+import { WhatsappQrDialog } from './InboxSettings';
 
 export interface InboxStateDto {
   accounts: InboxAccountDto[];
@@ -88,6 +89,8 @@ export default function InboxApp(props: {
   const [moreOpen, setMoreOpen] = useState(false);
   const [compose, setCompose] = useState(props.composeOnLoad);
   const [help, setHelp] = useState(false);
+  // Vincular WhatsApp con QR desde la bandeja vacía, sin pasar por Ajustes.
+  const [qrOpen, setQrOpen] = useState(false);
   const [folderEdit, setFolderEdit] = useState<FolderDto | 'new' | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const lastUndo = useRef<(() => void) | null>(null);
@@ -301,7 +304,7 @@ export default function InboxApp(props: {
     requestAnimationFrame(() => listRef.current?.querySelector<HTMLElement>(`[data-idx="${cursor}"] .ib-row-btn`)?.focus());
   }, [cursor]);
 
-  const modalOpen = !!when || !!moveIds || moreOpen || compose || help || !!folderEdit;
+  const modalOpen = !!when || !!moveIds || moreOpen || compose || help || qrOpen || !!folderEdit;
 
   // Atajos de una letra (fuera de los campos y sin modales abiertos).
   useEffect(() => {
@@ -611,8 +614,25 @@ export default function InboxApp(props: {
                 product="inbox"
                 title={t('empty.connectTitle')}
                 body={t('empty.connectBody')}
-                action={{ label: t('empty.connectAction'), href: '/app/inbox/settings' }}
-                secondary={<Link href="/app/inbox/settings#import">{t('empty.importLink')}</Link>}
+                action={
+                  state.available.whatsapp ? (
+                    <button type="button" className="btn btn-primary" data-testid="inbox-empty-qr" onClick={() => setQrOpen(true)}>
+                      {t('empty.qrAction')}
+                    </button>
+                  ) : (
+                    { label: t('empty.connectAction'), href: '/app/inbox/settings' }
+                  )
+                }
+                secondary={
+                  <>
+                    {state.available.whatsapp && (
+                      <>
+                        <Link href="/app/inbox/settings">{t('empty.otherAccounts')}</Link>{' '}
+                      </>
+                    )}
+                    <Link href="/app/inbox/settings#import">{t('empty.importLink')}</Link>
+                  </>
+                }
               />
             ) : (
               <EmptyState
@@ -778,6 +798,7 @@ export default function InboxApp(props: {
         }}
       />
       <HelpDialog open={help} onClose={() => setHelp(false)} />
+      <WhatsappQrDialog open={qrOpen} onClose={() => setQrOpen(false)} onLinked={() => void reloadState()} />
       <FolderDialog
         folder={folderEdit === 'new' ? null : folderEdit}
         open={!!folderEdit}

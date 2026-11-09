@@ -12,7 +12,7 @@
   top: var(--band-h, 48px);
   right: 0;
   bottom: 0;
-  z-index: 59;
+  z-index: var(--z-side-panel);
   width: min(440px, 100vw);
   display: flex;
   flex-direction: column;
@@ -30,7 +30,7 @@
 }
 /* En el teléfono el panel es una hoja a pantalla completa. */
 @media (max-width: 640px) {
-  .asst-panel { top: 0; width: 100vw; border-left: 0; box-shadow: none; z-index: 80; }
+  .asst-panel { top: 0; width: 100vw; border-left: 0; box-shadow: none; z-index: var(--z-drawer); }
 }
 
 /* El launcher de feedback no tapa el panel. */

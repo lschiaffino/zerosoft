@@ -26,7 +26,7 @@ import {
   SWITCHER_PRODUCTS,
   type SidebarLabels,
 } from './sidebar-nav';
-import { PRODUCT_CONFIG, isBuildingProduct, type ProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, appAllowed, isBuildingProduct, type ProductKey } from '@/lib/products';
 import { DEFAULT_WORKSPACE_MODE, featuredApps, moreAppsByCategory, type WorkspaceMode } from '@/lib/workspace-mode';
 import NotificationBell from './NotificationBell';
 import WorkspaceSwitcher, { type SwitcherEntry } from './WorkspaceSwitcher';
@@ -34,6 +34,7 @@ import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import ThemeSwitcher from '@/components/theme/ThemeSwitcher';
 import { inDesktopApp } from '@/lib/desktop-detect';
+import { useLayer } from '@/lib/ui/layers';
 
 export type { SidebarLabels };
 
@@ -288,6 +289,8 @@ export default function AppSidebar({
   const switcherByKeyboard = useRef(false);
   const newRef = useRef<HTMLDivElement>(null);
   const newBtn = useRef<HTMLButtonElement>(null);
+  const switcherPanel = useRef<HTMLDivElement>(null);
+  const newPanel = useRef<HTMLDivElement>(null);
   const menuBtn = useRef<HTMLButtonElement>(null);
 
   const bellLabels = labels.notifications;
@@ -301,16 +304,10 @@ export default function AppSidebar({
     if (focus) newBtn.current?.focus();
   }, []);
 
-  // Clic afuera cierra los menús.
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      const target = e.target as Node;
-      if (switcherRef.current && !switcherRef.current.contains(target)) setSwitcherOpen(false);
-      if (newRef.current && !newRef.current.contains(target)) setNewOpen(false);
-    }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, []);
+  // Capas (lib/ui/layers.ts): abrir uno cierra cualquier otro menú de la app (la cuenta, la campana, los de la página),
+  // clic afuera y Esc cierran, y el panel se acomoda dentro de la pantalla.
+  useLayer(switcherOpen, () => setSwitcherOpen(false), { root: switcherRef, trigger: switcherBtn, panel: switcherPanel });
+  useLayer(newOpen, () => setNewOpen(false), { root: newRef, trigger: newBtn, panel: newPanel });
 
   // Al abrir un menú, el foco va al primer ítem. En el switcher va al actual si se abrió con teclado;
   // con el mouse queda en el panel, para que las flechas funcionen sin pintar un anillo que nadie pidió.
@@ -332,18 +329,11 @@ export default function AppSidebar({
     setNewOpen(false);
   }, [pathname]);
 
-  // Drawer: Esc lo cierra y devuelve el foco al botón de menú.
+  // Drawer (teléfono): es una capa más. Abrir el switcher o ⌘K lo cierra, y Esc lo cierra (devolviendo el foco al
+  // botón de menú) solo si no hay otra capa arriba: con el menú de la cuenta abierto, Esc cierra ese menú.
+  useLayer(drawerOpen, () => setDrawerOpen(false), { root: asideRef, trigger: menuBtn });
   useEffect(() => {
-    if (!drawerOpen) return;
-    asideRef.current?.querySelector<HTMLElement>('a, button')?.focus();
-    function onKey(e: globalThis.KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setDrawerOpen(false);
-        menuBtn.current?.focus();
-      }
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    if (drawerOpen) asideRef.current?.querySelector<HTMLElement>('a, button')?.focus();
   }, [drawerOpen]);
 
   // Colapsado: persiste en localStorage; la clase vive en .app-frame (grid).
@@ -371,7 +361,7 @@ export default function AppSidebar({
   }
 
   // Switcher: destacadas según el modo del workspace y el resto por categoría.
-  const allowed = (k: ProductKey) => allowedApps === '*' || allowedApps.includes(k);
+  const allowed = (k: ProductKey) => appAllowed(allowedApps, k);
   const featured = featuredApps({ mode, chosen: chosenApps }).filter(allowed);
   const more = moreAppsByCategory({ mode, chosen: chosenApps })
     .map((g) => ({ ...g, apps: g.apps.filter(allowed) }))
@@ -455,7 +445,6 @@ export default function AppSidebar({
             onClick={(e) => {
               switcherByKeyboard.current = e.detail === 0;
               setSwitcherOpen((v) => !v);
-              setNewOpen(false);
             }}
             aria-haspopup="menu"
             aria-expanded={switcherOpen}
@@ -468,6 +457,7 @@ export default function AppSidebar({
           </button>
           {switcherOpen && (
             <div
+              ref={switcherPanel}
               className="band-menu-panel band-switcher-panel"
               role="menu"
               tabIndex={-1}
@@ -587,7 +577,6 @@ export default function AppSidebar({
             className="btn btn-secondary btn-block side-new-btn"
             onClick={() => {
               setNewOpen((v) => !v);
-              setSwitcherOpen(false);
             }}
             aria-haspopup="menu"
             aria-expanded={newOpen}
@@ -597,7 +586,7 @@ export default function AppSidebar({
             <span className="side-label">{labels.new}</span>
           </button>
           {newOpen && (
-            <div className="side-menu" role="menu" onKeyDown={(e) => menuKeys(e, () => closeNew(true))}>
+            <div ref={newPanel} className="side-menu" role="menu" onKeyDown={(e) => menuKeys(e, () => closeNew(true))}>
               {newItems.length === 0 && <p className="side-menu-note">{t('newReadOnly')}</p>}
               {newItems.map((item) => (
                 <Link

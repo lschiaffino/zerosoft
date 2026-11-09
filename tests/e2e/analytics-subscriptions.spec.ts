@@ -23,7 +23,7 @@ test.beforeAll(async ({ request }) => {
 
 test('vacío, crear, buscar, próxima entrega, apagar y borrar con deshacer', async ({ page, baseURL }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await page.goto('/en/app/analytics/subscriptions', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/subscriptions', { waitUntil: 'networkidle' });
   await expect(page.getByText('No subscriptions yet')).toBeVisible();
 
   await page.getByRole('button', { name: 'New subscription' }).click();
@@ -88,14 +88,14 @@ test('vacío, crear, buscar, próxima entrega, apagar y borrar con deshacer', as
 
 test('desde un tablero se eligen los insights, y aparece en Cmd+K', async ({ page, baseURL }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await page.goto(`/en/app/analytics/dashboards/${dashboardId}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/dashboards/${dashboardId}`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Subscribe' }).click();
   const dialog = page.locator('dialog[open]');
   await expect(dialog.getByLabel('Sales')).toBeChecked();
   await dialog.getByLabel('Recipients').fill('team@acme.com');
   await dialog.getByRole('button', { name: 'Save' }).click();
   await expect(dialog).toHaveCount(0, { timeout: 15_000 });
-  await page.goto('/en/app/analytics/subscriptions', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/subscriptions', { waitUntil: 'networkidle' });
   await expect(page.getByTestId('an-subs-table').getByRole('row', { name: /team@acme.com/ })).toContainText('Board');
 
   await page.keyboard.press('Control+k');

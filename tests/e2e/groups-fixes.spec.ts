@@ -77,7 +77,7 @@ function watchErrors(page: Page): string[] {
 test('desconectar un número pide confirmación', async ({ page, request }) => {
   const errors = watchErrors(page);
   const n = await fakeNumber(request);
-  await page.goto('/en/app/groups/settings?tab=numbers', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=numbers', { waitUntil: 'networkidle' });
   const card = page.locator('.gr-number', { hasText: n.name });
   await card.getByRole('button', { name: 'Disconnect' }).click();
   const confirm = page.getByRole('alertdialog', { name: `Disconnect ${n.name}?` });
@@ -93,11 +93,11 @@ test('desconectar un número pide confirmación', async ({ page, request }) => {
 test('390px: la pestaña activa de Ajustes queda a la vista y Asignación sin huecos', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   for (const tab of ['tickets', 'audit', 'apps']) {
-    await page.goto(`/en/app/groups/settings?tab=${tab}`);
+    await page.goto(`/en/app/lines/settings?tab=${tab}`);
     const active = page.locator('.ui-settings-nav [aria-current="page"]');
     await expect(active).toBeInViewport({ ratio: 0.95 });
   }
-  await page.goto('/en/app/groups/settings?tab=assignment');
+  await page.goto('/en/app/lines/settings?tab=assignment');
   const nav = await page.locator('.ui-settings-nav').boundingBox();
   const teams = await page.getByRole('heading', { name: 'Teams' }).boundingBox();
   expect(teams!.y - (nav!.y + nav!.height)).toBeLessThan(60);
@@ -110,7 +110,7 @@ test('390px: la pestaña activa de Ajustes queda a la vista y Asignación sin hu
 });
 
 test('⌘K con un modal abierto cierra el modal y abre la búsqueda arriba', async ({ page }) => {
-  await page.goto('/en/app/groups/settings?tab=numbers', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=numbers', { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Add number' }).click();
   await expect(page.getByRole('dialog', { name: 'Add a WhatsApp number' })).toBeVisible();
   await page.keyboard.press('ControlOrMeta+k');
@@ -122,7 +122,7 @@ test('⌘K con un modal abierto cierra el modal y abre la búsqueda arriba', asy
 });
 
 test('reportes: rango invertido avisa y no se aplica', async ({ page }) => {
-  await page.goto('/en/app/groups/analytics', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/analytics', { waitUntil: 'networkidle' });
   await page.getByLabel('From', { exact: true }).fill('2026-10-20');
   await page.getByLabel('To', { exact: true }).fill('2026-10-10');
   await page.getByRole('button', { name: 'Apply' }).click();
@@ -131,7 +131,7 @@ test('reportes: rango invertido avisa y no se aplica', async ({ page }) => {
 });
 
 test('desplegable dependiente sin opciones: aviso en el campo y botón debajo', async ({ page }) => {
-  await page.goto('/en/app/groups/settings?tab=properties', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=properties', { waitUntil: 'networkidle' });
   await page.getByLabel('Property name', { exact: true }).fill(`City ${uid()}`);
   await page.getByLabel('Type', { exact: true }).selectOption('cascade');
   const tree = page.locator('#gr-prop-tree');
@@ -154,7 +154,7 @@ test('ticket desde un mensaje: la fila deja de decir Overdue sin recargar; audit
   const chat = (await chatByName(request, name))!;
   const past = new Date(Date.now() - 3600_000).toISOString();
   await sql('UPDATE groups_chats SET awaiting_since = ?, flagged_at = ? WHERE id = ?', [past, past, chat.id]);
-  await page.goto(`/en/app/groups/inbox/${chat.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
   const row = page.locator('.gr-row', { hasText: name });
   await expect(row.locator('.badge', { hasText: 'Overdue' })).toBeVisible();
   const msg = page.locator('.gr-msg-in', { hasText: 'The export is broken' });
@@ -176,7 +176,7 @@ test('ticket desde un mensaje: la fila deja de decir Overdue sin recargar; audit
     .not.toBeNull();
   const label = (await (await request.post('/api/groups/labels', { data: { name: `Vip${uid()}` } })).json()) as { id: string; name: string };
   expect((await request.patch(`/api/groups/chats/${chat.id}`, { data: { labelIds: [label.id] } })).ok()).toBe(true);
-  await page.goto('/en/app/groups/settings?tab=audit', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=audit', { waitUntil: 'networkidle' });
   const log = page.locator('.gr-audit');
   await expect(log.getByText('assigned the chat to themselves').first()).toBeVisible();
   await expect(log.getByText(`added labels: ${label.name}`)).toBeVisible();
@@ -185,7 +185,7 @@ test('ticket desde un mensaje: la fila deja de decir Overdue sin recargar; audit
 });
 
 test('ajustes en lote ofrecen mensajes temporales; la zona del recurrente tiene nombre propio', async ({ page }) => {
-  await page.goto('/en/app/groups/list', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/list', { waitUntil: 'networkidle' });
   const boxes = page.locator('tbody').getByRole('checkbox');
   if ((await boxes.count()) > 0) {
     await boxes.first().check();
@@ -194,7 +194,7 @@ test('ajustes en lote ofrecen mensajes temporales; la zona del recurrente tiene 
     await expect(dlg.getByLabel('Disappearing messages')).toBeVisible();
     await dlg.getByRole('button', { name: 'Cancel' }).click();
   }
-  await page.goto('/en/app/groups/broadcasts/new?repeat=1', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/broadcasts/new?repeat=1', { waitUntil: 'networkidle' });
   await expect(page.getByRole('combobox', { name: 'Time zone', exact: true })).toBeVisible();
   await expect(page.getByRole('checkbox', { name: 'Mon' })).not.toBeChecked();
 });

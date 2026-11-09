@@ -23,7 +23,7 @@ Nothing else. A feature that one team needs to do its daily work (in CRM,
 Track, Docs, Cal or any other app) belongs in the AGPL core, not here.
 
 Managed services that we run for you, like the hosted WhatsApp server for
-Groups or the AI quota, are not in `ee/`. They are billed on Zerosoft Cloud,
+Lines or the AI quota, are not in `ee/`. They are billed on Zerosoft Cloud,
 and self-hosters bring their own server or API key through the settings in
 `.env.example`.
 

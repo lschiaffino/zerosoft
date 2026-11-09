@@ -16,7 +16,7 @@ const PATTERNS: Array<{ re: RegExp; kind: string; read: string }> = [
   { re: /^\/app\/track\/issue\/([A-Za-z0-9_-]{1,64})(?:\/|$)/, kind: 'Track issue', read: 'v1.track.issues.get' },
   { re: /^\/app\/track\/issues\/([A-Za-z0-9_-]{1,64})(?:\/|$)/, kind: 'Track issue', read: 'v1.track.issues.get' },
   { re: /^\/app\/track\/projects\/([A-Za-z0-9_-]{1,64})(?:\/|$)/, kind: 'Track project', read: 'v1.track.projects.get' },
-  { re: /^\/app\/groups\/inbox\/([A-Za-z0-9_-]{1,64})(?:\/|$)/, kind: 'Groups chat', read: 'v1.groups.chats.get' },
+  { re: /^\/app\/lines\/inbox\/([A-Za-z0-9_-]{1,64})(?:\/|$)/, kind: 'Lines chat', read: 'v1.groups.chats.get' },
   { re: /^\/app\/board\/([A-Za-z0-9_-]{6,64})(?:\/|$)/, kind: 'Board', read: 'v1.boards.get' },
   { re: /^\/app\/crm\/contacts\/([A-Za-z0-9_-]{6,64})(?:\/|$)/, kind: 'CRM contact', read: 'v1.crm.contacts.get' },
 ];

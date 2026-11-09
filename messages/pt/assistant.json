@@ -149,7 +149,7 @@
       "b": "Como foram as vendas dos últimos 30 dias?",
       "c": "O que está com estoque baixo?"
     },
-    "analytics": {
+    "pulse": {
       "a": "Quantos visitantes tivemos esta semana?",
       "b": "Quais insights estão salvos neste projeto?",
       "c": "Quais feature flags estão ativas?"

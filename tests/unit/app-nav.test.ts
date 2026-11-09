@@ -14,8 +14,8 @@ import {
 } from '@/components/app/sidebar-nav';
 import { pageExists } from './page-exists';
 
-const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'inbox', 'rec', 'hiring', 'sign', 'agents', 'robots', 'analytics'];
-const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
+const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'inbox', 'rec', 'hiring', 'sign', 'agents', 'robots', 'pulse'];
+const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'pulse', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
 
 
 /**
@@ -54,13 +54,13 @@ describe('sidebar de la app', () => {
     expect(appProductFromPath('/app/crm/deals')).toBe('crm');
     expect(appProductFromPath('/app/notes/clip')).toBe('notes');
     expect(appProductFromPath('/app/robots/recorder')).toBe('robots');
-    expect(appProductFromPath('/app/groups/inbox/abc')).toBe('groups');
+    expect(appProductFromPath('/app/lines/inbox/abc')).toBe('groups');
     expect(appProductFromPath('/app/voice')).toBe('voice');
     expect(appProductFromPath('/app/rec/settings')).toBe('rec');
     expect(appProductFromPath('/app/talk')).toBe('talk');
     expect(appProductFromPath('/app/social/posts')).toBe('social');
     expect(appProductFromPath('/app/design/abc')).toBe('design');
-    expect(appProductFromPath('/app/analytics/insights')).toBe('analytics');
+    expect(appProductFromPath('/app/pulse/insights')).toBe('pulse');
     expect(appProductFromPath('/app/links/analytics')).toBe('link');
     // El asistente es de la plataforma: shell neutro, nunca el de Link.
     expect(appProductFromPath('/app/assistant')).toBe('home');
@@ -141,8 +141,8 @@ describe('sidebar de la app', () => {
         .map((i) => i.href);
     expect(active('notes', '/app/notes/clip')).toEqual(['/app/notes/clip']);
     expect(active('robots', '/app/robots/recorder')).toEqual(['/app/robots/recorder']);
-    expect(active('groups', '/app/groups/inbox/abc')).toEqual(['/app/groups/inbox']);
-    expect(active('groups', '/app/groups/list/abc')).toEqual(['/app/groups/list']);
+    expect(active('groups', '/app/lines/inbox/abc')).toEqual(['/app/lines/inbox']);
+    expect(active('groups', '/app/lines/list/abc')).toEqual(['/app/lines/list']);
     expect(active('link', '/app/links/bulk')).toEqual(['/app/links/new']);
     expect(active('link', '/app/links/import')).toEqual(['/app/links/new']);
     expect(active('link', '/app/links/domains')).toEqual(['/app/links/settings']);
@@ -258,8 +258,8 @@ describe('sidebar del inicio: tus apps y "Más apps"', () => {
     expect(groups[0].items.map((i) => i.href)).toEqual(['/app/docs', '/app/crm', '/app/calendar']);
     expect(groups[0].items.length + groups[1].items.length).toBe(SWITCHER_PRODUCTS.length);
   });
-  it('respeta el acceso por app y no muestra "Más apps" vacío', () => {
+  it('respeta el acceso por app y no muestra "Más apps" vacío (Inbox, personal, siempre está)', () => {
     const groups = homeAppGroups(L, { allowed: ['crm', 'social'] });
-    expect(groups.map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/social']]);
+    expect(groups.map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/social', '/app/inbox']]);
   });
 });

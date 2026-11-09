@@ -222,7 +222,7 @@ export default function TicketsBoard({
                   <td>
                     <div className="gr-ticket-title">
                       {tk.chatId ? (
-                        <Link href={`/app/groups/inbox/${tk.chatId}${tk.messageId ? `#m-${tk.messageId}` : ''}`}>{tk.title}</Link>
+                        <Link href={`/app/lines/inbox/${tk.chatId}${tk.messageId ? `#m-${tk.messageId}` : ''}`}>{tk.title}</Link>
                       ) : (
                         <span>{tk.title}</span>
                       )}

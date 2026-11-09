@@ -39,7 +39,7 @@
       "talk": "Canais, mensagens diretas e huddles",
       "shop": "Loja online com checkout e pedidos",
       "design": "Design gráfico a partir de modelos, com sua marca",
-      "analytics": "Analytics de produto e feature flags",
+      "pulse": "Analytics de produto e feature flags",
       "social": "Agendamento, caixa de entrada e métricas de redes sociais",
       "people": "Diretório, folgas e avaliações",
       "hiring": "Recrutamento com página de vagas",
@@ -191,12 +191,12 @@
     "groupAssistantChats": "Conversas do assistente",
     "groupDesigns": "Designs",
     "groupDesignFolders": "Pastas do Design",
-    "groupAnalyticsInsights": "Insights do Analytics",
-    "groupAnalyticsDashboards": "Painéis do Analytics",
-    "groupAnalyticsFlags": "Feature flags do Analytics",
-    "groupAnalyticsSurveys": "Pesquisas do Analytics",
-    "groupAnalyticsCohorts": "Coortes do Analytics",
-    "groupAnalyticsProjects": "Projetos do Analytics",
+    "groupAnalyticsInsights": "Insights do Pulse",
+    "groupAnalyticsDashboards": "Painéis do Pulse",
+    "groupAnalyticsFlags": "Feature flags do Pulse",
+    "groupAnalyticsSurveys": "Pesquisas do Pulse",
+    "groupAnalyticsCohorts": "Coortes do Pulse",
+    "groupAnalyticsProjects": "Projetos do Pulse",
     "groupSocialPosts": "Publicações do Social",
     "groupSocialLibrary": "Biblioteca do Social",
     "yourApps": "Seus apps",
@@ -280,7 +280,7 @@
     "design": {
       "desc": "Posts, apresentações e documentos a partir de modelos."
     },
-    "analytics": {
+    "pulse": {
       "desc": "Eventos, funis, retenção e feature flags para o seu produto."
     },
     "social": {
@@ -519,7 +519,7 @@
       "design": {
         "line": "Posts, apresentações e documentos a partir de modelos."
       },
-      "analytics": {
+      "pulse": {
         "line": "Analytics de produto, analytics web e feature flags."
       },
       "building": "Em construção · como {rival}",
@@ -649,7 +649,7 @@
     "viewAll": "Ver tudo",
     "today": {
       "title": "Para hoje",
-      "crm": "Tarefas do CRM",
+      "crm": "Tarefas",
       "crmEmpty": "Nenhuma tarefa atrasada ou para hoje.",
       "overdue": "Atrasada",
       "dueToday": "Hoje",
@@ -660,11 +660,11 @@
       "inbox": "Não lidas",
       "inboxEmpty": "Tudo lido.",
       "chatUnread": "{n, plural, one {# conversa não lida no Chat} other {# conversas não lidas no Chat}}",
-      "groupsUnread": "{n, plural, one {# chat não lido no Groups} other {# chats não lidos no Groups}}",
+      "groupsUnread": "{n, plural, one {# chat não lido no Lines} other {# chats não lidos no Lines}}",
       "chatNone": "Nenhuma conversa não lida no Chat.",
-      "groupsNone": "Nenhum chat não lido no Groups.",
+      "groupsNone": "Nenhum chat não lido no Lines.",
       "chatError": "Não conseguimos carregar o Chat. Recarregue para tentar de novo.",
-      "groupsError": "Não conseguimos carregar o Groups. Recarregue para tentar de novo.",
+      "groupsError": "Não conseguimos carregar o Lines. Recarregue para tentar de novo.",
       "crmEmptyAll": "Ninguém tem tarefas atrasadas ou para hoje.",
       "crmScope": "Quais tarefas ver",
       "crmMine": "Minhas",

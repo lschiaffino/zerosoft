@@ -32,7 +32,8 @@
   max-width: 100%;
   display: block;
 }
-.sf a {
+/* Sin peso: un link con clase de botón (.sf-btn-primary) mantiene su color de texto. */
+:where(.sf) a {
   color: inherit;
 }
 .sf :focus-visible {
@@ -645,6 +646,10 @@
 }
 .sf-form {
   max-width: 420px;
+}
+/* La ayuda bajo el título no puede quedar pegada a la primera etiqueta (Estado del pedido). */
+.sf-narrow > .sf-muted + .sf-form {
+  margin-top: 20px;
 }
 .sf-search {
   display: flex;

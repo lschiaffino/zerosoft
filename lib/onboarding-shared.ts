@@ -24,7 +24,7 @@ export const SOURCE_TOOLS: Record<string, { app: ProductKey; importHref: string 
   jira: { app: 'track', name: 'Jira', importHref: '/app/settings/import?source=track:jira' },
   github: { app: 'track', name: 'GitHub Issues', importHref: '/app/settings/import?source=track:github' },
   asana: { app: 'track', name: 'Asana', importHref: '/app/settings/import?source=track:asana' },
-  periskope: { app: 'groups', name: 'Periskope', importHref: '/app/groups/settings?tab=numbers' },
+  periskope: { app: 'groups', name: 'Periskope', importHref: '/app/lines/settings?tab=numbers' },
   calendly: { app: 'cal', name: 'Calendly', importHref: '/app/settings/import?source=cal:calendly' },
   bitly: { app: 'link', name: 'Bitly', importHref: '/app/settings/import?source=link:bitly' },
   evernote: { app: 'notes', name: 'Evernote', importHref: '/app/settings/import?source=notes:evernote' },
