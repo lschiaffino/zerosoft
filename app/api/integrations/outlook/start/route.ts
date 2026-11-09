@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, realUserId } from '@/lib/session';
+import { getCurrentUser, realUserId, userCanUseApp } from '@/lib/session';
 import { microsoftConfigured, outlookAuthUrl } from '@/lib/microsoft';
 
 export const runtime = 'nodejs';
@@ -11,6 +11,8 @@ const STATE_COOKIE = 'zs-outlook-state';
 export async function GET(_req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  // El correo se sincroniza en el CRM del workspace: sin CRM, no.
+  if (!userCanUseApp(user, 'crm')) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   if (!microsoftConfigured()) return NextResponse.json({ error: 'not_configured' }, { status: 500 });
 
   const state = `${realUserId(user)}.${crypto.randomUUID()}`;

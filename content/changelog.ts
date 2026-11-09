@@ -29,6 +29,58 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-offline-mode',
+    date: '2026-11-08',
+    title: {
+      en: 'Work offline in Track, with one status for the whole app',
+      es: 'Trabajá sin conexión en Track, con un solo estado para toda la app',
+      pt: 'Trabalhe sem conexão no Track, com um só status para todo o app',
+    },
+    items: [
+      {
+        product: 'track',
+        en: 'Issues, lists and projects you already opened load without a network. Edits, new issues and comments are saved on your device and sent in order when the connection is back; if someone changed the same issue meanwhile, you get an "edited elsewhere" notice.',
+        es: 'Los issues, listas y proyectos que ya abriste cargan sin red. Los cambios, los issues nuevos y los comentarios se guardan en tu dispositivo y se mandan en orden al volver la conexión; si alguien cambió el mismo issue mientras tanto, te avisamos que se editó en otro lado.',
+        pt: 'Issues, listas e projetos que você já abriu carregam sem rede. Alterações, issues novos e comentários ficam salvos no seu dispositivo e são enviados em ordem quando a conexão volta; se alguém mudou o mesmo issue nesse meio tempo, você recebe um aviso de que foi editado em outro lugar.',
+      },
+      {
+        product: 'crm',
+        en: 'The top bar shows when you are offline, how many changes are waiting on this device, and the ones the server rejected, with retry and discard. Signing out with unsynced changes asks first.',
+        es: 'La banda de arriba muestra cuando estás sin conexión, cuántos cambios esperan en este dispositivo y los que el servidor rechazó, con reintentar y descartar. Cerrar sesión con cambios sin sincronizar pregunta antes.',
+        pt: 'A barra de cima mostra quando você está sem conexão, quantas alterações esperam neste dispositivo e as que o servidor recusou, com tentar de novo e descartar. Sair com alterações não sincronizadas pergunta antes.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-members-permissions',
+    date: '2026-11-08',
+    title: {
+      en: 'Members and permissions in one place',
+      es: 'Miembros y permisos en un solo lugar',
+      pt: 'Membros e permissões em um só lugar',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Settings › Members and permissions shows each person with role, apps, teams and last activity. Change a role or an app right in the table, select several people to change them together, and undo any change from the notice or with ⌘Z.',
+        es: 'Ajustes › Miembros y permisos muestra a cada persona con su rol, apps, equipos y última actividad. Cambiá el rol o una app desde la tabla, seleccioná varias personas para cambiarlas juntas y deshacé cualquier cambio desde el aviso o con ⌘Z.',
+        pt: 'Configurações › Membros e permissões mostra cada pessoa com papel, apps, equipes e última atividade. Mude o papel ou um app direto na tabela, selecione várias pessoas para mudá-las juntas e desfaça qualquer mudança pelo aviso ou com ⌘Z.',
+      },
+      {
+        product: 'platform',
+        en: '"What can they see?" lists, for one person, the apps they use and their level inside each one (for example their Books role or which CRM records they see), what was shared with them and what they have assigned.',
+        es: '"Qué puede ver" muestra, para una persona, las apps que usa y su nivel dentro de cada una (por ejemplo su rol en Books o qué registros del CRM ve), lo que le compartieron y lo que tiene asignado.',
+        pt: '"O que pode ver" mostra, para uma pessoa, os apps que usa e o nível dentro de cada um (por exemplo o papel no Books ou quais registros do CRM vê), o que compartilharam com ela e o que está atribuído a ela.',
+      },
+      {
+        product: 'platform',
+        en: 'Removing someone can pass their open Track issues and CRM records to another person, and Removed lets you add them back with the same role, apps and teams. Invite links work once and carry the role you pick. A change log records who changed what.',
+        es: 'Al quitar a alguien podés pasarle sus issues abiertos de Track y sus registros del CRM a otra persona, y desde Quitados la sumás de nuevo con el mismo rol, apps y equipos. Los links de invitación sirven una vez y llevan el rol que elijas. Un registro guarda quién cambió qué.',
+        pt: 'Ao remover alguém você pode passar as issues abertas no Track e os registros do CRM para outra pessoa, e em Removidos pode adicioná-la de novo com o mesmo papel, apps e equipes. Links de convite funcionam uma vez e levam o papel escolhido. Um registro guarda quem mudou o quê.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-inbox',
     date: '2026-11-08',
     title: {
