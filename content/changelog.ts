@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-track-linear-sync',
+    date: '2026-11-09',
+    title: {
+      en: 'Track keeps Linear in sync while you move',
+      es: 'Track queda sincronizado con Linear mientras te mudás',
+      pt: 'O Track fica sincronizado com o Linear enquanto você muda',
+    },
+    items: [
+      {
+        product: 'track',
+        en: 'Track › Settings › Integrations › Linear connects with Login with Linear or a personal API key. Pick the teams, Track imports them, and from then on edits travel both ways: an issue changed in Linear shows up in Track in seconds, and one changed in Track goes back to Linear. If the same field changes on both sides, the latest change wins. You can pause, sync now, choose one direction only and see a log with a retry button.',
+        es: 'Track › Ajustes › Integraciones › Linear se conecta con Login with Linear o una API key personal. Elegís los teams, Track los importa y desde ahí los cambios van y vienen: un issue editado en Linear aparece en Track en segundos y uno editado en Track vuelve a Linear. Si el mismo campo cambia en los dos lados, gana el último cambio. Se puede pausar, sincronizar ahora, elegir un solo sentido y ver un registro con botón para reintentar.',
+        pt: 'Track › Configurações › Integrações › Linear conecta com Login with Linear ou uma API key pessoal. Você escolhe os times, o Track os importa e daí em diante as mudanças vão e voltam: um issue editado no Linear aparece no Track em segundos e um editado no Track volta para o Linear. Se o mesmo campo mudar dos dois lados, vale a última mudança. Dá para pausar, sincronizar agora, escolher um só sentido e ver um registro com botão para tentar de novo.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-groups-is-now-lines',
     date: '2026-11-08',
     title: {
