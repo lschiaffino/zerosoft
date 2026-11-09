@@ -275,7 +275,7 @@ test('el botón de dictar no tapa otros controles y se apaga en ajustes', async 
     });
   for (const [path, selector] of [
     ['/en/app/crm/contacts/new', 'main input'],
-    ['/en/app/track/projects/new', 'main input'],
+    ['/en/app/track/teams/new', 'main input'],
     ['/en/app/notes', 'main input[type="search"]'],
   ] as const) {
     for (const width of [1280, 390]) {

@@ -2,8 +2,9 @@
 # Security › Code scanning del repo, no en el log: no se publican detalles en el PR.
 name: CodeQL
 
+# Solo main y el semanal (decisión del dueño, 9 nov 2026): en cada PR ocupaba
+# los runners que necesitan los tests.
 on:
-  pull_request:
   push:
     branches: [main]
   schedule:

@@ -37,6 +37,7 @@ const parity: ProductParity = {
     { id: 'writing', label: loc(['Writing', 'Escribir', 'Escrita']) },
     { id: 'navigation', label: loc(['Keyboard and search', 'Teclado y búsqueda', 'Teclado e busca']) },
     { id: 'platform', label: loc(['Platform', 'Plataforma', 'Plataforma']) },
+    { id: 'whatsapp', label: loc(['WhatsApp Web', 'WhatsApp Web', 'WhatsApp Web']) },
   ],
   rows: [
     // Cuentas
@@ -55,9 +56,9 @@ const parity: ProductParity = {
     row('whatsapp', 'channels', ['Personal WhatsApp by QR', 'WhatsApp personal por QR', 'WhatsApp pessoal por QR'], 'partial', {
       competitorHas: false,
       detail: [
-        'Linked like WhatsApp Web on our WhatsApp server: text, photos, audio, documents, groups, delivery ticks and recent history. Tested with the fake provider; sending media is not there yet',
-        'Vinculado como WhatsApp Web en nuestro servidor de WhatsApp: texto, fotos, audios, documentos, grupos, tildes de entrega e historial reciente. Probado con el proveedor falso; mandar archivos todavía no',
-        'Vinculado como o WhatsApp Web no nosso servidor de WhatsApp: texto, fotos, áudios, documentos, grupos, confirmações de entrega e histórico recente. Testado com o provedor falso; enviar arquivos ainda não',
+        'Linked like WhatsApp Web on our WhatsApp server: text, photos, audio, documents, groups, delivery ticks and recent history. Tested with the fake provider and in use with a real account',
+        'Vinculado como WhatsApp Web en nuestro servidor de WhatsApp: texto, fotos, audios, documentos, grupos, tildes de entrega e historial reciente. Probado con el proveedor falso y en uso con una cuenta real',
+        'Vinculado como o WhatsApp Web no nosso servidor de WhatsApp: texto, fotos, áudios, documentos, grupos, confirmações de entrega e histórico recente. Testado com o provedor falso e em uso com uma conta real',
       ],
     }),
 
@@ -148,6 +149,115 @@ const parity: ProductParity = {
       detail: ['Folders, scheduled, drafts, snoozes, notes and saved history from the local inbox.db', 'Carpetas, programados, borradores, pospuestos, notas e historial guardado del inbox.db local', 'Pastas, agendadas, rascunhos, adiadas, notas e histórico salvo do inbox.db local'],
     }),
     row('self-host', 'platform', ['Run it on your own server', 'Correrlo en tu servidor', 'Rodar no seu servidor'], 'have', { competitorHas: false }),
+
+    // WhatsApp Web (la lista, la conversación y la info del contacto, como en WhatsApp)
+    row('wa-names', 'whatsapp', ['Real chat names', 'Nombres reales de los chats', 'Nomes reais das conversas'], 'partial', {
+      detail: [
+        'Group subject and contact profile from the WhatsApp server, refreshed every three days; never the raw id. Tested with the fake provider and the real payload shapes',
+        'Asunto del grupo y perfil del contacto desde el servidor de WhatsApp, renovados cada tres días; nunca el id crudo. Probado con el proveedor falso y la forma real de los datos',
+        'Assunto do grupo e perfil do contato vindos do servidor do WhatsApp, renovados a cada três dias; nunca o id cru. Testado com o provedor falso e o formato real dos dados',
+      ],
+    }),
+    row('wa-photos', 'whatsapp', ['Profile photos', 'Fotos de perfil', 'Fotos de perfil'], 'partial', {
+      detail: [
+        'Contacts and groups, served with your session and cached privately in the browser; an expired link is renewed. Tested with the fake provider',
+        'Contactos y grupos, servidas con tu sesión y guardadas en la caché privada del navegador; un link vencido se renueva. Probado con el proveedor falso',
+        'Contatos e grupos, servidas com sua sessão e guardadas no cache privado do navegador; um link vencido é renovado. Testado com o provedor falso',
+      ],
+    }),
+    row('wa-list', 'whatsapp', ['Chat list like WhatsApp', 'Lista de chats como WhatsApp', 'Lista de conversas como o WhatsApp'], 'partial', {
+      detail: [
+        'Photo, name, time, ticks, sender in groups, media icon, typing, muted, unread and pinned. Filters are Inbox views, not WhatsApp lists',
+        'Foto, nombre, hora, tildes, quién mandó en grupos, ícono de media, escribiendo, silenciado, no leídos y fijado. Los filtros son las vistas de Inbox, no las listas de WhatsApp',
+        'Foto, nome, hora, confirmações, quem enviou em grupos, ícone de mídia, digitando, silenciado, não lidas e fixada. Os filtros são as visões do Inbox, não as listas do WhatsApp',
+      ],
+    }),
+    row('wa-conversation', 'whatsapp', ['Conversation like WhatsApp Web', 'Conversación como WhatsApp Web', 'Conversa como o WhatsApp Web'], 'partial', {
+      detail: [
+        'Wallpaper, bubbles with tails, grouped messages, day chips, sender names in color, ticks, edited, forwarded and deleted, in light and dark. No chat search or pinned messages yet',
+        'Fondo, burbujas con cola, mensajes agrupados, separadores de día, nombres de color, tildes, editado, reenviado y borrado, en claro y oscuro. Todavía sin buscar en el chat ni mensajes fijados',
+        'Fundo, balões com ponta, mensagens agrupadas, separadores de dia, nomes coloridos, confirmações, editada, encaminhada e apagada, no claro e no escuro. Ainda sem busca na conversa nem mensagens fixadas',
+      ],
+    }),
+    row('wa-message-actions', 'whatsapp', ['Reply, react, forward, copy, edit, delete, star', 'Responder, reaccionar, reenviar, copiar, editar, borrar, destacar', 'Responder, reagir, encaminhar, copiar, editar, apagar, favoritar'], 'partial', {
+      detail: [
+        'From the arrow menu, right click or a long press. Forwarding sends a copy of the text (no "Forwarded" mark on the other side, no media). Message info shows delivered and read, not the time',
+        'Desde la flecha, el clic derecho o un toque largo. Reenviar manda una copia del texto (sin la marca "Reenviado" del otro lado ni archivos). La info del mensaje muestra entregado y leído, sin la hora',
+        'Pela seta, clique direito ou toque longo. Encaminhar envia uma cópia do texto (sem a marca "Encaminhada" do outro lado nem arquivos). Os dados da mensagem mostram entregue e lida, sem a hora',
+      ],
+    }),
+    row('wa-media-view', 'whatsapp', ['Photos, video, voice notes, documents, stickers, locations, contacts, polls', 'Fotos, video, notas de voz, documentos, stickers, ubicaciones, contactos, encuestas', 'Fotos, vídeo, notas de voz, documentos, figurinhas, localizações, contatos, enquetes'], 'partial', {
+      detail: [
+        'Viewer for photos and videos, voice notes with speed control. Polls are read only (vote on the phone). View once is not delivered to linked devices',
+        'Visor de fotos y videos, notas de voz con velocidad. Las encuestas se ven pero se votan en el teléfono. "Ver una vez" no llega a los dispositivos vinculados',
+        'Visualizador de fotos e vídeos, notas de voz com velocidade. As enquetes aparecem mas se vota no celular. "Visualização única" não chega aos aparelhos vinculados',
+      ],
+    }),
+    row('wa-send-media', 'whatsapp', ['Send files, drag and drop, paste', 'Mandar archivos, arrastrar y pegar', 'Enviar arquivos, arrastar e colar'], 'partial', {
+      detail: [
+        'Several files at once with a caption each and a preview before sending; voice notes from the microphone. Over 4 MB needs Blob storage on the server. Tested with the fake provider',
+        'Varios archivos juntos, con un comentario cada uno y vista previa antes de enviar; notas de voz con el micrófono. Más de 4 MB necesita Blob en el servidor. Probado con el proveedor falso',
+        'Vários arquivos de uma vez, com legenda em cada um e prévia antes de enviar; notas de voz pelo microfone. Mais de 4 MB precisa de Blob no servidor. Testado com o provedor falso',
+      ],
+    }),
+    row('wa-mentions', 'whatsapp', ['Mentions in groups', 'Menciones en grupos', 'Menções em grupos'], 'partial', {
+      detail: [
+        'Type @ to mention a member; received mentions show the name when it is known. Members without a visible number can not be mentioned',
+        'Con @ se menciona a alguien del grupo; las menciones que llegan muestran el nombre si se conoce. No se puede mencionar a quien no tiene el número visible',
+        'Com @ se menciona alguém do grupo; as menções recebidas mostram o nome quando é conhecido. Não dá para mencionar quem não tem o número visível',
+      ],
+    }),
+    row('wa-link-previews', 'whatsapp', ['Link previews', 'Vista previa de links', 'Prévia de links'], 'partial', {
+      detail: [
+        'Title, description, image and domain: the one WhatsApp sends, or read on our server (never from the browser) and cached for a week. The other person does not get a preview of what you send from here',
+        'Título, descripción, imagen y dominio: la que manda WhatsApp, o leída en nuestro servidor (nunca desde el navegador) y guardada una semana. Del otro lado, lo que mandás desde acá llega sin vista previa',
+        'Título, descrição, imagem e domínio: a que o WhatsApp envia, ou lida no nosso servidor (nunca pelo navegador) e guardada por uma semana. Do outro lado, o que você envia daqui chega sem prévia',
+      ],
+    }),
+    row('wa-voice-notes', 'whatsapp', ['Voice notes: speed, waveform, resume', 'Notas de voz: velocidad, forma de onda, seguir', 'Notas de voz: velocidade, forma de onda, continuar'], 'have', {
+      detail: [
+        '1×, 1.5× and 2× (the choice is kept), the waveform WhatsApp sends, and an audio resumes where you left it in this browser',
+        '1×, 1,5× y 2× (queda elegida), la forma de onda que manda WhatsApp, y un audio sigue donde lo dejaste en este navegador',
+        '1×, 1,5× e 2× (a escolha fica), a forma de onda que o WhatsApp envia, e um áudio continua de onde você parou neste navegador',
+      ],
+    }),
+    row('wa-transcripts', 'whatsapp', ['Audio transcription and summary', 'Transcripción y resumen de audios', 'Transcrição e resumo de áudios'], 'better', {
+      competitorHas: false,
+      detail: [
+        'Every audio is transcribed with Voice when you see it and the text sits under the bubble; long ones get an AI summary. Saved once and only for you. Tested with the fake transcriber',
+        'Cada audio se transcribe con Voice al verlo y el texto queda debajo de la burbuja; los largos llevan un resumen con IA. Se guarda una vez y solo para vos. Probado con el transcriptor falso',
+        'Cada áudio é transcrito com o Voice ao ser visto e o texto fica embaixo do balão; os longos ganham um resumo com IA. Salvo uma vez e só para você. Testado com o transcritor falso',
+      ],
+    }),
+    row('wa-contact-info', 'whatsapp', ['Contact and group info', 'Info del contacto y del grupo', 'Dados do contato e do grupo'], 'partial', {
+      detail: [
+        'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. Leaving or editing a group is done on the phone',
+        'Foto, nombre, número o integrantes con sus admins, info o descripción, fotos, documentos y enlaces compartidos, destacados, grupos en común, silenciar y bloquear. Salir o editar un grupo se hace en el teléfono',
+        'Foto, nome, número ou membros com os admins, recado ou descrição, fotos, documentos e links compartilhados, favoritas, grupos em comum, silenciar e bloquear. Sair ou editar um grupo é feito no celular',
+      ],
+    }),
+    row('wa-ai-summary', 'whatsapp', ['AI summary of a chat', 'Resumen con IA de un chat', 'Resumo com IA de uma conversa'], 'better', {
+      competitorHas: false,
+      detail: [
+        'In the info panel: the relationship and what is pending with a contact, or the recent activity of a group. Made only from that chat and your notes, and saved until there are new messages',
+        'En el panel de info: la relación y lo pendiente con un contacto, o lo último de un grupo. Hecho solo con ese chat y tus notas, y guardado hasta que haya mensajes nuevos',
+        'No painel de dados: a relação e o que está pendente com um contato, ou o que rolou num grupo. Feito só com essa conversa e suas notas, e salvo até chegarem mensagens novas',
+      ],
+    }),
+    row('wa-mobile', 'whatsapp', ['Phone gestures', 'Gestos del teléfono', 'Gestos do celular'], 'partial', {
+      detail: [
+        'Swipe a message right to reply, swipe a chat left for Done or right to pin, long press for the menu. In the browser, not a native app',
+        'Deslizar un mensaje a la derecha para responder, un chat a la izquierda para Hecho o a la derecha para fijar, toque largo para el menú. En el navegador, no es una app nativa',
+        'Deslizar uma mensagem para a direita para responder, uma conversa para a esquerda para Concluir ou para a direita para fixar, toque longo para o menu. No navegador, não é um app nativo',
+      ],
+    }),
+    row('wa-reactions-live', 'whatsapp', ['Reactions and typing arrive live', 'Reacciones y "escribiendo" en vivo', 'Reações e "digitando" ao vivo'], 'partial', {
+      detail: [
+        'Stored as they arrive from WhatsApp and shown on the next refresh (a few seconds). Typing depends on WhatsApp sending presence',
+        'Se guardan al llegar de WhatsApp y se ven en la próxima actualización (unos segundos). "Escribiendo" depende de que WhatsApp mande la presencia',
+        'São salvas quando chegam do WhatsApp e aparecem na próxima atualização (alguns segundos). "Digitando" depende de o WhatsApp enviar a presença',
+      ],
+    }),
   ],
 };
 

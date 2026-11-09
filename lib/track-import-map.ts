@@ -14,7 +14,7 @@ export const TRACK_IMPORT_SOURCES = ['linear', 'jira', 'github', 'asana', 'short
 export type TrackImportSource = (typeof TRACK_IMPORT_SOURCES)[number];
 
 export type ImportStatusCategory = 'backlog' | 'todo' | 'in_progress' | 'done' | 'cancelled';
-export type ImportPriority = 'urgent' | 'high' | 'medium' | 'low';
+export type ImportPriority = 'none' | 'urgent' | 'high' | 'medium' | 'low';
 
 export interface NormalizedComment {
   extId: string;
@@ -22,11 +22,16 @@ export interface NormalizedComment {
   authorName?: string | null;
   body: string;
   createdAt?: string | null;
+  updatedAt?: string | null;
+  /** Comentario padre (hilo de un nivel). */
+  parentExtId?: string | null;
 }
 
 export interface NormalizedIssue {
   /** Id estable en la fuente (identifier de Linear, key de Jira, owner/repo#n). */
   extId: string;
+  /** Id interno de la fuente (uuid de Linear): sigue al issue si cambió de identificador. */
+  sourceId?: string | null;
   /** Identificador original para mostrar (ENG-12, PROJ-3, #45). */
   key?: string | null;
   project: { extId: string; name: string; key?: string | null; description?: string | null };
@@ -35,12 +40,20 @@ export interface NormalizedIssue {
   status: { name: string | null; category: ImportStatusCategory; color?: string | null };
   priority: ImportPriority;
   assignee?: { email?: string | null; name?: string | null } | null;
+  creator?: { email?: string | null; name?: string | null } | null;
   estimate?: number | null;
   labels: Array<{ name: string; color?: string | null }>;
   cycle?: { extId: string; name: string; startAt: string; endAt: string } | null;
   milestone?: { extId: string; name: string; targetDate?: string | null } | null;
+  /** Project de Linear (en Track, un project: track_plans) y su milestone. */
+  plan?: { extId: string; name: string } | null;
+  planMilestone?: { extId: string; name: string } | null;
+  /** Entra a la cola de triage del team (estado Triage de Linear). */
+  triage?: boolean;
   parentExtId?: string | null;
   createdAt?: string | null;
+  updatedAt?: string | null;
+  archivedAt?: string | null;
   dueDate?: string | null;
   comments: NormalizedComment[];
 }
@@ -54,14 +67,14 @@ const LABELS_MAX = 10;
 
 // ---------- Normalización de valores ----------
 
-/** Prioridad de Linear (0 a 4), de Jira (Highest…Lowest) o texto libre. */
+/** Prioridad de Linear (0 a 4, 0 = sin prioridad), de Jira (Highest…Lowest) o texto libre. Sin dato: sin prioridad. */
 export function normalizePriority(raw: unknown): ImportPriority {
   if (typeof raw === 'number' || (typeof raw === 'string' && /^\s*\d+\s*$/.test(raw))) {
     const n = Number(raw);
-    return n === 1 ? 'urgent' : n === 2 ? 'high' : n === 4 ? 'low' : 'medium';
+    return n === 1 ? 'urgent' : n === 2 ? 'high' : n === 3 ? 'medium' : n === 4 ? 'low' : 'none';
   }
   const v = String(raw ?? '').trim().toLowerCase();
-  if (!v) return 'medium';
+  if (!v || /^(no priority|none|sin prioridad|sem prioridade|-)$/.test(v)) return 'none';
   if (/urgent|blocker|critical|highest|^p0\b|urgente|cr[ií]tic/.test(v)) return 'urgent';
   if (/^high|^p1\b|^alta|^alto/.test(v)) return 'high';
   if (/low|lowest|minor|trivial|^p[34]\b|^baja|^baixa/.test(v)) return 'low';
@@ -197,7 +210,11 @@ export const CSV_FIELDS = [
   'cycleStart',
   'cycleEnd',
   'milestone',
+  'plan',
+  'planMilestone',
   'parent',
+  'creator',
+  'updatedAt',
   'type',
   'comments',
 ] as const;
@@ -224,8 +241,11 @@ const PRESET_HEADERS: Record<CsvPreset, Partial<Record<CsvField, string[]>>> = {
     cycle: ['cycle name', 'cycle number'],
     cycleStart: ['cycle start'],
     cycleEnd: ['cycle end'],
-    milestone: ['project'],
+    plan: ['project'],
+    planMilestone: ['project milestone'],
     parent: ['parent issue'],
+    creator: ['creator'],
+    updatedAt: ['updated'],
   },
   jira: {
     id: ['issue key'],
@@ -371,7 +391,10 @@ export function csvToIssues(text: string, mapping: CsvMapping, opts: CsvToIssues
     if (cycleName && !cycle) labels.push({ name: cycleName });
 
     const milestoneName = first(row, 'milestone');
+    const planName = first(row, 'plan');
+    const planMilestoneName = first(row, 'planMilestone');
     const assigneeRaw = first(row, 'assignee');
+    const creatorRaw = first(row, 'creator');
     const comments = all(row, 'comments').map((raw, i) => {
       const c = opts.source === 'jira' ? parseJiraComment(raw) : { createdAt: null, author: null, body: raw };
       return {
@@ -401,8 +424,13 @@ export function csvToIssues(text: string, mapping: CsvMapping, opts: CsvToIssues
         labels,
         cycle,
         milestone: milestoneName ? { extId: `${projectName}:${milestoneName}`, name: clip(milestoneName, 200), targetDate: null } : null,
+        plan: planName ? { extId: `name:${planName.toLowerCase()}`, name: clip(planName, 200) } : null,
+        planMilestone: planName && planMilestoneName ? { extId: `name:${planName.toLowerCase()}:${planMilestoneName.toLowerCase()}`, name: clip(planMilestoneName, 200) } : null,
+        creator: creatorRaw ? (creatorRaw.includes('@') ? { email: creatorRaw.toLowerCase(), name: null } : { email: null, name: creatorRaw }) : null,
+        triage: opts.source === 'linear' && /^triage$/i.test(statusName ?? ''),
         parentExtId: first(row, 'parent') || null,
         createdAt,
+        updatedAt: normalizeDate(first(row, 'updatedAt')),
         dueDate: normalizeDay(first(row, 'dueDate')),
         comments,
       }),

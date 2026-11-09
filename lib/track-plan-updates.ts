@@ -24,6 +24,17 @@ export interface PlanUpdate {
   created_at: string;
   updated_at: string | null;
   comment_count: number;
+  /** Reacciones del update y de sus comentarios. */
+  reactions?: PlanUpdateReaction[];
+}
+
+/** Reacción en un update (target_id = id del update) o en un comentario (target_id = id del comentario). */
+export interface PlanUpdateReaction {
+  target_id: string;
+  update_id: string;
+  user_id: string;
+  user_name: string | null;
+  emoji: string;
 }
 
 export interface PlanUpdateComment {
@@ -51,7 +62,8 @@ async function planProgress(planId: string): Promise<number> {
 }
 
 export async function listPlanUpdates(planId: string): Promise<PlanUpdate[]> {
-  return (await getDb()
+  const db = getDb();
+  const rows = (await db
     .prepare(
       `SELECT x.*, u.name AS user_name, u.email AS user_email,
          (SELECT COUNT(*) FROM track_plan_update_comments c WHERE c.update_id = x.id) AS comment_count
@@ -59,6 +71,50 @@ export async function listPlanUpdates(planId: string): Promise<PlanUpdate[]> {
        WHERE x.plan_id = ? ORDER BY x.created_at DESC LIMIT 200`,
     )
     .all(planId)) as PlanUpdate[];
+  if (!rows.length) return rows;
+  const reactions = (await db
+    .prepare(
+      `SELECT r.target_id, r.update_id, r.user_id, u.name AS user_name, r.emoji FROM track_plan_update_reactions r
+       JOIN users u ON u.id = r.user_id
+       WHERE r.update_id IN (SELECT id FROM track_plan_updates WHERE plan_id = ?) ORDER BY r.created_at ASC`,
+    )
+    .all(planId)) as PlanUpdateReaction[];
+  return rows.map((r) => ({ ...r, reactions: reactions.filter((x) => x.update_id === r.id) }));
+}
+
+/** Reacciones de un update y de sus comentarios. */
+export async function listUpdateReactions(updateId: string): Promise<PlanUpdateReaction[]> {
+  return (await getDb()
+    .prepare(
+      `SELECT r.target_id, r.update_id, r.user_id, u.name AS user_name, r.emoji FROM track_plan_update_reactions r
+       JOIN users u ON u.id = r.user_id WHERE r.update_id = ? ORDER BY r.created_at ASC`,
+    )
+    .all(updateId)) as PlanUpdateReaction[];
+}
+
+/**
+ * Pone o saca una reacción (como en los comentarios de issues). El destino es
+ * el update o uno de sus comentarios; otro id no vale. Devuelve si quedó puesta.
+ */
+export async function togglePlanUpdateReaction(
+  updateId: string,
+  targetId: string,
+  userId: string,
+  emoji: string,
+): Promise<boolean | null> {
+  const db = getDb();
+  if (targetId !== updateId) {
+    const own = await db.prepare('SELECT 1 AS x FROM track_plan_update_comments WHERE id = ? AND update_id = ?').get(targetId, updateId);
+    if (!own) return null;
+  }
+  const del = await db
+    .prepare('DELETE FROM track_plan_update_reactions WHERE target_id = ? AND user_id = ? AND emoji = ?')
+    .run(targetId, userId, emoji);
+  if (del.changes > 0) return false;
+  await db
+    .prepare('INSERT OR IGNORE INTO track_plan_update_reactions (target_id, update_id, user_id, emoji, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(targetId, updateId, userId, emoji, nowIso());
+  return true;
 }
 
 export async function getPlanUpdate(id: string): Promise<(PlanUpdate & { plan: TrackPlanRow }) | undefined> {

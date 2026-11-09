@@ -91,7 +91,8 @@ const KeyPicker = forwardRef<KeyPickerHandle, KeyPickerProps>(function KeyPicker
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
-  const [style, setStyle] = useState<CSSProperties>({});
+  // Fijo (y transparente) hasta medir el trigger: sin esto el menú se monta al final del <body> y el foco hace scroll hasta ahí.
+  const [style, setStyle] = useState<CSSProperties>({ position: 'fixed', top: 0, left: 0, opacity: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -108,7 +109,7 @@ const KeyPicker = forwardRef<KeyPickerHandle, KeyPickerProps>(function KeyPicker
   }, []);
   const doClose = useCallback((refocus = true) => {
     setOpen(false);
-    if (refocus) (triggerRef.current ?? returnFocus.current)?.focus();
+    if (refocus) (triggerRef.current ?? returnFocus.current)?.focus({ preventScroll: true });
   }, []);
   useImperativeHandle(ref, () => ({ open: doOpen, close: () => doClose() }), [doOpen, doClose]);
 
@@ -143,8 +144,8 @@ const KeyPicker = forwardRef<KeyPickerHandle, KeyPickerProps>(function KeyPicker
         ? { position: 'fixed', left, bottom: window.innerHeight - r.top + 4, width: w }
         : { position: 'fixed', left, top: r.bottom + 4, width: w },
     );
-    // El campo toma el foco: quien tipea rápido después del atajo no pierde teclas.
-    inputRef.current?.focus();
+    // El campo toma el foco (sin mover la página): quien tipea rápido después del atajo no pierde teclas.
+    inputRef.current?.focus({ preventScroll: true });
   }, [open, width]);
 
   useEffect(() => {
@@ -169,7 +170,7 @@ const KeyPicker = forwardRef<KeyPickerHandle, KeyPickerProps>(function KeyPicker
       onSelect(o.value);
       if (multi) {
         setQ('');
-        inputRef.current?.focus();
+        inputRef.current?.focus({ preventScroll: true });
       } else doClose();
     } else if (canCreate) {
       onCreate?.(q.trim());
