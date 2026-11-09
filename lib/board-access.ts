@@ -99,7 +99,15 @@ export async function getTrashedBoardAccess(viewer: BoardViewer, boardId: string
   return resolveBoardAccess(row, viewer, await memberRole(boardId, viewer.personId));
 }
 
-async function memberRole(boardId: string, personId: string): Promise<BoardMemberRole | null> {
+/** ¿La persona solo ve lo compartido con ella (guest, o member sin Board)? */
+export async function sharedOnly(workspaceId: string, personId: string): Promise<boolean> {
+  if (personId === workspaceId) return false;
+  const { personAppAccess } = await import('./api-auth');
+  const access = await personAppAccess(workspaceId, personId);
+  return !access || (access.apps !== '*' && !access.apps.includes('board'));
+}
+
+export async function memberRole(boardId: string, personId: string): Promise<BoardMemberRole | null> {
   const m = (await getDb()
     .prepare('SELECT role FROM board_members WHERE board_id = ? AND user_id = ?')
     .get(boardId, personId)) as { role: string } | undefined;
@@ -118,6 +126,8 @@ export async function personCanViewBoard(personId: string, boardId: string): Pro
   if (!row) return false;
   const members = await listBoardMembers(row.workspace_id);
   if (!members.some((m) => m.id === personId)) return false;
+  // Sin Board en sus apps (o guest): solo lo que se le compartió a ella.
+  if (await sharedOnly(row.workspace_id, personId)) return (await memberRole(boardId, personId)) !== null;
   const isAdmin = personId === row.workspace_id || (await isWorkspaceAdmin(row.workspace_id, personId));
   return resolveBoardAccess(row, { personId, isAdmin }, await memberRole(boardId, personId)) !== null;
 }

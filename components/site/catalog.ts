@@ -47,6 +47,7 @@ export const RIVALS: Record<ProductKey, string> = {
   sign: 'DocuSign',
   forms: 'Typeform',
   send: 'DocSend',
+  inbox: 'Superhuman · WhatsApp Web',
 };
 
 /** Las seis apps de la tabla de costos del home (precio por usuario o plan fijo). */
@@ -164,4 +165,6 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   forms: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   // Precios de DocSend: la página oficial no se pudo leer, el bloque remite a docsend.com/pricing.
   send: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
+  // Personal: el precio de Superhuman es por persona; el bloque lo cita como referencia.
+  inbox: { sections: ['shot', 'features', 'how', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
 };

@@ -72,6 +72,7 @@
   --c-books: #1e3a8a;
   --c-sign: #7f1d1d;
   --c-send: #0b7285;
+  --c-inbox: #3d5a80;
   --c-forms: #6e730d;
 
   /* Forma: la del tema (--radius-1). */
@@ -163,6 +164,7 @@ body {
 .card-books { --accent: var(--c-books); --on-accent: #ffffff; }
 .card-sign { --accent: var(--c-sign); --on-accent: #ffffff; }
 .card-send { --accent: var(--c-send); --on-accent: #ffffff; }
+.card-inbox { --accent: var(--c-inbox); --on-accent: #ffffff; }
 .card-forms { --accent: var(--c-forms); --on-accent: #ffffff; }
 /* El color del producto, oscurecido para usarlo como texto sobre blanco. */
 [class*='card-'] { --accent-ink: color-mix(in srgb, var(--accent) 74%, var(--ink)); }

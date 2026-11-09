@@ -11,6 +11,7 @@ import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
 import { sendUp } from './send-migration';
+import { inboxUp } from './inbox-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -8797,28 +8798,63 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
-    // La app de analítica de producto (eventos, embudos, grabaciones) pasa a
-    // llamarse Pulse: la clave guardada de la app cambia de 'analytics' a
-    // 'pulse' en accesos, invitaciones, pedidos de acceso y la taxonomía de
-    // feedback, roadmap y changelog. Las tablas analytics_* no cambian.
-    id: '289_pulse_app_key',
+    // Inbox (personal): WhatsApp y Gmail de una persona. Ver lib/schema/inbox-migration.ts.
+    id: '289_inbox',
+    up: inboxUp,
+  },
+  {
+    // Ajustes › Miembros y permisos: registro de cambios (con lo de antes para
+    // deshacer), última actividad por persona y la ficha de quien se desactivó
+    // (para reactivarlo con el mismo rol, apps y equipos).
+    id: '290_workspace_permissions',
     up: async (c) => {
-      const stmts = [
-        `UPDATE team_members SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
-        `UPDATE team_invites SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
-        `UPDATE workspace_groups SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
-        `UPDATE OR IGNORE workspace_access_requests SET app = 'pulse' WHERE app = 'analytics'`,
-        `UPDATE roadmap_items SET product = 'pulse' WHERE product = 'analytics'`,
-        `UPDATE feedback SET product = 'pulse' WHERE product = 'analytics'`,
-        `UPDATE changelog_entries SET products = replace(products, '"analytics"', '"pulse"') WHERE products LIKE '%"analytics"%'`,
-      ];
-      for (const sql of stmts) {
-        try {
-          await c.execute(sql);
-        } catch {
-          // Tabla que esta instalación no tiene (o feedback con el CHECK viejo): no hay filas que mover.
-        }
-      }
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS workspace_audit (
+          id TEXT PRIMARY KEY,
+          team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+          actor_id TEXT NOT NULL,
+          target_id TEXT,
+          target_label TEXT NOT NULL DEFAULT '',
+          action TEXT NOT NULL,
+          before TEXT NOT NULL DEFAULT '{}',
+          after TEXT NOT NULL DEFAULT '{}',
+          undo_of TEXT,
+          undone_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_workspace_audit_team ON workspace_audit(team_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS workspace_removed_members (
+          team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'member',
+          apps TEXT NOT NULL DEFAULT '*',
+          group_ids TEXT NOT NULL DEFAULT '[]',
+          removed_by TEXT,
+          removed_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (team_id, user_id)
+        );
+      `);
+      await addColumn(c, 'ALTER TABLE team_members ADD COLUMN last_active_at TEXT');
+    },
+  },
+  {
+    // Modo sin conexión: altas que la app reenvía al volver la red llevan una
+    // clave propia; acá queda la respuesta de la primera vez, así un reenvío
+    // (la respuesta se perdió con la red) no crea dos veces lo mismo.
+    id: '291_offline_requests',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS offline_requests (
+          user_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          scope TEXT NOT NULL DEFAULT '',
+          status INTEGER,
+          body TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, key)
+        );
+        CREATE INDEX IF NOT EXISTS offline_requests_created ON offline_requests(created_at);
+      `);
     },
   },
   {
@@ -8826,7 +8862,7 @@ export const MIGRATIONS: Migration[] = [
     // tableros con tarjetas, links públicos firmados, suscripciones y caché
     // de resultados. Todo por workspace; las credenciales de las bases van
     // cifradas (lib/bi/secrets.ts).
-    id: '290_bi_analytics',
+    id: '292_bi_analytics',
     up: async (c) => {
       await c.executeMultiple(`
         CREATE TABLE IF NOT EXISTS bi_collections (
@@ -8939,6 +8975,31 @@ export const MIGRATIONS: Migration[] = [
         );
         CREATE INDEX IF NOT EXISTS idx_bi_cache_exp ON bi_cache(expires_at);
       `);
+    },
+  },
+  {
+    // La app de analítica de producto (eventos, embudos, grabaciones) pasa a
+    // llamarse Pulse: la clave guardada de la app cambia de 'analytics' a
+    // 'pulse' en accesos, invitaciones, pedidos de acceso y la taxonomía de
+    // feedback, roadmap y changelog. Las tablas analytics_* no cambian.
+    id: '293_pulse_app_key',
+    up: async (c) => {
+      const stmts = [
+        `UPDATE team_members SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
+        `UPDATE team_invites SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
+        `UPDATE workspace_groups SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
+        `UPDATE OR IGNORE workspace_access_requests SET app = 'pulse' WHERE app = 'analytics'`,
+        `UPDATE roadmap_items SET product = 'pulse' WHERE product = 'analytics'`,
+        `UPDATE feedback SET product = 'pulse' WHERE product = 'analytics'`,
+        `UPDATE changelog_entries SET products = replace(products, '"analytics"', '"pulse"') WHERE products LIKE '%"analytics"%'`,
+      ];
+      for (const sql of stmts) {
+        try {
+          await c.execute(sql);
+        } catch {
+          // Tabla que esta instalación no tiene (o feedback con el CHECK viejo): no hay filas que mover.
+        }
+      }
     },
   },
 ];

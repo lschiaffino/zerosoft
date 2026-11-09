@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "24 open-source business apps: CRM, chat, docs and more",
-      "description": "Twenty-five open-source apps, from CRM and support chat to docs, invoicing and forms. On your own server or on zerosoft Cloud with a free plan."
+      "description": "Twenty-six open-source apps, from CRM and support chat to docs, invoicing and forms. On your own server or on zerosoft Cloud with a free plan."
     },
     "hero": {
-      "title1": "Twenty-five apps.",
+      "title1": "Twenty-six apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all twenty-five apps.",
+      "title1": "Try all twenty-six apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -2287,6 +2287,92 @@
         "sub": "Open Send, upload a document and make your first link.",
         "button": "Open Send"
       }
+    },
+    "inbox": {
+      "meta": {
+        "title": "Inbox: your WhatsApp and Gmail with Superhuman shortcuts",
+        "description": "A personal inbox for WhatsApp, linked by QR, and Gmail: folders, snooze, send later, reminders when nobody replies, AI drafts, dictation and keyboard shortcuts. Open source."
+      },
+      "hero": {
+        "sub": "Link your WhatsApp with a QR code and connect Gmail. Chats look like WhatsApp Web and triage works like Superhuman: J and K to move, E for done, H to snooze, and everything else from the keyboard."
+      },
+      "featuresTitle": "Every chat handled.",
+      "featuresTitleDim": "From the keyboard.",
+      "f1": {
+        "t": "WhatsApp and Gmail in one list",
+        "d": "Your personal WhatsApp linked by QR like WhatsApp Web, and Gmail by Google sign-in. Done archives in Gmail too."
+      },
+      "f2": {
+        "t": "Folders that fill themselves",
+        "d": "Group chats from both channels in your folders, with optional rules by channel, kind or name. They show in the sidebar with their unread count."
+      },
+      "f3": {
+        "t": "Snooze, send later, remind me",
+        "d": "Snooze a chat until tomorrow, schedule a message for Monday at 9, or get the chat back if they have not replied by Friday."
+      },
+      "f4": {
+        "t": "Write with AI or dictate",
+        "d": "Draft a reply with the conversation and your notes as context, rewrite what you typed, or dictate with Voice. Nothing is sent without you."
+      },
+      "f5": {
+        "t": "Keyboard first",
+        "d": "Superhuman shortcuts, snippets with ;, Cmd+K across the suite, search through every message, and undo with Z."
+      },
+      "f6": {
+        "t": "Private to you",
+        "d": "Your inbox belongs to your person, not the workspace: admins never see it. Tokens are encrypted, and messages deleted for everyone stay visible to you."
+      },
+      "steps": {
+        "s1": {
+          "t": "Link WhatsApp",
+          "d": "Scan a QR code from Linked devices."
+        },
+        "s2": {
+          "t": "Connect Gmail",
+          "d": "Sign in with Google, or import from inbox-zero."
+        },
+        "s3": {
+          "t": "Get to zero",
+          "d": "J, K, E and H until the list is empty."
+        }
+      },
+      "compare": {
+        "rival": "Superhuman",
+        "price": "Paid plans per person",
+        "per": "per person, email only",
+        "teamLabel": "One person, WhatsApp and Gmail",
+        "team": "see Superhuman's pricing",
+        "zero": "$0",
+        "note": "Superhuman does email only and we did not verify its current price, so we do not quote one: look at superhuman.com. Inbox on your own server costs $0 plus your database and your WhatsApp server."
+      },
+      "faq": {
+        "f1": {
+          "q": "Is linking WhatsApp by QR safe for my number?",
+          "a": "It works like WhatsApp Web, through an unofficial session on a self-hosted server. WhatsApp can restrict numbers that send in bulk or get reported, so Inbox is made for your own conversations, not campaigns."
+        },
+        "f2": {
+          "q": "Can my workspace admin read my messages?",
+          "a": "Inbox data belongs to your user and not the workspace: there is no admin view, and workspace API keys and the MCP server cannot reach it. Removing an account deletes what Inbox saved."
+        },
+        "f3": {
+          "q": "What happens to the chats on my phone?",
+          "a": "Nothing changes on your phone. Done, snooze and folders live in Inbox. Archive in Gmail is mirrored: Done removes the thread from your Gmail inbox."
+        },
+        "f4": {
+          "q": "Can I bring what I have in inbox-zero?",
+          "a": "Yes. A script reads your local inbox.db and makes a file with folders, scheduled messages, drafts, snoozes, notes and saved history. You upload it in Inbox settings, and importing twice does not duplicate anything."
+        },
+        "f5": {
+          "q": "What is missing compared to Superhuman?",
+          "a": "Read receipts for email, splits sorted by AI, a calendar inside the inbox, team sharing and mobile apps, among others. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Inbox zero.",
+        "title2": "On WhatsApp too.",
+        "sub": "Open Inbox, link WhatsApp and start triaging.",
+        "button": "Open Inbox"
+      }
     }
   },
   "product": {
@@ -2302,7 +2388,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Twenty-five apps, same login.",
+    "suiteTitleDim": "Twenty-six apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -2392,7 +2478,8 @@
       "books": "fig. 0 · transactions being reconciled",
       "sign": "fig. 0 · a signature at the foot of a contract",
       "forms": "fig. 0 · a form being filled in",
-      "send": "fig. 0 · pages being read, with the time on each"
+      "send": "fig. 0 · pages being read, with the time on each",
+      "inbox": "fig. 0 · a chat and an email in the same list"
     },
     "heroFigHint": "drag to rotate"
   },
@@ -2879,6 +2966,27 @@
       "p3time": "0:25",
       "p4label": "Page 4",
       "p4time": "0:08"
+    },
+    "inbox": {
+      "listTitle": "Inbox",
+      "r1name": "Ana Pérez",
+      "r1time": "14:05",
+      "r1meta": "Can you send me the contract today?",
+      "r2name": "Family",
+      "r2time": "13:40",
+      "r2meta": "Mom: Sunday lunch at 1",
+      "r3name": "Martín",
+      "r3time": "Mon",
+      "r3meta": "No reply · Back",
+      "r4name": "Bank",
+      "r4time": "Mon",
+      "r4meta": "Your statement is ready",
+      "status": "WhatsApp",
+      "m1": "Hi! Can you send me the contract today?",
+      "m2": "Yes, I'm finishing the last page.",
+      "m3": "Great, thanks",
+      "draft": "Here it is. Let me know if anything needs changing.",
+      "draftTag": "AI draft"
     }
   },
   "status": {
@@ -3774,7 +3882,7 @@
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across {apps} of the 25 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across {apps} of the 26 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",
@@ -3845,7 +3953,17 @@
     "mobileBody": "Open zerosoft.ai/app in Safari or Chrome and add it to the home screen: it opens like an app, with every zerosoft app. Native iOS and Android builds are not in the stores yet.",
     "openApp": "Open in the browser",
     "f5t": "Keeps working without a connection",
-    "f5d": "If a dictation cannot reach the server, the recording stays on your computer and you send it again from the menu bar when you are back online."
+    "f5d": "If a dictation cannot reach the server, the recording stays on your computer and you send it again from the menu bar when you are back online.",
+    "offlineTitle": "Offline",
+    "offlineLead": "In the browser and in the app installed from the browser, some apps keep working without a network. Your changes are saved on your device and sent when the connection is back; the top bar shows how many changes are waiting and which ones could not be saved. We have not tested it in the desktop app yet.",
+    "offCrm": "Contacts, companies and deals you already opened are readable offline. Notes, tasks and field changes are saved and sent when you reconnect. Emails, files and imports need a connection.",
+    "offDocs": "Pages you opened, plus the ones you marked \"Available offline\" and their subpages. What you type is saved on the device and merged block by block with what others changed when you are back.",
+    "offNotes": "A copy of your notes on the device: search, create and edit without a network. If someone changed the same note, yours is kept as a separate copy.",
+    "offTrack": "Lists, issues and projects you opened are readable offline. Changing status, priority, assignee, dates, title or description, creating issues and commenting are saved and sent when you reconnect. If someone edited the same issue meanwhile, the last change to arrive wins and you get a notice. Attachments, AI and integrations need a connection.",
+    "offOtherT": "Not yet",
+    "offOther": "Board, Chat, Calendar, Voice, Talk and the other apps need a connection for now.",
+    "offPrivacyT": "Your device",
+    "offPrivacy": "What is stored belongs to your session: signing out deletes all of it, including changes that were not sent, and someone else on the same computer sees nothing of yours."
   },
   "compare": {
     "crumb": "Compare",
@@ -3920,7 +4038,7 @@
   "docsMcp": {
     "meta": {
       "title": "Connect Claude and the CLI",
-      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 25 apps as yourself."
+      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 26 apps as yourself."
     }
   }
 }

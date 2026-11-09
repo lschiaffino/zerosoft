@@ -51,6 +51,8 @@ export function serializeApps(apps: AppAccess | readonly string[] | null | undef
 export function canUseApp(access: { role?: string | null; apps?: AppAccess | string | null }, app: ProductKey): boolean {
   const role = access.role ?? 'owner';
   if (role === 'owner') return true;
+  // Inbox es personal (los mensajes de la persona, no del workspace): siempre la tiene.
+  if (app === 'inbox') return true;
   if (role === 'guest') return false;
   const apps = typeof access.apps === 'string' || access.apps == null ? parseApps(access.apps) : access.apps;
   return apps === '*' || apps.includes(app);

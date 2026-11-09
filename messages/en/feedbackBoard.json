@@ -77,7 +77,8 @@
     "sign": "Sign",
     "books": "Books",
     "forms": "Forms",
-    "send": "Send"
+    "send": "Send",
+    "inbox": "Inbox"
   },
   "empty": "No ideas yet. Suggest the first one.",
   "emptySearch": "Nothing matches. Try other words or suggest the idea.",

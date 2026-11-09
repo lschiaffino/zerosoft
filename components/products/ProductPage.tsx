@@ -43,6 +43,7 @@ import BooksMockup from './mockups/BooksMockup';
 import SignMockup from './mockups/SignMockup';
 import FormsMockup from './mockups/FormsMockup';
 import SendMockup from './mockups/SendMockup';
+import InboxMockup from './mockups/InboxMockup';
 
 const MOCKUPS: Record<ProductKey, ComponentType> = {
   link: LinkMockup,
@@ -71,6 +72,7 @@ const MOCKUPS: Record<ProductKey, ComponentType> = {
   sign: SignMockup,
   forms: FormsMockup,
   send: SendMockup,
+  inbox: InboxMockup,
 };
 
 const STEP_IDS = ['s1', 's2', 's3'] as const;

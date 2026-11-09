@@ -1,6 +1,6 @@
 {
   "meta": {
-    "tagline": "Vinte e cinco apps open source para o seu time.",
+    "tagline": "Vinte e seis apps open source para o seu time.",
     "description": "Apps open source para empresas: CRM, chat de suporte, agentes de IA, automações, docs e mais. Rode no seu servidor por $0 ou use a zerosoft Cloud.",
     "homeTitle": "zerosoft: apps open source para empresas, do CRM aos docs"
   },
@@ -47,7 +47,8 @@
       "sign": "Assinatura eletrônica com trilha de auditoria",
       "books": "Faturas, despesas, bancos e contabilidade",
       "forms": "Formulários e pesquisas, uma pergunta por vez",
-      "send": "Compartilhe documentos por link e veja quem leu o quê"
+      "send": "Compartilhe documentos por link e veja quem leu o quê",
+      "inbox": "Seu WhatsApp e seu Gmail em uma caixa guiada pelo teclado"
     },
     "building": "Em construção"
   },
@@ -219,11 +220,12 @@
     "groupBooksRecurring": "Faturas recorrentes",
     "groupForms": "Formulários",
     "groupSend": "Documentos para enviar",
-    "untitled": "Sem título"
+    "untitled": "Sem título",
+    "groupInbox": "Inbox"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
-    "p2": "Rodar esse software custa bem menos. Os vinte e cinco apps da zerosoft cabem em <strong>um contêiner e um arquivo SQLite</strong>, num servidor pequeno.",
+    "p2": "Rodar esse software custa bem menos. Os vinte e seis apps da zerosoft cabem em <strong>um contêiner e um arquivo SQLite</strong>, num servidor pequeno.",
     "p3": "Por isso publicamos o código. O core de cada app é AGPLv3: você pode ler, modificar e rodar no seu servidor sem nos pagar nada.",
     "final": "Por que fazemos a zerosoft.",
     "p4": "Se preferir que a gente opere, a zerosoft Cloud cobra por workspace e por uso. Colocar mais alguém no time não muda a fatura.",
@@ -307,6 +309,9 @@
     },
     "send": {
       "desc": "Compartilhe documentos por link e veja quem leu cada página."
+    },
+    "inbox": {
+      "desc": "Seu WhatsApp e seu Gmail, organizados em uma lista só pelo teclado."
     }
   },
   "model": {
@@ -424,7 +429,7 @@
   },
   "home": {
     "hero": {
-      "title1": "Vinte e cinco apps para o seu time.",
+      "title1": "Vinte e seis apps para o seu time.",
       "title2": "Zero licenças.",
       "sub": "Alternativas open source ao HubSpot, Intercom, Calendly, Linear, Notion e mais 19 produtos que o seu time paga todo mês. Rode no seu servidor por $0 ou use na zerosoft Cloud.",
       "ctaStart": "Comece grátis",
@@ -481,7 +486,7 @@
         "b3": "Modelos, comentários e compartilhamento"
       },
       "one": {
-        "title": "Uma conta para os vinte e cinco apps.",
+        "title": "Uma conta para os vinte e seis apps.",
         "desc": "Convide seu time uma vez. Encontre contatos, empresas, negócios, links, docs e tarefas em uma única barra de busca, e pule entre apps sem trocar de ferramenta."
       },
       "replaces": "Substitui {rival}",
@@ -547,6 +552,9 @@
       },
       "send": {
         "line": "Compartilhe documentos por link e veja quem leu o quê."
+      },
+      "inbox": {
+        "line": "Seu WhatsApp e seu Gmail em uma caixa guiada pelo teclado."
       }
     },
     "stack": {
@@ -561,7 +569,7 @@
       "total": "Total por ano",
       "zeroTitle": "zerosoft, no seu servidor",
       "footnote": "Preços de tabela citados nas nossas páginas de produto, com cobrança mensal, para 10 usuários (Bitly Core é um plano fixo). Os fornecedores mudam os preços: confira nos sites deles. A zerosoft não tem afiliação com nenhuma dessas empresas.",
-      "rApps": "Os vinte e cinco apps",
+      "rApps": "Os vinte e seis apps",
       "rSeats": "Usuários",
       "rLicense": "Licença",
       "rData": "Seus dados",
@@ -632,7 +640,7 @@
   },
   "appHome": {
     "title": "Seus apps",
-    "lead": "Os vinte e cinco apps do seu workspace. Escolha um para começar.",
+    "lead": "Os vinte e seis apps do seu workspace. Escolha um para começar.",
     "apps": "Apps",
     "open": "Abrir {name}",
     "linkSummary": "Visão geral do Link",
@@ -758,7 +766,7 @@
   "notFound": {
     "sign": "Erro 404",
     "title": "Esta página não existe.",
-    "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos vinte e cinco apps.",
+    "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos vinte e seis apps.",
     "cta": "Ir para o início",
     "meta": "Página não encontrada"
   },
@@ -841,5 +849,44 @@
     "errorTitle": "Não conseguimos carregar o {app}",
     "errorBody": "Tente de novo em um momento.",
     "retry": "Tentar de novo"
+  },
+  "offline": {
+    "offline": "Sem conexão",
+    "offlinePending": "Sem conexão · {count, plural, one {# alteração neste dispositivo} other {# alterações neste dispositivo}}",
+    "pendingShort": "{count, plural, one {# alteração não sincronizada} other {# alterações não sincronizadas}}",
+    "failedShort": "{count, plural, one {# alteração não foi salva} other {# alterações não foram salvas}}",
+    "conflictShort": "Editado em outro lugar",
+    "syncing": "Sincronizando…",
+    "synced": "Sincronizado",
+    "panelTitle": "Status sem conexão",
+    "leadOffline": "O que você já abriu no CRM, Docs, Notes e Track continua visível. O que você mudar fica salvo neste dispositivo e é enviado quando a conexão voltar.",
+    "leadPending": "Há alterações salvas neste dispositivo que ainda não chegaram ao servidor.",
+    "leadOnline": "Tudo o que você fez sem conexão já está no servidor.",
+    "savedOnDevice": "Salvo neste dispositivo",
+    "inApps": "Esperando em cada app",
+    "docsDrafts": "Docs: {count, plural, one {# página com alterações} other {# páginas com alterações}}",
+    "notesPending": "Notes: {count, plural, one {# alteração} other {# alterações}}",
+    "failedTitle": "Não foi possível salvar",
+    "status": {
+      "forbidden": "sem permissão",
+      "gone": "não existe mais",
+      "rejected": "recusado"
+    },
+    "retry": "Tentar de novo",
+    "discard": "Descartar",
+    "conflictTitle": "Editado em outro lugar",
+    "conflictBody": "Alguém salvou outra versão enquanto você estava sem conexão. Ficou a sua, que chegou por último: confira se está certo.",
+    "understood": "Entendi",
+    "change": "Alteração",
+    "syncNow": "Sincronizar agora",
+    "retryLater": "O servidor não respondeu. Tenta de novo sozinho.",
+    "help": "O que funciona sem conexão",
+    "signOutTitle": "{count, plural, one {# alteração ainda não foi sincronizada} other {# alterações ainda não foram sincronizadas}}",
+    "signOutBody": "Elas estão salvas só neste dispositivo. Ao sair, elas são apagadas e não chegam ao servidor. Para mantê-las, espere ter conexão e a barra de cima mostrar Sincronizado.",
+    "signOutConfirm": "Sair mesmo assim",
+    "signOutCancel": "Cancelar",
+    "unknownShort": "{count, plural, one {# alteração não enviada} other {# alterações não enviadas}}",
+    "unknownTitle": "Não enviadas",
+    "unknownBody": "{count, plural, one {Há # alteração antiga} other {Há # alterações antigas}} neste dispositivo que não dá para ligar a uma sessão. Elas não são enviadas com a sua. Descarte se não precisar delas."
   }
 }

@@ -931,6 +931,33 @@ const APPS: AppCase[] = [
     rename: async (request, i, name) => void (await ok(request.patch(`/api/send/spaces/${i.id}`, { data: { title: name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/send/spaces/${i.id}`))),
   },
+  {
+    // Inbox: carpetas propias (también en el sidebar, debajo de Bandeja).
+    app: 'Inbox folders',
+    list: '/en/app/inbox/settings',
+    create: async (request, name) => ({ id: (await ok<{ folder: { id: string } }>(request.post('/api/inbox/folders', { data: { name } }))).folder.id, name }),
+    detail: (i) => `/en/app/inbox/f/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/inbox/folders/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/inbox/folders/${i.id}`))),
+    sidebar: true,
+  },
+  {
+    // Inbox: un chat de WhatsApp nuevo (proveedor falso, GROUPS_FAKE=1) con el nombre del smoke.
+    app: 'Inbox chats',
+    list: '/en/app/inbox',
+    create: async (request, name) => {
+      await ok(request.post('/api/inbox/whatsapp'));
+      // El proveedor falso queda vinculado a los 1,5 s; el GET guarda el estado.
+      await expect.poll(async () => ((await ok<{ state: { status: string } }>(request.get('/api/inbox/whatsapp'))).state.status), { timeout: 10_000 }).toBe('connected');
+      const phone = `5491${Math.floor(1e9 + Math.random() * 8e9)}`;
+      const { thread } = await ok<{ thread: { id: string } }>(request.post('/api/inbox/compose', { data: { channel: 'whatsapp', to: phone } }));
+      await ok(request.patch(`/api/inbox/threads/${thread.id}`, { data: { title: name } }));
+      return { id: thread.id, name };
+    },
+    detail: (i) => `/en/app/inbox?t=${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/inbox/threads/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/inbox/threads/${i.id}`))),
+  },
 ];
 
 /** Errores de JS, de consola y respuestas 5xx mientras corre el test. */

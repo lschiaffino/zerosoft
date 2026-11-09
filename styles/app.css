@@ -253,6 +253,61 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
 .app-band .side-bell[aria-expanded='true'] { background: var(--chrome-hover); }
 .app-band .side-bell svg { width: 16px; height: 16px; }
 
+/* Estado sin conexión (components/app/OfflineStatus.tsx): punto y texto corto; el panel lista lo pendiente. */
+.band-offline { position: relative; flex-shrink: 1; min-width: 0; }
+.band-offline-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 280px;
+  height: 32px;
+  padding: 0 10px;
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  color: var(--chrome-fg);
+  background: none;
+  border: 1px solid var(--chrome-line);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.band-offline-btn:hover,
+.band-offline-btn[aria-expanded='true'] { background: var(--chrome-hover); }
+.band-offline-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.band-offline-count { display: none; }
+.band-offline-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--ok); }
+.band-offline-btn.is-off { border-color: var(--warn); }
+.band-offline-btn.is-off .band-offline-dot,
+.band-offline-btn.is-warn .band-offline-dot { background: var(--warn); }
+.band-offline-btn.is-bad { border-color: var(--bad); }
+.band-offline-btn.is-bad .band-offline-dot { background: var(--bad); }
+.band-offline-btn.is-busy .band-offline-dot { background: var(--chrome-fg-3); }
+.band-offline-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 90;
+  width: 340px;
+  max-height: min(70svh, 520px);
+  overflow-y: auto;
+  padding: 12px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  font-size: 0.8125rem;
+}
+.band-offline-lead { margin: 0 0 10px; line-height: 1.45; }
+.band-offline-panel section { padding: 10px 0; border-top: 1px solid var(--line); }
+.band-offline-panel h3 { margin: 0 0 6px; font-size: 0.75rem; font-weight: 600; color: var(--muted, var(--brand-gray-2)); }
+.band-offline-panel ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.band-offline-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.band-offline-item { min-width: 0; overflow-wrap: anywhere; }
+.band-offline-code { color: var(--bad-ink); }
+.band-offline-actions { display: inline-flex; flex-shrink: 0; gap: 2px; }
+.band-offline-note { margin: 0 0 6px; color: var(--brand-gray-2); line-height: 1.45; }
+.band-offline-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.band-offline-help { margin-left: auto; color: inherit; text-decoration: underline; }
+
 /* ---------- Sidebar del producto ---------- */
 
 .side {
@@ -520,6 +575,11 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   .band-search:hover { background: var(--chrome-hover); }
   .band-search-label,
   .band-search .kbd { display: none; }
+  /* Sin conexión en el teléfono: el texto corto se recorta y el panel ocupa el ancho. */
+  .band-offline-btn { height: 40px; padding: 0 10px; gap: 6px; border: 0; }
+  .band-offline-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .band-offline-count { display: inline; font-variant-numeric: tabular-nums; }
+  .band-offline-panel { position: fixed; top: calc(var(--band-h) + 4px); left: 16px; right: 16px; width: auto; }
 
   .side {
     position: fixed;
@@ -1353,3 +1413,15 @@ td.cell-actions > * + * { margin-left: 4px; }
 
 /* Sin ningún bloque (todos vacíos en uso personal): no queda el título solo. */
 .home-section:has(> .home-today:empty) { display: none; }
+
+/* ---------- Tacto ---------- */
+/* Con el dedo, las filas de la banda, el drawer y sus menús miden 44px (guía de iOS y Android). */
+@media (pointer: coarse) {
+  .band-menu-item,
+  .band-switcher-panel .band-menu-item,
+  .side-stop,
+  .side-link,
+  .side-handle,
+  .side-menu-item { height: 44px; }
+  .band-search { height: 40px; }
+}

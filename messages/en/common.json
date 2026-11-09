@@ -1,6 +1,6 @@
 {
   "meta": {
-    "tagline": "Twenty-five open-source apps for your team.",
+    "tagline": "Twenty-six open-source apps for your team.",
     "description": "Open-source business apps: CRM, support chat, AI agents, automations, docs and more. Run them on your server for $0 or use zerosoft Cloud.",
     "homeTitle": "zerosoft: open-source business apps, from CRM to docs"
   },
@@ -47,7 +47,8 @@
       "sign": "Electronic signatures with an audit trail",
       "books": "Invoices, expenses, banking and accounting",
       "forms": "Forms and surveys, one question at a time",
-      "send": "Share documents by link and see who read what"
+      "send": "Share documents by link and see who read what",
+      "inbox": "Your WhatsApp and Gmail in one keyboard-first inbox"
     },
     "building": "In the works"
   },
@@ -219,11 +220,12 @@
     "groupBooksRecurring": "Recurring invoices",
     "groupForms": "Forms",
     "groupSend": "Documents to send",
-    "untitled": "Untitled"
+    "untitled": "Untitled",
+    "groupInbox": "Inbox"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
-    "p2": "Running that software costs far less. All twenty-five zerosoft apps fit in <strong>one container and one SQLite file</strong> on a small server.",
+    "p2": "Running that software costs far less. All twenty-six zerosoft apps fit in <strong>one container and one SQLite file</strong> on a small server.",
     "p3": "So we publish the code. The core of every app is AGPLv3: you can read it, change it and run it on your server without paying us.",
     "final": "Why we build zerosoft.",
     "p4": "If you would rather we run it, zerosoft Cloud bills per workspace, by usage. Adding someone to the team does not change the bill.",
@@ -307,6 +309,9 @@
     },
     "send": {
       "desc": "Share documents by link and see who read each page."
+    },
+    "inbox": {
+      "desc": "Your WhatsApp and Gmail, triaged from one list with the keyboard."
     }
   },
   "model": {
@@ -424,7 +429,7 @@
   },
   "home": {
     "hero": {
-      "title1": "<nb>Twenty-five</nb> apps for your team.",
+      "title1": "<nb>Twenty-six</nb> apps for your team.",
       "title2": "Zero licenses.",
       "sub": "Open-source alternatives to HubSpot, Intercom, Calendly, Linear, Notion and 19 more products your team pays for every month. Run them on your server for $0 or use them on zerosoft Cloud.",
       "ctaStart": "Start free",
@@ -481,7 +486,7 @@
         "b3": "Templates, comments and sharing"
       },
       "one": {
-        "title": "One account for all twenty-five apps.",
+        "title": "One account for all twenty-six apps.",
         "desc": "Invite your team once. Find contacts, companies, deals, links, docs and tasks from a single search bar, and jump between apps without changing tools."
       },
       "replaces": "Replaces {rival}",
@@ -547,6 +552,9 @@
       },
       "send": {
         "line": "Share documents by link and see who read what."
+      },
+      "inbox": {
+        "line": "Your WhatsApp and Gmail in one keyboard-first inbox."
       }
     },
     "stack": {
@@ -561,7 +569,7 @@
       "total": "Total per year",
       "zeroTitle": "zerosoft, on your server",
       "footnote": "List prices as cited on our product pages, billed monthly, for 10 users (Bitly Core is a flat plan). Vendors change their prices, so check their sites. zerosoft is not affiliated with any of these companies.",
-      "rApps": "All twenty-five apps",
+      "rApps": "All twenty-six apps",
       "rSeats": "Users",
       "rLicense": "License",
       "rData": "Your data",
@@ -632,7 +640,7 @@
   },
   "appHome": {
     "title": "Your apps",
-    "lead": "The twenty-five apps in your workspace. Pick one to get started.",
+    "lead": "The twenty-six apps in your workspace. Pick one to get started.",
     "apps": "Apps",
     "open": "Open {name}",
     "linkSummary": "Link overview",
@@ -758,7 +766,7 @@
   "notFound": {
     "sign": "Error 404",
     "title": "This page does not exist.",
-    "body": "The link may have a typo or the page moved. The home page takes you to all twenty-five apps.",
+    "body": "The link may have a typo or the page moved. The home page takes you to all twenty-six apps.",
     "cta": "Go to the home page",
     "meta": "Page not found"
   },
@@ -841,5 +849,44 @@
     "errorTitle": "We couldn't load {app}",
     "errorBody": "Try again in a moment.",
     "retry": "Retry"
+  },
+  "offline": {
+    "offline": "Offline",
+    "offlinePending": "Offline · {count, plural, one {# change on this device} other {# changes on this device}}",
+    "pendingShort": "{count, plural, one {# change not synced} other {# changes not synced}}",
+    "failedShort": "{count, plural, one {# change was not saved} other {# changes were not saved}}",
+    "conflictShort": "Edited elsewhere",
+    "syncing": "Syncing…",
+    "synced": "Synced",
+    "panelTitle": "Offline status",
+    "leadOffline": "What you already opened in CRM, Docs, Notes and Track stays readable. Your changes are saved on this device and sent when the connection is back.",
+    "leadPending": "Some changes are saved on this device and have not reached the server yet.",
+    "leadOnline": "Everything you did offline is on the server.",
+    "savedOnDevice": "Saved on this device",
+    "inApps": "Waiting in each app",
+    "docsDrafts": "Docs: {count, plural, one {# page with changes} other {# pages with changes}}",
+    "notesPending": "Notes: {count, plural, one {# change} other {# changes}}",
+    "failedTitle": "Could not be saved",
+    "status": {
+      "forbidden": "no permission",
+      "gone": "no longer exists",
+      "rejected": "rejected"
+    },
+    "retry": "Retry",
+    "discard": "Discard",
+    "conflictTitle": "Edited elsewhere",
+    "conflictBody": "Someone saved another version while you were offline. Yours was the last to arrive, so it is the one that stayed: check that it looks right.",
+    "understood": "Got it",
+    "change": "Change",
+    "syncNow": "Sync now",
+    "retryLater": "The server did not respond. It retries on its own.",
+    "help": "What works offline",
+    "signOutTitle": "{count, plural, one {# change is not synced yet} other {# changes are not synced yet}}",
+    "signOutBody": "They are only saved on this device. Signing out deletes them and they never reach the server. To keep them, wait until you are online and the top bar says Synced.",
+    "signOutConfirm": "Sign out anyway",
+    "signOutCancel": "Cancel",
+    "unknownShort": "{count, plural, one {# change not sent} other {# changes not sent}}",
+    "unknownTitle": "Not sent",
+    "unknownBody": "{count, plural, one {There is # older change} other {There are # older changes}} on this device that cannot be tied to a session. They are not sent with yours. Discard them if you do not need them."
   }
 }

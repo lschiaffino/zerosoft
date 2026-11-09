@@ -38,7 +38,8 @@
       "sign": "Sign",
       "books": "Books",
       "forms": "Forms",
-      "send": "Send"
+      "send": "Send",
+      "inbox": "Inbox"
     },
     "messageLabel": "Mensagem",
     "placeholder": {

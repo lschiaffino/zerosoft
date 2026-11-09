@@ -1,4 +1,6 @@
 # Weekly dependency updates, grouped so each ecosystem opens one PR a week.
+# rebase-strategy: disabled, because rebasing every open PR on each push to main
+# reran their CI and kept the shared runners busy.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -8,6 +10,7 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    rebase-strategy: disabled
     labels: [dependencies]
     groups:
       npm-minor-and-patch:
@@ -20,6 +23,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    rebase-strategy: disabled
     labels: [dependencies]
     groups:
       actions:
@@ -31,7 +35,10 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    rebase-strategy: disabled
     labels: [dependencies]
     groups:
       cargo-minor-and-patch:
         update-types: [minor, patch]
+      cargo-major:
+        update-types: [major]

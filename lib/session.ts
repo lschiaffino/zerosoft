@@ -5,11 +5,13 @@ import { redirect } from 'next/navigation';
 import { API_PATH_HEADER, RETURN_PATH_HEADER, signInPath, WORKSPACE_HEADER } from './return-path';
 import { authOptions } from './auth';
 import { getUserByEmail, upsertUser, type TeamRow, type UserRow } from './db';
-import { resolveWorkspace, roleAtLeast, type TeamRole } from './teams';
+import { resolveWorkspace, type TeamRole } from './teams';
 import { appFromPath, ensureWorkspace, getWorkspace, hasAllApps, userCanUseApp, workspaceTeamId, type AppAccess } from './workspace';
 import type { ProductKey } from './products';
 import { seedUserIfNeeded } from './seed';
 import { delegatedIdentity } from './mcp/identity';
+import { can } from './permissions';
+import { touchActivity } from './workspace-admin';
 
 /**
  * DEMO_MODE convierte a todo visitante en el usuario demo compartido. En
@@ -64,7 +66,7 @@ export interface SessionUser extends UserRow {
 
 /** Puede gestionar miembros y borrar configuración del workspace. */
 export function isWorkspaceAdmin(user: SessionUser): boolean {
-  return roleAtLeast(user.role, 'admin');
+  return can(user, 'workspace.edit');
 }
 
 /** Id real de la persona logueada (no el del owner del workspace). */
@@ -154,6 +156,8 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
       return { ...real, team: null, workspace: await ensureWorkspace(real.id), role: 'owner', apps: '*', blockedApp: page };
     }
   }
+  // "Última actividad" de Miembros y permisos (a lo sumo una escritura cada 10 minutos, sin esperar).
+  touchActivity(workspace?.id, real.id);
   return user;
 }
 
