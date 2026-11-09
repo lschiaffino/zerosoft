@@ -1,6 +1,6 @@
 import { accountDto, listAccounts } from '@/lib/inbox/core';
 import { iJson, withOwner } from '@/lib/inbox/http';
-import { connectWhatsapp, disconnectWhatsapp, whatsappState } from '@/lib/inbox/whatsapp';
+import { connectWhatsapp, disconnectWhatsapp, resyncWhatsapp, whatsappState } from '@/lib/inbox/whatsapp';
 import { limitByIp } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
@@ -16,12 +16,16 @@ export async function GET() {
   });
 }
 
-/** Vincular: crea la instancia y devuelve el QR para escanear con el teléfono. */
+/**
+ * Vincular: crea la instancia y devuelve el QR para escanear con el teléfono.
+ * `?resync=1`: vuelve a vincular para que WhatsApp mande el historial.
+ */
 export async function POST(req: Request) {
   const limited = await limitByIp(req, 'inbox-wa-connect', 20, 600).catch(() => null);
   if (limited) return limited;
+  const resync = new URL(req.url).searchParams.get('resync') === '1';
   return withOwner(async (owner) => {
-    const { account, state } = await connectWhatsapp(owner);
+    const { account, state } = resync ? await resyncWhatsapp(owner) : await connectWhatsapp(owner);
     return iJson({ account: accountDto(account), state });
   });
 }
