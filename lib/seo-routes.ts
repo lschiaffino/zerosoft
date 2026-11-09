@@ -33,8 +33,9 @@ export const STATIC_PAGES = {
   videos: { path: '/videos', ns: 'videos.meta', title: 'title', description: 'description', priority: 0.4, freq: 'monthly' },
   status: { path: '/status', ns: 'pages.status.meta', title: 'title', description: 'description', priority: 0.3, freq: 'monthly' },
   // Fechas de "Última actualización" de messages/<locale>/legal.json.
-  security: { path: '/security', ns: 'legal.security.meta', title: 'title', description: 'description', priority: 0.3, freq: 'yearly', updated: '2026-10-12' },
-  privacy: { path: '/privacy', ns: 'legal.privacy.meta', title: 'title', description: 'description', priority: 0.2, freq: 'yearly', updated: '2026-10-13' },
+  security: { path: '/security', ns: 'legal.security.meta', title: 'title', description: 'description', priority: 0.3, freq: 'yearly', updated: '2026-11-09' },
+  privacy: { path: '/privacy', ns: 'legal.privacy.meta', title: 'title', description: 'description', priority: 0.2, freq: 'yearly', updated: '2026-11-09' },
+  subprocessors: { path: '/subprocessors', ns: 'legal.subprocessors.meta', title: 'title', description: 'description', priority: 0.2, freq: 'yearly', updated: '2026-11-09' },
   terms: { path: '/terms', ns: 'legal.terms.meta', title: 'title', description: 'description', priority: 0.2, freq: 'yearly', updated: '2026-10-12' },
 } as const satisfies Record<string, StaticPage>;
 

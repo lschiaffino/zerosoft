@@ -374,12 +374,16 @@ function WorkspaceSection({ ws, locale }: { ws: WorkspaceSecurity; locale: strin
   const [loading, setLoading] = useState(false);
 
   async function toggle(next: boolean) {
+    // El interruptor cambia al instante (como cualquier checkbox) y vuelve si el servidor dice que no.
+    setRequireMfa(next);
     setSaving(true);
     setError(null);
     const res = await post('/api/account/audit', { requireMfa: next, workspaceId: ws.id }, 'PATCH');
     setSaving(false);
-    if (!res.ok) return setError(res.data.error === 'enable_mfa_first' ? tErr('enableFirst') : tErr('generic'));
-    setRequireMfa(next);
+    if (!res.ok) {
+      setRequireMfa(!next);
+      return setError(res.data.error === 'enable_mfa_first' ? tErr('enableFirst') : tErr('generic'));
+    }
     router.refresh();
   }
 

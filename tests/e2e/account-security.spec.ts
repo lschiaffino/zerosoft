@@ -87,7 +87,11 @@ test('dos pasos, exigencia en el workspace y registro', async ({ browser }) => {
     expect(String(row.mfa_secret)).not.toContain(secret);
 
     // Exigirla en el workspace: queda en el registro.
-    await p.getByTestId('require-mfa').check();
+    // Se guarda al tocarlo: se espera la respuesta antes de recargar.
+    await Promise.all([
+      p.waitForResponse((r) => r.url().includes('/api/account/audit') && r.request().method() === 'PATCH' && r.ok()),
+      p.getByTestId('require-mfa').check(),
+    ]);
     await expect(p.getByTestId('require-mfa')).toBeChecked();
     await p.reload({ waitUntil: 'networkidle' });
     await expect(p.getByTestId('require-mfa')).toBeChecked();
