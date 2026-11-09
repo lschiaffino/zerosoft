@@ -255,7 +255,7 @@ describe('acciones sobre mensajes (proveedor falso)', () => {
     expect(note.meta.mentions).toEqual([mate.id]);
     const notes = async (id: string) =>
       (await getDb().prepare("SELECT type, href FROM notifications WHERE user_id = ? AND source_type = 'groups_chat'").all(id)) as Array<{ type: string; href: string }>;
-    expect(await notes(mate.id)).toEqual([{ type: 'mention', href: `/app/groups/inbox/${chat.id}#m-${note.id}` }]);
+    expect(await notes(mate.id)).toEqual([{ type: 'mention', href: `/app/lines/inbox/${chat.id}#m-${note.id}` }]);
     await editMessage(user.id, { me: user.id, isAdmin: false }, note.id, '@Bruno y @Carla miren esto');
     expect(await notes(mate.id)).toHaveLength(1);
     expect(await notes(other.id)).toHaveLength(1);

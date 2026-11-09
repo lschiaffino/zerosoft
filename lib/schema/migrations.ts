@@ -8896,6 +8896,31 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // La app de analítica de producto (eventos, embudos, grabaciones) pasa a
+    // llamarse Pulse: la clave guardada de la app cambia de 'analytics' a
+    // 'pulse' en accesos, invitaciones, pedidos de acceso y la taxonomía de
+    // feedback, roadmap y changelog. Las tablas analytics_* no cambian.
+    id: '293_pulse_app_key',
+    up: async (c) => {
+      const stmts = [
+        `UPDATE team_members SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
+        `UPDATE team_invites SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
+        `UPDATE workspace_groups SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
+        `UPDATE OR IGNORE workspace_access_requests SET app = 'pulse' WHERE app = 'analytics'`,
+        `UPDATE roadmap_items SET product = 'pulse' WHERE product = 'analytics'`,
+        `UPDATE feedback SET product = 'pulse' WHERE product = 'analytics'`,
+        `UPDATE changelog_entries SET products = replace(products, '"analytics"', '"pulse"') WHERE products LIKE '%"analytics"%'`,
+      ];
+      for (const sql of stmts) {
+        try {
+          await c.execute(sql);
+        } catch {
+          // Tabla que esta instalación no tiene (o feedback con el CHECK viejo): no hay filas que mover.
+        }
+      }
+    },
+  },
+  {
     // Track: reacciones en los updates de un project y en sus comentarios (como Linear).
     // target_id es el id del update o del comentario; update_id permite listarlas juntas.
     id: '285_track_plan_update_reactions',

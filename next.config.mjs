@@ -35,7 +35,20 @@ const nextConfig = {
   // Slugs de blog renombrados: el viejo redirige para siempre al nuevo.
   async redirects() {
     const renamed = [['open-source-no-es-gratis-es-libre', 'gratis-vs-libre']];
+    // La analítica de producto se llamaba Analytics y ahora es Pulse (/app/pulse). Las secciones que solo
+    // existen en Pulse redirigen para siempre; la raíz y las secciones que el nuevo Analytics (tipo
+    // Metabase) va a usar redirigen de forma temporal, para no quedar en la caché de los navegadores.
+    const pulseOnly = 'actions|alerts|annotations|cohorts|errors|events|experiments|flags|groups|heatmaps|insights|llm|persons|projects|replay|surveys';
+    const pulseShared = 'dashboards|data|sql|settings|subscriptions';
     return [
+      { source: `/:locale(en|es|pt)/app/analytics/:section(${pulseOnly})/:rest*`, destination: '/:locale/app/pulse/:section/:rest*', permanent: true },
+      { source: `/app/analytics/:section(${pulseOnly})/:rest*`, destination: '/app/pulse/:section/:rest*', permanent: true },
+      { source: `/:locale(en|es|pt)/app/analytics/:section(${pulseShared})/:rest*`, destination: '/:locale/app/pulse/:section/:rest*', permanent: false },
+      { source: `/app/analytics/:section(${pulseShared})/:rest*`, destination: '/app/pulse/:section/:rest*', permanent: false },
+      { source: '/:locale(en|es|pt)/app/analytics', destination: '/:locale/app/pulse', permanent: false },
+      { source: '/app/analytics', destination: '/app/pulse', permanent: false },
+      { source: '/:locale(en|es|pt)/products/analytics', destination: '/:locale/products/pulse', permanent: false },
+      { source: '/products/analytics', destination: '/products/pulse', permanent: false },
       // Los lectores de feeds prueban estas rutas en la raíz: el feed real vive en /en/blog.
       // Solo rutas con punto: una sin punto (como /feed) puede ser el slug de un link corto en cualquier dominio.
       ...['/rss.xml', '/feed.xml'].map((source) => ({ source, destination: '/en/blog/rss.xml', permanent: true })),
@@ -43,6 +56,17 @@ const nextConfig = {
       ...renamed.flatMap(([from, to]) => [
         { source: `/:locale(en|es|pt)/blog/${from}`, destination: `/:locale/blog/${to}`, permanent: true },
         { source: `/blog/${from}`, destination: `/blog/${to}`, permanent: true },
+      ]),
+      // Groups pasó a llamarse Lines: las URLs viejas (con o sin idioma, y cualquier subruta) van a las nuevas.
+      // La API (/api/groups, incluido el webhook de Evolution) no cambia.
+      ...[
+        ['app/groups', 'app/lines'],
+        ['products/groups', 'products/lines'],
+      ].flatMap(([from, to]) => [
+        { source: `/:locale(en|es|pt)/${from}`, destination: `/:locale/${to}`, permanent: true },
+        { source: `/:locale(en|es|pt)/${from}/:path*`, destination: `/:locale/${to}/:path*`, permanent: true },
+        { source: `/${from}`, destination: `/${to}`, permanent: true },
+        { source: `/${from}/:path*`, destination: `/${to}/:path*`, permanent: true },
       ]),
     ];
   },
@@ -100,7 +124,7 @@ const nextConfig = {
       { source: '/api/chat/messages/upload', headers: cors },
       // Reproductor de grabaciones: lo grabado puede apuntar a cualquier URL, y el visor no la pide.
       {
-        source: '/:locale(en|es|pt)/app/analytics/replay/:id',
+        source: '/:locale(en|es|pt)/app/pulse/replay/:id',
         headers: [{ key: 'Content-Security-Policy', value: "img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-src 'self' about:" }],
       },
       // Snippet de Analytics: se importa como módulo desde sitios de terceros.

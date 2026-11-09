@@ -32,7 +32,7 @@ export default async function ConnectionsSettingsPage(props: { params: Promise<{
       links={[
         { href: '/app/calendar/settings?tab=connections', label: t('connections.google') },
         { href: '/app/crm/settings?tab=integrations', label: t('connections.gmail') },
-        { href: '/app/groups/settings?tab=numbers', label: t('connections.whatsapp') },
+        { href: '/app/lines/settings?tab=numbers', label: t('connections.whatsapp') },
         { href: '/app/track/settings?tab=github', label: t('connections.github') },
         { href: '/app/settings/api#connected', label: t('connections.apps') },
       ]}

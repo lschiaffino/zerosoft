@@ -211,6 +211,7 @@ export default function SavedViewsMenu({
         ref={button}
         type="button"
         className="btn btn-ghost btn-sm"
+        aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((v) => !v)}

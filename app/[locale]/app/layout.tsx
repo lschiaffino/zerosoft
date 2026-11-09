@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { canCreateDocPage } from '@/lib/docs-guard';
 import { getTranslations } from 'next-intl/server';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
+import { sessionGuardScript, WHO_COOKIE_NAME } from '@/lib/session-guard';
 import { redirect } from 'next/navigation';
 import { DEMO_EMAIL, DEMO_MODE, requireUser } from '@/lib/session';
 import { RETURN_PATH_HEADER } from '@/lib/return-path';
@@ -15,6 +16,7 @@ import AppSidebar from '@/components/app/AppSidebar';
 import AppTopbar from '@/components/app/AppTopbar';
 import CommandSearch from '@/components/app/CommandSearch';
 import AssistantPanel from '@/components/assistant/AssistantPanel';
+import MenuLayerGuard from '@/components/app/MenuLayerGuard';
 import DictationHost from '@/components/voice/DictationHost';
 import MeetingReminders from '@/components/voice/MeetingReminders';
 import RecorderProvider from '@/components/voice/RecorderProvider';
@@ -67,6 +69,8 @@ export default async function AppLayout(
   } = props;
 
   const user = await requireUser(locale);
+  // La cookie de sesión con la que se arma esta página (la revisa sessionGuardScript al abrirla).
+  const whoCookie = (await cookies()).get(WHO_COOKIE_NAME)?.value ?? '';
   const real = user.actingUser ?? user;
   // Última actividad para los emails de ciclo de vida (después de responder; nunca frena la página).
   try {
@@ -165,6 +169,8 @@ export default async function AppLayout(
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
+        {/* Una copia guardada para usar sin conexión no se muestra si la sesión del navegador ya no es la misma (lib/session-guard.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
         <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
         <AppPwa />
@@ -210,7 +216,7 @@ export default async function AppLayout(
                 { href: '/app/talk/settings', label: tSide('appSettings') },
                 { href: '/app/design/settings', label: tSide('appSettings') },
                 { href: '/app/shop/settings', label: tSide('appSettings') },
-                { href: '/app/analytics/settings', label: tSide('appSettings') },
+                { href: '/app/pulse/settings', label: tSide('appSettings') },
                 { href: '/app/people/settings', label: tSide('appSettings') },
                 { href: '/app/books/settings', label: tSide('appSettings') },
                 { href: '/app/forms/settings', label: tSide('appSettings') },
@@ -290,14 +296,14 @@ export default async function AppLayout(
                 { href: '/app/agents', label: tAgents('sidebar.agents') },
                 { href: '/app/robots', label: tRobots('sidebar.robots') },
                 { href: '/app/robots/recorder', label: tRobots('recorder.title') },
-                { href: '/app/groups/inbox', label: tGroups('sidebar.inbox') },
-                { href: '/app/groups/list', label: tGroups('sidebar.groups') },
-                { href: '/app/groups/tickets', label: tGroups('sidebar.tickets') },
-                { href: '/app/groups/tasks', label: tGroups('sidebar.tasks') },
-                { href: '/app/groups/templates', label: tGroups('sidebar.templates') },
-                { href: '/app/groups/broadcasts', label: tGroups('sidebar.broadcasts') },
-                { href: '/app/groups/analytics', label: tGroups('sidebar.analytics') },
-                { href: '/app/groups/settings', label: tGroups('sidebar.settings') },
+                { href: '/app/lines/inbox', label: tGroups('sidebar.inbox') },
+                { href: '/app/lines/list', label: tGroups('sidebar.groups') },
+                { href: '/app/lines/tickets', label: tGroups('sidebar.tickets') },
+                { href: '/app/lines/tasks', label: tGroups('sidebar.tasks') },
+                { href: '/app/lines/templates', label: tGroups('sidebar.templates') },
+                { href: '/app/lines/broadcasts', label: tGroups('sidebar.broadcasts') },
+                { href: '/app/lines/analytics', label: tGroups('sidebar.analytics') },
+                { href: '/app/lines/settings', label: tGroups('sidebar.settings') },
                 { href: '/app/voice', label: tVoice('nav.meetings') },
                 { href: '/app/voice/dictation', label: tVoice('nav.dictation') },
                 { href: '/app/rec', label: tRec('sidebar.home') },
@@ -317,27 +323,27 @@ export default async function AppLayout(
                 { href: '/app/shop/customers', label: tShop('nav.customers') },
                 { href: '/app/shop/discounts', label: tShop('nav.discounts') },
                 { href: '/app/shop/analytics', label: tShop('nav.analytics') },
-                { href: '/app/analytics', label: tAnalytics('sidebar.web') },
-                { href: '/app/analytics/events', label: tAnalytics('sidebar.events') },
-                { href: '/app/analytics/insights', label: tAnalytics('sidebar.insights') },
-                { href: '/app/analytics/dashboards', label: tAnalytics('sidebar.dashboards') },
-                { href: '/app/analytics/persons', label: tAnalytics('sidebar.persons') },
-                { href: '/app/analytics/cohorts', label: tAnalytics('sidebar.cohorts') },
-                { href: '/app/analytics/flags', label: tAnalytics('sidebar.flags') },
-                { href: '/app/analytics/experiments', label: tAnalytics('sidebar.experiments') },
-                { href: '/app/analytics/actions', label: tAnalytics('sidebar.actions') },
-                { href: '/app/analytics/alerts', label: tAnalytics('sidebar.alerts') },
-                { href: '/app/analytics/subscriptions', label: tAnalytics('sidebar.subscriptions') },
-                { href: '/app/analytics/annotations', label: tAnalytics('sidebar.annotations') },
-                { href: '/app/analytics/data', label: tAnalytics('sidebar.data') },
-                { href: '/app/analytics/groups', label: tAnalytics('sidebar.groups') },
-                { href: '/app/analytics/replay', label: tAnalyticsReplay('sidebar.recordings') },
-                { href: '/app/analytics/heatmaps', label: tAnalyticsReplay('sidebar.heatmaps') },
-                { href: '/app/analytics/surveys', label: tAnalyticsMore('sidebar.surveys') },
-                { href: '/app/analytics/errors', label: tAnalyticsMore('sidebar.errors') },
-                { href: '/app/analytics/llm', label: tAnalyticsMore('sidebar.llm') },
-                { href: '/app/analytics/sql', label: tAnalytics('sidebar.sql') },
-                { href: '/app/analytics/projects', label: tAnalytics('sidebar.projects') },
+                { href: '/app/pulse', label: tAnalytics('sidebar.web') },
+                { href: '/app/pulse/events', label: tAnalytics('sidebar.events') },
+                { href: '/app/pulse/insights', label: tAnalytics('sidebar.insights') },
+                { href: '/app/pulse/dashboards', label: tAnalytics('sidebar.dashboards') },
+                { href: '/app/pulse/persons', label: tAnalytics('sidebar.persons') },
+                { href: '/app/pulse/cohorts', label: tAnalytics('sidebar.cohorts') },
+                { href: '/app/pulse/flags', label: tAnalytics('sidebar.flags') },
+                { href: '/app/pulse/experiments', label: tAnalytics('sidebar.experiments') },
+                { href: '/app/pulse/actions', label: tAnalytics('sidebar.actions') },
+                { href: '/app/pulse/alerts', label: tAnalytics('sidebar.alerts') },
+                { href: '/app/pulse/subscriptions', label: tAnalytics('sidebar.subscriptions') },
+                { href: '/app/pulse/annotations', label: tAnalytics('sidebar.annotations') },
+                { href: '/app/pulse/data', label: tAnalytics('sidebar.data') },
+                { href: '/app/pulse/groups', label: tAnalytics('sidebar.groups') },
+                { href: '/app/pulse/replay', label: tAnalyticsReplay('sidebar.recordings') },
+                { href: '/app/pulse/heatmaps', label: tAnalyticsReplay('sidebar.heatmaps') },
+                { href: '/app/pulse/surveys', label: tAnalyticsMore('sidebar.surveys') },
+                { href: '/app/pulse/errors', label: tAnalyticsMore('sidebar.errors') },
+                { href: '/app/pulse/llm', label: tAnalyticsMore('sidebar.llm') },
+                { href: '/app/pulse/sql', label: tAnalytics('sidebar.sql') },
+                { href: '/app/pulse/projects', label: tAnalytics('sidebar.projects') },
                 { href: '/app/social', label: tSocial('sidebar.calendar') },
                 { href: '/app/social/posts', label: tSocial('sidebar.posts') },
                 { href: '/app/social/inbox', label: tSocial('sidebar.inbox') },
@@ -737,6 +743,8 @@ export default async function AppLayout(
         <CommandSearch allowedApps={user.role === 'owner' ? '*' : PRODUCT_KEYS.filter((key) => userCanUseApp(user, key))} />
         {/* Asistente de la plataforma: ⌘J o el botón de la banda, en toda la app. */}
         <AssistantPanel />
+        {/* Un solo menú abierto a la vez también para los menús que no usan lib/ui/layers.ts. */}
+        <MenuLayerGuard />
         {/* Dictado en toda la app y avisos de reunión: solo para quien tiene Voice en este workspace. */}
         {userCanUseApp(user, 'voice') && (
           <>
