@@ -111,7 +111,7 @@ mod mac {
             if !matches!(output_type, SCStreamOutputType::Audio) {
                 return;
             }
-            let Ok(list) = sample.audio_buffer_list() else { return };
+            let Some(list) = sample.audio_buffer_list() else { return };
             // Float32 no entrelazado: un buffer por canal (se pidió mono, normalmente es uno).
             let channels: Vec<Vec<f32>> = list
                 .iter()
@@ -132,7 +132,7 @@ mod mac {
             let built = (|| -> Result<SCStream, String> {
                 let content = SCShareableContent::get().map_err(|e| format!("{e:?}"))?;
                 let display = content.displays().into_iter().next().ok_or("no display")?;
-                let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build().map_err(|e| format!("{e:?}"))?;
+                let filter = SCContentFilter::create().with_display(&display).with_excluding_windows(&[]).build();
                 // Solo audio: el video mínimo que ScreenCaptureKit exige no se usa.
                 let config = SCStreamConfiguration::new()
                     .with_width(2)
@@ -141,8 +141,8 @@ mod mac {
                     .with_excludes_current_process_audio(true)
                     .with_sample_rate(16000)
                     .with_channel_count(1);
-                let mut stream = SCStream::new(&filter, &config).map_err(|e| format!("{e:?}"))?;
-                stream.add_output_handler(Handler, SCStreamOutputType::Audio).map_err(|e| format!("{e:?}"))?;
+                let mut stream = SCStream::new(&filter, &config);
+                stream.add_output_handler(Handler, SCStreamOutputType::Audio).ok_or("no audio handler")?;
                 stream.start_capture().map_err(|e| format!("{e:?}"))?;
                 Ok(stream)
             })();
