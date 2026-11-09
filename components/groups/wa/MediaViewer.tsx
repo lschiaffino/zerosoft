@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './Avatar';
 import { Close, Download } from './icons';
+import { posterFrame } from './format';
 
 export interface ViewerItem {
   id: string;
@@ -100,7 +101,7 @@ export default function MediaViewer({ items, index, onIndex, onClose }: { items:
             <li key={x.id}>
               <button type="button" className={i === index ? 'is-on' : ''} onClick={() => onIndex(i)} aria-label={x.name || `${i + 1}`} aria-current={i === index || undefined}>
                 {x.type.startsWith('video/') ? (
-                  <video src={`${x.url}#t=0.1`} preload="metadata" muted tabIndex={-1} aria-hidden="true" />
+                  <video src={posterFrame(x.url)} preload="metadata" muted tabIndex={-1} aria-hidden="true" />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={x.url} alt="" loading="lazy" />

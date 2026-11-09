@@ -16,7 +16,7 @@ export interface UserRow {
   profile?: string | null;
   locale?: string | null;
   time_zone?: string | null;
-  /** Dos pasos (294_account_security): secreto TOTP cifrado, pendiente de confirmar, activado. */
+  /** Dos pasos (297_account_security): secreto TOTP cifrado, pendiente de confirmar, activado. */
   mfa_secret?: string | null;
   mfa_pending_secret?: string | null;
   mfa_enabled_at?: string | null;
@@ -846,7 +846,7 @@ export interface TeamRow {
   settings?: string;
   allowed_domains?: string;
   updated_at?: string | null;
-  /** 1 = cada miembro (no guest) necesita la verificación en dos pasos para entrar (294_account_security). */
+  /** 1 = cada miembro (no guest) necesita la verificación en dos pasos para entrar (297_account_security). */
   require_mfa?: number | null;
 }
 

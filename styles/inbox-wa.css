@@ -1,0 +1,228 @@
+/* ============================================================
+   INBOX con la cara de WhatsApp Web. Los tokens --wa-*, las burbujas, la
+   media y el visor vienen de Groups (styles/groups-wa.css, scoped a
+   .gr-inbox); acá va lo propio de Inbox: la grilla, la lista y lo que no
+   existe en Groups. Menús, diálogos y Ajustes siguen con el estilo de
+   zerosoft. Sin pills: el badge y los chips usan el radio chico.
+   ============================================================ */
+
+/* ---------- Grilla (pisa la de .gr-inbox) ---------- */
+.ib-app.gr-inbox {
+  grid-template-columns: clamp(340px, 30%, 460px) minmax(0, 1fr);
+  height: calc(100dvh - var(--band-h, 0px));
+  background: var(--wa-panel);
+  color: var(--wa-text);
+  font-family: var(--wa-font);
+}
+.ib-app.gr-inbox.has-details { grid-template-columns: clamp(320px, 28%, 420px) minmax(0, 1fr) clamp(300px, 26%, 400px); }
+.ib-app.gr-inbox :focus-visible { outline-color: var(--wa-primary); }
+.ib-app.gr-inbox .ib-list-pane { background: var(--wa-panel); border-right: 1px solid var(--wa-border-strong); }
+.ib-app.gr-inbox .ib-convo-pane { background: var(--wa-conv-bg); }
+/* Correo: las tarjetas de siempre sobre el fondo de la app (el fondo de chat es solo para WhatsApp). */
+.ib-app.gr-inbox .ib-convo-pane:has(> .ib-convo) { background: var(--bg-soft); color: var(--ink); font-family: var(--font-ui); }
+
+/* ---------- Cabecera de la lista ---------- */
+.ib-app.gr-inbox .ib-list-head { gap: 8px; padding: 12px 16px 8px; border-bottom: 0; }
+.ib-app.gr-inbox .ib-h1 { font-size: 1.375rem; font-weight: 700; color: var(--wa-text); }
+.ib-app.gr-inbox .ib-search .input {
+  height: 35px; padding-left: 14px; font-size: 0.9375rem; color: var(--wa-text);
+  background: var(--wa-search-bg); border: 0; border-radius: 8px;
+}
+.ib-app.gr-inbox .ib-search .input::placeholder { color: var(--wa-text-2); }
+.ib-app.gr-inbox .ib-tabs { gap: 6px; margin: 0; padding-bottom: 2px; border: 0; }
+.ib-app.gr-inbox .ib-tabs .ui-tab {
+  height: 30px; padding: 0 11px; font-size: 0.875rem; line-height: 30px; color: var(--wa-text-2);
+  background: var(--wa-chip-bg); border: 0; border-radius: var(--radius-1); text-decoration: none;
+}
+.ib-app.gr-inbox .ib-tabs .ui-tab::after { display: none; }
+.ib-app.gr-inbox .ib-tabs .ui-tab:hover { color: var(--wa-text); background: var(--wa-row-active); }
+.ib-app.gr-inbox .ib-tabs .ui-tab.is-active { color: var(--wa-chip-on-ink); background: var(--wa-chip-on-bg); font-weight: 500; }
+.ib-app.gr-inbox .ib-keys-hint { border-top-color: var(--wa-border); color: var(--wa-text-2); }
+
+/* ---------- Filas ---------- */
+.ib-app.gr-inbox .ib-list { background: var(--wa-panel); }
+.ib-app.gr-inbox .ib-item { content-visibility: auto; contain-intrinsic-size: auto 72px; }
+.ib-app.gr-inbox .ib-row-btn {
+  gap: 15px; min-height: 72px; padding: 0 0 0 13px; color: var(--wa-text); border-bottom: 0; font-family: var(--wa-font);
+}
+.ib-app.gr-inbox .ib-row-btn:hover,
+.ib-app.gr-inbox li.ib-item.is-cursor > .ib-row-btn { background: var(--wa-row-hover); }
+.ib-app.gr-inbox li.ib-item.is-open > .ib-row-btn,
+.ib-app.gr-inbox li.ib-item.is-selected > .ib-row-btn,
+.ib-app.gr-inbox li.ib-item.is-open > .ib-row-btn:hover { background: var(--wa-row-active); }
+.ib-app.gr-inbox .ib-row-btn:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+/* Como WhatsApp: la foto siempre a la vista. La casilla aparece solo seleccionando (x, ⇧clic o con foco). */
+.ib-app.gr-inbox .ib-check { left: 28px; accent-color: var(--wa-primary); }
+.ib-app.gr-inbox li.ib-item:hover .ib-check { opacity: 0; }
+.ib-app.gr-inbox li.ib-item.is-selected .ib-check,
+.ib-app.gr-inbox .ib-check:focus-visible,
+.ib-app.gr-inbox:has(.ib-bulk) .ib-check { opacity: 1; }
+.ib-app.gr-inbox li.ib-item.is-selected .wa-avatar,
+.ib-app.gr-inbox li.ib-item:has(.ib-check:focus-visible) .wa-avatar,
+.ib-app.gr-inbox:has(.ib-bulk) .wa-avatar { visibility: hidden; }
+
+.wa-row-main {
+  flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 1px;
+  min-height: 72px; padding: 10px 15px 10px 0; border-bottom: 1px solid var(--wa-border);
+}
+.ib-row-btn:hover .wa-row-main, li.ib-item.is-open .wa-row-main, li.ib-item.is-cursor .wa-row-main { border-bottom-color: transparent; }
+.wa-row-top, .wa-row-bottom { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.wa-row-top { align-items: baseline; }
+.wa-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.0625rem; line-height: 21px; color: var(--wa-text); }
+.wa-row-time { flex: none; margin-left: 6px; font-size: 0.75rem; color: var(--wa-text-2); font-variant-numeric: tabular-nums; }
+.wa-row-time.is-unread { color: var(--wa-badge); font-weight: 500; }
+.wa-row-preview { flex: 1; min-width: 0; display: flex; align-items: center; gap: 3px; overflow: hidden; font-size: 0.875rem; line-height: 20px; color: var(--wa-text-2); }
+.wa-row-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-row-sender { flex: none; }
+.wa-row-kind { display: inline-flex; flex: none; color: var(--wa-text-2); }
+.wa-row-typing { color: var(--wa-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-row-draft { flex: none; color: var(--wa-primary-ink); font-weight: 500; margin-right: 2px; }
+.wa-row-icons { display: inline-flex; align-items: center; gap: 6px; flex: none; color: var(--wa-text-2); }
+.wa-unread {
+  min-width: 20px; height: 20px; padding: 0 6px; font-size: 0.75rem; font-weight: 500; line-height: 20px; text-align: center;
+  color: var(--wa-badge-ink); background: var(--wa-badge); border-radius: var(--radius-1); font-variant-numeric: tabular-nums;
+}
+.wa-unread.is-muted { color: var(--wa-panel); background: var(--wa-text-2); }
+.wa-row-preview .ib-tag { flex: none; margin-right: 2px; border-color: var(--wa-border-strong); color: var(--wa-text-2); }
+.wa-row-preview .ib-tag-strong { border-color: var(--wa-primary-ink); color: var(--wa-primary-ink); }
+.wa-row-preview .ib-chan-dot { flex: none; margin-right: 2px; }
+
+/* Deslizar una fila en el teléfono: atrás asoma la acción (Hecho a la derecha, fijar a la izquierda). */
+.ib-app.gr-inbox .ib-item { touch-action: pan-y; overflow: hidden; }
+.gr-inbox .ib-item > .ib-row-btn { position: relative; background: var(--wa-panel); }
+.ib-app.gr-inbox .ib-item[data-swipe]::before {
+  position: absolute; inset: 0; display: flex; align-items: center; padding: 0 22px; font-size: 0.875rem; font-weight: 500; color: #fff;
+}
+.ib-app.gr-inbox .ib-item[data-swipe='left']::before { content: attr(data-left-label); justify-content: flex-end; background: #8696a0; }
+.ib-app.gr-inbox .ib-item[data-swipe='right']::before { content: attr(data-right-label); justify-content: flex-start; background: #8696a0; }
+.ib-app.gr-inbox .ib-item[data-swipe][data-swipe-ready]::before { background: var(--wa-primary); }
+
+/* ---------- Conversación (vacía, carga, error) ---------- */
+.ib-app.gr-inbox .ib-convo-blank,
+.ib-app.gr-inbox .ib-convo-msg { color: var(--wa-text-2); background: var(--wa-panel-header); }
+
+/* ---------- Conversación de WhatsApp ---------- */
+.ib-wa-thread { flex: 1; min-height: 0; border-right: 0; }
+.ib-app.gr-inbox .ib-wa-thread .wa-head { flex-wrap: nowrap; }
+.ib-wa-thread .wa-head .ib-wa-back { margin-left: -8px; }
+.ib-wa-thread .gr-thread-actions { flex: none; }
+.ib-wa-thread .gr-thread-actions .wa-icon-btn.is-on { color: var(--wa-primary); }
+.ib-wa-thread .ib-notes { background: var(--wa-panel); border-bottom: 1px solid var(--wa-border); }
+.ib-wa-thread .ib-scheduled { background: var(--wa-panel-header); border-top: 1px solid var(--wa-border); }
+.ib-wa-thread .ib-sched-body { color: var(--wa-text-2); }
+
+/* Borrado: la burbuja de siempre (Groups lo pinta con el fondo de la app). */
+.ib-wa-thread .gr-msg-in.is-deleted .gr-bubble { background: var(--wa-bubble-in); }
+.ib-wa-thread .gr-msg-out.is-deleted .gr-bubble { background: var(--wa-bubble-out); }
+
+/* Mensajes: el dedo corre la burbuja para responder (el scroll vertical sigue). */
+.ib-wa-thread .gr-msg { touch-action: pan-y; }
+.wa-swipe-reply {
+  position: absolute; top: 50%; left: -34px; display: none; align-items: center; justify-content: center; width: 28px; height: 28px;
+  color: var(--wa-icon); background: var(--wa-panel); border-radius: 50%; transform: translateY(-50%) scaleX(-1); box-shadow: var(--wa-shadow-bubble);
+}
+.gr-msg[data-swipe] .wa-swipe-reply { display: inline-flex; opacity: 0.5; }
+.gr-msg[data-swipe='ready'] .wa-swipe-reply { opacity: 1; color: var(--wa-primary); }
+.gr-msg.has-avatar .wa-swipe-reply { left: -2px; }
+
+/* Reacciones: el globito es un botón (abre la barra para cambiar la propia). */
+.ib-wa-thread .ib-wa-reactions { font: inherit; font-size: 0.9375rem; color: var(--wa-text); cursor: pointer; }
+.ib-wa-thread .ib-wa-reactions:focus-visible { outline: 2px solid var(--wa-primary); }
+.ib-wa-thread .gr-msg-out .ib-wa-reactions { align-self: flex-end; }
+.ib-wa-thread .gr-emoji-picker { bottom: calc(100% - 6px); }
+.ib-wa-thread .gr-emoji-picker button { display: inline-flex; align-items: center; justify-content: center; color: var(--wa-icon); }
+.ib-wa-thread .gr-emoji-picker button.is-mine { background: var(--wa-row-active); }
+.ib-wa-react-full { position: absolute; bottom: 100%; z-index: 30; }
+.gr-msg-in .ib-wa-react-full { left: 0; }
+.gr-msg-out .ib-wa-react-full { right: 0; }
+.ib-wa-react-full .wa-emoji { position: static; }
+
+
+/* Encuesta (solo lectura: se vota en el teléfono). */
+.ib-wa-poll { width: min(280px, 62vw); max-width: 100%; box-sizing: border-box; padding: 2px 2px 14px; }
+.ib-wa-poll-q { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-weight: 500; color: var(--wa-text); }
+.ib-wa-poll ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ib-wa-poll li { padding: 6px 10px; font-size: 0.875rem; color: var(--wa-text); background: var(--wa-quote-bg); border-radius: 6px; }
+.ib-wa-poll-note { margin: 6px 0 0; font-size: 0.75rem; color: var(--wa-text-2); }
+
+/* Campo: la lista de snippets flota arriba. */
+.ib-wa-composer { position: relative; }
+.ib-wa-composer .ib-snippets { bottom: calc(100% + 4px); }
+.ib-wa-info-body { margin: 0 0 12px; padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-soft); border-radius: var(--radius-1); }
+
+/* ---------- Info del contacto o del grupo (columna de la derecha) ---------- */
+.ib-wa-details { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--wa-row-active); border-left: 1px solid var(--wa-border-strong); }
+.ib-wa-details-bar { display: flex; align-items: center; gap: 16px; flex: none; min-height: 59px; padding: 0 16px; background: var(--wa-panel-header); }
+.ib-wa-details-bar h2 { margin: 0; font-size: 1rem; font-weight: 500; color: var(--wa-text); }
+.ib-wa-details-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 24px; }
+.ib-wa-card { display: flex; flex-direction: column; gap: 8px; padding: 14px 24px 16px; background: var(--wa-panel); box-shadow: 0 1px 2px rgba(11, 20, 26, 0.06); }
+.ib-wa-card-title { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.875rem; font-weight: 400; color: var(--wa-text-2); }
+.ib-wa-hero { align-items: center; padding: 28px 24px 20px; text-align: center; }
+.ib-wa-hero-photo { padding: 0; background: none; border: 0; border-radius: 50%; cursor: zoom-in; }
+.ib-wa-hero-photo:disabled { cursor: default; }
+.ib-wa-hero-photo:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 3px; }
+.ib-wa-hero-photo .wa-avatar { max-width: min(200px, 50vw); max-height: min(200px, 50vw); }
+.ib-wa-hero-name { margin: 8px 0 0; font-size: 1.5rem; line-height: 1.25; color: var(--wa-text); overflow-wrap: anywhere; }
+.ib-wa-hero-sub { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; margin: 0; font-size: 1rem; color: var(--wa-text-2); }
+.ib-wa-badge { display: inline-flex; padding: 1px 6px; font-size: 0.6875rem; font-weight: 500; color: var(--wa-primary-ink); background: var(--wa-chip-on-bg); border-radius: var(--radius-1); }
+.ib-wa-about, .ib-wa-summary-text { margin: 0; font-size: 0.9375rem; line-height: 1.45; color: var(--wa-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ib-wa-muted { margin: 0; font-size: 0.8125rem; color: var(--wa-text-2); }
+.ib-wa-summary .btn { align-self: flex-start; }
+.ib-wa-summary .ib-wa-card-title { color: var(--wa-primary-ink); }
+
+.ib-wa-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--wa-border); }
+.ib-wa-tabs button { flex: 1; padding: 8px 4px; font: inherit; font-size: 0.875rem; color: var(--wa-text-2); background: none; border: 0; border-bottom: 3px solid transparent; cursor: pointer; }
+.ib-wa-tabs button.is-on { color: var(--wa-primary-ink); border-bottom-color: var(--wa-primary); font-weight: 500; }
+.ib-wa-tabs button:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.ib-wa-grid { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 0; padding: 0; }
+.ib-wa-thumb { display: block; width: 100%; aspect-ratio: 1; padding: 0; overflow: hidden; background: var(--wa-row-active); border: 0; border-radius: 4px; cursor: zoom-in; }
+.ib-wa-thumb img, .ib-wa-thumb video { width: 100%; height: 100%; object-fit: cover; }
+.ib-wa-thumb:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
+
+.ib-wa-rows { list-style: none; display: flex; flex-direction: column; margin: 0 -24px; padding: 0; }
+.ib-wa-row {
+  display: flex; align-items: center; gap: 14px; width: 100%; min-height: 56px; padding: 8px 24px; font: inherit; text-align: left;
+  color: var(--wa-text); background: none; border: 0; text-decoration: none; cursor: pointer;
+}
+.ib-wa-row:hover:not(:disabled) { background: var(--wa-row-hover); }
+.ib-wa-row:disabled { cursor: default; }
+.ib-wa-row:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.ib-wa-row > svg { flex: none; color: var(--wa-icon); }
+.ib-wa-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ib-wa-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9375rem; }
+.ib-wa-link { color: var(--wa-link); }
+.ib-wa-starred { display: flex; flex-direction: column; gap: 2px; padding: 8px 24px; border-top: 1px solid var(--wa-border); font-size: 0.875rem; color: var(--wa-text); overflow-wrap: anywhere; }
+.ib-wa-member-search { margin: 2px 0 4px; }
+.ib-wa-member-search .input { width: 100%; height: 35px; padding-left: 40px; color: var(--wa-text); background: var(--wa-search-bg); border: 0; border-radius: 8px; }
+.ib-wa-actions { padding-top: 6px; padding-bottom: 6px; }
+.ib-wa-actions .gr-menu { display: block; margin: 0 -24px; }
+.ib-wa-actions .ib-wa-action { margin: 0; }
+.ib-wa-actions > .ib-wa-action { margin: 0 -24px; width: calc(100% + 48px); }
+.ib-wa-action.is-danger, .ib-wa-action.is-danger > svg { color: var(--wa-danger); }
+.ib-wa-actions .ib-confirm { margin-top: 6px; border-color: var(--wa-danger); color: var(--wa-text); }
+
+/* Sin lugar para tres columnas: el panel se apoya sobre la conversación, a la derecha. */
+@media (max-width: 1365px) {
+  .ib-app.gr-inbox { position: relative; }
+  .ib-app.gr-inbox.has-details { grid-template-columns: clamp(340px, 30%, 460px) minmax(0, 1fr); }
+  .ib-wa-details { position: absolute; top: 0; right: 0; bottom: 0; z-index: 60; width: min(400px, 100%); box-shadow: -4px 0 18px rgba(11, 20, 26, 0.14); }
+}
+@media (max-width: 1023px) {
+  .ib-app.gr-inbox, .ib-app.gr-inbox.has-details { grid-template-columns: minmax(0, 1fr); }
+  .ib-app.gr-inbox .ib-wa-thread .gr-msg { max-width: 85%; }
+  /* El panel de info cubre la conversación (como WhatsApp en el teléfono). */
+  .ib-wa-details { position: fixed; inset: var(--band-h, 0px) 0 0 0; z-index: 70; width: auto; border-left: 0; box-shadow: none; }
+}
+.ib-wa-mute-options { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 0 6px 34px; }
+
+/* Estilo de chats zerosoft (ver el bloque al final de styles/groups-wa.css): tipografía de la app en la lista. */
+.ib-app.gr-inbox { --accent-on: var(--c-inbox-on, #fff); }
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-row-name { font-size: 0.9375rem; font-weight: 500; }
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-row-preview { font-size: 0.8125rem; }
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-row-main { min-height: 64px; }
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .ib-row-btn { min-height: 64px; }
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-linkcard,
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .ib-wa-poll li { border-radius: var(--radius-1); }
+
+/* Miniatura de la foto o el video del último mensaje en la fila. */
+.wa-row-thumb { flex: none; width: 18px; height: 18px; object-fit: cover; border-radius: 2px; }

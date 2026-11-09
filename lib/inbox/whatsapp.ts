@@ -27,6 +27,7 @@ import {
   type ThreadRow,
 } from './core';
 import { InboxError, waKindOf, type AccountStatus } from './types';
+import { messageMeta, storePresence, storeReaction } from './wa-meta';
 
 function appBase(): string {
   return (process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -184,7 +185,11 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
   if (!body && e.location) body = [e.location.name, e.location.address].filter(Boolean).join(' · ') || '📍';
   if (!body && e.contacts?.length) body = e.contacts.map((c) => c.name).filter(Boolean).join(', ');
   if (!body && e.poll) body = e.poll.question;
+  const { meta, kind } = messageMeta(e);
   return addMessage(thread, {
+    meta,
+    kind,
+    forwarded: !!e.forwarded,
     externalId: e.providerMessageId,
     fromMe: e.fromMe,
     senderName: e.fromMe ? '' : e.senderName,
@@ -211,15 +216,35 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
           if (await ingestMessage(account, e, !!opts.history)) messages++;
           break;
         case 'contact': {
-          if (!e.name) break;
           const t = await findThread(account.id, e.chatId);
-          if (t && (!t.title || t.title === t.handle)) await db.prepare('UPDATE inbox_threads SET title = ? WHERE id = ?').run(e.name.slice(0, 200), t.id);
+          if (!t) break;
+          if (e.name && (!t.title || t.title === t.handle)) await db.prepare('UPDATE inbox_threads SET title = ? WHERE id = ?').run(e.name.slice(0, 200), t.id);
+          if (e.pictureUrl && /^https:\/\//.test(e.pictureUrl) && !t.avatar_url) await db.prepare('UPDATE inbox_threads SET avatar_url = ? WHERE id = ?').run(e.pictureUrl.slice(0, 2000), t.id);
           break;
         }
-        case 'status':
+        case 'status': {
+          // Las tildes no vuelven atrás (llega "entregado" después de "leído").
+          const rank = "CASE status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 WHEN 'sent' THEN 1 ELSE 0 END";
+          const next = { sent: 1, delivered: 2, read: 3, failed: 0 }[e.status] ?? 0;
+          const guard = e.status === 'failed' ? "status IN ('', 'sent')" : `${rank} < ${next}`;
           await db
-            .prepare('UPDATE inbox_messages SET status = ? WHERE external_id = ? AND from_me = 1 AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ?)')
+            .prepare(`UPDATE inbox_messages SET status = ? WHERE external_id = ? AND from_me = 1 AND ${guard} AND thread_id IN (SELECT id FROM inbox_threads WHERE account_id = ?)`)
             .run(e.status, e.providerMessageId, account.id);
+          // Las tildes de la fila de la lista, si es el último mensaje del chat.
+          await db
+            .prepare(
+              `UPDATE inbox_threads SET last_status = (SELECT m.status FROM inbox_messages m WHERE m.thread_id = inbox_threads.id AND m.external_id = ?)
+               WHERE account_id = ? AND last_from_me = 1
+                 AND id IN (SELECT m.thread_id FROM inbox_messages m WHERE m.external_id = ? AND m.from_me = 1 AND m.sent_at = inbox_threads.last_message_at)`,
+            )
+            .run(e.providerMessageId, account.id, e.providerMessageId);
+          break;
+        }
+        case 'reaction':
+          await storeReaction(account, e.chatId, e.targetProviderMessageId, { emoji: e.emoji, by: e.fromMe ? 'me' : e.senderPhone || e.senderName || '?', name: e.fromMe ? '' : e.senderName });
+          break;
+        case 'presence':
+          await storePresence(account, e);
           break;
         case 'edit':
           await db
@@ -303,16 +328,17 @@ export async function resyncWhatsapp(owner: string): Promise<{ account: AccountR
 }
 
 /** Manda un texto al chat y lo guarda como enviado. */
-export async function sendWhatsappText(account: AccountRow, thread: ThreadRow, text: string): Promise<string> {
+export async function sendWhatsappText(account: AccountRow, thread: ThreadRow, text: string, opts: { replyTo?: string; mentions?: string[] } = {}): Promise<string> {
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
   let id: string;
   try {
-    id = (await waProviderFor(account).sendText(thread.external_id, text)).id;
+    const o = { ...(opts.replyTo ? { replyTo: opts.replyTo } : {}), ...(opts.mentions?.length ? { mentions: opts.mentions } : {}) };
+    id = (await waProviderFor(account).sendText(thread.external_id, text, Object.keys(o).length ? o : undefined)).id;
   } catch (err) {
     if (err instanceof InboxError) throw err;
     throw new InboxError(err instanceof ProviderError && err.code === 'not_connected' ? 'not_connected' : 'send_failed', 502);
   }
-  await addMessage(thread, { externalId: id || `local-${Date.now()}`, fromMe: true, body: text, status: 'sent' });
+  await addMessage(thread, { externalId: id || `local-${Date.now()}`, fromMe: true, body: text, status: 'sent', replyTo: opts.replyTo ?? '' });
   return id;
 }
 
@@ -398,6 +424,7 @@ export async function runWhatsappBackfill(account: AccountRow, deadline: number,
         for (const c of rows) {
           const t = await upsertThread(account, { externalId: c.chatId, kind: c.isGroup ? 'group' : 'dm', title: c.name || undefined, handle: c.isGroup ? '' : phoneDigits(c.chatId) });
           if (c.unread > 0) await db.prepare('UPDATE inbox_threads SET unread = ? WHERE id = ? AND unread = 0').run(Math.min(c.unread, 9999), t.id);
+          if (c.pictureUrl && !t.avatar_url) await db.prepare("UPDATE inbox_threads SET avatar_url = ? WHERE id = ? AND avatar_url = ''").run(c.pictureUrl.slice(0, 2000), t.id);
           if (queue.length < MAX_CHATS) queue.push(c.remoteJid);
         }
         const last = rows.length < CHATS_PAGE || (cursor.page + 1) * CHATS_PAGE >= MAX_CHATS;
