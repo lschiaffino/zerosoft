@@ -104,6 +104,7 @@ const WaConversation = forwardRef<
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [atBottom, setAtBottom] = useState(true);
   const [flash, setFlash] = useState<string | null>(null);
+  const [hitId, setHitId] = useState<string | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState('');
   const [notesState, setNotesState] = useState<'' | 'saving' | 'saved'>('');
@@ -189,9 +190,8 @@ const WaConversation = forwardRef<
     const id = window.setTimeout(() => {
       jumpTo(focus);
       // Marcado un rato más largo que el de una cita (para encontrarlo al llegar).
-      const el = document.getElementById(`m-${focus}`);
-      el?.classList.add('ib-msg-hit');
-      off = window.setTimeout(() => el?.classList.remove('ib-msg-hit'), 3000);
+      setHitId(focus);
+      off = window.setTimeout(() => setHitId((h) => (h === focus ? null : h)), 3000);
     }, 60);
     return () => {
       window.clearTimeout(id);
@@ -362,7 +362,7 @@ const WaConversation = forwardRef<
       <article
         key={m.id}
         id={`m-${m.id}`}
-        className={`gr-msg gr-msg-${dir}${m.revoked ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.length ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${flash === m.id ? ' is-target' : ''}`}
+        className={`gr-msg gr-msg-${dir}${m.revoked ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.length ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${flash === m.id ? ' is-target' : ''}${hitId === m.id ? ' ib-msg-hit' : ''}`}
         onContextMenu={(e) => {
           if ((e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
           e.preventDefault();
