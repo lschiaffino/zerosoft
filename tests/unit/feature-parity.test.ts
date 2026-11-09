@@ -17,8 +17,8 @@ const row = (status: ParityRow['status'], competitorHas = true, weight?: 1 | 2, 
 });
 
 describe('apps sin porcentaje público', () => {
-  it('Analytics lo oculta con una nota en los tres idiomas; computeParity sigue calculando', () => {
-    const p = PARITY.analytics;
+  it('Pulse lo oculta con una nota en los tres idiomas; computeParity sigue calculando', () => {
+    const p = PARITY.pulse;
     expect(p.percentHidden?.note.en).toContain('not comparable');
     expect(p.percentHidden?.note.es.trim()).toBeTruthy();
     expect(p.percentHidden?.note.pt.trim()).toBeTruthy();

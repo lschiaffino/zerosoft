@@ -7,6 +7,7 @@ import { pageMetadata } from '@/lib/seo';
 import { PRODUCT_NAMES } from '@/components/site/catalog';
 import { getTool, jsonLd, relatedTools, siteUrl, TOOLS } from '@/lib/tools/registry';
 import '@/styles/tools.css';
+import { productHref } from '@/lib/products';
 
 type Params = { locale: string; slug: string };
 
@@ -76,7 +77,7 @@ export default async function ToolPage(props: { params: Promise<Params> }) {
     },
   ];
 
-  const productHref = tool.product ? `/products/${tool.product}` : '/products';
+  const productLink = tool.product ? productHref(tool.product) : '/products';
   const productName = tool.product ? PRODUCT_NAMES[tool.product] : 'zerosoft';
 
   return (
@@ -110,7 +111,7 @@ export default async function ToolPage(props: { params: Promise<Params> }) {
             <Link className="btn btn-primary" href="/app">
               {t('common.saveInZerosoft')}
             </Link>
-            <Link className="lp-textlink" href={productHref}>
+            <Link className="lp-textlink" href={productLink}>
               {t('common.seeProduct', { product: productName })} <Icon name="arrow" size={14} />
             </Link>
           </div>

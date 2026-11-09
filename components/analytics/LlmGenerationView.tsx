@@ -22,7 +22,7 @@ export default function LlmGenerationView({ g }: { g: LlmGenerationDetail }) {
   ];
   return (
     <div className="app-page ui-page an-page">
-      <PageHeader back={{ href: '/app/analytics/llm', label: t('title') }} title={g.model} description={<LocalText>{fmtTime(g.ts, locale)}</LocalText>} />
+      <PageHeader back={{ href: '/app/pulse/llm', label: t('title') }} title={g.model} description={<LocalText>{fmtTime(g.ts, locale)}</LocalText>} />
       <section className="an-panel an-form" aria-label={t('details')}>
         <div>{g.isError ? <span className="badge badge-bad">{t('statusError')}</span> : <span className="badge badge-ok">{t('statusOk')}</span>}</div>
         <dl className="an-props" data-testid="an-llm-detail">

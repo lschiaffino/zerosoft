@@ -332,7 +332,7 @@ zs.identify('user-123', { email: 'ana@example.com' });`;
           try {
             await api(`/api/analytics/projects/${project.id}`, { method: 'DELETE' });
             notifyChanged();
-            router.replace('/app/analytics/projects');
+            router.replace('/app/pulse/projects');
             router.refresh();
           } catch {
             setBusy(false);

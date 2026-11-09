@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, type ProductKey, productHref } from '@/lib/products';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 
@@ -21,7 +21,7 @@ export default async function ComingSoonApp({ locale, product }: { locale: strin
         body={t('body', { app: name })}
         action={{ label: t('propose'), href: `/feedback-board/new?product=${product}` }}
         secondary={
-          <Link href={`/products/${product}`}>{t('plan', { app: name })}</Link>
+          <Link href={productHref(product)}>{t('plan', { app: name })}</Link>
         }
       />
     </div>

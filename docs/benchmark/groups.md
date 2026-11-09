@@ -8,7 +8,7 @@ Fecha: 2026-10-22. Base: `main` en `1689419`. Referencia: Periskope Starter (USD
   - Periskope no publica un changelog aparte: las novedades salen como "Launch Week" en el blog.
   - Capterra y Product Hunt no tienen ficha de Periskope (los resultados eran de "Periscope", otro producto).
   - G2 devolvió 403 al leerlo directo. Las críticas se tomaron del resumen de pros y contras que muestra el buscador.
-- **Nuestra app:** Groups todavía no existe en el código. No hay `app/[locale]/app/groups` ni `lib/groups-*.ts`. Lo que hay de WhatsApp en la suite:
+- **Nuestra app:** Groups todavía no existe en el código. No hay `app/[locale]/app/lines` ni `lib/groups-*.ts`. Lo que hay de WhatsApp en la suite:
   - links `wa.me` con resultado en el CRM (`components/crm/PhoneTouch.tsx`, `lib/crm-calls.ts`);
   - timeline de contacto y empresa en el CRM (`components/crm/Timeline.tsx`);
   - disparadores y acciones en Flow, agentes con herramientas en Agents, issues en Track.
@@ -310,6 +310,6 @@ No aplica: Groups todavía no tiene código.
 
 ## Estado después de la primera versión (2026-10-23)
 
-La primera versión de Groups ya está en el código (`app/[locale]/app/groups`, `lib/groups*.ts`, migración `070_groups`). La evaluación al día, fila por fila y con estados honestos, vive en `content/feature-parity/groups.ts` y se muestra en la página de producto. Las columnas de arriba quedan como la foto previa a construir.
+La primera versión de Groups ya está en el código (`app/[locale]/app/lines`, `lib/groups*.ts`, migración `070_groups`). La evaluación al día, fila por fila y con estados honestos, vive en `content/feature-parity/groups.ts` y se muestra en la página de producto. Las columnas de arriba quedan como la foto previa a construir.
 
 Lo que quedó afuera de esta versión está en `research/ideas.json` (producto `groups`): asignación round-robin, acceso por etiqueta, mensajes recurrentes, plantillas de grupo, ajustes completos del grupo, @menciones en notas, marcado con AI, editar y reenviar mensajes, más eventos de webhook y endpoints de grupos, listas guardadas y ocultar teléfonos.

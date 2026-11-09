@@ -8896,12 +8896,37 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // La app de analítica de producto (eventos, embudos, grabaciones) pasa a
+    // llamarse Pulse: la clave guardada de la app cambia de 'analytics' a
+    // 'pulse' en accesos, invitaciones, pedidos de acceso y la taxonomía de
+    // feedback, roadmap y changelog. Las tablas analytics_* no cambian.
+    id: '293_pulse_app_key',
+    up: async (c) => {
+      const stmts = [
+        `UPDATE team_members SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
+        `UPDATE team_invites SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
+        `UPDATE workspace_groups SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
+        `UPDATE OR IGNORE workspace_access_requests SET app = 'pulse' WHERE app = 'analytics'`,
+        `UPDATE roadmap_items SET product = 'pulse' WHERE product = 'analytics'`,
+        `UPDATE feedback SET product = 'pulse' WHERE product = 'analytics'`,
+        `UPDATE changelog_entries SET products = replace(products, '"analytics"', '"pulse"') WHERE products LIKE '%"analytics"%'`,
+      ];
+      for (const sql of stmts) {
+        try {
+          await c.execute(sql);
+        } catch {
+          // Tabla que esta instalación no tiene (o feedback con el CHECK viejo): no hay filas que mover.
+        }
+      }
+    },
+  },
+  {
     // Rec, compartir como Drive: rol por persona invitada, links mágicos para
     // quien no tiene cuenta y lo nuevo nace restringido. Los videos que ya
     // estaban abiertos por link siguen igual (el modal los muestra como
     // "Cualquiera con el link"); el default de los workspaces pasa a
     // restringido.
-    id: '293_rec_sharing_people',
+    id: '294_rec_sharing_people',
     up: async (c) => {
       await addColumn(c, "ALTER TABLE rec_videos ADD COLUMN people_roles TEXT NOT NULL DEFAULT '{}'");
       await c.executeMultiple(`
@@ -8920,7 +8945,7 @@ export const MIGRATIONS: Migration[] = [
   },
   {
     // Rec: MP4 (H.264/AAC) para descargar, armado una vez por versión del video.
-    id: '294_rec_mp4',
+    id: '295_rec_mp4',
     up: async (c) => {
       await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_url TEXT');
       await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_size INTEGER NOT NULL DEFAULT 0');

@@ -63,7 +63,7 @@ Rutas: `app/api/teams/*`, `lib/routes/teams/*`, `canManage` en
 
 Al **sacar a alguien** (`lib/workspace-lifecycle.ts`): pierde el acceso en el
 pedido siguiente; sus API keys se revocan; deja de ser host en Cal y sus
-reservas futuras pasan a otro host; sus conversaciones de Chat y Groups vuelven
+reservas futuras pasan a otro host; sus conversaciones de Chat y Lines vuelven
 a la cola; sale de subequipos, canales de Talk, accesos de Track, teamspaces de
 Docs y de lo compartido persona a persona. Lo que creó queda en el workspace. Sus links de Send pasan al owner: siguen sobre lo compartido y se frenan sobre lo privado.
 Las notas privadas siguen siendo suyas: un admin las puede transferir desde la
@@ -88,7 +88,7 @@ excepciones. "Admin" incluye al owner.
 | Board | Ve y edita los boards abiertos | Gestionar acceso de cualquier board | Boards restringidos: creador, admins e invitados. Link de invitado para editar sin cuenta |
 | Notes | Sus notas | Consola: cortar links públicos, transferir notas de quien se fue | Las notas son privadas de quien las escribe, también para el owner |
 | Talk | Canales públicos, sus privados y DMs; exporta sus canales | Ajustes, exportar canales públicos, invitados, comandos, campos de perfil | Nadie lee DMs ajenos. Invitados de Talk: solo sus canales |
-| Groups | Chats según etiquetas si el acceso por etiqueta está prendido | Ajustes, números, accesos, integraciones, reglas, equipos, quitar chats de Groups | Teléfonos enmascarados por rol (nunca para el owner) |
+| Lines | Chats según etiquetas si el acceso por etiqueta está prendido | Ajustes, números, accesos, integraciones, reglas, equipos, quitar chats de Lines | Teléfonos enmascarados por rol (nunca para el owner) |
 | People | Edita sus campos de autoservicio; managers aprueban licencias de su línea | Fichas, licencias, documentos, evaluaciones y reportes, sin sueldos | Sueldos y exportación de nómina: owner, HR admins marcados (los nombra solo el owner) y la persona. Un admin sin marca no los lee, no cambia el email de trabajo de una ficha sin cuenta o con sueldo, no cambia el período de pago ni borra una ficha con sueldo. La cuenta enlazada decide quién ve el sueldo: si no coincide con el email de la ficha, el owner o un HR admin la confirman antes de cargarlo. Desempeño: también su línea |
 | Books | Lector por defecto; un admin lo hace ventas o contador | Roles, pagos, factura electrónica | Admins son siempre contador |
 | Design | Sus diseños y los compartidos | Plantillas del workspace, kit de marca | Diseños privados: ni los admins los ven |

@@ -7,6 +7,7 @@ import { staticPageMetadata } from '@/lib/seo-pages';
 import { breadcrumbLd, graphLd, jsonLdString, absoluteUrl, localePath } from '@/lib/seo';
 import '@/styles/pages.css';
 import '@/styles/compare.css';
+import { productHref } from '@/lib/products';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
@@ -71,7 +72,7 @@ export default async function CompareIndexPage(props: { params: Promise<{ locale
               {comparisons.map((c) => (
                 <tr key={c.product}>
                   <th scope="row" className="cmp-app">
-                    <Link href={`/products/${c.product}`}>
+                    <Link href={productHref(c.product)}>
                       <ProductGlyph product={c.product} size={12} />
                       {c.name}
                     </Link>

@@ -292,6 +292,7 @@ export default function BoardOverlays({
                       type="button"
                       className={`board-reaction is-add${picker === el.id ? ' is-on' : ''}`}
                       onClick={() => setPicker((p) => (p === el.id ? null : el.id))}
+                      aria-haspopup="true"
                       aria-expanded={picker === el.id}
                       aria-label={t('reactions.add')}
                       title={t('reactions.add')}

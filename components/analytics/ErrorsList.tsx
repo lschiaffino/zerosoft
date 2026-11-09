@@ -78,7 +78,7 @@ export default function ErrorsList({ projectId, captureOn, canManage }: { projec
     <div className="an-callout" data-testid="an-errors-off">
       <p>{canManage ? t('captureOff') : t('captureOffMember')}</p>
       {canManage && (
-        <Link href="/app/analytics/settings" className="btn btn-sm">
+        <Link href="/app/pulse/settings" className="btn btn-sm">
           {t('openSettings')}
         </Link>
       )}
@@ -110,7 +110,7 @@ export default function ErrorsList({ projectId, captureOn, canManage }: { projec
         </p>
       )}
       {!data && loading && <span className="ui-skeleton ui-skeleton-block" />}
-      {data && data.issues.length === 0 && (filtered ? <p className="an-empty-result">{t('noMatch')}</p> : <EmptyState product="analytics" title={t('emptyTitle')} body={t('emptyBody')} />)}
+      {data && data.issues.length === 0 && (filtered ? <p className="an-empty-result">{t('noMatch')}</p> : <EmptyState product="pulse" title={t('emptyTitle')} body={t('emptyBody')} />)}
       {data && data.issues.length > 0 && (
         <div className="table-wrap table-stack">
           <table className="table an-list" data-testid="an-list-errors">
@@ -133,7 +133,7 @@ export default function ErrorsList({ projectId, captureOn, canManage }: { projec
               {data.issues.map((i) => (
                 <tr key={i.fingerprint}>
                   <td className="an-issue-cell">
-                    <Link href={`/app/analytics/errors/${issueRef(projectId, i.fingerprint)}`} className="an-row-link">
+                    <Link href={`/app/pulse/errors/${issueRef(projectId, i.fingerprint)}`} className="an-row-link">
                       {i.type}
                     </Link>
                     {i.message && <span className="an-issue-msg">{i.message}</span>}
