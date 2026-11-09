@@ -9012,6 +9012,41 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Rec, compartir como Drive: rol por persona invitada, links mágicos para
+    // quien no tiene cuenta y lo nuevo nace restringido. Los videos que ya
+    // estaban abiertos por link siguen igual (el modal los muestra como
+    // "Cualquiera con el link"); el default de los workspaces pasa a
+    // restringido.
+    id: '300_rec_sharing_people',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE rec_videos ADD COLUMN people_roles TEXT NOT NULL DEFAULT '{}'");
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS rec_magic_links (
+          token_hash TEXT PRIMARY KEY,
+          video_id TEXT NOT NULL REFERENCES rec_videos(id) ON DELETE CASCADE,
+          email TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          expires_at TEXT NOT NULL,
+          used_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_rec_magic_links_video ON rec_magic_links(video_id, email);
+        UPDATE rec_settings SET default_privacy = 'people' WHERE default_privacy = 'link';
+      `);
+    },
+  },
+  {
+    // Rec: MP4 (H.264/AAC) para descargar, armado una vez por versión del video.
+    id: '301_rec_mp4',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_url TEXT');
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_size INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_for TEXT');
+      await addColumn(c, "ALTER TABLE rec_videos ADD COLUMN mp4_status TEXT NOT NULL DEFAULT 'none'");
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_started_at TEXT');
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_job TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

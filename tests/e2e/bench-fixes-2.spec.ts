@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 
 /**
  * Regresiones de la segunda pasada del benchmark (docs/benchmark/*.md, "Bugs
@@ -171,7 +171,7 @@ test('Robots: el botón activo "Table" se lee (también al pasar el mouse)', asy
   const res = await page.request.post('/api/robots', { data: { name: `Tabla ${uid()}`, template: 'priceCheck' } });
   expect(res.ok()).toBe(true);
   const { id } = (await res.json()) as { id: string };
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   const now = new Date().toISOString();
   await db.execute({
     sql: `INSERT INTO robot_runs (id, robot_id, user_id, status, trigger, output, logs, created_at, started_at, finished_at, duration_ms)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getPublicVideoRow, unlockCookieName, unlockToken, verifyPassword } from '@/lib/rec';
 import { clientIp, peekCount, rateLimit } from '@/lib/rate-limit';
+import { sameSiteJson } from '@/lib/rec-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,8 @@ const IP_FAILS = 20;
 const SHARE_FAILS = 50;
 /** Desde estos fallos por video, todas las IPs esperan antes de probar (de 1 s a 10 s), sin bloquear. */
 const SHARE_SLOW = 20;
+/** Tope duro por video en 10 min, para todas las IPs (rotar IPs no da más intentos). */
+const SHARE_HARD = 120;
 
 const tooMany = (resetSec: number) =>
   NextResponse.json({ error: 'rate_limited' }, { status: 429, headers: { 'retry-after': String(Math.max(1, resetSec)) } });
@@ -27,6 +30,8 @@ const tooMany = (resetSec: number) =>
  * sin fallos recientes que trae la clave correcta.
  */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ share: string }> }) {
+  const bad = sameSiteJson(req);
+  if (bad) return bad;
   const { share } = await ctx.params;
   const v = await getPublicVideoRow(share);
   if (!v) return NextResponse.json({ error: 'not_found' }, { status: 404 });
@@ -41,6 +46,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ share: str
     const ipFails = await peekCount(ipKey, WINDOW);
     if (ipFails >= IP_FAILS) return tooMany(WINDOW);
     const shareFails = await peekCount(shareKey, WINDOW);
+    if (shareFails >= SHARE_HARD) return tooMany(WINDOW);
     if (ipFails > 0 && shareFails >= SHARE_FAILS) return tooMany(WINDOW);
     // Espera progresiva por IP: 0, 0, 0,5 s, 1 s, 2 s… hasta 5 s según sus fallos recientes.
     const ipWait = ipFails >= 2 ? Math.min(5000, 250 * 2 ** (ipFails - 1)) : 0;
@@ -53,7 +59,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ share: str
   if (!(await verifyPassword(parsed.data.password, v.password_hash))) {
     if (limits) {
       await rateLimit(ipKey, IP_FAILS, WINDOW);
-      await rateLimit(shareKey, SHARE_FAILS, WINDOW);
+      await rateLimit(shareKey, SHARE_HARD, WINDOW);
     }
     return NextResponse.json({ error: 'wrong_password' }, { status: 403 });
   }

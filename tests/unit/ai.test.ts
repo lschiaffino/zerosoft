@@ -4,6 +4,7 @@ import {
   aiEnabled,
   aiFreeTokensPerMonth,
   aiGenerateText,
+  assertAiMonthlyQuota,
   getAiUsage,
   monthStartIso,
   recordAiUsage,
@@ -21,6 +22,7 @@ const ENV_KEYS = [
   'AI_FREE_TOKENS_PER_MONTH',
   'AI_RATE_LIMIT_PER_MINUTE',
   'AI_MODEL',
+  'AI_UNLIMITED_DOMAINS',
 ];
 const saved: Record<string, string | undefined> = {};
 
@@ -138,5 +140,19 @@ describe('aiGenerateText', () => {
     // Otro workspace no se ve afectado.
     const other = await makeUser('ai-rl2');
     await expect(aiGenerateText({ workspaceId: other.id, feature: 't', prompt: 'a' })).resolves.toBeTruthy();
+  });
+});
+
+describe('dominios sin cuota', () => {
+  it('el workspace de un dueño con dominio en AI_UNLIMITED_DOMAINS no tiene tope; el resto sí', async () => {
+    process.env.AI_FREE_TOKENS_PER_MONTH = '100';
+    process.env.AI_UNLIMITED_DOMAINS = 'empresa-sin-tope.test, @otra.test';
+    const { upsertUser } = await import('@/lib/db');
+    const vip = await upsertUser({ id: `vip-${crypto.randomUUID().slice(0, 8)}`, email: `ana@empresa-sin-tope.test`, name: 'vip', image: null });
+    const normal = await makeUser('ai-normal');
+    for (const u of [vip, normal]) await recordAiUsage({ workspaceId: u.id, feature: 'x', model: 'm', inputTokens: 200, outputTokens: 0 });
+    await expect(assertAiMonthlyQuota(vip.id)).resolves.toBeUndefined();
+    expect((await getAiUsage(vip.id)).freeTokens).toBeNull();
+    await expect(assertAiMonthlyQuota(normal.id)).rejects.toMatchObject({ code: 'quota_exceeded' });
   });
 });

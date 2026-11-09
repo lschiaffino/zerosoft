@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type Browser } from '@playwright/test';
 
 /** Tercera ronda de la auditoría de UI: hidratación fuera de UTC, listas a 390 y metadatos para compartir. */
@@ -92,7 +92,7 @@ test.describe('listas a 390', () => {
 });
 
 test('People: leer no crea fichas y la que falta se da de alta sin colgar la página', async ({ page, request }) => {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   await page.goto('/en/app/people', { waitUntil: 'networkidle' });
   const count = async () => Number((await db.execute("SELECT COUNT(*) AS n FROM people_employees WHERE workspace_id = 'demo'")).rows[0].n);
   const id = `orphan-${uid()}`;

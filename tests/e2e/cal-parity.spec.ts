@@ -87,11 +87,12 @@ test('Cal: agendar en nombre de un invitado desde Reservas y exportar CSV', asyn
 
 test('Cal: Google y Outlook (fake): elegir calendarios bloquea horarios ocupados', async ({ page, request }) => {
   const et = await eventType(request);
-  const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
-  const slotsAt = async () =>
-    ((await (await request.get(`/api/calendar/event-types/${et.id}/slots?date=${tomorrow}&timezone=UTC`)).json()) as { slots: Array<{ start: string }> }).slots.map(
-      (s) => s.start.slice(11, 16),
-    );
+  // "Mañana" se calcula en cada pedido, igual que el evento del Google falso: una corrida que cruza la medianoche UTC sigue coincidiendo.
+  const slotsAt = async () => {
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    const res = await request.get(`/api/calendar/event-types/${et.id}/slots?date=${tomorrow}&timezone=UTC`);
+    return ((await res.json()) as { slots: Array<{ start: string }> }).slots.map((s) => s.start.slice(11, 16));
+  };
 
   await page.goto('/en/app/calendar/settings?tab=connections');
   const google = page.locator('.cal-conn').filter({ hasText: 'Google Calendar' });

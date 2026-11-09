@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
 const schema = z
   .object({
-    defaultPrivacy: z.enum(['link', 'workspace']),
+    defaultPrivacy: z.enum(['people', 'link', 'workspace']),
     defaultAllowDownload: z.boolean(),
     brandName: z.string().max(80),
     brandColor: z.string().max(7).nullable(),

@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http';
 import path from 'node:path';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 
 /**
@@ -126,7 +126,7 @@ async function healRobot(page: Page, name: string, steps: unknown[]) {
 const stepsOf = async (page: Page, id: string) => ((await (await page.request.get(`/api/robots/${id}`)).json()) as { robot: { steps: Array<Record<string, unknown>> } }).robot.steps;
 
 const sql = async (q: string, args: Array<string | number> = []) => {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   try {
     return (await db.execute({ sql: q, args })).rows;
   } finally {

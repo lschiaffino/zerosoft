@@ -1,5 +1,5 @@
-import { createClient } from '@libsql/client';
-import { expect, test, type APIResponse, type Page } from '@playwright/test';
+import { e2eDb } from './helpers/db';
+import { expect, test, type APIResponse, type Locator, type Page } from '@playwright/test';
 
 /**
  * Asistente de la plataforma con el modelo falso (ASSISTANT_FAKE=1): panel
@@ -11,7 +11,7 @@ import { expect, test, type APIResponse, type Page } from '@playwright/test';
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 async function sql(statement: string, args: Array<string | number | null> = []) {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   try {
     return (await db.execute({ sql: statement, args })).rows as unknown as Array<Record<string, unknown>>;
   } finally {
@@ -60,6 +60,7 @@ test('⌘J abre el panel, pregunta, tarjeta de herramienta, confirmar un pipelin
   await expect(panel.getByTestId('assistant-msg-assistant').last()).toContainText(/deals|No deals match/);
 
   // Escritura: queda una tarjeta para confirmar; nada cambia hasta el clic.
+  await replyDone(panel);
   await input.fill(`Create a pipeline ${name} with stages Contacted, Proposal, Signed`);
   await input.press('Enter');
   const action = panel.getByTestId('assistant-action').last();
@@ -225,12 +226,21 @@ test('catálogo del MCP y contexto de la página: "what is this" en un doc, en o
   await expect(cards.first()).toBeVisible();
   await expect(panel.getByTestId('assistant-msg-assistant').last()).toContainText(`This is "${title}"`);
 
+  await replyDone(panel);
   await input.fill('list group chats');
   await input.press('Enter');
   await expect(cards.nth(1)).toBeVisible();
   await expect(panel.getByTestId('assistant-msg-assistant').last()).toContainText('Found');
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+/**
+ * Mientras la respuesta anterior sigue llegando, Enter no manda (como en ChatGPT):
+ * antes del próximo mensaje se espera a que el chat quede libre.
+ */
+async function replyDone(panel: Locator) {
+  await expect(panel.locator('.asst-messages')).toHaveAttribute('aria-busy', 'false');
+}
 
 // PNG de 1×1.
 const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
@@ -297,6 +307,7 @@ test('adjuntos: +, pegar y soltar; el modelo los recibe y uno se suma al doc con
   await expect(reply).toContainText('The document starts with: "Launch on Friday at noon."');
 
   // Usar el adjunto en una acción: pasa por la tarjeta y recién al confirmar entra al doc.
+  await replyDone(panel);
   await input.fill('Add this to this doc');
   await input.press('Enter');
   const action = panel.getByTestId('assistant-action').last();
