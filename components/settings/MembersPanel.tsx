@@ -415,7 +415,13 @@ export default function MembersPanel({
     });
   }
 
+  /** El checkbox cambia al tocarlo aunque haya otro guardado en curso (synced los encola). */
+  function showNow(userId: string, patch: Patch) {
+    setDir((cur) => ({ ...cur, members: cur.members.map((x) => (x.userId === userId ? { ...x, ...patch } : x)) }));
+  }
+
   async function changeApps(m: MemberDto, next: Apps, label: string) {
+    showNow(m.userId, { apps: next });
     await synced(async () => {
       const prev = m.apps;
       if (!(await patchPerson(m.userId, { apps: next }))) return;
@@ -433,6 +439,7 @@ export default function MembersPanel({
   }
 
   async function changeTeams(m: MemberDto, next: string[]) {
+    showNow(m.userId, { groupIds: next });
     await synced(async () => {
       const prev = m.groupIds;
       if (!(await patchPerson(m.userId, { groupIds: next }))) return;
