@@ -1358,6 +1358,12 @@ a.track-issue-link .track-status-glyph {
 .track-table-wrap.is-linear tr:not(:hover):not(.is-kb-active) .track-col-due:has(.track-inline-text.is-dim) > * {
   opacity: 0;
 }
+/* Sin hover no hay forma de hacerlo aparecer: con el dedo se ve, atenuado. */
+@media (hover: none) {
+  .track-table-wrap.is-linear tr:not(:hover):not(.is-kb-active) .track-col-due:has(.track-inline-text.is-dim) > * {
+    opacity: 1;
+  }
+}
 
 .track-table-wrap.is-linear .track-col-due .track-inline-text.is-dim {
   color: var(--brand-gray-3);
@@ -2153,6 +2159,96 @@ body:has(.track-bulk-bar) .fl-root {
 
 /* El control de status sobresale de su celda a propósito: sin esto, la celda recorta su resaltado. */
 .track-table-wrap.is-linear .track-table td.track-col-status { overflow: visible; }
+
+/* ---------- Arrastrar issues (TrackIssueDnd) ---------- */
+
+/* Fantasma del arrastre: "ENG-12" o "3 issues". Fuera de pantalla: el navegador lo fotografía. */
+.track-drag-ghost {
+  position: fixed;
+  top: -1000px;
+  left: -1000px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  font-family: var(--font-data);
+  white-space: nowrap;
+}
+
+/* Destinos posibles mientras se arrastra: el sidebar y los grupos se marcan al pasar. */
+body.track-dragging [data-track-drop] {
+  transition: background-color var(--ui-dur) var(--ease);
+}
+.is-drop-target[data-track-drop] {
+  background: var(--ui-hover);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+tr.is-drop-before > td,
+.is-drop-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+tr.is-drop-after > td,
+.is-drop-after {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+tr.is-drop-before,
+tr.is-drop-after {
+  outline: none;
+  background: none;
+}
+
+/* Menú del issue (clic derecho o mantener apretado). */
+.track-context-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
+  display: flex;
+  flex-direction: column;
+}
+.track-context-item {
+  all: unset;
+  padding: 6px 10px;
+  border-radius: var(--radius-1);
+  font-size: 0.8125rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.track-context-item:hover,
+.track-context-item:focus-visible {
+  background: var(--ui-hover);
+  outline: none;
+}
+.track-context-item:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.track-context-sep {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 4px 0;
+}
+.track-context-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.track-context-key {
+  font-family: var(--font-data);
+  font-size: 0.6875rem;
+  color: var(--brand-gray-2);
+}
+.track-context-item.is-danger {
+  color: var(--bad-ink);
+}
+
 
 /* Comentarios escritos sin conexión que esperan en el dispositivo (IssueActivityTimeline). */
 .track-activity-queued { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
