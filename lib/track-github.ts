@@ -367,10 +367,21 @@ interface WorkspaceIssue {
 }
 
 async function workspacePrefixes(workspaceId: string): Promise<string[]> {
-  const rows = (await getDb()
+  const db = getDb();
+  const rows = (await db
     .prepare('SELECT slug FROM track_projects WHERE COALESCE(team_id, owner_id) = ?')
     .all(workspaceId)) as Array<{ slug: string }>;
-  return rows.map((r) => r.slug.toUpperCase());
+  // Prefijos de IDs viejos (issue movido de team, o importado de Linear con otra clave):
+  // un branch o PR con ENG-12 sigue encontrando el issue que hoy es WEB-31.
+  const aliases = (await db
+    .prepare(
+      `SELECT DISTINCT UPPER(SUBSTR(a.identifier, 1, INSTR(a.identifier, '-') - 1)) AS prefix
+       FROM track_issue_aliases a JOIN track_projects p ON p.id = a.project_id
+       WHERE (p.team_id = ? OR (p.team_id IS NULL AND p.owner_id = ?)) AND INSTR(a.identifier, '-') > 1`,
+    )
+    .all(workspaceId, workspaceId)
+    .catch(() => [])) as Array<{ prefix: string }>;
+  return [...new Set([...rows.map((r) => r.slug.toUpperCase()), ...aliases.map((r) => r.prefix)])];
 }
 
 /**
@@ -382,7 +393,7 @@ async function workspacePrefixes(workspaceId: string): Promise<string[]> {
 async function findWorkspaceIssues(workspaceId: string, identifiers: string[]): Promise<WorkspaceIssue[]> {
   if (identifiers.length === 0) return [];
   const ph = identifiers.map(() => '?').join(', ');
-  return (await getDb()
+  const direct = (await getDb()
     .prepare(
       `SELECT i.id, i.project_id, i.identifier, i.triage, i.status_id, s.category AS status_category
        FROM track_issues i
@@ -391,6 +402,24 @@ async function findWorkspaceIssues(workspaceId: string, identifiers: string[]): 
        WHERE (p.team_id = ? OR (p.team_id IS NULL AND p.owner_id = ?)) AND i.identifier IN (${ph})`,
     )
     .all(workspaceId, workspaceId, ...identifiers.map((i) => i.toUpperCase()))) as WorkspaceIssue[];
+  // Los que no están con su ID actual: por alias (ID de antes de mover de team o el de Linear).
+  // Vuelven con el ID pedido, así las listas de IDs que mueven o vinculan los siguen encontrando.
+  const found = new Set(direct.map((i) => i.identifier.toUpperCase()));
+  const missing = identifiers.map((i) => i.toUpperCase()).filter((i) => !found.has(i));
+  if (!missing.length) return direct;
+  const viaAlias = (await getDb()
+    .prepare(
+      `SELECT i.id, i.project_id, a.identifier AS identifier, i.triage, i.status_id, s.category AS status_category
+       FROM track_issue_aliases a
+       JOIN track_projects ap ON ap.id = a.project_id
+       JOIN track_issues i ON i.id = a.issue_id
+       LEFT JOIN track_statuses s ON s.id = i.status_id
+       WHERE (ap.team_id = ? OR (ap.team_id IS NULL AND ap.owner_id = ?)) AND UPPER(a.identifier) IN (${missing.map(() => '?').join(', ')})`,
+    )
+    .all(workspaceId, workspaceId, ...missing)
+    .catch(() => [])) as WorkspaceIssue[];
+  const seen = new Set(direct.map((i) => i.id));
+  return [...direct, ...viaAlias.filter((i) => !seen.has(i.id) && seen.add(i.id))];
 }
 
 async function moveIssueToCategory(

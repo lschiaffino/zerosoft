@@ -282,6 +282,23 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-07-track-linear-workspace-import',
+    date: '2026-11-07',
+    title: {
+      en: 'Track: move a whole Linear workspace in one go',
+      es: 'Track: mudá un workspace entero de Linear de una vez',
+      pt: 'Track: traga um workspace inteiro do Linear de uma vez',
+    },
+    items: [
+      {
+        product: 'track',
+        en: 'The Linear importer now brings teams with their workflow, projects with milestones and updates, cycles, issues with their original IDs, comment threads, links, pull requests, relations and sub-issues. People are matched by email, and the preview can invite the ones who are missing. Run it again before you switch: it updates what changed in Linear and never duplicates.',
+        es: 'El importador de Linear ahora trae los teams con su workflow, los projects con milestones y updates, cycles, issues con sus IDs originales, hilos de comentarios, links, pull requests, relaciones y sub-issues. Las personas se asocian por email y la vista previa puede invitar a las que faltan. Corrélo de nuevo antes de cambiarte: actualiza lo que cambió en Linear y nunca duplica.',
+        pt: 'O importador do Linear agora traz os teams com o workflow, os projects com milestones e updates, cycles, issues com os IDs originais, threads de comentários, links, pull requests, relações e sub-issues. As pessoas são associadas pelo e-mail e a prévia pode convidar quem falta. Rode de novo antes de trocar: atualiza o que mudou no Linear e nunca duplica.',
+      },
+    ],
+  },
+  {
     id: '2026-11-07-docs-notion-move',
     date: '2026-11-07',
     title: {

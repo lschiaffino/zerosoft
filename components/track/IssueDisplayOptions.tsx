@@ -40,12 +40,17 @@ export function writeDisplayProps(key: string, props: DisplayProp[]) {
   }
 }
 
+export const COMPLETED_WINDOWS = ['all', 'week', 'none'] as const;
+export type CompletedWindow = (typeof COMPLETED_WINDOWS)[number];
+
 interface IssueDisplayOptionsProps {
   group: IssueGroupBy;
   /** Agrupados que ofrece la vista (el tablero no tiene "ninguno"; un team no agrupa por team). */
   groups: readonly IssueGroupBy[];
   sort: IssueSort;
   onGroupChange: (group: IssueGroupBy) => void;
+  /** "Sub-grouping" (lista agrupada), como Linear. */
+  subGroup?: { value: IssueGroupBy; options: readonly IssueGroupBy[]; onChange: (g: IssueGroupBy) => void; label: string };
   onSortChange: (sort: IssueSort) => void;
   labels: DisplayLabels;
   /** Lista / tablero (y calendario y cronograma como secundarios). */
@@ -54,6 +59,10 @@ interface IssueDisplayOptionsProps {
   subIssues?: { show: boolean; onChange: (show: boolean) => void; label?: string };
   /** "Completed issues": mostrar u ocultar lo terminado y cancelado. */
   completed?: { show: boolean; onChange: (show: boolean) => void };
+  /** "Completed issues" con ventana (todos, la última semana, ninguno), como Linear. */
+  completedWindow?: { value: CompletedWindow; onChange: (v: CompletedWindow) => void };
+  /** "Show empty groups". */
+  emptyGroups?: { show: boolean; onChange: (show: boolean) => void };
   properties?: { visible: DisplayProp[]; available: readonly DisplayProp[]; onChange: (props: DisplayProp[]) => void };
   /** Muestra el botón "Volver a lo predeterminado". */
   onReset?: () => void;
@@ -158,11 +167,14 @@ export default function IssueDisplayOptions({
   groups,
   sort,
   onGroupChange,
+  subGroup,
   onSortChange,
   labels,
   layout,
   subIssues,
   completed,
+  completedWindow,
+  emptyGroups,
   properties,
   onReset,
 }: IssueDisplayOptionsProps) {
@@ -236,6 +248,16 @@ export default function IssueDisplayOptions({
             onChange={onGroupChange}
             testId="track-group-by"
           />
+          {subGroup && (
+            <Choice
+              label={subGroup.label}
+              value={subGroup.value}
+              options={subGroup.options}
+              optionLabel={(g) => labels.groups[g]}
+              onChange={subGroup.onChange}
+              testId="track-subgroup-by"
+            />
+          )}
           <Choice
             label={t('ordering')}
             value={sort}
@@ -244,7 +266,20 @@ export default function IssueDisplayOptions({
             onChange={onSortChange}
             testId="track-sort-by"
           />
-          {(subIssues || completed) && <div className="track-display-sep" />}
+          {(subIssues || completed || completedWindow || emptyGroups) && <div className="track-display-sep" />}
+          {completedWindow && (
+            <Choice
+              label={t('completedIssues')}
+              value={completedWindow.value}
+              options={COMPLETED_WINDOWS}
+              optionLabel={(v) => t(`completedWindow.${v}`)}
+              onChange={completedWindow.onChange}
+              testId="track-completed-window"
+            />
+          )}
+          {emptyGroups && (
+            <Switch label={t('showEmptyGroups')} on={emptyGroups.show} onChange={emptyGroups.onChange} testId="track-show-empty-groups" />
+          )}
           {subIssues && (
             <Switch label={subIssues.label ?? t('showSub')} on={subIssues.show} onChange={subIssues.onChange} testId="track-show-subissues" />
           )}

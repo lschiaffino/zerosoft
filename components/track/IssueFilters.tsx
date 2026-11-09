@@ -38,6 +38,9 @@ interface IssueFiltersProps {
   members: Array<{ id: string; name: string | null; email: string }>;
   cycles: TrackCycleRow[];
   milestones?: Array<{ id: string; name: string }>;
+  /** Listas de varios teams: filtrar por team (track_projects) y por project (track_plans). */
+  teams?: Array<{ id: string; name: string }>;
+  plans?: Array<{ id: string; name: string }>;
   issueLabels: IssueLabel[];
   labels: FilterLabels;
   /** Compat: las vistas guardadas ahora viven en la barra de pestañas del team. */
@@ -329,6 +332,8 @@ const FIELD_ICONS: Partial<Record<FilterField, TrackIconName>> = {
   label: 'tag',
   cycle: 'cycle',
   milestone: 'flag',
+  team: 'team',
+  project: 'plans',
   estimate: 'estimate',
   due: 'calendar',
   start: 'calendar',
@@ -364,6 +369,8 @@ export default function IssueFilters({
   members,
   cycles,
   milestones = [],
+  teams = [],
+  plans = [],
   issueLabels,
   labels,
   trailing,
@@ -406,12 +413,14 @@ export default function IssueFilters({
   };
 
   const fields: FilterField[] = useMemo(() => {
-    const list: FilterField[] = ['status', 'priority', 'assignee', 'creator', 'label'];
-    if (cycles.length) list.push('cycle');
-    if (milestones.length) list.push('milestone');
+    // Todas las propiedades, como Linear (cycle y milestone aunque la página no tenga valores todavía:
+    // ofrecen "sin cycle" / "sin milestone"); team y project se ocultan solo donde la lista ya es de uno.
+    const list: FilterField[] = ['status', 'priority', 'assignee', 'creator', 'label', 'cycle', 'milestone'];
+    if (teams.length > 1) list.push('team');
+    if (plans.length) list.push('project');
     list.push('estimate', 'due', 'start', 'created', 'updated', 'relation', 'hierarchy');
     return list;
-  }, [cycles.length, milestones.length]);
+  }, [teams.length, plans.length]);
 
   const avatar = (name: string | null | undefined) => <span className="track-avatar">{initial(name)}</span>;
   const swatch = (color: string) => (
@@ -442,6 +451,13 @@ export default function IssueFilters({
         return [{ value: NONE_VALUE, label: tf('noMilestone') }, ...milestones.map((m) => ({ value: m.id, label: m.name }))].map(
           (o) => ({ ...o, icon: <TrackIcon name="flag" size={13} /> }),
         );
+      case 'team':
+        return teams.map((x) => ({ value: x.id, label: x.name, icon: <TrackIcon name="team" size={13} /> }));
+      case 'project':
+        return [{ value: NONE_VALUE, label: tf('noProject') }, ...plans.map((x) => ({ value: x.id, label: x.name }))].map((o) => ({
+          ...o,
+          icon: <TrackIcon name="plans" size={13} />,
+        }));
       case 'estimate':
         return ESTIMATE_OPTIONS.map((n) => ({ value: String(n), label: tf('points', { count: n }), icon: <TrackIcon name="estimate" size={13} /> }));
       case 'relation':
