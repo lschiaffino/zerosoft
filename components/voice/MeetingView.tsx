@@ -103,6 +103,13 @@ export default function MeetingView({
     if (bridge?.systemAudio) {
       setDesktop(true);
       setMode('mic_tab');
+    } else if (tabAudioSupported()) {
+      // Navegador: por defecto también se pide el audio de la reunión (pestaña o sistema).
+      let saved: string | null = null;
+      try {
+        saved = localStorage.getItem('zs-voice-mode');
+      } catch {}
+      if (saved !== 'mic') setMode('mic_tab');
     }
   }, []);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -378,7 +385,12 @@ export default function MeetingView({
     if (!takeAutostart(d.id)) return;
     if (!canRecord || rec.state !== 'idle' || recordingElsewhere || otherRecorder || d.segments.length > 0) return;
     const bridge = desktopBridge();
-    void recorder.start({ sessionId: d.id, mode: bridge?.systemAudio ? 'mic_tab' : 'mic', baseOffsetMs: d.durationMs, desktop: !!bridge?.systemAudio });
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem('zs-voice-mode');
+    } catch {}
+    const wantTab = !!bridge?.systemAudio || (tabAudioSupported() && saved === 'mic_tab');
+    void recorder.start({ sessionId: d.id, mode: wantTab ? 'mic_tab' : 'mic', baseOffsetMs: d.durationMs, desktop: !!bridge?.systemAudio, softTab: true });
   }, [serverChecked, canRecord, rec.state, recordingElsewhere, otherRecorder, recorder, d.id, d.durationMs, d.segments.length]);
 
   // Ir a un momento de la transcripción: una cita del chat o ?t=<segundos> en el link.
@@ -464,7 +476,12 @@ export default function MeetingView({
     setFlash((await copyText(url)) ? t('linkCopied') : t('copyFailed'));
   }
 
-  const start = () => void recorder.start({ sessionId: d.id, mode, baseOffsetMs: d.durationMs, desktop });
+  const start = () => {
+    try {
+      localStorage.setItem('zs-voice-mode', mode);
+    } catch {}
+    void recorder.start({ sessionId: d.id, mode, baseOffsetMs: d.durationMs, desktop });
+  };
   const status =
     rec.state === 'stopping'
       ? t('finishing')

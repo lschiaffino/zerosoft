@@ -161,6 +161,7 @@ mod mac {
 }
 
 pub const PANE_MIC: &str = "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone";
+pub const PANE_SCREEN: &str = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";
 pub const PANE_ACCESSIBILITY: &str = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
 
 pub fn microphone_status() -> PermissionStatus {

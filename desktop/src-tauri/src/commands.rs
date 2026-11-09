@@ -434,7 +434,7 @@ pub fn desktop_info(app: AppHandle, window: WebviewWindow) -> CmdResult<DesktopI
     Ok(DesktopInfo {
         version: app.package_info().version.to_string(),
         platform: if cfg!(target_os = "macos") { "darwin" } else { "win32" },
-        system_audio: false,
+        system_audio: cfg!(target_os = "macos"),
         dictation: !app.state::<AppState>().shortcut_taken.load(Ordering::Relaxed),
     })
 }
@@ -530,4 +530,32 @@ mod tests {
         assert_eq!(accessibility_hint(false, "0.3.0", "0.3.0", "stable"), "off");
         assert_eq!(accessibility_hint(false, "", "0.3.0", "unknown"), "off");
     }
+}
+
+/// Empieza a capturar el audio del sistema para las notas de reunión. Devuelve
+/// "ok" | "denied" | "unsupported" | "failed". Sin permiso, pide el aviso de macOS y abre el panel
+/// de Grabación de pantalla (la persona lo activa y vuelve a empezar; macOS pide reabrir la app).
+#[tauri::command]
+pub async fn desktop_system_audio_start(app: AppHandle, window: WebviewWindow) -> CmdResult<String> {
+    from_app(&app, &window)?;
+    let res = tauri::async_runtime::spawn_blocking(crate::system_audio::start).await.map_err(|e| e.to_string())?;
+    if res == crate::system_audio::SysAudio::Denied {
+        let _ = app.opener().open_url(platform::PANE_SCREEN, None::<&str>);
+    }
+    Ok(res.code().to_string())
+}
+
+/// Lo capturado desde la lectura anterior (PCM i16 little endian, 16 kHz, mono) en base64.
+#[tauri::command]
+pub fn desktop_system_audio_read(app: AppHandle, window: WebviewWindow) -> CmdResult<String> {
+    from_app(&app, &window)?;
+    use base64::Engine;
+    Ok(base64::engine::general_purpose::STANDARD.encode(crate::system_audio::read()))
+}
+
+#[tauri::command]
+pub fn desktop_system_audio_stop(app: AppHandle, window: WebviewWindow) -> CmdResult<()> {
+    from_app(&app, &window)?;
+    crate::system_audio::stop();
+    Ok(())
 }

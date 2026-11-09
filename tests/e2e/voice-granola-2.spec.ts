@@ -15,6 +15,8 @@ test.use({
 });
 
 test.beforeEach(async ({ page, context, baseURL }) => {
+  // Sin elegir la pestaña a compartir: estos tests graban solo el micrófono simulado.
+  await context.addInitScript(() => localStorage.setItem('zs-voice-mode', 'mic'));
   test.setTimeout(180_000);
   await context.grantPermissions(['microphone', 'clipboard-read', 'clipboard-write'], { origin: baseURL! });
   await page.addInitScript(() => {

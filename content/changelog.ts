@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-voice-system-audio',
+    date: '2026-11-09',
+    title: {
+      en: 'Voice: records the computer audio, with its own transcription allowance',
+      es: 'Voice: graba el audio de la compu, con cupo propio para transcribir',
+      pt: 'Voice: grava o áudio do computador, com cota própria para transcrever',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'Meetings record the audio of the meeting next to your microphone: the browser asks for a tab or screen with audio when you start, and the Mac app records the system audio and asks for the Screen & System Audio Recording permission. If nothing is shared, only the microphone is recorded and you are told why.',
+        es: 'Las reuniones graban el audio de la reunión junto con tu micrófono: el navegador pide una pestaña o pantalla con audio al empezar, y la app de Mac graba el audio del sistema y pide el permiso de Grabación de pantalla y audio del sistema. Si no se comparte nada, se graba solo el micrófono y se avisa por qué.',
+        pt: 'As reuniões gravam o áudio da reunião junto com o seu microfone: o navegador pede uma aba ou tela com áudio ao começar, e o app do Mac grava o áudio do sistema e pede a permissão de Gravação de tela e áudio do sistema. Se nada for compartilhado, só o microfone é gravado e você é avisado do motivo.',
+      },
+      {
+        product: 'voice',
+        en: 'Transcription has its own monthly allowance of 600 minutes per workspace, so chatting with your notes no longer leaves a meeting without a transcript.',
+        es: 'La transcripción tiene su propio cupo mensual de 600 minutos por workspace, así que charlar con tus notas ya no deja una reunión sin transcripción.',
+        pt: 'A transcrição tem a sua própria cota mensal de 600 minutos por workspace, então conversar com as suas notas não deixa mais uma reunião sem transcrição.',
+      },
+    ],
+  },
+  {
     id: '2026-11-09-voice-meeting-page',
     date: '2026-11-09',
     title: {

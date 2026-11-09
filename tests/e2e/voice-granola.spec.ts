@@ -12,6 +12,8 @@ test.use({
 });
 
 test.beforeEach(async ({ page, context, baseURL }) => {
+  // Sin elegir la pestaña a compartir: estos tests graban solo el micrófono simulado.
+  await context.addInitScript(() => localStorage.setItem('zs-voice-mode', 'mic'));
   // Graban de verdad (trozos de 1,5 s) y esperan a la IA falsa: más que el minuto por defecto.
   test.setTimeout(180_000);
   await context.grantPermissions(['microphone'], { origin: baseURL! });

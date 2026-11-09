@@ -13,6 +13,8 @@ const KNOWN_ERRORS = new Set([
   'mic_missing',
   'mic_failed',
   'no_tab_audio',
+  'tab_skipped',
+  'screen_denied',
   'too_short',
   'nothing_heard',
   'not_found',

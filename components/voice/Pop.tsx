@@ -60,6 +60,19 @@ export default function Pop({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Si el foco se perdió (se quitó el botón que lo tenía), Esc igual cierra.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (wrap.current?.contains(document.activeElement)) return;
+      setOpen(false);
+      btn.current?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
   const close = () => {
     setOpen(false);
     btn.current?.focus();

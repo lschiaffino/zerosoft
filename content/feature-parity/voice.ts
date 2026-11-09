@@ -25,7 +25,7 @@ function row(
  * Voice contra Wispr Flow (dictado) y Granola (notas de reunión). Fuente:
  * docs/benchmark/voice.md. Primera versión web (tanda 4b): dictado en toda la
  * suite y notas de reunión. App de escritorio nativa (desktop/, Tauri): dictado en
- * cualquier app hecho en Rust; sin firma de Apple todavía y sin audio del sistema.
+ * cualquier app hecho en Rust; sin firma de Apple todavía; en Mac graba el audio del sistema (ScreenCaptureKit).
  */
 const parity: ProductParity = {
   competitor: 'Wispr Flow + Granola',
@@ -193,9 +193,9 @@ const parity: ProductParity = {
     row('botless-capture', 'capture', ['Record meetings without a bot', 'Grabar reuniones sin bot', 'Gravar reuniões sem bot'], 'partial', {
       weight: 2,
       detail: [
-        "No bot: the browser records your mic, or your mic plus a tab with Meet, Zoom or Teams on the web. System audio of native call apps is not available: the current desktop app does not record it",
-        "Sin bot: el navegador graba tu micrófono, o el micrófono y una pestaña con Meet, Zoom o Teams web. El audio del sistema de las apps de llamadas nativas no está disponible: la app de escritorio actual no lo graba",
-        "Sem bot: o navegador grava seu microfone, ou o microfone e uma aba com Meet, Zoom ou Teams web. O áudio do sistema dos apps de chamada nativos não está disponível: o app desktop atual não grava",
+        "No bot: the browser asks to share a tab or the screen with its audio (Meet, Zoom or Teams on the web, or a native call app with the system audio where the browser offers it) and records it next to your mic; the meeting audio is asked by default. The Mac desktop app records the system audio natively with ScreenCaptureKit (macOS 13 or later, Screen & System Audio Recording permission). Tested with fake capture only, not yet with a real call; Windows desktop still goes through the browser share",
+        "Sin bot: el navegador pide compartir una pestaña o la pantalla con su audio (Meet, Zoom o Teams web, o una app de llamadas nativa con el audio del sistema donde el navegador lo ofrece) y lo graba junto con tu micrófono; el audio de la reunión se pide por defecto. La app de escritorio de Mac graba el audio del sistema de forma nativa con ScreenCaptureKit (macOS 13 o más, permiso de Grabación de pantalla y audio del sistema). Probado solo con captura simulada, todavía no con una llamada real; el escritorio de Windows sigue por el compartir del navegador",
+        "Sem bot: o navegador pede para compartilhar uma aba ou a tela com o áudio (Meet, Zoom ou Teams web, ou um app de chamada nativo com o áudio do sistema onde o navegador oferece) e grava junto com o seu microfone; o áudio da reunião é pedido por padrão. O app desktop do Mac grava o áudio do sistema de forma nativa com ScreenCaptureKit (macOS 13 ou superior, permissão de Gravação de tela e áudio do sistema). Testado só com captura simulada, ainda não com uma chamada real; o desktop do Windows continua pelo compartilhamento do navegador",
       ],
     }),
     row('auto-start', 'capture', ['Starts listening when the meeting opens', 'Empieza a escuchar al abrir la reunión', 'Começa a escutar ao abrir a reunião'], 'have', {

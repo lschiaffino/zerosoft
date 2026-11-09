@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-indicator-state"
+description = "Enables the indicator_state command without any pre-configured scope."
+commands.allow = ["indicator_state"]
+
+[[permission]]
+identifier = "deny-indicator-state"
+description = "Denies the indicator_state command without any pre-configured scope."
+commands.deny = ["indicator_state"]

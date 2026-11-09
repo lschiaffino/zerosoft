@@ -16,7 +16,8 @@
  * transcripción.
  */
 import { experimental_transcribe as transcribe, gateway } from 'ai';
-import { aiEnabled, AiError, assertAiMonthlyQuota, recordAiUsage } from './ai';
+import { aiEnabled, AiError, recordAiUsage } from './ai';
+import { getDb } from './db';
 import { rateLimit } from './rate-limit';
 
 export type TranscribeProvider = 'gateway' | 'openai' | 'deepgram' | 'assemblyai' | 'fake';
@@ -54,6 +55,30 @@ export function transcribeRatePerMinute(): number {
 
 /** Tokens equivalentes por segundo de audio (cuota y ai_usage). */
 export const TOKENS_PER_AUDIO_SECOND = 10;
+
+/** Minutos de audio por workspace y mes (VOICE_TRANSCRIBE_FREE_MINUTES, default 600; unlimited = sin tope). */
+export function transcribeFreeMinutes(): number | null {
+  const raw = process.env.VOICE_TRANSCRIBE_FREE_MINUTES?.trim().toLowerCase();
+  if (raw === 'unlimited' || raw === '-1') return null;
+  const n = Number(raw);
+  return raw && Number.isFinite(n) && n >= 0 ? n : 600;
+}
+
+/**
+ * Cuota propia de la transcripción: cuenta solo el audio transcrito del mes. Antes compartía
+ * los 200 mil tokens gratis del chat y las notas, y una persona que probaba bastante se
+ * quedaba sin transcripción (429 quota_exceeded) sin haber usado la mitad del audio.
+ */
+export async function assertTranscribeQuota(workspaceId: string, now = new Date()): Promise<void> {
+  const free = transcribeFreeMinutes();
+  if (free === null) return;
+  const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+  const row = (await getDb()
+    .prepare(`SELECT COALESCE(SUM(input_tokens), 0) AS tokens FROM ai_usage WHERE user_id = ? AND feature = 'voice_transcribe' AND created_at >= ?`)
+    .get(workspaceId, since)) as { tokens: number } | undefined;
+  const minutes = Number(row?.tokens ?? 0) / TOKENS_PER_AUDIO_SECOND / 60;
+  if (minutes >= free) throw new AiError('quota_exceeded');
+}
 
 export function transcribeProvider(): TranscribeProvider {
   const raw = (process.env.VOICE_TRANSCRIBE_PROVIDER ?? '').trim().toLowerCase();
@@ -287,7 +312,7 @@ export async function transcribeAudio(input: TranscribeInput): Promise<Transcrip
   if (!transcriptionConfigured(provider)) {
     throw provider === 'gateway' ? new AiError('ai_disabled') : new VoiceTranscribeError('transcribe_disabled');
   }
-  await assertAiMonthlyQuota(input.workspaceId);
+  await assertTranscribeQuota(input.workspaceId);
   // Rate limit propio de la transcripción (más alto que el del chat): una reunión
   // con dos pistas manda unos 6 trozos por minuto por persona.
   if (process.env.RATE_LIMIT_DISABLED !== 'true') {
