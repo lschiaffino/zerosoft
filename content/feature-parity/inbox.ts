@@ -37,6 +37,7 @@ const parity: ProductParity = {
     { id: 'writing', label: loc(['Writing', 'Escribir', 'Escrita']) },
     { id: 'navigation', label: loc(['Keyboard and search', 'Teclado y búsqueda', 'Teclado e busca']) },
     { id: 'platform', label: loc(['Platform', 'Plataforma', 'Plataforma']) },
+    { id: 'whatsapp', label: loc(['WhatsApp Web', 'WhatsApp Web', 'WhatsApp Web']) },
   ],
   rows: [
     // Cuentas
@@ -148,6 +149,36 @@ const parity: ProductParity = {
       detail: ['Folders, scheduled, drafts, snoozes, notes and saved history from the local inbox.db', 'Carpetas, programados, borradores, pospuestos, notas e historial guardado del inbox.db local', 'Pastas, agendadas, rascunhos, adiadas, notas e histórico salvo do inbox.db local'],
     }),
     row('self-host', 'platform', ['Run it on your own server', 'Correrlo en tu servidor', 'Rodar no seu servidor'], 'have', { competitorHas: false }),
+
+    // WhatsApp Web (la lista, la conversación y la info del contacto, como en WhatsApp)
+    row('wa-names', 'whatsapp', ['Real chat names', 'Nombres reales de los chats', 'Nomes reais das conversas'], 'partial', {
+      detail: [
+        'Group subject and contact profile from the WhatsApp server, refreshed every three days; never the raw id. Tested with the fake provider and the real payload shapes',
+        'Asunto del grupo y perfil del contacto desde el servidor de WhatsApp, renovados cada tres días; nunca el id crudo. Probado con el proveedor falso y la forma real de los datos',
+        'Assunto do grupo e perfil do contato vindos do servidor do WhatsApp, renovados a cada três dias; nunca o id cru. Testado com o provedor falso e o formato real dos dados',
+      ],
+    }),
+    row('wa-photos', 'whatsapp', ['Profile photos', 'Fotos de perfil', 'Fotos de perfil'], 'partial', {
+      detail: [
+        'Contacts and groups, served with your session and cached privately in the browser; an expired link is renewed. Tested with the fake provider',
+        'Contactos y grupos, servidas con tu sesión y guardadas en la caché privada del navegador; un link vencido se renueva. Probado con el proveedor falso',
+        'Contatos e grupos, servidas com sua sessão e guardadas no cache privado do navegador; um link vencido é renovado. Testado com o provedor falso',
+      ],
+    }),
+    row('wa-list', 'whatsapp', ['Chat list like WhatsApp', 'Lista de chats como WhatsApp', 'Lista de conversas como o WhatsApp'], 'partial', {
+      detail: [
+        'Photo, name, time, ticks, sender in groups, media icon, typing, muted, unread and pinned. Filters are Inbox views, not WhatsApp lists',
+        'Foto, nombre, hora, tildes, quién mandó en grupos, ícono de media, escribiendo, silenciado, no leídos y fijado. Los filtros son las vistas de Inbox, no las listas de WhatsApp',
+        'Foto, nome, hora, confirmações, quem enviou em grupos, ícone de mídia, digitando, silenciado, não lidas e fixada. Os filtros são as visões do Inbox, não as listas do WhatsApp',
+      ],
+    }),
+    row('wa-reactions-live', 'whatsapp', ['Reactions and typing arrive live', 'Reacciones y "escribiendo" en vivo', 'Reações e "digitando" ao vivo'], 'partial', {
+      detail: [
+        'Stored as they arrive from WhatsApp and shown on the next refresh (a few seconds). Typing depends on WhatsApp sending presence',
+        'Se guardan al llegar de WhatsApp y se ven en la próxima actualización (unos segundos). "Escribiendo" depende de que WhatsApp mande la presencia',
+        'São salvas quando chegam do WhatsApp e aparecem na próxima atualização (alguns segundos). "Digitando" depende de o WhatsApp enviar a presença',
+      ],
+    }),
   ],
 };
 

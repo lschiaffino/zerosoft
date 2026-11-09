@@ -11,7 +11,7 @@ import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
 import { sendUp } from './send-migration';
-import { inboxUp } from './inbox-migration';
+import { inboxUp, inboxWhatsappUp } from './inbox-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -8894,6 +8894,12 @@ export const MIGRATIONS: Migration[] = [
           WHERE json_extract(j.value, '$.sent.kind') = 'crm';
       `);
     },
+  },
+  {
+    // Inbox con la cara de WhatsApp Web: fotos, nombres de grupos, presencia,
+    // reacciones, destacados. Ver inboxWhatsappUp en lib/schema/inbox-migration.ts.
+    id: '293_inbox_whatsapp',
+    up: inboxWhatsappUp,
   },
 ];
 

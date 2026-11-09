@@ -136,3 +136,46 @@ export async function inboxUp(client: Client): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_inbox_scheduled_owner ON inbox_scheduled(owner_id, status);
   `);
 }
+
+async function addInboxColumn(client: Client, sql: string): Promise<void> {
+  try {
+    await client.execute(sql);
+  } catch (err) {
+    if (!/duplicate column/i.test(String(err))) throw err;
+  }
+}
+
+/**
+ * Inbox con la cara de WhatsApp: foto y datos del chat (nombre del grupo,
+ * descripción, participantes, "info" del contacto), presencia (escribiendo,
+ * en línea), lo que muestra la fila de la lista (quién mandó el último,
+ * tildes, tipo de media), el resumen de la IA y, por mensaje, reacciones,
+ * reenviado, destacado, borrado para mí y los datos de la media (medidas,
+ * duración, ubicación, contactos, encuesta, menciones). La URL de la foto es
+ * la del servidor de WhatsApp: nunca llega al navegador (se sirve por
+ * /api/inbox/avatar con la sesión de la persona).
+ */
+export async function inboxWhatsappUp(client: Client): Promise<void> {
+  const cols = [
+    "ALTER TABLE inbox_threads ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE inbox_threads ADD COLUMN info TEXT NOT NULL DEFAULT ''",
+    'ALTER TABLE inbox_threads ADD COLUMN info_at TEXT',
+    "ALTER TABLE inbox_threads ADD COLUMN last_sender TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE inbox_threads ADD COLUMN last_kind TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE inbox_threads ADD COLUMN last_status TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE inbox_threads ADD COLUMN presence TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE inbox_threads ADD COLUMN presence_who TEXT NOT NULL DEFAULT ''",
+    'ALTER TABLE inbox_threads ADD COLUMN presence_at TEXT',
+    'ALTER TABLE inbox_threads ADD COLUMN last_seen_at TEXT',
+    "ALTER TABLE inbox_threads ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
+    'ALTER TABLE inbox_threads ADD COLUMN summary_at TEXT',
+    "ALTER TABLE inbox_messages ADD COLUMN meta TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE inbox_messages ADD COLUMN reactions TEXT NOT NULL DEFAULT ''",
+    'ALTER TABLE inbox_messages ADD COLUMN forwarded INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE inbox_messages ADD COLUMN starred_at TEXT',
+    'ALTER TABLE inbox_messages ADD COLUMN hidden_at TEXT',
+  ];
+  for (const sql of cols) await addInboxColumn(client, sql);
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_inbox_threads_info ON inbox_threads(account_id, info_at)');
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_inbox_messages_starred ON inbox_messages(owner_id, starred_at)');
+}

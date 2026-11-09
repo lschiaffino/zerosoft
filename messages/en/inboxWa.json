@@ -1,0 +1,18 @@
+{
+  "group": "Group",
+  "typing": "typing…",
+  "recording": "recording audio…",
+  "muted": "Muted",
+  "unread": "{n, plural, one {# unread message} other {# unread messages}}",
+  "kind": {
+    "image": "Photo",
+    "video": "Video",
+    "voice": "Voice message",
+    "audio": "Audio",
+    "document": "Document",
+    "sticker": "Sticker",
+    "location": "Location",
+    "contact": "Contact",
+    "poll": "Poll"
+  }
+}

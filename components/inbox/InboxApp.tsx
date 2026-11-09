@@ -6,7 +6,8 @@ import { Link, useRouter } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ThreadAction } from '@/lib/inbox/core';
 import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
-import { api, avatarHue, INBOX_CHANGED, initials, longWhen, notifyInboxChanged, shortWhen, typingIn } from './api';
+import { api, INBOX_CHANGED, longWhen, notifyInboxChanged, typingIn } from './api';
+import ChatRow from './wa/ChatRow';
 import Conversation, { type ThreadDetail } from './Conversation';
 import type { ComposerHandle } from './Composer';
 import WhenDialog, { type WhenKind } from './WhenDialog';
@@ -465,28 +466,17 @@ export default function InboxApp(props: {
           }}
           onFocus={() => setCursor(i)}
         >
-          <span className="ib-avatar" style={{ background: `hsl(${avatarHue(th.id)} 35% 45%)` }} aria-hidden>
-            {initials(th.title)}
-          </span>
-          <span className="ib-row-main">
-            <span className="ib-row-top">
-              <span className="ib-row-title">
-                {th.pinned && <span className="ib-pin" aria-label={t('list.pinned')} title={t('list.pinned')} />}
-                {th.title}
-              </span>
-              <span className="ib-row-when">{view === 'snoozed' && th.snoozedUntil ? longWhen(th.snoozedUntil, locale) : shortWhen(th.lastMessageAt, locale)}</span>
-            </span>
-            <span className="ib-row-bottom">
-              <span className="ib-row-preview">
-                <span className="ib-chan-dot" data-ch={th.channel} aria-label={th.channel === 'gmail' ? 'Gmail' : 'WhatsApp'} />
+          <ChatRow
+            th={th}
+            timeLabel={view === 'snoozed' && th.snoozedUntil ? longWhen(th.snoozedUntil, locale) : undefined}
+            extra={
+              <>
+                {th.channel === 'gmail' && <span className="ib-chan-dot" data-ch="gmail" role="img" aria-label="Gmail" />}
                 {marker && <span className="ib-tag ib-tag-strong">{marker}</span>}
-                {th.draft ? <span className="ib-draft">{t('list.draft')}</span> : th.lastFromMe ? <span className="ib-dim">{t('list.you')} </span> : null}
-                {th.draft || th.preview}
-              </span>
-              {th.scheduledCount > 0 && <span className="ib-tag">{t('list.scheduled', { n: th.scheduledCount })}</span>}
-              {th.unread > 0 && <span className="ib-unread">{th.unread > 99 ? '99+' : th.unread}</span>}
-            </span>
-          </span>
+                {th.scheduledCount > 0 && <span className="ib-tag">{t('list.scheduled', { n: th.scheduledCount })}</span>}
+              </>
+            }
+          />
         </button>
       </li>
     );
@@ -495,7 +485,7 @@ export default function InboxApp(props: {
   const anyConnected = accounts.some((a) => a.status === 'connected');
 
   return (
-    <div className={`ib-app${openId ? ' has-open' : ''}`}>
+    <div className={`ib-app gr-inbox${openId ? ' has-open' : ''}`}>
       <div className="ib-list-pane">
         <div className="ib-list-head">
           <div className="ib-list-title">

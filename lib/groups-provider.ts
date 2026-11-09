@@ -297,8 +297,27 @@ export interface HistorySource {
   picture(chatId: string): Promise<string>;
 }
 
+/** Datos de un chat para mostrar (como "Info del contacto" o "Info del grupo" en WhatsApp). */
+export interface ChatInfo {
+  /** Asunto del grupo o nombre del perfil ('' si no se ve). */
+  name: string;
+  /** Descripción del grupo o "info" (estado) del contacto. */
+  about: string;
+  /** URL de la foto en el servidor de WhatsApp ('' si no tiene o no se ve). */
+  pictureUrl: string;
+  /** Participantes con teléfono conocido (los "@lid" sin teléfono no vienen). */
+  participants?: Array<{ phone: string; role: MemberRole }>;
+  /** Cantidad total de participantes (también los que no traen teléfono). */
+  size?: number;
+  /** Creación del grupo (segundos). */
+  createdAt?: number;
+  isBusiness?: boolean;
+}
+
 export interface GroupsProvider {
   readonly kind: ProviderKind;
+  /** Nombre, foto y datos de un chat (grupo: asunto, descripción y participantes; persona: perfil). */
+  chatInfo?(chatId: string): Promise<ChatInfo | null>;
   readonly caps: ProviderCaps;
   /** Historial guardado en el gateway (solo Evolution y el QR administrado). */
   history?: HistorySource;

@@ -1,0 +1,94 @@
+/* ============================================================
+   INBOX con la cara de WhatsApp Web. Los tokens --wa-*, las burbujas, la
+   media y el visor vienen de Groups (styles/groups-wa.css, scoped a
+   .gr-inbox); acá va lo propio de Inbox: la grilla, la lista y lo que no
+   existe en Groups. Menús, diálogos y Ajustes siguen con el estilo de
+   zerosoft. Sin pills: el badge y los chips usan el radio chico.
+   ============================================================ */
+
+/* ---------- Grilla (pisa la de .gr-inbox) ---------- */
+.ib-app.gr-inbox {
+  grid-template-columns: clamp(340px, 30%, 460px) minmax(0, 1fr);
+  height: calc(100dvh - var(--band-h, 0px));
+  background: var(--wa-panel);
+  color: var(--wa-text);
+  font-family: var(--wa-font);
+}
+.ib-app.gr-inbox.has-details { grid-template-columns: clamp(320px, 28%, 420px) minmax(0, 1fr) clamp(300px, 26%, 400px); }
+.ib-app.gr-inbox :focus-visible { outline-color: var(--wa-primary); }
+.ib-app.gr-inbox .ib-list-pane { background: var(--wa-panel); border-right: 1px solid var(--wa-border-strong); }
+.ib-app.gr-inbox .ib-convo-pane { background: var(--wa-conv-bg); }
+
+/* ---------- Cabecera de la lista ---------- */
+.ib-app.gr-inbox .ib-list-head { gap: 8px; padding: 12px 16px 8px; border-bottom: 0; }
+.ib-app.gr-inbox .ib-h1 { font-size: 1.375rem; font-weight: 700; color: var(--wa-text); }
+.ib-app.gr-inbox .ib-search .input {
+  height: 35px; padding-left: 14px; font-size: 0.9375rem; color: var(--wa-text);
+  background: var(--wa-search-bg); border: 0; border-radius: 8px;
+}
+.ib-app.gr-inbox .ib-search .input::placeholder { color: var(--wa-text-2); }
+.ib-app.gr-inbox .ib-tabs { gap: 6px; margin: 0; padding-bottom: 2px; border: 0; }
+.ib-app.gr-inbox .ib-tabs .ui-tab {
+  height: 30px; padding: 0 11px; font-size: 0.875rem; line-height: 30px; color: var(--wa-text-2);
+  background: var(--wa-chip-bg); border: 0; border-radius: var(--radius-1); text-decoration: none;
+}
+.ib-app.gr-inbox .ib-tabs .ui-tab::after { display: none; }
+.ib-app.gr-inbox .ib-tabs .ui-tab:hover { color: var(--wa-text); background: var(--wa-row-active); }
+.ib-app.gr-inbox .ib-tabs .ui-tab.is-active { color: var(--wa-chip-on-ink); background: var(--wa-chip-on-bg); font-weight: 500; }
+.ib-app.gr-inbox .ib-keys-hint { border-top-color: var(--wa-border); color: var(--wa-text-2); }
+
+/* ---------- Filas ---------- */
+.ib-app.gr-inbox .ib-list { background: var(--wa-panel); }
+.ib-app.gr-inbox .ib-item { content-visibility: auto; contain-intrinsic-size: auto 72px; }
+.ib-app.gr-inbox .ib-row-btn {
+  gap: 15px; min-height: 72px; padding: 0 0 0 13px; color: var(--wa-text); border-bottom: 0; font-family: var(--wa-font);
+}
+.ib-app.gr-inbox .ib-row-btn:hover,
+.ib-app.gr-inbox li.ib-item.is-cursor > .ib-row-btn { background: var(--wa-row-hover); }
+.ib-app.gr-inbox li.ib-item.is-open > .ib-row-btn,
+.ib-app.gr-inbox li.ib-item.is-selected > .ib-row-btn,
+.ib-app.gr-inbox li.ib-item.is-open > .ib-row-btn:hover { background: var(--wa-row-active); }
+.ib-app.gr-inbox .ib-row-btn:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+/* La casilla aparece sobre la foto al pasar o al seleccionar (la foto se esconde). */
+.ib-app.gr-inbox .ib-check { left: 28px; accent-color: var(--wa-primary); }
+.ib-app.gr-inbox li.ib-item:hover .wa-avatar,
+.ib-app.gr-inbox li.ib-item.is-selected .wa-avatar,
+.ib-app.gr-inbox:has(.ib-bulk) .wa-avatar { visibility: hidden; }
+@media (hover: none) {
+  .ib-app.gr-inbox li.ib-item:hover .wa-avatar { visibility: visible; }
+  .ib-app.gr-inbox li.ib-item:not(.is-selected) .ib-check { opacity: 0; }
+}
+
+.wa-row-main {
+  flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 1px;
+  min-height: 72px; padding: 10px 15px 10px 0; border-bottom: 1px solid var(--wa-border);
+}
+.ib-row-btn:hover .wa-row-main, li.ib-item.is-open .wa-row-main, li.ib-item.is-cursor .wa-row-main { border-bottom-color: transparent; }
+.wa-row-top, .wa-row-bottom { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.wa-row-top { align-items: baseline; }
+.wa-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.0625rem; line-height: 21px; color: var(--wa-text); }
+.wa-row-time { flex: none; margin-left: 6px; font-size: 0.75rem; color: var(--wa-text-2); font-variant-numeric: tabular-nums; }
+.wa-row-time.is-unread { color: var(--wa-badge); font-weight: 500; }
+.wa-row-preview { flex: 1; min-width: 0; display: flex; align-items: center; gap: 3px; overflow: hidden; font-size: 0.875rem; line-height: 20px; color: var(--wa-text-2); }
+.wa-row-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-row-sender { flex: none; }
+.wa-row-kind { display: inline-flex; flex: none; color: var(--wa-text-2); }
+.wa-row-typing { color: var(--wa-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-row-draft { flex: none; color: var(--wa-primary-ink); font-weight: 500; margin-right: 2px; }
+.wa-row-icons { display: inline-flex; align-items: center; gap: 6px; flex: none; color: var(--wa-text-2); }
+.wa-unread {
+  min-width: 20px; height: 20px; padding: 0 6px; font-size: 0.75rem; font-weight: 500; line-height: 20px; text-align: center;
+  color: var(--wa-badge-ink); background: var(--wa-badge); border-radius: var(--radius-1); font-variant-numeric: tabular-nums;
+}
+.wa-unread.is-muted { color: var(--wa-panel); background: var(--wa-text-2); }
+.wa-row-preview .ib-tag { flex: none; margin-right: 2px; border-color: var(--wa-border-strong); color: var(--wa-text-2); }
+.wa-row-preview .ib-tag-strong { border-color: var(--wa-primary-ink); color: var(--wa-primary-ink); }
+.wa-row-preview .ib-chan-dot { flex: none; margin-right: 2px; }
+
+/* ---------- Conversación (vacía, carga, error) ---------- */
+.ib-app.gr-inbox .ib-convo-blank,
+.ib-app.gr-inbox .ib-convo-msg { color: var(--wa-text-2); background: var(--wa-panel-header); }
+
+@media (max-width: 1023px) {
+  .ib-app.gr-inbox, .ib-app.gr-inbox.has-details { grid-template-columns: minmax(0, 1fr); }
+}

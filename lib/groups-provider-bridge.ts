@@ -35,6 +35,7 @@ import {
   phoneDigits,
   safeEqual,
   type BridgeConfig,
+  type ChatInfo,
   type ConnectState,
   type ConnectStatus,
   type FetchedMedia,
@@ -1068,6 +1069,36 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       return state();
     },
     state,
+    /**
+     * Grupo: /group/findGroupInfos (rápido, uno por vez; fetchAllGroups tarda
+     * minutos con muchos grupos). Persona: /chat/fetchProfile (nombre, "info" y foto).
+     */
+    async chatInfo(chatId): Promise<ChatInfo | null> {
+      const https = (v: unknown) => (typeof v === 'string' && /^https:\/\//.test(v) ? v.slice(0, 2000) : '');
+      if (isGroupJid(chatId)) {
+        const r = (await api(`/group/findGroupInfos/${instance}${q(chatId)}`)) as Json;
+        if (!r || typeof r !== 'object' || !r.id) return null;
+        const parts = Array.isArray(r.participants) ? (r.participants as Json[]) : [];
+        const size = Number(r.size);
+        const creation = Number(r.creation);
+        return {
+          name: typeof r.subject === 'string' ? r.subject.replace(/\s+/g, ' ').trim().slice(0, 200) : '',
+          about: typeof r.desc === 'string' ? r.desc.slice(0, 2000) : '',
+          pictureUrl: https(r.pictureUrl),
+          participants: parts
+            .slice(0, 2000)
+            .map((p) => ({ phone: participantPhone(p), role: roleOf(p.admin) }))
+            .filter((p) => p.phone),
+          size: Number.isFinite(size) && size > 0 ? size : parts.length,
+          ...(Number.isFinite(creation) && creation > 0 ? { createdAt: creation } : {}),
+        };
+      }
+      const r = (await api(`/chat/fetchProfile/${instance}`, 'POST', { number: chatId })) as Json;
+      if (!r || typeof r !== 'object') return null;
+      const st = r.status;
+      const about = typeof st === 'string' ? st : st && typeof st === 'object' ? String((st as Json).status ?? '') : '';
+      return { name: cleanPushName(r.name), about: about.trim().slice(0, 1000), pictureUrl: https(r.picture), isBusiness: r.isBusiness === true };
+    },
     async disconnect() {
       await api(`/instance/logout/${instance}`, 'DELETE').catch(() => null);
     },

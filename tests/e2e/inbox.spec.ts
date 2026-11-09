@@ -108,12 +108,12 @@ test('llega un mensaje, se responde con Enter y se marca hecho con E (y Z lo des
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   const row = page.locator('.ib-item', { hasText: name });
   await expect(row).toBeVisible();
-  await expect(row.locator('.ib-unread')).toHaveText('1');
+  await expect(row.locator('.wa-unread')).toHaveText('1');
   await row.locator('.ib-row-btn').click();
   await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
   await expect(page.locator('.ib-msg', { hasText: 'me mandás el contrato' })).toBeVisible();
   // Abrir lo deja leído.
-  await expect(row.locator('.ib-unread')).toHaveCount(0);
+  await expect(row.locator('.wa-unread')).toHaveCount(0);
 
   // R enfoca el campo; Enter manda (WhatsApp Web).
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());

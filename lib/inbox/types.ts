@@ -59,6 +59,54 @@ export interface ThreadDto {
   draft: string;
   folderIds: string[];
   scheduledCount: number;
+  /** WhatsApp: link a la foto ('' sin foto). */
+  avatar: string;
+  /** Quién mandó el último mensaje en un grupo (para "Ana: hola"). */
+  lastSender: string;
+  /** Tipo de media del último mensaje (image, video, audio, voice, document, sticker, location, contact, poll). */
+  lastKind: string;
+  /** Tildes del último mensaje propio (sent, delivered, read, failed). */
+  lastStatus: string;
+  presence: '' | 'typing' | 'recording' | 'online';
+  /** En un grupo, quién escribe (teléfono). */
+  presenceWho: string;
+  lastSeenAt: string | null;
+}
+
+/** Datos de presentación de un mensaje de WhatsApp (los que manda el servidor). */
+export interface WaMessageMeta {
+  width?: number;
+  height?: number;
+  /** Segundos (audio, nota de voz, video). */
+  duration?: number;
+  /** Nota de voz. */
+  ptt?: boolean;
+  pages?: number;
+  size?: number;
+  mime?: string;
+  /** Miniatura chica (data URL). */
+  thumb?: string;
+  viewOnce?: boolean;
+  animated?: boolean;
+  location?: { lat: number; lng: number; name?: string; address?: string; url?: string; live?: boolean };
+  contacts?: Array<{ name: string; phones: string[] }>;
+  poll?: { question: string; options: string[]; multi: boolean };
+}
+
+export interface MessageReaction {
+  emoji: string;
+  /** Teléfono de quien reaccionó ('me' si fui yo). */
+  by: string;
+  name: string;
+}
+
+export interface MessageQuote {
+  id: string;
+  fromMe: boolean;
+  senderName: string;
+  senderHandle: string;
+  body: string;
+  mediaType: string;
 }
 
 export interface MessageDto {
@@ -76,6 +124,12 @@ export interface MessageDto {
   edited: boolean;
   revoked: boolean;
   sentAt: string;
+  /** Mensaje citado (respuesta), si se encuentra en el chat. */
+  reply?: MessageQuote | null;
+  reactions?: MessageReaction[];
+  forwarded?: boolean;
+  starred?: boolean;
+  meta?: WaMessageMeta | null;
 }
 
 export interface FolderRule {

@@ -90,6 +90,14 @@ export function fakeSent(numberId: string): FakeSent[] {
 }
 
 /** Estado de un grupo del número falso (tests). */
+/** Foto de perfil falsa: un cuadrado de color que sale del número (data URL, nunca sale a la red). */
+function fakePicture(digits: string): string {
+  let h = 0;
+  for (const c of digits) h = (h * 31 + c.charCodeAt(0)) % 360;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="hsl(${h} 45% 55%)"/><circle cx="32" cy="26" r="12" fill="#fff" fill-opacity=".85"/><rect x="14" y="42" width="36" height="22" rx="11" fill="#fff" fill-opacity=".85"/></svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+}
+
 export function fakeGroupState(numberId: string, groupId: string): (GroupInfo & { ephemeral?: number; picture?: string; left?: boolean; participants: Participant[] }) | null {
   return stateFor(numberId).groups.get(groupId) ?? null;
 }
@@ -128,6 +136,21 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
   return {
     kind: 'fake',
     caps: PROVIDER_CAPS.fake,
+    /**
+     * Datos inventados: los grupos sembrados con su nombre; uno que llegó por
+     * webhook, "Grupo NNNN". Foto (un SVG de color) solo si el número termina
+     * en par, para probar las dos caras del avatar.
+     */
+    async chatInfo(chatId) {
+      const digits = chatId.replace(/@.*/, '').replace(/\D/g, '');
+      const pic = /[02468]$/.test(digits) ? fakePicture(digits) : '';
+      if (chatId.endsWith('@g.us')) {
+        const g = s.groups.get(chatId);
+        if (g) return { name: g.name, about: g.description ?? '', pictureUrl: g.picture || pic, participants: g.participants.map((p) => ({ phone: p.phone, role: p.role })), size: g.participants.length };
+        return { name: `Grupo ${digits.slice(-4)}`, about: '', pictureUrl: pic, participants: [{ phone: '15550000001', role: 'superadmin' }], size: 1 };
+      }
+      return { name: '', about: digits.endsWith('1') ? '' : 'Disponible', pictureUrl: pic };
+    },
     async connect() {
       s.connectedAt = s.connectedAt ?? Date.now();
       return state();
