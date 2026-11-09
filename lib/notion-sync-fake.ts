@@ -308,6 +308,8 @@ export function notionSyncFakeWorkspace(token: string): FakeWorkspace {
   let ws = store().get(token);
   if (!ws) {
     ws = seed();
+    // Tope de workspaces falsos en memoria (demo pública): se va el más viejo.
+    if (store().size >= 50) store().delete(store().keys().next().value as string);
     store().set(token, ws);
   }
   return ws;

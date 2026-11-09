@@ -13,6 +13,8 @@ import {
   getNotionSyncStatus,
   handleNotionWebhook,
   notionSyncLocalChange,
+  openWebhookWindow,
+  pendingWebhookToken,
   syncNotionNow,
   updateNotionSync,
   verifyNotionSignature,
@@ -386,8 +388,13 @@ describe('Notion sync: OAuth y webhooks', () => {
   });
 
   it('webhook: guarda el token de verificación una sola vez y exige la firma', async () => {
+    // Sin ventana abierta por quien administra la instancia: no se guarda nada.
+    await handleNotionWebhook(JSON.stringify({ verification_token: 'secret_early' }), null);
+    expect(await pendingWebhookToken()).toBeNull();
+    await openWebhookWindow();
     const first = await handleNotionWebhook(JSON.stringify({ verification_token: 'secret_v1' }), null);
     expect(first.status).toBe(200);
+    expect(await pendingWebhookToken()).toBe('secret_v1');
     // Un segundo token (de cualquiera) no pisa el primero.
     await handleNotionWebhook(JSON.stringify({ verification_token: 'secret_attacker' }), null);
     const body = JSON.stringify({ type: 'page.content_updated', workspace_id: SYNC_FAKE_IDS.notionWorkspace, entity: { id: SYNC_FAKE_IDS.wiki, type: 'page' } });

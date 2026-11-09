@@ -1896,7 +1896,7 @@
     },
     "webhookTitle": "Webhooks do Notion",
     "webhookHelp": "Ajuste do servidor. Na integração pública, adicione uma assinatura de webhook para este caminho do seu domínio. O Notion envia aqui um token de verificação: cole-o no Notion para verificar.",
-    "webhookWaiting": "Nenhum token de verificação recebido ainda.",
+    "webhookWaiting": "Esperando o Notion enviar o token de verificação (15 minutos).",
     "webhookClear": "Apagar token",
     "notice": {
       "connected": "O Notion está conectado. A importação começa agora.",
@@ -1922,6 +1922,9 @@
       "source_error": "O Notion devolveu um erro.",
       "internal_error": "Erro inesperado.",
       "failed": "Algo deu errado. Tente de novo."
-    }
+    },
+    "privacy": "As páginas importadas ficam visíveis para todo o workspace, ou para o teamspace que você escolher. Subpáginas com acesso mais restrito ficam só no Docs.",
+    "webhookIdle": "Para verificar a assinatura, comece a esperar aqui e depois crie ou reenvie no Notion.",
+    "webhookOpen": "Esperar o token"
   }
 }

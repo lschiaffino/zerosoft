@@ -27,6 +27,7 @@ interface Status {
   roots: Array<{ id: string; title: string; kind: string; enabled: boolean }>;
   log: Array<{ id: string; dir: string; action: string; title: string; pageId: string | null; detail: string | null; at: string }>;
   webhookToken?: string | null;
+  webhookWaiting?: boolean;
 }
 
 const DIRECTIONS: Direction[] = ['two_way', 'import', 'to_notion'];
@@ -182,7 +183,7 @@ export function DocsNotionSettings({ notice }: { notice?: string | null }) {
       ) : null}
 
       {!conn ? (
-        <FormSection title={t('title')} description={t('intro')}>
+        <FormSection title={t('title')} description={`${t('intro')} ${t('privacy')}`}>
           <div className="docs-notion-connect" data-testid="notion-sync-disconnected">
             {status.oauth ? (
               <div className="docs-notion-oauth">
@@ -393,7 +394,14 @@ export function DocsNotionSettings({ notice }: { notice?: string | null }) {
               </button>
             </div>
           ) : (
-            <p className="ui-help">{t('webhookWaiting')}</p>
+            <div className="docs-notion-webhook">
+              <p className="ui-help">{status.webhookWaiting ? t('webhookWaiting') : t('webhookIdle')}</p>
+              {status.webhookWaiting ? null : (
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => void send('PATCH', { open_webhook_window: true })}>
+                  {t('webhookOpen')}
+                </button>
+              )}
+            </div>
           )}
         </FormSection>
       ) : null}

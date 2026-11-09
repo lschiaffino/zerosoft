@@ -35,7 +35,7 @@ import {
   type NRichText,
   type NotionRowInput,
 } from './notion-api';
-import { downloadNotionFile, fetchBlockTree, NOTION_API_SOURCE, resolveNotionMedia } from './docs-notion-api-import';
+import { downloadNotionFile, fetchBlockTree, NOTION_API_SOURCE, readCapped, resolveNotionMedia } from './docs-notion-api-import';
 import { stringifyBlocks, type DbFile, type DbProperty, type DbRow, type DocsBlock, type DocsDatabase } from './docs-types';
 import { blockIndent } from './docs-blocks';
 import {
@@ -245,11 +245,11 @@ async function readStoredFile(url: string): Promise<Buffer | null> {
     const file = localUploadPath(url, 'docs');
     return file ? readFile(file).catch(() => null) : null;
   }
-  // Solo el storage de Docs (isDocsUploadUrl): nunca una URL cualquiera.
-  const res = await fetch(url, { signal: AbortSignal.timeout(20_000) }).catch(() => null);
+  // Solo el storage de Docs (isDocsUploadUrl), sin hosts privados ni redirects, y con tope de tamaño leyendo.
+  const { safeFetch } = await import('./safe-fetch');
+  const res = await safeFetch(url, {}, 20_000, { maxRedirects: 0 }).catch(() => null);
   if (!res?.ok) return null;
-  const buf = Buffer.from(await res.arrayBuffer());
-  return buf.length > MAX_PUSH_FILE ? null : buf;
+  return readCapped(res, MAX_PUSH_FILE);
 }
 
 /** Sube un archivo de Docs a Notion (File Upload API) y devuelve la referencia para el bloque. */
@@ -547,8 +547,9 @@ async function syncComments(run: Run, item: ItemRow, pageId: string, state: Page
         const author = run.notionUsers.find((u) => u.id === normalizeNotionId(c.created_by?.id ?? ''));
         const person = author?.email ? run.people.get(author.email) : undefined;
         const userId = person ?? run.conn.created_by ?? run.ws;
-        const text = richTextToHtml(c.rich_text, forwardContext(run));
-        const body = person ? text : `<strong>${escapeHtml(author?.name || 'Notion')}</strong>: ${text}`;
+        // Los comentarios de Docs son texto plano.
+        const text = plainText(c.rich_text).trim();
+        const body = person ? text : `${author?.name || 'Notion'}: ${text}`;
         const parent = roots.get(c.discussion_id) ?? null;
         const created = await createDocComment(pageId, userId, { body: body.slice(0, 8000), parent_id: parent });
         await db
@@ -565,8 +566,9 @@ async function syncComments(run: Run, item: ItemRow, pageId: string, state: Page
         if (byLocal.has(c.id) || !timeLeft(run)) continue;
         const rootMap = c.parent_id ? byLocal.get(c.parent_id) : undefined;
         const discussion = rootMap?.discussion_id ?? (rootMap ? mapped.find((m) => m.local_id === c.parent_id)?.discussion_id : undefined);
-        const name = (c.user_name || c.user_email || '').trim();
-        const rt = htmlToRichText(`${name ? `<strong>${escapeHtml(name)}</strong>: ` : ''}${c.quote ? `“${escapeHtml(c.quote)}” ` : ''}${c.body}`, reverseContext(run));
+        // Autor por nombre (nunca el email) y el cuerpo como texto.
+        const name = (c.user_name || '').trim();
+        const rt = htmlToRichText(escapeHtml(`${name ? `${name}: ` : ''}${c.quote ? `“${c.quote}” ` : ''}${c.body}`), reverseContext(run));
         const res: NComment = await run.client.post('/comments', discussion ? { discussion_id: discussion, rich_text: rt } : { parent: { page_id: item.notion_id }, rich_text: rt });
         run.writes++;
         await db

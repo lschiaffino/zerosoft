@@ -11,6 +11,7 @@ import {
   disconnectNotion,
   getNotionSyncStatus,
   NotionSyncError,
+  openWebhookWindow,
   updateNotionSync,
 } from '@/lib/notion-sync';
 
@@ -24,6 +25,7 @@ const patchSchema = z.object({
   teamspace_id: z.string().max(100).nullable().optional(),
   roots: z.array(z.object({ id: z.string().max(64), enabled: z.boolean() })).max(500).optional(),
   clear_webhook_token: z.literal(true).optional(),
+  open_webhook_window: z.literal(true).optional(),
 });
 
 /**
@@ -75,10 +77,11 @@ export async function PATCH(req: NextRequest) {
   if ('error' in a) return a.error;
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
-  const { clear_webhook_token, ...patch } = parsed.data;
-  if (clear_webhook_token) {
+  const { clear_webhook_token, open_webhook_window, ...patch } = parsed.data;
+  if (clear_webhook_token || open_webhook_window) {
     if (!isAdminEmail((a.user.actingUser ?? a.user).email)) return forbidden();
-    await clearWebhookToken();
+    if (clear_webhook_token) await clearWebhookToken();
+    if (open_webhook_window) await openWebhookWindow();
   }
   try {
     if (Object.keys(patch).length) await updateNotionSync(a.user.id, patch);

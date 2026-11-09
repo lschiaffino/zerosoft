@@ -1896,7 +1896,7 @@
     },
     "webhookTitle": "Notion webhooks",
     "webhookHelp": "Server setting. In the public integration, add a webhook subscription pointing to this path on your domain. Notion sends a verification token here: paste it back in Notion to verify.",
-    "webhookWaiting": "No verification token received yet.",
+    "webhookWaiting": "Waiting for Notion to send the verification token (15 minutes).",
     "webhookClear": "Clear token",
     "notice": {
       "connected": "Notion is connected. The import starts now.",
@@ -1922,6 +1922,9 @@
       "source_error": "Notion returned an error.",
       "internal_error": "Unexpected error.",
       "failed": "Something went wrong. Try again."
-    }
+    },
+    "privacy": "Imported pages are visible to the whole workspace, or to the teamspace you choose. Subpages with narrower access stay only in Docs.",
+    "webhookIdle": "To verify the subscription, start waiting here, then create or resend it in Notion.",
+    "webhookOpen": "Wait for the token"
   }
 }

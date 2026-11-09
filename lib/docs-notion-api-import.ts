@@ -569,7 +569,7 @@ export function isNotionFileHost(url: string): boolean {
   }
 }
 
-async function readCapped(res: Response, max: number): Promise<Buffer | null> {
+export async function readCapped(res: Response, max: number): Promise<Buffer | null> {
   const len = Number(res.headers.get('content-length'));
   if (Number.isFinite(len) && len > max) {
     await res.body?.cancel().catch(() => undefined);

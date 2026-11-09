@@ -285,6 +285,7 @@ export interface NotionSyncStatus {
   log: Array<{ id: string; dir: string; action: string; title: string; pageId: string | null; detail: string | null; at: string }>;
   /** Solo para quien administra la instancia (ADMIN_EMAILS): el token de verificación del webhook. */
   webhookToken?: string | null;
+  webhookWaiting?: boolean;
 }
 
 export async function getNotionSyncStatus(ws: string, opts: { operator?: boolean } = {}): Promise<NotionSyncStatus> {
@@ -319,7 +320,7 @@ export async function getNotionSyncStatus(ws: string, opts: { operator?: boolean
     progress: { total: counts.reduce((a, c) => a + Number(c.n), 0) - by('gone'), synced: by('synced'), pending: by('pending'), errors: by('error'), skipped: by('skipped') },
     roots: roots.map((r) => ({ id: r.notion_id, title: r.title, kind: r.kind, enabled: r.enabled === 1 })),
     log: log.map((l) => ({ id: l.id, dir: l.dir, action: l.action, title: l.title, pageId: l.local_page_id, detail: l.detail, at: l.created_at })),
-    ...(opts.operator ? { webhookToken: await pendingWebhookToken() } : {}),
+    ...(opts.operator ? { webhookToken: await pendingWebhookToken(), webhookWaiting: await webhookWindowOpen() } : {}),
   };
 }
 
@@ -614,6 +615,8 @@ async function pushLocal(run: Run, pageId: string): Promise<void> {
   }
   const row = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ? AND user_id = ?').get(pageId, run.ws)) as DocsPageRow | undefined;
   if (!row || row.archived === 1 || !row.parent_id) return;
+  // Subpágina con acceso más cerrado que su padre: queda solo en Docs.
+  if (row.inherit_shares === 0 || row.member_role) return;
   const parent = await itemByLocal(run.ws, row.parent_id);
   if (!parent || parent.kind !== 'page' || parent.status === 'skipped' || (await rootDisabled(run, parent))) return;
   const created = await createRemotePage(run, row, parent);
@@ -779,6 +782,21 @@ export async function clearWebhookToken(): Promise<void> {
   await getDb().prepare(`DELETE FROM notion_sync_webhook WHERE id = 'public'`).run();
 }
 
+const WEBHOOK_WINDOW_MS = 15 * 60_000;
+
+/** Quien administra la instancia: "esperar el token de Notion" (15 minutos). Borra el anterior. */
+export async function openWebhookWindow(): Promise<void> {
+  const db = getDb();
+  await db.prepare(`DELETE FROM notion_sync_webhook WHERE id IN ('public', 'window')`).run();
+  await db.prepare(`INSERT INTO notion_sync_webhook (id, token, created_at) VALUES ('window', '', ?)`).run(new Date().toISOString());
+}
+
+/** ¿Hay una ventana abierta esperando el token? */
+export async function webhookWindowOpen(): Promise<boolean> {
+  const win = (await getDb().prepare(`SELECT created_at FROM notion_sync_webhook WHERE id = 'window'`).get()) as { created_at: string } | undefined;
+  return Boolean(win && Date.now() - Date.parse(win.created_at) < WEBHOOK_WINDOW_MS);
+}
+
 export function verifyNotionSignature(raw: string, signature: string | null, secret: string): boolean {
   if (!signature) return false;
   const expected = `sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`;
@@ -802,10 +820,14 @@ export async function handleNotionWebhook(raw: string, signature: string | null)
     return { status: 400, body: { error: 'invalid_json' } };
   }
   if (typeof body.verification_token === 'string' && !signature) {
-    if (!process.env.NOTION_WEBHOOK_SECRET && body.verification_token.length <= 200) {
-      await getDb()
-        .prepare(`INSERT OR IGNORE INTO notion_sync_webhook (id, token, created_at) VALUES ('public', ?, ?)`)
-        .run(seal(body.verification_token), new Date().toISOString());
+    // Solo mientras quien administra la instancia lo espera (ventana de 15 minutos abierta desde Ajustes) y una vez.
+    if (!process.env.NOTION_WEBHOOK_SECRET && notionOAuthConfigured() && body.verification_token.length <= 200) {
+      const db = getDb();
+      const win = (await db.prepare(`SELECT created_at FROM notion_sync_webhook WHERE id = 'window'`).get()) as { created_at: string } | undefined;
+      if (win && Date.now() - Date.parse(win.created_at) < WEBHOOK_WINDOW_MS) {
+        const res = await db.prepare(`INSERT OR IGNORE INTO notion_sync_webhook (id, token, created_at) VALUES ('public', ?, ?)`).run(seal(body.verification_token), new Date().toISOString());
+        if (res.changes) await db.prepare(`DELETE FROM notion_sync_webhook WHERE id = 'window'`).run();
+      }
     }
     return { status: 200, body: { ok: true } };
   }
