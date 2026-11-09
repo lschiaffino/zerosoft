@@ -34,7 +34,8 @@ describe('Cmd+K por app', () => {
 
   it('toda app de la suite se reconoce por su ruta, en cliente y en servidor', () => {
     for (const key of PRODUCT_KEYS) {
-      expect(hrefAllowed([], `/app/${key === 'link' ? 'links' : key === 'cal' ? 'calendar' : key}/x`), key).toBe(false);
+      // Inbox es personal: se ofrece siempre, aunque la lista esté vacía.
+      expect(hrefAllowed([], `/app/${key === 'link' ? 'links' : key === 'cal' ? 'calendar' : key}/x`), key).toBe(key === 'inbox');
     }
     expect(fromWorkspace).toBe(appFromPath);
   });

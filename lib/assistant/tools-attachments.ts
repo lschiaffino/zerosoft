@@ -41,9 +41,9 @@ export const attachmentTools: AssistantTool[] = [
     app: 'groups',
     destructive: true,
     description:
-      'Prepare sending an attached image or file to a Groups (WhatsApp) chat, with an optional caption. It reaches people outside the workspace: the person reviews a card and types "send". Find the chat id with run_operation v1.groups.chats.list.',
+      'Prepare sending an attached image or file to a Lines (WhatsApp) chat, with an optional caption. It reaches people outside the workspace: the person reviews a card and types "send". Find the chat id with run_operation v1.groups.chats.list.',
     input: z.object({
-      chat: z.string().trim().min(1).max(100).describe('Groups chat id.'),
+      chat: z.string().trim().min(1).max(100).describe('Lines chat id.'),
       attachment: attId,
       caption: z.string().trim().max(1000).optional().describe('Text sent with the file.'),
     }),
@@ -73,7 +73,7 @@ export const attachmentTools: AssistantTool[] = [
       if (!r.ok) return { ok: false, error: failure(r) };
       const sent = dataOf<{ status?: string }>(r);
       if (sent?.status === 'failed') return { ok: false, error: 'not_delivered' };
-      return { ok: true, message: 'File sent.', href: `/app/groups/inbox/${String(input.chat)}` };
+      return { ok: true, message: 'File sent.', href: `/app/lines/inbox/${String(input.chat)}` };
     },
   }),
   writeTool({

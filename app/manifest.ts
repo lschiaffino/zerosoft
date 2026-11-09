@@ -49,7 +49,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
       { name: 'Contacts', url: '/app/crm/contacts' },
       { name: 'Track', url: '/app/track' },
       { name: 'Cal', url: '/app/calendar' },
-      { name: 'Groups inbox', url: '/app/groups/inbox' },
+      { name: 'Lines inbox', url: '/app/lines/inbox' },
       { name: 'Tasks', url: '/app/crm/tasks' },
     ],
     // Compartir un link o un texto desde otra app del teléfono lo guarda en Notes.

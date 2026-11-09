@@ -24,7 +24,7 @@ const SECTIONS: Array<[string, string]> = [
 const APP_SETTINGS = [
   '/app/crm/settings',
   '/app/chat/widgets',
-  '/app/groups/settings',
+  '/app/lines/settings',
   '/app/agents/settings',
   '/app/flow/settings',
   '/app/robots/settings',

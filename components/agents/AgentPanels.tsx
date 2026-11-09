@@ -296,7 +296,7 @@ export function ChannelsPanel({
           <p className="ui-help">{t('channels.whatsappNoAccess')}</p>
         ) : data.whatsapp.numbers === 0 ? (
           <p className="ui-help">
-            {t('channels.whatsappNoNumber')} <Link href="/app/groups">{t('channels.openGroups')}</Link>
+            {t('channels.whatsappNoNumber')} <Link href="/app/lines">{t('channels.openGroups')}</Link>
           </p>
         ) : (
           <>

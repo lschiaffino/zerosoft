@@ -346,13 +346,13 @@ export default function RecDetail({
             </button>
           </>
         )}
-        <span className="rec-detail-badges muted">
-          {video.archived ? `${t('badgeArchived')} · ` : ''}
-          {video.privacy === 'people' ? t('badgePeople') : video.privacy === 'workspace' ? t('badgeWorkspace') : t('badgeLink')}
-          {video.hasPassword ? ` · ${t('badgePassword')}` : ''}
-          {video.expiresAt ? ` · ${t('badgeExpires', { date: new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(video.expiresAt)) })}` : ''}
-        </span>
       </div>
+      <p className="rec-detail-badges muted">
+        {video.archived ? `${t('badgeArchived')} · ` : ''}
+        {video.privacy === 'people' ? t('badgePeople') : video.privacy === 'workspace' ? t('badgeWorkspace') : t('badgeLink')}
+        {video.hasPassword ? ` · ${t('badgePassword')}` : ''}
+        {video.expiresAt ? ` · ${t('badgeExpires', { date: new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parseDbUtc(video.expiresAt)) })}` : ''}
+      </p>
       {error && !moving && (
         <p className="ui-error" role="alert">
           {error}

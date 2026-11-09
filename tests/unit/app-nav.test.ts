@@ -54,7 +54,7 @@ describe('sidebar de la app', () => {
     expect(appProductFromPath('/app/crm/deals')).toBe('crm');
     expect(appProductFromPath('/app/notes/clip')).toBe('notes');
     expect(appProductFromPath('/app/robots/recorder')).toBe('robots');
-    expect(appProductFromPath('/app/groups/inbox/abc')).toBe('groups');
+    expect(appProductFromPath('/app/lines/inbox/abc')).toBe('groups');
     expect(appProductFromPath('/app/voice')).toBe('voice');
     expect(appProductFromPath('/app/rec/settings')).toBe('rec');
     expect(appProductFromPath('/app/talk')).toBe('talk');
@@ -141,8 +141,8 @@ describe('sidebar de la app', () => {
         .map((i) => i.href);
     expect(active('notes', '/app/notes/clip')).toEqual(['/app/notes/clip']);
     expect(active('robots', '/app/robots/recorder')).toEqual(['/app/robots/recorder']);
-    expect(active('groups', '/app/groups/inbox/abc')).toEqual(['/app/groups/inbox']);
-    expect(active('groups', '/app/groups/list/abc')).toEqual(['/app/groups/list']);
+    expect(active('groups', '/app/lines/inbox/abc')).toEqual(['/app/lines/inbox']);
+    expect(active('groups', '/app/lines/list/abc')).toEqual(['/app/lines/list']);
     expect(active('link', '/app/links/bulk')).toEqual(['/app/links/new']);
     expect(active('link', '/app/links/import')).toEqual(['/app/links/new']);
     expect(active('link', '/app/links/domains')).toEqual(['/app/links/settings']);
@@ -253,8 +253,8 @@ describe('sidebar del inicio: tus apps y "Más apps"', () => {
     expect(groups[1]).toMatchObject({ section: 'More apps', collapsible: true });
     expect(groups[0].items.length + groups[1].items.length).toBe(SWITCHER_PRODUCTS.length);
   });
-  it('respeta el acceso por app y no muestra "Más apps" vacío', () => {
+  it('respeta el acceso por app y no muestra "Más apps" vacío (Inbox, personal, siempre está)', () => {
     const groups = homeAppGroups(L, { allowed: ['crm', 'social'] });
-    expect(groups.map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/social']]);
+    expect(groups.map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/social', '/app/inbox']]);
   });
 });

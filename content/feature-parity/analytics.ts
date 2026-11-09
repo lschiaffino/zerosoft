@@ -39,9 +39,9 @@ const parity: ProductParity = {
       competitorHas: false,
       weight: 2,
       detail: [
-        'CRM, Track, Books, Groups and Pulse, read-only, with each app’s permissions applied per person. Metabase needs a database first',
-        'CRM, Track, Books, Groups y Pulse, de solo lectura, con los permisos de cada app por persona. Metabase necesita primero una base',
-        'CRM, Track, Books, Groups e Pulse, só leitura, com as permissões de cada app por pessoa. O Metabase precisa primeiro de um banco',
+        'CRM, Track, Books, Lines and Pulse, read-only, with each app’s permissions applied per person. Metabase needs a database first',
+        'CRM, Track, Books, Lines y Pulse, de solo lectura, con los permisos de cada app por persona. Metabase necesita primero una base',
+        'CRM, Track, Books, Lines e Pulse, só leitura, com as permissões de cada app por pessoa. O Metabase precisa primeiro de um banco',
       ],
     }),
     row('postgres', 'data', ['PostgreSQL', 'PostgreSQL', 'PostgreSQL'], 'have', {

@@ -37,7 +37,7 @@ search (Cmd+K) and one settings page.
 | App | Replaces | Path |
 | --- | --- | --- |
 | Chat | Intercom | `/app/chat` |
-| Groups | Periskope (WhatsApp groups) | `/app/groups` |
+| Lines | Periskope (WhatsApp groups) | `/app/lines` |
 
 **Automate**
 
