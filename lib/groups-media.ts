@@ -110,6 +110,8 @@ export interface MediaInfo {
   viewOnce?: boolean;
   /** Sticker animado o video que se reproduce como GIF. */
   animated?: boolean;
+  /** Forma de onda de la nota de voz (WhatsApp manda 64 valores de 0 a 100). */
+  waveform?: number[];
 }
 
 export interface LocationInfo {
@@ -158,6 +160,13 @@ export function jsonBytes(raw: unknown, max: number): Buffer | null {
 }
 
 /** Miniatura JPEG de WhatsApp → data URL (solo si de verdad es un JPEG chico). */
+/** Forma de onda de una nota de voz (bytes 0..100 en base64 o como objeto de bytes) → hasta 64 valores. */
+export function waveformFrom(raw: unknown): number[] | undefined {
+  const b = jsonBytes(raw, 256);
+  if (!b || b.length < 8) return undefined;
+  return [...b.subarray(0, 64)].map((v) => Math.min(100, v));
+}
+
 export function thumbnailFrom(raw: unknown): string | undefined {
   const b = jsonBytes(raw, MAX_THUMBNAIL);
   if (!b || b.length < 4 || b[0] !== 0xff || b[1] !== 0xd8) return undefined;
@@ -208,6 +217,7 @@ export function infoFromBaileys(key: string, m: Record<string, unknown>, viewOnc
     thumbnail: kind === 'audio' || kind === 'voice' ? undefined : thumbnailFrom(m.jpegThumbnail),
     viewOnce: viewOnce || m.viewOnce === true || undefined,
     animated: m.isAnimated === true || m.gifPlayback === true || undefined,
+    waveform: kind === 'voice' || kind === 'audio' ? waveformFrom(m.waveform) : undefined,
   });
 }
 

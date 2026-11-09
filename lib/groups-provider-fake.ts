@@ -15,6 +15,7 @@
  *   nuevo, salvo los que empiezan con "bad" (link vencido).
  */
 import { randomUUID } from 'crypto';
+import { deflateSync } from 'zlib';
 import {
   PROVIDER_CAPS,
   ProviderError,
@@ -42,7 +43,7 @@ interface FakeGroup extends GroupInfo {
 export interface FakeSent {
   chatId: string;
   text: string;
-  kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read';
+  kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read' | 'block';
   at: number;
 }
 
@@ -50,6 +51,8 @@ interface FakeState {
   connectedAt: number | null;
   groups: Map<string, FakeGroup>;
   sent: FakeSent[];
+  /** Asuntos de grupos que llegaron por webhook (para chatInfo). */
+  chatNames?: Map<string, string>;
 }
 
 const store = ((globalThis as unknown as { __groupsFake?: Map<string, FakeState> }).__groupsFake ??= new Map());
@@ -90,6 +93,80 @@ export function fakeSent(numberId: string): FakeSent[] {
 }
 
 /** Estado de un grupo del número falso (tests). */
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+
+function crc32(buf: Buffer): number {
+  let c = 0xffffffff;
+  for (const b of buf) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/** PNG de un degradé (para las fotos del proveedor falso). */
+export function fakePng(width = 320, height = 200, seed = 0): Buffer {
+  const chunk = (type: string, data: Buffer) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const td = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(td));
+    return Buffer.concat([len, td, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr.writeUInt8(8, 8);
+  ihdr.writeUInt8(2, 9);
+  const raw = Buffer.alloc((width * 3 + 1) * height);
+  for (let y = 0; y < height; y++) {
+    const row = y * (width * 3 + 1);
+    for (let x = 0; x < width; x++) {
+      raw[row + 1 + x * 3] = (40 + seed * 37 + (x * 180) / width) & 255;
+      raw[row + 2 + x * 3] = (90 + (y * 120) / height) & 255;
+      raw[row + 3 + x * 3] = (160 - (x * 60) / width) & 255;
+    }
+  }
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
+
+/** Un segundo de silencio en WAV (audio del proveedor falso). */
+function fakeWav(seconds = 2): Buffer {
+  const rate = 8000;
+  const n = rate * seconds;
+  const b = Buffer.alloc(44 + n);
+  b.write('RIFF', 0);
+  b.writeUInt32LE(36 + n, 4);
+  b.write('WAVEfmt ', 8);
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(rate, 24);
+  b.writeUInt32LE(rate, 28);
+  b.writeUInt16LE(1, 32);
+  b.writeUInt16LE(8, 34);
+  b.write('data', 36);
+  b.writeUInt32LE(n, 40);
+  b.fill(128, 44);
+  return b;
+}
+
+function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: string } {
+  if (id.startsWith('aud-')) return { data: fakeWav(), mimetype: 'audio/wav', filename: 'audio.wav' };
+  if (id.startsWith('doc-') || id.startsWith('vid-')) return { data: Buffer.from('%PDF-1.4\n% archivo de prueba\n'), mimetype: 'application/pdf', filename: 'documento.pdf' };
+  return { data: fakePng(480, 320, id.length % 5), mimetype: 'image/png', filename: 'foto.png' };
+}
+
+/** Foto de perfil falsa: un cuadrado de color que sale del número (data URL, nunca sale a la red). */
+function fakePicture(digits: string): string {
+  let h = 0;
+  for (const c of digits) h = (h * 31 + c.charCodeAt(0)) % 360;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="hsl(${h} 45% 55%)"/><circle cx="32" cy="26" r="12" fill="#fff" fill-opacity=".85"/><rect x="14" y="42" width="36" height="22" rx="11" fill="#fff" fill-opacity=".85"/></svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+}
+
 export function fakeGroupState(numberId: string, groupId: string): (GroupInfo & { ephemeral?: number; picture?: string; left?: boolean; participants: Participant[] }) | null {
   return stateFor(numberId).groups.get(groupId) ?? null;
 }
@@ -128,6 +205,21 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
   return {
     kind: 'fake',
     caps: PROVIDER_CAPS.fake,
+    /**
+     * Datos inventados: los grupos sembrados con su nombre; uno que llegó por
+     * webhook, "Grupo NNNN". Foto (un SVG de color) solo si el número termina
+     * en par, para probar las dos caras del avatar.
+     */
+    async chatInfo(chatId) {
+      const digits = chatId.replace(/@.*/, '').replace(/\D/g, '');
+      const pic = /[02468]$/.test(digits) ? fakePicture(digits) : '';
+      if (chatId.endsWith('@g.us')) {
+        const g = s.groups.get(chatId);
+        if (g) return { name: g.name, about: g.description ?? '', pictureUrl: g.picture || pic, participants: g.participants.map((p) => ({ phone: p.phone, role: p.role })), size: g.participants.length };
+        return { name: s.chatNames?.get(chatId) ?? `Grupo ${digits.slice(-4)}`, about: '', pictureUrl: pic, participants: [{ phone: '15550000001', role: 'superadmin' }], size: 1 };
+      }
+      return { name: '', about: digits.endsWith('1') ? '' : 'Disponible', pictureUrl: pic };
+    },
     async connect() {
       s.connectedAt = s.connectedAt ?? Date.now();
       return state();
@@ -147,6 +239,12 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     sendPoll: async (chatId, poll) => send(chatId, `${poll.question} [${poll.options.join(' | ')}]`, 'poll'),
     sendContact: async (chatId, contacts) => send(chatId, contacts.map((c) => `${c.name} +${c.phone}`).join(' | '), 'contact'),
     markRead: async (chatId, ids) => void send(chatId, ids.join(','), 'read'),
+    blockContact: async (chatId, block) => void send(chatId, block ? 'block' : 'unblock', 'block'),
+    sendPresence: async () => undefined,
+    /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, el resto una foto. */
+    async fetchMedia(ref) {
+      return fakeMedia(ref.providerMessageId);
+    },
     listTemplates: async () => [],
     async listGroups() {
       requireConnected();
@@ -257,10 +355,15 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     parseWebhook(body) {
       const events = (body as { events?: unknown })?.events;
       if (!Array.isArray(events)) return [];
-      return events.filter((e): e is InboundEvent => {
+      const out = events.filter((e): e is InboundEvent => {
         const t = (e as { type?: unknown })?.type;
         return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote', 'contact', 'presence'].includes(String(t));
       });
+      // El asunto que llegó con el mensaje es el que devuelve chatInfo (como el servidor real).
+      for (const e of out) {
+        if (e.type === 'message' && e.isGroup && e.chatName) (s.chatNames ??= new Map()).set(e.chatId, e.chatName);
+      }
+      return out;
     },
   };
 }
