@@ -120,7 +120,7 @@ describe('Búsqueda en Inbox: mensajes', () => {
     // Backfill: con el índice vacío, la migración lo vuelve a llenar.
     await db.prepare("INSERT INTO inbox_messages_fts(inbox_messages_fts) VALUES ('delete-all')").run();
     expect((await searchMessages(owner, 'palabrarara')).hits).toHaveLength(0);
-    const m = MIGRATIONS.find((x) => x.id === '296_inbox_messages_fts')!;
+    const m = MIGRATIONS.find((x) => x.id === '299_inbox_messages_fts')!;
     await m.up(getClient());
     expect((await searchMessages(owner, 'palabrarara')).hits).toHaveLength(20);
   }, 60_000);

@@ -11,7 +11,7 @@ import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
 import { sendUp } from './send-migration';
-import { inboxUp } from './inbox-migration';
+import { inboxUp, inboxWhatsappUp } from './inbox-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -8968,11 +8968,56 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Inbox con la cara de WhatsApp Web: fotos, nombres de grupos, presencia,
+    // reacciones, destacados. Ver inboxWhatsappUp en lib/schema/inbox-migration.ts.
+    id: '294_inbox_whatsapp',
+    up: inboxWhatsappUp,
+  },
+  {
+    // Estilo de los chats de WhatsApp (Inbox y Lines) por persona: 'whatsapp' o 'zerosoft'. Ver lib/chat-style.ts.
+    id: '295_chat_style',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE users ADD COLUMN chat_style TEXT NOT NULL DEFAULT 'whatsapp'");
+    },
+  },
+  {
+    // Chats de WhatsApp (Inbox y Lines): vista previa de links (caché por URL,
+    // con la imagen chica guardada) y transcripción + resumen de audios (por
+    // dueño y mensaje: solo la ve quien la pidió). Ver lib/wa-extras.ts.
+    id: '296_wa_link_previews_transcripts',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS wa_link_previews (
+          url TEXT PRIMARY KEY,
+          title TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          site TEXT NOT NULL DEFAULT '',
+          image TEXT NOT NULL DEFAULT '',
+          fetched_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS wa_transcripts (
+          scope TEXT NOT NULL,
+          message_id TEXT NOT NULL,
+          owner_id TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          text TEXT NOT NULL DEFAULT '',
+          summary TEXT NOT NULL DEFAULT '',
+          language TEXT NOT NULL DEFAULT '',
+          error TEXT NOT NULL DEFAULT '',
+          claimed_until TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (scope, owner_id, message_id)
+        );
+      `);
+    },
+  },
+  {
     // Inbox: envíos programados de varios mensajes. Cada mensaje es su fila
     // (su burbuja), atados por batch_id y ordenados por seq; delay_s es la
     // espera después del anterior. Un mensaje puede llevar un archivo
     // (media_url, guardado aparte hasta que sale).
-    id: '294_inbox_scheduled_batches',
+    id: '297_inbox_scheduled_batches',
     up: async (c) => {
       await addColumn(c, "ALTER TABLE inbox_scheduled ADD COLUMN batch_id TEXT NOT NULL DEFAULT ''");
       await addColumn(c, 'ALTER TABLE inbox_scheduled ADD COLUMN seq INTEGER NOT NULL DEFAULT 0');
@@ -8988,7 +9033,7 @@ export const MIGRATIONS: Migration[] = [
     // el historial de WhatsApp desde el servidor (Evolution) o un archivo de
     // inbox-zero subido a Blob. cursor = por dónde va; progress = lo que va
     // importado (JSON). claimed_until: compare-and-set entre corridas.
-    id: '295_inbox_imports',
+    id: '298_inbox_imports',
     up: async (c) => {
       await c.executeMultiple(`
         CREATE TABLE IF NOT EXISTS inbox_imports (
@@ -9019,7 +9064,7 @@ export const MIGRATIONS: Migration[] = [
     // nombre del archivo y de quien escribe), al día por triggers; al crearlo
     // se llena con lo que ya hay. Sin FTS5 (algún SQLite viejo) no se crea y
     // la búsqueda usa LIKE.
-    id: '296_inbox_messages_fts',
+    id: '299_inbox_messages_fts',
     up: async (c) => {
       try {
         await c.execute(

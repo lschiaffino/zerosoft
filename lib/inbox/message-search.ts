@@ -136,7 +136,7 @@ export async function searchMessages(owner: string, raw: string, opts: { limit?:
   const limit = Math.min(Math.max(opts.limit ?? 30, 1), 100);
   const text = p.terms.length > 0 || p.phrases.length > 0;
   if (!text && !p.from && !p.in && !p.has && !p.before && !p.after) return { hits: [], more: false };
-  const where: string[] = ['m.owner_id = ?'];
+  const where: string[] = ['m.owner_id = ?', 'm.hidden_at IS NULL'];
   const args: Array<string | number> = [owner];
   if (p.from) {
     if (/^(me|yo|eu)$/i.test(p.from)) where.push('m.from_me = 1');
@@ -198,6 +198,27 @@ export async function searchMessages(owner: string, raw: string, opts: { limit?:
       .all(...args, limit + 1)) as Row[];
   }
   const needles = [...p.phrases, ...p.terms];
+  // Audios transcriptos desde la conversación (wa_transcripts): pocos por persona, alcanza con LIKE.
+  if (text) {
+    const tw = [...where];
+    const ta: Array<string | number> = [...args];
+    for (const w of needles) {
+      tw.push("x.text LIKE ? ESCAPE '\\'");
+      ta.push(like(w));
+    }
+    const extra = (await db
+      .prepare(
+        `SELECT ${cols}, x.text AS transcript FROM wa_transcripts x JOIN inbox_messages m ON m.id = x.message_id JOIN inbox_threads t ON t.id = m.thread_id
+         WHERE x.scope = 'inbox' AND x.owner_id = m.owner_id AND x.status = 'done' AND ${tw.join(' AND ')} ORDER BY m.sent_at DESC LIMIT ?`,
+      )
+      .all(...ta, limit + 1)
+      .catch(() => [])) as Array<Row & { transcript: string }>;
+    if (extra.length) {
+      const seen = new Set(rows.map((r) => r.id));
+      for (const e of extra) if (!seen.has(e.id)) rows.push({ ...e, snip: `🎤 ${markSnippet(e.transcript, needles)}` });
+      rows.sort((a, b) => b.sent_at.localeCompare(a.sent_at));
+    }
+  }
   const hits = rows.slice(0, limit).map((r) => ({
     id: r.id,
     threadId: r.thread_id,
@@ -223,7 +244,7 @@ export async function threadIdsMatching(owner: string, raw: string, limit = 300)
     const rows = (await getDb()
       .prepare(
         `SELECT DISTINCT m.thread_id FROM inbox_messages_fts f JOIN inbox_messages m ON m.rowid = f.rowid
-         WHERE inbox_messages_fts MATCH ? AND m.owner_id = ? LIMIT ?`,
+         WHERE inbox_messages_fts MATCH ? AND m.owner_id = ? AND m.hidden_at IS NULL LIMIT ?`,
       )
       .all(ftsExpression(p), owner, limit)) as Array<{ thread_id: string }>;
     return rows.map((r) => r.thread_id);

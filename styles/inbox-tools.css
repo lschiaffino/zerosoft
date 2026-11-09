@@ -54,6 +54,7 @@
 .ib-hit mark, .ib-msg-hit mark { padding: 0 1px; background: color-mix(in srgb, var(--c-inbox) 28%, transparent); color: inherit; border-radius: 2px; }
 .ib-hits-more { margin: 6px 16px 10px; }
 .ib-msg-hit .ib-bubble, .ib-msg-hit .ib-mail { box-shadow: 0 0 0 2px var(--c-inbox); transition: box-shadow 0.3s; }
+.gr-msg.ib-msg-hit { background: color-mix(in srgb, var(--c-inbox) 16%, transparent); border-radius: var(--radius-1); transition: background 0.3s; }
 
 /* ---------- Importar conversaciones viejas ---------- */
 

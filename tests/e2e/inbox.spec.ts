@@ -108,12 +108,12 @@ test('llega un mensaje, se responde con Enter y se marca hecho con E (y Z lo des
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   const row = page.locator('.ib-item', { hasText: name });
   await expect(row).toBeVisible();
-  await expect(row.locator('.ib-unread')).toHaveText('1');
+  await expect(row.locator('.wa-unread')).toHaveText('1');
   await row.locator('.ib-row-btn').click();
   await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
-  await expect(page.locator('.ib-msg', { hasText: 'me mandás el contrato' })).toBeVisible();
+  await expect(page.locator('.gr-msg', { hasText: 'me mandás el contrato' })).toBeVisible();
   // Abrir lo deja leído.
-  await expect(row.locator('.ib-unread')).toHaveCount(0);
+  await expect(row.locator('.wa-unread')).toHaveCount(0);
 
   // R enfoca el campo; Enter manda (WhatsApp Web).
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
@@ -122,7 +122,7 @@ test('llega un mensaje, se responde con Enter y se marca hecho con E (y Z lo des
   await expect(field).toBeFocused();
   await field.fill('Sí, ya te lo mando');
   await field.press('Enter');
-  await expect(page.locator('.ib-msg.is-me', { hasText: 'Sí, ya te lo mando' })).toBeVisible();
+  await expect(page.locator('.gr-msg-out', { hasText: 'Sí, ya te lo mando' })).toBeVisible();
   await expect(field).toHaveValue('');
 
   // E: hecho, sale de la bandeja; Z: vuelve.
@@ -191,11 +191,13 @@ test('enviar más tarde, snippets con ; y borrador con IA', async ({ page, reque
   await field.fill('decile que a las 8');
   await field.press('ControlOrMeta+j');
   await expect(field).toHaveValue('Borrador: decile que a las 8');
-  await page.getByRole('button', { name: 'Undo AI' }).click();
+  await page.getByRole('button', { name: 'AI: draft or rewrite' }).click();
+  await page.getByRole('menuitem', { name: 'Undo AI' }).click();
   await expect(field).toHaveValue('decile que a las 8');
 
   // "¿Qué querés decir?": instrucción, borrador que llega de a pedazos, refinar e insertar.
-  await page.getByRole('button', { name: 'What do you want to say?' }).click();
+  await page.getByRole('button', { name: 'AI: draft or rewrite' }).click();
+  await page.getByRole('menuitem', { name: 'What do you want to say?' }).click();
   const panel = page.getByRole('region', { name: 'Write with AI' });
   await expect(panel.getByRole('textbox', { name: 'What do you want to say?' })).toBeFocused();
   await panel.getByRole('textbox', { name: 'What do you want to say?' }).fill('que llego tarde');
@@ -212,7 +214,9 @@ test('enviar más tarde, snippets con ; y borrador con IA', async ({ page, reque
   await expect(panel).toBeHidden();
   await expect(field).toHaveValue('Borrador: que llego tarde (formal)');
   // Esc cierra el panel sin tocar el campo.
-  await page.getByRole('button', { name: 'What do you want to say?' }).click();
+  await page.getByRole('button', { name: 'AI: draft or rewrite' }).click();
+  await page.getByRole('menuitem', { name: 'What do you want to say?' }).click();
+  await expect(page.getByRole('region', { name: 'Write with AI' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('region', { name: 'Write with AI' })).toBeHidden();
   await expect(field).toHaveValue('Borrador: que llego tarde (formal)');
@@ -280,7 +284,7 @@ test('más tarde con varios mensajes: cada uno su burbuja, editar, enviar ya y c
   // Enviar ya: salen los tres, cada uno su burbuja y en orden.
   await sched.getByRole('button', { name: 'Send now' }).click();
   await expect(page.locator('.ib-sched')).toHaveCount(0);
-  const mine = page.locator('.ib-msg.is-me');
+  const mine = page.locator('.gr-msg-out');
   await expect(mine.filter({ hasText: 'Avisame cuando llegue' })).toBeVisible();
   const texts = await mine.allInnerTexts();
   const order = ['Buen día!', 'CBU 0000003100000000000001', 'Avisame cuando llegue'].map((x) => texts.findIndex((t) => t.includes(x)));
@@ -338,8 +342,9 @@ test('carpetas anidadas: subcarpeta, arrastrar chats con deshacer, no leídos qu
   await expect.poll(async () => (await sql('SELECT COUNT(*) AS n FROM inbox_thread_folders tf JOIN inbox_folders f ON f.id = tf.folder_id WHERE f.name = ?', [child]))[0].n).toBe(0);
 
   // Varios seleccionados a la vez.
-  await page.locator('.ib-item', { hasText: lu }).getByRole('checkbox').check();
-  await page.locator('.ib-item', { hasText: mati }).getByRole('checkbox').check();
+  await page.locator('.ib-item', { hasText: lu }).locator('.ib-row-btn').click({ modifiers: ['Shift'] });
+  await page.locator('.ib-item', { hasText: mati }).locator('.ib-row-btn').click({ modifiers: ['Shift'] });
+  await expect(page.locator('.ib-item.is-selected')).toHaveCount(2);
   await page.locator('.ib-item', { hasText: mati }).dragTo(childRow);
   await expect(page.locator('.ib-toast', { hasText: `2 chats added to ${child}` })).toBeVisible();
 
@@ -477,7 +482,7 @@ test('traer todo el historial de WhatsApp (servidor falso): espera, pagina, avan
   const ana = page.locator('.ib-item', { hasText: 'Historial Ana' });
   await expect(ana).toBeVisible();
   await ana.locator('.ib-row-btn').click();
-  await expect(page.locator('.ib-msg', { hasText: 'Historial Ana mensaje 230' })).toBeVisible();
+  await expect(page.locator('.gr-msg', { hasText: 'Historial Ana mensaje 230' })).toBeVisible();
   const n = await sql("SELECT COUNT(*) AS n FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id WHERE t.account_id = ? AND t.external_id = '5491170000001@s.whatsapp.net'", [acc.id]);
   expect(Number(n[0].n)).toBe(230);
   expect(errors, errors.join('\n')).toEqual([]);

@@ -3,7 +3,9 @@
 import { forwardRef, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { FolderDto, MessageDto, ScheduledDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
-import { avatarHue, initials, longWhen, api } from './api';
+import { avatarHue, longWhen, api } from './api';
+import Avatar from '@/components/groups/wa/Avatar';
+import { chatName } from './wa/util';
 import ScheduledList from './ScheduledList';
 import Composer, { type ComposerHandle } from './Composer';
 
@@ -160,6 +162,8 @@ const Conversation = forwardRef<
   const lastId = useRef('');
   const email = thread.channel === 'gmail';
   const group = thread.kind === 'group';
+  const w = useTranslations('inboxWa');
+  const displayName = chatName(thread, w('group'));
 
   // Al abrir o al llegar uno nuevo: abajo de todo.
   useLayoutEffect(() => {
@@ -218,9 +222,7 @@ const Conversation = forwardRef<
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <span className="ib-avatar" style={{ background: `hsl(${avatarHue(thread.id)} 35% 45%)` }} aria-hidden>
-          {initials(thread.title)}
-        </span>
+        <Avatar name={displayName} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={40} />
         <div className="ib-convo-title">
           {renaming ? (
             <form
@@ -256,7 +258,7 @@ const Conversation = forwardRef<
             </form>
           ) : (
             <button type="button" className="ib-title-btn" onClick={() => setRenaming(true)} title={t('actions.rename')}>
-              <h2 className="ib-h2">{thread.title}</h2>
+              <h2 className="ib-h2">{displayName}</h2>
             </button>
           )}
           <p className="ib-sub">
