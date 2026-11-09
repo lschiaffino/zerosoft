@@ -45,7 +45,8 @@
     "saveError": "Could not save the change. Try again.",
     "copyLink": "Copy link",
     "linkCopied": "Link copied",
-    "copyFailed": "Could not copy the link"
+    "copyFailed": "Could not copy the link",
+    "dismiss": "Dismiss"
   },
   "status": {
     "backlog": "Backlog",
@@ -102,7 +103,31 @@
     "namePlaceholder": "Mobile checkout",
     "summaryLabel": "Summary",
     "summaryPlaceholder": "One line on what this project delivers",
-    "display": "Display"
+    "display": "Display",
+    "filterHealth": "Health",
+    "anyHealth": "Any health",
+    "orderBy": "Order by",
+    "sorts": {
+      "manual": "Manual",
+      "name": "Name",
+      "target": "Target date",
+      "progress": "Progress",
+      "created": "Created",
+      "updated": "Updated"
+    },
+    "teamTitle": "{team} projects",
+    "colName": "Name",
+    "colHealth": "Health",
+    "colLead": "Lead",
+    "colTarget": "Target date",
+    "filter": "Filter",
+    "grouping": "Grouping",
+    "show": "Show",
+    "showArchived": "Archived projects",
+    "colPriority": "Priority",
+    "colStatus": "Status",
+    "progressAria": "{percent}% complete",
+    "updated": "Updated {name}"
   },
   "plan": {
     "tabs": {
@@ -149,8 +174,6 @@
     "back": "All projects",
     "invalidRange": "The target date has to be on or after the start date.",
     "progress": "Progress",
-    "progressDetail": "{done} of {total} done, {started} in progress",
-    "byPoints": "{done} of {total} points",
     "latestUpdate": "Latest update",
     "noUpdateYet": "No updates yet.",
     "writeUpdate": "Write update",
@@ -174,7 +197,34 @@
     "noIssuesBody": "Create an issue above or search for existing ones to add them.",
     "removeFromPlan": "Remove {id} from the project",
     "labels": "Labels",
-    "createLabel": "Create label “{name}”"
+    "createLabel": "Create label “{name}”",
+    "more": "More actions",
+    "unfollow": "Unfollow",
+    "icon": "Project icon",
+    "noIcon": "No icon",
+    "lastUpdateOn": "Last update {date}",
+    "scope": "Scope",
+    "started": "Started",
+    "completed": "Completed",
+    "progressChart": "Scope and completed over time",
+    "chartEmpty": "The chart appears once the project has issues.",
+    "resources": "Resources",
+    "addLink": "Add link",
+    "resourcesEmpty": "Links to docs, designs or specs for this project.",
+    "removeLink": "Remove {name}",
+    "linkUrl": "Link URL",
+    "linkTitle": "Title (optional)",
+    "invalidLink": "That link is not valid.",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "archived": "Archived",
+    "archivedToast": "Archived {name}",
+    "unarchivedToast": "Unarchived {name}",
+    "archivedNote": "This project was archived on {date}. It is hidden from lists and the roadmap.",
+    "progressOf": {
+      "issues": "{done} of {total} issues completed · {percent}%",
+      "points": "{done} of {total} points completed · {percent}%"
+    }
   },
   "updates": {
     "composerTitle": "New update",
@@ -199,8 +249,14 @@
       "startDate": "{actor} moved the start date from {from} to {to}",
       "targetDate": "{actor} moved the target date from {from} to {to}",
       "members": "{actor} added {names}",
-      "milestone": "{actor} added the milestone {name}"
-    }
+      "milestone": "{actor} added the milestone {name}",
+      "archived": "{actor} archived the project",
+      "unarchived": "{actor} unarchived the project"
+    },
+    "reactions": "Reactions",
+    "you": "You",
+    "reactionLabel": "{emoji} {count}: {who}",
+    "addReaction": "Add reaction"
   },
   "initiatives": {
     "title": "Initiatives",

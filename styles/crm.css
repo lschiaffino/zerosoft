@@ -442,6 +442,8 @@
 }
 tr:hover .cell-quick { opacity: 0.8; }
 .cell-quick:hover { opacity: 1; color: var(--ink); }
+/* Sin hover (tablet, teléfono): los atajos de llamar y escribir quedan a la vista. */
+@media (hover: none) { .cell-quick { opacity: 0.8; } }
 
 /* Rail angosto del detalle 3col: properties apiladas (label arriba, valor abajo) */
 
