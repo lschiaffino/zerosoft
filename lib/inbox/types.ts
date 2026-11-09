@@ -180,7 +180,10 @@ export interface FolderDto {
   position: number;
   parentId: string | null;
   rule: FolderRule | null;
+  /** Chats sin leer de la carpeta y sus subcarpetas (sin repetir). */
   count: number;
+  /** Chats sin leer de la carpeta sola. */
+  ownCount: number;
 }
 
 export interface SnippetDto {
@@ -201,6 +204,16 @@ export interface ScheduledDto {
   sendAt: string;
   status: ScheduledStatus;
   error: string;
+  /** Envío de varios mensajes al que pertenece (el id propio si es uno solo). */
+  batchId: string;
+  /** Orden dentro del envío (0 = el primero). */
+  seq: number;
+  /** Espera después del mensaje anterior, en segundos. */
+  delaySec: number;
+  /** Archivo que sale con el mensaje ('' sin archivo); el texto va como pie. */
+  mediaName: string;
+  mediaType: string;
+  mediaUrl: string;
 }
 
 export const FOLDER_COLORS = ['#3d5a80', '#0e9f6e', '#7b4dff', '#e23d7f', '#c2700a', '#0284c7', '#6b7280', '#b91c1c'] as const;

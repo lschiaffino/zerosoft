@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { FOLDER_COLORS, SHORTCUTS, type FolderDto, type FolderRule, type InboxAccountDto, type ThreadDto } from '@/lib/inbox/types';
 import { api } from './api';
+import { canMoveFolder, depthOf, flattenTree, MAX_FOLDER_DEPTH } from '@/lib/inbox/folder-tree';
 
 /** Modal (<dialog>): Esc y el telón cierran, el foco queda adentro. */
 export function Modal({ open, title, onClose, children, wide = false }: { open: boolean; title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
@@ -60,7 +61,10 @@ export function MoveDialog({
   useEffect(() => {
     if (open) setQ('');
   }, [open]);
-  const list = folders.filter((f) => f.name.toLowerCase().includes(q.trim().toLowerCase()));
+  const needle = q.trim().toLowerCase();
+  const tree = flattenTree(folders);
+  const list = tree.filter(({ folder: f }) => f.name.toLowerCase().includes(needle)).map((r) => r.folder);
+  const depthById = new Map(tree.map((r) => [r.folder.id, needle ? 0 : r.depth]));
   return (
     <Modal open={open} title={t('title')} onClose={onClose}>
       <div className="ui-modal-body">
@@ -89,7 +93,7 @@ export function MoveDialog({
               const inIt = current.includes(f.id);
               return (
                 <li key={f.id}>
-                  <button type="button" className="ib-pick" onClick={() => onPick(f.id, !inIt)} aria-pressed={inIt}>
+                  <button type="button" className="ib-pick" style={{ paddingLeft: 10 + (depthById.get(f.id) ?? 0) * 16 }} onClick={() => onPick(f.id, !inIt)} aria-pressed={inIt}>
                     <span className="ib-swatch" style={{ background: f.color || 'var(--c-inbox)' }} aria-hidden />
                     <span className="ib-pick-name">{f.name}</span>
                     {inIt && <span className="ib-dim">{t('remove')}</span>}
@@ -115,12 +119,12 @@ export function MoveDialog({
 export type MoreAction = 'unread' | 'pin' | 'mute8h' | 'muteWeek' | 'unmute' | 'clearFollowUp' | 'unsnooze' | 'aiDraft' | 'delete';
 
 /** Más acciones del chat: leído, fijar, silenciar, quitar recordatorio, sacar de Inbox. */
-export function MoreDialog({ open, thread, onClose, onAction }: { open: boolean; thread: ThreadDto | null; onClose: () => void; onAction: (a: MoreAction) => void }) {
+export function MoreDialog({ open, thread, onClose, onAction, startConfirm = false }: { open: boolean; thread: ThreadDto | null; onClose: () => void; onAction: (a: MoreAction) => void; startConfirm?: boolean }) {
   const t = useTranslations('inbox.more');
   const [confirm, setConfirm] = useState(false);
   useEffect(() => {
-    if (open) setConfirm(false);
-  }, [open]);
+    if (open) setConfirm(startConfirm);
+  }, [open, startConfirm]);
   if (!thread) return null;
   const items: MoreAction[] = [
     'unread',
@@ -295,12 +299,29 @@ export function HelpDialog({ open, onClose }: { open: boolean; onClose: () => vo
 }
 
 /** Crear, renombrar o borrar una carpeta, con su regla (qué chats entran solos). */
-export function FolderDialog({ open, folder, onClose, onSaved }: { open: boolean; folder: FolderDto | null; onClose: () => void; onSaved: (f: FolderDto | null, deleted?: boolean) => void }) {
+export function FolderDialog({
+  open,
+  folder,
+  folders = [],
+  parentId: defaultParent = null,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  folder: FolderDto | null;
+  /** Todas las carpetas, para elegir dentro de cuál va (sin ellas no se muestra el campo). */
+  folders?: FolderDto[];
+  /** Carpeta padre de una nueva ("Nueva subcarpeta"). */
+  parentId?: string | null;
+  onClose: () => void;
+  onSaved: (f: FolderDto | null, deleted?: boolean) => void;
+}) {
   const t = useTranslations('inbox.folders');
   const te = useTranslations('inbox.errors');
   const [name, setName] = useState('');
   const [color, setColor] = useState<string>(FOLDER_COLORS[0]);
   const [rule, setRule] = useState<FolderRule>({});
+  const [parent, setParent] = useState<string>('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -309,17 +330,22 @@ export function FolderDialog({ open, folder, onClose, onSaved }: { open: boolean
     setName(folder?.name ?? '');
     setColor(folder?.color || FOLDER_COLORS[0]);
     setRule(folder?.rule ?? {});
+    setParent((folder ? folder.parentId : defaultParent) ?? '');
     setErr('');
     setConfirmDelete(false);
-  }, [open, folder]);
+  }, [open, folder, defaultParent]);
   const save = async () => {
     if (!name.trim() || busy) return;
     setBusy(true);
     setErr('');
     const cleanRule = rule.channel || rule.kind || rule.from?.trim() ? rule : null;
+    const parentId = parent || null;
     const r = folder
-      ? await api<{ folders: FolderDto[] }>(`/api/inbox/folders/${folder.id}`, { method: 'PATCH', json: { name: name.trim(), color, rule: cleanRule } })
-      : await api<{ folder: FolderDto }>('/api/inbox/folders', { method: 'POST', json: { name: name.trim(), color, rule: cleanRule } });
+      ? await api<{ folders: FolderDto[] }>(`/api/inbox/folders/${folder.id}`, {
+          method: 'PATCH',
+          json: { name: name.trim(), color, rule: cleanRule, ...(folders.length && parentId !== folder.parentId ? { move: { parentId, before: null } } : {}) },
+        })
+      : await api<{ folder: FolderDto }>('/api/inbox/folders', { method: 'POST', json: { name: name.trim(), color, rule: cleanRule, parentId } });
     setBusy(false);
     if (!r.ok) {
       setErr(te.has(r.data.error ?? '') ? te(r.data.error as string) : te('generic'));
@@ -354,6 +380,24 @@ export function FolderDialog({ open, folder, onClose, onSaved }: { open: boolean
             </label>
             <input id="ib-folder-name" className="input" autoFocus required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
+          {folders.length > 0 && (
+            <div className="ui-field">
+              <label className="label" htmlFor="ib-folder-parent">
+                {t('parent')}
+              </label>
+              <select id="ib-folder-parent" className="select" value={parent} onChange={(e) => setParent(e.target.value)}>
+                <option value="">{t('topLevel')}</option>
+                {flattenTree(folders).map(({ folder: f, depth }) => {
+                  const ok = folder ? canMoveFolder(folders, folder.id, f.id) === 'ok' : depthOf(folders, f.id) + 1 <= MAX_FOLDER_DEPTH;
+                  return (
+                    <option key={f.id} value={f.id} disabled={!ok}>
+                      {`${'\u00a0\u00a0'.repeat(depth)}${f.name}`}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
           <fieldset className="ib-fieldset">
             <legend className="label">{t('color')}</legend>
             <div className="ib-swatches">

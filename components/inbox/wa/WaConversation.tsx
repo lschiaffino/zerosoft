@@ -10,7 +10,7 @@ import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
-import { ArrowDown, ArrowLeft, Ban, CheckCircle, Chevron, ClockIcon, Forwarded, PinIcon, PollIcon, Plus, Smiley, Ticks } from '@/components/groups/wa/icons';
+import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, FolderIcon, Forwarded, Note, PinIcon, PollIcon, Plus, Smiley, Ticks } from '@/components/groups/wa/icons';
 import { api, longWhen } from '../api';
 import { Modal } from '../InboxDialogs';
 import type { ComposerHandle } from '../Composer';
@@ -23,6 +23,7 @@ import Transcript from '@/components/groups/wa/Transcript';
 import { AttachButton, useSendTray, VoiceBar } from './media-send';
 import AttachPreview from '@/components/groups/wa/AttachPreview';
 import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
+import ScheduledList from '../ScheduledList';
 
 export interface WaThreadDetail {
   thread: ThreadDto;
@@ -32,6 +33,8 @@ export interface WaThreadDetail {
   wa?: WaDetailsDto | null;
   /** Se cargaron mensajes anteriores a la primera página. */
   extended?: boolean;
+  /** Mensaje al que ir (resultado de búsqueda). */
+  focus?: string;
 }
 
 const QUICK = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -76,6 +79,7 @@ const WaConversation = forwardRef<
     onError: (code: string) => void;
     onToast: (text: string) => void;
     onToggleInfo: () => void;
+    onRename: (title: string) => void;
     onRefresh: () => void;
     loadOlder: () => Promise<void>;
   }
@@ -101,7 +105,9 @@ const WaConversation = forwardRef<
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [atBottom, setAtBottom] = useState(true);
   const [flash, setFlash] = useState<string | null>(null);
+  const [hitId, setHitId] = useState<string | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [notesState, setNotesState] = useState<'' | 'saving' | 'saved'>('');
   const [recording, setRecording] = useState(false);
@@ -177,6 +183,23 @@ const WaConversation = forwardRef<
     setFlash(id);
     window.setTimeout(() => setFlash((f) => (f === id ? null : f)), 1500);
   };
+
+  // Ir al mensaje buscado (después de que se pintó la conversación).
+  useEffect(() => {
+    if (!detail.focus) return;
+    const focus = detail.focus;
+    let off = 0;
+    const id = window.setTimeout(() => {
+      jumpTo(focus);
+      // Marcado un rato más largo que el de una cita (para encontrarlo al llegar).
+      setHitId(focus);
+      off = window.setTimeout(() => setHitId((h) => (h === focus ? null : h)), 3000);
+    }, 60);
+    return () => {
+      window.clearTimeout(id);
+      window.clearTimeout(off);
+    };
+  }, [detail.focus, detail.thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const act = useCallback(
     async (m: MessageDto, body: Record<string, unknown>, method: 'PATCH' | 'DELETE' = 'PATCH'): Promise<boolean> => {
@@ -287,18 +310,31 @@ const WaConversation = forwardRef<
     setNotesOpen(true);
   };
 
+  const mo = useTranslations('inbox.more');
   const headMenu: MenuItem[] = [
     { key: 'info', label: group ? w('groupInfo') : w('contactInfo'), onSelect: props.onToggleInfo },
     { key: 'followUp', label: t('actions.followUp'), onSelect: () => onAction('followUp') },
     { key: 'move', label: t('actions.move'), onSelect: () => onAction('move') },
     { key: 'notes', label: t('actions.notes'), onSelect: () => void openNotes() },
-    { key: 'more', label: t('actions.more'), onSelect: () => onAction('more') },
+    { key: 'rename', label: t('actions.rename'), onSelect: () => setRenaming(thread.title) },
+    { key: 'unread', label: thread.unread ? mo('read') : mo('unread'), divider: true, onSelect: () => onAction('unread') },
+    { key: 'pin', label: thread.pinned ? mo('unpin') : mo('pin'), onSelect: () => onAction('pin') },
+    { key: 'aiDraft', label: mo('aiDraft'), onSelect: () => onAction('aiDraft') },
+    ...(thread.mutedUntil
+      ? [{ key: 'unmute', label: mo('unmute'), onSelect: () => onAction('unmute') }]
+      : [
+          { key: 'mute8h', label: mo('mute8h'), onSelect: () => onAction('mute8h') },
+          { key: 'muteWeek', label: mo('muteWeek'), onSelect: () => onAction('muteWeek') },
+        ]),
+    ...(thread.followUpAt ? [{ key: 'clearFollowUp', label: mo('clearFollowUp'), onSelect: () => onAction('clearFollowUp') }] : []),
+    ...(thread.snoozedUntil ? [{ key: 'unsnooze', label: mo('unsnooze'), onSelect: () => onAction('unsnooze') }] : []),
     {
       key: 'chatStyle',
       label: chatStyle === 'whatsapp' ? w('styleUseZerosoft') : w('styleUseWhatsapp'),
       divider: true,
       onSelect: () => void setChatStyle(chatStyle === 'whatsapp' ? 'zerosoft' : 'whatsapp').then((ok) => !ok && onError('generic')),
     },
+    { key: 'delete', label: mo('delete'), divider: true, onSelect: () => onAction('delete') },
   ];
 
   // Mensajes agrupados por día; cola en el primero de cada tanda del mismo remitente.
@@ -341,7 +377,7 @@ const WaConversation = forwardRef<
       <article
         key={m.id}
         id={`m-${m.id}`}
-        className={`gr-msg gr-msg-${dir}${m.revoked ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.length ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${flash === m.id ? ' is-target' : ''}`}
+        className={`gr-msg gr-msg-${dir}${m.revoked ? ' is-deleted' : ''}${cont ? ' is-cont' : ' has-tail'}${bigEmoji || sticker ? ' is-bare' : ''}${reactions.length ? ' has-reactions' : ''}${groupIn ? ' has-avatar' : ''}${flash === m.id ? ' is-target' : ''}${hitId === m.id ? ' ib-msg-hit' : ''}`}
         onContextMenu={(e) => {
           if ((e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
           e.preventDefault();
@@ -571,6 +607,15 @@ const WaConversation = forwardRef<
           <button type="button" className="wa-icon-btn" onClick={() => onAction('snooze')} aria-label={t('actions.snooze')} title={`${t('actions.snooze')} (H)`}>
             <ClockIcon size={20} />
           </button>
+          <button type="button" className={`wa-icon-btn ib-hide-sm${thread.followUpAt ? ' is-on' : ''}`} onClick={() => onAction('followUp')} aria-label={t('actions.followUp')} title={`${t('actions.followUp')} (F)`}>
+            <Bell size={20} />
+          </button>
+          <button type="button" className="wa-icon-btn ib-hide-sm" onClick={() => onAction('move')} aria-label={t('actions.move')} title={`${t('actions.move')} (V)`}>
+            <FolderIcon size={20} />
+          </button>
+          <button type="button" className={`wa-icon-btn ib-hide-sm${notesOpen ? ' is-on' : ''}`} onClick={() => void openNotes()} aria-expanded={notesOpen} aria-label={t('actions.notes')} title={t('actions.notes')}>
+            <Note size={20} />
+          </button>
           {thread.pinned && <PinIcon size={16} label={t('list.pinned')} />}
           <MessageMenu label={t('actions.more')} items={headMenu} className="wa-icon-btn" />
         </div>
@@ -642,42 +687,7 @@ const WaConversation = forwardRef<
           </button>
         )}
       </div>
-      {scheduled.length > 0 && (
-        <ul className="ib-scheduled" aria-label={t('scheduled.title')}>
-          {scheduled.map((s) => (
-            <li key={s.id} className={`ib-sched${s.status !== 'pending' ? ' is-bad' : ''}`}>
-              <span className="ib-sched-when">{s.status === 'pending' || s.status === 'sending' ? t('scheduled.at', { when: longWhen(s.sendAt, locale) }) : t(`scheduled.status.${s.status}`)}</span>
-              <span className="ib-sched-body">{s.body}</span>
-              <span className="ib-row">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  disabled={!connected || s.status === 'sending'}
-                  onClick={async () => {
-                    const r = await api(`/api/inbox/scheduled/${s.id}`, { method: 'POST' });
-                    if (!r.ok) onError(r.data.error ?? 'generic');
-                    props.onScheduledChange();
-                  }}
-                >
-                  {t('scheduled.sendNow')}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  disabled={s.status === 'sending'}
-                  onClick={async () => {
-                    const r = await api(`/api/inbox/scheduled/${s.id}`, { method: 'DELETE' });
-                    if (!r.ok) onError(r.data.error ?? 'generic');
-                    props.onScheduledChange();
-                  }}
-                >
-                  {t('scheduled.cancel')}
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ScheduledList thread={thread} scheduled={scheduled} connected={connected} onChange={props.onScheduledChange} onError={onError} />
       {recording ? (
         <div className="wa-composer ib-wa-composer">
           {banner}
@@ -774,6 +784,31 @@ const WaConversation = forwardRef<
             </div>
           </>
         )}
+      </Modal>
+      <Modal open={renaming !== null} title={t('actions.rename')} onClose={() => setRenaming(null)}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const v = (renaming ?? '').trim();
+            if (v) props.onRename(v);
+            setRenaming(null);
+          }}
+        >
+          <div className="ui-modal-body">
+            <label className="sr-only" htmlFor="ib-rename">
+              {t('actions.rename')}
+            </label>
+            <input id="ib-rename" className="input" value={renaming ?? ''} maxLength={200} autoFocus onChange={(e) => setRenaming(e.target.value)} />
+          </div>
+          <div className="ui-modal-foot">
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setRenaming(null)}>
+              {t('more.cancel')}
+            </button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={!(renaming ?? '').trim()}>
+              {t('actions.save')}
+            </button>
+          </div>
+        </form>
       </Modal>
       <Modal open={!!forwardFor} title={w('forwardTo')} onClose={() => setForwardFor(null)}>
         {forwardFor && (

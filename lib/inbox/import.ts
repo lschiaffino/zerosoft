@@ -8,6 +8,7 @@
  * duplica nada. Las contraseñas de Gmail de la app local no se exportan ni se
  * importan (acá Gmail se conecta con Google).
  */
+import { createHash } from 'crypto';
 import { z } from 'zod';
 import { getDb } from '../db';
 import { addMessage, findThread, newId, nowIso, upsertThread, type AccountRow, type ThreadRow } from './core';
@@ -22,7 +23,8 @@ const text = (max: number) => z.string().max(max);
 export const metaSchema = z.object({
   part: z.literal('meta'),
   format: z.literal(EXPORT_FORMAT),
-  version: z.literal(1),
+  // 1: un solo JSON; 2: NDJSON (una parte por línea).
+  version: z.union([z.literal(1), z.literal(2)]),
   folders: z
     .array(
       z.object({
@@ -39,10 +41,11 @@ export const metaSchema = z.object({
   chatFolders: z.array(z.object({ chatId, folderId: z.union([z.number(), z.string()]) })).max(20_000).default([]),
   chats: z.array(z.object({ chatId, name: text(300).optional().default(''), isGroup: z.boolean().optional() })).max(20_000).default([]),
   scheduled: z
-    .array(z.object({ chatId, chatName: text(300).optional().default(''), text: text(LIMITS.message), sendAt: z.number(), status: text(20).optional().default('pending') }))
+    // Un programado de varios mensajes trae todos juntos (separados por \u001e).
+    .array(z.object({ chatId, chatName: text(300).optional().default(''), text: text(LIMITS.message * 10), sendAt: z.number(), status: text(20).optional().default('pending') }))
     .max(2000)
     .default([]),
-  drafts: z.array(z.object({ chatId, chatName: text(300).optional().default(''), text: text(LIMITS.draft) })).max(5000).default([]),
+  drafts: z.array(z.object({ chatId, chatName: text(300).optional().default(''), text: text(LIMITS.draft * 4) })).max(5000).default([]),
   snoozes: z.array(z.object({ chatId, until: z.number() })).max(5000).default([]),
   notes: z.array(z.object({ chatId, text: text(LIMITS.notes) })).max(20_000).default([]),
 });
@@ -79,6 +82,23 @@ export interface ImportResult {
 
 const MEDIA: Record<string, string> = { image: 'image', video: 'video', ptt: 'audio', audio: 'audio', document: 'document', sticker: 'sticker' };
 
+/**
+ * Id del mensaje como lo guarda WhatsApp (el de la "stanza", el mismo que
+ * usa Evolution): whatsapp-web.js lo serializa "false_<chat>_<ID>_<autor>" y
+ * WhatsApp Desktop lo exporta como "desk:<ID>". Con el mismo id, lo importado
+ * y lo que trae el servidor no se duplican.
+ */
+export function stanzaIdOf(raw: string): string {
+  const web = /^(?:true|false)_[^_]+@[^_]+_([A-Za-z0-9]+)(?:_.*)?$/.exec(raw);
+  if (web) return web[1];
+  if (raw.startsWith('desk:')) return raw.slice(5);
+  return raw;
+}
+
+/** Separador de varios mensajes en un programado de la app local. */
+// eslint-disable-next-line no-control-regex
+const PART_SEP = /\u001e/;
+
 async function threadFor(account: AccountRow, cache: Map<string, ThreadRow>, rawId: string, name = ''): Promise<ThreadRow | null> {
   const id = normalizeWaJid(rawId);
   if (!/@(s\.whatsapp\.net|g\.us|lid)$/.test(id)) return null;
@@ -107,7 +127,7 @@ export async function importPart(owner: string, part: ImportPart, now = new Date
       const ms = m.ts > 1e12 ? m.ts : m.ts * 1000;
       if (!Number.isFinite(ms) || ms <= 0) continue;
       const added = await addMessage(t, {
-        externalId: m.id,
+        externalId: stanzaIdOf(m.id),
         fromMe: m.fromMe,
         senderName: m.fromMe ? '' : m.sender,
         body: m.text,
@@ -169,16 +189,21 @@ export async function importPart(owner: string, part: ImportPart, now = new Date
     if (!Number.isFinite(at.getTime()) || at.getTime() <= now.getTime() + 60_000) continue;
     const t = await threadFor(account, cache, s.chatId, s.chatName);
     if (!t) continue;
-    // Separador de varios mensajes en uno de la app local: acá van como párrafos.
-    // eslint-disable-next-line no-control-regex
-    const body = s.text.replace(/\u001e/g, '\n\n').trim().slice(0, LIMITS.message);
-    const dup = await db
-      .prepare("SELECT 1 FROM inbox_scheduled WHERE thread_id = ? AND body = ? AND send_at = ? AND status IN ('pending','sent')")
-      .get(t.id, body, at.toISOString());
+    // Varios mensajes en uno de la app local: acá cada uno es su burbuja, en la misma secuencia.
+    const parts = s.text
+      .split(PART_SEP)
+      .map((p) => p.trim().slice(0, LIMITS.message))
+      .filter(Boolean);
+    if (!parts.length) continue;
+    // La clave sale del contenido: reimportar no duplica.
+    const batch = `ibb_iz${createHash('sha256').update(`${t.id}|${at.toISOString()}|${s.text}`).digest('hex').slice(0, 24)}`;
+    const dup = await db.prepare('SELECT 1 FROM inbox_scheduled WHERE owner_id = ? AND batch_id = ?').get(owner, batch);
     if (dup) continue;
-    await db
-      .prepare("INSERT INTO inbox_scheduled (id, owner_id, thread_id, body, send_at, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)")
-      .run(newId('ibq'), owner, t.id, body, at.toISOString(), nowS, nowS);
+    for (let i = 0; i < parts.length; i++) {
+      await db
+        .prepare("INSERT INTO inbox_scheduled (id, owner_id, thread_id, body, send_at, status, batch_id, seq, delay_s, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, 0, ?, ?)")
+        .run(newId('ibq'), owner, t.id, parts[i], at.toISOString(), batch, i, nowS, nowS);
+    }
     out.scheduled++;
   }
 

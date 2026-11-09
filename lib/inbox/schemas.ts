@@ -61,6 +61,8 @@ export const folderPatchSchema = z.object({
   parentId: id.nullable().optional(),
   rule: rule.optional(),
   position: z.number().int().min(0).max(10_000).optional(),
+  /** Mover en el árbol: dentro de parentId (null = primer nivel), antes de before (null = al final). */
+  move: z.object({ parentId: id.nullable(), before: id.nullable() }).optional(),
 });
 
 export const reorderSchema = z.object({ ids: z.array(id).max(LIMITS.folders) });
@@ -73,7 +75,18 @@ export const snippetCreateSchema = z.object({
 
 export const snippetPatchSchema = snippetCreateSchema.partial();
 
-export const scheduledCreateSchema = z.object({ threadId: id, body: z.string().min(1).max(LIMITS.message), sendAt: iso });
+const part = z.object({
+  body: z.string().max(LIMITS.message),
+  delaySec: z.number().int().min(0).max(7 * 86_400).optional(),
+  media: z.object({ url: z.string().min(1).max(500), name: z.string().max(200), type: z.string().max(100) }).nullable().optional(),
+});
+const parts = z.array(part).min(1).max(10);
+
+export const scheduledCreateSchema = z.union([
+  z.object({ threadId: id, sendAt: iso, parts, key: z.string().max(64).optional() }),
+  z.object({ threadId: id, body: z.string().min(1).max(LIMITS.message), sendAt: iso }),
+]);
+export const scheduledReplaceSchema = z.object({ sendAt: iso, parts });
 export const scheduledPatchSchema = z.object({ body: z.string().min(1).max(LIMITS.message).optional(), sendAt: iso.optional() });
 
 export const composeSchema = z.discriminatedUnion('channel', [
@@ -88,11 +101,13 @@ export const composeSchema = z.discriminatedUnion('channel', [
 ]);
 
 export const aiSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('draft'), threadId: id, instruction: z.string().max(2000).optional() }),
+  z.object({ action: z.literal('draft'), threadId: id, instruction: z.string().max(2000).optional(), stream: z.boolean().optional() }),
   z.object({
     action: z.literal('rewrite'),
     text: z.string().min(1).max(6000),
     mode: z.enum(['shorter', 'friendlier', 'formal', 'fix', 'custom']),
     instruction: z.string().max(1000).optional(),
+    threadId: id.optional(),
+    stream: z.boolean().optional(),
   }),
 ]);

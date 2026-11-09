@@ -1028,6 +1028,25 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         return [{ remoteJid, chatId, isGroup, name, pictureUrl: pic, unread: Math.max(0, Number(c.unreadCount) || 0), lastAt: Number.isFinite(ts) ? ts : 0 }];
       });
     },
+    async messagePage(remoteJid, size, page) {
+      const r = (await api(
+        `/chat/findMessages/${instance}`,
+        'POST',
+        { where: { key: { remoteJid } }, offset: Math.max(1, Math.min(size, 500)), page: Math.max(1, Math.floor(page)) },
+        { maxBytes: 16 * 1024 * 1024 },
+      )) as Json;
+      const box = (r.messages ?? {}) as Json;
+      const list = Array.isArray(box.records) ? (box.records as Json[]) : [];
+      const pages = Number(box.pages);
+      const current = Number(box.currentPage) || Math.floor(page);
+      const events = list
+        .slice()
+        .sort((a, b) => Number(a.messageTimestamp ?? 0) - Number(b.messageTimestamp ?? 0))
+        .flatMap((m) => evolutionMessageEvents(m, true));
+      // Sin "pages" (otra versión), hay más mientras la página venga llena.
+      const more = Number.isFinite(pages) && pages > 0 ? current < pages : list.length >= size;
+      return { events, more, total: Number(box.total) || 0 };
+    },
     async messages(remoteJid, limit, page = 1) {
       const r = (await api(
         `/chat/findMessages/${instance}`,

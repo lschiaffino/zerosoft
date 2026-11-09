@@ -194,6 +194,32 @@ test('enviar más tarde, snippets con ; y borrador con IA', async ({ page, reque
   await page.getByRole('button', { name: 'AI: draft or rewrite' }).click();
   await page.getByRole('menuitem', { name: 'Undo AI' }).click();
   await expect(field).toHaveValue('decile que a las 8');
+
+  // "¿Qué querés decir?": instrucción, borrador que llega de a pedazos, refinar e insertar.
+  await page.getByRole('button', { name: 'AI: draft or rewrite' }).click();
+  await page.getByRole('menuitem', { name: 'What do you want to say?' }).click();
+  const panel = page.getByRole('region', { name: 'Write with AI' });
+  await expect(panel.getByRole('textbox', { name: 'What do you want to say?' })).toBeFocused();
+  await panel.getByRole('textbox', { name: 'What do you want to say?' }).fill('que llego tarde');
+  await panel.getByRole('textbox', { name: 'What do you want to say?' }).press('Enter');
+  await expect(panel.getByTestId('inbox-ai-draft')).toHaveText('Borrador: que llego tarde');
+  await panel.getByRole('button', { name: 'More formal' }).click();
+  await expect(panel.getByTestId('inbox-ai-draft')).toHaveText('Borrador: que llego tarde (formal)');
+  await panel.getByRole('textbox', { name: 'Another change' }).fill('sin emojis');
+  await panel.getByRole('textbox', { name: 'Another change' }).press('Enter');
+  await expect(panel.getByTestId('inbox-ai-draft')).toHaveText('Borrador: que llego tarde (formal) (sin emojis)');
+  await panel.getByRole('button', { name: 'Previous version' }).click();
+  await expect(panel.getByTestId('inbox-ai-draft')).toHaveText('Borrador: que llego tarde (formal)');
+  await panel.getByRole('button', { name: 'Insert' }).click();
+  await expect(panel).toBeHidden();
+  await expect(field).toHaveValue('Borrador: que llego tarde (formal)');
+  // Esc cierra el panel sin tocar el campo.
+  await page.getByRole('button', { name: 'AI: draft or rewrite' }).click();
+  await page.getByRole('menuitem', { name: 'What do you want to say?' }).click();
+  await expect(page.getByRole('region', { name: 'Write with AI' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('region', { name: 'Write with AI' })).toBeHidden();
+  await expect(field).toHaveValue('Borrador: que llego tarde (formal)');
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
@@ -220,6 +246,141 @@ test('carpetas: nueva desde el sidebar, V para sumar un chat y la carpeta lo mue
   await page.locator('#side-branch').getByRole('link', { name: folder }).click();
   await expect(page.getByRole('heading', { level: 1, name: folder })).toBeVisible();
   await expect(page.locator('.ib-item', { hasText: name })).toBeVisible();
+});
+
+test('más tarde con varios mensajes: cada uno su burbuja, editar, enviar ya y cancelar', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const name = `Juli ${uid()}`;
+  await inbound(request, acc, { phone: phone(), name, body: 'Mañana me pasás los datos?' });
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
+  const field = page.getByRole('textbox', { name: 'Message' });
+  await field.fill('Buen día!');
+  await page.getByRole('button', { name: 'Later', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Send later' });
+  await expect(dialog.getByRole('textbox', { name: 'Message 1' })).toHaveValue('Buen día!');
+  await dialog.getByRole('button', { name: 'Add another message' }).click();
+  await dialog.getByRole('textbox', { name: 'Message 2' }).fill('CBU 0000003100000000000001');
+  await dialog.getByLabel('After the previous one').selectOption('0');
+  await dialog.getByRole('button', { name: /Tomorrow morning/ }).click();
+  await expect(page.locator('.ib-toast', { hasText: 'Scheduled for' })).toBeVisible();
+  await expect(field).toHaveValue('');
+  const sched = page.locator('.ib-sched', { hasText: 'Buen día!' });
+  await expect(sched).toContainText('2 messages');
+  await expect(sched).toContainText('CBU 0000003100000000000001');
+
+  // Editar: se suma un tercero y se guarda a la misma hora.
+  await sched.getByRole('button', { name: 'Edit' }).click();
+  const edit = page.getByRole('dialog', { name: 'Edit scheduled send' });
+  await expect(edit.getByRole('textbox', { name: 'Message 2' })).toHaveValue('CBU 0000003100000000000001');
+  await edit.getByRole('button', { name: 'Add another message' }).click();
+  await edit.getByRole('textbox', { name: 'Message 3' }).fill('Avisame cuando llegue');
+  await edit.getByLabel('After the previous one').nth(1).selectOption('0');
+  await edit.getByRole('button', { name: 'Save' }).click();
+  await expect(edit).toBeHidden();
+  await expect(sched).toContainText('3 messages');
+
+  // Enviar ya: salen los tres, cada uno su burbuja y en orden.
+  await sched.getByRole('button', { name: 'Send now' }).click();
+  await expect(page.locator('.ib-sched')).toHaveCount(0);
+  const mine = page.locator('.gr-msg-out');
+  await expect(mine.filter({ hasText: 'Avisame cuando llegue' })).toBeVisible();
+  const texts = await mine.allInnerTexts();
+  const order = ['Buen día!', 'CBU 0000003100000000000001', 'Avisame cuando llegue'].map((x) => texts.findIndex((t) => t.includes(x)));
+  expect(order.every((i, k) => i >= 0 && (k === 0 || i > order[k - 1]))).toBe(true);
+
+  // Otra secuencia y cancelarla entera.
+  await field.fill('uno');
+  await page.getByRole('button', { name: 'Later', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Add another message' }).click();
+  await dialog.getByRole('textbox', { name: 'Message 2' }).fill('dos');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(field).toHaveValue('uno');
+  await page.getByRole('button', { name: 'Later', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Add another message' }).click();
+  await dialog.getByRole('textbox', { name: 'Message 2' }).fill('dos');
+  await dialog.getByRole('button', { name: /Later today/ }).click();
+  await expect(page.locator('.ib-sched', { hasText: 'dos' })).toBeVisible();
+  await page.locator('.ib-sched', { hasText: 'dos' }).getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.locator('.ib-sched')).toHaveCount(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('carpetas anidadas: subcarpeta, arrastrar chats con deshacer, no leídos que suben, renombrar y borrar', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const lu = `Lu ${uid()}`;
+  const mati = `Mati ${uid()}`;
+  await inbound(request, acc, { phone: phone(), name: lu, body: 'Salimos el viernes?' });
+  await inbound(request, acc, { phone: phone(), name: mati, body: 'Reservé el hotel' });
+  const parent = `Viajes ${uid()}`;
+  const child = `Hotel ${uid()}`;
+  await request.post('/api/inbox/folders', { data: { name: parent } });
+
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  const side = page.locator('#side-branch');
+  const parentRow = side.locator('.docs-tree-row', { hasText: parent });
+  await parentRow.hover();
+  await side.getByRole('button', { name: `Actions for ${parent}` }).click();
+  await page.getByRole('menuitem', { name: 'New subfolder' }).click();
+  const dialog = page.getByRole('dialog', { name: 'New folder' });
+  await expect(dialog.getByLabel('Inside')).toHaveValue(/ibf/);
+  await dialog.getByLabel('Name', { exact: true }).fill(child);
+  await dialog.getByRole('button', { name: 'Create folder' }).click();
+  await expect(page).toHaveURL(/\/app\/inbox\/f\//);
+  const childRow = side.locator('.docs-tree-row', { hasText: child });
+  await expect(childRow.getByRole('link', { name: child })).toHaveAttribute('aria-current', 'page');
+  await expect(side.getByRole('button', { name: `Collapse ${parent}` })).toHaveAttribute('aria-expanded', 'true');
+
+  // Arrastrar un chat a la subcarpeta: se resalta, se suma y se puede deshacer.
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: lu }).dragTo(childRow);
+  await expect(page.locator('.ib-toast', { hasText: `Added to ${child}` })).toBeVisible();
+  await page.locator('.ib-toast', { hasText: `Added to ${child}` }).getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(async () => (await sql('SELECT COUNT(*) AS n FROM inbox_thread_folders tf JOIN inbox_folders f ON f.id = tf.folder_id WHERE f.name = ?', [child]))[0].n).toBe(0);
+
+  // Varios seleccionados a la vez.
+  await page.locator('.ib-item', { hasText: lu }).locator('.ib-row-btn').click({ modifiers: ['Shift'] });
+  await page.locator('.ib-item', { hasText: mati }).locator('.ib-row-btn').click({ modifiers: ['Shift'] });
+  await expect(page.locator('.ib-item.is-selected')).toHaveCount(2);
+  await page.locator('.ib-item', { hasText: mati }).dragTo(childRow);
+  await expect(page.locator('.ib-toast', { hasText: `2 chats added to ${child}` })).toBeVisible();
+
+  // Los no leídos de la subcarpeta suben al padre cuando está plegado; el padre muestra los chats de sus subcarpetas.
+  await expect(childRow.getByLabel('2 unread chats')).toBeVisible();
+  await side.getByRole('button', { name: `Collapse ${parent}` }).click();
+  await expect(childRow).toBeHidden();
+  await expect(parentRow.getByLabel('2 unread chats')).toBeVisible();
+  await parentRow.getByRole('link', { name: parent }).click();
+  await expect(page.getByRole('heading', { level: 1, name: parent })).toBeVisible();
+  await expect(page.locator('.ib-item', { hasText: lu })).toBeVisible();
+  await expect(page.locator('.ib-item', { hasText: mati })).toBeVisible();
+  await side.getByRole('button', { name: `Expand ${parent}` }).click();
+
+  // Teclado: F2 renombra, Alt+← la saca al primer nivel.
+  const renamed = `${child} 2`;
+  await childRow.getByRole('link').focus();
+  await page.keyboard.press('F2');
+  await side.getByRole('textbox', { name: `Name of ${child}` }).fill(renamed);
+  await page.keyboard.press('Enter');
+  const renamedRow = side.locator('.docs-tree-row', { hasText: renamed });
+  await expect(renamedRow).toBeVisible();
+  await renamedRow.getByRole('link').focus();
+  await page.keyboard.press('Alt+ArrowLeft');
+  await expect.poll(async () => (await sql('SELECT parent_id FROM inbox_folders WHERE name = ?', [renamed]))[0].parent_id).toBeNull();
+  await expect(side.getByRole('button', { name: `Collapse ${parent}` })).toHaveCount(0);
+
+  // Borrar desde el menú (con confirmación); los chats siguen.
+  await renamedRow.hover();
+  await side.getByRole('button', { name: `Actions for ${renamed}` }).click();
+  await page.getByRole('menuitem', { name: 'Delete' }).click();
+  await page.getByRole('dialog', { name: 'Delete folder' }).getByRole('button', { name: 'Delete folder' }).click();
+  await expect(side.locator('.docs-tree-row', { hasText: renamed })).toHaveCount(0);
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await expect(page.locator('.ib-item', { hasText: lu })).toBeVisible();
+  expect(errors, errors.join('\n')).toEqual([]);
 });
 
 test('Gmail (cuenta de prueba): conectar, sincronizar y responder en el hilo', async ({ page }) => {
@@ -258,7 +419,7 @@ test('importar una exportación de inbox-zero', async ({ page }) => {
     notes: [{ chatId: '5491177770000@c.us', text: 'Prefiere audios cortos' }],
     messages: [{ id: `imp-${tag}`, chatId: '5491177770000@c.us', ts: Math.floor(Date.now() / 1000) - 3600, fromMe: false, sender: `Jefa ${tag}`, type: 'chat', text: 'Mañana reunión a las 10' }],
   };
-  await page.getByLabel('Export file (.json)').setInputFiles({ name: 'inbox-zero-export.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(file)) });
+  await page.getByLabel(/Exported file/).setInputFiles({ name: 'inbox-zero-export.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(file)) });
   await expect(page.getByText(/1 folders, 1 chats/)).toBeVisible();
   await page.getByRole('button', { name: 'Import', exact: true }).click();
   await expect(page.getByText(/Imported 1 folders/)).toBeVisible();
@@ -267,6 +428,108 @@ test('importar una exportación de inbox-zero', async ({ page }) => {
   const row = page.locator('.ib-item', { hasText: `Jefa ${tag}` });
   await expect(row).toBeVisible();
   await expect(row).toContainText('borrador importado');
+});
+
+test('importar un .ndjson grande desde el navegador (por líneas, con avance) y un programado de varios mensajes', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/en/app/inbox/settings', { waitUntil: 'networkidle' });
+  const tag = uid();
+  const chat = `54911888${Math.floor(10000 + Math.random() * 89999)}@c.us`;
+  const meta = {
+    part: 'meta',
+    format: 'inbox-zero-export',
+    version: 2,
+    folders: [],
+    chatFolders: [],
+    chats: [{ chatId: chat, name: `Prima ${tag}`, isGroup: false }],
+    scheduled: [{ chatId: chat, chatName: `Prima ${tag}`, text: 'Feliz cumple!\u001eTe dejé algo en la puerta', sendAt: Date.now() + 3 * 86_400_000, status: 'pending' }],
+    drafts: [],
+    snoozes: [],
+    notes: [],
+  };
+  const lines = [JSON.stringify(meta)];
+  for (let i = 0; i < 6; i++) {
+    lines.push(JSON.stringify({ part: 'messages', messages: Array.from({ length: 300 }, (_, j) => ({ id: `nd-${tag}-${i}-${j}`, chatId: chat, ts: 1_750_000_000 + i * 1000 + j, fromMe: j % 2 === 0, sender: `Prima ${tag}`, type: 'chat', text: `línea ${i} mensaje ${j} ${'·'.repeat(400)}` })) }));
+  }
+  const buffer = Buffer.from(`${lines.join('\n')}\n`);
+  expect(buffer.length).toBeGreaterThan(1024 * 1024);
+  await page.getByLabel(/Exported file/).setInputFiles({ name: `export-${tag}.ndjson`, mimeType: 'application/x-ndjson', buffer });
+  await expect(page.locator('.ib-import-summary')).toContainText(`export-${tag}.ndjson`);
+  await page.getByRole('button', { name: 'Import', exact: true }).click();
+  await expect(page.getByText(/Imported 0 folders, 1 chats, 1 scheduled, 0 drafts, 0 snoozes, 0 notes and 1800 messages/)).toBeVisible({ timeout: 30_000 });
+  await page.goto('/en/app/inbox/v/scheduled', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: `Prima ${tag}` }).locator('.ib-row-btn').click();
+  const sched = page.locator('.ib-sched', { hasText: 'Feliz cumple!' });
+  await expect(sched).toContainText('2 messages');
+  await expect(sched).toContainText('Te dejé algo en la puerta');
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('traer todo el historial de WhatsApp (servidor falso): espera, pagina, avanza y no duplica', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  // WhatsApp ya terminó de mandar el historial de la vinculación.
+  await sql('UPDATE inbox_accounts SET sync_cursor = ? WHERE id = ?', [JSON.stringify({ phase: 'done', page: 0 }), acc.id]);
+  await page.goto('/en/app/inbox/settings', { waitUntil: 'networkidle' });
+  const start = page.getByRole('button', { name: 'Bring the full history' });
+  await expect(start).toBeEnabled();
+  await start.click();
+  const job = page.locator('.ib-job', { hasText: 'Full WhatsApp history' }).first();
+  await expect(job).toContainText('Done', { timeout: 60_000 });
+  await expect(job).toContainText('3 of 3 chats');
+  await expect(job.getByRole('progressbar')).toHaveAttribute('value', '100');
+  await page.goto('/en/app/inbox/v/whatsapp', { waitUntil: 'networkidle' });
+  const ana = page.locator('.ib-item', { hasText: 'Historial Ana' });
+  await expect(ana).toBeVisible();
+  await ana.locator('.ib-row-btn').click();
+  await expect(page.locator('.gr-msg', { hasText: 'Historial Ana mensaje 230' })).toBeVisible();
+  const n = await sql("SELECT COUNT(*) AS n FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id WHERE t.account_id = ? AND t.external_id = '5491170000001@s.whatsapp.net'", [acc.id]);
+  expect(Number(n[0].n)).toBe(230);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('buscar en el texto de los mensajes: resaltado, filtros, ir al mensaje y Cmd+K', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const tag = uid();
+  const name = `Seba ${tag}`;
+  const p = phone();
+  await inbound(request, acc, { phone: p, name, body: `El presupuesto de la cocina ${tag} es de 3 millones` });
+  // Muchos mensajes después, para que el buscado quede lejos del final.
+  for (let i = 0; i < 6; i++) await inbound(request, acc, { phone: p, name, body: `otra cosa ${i}` });
+  await inbound(request, acc, { phone: phone(), name: `Otro ${tag}`, body: `Mirá esto https://example.com/${tag}` });
+
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  const search = page.getByLabel('Search chats and messages');
+  await search.first().fill(`presupuesto ${tag}`);
+  const hit = page.getByTestId('inbox-search-hit').filter({ hasText: name });
+  await expect(hit).toBeVisible();
+  await expect(hit.locator('mark').first()).toHaveText(/presupuesto/i);
+  await hit.click();
+  const target = page.locator('.ib-msg-hit');
+  await expect(target).toBeVisible();
+  await expect(target).toContainText(`El presupuesto de la cocina ${tag}`);
+
+  // Filtros: has:link trae solo el del link; from:me no trae nada.
+  await search.first().fill(`${tag} has:link`);
+  await expect(page.getByTestId('inbox-search-hit')).toHaveCount(1);
+  await expect(page.getByTestId('inbox-search-hit')).toContainText(`Otro ${tag}`);
+  await search.first().fill(`presupuesto ${tag} from:me`);
+  await expect(page.getByTestId('inbox-search-hit')).toHaveCount(0);
+
+  // Cmd+K también encuentra el mensaje y abre el chat en él.
+  await search.first().fill('');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('ControlOrMeta+k');
+  const palette = page.getByRole('dialog', { name: 'Search' });
+  await expect(palette).toBeVisible();
+  await palette.getByRole('combobox').fill(`cocina ${tag}`);
+  const option = palette.getByRole('option', { name: new RegExp(`presupuesto de la cocina ${tag}`) });
+  await expect(option.first()).toBeVisible();
+  await option.first().click();
+  await expect(page).toHaveURL(/m=ibm_/);
+  await expect(page.locator('.ib-msg-hit')).toContainText(`presupuesto de la cocina ${tag}`);
+  expect(errors, errors.join('\n')).toEqual([]);
 });
 
 test('390px: un panel por vez, sin scroll horizontal, y vuelve a la lista', async ({ page, request }) => {

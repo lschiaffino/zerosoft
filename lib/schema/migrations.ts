@@ -9047,6 +9047,82 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_job TEXT');
     },
   },
+  {
+    // Inbox: envíos programados de varios mensajes. Cada mensaje es su fila
+    // (su burbuja), atados por batch_id y ordenados por seq; delay_s es la
+    // espera después del anterior. Un mensaje puede llevar un archivo
+    // (media_url, guardado aparte hasta que sale).
+    id: '297_inbox_scheduled_batches',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE inbox_scheduled ADD COLUMN batch_id TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, 'ALTER TABLE inbox_scheduled ADD COLUMN seq INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, 'ALTER TABLE inbox_scheduled ADD COLUMN delay_s INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, "ALTER TABLE inbox_scheduled ADD COLUMN media_url TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, "ALTER TABLE inbox_scheduled ADD COLUMN media_name TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, "ALTER TABLE inbox_scheduled ADD COLUMN media_type TEXT NOT NULL DEFAULT ''");
+      await c.execute("CREATE INDEX IF NOT EXISTS idx_inbox_scheduled_batch ON inbox_scheduled(batch_id, seq) WHERE batch_id <> ''");
+    },
+  },
+  {
+    // Inbox: importaciones largas que siguen solas (cron) y se retoman: todo
+    // el historial de WhatsApp desde el servidor (Evolution) o un archivo de
+    // inbox-zero subido a Blob. cursor = por dónde va; progress = lo que va
+    // importado (JSON). claimed_until: compare-and-set entre corridas.
+    id: '298_inbox_imports',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS inbox_imports (
+          id TEXT PRIMARY KEY,
+          owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          account_id TEXT,
+          kind TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'running',
+          source_url TEXT NOT NULL DEFAULT '',
+          source_name TEXT NOT NULL DEFAULT '',
+          source_size INTEGER NOT NULL DEFAULT 0,
+          cursor TEXT NOT NULL DEFAULT '',
+          progress TEXT NOT NULL DEFAULT '{}',
+          error TEXT NOT NULL DEFAULT '',
+          claimed_until TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          finished_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_inbox_imports_owner ON inbox_imports(owner_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_inbox_imports_status ON inbox_imports(status);
+      `);
+    },
+  },
+  {
+    // Inbox: búsqueda de texto completo en los mensajes (FTS5, como Talk).
+    // Índice de contenido externo sobre inbox_messages (texto, asunto,
+    // nombre del archivo y de quien escribe), al día por triggers; al crearlo
+    // se llena con lo que ya hay. Sin FTS5 (algún SQLite viejo) no se crea y
+    // la búsqueda usa LIKE.
+    id: '299_inbox_messages_fts',
+    up: async (c) => {
+      try {
+        await c.execute(
+          "CREATE VIRTUAL TABLE IF NOT EXISTS inbox_messages_fts USING fts5(body, subject, media_name, sender_name, content='inbox_messages', content_rowid='rowid', tokenize='unicode61 remove_diacritics 2')",
+        );
+      } catch {
+        return;
+      }
+      await c.executeMultiple(`
+        CREATE TRIGGER IF NOT EXISTS inbox_messages_fts_ai AFTER INSERT ON inbox_messages BEGIN
+          INSERT INTO inbox_messages_fts(rowid, body, subject, media_name, sender_name) VALUES (new.rowid, new.body, new.subject, new.media_name, new.sender_name);
+        END;
+        CREATE TRIGGER IF NOT EXISTS inbox_messages_fts_ad AFTER DELETE ON inbox_messages BEGIN
+          INSERT INTO inbox_messages_fts(inbox_messages_fts, rowid, body, subject, media_name, sender_name) VALUES ('delete', old.rowid, old.body, old.subject, old.media_name, old.sender_name);
+        END;
+        CREATE TRIGGER IF NOT EXISTS inbox_messages_fts_au AFTER UPDATE OF body, subject, media_name, sender_name ON inbox_messages BEGIN
+          INSERT INTO inbox_messages_fts(inbox_messages_fts, rowid, body, subject, media_name, sender_name) VALUES ('delete', old.rowid, old.body, old.subject, old.media_name, old.sender_name);
+          INSERT INTO inbox_messages_fts(rowid, body, subject, media_name, sender_name) VALUES (new.rowid, new.body, new.subject, new.media_name, new.sender_name);
+        END;
+        INSERT INTO inbox_messages_fts(inbox_messages_fts) VALUES ('rebuild');
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -82,6 +82,13 @@ const parity: ProductParity = {
         'Visões fixas (para responder, aguardando, não lidos, WhatsApp, e-mail, grupos) e suas pastas com regras por canal, tipo e nome. Sem splits de VIP nem de calendário',
       ],
     }),
+    row('folders', 'triage', ['Folders and subfolders', 'Carpetas y subcarpetas', 'Pastas e subpastas'], 'have', {
+      detail: [
+        'Nested folders in the sidebar that collapse, unread counts that add up to the parent, drag chats (one or a selection) onto a folder with undo, and drag folders to sort or nest them. V and Alt+arrows from the keyboard',
+        'Carpetas anidadas en la barra que se pliegan, no leídos que suben al padre, arrastrar chats (uno o una selección) a una carpeta con deshacer y arrastrar carpetas para ordenarlas o anidarlas. V y Alt+flechas desde el teclado',
+        'Pastas aninhadas na barra que recolhem, não lidos que sobem para a pasta mãe, arrastar conversas (uma ou uma seleção) para uma pasta com desfazer e arrastar pastas para ordenar ou aninhar. V e Alt+setas pelo teclado',
+      ],
+    }),
     row('auto-labels', 'triage', ['AI labels and auto-archive', 'Etiquetas por IA y archivado automático', 'Etiquetas por IA e arquivamento automático'], 'missing'),
     row('bulk', 'triage', ['Act on several at once', 'Varios a la vez', 'Vários de uma vez'], 'have', {
       detail: ['X or Shift+click to select, then done, snooze or folder', 'X o Shift+clic para elegir, después hecho, posponer o carpeta', 'X ou Shift+clique para selecionar, depois concluir, adiar ou pasta'],
@@ -97,7 +104,11 @@ const parity: ProductParity = {
     // Escribir
     row('send-later', 'writing', ['Send later', 'Enviar más tarde', 'Enviar mais tarde'], 'have', {
       weight: 2,
-      detail: ['From the reply field, with send now, edit time and cancel. Sent by the server even with the tab closed', 'Desde el campo, con enviar ya, cambiar hora y cancelar. Lo manda el servidor aunque cierres la pestaña', 'Pelo campo, com enviar agora, mudar horário e cancelar. O servidor envia mesmo com a aba fechada'],
+      detail: [
+        'From the reply field, one message or a sequence where each one is its own bubble, with waits between them and a file (WhatsApp). Edit, send now or cancel. Sent by the server even with the tab closed',
+        'Desde el campo, un mensaje o una secuencia donde cada uno es su burbuja, con esperas entre ellos y un archivo (WhatsApp). Editar, enviar ya o cancelar. Lo manda el servidor aunque cierres la pestaña',
+        'Pelo campo, uma mensagem ou uma sequência em que cada uma é sua bolha, com esperas entre elas e um arquivo (WhatsApp). Editar, enviar agora ou cancelar. O servidor envia mesmo com a aba fechada',
+      ],
     }),
     row('snippets', 'writing', ['Snippets', 'Snippets', 'Snippets'], 'have', {
       detail: ['; and the shortcut, with the chat name as a variable. Not shared with a team', '; y el atajo, con el nombre del chat como variable. Sin compartir con un equipo', '; e o atalho, com o nome da conversa como variável. Sem compartilhar com uma equipe'],
@@ -105,9 +116,9 @@ const parity: ProductParity = {
     row('ai-write', 'writing', ['Write with AI', 'Escribir con IA', 'Escrever com IA'], 'partial', {
       weight: 2,
       detail: [
-        'Draft from the conversation and your notes, or rewrite shorter, warmer, more formal or corrected. Tested with the fake model',
-        'Borrador con la conversación y tus notas, o reescribir más corto, más cálido, más formal o corregido. Probado con el modelo falso',
-        'Rascunho com a conversa e suas notas, ou reescrever mais curto, mais caloroso, mais formal ou corrigido. Testado com o modelo falso',
+        'Tell it what you want to say and it drafts it in your tone (learned from what you write in that chat), then refine it (shorter, more formal or your own change) and insert it. The text streams in. Also a reply draft and rewrites. Tested with the fake model',
+        'Le decís qué querés decir y lo escribe con tu tono (aprendido de lo que escribís en ese chat), lo refinás (más corto, más formal o un cambio propio) y lo insertás. El texto llega de a poco. También borrador de respuesta y reescrituras. Probado con el modelo falso',
+        'Você diz o que quer dizer e ele escreve no seu tom (aprendido do que você escreve nessa conversa), você refina (mais curto, mais formal ou uma mudança sua) e insere. O texto chega aos poucos. Também rascunho de resposta e reescritas. Testado com o modelo falso',
       ],
     }),
     row('dictation', 'writing', ['Dictation', 'Dictado', 'Ditado'], 'better', {
@@ -126,8 +137,12 @@ const parity: ProductParity = {
     row('command', 'navigation', ['Command palette', 'Paleta de comandos', 'Paleta de comandos'], 'partial', {
       detail: ['Cmd+K finds your chats and Inbox views across the suite; actions are shortcuts, not commands', 'Cmd+K encuentra tus chats y vistas de Inbox en toda la suite; las acciones son atajos, no comandos', 'Cmd+K encontra suas conversas e visões do Inbox em toda a suíte; as ações são atalhos, não comandos'],
     }),
-    row('search', 'navigation', ['Search', 'Búsqueda', 'Busca'], 'partial', {
-      detail: ['Names, numbers, emails and the text of every saved message, including Done. No search operators', 'Nombres, números, emails y el texto de todos los mensajes guardados, también Hechos. Sin operadores', 'Nomes, números, e-mails e o texto de todas as mensagens salvas, inclusive Concluídos. Sem operadores'],
+    row('search', 'navigation', ['Search', 'Búsqueda', 'Busca'], 'have', {
+      detail: [
+        'Full-text search over every message (text, transcribed audio, file names and senders) with highlighted results that jump to the message, plus from:, in:, has:, before: and after: filters. Also from Cmd+K',
+        'Texto completo en todos los mensajes (texto, audios transcriptos, nombres de archivo y quién escribió), con resultados resaltados que llevan al mensaje y filtros from:, in:, has:, before: y after:. También desde Cmd+K',
+        'Texto completo em todas as mensagens (texto, áudios transcritos, nomes de arquivo e quem escreveu), com resultados destacados que levam à mensagem e filtros from:, in:, has:, before: e after:. Também pelo Cmd+K',
+      ],
     }),
     row('contact-context', 'navigation', ['Context about the person', 'Contexto de la persona', 'Contexto da pessoa'], 'partial', {
       detail: ['Private notes per chat, used by the AI drafts. No social profiles', 'Notas privadas por chat, que usan los borradores con IA. Sin perfiles sociales', 'Notas privadas por conversa, usadas pelos rascunhos com IA. Sem perfis sociais'],
@@ -146,7 +161,19 @@ const parity: ProductParity = {
     row('deleted-kept', 'platform', ['Messages deleted for everyone stay visible', 'Los mensajes borrados para todos se siguen viendo', 'Mensagens apagadas para todos continuam visíveis'], 'have', { competitorHas: false }),
     row('import', 'platform', ['Import from inbox-zero', 'Importar desde inbox-zero', 'Importar do inbox-zero'], 'have', {
       competitorHas: false,
-      detail: ['Folders, scheduled, drafts, snoozes, notes and saved history from the local inbox.db', 'Carpetas, programados, borradores, pospuestos, notas e historial guardado del inbox.db local', 'Pastas, agendadas, rascunhos, adiadas, notas e histórico salvo do inbox.db local'],
+      detail: [
+        'Folders, scheduled, drafts, snoozes, notes and saved history from the local inbox.db, plus the full WhatsApp Desktop history of that Mac. Large files upload directly and keep importing in the background; importing twice never duplicates',
+        'Carpetas, programados, borradores, pospuestos, notas e historial guardado del inbox.db local, más la historia completa de WhatsApp Desktop de esa Mac. Los archivos grandes suben directo y siguen importándose en segundo plano; importar dos veces no duplica',
+        'Pastas, agendadas, rascunhos, adiadas, notas e histórico salvo do inbox.db local, mais o histórico completo do WhatsApp Desktop desse Mac. Arquivos grandes sobem direto e continuam importando em segundo plano; importar duas vezes não duplica',
+      ],
+    }),
+    row('history-import', 'platform', ['Full WhatsApp history', 'Todo el historial de WhatsApp', 'Todo o histórico do WhatsApp'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'Brings every chat and every message the WhatsApp server stored, page by page, with progress, pause and resume. Tested with the fake server',
+        'Trae todos los chats y todos los mensajes que guardó el servidor de WhatsApp, página por página, con avance, pausa y seguir. Probado con el servidor falso',
+        'Traz todas as conversas e todas as mensagens que o servidor do WhatsApp guardou, página por página, com progresso, pausa e continuar. Testado com o servidor falso',
+      ],
     }),
     row('self-host', 'platform', ['Run it on your own server', 'Correrlo en tu servidor', 'Rodar no seu servidor'], 'have', { competitorHas: false }),
 

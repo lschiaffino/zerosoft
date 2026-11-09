@@ -11,8 +11,8 @@ export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** El chat con sus últimos mensajes, los envíos programados y (WhatsApp) la info del contacto o del grupo. */
-export async function GET(_req: Request, ctx: Ctx) {
+/** El chat con sus últimos mensajes, los envíos programados y (WhatsApp) la info del contacto o del grupo. ?around=<mensaje> trae desde un poco antes de ese mensaje (ir desde la búsqueda). */
+export async function GET(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   return withOwner(async (owner) => {
     let row = await getThreadRow(owner, id);
@@ -23,7 +23,8 @@ export async function GET(_req: Request, ctx: Ctx) {
       row = await getThreadRow(owner, id);
     }
     const thread = await getThread(owner, id);
-    const [page, scheduled] = await Promise.all([listMessages(owner, id), listScheduled(owner, id)]);
+    const around = new URL(req.url).searchParams.get('around')?.slice(0, 60) || undefined;
+    const [page, scheduled] = await Promise.all([listMessages(owner, id, { around }), listScheduled(owner, id)]);
     const wa = row.channel === 'whatsapp' ? await waDetails(owner, row, await getAccount(owner, row.account_id)) : null;
     return iJson({ thread, messages: page.messages, more: page.more, scheduled, notes: row.notes, wa });
   });

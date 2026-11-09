@@ -401,7 +401,8 @@ describe('Inbox: importar desde inbox-zero', () => {
     expect(detail.external_id).toBe('5491100000001@s.whatsapp.net');
     expect(detail.notes).toBe('Le gusta el té');
     const sched = await getDb().prepare("SELECT body FROM inbox_scheduled WHERE owner_id = ? AND status = 'pending'").all(u.id) as Array<{ body: string }>;
-    expect(sched.map((s) => s.body)).toEqual(['Feliz día\n\nTe quiero']);
+    // Los programados de varios mensajes llegan como una secuencia: cada uno su burbuja.
+    expect(sched.map((s) => s.body)).toEqual(['Feliz día', 'Te quiero']);
     expect((await listThreads(u.id, { view: 'snoozed' })).length).toBe(1);
     expect((await listMessages(u.id, mom.id)).messages.map((m) => m.body)).toEqual(['Hola hijo']);
   });

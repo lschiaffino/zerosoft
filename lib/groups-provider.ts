@@ -294,6 +294,11 @@ export interface HistorySource {
   chats(page: number, size: number): Promise<HistoryChat[]>;
   /** Los últimos `limit` mensajes del chat, ya normalizados (history: true). */
   messages(remoteJid: string, limit: number, page?: number): Promise<InboundEvent[]>;
+  /**
+   * Una página del historial completo del chat (page 1 = los `size` más nuevos)
+   * y si hay más viejos. La usa la importación de todo el historial de Inbox.
+   */
+  messagePage?(remoteJid: string, size: number, page: number): Promise<{ events: InboundEvent[]; more: boolean; total: number }>;
   contacts(page: number, size: number): Promise<HistoryContact[]>;
   /** URL pública de la foto de perfil ('' si no tiene o no se ve). */
   picture(chatId: string): Promise<string>;
