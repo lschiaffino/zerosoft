@@ -36,7 +36,7 @@ export default function PersonDetail({ person, events: initial, canDelete, recor
   return (
     <div className="app-page ui-page an-page">
       <PageHeader
-        back={{ href: '/app/analytics/persons', label: t('title') }}
+        back={{ href: '/app/pulse/persons', label: t('title') }}
         title={name}
         description={person.isIdentified ? t('identified') : t('anonymous')}
         actions={
@@ -131,7 +131,7 @@ export default function PersonDetail({ person, events: initial, canDelete, recor
           setBusy(true);
           try {
             await api(`/api/analytics/persons/${person.id}`, { method: 'DELETE' });
-            router.replace('/app/analytics/persons');
+            router.replace('/app/pulse/persons');
             router.refresh();
           } catch {
             setError(tc('error'));

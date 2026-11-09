@@ -22,7 +22,7 @@ const anon = (browser: Browser, baseURL: string) => browser.newContext({ baseURL
 
 test('crear, tema y leyenda, desde el cuadro de compartir', async ({ page, browser, baseURL, request }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await page.goto(`/en/app/analytics/insights/${insightId}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/insights/${insightId}`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Share' }).click();
   const dialog = page.getByRole('dialog', { name: 'Public link' });
   await dialog.getByRole('button', { name: 'Create link' }).or(dialog.locator('.ui-modal-foot .btn-primary')).first().click();
@@ -57,7 +57,7 @@ test('crear, tema y leyenda, desde el cuadro de compartir', async ({ page, brows
 
 test('contraseña: pide, equivocarse no abre, acertar sí, y al quitarla se corta el acceso guardado', async ({ page, browser, baseURL, request }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await page.goto(`/en/app/analytics/insights/${insightId}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/insights/${insightId}`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Share' }).click();
   const dialog = page.getByRole('dialog', { name: 'Public link' });
   await dialog.getByLabel('Note, such as who gets it').fill('For Ana');

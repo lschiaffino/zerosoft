@@ -188,7 +188,7 @@ export default function WebOverview({ projectId, webVitals = false, canManage = 
       <div className="an-toolbar">
         <RangeSelect value={range} onChange={(v) => setParams((sp) => (v === '-7d' ? sp.delete('range') : sp.set('range', v)))} />
         <LiveVisitors projectId={projectId} />
-        <Link href="/app/analytics/events" className="an-link">
+        <Link href="/app/pulse/events" className="an-link">
           {t('seeEvents')}
         </Link>
       </div>
@@ -235,7 +235,7 @@ export default function WebOverview({ projectId, webVitals = false, canManage = 
             ) : (
               <div className="an-callout">
                 <p>{t('noData')}</p>
-                <Link href="/app/analytics/settings" className="btn btn-sm btn-primary">
+                <Link href="/app/pulse/settings" className="btn btn-sm btn-primary">
                   {t('install')}
                 </Link>
               </div>

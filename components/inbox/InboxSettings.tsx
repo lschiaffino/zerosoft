@@ -15,40 +15,103 @@ interface ConnectState {
   phone?: string;
 }
 
-function WhatsappCard({ account, available, onChange }: { account: InboxAccountDto | undefined; available: boolean; onChange: () => void }) {
+/**
+ * Vincular WhatsApp con QR: al abrirse pide la sesión, muestra el QR y lo
+ * renueva cada 2 s hasta que el teléfono lo escanea. Lo usan la tarjeta de
+ * Ajustes y el estado vacío de la bandeja.
+ */
+export function WhatsappQrDialog({ open, resync = false, onClose, onLinked }: { open: boolean; resync?: boolean; onClose: () => void; onLinked: () => void }) {
   const t = useTranslations('inbox.settings.whatsapp');
   const te = useTranslations('inbox.errors');
-  const [linking, setLinking] = useState(false);
   const [state, setState] = useState<ConnectState | null>(null);
   const [err, setErr] = useState('');
-  const [confirm, setConfirm] = useState<'' | 'unlink' | 'remove' | 'resync'>('');
 
-  const start = async (resync = false) => {
+  const start = useCallback(async () => {
     setErr('');
     setState(null);
-    setConfirm('');
-    setLinking(true);
+    // resync: vuelve a vincular para traer de nuevo el historial.
     const r = await api<{ state: ConnectState }>(`/api/inbox/whatsapp${resync ? '?resync=1' : ''}`, { method: 'POST' });
     if (!r.ok) {
       setErr(te.has(r.data.error ?? '') ? te(r.data.error as string) : te('generic'));
       return;
     }
     setState(r.data.state);
-  };
+  }, [te, resync]);
+
+  // Una sesión por apertura (el doble efecto de StrictMode no pide dos QR).
+  const started = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      started.current = false;
+      return;
+    }
+    if (started.current) return;
+    started.current = true;
+    void start();
+  }, [open, start]);
 
   // Mientras espera el escaneo, pide el estado (y el QR nuevo) cada 2 s.
   useEffect(() => {
-    if (!linking || !state || state.status === 'connected' || state.status === 'error') return;
+    if (!open || !state || state.status === 'connected' || state.status === 'error') return;
     const id = window.setInterval(async () => {
       const r = await api<{ state: ConnectState }>('/api/inbox/whatsapp');
       if (r.ok) setState(r.data.state);
     }, 2000);
     return () => window.clearInterval(id);
-  }, [linking, state]);
+  }, [open, state]);
 
   useEffect(() => {
-    if (state?.status === 'connected') onChange();
+    if (state?.status === 'connected') onLinked();
   }, [state?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <Modal open={open} title={t('qrTitle')} onClose={onClose}>
+      <div className="ui-modal-body" aria-live="polite">
+        {err ? (
+          <p className="ui-error" role="alert">
+            {err}
+          </p>
+        ) : !state ? (
+          <p className="ib-help">{t('starting')}</p>
+        ) : state.status === 'connected' ? (
+          <p className="ib-ok" role="status">
+            {t('linked', { phone: state.phone ? `+${state.phone}` : '' })}
+          </p>
+        ) : state.qr ? (
+          <div className="ib-qr">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={state.qr} alt={t('qrAlt')} width={220} height={220} />
+            <ol className="ib-steps">
+              <li>{t('qr1')}</li>
+              <li>{t('qr2')}</li>
+              <li>{t('qr3')}</li>
+            </ol>
+            <p className="ib-help">{t('qrRefresh')}</p>
+          </div>
+        ) : (
+          <div>
+            <p className="ib-help">{t('waiting')}</p>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void start()}>
+              {t('retry')}
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="ui-modal-foot">
+        <button type="button" className="btn btn-primary btn-sm" onClick={onClose}>
+          {state?.status === 'connected' ? t('done') : t('close')}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function WhatsappCard({ account, available, onChange }: { account: InboxAccountDto | undefined; available: boolean; onChange: () => void }) {
+  const t = useTranslations('inbox.settings.whatsapp');
+  const te = useTranslations('inbox.errors');
+  const [linking, setLinking] = useState<false | 'link' | 'resync'>(false);
+  const [err, setErr] = useState('');
+  const [confirm, setConfirm] = useState<'' | 'unlink' | 'remove' | 'resync'>('');
 
   const unlink = async () => {
     setConfirm('');
@@ -83,7 +146,7 @@ function WhatsappCard({ account, available, onChange }: { account: InboxAccountD
       ) : (
         <div className="ib-row">
           {!connected && (
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => void start()}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setLinking('link')}>
               {t('connect')}
             </button>
           )}
@@ -110,44 +173,7 @@ function WhatsappCard({ account, available, onChange }: { account: InboxAccountD
         </p>
       )}
       <p className="ib-help">{t('privacy')}</p>
-      <Modal open={linking} title={t('qrTitle')} onClose={() => setLinking(false)}>
-        <div className="ui-modal-body" aria-live="polite">
-          {err ? (
-            <p className="ui-error" role="alert">
-              {err}
-            </p>
-          ) : !state ? (
-            <p className="ib-help">{t('starting')}</p>
-          ) : state.status === 'connected' ? (
-            <p className="ib-ok" role="status">
-              {t('linked', { phone: state.phone ? `+${state.phone}` : '' })}
-            </p>
-          ) : state.qr ? (
-            <div className="ib-qr">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={state.qr} alt={t('qrAlt')} width={220} height={220} />
-              <ol className="ib-steps">
-                <li>{t('qr1')}</li>
-                <li>{t('qr2')}</li>
-                <li>{t('qr3')}</li>
-              </ol>
-              <p className="ib-help">{t('qrRefresh')}</p>
-            </div>
-          ) : (
-            <div>
-              <p className="ib-help">{t('waiting')}</p>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void start()}>
-                {t('retry')}
-              </button>
-            </div>
-          )}
-        </div>
-        <div className="ui-modal-foot">
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => setLinking(false)}>
-            {state?.status === 'connected' ? t('done') : t('close')}
-          </button>
-        </div>
-      </Modal>
+      <WhatsappQrDialog open={!!linking} resync={linking === 'resync'} onClose={() => setLinking(false)} onLinked={onChange} />
       <Modal open={!!confirm} title={confirm === 'remove' ? t('removeTitle') : confirm === 'resync' ? t('resyncTitle') : t('unlinkTitle')} onClose={() => setConfirm('')}>
         <div className="ui-modal-body">
           <p>{confirm === 'remove' ? t('removeBody') : confirm === 'resync' ? t('resyncBody') : t('unlinkBody')}</p>
@@ -157,7 +183,15 @@ function WhatsappCard({ account, available, onChange }: { account: InboxAccountD
             {t('cancel')}
           </button>
           {confirm === 'resync' ? (
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => void start(true)} data-testid="inbox-wa-resync-yes">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => {
+                setConfirm('');
+                setLinking('resync');
+              }}
+              data-testid="inbox-wa-resync-yes"
+            >
               {t('resyncYes')}
             </button>
           ) : (

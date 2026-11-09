@@ -13,7 +13,7 @@ export default function ProjectBar({ projects, currentId }: { projects: Array<{ 
   const router = useRouter();
   const pathname = usePathname();
   // En la lista de proyectos el selector sobra (y repetiría los nombres).
-  if (!projects.length || pathname.startsWith('/app/analytics/projects')) return null;
+  if (!projects.length || pathname.startsWith('/app/pulse/projects')) return null;
   return (
     <div className="an-projectbar">
       <label className="an-projectbar-field">
@@ -34,7 +34,7 @@ export default function ProjectBar({ projects, currentId }: { projects: Array<{ 
           ))}
         </select>
       </label>
-      <Link href="/app/analytics/settings" className="an-link an-projectbar-setup">
+      <Link href="/app/pulse/settings" className="an-link an-projectbar-setup">
         {t('setup')}
       </Link>
     </div>
