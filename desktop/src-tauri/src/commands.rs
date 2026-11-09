@@ -1,6 +1,6 @@
 //! Comandos de la ventana de Ajustes (archivo local) y del puente de la página remota.
 //! Cada comando revisa quién lo llama además de los permisos de capabilities/: Ajustes solo desde
-//! la ventana "settings"; el puente solo desde la ventana "main" con el origen del servidor.
+//! la ventana "settings"; el puente solo desde una pestaña ("tab-<id>", tabs.rs) con el origen del servidor.
 
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -28,9 +28,9 @@ fn from_settings(w: &WebviewWindow) -> CmdResult<()> {
     }
 }
 
-fn from_app(app: &AppHandle, w: &WebviewWindow) -> CmdResult<()> {
+fn from_app(app: &AppHandle, w: &tauri::Webview) -> CmdResult<()> {
     let server = api::server(app);
-    let ok = w.label() == "main" && w.url().map(|u| crate::nav::classify(&u, &server) == crate::nav::Nav::Allow).unwrap_or(false);
+    let ok = crate::tabs::tab_id(w.label()).is_some() && w.url().map(|u| crate::nav::classify(&u, &server) == crate::nav::Nav::Allow).unwrap_or(false);
     if ok {
         Ok(())
     } else {
@@ -222,6 +222,7 @@ pub async fn settings_save(app: AppHandle, window: WebviewWindow, input: Value) 
     if next.server != prev.server {
         crate::allow_server(&app);
         crate::load_app_path(&app, "/app");
+        crate::tabs::reload_all(&app);
     }
     crate::tray::rebuild(&app);
     Ok(json!({ "ok": true, "view": view(&app).await }))
@@ -400,6 +401,7 @@ pub async fn account_sign_out(app: AppHandle, window: WebviewWindow) -> CmdResul
     from_settings(&window)?;
     crate::auth::sign_out(&app).await;
     crate::load_app_path(&app, "/app");
+    crate::tabs::reload_all(&app);
     Ok(view(&app).await)
 }
 
@@ -429,7 +431,7 @@ pub struct DesktopInfo {
 }
 
 #[tauri::command]
-pub fn desktop_info(app: AppHandle, window: WebviewWindow) -> CmdResult<DesktopInfo> {
+pub fn desktop_info(app: AppHandle, window: tauri::Webview) -> CmdResult<DesktopInfo> {
     from_app(&app, &window)?;
     Ok(DesktopInfo {
         version: app.package_info().version.to_string(),
@@ -440,14 +442,14 @@ pub fn desktop_info(app: AppHandle, window: WebviewWindow) -> CmdResult<DesktopI
 }
 
 #[tauri::command]
-pub fn desktop_start_login(app: AppHandle, window: WebviewWindow) -> CmdResult<()> {
+pub fn desktop_start_login(app: AppHandle, window: tauri::Webview) -> CmdResult<()> {
     from_app(&app, &window)?;
     crate::auth::begin_login(&app);
     Ok(())
 }
 
 #[tauri::command]
-pub fn desktop_open_settings(app: AppHandle, window: WebviewWindow) -> CmdResult<()> {
+pub fn desktop_open_settings(app: AppHandle, window: tauri::Webview) -> CmdResult<()> {
     from_app(&app, &window)?;
     open_settings_window(&app, None);
     Ok(())
@@ -455,7 +457,7 @@ pub fn desktop_open_settings(app: AppHandle, window: WebviewWindow) -> CmdResult
 
 /// La página empezó o terminó de grabar una reunión (para el indicador flotante).
 #[tauri::command]
-pub fn desktop_recording(app: AppHandle, window: WebviewWindow, active: bool, started_at: Option<f64>, path: Option<String>) -> CmdResult<()> {
+pub fn desktop_recording(app: AppHandle, window: tauri::Webview, active: bool, started_at: Option<f64>, path: Option<String>) -> CmdResult<()> {
     from_app(&app, &window)?;
     let rec = if active {
         let path = path.unwrap_or_default();
@@ -466,6 +468,8 @@ pub fn desktop_recording(app: AppHandle, window: WebviewWindow, active: bool, st
     } else {
         None
     };
+    let tab = crate::tabs::tab_id(window.label());
+    crate::tabs::set_recording(&app, tab, rec.is_some());
     crate::indicator::set_recording(&app, rec);
     Ok(())
 }
@@ -509,7 +513,7 @@ pub fn indicator_action(app: AppHandle, window: WebviewWindow, action: String) -
 
 /// Aviso nativo pedido por la página (shim de window.Notification). Solo con la ventana sin foco.
 #[tauri::command]
-pub fn desktop_notify(app: AppHandle, window: WebviewWindow, title: String, body: Option<String>) -> CmdResult<bool> {
+pub fn desktop_notify(app: AppHandle, window: tauri::Webview, title: String, body: Option<String>) -> CmdResult<bool> {
     from_app(&app, &window)?;
     let title: String = title.chars().take(200).collect();
     let body: String = body.unwrap_or_default().chars().take(500).collect();

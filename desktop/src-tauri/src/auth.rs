@@ -99,7 +99,7 @@ pub async fn complete_login(app: &AppHandle, code: &str, state: &str) -> bool {
         .same_site(cookie::SameSite::Lax)
         .max_age(cookie::time::Duration::seconds(max_age))
         .build();
-    let Some(win) = app.get_webview_window("main") else { return false };
+    let Some(win) = crate::tabs::any_webview(app) else { return false };
     let (tx, rx) = tokio::sync::oneshot::channel();
     std::thread::spawn(move || {
         let _ = tx.send(win.set_cookie(cookie).is_ok());
@@ -109,7 +109,7 @@ pub async fn complete_login(app: &AppHandle, code: &str, state: &str) -> bool {
 
 /// Cierra la sesión: borra las cookies de next-auth del webview.
 pub async fn sign_out(app: &AppHandle) {
-    let Some(win) = app.get_webview_window("main") else { return };
+    let Some(win) = crate::tabs::any_webview(app) else { return };
     let Ok(url) = url::Url::parse(&api::server(app)) else { return };
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     std::thread::spawn(move || {

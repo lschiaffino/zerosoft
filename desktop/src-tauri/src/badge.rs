@@ -17,9 +17,15 @@ pub async fn poll(app: &AppHandle) {
     let res = crate::api::get(app, &path).await;
     let Some(body) = res.body.filter(|_| res.status == Some(200)) else { return };
     let total = body.get("total").and_then(Value::as_i64).unwrap_or(0);
-    if let Some(win) = app.get_webview_window("main") {
+    // Puntos en las pestañas: productos (segmento de /app/<x>) con algo sin leer.
+    let mut products: Vec<String> = body.get("byPath").and_then(Value::as_object).map(|m| m.iter().filter(|(_, v)| v.as_i64().unwrap_or(0) > 0).map(|(k, _)| k.clone()).collect()).unwrap_or_default();
+    if body.get("talk").and_then(Value::as_i64).unwrap_or(0) > 0 && !products.iter().any(|p| p == "talk") {
+        products.push("talk".into());
+    }
+    crate::tabs::set_unread(app, products);
+    if let Some(win) = app.get_window(&crate::tabs::focused_label(app)) {
         let _ = win.set_badge_count(if total > 0 { Some(total) } else { None });
-        let focused = win.is_focused().unwrap_or(false);
+        let focused = crate::tabs::any_focused(app);
         // Al arrancar (sin `since`) no se repiten los avisos viejos.
         if since.is_some() && !focused {
             for n in body.get("notifications").and_then(Value::as_array).cloned().unwrap_or_default().iter().take(5) {

@@ -14,6 +14,7 @@ import {
   type SettingsView,
   type VoiceServerSettings,
 } from './api';
+import { tabsSection } from './settings-tabs';
 
 type Tab = 'start' | 'general' | 'voice' | 'dictionary' | 'history' | 'account';
 const TABS: Tab[] = ['start', 'general', 'voice', 'dictionary', 'history', 'account'];
@@ -293,6 +294,7 @@ function renderGeneral(panel: HTMLElement) {
       check('indicator', v.recordingIndicator, s('recordingIndicator'), 'recordingIndicator'),
       h('p', { class: 'help check-help' }, s('recordingIndicatorHelp')),
     ),
+    tabsSection(s, v.platform),
     h('section', {}, h('h2', {}, s('general')), check('login', v.openAtLogin, s('openAtLogin'), 'openAtLogin')),
     h('section', {}, h('h2', {}, s('settingsWhereTitle')), h('p', { class: 'help', style: 'margin:0' }, capitalize(s(v.platform === 'darwin' ? 'settingsWhereMac' : 'settingsWhereWin')), '.')),
   );

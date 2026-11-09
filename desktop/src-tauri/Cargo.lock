@@ -6390,7 +6390,7 @@ dependencies = [
 
 [[package]]
 name = "zerosoft-desktop"
-version = "0.3.1"
+version = "0.3.3"
 dependencies = [
  "arboard",
  "base64 0.22.1",
@@ -6398,6 +6398,7 @@ dependencies = [
  "cpal",
  "enigo",
  "log",
+ "muda",
  "objc2 0.5.3",
  "objc2-foundation 0.2.2",
  "rand 0.8.8",
