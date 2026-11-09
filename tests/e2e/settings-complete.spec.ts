@@ -99,7 +99,7 @@ test('Sin conexión: con cambios esperando, apagar pide confirmar', async ({ pag
 test('App de escritorio: fuera de la app lleva a la descarga; dentro, avisa la versión nueva', async ({ page }) => {
   await page.goto('/en/app/settings/desktop', { waitUntil: 'networkidle' });
   await expect(page.getByTestId('desktop-app-settings')).toContainText('Not in the app');
-  await expect(page.getByRole('link', { name: 'Download the app' })).toHaveAttribute('href', '/download');
+  await expect(page.getByRole('link', { name: 'Download the app' })).toHaveAttribute('href', '/en/download');
   for (const name of ['Permissions', 'Updates', 'Meetings']) await expect(page.getByTestId('desktop-app-settings').getByText(name, { exact: true })).toBeVisible();
 
   // Dentro de una versión vieja de la app (0.2.1, sin updater): aviso arriba de la página.

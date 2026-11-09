@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { desktopBridge } from '@/lib/desktop-bridge';
 import { desktopUpdateKind, type DesktopUpdateKind } from '@/lib/desktop-version';
 
@@ -57,9 +58,9 @@ export default function DesktopUpdateBanner() {
         <strong>{t('title', { v: state.latest })}</strong> {t(state.kind === 'manual' ? 'manual' : 'auto', { current: state.current })}
       </p>
       <div className="zs-desk-update-actions">
-        <a className="btn btn-primary btn-sm" href="/download">
+        <Link className="btn btn-primary btn-sm" href="/download">
           {t('download')}
-        </a>
+        </Link>
         <button type="button" className="btn btn-ghost btn-sm" onClick={dismiss}>
           {t('dismiss')}
         </button>

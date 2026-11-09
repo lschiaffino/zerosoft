@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
 import { desktopBridge } from '@/lib/desktop-bridge';
 import { desktopUpdateKind, type DesktopUpdateKind } from '@/lib/desktop-version';
@@ -52,9 +53,9 @@ export default function DesktopAppSettings({ sections }: { sections: Array<{ key
               {t('openSettings')}
             </button>
           ) : null}
-          <a className={`btn btn-sm${app ? '' : ' btn-primary'}`} href="/download">
+          <Link className={`btn btn-sm${app ? '' : ' btn-primary'}`} href="/download">
             {t('download')}
-          </a>
+          </Link>
         </div>
       </FormSection>
       <FormSection title={t('sectionsTitle')} description={t('sectionsDesc')}>
