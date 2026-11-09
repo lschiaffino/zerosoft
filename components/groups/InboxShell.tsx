@@ -121,7 +121,7 @@ export function filtersToControls(f: SavedListFilters): Controls {
 }
 
 function chatIdFromPath(pathname: string): string | null {
-  const m = /\/app\/groups\/inbox\/([^/?#]+)/.exec(pathname);
+  const m = /\/app\/lines\/inbox\/([^/?#]+)/.exec(pathname);
   return m ? decodeURIComponent(m[1]) : null;
 }
 

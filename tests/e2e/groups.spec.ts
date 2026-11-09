@@ -212,7 +212,7 @@ test('envío masivo a varios chats con estado por destinatario', async ({ page, 
   await page.getByRole('textbox', { name: 'Message' }).fill('Hi {{first_name}}, the new release is live.');
   await expect(page.locator('.gr-preview').getByText(/Hi (Bea|Cami)/)).toBeVisible();
   await page.getByRole('button', { name: 'Send to 2 chats' }).click();
-  await expect(page).toHaveURL(/\/groups\/broadcasts\/[\w-]+$/);
+  await expect(page).toHaveURL(/\/lines\/broadcasts\/[\w-]+$/);
   await expect(page.locator('.badge', { hasText: 'Sent' })).toHaveCount(2, { timeout: 20_000 });
   await expect(page.getByText('Done')).toBeVisible({ timeout: 20_000 });
   expect(errors).toEqual([]);

@@ -35,7 +35,7 @@ test('renombrar en la página del grupo actualiza el título y la lista sin reca
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/qa1-rename-group-page.png` });
   // Navegación dentro de la app (sin recargar): la lista ya tiene el nombre nuevo.
   await page.getByRole('link', { name: 'Grupos', exact: true }).first().click();
-  await expect(page).toHaveURL(/\/groups\/list$/);
+  await expect(page).toHaveURL(/\/lines\/list$/);
   await expect(page.getByRole('link', { name: after })).toBeVisible();
   await expect(page.getByRole('link', { name: before })).toHaveCount(0);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/qa1-rename-list.png` });
