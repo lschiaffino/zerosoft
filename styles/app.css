@@ -41,7 +41,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   grid-area: band;
   position: sticky;
   top: 0;
-  z-index: 60;
+  z-index: var(--z-band);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -103,7 +103,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  z-index: 70;
+  z-index: var(--z-menu);
   display: grid;
   grid-template-columns: 1fr;
   min-width: 232px;
@@ -315,7 +315,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   position: sticky;
   top: var(--band-h);
   /* Sticky crea su propio contexto de apilado: sin z-index, el contenido de la página (filas con position) pinta encima de los menús del sidebar. Debajo de la banda (60), que abre sus menús sobre el sidebar. */
-  z-index: 55;
+  z-index: var(--z-sidebar);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -391,7 +391,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  z-index: 70;
+  z-index: var(--z-menu);
   min-width: 200px;
   padding: 4px;
   background: var(--bg);
@@ -586,7 +586,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
     top: var(--band-h);
     bottom: 0;
     left: 0;
-    z-index: 80;
+    z-index: var(--z-drawer);
     width: min(300px, 86vw);
     height: auto;
     border-right: 1px solid var(--ink);
@@ -599,7 +599,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   .side-backdrop {
     position: fixed;
     inset: var(--band-h) 0 0 0;
-    z-index: 70;
+    z-index: var(--z-menu);
     background: var(--ui-backdrop);
   }
 
@@ -620,7 +620,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   position: fixed;
   inset: 0;
   /* Encima de los modales de las apps (el composer de Track abre sus menús acá). */
-  z-index: 120;
+  z-index: var(--z-command);
   display: flex;
   justify-content: center;
   padding-top: 14vh;
@@ -696,7 +696,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
 .cmdk-item-label { flex: 1 1 auto; }
 /* Menú anclado a un chip (propiedad del issue, como los dropdowns de Linear). */
 .cmdk-backdrop.is-anchored { padding-top: 0; background: transparent; }
-.cmdk.is-anchored { z-index: 91; }
+.cmdk.is-anchored { z-index: calc(var(--z-modal) - 9); }
 .cmdk.is-anchored .cmdk-input { height: 36px; padding: 0 10px; font-size: 0.8125rem; }
 .cmdk.is-anchored .cmdk-results { max-height: 320px; }
 .cmdk.is-anchored .cmdk-item { min-height: 30px; padding: 4px 8px; font-size: 0.8125rem; }
@@ -737,7 +737,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   border-color: var(--ink);
   border-radius: var(--radius-1);
   padding: 4px;
-  z-index: 50;
+  z-index: var(--z-dropdown);
 }
 
 .column-toggle-row {
@@ -903,7 +903,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  z-index: 70;
+  z-index: var(--z-menu);
   width: 340px;
   max-width: calc(100vw - 16px);
   max-height: 440px;

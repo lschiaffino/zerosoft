@@ -8,7 +8,7 @@ import PostGrid from '@/components/blog/PostGrid';
 import TagList from '@/components/blog/TagList';
 import { AUTHORS, getAllSlugs, getPost, hasPostIn, postLocales, productOfPost, relatedPosts, tagSlug } from '@/lib/blog';
 import { comparisonFor } from '@/lib/compare';
-import { PRODUCT_CONFIG } from '@/lib/products';
+import { PRODUCT_CONFIG, productHref } from '@/lib/products';
 import { articleLd, breadcrumbLd, graphLd, jsonLdString, pageMetadata } from '@/lib/seo';
 
 type Params = { locale: string; slug: string };
@@ -131,7 +131,7 @@ export default async function BlogPostPage(props: { params: Promise<Params> }) {
             <aside className="blog-product" aria-label={PRODUCT_CONFIG[product].name}>
               <p>{t('productLead', { name: PRODUCT_CONFIG[product].name })}</p>
               <div className="blog-product-links">
-                <Link href={`/products/${product}`} className="blog-link">
+                <Link href={productHref(product)} className="blog-link">
                   {t('productCta', { name: PRODUCT_CONFIG[product].name })} <Icon name="arrow" size={14} />
                 </Link>
                 {comparison && (

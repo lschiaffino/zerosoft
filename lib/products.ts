@@ -31,7 +31,7 @@ export const PRODUCT_CONFIG = {
   track: { name: 'Track', launch: '/app/track', path: 'track', color: '#f2611d', category: 'build', audience: 'team' },
   crm: { name: 'CRM', launch: '/app/crm', path: 'crm', color: '#7b4dff', category: 'sell', audience: 'team' },
   chat: { name: 'Chat', launch: '/app/chat', path: 'chat', color: '#e23d7f', category: 'support', audience: 'team' },
-  groups: { name: 'Groups', launch: '/app/groups', path: 'groups', color: '#65a30d', category: 'support', audience: 'team' },
+  groups: { name: 'Lines', launch: '/app/lines', path: 'lines', color: '#65a30d', category: 'support', audience: 'team' },
   agents: { name: 'Agents', launch: '/app/agents', path: 'agents', color: '#ff3b30', category: 'automate', audience: 'team' },
   flow: { name: 'Flow', launch: '/app/flow', path: 'flow', color: '#0284c7', category: 'automate', audience: 'team' },
   robots: { name: 'Robots', launch: '/app/robots', path: 'robots', color: '#6b7280', category: 'automate', audience: 'team' },
@@ -118,6 +118,28 @@ export function isProductKey(value: string): value is SiteProductKey {
   return (PRODUCT_KEYS as string[]).includes(value);
 }
 
+/**
+ * Segmento de la página del sitio (/products/<slug>). Es la clave salvo en
+ * las apps que cambiaron de nombre: la clave sigue siendo interna (permisos,
+ * datos, mensajes) y la URL pública usa el nombre nuevo.
+ */
+const SITE_SLUGS: Partial<Record<ProductKey, string>> = { groups: 'lines' };
+
+export function productSlug(key: ProductKey): string {
+  return SITE_SLUGS[key] ?? key;
+}
+
+/** "/products/<slug>" de una app. */
+export function productHref(key: ProductKey): string {
+  return `/products/${productSlug(key)}`;
+}
+
+/** La app de un slug de /products/<slug>; null si no existe (la clave vieja de una app renombrada tampoco). */
+export function productKeyFromSlug(slug: string): SiteProductKey | null {
+  const key = PRODUCT_KEYS.find((k) => productSlug(k) === slug);
+  return key ?? null;
+}
+
 /** "#7b4dff" → "123,77,255" (formato "r,g,b"). */
 export function productRgb(key: ProductKey): string {
   const hex = PRODUCT_CONFIG[key].color.slice(1);
@@ -159,6 +181,8 @@ export function productSettingsHref(key: ProductKey): string {
 const PATH_APPS: Record<string, ProductKey> = (() => {
   const out: Record<string, ProductKey> = {};
   for (const key of Object.keys(PRODUCT_CONFIG) as ProductKey[]) out[PRODUCT_CONFIG[key].path] = key;
+  // Lines (antes Groups): los links viejos guardados dicen /app/groups.
+  out.groups = 'groups';
   return out;
 })();
 

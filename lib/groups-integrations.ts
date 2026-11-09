@@ -300,13 +300,13 @@ export function slackText(event: string, data: Record<string, unknown>, baseUrl:
   const esc = (v: unknown) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const link = (path: string, label: string) => `<${baseUrl}${path}|${esc(label)}>`;
   if (event === 'groups.ticket.created') {
-    return `New ticket #${esc(ticket.number)} (${esc(ticket.priority)}): ${link(`/app/groups/tickets?open=${esc(ticket.id)}`, String(ticket.title ?? ''))}${chat.name ? ` · ${esc(chat.name)}` : ''}`;
+    return `New ticket #${esc(ticket.number)} (${esc(ticket.priority)}): ${link(`/app/lines/tickets?open=${esc(ticket.id)}`, String(ticket.title ?? ''))}${chat.name ? ` · ${esc(chat.name)}` : ''}`;
   }
   if (event === 'groups.ticket.updated') {
-    return `Ticket #${esc(ticket.number)} is now ${esc(ticket.status)}: ${link(`/app/groups/tickets?open=${esc(ticket.id)}`, String(ticket.title ?? ''))}`;
+    return `Ticket #${esc(ticket.number)} is now ${esc(ticket.status)}: ${link(`/app/lines/tickets?open=${esc(ticket.id)}`, String(ticket.title ?? ''))}`;
   }
   const who = message.senderName || (message.senderPhone ? `+${message.senderPhone}` : '');
-  return `${link(`/app/groups/inbox/${esc(chat.id)}`, String(chat.name ?? 'WhatsApp'))}${who ? ` · ${esc(who)}` : ''}: ${esc(String(message.body ?? '').slice(0, 300))}`;
+  return `${link(`/app/lines/inbox/${esc(chat.id)}`, String(chat.name ?? 'WhatsApp'))}${who ? ` · ${esc(who)}` : ''}: ${esc(String(message.body ?? '').slice(0, 300))}`;
 }
 
 export async function postToSlack(webhookUrl: string, text: string, f: FetchLike = defaultFetch()): Promise<void> {
@@ -571,7 +571,7 @@ export async function testIntegration(ws: string, kind: IntegrationKind): Promis
   const cfg = readConfig(row);
   const f = defaultFetch();
   try {
-    if (kind === 'slack') await postToSlack(cfg.webhookUrl ?? '', 'Zerosoft Groups is connected to this channel.', f);
+    if (kind === 'slack') await postToSlack(cfg.webhookUrl ?? '', 'Zerosoft Lines is connected to this channel.', f);
     else if (kind === 'freshdesk') {
       const host = freshdeskHost(cfg.domain ?? '');
       if (!host) throw new IntegrationError('invalid_domain');

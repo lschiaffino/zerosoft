@@ -25,7 +25,7 @@ export default function SampleBanner({ canEdit, managed, onlySample }: { canEdit
     setBusy(false);
     if (!res.data) return showToast(errText(res.error), true);
     // Carga completa: la lista, el chat abierto y los contadores se van todos juntos, sin esperar al próximo refresco.
-    window.location.assign(`/${locale}/app/groups/inbox`);
+    window.location.assign(`/${locale}/app/lines/inbox`);
   }
 
   return (
@@ -34,7 +34,7 @@ export default function SampleBanner({ canEdit, managed, onlySample }: { canEdit
       {canEdit && (
         <span className="gr-sample-actions">
           {onlySample && (
-            <Link href="/app/groups/settings?tab=numbers&new=1" className="btn btn-ghost btn-sm">
+            <Link href="/app/lines/settings?tab=numbers&new=1" className="btn btn-ghost btn-sm">
               {managed ? t('inbox.scanQr') : t('inbox.connect')}
             </Link>
           )}

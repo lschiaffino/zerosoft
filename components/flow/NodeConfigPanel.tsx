@@ -121,6 +121,7 @@ function VariablePicker({ variables, onPick, disabled }: { variables: VariableOp
         className="btn btn-secondary btn-icon flow-var-btn"
         onClick={() => setOpen((v) => !v)}
         disabled={disabled}
+        aria-haspopup="dialog"
         aria-expanded={open}
         title={t('insertVariable')}
         aria-label={t('insertVariable')}

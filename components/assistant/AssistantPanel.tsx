@@ -6,6 +6,7 @@ import { Link, usePathname } from '@/i18n/navigation';
 import AssistantChat, { type PageInfo } from './AssistantChat';
 import { ASSISTANT_EVENT, type OpenAssistantDetail } from './client';
 import { useAssistantStatus, useSuggestions } from './useAssistantStatus';
+import { focusReturnTarget, useLayer } from '@/lib/ui/layers';
 
 const STORE_KEY = 'zs:assistant-panel-conversation';
 
@@ -47,6 +48,8 @@ export default function AssistantPanel() {
   const returnFocus = useRef<HTMLElement | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const onPage = pathname.startsWith('/app/assistant');
+  // Capa de panel (lib/ui/layers.ts): al abrirse cierra los menús abiertos. Esc y el cierre los maneja el panel.
+  useLayer(open, () => {}, { root: panelRef, kind: 'dialog', outside: false, escape: false });
 
   useEffect(() => {
     setConversationId(readStored());
@@ -59,7 +62,8 @@ export default function AssistantPanel() {
 
   const show = useCallback(
     (detail?: OpenAssistantDetail) => {
-      returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      // Desde un ítem de menú (el menú se cierra al abrir el panel): el foco vuelve a su botón.
+      returnFocus.current = focusReturnTarget(document.activeElement);
       capture();
       if (detail?.conversationId) {
         setConversationId(detail.conversationId);
