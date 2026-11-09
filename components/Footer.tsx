@@ -96,6 +96,7 @@ export default async function Footer({ locale }: { locale: string }) {
             <li><Link href="/terms">{t('terms')}</Link></li>
             <li><Link href="/privacy">{t('privacy')}</Link></li>
             <li><Link href="/security">{t('security')}</Link></li>
+            <li><Link href="/subprocessors">{t('subprocessors')}</Link></li>
           </ul>
         </div>
       </div>

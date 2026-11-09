@@ -153,7 +153,7 @@
     },
     "label": "Legal · 02",
     "title": "Política de Privacidad",
-    "updated": "Última actualización: 13 de octubre de 2026",
+    "updated": "Última actualización: 9 de noviembre de 2026",
     "intro": "Recolectamos lo mínimo, lo guardamos solo lo necesario y nunca lo vendemos. Esta política explica exactamente qué significa eso, con el mismo lenguaje llano que usamos en todos lados. La revisamos periódicamente y cada vez que el producto cambia de una forma que afecte tus datos.",
     "tocTitle": "Contenido",
     "sections": {
@@ -176,6 +176,7 @@
         "h": "Qué recolectamos",
         "ul": [
           "Datos de cuenta: tu nombre, email y foto de perfil, que nos da Google cuando iniciás sesión, más tus membresías y configuraciones de espacios de trabajo.",
+          "Registros de inicio de sesión y seguridad: cuando entrás registramos la sesión (hora, dirección IP y navegador), los inicios de sesión y eventos de dos pasos y, si la activás, un secreto de dos pasos cifrado y códigos de recuperación hasheados. Los owners y admins de un workspace ven estos eventos de sus miembros en el registro de auditoría del workspace.",
           "Contenido del espacio de trabajo: los links, contactos, oportunidades, reservas, issues, conversaciones, documentos y archivos que creás vos y tu equipo.",
           "Datos de clics: cuando alguien sigue un link corto registramos la hora, el link, el dominio de referencia, el país aproximado, el tipo de dispositivo, el navegador y el sistema operativo. No guardamos la dirección IP ni el user-agent completo junto al clic.",
           "Datos de reservas: cuando alguien reserva desde una página de Cal, el nombre, email, respuestas a las preguntas del anfitrión, zona horaria e idioma que indica, y los detalles de la reserva.",
@@ -195,7 +196,7 @@
           "Ninguna cookie de publicidad ni de analítica, y ningún tracker de terceros en zerosoft.ai.",
           "Ningún fingerprinting de dispositivos ni seguimiento entre sitios.",
           "Ninguna dirección IP guardada junto a los clics.",
-          "Ninguna contraseña: el inicio de sesión se delega en Google. Las contraseñas de links se guardan solo como hashes scrypt con salt.",
+          "Sin contraseñas: entrás con Google o con un código de un solo uso por email. Las contraseñas de links se guardan solo como hash scrypt con sal.",
           "Nada de los emails que no involucran a tus contactos del CRM, y ningún adjunto.",
           "Ningún dato de tarjeta: hoy no cobramos. Cuando lancemos planes pagos, los pagos los va a procesar un procesador de pagos que vamos a nombrar acá antes."
         ]
@@ -203,7 +204,7 @@
       "s05": {
         "h": "Cookies y almacenamiento local",
         "p": [
-          "Usamos solo lo necesario para que el servicio funcione: una cookie de sesión que te mantiene logueado, una cookie de preferencia de idioma, una cookie de corta duración que recuerda que desbloqueaste un link con contraseña (hasta 7 días), y el almacenamiento local del navegador para preferencias de interfaz, como una barra lateral colapsada.",
+          "Usamos solo lo necesario para que el servicio funcione: una cookie de sesión que te mantiene logueado, una cookie de preferencia de idioma, una cookie de corta duración que recuerda que desbloqueaste un link con contraseña (hasta 7 días), y el almacenamiento local del navegador para preferencias de interfaz, como una barra lateral colapsada. También usamos una cookie de zona horaria para mostrar las fechas en tu hora local, y una cookie con un hash de la cuenta que inició sesión para que las páginas guardadas para usar sin conexión solo se le muestren a quien las guardó.",
           "El widget de Chat, cuando una empresa lo instala en su sitio, guarda un identificador de visitante aleatorio en el almacenamiento local de ese sitio. No sigue al visitante en otros sitios. Como son estrictamente necesarios para funciones que las personas pidieron, no mostramos un banner de cookies; las empresas que instalan el widget deberían mencionarlo en su propio aviso de privacidad."
         ]
       },
@@ -242,13 +243,15 @@
       "s10": {
         "h": "Con quién compartimos datos",
         "p": [
-          "No vendemos datos personales. Los compartimos solo con los proveedores (subencargados) que operan la nube para nosotros, bajo cláusulas contractuales de confidencialidad y protección de datos, y solo en la medida que su tarea lo requiere:"
+          "No vendemos datos personales. Los compartimos solo con los proveedores (subencargados) que operan la nube para nosotros, bajo cláusulas contractuales de confidencialidad y protección de datos, y solo en la medida que su tarea lo requiere: La lista vigente, con lo que procesa cada proveedor, está en nuestra página de subprocesadores (/subprocessors)."
         ],
         "ul": [
-          "Vercel: hosting, funciones serverless, almacenamiento de archivos subidos (Vercel Blob) y tareas programadas.",
-          "Turso: la base de datos donde se guardan los datos de cuentas y espacios de trabajo.",
-          "Resend: envío de emails transaccionales, como invitaciones a espacios de trabajo, notificaciones y confirmaciones de reserva.",
-          "Google: inicio de sesión, y Gmail y Google Calendar solo cuando los conectás.",
+          "Vercel: hosting, funciones, almacenamiento de archivos subidos (Vercel Blob), tareas programadas y AI Gateway.",
+          "Turso: la base de datos donde se guardan los datos de cuentas y workspaces.",
+          "Railway: corre la puerta de enlace de WhatsApp que usan Groups e Inbox cuando conectás un número de WhatsApp.",
+          "Resend: entrega de emails transaccionales, como códigos de inicio de sesión, invitaciones, avisos y confirmaciones de reservas.",
+          "Google: inicio de sesión, y Gmail y Google Calendar solo si los conectás.",
+          "Proveedores de modelos de IA, a través de Vercel AI Gateway u OpenRouter, solo para las funciones de IA que uses, con condiciones que no permiten entrenar con tu contenido.",
           "Destinos que vos elegís: si configurás webhooks o usás la API, los datos se envían a las URLs y herramientas que definiste.",
           "Autoridades, cuando la ley realmente lo exige; vamos a objetar los pedidos excesivamente amplios.",
           "Un sucesor, si zerosoft se fusiona o es adquirida; te vamos a avisar antes de que tus datos queden sujetos a una política de privacidad distinta."
@@ -267,6 +270,7 @@
           "Después de cerrar tu cuenta: exportables durante 30 días, y luego se borran de la base de producción. Las copias que queden en backups de los proveedores vencen según sus ciclos de backup, y apuntamos a un borrado completo dentro de los 90 días.",
           "Datos de clics: se guardan como registros individuales sin direcciones IP mientras existan el link y la cuenta, para que puedas ver tu historial.",
           "Registros de límite de requests: contienen la dirección IP y se borran automáticamente poco después de que termina su ventana (como máximo 10 minutos).",
+          "Sesiones y registro de auditoría (dirección IP y navegador): las sesiones se borran 90 días después de terminar; las entradas del registro, al año.",
           "Logs de requests del hosting: incluyen direcciones IP y nuestro proveedor de hosting los conserva por un período limitado según su configuración de retención; no los copiamos a un almacenamiento de largo plazo.",
           "Datos de reservas, chat y CRM: se guardan mientras el titular de la cuenta los conserve, o hasta que él o vos pidan su borrado.",
           "Podemos conservar datos limitados por más tiempo cuando la ley lo exige o para resolver disputas y prevenir abusos, por ejemplo registros de cuentas suspendidas por phishing."
@@ -282,7 +286,8 @@
         "h": "Tus derechos",
         "p": [
           "Vivas donde vivas, podés pedirnos acceder, rectificar, suprimir o exportar tus datos personales, limitar u oponerte a su tratamiento, y retirar tu consentimiento. Según tu país podés tener derechos adicionales, como la confirmación de que tratamos tus datos e información sobre con quién los compartimos (LGPD), o el acceso gratuito a tus datos a intervalos no inferiores a seis meses (Ley 25.326).",
-          "Las herramientas de exportación están integradas en los productos. Para cualquier otra cosa, escribí a privacy@zerosoft.ai. Puede que necesitemos verificar tu identidad. Respondemos dentro del plazo que fije tu ley local (por ejemplo, 10 días corridos para pedidos de acceso bajo la ley argentina) y en cualquier caso dentro de los 30 días.",
+          "Podés descargar todos tus datos en un ZIP y borrar tu cuenta o tu workspace vos mismo en Ajustes › Perfil, y cada app tiene su propia exportación. Para cualquier otra cosa, escribí a privacy@zerosoft.ai. Puede que necesitemos verificar tu identidad. Respondemos dentro del plazo que fije tu ley local (por ejemplo, 10 días corridos para pedidos de acceso bajo la ley argentina) y en cualquier caso dentro de los 30 días.",
+          "Las empresas que necesiten un acuerdo de procesamiento de datos (GDPR art. 28) pueden pedir el nuestro a privacy@zerosoft.ai.",
           "También tenés derecho a reclamar ante una autoridad de protección de datos: en el EEE o el Reino Unido, tu autoridad de control local; en Brasil, la ANPD. En Argentina: la AGENCIA DE ACCESO A LA INFORMACIÓN PÚBLICA, en su carácter de Órgano de Control de la Ley N° 25.326, tiene la atribución de atender las denuncias y reclamos que interpongan quienes resulten afectados en sus derechos por incumplimiento de las normas vigentes en materia de protección de datos personales. Te agradecemos si nos das la oportunidad de resolverlo primero."
         ]
       },
@@ -310,97 +315,153 @@
   "security": {
     "meta": {
       "title": "Seguridad",
-      "description": "Cómo protege zerosoft.ai el servicio: inicio de sesión con Google sin contraseñas, claves hasheadas, secretos cifrados, HTTPS, datos mínimos, y cómo reportar una vulnerabilidad."
+      "description": "Cómo protege zerosoft el servicio: verificación en dos pasos, sesiones del lado del servidor, registro de auditoría, cifrado de campos con rotación de claves, análisis en cada cambio, exportar y borrar tus datos, y el estado real de las certificaciones."
     },
     "label": "Legal · 03",
     "title": "Seguridad",
-    "updated": "Última actualización: 12 de octubre de 2026",
+    "updated": "Última actualización: 9 de noviembre de 2026",
     "intro": "La confianza se gana con detalles, no con sellos. Acá está exactamente cómo protegemos el servicio hoy, qué no afirmamos, y cómo avisarnos cuando algo nos salió mal. Revisamos esta página periódicamente y cada vez que cambian estos controles.",
     "tocTitle": "Contenido",
     "sections": {
       "s01": {
         "h": "La versión corta",
         "p": [
-          "Datos mínimos, ninguna contraseña para robar, secretos cifrados, claves hasheadas y un código que va a estar abierto para que cualquiera lo audite. Seguridad a través de la simplicidad.",
-          "Para ser claros sobre lo que no somos: zerosoft no tiene hoy ninguna certificación ni atestación de seguridad, como SOC 2 o ISO 27001, y todavía no contrató un test de penetración independiente. Cuando eso cambie, esta página lo va a decir."
+          "Datos mínimos, verificación en dos pasos, sesiones que ves y cerrás, un registro de auditoría por workspace, secretos cifrados con claves que rotan y un código que cualquiera puede leer.",
+          "Certificaciones, claro y simple: zerosoft no tiene un informe SOC 2 ni una certificación ISO 27001, y todavía no se hizo una auditoría independiente ni un test de penetración. Nuestros controles están diseñados para cumplir los criterios de SOC 2 y el Anexo A de ISO/IEC 27001:2022, y las políticas y la matriz de controles están públicas en el repositorio (docs/security). Cuando una auditoría empiece o termine, esta página lo va a decir."
         ]
       },
       "s02": {
-        "h": "Autenticación",
+        "h": "Iniciar sesión",
         "p": [
-          "En zerosoft no hay contraseñas de usuario. Las cuentas inician sesión con Google (OAuth 2.0 / OpenID Connect), así que la seguridad de tu cuenta de Google, incluida la verificación en dos pasos, protege también tu cuenta de zerosoft. Las sesiones usan cookies firmadas y httpOnly, que en producción viajan solo por HTTPS."
+          "En zerosoft no hay contraseñas. Entrás con Google (solo emails verificados) o con un código de un solo uso que te llega por email.",
+          "Podés activar la verificación en dos pasos con cualquier app autenticadora (TOTP), con diez códigos de recuperación de un solo uso. El owner de un workspace puede exigirla a todos: quien no la tenga no entra a ese workspace hasta activarla.",
+          "Cada inicio de sesión es una sesión de nuestro lado. En Ajustes › Seguridad ves tus dispositivos y su última actividad, y podés cerrar uno o todos; cerrar sesión la cierra también en el servidor. Las sesiones vencen a los 30 días sin uso."
         ]
       },
       "s03": {
-        "h": "API keys",
+        "h": "Control de acceso y registro de auditoría",
         "p": [
-          "El acceso programático usa API keys con el prefijo zs_. Las claves se generan con una fuente aleatoria criptográficamente segura, se muestran una sola vez, se guardan solo como hashes SHA-256 y se pueden revocar al instante desde el panel.",
-          "Cada clave tiene un límite de 100 requests por minuto, que contiene tanto abusos como accidentes."
+          "Cada workspace tiene owners, admins, miembros e invitados, con acceso por app y por registro. Cada página y cada API revisa estas reglas en el servidor.",
+          "Owners y admins ven un registro de seguridad: inicios de sesión, cambios de dos pasos, sesiones cerradas, API keys creadas o revocadas, exportaciones, borrados y cambios de miembros, con hora e IP. Se descarga en CSV y se guarda un año."
         ]
       },
       "s04": {
-        "h": "Contraseñas de links",
+        "h": "API keys",
         "p": [
-          "Los links cortos protegidos con contraseña guardan sus contraseñas como hashes scrypt con un salt aleatorio por link. Nunca las guardamos en texto plano y no podemos recuperarlas, así que si perdés una, poné una nueva. Cuando un visitante desbloquea un link, una cookie firmada lo recuerda hasta 7 días, y los intentos tienen límite por IP y por link para frenar a quien intenta adivinar."
+          "El acceso programático usa API keys con el prefijo zs_. Se generan con una fuente aleatoria criptográficamente segura, se muestran una sola vez, se guardan solo como hash SHA-256, se limitan a las apps que elijas y se revocan al instante. Las keys de un miembro dejan de funcionar cuando sale del workspace.",
+          "Cada key tiene un límite de 100 pedidos por minuto."
         ]
       },
       "s05": {
-        "h": "Secretos y tokens",
+        "h": "Contraseñas de links",
         "p": [
-          "Los tokens OAuth de Gmail y Google Calendar, y los secretos de firma de webhooks, se guardan cifrados en la base con AES-256-GCM. Los webhooks salientes se firman con HMAC-SHA256 para que puedas verificar que vienen de nosotros. Un token de Bitly usado para importar links se usa solo para esa importación y nunca se guarda."
+          "Los links cortos con contraseña la guardan como hash scrypt con una sal aleatoria por link. Cuando alguien desbloquea un link, una cookie firmada lo recuerda hasta 7 días, y los intentos tienen límite por IP y por link."
         ]
       },
       "s06": {
-        "h": "Transporte y almacenamiento",
+        "h": "Cifrado",
         "p": [
-          "Todo el tráfico a zerosoft.ai se sirve por HTTPS con TLS moderno, y el HTTP plano se redirige. Los datos se guardan en nuestros proveedores de infraestructura, que cifran los datos en reposo de su lado; además, nosotros mismos ciframos los secretos mencionados arriba.",
-          "Los archivos subidos (como adjuntos del chat o de issues) se guardan en URLs públicas con nombres aleatorios largos. Son difíciles de adivinar pero no privados: cualquiera con la URL puede abrir el archivo. Los tipos de archivo que el navegador ejecutaría (HTML, SVG, XML y JavaScript) se rechazan."
+          "En tránsito: todo el tráfico va por HTTPS con TLS moderno, HTTP se redirige y los navegadores reciben la indicación de usar solo HTTPS (HSTS). Las conexiones a la base de datos y a nuestros propios servicios también usan TLS.",
+          "En reposo: nuestros proveedores de infraestructura cifran los datos guardados y los backups. Además, ciframos nosotros los secretos antes de que lleguen a la base (tokens OAuth, claves de API de terceros, secretos de webhooks, configuración de cuentas conectadas, credenciales y secretos de dos pasos) con AES-256-GCM, una clave distinta para cada valor y claves maestras que podemos rotar. Los archivos privados, como CVs y PDFs firmados, se cifran antes de subirlos.",
+          "De punta a punta: las notas bloqueadas se cifran en tu navegador y no las podemos leer. No ciframos todo de punta a punta porque la búsqueda, las funciones de IA, las integraciones, las automatizaciones y la colaboración en tiempo real necesitan que el servidor lea el contenido. Ningún estándar de seguridad lo exige; lo usamos donde el servidor no necesita leer los datos."
         ]
       },
       "s07": {
-        "h": "Minimización de datos",
+        "h": "Archivos subidos",
         "p": [
-          "Nuestras analíticas de clics no usan cookies ni fingerprinting por diseño: el dominio de origen, el país y el dispositivo salen de los encabezados de la request, y la dirección IP nunca se guarda junto al clic.",
-          "Las direcciones IP se usan brevemente para limitar requests. Forman parte de una clave temporal que se borra cuando termina su ventana (como máximo 10 minutos), y aparecen en los logs de corta duración de nuestro proveedor de hosting. La mejor forma de proteger un dato es no guardarlo."
+          "Los archivos adjuntos en las apps se guardan en URLs con nombres aleatorios largos. Son difíciles de adivinar pero no privados: quien tenga la URL puede abrir el archivo. Se rechazan los tipos que el navegador ejecutaría (HTML, SVG, XML y JavaScript). Los archivos privados (CVs, documentos firmados, comprobantes) nunca tienen una URL pública."
         ]
       },
       "s08": {
-        "h": "Protección contra abuso",
+        "h": "Minimización de datos",
         "p": [
-          "Los endpoints públicos (links con contraseña, páginas de reserva, el widget de chat, importaciones) tienen límites por IP. Las requests salientes a URLs que configurás, como webhooks, solo pueden ir a hosts públicos de internet y tienen timeouts, para que no puedan llegar a redes internas.",
-          "Podemos verificar los destinos de los links cortos y desactivar los que se usen para phishing, malware o spam. Denunciá abusos a abuse@zerosoft.ai."
+          "La analítica de clicks no usa cookies ni huellas: el dominio de referencia, el país y el dispositivo salen de los headers del pedido, y la IP nunca se guarda con el click.",
+          "Las IPs se usan un momento para limitar pedidos y se registran con los inicios de sesión y las sesiones para que reconozcas tus dispositivos; esos registros se borran al año (registro de auditoría) y 90 días después de terminada una sesión."
         ]
       },
       "s09": {
-        "h": "Infraestructura",
+        "h": "Protección contra abusos",
         "p": [
-          "La nube corre sobre proveedores establecidos: Vercel (hosting, funciones, almacenamiento de archivos, tareas programadas), Turso (base de datos) y Resend (emails transaccionales). Las certificaciones que tengan esos proveedores son suyas, no nuestras. El acceso a los sistemas de producción se limita a las personas que lo necesitan, y los deploys pasan por el pipeline de build automatizado del proveedor desde nuestro repositorio de código."
+          "Los endpoints públicos, los códigos de inicio de sesión y los de dos pasos tienen límite de intentos. Los pedidos salientes a URLs que configurás, como los webhooks, solo van a hosts públicos de internet y con tiempo límite. Podemos desactivar links usados para phishing, malware o spam; reportá abusos a abuse@zerosoft.ai."
         ]
       },
       "s10": {
-        "h": "Open source como auditoría",
+        "h": "Cómo construimos",
         "p": [
-          "El core de los productos tiene licencia open source y estamos preparando el repositorio público. Cuando esté publicado, no vas a tener que confiar en esta página: vas a poder leer el código, correrlo vos mismo y verificar cada afirmación. Los reportes de quienes hagan exactamente eso van a ser nuestro tipo de email favorito."
+          "Cada cambio pasa por un pull request y controles automáticos antes de salir: tipos, tests unitarios y de punta a punta, build de producción, análisis estático con CodeQL, búsqueda de secretos y auditoría de dependencias. Dependabot vigila las dependencias y los cambios que tocan seguridad tienen una revisión independiente."
         ]
       },
       "s11": {
-        "h": "Reportar una vulnerabilidad",
+        "h": "Infraestructura y subprocesadores",
         "p": [
-          "¿Encontraste algo? Escribinos a security@zerosoft.ai con una descripción, los pasos para reproducirlo y el impacto. Por favor no abras issues públicos para problemas de seguridad.",
-          "Apuntamos a confirmar la recepción dentro de las 72 horas, mantenerte al tanto mientras trabajamos en el arreglo y darte crédito cuando salga, si querés. Hoy no tenemos un programa de bug bounty pago."
+          "La nube corre en Vercel (hosting, funciones, archivos), Turso (base de datos) y Railway (puerta de enlace de WhatsApp), manda emails con Resend y usa proveedores de modelos de IA solo para las funciones de IA que uses. La lista completa, con lo que procesa cada uno, está en la página de subprocesadores (/subprocessors). Sus certificaciones son de ellos, no nuestras. El acceso a producción se limita a quien lo necesita y está protegido con verificación en dos pasos."
         ]
       },
       "s12": {
-        "h": "Divulgación responsable",
+        "h": "Tus datos",
         "p": [
-          "Danos un plazo razonable para corregir el problema antes de publicarlo. Probá solo contra tus propias cuentas y datos; no accedas, modifiques ni borres datos de otras personas; no degrades el servicio, no mandes spam ni uses ingeniería social mientras probás.",
-          "Si seguís estas reglas y actuás de buena fe, no vamos a iniciar acciones legales en tu contra por tu investigación, y te vamos a dar las gracias en serio."
+          "En Ajustes › Perfil podés descargar todo lo de tu cuenta y tu workspace en un ZIP, y borrar tu cuenta o tu workspace. El borrado se hace 30 días después de pedirlo (hasta entonces se puede cancelar) e incluye los registros de la base, los archivos subidos y los números de WhatsApp conectados; las copias en los backups de los proveedores vencen con su ventana de retención.",
+          "Si tu empresa necesita un acuerdo de procesamiento de datos (DPA), pedí el nuestro a privacy@zerosoft.ai."
         ]
       },
       "s13": {
+        "h": "El código abierto como auditoría",
+        "p": [
+          "El código de los productos es público. No tenés que creerle a esta página: podés leer el código, correrlo y verificar cada afirmación. Los reportes de quienes hacen exactamente eso son nuestros emails favoritos."
+        ]
+      },
+      "s14": {
+        "h": "Reportar una vulnerabilidad",
+        "p": [
+          "Escribí a security@zerosoft.ai con una descripción, los pasos para reproducirla y el impacto. Por favor no abras issues públicos por temas de seguridad. Buscamos responder en 72 horas, mantenerte al tanto y darte crédito cuando salga el arreglo si querés. No tenemos un programa de recompensas pagas.",
+          "Probá solo con tus propias cuentas y datos, no degrades el servicio ni uses spam o ingeniería social, y danos un plazo razonable antes de publicar. Si actuás de buena fe, no vamos a iniciar acciones legales en tu contra."
+        ]
+      },
+      "s15": {
         "h": "Si algo sale mal",
         "p": [
-          "Si nos enteramos de un incidente de seguridad que afecta tus datos, lo vamos a investigar, contener, notificar sin demoras indebidas a quienes tienen cuentas afectadas, y notificar a las autoridades de protección de datos cuando la ley aplicable lo exija. Publicamos los incidentes del servicio en /status."
+          "Si nos enteramos de un incidente de seguridad que afecta tus datos, lo investigamos y contenemos, avisamos sin demora indebida a las cuentas afectadas para que puedan cumplir sus propias obligaciones de 72 horas, y notificamos a las autoridades de protección de datos cuando la ley lo exige. Los incidentes del servicio se publican en /status."
+        ]
+      }
+    }
+  },
+  "subprocessors": {
+    "meta": {
+      "title": "Subprocesadores",
+      "description": "Los proveedores que procesan datos personales para la nube de zerosoft, qué hace cada uno y dónde."
+    },
+    "label": "Legal · 04",
+    "title": "Subprocesadores",
+    "updated": "Última actualización: 9 de noviembre de 2026",
+    "intro": "Estas son las empresas que procesan datos personales por cuenta de los clientes de la nube de zerosoft. Avisamos los cambios acá al menos 15 días antes de que un subprocesador nuevo empiece a procesar datos personales. Las instancias autoalojadas no usan ninguno salvo que quien las opera lo configure.",
+    "tocTitle": "Contenido",
+    "sections": {
+      "s01": {
+        "h": "Siempre",
+        "ul": [
+          "Vercel Inc. (Estados Unidos): hosting, funciones, tareas programadas, almacenamiento de archivos (Vercel Blob), logs de pedidos y AI Gateway. Procesa todos los datos en tránsito, los archivos subidos y los logs con direcciones IP.",
+          "Turso / ChiselStrike Inc.: la base de datos y sus backups. Guarda los datos de cuentas y workspaces.",
+          "Railway Corp. (Estados Unidos): corre la puerta de enlace de WhatsApp que usan Groups e Inbox. Procesa mensajes, contactos y archivos de los números de WhatsApp conectados.",
+          "Resend Inc. (Estados Unidos): entrega los emails transaccionales y del servicio. Procesa direcciones de destino, contenido y eventos de entrega."
+        ]
+      },
+      "s02": {
+        "h": "Solo cuando usás la función",
+        "ul": [
+          "Google LLC (Estados Unidos): entrar con Google, y Gmail y Google Calendar cuando los conectás.",
+          "Proveedores de modelos de IA, a través de Vercel AI Gateway (Anthropic por defecto) u OpenRouter Inc. (Estados Unidos): funciones de IA como el asistente, los agentes, los resúmenes y la redacción. Reciben el pedido y el contenido que mandás a esa función, con condiciones que no permiten entrenar con él."
+        ]
+      },
+      "s03": {
+        "h": "Qué no es un subprocesador",
+        "p": [
+          "Las integraciones que conectás con tu propia cuenta (Slack, Microsoft 365, Stripe, Twilio, Meta, GitHub, Notion, webhooks, la API y los clientes MCP) reciben datos porque vos lo indicás, bajo tu propio acuerdo con ese proveedor."
+        ]
+      },
+      "s04": {
+        "h": "Transferencias y acuerdos",
+        "p": [
+          "Cuando los datos salen del EEE, el Reino Unido o Suiza, nos apoyamos en las Cláusulas Contractuales Tipo y, donde hay certificación, en el Marco de Privacidad de Datos UE-EE. UU., según los términos de procesamiento de cada proveedor. Los clientes pueden pedir nuestro acuerdo de procesamiento de datos a privacy@zerosoft.ai y suscribirse ahí a los cambios de esta lista."
         ]
       }
     }

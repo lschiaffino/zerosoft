@@ -29,6 +29,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-account-security-and-your-data',
+    date: '2026-11-09',
+    title: {
+      en: 'Two-step verification, sessions, audit log and your data',
+      es: 'Verificación en dos pasos, sesiones, registro de auditoría y tus datos',
+      pt: 'Verificação em duas etapas, sessões, registro de auditoria e seus dados',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Turn on two-step verification with any authenticator app, with ten recovery codes. Workspace owners can require it for every member.',
+        es: 'Activá la verificación en dos pasos con cualquier app autenticadora, con diez códigos de recuperación. El owner del workspace puede exigirla a todos.',
+        pt: 'Ative a verificação em duas etapas com qualquer app autenticador, com dez códigos de recuperação. O dono do workspace pode exigi-la de todos.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Security lists the devices signed in to your account and signs out one or all of them. Owners and admins get an audit log of sign-ins, keys, exports and member changes, with CSV download.',
+        es: 'Ajustes › Seguridad muestra los dispositivos con tu cuenta abierta y cierra uno o todos. Owners y admins tienen un registro de auditoría de inicios de sesión, keys, exportaciones y cambios de miembros, con descarga en CSV.',
+        pt: 'Configurações › Segurança mostra os dispositivos com sua conta aberta e encerra um ou todos. Donos e admins têm um registro de auditoria de logins, chaves, exportações e mudanças de membros, com download em CSV.',
+      },
+      {
+        product: 'platform',
+        en: 'Download everything in your account and workspace as a ZIP, and delete your account or workspace from Settings, with 30 days to change your mind.',
+        es: 'Descargá todo lo de tu cuenta y tu workspace en un ZIP, y borrá tu cuenta o tu workspace desde Ajustes, con 30 días para arrepentirte.',
+        pt: 'Baixe tudo da sua conta e do seu workspace em um ZIP, e exclua sua conta ou seu workspace em Configurações, com 30 dias para voltar atrás.',
+      },
+      {
+        product: 'platform',
+        en: 'New subprocessors page, and the security and privacy pages now describe these controls and our compliance status as it is.',
+        es: 'Nueva página de subprocesadores, y las páginas de seguridad y privacidad ahora describen estos controles y el estado real de las certificaciones.',
+        pt: 'Nova página de subprocessadores, e as páginas de segurança e privacidade agora descrevem esses controles e o estado real das certificações.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-pulse-rename',
     date: '2026-11-08',
     title: {
