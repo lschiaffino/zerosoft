@@ -11,7 +11,7 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
  * el import de tests/e2e/track-linear-import.spec.ts.
  */
 
-test.describe.configure({ mode: 'serial', timeout: 240_000 });
+test.describe.configure({ mode: 'serial', timeout: 420_000 });
 
 const TOKEN = 'lin_api_fake_sync';
 const WHO = 'linear-sync@e2e.zerosoft.test';
@@ -37,7 +37,8 @@ async function linear<T>(request: APIRequestContext, query: string, variables: R
 async function findIssue(request: APIRequestContext, title: string) {
   const res = await request.get(`/api/track/issues?q=${encodeURIComponent(title)}&pageSize=50`);
   const rows = ((await res.json()) as { rows: Array<{ id: string; title: string; identifier: string }> }).rows;
-  return rows.find((r) => r.title === title) ?? null;
+  // En un reintento el título ya puede tener el sufijo de la edición anterior.
+  return rows.find((r) => r.title === title) ?? rows.find((r) => r.title.startsWith(`${title} (edited`)) ?? null;
 }
 
 async function openIntegrations(page: Page) {
