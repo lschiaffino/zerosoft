@@ -414,7 +414,7 @@ test('importar una exportación de inbox-zero', async ({ page }) => {
     notes: [{ chatId: '5491177770000@c.us', text: 'Prefiere audios cortos' }],
     messages: [{ id: `imp-${tag}`, chatId: '5491177770000@c.us', ts: Math.floor(Date.now() / 1000) - 3600, fromMe: false, sender: `Jefa ${tag}`, type: 'chat', text: 'Mañana reunión a las 10' }],
   };
-  await page.getByLabel('Export file (.json)').setInputFiles({ name: 'inbox-zero-export.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(file)) });
+  await page.getByLabel(/Exported file/).setInputFiles({ name: 'inbox-zero-export.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(file)) });
   await expect(page.getByText(/1 folders, 1 chats/)).toBeVisible();
   await page.getByRole('button', { name: 'Import', exact: true }).click();
   await expect(page.getByText(/Imported 1 folders/)).toBeVisible();
@@ -423,6 +423,64 @@ test('importar una exportación de inbox-zero', async ({ page }) => {
   const row = page.locator('.ib-item', { hasText: `Jefa ${tag}` });
   await expect(row).toBeVisible();
   await expect(row).toContainText('borrador importado');
+});
+
+test('importar un .ndjson grande desde el navegador (por líneas, con avance) y un programado de varios mensajes', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/en/app/inbox/settings', { waitUntil: 'networkidle' });
+  const tag = uid();
+  const chat = `54911888${Math.floor(10000 + Math.random() * 89999)}@c.us`;
+  const meta = {
+    part: 'meta',
+    format: 'inbox-zero-export',
+    version: 2,
+    folders: [],
+    chatFolders: [],
+    chats: [{ chatId: chat, name: `Prima ${tag}`, isGroup: false }],
+    scheduled: [{ chatId: chat, chatName: `Prima ${tag}`, text: 'Feliz cumple!\u001eTe dejé algo en la puerta', sendAt: Date.now() + 3 * 86_400_000, status: 'pending' }],
+    drafts: [],
+    snoozes: [],
+    notes: [],
+  };
+  const lines = [JSON.stringify(meta)];
+  for (let i = 0; i < 6; i++) {
+    lines.push(JSON.stringify({ part: 'messages', messages: Array.from({ length: 300 }, (_, j) => ({ id: `nd-${tag}-${i}-${j}`, chatId: chat, ts: 1_750_000_000 + i * 1000 + j, fromMe: j % 2 === 0, sender: `Prima ${tag}`, type: 'chat', text: `línea ${i} mensaje ${j} ${'·'.repeat(400)}` })) }));
+  }
+  const buffer = Buffer.from(`${lines.join('\n')}\n`);
+  expect(buffer.length).toBeGreaterThan(1024 * 1024);
+  await page.getByLabel(/Exported file/).setInputFiles({ name: `export-${tag}.ndjson`, mimeType: 'application/x-ndjson', buffer });
+  await expect(page.locator('.ib-import-summary')).toContainText(`export-${tag}.ndjson`);
+  await page.getByRole('button', { name: 'Import', exact: true }).click();
+  await expect(page.getByText(/Imported 0 folders, 1 chats, 1 scheduled, 0 drafts, 0 snoozes, 0 notes and 1800 messages/)).toBeVisible({ timeout: 30_000 });
+  await page.goto('/en/app/inbox/v/scheduled', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: `Prima ${tag}` }).locator('.ib-row-btn').click();
+  const sched = page.locator('.ib-sched', { hasText: 'Feliz cumple!' });
+  await expect(sched).toContainText('2 messages');
+  await expect(sched).toContainText('Te dejé algo en la puerta');
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('traer todo el historial de WhatsApp (servidor falso): espera, pagina, avanza y no duplica', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  // WhatsApp ya terminó de mandar el historial de la vinculación.
+  await sql('UPDATE inbox_accounts SET sync_cursor = ? WHERE id = ?', [JSON.stringify({ phase: 'done', page: 0 }), acc.id]);
+  await page.goto('/en/app/inbox/settings', { waitUntil: 'networkidle' });
+  const start = page.getByRole('button', { name: 'Bring the full history' });
+  await expect(start).toBeEnabled();
+  await start.click();
+  const job = page.locator('.ib-job', { hasText: 'Full WhatsApp history' }).first();
+  await expect(job).toContainText('Done', { timeout: 60_000 });
+  await expect(job).toContainText('3 of 3 chats');
+  await expect(job.getByRole('progressbar')).toHaveAttribute('value', '100');
+  await page.goto('/en/app/inbox/v/whatsapp', { waitUntil: 'networkidle' });
+  const ana = page.locator('.ib-item', { hasText: 'Historial Ana' });
+  await expect(ana).toBeVisible();
+  await ana.locator('.ib-row-btn').click();
+  await expect(page.locator('.ib-msg', { hasText: 'Historial Ana mensaje 230' })).toBeVisible();
+  const n = await sql("SELECT COUNT(*) AS n FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id WHERE t.account_id = ? AND t.external_id = '5491170000001@s.whatsapp.net'", [acc.id]);
+  expect(Number(n[0].n)).toBe(230);
+  expect(errors, errors.join('\n')).toEqual([]);
 });
 
 test('390px: un panel por vez, sin scroll horizontal, y vuelve a la lista', async ({ page, request }) => {

@@ -1,11 +1,13 @@
 /**
  * Inbox: lo que corre cada minuto (/api/cron/minute). Cada paso es seguro
  * con dos corridas a la vez: los despertares son un UPDATE atómico, los
- * programados y las cuentas se reclaman por fila (compare-and-set).
+ * programados, las cuentas y las importaciones se reclaman por fila
+ * (compare-and-set).
  */
 import { getDb } from '../db';
 import type { AccountRow } from './core';
 import { syncGmail } from './gmail';
+import { runInboxImports } from './import-jobs';
 import { sendDueScheduled } from './send';
 import { runWhatsappBackfill } from './whatsapp';
 
@@ -87,5 +89,6 @@ export async function runInboxCron(now = new Date(), budgetMs = 40_000): Promise
   const scheduled = await sendDueScheduled(now, deadline);
   const gmail = await syncStaleGmail(now, deadline).catch(() => 0);
   const backfill = await backfillWhatsapp(now, deadline).catch(() => 0);
-  return { woke, followUps, sent: scheduled.sent, failed: scheduled.failed, missed: scheduled.missed, gmail, backfill };
+  const imports = await runInboxImports(now, deadline).catch(() => 0);
+  return { woke, followUps, sent: scheduled.sent, failed: scheduled.failed, missed: scheduled.missed, gmail, backfill, imports };
 }

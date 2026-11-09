@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { iJson, inboxOwner, withOwner } from '@/lib/inbox/http';
+import { MAX_IMPORT_BYTES } from '@/lib/inbox/import-jobs';
 import { MAX_SCHEDULED_MEDIA } from '@/lib/inbox/schedule';
 import { InboxError } from '@/lib/inbox/types';
 import { limitByIp } from '@/lib/rate-limit';
@@ -22,7 +23,8 @@ export async function GET() {
  * Subidas de Inbox:
  * - JSON (protocolo de @vercel/blob/client): firma la subida directa del
  *   navegador a Blob: `inbox/…`, el archivo de un mensaje programado (hasta
- *   16 MB). El archivo no pasa por esta función.
+ *   16 MB), o `inbox-import/….ndjson`, una exportación de inbox-zero (hasta
+ *   2 GB, en partes). El archivo no pasa por esta función.
  * - multipart (sin Blob, servidor propio): guarda el archivo de un mensaje
  *   programado en la carpeta privada de subidas.
  */
@@ -60,6 +62,9 @@ export async function POST(req: Request) {
       body,
       request: req,
       onBeforeGenerateToken: async (pathname) => {
+        if (/^inbox-import\/[A-Za-z0-9._-]{1,120}\.ndjson$/.test(pathname)) {
+          return { allowedContentTypes: ['application/x-ndjson', 'application/json', 'application/octet-stream', 'text/plain'], maximumSizeInBytes: MAX_IMPORT_BYTES, addRandomSuffix: true };
+        }
         if (/^inbox\/[A-Za-z0-9._-]{1,160}$/.test(pathname) && isAllowedUpload(pathname, 'application/octet-stream')) {
           return { allowedContentTypes: MEDIA_TYPES, maximumSizeInBytes: MAX_SCHEDULED_MEDIA, addRandomSuffix: true };
         }

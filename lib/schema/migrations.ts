@@ -8911,6 +8911,36 @@ export const MIGRATIONS: Migration[] = [
       await c.execute("CREATE INDEX IF NOT EXISTS idx_inbox_scheduled_batch ON inbox_scheduled(batch_id, seq) WHERE batch_id <> ''");
     },
   },
+  {
+    // Inbox: importaciones largas que siguen solas (cron) y se retoman: todo
+    // el historial de WhatsApp desde el servidor (Evolution) o un archivo de
+    // inbox-zero subido a Blob. cursor = por dónde va; progress = lo que va
+    // importado (JSON). claimed_until: compare-and-set entre corridas.
+    id: '294_inbox_imports',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS inbox_imports (
+          id TEXT PRIMARY KEY,
+          owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          account_id TEXT,
+          kind TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'running',
+          source_url TEXT NOT NULL DEFAULT '',
+          source_name TEXT NOT NULL DEFAULT '',
+          source_size INTEGER NOT NULL DEFAULT 0,
+          cursor TEXT NOT NULL DEFAULT '',
+          progress TEXT NOT NULL DEFAULT '{}',
+          error TEXT NOT NULL DEFAULT '',
+          claimed_until TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          finished_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_inbox_imports_owner ON inbox_imports(owner_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_inbox_imports_status ON inbox_imports(status);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -40,6 +40,21 @@
   .ib-sched .ib-row { flex-wrap: wrap; }
 }
 
+/* ---------- Importar conversaciones viejas ---------- */
+
+.ib-import-block { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); min-width: 0; }
+.ib-import-block:first-of-type { padding-top: 0; border-top: 0; }
+.ib-import-progress { display: grid; gap: 4px; }
+.ib-import-progress progress, .ib-job progress { width: 100%; height: 6px; accent-color: var(--c-inbox); }
+.ib-jobs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ib-job { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-1); min-width: 0; }
+.ib-job p { margin: 0; }
+.ib-job-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.ib-job-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ib-job-status { flex: none; font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }
+.ib-job.is-running .ib-job-status, .ib-job.is-done .ib-job-status { color: var(--ib-ink, var(--ink)); }
+.ib-job.is-failed .ib-job-status { color: var(--bad-ink); }
+
 /* ---------- Carpetas en el sidebar (árbol) ---------- */
 
 .ib-ftree .docs-tree-row { padding-left: calc(var(--d, 0) * 14px + 4px); }

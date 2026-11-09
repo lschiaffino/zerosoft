@@ -56,6 +56,8 @@ export default defineConfig({
       GROUPS_FAKE: '1',
       // Inbox: Gmail de prueba (hilos de ejemplo, envíos en memoria) y la IA de borradores sin modelo real. WhatsApp usa GROUPS_FAKE.
       INBOX_FAKE: '1',
+      // Inbox: el WhatsApp falso tiene historial guardado (3 chats, uno con 230 mensajes) para "Traer todo el historial".
+      INBOX_FAKE_HISTORY: '1',
       // QR administrado contra un Evolution API simulado que levanta tests/e2e/groups-start.spec.ts en PORT + 31.
       GROUPS_BRIDGE_URL: `http://127.0.0.1:${PORT + 31}`,
       GROUPS_BRIDGE_KEY: 'e2e-bridge-global-key',

@@ -29,6 +29,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-inbox-folders-ai-history',
+    date: '2026-11-08',
+    title: {
+      en: 'Inbox: subfolders, write with AI in your tone, sequences that send later and your full history',
+      es: 'Inbox: subcarpetas, escribir con IA con tu tono, secuencias para más tarde y todo tu historial',
+      pt: 'Inbox: subpastas, escrever com IA no seu tom, sequências para mais tarde e todo o seu histórico',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Folders nest in the sidebar, collapse and add up their unread chats. Drag a chat, or a whole selection, onto a folder to file it, with undo.',
+        es: 'Las carpetas se anidan en la barra, se pliegan y suman los no leídos de sus subcarpetas. Arrastrá un chat, o una selección entera, a una carpeta para guardarlo, con deshacer.',
+        pt: 'As pastas se aninham na barra, recolhem e somam os não lidos das subpastas. Arraste uma conversa, ou uma seleção inteira, para uma pasta, com desfazer.',
+      },
+      {
+        product: 'inbox',
+        en: 'Write with AI now works and answers as you type. "What do you want to say?" drafts the message in your tone, and you can make it shorter or more formal before inserting it.',
+        es: 'Escribir con IA ya funciona y el texto llega a medida que se escribe. "¿Qué querés decir?" arma el mensaje con tu tono, y lo podés hacer más corto o más formal antes de insertarlo.',
+        pt: 'Escrever com IA já funciona e o texto chega enquanto é escrito. "O que você quer dizer?" monta a mensagem no seu tom, e dá para deixar mais curta ou mais formal antes de inserir.',
+      },
+      {
+        product: 'inbox',
+        en: 'Send later can schedule several messages, each its own bubble, with waits between them and a file on WhatsApp.',
+        es: 'Enviar más tarde programa varios mensajes, cada uno su burbuja, con esperas entre ellos y un archivo en WhatsApp.',
+        pt: 'Enviar mais tarde programa várias mensagens, cada uma sua bolha, com esperas entre elas e um arquivo no WhatsApp.',
+      },
+      {
+        product: 'inbox',
+        en: 'Bring your full WhatsApp history from the server, and import inbox-zero with the WhatsApp Desktop history of your Mac. Large files upload directly and keep importing in the background.',
+        es: 'Traé todo tu historial de WhatsApp desde el servidor e importá inbox-zero con la historia de WhatsApp Desktop de tu Mac. Los archivos grandes suben directo y siguen importándose en segundo plano.',
+        pt: 'Traga todo o seu histórico do WhatsApp do servidor e importe o inbox-zero com o histórico do WhatsApp Desktop do seu Mac. Arquivos grandes sobem direto e continuam importando em segundo plano.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-tasks-across-apps',
     date: '2026-11-08',
     title: {
