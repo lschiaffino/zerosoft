@@ -1,0 +1,43 @@
+# Análisis estático (SAST) del código propio con CodeQL. Los hallazgos quedan en
+# Security › Code scanning del repo, no en el log: no se publican detalles en el PR.
+name: CodeQL
+
+# Solo main y el semanal (decisión del dueño, 9 nov 2026): en cada PR ocupaba
+# los runners que necesitan los tests.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 6 * * 1'
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, actions]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+          config: |
+            paths-ignore:
+              - tests
+              - '**/*.test.ts'
+              - desktop/src-tauri/target
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}

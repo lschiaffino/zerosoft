@@ -50,6 +50,8 @@ export default defineConfig({
       CRM_IMPORT_FAKE: '1',
       // Notion por API contra el workspace falso (token "fake-notion"): hub de importación.
       NOTION_IMPORT_FAKE: '1',
+      // Linear por API contra el workspace falso (lib/track-linear-fake.ts, keys lin_api_fake…).
+      TRACK_LINEAR_FAKE: '1',
       // Datos de empresa desde el dominio sin salir a internet (lib/crm-enrich.ts).
       CRM_ENRICH_FAKE: '1',
       // Groups contra el proveedor de WhatsApp falso (lib/groups-provider-fake.ts): nada sale a WhatsApp.

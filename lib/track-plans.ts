@@ -49,8 +49,12 @@ export interface TrackPlanRow {
   reminder_claimed_at: string | null;
   created_by: string | null;
   completed_at: string | null;
+  /** Archivado (como Linear): fuera de las listas; null si no. */
+  archived_at?: string | null;
   created_at: string;
   updated_at: string;
+  /** JSON con los resources del project: [{ url, title }]. */
+  links?: string;
 }
 
 export interface PlanMember {
@@ -191,7 +195,7 @@ export async function scheduleReminder(planId: string, after: Date = new Date())
   const plan = await getPlan(planId);
   if (!plan) return;
   let next: string | null = null;
-  if (plan.status === 'in_progress' && plan.lead_id && plan.update_cadence !== 'off') {
+  if (plan.status === 'in_progress' && !plan.archived_at && plan.lead_id && plan.update_cadence !== 'off') {
     const at = nextReminderAt({
       after,
       day: plan.update_day,
@@ -357,8 +361,13 @@ export async function updatePlan(
     set('target_date', payload.targetDate ?? null);
     events.push({ type: 'target_date', meta: { from: plan.target_date, to: payload.targetDate ?? null } });
   }
+  if (payload.archived !== undefined && payload.archived !== Boolean(plan.archived_at)) {
+    set('archived_at', payload.archived ? nowIso() : null);
+    events.push({ type: payload.archived ? 'archived' : 'unarchived', meta: {} });
+  }
   if (payload.updateCadence !== undefined) set('update_cadence', payload.updateCadence);
   if (payload.updateDay !== undefined) set('update_day', payload.updateDay);
+  if (payload.links !== undefined) set('links', JSON.stringify(payload.links.map((l) => ({ url: l.url, title: l.title ?? '' }))));
   if (fields.length) {
     set('updated_at', nowIso());
     await getDb()
@@ -378,6 +387,7 @@ export async function updatePlan(
   for (const e of events) await logEvent(plan.id, actorId, e.type, e.meta);
   if (
     payload.status !== undefined ||
+    payload.archived !== undefined ||
     payload.leadId !== undefined ||
     payload.updateCadence !== undefined ||
     payload.updateDay !== undefined
@@ -416,6 +426,8 @@ export interface ListPlansOptions {
   initiativeId?: string;
   q?: string;
   ids?: string[];
+  /** Con los archivados (la lista los muestra con "Mostrar archivados"); con ids siempre van. */
+  includeArchived?: boolean;
 }
 
 /** Plans del workspace con lead, equipos, iniciativas, progreso, salud y milestones. */
@@ -444,6 +456,7 @@ export async function listPlans(scope: WorkspaceScope, opts: ListPlansOptions = 
     where.push("p.name LIKE ? ESCAPE '\\'");
     args.push(likeContains(opts.q.trim()));
   }
+  if (!opts.ids && !opts.includeArchived) where.push('p.archived_at IS NULL');
   if (opts.ids) {
     if (!opts.ids.length) return [];
     where.push(`p.id IN ${inClause(opts.ids.length)}`);
@@ -484,7 +497,7 @@ export async function listPlans(scope: WorkspaceScope, opts: ListPlansOptions = 
       .prepare(
         `SELECT i.plan_id, s.category, i.estimate, i.plan_milestone_id FROM track_issues i
          LEFT JOIN track_statuses s ON s.id = i.status_id
-         WHERE i.plan_id IN ${inIds} AND i.triage = 0`,
+         WHERE i.plan_id IN ${inIds} AND i.triage = 0 AND i.archived_at IS NULL`,
       )
       .all(...ids) as Promise<PlanIssueStat[]>,
     db
@@ -639,7 +652,7 @@ export async function listPlanMilestones(planId: string): Promise<PlanMilestone[
   const stats = (await db
     .prepare(
       `SELECT i.plan_milestone_id, s.category, i.estimate FROM track_issues i LEFT JOIN track_statuses s ON s.id = i.status_id
-       WHERE i.plan_id = ? AND i.plan_milestone_id IS NOT NULL AND i.triage = 0`,
+       WHERE i.plan_id = ? AND i.plan_milestone_id IS NOT NULL AND i.triage = 0 AND i.archived_at IS NULL`,
     )
     .all(planId)) as Array<{ plan_milestone_id: string; category: StatusCategory | null; estimate: number | null }>;
   return ms.map((m) => {

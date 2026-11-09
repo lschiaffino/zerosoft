@@ -207,7 +207,8 @@ export function ImportProgress({
     : importing
       ? t('importing', { processed: job.processed, total: job.total })
       : t('reading', { count: job?.total ?? 0 });
-  const stage = importing && stageLabel ? stageLabel(job.stage) : null;
+  // Al leer, la fase (read:issues) si la fuente la informa; al escribir, la etapa.
+  const stage = job?.stage && stageLabel && (importing || job.status === 'fetching') ? stageLabel(job.stage) : null;
   return (
     <div className="ximp-progress" role="status" aria-live="polite" data-testid="import-progress">
       <div className="ximp-progress-head">
