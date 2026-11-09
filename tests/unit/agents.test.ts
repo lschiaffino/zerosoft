@@ -35,6 +35,10 @@ import { createApiKey } from '@/lib/api-auth';
 import { makeUser } from './helpers';
 import { scriptedModel } from './ai-mock';
 
+// Esta suite prueba la app por dentro: el corte de "Próximamente" (lib/app-access.ts) tiene sus propios tests.
+vi.mock('@/lib/workspace-apps', async (orig) => ({ ...(await orig<typeof import('@/lib/workspace-apps')>()), blockedAppsFor: async () => [] }));
+
+
 const ENV_KEYS = [
   'AI_GATEWAY_API_KEY',
   'VERCEL_OIDC_TOKEN',
