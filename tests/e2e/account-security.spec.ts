@@ -127,6 +127,16 @@ test('dos pasos, exigencia en el workspace y registro', async ({ browser }) => {
     await expect(m.getByTestId('mfa-required')).toBeVisible();
     await expect(m.getByTestId('mfa-off')).toBeVisible();
     expect(await overflow(m)).toBeLessThanOrEqual(0);
+    // La activa desde ahí mismo y vuelve a entrar al workspace.
+    await m.getByTestId('mfa-start').click();
+    const memberSecret = (await m.getByTestId('mfa-secret').innerText()).replace(/\s/g, '');
+    await m.locator('#mfa-confirm-input').fill(totp(memberSecret));
+    await m.getByRole('button', { name: 'Turn on' }).click();
+    await expect(m.getByTestId('recovery-codes')).toBeVisible();
+    await m.getByRole('button', { name: 'I saved them' }).click();
+    await expect(m.getByTestId('mfa-on')).toBeVisible();
+    await m.goto('/en/app/docs', { waitUntil: 'networkidle' });
+    expect(m.url()).toContain('/app/docs');
     await member.close();
   } finally {
     await owner.close();

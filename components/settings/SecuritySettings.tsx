@@ -135,6 +135,7 @@ function MfaSection({ enabledAt, recoveryLeft, locale }: { enabledAt: string | n
   const router = useRouter();
   const [setup, setSetup] = useState<{ secret: string; qr: string } | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
+  const [signInAgain, setSignInAgain] = useState(false);
   const [mode, setMode] = useState<'idle' | 'disable' | 'regenerate'>('idle');
   const [startError, setStartError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -154,7 +155,8 @@ function MfaSection({ enabledAt, recoveryLeft, locale }: { enabledAt: string | n
           codes={codes}
           onDone={() => {
             setCodes(null);
-            router.refresh();
+            if (signInAgain) window.location.assign(`/${locale}/auth/signin`);
+            else router.refresh();
           }}
         />
       </FormSection>
@@ -259,6 +261,7 @@ function MfaSection({ enabledAt, recoveryLeft, locale }: { enabledAt: string | n
               const res = await post('/api/account/mfa', { action: 'confirm', code });
               if (!res.ok) return errorText(res.status, res.data);
               setSetup(null);
+              setSignInAgain(res.data.signInAgain === true);
               setCodes((res.data.recoveryCodes as string[]) ?? []);
               return null;
             }}

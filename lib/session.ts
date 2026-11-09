@@ -149,8 +149,10 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
   const expected = await requestHeader(WORKSPACE_HEADER);
   // El workspace ajeno exige dos pasos y esta persona no los tiene: no entra a sus datos.
   if (owner.id !== real.id && workspace?.require_mfa && !mfaEnabled(real)) {
-    if (expected) return null;
-    return { ...real, sid, team: null, workspace: await ensureWorkspace(real.id), role: 'owner', apps: '*', mfaRequiredBy: workspace.name };
+    const own = await ensureWorkspace(real.id);
+    // La pestaña ya está en su workspace propio (la cayó acá el layout): sus pedidos valen.
+    if (expected && expected !== own.id) return null;
+    return { ...real, sid, team: null, workspace: own, role: 'owner', apps: '*', mfaRequiredBy: workspace.name };
   }
   const user: SessionUser =
     owner.id === real.id ? { ...real, sid, team, workspace, role, apps } : { ...owner, sid, actingUser: real, team, workspace, role, apps };

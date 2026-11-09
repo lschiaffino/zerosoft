@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
     const res = await confirmMfaSetup(me.id, body.code, user.sid ?? null);
     if (!res.ok) return NextResponse.json({ error: res.error }, { status: 400 });
     await recordSecurityEvent({ userId: me.id, action: 'mfa.enable' });
-    return NextResponse.json({ ok: true, recoveryCodes: res.recoveryCodes });
+    // Una sesión de antes de las sesiones del servidor no se puede marcar: tras guardar los códigos, volver a entrar.
+    return NextResponse.json({ ok: true, recoveryCodes: res.recoveryCodes, signInAgain: !user.sid && !process.env.DEMO_MODE });
   }
   if (body.action === 'disable') {
     // Quien exige dos pasos en su workspace no los puede apagar: se quedaría afuera de su propia regla.

@@ -1486,7 +1486,8 @@
         "member_reactivate": "Member reactivated",
         "member_transfer": "Work transferred",
         "invite_create": "Invitation sent",
-        "invite_revoke": "Invitation revoked"
+        "invite_revoke": "Invitation revoked",
+        "login_mfa": "Two-step code accepted"
       }
     },
     "errors": {

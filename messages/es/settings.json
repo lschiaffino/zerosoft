@@ -1486,7 +1486,8 @@
         "member_reactivate": "Reactivó a un miembro",
         "member_transfer": "Traspasó trabajo",
         "invite_create": "Invitó a alguien",
-        "invite_revoke": "Revocó una invitación"
+        "invite_revoke": "Revocó una invitación",
+        "login_mfa": "Pasó el segundo paso"
       }
     },
     "errors": {

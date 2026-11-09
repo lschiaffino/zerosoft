@@ -22,12 +22,15 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: 'invalid_code' }, { status: 400 });
   // Por persona: 6 intentos cada 15 minutos, como mucho (un código tiene 10^6 valores).
   const perUser = await rateLimit(`mfa:${gate.user.id}`, 6, 900);
-  if (!perUser.ok) return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
+  // Y 20 por día: adivinar un código a fuerza de días deja de ser práctico.
+  const perDay = perUser.ok ? await rateLimit(`mfa-day:${gate.user.id}`, 20, 86_400) : perUser;
+  if (!perUser.ok || !perDay.ok) return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
   const res = await verifyMfa(gate.user.id, parsed.data.code, gate.sid);
   if (!res.ok) {
     await recordSecurityEvent({ userId: gate.user.id, action: 'login.failed_mfa' });
     return NextResponse.json({ error: 'invalid_code' }, { status: 400 });
   }
+  await recordSecurityEvent({ userId: gate.user.id, action: 'login.mfa', meta: { recovery: res.usedRecovery } });
   if (res.usedRecovery) await recordSecurityEvent({ userId: gate.user.id, action: 'mfa.recovery_used', meta: { left: res.recoveryLeft } });
   return NextResponse.json({ ok: true, recoveryLeft: res.usedRecovery ? res.recoveryLeft : undefined });
 }

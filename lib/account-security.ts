@@ -13,7 +13,7 @@
  *   lo suyo.
  */
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
-import { getDb, type UserRow } from './db';
+import { getClient, getDb, type UserRow } from './db';
 import { open, seal } from './secret-box';
 
 // ---------- Utilidades ----------
@@ -108,7 +108,10 @@ export function sessionState(user: UserRow, sid: string | null, row: SessionRow 
 
 const touched = new Map<string, number>();
 
-/** "Última actividad" del dispositivo: a lo sumo una escritura cada 5 minutos, sin esperar. */
+/**
+ * "Última actividad" del dispositivo, y el vencimiento corre con el uso (como el JWT de
+ * NextAuth, 30 días desde la última visita): a lo sumo una escritura cada 5 minutos.
+ */
 export function touchSession(row: SessionRow): void {
   const now = Date.now();
   if (now - Date.parse(row.last_seen_at) < TOUCH_EVERY_MS) return;
@@ -116,8 +119,8 @@ export function touchSession(row: SessionRow): void {
   touched.set(row.id, now);
   if (touched.size > 5000) touched.clear();
   void getDb()
-    .prepare('UPDATE user_sessions SET last_seen_at = ? WHERE id = ? AND revoked_at IS NULL')
-    .run(new Date(now).toISOString(), row.id)
+    .prepare('UPDATE user_sessions SET last_seen_at = ?, expires_at = ? WHERE id = ? AND revoked_at IS NULL AND expires_at > ?')
+    .run(new Date(now).toISOString(), new Date(now + SESSION_MAX_AGE_SEC * 1000).toISOString(), row.id, new Date(now).toISOString())
     .catch(() => undefined);
 }
 
@@ -280,14 +283,20 @@ async function claimStep(userId: string, step: number): Promise<boolean> {
   return res.changes > 0;
 }
 
+/** Reemplaza los códigos en una sola transacción: dos regeneraciones a la vez no dejan 20. */
 async function replaceRecoveryCodes(userId: string): Promise<string[]> {
-  const db = getDb();
   const codes = Array.from({ length: RECOVERY_CODE_COUNT }, newRecoveryCode);
-  await db.prepare('DELETE FROM user_mfa_recovery WHERE user_id = ?').run(userId);
   const now = nowIso();
-  for (const c of codes) {
-    await db.prepare('INSERT INTO user_mfa_recovery (user_id, code_hash, created_at) VALUES (?, ?, ?)').run(userId, sha256(`${userId}|${normalizeRecovery(c)}`), now);
-  }
+  await getClient().batch(
+    [
+      { sql: 'DELETE FROM user_mfa_recovery WHERE user_id = ?', args: [userId] },
+      ...codes.map((c) => ({
+        sql: 'INSERT INTO user_mfa_recovery (user_id, code_hash, created_at) VALUES (?, ?, ?)',
+        args: [userId, sha256(`${userId}|${normalizeRecovery(c)}`), now],
+      })),
+    ],
+    'write',
+  );
   return codes;
 }
 
@@ -377,14 +386,18 @@ export async function membersWithoutMfa(teamId: string): Promise<Array<{ id: str
     .all(teamId)) as Array<{ id: string; email: string; name: string | null }>;
 }
 
+/** En todas las fichas del dueño (equipos de antes de 128 incluidos): las keys miran todas. */
 export async function setWorkspaceRequireMfa(teamId: string, on: boolean): Promise<void> {
-  await getDb().prepare('UPDATE teams SET require_mfa = ? WHERE id = ?').run(on ? 1 : 0, teamId);
+  await getDb()
+    .prepare('UPDATE teams SET require_mfa = ? WHERE owner_id = (SELECT owner_id FROM teams WHERE id = ?)')
+    .run(on ? 1 : 0, teamId);
 }
 
 // ---------- Registro de eventos ----------
 
 export const SECURITY_ACTIONS = [
   'login',
+  'login.mfa',
   'login.failed_mfa',
   'logout',
   'mfa.enable',
@@ -460,7 +473,9 @@ export async function listWorkspaceSecurityEvents(teamId: string, opts: { limit?
       `SELECT * FROM (
          SELECT e.id, 'security' AS source, e.action, e.user_id AS actor_id, COALESCE(u.email, '') AS actor_email, e.target, e.meta, e.ip, e.user_agent, e.created_at
          FROM security_events e LEFT JOIN users u ON u.id = e.user_id
-         WHERE (e.team_id = ? OR (e.team_id IS NULL AND e.user_id IN (SELECT user_id FROM team_members WHERE team_id = ? AND role != 'guest')))
+         WHERE (e.team_id = ? OR (e.team_id IS NULL AND EXISTS (
+                  SELECT 1 FROM team_members m WHERE m.team_id = ? AND m.user_id = e.user_id AND m.role != 'guest'
+                    AND e.created_at >= strftime('%Y-%m-%dT%H:%M:%fZ', m.created_at))))
            AND e.created_at < ?
          UNION ALL
          SELECT a.id, 'members' AS source, a.action, a.actor_id, COALESCE(u.email, ''), a.target_label, a.after, NULL, NULL,
