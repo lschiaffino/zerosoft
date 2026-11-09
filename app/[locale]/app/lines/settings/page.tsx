@@ -126,7 +126,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
       <p className="ui-help">{t('access.adminsOnly')}</p>
     );
   else if (tab === 'apps') body = <AppsPanel />;
-  else if (tab === 'appearance') body = <ChatStyleSection className="ui-fields" />;
+  else if (tab === 'appearance') body = <ChatStyleSection />;
   else
     body = (
       <div className="ui-fields gr-api">

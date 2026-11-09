@@ -637,7 +637,7 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
           <GmailCard accounts={gmail} available={state.available.gmail} onChange={() => void reload()} />
         </div>
       </section>
-      <ChatStyleSection />
+      <ChatStyleSection variant="inbox" />
       <FoldersSection folders={state.folders} onChange={() => void reload()} />
       <SnippetsSection snippets={state.snippets} onChange={() => void reload()} />
       <ImportSection onDone={() => void reload()} />
