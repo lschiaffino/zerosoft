@@ -138,7 +138,7 @@ export function IssueLinksPanel({
         <ul className="track-gh-list track-link-list">
           {data.refs.map((r) => (
             <li key={r.id} className="track-link-item" data-testid="track-issue-link">
-              <span className="track-gh-kind">{PROVIDER_LABEL[r.provider] ?? r.provider}</span>
+              <span className="track-gh-kind">{r.provider === 'link' ? t('issueLinks.linkLabel') : (PROVIDER_LABEL[r.provider] ?? r.provider)}</span>
               {r.url ? (
                 <a href={r.url} target="_blank" rel="noreferrer" className="track-gh-title">
                   {r.title || r.url}
@@ -147,7 +147,7 @@ export function IssueLinksPanel({
                 <span className="track-gh-title">{r.title || r.externalId}</span>
               )}
               {r.state ? <span className="badge">{t.has(`issueLinks.states.${r.state}`) ? t(`issueLinks.states.${r.state}`) : r.state}</span> : null}
-              <button type="button" className="btn btn-sm btn-ghost" onClick={() => void remove(r.id)} aria-label={t('issueLinks.remove', { name: PROVIDER_LABEL[r.provider] ?? r.provider })}>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => void remove(r.id)} aria-label={t('issueLinks.remove', { name: r.provider === 'link' ? t('issueLinks.linkLabel') : (PROVIDER_LABEL[r.provider] ?? r.provider) })}>
                 ×
               </button>
             </li>

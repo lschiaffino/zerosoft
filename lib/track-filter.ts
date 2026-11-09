@@ -14,6 +14,8 @@ export const FILTER_FIELDS = [
   'label',
   'cycle',
   'milestone',
+  'team',
+  'project',
   'estimate',
   'due',
   'start',
@@ -221,12 +223,19 @@ const SET_COLUMNS: Record<string, string> = {
   creator: 'i.creator_id',
   cycle: 'i.cycle_id',
   milestone: 'i.milestone_id',
+  team: 'i.project_id',
+  project: 'i.plan_id',
 };
 
 /** Valor especial "sin valor" dentro de un `is` (Linear: "No assignee"). */
 export const NONE_VALUE = '__none__';
 
-function ruleSql(rule: FilterRule, today: string): SqlClause | null {
+/** Opciones de la vista: en un project, "Milestone" filtra por los milestones del project. */
+export interface FilterSqlOptions {
+  milestoneColumn?: string;
+}
+
+function ruleSql(rule: FilterRule, today: string, opts: FilterSqlOptions = {}): SqlClause | null {
   const kind = fieldKind(rule.field);
   if (kind === 'date') {
     const col = DATE_COLUMNS[rule.field];
@@ -289,7 +298,7 @@ function ruleSql(rule: FilterRule, today: string): SqlClause | null {
     const any = `(${likes.join(' OR ')})`;
     return { sql: rule.op === 'is_not' ? `NOT ${any}` : any, args };
   }
-  const col = SET_COLUMNS[rule.field];
+  const col = rule.field === 'milestone' && opts.milestoneColumn ? opts.milestoneColumn : SET_COLUMNS[rule.field];
   if (!col) return null;
   if (rule.op === 'empty') return { sql: `${col} IS NULL`, args: [] };
   if (rule.op === 'not_empty') return { sql: `${col} IS NOT NULL`, args: [] };
@@ -310,11 +319,11 @@ function ruleSql(rule: FilterRule, today: string): SqlClause | null {
 }
 
 /** WHERE de un filtro (null si no tiene reglas válidas). */
-export function filterToSql(filter: IssueFilter | undefined, today: string): SqlClause | null {
+export function filterToSql(filter: IssueFilter | undefined, today: string, opts: FilterSqlOptions = {}): SqlClause | null {
   if (!filter || filter.rules.length === 0) return null;
   const parts: SqlClause[] = [];
   for (const rule of filter.rules) {
-    const c = ruleSql(rule, today);
+    const c = ruleSql(rule, today, opts);
     if (c) parts.push(c);
   }
   if (parts.length === 0) return null;

@@ -109,3 +109,8 @@
   .cl-end { padding-left: 0; }
   .cl-cta { padding: 24px 16px; margin-top: 56px; }
 }
+
+/* Con el dedo, cada idea cerrada es una fila de 40px (eran líneas de texto pegadas). */
+@media (pointer: coarse) {
+  .cl-closed li > a { display: inline-flex; align-items: center; min-height: 40px; }
+}

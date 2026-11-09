@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 /** Paleta categórica de los segmentos: los colores de las apps (tokens globales). */
 export const SERIES = ['var(--c-link)', 'var(--c-track)', 'var(--c-cal)', 'var(--c-crm)', 'var(--c-chat)', 'var(--c-flow)', 'var(--c-notes)', 'var(--c-board)'];
@@ -13,6 +13,7 @@ export interface BarDatum {
 }
 
 const W = 640;
+const DEFAULT_W = W;
 const H = 240;
 const PAD = { l: 40, r: 8, t: 12, b: 44 };
 
@@ -142,19 +143,48 @@ export interface LineSeries {
 }
 
 /** Líneas acumuladas (burn-up): alcance, empezados y terminados. */
-export function LineChart({ labels, series, label }: { labels: string[]; series: LineSeries[]; label: string }) {
+export function LineChart({
+  labels,
+  series,
+  label,
+  height,
+  legend = true,
+}: {
+  labels: string[];
+  series: LineSeries[];
+  label: string;
+  height?: number;
+  /** Sin leyenda cuando las cifras de al lado ya dicen qué es cada color. */
+  legend?: boolean;
+}) {
   const id = useId();
+  // Con pocos datos, más bajo (no un recuadro enorme para dos puntos).
+  const HH = height ?? H;
+  // El SVG mide lo que su contenedor (no se escala): los rótulos quedan legibles a 390 px y en la columna angosta.
+  const box = useRef<HTMLElement>(null);
+  const [W, setW] = useState(DEFAULT_W);
+  useEffect(() => {
+    const el = box.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([e]) => {
+      const w = Math.round(e.contentRect.width);
+      if (w > 0) setW(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const max = niceMax(Math.max(0, ...series.flatMap((s) => s.values)));
   const innerW = W - PAD.l - PAD.r;
-  const innerH = H - PAD.t - PAD.b;
+  const innerH = HH - PAD.t - PAD.b;
   const n = Math.max(1, labels.length - 1);
   const x = (i: number) => PAD.l + (labels.length <= 1 ? innerW / 2 : (innerW * i) / n);
   const y = (v: number) => PAD.t + innerH - (v / max) * innerH;
   const ticks = [0, max / 2, max];
-  const showEvery = Math.ceil(labels.length / 10);
+  // Un rótulo de fecha cada ~64 px como mínimo.
+  const showEvery = Math.max(1, Math.ceil(labels.length / Math.max(2, Math.floor(innerW / 64))));
   return (
-    <figure className="tp-chart">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} className="tp-chart-svg">
+    <figure className="tp-chart" ref={box}>
+      <svg viewBox={`0 0 ${W} ${HH}`} role="img" aria-label={label} className="tp-chart-svg">
         {ticks.map((v) => (
           <g key={v}>
             <line className="chart-grid" x1={PAD.l} x2={W - PAD.r} y1={y(v)} y2={y(v)} />
@@ -184,13 +214,13 @@ export function LineChart({ labels, series, label }: { labels: string[]; series:
         })}
         {labels.map((l, i) =>
           i % showEvery === 0 ? (
-            <text key={`${id}-${l}`} className="chart-xlabel" x={x(i)} y={H - PAD.b + 16} textAnchor="middle">
+            <text key={`${id}-${l}`} className="chart-xlabel" x={x(i)} y={HH - PAD.b + 16} textAnchor={i === labels.length - 1 && labels.length > 1 ? "end" : i === 0 && labels.length > 1 ? "start" : "middle"}>
               {l}
             </text>
           ) : null,
         )}
       </svg>
-      <Legend items={series.map((s) => ({ label: s.label, color: s.color, dashed: s.dashed }))} />
+      {legend && <Legend items={series.map((s) => ({ label: s.label, color: s.color, dashed: s.dashed }))} />}
     </figure>
   );
 }
