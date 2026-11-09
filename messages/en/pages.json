@@ -3882,7 +3882,7 @@
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across {apps} of the 26 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across {apps} of the 27 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",
@@ -4038,7 +4038,7 @@
   "docsMcp": {
     "meta": {
       "title": "Connect Claude and the CLI",
-      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 26 apps as yourself."
+      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 27 apps as yourself."
     }
   }
 }

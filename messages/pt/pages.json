@@ -1,7 +1,7 @@
 {
   "products": {
     "meta": {
-      "title": "26 apps open source para empresas: CRM, chat, docs e mais",
+      "title": "27 apps open source para empresas: CRM, chat, docs e mais",
       "description": "Vinte e seis apps open source, do CRM e do chat de suporte aos docs, faturas e formulários. No seu servidor ou na zerosoft Cloud com plano grátis."
     },
     "hero": {
@@ -3882,7 +3882,7 @@
   "parityOverview": {
     "title": "Paridade de funções, app por app.",
     "titleDim": "Medida contra cada concorrente.",
-    "lead": "Paridade média de {apps} dos 26 apps: {average} %. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
+    "lead": "Paridade média de {apps} dos 27 apps: {average} %. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
     "col": {
       "app": "App",
       "competitor": "Comparado com",
@@ -4038,7 +4038,7 @@
   "docsMcp": {
     "meta": {
       "title": "Conectar o Claude e a CLI",
-      "description": "Conecte o Claude Code ou a CLI da zerosoft à sua conta com seu login de sempre, e trabalhe nos 26 apps como você."
+      "description": "Conecte o Claude Code ou a CLI da zerosoft à sua conta com seu login de sempre, e trabalhe nos 27 apps como você."
     }
   }
 }
