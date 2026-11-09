@@ -56,7 +56,14 @@ export function voiceErrorResponse(err: unknown): NextResponse {
     return voiceJsonError(status, err.code);
   }
   if (err instanceof VoiceError) {
-    const status = err.code === 'not_found' ? 404 : err.code === 'duplicate' || err.code === 'not_recorder' || err.code === 'recording_elsewhere' || err.code === 'docs_private_unavailable' ? 409 : 400;
+    const status =
+      err.code === 'not_found'
+        ? 404
+        : err.code === 'send_failed'
+          ? 502
+          : err.code === 'duplicate' || err.code === 'not_recorder' || err.code === 'recording_elsewhere' || err.code === 'docs_private_unavailable' || err.code === 'mailbox_not_connected'
+            ? 409
+            : 400;
     return voiceJsonError(status, err.code);
   }
   console.error('[voice] request failed', err instanceof Error ? err.name : 'error');

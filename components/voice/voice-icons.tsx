@@ -30,6 +30,13 @@ const KNOWN_ERRORS = new Set([
   'recording_elsewhere',
   'not_recorder',
   'ai_failed',
+  'event_not_found',
+  'folder_not_found',
+  'recipe_not_found',
+  'attachment_type',
+  'attachment_too_large',
+  'mailbox_not_connected',
+  'send_failed',
 ]);
 
 /** Código de error de la API o del navegador → clave en voice.errors. */

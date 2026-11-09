@@ -30,8 +30,11 @@ import type { OwnerScope } from './crm-visibility';
 import { applyDictionary } from './voice-cleanup';
 import {
   dictationTone,
+  VOICE_ATTACHMENT_MAX_CHARS,
   VOICE_CONTEXTS,
+  type VoiceChatAttachment,
   type VoiceChatMessage,
+  type VoiceChatModel,
   type VoiceContext,
   type VoiceEnhanced,
   type VoiceSegment,
@@ -306,13 +309,25 @@ async function meetingChatContext(owner: VoiceOwner, sessionId: string, labels: 
  * Suma la pregunta y la respuesta al chat guardado. Relee el chat recién: si
  * otra pestaña preguntó mientras tanto, no se pisa.
  */
-async function appendChat(owner: VoiceOwner, sessionId: string, question: string, answer: string): Promise<VoiceChatMessage[]> {
+async function appendChat(owner: VoiceOwner, sessionId: string, question: string, answer: string, thread?: string): Promise<VoiceChatMessage[]> {
   const fresh = await getSessionDetail(owner, sessionId);
   if (!fresh) throw new VoiceError('not_found');
   const now = new Date().toISOString();
-  const next: VoiceChatMessage[] = [...fresh.chat, { role: 'user', text: question, at: now }, { role: 'assistant', text: answer, at: now }];
+  const tag = thread ? { thread } : {};
+  const next: VoiceChatMessage[] = [...fresh.chat, { role: 'user', text: question, at: now, ...tag }, { role: 'assistant', text: answer, at: now, ...tag }];
   await saveChat(fresh.id, next);
   return next.slice(-60);
+}
+
+/** Mensajes de una conversación de la reunión (la primera no tiene `thread`). */
+export function threadMessages(chat: VoiceChatMessage[], thread?: string): VoiceChatMessage[] {
+  return chat.filter((m) => (m.thread ?? '') === (thread ?? ''));
+}
+
+/** El archivo adjunto va al final del contexto, recortado. */
+export function withAttachment(context: string, attachment?: VoiceChatAttachment): string {
+  if (!attachment?.text.trim()) return context;
+  return `${context}\n\n## Attached file: ${attachment.name.slice(0, 120)}\n${attachment.text.slice(0, VOICE_ATTACHMENT_MAX_CHARS)}`;
 }
 
 export interface ChatArgs {
@@ -323,20 +338,29 @@ export interface ChatArgs {
   shownQuestion?: string;
   locale: string;
   labels: MeetingLabels;
+  /** Conversación dentro de la reunión ("Nuevo chat"). */
+  thread?: string;
+  model?: VoiceChatModel;
+  attachment?: VoiceChatAttachment;
+}
+
+function askArgs(args: ChatArgs, d: { chat: VoiceChatMessage[] }, context: string, live: boolean) {
+  return {
+    workspaceId: args.owner.workspaceId,
+    question: args.question,
+    context: withAttachment(context, args.attachment),
+    history: threadMessages(d.chat, args.thread).map((m) => ({ role: m.role, text: m.text })),
+    locale: args.locale,
+    across: false,
+    live,
+    model: args.model,
+  };
 }
 
 export async function chat(args: ChatArgs): Promise<VoiceChatMessage[]> {
   const { d, context, live } = await meetingChatContext(args.owner, args.sessionId, args.labels);
-  const answer = await askMeetings({
-    workspaceId: args.owner.workspaceId,
-    question: args.question,
-    context,
-    history: d.chat.map((m) => ({ role: m.role, text: m.text })),
-    locale: args.locale,
-    across: false,
-    live,
-  });
-  return appendChat(args.owner, d.id, args.shownQuestion ?? args.question, answer);
+  const answer = await askMeetings(askArgs(args, d, context, live));
+  return appendChat(args.owner, d.id, args.shownQuestion ?? args.question, answer, args.thread);
 }
 
 /**
@@ -348,17 +372,8 @@ export async function chatStream(args: ChatArgs & { abortSignal?: AbortSignal })
   finish: (answer: string) => Promise<VoiceChatMessage[]>;
 }> {
   const { d, context, live } = await meetingChatContext(args.owner, args.sessionId, args.labels);
-  const deltas = await streamAskMeetings({
-    workspaceId: args.owner.workspaceId,
-    question: args.question,
-    context,
-    history: d.chat.map((m) => ({ role: m.role, text: m.text })),
-    locale: args.locale,
-    across: false,
-    live,
-    abortSignal: args.abortSignal,
-  });
-  return { deltas, finish: (answer) => appendChat(args.owner, d.id, args.shownQuestion ?? args.question, answer.trim()) };
+  const deltas = await streamAskMeetings({ ...askArgs(args, d, context, live), abortSignal: args.abortSignal });
+  return { deltas, finish: (answer) => appendChat(args.owner, d.id, args.shownQuestion ?? args.question, answer.trim(), args.thread) };
 }
 
 const TIME_WORDS = [

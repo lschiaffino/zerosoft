@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { AiError, assertAiAvailable, assertAiQuota, recordAiUsage, resolveAiModel } from './ai';
 import { fakeModel, type FakeCallInfo, type FakeStep } from './crm-ai-fake';
 import { ruleCleanup, applyDictionary } from './voice-cleanup';
-import type { VoiceContext, VoiceDictionaryEntry, VoiceEnhanced, VoiceTone } from './voice-types';
+import type { VoiceChatModel, VoiceContext, VoiceDictionaryEntry, VoiceEnhanced, VoiceTone } from './voice-types';
 
 const LANG_NAME: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Portuguese' };
 
@@ -316,7 +316,7 @@ export function chatInstructions(opts: { across: boolean; locale: string; contex
   return [
     opts.across
       ? 'Answer questions about the user\'s meetings using only the meetings below. Each meeting starts with a label like [M1], its title and date.'
-      : 'Answer questions about this meeting using only its notes and transcript. When someone said something, say who.',
+      : 'Answer questions about this meeting using only its notes and transcript (and the attached file, when there is one). When someone said something, say who.',
     opts.live ? 'The meeting is still going on: the transcript ends where the conversation is now.' : '',
     opts.across
       ? 'Cite every fact right after it with the meeting label and, when it comes from the transcript, the timestamp of the line, like [M2 14:05] or [M1]. Never cite a label or a time that is not below.'
@@ -334,9 +334,11 @@ export function chatInstructions(opts: { across: boolean; locale: string; contex
  * OpenRouter) si está configurado; si no, el de la suite (lib/ai.ts). En los
  * dos casos cuenta la cuota y el rate limit del workspace.
  */
-async function voiceChatModel(ws: string, fake: (info: FakeCallInfo) => FakeStep): Promise<{ model: LanguageModel; modelId: string }> {
+async function voiceChatModel(ws: string, fake: (info: FakeCallInfo) => FakeStep, pref?: VoiceChatModel): Promise<{ model: LanguageModel; modelId: string }> {
   if (await voiceAiFakeState()) return voiceModel(ws, fake);
   const { assistantState, resolveAssistantModel } = await import('./assistant/config');
+  // "A fondo": el modelo de la suite, si está; si no, el del asistente.
+  if (pref === 'deep' && (await voiceAiAvailable())) return voiceModel(ws, fake);
   if (process.env.AI_ENABLED !== 'false' && assistantState() === 'ready') {
     const resolved = resolveAssistantModel(() => fakeModel(fake));
     if (resolved) {
@@ -345,6 +347,21 @@ async function voiceChatModel(ws: string, fake: (info: FakeCallInfo) => FakeStep
     }
   }
   return voiceModel(ws, fake);
+}
+
+/**
+ * Modelos que se pueden elegir en el chat de la reunión: rápido (el del
+ * asistente) y a fondo (el de la suite). Solo los que están configurados.
+ */
+export async function voiceChatModels(): Promise<Array<{ id: VoiceChatModel; name: string }>> {
+  const fake = await voiceAiFakeState();
+  const { assistantState, assistantModelId } = await import('./assistant/config');
+  const { aiModelId } = await import('./ai');
+  const out: Array<{ id: VoiceChatModel; name: string }> = [];
+  if (fake === 'on') return [{ id: 'fast', name: 'voice-fake' }, { id: 'deep', name: 'voice-fake' }];
+  if (process.env.AI_ENABLED !== 'false' && assistantState() === 'ready') out.push({ id: 'fast', name: assistantModelId() });
+  if (await voiceAiAvailable()) out.push({ id: 'deep', name: aiModelId() });
+  return out;
 }
 
 /** ¿Hay modelo para el chat (el del asistente o el de la suite)? */
@@ -365,6 +382,8 @@ export interface AskMeetingsOptions {
   /** La reunión sigue grabando. */
   live?: boolean;
   abortSignal?: AbortSignal;
+  /** Rápido o a fondo (voiceChatModels). */
+  model?: VoiceChatModel;
 }
 
 function chatCall(opts: AskMeetingsOptions) {
@@ -383,7 +402,7 @@ function chatCall(opts: AskMeetingsOptions) {
 }
 
 export async function askMeetings(opts: AskMeetingsOptions): Promise<string> {
-  const { model, modelId } = await voiceChatModel(opts.workspaceId, () => ({ text: fakeAnswer(opts.question, opts.context) }));
+  const { model, modelId } = await voiceChatModel(opts.workspaceId, () => ({ text: fakeAnswer(opts.question, opts.context) }), opts.model);
   const res = await generateText({ model, ...chatCall(opts) });
   await record(opts.workspaceId, 'voice_chat', modelId, res.totalUsage);
   return res.text.trim();
@@ -395,7 +414,7 @@ export async function askMeetings(opts: AskMeetingsOptions): Promise<string> {
  * terminar.
  */
 export async function streamAskMeetings(opts: AskMeetingsOptions): Promise<AsyncIterable<string>> {
-  const { model, modelId } = await voiceChatModel(opts.workspaceId, () => ({ text: fakeAnswer(opts.question, opts.context) }));
+  const { model, modelId } = await voiceChatModel(opts.workspaceId, () => ({ text: fakeAnswer(opts.question, opts.context) }), opts.model);
   const res = streamText({ model, ...chatCall(opts) });
   return (async function* () {
     for await (const part of res.stream) {

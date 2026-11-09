@@ -112,17 +112,17 @@ test('reunión: grabar, transcripción en vivo, nota con IA, tareas, chat, busca
   await expect(enhanced).toContainText('Summary');
 
   // Renombrar a quien habla.
-  await page.getByRole('tab', { name: /Transcript/ }).click();
+  await page.getByRole('button', { name: 'Live transcript' }).click();
   await page.locator('.vc-speaker').first().click();
   await page.getByRole('textbox', { name: 'Rename speaker' }).fill('Lauta');
   await page.getByRole('textbox', { name: 'Rename speaker' }).press('Enter');
   await expect(page.locator('.vc-speaker').first()).toHaveText('Lauta');
 
   // Chat sobre la reunión.
-  await page.getByRole('tab', { name: 'Ask' }).click();
   await page.getByRole('combobox', { name: 'Ask about this meeting' }).fill('What did they say about billing?');
   await page.getByRole('button', { name: 'Ask', exact: true }).click();
   await expect(page.locator('.vc-msg.is-assistant').first()).toContainText(/annual billing/i);
+  await page.keyboard.press('Escape');
 
   // Próximos pasos → tareas del CRM.
   await expect(enhanced).toContainText(/contract/i);
@@ -131,7 +131,8 @@ test('reunión: grabar, transcripción en vivo, nota con IA, tareas, chat, busca
 
   // Mandar a Docs.
   // Docs lo ve todo el workspace: se confirma y la transcripción va solo si se tilda.
-  await page.getByRole('button', { name: 'Send to Docs' }).click();
+  await page.getByTestId('voice-more').click();
+  await page.getByRole('menuitem', { name: 'Send to Docs' }).click();
   const docsDialog = page.getByRole('alertdialog', { name: 'Send the notes to Docs?' });
   await expect(docsDialog).toContainText('only you can see it');
   await expect(docsDialog.getByRole('checkbox', { name: 'Include the full transcript' })).not.toBeChecked();
@@ -168,8 +169,9 @@ test('sin IA: la nota muestra ai_disabled y la transcripción sigue', async ({ p
   await page.goto(`/en/app/voice/meetings/${id}`, { waitUntil: 'networkidle' });
   await page.getByRole('textbox', { name: 'My notes' }).fill('Some notes');
   await expect(page.getByText('Saved')).toBeVisible();
-  await page.getByRole('button', { name: 'Write notes with AI' }).click();
-  await expect(page.getByRole('alert').filter({ hasText: 'AI is not set up on this server' })).toBeVisible();
+  // Sin IA no se ofrece "Generar notas": la nota avisa por qué.
+  await expect(page.getByText('AI is not set up on this server. Ask the admin to configure it.').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Generate notes' })).toHaveCount(0);
 });
 
 test('ajustes: diccionario, plantillas y estilo; 390px y oscuro', async ({ page, context, baseURL }) => {

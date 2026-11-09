@@ -80,7 +80,11 @@
     "notion_not_connected": "That Notion connection is not available.",
     "notion_failed": "Notion did not respond. Try again.",
     "notion_parent": "Notion cannot find that page. Paste its link and share it with the integration.",
-    "ai_failed": "The AI could not answer. Try again."
+    "ai_failed": "The AI could not answer. Try again.",
+    "attachment_type": "Attach a text file (txt, md, csv, json, vtt or srt).",
+    "attachment_too_large": "That file is too large. Attach one under 2 MB.",
+    "mailbox_not_connected": "Connect Gmail or Outlook to send email from here.",
+    "send_failed": "Your email provider did not accept the message. Try again."
   },
   "meetings": {
     "title": "Meetings",
@@ -187,7 +191,6 @@
     "thinking": "Reading the meeting…",
     "placeholder": "Ask about this meeting",
     "send": "Ask",
-    "recipesHint": "Type / for recipes like action items or a follow-up.",
     "emptyLive": "Ask anything while the meeting goes on. Voice reads the transcript so far.",
     "suggestionsLabel": "Try asking",
     "suggestLive": [
@@ -248,7 +251,6 @@
     "cancel": "Cancel",
     "deleteTitle": "Delete this meeting?",
     "deleteBody": "The transcript and notes will be deleted. Pages already sent to Docs or Notes stay.",
-    "recorderLabel": "Recorder",
     "unsupported": "This browser cannot record audio. Use Chrome, Edge, Firefox or Safari.",
     "modeLabel": "What to record",
     "modeMic": "Microphone (in person or speakers on)",
@@ -269,22 +271,16 @@
     "myNotes": "My notes",
     "aiNotes": "Meeting notes",
     "viewLabel": "Which notes to show",
-    "viewAi": "AI notes",
-    "viewMine": "Mine",
-    "notesPlaceholder": "Jot down what matters as you go. Short lines are enough: AI fills in the rest from the transcript.",
+    "viewAi": "Enhanced notes",
+    "viewMine": "My notes",
+    "notesPlaceholder": "Write notes…",
     "saving": "Saving…",
     "saved": "Saved",
     "saveError": "Could not save. Check your connection.",
     "template": "Template",
-    "enhance": "Write notes with AI",
+    "enhance": "Generate notes",
     "regenerate": "Regenerate",
-    "enhancing": "Writing…",
-    "sideLabel": "Transcript, chat and links",
-    "tabs": {
-      "transcript": "Transcript",
-      "chat": "Ask",
-      "details": "Links"
-    },
+    "enhancing": "Generating notes…",
     "recordingElsewhere": "Another meeting is being recorded.",
     "openOther": "Open it",
     "notesQueued": "Writing the notes with AI. You can leave this page: they are saved with the meeting.",
@@ -299,12 +295,22 @@
     "recoveredParts": "{count, plural, one {# more part was transcribed. Regenerate the note to include it.} other {# more parts were transcribed. Regenerate the note to include them.}}",
     "docsPrivateBody": "The page goes to your private teamspace “{space}” in Docs: only you can see it until you share it.",
     "share": "Share",
-    "followup": "Follow-up email",
     "sendSlackNotion": "Slack or Notion",
-    "sharedBadge": "Shared by link",
     "folder": "Folder",
     "noFolder": "No folder",
-    "attendeesOpen": "See attendees"
+    "more": "More actions",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied.",
+    "crmLinks": "CRM and links",
+    "close": "Close",
+    "addToFolder": "Add to folder",
+    "removeFromFolder": "Remove from folder",
+    "newFolder": "New folder…",
+    "transcriptOpen": "Live transcript",
+    "transcriptClose": "Hide transcript",
+    "transcriptTitle": "Transcript",
+    "regenerateWith": "Regenerate with {template}",
+    "shared": "Shared"
   },
   "templates": {
     "builtin": {
@@ -627,7 +633,7 @@
   "followup": {
     "title": "Follow-up email",
     "close": "Close",
-    "help": "AI drafts the email from the meeting notes. You can edit it and open it in Gmail, Outlook or your email app.",
+    "help": "AI drafts the email from the meeting notes. Edit it and send it from your email, or copy it.",
     "generate": "Write the draft",
     "regenerate": "Write it again",
     "writing": "Writing…",
@@ -643,7 +649,15 @@
     "copyFailed": "The browser did not allow copying.",
     "mail": "Email app",
     "outlook": "Open in Outlook",
-    "gmail": "Open in Gmail"
+    "gmail": "Open in Gmail",
+    "send": "Send",
+    "sendAgain": "Send again",
+    "sending": "Sending…",
+    "sendFrom": "Sends from {email}.",
+    "sentNote": "Sent from {email}.",
+    "sent": "Sent from {email}.",
+    "connectHelp": "Connect Gmail or Outlook to send it from here.",
+    "connect": "Connect your email"
   },
   "share": {
     "title": "Share this meeting",
@@ -754,6 +768,18 @@
       "coach": {
         "name": "Coach me",
         "prompt": "Give me honest feedback on how I ran this conversation: what went well, what to improve, and one thing to try next time. Quote short moments."
+      },
+      "todos": {
+        "name": "List my todos",
+        "prompt": "List the things I (Me) have to do after this meeting, one per line, with the date if one was said."
+      },
+      "longer": {
+        "name": "Make notes longer",
+        "prompt": "Rewrite the meeting notes with more detail: keep the same headings and add what the transcript says under each point."
+      },
+      "tldr": {
+        "name": "Write TL;DR",
+        "prompt": "Write a TL;DR of the meeting in three short lines: what it was about, what was decided and what comes next."
       }
     },
     "transforms": {
@@ -778,5 +804,90 @@
         "prompt": "Translate it to natural English."
       }
     }
+  },
+  "people": {
+    "panel": "Event and attendees",
+    "eventTitle": "Select calendar event",
+    "loading": "Loading today’s events…",
+    "noEvents": "No events on your calendar today.",
+    "connectHelp": "Connect Google Calendar or Outlook in Cal to pick today’s events.",
+    "connect": "Connect a calendar",
+    "untitledEvent": "Untitled event",
+    "hasNotes": "Already has notes",
+    "unlink": "Unlink the event",
+    "unlinkNamed": "Unlink “{title}”",
+    "attendees": "Attendees",
+    "add": "Add attendees…",
+    "suggestions": "Suggestions",
+    "teamTag": "Workspace",
+    "empty": "No attendees yet. Pick an event or add people by name or email.",
+    "team": "Your team",
+    "personal": "Personal emails",
+    "remove": "Remove {name}",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "me": "Me",
+    "meAnd": "{count, plural, one {Me + # person} other {Me + # people}}"
+  },
+  "ask": {
+    "panel": "Ask about this meeting",
+    "history": "Chat history",
+    "historyEmpty": "No chats yet.",
+    "turns": "{count, plural, one {# question} other {# questions}}",
+    "model": "Model",
+    "models": {
+      "fast": "Fast",
+      "deep": "Thorough"
+    },
+    "expand": "Expand",
+    "collapse": "Make smaller",
+    "newChat": "New chat",
+    "close": "Close",
+    "followupTitle": "Follow-up email",
+    "recipes": "Recipes",
+    "followup": "Write follow up email",
+    "allRecipes": "All recipes",
+    "sayMore": "Say more",
+    "sayMoreQuestion": "Say more about that, with more detail.",
+    "copy": "Copy",
+    "copied": "Copied.",
+    "copyFailed": "The browser did not allow copying.",
+    "stopAnswer": "Stop writing",
+    "placeholder": "Ask anything",
+    "placeholderLive": "Ask anything about the meeting so far",
+    "attach": "Attach a text file",
+    "attachRemove": "Remove {name}",
+    "attachCut": "Long file: only the first part goes with the question.",
+    "dictate": "Dictate the question",
+    "dictateStop": "Stop dictating",
+    "mistakes": "AI can make mistakes. Check important details."
+  },
+  "library": {
+    "title": "Recipes",
+    "close": "Close",
+    "search": "Search recipes",
+    "new": "New recipe",
+    "name": "Name",
+    "namePlaceholder": "Prep for the next call",
+    "prompt": "What it asks",
+    "promptPlaceholder": "Read the meeting and list what I should prepare for the next call, with owners.",
+    "shared": "Share with the workspace",
+    "save": "Save recipe",
+    "cancel": "Cancel",
+    "loading": "Loading recipes…",
+    "mine": "Yours",
+    "mineEmpty": "Recipes you create show up here. Type / in the chat to run one.",
+    "noMatch": "No recipe matches.",
+    "team": "Shared by your team",
+    "builtin": "Built in",
+    "sharedTag": "shared",
+    "edit": "Edit",
+    "editNamed": "Edit {name}",
+    "delete": "Delete",
+    "deleteNamed": "Delete {name}",
+    "run": "Run",
+    "runNamed": "Run {name}",
+    "deleteTitle": "Delete “{name}”?",
+    "deleteBody": "Chats where it already ran keep their answers."
   }
 }

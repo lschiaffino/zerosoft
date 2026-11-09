@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Wispr Flow + Granola',
-  lastReviewed: '2026-11-08',
+  lastReviewed: '2026-11-09',
   areas: [
     { id: 'dictation', label: loc(['Dictation in any app', 'Dictado en cualquier app', 'Ditado em qualquer app']) },
     { id: 'cleanup', label: loc(['AI cleanup and formatting', 'Limpieza y formato con IA', 'Limpeza e formatação com IA']) },
@@ -267,11 +267,18 @@ const parity: ProductParity = {
         'Antes de uma reunião, a IA resume o que foi conversado com os mesmos participantes e o que segue pendente, só com as suas reuniões, com links para cada uma',
       ],
     }),
-    row('follow-up-email', 'notes', ['Follow-up email draft', 'Borrador de email de seguimiento', 'Rascunho de email de follow-up'], 'have', {
+    row('follow-up-email', 'notes', ['Follow-up email', 'Email de seguimiento', 'Email de follow-up'], 'partial', {
       detail: [
-        'AI drafts the follow-up from the notes, addressed to the attendees; you edit it and open it as a draft in Gmail, Outlook or your email app',
-        'La IA redacta el seguimiento con la nota, dirigido a los asistentes; lo editás y lo abrís como borrador en Gmail, Outlook o tu app de correo',
-        'A IA escreve o follow-up com a nota, endereçado aos participantes; você edita e abre como rascunho no Gmail, no Outlook ou no seu app de email',
+        'AI drafts the follow-up from the notes, addressed to the attendees, right from the bar under the notes; you edit it and send it from your connected Gmail or Outlook, copy it, or open it in Gmail or Outlook. Sending was checked end to end with a test Outlook mailbox only',
+        'La IA redacta el seguimiento con la nota, dirigido a los asistentes, desde la barra de abajo de las notas; lo editás y lo mandás desde tu Gmail u Outlook conectado, lo copiás o lo abrís en Gmail u Outlook. El envío se probó de punta a punta solo con un buzón de Outlook de prueba',
+        'A IA escreve o follow-up com a nota, endereçado aos participantes, direto da barra embaixo das notas; você edita e envia do seu Gmail ou Outlook conectado, copia ou abre no Gmail ou no Outlook. O envio foi testado de ponta a ponta só com uma caixa de Outlook de teste',
+      ],
+    }),
+    row('meeting-people', 'notes', ['Calendar event and attendees on the note', 'Evento del calendario y asistentes en la nota', 'Evento da agenda e participantes na nota'], 'partial', {
+      detail: [
+        "The date chip on a note picks today's event from the connected calendar (the one happening now is chosen on its own for a new note), adds attendees from the workspace or the CRM, and groups them by company. Checked with a test Google Calendar only",
+        'El chip de la fecha en la nota elige el evento de hoy del calendario conectado (en una nota nueva se elige solo el que está pasando), suma asistentes del workspace o del CRM y los agrupa por empresa. Probado solo con un Google Calendar de prueba',
+        'O chip da data na nota escolhe o evento de hoje da agenda conectada (numa nota nova, o que está acontecendo é escolhido sozinho), adiciona participantes do workspace ou do CRM e agrupa por empresa. Testado só com um Google Agenda de teste',
       ],
     }),
 
@@ -279,9 +286,9 @@ const parity: ProductParity = {
     row('chat-meeting', 'chat', ['Chat with one meeting', 'Chat sobre una reunión', 'Chat sobre uma reunião'], 'have', {
       weight: 2,
       detail: [
-        'During and after the meeting, with suggested questions for each moment. The answer appears as it is written and cites the transcript time, which jumps to that line. Uses the model of the ⌘J assistant when it is set up, and the suite model otherwise. Checked end to end with a test model; the quality of citations with real models is not measured yet',
-        'Durante y después de la reunión, con preguntas sugeridas para cada momento. La respuesta aparece mientras se escribe y cita la hora de la transcripción, que lleva a esa línea. Usa el modelo del asistente ⌘J cuando está configurado, y si no, el de la suite. Probado de punta a punta con un modelo de prueba; la calidad de las citas con modelos reales todavía no está medida',
-        'Durante e depois da reunião, com perguntas sugeridas para cada momento. A resposta aparece enquanto é escrita e cita o horário da transcrição, que leva até essa linha. Usa o modelo do assistente ⌘J quando está configurado, e senão o da suíte. Testado de ponta a ponta com um modelo de teste; a qualidade das citações com modelos reais ainda não foi medida',
+        'An "Ask anything" bar under the notes (⌘J or /) opens the chat during and after the meeting: recipes first, answers that stream in and cite the transcript time, "Say more", separate chats with their history, a fast or thorough model, a text file attached to the question and the question dictated by voice. Checked end to end with a test model; the quality of citations with real models is not measured yet',
+        'Una barra "Preguntá lo que quieras" debajo de las notas (⌘J o /) abre el chat durante y después de la reunión: primero los recipes, respuestas que llegan de a pedazos y citan la hora de la transcripción, "Decime más", chats separados con su historial, modelo rápido o a fondo, un archivo de texto adjunto a la pregunta y la pregunta dictada por voz. Probado de punta a punta con un modelo de prueba; la calidad de las citas con modelos reales todavía no está medida',
+        'Uma barra "Pergunte o que quiser" embaixo das notas (⌘J ou /) abre o chat durante e depois da reunião: primeiro os recipes, respostas que chegam aos poucos e citam o horário da transcrição, "Fale mais", chats separados com histórico, modelo rápido ou a fundo, um arquivo de texto anexado à pergunta e a pergunta ditada por voz. Testado de ponta a ponta com um modelo de teste; a qualidade das citações com modelos reais ainda não foi medida',
       ],
     }),
     row('chat-across', 'chat', ['Chat across meetings', 'Chat sobre muchas reuniones', 'Chat sobre várias reuniões'], 'partial', {
@@ -294,9 +301,9 @@ const parity: ProductParity = {
     }),
     row('recipes', 'chat', ['Saved prompts (recipes)', 'Prompts guardados (recipes)', 'Prompts salvos (recipes)'], 'have', {
       detail: [
-        'Built-in and saved prompts run with / on one meeting or across meetings; share them with the workspace (not by a public link)',
-        'Prompts de fábrica y guardados que se corren con / sobre una reunión o sobre varias; se comparten con el workspace (no por link público)',
-        'Prompts de fábrica e salvos que rodam com / em uma reunião ou em várias; são compartilhados com o workspace (não por link público)',
+        'Built-in recipes (follow-up email, my todos, longer notes, TL;DR and more) and your own, run with / or from the recipe library in the meeting, on one meeting or across meetings. Create and edit them there and share them with the workspace (not by a public link)',
+        'Recipes de fábrica (email de seguimiento, mis pendientes, notas más largas, resumen y más) y los propios, que se corren con / o desde la biblioteca de recipes en la reunión, sobre una reunión o sobre varias. Se crean y se editan ahí y se comparten con el workspace (no por link público)',
+        'Recipes de fábrica (email de follow-up, minhas tarefas, notas mais longas, resumo e mais) e os seus, que rodam com / ou pela biblioteca de recipes na reunião, em uma reunião ou em várias. São criados e editados ali e compartilhados com o workspace (não por link público)',
       ],
     }),
     row('people-companies', 'chat', ['People and companies from meetings', 'Personas y empresas de las reuniones', 'Pessoas e empresas das reuniões'], 'partial', {
@@ -325,9 +332,9 @@ const parity: ProductParity = {
     }),
     row('copy-export', 'organize', ['Copy as Markdown and send by email', 'Copiar en Markdown y mandar por email', 'Copiar em Markdown e enviar por email'], 'have', {
       detail: [
-        'Copy as Markdown, send to Docs or Notes, and open the follow-up email in Gmail, Outlook or your email app',
-        'Copiar en Markdown, mandar a Docs o Notes y abrir el email de seguimiento en Gmail, Outlook o tu app de correo',
-        'Copiar em Markdown, enviar para Docs ou Notes e abrir o email de follow-up no Gmail, no Outlook ou no seu app de email',
+        'Copy as Markdown, send to Docs or Notes, and send the follow-up email from your Gmail or Outlook or open it there',
+        'Copiar en Markdown, mandar a Docs o Notes y mandar el email de seguimiento desde tu Gmail u Outlook o abrirlo ahí',
+        'Copiar em Markdown, enviar para Docs ou Notes e enviar o email de follow-up do seu Gmail ou Outlook ou abrir lá',
       ],
     }),
 

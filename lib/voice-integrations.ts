@@ -18,7 +18,7 @@ import { listUserBookings } from './calendar';
 import { getDb } from './db';
 import { transcriptAsText, updateSession, VoiceError, type VoiceOwner } from './voice';
 import { createTeamspace, TeamspaceLimitError } from './docs-access';
-import type { VoiceSessionDetail } from './voice-types';
+import type { VoiceAttendee, VoiceCalendarEvent, VoiceSessionDetail } from './voice-types';
 import { attendsBooking } from './voice-calendar';
 
 export interface MeetingLabels {
@@ -329,6 +329,43 @@ async function finishLink(
     ...(contactId ? { contactId } : {}),
   });
   return { ok: true, title: nextTitle, contactId };
+}
+
+/**
+ * Vincula un evento del calendario (Cal, Google u Outlook) a una reunión ya
+ * creada: suma sus asistentes, toma el título si la reunión no tiene (sin
+ * pisar uno que la persona escribió mientras tanto) y el contacto del CRM del
+ * primer asistente que esté en el CRM.
+ */
+export async function linkCalendarEvent(args: {
+  owner: VoiceOwner;
+  scope: OwnerScope;
+  sessionId: string;
+  event: VoiceCalendarEvent;
+  attendees: VoiceAttendee[];
+}): Promise<{ title: string; contactId: string | null }> {
+  const { owner, event } = args;
+  const merged = [...args.attendees];
+  for (const a of event.attendees) if (!merged.some((m) => m.email && m.email === a.email)) merged.push(a);
+  await updateSession(owner, args.sessionId, { eventKey: event.key, attendees: merged, calBookingId: event.provider === 'cal' ? event.key.slice(4) : null });
+  // Título solo si sigue vacío (compare-and-set: un título que se guardó recién no se pisa).
+  const title = event.title.slice(0, 200);
+  if (title) {
+    await getDb()
+      .prepare("UPDATE voice_sessions SET title = ? WHERE id = ? AND workspace_id = ? AND person_id = ? AND trim(title) = ''")
+      .run(title, args.sessionId, owner.workspaceId, owner.personId);
+  }
+  let contactId: string | null = null;
+  for (const a of event.attendees.slice(0, 10)) {
+    const contact = a.email ? await findContactByEmail(owner.workspaceId, a.email) : null;
+    if (contact && (await canSeeEntity(owner.workspaceId, 'contact', contact.id, args.scope))) {
+      contactId = contact.id;
+      break;
+    }
+  }
+  if (contactId) await updateSession(owner, args.sessionId, { contactId });
+  const row = (await getDb().prepare('SELECT title FROM voice_sessions WHERE id = ?').get(args.sessionId)) as { title: string } | undefined;
+  return { title: row?.title ?? '', contactId };
 }
 
 /** Nombre y email de un contacto (para mostrarlo en la reunión). */

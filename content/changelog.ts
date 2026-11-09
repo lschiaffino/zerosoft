@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-voice-meeting-page',
+    date: '2026-11-09',
+    title: {
+      en: 'Voice: a cleaner meeting page with Ask anything',
+      es: 'Voice: una página de reunión más limpia con "Preguntá lo que quieras"',
+      pt: 'Voice: uma página de reunião mais limpa com "Pergunte o que quiser"',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'A meeting is now a plain page: title, a chip for enhanced or your own notes, the day and attendees from your calendar (today’s event is picked on its own, attendees grouped by company) and the folder.',
+        es: 'Una reunión ahora es una página simple: el título, un chip para ver las notas mejoradas o las tuyas, el día y los asistentes del calendario (el evento de hoy se elige solo y los asistentes se agrupan por empresa) y la carpeta.',
+        pt: 'Uma reunião agora é uma página simples: o título, um chip para ver as notas aprimoradas ou as suas, o dia e os participantes da agenda (o evento de hoje é escolhido sozinho e os participantes são agrupados por empresa) e a pasta.',
+      },
+      {
+        product: 'voice',
+        en: 'The bar under the notes holds the live transcript and Ask anything (⌘J or /): recipes like List my todos or Write TL;DR, a recipe library you can share with the workspace, separate chats with history, a fast or thorough model, a text file attached to the question and dictation.',
+        es: 'La barra debajo de las notas tiene la transcripción en vivo y "Preguntá lo que quieras" (⌘J o /): recipes como Mis pendientes o Resumen en 3 líneas, una biblioteca de recipes que se comparte con el workspace, chats separados con historial, modelo rápido o a fondo, un archivo de texto adjunto y dictado.',
+        pt: 'A barra embaixo das notas tem a transcrição ao vivo e "Pergunte o que quiser" (⌘J ou /): recipes como Minhas tarefas ou Resumo em 3 linhas, uma biblioteca de recipes compartilhada com o workspace, chats separados com histórico, modelo rápido ou a fundo, um arquivo de texto anexado e ditado.',
+      },
+      {
+        product: 'voice',
+        en: 'Write follow up email drafts the email from the notes and sends it from your connected Gmail or Outlook, or you copy it.',
+        es: '"Escribir email de seguimiento" redacta el email con la nota y lo manda desde tu Gmail u Outlook conectado, o lo copiás.',
+        pt: '"Escrever email de acompanhamento" escreve o email com a nota e envia do seu Gmail ou Outlook conectado, ou você copia.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-pulse-rename',
     date: '2026-11-08',
     title: {
