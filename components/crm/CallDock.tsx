@@ -114,6 +114,8 @@ export default function CallDock() {
   const startedAt = useRef<number | null>(null);
   const callIdRef = useRef<string | null>(null);
   const phaseRef = useRef<Phase>('idle');
+  // Colgar mientras se prepara la llamada: start() sigue esperando al server y no debe conectarla después.
+  const cancelledRef = useRef(false);
   const primaryRef = useRef<HTMLButtonElement>(null);
   phaseRef.current = phase;
   callIdRef.current = callId;
@@ -233,6 +235,7 @@ export default function CallDock() {
   const start = useCallback(
     async (r: BrowserCallRequest) => {
       if (phaseRef.current !== 'idle' && phaseRef.current !== 'ended' && phaseRef.current !== 'error') return;
+      cancelledRef.current = false;
       setReq(r);
       setPhase('preparing');
       setError(null);
@@ -264,6 +267,11 @@ export default function CallDock() {
       setCallId(id);
       callIdRef.current = id;
       setRecorded(Boolean(data.recorded));
+      // Ya se colgó: la llamada se cierra en el server sin marcar.
+      if (cancelledRef.current) {
+        void ended();
+        return;
+      }
 
       const tok = tokenRef.current ?? (await fetchToken());
       tokenRef.current = tok;
@@ -276,8 +284,7 @@ export default function CallDock() {
             body: JSON.stringify({ callId: id, action, durationSec }),
           }).catch(() => null);
         await fake('connect');
-        setPhase('ringing');
-        callRef.current = {
+        const fakeCall: TwilioCall = {
           on: () => undefined,
           mute: () => undefined,
           accept: () => undefined,
@@ -293,6 +300,12 @@ export default function CallDock() {
             });
           },
         };
+        if (cancelledRef.current) {
+          fakeCall.disconnect();
+          return;
+        }
+        callRef.current = fakeCall;
+        setPhase('ringing');
         window.setTimeout(() => {
           if (phaseRef.current !== 'ringing' || callIdRef.current !== id) return;
           void fake('answer').then(() => {
@@ -307,6 +320,11 @@ export default function CallDock() {
       try {
         const device = await getDevice();
         const call = await device.connect({ params: { To: data.to, CallId: id } });
+        if (cancelledRef.current) {
+          call.disconnect();
+          void ended();
+          return;
+        }
         callRef.current = call;
         setPhase('ringing');
         call.on('accept', () => {
@@ -356,8 +374,12 @@ export default function CallDock() {
   }, [phase, close]);
 
   function hangup() {
+    if (phaseRef.current === 'preparing') {
+      cancelledRef.current = true;
+      void ended();
+      return;
+    }
     callRef.current?.disconnect();
-    if (phaseRef.current === 'preparing') void ended();
   }
 
   function toggleMute() {

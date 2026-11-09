@@ -94,7 +94,8 @@ test.describe('a 390px', () => {
 
     await page.goto('/en/app/crm/tasks', { waitUntil: 'networkidle' });
     await page.getByTestId('crm-quick-task').click();
-    const due = page.getByLabel('Due');
+    // Exacto: el label del select de contacto incluye el texto de sus opciones, y un contacto con "due" en el nombre también coincidía.
+    const due = page.getByLabel('Due date', { exact: true });
     await due.fill('2030-01-04T09:00');
     const dueBox = (await due.boundingBox())!;
     expect(dueBox.width).toBeGreaterThanOrEqual(200);

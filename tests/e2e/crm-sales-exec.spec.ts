@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
 /**
@@ -9,7 +9,7 @@ const uid = () => Math.random().toString(36).slice(2, 8);
 const sqlTime = (ms: number) => new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
 
 function db() {
-  return createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  return e2eDb();
 }
 
 async function demoId(): Promise<string> {

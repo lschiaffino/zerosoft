@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test } from '@playwright/test';
 
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -42,7 +42,7 @@ test('Campana: avisos traducidos, sin pospuestos y una sola acción de marcar to
   await request.patch('/api/notifications', { data: { readAll: true } });
   const id = crypto.randomUUID();
   const identifier = `QA-${uid().toUpperCase()}`;
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   await db.execute({
     sql: `INSERT INTO notifications (id, user_id, type, title, body, href, source_type, source_id, meta, created_at)
           VALUES (?, 'demo', 'track_reminder', ?, 'Login falla en Safari', '/app/track/inbox', 'track_issue', ?, ?, ?)`,

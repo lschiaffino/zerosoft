@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -129,7 +129,7 @@ test('bandeja: equipos, seguir, colisión, variables, AI, Track y vistas guardad
   await page.locator('.chat-thread-actions').getByLabel('Equipo').selectOption({ label: teamName });
   await page.getByRole('button', { name: 'Seguir' }).click();
   await expect(page.getByRole('button', { name: 'Siguiendo' })).toHaveAttribute('aria-pressed', 'true');
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   const otherId = `e2e-other-${uid()}`;
   await db.execute({ sql: 'INSERT INTO users (id, email, name) VALUES (?, ?, ?)', args: [otherId, `${otherId}@test.local`, 'Beto Colega'] });
   await db.execute({

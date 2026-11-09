@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from 'fs';
 import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 
 /**
  * Rec, paridad con Loom: personas puntuales y pedido de acceso, email para ver,
@@ -10,7 +10,7 @@ import { createClient } from '@libsql/client';
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
-const db = () => createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+const db = () => e2eDb();
 
 async function ok<T = Record<string, unknown>>(res: Promise<import('@playwright/test').APIResponse>): Promise<T> {
   const r = await res;

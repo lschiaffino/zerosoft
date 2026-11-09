@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test } from '@playwright/test';
 
 /**
@@ -225,7 +225,7 @@ test('pie del sidebar: la ayuda se llama Ayuda (no Docs, que es una app)', async
 });
 
 test('con un equipo activo, el sidebar del inicio muestra tus apps y el equipo va en el switcher', async ({ page }) => {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   const demo = String((await db.execute("SELECT id FROM users WHERE email = 'demo@zerosoft.ai'")).rows[0].id);
   const suffix = Math.random().toString(36).slice(2, 8);
   const boss = `ph-boss-${suffix}`;
