@@ -15,3 +15,29 @@
 .ib-ai-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
 .ib-ai-refine { flex: 1 1 160px; min-width: 0; height: 30px; font-size: 0.8125rem; }
 .ib-ai-actions { display: flex; justify-content: flex-end; gap: 6px; }
+
+/* ---------- Carpetas en el sidebar (árbol) ---------- */
+
+.ib-ftree .docs-tree-row { padding-left: calc(var(--d, 0) * 14px + 4px); }
+.ib-ftree-chevron { flex: 0 0 20px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: var(--radius-1); background: none; color: var(--dim); cursor: pointer; }
+.ib-ftree-chevron:hover { color: var(--ink); background: var(--ui-press); }
+.ib-ftree-chevron:focus-visible, .ib-ftree-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.ib-ftree-chevron svg { transition: transform var(--ui-dur) var(--ease); }
+.ib-ftree-chevron.open svg { transform: rotate(90deg); }
+.ib-ftree-actions { position: relative; display: none; align-items: center; flex-shrink: 0; }
+.ib-ftree .docs-tree-row:hover .ib-ftree-actions,
+.ib-ftree .docs-tree-row:focus-within .ib-ftree-actions,
+.ib-ftree-actions:has([aria-expanded='true']) { display: inline-flex; }
+@media (hover: none) { .ib-ftree-actions { display: inline-flex; } }
+.ib-ftree-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--radius-1); background: none; color: var(--brand-gray-2); cursor: pointer; }
+.ib-ftree-btn:hover { color: var(--ink); background: var(--ui-press); }
+.ib-ftree-menu { top: calc(100% + 2px); bottom: auto; left: auto; right: 0; z-index: 75; min-width: 180px; }
+.ib-ftree-menu .ib-menu-item:disabled { opacity: 0.45; cursor: not-allowed; }
+.ib-ftree-rename { flex: 1; min-width: 0; height: 24px; padding: 0 6px; font-size: 0.8125rem; }
+.ib-ftree-error { padding: 4px 8px; font-size: 0.75rem; }
+/* Soltar: arriba o abajo reordena (filete), al centro mete adentro o suma chats (borde). */
+.ib-ftree .docs-tree-row.drop-inside { background: var(--ui-hover); box-shadow: inset 0 0 0 2px var(--c-inbox); color: var(--ink); }
+.ib-ftree .docs-tree-row.drop-before::after,
+.ib-ftree .docs-tree-row.drop-after::after { content: ''; position: absolute; left: calc(var(--d, 0) * 14px + 4px); right: 4px; height: 2px; background: var(--c-inbox); pointer-events: none; }
+.ib-ftree .docs-tree-row.drop-before::after { top: -1px; }
+.ib-ftree .docs-tree-row.drop-after::after { bottom: -1px; }

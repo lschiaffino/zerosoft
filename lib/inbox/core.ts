@@ -7,6 +7,7 @@
 import { randomBytes, randomUUID } from 'crypto';
 import { getDb } from '../db';
 import { open, seal } from '../secret-box';
+import { canMoveFolder, depthOf, descendantIds, MAX_FOLDER_DEPTH, rollupUnread, siblingOrder } from './folder-tree';
 import {
   InboxError,
   LIMITS,
@@ -374,9 +375,15 @@ export async function listThreads(owner: string, opts: ListOptions = {}): Promis
   }
   if (opts.folderId) {
     const folder = await getFolderRow(owner, opts.folderId);
-    const rule = ruleSql(parseRuleText(folder.rule));
-    where.push(`(t.id IN (SELECT thread_id FROM inbox_thread_folders WHERE folder_id = ?)${rule ? ` OR (${rule.sql})` : ''})`);
-    args.push(folder.id, ...(rule?.args ?? []));
+    // La carpeta muestra también lo de sus subcarpetas (como sus no leídos).
+    const all = (await getDb().prepare('SELECT * FROM inbox_folders WHERE owner_id = ?').all(owner)) as unknown as FolderRow[];
+    const tree = all.map((f) => ({ id: f.id, parentId: f.parent_id, position: f.position }));
+    const ids = [folder.id, ...descendantIds(tree, folder.id)];
+    const rules = all.filter((f) => ids.includes(f.id)).map((f) => ruleSql(parseRuleText(f.rule))).filter((r): r is NonNullable<typeof r> => r !== null);
+    where.push(
+      `(t.id IN (SELECT thread_id FROM inbox_thread_folders WHERE folder_id IN (${ids.map(() => '?').join(', ')}))${rules.map((r) => ` OR (${r.sql})`).join('')})`,
+    );
+    args.push(...ids, ...rules.flatMap((r) => r.args));
     if (!q) {
       where.push(active);
       args.push(nowS);
@@ -719,21 +726,45 @@ async function getFolderRow(owner: string, id: string): Promise<FolderRow> {
 }
 
 export async function listFolders(owner: string, now = new Date()): Promise<FolderDto[]> {
-  const rows = (await getDb().prepare('SELECT * FROM inbox_folders WHERE owner_id = ? ORDER BY position, created_at').all(owner)) as unknown as FolderRow[];
-  const out: FolderDto[] = [];
+  const db = getDb();
+  const rows = (await db.prepare('SELECT * FROM inbox_folders WHERE owner_id = ? ORDER BY position, created_at').all(owner)) as unknown as FolderRow[];
+  if (!rows.length) return [];
   const nowS = now.toISOString();
+  // Chats sin leer de cada carpeta (a mano o por regla); después suben a los padres sin repetir.
+  const own = new Map<string, Set<string>>();
+  const manual = (await db
+    .prepare(
+      `SELECT tf.folder_id, t.id FROM inbox_thread_folders tf JOIN inbox_threads t ON t.id = tf.thread_id
+       WHERE t.owner_id = ? AND t.done_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) AND t.unread > 0`,
+    )
+    .all(owner, nowS)) as Array<{ folder_id: string; id: string }>;
+  for (const r of manual) own.set(r.folder_id, new Set([...(own.get(r.folder_id) ?? []), r.id]));
   for (const f of rows) {
-    const rule = parseRuleText(f.rule);
-    const rs = ruleSql(rule);
-    const c = (await getDb()
-      .prepare(
-        `SELECT COUNT(*) AS n FROM inbox_threads t WHERE t.owner_id = ? AND t.done_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) AND t.unread > 0
-           AND (t.id IN (SELECT thread_id FROM inbox_thread_folders WHERE folder_id = ?)${rs ? ` OR (${rs.sql})` : ''})`,
-      )
-      .get(owner, nowS, f.id, ...(rs?.args ?? []))) as { n: number };
-    out.push({ id: f.id, name: f.name, color: f.color, icon: f.icon, position: f.position, parentId: f.parent_id, rule, count: Number(c.n) });
+    const rs = ruleSql(parseRuleText(f.rule));
+    if (!rs) continue;
+    const hits = (await db
+      .prepare(`SELECT t.id FROM inbox_threads t WHERE t.owner_id = ? AND t.done_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) AND t.unread > 0 AND (${rs.sql}) LIMIT 1000`)
+      .all(owner, nowS, ...rs.args)) as Array<{ id: string }>;
+    own.set(f.id, new Set([...(own.get(f.id) ?? []), ...hits.map((h) => h.id)]));
   }
-  return out;
+  const tree = rows.map((f) => ({ id: f.id, parentId: f.parent_id, position: f.position }));
+  const total = rollupUnread(tree, own);
+  return rows.map((f) => ({
+    id: f.id,
+    name: f.name,
+    color: f.color,
+    icon: f.icon,
+    position: f.position,
+    parentId: f.parent_id,
+    rule: parseRuleText(f.rule),
+    count: total.get(f.id) ?? 0,
+    ownCount: own.get(f.id)?.size ?? 0,
+  }));
+}
+
+async function folderTree(owner: string) {
+  const rows = (await getDb().prepare('SELECT id, parent_id, position FROM inbox_folders WHERE owner_id = ?').all(owner)) as Array<{ id: string; parent_id: string | null; position: number }>;
+  return rows.map((r) => ({ id: r.id, parentId: r.parent_id, position: Number(r.position) }));
 }
 
 export interface FolderInput {
@@ -754,7 +785,10 @@ export async function createFolder(owner: string, input: FolderInput): Promise<F
   const db = getDb();
   const count = (await db.prepare('SELECT COUNT(*) AS n, COALESCE(MAX(position), -1) AS maxp FROM inbox_folders WHERE owner_id = ?').get(owner)) as { n: number; maxp: number };
   if (Number(count.n) >= LIMITS.folders) throw new InboxError('too_many', 400);
-  if (input.parentId) await getFolderRow(owner, input.parentId);
+  if (input.parentId) {
+    await getFolderRow(owner, input.parentId);
+    if (depthOf(await folderTree(owner), input.parentId) + 1 > MAX_FOLDER_DEPTH) throw new InboxError('too_deep', 400);
+  }
   const id = newId('ibf');
   const now = nowIso();
   await db
@@ -790,13 +824,10 @@ export async function updateFolder(owner: string, id: string, input: FolderInput
     sets.push('position = ?');
     args.push(Math.max(0, Math.floor(input.position)));
   }
-  if (input.parentId !== undefined) {
-    // Una carpeta no puede quedar dentro de sí misma ni de sus subcarpetas.
-    let p: string | null = input.parentId;
-    while (p) {
-      if (p === f.id) throw new InboxError('invalid_parent', 400);
-      p = (await getFolderRow(owner, p)).parent_id;
-    }
+  if (input.parentId !== undefined && input.parentId !== f.parent_id) {
+    // Ni dentro de sí misma, ni de sus subcarpetas, ni más hondo que el tope.
+    const check = canMoveFolder(await folderTree(owner), f.id, input.parentId);
+    if (check !== 'ok') throw new InboxError(check, 400);
     sets.push('parent_id = ?');
     args.push(input.parentId);
   }
@@ -809,6 +840,25 @@ export async function reorderFolders(owner: string, ids: string[]): Promise<void
   let i = 0;
   for (const id of ids.slice(0, LIMITS.folders)) {
     await db.prepare('UPDATE inbox_folders SET position = ? WHERE id = ? AND owner_id = ?').run(i++, id, owner);
+  }
+}
+
+/**
+ * Mueve una carpeta: dentro de `parentId` (null = primer nivel), antes de
+ * `beforeId` (null = al final). Reordena a los hermanos del destino.
+ */
+export async function moveFolder(owner: string, id: string, parentId: string | null, beforeId: string | null): Promise<void> {
+  const f = await getFolderRow(owner, id);
+  const tree = await folderTree(owner);
+  const check = canMoveFolder(tree, id, parentId);
+  if (check !== 'ok') throw new InboxError(check, 400);
+  if (beforeId && !tree.some((x) => x.id === beforeId && (x.parentId ?? null) === parentId)) beforeId = null;
+  const db = getDb();
+  const now = nowIso();
+  if ((f.parent_id ?? null) !== parentId) await db.prepare('UPDATE inbox_folders SET parent_id = ?, updated_at = ? WHERE id = ? AND owner_id = ?').run(parentId, now, id, owner);
+  const moved = tree.map((x) => (x.id === id ? { ...x, parentId } : x));
+  for (const [sid, pos] of siblingOrder(moved, id, parentId, beforeId)) {
+    await db.prepare('UPDATE inbox_folders SET position = ? WHERE id = ? AND owner_id = ? AND position <> ?').run(pos, sid, owner, pos);
   }
 }
 

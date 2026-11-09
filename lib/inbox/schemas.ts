@@ -48,6 +48,8 @@ export const folderPatchSchema = z.object({
   parentId: id.nullable().optional(),
   rule: rule.optional(),
   position: z.number().int().min(0).max(10_000).optional(),
+  /** Mover en el árbol: dentro de parentId (null = primer nivel), antes de before (null = al final). */
+  move: z.object({ parentId: id.nullable(), before: id.nullable() }).optional(),
 });
 
 export const reorderSchema = z.object({ ids: z.array(id).max(LIMITS.folders) });

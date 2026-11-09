@@ -93,7 +93,10 @@ export interface FolderDto {
   position: number;
   parentId: string | null;
   rule: FolderRule | null;
+  /** Chats sin leer de la carpeta y sus subcarpetas (sin repetir). */
   count: number;
+  /** Chats sin leer de la carpeta sola. */
+  ownCount: number;
 }
 
 export interface SnippetDto {

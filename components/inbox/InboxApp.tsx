@@ -6,7 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ThreadAction } from '@/lib/inbox/core';
 import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
-import { api, avatarHue, INBOX_CHANGED, initials, longWhen, notifyInboxChanged, shortWhen, typingIn } from './api';
+import { api, avatarHue, INBOX_CHANGED, INBOX_DROP_THREADS, initials, longWhen, notifyInboxChanged, shortWhen, THREADS_MIME, typingIn, type DropThreadsDetail } from './api';
 import Conversation, { type ThreadDetail } from './Conversation';
 import type { ComposerHandle } from './Composer';
 import WhenDialog, { type WhenKind } from './WhenDialog';
@@ -287,6 +287,44 @@ export default function InboxApp(props: {
     [targetIds, threads, detail, runAction],
   );
 
+  /**
+   * Chats soltados sobre una carpeta del sidebar. En la bandeja (o una vista)
+   * se suman a la carpeta; dentro de otra carpeta se mueven (salen de la
+   * actual). Deshacer vuelve exactamente a como estaban.
+   */
+  const dropOnFolder = useCallback(
+    async ({ ids, folderId, folderName }: DropThreadsDetail) => {
+      const from = folder && folder.id !== folderId ? folder.id : null;
+      const fresh = ids.filter((id) => !(threads.find((x) => x.id === id)?.folderIds ?? []).includes(folderId));
+      const post = (list: string[], a: ThreadAction) => (list.length ? api('/api/inbox/threads', { method: 'POST', json: { ids: list, ...a } }) : Promise.resolve({ ok: true, status: 200, data: {} as { error?: string } }));
+      const r = await post(fresh, { action: 'addFolder', folderId });
+      const r2 = r.ok && from ? await post(ids, { action: 'removeFolder', folderId: from }) : r;
+      if (!r.ok || !r2.ok) {
+        toast(errText((r.ok ? r2 : r).data.error), { bad: true });
+        return;
+      }
+      setSelected(new Set());
+      const refresh = () => {
+        void reloadList();
+        void reloadState();
+        notifyInboxChanged();
+      };
+      refresh();
+      const undo = () =>
+        void post(fresh, { action: 'removeFolder', folderId })
+          .then(() => (from ? post(ids, { action: 'addFolder', folderId: from }) : null))
+          .then(refresh);
+      toast(t(from ? 'toast.movedTo' : 'toast.addedTo', { n: ids.length, name: folderName }), { undo });
+    },
+    [folder, threads, toast, errText, t, reloadList, reloadState],
+  );
+
+  useEffect(() => {
+    const on = (e: Event) => void dropOnFolder((e as CustomEvent<DropThreadsDetail>).detail);
+    window.addEventListener(INBOX_DROP_THREADS, on);
+    return () => window.removeEventListener(INBOX_DROP_THREADS, on);
+  }, [dropOnFolder]);
+
   const open = (id: string) => {
     const idx = threads.findIndex((x) => x.id === id);
     if (idx >= 0) setCursor(idx);
@@ -437,7 +475,19 @@ export default function InboxApp(props: {
     const isSel = selected.has(th.id);
     const marker = th.woke === 'snooze' ? t('list.woke') : th.woke === 'followup' ? t('list.noReply') : '';
     return (
-      <li key={th.id} data-idx={i} className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}>
+      <li
+        key={th.id}
+        data-idx={i}
+        className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}
+        draggable
+        onDragStart={(e) => {
+          // Arrastrar a una carpeta del sidebar: la selección entera si este chat está en ella.
+          const ids = isSel ? [...selected] : [th.id];
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData(THREADS_MIME, JSON.stringify(ids));
+          e.dataTransfer.setData('text/plain', ids.length > 1 ? t('list.dragMany', { n: ids.length }) : th.title);
+        }}
+      >
         <input
           type="checkbox"
           className="ib-check"
@@ -780,6 +830,7 @@ export default function InboxApp(props: {
       <HelpDialog open={help} onClose={() => setHelp(false)} />
       <FolderDialog
         folder={folderEdit === 'new' ? null : folderEdit}
+        folders={state.folders}
         open={!!folderEdit}
         onClose={() => setFolderEdit(null)}
         onSaved={(f, deleted) => {

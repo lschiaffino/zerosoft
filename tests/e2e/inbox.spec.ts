@@ -244,6 +244,80 @@ test('carpetas: nueva desde el sidebar, V para sumar un chat y la carpeta lo mue
   await expect(page.locator('.ib-item', { hasText: name })).toBeVisible();
 });
 
+test('carpetas anidadas: subcarpeta, arrastrar chats con deshacer, no leídos que suben, renombrar y borrar', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const lu = `Lu ${uid()}`;
+  const mati = `Mati ${uid()}`;
+  await inbound(request, acc, { phone: phone(), name: lu, body: 'Salimos el viernes?' });
+  await inbound(request, acc, { phone: phone(), name: mati, body: 'Reservé el hotel' });
+  const parent = `Viajes ${uid()}`;
+  const child = `Hotel ${uid()}`;
+  await request.post('/api/inbox/folders', { data: { name: parent } });
+
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  const side = page.locator('#side-branch');
+  const parentRow = side.locator('.docs-tree-row', { hasText: parent });
+  await parentRow.hover();
+  await side.getByRole('button', { name: `Actions for ${parent}` }).click();
+  await page.getByRole('menuitem', { name: 'New subfolder' }).click();
+  const dialog = page.getByRole('dialog', { name: 'New folder' });
+  await expect(dialog.getByLabel('Inside')).toHaveValue(/ibf/);
+  await dialog.getByLabel('Name', { exact: true }).fill(child);
+  await dialog.getByRole('button', { name: 'Create folder' }).click();
+  await expect(page).toHaveURL(/\/app\/inbox\/f\//);
+  const childRow = side.locator('.docs-tree-row', { hasText: child });
+  await expect(childRow.getByRole('link', { name: child })).toHaveAttribute('aria-current', 'page');
+  await expect(side.getByRole('button', { name: `Collapse ${parent}` })).toHaveAttribute('aria-expanded', 'true');
+
+  // Arrastrar un chat a la subcarpeta: se resalta, se suma y se puede deshacer.
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: lu }).dragTo(childRow);
+  await expect(page.locator('.ib-toast', { hasText: `Added to ${child}` })).toBeVisible();
+  await page.locator('.ib-toast', { hasText: `Added to ${child}` }).getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(async () => (await sql('SELECT COUNT(*) AS n FROM inbox_thread_folders tf JOIN inbox_folders f ON f.id = tf.folder_id WHERE f.name = ?', [child]))[0].n).toBe(0);
+
+  // Varios seleccionados a la vez.
+  await page.locator('.ib-item', { hasText: lu }).getByRole('checkbox').check();
+  await page.locator('.ib-item', { hasText: mati }).getByRole('checkbox').check();
+  await page.locator('.ib-item', { hasText: mati }).dragTo(childRow);
+  await expect(page.locator('.ib-toast', { hasText: `2 chats added to ${child}` })).toBeVisible();
+
+  // Los no leídos de la subcarpeta suben al padre cuando está plegado; el padre muestra los chats de sus subcarpetas.
+  await expect(childRow.getByLabel('2 unread chats')).toBeVisible();
+  await side.getByRole('button', { name: `Collapse ${parent}` }).click();
+  await expect(childRow).toBeHidden();
+  await expect(parentRow.getByLabel('2 unread chats')).toBeVisible();
+  await parentRow.getByRole('link', { name: parent }).click();
+  await expect(page.getByRole('heading', { level: 1, name: parent })).toBeVisible();
+  await expect(page.locator('.ib-item', { hasText: lu })).toBeVisible();
+  await expect(page.locator('.ib-item', { hasText: mati })).toBeVisible();
+  await side.getByRole('button', { name: `Expand ${parent}` }).click();
+
+  // Teclado: F2 renombra, Alt+← la saca al primer nivel.
+  const renamed = `${child} 2`;
+  await childRow.getByRole('link').focus();
+  await page.keyboard.press('F2');
+  await side.getByRole('textbox', { name: `Name of ${child}` }).fill(renamed);
+  await page.keyboard.press('Enter');
+  const renamedRow = side.locator('.docs-tree-row', { hasText: renamed });
+  await expect(renamedRow).toBeVisible();
+  await renamedRow.getByRole('link').focus();
+  await page.keyboard.press('Alt+ArrowLeft');
+  await expect.poll(async () => (await sql('SELECT parent_id FROM inbox_folders WHERE name = ?', [renamed]))[0].parent_id).toBeNull();
+  await expect(side.getByRole('button', { name: `Collapse ${parent}` })).toHaveCount(0);
+
+  // Borrar desde el menú (con confirmación); los chats siguen.
+  await renamedRow.hover();
+  await side.getByRole('button', { name: `Actions for ${renamed}` }).click();
+  await page.getByRole('menuitem', { name: 'Delete' }).click();
+  await page.getByRole('dialog', { name: 'Delete folder' }).getByRole('button', { name: 'Delete folder' }).click();
+  await expect(side.locator('.docs-tree-row', { hasText: renamed })).toHaveCount(0);
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await expect(page.locator('.ib-item', { hasText: lu })).toBeVisible();
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('Gmail (cuenta de prueba): conectar, sincronizar y responder en el hilo', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('/en/app/inbox/settings', { waitUntil: 'networkidle' });
