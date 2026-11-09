@@ -49,15 +49,15 @@
 .ib-app.gr-inbox li.ib-item.is-selected > .ib-row-btn,
 .ib-app.gr-inbox li.ib-item.is-open > .ib-row-btn:hover { background: var(--wa-row-active); }
 .ib-app.gr-inbox .ib-row-btn:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
-/* La casilla aparece sobre la foto al pasar o al seleccionar (la foto se esconde). */
+/* Como WhatsApp: la foto siempre a la vista. La casilla aparece solo seleccionando (x, ⇧clic o con foco). */
 .ib-app.gr-inbox .ib-check { left: 28px; accent-color: var(--wa-primary); }
-.ib-app.gr-inbox li.ib-item:hover .wa-avatar,
+.ib-app.gr-inbox li.ib-item:hover .ib-check { opacity: 0; }
+.ib-app.gr-inbox li.ib-item.is-selected .ib-check,
+.ib-app.gr-inbox .ib-check:focus-visible,
+.ib-app.gr-inbox:has(.ib-bulk) .ib-check { opacity: 1; }
 .ib-app.gr-inbox li.ib-item.is-selected .wa-avatar,
+.ib-app.gr-inbox li.ib-item:has(.ib-check:focus-visible) .wa-avatar,
 .ib-app.gr-inbox:has(.ib-bulk) .wa-avatar { visibility: hidden; }
-@media (hover: none) {
-  .ib-app.gr-inbox li.ib-item:hover .wa-avatar { visibility: visible; }
-  .ib-app.gr-inbox li.ib-item:not(.is-selected) .ib-check { opacity: 0; }
-}
 
 .wa-row-main {
   flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 1px;
@@ -89,6 +89,55 @@
 .ib-app.gr-inbox .ib-convo-blank,
 .ib-app.gr-inbox .ib-convo-msg { color: var(--wa-text-2); background: var(--wa-panel-header); }
 
+/* ---------- Conversación de WhatsApp ---------- */
+.ib-wa-thread { flex: 1; min-height: 0; border-right: 0; }
+.ib-app.gr-inbox .ib-wa-thread .wa-head { flex-wrap: nowrap; }
+.ib-wa-thread .wa-head .ib-wa-back { margin-left: -8px; }
+.ib-wa-thread .gr-thread-actions { flex: none; }
+.ib-wa-thread .gr-thread-actions .wa-icon-btn.is-on { color: var(--wa-primary); }
+.ib-wa-thread .ib-notes { background: var(--wa-panel); border-bottom: 1px solid var(--wa-border); }
+.ib-wa-thread .ib-scheduled { background: var(--wa-panel-header); border-top: 1px solid var(--wa-border); }
+.ib-wa-thread .ib-sched-body { color: var(--wa-text-2); }
+
+/* Borrado: la burbuja de siempre (Groups lo pinta con el fondo de la app). */
+.ib-wa-thread .gr-msg-in.is-deleted .gr-bubble { background: var(--wa-bubble-in); }
+.ib-wa-thread .gr-msg-out.is-deleted .gr-bubble { background: var(--wa-bubble-out); }
+
+/* Mensajes: el dedo corre la burbuja para responder (el scroll vertical sigue). */
+.ib-wa-thread .gr-msg { touch-action: pan-y; }
+.wa-swipe-reply {
+  position: absolute; top: 50%; left: -34px; display: none; align-items: center; justify-content: center; width: 28px; height: 28px;
+  color: var(--wa-icon); background: var(--wa-panel); border-radius: 50%; transform: translateY(-50%) scaleX(-1); box-shadow: var(--wa-shadow-bubble);
+}
+.gr-msg[data-swipe] .wa-swipe-reply { display: inline-flex; opacity: 0.5; }
+.gr-msg[data-swipe='ready'] .wa-swipe-reply { opacity: 1; color: var(--wa-primary); }
+.gr-msg.has-avatar .wa-swipe-reply { left: -2px; }
+
+/* Reacciones: el globito es un botón (abre la barra para cambiar la propia). */
+.ib-wa-thread .ib-wa-reactions { font: inherit; font-size: 0.9375rem; color: var(--wa-text); cursor: pointer; }
+.ib-wa-thread .ib-wa-reactions:focus-visible { outline: 2px solid var(--wa-primary); }
+.ib-wa-thread .gr-msg-out .ib-wa-reactions { align-self: flex-end; }
+.ib-wa-thread .gr-emoji-picker { bottom: calc(100% - 6px); }
+.ib-wa-thread .gr-emoji-picker button { display: inline-flex; align-items: center; justify-content: center; color: var(--wa-icon); }
+.ib-wa-thread .gr-emoji-picker button.is-mine { background: var(--wa-row-active); }
+.ib-wa-react-full { position: absolute; bottom: 100%; z-index: 30; }
+.gr-msg-in .ib-wa-react-full { left: 0; }
+.gr-msg-out .ib-wa-react-full { right: 0; }
+.ib-wa-react-full .wa-emoji { position: static; }
+
+/* Encuesta (solo lectura: se vota en el teléfono). */
+.ib-wa-poll { min-width: min(280px, 62vw); padding: 2px 2px 14px; }
+.ib-wa-poll-q { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-weight: 500; color: var(--wa-text); }
+.ib-wa-poll ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ib-wa-poll li { padding: 6px 10px; font-size: 0.875rem; color: var(--wa-text); background: var(--wa-quote-bg); border-radius: 6px; }
+.ib-wa-poll-note { margin: 6px 0 0; font-size: 0.75rem; color: var(--wa-text-2); }
+
+/* Campo: la lista de snippets flota arriba. */
+.ib-wa-composer { position: relative; }
+.ib-wa-composer .ib-snippets { bottom: calc(100% + 4px); }
+.ib-wa-info-body { margin: 0 0 12px; padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-soft); border-radius: var(--radius-1); }
+
 @media (max-width: 1023px) {
   .ib-app.gr-inbox, .ib-app.gr-inbox.has-details { grid-template-columns: minmax(0, 1fr); }
+  .ib-app.gr-inbox .ib-wa-thread .gr-msg { max-width: 85%; }
 }

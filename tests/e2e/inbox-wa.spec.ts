@@ -92,7 +92,7 @@ test('lista como WhatsApp: asunto real del grupo, foto, quién mandó, tipo de m
   await expect(dmRow.locator('.wa-row-text')).toHaveText('Gracias!');
   // La foto (número par en el WhatsApp falso) llega por /api/inbox/avatar con la sesión.
   await expect(dmRow.locator('img.wa-avatar')).toBeVisible({ timeout: 45_000 });
-  expect(await dmRow.locator('img.wa-avatar').evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await expect.poll(() => dmRow.locator('img.wa-avatar').evaluate((img) => (img as HTMLImageElement).naturalWidth), { timeout: 15_000 }).toBeGreaterThan(0);
 
   const groupDigits = groupId.replace(/@.*/, '');
   await expect(page.locator('.ib-list')).not.toContainText(groupDigits);
@@ -105,9 +105,165 @@ test('lista como WhatsApp: asunto real del grupo, foto, quién mandó, tipo de m
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+/** Un grupo con de todo: varios remitentes, respuesta, reacciones, foto, audio, documento, ubicación, contacto, encuesta, reenviado, editado y borrado. */
+async function seedGroup(request: APIRequestContext, acc: { id: string; secret: string }, title: string): Promise<string> {
+  const gid = `1203630${Math.floor(1e9 + Math.random() * 8e9)}@g.us`;
+  const t0 = Date.now() - 3 * 86_400_000;
+  const at = (min: number) => new Date(t0 + min * 60_000).toISOString();
+  const tag = uid();
+  const ref = (id: string) => ({ providerMessageId: id, chatId: gid, fromMe: false });
+  await events(request, acc, [
+    message(gid, { chatName: title, providerMessageId: `g1-${tag}`, senderPhone: '15550001002', senderName: 'Beto Prueba', body: '¿Quién viene el sábado? *Traigan* _algo_ para tomar', timestamp: at(0) }),
+    message(gid, { providerMessageId: `g2-${tag}`, senderPhone: '15550001003', senderName: 'Carla Prueba', body: 'Yo voy 🙋‍♀️', timestamp: at(1) }),
+    message(gid, { providerMessageId: `g3-${tag}`, senderPhone: '15550001003', senderName: 'Carla Prueba', body: 'Llevo hielo', timestamp: at(2) }),
+    message(gid, { providerMessageId: `img-${tag}`, senderPhone: '15550001002', senderName: 'Beto Prueba', body: 'Así quedó la terraza', media: { url: '', type: 'image/png', name: '', fetchRef: ref(`img-${tag}`), info: { kind: 'image', width: 480, height: 320 } }, timestamp: at(3) }),
+    message(gid, { providerMessageId: `aud-${tag}`, senderPhone: '15550001004', senderName: 'Dani Prueba', body: '', media: { url: '', type: 'audio/ogg', name: '', fetchRef: ref(`aud-${tag}`), info: { kind: 'voice', ptt: true, duration: 2 } }, timestamp: at(4) }),
+    message(gid, { providerMessageId: `doc-${tag}`, senderPhone: '15550001004', senderName: 'Dani Prueba', body: '', media: { url: '', type: 'application/pdf', name: 'Lista de compras.pdf', fetchRef: ref(`doc-${tag}`), info: { kind: 'document', pages: 2, size: 48_000 } }, timestamp: at(5) }),
+    message(gid, { providerMessageId: `g4-${tag}`, fromMe: true, senderPhone: '', senderName: '', body: 'Yo llevo la carne', status: 'read', replyToProviderId: `g1-${tag}`, timestamp: at(6) }),
+    message(gid, { providerMessageId: `g5-${tag}`, senderPhone: '15550001002', senderName: 'Beto Prueba', body: '', location: { lat: -34.6037, lng: -58.3816, name: 'Plaza de prueba', address: 'Av. Inventada 123' }, timestamp: at(7) }),
+    message(gid, { providerMessageId: `g6-${tag}`, senderPhone: '15550001003', senderName: 'Carla Prueba', body: '', contacts: [{ name: 'Eva Prueba', phones: ['+1 555 000 1009'] }], timestamp: at(8) }),
+    message(gid, { providerMessageId: `g7-${tag}`, senderPhone: '15550001002', senderName: 'Beto Prueba', body: '', poll: { question: '¿A qué hora?', options: ['12:00', '13:00', '14:00'], multi: false }, timestamp: at(9) }),
+    message(gid, { providerMessageId: `g8-${tag}`, senderPhone: '15550001004', senderName: 'Dani Prueba', body: 'Les paso esto que me llegó', forwarded: true, timestamp: at(10) }),
+    message(gid, { providerMessageId: `g9-${tag}`, senderPhone: '15550001003', senderName: 'Carla Prueba', body: 'Mensaje que después se borra', timestamp: at(11) }),
+    message(gid, { providerMessageId: `g10-${tag}`, fromMe: true, senderPhone: '', senderName: '', body: '👍', status: 'delivered', timestamp: at(12) }),
+  ]);
+  await events(request, acc, [
+    { type: 'reaction', chatId: gid, targetProviderMessageId: `g1-${tag}`, emoji: '❤️', senderPhone: '15550001003', senderName: 'Carla Prueba', fromMe: false },
+    { type: 'reaction', chatId: gid, targetProviderMessageId: `g1-${tag}`, emoji: '❤️', senderPhone: '15550001004', senderName: 'Dani Prueba', fromMe: false },
+    { type: 'reaction', chatId: gid, targetProviderMessageId: `g4-${tag}`, emoji: '😂', senderPhone: '15550001002', senderName: 'Beto Prueba', fromMe: false },
+    { type: 'edit', chatId: gid, providerMessageId: `g3-${tag}`, body: 'Llevo hielo y vasos' },
+    { type: 'revoke', chatId: gid, providerMessageId: `g9-${tag}` },
+    { type: 'presence', chatId: gid, who: '15550001002', state: 'composing' },
+  ]);
+  return gid;
+}
+
+test('conversación como WhatsApp: burbujas, nombres de color, cita, reacciones, media, editado y borrado', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const title = `Asado ${uid()}`;
+  await seedGroup(request, acc, title);
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
+  const thread = page.locator('.ib-wa-thread');
+  await expect(thread.getByRole('heading', { level: 2, name: title })).toBeVisible();
+  // Remitentes con nombre de color; la tanda de Carla lleva un solo nombre (cola en el primero).
+  await expect(thread.locator('.gr-msg', { hasText: 'Yo voy' }).locator('.gr-msg-author')).toHaveText(/Carla Prueba/);
+  await expect(thread.locator('.gr-msg', { hasText: 'Llevo hielo y vasos' }).locator('.gr-msg-author')).toHaveCount(0);
+  await expect(thread.locator('.gr-msg', { hasText: 'Llevo hielo y vasos' })).toHaveClass(/is-cont/);
+  await expect(thread.locator('.gr-msg', { hasText: 'Llevo hielo y vasos' }).locator('.wa-edited')).toHaveText('Edited');
+  // Formato de WhatsApp (*negrita*, _cursiva_).
+  await expect(thread.locator('.gr-msg', { hasText: '¿Quién viene' }).locator('strong, b').first()).toHaveText('Traigan');
+  // Respuesta con su cita y reacciones agrupadas.
+  const mine = thread.locator('.gr-msg-out', { hasText: 'Yo llevo la carne' });
+  await expect(mine.locator('.gr-quote')).toContainText('¿Quién viene el sábado?');
+  await expect(mine.locator('.wa-ticks.is-read')).toBeVisible();
+  await expect(thread.locator('.gr-msg', { hasText: '¿Quién viene' }).locator('.ib-wa-reactions')).toContainText('❤️');
+  // Media: foto (abre el visor), audio, documento, ubicación, contacto, encuesta, reenviado, borrado.
+  await expect(thread.locator('.wa-image img:not(.wa-thumb)')).toBeVisible();
+  await thread.locator('.wa-image').click();
+  await expect(page.locator('.wa-viewer')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wa-viewer')).toBeHidden();
+  await expect(thread.locator('.wa-voice')).toBeVisible();
+  await expect(thread.locator('.wa-doc', { hasText: 'Lista de compras.pdf' })).toBeVisible();
+  await expect(thread.locator('.wa-location', { hasText: 'Plaza de prueba' })).toBeVisible();
+  await expect(thread.locator('.wa-contact', { hasText: 'Eva Prueba' })).toBeVisible();
+  await expect(thread.locator('.ib-wa-poll', { hasText: '¿A qué hora?' })).toBeVisible();
+  await expect(thread.locator('.gr-forwarded')).toHaveText(/Forwarded/);
+  await expect(thread.locator('.wa-deleted', { hasText: 'This message was deleted' })).toBeVisible();
+  await expect(thread.locator('.wa-day').first()).toBeVisible();
+  // Escribiendo en un grupo: con el nombre.
+  await expect(thread.locator('.wa-head-sub')).toHaveText('Beto Prueba is typing…');
+  await shot(page, 'convo-1280-light');
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('acciones de mensaje: responder, reaccionar, editar, destacar, borrar y reenviar', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const dm = `${phone('6')}@s.whatsapp.net`;
+  const other = `${phone('8')}@s.whatsapp.net`;
+  const name = `Lola ${uid()}`;
+  const otherName = `Mateo ${uid()}`;
+  await events(request, acc, [message(dm, { senderName: name, body: '¿Me pasás el link?' }), message(other, { senderName: otherName, body: 'hola' })]);
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
+  const thread = page.locator('.ib-wa-thread');
+  const incoming = thread.locator('.gr-msg-in', { hasText: '¿Me pasás el link?' });
+
+  // Responder desde el menú (flecha): la cita queda arriba del campo y sale con el mensaje.
+  await incoming.hover();
+  await incoming.locator('.wa-chevron').click();
+  await page.getByRole('menuitem', { name: 'Reply' }).click();
+  await expect(thread.locator('.wa-replying .gr-quote')).toContainText('¿Me pasás el link?');
+  const field = page.getByRole('textbox', { name: 'Message' });
+  await field.fill('Sí, ahí va: https://example.test/x');
+  await field.press('Enter');
+  const reply = thread.locator('.gr-msg-out', { hasText: 'ahí va' });
+  await expect(reply.locator('.gr-quote')).toContainText('¿Me pasás el link?');
+  await expect(thread.locator('.wa-replying')).toHaveCount(0);
+
+  // Reaccionar con la barra rápida; otra vez el mismo emoji la saca.
+  await incoming.hover();
+  await incoming.getByRole('button', { name: 'React' }).click();
+  await thread.locator('.gr-emoji-picker').getByRole('button', { name: '🙏' }).click();
+  await expect(incoming.locator('.ib-wa-reactions')).toContainText('🙏');
+  await incoming.locator('.ib-wa-reactions').click();
+  await thread.locator('.gr-emoji-picker').getByRole('button', { name: '🙏' }).click();
+  await expect(incoming.locator('.ib-wa-reactions')).toHaveCount(0);
+
+  // Editar lo propio: el campo trae el texto, Enter guarda y queda "Edited".
+  await reply.hover();
+  await reply.locator('.wa-chevron').click();
+  await page.getByRole('menuitem', { name: 'Edit' }).click();
+  await expect(field).toHaveValue('Sí, ahí va: https://example.test/x');
+  await field.fill('Sí, ahí va el link: https://example.test/x');
+  await field.press('Enter');
+  await expect(thread.locator('.gr-msg-out', { hasText: 'ahí va el link' }).locator('.wa-edited')).toBeVisible();
+  await expect(field).toHaveValue('');
+
+  // Destacar.
+  await incoming.hover();
+  await incoming.locator('.wa-chevron').click();
+  await page.getByRole('menuitem', { name: 'Star' }).click();
+  await expect(incoming.locator('.wa-star')).toBeVisible();
+
+  // Reenviar a otro chat.
+  await incoming.hover();
+  await incoming.locator('.wa-chevron').click();
+  await page.getByRole('menuitem', { name: 'Forward' }).click();
+  const fwd = page.getByRole('dialog', { name: 'Forward to' });
+  await fwd.getByRole('textbox').fill(otherName.slice(0, 7));
+  await fwd.getByText(otherName).click();
+  await fwd.getByRole('button', { name: 'Send to 1 chat' }).click();
+  await expect(page.locator('.ib-toast', { hasText: 'Forwarded to 1 chat' })).toBeVisible();
+
+  // Info del mensaje y borrar para todos.
+  const edited = thread.locator('.gr-msg-out', { hasText: 'ahí va el link' });
+  await edited.hover();
+  await edited.locator('.wa-chevron').click();
+  await page.getByRole('menuitem', { name: 'Message info' }).click();
+  await expect(page.getByRole('dialog', { name: 'Message info' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await edited.hover();
+  await edited.locator('.wa-chevron').click();
+  await page.getByRole('menuitem', { name: 'Delete for everyone' }).click();
+  await expect(thread.locator('.wa-deleted', { hasText: 'You deleted this message' })).toBeVisible();
+
+  // Borrar para mí: deja de verse.
+  await incoming.hover();
+  await incoming.locator('.wa-chevron').click();
+  await page.getByRole('menuitem', { name: 'Delete for me' }).click();
+  await expect(thread.locator('.gr-msg-in', { hasText: '¿Me pasás el link?' })).toHaveCount(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('claro y oscuro a 1280 y 390 sin errores ni scroll horizontal', async ({ page, context, baseURL, request }) => {
   const acc = await linkWhatsapp(request);
   await events(request, acc, [message(`${phone('4')}@s.whatsapp.net`, { senderName: `Carla ${uid()} con un nombre bastante largo para ver el corte`, body: 'Un mensaje largo para ver que la vista previa se corta con puntos suspensivos y no desborda' })]);
+  const title = `Club ${uid()}`;
+  await seedGroup(request, acc, title);
   for (const theme of ['light', 'dark'] as const) {
     await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
     for (const width of [1280, 390]) {
@@ -115,8 +271,14 @@ test('claro y oscuro a 1280 y 390 sin errores ni scroll horizontal', async ({ pa
       await page.setViewportSize({ width, height: width > 500 ? 800 : 844 });
       await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
       await expect(page.locator('.ib-item').first()).toBeVisible();
-      expect(await page.evaluate(() => document.scrollingElement!.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+      const overflow = () => page.evaluate(() => document.scrollingElement!.scrollWidth - window.innerWidth);
+      expect(await overflow()).toBeLessThanOrEqual(1);
       await shot(page, `list-${width}-${theme}`);
+      await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
+      await expect(page.locator('.ib-wa-thread .gr-msg').first()).toBeVisible();
+      await expect(page.locator('.wa-image img:not(.wa-thumb)')).toBeVisible();
+      expect(await overflow()).toBeLessThanOrEqual(1);
+      await shot(page, `convo-${width}-${theme}`);
       expect(errors, errors.join('\n')).toEqual([]);
     }
   }

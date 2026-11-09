@@ -14,7 +14,7 @@ import { phoneDigits } from '../groups-provider';
 import { safeFetch } from '../safe-fetch';
 import { getDb } from '../db';
 import { listAccounts, nowIso, type AccountRow, type ThreadRow } from './core';
-import { InboxError, type MessageReaction, type WaMessageMeta } from './types';
+import { InboxError, type MessageReaction, type ParticipantDto, type WaDetailsDto, type WaMessageMeta } from './types';
 import { waProviderFor } from './whatsapp';
 
 type MessageEvent = Extract<InboundEvent, { type: 'message' }>;
@@ -314,14 +314,19 @@ export async function avatarFor(owner: string, threadId: string): Promise<{ data
 // Participantes de un grupo con nombre
 // ---------------------------------------------------------------------------
 
-export interface ParticipantDto {
-  phone: string;
-  role: MemberRole;
-  name: string;
-  /** Chat 1:1 con esa persona en Inbox (para abrirlo). */
-  threadId: string | null;
-  avatar: string;
-  me: boolean;
+/** Info del contacto o del grupo para la conversación y el panel (sin pedir nada al servidor). */
+export async function waDetails(owner: string, thread: ThreadRow, account: AccountRow): Promise<WaDetailsDto> {
+  const info = parseThreadInfo(thread.info);
+  const myPhone = phoneDigits(account.address);
+  return {
+    about: info.about,
+    size: info.size,
+    createdAt: info.createdAt ? new Date(info.createdAt * 1000).toISOString() : null,
+    isBusiness: info.isBusiness,
+    myPhone,
+    participants: thread.kind === 'group' ? (await groupParticipants(owner, thread, myPhone)).slice(0, 1000) : [],
+    infoAt: thread.info_at ?? null,
+  };
 }
 
 /**

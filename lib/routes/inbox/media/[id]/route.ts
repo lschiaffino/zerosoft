@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-const INLINE = /^(image\/(jpeg|png|webp|gif)|audio\/(ogg|mpeg|mp4|aac|webm)|video\/(mp4|webm))$/;
+const INLINE = /^(image\/(jpeg|png|webp|gif)|audio\/(ogg|mpeg|mp4|aac|webm|wav)|video\/(mp4|webm))$/;
 
 /** Archivo de un mensaje de WhatsApp (foto, audio, video, documento), bajado del servidor al pedirlo. */
 export async function GET(_req: Request, ctx: Ctx) {

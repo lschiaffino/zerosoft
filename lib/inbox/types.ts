@@ -93,6 +93,29 @@ export interface WaMessageMeta {
   poll?: { question: string; options: string[]; multi: boolean };
 }
 
+export interface ParticipantDto {
+  phone: string;
+  role: 'member' | 'admin' | 'superadmin';
+  name: string;
+  /** Chat 1:1 con esa persona en Inbox (para abrirlo). */
+  threadId: string | null;
+  avatar: string;
+  me: boolean;
+}
+
+/** Info del contacto o del grupo (panel de la derecha y subtítulo de la cabecera). */
+export interface WaDetailsDto {
+  /** "Info" del contacto o descripción del grupo. */
+  about: string;
+  size: number;
+  createdAt: string | null;
+  isBusiness: boolean;
+  /** Mi número (para "Vos" en la lista de participantes). */
+  myPhone: string;
+  participants: ParticipantDto[];
+  infoAt: string | null;
+}
+
 export interface MessageReaction {
   emoji: string;
   /** Teléfono de quien reaccionó ('me' si fui yo). */

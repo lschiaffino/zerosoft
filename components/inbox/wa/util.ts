@@ -60,3 +60,13 @@ export function groupReactions(list: Array<{ emoji: string; by: string; name: st
   }
   return [...map.values()].sort((a, b) => b.count - a.count);
 }
+
+/** Reemplaza "@5491155550000" por "@Ana" cuando se conoce a la persona (menciones en grupos). */
+export function withMentions(text: string, names: Map<string, string>): string {
+  if (!names.size || !text.includes('@')) return text;
+  return text.replace(/@(\d{8,15})\b/g, (all, d: string) => {
+    const n = names.get(d);
+    return n ? `@${n}` : all;
+  });
+}
+

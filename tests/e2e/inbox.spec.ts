@@ -111,7 +111,7 @@ test('llega un mensaje, se responde con Enter y se marca hecho con E (y Z lo des
   await expect(row.locator('.wa-unread')).toHaveText('1');
   await row.locator('.ib-row-btn').click();
   await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
-  await expect(page.locator('.ib-msg', { hasText: 'me mandás el contrato' })).toBeVisible();
+  await expect(page.locator('.gr-msg', { hasText: 'me mandás el contrato' })).toBeVisible();
   // Abrir lo deja leído.
   await expect(row.locator('.wa-unread')).toHaveCount(0);
 
@@ -122,7 +122,7 @@ test('llega un mensaje, se responde con Enter y se marca hecho con E (y Z lo des
   await expect(field).toBeFocused();
   await field.fill('Sí, ya te lo mando');
   await field.press('Enter');
-  await expect(page.locator('.ib-msg.is-me', { hasText: 'Sí, ya te lo mando' })).toBeVisible();
+  await expect(page.locator('.gr-msg-out', { hasText: 'Sí, ya te lo mando' })).toBeVisible();
   await expect(field).toHaveValue('');
 
   // E: hecho, sale de la bandeja; Z: vuelve.
@@ -191,7 +191,8 @@ test('enviar más tarde, snippets con ; y borrador con IA', async ({ page, reque
   await field.fill('decile que a las 8');
   await field.press('ControlOrMeta+j');
   await expect(field).toHaveValue('Borrador: decile que a las 8');
-  await page.getByRole('button', { name: 'Undo AI' }).click();
+  await page.getByRole('button', { name: 'AI: draft or rewrite' }).click();
+  await page.getByRole('menuitem', { name: 'Undo AI' }).click();
   await expect(field).toHaveValue('decile que a las 8');
   expect(errors, errors.join('\n')).toEqual([]);
 });

@@ -328,16 +328,16 @@ export async function resyncWhatsapp(owner: string): Promise<{ account: AccountR
 }
 
 /** Manda un texto al chat y lo guarda como enviado. */
-export async function sendWhatsappText(account: AccountRow, thread: ThreadRow, text: string): Promise<string> {
+export async function sendWhatsappText(account: AccountRow, thread: ThreadRow, text: string, opts: { replyTo?: string } = {}): Promise<string> {
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
   let id: string;
   try {
-    id = (await waProviderFor(account).sendText(thread.external_id, text)).id;
+    id = (await waProviderFor(account).sendText(thread.external_id, text, opts.replyTo ? { replyTo: opts.replyTo } : undefined)).id;
   } catch (err) {
     if (err instanceof InboxError) throw err;
     throw new InboxError(err instanceof ProviderError && err.code === 'not_connected' ? 'not_connected' : 'send_failed', 502);
   }
-  await addMessage(thread, { externalId: id || `local-${Date.now()}`, fromMe: true, body: text, status: 'sent' });
+  await addMessage(thread, { externalId: id || `local-${Date.now()}`, fromMe: true, body: text, status: 'sent', replyTo: opts.replyTo ?? '' });
   return id;
 }
 

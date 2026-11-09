@@ -8,7 +8,8 @@ import type { ThreadAction } from '@/lib/inbox/core';
 import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
 import { api, INBOX_CHANGED, longWhen, notifyInboxChanged, typingIn } from './api';
 import ChatRow from './wa/ChatRow';
-import Conversation, { type ThreadDetail } from './Conversation';
+import WaConversation, { type WaThreadDetail } from './wa/WaConversation';
+import Conversation from './Conversation';
 import type { ComposerHandle } from './Composer';
 import WhenDialog, { type WhenKind } from './WhenDialog';
 import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog } from './InboxDialogs';
@@ -71,6 +72,7 @@ export default function InboxApp(props: {
   composeOnLoad: boolean;
 }) {
   const t = useTranslations('inbox');
+  const w = useTranslations('inboxWa');
   const locale = useLocale();
   const router = useRouter();
   const { view, folder } = props;
@@ -78,7 +80,7 @@ export default function InboxApp(props: {
   const [state, setState] = useState(props.initialState);
   const [cursor, setCursor] = useState(0);
   const [openId, setOpenId] = useState<string | null>(props.initialOpenId);
-  const [detail, setDetail] = useState<ThreadDetail | null>(null);
+  const [detail, setDetail] = useState<WaThreadDetail | null>(null);
   const [detailErr, setDetailErr] = useState('');
   const [listErr, setListErr] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -87,6 +89,7 @@ export default function InboxApp(props: {
   const [when, setWhen] = useState<{ kind: WhenKind; ids: string[]; text?: string } | null>(null);
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [compose, setCompose] = useState(props.composeOnLoad);
   const [help, setHelp] = useState(false);
   const [folderEdit, setFolderEdit] = useState<FolderDto | 'new' | null>(null);
@@ -98,7 +101,7 @@ export default function InboxApp(props: {
   const composer = useRef<ComposerHandle>(null);
   const gPending = useRef(0);
 
-  const errText = useCallback((code?: string) => (code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic')), [t]);
+  const errText = useCallback((code?: string) => (code && t.has(`errors.${code}`) ? t(`errors.${code}`) : code && w.has(`errors.${code}`) ? w(`errors.${code}`) : t('errors.generic')), [t, w]);
   const toast = useCallback((text: string, opts: { bad?: boolean; undo?: () => void } = {}) => {
     const id = ++seq.current;
     setToasts((x) => [...x.slice(-2), { id, text, ...opts }]);
@@ -131,12 +134,19 @@ export default function InboxApp(props: {
 
   const loadDetail = useCallback(async (id: string, quiet = false) => {
     if (!quiet) setDetailErr('');
-    const r = await api<ThreadDetail>(`/api/inbox/threads/${id}`);
+    const r = await api<WaThreadDetail>(`/api/inbox/threads/${id}`);
     if (!r.ok) {
       if (!quiet) setDetailErr(r.data.error ?? 'generic');
       return;
     }
-    setDetail((d) => (quiet && d && d.thread.id === id && d.messages.length > r.data.messages.length ? { ...r.data, messages: d.messages, more: d.more } : r.data));
+    setDetail((d) => {
+      // Con mensajes anteriores ya cargados: quedan los de antes de esta página y lo reciente se actualiza
+      // (reacciones, tildes, borrados). Si no, la página nueva tal cual.
+      if (!(quiet && d && d.thread.id === id && d.extended)) return r.data;
+      const first = r.data.messages[0]?.sentAt;
+      const older = first ? d.messages.filter((m) => m.sentAt < first) : d.messages;
+      return { ...r.data, messages: [...older, ...r.data.messages], more: d.more, extended: true };
+    });
   }, []);
 
   // Búsqueda: espera a que se deje de escribir.
@@ -188,6 +198,16 @@ export default function InboxApp(props: {
       window.removeEventListener(INBOX_CHANGED, tick);
     };
   }, [reloadList, reloadState, loadDetail, openId]);
+
+  // Chat de WhatsApp abierto: cada 3 s (escribiendo…, tildes, reacciones), como en vivo.
+  const openIsWa = detail?.thread.channel === 'whatsapp' && detail.thread.id === openId;
+  useEffect(() => {
+    if (!openId || !openIsWa) return;
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void loadDetail(openId, true);
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [openId, openIsWa, loadDetail]);
 
   useEffect(() => {
     if (cursor >= threads.length && threads.length) setCursor(threads.length - 1);
@@ -641,6 +661,41 @@ export default function InboxApp(props: {
             <span className="ui-skeleton ui-skeleton-row" />
             <span className="ui-skeleton ui-skeleton-row" />
           </div>
+        ) : detail && openId && detail.thread.channel === 'whatsapp' ? (
+          <WaConversation
+            ref={composer}
+            detail={detail}
+            folders={state.folders}
+            snippets={state.snippets}
+            connected={detailAccount?.status === 'connected'}
+            threads={threads}
+            infoOpen={infoOpen}
+            onBack={closeConvo}
+            onAction={act}
+            onSent={(messages: MessageDto[]) => {
+              setDetail((d) => (d ? { ...d, messages } : d));
+              void reloadList();
+            }}
+            onSendLater={(text) => setWhen({ kind: 'sendLater', ids: [detail.thread.id], text })}
+            onScheduledChange={() => {
+              void loadDetail(detail.thread.id, true);
+              void reloadState();
+              void reloadList();
+            }}
+            onError={(code) => toast(errText(code), { bad: true })}
+            onToast={(text) => toast(text)}
+            onToggleInfo={() => setInfoOpen((v) => !v)}
+            onRefresh={() => {
+              void loadDetail(detail.thread.id, true);
+              void reloadList();
+            }}
+            loadOlder={async () => {
+              const first = detail.messages[0];
+              if (!first) return;
+              const r = await api<{ messages: MessageDto[]; more: boolean }>(`/api/inbox/threads/${detail.thread.id}/messages?before=${encodeURIComponent(first.sentAt)}`);
+              if (r.ok) setDetail((d) => (d ? { ...d, messages: [...r.data.messages, ...d.messages], more: r.data.more, extended: true } : d));
+            }}
+          />
         ) : detail && openId ? (
           <Conversation
             ref={composer}
@@ -671,7 +726,7 @@ export default function InboxApp(props: {
               const first = detail.messages[0];
               if (!first) return;
               const r = await api<{ messages: MessageDto[]; more: boolean }>(`/api/inbox/threads/${detail.thread.id}/messages?before=${encodeURIComponent(first.sentAt)}`);
-              if (r.ok) setDetail((d) => (d ? { ...d, messages: [...r.data.messages, ...d.messages], more: r.data.more } : d));
+              if (r.ok) setDetail((d) => (d ? { ...d, messages: [...r.data.messages, ...d.messages], more: r.data.more, extended: true } : d));
             }}
           />
         ) : (

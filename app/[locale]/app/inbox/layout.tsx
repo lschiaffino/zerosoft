@@ -13,7 +13,7 @@ export default async function InboxLayout(props: { children: ReactNode; params: 
   const { locale } = await props.params;
   await requireUser(locale);
   return (
-    <ClientMessages locale={locale} namespaces={['inbox', 'inboxWa']}>
+    <ClientMessages locale={locale} namespaces={['inbox', 'inboxWa', 'groups.wa', 'groups.common', 'groups.media', 'groups.thread.fileUnavailable']}>
       {props.children}
       <InboxBranch />
     </ClientMessages>
