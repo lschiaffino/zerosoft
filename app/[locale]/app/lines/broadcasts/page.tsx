@@ -33,10 +33,10 @@ export default async function GroupsBroadcastsPage(props: { params: Promise<{ lo
         actions={
           numbers.length > 0 ? (
             <span className="gr-inline-form">
-              <Link href="/app/groups/broadcasts/new?repeat=1" className="btn btn-secondary">
+              <Link href="/app/lines/broadcasts/new?repeat=1" className="btn btn-secondary">
                 {t('recurring.new')}
               </Link>
-              <Link href="/app/groups/broadcasts/new" className="btn btn-primary">
+              <Link href="/app/lines/broadcasts/new" className="btn btn-primary">
                 {t('broadcasts.new')}
               </Link>
             </span>
@@ -57,8 +57,8 @@ export default async function GroupsBroadcastsPage(props: { params: Promise<{ lo
           body={numbers.length ? t('broadcasts.emptyBody') : t('broadcasts.noNumbersBody')}
           action={
             numbers.length
-              ? { label: t('broadcasts.new'), href: '/app/groups/broadcasts/new' }
-              : { label: t('inbox.connect'), href: '/app/groups/settings?tab=numbers&new=1' }
+              ? { label: t('broadcasts.new'), href: '/app/lines/broadcasts/new' }
+              : { label: t('inbox.connect'), href: '/app/lines/settings?tab=numbers&new=1' }
           }
           product="groups"
         />
@@ -77,7 +77,7 @@ export default async function GroupsBroadcastsPage(props: { params: Promise<{ lo
               {broadcasts.map((b) => (
                 <tr key={b.id}>
                   <td>
-                    <Link href={`/app/groups/broadcasts/${b.id}`}>{b.name || b.body.slice(0, 60) || t('broadcasts.untitled')}</Link>
+                    <Link href={`/app/lines/broadcasts/${b.id}`}>{b.name || b.body.slice(0, 60) || t('broadcasts.untitled')}</Link>
                     {b.kind === 'scheduled' && <span className="ui-help"> · {t('broadcasts.kindScheduled')}</span>}
                     {b.recurringId && <span className="ui-help"> · {t('recurring.run')}</span>}
                     {b.poll && <span className="ui-help"> · {t('polls.badge')}</span>}

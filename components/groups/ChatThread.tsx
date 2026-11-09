@@ -978,7 +978,7 @@ export default function ChatThread(props: ThreadProps) {
         setSelecting(new Set());
         return;
       }
-      router.push(`/app/groups/inbox${window.location.search}`);
+      router.push(`/app/lines/inbox${window.location.search}`);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1325,7 +1325,7 @@ export default function ChatThread(props: ThreadProps) {
                 key={i}
                 name={c.name}
                 phone={(c.phones?.[0] ?? '').replace(/[^\d]/g, '')}
-                onMessage={() => router.push(`/app/groups/inbox?q=${encodeURIComponent((c.phones?.[0] ?? '').replace(/[^\d]/g, ''))}`)}
+                onMessage={() => router.push(`/app/lines/inbox?q=${encodeURIComponent((c.phones?.[0] ?? '').replace(/[^\d]/g, ''))}`)}
                 onSave={() => void saveContact(c.name, (c.phones?.[0] ?? '').replace(/[^\d]/g, ''))}
               />
             ))}
@@ -1378,7 +1378,7 @@ export default function ChatThread(props: ThreadProps) {
             <p className="wa-tags">
               {m.deletedAt && !hidden && <span className="gr-deleted-tag">{t('thread.deletedTag')}</span>}
               {m.ticketId && (
-                <Link href={`/app/groups/tickets?open=${m.ticketId}`} className="gr-ticket-tag">
+                <Link href={`/app/lines/tickets?open=${m.ticketId}`} className="gr-ticket-tag">
                   {t('thread.hasTicket')}
                 </Link>
               )}
@@ -1492,7 +1492,7 @@ export default function ChatThread(props: ThreadProps) {
           </div>
         )}
         <header className="gr-thread-head wa-head">
-          <Link href="/app/groups/inbox" className="wa-icon-btn gr-back" aria-label={t('thread.back')} title={t('thread.back')}>
+          <Link href="/app/lines/inbox" className="wa-icon-btn gr-back" aria-label={t('thread.back')} title={t('thread.back')}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
               <path d="M15 5 8 12l7 7" />
             </svg>

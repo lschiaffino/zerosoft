@@ -96,7 +96,7 @@ export async function notifyBreach(ws: string, ticket: TicketDto, kind: 'first_r
   const recipients = await slaRecipients(ws, settings, ticket);
   if (recipients.length === 0) return 0;
   const locale = settings.locale;
-  const href = `/app/groups/tickets?open=${encodeURIComponent(ticket.id)}`;
+  const href = `/app/lines/tickets?open=${encodeURIComponent(ticket.id)}`;
   const mail = buildSlaEmail(ticket, kind, locale, `${siteUrl()}/${locale}${href}`);
   let sent = 0;
   for (const r of recipients) {
