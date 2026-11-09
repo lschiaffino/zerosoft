@@ -78,7 +78,8 @@ export function MessageMenu({
       setPos(null);
       return;
     }
-    list.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    // Sin scroll: la lista todavía puede estar fuera de la ventana (antes de medirla) y un scroll la cerraría al abrir.
+    list.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus({ preventScroll: true });
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
       if (button.current?.contains(t) || list.current?.contains(t)) return;
