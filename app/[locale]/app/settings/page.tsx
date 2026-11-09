@@ -6,6 +6,9 @@ import FormSection from '@/components/ui/FormSection';
 import { settingsSectionMetadata } from '@/lib/settings-meta';
 import { getUserTimeZone } from '@/lib/user-tz';
 import ProfileForm from '@/components/settings/ProfileForm';
+import { AccountDataSection } from '@/components/settings/PrivacyPanel';
+import { pendingErasure } from '@/lib/privacy';
+import { getDb } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +26,13 @@ export default async function AccountSettingsPage(props: { params: Promise<{ loc
   const initial = (me.name ?? me.email).trim().charAt(0).toUpperCase() || 'Z';
 
   const tz = me.time_zone ?? (await getUserTimeZone());
+  const [erasure, memberRow] = await Promise.all([
+    pendingErasure(me.id),
+    getDb()
+      .prepare("SELECT COUNT(*) AS n FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.role != 'guest'")
+      .get(me.id) as Promise<{ n: number } | undefined>,
+  ]);
+  const members = Number(memberRow?.n ?? 1);
   return (
     <>
     <FormSection
@@ -69,6 +79,14 @@ export default async function AccountSettingsPage(props: { params: Promise<{ loc
       </div>
     </FormSection>
     <ProfileForm name={me.name ?? ''} locale={me.locale ?? locale} timeZone={tz} />
+    {!DEMO_MODE || me.email !== 'demo@zerosoft.ai' ? (
+      <AccountDataSection
+        email={me.email}
+        locale={locale}
+        pending={erasure ? { kind: erasure.kind, dueAt: erasure.due_at } : null}
+        workspaceMembers={members}
+      />
+    ) : null}
     </>
   );
 }

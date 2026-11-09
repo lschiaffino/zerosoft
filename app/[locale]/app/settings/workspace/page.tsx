@@ -4,6 +4,7 @@ import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { settingsSectionMetadata } from '@/lib/settings-meta';
 import { emailDomain, ensureWorkspace, joinSettings, parseDomains, workspaceModeOf } from '@/lib/workspace';
 import WorkspacePanel from '@/components/settings/WorkspacePanel';
+import { pendingErasure } from '@/lib/privacy';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,7 @@ export default async function WorkspaceSettingsPage(props: { params: Promise<{ l
   const user = await requireUser(locale);
   const team = user.workspace ?? (await ensureWorkspace(user.id));
   const owner = (await getDb().prepare('SELECT email FROM users WHERE id = ?').get(team.owner_id)) as { email: string } | undefined;
+  const erasure = user.role === 'owner' ? await pendingErasure(team.owner_id) : null;
   return (
     <WorkspacePanel
       canEdit={isWorkspaceAdmin(user)}
@@ -39,6 +41,8 @@ export default async function WorkspaceSettingsPage(props: { params: Promise<{ l
         joinApproval: joinSettings(team).approval,
         editorDomain: emailDomain((user.actingUser ?? user).email),
         viewerIsOwner: user.role === 'owner',
+        pendingErasure: erasure ? { kind: erasure.kind, dueAt: erasure.due_at } : null,
+        locale,
         viewerApps: user.apps ?? '*',
       }}
     />

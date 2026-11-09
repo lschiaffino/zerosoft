@@ -414,6 +414,7 @@ export const SECURITY_ACTIONS = [
   'account.delete_requested',
   'account.delete_cancelled',
   'account.deleted',
+  'workspace.delete_requested',
   'workspace.deleted',
 ] as const;
 export type SecurityAction = (typeof SECURITY_ACTIONS)[number];

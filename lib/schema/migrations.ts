@@ -8973,6 +8973,28 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at);
       `);
     },
+  },  {
+    // Borrado de cuenta o de workspace (lib/privacy.ts): se pide, quedan 30 días para
+    // arrepentirse y el cron lo ejecuta reclamando la fila (claimed_at).
+    id: '295_privacy_erasures',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS privacy_erasures (
+          id TEXT PRIMARY KEY,
+          kind TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          requested_by TEXT NOT NULL,
+          requested_at TEXT NOT NULL,
+          due_at TEXT NOT NULL,
+          claimed_at TEXT,
+          done_at TEXT,
+          cancelled_at TEXT,
+          stats TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_privacy_erasures_due ON privacy_erasures(due_at) WHERE done_at IS NULL AND cancelled_at IS NULL;
+        CREATE INDEX IF NOT EXISTS idx_privacy_erasures_user ON privacy_erasures(user_id);
+      `);
+    },
   },
 ];
 

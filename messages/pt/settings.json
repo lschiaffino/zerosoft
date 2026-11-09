@@ -852,7 +852,7 @@
     "joinApproval": "Um admin aprova cada pessoa antes de ela entrar",
     "joinRole": "Entram como membros com estes apps:",
     "dangerTitle": "Propriedade e encerramento",
-    "dangerDesc": "O que ainda não está no produto e o que fazer enquanto isso.",
+    "dangerDesc": "Transferir a propriedade e excluir o workspace com tudo o que tem.",
     "transferTitle": "Transferir a propriedade",
     "transferBody": "Ainda não dá para transferir a propriedade pelo app. Enquanto isso, torne a próxima pessoa admin em Configurações › Membros: admins convidam, mudam papéis e editam estas configurações.",
     "closeTitle": "Encerrar o workspace",
@@ -1487,6 +1487,7 @@
         "member_transfer": "Transferiu trabalho",
         "invite_create": "Convidou alguém",
         "invite_revoke": "Revogou um convite",
+        "workspace_delete_requested": "Pediu para excluir o workspace",
         "login_mfa": "Passou a segunda etapa"
       }
     },
@@ -1498,5 +1499,29 @@
       "generic": "Algo deu errado. Tente de novo.",
       "network": "Sem conexão. Tente de novo."
     }
+  },
+  "privacy": {
+    "title": "Seus dados",
+    "desc": "Baixe tudo ou exclua sua conta.",
+    "exportTitle": "Baixar meus dados",
+    "exportBody": "Um ZIP com cada registro da sua conta e do workspace do qual você é dono, um arquivo JSON por tabela. Segredos, como tokens e chaves, ficam de fora.",
+    "exportCta": "Baixar ZIP",
+    "deleteTitle": "Excluir a conta",
+    "deleteBody": "Sua conta e o workspace do qual você é dono são excluídos 30 dias depois do pedido, com os arquivos e os números de WhatsApp conectados. Até lá você pode cancelar e baixar seus dados.",
+    "deleteBodyMembers": "{count, plural, one {Sua conta e o workspace do qual você é dono são excluídos 30 dias depois do pedido. # outra pessoa do seu workspace perde o acesso.} other {Sua conta e o workspace do qual você é dono são excluídos 30 dias depois do pedido. # outras pessoas do seu workspace perdem o acesso.}}",
+    "deleteDialogBody": "Todas as suas sessões são encerradas. Em 30 dias sua conta, o workspace do qual você é dono, os arquivos e os números conectados são apagados. Se entrar antes, pode cancelar.",
+    "deleteCta": "Excluir a conta",
+    "typeEmail": "Digite {email} para confirmar",
+    "workspaceTitle": "Excluir o workspace",
+    "workspaceBody": "Apaga tudo deste workspace 30 dias depois do pedido, com os arquivos e os números de WhatsApp conectados. Aí os membros perdem o acesso. Sua conta continua.",
+    "workspaceDialogBody": "Em 30 dias todos os apps, registros, arquivos e números conectados deste workspace são apagados e os membros perdem o acesso. Até lá você pode cancelar.",
+    "workspaceCta": "Excluir o workspace",
+    "typeWorkspace": "Digite {name} para confirmar",
+    "pendingAccount": "Sua conta e seu workspace serão excluídos em",
+    "pendingWorkspace": "Este workspace será excluído em",
+    "cancelDeletion": "Cancelar a exclusão",
+    "mismatch": "Não confere. Digite exatamente como aparece.",
+    "error": "Algo deu errado. Tente de novo.",
+    "cancel": "Cancelar"
   }
 }

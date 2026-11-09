@@ -852,7 +852,7 @@
     "joinApproval": "An admin approves each person before they join",
     "joinRole": "They join as members with these apps:",
     "dangerTitle": "Ownership and closing",
-    "dangerDesc": "What isn’t in the product yet, and what to do meanwhile.",
+    "dangerDesc": "Transfer ownership, and delete the workspace with everything in it.",
     "transferTitle": "Transfer ownership",
     "transferBody": "You can’t transfer ownership from the app yet. Meanwhile, make the next person an admin in Settings › Members: admins invite, change roles and edit these settings.",
     "closeTitle": "Close the workspace",
@@ -1487,6 +1487,7 @@
         "member_transfer": "Work transferred",
         "invite_create": "Invitation sent",
         "invite_revoke": "Invitation revoked",
+        "workspace_delete_requested": "Workspace deletion requested",
         "login_mfa": "Two-step code accepted"
       }
     },
@@ -1498,5 +1499,29 @@
       "generic": "Something went wrong. Try again.",
       "network": "No connection. Try again."
     }
+  },
+  "privacy": {
+    "title": "Your data",
+    "desc": "Download everything or delete your account.",
+    "exportTitle": "Download my data",
+    "exportBody": "A ZIP with every record of your account and of the workspace you own, one JSON file per table. Secrets such as tokens and keys are left out.",
+    "exportCta": "Download ZIP",
+    "deleteTitle": "Delete account",
+    "deleteBody": "Your account and the workspace you own are deleted 30 days after you ask, including files and connected WhatsApp numbers. Until then you can cancel and download your data.",
+    "deleteBodyMembers": "{count, plural, one {Your account and the workspace you own are deleted 30 days after you ask. # other person in your workspace loses access to it.} other {Your account and the workspace you own are deleted 30 days after you ask. # other people in your workspace lose access to it.}}",
+    "deleteDialogBody": "You will be signed out everywhere. In 30 days your account, the workspace you own, its files and its connected numbers are erased. Sign in before then to cancel.",
+    "deleteCta": "Delete account",
+    "typeEmail": "Type {email} to confirm",
+    "workspaceTitle": "Delete workspace",
+    "workspaceBody": "Erases everything in this workspace 30 days after you ask, including files and connected WhatsApp numbers. Members lose access then. Your account stays.",
+    "workspaceDialogBody": "In 30 days every app, record, file and connected number of this workspace is erased and members lose access. You can cancel until then.",
+    "workspaceCta": "Delete workspace",
+    "typeWorkspace": "Type {name} to confirm",
+    "pendingAccount": "Your account and workspace will be deleted on",
+    "pendingWorkspace": "This workspace will be deleted on",
+    "cancelDeletion": "Cancel deletion",
+    "mismatch": "That does not match. Type it exactly as shown.",
+    "error": "Something went wrong. Try again.",
+    "cancel": "Cancel"
   }
 }
