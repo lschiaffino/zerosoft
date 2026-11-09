@@ -14,6 +14,9 @@ import { PDFDocument } from 'pdf-lib';
  */
 
 const AUDIT = process.env.RESP_AUDIT || '';
+// Para depurar el recorrido: RESP_ONLY=<regex de URL> y RESP_DEBUG=1 (qué botón abrió qué).
+const ONLY = process.env.RESP_ONLY ? new RegExp(process.env.RESP_ONLY) : null;
+const DEBUG = !!process.env.RESP_DEBUG;
 const APPS = ['rec', 'voice', 'notes', 'talk', 'books', 'people', 'hiring', 'sign', 'shop', 'forms', 'send', 'social', 'flow', 'agents', 'robots'];
 const VIEWPORTS = AUDIT
   ? [
@@ -64,7 +67,7 @@ async function seed(request: APIRequestContext): Promise<string[]> {
     urls.push(`/en/app/talk/${ch.id}`);
   }
   const emp = await json<{ employee: { id: string } }>(request.post('/api/people/employees', { data: { name: `Persona ${uid()} Apellidolargo`, jobTitle: 'Head of Design' } }));
-  if (emp) urls.push(`/en/app/people/employees/${emp.employee.id}`);
+  if (emp) urls.push(`/en/app/people/${emp.employee.id}`);
   const job = await json<{ job: { id: string } }>(request.post('/api/hiring/jobs', { data: { title: `Support ${uid()}`, template: 'customer-support' } }));
   if (job) {
     await request.patch(`/api/hiring/jobs/${job.job.id}`, { data: { status: 'published' } });
@@ -232,10 +235,12 @@ async function overlayTriggers(page: Page): Promise<number> {
       const r = b.getBoundingClientRect();
       if (!r.width || !r.height || b.closest('dialog[open],[role="dialog"],.app-band,.side,.assistant,[class*="feedback"]') || (b as HTMLButtonElement).disabled) continue;
       if ((b as HTMLButtonElement).type === 'submit') continue;
+      // Pestañas y "volver" cambian de pantalla, no abren nada encima.
+      if (b.matches('[role="tab"], [aria-current], [aria-selected]') || b.closest('[role="tablist"], .ui-tabs')) continue;
       const name = `${b.getAttribute('aria-label') || ''} ${b.innerText || ''} ${b.getAttribute('title') || ''}`;
       const opener = b.hasAttribute('aria-haspopup') || b.hasAttribute('aria-expanded') || re.test(name);
       if (!opener && risky.test(name)) continue;
-      if (/delete|remove|archive|discard|offboard|revoke|disconnect|sign out|log out|huddle/i.test(name)) continue;
+      if (/delete|remove|archive|discard|offboard|revoke|disconnect|sign out|log out|huddle|remind|resend|send a new link|correct|reset|regenerate|rotate|^\s*back\s*$/i.test(name)) continue;
       b.setAttribute('data-resp-trigger', String(n++));
     }
     return n;
@@ -299,7 +304,11 @@ async function crawlPage(page: Page, url: string, vp: string, scheme: string, fi
   findings.push(base);
   if (!withOverlays) return;
   const n = Math.min(await overlayTriggers(page), 40);
+  if (DEBUG) console.log(`[resp] ${url}: ${n} botones`);
   const tried = new Set<string>();
+  const here = () => new URL(page.url()).pathname + new URL(page.url()).search;
+  // Algunas pantallas completan la URL al cargar (?tab=…): esa es la base para saber si un clic navegó.
+  const home = here();
   for (let i = 0; i < n && tried.size < (AUDIT ? 24 : 10); i++) {
     const trig = page.locator(`[data-resp-trigger="${i}"]`);
     if (!(await trig.isVisible().catch(() => false))) continue;
@@ -308,16 +317,23 @@ async function crawlPage(page: Page, url: string, vp: string, scheme: string, fi
     const kind = label.replace(/\s+(for|de|para)\s.*$/i, '').replace(/\d+/g, '#');
     if (tried.has(kind)) continue;
     tried.add(kind);
+    const before = await page.locator('[data-resp-trigger]:visible').count().catch(() => 0);
     await markFloating(page);
     await trig.click({ timeout: 2_000 }).catch(() => null);
     await page.waitForTimeout(350);
-    if (!page.url().includes(url.split('?')[0])) {
+    const reset = async () => {
       await page.goto(url, { waitUntil: 'domcontentloaded' }).catch(() => null);
       await settle(page);
       await overlayTriggers(page);
+    };
+    // Navegó (otra pantalla, otra pestaña de la URL): no es un overlay; se vuelve a la pantalla.
+    if (here() !== home) {
+      if (DEBUG) console.log(`[resp] ${url} #${i} "${label}" -> navegó a ${here()}`);
+      await reset();
       continue;
     }
     const sel = await openOverlay(page);
+    if (DEBUG) console.log(`[resp] ${url} #${i} "${label}" -> ${sel ? 'overlay' : 'nothing'} ${page.url()}`);
     if (sel) {
       const f: Finding = { url, vp, scheme, overlay: label, issues: await check(page, sel) };
       if (shotDir) {
@@ -330,20 +346,20 @@ async function crawlPage(page: Page, url: string, vp: string, scheme: string, fi
     await page.keyboard.press('Escape').catch(() => null);
     await page.waitForTimeout(120);
     // Si Esc no cerró todo (o abrió un editor), se vuelve a la página limpia.
-    if (await page.locator('dialog[open], [role="dialog"]:visible, [role="menu"]:visible').count().catch(() => 0)) {
-      await page.goto(url, { waitUntil: 'domcontentloaded' }).catch(() => null);
-      await settle(page);
-      await overlayTriggers(page);
-    }
+    // Si Esc no cerró todo, o el clic cambió la pantalla (un panel que tapa el resto, otra URL), se vuelve a la pantalla limpia.
+    const stillOpen = await page.locator('dialog[open], [role="dialog"]:visible, [role="menu"]:visible').count().catch(() => 0);
+    const visibleTriggers = await page.locator('[data-resp-trigger]:visible').count().catch(() => 0);
+    if (stillOpen || here() !== home || visibleTriggers < before) await reset();
   }
 }
 
 /** Lo que bloquea en CI. tap-small queda como aviso: hay íconos de 32px a propósito en barras densas. */
 const BLOCKING = new Set(['hscroll', 'offscreen', 'overlay-offscreen', 'input-zoom', 'http']);
 
+// Micrófono y cámara falsos: sin ellos getUserMedia se cuelga en headless (grabar, huddle, dictar).
+test.use({ hasTouch: true, isMobile: true, permissions: ['microphone', 'camera'], launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] } });
+
 test.describe('celular: apps (segunda mitad)', () => {
-  // Micrófono y cámara falsos: sin ellos getUserMedia se cuelga en headless (grabar, huddle, dictar).
-  test.use({ hasTouch: true, isMobile: true, permissions: ['microphone', 'camera'], launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] } });
   test.setTimeout(AUDIT ? 3_600_000 : 600_000);
 
   test('cada pantalla y overlay entra en 390 y 360 de ancho', async ({ browser, request, baseURL }) => {
@@ -355,7 +371,14 @@ test.describe('celular: apps (segunda mitad)', () => {
     // Rutas: el inicio de cada app más lo que enlaza (sidebar, pestañas, filas) y lo sembrado.
     const discover = await browser.newContext({ baseURL, viewport: { width: 1280, height: 900 } });
     const dp = await discover.newPage();
-    const routes = new Set<string>();
+    // Las públicas primero: las acciones de la app (recordar, corregir firmantes) pueden cambiar su link.
+    const routes = new Set<string>(seeded.filter((u) => !u.startsWith('/en/app/')));
+    // Las públicas con más de una pantalla (empleos y su aviso, tienda y su producto).
+    for (const u of seeded.filter((s) => /^\/(careers|store)\/[^/]+$/.test(s))) {
+      await dp.goto(u, { waitUntil: 'domcontentloaded' }).catch(() => null);
+      await settle(dp);
+      for (const l of await appLinks(dp, `${u}/`, 4)) routes.add(l);
+    }
     for (const app of APPS) {
       routes.add(`/en/app/${app}`);
       await dp.goto(`/en/app/${app}`, { waitUntil: 'domcontentloaded' }).catch(() => null);
@@ -363,25 +386,17 @@ test.describe('celular: apps (segunda mitad)', () => {
       for (const l of await appLinks(dp, `/en/app/${app}`, AUDIT ? 25 : 10)) routes.add(l);
     }
     for (const u of seeded) routes.add(u);
-    // Las públicas con más de una pantalla (empleos y su aviso, tienda y su producto).
-    for (const u of seeded.filter((s) => /^\/(careers|store)\/[^/]+$/.test(s))) {
-      await dp.goto(u, { waitUntil: 'domcontentloaded' }).catch(() => null);
-      await settle(dp);
-      for (const l of await appLinks(dp, `${u}/`, 4)) routes.add(l);
-    }
     await discover.close();
 
-    for (const scheme of SCHEMES) {
-      for (const vp of VIEWPORTS) {
-        // Oscuro cambia colores, no medidas: alcanza con 390.
-        if (scheme === 'dark' && vp.name !== '390') continue;
-        const ctx = await browser.newContext({ baseURL, viewport: { width: vp.width, height: vp.height }, hasTouch: true, isMobile: true, colorScheme: scheme, permissions: ['microphone', 'camera'] });
-        const page = await ctx.newPage();
-        // Overlays solo en 390 claro (y 360 en la auditoría): el resto repite lo mismo.
-        const withOverlays = vp.name === '390';
-        for (const url of routes) await crawlPage(page, url, vp.name, scheme, findings, shotDir, withOverlays && scheme === 'light');
-        await ctx.close();
-      }
+    // Oscuro cambia colores, no medidas: alcanza con 390. Los overlays (390 claro) van al final:
+    // abrirlos toca datos (recordatorios, stock) y no tienen que cambiar lo que ven las otras pasadas.
+    const passes = SCHEMES.flatMap((scheme) => VIEWPORTS.filter((vp) => scheme === 'light' || vp.name === '390').map((vp) => ({ scheme, vp, overlays: scheme === 'light' && vp.name === '390' })));
+    passes.sort((a, b) => Number(a.overlays) - Number(b.overlays));
+    for (const { scheme, vp, overlays } of passes) {
+      const ctx = await browser.newContext({ baseURL, viewport: { width: vp.width, height: vp.height }, hasTouch: true, isMobile: true, colorScheme: scheme, permissions: ['microphone', 'camera'] });
+      const page = await ctx.newPage();
+      for (const url of routes) if (!ONLY || ONLY.test(url)) await crawlPage(page, url, vp.name, scheme, findings, shotDir, overlays);
+      await ctx.close();
     }
 
     const withIssues = findings.filter((f) => f.issues.length);
