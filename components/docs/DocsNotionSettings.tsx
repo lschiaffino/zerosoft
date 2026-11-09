@@ -187,6 +187,8 @@ export function DocsNotionSettings({ notice }: { notice?: string | null }) {
           <div className="docs-notion-connect" data-testid="notion-sync-disconnected">
             {status.oauth ? (
               <div className="docs-notion-oauth">
+                {/* Redirect del servidor a Notion (no es una página de la app). */}
+                {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
                 <a className="btn" href="/api/integrations/notion/start" data-testid="notion-sync-oauth">
                   {t('connectOauth')}
                 </a>
