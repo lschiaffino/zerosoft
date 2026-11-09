@@ -19,7 +19,7 @@ const intlMiddleware = createMiddleware(routing);
 const RESERVED = new Set([
   'en', 'es', 'pt',
   'app', 'api', 'auth', 'r', 's', 'n', 'b', 'q', 'f', 'h',
-  'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'status',
+  'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'subprocessors', 'status',
   'admin', 'www', 'mail', 'support', 'help', 'about', 'new',
   'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos', 'roadmap', 'tools',
   'feedback-board', 'send', 'brand', 'nuevo-branding', 'download', 'store', 'careers', 'compare',

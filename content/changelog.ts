@@ -58,6 +58,99 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-09-inbox-whatsapp-web',
+    date: '2026-11-09',
+    title: {
+      en: 'Inbox: WhatsApp looks and works like WhatsApp Web',
+      es: 'Inbox: WhatsApp se ve y se usa como WhatsApp Web',
+      pt: 'Inbox: o WhatsApp parece e funciona como o WhatsApp Web',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Real group names and profile photos, and a chat list with ticks, the sender in groups, media icons and typing.',
+        es: 'Nombres reales de los grupos y fotos de perfil, y una lista de chats con tildes, quién mandó en los grupos, íconos de media y "escribiendo".',
+        pt: 'Nomes reais dos grupos e fotos de perfil, e uma lista de conversas com confirmações, quem enviou nos grupos, ícones de mídia e "digitando".',
+      },
+      {
+        product: 'inbox',
+        en: 'The conversation has bubbles, reactions, replies, forwarding, editing, deleting, stars, mentions, link previews, photos with a viewer, voice notes and documents. Drop, paste or pick files to send them with a caption, or record a voice note.',
+        es: 'La conversación tiene burbujas, reacciones, respuestas, reenviar, editar, borrar, destacados, menciones, vista previa de links, fotos con visor, notas de voz y documentos. Arrastrá, pegá o elegí archivos para mandarlos con un comentario, o grabá una nota de voz.',
+        pt: 'A conversa tem balões, reações, respostas, encaminhar, editar, apagar, favoritas, menções, prévia de links, fotos com visualizador, notas de voz e documentos. Arraste, cole ou escolha arquivos para enviar com legenda, ou grave uma nota de voz.',
+      },
+      {
+        product: 'inbox',
+        en: 'Click the header for contact or group info: members, shared media, groups in common, mute, block and an AI summary of the chat. On the phone, swipe a message to reply and a chat to archive or pin.',
+        es: 'Tocando la cabecera se ve la info del contacto o del grupo: integrantes, lo compartido, grupos en común, silenciar, bloquear y un resumen con IA del chat. En el teléfono, deslizá un mensaje para responder y un chat para archivarlo o fijarlo.',
+        pt: 'Tocando no cabeçalho aparecem os dados do contato ou do grupo: membros, o que foi compartilhado, grupos em comum, silenciar, bloquear e um resumo com IA da conversa. No celular, deslize uma mensagem para responder e uma conversa para arquivar ou fixar.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-account-security-and-your-data',
+    date: '2026-11-09',
+    title: {
+      en: 'Two-step verification, sessions, audit log and your data',
+      es: 'Verificación en dos pasos, sesiones, registro de auditoría y tus datos',
+      pt: 'Verificação em duas etapas, sessões, registro de auditoria e seus dados',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Turn on two-step verification with any authenticator app, with ten recovery codes. Workspace owners can require it for every member.',
+        es: 'Activá la verificación en dos pasos con cualquier app autenticadora, con diez códigos de recuperación. El owner del workspace puede exigirla a todos.',
+        pt: 'Ative a verificação em duas etapas com qualquer app autenticador, com dez códigos de recuperação. O dono do workspace pode exigi-la de todos.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Security lists the devices signed in to your account and signs out one or all of them. Owners and admins get an audit log of sign-ins, keys, exports and member changes, with CSV download.',
+        es: 'Ajustes › Seguridad muestra los dispositivos con tu cuenta abierta y cierra uno o todos. Owners y admins tienen un registro de auditoría de inicios de sesión, keys, exportaciones y cambios de miembros, con descarga en CSV.',
+        pt: 'Configurações › Segurança mostra os dispositivos com sua conta aberta e encerra um ou todos. Donos e admins têm um registro de auditoria de logins, chaves, exportações e mudanças de membros, com download em CSV.',
+      },
+      {
+        product: 'platform',
+        en: 'Download everything in your account and workspace as a ZIP, and delete your account or workspace from Settings, with 30 days to change your mind.',
+        es: 'Descargá todo lo de tu cuenta y tu workspace en un ZIP, y borrá tu cuenta o tu workspace desde Ajustes, con 30 días para arrepentirte.',
+        pt: 'Baixe tudo da sua conta e do seu workspace em um ZIP, e exclua sua conta ou seu workspace em Configurações, com 30 dias para voltar atrás.',
+      },
+      {
+        product: 'platform',
+        en: 'New subprocessors page, and the security and privacy pages now describe these controls and our compliance status as it is.',
+        es: 'Nueva página de subprocesadores, y las páginas de seguridad y privacidad ahora describen estos controles y el estado real de las certificaciones.',
+        pt: 'Nova página de subprocessadores, e as páginas de segurança e privacidade agora descrevem esses controles e o estado real das certificações.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-rec-sharing',
+    date: '2026-11-08',
+    title: {
+      en: 'Rec: new videos are private, and you choose who watches',
+      es: 'Rec: los videos nuevos son privados y elegís quién los ve',
+      pt: 'Rec: os vídeos novos são privados e você escolhe quem assiste',
+    },
+    items: [
+      {
+        product: 'rec',
+        en: 'New recordings start restricted: only you and the people you invite can open the link. Admins can change the default in Rec settings. Videos already shared by link keep working and show as "Anyone with the link" in Share, so you can restrict them.',
+        es: 'Lo que grabás arranca restringido: el link lo abren solo vos y las personas que invites. Los admins pueden cambiar el default en los ajustes de Rec. Los videos que ya estaban compartidos por link siguen andando y aparecen como "Cualquiera con el link" en Compartir, para que los puedas restringir.',
+        pt: 'O que você grava começa restrito: só você e as pessoas que convidar abrem o link. Admins podem mudar o padrão nos ajustes do Rec. Os vídeos já compartilhados por link continuam funcionando e aparecem como "Qualquer pessoa com o link" em Compartilhar, para você poder restringir.',
+      },
+      {
+        product: 'rec',
+        en: 'Share works like Drive: invite workspace members or any email as viewer or commenter, see who has access and who watched, change roles and remove people. People outside the workspace get a sign-in link by email; anyone without access can ask for it from the video page.',
+        es: 'Compartir funciona como en Drive: invitás a miembros del workspace o a cualquier email como lector o comentador, ves quién tiene acceso y quién lo vio, cambiás roles y quitás personas. A la gente de afuera le llega un link por mail para entrar; quien no tiene acceso lo puede pedir desde la página del video.',
+        pt: 'Compartilhar funciona como no Drive: você convida membros do workspace ou qualquer email como leitor ou comentador, vê quem tem acesso e quem assistiu, muda papéis e remove pessoas. Quem é de fora recebe um link por email para entrar; quem não tem acesso pode pedir na página do vídeo.',
+      },
+      {
+        product: 'rec',
+        en: 'Downloads come as MP4 (H.264 and AAC) named after the video, so they open in QuickTime, WhatsApp or Slides. The first download of each version takes a moment to prepare.',
+        es: 'Las descargas salen en MP4 (H.264 y AAC) con el nombre del video, así se abren en QuickTime, WhatsApp o Slides. La primera descarga de cada versión tarda un momento en prepararse.',
+        pt: 'Os downloads saem em MP4 (H.264 e AAC) com o nome do vídeo, para abrir no QuickTime, WhatsApp ou Slides. O primeiro download de cada versão leva um momento para ficar pronto.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-groups-is-now-lines',
     date: '2026-11-08',
     title: {

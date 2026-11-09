@@ -206,6 +206,8 @@ export type InboundEvent =
       /** Encuesta creada en WhatsApp. */
       poll?: { question: string; options: string[]; multi: boolean };
       forwarded?: boolean;
+      /** Vista previa del link que mandó WhatsApp con el texto (título, descripción, miniatura). */
+      link?: LinkPreview;
       /** Datos de presentación: nota de voz, duración, ubicación, contacto compartido. */
       meta?: Record<string, unknown>;
     }
@@ -297,8 +299,40 @@ export interface HistorySource {
   picture(chatId: string): Promise<string>;
 }
 
+/** Vista previa de un link (la arma el teléfono que manda el mensaje). */
+export interface LinkPreview {
+  url: string;
+  title: string;
+  description?: string;
+  /** Miniatura chica como data URL (JPEG). */
+  thumbnail?: string;
+}
+
+/** Datos de un chat para mostrar (como "Info del contacto" o "Info del grupo" en WhatsApp). */
+export interface ChatInfo {
+  /** Asunto del grupo o nombre del perfil ('' si no se ve). */
+  name: string;
+  /** Descripción del grupo o "info" (estado) del contacto. */
+  about: string;
+  /** URL de la foto en el servidor de WhatsApp ('' si no tiene o no se ve). */
+  pictureUrl: string;
+  /** Participantes con teléfono conocido (los "@lid" sin teléfono no vienen). */
+  participants?: Array<{ phone: string; role: MemberRole }>;
+  /** Cantidad total de participantes (también los que no traen teléfono). */
+  size?: number;
+  /** Creación del grupo (segundos). */
+  createdAt?: number;
+  isBusiness?: boolean;
+}
+
 export interface GroupsProvider {
   readonly kind: ProviderKind;
+  /** Nombre, foto y datos de un chat (grupo: asunto, descripción y participantes; persona: perfil). */
+  chatInfo?(chatId: string): Promise<ChatInfo | null>;
+  /** Bloquear o desbloquear un contacto en WhatsApp. */
+  blockContact?(chatId: string, block: boolean): Promise<void>;
+  /** Presencia propia en un chat (escribiendo, grabando) y suscribirse a la del otro (escribiendo, en línea). */
+  sendPresence?(chatId: string, state: 'composing' | 'recording' | 'paused', ms: number): Promise<void>;
   readonly caps: ProviderCaps;
   /** Historial guardado en el gateway (solo Evolution y el QR administrado). */
   history?: HistorySource;
@@ -306,7 +340,8 @@ export interface GroupsProvider {
   connect(webhookUrl: string): Promise<ConnectState>;
   state(): Promise<ConnectState>;
   disconnect(): Promise<void>;
-  sendText(chatId: string, text: string, opts?: { replyTo?: string }): Promise<SendResult>;
+  /** `mentions`: teléfonos mencionados con "@teléfono" en el texto (grupos). */
+  sendText(chatId: string, text: string, opts?: { replyTo?: string; mentions?: string[] }): Promise<SendResult>;
   sendMedia(chatId: string, media: MediaInput): Promise<SendResult>;
   react(chatId: string, providerMessageId: string, emoji: string, fromMe: boolean): Promise<void>;
   sendTemplate(chatId: string, name: string, language: string, params: string[]): Promise<SendResult>;
