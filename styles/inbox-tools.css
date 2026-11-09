@@ -1,0 +1,17 @@
+/*
+ * Inbox: herramientas (escribir con IA, carpetas anidadas y arrastrar chats,
+ * envíos de varios mensajes, importación). Separado de inbox.css, que lleva el
+ * aspecto de la bandeja y la conversación.
+ */
+
+/* ---------- Escribir con IA ---------- */
+
+.ib-ai { display: grid; gap: 8px; padding: 10px 12px; background: var(--ib-soft); border: 1px solid color-mix(in srgb, var(--c-inbox) 30%, var(--line)); border-radius: var(--radius-1); min-width: 0; }
+.ib-ai-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ib-ai-label { font-size: 0.8125rem; font-weight: 600; color: var(--ib-ink); }
+.ib-ai-row { display: flex; gap: 6px; min-width: 0; }
+.ib-ai-row .input { flex: 1; min-width: 0; }
+.ib-ai-draft { max-height: 30vh; overflow-y: auto; padding: 8px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-1); font-size: 0.9063rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ib-ai-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+.ib-ai-refine { flex: 1 1 160px; min-width: 0; height: 30px; font-size: 0.8125rem; }
+.ib-ai-actions { display: flex; justify-content: flex-end; gap: 6px; }

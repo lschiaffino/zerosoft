@@ -75,11 +75,13 @@ export const composeSchema = z.discriminatedUnion('channel', [
 ]);
 
 export const aiSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('draft'), threadId: id, instruction: z.string().max(2000).optional() }),
+  z.object({ action: z.literal('draft'), threadId: id, instruction: z.string().max(2000).optional(), stream: z.boolean().optional() }),
   z.object({
     action: z.literal('rewrite'),
     text: z.string().min(1).max(6000),
     mode: z.enum(['shorter', 'friendlier', 'formal', 'fix', 'custom']),
     instruction: z.string().max(1000).optional(),
+    threadId: id.optional(),
+    stream: z.boolean().optional(),
   }),
 ]);

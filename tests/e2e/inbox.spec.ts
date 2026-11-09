@@ -193,6 +193,29 @@ test('enviar más tarde, snippets con ; y borrador con IA', async ({ page, reque
   await expect(field).toHaveValue('Borrador: decile que a las 8');
   await page.getByRole('button', { name: 'Undo AI' }).click();
   await expect(field).toHaveValue('decile que a las 8');
+
+  // "¿Qué querés decir?": instrucción, borrador que llega de a pedazos, refinar e insertar.
+  await page.getByRole('button', { name: 'What do you want to say?' }).click();
+  const panel = page.getByRole('region', { name: 'Write with AI' });
+  await expect(panel.getByRole('textbox', { name: 'What do you want to say?' })).toBeFocused();
+  await panel.getByRole('textbox', { name: 'What do you want to say?' }).fill('que llego tarde');
+  await panel.getByRole('textbox', { name: 'What do you want to say?' }).press('Enter');
+  await expect(panel.getByTestId('inbox-ai-draft')).toHaveText('Borrador: que llego tarde');
+  await panel.getByRole('button', { name: 'More formal' }).click();
+  await expect(panel.getByTestId('inbox-ai-draft')).toHaveText('Borrador: que llego tarde (formal)');
+  await panel.getByRole('textbox', { name: 'Another change' }).fill('sin emojis');
+  await panel.getByRole('textbox', { name: 'Another change' }).press('Enter');
+  await expect(panel.getByTestId('inbox-ai-draft')).toHaveText('Borrador: que llego tarde (formal) (sin emojis)');
+  await panel.getByRole('button', { name: 'Previous version' }).click();
+  await expect(panel.getByTestId('inbox-ai-draft')).toHaveText('Borrador: que llego tarde (formal)');
+  await panel.getByRole('button', { name: 'Insert' }).click();
+  await expect(panel).toBeHidden();
+  await expect(field).toHaveValue('Borrador: que llego tarde (formal)');
+  // Esc cierra el panel sin tocar el campo.
+  await page.getByRole('button', { name: 'What do you want to say?' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('region', { name: 'Write with AI' })).toBeHidden();
+  await expect(field).toHaveValue('Borrador: que llego tarde (formal)');
   expect(errors, errors.join('\n')).toEqual([]);
 });
 

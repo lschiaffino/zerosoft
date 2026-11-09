@@ -34,6 +34,7 @@
     "aiWorking": "Escrevendo…",
     "aiFromText": "Escrever com IA",
     "aiDraft": "Rascunho com IA",
+    "aiAsk": "O que você quer dizer?",
     "rewrite": "Reescrever",
     "rewrites": { "shorter": "Mais curto", "friendlier": "Mais caloroso", "formal": "Mais formal", "fix": "Corrigir ortografia e gramática" },
     "undoAi": "Desfazer IA",
@@ -132,6 +133,7 @@
     "quota_exceeded": "Você usou a cota de IA deste mês.",
     "rate_limited": "Muitos pedidos. Espere um momento.",
     "ai_failed": "A IA não respondeu. Tente de novo.",
+    "ai_not_configured": "A IA não está configurada neste servidor.",
     "invalid_file": "Esse arquivo não é uma exportação do inbox-zero.",
     "media_unavailable": "Este arquivo não está mais disponível no WhatsApp."
   },
@@ -370,5 +372,25 @@
       "result": "Foram importadas {folders} pastas, {chats} conversas, {scheduled} agendadas, {drafts} rascunhos, {snoozes} adiadas, {notes} notas e {messages} mensagens.",
       "partial": "A importação parou depois da parte {done} de {total}. Importe de novo para terminar: nada é duplicado."
     }
+  },
+  "ai": {
+    "title": "Escrever com IA",
+    "ask": "O que você quer dizer?",
+    "askPlaceholder": "Ex: diga que vou chegar 20 minutos atrasado",
+    "write": "Escrever",
+    "again": "Outra versão",
+    "writing": "Escrevendo…",
+    "close": "Fechar",
+    "refine": {
+      "shorter": "Mais curto",
+      "formal": "Mais formal",
+      "friendlier": "Mais caloroso"
+    },
+    "refineLabel": "Outra mudança",
+    "refinePlaceholder": "Outra mudança, ex: sem emojis",
+    "previous": "Versão anterior",
+    "insert": "Inserir",
+    "insertHint": "Coloca no campo para você revisar (⌘Enter)",
+    "notConfigured": "A IA não está configurada neste servidor. Quem administra precisa definir OPENROUTER_API_KEY (ou AI_GATEWAY_API_KEY)."
   }
 }
