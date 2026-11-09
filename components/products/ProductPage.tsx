@@ -62,7 +62,7 @@ const MOCKUPS: Record<ProductKey, ComponentType> = {
   talk: TalkMockup,
   design: DesignMockup,
   shop: ShopMockup,
-  analytics: AnalyticsMockup,
+  pulse: AnalyticsMockup,
   social: SocialMockup,
   hiring: HiringMockup,
   people: PeopleMockup,

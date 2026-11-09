@@ -402,7 +402,7 @@ export async function deliverSubscription(project: ProjectRow, s: SubscriptionDt
   const locale = localeArg ?? s.locale;
   const c = copy(locale);
   const body = await buildReport(project, s, locale);
-  const path = s.insightId ? `/${locale}/app/analytics/insights/${s.insightId}` : `/${locale}/app/analytics/dashboards/${s.dashboardId}`;
+  const path = s.insightId ? `/${locale}/app/pulse/insights/${s.insightId}` : `/${locale}/app/pulse/dashboards/${s.dashboardId}`;
   let error: string | null = null;
   for (const to of s.recipients) {
     if (s.recipientState[to] !== 'confirmed') continue;
