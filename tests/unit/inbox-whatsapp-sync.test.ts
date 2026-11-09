@@ -211,7 +211,7 @@ describe('Inbox WhatsApp: historial al vincular', () => {
     expect(msgs.map((m) => m.body)).toEqual(['Mañana te mando el contrato']);
 
     // Mayúsculas (otras versiones) y otra instancia: lo primero entra, lo segundo no.
-    const upper = await hook(account, envelope('MESSAGES_UPSERT', cfg.session, cfg.instanceToken, { ...upsert.data, key: { ...upsert.data.key, id: 'UPPER1' } }));
+    const upper = await hook(account, envelope('MESSAGES_UPSERT', cfg.session, cfg.instanceToken, { ...(upsert.data as Record<string, unknown>), key: { ...((upsert.data as { key: Record<string, unknown> }).key), id: 'UPPER1' } }));
     expect(await upper.json()).toMatchObject({ messages: 1 });
     const other = await hook(account, envelope('messages.upsert', 'zs-00000000000000000000', cfg.instanceToken, upsert.data));
     expect(other.status).toBe(401);
