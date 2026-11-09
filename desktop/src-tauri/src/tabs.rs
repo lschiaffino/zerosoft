@@ -163,7 +163,13 @@ fn build_window(app: &AppHandle, label: &str) -> tauri::Result<Window> {
     }
     let win = b.build()?;
     let (cw, _) = logical_size(&win);
-    let strip = WebviewBuilder::new(strip_label(label), WebviewUrl::App("tabs.html".into())).disable_drag_drop_handler();
+    // Desde la config: es la única forma de pasarle a la webview la posición de los semáforos
+    // (centrados en la tira, como en Safari y Chrome).
+    let mut cfg = tauri::utils::config::WindowConfig { label: strip_label(label), url: WebviewUrl::App("tabs.html".into()), drag_drop_enabled: false, ..Default::default() };
+    if cfg!(target_os = "macos") {
+        cfg.traffic_light_position = Some(tauri::utils::config::LogicalPosition { x: 14.0, y: STRIP_H - 14.0 });
+    }
+    let strip = WebviewBuilder::from_config(&cfg);
     win.add_child(strip, LogicalPosition::new(0.0, 0.0), LogicalSize::new(cw, STRIP_H))?;
     show_tab(app, active, true);
     let _ = win.show();

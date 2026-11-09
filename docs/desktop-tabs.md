@@ -72,7 +72,7 @@ sus procesos de WebKit. Cada webview de WKWebView es un proceso WebContent propi
 - Cada pestaña cargada suma unos **45 MB** (más en apps pesadas como Talk o Design).
 - Cada ventana extra suma unos **60 MB** (su pestaña más la tira, unos 13 MB).
 - Una pestaña pausada o sin abrir cuesta casi nada: por eso restaurar es perezoso y las quietas
-  se pausan. Con 10 pestañas abiertas y la pausa prendida, la app vuelve a ~120-200 MB.
+  se pausan: 10 pestañas restauradas cuestan lo mismo que una (123 MB contra 122 MB).
 
 Por qué no una sola webview con pestañas adentro (rutas o iframes): cambiar de pestaña
 recargaría la app o mezclaría 10 apps en un mismo proceso, sin poder liberar una sola.
