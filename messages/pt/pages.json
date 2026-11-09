@@ -3837,7 +3837,17 @@
     "mobileBody": "Abra zerosoft.ai/app no Safari ou no Chrome e adicione à tela de início: abre como um app, com todos os apps do zerosoft. As versões nativas de iOS e Android ainda não estão nas lojas.",
     "openApp": "Abrir no navegador",
     "f5t": "Continua funcionando sem conexão",
-    "f5d": "Se um ditado não chega ao servidor, a gravação fica no seu computador e você envia de novo pela barra de menus quando a conexão voltar."
+    "f5d": "Se um ditado não chega ao servidor, a gravação fica no seu computador e você envia de novo pela barra de menus quando a conexão voltar.",
+    "offlineTitle": "Sem conexão",
+    "offlineLead": "No navegador e no app instalado pelo navegador, alguns apps continuam funcionando sem rede. O que você mudar fica salvo no seu dispositivo e é enviado quando a conexão voltar; a barra de cima mostra quantas alterações esperam e quais não puderam ser salvas. No app de desktop ainda não testamos.",
+    "offCrm": "Contatos, empresas e negócios que você já abriu podem ser lidos sem rede. Notas, tarefas e mudanças de campos são salvas e enviadas ao reconectar. E-mails, arquivos e importações precisam de conexão.",
+    "offDocs": "As páginas que você abriu e as que marcou como \"Disponível sem conexão\", com as subpáginas. O que você escreve fica salvo no dispositivo e, ao voltar, é mesclado por bloco com o que outros mudaram.",
+    "offNotes": "Uma cópia das suas notas no dispositivo: busque, crie e edite sem rede. Se alguém mudou a mesma nota, a sua fica como cópia separada.",
+    "offTrack": "As listas, issues e projetos que você abriu podem ser lidos sem rede. Mudar status, prioridade, responsável, datas, título ou descrição, criar issues e comentar fica salvo e é enviado ao reconectar. Se alguém editou o mesmo issue nesse meio tempo, fica a última alteração que chegou e você recebe um aviso. Anexos, IA e integrações precisam de conexão.",
+    "offOtherT": "Ainda não",
+    "offOther": "Board, Chat, Calendar, Voice, Talk e os outros apps precisam de conexão por enquanto.",
+    "offPrivacyT": "Seu dispositivo",
+    "offPrivacy": "O que fica salvo é da sua sessão: ao sair, tudo é apagado, inclusive alterações que não foram enviadas, e outra pessoa no mesmo computador não vê nada seu."
   },
   "compare": {
     "crumb": "Comparar",

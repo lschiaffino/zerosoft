@@ -5,6 +5,9 @@ import { signOut } from 'next-auth/react';
 import { clearOfflineData } from '@/lib/offline-queue';
 import RecSignOutDialog from '@/components/rec/RecSignOutDialog';
 import NotesSignOutDialog from '@/components/notes/NotesSignOutDialog';
+import OfflineStatus from './OfflineStatus';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { pendingWrites } from '@/lib/offline-fetch';
 import { useTranslations } from 'next-intl';
 import { TZ_CHANGED_EVENT } from '@/lib/tz-client';
 import { desktopBridge, type DesktopBridge } from '@/lib/desktop-bridge';
@@ -167,8 +170,18 @@ export default function AppSidebar({
   const [recPending, setRecPending] = useState(0);
   // Notes: cambios sin subir (o sin red) se avisan antes de borrar la copia del dispositivo.
   const [notesWarn, setNotesWarn] = useState<{ count: number; offline: boolean; text: string } | null>(null);
+  // Cambios de CRM y Track en la cola del service worker: al salir se borran, así que primero se avisa.
+  const [queueWarn, setQueueWarn] = useState(0);
+  const tOffline = useTranslations('common.offline');
   const doSignOut = () => void clearOfflineData(recOwner ?? undefined).finally(() => signOut({ callbackUrl: '/' }));
-  async function requestSignOut() {
+  async function requestSignOut(opts: { skipQueue?: boolean } = {}) {
+    if (recOwner && !opts.skipQueue) {
+      const queued = await pendingWrites(`${recOwner.userId}:${recOwner.ws}`, () => true, { failed: true }).catch(() => []);
+      if (queued.length) {
+        setQueueWarn(queued.length);
+        return;
+      }
+    }
     if (recOwner) {
       const { pendingFor } = await import('@/components/rec/recStore');
       const pending = await pendingFor(recOwner.userId, recOwner.ws).catch(() => []);
@@ -512,6 +525,8 @@ export default function AppSidebar({
         <div className="band-right">
           {/* Indicador de Voice cuando hay una reunión grabando (lo llena components/voice/RecorderProvider). */}
           <span id="band-voice-slot" className="band-voice-slot" />
+          {/* Sin conexión: estado, cambios en el dispositivo y los que no se guardaron (components/app/OfflineStatus). */}
+          {user.id && user.ws && <OfflineStatus owner={`${user.id}:${user.ws}`} />}
           <button type="button" className="band-search" onClick={openSearch} aria-label={labels.search}>
             <Icon name="search" size={15} />
             <span className="band-search-label">{labels.search}</span>
@@ -744,6 +759,19 @@ export default function AppSidebar({
           {/* Fuera del menú: siguen abiertos aunque el menú ya se haya cerrado. */}
           {!demo && (
             <>
+              <ConfirmDialog
+                open={queueWarn > 0}
+                title={tOffline('signOutTitle', { count: queueWarn })}
+                body={<p>{tOffline('signOutBody')}</p>}
+                confirmLabel={tOffline('signOutConfirm')}
+                cancelLabel={tOffline('signOutCancel')}
+                danger
+                onConfirm={() => {
+                  setQueueWarn(0);
+                  void requestSignOut({ skipQueue: true });
+                }}
+                onCancel={() => setQueueWarn(0)}
+              />
               <RecSignOutDialog open={recPending > 0} count={recPending} owner={recOwner} onClose={() => setRecPending(0)} onSignOut={doSignOut} />
               <NotesSignOutDialog
                 open={notesWarn !== null}

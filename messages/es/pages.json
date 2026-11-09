@@ -3837,7 +3837,17 @@
     "mobileBody": "Abrí zerosoft.ai/app en Safari o Chrome y agregala a la pantalla de inicio: se abre como una app, con todas las apps de zerosoft. Las versiones nativas de iOS y Android todavía no están en las tiendas.",
     "openApp": "Abrir en el navegador",
     "f5t": "Sigue andando sin conexión",
-    "f5d": "Si un dictado no llega al servidor, la grabación queda en tu compu y la mandás de nuevo desde la barra de menú cuando vuelve la conexión."
+    "f5d": "Si un dictado no llega al servidor, la grabación queda en tu compu y la mandás de nuevo desde la barra de menú cuando vuelve la conexión.",
+    "offlineTitle": "Sin conexión",
+    "offlineLead": "En el navegador y en la app instalada desde el navegador, algunas apps siguen andando sin red. Lo que cambies queda guardado en tu dispositivo y se manda solo al volver la conexión; la banda de arriba muestra cuántos cambios esperan y cuáles no se pudieron guardar. En la app de escritorio todavía no lo probamos.",
+    "offCrm": "Contactos, empresas y negocios que ya abriste se leen sin red. Notas, tareas y cambios de campos se guardan y se mandan al reconectar. Emails, archivos e importaciones necesitan conexión.",
+    "offDocs": "Las páginas que abriste, y las que marcaste \"Disponible sin conexión\" con sus subpáginas. Lo que escribís se guarda en el dispositivo y al volver se fusiona por bloque con lo que otros cambiaron.",
+    "offNotes": "Una copia de tus notas en el dispositivo: se buscan, se crean y se editan sin red. Si alguien cambió la misma nota, lo tuyo queda como copia aparte.",
+    "offTrack": "Las listas, issues y proyectos que abriste se leen sin red. Cambiar estado, prioridad, asignado, fechas, título o descripción, crear issues y comentar se guarda y se manda al reconectar. Si alguien editó el mismo issue mientras tanto, queda lo último que llegó y te avisamos. Adjuntos, IA e integraciones necesitan conexión.",
+    "offOtherT": "Todavía no",
+    "offOther": "Board, Chat, Calendar, Voice, Talk y el resto de las apps necesitan conexión por ahora.",
+    "offPrivacyT": "Tu dispositivo",
+    "offPrivacy": "Lo guardado es de tu sesión: al cerrar sesión se borra todo, incluidos los cambios que no se mandaron, y otra persona en el mismo equipo no ve nada tuyo."
   },
   "compare": {
     "crumb": "Comparar",
