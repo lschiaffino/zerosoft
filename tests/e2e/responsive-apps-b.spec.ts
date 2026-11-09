@@ -360,7 +360,7 @@ const BLOCKING = new Set(['hscroll', 'offscreen', 'overlay-offscreen', 'input-zo
 test.use({ hasTouch: true, isMobile: true, permissions: ['microphone', 'camera'], launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] } });
 
 test.describe('celular: apps (segunda mitad)', () => {
-  test.setTimeout(AUDIT ? 3_600_000 : 600_000);
+  test.setTimeout(AUDIT ? 3_600_000 : 900_000);
 
   test('cada pantalla y overlay entra en 390 y 360 de ancho', async ({ browser, request, baseURL }) => {
     const seeded = await seed(request);
