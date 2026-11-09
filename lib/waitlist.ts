@@ -75,7 +75,7 @@ export async function joinWaitlist(input: JoinInput, db: Db = getDb()): Promise<
       )
       .run(useCase, useCase, input.userId, input.app, email);
   }
-  return { created: res.changes > 0, email, app: input.app };
+  return { created: res.changes > 0, email, app: input.app as ProductKey };
 }
 
 /** Apps de la lista donde ya está ese email (para mostrar "Ya estás en la lista"). */

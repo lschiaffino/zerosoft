@@ -40,7 +40,8 @@ export class OperationError extends Error {
       | 'confirmation_required'
       | 'rate_limited'
       | 'timeout'
-      | 'web_only',
+      | 'web_only'
+      | 'coming_soon',
     message: string,
     public extra: Record<string, unknown> = {},
   ) {

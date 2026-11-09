@@ -161,7 +161,7 @@ export const COMING_SOON_APPS: readonly ProductKey[] = (Object.keys(PRODUCT_CONF
   (k) => (PRODUCT_CONFIG[k] as ProductEntry).status === 'coming_soon',
 );
 
-export function isComingSoon(key: string): key is ProductKey {
+export function isComingSoon(key: string): boolean {
   return (COMING_SOON_APPS as readonly string[]).includes(key);
 }
 

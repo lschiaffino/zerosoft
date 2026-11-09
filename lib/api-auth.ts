@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { getDb, type ApiKeyRow, type UserRow } from './db';
 import { clientIp, rateLimit } from './rate-limit';
 import { API_SCOPES, hasScope, keyHasMcpAccess, MCP_KEY_SCOPE, parseScopes, serializeScopes, type ApiScope, scopesForApps, scopesWithoutApps, SCOPE_APP } from './api-scopes';
-import { isComingSoon, PRODUCT_CONFIG } from './products';
+import { isComingSoon, PRODUCT_CONFIG, type ProductKey } from './products';
 import { blockedAppsFor } from './workspace-apps';
 import { normalizeRole, resolveWorkspace, type TeamRole } from './teams';
 import { parseApps } from './workspace';
@@ -136,7 +136,7 @@ export async function requireApiUser(req: Request, scope: ApiScope): Promise<Api
   }
   if (!hasScope(auth.scopes, scope)) {
     const app = SCOPE_APP[scope.split(':')[0]] ?? '';
-    if (isComingSoon(app)) return { res: apiError(403, 'coming_soon', `${PRODUCT_CONFIG[app].name} is not available yet.`) };
+    if (isComingSoon(app)) return { res: apiError(403, 'coming_soon', `${PRODUCT_CONFIG[app as ProductKey].name} is not available yet.`) };
     return { res: apiError(403, 'insufficient_scope', `This API key is missing the "${scope}" scope.`) };
   }
   return auth;
