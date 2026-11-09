@@ -46,6 +46,29 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-08-offline-mode',
+    date: '2026-11-08',
+    title: {
+      en: 'Work offline in Track, with one status for the whole app',
+      es: 'Trabajá sin conexión en Track, con un solo estado para toda la app',
+      pt: 'Trabalhe sem conexão no Track, com um só status para todo o app',
+    },
+    items: [
+      {
+        product: 'track',
+        en: 'Issues, lists and projects you already opened load without a network. Edits, new issues and comments are saved on your device and sent in order when the connection is back; if someone changed the same issue meanwhile, you get an "edited elsewhere" notice.',
+        es: 'Los issues, listas y proyectos que ya abriste cargan sin red. Los cambios, los issues nuevos y los comentarios se guardan en tu dispositivo y se mandan en orden al volver la conexión; si alguien cambió el mismo issue mientras tanto, te avisamos que se editó en otro lado.',
+        pt: 'Issues, listas e projetos que você já abriu carregam sem rede. Alterações, issues novos e comentários ficam salvos no seu dispositivo e são enviados em ordem quando a conexão volta; se alguém mudou o mesmo issue nesse meio tempo, você recebe um aviso de que foi editado em outro lugar.',
+      },
+      {
+        product: 'crm',
+        en: 'The top bar shows when you are offline, how many changes are waiting on this device, and the ones the server rejected, with retry and discard. Signing out with unsynced changes asks first.',
+        es: 'La banda de arriba muestra cuando estás sin conexión, cuántos cambios esperan en este dispositivo y los que el servidor rechazó, con reintentar y descartar. Cerrar sesión con cambios sin sincronizar pregunta antes.',
+        pt: 'A barra de cima mostra quando você está sem conexão, quantas alterações esperam neste dispositivo e as que o servidor recusou, com tentar de novo e descartar. Sair com alterações não sincronizadas pergunta antes.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-members-permissions',
     date: '2026-11-08',
     title: {

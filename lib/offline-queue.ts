@@ -29,15 +29,34 @@ export const NEVER_QUEUE = [
   '/api/crm/calls',
 ] as const;
 
-/** ¿Se encola este request si falla por red? Solo JSON (o sin cuerpo) a /api/crm/**. */
-export function shouldQueue(pathname: string, method: string, contentType: string | null): boolean {
+/** APIs que aceptan encolar cuando la página lo pide (header x-zs-offline, lib/offline-fetch.ts). */
+export const OPT_IN_PREFIXES = ['/api/track/'] as const;
+/** Nunca se encolan aunque se pida: integraciones, exportar, importar, en vivo. */
+export const NEVER_OPT_IN = [
+  '/api/track/export',
+  '/api/track/github',
+  '/api/track/slack',
+  '/api/track/integrations',
+  '/api/track/live',
+  '/api/track/import',
+] as const;
+
+/**
+ * ¿Se encola este request si falla por red? Solo JSON (o sin cuerpo): todo
+ * /api/crm/** (salvo NEVER_QUEUE) y, si la página lo pide (`optIn`), las APIs
+ * de OPT_IN_PREFIXES salvo NEVER_OPT_IN, adjuntos y agentes.
+ */
+export function shouldQueue(pathname: string, method: string, contentType: string | null, optIn = false): boolean {
   const m = method.toUpperCase();
   if (m !== 'POST' && m !== 'PATCH' && m !== 'PUT' && m !== 'DELETE') return false;
-  if (!pathname.startsWith('/api/crm/')) return false;
-  if (NEVER_QUEUE.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return false;
-  if (pathname.endsWith('/draft') || pathname.includes('/ai')) return false;
   const ct = (contentType ?? '').toLowerCase();
-  return ct === '' || ct.startsWith('application/json');
+  if (ct !== '' && !ct.startsWith('application/json')) return false;
+  if (pathname.endsWith('/draft') || pathname.includes('/ai')) return false;
+  if (pathname.startsWith('/api/crm/')) return !NEVER_QUEUE.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  if (!optIn) return false;
+  if (!OPT_IN_PREFIXES.some((p) => pathname.startsWith(p))) return false;
+  if (NEVER_OPT_IN.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return false;
+  return !/\/(attachments|agent)(\/|$)/.test(pathname);
 }
 
 export interface QueuedRequest {
@@ -47,6 +66,14 @@ export interface QueuedRequest {
   contentType: string | null;
   /** Workspace de la pestaña que escribió: al reenviar se exige el mismo. */
   workspace?: string | null;
+  /** Persona:workspace de la sesión que escribió: solo se manda con esa sesión. */
+  owner?: string | null;
+  /** Clave de idempotencia (la misma en cada reenvío). */
+  idem?: string | null;
+  /** updated_at sobre el que se editó (x-zs-base). */
+  base?: string | null;
+  /** Nombre del cambio para la lista de pendientes. */
+  label?: string | null;
   body: string | null;
   createdAt: number;
 }
@@ -54,60 +81,94 @@ export interface QueuedRequest {
 export interface QueueStore {
   all(): Promise<QueuedRequest[]>;
   remove(id: number): Promise<void>;
+  /** Rechazado por el servidor (4xx): se aparta para reintentar o descartar. Sin esto, se saca. */
+  fail?(item: QueuedRequest, status: number): Promise<void>;
+  /** Se guardó encima de una versión más nueva: se anota para avisar. */
+  conflict?(item: QueuedRequest): Promise<void>;
 }
 
 export interface ReplayResult {
   done: number;
   failed: number;
+  /** Guardados encima de una versión más nueva ("editado en otro lado"). */
+  conflicts: number;
   remaining: number;
-  /** Quedaron cambios que este workspace no puede enviar (401). */
+  /** Quedaron cambios que esta sesión no puede enviar (401 u otra persona). */
   blocked?: boolean;
   /** De esos, cuántos no dicen de qué workspace son. */
   unknown?: number;
+  /** El servidor no pudo ahora (5xx, 429): lo que falta se reintenta después. */
+  retry?: boolean;
+}
+
+export interface ReplayResponse {
+  ok: boolean;
+  status: number;
+  conflict?: boolean;
+  retry?: boolean;
 }
 
 /**
- * Reenvía la cola en orden. Si se corta la red se detiene (lo que falta queda
- * para la próxima). Una respuesta HTTP (aunque sea 4xx/5xx) saca el item: el
- * servidor ya decidió y reintentarlo daría el mismo resultado. Salvo un 401:
- * sin sesión o con otro workspace activo, el cambio queda en la cola (y lo que
- * sigue de ese workspace espera) hasta que la persona vuelva a él.
+ * Reenvía la cola en orden (public/sw.js tiene la misma función; el test la
+ * compara). Si se corta la red, o el servidor responde 5xx/429, se detiene y
+ * lo que falta queda para la próxima. Un 401 o un cambio de otra persona
+ * (`owner` distinto) queda en la cola y lo que sigue de esa sesión espera.
+ * Otro 4xx aparta el cambio (fail) para reintentar o descartar; un DELETE con
+ * 404 ya estaba hecho.
  */
 export async function replayQueue(
   store: QueueStore,
-  doFetch: (req: QueuedRequest) => Promise<{ ok: boolean; status: number }>,
+  doFetch: (req: QueuedRequest) => Promise<ReplayResponse>,
+  owner?: string | null,
 ): Promise<ReplayResult> {
   const items = (await store.all()).sort((a, b) => a.createdAt - b.createdAt || a.id - b.id);
   let done = 0;
   let failed = 0;
+  let conflicts = 0;
   const blocked = new Set<string>();
   let unknown = 0;
+  const keyOf = (it: QueuedRequest) => (it.owner ? `o:${it.owner}|${it.workspace}` : `w:${it.workspace}`);
   for (let i = 0; i < items.length; i += 1) {
-    // De antes de guardar el workspace: no se sabe de cuál es. No se envía; se avisa y se puede descartar.
-    if (!items[i].workspace) {
+    const it = items[i];
+    // Sin workspace o sin persona: no se sabe de quién es; no se manda con ninguna sesión.
+    if (!it.workspace || !it.owner) {
       unknown += 1;
       continue;
     }
-    const key = items[i].workspace as string;
+    const key = keyOf(it);
+    if (it.owner && it.owner !== owner) blocked.add(key);
     if (blocked.has(key)) continue;
-    let res: { ok: boolean; status: number };
+    let res: ReplayResponse;
     try {
-      res = await doFetch(items[i]);
+      res = await doFetch(it);
     } catch {
-      return { done, failed, remaining: items.length - i };
+      return { done, failed, conflicts, remaining: items.length - i };
     }
     if (res.status === 401) {
       blocked.add(key);
       continue;
     }
-    await store.remove(items[i].id);
-    if (res.ok) done += 1;
-    else failed += 1;
+    if (res.status >= 500 || res.status === 429 || res.status === 408 || res.retry) {
+      return { done, failed, conflicts, remaining: items.length - i, retry: true };
+    }
+    const gone = it.method.toUpperCase() === 'DELETE' && (res.status === 404 || res.status === 410);
+    if (res.ok || gone) {
+      await store.remove(it.id);
+      done += 1;
+      if (res.conflict && store.conflict) {
+        await store.conflict(it);
+        conflicts += 1;
+      }
+      continue;
+    }
+    if (store.fail) await store.fail(it, res.status);
+    else await store.remove(it.id);
+    failed += 1;
   }
   let remaining = unknown;
-  for (const it of items) if (it.workspace && blocked.has(it.workspace)) remaining += 1;
-  if (!remaining) return { done, failed, remaining: 0 };
-  return unknown ? { done, failed, remaining, blocked: true, unknown } : { done, failed, remaining, blocked: true };
+  for (const it of items) if (it.workspace && it.owner && blocked.has(keyOf(it))) remaining += 1;
+  if (!remaining) return { done, failed, conflicts, remaining: 0 };
+  return unknown ? { done, failed, conflicts, remaining, blocked: true, unknown } : { done, failed, conflicts, remaining, blocked: true };
 }
 
 /** La respuesta es del service worker: el cambio quedó en la cola offline. */
