@@ -20,6 +20,7 @@ import {
   TASK_KINDS,
 } from './crm-constants';
 import { TASK_REPEATS } from './crm-task-repeat';
+import { TASK_PRIORITIES } from './tasks-shared';
 
 // ---------- Primitivas compartidas ----------
 
@@ -240,6 +241,8 @@ export const activityCreateSchema = z.object({
   repeat: z.enum(TASK_REPEATS).optional(),
   /** Solo tareas: to-do (''), llamada o email por hacer. */
   taskKind: z.enum(TASK_KINDS).optional(),
+  /** Solo tareas: '' (sin prioridad), low, medium o high. */
+  priority: z.enum(TASK_PRIORITIES).optional(),
 });
 
 export const activityUpdateSchema = activityCreateSchema.partial().extend({
