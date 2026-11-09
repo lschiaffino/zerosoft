@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-coming-soon-and-workspace-apps',
+    date: '2026-11-09',
+    title: {
+      en: 'Coming soon apps and workspace app settings',
+      es: 'Apps Próximamente y apps del workspace',
+      pt: 'Apps Em breve e apps do workspace',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Chat, Agents, Robots, Books, Hiring, Design, Social and Shop are now marked Coming soon: they cannot be used yet. Each one has a waitlist in the app, at sign-up and on its product page, with an optional note on what you would use it for. We email you once, the day it ships. Data already created in them is kept.',
+        es: 'Chat, Agents, Robots, Books, Hiring, Design, Social y Shop pasan a Próximamente: todavía no se pueden usar. Cada una tiene lista de espera en la app, en el alta y en su página de producto, con una nota opcional de para qué la usarías. Te escribimos una vez, el día que salga. Lo que ya estaba creado en ellas queda guardado.',
+        pt: 'Chat, Agents, Robots, Books, Hiring, Design, Social e Shop passam a Em breve: ainda não podem ser usados. Cada um tem lista de espera no app, no cadastro e na página do produto, com uma nota opcional de para que você usaria. Escrevemos uma vez, no dia do lançamento. O que já tinha sido criado neles fica guardado.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Workspace apps: owners and admins choose who uses each team app (everyone, some people or teams, only admins, or off). Off hides it everywhere for everyone and keeps its data. It applies to the app, its API and MCP, on top of each person\'s enabled apps.',
+        es: 'Ajustes › Apps del workspace: el owner y los admins eligen quién usa cada app de equipo (todos, algunas personas o equipos, solo admins, o apagada). Apagada la saca de todos lados para todos y guarda sus datos. Vale para la app, su API y el MCP, encima de las apps habilitadas de cada persona.',
+        pt: 'Ajustes › Apps do workspace: o owner e os admins escolhem quem usa cada app de equipe (todos, algumas pessoas ou times, só admins, ou desligado). Desligado tira o app de todo lugar para todos e guarda os dados. Vale para o app, sua API e o MCP, acima dos apps habilitados de cada pessoa.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-groups-is-now-lines',
     date: '2026-11-08',
     title: {
