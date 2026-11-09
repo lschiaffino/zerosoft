@@ -9,6 +9,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { GroupsPerson } from '@/lib/groups';
 import type { GroupTaskDto } from '@/lib/groups-tasks';
 import { TASKS_CHANGED, isoToLocal, localToIso } from './TaskModal';
+import { TASK_PRIORITIES, type TaskPriority } from '@/lib/tasks-shared';
 import { Modal, api, useErrorText, useToast } from './ui';
 import { parseDbUtc } from '@/lib/utils';
 
@@ -237,12 +238,14 @@ function EditTaskModal({
   const [title, setTitle] = useState('');
   const [due, setDue] = useState('');
   const [notes, setNotes] = useState('');
+  const [priority, setPriority] = useState<TaskPriority>('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!task) return;
     setTitle(task.title);
     setDue(isoToLocal(task.dueAt));
     setNotes(task.notes);
+    setPriority(task.priority ?? '');
   }, [task]);
   return (
     <Modal
@@ -252,7 +255,7 @@ function EditTaskModal({
       busy={busy}
       onSubmit={async () => {
         setBusy(true);
-        await onSave({ title, dueAt: localToIso(due), notes });
+        await onSave({ title, dueAt: localToIso(due), notes, priority });
         setBusy(false);
       }}
       foot={
@@ -278,6 +281,16 @@ function EditTaskModal({
         <label className="ui-field">
           <span className="label">{t('tasks.remindAt')}</span>
           <input className="input" type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
+        </label>
+        <label className="ui-field">
+          <span className="label">{t('tasks.priority')}</span>
+          <select className="select" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
+            {TASK_PRIORITIES.map((p) => (
+              <option key={p || 'none'} value={p}>
+                {t(`tasks.priorities.${p || 'none'}`)}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="ui-field">
           <span className="label">{t('tasks.notes')}</span>

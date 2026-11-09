@@ -58,6 +58,7 @@
 .sc-day-num { font-size: 0.8125rem; color: var(--ink-2); font-family: var(--font-data); }
 .sc-day-add { opacity: 0; color: var(--ink-3); text-decoration: none; font-size: 1rem; line-height: 1; padding: 0 4px; border-radius: var(--radius-1); }
 .sc-day:hover .sc-day-add, .sc-day-add:focus-visible { opacity: 1; }
+@media (hover: none) { .sc-day-add { opacity: 1; } }
 .sc-chip { display: block; padding: 3px 6px; border: 1px solid color-mix(in srgb, var(--c-social) 30%, var(--line)); border-radius: var(--radius-1); background: color-mix(in srgb, var(--c-social) 8%, var(--bg)); color: var(--ink); text-decoration: none; font-size: 0.75rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .sc-chip:hover { background: var(--ui-hover); }
 .sc-chip[draggable='true'] { cursor: grab; }
@@ -173,6 +174,8 @@
   .sc-cal:not(.sc-week):has(.sc-chip) .sc-day:not(:has(.sc-chip)):not([data-today='true']) { display: none; }
   .sc-day-add { min-width: 40px; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; }
   .sc-day-add { opacity: 1; }
+  /* Agenda del teléfono: cada publicación es un renglón que se toca, no una etiqueta de 25px. */
+  .sc-chip { padding: 10px 8px; font-size: 0.875rem; }
   .sc-item { flex-wrap: wrap; }
   .sc-item-side { align-items: flex-start; text-align: left; flex-direction: row; flex-wrap: wrap; }
 }
@@ -181,4 +184,8 @@
 @media (max-width: 640px) {
   .sc-item { flex-wrap: wrap; }
   .sc-item-main { flex-basis: 100%; overflow-wrap: anywhere; }
+  /* Lo que crece va en su propia fila: juntas, la búsqueda tapaba las pestañas de Publicaciones
+     y la fecha de Reprogramar quedaba apretada contra el botón. */
+  .sc-row > .ui-tabs.sc-grow, .sc-row > form[role='search'], form.sc-row > label.sc-grow { flex-basis: 100%; }
+  .sc-row > form[role='search'] .input { flex: 1 1 auto; }
 }

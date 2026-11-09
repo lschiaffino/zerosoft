@@ -5,7 +5,7 @@ import { formatCallDuration, isDefaultOutcome } from '@/lib/crm-calls';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { announceQueued, isQueuedResponse } from '@/lib/offline-queue';
-import { useRouter } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import type { EmailThreadView } from '@/lib/crm-email';
 import EmailThread from './EmailThread';
 import CrmIcon from './CrmIcon';
@@ -53,6 +53,8 @@ export interface TimelineItem {
   ai_summary?: CallSummaryState | null;
   /** Llamada desde el navegador: grabación, transcripción y resumen. */
   voice?: CallView;
+  /** Tareas: de dónde vienen fuera del CRM (lib/tasks.ts), con link de vuelta. */
+  source?: { href: string; app: 'groups' | 'chat' | 'docs' | 'track'; label: string };
 }
 
 /** Herramientas del composer de email: templates/snippets, IA y tracking. */
@@ -711,6 +713,12 @@ export default function Timeline({
                       <span>
                         {t('tasks.dueLabel')} <LocalText>{formatDay(item.due_at, locale)}</LocalText>
                       </span>
+                    )}
+                    {item.type === 'task' && item.source && (
+                      <Link href={item.source.href} className="tl-source">
+                        {t(`tasks.links.app.${item.source.app}`)}
+                        {item.source.label ? ` · ${item.source.label}` : ''}
+                      </Link>
                     )}
                     {item.direction && <span>{t(`enums.direction.${item.direction}`)}</span>}
                     {/* Llamada desde el navegador: la duración exacta (45 s); el resto, en minutos. */}

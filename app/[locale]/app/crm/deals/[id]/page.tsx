@@ -34,6 +34,7 @@ import { listEventTypes } from '@/lib/calendar';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
+import { withTaskSources } from '@/lib/tasks';
 import { withCallDetails } from '@/lib/crm-voice';
 import FilesPanel from '@/components/crm/FilesPanel';
 import { listRecordFiles, toView, withActivityFiles } from '@/lib/crm-files';
@@ -332,7 +333,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
       getEmailSettings(user.id),
       nextTaskFor(user.id, { dealId: id }),
     ]);
-    const timeline = await withCallSummaries(user.id, await withCallDetails(user.id, await withActivityFiles(mergeTimelineWithThreads(activities, threads))));
+    const timeline = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(mergeTimelineWithThreads(activities, threads)))));
     const [aiAvailable, aiSummary, aiScore] = await Promise.all([crmAiAvailable(), getRecordSummary(user.id, 'deal', deal.id, scope), getDealScore(user.id, deal.id, scope)]);
     const recordFiles = (await listRecordFiles(user.id, 'deal', deal.id)).map(toView);
     return (
