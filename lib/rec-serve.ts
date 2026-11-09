@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { segmentsInTrim, segmentsToVtt, type RecSegment } from './rec-schema';
+import { isTrimmed, segmentsInTrim, segmentsToVtt, type RecSegment } from './rec-schema';
 import { assetVisible, videoFileFor, type RecVideoRow } from './rec';
 import type { serveRecFile as ServeFn } from './rec-upload';
 
@@ -49,6 +49,8 @@ export async function serveRecKind(
     const mp4 = await downloadMp4(v);
     if (mp4.state === 'preparing') return NextResponse.json({ status: 'preparing' }, { status: 202, headers: { 'retry-after': '3', 'cache-control': 'no-store' } });
     if (mp4.state === 'ready') return opts.serveRecFile(req, mp4.url, 'video/mp4', { download: mp4Filename(v.title), size: mp4.size || undefined });
+    // Recortado y sin copia cortada: el archivo entero tiene lo recortado, no se descarga.
+    if (!opts.privileged && url === v.url && isTrimmed(v.trim_start, v.trim_end)) return NextResponse.json({ error: 'processing' }, { status: 409 });
   }
   const ext = v.content_type.includes('mp4') ? 'mp4' : v.content_type.includes('quicktime') ? 'mov' : 'webm';
   const filename = `${(v.title || 'video').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 100) || 'video'}.${ext}`;

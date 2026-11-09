@@ -221,6 +221,8 @@ test('desconocido: no ve nada, pide acceso con su email y el dueño aprueba', as
   const open = await upload(request, `Abierto ${uid()}`);
   await ok(request.patch(`/api/rec/videos/${open.id}`, { data: { privacy: 'link' } }));
   expect((await stranger.request.post(`/api/rec/v/${open.shareId}/access`, { data: { email: asker } })).status()).toBe(400);
+  // Un formulario de otra web (text/plain) no sirve para pedir links en nombre de quien mira.
+  expect((await stranger.request.post(`/api/rec/v/${v.shareId}/access`, { headers: { 'content-type': 'text/plain' }, data: JSON.stringify({ email: asker }) })).status()).toBe(415);
 
   const n = await sql("SELECT href FROM notifications WHERE type = 'rec_access' AND source_id = ?", [v.id]);
   expect(n).toHaveLength(1);

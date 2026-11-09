@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getPublicVideoRow, publicAccess, unlockCookieName } from '@/lib/rec';
-import { publicViewerFor, recFail, recJson } from '@/lib/rec-http';
+import { publicViewerFor, recFail, recJson, sameSiteJson } from '@/lib/rec-http';
 import { recBaseUrl } from '@/lib/rec-page';
 import { askForLink } from '@/lib/rec-share';
 import { getCurrentUser } from '@/lib/session';
@@ -18,6 +18,8 @@ const schema = z.object({ email: z.string().max(254), name: z.string().max(80).o
  * respuesta es la misma en los dos casos.
  */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ share: string }> }) {
+  const bad = sameSiteJson(req);
+  if (bad) return bad;
   const limited = await limitByIp(req, 'rec:access', 30, 600);
   if (limited) return limited;
   const { share } = await ctx.params;

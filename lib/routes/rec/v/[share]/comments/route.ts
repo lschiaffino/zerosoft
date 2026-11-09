@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { addComment, canCommentAs, canManage, listComments } from '@/lib/rec';
-import { actorOf, publicVideoFor, recFail, resolveViewer, withViewerCookie } from '@/lib/rec-http';
+import { actorOf, publicVideoFor, recFail, resolveViewer, withViewerCookie, sameSiteJson } from '@/lib/rec-http';
 import { limitByIp } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
@@ -35,6 +35,8 @@ const schema = z.object({
 
 /** Comentario o reacción con el segundo del video. Sin login, con el nombre que escribe quien mira. */
 export async function POST(req: NextRequest, ctx: Ctx) {
+  const bad = sameSiteJson(req);
+  if (bad) return bad;
   const limited = await limitByIp(req, 'rec:comment', 60, 600);
   if (limited) return limited;
   const { share } = await ctx.params;

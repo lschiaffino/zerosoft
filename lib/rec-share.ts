@@ -302,9 +302,12 @@ export async function inviteByEmail(
   opts: { base: string; locale: string; members: Array<{ id: string; email: string; name: string }> },
 ): Promise<number> {
   if (!emails.length) return 0;
-  await limited(`rec:invite:ws:${a.ws}`, REC_INVITES_DAILY, 86400).catch(() => {
-    throw new RecError('invite_quota', 429);
-  });
+  // El tope cuenta destinatarios, no pedidos.
+  for (let i = 0; i < emails.length; i++) {
+    await limited(`rec:invite:ws:${a.ws}`, REC_INVITES_DAILY, 86400).catch(() => {
+      throw new RecError('invite_quota', 429);
+    });
+  }
   const byEmail = new Map(opts.members.map((m) => [m.email.toLowerCase(), m]));
   let sent = 0;
   for (const email of emails) {
@@ -338,9 +341,16 @@ export async function askForLink(
   const email = cleanEmails([rawEmail])[0];
   if (!email) throw new RecError('invalid_email');
   await limited(`rec:magic:email:${v.id}:${email}`, 5, 3600);
-  if (parseJson<string[]>(v.allowed_emails, []).includes(email)) {
-    await sendMagicLink(v, email, 'link', { base: opts.base, locale: opts.locale });
-    return;
+  // Mismo tiempo y misma respuesta en los dos caminos: el trabajo va después de responder y sus errores no salen.
+  const work = async () => {
+    if (parseJson<string[]>(v.allowed_emails, []).includes(email)) await sendMagicLink(v, email, 'link', { base: opts.base, locale: opts.locale });
+    else await requestAccess(v, { email, name });
+  };
+  const quiet = () => work().catch(() => undefined);
+  try {
+    const { after } = await import('next/server');
+    after(quiet);
+  } catch {
+    await quiet();
   }
-  await requestAccess(v, { email, name });
 }

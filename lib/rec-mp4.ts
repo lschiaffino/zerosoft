@@ -54,14 +54,20 @@ export function mp4Plan(v: Row): { source: string; key: string; trim: { start: n
 }
 
 /** Argumentos de ffmpeg: H.264 yuv420p (lados pares), AAC estéreo y el índice al principio (se reproduce mientras baja). */
-export function ffmpegArgs(input: string, output: string, trim: { start: number; end: number | null } | null): string[] {
+export function ffmpegArgs(input: string, output: string, trim: { start: number; end: number | null } | null, contentType = 'video/webm'): string[] {
   const cut = trim ? ['-ss', String(trim.start), ...(trim.end !== null ? ['-to', String(trim.end)] : [])] : [];
+  // El formato de entrada sale del tipo guardado, no de lo que ffmpeg adivine, y solo lee archivos locales.
+  const format = contentType.startsWith('video/webm') ? 'matroska' : 'mov';
   return [
     '-hide_banner',
     '-loglevel',
     'error',
     '-y',
+    '-protocol_whitelist',
+    'file,pipe',
     ...cut,
+    '-f',
+    format,
     '-i',
     input,
     '-map',
@@ -216,7 +222,7 @@ async function runLocal(id: string, key: string): Promise<void> {
       await writeFile(input, await readRecBlob(plan.source));
     }
     const out = path.join(dir, 'out.mp4');
-    await run(ffmpeg, ffmpegArgs(input, out, plan.trim));
+    await run(ffmpeg, ffmpegArgs(input, out, plan.trim, v.content_type));
     const size = (await stat(out)).size;
     await finishJob(id, key, await storeMp4(v, await readFile(out)), size);
   } finally {
@@ -353,7 +359,7 @@ async function runSandbox(id: string, key: string): Promise<void> {
     pathname,
     token,
     access: recBlobAccess(),
-    args: ffmpegArgs('__IN__', '__OUT__', plan.trim),
+    args: ffmpegArgs('__IN__', '__OUT__', plan.trim, v.content_type),
   };
   await sbx.writeFiles([
     { path: `${SANDBOX_ROOT}/run.cjs`, content: Buffer.from(sandboxRunner()) },

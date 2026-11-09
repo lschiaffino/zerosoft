@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getPublicVideoRow } from '@/lib/rec';
-import { recJson } from '@/lib/rec-http';
+import { recJson, sameSiteJson } from '@/lib/rec-http';
 import { consumeMagicToken, inviteCookieName, inviteCookieValue, REC_INVITE_COOKIE_DAYS } from '@/lib/rec-share';
 import { limitByIp } from '@/lib/rate-limit';
 
@@ -16,6 +16,8 @@ const schema = z.object({ token: z.string().min(20).max(64) });
  * antivirus del correo que abren los links con GET no lo gastan.
  */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ share: string }> }) {
+  const bad = sameSiteJson(req);
+  if (bad) return bad;
   const limited = await limitByIp(req, 'rec:invite', 30, 600);
   if (limited) return limited;
   const { share } = await ctx.params;

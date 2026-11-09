@@ -10,6 +10,26 @@ import { userCanUseApp } from './workspace';
 import { emailGateCookie, emailGateToken, getPublicVideoRow, isSpaceMember, listedEmail, publicAccess, RecError, unlockCookieName, type PublicViewer, type RecActor, type RecVideoRow, type RecViewer } from './rec';
 import { inviteCookieName, readInviteCookie } from './rec-share';
 
+/**
+ * POST de la página pública que cambia algo (link mágico, pedir acceso, email,
+ * contraseña, comentarios): JSON y del mismo sitio. Un formulario de otra web
+ * no puede mandarlos en nombre de quien mira.
+ */
+export function sameSiteJson(req: NextRequest): NextResponse | null {
+  if (!(req.headers.get('content-type') ?? '').toLowerCase().startsWith('application/json')) return NextResponse.json({ error: 'invalid_input' }, { status: 415 });
+  const origin = req.headers.get('origin');
+  if (origin) {
+    let host = '';
+    try {
+      host = new URL(origin).host;
+    } catch {
+      host = '';
+    }
+    if (host !== (req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? req.nextUrl.host)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+  return null;
+}
+
 export function recJson<T>(body: T, status = 200) {
   return NextResponse.json(body, { status });
 }
@@ -89,12 +109,12 @@ export async function resolveViewer(
   if (user) {
     const person = user.actingUser ?? user;
     const id = realUserId(user);
-    return { viewer: { key: `u:${id}`, userId: id, name: person.name || person.email || '', isAuthor: id === v.created_by }, newKey: null, user };
+    return { viewer: { key: `u:${id}`, userId: id, name: person.name || (person.email ?? '').split('@')[0] || '', isAuthor: id === v.created_by }, newKey: null, user };
   }
   // Persona invitada que entró con su link mágico: queda registrada con su email (quién miró, quién comentó).
   const invited = listedEmail(v, { email: null, inviteEmail: readInviteCookie(v.share_id, req.cookies.get(inviteCookieName(v.share_id))?.value) });
   if (invited) {
-    return { viewer: { key: `i:${invited}`, userId: null, name: (name ?? '').trim().slice(0, 80) || invited, isAuthor: false }, newKey: null, user: null };
+    return { viewer: { key: `i:${invited}`, userId: null, name: (name ?? '').trim().slice(0, 80) || invited.split('@')[0], isAuthor: false }, newKey: null, user: null };
   }
   const existing = req.cookies.get(VK_COOKIE)?.value;
   const key = existing && /^[\w-]{16,40}$/.test(existing) ? existing : randomBytes(16).toString('base64url');
