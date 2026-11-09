@@ -55,7 +55,12 @@ export function closeMenusOutside(node: Node | null, except?: number) {
   }
 }
 
-const POPUP_TRIGGER = '[aria-haspopup]:not([aria-haspopup="false"])';
+/** ¿Se ve? Las copias ocultas de un botón (visibility: hidden, display: none) no abren capas a la vista. */
+export function visible(el: HTMLElement): boolean {
+  return el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+}
+
+const POPUP_TRIGGER ='[aria-haspopup]:not([aria-haspopup="false"])';
 const PANEL = '[role="menu"], [role="dialog"], [role="listbox"], [role="tree"], [role="grid"], dialog';
 
 /**
@@ -65,11 +70,13 @@ const PANEL = '[role="menu"], [role="dialog"], [role="listbox"], [role="tree"], 
  */
 export function closeUnregisteredPopups(opened: HTMLElement) {
   if (typeof document === 'undefined') return;
+  // Lo abrió una copia oculta del botón (las listas medidas duplican la fila): no es un menú nuevo a la vista.
+  if (!visible(opened)) return;
   const stale: HTMLElement[] = [];
   for (const old of document.querySelectorAll<HTMLElement>(`${POPUP_TRIGGER}[aria-expanded="true"]`)) {
     if (old === opened || old.hasAttribute(LAYER_TRIGGER_ATTR) || opened.contains(old)) continue;
     // Copias ocultas del mismo botón (listas que se miden con un duplicado invisible) no son otro menú.
-    if (!old.getClientRects().length || getComputedStyle(old).visibility === 'hidden') continue;    // Anidado: lo nuevo vive dentro del panel (menú o diálogo) que abrió el viejo.
+    if (!visible(old)) continue;    // Anidado: lo nuevo vive dentro del panel (menú o diálogo) que abrió el viejo.
     const host = opened.closest(PANEL);
     const scope = (old.getAttribute('aria-controls') && document.getElementById(old.getAttribute('aria-controls')!)) || old.parentElement;
     if (host && !host.contains(old) && scope?.contains(host)) continue;

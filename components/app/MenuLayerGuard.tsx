@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { closeMenusOutside, closeUnregisteredPopups, LAYER_TRIGGER_ATTR } from '@/lib/ui/layers';
+import { closeMenusOutside, closeUnregisteredPopups, LAYER_TRIGGER_ATTR, visible } from '@/lib/ui/layers';
 
 /**
  * Red de seguridad del registro de capas (lib/ui/layers.ts) para los menús que
@@ -18,6 +18,8 @@ export default function MenuLayerGuard() {
         if (el.getAttribute('aria-expanded') !== 'true' || !el.matches('[aria-haspopup]:not([aria-haspopup="false"])')) continue;
         // Los registrados ya hicieron esto al abrirse.
         if (el.hasAttribute(LAYER_TRIGGER_ATTR)) continue;
+        // Una copia oculta del botón (listas medidas) no es un menú nuevo a la vista.
+        if (!visible(el)) continue;
         closeMenusOutside(el);
         closeUnregisteredPopups(el);
       }
