@@ -88,6 +88,10 @@ export interface HomeTask {
   dueAt: string | null;
   overdue: boolean;
   context: string | null;
+  /** Dónde se abre: la tarea en el CRM o, sin CRM, en Tareas de Groups. */
+  href: string;
+  /** De dónde viene fuera del CRM (lib/tasks.ts): el chat de WhatsApp, la página, el issue. */
+  source: { app: 'groups' | 'chat' | 'docs' | 'track'; label: string } | null;
 }
 
 export type HomeTaskScope = 'mine' | 'all';
@@ -97,9 +101,11 @@ export function normalizeTaskScope(value: unknown): HomeTaskScope {
 }
 
 /**
- * Tareas abiertas del CRM atrasadas o que vencen hoy, con la misma visibilidad
- * que la lista. Por defecto las mías (como HubSpot); 'all' trae todas las que
- * se ven. Una tarea sin owner es del dueño del workspace.
+ * Tareas abiertas atrasadas o que vencen hoy, de cualquier app (la tarea es
+ * una sola: lib/tasks.ts), con la misma visibilidad que la lista del CRM. Por
+ * defecto las mías (como HubSpot); 'all' trae todas las que se ven. Una tarea
+ * sin owner es del dueño del workspace. Quien no usa el CRM ve las suyas que
+ * salieron de chats de Groups.
  */
 export async function homeCrmTasks(
   user: HomeUser,
@@ -107,6 +113,7 @@ export async function homeCrmTasks(
 ): Promise<{ total: number; items: HomeTask[] }> {
   const limit = opts.limit ?? 5;
   const me = user.actingUser?.id ?? user.id;
+  if (!homeCanUse(user, 'crm')) return homeGroupsTasks(user, limit);
   const scope = await sessionScope(user);
   const [overdue, today] = await Promise.all([
     listTasks(user.id, { bucket: 'overdue', ownerScope: scope }),
@@ -117,14 +124,50 @@ export async function homeCrmTasks(
     ...overdue.filter(mine).map((r) => ({ r, overdue: true })),
     ...today.filter(mine).map((r) => ({ r, overdue: false })),
   ];
+  const shown = rows.slice(0, limit);
+  const { taskLinksFor } = await import('./tasks');
+  const { primaryLink } = await import('./tasks-shared');
+  const links = await taskLinksFor(user, shown.map(({ r }) => r.id));
   return {
     total: rows.length,
-    items: rows.slice(0, limit).map(({ r, overdue: late }) => ({
-      id: r.id,
-      subject: r.subject || '',
-      dueAt: r.due_at ?? null,
-      overdue: late,
-      context: r.contact_name ?? r.company_name ?? r.deal_name ?? null,
+    items: shown.map(({ r, overdue: late }) => {
+      const l = primaryLink(links.get(r.id));
+      return {
+        id: r.id,
+        subject: r.subject || '',
+        dueAt: r.due_at ?? null,
+        overdue: late,
+        context: r.contact_name ?? r.company_name ?? r.deal_name ?? null,
+        href: `/app/crm/tasks/${r.id}`,
+        source: l && l.label ? { app: l.app, label: l.label } : null,
+      };
+    }),
+  };
+}
+
+/** Sin CRM: mis tareas de chats de Groups atrasadas o de hoy (en la zona de la persona). */
+async function homeGroupsTasks(user: HomeUser, limit: number): Promise<{ total: number; items: HomeTask[] }> {
+  if (!homeCanUse(user, 'groups')) return { total: 0, items: [] };
+  const me = user.actingUser?.id ?? user.id;
+  const { listGroupTasks } = await import('./groups-tasks');
+  const { visibleChatIds, maskPhoneText } = await import('./groups-access');
+  const range = dayRangeUtc(await getUserTimeZone());
+  const at = (sql: string) => Date.parse(`${sql.replace(' ', 'T')}Z`);
+  const viewer = await groupsViewer(user.id, me, user.role);
+  const visible = await visibleChatIds(viewer);
+  const rows = (await listGroupTasks(user.id, me, { status: 'open', ownerId: 'me' })).filter(
+    (x) => x.dueAt && Date.parse(x.dueAt) <= at(range.end) && (!visible || visible.has(x.chatId)),
+  );
+  return {
+    total: rows.length,
+    items: rows.slice(0, limit).map((x) => ({
+      id: x.id,
+      subject: x.title,
+      dueAt: x.dueAt,
+      overdue: Date.parse(x.dueAt as string) < at(range.start),
+      context: null,
+      href: `/app/groups/tasks?open=${encodeURIComponent(x.id)}`,
+      source: { app: 'groups' as const, label: viewer.mask ? maskPhoneText(x.chatName) : x.chatName },
     })),
   };
 }
@@ -254,7 +297,7 @@ const RECENT_PRODUCT: Record<RecentKind, ProductKey> = {
   deal: 'crm',
   flow: 'flow',
   product: 'shop',
-  insight: 'analytics',
+  insight: 'pulse',
   socialPost: 'social',
   booksInvoice: 'books',
   form: 'forms',
@@ -338,7 +381,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
       ? all(`SELECT id, title AS label, updated_at FROM shop_products WHERE workspace_id = ? ORDER BY updated_at DESC LIMIT ?`, user.id, per)
       : Promise.resolve([] as Row[]),
     // Analytics: insights guardados de los proyectos del workspace (solo si la persona tiene la app).
-    homeCanUse(user, 'analytics')
+    homeCanUse(user, 'pulse')
       ? all(
           `SELECT i.id, i.name AS label, i.updated_at FROM analytics_insights i JOIN analytics_projects p ON p.id = i.project_id
            WHERE p.workspace_id = ? AND p.deleted_at IS NULL ORDER BY i.updated_at DESC LIMIT ?`,
@@ -399,7 +442,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     deal: (id) => `/app/crm/deals/${id}`,
     flow: (id) => `/app/flow/${id}`,
     product: (id) => `/app/shop/products/${id}`,
-    insight: (id) => `/app/analytics/insights/${id}`,
+    insight: (id) => `/app/pulse/insights/${id}`,
     socialPost: (id) => `/app/social/posts/${id}`,
     booksInvoice: (id) => `/app/books/invoices/${id}`,
     form: (id) => `/app/forms/${id}`,

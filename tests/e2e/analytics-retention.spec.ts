@@ -33,7 +33,7 @@ test.beforeAll(async ({ request }) => {
 
 async function open(page: Page, baseURL: string) {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL }]);
-  await page.goto('/en/app/analytics/insights/new?kind=retention', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/insights/new?kind=retention', { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: 'Retention' }).click();
   await page.getByLabel('First event').first().fill('open');
   await page.getByLabel('Return event').first().fill('open');

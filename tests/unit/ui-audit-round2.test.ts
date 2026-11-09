@@ -129,7 +129,7 @@ describe('guardas por workspace', () => {
 
   it('ninguna guarda de layout vuelve a buscar sin filtro de workspace', () => {
     for (const app of ['insights', 'flags', 'dashboards', 'persons']) {
-      const layout = readFileSync(join(root, `app/[locale]/app/analytics/${app}/[id]/layout.tsx`), 'utf8');
+      const layout = readFileSync(join(root, `app/[locale]/app/pulse/${app}/[id]/layout.tsx`), 'utf8');
       expect(layout).toContain('recordProjectId');
       expect(layout).not.toContain('getDb');
     }

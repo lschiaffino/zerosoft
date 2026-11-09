@@ -208,10 +208,10 @@ export default function CohortEditor({ projectId, cohort, publicLinks = [] }: { 
               {t('count', { count: fmtNumber(count, locale) })}
             </span>
           )}
-          <Link href={`/app/analytics/persons?cohort=${cohort.id}`} className="an-link">
+          <Link href={`/app/pulse/persons?cohort=${cohort.id}`} className="an-link">
             {t('seePersons')}
           </Link>
-          <Link href="/app/analytics/cohorts" className="an-link">
+          <Link href="/app/pulse/cohorts" className="an-link">
             {tc('close')}
           </Link>
         </div>

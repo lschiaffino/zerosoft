@@ -22,10 +22,10 @@ export function SurveyTabs({ id, current }: { id: string; current: 'edit' | 'res
   const t = useTranslations('analyticsMore.surveys');
   return (
     <nav className="ui-tabs" aria-label={t('tabsLabel')}>
-      <Link href={`/app/analytics/surveys/${id}`} className="ui-tab" aria-current={current === 'edit' ? 'page' : undefined}>
+      <Link href={`/app/pulse/surveys/${id}`} className="ui-tab" aria-current={current === 'edit' ? 'page' : undefined}>
         {t('tabEdit')}
       </Link>
-      <Link href={`/app/analytics/surveys/${id}/results`} className="ui-tab" aria-current={current === 'results' ? 'page' : undefined}>
+      <Link href={`/app/pulse/surveys/${id}/results`} className="ui-tab" aria-current={current === 'results' ? 'page' : undefined}>
         {t('tabResults')}
       </Link>
     </nav>

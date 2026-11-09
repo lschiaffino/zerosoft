@@ -387,6 +387,8 @@
 .tl-date { font-size: 11px; color: var(--dim); margin-left: auto; white-space: nowrap; }
 .tl-body { font-size: 0.85rem; margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tl-meta { font-size: 11px; color: var(--dim); margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; }
+.tl-source { color: var(--dim); max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-source:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .tl-done .tl-subject { text-decoration: line-through; color: var(--dim); }
 
 .tl-composer {
@@ -723,6 +725,17 @@ tr:hover .cell-quick { opacity: 0.8; }
   border: 1px solid var(--project-color, var(--brand-gray-2));
   color: var(--project-color, var(--brand-gray-2));
 }
+
+/* Tarea de la suite: de dónde viene (chat, página, issue) y prioridad. */
+.task-source { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-priority-high { color: var(--bad-ink); }
+.task-link-detail {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.task-to-track { display: flex; flex-direction: column; gap: 6px; }
 
 .task-done-pin {
   display: flex;

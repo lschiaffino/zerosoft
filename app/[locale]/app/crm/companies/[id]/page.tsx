@@ -33,6 +33,7 @@ import RecordTags from '@/components/crm/RecordTags';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
+import { withTaskSources } from '@/lib/tasks';
 import { withCallDetails } from '@/lib/crm-voice';
 import CrmTrackRequests from '@/components/track/triage/CrmTrackRequests';
 import FilesPanel from '@/components/crm/FilesPanel';
@@ -272,7 +273,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
       listEmailThreads(user.id, { companyId: id, limit: 100 }),
       nextTaskFor(user.id, { companyId: id }),
     ]);
-    const timelineItems = await withCallSummaries(user.id, await withCallDetails(user.id, await withActivityFiles(mergeTimelineWithThreads(timeline, threads))));
+    const timelineItems = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(mergeTimelineWithThreads(timeline, threads)))));
     const [aiAvailable, aiSummary] = await Promise.all([crmAiAvailable(), getRecordSummary(user.id, 'company', company.id, scope)]);
     const recordFiles = (await listRecordFiles(user.id, 'company', company.id)).map(toView);
     return (

@@ -640,3 +640,8 @@
   .flow-form-field { grid-template-columns: minmax(0, 1fr) auto; }
   .flow-form-field > .select { grid-column: 1 / -1; grid-row: 2; }
 }
+
+/* Táctil: zoom y encuadre del lienzo de 40px. */
+@media (pointer: coarse) {
+  .flow-canvas .react-flow__controls-button { width: 40px; height: 40px; }
+}
