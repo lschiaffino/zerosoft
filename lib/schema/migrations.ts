@@ -8920,6 +8920,60 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Seguridad de la cuenta (lib/account-security.ts): verificación en dos pasos (TOTP con
+    // secreto cifrado y códigos de recuperación hasheados), sesiones del lado del servidor
+    // (cada login es una fila que se puede cerrar), registro de eventos de seguridad del
+    // workspace y la exigencia de dos pasos por workspace.
+    id: '294_account_security',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE users ADD COLUMN mfa_secret TEXT');
+      await addColumn(c, 'ALTER TABLE users ADD COLUMN mfa_pending_secret TEXT');
+      await addColumn(c, 'ALTER TABLE users ADD COLUMN mfa_enabled_at TEXT');
+      await addColumn(c, 'ALTER TABLE users ADD COLUMN mfa_last_step INTEGER');
+      await addColumn(c, 'ALTER TABLE users ADD COLUMN sessions_revoked_at TEXT');
+      await addColumn(c, 'ALTER TABLE teams ADD COLUMN require_mfa INTEGER NOT NULL DEFAULT 0');
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS user_sessions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          method TEXT NOT NULL DEFAULT '',
+          ip TEXT,
+          user_agent TEXT,
+          created_at TEXT NOT NULL,
+          last_seen_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          mfa_at TEXT,
+          revoked_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id, last_seen_at);
+        CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
+
+        CREATE TABLE IF NOT EXISTS user_mfa_recovery (
+          user_id TEXT NOT NULL,
+          code_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          used_at TEXT,
+          PRIMARY KEY (user_id, code_hash)
+        );
+
+        CREATE TABLE IF NOT EXISTS security_events (
+          id TEXT PRIMARY KEY,
+          team_id TEXT,
+          user_id TEXT,
+          action TEXT NOT NULL,
+          target TEXT NOT NULL DEFAULT '',
+          meta TEXT NOT NULL DEFAULT '{}',
+          ip TEXT,
+          user_agent TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_security_events_team ON security_events(team_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_security_events_user ON security_events(user_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

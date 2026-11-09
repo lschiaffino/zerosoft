@@ -360,7 +360,24 @@
         "verify_rate_limited": "Too many codes checked from this network. Wait 15 minutes and try again."
       }
     },
-    "subGoogle": "Sign in with your Google account. There is no password to create."
+    "subGoogle": "Sign in with your Google account. There is no password to create.",
+    "mfa": {
+      "title": "Two-step verification",
+      "sub": "Enter the code from your authenticator app to finish signing in.",
+      "codeLabel": "Authentication code",
+      "recoveryLabel": "Recovery code",
+      "verify": "Verify",
+      "verifying": "Checking…",
+      "useRecovery": "Use a recovery code",
+      "useApp": "Use the authenticator app",
+      "signOut": "Sign out",
+      "errors": {
+        "bad_code": "That code did not work. Try the newest one.",
+        "rate_limited": "Too many attempts. Wait a few minutes.",
+        "expired": "This sign-in expired. Sign in again.",
+        "network": "No connection. Try again."
+      }
+    }
   },
   "blog": {
     "label": "Blog",

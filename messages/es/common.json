@@ -360,7 +360,24 @@
         "verify_rate_limited": "Se probaron demasiados códigos desde esta red. Esperá 15 minutos y probá de nuevo."
       }
     },
-    "subGoogle": "Entrás con tu cuenta de Google. No hay contraseña que crear."
+    "subGoogle": "Entrás con tu cuenta de Google. No hay contraseña que crear.",
+    "mfa": {
+      "title": "Verificación en dos pasos",
+      "sub": "Escribí el código de tu app autenticadora para terminar de entrar.",
+      "codeLabel": "Código de verificación",
+      "recoveryLabel": "Código de recuperación",
+      "verify": "Verificar",
+      "verifying": "Revisando…",
+      "useRecovery": "Usar un código de recuperación",
+      "useApp": "Usar la app autenticadora",
+      "signOut": "Cerrar sesión",
+      "errors": {
+        "bad_code": "Ese código no sirvió. Probá con el más nuevo.",
+        "rate_limited": "Demasiados intentos. Esperá unos minutos.",
+        "expired": "Este inicio de sesión venció. Volvé a entrar.",
+        "network": "Sin conexión. Probá de nuevo."
+      }
+    }
   },
   "blog": {
     "label": "Blog",

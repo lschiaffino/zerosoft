@@ -12,6 +12,7 @@ import { seedUserIfNeeded } from './seed';
 import { delegatedIdentity } from './mcp/identity';
 import { can } from './permissions';
 import { touchActivity } from './workspace-admin';
+import { getSessionRow, mfaEnabled, sessionState, touchSession, type SessionState } from './account-security';
 
 /**
  * DEMO_MODE convierte a todo visitante en el usuario demo compartido. En
@@ -61,6 +62,13 @@ export interface SessionUser extends UserRow {
    * del ajeno) y el layout de la app redirige con un aviso.
    */
   blockedApp?: ProductKey;
+  /**
+   * El workspace activo exige la verificación en dos pasos y la persona no la tiene: la sesión
+   * cae a su workspace propio y el layout la manda a Ajustes › Seguridad a activarla.
+   */
+  mfaRequiredBy?: string;
+  /** Id de la sesión del servidor (user_sessions) de esta request; null en sesiones de antes o demo. */
+  sid?: string | null;
 }
 
 
@@ -120,6 +128,7 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
   const delegated = delegatedIdentity();
   if (delegated) return delegatedUser(delegated);
   let real: UserRow | null;
+  let sid: string | null = null;
   // Ficha del workspace propio, pedida junto con el usuario (no después): en Turso cada query es
   // una ida y vuelta, y esta resolución corre en cada página y cada API.
   let ownWorkspace: Promise<TeamRow | null> | null = null;
@@ -129,21 +138,24 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
     ownWorkspace?.catch(() => {});
     real = e2e ?? (await getDemoUser());
   } else {
-    const session = await getServerSession(authOptions);
-    const email = session?.user?.email;
-    if (!email) return null;
-    const uid = (session.user as { id?: unknown }).id;
-    if (typeof uid === 'string' && uid) ownWorkspace = getWorkspace(uid);
-    ownWorkspace?.catch(() => {});
-    real = (await getUserByEmail(email)) ?? null;
+    const gate = await sessionGate();
+    if (gate.state !== 'ok' || !gate.user) return null;
+    real = gate.user;
+    sid = gate.sid;
+    ownWorkspace = gate.ownWorkspace;
   }
   if (!real) return null;
   const { owner, team, workspace, role, apps } = await resolveWorkspace(real, ownWorkspace);
+  const expected = await requestHeader(WORKSPACE_HEADER);
+  // El workspace ajeno exige dos pasos y esta persona no los tiene: no entra a sus datos.
+  if (owner.id !== real.id && workspace?.require_mfa && !mfaEnabled(real)) {
+    if (expected) return null;
+    return { ...real, sid, team: null, workspace: await ensureWorkspace(real.id), role: 'owner', apps: '*', mfaRequiredBy: workspace.name };
+  }
   const user: SessionUser =
-    owner.id === real.id ? { ...real, team, workspace, role, apps } : { ...owner, actingUser: real, team, workspace, role, apps };
+    owner.id === real.id ? { ...real, sid, team, workspace, role, apps } : { ...owner, sid, actingUser: real, team, workspace, role, apps };
   // La pestaña escribe pensando en otro workspace (la sacaron, o cambió en otra pestaña): nada se
   // guarda en el lugar equivocado. Responde como sin sesión y la pestaña avisa y ofrece recargar.
-  const expected = await requestHeader(WORKSPACE_HEADER);
   if (expected && workspace && expected !== workspace.id) return null;
   // Acceso por app: la API de una app que la persona no tiene en este
   // workspace responde como sin sesión. Las páginas las corta el layout.
@@ -161,10 +173,41 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
   return user;
 }
 
+interface SessionGate {
+  state: SessionState | 'none';
+  user: UserRow | null;
+  sid: string | null;
+  /** Ficha del workspace propio, pedida en paralelo (no se espera acá). */
+  ownWorkspace: Promise<TeamRow | null> | null;
+}
+
+/**
+ * La sesión de NextAuth contra la del servidor (lib/account-security.ts): 'none' sin cookie,
+ * 'invalid' si se cerró o venció, 'mfa_pending' si falta el segundo paso. La persona y la fila
+ * de la sesión se piden juntas (en Turso cada query es una ida y vuelta).
+ */
+export const sessionGate = cache(async (): Promise<SessionGate> => {
+  const session = await getServerSession(authOptions);
+  const email = session?.user?.email;
+  if (!email) return { state: 'none', user: null, sid: null, ownWorkspace: null };
+  const rawSid = (session as { sid?: unknown }).sid;
+  const sid = typeof rawSid === 'string' && rawSid ? rawSid : null;
+  const uid = (session.user as { id?: unknown }).id;
+  const ownWorkspace = typeof uid === 'string' && uid ? getWorkspace(uid) : null;
+  ownWorkspace?.catch(() => {});
+  const [user, row] = await Promise.all([getUserByEmail(email), sid ? getSessionRow(sid) : Promise.resolve(null)]);
+  if (!user) return { state: 'none', user: null, sid, ownWorkspace: null };
+  const state = sessionState(user, sid, row);
+  if (state === 'ok' && row) touchSession(row);
+  return { state, user, sid, ownWorkspace: state === 'ok' ? ownWorkspace : null };
+});
+
 async function delegatedUser(d: NonNullable<ReturnType<typeof delegatedIdentity>>): Promise<SessionUser | null> {
   const { owner, team, workspace, role, apps } = await resolveWorkspace(d.real);
   // Fijado a un workspace del que ya no es parte: sin acceso, nunca cae al propio.
   if (d.pinnedTeamId && workspace.id !== d.pinnedTeamId) return null;
+  // Un workspace que exige dos pasos tampoco se abre por el MCP sin ellos.
+  if (owner.id !== d.real.id && workspace.require_mfa && !mfaEnabled(d.real)) return null;
   const user: SessionUser =
     owner.id === d.real.id ? { ...d.real, team, workspace, role, apps } : { ...owner, actingUser: d.real, team, workspace, role, apps };
   if (user.actingUser) {
@@ -192,6 +235,13 @@ async function requestHeader(name: string): Promise<string | null> {
  */
 export async function requireUser(locale: string, returnTo?: string): Promise<SessionUser> {
   const user = await getCurrentUser();
-  if (!user) redirect(signInPath(locale, returnTo ?? (await requestHeader(RETURN_PATH_HEADER))));
+  if (!user) {
+    const back = returnTo ?? (await requestHeader(RETURN_PATH_HEADER));
+    // Entró con Google o el código, falta el segundo paso.
+    if (!DEMO_MODE && (await sessionGate()).state === 'mfa_pending') {
+      redirect(`/${locale}/auth/mfa${back ? `?callbackUrl=${encodeURIComponent(back)}` : ''}`);
+    }
+    redirect(signInPath(locale, back));
+  }
   return user;
 }

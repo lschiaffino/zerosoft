@@ -96,6 +96,10 @@ export default async function AppLayout(
   // tiene en el workspace activo ya se armó con su workspace propio (lib/session):
   // se la manda al inicio con el aviso.
   if (user.blockedApp) redirect(`/${locale}/app?blocked=${user.blockedApp}`);
+  // El workspace exige dos pasos y la persona no los tiene: primero los activa.
+  if (user.mfaRequiredBy && !/^\/(?:en|es|pt)\/app\/settings\/security(?:[/?]|$)/.test(path)) {
+    redirect(`/${locale}/app/settings/security?required=1`);
+  }
   // Entrada activa del switcher: el workspace ajeno, un equipo propio de antes de 128, o el propio (null).
   const effective = user.actingUser ? (user.workspace?.id ?? null) : user.team ? (real.active_team_id ?? null) : null;
   // Las lecturas de la base arrancan juntas (en Turso cada query es un RTT): el switcher, el permiso

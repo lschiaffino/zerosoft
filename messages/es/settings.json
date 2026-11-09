@@ -1385,5 +1385,117 @@
         "digest": "el resumen semanal"
       }
     }
+  },
+  "security": {
+    "requiredBy": "El workspace {workspace} exige la verificación en dos pasos. Activala acá abajo para seguir trabajando ahí.",
+    "working": "Un momento…",
+    "mfa": {
+      "title": "Verificación en dos pasos",
+      "desc": "Después de entrar con Google o con el código por email, pedir también un código de una app autenticadora.",
+      "offHelp": "Sirve cualquier app autenticadora: 1Password, Google Authenticator, Microsoft Authenticator, Authy.",
+      "setUp": "Configurar",
+      "turnOn": "Activar",
+      "cancel": "Cancelar",
+      "step1": "Escaneá el código QR con tu app autenticadora.",
+      "step2": "Si no podés escanear, escribí la clave de abajo.",
+      "step3": "Escribí el código de 6 dígitos que muestra la app",
+      "qrLabel": "Código QR para tu app autenticadora",
+      "manual": "Clave de configuración",
+      "on": "Activada",
+      "onSince": "desde el",
+      "recoveryLeft": "{count, plural, =0 {No quedan códigos de recuperación: generá nuevos.} one {Queda # código de recuperación} other {Quedan # códigos de recuperación}}",
+      "regenerate": "Códigos de recuperación nuevos",
+      "disable": "Desactivar",
+      "confirmWithCode": "Confirmá con un código de la app o uno de recuperación",
+      "codesTitle": "Guardá tus códigos de recuperación",
+      "codesHelp": "Cada código sirve una vez si perdés el teléfono. No se vuelven a mostrar.",
+      "copy": "Copiar",
+      "copied": "Copiados",
+      "download": "Descargar",
+      "saved": "Ya los guardé"
+    },
+    "sessions": {
+      "title": "Sesiones",
+      "desc": "Dispositivos con tu cuenta abierta. Cerrar una tiene efecto en su próximo pedido.",
+      "empty": "No hay otras sesiones abiertas.",
+      "unknownDevice": "Dispositivo desconocido",
+      "current": "Este dispositivo",
+      "lastSeen": "última actividad",
+      "revoke": "Cerrar sesión",
+      "signOutHere": "Cerrar sesión acá",
+      "revokeOthers": "Cerrar las demás sesiones",
+      "confirmTitle": "¿Cerrar todas las demás sesiones?",
+      "confirmBody": "{count, plural, one {# dispositivo más va a tener que volver a entrar.} other {# dispositivos más van a tener que volver a entrar.}}",
+      "cancel": "Cancelar",
+      "error": "No se pudo cerrar esa sesión. Probá de nuevo.",
+      "method": {
+        "google": "Google",
+        "email": "Código por email",
+        "desktop": "App de escritorio",
+        "other": "Inicio anterior"
+      }
+    },
+    "workspace": {
+      "title": "Seguridad del workspace: {workspace}",
+      "desc": "Reglas para todas las personas de este workspace.",
+      "requireMfa": "Exigir la verificación en dos pasos a cada miembro",
+      "requireMfaHelp": "Quien no la tenga va a tener que activarla antes de abrir este workspace. No afecta a los invitados. Primero activala en tu cuenta.",
+      "ownerOnly": "Solo el owner del workspace puede cambiar esto.",
+      "withoutMfa": "{count, plural, one {# miembro sin verificación en dos pasos} other {# miembros sin verificación en dos pasos}}",
+      "allHaveMfa": "Todos los miembros tienen la verificación en dos pasos activada.",
+      "auditTitle": "Registro de auditoría",
+      "auditDesc": "Inicios de sesión, cambios de dos pasos, sesiones, API keys, exportaciones, borrados y cambios de miembros. Se guarda un año.",
+      "auditEmpty": "Todavía no hay nada registrado.",
+      "downloadCsv": "Descargar CSV",
+      "loadMore": "Cargar más"
+    },
+    "activity": {
+      "title": "Tu actividad reciente",
+      "desc": "Eventos de seguridad de tu cuenta.",
+      "empty": "Todavía no hay nada registrado."
+    },
+    "events": {
+      "time": "Hora",
+      "actor": "Persona",
+      "action": "Evento",
+      "detail": "Detalle",
+      "ip": "IP",
+      "actions": {
+        "login": "Inició sesión",
+        "login_failed_mfa": "Código de dos pasos incorrecto",
+        "logout": "Cerró sesión",
+        "mfa_enable": "Activó la verificación en dos pasos",
+        "mfa_disable": "Desactivó la verificación en dos pasos",
+        "mfa_recovery_used": "Usó un código de recuperación",
+        "mfa_recovery_regenerated": "Códigos de recuperación nuevos",
+        "session_revoke": "Cerró una sesión",
+        "session_revoke_others": "Cerró las demás sesiones",
+        "workspace_require_mfa": "Cambió la exigencia de dos pasos",
+        "api_key_create": "Creó una API key",
+        "api_key_revoke": "Revocó una API key",
+        "export_account": "Exportó los datos de la cuenta",
+        "export_workspace": "Exportó datos del workspace",
+        "account_delete_requested": "Pidió borrar la cuenta",
+        "account_delete_cancelled": "Canceló el borrado de la cuenta",
+        "account_deleted": "Cuenta borrada",
+        "workspace_deleted": "Workspace borrado",
+        "member_role": "Cambió un rol",
+        "member_apps": "Cambió apps",
+        "member_teams": "Cambió equipos",
+        "member_remove": "Sacó a un miembro",
+        "member_reactivate": "Reactivó a un miembro",
+        "member_transfer": "Traspasó trabajo",
+        "invite_create": "Invitó a alguien",
+        "invite_revoke": "Revocó una invitación"
+      }
+    },
+    "errors": {
+      "invalidCode": "Ese código no sirvió. Revisá la hora del teléfono y probá con el código más nuevo.",
+      "rateLimited": "Demasiados intentos. Esperá unos minutos y probá de nuevo.",
+      "requiredByWorkspace": "Tu workspace exige la verificación en dos pasos, así que no se puede desactivar.",
+      "enableFirst": "Primero activá la verificación en dos pasos en tu cuenta.",
+      "generic": "Algo salió mal. Probá de nuevo.",
+      "network": "Sin conexión. Probá de nuevo."
+    }
   }
 }

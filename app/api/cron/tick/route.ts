@@ -144,6 +144,8 @@ export async function GET(req: NextRequest) {
   const forms = await import('@/lib/forms/responses').then((m) => m.purgeFormsRetention()).catch(() => null);
   // Papelera del CRM: lo borrado hace más de 90 días se descarta para siempre.
   const trashPurged = await purgeExpiredTrash().catch(() => null);
+  // Retención de seguridad: eventos de más de un año, sesiones terminadas hace más de 90 días.
+  const securityPurged = await import('@/lib/account-security').then((m) => m.purgeSecurityRecords()).catch(() => null);
   // Board: papelera de más de 30 días y eventos de tiempo real viejos (son efímeros).
   const boardTrashPurged = await purgeBoardTrash().catch(() => null);
   const boardEventsPruned = await pruneBoardEvents().catch(() => null);
@@ -193,6 +195,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
+  return NextResponse.json({ lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, linkHistory, analytics, peopleOoo, hiring, sign, books, forms, trashPurged, securityPurged, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

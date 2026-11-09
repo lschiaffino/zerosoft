@@ -4,6 +4,7 @@ import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { createApiKey, listApiKeys, personAppAccess } from '@/lib/api-auth';
 import { API_SCOPES, scopesForApps } from '@/lib/api-scopes';
 import { logCalActivity } from '@/lib/calendar-activity';
+import { recordSecurityEvent } from '@/lib/account-security';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,6 +50,13 @@ export async function POST(req: NextRequest) {
     allowed.length === API_SCOPES.length ? '*' : allowed,
     parsed.data.mcp === true,
   );
+  await recordSecurityEvent({
+    userId: realUserId(user),
+    teamId: user.workspace?.id ?? null,
+    action: 'api_key.create',
+    target: parsed.data.name.trim(),
+    meta: { id, scopes: allowed.length === API_SCOPES.length ? '*' : allowed, mcp: parsed.data.mcp === true },
+  });
   // Keys que pueden usar Cal (API v1 y servidor MCP): quedan en su registro de actividad.
   const calScopes = parsed.data.scopes === undefined || parsed.data.scopes.some((s) => s.startsWith('cal:'));
   if (calScopes) await logCalActivity(user.id, realUserId(user), 'api.key_created', { type: 'api_key', id, summary: parsed.data.name.trim() });
