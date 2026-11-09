@@ -8,6 +8,7 @@ import { downloadInParts } from './download';
 export default function RecDownload({ url, label, className = 'btn btn-secondary btn-sm', testId }: { url: string; label: string; className?: string; testId?: string }) {
   const t = useTranslations('rec.common');
   const [pct, setPct] = useState<number | null>(null);
+  const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState(false);
   return (
     <>
@@ -21,15 +22,24 @@ export default function RecDownload({ url, label, className = 'btn btn-secondary
           setError(false);
           setPct(0);
           try {
-            await downloadInParts(url, 'video.webm', setPct);
+            await downloadInParts(
+              url,
+              'video.mp4',
+              (p) => {
+                setPreparing(false);
+                setPct(p);
+              },
+              () => setPreparing(true),
+            );
           } catch {
             setError(true);
           } finally {
             setPct(null);
+            setPreparing(false);
           }
         }}
       >
-        {pct !== null ? t('downloading', { pct }) : label}
+        {preparing ? t('preparingMp4') : pct !== null ? t('downloading', { pct }) : label}
       </button>
       {error && (
         <span className="ui-error" role="alert">

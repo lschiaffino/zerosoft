@@ -168,8 +168,8 @@ export function RecMoveDialog({
   ];
   const chosen = options.find((x) => x.k === sel);
   const notice = privacy && chosen && chosen.k !== curKey ? recMoveNotice({ spaceId: current.spaceId ?? null, privacy }, chosen.target) : null;
-  // Si el aviso ya dice que no se puede, Mover no se ofrece; y el error no repite al aviso.
-  const blocked = notice === 'needs_privacy';
+  // Los avisos solo cuentan qué cambia; ninguno frena el movimiento.
+  const blocked = false;
   return (
     <dialog
       ref={ref}
@@ -209,7 +209,7 @@ export function RecMoveDialog({
             <p className="ui-help">{t('moveHelp')}</p>
             {notice && (
               <p className="rec-move-notice" data-testid="rec-move-notice">
-                {t(notice === 'needs_privacy' ? 'moveNeedsPrivacy' : 'moveBecomesPeople')}
+                {t(notice === 'becomes_shared' ? 'moveBecomesShared' : 'moveBecomesPeople')}
               </p>
             )}
             {error && !blocked && (

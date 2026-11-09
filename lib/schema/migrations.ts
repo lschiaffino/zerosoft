@@ -293,8 +293,7 @@ export const MIGRATIONS: Migration[] = [
          WHERE type = 'task' AND done = 0 AND due_fired_at IS NULL`,
       );
     },
-  },
-  {
+  },  {
     // CRM ↔ suite: la actividad "meeting" sabe de qué reserva de Cal viene y la
     // nota de chat de qué conversación (para actualizarlas, no duplicarlas).
     id: '013_crm_activity_sources',
@@ -2488,8 +2487,7 @@ export const MIGRATIONS: Migration[] = [
       await client.executeMultiple(activityDateTriggersSql(1));
       for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table, undefined, 1));
     },
-  },
-  {
+  },  {
     // Chat: atributos de conversación definidos por widget (JSON
     // ChatAttributeDef[], ver lib/chat-attributes.ts) y sus valores por
     // conversación (JSON objeto id → valor). Agents: cada corrida queda en
@@ -2771,8 +2769,7 @@ export const MIGRATIONS: Migration[] = [
         }
       }
     },
-  },
-  {
+  },  {
     // Track: avisos por email (inmediato, resumen diario o nada, por persona;
     // cursor_at marca hasta dónde ya se mandó y digest_day reclama el resumen
     // del día), cycles automáticos con arrastre de lo sin terminar
@@ -5779,8 +5776,7 @@ export const MIGRATIONS: Migration[] = [
         UPDATE webhook_deliveries SET captured_by = (SELECT created_by FROM webhooks w WHERE w.id = webhook_deliveries.webhook_id) WHERE captured_by IS NULL;
       `);
     },
-  },
-  {
+  },  {
     // Paridad de Agents: versiones (borrador/publicada y rollback), registro
     // de cambios, archivos y pares de pregunta-respuesta como conocimiento,
     // sitemaps, simulaciones de varios turnos, puntaje con AI de cada
@@ -8728,8 +8724,7 @@ export const MIGRATIONS: Migration[] = [
         );
       `);
     },
-  },
-  {
+  },  {
     // Emails de ciclo de vida (lib/lifecycle): estado por persona (última
     // actividad, claim del cron), señales que no salen de otras tablas, el log
     // de envíos (una fila por persona y clave: nunca dos veces) y las
@@ -9015,6 +9010,41 @@ export const MIGRATIONS: Migration[] = [
           PRIMARY KEY (scope, owner_id, message_id)
         );
       `);
+    },
+  },
+  {
+    // Rec, compartir como Drive: rol por persona invitada, links mágicos para
+    // quien no tiene cuenta y lo nuevo nace restringido. Los videos que ya
+    // estaban abiertos por link siguen igual (el modal los muestra como
+    // "Cualquiera con el link"); el default de los workspaces pasa a
+    // restringido.
+    id: '300_rec_sharing_people',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE rec_videos ADD COLUMN people_roles TEXT NOT NULL DEFAULT '{}'");
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS rec_magic_links (
+          token_hash TEXT PRIMARY KEY,
+          video_id TEXT NOT NULL REFERENCES rec_videos(id) ON DELETE CASCADE,
+          email TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          expires_at TEXT NOT NULL,
+          used_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_rec_magic_links_video ON rec_magic_links(video_id, email);
+        UPDATE rec_settings SET default_privacy = 'people' WHERE default_privacy = 'link';
+      `);
+    },
+  },
+  {
+    // Rec: MP4 (H.264/AAC) para descargar, armado una vez por versión del video.
+    id: '301_rec_mp4',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_url TEXT');
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_size INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_for TEXT');
+      await addColumn(c, "ALTER TABLE rec_videos ADD COLUMN mp4_status TEXT NOT NULL DEFAULT 'none'");
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_started_at TEXT');
+      await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_job TEXT');
     },
   },
   {
