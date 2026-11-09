@@ -37,6 +37,11 @@ export interface QuickIssueDefaults {
   /** Prellenado (p. ej. "Crear sub-issue desde el comentario"). */
   title?: string;
   description?: string;
+  /** Project (track_plans) ya elegido: alta desde la página de un project. */
+  planId?: string | null;
+  planName?: string;
+  /** Milestone del project (alta desde un grupo de milestone). */
+  planMilestoneId?: string | null;
 }
 
 interface QuickIssueModalProps {
@@ -148,8 +153,8 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
       milestoneId: '',
       estimate: null,
       labels: [],
-      planId: '',
-      planName: '',
+      planId: defaults?.planId ?? '',
+      planName: defaults?.planName ?? '',
       parentLabel: defaults?.parentLabel ?? '',
     }),
     [defaults, fixedParent, today],
@@ -505,6 +510,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
       milestoneId: d.milestoneId || null,
       estimate: d.estimate,
       planId: d.planId || null,
+      planMilestoneId: d.planId && d.planId === defaults?.planId ? (defaults?.planMilestoneId ?? null) : null,
       labels: d.labels.map((l) => ({ id: l.id })),
       triage: d.triage || undefined,
     });
