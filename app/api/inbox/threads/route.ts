@@ -1,4 +1,6 @@
+import { after } from 'next/server';
 import { listThreads } from '@/lib/inbox/core';
+import { refreshVisible } from '@/lib/inbox/wa-meta';
 import { bulkActionSchema } from '@/lib/inbox/schemas';
 import { iJson, parseBody, withOwner } from '@/lib/inbox/http';
 import { threadAction } from '@/lib/inbox/send';
@@ -18,6 +20,15 @@ export async function GET(req: Request) {
       q: sp.get('q') ?? '',
       limit: Number(sp.get('limit') ?? 300) || 300,
     });
+    // Los primeros chats a la vista sin nombre o foto: se piden después de responder (la próxima lista ya los trae).
+    const visible = threads.filter((t) => t.channel === 'whatsapp').slice(0, 30).map((t) => t.id);
+    if (visible.length) {
+      try {
+        after(() => refreshVisible(owner, visible).catch(() => null));
+      } catch {
+        /* fuera de un pedido (tests): lo hace el cron */
+      }
+    }
     return iJson({ threads });
   });
 }

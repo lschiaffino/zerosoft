@@ -13,6 +13,9 @@ import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import ChatDetails from './ChatDetails';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
+import { useChatStyle } from '@/components/chat-style/ChatStyle';
+import LinkPreview from './wa/LinkPreview';
+import Transcript from './wa/Transcript';
 import TaskModal from './TaskModal';
 import { Modal, api, isLeavingChat, useErrorText, useLeavingChat, useMediaText, useToast } from './ui';
 import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezone, checkRule, endsIso } from './RecurringParts';
@@ -25,7 +28,7 @@ import EmojiPicker from './wa/EmojiPicker';
 import MediaViewer from './wa/MediaViewer';
 import AttachPreview from './wa/AttachPreview';
 import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
-import { colorIndex, dayLabel, extensionOf, linkify, localDayKey, onlyEmoji } from './wa/format';
+import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
 import { ContactCard, DocCard, ImageView, LocationCard, VideoView, VoicePlayer } from './wa/MediaParts';
 import {
   ArrowDown,
@@ -136,6 +139,8 @@ function senderKey(m: MessageDto): string {
  */
 export default function ChatThread(props: ThreadProps) {
   const t = useTranslations('groups');
+  const tw = useTranslations('inboxWa');
+  const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
   const locale = useLocale();
   const errText = useErrorText();
   const mediaText = useMediaText();
@@ -1312,12 +1317,19 @@ export default function ChatThread(props: ThreadProps) {
               ) : kind === 'video' ? (
                 <VideoView url={media.url} seconds={media.duration} thumbnail={media.thumbnail} width={media.width} height={media.height} onOpen={() => setViewerAt(m.id)} />
               ) : kind === 'audio' || kind === 'voice' ? (
-                <VoicePlayer id={m.id} src={media.url} seconds={media.duration} voice={kind === 'voice' || media.ptt === true} name={kind === 'audio' ? media.name : undefined} />
+                <VoicePlayer id={m.id} src={media.url} seconds={media.duration} voice={kind === 'voice' || media.ptt === true} name={kind === 'audio' ? media.name : undefined} waveform={media.waveform} />
               ) : (
                 <DocCard url={media.url} name={media.name} type={media.type} size={media.size} pages={media.pages} />
               )}
             </div>
           )}
+          {media && !hidden && (kind === 'audio' || kind === 'voice') && media.url && !media.viewOnce && (
+            <Transcript
+              endpoint={`/api/groups/messages/${m.id}/transcript`}
+              labels={{ working: tw('transcribing'), failed: tw('transcribeFailed'), more: tw('showMore'), less: tw('showLess'), summary: tw('audioSummary'), title: tw('transcript') }}
+            />
+          )}
+          {!media && !hidden && !m.poll && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} />}
           {location && !hidden && <LocationCard lat={location.lat} lng={location.lng} name={location.name ?? ''} address={location.address} url={location.url} live={location.live} />}
           {!hidden &&
             contacts.map((c, i) => (
@@ -1562,6 +1574,12 @@ export default function ChatThread(props: ThreadProps) {
                 { key: 'pin', label: chat.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void patchChat({ pinned: !chat.pinned }) },
                 { key: 'mute', label: chat.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void toggleMute() },
                 { key: 'details', label: t('thread.details'), onSelect: () => setDetailsOpen((v) => !v) },
+                {
+                  key: 'chatStyle',
+                  label: chatStyle === 'whatsapp' ? tw('styleUseZerosoft') : tw('styleUseWhatsapp'),
+                  divider: true,
+                  onSelect: () => void setChatStyle(chatStyle === 'whatsapp' ? 'zerosoft' : 'whatsapp'),
+                },
               ]}
             />
             <button type="button" className={`wa-icon-btn gr-details-toggle${detailsOpen ? ' is-on' : ''}`} onClick={() => setDetailsOpen((v) => !v)} aria-expanded={detailsOpen} aria-label={t('thread.details')} title={t('thread.details')}>
