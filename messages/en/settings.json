@@ -118,7 +118,7 @@
       "deal": "Deals",
       "robot": "Robots",
       "chat": "Chat",
-      "groups": "Groups (WhatsApp)",
+      "groups": "Lines (WhatsApp)",
       "talk": "Talk",
       "company": "Companies",
       "task": "Tasks",
@@ -156,9 +156,9 @@
       "chat_message_created": "Chat message",
       "chat_conversation_assigned": "Conversation assigned",
       "chat_conversation_resolved": "Conversation resolved",
-      "groups_message_received": "WhatsApp message received (Groups)",
-      "groups_ticket_created": "Ticket created (Groups)",
-      "groups_ticket_updated": "Ticket updated (Groups)",
+      "groups_message_received": "WhatsApp message received (Lines)",
+      "groups_ticket_created": "Ticket created (Lines)",
+      "groups_ticket_updated": "Ticket updated (Lines)",
       "contact_property_changed": "Contact property changed",
       "contact_deleted": "Contact deleted",
       "company_created": "Company created",
@@ -180,13 +180,13 @@
       "project_created": "Project created",
       "project_updated": "Project updated",
       "project_deleted": "Project deleted",
-      "groups_message_sent": "Message sent (Groups)",
-      "groups_chat_created": "New chat or group (Groups)",
-      "groups_chat_assigned": "Chat assigned (Groups)",
-      "groups_chat_closed": "Chat closed (Groups)",
-      "groups_member_joined": "Member joined a group (Groups)",
-      "groups_member_left": "Member left a group (Groups)",
-      "groups_poll_voted": "Poll vote (Groups)",
+      "groups_message_sent": "Message sent (Lines)",
+      "groups_chat_created": "New chat or group (Lines)",
+      "groups_chat_assigned": "Chat assigned (Lines)",
+      "groups_chat_closed": "Chat closed (Lines)",
+      "groups_member_joined": "Member joined a group (Lines)",
+      "groups_member_left": "Member left a group (Lines)",
+      "groups_poll_voted": "Poll vote (Lines)",
       "talk_message_posted": "Message in a channel (Talk)",
       "page_created": "Page created (Docs)",
       "page_updated": "Page edited (Docs)",
@@ -448,7 +448,7 @@
       "empty": "For now each app connects its accounts in its own settings.",
       "google": "Google Calendar in Cal › Connections",
       "gmail": "Gmail in CRM › Integrations",
-      "whatsapp": "WhatsApp numbers in Groups › Numbers",
+      "whatsapp": "WhatsApp numbers in Lines › Numbers",
       "github": "GitHub in Track › GitHub",
       "apps": "Claude and other connected apps"
     },
@@ -785,7 +785,7 @@
     "deleteBody": "It disappears from every app. Chat conversations and rules that used it stay without a team. People stay in the workspace.",
     "save": "Save",
     "cancel": "Cancel",
-    "uses": "Each team is used in Talk for @mentions (@sales notifies the whole team) and in Cal to add a whole team to a host pool. In the CRM, Chat and Groups it is used only if you turn it on.",
+    "uses": "Each team is used in Talk for @mentions (@sales notifies the whole team) and in Cal to add a whole team to a host pool. In the CRM, Chat and Lines it is used only if you turn it on.",
     "errors": {
       "save": "Couldn't save the team. Try again.",
       "duplicate_name": "There is already a team with that name.",
@@ -794,7 +794,7 @@
       "forbidden": "You need to be an admin of this workspace to do that."
     },
     "useIn": "Use in",
-    "useHelp": "Talk (@mentions) and Cal (host pools) can always use it. CRM, Chat and Groups only if you check them here.",
+    "useHelp": "Talk (@mentions) and Cal (host pools) can always use it. CRM, Chat and Lines only if you check them here.",
     "usedIn": "Used in {apps}, Talk and Cal",
     "usedInNone": "Used in Talk and Cal",
     "useApps": {
@@ -807,7 +807,7 @@
         "desc": "team inbox"
       },
       "groups": {
-        "title": "Groups",
+        "title": "Lines",
         "desc": "chat assignment"
       }
     }

@@ -7,7 +7,7 @@ import { getAllPosts, getPost } from '@/lib/blog';
 import { getComparisons } from '@/lib/compare';
 import { computeParity } from '@/lib/feature-parity';
 import { AI_MULTIPLIER, PAID_MINIMUM, PRICE_MULTIPLIER, PRICING_MEASURED } from '@/lib/pricing';
-import { PRODUCT_CONFIG, PRODUCT_KEYS, type ProductKey, AVAILABLE_PRODUCT_KEYS, COMING_SOON_APPS, isComingSoon } from '@/lib/products';
+import { PRODUCT_CONFIG, PRODUCT_KEYS, type ProductKey, productHref, AVAILABLE_PRODUCT_KEYS, COMING_SOON_APPS, isComingSoon } from '@/lib/products';
 import { TOOLS } from '@/lib/tools/registry';
 import { absoluteUrl } from '@/lib/seo';
 
@@ -83,7 +83,7 @@ export function llmsTxt(): string {
   for (const k of PRODUCT_KEYS) {
     const c = products[k];
     const soon = isComingSoon(k) ? ' (coming soon: not usable yet, waitlist only)' : '';
-    lines.push(`- [${PRODUCT_CONFIG[k].name}](${url(`/products/${k}`)})${soon}: ${oneLine(c.meta.description)}`);
+    lines.push(`- [${PRODUCT_CONFIG[k].name}](${url(productHref(k))})${soon}: ${oneLine(c.meta.description)}`);
   }
   lines.push('', '## Comparisons', '');
   for (const c of getComparisons()) {
@@ -115,7 +115,7 @@ export function llmsFullTxt(): string {
     const c = products[k];
     const parity = PARITY[k];
     const score = computeParity(parity.rows);
-    out.push(`## ${PRODUCT_CONFIG[k].name}`, '', `URL: ${url(`/products/${k}`)}`, '', oneLine(c.meta.description), '');
+    out.push(`## ${PRODUCT_CONFIG[k].name}`, '', `URL: ${url(productHref(k))}`, '', oneLine(c.meta.description), '');
     if (c.hero?.sub) out.push(oneLine(c.hero.sub), '');
     const fs = features(k);
     if (fs.length) {

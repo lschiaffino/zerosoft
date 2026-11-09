@@ -16,7 +16,7 @@ export default async function BroadcastPage(props: { params: Promise<{ locale: s
   return (
     <div className="ui-page">
       <PageHeader
-        back={{ href: '/app/groups/broadcasts', label: t('broadcasts.title') }}
+        back={{ href: '/app/lines/broadcasts', label: t('broadcasts.title') }}
         title={data.broadcast.name || t('broadcasts.untitled')}
         description={t('broadcasts.detailDesc', { n: data.broadcast.total })}
       />

@@ -168,7 +168,7 @@ async function homeGroupsTasks(user: HomeUser, limit: number): Promise<{ total: 
       dueAt: x.dueAt,
       overdue: Date.parse(x.dueAt as string) < at(range.start),
       context: null,
-      href: `/app/groups/tasks?open=${encodeURIComponent(x.id)}`,
+      href: `/app/lines/tasks?open=${encodeURIComponent(x.id)}`,
       source: { app: 'groups' as const, label: viewer.mask ? maskPhoneText(x.chatName) : x.chatName },
     })),
   };

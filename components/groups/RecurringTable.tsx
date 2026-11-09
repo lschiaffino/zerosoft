@@ -52,7 +52,7 @@ export default function RecurringTable({ initial }: { initial: RecurringDto[] })
   if (rows.length === 0) {
     return (
       <p className="ui-help">
-        {t('recurring.empty')} <Link href="/app/groups/broadcasts/new?repeat=1">{t('recurring.new')}</Link>
+        {t('recurring.empty')} <Link href="/app/lines/broadcasts/new?repeat=1">{t('recurring.new')}</Link>
       </p>
     );
   }
@@ -73,7 +73,7 @@ export default function RecurringTable({ initial }: { initial: RecurringDto[] })
             {rows.map((r) => (
               <tr key={r.id}>
                 <td>
-                  <Link href={`/app/groups/broadcasts/recurring/${r.id}`}>{title(r)}</Link>
+                  <Link href={`/app/lines/broadcasts/recurring/${r.id}`}>{title(r)}</Link>
                   <span className="ui-help"> · {t('recurring.chats', { n: r.chatIds.length })}</span>
                 </td>
                 <td className="gr-hide-sm ui-help" data-label={t('recurring.colRule')}>{ruleText(r.rule)}</td>

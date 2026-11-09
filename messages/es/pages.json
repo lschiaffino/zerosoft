@@ -568,7 +568,7 @@
         },
         "f2": {
           "q": "¿Atiende email o WhatsApp?",
-          "a": "Email sí: reenviás tu dirección de soporte a la del widget y respondés desde la bandeja. Las respuestas salen desde la dirección de la app, todavía no desde tu dominio, y el reenvío se probó con el payload de la doc de Resend, no contra Resend real. WhatsApp todavía no está en Chat; para eso está Groups."
+          "a": "Email sí: reenviás tu dirección de soporte a la del widget y respondés desde la bandeja. Las respuestas salen desde la dirección de la app, todavía no desde tu dominio, y el reenvío se probó con el payload de la doc de Resend, no contra Resend real. WhatsApp todavía no está en Chat; para eso está Lines."
         },
         "f3": {
           "q": "¿Cómo funciona el bot?",
@@ -606,7 +606,7 @@
     },
     "groups": {
       "meta": {
-        "title": "Groups: bandeja de WhatsApp para equipos, open source",
+        "title": "Lines: bandeja de WhatsApp para equipos, open source",
         "description": "Bandeja compartida para chats y grupos de WhatsApp: asignación, notas, tickets, SLA y envíos, vinculada a tu CRM. Alternativa open source a Periskope."
       },
       "hero": {
@@ -656,7 +656,7 @@
         "per": "/ asiento / mes",
         "team": "$3.000",
         "zero": "$0",
-        "note": "Periskope Starter cuesta $25 por asiento por mes (pago mensual, Pro cuesta $35). Un equipo de diez paga $3.000 al año. Groups en tu servidor cuesta $0; vos corrés el gateway de WhatsApp o le pagás a Meta la API oficial."
+        "note": "Periskope Starter cuesta $25 por asiento por mes (pago mensual, Pro cuesta $35). Un equipo de diez paga $3.000 al año. Lines en tu servidor cuesta $0; vos corrés el gateway de WhatsApp o le pagás a Meta la API oficial."
       },
       "faq": {
         "f1": {
@@ -665,26 +665,26 @@
         },
         "f2": {
           "q": "¿El modo QR es seguro para mi número?",
-          "a": "Usa una sesión no oficial de WhatsApp Web, y WhatsApp puede restringir un número usado así, sobre todo si agrega muchos desconocidos o manda muchos mensajes no pedidos. Groups manda los envíos al ritmo que elijas y sugiere links de invitación. Para mensajes 1:1 recomendamos la API oficial."
+          "a": "Usa una sesión no oficial de WhatsApp Web, y WhatsApp puede restringir un número usado así, sobre todo si agrega muchos desconocidos o manda muchos mensajes no pedidos. Lines manda los envíos al ritmo que elijas y sugiere links de invitación. Para mensajes 1:1 recomendamos la API oficial."
         },
         "f3": {
           "q": "¿Puedo gestionar grupos con la API oficial?",
-          "a": "En Groups, por ahora no. La API oficial cubre chats 1:1; crear grupos y manejar miembros pasa por el gateway con QR."
+          "a": "En Lines, por ahora no. La API oficial cubre chats 1:1; crear grupos y manejar miembros pasa por el gateway con QR."
         },
         "f4": {
           "q": "¿Cómo funcionan los tickets?",
-          "a": "Un ticket sale de un mensaje: a mano, reaccionando con el emoji de ticket (desde Groups o el teléfono) o cuando un cliente escribe una de tus palabras clave. Cada uno tiene estado, prioridad, asignado y vencimientos de primera respuesta y resolución."
+          "a": "Un ticket sale de un mensaje: a mano, reaccionando con el emoji de ticket (desde Lines o el teléfono) o cuando un cliente escribe una de tus palabras clave. Cada uno tiene estado, prioridad, asignado y vencimientos de primera respuesta y resolución."
         },
         "f5": {
           "q": "¿Qué falta comparado con Periskope?",
-          "a": "Apps nativas en App Store y Google Play (hay una app instalable con push), y llamar o grabar desde Groups: los proveedores no dan el audio, así que solo queda el registro de llamadas de la Cloud API. Tampoco hay app en el directorio de Zapier ni endpoints de contactos y propiedades en la API, y el MCP trae 9 herramientas contra 56."
+          "a": "Apps nativas en App Store y Google Play (hay una app instalable con push), y llamar o grabar desde Lines: los proveedores no dan el audio, así que solo queda el registro de llamadas de la Cloud API. Tampoco hay app en el directorio de Zapier ni endpoints de contactos y propiedades en la API, y el MCP trae 9 herramientas contra 56."
         }
       },
       "cta": {
         "title1": "Cada grupo respondido.",
         "title2": "Cada mensaje en la ficha.",
         "sub": "Conectá un número, traé tus grupos y empezá a responder desde una sola bandeja.",
-        "button": "Abrir Groups"
+        "button": "Abrir Lines"
       },
       "steps": {
         "s1": {
@@ -755,7 +755,7 @@
         },
         "f3": {
           "q": "¿Dónde habla con mis clientes?",
-          "a": "En el widget de Chat de tu sitio, en una página pública propia, por email (con el email entrante de Chat configurado) y por la API v1 (scope agents:run). También en WhatsApp a través de Groups, en Slack, Messenger e Instagram con tu propia app, y por teléfono en un número de Twilio que asigna el admin de la instancia."
+          "a": "En el widget de Chat de tu sitio, en una página pública propia, por email (con el email entrante de Chat configurado) y por la API v1 (scope agents:run). También en WhatsApp a través de Lines, en Slack, Messenger e Instagram con tu propia app, y por teléfono en un número de Twilio que asigna el admin de la instancia."
         },
         "f4": {
           "q": "¿Puede cambiar mis datos?",
@@ -3354,7 +3354,7 @@
     "scope_chat_write": "Responder, asignar, resolver y reabrir conversaciones de Chat (incluye chat:read).",
     "webhooksChatTitle": "Payload de los eventos de Chat",
     "webhooksChatDesc": "Los eventos de Chat traen la conversación. chat.message.created suma el mensaje (del visitante, del equipo o del bot; las notas internas no se mandan) y chat.conversation.assigned suma previousAssignedTo.",
-    "groupsTitle": "Groups (WhatsApp)",
+    "groupsTitle": "Lines (WhatsApp)",
     "groupsDesc": "Leé chats y grupos de WhatsApp, mandá mensajes y creá tickets desde tus sistemas. Los mensajes salen del número al que pertenece el chat.",
     "groupsChatsListTitle": "Listar chats y grupos",
     "groupsChatsListDesc": "Chats y grupos abiertos, los más recientes primero, con etiquetas, asignado y si esperan respuesta.",
@@ -3415,8 +3415,8 @@
     "paramGroupsRule": "Objeto con freq (daily, weekly, monthly o cron), time (HH:MM), days (0 a 6), dayOfMonth o cron",
     "paramGroupsTimezone": "Zona horaria IANA (por defecto UTC)",
     "paramGroupsEndsAt": "Fecha ISO de fin, opcional",
-    "scope_groups_read": "Leer chats, mensajes y tickets de WhatsApp en Groups.",
-    "scope_groups_write": "Mandar mensajes de WhatsApp y crear tickets en Groups.",
+    "scope_groups_read": "Leer chats, mensajes y tickets de WhatsApp en Lines.",
+    "scope_groups_write": "Mandar mensajes de WhatsApp y crear tickets en Lines.",
     "scope_track_read": "Leer issues y pedidos de clientes de Track.",
     "scope_track_write": "Crear issues de Track desde pedidos de clientes (email, formularios, Flow).",
     "crmLeadsTitle": "CRM · Leads",

@@ -9,7 +9,7 @@ import Icon from './site/Icon';
 import { CATEGORY_PRODUCTS, GITHUB_URL, PRODUCT_NAMES } from './site/catalog';
 import Logo from './brand/Logo';
 import ProductGlyph from './brand/ProductGlyph';
-import { COMING_SOON_APPS, PRODUCT_CONFIG, isComingSoon, isProductKey } from '@/lib/products';
+import { COMING_SOON_APPS, PRODUCT_CONFIG, isComingSoon, isProductKey, productHref } from '@/lib/products';
 
 interface HeaderClientProps {
   locale: string;
@@ -125,7 +125,7 @@ export default function HeaderClient({ locale, labels }: HeaderClientProps) {
         <div key={category} className="hd-group">
           <p className="hd-group-title">{tc(`${category}.title`)}</p>
           {ready.map((key) => (
-            <Link key={key} href={`/products/${key}`} className={`hd-prod card-${key} hd-prod-${variant}`} title={th(`desc.${key}`)}>
+            <Link key={key} href={productHref(key)} className={`hd-prod card-${key} hd-prod-${variant}`} title={th(`desc.${key}`)}>
               <ProductGlyph product={key} size={14} className="hd-prod-icon" />
               <span className="hd-prod-text">
                 <span className="hd-prod-name">{PRODUCT_NAMES[key]}</span>
@@ -141,7 +141,7 @@ export default function HeaderClient({ locale, labels }: HeaderClientProps) {
         <p className="hd-building-title">{th('building')}</p>
         <div className="hd-building-list">
           {COMING_SOON_APPS.map((key) => (
-            <Link key={key} href={`/products/${key}`} className={`hd-prod hd-prod-soon card-${key} hd-prod-${variant}`} title={th(`desc.${key}`)}>
+            <Link key={key} href={productHref(key)} className={`hd-prod hd-prod-soon card-${key} hd-prod-${variant}`} title={th(`desc.${key}`)}>
               <ProductGlyph product={key} size={14} className="hd-prod-icon" />
               <span className="hd-prod-name">{PRODUCT_NAMES[key]}</span>
             </Link>

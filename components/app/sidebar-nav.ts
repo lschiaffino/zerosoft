@@ -343,7 +343,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/board', 'board'],
   ['/app/agents', 'agents'],
   ['/app/robots', 'robots'],
-  ['/app/groups', 'groups'],
+  ['/app/lines', 'groups'],
   ['/app/voice', 'voice'],
   ['/app/rec', 'rec'],
   ['/app/talk', 'talk'],
@@ -791,26 +791,26 @@ export function buildNav(
         {
           items: [
             {
-              href: '/app/groups/inbox',
+              href: '/app/lines/inbox',
               label: labels.groups.inbox,
-              active: at('/app/groups/inbox') || pathname === '/app/groups',
+              active: at('/app/lines/inbox') || pathname === '/app/lines',
               icon: 'inbox',
               // Listas guardadas de chats (GroupsListsBranch en el hueco #side-branch).
               branch: true,
             },
-            { href: '/app/groups/list', label: labels.groups.groups, active: at('/app/groups/list'), icon: 'groups' },
-            { href: '/app/groups/tickets', label: labels.groups.tickets, active: at('/app/groups/tickets'), icon: 'tasks' },
-            { href: '/app/groups/tasks', label: labels.groups.tasks, active: at('/app/groups/tasks'), icon: 'myTasks' },
-            { href: '/app/groups/templates', label: labels.groups.templates, active: at('/app/groups/templates'), icon: 'templates' },
-            { href: '/app/groups/broadcasts', label: labels.groups.broadcasts, active: at('/app/groups/broadcasts'), icon: 'bulk' },
+            { href: '/app/lines/list', label: labels.groups.groups, active: at('/app/lines/list'), icon: 'groups' },
+            { href: '/app/lines/tickets', label: labels.groups.tickets, active: at('/app/lines/tickets'), icon: 'tasks' },
+            { href: '/app/lines/tasks', label: labels.groups.tasks, active: at('/app/lines/tasks'), icon: 'myTasks' },
+            { href: '/app/lines/templates', label: labels.groups.templates, active: at('/app/lines/templates'), icon: 'templates' },
+            { href: '/app/lines/broadcasts', label: labels.groups.broadcasts, active: at('/app/lines/broadcasts'), icon: 'bulk' },
           ],
         },
         {
           section: labels.insights,
-          items: [{ href: '/app/groups/analytics', label: labels.groups.analytics, active: at('/app/groups/analytics'), icon: 'reports' }],
+          items: [{ href: '/app/lines/analytics', label: labels.groups.analytics, active: at('/app/lines/analytics'), icon: 'reports' }],
         },
         {
-          items: [{ href: '/app/groups/settings', label: labels.groups.settings, active: at('/app/groups/settings'), icon: 'settings' }],
+          items: [{ href: '/app/lines/settings', label: labels.groups.settings, active: at('/app/lines/settings'), icon: 'settings' }],
         },
       ];
 
@@ -1219,7 +1219,7 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
     case 'robots':
       return [item('/app/robots?new=1', labels.newRobot, 'robots')];
     case 'groups':
-      return [item('/app/groups/list?new=1', labels.newGroup, 'groups')];
+      return [item('/app/lines/list?new=1', labels.newGroup, 'groups')];
     case 'social':
       return [item('/app/social/posts/new', labels.social.newPost, 'social')];
     case 'people':

@@ -3,7 +3,7 @@ import { Link } from '@/i18n/navigation';
 import Icon from './Icon';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import { CATEGORY_PRODUCTS, PRODUCT_NAMES, RIVALS } from './catalog';
-import { isComingSoon, type ProductKey } from '@/lib/products';
+import { isComingSoon, type ProductKey, productHref } from '@/lib/products';
 
 /**
  * La suite por categoría (vender, atender, automatizar, construir, trabajo
@@ -37,7 +37,7 @@ export default function SuiteGrid({
           <ul className="suite-rows">
             {products.map((k) => (
               <li key={k} className={`suite-row card-${k}`}>
-                <Link href={`/products/${k}`} className="suite-row-link">
+                <Link href={productHref(k)} className="suite-row-link">
                   <ProductGlyph product={k} size={18} className="suite-glyph" />
                   <span className="suite-name">{PRODUCT_NAMES[k]}</span>
                   <span className="suite-line">{h(`suite.${k}.line`)}</span>

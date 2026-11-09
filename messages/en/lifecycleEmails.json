@@ -70,11 +70,11 @@
       "cta": "Connect calendar"
     },
     "setup_whatsapp": {
-      "subject": "Connect your WhatsApp line to Groups",
+      "subject": "Connect your WhatsApp line to Lines",
       "preheader": "Scan a QR code and your chats show up in the inbox.",
       "heading": "Connect a WhatsApp line",
       "body": [
-        "Groups doesn't have a line connected yet. Scan the QR code from WhatsApp on your phone and your groups show up in the shared inbox.",
+        "You haven't connected a WhatsApp number to Lines yet. Scan the QR code from WhatsApp on your phone and your groups show up in the shared inbox.",
         "From there you assign chats, leave internal notes and reply with your team."
       ],
       "cta": "Connect a line"
