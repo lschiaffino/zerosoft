@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync } from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getDb } from '@/lib/db';
 import { applyThreadAction, inboxCounts, listThreads } from '@/lib/inbox/core';
 import { importPart, parseImport } from '@/lib/inbox/import';
 import { connectWhatsapp, ingestHistoryChats, ingestWhatsappEvents, pushWhatsappArchive } from '@/lib/inbox/whatsapp';
@@ -113,6 +114,9 @@ describe('Chats archivados de WhatsApp en Inbox', () => {
 
   it('archivar en Inbox se manda a WhatsApp (y desarchivar también)', async () => {
     const { u, account } = await setup('arch-e');
+    await getDb().prepare("UPDATE inbox_accounts SET status = 'connected' WHERE id = ?").run(account.id);
+    // El proveedor falso tarda un momento en dar la sesión por conectada.
+    await new Promise((r) => setTimeout(r, 1600));
     await ingestWhatsappEvents(account, [msg(DM)]);
     const [t] = await listThreads(u.id);
     await applyThreadAction(u.id, [t.id], { action: 'archive' });
