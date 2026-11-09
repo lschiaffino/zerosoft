@@ -571,7 +571,7 @@ span.vc-cite { cursor: default; }
   box-shadow: 0 12px 32px -10px var(--ui-shadow-strong), 0 2px 6px -2px var(--ui-shadow);
 }
 .vc-dock.is-open .vc-dock-bar { border-color: var(--ink-3); }
-.vc-dock-input.vc-ask { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; }
+.vc-dock .vc-dock-input.vc-ask { flex: 1; flex-direction: row; min-width: 0; display: flex; align-items: center; gap: 2px; }
 .vc-dock-input .input {
   flex: 1;
   min-width: 0;
@@ -683,13 +683,20 @@ span.vc-cite { cursor: default; }
 .vc-livepanel-head .vc-askpanel-title { flex: none; margin-left: 8px; }
 .vc-livepanel-status { flex: 1; min-width: 0; margin-left: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; }
 .vc-livepanel-head .btn:last-child { margin-left: auto; }
-.vc-model {
+.vc-askpanel-head .vc-model {
+  width: auto;
+  min-width: 0;
   height: 28px;
+  min-height: 28px;
   max-width: 120px;
+  margin-right: 2px;
   padding: 0 24px 0 8px;
   font-size: 0.8125rem;
+  border-color: transparent;
+  background-color: transparent;
   background-position: right 8px center;
 }
+.vc-askpanel-head .vc-model:hover { background-color: var(--ui-hover); }
 .vc-askpanel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .vc-askpanel-body p { margin: 0; }
 .vc-ask-empty { display: flex; flex-direction: column; gap: 10px; }
@@ -797,3 +804,10 @@ span.vc-cite { cursor: default; }
 .vc-edit:empty::before { content: attr(data-placeholder); color: var(--ink-3); }
 .vc-points li.is-sub { margin-left: 20px; list-style-type: circle; }
 .vc-summary { margin: 0; line-height: 1.65; }
+
+/* Teléfono: los paneles de los chips ocupan el ancho de la fila (no se salen por la derecha). */
+@media (max-width: 600px) {
+  .vc-chips { position: relative; }
+  .vc-chips .vc-pop-wrap { position: static; }
+  .vc-chips .vc-pop { left: 0; right: 0; width: auto; max-width: none; }
+}

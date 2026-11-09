@@ -335,13 +335,13 @@ export default function MeetingPeople({
   );
 }
 
-function dayLabel(d: Date, words: { today: string; yesterday: string }, fmt: (d: Date, o: Intl.DateTimeFormatOptions) => string): string {
+function dayLabel(d: Date, words: { today: string; yesterday: string }, fmt: (d: Date, o: { month: 'short'; day: 'numeric'; year?: 'numeric' }) => string): string {
   const now = new Date();
   const start = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diff = Math.round((start(now) - start(d)) / 86_400_000);
   if (diff === 0) return words.today;
   if (diff === 1) return words.yesterday;
-  return fmt(d, { month: 'short', day: 'numeric', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
+  return fmt(d, d.getFullYear() !== now.getFullYear() ? { month: 'short', day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric' });
 }
 
 function Avatar({ label }: { label: string }) {

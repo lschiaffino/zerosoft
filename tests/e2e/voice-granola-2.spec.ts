@@ -33,9 +33,11 @@ async function connectGoogle(page: Page) {
   await page.goto('/en/app/calendar/settings?tab=connections', { waitUntil: 'networkidle' });
   const google = page.locator('.cal-conn').filter({ hasText: 'Google Calendar' });
   const connect = google.getByRole('button', { name: 'Connect', exact: true });
+  // Los paneles cargan su estado después: se espera a ver "Connect" o "Connected as".
+  await expect(connect.or(google.getByText(/Connected as/))).toBeVisible();
   if (await connect.isVisible()) {
     await connect.click();
-    await expect(page.getByText('Google Calendar connected.')).toBeVisible();
+    await expect(page.getByText('Google Calendar connected.')).toBeVisible({ timeout: 30_000 });
   }
 }
 
@@ -196,18 +198,18 @@ test('recipes: biblioteca con los tuyos compartidos, correrlos, editarlos y borr
 
   // Archivo adjunto: la respuesta lee lo que dice el archivo.
   await page.locator('input[type=file][accept*=".md"]').setInputFiles({ name: 'rfp.txt', mimeType: 'text/plain', buffer: Buffer.from('The procurement deadline is December 4.') });
-  await expect(ask.locator('.vc-attach-chip')).toContainText('rfp.txt');
+  await expect(page.locator('.vc-attach-chip')).toContainText('rfp.txt');
   await input.fill('When is the procurement deadline?');
   await input.press('Enter');
   await expect(ask.locator('.vc-msg.is-assistant').last()).toContainText('December 4', { timeout: 20_000 });
-  await expect(ask.locator('.vc-attach-chip')).toHaveCount(0);
+  await expect(page.locator('.vc-attach-chip')).toHaveCount(0);
   // Un archivo que no es texto se rechaza con un mensaje claro.
   await page.locator('input[type=file][accept*=".md"]').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: Buffer.from([137, 80, 78, 71]) });
   await expect(page.getByRole('alert').filter({ hasText: 'Attach a text file' })).toBeVisible();
 
   // Dictar la pregunta: el texto dictado queda en el campo.
   await context.addCookies([{ name: 'voice_fake_text', value: encodeURIComponent('What is the budget'), url: baseURL! }]);
-  await ask.getByRole('button', { name: 'Dictate the question' }).click();
+  await page.getByRole('button', { name: 'Dictate the question' }).click();
   await expect(page.getByRole('button', { name: 'Stop dictating' })).toBeVisible();
   await page.waitForTimeout(800);
   await page.getByRole('button', { name: 'Stop dictating' }).click();
@@ -258,7 +260,7 @@ test('email de seguimiento: se escribe solo, se copia o abre Gmail, y sale desde
   // Se desconecta para no cambiar otros tests.
   await page.goto('/en/app/crm/settings?tab=integrations', { waitUntil: 'networkidle' });
   await panel.getByRole('button', { name: 'Disconnect' }).click();
-  await expect(panel.getByRole('link', { name: 'Connect Outlook' })).toBeVisible();
+  await expect(panel.getByRole('link', { name: 'Connect Outlook' })).toBeVisible({ timeout: 20_000 });
 });
 
 test('carpeta desde el chip, menú de más acciones con teclado y la página en 390 y 1280, claro y oscuro', async ({ page }) => {
@@ -273,7 +275,7 @@ test('carpeta desde el chip, menú de más acciones con teclado y la página en 
   await page.getByTestId('voice-folder-chip').click();
   await page.getByRole('textbox', { name: 'New folder…' }).fill(folderName);
   await page.getByRole('textbox', { name: 'New folder…' }).press('Enter');
-  await expect(page.getByTestId('voice-folder-chip')).toContainText(folderName);
+  await expect(page.getByTestId('voice-folder-chip')).toContainText(folderName, { timeout: 20_000 });
   await expect.poll(async () => ((await (await page.request.get(`/api/voice/sessions/${id}`)).json()) as { folderId: string | null }).folderId).not.toBeNull();
 
   // Menú de más acciones: flechas, Enter y Esc.

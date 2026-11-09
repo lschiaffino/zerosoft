@@ -3,7 +3,7 @@ import { voiceAuth, readBody } from '@/lib/voice-route';
 import { builtinPrompts, meetingLabels, voiceErrorResponse, voiceJsonError, voiceNdjson } from '@/lib/voice-http';
 import { chat, chatStream } from '@/lib/voice-service';
 import { recipePrompt, runRecipeOnMeeting } from '@/lib/voice-prep';
-import { VOICE_ATTACHMENT_MAX_CHARS } from '@/lib/voice-types';
+import { VOICE_ATTACHMENT_MAX_CHARS, type VoiceChatModel } from '@/lib/voice-types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const locale = typeof body.locale === 'string' ? body.locale : 'en';
   // Conversación dentro de la reunión ("Nuevo chat"), modelo elegido y un archivo de texto adjunto.
   const thread = typeof body.thread === 'string' && /^[a-z0-9-]{1,40}$/i.test(body.thread) ? body.thread : undefined;
-  const model = body.model === 'fast' || body.model === 'deep' ? body.model : undefined;
+  const model: VoiceChatModel | undefined = body.model === 'fast' || body.model === 'deep' ? body.model : undefined;
   const att = body.attachment as { name?: unknown; text?: unknown } | undefined;
   const attachment =
     att && typeof att === 'object' && typeof att.text === 'string' && att.text.trim()
