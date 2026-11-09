@@ -144,7 +144,8 @@ test('Apps del workspace: solo admins y apagada cortan página, sidebar y API pa
     // El owner la deja solo para admins desde Ajustes.
     await owner.p.goto('/en/app/settings/apps', { waitUntil: 'networkidle' });
     await expect(owner.p.getByTestId('ws-app-chat')).toHaveCount(0);
-    await expect(owner.p.getByTestId('ws-app-notes')).toHaveCount(0);
+    await expect(owner.p.getByTestId('ws-app-inbox')).toHaveCount(0);
+    await expect(owner.p.getByTestId('ws-app-notes')).toBeVisible();
     await owner.p.getByTestId('ws-app-mode-crm').selectOption('admins');
     await expect(owner.p.getByTestId('ws-app-crm')).toContainText('Only the owner and admins.');
 
@@ -155,6 +156,20 @@ test('Apps del workspace: solo admins y apagada cortan página, sidebar y API pa
     // El owner la sigue usando.
     expect((await owner.p.request.get('/api/crm/contacts')).status()).toBe(200);
 
+    // "Todos" con el member excluido a mano: sigue afuera; sin la excepción, entra.
+    await owner.p.getByTestId('ws-app-mode-crm').selectOption('all');
+    await owner.p.getByTestId('ws-app-edit-crm').click();
+    await owner.p.getByTestId('ws-apps-pick').getByLabel(/Mario/).selectOption('deny');
+    await owner.p.getByRole('button', { name: 'Save' }).click();
+    await expect(owner.p.getByTestId('ws-app-crm')).toContainText('1 person excluded');
+    expect((await member.p.request.get('/api/crm/contacts')).status()).toBe(403);
+    await owner.p.getByTestId('ws-app-edit-crm').click();
+    await owner.p.getByTestId('ws-apps-pick').getByLabel(/Mario/).selectOption('default');
+    await owner.p.getByRole('button', { name: 'Save' }).click();
+    expect((await member.p.request.get('/api/crm/contacts')).status()).toBe(200);
+    await owner.p.getByTestId('ws-app-mode-crm').selectOption('admins');
+    await expect(owner.p.getByTestId('ws-app-crm')).toContainText('Only the owner and admins.');
+
     // "Solo algunos" con el member elegido: vuelve a entrar.
     await owner.p.getByTestId('ws-app-mode-crm').selectOption('some');
     const pick = owner.p.getByTestId('ws-apps-pick');
@@ -164,8 +179,12 @@ test('Apps del workspace: solo admins y apagada cortan página, sidebar y API pa
     expect((await member.p.request.get('/api/crm/contacts')).status()).toBe(200);
 
     // Apagada: nadie, ni el owner; desaparece del switcher; los datos quedan.
-    await owner.p.getByTestId('ws-app-mode-crm').selectOption('off');
+    await owner.p.getByTestId('ws-app-switch-crm').uncheck();
     await expect(owner.p.getByTestId('ws-app-crm')).toContainText('Off for everyone');
+    // Aviso claro para quien llega por link: apagada, sin pedir acceso.
+    await member.p.goto('/en/app/crm', { waitUntil: 'networkidle' });
+    await member.p.waitForURL(/\/en\/app\?blocked=crm/);
+    await expect(member.p.getByTestId('home-blocked')).toContainText('turned off in this workspace');
     expect((await owner.p.request.get('/api/crm/contacts')).status()).toBe(403);
     await owner.p.goto('/en/app', { waitUntil: 'networkidle' });
     await owner.p.locator('.band-product').click();
@@ -176,7 +195,7 @@ test('Apps del workspace: solo admins y apagada cortan página, sidebar y API pa
 
     // De nuevo para todos: vuelve con sus datos.
     await owner.p.goto('/en/app/settings/apps', { waitUntil: 'networkidle' });
-    await owner.p.getByTestId('ws-app-mode-crm').selectOption('all');
+    await owner.p.getByTestId('ws-app-switch-crm').check();
     await expect(owner.p.getByTestId('ws-app-crm')).toContainText('Everyone who has it enabled');
     expect((await owner.p.request.get('/api/crm/contacts')).status()).toBe(200);
   } finally {

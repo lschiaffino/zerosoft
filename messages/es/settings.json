@@ -922,7 +922,10 @@
     "guardStay": "Ir a mi workspace activo",
     "guardHome": "Ir al inicio",
     "guardSwitchError": "No se pudo volver. Probá de nuevo.",
-    "guardClose": "Cerrar"
+    "guardClose": "Cerrar",
+    "offTitle": "{app} está apagada en tu workspace",
+    "offBody": "Un admin de {workspace} apagó {app}. Pedile que la vuelva a prender si la necesitás.",
+    "offBodyAdmin": "{app} está apagada en {workspace}. Volvé a prenderla en Ajustes › Workspace › Apps."
   },
   "invite": {
     "metaTitle": "Invitación",
@@ -1408,11 +1411,11 @@
   },
   "appsPanel": {
     "title": "Apps del workspace",
-    "desc": "Para quién está cada app en este workspace. Apagar una la saca de todos lados para todos; lo que tiene adentro no se borra.",
+    "desc": "Prendé o apagá cada app para el workspace, elegí quién la usa (todos, equipos o personas) y ajustala por persona. Apagar una la saca de todos lados para todos; lo que tiene adentro no se borra.",
     "readOnly": "Solo el owner y los admins cambian esto.",
     "modes": {
       "all": "Todos",
-      "some": "Solo algunos",
+      "some": "Equipos o personas",
       "admins": "Solo admins",
       "off": "Apagada"
     },
@@ -1420,21 +1423,35 @@
       "all": "La usan todos los que la tienen habilitada.",
       "some": "{people, plural, =0 {Ninguna persona} one {# persona} other {# personas}} y {teams, plural, =0 {ningún equipo} one {# equipo} other {# equipos}}, más el owner y los admins.",
       "admins": "Solo el owner y los admins.",
-      "off": "Apagada para todos. Sus datos quedan guardados."
+      "off": "Apagada para todos. Sus datos quedan guardados.",
+      "deniedCount": "{count, plural, one {# persona excluida} other {# personas excluidas}}"
     },
     "edit": "Elegir",
     "error": "No se guardó. Probá de nuevo.",
     "saved": "Guardado",
     "accessFor": "Quién usa {name}",
-    "personal": "Las apps personales ({apps}) no se apagan para el workspace: son de cada persona.",
     "compose": "Encima de esto valen las apps habilitadas de cada persona en Miembros y permisos.",
     "pickTitle": "¿Quién usa {name}?",
     "pickSave": "Guardar",
     "cancel": "Cancelar",
-    "pickHelp": "El owner y los admins la usan siempre. Elegí personas, equipos o las dos cosas.",
+    "pickHelp": "El owner y los admins la usan siempre. Elegí equipos, personas o las dos cosas, y excluí a quien quieras por nombre.",
     "teams": "Equipos",
     "people": "Personas",
     "teamCount": "{count, plural, one {# persona} other {# personas}}",
-    "noMembers": "Todavía no hay miembros en el workspace."
+    "noMembers": "Todavía no hay miembros en el workspace.",
+    "enabled": "Activada",
+    "enabledFor": "{name} activada para el workspace",
+    "accessLabel": "Acceso",
+    "exceptions": "Excepciones",
+    "choose": "Personas y equipos",
+    "person": {
+      "default": "Según el acceso de arriba",
+      "allow": "Siempre puede",
+      "deny": "Nunca puede"
+    },
+    "pickHelpAll": "La usan todos. Excluí acá a personas puntuales; el owner y los admins la conservan siempre.",
+    "pickHelpAdmins": "La usan solo el owner y los admins. Las exclusiones no cambian eso.",
+    "pickPeople": "Por persona",
+    "offNote": "Apagada: desaparece del menú, del inicio, de la búsqueda, de sus páginas y su API, del MCP y de la app de escritorio. Sus datos quedan guardados."
   }
 }

@@ -36,6 +36,7 @@ export class OperationError extends Error {
       | 'invalid_arguments'
       | 'insufficient_scope'
       | 'app_not_available'
+      | 'app_disabled'
       | 'workspace_access_lost'
       | 'confirmation_required'
       | 'rate_limited'
@@ -309,6 +310,9 @@ export async function invokeOperation(outer: Request, caller: McpCaller, op: Ope
   if (!personCanUseApp(person, op.app)) {
     if (op.app !== 'workspace' && isComingSoon(op.app) && person.blockedApps.includes(op.app)) {
       throw new OperationError('coming_soon', `${op.app} is not available yet. It is coming soon.`);
+    }
+    if (op.app !== 'workspace' && person.blockedApps.includes(op.app)) {
+      throw new OperationError('app_disabled', `${op.app} is turned off for you in this workspace. An admin can change it in Settings > Workspace > Apps.`);
     }
     throw new OperationError('app_not_available', `You do not have access to ${op.app} in this workspace.`);
   }

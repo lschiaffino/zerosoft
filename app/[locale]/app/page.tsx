@@ -6,7 +6,8 @@ import { dayPart, getWorkspaceMode, homeCanUse, normalizeTaskScope } from '@/lib
 import { getUserTimeZone } from '@/lib/user-tz';
 import { featuredApps, moreAppsByCategory, showTeamUi } from '@/lib/workspace-mode';
 import { APP_SWITCHER_ORDER, comingSoonHref, isComingSoon, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
-import { isStaff } from '@/lib/workspace-apps';
+import { isStaff, loadWorkspaceAppRules } from '@/lib/workspace-apps';
+import { appDenial } from '@/lib/app-access';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import PageHeader from '@/components/ui/PageHeader';
 import HomeAsk from '@/components/assistant/HomeAsk';
@@ -74,6 +75,11 @@ export default async function PlatformHomePage(props: {
   // El link puede quedar viejo: si ya tiene la app (se la dieron), no hay nada que avisar.
   const blocked = typeof blockedKey === 'string' && blockedKey in PRODUCT_CONFIG && !userCanUseApp(user, blockedKey as ProductKey) ? (blockedKey as ProductKey) : null;
   const tAccess = blocked ? await getTranslations({ locale, namespace: 'settings.access' }) : null;
+  // Apagada o restringida por el workspace (Ajustes › Workspace › Apps) y no por los toggles de la persona: otro aviso, sin pedir acceso.
+  const wsDenial = blocked
+    ? appDenial({ role: user.role, personId: person.id, teamIds: [], staff: isStaff(person.email) }, blocked, await loadWorkspaceAppRules(user.id))
+    : null;
+  const wsOff = wsDenial === 'workspace_off';
   // "Pedido enviado" sigue al recargar: sale de la base, no del estado del botón.
   const alreadyAsked = Boolean(blocked && user.actingUser && user.workspace && (await isRequestPending(user.workspace.id, person.id, blocked)));
   const lost = await lostAccessNotice(person.id);
@@ -94,11 +100,13 @@ export default async function PlatformHomePage(props: {
       <PageHeader title={greeting} description={t('homeLead')} />
       {blocked && tAccess && (
         <div className="home-blocked" role="status" data-testid="home-blocked">
-          <p className="home-blocked-title">{tAccess('title', { app: PRODUCT_CONFIG[blocked].name })}</p>
+          <p className="home-blocked-title">{tAccess(wsOff ? 'offTitle' : 'title', { app: PRODUCT_CONFIG[blocked].name })}</p>
           <p className="home-blocked-body">
-            {tAccess(user.role === 'admin' ? 'bodyAdmin' : 'body', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })}
+            {wsOff
+              ? tAccess(admin ? 'offBodyAdmin' : 'offBody', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })
+              : tAccess(user.role === 'admin' ? 'bodyAdmin' : 'body', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })}
           </p>
-          {user.actingUser && (
+          {user.actingUser && !wsOff && (
             <RequestAccessButton
               app={blocked}
               alreadyAsked={alreadyAsked}

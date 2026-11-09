@@ -922,7 +922,10 @@
     "guardStay": "Go to my active workspace",
     "guardHome": "Go to Home",
     "guardSwitchError": "Couldn't switch back. Try again.",
-    "guardClose": "Dismiss"
+    "guardClose": "Dismiss",
+    "offTitle": "{app} is turned off in this workspace",
+    "offBody": "An admin of {workspace} turned {app} off. Ask them if you need it back.",
+    "offBodyAdmin": "{app} is off for {workspace}. Turn it back on in Settings › Workspace › Apps."
   },
   "invite": {
     "metaTitle": "Invitation",
@@ -1408,11 +1411,11 @@
   },
   "appsPanel": {
     "title": "Workspace apps",
-    "desc": "Who each app is for in this workspace. Turning one off removes it everywhere for everyone; what's inside is kept.",
+    "desc": "Turn each app on or off for the workspace, choose who gets it (everyone, teams or people) and override it per person. Turning one off removes it everywhere for everyone; what's inside is kept.",
     "readOnly": "Only the owner and admins can change this.",
     "modes": {
       "all": "Everyone",
-      "some": "Only some people",
+      "some": "Specific teams or people",
       "admins": "Only admins",
       "off": "Off"
     },
@@ -1420,21 +1423,35 @@
       "all": "Everyone who has it enabled can use it.",
       "some": "{people, plural, =0 {No people} one {# person} other {# people}} and {teams, plural, =0 {no teams} one {# team} other {# teams}}, plus the owner and admins.",
       "admins": "Only the owner and admins.",
-      "off": "Off for everyone. Its data stays saved."
+      "off": "Off for everyone. Its data stays saved.",
+      "deniedCount": "{count, plural, one {# person excluded} other {# people excluded}}"
     },
     "edit": "Choose",
     "error": "Didn't save. Try again.",
     "saved": "Saved",
     "accessFor": "Who uses {name}",
-    "personal": "Personal apps ({apps}) aren't turned off for the workspace: they belong to each person.",
     "compose": "On top of this, each person's enabled apps in Members & permissions still apply.",
     "pickTitle": "Who uses {name}?",
     "pickSave": "Save",
     "cancel": "Cancel",
-    "pickHelp": "The owner and admins always have it. Pick people, teams or both.",
+    "pickHelp": "The owner and admins always have it. Pick teams, people or both, and exclude anyone by name.",
     "teams": "Teams",
     "people": "People",
     "teamCount": "{count, plural, one {# person} other {# people}}",
-    "noMembers": "There are no members in the workspace yet."
+    "noMembers": "There are no members in the workspace yet.",
+    "enabled": "On",
+    "enabledFor": "{name} on for the workspace",
+    "accessLabel": "Access",
+    "exceptions": "Exceptions",
+    "choose": "People and teams",
+    "person": {
+      "default": "By the access above",
+      "allow": "Always can",
+      "deny": "Never can"
+    },
+    "pickHelpAll": "Everyone can use it. Exclude specific people here; the owner and admins always keep it.",
+    "pickHelpAdmins": "Only the owner and admins use it. Exclusions don't change that.",
+    "pickPeople": "Per person",
+    "offNote": "Turned off: it disappears from the sidebar, home, search, its pages and API, the MCP and the desktop app. Its data stays saved."
   }
 }

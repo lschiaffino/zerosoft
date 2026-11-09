@@ -586,7 +586,9 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
 .ws-apps-desc { font-size: 0.8125rem; color: var(--ink-2); line-height: 1.4; }
 .ws-apps-sum { font-size: 0.8125rem; color: var(--ink-3); }
 .ws-apps-status { margin-left: 8px; }
+.ws-apps-control { display: flex; flex-direction: column; gap: 8px; }
 .ws-apps-control .select { width: 100%; }
+.ws-apps-personrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 190px); gap: 8px; align-items: center; padding: 4px 0; }
 .ws-apps-edit {
   padding: 0;
   font: inherit;
@@ -605,4 +607,5 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
 @media (max-width: 560px) {
   .ws-apps-row { grid-template-columns: 20px minmax(0, 1fr); }
   .ws-apps-control { grid-column: 2; }
+  .ws-apps-personrow { grid-template-columns: minmax(0, 1fr); }
 }

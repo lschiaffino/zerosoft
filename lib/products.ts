@@ -174,11 +174,12 @@ export function comingSoonHref(key: ProductKey): string {
 export const AVAILABLE_PRODUCT_KEYS: readonly ProductKey[] = (Object.keys(PRODUCT_CONFIG) as ProductKey[]).filter((k) => !isComingSoon(k));
 
 /**
- * ¿La app se prende, se apaga y se restringe en Ajustes › Apps del workspace?
- * Las de equipo, sí; las personales (Inbox, Notes, Docs…) no: son de cada persona.
+ * ¿La app se prende, se apaga y se restringe en Ajustes › Workspace › Apps?
+ * Todas, de equipo o personales (Notes, Docs…), salvo las que siempre están
+ * (Inbox): el dueño del workspace decide qué apps existen para su gente.
  */
 export function isWorkspaceGatedApp(key: string): boolean {
-  return isProductKey(key) && PRODUCT_CONFIG[key].audience === 'team' && !isAlwaysOnApp(key);
+  return isProductKey(key) && !isAlwaysOnApp(key);
 }
 
 /** Número de la app en la suite, con dos dígitos ("01" … "15"). */

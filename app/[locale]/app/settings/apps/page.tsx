@@ -5,7 +5,7 @@ import { ensureWorkspace } from '@/lib/workspace';
 import { loadDirectory } from '@/lib/workspace-directory';
 import { loadWorkspaceAppRules } from '@/lib/workspace-apps';
 import { isRuleKey } from '@/lib/app-access';
-import { APP_SWITCHER_ORDER, isComingSoon, PRODUCT_CONFIG } from '@/lib/products';
+import { APP_SWITCHER_ORDER } from '@/lib/products';
 import AppsPanel from '@/components/settings/AppsPanel';
 
 export const dynamic = 'force-dynamic';
@@ -26,11 +26,9 @@ export default async function AppsSettingsPage(props: { params: Promise<{ locale
   const admin = isWorkspaceAdmin(user);
   const [rules, dir] = await Promise.all([loadWorkspaceAppRules(team.owner_id), admin ? loadDirectory(team, user.role, '', user.apps ?? '*') : null]);
   const apps = APP_SWITCHER_ORDER.filter((k) => isRuleKey(k));
-  const personalApps = APP_SWITCHER_ORDER.filter((k) => !isComingSoon(k) && PRODUCT_CONFIG[k].audience === 'personal');
   return (
     <AppsPanel
       apps={apps}
-      personalApps={personalApps}
       initial={rules}
       canEdit={admin}
       people={(dir?.members ?? []).map((m) => ({ userId: m.userId, name: m.name, email: m.email, role: m.role }))}

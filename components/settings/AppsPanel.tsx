@@ -6,7 +6,7 @@ import FormSection from '@/components/ui/FormSection';
 import QuickModal from '@/components/app/QuickModal';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
-import { WORKSPACE_APP_MODES, type WorkspaceAppMode, type WorkspaceAppRule, type WorkspaceAppRules } from '@/lib/app-access';
+import { EMPTY_RULE, type WorkspaceAppMode, type WorkspaceAppRule, type WorkspaceAppRules } from '@/lib/app-access';
 
 interface Person {
   userId: string;
@@ -21,25 +21,25 @@ interface Team {
   memberIds: string[];
 }
 
-const ALL: WorkspaceAppRule = { mode: 'all', people: [], teams: [] };
+const ON_MODES: readonly WorkspaceAppMode[] = ['all', 'some', 'admins'];
+type PersonState = 'default' | 'allow' | 'deny';
 
 /**
- * Ajustes › Apps del workspace: una fila por app de equipo con un select
- * (Todos, Solo algunos, Solo admins, Apagada). "Solo algunos" abre la elección
- * de personas y equipos. Cada cambio se guarda solo (PUT /api/teams/apps) y
- * vale para la app, sus APIs y el MCP. Las apps habilitadas de cada persona
+ * Ajustes › Workspace › Apps: una fila por app con un interruptor (prendida
+ * para el workspace o apagada), el acceso (todos, equipos o personas, solo
+ * admins) y las excepciones por persona (siempre puede, nunca puede). Cada
+ * cambio se guarda solo (PUT /api/teams/apps) y vale para la app, sus páginas,
+ * su API, el MCP y la app de escritorio. Las apps habilitadas de cada persona
  * (Miembros y permisos) siguen valiendo encima de esto.
  */
 export default function AppsPanel({
   apps,
-  personalApps,
   initial,
   people,
   teams,
   canEdit,
 }: {
   apps: ProductKey[];
-  personalApps: ProductKey[];
   initial: WorkspaceAppRules;
   people: Person[];
   teams: Team[];
@@ -50,7 +50,7 @@ export default function AppsPanel({
   const [rules, setRules] = useState<WorkspaceAppRules>(initial);
   const [saving, setSaving] = useState<ProductKey | null>(null);
   const [status, setStatus] = useState<{ app: ProductKey; kind: 'saved' | 'error' } | null>(null);
-  const [picking, setPicking] = useState<{ app: ProductKey; people: string[]; teams: string[]; prev: WorkspaceAppRule } | null>(null);
+  const [picking, setPicking] = useState<{ app: ProductKey; mode: WorkspaceAppMode; rule: WorkspaceAppRule; prev: WorkspaceAppRule } | null>(null);
   const members = useMemo(() => people.filter((p) => p.role === 'member'), [people]);
 
   async function save(app: ProductKey, rule: WorkspaceAppRule, prev: WorkspaceAppRule): Promise<boolean> {
@@ -74,23 +74,45 @@ export default function AppsPanel({
     return true;
   }
 
+  function open(app: ProductKey, mode: WorkspaceAppMode, prev: WorkspaceAppRule) {
+    setPicking({
+      app,
+      mode,
+      prev,
+      rule: { mode, people: prev.mode === 'some' ? prev.people : [], teams: prev.mode === 'some' ? prev.teams : [], denied: prev.denied },
+    });
+  }
+
   function onMode(app: ProductKey, mode: WorkspaceAppMode) {
-    const prev = rules[app] ?? ALL;
-    if (mode === 'some') {
-      setPicking({ app, people: prev.mode === 'some' ? prev.people : [], teams: prev.mode === 'some' ? prev.teams : [], prev });
-      return;
-    }
-    void save(app, { mode, people: [], teams: [] }, prev);
+    const prev = rules[app] ?? EMPTY_RULE;
+    if (mode === 'some') return open(app, mode, prev);
+    void save(app, { mode, people: [], teams: [], denied: prev.denied }, prev);
+  }
+
+  function onSwitch(app: ProductKey, on: boolean) {
+    const prev = rules[app] ?? EMPTY_RULE;
+    void save(app, on ? { mode: 'all', people: [], teams: [], denied: prev.denied } : { mode: 'off', people: [], teams: [], denied: [] }, prev);
   }
 
   function summary(rule: WorkspaceAppRule): string {
     if (rule.mode === 'off') return t('summary.off');
-    if (rule.mode === 'admins') return t('summary.admins');
-    if (rule.mode === 'some') return t('summary.some', { people: rule.people.length, teams: rule.teams.length });
-    return t('summary.all');
+    const base =
+      rule.mode === 'admins'
+        ? t('summary.admins')
+        : rule.mode === 'some'
+          ? t('summary.some', { people: rule.people.length, teams: rule.teams.length })
+          : t('summary.all');
+    return rule.denied.length ? `${base} ${t('summary.deniedCount', { count: rule.denied.length })}.` : base;
   }
 
   const toggle = (list: string[], id: string, on: boolean) => (on ? [...new Set([...list, id])] : list.filter((x) => x !== id));
+
+  function personState(rule: WorkspaceAppRule, id: string): PersonState {
+    return rule.denied.includes(id) ? 'deny' : rule.people.includes(id) ? 'allow' : 'default';
+  }
+  function setPerson(rule: WorkspaceAppRule, id: string, state: PersonState): WorkspaceAppRule {
+    return { ...rule, people: toggle(rule.people, id, state === 'allow'), denied: toggle(rule.denied, id, state === 'deny') };
+  }
 
   return (
     <>
@@ -98,10 +120,12 @@ export default function AppsPanel({
         {!canEdit && <p className="ui-help">{t('readOnly')}</p>}
         <ul className="ws-apps" data-testid="workspace-apps">
           {apps.map((app) => {
-            const rule = rules[app] ?? ALL;
+            const rule = rules[app] ?? EMPTY_RULE;
+            const off = rule.mode === 'off';
             const name = PRODUCT_CONFIG[app].name;
+            const busy = saving === app;
             return (
-              <li key={app} className={`ws-apps-row card-${app}${rule.mode === 'off' ? ' is-off' : ''}`} data-testid={`ws-app-${app}`}>
+              <li key={app} className={`ws-apps-row card-${app}${off ? ' is-off' : ''}`} data-testid={`ws-app-${app}`} data-mode={rule.mode}>
                 <span className="ws-apps-glyph">
                   <ProductGlyph product={app} size={16} />
                 </span>
@@ -110,11 +134,11 @@ export default function AppsPanel({
                   <span className="ws-apps-desc">{tp(`${app}.desc`)}</span>
                   <span className="ws-apps-sum" aria-live="polite">
                     {summary(rule)}
-                    {rule.mode === 'some' && canEdit && (
+                    {!off && canEdit && (
                       <>
                         {' · '}
-                        <button type="button" className="ws-apps-edit" onClick={() => onMode(app, 'some')}>
-                          {t('edit')}
+                        <button type="button" className="ws-apps-edit" onClick={() => open(app, rule.mode, rule)} data-testid={`ws-app-edit-${app}`}>
+                          {rule.mode === 'some' ? t('choose') : t('exceptions')}
                         </button>
                       </>
                     )}
@@ -126,19 +150,31 @@ export default function AppsPanel({
                   </span>
                 </span>
                 <span className="ws-apps-control">
+                  <label className="ui-check ws-apps-switch">
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      checked={!off}
+                      disabled={!canEdit || busy}
+                      aria-label={t('enabledFor', { name })}
+                      onChange={(e) => onSwitch(app, e.target.checked)}
+                      data-testid={`ws-app-switch-${app}`}
+                    />
+                    <span>{t('enabled')}</span>
+                  </label>
                   <label className="sr-only" htmlFor={`ws-app-mode-${app}`}>
                     {t('accessFor', { name })}
                   </label>
                   <select
                     id={`ws-app-mode-${app}`}
                     className="select"
-                    value={rule.mode}
-                    disabled={!canEdit || saving === app}
-                    aria-busy={saving === app || undefined}
+                    value={off ? 'all' : rule.mode}
+                    disabled={!canEdit || busy || off}
+                    aria-busy={busy || undefined}
                     onChange={(e) => onMode(app, e.target.value as WorkspaceAppMode)}
                     data-testid={`ws-app-mode-${app}`}
                   >
-                    {WORKSPACE_APP_MODES.map((m) => (
+                    {ON_MODES.map((m) => (
                       <option key={m} value={m}>
                         {t(`modes.${m}`)}
                       </option>
@@ -150,7 +186,7 @@ export default function AppsPanel({
           })}
         </ul>
         <p className="ui-help ws-apps-foot">
-          {t('personal', { apps: personalApps.map((a) => PRODUCT_CONFIG[a].name).join(', ') })} {t('compose')}
+          {t('offNote')} {t('compose')}
         </p>
       </FormSection>
 
@@ -161,7 +197,7 @@ export default function AppsPanel({
         onSubmit={() => {
           if (!picking) return;
           const p = picking;
-          void save(p.app, { mode: 'some', people: p.people, teams: p.teams }, p.prev).then((ok) => ok && setPicking(null));
+          void save(p.app, { ...p.rule, mode: p.mode }, p.prev).then((ok) => ok && setPicking(null));
         }}
         submitLabel={t('pickSave')}
         cancelLabel={t('cancel')}
@@ -171,16 +207,16 @@ export default function AppsPanel({
       >
         {picking && (
           <div className="ws-apps-pick" data-testid="ws-apps-pick">
-            <p className="ui-help">{t('pickHelp')}</p>
-            {teams.length > 0 && (
+            <p className="ui-help">{picking.mode === 'some' ? t('pickHelp') : picking.mode === 'admins' ? t('pickHelpAdmins') : t('pickHelpAll')}</p>
+            {picking.mode === 'some' && teams.length > 0 && (
               <fieldset className="st-fieldset">
                 <legend className="label">{t('teams')}</legend>
                 {teams.map((g) => (
                   <label key={g.id} className="ui-check">
                     <input
                       type="checkbox"
-                      checked={picking.teams.includes(g.id)}
-                      onChange={(e) => setPicking({ ...picking, teams: toggle(picking.teams, g.id, e.target.checked) })}
+                      checked={picking.rule.teams.includes(g.id)}
+                      onChange={(e) => setPicking({ ...picking, rule: { ...picking.rule, teams: toggle(picking.rule.teams, g.id, e.target.checked) } })}
                     />
                     <span>
                       {g.name} <span className="st-muted">{t('teamCount', { count: g.memberIds.length })}</span>
@@ -190,21 +226,27 @@ export default function AppsPanel({
               </fieldset>
             )}
             <fieldset className="st-fieldset">
-              <legend className="label">{t('people')}</legend>
+              <legend className="label">{t('pickPeople')}</legend>
               {members.length === 0 ? (
                 <p className="ui-help">{t('noMembers')}</p>
               ) : (
                 members.map((p) => (
-                  <label key={p.userId} className="ui-check">
-                    <input
-                      type="checkbox"
-                      checked={picking.people.includes(p.userId)}
-                      onChange={(e) => setPicking({ ...picking, people: toggle(picking.people, p.userId, e.target.checked) })}
-                    />
+                  <div key={p.userId} className="ws-apps-personrow">
                     <span className="ws-apps-person">
                       {p.name || p.email} {p.name && <span className="st-muted">{p.email}</span>}
                     </span>
-                  </label>
+                    <select
+                      className="select"
+                      aria-label={p.name || p.email}
+                      value={personState(picking.rule, p.userId)}
+                      onChange={(e) => setPicking({ ...picking, rule: setPerson(picking.rule, p.userId, e.target.value as PersonState) })}
+                      data-testid={`ws-person-${p.userId}`}
+                    >
+                      <option value="default">{t('person.default')}</option>
+                      {picking.mode === 'some' && <option value="allow">{t('person.allow')}</option>}
+                      <option value="deny">{t('person.deny')}</option>
+                    </select>
+                  </div>
                 ))
               )}
             </fieldset>

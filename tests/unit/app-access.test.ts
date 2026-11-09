@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 import { getDb, type UserRow } from '@/lib/db';
 import { addMember } from '@/lib/teams';
 import { ensureWorkspace, userCanUseApp, type AppAccess } from '@/lib/workspace';
-import { appDenial, blockedApps, type WorkspaceAppRules } from '@/lib/app-access';
+import { appDenial, blockedApps, parseRule, type WorkspaceAppRules } from '@/lib/app-access';
 import { blockedAppsFor, loadWorkspaceAppRules, saveWorkspaceAppRule } from '@/lib/workspace-apps';
 import { createGroup } from '@/lib/workspace-groups';
 import { createApiKey, validateApiKeyAuth, requireApiUser } from '@/lib/api-auth';
@@ -53,14 +53,14 @@ describe('lib/products: Próximamente en una sola config', () => {
     for (const k of COMING_SOON_APPS) expect(AVAILABLE_PRODUCT_KEYS).not.toContain(k);
     expect(AVAILABLE_PRODUCT_KEYS).toContain('crm');
   });
-  it('las personales no se apagan por workspace', () => {
-    for (const k of ['inbox', 'notes', 'docs', 'cal', 'board', 'voice'] as const) expect(isWorkspaceGatedApp(k), k).toBe(false);
-    expect(isWorkspaceGatedApp('crm')).toBe(true);
+  it('todas se pueden apagar por workspace salvo Inbox, que siempre está', () => {
+    expect(isWorkspaceGatedApp('inbox')).toBe(false);
+    for (const k of ['notes', 'docs', 'cal', 'board', 'voice', 'crm', 'groups', 'pulse', 'rec'] as const) expect(isWorkspaceGatedApp(k), k).toBe(true);
   });
 });
 
 describe('appDenial: la regla única (rol × modo de la app × toggles)', () => {
-  const rules = (mode: 'all' | 'some' | 'admins' | 'off', people: string[] = [], teams: string[] = []): WorkspaceAppRules => ({ crm: { mode, people, teams } });
+  const rules = (mode: 'all' | 'some' | 'admins' | 'off', people: string[] = [], teams: string[] = [], denied: string[] = []): WorkspaceAppRules => ({ crm: { mode, people, teams, denied } });
   const subject = (role: string, extra: Partial<{ personId: string; teamIds: string[]; apps: '*' | string[]; staff: boolean }> = {}) => ({
     role,
     personId: extra.personId ?? `p-${role}`,
@@ -106,8 +106,22 @@ describe('appDenial: la regla única (rol × modo de la app × toggles)', () => 
     expect(appDenial(subject('owner'), 'crm', rules('off'))).toBe('workspace_off');
   });
 
-  it('una regla sobre una app personal no hace nada', () => {
-    expect(appDenial(subject('member'), 'notes', { notes: { mode: 'off', people: [], teams: [] } } as WorkspaceAppRules)).toBeNull();
+  it('una app personal también se apaga; Inbox no', () => {
+    expect(appDenial(subject('member'), 'notes', { notes: { mode: 'off', people: [], teams: [], denied: [] } })).toBe('workspace_off');
+    expect(appDenial(subject('owner'), 'inbox', { inbox: { mode: 'off', people: [], teams: [], denied: [] } } as WorkspaceAppRules)).toBeNull();
+  });
+
+  it('excepción por persona: excluida en cualquier modo, salvo owner y admins', () => {
+    expect(appDenial(subject('member', { personId: 'ana' }), 'crm', rules('all', [], [], ['ana']))).toBe('workspace_restricted');
+    expect(appDenial(subject('member', { personId: 'beto' }), 'crm', rules('all', [], [], ['ana']))).toBeNull();
+    expect(appDenial(subject('member', { personId: 'ana', teamIds: ['ventas'] }), 'crm', rules('some', [], ['ventas'], ['ana']))).toBe('workspace_restricted');
+    expect(appDenial(subject('admin', { personId: 'ana' }), 'crm', rules('all', [], [], ['ana']))).toBeNull();
+  });
+
+  it('parseRule: denied pasa por todos los modos menos off y gana sobre people', () => {
+    expect(parseRule({ mode: 'some', people: ['a', 'b'], denied: ['b'] })).toEqual({ mode: 'some', people: ['a'], teams: [], denied: ['b'] });
+    expect(parseRule({ mode: 'off', denied: ['b'] })?.denied).toEqual([]);
+    expect(parseRule({ mode: 'all', denied: ['b', 5, ''] })?.denied).toEqual(['b']);
   });
 
   it('Próximamente: nadie la abre salvo el staff, sea cual sea el rol', () => {
@@ -136,13 +150,17 @@ describe('Apps del workspace en la base', () => {
     await addMember(team.id, ana.id, 'member');
     await addMember(team.id, beto.id, 'member');
     const ventas = await createGroup(owner.id, { name: 'Ventas', memberIds: [beto.id] });
-    await saveWorkspaceAppRule(owner.id, 'crm', { mode: 'some', people: [], teams: [ventas.id] }, owner.id);
-    expect((await loadWorkspaceAppRules(owner.id)).crm).toEqual({ mode: 'some', people: [], teams: [ventas.id] });
+    await saveWorkspaceAppRule(owner.id, 'crm', { mode: 'some', people: [], teams: [ventas.id], denied: [] }, owner.id);
+    expect((await loadWorkspaceAppRules(owner.id)).crm).toEqual({ mode: 'some', people: [], teams: [ventas.id], denied: [] });
     expect(await blockedAppsFor({ ownerId: owner.id, personId: ana.id, role: 'member', email: ana.email })).toContain('crm');
     expect(await blockedAppsFor({ ownerId: owner.id, personId: beto.id, role: 'member', email: beto.email })).not.toContain('crm');
     // "Todos" borra la fila: vuelve a lo de siempre.
-    await saveWorkspaceAppRule(owner.id, 'crm', { mode: 'all', people: [], teams: [] }, owner.id);
+    await saveWorkspaceAppRule(owner.id, 'crm', { mode: 'all', people: [], teams: [], denied: [] }, owner.id);
     expect(await loadWorkspaceAppRules(owner.id)).toEqual({});
+    // Una excepción por persona sí se guarda aunque el modo sea "todos".
+    await saveWorkspaceAppRule(owner.id, 'crm', { mode: 'all', people: [], teams: [], denied: [ana.id] }, owner.id);
+    expect(await blockedAppsFor({ ownerId: owner.id, personId: ana.id, role: 'member', email: ana.email })).toContain('crm');
+    expect(await blockedAppsFor({ ownerId: owner.id, personId: beto.id, role: 'member', email: beto.email })).not.toContain('crm');
   });
 
   it('el staff abre Próximamente; el resto no', async () => {
@@ -175,18 +193,21 @@ describe('PUT /api/teams/apps', () => {
     expect(log.map((l) => l.target_label).sort()).toEqual(['CRM', 'Track']);
   });
 
-  it('no acepta apps personales, Próximamente ni modos raros; filtra personas de otro workspace', async () => {
+  it('acepta apps personales (menos Inbox), no Próximamente ni modos raros; filtra personas de otro workspace', async () => {
     const owner = await makeUser('aa4o');
     const team = await ensureWorkspace(owner.id);
     const ana = await makeUser('aa4a');
     const outsider = await makeUser('aa4x');
     await addMember(team.id, ana.id, 'member');
     await actAs(owner, owner, 'owner');
-    expect((await put({ app: 'notes', mode: 'off' })).status).toBe(400);
+    expect((await put({ app: 'inbox', mode: 'off' })).status).toBe(400);
+    expect((await put({ app: 'notes', mode: 'off' })).status).toBe(200);
     expect((await put({ app: 'chat', mode: 'off' })).status).toBe(400);
     expect((await put({ app: 'crm', mode: 'everyone' })).status).toBe(400);
     expect((await put({ app: 'crm', mode: 'some', people: [ana.id, outsider.id], teams: ['nope'] })).status).toBe(200);
-    expect((await loadWorkspaceAppRules(owner.id)).crm).toEqual({ mode: 'some', people: [ana.id], teams: [] });
+    expect((await loadWorkspaceAppRules(owner.id)).crm).toEqual({ mode: 'some', people: [ana.id], teams: [], denied: [] });
+    expect((await put({ app: 'crm', mode: 'all', denied: [ana.id, outsider.id] })).status).toBe(200);
+    expect((await loadWorkspaceAppRules(owner.id)).crm).toEqual({ mode: 'all', people: [], teams: [], denied: [ana.id] });
   });
 });
 
@@ -204,8 +225,20 @@ describe('API keys y MCP: misma regla', () => {
     expect('res' in res && res.res.status).toBe(403);
     expect('res' in res && (await res.res.json()).error.code).toBe('coming_soon');
 
-    await saveWorkspaceAppRule(owner.id, 'crm', { mode: 'off', people: [], teams: [] }, owner.id);
+    await saveWorkspaceAppRule(owner.id, 'crm', { mode: 'off', people: [], teams: [], denied: [] }, owner.id);
     expect((await validateApiKeyAuth(key))?.scopes).not.toContain('crm:read');
+  });
+
+  it('el MCP responde app_disabled (apagada) o coming_soon al invocar una herramienta de una app cortada', async () => {
+    const { invokeOperation } = await import('@/lib/mcp/invoke');
+    const { OPERATIONS } = await import('@/lib/mcp/catalog');
+    const op = OPERATIONS.find((o) => o.app === 'crm' && o.access === 'read');
+    expect(op).toBeTruthy();
+    const owner = await makeUser('aa6o');
+    await ensureWorkspace(owner.id);
+    await saveWorkspaceAppRule(owner.id, 'crm', { mode: 'off', people: [], teams: [], denied: [] }, owner.id);
+    const caller = { kind: 'oauth', personId: owner.id, teamId: null, canWrite: true, clientId: null, clientName: 't', grantId: null, apiKeyId: null, rateKey: 'aa6o' } as never;
+    await expect(invokeOperation(new Request('http://localhost/mcp'), caller, op!, {})).rejects.toMatchObject({ code: 'app_disabled' });
   });
 
   it('el MCP no ofrece ni corre herramientas de apps cortadas', () => {

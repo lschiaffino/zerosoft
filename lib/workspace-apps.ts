@@ -4,7 +4,7 @@
  * equipos del workspace. La regla en sí vive en lib/app-access.ts.
  */
 import { getDb, type Db } from './db';
-import { blockedApps, isRuleKey, parseRule, type WorkspaceAppRule, type WorkspaceAppRules } from './app-access';
+import { blockedApps, EMPTY_RULE, isDefaultRule, isRuleKey, parseRule, type WorkspaceAppRule, type WorkspaceAppRules } from './app-access';
 import { isAdminEmail } from './feedback';
 import { isComingSoon, type ProductKey } from './products';
 
@@ -19,9 +19,9 @@ function parseIds(raw: unknown): string[] {
 
 /** Reglas del workspace del owner. Sin la tabla (base vieja en un test) no hay reglas. */
 export async function loadWorkspaceAppRules(ownerId: string, db: Db = getDb()): Promise<WorkspaceAppRules> {
-  let rows: Array<{ app: string; mode: string; people: string; teams: string }>;
+  let rows: Array<{ app: string; mode: string; people: string; teams: string; denied?: string }>;
   try {
-    rows = (await db.prepare('SELECT app, mode, people, teams FROM workspace_apps WHERE owner_id = ?').all(ownerId)) as typeof rows;
+    rows = (await db.prepare('SELECT app, mode, people, teams, denied FROM workspace_apps WHERE owner_id = ?').all(ownerId)) as typeof rows;
   } catch (err) {
     // Solo una base sin la tabla (tests viejos) cuenta como "sin reglas"; cualquier otro error no abre nada.
     if (/no such table/i.test(String(err))) return {};
@@ -30,7 +30,7 @@ export async function loadWorkspaceAppRules(ownerId: string, db: Db = getDb()): 
   const out: WorkspaceAppRules = {};
   for (const r of rows) {
     if (!isRuleKey(r.app)) continue;
-    const rule = parseRule({ mode: r.mode, people: parseIds(r.people), teams: parseIds(r.teams) });
+    const rule = parseRule({ mode: r.mode, people: parseIds(r.people), teams: parseIds(r.teams), denied: parseIds(r.denied) });
     if (rule) out[r.app] = rule;
   }
   return out;
@@ -44,18 +44,18 @@ export async function saveWorkspaceAppRule(
   actorId: string,
   db: Db = getDb(),
 ): Promise<WorkspaceAppRule> {
-  const before = (await loadWorkspaceAppRules(ownerId, db))[app] ?? { mode: 'all', people: [], teams: [] };
-  if (rule.mode === 'all') {
+  const before = (await loadWorkspaceAppRules(ownerId, db))[app] ?? EMPTY_RULE;
+  if (isDefaultRule(rule)) {
     await db.prepare('DELETE FROM workspace_apps WHERE owner_id = ? AND app = ?').run(ownerId, app);
   } else {
     await db
       .prepare(
-        `INSERT INTO workspace_apps (owner_id, app, mode, people, teams, updated_by, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-         ON CONFLICT(owner_id, app) DO UPDATE SET mode = excluded.mode, people = excluded.people, teams = excluded.teams,
+        `INSERT INTO workspace_apps (owner_id, app, mode, people, teams, denied, updated_by, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+         ON CONFLICT(owner_id, app) DO UPDATE SET mode = excluded.mode, people = excluded.people, teams = excluded.teams, denied = excluded.denied,
            updated_by = excluded.updated_by, updated_at = excluded.updated_at`,
       )
-      .run(ownerId, app, rule.mode, JSON.stringify(rule.people), JSON.stringify(rule.teams), actorId);
+      .run(ownerId, app, rule.mode, JSON.stringify(rule.people), JSON.stringify(rule.teams), JSON.stringify(rule.denied), actorId);
   }
   return before;
 }

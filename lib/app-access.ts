@@ -4,13 +4,15 @@
  *
  * 1. Plataforma: una app "Próximamente" (lib/products.ts) no la abre nadie
  *    salvo el staff de zerosoft (ADMIN_EMAILS), para probarla por dentro.
- * 2. Workspace (Ajustes › Apps del workspace): cada app de equipo está para
- *    todos, para algunos (personas y equipos), solo para admins o apagada.
- *    Apagada no la abre nadie, ni el owner; los datos quedan.
+ * 2. Workspace (Ajustes › Workspace › Apps): cada app está para todos, para
+ *    algunos (personas y equipos), solo para admins o apagada, y cada persona
+ *    puede quedar excluida a mano (`denied`, vale en todos los modos). Apagada
+ *    no la abre nadie, ni el owner; los datos quedan. Los ajustes del
+ *    workspace no son una app: owner y admins siempre llegan a ellos.
  * 3. Persona (Ajustes › Miembros y permisos): las apps habilitadas de cada
  *    miembro (team_members.apps). El owner las tiene todas.
  *
- * Las apps personales (Inbox, Notes, Docs…) no pasan por la capa 2.
+ * Inbox (siempre prendida) no pasa por la capa 2.
  */
 import { isAlwaysOnApp, isComingSoon, isProductKey, isWorkspaceGatedApp, PRODUCT_KEYS, type ProductKey } from './products';
 
@@ -23,6 +25,8 @@ export interface WorkspaceAppRule {
   people: string[];
   /** Con 'some': equipos del workspace (workspace_groups.id) cuyos miembros la abren. */
   teams: string[];
+  /** Personas (user id) que no la abren aunque el modo las deje: excepción por persona. Owner y admins no. */
+  denied: string[];
 }
 
 export type WorkspaceAppRules = Partial<Record<ProductKey, WorkspaceAppRule>>;
@@ -57,6 +61,7 @@ export function appDenial(subject: AppAccessSubject, app: ProductKey, rules: Wor
   if (isWorkspaceGatedApp(app)) {
     const rule = rules[app];
     if (rule?.mode === 'off') return 'workspace_off';
+    if (rule?.denied?.includes(subject.personId) && !isAdminRole(subject.role)) return 'workspace_restricted';
     if (rule?.mode === 'admins' && !isAdminRole(subject.role)) return 'workspace_restricted';
     if (rule?.mode === 'some' && !isAdminRole(subject.role)) {
       const inPeople = rule.people.includes(subject.personId);
@@ -91,13 +96,22 @@ export function workspaceOffApps(rules: WorkspaceAppRules): ProductKey[] {
 /** Normaliza lo que llega del cliente o de la base. null si no es una regla válida. */
 export function parseRule(raw: unknown): WorkspaceAppRule | null {
   if (!raw || typeof raw !== 'object') return null;
-  const r = raw as { mode?: unknown; people?: unknown; teams?: unknown };
+  const r = raw as { mode?: unknown; people?: unknown; teams?: unknown; denied?: unknown };
   if (!isWorkspaceAppMode(r.mode)) return null;
   const ids = (v: unknown) =>
     Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= 128))].slice(0, 500) : [];
-  return { mode: r.mode, people: r.mode === 'some' ? ids(r.people) : [], teams: r.mode === 'some' ? ids(r.teams) : [] };
+  const denied = r.mode === 'off' ? [] : ids(r.denied);
+  const people = r.mode === 'some' ? ids(r.people).filter((id) => !denied.includes(id)) : [];
+  return { mode: r.mode, people, teams: r.mode === 'some' ? ids(r.teams) : [], denied };
 }
 
 export function isRuleKey(app: string): app is ProductKey {
   return isProductKey(app) && isWorkspaceGatedApp(app) && !isComingSoon(app);
+}
+
+export const EMPTY_RULE: WorkspaceAppRule = { mode: 'all', people: [], teams: [], denied: [] };
+
+/** ¿La regla es la de siempre (todos, sin excepciones)? Esas no se guardan. */
+export function isDefaultRule(rule: WorkspaceAppRule): boolean {
+  return rule.mode === 'all' && rule.denied.length === 0;
 }

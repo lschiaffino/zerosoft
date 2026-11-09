@@ -21,9 +21,10 @@ export async function GET() {
 }
 
 /**
- * PUT { app, mode, people?, teams? }: para quién está una app de equipo en el
+ * PUT { app, mode, people?, teams?, denied? }: para quién está una app en el
  * workspace. 'all' (todos), 'some' (personas y equipos elegidos; owner y admins
- * siempre), 'admins' u 'off' (nadie; los datos quedan). Solo restringe: las
+ * siempre), 'admins' u 'off' (nadie; los datos quedan). `denied` deja a una
+ * persona afuera en cualquier modo (owner y admins no). Solo restringe: las
  * apps habilitadas de cada persona siguen valiendo.
  */
 export async function PUT(req: NextRequest) {
@@ -38,15 +39,16 @@ export async function PUT(req: NextRequest) {
   const rule = parseRule(body);
   if (!rule) return teamsError('invalid_mode');
   // Solo personas y equipos de este workspace.
-  if (rule.mode === 'some') {
+  if (rule.mode === 'some' || rule.denied.length) {
     const [people, groups] = await Promise.all([listTeamPeople(ctx.team), listGroups(ctx.team.owner_id)]);
     const personIds = new Set(people.map((p) => p.user_id));
     const groupIds = new Set(groups.map((g) => g.id));
     rule.people = rule.people.filter((id) => personIds.has(id));
     rule.teams = rule.teams.filter((id) => groupIds.has(id));
+    rule.denied = rule.denied.filter((id) => personIds.has(id));
   }
   const before = await saveWorkspaceAppRule(ctx.team.owner_id, app, rule, ctx.realId);
-  if (before.mode !== rule.mode || before.people.join() !== rule.people.join() || before.teams.join() !== rule.teams.join()) {
+  if (before.mode !== rule.mode || before.people.join() !== rule.people.join() || before.teams.join() !== rule.teams.join() || before.denied.join() !== rule.denied.join()) {
     await audit({
       teamId: ctx.team.id,
       actorId: ctx.realId,

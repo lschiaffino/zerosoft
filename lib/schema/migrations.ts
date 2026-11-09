@@ -9048,8 +9048,8 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
-    // Apps "Próximamente" y Ajustes › Apps del workspace. workspace_apps: una
-    // fila por app con regla (sin fila = para todos), clave el owner (los datos
+    // Apps "Próximamente" y Ajustes › Workspace › Apps. workspace_apps: una
+    // fila por app con regla (sin fila = para todos), con las personas excluidas a mano en denied, clave el owner (los datos
     // y los equipos del workspace cuelgan de su id). app_waitlist: la lista de
     // espera de cada app, una fila por email; notified_at al avisar que salió.
     id: '330_app_access',
@@ -9061,6 +9061,7 @@ export const MIGRATIONS: Migration[] = [
           mode TEXT NOT NULL DEFAULT 'all',
           people TEXT NOT NULL DEFAULT '[]',
           teams TEXT NOT NULL DEFAULT '[]',
+          denied TEXT NOT NULL DEFAULT '[]',
           updated_by TEXT,
           updated_at TEXT NOT NULL DEFAULT (datetime('now')),
           PRIMARY KEY (owner_id, app)

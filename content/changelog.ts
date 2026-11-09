@@ -45,9 +45,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'platform',
-        en: 'Settings › Workspace apps: owners and admins choose who uses each team app (everyone, some people or teams, only admins, or off). Off hides it everywhere for everyone and keeps its data. It applies to the app, its API and MCP, on top of each person\'s enabled apps.',
-        es: 'Ajustes › Apps del workspace: el owner y los admins eligen quién usa cada app de equipo (todos, algunas personas o equipos, solo admins, o apagada). Apagada la saca de todos lados para todos y guarda sus datos. Vale para la app, su API y el MCP, encima de las apps habilitadas de cada persona.',
-        pt: 'Ajustes › Apps do workspace: o owner e os admins escolhem quem usa cada app de equipe (todos, algumas pessoas ou times, só admins, ou desligado). Desligado tira o app de todo lugar para todos e guarda os dados. Vale para o app, sua API e o MCP, acima dos apps habilitados de cada pessoa.',
+        en: 'Settings › Workspace › Apps: owners and admins turn each app on or off for the whole workspace, choose who gets it (everyone, specific teams or people, or only admins) and exclude single people. Off hides the app from the sidebar, home, search, its pages, API, MCP and the desktop app, and keeps its data. It applies on top of each person\'s enabled apps.',
+        es: 'Ajustes › Workspace › Apps: el owner y los admins prenden o apagan cada app para todo el workspace, eligen quién la usa (todos, equipos o personas puntuales, o solo admins) y excluyen a personas una por una. Apagada la saca del menú, del inicio, de la búsqueda, de sus páginas, su API, el MCP y la app de escritorio, y guarda sus datos. Vale encima de las apps habilitadas de cada persona.',
+        pt: 'Ajustes › Workspace › Apps: o owner e os admins ligam ou desligam cada app para todo o workspace, escolhem quem usa (todos, equipes ou pessoas específicas, ou só admins) e excluem pessoas uma a uma. Desligado tira o app do menu, do início, da busca, das páginas, da API, do MCP e do app de desktop, e guarda os dados. Vale por cima dos apps habilitados de cada pessoa.',
       },
     ],
   },

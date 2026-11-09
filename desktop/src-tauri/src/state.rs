@@ -58,6 +58,8 @@ pub struct AppState {
     pub auth: Mutex<Option<AuthPending>>,
     pub shortcut_taken: AtomicBool,
     pub badge_since: Mutex<Option<String>>,
+    /// Apps que el workspace apagó o no abrió para esta persona (la lista que trae /api/desktop/badge): sus menús no se muestran.
+    pub disabled_apps: Mutex<Vec<String>>,
     /// Versión nueva bajada y lista para instalar al reiniciar.
     pub update_ready: Mutex<Option<String>>,
 }

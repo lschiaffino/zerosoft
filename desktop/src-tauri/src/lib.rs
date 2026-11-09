@@ -257,6 +257,7 @@ pub fn run() {
                 auth: Mutex::new(None),
                 shortcut_taken: AtomicBool::new(false),
                 badge_since: Mutex::new(None),
+                disabled_apps: Mutex::new(Vec::new()),
                 update_ready: Mutex::new(None),
             });
             allow_server(&handle);
