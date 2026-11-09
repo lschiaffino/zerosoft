@@ -30,7 +30,7 @@ export const PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '202
 export const SERVER_INFO = { name: 'zerosoft', title: 'zerosoft', version: '1.0.0' };
 const MAX_REQUEST_BYTES = 6 * 1024 * 1024;
 
-export const MCP_INSTRUCTIONS = `zerosoft is a suite of 24 business apps (CRM, Chat, Lines, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Rec, Talk, Design, Shop, Analytics, Social, Hiring, People, Books, Sign, Forms). You act as the signed-in person, with exactly their role and permissions.
+export const MCP_INSTRUCTIONS = `zerosoft is a suite of 24 business apps (CRM, Chat, Lines, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Rec, Talk, Design, Shop, Pulse, Social, Hiring, People, Books, Sign, Forms). You act as the signed-in person, with exactly their role and permissions.
 
 How to work:
 1. Do not assume a capability is missing because no tool is named after it. About 1,800 operations sit behind four tools.

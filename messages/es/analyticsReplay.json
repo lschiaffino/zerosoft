@@ -47,7 +47,7 @@
     "error": "No se cargaron las grabaciones. Probá de nuevo.",
     "loading": "Cargando grabaciones",
     "deleteTitle": "¿Borrar esta grabación?",
-    "deleteBody": "La grabación se borra para siempre. Los eventos de la sesión quedan en Analytics.",
+    "deleteBody": "La grabación se borra para siempre. Los eventos de la sesión quedan en Pulse.",
     "deleteRow": "Borrar la grabación de {name}",
     "deleteAdminsOnly": "Solo los admins pueden borrar grabaciones",
     "personEmpty": "No hay grabaciones de esta persona.",

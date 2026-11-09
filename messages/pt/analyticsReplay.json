@@ -47,7 +47,7 @@
     "error": "As gravações não carregaram. Tente de novo.",
     "loading": "Carregando gravações",
     "deleteTitle": "Excluir esta gravação?",
-    "deleteBody": "A gravação é removida para sempre. Os eventos da sessão continuam no Analytics.",
+    "deleteBody": "A gravação é removida para sempre. Os eventos da sessão continuam no Pulse.",
     "deleteRow": "Excluir a gravação de {name}",
     "deleteAdminsOnly": "Só admins podem excluir gravações",
     "personEmpty": "Não há gravações desta pessoa.",

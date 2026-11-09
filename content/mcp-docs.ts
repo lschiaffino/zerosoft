@@ -76,7 +76,7 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
     outTitle: 'What stays out',
     outBody: [
       'Signing in, API keys and OAuth clients. Workspace ownership, account deletion and billing. Those stay in Settings.',
-      'Public visitor pages, inbound webhooks, cron jobs and analytics ingest. No person is behind them.',
+      'Public visitor pages, inbound webhooks, cron jobs and Pulse ingest. No person is behind them.',
       'Flows that need your browser, such as connecting Gmail or a social network, and realtime streams.',
     ],
     webOnlyTitle: 'Done in the web app',
@@ -135,7 +135,7 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
     outTitle: 'Qué queda afuera',
     outBody: [
       'El inicio de sesión, las API keys y los clientes OAuth. La propiedad del workspace, borrar la cuenta y la facturación. Eso sigue en Ajustes.',
-      'Las páginas públicas para visitantes, los webhooks entrantes, los crons y la ingesta de Analytics. No hay una persona detrás.',
+      'Las páginas públicas para visitantes, los webhooks entrantes, los crons y la ingesta de Pulse. No hay una persona detrás.',
       'Lo que necesita tu navegador, como conectar Gmail o una red social, y los streams en tiempo real.',
     ],
     webOnlyTitle: 'Se hace desde la web',
@@ -194,7 +194,7 @@ export const MCP_DOCS: Record<'en' | 'es' | 'pt', McpDocsCopy> = {
     outTitle: 'O que fica de fora',
     outBody: [
       'O login, as chaves de API e os clientes OAuth. A propriedade do workspace, apagar a conta e o faturamento. Isso continua em Ajustes.',
-      'As páginas públicas para visitantes, os webhooks de entrada, os crons e a ingestão do Analytics. Não há uma pessoa por trás.',
+      'As páginas públicas para visitantes, os webhooks de entrada, os crons e a ingestão do Pulse. Não há uma pessoa por trás.',
       'O que precisa do seu navegador, como conectar o Gmail ou uma rede social, e os streams em tempo real.',
     ],
     webOnlyTitle: 'Feito pela web',

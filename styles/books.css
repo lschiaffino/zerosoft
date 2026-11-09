@@ -762,3 +762,8 @@ tr[data-archived] {
     .bk-lines td:last-child:not([data-label]) { justify-self: end; }
   }
 }
+
+/* Táctil: el título de cada fila es el link; más alto para el dedo sin cambiar la fila. */
+@media (pointer: coarse) {
+  a.bk-rowtext { padding-block: 10px; margin-block: -10px; }
+}

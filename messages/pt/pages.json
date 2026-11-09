@@ -1524,9 +1524,9 @@
         "button": "Abrir Design"
       }
     },
-    "analytics": {
+    "pulse": {
       "meta": {
-        "title": "Analytics: analytics de produto open source",
+        "title": "Pulse: analytics de produto open source",
         "description": "Eventos a partir de um snippet de JS, tendências, funis, retenção, pessoas, painéis, feature flags e analytics web. Uma alternativa open source ao PostHog."
       },
       "hero": {
@@ -1579,7 +1579,7 @@
         "teamLabel": "5 milhões de eventos por mês",
         "team": "veja os preços do PostHog",
         "zero": "US$ 0",
-        "note": "O PostHog cobra analytics de produto por uso: o primeiro milhão de eventos de cada mês é grátis e o resto é cobrado por evento, mais barato com mais volume. Não conseguimos verificar o preço atual por evento: confira em posthog.com/pricing. O Analytics no seu servidor custa US$ 0 mais o seu banco de dados."
+        "note": "O PostHog cobra analytics de produto por uso: o primeiro milhão de eventos de cada mês é grátis e o resto é cobrado por evento, mais barato com mais volume. Não conseguimos verificar o preço atual por evento: confira em posthog.com/pricing. O Pulse no seu servidor custa US$ 0 mais o seu banco de dados."
       },
       "faq": {
         "f1": {
@@ -1587,8 +1587,8 @@
           "a": "Crie um projeto, copie a tag do script da página de configuração e cole no seu site. Ou importe https://zerosoft.ai/zs.mjs como módulo. Um servidor pode enviar eventos para /api/ingest/e com a key secreta do projeto."
         },
         "f2": {
-          "q": "Ele grava as sessões?",
-          "a": "Não. Session replay não foi feito. O Analytics guarda eventos e suas propriedades, nunca a tela."
+          "q": "Grava sessões?",
+          "a": "Sim, se você ativar no projeto. Os campos são mascarados e o player mostra a página com os cliques e os eventos numa linha do tempo. Não guarda logs de console nem de rede."
         },
         "f3": {
           "q": "O que o autocapture coleta?",
@@ -1599,15 +1599,15 @@
           "a": "Roda no mesmo banco SQLite ou Turso que o resto da zerosoft, então serve para sites pequenos e médios: alguns milhões de eventos por projeto antes de as consultas ficarem lentas. Funis, retenção e caminhos leem até 200.000 linhas e avisam quando chegam nesse limite."
         },
         "f5": {
-          "q": "O que falta em relação ao PostHog?",
-          "a": "Session replay, mapas de calor, a toolbar, experimentos, pesquisas, o data warehouse e os pipelines, alertas e SDKs de servidor ou mobile. O editor SQL fala SQLite, não HogQL. A tabela de paridade acima tem a lista completa."
+          "q": "O que falta em comparação com o PostHog?",
+          "a": "A toolbar, o data warehouse e os pipelines, e SDKs nativos para mobile. Replay, mapas de calor, experimentos, pesquisas e alertas existem mas fazem menos que no PostHog. O editor SQL fala SQLite, não HogQL. A tabela de paridade acima tem a lista completa."
         }
       },
       "cta": {
         "title1": "Cole o script.",
         "title2": "Leia os números.",
-        "sub": "Abra o Analytics, crie um projeto e adicione o snippet ao seu site.",
-        "button": "Abrir o Analytics"
+        "sub": "Abra o Pulse, crie um projeto e adicione o snippet ao seu site.",
+        "button": "Abrir o Pulse"
       }
     },
     "social": {
@@ -2384,7 +2384,7 @@
       "talk": "fig. 0 · mensagens chegando em um canal",
       "design": "fig. 0 · uma forma mudando na prancheta",
       "shop": "fig. 0 · um catálogo de seis produtos",
-      "analytics": "fig. 0 · um gráfico de barras com dados de exemplo",
+      "pulse": "fig. 0 · um gráfico de barras com dados de exemplo",
       "social": "fig. 0 · publicações em um calendário",
       "hiring": "fig. 0 · candidatos passando de etapa",
       "people": "fig. 0 · licenças em um calendário",
@@ -2728,7 +2728,7 @@
       "posterCta": "Comprar",
       "pages": "Página 1 de 3"
     },
-    "analytics": {
+    "pulse": {
       "navWeb": "Analytics web",
       "navInsights": "Insights",
       "navFlags": "Feature flags",
@@ -3700,7 +3700,7 @@
     "paramDesignView": "recent (padrão), mine, shared, starred ou templates",
     "paramDesignId": "Id de um design: devolve esse design com suas páginas",
     "scope_design_read": "Ler designs do Design e suas páginas.",
-    "analyticsApiTitle": "Analytics",
+    "analyticsApiTitle": "Pulse",
     "analyticsApiDesc": "Analytics de produto. Os endpoints de ingestão (/api/ingest/*) usam a key do projeto, não uma API key: a pública (zsp_…) no corpo vinda do navegador, ou a key secreta do projeto como Bearer zss_… vinda de um servidor. As consultas aceitam uma sessão iniciada ou uma API key com analytics:read.",
     "analyticsCaptureTitle": "Capturar eventos",
     "analyticsCaptureDesc": "Um evento ou um lote de até 200, 512 KB por pedido. Com a key secreta como Bearer não há checagem de origem. Eventos com uuid repetido são ignorados. Tem limite por projeto.",
@@ -3724,8 +3724,8 @@
     "paramAnalyticsEvent": "Só este nome de evento.",
     "paramAnalyticsAfter": "Só eventos com id maior.",
     "paramAnalyticsCohort": "Só pessoas deste id de coorte.",
-    "scope_analytics_read": "Ler projetos, eventos e pessoas do Analytics e rodar consultas.",
-    "scope_analytics_write": "Mudar projetos, insights, painéis, coortes e flags do Analytics.",
+    "scope_analytics_read": "Ler projetos, eventos e pessoas do Pulse e rodar consultas.",
+    "scope_analytics_write": "Mudar projetos, insights, painéis, coortes e flags do Pulse.",
     "scope_social_read": "Ler publicações do Social das contas que você vê.",
     "scope_people_read": "Ler o diretório do People: só campos públicos do perfil, nunca salário nem dados pessoais.",
     "scope_hiring_read": "Ler as vagas do Hiring e os candidatos que quem criou a chave vê.",

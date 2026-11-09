@@ -368,6 +368,10 @@ self.addEventListener('activate', (event) => {
 
 // La sesión dura 30 días (NextAuth): una persona confirmada hace más que eso no cuenta.
 const IDENTITY_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+// Sin Cookie Store (Safari, Firefox) el worker no puede mirar la cookie: lo guardado vale
+// un día desde la última vez que la app confirmó a la persona con red, y la página misma
+// revisa la cookie al abrir (lib/session-guard.ts).
+const IDENTITY_MAX_AGE_NO_COOKIE_MS = 24 * 60 * 60 * 1000;
 // Cookie no httpOnly que el middleware pone con la sesión (hash de la persona) y que
 // se va con ella: si no está o es de otra persona, no se sirve nada guardado.
 const WHO_COOKIE = 'zs_who';
@@ -422,14 +426,16 @@ async function setUser(id, who) {
  * ¿La sesión actual es la de quien guardó las vistas? Con Cookie Store
  * (Chromium) se compara zs_who: sin la cookie (sesión vencida o cerrada) o con
  * la de otra persona, no. Sin Cookie Store, alcanza con que la persona se haya
- * confirmado con red dentro de los 30 días de la sesión.
+ * confirmado con red en el último día (y la página revisa la cookie al abrir).
  */
 async function sessionMatches() {
   const meta = await getMeta();
   if (!meta) return false;
-  if (!meta.at || Date.now() - meta.at > IDENTITY_MAX_AGE_MS) return false;
   const store = self.cookieStore;
-  if (store && typeof store.get === 'function') {
+  const hasCookieStore = Boolean(store && typeof store.get === 'function');
+  const maxAge = hasCookieStore ? IDENTITY_MAX_AGE_MS : IDENTITY_MAX_AGE_NO_COOKIE_MS;
+  if (!meta.at || Date.now() - meta.at > maxAge) return false;
+  if (hasCookieStore) {
     let cookie = null;
     try {
       cookie = await store.get(WHO_COOKIE);

@@ -51,8 +51,8 @@ test('un registro de otro workspace responde igual que un id inventado', async (
   await sql(`INSERT INTO talk_channels (id, workspace_id, kind, name, created_by, created_at, updated_at) VALUES (?, 'demo', 'public', ?, 'demo', ?, ?)`, [ids.channel, `c${uid()}`, ts, ts]);
   const plan = (await (await request.post('/api/track/plans', { data: { name: `Plan ${uid()}` } })).json()) as { id: string };
 
-  const paths = [`analytics/insights/${ids.insight}`, `analytics/flags/${ids.flag}`, `analytics/dashboards/${ids.dash}`, `analytics/persons/${ids.person}`, `talk/${ids.channel}`, `track/projects/${plan.id}`];
-  const fakes = ['analytics/insights/ai_fake', 'analytics/flags/af_fake', 'analytics/dashboards/ad_fake', 'analytics/persons/p_fake', 'talk/ch_fake', 'track/projects/fake'];
+  const paths = [`pulse/insights/${ids.insight}`, `pulse/flags/${ids.flag}`, `pulse/dashboards/${ids.dash}`, `pulse/persons/${ids.person}`, `talk/${ids.channel}`, `track/projects/${plan.id}`];
+  const fakes = ['pulse/insights/ai_fake', 'pulse/flags/af_fake', 'pulse/dashboards/ad_fake', 'pulse/persons/p_fake', 'talk/ch_fake', 'track/projects/fake'];
 
   // Para quien es del workspace, abren.
   for (const path of paths) expect((await request.get(`/en/app/${path}`)).status(), `dueño ${path}`).toBe(200);
@@ -271,7 +271,7 @@ test('otra zona horaria no rompe la hidratación y el título va en el head', as
   const page = await ctx.newPage();
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  for (const path of ['/en/app/shop/inventory', '/en/app/analytics/events', '/en/app/people/reports', '/en/app/social/library', '/en/app/calendar/settings?tab=activity']) {
+  for (const path of ['/en/app/shop/inventory', '/en/app/pulse/events', '/en/app/people/reports', '/en/app/social/library', '/en/app/calendar/settings?tab=activity']) {
     const res = await page.goto(path, { waitUntil: 'networkidle' });
     expect(errors, path).toEqual([]);
     const html = (await res?.text()) ?? '';

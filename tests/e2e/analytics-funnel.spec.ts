@@ -50,7 +50,7 @@ test.beforeAll(async ({ request }) => {
 
 async function open(page: Page, baseURL: string) {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL }]);
-  await page.goto('/en/app/analytics/insights/new?kind=funnel', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/insights/new?kind=funnel', { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: 'Funnel' }).click();
   await page.getByLabel('Step 1', { exact: true }).fill('view');
   await page.getByLabel('Step 2', { exact: true }).fill('buy');
