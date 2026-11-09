@@ -61,15 +61,15 @@ const PANEL = '[role="menu"], [role="dialog"], [role="listbox"], [role="tree"], 
 /**
  * Menús que todavía arman su propio estado (no usan useLayer): se los ve por
  * su botón con aria-haspopup y aria-expanded="true". Se cierran los que no
- * contienen a `opened` (lo que se acaba de abrir): primero como un clic
- * afuera (escuchan mousedown en document) y, si siguen abiertos, con su botón.
+ * contienen a `opened` (lo que se acaba de abrir), apretando su botón.
  */
 export function closeUnregisteredPopups(opened: HTMLElement) {
   if (typeof document === 'undefined') return;
   const stale: HTMLElement[] = [];
   for (const old of document.querySelectorAll<HTMLElement>(`${POPUP_TRIGGER}[aria-expanded="true"]`)) {
     if (old === opened || old.hasAttribute(LAYER_TRIGGER_ATTR) || opened.contains(old)) continue;
-    // Anidado: lo nuevo vive dentro del panel (menú o diálogo) que abrió el viejo.
+    // Copias ocultas del mismo botón (listas que se miden con un duplicado invisible) no son otro menú.
+    if (!old.getClientRects().length || getComputedStyle(old).visibility === 'hidden') continue;    // Anidado: lo nuevo vive dentro del panel (menú o diálogo) que abrió el viejo.
     const host = opened.closest(PANEL);
     const scope = (old.getAttribute('aria-controls') && document.getElementById(old.getAttribute('aria-controls')!)) || old.parentElement;
     if (host && !host.contains(old) && scope?.contains(host)) continue;
@@ -77,8 +77,8 @@ export function closeUnregisteredPopups(opened: HTMLElement) {
     stale.push(old);
   }
   if (!stale.length) return;
-  if (typeof PointerEvent === 'function') opened.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, view: window }));
-  opened.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+  // Con su propio botón (alterna): un mousedown sintético sobre lo nuevo lo cerraría a él, porque muchos menús
+  // cuentan su botón como "afuera" del panel.
   requestAnimationFrame(() => {
     for (const old of stale) {
       if (!old.isConnected || old.getAttribute('aria-expanded') !== 'true') continue;
