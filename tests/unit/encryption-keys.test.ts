@@ -144,8 +144,9 @@ describe('rotación de claves', () => {
     expect(dry.rotated).toBe(0);
 
     const run = await rotateEncryptedValues(getClient(), { apply: true });
-    expect(run.unreadable).toBe(0);
-    expect(run.skippedTables).toEqual([]);
+    // La base es compartida con otros tests (que guardan valores rotos a propósito): se mira lo de este test.
+    expect(run.unreadableAt.filter((w) => w.startsWith('rot_test.') || w.startsWith('flow_credentials.'))).toEqual([]);
+    expect(run.skippedTables.filter((t) => t.startsWith('rot_test.'))).toEqual([]);
     expect(run.rotated).toBeGreaterThanOrEqual(3);
     const row = (await db.prepare('SELECT token, config FROM rot_test WHERE id = ?').get('r1')) as { token: string; config: string };
     expect(sealedKeyId(row.token)).toBe('k1');
@@ -160,7 +161,8 @@ describe('rotación de claves', () => {
     expect(decryptCredential('otro', credId, cred.data)).toBeNull();
 
     const again = await rotateEncryptedValues(getClient(), { apply: false });
-    expect(again.pending).toBe(0);
+    expect(again.byColumn['rot_test.token']).toBeUndefined();
+    expect(again.byColumn['rot_test.config']).toBeUndefined();
   });
 
   it('las credenciales nuevas usan la clave activa', () => {
