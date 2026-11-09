@@ -715,5 +715,8 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   /* Atajos de llamar y escribir del CRM: visibles con el dedo (sin hover) y de 40px. */
   .cell-quick { display: inline-flex !important; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; }
   /* Disclosure: la fila del resumen es el objetivo. */
-  details > summary { padding-block: 10px; }
+  details > summary { min-height: 40px; padding-block: 10px; box-sizing: border-box; }
+  /* El ID de Track (tablet) y el destino de cada link: objetivos de 40px. */
+  .track-table-wrap.is-linear .track-col-id a { display: inline-flex; align-items: center; min-width: 40px; min-height: 40px; }
+  .lk-dest { display: inline-flex; align-items: center; min-height: 40px; }
 }
