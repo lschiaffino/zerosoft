@@ -1411,7 +1411,7 @@
     "workspace": "nombre, logo, modo, empresa",
     "members": "personas, invitar, roles, permisos, invitados",
     "teams": "grupos, áreas",
-    "billing": "facturación, facturas, suscripción, pago, plan, uso, cuota de IA",
+    "billing": "facturación, facturas, suscripción, pago, billing, plan, uso, cuota de IA",
     "api": "claves de api, tokens, webhooks, integraciones",
     "connections": "google, slack, github, credenciales, integraciones",
     "import": "importar, migrar, mudar, csv",
