@@ -506,7 +506,7 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
           <GmailCard accounts={gmail} available={state.available.gmail} onChange={() => void reload()} />
         </div>
       </section>
-      <ChatStyleSection />
+      <ChatStyleSection variant="inbox" />
       <FoldersSection folders={state.folders} onChange={() => void reload()} />
       <SnippetsSection snippets={state.snippets} onChange={() => void reload()} />
       <ImportPanel whatsappConnected={state.accounts.some((a) => a.kind === 'whatsapp' && a.status === 'connected')} onDone={reloadQuiet} />
