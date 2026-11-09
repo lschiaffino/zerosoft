@@ -27,6 +27,7 @@ import {
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
+import { withTaskSources } from '@/lib/tasks';
 import { withCallDetails } from '@/lib/crm-voice';
 import FilesPanel from '@/components/crm/FilesPanel';
 import { listRecordFiles, toView, withActivityFiles } from '@/lib/crm-files';
@@ -257,7 +258,7 @@ export default async function ContactDetailPage(props: {
       getEmailSettings(user.id),
       nextTaskFor(user.id, { contactId: id }),
     ]);
-    const timelineItems = await withCallSummaries(user.id, await withCallDetails(user.id, await withActivityFiles(mergeTimelineWithThreads(timeline, threads))));
+    const timelineItems = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(mergeTimelineWithThreads(timeline, threads)))));
     const [aiAvailable, aiSummary] = await Promise.all([crmAiAvailable(), getRecordSummary(user.id, 'contact', contact.id, scope)]);
     const recordFiles = (await listRecordFiles(user.id, 'contact', contact.id)).map(toView);
     return (

@@ -8858,11 +8858,74 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Tareas de toda la suite (lib/tasks.ts): la tarea es la del CRM
+    // (crm_activities, type 'task') y task_links la ata a cualquier registro
+    // fuera del CRM (chat y mensaje de Groups, conversación de Chat, página de
+    // Docs, issue de Track). Prioridad como en HubSpot ('' = sin prioridad).
+    // Backfill idempotente desde groups_tasks y las tareas de reuniones de Docs
+    // mandadas al CRM; no hay FK a crm_activities porque la papelera del CRM
+    // borra y restaura la fila con el mismo id.
+    id: '292_tasks_unified',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE crm_activities ADD COLUMN priority TEXT NOT NULL DEFAULT ''");
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS task_links (
+          task_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          ref_id TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (task_id, kind, ref_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_task_links_ref ON task_links(workspace_id, kind, ref_id);
+
+        INSERT OR IGNORE INTO task_links (task_id, workspace_id, kind, ref_id, created_by, created_at)
+          SELECT t.activity_id, t.user_id, 'lines_chat', t.chat_id, t.created_by, t.created_at
+          FROM groups_tasks t JOIN crm_activities a ON a.id = t.activity_id;
+        INSERT OR IGNORE INTO task_links (task_id, workspace_id, kind, ref_id, created_by, created_at)
+          SELECT t.activity_id, t.user_id, 'lines_message', t.message_id, t.created_by, t.created_at
+          FROM groups_tasks t JOIN crm_activities a ON a.id = t.activity_id
+          WHERE t.message_id IS NOT NULL AND t.message_id != '';
+        INSERT OR IGNORE INTO task_links (task_id, workspace_id, kind, ref_id, created_by, created_at)
+          SELECT a.id, m.workspace_id, 'docs_page', m.page_id, m.created_by, a.created_at
+          FROM docs_meetings m, json_each(CASE WHEN json_valid(m.actions) THEN m.actions ELSE '[]' END) j
+          JOIN crm_activities a ON a.id = json_extract(j.value, '$.sent.id') AND a.user_id = m.workspace_id
+          WHERE json_extract(j.value, '$.sent.kind') = 'crm';
+      `);
+    },
+  },
+  {
+    // La app de analítica de producto (eventos, embudos, grabaciones) pasa a
+    // llamarse Pulse: la clave guardada de la app cambia de 'analytics' a
+    // 'pulse' en accesos, invitaciones, pedidos de acceso y la taxonomía de
+    // feedback, roadmap y changelog. Las tablas analytics_* no cambian.
+    id: '293_pulse_app_key',
+    up: async (c) => {
+      const stmts = [
+        `UPDATE team_members SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
+        `UPDATE team_invites SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
+        `UPDATE workspace_groups SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
+        `UPDATE OR IGNORE workspace_access_requests SET app = 'pulse' WHERE app = 'analytics'`,
+        `UPDATE roadmap_items SET product = 'pulse' WHERE product = 'analytics'`,
+        `UPDATE feedback SET product = 'pulse' WHERE product = 'analytics'`,
+        `UPDATE changelog_entries SET products = replace(products, '"analytics"', '"pulse"') WHERE products LIKE '%"analytics"%'`,
+      ];
+      for (const sql of stmts) {
+        try {
+          await c.execute(sql);
+        } catch {
+          // Tabla que esta instalación no tiene (o feedback con el CHECK viejo): no hay filas que mover.
+        }
+      }
+    },
+  },
+  {
     // Analytics (tipo Metabase): colecciones, bases externas, preguntas,
     // tableros con tarjetas, links públicos firmados, suscripciones y caché
     // de resultados. Todo por workspace; las credenciales de las bases van
     // cifradas (lib/bi/secrets.ts).
-    id: '292_bi_analytics',
+    id: '294_bi_analytics',
     up: async (c) => {
       await c.executeMultiple(`
         CREATE TABLE IF NOT EXISTS bi_collections (
@@ -8975,31 +9038,6 @@ export const MIGRATIONS: Migration[] = [
         );
         CREATE INDEX IF NOT EXISTS idx_bi_cache_exp ON bi_cache(expires_at);
       `);
-    },
-  },
-  {
-    // La app de analítica de producto (eventos, embudos, grabaciones) pasa a
-    // llamarse Pulse: la clave guardada de la app cambia de 'analytics' a
-    // 'pulse' en accesos, invitaciones, pedidos de acceso y la taxonomía de
-    // feedback, roadmap y changelog. Las tablas analytics_* no cambian.
-    id: '293_pulse_app_key',
-    up: async (c) => {
-      const stmts = [
-        `UPDATE team_members SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
-        `UPDATE team_invites SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
-        `UPDATE workspace_groups SET apps = replace(apps, '"analytics"', '"pulse"') WHERE apps LIKE '%"analytics"%'`,
-        `UPDATE OR IGNORE workspace_access_requests SET app = 'pulse' WHERE app = 'analytics'`,
-        `UPDATE roadmap_items SET product = 'pulse' WHERE product = 'analytics'`,
-        `UPDATE feedback SET product = 'pulse' WHERE product = 'analytics'`,
-        `UPDATE changelog_entries SET products = replace(products, '"analytics"', '"pulse"') WHERE products LIKE '%"analytics"%'`,
-      ];
-      for (const sql of stmts) {
-        try {
-          await c.execute(sql);
-        } catch {
-          // Tabla que esta instalación no tiene (o feedback con el CHECK viejo): no hay filas que mover.
-        }
-      }
     },
   },
 ];

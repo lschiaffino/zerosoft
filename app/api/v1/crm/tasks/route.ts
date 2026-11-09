@@ -10,12 +10,20 @@ import {
 import { activityCreateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, pageParams, zodErrorCode } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
+import { z } from 'zod';
+import { API_LINK_KINDS } from '@/lib/tasks-shared';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const BUCKETS: readonly TaskBucket[] = ['overdue', 'today', 'upcoming', 'done'];
-const taskCreateSchema = activityCreateSchema.omit({ type: true });
+const taskCreateSchema = activityCreateSchema.omit({ type: true }).extend({
+  /** Registros de otras apps: chat o mensaje de Groups, conversación de Chat, página de Docs. */
+  links: z
+    .array(z.object({ kind: z.enum(API_LINK_KINDS), id: z.string().min(1).max(100) }))
+    .max(10)
+    .optional(),
+});
 
 export async function GET(req: NextRequest) {
   const auth = await requireApiUser(req, 'crm:read');
@@ -35,8 +43,11 @@ export async function GET(req: NextRequest) {
 
   const { page, pageSize } = pageParams(sp);
   const start = (page - 1) * pageSize;
+  const pageRows = rows.slice(start, start + pageSize);
+  const { taskLinks } = await import('@/lib/tasks');
+  const links = await taskLinks(auth.user.id, pageRows.map((r) => r.id));
   return NextResponse.json({
-    tasks: rows.slice(start, start + pageSize).map(cleanRow),
+    tasks: pageRows.map((r) => ({ ...cleanRow(r), links: apiLinks(links.get(r.id)) })),
     total: rows.length,
     page,
     pageSize,
@@ -53,7 +64,19 @@ export async function POST(req: NextRequest) {
     return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
   }
 
-  const task = await catchRef(createActivity(auth.user.id, { ...parsed.data, type: 'task' }));
+  const { links: wanted, ...data } = parsed.data;
+  const { linkTargetExists, linkTask, taskLinks } = await import('@/lib/tasks');
+  for (const l of wanted ?? []) {
+    if (!(await linkTargetExists(auth.user.id, l.kind, l.id))) return apiError(400, 'invalid_link', 'A linked record does not exist.');
+  }
+  const task = await catchRef(createActivity(auth.user.id, { ...data, type: 'task' }));
   if (task instanceof CrmRefError) return apiError(400, task.code, 'A referenced record does not exist.');
-  return NextResponse.json(cleanRow(task), { status: 201 });
+  for (const l of wanted ?? []) await linkTask(auth.user.id, task.id, l.kind, l.id, auth.personId);
+  const links = await taskLinks(auth.user.id, [task.id]);
+  return NextResponse.json({ ...cleanRow(task), links: apiLinks(links.get(task.id)) }, { status: 201 });
+}
+
+/** Vínculos en la API: tipo, id y link de vuelta (sin nombres: pueden ser de apps que la key no lee). */
+function apiLinks(links: Array<{ kind: string; refId: string; href: string; missing: boolean }> | undefined) {
+  return (links ?? []).map((l) => ({ kind: l.kind, id: l.refId, url: l.href || null, missing: l.missing }));
 }

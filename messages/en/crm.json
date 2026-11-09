@@ -534,7 +534,8 @@
       "body": "Notes",
       "project": "Project",
       "owner": "Owner",
-      "repeat": "Repeat"
+      "repeat": "Repeat",
+      "priority": "Priority"
     },
     "detail": {
       "back": "← All tasks",
@@ -573,7 +574,34 @@
       "weekly": "Every week",
       "monthly": "Every month"
     },
-    "repeatHint": "Completing it creates the next one."
+    "repeatHint": "Completing it creates the next one.",
+    "priority": {
+      "none": "No priority",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "links": {
+      "title": "Linked to",
+      "empty": "Not linked to other apps.",
+      "app": {
+        "groups": "WhatsApp",
+        "chat": "Chat",
+        "docs": "Docs",
+        "track": "Track"
+      },
+      "missing": "No longer exists",
+      "hidden": "You don’t have access",
+      "toTrack": "Send to Track",
+      "toTrackHelp": "Creates an issue in the project with this title and notes. When the issue is done, this task is completed.",
+      "project": "Project",
+      "create": "Create issue",
+      "creating": "Creating…",
+      "noProjects": "There are no Track projects you can see.",
+      "error": "The issue could not be created.",
+      "created": "Issue {id} created",
+      "source": "From"
+    }
   },
   "lists": {
     "title": "Lists",

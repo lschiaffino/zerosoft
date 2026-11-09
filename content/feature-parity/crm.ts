@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'HubSpot',
   alsoCompared: ['Pipedrive', 'Attio'],
-  lastReviewed: '2026-10-28',
+  lastReviewed: '2026-11-08',
   areas: [
     { id: 'records', label: { en: 'Data model and records', es: 'Modelo de datos y registros', pt: 'Modelo de dados e registros' } },
     { id: 'pipeline', label: { en: 'Pipeline and deals', es: 'Pipeline y deals', pt: 'Pipeline e negócios' } },
@@ -353,7 +353,7 @@ const parity: ProductParity = {
       id: 'tasks',
       area: 'sales',
       label: { en: 'Tasks with due dates, repeats and overdue view', es: 'Tareas con vencimiento, repetición y vista de vencidas', pt: 'Tarefas com prazo, repetição e visão de atrasadas' },
-      detail: { en: 'To-do, call or email tasks (a call or email counts as contact once it is done); daily, weekly or monthly repeats; grouped by overdue, today and upcoming', es: 'Tareas de tipo to-do, llamada o email (la llamada o el email cuenta como contacto al completarla); repetición diaria, semanal o mensual; agrupadas en vencidas, hoy y próximas', pt: 'Tarefas do tipo to-do, ligação ou email (a ligação ou o email conta como contato ao concluir); repetição diária, semanal ou mensal; agrupadas em atrasadas, hoje e próximas' },
+      detail: { en: 'To-do, call or email tasks (a call or email counts as contact once it is done) with priority; daily, weekly or monthly repeats; grouped by overdue, today and upcoming. The same task shows in the WhatsApp chat it came from, on Home and, sent to Track, as a linked issue that completes it when done', es: 'Tareas de tipo to-do, llamada o email (la llamada o el email cuenta como contacto al completarla) con prioridad; repetición diaria, semanal o mensual; agrupadas en vencidas, hoy y próximas. La misma tarea se ve en el chat de WhatsApp de donde salió, en el inicio y, pasada a Track, como un issue vinculado que la completa al cerrarse', pt: 'Tarefas do tipo to-do, ligação ou email (a ligação ou o email conta como contato ao concluir) com prioridade; repetição diária, semanal ou mensal; agrupadas em atrasadas, hoje e próximas. A mesma tarefa aparece no chat de WhatsApp de onde veio, no início e, enviada ao Track, como uma issue vinculada que a conclui ao ser fechada' },
       status: 'have',
       competitorHas: true,
     },

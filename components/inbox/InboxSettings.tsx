@@ -20,13 +20,14 @@ function WhatsappCard({ account, available, onChange }: { account: InboxAccountD
   const [linking, setLinking] = useState(false);
   const [state, setState] = useState<ConnectState | null>(null);
   const [err, setErr] = useState('');
-  const [confirm, setConfirm] = useState<'' | 'unlink' | 'remove'>('');
+  const [confirm, setConfirm] = useState<'' | 'unlink' | 'remove' | 'resync'>('');
 
-  const start = async () => {
+  const start = async (resync = false) => {
     setErr('');
     setState(null);
+    setConfirm('');
     setLinking(true);
-    const r = await api<{ state: ConnectState }>('/api/inbox/whatsapp', { method: 'POST' });
+    const r = await api<{ state: ConnectState }>(`/api/inbox/whatsapp${resync ? '?resync=1' : ''}`, { method: 'POST' });
     if (!r.ok) {
       setErr(te.has(r.data.error ?? '') ? te(r.data.error as string) : te('generic'));
       return;
@@ -86,6 +87,11 @@ function WhatsappCard({ account, available, onChange }: { account: InboxAccountD
             </button>
           )}
           {connected && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirm('resync')} data-testid="inbox-wa-resync">
+              {t('resync')}
+            </button>
+          )}
+          {connected && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirm('unlink')}>
               {t('unlink')}
             </button>
@@ -141,17 +147,23 @@ function WhatsappCard({ account, available, onChange }: { account: InboxAccountD
           </button>
         </div>
       </Modal>
-      <Modal open={!!confirm} title={confirm === 'remove' ? t('removeTitle') : t('unlinkTitle')} onClose={() => setConfirm('')}>
+      <Modal open={!!confirm} title={confirm === 'remove' ? t('removeTitle') : confirm === 'resync' ? t('resyncTitle') : t('unlinkTitle')} onClose={() => setConfirm('')}>
         <div className="ui-modal-body">
-          <p>{confirm === 'remove' ? t('removeBody') : t('unlinkBody')}</p>
+          <p>{confirm === 'remove' ? t('removeBody') : confirm === 'resync' ? t('resyncBody') : t('unlinkBody')}</p>
         </div>
         <div className="ui-modal-foot">
           <button type="button" className="btn btn-secondary btn-sm" autoFocus onClick={() => setConfirm('')}>
             {t('cancel')}
           </button>
-          <button type="button" className="btn btn-danger btn-sm" onClick={() => void (confirm === 'remove' ? remove() : unlink())}>
-            {confirm === 'remove' ? t('removeYes') : t('unlinkYes')}
-          </button>
+          {confirm === 'resync' ? (
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => void start(true)} data-testid="inbox-wa-resync-yes">
+              {t('resyncYes')}
+            </button>
+          ) : (
+            <button type="button" className="btn btn-danger btn-sm" onClick={() => void (confirm === 'remove' ? remove() : unlink())}>
+              {confirm === 'remove' ? t('removeYes') : t('unlinkYes')}
+            </button>
+          )}
         </div>
       </Modal>
     </div>
