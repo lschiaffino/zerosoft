@@ -249,7 +249,7 @@ export function linearFakeWorkspace(token: string, now = Date.now()): Record<str
     parent: s.parent ? { id: s.parent, identifier: byId.get(s.parent)!.identifier } : null,
     labels: { nodes: s.labels ?? [] },
   }));
-  const ref = (id: string) => ({ id, identifier: byId.get(id)!.identifier });
+  const ref = (id: string) => ({ id, identifier: byId.get(id)!.identifier, team: teamRef(byId.get(id)!.team) });
 
   const comments = [
     { id: 'cm-1', body: 'Started on the queue, PR coming.', createdAt: day(-10, base), updatedAt: day(-10, base), user: users.ana, externalUser: null, issue: ref('i-1'), parent: null },
@@ -406,7 +406,7 @@ function allStates(ws: Record<string, Node[] | Node>): Node[] {
 
 function issueRef(ws: Record<string, Node[] | Node>, id: unknown): Node | null {
   const i = (ws.issues as Node[]).find((x) => x.id === id);
-  return i ? { id: i.id, identifier: i.identifier } : null;
+  return i ? { id: i.id, identifier: i.identifier, team: i.team } : null;
 }
 
 const FLAT: Record<string, string> = { state: 'stateId', assignee: 'assigneeId', parent: 'parentId', project: 'projectId', projectMilestone: 'projectMilestoneId', labels: 'labelIds' };

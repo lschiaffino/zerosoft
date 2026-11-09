@@ -165,7 +165,14 @@ export async function updateLinearConfig(workspaceId: string, patch: Partial<Pic
     const rows = (await getDb()
       .prepare('SELECT DISTINCT issue_id FROM track_linear_sync_fields WHERE workspace_id = ? AND local_at IS NOT NULL LIMIT 500')
       .all(workspaceId)) as Array<{ issue_id: string }>;
-    for (const r of rows) await enqueuePush(workspaceId, 'push.issue', { issueId: r.issue_id });
+    const ids: string[] = [];
+    for (const r of rows) {
+      const id = await enqueuePush(workspaceId, 'push.issue', { issueId: r.issue_id });
+      if (id) ids.push(id);
+    }
+    // Las primeras salen ya; el resto, con el cron de cada minuto.
+    const { runOutboxItem } = await import('./track-integrations');
+    for (const id of ids.slice(0, 20)) await runOutboxItem(id);
   }
   return getLinearConnection(workspaceId);
 }
@@ -1101,7 +1108,7 @@ async function pushComment(conn: LinearConnection, commentId: string): Promise<v
 
 // ---------- Cola (track_integration_outbox, provider 'linear') ----------
 
-async function enqueuePush(ws: string, kind: string, payload: Record<string, unknown>): Promise<boolean> {
+async function enqueuePush(ws: string, kind: string, payload: Record<string, unknown>): Promise<string | null> {
   const key = String(payload.issueId ?? payload.commentId ?? payload.id ?? '');
   // Uno pendiente sin empezar ya va a leer el estado actual: no hace falta otro.
   const dup = await getDb()
@@ -1110,9 +1117,8 @@ async function enqueuePush(ws: string, kind: string, payload: Record<string, unk
          AND (json_extract(payload, '$.issueId') = ? OR json_extract(payload, '$.commentId') = ? OR json_extract(payload, '$.id') = ?) LIMIT 1`,
     )
     .get(ws, kind, key, key, key);
-  if (dup) return false;
-  await enqueueOutbox(ws, 'linear', kind, payload);
-  return true;
+  if (dup) return null;
+  return enqueueOutbox(ws, 'linear', kind, payload);
 }
 
 /** Handler de la cola (lo llama lib/track-integrations). Lanza para reintentar. */
