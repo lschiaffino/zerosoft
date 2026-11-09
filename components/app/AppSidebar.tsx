@@ -352,7 +352,7 @@ export default function AppSidebar({
   }
 
   const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount, allowed: allowedApps, recentApps, mode, chosen: chosenApps });
-  const newItems = buildNewItems(product, labels, { docsCanCreate });
+  const newItems = buildNewItems(product, labels, { docsCanCreate, pathname });
   const settingsItem = settingsNavItem(pathname, labels);
   const importItem = importNavItem(product, labels);
 

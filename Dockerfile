@@ -9,6 +9,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# El build de Next pasa el heap por defecto de Node (el mismo tope que usa el check de CI).
+ENV NODE_OPTIONS=--max-old-space-size=6144
 # El build prerenderiza páginas estáticas; usa una base temporal.
 RUN NEXTAUTH_SECRET=build-only TURSO_DATABASE_URL=file:/tmp/build.db npm run build && npm prune --omit=dev && mkdir -p public
 

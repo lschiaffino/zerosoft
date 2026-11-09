@@ -64,6 +64,70 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-09-inbox-whatsapp-web',
+    date: '2026-11-09',
+    title: {
+      en: 'Inbox: WhatsApp looks and works like WhatsApp Web',
+      es: 'Inbox: WhatsApp se ve y se usa como WhatsApp Web',
+      pt: 'Inbox: o WhatsApp parece e funciona como o WhatsApp Web',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Real group names and profile photos, and a chat list with ticks, the sender in groups, media icons and typing.',
+        es: 'Nombres reales de los grupos y fotos de perfil, y una lista de chats con tildes, quién mandó en los grupos, íconos de media y "escribiendo".',
+        pt: 'Nomes reais dos grupos e fotos de perfil, e uma lista de conversas com confirmações, quem enviou nos grupos, ícones de mídia e "digitando".',
+      },
+      {
+        product: 'inbox',
+        en: 'The conversation has bubbles, reactions, replies, forwarding, editing, deleting, stars, mentions, link previews, photos with a viewer, voice notes and documents. Drop, paste or pick files to send them with a caption, or record a voice note.',
+        es: 'La conversación tiene burbujas, reacciones, respuestas, reenviar, editar, borrar, destacados, menciones, vista previa de links, fotos con visor, notas de voz y documentos. Arrastrá, pegá o elegí archivos para mandarlos con un comentario, o grabá una nota de voz.',
+        pt: 'A conversa tem balões, reações, respostas, encaminhar, editar, apagar, favoritas, menções, prévia de links, fotos com visualizador, notas de voz e documentos. Arraste, cole ou escolha arquivos para enviar com legenda, ou grave uma nota de voz.',
+      },
+      {
+        product: 'inbox',
+        en: 'Click the header for contact or group info: members, shared media, groups in common, mute, block and an AI summary of the chat. On the phone, swipe a message to reply and a chat to archive or pin.',
+        es: 'Tocando la cabecera se ve la info del contacto o del grupo: integrantes, lo compartido, grupos en común, silenciar, bloquear y un resumen con IA del chat. En el teléfono, deslizá un mensaje para responder y un chat para archivarlo o fijarlo.',
+        pt: 'Tocando no cabeçalho aparecem os dados do contato ou do grupo: membros, o que foi compartilhado, grupos em comum, silenciar, bloquear e um resumo com IA da conversa. No celular, deslize uma mensagem para responder e uma conversa para arquivar ou fixar.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-account-security-and-your-data',
+    date: '2026-11-09',
+    title: {
+      en: 'Two-step verification, sessions, audit log and your data',
+      es: 'Verificación en dos pasos, sesiones, registro de auditoría y tus datos',
+      pt: 'Verificação em duas etapas, sessões, registro de auditoria e seus dados',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Turn on two-step verification with any authenticator app, with ten recovery codes. Workspace owners can require it for every member.',
+        es: 'Activá la verificación en dos pasos con cualquier app autenticadora, con diez códigos de recuperación. El owner del workspace puede exigirla a todos.',
+        pt: 'Ative a verificação em duas etapas com qualquer app autenticador, com dez códigos de recuperação. O dono do workspace pode exigi-la de todos.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Security lists the devices signed in to your account and signs out one or all of them. Owners and admins get an audit log of sign-ins, keys, exports and member changes, with CSV download.',
+        es: 'Ajustes › Seguridad muestra los dispositivos con tu cuenta abierta y cierra uno o todos. Owners y admins tienen un registro de auditoría de inicios de sesión, keys, exportaciones y cambios de miembros, con descarga en CSV.',
+        pt: 'Configurações › Segurança mostra os dispositivos com sua conta aberta e encerra um ou todos. Donos e admins têm um registro de auditoria de logins, chaves, exportações e mudanças de membros, com download em CSV.',
+      },
+      {
+        product: 'platform',
+        en: 'Download everything in your account and workspace as a ZIP, and delete your account or workspace from Settings, with 30 days to change your mind.',
+        es: 'Descargá todo lo de tu cuenta y tu workspace en un ZIP, y borrá tu cuenta o tu workspace desde Ajustes, con 30 días para arrepentirte.',
+        pt: 'Baixe tudo da sua conta e do seu workspace em um ZIP, e exclua sua conta ou seu workspace em Configurações, com 30 dias para voltar atrás.',
+      },
+      {
+        product: 'platform',
+        en: 'New subprocessors page, and the security and privacy pages now describe these controls and our compliance status as it is.',
+        es: 'Nueva página de subprocesadores, y las páginas de seguridad y privacidad ahora describen estos controles y el estado real de las certificaciones.',
+        pt: 'Nova página de subprocessadores, e as páginas de segurança e privacidade agora descrevem esses controles e o estado real das certificações.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-groups-is-now-lines',
     date: '2026-11-08',
     title: {
@@ -313,6 +377,23 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'The inbox has a Sort menu: newest activity, oldest activity or waiting longest. Waiting counts from the visitor\'s first message after the last reply from a person or the bot; internal notes do not count.',
         es: 'La bandeja tiene un menú de orden: actividad más reciente, más vieja o espera más larga. La espera cuenta desde el primer mensaje del visitante después de la última respuesta de una persona o del bot; las notas internas no cuentan.',
         pt: 'A caixa de entrada tem um menu de ordem: atividade mais recente, mais antiga ou espera mais longa. A espera conta a partir da primeira mensagem do visitante depois da última resposta de uma pessoa ou do bot; notas internas não contam.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-07-track-linear-workspace-import',
+    date: '2026-11-07',
+    title: {
+      en: 'Track: move a whole Linear workspace in one go',
+      es: 'Track: mudá un workspace entero de Linear de una vez',
+      pt: 'Track: traga um workspace inteiro do Linear de uma vez',
+    },
+    items: [
+      {
+        product: 'track',
+        en: 'The Linear importer now brings teams with their workflow, projects with milestones and updates, cycles, issues with their original IDs, comment threads, links, pull requests, relations and sub-issues. People are matched by email, and the preview can invite the ones who are missing. Run it again before you switch: it updates what changed in Linear and never duplicates.',
+        es: 'El importador de Linear ahora trae los teams con su workflow, los projects con milestones y updates, cycles, issues con sus IDs originales, hilos de comentarios, links, pull requests, relaciones y sub-issues. Las personas se asocian por email y la vista previa puede invitar a las que faltan. Corrélo de nuevo antes de cambiarte: actualiza lo que cambió en Linear y nunca duplica.',
+        pt: 'O importador do Linear agora traz os teams com o workflow, os projects com milestones e updates, cycles, issues com os IDs originais, threads de comentários, links, pull requests, relações e sub-issues. As pessoas são associadas pelo e-mail e a prévia pode convidar quem falta. Rode de novo antes de trocar: atualiza o que mudou no Linear e nunca duplica.',
       },
     ],
   },

@@ -24,30 +24,31 @@ import * as r21 from "@/lib/routes/groups/lists/[id]/route";
 import * as r22 from "@/lib/routes/groups/media/[id]/route";
 import * as r23 from "@/app/api/groups/members/route";
 import * as r24 from "@/lib/routes/groups/messages/[id]/route";
-import * as r25 from "@/app/api/groups/numbers/route";
-import * as r26 from "@/lib/routes/groups/numbers/[id]/route";
-import * as r27 from "@/lib/routes/groups/numbers/[id]/connect/route";
-import * as r28 from "@/app/api/groups/properties/route";
-import * as r29 from "@/app/api/groups/push/route";
-import * as r30 from "@/app/api/groups/push/test/route";
-import * as r31 from "@/app/api/groups/quick-replies/route";
-import * as r32 from "@/app/api/groups/recurring/route";
-import * as r33 from "@/lib/routes/groups/recurring/[id]/route";
-import * as r34 from "@/app/api/groups/rules/route";
-import * as r35 from "@/lib/routes/groups/rules/[id]/route";
-import * as r36 from "@/app/api/groups/sample/route";
-import * as r37 from "@/app/api/groups/settings/route";
-import * as r38 from "@/app/api/groups/tasks/route";
-import * as r39 from "@/lib/routes/groups/tasks/[id]/route";
-import * as r40 from "@/app/api/groups/teams/route";
-import * as r41 from "@/lib/routes/groups/teams/[id]/route";
-import * as r42 from "@/app/api/groups/templates/route";
-import * as r43 from "@/lib/routes/groups/templates/[id]/route";
-import * as r44 from "@/app/api/groups/templates/[id]/use/route";
-import * as r45 from "@/app/api/groups/tickets/route";
-import * as r46 from "@/lib/routes/groups/tickets/[id]/route";
-import * as r47 from "@/app/api/groups/translate/route";
-import * as r48 from "@/app/api/groups/upload/route";
+import * as r25 from "@/lib/routes/groups/messages/[id]/transcript/route";
+import * as r26 from "@/app/api/groups/numbers/route";
+import * as r27 from "@/lib/routes/groups/numbers/[id]/route";
+import * as r28 from "@/lib/routes/groups/numbers/[id]/connect/route";
+import * as r29 from "@/app/api/groups/properties/route";
+import * as r30 from "@/app/api/groups/push/route";
+import * as r31 from "@/app/api/groups/push/test/route";
+import * as r32 from "@/app/api/groups/quick-replies/route";
+import * as r33 from "@/app/api/groups/recurring/route";
+import * as r34 from "@/lib/routes/groups/recurring/[id]/route";
+import * as r35 from "@/app/api/groups/rules/route";
+import * as r36 from "@/lib/routes/groups/rules/[id]/route";
+import * as r37 from "@/app/api/groups/sample/route";
+import * as r38 from "@/app/api/groups/settings/route";
+import * as r39 from "@/app/api/groups/tasks/route";
+import * as r40 from "@/lib/routes/groups/tasks/[id]/route";
+import * as r41 from "@/app/api/groups/teams/route";
+import * as r42 from "@/lib/routes/groups/teams/[id]/route";
+import * as r43 from "@/app/api/groups/templates/route";
+import * as r44 from "@/lib/routes/groups/templates/[id]/route";
+import * as r45 from "@/app/api/groups/templates/[id]/use/route";
+import * as r46 from "@/app/api/groups/tickets/route";
+import * as r47 from "@/lib/routes/groups/tickets/[id]/route";
+import * as r48 from "@/app/api/groups/translate/route";
+import * as r49 from "@/app/api/groups/upload/route";
 
 export const routes: Record<string, unknown> = {
   "/api/groups/access": r0,
@@ -75,28 +76,29 @@ export const routes: Record<string, unknown> = {
   "/api/groups/media/[id]": r22,
   "/api/groups/members": r23,
   "/api/groups/messages/[id]": r24,
-  "/api/groups/numbers": r25,
-  "/api/groups/numbers/[id]": r26,
-  "/api/groups/numbers/[id]/connect": r27,
-  "/api/groups/properties": r28,
-  "/api/groups/push": r29,
-  "/api/groups/push/test": r30,
-  "/api/groups/quick-replies": r31,
-  "/api/groups/recurring": r32,
-  "/api/groups/recurring/[id]": r33,
-  "/api/groups/rules": r34,
-  "/api/groups/rules/[id]": r35,
-  "/api/groups/sample": r36,
-  "/api/groups/settings": r37,
-  "/api/groups/tasks": r38,
-  "/api/groups/tasks/[id]": r39,
-  "/api/groups/teams": r40,
-  "/api/groups/teams/[id]": r41,
-  "/api/groups/templates": r42,
-  "/api/groups/templates/[id]": r43,
-  "/api/groups/templates/[id]/use": r44,
-  "/api/groups/tickets": r45,
-  "/api/groups/tickets/[id]": r46,
-  "/api/groups/translate": r47,
-  "/api/groups/upload": r48,
+  "/api/groups/messages/[id]/transcript": r25,
+  "/api/groups/numbers": r26,
+  "/api/groups/numbers/[id]": r27,
+  "/api/groups/numbers/[id]/connect": r28,
+  "/api/groups/properties": r29,
+  "/api/groups/push": r30,
+  "/api/groups/push/test": r31,
+  "/api/groups/quick-replies": r32,
+  "/api/groups/recurring": r33,
+  "/api/groups/recurring/[id]": r34,
+  "/api/groups/rules": r35,
+  "/api/groups/rules/[id]": r36,
+  "/api/groups/sample": r37,
+  "/api/groups/settings": r38,
+  "/api/groups/tasks": r39,
+  "/api/groups/tasks/[id]": r40,
+  "/api/groups/teams": r41,
+  "/api/groups/teams/[id]": r42,
+  "/api/groups/templates": r43,
+  "/api/groups/templates/[id]": r44,
+  "/api/groups/templates/[id]/use": r45,
+  "/api/groups/tickets": r46,
+  "/api/groups/tickets/[id]": r47,
+  "/api/groups/translate": r48,
+  "/api/groups/upload": r49,
 };

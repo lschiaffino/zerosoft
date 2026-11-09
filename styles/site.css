@@ -301,14 +301,17 @@ html[data-session='in'] .hd-out { display: none !important; }
   align-items: center;
   gap: 8px;
   margin-top: 24px;
-  height: 36px;
-  padding: 0 14px;
+  min-height: 36px;
+  max-width: 100%;
+  padding: 8px 14px;
+  line-height: 1.3;
   border: 1px solid var(--brand-on-ink-2);
   font-size: 14px;
   font-weight: 600;
   color: var(--brand-on-ink);
   transition: background var(--ui-dur) var(--ease), color var(--ui-dur) var(--ease);
 }
+.footer-gh svg { flex: none; }
 .footer-gh:hover { background: var(--brand-on-ink); color: var(--brand-ink); }
 
 .footer-col h4 {
@@ -661,3 +664,8 @@ section.status-note-block { padding: 24px; }
 /* 404 con el cero que gira. La caja tiene la proporción de la figura: nada se mueve al cargar. */
 .nf-art { height: auto; aspect-ratio: 57.6 / 33.6; max-width: 440px; margin: 32px 0 8px; }
 .nf-rule { margin-bottom: 96px; color: var(--brand-gray-3); opacity: 0.7; }
+
+/* Con el dedo, EN / ES / PT de 40px (el sitio no carga la capa táctil de la app). */
+@media (pointer: coarse) {
+  .locale-switcher a { min-width: 40px; min-height: 40px; }
+}

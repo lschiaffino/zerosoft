@@ -294,13 +294,15 @@ export default function GroupsList({
             <thead>
               <tr>
                 <th className="gr-check-col">
-                  <input
-                    type="checkbox"
-                    className="ui-check"
-                    checked={allSelected}
-                    onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
-                    aria-label={t('list.selectAll')}
-                  />
+                  <label className="tap-cell">
+                    <input
+                      type="checkbox"
+                      className="ui-check"
+                      checked={allSelected}
+                      onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
+                      aria-label={t('list.selectAll')}
+                    />
+                  </label>
                 </th>
                 <th>{t('list.colName')}</th>
                 <th className="num">{t('list.colMembers')}</th>
@@ -317,7 +319,10 @@ export default function GroupsList({
               {rows.map((c) => (
                 <tr key={c.id}>
                   <td className="gr-check-col">
-                    <input type="checkbox" className="ui-check" checked={selected.has(c.id)} onChange={() => toggle(c.id)} aria-label={t('list.select', { name: c.name })} />
+                    {/* El label es el área táctil (40px): la casilla sola es chica para el dedo. */}
+                    <label className="tap-cell">
+                      <input type="checkbox" className="ui-check" checked={selected.has(c.id)} onChange={() => toggle(c.id)} aria-label={t('list.select', { name: c.name })} />
+                    </label>
                   </td>
                   <td>
                     <Link href={`/app/lines/list/${c.id}`} className="gr-table-name">

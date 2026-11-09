@@ -10,7 +10,10 @@
     "customers": "Clientes",
     "workspace": "Workspace",
     "yourTeams": "Tus equipos",
-    "more": "Más"
+    "more": "Más",
+    "newIssue": "Nuevo issue",
+    "newPlan": "Nuevo proyecto",
+    "newTeam": "Nuevo equipo"
   },
   "common": {
     "viewAll": "Ver todo",
@@ -155,7 +158,23 @@
     "size": "Tamaño",
     "tooLarge": "El archivo pesa más de 10 MB.",
     "typeNotAllowed": "Ese tipo de archivo no está permitido.",
-    "uploadError": "No se pudo subir el archivo. Probá de nuevo."
+    "uploadError": "No se pudo subir el archivo. Probá de nuevo.",
+    "dropHere": "Soltá los archivos para adjuntarlos a este issue",
+    "uploadingName": "Subiendo {name}",
+    "progress": "{loaded} de {total} · {pct}%",
+    "cancel": "Cancelar",
+    "dismiss": "Descartar",
+    "download": "Descargar",
+    "previewName": "Ver {name}",
+    "openNewTab": "Abrir en otra pestaña",
+    "close": "Cerrar",
+    "removeTitle": "¿Eliminar “{name}”?",
+    "removeBody": "El archivo se quita de este issue para todos.",
+    "removeError": "No se pudo eliminar el archivo. Probá de nuevo.",
+    "storageNotConfigured": "Este servidor no tiene configurado dónde guardar archivos. Un admin tiene que agregar un store privado de Blob.",
+    "tooLargeAny": "El archivo pesa más de lo que acepta este servidor.",
+    "limitHint": "Hasta {limit} por archivo",
+    "tooLargeLimit": "El archivo pesa más de {limit}, el tope de este servidor."
   },
   "activity": {
     "title": "Actividad",
@@ -670,9 +689,12 @@
       "priority": "Prioridad",
       "cycle": "Ciclo",
       "label": "Etiqueta",
-      "project": "Equipo"
+      "project": "Equipo",
+      "planMilestone": "Milestone",
+      "plan": "Project"
     },
     "sorts": {
+      "manual": "Manual",
       "newest": "Más nuevos",
       "oldest": "Más viejos",
       "updated": "Actualizados hace poco",
@@ -680,7 +702,8 @@
       "due": "Vencimiento",
       "identifier": "Identificador",
       "customers": "Cantidad de clientes",
-      "revenue": "Ingresos de clientes"
+      "revenue": "Ingresos de clientes",
+      "estimate": "Estimación"
     }
   },
   "subscription": {
@@ -897,7 +920,7 @@
     "githubToken": "Token de GitHub",
     "githubHelp": "Un token fine-grained con lectura de Issues en ese repositorio.",
     "tokenNote": "Se usa solo para este import. Queda cifrado mientras se leen tus datos y se borra apenas termina.",
-    "linearNote": "Los teams de Linear pasan a ser equipos y los proyectos de Linear, milestones.",
+    "linearNote": "Los teams de Linear entran con su workflow, los projects de Linear pasan a ser projects con sus milestones y updates, y vienen los comentarios, links, relaciones y sub-issues. Podés volver a correrlo hasta que se cambien: actualiza lo que cambió en Linear y nunca duplica.",
     "csvFile": "Archivo CSV",
     "csvTooLarge": "El CSV pasa los 4 MB. Partilo e importá cada parte.",
     "csvEmpty": "El archivo no tiene fila de encabezados.",
@@ -928,7 +951,11 @@
       "milestone": "Milestone",
       "parent": "Issue padre",
       "type": "Tipo (como label)",
-      "comments": "Comentarios"
+      "comments": "Comentarios",
+      "plan": "Project",
+      "planMilestone": "Milestone del project",
+      "creator": "Creador",
+      "updatedAt": "Actualizado"
     },
     "preview": "Vista previa",
     "stat": {
@@ -937,7 +964,12 @@
       "projects": "Equipos",
       "labels": "Labels",
       "cycles": "Cycles",
-      "milestones": "Milestones"
+      "milestones": "Milestones",
+      "plans": "Projects",
+      "relations": "Relaciones",
+      "attachments": "Links",
+      "initiatives": "Initiatives",
+      "documents": "Documentos"
     },
     "already": "{count, plural, one {# issue ya se importó antes y se va a saltear.} other {# issues ya se importaron antes y se van a saltear.}}",
     "truncated": "La fuente tiene más issues de los que entran en un import. El resto quedó afuera.",
@@ -960,7 +992,7 @@
       "done": "Hecho",
       "cancelled": "Cancelado"
     },
-    "peopleTitle": "Responsables",
+    "peopleTitle": "Personas",
     "personCol": "En la fuente",
     "memberCol": "Miembro",
     "unmatched": "No es miembro, queda sin responsable",
@@ -968,8 +1000,19 @@
     "sampleTitle": "Primeros issues",
     "confirm": "{count, plural, one {Importar # issue} other {Importar # issues}}",
     "stages": {
-      "issues": "Creando issues y comentarios",
-      "parents": "Enganchando sub-issues"
+      "issues": "Creando teams, projects, issues y comentarios",
+      "parents": "Enganchando sub-issues",
+      "read_viewer": "Revisando la API key",
+      "read_users": "Leyendo miembros",
+      "read_teams": "Leyendo teams y workflows",
+      "read_projects": "Leyendo projects",
+      "read_cycles": "Leyendo cycles",
+      "read_issues": "Leyendo issues",
+      "read_comments": "Leyendo comentarios",
+      "read_attachments": "Leyendo links",
+      "read_relations": "Leyendo relaciones",
+      "read_initiatives": "Leyendo initiatives",
+      "read_documents": "Leyendo documentos"
     },
     "doneTitle": "Import terminado.",
     "doneSummary": "{issues, plural, one {# issue} other {# issues}} y {comments, plural, one {# comentario} other {# comentarios}} importados, {skipped, number} salteados.",
@@ -984,10 +1027,13 @@
     "exportAll": "Todos los equipos",
     "exportButton": "Descargar CSV",
     "createdPart": {
-      "projects": "{count, plural, one {# proyecto} other {# proyectos}}",
+      "projects": "{count, plural, one {# equipo} other {# equipos}}",
       "statuses": "{count, plural, one {# status} other {# status}}",
       "cycles": "{count, plural, one {# cycle} other {# cycles}}",
-      "milestones": "{count, plural, one {# milestone} other {# milestones}}"
+      "milestones": "{count, plural, one {# milestone} other {# milestones}}",
+      "plans": "{count, plural, one {# project} other {# projects}}",
+      "initiatives": "{count, plural, one {# initiative} other {# initiatives}}",
+      "documents": "{count, plural, one {# documento} other {# documentos}}"
     },
     "jiraSite": "Sitio de Jira",
     "jiraEmail": "Email de la cuenta de Atlassian",
@@ -1004,7 +1050,26 @@
     "shortcutQueryHelp": "Una búsqueda de Shortcut como team:mobile o epic:\"Onboarding\". Vacía importa todas las stories que no están archivadas.",
     "shortcutToken": "API token de Shortcut",
     "shortcutHelp": "En Shortcut: Settings › Your account › API tokens.",
-    "shortcutNote": "Cada workflow pasa a ser un equipo y los epics, milestones. Shortcut limita cuántas stories devuelve una búsqueda: en un workspace grande, importá por team o por epic."
+    "shortcutNote": "Cada workflow pasa a ser un equipo y los epics, milestones. Shortcut limita cuántas stories devuelve una búsqueda: en un workspace grande, importá por team o por epic.",
+    "fromWorkspace": "Desde el workspace de Linear {name}.",
+    "alreadyUpdate": "{count, plural, one {# issue ya se importó antes.} other {# issues ya se importaron antes.}} {updated, plural, one {# cambió en la fuente desde entonces y se va a actualizar.} other {# cambiaron en la fuente desde entonces y se van a actualizar.}} El resto queda como está.",
+    "triageNote": "{count, plural, one {# issue entra a Triage.} other {# issues entran a Triage.}}",
+    "archivedNote": "{count, plural, one {# issue archivado entra archivado.} other {# issues archivados entran archivados.}}",
+    "plansTitle": "Projects",
+    "milestonesCount": "{count, plural, one {# milestone} other {# milestones}}",
+    "updatesCount": "{count, plural, one {# update} other {# updates}}",
+    "triageStatus": "Triage",
+    "confirmSync": "{count, plural, =0 {Traer comentarios y links nuevos} one {Actualizar # issue} other {Actualizar # issues}}",
+    "inviteMissing": "{count, plural, one {Invitar a # persona} other {Invitar a # personas}}",
+    "invitedNote": "{count, plural, one {Se mandó # invitación.} other {Se mandaron # invitaciones.}} Cuando se sumen, volvé a correr el import y se les asignan sus issues.",
+    "inviteFailed": "No se pudieron mandar las invitaciones. Invitalas desde Ajustes › Miembros.",
+    "doneUpdated": "{count, plural, one {# issue actualizado.} other {# issues actualizados.}}",
+    "doneLinks": "Se importaron {relations, plural, one {# relación} other {# relaciones}}, {attachments, plural, one {# link} other {# links}} y {updates, plural, one {# update de project} other {# updates de projects}}.",
+    "openPlan": "Abrir el project {name}",
+    "linearTokenNote": "Se usa solo para este import. Queda cifrada hasta que termina, para copiar los archivos que subiste a Linear, y después se borra.",
+    "doneRenumbered": "{count, plural, one {Cambió # ID para que cada ID de Linear siga llevando a su issue de Linear: {list}.} other {Cambiaron # IDs para que cada ID de Linear siga llevando a su issue de Linear: {list}.}} Los issues creados en Track durante la mudanza habían tomado números que Linear ya usaba.",
+    "inviteCopyLink": "Copiar link de invitación",
+    "inviteLinkCopied": "Copiado"
   },
   "integrations": {
     "tab": "Integraciones",
@@ -1221,7 +1286,8 @@
       "resolved": "resuelto",
       "ignored": "ignorado",
       "assigned": "asignado"
-    }
+    },
+    "linkLabel": "Link"
   },
   "ux": {
     "undo": {
@@ -1295,7 +1361,8 @@
       "startOn": "Empieza el {date}",
       "currentCycle": "Actual",
       "upcomingCycle": "Próximo",
-      "addToCycle": "Agregar al cycle {name}"
+      "addToCycle": "Agregar al cycle {name}",
+      "deleteNotAllowed": "No tenés permiso para borrar issues. Pedíselo a un admin del workspace."
     },
     "editor": {
       "todo": "Lista de tareas",
@@ -1448,7 +1515,9 @@
         "created": "Creado",
         "updated": "Actualizado",
         "relation": "Relaciones",
-        "hierarchy": "Sub-issues"
+        "hierarchy": "Sub-issues",
+        "team": "Team",
+        "project": "Project"
       },
       "noAssignee": "Sin asignar",
       "noCycle": "Sin cycle",
@@ -1512,7 +1581,8 @@
       "hint": "Tipeá para filtrar, ↵ para elegir, ← para volver",
       "and": "y",
       "or": "o",
-      "matchToggle": "Cambiar a {next}"
+      "matchToggle": "Cambiar a {next}",
+      "noProject": "Sin project"
     },
     "peek": {
       "title": "Vista rápida del issue",
@@ -1552,7 +1622,14 @@
       "reset": "Volver a lo predeterminado",
       "collapse": "Contraer {name}",
       "expand": "Expandir {name}",
-      "addInGroup": "Nuevo issue en {name}"
+      "addInGroup": "Nuevo issue en {name}",
+      "completedIssues": "Issues terminados",
+      "completedWindow": {
+        "all": "Todos",
+        "week": "Última semana",
+        "none": "Ninguno"
+      },
+      "showEmptyGroups": "Mostrar grupos vacíos"
     },
     "team": {
       "all": "Todos los issues",
@@ -1628,5 +1705,44 @@
       "tshirt": "Talles de remera",
       "none": "Sin estimaciones"
     }
+  },
+  "dnd": {
+    "count": "{count, plural, one {# issue} other {# issues}}",
+    "movedOne": "{from} pasó a {team} como {to}.",
+    "movedMany": "{count} issues pasaron a {team}.",
+    "labelsDropped": "Se sacaron labels del team anterior: {labels}.",
+    "moveFailed": "No se pudieron mover los issues. Solo se pueden mover a teams de los que sos parte.",
+    "addedToProject": "{id} se sumó a {name}.",
+    "addedManyToProject": "{count} issues se sumaron a {name}.",
+    "updatedOne": "{id} actualizado.",
+    "updatedMany": "{count} issues actualizados.",
+    "reordered": "{id} movido.",
+    "menu": {
+      "label": "Acciones del issue",
+      "status": "Estado",
+      "assignee": "Asignado",
+      "priority": "Prioridad",
+      "labels": "Labels",
+      "project": "Mover a project",
+      "cycle": "Cycle",
+      "move-team": "Mover a team",
+      "estimate": "Estimación",
+      "due": "Vencimiento",
+      "copyId": "Copiar ID",
+      "copyLink": "Copiar link",
+      "more": "Más acciones",
+      "copyBranch": "Copiar nombre de rama",
+      "delete": "Borrar"
+    },
+    "deleted": "{id} borrado",
+    "deletedMany": "{count} issues borrados",
+    "deleteNotAllowed": "No tenés permiso para borrar issues. Pedíselo a un admin del workspace."
+  },
+  "list": {
+    "loadError": "No se pudieron cargar los issues.",
+    "retry": "Reintentar",
+    "noMilestone": "Sin milestone",
+    "noProject": "Sin project",
+    "showingFirst": "Se ven los primeros {shown} de {total}. Sumá un filtro para acotar."
   }
 }
