@@ -29,17 +29,23 @@ jobs:
       - name: gitleaks
         env:
           GITLEAKS_VERSION: 8.24.3
+          # sha256 del tar de linux_x64 de esa versión (fijado: no se confía en lo que baje).
+          GITLEAKS_SHA256: 9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c
           EVENT: ${{ github.event_name }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
           PUSH_AFTER: ${{ github.sha }}
         run: |
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz gitleaks
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "$base/$tarball"
+          echo "$GITLEAKS_SHA256  $tarball" | sha256sum -c -
+          tar -xzf "$tarball" gitleaks
           range=""
           if [ "$EVENT" = pull_request ]; then
             range="$PR_BASE..$PR_HEAD"
-          elif [ "$EVENT" = push ] && [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != 0000000000000000000000000000000000000000 ]; then
+          elif [ "$EVENT" = push ] && [ -n "$PUSH_BEFORE" ] && git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
             range="$PUSH_BEFORE..$PUSH_AFTER"
           fi
           # Sin rango (la corrida semanal): todo el historial. --redact: el log nunca muestra el secreto.
