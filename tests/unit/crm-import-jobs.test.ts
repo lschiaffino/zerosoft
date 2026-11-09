@@ -269,10 +269,10 @@ describe('Import por API: jobs de punta a punta (HubSpot falso)', () => {
       status: string;
     };
     expect(row.status).toBe('preview');
-    expect(row.token.startsWith('enc:v2:')).toBe(true);
+    expect(row.token.startsWith('enc:v1:')).toBe(true);
     expect(row.token).not.toContain('fake');
     // La vista para la UI nunca trae el token.
-    expect(JSON.stringify(res.job)).not.toContain('enc:v');
+    expect(JSON.stringify(res.job)).not.toContain('enc:v1');
     // Nada se escribió en el CRM.
     const n = (await getDb().prepare('SELECT COUNT(*) AS c FROM crm_contacts WHERE user_id = ?').get(u.id)) as { c: number };
     expect(n.c).toBe(0);

@@ -2,10 +2,9 @@
  * Credenciales por workspace para Flow (nodos de integraciones, HTTP) y
  * Robots ({{credentials.<name>.password}}). Server-only.
  *
- * Cifrado: AES-256-GCM con una subclave de la clave maestra activa
- * (lib/key-ring.ts, "cred:v2:<kid>:"); lo guardado antes ("cred:v1:") usa
- * SHA-256 de CREDENTIALS_KEY o de ENCRYPTION_KEY / NEXTAUTH_SECRET y se sigue
- * leyendo. El texto cifrado queda atado al workspace y a la credencial (AAD):
+ * Cifrado: AES-256-GCM. Con ENCRYPTION_KEYS, una subclave de la maestra activa
+ * (lib/key-ring.ts, "cred:v2:<kid>:"); sin ella, "cred:v1:" con SHA-256 de
+ * CREDENTIALS_KEY o de ENCRYPTION_KEY / NEXTAUTH_SECRET, que se sigue leyendo. El texto cifrado queda atado al workspace y a la credencial (AAD):
  * una fila copiada a otro workspace no se puede descifrar. La rotación de
  * claves (scripts/rotate-encryption-keys.ts) las vuelve a cifrar.
  *
@@ -28,7 +27,7 @@ import {
   type CredentialType,
 } from './flow-credentials-schema';
 import { open, seal } from './secret-box';
-import { activeKey, findKey, subKey } from './key-ring';
+import { activeKey, findKey, subKey, usingKeyRing } from './key-ring';
 
 const PREFIX = 'cred:v1:';
 const PREFIX_V2 = 'cred:v2:';
@@ -51,19 +50,24 @@ function aad(workspaceId: string, credentialId: string): Buffer {
   return Buffer.from(`${workspaceId}:${credentialId}`, 'utf8');
 }
 
-/** v2: "cred:v2:<kid>:<iv>.<tag>.<datos>", con una subclave de la maestra activa (lib/key-ring.ts). */
+/**
+ * Con ENCRYPTION_KEYS: "cred:v2:<kid>:<iv>.<tag>.<datos>", con una subclave de la maestra
+ * activa (lib/key-ring.ts). Sin ella, el formato heredado v1 (mismo criterio que secret-box).
+ */
 export function encryptCredential(workspaceId: string, credentialId: string, data: Record<string, string>): string {
+  const ring = usingKeyRing();
   const master = activeKey();
   const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', subKey(master, PURPOSE), iv);
+  const cipher = createCipheriv('aes-256-gcm', ring ? subKey(master, PURPOSE) : legacyKey(), iv, { authTagLength: 16 });
   cipher.setAAD(aad(workspaceId, credentialId));
   const enc = Buffer.concat([cipher.update(JSON.stringify(data), 'utf8'), cipher.final()]);
-  return `${PREFIX_V2}${master.id}:${iv.toString('base64url')}.${cipher.getAuthTag().toString('base64url')}.${enc.toString('base64url')}`;
+  const body = `${iv.toString('base64url')}.${cipher.getAuthTag().toString('base64url')}.${enc.toString('base64url')}`;
+  return ring ? `${PREFIX_V2}${master.id}:${body}` : `${PREFIX}${body}`;
 }
 
 /** ¿Está cifrada con otra clave que la activa (o en v1)? Lo usa la rotación de claves. */
 export function credentialNeedsRotation(value: string): boolean {
-  if (value.startsWith(PREFIX)) return true;
+  if (value.startsWith(PREFIX)) return usingKeyRing();
   if (!value.startsWith(PREFIX_V2)) return false;
   return value.slice(PREFIX_V2.length).split(':')[0] !== activeKey().id;
 }
@@ -86,11 +90,12 @@ export function decryptCredential(workspaceId: string, credentialId: string, val
     } else {
       return null;
     }
-    const [iv, tag, data] = body.split('.');
-    const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64url'));
+    const [iv, tag, data] = body.split('.').map((p) => Buffer.from(p ?? '', 'base64url'));
+    if (iv.length !== 12 || tag.length !== 16) return null;
+    const decipher = createDecipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
     decipher.setAAD(aad(workspaceId, credentialId));
-    decipher.setAuthTag(Buffer.from(tag, 'base64url'));
-    const plain = Buffer.concat([decipher.update(Buffer.from(data, 'base64url')), decipher.final()]).toString('utf8');
+    decipher.setAuthTag(tag);
+    const plain = Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
     const parsed = JSON.parse(plain) as unknown;
     return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : null;
   } catch {

@@ -20,12 +20,16 @@ export interface RotationReport {
   skipped: number;
   /** tabla.columna → valores pendientes. */
   byColumn: Record<string, number>;
+  /** Columnas con valores cifrados en tablas WITHOUT ROWID: no se reescriben, hay que verlas a mano. */
+  skippedTables: string[];
+  /** Dónde están los ilegibles (tabla.columna#rowid), para revisarlos a mano. */
+  unreadableAt: string[];
 }
 
 const quote = (name: string) => `"${name.replace(/"/g, '""')}"`;
 const PAGE = 200;
 
-function rotateText(text: string, report: RotationReport, apply: boolean): string | null {
+function rotateText(text: string, report: RotationReport, apply: boolean, where: string): string | null {
   let changed = false;
   const out = text.replace(SEALED_TOKEN_RE, (token) => {
     if (!needsRotation(token)) return token;
@@ -34,6 +38,7 @@ function rotateText(text: string, report: RotationReport, apply: boolean): strin
     const next = reseal(token);
     if (next === null) {
       report.unreadable++;
+      report.unreadableAt.push(where);
       return token;
     }
     changed = true;
@@ -43,12 +48,16 @@ function rotateText(text: string, report: RotationReport, apply: boolean): strin
 }
 
 export async function rotateEncryptedValues(client: Client, opts: { apply: boolean; log?: (line: string) => void }): Promise<RotationReport> {
-  const report: RotationReport = { pending: 0, rotated: 0, unreadable: 0, skipped: 0, byColumn: {} };
-  const tables = (await client.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%_fts%'")).rows.map((r) => String(r.name));
+  const report: RotationReport = { pending: 0, rotated: 0, unreadable: 0, skipped: 0, byColumn: {}, skippedTables: [], unreadableAt: [] };
+  // Tablas reales: sin las virtuales (FTS) ni sus tablas internas, que repiten texto de otras.
+  const all = (await client.execute("SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'")).rows.map((r) => ({
+    name: String(r.name),
+    sql: String(r.sql ?? ''),
+  }));
+  const virtual = all.filter((t) => /^CREATE VIRTUAL TABLE/i.test(t.sql)).map((t) => t.name);
+  const tables = all.filter((t) => !virtual.includes(t.name) && !virtual.some((v) => t.name.startsWith(`${v}_`))).map((t) => t.name);
   for (const table of tables) {
-    const cols = (await client.execute(`SELECT name, type FROM pragma_table_info(${quote(table)})`)).rows
-      .filter((c) => !c.type || /TEXT|CHAR|CLOB|^$/i.test(String(c.type)))
-      .map((c) => String(c.name));
+    const cols = (await client.execute({ sql: 'SELECT name FROM pragma_table_info(?)', args: [table] })).rows.map((c) => String(c.name));
     for (const col of cols) {
       const before = report.pending;
       let lastRowid = -1;
@@ -58,17 +67,34 @@ export async function rotateEncryptedValues(client: Client, opts: { apply: boole
           rows = (
             await client.execute({
               sql: `SELECT rowid AS rid, ${quote(col)} AS v${table === 'flow_credentials' ? ', id, user_id' : ''} FROM ${quote(table)}
-                    WHERE rowid > ? AND (${quote(col)} LIKE '%enc:v%' OR ${quote(col)} LIKE 'cred:v%') ORDER BY rowid LIMIT ${PAGE}`,
+                    WHERE rowid > ? AND typeof(${quote(col)}) = 'text' AND (${quote(col)} LIKE '%enc:v%' OR ${quote(col)} LIKE 'cred:v%')
+                    ORDER BY rowid LIMIT ${PAGE}`,
               args: [lastRowid],
             })
           ).rows;
-        } catch {
-          break; // tabla sin rowid o vista: no guarda secretos de secret-box
+        } catch (err) {
+          // Solo una tabla sin rowid se saltea (y se informa); cualquier otro error corta la corrida.
+          if (!/no such column: rowid/i.test(String(err))) throw err;
+          // Tabla WITHOUT ROWID: no se reescribe acá, pero si tiene valores cifrados se informa
+          // (y la corrida no da "0 pendientes").
+          const n = Number(
+            (
+              await client.execute(
+                `SELECT COUNT(*) AS n FROM ${quote(table)} WHERE typeof(${quote(col)}) = 'text' AND (${quote(col)} LIKE '%enc:v%' OR ${quote(col)} LIKE 'cred:v%')`,
+              )
+            ).rows[0]?.n ?? 0,
+          );
+          if (n) {
+            report.pending += n;
+            report.skippedTables.push(`${table}.${col}`);
+          }
+          break;
         }
         if (!rows.length) break;
         for (const row of rows) {
           lastRowid = Number(row.rid);
           const value = String(row.v ?? '');
+          const where = `${table}.${col}#${lastRowid}`;
           let next: string | null = null;
           if (value.startsWith('cred:v') && table === 'flow_credentials') {
             if (!credentialNeedsRotation(value)) continue;
@@ -77,11 +103,12 @@ export async function rotateEncryptedValues(client: Client, opts: { apply: boole
             const data = decryptCredential(String(row.user_id), String(row.id), value);
             if (!data) {
               report.unreadable++;
+              report.unreadableAt.push(where);
               continue;
             }
             next = encryptCredential(String(row.user_id), String(row.id), data);
           } else {
-            next = rotateText(value, report, opts.apply);
+            next = rotateText(value, report, opts.apply, where);
           }
           if (next === null) continue;
           const res = await client.execute({

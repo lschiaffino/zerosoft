@@ -25,6 +25,11 @@ async function main() {
   );
   if (report.unreadable) {
     console.error('Some values could not be opened: keep the old keys in ENCRYPTION_KEYS until this is resolved.');
+    for (const at of report.unreadableAt.slice(0, 200)) console.error(`  unreadable: ${at}`);
+    process.exitCode = 1;
+  }
+  if (report.skippedTables.length) {
+    console.error(`Encrypted values in tables without rowid (not rewritten): ${report.skippedTables.join(', ')}`);
     process.exitCode = 1;
   }
 }

@@ -12,7 +12,10 @@
  * pendientes, sacar la vieja. Ver docs/security/encryption.md.
  *
  * Sin ENCRYPTION_KEYS se usa la clave heredada (id "0"): SHA-256 de ENCRYPTION_KEY o,
- * si no está, de NEXTAUTH_SECRET. Sigue en el anillo para leer lo cifrado antes.
+ * si no está, de NEXTAUTH_SECRET, y se sigue escribiendo el formato v1 (desplegar esto no
+ * cambia ningún dato). Con ENCRYPTION_KEYS, la "0" queda en el anillo para leer lo de antes.
+ * ENCRYPTION_KEY / NEXTAUTH_SECRET no se cambian nunca: además de la clave "0", de ahí
+ * derivan los archivos privados, las credenciales v1 y varias firmas HMAC.
  */
 import { createHash, hkdfSync } from 'crypto';
 
@@ -24,13 +27,15 @@ export interface MasterKey {
 export const LEGACY_KEY_ID = '0';
 const ID_RE = /^[a-z0-9]{1,16}$/;
 
-function decodeKey(raw: string): Buffer {
+function decodeKey(id: string, raw: string): Buffer {
   const v = raw.trim();
   if (/^[0-9a-f]{64}$/i.test(v)) return Buffer.from(v, 'hex');
   if (/^[A-Za-z0-9+/_-]{43}=?$/.test(v)) {
     const b = Buffer.from(v.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
     if (b.length === 32) return b;
   }
+  // En producción solo claves de 32 bytes aleatorios: "k1:password" no pasa en silencio.
+  if (process.env.NODE_ENV === 'production') throw new Error(`ENCRYPTION_KEYS: key "${id}" must be 32 random bytes (base64 or hex)`);
   return createHash('sha256').update(v).digest();
 }
 
@@ -57,7 +62,7 @@ export function keyRing(): MasterKey[] {
     const id = at > 0 ? part.slice(0, at).trim().toLowerCase() : '';
     if (!ID_RE.test(id) || id === LEGACY_KEY_ID) throw new Error('ENCRYPTION_KEYS: each entry must be "<id>:<key>" with a short lowercase id other than "0"');
     if (ring.some((k) => k.id === id)) throw new Error(`ENCRYPTION_KEYS: duplicate key id "${id}"`);
-    ring.push({ id, key: decodeKey(part.slice(at + 1)) });
+    ring.push({ id, key: decodeKey(id, part.slice(at + 1)) });
   }
   // Después de rotar todo a ENCRYPTION_KEYS, ENCRYPTION_LEGACY_KEY=disabled saca la clave
   // derivada de NEXTAUTH_SECRET del anillo (sigue existiendo para las sesiones).
@@ -66,6 +71,11 @@ export function keyRing(): MasterKey[] {
   if (!ring.length) throw new Error('ENCRYPTION_KEYS, ENCRYPTION_KEY or NEXTAUTH_SECRET is required');
   cached = { raw, legacy: legacyEnv, ring };
   return ring;
+}
+
+/** ¿Hay ENCRYPTION_KEYS? Sin ella se escribe el formato heredado (v1) con la clave "0". */
+export function usingKeyRing(): boolean {
+  return keyRing()[0].id !== LEGACY_KEY_ID;
 }
 
 export function activeKey(): MasterKey {

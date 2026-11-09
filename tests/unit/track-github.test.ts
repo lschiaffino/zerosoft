@@ -120,7 +120,7 @@ describe('Track GitHub: config y webhook', () => {
     const row = (await getDb().prepare('SELECT secret FROM track_github WHERE id = ?').get(body.config.id)) as {
       secret: string;
     };
-    expect(row.secret.startsWith('enc:v2:')).toBe(true);
+    expect(row.secret.startsWith('enc:v1:')).toBe(true);
 
     // Editar sin regenerar no devuelve secreto.
     const again = (await (await configRoute.PUT(put({ repos: ['acme/web', 'acme/api'] }))).json()) as {

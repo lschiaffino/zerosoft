@@ -211,7 +211,7 @@ describe('Inbox: aislamiento', () => {
     await writeAccountConfig(a.id, { accessToken: 'ya29.secret-token', refreshToken: '1//refresh-secret', expiresAt: 0, scope: '' });
     const raw = (await getDb().prepare('SELECT config FROM inbox_accounts WHERE id = ?').get(a.id)) as { config: string };
     expect(raw.config).not.toContain('secret');
-    expect(raw.config.startsWith('enc:v2:')).toBe(true);
+    expect(raw.config.startsWith('enc:v1:')).toBe(true);
     const row = (await getDb().prepare('SELECT * FROM inbox_accounts WHERE id = ?').get(a.id)) as { config: string };
     expect(readAccountConfig<{ refreshToken: string }>(row).refreshToken).toBe('1//refresh-secret');
   });

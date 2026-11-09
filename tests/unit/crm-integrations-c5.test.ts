@@ -238,7 +238,7 @@ describe('apps del CRM: Slack, Zoom, Stripe, Zapier y Make', () => {
     expect(slack.log.map((l) => l.event)).toEqual(['deal.won', 'connected']);
     // El secreto se guarda cifrado.
     const raw = (await getDb().prepare("SELECT secrets FROM crm_apps WHERE user_id = ? AND app = 'slack'").get(u.id)) as { secrets: string };
-    expect(raw.secrets.startsWith('enc:v2:')).toBe(true);
+    expect(raw.secrets.startsWith('enc:v1:')).toBe(true);
     expect(await disconnectApp(u.id, 'slack')).toBe(true);
     expect((await listApps(u.id)).find((a) => a.key === 'slack')!.connected).toBe(false);
   });

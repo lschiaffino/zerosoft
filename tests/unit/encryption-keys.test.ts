@@ -33,14 +33,42 @@ afterEach(() => {
 });
 
 describe('cifrado en sobre con anillo de claves', () => {
-  it('sin ENCRYPTION_KEYS usa la clave heredada "0" y escribe v2', () => {
+  it('sin ENCRYPTION_KEYS sigue escribiendo v1 con la clave heredada (desplegar no cambia datos)', () => {
     expect(activeKey().id).toBe('0');
     const s = seal('token-secreto');
-    expect(s.startsWith('enc:v2:0:')).toBe(true);
+    expect(s.startsWith('enc:v1:')).toBe(true);
     expect(s).not.toContain('token-secreto');
     expect(open(s)).toBe('token-secreto');
-    // Cada valor tiene su propia DEK e IV: dos sellos del mismo texto no se parecen.
+    expect(needsRotation(s)).toBe(false);
+    expect(encryptCredential('w', 'c', { a: 'b' }).startsWith('cred:v1:')).toBe(true);
+  });
+
+  it('con ENCRYPTION_KEYS escribe v2 en sobre: una DEK por valor', () => {
+    process.env.ENCRYPTION_KEYS = `k1:${K1}`;
+    const s = seal('token-secreto');
+    expect(s.startsWith('enc:v2:k1:')).toBe(true);
+    expect(open(s)).toBe('token-secreto');
     expect(seal('token-secreto')).not.toBe(s);
+  });
+
+  it('rechaza tags truncados y sobres mal formados', () => {
+    process.env.ENCRYPTION_KEYS = `k1:${K1}`;
+    const s = seal('integridad');
+    const [head, iv, tag, data] = s.split('.');
+    const short = Buffer.from(tag, 'base64url').subarray(0, 4).toString('base64url');
+    expect(open([head, iv, short, data].join('.'))).toBe('');
+    expect(open('enc:v2:k1:AAAA.AAAA.AAAA.AAAA')).toBe('');
+    delete process.env.ENCRYPTION_KEYS;
+    const v1 = seal('x');
+    const p = v1.split('.');
+    p[1] = Buffer.from(p[1], 'base64url').subarray(0, 4).toString('base64url');
+    expect(open(p.join('.'))).toBe('');
+  });
+
+  it('una ENCRYPTION_KEYS mal formada no pasa en silencio al abrir', () => {
+    const s = seal('x');
+    process.env.ENCRYPTION_KEYS = 'sin-id';
+    expect(() => open(s)).toThrow();
   });
 
   it('sigue leyendo v1 y texto plano heredado', () => {
@@ -51,6 +79,7 @@ describe('cifrado en sobre con anillo de claves', () => {
   });
 
   it('una clave nueva cifra lo nuevo y la vieja sigue abriendo lo anterior', () => {
+    process.env.ENCRYPTION_KEYS = `k1:${K1}`;
     const before = seal('a');
     process.env.ENCRYPTION_KEYS = `k2:${K2},k1:${K1}`;
     expect(keyRing().map((k) => k.id)).toEqual(['k2', 'k1', '0']);
@@ -63,9 +92,11 @@ describe('cifrado en sobre con anillo de claves', () => {
     // Sin la clave del valor, no se abre.
     process.env.ENCRYPTION_KEYS = `k1:${K1}`;
     expect(open(after)).toBe('');
+    expect(open(before)).toBe('a');
   });
 
   it('un dato manipulado no se abre', () => {
+    process.env.ENCRYPTION_KEYS = `k1:${K1}`;
     const s = seal('integridad');
     const parts = s.split('.');
     parts[3] = Buffer.from('otra-cosa').toString('base64url');
@@ -93,7 +124,9 @@ describe('rotación de claves', () => {
     const db = getDb();
     await db.prepare('CREATE TABLE IF NOT EXISTS rot_test (id TEXT PRIMARY KEY, token TEXT, config TEXT)').run();
     const v1 = legacyV1('ya29.uno');
+    process.env.ENCRYPTION_KEYS = `k0:${K2}`;
     const v2old = seal('ya29.dos');
+    delete process.env.ENCRYPTION_KEYS;
     await db.prepare('INSERT INTO rot_test (id, token, config) VALUES (?, ?, ?)').run('r1', v1, JSON.stringify({ apiKey: v2old, name: 'x' }));
     const ws = 'u-rot';
     await db.prepare("INSERT OR IGNORE INTO users (id, email) VALUES (?, 'rot@example.com')").run(ws);
@@ -102,7 +135,7 @@ describe('rotación de claves', () => {
       .prepare("INSERT INTO flow_credentials (id, user_id, name, type, data, created_at, updated_at) VALUES (?, ?, 'rot', 'basic', ?, datetime('now'), datetime('now'))")
       .run(credId, ws, legacyCredential(ws, credId, { username: 'a', password: 'b' }));
 
-    process.env.ENCRYPTION_KEYS = `k1:${K1}`;
+    process.env.ENCRYPTION_KEYS = `k1:${K1},k0:${K2}`;
     const dry = await rotateEncryptedValues(getClient(), { apply: false });
     expect(dry.pending).toBeGreaterThanOrEqual(3);
     expect(dry.byColumn['rot_test.token']).toBe(1);
@@ -112,6 +145,7 @@ describe('rotación de claves', () => {
 
     const run = await rotateEncryptedValues(getClient(), { apply: true });
     expect(run.unreadable).toBe(0);
+    expect(run.skippedTables).toEqual([]);
     expect(run.rotated).toBeGreaterThanOrEqual(3);
     const row = (await db.prepare('SELECT token, config FROM rot_test WHERE id = ?').get('r1')) as { token: string; config: string };
     expect(sealedKeyId(row.token)).toBe('k1');

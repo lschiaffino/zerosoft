@@ -199,7 +199,7 @@ describe('Sync de Outlook', () => {
     const raw = (await getDb()
       .prepare('SELECT access_token FROM integrations WHERE user_id = ? AND provider = ?')
       .get(u.id, OUTLOOK_PROVIDER)) as { access_token: string };
-    expect(raw.access_token.startsWith('enc:v2:')).toBe(true);
+    expect(raw.access_token.startsWith('enc:v1:')).toBe(true);
     const integ = await getIntegration(u.id, OUTLOOK_PROVIDER);
     expect(integ?.access_token.startsWith('fake-ms-access-')).toBe(true);
     expect(integ!.expires_at).toBeGreaterThan(Date.now());

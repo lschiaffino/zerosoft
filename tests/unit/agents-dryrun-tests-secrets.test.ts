@@ -171,7 +171,7 @@ describe('headers secretos de http_request', () => {
 
     const row = await reload(agent);
     expect(row.http_secrets).not.toContain(SECRET);
-    expect(row.http_secrets).toContain('enc:v2:');
+    expect(row.http_secrets).toContain('enc:v1:');
     expect(JSON.stringify(listSecretHeaders(row))).not.toContain(SECRET);
 
     const model = scriptedModel([
