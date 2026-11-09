@@ -220,8 +220,8 @@ list.addEventListener('pointerdown', (e) => {
       el.classList.add('dragging');
       for (const t of all) if (t !== el) t.classList.add('shift');
     }
-    const h = document.documentElement.clientHeight;
-    outside = ev.clientY < -DETACH || ev.clientY > h + DETACH || ev.clientX < -DETACH || ev.clientX > document.documentElement.clientWidth + DETACH;
+    const bar = (list.parentElement ?? list).getBoundingClientRect();
+    outside = ev.clientY < bar.top - DETACH || ev.clientY > bar.bottom + DETACH || ev.clientX < bar.left - DETACH || ev.clientX > bar.right + DETACH;
     el.style.transform = `translate(${dx}px, ${outside ? dy : 0}px)`;
     el.style.opacity = outside ? '0.85' : '';
     // Lugar nuevo: por el centro de la arrastrada contra los centros de las demás.

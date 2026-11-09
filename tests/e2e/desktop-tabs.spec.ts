@@ -37,7 +37,8 @@ const TABS = [
 const STRINGS = { newTab: 'Pestaña nueva', closeTab: 'Cerrar pestaña', tabSuspended: 'En pausa', tabRecording: 'Grabando', tabUnread: 'Hay novedades', tabsLabel: 'Pestañas', tabNewTitle: 'Pestaña nueva' };
 
 async function open(page: Page, opts: { tabs?: Tab[]; platform?: 'darwin' | 'win32'; width?: number } = {}) {
-  await page.setViewportSize({ width: opts.width ?? 1000, height: 38 });
+  // Más alto que la tira (38 px, como en la app): el arrastre hacia afuera queda dentro de la página.
+  await page.setViewportSize({ width: opts.width ?? 1000, height: 240 });
   await page.addInitScript(
     ({ init }) => {
       const w = window as unknown as { __calls: Array<{ cmd: string; args: Record<string, unknown> }>; __TAURI_INTERNALS__: unknown };
@@ -52,7 +53,7 @@ async function open(page: Page, opts: { tabs?: Tab[]; platform?: 'darwin' | 'win
     { init: { platform: opts.platform ?? 'darwin', locale: 'es', strings: STRINGS, view: { active: 1, fullscreen: false, tabs: opts.tabs ?? TABS } } },
   );
   await page.goto('about:blank');
-  await page.setContent(html);
+  await page.setContent(html.replace('</head>', '<style>html, body { height: 38px; }</style></head>'));
   await expect(page.getByRole('tab')).toHaveCount((opts.tabs ?? TABS).length);
 }
 
@@ -165,7 +166,7 @@ test.describe('desktop tab strip', () => {
       const [fg, bg] = await page.getByRole('tab').first().evaluate((el) => [getComputedStyle(el).color, getComputedStyle(el).backgroundColor]);
       expect(fg).not.toBe(bg);
       const dir = process.env.DESKTOP_TABS_SHOTS;
-      if (dir) await page.screenshot({ path: path.join(dir, `strip-${scheme}.png`) });
+      if (dir) await page.screenshot({ path: path.join(dir, `strip-${scheme}.png`), clip: { x: 0, y: 0, width: 1000, height: 38 } });
     });
   }
 });
