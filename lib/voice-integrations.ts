@@ -44,7 +44,7 @@ export function meetingMarkdown(d: VoiceSessionDetail, labels: MeetingLabels, op
     if (e.summary) out.push(`## ${labels.summary}`, '', e.summary, '');
     for (const s of e.sections) {
       if (!s.points.length) continue;
-      out.push(`## ${s.heading}`, '', ...s.points.map((p) => `- ${p.text}`), '');
+      out.push(`## ${s.heading}`, '', ...s.points.map((p) => `${p.level ? '  ' : ''}- ${p.text}`), '');
     }
     if (e.decisions.length) out.push(`## ${labels.decisions}`, '', ...e.decisions.map((x) => `- ${x}`), '');
     if (e.actionItems.length) {
@@ -76,7 +76,7 @@ export function meetingPlainText(d: VoiceSessionDetail, labels: MeetingLabels): 
   };
   if (e) {
     if (e.summary) block(labels.summary, [e.summary]);
-    for (const s of e.sections) block(s.heading, s.points.map((p) => `• ${p.text}`));
+    for (const s of e.sections) block(s.heading, s.points.map((p) => `${p.level ? '    ◦' : '•'} ${p.text}`));
     block(labels.decisions, e.decisions.map((x) => `• ${x}`));
     block(
       labels.actionItems,

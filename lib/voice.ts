@@ -591,6 +591,19 @@ export async function saveEnhanced(sessionId: string, enhanced: VoiceEnhanced): 
   return now;
 }
 
+/**
+ * Guarda la nota mejorada editada a mano: no cambia la fecha de la nota con
+ * IA (no es una nota nueva) ni lo que ya se mandó con los próximos pasos.
+ */
+export async function saveEditedEnhanced(sessionId: string, edit: Pick<VoiceEnhanced, 'summary' | 'sections'>): Promise<VoiceEnhanced | null> {
+  const row = (await getDb().prepare('SELECT enhanced FROM voice_notes WHERE session_id = ?').get(sessionId)) as { enhanced: string | null } | undefined;
+  const current = parseJson<VoiceEnhanced | null>(row?.enhanced, null);
+  if (!current) return null;
+  const next: VoiceEnhanced = { ...current, summary: edit.summary, sections: edit.sections };
+  await getDb().prepare('UPDATE voice_notes SET enhanced = ?, updated_at = ? WHERE session_id = ?').run(JSON.stringify(next), nowIso(), sessionId);
+  return next;
+}
+
 export async function saveChat(sessionId: string, chat: VoiceChatMessage[]): Promise<void> {
   await getDb()
     .prepare(

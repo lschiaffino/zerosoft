@@ -178,6 +178,8 @@ export interface VoiceEnhancedPoint {
   text: string;
   /** De dónde salió: lo que escribió la persona o la transcripción. */
   source: 'mine' | 'transcript';
+  /** 1 = viñeta adentro de la anterior (un detalle). */
+  level?: 0 | 1;
 }
 
 export interface VoiceEnhanced {

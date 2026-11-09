@@ -189,7 +189,7 @@ const enhancedSchema = z.object({
   sections: z.array(
     z.object({
       heading: z.string(),
-      points: z.array(z.object({ text: z.string(), source: z.enum(['mine', 'transcript']) })),
+      points: z.array(z.object({ text: z.string(), source: z.enum(['mine', 'transcript']), level: z.number().int().min(0).max(1) })),
     }),
   ),
   decisions: z.array(z.string()),
@@ -222,7 +222,11 @@ export function fakeEnhanced(myNotes: string, transcript: string, headings: stri
     sections: [
       {
         heading: headings[0] ?? 'Notes',
-        points: [...mine.map((text) => ({ text, source: 'mine' as const })), ...[...new Set(sentences.map((s) => s.text))].slice(0, 3).map((text) => ({ text, source: 'transcript' as const }))],
+        // Lo de la transcripción va como detalle de lo que escribió la persona (viñetas anidadas).
+        points: [
+          ...mine.map((text) => ({ text, source: 'mine' as const, level: 0 as const })),
+          ...[...new Set(sentences.map((s) => s.text))].slice(0, 3).map((text) => ({ text, source: 'transcript' as const, level: (mine.length ? 1 : 0) as 0 | 1 })),
+        ],
       },
     ],
     decisions,
@@ -236,7 +240,8 @@ export function enhanceInstructions(opts: { templateInstructions: string; locale
     'Inputs: the notes the user typed during the meeting (short, partial) and the transcript ("Me" is the user).',
     'Expand the user\'s notes with what was said: keep every point the user wrote (mark those points source "mine"), fill the gaps from the transcript (source "transcript"). Never invent facts, numbers or names that are not in the inputs.',
     opts.templateInstructions,
-    'Points are short sentences. Also return: a two or three sentence summary, the decisions taken, and action items with owner (a name from the transcript, or "" if unclear) and due date as said (or "").',
+    'Points are short sentences. Use level 0 for a main point and level 1 for a detail that belongs under the point right before it; keep nesting to that one level.',
+    'Also return: a two or three sentence summary, the decisions taken, and action items with owner (a name from the transcript, or "" if unclear) and due date as said (or "").',
     `Write in the language of the transcript; if unclear, ${LANG_NAME[opts.locale] ?? 'English'}.`,
     `Meeting: ${opts.title || 'untitled'}${opts.when ? `, ${opts.when}` : ''}${opts.attendees ? `, with ${opts.attendees}` : ''}.`,
   ].join('\n');
@@ -270,7 +275,11 @@ export async function enhanceMeeting(opts: {
   const out = res.output as VoiceEnhanced;
   return {
     summary: out.summary.slice(0, 4000),
-    sections: out.sections.slice(0, 20).map((s) => ({ heading: s.heading.slice(0, 200), points: s.points.slice(0, 60) })),
+    sections: out.sections.slice(0, 20).map((s) => ({
+      heading: s.heading.slice(0, 200),
+      // Una viñeta anidada sin una principal antes queda como principal.
+      points: s.points.slice(0, 60).map((p, i) => ({ text: p.text, source: p.source, level: (p.level === 1 && i > 0 ? 1 : 0) as 0 | 1 })),
+    })),
     decisions: out.decisions.slice(0, 40),
     actionItems: out.actionItems.slice(0, 40),
   };

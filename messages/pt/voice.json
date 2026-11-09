@@ -170,7 +170,11 @@
     "noProjects": "Crie um projeto no Track para enviar issues.",
     "sentTrack": "{count, plural, one {# issue criada:} other {# issues criadas:}}",
     "sentCrm": "{count, plural, one {# tarefa criada.} other {# tarefas criadas.}}",
-    "openTasks": "Ver tarefas"
+    "openTasks": "Ver tarefas",
+    "summaryPlaceholder": "Escreva um resumo…",
+    "heading": "Título da seção",
+    "pointMine": "Sua nota",
+    "pointAi": "Nota da transcrição"
   },
   "transcript": {
     "me": "Eu",

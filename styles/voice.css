@@ -788,3 +788,12 @@ span.vc-cite { cursor: default; }
   .vc-askpanel, .vc-livepanel { animation: none; }
   .vc-spin { animation: none; }
 }
+
+/* Notas mejoradas editables en el lugar */
+.vc-notes-doc { display: flex; flex-direction: column; gap: 22px; }
+.vc-notes-doc section { display: flex; flex-direction: column; }
+.vc-edit { display: block; min-height: 1.5em; outline: none; border-radius: 2px; overflow-wrap: anywhere; white-space: pre-wrap; cursor: text; }
+.vc-edit:focus { background: var(--ui-hover); box-shadow: 0 0 0 3px var(--ui-hover); }
+.vc-edit:empty::before { content: attr(data-placeholder); color: var(--ink-3); }
+.vc-points li.is-sub { margin-left: 20px; list-style-type: circle; }
+.vc-summary { margin: 0; line-height: 1.65; }

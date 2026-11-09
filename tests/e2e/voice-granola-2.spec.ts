@@ -70,6 +70,7 @@ test('documento: el evento de ahora se elige solo, asistentes por empresa, chat 
   await expect(panel.getByRole('button', { name: /Pricing review/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(panel.locator('.vc-people-company')).toContainText(['Fake-guest']);
   await expect(panel).toContainText('Ana Guest');
+  await page.screenshot({ path: test.info().outputPath('live-people.png') });
   // Agregar asistentes: un email nuevo entra con su empresa; se quita con su botón.
   const add = panel.getByRole('combobox', { name: 'Add attendees…' });
   await add.fill('bob@globex.test');
@@ -96,6 +97,7 @@ test('documento: el evento de ahora se elige solo, asistentes por empresa, chat 
   await ask.getByRole('button', { name: 'Say more' }).click();
   await expect(ask.locator('.vc-msg.is-user')).toHaveCount(2, { timeout: 20_000 });
   await expect(ask.locator('.vc-msg.is-assistant')).toHaveCount(2, { timeout: 20_000 });
+  await page.screenshot({ path: test.info().outputPath('live-ask.png') });
 
   // Chat nuevo y el historial con los dos.
   await ask.getByRole('button', { name: 'New chat' }).click();
@@ -121,6 +123,7 @@ test('documento: el evento de ahora se elige solo, asistentes por empresa, chat 
   await page.getByRole('button', { name: 'Live transcript' }).click();
   const live = page.getByTestId('voice-live-panel');
   await expect(live.locator('.vc-seg').first()).toBeVisible({ timeout: 20_000 });
+  await page.screenshot({ path: test.info().outputPath('live-transcript.png') });
   await page.keyboard.press('Escape');
   await expect(live).toBeHidden();
 
@@ -129,6 +132,21 @@ test('documento: el evento de ahora se elige solo, asistentes por empresa, chat 
   await expect(page.getByTestId('voice-enhanced')).toBeVisible({ timeout: 30_000 });
   const view = page.getByTestId('voice-view-chip');
   await expect(view).toContainText('Enhanced notes');
+  await page.screenshot({ path: test.info().outputPath('enhanced.png'), fullPage: true });
+  // Las notas mejoradas se editan en el lugar: Enter suma una viñeta tuya, Tab la anida y se guarda sola.
+  const firstPoint = page.getByTestId('voice-enhanced').locator('.vc-points li .vc-edit').first();
+  await firstPoint.click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Send the contract on Friday');
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('voice-enhanced').locator('li.is-sub.is-mine').filter({ hasText: 'Send the contract on Friday' })).toBeVisible();
+  await expect
+    .poll(async () => {
+      const d = (await (await page.request.get(`/api/voice/sessions/${id}`)).json()) as { enhanced: { sections: Array<{ points: Array<{ text: string; source: string; level?: number }> }> } };
+      return d.enhanced.sections.flatMap((x) => x.points).find((x) => x.text === 'Send the contract on Friday') ?? null;
+    }, { timeout: 10_000 })
+    .toEqual({ text: 'Send the contract on Friday', source: 'mine', level: 1 });
   await view.click();
   await page.getByRole('menuitemradio', { name: 'My notes' }).click();
   await expect(page.getByRole('textbox', { name: 'My notes' })).toBeVisible();
@@ -153,6 +171,7 @@ test('recipes: biblioteca con los tuyos compartidos, correrlos, editarlos y borr
   const lib = page.getByTestId('voice-recipe-library');
   await expect(lib.getByRole('heading', { name: 'Built in' })).toBeVisible();
   await expect(lib.getByText('/Write TL;DR')).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath('library.png') });
   const name = `Risks ${uid()}`;
   await lib.getByRole('button', { name: 'New recipe' }).click();
   await lib.getByRole('textbox', { name: 'Name' }).fill(name);
@@ -217,6 +236,7 @@ test('email de seguimiento: se escribe solo, se copia o abre Gmail, y sale desde
   await expect(fu.getByRole('textbox', { name: 'To' })).toHaveValue('ana@acme.test');
   await expect(fu.getByRole('link', { name: 'Open in Gmail' })).toHaveAttribute('href', /mail\.google\.com.*to=ana%40acme\.test/);
   await expect(fu.getByRole('link', { name: 'Connect your email' })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath('followup.png') });
   await fu.getByRole('button', { name: 'Copy' }).click();
   await expect(fu.getByText('Copied.')).toBeVisible();
 
@@ -282,9 +302,11 @@ test('carpeta desde el chip, menú de más acciones con teclado y la página en 
       await page.goto(`/en/app/voice/meetings/${id}`, { waitUntil: 'networkidle' });
       await expect(page.getByRole('textbox', { name: 'Meeting title' })).toHaveValue(title);
       await noHorizontalScroll(page, `${scheme} ${width}`);
+      await page.screenshot({ path: test.info().outputPath(`doc-${scheme}-${width}.png`) });
       await page.getByRole('combobox', { name: 'Ask about this meeting' }).click();
       await expect(page.getByTestId('voice-ask-panel')).toBeVisible();
       await noHorizontalScroll(page, `${scheme} ${width} ask`);
+      await page.screenshot({ path: test.info().outputPath(`ask-${scheme}-${width}.png`) });
       // El panel entra en la pantalla.
       const box = await page.getByTestId('voice-ask-panel').boundingBox();
       expect(box!.x).toBeGreaterThanOrEqual(0);
@@ -292,6 +314,7 @@ test('carpeta desde el chip, menú de más acciones con teclado y la página en 
       await page.keyboard.press('Escape');
       await page.getByTestId('voice-people-chip').click();
       await noHorizontalScroll(page, `${scheme} ${width} people`);
+      await page.screenshot({ path: test.info().outputPath(`people-${scheme}-${width}.png`) });
       await page.keyboard.press('Escape');
     }
   }

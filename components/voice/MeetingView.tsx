@@ -849,7 +849,7 @@ export default function MeetingView({
 
         <section className="vc-doc-body" aria-label={showingEnhanced ? t('aiNotes') : t('myNotes')}>
           {showingEnhanced ? (
-            <EnhancedNotes sessionId={d.id} enhanced={d.enhanced!} hasContact={!!d.contactId} />
+            <EnhancedNotes sessionId={d.id} enhanced={d.enhanced!} hasContact={!!d.contactId} onSaveState={setSaveState} />
           ) : (
             <textarea
               className="vc-doc-notes"

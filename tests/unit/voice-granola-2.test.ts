@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSession, getSessionDetail, saveChunkSegments, type VoiceOwner } from '@/lib/voice';
+import { createSession, getSessionDetail, saveChunkSegments, saveEnhanced, type VoiceOwner } from '@/lib/voice';
+import { fakeEnhanced } from '@/lib/voice-ai';
+import { meetingMarkdown } from '@/lib/voice-integrations';
+import { meetingLabels } from '@/lib/voice-http';
 import { attendeeGroups, companyFromDomain, currentCalendarEvent, isFreshMeeting, localDayWindow } from '@/lib/voice-people';
 import { chatThreads } from '@/lib/voice-threads';
 import { threadMessages, withAttachment } from '@/lib/voice-service';
@@ -18,6 +21,7 @@ vi.mock('@/lib/session', () => ({
 
 const chatRoute = await import('@/app/api/voice/sessions/[id]/chat/route');
 const assistRoute = await import('@/app/api/voice/sessions/[id]/assist/route');
+const sessionRoute = await import('@/lib/routes/voice/sessions/[id]/route');
 
 beforeEach(() => {
   vi.stubEnv('VOICE_AI_FAKE', '1');
@@ -178,5 +182,42 @@ describe('follow-up email from the connected mailbox', () => {
     res = await assistRoute.POST(req('POST', { kind: 'send', followup }), ctx);
     expect(res.status).toBe(404);
     await expect(sendFollowup({ workspaceId: other.id, personId: other.id }, id, followup)).rejects.toThrow('not_found');
+  });
+});
+
+describe('enhanced notes edited in place', () => {
+  it('nests transcript details under your lines and keeps edits without touching the AI date or what was sent', async () => {
+    const fake = fakeEnhanced('Pricing per seat', '[00:01] Them: We want annual billing.', ['Notes']);
+    expect(fake.sections[0].points.map((p) => [p.source, p.level])).toEqual([
+      ['mine', 0],
+      ['transcript', 1],
+    ]);
+
+    const u = await makeUser('g2-edit');
+    session.user = { id: u.id, email: u.email, role: 'owner' };
+    const o: VoiceOwner = { workspaceId: u.id, personId: u.id };
+    const id = await meeting(o, ['We want annual billing.']);
+    const ctx = { params: Promise.resolve({ id }) };
+    // Sin nota mejorada no hay nada que editar.
+    let res = await sessionRoute.PATCH(req('PATCH', { enhanced: { summary: 'x', sections: [] } }), ctx);
+    expect(res.status).toBe(400);
+
+    await saveEnhanced(id, { ...fake, sent: { crm: [{ id: 't1', label: 'Task' }] } });
+    const before = await getSessionDetail(o, id);
+    const edit = {
+      summary: 'Edited summary',
+      sections: [{ heading: 'Pricing', points: [{ text: 'Per seat', source: 'mine', level: 0 }, { text: 'Annual billing', source: 'transcript', level: 1 }] }],
+    };
+    res = await sessionRoute.PATCH(req('PATCH', { enhanced: edit }), ctx);
+    expect(res.status).toBe(200);
+    const after = await getSessionDetail(o, id);
+    expect(after?.enhanced?.summary).toBe('Edited summary');
+    expect(after?.enhanced?.sections[0].points[1]).toEqual({ text: 'Annual billing', source: 'transcript', level: 1 });
+    expect(after?.enhanced?.sent?.crm).toHaveLength(1);
+    expect(after?.enhancedAt).toBe(before?.enhancedAt);
+    expect(meetingMarkdown(after!, meetingLabels('en'))).toContain('- Per seat\n  - Annual billing');
+    // Un nivel inventado no entra.
+    res = await sessionRoute.PATCH(req('PATCH', { enhanced: { ...edit, sections: [{ heading: 'x', points: [{ text: 'y', source: 'mine', level: 3 }] }] } }), ctx);
+    expect(res.status).toBe(400);
   });
 });

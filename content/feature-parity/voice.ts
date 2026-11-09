@@ -240,9 +240,9 @@ const parity: ProductParity = {
     row('enhanced-notes', 'notes', ['AI notes from your notes and the transcript', 'Notas con IA a partir de lo escrito y la transcripción', 'Notas com IA a partir do que você escreveu e da transcrição'], 'have', {
       weight: 2,
       detail: [
-        "AI combines your notes with the transcript and the template; your own lines stay marked",
-        "La IA combina tus notas con la transcripción y la plantilla; tus líneas quedan marcadas",
-        "A IA junta suas notas com a transcrição e o modelo; suas linhas ficam marcadas",
+        "AI combines your notes with the transcript and the template in headings and nested bullets; your own lines stay in ink and the AI ones in gray. The note is edited in place like a document (Enter adds a bullet, Tab nests it) and saves itself",
+        "La IA combina tus notas con la transcripción y la plantilla en títulos y viñetas anidadas; tus líneas quedan en tinta y las de la IA en gris. La nota se edita en el lugar como un documento (Enter suma una viñeta, Tab la anida) y se guarda sola",
+        "A IA junta suas notas com a transcrição e o modelo em títulos e marcadores aninhados; suas linhas ficam em tinta e as da IA em cinza. A nota é editada no lugar como um documento (Enter adiciona um marcador, Tab aninha) e se salva sozinha",
       ],
     }),
     row('note-templates', 'notes', ['Note templates', 'Plantillas de notas', 'Modelos de notas'], 'have', {
