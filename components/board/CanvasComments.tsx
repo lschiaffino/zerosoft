@@ -355,6 +355,7 @@ export default function CanvasComments({
               }
             }}
             aria-label={t('pinLabel', { n: th.n, count: th.comments.length })}
+            aria-haspopup="dialog"
             aria-expanded={th.id === activeId}
           >
             {th.n}

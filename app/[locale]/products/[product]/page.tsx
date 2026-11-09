@@ -2,16 +2,17 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import ProductPage from '@/components/products/ProductPage';
 import { pageMetadata } from '@/lib/seo';
-import { PRODUCT_KEYS, isProductKey } from '@/lib/products';
+import { PRODUCT_KEYS, productHref, productKeyFromSlug, productSlug } from '@/lib/products';
 import '@/styles/pages.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string; product: string }> }) {
-  const { locale, product } = await props.params;
-  if (!isProductKey(product)) return {};
+  const { locale, product: slug } = await props.params;
+  const product = productKeyFromSlug(slug);
+  if (!product) return {};
   const t = await getTranslations({ locale, namespace: `pages.products.${product}.meta` });
   return pageMetadata({
     locale,
-    path: `/products/${product}`,
+    path: productHref(product),
     title: t('title'),
     description: t('description'),
     image: `/api/og/product/${product}/${locale}`,
@@ -23,7 +24,7 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  return PRODUCT_KEYS.map((product) => ({ product }));
+  return PRODUCT_KEYS.map((key) => ({ product: productSlug(key) }));
 }
 
 export default async function Page(
@@ -33,12 +34,10 @@ export default async function Page(
 ) {
   const params = await props.params;
 
-  const {
-    locale,
-    product
-  } = params;
+  const { locale } = params;
 
   setRequestLocale(locale);
-  if (!isProductKey(product)) notFound();
+  const product = productKeyFromSlug(params.product);
+  if (!product) notFound();
   return <ProductPage locale={locale} product={product} />;
 }

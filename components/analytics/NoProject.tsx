@@ -9,10 +9,10 @@ export default async function NoProject({ title, canManage }: { title: string; c
     <div className="app-page ui-page an-page">
       <PageHeader title={title} />
       <EmptyState
-        product="analytics"
+        product="pulse"
         title={t('title')}
         body={canManage ? t('body') : t('bodyMember')}
-        action={canManage ? { label: t('create'), href: '/app/analytics/projects?new=1' } : undefined}
+        action={canManage ? { label: t('create'), href: '/app/pulse/projects?new=1' } : undefined}
       />
     </div>
   );

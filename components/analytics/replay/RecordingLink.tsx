@@ -51,7 +51,7 @@ export function RecordingLink({ recordings, sessionId }: { recordings: Record<st
   const id = typeof sessionId === 'string' ? recordings[sessionId] : undefined;
   if (!id) return null;
   return (
-    <Link href={`/app/analytics/replay/${id}`} className="an-link an-replay-eventlink" data-testid="an-event-recording">
+    <Link href={`/app/pulse/replay/${id}`} className="an-link an-replay-eventlink" data-testid="an-event-recording">
       {t('watch')}
     </Link>
   );

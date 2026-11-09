@@ -108,7 +108,7 @@ export default function FlagEditor({ projectId, flag, publicKey, cohorts = [], c
   return (
     <div className="app-page ui-page an-page">
       <PageHeader
-        back={{ href: '/app/analytics/flags', label: t('title') }}
+        back={{ href: '/app/pulse/flags', label: t('title') }}
         title={flag.key}
         description={flag.name || undefined}
         actions={
@@ -305,7 +305,7 @@ export default function FlagEditor({ projectId, flag, publicKey, cohorts = [], c
           try {
             await api(`/api/analytics/flags/${flag.id}`, { method: 'DELETE' });
             notifyChanged();
-            router.replace('/app/analytics/flags');
+            router.replace('/app/pulse/flags');
           } catch (err) {
             setBusy(false);
             setDeleting(false);

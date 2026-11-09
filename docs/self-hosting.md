@@ -86,10 +86,10 @@ Self-hosted, you bring your own:
   assistant, `OPENROUTER_API_KEY`. Set `AI_FREE_TOKENS_PER_MONTH=unlimited` so
   your own key isn't capped by the cloud quota. Without a key, AI features are
   off and the rest of the app works.
-- **WhatsApp for Groups.** Connect a number through the WhatsApp Cloud API
+- **WhatsApp for Lines.** Connect a number through the WhatsApp Cloud API
   (Meta) or your own [WAHA](https://waha.devlike.pro) or
   [Evolution API](https://github.com/EvolutionAPI/evolution-api) server from the
-  Groups settings. The "managed" option uses our server and is only available
+  Lines settings. The "managed" option uses our server and is only available
   on the cloud (`GROUPS_BRIDGE_URL` and `GROUPS_BRIDGE_KEY` point at it).
 - **Email.** Set `RESEND_API_KEY` and `EMAIL_FROM`. Without it, emails are
   logged to the console.

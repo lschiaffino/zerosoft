@@ -207,9 +207,9 @@ export default function ChatDetails({
       const i = inbox.rows.findIndex((r) => r.id === chat.id);
       const next = inbox.rows.filter((r) => r.id !== chat.id)[Math.max(0, i)] ?? null;
       inbox.refresh();
-      router.push(next ? `/app/groups/inbox/${next.id}` : '/app/groups/inbox');
+      router.push(next ? `/app/lines/inbox/${next.id}` : '/app/lines/inbox');
     } else {
-      router.push('/app/groups/list');
+      router.push('/app/lines/list');
       router.refresh();
     }
   }
@@ -277,7 +277,7 @@ export default function ChatDetails({
 
       {compact && isGroup && (
         <p className="gr-detail-link">
-          <Link href={`/app/groups/list/${chat.id}`}>{t('details.openGroup')}</Link>
+          <Link href={`/app/lines/list/${chat.id}`}>{t('details.openGroup')}</Link>
         </p>
       )}
 
@@ -285,7 +285,7 @@ export default function ChatDetails({
         <h3 className="gr-detail-title">{t('details.labels')}</h3>
         {labels.length === 0 ? (
           <p className="ui-help">
-            {t('details.noLabels')} <Link href="/app/groups/settings?tab=labels">{t('details.manageLabels')}</Link>
+            {t('details.noLabels')} <Link href="/app/lines/settings?tab=labels">{t('details.manageLabels')}</Link>
           </p>
         ) : (
           <div className="gr-label-picker">
@@ -456,7 +456,7 @@ export default function ChatDetails({
                 </button>
               )}
               {compact && !memberQ && members.length > 30 && (
-                <Link href={`/app/groups/list/${chat.id}`} className="ui-help">
+                <Link href={`/app/lines/list/${chat.id}`} className="ui-help">
                   {t('details.allMembers', { n: members.length })}
                 </Link>
               )}
@@ -509,7 +509,7 @@ export default function ChatDetails({
           <ul className="gr-mini-list">
             {tickets.slice(0, 8).map((tk) => (
               <li key={tk.id}>
-                <Link href={`/app/groups/tickets?open=${tk.id}`}>
+                <Link href={`/app/lines/tickets?open=${tk.id}`}>
                   #{tk.number} {tk.title}
                 </Link>
                 <span className={`badge ${tk.breached ? 'badge-bad' : 'badge-outline'}`}>{t(`ticketStatus.${tk.status}`)}</span>

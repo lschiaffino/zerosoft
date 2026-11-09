@@ -18,7 +18,7 @@ search (Cmd+K) and one settings page.
 | Track | Linear | `/app/track` |
 | Board | Miro | `/app/board` |
 | Design | Canva | `/app/design` |
-| Analytics | PostHog | `/app/analytics` |
+| Pulse | PostHog | `/app/pulse` |
 
 **Sell**
 
@@ -36,7 +36,7 @@ search (Cmd+K) and one settings page.
 | App | Replaces | Path |
 | --- | --- | --- |
 | Chat | Intercom | `/app/chat` |
-| Groups | Periskope (WhatsApp groups) | `/app/groups` |
+| Lines | Periskope (WhatsApp groups) | `/app/lines` |
 
 **Automate**
 

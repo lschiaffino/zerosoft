@@ -47,7 +47,7 @@
     "error": "Recordings didn't load. Try again.",
     "loading": "Loading recordings",
     "deleteTitle": "Delete this recording?",
-    "deleteBody": "The recording is removed for good. The events of the session stay in Analytics.",
+    "deleteBody": "The recording is removed for good. The events of the session stay in Pulse.",
     "deleteRow": "Delete recording of {name}",
     "deleteAdminsOnly": "Only admins can delete recordings",
     "personEmpty": "No recordings of this person.",

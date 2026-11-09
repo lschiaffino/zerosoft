@@ -42,7 +42,7 @@ export async function analyticsActor(req: NextRequest | Request, need: 'read' | 
   }
   const user = await getCurrentUser();
   if (!user) return aError(401, 'unauthorized');
-  if (!userCanUseApp(user, 'analytics') || user.role === 'guest') return aError(403, 'forbidden');
+  if (!userCanUseApp(user, 'pulse') || user.role === 'guest') return aError(403, 'forbidden');
   return { workspaceId: user.id, personId: user.actingUser?.id ?? user.id, role: user.role, user };
 }
 

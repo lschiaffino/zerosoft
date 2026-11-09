@@ -454,7 +454,7 @@ describe('analytics: segunda revisión de QA', () => {
     await ingest(last, [{ event: '$exception', distinct_id: 'a', properties: { $exception_type: 'TypeError', $exception_message: 'Cannot read cartTotal of undefined' } }]);
     const found = await searchApps({ id: user.id, role: 'owner' }, 'cartTotal');
     const hit = found.find((x) => x.label.includes('cartTotal'));
-    expect(hit?.href).toMatch(new RegExp(`/app/analytics/errors/${last.id}~`));
+    expect(hit?.href).toMatch(new RegExp(`/app/pulse/errors/${last.id}~`));
     expect((await searchApps({ id: user.id, role: 'owner' }, 'TypeError')).some((x) => x.label.includes('cartTotal'))).toBe(true);
     // De otro workspace no aparece.
     const stranger = await upsertUser({ email: `an-search-${nanoid(8)}@test.dev` });

@@ -170,7 +170,7 @@ test('media por Evolution: subir y mandar imagen y documento, recibir imagen, no
     expect(Buffer.from(await voice.body())).toEqual(OGG);
 
     // En el chat: las imágenes (mandada y recibida) y el documento recibido.
-    await page.goto(`/en/app/groups/inbox/${chatId}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/lines/inbox/${chatId}`, { waitUntil: 'networkidle' });
     await expect(page.getByRole('heading', { level: 2, name: 'Marta Media' })).toBeVisible();
     await expect(page.locator('.gr-messages img')).toHaveCount(2);
     await expect(page.locator('.gr-messages').getByText('Factura 0042.pdf')).toBeVisible();
