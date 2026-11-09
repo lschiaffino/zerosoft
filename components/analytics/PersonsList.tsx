@@ -38,7 +38,7 @@ export default function PersonsList({
     try {
       const { cohort } = await api<{ cohort: { id: string } }>('/api/analytics/cohorts', { body: { projectId, name, definition: { type: 'static', properties: [], behavior: null, groups: [] } } });
       await api(`/api/analytics/cohorts/${cohort.id}/members`, { body: { ids: (ids ?? '').split(',').filter(Boolean) } });
-      router.push(`/app/analytics/cohorts?open=${cohort.id}`);
+      router.push(`/app/pulse/cohorts?open=${cohort.id}`);
     } catch {
       setSaveMsg(t('saveCohortError'));
     } finally {
@@ -110,7 +110,7 @@ export default function PersonsList({
         )}
         <NameDialog open={asking} title={t('saveCohort')} label={t('cohortName')} submitLabel={t('saveCohort')} busy={saving} onClose={() => setAsking(false)} onSubmit={(n) => void saveCohort(n)} />
         {(cohortId || ids) && (
-          <Link href="/app/analytics/persons" className="an-link">
+          <Link href="/app/pulse/persons" className="an-link">
             {t('clearFilter')}
           </Link>
         )}
@@ -121,7 +121,7 @@ export default function PersonsList({
         </p>
       )}
       {persons.length === 0 ? (
-        <EmptyState product="analytics" compact title={q ? t('noMatch') : t('emptyTitle')} body={q ? undefined : t('emptyBody')} />
+        <EmptyState product="pulse" compact title={q ? t('noMatch') : t('emptyTitle')} body={q ? undefined : t('emptyBody')} />
       ) : (
         <div className="table-wrap table-stack">
           <table className="table table-compact an-table">
@@ -138,7 +138,7 @@ export default function PersonsList({
               {persons.map((p) => (
                 <tr key={p.id}>
                   <td>
-                    <Link href={`/app/analytics/persons/${p.id}`} className="an-row-link">
+                    <Link href={`/app/pulse/persons/${p.id}`} className="an-row-link">
                       {personLabel(p)}
                     </Link>
                     {p.isIdentified && <span className="badge badge-outline an-badge">{t('identified')}</span>}

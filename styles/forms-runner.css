@@ -301,3 +301,8 @@
   .fr-scale { grid-auto-flow: row; grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .fr-rating { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
+
+/* "Apretá Enter": en un teléfono no hay teclado físico, el botón OK alcanza. */
+@media (hover: none) and (pointer: coarse) {
+  .fr-hint { display: none; }
+}

@@ -215,7 +215,7 @@ function Tile({
   return (
     <article className={`an-tile an-panel is-${tile.size ?? 'm'}`} aria-label={insight.name}>
       <header className="an-tile-head">
-        <Link href={`/app/analytics/insights/${insight.id}`} className="an-tile-title">
+        <Link href={`/app/pulse/insights/${insight.id}`} className="an-tile-title">
           {insight.name}
         </Link>
         <span className="an-muted an-small an-hide-sm">{te(`kinds.${insight.kind}`)}</span>
@@ -489,7 +489,7 @@ export default function DashboardView({
       const { dashboard: created } = await api<{ dashboard: { id: string } }>('/api/analytics/dashboards', { body: { projectId, name: t('copyName', { name: dashboard.name.slice(0, 180) }), description: dashboard.description } });
       await api(`/api/analytics/dashboards/${created.id}`, { method: 'PATCH', body: { insightIds: dashboard.insightIds, settings } });
       notifyChanged();
-      router.push(`/app/analytics/dashboards/${created.id}`);
+      router.push(`/app/pulse/dashboards/${created.id}`);
     } catch (err) {
       setError(apiErrorText(err, tc));
     } finally {
@@ -500,7 +500,7 @@ export default function DashboardView({
   return (
     <div className="app-page ui-page an-page">
       <PageHeader
-        back={{ href: '/app/analytics/dashboards', label: t('title') }}
+        back={{ href: '/app/pulse/dashboards', label: t('title') }}
         title={dashboard.name}
         description={dashboard.description || undefined}
         actions={
@@ -599,10 +599,10 @@ export default function DashboardView({
       </details>
       {layout.length === 0 ? (
         <EmptyState
-          product="analytics"
+          product="pulse"
           title={t('tileEmptyTitle')}
           body={allInsights.length ? t('tileEmptyBody') : t('tileEmptyBodyNoInsights')}
-          action={{ label: t('newInsight'), href: '/app/analytics/insights/new' }}
+          action={{ label: t('newInsight'), href: '/app/pulse/insights/new' }}
         />
       ) : (
         <div className="an-tiles">
@@ -690,7 +690,7 @@ export default function DashboardView({
           try {
             await api(`/api/analytics/dashboards/${dashboard.id}`, { method: 'DELETE' });
             notifyChanged();
-            router.replace('/app/analytics/dashboards');
+            router.replace('/app/pulse/dashboards');
           } catch (err) {
             setError(errorText(err));
             setDeleting(false);

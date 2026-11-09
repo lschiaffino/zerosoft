@@ -20,14 +20,14 @@ function points(values: readonly number[]): string {
  * embudo de tres pasos. Todo HTML, CSS y SVG.
  */
 export default function AnalyticsMockup() {
-  const t = useTranslations('pages.mockups.analytics');
+  const t = useTranslations('pages.mockups.pulse');
 
   return (
     <div className="mk mk-link">
       <aside className="mk-side">
         <div className="mk-brand">
           <ZeroMark size={16} />
-          <span>Analytics</span>
+          <span>Pulse</span>
         </div>
         <nav className="mk-nav" aria-hidden="true">
           <span>{t('navWeb')}</span>

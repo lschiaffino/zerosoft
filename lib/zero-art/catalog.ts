@@ -27,7 +27,7 @@ export const PRODUCT_FIGURES: Record<ProductKey, FigureRef> = {
   talk: ['paper', 'talk'],
   design: ['shapes', 'design'],
   shop: ['shapes', 'shop'],
-  analytics: ['chart', 'bars'],
+  pulse: ['chart', 'bars'],
   social: ['days', 'social'],
   hiring: ['board', 'hiring'],
   people: ['days', 'people'],

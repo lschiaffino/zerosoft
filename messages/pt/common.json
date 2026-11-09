@@ -39,7 +39,7 @@
       "talk": "Canais, mensagens diretas e huddles",
       "shop": "Loja online com checkout e pedidos",
       "design": "Design gráfico a partir de modelos, com sua marca",
-      "analytics": "Analytics de produto e feature flags",
+      "pulse": "Analytics de produto e feature flags",
       "social": "Agendamento, caixa de entrada e métricas de redes sociais",
       "people": "Diretório, folgas e avaliações",
       "hiring": "Recrutamento com página de vagas",
@@ -191,12 +191,12 @@
     "groupAssistantChats": "Conversas do assistente",
     "groupDesigns": "Designs",
     "groupDesignFolders": "Pastas do Design",
-    "groupAnalyticsInsights": "Insights do Analytics",
-    "groupAnalyticsDashboards": "Painéis do Analytics",
-    "groupAnalyticsFlags": "Feature flags do Analytics",
-    "groupAnalyticsSurveys": "Pesquisas do Analytics",
-    "groupAnalyticsCohorts": "Coortes do Analytics",
-    "groupAnalyticsProjects": "Projetos do Analytics",
+    "groupAnalyticsInsights": "Insights do Pulse",
+    "groupAnalyticsDashboards": "Painéis do Pulse",
+    "groupAnalyticsFlags": "Feature flags do Pulse",
+    "groupAnalyticsSurveys": "Pesquisas do Pulse",
+    "groupAnalyticsCohorts": "Coortes do Pulse",
+    "groupAnalyticsProjects": "Projetos do Pulse",
     "groupSocialPosts": "Publicações do Social",
     "groupSocialLibrary": "Biblioteca do Social",
     "yourApps": "Seus apps",
@@ -279,7 +279,7 @@
     "design": {
       "desc": "Posts, apresentações e documentos a partir de modelos."
     },
-    "analytics": {
+    "pulse": {
       "desc": "Eventos, funis, retenção e feature flags para o seu produto."
     },
     "social": {
@@ -518,7 +518,7 @@
       "design": {
         "line": "Posts, apresentações e documentos a partir de modelos."
       },
-      "analytics": {
+      "pulse": {
         "line": "Analytics de produto, analytics web e feature flags."
       },
       "building": "Em construção · como {rival}",

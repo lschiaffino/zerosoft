@@ -410,7 +410,7 @@ function StepPaths({ query, step }: { query: FunnelQuery; step: number }) {
   const n = query.steps.length;
   const href = (mode: FunnelPathMode) => {
     const paths = { kind: 'paths', dateRange: query.dateRange, steps: 4, source: 'all', funnel: { query, step, mode } };
-    return `/app/analytics/insights/new?query=${encodeURIComponent(JSON.stringify(paths))}`;
+    return `/app/pulse/insights/new?query=${encodeURIComponent(JSON.stringify(paths))}`;
   };
   const modes: FunnelPathMode[] = [
     'before',
@@ -670,7 +670,7 @@ function nodeStep(node: string) {
 
 function funnelFromPath(path: string[]): string {
   const steps = (path.length >= 2 ? path.slice(0, 10) : [path[0], path[0]]).map(nodeStep);
-  return `/app/analytics/insights/new?query=${encodeURIComponent(JSON.stringify({ kind: 'funnel', steps }))}`;
+  return `/app/pulse/insights/new?query=${encodeURIComponent(JSON.stringify({ kind: 'funnel', steps }))}`;
 }
 
 function Paths({ r, linkFunnels }: { r: PathsResult; linkFunnels?: boolean }) {

@@ -236,7 +236,7 @@ export async function issueDetail(project: ProjectRow, fingerprint: string, quer
 
 /** Personas que pueden ser responsables: gente del workspace con la app Analytics, sin guests. */
 export async function issueAssignees(workspaceId: string): Promise<Array<{ id: string; label: string }>> {
-  const people = await listOwnerSpacePeople(workspaceId, { app: 'analytics' });
+  const people = await listOwnerSpacePeople(workspaceId, { app: 'pulse' });
   return people.filter((p) => p.role !== 'guest').map((p) => ({ id: p.id, label: p.name || p.email }));
 }
 
@@ -327,7 +327,7 @@ async function notifyAssignee(r: { project_id: string; fingerprint: string; assi
     userId: r.assignee_id,
     type: 'analytics_regression',
     title: localized('analyticsRegression', { title }),
-    href: `/app/analytics/errors/${issueRef(r.project_id, r.fingerprint)}`,
+    href: `/app/pulse/errors/${issueRef(r.project_id, r.fingerprint)}`,
     sourceType: 'analytics_error',
     sourceId: `${r.project_id}:${r.fingerprint}`,
   });
