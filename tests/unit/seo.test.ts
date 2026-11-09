@@ -28,16 +28,26 @@ describe('clampDescription', () => {
   });
 });
 
-describe('apps en construcción', () => {
-  it('sin apps en BUILDING_PRODUCTS, ningún texto del sitio dice que una está en construcción', async () => {
-    const { BUILDING_PRODUCTS } = await import('@/lib/products');
+describe('apps "Próximamente"', () => {
+  it('el sitio no dice "en construcción" fuera de las claves de Próximamente', async () => {
     const { readFileSync } = await import('node:fs');
-    expect(BUILDING_PRODUCTS).toHaveLength(0);
     for (const locale of ['en', 'es', 'pt']) {
-      // Las claves "building" son los textos que se usarían si una app volviera a estar en construcción.
+      // Las claves "building" son los textos de las apps Próximamente.
       const common = JSON.parse(readFileSync(`messages/${locale}/common.json`, 'utf8'));
       const text = JSON.stringify(common, (k, v) => (k === 'building' ? undefined : v));
       expect(text, locale).not.toMatch(/In the works|En construcción|Em construção/);
+    }
+  });
+  it('las cuentas de apps del sitio son las disponibles, sin las Próximamente', async () => {
+    const { AVAILABLE_PRODUCT_KEYS, COMING_SOON_APPS, PRODUCT_KEYS } = await import('@/lib/products');
+    const { readFileSync } = await import('node:fs');
+    expect(AVAILABLE_PRODUCT_KEYS.length + COMING_SOON_APPS.length).toBe(PRODUCT_KEYS.length);
+    const words: Record<string, string> = { 18: 'eighteen|dieciocho|dezoito' };
+    const word = words[AVAILABLE_PRODUCT_KEYS.length];
+    expect(word, 'agregá la palabra de la cuenta nueva').toBeTruthy();
+    for (const locale of ['en', 'es', 'pt']) {
+      const tagline = JSON.parse(readFileSync(`messages/${locale}/common.json`, 'utf8')).meta.tagline as string;
+      expect(tagline.toLowerCase(), locale).toMatch(new RegExp(word));
     }
   });
 });

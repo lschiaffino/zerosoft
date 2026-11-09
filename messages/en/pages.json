@@ -1,16 +1,16 @@
 {
   "products": {
     "meta": {
-      "title": "24 open-source business apps: CRM, chat, docs and more",
-      "description": "Twenty-six open-source apps, from CRM and support chat to docs, invoicing and forms. On your own server or on zerosoft Cloud with a free plan."
+      "title": "18 open-source business apps: CRM, docs, links and more",
+      "description": "Eighteen open-source apps, from CRM and short links to docs, e-signatures and forms. On your own server or on zerosoft Cloud with a free plan."
     },
     "hero": {
-      "title1": "Twenty-six apps.",
+      "title1": "Eighteen apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all twenty-six apps.",
+      "title1": "Try all eighteen apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -2302,7 +2302,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Twenty-six apps, same login.",
+    "suiteTitleDim": "Eighteen apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -2357,14 +2357,20 @@
       "kickerCounts": "compared with {competitor}"
     },
     "building": {
-      "badge": "In the works",
-      "tagline": "We are building the open-source alternative to {rival}",
+      "badge": "Coming soon",
+      "tagline": "The open-source alternative to {rival}, still being built",
       "propose": "Propose an idea",
       "roadmap": "See the roadmap",
       "shotFig": "fig. 1 · {name}, design sketch: you can't use it yet",
       "faqTitleDim": "What we know so far and what's missing.",
       "compareZero": "With zerosoft, once it's ready",
-      "zeroApp": "{name} on your server, once it's ready"
+      "zeroApp": "{name} on your server, once it's ready",
+      "waitlistLead": "{name} isn't usable yet and has no date. Leave your email and we'll let you know the day it ships.",
+      "parityNote": "{name} isn't usable yet. The table counts what's already built in the code.",
+      "ctaTitle": "Interested in {name}?",
+      "ctaTitleDim": "We'll tell you when it's ready.",
+      "ctaSub": "Join the {name} waitlist. One email, the day it ships.",
+      "join": "Join the waitlist"
     },
     "heroFig": {
       "link": "fig. 0 · a chain of links",
@@ -3777,7 +3783,7 @@
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across {apps} of the 26 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across the {apps} apps you can use today: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",
@@ -3788,7 +3794,8 @@
       "beyond": "Beyond"
     },
     "method": "Each app counts 1 for an included capability, 0.5 for a partial one and 0 for a missing one, with double weight for core capabilities. It is our own review against the code, updated with every release. Open an app to see its full list.",
-    "notComparable": "Not comparable"
+    "notComparable": "Not comparable",
+    "comingSoon": "Coming soon"
   },
   "desktopLogin": {
     "title": "Sign in to the zerosoft app",
@@ -3928,12 +3935,13 @@
     "relatedTitle": "Guides and posts",
     "otherTitle": "Other comparisons",
     "tryCta": "Try {name}",
-    "productCta": "The {name} page"
+    "productCta": "The {name} page",
+    "waitlistCta": "Join the {name} waitlist"
   },
   "docsMcp": {
     "meta": {
       "title": "Connect Claude and the CLI",
-      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 26 apps as yourself."
+      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 18 apps as yourself."
     }
   }
 }

@@ -12,6 +12,7 @@ import { clientIp, rateLimit } from '../rate-limit';
 import { issuerUrl } from '../oauth/store';
 import type { RouteContext, RouteModule } from '../routes/dispatch';
 import type { Operation } from './catalog';
+import { isComingSoon } from '../products';
 import { credentialAllows, personCanUseApp, resolvePerson, type McpCaller, type ResolvedPerson } from './caller';
 import { runAsDelegated } from './identity';
 import { ROUTE_TABLE } from './route-table.generated';
@@ -304,7 +305,12 @@ export async function invokeOperation(outer: Request, caller: McpCaller, op: Ope
   // 2. La persona, ahora: si salió del workspace o ya no tiene la app, se corta acá.
   const person = await resolvePerson(caller);
   if (!person) throw new OperationError('workspace_access_lost', 'You are no longer part of this workspace. Reconnect and pick another one.');
-  if (!personCanUseApp(person, op.app)) throw new OperationError('app_not_available', `You do not have access to ${op.app} in this workspace.`);
+  if (!personCanUseApp(person, op.app)) {
+    if (op.app !== 'workspace' && isComingSoon(op.app) && person.blockedApps.includes(op.app)) {
+      throw new OperationError('coming_soon', `${op.app} is not available yet. It is coming soon.`);
+    }
+    throw new OperationError('app_not_available', `You do not have access to ${op.app} in this workspace.`);
+  }
   // 3. Lo destructivo pide que el cliente lo confirme explícitamente.
   if (op.access === 'destructive' && opts.confirm !== true) {
     throw new OperationError('confirmation_required', `${op.id} is destructive. Ask the person first, then call again with confirm: true.`);

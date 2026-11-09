@@ -5,7 +5,8 @@ import { isWorkspaceAdmin, requireUser, userCanUseApp } from '@/lib/session';
 import { dayPart, getWorkspaceMode, homeCanUse, normalizeTaskScope } from '@/lib/home';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { featuredApps, moreAppsByCategory, showTeamUi } from '@/lib/workspace-mode';
-import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { APP_SWITCHER_ORDER, comingSoonHref, isComingSoon, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { isStaff } from '@/lib/workspace-apps';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import PageHeader from '@/components/ui/PageHeader';
 import HomeAsk from '@/components/assistant/HomeAsk';
@@ -56,14 +57,19 @@ export default async function PlatformHomePage(props: {
   const admin = isWorkspaceAdmin(user);
   // Solo las apps que la persona tiene en este workspace.
   const can = (k: ProductKey) => homeCanUse(user, k);
-  const featured = featuredApps({ mode }).filter(can);
+  // Las "Próximamente" no cuentan como apps del workspace: van aparte, al final, con su lista de espera.
+  const ready = (k: ProductKey) => can(k) && !isComingSoon(k);
+  const featured = featuredApps({ mode }).filter(ready);
   const more = moreAppsByCategory({ mode })
-    .map((g) => ({ ...g, apps: g.apps.filter(can) }))
+    .map((g) => ({ ...g, apps: g.apps.filter(ready) }))
     .filter((g) => g.apps.length > 0);
   // Apps del workspace (Inbox es personal: la tiene todo el mundo y no cuenta como acceso al workspace).
   const workspaceApps = [...featured, ...more.flatMap((g) => g.apps)].filter((k) => k !== 'inbox');
   // Sin apps no hay nada que invitar a usar ni que importar: solo lo que esa persona puede hacer.
   const showCards = admin && workspaceApps.length > 0;
+  const staff = isStaff(person.email);
+  const soon = APP_SWITCHER_ORDER.filter((k) => isComingSoon(k));
+  const tSoon = await getTranslations({ locale, namespace: 'common.comingSoon' });
   const blockedKey = (await props.searchParams).blocked;
   // El link puede quedar viejo: si ya tiene la app (se la dieron), no hay nada que avisar.
   const blocked = typeof blockedKey === 'string' && blockedKey in PRODUCT_CONFIG && !userCanUseApp(user, blockedKey as ProductKey) ? (blockedKey as ProductKey) : null;
@@ -219,6 +225,25 @@ export default async function PlatformHomePage(props: {
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {soon.length > 0 && (
+        <section className="home-section" aria-labelledby="home-soon">
+          <h2 id="home-soon" className="home-h">
+            {tSoon('badge')}
+          </h2>
+          <ul className="home-more-list home-soon-list" data-testid="home-soon">
+            {soon.map((k) => (
+              <li key={k}>
+                <Link href={staff && userCanUseApp(user, k) ? PRODUCT_CONFIG[k].launch : comingSoonHref(k)} className={`home-more-app card-${k}`}>
+                  <ProductGlyph product={k} size={14} />
+                  <span className="home-more-name">{PRODUCT_CONFIG[k].name}</span>
+                  <span className="home-more-desc">{staff && userCanUseApp(user, k) ? tSoon('previewTag') : tSoon('joinShort')}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </div>

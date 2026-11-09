@@ -8,7 +8,7 @@ import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import CopyButton from '@/components/link/CopyButton';
 import { Link } from '@/i18n/navigation';
-import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { APP_SWITCHER_ORDER, isComingSoon, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import { featuredApps, WORKSPACE_SIZES_LIST, type WorkspaceMode } from '@/lib/workspace-mode';
 
 const ROLES = ['founder', 'sales', 'support', 'marketing', 'engineering', 'product', 'operations', 'design', 'other'] as const;
@@ -220,6 +220,7 @@ export default function WelcomeFlow(props: {
   const [results, setResults] = useState<{ next: string; invites: InviteResult[]; invalid: string[]; limited: boolean } | null>(null);
   const [requested, setRequested] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const [waitlist, setWaitlist] = useState<ProductKey[]>([]);
 
   const steps: Step[] = mode === 'team' ? ['use', 'team', 'you', 'invite', 'start'] : ['use', 'you', 'start'];
   const index = steps.indexOf(step);
@@ -233,8 +234,10 @@ export default function WelcomeFlow(props: {
   const chosenTool = TOOLS.find((x) => x.key === tool);
   const apps: ProductKey[] = (() => {
     const featured = featuredApps({ mode: mode ?? 'team', entryApp: chosenTool?.app ?? null });
-    return [...featured, ...APP_SWITCHER_ORDER.filter((k) => !featured.includes(k))];
+    return [...featured, ...APP_SWITCHER_ORDER.filter((k) => !featured.includes(k))].filter((k) => !isComingSoon(k));
   })();
+  // Las "Próximamente" no se abren: se puede sumar a su lista de espera desde acá.
+  const soonApps = APP_SWITCHER_ORDER.filter((k) => isComingSoon(k));
 
   function next() {
     setError(null);
@@ -274,6 +277,7 @@ export default function WelcomeFlow(props: {
         sourceTool: tool || undefined,
         entryApp: entry || undefined,
         sampleData: sample,
+        waitlist: waitlist.length ? waitlist : undefined,
         importNow,
         locale,
         timeZone: tz,
@@ -513,7 +517,7 @@ export default function WelcomeFlow(props: {
                     checked={tool === x.key}
                     onChange={() => {
                       setTool(x.key);
-                      if (!entry) setEntry(x.app);
+                      if (!entry && !isComingSoon(x.app)) setEntry(x.app);
                     }}
                   />
                   <span>{x.name}</span>
@@ -533,6 +537,27 @@ export default function WelcomeFlow(props: {
               ))}
             </div>
           </fieldset>
+          {soonApps.length > 0 && (
+            <fieldset className="st-fieldset">
+              <legend className="label">{t('start.soon')}</legend>
+              <p className="ui-help">{t('start.soonHelp')}</p>
+              <div className="wl-apps" data-testid="welcome-soon">
+                {soonApps.map((k) => (
+                  <label key={k} className={`wl-app${waitlist.includes(k) ? ' is-on' : ''}`}>
+                    <input
+                      type="checkbox"
+                      name="waitlist"
+                      value={k}
+                      checked={waitlist.includes(k)}
+                      onChange={(e) => setWaitlist((w) => (e.target.checked ? [...w, k] : w.filter((x) => x !== k)))}
+                    />
+                    <ProductGlyph product={k} size={16} />
+                    <span>{PRODUCT_CONFIG[k].name}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
           <label className="ui-check wl-sample">
             <input type="checkbox" checked={sample} onChange={(e) => setSample(e.target.checked)} />
             <span>{t('start.sample')}</span>

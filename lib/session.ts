@@ -12,6 +12,8 @@ import { seedUserIfNeeded } from './seed';
 import { delegatedIdentity } from './mcp/identity';
 import { can } from './permissions';
 import { touchActivity } from './workspace-admin';
+import { blockedAppsFor } from './workspace-apps';
+import { isComingSoon } from './products';
 
 /**
  * DEMO_MODE convierte a todo visitante en el usuario demo compartido. En
@@ -56,6 +58,11 @@ export interface SessionUser extends UserRow {
   /** Apps a las que accede en el workspace activo ('*' = todas). */
   apps?: AppAccess;
   /**
+   * Apps que no abre por la plataforma (Próximamente) o por Apps del workspace,
+   * ya resueltas para la persona (lib/app-access.ts). Las cuenta userCanUseApp.
+   */
+  blockedApps?: ProductKey[];
+  /**
    * La página pedida es de una app que la persona no tiene en el workspace
    * activo: la sesión cae a su workspace propio (ninguna página carga datos
    * del ajeno) y el layout de la app redirige con un aviso.
@@ -75,6 +82,11 @@ export function realUserId(user: SessionUser): string {
 }
 
 export { hasAllApps, userCanUseApp, workspaceTeamId };
+
+/** Adonde va la API de una app cortada: /api/apps/blocked responde 403 con el motivo. */
+function appGatePath(app: ProductKey): string {
+  return `/api/apps/blocked?app=${app}&reason=${isComingSoon(app) ? 'coming_soon' : 'workspace'}`;
+}
 
 // Usuario demo ya sembrado en este proceso: evita el UPDATE de reclamo de
 // seedUserIfNeeded en cada request (después de la primera siempre es no-op).
@@ -145,16 +157,23 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
   // guarda en el lugar equivocado. Responde como sin sesión y la pestaña avisa y ofrece recargar.
   const expected = await requestHeader(WORKSPACE_HEADER);
   if (expected && workspace && expected !== workspace.id) return null;
-  // Acceso por app: la API de una app que la persona no tiene en este
-  // workspace responde como sin sesión. Las páginas las corta el layout.
-  if (user.actingUser) {
-    const app = appFromPath(await requestHeader(API_PATH_HEADER));
-    if (app && !userCanUseApp(user, app)) return null;
-    const page = appFromPath(await requestHeader(RETURN_PATH_HEADER));
-    if (page && !userCanUseApp(user, page)) {
-      // Las páginas (y su payload RSC) se arman con el workspace propio: nada del ajeno viaja.
-      return { ...real, team: null, workspace: await ensureWorkspace(real.id), role: 'owner', apps: '*', blockedApp: page };
+  // Acceso por app (lib/app-access.ts): Próximamente, Apps del workspace y las
+  // apps habilitadas de la persona. Una app cortada por la plataforma o el
+  // workspace responde 403 en su API; una que la persona no tiene, como sin sesión.
+  // Las páginas las corta el layout.
+  user.blockedApps = await blockedAppsFor({ ownerId: owner.id, personId: real.id, role, email: real.email });
+  const app = appFromPath(await requestHeader(API_PATH_HEADER));
+  if (app && !userCanUseApp(user, app)) {
+    if (user.blockedApps.includes(app)) redirect(appGatePath(app));
+    return null;
+  }
+  const page = appFromPath(await requestHeader(RETURN_PATH_HEADER));
+  if (page && !userCanUseApp(user, page)) {
+    // Las páginas (y su payload RSC) se arman con el workspace propio: nada del ajeno viaja.
+    if (user.actingUser) {
+      return { ...real, team: null, workspace: await ensureWorkspace(real.id), role: 'owner', apps: '*', blockedApps: user.blockedApps, blockedApp: page };
     }
+    return { ...user, blockedApp: page };
   }
   // "Última actividad" de Miembros y permisos (a lo sumo una escritura cada 10 minutos, sin esperar).
   touchActivity(workspace?.id, real.id);
@@ -167,10 +186,9 @@ async function delegatedUser(d: NonNullable<ReturnType<typeof delegatedIdentity>
   if (d.pinnedTeamId && workspace.id !== d.pinnedTeamId) return null;
   const user: SessionUser =
     owner.id === d.real.id ? { ...d.real, team, workspace, role, apps } : { ...owner, actingUser: d.real, team, workspace, role, apps };
-  if (user.actingUser) {
-    const app = appFromPath(d.apiPath);
-    if (app && !userCanUseApp(user, app)) return null;
-  }
+  user.blockedApps = await blockedAppsFor({ ownerId: owner.id, personId: d.real.id, role, email: d.real.email });
+  const app = appFromPath(d.apiPath);
+  if (app && !userCanUseApp(user, app)) return null;
   return user;
 }
 

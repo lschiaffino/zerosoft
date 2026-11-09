@@ -1,16 +1,16 @@
 {
   "products": {
     "meta": {
-      "title": "26 apps open source para empresas: CRM, chat, docs y más",
-      "description": "Veintiséis apps open source, del CRM y el chat de soporte a los docs, las facturas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
+      "title": "18 apps open source para empresas: CRM, docs, links y más",
+      "description": "Dieciocho apps open source, del CRM y los links a los docs, las firmas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
     },
     "hero": {
-      "title1": "Veintiséis apps.",
+      "title1": "Dieciocho apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las veintiséis apps.",
+      "title1": "Probá las dieciocho apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -2302,7 +2302,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Veintiséis apps, el mismo login.",
+    "suiteTitleDim": "Dieciocho apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -2357,14 +2357,20 @@
       "kickerCounts": "comparado con {competitor}"
     },
     "building": {
-      "badge": "En construcción",
-      "tagline": "Estamos construyendo la alternativa open source a {rival}",
+      "badge": "Próximamente",
+      "tagline": "La alternativa open source a {rival}, todavía en construcción",
       "propose": "Proponer una idea",
       "roadmap": "Ver el roadmap",
       "shotFig": "fig. 1 · {name}, boceto del diseño: todavía no se puede usar",
       "faqTitleDim": "Lo que ya sabemos y lo que falta.",
       "compareZero": "Con zerosoft, cuando esté lista",
-      "zeroApp": "{name} en tu servidor, cuando esté lista"
+      "zeroApp": "{name} en tu servidor, cuando esté lista",
+      "waitlistLead": "{name} todavía no se puede usar y no tiene fecha. Dejá tu email y te avisamos el día que salga.",
+      "parityNote": "{name} todavía no se puede usar. La tabla cuenta lo que ya está construido en el código.",
+      "ctaTitle": "¿Te interesa {name}?",
+      "ctaTitleDim": "Te avisamos cuando se pueda usar.",
+      "ctaSub": "Sumate a la lista de espera de {name}. Un solo email, el día que salga.",
+      "join": "Unirme a la lista de espera"
     },
     "heroFig": {
       "link": "fig. 0 · una cadena de eslabones",
@@ -3777,7 +3783,7 @@
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de {apps} de las 26 apps: {average} %. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de las {apps} apps que ya se pueden usar: {average} %. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",
@@ -3788,7 +3794,8 @@
       "beyond": "Más allá"
     },
     "method": "Cada app suma 1 por capacidad incluida, 0,5 por parcial y 0 por faltante, con peso doble para las centrales. Es nuestra evaluación contra el código y se actualiza con cada versión. Abrí una app para ver la lista completa.",
-    "notComparable": "No comparable"
+    "notComparable": "No comparable",
+    "comingSoon": "Próximamente"
   },
   "desktopLogin": {
     "title": "Entrar a la app de zerosoft",
@@ -3928,12 +3935,13 @@
     "relatedTitle": "Guías y posts",
     "otherTitle": "Otras comparaciones",
     "tryCta": "Probar {name}",
-    "productCta": "La página de {name}"
+    "productCta": "La página de {name}",
+    "waitlistCta": "Unirme a la lista de espera de {name}"
   },
   "docsMcp": {
     "meta": {
       "title": "Conectar Claude y la CLI",
-      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 26 apps como vos."
+      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 18 apps como vos."
     }
   }
 }

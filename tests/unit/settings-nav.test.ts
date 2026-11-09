@@ -26,6 +26,7 @@ describe('settings: secciones de la plataforma', () => {
       'profile',
       'workspace',
       'members',
+      'apps',
       'teams',
       'billing',
       'api',

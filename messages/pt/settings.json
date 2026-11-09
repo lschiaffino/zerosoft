@@ -359,6 +359,22 @@
         "failed": "Falhou",
         "skipped": "Pulado"
       }
+    },
+    "waitlist": {
+      "nav": "Lista de espera",
+      "desc": "Pessoas esperando cada app \"Em breve\". Quando um app sai, o cron de cada hora manda um email para elas. Só os ADMIN_EMAILS veem isto.",
+      "exportAll": "Baixar CSV",
+      "emptyTitle": "Ninguém entrou ainda",
+      "emptyBody": "O que chegar pelo app, pelo onboarding e pelas páginas de produto aparece aqui.",
+      "app": "App",
+      "total": "Pessoas",
+      "last7": "Últimos 7 dias",
+      "withUseCase": "Com \"para quê\"",
+      "state": "Estado",
+      "export": "CSV",
+      "soon": "Em breve",
+      "live": "Lançado: {notified} de {total} avisadas",
+      "csv": "CSV"
     }
   },
   "groups": {
@@ -377,7 +393,8 @@
     "security": "Segurança",
     "notifications": "Avisos",
     "desktop": "App de desktop",
-    "admin": "Admin"
+    "admin": "Admin",
+    "apps": "Apps do workspace"
   },
   "nav": {
     "select": "Seção de ajustes"
@@ -711,7 +728,8 @@
         "transfer": "{actor} passou o trabalho de {target} para {to}",
         "invite": "{actor} convidou {target}",
         "link": "{actor} criou um link de convite",
-        "revoke": "{actor} revogou o convite de {target}"
+        "revoke": "{actor} revogou o convite de {target}",
+        "workspaceApp": "{actor} mudou quem usa {target}: {to}"
       },
       "someone": "alguém",
       "undo": "Desfazer",
@@ -1019,7 +1037,9 @@
       "sample": "Adicionar dados de exemplo para explorar (contatos, um doc, um projeto e um tipo de evento)",
       "importFrom": "Importar do {tool}",
       "go": "Ir para o {app}",
-      "finish": "Concluir"
+      "finish": "Concluir",
+      "soon": "Em breve",
+      "soonHelp": "Ainda não podem ser usados. Marque os que interessam e avisamos por email quando saírem."
     },
     "invited": {
       "title": "Boas-vindas a {workspace}",
@@ -1385,5 +1405,36 @@
         "digest": "o resumo semanal"
       }
     }
+  },
+  "appsPanel": {
+    "title": "Apps do workspace",
+    "desc": "Para quem está cada app neste workspace. Desligar um app tira ele de todo lugar para todos; o que tem dentro não é apagado.",
+    "readOnly": "Só o owner e os admins mudam isto.",
+    "modes": {
+      "all": "Todos",
+      "some": "Só algumas pessoas",
+      "admins": "Só admins",
+      "off": "Desligado"
+    },
+    "summary": {
+      "all": "Todos que o têm habilitado podem usar.",
+      "some": "{people, plural, =0 {Nenhuma pessoa} one {# pessoa} other {# pessoas}} e {teams, plural, =0 {nenhum time} one {# time} other {# times}}, mais o owner e os admins.",
+      "admins": "Só o owner e os admins.",
+      "off": "Desligado para todos. Os dados continuam guardados."
+    },
+    "edit": "Escolher",
+    "error": "Não foi salvo. Tente de novo.",
+    "saved": "Salvo",
+    "accessFor": "Quem usa o {name}",
+    "personal": "Os apps pessoais ({apps}) não se desligam para o workspace: são de cada pessoa.",
+    "compose": "Acima disso, continuam valendo os apps habilitados de cada pessoa em Membros e permissões.",
+    "pickTitle": "Quem usa o {name}?",
+    "pickSave": "Salvar",
+    "cancel": "Cancelar",
+    "pickHelp": "O owner e os admins sempre usam. Escolha pessoas, times ou os dois.",
+    "teams": "Times",
+    "people": "Pessoas",
+    "teamCount": "{count, plural, one {# pessoa} other {# pessoas}}",
+    "noMembers": "Ainda não há membros no workspace."
   }
 }

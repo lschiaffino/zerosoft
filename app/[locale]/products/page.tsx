@@ -11,7 +11,7 @@ import ParityOverview from '@/components/products/ParityOverview';
 import { ZeroEdge } from '@/components/zero/ZeroTexture';
 import { PARITY } from '@/content/feature-parity';
 import { computeParity } from '@/lib/feature-parity';
-import { PRODUCT_KEYS } from '@/lib/products';
+import { isComingSoon, PRODUCT_KEYS } from '@/lib/products';
 import '@/styles/pages.css';
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }) {
@@ -27,7 +27,8 @@ export default async function ProductsPage(props: { params: Promise<{ locale: st
   const tc = await getTranslations({ locale, namespace: 'common' });
   // Paridad de cada app contra su competidor, calculada de content/feature-parity.
   const parity = Object.fromEntries(
-    PRODUCT_KEYS.map((k) => {
+    // Las "Próximamente" no muestran paridad: todavía no se pueden usar.
+    PRODUCT_KEYS.filter((k) => !isComingSoon(k)).map((k) => {
       const score = computeParity(PARITY[k].rows);
       const competitor = PARITY[k].competitor;
       return [k, PARITY[k].percentHidden ? t('parityCounts', { have: score.have, partial: score.partial, counted: score.counted, competitor }) : t('parityShort', { percent: score.percent, competitor })];

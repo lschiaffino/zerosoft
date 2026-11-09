@@ -9,7 +9,7 @@ import Icon from './site/Icon';
 import { CATEGORY_PRODUCTS, GITHUB_URL, PRODUCT_NAMES } from './site/catalog';
 import Logo from './brand/Logo';
 import ProductGlyph from './brand/ProductGlyph';
-import { BUILDING_PRODUCTS, PRODUCT_CONFIG, isBuildingProduct, isProductKey } from '@/lib/products';
+import { COMING_SOON_APPS, PRODUCT_CONFIG, isComingSoon, isProductKey } from '@/lib/products';
 
 interface HeaderClientProps {
   locale: string;
@@ -119,7 +119,7 @@ export default function HeaderClient({ locale, labels }: HeaderClientProps) {
   // para que el menú entre en una pantalla de 1280×720.
   const productItems = (variant: 'mega' | 'panel') => [
     ...CATEGORY_PRODUCTS.map(({ category, products }) => {
-      const ready = products.filter((key) => !isBuildingProduct(key));
+      const ready = products.filter((key) => !isComingSoon(key));
       if (ready.length === 0) return null;
       return (
         <div key={category} className="hd-group">
@@ -136,11 +136,11 @@ export default function HeaderClient({ locale, labels }: HeaderClientProps) {
         </div>
       );
     }),
-    BUILDING_PRODUCTS.length > 0 && (
+    COMING_SOON_APPS.length > 0 && (
       <div key="building" className="hd-building">
         <p className="hd-building-title">{th('building')}</p>
         <div className="hd-building-list">
-          {BUILDING_PRODUCTS.map((key) => (
+          {COMING_SOON_APPS.map((key) => (
             <Link key={key} href={`/products/${key}`} className={`hd-prod hd-prod-soon card-${key} hd-prod-${variant}`} title={th(`desc.${key}`)}>
               <ProductGlyph product={key} size={14} className="hd-prod-icon" />
               <span className="hd-prod-name">{PRODUCT_NAMES[key]}</span>

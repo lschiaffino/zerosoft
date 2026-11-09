@@ -11,7 +11,7 @@
  * Los usuarios de antes de 128 tienen onboarded_at = created_at: no lo ven.
  */
 import { getDb, type UserRow } from './db';
-import { PRODUCT_CONFIG, isProductKey, type ProductKey } from './products';
+import { PRODUCT_CONFIG, comingSoonHref, isComingSoon, isProductKey, type ProductKey } from './products';
 import { isValidTimeZone } from './user-tz';
 import { cleanLine, ensureWorkspace, updateWorkspace, WORKSPACE_SIZES } from './workspace';
 import type { WorkspaceMode } from './workspace-mode';
@@ -79,7 +79,8 @@ export function onboardingDestination(profile: OnboardingProfile, importNow: boo
   const tool = profile.sourceTool ? SOURCE_TOOLS[profile.sourceTool] : undefined;
   if (importNow && tool?.importHref) return tool.importHref;
   const app = profile.entryApp ?? tool?.app;
-  return app ? PRODUCT_CONFIG[app].launch : '/app/start';
+  // Una app "Próximamente" no se abre: su página de lista de espera.
+  return app ? (isComingSoon(app) ? comingSoonHref(app) : PRODUCT_CONFIG[app].launch) : '/app/start';
 }
 
 function cleanLocale(raw: unknown): 'en' | 'es' | 'pt' | null {

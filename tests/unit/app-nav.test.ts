@@ -244,17 +244,24 @@ describe('base compartida del rediseño', () => {
 });
 
 describe('sidebar del inicio: tus apps y "Más apps"', () => {
-  const L = { yourApps: 'Your apps', moreApps: 'More apps' } as unknown as SidebarLabels;
+  const L = { yourApps: 'Your apps', moreApps: 'More apps', comingSoon: 'Coming soon' } as unknown as SidebarLabels;
   it('arriba hasta 8 (recientes primero, después las destacadas) y el resto plegado; ninguna se pierde', () => {
-    const groups = homeAppGroups(L, { recentApps: ['robots', 'nope'], mode: 'team' });
+    const groups = homeAppGroups(L, { recentApps: ['pulse', 'nope'], mode: 'team' });
     expect(groups[0].section).toBe('Your apps');
     expect(groups[0].items.length).toBe(HOME_APPS_LIMIT);
-    expect(groups[0].items[0].href).toBe('/app/robots');
+    expect(groups[0].items[0].href).toBe('/app/pulse');
     expect(groups[1]).toMatchObject({ section: 'More apps', collapsible: true });
-    expect(groups[0].items.length + groups[1].items.length).toBe(SWITCHER_PRODUCTS.length);
+    // Las "Próximamente" van en su propio grupo, al final, hacia la lista de espera.
+    expect(groups[2]).toMatchObject({ section: 'Coming soon', collapsible: true });
+    expect(groups[2].items.every((i) => i.href.startsWith('/app/soon/'))).toBe(true);
+    expect(groups[0].items.length + groups[1].items.length + groups[2].items.length).toBe(SWITCHER_PRODUCTS.length);
   });
   it('respeta el acceso por app y no muestra "Más apps" vacío (Inbox, personal, siempre está)', () => {
     const groups = homeAppGroups(L, { allowed: ['crm', 'social'] });
-    expect(groups.map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/social', '/app/inbox']]);
+    expect(groups.slice(0, -1).map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/inbox']]);
+  });
+  it('el staff abre las Próximamente como vista previa', () => {
+    const soon = homeAppGroups(L, { staff: true }).at(-1)!;
+    expect(soon.items.find((i) => i.label === 'Chat')).toMatchObject({ href: '/app/chat', soon: 'preview' });
   });
 });

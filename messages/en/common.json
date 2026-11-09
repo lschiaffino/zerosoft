@@ -1,6 +1,6 @@
 {
   "meta": {
-    "tagline": "Twenty-six open-source apps for your team.",
+    "tagline": "Eighteen open-source apps for your team.",
     "description": "Open-source business apps: CRM, support chat, AI agents, automations, docs and more. Run them on your server for $0 or use zerosoft Cloud.",
     "homeTitle": "zerosoft: open-source business apps, from CRM to docs"
   },
@@ -49,7 +49,7 @@
       "send": "Share documents by link and see who read what",
       "inbox": "Your WhatsApp and Gmail in one keyboard-first inbox"
     },
-    "building": "In the works"
+    "building": "Coming soon"
   },
   "sidebar": {
     "desktopSettings": "Desktop app settings",
@@ -58,7 +58,7 @@
     "new": "New",
     "backToSite": "Back to site",
     "docs": "Help",
-    "soon": "soon",
+    "soon": "Coming soon",
     "signOut": "Sign out",
     "records": "Records",
     "activity": "Activity",
@@ -217,11 +217,14 @@
     "groupForms": "Forms",
     "groupSend": "Documents to send",
     "untitled": "Untitled",
-    "groupInbox": "Inbox"
+    "groupInbox": "Inbox",
+    "preview": "Preview",
+    "comingSoon": "Coming soon",
+    "soonApp": "{name}: waitlist"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
-    "p2": "Running that software costs far less. All twenty-six zerosoft apps fit in <strong>one container and one SQLite file</strong> on a small server.",
+    "p2": "Running that software costs far less. All eighteen zerosoft apps fit in <strong>one container and one SQLite file</strong> on a small server.",
     "p3": "So we publish the code. The core of every app is AGPLv3: you can read it, change it and run it on your server without paying us.",
     "final": "Why we build zerosoft.",
     "p4": "If you would rather we run it, zerosoft Cloud bills per workspace, by usage. Adding someone to the team does not change the bill.",
@@ -422,9 +425,9 @@
   },
   "home": {
     "hero": {
-      "title1": "<nb>Twenty-six</nb> apps for your team.",
+      "title1": "<nb>Eighteen</nb> apps for your team.",
       "title2": "Zero licenses.",
-      "sub": "Open-source alternatives to HubSpot, Intercom, Calendly, Linear, Notion and 19 more products your team pays for every month. Run them on your server for $0 or use them on zerosoft Cloud.",
+      "sub": "Open-source alternatives to HubSpot, Calendly, Linear, Notion, Bitly and 13 more products your team pays for every month. Run them on your server for $0 or use them on zerosoft Cloud.",
       "ctaStart": "Start free",
       "ctaSelfHost": "Self-host",
       "note1": "No credit card",
@@ -479,7 +482,7 @@
         "b3": "Templates, comments and sharing"
       },
       "one": {
-        "title": "One account for all twenty-six apps.",
+        "title": "One account for all eighteen apps.",
         "desc": "Invite your team once. Find contacts, companies, deals, links, docs and tasks from a single search bar, and jump between apps without changing tools."
       },
       "replaces": "Replaces {rival}",
@@ -521,7 +524,7 @@
       "pulse": {
         "line": "Product analytics, web analytics and feature flags."
       },
-      "building": "In the works · like {rival}",
+      "building": "Coming soon · like {rival}",
       "social": {
         "line": "Plan, publish and answer on social media."
       },
@@ -550,7 +553,7 @@
     "stack": {
       "title": "{total} a year.",
       "titleDim": "Or $0.",
-      "sub": "What a team of 10 pays at list price for HubSpot, Intercom, Calendly, Notion, Linear and Bitly. The zerosoft apps that replace them cost $0 on your server.",
+      "sub": "What a team of 10 pays at list price for HubSpot, Calendly, Notion, Linear and Bitly. The zerosoft apps that replace them cost $0 on your server.",
       "colTool": "Tool",
       "colPrice": "List price",
       "colYear": "Team of 10 / year",
@@ -559,7 +562,7 @@
       "total": "Total per year",
       "zeroTitle": "zerosoft, on your server",
       "footnote": "List prices as cited on our product pages, billed monthly, for 10 users (Bitly Core is a flat plan). Vendors change their prices, so check their sites. zerosoft is not affiliated with any of these companies.",
-      "rApps": "All twenty-six apps",
+      "rApps": "All eighteen apps",
       "rSeats": "Users",
       "rLicense": "License",
       "rData": "Your data",
@@ -630,7 +633,7 @@
   },
   "appHome": {
     "title": "Your apps",
-    "lead": "The twenty-six apps in your workspace. Pick one to get started.",
+    "lead": "The eighteen apps in your workspace. Pick one to get started.",
     "apps": "Apps",
     "open": "Open {name}",
     "linkSummary": "Link overview",
@@ -756,7 +759,7 @@
   "notFound": {
     "sign": "Error 404",
     "title": "This page does not exist.",
-    "body": "The link may have a typo or the page moved. The home page takes you to all twenty-six apps.",
+    "body": "The link may have a typo or the page moved. The home page takes you to all eighteen apps.",
     "cta": "Go to the home page",
     "meta": "Page not found"
   },
@@ -878,5 +881,29 @@
     "unknownShort": "{count, plural, one {# change not sent} other {# changes not sent}}",
     "unknownTitle": "Not sent",
     "unknownBody": "{count, plural, one {There is # older change} other {There are # older changes}} on this device that cannot be tied to a session. They are not sent with yours. Discard them if you do not need them."
+  },
+  "comingSoon": {
+    "badge": "Coming soon",
+    "title": "{name} isn't available yet",
+    "lead": "There's no date yet. Join the waitlist and we'll email you the day you can use it.",
+    "join": "Join the waitlist",
+    "joinShort": "Waitlist",
+    "joining": "Joining…",
+    "joined": "You're on the {name} waitlist. We'll write to {email}.",
+    "joinedSite": "Done. We'll email you the day {name} is ready to use.",
+    "already": "You're already on the {name} waitlist.",
+    "useCase": "What would you use it for? (optional)",
+    "useCasePlaceholder": "For example: answering website chat between two people",
+    "email": "Your email",
+    "emailPlaceholder": "you@company.com",
+    "invalidEmail": "Check the email.",
+    "error": "We couldn't add you. Try again.",
+    "limited": "Too many tries. Try again in a few minutes.",
+    "privacy": "One email, the day it ships.",
+    "back": "Back to home",
+    "others": "Other apps you can't use yet",
+    "openPreview": "Open the internal preview of {name}",
+    "previewTag": "Internal preview",
+    "previewBanner": "{name} isn't available to customers yet. You see it because you're on the zerosoft team."
   }
 }

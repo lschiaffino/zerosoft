@@ -28,13 +28,14 @@ export function activeRouteTab(items: RouteTab[], pathname: string): string | un
   return best?.key;
 }
 
-export const SETTINGS_ADMIN_ROUTES = ['/app/settings/feedback', '/app/settings/roadmap', '/app/settings/changelog', '/app/settings/lifecycle'] as const;
+export const SETTINGS_ADMIN_ROUTES = ['/app/settings/feedback', '/app/settings/roadmap', '/app/settings/changelog', '/app/settings/lifecycle', '/app/settings/waitlist'] as const;
 
 /** Secciones de "Cuenta y workspace", en el orden de la nav. Admin va al final y solo para ADMIN_EMAILS. */
 export const SETTINGS_SECTION_KEYS = [
   'profile',
   'workspace',
   'members',
+  'apps',
   'teams',
   'billing',
   'api',

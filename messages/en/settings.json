@@ -359,6 +359,22 @@
         "failed": "Failed",
         "skipped": "Skipped"
       }
+    },
+    "waitlist": {
+      "nav": "Waitlist",
+      "desc": "People waiting for each \"Coming soon\" app. When an app ships, the hourly cron emails them. Only ADMIN_EMAILS see this.",
+      "exportAll": "Download CSV",
+      "emptyTitle": "Nobody joined yet",
+      "emptyBody": "Sign-ups from the app, onboarding and product pages show up here.",
+      "app": "App",
+      "total": "People",
+      "last7": "Last 7 days",
+      "withUseCase": "With \"what for\"",
+      "state": "State",
+      "export": "CSV",
+      "soon": "Coming soon",
+      "live": "Shipped: {notified} of {total} notified",
+      "csv": "CSV"
     }
   },
   "groups": {
@@ -377,7 +393,8 @@
     "security": "Security",
     "notifications": "Notifications",
     "desktop": "Desktop app",
-    "admin": "Admin"
+    "admin": "Admin",
+    "apps": "Workspace apps"
   },
   "nav": {
     "select": "Settings section"
@@ -711,7 +728,8 @@
         "transfer": "{actor} passed the work of {target} to {to}",
         "invite": "{actor} invited {target}",
         "link": "{actor} created an invite link",
-        "revoke": "{actor} revoked the invitation for {target}"
+        "revoke": "{actor} revoked the invitation for {target}",
+        "workspaceApp": "{actor} changed who uses {target}: {to}"
       },
       "someone": "someone",
       "undo": "Undo",
@@ -1019,7 +1037,9 @@
       "sample": "Add sample data to explore (contacts, a doc, a project and an event type)",
       "importFrom": "Import from {tool}",
       "go": "Go to {app}",
-      "finish": "Finish"
+      "finish": "Finish",
+      "soon": "Coming soon",
+      "soonHelp": "Not usable yet. Tick the ones you care about and we'll email you when they ship."
     },
     "invited": {
       "title": "Welcome to {workspace}",
@@ -1385,5 +1405,36 @@
         "digest": "the weekly summary"
       }
     }
+  },
+  "appsPanel": {
+    "title": "Workspace apps",
+    "desc": "Who each app is for in this workspace. Turning one off removes it everywhere for everyone; what's inside is kept.",
+    "readOnly": "Only the owner and admins can change this.",
+    "modes": {
+      "all": "Everyone",
+      "some": "Only some people",
+      "admins": "Only admins",
+      "off": "Off"
+    },
+    "summary": {
+      "all": "Everyone who has it enabled can use it.",
+      "some": "{people, plural, =0 {No people} one {# person} other {# people}} and {teams, plural, =0 {no teams} one {# team} other {# teams}}, plus the owner and admins.",
+      "admins": "Only the owner and admins.",
+      "off": "Off for everyone. Its data stays saved."
+    },
+    "edit": "Choose",
+    "error": "Didn't save. Try again.",
+    "saved": "Saved",
+    "accessFor": "Who uses {name}",
+    "personal": "Personal apps ({apps}) aren't turned off for the workspace: they belong to each person.",
+    "compose": "On top of this, each person's enabled apps in Members & permissions still apply.",
+    "pickTitle": "Who uses {name}?",
+    "pickSave": "Save",
+    "cancel": "Cancel",
+    "pickHelp": "The owner and admins always have it. Pick people, teams or both.",
+    "teams": "Teams",
+    "people": "People",
+    "teamCount": "{count, plural, one {# person} other {# people}}",
+    "noMembers": "There are no members in the workspace yet."
   }
 }

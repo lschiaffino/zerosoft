@@ -568,3 +568,41 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
   .st-lc { grid-template-columns: minmax(0, 1fr); }
   .st-lc-templates ul { flex-direction: row; flex-wrap: wrap; }
 }
+
+/* ---------- Apps del workspace ---------- */
+.ws-apps { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.ws-apps-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) minmax(150px, 180px);
+  align-items: start;
+  gap: 4px 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ws-apps-glyph { padding-top: 2px; }
+.ws-apps-row.is-off .ws-apps-glyph, .ws-apps-row.is-off .ws-apps-name { opacity: 0.55; }
+.ws-apps-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ws-apps-name { font-weight: 600; font-size: 0.9375rem; }
+.ws-apps-desc { font-size: 0.8125rem; color: var(--ink-2); line-height: 1.4; }
+.ws-apps-sum { font-size: 0.8125rem; color: var(--ink-3); }
+.ws-apps-status { margin-left: 8px; }
+.ws-apps-control .select { width: 100%; }
+.ws-apps-edit {
+  padding: 0;
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.ws-apps-edit:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ws-apps-foot { margin-top: 12px; }
+.ws-apps-pick { display: flex; flex-direction: column; gap: 12px; max-height: 60vh; overflow-y: auto; }
+.ws-apps-person { overflow-wrap: anywhere; }
+.st-waitlist-table td.num, .st-waitlist-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) {
+  .ws-apps-row { grid-template-columns: 20px minmax(0, 1fr); }
+  .ws-apps-control { grid-column: 2; }
+}

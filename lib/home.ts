@@ -14,7 +14,7 @@ import { dayRangeUtc, getUserTimeZone } from '@/lib/user-tz';
 import { normalizeWorkspaceMode, type WorkspaceMode } from '@/lib/workspace-mode';
 import type { TeamRole } from '@/lib/teams';
 import type { ProductKey } from '@/lib/products';
-import { canUseApp, type AppAccess } from '@/lib/workspace';
+import { userCanUseApp, type AppAccess } from '@/lib/workspace';
 import { trackVisibleSql } from '@/lib/track-access';
 import { bookingScopeFor } from './calendar-access';
 import { recentDesigns } from './design';
@@ -34,11 +34,13 @@ export interface HomeUser {
   role: TeamRole;
   /** Apps permitidas en el workspace activo ('*' = todas). */
   apps?: AppAccess;
+  /** Apps cortadas por Próximamente o Apps del workspace (lib/app-access.ts). */
+  blockedApps?: ProductKey[];
 }
 
 /** ¿La persona usa esta app en el workspace activo? (bloques y recientes del inicio). */
-export function homeCanUse(user: Pick<HomeUser, 'role' | 'apps'>, app: ProductKey): boolean {
-  return canUseApp({ role: user.role, apps: user.apps ?? '*' }, app);
+export function homeCanUse(user: Pick<HomeUser, 'role' | 'apps' | 'blockedApps'>, app: ProductKey): boolean {
+  return userCanUseApp({ role: user.role, apps: user.apps ?? '*', blockedApps: user.blockedApps }, app);
 }
 
 /**

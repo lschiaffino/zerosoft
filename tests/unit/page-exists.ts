@@ -12,7 +12,9 @@ export function pageExists(href: string): boolean {
     if (existsSync(join(dir, '[[...zs]]', 'page.tsx'))) return true;
     if (!rest.length) return existsSync(join(dir, 'page.tsx')) || groups(dir).some((g) => find(g, rest));
     const [seg, ...more] = rest;
-    return (existsSync(join(dir, seg)) && find(join(dir, seg), more)) || groups(dir).some((g) => find(g, rest));
+    // Un segmento dinámico simple ([app]) también cubre la ruta.
+    const dynamic = existsSync(dir) ? readdirSync(dir).filter((d) => /^\[[^.[\]]+\]$/.test(d)).map((d) => join(dir, d)) : [];
+    return (existsSync(join(dir, seg)) && find(join(dir, seg), more)) || dynamic.some((d) => find(d, more)) || groups(dir).some((g) => find(g, rest));
   };
   return find(appDir, segs);
 }
