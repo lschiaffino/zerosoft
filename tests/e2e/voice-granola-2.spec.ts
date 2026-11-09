@@ -69,7 +69,7 @@ test('documento: el evento de ahora se elige solo, asistentes por empresa, chat 
   await expect(page.getByRole('textbox', { name: 'Meeting title' })).toHaveValue('Pricing review');
   await people.click();
   const panel = page.getByRole('dialog', { name: 'Event and attendees' });
-  await expect(panel.getByRole('button', { name: /Pricing review/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(panel.locator('.vc-pick').filter({ hasText: 'Pricing review' })).toHaveAttribute('aria-pressed', 'true');
   await expect(panel.locator('.vc-people-company')).toContainText(['Fake-guest']);
   await expect(panel).toContainText('Ana Guest');
   await page.screenshot({ path: test.info().outputPath('live-people.png') });

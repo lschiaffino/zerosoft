@@ -102,8 +102,11 @@ test('reunión: grabar, transcripción en vivo, nota con IA, tareas, chat, busca
 
   await page.getByRole('textbox', { name: 'My notes' }).fill('Pricing per seat\nAnnual billing?');
   await expect(page.getByText('Saved')).toBeVisible();
-  // Transcripción en vivo (trozos de 1,5 s).
+  // Transcripción en vivo (trozos de 1,5 s), en el panel que abre la barra de abajo.
+  await page.getByRole('button', { name: 'Live transcript' }).click();
   await expect(page.locator('.vc-seg').first()).toBeVisible({ timeout: 20_000 });
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('voice-live-panel')).toBeHidden();
   await page.getByRole('button', { name: 'Stop', exact: true }).click();
   // Al cortar, la IA arma la nota.
   const enhanced = page.getByTestId('voice-enhanced');
@@ -374,6 +377,7 @@ test('un trozo que la transcripción rechaza no traba la cola y se reintenta des
   });
   await page.goto(`/en/app/voice/meetings/${id}`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Start recording' }).click();
+  await page.getByRole('button', { name: 'Live transcript' }).click();
   // El primer trozo falla 3 veces y queda aparte; los siguientes se transcriben igual.
   await expect(page.locator('.vc-seg').first()).toBeVisible({ timeout: 30_000 });
   const t0 = Date.now();

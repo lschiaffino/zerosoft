@@ -401,6 +401,17 @@ export default function MeetingView({
   const notesBusy = notesStatus === 'queued' || notesStatus === 'running';
   const idle = rec.state === 'idle' || rec.state === 'starting';
 
+  // Esc cierra la transcripción en vivo esté donde esté el foco (como el chat).
+  useEffect(() => {
+    if (dock !== 'transcript') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || document.querySelector('dialog[open], .vc-pop')) return;
+      setDock('none');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dock]);
+
   const onDockOpen = useCallback((open: boolean) => setDock((cur) => (open ? 'ask' : cur === 'ask' ? 'none' : cur)), []);
 
   const onAttendees = useCallback(

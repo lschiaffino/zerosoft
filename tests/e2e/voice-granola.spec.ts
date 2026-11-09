@@ -36,7 +36,11 @@ async function recordMeeting(page: Page, title: string) {
   const titleInput = page.getByRole('textbox', { name: 'Meeting title' });
   await titleInput.fill(title);
   await titleInput.press('Enter');
+  // La transcripción en vivo está en el panel que abre la barra de abajo.
+  await page.getByRole('button', { name: 'Live transcript' }).click();
   await expect(page.locator('.vc-seg').first()).toBeVisible({ timeout: 20_000 });
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('voice-live-panel')).toBeHidden();
   return page.url().split('/').pop()!;
 }
 
