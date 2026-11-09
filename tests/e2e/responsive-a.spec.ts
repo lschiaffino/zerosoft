@@ -132,7 +132,7 @@ const OVERLAY_NAMES = /^(share|new|create|invite|add|filter|display|view options
 const fill = (p: string, i: Ids) => p.replace(/\{(\w+)\}/g, (_, k) => i[k]);
 
 async function visit(page: Page, url: string) {
-  const res = await page.goto(url, { waitUntil: 'domcontentloaded' });
+  const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   expect(res?.status() ?? 200, url).toBeLessThan(500);
   await settle(page);
 }

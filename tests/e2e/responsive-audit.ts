@@ -220,7 +220,7 @@ export async function check(page: Page, label: string, opts: { tap?: boolean; ig
   if (CRAWL_DIR) {
     fs.mkdirSync(CRAWL_DIR, { recursive: true });
     const file = `${String(++shotN).padStart(4, '0')}-${label.replace(/[^a-z0-9]+/gi, '_').slice(0, 80)}.png`;
-    await page.screenshot({ path: path.join(CRAWL_DIR, file) }).catch(() => {});
+    await page.screenshot({ path: path.join(CRAWL_DIR, file), timeout: 10_000 }).catch(() => {});
     fs.appendFileSync(path.join(CRAWL_DIR, 'report.jsonl'), JSON.stringify({ label, url: page.url(), shot: file, issues }) + '\n');
     return;
   }
@@ -258,7 +258,7 @@ export async function auditOverlays(page: Page, label: string, opts: { max?: num
   }, [opts.extra?.source ?? '', opts.root ?? 'main'] as const);
   const triggers = await mark();
   const reload = async () => {
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     await settle(page);
     await mark();
   };
