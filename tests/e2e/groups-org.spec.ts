@@ -99,7 +99,7 @@ test('QR: un número que se desvincula muestra Reconectar y vuelve con un QR nue
   const n = await fakeNumber(request, name);
   // La sesión se cerró (en el gateway real lo avisa el webhook de sesión).
   await request.post(`/api/groups/numbers/${n.id}/connect`, { data: { action: 'disconnect' } });
-  await page.goto('/en/app/groups/settings?tab=numbers', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=numbers', { waitUntil: 'networkidle' });
   const row = page.locator('.gr-number', { hasText: name });
   await expect(row.getByText('Disconnected', { exact: true })).toBeVisible();
   await row.getByRole('button', { name: 'Reconnect' }).click();
@@ -117,7 +117,7 @@ test('ajustes del grupo, salir y entrar por link', async ({ page, request }) => 
   const n = await fakeNumber(request);
   const name = `Settings ${uid()}`;
   const id = await createGroup(request, n.id, name, ['+15550004001']);
-  await page.goto(`/en/app/groups/list/${id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/lines/list/${id}`, { waitUntil: 'networkidle' });
   const announce = page.getByLabel('Only admins can send messages');
   await announce.check();
   await expect(page.getByText('Saved').first()).toBeVisible();
@@ -131,7 +131,7 @@ test('ajustes del grupo, salir y entrar por link', async ({ page, request }) => 
   await expect(page.getByText(/This number left the group/)).toBeVisible();
 
   // Entrar con un link desde la lista de grupos.
-  await page.goto('/en/app/groups/list', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/list', { waitUntil: 'networkidle' });
   await expect(page.locator('tr', { hasText: name }).getByText('Left')).toBeVisible();
   await page.getByRole('button', { name: 'Join with link' }).click();
   const join = page.getByRole('dialog', { name: 'Join a group by invite' });
@@ -151,7 +151,7 @@ test('plantillas: crear, usar con variables y encontrarla con ⌘K', async ({ pa
   const n = await fakeNumber(request);
   const tpl = `Onboarding ${uid()}`;
   const company = `Acme${uid()}`;
-  await page.goto('/en/app/groups/templates', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/templates', { waitUntil: 'networkidle' });
   await page.keyboard.press('c');
   const form = page.getByRole('dialog', { name: 'New group template' });
   await form.getByLabel('Template name', { exact: true }).fill(tpl);
@@ -199,7 +199,7 @@ test('propiedades nuevas: multiselección en el grupo, filtro y columna en la li
   const silver = `Silver ${uid()}`;
   const a = await createGroup(request, n.id, gold);
   await createGroup(request, n.id, silver);
-  await page.goto('/en/app/groups/settings?tab=properties', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=properties', { waitUntil: 'networkidle' });
   await page.getByLabel('Property name').fill(prop);
   await page.getByLabel('Type').selectOption('multiselect');
   await page.getByLabel('Options, comma separated').fill('Gold, Silver');
@@ -208,13 +208,13 @@ test('propiedades nuevas: multiselección en el grupo, filtro y columna en la li
   const created = (await (await request.get('/api/groups/properties')).json()) as { properties: Array<{ id: string; label: string; key: string }> };
   const def = created.properties.find((p) => p.label === prop)!;
   try {
-    await page.goto(`/en/app/groups/list/${a}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/lines/list/${a}`, { waitUntil: 'networkidle' });
     await page.getByRole('group', { name: prop }).getByRole('button', { name: 'Gold' }).click();
     await expect(page.getByRole('group', { name: prop }).getByRole('button', { name: 'Gold' })).toHaveAttribute('aria-pressed', 'true');
     await page.locator('.gr-detail-section', { hasText: 'Properties' }).getByRole('button', { name: 'Save' }).click();
     await expect(page.getByText('Saved').first()).toBeVisible();
 
-    await page.goto('/en/app/groups/list', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/list', { waitUntil: 'networkidle' });
     await page.getByLabel('Property').selectOption(def.key);
     await page.getByLabel('Value').selectOption('Gold');
     await expect(page.getByRole('link', { name: gold })).toBeVisible();
@@ -235,7 +235,7 @@ test('listas guardadas: guardar los filtros, sidebar, renombrar y borrar', async
   const n = await fakeNumber(request);
   const who = `Lisa${uid()}`;
   await inbound(request, n, `120363${Date.now()}3@g.us`, 'hola', `Cliente ${who}`);
-  await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: 'Waiting' }).click();
   await page.getByRole('button', { name: 'Filters and lists' }).click();
   await page.getByLabel('Type').selectOption('group');
@@ -292,7 +292,7 @@ test('sin responder con AI: un "gracias" no espera, una pregunta sí y el cron l
     await sql('UPDATE groups_chats SET awaiting_since = ? WHERE id = ?', [new Date(Date.now() - 10 * 60_000).toISOString(), q.id]);
     const cron = await runCron(request);
     expect(cron.groups.flagged).toBeGreaterThanOrEqual(1);
-    await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     await page.getByRole('tab', { name: 'Overdue' }).click();
     await expect(page.locator('.gr-row', { hasText: `Question ${tag}` })).toBeVisible();
     await expect(page.locator('.gr-row', { hasText: `Thanks ${tag}` })).toHaveCount(0);
@@ -310,7 +310,7 @@ test('email del SLA: se activa en Ajustes y el vencimiento avisa una vez', async
   const n = await fakeNumber(request);
   const tag = uid();
   await inbound(request, n, `120363${Date.now()}6@g.us`, 'Down again', `Sla ${tag}`);
-  await page.goto('/en/app/groups/settings?tab=tickets', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=tickets', { waitUntil: 'networkidle' });
   try {
     await page.getByLabel('Send an email when a ticket is past its first response or resolution time').check();
     await expect(page.getByLabel('To the person assigned to the ticket')).toBeChecked();
@@ -326,7 +326,7 @@ test('email del SLA: se activa en Ajustes y el vencimiento avisa una vez', async
     const notes = (await (await request.get('/api/notifications?limit=100')).json()) as { notifications?: Array<{ type: string; title: string }>; rows?: Array<{ type: string; title: string }> };
     const list = notes.notifications ?? notes.rows ?? [];
     expect(list.filter((x) => x.type === 'groups_sla' && x.title.includes(`Outage ${tag}`))).toHaveLength(1);
-    await page.goto('/en/app/groups/tickets', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/tickets', { waitUntil: 'networkidle' });
     await expect(page.locator('tr', { hasText: `Outage ${tag}` }).getByText('Overdue')).toBeVisible();
   } finally {
     await request.patch('/api/groups/settings', { data: { slaEmail: false, slaEmailExtra: [] } });
@@ -340,7 +340,7 @@ test('campos de ticket: obligatorio para resolver, filtro y export', async ({ pa
   const field = `Area ${tag}`;
   await inbound(request, n, `120363${Date.now()}7@g.us`, 'Broken export', `Fields ${tag}`);
   const chat = (await chatByName(request, `Fields ${tag}`))!;
-  await page.goto('/en/app/groups/settings?tab=ticketFields', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=ticketFields', { waitUntil: 'networkidle' });
   await page.getByLabel('Property name').fill(field);
   await page.getByLabel('Type').selectOption('select');
   await page.getByLabel('Options, comma separated').fill('Billing, Product');
@@ -353,7 +353,7 @@ test('campos de ticket: obligatorio para resolver, filtro y export', async ({ pa
     const title = `Export fails ${tag}`;
     await request.post('/api/groups/tickets', { data: { chatId: chat.id, title } });
     await request.post('/api/groups/tickets', { data: { chatId: chat.id, title: `Other ${tag}` } });
-    await page.goto('/en/app/groups/tickets', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/tickets', { waitUntil: 'networkidle' });
     const row = page.locator('tr', { hasText: title });
     await row.getByLabel('Status').selectOption('resolved');
     const modal = page.getByRole('dialog', { name: new RegExp(title) });
@@ -385,7 +385,7 @@ test('tareas: desde un mensaje, en el chat y en Tareas, con aviso a su hora', as
   const body = `Send me the proposal ${tag}`;
   await inbound(request, n, `120363${Date.now()}8@g.us`, body, `Tasks ${tag}`);
   const chat = (await chatByName(request, `Tasks ${tag}`))!;
-  await page.goto(`/en/app/groups/inbox/${chat.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
   const msg = page.locator('.gr-msg-in', { hasText: body });
   await msg.hover();
   await msg.getByRole('button', { name: 'More actions' }).click();
@@ -396,11 +396,11 @@ test('tareas: desde un mensaje, en el chat y en Tareas, con aviso a su hora', as
   await dialog.getByRole('button', { name: 'Create task' }).click();
   await expect(page.getByText('Task created')).toBeVisible();
   // En la página del grupo, la sección Tareas del chat.
-  await page.goto(`/en/app/groups/list/${chat.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/lines/list/${chat.id}`, { waitUntil: 'networkidle' });
   await expect(page.getByText('Tasks (1)')).toBeVisible();
   await expect(page.locator('.gr-task-title', { hasText: body })).toBeVisible();
 
-  await page.goto('/en/app/groups/tasks', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/tasks', { waitUntil: 'networkidle' });
   const row = page.locator('tr', { hasText: body });
   await expect(row).toBeVisible();
   await expect(row.getByRole('link', { name: `Tasks ${tag}` })).toBeVisible();
@@ -432,7 +432,7 @@ test('tarea creada desde Groups: CRM › Tareas (hoy y próximas) abre sin error
   const body = `Call back about invoice ${tag}`;
   await inbound(request, n, `120363${Date.now()}6@g.us`, body, `CrmTasks ${tag}`);
   const chat = (await chatByName(request, `CrmTasks ${tag}`))!;
-  await page.goto(`/en/app/groups/inbox/${chat.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
   const msg = page.locator('.gr-msg-in', { hasText: body });
   await msg.hover();
   await msg.getByRole('button', { name: 'More actions' }).click();
@@ -466,7 +466,7 @@ test('390px y oscuro: plantillas, tareas y bandeja con listas sin scroll horizon
   await request.post('/api/groups/lists', { data: { name: `Mobile list ${uid()}`, filters: { kind: 'group' } } });
   await context.addCookies([{ name: 'zs_theme', value: 'dark', url: baseURL! }]);
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const path of ['/en/app/groups/templates', '/en/app/groups/tasks', '/en/app/groups/inbox', '/en/app/groups/list', '/en/app/groups/settings?tab=ticketFields']) {
+  for (const path of ['/en/app/lines/templates', '/en/app/lines/tasks', '/en/app/lines/inbox', '/en/app/lines/list', '/en/app/lines/settings?tab=ticketFields']) {
     await page.goto(path, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('main.app-content h1').first()).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');

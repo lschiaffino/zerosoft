@@ -415,9 +415,9 @@ const parity: ProductParity = {
       area: 'channels',
       label: { en: 'WhatsApp, Instagram, Messenger and Slack', es: 'WhatsApp, Instagram, Messenger y Slack', pt: 'WhatsApp, Instagram, Messenger e Slack' },
       detail: {
-        en: 'WhatsApp through Groups (new one-to-one chats or chat by chat), and Slack, Messenger and Instagram with your own Slack or Meta app (tokens encrypted, signed webhooks)',
-        es: 'WhatsApp por Groups (chats 1 a 1 nuevos o chat por chat), y Slack, Messenger e Instagram con tu propia app de Slack o de Meta (tokens cifrados, webhooks firmados)',
-        pt: 'WhatsApp pelo Groups (conversas individuais novas ou conversa por conversa), e Slack, Messenger e Instagram com seu próprio app do Slack ou da Meta (tokens criptografados, webhooks assinados)',
+        en: 'WhatsApp through Lines (new one-to-one chats or chat by chat), and Slack, Messenger and Instagram with your own Slack or Meta app (tokens encrypted, signed webhooks)',
+        es: 'WhatsApp por Lines (chats 1 a 1 nuevos o chat por chat), y Slack, Messenger e Instagram con tu propia app de Slack o de Meta (tokens cifrados, webhooks firmados)',
+        pt: 'WhatsApp pelo Lines (conversas individuais novas ou conversa por conversa), e Slack, Messenger e Instagram com seu próprio app do Slack ou da Meta (tokens criptografados, webhooks assinados)',
       },
       status: 'have',
       competitorHas: true,

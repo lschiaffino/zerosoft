@@ -33,7 +33,7 @@ Categories of processing done for each customer (controller) under the DPA:
 | App | Data subjects | Typical personal data |
 | --- | --- | --- |
 | CRM, Link, Forms, Calendar | Customer's contacts, leads, form respondents, booking guests | Name, email, phone, company, notes, answers, click metadata without IP |
-| Chat, Inbox, Groups, Talk, Social | Customer's visitors, correspondents, WhatsApp contacts, team members | Messages, attachments, phone numbers, email addresses |
+| Chat, Inbox, Lines, Talk, Social | Customer's visitors, correspondents, WhatsApp contacts, team members | Messages, attachments, phone numbers, email addresses |
 | Docs, Notes, Board, Track, Design, Send, Sign | Team members, guests, document recipients | Content, comments, viewer events, signatures |
 | People, Hiring | Employees, candidates | HR records, time off, CVs, evaluations |
 | Voice, Rec, Pulse | Meeting participants, site visitors | Recordings, transcripts, session replays (with masking) |

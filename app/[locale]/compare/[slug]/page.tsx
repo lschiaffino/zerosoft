@@ -7,7 +7,7 @@ import FeatureParity from '@/components/products/FeatureParity';
 import { GITHUB_URL, PRODUCT_PAGES } from '@/components/site/catalog';
 import { beyondRows, compareSlugs, findComparison, gapRows, getComparisons, rivalMatches, strongestRows, type Comparison } from '@/lib/compare';
 import { loc } from '@/lib/feature-parity';
-import { PRODUCT_CONFIG, isBuildingProduct, isProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, isBuildingProduct, isProductKey, productHref } from '@/lib/products';
 import { postsAbout } from '@/lib/blog';
 import { breadcrumbLd, faqLd, graphLd, jsonLdString, pageMetadata, softwareLd, type FaqItem } from '@/lib/seo';
 import '@/styles/pages.css';
@@ -104,7 +104,7 @@ export default async function ComparePage(props: { params: Promise<Params> }) {
       locale,
       name: `zerosoft ${cfg.name}`,
       description: tp(`${p}.meta.description`),
-      path: `/products/${c.product}`,
+      path: productHref(c.product),
       image: `/api/og/product/${c.product}/${locale}`,
     }),
     ...(faq.length ? [faqLd(faq)] : []),
@@ -311,7 +311,7 @@ export default async function ComparePage(props: { params: Promise<Params> }) {
         </h2>
         <ul className="cmp-other">
           <li>
-            <Link href={`/products/${c.product}`}>{t('productCta', v)}</Link>
+            <Link href={productHref(c.product)}>{t('productCta', v)}</Link>
           </li>
           <li>
             <Link href={kind === 'vs' ? `/compare/${c.altSlug}` : `/compare/${c.vsSlug}`}>

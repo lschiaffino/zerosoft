@@ -248,7 +248,7 @@
         "ul": [
           "Vercel: hosting, serverless functions, file storage for uploads (Vercel Blob), scheduled jobs and the AI Gateway.",
           "Turso: the database where account and workspace data is stored.",
-          "Railway: runs the WhatsApp gateway used by Groups and Inbox when you connect a WhatsApp number.",
+          "Railway: runs the WhatsApp gateway used by Lines and Inbox when you connect a WhatsApp number.",
           "Resend: delivery of transactional emails, such as sign-in codes, workspace invitations, notifications and booking confirmations.",
           "Google: sign-in, and Gmail and Google Calendar only when you connect them.",
           "AI model providers, through the Vercel AI Gateway or OpenRouter, only for AI features you use, under terms that do not allow training on your content.",
@@ -441,7 +441,7 @@
         "ul": [
           "Vercel Inc. (United States): hosting, serverless functions, scheduled jobs, file storage (Vercel Blob), request logs and the AI Gateway. Processes all data in transit, uploaded files and request logs with IP addresses.",
           "Turso / ChiselStrike Inc.: the database and its backups. Stores account and workspace data.",
-          "Railway Corp. (United States): runs the WhatsApp gateway used by Groups and Inbox. Processes messages, contacts and media of connected WhatsApp numbers.",
+          "Railway Corp. (United States): runs the WhatsApp gateway used by Lines and Inbox. Processes messages, contacts and media of connected WhatsApp numbers.",
           "Resend Inc. (United States): delivers transactional and service emails. Processes recipient addresses, email content and delivery events."
         ]
       },

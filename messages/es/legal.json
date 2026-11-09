@@ -248,7 +248,7 @@
         "ul": [
           "Vercel: hosting, funciones, almacenamiento de archivos subidos (Vercel Blob), tareas programadas y AI Gateway.",
           "Turso: la base de datos donde se guardan los datos de cuentas y workspaces.",
-          "Railway: corre la puerta de enlace de WhatsApp que usan Groups e Inbox cuando conectás un número de WhatsApp.",
+          "Railway: corre la puerta de enlace de WhatsApp que usan Lines e Inbox cuando conectás un número de WhatsApp.",
           "Resend: entrega de emails transaccionales, como códigos de inicio de sesión, invitaciones, avisos y confirmaciones de reservas.",
           "Google: inicio de sesión, y Gmail y Google Calendar solo si los conectás.",
           "Proveedores de modelos de IA, a través de Vercel AI Gateway u OpenRouter, solo para las funciones de IA que uses, con condiciones que no permiten entrenar con tu contenido.",
@@ -441,7 +441,7 @@
         "ul": [
           "Vercel Inc. (Estados Unidos): hosting, funciones, tareas programadas, almacenamiento de archivos (Vercel Blob), logs de pedidos y AI Gateway. Procesa todos los datos en tránsito, los archivos subidos y los logs con direcciones IP.",
           "Turso / ChiselStrike Inc.: la base de datos y sus backups. Guarda los datos de cuentas y workspaces.",
-          "Railway Corp. (Estados Unidos): corre la puerta de enlace de WhatsApp que usan Groups e Inbox. Procesa mensajes, contactos y archivos de los números de WhatsApp conectados.",
+          "Railway Corp. (Estados Unidos): corre la puerta de enlace de WhatsApp que usan Lines e Inbox. Procesa mensajes, contactos y archivos de los números de WhatsApp conectados.",
           "Resend Inc. (Estados Unidos): entrega los emails transaccionales y del servicio. Procesa direcciones de destino, contenido y eventos de entrega."
         ]
       },

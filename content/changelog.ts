@@ -64,6 +64,40 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-08-groups-is-now-lines',
+    date: '2026-11-08',
+    title: {
+      en: 'Groups is now Lines',
+      es: 'Groups ahora se llama Lines',
+      pt: 'Groups agora se chama Lines',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The WhatsApp app for teams is now called Lines, and it lives at /app/lines. Old /app/groups links, bookmarks and installed apps redirect on their own, and connected numbers keep working with no changes.',
+        es: 'La app de WhatsApp para equipos ahora se llama Lines y vive en /app/lines. Los links, favoritos y apps instaladas con /app/groups redirigen solos, y los números conectados siguen funcionando sin cambios.',
+        pt: 'O app de WhatsApp para equipes agora se chama Lines e fica em /app/lines. Links, favoritos e apps instalados com /app/groups redirecionam sozinhos, e os números conectados continuam funcionando sem mudanças.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-one-menu-at-a-time',
+    date: '2026-11-08',
+    title: {
+      en: 'One menu open at a time',
+      es: 'Un menú abierto a la vez',
+      pt: 'Um menu aberto por vez',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Opening a menu now closes the one that was open, also from the keyboard or with ⌘K and ⌘J: the app switcher and the account menu no longer end up one on top of the other. Esc closes only the top menu and puts focus back on its button, and menus open upward or sideways when they would not fit on screen.',
+        es: 'Abrir un menú ahora cierra el que estaba abierto, también con el teclado o con ⌘K y ⌘J: el switcher de apps y el menú de la cuenta ya no quedan uno encima del otro. Esc cierra solo el menú de arriba y devuelve el foco a su botón, y los menús abren para arriba o de costado cuando no entran en pantalla.',
+        pt: 'Abrir um menu agora fecha o que estava aberto, também pelo teclado ou com ⌘K e ⌘J: o seletor de apps e o menu da conta não ficam mais um em cima do outro. Esc fecha só o menu de cima e devolve o foco ao seu botão, e os menus abrem para cima ou para o lado quando não cabem na tela.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-pulse-rename',
     date: '2026-11-08',
     title: {

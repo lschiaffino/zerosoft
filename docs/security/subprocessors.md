@@ -11,7 +11,7 @@ instances use none of these unless the operator configures them.
 | --- | --- | --- | --- |
 | Vercel Inc. | Hosting, serverless functions, scheduled jobs, file storage (Vercel Blob), request logs, AI Gateway | All customer data in transit; uploaded files; request logs with IP addresses | United States (functions run in the default US region) |
 | Turso (ChiselStrike Inc.) | Primary database and its backups | All account and workspace data | Region of the production database (to be confirmed by the owner; see note) |
-| Railway Corp. | Runs the WhatsApp gateway (Evolution) used by Groups and Inbox | WhatsApp messages, contacts and media of connected numbers; session keys of the connected device | United States (Railway region of the service) |
+| Railway Corp. | Runs the WhatsApp gateway (Evolution) used by Lines and Inbox | WhatsApp messages, contacts and media of connected numbers; session keys of the connected device | United States (Railway region of the service) |
 | Resend Inc. | Transactional and lifecycle email delivery | Recipient email address, email content, delivery events | United States |
 | GitHub Inc. (Microsoft) | Source code, CI, desktop app releases | No customer data (only code and build artifacts) | United States |
 

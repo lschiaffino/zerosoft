@@ -90,12 +90,12 @@ describe('QA de Groups', () => {
     const chat = (await listChats(user.id, user.id)).rows[0];
     const { ticket } = await createTicket(user.id, user.id, { chatId: chat.id, title: 'Reenviar factura rubí' });
     const byTitle = await searchApps({ id: user.id }, 'rubí', 5, 'es');
-    expect(byTitle.find((i) => i.group === 'groupsTickets')).toMatchObject({ href: `/app/groups/tickets?open=${ticket.id}` });
+    expect(byTitle.find((i) => i.group === 'groupsTickets')).toMatchObject({ href: `/app/lines/tickets?open=${ticket.id}` });
     const byNumber = await searchApps({ id: user.id }, `#${ticket.number}`, 5, 'es');
     expect(byNumber.some((i) => i.group === 'groupsTickets' && i.id === ticket.id)).toBe(true);
     const byText = await searchApps({ id: user.id }, 'zafiro', 5, 'es');
     const hit = byText.find((i) => i.group === 'groupsMessages')!;
-    expect(hit.href).toMatch(new RegExp(`^/app/groups/inbox/${chat.id}#m-`));
+    expect(hit.href).toMatch(new RegExp(`^/app/lines/inbox/${chat.id}#m-`));
     // La meta del grupo va en el idioma de la paleta.
     const chats = await searchApps({ id: user.id }, chat.name, 5, 'es');
     expect(chats.find((i) => i.group === 'groupsChats')?.meta).toBe('Grupo de WhatsApp');

@@ -330,7 +330,7 @@ describe('listas guardadas', () => {
     await expect(updateSavedList(user.id, mate.id, mine.id, { name: 'X' })).rejects.toMatchObject({ code: 'not_found' });
     expect((await updateSavedList(user.id, mate.id, shared.id, { name: 'Pro (equipo)' }, true)).name).toBe('Pro (equipo)');
     expect((await searchApps({ id: user.id, actingUser: { id: mate.id } }, 'equipo')).filter((i) => i.group === 'groupsLists').map((i) => i.href)).toEqual([
-      `/app/groups/inbox?list=${shared.id}`,
+      `/app/lines/inbox?list=${shared.id}`,
     ]);
     expect(await deleteSavedList(user.id, user.id, mine.id)).toBe(true);
     expect((await listSavedLists(user.id, user.id)).map((l) => l.id)).toEqual([shared.id]);
@@ -484,7 +484,7 @@ describe('tareas desde el chat', () => {
     expect(a + b).toBe(1);
     expect(mail.sent.filter((m) => m.subject === 'Recordatorio: Mandame la propuesta el lunes')).toHaveLength(1);
     const notes = (await getDb().prepare("SELECT title, href FROM notifications WHERE type = 'groups_reminder' AND source_id = ?").all(task.id)) as Array<{ title: string; href: string }>;
-    expect(notes).toEqual([{ title: 'Recordatorio: Mandame la propuesta el lunes', href: `/app/groups/inbox/${chatId}` }]);
+    expect(notes).toEqual([{ title: 'Recordatorio: Mandame la propuesta el lunes', href: `/app/lines/inbox/${chatId}` }]);
     expect(await fireTaskReminders({ now: at })).toBe(0);
 
     // Moverla a otra hora vuelve a avisar; hecha, no.

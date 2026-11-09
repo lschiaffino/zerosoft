@@ -248,7 +248,7 @@
         "ul": [
           "Vercel: hospedagem, funções, armazenamento dos arquivos enviados (Vercel Blob), tarefas agendadas e AI Gateway.",
           "Turso: o banco de dados onde ficam os dados de contas e workspaces.",
-          "Railway: roda o gateway do WhatsApp usado pelo Groups e pelo Inbox quando você conecta um número de WhatsApp.",
+          "Railway: roda o gateway do WhatsApp usado pelo Lines e pelo Inbox quando você conecta um número de WhatsApp.",
           "Resend: entrega de emails transacionais, como códigos de login, convites, avisos e confirmações de reservas.",
           "Google: login, e Gmail e Google Agenda só se você os conectar.",
           "Provedores de modelos de IA, via Vercel AI Gateway ou OpenRouter, só para os recursos de IA que você usar, com termos que não permitem treinar com o seu conteúdo.",
@@ -441,7 +441,7 @@
         "ul": [
           "Vercel Inc. (Estados Unidos): hospedagem, funções, tarefas agendadas, armazenamento de arquivos (Vercel Blob), logs de requisições e AI Gateway. Trata todos os dados em trânsito, os arquivos enviados e os logs com endereços IP.",
           "Turso / ChiselStrike Inc.: o banco de dados e seus backups. Guarda os dados de contas e workspaces.",
-          "Railway Corp. (Estados Unidos): roda o gateway do WhatsApp usado pelo Groups e pelo Inbox. Trata mensagens, contatos e mídias dos números de WhatsApp conectados.",
+          "Railway Corp. (Estados Unidos): roda o gateway do WhatsApp usado pelo Lines e pelo Inbox. Trata mensagens, contatos e mídias dos números de WhatsApp conectados.",
           "Resend Inc. (Estados Unidos): entrega os emails transacionais e do serviço. Trata endereços de destino, conteúdo e eventos de entrega."
         ]
       },

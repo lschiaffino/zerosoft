@@ -18,11 +18,11 @@ export default async function GroupPage(props: { params: Promise<{ locale: strin
   return (
     <div className="ui-page">
       <PageHeader
-        back={{ href: '/app/groups/list', label: t('list.title') }}
+        back={{ href: '/app/lines/list', label: t('list.title') }}
         title={data.chat.name}
         description={data.chat.kind === 'group' ? t('thread.groupMeta', { n: data.chat.memberCount }) : `+${data.chat.phone}`}
         actions={
-          <Link href={`/app/groups/inbox/${data.chat.id}`} className="btn btn-primary">
+          <Link href={`/app/lines/inbox/${data.chat.id}`} className="btn btn-primary">
             {t('detail.openInbox')}
           </Link>
         }
