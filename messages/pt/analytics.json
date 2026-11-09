@@ -30,9 +30,9 @@
     "copied": "Copiado",
     "actions": "Ações",
     "error": "Algo deu errado. Tente de novo.",
-    "loading": "Carregando Analytics…",
+    "loading": "Carregando Pulse…",
     "pageErrorTitle": "Esta página não carregou",
-    "pageErrorBody": "Algo falhou ao carregar o Analytics. Seus dados estão seguros. Tente de novo.",
+    "pageErrorBody": "Algo falhou ao carregar o Pulse. Seus dados estão seguros. Tente de novo.",
     "retry": "Tentar de novo",
     "backHome": "Voltar ao web analytics",
     "errorInvalid": "Não deu certo com esses dados. Revise e tente de novo."
@@ -40,7 +40,7 @@
   "noProject": {
     "title": "Crie seu primeiro projeto",
     "body": "Cada projeto tem sua key e seus dados. Crie um por site ou app que quiser medir e cole o snippet.",
-    "bodyMember": "Este workspace ainda não tem projetos do Analytics. Peça a um admin para criar um.",
+    "bodyMember": "Este workspace ainda não tem projetos do Pulse. Peça a um admin para criar um.",
     "create": "Criar projeto"
   },
   "projectBar": {
@@ -306,7 +306,7 @@
       "rate_limited": "Consultas demais em um minuto. Espere um pouco e tente de novo.",
       "project_not_found": "Esse projeto não existe mais.",
       "unauthorized": "Sua sessão terminou. Entre de novo.",
-      "forbidden": "Você não tem acesso ao Analytics neste workspace.",
+      "forbidden": "Você não tem acesso ao Pulse neste workspace.",
       "sql_error": "O banco recusou a consulta",
       "empty": "Escreva uma consulta primeiro.",
       "too_long": "A consulta é longa demais (máximo de 10.000 caracteres).",
@@ -837,7 +837,7 @@
     "copyEmbed": "Copiar código de incorporação",
     "revoke": "Revogar",
     "create": "Criar link",
-    "publicTitle": "Analytics compartilhado",
+    "publicTitle": "Pulse compartilhado",
     "rateLimited": "Muitas visitas agora. Tente de novo em um minuto.",
     "emptyPublic": "Ainda não há nada para mostrar.",
     "tileError": "Não foi possível carregar este resultado.",

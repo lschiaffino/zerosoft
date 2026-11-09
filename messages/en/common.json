@@ -39,7 +39,7 @@
       "talk": "Channels, direct messages and huddles",
       "shop": "Online store with checkout and orders",
       "design": "Graphic design from templates, with your brand",
-      "analytics": "Product analytics and feature flags",
+      "pulse": "Product analytics and feature flags",
       "social": "Schedule, inbox and analytics for social media",
       "people": "Employee directory, time off and reviews",
       "hiring": "Applicant tracking with a careers page",
@@ -191,12 +191,12 @@
     "groupAssistantChats": "Assistant chats",
     "groupDesigns": "Designs",
     "groupDesignFolders": "Design folders",
-    "groupAnalyticsInsights": "Analytics insights",
-    "groupAnalyticsDashboards": "Analytics dashboards",
-    "groupAnalyticsFlags": "Analytics feature flags",
-    "groupAnalyticsSurveys": "Analytics surveys",
-    "groupAnalyticsCohorts": "Analytics cohorts",
-    "groupAnalyticsProjects": "Analytics projects",
+    "groupAnalyticsInsights": "Pulse insights",
+    "groupAnalyticsDashboards": "Pulse dashboards",
+    "groupAnalyticsFlags": "Pulse feature flags",
+    "groupAnalyticsSurveys": "Pulse surveys",
+    "groupAnalyticsCohorts": "Pulse cohorts",
+    "groupAnalyticsProjects": "Pulse projects",
     "groupSocialPosts": "Social posts",
     "groupSocialLibrary": "Social library",
     "yourApps": "Your apps",
@@ -279,7 +279,7 @@
     "design": {
       "desc": "Social posts, presentations and documents from templates."
     },
-    "analytics": {
+    "pulse": {
       "desc": "Events, funnels, retention and feature flags for your product."
     },
     "social": {
@@ -518,7 +518,7 @@
       "design": {
         "line": "Social posts, slides and documents from templates."
       },
-      "analytics": {
+      "pulse": {
         "line": "Product analytics, web analytics and feature flags."
       },
       "building": "In the works · like {rival}",
@@ -659,11 +659,11 @@
       "inbox": "Unread",
       "inboxEmpty": "All caught up.",
       "chatUnread": "{n, plural, one {# unread conversation in Chat} other {# unread conversations in Chat}}",
-      "groupsUnread": "{n, plural, one {# unread chat in Groups} other {# unread chats in Groups}}",
+      "groupsUnread": "{n, plural, one {# unread chat in Lines} other {# unread chats in Lines}}",
       "chatNone": "No unread conversations in Chat.",
-      "groupsNone": "No unread chats in Groups.",
+      "groupsNone": "No unread chats in Lines.",
       "chatError": "We couldn't load Chat. Reload to try again.",
-      "groupsError": "We couldn't load Groups. Reload to try again.",
+      "groupsError": "We couldn't load Lines. Reload to try again.",
       "crmEmptyAll": "Nobody has overdue tasks or tasks due today.",
       "crmScope": "Which tasks to show",
       "crmMine": "Mine",

@@ -7,6 +7,7 @@ import { Link } from '@/i18n/navigation';
 import Icon from './icons';
 import { relDate } from '@/lib/utils';
 import { useVisiblePoll } from '@/lib/use-visible-poll';
+import { useLayer } from '@/lib/ui/layers';
 import { notificationTitle, type NotificationTextLabels } from '@/lib/notification-text';
 
 /** Evento que dispara quien cambia avisos (la bandeja) para que la campana se actualice. */
@@ -44,6 +45,8 @@ export default function NotificationBell({ labels, onCountChange }: Notification
   // Hasta la primera respuesta no se sabe si está vacía; si falló, tampoco.
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const locale = useLocale();
 
   // Los pospuestos no cuentan ni se listan (el API los excluye). Se recarga al
@@ -70,15 +73,8 @@ export default function NotificationBell({ labels, onCountChange }: Notification
     return () => window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
   }, [load]);
 
-  useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, []);
+  // Una capa más (lib/ui/layers.ts): abrirla cierra los menús abiertos; clic afuera y Esc la cierran.
+  useLayer(open, () => setOpen(false), { root: ref, trigger: btnRef, panel: panelRef });
 
   async function markRead(id: string) {
     const res = await fetch(`/api/notifications/${id}`, {
@@ -120,6 +116,7 @@ export default function NotificationBell({ labels, onCountChange }: Notification
   return (
     <div className="side-bell-wrap" ref={ref}>
       <button
+        ref={btnRef}
         type="button"
         className="side-bell"
         onClick={() => {
@@ -128,6 +125,7 @@ export default function NotificationBell({ labels, onCountChange }: Notification
         }}
         aria-label={labels.title}
         aria-expanded={open}
+        aria-haspopup="dialog"
       >
         <Icon name="bell" />
         {unreadCount > 0 && (
@@ -135,7 +133,7 @@ export default function NotificationBell({ labels, onCountChange }: Notification
         )}
       </button>
       {open && (
-        <div className="side-bell-panel">
+        <div ref={panelRef} className="side-bell-panel">
           <div className="side-bell-header">
             <span className="side-bell-title">{labels.title}</span>
             {unreadCount > 0 && (

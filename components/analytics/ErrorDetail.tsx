@@ -56,7 +56,7 @@ export default function ErrorDetail({ refId, canEdit }: { refId: string; canEdit
     }
   };
 
-  const back = { href: '/app/analytics/errors', label: t('title') };
+  const back = { href: '/app/pulse/errors', label: t('title') };
   if (!issue) {
     return (
       <div className="app-page ui-page an-page" aria-busy={loading}>
@@ -204,7 +204,7 @@ export default function ErrorDetail({ refId, canEdit }: { refId: string; canEdit
               {issue.topPeople.map((p) => (
                 <li key={p.key} className="an-occ-person">
                   {p.personId ? (
-                    <Link href={`/app/analytics/persons/${p.personId}`} className="an-link an-mono an-occ-url">
+                    <Link href={`/app/pulse/persons/${p.personId}`} className="an-link an-mono an-occ-url">
                       {p.key}
                     </Link>
                   ) : (

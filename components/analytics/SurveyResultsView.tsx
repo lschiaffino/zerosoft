@@ -154,7 +154,7 @@ export default function SurveyResultsView({ id, name, status }: { id: string; na
 
   return (
     <div className="app-page ui-page an-page" aria-busy={loading}>
-      <PageHeader back={{ href: '/app/analytics/surveys', label: ts('title') }} title={name} description={<SurveyStatusBadge status={status} />} />
+      <PageHeader back={{ href: '/app/pulse/surveys', label: ts('title') }} title={name} description={<SurveyStatusBadge status={status} />} />
       <SurveyTabs id={id} current="results" />
       <div className="an-toolbar">
         <RangeSelect value={range} onChange={setRange} />
@@ -196,7 +196,7 @@ export default function SurveyResultsView({ id, name, status }: { id: string; na
           </div>
           <p className="an-note">{t('clientNote')}</p>
           {data.truncated && <p className="an-note">{t('truncated')}</p>}
-          {data.sent === 0 ? <EmptyState product="analytics" title={t('emptyTitle')} body={t('emptyBody')} /> : data.questions.map((q, i) => <QuestionResult key={q.id} q={q} index={i} />)}
+          {data.sent === 0 ? <EmptyState product="pulse" title={t('emptyTitle')} body={t('emptyBody')} /> : data.questions.map((q, i) => <QuestionResult key={q.id} q={q} index={i} />)}
         </>
       )}
     </div>

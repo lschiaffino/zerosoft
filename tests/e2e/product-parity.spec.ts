@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
  * link al board. Y el porcentaje al lado de cada app en /products.
  */
 
-const PRODUCTS = ['crm', 'chat', 'groups', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
+const PRODUCTS = ['crm', 'chat', 'lines', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
 
 for (const product of PRODUCTS) {
   test(`paridad en /es/products/${product}`, async ({ page }) => {
@@ -51,11 +51,11 @@ test('/products muestra el porcentaje de cada app', async ({ page }) => {
   await expect(tags.first()).toHaveText(/^\d{1,3}% parity with .+/);
 });
 
-test('Analytics no publica porcentaje en /products, /compare ni en su comparación', async ({ page, request }) => {
+test('Pulse no publica porcentaje en /products, /compare ni en su comparación', async ({ page, request }) => {
   await page.goto('/en/products');
   const tag = page.locator('.suite-vs', { hasText: 'PostHog' }).locator('.suite-parity');
   await expect(tag).toHaveText(/included, \d+ partial of \d+$/);
-  const row = page.locator('#paridad .parity-overview-table tbody tr', { hasText: 'Analytics' });
+  const row = page.locator('#paridad .parity-overview-table tbody tr', { hasText: 'Pulse' });
   await expect(row).toContainText('Not comparable');
   expect(await row.textContent()).not.toMatch(/\d%/);
   await page.goto('/en/compare');
@@ -76,8 +76,8 @@ for (const path of ['/es', '/es/products']) {
     await expect(table.locator('tbody tr')).toHaveCount(PRODUCTS.length);
     await expect(table.locator('.po-percent').first()).toHaveText(/^\d{1,3}%$/);
     await expect(page.locator('#paridad .parity-overview-lead')).toContainText('26 apps');
-    await table.locator('a.po-app', { hasText: 'Groups' }).click();
-    await expect(page).toHaveURL(/\/es\/products\/groups#parity$/);
+    await table.locator('a.po-app', { hasText: 'Lines' }).click();
+    await expect(page).toHaveURL(/\/es\/products\/lines#parity$/);
   });
 }
 

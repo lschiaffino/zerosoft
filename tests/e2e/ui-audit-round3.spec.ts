@@ -16,9 +16,9 @@ const ROUTES = [
   '/es/app/crm',
   '/es/app/crm/deals',
   '/es/app/crm/contacts',
-  '/es/app/groups/list',
-  '/es/app/groups/tasks',
-  '/es/app/groups/tickets',
+  '/es/app/lines/list',
+  '/es/app/lines/tasks',
+  '/es/app/lines/tickets',
   '/es/app/books/invoices',
   '/es/app/people',
   '/es/app/hiring/reports',
@@ -81,7 +81,7 @@ test.describe('listas a 390', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test('Books y Groups muestran todo sin scroll lateral', async ({ page }) => {
-    for (const route of ['/es/app/books/invoices', '/es/app/books/contacts', '/es/app/groups/list', '/es/app/groups/tasks', '/es/app/groups/templates', '/es/app/groups/broadcasts']) {
+    for (const route of ['/es/app/books/invoices', '/es/app/books/contacts', '/es/app/lines/list', '/es/app/lines/tasks', '/es/app/lines/templates', '/es/app/lines/broadcasts']) {
       await page.goto(route, { waitUntil: 'networkidle' });
       const overflow = await page.evaluate(() => [...document.querySelectorAll('.table-stack')].filter((w) => w.scrollWidth > w.clientWidth + 1).length);
       expect(overflow, route).toBe(0);

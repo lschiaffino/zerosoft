@@ -43,7 +43,7 @@ test.beforeAll(async ({ request }) => {
 
 async function open(page: Page, baseURL: string, id = boardId) {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL }]);
-  await page.goto(`/en/app/analytics/dashboards/${id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/dashboards/${id}`, { waitUntil: 'networkidle' });
 }
 const tile = (page: Page, name: string) => page.getByRole('article', { name, exact: true });
 const number = (page: Page, name: string) => tile(page, name).locator('.an-bignum-value');
@@ -145,7 +145,7 @@ test('el link público muestra los textos y respeta los filtros', async ({ page,
 
 test('un tablero armado crea sus insights y a 390px no hay scroll horizontal', async ({ page, baseURL }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await page.goto('/en/app/analytics/dashboards', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/dashboards', { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Create the Website dashboard' }).click();
   await expect(page).toHaveURL(/dashboards\/ad_/, { timeout: 15_000 });
   await expect(page.locator('.an-tiles > article')).toHaveCount(6, { timeout: 15_000 });

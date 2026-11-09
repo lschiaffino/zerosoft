@@ -39,7 +39,7 @@ test.beforeAll(async ({ request }) => {
 
 test('comparar con el período anterior muestra los dos totales', async ({ page, baseURL }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await page.goto('/en/app/analytics/insights/new', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/insights/new', { waitUntil: 'networkidle' });
   await page.getByLabel('Event', { exact: true }).first().fill('buy');
   await page.getByLabel('Compare to previous period').check();
   const row = page.getByTestId('an-result').locator('tbody tr').first();
@@ -50,7 +50,7 @@ test('comparar con el período anterior muestra los dos totales', async ({ page,
 
 test('retención: el tamaño de la cohorte y quién volvió', async ({ page, baseURL }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await page.goto('/en/app/analytics/insights/new?kind=retention', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/insights/new?kind=retention', { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: 'Retention' }).click();
   await page.getByLabel('First event').first().fill('seen');
   await page.getByLabel('Return event').first().fill('seen');
@@ -65,7 +65,7 @@ test('retención: el tamaño de la cohorte y quién volvió', async ({ page, bas
 
 test('una persona: propiedades y sus eventos', async ({ page, baseURL }) => {
   await page.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await page.goto('/en/app/analytics/persons', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/persons', { waitUntil: 'networkidle' });
   await page.getByRole('link', { name: 'ana@acme.com' }).or(page.getByRole('link', { name: 'ana', exact: true })).first().click();
   await expect(page).toHaveURL(/persons\/.+/);
   await expect(page.getByText('plan', { exact: true })).toBeVisible({ timeout: 15_000 });

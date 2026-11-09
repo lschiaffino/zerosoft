@@ -86,7 +86,7 @@ test.describe('log de entregas en la hora del navegador', () => {
       `mxd-${uid()}`,
       id,
     ]);
-    await page.goto('/en/app/groups/settings?tab=integrations', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/settings?tab=integrations', { waitUntil: 'networkidle' });
     await page.locator('li', { hasText: '127.0.0.1:9/mx-' }).getByRole('button', { name: 'Log' }).first().click();
     const log = page.getByRole('dialog', { name: 'Delivery log' });
     const time = log.locator('time[datetime="2026-01-15 15:00:00"]');
@@ -105,13 +105,13 @@ test('ticket recién resuelto dice "Resolved just now" y asignarse el chat dice 
   expect(tk.ok(), await tk.text()).toBe(true);
   const { id } = (await tk.json()) as { id: string };
   expect((await request.patch(`/api/groups/tickets/${id}`, { data: { status: 'resolved' } })).ok()).toBe(true);
-  await page.goto('/en/app/groups/tickets', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/tickets', { waitUntil: 'networkidle' });
   await page.getByRole('combobox', { name: 'Status' }).first().selectOption('all');
   const row = page.locator('tr', { hasText: name });
   await expect(row.getByText('Resolved just now')).toBeVisible();
   await expect(page.getByText(/now ago/)).toHaveCount(0);
 
-  await page.goto(`/en/app/groups/inbox/${chat.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
   await page.locator('body').click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('a');
   await expect(page.locator('.gr-thread, main').getByText(/assigned the chat to themselves/).first()).toBeVisible();
@@ -124,7 +124,7 @@ test('CSV de plantillas sin la columna de una variable dice cuál falta', async 
   const tpl = `Csv ${uid()}`;
   const created = await request.post('/api/groups/templates', { data: { name: tpl, groupName: '{{company}} · {{plan}}' } });
   expect(created.ok(), await created.text()).toBe(true);
-  await page.goto('/en/app/groups/templates', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/templates', { waitUntil: 'networkidle' });
   await page.locator('tr', { hasText: tpl }).getByRole('button', { name: 'Use' }).click();
   const use = page.getByRole('dialog', { name: `Create groups with ${tpl}` });
   await use.getByLabel('From number').selectOption(n.id);
@@ -136,7 +136,7 @@ test('CSV de plantillas sin la columna de una variable dice cuál falta', async 
 
 test('ConfirmDialog destructivo: el foco arranca en Cancelar (Enter no borra)', async ({ page, request }) => {
   const n = await fakeNumber(request);
-  await page.goto('/en/app/groups/settings?tab=numbers', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=numbers', { waitUntil: 'networkidle' });
   const card = page.locator('.gr-number', { hasText: n.name });
   await card.getByRole('button', { name: 'Disconnect' }).click();
   const confirm = page.getByRole('alertdialog', { name: `Disconnect ${n.name}?` });
@@ -148,7 +148,7 @@ test('ConfirmDialog destructivo: el foco arranca en Cancelar (Enter no borra)', 
 
 test('390px: el launcher de feedback no tapa "Available" en Ajustes › Asignación', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/en/app/groups/settings?tab=assignment', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=assignment', { waitUntil: 'networkidle' });
   const launcher = page.locator('.fl-root .fl-button');
   await expect(launcher).toBeVisible();
   const btn = (await launcher.boundingBox())!;

@@ -44,6 +44,27 @@
   --radius-0: 0;
   --radius-1: 3px;
 
+  /*
+    Capas (z-index), de abajo arriba. Los menús de la página quedan debajo de
+    la banda fija; los de la banda y el sidebar viven en su contexto (por eso
+    pintan sobre el resto). Modal debajo de ⌘K y los avisos arriba de todo.
+    Un solo menú abierto a la vez: lib/ui/layers.ts.
+  */
+  --z-raised: 10;
+  --z-sticky: 20;
+  --z-dropdown: 50;
+  --z-sidebar: 55;
+  --z-side-panel: 59;
+  --z-band: 60;
+  --z-menu: 70;
+  --z-drawer: 80;
+  --z-modal: 100;
+  --z-modal-menu: 110;
+  --z-command: 120;
+  --z-toast: 130;
+  --z-progress: 200;
+  --z-skip: 1000;
+
   /* Filete de sección: una línea fina de tinta. */
   --stroke-rule: 1px;
 
