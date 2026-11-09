@@ -50,6 +50,8 @@ interface FakeState {
   connectedAt: number | null;
   groups: Map<string, FakeGroup>;
   sent: FakeSent[];
+  /** Asuntos de grupos que llegaron por webhook (para chatInfo). */
+  chatNames?: Map<string, string>;
 }
 
 const store = ((globalThis as unknown as { __groupsFake?: Map<string, FakeState> }).__groupsFake ??= new Map());
@@ -147,7 +149,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       if (chatId.endsWith('@g.us')) {
         const g = s.groups.get(chatId);
         if (g) return { name: g.name, about: g.description ?? '', pictureUrl: g.picture || pic, participants: g.participants.map((p) => ({ phone: p.phone, role: p.role })), size: g.participants.length };
-        return { name: `Grupo ${digits.slice(-4)}`, about: '', pictureUrl: pic, participants: [{ phone: '15550000001', role: 'superadmin' }], size: 1 };
+        return { name: s.chatNames?.get(chatId) ?? `Grupo ${digits.slice(-4)}`, about: '', pictureUrl: pic, participants: [{ phone: '15550000001', role: 'superadmin' }], size: 1 };
       }
       return { name: '', about: digits.endsWith('1') ? '' : 'Disponible', pictureUrl: pic };
     },
@@ -280,10 +282,15 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     parseWebhook(body) {
       const events = (body as { events?: unknown })?.events;
       if (!Array.isArray(events)) return [];
-      return events.filter((e): e is InboundEvent => {
+      const out = events.filter((e): e is InboundEvent => {
         const t = (e as { type?: unknown })?.type;
         return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote', 'contact', 'presence'].includes(String(t));
       });
+      // El asunto que llegó con el mensaje es el que devuelve chatInfo (como el servidor real).
+      for (const e of out) {
+        if (e.type === 'message' && e.isGroup && e.chatName) (s.chatNames ??= new Map()).set(e.chatId, e.chatName);
+      }
+      return out;
     },
   };
 }
