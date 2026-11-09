@@ -54,7 +54,7 @@ describe('sidebar de la app', () => {
     expect(appProductFromPath('/app/crm/deals')).toBe('crm');
     expect(appProductFromPath('/app/notes/clip')).toBe('notes');
     expect(appProductFromPath('/app/robots/recorder')).toBe('robots');
-    expect(appProductFromPath('/app/groups/inbox/abc')).toBe('groups');
+    expect(appProductFromPath('/app/lines/inbox/abc')).toBe('groups');
     expect(appProductFromPath('/app/voice')).toBe('voice');
     expect(appProductFromPath('/app/rec/settings')).toBe('rec');
     expect(appProductFromPath('/app/talk')).toBe('talk');
@@ -95,10 +95,17 @@ describe('sidebar de la app', () => {
   it('"+ Nuevo" crea en vez de llevar a la lista', () => {
     for (const product of PRODUCTS) {
       for (const item of buildNewItems(product, labels)) {
-        expect(/\/new$|[?&]new=1/.test(item.href), `${product}: ${item.href}`).toBe(true);
+        expect(/\/new(\?|$)|[?&]new(Issue)?=1/.test(item.href), `${product}: ${item.href}`).toBe(true);
       }
     }
     expect(buildNewItems('crm', labels).map((i) => i.href)).toContain('/app/crm/tasks?new=1');
+    // Track, como Linear: issue (C) en el contexto de la página, project del team actual y team nuevo.
+    expect(buildNewItems('track', labels, { pathname: '/app/track/team/ENG' }).map((i) => i.href)).toEqual([
+      '/app/track/team/ENG?newIssue=1',
+      '/app/track/projects/new?team=ENG',
+      '/app/track/teams/new',
+    ]);
+    expect(buildNewItems('track', labels).map((i) => i.href)[1]).toBe('/app/track/projects/new');
     expect(buildNewItems('docs', labels)[0].href).toBe('/app/docs?new=1');
     expect(buildNewItems('flow', labels)[0].href).toBe('/app/flow?new=1');
     expect(buildNewItems('agents', labels)[0].href).toBe('/app/agents?new=1');
@@ -141,8 +148,8 @@ describe('sidebar de la app', () => {
         .map((i) => i.href);
     expect(active('notes', '/app/notes/clip')).toEqual(['/app/notes/clip']);
     expect(active('robots', '/app/robots/recorder')).toEqual(['/app/robots/recorder']);
-    expect(active('groups', '/app/groups/inbox/abc')).toEqual(['/app/groups/inbox']);
-    expect(active('groups', '/app/groups/list/abc')).toEqual(['/app/groups/list']);
+    expect(active('groups', '/app/lines/inbox/abc')).toEqual(['/app/lines/inbox']);
+    expect(active('groups', '/app/lines/list/abc')).toEqual(['/app/lines/list']);
     expect(active('link', '/app/links/bulk')).toEqual(['/app/links/new']);
     expect(active('link', '/app/links/import')).toEqual(['/app/links/new']);
     expect(active('link', '/app/links/domains')).toEqual(['/app/links/settings']);
@@ -253,8 +260,8 @@ describe('sidebar del inicio: tus apps y "Más apps"', () => {
     expect(groups[1]).toMatchObject({ section: 'More apps', collapsible: true });
     expect(groups[0].items.length + groups[1].items.length).toBe(SWITCHER_PRODUCTS.length);
   });
-  it('respeta el acceso por app y no muestra "Más apps" vacío', () => {
+  it('respeta el acceso por app y no muestra "Más apps" vacío (Inbox, personal, siempre está)', () => {
     const groups = homeAppGroups(L, { allowed: ['crm', 'social'] });
-    expect(groups.map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/social']]);
+    expect(groups.map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/social', '/app/inbox']]);
   });
 });

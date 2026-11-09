@@ -430,7 +430,7 @@
 .track-dialog-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-modal);
   display: flex;
   justify-content: center;
   background: var(--ui-backdrop);
@@ -626,7 +626,7 @@
   right: 0;
   bottom: 16px;
   left: 0;
-  z-index: 110;
+  z-index: var(--z-modal-menu);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -715,8 +715,19 @@
 }
 
 @media (max-width: 640px) {
+  /* En el teléfono el composer es una pantalla entera: el formulario arriba y sus botones
+     justo debajo, por encima del teclado (como el de Linear en iOS). */
   .track-qc-overlay {
-    padding-top: 16px;
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .track-qc {
+    max-width: none;
+    min-height: 100dvh;
+    padding-top: env(safe-area-inset-top, 0px);
+    border: 0;
+    border-radius: 0;
   }
 
   .kbd.track-kbd,

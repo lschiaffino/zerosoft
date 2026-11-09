@@ -253,7 +253,7 @@ export function ChatTasksSection({ chatId, people, me }: { chatId: string; peopl
           ))}
         </ul>
       )}
-      <Link href="/app/groups/tasks" className="ui-help">
+      <Link href="/app/lines/tasks" className="ui-help">
         {t('tasks.all')}
       </Link>
       <TaskModal open={open} chatId={chatId} message={null} people={people} me={me} onClose={() => setOpen(false)} onCreated={() => setOpen(false)} />

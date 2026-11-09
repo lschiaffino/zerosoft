@@ -61,7 +61,7 @@ function watchErrors(page: Page): string[] {
 
 test('conectar un número por QR desde Ajustes', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto('/en/app/groups/settings?tab=numbers&new=1', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=numbers&new=1', { waitUntil: 'networkidle' });
   const dialog = page.getByRole('dialog', { name: 'Add a WhatsApp number' });
   await expect(dialog).toBeVisible();
   // El QR administrado va primero; las credenciales propias, bajo "Conexión avanzada".
@@ -93,7 +93,7 @@ test('bandeja: llega un mensaje, se responde, nota interna y ticket desde el men
   const invoice = `Invoice ${uid()} did not arrive`;
   await inbound(request, n, gid, invoice, who);
 
-  await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const row = page.locator('.gr-row', { hasText: `Cliente ${who}` });
   await expect(row).toBeVisible();
   await expect(row.getByText(/Waiting/)).toBeVisible();
@@ -129,7 +129,7 @@ test('bandeja: llega un mensaje, se responde, nota interna y ticket desde el men
   await expect(page.getByText(/Ticket #\d+ created/)).toBeVisible();
   await expect(msg.getByRole('link', { name: 'Ticket' })).toBeVisible();
 
-  await page.goto('/en/app/groups/tickets', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/tickets', { waitUntil: 'networkidle' });
   const ticketRow = page.locator('tr', { hasText: invoice });
   await expect(ticketRow).toBeVisible();
   await expect(ticketRow.getByLabel('Priority')).toHaveValue('high');
@@ -159,7 +159,7 @@ test('ticket por reacción con el emoji desde el teléfono', async ({ request })
 test('grupos: crear uno, varios desde CSV y agregar miembros en lote', async ({ page, request }) => {
   const errors = watchErrors(page);
   await fakeNumber(request);
-  await page.goto('/en/app/groups/list', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/list', { waitUntil: 'networkidle' });
 
   const single = `Acme ${uid()}`;
   await page.keyboard.press('c');
@@ -173,7 +173,7 @@ test('grupos: crear uno, varios desde CSV y agregar miembros en lote', async ({ 
   await page.getByRole('button', { name: 'Get invite link' }).click();
   await expect(page.getByLabel('Invite link')).toHaveValue(/chat\.whatsapp\.com/);
 
-  await page.goto('/en/app/groups/list', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/list', { waitUntil: 'networkidle' });
   const a = `Batch A ${uid()}`;
   const b = `Batch B ${uid()}`;
   await page.getByRole('button', { name: 'Import CSV' }).click();
@@ -205,14 +205,14 @@ test('envío masivo a varios chats con estado por destinatario', async ({ page, 
   await inbound(request, n, `54911${Date.now().toString().slice(-8)}@c.us`, 'hola', `Bea${tag}`);
   await inbound(request, n, `54912${Date.now().toString().slice(-8)}@c.us`, 'hola', `Cami${tag}`);
 
-  await page.goto('/en/app/groups/broadcasts/new', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/broadcasts/new', { waitUntil: 'networkidle' });
   if ((await page.getByLabel('From number').count()) > 0) await page.getByLabel('From number').selectOption(n.id);
   await page.getByRole('searchbox', { name: 'Search by name' }).fill(tag);
   await page.getByRole('button', { name: /Select 2 shown/ }).click();
   await page.getByRole('textbox', { name: 'Message' }).fill('Hi {{first_name}}, the new release is live.');
   await expect(page.locator('.gr-preview').getByText(/Hi (Bea|Cami)/)).toBeVisible();
   await page.getByRole('button', { name: 'Send to 2 chats' }).click();
-  await expect(page).toHaveURL(/\/groups\/broadcasts\/[\w-]+$/);
+  await expect(page).toHaveURL(/\/lines\/broadcasts\/[\w-]+$/);
   await expect(page.locator('.badge', { hasText: 'Sent' })).toHaveCount(2, { timeout: 20_000 });
   await expect(page.getByText('Done')).toBeVisible({ timeout: 20_000 });
   expect(errors).toEqual([]);
@@ -223,7 +223,7 @@ test('390px: la bandeja muestra una columna por vez y sin scroll horizontal', as
   const who = `Mobi${uid()}`;
   await inbound(request, n, `120363${Date.now()}7@g.us`, 'hola desde el teléfono', who);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   await page.locator('.gr-row', { hasText: `Cliente ${who}` }).click();
   await expect(page.getByRole('link', { name: 'Chats' })).toBeVisible();
   const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));

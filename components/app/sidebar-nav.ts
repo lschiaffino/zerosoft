@@ -2,7 +2,7 @@ import { importHubHref } from '@/lib/import-registry';
 import type { IconName } from './icons';
 import { isNewLinkPath } from '@/lib/link-detail-tabs';
 import type { NotificationTextLabels } from '@/lib/notification-text';
-import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, isBuildingProduct, type ProductCategory, type ProductKey } from '@/lib/products';
+import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, appAllowed, isBuildingProduct, type ProductCategory, type ProductKey } from '@/lib/products';
 import { featuredApps, type WorkspaceMode } from '@/lib/workspace-mode';
 
 /** Resumen de Link (antes vivía en /app, que ahora es el inicio de la plataforma). */
@@ -110,6 +110,10 @@ export interface SidebarLabels {
     polls?: string;
   };
   track: {
+    /** Menú "+ Nuevo" de Track: issue (C), project del team actual y team. */
+    newIssue?: string;
+    newPlan?: string;
+    newTeam?: string;
     overview: string;
     myTasks: string;
     projects: string;
@@ -338,7 +342,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/board', 'board'],
   ['/app/agents', 'agents'],
   ['/app/robots', 'robots'],
-  ['/app/groups', 'groups'],
+  ['/app/lines', 'groups'],
   ['/app/voice', 'voice'],
   ['/app/rec', 'rec'],
   ['/app/talk', 'talk'],
@@ -455,7 +459,7 @@ export function homeAppGroups(
   labels: SidebarLabels,
   opts: { allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode } = {},
 ): NavGroup[] {
-  const can = (k: ProductKey) => !opts.allowed || opts.allowed === '*' || opts.allowed.includes(k);
+  const can = (k: ProductKey) => appAllowed(opts.allowed, k);
   const all = APP_SWITCHER_ORDER.filter(can);
   const recent = (opts.recentApps ?? []).filter((k): k is ProductKey => (all as readonly string[]).includes(k));
   const top = [...new Set([...recent, ...featuredApps({ mode: opts.mode ?? 'team' }).filter(can), ...all])].slice(0, HOME_APPS_LIMIT);
@@ -772,26 +776,26 @@ export function buildNav(
         {
           items: [
             {
-              href: '/app/groups/inbox',
+              href: '/app/lines/inbox',
               label: labels.groups.inbox,
-              active: at('/app/groups/inbox') || pathname === '/app/groups',
+              active: at('/app/lines/inbox') || pathname === '/app/lines',
               icon: 'inbox',
               // Listas guardadas de chats (GroupsListsBranch en el hueco #side-branch).
               branch: true,
             },
-            { href: '/app/groups/list', label: labels.groups.groups, active: at('/app/groups/list'), icon: 'groups' },
-            { href: '/app/groups/tickets', label: labels.groups.tickets, active: at('/app/groups/tickets'), icon: 'tasks' },
-            { href: '/app/groups/tasks', label: labels.groups.tasks, active: at('/app/groups/tasks'), icon: 'myTasks' },
-            { href: '/app/groups/templates', label: labels.groups.templates, active: at('/app/groups/templates'), icon: 'templates' },
-            { href: '/app/groups/broadcasts', label: labels.groups.broadcasts, active: at('/app/groups/broadcasts'), icon: 'bulk' },
+            { href: '/app/lines/list', label: labels.groups.groups, active: at('/app/lines/list'), icon: 'groups' },
+            { href: '/app/lines/tickets', label: labels.groups.tickets, active: at('/app/lines/tickets'), icon: 'tasks' },
+            { href: '/app/lines/tasks', label: labels.groups.tasks, active: at('/app/lines/tasks'), icon: 'myTasks' },
+            { href: '/app/lines/templates', label: labels.groups.templates, active: at('/app/lines/templates'), icon: 'templates' },
+            { href: '/app/lines/broadcasts', label: labels.groups.broadcasts, active: at('/app/lines/broadcasts'), icon: 'bulk' },
           ],
         },
         {
           section: labels.insights,
-          items: [{ href: '/app/groups/analytics', label: labels.groups.analytics, active: at('/app/groups/analytics'), icon: 'reports' }],
+          items: [{ href: '/app/lines/analytics', label: labels.groups.analytics, active: at('/app/lines/analytics'), icon: 'reports' }],
         },
         {
-          items: [{ href: '/app/groups/settings', label: labels.groups.settings, active: at('/app/groups/settings'), icon: 'settings' }],
+          items: [{ href: '/app/lines/settings', label: labels.groups.settings, active: at('/app/lines/settings'), icon: 'settings' }],
         },
       ];
 
@@ -1135,7 +1139,7 @@ export function buildNav(
 }
 
 /** Acciones del menú "+ Nuevo": cada una crea algo (ruta /new o ?new=1). */
-export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: { docsCanCreate?: boolean } = {}): NavItem[] {
+export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: { docsCanCreate?: boolean; pathname?: string } = {}): NavItem[] {
   // Un miembro de solo lectura en Docs no ve "Nueva página" (crearla le daría error).
   if (opts.docsCanCreate === false) return buildNewItems(product, labels).filter((i) => !i.href.startsWith('/app/docs'));
   const item = (href: string, label: string, icon: IconName): NavItem => ({ href, label, icon, active: false });
@@ -1179,8 +1183,17 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/docs?new=1', labels.newDocPage, 'docs')];
     case 'calendar':
       return [item('/app/calendar/event-types/new', labels.newEventType, 'tasks')];
-    case 'track':
-      return [item('/app/track/teams/new', labels.newProject, 'lists')];
+    case 'track': {
+      // Como Linear: primero el issue (C, en el contexto de la página), después un project
+      // del team en el que se está y al final un team nuevo.
+      const path = opts.pathname && opts.pathname.startsWith('/app/track') ? opts.pathname : '/app/track';
+      const teamKey = /^\/app\/track\/team\/([^/?#]+)/.exec(path)?.[1];
+      return [
+        item(`${path}?newIssue=1`, labels.track.newIssue ?? labels.newTask, 'tasks'),
+        item(teamKey ? `/app/track/projects/new?team=${encodeURIComponent(teamKey)}` : '/app/track/projects/new', labels.track.newPlan ?? labels.newProject, 'plans'),
+        item('/app/track/teams/new', labels.track.newTeam ?? labels.newProject, 'lists'),
+      ];
+    }
     case 'chat':
       return [item('/app/chat/widgets/new', labels.newWidget, 'chat')];
     case 'flow':
@@ -1200,7 +1213,7 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
     case 'robots':
       return [item('/app/robots?new=1', labels.newRobot, 'robots')];
     case 'groups':
-      return [item('/app/groups/list?new=1', labels.newGroup, 'groups')];
+      return [item('/app/lines/list?new=1', labels.newGroup, 'groups')];
     case 'social':
       return [item('/app/social/posts/new', labels.social.newPost, 'social')];
     case 'people':

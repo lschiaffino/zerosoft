@@ -78,6 +78,7 @@ export default function ColumnToggle({ columns, visible, onToggle, label }: Colu
         type="button"
         className="column-toggle-btn"
         onClick={() => setOpen((v) => !v)}
+        aria-haspopup="true"
         aria-expanded={open}
       >
         <svg

@@ -78,8 +78,8 @@ describe('planificación: cálculos puros', () => {
       byPoints: false,
     });
     const p = computeProgress([{ category: 'done', estimate: 3 }, { category: 'in_progress', estimate: 1 }, { category: 'todo', estimate: null }]);
-    // Como Linear, el empezado suma la mitad: (3 + 0,5) / 5.
-    expect(p).toMatchObject({ byPoints: true, points: 5, donePoints: 3, percent: 70, started: 1 });
+    // Terminado sobre alcance, en puntos: 3 / 5 (el empezado se muestra aparte, no suma).
+    expect(p).toMatchObject({ byPoints: true, points: 5, donePoints: 3, startedPoints: 1, percent: 60, started: 1 });
   });
 
   it('salud: último update, o "falta el update" pasado el ciclo + 3 días', () => {
@@ -120,6 +120,19 @@ describe('planificación: cálculos puros', () => {
     expect(m.points.map((p) => p.completed)).toEqual([0, 0, 1, 1, 1]);
     expect(m.points[3].started).toBe(1);
     expect(m).toMatchObject({ initialScope: 2, added: 1, removed: 1, carriedOver: 1, scopeCreepPercent: 50, completionPercent: 50 });
+  });
+
+  it('burn-up: el punto de hoy cuenta lo cerrado con fecha UTC de mañana (navegador detrás de UTC)', () => {
+    // 22:30 en Buenos Aires del 3: en UTC ya es el 4, el navegador manda hoy = 3.
+    const m = computeCycleMetrics({
+      start: '2026-10-01',
+      end: '2026-10-14',
+      today: '2026-10-03',
+      issues: [
+        { id: 'a', estimate: null, createdAt: '2026-09-20T10:00:00Z', category: 'done', inCycle: true, moves: [{ at: '2026-09-25T10:00:00Z', kind: 'join' }], statusChanges: [{ at: '2026-10-04T01:30:00Z', from: 'todo', to: 'done' }] },
+      ],
+    });
+    expect(m.points.map((p) => p.completed)).toEqual([0, 0, 1]);
   });
 
   it('velocidad y capacidad', () => {

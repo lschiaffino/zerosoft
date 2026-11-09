@@ -306,6 +306,8 @@ select.select,
 
 /* ---------- 3. Checkbox y switch ---------- */
 
+/* Casilla sola en una celda (selección de filas): el label la envuelve y hace de área táctil de 40px. */
+.tap-cell { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; margin: -8px; cursor: pointer; }
 /* <label class="ui-check"><input type="checkbox"> Texto</label> */
 .ui-check {
   display: inline-flex;
@@ -446,8 +448,24 @@ select.select,
 @media (pointer: coarse) {
   .btn, .app-frame .btn,
   .btn-sm, .btn-small, .app-frame .btn-sm, .app-frame .btn-small { --btn-h: 40px; }
-  .ui-tab { min-height: 44px; }
+  /* Algunas apps fijan su propio alto denso (28-32px): con el dedo gana el piso de 40. */
+  .btn { min-height: max(40px, var(--btn-h)) !important; min-width: 40px !important; }
+  .btn-icon { min-width: 40px !important; }
+  .ui-tab { min-height: 44px; min-width: 40px; justify-content: center; }
   .ui-settings-link { min-height: 44px; }
+  .icon-btn { min-width: 40px !important; min-height: 40px !important; }
+  /* Filas de menús y listas de opciones de cualquier app. */
+  [role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox'], [role='option'] { min-height: 44px; }
+  /* Campos: 40px de alto (si no, con la letra de 16px el texto del select queda cortado). */
+  :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='hidden'], [type='image'], [type='submit'], [type='button'], [type='reset']), select) { min-height: 40px !important; }
+  /* Fecha y hora con letra de 16px: que el valor entre entero ("09:00 AM", "10/10/2026"). */
+  input[type='time'] { min-width: 124px; }
+  input:is([type='date'], [type='month'], [type='week']) { min-width: 156px; }
+  input[type='datetime-local'] { min-width: 228px; }
+  /* El ícono de calendario o reloj sobra con el dedo (tocar el campo abre el selector del sistema) y le quitaba lugar al valor. */
+  input:is([type='date'], [type='time'], [type='datetime-local'], [type='month'], [type='week'])::-webkit-calendar-picker-indicator { display: none; }
+  /* Casillas y radios con su texto: la fila entera es el objetivo. */
+  label:has(> :is(input[type='checkbox'], input[type='radio'])) { min-height: 40px; }
 }
 
 /* Datos: cifras alineadas, cero con barra. */
@@ -459,6 +477,21 @@ select.select,
 /* Filas de 36px (cabecera de 32px), filetes de 1px, cifras tabulares.
    Envolver en .table-wrap para scroll horizontal propio. */
 .table-wrap { width: 100%; overflow-x: auto; }
+/* Teléfono: una tabla que no entra scrollea en su caja con la primera columna fija,
+   así cada fila sigue diciendo de qué es (las que pasan a tarjetas llevan .table-stack). */
+@media (max-width: 640px) {
+  .table-wrap:not(.table-stack) > .table :is(th, td):first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--bg);
+  }
+  /* La fija lleva el nombre: que se lea (no tres letras por línea). Va en la cabecera: en las
+     listas que pasan a tarjetas la cabecera queda oculta y no toca la tarjeta. */
+  .table-wrap:not(.table-stack) > .table thead :is(th, td):first-child { min-width: 128px; }
+  .table-wrap:not(.table-stack) > .table tbody tr:hover > :first-child { background: var(--brand-enamel); }
+  .table-wrap:not(.table-stack) > .table tbody tr[aria-selected='true'] > :first-child { background: var(--ui-hover); }
+}
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -610,6 +643,8 @@ dialog.ui-drawer {
   line-height: 1.1;
 }
 .ui-modal-body, .ui-drawer-body { padding: 20px; overflow-y: auto; }
+/* Campos sueltos dentro del cuerpo (sin .ui-fields): aire entre uno y otro, no el label pegado al input de arriba. */
+:is(.ui-modal-body, .ui-drawer-body) > :is(.ui-field + .ui-field, .ui-field + p, p + .ui-field) { margin-top: 16px; }
 .ui-drawer { display: flex; flex-direction: column; }
 dialog.ui-drawer[open] { display: flex; }
 .ui-drawer-body { flex: 1; }
@@ -675,7 +710,7 @@ dialog.ui-drawer[open] { display: flex; }
   position: fixed;
   right: 16px;
   bottom: 16px;
-  z-index: 120;
+  z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -942,7 +977,7 @@ section.ui-section { padding: 0; }
   position: fixed;
   top: 8px;
   left: 8px;
-  z-index: 1000;
+  z-index: var(--z-skip);
   padding: 8px 12px;
   font-size: 0.875rem;
   color: var(--bg);
@@ -1065,7 +1100,7 @@ section.ui-section { padding: 0; }
   top: 0;
   left: 0;
   right: 0;
-  z-index: 200;
+  z-index: var(--z-progress);
   height: 2px;
   background: var(--accent, var(--ink));
   transform-origin: left;

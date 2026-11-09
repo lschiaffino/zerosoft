@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useLayer } from '@/lib/ui/layers';
 
 /**
  * Popover anclado a un botón (compartir de Notes y Board): se cierra con un
- * clic afuera o con Esc, y Esc devuelve el foco al botón que lo abrió.
+ * clic afuera o con Esc, y Esc devuelve el foco al botón que lo abrió. Es una
+ * capa más (lib/ui/layers.ts): abrirlo cierra cualquier otro menú abierto.
  */
 export function usePopover<W extends HTMLElement = HTMLDivElement, B extends HTMLElement = HTMLButtonElement>() {
   const [open, setOpen] = useState(false);
@@ -16,24 +18,7 @@ export function usePopover<W extends HTMLElement = HTMLDivElement, B extends HTM
     if (returnFocus) buttonRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDoc(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        close(true);
-      }
-    }
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open, close]);
+  useLayer(open, () => setOpen(false), { root: wrapRef, trigger: buttonRef });
 
   return { open, setOpen, toggle: () => setOpen((v) => !v), close, wrapRef, buttonRef };
 }
