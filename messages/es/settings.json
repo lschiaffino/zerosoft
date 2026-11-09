@@ -1488,7 +1488,8 @@
         "invite_create": "Invitó a alguien",
         "invite_revoke": "Revocó una invitación",
         "workspace_delete_requested": "Pidió borrar el workspace",
-        "login_mfa": "Pasó el segundo paso"
+        "login_mfa": "Pasó el segundo paso",
+        "workspace_delete_cancelled": "Canceló el borrado del workspace"
       }
     },
     "errors": {
@@ -1522,6 +1523,9 @@
     "cancelDeletion": "Cancelar el borrado",
     "mismatch": "No coincide. Escribilo tal cual se muestra.",
     "error": "Algo salió mal. Probá de nuevo.",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "codeLabel": "Código de dos pasos (de la app o de recuperación)",
+    "badCode": "Ese código de dos pasos no sirvió.",
+    "rateLimited": "Demasiados intentos. Probá más tarde."
   }
 }

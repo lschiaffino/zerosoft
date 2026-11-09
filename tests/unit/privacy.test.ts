@@ -48,16 +48,17 @@ describe('alcance del borrado', () => {
   const scope = { userId: 'u1', teamIds: ['ws_u1'], kind: 'account' as const };
   it('user_id es del workspace; owner_id del CRM (persona) no decide', () => {
     expect(scopeWhere('crm_contacts', ['id', 'user_id', 'owner_id'], scope)).toEqual({ sql: '(user_id = ?)', args: ['u1'] });
-    expect(scopeWhere('inbox_accounts', ['id', 'owner_id'], scope)?.sql).toBe('(owner_id IN (?, ?))');
+    expect(scopeWhere('inbox_accounts', ['id', 'owner_id'], scope)?.sql).toBe('((owner_id IN (?, ?)))');
     expect(scopeWhere('task_links', ['task_id', 'workspace_id', 'created_by'], scope)?.args).toEqual(['u1', 'ws_u1']);
-    expect(scopeWhere('notes', ['id', 'title'], scope)).toBeNull();
+    expect(scopeWhere('notes_versions', ['id', 'title'], scope)).toBeNull();
   });
   it('workspace_id manda sobre user_id: lo de un workspace ajeno no se toca', () => {
-    expect(scopeWhere('x', ['user_id', 'workspace_id'], scope)?.sql).toBe('(workspace_id IN (?, ?)) OR ((user_id = ? AND workspace_id IS NULL))');
+    expect(scopeWhere('x', ['user_id', 'workspace_id'], scope)?.sql).toBe('((workspace_id IN (?, ?))) OR (user_id = ? AND workspace_id IS NULL)');
   });
   it('borrar solo el workspace deja la cuenta', () => {
     const ws = { ...scope, kind: 'workspace' as const };
     expect(scopeWhere('users', ['id'], ws)).toBeNull();
+    expect(scopeWhere('users', ['id'], scope)).toBeNull(); // la cuenta se anonimiza aparte
     expect(scopeWhere('user_sessions', ['id', 'user_id'], ws)).toBeNull();
     expect(scopeWhere('teams', ['id', 'owner_id'], ws)?.sql).toBe('owner_id = ?');
   });
@@ -114,7 +115,9 @@ describe('borrar la cuenta', () => {
 
     expect(await leftovers(a.id, wsA.id)).toEqual([]);
     expect(await db().prepare('SELECT 1 FROM security_events WHERE user_id = ? AND (team_id IS NULL OR team_id = ?)').get(a.id, wsA.id)).toBeUndefined();
-    expect(await db().prepare('SELECT 1 FROM users WHERE id = ?').get(a.id)).toBeUndefined();
+    const ghost = (await db().prepare('SELECT email, name FROM users WHERE id = ?').get(a.id)) as { email: string; name: string | null };
+    expect(ghost.email).toMatch(/^deleted-.*@deleted\.invalid$/);
+    expect(ghost.name).toBeNull();
     expect(fs.existsSync(path.join(uploadsRoot(), 'docs', fileName))).toBe(false);
     // B sigue existiendo, ya sin el workspace de A; A ya no es miembro de C.
     expect(await db().prepare('SELECT 1 FROM users WHERE id = ?').get(b.id)).toBeTruthy();
@@ -139,6 +142,42 @@ describe('borrar la cuenta', () => {
   });
 });
 
+describe('lo de otros workspaces queda', () => {
+  it('comentarios e ítems que la persona creó en un workspace ajeno, y archivos que otro sigue usando', async () => {
+    await getClient().executeMultiple(`
+      CREATE TABLE IF NOT EXISTS zz_boards (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, cover TEXT);
+      CREATE TABLE IF NOT EXISTS zz_comments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, board_id TEXT REFERENCES zz_boards(id) ON DELETE CASCADE, body TEXT);
+      CREATE TABLE IF NOT EXISTS zz_items (id TEXT PRIMARY KEY, board_id TEXT REFERENCES zz_boards(id) ON DELETE CASCADE, creator_id TEXT REFERENCES users(id) ON DELETE CASCADE);
+    `);
+    const a = await makeUser('ova');
+    const b = await makeUser('ovb');
+    const c = await makeUser('ovc');
+    const shared = `shared-${crypto.randomUUID()}.png`;
+    fs.mkdirSync(path.join(uploadsRoot(), 'docs'), { recursive: true });
+    fs.writeFileSync(path.join(uploadsRoot(), 'docs', shared), 'png');
+    const ins = (sql: string, ...args: string[]) => db().prepare(sql).run(...args);
+    await ins('INSERT INTO zz_boards (id, user_id, cover) VALUES (?, ?, ?)', 'bA', a.id, `/uploads/docs/${shared}`);
+    await ins('INSERT INTO zz_boards (id, user_id, cover) VALUES (?, ?, ?)', 'bC', c.id, `/uploads/docs/${shared}`);
+    await ins('INSERT INTO zz_comments (id, user_id, board_id, body) VALUES (?, ?, ?, ?)', 'cB-on-A', b.id, 'bA', 'hola');
+    await ins('INSERT INTO zz_comments (id, user_id, board_id, body) VALUES (?, ?, ?, ?)', 'cA-on-C', a.id, 'bC', 'hola');
+    await ins('INSERT INTO zz_items (id, board_id, creator_id) VALUES (?, ?, ?)', 'iA-on-C', 'bC', a.id);
+    await ins('INSERT INTO zz_items (id, board_id, creator_id) VALUES (?, ?, ?)', 'iA-on-A', 'bA', a.id);
+
+    await eraseNow(a.id, 'workspace');
+    const ids = async (t: string) => ((await db().prepare(`SELECT id FROM ${t} ORDER BY id`).all()) as Array<{ id: string }>).map((r) => r.id);
+    expect(await ids('zz_boards')).toEqual(['bC']);
+    // En su workspace se va todo (también lo que escribió otro); en el ajeno queda lo que hizo.
+    expect(await ids('zz_comments')).toEqual(['cA-on-C']);
+    expect(await ids('zz_items')).toEqual(['iA-on-C']);
+    // El archivo que C sigue usando no se borra.
+    expect(fs.existsSync(path.join(uploadsRoot(), 'docs', shared))).toBe(true);
+
+    await eraseNow(a.id, 'account');
+    expect(await ids('zz_comments')).toEqual(['cA-on-C']);
+    expect(await ids('zz_items')).toEqual(['iA-on-C']);
+  });
+});
+
 describe('pedidos de borrado', () => {
   it('30 días para arrepentirse, se cancela, y el cron lo ejecuta una sola vez', async () => {
     const a = await makeUser('req');
@@ -150,7 +189,7 @@ describe('pedidos de borrado', () => {
     const acc = await requestErasure(a.id, 'account', a.id, now + 1000);
     expect(acc.kind).toBe('account');
     expect(acc.due_at).toBe(row.due_at);
-    expect(await cancelErasure(a.id)).toBe(true);
+    expect(await cancelErasure(a.id)).toBeTruthy();
     expect(await pendingErasure(a.id)).toBeNull();
 
     await requestErasure(a.id, 'account', a.id, now);
@@ -158,7 +197,7 @@ describe('pedidos de borrado', () => {
     const later = now + 31 * 86_400_000;
     const [first, second] = await Promise.all([runDueErasures(later), runDueErasures(later)]);
     expect(first + second).toBe(1);
-    expect(await db().prepare('SELECT 1 FROM users WHERE id = ?').get(a.id)).toBeUndefined();
+    expect(((await db().prepare('SELECT email FROM users WHERE id = ?').get(a.id)) as { email: string }).email).toMatch(/@deleted\.invalid$/);
     expect(await db().prepare("SELECT 1 FROM security_events WHERE action = 'account.deleted' AND meta LIKE ?").get(`%${(await db().prepare('SELECT id FROM privacy_erasures WHERE user_id = ? AND done_at IS NOT NULL').get(a.id) as { id: string }).id}%`)).toBeTruthy();
   });
 });

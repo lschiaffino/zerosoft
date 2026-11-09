@@ -1488,7 +1488,8 @@
         "invite_create": "Invitation sent",
         "invite_revoke": "Invitation revoked",
         "workspace_delete_requested": "Workspace deletion requested",
-        "login_mfa": "Two-step code accepted"
+        "login_mfa": "Two-step code accepted",
+        "workspace_delete_cancelled": "Workspace deletion cancelled"
       }
     },
     "errors": {
@@ -1522,6 +1523,9 @@
     "cancelDeletion": "Cancel deletion",
     "mismatch": "That does not match. Type it exactly as shown.",
     "error": "Something went wrong. Try again.",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "codeLabel": "Two-step code (from your app or a recovery code)",
+    "badCode": "That two-step code did not work.",
+    "rateLimited": "Too many attempts. Try again later."
   }
 }

@@ -8989,7 +8989,15 @@ export const MIGRATIONS: Migration[] = [
           claimed_at TEXT,
           done_at TEXT,
           cancelled_at TEXT,
-          stats TEXT
+          stats TEXT,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT
+        );
+        CREATE TABLE IF NOT EXISTS privacy_file_queue (
+          erasure_id TEXT NOT NULL,
+          ref TEXT NOT NULL,
+          app TEXT NOT NULL,
+          PRIMARY KEY (erasure_id, ref)
         );
         CREATE INDEX IF NOT EXISTS idx_privacy_erasures_due ON privacy_erasures(due_at) WHERE done_at IS NULL AND cancelled_at IS NULL;
         CREATE INDEX IF NOT EXISTS idx_privacy_erasures_user ON privacy_erasures(user_id);

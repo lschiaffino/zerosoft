@@ -42,6 +42,7 @@ export default async function WorkspaceSettingsPage(props: { params: Promise<{ l
         editorDomain: emailDomain((user.actingUser ?? user).email),
         viewerIsOwner: user.role === 'owner',
         pendingErasure: erasure ? { kind: erasure.kind, dueAt: erasure.due_at } : null,
+        viewerMfa: Boolean((user.actingUser ?? user).mfa_enabled_at),
         locale,
         viewerApps: user.apps ?? '*',
       }}

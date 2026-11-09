@@ -1488,7 +1488,8 @@
         "invite_create": "Convidou alguém",
         "invite_revoke": "Revogou um convite",
         "workspace_delete_requested": "Pediu para excluir o workspace",
-        "login_mfa": "Passou a segunda etapa"
+        "login_mfa": "Passou a segunda etapa",
+        "workspace_delete_cancelled": "Cancelou a exclusão do workspace"
       }
     },
     "errors": {
@@ -1522,6 +1523,9 @@
     "cancelDeletion": "Cancelar a exclusão",
     "mismatch": "Não confere. Digite exatamente como aparece.",
     "error": "Algo deu errado. Tente de novo.",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "codeLabel": "Código de duas etapas (do app ou de recuperação)",
+    "badCode": "Esse código de duas etapas não funcionou.",
+    "rateLimited": "Muitas tentativas. Tente mais tarde."
   }
 }

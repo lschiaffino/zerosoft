@@ -85,6 +85,7 @@ export default async function AccountSettingsPage(props: { params: Promise<{ loc
         locale={locale}
         pending={erasure ? { kind: erasure.kind, dueAt: erasure.due_at } : null}
         workspaceMembers={members}
+        mfa={Boolean(me.mfa_enabled_at)}
       />
     ) : null}
     </>

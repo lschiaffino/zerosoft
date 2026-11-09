@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, realUserId } from '@/lib/session';
+import { DEMO_EMAIL, DEMO_MODE, getCurrentUser, realUserId } from '@/lib/session';
 import { getUserById } from '@/lib/db';
 import { exportAccountData } from '@/lib/privacy';
 import { recordSecurityEvent } from '@/lib/account-security';
@@ -19,6 +19,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const me = await getUserById(realUserId(user));
   if (!me) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (DEMO_MODE && me.email === DEMO_EMAIL) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const limit = await rateLimit(`account-export:${me.id}`, 5, 3600);
   if (!limit.ok) return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
   const { zip, tables, rows } = await exportAccountData(me);

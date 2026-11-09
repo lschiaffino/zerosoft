@@ -20,6 +20,7 @@ function DeleteDialog({
   expected,
   inputLabel,
   confirmLabel,
+  needsCode,
   onClose,
   onConfirm,
 }: {
@@ -29,13 +30,16 @@ function DeleteDialog({
   expected: string;
   inputLabel: string;
   confirmLabel: string;
+  /** La cuenta tiene dos pasos: se pide un código. */
+  needsCode: boolean;
   onClose: () => void;
-  onConfirm: (typed: string) => Promise<string | null>;
+  onConfirm: (typed: string, code: string) => Promise<string | null>;
 }) {
   const t = useTranslations('settings.privacy');
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
   const [typed, setTyped] = useState('');
+  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -43,17 +47,18 @@ function DeleteDialog({
     if (!d) return;
     if (open && !d.open) {
       setTyped('');
+      setCode('');
       setError(null);
       d.showModal();
     }
     if (!open && d.open) d.close();
   }, [open]);
-  const matches = typed.trim().toLowerCase() === expected.trim().toLowerCase();
+  const matches = typed.trim().toLowerCase() === expected.trim().toLowerCase() && (!needsCode || code.trim().length >= 6);
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!matches || busy) return;
     setBusy(true);
-    const err = await onConfirm(typed.trim());
+    const err = await onConfirm(typed.trim(), code.trim());
     setBusy(false);
     if (err) setError(err);
   }
@@ -71,6 +76,14 @@ function DeleteDialog({
             </label>
             <input id={`${id}-i`} className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" spellCheck={false} data-testid="delete-confirm-input" />
           </div>
+          {needsCode && (
+            <div className="ui-field">
+              <label className="label" htmlFor={`${id}-c`}>
+                {t('codeLabel')}
+              </label>
+              <input id={`${id}-c`} className="input" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="one-time-code" maxLength={14} data-testid="delete-confirm-code" />
+            </div>
+          )}
           {error && (
             <p className="ui-error" role="alert">
               {error}
@@ -125,18 +138,25 @@ function PendingNotice({ pending, locale }: { pending: PendingErasure; locale: s
   );
 }
 
-async function requestDeletion(kind: 'account' | 'workspace', confirm: string): Promise<{ ok: boolean; error?: string }> {
+async function requestDeletion(kind: 'account' | 'workspace', confirm: string, code: string): Promise<{ ok: boolean; error?: string }> {
   const res = await fetch('/api/account/delete', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ kind, confirm }),
+    body: JSON.stringify({ kind, confirm, ...(code ? { code } : {}) }),
   }).catch(() => null);
   const data = ((await res?.json().catch(() => null)) ?? {}) as { error?: string };
   return { ok: Boolean(res?.ok), error: data.error };
 }
 
 /** Ajustes › Perfil › Tus datos: descargar todo y borrar la cuenta (con 30 días para arrepentirse). */
-export function AccountDataSection({ email, locale, pending, workspaceMembers }: { email: string; locale: string; pending: PendingErasure | null; workspaceMembers: number }) {
+function errorFor(t: (k: string) => string, error?: string): string {
+  if (error === 'confirm_mismatch') return t('mismatch');
+  if (error === 'invalid_code' || error === 'mfa_required') return t('badCode');
+  if (error === 'rate_limited') return t('rateLimited');
+  return t('error');
+}
+
+export function AccountDataSection({ email, locale, pending, workspaceMembers, mfa }: { email: string; locale: string; pending: PendingErasure | null; workspaceMembers: number; mfa: boolean }) {
   const t = useTranslations('settings.privacy');
   const [open, setOpen] = useState(false);
   return (
@@ -167,10 +187,11 @@ export function AccountDataSection({ email, locale, pending, workspaceMembers }:
         expected={email}
         inputLabel={t('typeEmail', { email })}
         confirmLabel={t('deleteCta')}
+        needsCode={mfa}
         onClose={() => setOpen(false)}
-        onConfirm={async (typed) => {
-          const res = await requestDeletion('account', typed);
-          if (!res.ok) return res.error === 'confirm_mismatch' ? t('mismatch') : t('error');
+        onConfirm={async (typed, code) => {
+          const res = await requestDeletion('account', typed, code);
+          if (!res.ok) return errorFor(t, res.error);
           // Borrar la cuenta cierra todas las sesiones, también esta.
           await signOut({ callbackUrl: `/${locale}` });
           return null;
@@ -181,7 +202,7 @@ export function AccountDataSection({ email, locale, pending, workspaceMembers }:
 }
 
 /** Ajustes › Workspace › zona de cierre (solo el owner): borrar el workspace, con 30 días para arrepentirse. */
-export function DeleteWorkspaceBlock({ name, locale, pending }: { name: string; locale: string; pending: PendingErasure | null }) {
+export function DeleteWorkspaceBlock({ name, locale, pending, mfa }: { name: string; locale: string; pending: PendingErasure | null; mfa: boolean }) {
   const t = useTranslations('settings.privacy');
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -200,10 +221,11 @@ export function DeleteWorkspaceBlock({ name, locale, pending }: { name: string; 
         expected={name}
         inputLabel={t('typeWorkspace', { name })}
         confirmLabel={t('workspaceCta')}
+        needsCode={mfa}
         onClose={() => setOpen(false)}
-        onConfirm={async (typed) => {
-          const res = await requestDeletion('workspace', typed);
-          if (!res.ok) return res.error === 'confirm_mismatch' ? t('mismatch') : t('error');
+        onConfirm={async (typed, code) => {
+          const res = await requestDeletion('workspace', typed, code);
+          if (!res.ok) return errorFor(t, res.error);
           setOpen(false);
           router.refresh();
           return null;

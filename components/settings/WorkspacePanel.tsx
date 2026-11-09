@@ -26,6 +26,8 @@ export interface WorkspaceFormDto {
   viewerIsOwner: boolean;
   /** Borrado del workspace pedido y todavía no ejecutado (lib/privacy.ts). */
   pendingErasure?: PendingErasure | null;
+  /** Quien mira tiene dos pasos (borrar pide un código). */
+  viewerMfa?: boolean;
   locale?: string;
   /** Apps de quien edita: no puede ofrecer otras. */
   viewerApps: '*' | ProductKey[];
@@ -247,7 +249,7 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
               <p className="st-strong">{t('transferTitle')}</p>
               <p className="ui-help">{t('transferBody')}</p>
             </div>
-            <DeleteWorkspaceBlock name={ws.name} locale={ws.locale ?? 'en'} pending={ws.pendingErasure ?? null} />
+            <DeleteWorkspaceBlock name={ws.name} locale={ws.locale ?? 'en'} pending={ws.pendingErasure ?? null} mfa={Boolean(ws.viewerMfa)} />
           </div>
         </FormSection>
       ) : (
