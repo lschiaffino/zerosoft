@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { decideAccessRequest } from '@/lib/rec-admin';
 import { getVideoRow } from '@/lib/rec';
 import { recActor, recFail, recJson } from '@/lib/rec-http';
-import { recShareUrl } from '@/lib/rec-page';
+import { recBaseUrl } from '@/lib/rec-page';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const v = await getVideoRow(s.actor, id);
     if (!v) return recJson({ error: 'not_found' }, 404);
-    return recJson(await decideAccessRequest(s.actor, id, rid, parsed.data.approve, recShareUrl(parsed.data.locale ?? 'en', v.share_id)));
+    return recJson(await decideAccessRequest(s.actor, id, rid, parsed.data.approve, { base: recBaseUrl(), locale: parsed.data.locale ?? 'en' }));
   } catch (err) {
     return recFail(err);
   }

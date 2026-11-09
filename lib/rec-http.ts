@@ -7,7 +7,28 @@ import { getCurrentUser, realUserId, type SessionUser } from './session';
 import { AiError } from './ai';
 import { UploadError } from './uploads';
 import { userCanUseApp } from './workspace';
-import { emailGateCookie, emailGateToken, getPublicVideoRow, isSpaceMember, publicAccess, RecError, unlockCookieName, type PublicViewer, type RecActor, type RecVideoRow, type RecViewer } from './rec';
+import { emailGateCookie, emailGateToken, getPublicVideoRow, isSpaceMember, listedEmail, publicAccess, RecError, unlockCookieName, type PublicViewer, type RecActor, type RecVideoRow, type RecViewer } from './rec';
+import { inviteCookieName, readInviteCookie } from './rec-share';
+
+/**
+ * POST de la página pública que cambia algo (link mágico, pedir acceso, email,
+ * contraseña, comentarios): JSON y del mismo sitio. Un formulario de otra web
+ * no puede mandarlos en nombre de quien mira.
+ */
+export function sameSiteJson(req: NextRequest): NextResponse | null {
+  if (!(req.headers.get('content-type') ?? '').toLowerCase().startsWith('application/json')) return NextResponse.json({ error: 'invalid_input' }, { status: 415 });
+  const origin = req.headers.get('origin');
+  if (origin) {
+    let host = '';
+    try {
+      host = new URL(origin).host;
+    } catch {
+      host = '';
+    }
+    if (host !== (req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? req.nextUrl.host)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+  return null;
+}
 
 export function recJson<T>(body: T, status = 200) {
   return NextResponse.json(body, { status });
@@ -43,15 +64,17 @@ export async function publicViewerFor(
   cookie: (name: string) => string | null | undefined,
 ): Promise<PublicViewer> {
   const passed = cookie(emailGateCookie(v.share_id)) === emailGateToken(v);
-  if (!user) return { ws: null, userId: null, email: null, emailPassed: passed };
+  // Email verificado por un link mágico de este video (atado al link: cambiarlo lo invalida).
+  const inviteEmail = readInviteCookie(v.share_id, cookie(inviteCookieName(v.share_id)));
+  if (!user) return { ws: null, userId: null, email: null, emailPassed: passed, inviteEmail };
   const person = user.actingUser ?? user;
   const id = realUserId(user);
   // Miembro sin acceso a Rec: las rutas /api/rec no lo reconocen, y la página responde igual (también ante el pedido de email).
-  if (user.id === v.workspace_id && !userCanUseApp(user, 'rec')) return { ws: null, userId: null, email: null, emailPassed: passed };
+  if (user.id === v.workspace_id && !userCanUseApp(user, 'rec')) return { ws: null, userId: null, email: null, emailPassed: passed, inviteEmail };
   const inWorkspace = user.id === v.workspace_id;
   const admin = user.role === 'owner' || user.role === 'admin';
   const spaceMember = !!v.space_id && inWorkspace && (admin || (await isSpaceMember(v.space_id, id)));
-  return { ws: inWorkspace ? user.id : null, userId: id, email: person.email ?? null, spaceMember, emailPassed: passed };
+  return { ws: inWorkspace ? user.id : null, userId: id, email: person.email ?? null, spaceMember, emailPassed: passed, inviteEmail };
 }
 
 /** Personas del workspace con acceso a Rec (para espacios y traspaso). */
@@ -77,12 +100,21 @@ const VK_COOKIE = 'rec_vk';
  * con una cookie propia de Rec (se crea en la primera respuesta). `name` es
  * el nombre que escribió el espectador anónimo para comentar.
  */
-export async function resolveViewer(req: NextRequest, v: Pick<RecVideoRow, 'created_by'>, name?: string): Promise<{ viewer: RecViewer; newKey: string | null; user: SessionUser | null }> {
+export async function resolveViewer(
+  req: NextRequest,
+  v: Pick<RecVideoRow, 'created_by' | 'share_id' | 'allowed_emails'>,
+  name?: string,
+): Promise<{ viewer: RecViewer; newKey: string | null; user: SessionUser | null }> {
   const user = await getCurrentUser();
   if (user) {
     const person = user.actingUser ?? user;
     const id = realUserId(user);
-    return { viewer: { key: `u:${id}`, userId: id, name: person.name || person.email || '', isAuthor: id === v.created_by }, newKey: null, user };
+    return { viewer: { key: `u:${id}`, userId: id, name: person.name || (person.email ?? '').split('@')[0] || '', isAuthor: id === v.created_by }, newKey: null, user };
+  }
+  // Persona invitada que entró con su link mágico: queda registrada con su email (quién miró, quién comentó).
+  const invited = listedEmail(v, { email: null, inviteEmail: readInviteCookie(v.share_id, req.cookies.get(inviteCookieName(v.share_id))?.value) });
+  if (invited) {
+    return { viewer: { key: `i:${invited}`, userId: null, name: (name ?? '').trim().slice(0, 80) || invited.split('@')[0], isAuthor: false }, newKey: null, user: null };
   }
   const existing = req.cookies.get(VK_COOKIE)?.value;
   const key = existing && /^[\w-]{16,40}$/.test(existing) ? existing : randomBytes(16).toString('base64url');
@@ -102,12 +134,12 @@ export function withViewerCookie(res: NextResponse, newKey: string | null): Next
 export async function publicVideoFor(
   req: NextRequest,
   shareId: string,
-): Promise<{ v: RecVideoRow & { author_name: string | null }; isAuthor: boolean; user: SessionUser | null } | { res: NextResponse }> {
+): Promise<{ v: RecVideoRow & { author_name: string | null }; isAuthor: boolean; user: SessionUser | null; viewer: PublicViewer } | { res: NextResponse }> {
   const v = await getPublicVideoRow(shareId);
   if (!v) return { res: recJson({ error: 'not_found' }, 404) };
   const user = await getCurrentUser();
   const viewer = await publicViewerFor(v, user, (n) => req.cookies.get(n)?.value);
   const access = publicAccess(v, viewer, req.cookies.get(unlockCookieName(v.share_id))?.value ?? null);
   if (access !== 'ok') return { res: recJson({ error: access }, access === 'expired' ? 410 : 403) };
-  return { v, isAuthor: !!viewer.userId && viewer.userId === v.created_by && viewer.ws === v.workspace_id, user };
+  return { v, isAuthor: !!viewer.userId && viewer.userId === v.created_by && viewer.ws === v.workspace_id, user, viewer };
 }

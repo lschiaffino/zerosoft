@@ -65,7 +65,8 @@ async function uploadVideo(request: APIRequestContext, body: Buffer, title: stri
   expect(put.status()).toBe(204);
   await ok(request.post(`/api/rec/videos/${video.id}/complete`, { data: { kind: 'video', contentType: 'video/webm', parts: 1 } }));
   await ok(request.post(`/api/rec/videos/${video.id}/finalize`, { data: { durationSec } }));
-  await ok(request.patch(`/api/rec/videos/${video.id}`, { data: { title } }));
+  // Lo nuevo nace restringido: estas pruebas son del link abierto.
+  await ok(request.patch(`/api/rec/videos/${video.id}`, { data: { title, privacy: 'link' } }));
   return video;
 }
 
@@ -224,7 +225,7 @@ test('biblioteca: carpeta nueva, mover, renombrar y borrar sin recargar; ⌘K', 
   await expect(again).toHaveCount(0);
 });
 
-test('mover: "solo estas personas" avisa y no deja mover a donde no se puede', async ({ page }) => {
+test('mover: un restringido avisa que en lo compartido lo ve esa gente', async ({ page }) => {
   await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
   const body = await makeWebm(page);
   const title = `People ${uid()}`;
@@ -234,11 +235,11 @@ test('mover: "solo estas personas" avisa y no deja mover a donde no se puede', a
   await page.getByRole('button', { name: 'Move', exact: true }).first().click();
   const move = page.getByRole('dialog', { name: 'Move video' });
   await move.getByText('Workspace', { exact: true }).click();
-  await expect(move.getByTestId('rec-move-notice')).toContainText('Only specific people');
-  // Si el aviso ya dice que no se puede, Mover no se ofrece y no hay un error repitiéndolo.
-  await expect(move.getByTestId('rec-move-submit')).toBeDisabled();
+  await expect(move.getByTestId('rec-move-notice')).toContainText('its members can watch');
+  // El aviso cuenta qué cambia, no frena.
+  await expect(move.getByTestId('rec-move-submit')).toBeEnabled();
   await expect(move.getByTestId('rec-move-error')).toHaveCount(0);
-  // Volviendo a un destino posible, se puede de nuevo.
+  // En Mis videos no cambia nada.
   await move.getByText('My videos', { exact: true }).click();
   await expect(move.getByTestId('rec-move-notice')).toHaveCount(0);
   await page.keyboard.press('Escape');
@@ -252,7 +253,8 @@ test('compartir: contraseña, vencimiento, solo workspace, comentarios, reaccion
   await page.goto(`/en/app/rec/${v.id}`, { waitUntil: 'networkidle' });
   await page.getByTestId('rec-share').click();
   const share = page.getByRole('dialog', { name: 'Share' });
-  await expect(share.getByRole('textbox', { name: 'Link', exact: true })).toHaveValue(new RegExp(`/en/v/${v.shareId}$`));
+  await expect(share.getByTestId('rec-share-access')).toHaveValue('link');
+  await share.getByText('Embed and reset link').click();
   await expect(share.getByRole('textbox', { name: 'Embed', exact: true })).toHaveValue(new RegExp(`/en/v/${v.shareId}/embed`));
   await share.getByLabel('Password (optional)').fill('secret12');
   await share.getByTestId('rec-share-save').click();
@@ -418,14 +420,25 @@ test('subir un video que ya tenés: mismo camino por partes, con miniatura y des
   const id = /rec\/([0-9a-f-]{36})/.exec(page.url())![1];
   await expect(page.getByTestId('rec-player')).toBeVisible();
   // La descarga se arma de a partes en el navegador (las respuestas van de a 4 MB como máximo).
-  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('rec-download').click()]);
-  expect(download.suggestedFilename()).toMatch(/\.webm$/);
-  const { statSync } = await import('fs');
-  expect(statSync(await download.path()).size).toBeGreaterThan(body.length - 64);
+  // Con ffmpeg en el servidor se baja en MP4 (H.264/AAC), armado la primera vez; sin ffmpeg, el original.
+  const { execFileSync } = await import('child_process');
+  let mp4 = true;
+  try {
+    execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' });
+  } catch {
+    mp4 = false;
+  }
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 120_000 }), page.getByTestId('rec-download').click()]);
+  expect(download.suggestedFilename()).toMatch(mp4 ? /\.mp4$/ : /\.webm$/);
+  const { readFileSync, statSync } = await import('fs');
+  if (mp4) expect(readFileSync(await download.path()).subarray(4, 8).toString()).toBe('ftyp');
+  else expect(statSync(await download.path()).size).toBeGreaterThan(body.length - 64);
   const dl = await page.request.get(`/api/rec/videos/${id}/file?download=1`, { headers: { range: 'bytes=0-' } });
+  expect(dl.status()).not.toBe(202);
   expect(dl.headers()['content-disposition']).toContain('attachment');
+  expect(dl.headers()['content-type']).toBe(mp4 ? 'video/mp4' : 'video/webm');
   expect(dl.headers()['location']).toBeUndefined();
-  expect((await dl.body()).length).toBeGreaterThan(body.length - 64);
+  if (!mp4) expect((await dl.body()).length).toBeGreaterThan(body.length - 64);
 });
 
 test('red cortada 60 s mientras se graba: guarda en el navegador, lo dice y sube todo al volver', async ({ page, context }) => {

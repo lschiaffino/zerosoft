@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { emailGateCookie, emailGateToken, getPublicVideoRow, publicAccess, unlockCookieName } from '@/lib/rec';
 import { saveViewerEmail } from '@/lib/rec-admin';
-import { publicViewerFor, recJson, resolveViewer, withViewerCookie } from '@/lib/rec-http';
+import { publicViewerFor, recJson, resolveViewer, withViewerCookie, sameSiteJson } from '@/lib/rec-http';
 import { cleanEmails } from '@/lib/rec-schema';
 import { getCurrentUser } from '@/lib/session';
 import { limitByIp } from '@/lib/rate-limit';
@@ -14,6 +14,8 @@ const schema = z.object({ email: z.string().max(254), name: z.string().max(80).o
 
 /** Pedido de email para ver: guarda lo que escribió (sin verificarlo) y deja pasar. Lo anterior a este paso se sigue exigiendo. */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ share: string }> }) {
+  const bad = sameSiteJson(req);
+  if (bad) return bad;
   const limited = await limitByIp(req, 'rec:identify', 30, 600);
   if (limited) return limited;
   const { share } = await ctx.params;
