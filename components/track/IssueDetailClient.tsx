@@ -10,6 +10,7 @@ import { formatDate, relDate } from '@/lib/utils';
 import type { CommandAction } from '@/lib/cmdk-context';
 import { openCommandMenu } from '@/lib/cmdk-context';
 import IssueActivityTimeline from './IssueActivityTimeline';
+import IssueAttachments from './IssueAttachments';
 import dynamic from 'next/dynamic';
 import { IssueGithubPanel, useIssueGithub } from './IssueGithub';
 import { IssueLinksPanel } from './IssueLinks';
@@ -29,7 +30,7 @@ import { useIssueStore, type ProjectContext } from './useIssueStore';
 import { issueHref, isTypingTarget as isTextTarget, rowTargetId, useTrackCommands } from './trackCommands';
 import { readListNav } from './trackNav';
 import { restoreCursorOnReturn } from './kbCursor';
-import { TRACK_VIEWS_CHANGED } from './TrackBranch';
+import { TRACK_VIEWS_CHANGED } from './trackEvents';
 import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
 import { useTrackLive } from './useTrackLive';
 import type { TrackUiLabels } from './ui-labels';
@@ -201,12 +202,6 @@ function parseDescription(raw: string): string {
   }
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 /** Textarea que crece con el contenido (título y descripción editables en línea). */
 function useAutosize(value: string) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -271,6 +266,7 @@ export default function IssueDetailClient({
   const [relations, setRelations] = useState(initialRelations);
   const [parentChain, setParentChain] = useState(initialParentChain);
   const [uploading, setUploading] = useState(false);
+  const [pickSignal, setPickSignal] = useState(0);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [titleDraft, setTitleDraft] = useState(initialIssue.title);
@@ -301,7 +297,6 @@ export default function IssueDetailClient({
     window.dispatchEvent(new Event(TRACK_VIEWS_CHANGED));
     pushNotice(next ? tx('fav.added') : tx('fav.removed'));
   }, [favorite, tx, ui.inline.saveError]);
-  const attachInputRef = useRef<HTMLInputElement>(null);
   // Aviso para lectores de pantalla tras copiar (rama o link).
   const [copied, setCopied] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -769,7 +764,15 @@ export default function IssueDetailClient({
       const team = moved[0].after;
       if (opts.undo === false) pushNotice(tx('side.moved', { team: teamKeyOf(team), id: team.identifier }));
       else {
-        const back = moved.map((m) => ({ id: m.before.id, teamId: m.before.project_id }));
+        // Deshacer vuelve con el mismo ID, cycle, milestone y labels (mover de team los saca).
+        const back = moved.map((m) => ({
+          id: m.before.id,
+          teamId: m.before.project_id,
+          identifier: m.before.identifier,
+          cycleId: m.before.cycle_id,
+          milestoneId: m.before.milestone_id ?? null,
+          labels: m.before.labels,
+        }));
         pushUndo(
           tx('side.moved', { team: teamKeyOf(team), id: team.identifier }),
           async () => {
@@ -777,7 +780,16 @@ export default function IssueDetailClient({
               await fetch(`/api/track/issues/${b.id}/move`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ teamId: b.teamId }),
+                body: JSON.stringify({ teamId: b.teamId, identifier: b.identifier }),
+              }).catch(() => null);
+              await fetch(`/api/track/issues/${b.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ...(b.cycleId ? { cycleId: b.cycleId } : {}),
+                  ...(b.milestoneId ? { milestoneId: b.milestoneId } : {}),
+                  labels: JSON.parse(b.labels || '[]'),
+                }),
               }).catch(() => null);
             }
             await handleIssueChange();
@@ -963,38 +975,6 @@ export default function IssueDetailClient({
 
   // ---------- Adjuntos y relaciones ----------
 
-  async function handleUpload(file: File) {
-    setAttachmentError(null);
-    if (file.size > 10 * 1024 * 1024) {
-      setAttachmentError(labels.attachments.tooLarge);
-      return;
-    }
-    setUploading(true);
-    const form = new FormData();
-    form.append('file', file);
-    try {
-      const res = await fetch(`/api/track/issues/${issue.id}/attachments`, { method: 'POST', body: form }).catch(
-        () => null,
-      );
-      if (res?.ok) {
-        await Promise.all([refreshAttachments(), refreshActivities()]);
-      } else if (res?.status === 413) {
-        setAttachmentError(labels.attachments.tooLarge);
-      } else if (res?.status === 415) {
-        setAttachmentError(labels.attachments.typeNotAllowed);
-      } else {
-        setAttachmentError(labels.attachments.uploadError);
-      }
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleDeleteAttachment(fileId: string) {
-    const res = await fetch(`/api/track/issues/${issue.id}/attachments?fileId=${fileId}`, { method: 'DELETE' });
-    if (res.ok) await refreshAttachments();
-  }
-
   async function handleDeleteRelation(relationId: string) {
     const res = await fetch(`/api/track/issues/${issue.id}/relations?relationId=${relationId}`, { method: 'DELETE' });
     if (res.ok) {
@@ -1077,10 +1057,11 @@ export default function IssueDetailClient({
         e.preventDefault();
         e.stopImmediatePropagation();
         goSibling(e.key === 'j' ? 1 : -1);
-      } else if (e.key === 'Escape' && listNav) {
+      } else if (e.key === 'Escape') {
+        // Esc vuelve a la lista de la que se vino; si se entró por un link, a los issues del team (como Linear).
         e.preventDefault();
         restoreCursorOnReturn(issueRef.current.id);
-        router.push(listNav.href);
+        router.push(listNav ? listNav.href : teamPath(teamKeyOf(issueRef.current)));
       }
     };
     window.addEventListener('keydown', onKey, true);
@@ -1415,8 +1396,7 @@ export default function IssueDetailClient({
             <button
               type="button"
               className="track-tool is-icon"
-              onClick={() => attachInputRef.current?.click()}
-              disabled={uploading}
+              onClick={() => setPickSignal((n) => n + 1)}
               aria-busy={uploading || undefined}
               aria-label={labels.edit.addAttachment}
               title={labels.edit.addAttachment}
@@ -1424,18 +1404,6 @@ export default function IssueDetailClient({
             >
               <TrackIcon name="paperclip" size={14} />
             </button>
-            <input
-              ref={attachInputRef}
-              type="file"
-              className="sr-only"
-              tabIndex={-1}
-              aria-hidden
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleUpload(file);
-                e.currentTarget.value = '';
-              }}
-            />
             <Popover ariaLabel={tx('tools.more')} className="track-tool is-icon track-tools-more" width={260} trigger={<TrackIcon name="more" size={14} />}>
               {(close) => (
                 <>
@@ -1493,32 +1461,17 @@ export default function IssueDetailClient({
           <IssueGithubPanel data={github} />
           <IssueLinksPanel issueId={issue.id} hideEmpty addSignal={linksSignal} />
 
-          {attachments.length > 0 && (
-            <section className="track-detail-section track-issue-block">
-              <h2 className="track-section-title">{labels.attachments.title}</h2>
-              <ul className="track-attachment-list">
-                {attachments.map((a) => (
-                  <li key={a.id} className="track-attachment">
-                    <a href={a.url} target="_blank" rel="noreferrer" className="track-attachment-name">
-                      {a.filename}
-                    </a>
-                    <span className="track-attachment-meta">
-                      {formatBytes(a.size)} · {a.user_name ?? a.user_email} · <LocalText>{relDate(a.created_at, locale)}</LocalText>
-                    </span>
-                    {a.user_id === userId && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm btn-danger"
-                        onClick={() => handleDeleteAttachment(a.id)}
-                      >
-                        {labels.attachments.delete}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          <IssueAttachments
+            issueId={issue.id}
+            userId={userId}
+            locale={locale}
+            attachments={attachments}
+            pickSignal={pickSignal}
+            onBusyChange={setUploading}
+            onChange={async () => {
+              await Promise.all([refreshAttachments(), refreshActivities()]);
+            }}
+          />
 
           {relations.length > 0 && (
             <section className="track-detail-section track-issue-block" data-testid="track-relations">

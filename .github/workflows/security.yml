@@ -1,0 +1,69 @@
+# Controles de seguridad de cada cambio: secretos que se cuelan en un commit
+# (gitleaks) y dependencias de producción con vulnerabilidades críticas (npm audit).
+# Las altas y moderadas se siguen con Dependabot y en el registro de riesgos.
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '41 6 * * 1'
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        env:
+          GITLEAKS_VERSION: 8.24.3
+          # sha256 del tar de linux_x64 de esa versión (fijado: no se confía en lo que baje).
+          GITLEAKS_SHA256: 9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "$base/$tarball"
+          echo "$GITLEAKS_SHA256  $tarball" | sha256sum -c -
+          tar -xzf "$tarball" gitleaks
+          range=""
+          if [ "$EVENT" = pull_request ]; then
+            range="$PR_BASE..$PR_HEAD"
+          elif [ "$EVENT" = push ] && [ -n "$PUSH_BEFORE" ] && git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+            range="$PUSH_BEFORE..$PUSH_AFTER"
+          fi
+          # Sin rango (la corrida semanal): todo el historial. --redact: el log nunca muestra el secreto.
+          if [ -n "$range" ]; then
+            ./gitleaks git --redact --no-banner --config .gitleaks.toml --log-opts="$range" .
+          else
+            ./gitleaks git --redact --no-banner --config .gitleaks.toml .
+          fi
+
+  dependencies:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm audit --omit=dev --package-lock-only --audit-level=critical
+      - run: npm audit --package-lock-only --audit-level=critical
+        working-directory: desktop

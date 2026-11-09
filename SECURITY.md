@@ -27,4 +27,6 @@ deployment to its operator.
 If you follow these rules and act in good faith, we will not pursue legal action against you for
 your research.
 
-See also the security page at https://zerosoft.ai/en/security.
+See also the security page at https://zerosoft.ai/en/security, the subprocessors at
+https://zerosoft.ai/en/subprocessors, and the security program (policies, control matrix,
+data map, retention) in [docs/security](docs/security/README.md).
