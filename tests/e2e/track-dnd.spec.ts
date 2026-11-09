@@ -104,3 +104,23 @@ test('varios seleccionados se arrastran juntos y el clic derecho abre el menú',
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
 });
+
+test('arrastrar a un project del sidebar lo suma al project (con Deshacer)', async ({ page, request }) => {
+  const a = await team(request, 'Drag P');
+  const planName = `Proyecto ${uid()}`;
+  const created = await ok<{ id?: string; plan?: { id: string } }>(request.post('/api/track/plans', { data: { name: planName, teamIds: [a.id], status: 'in_progress' } }));
+  const planId = created.plan?.id ?? created.id!;
+  const issue = await ok<Issue>(request.post(`/api/track/projects/${a.id}/issues`, { data: { title: `Al project ${uid()}` } }));
+  await openTeam(page, a.slug);
+
+  // Los projects activos del team aparecen bajo el team abierto en el sidebar.
+  const target = page.locator(`[data-track-drop="plan:${planId}"]`);
+  await expect(target).toBeVisible({ timeout: 30_000 });
+  await page.locator(`[data-issue-key="${issue.id}"]`).first().dragTo(target);
+  await expect(page.getByText(`Added ${issue.identifier} to ${planName}.`)).toBeVisible({ timeout: 30_000 });
+  const planOf = async () => ((await (await request.get(`/api/track/issues/${issue.id}`)).json()) as { plan_id: string | null }).plan_id;
+  await expect.poll(planOf, { timeout: 30_000 }).toBe(planId);
+
+  await page.getByRole('button', { name: 'Undo' }).last().click();
+  await expect.poll(planOf, { timeout: 30_000 }).toBeNull();
+});
