@@ -20,7 +20,7 @@ export default function DashboardTemplates({ projectId }: { projectId: string })
     try {
       const { dashboard } = await api<{ dashboard: { id: string } }>('/api/analytics/dashboards', { body: { projectId, template, locale } });
       notifyChanged();
-      router.push(`/app/analytics/dashboards/${dashboard.id}`);
+      router.push(`/app/pulse/dashboards/${dashboard.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? apiErrorText(err, tc) : tc('error'));
       setBusy(null);

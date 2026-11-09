@@ -47,7 +47,7 @@ export function ActionEditor({ projectId, action, publicLinks = [] }: { projectI
   return (
     <div className="app-page ui-page an-page">
       <PageHeader
-        back={{ href: '/app/analytics/actions', label: t('title') }}
+        back={{ href: '/app/pulse/actions', label: t('title') }}
         title={action.name}
         description={action.description || undefined}
         actions={
@@ -102,7 +102,7 @@ export function ActionEditor({ projectId, action, publicLinks = [] }: { projectI
           <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
             {tc('save')}
           </button>
-          <Link className="an-link" href={`/app/analytics/insights/new`}>
+          <Link className="an-link" href={`/app/pulse/insights/new`}>
             {t('useHint')}
           </Link>
         </div>
@@ -126,7 +126,7 @@ export function ActionEditor({ projectId, action, publicLinks = [] }: { projectI
           try {
             await api(`/api/analytics/actions/${action.id}`, { method: 'DELETE' });
             notifyChanged();
-            router.replace('/app/analytics/actions');
+            router.replace('/app/pulse/actions');
           } catch {
             setBusy(false);
             setDeleting(false);
@@ -204,7 +204,7 @@ export function AnnotationsPage({ projectId, initial }: { projectId: string; ini
         </p>
       )}
       {sorted.length === 0 ? (
-        <EmptyState product="analytics" title={t('emptyTitle')} body={t('emptyBody')} />
+        <EmptyState product="pulse" title={t('emptyTitle')} body={t('emptyBody')} />
       ) : (
         <div className="table-wrap table-stack">
           <table className="table an-list" data-testid="an-list-annotations">
@@ -352,7 +352,7 @@ export function DataManagement({ projectId, initial, canExport = false }: { proj
         </p>
       )}
       {items.length === 0 ? (
-        <EmptyState product="analytics" title={t('emptyTitle')} body={t('emptyBody')} action={{ label: t('install'), href: '/app/analytics/settings' }} />
+        <EmptyState product="pulse" title={t('emptyTitle')} body={t('emptyBody')} action={{ label: t('install'), href: '/app/pulse/settings' }} />
       ) : (
         <>
           <input className="input an-search" type="search" aria-label={t('search')} placeholder={t('search')} value={q} onChange={(e) => setQ(e.target.value)} />
@@ -420,7 +420,7 @@ export function GroupsPage({ groups }: { groups: Array<{ type: string; key: stri
     <div className="app-page ui-page an-page">
       <PageHeader title={t('title')} description={t('description')} />
       {groups.length === 0 ? (
-        <EmptyState product="analytics" title={t('emptyTitle')} body={t('emptyBody')} />
+        <EmptyState product="pulse" title={t('emptyTitle')} body={t('emptyBody')} />
       ) : (
         <>
           <div className="an-toolbar">
