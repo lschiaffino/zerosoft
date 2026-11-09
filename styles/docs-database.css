@@ -214,6 +214,9 @@
   outline: none;
 }
 .docs-db-input.mono { font-family: var(--font-data); font-size: 0.8125rem; }
+/* Fecha con fin opcional (rango): inicio y fin uno al lado del otro. */
+.docs-db-date-range { display: flex; flex: 1; min-width: 0; align-items: center; gap: 6px; }
+.docs-db-date-range .docs-db-input { min-width: 0; }
 .docs-db-open {
   display: inline-flex;
   flex-shrink: 0;

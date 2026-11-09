@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { DbProperty, DbRow, DocsDatabase } from '@/lib/docs-types';
-import { cardHidesValue, cellValue, dayKey, rowTitle } from '@/lib/docs-database';
+import { cardHidesValue, cellValue, dateRange, dayKey, rowTitle } from '@/lib/docs-database';
 import DocsGlyph from '../DocsGlyphs';
 import DbValueView, { type DbRefs } from './DbValueView';
 
@@ -384,7 +384,8 @@ export function DbTimeline({
   const spans = useMemo(() => {
     return rows.map((r) => {
       const s = startProp ? dayKey(cellValue(startProp, r)) : null;
-      const e = endProp ? dayKey(cellValue(endProp, r)) : null;
+      // Sin propiedad de fin: el fin de un rango de fechas ("inicio/fin").
+      const e = endProp ? dayKey(cellValue(endProp, r)) : startProp ? (dateRange(cellValue(startProp, r))?.end ?? null) : null;
       if (!s) return { row: r, start: null as number | null, end: null as number | null };
       const si = dayIndex(s);
       const ei = e ? Math.max(si, dayIndex(e)) : si;
