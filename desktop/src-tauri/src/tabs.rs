@@ -844,6 +844,13 @@ pub fn link_menu(app: &AppHandle, from: u64, path: &str) {
 /// Ítems de menú de las pestañas (los de la barra de menú y los contextuales). true si era nuestro.
 pub fn on_menu(app: &AppHandle, id: &str) -> bool {
     let focused = focused_label(app);
+    // ⌘W con Ajustes adelante cierra Ajustes (como hacía el ítem estándar), no una pestaña.
+    if id == "close-tab" || id == "close-window" {
+        if let Some((_, w)) = app.windows().into_iter().find(|(l, w)| !is_app_window(l) && w.is_focused().unwrap_or(false)) {
+            let _ = w.close();
+            return true;
+        }
+    }
     match id {
         "new-tab" => new_tab(app),
         "new-window" => new_window(app, HOME),
