@@ -444,7 +444,7 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
   .st-fb-promote .select { width: 100%; flex: 1 1 100%; }
   .st-rm-grid, .ui-drawer .st-rm-grid { grid-template-columns: minmax(0, 1fr); }
   .st-cl-top, .st-cl-lang { grid-template-columns: minmax(0, 1fr); }
-  .st-kb { grid-template-columns: repeat(7, minmax(78vw, 1fr)); }
+  .st-kb { grid-template-columns: repeat(7, minmax(78vw, 1fr)); min-width: 0; max-width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

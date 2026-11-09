@@ -507,6 +507,9 @@ export default async function AppLayout(
               polls: tCalendar('sidebar.polls'),
             },
             track: {
+              newIssue: tTrack('sidebar.newIssue'),
+              newPlan: tTrack('sidebar.newPlan'),
+              newTeam: tTrack('sidebar.newTeam'),
               overview: tTrack('sidebar.overview'),
               myTasks: tTrack('sidebar.myTasks'),
               projects: tTrack('sidebar.projects'),

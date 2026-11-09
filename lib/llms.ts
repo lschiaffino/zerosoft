@@ -96,7 +96,7 @@ export function llmsTxt(): string {
     `- [REST API](${url('/docs')}): personal API keys with scopes, JSON responses.`,
     `- [Self-hosting](${GITHUB_URL}#data-and-self-hosting): Docker Compose, SQLite or Turso.`,
     `- [Changelog](${url('/changelog')}): every release; latest ${CHANGELOG[0]?.date ?? ''}.`,
-    `- [Security](${url('/security')}), [Privacy](${url('/privacy')}), [Terms](${url('/terms')})`,
+    `- [Security](${url('/security')}), [Privacy](${url('/privacy')}), [Subprocessors](${url('/subprocessors')}), [Terms](${url('/terms')})`,
   );
   lines.push('', '## Guides', '');
   const guides = getAllPosts('en').filter((p) => p.tags.some((t) => /migration|guide|comparison|tutorial/i.test(t)));

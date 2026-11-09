@@ -57,14 +57,15 @@ test('plan: crear desde la lista, propiedades, issues y update con salud', async
   await expect(page.getByTestId('tp-prop-target')).toContainText('Dec 15');
   await expect.poll(async () => (await (await request.get(page.url().replace(/.*\/app\/track\/projects\//, '/api/track/plans/'))).json()).plan.target_date).toBe('2026-12-15');
 
-  // Issues: buscar uno existente y sumarlo.
+  // Issues: uno existente se suma desde fuera (⌘K, la propiedad Project o arrastrando); la lista lo muestra.
+  const planId = page.url().replace(/.*\/app\/track\/projects\//, '').split(/[?#]/)[0];
+  await ok(request.post(`/api/track/plans/${planId}/issues`, { data: { action: 'add', issueIds: [issue.id] } }));
   await page.getByTestId('tp-tab-issues').click();
-  await page.getByTestId('tp-issue-search').fill(issue.identifier);
-  await page.getByRole('button', { name: new RegExp(issue.identifier) }).click();
   await expect(page.getByTestId('tp-plan-issues')).toContainText(issue.identifier);
-  // Crear uno nuevo dentro del plan.
-  await page.getByTestId('tp-new-issue-title').fill('Hecho desde el plan');
-  await page.getByRole('button', { name: 'Create issue' }).click();
+  // Crear uno nuevo dentro del plan con el "+" del grupo (Done: nace terminado).
+  await page.getByTestId('tp-plan-issues').locator('.track-quick-add-btn').first().click();
+  await page.keyboard.type('Hecho desde el plan');
+  await page.keyboard.press('Enter');
   await expect(page.getByTestId('tp-plan-issues')).toContainText('Hecho desde el plan');
 
   // Update con salud: aparece en el feed y la salud del plan cambia.
@@ -75,7 +76,7 @@ test('plan: crear desde la lista, propiedades, issues y update con salud', async
   await expect(page.getByTestId('tp-update').first()).toContainText('Falta el diseño final');
   await expect(page.getByTestId('tp-updates-feed')).toContainText('target date');
   await page.getByTestId('tp-tab-overview').click();
-  await expect(page.getByTestId('tp-progress-detail')).toContainText('1 of 2 done');
+  await expect(page.getByTestId('tp-progress-detail')).toContainText('2 of 2 issues completed');
 
   // La lista lo muestra con su salud; renombrar se ve en la lista.
   await page.goto('/en/app/track/projects', { waitUntil: 'networkidle' });
