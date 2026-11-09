@@ -13,6 +13,8 @@ export interface SettingsNavEntry {
   /** Palabras que también encuentran la sección en la caja de búsqueda. */
   keywords?: string;
   product?: string;
+  /** Color de la app (la ventana del escritorio no tiene los tokens --c-<app>). */
+  color?: string;
   native?: string;
 }
 
@@ -43,7 +45,10 @@ export async function settingsNavGroups(user: SessionUser, locale: string, opts:
         const keywords = i.product ? `${PRODUCT_CONFIG[i.product].name} ${t('keywords.product')}` : kw(i.native ? `native.${i.native}` : i.key);
         if (keywords) entry.keywords = keywords;
         if (i.match) entry.match = i.match;
-        if (i.product) entry.product = i.product;
+        if (i.product) {
+          entry.product = i.product;
+          entry.color = PRODUCT_CONFIG[i.product].color;
+        }
         if (i.native) entry.native = i.native;
         return entry;
       }),

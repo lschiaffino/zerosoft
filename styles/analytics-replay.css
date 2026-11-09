@@ -63,11 +63,11 @@
 .an-replay-track { position: relative; padding-top: 12px; }
 .an-replay-marks { position: absolute; top: 0; left: 8px; right: 8px; height: 10px; }
 .an-replay-mark { position: absolute; top: 0; width: 2px; height: 10px; margin-left: -1px; background: var(--dim); }
-.an-replay-mark-pageview { background: var(--c-analytics); }
+.an-replay-mark-pageview { background: var(--c-pulse); }
 .an-replay-mark-click { background: var(--ink); }
 .an-replay-mark-exception { background: var(--danger, #c62828); }
 .an-replay-mark-other { background: var(--line); }
-.an-replay-range { display: block; width: 100%; margin: 0; accent-color: var(--c-analytics); cursor: pointer; }
+.an-replay-range { display: block; width: 100%; margin: 0; accent-color: var(--c-pulse); cursor: pointer; }
 .an-replay-range:disabled { cursor: default; }
 .an-replay-range:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .an-replay-buttons { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
@@ -118,14 +118,14 @@
   display: inline-block;
   width: 20px;
   height: 20px;
-  background: var(--c-analytics);
+  background: var(--c-pulse);
   border-radius: 100%;
   transform: translate(-50%, -50%);
   opacity: 0.3;
 }
 .replayer-mouse.active::after { animation: an-replay-click 0.2s ease-in-out 1; }
 .replayer-mouse.touch-device { background-image: none; width: 70px; height: 70px; border-width: 4px; border-style: solid; border-radius: 100%; margin-left: -37px; margin-top: -37px; border-color: transparent; transition: left 0s linear, top 0s linear, border-color 0.2s ease-in-out; }
-.replayer-mouse.touch-device.touch-active { border-color: var(--c-analytics); transition: left 0.25s linear, top 0.25s linear, border-color 0.2s ease-in-out; }
+.replayer-mouse.touch-device.touch-active { border-color: var(--c-pulse); transition: left 0.25s linear, top 0.25s linear, border-color 0.2s ease-in-out; }
 .replayer-mouse.touch-device::after { opacity: 0; }
 .replayer-mouse-tail { position: absolute; pointer-events: none; }
 @keyframes an-replay-click {
@@ -153,7 +153,7 @@
 .an-heat-scroll li { display: grid; grid-template-columns: minmax(88px, auto) minmax(0, 1fr) 48px; align-items: center; gap: 8px; }
 .an-heat-scroll li > :last-child { text-align: right; }
 .an-heat-bar { display: block; height: 8px; background: var(--ui-hover); }
-.an-heat-bar span { display: block; height: 100%; background: var(--c-analytics); }
+.an-heat-bar span { display: block; height: 100%; background: var(--c-pulse); }
 
 @media (max-width: 900px) {
   .an-replay-grid, .an-heat-grid { grid-template-columns: minmax(0, 1fr); }

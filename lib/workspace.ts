@@ -15,7 +15,7 @@
  * - Los subequipos viven en lib/workspace-groups.ts.
  */
 import { getDb, type Db, type TeamRow, type UserRow } from './db';
-import { appFromPath, isProductKey, type ProductKey } from './products';
+import { appFromPath, isAlwaysOnApp, isProductKey, type ProductKey } from './products';
 import { normalizeWorkspaceMode, WORKSPACE_SIZES_LIST, type WorkspaceMode } from './workspace-mode';
 import { slugifyName } from './schema/workspace-migrations';
 
@@ -52,7 +52,7 @@ export function canUseApp(access: { role?: string | null; apps?: AppAccess | str
   const role = access.role ?? 'owner';
   if (role === 'owner') return true;
   // Inbox es personal (los mensajes de la persona, no del workspace): siempre la tiene.
-  if (app === 'inbox') return true;
+  if (isAlwaysOnApp(app)) return true;
   if (role === 'guest') return false;
   const apps = typeof access.apps === 'string' || access.apps == null ? parseApps(access.apps) : access.apps;
   return apps === '*' || apps.includes(app);

@@ -69,7 +69,7 @@ export interface UpdateInfo {
 export interface NavGroup {
   key: string;
   label: string;
-  items: Array<{ key: string; href: string; label: string; keywords?: string; product?: string; native?: string }>;
+  items: Array<{ key: string; href: string; label: string; keywords?: string; product?: string; color?: string; native?: string }>;
 }
 
 /** Dónde se fue el tiempo del último dictado (dictation.rs, Latency). */

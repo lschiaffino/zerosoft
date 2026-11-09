@@ -26,7 +26,7 @@ import {
   SWITCHER_PRODUCTS,
   type SidebarLabels,
 } from './sidebar-nav';
-import { PRODUCT_CONFIG, isBuildingProduct, type ProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, appAllowed, isBuildingProduct, type ProductKey } from '@/lib/products';
 import { DEFAULT_WORKSPACE_MODE, featuredApps, moreAppsByCategory, type WorkspaceMode } from '@/lib/workspace-mode';
 import NotificationBell from './NotificationBell';
 import WorkspaceSwitcher, { type SwitcherEntry } from './WorkspaceSwitcher';
@@ -364,7 +364,7 @@ export default function AppSidebar({
   }
 
   // Switcher: destacadas según el modo del workspace y el resto por categoría.
-  const allowed = (k: ProductKey) => allowedApps === '*' || allowedApps.includes(k);
+  const allowed = (k: ProductKey) => appAllowed(allowedApps, k);
   const featured = featuredApps({ mode }).filter(allowed);
   const more = moreAppsByCategory({ mode })
     .map((g) => ({ ...g, apps: g.apps.filter(allowed) }))

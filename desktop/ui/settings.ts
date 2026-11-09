@@ -146,21 +146,6 @@ function navButton(label: string, opts: { current?: boolean; id: string; onclick
   );
 }
 
-/** Color de cada producto (DESIGN.md: los mismos que los tokens --c-<app> de la web). */
-const PRODUCT_COLOR: Record<string, string> = {
-  link: '#2f6bff',
-  crm: '#7b4dff',
-  cal: '#0e9f6e',
-  track: '#f2611d',
-  chat: '#e23d7f',
-  docs: '#c2700a',
-  flow: '#0284c7',
-  agents: '#ff3b30',
-  notes: '#e6b400',
-  board: '#00b8a9',
-  robots: '#6b7280',
-};
-
 function openWeb(href: string, btn: HTMLButtonElement) {
   btn.setAttribute('aria-busy', 'true');
   btn.classList.add('busy');
@@ -174,7 +159,7 @@ function webButton(it: NavGroup['items'][number]): HTMLButtonElement {
   const b: HTMLButtonElement = navButton(it.label, {
     id: `web-${it.key}`,
     web: true,
-    swatch: it.product ? (PRODUCT_COLOR[it.product] ?? '#6b7280') : undefined,
+    swatch: it.product ? (/^#[0-9a-f]{6}$/i.test(it.color ?? '') ? it.color : '#6e6e6e') : undefined,
     onclick: () => openWeb(it.href, b),
   });
   return b;
