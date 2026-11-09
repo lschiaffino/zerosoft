@@ -498,7 +498,7 @@ function ConnectModal({
             </button>
             <button type="button" className="btn btn-primary" disabled={synced.busy} onClick={() => {
                 // La bandeja pudo quedar en caché vacía (se vio antes de conectar): se pide de nuevo.
-                router.push('/app/groups/inbox');
+                router.push('/app/lines/inbox');
                 router.refresh();
               }}>
               {t('numbers.openInbox')}

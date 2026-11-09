@@ -4,7 +4,7 @@ import { CHANGELOG } from '@/content/changelog';
 import { AUTHORS, BLOG_LOCALES, TAG_MIN_POSTS, getAllPosts, getPostsByTag, getTags, latestPostDate, postLocales, tagLocales } from '@/lib/blog';
 import { getComparisons } from '@/lib/compare';
 import { absoluteBoardUrl, boardUsesSubdomain } from '@/lib/board-urls';
-import { PRODUCT_KEYS } from '@/lib/products';
+import { PRODUCT_KEYS, productHref } from '@/lib/products';
 import { TOOLS } from '@/lib/tools/registry';
 import { SEO_LOCALES, absoluteUrl, alternatesFor } from '@/lib/seo';
 import { STATIC_PAGES, type StaticPage, type StaticPageKey } from '@/lib/seo-routes';
@@ -86,7 +86,7 @@ export function sitemapEntries(): MetadataRoute.Sitemap {
       const page: StaticPage = STATIC_PAGES[key];
       out.push(entry(page.path, locale, page.priority, page.freq, staticLastmod(key, locale)));
     }
-    for (const k of PRODUCT_KEYS) out.push(entry(`/products/${k}`, locale, 0.8, 'weekly', PARITY[k].lastReviewed));
+    for (const k of PRODUCT_KEYS) out.push(entry(productHref(k), locale, 0.8, 'weekly', PARITY[k].lastReviewed));
     for (const c of getComparisons()) {
       out.push(entry(`/compare/${c.vsSlug}`, locale, 0.7, 'weekly', c.lastReviewed));
       out.push(entry(`/compare/${c.altSlug}`, locale, 0.7, 'weekly', c.lastReviewed));

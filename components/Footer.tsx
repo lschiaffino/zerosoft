@@ -7,6 +7,7 @@ import Logo from './brand/Logo';
 import ProductGlyph from './brand/ProductGlyph';
 import { ZeroRule } from './zero/ZeroTexture';
 import '@/styles/site.css';
+import { productHref } from '@/lib/products';
 
 /** Key pública del proyecto de Analytics del propio sitio (formato zsp_…). */
 const SITE_ANALYTICS_KEY = /^zsp_[a-z0-9]{10,64}$/.test(process.env.ZS_ANALYTICS_SITE_KEY ?? '') ? process.env.ZS_ANALYTICS_SITE_KEY! : null;
@@ -36,7 +37,7 @@ export default async function Footer({ locale }: { locale: string }) {
           <ul>
             {SITE_PRODUCTS.map((k) => (
               <li key={k}>
-                <Link href={`/products/${k}`}>
+                <Link href={productHref(k)}>
                   <ProductGlyph product={k} size={11} />
                   {PRODUCT_NAMES[k]}
                 </Link>

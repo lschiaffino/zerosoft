@@ -1,7 +1,7 @@
 import type { ComponentType, ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { PRODUCT_CONFIG, isBuildingProduct, type SiteProductKey as ProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, isBuildingProduct, type SiteProductKey as ProductKey, productHref } from '@/lib/products';
 import Icon from '@/components/site/Icon';
 import { GITHUB_URL, HAS_API, PRODUCT_PAGES, SECTION_IDS, type PageSection } from '@/components/site/catalog';
 import SectionSign from '@/components/site/SectionSign';
@@ -305,14 +305,14 @@ export default async function ProductPage({ locale, product }: { locale: string;
       locale,
       name: `zerosoft ${cfg.name}`,
       description: t(`${p}.meta.description`),
-      path: `/products/${product}`,
+      path: productHref(product),
       image: `/api/og/product/${product}/${locale}`,
       features: PARITY[product].rows.filter((r) => r.status !== 'missing').map((r) => loc(r.label, locale)),
     }),
     breadcrumbLd(locale, [
       { name: 'zerosoft', path: '' },
       { name: tcm('header.products'), path: '/products' },
-      { name: cfg.name, path: `/products/${product}` },
+      { name: cfg.name, path: productHref(product) },
     ]),
     ...(spec.sections.includes('faq')
       ? [faqLd(ids('f', spec.faqs).map((id) => ({ q: t(`${p}.faq.${id}.q`), a: t(`${p}.faq.${id}.a`) })))]

@@ -409,7 +409,7 @@ export function publicRefIds(args: Record<string, unknown>): string[] {
 
 export class AttachmentUseError extends Error {
   constructor() {
-    super('A file can go as a media or a URL only when it is sent to a Groups chat. To attach it to an issue or a page, use propose_attach_file or files: [{ field, attachment }].');
+    super('A file can go as a media or a URL only when it is sent to a Lines chat. To attach it to an issue or a page, use propose_attach_file or files: [{ field, attachment }].');
   }
 }
 
