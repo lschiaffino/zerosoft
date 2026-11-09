@@ -28,6 +28,10 @@ const COMMANDS: &[&str] = &[
     "account_sign_in",
     "account_sign_out",
     "open_voice",
+    "settings_nav",
+    "settings_open_web",
+    "update_check",
+    "update_restart",
 ];
 
 fn main() {

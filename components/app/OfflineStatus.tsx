@@ -7,6 +7,7 @@ import { useRouter } from '@/i18n/navigation';
 import { registerAppServiceWorker, serviceWorkerEnabled } from '@/lib/sw-client';
 import { whoCookie } from '@/lib/docs-offline';
 import { notesDbName } from '@/components/notes/notesOffline';
+import { readOfflinePrefs } from '@/lib/offline-prefs-client';
 
 /**
  * Estado sin conexión en la banda de la app (toda la suite).
@@ -40,7 +41,7 @@ type SyncState = 'idle' | 'syncing' | 'synced';
 
 const DOCS_DRAFT_PREFIX = 'zs-docs-draft:';
 
-function docsDrafts(owner: string): number {
+export function docsDrafts(owner: string): number {
   try {
     let n = 0;
     for (let i = 0; i < localStorage.length; i++) if (localStorage.key(i)?.startsWith(`${DOCS_DRAFT_PREFIX}${owner}|`)) n += 1;
@@ -51,7 +52,7 @@ function docsDrafts(owner: string): number {
 }
 
 /** Cambios de Notes que esperan (solo si la base de esta persona ya existe: no se crea una vacía). */
-async function notesPending(owner: string): Promise<number> {
+export async function notesPending(owner: string): Promise<number> {
   const [userId, ws] = owner.split(':');
   if (!userId || !ws || typeof indexedDB === 'undefined' || !indexedDB.databases) return 0;
   const name = notesDbName({ userId, ws });
@@ -154,7 +155,10 @@ export default function OfflineStatus({ owner }: { owner: string }) {
           if (cancelled) return;
           const target = navigator.serviceWorker.controller ?? reg.active;
           target?.postMessage({ type: 'zs-count' });
-          if (!navigator.onLine) return;
+          // Los ajustes de este dispositivo (Ajustes › Sin conexión): el worker los aplica antes de guardar.
+          const prefs = readOfflinePrefs();
+          target?.postMessage({ type: 'zs-offline-prefs', prefs });
+          if (!navigator.onLine || !prefs.enabled) return;
           const urls: string[] = [];
           if (!warmedStatics.current) {
             // JS y CSS de esta carga (bajados antes de que el worker controlara la página).

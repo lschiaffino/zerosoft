@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Ajustes de la plataforma: nav lateral en dos grupos (Cuenta y workspace,
+ * Ajustes de la plataforma: nav lateral en cuatro grupos (Cuenta, Workspace, Este dispositivo y
  * Productos), una ruta por sección, anchors viejos que caen en la sección
  * nueva, ⌘K que encuentra cada sección, shell neutro, select a 390px y los
  * ajustes de cada app con el link de vuelta a la plataforma.
@@ -9,6 +9,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const SECTIONS: Array<[string, string]> = [
   ['/app/settings', 'Profile'],
+  ['/app/settings/appearance', 'Appearance'],
   ['/app/settings/workspace', 'Workspace'],
   ['/app/settings/members', 'Members and permissions'],
   ['/app/settings/teams', 'Teams'],
@@ -18,6 +19,8 @@ const SECTIONS: Array<[string, string]> = [
   ['/app/settings/import', 'Import'],
   ['/app/settings/security', 'Security'],
   ['/app/settings/notifications', 'Notifications'],
+  ['/app/settings/offline', 'Offline'],
+  ['/app/settings/desktop', 'Desktop app'],
 ];
 
 /** Ajustes de cada app (Chat: la lista de widgets; /app/chat/settings redirige ahí). */
@@ -41,7 +44,7 @@ async function noHorizontalScroll(page: Page, label: string) {
   expect(overflow, label).toBeLessThanOrEqual(0);
 }
 
-test('la nav tiene dos grupos y marca la sección abierta en cada ruta', async ({ page }) => {
+test('la nav tiene cuatro grupos y marca la sección abierta en cada ruta', async ({ page }) => {
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 1280, height: 900 });
   const nav = page.getByRole('navigation', { name: 'Settings' });
@@ -50,7 +53,7 @@ test('la nav tiene dos grupos y marca la sección abierta en cada ruta', async (
     await expect(nav.getByRole('link', { name: label, exact: true }), path).toHaveAttribute('aria-current', 'page');
     await expect(nav.locator('[aria-current="page"]'), path).toHaveCount(1);
   }
-  await expect(nav.getByRole('group', { name: 'Account and workspace' })).toBeVisible();
+  for (const name of ['Account', 'Workspace', 'This device']) await expect(nav.getByRole('group', { name, exact: true })).toBeVisible();
   const products = nav.getByRole('group', { name: 'Products' });
   await expect(products.getByRole('link')).toHaveCount(26);
 

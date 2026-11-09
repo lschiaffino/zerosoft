@@ -42,6 +42,12 @@ import '@/styles/color.css';
 import '@/styles/voice-host.css';
 import '@/styles/workspace.css';
 import '@/styles/assistant.css';
+import '@/styles/settings-nav.css';
+import { isSettingsEmbed } from '@/lib/settings-embed';
+import { settingsNavGroups } from '@/lib/settings-nav-server';
+import PlatformSettingsNav from '@/components/app/PlatformSettingsNav';
+import SettingsEmbedGuard from '@/components/app/SettingsEmbedGuard';
+import DesktopUpdateBanner from '@/components/app/DesktopUpdateBanner';
 import NavProgress from '@/components/app/NavProgress';
 import RouterNudge from '@/components/app/RouterNudge';
 import IntentPrefetch from '@/components/app/IntentPrefetch';
@@ -96,6 +102,35 @@ export default async function AppLayout(
   // tiene en el workspace activo ya se armó con su workspace propio (lib/session):
   // se la manda al inicio con el aviso.
   if (user.blockedApp) redirect(`/${locale}/app?blocked=${user.blockedApp}`);
+  // Ventana de Ajustes del escritorio (user agent zerosoft-settings/): solo la nav de Ajustes
+  // (con las secciones nativas de la app) y la sección, sin el chrome de la app.
+  if (isSettingsEmbed((await headers()).get('user-agent'))) {
+    const [tNav, navGroups, embedTheme] = await Promise.all([
+      getTranslations({ locale, namespace: 'settings.nav' }),
+      settingsNavGroups(user, locale, { desktop: true }),
+      getThemePref(),
+    ]);
+    return (
+      <ClientMessages locale={locale} namespaces={['settings.switcher', 'settings.sections', 'link.common', 'common.theme']}>
+        <ThemeProvider initial={embedTheme}>
+          <div className="st-embed">
+            <script dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
+            <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
+            <SettingsEmbedGuard />
+            <PlatformSettingsNav
+              embed
+              groups={navGroups}
+              label={tNav('label')}
+              selectLabel={tNav('select')}
+              searchLabel={tNav('search')}
+              noResults={tNav.raw('noResults') as string}
+            />
+            <main className="st-embed-main app-content">{children}</main>
+          </div>
+        </ThemeProvider>
+      </ClientMessages>
+    );
+  }
   // Entrada activa del switcher: el workspace ajeno, un equipo propio de antes de 128, o el propio (null).
   const effective = user.actingUser ? (user.workspace?.id ?? null) : user.team ? (real.active_team_id ?? null) : null;
   // Las lecturas de la base arrancan juntas (en Turso cada query es un RTT): el switcher, el permiso
@@ -163,7 +198,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'notes.nav', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut', 'assistant']}>
+    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'notes.nav', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'settings.keywords', 'settings.desktopUpdate', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut', 'assistant']}>
       <ThemeProvider initial={themePref}>
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
@@ -733,6 +768,7 @@ export default async function AppLayout(
                 }}
               />
             )}
+            <DesktopUpdateBanner />
             {children}
           </main>
         </div>

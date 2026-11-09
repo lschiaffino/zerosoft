@@ -235,6 +235,10 @@ pub fn run() {
             commands::account_sign_in,
             commands::account_sign_out,
             commands::open_voice,
+            commands::settings_nav,
+            commands::settings_open_web,
+            commands::update_check,
+            commands::update_restart,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -258,6 +262,7 @@ pub fn run() {
                 shortcut_taken: AtomicBool::new(false),
                 badge_since: Mutex::new(None),
                 update_ready: Mutex::new(None),
+                update: Mutex::new(state::UpdateInfo::default()),
             });
             allow_server(&handle);
             app.set_menu(tray::app_menu(&handle)?)?;
@@ -303,6 +308,11 @@ pub fn run() {
                 }
             }
             WindowEvent::Focused(true) if w.label() == "settings" => commands::refresh_settings(w.app_handle()),
+            // El indicador se arrastró: se recuerda dónde (en coordenadas lógicas).
+            WindowEvent::Moved(p) if w.label() == indicator::LABEL => {
+                let scale = w.scale_factor().unwrap_or(1.0);
+                indicator::moved(w.app_handle(), p.x as f64 / scale, p.y as f64 / scale);
+            }
             WindowEvent::Destroyed if w.label() == "settings" => {
                 let app = w.app_handle();
                 let st = app.state::<AppState>();
