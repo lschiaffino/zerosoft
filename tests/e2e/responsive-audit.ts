@@ -154,7 +154,8 @@ export async function auditView(page: Page, opts: { tap?: boolean } = {}): Promi
           continue;
         }
         if (r.height >= 39.5 && r.width >= 39.5) continue;
-        const crowd = targets.find((o) => o !== x && !o.t.contains(x.t) && !x.t.contains(o.t) && near(r, o.r));
+        // La pestaña flotante de feedback se corre al hacer scroll: no cuenta como vecina del contenido.
+        const crowd = targets.find((o) => o !== x && !o.t.contains(x.t) && !x.t.contains(o.t) && !o.el.closest('.fl-root') && near(r, o.r));
         if (crowd) issues.push({ kind: 'tap', what: describe(x.el), detail: `${Math.round(r.width)}x${Math.round(r.height)} junto a ${describe(crowd.el).slice(0, 40)}` });
       }
     }

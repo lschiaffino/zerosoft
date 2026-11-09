@@ -697,6 +697,12 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   .vc-bar { display: none !important; }
   /* Filas que son links: la fila entera se toca. */
   :is(.docs-tree-link, .an-row-link, .cal-row-main, .st-lc-template, .qm-link, .home-row) { min-height: 40px !important; }
-  /* Lista de issues de Track: la fila entera (título) mide 44px. */
-  .track-table-wrap.is-linear td.track-col-title > a { min-height: 44px; }
+  /* Lista de issues de Track: la fila entera (título) mide 44px y ocupa el ancho libre (un título corto también). */
+  .track-table-wrap.is-linear td.track-col-title > a { min-height: 44px; width: 100%; }
+  .track-inbox-link { display: flex; align-items: center; min-height: 40px; }
+  :is(.track-status-color, .docs-tree-chevron, .saved-report-del) { min-width: 40px !important; min-height: 40px !important; }
+  .panel-more { display: inline-flex; align-items: center; min-height: 40px; }
+  :is(.docs-trash-summary, .gr-link-button) { display: flex; align-items: center; min-height: 40px; }
+  /* Links de tabla y listas de links: la línea entera es el objetivo. */
+  :is(td > a:only-child, td > a.cell-link, li > a:only-child) { display: inline-flex; align-items: center; min-height: 40px; }
 }

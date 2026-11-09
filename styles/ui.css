@@ -306,6 +306,8 @@ select.select,
 
 /* ---------- 3. Checkbox y switch ---------- */
 
+/* Casilla sola en una celda (selección de filas): el label la envuelve y hace de área táctil de 40px. */
+.tap-cell { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; margin: -8px; cursor: pointer; }
 /* <label class="ui-check"><input type="checkbox"> Texto</label> */
 .ui-check {
   display: inline-flex;
