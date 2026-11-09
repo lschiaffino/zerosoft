@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAccountById } from '@/lib/inbox/core';
-import { ingestWhatsappEvents, waProviderFor } from '@/lib/inbox/whatsapp';
+import { ingestHistoryChats, ingestWhatsappEvents, scheduleWhatsappBackfill, waProviderFor } from '@/lib/inbox/whatsapp';
 import { safeEqual } from '@/lib/groups-provider';
 import { limitByIp } from '@/lib/rate-limit';
 import { readTextCapped } from '@/lib/safe-fetch';
@@ -44,8 +44,14 @@ export async function POST(req: Request, ctx: Ctx) {
   } catch {
     return new NextResponse('invalid json', { status: 400 });
   }
+  // Evolution manda el evento como "messages.set" o "MESSAGES_SET" según la versión.
+  const event = String((body as { event?: unknown } | null)?.event ?? '').toLowerCase().replace(/_/g, '.');
   // Historial que WhatsApp manda al vincular (MESSAGES_SET): sin avisos ni no leídos.
-  const history = /^messages[._]set$/i.test(String((body as { event?: unknown } | null)?.event ?? ''));
+  const history = event === 'messages.set';
+  // CHATS_SET: los chats del historial entran a la lista aunque no tengan mensajes todavía.
+  const chats = event === 'chats.set' ? await ingestHistoryChats(account, (body as { data?: unknown }).data) : 0;
   const result = await ingestWhatsappEvents(account, provider.parseWebhook(body), { history });
-  return NextResponse.json({ ok: true, ...result });
+  // Llegó una tanda del historial: la importación desde el servidor corre cuando termine de llegar.
+  if (history || event === 'chats.set') await scheduleWhatsappBackfill(account.id).catch(() => null);
+  return NextResponse.json({ ok: true, chats, ...result });
 }

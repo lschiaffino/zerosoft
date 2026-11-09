@@ -98,8 +98,11 @@ test('admin: vista previa de cada plantilla, mandármelo y la baja desde el link
   await expect(frame.getByRole('heading', { name: 'Voice: dictado y notas de reuniones' })).toBeVisible();
   await expect(frame.getByRole('link', { name: 'Abrir Voice' })).toHaveAttribute('href', /\/es\/app\/voice$/);
   // Otra plantilla, oscuro, 390 px.
+  // Cada link arma su URL con la actual: esperar cada navegación antes del siguiente clic.
   await page.getByRole('link', { name: 'team_invite', exact: true }).click();
+  await expect(page).toHaveURL(/template=team_invite/);
   await page.getByRole('link', { name: 'Dark', exact: true }).click();
+  await expect(page).toHaveURL(/template=team_invite.*theme=dark/);
   await page.getByRole('link', { name: '390px', exact: true }).click();
   await expect(page).toHaveURL(/template=team_invite.*theme=dark.*width=390/);
   await expect(frame.getByRole('heading', { name: 'Invitá a tu equipo' })).toBeVisible();

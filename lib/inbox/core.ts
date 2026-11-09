@@ -431,7 +431,8 @@ export async function listThreads(owner: string, opts: ListOptions = {}): Promis
       ? 't.snoozed_until ASC'
       : view === 'done' && !q && !opts.folderId
         ? 't.done_at DESC'
-        : '(t.pinned_at IS NOT NULL) DESC, COALESCE(t.last_message_at, t.created_at) DESC';
+        : // Los chats sin mensajes (los que trae el historial de WhatsApp antes que sus mensajes) van al final.
+          '(t.pinned_at IS NOT NULL) DESC, (t.last_message_at IS NULL) ASC, COALESCE(t.last_message_at, t.created_at) DESC';
   const limit = Math.min(Math.max(opts.limit ?? 300, 1), 1000);
   const rows = (await getDb()
     .prepare(
