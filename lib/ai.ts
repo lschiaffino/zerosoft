@@ -133,7 +133,7 @@ export async function getAiUsage(workspaceId: string, now = new Date()): Promise
     return { feature: r.feature, tokens: Number(r.input) + Number(r.output) };
   });
   const totalTokens = inputTokens + outputTokens;
-  const freeTokens = aiFreeTokensPerMonth();
+  const freeTokens = (await aiWorkspaceUnlimited(workspaceId)) ? null : aiFreeTokensPerMonth();
   return {
     inputTokens,
     outputTokens,
@@ -219,7 +219,34 @@ export async function assertAiRate(workspaceId: string): Promise<void> {
  * que tiene su propio rate limit por workspace (los trozos de una reunión no
  * compiten con el chat ni con las notas).
  */
+/**
+ * Dominios sin cuota mensual (AI_UNLIMITED_DOMAINS="empresa.com,otra.com"): si el
+ * dueño del workspace tiene un email de esos dominios, el workspace no tiene tope
+ * de tokens. El rate limit por minuto sigue igual.
+ */
+export function aiUnlimitedDomains(): string[] {
+  return (process.env.AI_UNLIMITED_DOMAINS ?? '')
+    .split(',')
+    .map((d) => d.trim().toLowerCase().replace(/^@/, ''))
+    .filter(Boolean);
+}
+
+const unlimitedCache = new Map<string, { value: boolean; at: number }>();
+
+export async function aiWorkspaceUnlimited(workspaceId: string): Promise<boolean> {
+  const domains = aiUnlimitedDomains();
+  if (domains.length === 0) return false;
+  const hit = unlimitedCache.get(workspaceId);
+  if (hit && Date.now() - hit.at < 5 * 60_000) return hit.value;
+  const row = (await getDb().prepare('SELECT email FROM users WHERE id = ?').get(workspaceId)) as { email?: string } | undefined;
+  const domain = String(row?.email ?? '').toLowerCase().split('@')[1] ?? '';
+  const value = domains.includes(domain);
+  unlimitedCache.set(workspaceId, { value, at: Date.now() });
+  return value;
+}
+
 export async function assertAiMonthlyQuota(workspaceId: string): Promise<void> {
+  if (await aiWorkspaceUnlimited(workspaceId)) return;
   const free = aiFreeTokensPerMonth();
   if (free !== null) {
     const usage = await getAiUsage(workspaceId);

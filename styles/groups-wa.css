@@ -800,3 +800,100 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-viewer-strip img, .wa-viewer-strip video { width: 100%; height: 100%; object-fit: cover; }
 .wa-attach-pick video { width: 100%; height: 100%; object-fit: cover; }
 @media (prefers-reduced-motion: reduce) { .wa-viewer-stage img { transition: none; } }
+
+/* Vista previa de link arriba del texto (la del teléfono o la que lee el servidor). */
+.wa-linkcard { display: flex; margin: 0 0 6px; max-width: 360px; overflow: hidden; color: var(--wa-text); text-decoration: none; background: var(--wa-quote-bg); border-radius: 6px; }
+.gr-msg-out .wa-linkcard { background: var(--wa-quote-out); }
+.wa-linkcard img { flex: none; width: 82px; height: 82px; object-fit: cover; }
+.wa-linkcard-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 6px 10px; }
+.wa-linkcard-text strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.875rem; font-weight: 500; }
+.wa-linkcard-text span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8125rem; color: var(--wa-text-2); }
+.wa-linkcard-text small { font-size: 0.75rem; color: var(--wa-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-linkcard:hover strong { text-decoration: underline; }
+.wa-linkcard:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
+@media (max-width: 480px) { .wa-linkcard img { width: 64px; height: 64px; } }
+
+/* Transcripción de un audio debajo del reproductor (plegada en tres líneas). */
+.wa-transcript { display: flex; flex-direction: column; gap: 3px; max-width: min(300px, 62vw); margin: 0 0 14px; padding: 6px 8px; font-size: 0.8125rem; line-height: 18px; color: var(--wa-text); background: var(--wa-quote-bg); border-radius: 6px; }
+.gr-msg-out .wa-transcript { background: var(--wa-quote-out); }
+.wa-transcript.is-busy, .wa-transcript.is-off { display: block; color: var(--wa-text-2); font-style: italic; }
+.wa-transcript-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.wa-transcript-text.is-clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.wa-transcript-summary { margin: 0; color: var(--wa-text); }
+.wa-transcript-summary b { font-weight: 600; }
+.wa-transcript-toggle { align-self: flex-start; padding: 0; font: inherit; font-size: 0.75rem; font-weight: 500; color: var(--wa-primary-ink); background: none; border: 0; cursor: pointer; }
+.wa-transcript-toggle:focus-visible { outline: 2px solid var(--wa-primary); }
+
+/* ============================================================
+   Estilo de chats "zerosoft" (ajuste por persona, Inbox y Lines):
+   data-chat-style="zerosoft" en el contenedor. Mismo layout y funciones,
+   con los tokens de la app: burbujas neutras con borde, sin fondo de chat
+   ni colas, esquinas rectas, tipografía de la app. Los tokens de la app ya
+   cambian con claro/oscuro, así que no hace falta otro bloque oscuro (el
+   :root sube la especificidad por encima de los bloques oscuros de arriba).
+   ============================================================ */
+:root .gr-inbox[data-chat-style='zerosoft'] {
+  --wa-panel: var(--bg);
+  --wa-panel-header: var(--bg);
+  --wa-conv-bg: var(--bg-soft);
+  --wa-doodle: transparent;
+  --wa-bubble-in: var(--bg);
+  --wa-bubble-out: color-mix(in srgb, var(--accent, var(--ink)) 9%, var(--bg));
+  --wa-primary: var(--ink);
+  --wa-primary-ink: var(--ink);
+  --wa-badge: var(--accent, var(--ink));
+  --wa-badge-ink: var(--accent-on, #fff);
+  --wa-tick-blue: var(--accent, var(--ink));
+  --wa-text: var(--ink);
+  --wa-text-2: var(--brand-gray-2);
+  --wa-meta-out: var(--brand-gray-2);
+  --wa-icon: var(--ink-2);
+  --wa-border: var(--line);
+  --wa-border-strong: var(--line);
+  --wa-row-hover: var(--ui-hover);
+  --wa-row-active: var(--ui-selected);
+  --wa-search-bg: var(--bg-soft);
+  --wa-chip-bg: transparent;
+  --wa-chip-on-bg: var(--ui-selected);
+  --wa-chip-on-ink: var(--ink);
+  --wa-system-chip: var(--bg);
+  --wa-quote-bg: var(--bg-soft);
+  --wa-quote-out: color-mix(in srgb, var(--ink) 6%, transparent);
+  --wa-shadow-bubble: none;
+  --wa-danger: var(--bad-ink);
+  --wa-link: var(--ink);
+  --wa-input: var(--bg);
+  --wa-menu: var(--bg);
+  --wa-drop: color-mix(in srgb, var(--bg) 94%, transparent);
+  --wa-font: var(--font-ui);
+}
+.gr-inbox[data-chat-style='zerosoft'] .gr-bubble { border: 1px solid var(--line); border-radius: var(--radius-1); }
+.gr-inbox[data-chat-style='zerosoft'] .gr-msg-out .gr-bubble { border-color: color-mix(in srgb, var(--accent, var(--ink)) 25%, var(--line)); }
+.gr-inbox[data-chat-style='zerosoft'] .gr-msg.has-tail .gr-bubble { border-radius: var(--radius-1); }
+.gr-inbox[data-chat-style='zerosoft'] .gr-msg.has-tail .gr-bubble::before { display: none; }
+.gr-inbox[data-chat-style='zerosoft'] .gr-msg.is-bare .gr-bubble { border: 0; }
+.gr-inbox[data-chat-style='zerosoft'] .wa-day > span,
+.gr-inbox[data-chat-style='zerosoft'] .wa-empty-thread,
+.gr-inbox[data-chat-style='zerosoft'] .wa-unread-sep > span,
+.gr-inbox[data-chat-style='zerosoft'] .wa-history-note { border: 1px solid var(--line); border-radius: var(--radius-1); font-family: var(--font-data); font-size: 0.6875rem; }
+.gr-inbox[data-chat-style='zerosoft'] .wa-unread-sep { background: transparent; }
+.gr-inbox[data-chat-style='zerosoft'] .gr-quote { border-radius: var(--radius-1); border-left-width: 2px; }
+.gr-inbox[data-chat-style='zerosoft'] .gr-reactions { border-color: var(--line); border-radius: var(--radius-1); }
+.gr-inbox[data-chat-style='zerosoft'] .gr-unread,
+.gr-inbox[data-chat-style='zerosoft'] .wa-unread { border-radius: var(--radius-1); font-family: var(--font-data); }
+.gr-inbox[data-chat-style='zerosoft'] .gr-msg-foot,
+.gr-inbox[data-chat-style='zerosoft'] .gr-row-time,
+.gr-inbox[data-chat-style='zerosoft'] .wa-row-time { font-family: var(--font-data); }
+.gr-inbox[data-chat-style='zerosoft'] .wa-input,
+.gr-inbox[data-chat-style='zerosoft'] .gr-search { border: 1px solid var(--line); border-radius: var(--radius-1); }
+.gr-inbox[data-chat-style='zerosoft'] .wa-send { color: var(--bg); background: var(--ink); border-radius: var(--radius-1); }
+.gr-inbox[data-chat-style='zerosoft'] .wa-send.is-mic,
+.gr-inbox[data-chat-style='zerosoft'] .wa-send:disabled { color: var(--ink-2); background: transparent; }
+.gr-inbox[data-chat-style='zerosoft'] .wa-icon-btn,
+.gr-inbox[data-chat-style='zerosoft'] .wa-react-btn,
+.gr-inbox[data-chat-style='zerosoft'] .wa-to-end { border-radius: var(--radius-1); }
+.gr-inbox[data-chat-style='zerosoft'] .gr-emoji-picker { border: 1px solid var(--line); border-radius: var(--radius-1); }
+.gr-inbox[data-chat-style='zerosoft'] .wa-chevron { background: transparent; border-radius: var(--radius-1); }
+.gr-inbox[data-chat-style='zerosoft'] .wa-voice-bars i.is-on,
+.gr-inbox[data-chat-style='zerosoft'] .gr-msg-out .wa-voice-bars i.is-on { background: var(--ink); }
+.gr-inbox[data-chat-style='zerosoft'] .gr-msg.is-deleted .gr-bubble { border: 1px dashed var(--line); }

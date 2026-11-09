@@ -26,6 +26,9 @@ import * as m20 from '@/lib/routes/rec/videos/[id]/requests/route';
 import * as m21 from '@/lib/routes/rec/videos/[id]/requests/[rid]/route';
 import * as m22 from '@/lib/routes/rec/videos/[id]/rotate-share/route';
 import * as m23 from '@/lib/routes/rec/videos/[id]/upload-token/route';
+import * as m24 from '@/lib/routes/rec/v/[share]/access/route';
+import * as m25 from '@/lib/routes/rec/v/[share]/invite/route';
+import * as m26 from '@/lib/routes/rec/videos/[id]/people/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -55,6 +58,9 @@ const d = createDispatcher('zsPath', [
   { pattern: 'videos/[id]/requests/[rid]', mod: m21 }, // lib/routes/rec/videos/[id]/requests/[rid]
   { pattern: 'videos/[id]/rotate-share', mod: m22 }, // lib/routes/rec/videos/[id]/rotate-share
   { pattern: 'videos/[id]/upload-token', mod: m23 }, // lib/routes/rec/videos/[id]/upload-token
+  { pattern: 'v/[share]/access', mod: m24 }, // lib/routes/rec/v/[share]/access
+  { pattern: 'v/[share]/invite', mod: m25 }, // lib/routes/rec/v/[share]/invite
+  { pattern: 'videos/[id]/people', mod: m26 }, // lib/routes/rec/videos/[id]/people
 ]);
 
 export const GET = d.GET;

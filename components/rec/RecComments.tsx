@@ -26,6 +26,8 @@ interface Me {
   signedIn: boolean;
   canModerate: boolean;
   requireAccount: boolean;
+  /** false: persona invitada con rol de lector (mira y lee, no comenta). */
+  canComment?: boolean;
 }
 
 const NAME_KEY = 'rec_viewer_name';
@@ -180,7 +182,8 @@ export default function RecComments({
   }, [items]);
   const counts = useMemo(() => new Map(Object.entries(reactionCounts)), [reactionCounts]);
   const moderator = canModerate || me.canModerate;
-  const formOpen = allowComments && (me.signedIn || !me.requireAccount);
+  const viewOnly = me.canComment === false;
+  const formOpen = allowComments && !viewOnly && (me.signedIn || !me.requireAccount);
 
   const rel = (abs: number) => Math.max(0, abs - trimStart);
   const when = (d: string) => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(parseDbUtc(d));
@@ -288,8 +291,8 @@ export default function RecComments({
         </button>
       )}
       {allowComments && !formOpen && (
-        <p className="ui-help" data-testid="rec-comments-signin">
-          {t('signinToComment')}
+        <p className="ui-help" data-testid={viewOnly ? 'rec-comments-viewonly' : 'rec-comments-signin'}>
+          {viewOnly ? t('viewOnly') : t('signinToComment')}
         </p>
       )}
       {formOpen && (

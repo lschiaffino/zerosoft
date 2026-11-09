@@ -327,9 +327,65 @@ section.rec-edit-block { padding-bottom: 20px; }
 .rec-stats > div { padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-1); }
 .rec-stats dt { font-size: 0.8125rem; color: var(--dim); }
 .rec-stats dd { margin: 4px 0 0; font-size: 1.5rem; }
-dialog.rec-share { width: min(620px, calc(100vw - 32px)); }
+/* .ui-modal.rec-share: más específico que dialog.ui-modal (ui.css puede cargar después en producción). */
+dialog.ui-modal.rec-share { width: min(620px, calc(100vw - 32px)); overflow-y: auto; overscroll-behavior: contain; }
+/* Cabecera y pie pegados arriba y abajo mientras el cuerpo se desplaza (Copiar link y Guardar siempre a mano). */
+dialog.rec-share .ui-modal-head { position: sticky; top: 0; z-index: 1; background: var(--bg); }
+dialog.rec-share .ui-modal-foot { position: sticky; bottom: 0; z-index: 1; }
+dialog.rec-share .ui-modal-body { overflow: visible; }
+@media (max-width: 520px) {
+  /* En el teléfono es la hoja de abajo de ui.css; acá, toques de 40 px o más y campos de 16 px. */
+  dialog.rec-share .ui-modal-head { padding: 8px 16px; min-height: 52px; }
+  dialog.rec-share .ui-modal-title { font-size: 1.125rem; }
+  dialog.rec-share .ui-modal-body { padding: 16px; }
+  dialog.rec-share .ui-modal-foot { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+  dialog.rec-share .input,
+  dialog.rec-share .select,
+  dialog.rec-share .textarea { font-size: 16px; min-height: 44px; }
+  dialog.rec-share .btn { min-height: 44px; }
+  dialog.rec-share .ui-check { min-height: 40px; align-items: center; }
+  .rec-share-add .select { flex: 1 1 auto; }
+  /* Pie en una fila: Copiar link a la izquierda, Guardar a la derecha (cierra la × de arriba, Esc o el fondo). */
+  dialog.rec-share .rec-share-foot { flex-wrap: nowrap; gap: 8px; }
+  dialog.rec-share .rec-share-cancel { display: none; }
+  dialog.rec-share .rec-share-copy { flex: 1 1 auto; margin-right: 0; }
+  .rec-share-copy .btn { width: 100%; }
+  dialog.rec-share .rec-share-foot > .btn { flex: 1 1 auto; }
+}
 .rec-share-body { display: flex; flex-direction: column; gap: 18px; }
 .rec-share-group { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.rec-share-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rec-share-add { display: flex; gap: 8px; align-items: center; }
+.rec-share-add .input { flex: 1 1 auto; min-width: 0; }
+.rec-share-add .select { flex: 0 0 auto; width: auto; }
+.rec-people { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.rec-person { display: flex; align-items: center; gap: 10px; padding: 8px 10px; min-height: 48px; }
+.rec-person + .rec-person { border-top: 1px solid var(--line); }
+.rec-person-avatar { flex: 0 0 28px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--radius-1); background: var(--bg-soft); color: var(--ink); font-size: 0.8125rem; font-weight: 600; }
+.rec-person-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.rec-person-name, .rec-person-meta { overflow-wrap: anywhere; }
+.rec-person-meta { font-size: 0.8125rem; }
+.rec-person-role { flex: 0 0 auto; font-size: 0.875rem; }
+select.rec-person-role { width: auto; }
+.rec-person-empty { font-size: 0.875rem; }
+.rec-share-more { border-top: 1px solid var(--line); }
+.rec-share-more summary { cursor: pointer; font-weight: 600; font-size: 0.875rem; list-style: none; display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.rec-share-more summary::-webkit-details-marker { display: none; }
+.rec-share-more summary::before { content: ''; flex: 0 0 auto; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform 150ms var(--ease, ease); }
+.rec-share-more[open] summary::before { transform: rotate(45deg); }
+.rec-share-more summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.rec-share-more[open] summary { margin-bottom: 10px; }
+.rec-share-invite { flex: 0 0 auto; min-width: 88px; align-self: stretch; }
+.rec-share-close { flex: 0 0 auto; min-width: 40px; min-height: 40px; font-size: 1.25rem; line-height: 1; }
+.rec-share-foot { flex-wrap: wrap; }
+.rec-share-copy { margin-right: auto; }
+@media (max-width: 520px) {
+  .rec-share-add { flex-wrap: wrap; }
+  .rec-share-add .input { flex-basis: 100%; }
+  .rec-person:has(select) { flex-wrap: wrap; }
+  .rec-person:has(select) .rec-person-who { flex-basis: calc(100% - 38px); }
+  select.rec-person-role { margin-left: 38px; }
+}
 
 /* ---------- Comentarios, transcripción, capítulos ---------- */
 
@@ -415,6 +471,7 @@ dialog.rec-share { width: min(620px, calc(100vw - 32px)); }
 .rec-gate-card { width: min(440px, 100%); display: flex; flex-direction: column; gap: 14px; padding: 28px; border: 1px solid var(--line); border-radius: var(--radius-1); }
 .rec-gate-card p { margin: 0; }
 .rec-gate-form { display: flex; flex-direction: column; gap: 12px; }
+.rec-gate-magic { padding-top: 14px; border-top: 1px solid var(--line); }
 
 /* Insertado en un iframe: solo el reproductor. */
 .rec-embed { min-height: 100dvh; display: flex; flex-direction: column; background: #000000; }
