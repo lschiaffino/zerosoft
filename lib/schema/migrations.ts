@@ -8838,6 +8838,26 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Modo sin conexión: altas que la app reenvía al volver la red llevan una
+    // clave propia; acá queda la respuesta de la primera vez, así un reenvío
+    // (la respuesta se perdió con la red) no crea dos veces lo mismo.
+    id: '291_offline_requests',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS offline_requests (
+          user_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          scope TEXT NOT NULL DEFAULT '',
+          status INTEGER,
+          body TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, key)
+        );
+        CREATE INDEX IF NOT EXISTS offline_requests_created ON offline_requests(created_at);
+      `);
+    },
+  },
+  {
     // Tareas de toda la suite (lib/tasks.ts): la tarea es la del CRM
     // (crm_activities, type 'task') y task_links la ata a cualquier registro
     // fuera del CRM (chat y mensaje de Groups, conversación de Chat, página de
@@ -8845,7 +8865,7 @@ export const MIGRATIONS: Migration[] = [
     // Backfill idempotente desde groups_tasks y las tareas de reuniones de Docs
     // mandadas al CRM; no hay FK a crm_activities porque la papelera del CRM
     // borra y restaura la fila con el mismo id.
-    id: '291_tasks_unified',
+    id: '292_tasks_unified',
     up: async (c) => {
       await addColumn(c, "ALTER TABLE crm_activities ADD COLUMN priority TEXT NOT NULL DEFAULT ''");
       await c.executeMultiple(`

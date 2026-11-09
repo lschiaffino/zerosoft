@@ -1371,7 +1371,8 @@
       "subissueAdded": "{user} adicionou um sub-issue:",
       "subissueRemoved": "{user} removeu o sub-issue",
       "autoClosedSubs": "O Track fechou este issue porque todos os sub-issues estão concluídos",
-      "autoClosedParent": "O Track fechou este issue porque o pai foi fechado"
+      "autoClosedParent": "O Track fechou este issue porque o pai foi fechado",
+      "savedOffline": "Salvo neste dispositivo. É publicado quando a conexão voltar."
     },
     "sub": {
       "title": "Sub-issues",

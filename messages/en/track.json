@@ -1371,7 +1371,8 @@
       "subissueAdded": "{user} added a sub-issue:",
       "subissueRemoved": "{user} removed the sub-issue",
       "autoClosedSubs": "Track closed this issue because all its sub-issues are done",
-      "autoClosedParent": "Track closed this issue because its parent was closed"
+      "autoClosedParent": "Track closed this issue because its parent was closed",
+      "savedOffline": "Saved on this device. It is posted when the connection is back."
     },
     "sub": {
       "title": "Sub-issues",

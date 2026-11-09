@@ -4,6 +4,7 @@ import { claimTriage, validateIssueRefs } from '@/lib/track-bulk';
 import { deleteIssue, getIssue, getProject, updateIssue, canAccessTrackProject } from '@/lib/track-data';
 import { issueUpdateSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
+import { CONFLICT_HEADER, editedElsewhere } from '@/lib/offline-idempotency';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -50,9 +51,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     await claimTriage(issue.id);
   }
 
+  // Gana lo último que llega; si alguien guardó otra versión después de la que
+  // la persona editó (sin conexión), la respuesta lo dice y la página avisa.
+  const conflict = editedElsewhere(req, issue.updated_at);
   // updateIssue emite issue.updated / issue.status_changed (after).
   const updated = await updateIssue(params.id, parsed.data, realUserId(user));
-  return NextResponse.json(updated);
+  return NextResponse.json(updated, conflict ? { headers: { [CONFLICT_HEADER]: '1' } } : undefined);
 }
 
 export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {

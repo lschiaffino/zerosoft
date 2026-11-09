@@ -279,7 +279,7 @@ export interface CrmActivityRow {
   repeat_next_id?: string | null;
   /** Tareas creadas por un paso de secuencia (la cola de trabajo las marca). */
   sequence_id?: string | null;
-  /** Prioridad de la tarea (291): '' = sin prioridad, 'low', 'medium', 'high'. */
+  /** Prioridad de la tarea (292): '' = sin prioridad, 'low', 'medium', 'high'. */
   priority?: string;
   created_at: string;
   updated_at: string;

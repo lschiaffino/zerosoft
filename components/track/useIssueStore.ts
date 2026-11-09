@@ -14,6 +14,7 @@ import {
   type IssuePriority,
 } from '@/lib/track-tasks';
 import { pushUndo } from './trackUndo';
+import { offlineFetch, offlineOwner, pendingWrites } from '@/lib/offline-fetch';
 import { insertIssueSorted, type IssueSort } from '@/lib/track-views';
 
 /** Lo que una vista necesita saber de un proyecto para editar inline. */
@@ -75,7 +76,12 @@ export interface IssueStore {
 }
 
 export function isPendingIssue(issue: Pick<TrackIssueWithStatus, 'id'>): boolean {
-  return issue.id.startsWith('tmp-');
+  return issue.id.startsWith('tmp-') || issue.id.startsWith('offline-');
+}
+
+/** Issue creado sin conexión: se ve en la lista, se manda al volver la red (y entonces toma su id real). */
+export function isOfflineIssue(issue: Pick<TrackIssueWithStatus, 'id'>): boolean {
+  return issue.id.startsWith('offline-');
 }
 
 export interface UpdateOptions {
@@ -149,6 +155,49 @@ export function useIssueStore(
   const patchQueues = useRef(new Map<string, Promise<unknown>>());
   const patchSeq = useRef(new Map<string, number>());
 
+  // Recargar sin red: los cambios y altas que esperan en este dispositivo se ven encima de la copia guardada.
+  useEffect(() => {
+    let alive = true;
+    void pendingWrites(
+      offlineOwner(),
+      (p, m) => (m === 'PATCH' && /^\/api\/track\/issues\/[^/]+$/.test(p)) || (m === 'POST' && /^\/api\/track\/projects\/[^/]+\/issues$/.test(p)),
+    ).then((rows) => {
+      if (!alive || rows.length === 0) return;
+      setIssues((list) => {
+        let next = list;
+        for (const row of rows) {
+          let body: Record<string, unknown> | null = null;
+          try {
+            body = JSON.parse(row.body ?? 'null') as Record<string, unknown> | null;
+          } catch {
+            body = null;
+          }
+          if (!body || typeof body !== 'object') continue;
+          const path = new URL(row.url, location.origin).pathname;
+          const created = /^\/api\/track\/projects\/([^/]+)\/issues$/.exec(path);
+          if (created) {
+            const projectId = created[1];
+            const ctx = projects[projectId];
+            if (!ctx || typeof body.title !== 'string') continue;
+            const id = `offline-q${row.createdAt}`;
+            if (next.some((i) => i.id === id)) continue;
+            next = [...next, draftIssue(projectId, id, { ...(body as Partial<IssueDraft>), title: body.title } as IssueDraft, ctx)];
+            continue;
+          }
+          const issueId = path.split('/').pop() ?? '';
+          const { description: _description, ...patch } = body as IssuePatch & { description?: unknown };
+          next = next.map((i) => (i.id === issueId ? applyIssuePatch(i, patch, projects[i.project_id]?.statuses, projects[i.project_id]?.members, projects[i.project_id]) : i));
+        }
+        return next;
+      });
+    });
+    return () => {
+      alive = false;
+    };
+    // Solo al montar: lo que se cambie después ya pasa por este mismo store.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!error) return;
     const timer = window.setTimeout(() => setError(null), 5000);
@@ -167,32 +216,36 @@ export function useIssueStore(
       const prev = issuesRef.current.find((i) => i.id === issueId);
       if (prev && isPendingIssue(prev)) return null;
       if (!prev) {
-        const res = await fetch(`/api/track/issues/${issueId}`, {
+        const { res, queued } = await offlineFetch(`/api/track/issues/${issueId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(patch),
-        }).catch(() => null);
-        if (!res?.ok) setError(messages.saveError);
+        });
+        if (!queued && !res?.ok) setError(messages.saveError);
         return null;
       }
       const ctx = projects[prev.project_id];
       replace(issueId, (i) => applyIssuePatch(i, patch, ctx?.statuses, ctx?.members, ctx));
       const seq = (patchSeq.current.get(issueId) ?? 0) + 1;
       patchSeq.current.set(issueId, seq);
-      const send = async () => {
-        const res = await fetch(`/api/track/issues/${issueId}`, {
+      // Sin red, el service worker lo guarda en el dispositivo (lib/offline-fetch.ts): el cambio optimista queda.
+      const send = async (): Promise<TrackIssueWithStatus | null> => {
+        const { res, queued } = await offlineFetch(`/api/track/issues/${issueId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(patch),
+          base: prev.updated_at,
+          label: prev.identifier && prev.identifier !== '…' ? `${prev.identifier} ${prev.title}` : prev.title,
         });
-        if (!res.ok) throw new Error(`patch ${res.status}`);
+        if (queued) return null;
+        if (!res?.ok) throw new Error(`patch ${res?.status ?? 'network'}`);
         return (await res.json()) as TrackIssueWithStatus;
       };
       const request = (patchQueues.current.get(issueId) ?? Promise.resolve()).catch(() => undefined).then(send);
       patchQueues.current.set(issueId, request);
       try {
         const saved = await request;
-        if (patchSeq.current.get(issueId) === seq) replace(issueId, (i) => ({ ...i, ...saved }));
+        if (saved && patchSeq.current.get(issueId) === seq) replace(issueId, (i) => ({ ...i, ...saved }));
         return prev;
       } catch {
         // Revertir solo los campos de este parche, para no pisar otros
@@ -261,7 +314,7 @@ export function useIssueStore(
       setIssues((list) => (sort ? insertIssueSorted(list, temp, sort) : [...list, temp]));
       const run = async (): Promise<TrackIssueWithStatus | null> => {
         try {
-          const res = await fetch(`/api/track/projects/${projectId}/issues`, {
+          const { res, queued } = await offlineFetch(`/api/track/projects/${projectId}/issues`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -280,8 +333,15 @@ export function useIssueStore(
               startDate: draft.startDate || undefined,
               triage: draft.triage || undefined,
             }),
+            label: temp.title,
           });
-          if (!res.ok) throw new Error(`create ${res.status}`);
+          if (queued) {
+            // Guardado en el dispositivo: queda en la lista (sin identificador todavía) hasta que vuelva la red.
+            const offline = { ...temp, id: `offline-${tempId.slice(4)}` };
+            setIssues((list) => list.map((i) => (i.id === tempId ? offline : i)));
+            return offline;
+          }
+          if (!res?.ok) throw new Error(`create ${res?.status ?? 'network'}`);
           const saved = (await res.json()) as TrackIssueWithStatus;
           setIssues((list) => list.map((i) => (i.id === tempId ? saved : i)));
           return saved;

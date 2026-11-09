@@ -123,7 +123,7 @@ describe('tareas de la suite', () => {
   });
 });
 
-describe('291_tasks_unified', () => {
+describe('292_tasks_unified', () => {
   function freshClient() {
     return createClient({ url: `file:${path.join(os.tmpdir(), `mig-tasks-${crypto.randomUUID()}.db`)}` });
   }
@@ -140,7 +140,7 @@ describe('291_tasks_unified', () => {
         ('m1', 'ws', 'page1', '[{"text":"a","sent":{"kind":"crm","id":"t3"}},{"text":"b","sent":{"kind":"track","id":"i1"}},{"text":"c"}]'),
         ('m2', 'ws', 'page2', 'not json');
     `);
-    const m = MIGRATIONS.find((x) => x.id === '291_tasks_unified')!;
+    const m = MIGRATIONS.find((x) => x.id === '292_tasks_unified')!;
     await m.up(c);
     await m.up(c);
     const links = (await c.execute('SELECT task_id, kind, ref_id FROM task_links ORDER BY task_id, kind')).rows.map((r) => [r.task_id, r.kind, r.ref_id]);
