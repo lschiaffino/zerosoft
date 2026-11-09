@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { canCreateDocPage } from '@/lib/docs-guard';
 import { getTranslations } from 'next-intl/server';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
+import { sessionGuardScript, WHO_COOKIE_NAME } from '@/lib/session-guard';
 import { redirect } from 'next/navigation';
 import { DEMO_EMAIL, DEMO_MODE, requireUser } from '@/lib/session';
 import { RETURN_PATH_HEADER } from '@/lib/return-path';
@@ -67,6 +68,8 @@ export default async function AppLayout(
   } = props;
 
   const user = await requireUser(locale);
+  // La cookie de sesión con la que se arma esta página (la revisa sessionGuardScript al abrirla).
+  const whoCookie = (await cookies()).get(WHO_COOKIE_NAME)?.value ?? '';
   const real = user.actingUser ?? user;
   // Última actividad para los emails de ciclo de vida (después de responder; nunca frena la página).
   try {
@@ -165,6 +168,8 @@ export default async function AppLayout(
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
       <div className="app-frame" suppressHydrationWarning>
+        {/* Una copia guardada para usar sin conexión no se muestra si la sesión del navegador ya no es la misma (lib/session-guard.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
         <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
         <AppPwa />
