@@ -207,7 +207,11 @@ list.addEventListener('pointerdown', (e) => {
   let started = false;
   let target = from;
   let outside = false;
-  el.setPointerCapture(e.pointerId);
+  try {
+    el.setPointerCapture(e.pointerId);
+  } catch {
+    /* sin captura, window igual recibe los eventos */
+  }
   if (Number(el.dataset.id) !== view.active) act('activate', { id });
 
   const move = (ev: PointerEvent) => {
@@ -240,9 +244,9 @@ list.addEventListener('pointerdown', (e) => {
     });
   };
   const up = (ev: PointerEvent) => {
-    el.removeEventListener('pointermove', move);
-    el.removeEventListener('pointerup', up);
-    el.removeEventListener('pointercancel', up);
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    window.removeEventListener('pointercancel', up);
     if (!started) return;
     dragging = false;
     for (const t of all) {
@@ -268,9 +272,10 @@ list.addEventListener('pointerdown', (e) => {
       render(p);
     }
   };
-  el.addEventListener('pointermove', move);
-  el.addEventListener('pointerup', up);
-  el.addEventListener('pointercancel', up);
+  // En window (y con captura): el puntero sigue contando fuera de la pestaña y de la tira.
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', up);
 });
 
 list.addEventListener('auxclick', (e) => {
