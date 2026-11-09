@@ -60,7 +60,7 @@ test('archivar, la vista Archivados y eliminar un chat', async ({ page, request 
   const other = `Keep${tag}`;
   await inbound(request, n, dm(), 'hola', name);
   await inbound(request, n, dm(), 'buenas', other);
-  await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const list = page.locator('.gr-rows');
   await expect(list.locator('.gr-row', { hasText: name })).toBeVisible();
 
@@ -100,7 +100,7 @@ test('mandar un contacto desde el menú + y ver "escribiendo…"', async ({ page
   const chatId = dm();
   await inbound(request, n, dm(), 'yo soy el contacto', friend);
   await inbound(request, n, chatId, 'pasame un contacto', name);
-  await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   await page.locator('.gr-row', { hasText: name }).click();
   await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
 
@@ -126,7 +126,7 @@ test('línea caída: aviso en la bandeja y el QR de nuevo desde Ajustes', async 
   await inbound(request, n, dm(), 'hola', `Drop${tag}`);
   // La sesión se cae (el gateway avisa por webhook).
   await events(request, n, [{ type: 'session', status: 'qr' }]);
-  await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const banner = page.locator('.wa-dropped').first();
   await expect(banner).toContainText('lost its WhatsApp connection');
   await banner.getByRole('link', { name: 'Scan the QR again' }).click();

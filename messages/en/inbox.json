@@ -141,6 +141,8 @@
     "connectTitle": "Connect WhatsApp or Gmail",
     "connectBody": "Link your WhatsApp with a QR code from your phone, connect Gmail with Google, and triage everything from one list with the keyboard.",
     "connectAction": "Connect an account",
+    "qrAction": "Link WhatsApp with QR",
+    "otherAccounts": "Connect Gmail",
     "importLink": "or import from inbox-zero",
     "searchTitle": "Nothing found",
     "searchBody": "Search looks in names, numbers, emails and message text, including Done.",

@@ -173,7 +173,7 @@ export async function notifyPerson(ws: string, personId: string, n: Notification
         n.chatId,
         clean(n.title).slice(0, 120),
         clean(n.body).slice(0, 240),
-        n.chatId ? `/app/groups/inbox/${n.chatId}` : '/app/groups/inbox',
+        n.chatId ? `/app/lines/inbox/${n.chatId}` : '/app/lines/inbox',
         new Date().toISOString(),
       );
     let sent = 0;

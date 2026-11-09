@@ -221,6 +221,20 @@ a.vc-row-main:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px
   .vc-stats { grid-template-columns: minmax(0, 1fr); }
   .vc-send-row .select { max-width: 100%; flex: 1 1 100%; }
 }
+/* Teléfono: las acciones de la reunión en una fila que se desliza, en vez de tres renglones. */
+@media (max-width: 600px) {
+  .vc-head-actions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: -16px;
+    padding-inline: 8px 16px;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%);
+  }
+  .vc-head-actions::-webkit-scrollbar { display: none; }
+  .vc-head-actions > * { flex: 0 0 auto; white-space: nowrap; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .vc-rec-dot { animation: none; }
