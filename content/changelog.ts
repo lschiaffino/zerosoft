@@ -60,6 +60,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Bring your full WhatsApp history from the server, and import inbox-zero with the WhatsApp Desktop history of your Mac. Large files upload directly and keep importing in the background.',
         es: 'Traé todo tu historial de WhatsApp desde el servidor e importá inbox-zero con la historia de WhatsApp Desktop de tu Mac. Los archivos grandes suben directo y siguen importándose en segundo plano.',
         pt: 'Traga todo o seu histórico do WhatsApp do servidor e importe o inbox-zero com o histórico do WhatsApp Desktop do seu Mac. Arquivos grandes sobem direto e continuam importando em segundo plano.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-groups-is-now-lines',
     date: '2026-11-08',
     title: {
