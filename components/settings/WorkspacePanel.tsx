@@ -249,7 +249,7 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
               <p className="st-strong">{t('transferTitle')}</p>
               <p className="ui-help">{t('transferBody')}</p>
             </div>
-            <DeleteWorkspaceBlock name={ws.name} locale={ws.locale ?? 'en'} pending={ws.pendingErasure ?? null} mfa={Boolean(ws.viewerMfa)} />
+            <DeleteWorkspaceBlock name={ws.name} locale={ws.locale ?? 'en'} pending={init.pendingErasure ?? null} mfa={Boolean(init.viewerMfa)} />
           </div>
         </FormSection>
       ) : (
