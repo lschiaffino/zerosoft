@@ -25,6 +25,7 @@ export interface MasterKey {
 }
 
 export const LEGACY_KEY_ID = '0';
+const HKDF_INFO = 'zerosoft-key-ring';
 const ID_RE = /^[a-z0-9]{1,16}$/;
 
 function decodeKey(id: string, raw: string): Buffer {
@@ -41,12 +42,13 @@ function decodeKey(id: string, raw: string): Buffer {
 
 /** Clave heredada: la que usaba secret-box v1. null si no hay ningún secreto configurado. */
 export function legacyMasterKey(): MasterKey | null {
-  const secret = process.env.ENCRYPTION_KEY || process.env.NEXTAUTH_SECRET;
-  if (!secret) {
+  const env = process.env;
+  const base = [env.ENCRYPTION_KEY, env.NEXTAUTH_SECRET].find(Boolean);
+  if (!base) {
     if (process.env.NODE_ENV === 'production') return null;
     return { id: LEGACY_KEY_ID, key: createHash('sha256').update('zerosoft-dev-encryption-key').digest() };
   }
-  return { id: LEGACY_KEY_ID, key: createHash('sha256').update(secret).digest() };
+  return { id: LEGACY_KEY_ID, key: createHash('sha256').update(base).digest() };
 }
 
 let cached: { raw: string | undefined; legacy: string | undefined; ring: MasterKey[] } | null = null;
@@ -64,7 +66,7 @@ export function keyRing(): MasterKey[] {
     if (ring.some((k) => k.id === id)) throw new Error(`ENCRYPTION_KEYS: duplicate key id "${id}"`);
     ring.push({ id, key: decodeKey(id, part.slice(at + 1)) });
   }
-  // Después de rotar todo a ENCRYPTION_KEYS, ENCRYPTION_LEGACY_KEY=disabled saca la clave
+  // Después de rotar todo a ENCRYPTION_KEYS, poner ENCRYPTION_LEGACY_KEY en "disabled" saca la clave
   // derivada de NEXTAUTH_SECRET del anillo (sigue existiendo para las sesiones).
   const legacy = ring.length && process.env.ENCRYPTION_LEGACY_KEY === 'disabled' ? null : legacyMasterKey();
   if (legacy) ring.push(legacy);
@@ -88,5 +90,5 @@ export function findKey(id: string): MasterKey | undefined {
 
 /** Subclave por uso (separación de dominio): la misma maestra nunca cifra dos cosas distintas. */
 export function subKey(master: MasterKey, purpose: string): Buffer {
-  return Buffer.from(hkdfSync('sha256', master.key, 'zerosoft-key-ring', purpose, 32));
+  return Buffer.from(hkdfSync('sha256', master.key, HKDF_INFO, purpose, 32));
 }
