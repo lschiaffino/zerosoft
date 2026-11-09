@@ -399,3 +399,70 @@ test('claro y oscuro a 1280 y 390 sin errores ni scroll horizontal', async ({ pa
     }
   }
 });
+
+test('cabecera y campo de la conversación de WhatsApp: todas las acciones de Inbox siguen ahí', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const title = `Acciones ${uid()}`;
+  await seedGroup(request, acc, title);
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
+  const thread = page.locator('.ib-wa-thread');
+  const actions = thread.locator('.gr-thread-actions');
+
+  // Íconos de la cabecera: Hecho, Posponer, Recordarme, Carpeta y Notas.
+  for (const name of ['Done', 'Snooze', 'Remind me', 'Folder', 'Notes', 'More actions']) {
+    await expect(actions.getByRole('button', { name })).toBeVisible();
+  }
+  await actions.getByRole('button', { name: 'Notes' }).click();
+  await expect(thread.getByLabel('Notes about this chat')).toBeVisible();
+  await actions.getByRole('button', { name: 'Notes' }).click();
+
+  // Menú "…": el resto, sin pasar por un diálogo.
+  const more = actions.getByRole('button', { name: 'More actions' });
+  await more.click();
+  for (const name of ['Mark unread', 'Pin', 'Draft a reply with AI', 'Mute for 8 hours', 'Mute for a week', 'Rename chat', 'Remove from Inbox']) {
+    await expect(page.getByRole('menuitem', { name, exact: true })).toBeVisible();
+  }
+  await page.getByRole('menuitem', { name: 'Pin', exact: true }).click();
+  await expect(actions.getByRole('img', { name: 'Pinned' })).toBeVisible();
+  await more.click();
+  await page.getByRole('menuitem', { name: 'Mute for 8 hours' }).click();
+  await more.click();
+  await expect(page.getByRole('menuitem', { name: 'Unmute' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // Renombrar.
+  const renamed = `${title} renombrado`;
+  await more.click();
+  await page.getByRole('menuitem', { name: 'Rename chat' }).click();
+  await page.getByRole('textbox', { name: 'Rename chat' }).fill(renamed);
+  await page.keyboard.press('Enter');
+  await expect(thread.locator('.wa-head h2')).toHaveText(renamed);
+
+  // Menú de la IA con texto: borrador, instrucción, reescribir, traducir, dictar.
+  const field = page.getByRole('textbox', { name: 'Message' });
+  await field.fill('hola como estas');
+  await thread.getByRole('button', { name: /AI/ }).click();
+  for (const name of ['What do you want to say?', 'Write it with AI', 'Shorter', 'Friendlier', 'More formal', 'Fix spelling and grammar', 'Translate to English', 'Translate to Spanish', 'Translate to Portuguese', 'Dictate']) {
+    await expect(page.getByRole('menuitem', { name, exact: true })).toBeVisible();
+  }
+  await page.getByRole('menuitem', { name: 'What do you want to say?' }).click();
+  await expect(thread.locator('.ib-ai')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // Shift+Enter baja de línea sin enviar.
+  await field.fill('uno');
+  await field.press('Shift+Enter');
+  await field.type('dos');
+  await expect(field).toHaveValue('uno\ndos');
+  await expect(thread.locator('.gr-msg-out', { hasText: 'uno' })).toHaveCount(0);
+
+  // Quitar de Inbox pide confirmación.
+  await more.click();
+  await page.getByRole('menuitem', { name: 'Remove from Inbox' }).click();
+  await expect(page.getByRole('dialog').getByText(/Nothing is deleted on WhatsApp/)).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Remove from Inbox' }).click();
+  await expect(page.locator('.ib-item', { hasText: renamed })).toHaveCount(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});

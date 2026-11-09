@@ -37,6 +37,7 @@
     "aiAsk": "O que você quer dizer?",
     "rewrite": "Reescrever",
     "rewrites": { "shorter": "Mais curto", "friendlier": "Mais caloroso", "formal": "Mais formal", "fix": "Corrigir ortografia e gramática" },
+    "translateTo": { "en": "Traduzir para inglês", "es": "Traduzir para espanhol", "pt": "Traduzir para português" },
     "undoAi": "Desfazer IA",
     "dictate": "Ditar",
     "dictateHint": "Ditar com o Voice (ou segure Alt+Espaço)",

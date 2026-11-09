@@ -119,12 +119,12 @@ export function MoveDialog({
 export type MoreAction = 'unread' | 'pin' | 'mute8h' | 'muteWeek' | 'unmute' | 'clearFollowUp' | 'unsnooze' | 'aiDraft' | 'delete';
 
 /** Más acciones del chat: leído, fijar, silenciar, quitar recordatorio, sacar de Inbox. */
-export function MoreDialog({ open, thread, onClose, onAction }: { open: boolean; thread: ThreadDto | null; onClose: () => void; onAction: (a: MoreAction) => void }) {
+export function MoreDialog({ open, thread, onClose, onAction, startConfirm = false }: { open: boolean; thread: ThreadDto | null; onClose: () => void; onAction: (a: MoreAction) => void; startConfirm?: boolean }) {
   const t = useTranslations('inbox.more');
   const [confirm, setConfirm] = useState(false);
   useEffect(() => {
-    if (open) setConfirm(false);
-  }, [open]);
+    if (open) setConfirm(startConfirm);
+  }, [open, startConfirm]);
   if (!thread) return null;
   const items: MoreAction[] = [
     'unread',

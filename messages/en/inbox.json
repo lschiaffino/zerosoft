@@ -37,6 +37,7 @@
     "aiAsk": "What do you want to say?",
     "rewrite": "Rewrite",
     "rewrites": { "shorter": "Shorter", "friendlier": "Friendlier", "formal": "More formal", "fix": "Fix spelling and grammar" },
+    "translateTo": { "en": "Translate to English", "es": "Translate to Spanish", "pt": "Translate to Portuguese" },
     "undoAi": "Undo AI",
     "dictate": "Dictate",
     "dictateHint": "Dictate with Voice (or hold Alt+Space)",

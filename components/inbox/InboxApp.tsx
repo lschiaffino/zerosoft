@@ -17,7 +17,7 @@ import Conversation from './Conversation';
 import type { ComposerHandle } from './Composer';
 import WhenDialog, { type WhenKind } from './WhenDialog';
 import ScheduleDialog, { type ScheduleTarget } from './ScheduleDialog';
-import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog } from './InboxDialogs';
+import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog, type MoreAction } from './InboxDialogs';
 import { WhatsappQrDialog } from './InboxSettings';
 
 export interface InboxStateDto {
@@ -115,6 +115,8 @@ export default function InboxApp(props: {
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const [plan, setPlan] = useState<ScheduleTarget | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [moreConfirm, setMoreConfirm] = useState(false);
+  const moreActionRef = useRef<(a: MoreAction) => Promise<void>>(async () => {});
   const [infoOpen, setInfoOpen] = useState(false);
   // Otro chat: el panel de info se cierra (como en WhatsApp Web).
   useEffect(() => setInfoOpen(false), [openId]);
@@ -362,7 +364,20 @@ export default function InboxApp(props: {
           setMoveIds(ids);
           break;
         case 'more':
+          setMoreConfirm(false);
           setMoreOpen(true);
+          break;
+        case 'delete':
+          setMoreConfirm(true);
+          setMoreOpen(true);
+          break;
+        case 'aiDraft':
+        case 'mute8h':
+        case 'muteWeek':
+        case 'unmute':
+        case 'clearFollowUp':
+        case 'unsnooze':
+          void moreActionRef.current(name);
           break;
         case 'unread':
           void runAction(ids, { action: th && th.unread > 0 ? 'read' : 'unread' });
@@ -426,6 +441,37 @@ export default function InboxApp(props: {
     window.history.replaceState(window.history.state, '', url.toString());
     requestAnimationFrame(() => listRef.current?.querySelector<HTMLElement>(`[data-idx="${cursor}"] .ib-row-btn`)?.focus());
   }, [cursor]);
+
+  const moreAction = async (a: MoreAction) => {
+    setMoreOpen(false);
+    setMoreConfirm(false);
+    const th = detail?.thread ?? current;
+    if (!th) return;
+    if (a === 'delete') {
+      const r = await api(`/api/inbox/threads/${th.id}`, { method: 'DELETE' });
+      if (!r.ok) {
+        toast(errText(r.data.error), { bad: true });
+        return;
+      }
+      setThreads((xs) => xs.filter((x) => x.id !== th.id));
+      if (openId === th.id) closeConvo();
+      toast(t('toast.deleted'));
+      void reloadState();
+      notifyInboxChanged();
+      return;
+    }
+    if (a === 'mute8h' || a === 'muteWeek' || a === 'unmute') {
+      const until = a === 'unmute' ? null : new Date(Date.now() + (a === 'mute8h' ? 8 : 168) * 3600_000).toISOString();
+      await runAction([th.id], { action: 'mute', until });
+      return;
+    }
+    if (a === 'unread') await runAction([th.id], { action: th.unread > 0 ? 'read' : 'unread' });
+    if (a === 'pin') await runAction([th.id], { action: th.pinned ? 'unpin' : 'pin' });
+    if (a === 'clearFollowUp') await runAction([th.id], { action: 'clearFollowUp' });
+    if (a === 'unsnooze') await runAction([th.id], { action: 'unsnooze' });
+    if (a === 'aiDraft') composer.current?.draft();
+  };
+  moreActionRef.current = moreAction;
 
   const modalOpen = !!when || !!plan || !!moveIds || moreOpen || compose || help || qrOpen || !!folderEdit;
 
@@ -857,6 +903,12 @@ export default function InboxApp(props: {
             onError={(code) => toast(errText(code), { bad: true })}
             onToast={(text) => toast(text)}
             onToggleInfo={() => setInfoOpen((v) => !v)}
+            onRename={async (title) => {
+              const r = await api(`/api/inbox/threads/${detail.thread.id}`, { method: 'PATCH', json: { title } });
+              if (!r.ok) toast(errText(r.data.error), { bad: true });
+              void loadDetail(detail.thread.id, true);
+              void reloadList();
+            }}
             onRefresh={() => {
               void loadDetail(detail.thread.id, true);
               void reloadList();
@@ -991,35 +1043,12 @@ export default function InboxApp(props: {
       <MoreDialog
         open={moreOpen}
         thread={detail?.thread ?? current}
-        onClose={() => setMoreOpen(false)}
-        onAction={async (a) => {
+        onClose={() => {
           setMoreOpen(false);
-          const th = detail?.thread ?? current;
-          if (!th) return;
-          if (a === 'delete') {
-            const r = await api(`/api/inbox/threads/${th.id}`, { method: 'DELETE' });
-            if (!r.ok) {
-              toast(errText(r.data.error), { bad: true });
-              return;
-            }
-            setThreads((xs) => xs.filter((x) => x.id !== th.id));
-            if (openId === th.id) closeConvo();
-            toast(t('toast.deleted'));
-            void reloadState();
-            notifyInboxChanged();
-            return;
-          }
-          if (a === 'mute8h' || a === 'muteWeek' || a === 'unmute') {
-            const until = a === 'unmute' ? null : new Date(Date.now() + (a === 'mute8h' ? 8 : 168) * 3600_000).toISOString();
-            await runAction([th.id], { action: 'mute', until });
-            return;
-          }
-          if (a === 'unread') await runAction([th.id], { action: 'unread' });
-          if (a === 'pin') await runAction([th.id], { action: th.pinned ? 'unpin' : 'pin' });
-          if (a === 'clearFollowUp') await runAction([th.id], { action: 'clearFollowUp' });
-          if (a === 'unsnooze') await runAction([th.id], { action: 'unsnooze' });
-          if (a === 'aiDraft') composer.current?.draft();
+          setMoreConfirm(false);
         }}
+        startConfirm={moreConfirm}
+        onAction={(a) => void moreAction(a)}
       />
       <ComposeDialog
         open={compose}

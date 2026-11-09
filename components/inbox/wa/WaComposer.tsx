@@ -12,6 +12,8 @@ import type { ComposerHandle } from '../Composer';
 
 type Rewrite = 'shorter' | 'friendlier' | 'formal' | 'fix';
 const REWRITES: Rewrite[] = ['shorter', 'friendlier', 'formal', 'fix'];
+const LANGS = ['en', 'es', 'pt'] as const;
+const LANG_NAME: Record<(typeof LANGS)[number], string> = { en: 'English', es: 'Spanish', pt: 'Portuguese' };
 
 /**
  * Campo de WhatsApp como en WhatsApp Web: emoji, el campo que crece, y
@@ -205,6 +207,31 @@ const WaComposer = forwardRef<
     await streamInto({ action: 'rewrite', text, mode, threadId: thread.id });
   };
 
+  const translate = async (lang: (typeof LANGS)[number]) => {
+    if (!text.trim() || busy) return;
+    await streamInto({ action: 'rewrite', text, mode: 'custom', instruction: `Translate the message to ${LANG_NAME[lang]}. Keep the meaning, the tone and the formatting.`, threadId: thread.id });
+  };
+
+  /** Dicta con Voice: el texto entra en el campo. */
+  const dictate = () => {
+    area.current?.focus();
+    window.dispatchEvent(new Event('zs:voice-dictate'));
+  };
+
+  /** Abre la lista de snippets (lo mismo que escribir ";"). */
+  const openSnippets = () => {
+    const el = area.current;
+    const caret = el?.selectionStart ?? text.length;
+    const sep = caret > 0 && !/\s$/.test(text.slice(0, caret)) ? ' ' : '';
+    setText(`${text.slice(0, caret)}${sep};${text.slice(caret)}`);
+    setSnipQ('');
+    setSnipIdx(0);
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(caret + sep.length + 1, caret + sep.length + 1);
+    });
+  };
+
   useImperativeHandle(
     ref,
     () => ({
@@ -250,6 +277,9 @@ const WaComposer = forwardRef<
     { key: 'ask', label: t('aiAsk'), onSelect: () => setAiOpen(true) },
     { key: 'draft', label: text.trim() ? t('aiFromText') : t('aiDraft'), onSelect: () => void draft() },
     ...(text.trim() ? REWRITES.map((m) => ({ key: m, label: t(`rewrites.${m}`), onSelect: () => void rewrite(m) })) : []),
+    ...(text.trim() ? LANGS.map((l) => ({ key: `tr-${l}`, label: t(`translateTo.${l}`), onSelect: () => void translate(l) })) : []),
+    { key: 'dictate', label: t('dictate'), divider: true, onSelect: dictate },
+    ...(snippets.length ? [{ key: 'snippets', label: t('snippets'), onSelect: openSnippets }] : []),
     ...(undo !== null
       ? [
           {
