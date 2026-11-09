@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createGroupTask, listGroupTasks } from '@/lib/groups-tasks';
-import { groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { createGroupTask, crmTaskScope, listGroupTasks } from '@/lib/groups-tasks';
+import { cleanPriority } from '@/lib/tasks-shared';
+import { chatGuard, groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
 import { requestLocale } from '@/lib/request-locale';
 
 export const runtime = 'nodejs';
@@ -12,17 +13,21 @@ export async function GET(req: NextRequest) {
   if (s instanceof NextResponse) return s;
   const p = req.nextUrl.searchParams;
   const status = p.get('status');
+  const chat = p.get('chat');
+  // Las tareas del CRM del contacto del chat solo se suman si la persona ve ese chat.
+  const crm = chat && !((await chatGuard(s, chat)) instanceof NextResponse) ? await crmTaskScope(s.user) : false;
   return NextResponse.json({
     tasks: await listGroupTasks(s.ws, s.me, {
       chatId: p.get('chat') || undefined,
       status: status === 'done' || status === 'all' ? status : 'open',
       ownerId: p.get('owner') || undefined,
       q: p.get('q') ?? undefined,
+      crm,
     }),
   });
 }
 
-/** { chatId, messageId?, title, notes?, dueAt?, ownerId?, timezone? }: la tarea queda también en CRM › Tareas. */
+/** { chatId, messageId?, title, notes?, dueAt?, ownerId?, priority?, timezone? }: la tarea queda también en CRM › Tareas. */
 export async function POST(req: NextRequest) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
@@ -35,6 +40,7 @@ export async function POST(req: NextRequest) {
       notes: str(b.notes, 4000),
       dueAt: str(b.dueAt, 40) || null,
       ownerId: str(b.ownerId, 100) || null,
+      priority: cleanPriority(b.priority),
       timezone: str(b.timezone, 60) ?? req.cookies.get('tz')?.value,
       locale: requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language')),
     });

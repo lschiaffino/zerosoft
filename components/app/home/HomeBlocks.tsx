@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import type { ProductKey } from '@/lib/products';
-import { homeCalBookings, homeCrmTasks, homeRecents, homeTrackIssues, homeUnread, type HomeTaskScope, type HomeUser } from '@/lib/home';
+import { homeCanUse, homeCalBookings, homeCrmTasks, homeRecents, homeTrackIssues, homeUnread, type HomeTaskScope, type HomeUser } from '@/lib/home';
 import { parseDbUtc, relDate } from '@/lib/utils';
 
 /**
@@ -98,10 +98,20 @@ export async function CrmTasksBlock({
   scope?: HomeTaskScope;
 }) {
   const t = await getTranslations({ locale, namespace: 'common.appHome' });
+  const tl = await getTranslations({ locale, namespace: 'crm.tasks.links.app' });
   const res = await attempt(() => homeCrmTasks(user, { scope }));
   if (hideWhenEmpty && scope === 'mine' && res.ok && res.data.total === 0) return null;
+  // Las tareas son de toda la suite: sin CRM, las de los chats de Groups.
+  const crm = homeCanUse(user, 'crm');
   return (
-    <BlockFrame product="crm" title={t('today.crm')} href="/app/crm/tasks" viewAll={t('viewAll')} testId="home-crm-tasks">
+    <BlockFrame
+      product={crm ? 'crm' : 'groups'}
+      title={t('today.crm')}
+      href={crm ? '/app/crm/tasks' : '/app/groups/tasks'}
+      viewAll={t('viewAll')}
+      testId="home-crm-tasks"
+    >
+      {crm && (
       <nav className="home-block-scope" aria-label={t('today.crmScope')}>
         <Link href="/app" scroll={false} aria-current={scope === 'mine' ? 'true' : undefined}>
           {t('today.crmMine')}
@@ -110,6 +120,7 @@ export async function CrmTasksBlock({
           {t('today.crmAll')}
         </Link>
       </nav>
+      )}
       {!res.ok ? (
         <BlockError text={t('error')} />
       ) : res.data.items.length === 0 ? (
@@ -118,11 +129,12 @@ export async function CrmTasksBlock({
         <ul className="home-list">
           {res.data.items.map((task) => (
             <li key={task.id}>
-              <Link href={`/app/crm/tasks/${task.id}`} className="home-row">
+              <Link href={task.href} className="home-row">
                 <span className="home-row-label">{task.subject}</span>
                 <span className={`home-row-meta${task.overdue ? ' is-late' : ''}`}>
                   {task.overdue ? t('today.overdue') : t('today.dueToday')}
-                  {task.context ? ` · ${task.context}` : ''}
+                  {/* El registro del CRM si tiene; si no, el chat o la página de donde salió. Con origen, la app adelante. */}
+                  {task.source ? ` · ${tl(task.source.app)} · ${task.context ?? task.source.label}` : task.context ? ` · ${task.context}` : ''}
                 </span>
               </Link>
             </li>

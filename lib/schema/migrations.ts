@@ -8858,12 +8858,50 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Tareas de toda la suite (lib/tasks.ts): la tarea es la del CRM
+    // (crm_activities, type 'task') y task_links la ata a cualquier registro
+    // fuera del CRM (chat y mensaje de Groups, conversación de Chat, página de
+    // Docs, issue de Track). Prioridad como en HubSpot ('' = sin prioridad).
+    // Backfill idempotente desde groups_tasks y las tareas de reuniones de Docs
+    // mandadas al CRM; no hay FK a crm_activities porque la papelera del CRM
+    // borra y restaura la fila con el mismo id.
+    id: '292_tasks_unified',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE crm_activities ADD COLUMN priority TEXT NOT NULL DEFAULT ''");
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS task_links (
+          task_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          ref_id TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (task_id, kind, ref_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_task_links_ref ON task_links(workspace_id, kind, ref_id);
+
+        INSERT OR IGNORE INTO task_links (task_id, workspace_id, kind, ref_id, created_by, created_at)
+          SELECT t.activity_id, t.user_id, 'lines_chat', t.chat_id, t.created_by, t.created_at
+          FROM groups_tasks t JOIN crm_activities a ON a.id = t.activity_id;
+        INSERT OR IGNORE INTO task_links (task_id, workspace_id, kind, ref_id, created_by, created_at)
+          SELECT t.activity_id, t.user_id, 'lines_message', t.message_id, t.created_by, t.created_at
+          FROM groups_tasks t JOIN crm_activities a ON a.id = t.activity_id
+          WHERE t.message_id IS NOT NULL AND t.message_id != '';
+        INSERT OR IGNORE INTO task_links (task_id, workspace_id, kind, ref_id, created_by, created_at)
+          SELECT a.id, m.workspace_id, 'docs_page', m.page_id, m.created_by, a.created_at
+          FROM docs_meetings m, json_each(CASE WHEN json_valid(m.actions) THEN m.actions ELSE '[]' END) j
+          JOIN crm_activities a ON a.id = json_extract(j.value, '$.sent.id') AND a.user_id = m.workspace_id
+          WHERE json_extract(j.value, '$.sent.kind') = 'crm';
+      `);
+    },
+  },
+  {
     // Rec, compartir como Drive: rol por persona invitada, links mágicos para
     // quien no tiene cuenta y lo nuevo nace restringido. Los videos que ya
     // estaban abiertos por link siguen igual (el modal los muestra como
     // "Cualquiera con el link"); el default de los workspaces pasa a
     // restringido.
-    id: '292_rec_sharing_people',
+    id: '293_rec_sharing_people',
     up: async (c) => {
       await addColumn(c, "ALTER TABLE rec_videos ADD COLUMN people_roles TEXT NOT NULL DEFAULT '{}'");
       await c.executeMultiple(`
@@ -8882,7 +8920,7 @@ export const MIGRATIONS: Migration[] = [
   },
   {
     // Rec: MP4 (H.264/AAC) para descargar, armado una vez por versión del video.
-    id: '293_rec_mp4',
+    id: '294_rec_mp4',
     up: async (c) => {
       await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_url TEXT');
       await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_size INTEGER NOT NULL DEFAULT 0');
