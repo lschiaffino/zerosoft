@@ -1,3 +1,4 @@
+import { ogMetaAbsolute } from '@/lib/og/url';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { appBase } from '@/lib/hiring/core';
@@ -30,10 +31,12 @@ export async function generateMetadata(props: { params: Promise<Params> }): Prom
     if (!job) return { title: c.company };
     const canonical = jobUrl(c.settings.handle, job.slug);
     const description = descriptionText(job.description, 160);
-    return { title: `${job.title} · ${c.company}`, description, alternates: { canonical }, openGraph: { title: job.title, description, url: canonical, siteName: c.company } };
+    const og = ogMetaAbsolute(appBase(), `/api/og/job/${c.settings.handle}/${job.slug}`, job.title, description, [c.company, job.title, jobMeta(job, t)]);
+    return { title: `${job.title} · ${c.company}`, description, alternates: { canonical }, openGraph: { title: job.title, description, url: canonical, siteName: c.company, images: og.images }, twitter: og.twitter };
   }
   const canonical = `${appBase()}/careers/${c.settings.handle}`;
-  return { title: `${t.openRoles} · ${c.company}`, description: c.settings.intro.slice(0, 160) || undefined, alternates: { canonical }, openGraph: { title: c.company, url: canonical, siteName: c.company } };
+  const og = ogMetaAbsolute(appBase(), `/api/og/job/${c.settings.handle}`, `${t.openRoles} · ${c.company}`, c.settings.intro.slice(0, 160) || undefined, [c.company, t.openRoles]);
+  return { title: `${t.openRoles} · ${c.company}`, description: c.settings.intro.slice(0, 160) || undefined, alternates: { canonical }, openGraph: { title: c.company, url: canonical, siteName: c.company, images: og.images }, twitter: og.twitter };
 }
 
 function jobMeta(job: PublicJob, t: CareersStrings): string {

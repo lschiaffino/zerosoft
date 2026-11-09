@@ -1,3 +1,4 @@
+import { ogMeta } from '@/lib/og/url';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
@@ -20,7 +21,15 @@ export async function generateMetadata(props: { params: Promise<{ handle: string
   const eventType = await getEventTypeByHandle(handle, slug);
   if (!eventType) return {};
   const privateLink = eventType.hidden === 1 || eventType.single_use === 1 || eventType.kind === 'poll';
-  return privateLink ? { robots: { index: false, follow: false } } : {};
+  // La tarjeta del link (las encuestas no tienen: ver lib/og/shared-cards.ts).
+  const og =
+    eventType.kind === 'poll'
+      ? null
+      : ogMeta(`/api/og/book/${encodeURIComponent(handle)}/${encodeURIComponent(slug)}`, eventType.title, eventType.description || undefined, [eventType.title, eventType.duration_min]);
+  return {
+    ...(privateLink ? { robots: { index: false, follow: false } } : {}),
+    ...(og ? { openGraph: { title: eventType.title, images: og.images }, twitter: og.twitter } : {}),
+  };
 }
 
 export default async function BookPage(props: {

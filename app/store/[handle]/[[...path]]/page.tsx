@@ -1,3 +1,4 @@
+import { ogMetaAbsolute } from '@/lib/og/url';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
@@ -57,7 +58,13 @@ export async function generateMetadata(props: { params: Promise<Params> }): Prom
       ...base,
       title: `${p.seoTitle || p.title} · ${site}`,
       description,
-      openGraph: { ...base.openGraph, type: 'website', title: p.seoTitle || p.title, description, images: p.images.slice(0, 1).map(abs) },
+      // Con foto, la foto; sin foto, la tarjeta con el nombre del producto y de la tienda.
+      ...(p.images.length
+        ? { openGraph: { ...base.openGraph, type: 'website', title: p.seoTitle || p.title, description, images: p.images.slice(0, 1).map(abs) } }
+        : (() => {
+            const og = ogMetaAbsolute(appBase(), `/api/og/store/${store.dto.handle}/${p.handle}`, p.seoTitle || p.title, description, [site, p.seoTitle || p.title, description]);
+            return { openGraph: { ...base.openGraph, type: 'website' as const, title: p.seoTitle || p.title, description, images: og.images }, twitter: og.twitter };
+          })()),
     };
   }
   if (kind === 'collections' && slug && SEG.test(slug)) {
@@ -66,11 +73,13 @@ export async function generateMetadata(props: { params: Promise<Params> }): Prom
   }
   const titles: Record<string, string> = { cart: t.cartTitle, checkout: t.checkoutTitle, search: t.searchTitle, orders: t.orderStatus };
   if (kind && titles[kind]) return { title: `${titles[kind]} · ${site}`, robots: { index: false } };
+  const og = ogMetaAbsolute(appBase(), `/api/og/store/${store.dto.handle}`, site, store.dto.brand.heroText || undefined, [site]);
   return {
     ...base,
     title: site,
     description: store.dto.brand.heroText || undefined,
-    openGraph: { ...base.openGraph, title: site, images: store.dto.brand.logoUrl ? [abs(store.dto.brand.logoUrl)] : undefined },
+    openGraph: { ...base.openGraph, title: site, images: og.images },
+    twitter: og.twitter,
   };
 }
 

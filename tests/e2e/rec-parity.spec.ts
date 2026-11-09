@@ -564,13 +564,26 @@ test('oEmbed y descarga: solo lo abierto se describe; sin descarga no hay botón
   const html = await (await anon.request.get(`/en/v/${v.shareId}`)).text();
   expect(html).toContain('application/json+oembed');
   expect(html).toContain('og:title');
+  // La tarjeta para compartir (og:image) también: abierto, PNG; protegido, 404 y ni título ni tarjeta en la página.
+  const card = `/api/og/rec/${v.shareId}`;
+  expect(html).toContain(`${card}?v=`);
+  const open = await anon.request.get(card);
+  expect(open.status()).toBe(200);
+  expect(open.headers()['content-type']).toBe('image/png');
+  const closed = async () => {
+    expect((await anon.request.get(ask(v.shareId))).status()).toBe(404);
+    expect((await anon.request.get(card)).status()).toBe(404);
+    const locked = await (await anon.request.get(`/en/v/${v.shareId}`)).text();
+    expect(locked).not.toContain(card);
+    expect(locked).not.toMatch(new RegExp(`(og|twitter):title" content="${title}`));
+  };
 
   await ok(request.patch(`/api/rec/videos/${v.id}`, { data: { privacy: 'workspace' } }));
-  expect((await anon.request.get(ask(v.shareId))).status()).toBe(404);
+  await closed();
   await ok(request.patch(`/api/rec/videos/${v.id}`, { data: { privacy: 'link', password: 'clave-segura' } }));
-  expect((await anon.request.get(ask(v.shareId))).status()).toBe(404);
+  await closed();
   await ok(request.patch(`/api/rec/videos/${v.id}`, { data: { password: null, requireEmail: true } }));
-  expect((await anon.request.get(ask(v.shareId))).status()).toBe(404);
+  await closed();
   await ok(request.patch(`/api/rec/videos/${v.id}`, { data: { requireEmail: false, allowDownload: false } }));
   expect((await anon.request.get(`/api/rec/v/${v.shareId}/file?download=1`)).status()).toBe(403);
   await anon.page.goto(`/en/v/${v.shareId}`);

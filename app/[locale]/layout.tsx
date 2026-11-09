@@ -3,7 +3,8 @@ import { IBM_Plex_Mono, Space_Grotesk } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { hasLocale } from 'next-intl';
 import { routing } from '@/i18n/routing';
-import { siteOrigin, siteVerification } from '@/lib/seo';
+import { homeOgImage, siteOrigin, siteVerification } from '@/lib/seo';
+import { ogImages, ogUrl } from '@/lib/og/url';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ChromeGate from '@/components/ChromeGate';
@@ -69,9 +70,9 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
       type: 'website',
       siteName: 'zerosoft',
       locale: { en: 'en_US', es: 'es_AR', pt: 'pt_BR' }[locale] ?? 'en_US',
-      images: [{ url: '/api/og/home', width: 1200, height: 630, alt: 'zerosoft' }],
+      images: ogImages(homeOgImage(locale), t('tagline'), [t('tagline')]),
     },
-    twitter: { card: 'summary_large_image', images: ['/api/og/home'] },
+    twitter: { card: 'summary_large_image', images: [{ url: ogUrl(homeOgImage(locale), [t('tagline')]), alt: t('tagline') }] },
     // Favicon y apple-icon: app/icon.svg y app/apple-icon.tsx (el cero de lib/zero-mark.ts).
   };
 }

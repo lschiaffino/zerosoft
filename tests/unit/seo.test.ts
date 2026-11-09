@@ -6,7 +6,7 @@ import { computeParity } from '@/lib/feature-parity';
 import { PRODUCT_KEYS } from '@/lib/products';
 import { STATIC_PAGES } from '@/lib/seo-routes';
 import { localizeLinks, tagSlug } from '@/lib/blog';
-import { clampText, titleSize } from '@/lib/og-text';
+import { clampText, fitTitle } from '@/lib/og/text';
 
 describe('clampDescription', () => {
   it('deja igual lo que entra', () => {
@@ -55,7 +55,11 @@ describe('pageMetadata', () => {
     const og = meta.openGraph as { url: string; locale: string; images: { url: string; width: number }[] };
     expect(og.url).toBe('/es/products/crm');
     expect(og.locale).toBe('es_AR');
-    expect(og.images[0]).toMatchObject({ url: '/api/og/home', width: 1200 });
+    // Sin imagen propia, la del home en el idioma, versionada, ancha y cuadrada.
+    expect(og.images[0]).toMatchObject({ width: 1200, height: 630, type: 'image/png', alt: 'CRM' });
+    expect(og.images[0].url).toMatch(/^\/api\/og\/home\/es\?v=[0-9a-z]+$/);
+    expect(og.images[1]).toMatchObject({ width: 1200, height: 1200 });
+    expect(og.images[1].url).toMatch(/[?&]f=sq/);
     expect((meta.twitter as { card: string }).card).toBe('summary_large_image');
     expect(meta.robots).toBeUndefined();
   });
@@ -184,7 +188,7 @@ describe('blog: links y tags', () => {
 
 describe('tarjeta OG', () => {
   it('títulos largos: letra más chica y corte en palabra', () => {
-    expect(titleSize('CRM')).toBeGreaterThan(titleSize('Cómo pasar tus contactos de HubSpot a un CRM open source sin perder el historial'));
+    expect(fitTitle('CRM', 620, 3)).toBeGreaterThan(fitTitle('Cómo pasar tus contactos de HubSpot a un CRM open source sin perder el historial', 620, 3));
     const cut = clampText('uno dos tres cuatro cinco seis', 14);
     expect(cut).toBe('uno dos tres…');
   });

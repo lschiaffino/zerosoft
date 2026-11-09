@@ -533,13 +533,23 @@ test('recorte: quien no es el autor recibe la copia cortada y la transcripción 
   c4.close();
   expect((await page.request.get(`/api/rec/v/${other.shareId}/file?kind=thumb`)).status()).toBe(404);
   expect((await page.request.get(`/api/rec/v/${other.shareId}/file?kind=nope`)).status()).toBe(400);
+  // La tarjeta del link (lib/og) sale sin el cuadro: título y duración, nunca la miniatura vieja.
+  const ogImage = (html: string) => /property="og:image" content="([^"]+)"/.exec(html)?.[1] ?? '';
   const html = await (await page.request.get(`/en/v/${other.shareId}`)).text();
-  expect(html).not.toContain('og:image');
+  expect(html).not.toContain('kind=thumb');
+  const cardBefore = ogImage(html);
+  expect(cardBefore).toContain(`/api/og/rec/${other.shareId}?v=`);
   const c5 = db();
   await c5.execute({ sql: "UPDATE rec_videos SET thumb_for = '10:60' WHERE id = ?", args: [other.id] });
   c5.close();
   expect((await page.request.get(`/api/rec/v/${other.shareId}/file?kind=thumb`)).status()).toBe(200);
-  expect(await (await page.request.get(`/en/v/${other.shareId}`)).text()).toContain('og:image');
+  // Con la miniatura visible, la tarjeta cambia de versión (los chats la vuelven a pedir).
+  const cardAfter = ogImage(await (await page.request.get(`/en/v/${other.shareId}`)).text());
+  expect(cardAfter).toContain(`/api/og/rec/${other.shareId}?v=`);
+  expect(cardAfter).not.toBe(cardBefore);
+  const card = await page.request.get(new URL(cardAfter.replace(/&amp;/g, '&')).pathname + new URL(cardAfter.replace(/&amp;/g, '&')).search);
+  expect(card.status()).toBe(200);
+  expect(card.headers()['content-type']).toBe('image/png');
   await page.goto(`/en/v/${other.shareId}`, { waitUntil: 'networkidle' });
   await page.getByRole('tab', { name: 'Transcript' }).click();
   await expect(page.getByTestId('rec-transcript')).toContainText('lo que queda');
