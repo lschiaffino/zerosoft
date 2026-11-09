@@ -90,7 +90,7 @@ async function logEvent(ws: string, chat: Pick<ChatRow, 'id' | 'number_id'>, act
   });
 }
 
-const chatHref = (chatId: string, messageId?: string) => `/app/groups/inbox/${chatId}${messageId ? `#m-${messageId}` : ''}`;
+const chatHref = (chatId: string, messageId?: string) => `/app/lines/inbox/${chatId}${messageId ? `#m-${messageId}` : ''}`;
 
 async function notifyAssigned(actor: string | null, chat: ChatRow, personId: string, rule?: string): Promise<void> {
   const actorName = rule ? '' : await personName(actor);

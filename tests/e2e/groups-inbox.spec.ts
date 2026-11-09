@@ -50,7 +50,7 @@ function watchErrors(page: Page, allow: RegExp | null = null): string[] {
 }
 
 async function openChat(page: Page, name: string) {
-  await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   await page.locator('.gr-row', { hasText: name }).click();
   await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
 }
@@ -167,7 +167,7 @@ test('acciones en masa: no leído, fijar y cerrar varios chats', async ({ page, 
   const y = `Yago${tag}`;
   await inbound(request, n, dm(), 'one', x);
   await inbound(request, n, dm(), 'two', y);
-  await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   await page.getByRole('searchbox', { name: 'Search chats and messages' }).fill(tag);
   await expect(page.locator('.gr-row')).toHaveCount(2);
   await page.getByRole('button', { name: 'Select chats' }).click();
@@ -237,7 +237,7 @@ test('round-robin: equipo y regla en Ajustes, el chat nuevo llega asignado', asy
   const errors = watchErrors(page);
   const n = await fakeNumber(request);
   const tag = uid();
-  await page.goto('/en/app/groups/settings?tab=assignment', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=assignment', { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'New team' }).click();
   const teamDialog = page.getByRole('dialog', { name: 'New team' });
   await teamDialog.getByLabel('Team name').fill(`Support ${tag}`);
@@ -272,7 +272,7 @@ test('round-robin: equipo y regla en Ajustes, el chat nuevo llega asignado', asy
   await expect(page.locator('.gr-row', { hasText: later }).locator('.gr-row-assignee')).toHaveText('Demo User', { timeout: 10_000 });
 
   // Apagar la regla para no afectar a otros tests.
-  await page.goto('/en/app/groups/settings?tab=assignment');
+  await page.goto('/en/app/lines/settings?tab=assignment');
   await page.locator('.gr-mini-list li', { hasText: `Line ${tag}` }).getByRole('checkbox').uncheck();
   await expect(page.locator('.gr-mini-list li', { hasText: `Line ${tag}` }).getByText('Off')).toBeVisible();
   expect(errors).toEqual([]);
@@ -318,7 +318,7 @@ test('390px y modo oscuro: hilo con menú y Ajustes de asignación sin scroll ho
   const width = async () => page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
   let w = await width();
   expect(w.scroll).toBeLessThanOrEqual(w.inner + 1);
-  await page.goto('/en/app/groups/settings?tab=assignment', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=assignment', { waitUntil: 'networkidle' });
   w = await width();
   expect(w.scroll).toBeLessThanOrEqual(w.inner + 1);
 });

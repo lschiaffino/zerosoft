@@ -401,7 +401,7 @@ export async function fireTaskReminders(opts: { now?: Date; limit?: number } = {
     const person = r.owner_id ?? r.created_by;
     const locale: Locale = r.locale === 'es' || r.locale === 'pt' ? r.locale : 'en';
     const chatName = chatDisplayName({ name: r.chat_name, phone: r.chat_phone, provider_chat_id: r.chat_pid });
-    const href = `/app/groups/inbox/${encodeURIComponent(r.chat_id)}`;
+    const href = `/app/lines/inbox/${encodeURIComponent(r.chat_id)}`;
     const mail = buildTaskEmail({ title: r.subject, chatName, dueAt: r.due_at, timezone: r.timezone }, locale, `${siteUrl()}/${locale}${href}`);
     if (person) {
       await createNotification({

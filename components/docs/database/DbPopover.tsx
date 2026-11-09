@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useLayer } from '@/lib/ui/layers';
 
 /**
  * Popover de la base (menús de propiedad, filtro, orden, opciones de una
@@ -31,6 +32,11 @@ export default function DbPopover({
   const [pos, setPos] = useState<{ top: number; left: number; minWidth: number } | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const anchorRef = useRef(anchor);
+  anchorRef.current = anchor;
+  // Capa (lib/ui/layers.ts): abrirlo cierra los otros menús de la app; uno hijo (anclado adentro) queda anidado.
+  // El clic afuera y Esc los maneja el popover.
+  useLayer(true, () => onCloseRef.current('outside'), { root: ref, trigger: anchorRef, outside: false, escape: false });
 
   useLayoutEffect(() => {
     if (!anchor) return;

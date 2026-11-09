@@ -84,7 +84,7 @@ export function AccessPanel({
         </label>
         {labels.length === 0 ? (
           <p className="ui-help">
-            {t('access.noLabels')} <Link href="/app/groups/settings?tab=labels">{t('settings.tabs.labels')}</Link>
+            {t('access.noLabels')} <Link href="/app/lines/settings?tab=labels">{t('settings.tabs.labels')}</Link>
           </p>
         ) : (
           <ul className="gr-mini-list" aria-label={t('access.labelsTitle')}>
@@ -278,7 +278,7 @@ export function AuditLog({ chatId, people, compact = false }: { chatId?: string;
                 {!chatId && e.chatName && (
                   <>
                     {' · '}
-                    {e.chatId && e.action !== 'deleted' ? <Link href={`/app/groups/inbox/${e.chatId}`}>{e.chatName}</Link> : e.chatName}
+                    {e.chatId && e.action !== 'deleted' ? <Link href={`/app/lines/inbox/${e.chatId}`}>{e.chatName}</Link> : e.chatName}
                   </>
                 )}
               </span>
