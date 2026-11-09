@@ -7,9 +7,9 @@ import { useChatStyle, type ChatStyle } from './ChatStyle';
 /**
  * Ajuste "Estilo de chats": WhatsApp (la cara de WhatsApp Web) o zerosoft
  * (el mismo layout con los colores y la tipografía de la app). Se guarda por
- * persona y vale para Inbox y Lines.
+ * persona y vale para Inbox y Lines. Con las clases comunes de ui.css.
  */
-export default function ChatStyleSection({ className = 'ib-section' }: { className?: string }) {
+export default function ChatStyleSection({ className = 'ui-section' }: { className?: string }) {
   const t = useTranslations('inboxWa.chatStyle');
   const { style, setStyle } = useChatStyle();
   const [state, setState] = useState<'' | 'saved' | 'error'>('');
@@ -20,27 +20,29 @@ export default function ChatStyleSection({ className = 'ib-section' }: { classNa
   };
   return (
     <section className={className} id="chat-style" aria-labelledby="chat-style-h">
-      <h2 className="ib-h2" id="chat-style-h">
-        {t('title')}
-      </h2>
-      <fieldset className="ib-fieldset">
-        <legend className="ib-help">{t('help')}</legend>
+      <div className="ui-section-head">
+        <h2 className="ui-section-title" id="chat-style-h">
+          {t('title')}
+        </h2>
+        <p className="ui-help">{t('help')}</p>
+      </div>
+      <div role="radiogroup" aria-labelledby="chat-style-h" className="ui-fields">
         {(['whatsapp', 'zerosoft'] as const).map((s) => (
           <label key={s} className="ui-check">
             <input type="radio" name="chat-style" value={s} checked={style === s} onChange={() => void pick(s)} />
             <span>
-              <strong>{t(`${s}.label`)}</strong> <span className="ib-dim">{t(`${s}.body`)}</span>
+              <strong>{t(`${s}.label`)}</strong> · <span className="ui-help">{t(`${s}.body`)}</span>
             </span>
           </label>
         ))}
-      </fieldset>
+      </div>
       {state === 'saved' && (
-        <p className="ib-ok" role="status">
+        <p className="ui-help" role="status">
           {t('saved')}
         </p>
       )}
       {state === 'error' && (
-        <p className="ib-error" role="alert">
+        <p className="ui-error" role="alert">
           {t('error')}
         </p>
       )}

@@ -14,6 +14,7 @@ import { WEBHOOK_EVENTS } from '@/lib/webhooks-events';
 import PageHeader from '@/components/ui/PageHeader';
 import PlatformSettingsLink from '@/components/app/PlatformSettingsLink';
 import SettingsTabs from '@/components/ui/SettingsTabs';
+import ChatStyleSection from '@/components/chat-style/ChatStyleSection';
 import NumbersSettings from '@/components/groups/NumbersSettings';
 import { LabelsPanel, PropertiesPanel, QuickRepliesPanel, TicketRulesPanel } from '@/components/groups/SettingsPanels';
 import { AccessPanel, AppsPanel, AuditLog, IntegrationsPanel } from '@/components/groups/PlatformPanels';
@@ -35,7 +36,7 @@ const API_ROUTES = [
   'POST /api/v1/groups/mcp',
 ];
 
-const TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'audit', 'integrations', 'api', 'apps'] as const;
+const TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'audit', 'integrations', 'api', 'apps', 'appearance'] as const;
 /** Nombres viejos o cercanos de pestañas que llevan a la que corresponde. */
 const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
   rules: 'tickets',
@@ -59,6 +60,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
   const sp = await props.searchParams;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
+  const tw = await getTranslations({ locale, namespace: 'inboxWa' });
   const alias = sp.tab ? TAB_ALIASES[sp.tab] : undefined;
   if (alias) redirect(`/${locale}/app/lines/settings?tab=${alias}`);
   const tab = (TABS as readonly string[]).includes(sp.tab ?? '') ? (sp.tab as (typeof TABS)[number]) : 'numbers';
@@ -124,6 +126,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
       <p className="ui-help">{t('access.adminsOnly')}</p>
     );
   else if (tab === 'apps') body = <AppsPanel />;
+  else if (tab === 'appearance') body = <ChatStyleSection className="ui-fields" />;
   else
     body = (
       <div className="ui-fields gr-api">
@@ -157,7 +160,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
   return (
     <div className="ui-page">
       <PageHeader title={t('settings.title')} description={t('settings.desc')} actions={<PlatformSettingsLink locale={locale} />} />
-      <SettingsTabs mode="query" param="tab" items={TABS.map((k) => ({ key: k, label: t(`settings.tabs.${k}`) }))}>
+      <SettingsTabs mode="query" param="tab" items={TABS.map((k) => ({ key: k, label: k === 'appearance' ? tw('chatStyle.title') : t(`settings.tabs.${k}`) }))}>
         {body}
       </SettingsTabs>
     </div>
