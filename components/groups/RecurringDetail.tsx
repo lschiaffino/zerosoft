@@ -83,7 +83,7 @@ export default function RecurringDetail({
     const res = await api(`/api/groups/recurring/${rec.id}`, { method: 'DELETE' });
     setRemoving(false);
     if (!res.data) return showToast(errText(res.error), true);
-    router.push('/app/groups/broadcasts');
+    router.push('/app/lines/broadcasts');
   }
 
   return (
@@ -150,7 +150,7 @@ export default function RecurringDetail({
               {runs.map((r) => (
                 <li key={r.id}>
                   <span>
-                    <Link href={`/app/groups/broadcasts/${r.id}`}>{(mounted ? parseDbUtc(r.scheduledAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' }) : '')}</Link>
+                    <Link href={`/app/lines/broadcasts/${r.id}`}>{(mounted ? parseDbUtc(r.scheduledAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' }) : '')}</Link>
                   </span>
                   <span className="ui-help">
                     {t(`broadcastStatus.${r.status}`)} · {r.sent + r.failed}/{r.total}
@@ -170,7 +170,7 @@ export default function RecurringDetail({
         <ul className="gr-pick-list">
           {chats.map((c) => (
             <li key={c.id}>
-              <Link href={`/app/groups/inbox/${c.id}`} className="gr-check-label">
+              <Link href={`/app/lines/inbox/${c.id}`} className="gr-check-label">
                 <ChatPlate name={c.name} kind={c.kind} />
                 <span className="gr-pick-name">{c.name}</span>
               </Link>

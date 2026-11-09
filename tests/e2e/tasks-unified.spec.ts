@@ -66,7 +66,7 @@ test('una tarea creada en el chat se ve en el contacto, en la tarea con link al 
   const tag = uid();
   const { chat, chatName, contact, body } = await chatWithContact(request, tag);
 
-  await page.goto(`/en/app/groups/inbox/${chat.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
   const msg = page.locator('.gr-msg-in', { hasText: body });
   await msg.hover();
   await msg.getByRole('button', { name: 'More actions' }).click();
@@ -84,7 +84,7 @@ test('una tarea creada en el chat se ve en el contacto, en la tarea con link al 
   await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
   const source = page.locator('.tl-source', { hasText: chatName });
   await expect(source).toBeVisible();
-  await expect(source).toHaveAttribute('href', new RegExp(`/app/groups/inbox/${chat.id}$`));
+  await expect(source).toHaveAttribute('href', new RegExp(`/app/lines/inbox/${chat.id}$`));
 
   // En la tarea: prioridad y "Linked to" con el chat y el mensaje.
   await page.goto(`/en/app/crm/tasks/${task.id}`, { waitUntil: 'networkidle' });
@@ -93,7 +93,7 @@ test('una tarea creada en el chat se ve en el contacto, en la tarea con link al 
   await expect(links.getByText(body)).toBeVisible();
   await expect(page.getByText('High').first()).toBeVisible();
   await links.getByRole('link', { name: chatName }).click();
-  await expect(page).toHaveURL(new RegExp(`/app/groups/inbox/${chat.id}`));
+  await expect(page).toHaveURL(new RegExp(`/app/lines/inbox/${chat.id}`));
 
   // En CRM › Tareas (hoy) con su origen, y en el inicio entre mis tareas.
   await page.goto('/en/app/crm/tasks?bucket=today', { waitUntil: 'networkidle' });
@@ -117,7 +117,7 @@ test('una tarea creada en el contacto del CRM aparece en el chat y se completa d
   const subject = `Call Ana about renewal ${tag}`;
   const crmTask = await ok<{ id: string }>(request.post('/api/crm/activities', { data: { type: 'task', subject, contactId: contact.id } }));
 
-  await page.goto(`/en/app/groups/list/${chat.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/lines/list/${chat.id}`, { waitUntil: 'networkidle' });
   const item = page.locator('.gr-task-list li', { hasText: subject });
   await expect(item).toBeVisible();
   await expect(item.getByRole('link', { name: 'From the CRM' })).toHaveAttribute('href', new RegExp(`/app/crm/tasks/${crmTask.id}$`));
@@ -159,7 +159,7 @@ test('390px y oscuro: la tarea con sus vínculos sin scroll horizontal', async (
   );
   await context.addCookies([{ name: 'zs_theme', value: 'dark', url: baseURL! }]);
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const path of [`/en/app/crm/tasks/${t.id}`, '/en/app/crm/tasks?bucket=upcoming', `/en/app/groups/list/${chat.id}`]) {
+  for (const path of [`/en/app/crm/tasks/${t.id}`, '/en/app/crm/tasks?bucket=upcoming', `/en/app/lines/list/${chat.id}`]) {
     await page.goto(path, { waitUntil: 'networkidle' });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow, path).toBeLessThanOrEqual(1);

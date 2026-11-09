@@ -66,7 +66,7 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
     return { text: [seen ? `I can see ${info.userFiles.length} file(s): ${seen}.` : '', quoted ? `The document starts with: "${quoted}".` : ''].filter(Boolean).join(' ') };
   }
   if (latest && /^send (this|it)\b.* (to )?this chat/i.test(last)) {
-    if (!record || !record[1].startsWith('v1.groups.chats')) return { text: 'Open a Groups chat first.' };
+    if (!record || !record[1].startsWith('v1.groups.chats')) return { text: 'Open a Lines chat first.' };
     return { tool: 'propose_send_attachment', input: { chat: record[2], attachment: latest } };
   }
   const attachIssue = /^attach (this|it) to (?:issue )?([A-Z]+-\d+)/i.exec(last);
@@ -81,7 +81,7 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
   }
   const say = /^(send|note) "([^"]+)" (?:to|in) this chat$/i.exec(last);
   if (say) {
-    if (!record || !record[1].startsWith('v1.groups.chats')) return { text: 'Open a Groups chat first.' };
+    if (!record || !record[1].startsWith('v1.groups.chats')) return { text: 'Open a Lines chat first.' };
     return {
       tool: 'propose_destructive_operation',
       input: { operation: 'v1.groups.chats.messages.create', args: { path: { id: record[2] }, body: { body: say[2], note: say[1].toLowerCase() === 'note' } }, summary: `Send "${say[2].length > 120 ? `${say[2].slice(0, 117)}...` : say[2]}" to this chat` },

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import NotesIcon from './NotesIcon';
+import { useLayer } from '@/lib/ui/layers';
 
 /**
  * Menú "…" de una fila o tarjeta (libretas de Notes, pizarras de Board):
@@ -26,15 +27,12 @@ export default function RowMenu({
   const toggleRef = useRef(onToggle);
   toggleRef.current = onToggle;
 
+  const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!open) return;
-    wrapRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
-    const close = (e: MouseEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) toggleRef.current(false);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    if (open) wrapRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
   }, [open]);
+  // Capa (lib/ui/layers.ts): abrirlo cierra los demás menús; clic afuera cierra y el panel entra en pantalla.
+  useLayer(open, () => toggleRef.current(false), { root: wrapRef, trigger: buttonRef, panel: menuRef });
 
   function onKey(e: React.KeyboardEvent) {
     const els = Array.from(wrapRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
@@ -73,7 +71,7 @@ export default function RowMenu({
         <NotesIcon name="more" size={16} />
       </button>
       {open && (
-        <div className="row-menu" role="menu" aria-label={label} onKeyDown={onKey}>
+        <div ref={menuRef} className="row-menu" role="menu" aria-label={label} onKeyDown={onKey}>
           {items.map((it) => (
             <button key={it.label} type="button" role="menuitem" className={[it.danger ? 'is-danger' : '', it.className ?? ''].filter(Boolean).join(' ') || undefined} onClick={it.onSelect}>
               {it.label}

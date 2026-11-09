@@ -834,12 +834,12 @@ const comms: AssistantTool[] = [
   readTool({
     name: 'groups_chats',
     app: 'groups',
-    description: 'WhatsApp groups (Groups app) with their last activity.',
+    description: 'WhatsApp groups (Lines app) with their last activity.',
     input: z.object({ query: z.string().max(200).optional() }),
     run: async (ctx, { query }) => {
       const viewer = await groupsViewer(ctx.workspaceId, ctx.personId, ctx.user.role);
       const res = await listChats(ctx.workspaceId, ctx.personId, { q: query || undefined, limit: 20, viewer } as Parameters<typeof listChats>[2]);
-      return { total: res.total, groups: res.rows.map((g) => ({ ...pick(g, ['id', 'name', 'lastMessageAt', 'unread', 'members']), href: `/app/groups/inbox/${g.id}` })) };
+      return { total: res.total, groups: res.rows.map((g) => ({ ...pick(g, ['id', 'name', 'lastMessageAt', 'unread', 'members']), href: `/app/lines/inbox/${g.id}` })) };
     },
   }),
   readTool({
