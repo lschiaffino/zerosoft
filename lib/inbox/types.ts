@@ -91,6 +91,8 @@ export interface WaMessageMeta {
   location?: { lat: number; lng: number; name?: string; address?: string; url?: string; live?: boolean };
   contacts?: Array<{ name: string; phones: string[] }>;
   poll?: { question: string; options: string[]; multi: boolean };
+  /** Vista previa del link (título, descripción, miniatura). */
+  link?: { url: string; title: string; description?: string; thumb?: string };
 }
 
 export interface ParticipantDto {
@@ -114,6 +116,10 @@ export interface WaDetailsDto {
   myPhone: string;
   participants: ParticipantDto[];
   infoAt: string | null;
+  /** Bloqueado desde Inbox. */
+  blocked?: boolean;
+  /** Grupos en común (chat 1:1). */
+  commonGroups?: Array<{ id: string; title: string; avatar: string }>;
 }
 
 export interface MessageReaction {

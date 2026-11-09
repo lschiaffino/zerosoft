@@ -158,7 +158,7 @@ test('conversación como WhatsApp: burbujas, nombres de color, cita, reacciones,
   const mine = thread.locator('.gr-msg-out', { hasText: 'Yo llevo la carne' });
   await expect(mine.locator('.gr-quote')).toContainText('¿Quién viene el sábado?');
   await expect(mine.locator('.wa-ticks.is-read')).toBeVisible();
-  await expect(thread.locator('.gr-msg', { hasText: '¿Quién viene' }).locator('.ib-wa-reactions')).toContainText('❤️');
+  await expect(thread.locator('.gr-msg-in', { hasText: '¿Quién viene' }).locator('.ib-wa-reactions')).toContainText('❤️');
   // Media: foto (abre el visor), audio, documento, ubicación, contacto, encuesta, reenviado, borrado.
   await expect(thread.locator('.wa-image img:not(.wa-thumb)')).toBeVisible();
   await thread.locator('.wa-image').click();
@@ -257,6 +257,75 @@ test('acciones de mensaje: responder, reaccionar, editar, destacar, borrar y ree
   await page.getByRole('menuitem', { name: 'Delete for me' }).click();
   await expect(thread.locator('.gr-msg-in', { hasText: '¿Me pasás el link?' })).toHaveCount(0);
   expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('info del grupo y del contacto: foto, integrantes, lo compartido, resumen con IA, silenciar y bloquear', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const title = `Vecinos ${uid()}`;
+  await seedGroup(request, acc, title);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
+  await page.locator('.ib-wa-thread .wa-head-who').click();
+  const panel = page.getByRole('complementary', { name: 'Group info' });
+  await expect(panel).toBeVisible();
+  await expect(panel.locator('.ib-wa-hero-name')).toHaveText(title);
+  // Lo compartido: la foto del grupo y el documento.
+  await expect(panel.locator('.ib-wa-grid .ib-wa-thumb img')).toHaveCount(1);
+  await panel.getByRole('tab', { name: 'Docs' }).click();
+  await expect(panel.locator('.ib-wa-row', { hasText: 'Lista de compras.pdf' })).toBeVisible();
+  // Resumen con IA (modelo falso en e2e).
+  await panel.getByRole('button', { name: 'Summarize' }).click();
+  await expect(panel.locator('.ib-wa-summary-text')).toContainText('mensajes');
+  await shot(page, 'info-group-1440');
+  // Silenciar desde el panel: la fila muestra el ícono.
+  await panel.getByRole('button', { name: 'Mute notifications' }).click();
+  await page.getByRole('menuitem', { name: 'For 8 hours' }).click();
+  await expect(page.locator('.ib-item', { hasText: title }).getByRole('img', { name: 'Muted' })).toBeVisible();
+  // Esc cierra el panel (la conversación queda).
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await expect(page.locator('.ib-wa-thread')).toBeVisible();
+
+  // Contacto: info, bloquear con confirmación.
+  const name = `Nico ${uid()}`;
+  await events(request, acc, [message(`${phone('2')}@s.whatsapp.net`, { senderName: name, body: 'hola!' })]);
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
+  await page.locator('.ib-wa-thread .wa-head-who').click();
+  const info = page.getByRole('complementary', { name: 'Contact info' });
+  await expect(info.locator('.ib-wa-hero-sub')).toContainText('+54 9 11');
+  await info.getByRole('button', { name: `Block ${name}` }).click();
+  await info.getByRole('alertdialog').getByRole('button', { name: 'Block' }).click();
+  await expect(page.locator('.ib-toast', { hasText: `${name} is blocked` })).toBeVisible();
+  await expect(info.getByRole('button', { name: `Unblock ${name}` })).toBeVisible();
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('teléfono: deslizar un mensaje responde y deslizar una fila la archiva', async ({ page, request }) => {
+  const acc = await linkWhatsapp(request);
+  const name = `Olga ${uid()}`;
+  await events(request, acc, [message(`${phone('2')}@s.whatsapp.net`, { senderName: name, body: 'Deslizame para responder' })]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  const swipe = async (selector: string, dx: number) => {
+    const box = (await page.locator(selector).first().boundingBox())!;
+    const y = box.y + box.height / 2;
+    const x = box.x + (dx > 0 ? 20 : box.width - 20);
+    const fire = (type: string, cx: number) =>
+      page.locator(selector).first().dispatchEvent(type, { pointerType: 'touch', clientX: cx, clientY: y, bubbles: true, isPrimary: true, pointerId: 7 });
+    await fire('pointerdown', x);
+    for (let i = 1; i <= 6; i++) await fire('pointermove', x + (dx * i) / 6);
+    await fire('pointerup', x + dx);
+  };
+  await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
+  await swipe('.ib-wa-thread .gr-msg-in', 100);
+  await expect(page.locator('.wa-replying .gr-quote')).toContainText('Deslizame para responder');
+  await page.getByRole('button', { name: 'Back to the list' }).click();
+  await swipe(`.ib-item:has-text("${name}")`, -120);
+  await expect(page.locator('.ib-toast', { hasText: 'Marked done' })).toBeVisible();
+  await expect(page.locator('.ib-item', { hasText: name })).toHaveCount(0);
 });
 
 test('claro y oscuro a 1280 y 390 sin errores ni scroll horizontal', async ({ page, context, baseURL, request }) => {

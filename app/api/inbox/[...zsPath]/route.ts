@@ -10,6 +10,7 @@ import * as m4 from '@/lib/routes/inbox/scheduled/[id]/route';
 import * as m5 from '@/lib/routes/inbox/snippets/[id]/route';
 import * as m6 from '@/lib/routes/inbox/threads/[id]/route';
 import * as m7 from '@/lib/routes/inbox/threads/[id]/messages/route';
+import * as m8 from '@/lib/routes/inbox/threads/[id]/wa/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,7 @@ const d = createDispatcher('zsPath', [
   { pattern: 'snippets/[id]', mod: m5 }, // lib/routes/inbox/snippets/[id]
   { pattern: 'threads/[id]', mod: m6 }, // lib/routes/inbox/threads/[id]
   { pattern: 'threads/[id]/messages', mod: m7 }, // lib/routes/inbox/threads/[id]/messages
+  { pattern: 'threads/[id]/wa', mod: m8 }, // lib/routes/inbox/threads/[id]/wa
 ]);
 
 export const GET = d.GET;

@@ -124,3 +124,8 @@ export function onlyEmoji(text: string): boolean {
   if (!/^\p{Extended_Pictographic}+$/u.test(stripped.replace(/\p{Emoji_Modifier}/gu, ''))) return false;
   return Array.from(stripped.replace(/\p{Emoji_Modifier}/gu, '')).length <= 3;
 }
+
+/** URL de un video para mostrar su primer cuadro como miniatura (sin reproducirlo). */
+export function posterFrame(url: string): string {
+  return `${url}#t=0.1`;
+}

@@ -52,6 +52,7 @@ export function messageMeta(e: MessageEvent): { meta: string; kind: string } {
     out.contacts = e.contacts.slice(0, 20).map((c) => ({ name: (c.name ?? '').slice(0, 120), phones: (c.phones ?? []).slice(0, 5).map((p) => String(p).slice(0, 30)) }));
     kind = 'contact';
   }
+  if (e.link) out.link = { url: e.link.url, title: e.link.title, ...(e.link.description ? { description: e.link.description } : {}), ...(e.link.thumbnail ? { thumb: e.link.thumbnail } : {}) };
   if (e.poll) {
     out.poll = { question: e.poll.question.slice(0, 300), options: e.poll.options.slice(0, 12).map((o) => o.slice(0, 100)), multi: !!e.poll.multi };
     kind = 'poll';
@@ -128,10 +129,12 @@ export interface ThreadInfo {
   size: number;
   createdAt: number | null;
   isBusiness: boolean;
+  /** Bloqueado desde Inbox (WhatsApp no avisa el estado a los dispositivos vinculados). */
+  blocked?: boolean;
 }
 
 export function parseThreadInfo(raw: string | undefined | null): ThreadInfo {
-  const empty: ThreadInfo = { about: '', participants: [], size: 0, createdAt: null, isBusiness: false };
+  const empty: ThreadInfo = { about: '', participants: [], size: 0, createdAt: null, isBusiness: false, blocked: false };
   if (!raw) return empty;
   try {
     const v = JSON.parse(raw) as Partial<ThreadInfo>;
@@ -141,6 +144,7 @@ export function parseThreadInfo(raw: string | undefined | null): ThreadInfo {
       size: Number(v.size) || 0,
       createdAt: Number(v.createdAt) || null,
       isBusiness: v.isBusiness === true,
+      blocked: v.blocked === true,
     };
   } catch {
     return empty;
@@ -155,7 +159,7 @@ export const INFO_TTL_MS = 3 * 86_400_000;
  * siempre pisa el nombre (lo cambian en WhatsApp); en un 1:1 solo llena un
  * nombre vacío o que era el teléfono (el que puso la persona a mano queda).
  */
-export async function applyChatInfo(thread: Pick<ThreadRow, 'id' | 'kind' | 'title' | 'handle'>, info: ChatInfo, now = new Date()): Promise<void> {
+export async function applyChatInfo(thread: Pick<ThreadRow, 'id' | 'kind' | 'title' | 'handle'> & { info?: string }, info: ChatInfo, now = new Date()): Promise<void> {
   const db = getDb();
   const name = info.name.trim().slice(0, 200);
   const keepTitle = thread.kind === 'group' ? !name : !name || (thread.title && thread.title !== thread.handle);
@@ -165,6 +169,8 @@ export async function applyChatInfo(thread: Pick<ThreadRow, 'id' | 'kind' | 'tit
     size: info.size ?? info.participants?.length ?? 0,
     createdAt: info.createdAt ?? null,
     isBusiness: !!info.isBusiness,
+    // Lo que se marcó desde acá queda (el servidor no lo informa).
+    blocked: parseThreadInfo(thread.info).blocked,
   };
   await db
     .prepare(`UPDATE inbox_threads SET avatar_url = ?, info = ?, info_at = ?${keepTitle ? '' : ', title = ?'} WHERE id = ?`)
@@ -326,7 +332,104 @@ export async function waDetails(owner: string, thread: ThreadRow, account: Accou
     myPhone,
     participants: thread.kind === 'group' ? (await groupParticipants(owner, thread, myPhone)).slice(0, 1000) : [],
     infoAt: thread.info_at ?? null,
+    blocked: !!info.blocked,
+    commonGroups: thread.kind === 'dm' && thread.handle ? await commonGroups(owner, thread) : [],
   };
+}
+
+/** Grupos en común: los grupos de la cuenta donde está este teléfono (según los participantes guardados). */
+async function commonGroups(owner: string, thread: ThreadRow): Promise<NonNullable<WaDetailsDto['commonGroups']>> {
+  const phone = phoneDigits(thread.handle);
+  if (!phone) return [];
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, title, avatar_url FROM inbox_threads WHERE owner_id = ? AND account_id = ? AND kind = 'group' AND info LIKE ? ESCAPE '\\'
+       ORDER BY COALESCE(last_message_at, created_at) DESC LIMIT 30`,
+    )
+    .all(owner, thread.account_id, `%"phone":"${phone}"%`)) as Array<{ id: string; title: string; avatar_url: string }>;
+  return rows.map((r) => ({ id: r.id, title: r.title, avatar: r.avatar_url ? `/api/inbox/avatar/${r.id}` : '' }));
+}
+
+export type SharedKind = 'media' | 'docs' | 'links' | 'starred';
+
+const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
+
+/** Lo compartido en el chat para el panel de info: fotos y videos, documentos, links o destacados (lo más nuevo primero). */
+export async function sharedContent(owner: string, threadId: string, kind: SharedKind): Promise<
+  Array<{ id: string; mediaType: string; mediaName: string; body: string; sentAt: string; fromMe: boolean; senderName: string; senderHandle: string; size?: number; urls?: string[] }>
+> {
+  const thread = (await getDb().prepare('SELECT id FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as { id: string } | undefined;
+  if (!thread) throw new InboxError('not_found', 404);
+  const where =
+    kind === 'media'
+      ? "media_type IN ('image', 'video') AND media_ref <> '' AND revoked_at IS NULL"
+      : kind === 'docs'
+        ? "media_type = 'document' AND revoked_at IS NULL"
+        : kind === 'links'
+          ? "(body LIKE '%http://%' OR body LIKE '%https://%') AND revoked_at IS NULL"
+          : 'starred_at IS NOT NULL';
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, media_type, media_name, body, sent_at, from_me, sender_name, sender_handle, meta FROM inbox_messages
+       WHERE thread_id = ? AND owner_id = ? AND hidden_at IS NULL AND ${where} ORDER BY ${kind === 'starred' ? 'starred_at' : 'sent_at'} DESC LIMIT 120`,
+    )
+    .all(threadId, owner)) as Array<{ id: string; media_type: string; media_name: string; body: string; sent_at: string; from_me: number; sender_name: string; sender_handle: string; meta: string }>;
+  return rows.map((r) => {
+    let size: number | undefined;
+    try {
+      size = r.meta ? (JSON.parse(r.meta) as { size?: number }).size : undefined;
+    } catch {
+      size = undefined;
+    }
+    return {
+      id: r.id,
+      mediaType: r.media_type,
+      mediaName: r.media_name,
+      body: r.body.slice(0, 500),
+      sentAt: r.sent_at,
+      fromMe: r.from_me === 1,
+      senderName: r.sender_name,
+      senderHandle: r.sender_handle,
+      ...(size ? { size } : {}),
+      ...(kind === 'links' ? { urls: [...new Set(r.body.match(URL_RE) ?? [])].map((u) => u.replace(/[).,;:!?]+$/, '')).slice(0, 5) } : {}),
+    };
+  });
+}
+
+/**
+ * Presencia propia (como WhatsApp Web): al abrir el chat se suscribe a la del
+ * otro ("pausa", sin avisar nada), y mientras se escribe o graba se manda
+ * "escribiendo" o "grabando" por unos segundos.
+ */
+export async function sendMyPresence(owner: string, threadId: string, state: 'composing' | 'recording' | 'paused'): Promise<void> {
+  const db = getDb();
+  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as ThreadRow | undefined;
+  if (!thread) throw new InboxError('not_found', 404);
+  if (thread.channel !== 'whatsapp') return;
+  const account = (await db.prepare('SELECT * FROM inbox_accounts WHERE id = ? AND owner_id = ?').get(thread.account_id, owner)) as AccountRow | undefined;
+  if (!account || account.status !== 'connected') return;
+  const p = waProviderFor(account);
+  if (!p.sendPresence) return;
+  await p.sendPresence(thread.external_id, state, state === 'paused' ? 0 : 4000).catch(() => null);
+}
+
+/** Bloquear o desbloquear el contacto en WhatsApp (solo chats 1:1). */
+export async function setBlocked(owner: string, threadId: string, block: boolean): Promise<void> {
+  const db = getDb();
+  const thread = (await db.prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ?').get(threadId, owner)) as ThreadRow | undefined;
+  if (!thread) throw new InboxError('not_found', 404);
+  if (thread.channel !== 'whatsapp' || thread.kind !== 'dm') throw new InboxError('unsupported', 400);
+  const account = (await db.prepare('SELECT * FROM inbox_accounts WHERE id = ? AND owner_id = ?').get(thread.account_id, owner)) as AccountRow | undefined;
+  if (!account || account.status !== 'connected') throw new InboxError('not_connected', 409);
+  const p = waProviderFor(account);
+  if (!p.blockContact) throw new InboxError('unsupported', 400);
+  try {
+    await p.blockContact(thread.external_id, block);
+  } catch {
+    throw new InboxError('send_failed', 502);
+  }
+  const info = parseThreadInfo(thread.info);
+  await db.prepare('UPDATE inbox_threads SET info = ? WHERE id = ?').run(JSON.stringify({ ...info, blocked: block }), thread.id);
 }
 
 /**

@@ -46,6 +46,7 @@ import {
   type HistoryChat,
   type HistorySource,
   type InboundEvent,
+  type LinkPreview,
   type MemberRole,
   type Participant,
   type ParticipantAction,
@@ -610,6 +611,22 @@ interface BaileysContent {
   protocol?: { kind: 'edit' | 'revoke'; target: string; body: string };
   poll?: { question: string; options: string[]; multi: boolean };
   forwarded?: boolean;
+  link?: LinkPreview;
+}
+
+/**
+ * Vista previa de link de un extendedTextMessage (title, description,
+ * matchedText o canonicalUrl, jpegThumbnail en base64). Solo http(s); la
+ * miniatura, si es chica.
+ */
+export function linkPreviewOf(ext: Json): LinkPreview | undefined {
+  const title = typeof ext.title === 'string' ? ext.title.replace(/\s+/g, ' ').trim().slice(0, 300) : '';
+  const raw = String(ext.matchedText ?? ext.canonicalUrl ?? '').trim();
+  const url = /^https?:\/\/\S+$/i.test(raw) ? raw.slice(0, 1000) : '';
+  if (!title || !url) return undefined;
+  const description = typeof ext.description === 'string' ? ext.description.replace(/\s+/g, ' ').trim().slice(0, 500) : '';
+  const thumb = typeof ext.jpegThumbnail === 'string' && /^[A-Za-z0-9+/=]+$/.test(ext.jpegThumbnail) && ext.jpegThumbnail.length < 24_000 ? `data:image/jpeg;base64,${ext.jpegThumbnail}` : '';
+  return { url, title, ...(description ? { description } : {}), ...(thumb ? { thumbnail: thumb } : {}) };
 }
 
 /**
@@ -643,7 +660,10 @@ export function baileysContent(raw: Json, topContext?: unknown): BaileysContent 
   };
   if (typeof message.conversation === 'string') return withCtx({ body: message.conversation });
   const ext = message.extendedTextMessage as Json | undefined;
-  if (ext) return withCtx({ body: String(ext.text ?? '') }, ext.contextInfo);
+  if (ext) {
+    const link = linkPreviewOf(ext);
+    return withCtx({ body: String(ext.text ?? ''), ...(link ? { link } : {}) }, ext.contextInfo);
+  }
   const pollMsg = (message.pollCreationMessage ?? message.pollCreationMessageV2 ?? message.pollCreationMessageV3) as Json | undefined;
   if (pollMsg) {
     const options = (Array.isArray(pollMsg.options) ? (pollMsg.options as Json[]) : []).map((o) => String(o.optionName ?? '')).filter(Boolean);
@@ -794,6 +814,7 @@ export function evolutionMessageEvents(m: Json, history = false): InboundEvent[]
     ...(fromMe ? { status: storedStatus(m) } : {}),
     ...(content.poll ? { poll: content.poll } : {}),
     ...(content.forwarded ? { forwarded: true } : {}),
+    ...(content.link ? { link: content.link } : {}),
   };
   return [out];
 }
@@ -1097,16 +1118,36 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       if (!r || typeof r !== 'object') return null;
       const st = r.status;
       const about = typeof st === 'string' ? st : st && typeof st === 'object' ? String((st as Json).status ?? '') : '';
-      return { name: cleanPushName(r.name), about: about.trim().slice(0, 1000), pictureUrl: https(r.picture), isBusiness: r.isBusiness === true };
+      // El perfil solo trae nombre en cuentas de empresa: si no, el que el contacto puso en WhatsApp (findContacts).
+      let name = cleanPushName(r.name);
+      if (!name) {
+        const rows = (await api(`/chat/findContacts/${instance}`, 'POST', { where: { remoteJid: chatId } }).catch(() => [])) as unknown;
+        const first = Array.isArray(rows) ? ((rows as Json[]).find((c) => c.remoteJid === chatId) ?? null) : null;
+        name = cleanPushName(first?.pushName);
+      }
+      return { name, about: about.trim().slice(0, 1000), pictureUrl: https(r.picture), isBusiness: r.isBusiness === true };
     },
     async disconnect() {
       await api(`/instance/logout/${instance}`, 'DELETE').catch(() => null);
+    },
+    /**
+     * /chat/sendPresence: Evolution se suscribe a la presencia del chat (llegan
+     * "escribiendo" y "en línea" por PRESENCE_UPDATE), manda la nuestra y la
+     * deja en pausa después de `ms` (el pedido tarda eso).
+     */
+    async sendPresence(chatId, state, ms) {
+      await api(`/chat/sendPresence/${instance}`, 'POST', { number: chatId, presence: state, delay: Math.max(0, Math.min(ms, 10_000)) });
+    },
+    /** /chat/updateBlockStatus (Evolution v2): bloquea o desbloquea el número en WhatsApp. */
+    async blockContact(chatId, block) {
+      await api(`/chat/updateBlockStatus/${instance}`, 'POST', { number: chatId, status: block ? 'block' : 'unblock' });
     },
     async sendText(chatId, text, o) {
       const r = (await api(`/message/sendText/${instance}`, 'POST', {
         number: chatId,
         text,
         ...(o?.replyTo ? { quoted: { key: { id: o.replyTo } } } : {}),
+        ...(o?.mentions?.length ? { mentioned: o.mentions.slice(0, 50) } : {}),
       })) as Json;
       return { id: String(((r.key ?? {}) as Json).id ?? '') };
     },

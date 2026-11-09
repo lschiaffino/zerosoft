@@ -72,7 +72,8 @@ export function MessageMenu({
       setPos(null);
       return;
     }
-    list.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    // Sin mover el scroll: la lista todavía puede estar fuera de la pantalla hasta que se ubica.
+    list.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus({ preventScroll: true });
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
       if (button.current?.contains(t) || list.current?.contains(t)) return;

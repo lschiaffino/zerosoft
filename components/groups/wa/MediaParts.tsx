@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { colorIndex, duration, extensionOf, fileSize } from './format';
+import { colorIndex, duration, extensionOf, fileSize, posterFrame } from './format';
 import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, Play } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 
@@ -21,7 +21,7 @@ const SPEEDS = [1, 1.5, 2];
 
 /** Nota de voz o audio: reproducir, avanzar, velocidad (como WhatsApp). */
 export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src: string; seconds?: number; voice?: boolean; name?: string }) {
-  const t = useTranslations('groups.wa');
+  const tw = useTranslations('groups.wa');
   const ref = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -63,7 +63,7 @@ export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src
         onLoadedMetadata={(e) => Number.isFinite(e.currentTarget.duration) && setTotal(e.currentTarget.duration)}
         onError={() => setFailed(true)}
       />
-      <button type="button" className="wa-voice-play" onClick={toggle} aria-label={playing ? t('pause') : t('play')} disabled={failed}>
+      <button type="button" className="wa-voice-play" onClick={toggle} aria-label={playing ? tw('pause') : tw('play')} disabled={failed}>
         {playing ? <Pause size={24} /> : <Play size={24} />}
       </button>
       <div className="wa-voice-track">
@@ -88,7 +88,7 @@ export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src
           max={Math.max(1, total)}
           step={0.1}
           value={time}
-          aria-label={t('seek')}
+          aria-label={tw('seek')}
           onChange={(e) => {
             const v = Number(e.target.value);
             if (ref.current) ref.current.currentTime = v;
@@ -96,9 +96,9 @@ export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src
           }}
         />
         <span className="wa-voice-meta">
-          <span>{failed ? t('audioUnavailable') : duration(playing || time > 0 ? time : total)}</span>
+          <span>{failed ? tw('audioUnavailable') : duration(playing || time > 0 ? time : total)}</span>
           {playing && (
-            <button type="button" className="wa-voice-speed" onClick={() => setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length])} aria-label={t('speed')}>
+            <button type="button" className="wa-voice-speed" onClick={() => setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length])} aria-label={tw('speed')}>
               {speed}×
             </button>
           )}
@@ -239,7 +239,7 @@ export function VideoView({ url, seconds, thumbnail, width, height, onOpen }: { 
         // eslint-disable-next-line @next/next/no-img-element
         <img src={thumbnail} alt="" aria-hidden="true" />
       ) : (
-        <video src={`${url}#t=0.1`} preload="metadata" muted playsInline tabIndex={-1} aria-hidden="true" />
+        <video src={posterFrame(url)} preload="metadata" muted playsInline tabIndex={-1} aria-hidden="true" />
       )}
       <span className="wa-video-play" aria-hidden="true">
         <Play size={30} />
@@ -251,7 +251,7 @@ export function VideoView({ url, seconds, thumbnail, width, height, onOpen }: { 
 
 /** Ubicación compartida: abre el mapa (sin mapa incrustado). */
 export function LocationCard({ lat, lng, name, address, url, live }: { lat: number; lng: number; name: string; address?: string; url?: string; live?: boolean }) {
-  const t = useTranslations('groups.wa');
+  const tw = useTranslations('groups.wa');
   const href = url && /^https:\/\//.test(url) ? url : `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`;
   return (
     <a className="wa-location" href={href} target="_blank" rel="noreferrer">
@@ -259,7 +259,7 @@ export function LocationCard({ lat, lng, name, address, url, live }: { lat: numb
         <MapPin size={28} />
       </span>
       <span className="wa-location-text">
-        <strong>{name || (live ? t('liveLocation') : t('location'))}</strong>
+        <strong>{name || (live ? tw('liveLocation') : tw('location'))}</strong>
         {address && address !== name && <span>{address}</span>}
         <span className="wa-location-coords">
           {lat.toFixed(5)}, {lng.toFixed(5)}
@@ -271,7 +271,7 @@ export function LocationCard({ lat, lng, name, address, url, live }: { lat: numb
 
 /** Contacto compartido, con "Enviar mensaje" (busca su chat) y "Guardar" (lo agrega al CRM). */
 export function ContactCard({ name, phone, onMessage, onSave }: { name: string; phone: string; onMessage?: () => void; onSave?: () => void }) {
-  const t = useTranslations('groups.wa');
+  const tw = useTranslations('groups.wa');
   return (
     <span className="wa-contact-card">
       <span className="wa-contact">
@@ -287,12 +287,12 @@ export function ContactCard({ name, phone, onMessage, onSave }: { name: string; 
         <span className="wa-contact-actions">
           {onMessage && (
             <button type="button" onClick={onMessage}>
-              {t('contactMessage')}
+              {tw('contactMessage')}
             </button>
           )}
           {onSave && (
             <button type="button" onClick={onSave}>
-              {t('contactSave')}
+              {tw('contactSave')}
             </button>
           )}
         </span>

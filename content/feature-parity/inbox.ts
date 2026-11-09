@@ -201,9 +201,37 @@ const parity: ProductParity = {
       ],
     }),
     row('wa-mentions', 'whatsapp', ['Mentions in groups', 'Menciones en grupos', 'Menções em grupos'], 'partial', {
-      detail: ['Mentions show the name when it is known. Mentioning someone from the field is not there yet', 'Las menciones muestran el nombre si se conoce. Todavía no se puede mencionar desde el campo', 'As menções mostram o nome quando é conhecido. Ainda não dá para mencionar pelo campo'],
+      detail: [
+        'Type @ to mention a member; received mentions show the name when it is known. Members without a visible number can not be mentioned',
+        'Con @ se menciona a alguien del grupo; las menciones que llegan muestran el nombre si se conoce. No se puede mencionar a quien no tiene el número visible',
+        'Com @ se menciona alguém do grupo; as menções recebidas mostram o nome quando é conhecido. Não dá para mencionar quem não tem o número visível',
+      ],
     }),
-    row('wa-link-previews', 'whatsapp', ['Link previews', 'Vista previa de links', 'Prévia de links'], 'missing'),
+    row('wa-link-previews', 'whatsapp', ['Link previews', 'Vista previa de links', 'Prévia de links'], 'partial', {
+      detail: ['The preview the other phone sends is shown. Messages sent from here go without a preview', 'Se ve la vista previa que manda el otro teléfono. Lo que se manda desde acá sale sin vista previa', 'Aparece a prévia que o outro celular envia. O que se envia daqui sai sem prévia'],
+    }),
+    row('wa-contact-info', 'whatsapp', ['Contact and group info', 'Info del contacto y del grupo', 'Dados do contato e do grupo'], 'partial', {
+      detail: [
+        'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. Leaving or editing a group is done on the phone',
+        'Foto, nombre, número o integrantes con sus admins, info o descripción, fotos, documentos y enlaces compartidos, destacados, grupos en común, silenciar y bloquear. Salir o editar un grupo se hace en el teléfono',
+        'Foto, nome, número ou membros com os admins, recado ou descrição, fotos, documentos e links compartilhados, favoritas, grupos em comum, silenciar e bloquear. Sair ou editar um grupo é feito no celular',
+      ],
+    }),
+    row('wa-ai-summary', 'whatsapp', ['AI summary of a chat', 'Resumen con IA de un chat', 'Resumo com IA de uma conversa'], 'better', {
+      competitorHas: false,
+      detail: [
+        'In the info panel: the relationship and what is pending with a contact, or the recent activity of a group. Made only from that chat and your notes, and saved until there are new messages',
+        'En el panel de info: la relación y lo pendiente con un contacto, o lo último de un grupo. Hecho solo con ese chat y tus notas, y guardado hasta que haya mensajes nuevos',
+        'No painel de dados: a relação e o que está pendente com um contato, ou o que rolou num grupo. Feito só com essa conversa e suas notas, e salvo até chegarem mensagens novas',
+      ],
+    }),
+    row('wa-mobile', 'whatsapp', ['Phone gestures', 'Gestos del teléfono', 'Gestos do celular'], 'partial', {
+      detail: [
+        'Swipe a message right to reply, swipe a chat left for Done or right to pin, long press for the menu. In the browser, not a native app',
+        'Deslizar un mensaje a la derecha para responder, un chat a la izquierda para Hecho o a la derecha para fijar, toque largo para el menú. En el navegador, no es una app nativa',
+        'Deslizar uma mensagem para a direita para responder, uma conversa para a esquerda para Concluir ou para a direita para fixar, toque longo para o menu. No navegador, não é um app nativo',
+      ],
+    }),
     row('wa-reactions-live', 'whatsapp', ['Reactions and typing arrive live', 'Reacciones y "escribiendo" en vivo', 'Reações e "digitando" ao vivo'], 'partial', {
       detail: [
         'Stored as they arrive from WhatsApp and shown on the next refresh (a few seconds). Typing depends on WhatsApp sending presence',

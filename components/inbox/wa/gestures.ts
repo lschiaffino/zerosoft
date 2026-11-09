@@ -2,106 +2,206 @@
 
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 
+/**
+ * Gestos de WhatsApp en el teléfono. Solo con el dedo (con el mouse no
+ * hacen nada); el movimiento vertical es scroll y cancela. El estado del
+ * gesto vive en el elemento (no en el render): la lista o el chat pueden
+ * volver a dibujarse en medio del gesto sin cortarlo.
+ */
+interface Gesture {
+  start: { x: number; y: number } | null;
+  swiping: boolean;
+  dx: number;
+  fired: boolean;
+  timer: ReturnType<typeof setTimeout> | null;
+}
+
+const states = new WeakMap<object, Gesture>();
+
+function stateOf(el: object): Gesture {
+  let s = states.get(el);
+  if (!s) {
+    s = { start: null, swiping: false, dx: 0, fired: false, timer: null };
+    states.set(el, s);
+  }
+  return s;
+}
+
+function clearHold(s: Gesture) {
+  if (s.timer) clearTimeout(s.timer);
+  s.timer = null;
+}
+
+function buzz(ms: number) {
+  try {
+    navigator.vibrate?.(ms);
+  } catch {
+    // Sin vibración.
+  }
+}
+
+function settle(el: HTMLElement, attrs: string[]) {
+  el.style.transition = 'transform 0.18s ease-out';
+  el.style.transform = '';
+  setTimeout(() => {
+    el.style.transition = '';
+  }, 200);
+  for (const a of attrs) el.removeAttribute(a);
+}
+
+const swallowClick = (e: ReactMouseEvent<HTMLElement>) => {
+  const s = stateOf(e.currentTarget);
+  if (s.fired) {
+    e.preventDefault();
+    e.stopPropagation();
+    s.fired = false;
+  }
+};
+
+/**
+ * Deslizar una fila de la lista para los dos lados: a la izquierda archiva
+ * (Hecho), a la derecha fija. El contenido (`[data-swipe-body]`) se corre y
+ * atrás asoma la acción (data-swipe="left" o "right"; data-swipe-ready al
+ * pasar el umbral).
+ */
+export function rowSwipe(opts: { onLeft?: () => void; onRight?: () => void; threshold?: number }) {
+  const limit = opts.threshold ?? 72;
+  const body = (el: HTMLElement) => el.querySelector<HTMLElement>('[data-swipe-body]') ?? el;
+  const end = (el: HTMLElement) => {
+    const b = body(el);
+    settle(b, []);
+    el.removeAttribute('data-swipe');
+    el.removeAttribute('data-swipe-ready');
+  };
+  return {
+    onPointerDown: (e: ReactPointerEvent<HTMLElement>) => {
+      if (e.pointerType !== 'touch') return;
+      const s = stateOf(e.currentTarget);
+      s.start = { x: e.clientX, y: e.clientY };
+      s.swiping = false;
+      s.fired = false;
+      s.dx = 0;
+    },
+    onPointerMove: (e: ReactPointerEvent<HTMLElement>) => {
+      const s = stateOf(e.currentTarget);
+      if (!s.start) return;
+      const mx = e.clientX - s.start.x;
+      const my = e.clientY - s.start.y;
+      if (!s.swiping) {
+        if (Math.abs(my) > 10 && Math.abs(my) > Math.abs(mx)) {
+          s.start = null;
+          return;
+        }
+        if ((mx < -12 && opts.onLeft) || (mx > 12 && opts.onRight)) s.swiping = true;
+        else return;
+      }
+      s.dx = Math.max(opts.onLeft ? -limit * 1.4 : 0, Math.min(opts.onRight ? limit * 1.4 : 0, mx));
+      const el = e.currentTarget;
+      body(el).style.transform = `translateX(${s.dx}px)`;
+      el.setAttribute('data-swipe', s.dx < 0 ? 'left' : 'right');
+      if (Math.abs(s.dx) >= limit) el.setAttribute('data-swipe-ready', '');
+      else el.removeAttribute('data-swipe-ready');
+    },
+    onPointerUp: (e: ReactPointerEvent<HTMLElement>) => {
+      const s = stateOf(e.currentTarget);
+      if (s.swiping) {
+        if (s.dx <= -limit) {
+          s.fired = true;
+          buzz(8);
+          opts.onLeft?.();
+        } else if (s.dx >= limit) {
+          s.fired = true;
+          buzz(8);
+          opts.onRight?.();
+        }
+        end(e.currentTarget);
+      }
+      s.swiping = false;
+      s.start = null;
+    },
+    onPointerCancel: (e: ReactPointerEvent<HTMLElement>) => {
+      const s = stateOf(e.currentTarget);
+      if (s.swiping) end(e.currentTarget);
+      s.swiping = false;
+      s.start = null;
+    },
+    onClickCapture: swallowClick,
+  };
+}
+
 /** Cuánto hay que deslizar para que cuente (px) y el tope del arrastre. */
 export const SWIPE_TRIGGER = 56;
 const SWIPE_MAX = 84;
 
 /**
- * Gestos de WhatsApp en el teléfono sobre un elemento: deslizar a la
- * derecha (responder un mensaje) y toque largo (el menú). Solo con el dedo:
- * con el mouse no hace nada. El movimiento vertical es scroll y cancela.
- * El elemento se corre con el dedo (transform) y vuelve solo.
+ * Sobre un mensaje: deslizar a la derecha (responder) y toque largo (el
+ * menú). La burbuja se corre con el dedo y vuelve sola.
  */
-export function swipeAndHold(opts: { onSwipe?: () => void; onHold?: (el: HTMLElement) => void; direction?: 'right' | 'left'; holdMs?: number }) {
-  const dir = opts.direction === 'left' ? -1 : 1;
-  let start: { x: number; y: number } | null = null;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let swiping = false;
-  let dx = 0;
-  let fired = false;
-  const clearHold = () => {
-    if (timer) clearTimeout(timer);
-    timer = null;
-  };
-  const reset = (el: HTMLElement) => {
-    el.style.transition = 'transform 0.18s ease-out';
-    el.style.transform = '';
-    el.removeAttribute('data-swipe');
-    setTimeout(() => {
-      el.style.transition = '';
-    }, 200);
-  };
+export function swipeAndHold(opts: { onSwipe?: () => void; onHold?: (el: HTMLElement) => void; holdMs?: number }) {
   return {
     onPointerDown: (e: ReactPointerEvent<HTMLElement>) => {
       if (e.pointerType !== 'touch') return;
-      start = { x: e.clientX, y: e.clientY };
-      swiping = false;
-      fired = false;
-      dx = 0;
       const el = e.currentTarget;
+      const s = stateOf(el);
+      clearHold(s);
+      s.start = { x: e.clientX, y: e.clientY };
+      s.swiping = false;
+      s.fired = false;
+      s.dx = 0;
       if (opts.onHold) {
-        timer = setTimeout(() => {
-          fired = true;
-          try {
-            navigator.vibrate?.(12);
-          } catch {
-            // Sin vibración: igual abre.
-          }
+        s.timer = setTimeout(() => {
+          s.fired = true;
+          buzz(12);
           opts.onHold?.(el);
         }, opts.holdMs ?? 450);
       }
     },
     onPointerMove: (e: ReactPointerEvent<HTMLElement>) => {
-      if (!start) return;
-      const mx = (e.clientX - start.x) * dir;
-      const my = e.clientY - start.y;
-      if (!swiping) {
+      const el = e.currentTarget;
+      const s = stateOf(el);
+      if (!s.start) return;
+      const mx = e.clientX - s.start.x;
+      const my = e.clientY - s.start.y;
+      if (!s.swiping) {
         if (Math.abs(my) > 10 && Math.abs(my) > Math.abs(mx)) {
-          clearHold();
-          start = null;
+          clearHold(s);
+          s.start = null;
           return;
         }
         if (mx > 10 && opts.onSwipe) {
-          swiping = true;
-          clearHold();
-        } else if (Math.abs(mx) > 10) clearHold();
+          s.swiping = true;
+          clearHold(s);
+        } else if (Math.abs(mx) > 10) clearHold(s);
       }
-      if (swiping) {
-        dx = Math.max(0, Math.min(mx, SWIPE_MAX));
-        const el = e.currentTarget;
-        el.style.transform = `translateX(${dx * dir}px)`;
-        el.setAttribute('data-swipe', dx >= SWIPE_TRIGGER ? 'ready' : 'moving');
+      if (s.swiping) {
+        s.dx = Math.max(0, Math.min(mx, SWIPE_MAX));
+        el.style.transform = `translateX(${s.dx}px)`;
+        el.setAttribute('data-swipe', s.dx >= SWIPE_TRIGGER ? 'ready' : 'moving');
       }
     },
     onPointerUp: (e: ReactPointerEvent<HTMLElement>) => {
-      clearHold();
-      if (swiping) {
-        if (dx >= SWIPE_TRIGGER) {
-          fired = true;
-          try {
-            navigator.vibrate?.(8);
-          } catch {
-            // Sin vibración.
-          }
+      const el = e.currentTarget;
+      const s = stateOf(el);
+      clearHold(s);
+      if (s.swiping) {
+        if (s.dx >= SWIPE_TRIGGER) {
+          s.fired = true;
+          buzz(8);
           opts.onSwipe?.();
         }
-        reset(e.currentTarget);
+        settle(el, ['data-swipe']);
       }
-      swiping = false;
-      start = null;
+      s.swiping = false;
+      s.start = null;
     },
     onPointerCancel: (e: ReactPointerEvent<HTMLElement>) => {
-      clearHold();
-      if (swiping) reset(e.currentTarget);
-      swiping = false;
-      start = null;
+      const el = e.currentTarget;
+      const s = stateOf(el);
+      clearHold(s);
+      if (s.swiping) settle(el, ['data-swipe']);
+      s.swiping = false;
+      s.start = null;
     },
-    onClickCapture: (e: ReactMouseEvent<HTMLElement>) => {
-      if (fired) {
-        e.preventDefault();
-        e.stopPropagation();
-        fired = false;
-      }
-    },
+    onClickCapture: swallowClick,
   };
 }

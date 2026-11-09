@@ -43,7 +43,7 @@ interface FakeGroup extends GroupInfo {
 export interface FakeSent {
   chatId: string;
   text: string;
-  kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read';
+  kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read' | 'block';
   at: number;
 }
 
@@ -163,7 +163,7 @@ function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: stri
 function fakePicture(digits: string): string {
   let h = 0;
   for (const c of digits) h = (h * 31 + c.charCodeAt(0)) % 360;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="hsl(${h} 45% 55%)"/><circle cx="32" cy="26" r="12" fill="#fff" fill-opacity=".85"/><rect x="14" y="42" width="36" height="22" rx="11" fill="#fff" fill-opacity=".85"/></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="hsl(${h} 45% 55%)"/><circle cx="32" cy="26" r="12" fill="#fff" fill-opacity=".85"/><rect x="14" y="42" width="36" height="22" rx="11" fill="#fff" fill-opacity=".85"/></svg>`;
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
 }
 
@@ -239,6 +239,8 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     sendPoll: async (chatId, poll) => send(chatId, `${poll.question} [${poll.options.join(' | ')}]`, 'poll'),
     sendContact: async (chatId, contacts) => send(chatId, contacts.map((c) => `${c.name} +${c.phone}`).join(' | '), 'contact'),
     markRead: async (chatId, ids) => void send(chatId, ids.join(','), 'read'),
+    blockContact: async (chatId, block) => void send(chatId, block ? 'block' : 'unblock', 'block'),
+    sendPresence: async () => undefined,
     /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, el resto una foto. */
     async fetchMedia(ref) {
       return fakeMedia(ref.providerMessageId);

@@ -39,8 +39,12 @@ const WaComposer = forwardRef<
     onMic?: () => void;
     /** Pegar fotos o archivos en el campo (van a la vista previa). */
     onPasteFiles?: (files: File[]) => void;
+    /** Participantes para mencionar con "@" (grupos). */
+    mentionables?: Array<{ phone: string; name: string }>;
+    /** Se escribió algo (para mandar "escribiendo"). */
+    onTyping?: () => void;
   }
->(function WaComposer({ thread, snippets, disabled, banner, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles }, ref) {
+>(function WaComposer({ thread, snippets, disabled, banner, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping }, ref) {
   const t = useTranslations('inbox.composer');
   const w = useTranslations('inboxWa');
   const [text, setText] = useState(thread.draft);
@@ -52,6 +56,9 @@ const WaComposer = forwardRef<
   const area = useRef<HTMLTextAreaElement>(null);
   const saved = useRef(thread.draft);
   const beforeEdit = useRef<string | null>(null);
+  const [mentionQ, setMentionQ] = useState<string | null>(null);
+  const [mentionIdx, setMentionIdx] = useState(0);
+  const picked = useRef(new Map<string, string>());
 
   useEffect(() => {
     setText(thread.draft);
@@ -104,6 +111,29 @@ const WaComposer = forwardRef<
     return snippets.filter((s) => !q || s.shortcut.startsWith(q) || s.title.toLowerCase().includes(q)).slice(0, 8);
   }, [snipQ, snippets]);
 
+  const people = useMemo(() => {
+    if (mentionQ === null || !mentionables?.length) return [];
+    const q = mentionQ.toLowerCase();
+    return mentionables.filter((p) => !q || p.name.toLowerCase().includes(q) || p.phone.includes(q)).slice(0, 8);
+  }, [mentionQ, mentionables]);
+
+  /** Cambia "@an" por "@Ana " y recuerda a quién se mencionó. */
+  const insertMention = (p: { phone: string; name: string }) => {
+    const el = area.current;
+    const caret = el?.selectionStart ?? text.length;
+    const before = text.slice(0, caret).replace(/@[^\s@]*$/, '');
+    const label = (p.name || p.phone).replace(/\s+/g, ' ').trim();
+    picked.current.set(label, p.phone);
+    const ins = `@${label} `;
+    setText(before + ins + text.slice(caret));
+    setMentionQ(null);
+    requestAnimationFrame(() => {
+      el?.focus();
+      const pos = before.length + ins.length;
+      el?.setSelectionRange(pos, pos);
+    });
+  };
+
   const send = useCallback(async () => {
     const body = text.trim();
     if (!body || busy || disabled) return;
@@ -118,12 +148,24 @@ const WaComposer = forwardRef<
       return;
     }
     setBusy('send');
-    const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${thread.id}/messages`, { method: 'POST', json: { body, ...(replyToId ? { replyTo: replyToId } : {}) } });
+    // Menciones: "@Ana" sale como "@5491…" con la lista de teléfonos (WhatsApp la muestra con el nombre).
+    let out = body;
+    const mentions: string[] = [];
+    for (const [label, phone] of picked.current) {
+      if (!out.includes(`@${label}`)) continue;
+      out = out.split(`@${label}`).join(`@${phone}`);
+      mentions.push(phone);
+    }
+    const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${thread.id}/messages`, {
+      method: 'POST',
+      json: { body: out, ...(replyToId ? { replyTo: replyToId } : {}), ...(mentions.length ? { mentions } : {}) },
+    });
     setBusy('');
     if (!r.ok) {
       onError(r.data.error ?? 'send_failed');
       return;
     }
+    picked.current.clear();
     setText('');
     saved.current = '';
     setUndo(null);
@@ -222,6 +264,18 @@ const WaComposer = forwardRef<
   return (
     <div className="wa-composer ib-wa-composer" aria-busy={busy !== '' || undefined}>
       {banner}
+      {mentionQ !== null && people.length > 0 && (
+        <ul className="ib-snippets ib-wa-mentions" role="listbox" aria-label={w('mention')}>
+          {people.map((p, i) => (
+            <li key={p.phone} role="option" aria-selected={i === mentionIdx}>
+              <button type="button" className={`ib-snippet${i === mentionIdx ? ' is-active' : ''}`} onMouseDown={(e) => e.preventDefault()} onClick={() => insertMention(p)}>
+                <span className="ib-snippet-title">{p.name || p.phone}</span>
+                <span className="ib-snippet-key">+{p.phone}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {snipQ !== null && matches.length > 0 && (
         <ul className="ib-snippets" role="listbox" aria-label={t('snippets')}>
           {matches.map((s, i) => (
@@ -272,11 +326,33 @@ const WaComposer = forwardRef<
           onChange={(e) => {
             const v = e.target.value;
             setText(v);
+            if (v.trim()) onTyping?.();
             const m = /(?:^|\s);([\w-]*)$/.exec(v.slice(0, e.target.selectionStart));
             setSnipQ(m && snippets.length ? m[1] : null);
             setSnipIdx(0);
+            const at = mentionables?.length ? /(?:^|\s)@([^\s@]{0,30})$/.exec(v.slice(0, e.target.selectionStart)) : null;
+            setMentionQ(at ? at[1] : null);
+            setMentionIdx(0);
           }}
           onKeyDown={(e) => {
+            if (mentionQ !== null && people.length) {
+              if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                setMentionIdx((i) => (i + (e.key === 'ArrowDown' ? 1 : people.length - 1)) % people.length);
+                return;
+              }
+              if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                insertMention(people[mentionIdx]);
+                return;
+              }
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                setMentionQ(null);
+                return;
+              }
+            }
             if (snipQ !== null && matches.length) {
               if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();

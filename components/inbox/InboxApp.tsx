@@ -9,6 +9,8 @@ import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, Thr
 import { api, INBOX_CHANGED, longWhen, notifyInboxChanged, typingIn } from './api';
 import ChatRow from './wa/ChatRow';
 import WaConversation, { type WaThreadDetail } from './wa/WaConversation';
+import ContactPanel from './wa/ContactPanel';
+import { rowSwipe } from './wa/gestures';
 import Conversation from './Conversation';
 import type { ComposerHandle } from './Composer';
 import WhenDialog, { type WhenKind } from './WhenDialog';
@@ -90,6 +92,8 @@ export default function InboxApp(props: {
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  // Otro chat: el panel de info se cierra (como en WhatsApp Web).
+  useEffect(() => setInfoOpen(false), [openId]);
   const [compose, setCompose] = useState(props.composeOnLoad);
   const [help, setHelp] = useState(false);
   const [folderEdit, setFolderEdit] = useState<FolderDto | 'new' | null>(null);
@@ -368,6 +372,7 @@ export default function InboxApp(props: {
           break;
         case 'Escape':
           if (selected.size) setSelected(new Set());
+          else if (infoOpen) setInfoOpen(false);
           else if (openId) closeConvo();
           else if (q) setQ('');
           break;
@@ -445,7 +450,7 @@ export default function InboxApp(props: {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [modalOpen, threads, current, openId, selected, q, act, closeConvo, router, toast, t]);
+  }, [modalOpen, threads, current, openId, selected, q, act, closeConvo, router, toast, t, infoOpen]);
 
   const accounts = state.accounts;
   const noAccounts = accounts.length === 0;
@@ -458,7 +463,17 @@ export default function InboxApp(props: {
     const isSel = selected.has(th.id);
     const marker = th.woke === 'snooze' ? t('list.woke') : th.woke === 'followup' ? t('list.noReply') : '';
     return (
-      <li key={th.id} data-idx={i} className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}>
+      <li
+        key={th.id}
+        data-idx={i}
+        className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}
+        data-left-label={th.done ? t('actions.undone') : t('actions.done')}
+        data-right-label={th.pinned ? w('unpin') : w('pin')}
+        {...rowSwipe({
+          onLeft: () => void runAction([th.id], { action: th.done ? 'undone' : 'done' }),
+          onRight: () => void runAction([th.id], { action: th.pinned ? 'unpin' : 'pin' }),
+        })}
+      >
         <input
           type="checkbox"
           className="ib-check"
@@ -476,6 +491,7 @@ export default function InboxApp(props: {
         <button
           type="button"
           className="ib-row-btn"
+          data-swipe-body
           aria-current={th.id === openId ? 'true' : undefined}
           onClick={(e) => {
             if (e.shiftKey || e.metaKey) {
@@ -503,9 +519,10 @@ export default function InboxApp(props: {
   };
 
   const anyConnected = accounts.some((a) => a.status === 'connected');
+  const showInfo = infoOpen && !!openId && detail?.thread.channel === 'whatsapp' && detail.thread.id === openId;
 
   return (
-    <div className={`ib-app gr-inbox${openId ? ' has-open' : ''}`}>
+    <div className={`ib-app gr-inbox${openId ? ' has-open' : ''}${showInfo ? ' has-details' : ''}`}>
       <div className="ib-list-pane">
         <div className="ib-list-head">
           <div className="ib-list-title">
@@ -738,6 +755,31 @@ export default function InboxApp(props: {
           </div>
         )}
       </div>
+      {showInfo && detail && (
+        <ContactPanel
+          thread={detail.thread}
+          wa={detail.wa ?? null}
+          onClose={() => setInfoOpen(false)}
+          onOpenThread={(id) => {
+            setInfoOpen(false);
+            open(id);
+          }}
+          onStartChat={async (phone) => {
+            const r = await api<{ thread: ThreadDto }>('/api/inbox/compose', { method: 'POST', json: { channel: 'whatsapp', to: phone } });
+            if (!r.ok) {
+              toast(errText(r.data.error), { bad: true });
+              return;
+            }
+            setInfoOpen(false);
+            setThreads((xs) => [r.data.thread, ...xs.filter((x) => x.id !== r.data.thread.id)]);
+            setOpenId(r.data.thread.id);
+          }}
+          onMute={(until) => void runAction([detail.thread.id], { action: 'mute', until })}
+          onError={(code) => toast(errText(code), { bad: true })}
+          onToast={(text) => toast(text)}
+          onChanged={() => void loadDetail(detail.thread.id, true)}
+        />
+      )}
 
       <WhenDialog
         kind={when?.kind ?? null}

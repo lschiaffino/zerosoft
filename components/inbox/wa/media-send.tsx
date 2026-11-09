@@ -185,7 +185,7 @@ function recorderMime(): string {
  * Nota de voz como en WhatsApp Web: graba al tocar el micrófono, muestra el
  * tiempo, la papelera descarta y la flecha manda. Salir del chat descarta.
  */
-export function VoiceBar({ threadId, replyTo, onSent, onError, onDone }: { threadId: string; replyTo?: string; onSent: (m: MessageDto[]) => void; onError: (code: string) => void; onDone: () => void }) {
+export function VoiceBar({ threadId, replyTo, onSent, onError, onDone, onStart }: { threadId: string; replyTo?: string; onSent: (m: MessageDto[]) => void; onError: (code: string) => void; onDone: () => void; onStart?: () => void }) {
   const w = useTranslations('inboxWa');
   const [secs, setSecs] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -231,8 +231,14 @@ export function VoiceBar({ threadId, replyTo, onSent, onError, onDone }: { threa
       };
       rec.current = state;
       r.start(250);
+      onStart?.();
     })();
-    const id = window.setInterval(() => rec.current && setSecs(Math.floor((Date.now() - rec.current.started) / 1000)), 250);
+    const id = window.setInterval(() => {
+      if (!rec.current) return;
+      setSecs(Math.floor((Date.now() - rec.current.started) / 1000));
+      // "grabando" sigue mientras dure (quien lo recibe limita la frecuencia).
+      onStart?.();
+    }, 250);
     return () => {
       alive = false;
       window.clearInterval(id);

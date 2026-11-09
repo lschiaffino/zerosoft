@@ -35,18 +35,32 @@ function providerFail(err: unknown): never {
   throw new InboxError(err instanceof ProviderError && err.code === 'not_connected' ? 'not_connected' : 'send_failed', 502);
 }
 
-/** Respuesta citando un mensaje del mismo chat. */
-export async function sendWaReply(owner: string, threadId: string, body: string, replyToId: string): Promise<void> {
+/**
+ * Texto de WhatsApp con cita (respuesta a un mensaje del mismo chat) y/o
+ * menciones (teléfonos que van como "@teléfono" en el texto, solo grupos).
+ */
+export async function sendWaMessage(owner: string, threadId: string, body: string, opts: { replyTo?: string; mentions?: string[] } = {}): Promise<void> {
   const text = body.trim();
   if (!text) throw new InboxError('invalid_input', 400);
   if (text.length > LIMITS.message) throw new InboxError('too_long', 400);
   const thread = await getThreadRow(owner, threadId);
   if (thread.channel !== 'whatsapp') throw new InboxError('unsupported', 400);
-  const quoted = await getMessageRow(owner, replyToId);
-  if (quoted.thread_id !== thread.id) throw new InboxError('not_found', 404);
+  let replyTo: string | undefined;
+  if (opts.replyTo) {
+    const quoted = await getMessageRow(owner, opts.replyTo);
+    if (quoted.thread_id !== thread.id) throw new InboxError('not_found', 404);
+    replyTo = quoted.external_id;
+  }
+  // Solo se mencionan teléfonos que están escritos en el texto, y solo en grupos.
+  const mentions = thread.kind === 'group' ? [...new Set((opts.mentions ?? []).filter((p) => /^\d{6,16}$/.test(p) && text.includes(`@${p}`)))].slice(0, 50) : [];
   const account = await getAccount(owner, thread.account_id);
-  await sendWhatsappText(account, thread, text, { replyTo: quoted.external_id });
+  await sendWhatsappText(account, thread, text, { replyTo, mentions });
   if (thread.draft.trim()) await saveDraft(owner, threadId, '');
+}
+
+/** Respuesta citando un mensaje del mismo chat. */
+export async function sendWaReply(owner: string, threadId: string, body: string, replyToId: string): Promise<void> {
+  await sendWaMessage(owner, threadId, body, { replyTo: replyToId });
 }
 
 /** Reaccionar (emoji vacío saca la reacción). */

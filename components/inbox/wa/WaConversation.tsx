@@ -104,6 +104,24 @@ const WaConversation = forwardRef<
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
   const tray = useSendTray(thread.id, props.onSent);
+  // Presencia: al abrir se suscribe a la del otro; escribiendo y grabando salen cada 4 s como mucho.
+  const lastPresence = useRef(0);
+  const presence = useCallback(
+    (state: 'composing' | 'recording' | 'paused') => {
+      if (!connected) return;
+      if (state !== 'paused') {
+        const now = Date.now();
+        if (now - lastPresence.current < 4000) return;
+        lastPresence.current = now;
+      }
+      void api(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'presence', state } });
+    },
+    [connected, thread.id],
+  );
+  useEffect(() => {
+    lastPresence.current = 0;
+    presence('paused');
+  }, [thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setReplyTo(null);
@@ -383,6 +401,19 @@ const WaConversation = forwardRef<
           )}
           {meta.location && !hidden && <LocationCard lat={meta.location.lat} lng={meta.location.lng} name={meta.location.name ?? ''} address={meta.location.address} url={meta.location.url} live={meta.location.live} />}
           {!hidden && meta.contacts?.map((c, i) => <ContactCard key={i} name={c.name} phone={(c.phones[0] ?? '').replace(/\D/g, '')} />)}
+          {meta.link && !hidden && !kind && (
+            <a className="ib-wa-linkcard" href={meta.link.url} target="_blank" rel="noopener noreferrer nofollow">
+              {meta.link.thumb && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={meta.link.thumb} alt="" />
+              )}
+              <span className="ib-wa-linkcard-text">
+                <strong>{meta.link.title}</strong>
+                {meta.link.description && <span>{meta.link.description}</span>}
+                <small>{meta.link.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}</small>
+              </span>
+            </a>
+          )}
           {poll && !hidden && (
             <div className="ib-wa-poll">
               <p className="ib-wa-poll-q">
@@ -650,6 +681,7 @@ const WaConversation = forwardRef<
             }}
             onError={onError}
             onDone={() => setRecording(false)}
+            onStart={() => presence('recording')}
           />
         </div>
       ) : (
@@ -664,6 +696,8 @@ const WaConversation = forwardRef<
           attach={<AttachButton onFiles={tray.add} disabled={!connected} />}
           onMic={connected && typeof MediaRecorder !== 'undefined' ? () => setRecording(true) : undefined}
           onPasteFiles={connected ? tray.add : undefined}
+          mentionables={group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name })) : undefined}
+          onTyping={() => presence('composing')}
           onCancelBanner={() => {
             setEditing(null);
             setReplyTo(null);

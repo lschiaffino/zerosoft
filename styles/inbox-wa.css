@@ -18,6 +18,8 @@
 .ib-app.gr-inbox :focus-visible { outline-color: var(--wa-primary); }
 .ib-app.gr-inbox .ib-list-pane { background: var(--wa-panel); border-right: 1px solid var(--wa-border-strong); }
 .ib-app.gr-inbox .ib-convo-pane { background: var(--wa-conv-bg); }
+/* Correo: las tarjetas de siempre sobre el fondo de la app (el fondo de chat es solo para WhatsApp). */
+.ib-app.gr-inbox .ib-convo-pane:has(> .ib-convo) { background: var(--bg-soft); color: var(--ink); font-family: var(--font-ui); }
 
 /* ---------- Cabecera de la lista ---------- */
 .ib-app.gr-inbox .ib-list-head { gap: 8px; padding: 12px 16px 8px; border-bottom: 0; }
@@ -85,6 +87,16 @@
 .wa-row-preview .ib-tag-strong { border-color: var(--wa-primary-ink); color: var(--wa-primary-ink); }
 .wa-row-preview .ib-chan-dot { flex: none; margin-right: 2px; }
 
+/* Deslizar una fila en el teléfono: atrás asoma la acción (Hecho a la derecha, fijar a la izquierda). */
+.ib-app.gr-inbox .ib-item { touch-action: pan-y; overflow: hidden; }
+.gr-inbox .ib-item > .ib-row-btn { position: relative; background: var(--wa-panel); }
+.ib-app.gr-inbox .ib-item[data-swipe]::before {
+  position: absolute; inset: 0; display: flex; align-items: center; padding: 0 22px; font-size: 0.875rem; font-weight: 500; color: #fff;
+}
+.ib-app.gr-inbox .ib-item[data-swipe='left']::before { content: attr(data-left-label); justify-content: flex-end; background: #8696a0; }
+.ib-app.gr-inbox .ib-item[data-swipe='right']::before { content: attr(data-right-label); justify-content: flex-start; background: #8696a0; }
+.ib-app.gr-inbox .ib-item[data-swipe][data-swipe-ready]::before { background: var(--wa-primary); }
+
 /* ---------- Conversación (vacía, carga, error) ---------- */
 .ib-app.gr-inbox .ib-convo-blank,
 .ib-app.gr-inbox .ib-convo-msg { color: var(--wa-text-2); background: var(--wa-panel-header); }
@@ -125,6 +137,17 @@
 .gr-msg-out .ib-wa-react-full { right: 0; }
 .ib-wa-react-full .wa-emoji { position: static; }
 
+/* Vista previa de link (la que manda el teléfono), arriba del texto. */
+.ib-wa-linkcard { display: flex; gap: 0; margin: 0 0 6px; max-width: 360px; overflow: hidden; color: var(--wa-text); text-decoration: none; background: var(--wa-quote-bg); border-radius: 6px; }
+.gr-msg-out .ib-wa-linkcard { background: var(--wa-quote-out); }
+.ib-wa-linkcard img { flex: none; width: 82px; height: 82px; object-fit: cover; }
+.ib-wa-linkcard-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 6px 10px; }
+.ib-wa-linkcard-text strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.875rem; font-weight: 500; }
+.ib-wa-linkcard-text span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.8125rem; color: var(--wa-text-2); }
+.ib-wa-linkcard-text small { font-size: 0.75rem; color: var(--wa-text-2); }
+.ib-wa-linkcard:hover strong { text-decoration: underline; }
+.ib-wa-linkcard:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
+
 /* Encuesta (solo lectura: se vota en el teléfono). */
 .ib-wa-poll { min-width: min(280px, 62vw); padding: 2px 2px 14px; }
 .ib-wa-poll-q { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-weight: 500; color: var(--wa-text); }
@@ -137,7 +160,66 @@
 .ib-wa-composer .ib-snippets { bottom: calc(100% + 4px); }
 .ib-wa-info-body { margin: 0 0 12px; padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-soft); border-radius: var(--radius-1); }
 
+/* ---------- Info del contacto o del grupo (columna de la derecha) ---------- */
+.ib-wa-details { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--wa-row-active); border-left: 1px solid var(--wa-border-strong); }
+.ib-wa-details-bar { display: flex; align-items: center; gap: 16px; flex: none; min-height: 59px; padding: 0 16px; background: var(--wa-panel-header); }
+.ib-wa-details-bar h2 { margin: 0; font-size: 1rem; font-weight: 500; color: var(--wa-text); }
+.ib-wa-details-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 24px; }
+.ib-wa-card { display: flex; flex-direction: column; gap: 8px; padding: 14px 24px 16px; background: var(--wa-panel); box-shadow: 0 1px 2px rgba(11, 20, 26, 0.06); }
+.ib-wa-card-title { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.875rem; font-weight: 400; color: var(--wa-text-2); }
+.ib-wa-hero { align-items: center; padding: 28px 24px 20px; text-align: center; }
+.ib-wa-hero-photo { padding: 0; background: none; border: 0; border-radius: 50%; cursor: zoom-in; }
+.ib-wa-hero-photo:disabled { cursor: default; }
+.ib-wa-hero-photo:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 3px; }
+.ib-wa-hero-photo .wa-avatar { max-width: min(200px, 50vw); max-height: min(200px, 50vw); }
+.ib-wa-hero-name { margin: 8px 0 0; font-size: 1.5rem; line-height: 1.25; color: var(--wa-text); overflow-wrap: anywhere; }
+.ib-wa-hero-sub { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; margin: 0; font-size: 1rem; color: var(--wa-text-2); }
+.ib-wa-badge { display: inline-flex; padding: 1px 6px; font-size: 0.6875rem; font-weight: 500; color: var(--wa-primary-ink); background: var(--wa-chip-on-bg); border-radius: var(--radius-1); }
+.ib-wa-about, .ib-wa-summary-text { margin: 0; font-size: 0.9375rem; line-height: 1.45; color: var(--wa-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ib-wa-muted { margin: 0; font-size: 0.8125rem; color: var(--wa-text-2); }
+.ib-wa-summary .btn { align-self: flex-start; }
+.ib-wa-summary .ib-wa-card-title { color: var(--wa-primary-ink); }
+
+.ib-wa-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--wa-border); }
+.ib-wa-tabs button { flex: 1; padding: 8px 4px; font: inherit; font-size: 0.875rem; color: var(--wa-text-2); background: none; border: 0; border-bottom: 3px solid transparent; cursor: pointer; }
+.ib-wa-tabs button.is-on { color: var(--wa-primary-ink); border-bottom-color: var(--wa-primary); font-weight: 500; }
+.ib-wa-tabs button:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.ib-wa-grid { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 0; padding: 0; }
+.ib-wa-thumb { display: block; width: 100%; aspect-ratio: 1; padding: 0; overflow: hidden; background: var(--wa-row-active); border: 0; border-radius: 4px; cursor: zoom-in; }
+.ib-wa-thumb img, .ib-wa-thumb video { width: 100%; height: 100%; object-fit: cover; }
+.ib-wa-thumb:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
+
+.ib-wa-rows { list-style: none; display: flex; flex-direction: column; margin: 0 -24px; padding: 0; }
+.ib-wa-row {
+  display: flex; align-items: center; gap: 14px; width: 100%; min-height: 56px; padding: 8px 24px; font: inherit; text-align: left;
+  color: var(--wa-text); background: none; border: 0; text-decoration: none; cursor: pointer;
+}
+.ib-wa-row:hover:not(:disabled) { background: var(--wa-row-hover); }
+.ib-wa-row:disabled { cursor: default; }
+.ib-wa-row:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.ib-wa-row > svg { flex: none; color: var(--wa-icon); }
+.ib-wa-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ib-wa-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9375rem; }
+.ib-wa-link { color: var(--wa-link); }
+.ib-wa-starred { display: flex; flex-direction: column; gap: 2px; padding: 8px 24px; border-top: 1px solid var(--wa-border); font-size: 0.875rem; color: var(--wa-text); overflow-wrap: anywhere; }
+.ib-wa-member-search { margin: 2px 0 4px; }
+.ib-wa-member-search .input { width: 100%; height: 35px; padding-left: 40px; color: var(--wa-text); background: var(--wa-search-bg); border: 0; border-radius: 8px; }
+.ib-wa-actions { padding-top: 6px; padding-bottom: 6px; }
+.ib-wa-actions .gr-menu { display: block; margin: 0 -24px; }
+.ib-wa-actions .ib-wa-action { margin: 0; }
+.ib-wa-actions > .ib-wa-action { margin: 0 -24px; width: calc(100% + 48px); }
+.ib-wa-action.is-danger, .ib-wa-action.is-danger > svg { color: var(--wa-danger); }
+.ib-wa-actions .ib-confirm { margin-top: 6px; border-color: var(--wa-danger); color: var(--wa-text); }
+
+/* Sin lugar para tres columnas: el panel se apoya sobre la conversación, a la derecha. */
+@media (max-width: 1365px) {
+  .ib-app.gr-inbox { position: relative; }
+  .ib-app.gr-inbox.has-details { grid-template-columns: clamp(340px, 30%, 460px) minmax(0, 1fr); }
+  .ib-wa-details { position: absolute; top: 0; right: 0; bottom: 0; z-index: 60; width: min(400px, 100%); box-shadow: -4px 0 18px rgba(11, 20, 26, 0.14); }
+}
 @media (max-width: 1023px) {
   .ib-app.gr-inbox, .ib-app.gr-inbox.has-details { grid-template-columns: minmax(0, 1fr); }
   .ib-app.gr-inbox .ib-wa-thread .gr-msg { max-width: 85%; }
+  /* El panel de info cubre la conversación (como WhatsApp en el teléfono). */
+  .ib-wa-details { position: fixed; inset: var(--band-h, 0px) 0 0 0; z-index: 70; width: auto; border-left: 0; box-shadow: none; }
 }

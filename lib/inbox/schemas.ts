@@ -23,7 +23,12 @@ export const threadPatchSchema = z.union([
   z.object({ title: z.string().min(1).max(200) }),
 ]);
 
-export const sendSchema = z.object({ body: z.string().min(1).max(LIMITS.message), sendAt: iso.optional(), replyTo: id.optional() });
+export const sendSchema = z.object({
+  body: z.string().min(1).max(LIMITS.message),
+  sendAt: iso.optional(),
+  replyTo: id.optional(),
+  mentions: z.array(z.string().regex(/^\d{6,16}$/)).max(50).optional(),
+});
 
 /** Acciones sobre un mensaje de WhatsApp (reaccionar, editar, destacar, borrar para mí, reenviar). */
 export const messageActionSchema = z.discriminatedUnion('action', [

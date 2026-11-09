@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-inbox-whatsapp-web',
+    date: '2026-11-09',
+    title: {
+      en: 'Inbox: WhatsApp looks and works like WhatsApp Web',
+      es: 'Inbox: WhatsApp se ve y se usa como WhatsApp Web',
+      pt: 'Inbox: o WhatsApp parece e funciona como o WhatsApp Web',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Real group names and profile photos, and a chat list with ticks, the sender in groups, media icons and typing.',
+        es: 'Nombres reales de los grupos y fotos de perfil, y una lista de chats con tildes, quién mandó en los grupos, íconos de media y "escribiendo".',
+        pt: 'Nomes reais dos grupos e fotos de perfil, e uma lista de conversas com confirmações, quem enviou nos grupos, ícones de mídia e "digitando".',
+      },
+      {
+        product: 'inbox',
+        en: 'The conversation has bubbles, reactions, replies, forwarding, editing, deleting, stars, mentions, link previews, photos with a viewer, voice notes and documents. Drop, paste or pick files to send them with a caption, or record a voice note.',
+        es: 'La conversación tiene burbujas, reacciones, respuestas, reenviar, editar, borrar, destacados, menciones, vista previa de links, fotos con visor, notas de voz y documentos. Arrastrá, pegá o elegí archivos para mandarlos con un comentario, o grabá una nota de voz.',
+        pt: 'A conversa tem balões, reações, respostas, encaminhar, editar, apagar, favoritas, menções, prévia de links, fotos com visualizador, notas de voz e documentos. Arraste, cole ou escolha arquivos para enviar com legenda, ou grave uma nota de voz.',
+      },
+      {
+        product: 'inbox',
+        en: 'Click the header for contact or group info: members, shared media, groups in common, mute, block and an AI summary of the chat. On the phone, swipe a message to reply and a chat to archive or pin.',
+        es: 'Tocando la cabecera se ve la info del contacto o del grupo: integrantes, lo compartido, grupos en común, silenciar, bloquear y un resumen con IA del chat. En el teléfono, deslizá un mensaje para responder y un chat para archivarlo o fijarlo.',
+        pt: 'Tocando no cabeçalho aparecem os dados do contato ou do grupo: membros, o que foi compartilhado, grupos em comum, silenciar, bloquear e um resumo com IA da conversa. No celular, deslize uma mensagem para responder e uma conversa para arquivar ou fixar.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-tasks-across-apps',
     date: '2026-11-08',
     title: {
