@@ -9,19 +9,21 @@ import { expect, test } from '@playwright/test';
 test('cada página del sitemap tiene su tarjeta para compartir', async ({ baseURL }) => {
   test.setTimeout(15 * 60_000);
   const out = await new Promise<string>((resolve, reject) => {
-    // En CI el primer render de cada tarjeta es en frío: el presupuesto es holgado.
-    const child = spawn(process.execPath, ['scripts/og-check.mjs', baseURL!, '--budget', '20000', '--json'], { stdio: ['ignore', 'pipe', 'inherit'] });
+    // Las etiquetas de todas las páginas; una de cada 3 imágenes (alterna anchas y cuadradas) (la pasada completa, 1600 tarjetas, tarda 11 min en CI).
+    // El primer render de cada tarjeta es en frío: el presupuesto es holgado.
+    const child = spawn(process.execPath, ['scripts/og-check.mjs', baseURL!, '--budget', '20000', '--image-every', '3', '--json'], { stdio: ['ignore', 'pipe', 'inherit'] });
     let buf = '';
     child.stdout.on('data', (d) => (buf += d));
     child.on('error', reject);
     child.on('close', () => resolve(buf));
   });
-  const result = JSON.parse(out) as { pages: number; images: number; p50: number; p95: number; errors: string[] };
-  console.log(`og-check: ${result.pages} páginas, ${result.images} imágenes, p50 ${result.p50} ms, p95 ${result.p95} ms`);
+  const result = JSON.parse(out) as { pages: number; images: number; fetched: number; p50: number; p95: number; errors: string[] };
+  console.log(`og-check: ${result.pages} páginas, ${result.images} imágenes (${result.fetched} pedidas), p50 ${result.p50} ms, p95 ${result.p95} ms`);
   expect(result.errors).toEqual([]);
   expect(result.pages).toBeGreaterThan(100);
   // Ancha y cuadrada por página (muchas comparten la del blog o la del home).
   expect(result.images).toBeGreaterThan(result.pages / 2);
+  expect(result.fetched).toBeGreaterThan(result.images / 4);
 });
 
 test('la tarjeta del home: inmutable con versión, cuadrada con f=sq', async ({ request }) => {

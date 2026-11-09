@@ -11,7 +11,9 @@
  *     inmutable;
  *   - tarda menos de --budget ms (por defecto 1500: la primera vez, en frío).
  *
- * Uso: node scripts/og-check.mjs [base] [--limit N] [--url /es/v/abc ...] [--json]
+ * Uso: node scripts/og-check.mjs [base] [--limit N] [--url /es/v/abc ...] [--image-every N] [--json]
+ *   --image-every N: las etiquetas de todas las páginas, pero solo se piden una
+ *   de cada N imágenes (la suite e2e; la pasada completa es sin la opción).
  *   base por defecto: http://localhost:3000
  * Sale con código 1 si encuentra errores.
  */
@@ -24,6 +26,8 @@ const opt = (name) => {
 };
 const limit = Number(opt('--limit') ?? Infinity);
 const budget = Number(opt('--budget') ?? 1500);
+const every = Math.max(1, Number(opt('--image-every') ?? 1));
+let seen = 0;
 const extra = args.flatMap((a, i) => (args[i - 1] === '--url' ? [a] : []));
 const asJson = args.includes('--json');
 const CONCURRENCY = 4;
@@ -57,6 +61,10 @@ const images = new Map(); // url → Promise<void>
 
 async function checkImage(page, url, width, height) {
   if (images.has(url)) return images.get(url);
+  if (seen++ % every !== 0) {
+    images.set(url, Promise.resolve());
+    return;
+  }
   const job = (async () => {
     const t0 = performance.now();
     let res;
@@ -137,7 +145,7 @@ async function main() {
   await Promise.all(images.values());
   stats.sort((a, b) => a - b);
   const p = (q) => stats[Math.min(stats.length - 1, Math.floor(stats.length * q))] ?? 0;
-  const summary = { pages, images: images.size, p50: p(0.5), p95: p(0.95), errors };
+  const summary = { pages, images: images.size, fetched: stats.length, p50: p(0.5), p95: p(0.95), errors };
   if (asJson) console.log(JSON.stringify(summary, null, 2));
   else {
     console.log(`${pages} páginas, ${images.size} imágenes, render p50 ${summary.p50} ms, p95 ${summary.p95} ms`);
