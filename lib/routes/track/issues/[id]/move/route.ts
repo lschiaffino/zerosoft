@@ -7,7 +7,7 @@ import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-htt
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const moveSchema = z.object({ teamId: z.string().trim().min(1).max(64) });
+const moveSchema = z.object({ teamId: z.string().trim().min(1).max(64), identifier: z.string().trim().max(40).nullish() });
 
 /**
  * "Move to team" (⌘⇧M), como en Linear: el issue y sus sub-issues pasan al
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const to = await getProject(parsed.data.teamId);
   if (!to || !(await canAccessTrackProject(to, teamId, user.id))) return trackError(400, 'invalid_team');
   if (to.status !== 'active') return trackError(400, 'invalid_team');
-  const moved = await moveIssueToTeam(issue.id, to.id, realUserId(user));
+  const moved = await moveIssueToTeam(issue.id, to.id, realUserId(user), { identifier: parsed.data.identifier });
   if (!moved) return notFound();
   return NextResponse.json(moved);
 }

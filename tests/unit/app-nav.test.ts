@@ -95,10 +95,17 @@ describe('sidebar de la app', () => {
   it('"+ Nuevo" crea en vez de llevar a la lista', () => {
     for (const product of PRODUCTS) {
       for (const item of buildNewItems(product, labels)) {
-        expect(/\/new$|[?&]new=1/.test(item.href), `${product}: ${item.href}`).toBe(true);
+        expect(/\/new(\?|$)|[?&]new(Issue)?=1/.test(item.href), `${product}: ${item.href}`).toBe(true);
       }
     }
     expect(buildNewItems('crm', labels).map((i) => i.href)).toContain('/app/crm/tasks?new=1');
+    // Track, como Linear: issue (C) en el contexto de la página, project del team actual y team nuevo.
+    expect(buildNewItems('track', labels, { pathname: '/app/track/team/ENG' }).map((i) => i.href)).toEqual([
+      '/app/track/team/ENG?newIssue=1',
+      '/app/track/projects/new?team=ENG',
+      '/app/track/teams/new',
+    ]);
+    expect(buildNewItems('track', labels).map((i) => i.href)[1]).toBe('/app/track/projects/new');
     expect(buildNewItems('docs', labels)[0].href).toBe('/app/docs?new=1');
     expect(buildNewItems('flow', labels)[0].href).toBe('/app/flow?new=1');
     expect(buildNewItems('agents', labels)[0].href).toBe('/app/agents?new=1');

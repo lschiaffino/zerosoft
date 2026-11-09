@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { planningContext, readJson } from '@/lib/track-planning-http';
 import { inScope } from '@/lib/track-plans';
-import { createUpdateComment, deleteUpdateComment, getPlanUpdate, listUpdateComments } from '@/lib/track-plan-updates';
-import { planUpdateCommentSchema } from '@/lib/track-planning-schema';
-import { invalidBody, notFound, unauthorized } from '@/lib/track-http';
+import { createUpdateComment, deleteUpdateComment, getPlanUpdate, listUpdateComments, listUpdateReactions, togglePlanUpdateReaction } from '@/lib/track-plan-updates';
+import { isAllowedReaction } from '@/lib/track-ux';
+import { planUpdateCommentSchema, planUpdateReactionSchema } from '@/lib/track-planning-schema';
+import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,21 @@ export async function GET(_req: NextRequest, props: Props) {
   const { id } = await props.params;
   const r = await load(id);
   if ('error' in r) return r.error;
-  return NextResponse.json({ rows: await listUpdateComments(id), me: r.ctx.actorId });
+  const [rows, reactions] = await Promise.all([listUpdateComments(id), listUpdateReactions(id)]);
+  return NextResponse.json({ rows, reactions, me: r.ctx.actorId });
+}
+
+/** Reacción (poner o sacar) en el update o en un comentario suyo: { emoji, commentId? }. */
+export async function PUT(req: NextRequest, props: Props) {
+  const { id } = await props.params;
+  const r = await load(id);
+  if ('error' in r) return r.error;
+  const parsed = planUpdateReactionSchema.safeParse(await readJson(req));
+  if (!parsed.success) return invalidBody(parsed.error);
+  if (!isAllowedReaction(parsed.data.emoji)) return trackError(400, 'invalid_reaction');
+  const on = await togglePlanUpdateReaction(id, parsed.data.commentId ?? id, r.ctx.actorId, parsed.data.emoji);
+  if (on === null) return notFound();
+  return NextResponse.json({ on, reactions: await listUpdateReactions(id) });
 }
 
 export async function POST(req: NextRequest, props: Props) {

@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, props: Props) {
   if (!ctx) return unauthorized();
   if (!(await getAccessiblePlan(id, ctx.scope))) return notFound();
   const [rows, events] = await Promise.all([listPlanUpdates(id), listPlanEvents(id)]);
-  return NextResponse.json({ rows, events, me: ctx.actorId });
+  return NextResponse.json({ rows, events, me: ctx.actorId, admin: ctx.admin });
 }
 
 export async function POST(req: NextRequest, props: Props) {

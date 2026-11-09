@@ -248,6 +248,21 @@ body:has(.fl-root.has-support) #zs-chat-btn svg { width: 10px; height: 10px; }
 body:has(.fl-root.has-support) #zs-chat-btn:hover { border-color: var(--bp-ink) !important; }
 .fl-root.is-tucked { transform: translateX(100%); }
 .fl-root .fl-panel { right: 8px; bottom: 52px; max-height: min(560px, calc(100dvh - 220px)); }
+/* Con el dedo, 16px no se acierta: la pestaña mide 40×40 (sigue pegada al borde y se esconde al bajar). */
+@media (pointer: coarse) {
+  .fl-root .fl-button { width: 40px; height: 40px; }
+  .fl-root .fl-button svg { width: 14px; height: 14px; }
+  body:has(.fl-root.has-support) #zs-chat-btn { width: 40px !important; height: 40px !important; }
+  body:has(.fl-root.has-support) #zs-chat-btn svg { width: 14px; height: 14px; }
+  .fl-root .fl-panel { right: 8px; width: calc(100vw - 16px); max-width: calc(100vw - 16px); }
+}
+/* Teléfono: con un menú, una hoja o el drawer abiertos, la pestaña se corre (no se monta encima). */
+@media (max-width: 760px) {
+  body:has(dialog[open], [role='menu'], [role='listbox']:not(main [role='listbox']), .band-menu-panel, .side.open, .cmdk-backdrop, .qm-overlay, .track-dialog-overlay) .fl-root:not(:focus-within) {
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
 @media (max-width: 760px) {
   /* Mientras se escribe en un campo, la pestaña se corre: no tapa el campo ni el teclado. */
   body:has(main :is(input, textarea, select):focus) .fl-root:not(:focus-within) { transform: translateX(100%); opacity: 0; visibility: hidden; pointer-events: none; }
