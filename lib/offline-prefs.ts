@@ -19,7 +19,7 @@ export type OfflineDays = (typeof OFFLINE_DAYS)[number];
 export const OFFLINE_LIMITS: Record<OfflineSize, { pages: number; mb: number }> = {
   light: { pages: 60, mb: 50 },
   normal: { pages: 300, mb: 200 },
-  max: { pages: 1000, mb: 1000 },
+  max: { pages: 1000, mb: 1024 },
 };
 
 export interface OfflinePrefs {

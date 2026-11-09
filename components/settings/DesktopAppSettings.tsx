@@ -16,6 +16,7 @@ export default function DesktopAppSettings({ sections }: { sections: Array<{ key
   const t = useTranslations('settings.desktopApp');
   const [app, setApp] = useState<{ version: string; openSettings: () => void } | null>(null);
   const [latest, setLatest] = useState<{ version: string; kind: DesktopUpdateKind } | null>(null);
+  const [feedFailed, setFeedFailed] = useState(false);
 
   useEffect(() => {
     const b = desktopBridge();
@@ -26,9 +27,9 @@ export default function DesktopAppSettings({ sections }: { sections: Array<{ key
         if (feed && typeof feed.version === 'string') {
           const v = feed.version.replace(/^v/, '');
           setLatest({ version: v, kind: b ? desktopUpdateKind(b.version, v) : 'none' });
-        }
+        } else setFeedFailed(true);
       })
-      .catch(() => undefined);
+      .catch(() => setFeedFailed(true));
   }, []);
 
   return (
@@ -37,12 +38,14 @@ export default function DesktopAppSettings({ sections }: { sections: Array<{ key
         <dl className="st-facts st-facts-row">
           <div>
             <dt>{t('installed')}</dt>
-            <dd className="data">{app ? app.version : t('notHere')}</dd>
+            {app ? <dd className="data">{app.version}</dd> : <dd>{t('notHere')}</dd>}
           </div>
-          <div>
-            <dt>{t('latest')}</dt>
-            <dd className="data">{latest ? latest.version : '…'}</dd>
-          </div>
+          {!feedFailed && (
+            <div>
+              <dt>{t('latest')}</dt>
+              <dd className="data">{latest ? latest.version : '…'}</dd>
+            </div>
+          )}
         </dl>
         {app && latest && latest.kind !== 'none' && (
           <p className="st-callout">{t(latest.kind === 'manual' ? 'updateManual' : 'updateAuto', { v: latest.version })}</p>

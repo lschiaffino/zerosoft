@@ -49,7 +49,13 @@
 }
 .st-embed .st-nav { gap: 16px; }
 .st-embed .st-nav-heading { padding: 0 10px 2px; }
-.st-embed .ui-settings-link { min-height: 30px; font-size: 0.8125rem; }
+.st-embed .ui-settings-link { min-height: 30px; font-size: 0.8125rem; border-radius: var(--radius-1); box-shadow: none; white-space: normal; }
+/* ui.css convierte los links en pestañas bajo 900px; en la ventana la nav sigue al costado. */
+.st-embed .ui-settings-link:hover { background: var(--ui-hover); }
+.st-embed .ui-settings-link[aria-current='page'] { background: var(--ui-selected); box-shadow: none; }
+.st-embed .ui-settings-link[aria-current='page']:hover { background: var(--ui-selected-hover); }
+/* Los ajustes de cada app traen un botón a los de la plataforma: en la ventana la nav ya los tiene. */
+.st-embed [data-testid='platform-settings-link'] { display: none; }
 .st-embed-main { min-width: 0; height: 100%; overflow-y: auto; padding: 24px 28px 48px; }
 .st-embed-main > .ui-page,
 .st-embed-main .ui-page { padding: 0; max-width: 760px; }

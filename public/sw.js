@@ -90,7 +90,7 @@ const INDEX_KEY = '/__zs-offline-index';
 const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes'];
 const OFFLINE_SIZES = ['light', 'normal', 'max'];
 const OFFLINE_DAYS = [7, 30, 90];
-const OFFLINE_LIMITS = { light: { pages: 60, mb: 50 }, normal: { pages: 300, mb: 200 }, max: { pages: 1000, mb: 1000 } };
+const OFFLINE_LIMITS = { light: { pages: 60, mb: 50 }, normal: { pages: 300, mb: 200 }, max: { pages: 1000, mb: 1024 } };
 const DEFAULT_PREFS = { enabled: true, apps: { crm: true, docs: true, track: true, notes: true }, size: 'normal', days: 30 };
 
 function parseOfflinePrefs(raw) {

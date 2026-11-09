@@ -88,7 +88,7 @@ test('Sin conexión: con cambios esperando, apagar pide confirmar', async ({ pag
   await page.evaluate((o) => localStorage.setItem(`zs-docs-draft:${o}|p1`, '{}'), owner);
   await page.reload({ waitUntil: 'networkidle' });
   await expect(page.getByTestId('offline-pending')).toContainText('1');
-  await page.getByRole('switch', { name: 'Keep apps available offline' }).uncheck();
+  await page.getByRole('switch', { name: 'Keep apps available offline' }).click();
   const dialog = page.getByRole('alertdialog');
   await expect(dialog).toContainText('1 change is waiting to be sent');
   await dialog.getByRole('button', { name: 'Keep it on' }).click();
@@ -140,8 +140,8 @@ test.describe('ventana de Ajustes del escritorio (modo embebido)', () => {
     const nav = page.getByRole('navigation', { name: 'Settings' });
     const groups = nav.getByRole('group');
     await expect(groups.first()).toHaveAccessibleName('This device');
-    await expect(nav.getByRole('link', { name: 'Permissions' })).toHaveAttribute('href', '/app/settings/desktop/permissions');
-    await expect(nav.getByRole('link', { name: 'Offline' })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: 'Permissions', exact: true })).toHaveAttribute('href', '/app/settings/desktop/permissions');
+    await expect(nav.getByRole('link', { name: 'Offline', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(page.getByTestId('offline-settings')).toBeVisible();
     // Ajustes de un producto: la misma nav, con el producto marcado.
     await nav.getByRole('link', { name: 'Track', exact: true }).click();
