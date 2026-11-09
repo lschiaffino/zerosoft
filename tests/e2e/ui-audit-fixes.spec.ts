@@ -89,10 +89,10 @@ test('una navegación lenta da respuesta y las estáticas conservan el esqueleto
 });
 
 test('los registros desconocidos responden 404 y los válidos abren', async ({ request }) => {
-  for (const path of ['people/emp_zzz', 'people/reviews/zzz', 'shop/products/zzz', 'shop/orders/zzz', 'books/invoices/zzz', 'books/contacts/zzz', 'hiring/jobs/zzz', 'hiring/candidates/zzz', 'sign/envelopes/zzz', 'sign/templates/zzz', 'sign/settings/x', 'agents/zzz', 'analytics/insights/zzz', 'analytics/dashboards/zzz', 'analytics/flags/zzz', 'analytics/persons/zzz', 'calendar/event-types/zzz', 'calendar/polls/zzz', 'links/zzz', 'rec/zzz', 'robots/zzz', 'social/posts/zzz', 'talk/zzz', 'voice/meetings/zzz', 'track/projects/zzz']) {
+  for (const path of ['people/emp_zzz', 'people/reviews/zzz', 'shop/products/zzz', 'shop/orders/zzz', 'books/invoices/zzz', 'books/contacts/zzz', 'hiring/jobs/zzz', 'hiring/candidates/zzz', 'sign/envelopes/zzz', 'sign/templates/zzz', 'sign/settings/x', 'agents/zzz', 'pulse/insights/zzz', 'pulse/dashboards/zzz', 'pulse/flags/zzz', 'pulse/persons/zzz', 'calendar/event-types/zzz', 'calendar/polls/zzz', 'links/zzz', 'rec/zzz', 'robots/zzz', 'social/posts/zzz', 'talk/zzz', 'voice/meetings/zzz', 'track/projects/zzz']) {
     expect((await request.get(`/en/app/${path}`)).status(), path).toBe(404);
   }
-  for (const path of ['agents', 'agents/settings', 'analytics', 'analytics/insights', 'analytics/insights/new', 'calendar', 'calendar/polls', 'links', 'links/new', 'rec', 'rec/new', 'robots', 'robots/recorder', 'social', 'social/posts', 'talk', 'voice', 'books/invoices/new', 'shop/products/new', 'hiring/jobs/new', 'docs/import']) {
+  for (const path of ['agents', 'agents/settings', 'pulse', 'pulse/insights', 'pulse/insights/new', 'calendar', 'calendar/polls', 'links', 'links/new', 'rec', 'rec/new', 'robots', 'robots/recorder', 'social', 'social/posts', 'talk', 'voice', 'books/invoices/new', 'shop/products/new', 'hiring/jobs/new', 'docs/import']) {
     expect((await request.get(`/en/app/${path}`, { maxRedirects: 2 })).status(), path).toBe(200);
   }
   // Registros reales recién creados.

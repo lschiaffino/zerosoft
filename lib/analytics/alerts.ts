@@ -212,7 +212,7 @@ async function checkAlert(a: AlertRow & { workspace_id: string }, now: number): 
   } catch {
     subs = [];
   }
-  const allowed = new Set((await listOwnerSpacePeople(a.workspace_id, { app: 'analytics' })).map((p) => p.id));
+  const allowed = new Set((await listOwnerSpacePeople(a.workspace_id, { app: 'pulse' })).map((p) => p.id));
   for (const userId of subs) {
     if (!allowed.has(userId)) continue;
     await createNotification({
@@ -220,7 +220,7 @@ async function checkAlert(a: AlertRow & { workspace_id: string }, now: number): 
       type: 'analytics_alert',
       title: localized('analyticsAlertTitle', { name: a.name }),
       body: localized('analyticsAlertBody', { value: String(v.value), insight: insight.name }),
-      href: `/app/analytics/insights/${insight.id}`,
+      href: `/app/pulse/insights/${insight.id}`,
       sourceType: 'analytics_alert',
       sourceId: a.id,
     });

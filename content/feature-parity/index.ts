@@ -17,7 +17,7 @@ import rec from './rec';
 import talk from './talk';
 import design from './design';
 import shop from './shop';
-import analytics from './analytics';
+import pulse from './pulse';
 import social from './social';
 import hiring from './hiring';
 import people from './people';
@@ -50,7 +50,7 @@ export const PARITY: Record<ProductKey, ProductParity> = {
   talk,
   design,
   shop,
-  analytics,
+  pulse,
   social,
   hiring,
   people,

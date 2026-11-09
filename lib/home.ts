@@ -297,7 +297,7 @@ const RECENT_PRODUCT: Record<RecentKind, ProductKey> = {
   deal: 'crm',
   flow: 'flow',
   product: 'shop',
-  insight: 'analytics',
+  insight: 'pulse',
   socialPost: 'social',
   booksInvoice: 'books',
   form: 'forms',
@@ -381,7 +381,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
       ? all(`SELECT id, title AS label, updated_at FROM shop_products WHERE workspace_id = ? ORDER BY updated_at DESC LIMIT ?`, user.id, per)
       : Promise.resolve([] as Row[]),
     // Analytics: insights guardados de los proyectos del workspace (solo si la persona tiene la app).
-    homeCanUse(user, 'analytics')
+    homeCanUse(user, 'pulse')
       ? all(
           `SELECT i.id, i.name AS label, i.updated_at FROM analytics_insights i JOIN analytics_projects p ON p.id = i.project_id
            WHERE p.workspace_id = ? AND p.deleted_at IS NULL ORDER BY i.updated_at DESC LIMIT ?`,
@@ -442,7 +442,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     deal: (id) => `/app/crm/deals/${id}`,
     flow: (id) => `/app/flow/${id}`,
     product: (id) => `/app/shop/products/${id}`,
-    insight: (id) => `/app/analytics/insights/${id}`,
+    insight: (id) => `/app/pulse/insights/${id}`,
     socialPost: (id) => `/app/social/posts/${id}`,
     booksInvoice: (id) => `/app/books/invoices/${id}`,
     form: (id) => `/app/forms/${id}`,

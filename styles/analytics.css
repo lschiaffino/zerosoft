@@ -9,7 +9,7 @@
 .an-page { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
 /* Colores de las series (la primera es la de la app). */
-.an-s0 { --an-c: var(--c-analytics); }
+.an-s0 { --an-c: var(--c-pulse); }
 .an-s1 { --an-c: var(--ink); }
 .an-s2 { --an-c: var(--c-cal); }
 .an-s3 { --an-c: var(--c-track); }
@@ -124,7 +124,7 @@
 .an-top-table { width: 100%; table-layout: fixed; }
 .an-top-table th:first-child { width: 60%; }
 .an-top-key { position: relative; overflow: hidden; }
-.an-top-bar { position: absolute; inset: 3px auto 3px 0; background: color-mix(in srgb, var(--c-analytics) 12%, transparent); }
+.an-top-bar { position: absolute; inset: 3px auto 3px 0; background: color-mix(in srgb, var(--c-pulse) 12%, transparent); }
 .an-top-text { position: relative; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- Listas ---------- */
@@ -193,12 +193,12 @@
 .an-funnel-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .an-funnel-count { font-family: var(--mono); font-size: 0.8125rem; }
 .an-funnel-bar { height: 22px; margin-top: 6px; background: var(--brand-enamel); }
-.an-funnel-bar span { display: block; height: 100%; background: var(--c-analytics); }
+.an-funnel-bar span { display: block; height: 100%; background: var(--c-pulse); }
 .an-funnel-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 0.75rem; color: var(--dim); }
 
 /* Retención */
 .an-retention th, .an-retention td { white-space: nowrap; }
-.an-ret-cell { background: color-mix(in srgb, var(--c-analytics) calc(var(--an-ret) * 70%), transparent); }
+.an-ret-cell { background: color-mix(in srgb, var(--c-pulse) calc(var(--an-ret) * 70%), transparent); }
 
 /* Caminos */
 .an-paths { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; }
@@ -207,7 +207,7 @@
 .an-path-from, .an-path-to { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
 .an-path-count { font-family: var(--mono); color: var(--dim); }
 .an-path-bar { grid-column: 1 / -1; height: 4px; background: var(--brand-enamel); }
-.an-path-bar span { display: block; height: 100%; background: var(--c-analytics); }
+.an-path-bar span { display: block; height: 100%; background: var(--c-pulse); }
 .an-path-cell { font-family: var(--mono); font-size: 0.8125rem; overflow-wrap: anywhere; }
 
 /* SQL */
@@ -292,21 +292,21 @@
 
 /* Ciclo de vida */
 .an-life-chart { height: 260px; }
-.an-life-new { fill: var(--c-analytics); }
-.an-life-returning { fill: color-mix(in srgb, var(--c-analytics) 45%, var(--bg)); }
+.an-life-new { fill: var(--c-pulse); }
+.an-life-returning { fill: color-mix(in srgb, var(--c-pulse) 45%, var(--bg)); }
 .an-life-resurrecting { fill: var(--c-cal); }
 .an-life-dormant { fill: var(--bad-ink); opacity: 0.55; }
-.an-life-swatch-new { background: var(--c-analytics); }
-.an-life-swatch-returning { background: color-mix(in srgb, var(--c-analytics) 45%, var(--bg)); }
+.an-life-swatch-new { background: var(--c-pulse); }
+.an-life-swatch-returning { background: color-mix(in srgb, var(--c-pulse) 45%, var(--bg)); }
 .an-life-swatch-resurrecting { background: var(--c-cal); }
 .an-life-swatch-dormant { background: var(--bad-ink); opacity: 0.55; }
 
 /* Sankey de caminos */
 .an-sankey-wrap { overflow-x: auto; max-width: 100%; }
 .an-sankey { display: block; }
-.an-sankey-band { stroke: var(--c-analytics); stroke-opacity: 0.22; }
+.an-sankey-band { stroke: var(--c-pulse); stroke-opacity: 0.22; }
 .an-sankey-band:hover { stroke-opacity: 0.45; }
-.an-sankey-node { fill: var(--c-analytics); }
+.an-sankey-node { fill: var(--c-pulse); }
 .an-sankey-label { font-family: var(--mono); font-size: 11px; fill: var(--ink); }
 
 /* Alertas y compartir */
@@ -346,7 +346,7 @@
 .an-hist-row { display: grid; grid-template-columns: minmax(120px, 170px) minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 0.75rem; }
 .an-hist-label { color: var(--dim); }
 .an-hist-bar { display: block; height: 16px; background: var(--brand-enamel); }
-.an-hist-bar span { display: block; height: 100%; background: var(--c-analytics); }
+.an-hist-bar span { display: block; height: 100%; background: var(--c-pulse); }
 .an-hist-n { text-align: right; white-space: nowrap; }
 .an-funnel-breakdown td.an-break { overflow-wrap: anywhere; }
 @media (max-width: 560px) {
@@ -403,7 +403,7 @@
 /* Retención */
 .an-ret-btn { all: unset; cursor: pointer; display: inline-block; }
 .an-ret-btn:hover { text-decoration: underline; }
-.an-ret-btn:focus-visible { outline: 2px solid var(--c-analytics); outline-offset: 2px; }
+.an-ret-btn:focus-visible { outline: 2px solid var(--c-pulse); outline-offset: 2px; }
 .an-ret-mean th, .an-ret-mean td { font-weight: 600; }
 .an-ret-values tr.is-picked th { font-weight: 600; }
 .an-live-row { cursor: pointer; }
