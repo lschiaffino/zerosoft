@@ -222,9 +222,9 @@ const parity: ProductParity = {
     }),
     row('tasks-reminders', 'tickets', ['Tasks and reminders from a chat', 'Tareas y recordatorios desde el chat', 'Tarefas e lembretes pelo chat'], 'have', {
       detail: [
-        'From any message, with an in-app and email reminder on time; they are CRM tasks too',
-        'Desde cualquier mensaje, con aviso en la app y por email a la hora; también son tareas del CRM',
-        'De qualquer mensagem, com aviso no app e por email no horário; também são tarefas do CRM',
+        'From any message, with an in-app and email reminder on time; they are CRM tasks too, with a link back to the chat, and the chat shows the CRM tasks of its contact or company',
+        'Desde cualquier mensaje, con aviso en la app y por email a la hora; también son tareas del CRM, con link de vuelta al chat, y el chat muestra las tareas del CRM de su contacto o empresa',
+        'De qualquer mensagem, com aviso no app e por email no horário; também são tarefas do CRM, com link de volta ao chat, e o chat mostra as tarefas do CRM do seu contato ou empresa',
       ],
     }),
 

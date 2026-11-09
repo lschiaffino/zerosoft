@@ -84,6 +84,18 @@ test('vincular WhatsApp por QR desde Ajustes', async ({ page }) => {
     await dialog.getByRole('button', { name: 'Done' }).click();
   }
   await expect(card.getByText('Linked', { exact: true })).toBeVisible();
+  // Volver a sincronizar: explica que hay que escanear de nuevo, Esc cancela y confirmar muestra el QR.
+  await card.getByTestId('inbox-wa-resync').click();
+  const confirmDialog = page.getByRole('dialog', { name: 'Sync WhatsApp again' });
+  await expect(confirmDialog.getByText(/only sends chat history when a device is linked/)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(confirmDialog).toBeHidden();
+  await card.getByTestId('inbox-wa-resync').click();
+  await page.getByTestId('inbox-wa-resync-yes').click();
+  const relink = page.getByRole('dialog', { name: 'Link WhatsApp' });
+  await expect(relink.getByText(/^Linked/)).toBeVisible({ timeout: 10_000 });
+  await relink.getByRole('button', { name: 'Done' }).click();
+  await expect(card.getByText('Linked', { exact: true })).toBeVisible();
   expect(errors, errors.join('\n')).toEqual([]);
 });
 

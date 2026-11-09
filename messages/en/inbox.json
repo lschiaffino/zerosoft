@@ -315,7 +315,11 @@
       "unlinkBody": "Inbox stops receiving and sending messages. Your saved chats stay here and come back to life when you link again.",
       "cancel": "Cancel",
       "removeYes": "Remove and delete",
-      "unlinkYes": "Unlink"
+      "unlinkYes": "Unlink",
+      "resync": "Sync again",
+      "resyncTitle": "Sync WhatsApp again",
+      "resyncBody": "WhatsApp only sends chat history when a device is linked. To bring it in, Inbox ends the current session and shows a new QR code: scan it from WhatsApp › Linked devices. Chats already here stay. History can take a few minutes to show up.",
+      "resyncYes": "Show new QR"
     },
     "gmail": {
       "intro": "Connect Gmail with Google. Done archives in Gmail too, and read state stays in sync.",
