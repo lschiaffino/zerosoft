@@ -15,6 +15,8 @@ for (const scheme of ['light', 'dark'] as const) {
 
     await account.click();
     for (const id of ['side-settings', 'side-help', 'side-signout', 'theme-switcher']) await expect(page.getByTestId(id)).toBeVisible();
+    // En el navegador, bajar la app de escritorio (pasa por el contador de clics, lugar "menu").
+    await expect(page.getByTestId('side-desktop-download')).toHaveAttribute('href', '/api/desktop/download?from=menu&locale=en');
     // El tema se cambia sin que se cierre el menú.
     await page.locator('[data-theme-pref="dark"]').click();
     await expect(page.getByTestId('side-settings')).toBeVisible();

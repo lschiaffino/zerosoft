@@ -46,6 +46,7 @@ export default async function DownloadPage(props: { params: Promise<{ locale: st
         {dl ? (
           <>
             <DownloadButtons
+              locale={locale}
               links={{ macArm64: dl.macArm64, macX64: dl.macX64, win: dl.win }}
               labels={{ macArm: t('macArm'), macIntel: t('macIntel'), win: t('win'), otherMac: t('otherMac'), otherArm: t('otherArm') }}
             />
@@ -107,6 +108,10 @@ export default async function DownloadPage(props: { params: Promise<{ locale: st
             <li className="dl-row">
               <span className="status-name">Windows</span>
               <span className="status-desc">{t('reqWin')}</span>
+            </li>
+            <li className="dl-row" data-testid="download-linux">
+              <span className="status-name">Linux</span>
+              <span className="status-desc">{t('reqLinux')}</span>
             </li>
           </ul>
         </section>

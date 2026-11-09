@@ -49,7 +49,10 @@
       "send": "Compartilhe documentos por link e veja quem leu o quê",
       "inbox": "Seu WhatsApp e seu Gmail em uma caixa guiada pelo teclado"
     },
-    "building": "Em construção"
+    "building": "Em construção",
+    "downloadMac": "Baixar para Mac",
+    "downloadWin": "Baixar para Windows",
+    "downloadShort": "Baixar"
   },
   "sidebar": {
     "desktopSettings": "Ajustes do app para desktop",
@@ -217,7 +220,8 @@
     "groupForms": "Formulários",
     "groupSend": "Documentos para enviar",
     "untitled": "Sem título",
-    "groupInbox": "Inbox"
+    "groupInbox": "Inbox",
+    "desktopDownload": "Baixar o app para desktop"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
@@ -418,7 +422,13 @@
     "feedback": "Feedback",
     "videos": "Vídeos",
     "desktopApp": "App de desktop",
-    "compare": "Comparações"
+    "compare": "Comparações",
+    "colDownload": "Baixar",
+    "dlMacArm": "Mac (Apple silicon)",
+    "dlMacIntel": "Mac (Intel)",
+    "dlWin": "Windows",
+    "dlAll": "Todas as versões",
+    "dlLinux": "Linux: ainda não"
   },
   "home": {
     "hero": {
@@ -617,6 +627,34 @@
     },
     "tour": {
       "fig": "fig. 1 · modo demo, dados de exemplo, 48 s"
+    },
+    "desktop": {
+      "title": "zerosoft no seu computador.",
+      "titleDim": "Mac e Windows, cerca de 3 MB.",
+      "p": "O app para desktop abre seus apps numa janela própria e faz o que uma aba do navegador não consegue.",
+      "b1t": "Ditado em qualquer app",
+      "b1": "Segure Option + Espaço (Ctrl + Alt + Espaço no Windows), fale e solte. O texto limpo é colado onde está o cursor: um email, um doc, um chat.",
+      "b2t": "Reuniões em segundo plano",
+      "b2": "Enquanto o Voice grava uma reunião e a janela fica atrás, um indicador pequeno por cima de tudo mostra o tempo e deixa parar.",
+      "b3t": "Notificações do sistema",
+      "b3": "Menções, mensagens diretas e avisos do sino como notificações, com o contador no ícone do dock.",
+      "b4t": "Ditados sem conexão",
+      "b4": "Se um ditado não chega ao servidor, fica guardado no seu computador e é enviado de novo quando a rede volta.",
+      "cta": "Baixar o app",
+      "ctaMac": "Baixar para Mac",
+      "ctaWin": "Baixar para Windows",
+      "more": "O que inclui e requisitos",
+      "note": "Para Linux ainda não tem. No celular, adicione o zerosoft à tela de início pelo navegador.",
+      "fig": {
+        "window": "Nova mensagem",
+        "to": "Para: equipe@acme.com",
+        "subject": "Notas da reunião",
+        "body": "Fechamos o escopo na segunda. A Ana monta a proposta e enviamos na quinta.",
+        "listening": "Ouvindo",
+        "hint": "Esc cancela",
+        "caption": "A barra de ditado do app, redesenhada: aparece embaixo no centro, sobre o app que estiver na frente.",
+        "alt": "Uma janela de email com texto ditado e, embaixo, a barra de ditado do zerosoft: ponto vermelho, medidor, Ouvindo, 0:06, Esc cancela."
+      }
     }
   },
   "ui": {
@@ -706,6 +744,15 @@
       "title": "Ainda não há apps ativados para você",
       "body": "Um admin de {workspace} pode ativá-los em Configurações › Membros.",
       "bodyAdmin": "O owner de {workspace} pode ativá-los em Configurações › Membros."
+    },
+    "cardsLabel": "Sugestões",
+    "desktop": {
+      "title": "App para desktop",
+      "body": "Dite em qualquer app com um atalho e receba menções e mensagens como notificações do sistema.",
+      "mac": "Baixar para Mac",
+      "win": "Baixar para Windows",
+      "dismiss": "Ocultar",
+      "dismissError": "Não deu para ocultar. Tente de novo."
     }
   },
   "publicPage": {

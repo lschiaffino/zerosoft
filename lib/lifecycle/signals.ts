@@ -18,7 +18,8 @@ export interface SignalsSource {
 }
 
 /** Eventos que no salen de otras tablas. */
-export type LifecycleEvent = 'desktop_installed' | 'imported' | 'mcp_connected';
+/** desktop_hint_dismissed: cerró la tarjeta de la app de escritorio del inicio (lib/desktop-hint.ts). */
+export type LifecycleEvent = 'desktop_installed' | 'desktop_hint_dismissed' | 'imported' | 'mcp_connected';
 
 /** Marca la primera vez que pasa algo (idempotente, nunca tira). */
 export async function recordLifecycleEvent(userId: string, event: LifecycleEvent, at = new Date()): Promise<void> {

@@ -8,6 +8,14 @@
     "unsubscribeAll": "Stop getting all of these emails",
     "preferences": "Email preferences",
     "fallbackLink": "If the button doesn't work, copy this link:",
+    "desktopLine": {
+      "text": "zerosoft is also an app for Mac and Windows.",
+      "link": "Download"
+    },
+    "desktopNotify": {
+      "text": "These alerts also show up as notifications in the desktop app for Mac and Windows.",
+      "link": "Download it"
+    },
     "categories": {
       "onboarding": "getting started emails",
       "tips": "feature tips",
@@ -120,12 +128,14 @@
       "cta": "Open Voice"
     },
     "feature_desktop": {
-      "subject": "zerosoft as a desktop app",
-      "preheader": "For Mac and Windows, with system notifications.",
+      "subject": "Dictate into any app with zerosoft for desktop",
+      "preheader": "Mac and Windows: dictation on a shortcut and system notifications.",
       "heading": "The desktop app",
       "body": [
-        "There's a zerosoft app for Mac and Windows. It opens straight into your workspace and shows system notifications.",
-        "You sign in with your usual account through the browser."
+        "The zerosoft app for Mac and Windows opens your workspace in its own window and adds what the browser can’t do.",
+        "Dictation in any app: hold Option + Space (Ctrl + Alt + Space on Windows), talk, and let go. The text is pasted where your cursor is.",
+        "Mentions, messages and alerts arrive as system notifications, with the unread count on the icon.",
+        "It’s about 3 MB and you sign in with your usual account."
       ],
       "cta": "Download the app"
     },

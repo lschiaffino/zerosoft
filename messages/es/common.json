@@ -49,7 +49,10 @@
       "send": "Compartí documentos por link y mirá quién leyó qué",
       "inbox": "Tu WhatsApp y tu Gmail en una bandeja manejada con el teclado"
     },
-    "building": "En construcción"
+    "building": "En construcción",
+    "downloadMac": "Descargar para Mac",
+    "downloadWin": "Descargar para Windows",
+    "downloadShort": "Descargar"
   },
   "sidebar": {
     "desktopSettings": "Ajustes de la app de escritorio",
@@ -217,7 +220,8 @@
     "groupForms": "Formularios",
     "groupSend": "Documentos para enviar",
     "untitled": "Sin título",
-    "groupInbox": "Inbox"
+    "groupInbox": "Inbox",
+    "desktopDownload": "Descargar la app de escritorio"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",
@@ -418,7 +422,13 @@
     "feedback": "Feedback",
     "videos": "Videos",
     "desktopApp": "App de escritorio",
-    "compare": "Comparaciones"
+    "compare": "Comparaciones",
+    "colDownload": "Descargar",
+    "dlMacArm": "Mac (Apple silicon)",
+    "dlMacIntel": "Mac (Intel)",
+    "dlWin": "Windows",
+    "dlAll": "Todas las versiones",
+    "dlLinux": "Linux: todavía no"
   },
   "home": {
     "hero": {
@@ -617,6 +627,34 @@
     },
     "tour": {
       "fig": "fig. 1 · modo demo, datos de ejemplo, 48 s"
+    },
+    "desktop": {
+      "title": "zerosoft en tu computadora.",
+      "titleDim": "Mac y Windows, unos 3 MB.",
+      "p": "La app de escritorio abre tus apps en una ventana propia y hace lo que una pestaña del navegador no puede.",
+      "b1t": "Dictado en cualquier app",
+      "b1": "Mantené Option + Espacio (Ctrl + Alt + Espacio en Windows), hablá y soltá. El texto limpio se pega donde está el cursor: un mail, un doc, un chat.",
+      "b2t": "Reuniones en segundo plano",
+      "b2": "Mientras Voice graba una reunión y la ventana queda atrás, un indicador chico encima de todo muestra el tiempo y deja cortar.",
+      "b3t": "Avisos del sistema",
+      "b3": "Menciones, mensajes directos y avisos de la campana como notificaciones, con el contador en el ícono del dock.",
+      "b4t": "Dictados sin conexión",
+      "b4": "Si un dictado no llega al servidor, queda guardado en tu computadora y se manda de nuevo cuando vuelve la red.",
+      "cta": "Descargar la app",
+      "ctaMac": "Descargar para Mac",
+      "ctaWin": "Descargar para Windows",
+      "more": "Qué incluye y requisitos",
+      "note": "Para Linux todavía no hay. En el teléfono, zerosoft se agrega a la pantalla de inicio desde el navegador.",
+      "fig": {
+        "window": "Mensaje nuevo",
+        "to": "Para: equipo@acme.com",
+        "subject": "Notas de la reunión",
+        "body": "Cerramos el alcance el lunes. Ana arma la propuesta y la mandamos el jueves.",
+        "listening": "Escuchando",
+        "hint": "Esc cancela",
+        "caption": "La barra de dictado de la app, redibujada: aparece abajo al centro, sobre la app que tengas adelante.",
+        "alt": "Una ventana de email con texto dictado y, abajo, la barra de dictado de zerosoft: punto rojo, medidor, Escuchando, 0:06, Esc cancela."
+      }
     }
   },
   "ui": {
@@ -706,6 +744,15 @@
       "title": "Todavía no tenés apps habilitadas",
       "body": "Un admin de {workspace} te las puede habilitar en Ajustes › Miembros.",
       "bodyAdmin": "El owner de {workspace} te las puede habilitar en Ajustes › Miembros."
+    },
+    "cardsLabel": "Sugerencias",
+    "desktop": {
+      "title": "App de escritorio",
+      "body": "Dictá en cualquier app con un atajo y recibí menciones y mensajes como avisos del sistema.",
+      "mac": "Descargar para Mac",
+      "win": "Descargar para Windows",
+      "dismiss": "Ocultar",
+      "dismissError": "No se pudo ocultar. Probá de nuevo."
     }
   },
   "publicPage": {

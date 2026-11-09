@@ -8,9 +8,10 @@ import NotesSignOutDialog from '@/components/notes/NotesSignOutDialog';
 import OfflineStatus from './OfflineStatus';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { pendingWrites } from '@/lib/offline-fetch';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { TZ_CHANGED_EVENT } from '@/lib/tz-client';
 import { desktopBridge, type DesktopBridge } from '@/lib/desktop-bridge';
+import { downloadHref } from '@/lib/desktop-os';
 import { collapsedFrom, denseRoute, storageKey } from '@/lib/sidebar-collapsed';
 import { Link, usePathname } from '@/i18n/navigation';
 import Icon from './icons';
@@ -145,6 +146,7 @@ export default function AppSidebar({
   crumb?: ReactNode;
 }) {
   const t = useTranslations('common.sidebar');
+  const locale = useLocale();
   // Dentro de la app de escritorio: sus Ajustes (dictado, permisos, indicador) en el menú de la cuenta.
   const [desktop, setDesktop] = useState<DesktopBridge | null>(null);
   useEffect(() => setDesktop(desktopBridge()), []);
@@ -696,6 +698,13 @@ export default function AppSidebar({
                   <Icon name={settingsItem.icon} size={14} />
                   {t('desktopSettings')}
                 </button>
+              )}
+              {/* En el navegador: la app de escritorio (dentro de la app, sus ajustes, arriba). */}
+              {!desktop && (
+                <a href={downloadHref('menu', { locale })} role="menuitem" className="side-menu-item" rel="nofollow" data-testid="side-desktop-download">
+                  <Icon name="download" size={14} />
+                  {t('desktopDownload')}
+                </a>
               )}
               {importItem && (
                 <Link

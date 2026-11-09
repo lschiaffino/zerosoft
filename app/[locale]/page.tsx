@@ -25,6 +25,8 @@ import TypedTerminal from '@/components/site/TypedTerminal';
 import { ZeroEdge } from '@/components/zero/ZeroTexture';
 import ProductLinks from '@/components/site/ProductLinks';
 import ProductGlyph from '@/components/brand/ProductGlyph';
+import DesktopCta from '@/components/site/DesktopCta';
+import DesktopHud from '@/components/site/DesktopHud';
 import { GITHUB_URL, INCUMBENTS, PRODUCT_NAMES, annualCost } from '@/components/site/catalog';
 import { PRODUCT_CONFIG } from '@/lib/products';
 import { staticPageMetadata } from '@/lib/seo-pages';
@@ -393,6 +395,51 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                   </code>
                 </pre>,
               ]}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* La app de escritorio: lo que suma a la web, con la barra de dictado real redibujada. */}
+      <section className="lp-section" id="desktop" aria-labelledby="h-desktop">
+        <SectionSign id="h-desktop" title={h('desktop.title')} sub={h('desktop.titleDim')} />
+        <div className="container lp-split">
+          <div className="lp-split-text">
+            <p className="lp-lede">{h('desktop.p')}</p>
+            <ul className="dev-list">
+              {(['b1', 'b2', 'b3', 'b4'] as const).map((b) => (
+                <li key={b}>
+                  <strong>{h(`desktop.${b}t`)}</strong>
+                  <p>{h(`desktop.${b}`)}</p>
+                </li>
+              ))}
+            </ul>
+            <div className="lp-desktop-actions">
+              <DesktopCta
+                from="home"
+                locale={locale}
+                className="btn btn-primary"
+                testId="home-desktop-cta"
+                labels={{ generic: h('desktop.cta'), mac: h('desktop.ctaMac'), win: h('desktop.ctaWin') }}
+              />
+              <Link className="lp-textlink" href="/download">
+                {h('desktop.more')} <Icon name="arrow" size={14} />
+              </Link>
+            </div>
+            <p className="lp-desktop-note">{h('desktop.note')}</p>
+          </div>
+          <div className="lp-split-code">
+            <DesktopHud
+              labels={{
+                window: h('desktop.fig.window'),
+                to: h('desktop.fig.to'),
+                subject: h('desktop.fig.subject'),
+                body: h('desktop.fig.body'),
+                listening: h('desktop.fig.listening'),
+                hint: h('desktop.fig.hint'),
+                caption: h('desktop.fig.caption'),
+                alt: h('desktop.fig.alt'),
+              }}
             />
           </div>
         </div>

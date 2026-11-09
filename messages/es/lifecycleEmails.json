@@ -8,6 +8,14 @@
     "unsubscribeAll": "Dejar de recibir todos estos emails",
     "preferences": "Preferencias de email",
     "fallbackLink": "Si el botón no funciona, copiá este link:",
+    "desktopLine": {
+      "text": "zerosoft también es app para Mac y Windows.",
+      "link": "Descargar"
+    },
+    "desktopNotify": {
+      "text": "Estos avisos también llegan como notificación en la app de escritorio para Mac y Windows.",
+      "link": "Descargarla"
+    },
     "categories": {
       "onboarding": "primeros pasos",
       "tips": "funciones y consejos",
@@ -120,12 +128,14 @@
       "cta": "Abrir Voice"
     },
     "feature_desktop": {
-      "subject": "zerosoft como app de escritorio",
-      "preheader": "Para Mac y Windows, con avisos del sistema.",
+      "subject": "Dictá en cualquier app con zerosoft para escritorio",
+      "preheader": "Mac y Windows: dictado con un atajo y avisos del sistema.",
       "heading": "La app de escritorio",
       "body": [
-        "Hay app de zerosoft para Mac y Windows. Abre directo en tu workspace y te avisa con notificaciones del sistema.",
-        "Entrás con tu cuenta de siempre desde el navegador y listo."
+        "La app de zerosoft para Mac y Windows abre tu workspace en una ventana propia y suma lo que el navegador no puede.",
+        "Dictado en cualquier app: mantené Option + Espacio (Ctrl + Alt + Espacio en Windows), hablá y soltá. El texto se pega donde está el cursor.",
+        "Menciones, mensajes y avisos llegan como notificaciones del sistema, con el contador en el ícono.",
+        "Pesa unos 3 MB y entrás con tu cuenta de siempre."
       ],
       "cta": "Descargar la app"
     },

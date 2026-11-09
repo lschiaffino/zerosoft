@@ -1321,6 +1321,12 @@ td.cell-actions > * + * { margin-left: 4px; }
   border-radius: var(--radius-1);
 }
 .home-card-title { font-size: 0.9375rem; font-weight: 600; }
+/* La tarjeta de la app de escritorio se cierra (components/app/home/DesktopHomeCard.tsx). */
+.home-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; width: 100%; }
+.home-card-close { margin: -6px -8px 0 0; color: var(--brand-gray-2); }
+/* Sin tarjetas (la del escritorio se escondió en el cliente): los recientes a todo el ancho. */
+.home-cards:empty { display: none; }
+.home-split:has(> .home-cards:empty) { grid-template-columns: minmax(0, 1fr); }
 .home-card-body { font-size: 0.8125rem; line-height: 1.45; color: var(--brand-gray-1); }
 
 /* Más apps: una columna por categoría. */

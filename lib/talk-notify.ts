@@ -21,6 +21,7 @@
 import { getDb } from './db';
 import { appSender, escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { createNotification, type NotificationType } from './notifications';
+import { desktopNoteFor } from './desktop-email';
 import { siteUrl } from './board-urls';
 import { HUDDLE_STARTED_BODY, talkPlainText } from './talk-markdown';
 import {
@@ -288,6 +289,8 @@ export async function sendTalkEmails(opts: { limit?: number; now?: Date } = {}):
     const subject =
       r.type === 'talk_reminder' ? fill(L.reminderSubject, vars) : r.type === 'talk_dm' ? fill(L.dmSubject, vars) : meta.channelName ? fill(L.mentionSubject, vars) : fill(L.dmSubject, vars);
     const url = `${siteUrl()}/${loc}${r.href ?? '/app/talk'}`;
+    // Menciones y mensajes directos llegan como aviso del sistema en la app de escritorio.
+    const desktop = await desktopNoteFor(r.user_id, loc);
     const html = renderBrandedHtml({
       heading: subject,
       eyebrow: 'zerosoft · talk',
@@ -296,8 +299,15 @@ export async function sendTalkEmails(opts: { limit?: number; now?: Date } = {}):
         `<a href="${escapeHtml(url)}">${escapeHtml(L.open)}</a>`,
         `<span style="color:#888888;font-size:12px;">${escapeHtml(L.footer)}</span>`,
       ],
+      note: desktop?.html ?? null,
     });
-    const res = await sendEmail({ from: appSender(), to: r.email, subject, html, text: `${r.body ?? ''}\n\n${L.open}: ${url}` }).catch(() => ({ ok: false }));
+    const res = await sendEmail({
+      from: appSender(),
+      to: r.email,
+      subject,
+      html,
+      text: `${r.body ?? ''}\n\n${L.open}: ${url}${desktop ? `\n\n${desktop.text}` : ''}`,
+    }).catch(() => ({ ok: false }));
     if (res.ok) sent++;
   }
   return { sent, skipped };

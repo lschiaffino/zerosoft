@@ -1019,7 +1019,10 @@
       "sample": "Add sample data to explore (contacts, a doc, a project and an event type)",
       "importFrom": "Import from {tool}",
       "go": "Go to {app}",
-      "finish": "Finish"
+      "finish": "Finish",
+      "desktop": "There’s also an app for Mac and Windows, with dictation in any app.",
+      "desktopMac": "Download for Mac",
+      "desktopWin": "Download for Windows"
     },
     "invited": {
       "title": "Welcome to {workspace}",

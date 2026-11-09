@@ -68,6 +68,8 @@ export interface RenderInput {
   category: LifecycleCategory;
   /** auto: sigue al cliente de correo. light/dark: fijo (vista previa del admin). */
   theme?: 'auto' | 'light' | 'dark';
+  /** Ya instaló la app de escritorio: sin la línea de descarga del pie. */
+  desktopInstalled?: boolean;
 }
 
 export interface RenderedEmail {
@@ -101,6 +103,7 @@ export function ctaPath(template: LifecycleTemplate, opts: { app?: ProductKey | 
     case 'feature_voice':
       return '/app/voice';
     case 'feature_desktop':
+      // Pasa por el contador de clics (placement email); termina en /download.
       return '/download';
     case 'feature_mcp':
       return '/docs/mcp';
@@ -125,6 +128,11 @@ function darkCss(): string {
   .lc-rule{border-color:${DARK.rule}!important}
   .lc-btn{background:${DARK.btn}!important}
   .lc-btn a{color:${DARK.btnInk}!important}`;
+}
+
+/** Link de descarga de los emails: cuenta el clic (placement email) y lleva a /download en su idioma. */
+export function desktopEmailUrl(origin: string, locale: LifecycleLocale): string {
+  return `${origin.replace(/\/$/, '')}/api/desktop/download?from=email&locale=${locale}`;
 }
 
 /** Arma asunto, preheader, HTML y texto de un email. Todo lo variable va escapado. */
@@ -165,7 +173,13 @@ export function renderLifecycleEmail(input: RenderInput): RenderedEmail {
       : [];
   const ctaLabel = fill(input.template === 'welcome' && app && t.ctaApp ? t.ctaApp : t.cta, vars);
   const origin = input.origin.replace(/\/$/, '');
-  const ctaUrl = `${origin}/${input.locale}${ctaPath(input.template, { app, tool: input.tool })}`;
+  const ctaUrl =
+    input.template === 'feature_desktop'
+      ? desktopEmailUrl(origin, input.locale)
+      : `${origin}/${input.locale}${ctaPath(input.template, { app, tool: input.tool })}`;
+  // Línea chica en el pie: la app de escritorio, salvo en su propio email o si ya la tiene.
+  const desktopLine = input.template !== 'feature_desktop' && !input.desktopInstalled ? c.common.desktopLine : null;
+  const desktopUrl = desktopEmailUrl(origin, input.locale);
   const category = c.common.categories[input.category];
   const unsubLabel = fill(c.common.unsubscribe, { category });
   const why = fill(c.common.why, { email: input.email });
@@ -222,7 +236,7 @@ ${
 <p class="lc-body" style="margin:0;font-family:${SANS};font-size:15px;line-height:1.6;color:${P.body};">${e(c.common.signoff)}</p>
 </td></tr>
 <tr><td style="padding:20px 8px 0;">
-<p class="lc-muted" style="margin:0 0 8px;font-family:${SANS};font-size:12px;line-height:1.6;color:${P.muted};">${e(why)}</p>
+${desktopLine ? `<p class="lc-muted" style="margin:0 0 8px;font-family:${SANS};font-size:12px;line-height:1.6;color:${P.muted};">${e(desktopLine.text)} <a href="${e(desktopUrl)}" style="color:${P.muted};">${e(desktopLine.link)}</a></p>\n` : ''}<p class="lc-muted" style="margin:0 0 8px;font-family:${SANS};font-size:12px;line-height:1.6;color:${P.muted};">${e(why)}</p>
 <p class="lc-muted" style="margin:0;font-family:${SANS};font-size:12px;line-height:1.8;color:${P.muted};"><a href="${e(input.unsubscribeUrl)}" style="color:${P.muted};">${e(unsubLabel)}</a> &middot; <a href="${e(input.preferencesUrl)}" style="color:${P.muted};">${e(c.common.preferences)}</a> &middot; <a href="${e(input.unsubscribeAllUrl)}" style="color:${P.muted};">${e(c.common.unsubscribeAll)}</a></p>
 </td></tr>
 </table>
@@ -243,6 +257,7 @@ ${
     c.common.signoff,
     '',
     '--',
+    ...(desktopLine ? [`${desktopLine.text} ${desktopLine.link}: ${desktopUrl}`] : []),
     why,
     `${unsubLabel}: ${input.unsubscribeUrl}`,
     `${c.common.preferences}: ${input.preferencesUrl}`,

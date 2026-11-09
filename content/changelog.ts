@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-desktop-download',
+    date: '2026-11-09',
+    title: {
+      en: 'Download the desktop app from anywhere on the site',
+      es: 'La app de escritorio se descarga desde todo el sitio',
+      pt: 'O app para desktop se baixa de qualquer parte do site',
+    },
+    items: [
+      {
+        product: 'site',
+        en: 'The header offers Download for Mac or Windows depending on your computer, the footer lists every installer, and the home page and the Voice, Talk, Track and Notes pages explain what the app adds. After the click, a page shows how to install it on your system.',
+        es: 'El header ofrece Descargar para Mac o para Windows según tu computadora, el footer lista todos los instaladores, y el home y las páginas de Voice, Talk, Track y Notes cuentan qué suma la app. Después del clic, una página muestra cómo instalarla en tu sistema.',
+        pt: 'O cabeçalho oferece Baixar para Mac ou para Windows conforme o seu computador, o rodapé lista todos os instaladores, e a home e as páginas do Voice, Talk, Track e Notes contam o que o app soma. Depois do clique, uma página mostra como instalar no seu sistema.',
+      },
+      {
+        product: 'platform',
+        en: 'If you use zerosoft in the browser, Home shows a card for the desktop app that you can hide. Track and Talk alert emails mention that those alerts can arrive as system notifications.',
+        es: 'Si usás zerosoft en el navegador, el inicio muestra una tarjeta de la app de escritorio que podés ocultar. Los emails de avisos de Track y Talk cuentan que esos avisos pueden llegar como notificación del sistema.',
+        pt: 'Se você usa o zerosoft no navegador, o início mostra um cartão do app para desktop que dá para ocultar. Os emails de avisos do Track e do Talk contam que esses avisos podem chegar como notificação do sistema.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-pulse-rename',
     date: '2026-11-08',
     title: {

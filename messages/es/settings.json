@@ -1019,7 +1019,10 @@
       "sample": "Agregar datos de ejemplo para explorar (contactos, un doc, un proyecto y un tipo de evento)",
       "importFrom": "Importar de {tool}",
       "go": "Ir a {app}",
-      "finish": "Terminar"
+      "finish": "Terminar",
+      "desktop": "También hay app para Mac y Windows, con dictado en cualquier app.",
+      "desktopMac": "Descargar para Mac",
+      "desktopWin": "Descargar para Windows"
     },
     "invited": {
       "title": "Te damos la bienvenida a {workspace}",

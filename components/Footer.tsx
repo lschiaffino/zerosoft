@@ -6,6 +6,7 @@ import { GITHUB_URL, PRODUCT_NAMES, SITE_PRODUCTS } from './site/catalog';
 import Logo from './brand/Logo';
 import ProductGlyph from './brand/ProductGlyph';
 import { ZeroRule } from './zero/ZeroTexture';
+import { downloadHref } from '@/lib/desktop-os';
 import '@/styles/site.css';
 
 /** Key pública del proyecto de Analytics del propio sitio (formato zsp_…). */
@@ -57,9 +58,34 @@ export default async function Footer({ locale }: { locale: string }) {
             <li>
               <Link href="/compare">{t('compare')}</Link>
             </li>
+          </ul>
+          {/* La app de escritorio, debajo de Explorar (una columna más apretaba la marca): cada link cuenta el clic y baja el instalador (lib/desktop-os.ts). */}
+          <h4>{t('colDownload')}</h4>
+          <ul data-testid="footer-download">
             <li>
               <Link href="/download">{t('desktopApp')}</Link>
             </li>
+            <li>
+              <a href={downloadHref('footer', { os: 'mac-arm', locale })} rel="nofollow">
+                {t('dlMacArm')}
+              </a>
+            </li>
+            <li>
+              <a href={downloadHref('footer', { os: 'mac-intel', locale })} rel="nofollow">
+                {t('dlMacIntel')}
+              </a>
+            </li>
+            <li>
+              <a href={downloadHref('footer', { os: 'win', locale })} rel="nofollow">
+                {t('dlWin')}
+              </a>
+            </li>
+            <li>
+              <a href={`${GITHUB_URL}/releases`} target="_blank" rel="noreferrer">
+                {t('dlAll')}
+              </a>
+            </li>
+            <li className="footer-note">{t('dlLinux')}</li>
           </ul>
         </div>
 

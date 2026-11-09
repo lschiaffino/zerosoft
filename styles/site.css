@@ -224,6 +224,16 @@ html[data-session='in'] .hd-out { display: none !important; }
   font-size: 1.5rem;
 }
 
+/* Descargar en el header: le hace lugar el link a GitHub (sigue en el menú de productos y el footer) y, más angosto, queda solo "Descargar". */
+.hd-dl-short { display: none; }
+@media (max-width: 1440px) {
+  .site-header:has(.hd-download) .hd-gh { display: none; }
+}
+@media (max-width: 1320px) {
+  .hd-dl-long { display: none; }
+  .hd-dl-short { display: inline; }
+}
+
 @media (max-width: 1180px) {
   .hd-gh { display: none; }
   .hd-right .locale-switcher,
@@ -233,7 +243,8 @@ html[data-session='in'] .hd-out { display: none !important; }
 @media (max-width: 1024px) {
   .hd-inner { padding: 0 16px; gap: 12px; }
   .hd-nav,
-  .hd-signin { display: none; }
+  .hd-signin,
+  .hd-download { display: none; }
   .nav-burger { display: inline-flex; }
   .hd-right { gap: 8px; }
 
@@ -325,6 +336,8 @@ html[data-session='in'] .hd-out { display: none !important; }
 .footer-col-products ul { columns: 3; column-gap: 16px; }
 .footer-col-products li { break-inside: avoid; }
 .footer-col li { margin-bottom: 10px; }
+.footer-col h4 + ul + h4 { margin-top: 28px; }
+.footer-col .footer-note { font-size: 13px; color: var(--brand-on-ink-2); opacity: 0.75; }
 .footer-col a {
   display: inline-flex;
   align-items: center;
@@ -647,6 +660,30 @@ section.status-note-block { padding: 24px; }
   border-bottom: 1px solid var(--line);
 }
 .dl-p { max-width: 68ch; }
+.dl-p a { text-decoration: underline; text-underline-offset: 3px; }
+
+/* /download/start: la descarga en curso y los pasos para instalar. */
+.dl-start-kicker { font-family: var(--font-data); font-size: 13px; color: var(--brand-gray-2); margin-bottom: 12px; }
+.dl-start-hero .read-intro a { text-decoration: underline; text-underline-offset: 3px; }
+.dl-steps { list-style: none; max-width: 72ch; }
+.dl-step {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.dl-step:first-child { border-top: 1px solid var(--line); }
+.dl-step-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--ink);
+  font-size: 13px;
+}
+.dl-step-body { display: grid; gap: 4px; }
 
 @media (max-width: 860px) {
   .dl-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }

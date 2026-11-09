@@ -14,7 +14,8 @@ test.describe('/download', () => {
     await expect(page).toHaveTitle(/Download zerosoft for Mac and Windows/);
     const primary = page.getByTestId('download-primary');
     await expect(primary).toBeVisible();
-    await expect(primary).toHaveAttribute('href', /releases\/download\/desktop-v0\.1\.0\/zerosoft-0\.1\.0-mac-(arm64|x64)\.dmg$/);
+    // Pasa por el contador de clics y termina en /download/start (baja el instalador y muestra los pasos).
+    await expect(primary).toHaveAttribute('href', /^\/api\/desktop\/download\?from=download&os=mac-(arm|intel)&locale=en$/);
     await expect(page.getByRole('link', { name: 'All files for version 0.1.0' })).toHaveAttribute('href', /releases\/tag\/desktop-v0\.1\.0$/);
     await expect(page.getByRole('heading', { name: 'The builds are not signed yet' })).toBeVisible();
     await expect(page.getByText('click Open Anyway')).toBeVisible();
@@ -47,7 +48,7 @@ test.describe('/download', () => {
     const p2 = await mac.newPage();
     await p2.goto('/pt/download');
     await expect(p2.getByTestId('download-primary')).toHaveText('Baixar para Mac (Apple silicon)');
-    await expect(p2.getByRole('link', { name: 'Seu Mac tem chip Intel? Baixe a versão Intel.' })).toHaveAttribute('href', /mac-x64\.dmg$/);
+    await expect(p2.getByRole('link', { name: 'Seu Mac tem chip Intel? Baixe a versão Intel.' })).toHaveAttribute('href', '/api/desktop/download?from=download&os=mac-intel&locale=pt');
     await expect(p2.getByTestId('download-win')).toBeVisible();
     await mac.close();
   });

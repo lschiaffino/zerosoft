@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import CopyButton from '@/components/link/CopyButton';
+import DesktopCta from '@/components/site/DesktopCta';
 import { Link } from '@/i18n/navigation';
 import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import { featuredApps, WORKSPACE_SIZES_LIST, type WorkspaceMode } from '@/lib/workspace-mode';
@@ -537,6 +538,17 @@ export default function WelcomeFlow(props: {
             <input type="checkbox" checked={sample} onChange={(e) => setSample(e.target.checked)} />
             <span>{t('start.sample')}</span>
           </label>
+          {/* La app de escritorio, sin un paso más: un link que abre otra pestaña y solo en Mac o Windows. */}
+          <DesktopCta
+            from="onboarding"
+            locale={locale}
+            className="wl-desktop"
+            testId="welcome-desktop"
+            newTab
+            hideWithoutApp
+            lead={t('start.desktop')}
+            labels={{ generic: t('start.desktopMac'), mac: t('start.desktopMac'), win: t('start.desktopWin') }}
+          />
         </>
       )}
 

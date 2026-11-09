@@ -79,7 +79,8 @@ export type IconName =
   | 'timeoff'
   | 'orgchart'
   | 'clock'
-  | 'check';
+  | 'check'
+  | 'download';
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
@@ -525,6 +526,8 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   themeDark: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
+  // Bajar la app de escritorio (menú de la cuenta).
+  download: <path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14" />,
 };
 
 export default function Icon({ name, size = 14 }: { name: IconName; size?: number }) {

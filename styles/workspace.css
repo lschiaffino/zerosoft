@@ -269,6 +269,9 @@ img.ws-mark.ws-mark-sm { width: 18px; height: 18px; }
 }
 .wl-emails { font-family: var(--font-data); font-size: 13px; resize: vertical; }
 .wl-sample { margin-top: -4px; }
+.wl-desktop { font-size: 13px; line-height: 1.5; color: var(--brand-gray-2); }
+.wl-desktop a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.wl-desktop a:hover { color: var(--ink); }
 .wl-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
 .wl-actions-main { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .wl-foot { margin: 0; font-size: 12px; color: var(--ink-3); overflow-wrap: anywhere; }
