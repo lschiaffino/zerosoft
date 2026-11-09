@@ -190,7 +190,7 @@ export default function GroupsList({
           ))}
         {properties.length > 0 && (
           <div className="gr-columns">
-            <button type="button" className="btn btn-ghost" aria-expanded={columnsOpen} onClick={() => setColumnsOpen((v) => !v)}>
+            <button type="button" className="btn btn-ghost" aria-haspopup="true" aria-expanded={columnsOpen} onClick={() => setColumnsOpen((v) => !v)}>
               {t('list.columns')}
             </button>
             {columnsOpen && (

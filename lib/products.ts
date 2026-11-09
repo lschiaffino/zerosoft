@@ -92,6 +92,22 @@ export const APP_SWITCHER_ORDER = [
 /** Todas las apps de la suite. */
 export type ProductKey = keyof typeof PRODUCT_CONFIG;
 
+/**
+ * Apps personales de cada persona (sus mensajes, no los del workspace): las
+ * tiene siempre, en todo workspace, sin importar las apps que le habilitaron.
+ * No se dan ni se quitan en Ajustes › Miembros.
+ */
+export const ALWAYS_ON_APPS: readonly ProductKey[] = ['inbox'];
+
+export function isAlwaysOnApp(key: string): boolean {
+  return (ALWAYS_ON_APPS as readonly string[]).includes(key);
+}
+
+/** ¿La app entra en la lista de apps permitidas de la sesión? ('*' o lista; las personales siempre). */
+export function appAllowed(allowed: '*' | readonly string[] | null | undefined, key: ProductKey): boolean {
+  return allowed == null || allowed === '*' || isAlwaysOnApp(key) || allowed.includes(key);
+}
+
 /** Apps con página en el sitio (hoy, todas). */
 export type SiteProductKey = ProductKey;
 
@@ -193,5 +209,5 @@ export type AllowedApps = '*' | readonly ProductKey[];
  */
 export function hrefAllowed(allowed: AllowedApps, href: string, app?: ProductKey | null): boolean {
   const target = app ?? appFromPath(href);
-  return !target || allowed === '*' || allowed.includes(target);
+  return !target || appAllowed(allowed, target);
 }

@@ -253,8 +253,8 @@ describe('sidebar del inicio: tus apps y "Más apps"', () => {
     expect(groups[1]).toMatchObject({ section: 'More apps', collapsible: true });
     expect(groups[0].items.length + groups[1].items.length).toBe(SWITCHER_PRODUCTS.length);
   });
-  it('respeta el acceso por app y no muestra "Más apps" vacío', () => {
+  it('respeta el acceso por app y no muestra "Más apps" vacío (Inbox, personal, siempre está)', () => {
     const groups = homeAppGroups(L, { allowed: ['crm', 'social'] });
-    expect(groups.map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/social']]);
+    expect(groups.map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/social', '/app/inbox']]);
   });
 });
