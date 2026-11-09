@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useRef, type ReactNode, useLayoutEffect } from 'react';
-import type { HealthState } from '@/lib/track-planning-core';
+import { initialsOf, parseInstant, type HealthState } from '@/lib/track-planning-core';
+
+export { initialsOf, parseInstant };
 
 /** fetch JSON con { ok, status, data } (sin tirar en errores de red). */
 export async function api<T = Record<string, unknown>>(
@@ -40,9 +42,17 @@ export function fmtDay(day: string | null | undefined, locale: string, withYear 
 }
 
 export function fmtWhen(iso: string, locale: string): string {
-  const d = new Date(iso.includes('T') ? iso : `${iso.replace(' ', 'T')}Z`);
-  if (Number.isNaN(d.getTime())) return '';
+  const d = parseInstant(iso);
+  if (!d) return '';
   return d.toLocaleString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+/** Instante → día local corto ("12 nov"), el mismo día que muestra fmtWhen. */
+export function fmtInstantDay(iso: string | null | undefined, locale: string): string {
+  const d = parseInstant(iso);
+  if (!d) return '';
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: sameYear ? undefined : 'numeric' });
 }
 
 /** Ícono de salud (círculo con color semántico), como en Linear. */

@@ -221,23 +221,30 @@ test.describe('Track: lista como Linear', () => {
     void b;
   });
 
-  test('Show sub-issues: árbol bajo el padre (aunque tengan otro estado) y el chevron lo pliega', async ({ page, request }) => {
+  test('Show sub-issues: cada issue en su grupo de estado, árbol bajo el padre dentro del grupo y el chevron lo pliega', async ({ page, request }) => {
     const p = await team(request);
     const started = p.statuses.find((s) => s.category === 'in_progress')!;
+    const todo = p.statuses.find((s) => s.category === 'todo')!;
     const parent = await ok<Issue>(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Padre árbol', statusId: started.id } }));
-    await ok(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Hijo árbol', parentId: parent.id } }));
+    await ok(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Hijo árbol', parentId: parent.id, statusId: started.id } }));
+    await ok(request.post(`/api/track/projects/${p.id}/issues`, { data: { title: 'Hijo en todo', parentId: parent.id, statusId: todo.id } }));
     await page.goto(`/en/app/track/team/${p.id}`);
     await page.waitForLoadState('networkidle');
     const rows = page.locator('tr[data-issue-row]');
-    await expect(rows).toHaveCount(2);
-    // El hijo (Todo) queda indentado justo debajo del padre (In progress).
-    await expect(rows.nth(0)).toContainText('Padre árbol');
-    await expect(rows.nth(1)).toContainText('Hijo árbol');
-    await expect(rows.nth(1)).toHaveClass(/is-child/);
-    await page.getByTestId('track-tree-toggle').click();
-    await expect(rows).toHaveCount(1);
-    await page.getByTestId('track-tree-toggle').click();
-    await expect(rows).toHaveCount(2);
+    await expect(rows).toHaveCount(3);
+    // Como Linear: el hijo en Todo va en el grupo Todo, no en el del padre.
+    await expect(page.getByTestId('track-group').filter({ hasText: todo.name })).toContainText('Hijo en todo');
+    const startedGroup = page.getByTestId('track-group').filter({ hasText: started.name });
+    await expect(startedGroup).not.toContainText('Hijo en todo');
+    // El hijo del mismo estado queda indentado justo debajo del padre.
+    const inGroup = startedGroup.locator('tr[data-issue-row]');
+    await expect(inGroup.nth(0)).toContainText('Padre árbol');
+    await expect(inGroup.nth(1)).toContainText('Hijo árbol');
+    await expect(inGroup.nth(1)).toHaveClass(/is-child/);
+    await startedGroup.getByTestId('track-tree-toggle').click();
+    await expect(inGroup).toHaveCount(1);
+    await startedGroup.getByTestId('track-tree-toggle').click();
+    await expect(inGroup).toHaveCount(2);
     await shot(page, 'tl3-tree');
   });
 

@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     teamId: sp.get('team') || undefined,
     initiativeId: sp.get('initiative') || undefined,
     q: sp.get('q') || undefined,
+    includeArchived: sp.get('archived') === '1',
   });
   if (sp.get('meta') !== '1' && !metaOnly) return NextResponse.json({ rows });
   const [members, teams, initiatives] = await Promise.all([

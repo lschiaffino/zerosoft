@@ -9,7 +9,7 @@ import { isTypingTarget as isTextTarget, markGoPending } from './trackCommands';
 import { activeRowElement, installCursor, moveActive, resetCursor } from './kbCursor';
 import { TrackToast, useToday } from './InlineEditors';
 import { buildTrackUiLabels } from './ui-labels';
-import { openTrackNewIssue, TRACK_NEW_ISSUE_EVENT, type IssueDraft, type ProjectContext } from './useIssueStore';
+import { TRACK_NEW_ISSUE_EVENT, type IssueDraft, type ProjectContext } from './useIssueStore';
 
 // El alta rápida (con el editor visual) se baja aparte y se precarga en reposo.
 const loadQuickIssueModal = () => import('./QuickIssueModal');
@@ -131,6 +131,8 @@ export default function TrackShortcuts() {
       }
     };
     const onEvent = (e: Event) => {
+      // Un reintento de ?newIssue=1 espera a que la vista (la lista) esté lista: sin modal global todavía.
+      if ((e as CustomEvent<{ noFallback?: boolean }>).detail?.noFallback) return;
       window.setTimeout(() => {
         if (!e.defaultPrevented) void openModal();
       }, 0);
@@ -156,7 +158,16 @@ export default function TrackShortcuts() {
     params.delete('newIssue');
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    window.setTimeout(openTrackNewIssue, 50);
+    // La lista se suscribe cuando cargó sus datos: se le avisa hasta que lo tome (~2 s) y recién
+    // entonces abre el modal global, así el issue nace en el contexto de la página.
+    // (Sin limpiar el timer al desmontar el efecto: el replace de arriba lo vuelve a correr al sacar el parámetro.)
+    // El último intento va sin noFallback: si nadie lo tomó, el listener de abajo abre el modal global.
+    const offer = (tries: number) => {
+      const ev = new CustomEvent(TRACK_NEW_ISSUE_EVENT, { cancelable: true, detail: { noFallback: tries > 0 } });
+      window.dispatchEvent(ev);
+      if (!ev.defaultPrevented && tries > 0) window.setTimeout(() => offer(tries - 1), 150);
+    };
+    window.setTimeout(() => offer(14), 50);
   }, [searchParams, pathname, router]);
 
   async function create(projectId: string, draft: IssueDraft) {
