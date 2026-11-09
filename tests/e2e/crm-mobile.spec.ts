@@ -155,16 +155,16 @@ test.describe('CRM instalable y offline', () => {
     await context.setOffline(true);
     await page.reload();
     await expect(page.getByRole('heading', { name: `Offline ${tag}` })).toBeVisible();
-    await expect(page.getByTestId('crm-offline-bar')).toBeVisible();
+    await expect(page.getByTestId('offline-status')).toBeVisible();
 
     const note = `Nota sin señal ${tag}`;
     await page.locator('.tl-composer textarea').first().fill(note);
     await page.locator('.tl-composer button[type="submit"]').click();
     await expect(page.getByText('Saved offline. It syncs when the connection is back.').first()).toBeVisible();
-    await expect(page.getByTestId('crm-offline-bar')).toContainText('1 change');
+    await expect(page.getByTestId('offline-status')).toContainText('1 change');
 
     await context.setOffline(false);
-    await expect(page.getByTestId('crm-offline-bar')).toContainText(/saved|Syncing/);
+    await expect(page.getByTestId('offline-status')).toContainText(/Synced|Syncing/);
     await expect
       .poll(async () => {
         const res = await request.get(`/api/crm/activities?contactId=${contact.id}`);
