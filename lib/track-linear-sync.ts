@@ -994,6 +994,12 @@ async function pushIssue(conn: LinearConnection, issueId: string): Promise<void>
     else if (decision === 'push' && f !== 'cycle') pushFields.push(f);
     else if (decision === 'pull') pullNeeded = true;
   }
+  // Linear ganó algún campo (cambió después): se trae antes de mandar (con el nodo de Linear de antes del envío,
+  // así lo que se manda todavía cuenta como cambio de Track y no se pisa).
+  if (pullNeeded) {
+    const res = await applyLinearIssue(conn, node, lc, emails);
+    if (res.pulled.length) await logIntegrationEvent(ws, 'linear', 'in', 'issue.updated', `${issue.identifier}: ${res.pulled.join(', ')}`);
+  }
   if (pushFields.length) {
     const input = stripUndefined(pushInput(pushFields, track, side, lc, ctx));
     if (Object.keys(input).length) {
@@ -1002,11 +1008,6 @@ async function pushIssue(conn: LinearConnection, issueId: string): Promise<void>
     }
     for (const f of pushFields) await agree(ws, issueId, f, fieldHash(track[f]));
     await logIntegrationEvent(ws, 'linear', 'out', 'issue.updated', `${String(node.identifier ?? issue.identifier)}: ${pushFields.join(', ')}`);
-  }
-  // Linear ganó algún campo (cambió después): se trae ahora.
-  if (pullNeeded) {
-    const res = await applyLinearIssue(conn, node, lc, emails);
-    if (res.pulled.length) await logIntegrationEvent(ws, 'linear', 'in', 'issue.updated', `${issue.identifier}: ${res.pulled.join(', ')}`);
   }
 }
 
