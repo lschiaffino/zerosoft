@@ -40,7 +40,9 @@ function fmtDate(raw: string, locale: string): string {
 function useDriveImport(jobId: string | null, onDone: () => void) {
   const [job, setJob] = useState<ImportJobView | null>(null);
   const done = useRef(onDone);
-  done.current = onDone;
+  useEffect(() => {
+    done.current = onDone;
+  }, [onDone]);
   useEffect(() => {
     if (!jobId) return;
     let alive = true;

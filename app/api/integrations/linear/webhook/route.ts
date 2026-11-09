@@ -17,8 +17,21 @@ const MAX_BODY = 512 * 1024;
 export async function POST(req: NextRequest) {
   const length = Number(req.headers.get('content-length') ?? 0);
   if (length > MAX_BODY) return NextResponse.json({ error: 'too_large' }, { status: 413 });
-  const raw = await req.text();
-  if (raw.length > MAX_BODY) return NextResponse.json({ error: 'too_large' }, { status: 413 });
+  // Leído por partes: un cuerpo sin content-length tampoco pasa del tope.
+  const reader = req.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (reader) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY) {
+      await reader.cancel().catch(() => undefined);
+      return NextResponse.json({ error: 'too_large' }, { status: 413 });
+    }
+    chunks.push(value);
+  }
+  const raw = Buffer.concat(chunks).toString('utf8');
   const outcome = await handleLinearWebhook(raw, req.headers.get('linear-signature'));
   if (outcome.status !== 200) return NextResponse.json({ error: outcome.status === 401 ? 'invalid_signature' : 'invalid_payload' }, { status: outcome.status });
   const ids = outcome.queued.map((q) => q.outboxId).filter((x): x is string => !!x);

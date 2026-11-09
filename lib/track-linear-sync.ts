@@ -326,6 +326,30 @@ export async function exchangeLinearCode(code: string): Promise<{ token: string;
 }
 
 async function refreshOAuthToken(conn: LinearConnection): Promise<void> {
+  // Otra corrida ya lo refrescó: se usa ese token (dos refrescos a la vez invalidan el refresh token).
+  const latest = await getLinearConnection(conn.workspaceId);
+  if (latest?.config.tokenExpiresAt && Date.parse(latest.config.tokenExpiresAt) > Date.now() + 60_000) {
+    conn.token = latest.token;
+    conn.secrets = latest.secrets;
+    conn.config = latest.config;
+    return;
+  }
+  // Claim por fila: una sola corrida refresca a la vez; las demás reintentan en un rato.
+  const db = getDb();
+  await db.prepare('INSERT OR IGNORE INTO track_linear_sync_state (workspace_id) VALUES (?)').run(conn.workspaceId);
+  const until = new Date(Date.now() + 30_000).toISOString();
+  const claim = await db
+    .prepare("UPDATE track_linear_sync_state SET rate_limited_until = ? WHERE workspace_id = ? AND (rate_limited_until IS NULL OR rate_limited_until < ?)")
+    .run(until, conn.workspaceId, new Date().toISOString());
+  if (!claim.changes) throw new LinearApiError('rate_limited', until);
+  try {
+    await doRefresh(conn);
+  } finally {
+    await db.prepare('UPDATE track_linear_sync_state SET rate_limited_until = NULL WHERE workspace_id = ? AND rate_limited_until = ?').run(conn.workspaceId, until);
+  }
+}
+
+async function doRefresh(conn: LinearConnection): Promise<void> {
   if (!conn.secrets.refreshToken) return;
   const t = await tokenRequest({ refresh_token: conn.secrets.refreshToken, grant_type: 'refresh_token' });
   conn.token = t.access_token!;
@@ -497,6 +521,14 @@ export async function disconnectLinear(workspaceId: string): Promise<boolean> {
     }
   }
   const db = getDb();
+  // Un import en curso se corta y su copia del token se borra.
+  const state = await getSyncState(workspaceId);
+  if (state?.import_job_id) {
+    const { getImportJob } = await import('./import-jobs');
+    const { cancelImportJob } = await import('./import-runner');
+    const job = await getImportJob(state.import_job_id);
+    if (job) await cancelImportJob(job);
+  }
   await db.prepare("UPDATE track_integration_outbox SET status = 'skipped', last_error = 'disconnected' WHERE workspace_id = ? AND provider = 'linear' AND status = 'pending'").run(workspaceId);
   await db.prepare("UPDATE track_linear_sync_state SET phase = 'setup', import_job_id = NULL, locked_until = NULL, last_error = NULL WHERE workspace_id = ?").run(workspaceId);
   contextCache.delete(workspaceId);
@@ -1115,9 +1147,13 @@ export async function runLinearOutbox(workspaceId: string, kind: string, payload
     await touchIntegration(conn.row.id);
     await setSyncState(workspaceId, { last_sync_at: new Date().toISOString() });
   } catch (err) {
-    // Solo el código: un mensaje de Linear podría traer datos de la cuenta.
+    // Solo códigos conocidos: un mensaje de Linear o de la base podría traer datos.
     if (err instanceof LinearApiError) throw new Error(err.code);
-    throw err;
+    if (err instanceof IntegrationSkip) throw err;
+    if (err instanceof Error && ['issue_not_synced', 'linear_rejected', 'rate_limited'].includes(err.message)) throw err;
+    // eslint-disable-next-line no-console
+    console.error('[linear-sync] outbox failed', kind, err instanceof Error ? err.name : 'error');
+    throw new Error('internal_error');
   }
 }
 

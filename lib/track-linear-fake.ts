@@ -37,7 +37,9 @@ export const LINEAR_FAKE_TOKENS = ['lin_api_fake', 'lin_api_fake_v2', 'lin_api_f
 
 export function linearFakeAllowed(): boolean {
   if (process.env.TRACK_LINEAR_FAKE !== '1') return false;
-  return process.env.NODE_ENV === 'test' || process.env.DEMO_MODE === 'true';
+  if (process.env.NODE_ENV === 'test') return true;
+  // Demo en producción solo con el permiso explícito de la demo (como el middleware) y nunca en Vercel.
+  return process.env.DEMO_MODE === 'true' && (process.env.NODE_ENV !== 'production' || process.env.DEMO_MODE_ALLOW_PRODUCTION === 'true') && !process.env.VERCEL;
 }
 
 /** Toda key lin_api_fake… va al fake; las que no están en la lista dan AUTHENTICATION_ERROR (key equivocada). */
