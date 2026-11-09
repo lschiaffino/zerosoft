@@ -210,8 +210,8 @@ test('recipes: biblioteca con los tuyos compartidos, correrlos, editarlos y borr
   // Dictar la pregunta: el texto dictado queda en el campo.
   await context.addCookies([{ name: 'voice_fake_text', value: encodeURIComponent('What is the budget'), url: baseURL! }]);
   await page.getByRole('button', { name: 'Dictate the question' }).click();
-  await expect(page.getByRole('button', { name: 'Stop dictating' })).toBeVisible();
-  await page.waitForTimeout(800);
+  await expect(page.getByRole('button', { name: 'Stop dictating' })).toHaveAttribute('data-state', 'recording', { timeout: 15_000 });
+  await page.waitForTimeout(1200);
   await page.getByRole('button', { name: 'Stop dictating' }).click();
   await expect(input).toHaveValue(/What is the budget/i, { timeout: 15_000 });
 

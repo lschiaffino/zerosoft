@@ -459,6 +459,7 @@ export default function MeetingAsk({
                   className={`btn btn-ghost btn-sm btn-icon vc-dictate${dictating ? ' is-on' : ''}`}
                   aria-label={dictating ? t('dictateStop') : t('dictate')}
                   aria-pressed={dictating}
+                  data-state={dict.state}
                   title={dictating ? t('dictateStop') : t('dictate')}
                   disabled={dict.state === 'transcribing'}
                   aria-busy={dict.state === 'transcribing' || undefined}
