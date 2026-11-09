@@ -236,6 +236,9 @@ export default function RecShareDialog({
             <h2 className="ui-modal-title rec-share-title" id={`${id}-t`}>
               {t('titleOf', { title: video.title })}
             </h2>
+            <button type="button" className="btn btn-ghost btn-sm rec-share-close" onClick={onClose} aria-label={tc('cancel')} data-testid="rec-share-close">
+              <span aria-hidden="true">×</span>
+            </button>
           </div>
           <div className="ui-modal-body rec-share-body">
             {video.canManage && (
@@ -273,7 +276,7 @@ export default function RecShareDialog({
                     <option value="commenter">{t('roleCommenter')}</option>
                     <option value="viewer">{t('roleViewer')}</option>
                   </select>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => void add()} disabled={adding || !draft.trim()} aria-busy={adding || undefined} data-testid="rec-share-add">
+                  <button type="button" className="btn btn-secondary btn-sm rec-share-invite" onClick={() => void add()} disabled={adding || !draft.trim()} aria-busy={adding || undefined} data-testid="rec-share-add">
                     {t('invite')}
                   </button>
                 </div>
@@ -494,7 +497,7 @@ export default function RecShareDialog({
             <div className="rec-share-copy">
               <RecCopy text={shareUrl} label={t('copyLink')} testId="rec-share-copy" />
             </div>
-            <button type="button" className="btn btn-sm" onClick={onClose}>
+            <button type="button" className="btn btn-sm rec-share-cancel" onClick={onClose}>
               {tc('cancel')}
             </button>
             {video.canManage && (
