@@ -6,13 +6,16 @@ import { Link, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import type { PlanSummary } from '@/lib/track-plans';
-import { PLAN_STATUSES, type PlanStatus } from '@/lib/track-planning-schema';
-import { api, fmtDay, HealthDot, LoadingRows, Modal, PlanStatusIcon, ProgressBar, personName, type Person } from './shared';
+import { PLAN_PRIORITIES, PLAN_STATUSES, type PlanStatus } from '@/lib/track-planning-schema';
+import { PLAN_LIST_SORTS, sortPlans, type PlanListSort } from '@/lib/track-plan-list';
+import { api, HealthDot, LoadingRows, Modal, PlanStatusIcon, personName, type Person } from './shared';
 import { projectPath } from '@/lib/track-routes';
 import KeyPicker, { type KeyPickerHandle } from '@/components/track/KeyPicker';
 import { isTypingTarget } from '@/components/track/trackCommands';
 import TrackIcon from '@/components/track/TrackIcon';
 import { DateChip } from './pickers';
+import { PriorityIcon, TrackToast } from '@/components/track/InlineEditors';
+import { pushUndo } from '@/components/track/trackUndo';
 
 export interface PlansMeta {
   members: Person[];
@@ -44,10 +47,14 @@ export default function PlansList() {
   const lead = sp.get('lead') ?? '';
   const team = sp.get('team') ?? '';
   const group = (sp.get('group') as Group) || 'status';
+  const health = sp.get('health') ?? '';
+  const showArchived = sp.get('archived') === '1';
+  const [notice, setNotice] = useState<string | null>(null);
+  const sort: PlanListSort = (PLAN_LIST_SORTS as readonly string[]).includes(sp.get('sort') ?? '') ? (sp.get('sort') as PlanListSort) : 'manual';
 
   const load = useCallback(async () => {
     setFailed(false);
-    const res = await api<{ rows: PlanSummary[] } & PlansMeta>('/api/track/plans?meta=1');
+    const res = await api<{ rows: PlanSummary[] } & PlansMeta>(`/api/track/plans?meta=1${showArchived ? '&archived=1' : ''}`);
     if (!res.ok) {
       setFailed(true);
       setRows([]);
@@ -55,7 +62,32 @@ export default function PlansList() {
     }
     setRows(res.data.rows);
     setMeta({ members: res.data.members, teams: res.data.teams, initiatives: res.data.initiatives, me: res.data.me });
-  }, []);
+  }, [showArchived]);
+
+  // Editar una celda de la tabla: se ve al instante, se guarda y deja Deshacer (como Linear).
+  const patchRow = useCallback(
+    async (id: string, body: Record<string, unknown>, undo = true) => {
+      const before = rows?.find((r) => r.id === id);
+      const res = await api<PlanSummary & { error?: string }>(`/api/track/plans/${id}`, 'PATCH', body);
+      if (!res.ok) {
+        setNotice(res.data.error === 'invalid_range' ? t('plan.invalidRange') : t('common.saveError'));
+        return;
+      }
+      setRows((cur) => (cur ? cur.map((r) => (r.id === id ? res.data : r)) : cur));
+      if (!undo || !before) return;
+      const prev: Record<string, unknown> = {};
+      if ('status' in body) prev.status = before.status;
+      if ('priority' in body) prev.priority = before.priority;
+      if ('leadId' in body) prev.leadId = before.lead_id;
+      if ('targetDate' in body) prev.targetDate = before.target_date;
+      pushUndo(
+        t('plans.updated', { name: before.name }),
+        () => patchRow(id, prev, false),
+        () => patchRow(id, body, false),
+      );
+    },
+    [rows, t],
+  );
 
   useEffect(() => {
     void load();
@@ -72,6 +104,7 @@ export default function PlansList() {
   const statusRef = useRef<KeyPickerHandle>(null);
   const leadRef = useRef<KeyPickerHandle>(null);
   const teamRef = useRef<KeyPickerHandle>(null);
+  const healthRef = useRef<KeyPickerHandle>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'f' || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat || isTypingTarget(e.target)) return;
@@ -98,22 +131,24 @@ export default function PlansList() {
       if (status !== 'all' && status !== 'active' && p.status !== status) return false;
       if (lead && p.lead_id !== lead) return false;
       if (team && !p.teams.some((x) => x.id === team)) return false;
+      if (health && p.health !== health) return false;
       return true;
     });
-  }, [rows, status, lead, team]);
+  }, [rows, status, lead, team, health]);
 
   const groups = useMemo(() => {
-    if (group === 'none') return [{ key: 'all', label: '', rows: filtered }];
+    if (group === 'none') return [{ key: 'all', label: '', rows: sortPlans(filtered, sort) }];
     if (group === 'lead') {
       const keys = [...new Set(filtered.map((p) => p.lead_id ?? ''))];
       return keys.map((k) => ({
         key: k || 'none',
         label: k ? personName(meta?.members.find((m) => m.id === k)) || filtered.find((p) => p.lead_id === k)?.lead_name || '' : t('common.noLead'),
-        rows: filtered.filter((p) => (p.lead_id ?? '') === k),
+        rows: sortPlans(filtered.filter((p) => (p.lead_id ?? '') === k), sort),
       }));
     }
-    return PLAN_STATUSES.map((s) => ({ key: s, label: t(`status.${s}`), rows: filtered.filter((p) => p.status === s) })).filter((g) => g.rows.length);
-  }, [filtered, group, meta, t]);
+    return PLAN_STATUSES.map((s) => ({ key: s, label: t(`status.${s}`), rows: sortPlans(filtered.filter((p) => p.status === s), sort) })).filter((g) => g.rows.length);
+  }, [filtered, group, meta, t, sort]);
+  const teamName = team ? meta?.teams.find((m) => m.id === team)?.name : undefined;
 
   return (
     <>
@@ -121,23 +156,24 @@ export default function PlansList() {
         {/* Filtros como chips con menú tipeado (sin <select>), como el Filter de Linear. */}
         <KeyPicker
           ref={filterRef}
-          ariaLabel={t('plans.filters')}
+          ariaLabel={t('plans.filter')}
           className="btn btn-ghost btn-sm tp-filter-btn"
           testId="tp-filter"
           options={[
             { value: 'status', label: t('plans.filterStatus'), icon: <PlanStatusIcon status="in_progress" /> },
             { value: 'lead', label: t('plans.filterLead'), icon: <TrackIcon name="user" size={13} /> },
             { value: 'team', label: t('plans.filterTeam'), icon: <TrackIcon name="team" size={13} /> },
+            { value: 'health', label: t('plans.filterHealth'), icon: <HealthDot health="on_track" label="" /> },
           ]}
           onSelect={(v) => {
-            const next = v === 'status' ? statusRef : v === 'lead' ? leadRef : teamRef;
+            const next = v === 'status' ? statusRef : v === 'lead' ? leadRef : v === 'health' ? healthRef : teamRef;
             // En el mismo tick (no se pierden letras tipeadas enseguida): el de valores toma el foco al montarse.
             next.current?.open();
           }}
           trigger={
             <>
               <TrackIcon name="filter" size={12} />
-              <span>{t('plans.filters')}</span>
+              <span>{t('plans.filter')}</span>
               <kbd className="kbd" aria-hidden>
                 f
               </kbd>
@@ -187,24 +223,51 @@ export default function PlansList() {
           onSelect={(v) => setParam('team', v)}
           trigger={<span className="track-inline-text">{team ? (meta?.teams.find((m) => m.id === team)?.name ?? '') : t('plans.anyTeam')}</span>}
         />
+        <KeyPicker
+          ref={healthRef}
+          ariaLabel={t('plans.filterHealth')}
+          className={`tp-chip${health ? '' : ' is-empty'}`}
+          testId="tp-filter-health"
+          value={health}
+          options={[
+            { value: '', label: t('plans.anyHealth') },
+            ...(['on_track', 'at_risk', 'off_track', 'missing', 'none'] as const).map((h) => ({ value: h, label: t(`health.${h}`), icon: <HealthDot health={h} label="" /> })),
+          ]}
+          onSelect={(v) => setParam('health', v)}
+          trigger={<span className="track-inline-text">{health ? t(`health.${health}`) : t('plans.anyHealth')}</span>}
+        />
         <span className="tp-toolbar-end">
           {/* Display: agrupación (y la vista de línea de tiempo), como el botón Display de Linear. */}
           <KeyPicker
             ariaLabel={t('plans.groupBy')}
             className="btn btn-ghost btn-sm track-display-btn"
             testId="tp-group"
-            value={group}
+            value={showArchived ? [group, 'archived'] : group}
             options={[
-              { value: 'status', label: t('plans.groupStatus') },
-              { value: 'lead', label: t('plans.groupLead') },
-              { value: 'none', label: t('plans.groupNone') },
+              { value: 'status', label: t('plans.groupStatus'), group: t('plans.grouping') },
+              { value: 'lead', label: t('plans.groupLead'), group: t('plans.grouping') },
+              { value: 'none', label: t('plans.groupNone'), group: t('plans.grouping') },
+              { value: 'archived', label: t('plans.showArchived'), group: t('plans.show'), icon: <TrackIcon name="archive" size={13} /> },
             ]}
-            onSelect={(v) => setParam('group', v === 'status' ? '' : v)}
+            onSelect={(v) => (v === 'archived' ? setParam('archived', showArchived ? '' : '1') : setParam('group', v === 'status' ? '' : v))}
             trigger={
               <>
                 <TrackIcon name="settings" size={12} />
                 <span>{t('plans.display')}</span>
               </>
+            }
+          />
+          <KeyPicker
+            ariaLabel={t('plans.orderBy')}
+            className="btn btn-ghost btn-sm"
+            testId="tp-sort"
+            value={sort}
+            options={PLAN_LIST_SORTS.map((v) => ({ value: v, label: t(`plans.sorts.${v}`) }))}
+            onSelect={(v) => setParam('sort', v === 'manual' ? '' : v)}
+            trigger={
+              <span className="track-inline-text">
+                <span className="tp-sort-label">{t('plans.orderBy')}:</span> {t(`plans.sorts.${sort}`)}
+              </span>
             }
           />
           <Link href="/app/track/roadmap" className="btn btn-sm btn-ghost">
@@ -239,7 +302,16 @@ export default function PlansList() {
       ) : filtered.length === 0 ? (
         <EmptyState quiet title={t('plans.noMatches')} />
       ) : (
-        <div className="tp-list" data-testid="tp-plans-list">
+        <div className="tp-list tp-plans-table" data-testid="tp-plans-list" aria-label={teamName ? t('plans.teamTitle', { team: teamName }) : t('plans.title')}>
+          {/* Encabezado visual de columnas (cada celda ya dice lo suyo a los lectores de pantalla). */}
+          <div className="tp-row tp-row-headrow" aria-hidden="true">
+            <span>{t('plans.colName')}</span>
+            <span className="tp-row-health">{t('plans.colHealth')}</span>
+            <span className="tp-row-priority">{t('plans.colPriority')}</span>
+            <span className="tp-row-lead">{t('plans.colLead')}</span>
+            <span className="tp-row-date">{t('plans.colTarget')}</span>
+            <span className="tp-row-progress">{t('plans.colStatus')}</span>
+          </div>
           {groups.map((g) => (
             <section key={g.key} className="tp-group" aria-label={g.label || t('plans.title')}>
               {g.label && (
@@ -251,23 +323,7 @@ export default function PlansList() {
               )}
               <ul className="tp-rows" role="list">
                 {g.rows.map((p) => (
-                  <li key={p.id} className="tp-row">
-                    <Link href={projectPath(p.id)} className="tp-row-link">
-                      <span className="tp-row-icon" aria-hidden="true">
-                        {p.icon || <PlanStatusIcon status={p.status} />}
-                      </span>
-                      <span className="tp-row-name">{p.name}</span>
-                      {p.summary && <span className="tp-row-summary">{p.summary}</span>}
-                    </Link>
-                    <span className="tp-row-cell tp-row-health">
-                      <HealthDot health={p.health} label={t(`health.${p.health}`)} />
-                    </span>
-                    <span className="tp-row-cell tp-row-lead">{p.lead_name || p.lead_email || t('common.noLead')}</span>
-                    <span className="tp-row-cell tp-row-date">{p.target_date ? fmtDay(p.target_date, locale) : ''}</span>
-                    <span className="tp-row-cell tp-row-progress">
-                      <ProgressBar percent={p.progress.percent} label={t('plan.progress')} />
-                    </span>
-                  </li>
+                  <PlanRow key={p.id} p={p} meta={meta} locale={locale} onPatch={(id, body) => void patchRow(id, body)} />
                 ))}
               </ul>
             </section>
@@ -275,9 +331,11 @@ export default function PlansList() {
         </div>
       )}
 
+      <TrackToast message={notice} onDismiss={() => setNotice(null)} dismissLabel={t('common.dismiss')} />
       <NewPlanModal
         open={creating}
         meta={meta}
+        defaultTeamId={team || undefined}
         onClose={() => setCreating(false)}
         onCreated={(id) => {
           setCreating(false);
@@ -285,6 +343,120 @@ export default function PlansList() {
         }}
       />
     </>
+  );
+}
+
+/**
+ * Fila de la tabla de projects (como Linear): el nombre manda (el resumen va
+ * después, en gris, y se oculta en angosto), y cada celda se edita ahí mismo
+ * con los chips compactos (status, prioridad, lead, fecha objetivo). La salud
+ * es de solo lectura: sale del último update. La fila es destino de issues
+ * arrastrados (TrackIssueDnd: data-track-drop="plan:<id>").
+ */
+function PlanRow({
+  p,
+  meta,
+  locale,
+  onPatch,
+}: {
+  p: PlanSummary;
+  meta: PlansMeta | null;
+  locale: string;
+  onPatch: (id: string, body: Record<string, unknown>) => void;
+}) {
+  const t = useTranslations('trackPlanning');
+  const initials = (s: string) => (s.trim()[0] ?? '?').toUpperCase();
+  const leadName = p.lead_name || p.lead_email || '';
+  return (
+    <li
+      className={`tp-row${p.archived_at ? ' is-archived' : ''}`}
+      data-testid="tp-plan-row"
+      data-plan-id={p.id}
+      data-track-drop={`plan:${p.id}`}
+      data-track-drop-name={p.name}
+    >
+      <Link href={projectPath(p.id)} className="tp-row-link">
+        <span className="tp-row-icon" aria-hidden="true">
+          {p.icon || <PlanStatusIcon status={p.status} />}
+        </span>
+        <span className="tp-row-name">{p.name}</span>
+        {p.archived_at && <span className="tp-row-tag">{t('plan.archived')}</span>}
+        {p.summary && <span className="tp-row-summary">{p.summary}</span>}
+      </Link>
+      <span className="tp-row-cell tp-row-health">
+        <HealthDot health={p.health} label={t(`health.${p.health}`)} />
+      </span>
+      <span className="tp-row-cell tp-row-priority">
+        <KeyPicker
+          ariaLabel={t('plan.priority')}
+          className="tp-chip tp-cell-chip is-icon"
+          testId="tp-row-priority"
+          value={p.priority}
+          options={PLAN_PRIORITIES.map((v) => ({ value: v, label: t(`priority.${v}`), icon: <PriorityIcon priority={v} /> }))}
+          onSelect={(v) => onPatch(p.id, { priority: v })}
+          trigger={<PriorityIcon priority={p.priority} />}
+        />
+      </span>
+      <span className="tp-row-cell tp-row-lead">
+        <KeyPicker
+          ariaLabel={t('plan.lead')}
+          className={`tp-chip tp-cell-chip${p.lead_id ? '' : ' is-empty'}`}
+          testId="tp-row-lead"
+          value={p.lead_id ?? ''}
+          options={[
+            { value: '', label: t('common.noLead'), icon: <span className="track-avatar track-avatar-empty" aria-hidden /> },
+            ...(meta?.members ?? []).map((m) => ({
+              value: m.id,
+              label: personName(m),
+              keywords: m.email,
+              icon: <span className="track-avatar">{initials(personName(m))}</span>,
+            })),
+          ]}
+          onSelect={(v) => onPatch(p.id, { leadId: v || null })}
+          trigger={
+            p.lead_id ? (
+              <>
+                <span className="track-avatar" aria-hidden>
+                  {initials(leadName)}
+                </span>
+                <span className="track-inline-text">{leadName}</span>
+              </>
+            ) : (
+              <span className="track-inline-text">{t('common.noLead')}</span>
+            )
+          }
+        />
+      </span>
+      <span className="tp-row-cell tp-row-date">
+        <DateChip
+          value={p.target_date}
+          onChange={(d) => onPatch(p.id, { targetDate: d })}
+          label={t('plan.targetDate')}
+          emptyLabel={t('common.noDate')}
+          locale={locale}
+          className="tp-cell-chip"
+          testId="tp-row-target"
+        />
+      </span>
+      <span className="tp-row-cell tp-row-progress">
+        <KeyPicker
+          ariaLabel={t('plan.status')}
+          className="tp-chip tp-cell-chip"
+          testId="tp-row-status"
+          value={p.status}
+          options={PLAN_STATUSES.map((s) => ({ value: s, label: t(`status.${s}`), icon: <PlanStatusIcon status={s} /> }))}
+          onSelect={(v) => onPatch(p.id, { status: v })}
+          trigger={
+            <>
+              <PlanStatusIcon status={p.status} />
+              <span className="tp-row-pct" aria-label={t('plans.progressAria', { percent: p.progress.percent })}>
+                {p.progress.percent}%
+              </span>
+            </>
+          }
+        />
+      </span>
+    </li>
   );
 }
 
@@ -297,12 +469,15 @@ export function NewPlanModal({
   onClose,
   onCreated,
   initiativeId,
+  defaultTeamId,
 }: {
   open: boolean;
   meta: PlansMeta | null;
   onClose: () => void;
   onCreated: (id: string) => void;
   initiativeId?: string;
+  /** Lista de projects de un team (?team=): el project nuevo nace en ese team, como en Linear. */
+  defaultTeamId?: string;
 }) {
   const t = useTranslations('trackPlanning');
   const locale = useLocale();
@@ -322,12 +497,12 @@ export function NewPlanModal({
       setSummary(planDraft?.summary ?? '');
       setStatus('planned');
       setLead(meta?.me ?? '');
-      setTeam('');
+      setTeam(defaultTeamId ?? '');
       setStart('');
       setTarget('');
       setError(null);
     }
-  }, [open, meta?.me]);
+  }, [open, meta?.me, defaultTeamId]);
 
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();

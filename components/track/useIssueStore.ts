@@ -52,6 +52,8 @@ export interface IssueDraft {
   labels?: Array<{ id: string }>;
   /** Project (track_plans) y fecha de inicio, desde los chips del composer. */
   planId?: string | null;
+  /** Milestone del project (alta desde un grupo de milestone del project). */
+  planMilestoneId?: string | null;
   startDate?: string | null;
   /** Mandarlo a triage del team (opción "Triage" del composer). */
   triage?: boolean;
@@ -330,6 +332,7 @@ export function useIssueStore(
               estimate: draft.estimate ?? undefined,
               labels: draft.labels?.length ? draft.labels : undefined,
               planId: draft.planId || undefined,
+              planMilestoneId: draft.planId && draft.planMilestoneId ? draft.planMilestoneId : undefined,
               startDate: draft.startDate || undefined,
               triage: draft.triage || undefined,
             }),

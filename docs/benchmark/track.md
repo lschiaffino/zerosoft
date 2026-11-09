@@ -145,7 +145,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 
 | Capacidad | Track | Nota |
 |---|---|---|
-| Importadores Jira, GitHub Issues, Asana, Shortcut, Linear | tiene | Linear (API o CSV), Jira Cloud (API o CSV), GitHub Issues, Asana, Shortcut, con vista previa y reimport sin duplicados |
+| Importadores Jira, GitHub Issues, Asana, Shortcut, Linear | tiene | (2026-11-07) Linear por API trae el workspace entero: teams con su workflow, projects con milestones y updates, cycles, issues con sus IDs originales, hilos, links y PRs, relaciones, sub-issues, triage, archivados y archivos subidos (se copian). Personas por email con invitación a las que faltan. Reimportar actualiza lo que cambió (gana el último que editó) y no duplica. Falta: documentos, initiatives, vistas guardadas y SLAs de Linear. También Linear CSV, Jira (API o CSV), GitHub Issues, Asana, Shortcut |
 | CSV de entrada o salida | falta | |
 
 ### Pulido de UX y teclado

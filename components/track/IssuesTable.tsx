@@ -3,7 +3,7 @@
 import LocalText from '@/components/ui/LocalText';
 import { useMemo, useState } from "react";
 import IssueDemandBadges from "./triage/IssueDemandBadges";
-import { Link } from "@/i18n/navigation";
+import IssueLink from "./IssueLink";
 import { formatDate, parseDbUtc } from "@/lib/utils";
 import type { TrackIssueWithStatus } from "@/lib/track-data";
 import type { IssueLabel } from "@/lib/track-schema";
@@ -359,6 +359,9 @@ export default function IssuesTable({
                 }
                 data-issue-id={pending || !selection ? undefined : issue.id}
                 data-issue-key={pending ? undefined : issue.id}
+                data-issue-identifier={issue.identifier}
+                data-issue-team={issue.project_id}
+                data-sort-order={issue.sub_order ?? undefined}
                 className={
                   [
                     pending ? "is-pending" : "",
@@ -403,14 +406,14 @@ export default function IssuesTable({
                         {issue.identifier}
                       </span>
                     ) : (
-                      <Link
+                      <IssueLink
                         href={`/app/track/issues/${issue.id}`}
                         tabIndex={editing ? -1 : undefined}
                       >
                         <span className="track-identifier">
                           {issue.identifier}
                         </span>
-                      </Link>
+                      </IssueLink>
                     )}
                   </td>
                 )}
@@ -442,9 +445,9 @@ export default function IssuesTable({
                   {pending ? (
                     titleContent
                   ) : (
-                    <Link href={`/app/track/issues/${issue.id}`}>
+                    <IssueLink href={`/app/track/issues/${issue.id}`}>
                       {titleContent}
-                    </Link>
+                    </IssueLink>
                   )}
                 </td>
                 {show("project") && (

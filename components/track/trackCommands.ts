@@ -958,6 +958,12 @@ export function useTrackCommands(opts: UseTrackCommandsOptions): void {
         return;
       }
       const action = actions.find((a) => a.id === sc.run);
+      // ⌘⌫ sin permiso de borrar (miembro): avisa en vez de no hacer nada.
+      if (!action && sc.run === 'delete' && ref.current.getTargets().length) {
+        e.preventDefault();
+        pushNotice(ref.current.t('deleteNotAllowed'));
+        return;
+      }
       if (!action?.run) return;
       e.preventDefault();
       action.run();
