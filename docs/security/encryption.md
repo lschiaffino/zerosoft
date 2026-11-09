@@ -36,7 +36,7 @@ un volcado de la base o un backup no alcanza para usarlos:
   secretos de webhooks, configuración de cuentas de Inbox y Groups (incluidas las claves de
   la instancia de WhatsApp; la sesión misma vive en Evolution, en Railway), secretos TOTP de Robots y credenciales de importaciones.
 - `lib/flow-credentials.ts`: credenciales de Flow y Robots, atadas al workspace (AAD).
-- `lib/private-files.ts`: archivos privados (CVs de Hiring, PDFs de Sign, comprobantes de
+- `lib/private-files.ts` y `lib/books-files.ts`: archivos privados (CVs de Hiring, PDFs de Sign, documentos de Send, archivos del asistente, comprobantes de
   Books) cifrados antes de subirlos, con id de clave por archivo.
 - Hashes, no cifrado: API keys (SHA-256), contraseñas de links (scrypt), códigos de login
   por email.
