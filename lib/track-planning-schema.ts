@@ -47,9 +47,22 @@ export const planCreateSchema = z.object({
   targetDate: day.nullish(),
   updateCadence: z.enum(UPDATE_CADENCES).optional(),
   updateDay: z.number().int().min(1).max(7).optional(),
+  /** Resources: links del project (docs, diseños), como en Linear. */
+  links: z
+    .array(
+      z.object({
+        url: z.string().trim().url().max(2000).refine((u) => /^https?:\/\//i.test(u), 'http_only'),
+        title: z.string().trim().max(200).optional(),
+      }),
+    )
+    .max(30)
+    .optional(),
 });
 
-export const planUpdateSchema = planCreateSchema.partial();
+export const planUpdateSchema = planCreateSchema.partial().extend({
+  /** Archivar (true) o desarchivar (false) el project. */
+  archived: z.boolean().optional(),
+});
 
 export const planIssuesSchema = z.object({
   action: z.enum(['add', 'remove']),
@@ -85,6 +98,12 @@ export const planUpdateEditSchema = z.object({
 
 export const planUpdateCommentSchema = z.object({
   body: z.string().trim().min(1).max(5000),
+});
+
+/** Reacción en un update (sin commentId) o en uno de sus comentarios. */
+export const planUpdateReactionSchema = z.object({
+  emoji: z.string().min(1).max(16),
+  commentId: z.string().min(1).max(80).optional(),
 });
 
 export const planFollowSchema = z.object({ following: z.boolean() });

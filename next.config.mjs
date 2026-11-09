@@ -94,6 +94,25 @@ const nextConfig = {
       { key: 'Access-Control-Max-Age', value: '86400' },
     ];
     return [
+      // Base de todo el sitio: solo HTTPS (el navegador lo ignora en http, así que no molesta en
+      // self-host sin TLS), sin adivinar tipos de archivo y sin mandar la ruta completa a otros sitios.
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+      // La app y el login no se enmarcan desde otros sitios (clickjacking). Lo que sí se embebe
+      // (formularios, Pulse, Rec, widgets) vive fuera de /app.
+      {
+        source: '/:locale(en|es|pt)/:area(app|auth)/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+        ],
+      },
       // Pantallas de permisos de OAuth: nunca dentro de un iframe (clickjacking).
       {
         source: '/:locale(en|es|pt)/oauth/:path*',
@@ -125,7 +144,7 @@ const nextConfig = {
       // Reproductor de grabaciones: lo grabado puede apuntar a cualquier URL, y el visor no la pide.
       {
         source: '/:locale(en|es|pt)/app/pulse/replay/:id',
-        headers: [{ key: 'Content-Security-Policy', value: "img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-src 'self' about:" }],
+        headers: [{ key: 'Content-Security-Policy', value: "img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-src 'self' about:; frame-ancestors 'self'" }],
       },
       // Snippet de Analytics: se importa como módulo desde sitios de terceros.
       { source: '/:file(zs\\.js|zs\\.mjs)', headers: [{ key: 'Access-Control-Allow-Origin', value: '*' }, { key: 'Cache-Control', value: 'public, max-age=3600' }] },

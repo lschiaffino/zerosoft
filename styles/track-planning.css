@@ -427,3 +427,129 @@
 @media (max-width: 720px) {
   .tp-roadmap .tp-row { grid-template-columns: minmax(0, 1fr); gap: 2px; padding-block: 8px; }
 }
+
+/* ---------- Lista de projects como tabla (Linear): nombre, salud, lead, fecha, issues, progreso ---------- */
+.tp-plans-table .tp-row { grid-template-columns: minmax(0, 1fr) 110px 150px 96px 56px 140px; }
+.tp-row-headrow { min-height: 32px; font-size: 0.75rem; font-weight: 500; color: var(--brand-gray-2); border-bottom: 1px solid var(--line); }
+.tp-row-headrow:hover { background: transparent; }
+.tp-row-issues { font-family: var(--font-data); font-size: 0.75rem; text-align: right; }
+.tp-row-headrow .tp-row-issues,
+.tp-row-headrow .tp-row-date { font-family: inherit; font-size: inherit; }
+.tp-sort-label { color: var(--brand-gray-2); }
+.tp-row-lead { display: inline-flex; align-items: center; gap: 6px; }
+.tp-muted { color: var(--brand-gray-2); }
+
+/* ---------- Página de project: barra superior, ⋯, ícono ---------- */
+.tp-plan-topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.tp-crumb-current { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.tp-more { flex: none; }
+.tp-plan-icon { align-items: center; justify-content: center; width: 32px; height: 32px; flex: none; padding: 0; font-size: 1.375rem; line-height: 1; color: var(--brand-gray-1); background: transparent; border: 1px solid transparent; border-radius: var(--radius-1); cursor: pointer; }
+.tp-plan-icon:hover { background: var(--ui-hover); }
+.tp-plan-icon:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.tp-plan-icon .tp-status-icon { width: 20px; height: 20px; }
+/* Issues ocupa todo el ancho (sin columna derecha), como la pestaña Issues de Linear. */
+.tp-plan.tp-plan-wide { grid-template-columns: minmax(0, 1fr); }
+
+/* Descripción sin caja, como el cuerpo de un issue. */
+.tp-overview > .tp-desc { min-height: 64px; }
+
+/* Resources */
+.tp-links { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.tp-link { display: flex; align-items: center; gap: 8px; min-height: 34px; color: var(--brand-gray-1); border-bottom: 1px solid var(--line); min-width: 0; }
+.tp-link:last-child { border-bottom: 0; }
+.tp-link-a { display: flex; align-items: baseline; gap: 8px; flex: 1; min-width: 0; color: var(--ink); text-decoration: none; }
+.tp-link-a:hover .tp-link-title { text-decoration: underline; }
+.tp-link-a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.tp-link-title { font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-link-host { font-size: 0.75rem; color: var(--brand-gray-2); white-space: nowrap; }
+
+/* Progreso: números arriba del gráfico. */
+.tp-progress-stats { display: flex; flex-wrap: wrap; gap: 24px; }
+.tp-progress-stat { display: flex; flex-direction: column; gap: 2px; }
+.tp-progress-stat-label { font-size: 0.75rem; color: var(--brand-gray-2); }
+.tp-progress-stat-num { font-family: var(--font-data); font-size: 1rem; color: var(--ink); }
+
+/* Barra chica de progreso por milestone. */
+.tp-ms-pct { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.tp-ms-bar { position: relative; display: inline-block; width: 64px; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.tp-ms-bar > span { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+
+/* Columna derecha: secciones compactas. */
+.tp-side-sec { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tp-side-sec + .tp-side-sec { padding-top: 16px; border-top: 1px solid var(--line); }
+.tp-side-title { margin: 0; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2); }
+.tp-side-dl { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 6px 8px; margin: 0; font-size: 0.8125rem; }
+.tp-side-dl dt { color: var(--brand-gray-2); }
+.tp-side-dl dd { display: flex; align-items: center; gap: 6px; margin: 0; min-width: 0; color: var(--ink); overflow-wrap: anywhere; }
+.tp-side-ms { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; }
+.tp-side-ms li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tp-side-ms-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-side-ms-pct { font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-1); }
+.tp-side-health { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tp-side-sec > .btn { align-self: flex-start; }
+.tp-reactions { margin-top: 2px; }
+
+@media (max-width: 767px) {
+  .tp-plans-table .tp-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .tp-row-headrow { display: none; }
+  .tp-row-issues, .tp-plans-table .tp-row-lead { display: none; }
+  .tp-ms-bar { display: none; }
+}
+
+/* ---------- Tabla de projects como Linear: el nombre primero, celdas editables ---------- */
+.tp-plans-table .tp-row { grid-template-columns: minmax(0, 1fr) 104px 64px 148px 112px 84px; gap: 8px; }
+/* El nombre toma su ancho; el resumen se queda con lo que sobra (y se corta primero). */
+.tp-plans-table .tp-row-name { flex: 0 1 auto; min-width: 48px; }
+.tp-plans-table .tp-row-summary { flex: 1 1 0; min-width: 0; }
+.tp-row-tag { flex: none; padding: 0 6px; font-size: 0.6875rem; line-height: 18px; color: var(--brand-gray-2); border: 1px solid var(--line); border-radius: var(--radius-1); }
+.tp-row.is-archived .tp-row-name { color: var(--brand-gray-1); }
+.tp-row-cell:has(.tp-cell-chip) { overflow: visible; }
+/* Chips de celda: sin borde hasta el hover/foco, como las celdas de Linear. */
+.track-inline-trigger.tp-chip.tp-cell-chip { height: 26px; min-height: 26px; max-width: 100%; padding: 0 6px; border-color: transparent; }
+.track-inline-trigger.tp-chip.tp-cell-chip:hover:not(:disabled),
+.track-inline-trigger.tp-chip.tp-cell-chip[aria-expanded="true"] { border-color: var(--line); }
+.track-inline-trigger.tp-chip.tp-cell-chip.is-icon { width: 28px; padding: 0; justify-content: center; }
+.tp-row-date .tp-cell-chip { font-family: var(--font-data); font-size: 0.75rem; }
+.tp-row-pct { font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-1); }
+.tp-row-headrow .tp-row-priority,
+.tp-row-headrow .tp-row-lead,
+.tp-row-headrow .tp-row-date,
+.tp-row-headrow .tp-row-progress { padding-left: 7px; }
+@media (max-width: 1100px) {
+  .tp-plans-table .tp-row-summary { display: none; }
+}
+@media (max-width: 900px) {
+  .tp-plans-table .tp-row { grid-template-columns: minmax(0, 1fr) 104px 40px 112px 84px; }
+  .tp-plans-table .tp-row-lead { display: none; }
+}
+@media (max-width: 767px) {
+  /* Angosto: nombre arriba y una fila de celdas abajo (salud, prioridad, fecha, estado). */
+  .tp-plans-table .tp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; padding: 6px 8px; }
+  .tp-plans-table .tp-row.tp-row-headrow { display: none; }
+  .tp-plans-table .tp-row-date .tp-chip.is-empty { display: none; }
+  .tp-plans-table .tp-row-link { flex: 1 1 100%; min-height: 28px; }
+  .tp-plans-table .tp-row-health { margin-right: auto; padding-left: 26px; }
+  .tp-plans-table .tp-row-lead { display: none; }
+  .tp-plans-table .tp-row-date, .tp-plans-table .tp-row-priority, .tp-plans-table .tp-row-progress { display: inline-flex; }
+}
+
+/* Página de project: aviso de archivado. */
+.tp-archived-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 10px; font-size: 0.8125rem; color: var(--brand-gray-1); background: var(--brand-enamel); border: 1px solid var(--line); border-radius: var(--radius-1); }
+.tp-archived-note > span { flex: 1 1 200px; min-width: 0; }
+
+/* Progreso en la columna derecha: cifras con el color de su línea, en la unidad del gráfico. */
+.tp-progress-sec .tp-progress-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.tp-progress-sec .tp-progress-stat { gap: 2px; min-width: 0; }
+.tp-progress-sec .tp-progress-stat dd { margin: 0; }
+.tp-progress-sec .tp-progress-stat-label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tp-progress-stat-pct { font-size: 0.75rem; color: var(--brand-gray-2); }
+.tp-swatch { display: inline-block; width: 8px; height: 8px; flex: none; border-radius: 2px; }
+.tp-swatch.is-scope { background: var(--ink); }
+.tp-swatch.is-started { background: var(--c-notes); }
+.tp-swatch.is-completed { background: var(--accent); }
+
+/* Avatares de miembros en el chip y autor de los updates. */
+.tp-chip-avatars { display: inline-flex; }
+.tp-chip-avatars .track-avatar + .track-avatar { margin-left: -4px; box-shadow: 0 0 0 1px var(--chrome-bg); }
+.tp-latest-by, .tp-update-author { display: inline-flex; align-items: center; gap: 6px; }
+.tp-latest-by .track-avatar, .tp-update-author .track-avatar { width: 18px; height: 18px; font-size: 0.625rem; }
