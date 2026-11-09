@@ -8921,6 +8921,53 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Track: reacciones en los updates de un project y en sus comentarios (como Linear).
+    // target_id es el id del update o del comentario; update_id permite listarlas juntas.
+    id: '285_track_plan_update_reactions',
+    up: async (c) => {
+      await c.execute(`CREATE TABLE IF NOT EXISTS track_plan_update_reactions (
+        target_id TEXT NOT NULL,
+        update_id TEXT NOT NULL REFERENCES track_plan_updates(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        emoji TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (target_id, user_id, emoji)
+      )`);
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_track_plan_update_reactions_update ON track_plan_update_reactions(update_id)');
+      // Resources del project (links), como en Linear.
+      await addColumn(c, "ALTER TABLE track_plans ADD COLUMN links TEXT NOT NULL DEFAULT '[]'");
+    },
+  },
+  {
+    // Track: vistas guardadas personales de las listas que no son de un team
+    // (Issues, My issues, la pestaña Issues de un project). list_key es la
+    // lista (workspace-issues, mine:assigned, plan:<id>); scope_id el workspace.
+    id: '286_track_list_views',
+    up: async (c) => {
+      await c.execute(`CREATE TABLE IF NOT EXISTS track_list_views (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        scope_id TEXT NOT NULL DEFAULT '',
+        list_key TEXT NOT NULL,
+        name TEXT NOT NULL,
+        view_type TEXT NOT NULL DEFAULT 'list',
+        filters TEXT NOT NULL DEFAULT '{}',
+        sort TEXT NOT NULL DEFAULT 'manual',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`);
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_track_list_views_user ON track_list_views(user_id, scope_id, list_key)');
+    },
+  },
+  {
+    // Track: archivar un project (como Linear). Sale de las listas y del
+    // roadmap; se ve con "Mostrar archivados" y se desarchiva desde su página.
+    id: '287_track_plans_archived',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE track_plans ADD COLUMN archived_at TEXT');
+    },
+  },
+  {
     // Personal y equipo (lib/workspace-principal.ts): users.kind marca a los
     // titulares de workspaces de equipo ('workspace'), que no son personas. A
     // quien ya pasó el onboarding y no tiene ningún workspace de equipo (ni uno

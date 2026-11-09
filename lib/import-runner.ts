@@ -29,7 +29,8 @@ import {
 } from './import-jobs';
 import { getDb } from './db';
 import type { FetchStepResult } from './track-import-sources';
-import { fetchGithubStep, fetchLinearStep } from './track-import-sources';
+import { fetchGithubStep } from './track-import-sources';
+import { fetchLinearWorkspaceStep } from './track-linear-import';
 import { fetchAsanaStep, fetchJiraStep, fetchShortcutStep } from './track-import-sources-more';
 import { csvToIssues, TRACK_IMPORT_MAX_ISSUES, type CsvMapping } from './track-import-map';
 import { emptyTrackReport, trackPreview, trackWriteStep, TRACK_WRITE_STAGES, type TrackImportReport } from './track-import';
@@ -74,7 +75,8 @@ const csvSource = (preset: 'linear' | 'jira' | 'csv') => async (job: ImportJob):
   return { items: issues.map((data) => ({ kind: 'issue', data })), cursor: {}, done: true };
 };
 
-const trackAdapter = (fetchStep: ImportAdapter['fetchStep']): ImportAdapter => ({
+const trackAdapter = (fetchStep: ImportAdapter['fetchStep'], extra: Partial<ImportAdapter> = {}): ImportAdapter => ({
+  ...extra,
   fetchStep,
   preview: (job, items) => trackPreview(job, items),
   writeStages: TRACK_WRITE_STAGES,
@@ -98,7 +100,8 @@ const docsAdapter: ImportAdapter = {
 };
 
 const ADAPTERS: Record<string, ImportAdapter> = {
-  'track:linear': trackAdapter((job) => fetchLinearStep(job.secret, job.cursor)),
+  // La key queda (cifrada) hasta terminar: copia los archivos subidos a Linear al escribir cada issue.
+  'track:linear': trackAdapter((job) => fetchLinearWorkspaceStep(job.secret, job.cursor), { keepSecret: true }),
   'track:github': trackAdapter((job) => fetchGithubStep(job.secret, String(job.options.repo ?? ''), job.cursor)),
   'track:jira': trackAdapter((job) => fetchJiraStep(job.secret, String(job.options.site ?? ''), String(job.options.query ?? ''), job.cursor)),
   'track:asana': trackAdapter((job) => fetchAsanaStep(job.secret, String(job.options.project ?? ''), job.cursor)),
@@ -214,7 +217,7 @@ export async function runImportJob(id: string, budgetMs = REQUEST_IMPORT_BUDGET_
           });
           break;
         }
-        await updateImportJob(id, { cursor: res.cursor, total, onlyIf: 'fetching' });
+        await updateImportJob(id, { cursor: res.cursor, total, ...(res.stage ? { stage: res.stage } : {}), onlyIf: 'fetching' });
         continue;
       }
 

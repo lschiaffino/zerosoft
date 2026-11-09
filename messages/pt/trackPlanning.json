@@ -45,7 +45,8 @@
     "saveError": "Não foi possível salvar a mudança. Tente de novo.",
     "copyLink": "Copiar link",
     "linkCopied": "Link copiado",
-    "copyFailed": "Não foi possível copiar o link"
+    "copyFailed": "Não foi possível copiar o link",
+    "dismiss": "Fechar"
   },
   "status": {
     "backlog": "Backlog",
@@ -93,7 +94,7 @@
     "groupStatus": "Agrupar por status",
     "groupLead": "Agrupar por lead",
     "groupNone": "Sem agrupar",
-    "timeline": "Timeline",
+    "timeline": "Linha do tempo",
     "emptyTitle": "Ainda não há projetos",
     "emptyBody": "Um projeto reúne os issues por trás de um resultado, como um lançamento. Defina um lead e uma data-alvo e publique updates conforme avança.",
     "linearNote": "Um projeto agrupa issues de uma ou mais equipes por trás de um resultado.",
@@ -102,7 +103,31 @@
     "namePlaceholder": "Checkout mobile",
     "summaryLabel": "Resumo",
     "summaryPlaceholder": "Uma linha sobre o que este projeto entrega",
-    "display": "Display"
+    "display": "Exibir",
+    "filterHealth": "Saúde",
+    "anyHealth": "Qualquer saúde",
+    "orderBy": "Ordenar por",
+    "sorts": {
+      "manual": "Manual",
+      "name": "Nome",
+      "target": "Data alvo",
+      "progress": "Progresso",
+      "created": "Criação",
+      "updated": "Atualização"
+    },
+    "teamTitle": "Projetos de {team}",
+    "colName": "Nome",
+    "colHealth": "Saúde",
+    "colLead": "Lead",
+    "colTarget": "Data alvo",
+    "filter": "Filtrar",
+    "grouping": "Agrupar",
+    "show": "Ver",
+    "showArchived": "Projetos arquivados",
+    "colPriority": "Prioridade",
+    "colStatus": "Status",
+    "progressAria": "{percent}% concluído",
+    "updated": "{name} atualizado"
   },
   "plan": {
     "tabs": {
@@ -149,8 +174,6 @@
     "back": "Todos os projetos",
     "invalidRange": "A data-alvo tem que ser igual ou posterior ao início.",
     "progress": "Progresso",
-    "progressDetail": "{done} de {total} concluídos, {started} em andamento",
-    "byPoints": "{done} de {total} pontos",
     "latestUpdate": "Último update",
     "noUpdateYet": "Ainda não há updates.",
     "writeUpdate": "Escrever update",
@@ -174,7 +197,34 @@
     "noIssuesBody": "Crie um issue acima ou busque os existentes para adicioná-los.",
     "removeFromPlan": "Tirar {id} do projeto",
     "labels": "Labels",
-    "createLabel": "Criar label “{name}”"
+    "createLabel": "Criar label “{name}”",
+    "more": "Mais ações",
+    "unfollow": "Deixar de seguir",
+    "icon": "Ícone do project",
+    "noIcon": "Sem ícone",
+    "lastUpdateOn": "Último update {date}",
+    "scope": "Escopo",
+    "started": "Iniciados",
+    "completed": "Concluídos",
+    "progressChart": "Escopo e concluídos ao longo do tempo",
+    "chartEmpty": "O gráfico aparece quando o project tem issues.",
+    "resources": "Recursos",
+    "addLink": "Adicionar link",
+    "resourcesEmpty": "Links para docs, designs ou specs do project.",
+    "removeLink": "Remover {name}",
+    "linkUrl": "URL do link",
+    "linkTitle": "Título (opcional)",
+    "invalidLink": "Esse link não é válido.",
+    "archive": "Arquivar",
+    "unarchive": "Desarquivar",
+    "archived": "Arquivado",
+    "archivedToast": "{name} arquivado",
+    "unarchivedToast": "{name} desarquivado",
+    "archivedNote": "Este projeto foi arquivado em {date}. Ele não aparece nas listas nem no roadmap.",
+    "progressOf": {
+      "issues": "{done} de {total} issues concluídos · {percent}%",
+      "points": "{done} de {total} pontos concluídos · {percent}%"
+    }
   },
   "updates": {
     "composerTitle": "Novo update",
@@ -199,8 +249,14 @@
       "startDate": "{actor} moveu o início de {from} para {to}",
       "targetDate": "{actor} moveu a data-alvo de {from} para {to}",
       "members": "{actor} adicionou {names}",
-      "milestone": "{actor} adicionou o milestone {name}"
-    }
+      "milestone": "{actor} adicionou o milestone {name}",
+      "archived": "{actor} arquivou o projeto",
+      "unarchived": "{actor} desarquivou o projeto"
+    },
+    "reactions": "Reações",
+    "you": "Você",
+    "reactionLabel": "{emoji} {count}: {who}",
+    "addReaction": "Adicionar reação"
   },
   "initiatives": {
     "title": "Iniciativas",

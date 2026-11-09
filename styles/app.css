@@ -575,6 +575,12 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   .band-search:hover { background: var(--chrome-hover); }
   .band-search-label,
   .band-search .kbd { display: none; }
+  /* El asistente y el de CRM quedan como ícono: del mismo tamaño que la búsqueda. */
+  .band-search.band-ai { width: 40px; padding: 0; }
+  /* Un nombre de app largo ("Analytics") se corta antes de empujar los íconos fuera de la banda. */
+  .band-switcher { flex-shrink: 1; min-width: 0; }
+  .band-product { max-width: 100%; min-width: 0; }
+  .band-product-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* Sin conexión en el teléfono: el texto corto se recorta y el panel ocupa el ancho. */
   .band-offline-btn { height: 40px; padding: 0 10px; gap: 6px; border: 0; }
   .band-offline-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -604,6 +610,16 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   }
 
   .app-content { padding: 16px 16px 96px; }
+}
+
+/* Teléfono: menos aire entre los íconos de la banda para que el nombre de la app ("CRM", "Docs") entre entero. */
+@media (max-width: 420px) {
+  /* El cero de inicio repite "Inicio" del switcher y del drawer: en el teléfono deja el lugar al nombre de la app. */
+  .band-home { display: none; }
+  .band-product { min-width: 64px; }
+  .band-right { gap: 0; }
+  .band-product { gap: 6px; padding: 0 4px 0 6px; }
+  .app-band { gap: 0; }
 }
 
 @media (max-width: 380px) {
@@ -1372,6 +1388,8 @@ td.cell-actions > * + * { margin-left: 4px; }
   -webkit-box-orient: vertical;
   white-space: normal;
   line-height: 1.35;
+  /* Un título sin espacios (una URL, un hash) se corta en vez de ensanchar el bloque y la página. */
+  overflow-wrap: anywhere;
 }
 .home-recent-partial { padding: 8px 0 4px; font-size: 0.8125rem; color: var(--dim); border-top: 1px solid var(--line); }
 .home-split.home-split-full { grid-template-columns: minmax(0, 1fr); }
@@ -1424,4 +1442,14 @@ td.cell-actions > * + * { margin-left: 4px; }
   .side-handle,
   .side-menu-item { height: 44px; }
   .band-search { height: 40px; }
+  .cmdk-item, .cmdk.is-anchored .cmdk-item { min-height: 44px; }
+  .cmdk.is-anchored .cmdk-input { height: 44px; font-size: 1rem; }
+  .column-toggle-row { min-height: 44px; }
+}
+
+/* Teléfono: ⌘K arriba, pegado a la banda, con los resultados por encima del teclado. */
+@media (max-width: 640px) {
+  .cmdk-backdrop:not(.is-anchored) { padding-top: 8px; }
+  .cmdk:not(.is-anchored) { width: calc(100vw - 16px); }
+  .cmdk:not(.is-anchored) .cmdk-results { max-height: 50dvh; }
 }
