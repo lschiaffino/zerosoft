@@ -141,7 +141,9 @@ function ownScope(table: string, cols: string[], scope: Scope, fks: Fk[]): { ws:
     wsCols.push('team_id');
   }
   if (!cols.includes('user_id') && cols.includes('owner_id')) {
-    wsParts.push(`owner_id IN (${marks(ids)})`);
+    // Con columna de workspace, owner_id es la persona que lo creó (Send, Notes): solo decide sin workspace.
+    const free = wsCols.map((c) => `${quote(c)} IS NULL`);
+    wsParts.push(free.length ? `owner_id IN (${marks(ids)}) AND ${free.join(' AND ')}` : `owner_id IN (${marks(ids)})`);
     wsArgs.push(...ids);
   }
   const ws = wsParts.length ? { sql: wsParts.map((p) => `(${p})`).join(' OR '), args: wsArgs } : null;
@@ -261,6 +263,8 @@ async function stillReferenced(client: Client, schema: Schema, urls: Set<string>
   const host = ownBlobHost();
   const re = uploadPattern();
   for (const [table, cols] of schema.tables) {
+    // La cola misma (y las tablas internas) no cuentan como uso.
+    if (SKIP_TABLES.has(table)) continue;
     for (const col of cols) {
       let last: unknown = null;
       for (;;) {

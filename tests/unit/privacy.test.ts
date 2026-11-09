@@ -37,7 +37,9 @@ async function leftovers(id: string, teamId: string): Promise<string[]> {
     const cols = (await getClient().execute({ sql: 'SELECT name FROM pragma_table_info(?)', args: [name] })).rows.map((c) => String(c.name));
     for (const col of ['user_id', 'workspace_id', 'team_id']) {
       if (!cols.includes(col)) continue;
-      const n = Number((await getClient().execute({ sql: `SELECT COUNT(*) AS n FROM "${name}" WHERE "${col}" IN (?, ?)`, args: [id, teamId] })).rows[0].n);
+      // user_id en una fila de otro workspace (p. ej. el evento "salió del workspace" en el ajeno) no es suyo.
+      const own = col === 'user_id' && cols.includes('workspace_id') ? ' AND (workspace_id IS NULL OR workspace_id IN (?, ?))' : '';
+      const n = Number((await getClient().execute({ sql: `SELECT COUNT(*) AS n FROM "${name}" WHERE "${col}" IN (?, ?)${own}`, args: own ? [id, teamId, id, teamId] : [id, teamId] })).rows[0].n);
       if (n) out.push(`${name}.${col}=${n}`);
     }
   }
@@ -53,7 +55,7 @@ describe('alcance del borrado', () => {
     expect(scopeWhere('notes_versions', ['id', 'title'], scope)).toBeNull();
   });
   it('workspace_id manda sobre user_id: lo de un workspace ajeno no se toca', () => {
-    expect(scopeWhere('x', ['user_id', 'workspace_id'], scope)?.sql).toBe('((workspace_id IN (?, ?))) OR (user_id = ? AND workspace_id IS NULL)');
+    expect(scopeWhere('x', ['user_id', 'workspace_id'], scope)?.sql).toBe('((workspace_id IN (?, ?))) OR (user_id = ? AND "workspace_id" IS NULL)');
   });
   it('borrar solo el workspace deja la cuenta', () => {
     const ws = { ...scope, kind: 'workspace' as const };
@@ -175,6 +177,31 @@ describe('lo de otros workspaces queda', () => {
     await eraseNow(a.id, 'account');
     expect(await ids('zz_comments')).toEqual(['cA-on-C']);
     expect(await ids('zz_items')).toEqual(['iA-on-C']);
+  });
+});
+
+describe('owner_id de persona en tablas con workspace', () => {
+  it('lo que la persona creó en un workspace ajeno (Send, Notes) queda en ese workspace', async () => {
+    const a = await makeUser('owa');
+    const b = await makeUser('owb');
+    await ensureWorkspace(a.id);
+    const wsB = await ensureWorkspace(b.id);
+    await addMember(wsB.id, a.id, 'member');
+    const ts = new Date().toISOString();
+    const ins = (sql: string, ...args: Array<string | null>) => db().prepare(sql).run(...args);
+    // En el workspace de B (workspace_id = B), creados por A (owner_id = A).
+    await ins("INSERT INTO send_documents (id, workspace_id, owner_id, title, sharing, created_at, updated_at) VALUES (?, ?, ?, 'doc', 'private', ?, ?)", 'sdA-on-B', b.id, a.id, ts, ts);
+    await ins("INSERT INTO note_shares (id, workspace_id, owner_id, note_id, notebook_id, person_id, role, created_at) VALUES (?, ?, ?, NULL, NULL, ?, 'view', ?)", 'nsA-on-B', b.id, a.id, b.id, ts);
+    // En el de A: se van.
+    await ins("INSERT INTO send_documents (id, workspace_id, owner_id, title, sharing, created_at, updated_at) VALUES (?, ?, ?, 'doc', 'private', ?, ?)", 'sdA-on-A', a.id, a.id, ts, ts);
+
+    await eraseNow(a.id, 'workspace');
+    expect(await db().prepare('SELECT 1 FROM send_documents WHERE id = ?').get('sdA-on-A')).toBeUndefined();
+    expect(await db().prepare('SELECT 1 FROM send_documents WHERE id = ?').get('sdA-on-B')).toBeTruthy();
+    expect(await db().prepare('SELECT 1 FROM note_shares WHERE id = ?').get('nsA-on-B')).toBeTruthy();
+    await eraseNow(a.id, 'account');
+    expect(await db().prepare('SELECT 1 FROM send_documents WHERE id = ?').get('sdA-on-B')).toBeTruthy();
+    expect(await db().prepare('SELECT 1 FROM note_shares WHERE id = ?').get('nsA-on-B')).toBeTruthy();
   });
 });
 
