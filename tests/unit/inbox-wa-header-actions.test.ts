@@ -22,9 +22,10 @@ describe('acciones de Inbox en la conversación de WhatsApp', () => {
 
   it('la cabecera ofrece cada acción en el menú y los íconos', () => {
     const src = readFileSync('components/inbox/wa/WaConversation.tsx', 'utf8');
-    for (const a of ['done', 'snooze', 'followUp', 'move', 'unread', 'pin', 'aiDraft', 'mute8h', 'muteWeek', 'unmute', 'clearFollowUp', 'unsnooze', 'delete']) {
+    for (const a of ['snooze', 'followUp', 'move', 'unread', 'pin', 'aiDraft', 'mute8h', 'muteWeek', 'unmute', 'clearFollowUp', 'unsnooze', 'delete']) {
       expect(src, a).toContain(`onAction('${a}')`);
     }
+    expect(src).toContain("onAction(thread.done ? 'undone' : 'done')");
     expect(src).toContain('onRename');
   });
 
