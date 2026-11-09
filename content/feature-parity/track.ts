@@ -446,7 +446,12 @@ const parity: ProductParity = {
       id: 'offline',
       area: 'mobile',
       label: { en: 'Offline mode', es: 'Modo offline', pt: 'Modo offline' },
-      status: 'missing',
+      detail: {
+        en: 'Lists, issues and projects already opened on the device are readable offline; status, priority, assignee, dates, title, description, new issues and comments are saved on the device and sent when back online, with an "edited elsewhere" notice. No full local copy of the workspace like Linear, and attachments and AI need a connection',
+        es: 'Las listas, issues y proyectos ya abiertos en el dispositivo se leen sin red; estado, prioridad, asignado, fechas, título, descripción, issues nuevos y comentarios se guardan en el dispositivo y se mandan al volver la red, con aviso de "editado en otro lado". No hay copia local completa del workspace como en Linear, y adjuntos e IA necesitan conexión',
+        pt: 'As listas, issues e projetos já abertos no dispositivo podem ser lidos sem rede; status, prioridade, responsável, datas, título, descrição, issues novos e comentários ficam salvos no dispositivo e são enviados quando a rede volta, com aviso de "editado em outro lugar". Não há cópia local completa do workspace como no Linear, e anexos e IA precisam de conexão',
+      },
+      status: 'partial',
       competitorHas: true,
     },
     {

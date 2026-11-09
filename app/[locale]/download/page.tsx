@@ -14,6 +14,15 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
 export const dynamic = 'force-dynamic';
 
 const FEATURES = ['f1', 'f5', 'f2', 'f3', 'f4'] as const;
+/** Apps que andan sin conexión (nombre propio, o null: el título sale de `${key}T`). */
+const OFFLINE_APPS = [
+  ['CRM', 'offCrm'],
+  ['Docs', 'offDocs'],
+  ['Notes', 'offNotes'],
+  ['Track', 'offTrack'],
+  [null, 'offOther'],
+  [null, 'offPrivacy'],
+] as const;
 
 /**
  * /download: la app de escritorio (desktop/, Tauri) para Mac y Windows.
@@ -107,6 +116,22 @@ export default async function DownloadPage(props: { params: Promise<{ locale: st
             {t('mobileTitle')}
           </h2>
           <p className="status-desc dl-p">{t('mobileBody')}</p>
+        </section>
+
+        {/* Qué anda sin red (lo enlaza la barra de estado de la app: components/app/OfflineStatus.tsx). */}
+        <section className="dl-section" id="offline" aria-labelledby="dl-offline">
+          <h2 id="dl-offline" className="dl-h2">
+            {t('offlineTitle')}
+          </h2>
+          <p className="status-desc dl-p">{t('offlineLead')}</p>
+          <ul className="status-rows">
+            {OFFLINE_APPS.map(([name, key]) => (
+              <li className="dl-row" key={key}>
+                <span className="status-name">{name ?? t(`${key}T`)}</span>
+                <span className="status-desc">{t(key)}</span>
+              </li>
+            ))}
+          </ul>
         </section>
       </div>
     </main>

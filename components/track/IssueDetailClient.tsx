@@ -46,6 +46,7 @@ import type {
 } from '@/lib/track-data';
 import { teamKeyOf, teamPath } from '@/lib/track-routes';
 import { TRACK_MARKDOWN_MAX } from '@/lib/track-markdown';
+import { offlineFetch, offlineOwner, pendingWrites } from '@/lib/offline-fetch';
 
 const QuickIssueModal = dynamic(() => import('./QuickIssueModal'));
 
@@ -409,18 +410,21 @@ export default function IssueDetailClient({
     async (patch: IssuePatch, opts: { undo?: boolean } = {}) => {
       const prev = issueRef.current;
       setIssue((cur) => applyIssuePatch(cur, patch, initialStatuses, initialMembers, project));
-      const res = await fetch(`/api/track/issues/${prev.id}`, {
+      // Sin red queda guardado en el dispositivo (lib/offline-fetch.ts) y el cambio optimista se mantiene.
+      const { res, queued } = await offlineFetch(`/api/track/issues/${prev.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patch),
-      }).catch(() => null);
-      if (!res?.ok) {
+        base: prev.updated_at,
+        label: `${prev.identifier} ${prev.title}`,
+      });
+      if (!queued && !res?.ok) {
         setIssue(prev);
         setSaveError(ui.inline.saveError);
         return false;
       }
-      setIssue((await res.json()) as TrackIssueWithStatus);
-      void refreshActivities();
+      if (res && !queued) setIssue((await res.json()) as TrackIssueWithStatus);
+      if (!queued) void refreshActivities();
       if (patch.parentId !== undefined) router.refresh();
       if (opts.undo !== false) {
         const inverse = inversePatch(prev, patch);
@@ -444,17 +448,21 @@ export default function IssueDetailClient({
 
   async function setLabels(next: Array<{ id: string } | { name: string }>) {
     const prev = issueRef.current;
-    const res = await fetch(`/api/track/issues/${prev.id}`, {
+    const { res, queued } = await offlineFetch(`/api/track/issues/${prev.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ labels: next }),
-    }).catch(() => null);
-    if (!res?.ok) {
+      base: prev.updated_at,
+      label: `${prev.identifier} ${prev.title}`,
+    });
+    if (!queued && !res?.ok) {
       setSaveError(ui.inline.saveError);
       return;
     }
-    setIssue((await res.json()) as TrackIssueWithStatus);
-    void refreshActivities();
+    if (res && !queued) {
+      setIssue((await res.json()) as TrackIssueWithStatus);
+      void refreshActivities();
+    }
     const inverse = inversePatch(prev, { labels: [] });
     pushUndo(
       tx('undo.updatedOne', { id: prev.identifier }),
@@ -573,17 +581,21 @@ export default function IssueDetailClient({
   const descSaved = useRef(parseDescription(initialIssue.description).trim());
 
   async function saveDescriptionText(next: string): Promise<boolean> {
-    const res = await fetch(`/api/track/issues/${issue.id}`, {
+    const cur = issueRef.current;
+    const { res, queued } = await offlineFetch(`/api/track/issues/${cur.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ description: next ? [{ type: 'text', text: next }] : [] }),
-    }).catch(() => null);
-    if (!res?.ok) {
+      base: cur.updated_at,
+      label: `${cur.identifier} ${cur.title}`,
+    });
+    if (!queued && !res?.ok) {
       setSaveError(ui.inline.saveError);
       return false;
     }
     descSaved.current = next;
-    await handleIssueChange();
+    // Guardado en el dispositivo: no hay nada nuevo que pedirle al servidor todavía.
+    if (!queued) await handleIssueChange();
     return true;
   }
 
@@ -602,6 +614,38 @@ export default function IssueDetailClient({
     descTimer.current = window.setTimeout(() => void flushDescription(), 1500);
   }
 
+  // Recargar sin red: los cambios que esperan en este dispositivo se ven encima de la copia guardada.
+  useEffect(() => {
+    let alive = true;
+    const path = `/api/track/issues/${initialIssue.id}`;
+    void pendingWrites(offlineOwner(), (p, method) => method === 'PATCH' && p === path).then((rows) => {
+      if (!alive) return;
+      for (const row of rows) {
+        let body: (IssuePatch & { description?: unknown }) | null = null;
+        try {
+          body = JSON.parse(row.body ?? 'null') as IssuePatch & { description?: unknown };
+        } catch {
+          body = null;
+        }
+        if (!body || typeof body !== 'object') continue;
+        const { description, ...patch } = body;
+        if (Object.keys(patch).length) setIssue((cur) => applyIssuePatch(cur, patch, initialStatuses, initialMembers, project));
+        if (typeof patch.title === 'string') setTitleDraft(patch.title);
+        if (Array.isArray(description)) {
+          const text = parseDescription(JSON.stringify(description));
+          descLatest.current = text;
+          descSaved.current = text;
+          setDescDraft(text);
+        }
+      }
+    });
+    return () => {
+      alive = false;
+    };
+    // Solo al abrir el issue: después, la página ya tiene sus propios cambios.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialIssue.id]);
+
   // Al salir de la página con cambios sin guardar, se mandan igual.
   useEffect(
     () => () => {
@@ -609,12 +653,12 @@ export default function IssueDetailClient({
         window.clearTimeout(descTimer.current);
         const next = descLatest.current.trim();
         if (next !== descSaved.current && next.length <= TRACK_MARKDOWN_MAX) {
-          void fetch(`/api/track/issues/${issue.id}`, {
+          void offlineFetch(`/api/track/issues/${issue.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ description: next ? [{ type: 'text', text: next }] : [] }),
             keepalive: true,
-          }).catch(() => null);
+          });
         }
       }
     },

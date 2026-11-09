@@ -2243,3 +2243,9 @@ tr.is-drop-after {
   color: var(--bad-ink);
 }
 
+
+/* Comentarios escritos sin conexión que esperan en el dispositivo (IssueActivityTimeline). */
+.track-activity-queued { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.track-activity-queued li { padding: 8px 10px; border: 1px dashed var(--line); border-radius: var(--radius-1); }
+.track-activity-queued-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.track-activity-queued-note { margin: 4px 0 0; font-size: 0.75rem; color: var(--brand-gray-2); }
