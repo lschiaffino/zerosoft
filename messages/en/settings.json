@@ -1502,7 +1502,7 @@
     }
   },
   "privacy": {
-    "title": "Your data",
+    "title": "Privacy",
     "desc": "Download everything or delete your account.",
     "exportTitle": "Download my data",
     "exportBody": "A ZIP with every record of your account and of the workspace you own, one JSON file per table. Secrets such as tokens and keys are left out.",

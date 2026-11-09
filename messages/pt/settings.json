@@ -1502,7 +1502,7 @@
     }
   },
   "privacy": {
-    "title": "Seus dados",
+    "title": "Privacidade",
     "desc": "Baixe tudo ou exclua sua conta.",
     "exportTitle": "Baixar meus dados",
     "exportBody": "Um ZIP com cada registro da sua conta e do workspace do qual você é dono, um arquivo JSON por tabela. Segredos, como tokens e chaves, ficam de fora.",

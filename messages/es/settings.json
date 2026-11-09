@@ -1502,7 +1502,7 @@
     }
   },
   "privacy": {
-    "title": "Tus datos",
+    "title": "Privacidad",
     "desc": "Descargá todo o borrá tu cuenta.",
     "exportTitle": "Descargar mis datos",
     "exportBody": "Un ZIP con cada registro de tu cuenta y del workspace del que sos owner, un archivo JSON por tabla. Los secretos, como tokens y claves, quedan afuera.",
