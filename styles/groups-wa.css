@@ -873,3 +873,4 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-inbox[data-chat-style='zerosoft'] .wa-chevron { background: transparent; border-radius: var(--radius-1); }
 .gr-inbox[data-chat-style='zerosoft'] .wa-voice-bars i.is-on,
 .gr-inbox[data-chat-style='zerosoft'] .gr-msg-out .wa-voice-bars i.is-on { background: var(--ink); }
+.gr-inbox[data-chat-style='zerosoft'] .gr-msg.is-deleted .gr-bubble { border: 1px dashed var(--line); }
