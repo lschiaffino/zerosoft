@@ -104,7 +104,7 @@ export async function retryManagedDeletes(opts: { limit?: number; now?: Date; fe
 
 export function managedProvider(
   cfg: Partial<BridgeConfig>,
-  opts: { fetch?: FetchLike; env?: ManagedEnv | null } = {},
+  opts: { fetch?: FetchLike; env?: ManagedEnv | null; fullHistory?: boolean } = {},
 ): GroupsProvider {
   const env = opts.env === undefined ? managedEnv() : opts.env;
   if (!env) throw new ProviderError('invalid_config');
@@ -131,13 +131,26 @@ export function managedProvider(
           token,
           qrcode: true,
           integration: 'WHATSAPP-BAILEYS',
-          // Sin historial viejo ni llamadas que suenen en el servidor.
-          syncFullHistory: false,
+          // Groups: sin historial viejo. Inbox (fullHistory): WhatsApp manda el historial
+          // solo al vincular y solo si se pide acá; sin esto llegan los chats sin mensajes.
+          syncFullHistory: !!opts.fullHistory,
           webhook,
         });
       } catch (err) {
         // Ya existía (reconectar): sigue con su token.
         if (!(err instanceof ProviderError) || ![400, 403, 409].includes(err.httpStatus ?? 0)) throw err;
+      }
+      if (opts.fullHistory) {
+        // Instancia creada antes sin historial: el ajuste vale para la próxima vinculación.
+        await asInstance(`/settings/set/${instance}`, 'POST', {
+          rejectCall: false,
+          msgCall: '',
+          groupsIgnore: false,
+          alwaysOnline: false,
+          readMessages: false,
+          readStatus: false,
+          syncFullHistory: true,
+        }).catch(() => null);
       }
       // El webhook se registra aparte también: versiones de v2 que ignoran el del alta.
       await asInstance(`/webhook/set/${instance}`, 'POST', { webhook });
