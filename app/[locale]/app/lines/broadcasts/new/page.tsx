@@ -41,12 +41,12 @@ export default async function NewBroadcastPage(props: { params: Promise<{ locale
   }
   return (
     <div className="ui-page">
-      <PageHeader back={{ href: '/app/groups/broadcasts', label: t('broadcasts.title') }} title={t('broadcasts.newTitle')} description={t('broadcasts.newDesc')} />
+      <PageHeader back={{ href: '/app/lines/broadcasts', label: t('broadcasts.title') }} title={t('broadcasts.newTitle')} description={t('broadcasts.newDesc')} />
       {numbers.length === 0 ? (
         <EmptyState
           title={t('list.noNumbersTitle')}
           body={t('list.noNumbersBody')}
-          action={{ label: t('inbox.connect'), href: '/app/groups/settings?tab=numbers&new=1' }}
+          action={{ label: t('inbox.connect'), href: '/app/lines/settings?tab=numbers&new=1' }}
           product="groups"
         />
       ) : (

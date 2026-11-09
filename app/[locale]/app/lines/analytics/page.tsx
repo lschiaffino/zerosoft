@@ -47,7 +47,7 @@ export default async function GroupsAnalyticsPage(props: { params: Promise<{ loc
     if (filters.chatId) q.set('chat', filters.chatId);
     if (filters.numberId) q.set('number', filters.numberId);
     for (const [k, v] of Object.entries(extra)) q.set(k, v);
-    return `/app/groups/analytics?${q.toString()}`;
+    return `/app/lines/analytics?${q.toString()}`;
   };
   const dur = (min: number | null) => {
     if (min == null) return '—';
@@ -78,7 +78,7 @@ export default async function GroupsAnalyticsPage(props: { params: Promise<{ loc
           </nav>
         }
       />
-      <form className="gr-report-filters" method="get" action={`/${locale}/app/groups/analytics`} aria-label={t('analytics.filters')}>
+      <form className="gr-report-filters" method="get" action={`/${locale}/app/lines/analytics`} aria-label={t('analytics.filters')}>
         <label className="ui-field">
           <span className="label">{t('analytics.from')}</span>
           <input
@@ -142,7 +142,7 @@ export default async function GroupsAnalyticsPage(props: { params: Promise<{ loc
             {t('analytics.apply')}
           </button>
           {filtered && (
-            <Link href="/app/groups/analytics" className="btn btn-ghost btn-sm">
+            <Link href="/app/lines/analytics" className="btn btn-ghost btn-sm">
               {t('list.clear')}
             </Link>
           )}
@@ -260,7 +260,7 @@ export default async function GroupsAnalyticsPage(props: { params: Promise<{ loc
                   {a.perChat.map((c) => (
                     <tr key={c.id}>
                       <td>
-                        <Link href={`/app/groups/inbox/${c.id}`}>{c.name}</Link>
+                        <Link href={`/app/lines/inbox/${c.id}`}>{c.name}</Link>
                       </td>
                       <td className="num">{c.inbound}</td>
                       <td className="num">{c.outbound}</td>

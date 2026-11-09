@@ -30,7 +30,7 @@ export default async function RecurringPage(props: { params: Promise<{ locale: s
   const title = rec.name || (rec.poll ? rec.poll.question : rec.body.slice(0, 60)) || t('broadcasts.untitled');
   return (
     <div className="ui-page">
-      <PageHeader back={{ href: '/app/groups/broadcasts', label: t('broadcasts.title') }} title={title} description={t('recurring.detailDesc')} />
+      <PageHeader back={{ href: '/app/lines/broadcasts', label: t('broadcasts.title') }} title={title} description={t('recurring.detailDesc')} />
       <RecurringDetail
         initial={rec}
         runs={runs}

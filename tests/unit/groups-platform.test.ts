@@ -320,7 +320,7 @@ describe('push web', () => {
     await ingestEvents(row, [msg('5491100000061@c.us', 'PU-1', '¿Me ayudan?', 'Pia')]);
     expect(fakePushes().length).toBe(before + 1);
     const pending = await takePending(user.id, user.id);
-    expect(pending[0]).toMatchObject({ title: 'Pia', url: `/app/groups/inbox/${chat.id}` });
+    expect(pending[0]).toMatchObject({ title: 'Pia', url: `/app/lines/inbox/${chat.id}` });
     expect(await takePending(user.id, user.id)).toHaveLength(0);
     expect(await notifyPerson(user.id, 'nobody', { chatId: null, title: 't', body: '' })).toBe(0);
   });

@@ -90,7 +90,7 @@ describe('adjuntos del asistente: subida', () => {
     const args = { body: { media: { $attachment: img.id }, link: `attachment:${img.id}` }, files: [{ field: 'file', attachment: img.id }] };
     expect([...referencedAttachmentIds(args)]).toEqual([img.id]);
     // Fuera de un envío no hay copia pública: ni media ni URL, solo el contenido (files).
-    await expect(resolveAttachmentRefs(owner, args)).rejects.toThrow(/only when it is sent to a Groups chat/);
+    await expect(resolveAttachmentRefs(owner, args)).rejects.toThrow(/only when it is sent to a Lines chat/);
     const onlyFiles = (await resolveAttachmentRefs(owner, { files: args.files })) as { files: Array<Record<string, unknown>> };
     expect(onlyFiles.files[0]).toMatchObject({ filename: 'p.png' });
     expect(isSendOperation('v1.groups.chats.messages.create')).toBe(true);
