@@ -1879,6 +1879,10 @@ export async function updateIssue(
     await autoCloseRelated(existing, updated, actorId, (opts.autoDepth ?? 0) + 1).catch(() => undefined);
     updated = (await getIssue(id)) ?? updated;
   }
+  // Tareas de la suite pasadas a este issue (lib/tasks.ts): hecho completa la tarea, reabrir la reabre.
+  if (statusChanged && updated && (existing.status_category === 'done') !== (updated.status_category === 'done')) {
+    await (await import('./tasks')).syncTasksFromIssue(id, updated.status_category === 'done').catch(() => 0);
+  }
   if (updated && fields.length > 0) {
     const changed = Object.keys(payload).filter((k) => payload[k as keyof IssueUpdatePayload] !== undefined);
     scheduleIssueEvents(existing, updated, changed);
