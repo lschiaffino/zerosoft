@@ -150,7 +150,8 @@ test('los grupos dicen el total real y Load more trae lo que falta', async ({ pa
     .poll(
       async () => {
         if (await more.isVisible().catch(() => false)) await more.click().catch(() => undefined);
-        else await page.mouse.wheel(0, 4000);
+        // El scroll infinito mira la última fila: se la lleva a la vista (la rueda en 0,0 movía el sidebar).
+        else await rows.last().scrollIntoViewIfNeeded().catch(() => undefined);
         return rows.count();
       },
       { timeout: 60_000 },
