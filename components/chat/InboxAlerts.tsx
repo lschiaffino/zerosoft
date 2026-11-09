@@ -172,6 +172,7 @@ export default function InboxAlerts() {
         ref={button}
         type="button"
         className="btn btn-ghost btn-icon btn-sm"
+        aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls="chat-alerts-panel"
         aria-label={t('alerts.title')}

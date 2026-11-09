@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-one-menu-at-a-time',
+    date: '2026-11-08',
+    title: {
+      en: 'One menu open at a time',
+      es: 'Un menú abierto a la vez',
+      pt: 'Um menu aberto por vez',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Opening a menu now closes the one that was open, also from the keyboard or with ⌘K and ⌘J: the app switcher and the account menu no longer end up one on top of the other. Esc closes only the top menu and puts focus back on its button, and menus open upward or sideways when they would not fit on screen.',
+        es: 'Abrir un menú ahora cierra el que estaba abierto, también con el teclado o con ⌘K y ⌘J: el switcher de apps y el menú de la cuenta ya no quedan uno encima del otro. Esc cierra solo el menú de arriba y devuelve el foco a su botón, y los menús abren para arriba o de costado cuando no entran en pantalla.',
+        pt: 'Abrir um menu agora fecha o que estava aberto, também pelo teclado ou com ⌘K e ⌘J: o seletor de apps e o menu da conta não ficam mais um em cima do outro. Esc fecha só o menu de cima e devolve o foco ao seu botão, e os menus abrem para cima ou para o lado quando não cabem na tela.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-pulse-rename',
     date: '2026-11-08',
     title: {
