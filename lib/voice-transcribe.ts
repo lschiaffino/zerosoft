@@ -16,7 +16,7 @@
  * transcripción.
  */
 import { experimental_transcribe as transcribe, gateway } from 'ai';
-import { aiEnabled, AiError, recordAiUsage } from './ai';
+import { aiEnabled, AiError, aiWorkspaceUnlimited, recordAiUsage } from './ai';
 import { getDb } from './db';
 import { rateLimit } from './rate-limit';
 
@@ -71,7 +71,7 @@ export function transcribeFreeMinutes(): number | null {
  */
 export async function assertTranscribeQuota(workspaceId: string, now = new Date()): Promise<void> {
   const free = transcribeFreeMinutes();
-  if (free === null) return;
+  if (free === null || (await aiWorkspaceUnlimited(workspaceId))) return;
   const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
   const row = (await getDb()
     .prepare(`SELECT COALESCE(SUM(input_tokens), 0) AS tokens FROM ai_usage WHERE user_id = ? AND feature = 'voice_transcribe' AND created_at >= ?`)
