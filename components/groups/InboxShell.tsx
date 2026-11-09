@@ -18,6 +18,7 @@ import { ArchiveIcon, ArrowLeft, Ban, CheckIcon, Chevron, FilterIcon, Mic, MuteI
 import { longPress } from './wa/longPress';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
+import { useChatStyle } from '@/components/chat-style/ChatStyle';
 
 const FILTERS: ChatFilter[] = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'];
 /** Pestañas de la lista, como WhatsApp (Todos, No leídos, Grupos) y después las del equipo. */
@@ -155,6 +156,7 @@ export default function InboxShell({
   children: ReactNode;
 }) {
   const t = useTranslations('groups');
+  const { style: chatStyle } = useChatStyle();
   const errText = useErrorText();
   const [toast, showToast] = useToast();
   const rel = useRelativeTime();
@@ -568,7 +570,7 @@ export default function InboxShell({
 
   return (
     <Ctx.Provider value={value}>
-      <div className={`gr-inbox${current ? ' has-chat' : ''}`}>
+      <div className={`gr-inbox${current ? ' has-chat' : ''}`} data-chat-style={chatStyle}>
         <section className="gr-list" aria-label={t('inbox.listLabel')}>
           <div className="gr-list-head">
             {banner}

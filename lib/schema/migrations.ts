@@ -11,7 +11,7 @@ import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
 import { sendUp } from './send-migration';
-import { inboxUp } from './inbox-migration';
+import { inboxUp, inboxWhatsappUp } from './inbox-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -293,7 +293,8 @@ export const MIGRATIONS: Migration[] = [
          WHERE type = 'task' AND done = 0 AND due_fired_at IS NULL`,
       );
     },
-  },  {
+  },
+  {
     // CRM ↔ suite: la actividad "meeting" sabe de qué reserva de Cal viene y la
     // nota de chat de qué conversación (para actualizarlas, no duplicarlas).
     id: '013_crm_activity_sources',
@@ -2487,7 +2488,8 @@ export const MIGRATIONS: Migration[] = [
       await client.executeMultiple(activityDateTriggersSql(1));
       for (const { table } of ACTIVITY_DATE_TABLES) await client.execute(activityDatesUpdateSql(table, undefined, 1));
     },
-  },  {
+  },
+  {
     // Chat: atributos de conversación definidos por widget (JSON
     // ChatAttributeDef[], ver lib/chat-attributes.ts) y sus valores por
     // conversación (JSON objeto id → valor). Agents: cada corrida queda en
@@ -2769,7 +2771,8 @@ export const MIGRATIONS: Migration[] = [
         }
       }
     },
-  },  {
+  },
+  {
     // Track: avisos por email (inmediato, resumen diario o nada, por persona;
     // cursor_at marca hasta dónde ya se mandó y digest_day reclama el resumen
     // del día), cycles automáticos con arrastre de lo sin terminar
@@ -5776,7 +5779,8 @@ export const MIGRATIONS: Migration[] = [
         UPDATE webhook_deliveries SET captured_by = (SELECT created_by FROM webhooks w WHERE w.id = webhook_deliveries.webhook_id) WHERE captured_by IS NULL;
       `);
     },
-  },  {
+  },
+  {
     // Paridad de Agents: versiones (borrador/publicada y rollback), registro
     // de cambios, archivos y pares de pregunta-respuesta como conocimiento,
     // sitemaps, simulaciones de varios turnos, puntaje con AI de cada
@@ -8724,7 +8728,8 @@ export const MIGRATIONS: Migration[] = [
         );
       `);
     },
-  },  {
+  },
+  {
     // Emails de ciclo de vida (lib/lifecycle): estado por persona (última
     // actividad, claim del cron), señales que no salen de otras tablas, el log
     // de envíos (una fila por persona y clave: nunca dos veces) y las
@@ -8968,11 +8973,56 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Inbox con la cara de WhatsApp Web: fotos, nombres de grupos, presencia,
+    // reacciones, destacados. Ver inboxWhatsappUp en lib/schema/inbox-migration.ts.
+    id: '294_inbox_whatsapp',
+    up: inboxWhatsappUp,
+  },
+  {
+    // Estilo de los chats de WhatsApp (Inbox y Lines) por persona: 'whatsapp' o 'zerosoft'. Ver lib/chat-style.ts.
+    id: '295_chat_style',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE users ADD COLUMN chat_style TEXT NOT NULL DEFAULT 'whatsapp'");
+    },
+  },
+  {
+    // Chats de WhatsApp (Inbox y Lines): vista previa de links (caché por URL,
+    // con la imagen chica guardada) y transcripción + resumen de audios (por
+    // dueño y mensaje: solo la ve quien la pidió). Ver lib/wa-extras.ts.
+    id: '296_wa_link_previews_transcripts',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS wa_link_previews (
+          url TEXT PRIMARY KEY,
+          title TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          site TEXT NOT NULL DEFAULT '',
+          image TEXT NOT NULL DEFAULT '',
+          fetched_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS wa_transcripts (
+          scope TEXT NOT NULL,
+          message_id TEXT NOT NULL,
+          owner_id TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          text TEXT NOT NULL DEFAULT '',
+          summary TEXT NOT NULL DEFAULT '',
+          language TEXT NOT NULL DEFAULT '',
+          error TEXT NOT NULL DEFAULT '',
+          claimed_until TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (scope, owner_id, message_id)
+        );
+      `);
+    },
+  },
+  {
     // Seguridad de la cuenta (lib/account-security.ts): verificación en dos pasos (TOTP con
     // secreto cifrado y códigos de recuperación hasheados), sesiones del lado del servidor
     // (cada login es una fila que se puede cerrar), registro de eventos de seguridad del
     // workspace y la exigencia de dos pasos por workspace.
-    id: '294_account_security',
+    id: '297_account_security',
     up: async (c) => {
       await addColumn(c, 'ALTER TABLE users ADD COLUMN mfa_secret TEXT');
       await addColumn(c, 'ALTER TABLE users ADD COLUMN mfa_pending_secret TEXT');
@@ -9020,10 +9070,11 @@ export const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at);
       `);
     },
-  },  {
+  },
+  {
     // Borrado de cuenta o de workspace (lib/privacy.ts): se pide, quedan 30 días para
     // arrepentirse y el cron lo ejecuta reclamando la fila (claimed_at).
-    id: '295_privacy_erasures',
+    id: '298_privacy_erasures',
     up: async (c) => {
       await c.executeMultiple(`
         CREATE TABLE IF NOT EXISTS privacy_erasures (
