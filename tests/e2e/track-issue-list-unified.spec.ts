@@ -149,9 +149,12 @@ test('los grupos dicen el total real y Load more trae lo que falta', async ({ pa
   await expect
     .poll(
       async () => {
-        if (await more.isVisible().catch(() => false)) await more.click().catch(() => undefined);
+        const n = await rows.count();
+        if (n >= 104) return n;
+        // Cada acción con tope: la lista re-renderiza al cargar y una espera sin límite colgaba el poll.
+        if (await more.isVisible().catch(() => false)) await more.click({ timeout: 2_000 }).catch(() => undefined);
         // El scroll infinito mira la última fila: se la lleva a la vista (la rueda en 0,0 movía el sidebar).
-        else await rows.last().scrollIntoViewIfNeeded().catch(() => undefined);
+        else await rows.last().scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => undefined);
         return rows.count();
       },
       { timeout: 60_000 },
