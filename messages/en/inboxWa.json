@@ -139,5 +139,21 @@
   "unblocked": "{name} is unblocked",
   "pin": "Pin",
   "unpin": "Unpin",
-  "mention": "Mention someone"
+  "mention": "Mention someone",
+  "styleUseZerosoft": "Chat style: zerosoft",
+  "styleUseWhatsapp": "Chat style: WhatsApp",
+  "chatStyle": {
+    "title": "Chat style",
+    "help": "How WhatsApp chats look in Inbox and Lines. It only changes the look: everything works the same.",
+    "whatsapp": {
+      "label": "WhatsApp",
+      "body": "Like WhatsApp Web: chat wallpaper, green bubbles with tails."
+    },
+    "zerosoft": {
+      "label": "zerosoft",
+      "body": "The colors and type of the rest of the app, plain background, square corners."
+    },
+    "saved": "Saved. It applies to Inbox and Lines.",
+    "error": "It could not be saved. Try again."
+  }
 }

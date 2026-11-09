@@ -17,6 +17,7 @@ import type { ComposerHandle } from '../Composer';
 import WaComposer, { ComposerBanner } from './WaComposer';
 import { chatName, formatPhone, groupReactions, senderLabel, withMentions } from './util';
 import { swipeAndHold } from './gestures';
+import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { AttachButton, useSendTray, VoiceBar } from './media-send';
 import AttachPreview from '@/components/groups/wa/AttachPreview';
 import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
@@ -80,6 +81,7 @@ const WaConversation = forwardRef<
   const { detail, connected, onAction, onError, onRefresh } = props;
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
+  const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
   const locale = useLocale();
   const { thread, messages, scheduled } = detail;
   const wa = detail.wa ?? null;
@@ -289,6 +291,12 @@ const WaConversation = forwardRef<
     { key: 'move', label: t('actions.move'), onSelect: () => onAction('move') },
     { key: 'notes', label: t('actions.notes'), onSelect: () => void openNotes() },
     { key: 'more', label: t('actions.more'), onSelect: () => onAction('more') },
+    {
+      key: 'chatStyle',
+      label: chatStyle === 'whatsapp' ? w('styleUseZerosoft') : w('styleUseWhatsapp'),
+      divider: true,
+      onSelect: () => void setChatStyle(chatStyle === 'whatsapp' ? 'zerosoft' : 'whatsapp').then((ok) => !ok && onError('generic')),
+    },
   ];
 
   // Mensajes agrupados por día; cola en el primero de cada tanda del mismo remitente.

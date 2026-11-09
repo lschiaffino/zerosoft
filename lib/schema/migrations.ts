@@ -8901,6 +8901,13 @@ export const MIGRATIONS: Migration[] = [
     id: '293_inbox_whatsapp',
     up: inboxWhatsappUp,
   },
+  {
+    // Estilo de los chats de WhatsApp (Inbox y Lines) por persona: 'whatsapp' o 'zerosoft'. Ver lib/chat-style.ts.
+    id: '294_chat_style',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE users ADD COLUMN chat_style TEXT NOT NULL DEFAULT 'whatsapp'");
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -10,6 +10,7 @@ import { api, INBOX_CHANGED, longWhen, notifyInboxChanged, typingIn } from './ap
 import ChatRow from './wa/ChatRow';
 import WaConversation, { type WaThreadDetail } from './wa/WaConversation';
 import ContactPanel from './wa/ContactPanel';
+import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { rowSwipe } from './wa/gestures';
 import Conversation from './Conversation';
 import type { ComposerHandle } from './Composer';
@@ -75,6 +76,7 @@ export default function InboxApp(props: {
 }) {
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
+  const { style: chatStyle } = useChatStyle();
   const locale = useLocale();
   const router = useRouter();
   const { view, folder } = props;
@@ -522,7 +524,7 @@ export default function InboxApp(props: {
   const showInfo = infoOpen && !!openId && detail?.thread.channel === 'whatsapp' && detail.thread.id === openId;
 
   return (
-    <div className={`ib-app gr-inbox${openId ? ' has-open' : ''}${showInfo ? ' has-details' : ''}`}>
+    <div className={`ib-app gr-inbox${openId ? ' has-open' : ''}${showInfo ? ' has-details' : ''}`} data-chat-style={chatStyle}>
       <div className="ib-list-pane">
         <div className="ib-list-head">
           <div className="ib-list-title">

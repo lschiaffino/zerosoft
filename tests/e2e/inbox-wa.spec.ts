@@ -328,6 +328,46 @@ test('teléfono: deslizar un mensaje responde y deslizar una fila la archiva', a
   await expect(page.locator('.ib-item', { hasText: name })).toHaveCount(0);
 });
 
+test('estilo de chats: WhatsApp o zerosoft desde el menú y desde Ajustes, guardado por persona', async ({ page, context, baseURL, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  await request.put('/api/chat-style', { data: { style: 'whatsapp' } });
+  const title = `Estilo ${uid()}`;
+  await seedGroup(request, acc, title);
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  const root = page.locator('.ib-app');
+  await expect(root).toHaveAttribute('data-chat-style', 'whatsapp');
+  await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
+  // Desde el "…" de la conversación.
+  await page.locator('.ib-wa-thread .gr-thread-actions').getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Chat style: zerosoft' }).click();
+  await expect(root).toHaveAttribute('data-chat-style', 'zerosoft');
+  // Sin fondo de chat ni colas.
+  expect(await page.locator('.wa-messages').evaluate((el) => getComputedStyle(el).getPropertyValue('--wa-doodle').trim())).toBe('transparent');
+  for (const theme of ['light', 'dark'] as const) {
+    await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: width > 500 ? 800 : 844 });
+      await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+      // Guardado en el servidor: sigue después de recargar.
+      await expect(root).toHaveAttribute('data-chat-style', 'zerosoft');
+      await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
+      await expect(page.locator('.ib-wa-thread .gr-msg').first()).toBeVisible();
+      expect(await page.evaluate(() => document.scrollingElement!.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+      await shot(page, `zerosoft-${width}-${theme}`);
+    }
+  }
+  await context.addCookies([{ name: 'zs_theme', value: 'light', url: baseURL! }]);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  // Desde Ajustes de Inbox, de vuelta a WhatsApp.
+  await page.goto('/en/app/inbox/settings', { waitUntil: 'networkidle' });
+  await page.getByRole('radio', { name: /WhatsApp/ }).check();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await expect(root).toHaveAttribute('data-chat-style', 'whatsapp');
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('claro y oscuro a 1280 y 390 sin errores ni scroll horizontal', async ({ page, context, baseURL, request }) => {
   const acc = await linkWhatsapp(request);
   await events(request, acc, [message(`${phone('4')}@s.whatsapp.net`, { senderName: `Carla ${uid()} con un nombre bastante largo para ver el corte`, body: 'Un mensaje largo para ver que la vista previa se corta con puntos suspensivos y no desborda' })]);

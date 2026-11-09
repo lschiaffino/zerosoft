@@ -139,5 +139,21 @@
   "unblocked": "{name} ya no está bloqueado",
   "pin": "Fijar",
   "unpin": "Desfijar",
-  "mention": "Mencionar a alguien"
+  "mention": "Mencionar a alguien",
+  "styleUseZerosoft": "Estilo de chats: zerosoft",
+  "styleUseWhatsapp": "Estilo de chats: WhatsApp",
+  "chatStyle": {
+    "title": "Estilo de chats",
+    "help": "Cómo se ven los chats de WhatsApp en Inbox y en Lines. Solo cambia el aspecto: todo funciona igual.",
+    "whatsapp": {
+      "label": "WhatsApp",
+      "body": "Como WhatsApp Web: fondo de chat, burbujas verdes con cola."
+    },
+    "zerosoft": {
+      "label": "zerosoft",
+      "body": "Los colores y la tipografía del resto de la app, fondo liso, esquinas rectas."
+    },
+    "saved": "Guardado. Vale para Inbox y Lines.",
+    "error": "No se pudo guardar. Probá de nuevo."
+  }
 }

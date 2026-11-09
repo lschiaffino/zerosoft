@@ -7,6 +7,7 @@ import { SHORTCUTS, type FolderDto, type InboxAccountDto, type SnippetDto } from
 import { api, longWhen, notifyInboxChanged } from './api';
 import { FolderDialog, Modal } from './InboxDialogs';
 import type { InboxStateDto } from './InboxApp';
+import ChatStyleSection from '@/components/chat-style/ChatStyleSection';
 
 interface ConnectState {
   status: 'pending' | 'qr' | 'connected' | 'disconnected' | 'error';
@@ -602,6 +603,7 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
           <GmailCard accounts={gmail} available={state.available.gmail} onChange={() => void reload()} />
         </div>
       </section>
+      <ChatStyleSection />
       <FoldersSection folders={state.folders} onChange={() => void reload()} />
       <SnippetsSection snippets={state.snippets} onChange={() => void reload()} />
       <ImportSection onDone={() => void reload()} />

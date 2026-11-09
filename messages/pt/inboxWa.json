@@ -139,5 +139,21 @@
   "unblocked": "{name} foi desbloqueado",
   "pin": "Fixar",
   "unpin": "Desafixar",
-  "mention": "Mencionar alguém"
+  "mention": "Mencionar alguém",
+  "styleUseZerosoft": "Estilo das conversas: zerosoft",
+  "styleUseWhatsapp": "Estilo das conversas: WhatsApp",
+  "chatStyle": {
+    "title": "Estilo das conversas",
+    "help": "Como as conversas do WhatsApp aparecem no Inbox e no Lines. Só muda a aparência: tudo funciona igual.",
+    "whatsapp": {
+      "label": "WhatsApp",
+      "body": "Como o WhatsApp Web: fundo de conversa, balões verdes com ponta."
+    },
+    "zerosoft": {
+      "label": "zerosoft",
+      "body": "As cores e a tipografia do resto do app, fundo liso, cantos retos."
+    },
+    "saved": "Salvo. Vale para o Inbox e o Lines.",
+    "error": "Não foi possível salvar. Tente de novo."
+  }
 }

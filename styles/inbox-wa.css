@@ -224,3 +224,12 @@
   .ib-wa-details { position: fixed; inset: var(--band-h, 0px) 0 0 0; z-index: 70; width: auto; border-left: 0; box-shadow: none; }
 }
 .ib-wa-mute-options { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 0 6px 34px; }
+
+/* Estilo de chats zerosoft (ver el bloque al final de styles/groups-wa.css): tipografía de la app en la lista. */
+.ib-app.gr-inbox { --accent-on: var(--c-inbox-on, #fff); }
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-row-name { font-size: 0.9375rem; font-weight: 500; }
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-row-preview { font-size: 0.8125rem; }
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-row-main { min-height: 64px; }
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .ib-row-btn { min-height: 64px; }
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .ib-wa-linkcard,
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .ib-wa-poll li { border-radius: var(--radius-1); }
