@@ -196,12 +196,16 @@ export default function MembersPanel({
   // Los checkboxes del acceso no se deshabilitan mientras guardan (perderían el foco y Esc dejaría de cerrar):
   // un segundo cambio espera a que termine el primero.
   const inflight = useRef<Promise<void>>(Promise.resolve());
+  // Cambios en cola (incluido el que corre): mientras quede otro, no se recarga la lista para no pisar lo optimista.
+  const queued = useRef(0);
   async function synced(run: () => Promise<void>) {
+    queued.current += 1;
     const next = inflight.current.then(async () => {
       setSyncing(true);
       try {
         await run();
       } finally {
+        queued.current -= 1;
         setSyncing(false);
       }
     });
@@ -394,10 +398,14 @@ export default function MembersPanel({
 
   /** Después de un cambio: la lista, la persona abierta y el registro, sin recargar. */
   async function afterChange(userId?: string, undone = false) {
-    await refresh();
-    if (userId && viewing?.userId === userId) void loadView(userId);
+    // Hay otro cambio esperando: el último recarga. Si se recargara ahora, la lista volvería a mostrar
+    // el estado del server sin los cambios en cola y los checkboxes saltarían.
+    if (queued.current <= 1) {
+      await refresh();
+      if (userId && viewing?.userId === userId) void loadView(userId);
+      router.refresh();
+    }
     if (undone) showToast(tp('toast.undone'));
-    router.refresh();
   }
 
   // ---------- Cambios con deshacer ----------
@@ -416,8 +424,11 @@ export default function MembersPanel({
   }
 
   async function changeApps(m: MemberDto, next: Apps, label: string) {
+    const prev = m.apps;
+    // Optimista ya, no cuando le toque en la cola: un segundo clic mientras guarda el primero parte de
+    // este estado y su checkbox no vuelve atrás.
+    setDir((cur) => ({ ...cur, members: cur.members.map((x) => (x.userId === m.userId ? { ...x, apps: next } : x)) }));
     await synced(async () => {
-      const prev = m.apps;
       if (!(await patchPerson(m.userId, { apps: next }))) return;
       await afterChange(m.userId);
       showToast(label, async () => {

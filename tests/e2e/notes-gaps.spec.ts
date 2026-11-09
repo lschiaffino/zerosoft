@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import zlib from 'zlib';
 import { clipBookmarklet } from '../../lib/notes-types';
 
@@ -401,7 +401,7 @@ async function teammate(browser: Browser, baseURL: string): Promise<{ ctx: Brows
   await ctx.addCookies([{ name: 'zs_e2e_as', value: email, url: baseURL }]);
   // Primer pedido: crea a la persona. Después se suma al equipo del usuario demo.
   await ctx.request.get('/api/notes');
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   try {
     const team = (await db.execute("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1")).rows[0]?.id;
     expect(team).toBeTruthy();

@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 
 /**
  * Docs, tanda D1 (editor como Notion): archivos (video, PDF, imagen con
@@ -260,7 +260,7 @@ test('Docs: @mañana y un recordatorio que avisa a su hora', async ({ request, p
   await expect.poll(async () => String((await content(request, doc.id))[0]?.content), { timeout: 10_000 }).toContain('data-remind=');
 
   // Se adelanta el recordatorio y corre el cron: llega a la campana.
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   await expect
     .poll(async () => Number((await db.execute({ sql: 'SELECT COUNT(*) AS n FROM docs_reminders WHERE page_id = ?', args: [doc.id] })).rows[0].n), { timeout: 10_000 })
     .toBe(1);
@@ -428,7 +428,7 @@ test.describe('Docs: recordatorio con el idioma y la zona del navegador', () => 
     await expect(p.getByTestId('docs-date-option')).toHaveCount(1);
     await p.keyboard.press('Enter');
     await expect(p.locator('.docs-blocks .docs-date-mention.has-reminder')).toHaveCount(1);
-    const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+    const db = e2eDb();
     await expect
       .poll(
         async () => {

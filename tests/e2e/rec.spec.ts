@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 
 /**
  * Rec (como Loom) de punta a punta: grabar con la cámara falsa de Chromium
@@ -18,7 +18,7 @@ test.use({
 });
 
 const uid = () => Math.random().toString(36).slice(2, 8);
-const db = () => createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+const db = () => e2eDb();
 
 async function ok<T = Record<string, unknown>>(res: Promise<import('@playwright/test').APIResponse>): Promise<T> {
   const r = await res;

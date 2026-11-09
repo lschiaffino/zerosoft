@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 
 /**
@@ -18,7 +18,7 @@ const ENDPOINT = `${BASE}/api/mcp`;
 const SHOTS = process.env.MCP_SHOTS_DIR || '';
 
 const uid = () => Math.random().toString(36).slice(2, 8);
-const db = () => createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+const db = () => e2eDb();
 
 async function asPerson(browser: Browser, email: string | null, opts: { colorScheme?: 'light' | 'dark'; width?: number; height?: number } = {}) {
   const ctx = await browser.newContext({

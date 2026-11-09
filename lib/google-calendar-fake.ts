@@ -53,31 +53,34 @@ function voiceDemoEvent(): FakeEvent {
   };
 }
 
+/**
+ * "Team sync" del calendario Team: siempre mañana (UTC) de 13 a 14, calculado en cada pedido. Si se fijara
+ * una vez por proceso, una corrida que cruza la medianoche UTC lo dejaba en "hoy" y los tests que piden
+ * los horarios de mañana no lo veían.
+ */
+function teamSyncEvent(): FakeEvent {
+  const tomorrow = new Date(Date.now() + 86_400_000);
+  tomorrow.setUTCHours(13, 0, 0, 0);
+  return {
+    id: 'fake-gcal-team-1',
+    calendarId: FAKE_GOOGLE_TEAM_CALENDAR,
+    start: tomorrow.toISOString(),
+    end: new Date(tomorrow.getTime() + 3_600_000).toISOString(),
+    summary: 'Team sync',
+  };
+}
+
 const g = globalThis as unknown as { __zsFakeGcal?: { seq: number; events: FakeEvent[] } };
 
+/** Eventos que Cal creó en el Google falso. */
 function state(): { seq: number; events: FakeEvent[] } {
-  if (!g.__zsFakeGcal) {
-    const tomorrow = new Date(Date.now() + 86_400_000);
-    tomorrow.setUTCHours(13, 0, 0, 0);
-    g.__zsFakeGcal = {
-      seq: 0,
-      events: [
-        {
-          id: 'fake-gcal-team-1',
-          calendarId: FAKE_GOOGLE_TEAM_CALENDAR,
-          start: tomorrow.toISOString(),
-          end: new Date(tomorrow.getTime() + 3_600_000).toISOString(),
-          summary: 'Team sync',
-        },
-      ],
-    };
-  }
+  g.__zsFakeGcal ??= { seq: 0, events: [] };
   return g.__zsFakeGcal;
 }
 
-/** Eventos que Cal creó en el Google falso (para tests). */
+/** Eventos del Google falso: los fijos más los que creó Cal (para tests). */
 export function fakeGoogleEvents(): FakeEvent[] {
-  return state().events;
+  return [teamSyncEvent(), ...state().events];
 }
 
 export function fakeGoogleTokens(): { access_token: string; refresh_token: string; expires_in: number; scope: string } {
@@ -120,7 +123,7 @@ export async function fakeGoogleFetch(input: string | URL | Request, init: Reque
     for (const item of body.items ?? []) {
       const id = item.id === 'primary' ? FAKE_GOOGLE_EMAIL : item.id;
       calendars[item.id] = {
-        busy: s.events
+        busy: fakeGoogleEvents()
           .filter((e) => e.calendarId === id && Date.parse(e.start) < to && Date.parse(e.end) > from)
           .map((e) => ({ start: e.start, end: e.end })),
       };
@@ -132,7 +135,7 @@ export async function fakeGoogleFetch(input: string | URL | Request, init: Reque
     const calendarId = decodeURIComponent(create[1]) === 'primary' ? FAKE_GOOGLE_EMAIL : decodeURIComponent(create[1]);
     const from = Date.parse(url.searchParams.get('timeMin') ?? '');
     const to = Date.parse(url.searchParams.get('timeMax') ?? '');
-    const list = [...s.events, ...(calendarId === FAKE_GOOGLE_EMAIL ? [voiceDemoEvent()] : [])]
+    const list = [...fakeGoogleEvents(), ...(calendarId === FAKE_GOOGLE_EMAIL ? [voiceDemoEvent()] : [])]
       .filter((e) => e.calendarId === calendarId && Date.parse(e.start) < to && Date.parse(e.end) > from)
       .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
     return json({
