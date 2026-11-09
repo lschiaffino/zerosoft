@@ -11,7 +11,7 @@ import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
 import { sendUp } from './send-migration';
-import { inboxUp } from './inbox-migration';
+import { inboxUp, inboxWhatsappUp } from './inbox-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -8921,11 +8921,103 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Track: reacciones en los updates de un project y en sus comentarios (como Linear).
+    // target_id es el id del update o del comentario; update_id permite listarlas juntas.
+    id: '285_track_plan_update_reactions',
+    up: async (c) => {
+      await c.execute(`CREATE TABLE IF NOT EXISTS track_plan_update_reactions (
+        target_id TEXT NOT NULL,
+        update_id TEXT NOT NULL REFERENCES track_plan_updates(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        emoji TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (target_id, user_id, emoji)
+      )`);
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_track_plan_update_reactions_update ON track_plan_update_reactions(update_id)');
+      // Resources del project (links), como en Linear.
+      await addColumn(c, "ALTER TABLE track_plans ADD COLUMN links TEXT NOT NULL DEFAULT '[]'");
+    },
+  },
+  {
+    // Track: vistas guardadas personales de las listas que no son de un team
+    // (Issues, My issues, la pestaña Issues de un project). list_key es la
+    // lista (workspace-issues, mine:assigned, plan:<id>); scope_id el workspace.
+    id: '286_track_list_views',
+    up: async (c) => {
+      await c.execute(`CREATE TABLE IF NOT EXISTS track_list_views (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        scope_id TEXT NOT NULL DEFAULT '',
+        list_key TEXT NOT NULL,
+        name TEXT NOT NULL,
+        view_type TEXT NOT NULL DEFAULT 'list',
+        filters TEXT NOT NULL DEFAULT '{}',
+        sort TEXT NOT NULL DEFAULT 'manual',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`);
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_track_list_views_user ON track_list_views(user_id, scope_id, list_key)');
+    },
+  },
+  {
+    // Track: archivar un project (como Linear). Sale de las listas y del
+    // roadmap; se ve con "Mostrar archivados" y se desarchiva desde su página.
+    id: '287_track_plans_archived',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE track_plans ADD COLUMN archived_at TEXT');
+    },
+  },
+  {
+    // Inbox con la cara de WhatsApp Web: fotos, nombres de grupos, presencia,
+    // reacciones, destacados. Ver inboxWhatsappUp en lib/schema/inbox-migration.ts.
+    id: '294_inbox_whatsapp',
+    up: inboxWhatsappUp,
+  },
+  {
+    // Estilo de los chats de WhatsApp (Inbox y Lines) por persona: 'whatsapp' o 'zerosoft'. Ver lib/chat-style.ts.
+    id: '295_chat_style',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE users ADD COLUMN chat_style TEXT NOT NULL DEFAULT 'whatsapp'");
+    },
+  },
+  {
+    // Chats de WhatsApp (Inbox y Lines): vista previa de links (caché por URL,
+    // con la imagen chica guardada) y transcripción + resumen de audios (por
+    // dueño y mensaje: solo la ve quien la pidió). Ver lib/wa-extras.ts.
+    id: '296_wa_link_previews_transcripts',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS wa_link_previews (
+          url TEXT PRIMARY KEY,
+          title TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          site TEXT NOT NULL DEFAULT '',
+          image TEXT NOT NULL DEFAULT '',
+          fetched_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS wa_transcripts (
+          scope TEXT NOT NULL,
+          message_id TEXT NOT NULL,
+          owner_id TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          text TEXT NOT NULL DEFAULT '',
+          summary TEXT NOT NULL DEFAULT '',
+          language TEXT NOT NULL DEFAULT '',
+          error TEXT NOT NULL DEFAULT '',
+          claimed_until TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (scope, owner_id, message_id)
+        );
+      `);
+    },
+  },
+  {
     // Analytics (tipo Metabase): colecciones, bases externas, preguntas,
     // tableros con tarjetas, links públicos firmados, suscripciones y caché
     // de resultados. Todo por workspace; las credenciales de las bases van
     // cifradas (lib/bi/secrets.ts).
-    id: '294_bi_analytics',
+    id: '310_bi_analytics',
     up: async (c) => {
       await c.executeMultiple(`
         CREATE TABLE IF NOT EXISTS bi_collections (

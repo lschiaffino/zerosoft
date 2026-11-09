@@ -10,7 +10,7 @@ import type { TrackIssueWithStatus } from './track-data';
 
 // ---------- Orden ----------
 
-export const ISSUE_SORTS = ['newest', 'oldest', 'updated', 'priority', 'due', 'identifier', 'customers', 'revenue'] as const;
+export const ISSUE_SORTS = ['manual', 'newest', 'oldest', 'updated', 'priority', 'due', 'estimate', 'identifier', 'customers', 'revenue'] as const;
 export type IssueSort = (typeof ISSUE_SORTS)[number];
 
 export function parseIssueSort(value: unknown): IssueSort {
@@ -45,6 +45,12 @@ export function issueOrderBy(sort: IssueSort | undefined): string {
       return 'i.due_date IS NULL, i.due_date ASC, ' + `${PRIORITY_ORDER}, i.created_at DESC, i.id DESC`;
     case 'identifier':
       return 'i.identifier ASC, i.id ASC';
+    case 'estimate':
+      // Los más grandes primero; sin estimación al final.
+      return 'i.estimate IS NULL, i.estimate DESC, i.created_at DESC, i.id DESC';
+    // Orden manual (arrastrar filas, como Linear): sub_order; sin ordenar, los más nuevos arriba.
+    case 'manual':
+      return 'i.sub_order IS NULL, i.sub_order ASC, i.created_at DESC, i.id DESC';
     case 'customers':
       return `${ISSUE_CUSTOMERS_SQL} DESC, ${PRIORITY_ORDER}, i.created_at DESC, i.id DESC`;
     case 'revenue':
@@ -57,7 +63,7 @@ export function issueOrderBy(sort: IssueSort | undefined): string {
 const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
 
 type SortableIssue = Pick<TrackIssueWithStatus, 'id' | 'created_at' | 'updated_at' | 'priority' | 'due_date' | 'identifier'> &
-  Partial<Pick<TrackIssueWithStatus, 'customer_count' | 'customer_revenue'>>;
+  Partial<Pick<TrackIssueWithStatus, 'customer_count' | 'customer_revenue' | 'sub_order' | 'estimate'>>;
 
 function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
@@ -83,6 +89,18 @@ export function compareIssues(sort: IssueSort | undefined, a: SortableIssue, b: 
     }
     case 'identifier':
       return cmp(a.identifier, b.identifier) || cmp(a.id, b.id);
+    case 'estimate': {
+      const x = a.estimate ?? null;
+      const y = b.estimate ?? null;
+      if ((x === null) !== (y === null)) return x === null ? 1 : -1;
+      return (y ?? 0) - (x ?? 0) || newest();
+    }
+    case 'manual': {
+      const x = a.sub_order ?? null;
+      const y = b.sub_order ?? null;
+      if ((x === null) !== (y === null)) return x === null ? 1 : -1;
+      return (x ?? 0) - (y ?? 0) || newest();
+    }
     case 'customers':
       return (b.customer_count ?? 0) - (a.customer_count ?? 0) || prio() || newest();
     case 'revenue':
@@ -151,10 +169,17 @@ export function labelIdLike(labelId: string): string {
 // ---------- Agrupado ----------
 
 export const ISSUE_GROUPS = ['none', 'status', 'assignee', 'priority', 'cycle', 'label', 'project'] as const;
-export type IssueGroupBy = (typeof ISSUE_GROUPS)[number];
+/** Agrupados de la pestaña Issues de un project (track_plans): por milestone del project y por team. */
+export const PLAN_ISSUE_GROUPS = ['none', 'status', 'assignee', 'priority', 'planMilestone', 'label', 'project'] as const;
+/** Listas de varios teams (Issues, My issues): también por project (track_plans). */
+export const WORKSPACE_ISSUE_GROUPS = ['none', 'status', 'assignee', 'priority', 'plan', 'project', 'cycle', 'label'] as const;
+export type IssueGroupBy =
+  | (typeof ISSUE_GROUPS)[number]
+  | (typeof PLAN_ISSUE_GROUPS)[number]
+  | (typeof WORKSPACE_ISSUE_GROUPS)[number];
 
 /** Agrupados disponibles en el tablero (las columnas): sin "ninguno". */
-export const BOARD_GROUPS = ['status', 'assignee', 'priority', 'cycle', 'label', 'project'] as const;
+export const BOARD_GROUPS = ['status', 'assignee', 'priority', 'cycle', 'label', 'project', 'plan', 'planMilestone'] as const;
 export type BoardGroupBy = (typeof BOARD_GROUPS)[number];
 
 export function parseIssueGroup(value: unknown, allowed: readonly IssueGroupBy[] = ISSUE_GROUPS): IssueGroupBy {
@@ -186,7 +211,12 @@ type GroupableIssue = Pick<
   | 'cycle_id'
   | 'cycle_name'
   | 'labels'
->;
+> & {
+  plan_milestone_id?: string | null;
+  plan_milestone_name?: string | null;
+  plan_id?: string | null;
+  plan_name?: string | null;
+};
 
 export interface GroupContext {
   /** Statuses en orden: definen columnas aunque estén vacías (agrupar por status). */
@@ -205,6 +235,8 @@ export interface GroupContext {
    * final lo terminado y cancelado (dentro de cada categoría, el orden del team).
    */
   activeFirst?: boolean;
+  /** Milestones del project en orden (agrupar por milestone): definen el orden de los grupos. */
+  milestones?: Array<{ id: string; name: string }>;
 }
 
 const ACTIVE_FIRST_ORDER = ['in_progress', 'todo', 'backlog', 'done', 'cancelled'];
@@ -252,12 +284,15 @@ export function groupIssues<T extends GroupableIssue>(
   if (groupBy === 'priority' && ctx.includeEmpty) {
     for (const p of PRIORITY_KEYS) add(p, { name: '' }, null);
   }
+  if (groupBy === 'planMilestone' && ctx.milestones) {
+    for (const m of ctx.milestones) add(m.id, { name: m.name }, null);
+  }
 
   for (const issue of issues) {
     switch (groupBy) {
       case 'status':
         add(
-          issue.status_id ? (ctx.statusByName ? `${STATUS_NAME_KEY}${issue.status_name ?? ''}` : issue.status_id) : '',
+          issue.status_id ? (ctx.statusByName ? `${STATUS_NAME_KEY}${(issue.status_name ?? '').toLowerCase()}` : issue.status_id) : '',
           { name: issue.status_name ?? '', color: issue.status_color, category: issue.status_category },
           issue,
         );
@@ -273,6 +308,12 @@ export function groupIssues<T extends GroupableIssue>(
         break;
       case 'project':
         add(issue.project_id, { name: ctx.projectNames?.[issue.project_id] ?? '' }, issue);
+        break;
+      case 'planMilestone':
+        add(issue.plan_milestone_id ?? '', { name: issue.plan_milestone_name ?? '' }, issue);
+        break;
+      case 'plan':
+        add(issue.plan_id ?? '', { name: issue.plan_name ?? '' }, issue);
         break;
       case 'label': {
         const list = parseLabelList(issue.labels);
@@ -293,6 +334,8 @@ export function groupIssues<T extends GroupableIssue>(
       return i < 0 ? CATEGORY_ORDER.length : i;
     };
     out.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  } else if (groupBy === 'planMilestone' && ctx.milestones) {
+    // El orden de los milestones del project (como Linear), no el alfabético.
   } else if (groupBy !== 'status' || !ctx.statuses) {
     // Por nombre; status sin lista de referencia también.
     out.sort((a, b) => (a.key === '' ? 1 : b.key === '' ? -1 : a.name.localeCompare(b.name)));
@@ -315,6 +358,12 @@ export interface GroupPreset {
   priority?: TrackIssueWithStatus['priority'];
   assigneeId?: string | null;
   cycleId?: string | null;
+  /** Milestone del project (pestaña Issues de un project). */
+  planMilestoneId?: string | null;
+  /** Project (track_plans) del grupo. */
+  planId?: string | null;
+  /** Varios teams agrupados por nombre de status: el status se elige en el team del alta. */
+  statusName?: string;
 }
 
 /**
@@ -325,16 +374,38 @@ export interface GroupPreset {
 export function groupPreset(groupBy: IssueGroupBy, key: string, opts: { movable?: boolean } = {}): GroupPreset | null {
   switch (groupBy) {
     case 'status':
-      return key && !key.startsWith(STATUS_NAME_KEY) ? { statusId: key } : null;
+      if (key.startsWith(STATUS_NAME_KEY)) return opts.movable ? null : { statusName: key.slice(STATUS_NAME_KEY.length) };
+      return key ? { statusId: key } : null;
     case 'priority':
       return (PRIORITY_KEYS as readonly string[]).includes(key) ? { priority: key as GroupPreset['priority'] } : null;
     case 'assignee':
       return { assigneeId: key || null };
     case 'cycle':
       return opts.movable ? null : { cycleId: key || null };
+    case 'planMilestone':
+      return { planMilestoneId: key || null };
+    case 'plan':
+      return opts.movable ? null : { planId: key || null };
     default:
       return null;
   }
+}
+
+/**
+ * Destino de arrastre de un grupo o columna (TrackIssueDnd lee
+ * data-track-drop): status, prioridad, cycle, asignado, team, project o
+ * milestone del project. Label no (un issue tiene varios) ni los status
+ * juntados por nombre de varios teams (cada team tiene los suyos).
+ */
+export function groupDropTarget(groupBy: IssueGroupBy, key: string, byName = false): string | undefined {
+  if (groupBy === 'status') return key && !byName && !key.startsWith(STATUS_NAME_KEY) ? `status:${key}` : undefined;
+  if (groupBy === 'priority') return key ? `priority:${key}` : undefined;
+  if (groupBy === 'cycle') return `cycle:${key || 'none'}`;
+  if (groupBy === 'assignee') return `assignee:${key || 'none'}`;
+  if (groupBy === 'project') return key ? `team:${key}` : undefined;
+  if (groupBy === 'planMilestone') return `planMilestone:${key || 'none'}`;
+  if (groupBy === 'plan') return `plan:${key || 'none'}`;
+  return undefined;
 }
 
 // ---------- Sub-issues bajo el padre ----------

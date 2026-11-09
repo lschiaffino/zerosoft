@@ -271,9 +271,11 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   const [asyncItems, setAsyncItems] = useState<CommandAction[]>([]);
   // Tipear o cambiar de página vuelve a la primera opción (el mouse quieto
   // sobre la lista no deja elegida una que el filtro ya sacó).
+  // Lo que llega del servidor también: "Create …" (siempre al final) no queda
+  // elegido por haber estado primero mientras cargaban las opciones existentes.
   useEffect(() => {
     setSel(0);
-  }, [q, pages]);
+  }, [q, pages, asyncItems]);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevFocusRef = useRef<HTMLElement | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -301,7 +303,16 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
       { group: 'track', label: tTrack('cmdk.allIssues'), meta: '', href: '/app/track/issues' },
       { group: 'track', label: tTrack('cmdk.inbox'), meta: '', href: '/app/track/inbox' },
       // Planificación (como Linear): plans, initiatives, roadmap, cycles, insights y dashboards.
-      { group: 'track', label: tPlanning('newPlan'), meta: '', href: '/app/track/projects?new=1' },
+      // En un team, el project nuevo queda en ese team (como Linear).
+      {
+        group: 'track',
+        label: tPlanning('newPlan'),
+        meta: '',
+        href: (() => {
+          const key = /\/app\/track\/team\/([^/?#]+)/.exec(pathname ?? '')?.[1];
+          return key ? `/app/track/projects/new?team=${encodeURIComponent(key)}` : '/app/track/projects/new';
+        })(),
+      },
       { group: 'track', label: tPlanning('newInitiative'), meta: '', href: '/app/track/initiatives?new=1' },
       { group: 'track', label: tPlanning('plans'), meta: '', href: '/app/track/projects' },
       { group: 'track', label: tPlanning('roadmap'), meta: '', href: '/app/track/roadmap' },
@@ -355,7 +366,7 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
       { group, label: tVoice('dictation'), meta: '', href: '/app/voice/dictation' },
     ];
     return inTrack ? [...track, ...rest] : [...rest, ...track];
-  }, [t, tNotes, tBoard, tTrack, tPlanning, tVoice, inTrack, inCrm, inDocs]);
+  }, [t, tNotes, tBoard, tTrack, tPlanning, tVoice, inTrack, inCrm, inDocs, pathname]);
 
   // Las apps (y el inicio): "crm", "hubspot" o "vender" llevan a la app. Solo al buscar.
   const appItems = useMemo<ResultItem[]>(
@@ -777,7 +788,8 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
                     aria-selected={i === sel}
                     tabIndex={-1}
                     className={`cmdk-item${i === sel ? ' sel' : ''}`}
-                    onMouseEnter={() => setSel(i)}
+                    // Solo con el mouse en movimiento: una lista que cambia debajo del puntero quieto no cambia la elegida.
+                    onMouseMove={() => (i === sel ? undefined : setSel(i))}
                     onClick={() => go(item)}
                   >
                     <span className="cmdk-item-label">

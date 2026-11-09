@@ -1,0 +1,4217 @@
+{
+ "AgentSessionConnection": {
+  "edges": {
+   "args": [],
+   "type": "AgentSessionEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "AgentSession"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "AiPromptProgressConnection": {
+  "edges": {
+   "args": [],
+   "type": "AiPromptProgressEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "AiPromptProgress"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "Attachment": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "bodyData": {
+   "args": [],
+   "type": "String"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "creator": {
+   "args": [],
+   "type": "User"
+  },
+  "externalUserCreator": {
+   "args": [],
+   "type": "ExternalUser"
+  },
+  "groupBySource": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "issue": {
+   "args": [],
+   "type": "Issue"
+  },
+  "metadata": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "originalIssue": {
+   "args": [],
+   "type": "Issue"
+  },
+  "source": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "sourceType": {
+   "args": [],
+   "type": "String"
+  },
+  "subtitle": {
+   "args": [],
+   "type": "String"
+  },
+  "title": {
+   "args": [],
+   "type": "String"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "url": {
+   "args": [],
+   "type": "String"
+  }
+ },
+ "AttachmentConnection": {
+  "edges": {
+   "args": [],
+   "type": "AttachmentEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Attachment"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "Comment": {
+  "agentSession": {
+   "args": [],
+   "type": "AgentSession"
+  },
+  "agentSessions": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "AgentSessionConnection"
+  },
+  "aiPromptProgresses": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "AiPromptProgressConnection"
+  },
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "body": {
+   "args": [],
+   "type": "String"
+  },
+  "bodyData": {
+   "args": [],
+   "type": "String"
+  },
+  "botActor": {
+   "args": [],
+   "type": "ActorBot"
+  },
+  "children": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "CommentConnection"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "createdIssues": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueConnection"
+  },
+  "documentContent": {
+   "args": [],
+   "type": "DocumentContent"
+  },
+  "documentContentId": {
+   "args": [],
+   "type": "String"
+  },
+  "editedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "externalThread": {
+   "args": [],
+   "type": "SyncedExternalThread"
+  },
+  "externalUser": {
+   "args": [],
+   "type": "ExternalUser"
+  },
+  "hideInLinear": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "initiative": {
+   "args": [],
+   "type": "Initiative"
+  },
+  "initiativeId": {
+   "args": [],
+   "type": "String"
+  },
+  "initiativeUpdate": {
+   "args": [],
+   "type": "InitiativeUpdate"
+  },
+  "initiativeUpdateId": {
+   "args": [],
+   "type": "String"
+  },
+  "isArtificialAgentSessionRoot": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "issue": {
+   "args": [],
+   "type": "Issue"
+  },
+  "issueId": {
+   "args": [],
+   "type": "String"
+  },
+  "onBehalfOf": {
+   "args": [],
+   "type": "User"
+  },
+  "parent": {
+   "args": [],
+   "type": "Comment"
+  },
+  "parentId": {
+   "args": [],
+   "type": "String"
+  },
+  "post": {
+   "args": [],
+   "type": "Post"
+  },
+  "project": {
+   "args": [],
+   "type": "Project"
+  },
+  "projectId": {
+   "args": [],
+   "type": "String"
+  },
+  "projectUpdate": {
+   "args": [],
+   "type": "ProjectUpdate"
+  },
+  "projectUpdateId": {
+   "args": [],
+   "type": "String"
+  },
+  "quotedText": {
+   "args": [],
+   "type": "String"
+  },
+  "reactionData": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "reactions": {
+   "args": [],
+   "type": "Reaction"
+  },
+  "resolvedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "resolvingComment": {
+   "args": [],
+   "type": "Comment"
+  },
+  "resolvingCommentId": {
+   "args": [],
+   "type": "String"
+  },
+  "resolvingUser": {
+   "args": [],
+   "type": "User"
+  },
+  "spawnedAgentSessions": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "AgentSessionConnection"
+  },
+  "syncedWith": {
+   "args": [],
+   "type": "ExternalEntityInfo"
+  },
+  "threadSummary": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "url": {
+   "args": [],
+   "type": "String"
+  },
+  "user": {
+   "args": [],
+   "type": "User"
+  }
+ },
+ "CommentConnection": {
+  "edges": {
+   "args": [],
+   "type": "CommentEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Comment"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "CustomerNeedConnection": {
+  "edges": {
+   "args": [],
+   "type": "CustomerNeedEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "CustomerNeed"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "Cycle": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "autoArchivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "completedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "completedIssueCountHistory": {
+   "args": [],
+   "type": "Float"
+  },
+  "completedScopeHistory": {
+   "args": [],
+   "type": "Float"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "currentProgress": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "description": {
+   "args": [],
+   "type": "String"
+  },
+  "documents": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "DocumentConnection"
+  },
+  "endsAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "inProgressScopeHistory": {
+   "args": [],
+   "type": "Float"
+  },
+  "inheritedFrom": {
+   "args": [],
+   "type": "Cycle"
+  },
+  "isActive": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "isFuture": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "isNext": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "isPast": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "isPrevious": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "issueCountHistory": {
+   "args": [],
+   "type": "Float"
+  },
+  "issues": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueConnection"
+  },
+  "links": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "EntityExternalLinkConnection"
+  },
+  "name": {
+   "args": [],
+   "type": "String"
+  },
+  "number": {
+   "args": [],
+   "type": "Float"
+  },
+  "progress": {
+   "args": [],
+   "type": "Float"
+  },
+  "progressHistory": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "scopeHistory": {
+   "args": [],
+   "type": "Float"
+  },
+  "startsAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "team": {
+   "args": [],
+   "type": "Team"
+  },
+  "uncompletedIssuesUponClose": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueConnection"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  }
+ },
+ "CycleConnection": {
+  "edges": {
+   "args": [],
+   "type": "CycleEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Cycle"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "Document": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "collaborators": {
+   "args": [],
+   "type": "DocumentCollaborator"
+  },
+  "color": {
+   "args": [],
+   "type": "String"
+  },
+  "comments": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "CommentConnection"
+  },
+  "content": {
+   "args": [],
+   "type": "String"
+  },
+  "contentState": {
+   "args": [],
+   "type": "String"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "creator": {
+   "args": [],
+   "type": "User"
+  },
+  "cycle": {
+   "args": [],
+   "type": "Cycle"
+  },
+  "documentContentId": {
+   "args": [],
+   "type": "String"
+  },
+  "generalAccess": {
+   "args": [],
+   "type": "DocumentShareRole"
+  },
+  "hiddenAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "icon": {
+   "args": [],
+   "type": "String"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "initiative": {
+   "args": [],
+   "type": "Initiative"
+  },
+  "issue": {
+   "args": [],
+   "type": "Issue"
+  },
+  "lastAppliedTemplate": {
+   "args": [],
+   "type": "Template"
+  },
+  "owner": {
+   "args": [],
+   "type": "User"
+  },
+  "parentDocument": {
+   "args": [],
+   "type": "Document"
+  },
+  "personalUser": {
+   "args": [],
+   "type": "User"
+  },
+  "project": {
+   "args": [],
+   "type": "Project"
+  },
+  "release": {
+   "args": [],
+   "type": "Release"
+  },
+  "slugId": {
+   "args": [],
+   "type": "String"
+  },
+  "sortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "subDocumentSortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "subscribers": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "includeDisabled",
+    "last",
+    "orderBy"
+   ],
+   "type": "UserConnection"
+  },
+  "summary": {
+   "args": [],
+   "type": "String"
+  },
+  "team": {
+   "args": [],
+   "type": "Team"
+  },
+  "title": {
+   "args": [],
+   "type": "String"
+  },
+  "trashed": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "updatedBy": {
+   "args": [],
+   "type": "User"
+  },
+  "url": {
+   "args": [],
+   "type": "String"
+  },
+  "viewerCanComment": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "viewerCanEdit": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "viewerCanManageAccess": {
+   "args": [],
+   "type": "Boolean"
+  }
+ },
+ "DocumentConnection": {
+  "edges": {
+   "args": [],
+   "type": "DocumentEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Document"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "DraftConnection": {
+  "edges": {
+   "args": [],
+   "type": "DraftEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Draft"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "EntityExternalLinkConnection": {
+  "edges": {
+   "args": [],
+   "type": "EntityExternalLinkEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "EntityExternalLink"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "ExternalUser": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "avatarUrl": {
+   "args": [],
+   "type": "String"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "displayName": {
+   "args": [],
+   "type": "String"
+  },
+  "email": {
+   "args": [],
+   "type": "String"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "lastSeen": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "name": {
+   "args": [],
+   "type": "String"
+  },
+  "organization": {
+   "args": [],
+   "type": "Organization"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  }
+ },
+ "FacetConnection": {
+  "edges": {
+   "args": [],
+   "type": "FacetEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Facet"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "GitAutomationStateConnection": {
+  "edges": {
+   "args": [],
+   "type": "GitAutomationStateEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "GitAutomationState"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "Initiative": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "canceledAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "color": {
+   "args": [],
+   "type": "String"
+  },
+  "completedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "content": {
+   "args": [],
+   "type": "String"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "creator": {
+   "args": [],
+   "type": "User"
+  },
+  "description": {
+   "args": [],
+   "type": "String"
+  },
+  "documentContent": {
+   "args": [],
+   "type": "DocumentContent"
+  },
+  "documents": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "DocumentConnection"
+  },
+  "facets": {
+   "args": [],
+   "type": "Facet"
+  },
+  "frequencyResolution": {
+   "args": [],
+   "type": "FrequencyResolutionType"
+  },
+  "health": {
+   "args": [],
+   "type": "InitiativeUpdateHealthType"
+  },
+  "healthUpdatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "history": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "InitiativeHistoryConnection"
+  },
+  "icon": {
+   "args": [],
+   "type": "String"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "identifier": {
+   "args": [],
+   "type": "String"
+  },
+  "initiativeUpdates": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "InitiativeUpdateConnection"
+  },
+  "integrationsSettings": {
+   "args": [],
+   "type": "IntegrationsSettings"
+  },
+  "labelIds": {
+   "args": [],
+   "type": "String"
+  },
+  "labels": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "InitiativeLabelConnection"
+  },
+  "lastUpdate": {
+   "args": [],
+   "type": "InitiativeUpdate"
+  },
+  "leadTeam": {
+   "args": [],
+   "type": "Team"
+  },
+  "links": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "EntityExternalLinkConnection"
+  },
+  "name": {
+   "args": [],
+   "type": "String"
+  },
+  "organization": {
+   "args": [],
+   "type": "Organization"
+  },
+  "owner": {
+   "args": [],
+   "type": "User"
+  },
+  "parentInitiative": {
+   "args": [],
+   "type": "Initiative"
+  },
+  "parentInitiatives": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "InitiativeConnection"
+  },
+  "previousIdentifiers": {
+   "args": [],
+   "type": "String"
+  },
+  "priority": {
+   "args": [],
+   "type": "Int"
+  },
+  "prioritySortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "projects": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "includeSubInitiatives",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "ProjectConnection"
+  },
+  "slugId": {
+   "args": [],
+   "type": "String"
+  },
+  "sortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "startedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "status": {
+   "args": [],
+   "type": "InitiativeStatus"
+  },
+  "subInitiatives": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "InitiativeConnection"
+  },
+  "targetDate": {
+   "args": [],
+   "type": "TimelessDate"
+  },
+  "targetDateResolution": {
+   "args": [],
+   "type": "DateResolutionType"
+  },
+  "trashed": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "updateReminderFrequency": {
+   "args": [],
+   "type": "Float"
+  },
+  "updateReminderFrequencyInWeeks": {
+   "args": [],
+   "type": "Float"
+  },
+  "updateRemindersDay": {
+   "args": [],
+   "type": "Day"
+  },
+  "updateRemindersHour": {
+   "args": [],
+   "type": "Float"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "url": {
+   "args": [],
+   "type": "String"
+  },
+  "visibility": {
+   "args": [],
+   "type": "InitiativeVisibility"
+  }
+ },
+ "InitiativeConnection": {
+  "edges": {
+   "args": [],
+   "type": "InitiativeEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Initiative"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "InitiativeHistoryConnection": {
+  "edges": {
+   "args": [],
+   "type": "InitiativeHistoryEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "InitiativeHistory"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "InitiativeLabelConnection": {
+  "edges": {
+   "args": [],
+   "type": "InitiativeLabelEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "InitiativeLabel"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "InitiativeToProjectConnection": {
+  "edges": {
+   "args": [],
+   "type": "InitiativeToProjectEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "InitiativeToProject"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "InitiativeUpdateConnection": {
+  "edges": {
+   "args": [],
+   "type": "InitiativeUpdateEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "InitiativeUpdate"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "IntegrationConnection": {
+  "edges": {
+   "args": [],
+   "type": "IntegrationEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Integration"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "Issue": {
+  "activitySummary": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "addedToCycleAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "addedToProjectAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "addedToTeamAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "agentSessions": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "AgentSessionConnection"
+  },
+  "aiAnalysis": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "aiPromptProgresses": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "AiPromptProgressConnection"
+  },
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "asksExternalUserRequester": {
+   "args": [],
+   "type": "ExternalUser"
+  },
+  "asksRequester": {
+   "args": [],
+   "type": "User"
+  },
+  "assignee": {
+   "args": [],
+   "type": "User"
+  },
+  "attachments": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "AttachmentConnection"
+  },
+  "autoArchivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "autoClosedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "boardOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "botActor": {
+   "args": [],
+   "type": "ActorBot"
+  },
+  "branchName": {
+   "args": [],
+   "type": "String"
+  },
+  "canceledAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "children": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueConnection"
+  },
+  "comments": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "CommentConnection"
+  },
+  "completedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "creator": {
+   "args": [],
+   "type": "User"
+  },
+  "customerTicketCount": {
+   "args": [],
+   "type": "Int"
+  },
+  "cycle": {
+   "args": [],
+   "type": "Cycle"
+  },
+  "delegate": {
+   "args": [],
+   "type": "User"
+  },
+  "description": {
+   "args": [],
+   "type": "String"
+  },
+  "descriptionState": {
+   "args": [],
+   "type": "String"
+  },
+  "documentContent": {
+   "args": [],
+   "type": "DocumentContent"
+  },
+  "documents": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "DocumentConnection"
+  },
+  "dueDate": {
+   "args": [],
+   "type": "TimelessDate"
+  },
+  "estimate": {
+   "args": [],
+   "type": "Float"
+  },
+  "externalUserCreator": {
+   "args": [],
+   "type": "ExternalUser"
+  },
+  "favorite": {
+   "args": [],
+   "type": "Favorite"
+  },
+  "formerAttachments": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "AttachmentConnection"
+  },
+  "formerNeeds": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "CustomerNeedConnection"
+  },
+  "history": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueHistoryConnection"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "identifier": {
+   "args": [],
+   "type": "String"
+  },
+  "incomingSuggestions": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueSuggestionConnection"
+  },
+  "inheritsSharedAccess": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "integrationSourceType": {
+   "args": [],
+   "type": "IntegrationService"
+  },
+  "inverseRelations": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueRelationConnection"
+  },
+  "labelIds": {
+   "args": [],
+   "type": "String"
+  },
+  "labels": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueLabelConnection"
+  },
+  "lastAppliedTemplate": {
+   "args": [],
+   "type": "Template"
+  },
+  "needs": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "CustomerNeedConnection"
+  },
+  "number": {
+   "args": [],
+   "type": "Float"
+  },
+  "parent": {
+   "args": [],
+   "type": "Issue"
+  },
+  "previousIdentifiers": {
+   "args": [],
+   "type": "String"
+  },
+  "priority": {
+   "args": [],
+   "type": "Float"
+  },
+  "priorityLabel": {
+   "args": [],
+   "type": "String"
+  },
+  "prioritySortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "project": {
+   "args": [],
+   "type": "Project"
+  },
+  "projectMilestone": {
+   "args": [],
+   "type": "ProjectMilestone"
+  },
+  "reactionData": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "reactions": {
+   "args": [],
+   "type": "Reaction"
+  },
+  "recurringIssueTemplate": {
+   "args": [],
+   "type": "Template"
+  },
+  "relations": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueRelationConnection"
+  },
+  "releases": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "ReleaseConnection"
+  },
+  "sharedAccess": {
+   "args": [],
+   "type": "IssueSharedAccess"
+  },
+  "slaBreachesAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "slaHighRiskAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "slaMediumRiskAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "slaStartedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "slaType": {
+   "args": [],
+   "type": "String"
+  },
+  "snoozedBy": {
+   "args": [],
+   "type": "User"
+  },
+  "snoozedUntilAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "sortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "sourceComment": {
+   "args": [],
+   "type": "Comment"
+  },
+  "startedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "startedTriageAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "state": {
+   "args": [],
+   "type": "WorkflowState"
+  },
+  "stateHistory": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "last"
+   ],
+   "type": "IssueStateSpanConnection"
+  },
+  "subIssueSortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "subscribers": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "includeDisabled",
+    "last",
+    "orderBy"
+   ],
+   "type": "UserConnection"
+  },
+  "suggestions": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueSuggestionConnection"
+  },
+  "suggestionsGeneratedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "summary": {
+   "args": [],
+   "type": "Summary"
+  },
+  "syncedWith": {
+   "args": [],
+   "type": "ExternalEntityInfo"
+  },
+  "team": {
+   "args": [],
+   "type": "Team"
+  },
+  "title": {
+   "args": [],
+   "type": "String"
+  },
+  "trashed": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "triagedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "trusted": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "url": {
+   "args": [],
+   "type": "String"
+  }
+ },
+ "IssueConnection": {
+  "edges": {
+   "args": [],
+   "type": "IssueEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Issue"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "IssueDraftConnection": {
+  "edges": {
+   "args": [],
+   "type": "IssueDraftEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "IssueDraft"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "IssueHistoryConnection": {
+  "edges": {
+   "args": [],
+   "type": "IssueHistoryEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "IssueHistory"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "IssueLabel": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "children": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueLabelConnection"
+  },
+  "color": {
+   "args": [],
+   "type": "String"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "creator": {
+   "args": [],
+   "type": "User"
+  },
+  "description": {
+   "args": [],
+   "type": "String"
+  },
+  "groupType": {
+   "args": [],
+   "type": "LabelGroupType"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "inheritedFrom": {
+   "args": [],
+   "type": "IssueLabel"
+  },
+  "isGroup": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "issues": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueConnection"
+  },
+  "lastAppliedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "name": {
+   "args": [],
+   "type": "String"
+  },
+  "organization": {
+   "args": [],
+   "type": "Organization"
+  },
+  "parent": {
+   "args": [],
+   "type": "IssueLabel"
+  },
+  "retiredAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "retiredBy": {
+   "args": [],
+   "type": "User"
+  },
+  "team": {
+   "args": [],
+   "type": "Team"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  }
+ },
+ "IssueLabelConnection": {
+  "edges": {
+   "args": [],
+   "type": "IssueLabelEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "IssueLabel"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "IssueRelation": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "issue": {
+   "args": [],
+   "type": "Issue"
+  },
+  "relatedIssue": {
+   "args": [],
+   "type": "Issue"
+  },
+  "type": {
+   "args": [],
+   "type": "String"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  }
+ },
+ "IssueRelationConnection": {
+  "edges": {
+   "args": [],
+   "type": "IssueRelationEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "IssueRelation"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "IssueStateSpanConnection": {
+  "edges": {
+   "args": [],
+   "type": "IssueStateSpanEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "IssueStateSpan"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "IssueSuggestionConnection": {
+  "edges": {
+   "args": [],
+   "type": "IssueSuggestionEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "IssueSuggestion"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "Organization": {
+  "agentAutomationEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "aiAddonEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "aiDiscussionSummariesEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "aiProviderConfiguration": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "aiTelemetryEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "aiThreadSummariesEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "allowMembersToInvite": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "allowedAiProviders": {
+   "args": [],
+   "type": "String"
+  },
+  "allowedAuthServices": {
+   "args": [],
+   "type": "String"
+  },
+  "allowedFileUploadContentTypes": {
+   "args": [],
+   "type": "String"
+  },
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "authSettings": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "codeIntelligenceEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "codeIntelligenceRepository": {
+   "args": [],
+   "type": "String"
+  },
+  "codingAgentEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "codingAgentSettings": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "createdIssueCount": {
+   "args": [],
+   "type": "Int"
+  },
+  "customerCount": {
+   "args": [],
+   "type": "Int"
+  },
+  "customersConfiguration": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "customersEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "defaultFeedSummarySchedule": {
+   "args": [],
+   "type": "FeedSummarySchedule"
+  },
+  "defaultHomeView": {
+   "args": [],
+   "type": "String"
+  },
+  "defaultHomeViewTargetId": {
+   "args": [],
+   "type": "String"
+  },
+  "deletionRequestedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "facets": {
+   "args": [],
+   "type": "Facet"
+  },
+  "feedEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "fiscalYearStartMonth": {
+   "args": [],
+   "type": "Float"
+  },
+  "generatedUpdatesEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "gitBranchFormat": {
+   "args": [],
+   "type": "String"
+  },
+  "gitLinkbackDescriptionsEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "gitLinkbackMessagesEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "gitPublicLinkbackMessagesEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "hideNonPrimaryOrganizations": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "hipaaComplianceEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "initiativeUpdateReminderFrequencyInWeeks": {
+   "args": [],
+   "type": "Float"
+  },
+  "initiativeUpdateRemindersDay": {
+   "args": [],
+   "type": "Day"
+  },
+  "initiativeUpdateRemindersHour": {
+   "args": [],
+   "type": "Float"
+  },
+  "integrations": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IntegrationConnection"
+  },
+  "ipRestrictions": {
+   "args": [],
+   "type": "OrganizationIpRestriction"
+  },
+  "labels": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueLabelConnection"
+  },
+  "linearAgentEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "linearAgentSettings": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "linearReviewSettings": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "logoUrl": {
+   "args": [],
+   "type": "String"
+  },
+  "loopWebhooksEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "loops": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "WorkflowDefinitionConnection"
+  },
+  "managedTeamFeatures": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "mcpSettings": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "name": {
+   "args": [],
+   "type": "String"
+  },
+  "periodUploadVolume": {
+   "args": [],
+   "type": "Float"
+  },
+  "previousUrlKeys": {
+   "args": [],
+   "type": "String"
+  },
+  "projectLabels": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "ProjectLabelConnection"
+  },
+  "projectStatuses": {
+   "args": [],
+   "type": "ProjectStatus"
+  },
+  "projectUpdateReminderFrequencyInWeeks": {
+   "args": [],
+   "type": "Float"
+  },
+  "projectUpdateRemindersDay": {
+   "args": [],
+   "type": "Day"
+  },
+  "projectUpdateRemindersHour": {
+   "args": [],
+   "type": "Float"
+  },
+  "projectUpdatesReminderFrequency": {
+   "args": [],
+   "type": "ProjectUpdateReminderFrequency"
+  },
+  "pullRequestIssueMode": {
+   "args": [],
+   "type": "String"
+  },
+  "pullRequestTourEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "releaseChannel": {
+   "args": [],
+   "type": "ReleaseChannel"
+  },
+  "releasesEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "restrictAgentInvocationToMembers": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "restrictLabelManagementToAdmins": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "restrictTeamCreationToAdmins": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "roadmapEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "samlEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "samlSettings": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "scimEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "scimSettings": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "securitySettings": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "slaDayCount": {
+   "args": [],
+   "type": "SLADayCountType"
+  },
+  "slackAutoCreateProjectChannel": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "slackProjectChannelIntegration": {
+   "args": [],
+   "type": "Integration"
+  },
+  "slackProjectChannelPrefix": {
+   "args": [],
+   "type": "String"
+  },
+  "slackProjectChannelsEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "subscription": {
+   "args": [],
+   "type": "PaidSubscription"
+  },
+  "suggestedBranchNameEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "teamSecuritySettings": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "teams": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "TeamConnection"
+  },
+  "templates": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "TemplateConnection"
+  },
+  "themeSettings": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "trialEndsAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "trialStartsAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "urlKey": {
+   "args": [],
+   "type": "String"
+  },
+  "userCount": {
+   "args": [],
+   "type": "Int"
+  },
+  "users": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "includeDisabled",
+    "last",
+    "orderBy"
+   ],
+   "type": "UserConnection"
+  },
+  "workingDays": {
+   "args": [],
+   "type": "Float"
+  }
+ },
+ "PageInfo": {
+  "endCursor": {
+   "args": [],
+   "type": "String"
+  },
+  "hasNextPage": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "hasPreviousPage": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "startCursor": {
+   "args": [],
+   "type": "String"
+  }
+ },
+ "Project": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "attachments": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "ProjectAttachmentConnection"
+  },
+  "autoArchivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "canceledAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "color": {
+   "args": [],
+   "type": "String"
+  },
+  "comments": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "CommentConnection"
+  },
+  "completedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "completedIssueCountHistory": {
+   "args": [],
+   "type": "Float"
+  },
+  "completedScopeHistory": {
+   "args": [],
+   "type": "Float"
+  },
+  "content": {
+   "args": [],
+   "type": "String"
+  },
+  "contentState": {
+   "args": [],
+   "type": "String"
+  },
+  "convertedFromIssue": {
+   "args": [],
+   "type": "Issue"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "creator": {
+   "args": [],
+   "type": "User"
+  },
+  "currentProgress": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "description": {
+   "args": [],
+   "type": "String"
+  },
+  "documentContent": {
+   "args": [],
+   "type": "DocumentContent"
+  },
+  "documents": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "DocumentConnection"
+  },
+  "externalLinks": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "EntityExternalLinkConnection"
+  },
+  "facets": {
+   "args": [],
+   "type": "Facet"
+  },
+  "favorite": {
+   "args": [],
+   "type": "Favorite"
+  },
+  "frequencyResolution": {
+   "args": [],
+   "type": "FrequencyResolutionType"
+  },
+  "health": {
+   "args": [],
+   "type": "ProjectUpdateHealthType"
+  },
+  "healthUpdatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "history": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "ProjectHistoryConnection"
+  },
+  "icon": {
+   "args": [],
+   "type": "String"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "identifier": {
+   "args": [],
+   "type": "String"
+  },
+  "inProgressScopeHistory": {
+   "args": [],
+   "type": "Float"
+  },
+  "initiativeToProjects": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "InitiativeToProjectConnection"
+  },
+  "initiatives": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "InitiativeConnection"
+  },
+  "integrationsSettings": {
+   "args": [],
+   "type": "IntegrationsSettings"
+  },
+  "inverseRelations": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "ProjectRelationConnection"
+  },
+  "issueCountHistory": {
+   "args": [],
+   "type": "Float"
+  },
+  "issues": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueConnection"
+  },
+  "labelIds": {
+   "args": [],
+   "type": "String"
+  },
+  "labels": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "ProjectLabelConnection"
+  },
+  "lastAppliedTemplate": {
+   "args": [],
+   "type": "Template"
+  },
+  "lastUpdate": {
+   "args": [],
+   "type": "ProjectUpdate"
+  },
+  "lead": {
+   "args": [],
+   "type": "User"
+  },
+  "leadTeam": {
+   "args": [],
+   "type": "Team"
+  },
+  "leadTeamId": {
+   "args": [],
+   "type": "String"
+  },
+  "members": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "includeDisabled",
+    "last",
+    "orderBy"
+   ],
+   "type": "UserConnection"
+  },
+  "microsoftTeamsChannelId": {
+   "args": [],
+   "type": "String"
+  },
+  "name": {
+   "args": [],
+   "type": "String"
+  },
+  "needs": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "CustomerNeedConnection"
+  },
+  "previousIdentifiers": {
+   "args": [],
+   "type": "String"
+  },
+  "priority": {
+   "args": [],
+   "type": "Int"
+  },
+  "priorityLabel": {
+   "args": [],
+   "type": "String"
+  },
+  "prioritySortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "progress": {
+   "args": [],
+   "type": "Float"
+  },
+  "progressHistory": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "projectMilestones": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "ProjectMilestoneConnection"
+  },
+  "projectUpdateRemindersPausedUntilAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "projectUpdates": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "ProjectUpdateConnection"
+  },
+  "relations": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "ProjectRelationConnection"
+  },
+  "resourceCount": {
+   "args": [],
+   "type": "Int"
+  },
+  "scope": {
+   "args": [],
+   "type": "Float"
+  },
+  "scopeHistory": {
+   "args": [],
+   "type": "Float"
+  },
+  "slackChannelId": {
+   "args": [],
+   "type": "String"
+  },
+  "slackIssueComments": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "slackIssueStatuses": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "slackNewIssue": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "slugId": {
+   "args": [],
+   "type": "String"
+  },
+  "sortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "startDate": {
+   "args": [],
+   "type": "TimelessDate"
+  },
+  "startDateResolution": {
+   "args": [],
+   "type": "DateResolutionType"
+  },
+  "startedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "state": {
+   "args": [],
+   "type": "String"
+  },
+  "status": {
+   "args": [],
+   "type": "ProjectStatus"
+  },
+  "syncedWith": {
+   "args": [],
+   "type": "ExternalEntityInfo"
+  },
+  "targetDate": {
+   "args": [],
+   "type": "TimelessDate"
+  },
+  "targetDateResolution": {
+   "args": [],
+   "type": "DateResolutionType"
+  },
+  "teams": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "TeamConnection"
+  },
+  "trashed": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "updateReminderFrequency": {
+   "args": [],
+   "type": "Float"
+  },
+  "updateReminderFrequencyInWeeks": {
+   "args": [],
+   "type": "Float"
+  },
+  "updateRemindersDay": {
+   "args": [],
+   "type": "Day"
+  },
+  "updateRemindersHour": {
+   "args": [],
+   "type": "Float"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "url": {
+   "args": [],
+   "type": "String"
+  }
+ },
+ "ProjectAttachmentConnection": {
+  "edges": {
+   "args": [],
+   "type": "ProjectAttachmentEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "ProjectAttachment"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "ProjectConnection": {
+  "edges": {
+   "args": [],
+   "type": "ProjectEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Project"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "ProjectHistoryConnection": {
+  "edges": {
+   "args": [],
+   "type": "ProjectHistoryEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "ProjectHistory"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "ProjectLabelConnection": {
+  "edges": {
+   "args": [],
+   "type": "ProjectLabelEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "ProjectLabel"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "ProjectMilestone": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "currentProgress": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "description": {
+   "args": [],
+   "type": "String"
+  },
+  "descriptionState": {
+   "args": [],
+   "type": "String"
+  },
+  "documentContent": {
+   "args": [],
+   "type": "DocumentContent"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "issues": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueConnection"
+  },
+  "name": {
+   "args": [],
+   "type": "String"
+  },
+  "progress": {
+   "args": [],
+   "type": "Float"
+  },
+  "progressHistory": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "project": {
+   "args": [],
+   "type": "Project"
+  },
+  "sortOrder": {
+   "args": [],
+   "type": "Float"
+  },
+  "status": {
+   "args": [],
+   "type": "ProjectMilestoneStatus"
+  },
+  "targetDate": {
+   "args": [],
+   "type": "TimelessDate"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  }
+ },
+ "ProjectMilestoneConnection": {
+  "edges": {
+   "args": [],
+   "type": "ProjectMilestoneEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "ProjectMilestone"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "ProjectRelationConnection": {
+  "edges": {
+   "args": [],
+   "type": "ProjectRelationEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "ProjectRelation"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "ProjectStatus": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "color": {
+   "args": [],
+   "type": "String"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "description": {
+   "args": [],
+   "type": "String"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "indefinite": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "inheritedFrom": {
+   "args": [],
+   "type": "ProjectStatus"
+  },
+  "name": {
+   "args": [],
+   "type": "String"
+  },
+  "position": {
+   "args": [],
+   "type": "Float"
+  },
+  "team": {
+   "args": [],
+   "type": "Team"
+  },
+  "teamId": {
+   "args": [],
+   "type": "String"
+  },
+  "type": {
+   "args": [],
+   "type": "ProjectStatusType"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  }
+ },
+ "ProjectUpdate": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "body": {
+   "args": [],
+   "type": "String"
+  },
+  "bodyData": {
+   "args": [],
+   "type": "String"
+  },
+  "commentCount": {
+   "args": [],
+   "type": "Int"
+  },
+  "comments": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "CommentConnection"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "diff": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "diffMarkdown": {
+   "args": [],
+   "type": "String"
+  },
+  "editedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "health": {
+   "args": [],
+   "type": "ProjectUpdateHealthType"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "infoSnapshot": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "isDiffHidden": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "isStale": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "project": {
+   "args": [],
+   "type": "Project"
+  },
+  "reactionData": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "reactions": {
+   "args": [],
+   "type": "Reaction"
+  },
+  "shortSummary": {
+   "args": [],
+   "type": "String"
+  },
+  "slugId": {
+   "args": [],
+   "type": "String"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "url": {
+   "args": [],
+   "type": "String"
+  },
+  "user": {
+   "args": [],
+   "type": "User"
+  }
+ },
+ "ProjectUpdateConnection": {
+  "edges": {
+   "args": [],
+   "type": "ProjectUpdateEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "ProjectUpdate"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "Query": {
+  "attachments": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "AttachmentConnection"
+  },
+  "comments": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "CommentConnection"
+  },
+  "cycles": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "CycleConnection"
+  },
+  "documents": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "DocumentConnection"
+  },
+  "initiatives": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "InitiativeConnection"
+  },
+  "issue": {
+   "args": [
+    "id"
+   ],
+   "type": "Issue"
+  },
+  "issueLabels": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueLabelConnection"
+  },
+  "issueRelations": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueRelationConnection"
+  },
+  "issues": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "IssueConnection"
+  },
+  "organization": {
+   "args": [],
+   "type": "Organization"
+  },
+  "projectMilestones": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "ProjectMilestoneConnection"
+  },
+  "projectUpdates": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "ProjectUpdateConnection"
+  },
+  "projects": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "ProjectConnection"
+  },
+  "teams": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "TeamConnection"
+  },
+  "users": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "includeDisabled",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "UserConnection"
+  },
+  "viewer": {
+   "args": [],
+   "type": "User"
+  }
+ },
+ "ReleaseConnection": {
+  "edges": {
+   "args": [],
+   "type": "ReleaseEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Release"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "ReleasePipelineConnection": {
+  "edges": {
+   "args": [],
+   "type": "ReleasePipelineEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "ReleasePipeline"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "Team": {
+  "activeCycle": {
+   "args": [],
+   "type": "Cycle"
+  },
+  "agentAutomationEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "aiDiscussionSummariesEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "aiThreadSummariesEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "allMembersCanJoin": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "ancestors": {
+   "args": [],
+   "type": "Team"
+  },
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "autoArchivePeriod": {
+   "args": [],
+   "type": "Float"
+  },
+  "autoCloseChildIssues": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "autoCloseParentIssues": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "autoClosePeriod": {
+   "args": [],
+   "type": "Float"
+  },
+  "autoCloseStateId": {
+   "args": [],
+   "type": "String"
+  },
+  "children": {
+   "args": [],
+   "type": "Team"
+  },
+  "codingAgentEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "color": {
+   "args": [],
+   "type": "String"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "currentProgress": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "cycleCalenderUrl": {
+   "args": [],
+   "type": "String"
+  },
+  "cycleCooldownTime": {
+   "args": [],
+   "type": "Float"
+  },
+  "cycleDuration": {
+   "args": [],
+   "type": "Float"
+  },
+  "cycleIssueAutoAssignCompleted": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "cycleIssueAutoAssignStarted": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "cycleLockToActive": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "cycleStartDay": {
+   "args": [],
+   "type": "Float"
+  },
+  "cycles": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "CycleConnection"
+  },
+  "cyclesEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "defaultIssueEstimate": {
+   "args": [],
+   "type": "Float"
+  },
+  "defaultIssueState": {
+   "args": [],
+   "type": "WorkflowState"
+  },
+  "defaultProjectTemplate": {
+   "args": [],
+   "type": "Template"
+  },
+  "defaultTemplateForMembers": {
+   "args": [],
+   "type": "Template"
+  },
+  "defaultTemplateForMembersId": {
+   "args": [],
+   "type": "String"
+  },
+  "defaultTemplateForNonMembers": {
+   "args": [],
+   "type": "Template"
+  },
+  "defaultTemplateForNonMembersId": {
+   "args": [],
+   "type": "String"
+  },
+  "description": {
+   "args": [],
+   "type": "String"
+  },
+  "displayName": {
+   "args": [],
+   "type": "String"
+  },
+  "draftWorkflowState": {
+   "args": [],
+   "type": "WorkflowState"
+  },
+  "facets": {
+   "args": [],
+   "type": "Facet"
+  },
+  "gitAutomationStates": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "GitAutomationStateConnection"
+  },
+  "groupIssueHistory": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "hierarchySettings": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "icon": {
+   "args": [],
+   "type": "String"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "inheritIssueEstimation": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "inheritProjectStatuses": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "inheritSlackAutoCreateProjectChannel": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "inheritWorkflowStatuses": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "initiativesEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "integrationsSettings": {
+   "args": [],
+   "type": "IntegrationsSettings"
+  },
+  "inviteHash": {
+   "args": [],
+   "type": "String"
+  },
+  "issueCount": {
+   "args": [
+    "includeArchived"
+   ],
+   "type": "Int"
+  },
+  "issueEstimationAllowZero": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "issueEstimationExtended": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "issueEstimationType": {
+   "args": [],
+   "type": "String"
+  },
+  "issueOrderingNoPriorityFirst": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "issueSortOrderDefaultToBottom": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "issues": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "includeSubTeams",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueConnection"
+  },
+  "joinByDefault": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "key": {
+   "args": [],
+   "type": "String"
+  },
+  "labels": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueLabelConnection"
+  },
+  "ledInitiativeCount": {
+   "args": [],
+   "type": "Int"
+  },
+  "loopWebhooksEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "loops": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "WorkflowDefinitionConnection"
+  },
+  "markedAsDuplicateWorkflowState": {
+   "args": [],
+   "type": "WorkflowState"
+  },
+  "members": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "includeDisabled",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "UserConnection"
+  },
+  "membership": {
+   "args": [
+    "userId"
+   ],
+   "type": "TeamMembership"
+  },
+  "memberships": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "TeamMembershipConnection"
+  },
+  "mergeWorkflowState": {
+   "args": [],
+   "type": "WorkflowState"
+  },
+  "mergeableWorkflowState": {
+   "args": [],
+   "type": "WorkflowState"
+  },
+  "name": {
+   "args": [],
+   "type": "String"
+  },
+  "organization": {
+   "args": [],
+   "type": "Organization"
+  },
+  "parent": {
+   "args": [],
+   "type": "Team"
+  },
+  "pinnedResources": {
+   "args": [],
+   "type": "TeamPinnedResource"
+  },
+  "posts": {
+   "args": [],
+   "type": "Post"
+  },
+  "private": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "progressHistory": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "projects": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "includeSubTeams",
+    "last",
+    "orderBy",
+    "sort"
+   ],
+   "type": "ProjectConnection"
+  },
+  "protectedBy": {
+   "args": [],
+   "type": "Team"
+  },
+  "protectedById": {
+   "args": [],
+   "type": "String"
+  },
+  "releasePipelines": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "ReleasePipelineConnection"
+  },
+  "requirePriorityToLeaveTriage": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "resourceSections": {
+   "args": [],
+   "type": "TeamResourceSection"
+  },
+  "restrictedBy": {
+   "args": [],
+   "type": "Team"
+  },
+  "restrictedById": {
+   "args": [],
+   "type": "String"
+  },
+  "retiredAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "reviewWorkflowState": {
+   "args": [],
+   "type": "WorkflowState"
+  },
+  "scimGroupName": {
+   "args": [],
+   "type": "String"
+  },
+  "scimManaged": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "securitySettings": {
+   "args": [],
+   "type": "JSONObject"
+  },
+  "setIssueSortOrderOnStateChange": {
+   "args": [],
+   "type": "String"
+  },
+  "slackAutoCreateProjectChannel": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "slackIssueComments": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "slackIssueStatuses": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "slackNewIssue": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "startWorkflowState": {
+   "args": [],
+   "type": "WorkflowState"
+  },
+  "states": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "WorkflowStateConnection"
+  },
+  "templates": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "TemplateConnection"
+  },
+  "timezone": {
+   "args": [],
+   "type": "String"
+  },
+  "triageEnabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "triageIssueState": {
+   "args": [],
+   "type": "WorkflowState"
+  },
+  "triageResponsibility": {
+   "args": [],
+   "type": "TriageResponsibility"
+  },
+  "upcomingCycleCount": {
+   "args": [],
+   "type": "Float"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "viewerCanJoin": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "viewerCanLeave": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "viewerMembership": {
+   "args": [],
+   "type": "TeamMembership"
+  },
+  "visibility": {
+   "args": [],
+   "type": "TeamVisibility"
+  },
+  "webhooks": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "WebhookConnection"
+  }
+ },
+ "TeamConnection": {
+  "edges": {
+   "args": [],
+   "type": "TeamEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Team"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "TeamMembershipConnection": {
+  "edges": {
+   "args": [],
+   "type": "TeamMembershipEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "TeamMembership"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "TemplateConnection": {
+  "edges": {
+   "args": [],
+   "type": "TemplateEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Template"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "User": {
+  "active": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "admin": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "app": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "assignedIssues": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueConnection"
+  },
+  "avatarBackgroundColor": {
+   "args": [],
+   "type": "String"
+  },
+  "avatarUrl": {
+   "args": [],
+   "type": "String"
+  },
+  "calendarHash": {
+   "args": [],
+   "type": "String"
+  },
+  "canAccessAnyPublicTeam": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "createdIssueCount": {
+   "args": [],
+   "type": "Int"
+  },
+  "createdIssues": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueConnection"
+  },
+  "delegatedIssues": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueConnection"
+  },
+  "description": {
+   "args": [],
+   "type": "String"
+  },
+  "disableReason": {
+   "args": [],
+   "type": "String"
+  },
+  "displayName": {
+   "args": [],
+   "type": "String"
+  },
+  "drafts": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "DraftConnection"
+  },
+  "email": {
+   "args": [],
+   "type": "String"
+  },
+  "feedFacets": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "FacetConnection"
+  },
+  "gitHubUserId": {
+   "args": [],
+   "type": "String"
+  },
+  "guest": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "hasGitHubCodeAccess": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "identityProvider": {
+   "args": [],
+   "type": "IdentityProvider"
+  },
+  "initials": {
+   "args": [],
+   "type": "String"
+  },
+  "inviteHash": {
+   "args": [],
+   "type": "String"
+  },
+  "isAssignable": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "isMe": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "isMentionable": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "issueDrafts": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueDraftConnection"
+  },
+  "lastSeen": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "name": {
+   "args": [],
+   "type": "String"
+  },
+  "organization": {
+   "args": [],
+   "type": "Organization"
+  },
+  "owner": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "statusEmoji": {
+   "args": [],
+   "type": "String"
+  },
+  "statusLabel": {
+   "args": [],
+   "type": "String"
+  },
+  "statusUntilAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "supportsAgentSessions": {
+   "args": [
+    "forCurrentUser"
+   ],
+   "type": "Boolean"
+  },
+  "teamMemberships": {
+   "args": [
+    "after",
+    "before",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "TeamMembershipConnection"
+  },
+  "teams": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "TeamConnection"
+  },
+  "timezone": {
+   "args": [],
+   "type": "String"
+  },
+  "title": {
+   "args": [],
+   "type": "String"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "url": {
+   "args": [],
+   "type": "String"
+  }
+ },
+ "UserConnection": {
+  "edges": {
+   "args": [],
+   "type": "UserEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "User"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "WebhookConnection": {
+  "edges": {
+   "args": [],
+   "type": "WebhookEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "Webhook"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "WorkflowDefinitionConnection": {
+  "edges": {
+   "args": [],
+   "type": "WorkflowDefinitionEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "WorkflowDefinition"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "WorkflowState": {
+  "archivedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "color": {
+   "args": [],
+   "type": "String"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "description": {
+   "args": [],
+   "type": "String"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "inheritedFrom": {
+   "args": [],
+   "type": "WorkflowState"
+  },
+  "issues": {
+   "args": [
+    "after",
+    "before",
+    "filter",
+    "first",
+    "includeArchived",
+    "last",
+    "orderBy"
+   ],
+   "type": "IssueConnection"
+  },
+  "name": {
+   "args": [],
+   "type": "String"
+  },
+  "position": {
+   "args": [],
+   "type": "Float"
+  },
+  "team": {
+   "args": [],
+   "type": "Team"
+  },
+  "type": {
+   "args": [],
+   "type": "String"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  }
+ },
+ "WorkflowStateConnection": {
+  "edges": {
+   "args": [],
+   "type": "WorkflowStateEdge"
+  },
+  "nodes": {
+   "args": [],
+   "type": "WorkflowState"
+  },
+  "pageInfo": {
+   "args": [],
+   "type": "PageInfo"
+  }
+ },
+ "enum:InitiativeStatus": [
+  "Active",
+  "Canceled",
+  "Completed",
+  "Planned",
+  "Proposed"
+ ],
+ "enum:PaginationOrderBy": [
+  "createdAt",
+  "updatedAt"
+ ],
+ "enum:ProjectStatusType": [
+  "backlog",
+  "canceled",
+  "completed",
+  "paused",
+  "planned",
+  "started"
+ ],
+ "enum:ProjectUpdateHealthType": [
+  "atRisk",
+  "offTrack",
+  "onTrack"
+ ]
+}

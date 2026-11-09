@@ -19,7 +19,7 @@ const intlMiddleware = createMiddleware(routing);
 const RESERVED = new Set([
   'en', 'es', 'pt',
   'app', 'api', 'auth', 'r', 's', 'n', 'b', 'q', 'f', 'h',
-  'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'status',
+  'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'subprocessors', 'status',
   'admin', 'www', 'mail', 'support', 'help', 'about', 'new',
   'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos', 'roadmap', 'tools',
   'feedback-board', 'send', 'brand', 'nuevo-branding', 'download', 'store', 'careers', 'compare',
@@ -295,6 +295,9 @@ export const config = {
   // Las APIs de las apps entran solo para el header de acceso por app (arriba).
   matcher: [
     '/((?!api/|r/|s/|_next/|_vercel/|apple-icon|.*\\..*).*)',
-    '/api/:family(crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk|design|shop|analytics|bi|social|hiring|people|books|sign|forms|send|inbox)/:path*',
+    // Menos las subidas de adjuntos (lib/file-attachments.ts): el middleware
+    // clona el cuerpo hasta 10 MB y corta el resto. Esas rutas chequean el
+    // acceso por app ellas mismas.
+    '/api/((?!(?:.*/)?attachments/upload$)(?:crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk|design|shop|analytics|bi|social|hiring|people|books|sign|forms|send|inbox)(?:/.*)?)',
   ],
 };

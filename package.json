@@ -25,7 +25,7 @@
     "ai": "^7.0.138",
     "geoip-lite": "^2.0.3",
     "gray-matter": "^4.0.3",
-    "katex": "^0.16.47",
+    "katex": "^0.18.11",
     "marked": "^14.1.4",
     "mysql2": "^3.24.6",
     "nanoid": "^5.0.9",
@@ -64,7 +64,21 @@
     "node": ">=22"
   },
   "overrides": {
-    "postcss": "^8.5.29"
+    "postcss": "^8.5.29",
+    "lodash-es": "^4.18.1",
+    "katex": "$katex",
+    "@excalidraw/excalidraw": {
+      "nanoid": "^3.3.18"
+    },
+    "@excalidraw/mermaid-to-excalidraw": {
+      "nanoid": "^5.1.16"
+    },
+    "@vercel/cli-config": {
+      "zod": "^4.6.7"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.1"
+    }
   },
   "license": "AGPL-3.0-only"
 }

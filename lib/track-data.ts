@@ -9,7 +9,8 @@ import { teamKeyCandidates } from './track-team-key';
 import { after } from 'next/server';
 import { getDb, getClient, txDb, getUserById } from './db';
 import { emitEvent } from './events';
-import { deleteUploads } from './uploads';
+import { deleteStoredFiles } from './file-attachments';
+import { presentTrackAttachment, trackFiles } from './track-files';
 import { filterToSql, type IssueFilter } from './track-filter';
 import type {
   TrackCycleRow,
@@ -117,6 +118,12 @@ export interface IssueParentSummary {
 export interface ListIssuesResult {
   rows: TrackIssueWithStatus[];
   total: number;
+  /** Total por status con los mismos filtros (las columnas del board muestran el real, no solo lo cargado). */
+  statusCounts?: Record<string, number>;
+  /** Total por grupo del agrupado pedido (`groupBy`), con los mismos filtros; '' = sin valor. */
+  groupCounts?: Record<string, number>;
+  /** Total por grupo y sub-grupo (`subGroupBy`), con clave `grupo\u0001subgrupo`. */
+  subGroupCounts?: Record<string, number>;
   page: number;
   pageSize: number;
 }
@@ -148,6 +155,62 @@ export interface ListIssuesOptions {
 
 export interface ListAllIssuesOptions extends ListIssuesOptions {
   projectId?: string;
+  /** Issues de un project (track_plans), como la pestaña Issues del project. */
+  planId?: string;
+  /** Mis issues: las pestañas Assigned, Created, Subscribed y Activity de esa persona. */
+  mine?: { userId: string; tab: MyIssuesTab };
+  /** Agrupado de la vista: devuelve `groupCounts` (total real de cada grupo, para los encabezados). */
+  groupBy?: string;
+  /** Sub-agrupado: devuelve `subGroupCounts`. */
+  subGroupBy?: string;
+  /** "Completed issues" de la vista: todos, los cerrados en la última semana o ninguno. */
+  completed?: 'all' | 'week' | 'none';
+}
+
+/** Columna de cada agrupado (label se cuenta aparte, un issue por cada label). */
+const GROUP_COLUMNS: Record<string, string> = {
+  status: 'i.status_id',
+  priority: 'i.priority',
+  assignee: 'i.assignee_id',
+  cycle: 'i.cycle_id',
+  project: 'i.project_id',
+  plan: 'i.plan_id',
+  planMilestone: 'i.plan_milestone_id',
+};
+
+export const COUNTABLE_GROUPS = [...Object.keys(GROUP_COLUMNS), 'label'] as const;
+
+/** Separador de grupo y sub-grupo en `subGroupCounts`. */
+export const SUBGROUP_SEP = '\u0001';
+
+/**
+ * Totales por grupo (y sub-grupo) con el mismo WHERE de la lista: los
+ * encabezados muestran el total real aunque solo se haya cargado una página.
+ */
+async function countByGroups(
+  whereSql: string,
+  args: Array<string | number>,
+  groupBy: string,
+  subGroupBy?: string,
+): Promise<Record<string, number>> {
+  const fields = [groupBy, ...(subGroupBy ? [subGroupBy] : [])];
+  if (!fields.every((f) => f === 'label' || GROUP_COLUMNS[f])) return {};
+  const usesLabel = fields.includes('label');
+  const join = usesLabel
+    ? "LEFT JOIN json_each(CASE WHEN json_valid(i.labels) AND json_type(i.labels) = 'array' THEN i.labels ELSE '[]' END) lj"
+    : '';
+  const expr = (f: string) => (f === 'label' ? "COALESCE(json_extract(lj.value, '$.id'), '')" : `COALESCE(${GROUP_COLUMNS[f]}, '')`);
+  const cols = fields.map((f, n) => `${expr(f)} AS g${n}`).join(', ');
+  const by = fields.map((_, n) => `g${n}`).join(', ');
+  const rows = (await getDb()
+    .prepare(`SELECT ${cols}, COUNT(DISTINCT i.id) AS c FROM track_issues i ${join} WHERE ${whereSql} GROUP BY ${by}`)
+    .all(...args)) as Array<Record<string, string | number>>;
+  const out: Record<string, number> = {};
+  for (const r of rows) {
+    const key = fields.length === 2 ? `${r.g0}${SUBGROUP_SEP}${r.g1}` : String(r.g0);
+    out[key] = (out[key] ?? 0) + Number(r.c);
+  }
+  return out;
 }
 
 // ---------- Saved views ----------
@@ -578,7 +641,7 @@ export async function deleteProject(id: string): Promise<boolean> {
     )
     .all(id)) as Array<{ url: string }>;
   const res = await db.prepare('DELETE FROM track_projects WHERE id = ?').run(id);
-  if (res.changes > 0) await deleteUploads(files.map((f) => f.url));
+  if (res.changes > 0) await deleteStoredFiles(trackFiles, files.map((f) => f.url));
   if (res.changes > 0 && snapshot) notifyTrackEvent({ type: 'project.deleted', project: snapshot });
   return res.changes > 0;
 }
@@ -1010,7 +1073,12 @@ export async function listIssues(
     )
     .all(...args, pageSize, (page - 1) * pageSize)) as TrackIssueWithStatus[];
 
-  return { rows, total, page, pageSize };
+  const counts = (await db
+    .prepare(`SELECT i.status_id AS s, COUNT(*) AS c FROM track_issues i WHERE ${whereSql} GROUP BY i.status_id`)
+    .all(...args)) as Array<{ s: string | null; c: number }>;
+  const statusCounts = Object.fromEntries(counts.map((r) => [r.s ?? '', Number(r.c)]));
+
+  return { rows, total, page, pageSize, statusCounts };
 }
 
 export async function listAllIssues(
@@ -1037,6 +1105,29 @@ export async function listAllIssues(
   if (options.projectId) {
     where.push('i.project_id = ?');
     args.push(options.projectId);
+  }
+  if (options.planId) {
+    where.push('i.plan_id = ?');
+    args.push(options.planId);
+  }
+  if (options.mine) {
+    const me = options.mine.userId;
+    if (options.mine.tab === 'assigned') {
+      where.push('i.assignee_id = ?');
+      args.push(me);
+    } else if (options.mine.tab === 'created') {
+      where.push('i.creator_id = ?');
+      args.push(me);
+    } else if (options.mine.tab === 'subscribed') {
+      where.push(
+        `((i.creator_id = ? OR i.assignee_id = ? OR EXISTS (SELECT 1 FROM track_issue_subscriptions su WHERE su.issue_id = i.id AND su.user_id = ? AND su.subscribed = 1))
+          AND NOT EXISTS (SELECT 1 FROM track_issue_subscriptions sx WHERE sx.issue_id = i.id AND sx.user_id = ? AND sx.subscribed = 0))`,
+      );
+      args.push(me, me, me, me);
+    } else {
+      where.push('EXISTS (SELECT 1 FROM track_issue_activities ma WHERE ma.issue_id = i.id AND ma.user_id = ?)');
+      args.push(me);
+    }
   }
 
   const statusIds = toArray(options.statusId);
@@ -1080,12 +1171,25 @@ export async function listAllIssues(
     where.push(`(${placeholders})`);
     args.push(...labelIds.map(labelIdLike));
   }
-  const advanced = filterToSql(options.filter, options.today ?? new Date().toISOString().slice(0, 10));
+  const advanced = filterToSql(options.filter, options.today ?? new Date().toISOString().slice(0, 10), {
+    milestoneColumn: options.planId ? 'i.plan_milestone_id' : undefined,
+  });
   if (advanced) {
     where.push(advanced.sql);
     args.push(...advanced.args);
   }
   if (options.topLevel) where.push('i.parent_id IS NULL');
+  // Completados: ninguno, o solo los tocados en la última semana (como Linear).
+  if (options.completed === 'none' || options.completed === 'week') {
+    const open = "(i.status_id IS NULL OR i.status_id NOT IN (SELECT ds.id FROM track_statuses ds WHERE ds.category IN ('done', 'cancelled')))";
+    if (options.completed === 'none') where.push(open);
+    else {
+      const today = options.today ?? new Date().toISOString().slice(0, 10);
+      const cutoff = new Date(Date.parse(`${today}T00:00:00Z`) - 7 * 86_400_000).toISOString().slice(0, 10);
+      where.push(`(${open} OR i.updated_at >= ?)`);
+      args.push(cutoff);
+    }
+  }
 
   const whereSql = where.join(' AND ');
   const orderBy = issueOrderBy(options.sort);
@@ -1095,6 +1199,15 @@ export async function listAllIssues(
       .prepare(`SELECT COUNT(*) AS c FROM track_issues i WHERE ${whereSql}`)
       .get(...args)) as { c: number }
   ).c;
+  const counts = (await db
+    .prepare(`SELECT i.status_id AS s, COUNT(*) AS c FROM track_issues i WHERE ${whereSql} GROUP BY i.status_id`)
+    .all(...args)) as Array<{ s: string | null; c: number }>;
+  const statusCounts = Object.fromEntries(counts.map((r) => [r.s ?? '', Number(r.c)]));
+  const groupCounts = options.groupBy && options.groupBy !== 'none' ? await countByGroups(whereSql, args, options.groupBy) : undefined;
+  const subGroupCounts =
+    groupCounts && options.subGroupBy && options.subGroupBy !== 'none' && options.subGroupBy !== options.groupBy
+      ? await countByGroups(whereSql, args, options.groupBy!, options.subGroupBy)
+      : undefined;
 
   // Con texto, como Linear: el ID exacto primero, después los que empiezan con ese ID y después por título.
   const needle = options.q?.trim() ?? '';
@@ -1110,7 +1223,7 @@ export async function listAllIssues(
     )
     .all(...args, ...rank.args, pageSize, (page - 1) * pageSize)) as TrackIssueWithStatus[];
 
-  return { rows, total, page, pageSize };
+  return { rows, total, page, pageSize, statusCounts, ...(groupCounts ? { groupCounts } : {}), ...(subGroupCounts ? { subGroupCounts } : {}) };
 }
 
 /**
@@ -1280,7 +1393,9 @@ export async function moveIssueToTeam(
   issueId: string,
   targetProjectId: string,
   actorId: string,
-): Promise<TrackIssueWithStatus | undefined> {
+  /** Deshacer: vuelve con el identificador que tenía (FO-19), si está libre. */
+  opts: { identifier?: string | null } = {},
+): Promise<(TrackIssueWithStatus & { droppedLabels?: string[] }) | undefined> {
   const db = getDb();
   const existing = await getIssue(issueId);
   if (!existing) return undefined;
@@ -1297,19 +1412,46 @@ export async function moveIssueToTeam(
     )
     .all(issueId)) as Array<{ id: string }>;
   const now = nowIso();
+  const dropped: string[] = [];
   for (const id of [issueId, ...descendants.map((d) => d.id)]) {
     const issue = id === issueId ? existing : await getIssue(id);
     if (!issue || issue.project_id === targetProjectId) continue;
     const status = mapStatusToTeam({ name: issue.status_name, category: issue.status_category }, statuses);
     let identifier = await nextIdentifier(targetProjectId);
+    const wanted = id === issueId ? opts.identifier?.trim().toUpperCase() : null;
+    if (wanted && wanted.startsWith(`${to.slug.toUpperCase()}-`)) {
+      const taken = await db
+        .prepare('SELECT 1 FROM track_issues i JOIN track_projects p ON p.id = i.project_id WHERE p.id = ? AND UPPER(i.identifier) = ?')
+        .get(targetProjectId, wanted);
+      if (!taken) identifier = wanted;
+    }
+    // Labels del team anterior (no del workspace) no existen en el nuevo: se sacan, como Linear.
+    const teamLabelIds = new Set(
+      ((await db.prepare('SELECT id FROM track_labels WHERE project_id = ?').all(issue.project_id)) as Array<{ id: string }>).map((r) => r.id),
+    );
+    let labelsJson: string | null = null;
+    if (teamLabelIds.size) {
+      const current = (() => {
+        try {
+          return JSON.parse(issue.labels || '[]') as Array<{ id?: string; name?: string }>;
+        } catch {
+          return [];
+        }
+      })();
+      const kept = current.filter((l) => !l.id || !teamLabelIds.has(l.id));
+      if (kept.length !== current.length) {
+        labelsJson = JSON.stringify(kept);
+        if (id === issueId) dropped.push(...current.filter((l) => l.id && teamLabelIds.has(l.id)).map((l) => l.name ?? ''));
+      }
+    }
     for (let attempt = 0; ; attempt++) {
       try {
         await db
           .prepare(
             `UPDATE track_issues SET project_id = ?, identifier = ?, status_id = ?, cycle_id = NULL, milestone_id = NULL,
-               triage = 0, updated_at = ? WHERE id = ?`,
+               triage = 0, labels = COALESCE(?, labels), updated_at = ? WHERE id = ?`,
           )
-          .run(targetProjectId, identifier, status?.id ?? null, now, id);
+          .run(targetProjectId, identifier, status?.id ?? null, labelsJson, now, id);
         break;
       } catch (err) {
         const msg = err instanceof Error ? err.message : '';
@@ -1340,7 +1482,7 @@ export async function moveIssueToTeam(
     scheduleIssueEvents(existing, updated, ['projectId', 'identifier', 'statusId']);
     notifyTrackEvent({ type: 'issue.updated', before: existing, after: updated, changes: ['projectId', 'identifier', 'statusId'], actorId });
   }
-  return updated;
+  return updated ? { ...updated, droppedLabels: dropped.filter(Boolean) } : updated;
 }
 
 export async function getIssueByIdentifier(
@@ -1439,6 +1581,13 @@ export async function createIssue(
 
   if (payload.planId) {
     await db.prepare('INSERT OR IGNORE INTO track_plan_teams (plan_id, project_id) VALUES (?, ?)').run(payload.planId, projectId);
+    // Creado en un grupo de milestone del project: el milestone tiene que ser de ese project.
+    const planMilestoneId = (payload as { planMilestoneId?: string | null }).planMilestoneId;
+    if (planMilestoneId) {
+      await db
+        .prepare('UPDATE track_issues SET plan_milestone_id = ? WHERE id = ? AND EXISTS (SELECT 1 FROM track_plan_milestones WHERE id = ? AND plan_id = ?)')
+        .run(planMilestoneId, id, planMilestoneId, payload.planId);
+    }
   }
   await createIssueActivity(id, creatorId, 'created', source === 'app' ? {} : { source });
   if (payload.parentId) {
@@ -1894,7 +2043,7 @@ export async function deleteIssueTree(id: string): Promise<string[]> {
     .all(id)) as Array<{ url: string }>;
   // Un solo DELETE: atómico, y las filas hijas de otras tablas se borran por FK.
   await db.prepare(`DELETE FROM track_issues WHERE id IN (${ISSUE_TREE_CTE} SELECT id FROM tree)`).run(id);
-  await deleteUploads(files.map((f) => f.url));
+  await deleteStoredFiles(trackFiles, files.map((f) => f.url));
   if (snapshot) notifyTrackEvent({ type: 'issue.deleted', issue: snapshot, count: ids.length });
   return ids;
 }
@@ -2411,7 +2560,7 @@ export async function deleteIssueRelation(id: string, issueId: string, userId: s
 // ---------- Attachments ----------
 
 export async function listIssueAttachments(issueId: string): Promise<TrackIssueAttachmentWithAuthor[]> {
-  return (await getDb()
+  return ((await getDb()
     .prepare(
       `SELECT a.*, u.name AS user_name, u.email AS user_email
        FROM track_issue_attachments a
@@ -2419,7 +2568,18 @@ export async function listIssueAttachments(issueId: string): Promise<TrackIssueA
        WHERE a.issue_id = ?
        ORDER BY a.created_at DESC`,
     )
-    .all(issueId)) as TrackIssueAttachmentWithAuthor[];
+    .all(issueId)) as TrackIssueAttachmentWithAuthor[]).map(presentTrackAttachment);
+}
+
+/** Fila cruda de un adjunto del issue (con la ref guardada), para servirlo. */
+export async function getIssueAttachmentFile(
+  id: string,
+  issueId: string,
+): Promise<{ url: string; filename: string; contentType: string } | null> {
+  const row = (await getDb()
+    .prepare('SELECT url, filename, content_type FROM track_issue_attachments WHERE id = ? AND issue_id = ?')
+    .get(id, issueId)) as { url: string; filename: string; content_type: string } | undefined;
+  return row ? { url: row.url, filename: row.filename, contentType: row.content_type } : null;
 }
 
 export interface AttachmentCreatePayload {
@@ -2445,7 +2605,7 @@ export async function createIssueAttachment(
 
   await createIssueActivity(issueId, userId, 'attachment_added', { attachmentId: id, filename: payload.filename });
 
-  return (await db
+  const row = (await db
     .prepare(
       `SELECT a.*, u.name AS user_name, u.email AS user_email
        FROM track_issue_attachments a
@@ -2453,6 +2613,7 @@ export async function createIssueAttachment(
        WHERE a.id = ?`,
     )
     .get(id)) as TrackIssueAttachmentWithAuthor;
+  return presentTrackAttachment(row);
 }
 
 export async function deleteIssueAttachment(id: string, issueId: string): Promise<boolean> {
@@ -2462,7 +2623,7 @@ export async function deleteIssueAttachment(id: string, issueId: string): Promis
     .get(id, issueId)) as { url: string } | undefined;
   if (!row) return false;
   const res = await db.prepare('DELETE FROM track_issue_attachments WHERE id = ? AND issue_id = ?').run(id, issueId);
-  if (res.changes > 0) await deleteUploads([row.url]);
+  if (res.changes > 0) await deleteStoredFiles(trackFiles, [row.url]);
   return res.changes > 0;
 }
 

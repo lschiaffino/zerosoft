@@ -110,6 +110,10 @@ export interface SidebarLabels {
     polls?: string;
   };
   track: {
+    /** Menú "+ Nuevo" de Track: issue (C), project del team actual y team. */
+    newIssue?: string;
+    newPlan?: string;
+    newTeam?: string;
     overview: string;
     myTasks: string;
     projects: string;
@@ -1153,7 +1157,7 @@ export function buildNav(
 }
 
 /** Acciones del menú "+ Nuevo": cada una crea algo (ruta /new o ?new=1). */
-export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: { docsCanCreate?: boolean } = {}): NavItem[] {
+export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: { docsCanCreate?: boolean; pathname?: string } = {}): NavItem[] {
   // Un miembro de solo lectura en Docs no ve "Nueva página" (crearla le daría error).
   if (opts.docsCanCreate === false) return buildNewItems(product, labels).filter((i) => !i.href.startsWith('/app/docs'));
   const item = (href: string, label: string, icon: IconName): NavItem => ({ href, label, icon, active: false });
@@ -1205,8 +1209,17 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/docs?new=1', labels.newDocPage, 'docs')];
     case 'calendar':
       return [item('/app/calendar/event-types/new', labels.newEventType, 'tasks')];
-    case 'track':
-      return [item('/app/track/teams/new', labels.newProject, 'lists')];
+    case 'track': {
+      // Como Linear: primero el issue (C, en el contexto de la página), después un project
+      // del team en el que se está y al final un team nuevo.
+      const path = opts.pathname && opts.pathname.startsWith('/app/track') ? opts.pathname : '/app/track';
+      const teamKey = /^\/app\/track\/team\/([^/?#]+)/.exec(path)?.[1];
+      return [
+        item(`${path}?newIssue=1`, labels.track.newIssue ?? labels.newTask, 'tasks'),
+        item(teamKey ? `/app/track/projects/new?team=${encodeURIComponent(teamKey)}` : '/app/track/projects/new', labels.track.newPlan ?? labels.newProject, 'plans'),
+        item('/app/track/teams/new', labels.track.newTeam ?? labels.newProject, 'lists'),
+      ];
+    }
     case 'chat':
       return [item('/app/chat/widgets/new', labels.newWidget, 'chat')];
     case 'flow':

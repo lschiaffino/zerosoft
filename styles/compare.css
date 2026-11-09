@@ -85,3 +85,10 @@
   .cmp-page .read-actions .btn { justify-content: center; text-align: center; padding: 10px 16px; }
 }
 .cmp-glance dd.cmp-glance-counts { font-size: 1.25rem; white-space: nowrap; }
+
+/* Con el dedo, cada link de la columna es una fila de 40px (eran dos líneas de texto pegadas). */
+@media (pointer: coarse) {
+  .cmp-links { gap: 0; }
+  .cmp-links a { display: flex; align-items: center; min-height: 40px; }
+  .cmp-index .cmp-app a { min-height: 40px; }
+}
