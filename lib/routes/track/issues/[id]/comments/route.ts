@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
+import { withIdempotency } from '@/lib/offline-idempotency';
 import { createIssueComment, getIssue, getProject, listIssueComments, canAccessTrackProject } from '@/lib/track-data';
 import { commentCreateSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, unauthorized } from '@/lib/track-http';
@@ -36,10 +37,13 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const issue = await accessibleIssue(params.id, user.team?.id ?? null, user.id);
   if (!issue) return notFound();
 
-  const body: unknown = await req.json().catch(() => null);
-  const parsed = commentCreateSchema.safeParse(body);
-  if (!parsed.success) return invalidBody(parsed.error);
+  // Un comentario escrito sin conexión puede llegar dos veces (lib/offline-idempotency.ts).
+  return withIdempotency(req, realUserId(user), async () => {
+    const body: unknown = await req.json().catch(() => null);
+    const parsed = commentCreateSchema.safeParse(body);
+    if (!parsed.success) return invalidBody(parsed.error);
 
-  const comment = await createIssueComment(params.id, realUserId(user), parsed.data);
-  return NextResponse.json(comment, { status: 201 });
+    const comment = await createIssueComment(params.id, realUserId(user), parsed.data);
+    return NextResponse.json(comment, { status: 201 });
+  });
 }

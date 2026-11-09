@@ -8838,12 +8838,32 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Modo sin conexión: altas que la app reenvía al volver la red llevan una
+    // clave propia; acá queda la respuesta de la primera vez, así un reenvío
+    // (la respuesta se perdió con la red) no crea dos veces lo mismo.
+    id: '291_offline_requests',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS offline_requests (
+          user_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          scope TEXT NOT NULL DEFAULT '',
+          status INTEGER,
+          body TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, key)
+        );
+        CREATE INDEX IF NOT EXISTS offline_requests_created ON offline_requests(created_at);
+      `);
+    },
+  },
+  {
     // Rec, compartir como Drive: rol por persona invitada, links mágicos para
     // quien no tiene cuenta y lo nuevo nace restringido. Los videos que ya
     // estaban abiertos por link siguen igual (el modal los muestra como
     // "Cualquiera con el link"); el default de los workspaces pasa a
     // restringido.
-    id: '291_rec_sharing_people',
+    id: '292_rec_sharing_people',
     up: async (c) => {
       await addColumn(c, "ALTER TABLE rec_videos ADD COLUMN people_roles TEXT NOT NULL DEFAULT '{}'");
       await c.executeMultiple(`
@@ -8862,7 +8882,7 @@ export const MIGRATIONS: Migration[] = [
   },
   {
     // Rec: MP4 (H.264/AAC) para descargar, armado una vez por versión del video.
-    id: '292_rec_mp4',
+    id: '293_rec_mp4',
     up: async (c) => {
       await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_url TEXT');
       await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_size INTEGER NOT NULL DEFAULT 0');
