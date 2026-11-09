@@ -11,7 +11,8 @@ export type PeopleEventType = 'people.hired' | 'people.timeoff.approved' | 'peop
 
 /** ¿Quien armó el flow es HR de People en el workspace (y tiene la app)? */
 export async function isPeopleHr(ws: string, personId: string): Promise<boolean> {
-  if (personId === ws) return true;
+  const { isWorkspaceOwnerPerson } = await import('./workspace');
+  if (await isWorkspaceOwnerPerson(ws, personId)) return true;
   const { listOwnerSpacePeople } = await import('./workspace');
   const person = (await listOwnerSpacePeople(ws, { app: 'people' })).find((p) => p.id === personId);
   if (!person) return false;

@@ -15,6 +15,7 @@
  *
  * Server-only.
  */
+import { isWorkspaceOwnerPerson } from './workspace';
 import { getDb, getUserById, type DocsPageRow, type UserRow } from './db';
 import { getDocAccess, type DocsActor } from './docs';
 import type { DocsAccess, DocsBlock } from './docs-types';
@@ -45,6 +46,10 @@ export async function docsActorFor(ws: string, personId: string): Promise<DocsAc
   const owner = await getUserById(ws);
   if (!owner) return null;
   if (personId === ws) return { ...owner, role: 'owner' };
+  if (await isWorkspaceOwnerPerson(ws, personId)) {
+    const real = await getUserById(personId);
+    if (real) return { ...owner, actingUser: real, role: 'owner' } as DocsActor;
+  }
   // Alguien que ya no es del workspace (salió del equipo) no actúa en él.
   const { isWorkspacePerson } = await import('./crm-refs');
   if (!(await isWorkspacePerson(ws, personId))) return null;

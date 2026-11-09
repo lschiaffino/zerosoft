@@ -384,6 +384,21 @@ export function isPrincipalId(id: string | null | undefined): boolean {
   return typeof id === 'string' && id.startsWith('wsp_');
 }
 
+/**
+ * ¿La persona es el owner del workspace cuyos datos cuelgan de `ws`? El
+ * titular mismo, o (en un workspace de equipo con titular propio) quien tiene
+ * el rol owner. Para el código que preguntaba `personId === ws`.
+ */
+export async function isWorkspaceOwnerPerson(ws: string, personId: string | null | undefined, db: Db = getDb()): Promise<boolean> {
+  if (!personId) return false;
+  if (personId === ws) return true;
+  if (!isPrincipalId(ws)) return false;
+  const row = await db
+    .prepare("SELECT 1 AS x FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.user_id = ? AND m.role = 'owner'")
+    .get(ws, personId);
+  return Boolean(row);
+}
+
 /** Membresía de la persona en el equipo (null = no es parte). */
 export async function getMembership(
   team: Pick<TeamRow, 'id' | 'owner_id'>,
