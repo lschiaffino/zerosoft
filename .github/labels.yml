@@ -69,7 +69,7 @@
   description: "The Chat app"
 - name: "app:groups"
   color: "#1d76db"
-  description: "The Groups app"
+  description: "The Lines app"
 - name: "app:agents"
   color: "#1d76db"
   description: "The Agents app"

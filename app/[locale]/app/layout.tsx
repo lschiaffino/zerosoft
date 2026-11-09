@@ -16,6 +16,7 @@ import AppSidebar from '@/components/app/AppSidebar';
 import AppTopbar from '@/components/app/AppTopbar';
 import CommandSearch from '@/components/app/CommandSearch';
 import AssistantPanel from '@/components/assistant/AssistantPanel';
+import MenuLayerGuard from '@/components/app/MenuLayerGuard';
 import DictationHost from '@/components/voice/DictationHost';
 import MeetingReminders from '@/components/voice/MeetingReminders';
 import RecorderProvider from '@/components/voice/RecorderProvider';
@@ -330,14 +331,14 @@ export default async function AppLayout(
                 { href: '/app/agents', label: tAgents('sidebar.agents') },
                 { href: '/app/robots', label: tRobots('sidebar.robots') },
                 { href: '/app/robots/recorder', label: tRobots('recorder.title') },
-                { href: '/app/groups/inbox', label: tGroups('sidebar.inbox') },
-                { href: '/app/groups/list', label: tGroups('sidebar.groups') },
-                { href: '/app/groups/tickets', label: tGroups('sidebar.tickets') },
-                { href: '/app/groups/tasks', label: tGroups('sidebar.tasks') },
-                { href: '/app/groups/templates', label: tGroups('sidebar.templates') },
-                { href: '/app/groups/broadcasts', label: tGroups('sidebar.broadcasts') },
-                { href: '/app/groups/analytics', label: tGroups('sidebar.analytics') },
-                { href: '/app/groups/settings', label: tGroups('sidebar.settings') },
+                { href: '/app/lines/inbox', label: tGroups('sidebar.inbox') },
+                { href: '/app/lines/list', label: tGroups('sidebar.groups') },
+                { href: '/app/lines/tickets', label: tGroups('sidebar.tickets') },
+                { href: '/app/lines/tasks', label: tGroups('sidebar.tasks') },
+                { href: '/app/lines/templates', label: tGroups('sidebar.templates') },
+                { href: '/app/lines/broadcasts', label: tGroups('sidebar.broadcasts') },
+                { href: '/app/lines/analytics', label: tGroups('sidebar.analytics') },
+                { href: '/app/lines/settings', label: tGroups('sidebar.settings') },
                 { href: '/app/voice', label: tVoice('nav.meetings') },
                 { href: '/app/voice/dictation', label: tVoice('nav.dictation') },
                 { href: '/app/rec', label: tRec('sidebar.home') },
@@ -775,6 +776,8 @@ export default async function AppLayout(
         <CommandSearch allowedApps={user.role === 'owner' ? '*' : PRODUCT_KEYS.filter((key) => userCanUseApp(user, key))} />
         {/* Asistente de la plataforma: ⌘J o el botón de la banda, en toda la app. */}
         <AssistantPanel />
+        {/* Un solo menú abierto a la vez también para los menús que no usan lib/ui/layers.ts. */}
+        <MenuLayerGuard />
         {/* Dictado en toda la app y avisos de reunión: solo para quien tiene Voice en este workspace. */}
         {userCanUseApp(user, 'voice') && (
           <>

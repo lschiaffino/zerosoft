@@ -47,7 +47,7 @@ describe('tareas de la suite', () => {
     const links = (await taskLinks(user.id, [task.id])).get(task.id)!;
     expect(links.map((l) => l.kind).sort()).toEqual(['lines_chat', 'lines_message']);
     const source = primaryLink(links)!;
-    expect(source).toMatchObject({ kind: 'lines_message', href: `/app/groups/inbox/${chatId}`, detail: 'Mandame la propuesta', chatId });
+    expect(source).toMatchObject({ kind: 'lines_message', href: `/app/lines/inbox/${chatId}`, detail: 'Mandame la propuesta', chatId });
     expect(await tasksLinkedTo(user.id, 'lines_chat', chatId)).toEqual([task.id]);
   });
 

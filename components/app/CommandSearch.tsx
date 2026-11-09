@@ -24,6 +24,7 @@ import { SETTINGS_SECTION_KEYS, settingsSectionHref } from '@/lib/settings-nav';
 import { hrefAllowed, PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref, type AllowedApps, type ProductKey } from '@/lib/products';
 import { RIVALS } from '@/components/site/catalog';
 import { IMPORT_SOURCES, importHubHref } from '@/lib/import-registry';
+import { focusReturnTarget, useLayer } from '@/lib/ui/layers';
 
 interface ResultItem {
   group: string;
@@ -273,6 +274,10 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   }, [q, pages]);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevFocusRef = useRef<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // ⌘K es una capa de diálogo: al abrirse cierra los menús abiertos (la cuenta, el switcher). Esc y el clic
+  // en el fondo los maneja la paleta.
+  useLayer(open, () => setOpen(false), { root: dialogRef, kind: 'dialog', outside: false, escape: false });
   const groupOrder = useGroupOrder();
   const groupLabel = useGroupLabel(t);
 
@@ -341,8 +346,8 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
       { group, label: tBoard('list.new'), meta: '', href: '/app/board?new=1' },
       { group, label: t('newAgent'), meta: '', href: '/app/agents' },
       { group, label: t('newRobot'), meta: '', href: '/app/robots?new=1' },
-      { group, label: t('newGroup'), meta: '', href: '/app/groups/list?new=1' },
-      { group, label: t('newGroupTemplate'), meta: '', href: '/app/groups/templates?new=1' },
+      { group, label: t('newGroup'), meta: '', href: '/app/lines/list?new=1' },
+      { group, label: t('newGroupTemplate'), meta: '', href: '/app/lines/templates?new=1' },
       { group, label: tVoice('newMeeting'), meta: '', href: '/app/voice?new=1' },
       { group, label: tVoice('dictate'), meta: '', href: '/app/voice/dictation', event: 'zs:voice-dictate' },
       { group, label: tVoice('dictation'), meta: '', href: '/app/voice/dictation' },
@@ -359,7 +364,7 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
         label: t('openApp', { name: PRODUCT_CONFIG[key].name }),
         meta: tCategories(`${PRODUCT_CONFIG[key].category}.title`),
         href: PRODUCT_CONFIG[key].launch,
-        keywords: `${PRODUCT_CONFIG[key].name},${RIVALS[key]},${tCategories(`${PRODUCT_CONFIG[key].category}.title`)}`,
+        keywords: `${PRODUCT_CONFIG[key].name},${key},${RIVALS[key]},${tCategories(`${PRODUCT_CONFIG[key].category}.title`)}`,
       })),
       { group: 'apps', label: t('linkOverview'), meta: 'Link', href: '/app/links/overview', keywords: 'link,overview,resumen,resumo' },
     ],
@@ -406,7 +411,9 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   // Se guarda al pedir la apertura: en el efecto, el input ya tomó el foco.
   const rememberFocus = useCallback(() => {
     const el = document.activeElement as HTMLElement | null;
-    if (el && !el.closest('.cmdk')) prevFocusRef.current = el;
+    if (!el || el.closest('.cmdk')) return;
+    // Desde un ítem de un menú abierto (que se cierra al abrir ⌘K): el foco vuelve a su botón, no a un nodo desmontado.
+    prevFocusRef.current = focusReturnTarget(el);
   }, []);
 
   useEffect(() => {
@@ -713,6 +720,7 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   return (
     <div className={`cmdk-backdrop${anchored ? ' is-anchored' : ''}`} onMouseDown={() => setOpen(false)}>
       <div
+        ref={dialogRef}
         className={`cmdk${anchored ? ' is-anchored' : ''}`}
         role="dialog"
         aria-modal="true"
