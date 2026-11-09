@@ -19,6 +19,8 @@ import { longPress } from './wa/longPress';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
+import type { LineFolderDto } from '@/lib/groups-lines';
+import { DRAG_TYPE, FoldersPanel, LineBadge, LineSelector, MoveToFolderModal, type LineOption } from './LineFolders';
 
 const FILTERS: ChatFilter[] = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'];
 /** Pestañas de la lista, como WhatsApp (Todos, No leídos, Grupos) y después las del equipo. */
@@ -142,6 +144,8 @@ export default function InboxShell({
   properties = [],
   me = '',
   initialLists = [],
+  numbers = [],
+  initialLine = 'all',
   banner = null,
   children,
 }: {
@@ -151,6 +155,10 @@ export default function InboxShell({
   properties?: PropertyDef[];
   me?: string;
   initialLists?: SavedListDto[];
+  /** Líneas que esta persona ve (visibilidad por línea). */
+  numbers?: LineOption[];
+  /** Línea elegida la última vez ('all' = todas). */
+  initialLine?: string;
   /** Aviso arriba de la lista (datos de ejemplo). */
   banner?: ReactNode;
   children: ReactNode;
@@ -181,6 +189,11 @@ export default function InboxShell({
   const params = useSearchParams();
   const listId = params.get('list');
   const current = chatIdFromPath(pathname);
+  const [line, setLine] = useState(numbers.some((n) => n.id === initialLine) ? initialLine : 'all');
+  const [folderSel, setFolderSel] = useState('');
+  const [folderData, setFolderData] = useState<{ folders: LineFolderDto[]; unfiled: { unread: number; chats: number } }>({ folders: [], unfiled: { unread: 0, chats: 0 } });
+  const [moveIds, setMoveIds] = useState<string[] | null>(null);
+  const lineNames = useMemo(() => new Map(numbers.map((n) => [n.id, n.name])), [numbers]);
   const [controls, setControls] = useState<Controls>(EMPTY);
   const { filter, label, kind, assignee, team, propKey, propValue, q } = controls;
   const set = (patch: Partial<Controls>) => setControls((c) => ({ ...c, ...patch }));
@@ -243,6 +256,8 @@ export default function InboxShell({
   const query = useMemo(() => {
     const p = new URLSearchParams({ filter, limit: String(pageSize) });
     if (archivedView) p.set('archived', '1');
+    if (line !== 'all') p.set('number', line);
+    if (folderSel) p.set('folder', folderSel);
     if (debounced) p.set('q', debounced);
     if (label) p.set('label', label);
     if (kind) p.set('kind', kind);
@@ -250,7 +265,7 @@ export default function InboxShell({
     if (team) p.set('team', team);
     if (propKey) p.set('props', JSON.stringify([propValue ? { key: propKey, op: 'is', value: propValue } : { key: propKey, op: 'set' }]));
     return p.toString();
-  }, [filter, debounced, label, kind, assignee, team, propKey, propValue, pageSize, archivedView]);
+  }, [filter, debounced, label, kind, assignee, team, propKey, propValue, pageSize, archivedView, line, folderSel]);
 
   const load = useCallback(
     async (silent: boolean) => {
@@ -314,6 +329,34 @@ export default function InboxShell({
       window.removeEventListener('focus', onBack);
     };
   }, [load]);
+
+  const reloadFolders = useCallback(async () => {
+    const r = await api<{ folders: LineFolderDto[]; unfiled: { unread: number; chats: number } }>('/api/groups/folders');
+    if (r.data) setFolderData(r.data);
+  }, []);
+  useEffect(() => {
+    void reloadFolders();
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') void reloadFolders();
+    }, 10000);
+    return () => clearInterval(id);
+  }, [reloadFolders]);
+
+  function pickLine(v: string) {
+    setLine(v);
+    setPageSize(100);
+    void api('/api/groups/prefs', { method: 'PUT', body: { line: v } });
+  }
+
+  async function moveToFolder(ids: string[], folderId: string | null) {
+    const res = await api<{ updated: number; failed: number }>('/api/groups/chats/bulk', { body: { ids, action: 'folder', folderId } });
+    if (!res.data) return showToast(errText(res.error), true);
+    const name = folderId ? (folderData.folders.find((f) => f.id === folderId)?.name ?? '') : '';
+    showToast(folderId ? t('lines.movedTo', { n: res.data.updated, name }) : t('lines.removedFromFolder', { n: res.data.updated }), res.data.failed > 0);
+    setSelected(new Set());
+    void load(true);
+    void reloadFolders();
+  }
 
   const refresh = useCallback(() => void load(true), [load]);
 
@@ -415,6 +458,7 @@ export default function InboxShell({
       { key: 'pin', label: c.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
       { key: 'unread', label: c.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void rowAction(c, { read: c.unread > 0 }) },
       { key: 'assign', label: c.assignedTo === me ? t('wa.unassignMe') : t('wa.assignMe'), onSelect: () => void rowAction(c, { assignedTo: c.assignedTo === me ? null : me }) },
+      { key: 'folder', label: t('lines.moveToFolder'), onSelect: () => setMoveIds([c.id]) },
       { key: 'hide', label: t('wa.deleteChat'), danger: true, divider: true, onSelect: () => setHiding(c) },
     ];
   }
@@ -427,6 +471,12 @@ export default function InboxShell({
       <li
         key={`${opts.snippet ? 'm' : 'c'}-${c.id}`}
         className={`gr-row-item${c.muted ? ' is-muted' : ''}`}
+        draggable={!showCheck}
+        onDragStart={(e) => {
+          const ids = selected.has(c.id) ? [...selected] : [c.id];
+          e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(ids));
+          e.dataTransfer.effectAllowed = 'move';
+        }}
         onContextMenu={(e) => {
           if (showCheck) return;
           e.preventDefault();
@@ -505,8 +555,9 @@ export default function InboxShell({
                 {c.pinned && <PinIcon size={16} className="gr-pin-icon" label={t('inbox.pinned')} />}
               </span>
             </span>
-            {(c.flagged || c.awaitingSince || c.labels.length > 0 || c.assignedTo) && (
+            {(c.flagged || c.awaitingSince || c.labels.length > 0 || c.assignedTo || (line === 'all' && numbers.length > 1)) && (
               <span className="gr-row-meta">
+                {line === 'all' && numbers.length > 1 && lineNames.get(c.numberId) && <LineBadge name={lineNames.get(c.numberId) as string} />}
                 {c.flagged ? (
                   <span className="badge badge-bad">{t('inbox.flagged')}</span>
                 ) : c.awaitingSince ? (
@@ -576,6 +627,7 @@ export default function InboxShell({
             {banner}
             <div className="gr-list-titlebar">
               <h1 className="gr-list-title">{activeList ? activeList.name : t('inbox.title')}</h1>
+              <LineSelector numbers={numbers} value={line} onChange={pickLine} />
               {available !== null && (
                 <button
                   type="button"
@@ -633,6 +685,19 @@ export default function InboxShell({
                   </>
                 )}
               </p>
+            )}
+            {!archivedView && (
+              <FoldersPanel
+                folders={folderData.folders}
+                unfiled={folderData.unfiled}
+                selected={folderSel}
+                onSelect={setFolderSel}
+                onChanged={() => {
+                  void reloadFolders();
+                  void load(true);
+                }}
+                onDropChats={(ids, folderId) => void moveToFolder(ids, folderId)}
+              />
             )}
             <div className="wa-search-row">
             <span className="wa-search">
@@ -815,6 +880,9 @@ export default function InboxShell({
                   </option>
                 ))}
               </select>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMoveIds(visibleSelected)} disabled={bulkBusy}>
+                {t('lines.moveToFolder')}
+              </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())}>
                 {t('bulkInbox.clear')}
               </button>
@@ -940,6 +1008,16 @@ export default function InboxShell({
         danger
         onConfirm={() => void removeList()}
         onCancel={() => setRemoving(false)}
+      />
+      <MoveToFolderModal
+        open={!!moveIds}
+        folders={folderData.folders}
+        onClose={() => setMoveIds(null)}
+        onPick={(folderId) => {
+          const ids = moveIds ?? [];
+          setMoveIds(null);
+          void moveToFolder(ids, folderId);
+        }}
       />
       {toast}
     </Ctx.Provider>

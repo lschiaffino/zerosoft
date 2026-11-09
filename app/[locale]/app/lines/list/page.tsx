@@ -16,7 +16,7 @@ export default async function GroupsListPage(props: { params: Promise<{ locale: 
   const me = user.actingUser?.id ?? user.id;
   const viewer = await pageViewer(user);
   const [numbers, labels, properties, open, closed] = await Promise.all([
-    listNumbers(user.id),
+    listNumbers(user.id, viewer),
     listLabels(user.id),
     listPropertyDefs(user.id),
     listChats(user.id, me, { kind: 'group', limit: 200, viewer }),

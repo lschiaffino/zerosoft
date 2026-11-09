@@ -56,6 +56,8 @@ export async function GET(req: Request) {
     props: [...(base.props ?? []), ...props],
     teamId: p.get('team') || base.teamId,
     numberId: p.get('number') || base.numberId,
+    folderId: p.get('folder') || base.folderId,
+    ownerId: p.get('owner') || base.ownerId,
     kind: kind ?? base.kind,
     limit: Number(p.get('limit')) || 50,
     offset: Number(p.get('offset')) || 0,
@@ -64,13 +66,13 @@ export async function GET(req: Request) {
   });
   // Importación en curso al conectar un número: la bandeja muestra el progreso.
   const { activeImports, kickImport } = await import('@/lib/groups-import');
-  const imports = await activeImports(s.ws).catch(() => []);
+  const imports = await activeImports(s.ws, await sessionViewer(s)).catch(() => []);
   const { countUnreadChats, countArchivedChats, droppedNumbers } = await import('@/lib/groups');
   const viewer = await sessionViewer(s);
   const unreadChats = await countUnreadChats(s.ws, viewer).catch(() => 0);
   const archived = await countArchivedChats(s.ws, viewer).catch(() => ({ total: 0, unread: 0 }));
   // Líneas que se cayeron (tenían chats y ya no están conectadas): aviso para reconectar.
-  const dropped = await droppedNumbers(s.ws).catch(() => []);
+  const dropped = await droppedNumbers(s.ws, viewer).catch(() => []);
   // Mientras alguien mira la bandeja, la importación avanza sin esperar al cron (cada tanda reclama su fila).
   for (const im of imports) if (im.status === 'queued' || im.status === 'running') await kickImport(im.numberId);
   return NextResponse.json({ ...res, imports, unreadChats, archived, dropped });

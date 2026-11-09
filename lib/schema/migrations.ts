@@ -9047,6 +9047,45 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE rec_videos ADD COLUMN mp4_job TEXT');
     },
   },
+  {
+    // Lines: dueño y visibilidad por línea, carpetas compartidas del workspace y preferencia de línea por persona.
+    id: '320_lines_owners_visibility_folders',
+    async up(c) {
+      await addColumn(c, 'ALTER TABLE groups_numbers ADD COLUMN owner_id TEXT');
+      await addColumn(c, "ALTER TABLE groups_numbers ADD COLUMN visibility TEXT NOT NULL DEFAULT 'all'");
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN folder_id TEXT');
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS groups_number_access (
+          number_id TEXT NOT NULL REFERENCES groups_numbers(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL CHECK (kind IN ('person', 'team')),
+          ref_id TEXT NOT NULL,
+          PRIMARY KEY (number_id, kind, ref_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_number_access_ref ON groups_number_access(kind, ref_id);
+        CREATE INDEX IF NOT EXISTS idx_groups_numbers_owner ON groups_numbers(user_id, owner_id);
+        CREATE TABLE IF NOT EXISTS groups_folders (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          parent_id TEXT,
+          name TEXT NOT NULL,
+          position INTEGER NOT NULL DEFAULT 0,
+          created_by TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_folders_ws ON groups_folders(user_id, parent_id, position);
+        CREATE INDEX IF NOT EXISTS idx_groups_chats_folder ON groups_chats(user_id, folder_id) WHERE folder_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_groups_chats_number_recent ON groups_chats(user_id, number_id, last_message_at DESC);
+        CREATE TABLE IF NOT EXISTS groups_user_prefs (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          value TEXT NOT NULL DEFAULT '',
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, person_id, key)
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
