@@ -83,6 +83,25 @@ const nextConfig = {
       { key: 'Access-Control-Max-Age', value: '86400' },
     ];
     return [
+      // Base de todo el sitio: solo HTTPS (el navegador lo ignora en http, así que no molesta en
+      // self-host sin TLS), sin adivinar tipos de archivo y sin mandar la ruta completa a otros sitios.
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+      // La app y el login no se enmarcan desde otros sitios (clickjacking). Lo que sí se embebe
+      // (formularios, Pulse, Rec, widgets) vive fuera de /app.
+      {
+        source: '/:locale(en|es|pt)/:area(app|auth)/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+        ],
+      },
       // Pantallas de permisos de OAuth: nunca dentro de un iframe (clickjacking).
       {
         source: '/:locale(en|es|pt)/oauth/:path*',

@@ -1,0 +1,63 @@
+# Controles de seguridad de cada cambio: secretos que se cuelan en un commit
+# (gitleaks) y dependencias de producción con vulnerabilidades críticas (npm audit).
+# Las altas y moderadas se siguen con Dependabot y en el registro de riesgos.
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '41 6 * * 1'
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        env:
+          GITLEAKS_VERSION: 8.24.3
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz gitleaks
+          range=""
+          if [ "$EVENT" = pull_request ]; then
+            range="$PR_BASE..$PR_HEAD"
+          elif [ "$EVENT" = push ] && [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != 0000000000000000000000000000000000000000 ]; then
+            range="$PUSH_BEFORE..$PUSH_AFTER"
+          fi
+          # Sin rango (la corrida semanal): todo el historial. --redact: el log nunca muestra el secreto.
+          if [ -n "$range" ]; then
+            ./gitleaks git --redact --no-banner --config .gitleaks.toml --log-opts="$range" .
+          else
+            ./gitleaks git --redact --no-banner --config .gitleaks.toml .
+          fi
+
+  dependencies:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm audit --omit=dev --package-lock-only --audit-level=critical
+      - run: npm audit --package-lock-only --audit-level=critical
+        working-directory: desktop
