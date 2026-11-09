@@ -317,7 +317,11 @@
       "unlinkBody": "Inbox deja de recibir y mandar mensajes. Tus chats guardados quedan y se reactivan al vincular de nuevo.",
       "cancel": "Cancelar",
       "removeYes": "Quitar y borrar",
-      "unlinkYes": "Desvincular"
+      "unlinkYes": "Desvincular",
+      "resync": "Volver a sincronizar",
+      "resyncTitle": "Volver a sincronizar WhatsApp",
+      "resyncBody": "WhatsApp manda el historial de chats solo cuando se vincula un dispositivo. Para traerlo, Inbox cierra la sesión actual y te muestra un QR nuevo: escanealo desde WhatsApp › Dispositivos vinculados. Los chats que ya están acá quedan. El historial puede tardar unos minutos en aparecer.",
+      "resyncYes": "Mostrar QR nuevo"
     },
     "gmail": {
       "intro": "Conectá Gmail con Google. Hecho también archiva en Gmail y lo leído queda sincronizado.",

@@ -29,6 +29,58 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-tasks-across-apps',
+    date: '2026-11-08',
+    title: {
+      en: 'Tasks: one task across CRM, WhatsApp, Home and Track',
+      es: 'Tareas: una sola tarea en el CRM, WhatsApp, el inicio y Track',
+      pt: 'Tarefas: uma só tarefa no CRM, WhatsApp, início e Track',
+    },
+    items: [
+      {
+        product: 'crm',
+        en: 'A task created from a WhatsApp chat shows on the contact with a link back to the chat and the message, and tasks have a priority. Tasks from Docs meeting notes link back to the page.',
+        es: 'Una tarea creada desde un chat de WhatsApp se ve en el contacto con link de vuelta al chat y al mensaje, y las tareas tienen prioridad. Las tareas de las notas de reunión de Docs llevan a la página.',
+        pt: 'Uma tarefa criada a partir de um chat de WhatsApp aparece no contato com link de volta ao chat e à mensagem, e as tarefas têm prioridade. As tarefas das notas de reunião do Docs levam à página.',
+      },
+      {
+        product: 'groups',
+        en: 'The chat shows the CRM tasks of its contact or company, and you can complete them there.',
+        es: 'El chat muestra las tareas del CRM de su contacto o empresa, y se pueden completar ahí.',
+        pt: 'O chat mostra as tarefas do CRM do seu contato ou empresa, e dá para concluí-las ali.',
+      },
+      {
+        product: 'track',
+        en: 'Send a task to Track from the task page: it becomes a linked issue, and when the issue is done the task is completed.',
+        es: 'Desde la tarea, Pasar a Track crea un issue vinculado; cuando el issue se completa, la tarea también.',
+        pt: 'Na tarefa, Enviar para o Track cria uma issue vinculada; quando a issue é concluída, a tarefa também.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-offline-mode',
+    date: '2026-11-08',
+    title: {
+      en: 'Work offline in Track, with one status for the whole app',
+      es: 'Trabajá sin conexión en Track, con un solo estado para toda la app',
+      pt: 'Trabalhe sem conexão no Track, com um só status para todo o app',
+    },
+    items: [
+      {
+        product: 'track',
+        en: 'Issues, lists and projects you already opened load without a network. Edits, new issues and comments are saved on your device and sent in order when the connection is back; if someone changed the same issue meanwhile, you get an "edited elsewhere" notice.',
+        es: 'Los issues, listas y proyectos que ya abriste cargan sin red. Los cambios, los issues nuevos y los comentarios se guardan en tu dispositivo y se mandan en orden al volver la conexión; si alguien cambió el mismo issue mientras tanto, te avisamos que se editó en otro lado.',
+        pt: 'Issues, listas e projetos que você já abriu carregam sem rede. Alterações, issues novos e comentários ficam salvos no seu dispositivo e são enviados em ordem quando a conexão volta; se alguém mudou o mesmo issue nesse meio tempo, você recebe um aviso de que foi editado em outro lugar.',
+      },
+      {
+        product: 'crm',
+        en: 'The top bar shows when you are offline, how many changes are waiting on this device, and the ones the server rejected, with retry and discard. Signing out with unsynced changes asks first.',
+        es: 'La banda de arriba muestra cuando estás sin conexión, cuántos cambios esperan en este dispositivo y los que el servidor rechazó, con reintentar y descartar. Cerrar sesión con cambios sin sincronizar pregunta antes.',
+        pt: 'A barra de cima mostra quando você está sem conexão, quantas alterações esperam neste dispositivo e as que o servidor recusou, com tentar de novo e descartar. Sair com alterações não sincronizadas pergunta antes.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-members-permissions',
     date: '2026-11-08',
     title: {

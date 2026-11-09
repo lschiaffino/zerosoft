@@ -34,6 +34,7 @@ import { tagCondition, type TagEntity } from './crm-tags';
 import { filterTypeFor } from './crm-custom-fields';
 import { trashRecords } from './crm-trash';
 import { nextRepeatDue, type TaskRepeat } from './crm-task-repeat';
+import { cleanPriority, type TaskPriority } from './tasks-shared';
 import { activityDateOrder, ACTIVITY_DATE_SORTS, type ActivityDateSort } from './crm-activity-dates';
 import { extraSortOrder, type ExtraSort } from './crm-list-sort';
 import { missingRequiredFields, normalizeRequiredFields, parseRequiredFields } from './crm-stage-rules';
@@ -2255,6 +2256,8 @@ export interface ActivityInput {
   repeat?: TaskRepeat;
   /** Solo tareas: '' = to-do, 'call' o 'email' (cuenta como contacto al completarse). */
   taskKind?: TaskKind;
+  /** Solo tareas: '' (sin prioridad), 'low', 'medium' o 'high' (lib/tasks.ts). */
+  priority?: TaskPriority;
 }
 
 export type ActivityListRow = CrmActivityRow & {
@@ -2340,6 +2343,7 @@ export function taskEventPayload(task: CrmActivityRow) {
       subject: task.subject,
       body: task.body,
       dueAt: task.due_at,
+      priority: task.priority ?? '',
       done: task.done === 1,
       doneAt: task.done_at ?? null,
       ownerId: task.owner_id,
@@ -2362,8 +2366,8 @@ export async function createActivity(
     .prepare(
       `INSERT INTO crm_activities
        (id, user_id, owner_id, type, subject, body, due_at, direction, outcome, channel, duration_min,
-        contact_id, company_id, deal_id, lead_id, object_record_id, project_id, repeat, task_kind, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        contact_id, company_id, deal_id, lead_id, object_record_id, project_id, repeat, task_kind, priority, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -2385,6 +2389,7 @@ export async function createActivity(
       data.projectId ?? null,
       (data.type ?? 'note') === 'task' ? (data.repeat ?? 'none') : 'none',
       (data.type ?? 'note') === 'task' ? (data.taskKind ?? '') : '',
+      (data.type ?? 'note') === 'task' ? cleanPriority(data.priority) : '',
       ts,
       ts,
     );
@@ -2435,6 +2440,7 @@ export async function updateActivity(
   if (data.pinned !== undefined) sets.push(['pinned', data.pinned ? 1 : 0]);
   if (data.repeat !== undefined) sets.push(['repeat', data.repeat]);
   if (data.taskKind !== undefined) sets.push(['task_kind', (data.type ?? existing.type) === 'task' ? data.taskKind : '']);
+  if (data.priority !== undefined) sets.push(['priority', (data.type ?? existing.type) === 'task' ? cleanPriority(data.priority) : '']);
   sets.push(['updated_at', now()]);
   await db
     .prepare(`UPDATE crm_activities SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`)
@@ -2467,8 +2473,8 @@ async function spawnNextRepeat(userId: string, task: CrmActivityRow, db: Db): Pr
     .prepare(
       `INSERT INTO crm_activities
        (id, user_id, owner_id, type, subject, body, due_at, contact_id, company_id, deal_id, project_id, repeat,
-        task_kind, created_at, updated_at)
-       VALUES (?, ?, ?, 'task', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        task_kind, priority, created_at, updated_at)
+       VALUES (?, ?, ?, 'task', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       nextId,
@@ -2483,9 +2489,17 @@ async function spawnNextRepeat(userId: string, task: CrmActivityRow, db: Db): Pr
       task.project_id,
       repeat,
       task.task_kind ?? '',
+      task.priority ?? '',
       ts,
       ts,
     );
+  // La siguiente de la serie conserva los vínculos (chat, página, etc.), menos el issue de Track.
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO task_links (task_id, workspace_id, kind, ref_id, created_by, created_at)
+       SELECT ?, workspace_id, kind, ref_id, created_by, ? FROM task_links WHERE task_id = ? AND kind != 'track_issue'`,
+    )
+    .run(nextId, ts, task.id);
   return nextId;
 }
 

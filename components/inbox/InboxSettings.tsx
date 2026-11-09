@@ -19,7 +19,7 @@ interface ConnectState {
  * renueva cada 2 s hasta que el teléfono lo escanea. Lo usan la tarjeta de
  * Ajustes y el estado vacío de la bandeja.
  */
-export function WhatsappQrDialog({ open, onClose, onLinked }: { open: boolean; onClose: () => void; onLinked: () => void }) {
+export function WhatsappQrDialog({ open, resync = false, onClose, onLinked }: { open: boolean; resync?: boolean; onClose: () => void; onLinked: () => void }) {
   const t = useTranslations('inbox.settings.whatsapp');
   const te = useTranslations('inbox.errors');
   const [state, setState] = useState<ConnectState | null>(null);
@@ -28,13 +28,14 @@ export function WhatsappQrDialog({ open, onClose, onLinked }: { open: boolean; o
   const start = useCallback(async () => {
     setErr('');
     setState(null);
-    const r = await api<{ state: ConnectState }>('/api/inbox/whatsapp', { method: 'POST' });
+    // resync: vuelve a vincular para traer de nuevo el historial.
+    const r = await api<{ state: ConnectState }>(`/api/inbox/whatsapp${resync ? '?resync=1' : ''}`, { method: 'POST' });
     if (!r.ok) {
       setErr(te.has(r.data.error ?? '') ? te(r.data.error as string) : te('generic'));
       return;
     }
     setState(r.data.state);
-  }, [te]);
+  }, [te, resync]);
 
   // Una sesión por apertura (el doble efecto de StrictMode no pide dos QR).
   const started = useRef(false);
@@ -107,9 +108,9 @@ export function WhatsappQrDialog({ open, onClose, onLinked }: { open: boolean; o
 function WhatsappCard({ account, available, onChange }: { account: InboxAccountDto | undefined; available: boolean; onChange: () => void }) {
   const t = useTranslations('inbox.settings.whatsapp');
   const te = useTranslations('inbox.errors');
-  const [linking, setLinking] = useState(false);
+  const [linking, setLinking] = useState<false | 'link' | 'resync'>(false);
   const [err, setErr] = useState('');
-  const [confirm, setConfirm] = useState<'' | 'unlink' | 'remove'>('');
+  const [confirm, setConfirm] = useState<'' | 'unlink' | 'remove' | 'resync'>('');
 
   const unlink = async () => {
     setConfirm('');
@@ -144,8 +145,13 @@ function WhatsappCard({ account, available, onChange }: { account: InboxAccountD
       ) : (
         <div className="ib-row">
           {!connected && (
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => setLinking(true)}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setLinking('link')}>
               {t('connect')}
+            </button>
+          )}
+          {connected && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirm('resync')} data-testid="inbox-wa-resync">
+              {t('resync')}
             </button>
           )}
           {connected && (
@@ -166,18 +172,32 @@ function WhatsappCard({ account, available, onChange }: { account: InboxAccountD
         </p>
       )}
       <p className="ib-help">{t('privacy')}</p>
-      <WhatsappQrDialog open={linking} onClose={() => setLinking(false)} onLinked={onChange} />
-      <Modal open={!!confirm} title={confirm === 'remove' ? t('removeTitle') : t('unlinkTitle')} onClose={() => setConfirm('')}>
+      <WhatsappQrDialog open={!!linking} resync={linking === 'resync'} onClose={() => setLinking(false)} onLinked={onChange} />
+      <Modal open={!!confirm} title={confirm === 'remove' ? t('removeTitle') : confirm === 'resync' ? t('resyncTitle') : t('unlinkTitle')} onClose={() => setConfirm('')}>
         <div className="ui-modal-body">
-          <p>{confirm === 'remove' ? t('removeBody') : t('unlinkBody')}</p>
+          <p>{confirm === 'remove' ? t('removeBody') : confirm === 'resync' ? t('resyncBody') : t('unlinkBody')}</p>
         </div>
         <div className="ui-modal-foot">
           <button type="button" className="btn btn-secondary btn-sm" autoFocus onClick={() => setConfirm('')}>
             {t('cancel')}
           </button>
-          <button type="button" className="btn btn-danger btn-sm" onClick={() => void (confirm === 'remove' ? remove() : unlink())}>
-            {confirm === 'remove' ? t('removeYes') : t('unlinkYes')}
-          </button>
+          {confirm === 'resync' ? (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => {
+                setConfirm('');
+                setLinking('resync');
+              }}
+              data-testid="inbox-wa-resync-yes"
+            >
+              {t('resyncYes')}
+            </button>
+          ) : (
+            <button type="button" className="btn btn-danger btn-sm" onClick={() => void (confirm === 'remove' ? remove() : unlink())}>
+              {confirm === 'remove' ? t('removeYes') : t('unlinkYes')}
+            </button>
+          )}
         </div>
       </Modal>
     </div>

@@ -8837,6 +8837,64 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, 'ALTER TABLE team_members ADD COLUMN last_active_at TEXT');
     },
   },
+  {
+    // Modo sin conexión: altas que la app reenvía al volver la red llevan una
+    // clave propia; acá queda la respuesta de la primera vez, así un reenvío
+    // (la respuesta se perdió con la red) no crea dos veces lo mismo.
+    id: '291_offline_requests',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS offline_requests (
+          user_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          scope TEXT NOT NULL DEFAULT '',
+          status INTEGER,
+          body TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, key)
+        );
+        CREATE INDEX IF NOT EXISTS offline_requests_created ON offline_requests(created_at);
+      `);
+    },
+  },
+  {
+    // Tareas de toda la suite (lib/tasks.ts): la tarea es la del CRM
+    // (crm_activities, type 'task') y task_links la ata a cualquier registro
+    // fuera del CRM (chat y mensaje de Groups, conversación de Chat, página de
+    // Docs, issue de Track). Prioridad como en HubSpot ('' = sin prioridad).
+    // Backfill idempotente desde groups_tasks y las tareas de reuniones de Docs
+    // mandadas al CRM; no hay FK a crm_activities porque la papelera del CRM
+    // borra y restaura la fila con el mismo id.
+    id: '292_tasks_unified',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE crm_activities ADD COLUMN priority TEXT NOT NULL DEFAULT ''");
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS task_links (
+          task_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          ref_id TEXT NOT NULL,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (task_id, kind, ref_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_task_links_ref ON task_links(workspace_id, kind, ref_id);
+
+        INSERT OR IGNORE INTO task_links (task_id, workspace_id, kind, ref_id, created_by, created_at)
+          SELECT t.activity_id, t.user_id, 'lines_chat', t.chat_id, t.created_by, t.created_at
+          FROM groups_tasks t JOIN crm_activities a ON a.id = t.activity_id;
+        INSERT OR IGNORE INTO task_links (task_id, workspace_id, kind, ref_id, created_by, created_at)
+          SELECT t.activity_id, t.user_id, 'lines_message', t.message_id, t.created_by, t.created_at
+          FROM groups_tasks t JOIN crm_activities a ON a.id = t.activity_id
+          WHERE t.message_id IS NOT NULL AND t.message_id != '';
+        INSERT OR IGNORE INTO task_links (task_id, workspace_id, kind, ref_id, created_by, created_at)
+          SELECT a.id, m.workspace_id, 'docs_page', m.page_id, m.created_by, a.created_at
+          FROM docs_meetings m, json_each(CASE WHEN json_valid(m.actions) THEN m.actions ELSE '[]' END) j
+          JOIN crm_activities a ON a.id = json_extract(j.value, '$.sent.id') AND a.user_id = m.workspace_id
+          WHERE json_extract(j.value, '$.sent.kind') = 'crm';
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

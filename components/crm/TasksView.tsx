@@ -28,6 +28,9 @@ export interface TaskRow {
   projectColor?: string;
   /** Repetición de una tarea abierta (lib/crm-task-repeat.ts). */
   repeat?: TaskRepeat;
+  priority?: 'low' | 'medium' | 'high';
+  /** Origen fuera del CRM (lib/tasks.ts): el chat de WhatsApp, la página, el issue. */
+  source?: { href: string; app: 'groups' | 'chat' | 'docs' | 'track'; label: string };
 }
 
 type Bucket = 'overdue' | 'today' | 'upcoming' | 'done';
@@ -404,9 +407,20 @@ export default function TasksView({
                   )}
                   {row.dueRel && <span className="muted task-rel">{row.dueRel}</span>}
                   {row.repeat && <span className="muted task-repeat">{t(`tasks.repeat.${row.repeat}`)}</span>}
+                  {row.priority && (
+                    <span className={`muted task-priority${row.priority === 'high' ? ' task-priority-high' : ''}`}>
+                      {t(`tasks.priority.${row.priority}`)}
+                    </span>
+                  )}
                   {row.record?.name && (
                     <Link href={row.record.href} className="cell-email muted">
                       {row.record.name}
+                    </Link>
+                  )}
+                  {row.source && (
+                    <Link href={row.source.href} className="cell-email muted task-source" title={row.source.label}>
+                      {t(`tasks.links.app.${row.source.app}`)}
+                      {row.source.label ? ` · ${row.source.label}` : ''}
                     </Link>
                   )}
                   {row.ownerName && <span className="muted task-owner">{row.ownerName}</span>}

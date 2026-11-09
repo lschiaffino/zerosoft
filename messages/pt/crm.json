@@ -534,7 +534,8 @@
       "body": "Notas",
       "project": "Projeto",
       "owner": "Responsável",
-      "repeat": "Repetir"
+      "repeat": "Repetir",
+      "priority": "Prioridade"
     },
     "detail": {
       "back": "← Todas as tarefas",
@@ -573,7 +574,34 @@
       "weekly": "Todas as semanas",
       "monthly": "Todos os meses"
     },
-    "repeatHint": "Ao concluir, a próxima é criada."
+    "repeatHint": "Ao concluir, a próxima é criada.",
+    "priority": {
+      "none": "Sem prioridade",
+      "low": "Baixa",
+      "medium": "Média",
+      "high": "Alta"
+    },
+    "links": {
+      "title": "Vinculada a",
+      "empty": "Sem vínculos com outros apps.",
+      "app": {
+        "groups": "WhatsApp",
+        "chat": "Chat",
+        "docs": "Docs",
+        "track": "Track"
+      },
+      "missing": "Não existe mais",
+      "hidden": "Sem acesso",
+      "toTrack": "Enviar para o Track",
+      "toTrackHelp": "Cria uma issue no projeto com este título e as notas. Quando a issue é concluída, esta tarefa também.",
+      "project": "Projeto",
+      "create": "Criar issue",
+      "creating": "Criando…",
+      "noProjects": "Não há projetos do Track que você possa ver.",
+      "error": "Não foi possível criar a issue.",
+      "created": "Issue {id} criada",
+      "source": "De"
+    }
   },
   "lists": {
     "title": "Listas",

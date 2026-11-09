@@ -56,11 +56,14 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       }
     } else {
       const { createActivity } = await import('@/lib/crm');
+      const { linkTask } = await import('@/lib/tasks');
       for (const i of wanted) {
         const a = m.actions[i];
         const due = /^\d{4}-\d{2}-\d{2}/.test(a.due) ? `${a.due.slice(0, 10)} 12:00:00` : null;
         const task = await createActivity(ws, { type: 'task', subject: a.text.slice(0, 300), body: body(a), dueAt: due, ownerId: person });
-        sent.push({ index: i, ref: { kind: 'crm', id: task.id, label: task.subject, url: '/app/crm/tasks' } });
+        // La tarea lleva de vuelta a la página de la reunión (lib/tasks.ts).
+        await linkTask(ws, task.id, 'docs_page', m.pageId, person).catch(() => undefined);
+        sent.push({ index: i, ref: { kind: 'crm', id: task.id, label: task.subject, url: `/app/crm/tasks/${task.id}` } });
       }
     }
     return NextResponse.json({ meeting: await markActionsSent(id, sent), sent: sent.length });
