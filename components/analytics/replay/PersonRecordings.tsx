@@ -41,7 +41,7 @@ export default function PersonRecordings({ projectId, personId, replayEnabled, c
           {!replayEnabled && canManage && (
             <>
               {' '}
-              <Link href="/app/analytics/settings#replay" className="an-link">
+              <Link href="/app/pulse/settings#replay" className="an-link">
                 {t('openSettings')}
               </Link>
             </>
@@ -51,7 +51,7 @@ export default function PersonRecordings({ projectId, personId, replayEnabled, c
         <ol className="an-timeline" role="list">
           {rows.map((r) => (
             <li key={r.id}>
-              <Link href={`/app/analytics/replay/${r.id}`} className="an-replay-personrow">
+              <Link href={`/app/pulse/replay/${r.id}`} className="an-replay-personrow">
                 <span className="an-timeline-event">{fmtTime(r.startTs, locale)}</span>
                 <span className="an-muted an-small an-nowrap">{fmtDuration(r.durationMs)}</span>
                 <span className="an-muted an-small an-ellipsis">{r.firstUrl ?? ''}</span>

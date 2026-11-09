@@ -704,6 +704,12 @@ section.talk-pane,
   background: var(--ui-hover);
 }
 
+/* Táctil: tocar el mensaje lo enfoca (tabIndex -1) y muestra la barra, con botones de dedo. */
+@media (hover: none) {
+  .talk-msg-actions { top: -22px; right: 8px; }
+  .talk-act { min-width: 40px; height: 40px; }
+}
+
 .talk-menu {
   position: absolute;
   top: 32px;
@@ -1675,4 +1681,14 @@ section.talk-pane,
   .talk-head-actions .btn:not(.btn-icon):not(:last-child) {
     display: none;
   }
+}
+
+/* Táctil: barra de formato en una fila deslizable con botones de dedo; los textos que se tocan
+   (tema del canal, archivados, "nuevo mensaje") ganan área sin mover el diseño. */
+@media (pointer: coarse) {
+  .talk-toolbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .talk-toolbar::-webkit-scrollbar { display: none; }
+  .talk-tool { flex: 0 0 auto; min-width: 40px; height: 40px; }
+  .talk-side-more-btn { width: 40px; height: 40px; }
+  .talk-head-topic, .talk-side-archived, .talk-side-empty, .talk-msg-author-btn { padding-block: 10px; margin-block: -10px; }
 }

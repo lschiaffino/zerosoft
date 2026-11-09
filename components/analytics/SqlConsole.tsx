@@ -51,7 +51,7 @@ export default function SqlConsole({ projectId }: { projectId: string }) {
     try {
       const { insight } = await api<{ insight: InsightDto }>('/api/analytics/insights', { body: { projectId, name, query: q } });
       notifyChanged();
-      router.push(`/app/analytics/insights/${insight.id}`);
+      router.push(`/app/pulse/insights/${insight.id}`);
     } catch (err) {
       setError(apiErrorText(err, tc));
     } finally {

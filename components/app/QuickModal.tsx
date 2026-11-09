@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from 'react';
 import '@/styles/quick-modal.css';
+import { useLayer } from '@/lib/ui/layers';
 
 export interface QuickModalProps {
   open: boolean;
@@ -60,6 +61,8 @@ function QuickModalBody({
 }: QuickModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
+  // Capa de diálogo (lib/ui/layers.ts): al abrirse cierra los menús de afuera. Esc y el fondo los maneja el modal.
+  useLayer(true, () => {}, { root: dialogRef, kind: 'dialog', outside: false, escape: false });
 
   useEffect(() => {
     returnFocus.current = document.activeElement as HTMLElement | null;

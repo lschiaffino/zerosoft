@@ -50,7 +50,7 @@ export default function GroupDetail({ data }: { data: ThreadProps }) {
             ))}
           </ul>
         )}
-        <Link href={`/app/groups/inbox/${chat.id}`}>{t('detail.openInbox')}</Link>
+        <Link href={`/app/lines/inbox/${chat.id}`}>{t('detail.openInbox')}</Link>
       </section>
     </div>
   );

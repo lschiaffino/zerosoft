@@ -1067,6 +1067,7 @@ export default function DashboardsView({
                   type="button"
                   className="btn btn-small"
                   onClick={() => setAddMenuOpen((v) => !v)}
+                  aria-haspopup="menu"
                   aria-expanded={addMenuOpen}
                 >
                   {t('addWidget')}

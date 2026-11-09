@@ -143,6 +143,8 @@
     "connectTitle": "Conecte o WhatsApp ou o Gmail",
     "connectBody": "Vincule seu WhatsApp com um QR pelo celular, conecte o Gmail com o Google e organize tudo em uma lista só, pelo teclado.",
     "connectAction": "Conectar uma conta",
+    "qrAction": "Vincular WhatsApp com QR",
+    "otherAccounts": "Conectar Gmail",
     "importLink": "ou importe do inbox-zero",
     "searchTitle": "Nada encontrado",
     "searchBody": "A busca olha nomes, números, e-mails e o texto das mensagens, inclusive em Concluídos.",

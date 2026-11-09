@@ -30,7 +30,7 @@ export const PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '202
 export const SERVER_INFO = { name: 'zerosoft', title: 'zerosoft', version: '1.0.0' };
 const MAX_REQUEST_BYTES = 6 * 1024 * 1024;
 
-export const MCP_INSTRUCTIONS = `zerosoft is a suite of 24 business apps (CRM, Chat, Groups, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Rec, Talk, Design, Shop, Analytics, Social, Hiring, People, Books, Sign, Forms). You act as the signed-in person, with exactly their role and permissions.
+export const MCP_INSTRUCTIONS = `zerosoft is a suite of 24 business apps (CRM, Chat, Lines, Agents, Flow, Robots, Track, Link, Docs, Notes, Cal, Board, Voice, Rec, Talk, Design, Shop, Pulse, Social, Hiring, People, Books, Sign, Forms). You act as the signed-in person, with exactly their role and permissions.
 
 How to work:
 1. Do not assume a capability is missing because no tool is named after it. About 1,800 operations sit behind four tools.
@@ -105,8 +105,8 @@ export const DIRECT_TOOLS: DirectTool[] = [
   // Groups (WhatsApp)
   {
     name: 'list_group_chats',
-    title: 'List Groups chats',
-    description: 'WhatsApp groups and direct chats in the Groups app, with last message, unread count, assignee and status. Closed chats only appear with filter "closed". Use the id with read_group_messages, send_group_message or update_group_chat.',
+    title: 'List Lines chats',
+    description: 'WhatsApp groups and direct chats in the Lines app, with last message, unread count, assignee and status. Closed chats only appear with filter "closed". Use the id with read_group_messages, send_group_message or update_group_chat.',
     op: 'v1.groups.chats.list',
     inputSchema: obj({
       q: str('Words in the chat name or its messages.', { maxLength: 200 }),
@@ -119,15 +119,15 @@ export const DIRECT_TOOLS: DirectTool[] = [
   },
   {
     name: 'read_group_messages',
-    title: 'Read Groups messages',
-    description: 'Messages of one Groups chat, oldest first. Pass after (ISO date) to read only what is new.',
+    title: 'Read Lines messages',
+    description: 'Messages of one Lines chat, oldest first. Pass after (ISO date) to read only what is new.',
     op: 'v1.groups.chats.messages.list',
     inputSchema: obj({ id: str('Chat id, from list_group_chats.'), after: str('Only messages after this ISO 8601 date-time.'), limit: int('How many messages.', 1, 500) }, ['id']),
   },
   {
     name: 'send_group_message',
-    title: 'Send a Groups message',
-    description: 'Send a WhatsApp message to a Groups chat as the person, or leave an internal note (note: true) that only the team sees. A real message reaches people outside the workspace: show the person the exact text, ask, and only then call with confirm: true.',
+    title: 'Send a Lines message',
+    description: 'Send a WhatsApp message to a Lines chat as the person, or leave an internal note (note: true) that only the team sees. A real message reaches people outside the workspace: show the person the exact text, ask, and only then call with confirm: true.',
     op: 'v1.groups.chats.messages.create',
     inputSchema: obj(
       {
@@ -142,8 +142,8 @@ export const DIRECT_TOOLS: DirectTool[] = [
   },
   {
     name: 'update_group_chat',
-    title: 'Assign or update a Groups chat',
-    description: 'Assign a Groups chat to a teammate, close or reopen it, set its labels or mark it read.',
+    title: 'Assign or update a Lines chat',
+    description: 'Assign a Lines chat to a teammate, close or reopen it, set its labels or mark it read.',
     op: 'v1.groups.chats.update',
     inputSchema: obj(
       {

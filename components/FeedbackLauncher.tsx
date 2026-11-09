@@ -293,6 +293,7 @@ export default function FeedbackLauncher({ locale, hasSupport = false }: { local
         type="button"
         className="fl-button"
         onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={open ? t('launcher.close') : t('launcher.open')}
         title={t('launcher.open')}

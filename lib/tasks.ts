@@ -35,9 +35,9 @@ export {
 function hrefFor(kind: TaskLinkKind, refId: string, chatId?: string | null): string {
   switch (kind) {
     case 'lines_chat':
-      return `/app/groups/inbox/${encodeURIComponent(refId)}`;
+      return `/app/lines/inbox/${encodeURIComponent(refId)}`;
     case 'lines_message':
-      return chatId ? `/app/groups/inbox/${encodeURIComponent(chatId)}` : '';
+      return chatId ? `/app/lines/inbox/${encodeURIComponent(chatId)}` : '';
     case 'chat_conversation':
       return `/app/chat/inbox/${encodeURIComponent(refId)}`;
     case 'docs_page':

@@ -70,11 +70,11 @@
       "cta": "Conectar calendario"
     },
     "setup_whatsapp": {
-      "subject": "Conectá tu línea de WhatsApp a Groups",
+      "subject": "Conectá tu línea de WhatsApp a Lines",
       "preheader": "Escaneás un QR y los chats aparecen en la bandeja.",
       "heading": "Conectá una línea de WhatsApp",
       "body": [
-        "Groups todavía no tiene una línea conectada. Escaneá el QR desde WhatsApp en tu teléfono y los grupos aparecen en la bandeja compartida.",
+        "Todavía no conectaste un número de WhatsApp a Lines. Escaneá el QR desde WhatsApp en tu teléfono y los grupos aparecen en la bandeja compartida.",
         "Desde ahí asignás chats, dejás notas internas y respondés con tu equipo."
       ],
       "cta": "Conectar línea"

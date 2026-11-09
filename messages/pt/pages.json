@@ -568,7 +568,7 @@
         },
         "f2": {
           "q": "Atende email ou WhatsApp?",
-          "a": "Email sim: você encaminha seu endereço de suporte para o do widget e responde pela caixa. As respostas saem do endereço do app, ainda não do seu domínio, e o encaminhamento foi testado com o payload da doc do Resend, não contra o Resend real. O WhatsApp ainda não está no Chat; para isso existe o Groups."
+          "a": "Email sim: você encaminha seu endereço de suporte para o do widget e responde pela caixa. As respostas saem do endereço do app, ainda não do seu domínio, e o encaminhamento foi testado com o payload da doc do Resend, não contra o Resend real. O WhatsApp ainda não está no Chat; para isso existe o Lines."
         },
         "f3": {
           "q": "Como o bot funciona?",
@@ -606,7 +606,7 @@
     },
     "groups": {
       "meta": {
-        "title": "Groups: caixa de WhatsApp para equipes, open source",
+        "title": "Lines: caixa de WhatsApp para equipes, open source",
         "description": "Caixa compartilhada para chats e grupos de WhatsApp: atribuição, notas, tickets, SLA e envios, ligada ao seu CRM. Alternativa open source ao Periskope."
       },
       "hero": {
@@ -656,7 +656,7 @@
         "per": "/ usuário / mês",
         "team": "US$ 3.000",
         "zero": "$0",
-        "note": "O Periskope Starter custa US$ 25 por usuário por mês (cobrança mensal, o Pro custa US$ 35). Um time de dez paga US$ 3.000 por ano. O Groups no seu servidor custa $0; você roda o gateway de WhatsApp ou paga a API oficial à Meta."
+        "note": "O Periskope Starter custa US$ 25 por usuário por mês (cobrança mensal, o Pro custa US$ 35). Um time de dez paga US$ 3.000 por ano. O Lines no seu servidor custa $0; você roda o gateway de WhatsApp ou paga a API oficial à Meta."
       },
       "faq": {
         "f1": {
@@ -665,26 +665,26 @@
         },
         "f2": {
           "q": "O modo QR é seguro para o meu número?",
-          "a": "Ele usa uma sessão não oficial do WhatsApp Web, e o WhatsApp pode restringir um número usado assim, principalmente se adicionar muitos desconhecidos ou enviar muitas mensagens não pedidas. O Groups envia no ritmo que você define e sugere links de convite. Para mensagens 1:1 recomendamos a API oficial."
+          "a": "Ele usa uma sessão não oficial do WhatsApp Web, e o WhatsApp pode restringir um número usado assim, principalmente se adicionar muitos desconhecidos ou enviar muitas mensagens não pedidas. O Lines envia no ritmo que você define e sugere links de convite. Para mensagens 1:1 recomendamos a API oficial."
         },
         "f3": {
           "q": "Posso gerenciar grupos com a API oficial?",
-          "a": "No Groups, por enquanto não. A API oficial cobre chats 1:1; criar grupos e gerenciar membros passa pelo gateway com QR."
+          "a": "No Lines, por enquanto não. A API oficial cobre chats 1:1; criar grupos e gerenciar membros passa pelo gateway com QR."
         },
         "f4": {
           "q": "Como funcionam os tickets?",
-          "a": "Um ticket nasce de uma mensagem: à mão, reagindo com o emoji de ticket (pelo Groups ou pelo telefone) ou quando um cliente escreve uma das suas palavras-chave. Cada um tem status, prioridade, responsável e vencimentos de primeira resposta e resolução."
+          "a": "Um ticket nasce de uma mensagem: à mão, reagindo com o emoji de ticket (pelo Lines ou pelo telefone) ou quando um cliente escreve uma das suas palavras-chave. Cada um tem status, prioridade, responsável e vencimentos de primeira resposta e resolução."
         },
         "f5": {
           "q": "O que falta em relação ao Periskope?",
-          "a": "Apps nativos na App Store e no Google Play (há um app instalável com push), e ligar ou gravar pelo Groups: os provedores não entregam o áudio, então fica só o registro de chamadas da Cloud API. Também não há app no diretório do Zapier nem endpoints de contatos e propriedades na API, e o MCP traz 9 ferramentas contra 56."
+          "a": "Apps nativos na App Store e no Google Play (há um app instalável com push), e ligar ou gravar pelo Lines: os provedores não entregam o áudio, então fica só o registro de chamadas da Cloud API. Também não há app no diretório do Zapier nem endpoints de contatos e propriedades na API, e o MCP traz 9 ferramentas contra 56."
         }
       },
       "cta": {
         "title1": "Cada grupo respondido.",
         "title2": "Cada mensagem na ficha.",
         "sub": "Conecte um número, traga seus grupos e comece a responder por uma só caixa.",
-        "button": "Abrir o Groups"
+        "button": "Abrir o Lines"
       },
       "steps": {
         "s1": {
@@ -755,7 +755,7 @@
         },
         "f3": {
           "q": "Onde ele fala com os meus clientes?",
-          "a": "No widget do Chat no seu site, numa página pública própria, por email (com o email de entrada do Chat configurado) e pela API v1 (escopo agents:run). Também no WhatsApp pelo Groups, no Slack, Messenger e Instagram com o seu próprio app, e por telefone em um número da Twilio atribuído pelo admin da instância."
+          "a": "No widget do Chat no seu site, numa página pública própria, por email (com o email de entrada do Chat configurado) e pela API v1 (escopo agents:run). Também no WhatsApp pelo Lines, no Slack, Messenger e Instagram com o seu próprio app, e por telefone em um número da Twilio atribuído pelo admin da instância."
         },
         "f4": {
           "q": "Ele pode mudar os meus dados?",
@@ -1524,9 +1524,9 @@
         "button": "Abrir Design"
       }
     },
-    "analytics": {
+    "pulse": {
       "meta": {
-        "title": "Analytics: analytics de produto open source",
+        "title": "Pulse: analytics de produto open source",
         "description": "Eventos a partir de um snippet de JS, tendências, funis, retenção, pessoas, painéis, feature flags e analytics web. Uma alternativa open source ao PostHog."
       },
       "hero": {
@@ -1579,7 +1579,7 @@
         "teamLabel": "5 milhões de eventos por mês",
         "team": "veja os preços do PostHog",
         "zero": "US$ 0",
-        "note": "O PostHog cobra analytics de produto por uso: o primeiro milhão de eventos de cada mês é grátis e o resto é cobrado por evento, mais barato com mais volume. Não conseguimos verificar o preço atual por evento: confira em posthog.com/pricing. O Analytics no seu servidor custa US$ 0 mais o seu banco de dados."
+        "note": "O PostHog cobra analytics de produto por uso: o primeiro milhão de eventos de cada mês é grátis e o resto é cobrado por evento, mais barato com mais volume. Não conseguimos verificar o preço atual por evento: confira em posthog.com/pricing. O Pulse no seu servidor custa US$ 0 mais o seu banco de dados."
       },
       "faq": {
         "f1": {
@@ -1587,8 +1587,8 @@
           "a": "Crie um projeto, copie a tag do script da página de configuração e cole no seu site. Ou importe https://zerosoft.ai/zs.mjs como módulo. Um servidor pode enviar eventos para /api/ingest/e com a key secreta do projeto."
         },
         "f2": {
-          "q": "Ele grava as sessões?",
-          "a": "Não. Session replay não foi feito. O Analytics guarda eventos e suas propriedades, nunca a tela."
+          "q": "Grava sessões?",
+          "a": "Sim, se você ativar no projeto. Os campos são mascarados e o player mostra a página com os cliques e os eventos numa linha do tempo. Não guarda logs de console nem de rede."
         },
         "f3": {
           "q": "O que o autocapture coleta?",
@@ -1599,15 +1599,15 @@
           "a": "Roda no mesmo banco SQLite ou Turso que o resto da zerosoft, então serve para sites pequenos e médios: alguns milhões de eventos por projeto antes de as consultas ficarem lentas. Funis, retenção e caminhos leem até 200.000 linhas e avisam quando chegam nesse limite."
         },
         "f5": {
-          "q": "O que falta em relação ao PostHog?",
-          "a": "Session replay, mapas de calor, a toolbar, experimentos, pesquisas, o data warehouse e os pipelines, alertas e SDKs de servidor ou mobile. O editor SQL fala SQLite, não HogQL. A tabela de paridade acima tem a lista completa."
+          "q": "O que falta em comparação com o PostHog?",
+          "a": "A toolbar, o data warehouse e os pipelines, e SDKs nativos para mobile. Replay, mapas de calor, experimentos, pesquisas e alertas existem mas fazem menos que no PostHog. O editor SQL fala SQLite, não HogQL. A tabela de paridade acima tem a lista completa."
         }
       },
       "cta": {
         "title1": "Cole o script.",
         "title2": "Leia os números.",
-        "sub": "Abra o Analytics, crie um projeto e adicione o snippet ao seu site.",
-        "button": "Abrir o Analytics"
+        "sub": "Abra o Pulse, crie um projeto e adicione o snippet ao seu site.",
+        "button": "Abrir o Pulse"
       }
     },
     "social": {
@@ -2384,7 +2384,7 @@
       "talk": "fig. 0 · mensagens chegando em um canal",
       "design": "fig. 0 · uma forma mudando na prancheta",
       "shop": "fig. 0 · um catálogo de seis produtos",
-      "analytics": "fig. 0 · um gráfico de barras com dados de exemplo",
+      "pulse": "fig. 0 · um gráfico de barras com dados de exemplo",
       "social": "fig. 0 · publicações em um calendário",
       "hiring": "fig. 0 · candidatos passando de etapa",
       "people": "fig. 0 · licenças em um calendário",
@@ -2728,7 +2728,7 @@
       "posterCta": "Comprar",
       "pages": "Página 1 de 3"
     },
-    "analytics": {
+    "pulse": {
       "navWeb": "Analytics web",
       "navInsights": "Insights",
       "navFlags": "Feature flags",
@@ -3348,7 +3348,7 @@
     "scope_chat_write": "Responder, atribuir, resolver e reabrir conversas do Chat (inclui chat:read).",
     "webhooksChatTitle": "Payload dos eventos do Chat",
     "webhooksChatDesc": "Os eventos do Chat trazem a conversa. chat.message.created soma a mensagem (do visitante, da equipe ou do bot; as notas internas não são enviadas) e chat.conversation.assigned soma previousAssignedTo.",
-    "groupsTitle": "Groups (WhatsApp)",
+    "groupsTitle": "Lines (WhatsApp)",
     "groupsDesc": "Leia chats e grupos de WhatsApp, envie mensagens e crie tickets a partir dos seus sistemas. As mensagens saem do número ao qual o chat pertence.",
     "groupsChatsListTitle": "Listar chats e grupos",
     "groupsChatsListDesc": "Chats e grupos abertos, os mais recentes primeiro, com etiquetas, responsável e se esperam resposta.",
@@ -3409,8 +3409,8 @@
     "paramGroupsRule": "Objeto com freq (daily, weekly, monthly ou cron), time (HH:MM), days (0 a 6), dayOfMonth ou cron",
     "paramGroupsTimezone": "Fuso horário IANA (padrão UTC)",
     "paramGroupsEndsAt": "Data ISO de fim, opcional",
-    "scope_groups_read": "Ler chats, mensagens e tickets de WhatsApp no Groups.",
-    "scope_groups_write": "Enviar mensagens de WhatsApp e criar tickets no Groups.",
+    "scope_groups_read": "Ler chats, mensagens e tickets de WhatsApp no Lines.",
+    "scope_groups_write": "Enviar mensagens de WhatsApp e criar tickets no Lines.",
     "scope_track_read": "Ler issues e pedidos de clientes do Track.",
     "scope_track_write": "Criar issues do Track a partir de pedidos de clientes (e-mail, formulários, Flow).",
     "crmLeadsTitle": "CRM · Leads",
@@ -3700,7 +3700,7 @@
     "paramDesignView": "recent (padrão), mine, shared, starred ou templates",
     "paramDesignId": "Id de um design: devolve esse design com suas páginas",
     "scope_design_read": "Ler designs do Design e suas páginas.",
-    "analyticsApiTitle": "Analytics",
+    "analyticsApiTitle": "Pulse",
     "analyticsApiDesc": "Analytics de produto. Os endpoints de ingestão (/api/ingest/*) usam a key do projeto, não uma API key: a pública (zsp_…) no corpo vinda do navegador, ou a key secreta do projeto como Bearer zss_… vinda de um servidor. As consultas aceitam uma sessão iniciada ou uma API key com analytics:read.",
     "analyticsCaptureTitle": "Capturar eventos",
     "analyticsCaptureDesc": "Um evento ou um lote de até 200, 512 KB por pedido. Com a key secreta como Bearer não há checagem de origem. Eventos com uuid repetido são ignorados. Tem limite por projeto.",
@@ -3724,8 +3724,8 @@
     "paramAnalyticsEvent": "Só este nome de evento.",
     "paramAnalyticsAfter": "Só eventos com id maior.",
     "paramAnalyticsCohort": "Só pessoas deste id de coorte.",
-    "scope_analytics_read": "Ler projetos, eventos e pessoas do Analytics e rodar consultas.",
-    "scope_analytics_write": "Mudar projetos, insights, painéis, coortes e flags do Analytics.",
+    "scope_analytics_read": "Ler projetos, eventos e pessoas do Pulse e rodar consultas.",
+    "scope_analytics_write": "Mudar projetos, insights, painéis, coortes e flags do Pulse.",
     "scope_social_read": "Ler publicações do Social das contas que você vê.",
     "scope_people_read": "Ler o diretório do People: só campos públicos do perfil, nunca salário nem dados pessoais.",
     "scope_hiring_read": "Ler as vagas do Hiring e os candidatos que quem criou a chave vê.",

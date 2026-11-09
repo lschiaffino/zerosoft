@@ -246,7 +246,7 @@ export default function Player({ recording, events, canDelete }: { recording: Re
       const typing = tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable || (tag === 'INPUT' && (el as HTMLInputElement).type !== 'range' && (el as HTMLInputElement).type !== 'checkbox');
       if (typing) return;
       if (e.key === 'Escape') {
-        router.push('/app/analytics/replay');
+        router.push('/app/pulse/replay');
       } else if (e.key === ' ' && tag !== 'BUTTON' && tag !== 'A') {
         e.preventDefault();
         toggle();
@@ -286,12 +286,12 @@ export default function Player({ recording, events, canDelete }: { recording: Re
     <div className="app-page ui-page an-page">
       <header className="an-replay-head">
         <div className="an-replay-headtext">
-          <Link href="/app/analytics/replay" className="an-link an-small">
+          <Link href="/app/pulse/replay" className="an-link an-small">
             {tl('title')}
           </Link>
           <h1 className="an-replay-title">
             {recording.personId ? (
-              <Link href={`/app/analytics/persons/${recording.personId}`} className="an-row-link">
+              <Link href={`/app/pulse/persons/${recording.personId}`} className="an-row-link">
                 {recording.person}
               </Link>
             ) : (
@@ -431,7 +431,7 @@ export default function Player({ recording, events, canDelete }: { recording: Re
           setBusy(true);
           try {
             await api(`/api/analytics/replay/${recording.id}`, { method: 'DELETE' });
-            router.replace('/app/analytics/replay');
+            router.replace('/app/pulse/replay');
             router.refresh();
           } catch {
             setDeleteError(true);
