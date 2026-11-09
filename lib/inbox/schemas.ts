@@ -7,7 +7,7 @@ const id = z.string().min(1).max(60);
 const iso = z.string().min(1).max(40);
 
 export const actionSchema: z.ZodType<ThreadAction> = z.discriminatedUnion('action', [
-  z.object({ action: z.enum(['done', 'undone', 'read', 'unread', 'pin', 'unpin', 'unsnooze', 'clearFollowUp', 'seen']) }),
+  z.object({ action: z.enum(['done', 'undone', 'read', 'unread', 'pin', 'unpin', 'archive', 'unarchive', 'unsnooze', 'clearFollowUp', 'seen']) }),
   z.object({ action: z.literal('snooze'), until: iso }),
   z.object({ action: z.literal('followUp'), at: iso }),
   z.object({ action: z.literal('mute'), until: iso.nullable() }),

@@ -48,7 +48,7 @@ interface FakeGroup extends GroupInfo {
 export interface FakeSent {
   chatId: string;
   text: string;
-  kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read' | 'block';
+  kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read' | 'block' | 'archive';
   at: number;
 }
 
@@ -305,6 +305,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     sendContact: async (chatId, contacts) => send(chatId, contacts.map((c) => `${c.name} +${c.phone}`).join(' | '), 'contact'),
     markRead: async (chatId, ids) => void send(chatId, ids.join(','), 'read'),
     blockContact: async (chatId, block) => void send(chatId, block ? 'block' : 'unblock', 'block'),
+    archiveChat: async (chatId, archive) => void send(chatId, archive ? 'archive' : 'unarchive', 'archive'),
     sendPresence: async () => undefined,
     /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, el resto una foto. */
     async fetchMedia(ref) {

@@ -897,3 +897,10 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-inbox[data-chat-style='zerosoft'] .wa-voice-bars i.is-on,
 .gr-inbox[data-chat-style='zerosoft'] .gr-msg-out .wa-voice-bars i.is-on { background: var(--ink); }
 .gr-inbox[data-chat-style='zerosoft'] .gr-msg.is-deleted .gr-bubble { border: 1px dashed var(--line); }
+
+/* Entrada "Archivados" arriba de la lista de Inbox, como en WhatsApp Web. */
+.gr-inbox .ib-archived-entry { display: flex; align-items: center; gap: 16px; padding: 12px 16px; color: var(--wa-text-2); text-decoration: none; font-size: 0.9375rem; border-bottom: 1px solid var(--wa-border); }
+.gr-inbox .ib-archived-entry:hover { background: color-mix(in srgb, var(--wa-icon) 8%, transparent); }
+.gr-inbox .ib-archived-entry:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.gr-inbox .ib-archived-entry > span:first-of-type { flex: 1 1 auto; min-width: 0; color: var(--wa-text); }
+.gr-inbox .ib-archived-n { flex: none; font-size: 0.75rem; color: var(--wa-primary); }

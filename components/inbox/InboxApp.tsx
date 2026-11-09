@@ -11,6 +11,7 @@ import { api, INBOX_CHANGED, INBOX_DROP_THREADS, longWhen, notifyInboxChanged, s
 import ChatRow from './wa/ChatRow';
 import WaConversation, { type WaThreadDetail } from './wa/WaConversation';
 import ContactPanel from './wa/ContactPanel';
+import { ArchiveIcon, ArrowLeft } from '@/components/groups/wa/icons';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { rowSwipe } from './wa/gestures';
 import Conversation from './Conversation';
@@ -38,19 +39,22 @@ const UNDO: Partial<Record<ThreadAction['action'], ThreadAction['action']>> = {
   unread: 'read',
   snooze: 'unsnooze',
   followUp: 'clearFollowUp',
+  archive: 'unarchive',
+  unarchive: 'archive',
 };
 /** Acciones que sacan el chat de la vista actual. */
 const LEAVES: Partial<Record<InboxView, ThreadAction['action'][]>> = {
-  inbox: ['done', 'snooze'],
-  whatsapp: ['done', 'snooze'],
-  email: ['done', 'snooze'],
-  groups: ['done', 'snooze'],
-  unread: ['done', 'snooze', 'read'],
-  reply: ['done', 'snooze'],
-  waiting: ['done', 'snooze'],
-  pinned: ['unpin'],
+  inbox: ['done', 'snooze', 'archive'],
+  whatsapp: ['done', 'snooze', 'archive'],
+  email: ['done', 'snooze', 'archive'],
+  groups: ['done', 'snooze', 'archive'],
+  unread: ['done', 'snooze', 'read', 'archive'],
+  reply: ['done', 'snooze', 'archive'],
+  waiting: ['done', 'snooze', 'archive'],
+  pinned: ['unpin', 'archive'],
+  archived: ['unarchive'],
   snoozed: ['unsnooze', 'done'],
-  done: ['undone', 'snooze'],
+  done: ['undone', 'snooze', 'archive'],
 };
 
 interface Toast {
@@ -302,7 +306,7 @@ export default function InboxApp(props: {
         toast(errText(r.data.error), { bad: true });
         return false;
       }
-      const leaves = !q && (folder ? ['done', 'snooze'] : (LEAVES[view] ?? [])).includes(action.action);
+      const leaves = !q && (folder ? ['done', 'snooze', 'archive'] : (LEAVES[view] ?? [])).includes(action.action);
       if (leaves) {
         const idx = threads.findIndex((x) => ids.includes(x.id));
         const rest = threads.filter((x) => !ids.includes(x.id));
@@ -378,6 +382,10 @@ export default function InboxApp(props: {
         case 'clearFollowUp':
         case 'unsnooze':
           void moreActionRef.current(name);
+          break;
+        case 'archive':
+        case 'unarchive':
+          void runAction(ids, { action: name });
           break;
         case 'unread':
           void runAction(ids, { action: th && th.unread > 0 ? 'read' : 'unread' });
@@ -743,7 +751,7 @@ export default function InboxApp(props: {
                 router.push(kind === 'f' ? `/app/inbox/f/${id}` : viewHref(id as InboxView));
               }}
             >
-              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done'] as InboxView[]).map((v) => (
+              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived'] as InboxView[]).map((v) => (
                 <option key={v} value={`v:${v}`}>
                   {t(`views.${v}`)}
                 </option>
@@ -767,12 +775,28 @@ export default function InboxApp(props: {
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('move')}>
                 {t('actions.move')}
               </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => act(view === 'archived' ? 'unarchive' : 'archive')}>
+                {view === 'archived' ? t('actions.unarchive') : t('actions.archive')}
+              </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())}>
                 {t('actions.clear')}
               </button>
             </div>
           )}
         </div>
+        {!q && !folder && view !== 'archived' && (state.counts.archived ?? 0) > 0 && (
+          <Link href={viewHref('archived')} className="ib-archived-entry" data-testid="inbox-archived-entry">
+            <ArchiveIcon size={20} />
+            <span>{t('list.archivedEntry')}</span>
+            <span className="ib-archived-n">{state.counts.archived}</span>
+          </Link>
+        )}
+        {view === 'archived' && !q && !folder && (
+          <Link href={viewHref('inbox')} className="ib-archived-entry" data-testid="inbox-archived-back">
+            <ArrowLeft size={20} />
+            <span>{t('list.archivedBack')}</span>
+          </Link>
+        )}
         {listErr && threads.length === 0 ? (
           <div className="ib-list-msg" role="alert">
             <p>{t('errors.list')}</p>

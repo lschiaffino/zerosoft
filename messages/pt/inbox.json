@@ -11,7 +11,8 @@
     "pinned": "Fixados",
     "snoozed": "Adiados",
     "scheduled": "Agendados",
-    "done": "Concluídos"
+    "done": "Concluídos",
+    "archived": "Arquivadas"
   },
   "tabs": { "inbox": "Todos", "whatsapp": "WhatsApp", "email": "E-mail", "groups": "Grupos", "unread": "Não lidos" },
   "when": {
@@ -42,6 +43,7 @@
     "dictate": "Ditar",
     "dictateHint": "Ditar com o Voice (ou segure Alt+Espaço)",
     "later": "Mais tarde",
+    "laterHint": "Enviar mais tarde. Também com clique direito em Enviar.",
     "sending": "Enviando…",
     "send": "Enviar",
     "hint": "Enter envia · Shift+Enter quebra linha · ⌘J rascunho com IA · ; snippets",
@@ -66,6 +68,8 @@
     "save": "Salvar",
     "undone": "Voltar para a caixa",
     "done": "Concluir",
+    "archive": "Arquivar",
+    "unarchive": "Desarquivar",
     "snooze": "Adiar",
     "followUp": "Lembrar",
     "move": "Pasta",
@@ -79,6 +83,8 @@
     "group": "Grupo",
     "snoozedUntil": "Adiado até {when}",
     "followUpAt": "Lembrete {when}",
+    "archivedEntry": "Arquivadas",
+    "archivedBack": "Voltar para a caixa",
     "woke": "Voltou",
     "noReply": "Sem resposta",
     "select": "Selecionar {name}",
@@ -172,6 +178,7 @@
       "snoozed": "Nada adiado. Aperte H em uma conversa para adiar.",
       "scheduled": "Nada agendado. Use Mais tarde ao lado de Enviar.",
       "done": "Nada concluído ainda",
+      "archived": "Nada arquivado. Arquive uma conversa pelo menu dela.",
       "folder": "Esta pasta está vazia. Aperte V em uma conversa para adicioná-la."
     }
   },
@@ -216,6 +223,8 @@
     "unread": "{n, plural, one {Marcada como não lida} other {# conversas marcadas como não lidas}}",
     "pin": "{n, plural, one {Fixada} other {# conversas fixadas}}",
     "unpin": "{n, plural, one {Desafixada} other {# conversas desafixadas}}",
+    "archive": "{n, plural, one {Arquivada} other {# conversas arquivadas}}",
+    "unarchive": "{n, plural, one {Desarquivada} other {# conversas desarquivadas}}",
     "snooze": "{n, plural, one {Adiada} other {# conversas adiadas}}",
     "unsnooze": "{n, plural, one {Não está mais adiada} other {# conversas não estão mais adiadas}}",
     "followUp": "{n, plural, one {Aviso se não responder} other {Lembrete para # conversas}}",

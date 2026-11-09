@@ -120,8 +120,18 @@ if (existsSync(searchDb)) {
 const APPLE_EPOCH = 978307200;
 const DESK_TYPE = { 0: 'chat', 1: 'image', 2: 'video', 3: 'ptt', 4: 'vcard', 5: 'location', 7: 'chat', 8: 'document', 11: 'video', 15: 'sticker' };
 let desk = null;
+/** Chats archivados (WhatsApp Desktop: ZWACHATSESSION.ZARCHIVED = 1; el nombre del chat y su jid en el mismo formato de los mensajes). */
+const archivedIds = new Set();
 if (desktopPath) {
   desk = new DatabaseSync(desktopPath, { readOnly: true });
+  try {
+    for (const r of desk.prepare('SELECT ZCONTACTJID jid FROM ZWACHATSESSION WHERE ZARCHIVED = 1 AND ZCONTACTJID IS NOT NULL').all()) {
+      const jid = String(r.jid);
+      if (/@(s\.whatsapp\.net|g\.us)$/.test(jid)) archivedIds.add(jid.replace(/@s\.whatsapp\.net$/, '@c.us'));
+    }
+  } catch {
+    /* otra versión de Desktop: sin columna de archivados */
+  }
   try {
     for (const r of desk.prepare('SELECT ZCONTACTJID jid, ZPARTNERNAME name FROM ZWACHATSESSION WHERE ZCONTACTJID IS NOT NULL').all()) {
       if (/@(s\.whatsapp\.net|g\.us)$/.test(String(r.jid))) nameOf(String(r.jid).replace(/@s\.whatsapp\.net$/, '@c.us'), r.name);
@@ -205,6 +215,7 @@ function chatIdsWithMessages() {
 }
 
 const chatIds = new Set([
+  ...archivedIds,
   ...chatFolders.map((c) => c.chatId),
   ...scheduled.map((s) => s.chatId),
   ...drafts.map((d) => d.chatId),
@@ -213,7 +224,8 @@ const chatIds = new Set([
   ...chatIdsWithMessages(),
   ...names.keys(),
 ]);
-const chats = () => [...chatIds].slice(0, 20000).map((id) => ({ chatId: id, name: (names.get(id) ?? '').slice(0, 300), isGroup: id.endsWith('@g.us') }));
+const chats = () =>
+  [...chatIds].slice(0, 20000).map((id) => ({ chatId: id, name: (names.get(id) ?? '').slice(0, 300), isGroup: id.endsWith('@g.us'), ...(archivedIds.has(id) ? { archived: true } : {}) }));
 const meta = { format: 'inbox-zero-export', exportedAt: new Date().toISOString(), folders, chatFolders, chats: chats(), scheduled, drafts, snoozes, notes };
 
 let total = 0;

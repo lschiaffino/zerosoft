@@ -319,6 +319,7 @@ const WaConversation = forwardRef<
     { key: 'rename', label: t('actions.rename'), onSelect: () => setRenaming(thread.title) },
     { key: 'unread', label: thread.unread ? mo('read') : mo('unread'), divider: true, onSelect: () => onAction('unread') },
     { key: 'pin', label: thread.pinned ? mo('unpin') : mo('pin'), onSelect: () => onAction('pin') },
+    { key: 'archive', label: thread.archived ? t('actions.unarchive') : t('actions.archive'), onSelect: () => onAction(thread.archived ? 'unarchive' : 'archive') },
     { key: 'aiDraft', label: mo('aiDraft'), onSelect: () => onAction('aiDraft') },
     ...(thread.mutedUntil
       ? [{ key: 'unmute', label: mo('unmute'), onSelect: () => onAction('unmute') }]

@@ -17,6 +17,8 @@ import {
   addMessage,
   createAccount,
   findThread,
+  getAccount,
+  getThreadRow,
   listAccounts,
   nowIso,
   readAccountConfig,
@@ -26,7 +28,7 @@ import {
   type AccountRow,
   type ThreadRow,
 } from './core';
-import { InboxError, waKindOf, type AccountStatus } from './types';
+import { InboxError, normalizeWaJid, waKindOf, type AccountStatus } from './types';
 import { messageMeta, storePresence, storeReaction } from './wa-meta';
 
 function appBase(): string {
@@ -222,6 +224,13 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
           if (e.pictureUrl && /^https:\/\//.test(e.pictureUrl) && !t.avatar_url) await db.prepare('UPDATE inbox_threads SET avatar_url = ? WHERE id = ?').run(e.pictureUrl.slice(0, 2000), t.id);
           break;
         }
+        case 'archive': {
+          // Archivar o desarchivar desde el teléfono. Un chat que todavía no está en Inbox no se crea por esto.
+          const t = await findThread(account.id, normalizeWaJid(e.chatId));
+          if (!t) break;
+          await db.prepare('UPDATE inbox_threads SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END WHERE id = ?').run(e.archived ? (t.archived_at ?? nowIso()) : null, e.archived ? 1 : 0, t.id);
+          break;
+        }
         case 'status': {
           // Las tildes no vuelven atrás (llega "entregado" después de "leído").
           const rank = "CASE status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 WHEN 'sent' THEN 1 ELSE 0 END";
@@ -282,18 +291,44 @@ export async function ingestHistoryChats(account: AccountRow, rows: unknown): Pr
   const list = Array.isArray(rows) ? rows : [];
   let n = 0;
   for (const raw of list.slice(0, 2000)) {
-    const c = (raw ?? {}) as { remoteJid?: unknown; id?: unknown; name?: unknown };
+    const c = (raw ?? {}) as { remoteJid?: unknown; id?: unknown; name?: unknown; archived?: unknown; archive?: unknown };
     const jid = String(c.remoteJid ?? c.id ?? '');
     if (!/^[\d-]{5,40}@(s\.whatsapp\.net|g\.us)$/.test(jid)) continue;
     const isGroup = jid.endsWith('@g.us');
     try {
-      await upsertThread(account, { externalId: jid, kind: isGroup ? 'group' : 'dm', title: cleanPushName(c.name) || undefined, handle: isGroup ? '' : phoneDigits(jid) });
+      const t = await upsertThread(account, { externalId: jid, kind: isGroup ? 'group' : 'dm', title: cleanPushName(c.name) || undefined, handle: isGroup ? '' : phoneDigits(jid) });
+      // Los archivados del historial entran marcados como archivados (no ensucian la bandeja).
+      if (c.archived === true || c.archive === true) await markArchived(t.id);
       n++;
     } catch {
       /* uno roto no frena el resto */
     }
   }
   return n;
+}
+
+/** Marca un chat como archivado sin tocar uno que ya lo está (conserva la fecha). */
+export async function markArchived(threadId: string): Promise<void> {
+  await getDb().prepare('UPDATE inbox_threads SET archived_at = COALESCE(archived_at, ?), pinned_at = NULL WHERE id = ?').run(nowIso(), threadId);
+}
+
+/**
+ * Archivar o desarchivar en WhatsApp lo que se hizo en Inbox (si el proveedor
+ * lo permite y la cuenta está conectada). No hace nada para Gmail. Si falla,
+ * el estado de Inbox queda igual: es el que manda para esta persona.
+ */
+export async function pushWhatsappArchive(owner: string, threadId: string, archive: boolean): Promise<boolean> {
+  const t = await getThreadRow(owner, threadId);
+  if (t.channel !== 'whatsapp') return false;
+  const account = await getAccount(owner, t.account_id);
+  if (account.status !== 'connected') return false;
+  const provider = waProviderFor(account);
+  if (!provider.archiveChat) return false;
+  const last = (await getDb()
+    .prepare('SELECT external_id, from_me FROM inbox_messages WHERE thread_id = ? ORDER BY sent_at DESC LIMIT 1')
+    .get(t.id)) as { external_id: string; from_me: number } | undefined;
+  await provider.archiveChat(t.external_id, archive, last ? { id: last.external_id, fromMe: last.from_me === 1 } : undefined);
+  return true;
 }
 
 const BACKFILL_DELAY_MS = 60_000;
@@ -423,6 +458,7 @@ export async function runWhatsappBackfill(account: AccountRow, deadline: number,
         const queue = cursor.queue ?? [];
         for (const c of rows) {
           const t = await upsertThread(account, { externalId: c.chatId, kind: c.isGroup ? 'group' : 'dm', title: c.name || undefined, handle: c.isGroup ? '' : phoneDigits(c.chatId) });
+          if (c.archived) await markArchived(t.id);
           if (c.unread > 0) await db.prepare('UPDATE inbox_threads SET unread = ? WHERE id = ? AND unread = 0').run(Math.min(c.unread, 9999), t.id);
           if (c.pictureUrl && !t.avatar_url) await db.prepare("UPDATE inbox_threads SET avatar_url = ? WHERE id = ? AND avatar_url = ''").run(c.pictureUrl.slice(0, 2000), t.id);
           if (queue.length < MAX_CHATS) queue.push(c.remoteJid);

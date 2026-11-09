@@ -449,13 +449,18 @@ const WaComposer = forwardRef<
             align="right"
           />
         )}
-        {hasText && !editing && (
-          <button type="button" className="wa-icon-btn" aria-label={t('later')} title={t('later')} disabled={disabled || busy !== ''} onClick={() => onSendLater(text.trim())}>
+        {!editing && (
+          <button type="button" className="wa-icon-btn" data-testid="inbox-send-later" aria-label={t('later')} title={t('laterHint')} disabled={disabled || busy !== ''} onClick={() => onSendLater(text.trim())}>
             <ClockIcon size={20} />
           </button>
         )}
         {hasText || editing || !onMic ? (
-          <button type="button" className="wa-send" aria-label={editing ? w('saveEdit') : t('send')} title={editing ? w('saveEdit') : t('send')} disabled={disabled || !hasText || busy !== ''} onClick={() => void send()}>
+          <button type="button" className="wa-send" aria-label={editing ? w('saveEdit') : t('send')} title={editing ? w('saveEdit') : t('send')} disabled={disabled || !hasText || busy !== ''} onClick={() => void send()} onContextMenu={(e) => {
+            // Clic derecho en Enviar: programar el envío (como en WhatsApp).
+            if (editing || !hasText) return;
+            e.preventDefault();
+            onSendLater(text.trim());
+          }}>
             {editing ? <span aria-hidden="true">✓</span> : <SendIcon size={20} />}
           </button>
         ) : (
