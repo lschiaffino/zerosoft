@@ -559,7 +559,7 @@ export async function runDueErasures(now = Date.now(), limit = 1): Promise<numbe
 
 /** Columnas que nunca salen en un export (secretos, hashes, tokens, claves). */
 export function secretColumn(col: string): boolean {
-  return /(secret|token|password|hash|_key$|^key$|^auth$|^p256dh$|^config$|^secrets$|^mfa_)/i.test(col);
+  return /(secret|token|password|hash|_key$|^key$|^auth$|^p256dh$|^config$|^secrets$|^mfa_|salt$|verifier$)/i.test(col);
 }
 
 function exportValue(col: string, v: unknown): unknown {
@@ -569,6 +569,21 @@ function exportValue(col: string, v: unknown): unknown {
   if (v instanceof ArrayBuffer || ArrayBuffer.isView(v)) return '[binary]';
   return v;
 }
+
+/** Comentarios y mensajes con su columna de autor (la persona, no el workspace). */
+const OWN_CONTENT: Record<string, string> = {
+  docs_comments: 'user_id',
+  track_issue_comments: 'user_id',
+  track_plan_update_comments: 'user_id',
+  talk_messages: 'user_id',
+  talk_list_comments: 'user_id',
+  rec_comments: 'user_id',
+  roadmap_comments: 'user_id',
+  link_comments: 'author_id',
+  board_comments: 'author_id',
+  design_comments: 'author_id',
+  groups_messages: 'author_id',
+};
 
 export interface ExportResult {
   zip: Buffer;
@@ -607,12 +622,30 @@ export async function exportAccountData(user: UserRow, client: Client = getClien
     rows += bucket.size;
     files.push({ name: `tables/${table}.json`, data: JSON.stringify([...bucket.values()], null, 1), deflate: true });
   }
+  // Lo que la persona escribió en workspaces ajenos (art. 15): solo sus propios comentarios y
+  // mensajes, sin la página, el issue o el canal de ese workspace.
+  for (const [table, col] of Object.entries(OWN_CONTENT)) {
+    const cols = schema.tables.get(table);
+    if (!cols?.includes(col)) continue;
+    const already = out.get(table);
+    const mine: Array<Record<string, unknown>> = [];
+    await readRows(client, schema, table, { sql: `${quote(col)} = ?`, args: [user.id] }, (list) => {
+      for (const r of list) {
+        if (already?.has(String(r.__rid))) continue;
+        mine.push(Object.fromEntries(cols.map((c) => [c, exportValue(c, r[c])])));
+      }
+    });
+    if (!mine.length) continue;
+    rows += mine.length;
+    files.push({ name: `other-workspaces/${table}.json`, data: JSON.stringify(mine, null, 1), deflate: true });
+  }
   const readme = [
     'zerosoft data export',
     `Account: ${user.email}`,
     `Created: ${new Date().toISOString()}`,
     '',
     'One JSON file per table with the rows of your account, of the workspace you own and what hangs from them.',
+    'other-workspaces/ has the comments and messages you wrote in workspaces owned by someone else.',
     'Secrets (tokens, keys, password hashes) are omitted. Files you uploaded are linked by URL in the rows;',
     'each app also has its own export (CSV, Markdown, ZIP) in its settings.',
     '',

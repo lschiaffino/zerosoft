@@ -63,7 +63,7 @@ function DeleteDialog({
     if (err) setError(err);
   }
   return (
-    <dialog ref={ref} className="ui-modal" aria-labelledby={`${id}-t`} onCancel={(e) => (e.preventDefault(), onClose())} onClose={onClose}>
+    <dialog ref={ref} className="ui-modal st-delete-dialog" aria-labelledby={`${id}-t`} onCancel={(e) => (e.preventDefault(), onClose())} onClose={onClose}>
       <form onSubmit={submit}>
         <div className="ui-modal-head">
           <h2 id={`${id}-t`}>{title}</h2>

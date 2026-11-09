@@ -150,6 +150,10 @@ describe('registro de seguridad', () => {
     expect((await listUserSecurityEvents(member.id)).map((r) => r.action)).toEqual(['login']);
 
     expect((await membersWithoutMfa(team.id)).map((m) => m.id)).toContain(member.id);
+    // Un invitado no entra al workspace (solo ve lo compartido): no está en la lista, como dice el texto.
+    const guest = await makeUser('sguest');
+    await addMember(team.id, guest.id, 'guest');
+    expect((await membersWithoutMfa(team.id)).map((m) => m.id)).not.toContain(guest.id);
   });
 
   it('la retención borra lo viejo', async () => {

@@ -461,8 +461,8 @@ function EventsTable({ rows, locale, showActor, empty }: { rows: SecurityEventDt
     return t.has(key) ? t(key) : r.action;
   };
   return (
-    <div className="table-wrap" data-testid="security-events">
-      <table className="table">
+    <div className="table-wrap st-table-stack" data-testid="security-events">
+      <table className="table st-events">
         <thead>
           <tr>
             <th scope="col">{t('time')}</th>
@@ -475,13 +475,23 @@ function EventsTable({ rows, locale, showActor, empty }: { rows: SecurityEventDt
         <tbody>
           {rows.map((r) => (
             <tr key={`${r.source}-${r.id}`}>
-              <td className="data">
+              <td className="data st-event-time" data-label={t('time')}>
                 <LocalDate value={r.createdAt} locale={locale} />
               </td>
-              {showActor && <td className="st-cell-clip">{r.actorEmail}</td>}
-              <td>{label(r)}</td>
-              <td className="st-cell-clip">{r.target || detail(r)}</td>
-              <td className="data">{r.ip ?? ''}</td>
+              {showActor && (
+                <td className="st-cell-clip" data-label={t('actor')}>
+                  {r.actorEmail}
+                </td>
+              )}
+              <td className="st-event-action" data-label={t('action')}>
+                {label(r)}
+              </td>
+              <td className="st-cell-clip" data-label={t('detail')}>
+                {r.target || detail(r)}
+              </td>
+              <td className="data" data-label={t('ip')}>
+                {r.ip ?? ''}
+              </td>
             </tr>
           ))}
         </tbody>
