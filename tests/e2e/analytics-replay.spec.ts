@@ -135,13 +135,13 @@ test('apagado por defecto: nada se graba y la página explica cómo prenderlo', 
   expect(asked.some((u) => u.includes('zs-replay.js'))).toBe(false);
   await site.close();
 
-  await page.goto('/en/app/analytics/replay', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/replay', { waitUntil: 'networkidle' });
   await expect(page.getByRole('heading', { name: 'Session replay is off' })).toBeVisible();
   await shot(page, 'recordings-off');
   await page.getByRole('link', { name: 'Open settings' }).click();
-  await expect(page).toHaveURL(/analytics\/settings#replay/);
+  await expect(page).toHaveURL(/pulse\/settings#replay/);
 
-  await page.goto('/en/app/analytics/heatmaps', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/heatmaps', { waitUntil: 'networkidle' });
   await expect(page.getByRole('heading', { name: 'Heatmaps are off' })).toBeVisible();
   expect(errors, errors.join('\n')).toEqual([]);
 });
@@ -154,7 +154,7 @@ test.beforeEach(async ({ page, baseURL }) => {
 test('prender desde los ajustes, grabar en otro origen y reproducir', async ({ page, request }) => {
   test.setTimeout(240_000);
   const errors = watchErrors(page);
-  await page.goto('/en/app/analytics/settings', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/settings', { waitUntil: 'networkidle' });
   await page.getByTestId('an-replay-enabled').check();
   // Texto sin enmascarar para este test: se comprueba el DOM de la página.
   await page.getByLabel('Mask all text').uncheck();
@@ -208,7 +208,7 @@ test('prender desde los ajustes, grabar en otro origen y reproducir', async ({ p
   await site.close();
 
   // Lista.
-  await page.goto('/en/app/analytics/replay', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/replay', { waitUntil: 'networkidle' });
   const row = page.getByTestId('an-recording-row').first();
   await expect(row).toContainText('/pricing');
   await shot(page, 'recordings-list');
@@ -280,26 +280,26 @@ test('prender desde los ajustes, grabar en otro origen y reproducir', async ({ p
   // Esc vuelve a la lista.
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('Escape');
-  await expect(page).toHaveURL(/analytics\/replay$/);
+  await expect(page).toHaveURL(/pulse\/replay$/);
 
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
 test('links desde eventos en vivo y desde la persona', async ({ page }) => {
   test.setTimeout(90_000);
-  await page.goto('/en/app/analytics/events', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/events', { waitUntil: 'networkidle' });
   const link = page.getByTestId('an-event-recording').first();
   await expect(link).toBeVisible({ timeout: 15_000 });
-  await expect(link).toHaveAttribute('href', new RegExp(`/app/analytics/replay/${recordingId}$`));
+  await expect(link).toHaveAttribute('href', new RegExp(`/app/pulse/replay/${recordingId}$`));
   await shot(page, 'events-link');
 
   const [row] = await sql(
     `SELECT m.person_id FROM analytics_replay_recordings r JOIN analytics_person_ids m ON m.project_id = r.project_id AND m.distinct_id = r.distinct_id WHERE r.id = ?`,
     [recordingId],
   );
-  await page.goto(`/en/app/analytics/persons/${row.person_id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/persons/${row.person_id}`, { waitUntil: 'networkidle' });
   const section = page.getByTestId('an-person-recordings');
-  await expect(section.getByRole('link').first()).toHaveAttribute('href', new RegExp(`/app/analytics/replay/${recordingId}$`));
+  await expect(section.getByRole('link').first()).toHaveAttribute('href', new RegExp(`/app/pulse/replay/${recordingId}$`));
   await shot(page, 'person-recordings');
 });
 
@@ -372,8 +372,8 @@ test('grabación hostil: el <script> y los manejadores inline no corren', async 
   const [rec] = await sql('SELECT id FROM analytics_replay_recordings WHERE project_id = ? AND session_id = ?', [projectId, session]);
 
   // Entrando por la lista: navegación del lado del cliente, sin el encabezado de la página.
-  await page.goto('/en/app/analytics/replay', { waitUntil: 'networkidle' });
-  await page.locator(`a[href*="/analytics/replay/${rec.id}"]`).first().click();
+  await page.goto('/en/app/pulse/replay', { waitUntil: 'networkidle' });
+  await page.locator(`a[href*="/pulse/replay/${rec.id}"]`).first().click();
   await expect(page).toHaveURL(new RegExp(`/replay/${rec.id}`));
   const frame = page.frameLocator('.replayer-wrapper iframe');
   await expect(frame.locator('#hostile-marker')).toHaveText('Hostile page', { timeout: 30_000 });
@@ -423,7 +423,7 @@ test('accesos: otro workspace 404, sin la app 403, miembro sin borrar', async ({
   expect((await stranger.request.get(`/api/analytics/heatmaps?project=${projectId}`)).status()).toBe(404);
   await sql("UPDATE users SET onboarded_at = datetime('now') WHERE email = ?", [strangerEmail]);
   const strangerPage = await stranger.newPage();
-  const res = await strangerPage.goto(`/en/app/analytics/replay/${recordingId}`);
+  const res = await strangerPage.goto(`/en/app/pulse/replay/${recordingId}`);
   expect(`${res?.status()} ${strangerPage.url()}`).toMatch(/^404 /);
   await stranger.close();
 
@@ -449,39 +449,39 @@ test('accesos: otro workspace 404, sin la app 403, miembro sin borrar', async ({
   ];
   for (const [label, role, apps] of [
     ['crm', 'member', '["crm"]'],
-    ['guest', 'guest', '["analytics"]'],
+    ['guest', 'guest', '["pulse"]'],
   ] as const) {
     const { ctx, p } = await join(`${label}-${uid()}@darwin-e2e.io`, role, apps);
     // Un invitado no entra al workspace: su proyecto no existe para él (404). Sin la app: 403.
     for (const path of reads) expect([401, 403, 404], `${label} ${path}`).toContain((await ctx.request.get(path)).status());
     expect([401, 403, 404]).toContain((await ctx.request.delete(`/api/analytics/replay/${recordingId}`)).status());
     // Sin la app redirige; un invitado ve un 404. En ningún caso aparece el reproductor.
-    const pageRes = await p.goto(`/en/app/analytics/replay/${recordingId}`, { waitUntil: 'networkidle' });
+    const pageRes = await p.goto(`/en/app/pulse/replay/${recordingId}`, { waitUntil: 'networkidle' });
     expect(pageRes?.status() === 404 || !new RegExp(`/replay/${recordingId}`).test(p.url())).toBe(true);
     await expect(p.locator('.replayer-wrapper')).toHaveCount(0);
     await ctx.close();
   }
-  const { ctx: memberCtx, p: member } = await join(`member-${uid()}@darwin-e2e.io`, 'member', '["analytics"]');
+  const { ctx: memberCtx, p: member } = await join(`member-${uid()}@darwin-e2e.io`, 'member', '["pulse"]');
   // Ver grabaciones es de admins: API, lista y reproductor.
   for (const path of [`/api/analytics/replay/${recordingId}`, `/api/analytics/replay/${recordingId}/chunks`, `/api/analytics/replay?project=${projectId}`, `/api/analytics/replay/sessions?project=${projectId}&ids=${sessionId}`]) {
     expect((await memberCtx.request.get(path)).status(), path).toBe(403);
   }
   expect((await memberCtx.request.delete(`/api/analytics/replay/${recordingId}`)).status()).toBe(403);
   await member.context().addCookies([{ name: 'zs_analytics_project', value: projectId, url: baseURL! }]);
-  await member.goto('/en/app/analytics/replay', { waitUntil: 'networkidle' });
+  await member.goto('/en/app/pulse/replay', { waitUntil: 'networkidle' });
   await expect(member.getByText('Only admins can watch recordings')).toBeVisible();
   await expect(member.getByTestId('an-recording-row')).toHaveCount(0);
-  expect((await member.goto(`/en/app/analytics/replay/${recordingId}`))?.status()).toBe(404);
+  expect((await member.goto(`/en/app/pulse/replay/${recordingId}`))?.status()).toBe(404);
   // Ajustes de solo lectura para un miembro.
-  await member.goto('/en/app/analytics/settings', { waitUntil: 'networkidle' });
+  await member.goto('/en/app/pulse/settings', { waitUntil: 'networkidle' });
   await expect(member.getByTestId('an-replay-enabled')).toBeDisabled();
   // Y con otro proyecto apagado, el miembro lee que tiene que pedírselo a un admin.
   const fresh = await request.post('/api/analytics/projects', { data: { name: `Off ${uid()}` } });
   const offId = ((await fresh.json()) as { project: { id: string } }).project.id;
   await member.context().addCookies([{ name: 'zs_analytics_project', value: offId, url: baseURL! }]);
-  await member.goto('/en/app/analytics/replay', { waitUntil: 'networkidle' });
+  await member.goto('/en/app/pulse/replay', { waitUntil: 'networkidle' });
   await expect(member.getByText('Only admins can watch recordings')).toBeVisible();
-  await member.goto('/en/app/analytics/heatmaps', { waitUntil: 'networkidle' });
+  await member.goto('/en/app/pulse/heatmaps', { waitUntil: 'networkidle' });
   await expect(member.getByText('Ask an admin of your workspace to turn on heatmaps')).toBeVisible();
   // Exportar todos los eventos y empezar, terminar, pasar o borrar un experimento también son de admins.
   expect((await memberCtx.request.get(`/api/analytics/export?project=${projectId}`)).status()).toBe(403);
@@ -552,7 +552,7 @@ test('heatmaps sobre la página real, con valores hostiles ignorados', async ({ 
   const pageviews = async () => Number((await sql("SELECT count(*) AS n FROM analytics_events WHERE project_id = ? AND event = '$pageview'", [projectId]))[0].n);
   const beforeViews = await pageviews();
 
-  await page.goto('/en/app/analytics/heatmaps', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/heatmaps', { waitUntil: 'networkidle' });
   await page.getByTestId('an-heat-path').selectOption('/heat');
   await expect(page.getByTestId('an-heat-summary')).toContainText('4 clicks');
   await expect(page.getByTestId('an-heat-summary')).toContainText('2 clicks with invalid values ignored');
@@ -604,14 +604,14 @@ test('claro y oscuro; borrar actualiza la lista sin recargar; borrar la persona 
   test.setTimeout(120_000);
   const errors = watchErrors(page);
   await page.context().addCookies([{ name: 'zs_theme', value: 'dark', url: baseURL! }]);
-  await page.goto('/en/app/analytics/replay', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/replay', { waitUntil: 'networkidle' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await shot(page, 'recordings-dark');
-  await page.goto(`/en/app/analytics/replay/${recordingId}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/replay/${recordingId}`, { waitUntil: 'networkidle' });
   await expect(page.locator('.replayer-wrapper iframe')).toHaveCount(1, { timeout: 30_000 });
   await page.waitForTimeout(800);
   await shot(page, 'player-dark');
-  await page.goto('/en/app/analytics/heatmaps', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/heatmaps', { waitUntil: 'networkidle' });
   await shot(page, 'heatmap-dark');
   await page.context().addCookies([{ name: 'zs_theme', value: 'light', url: baseURL! }]);
 
@@ -633,7 +633,7 @@ test('claro y oscuro; borrar actualiza la lista sin recargar; borrar la persona 
   });
   expect(created.status()).toBe(200);
 
-  await page.goto('/en/app/analytics/replay', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/pulse/replay', { waitUntil: 'networkidle' });
   const row = page.getByTestId('an-recording-row').filter({ hasText: 'delete-me' });
   await expect(row).toHaveCount(1);
   await row.getByRole('button', { name: /Delete recording/ }).click();

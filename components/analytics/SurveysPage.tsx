@@ -44,7 +44,7 @@ export default function SurveysPage({ projectId, items }: { projectId: string; i
       });
       notifyChanged();
       setCreating(false);
-      router.push(`/app/analytics/surveys/${survey.id}`);
+      router.push(`/app/pulse/surveys/${survey.id}`);
     } catch (err) {
       setError(apiErrorText(err, tc));
     } finally {
@@ -62,14 +62,14 @@ export default function SurveysPage({ projectId, items }: { projectId: string; i
     <div className="app-page ui-page an-page">
       <PageHeader title={t('title')} description={t('description')} actions={newButton} />
       {items.length === 0 ? (
-        <EmptyState product="analytics" title={t('emptyTitle')} body={t('emptyBody')} action={newButton} />
+        <EmptyState product="pulse" title={t('emptyTitle')} body={t('emptyBody')} action={newButton} />
       ) : (
         <RecordList
           testId="an-list-surveys"
           items={items.map((s) => ({
             id: s.id,
             name: s.name,
-            href: `/app/analytics/surveys/${s.id}`,
+            href: `/app/pulse/surveys/${s.id}`,
             meta: (
               <span className="an-sv-meta">
                 <SurveyStatusBadge status={s.status} />

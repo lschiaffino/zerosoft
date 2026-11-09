@@ -82,9 +82,9 @@
     --c-shop: #3fb96b;
     --c-shop-on: #111111;
   /* Analytics: el índigo base no llega a 4,5:1 sobre el fondo oscuro; relleno claro y tinta encima. */
-  --c-analytics-ink: #8f8af2;
-  --c-analytics: #8f8af2;
-  --c-analytics-on: #111111;
+  --c-pulse-ink: #8f8af2;
+  --c-pulse: #8f8af2;
+  --c-pulse-on: #111111;
   /* Hiring: el verde azulado base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
   --c-hiring-ink: #3bbfae;
   --c-hiring: #3bbfae;
@@ -212,9 +212,9 @@
   --c-shop: #3fb96b;
   --c-shop-on: #111111;
   /* Analytics: el índigo base no llega a 4,5:1 sobre el fondo oscuro; relleno claro y tinta encima. */
-  --c-analytics-ink: #8f8af2;
-  --c-analytics: #8f8af2;
-  --c-analytics-on: #111111;
+  --c-pulse-ink: #8f8af2;
+  --c-pulse: #8f8af2;
+  --c-pulse-on: #111111;
   /* Hiring: el verde azulado base queda oscuro sobre el fondo oscuro; relleno claro y tinta encima. */
   --c-hiring-ink: #3bbfae;
   --c-hiring: #3bbfae;

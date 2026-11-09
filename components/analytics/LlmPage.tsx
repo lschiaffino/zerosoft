@@ -107,7 +107,7 @@ function Generations({ projectId, range, models, trace, onClearTrace }: { projec
               {rows.map((g) => (
                 <tr key={g.id}>
                   <td className="an-llm-model">
-                    <Link href={`/app/analytics/llm/${g.id}`} className="an-row-link">
+                    <Link href={`/app/pulse/llm/${g.id}`} className="an-row-link">
                       {g.model}
                     </Link>
                   </td>
@@ -210,7 +210,7 @@ export default function LlmPage({ projectId, publicKey }: { projectId: string; p
       {!data && loading && <span className="ui-skeleton ui-skeleton-block" />}
       {o && o.totals.calls === 0 && (
         <>
-          <EmptyState product="analytics" title={t('emptyTitle')} body={t('emptyBody')} />
+          <EmptyState product="pulse" title={t('emptyTitle')} body={t('emptyBody')} />
           <section className="an-panel an-form" aria-labelledby="an-llm-example" data-testid="an-llm-example">
             <h2 id="an-llm-example" className="an-h3">
               {t('exampleTitle')}

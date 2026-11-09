@@ -139,7 +139,7 @@ describe('asistente: el catálogo del MCP', () => {
   it('el registro abierto sale del path', () => {
     expect(pageRecord('/app/docs/abc123xyz')).toEqual({ kind: 'Docs page', id: 'abc123xyz', read: 'v1.docs.pages.get' });
     expect(pageRecord('/es/app/track/issue/ENG-12/fix-it')?.id).toBe('ENG-12');
-    expect(pageRecord('/app/groups/inbox/chat_1')?.read).toBe('v1.groups.chats.get');
+    expect(pageRecord('/app/lines/inbox/chat_1')?.read).toBe('v1.groups.chats.get');
     expect(pageRecord('/app/docs/settings')).toBeNull();
     expect(pageRecord('/app/crm')).toBeNull();
   });

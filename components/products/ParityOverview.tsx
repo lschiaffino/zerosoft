@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { PARITY } from "@/content/feature-parity";
 import { computeParity, loc } from "@/lib/feature-parity";
-import { PRODUCT_CONFIG, PRODUCT_KEYS } from "@/lib/products";
+import { PRODUCT_CONFIG, PRODUCT_KEYS, productHref } from "@/lib/products";
 import { SECTION_IDS } from "@/components/site/catalog";
 import SectionSign from "@/components/site/SectionSign";
 
@@ -75,7 +75,7 @@ export default async function ParityOverview({
                 <tr key={key}>
                   <th scope="row">
                     <Link
-                      href={`/products/${key}#${SECTION_IDS.parity}`}
+                      href={`${productHref(key)}#${SECTION_IDS.parity}`}
                       className="po-app"
                     >
                       <i

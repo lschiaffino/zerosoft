@@ -116,13 +116,13 @@ export default function CollectionPage({
       setCreating(false);
       if (kind === 'projects') {
         setProjectCookie(created.id);
-        router.push('/app/analytics/settings');
+        router.push('/app/pulse/settings');
         router.refresh();
       } else if (kind === 'cohorts') {
-        router.push(`/app/analytics/cohorts?open=${created.id}`);
+        router.push(`/app/pulse/cohorts?open=${created.id}`);
         router.refresh();
       } else {
-        router.push(`/app/analytics/${kind}/${created.id}`);
+        router.push(`/app/pulse/${kind}/${created.id}`);
       }
     } catch (err) {
       setError(apiErrorText(err, tc));
@@ -133,7 +133,7 @@ export default function CollectionPage({
 
   const createButton = canCreate ? (
     kind === 'insights' ? (
-      <Link href="/app/analytics/insights/new" className="btn btn-primary">
+      <Link href="/app/pulse/insights/new" className="btn btn-primary">
         {t('new')}
       </Link>
     ) : (
@@ -149,13 +149,13 @@ export default function CollectionPage({
       {extra}
       {items.length === 0 ? (
         <EmptyState
-          product="analytics"
+          product="pulse"
           title={t('emptyTitle')}
           body={t('emptyBody')}
           action={
             canCreate ? (
               kind === 'insights' ? (
-                { label: t('new'), href: '/app/analytics/insights/new' }
+                { label: t('new'), href: '/app/pulse/insights/new' }
               ) : (
                 <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
                   {t('new')}

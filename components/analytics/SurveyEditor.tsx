@@ -165,7 +165,7 @@ export default function SurveyEditor({
 
   return (
     <div className="app-page ui-page an-page">
-      <PageHeader back={{ href: '/app/analytics/surveys', label: t('title') }} title={name || survey.name} description={<SurveyStatusBadge status={display} />} actions={actions} />
+      <PageHeader back={{ href: '/app/pulse/surveys', label: t('title') }} title={name || survey.name} description={<SurveyStatusBadge status={display} />} actions={actions} />
       <SurveyTabs id={survey.id} current="edit" />
       {status === 'running' && endPassed && <p className="an-callout an-note">{te('endPassed')}</p>}
       <div className="an-sv-grid">
@@ -512,7 +512,7 @@ export default function SurveyEditor({
           try {
             await api(`/api/analytics/surveys/${survey.id}`, { method: 'DELETE' });
             notifyChanged();
-            router.replace('/app/analytics/surveys');
+            router.replace('/app/pulse/surveys');
           } catch {
             setBusy(false);
             setDeleting(false);

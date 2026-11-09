@@ -60,7 +60,7 @@ strong{color:var(--fg);font-weight:600;word-break:break-all}
 .btn{display:inline-flex;align-items:center;justify-content:center;width:100%;height:40px;border:0;border-radius:4px;background:var(--btn);color:var(--btn-fg);font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
 .btn:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
 .fine{font-size:13px;margin:16px 0 0}
-p.fine{margin:-8px 0 12px}
+p.fine.when{margin:-8px 0 12px}
 .warn{color:var(--fg);border-left:3px solid #d97706;padding:8px 12px;background:rgba(217,119,6,.08);font-size:14px}
 svg{display:block}
 </style>
@@ -80,7 +80,7 @@ export function confirmPage(locale: string, input: { email: string; challenge: s
     t.title,
     `<h1>${escapeHtml(t.title)}</h1>
 <p>${escapeHtml(t.confirm).replace('{device}', `<strong>${escapeHtml(t.devices[input.device])}</strong>`).replace('{email}', `<strong>${escapeHtml(input.email)}</strong>`)}</p>
-<p class="fine">${escapeHtml(t.requested.replace('{time}', time))}</p>
+<p class="fine when">${escapeHtml(t.requested.replace('{time}', time))}</p>
 <p class="warn" role="note">${escapeHtml(t.warning)}</p>
 <form method="post" action="/api/desktop/login">
 <input type="hidden" name="challenge" value="${escapeHtml(input.challenge)}">

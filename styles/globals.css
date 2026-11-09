@@ -64,7 +64,7 @@
   --c-talk: #8e3a80;
   --c-design: #00a5c8;
   --c-shop: #15803d;
-  --c-analytics: #4f46e5;
+  --c-pulse: #4f46e5;
   --c-social: #7e22ce;
   --c-hiring: #0f766e;
   --c-people: #8b5e34;
@@ -155,7 +155,7 @@ body {
 .card-design { --accent: var(--c-design); --on-accent: #111111; }
 .card-talk { --accent: var(--c-talk); --on-accent: #ffffff; }
 .card-shop { --accent: var(--c-shop); --on-accent: #ffffff; }
-.card-analytics { --accent: var(--c-analytics); --on-accent: #ffffff; }
+.card-pulse { --accent: var(--c-pulse); --on-accent: #ffffff; }
 .card-social { --accent: var(--c-social); --on-accent: #ffffff; }
 .card-hiring { --accent: var(--c-hiring); --on-accent: #ffffff; }
 .card-people { --accent: var(--c-people); --on-accent: #ffffff; }
