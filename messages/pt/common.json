@@ -1,6 +1,6 @@
 {
   "meta": {
-    "tagline": "Vinte e seis apps open source para o seu time.",
+    "tagline": "Vinte e sete apps open source para o seu time.",
     "description": "Apps open source para empresas: CRM, chat de suporte, agentes de IA, automações, docs e mais. Rode no seu servidor por $0 ou use a zerosoft Cloud.",
     "homeTitle": "zerosoft: apps open source para empresas, do CRM aos docs"
   },
@@ -225,7 +225,7 @@
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
-    "p2": "Rodar esse software custa bem menos. Os vinte e seis apps da zerosoft cabem em <strong>um contêiner e um arquivo SQLite</strong>, num servidor pequeno.",
+    "p2": "Rodar esse software custa bem menos. Os vinte e sete apps da zerosoft cabem em <strong>um contêiner e um arquivo SQLite</strong>, num servidor pequeno.",
     "p3": "Por isso publicamos o código. O core de cada app é AGPLv3: você pode ler, modificar e rodar no seu servidor sem nos pagar nada.",
     "final": "Por que fazemos a zerosoft.",
     "p4": "Se preferir que a gente opere, a zerosoft Cloud cobra por workspace e por uso. Colocar mais alguém no time não muda a fatura.",
@@ -429,7 +429,7 @@
   },
   "home": {
     "hero": {
-      "title1": "Vinte e seis apps para o seu time.",
+      "title1": "Vinte e sete apps para o seu time.",
       "title2": "Zero licenças.",
       "sub": "Alternativas open source ao HubSpot, Intercom, Calendly, Linear, Notion e mais 19 produtos que o seu time paga todo mês. Rode no seu servidor por $0 ou use na zerosoft Cloud.",
       "ctaStart": "Comece grátis",
@@ -486,7 +486,7 @@
         "b3": "Modelos, comentários e compartilhamento"
       },
       "one": {
-        "title": "Uma conta para os vinte e seis apps.",
+        "title": "Uma conta para os vinte e sete apps.",
         "desc": "Convide seu time uma vez. Encontre contatos, empresas, negócios, links, docs e tarefas em uma única barra de busca, e pule entre apps sem trocar de ferramenta."
       },
       "replaces": "Substitui {rival}",
@@ -569,7 +569,7 @@
       "total": "Total por ano",
       "zeroTitle": "zerosoft, no seu servidor",
       "footnote": "Preços de tabela citados nas nossas páginas de produto, com cobrança mensal, para 10 usuários (Bitly Core é um plano fixo). Os fornecedores mudam os preços: confira nos sites deles. A zerosoft não tem afiliação com nenhuma dessas empresas.",
-      "rApps": "Os vinte e seis apps",
+      "rApps": "Os vinte e sete apps",
       "rSeats": "Usuários",
       "rLicense": "Licença",
       "rData": "Seus dados",
@@ -640,7 +640,7 @@
   },
   "appHome": {
     "title": "Seus apps",
-    "lead": "Os vinte e seis apps do seu workspace. Escolha um para começar.",
+    "lead": "Os vinte e sete apps do seu workspace. Escolha um para começar.",
     "apps": "Apps",
     "open": "Abrir {name}",
     "linkSummary": "Visão geral do Link",
@@ -766,7 +766,7 @@
   "notFound": {
     "sign": "Erro 404",
     "title": "Esta página não existe.",
-    "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos vinte e seis apps.",
+    "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos vinte e sete apps.",
     "cta": "Ir para o início",
     "meta": "Página não encontrada"
   },

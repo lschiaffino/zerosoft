@@ -2,15 +2,15 @@
   "products": {
     "meta": {
       "title": "24 open-source business apps: CRM, chat, docs and more",
-      "description": "Twenty-six open-source apps, from CRM and support chat to docs, invoicing and forms. On your own server or on zerosoft Cloud with a free plan."
+      "description": "Twenty-seven open-source apps, from CRM and support chat to docs, invoicing and forms. On your own server or on zerosoft Cloud with a free plan."
     },
     "hero": {
-      "title1": "Twenty-six apps.",
+      "title1": "Twenty-seven apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all twenty-six apps.",
+      "title1": "Try all twenty-seven apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -2388,7 +2388,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Twenty-six apps, same login.",
+    "suiteTitleDim": "Twenty-seven apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",

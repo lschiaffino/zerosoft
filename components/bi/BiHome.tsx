@@ -233,13 +233,13 @@ export default function BiHome({ initialItems, initialCollections, aiAvailable }
                           {i.name}
                         </Link>
                       </td>
-                      <td className="bi-muted" data-label={t('home.type')}>
+                      <td className="bi-muted bi-nowrap" data-label={t('home.type')}>
                         {i.kind === 'dashboard' ? t('home.kindDashboard') : t('home.kindQuestion')}
                       </td>
                       <td className="bi-muted" data-label={t('home.collection')}>
                         {colName(i.collectionId)}
                       </td>
-                      <td className="bi-muted" data-label={t('home.updated')}>
+                      <td className="bi-muted bi-nowrap" data-label={t('home.updated')}>
                         <LocalDate value={i.updatedAt} locale={locale} kind="date" />
                       </td>
                       <td className="table-stack-actions bi-row-actions">
