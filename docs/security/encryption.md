@@ -33,7 +33,7 @@ un volcado de la base o un backup no alcanza para usarlos:
 
 - `lib/secret-box.ts`: tokens OAuth (Google, Microsoft, Slack, GitHub, redes sociales),
   claves de API de terceros (Stripe, Twilio, proveedores de IA de cada workspace),
-  secretos de webhooks, configuración de cuentas de Inbox y Groups (incluidas las claves de
+  secretos de webhooks, configuración de cuentas de Inbox y Lines (incluidas las claves de
   la instancia de WhatsApp; la sesión misma vive en Evolution, en Railway), secretos TOTP de Robots y credenciales de importaciones.
 - `lib/flow-credentials.ts`: credenciales de Flow y Robots, atadas al workspace (AAD).
 - `lib/private-files.ts` y `lib/books-files.ts`: archivos privados (CVs de Hiring, PDFs de Sign, documentos de Send, archivos del asistente, comprobantes de
