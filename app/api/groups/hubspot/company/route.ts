@@ -6,6 +6,9 @@ import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, str
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+/** Edita quien no es invitado ni tiene los teléfonos ocultos, si el token puede escribir empresas. */
+const canEdit = (role: string, mask: boolean, canWrite: boolean) => canWrite && role !== 'guest' && !mask;
+
 /**
  * ?chat=<id>: la empresa de HubSpot vinculada a ese chat o grupo con todas
  * sus propiedades, cuándo se sincronizó por última vez y el registro de
@@ -20,7 +23,8 @@ export async function GET(req: Request) {
   const guard = await chatGuard(s, chatId);
   if (guard instanceof NextResponse) return guard;
   try {
-    return NextResponse.json(await chatCompany(s.ws, chatId, { refresh: 'stale', mask: guard.viewer.mask }));
+    const dto = await chatCompany(s.ws, chatId, { refresh: 'stale', mask: guard.viewer.mask });
+    return NextResponse.json({ ...dto, canEdit: canEdit(s.user.role, guard.viewer.mask, dto.canWrite) });
   } catch (err) {
     return handleGroupsError(err);
   }
@@ -36,7 +40,7 @@ export async function POST(req: Request) {
   try {
     const dto = await chatCompany(s.ws, chatId, { refresh: 'force', mask: guard.viewer.mask });
     if (dto.refreshError) return groupsError(dto.refreshError === 'hubspot_rate_limited' ? 429 : 502, dto.refreshError);
-    return NextResponse.json(dto);
+    return NextResponse.json({ ...dto, canEdit: canEdit(s.user.role, guard.viewer.mask, dto.canWrite) });
   } catch (err) {
     return handleGroupsError(err);
   }
