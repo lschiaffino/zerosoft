@@ -465,8 +465,9 @@ function nodeToItems(phase: LinearPhase, n: any): Array<{ kind: string; data: un
 
 // ---------- Transporte ----------
 
-/** API key personal: va tal cual en Authorization; un token OAuth lleva Bearer. */
+/** API key personal: va tal cual en Authorization; un token OAuth lleva Bearer (la sincronización lo guarda ya con "Bearer "). */
 export function linearAuth(token: string): string {
+  if (/^Bearer /.test(token)) return token;
   return /^lin_oauth_/.test(token) ? `Bearer ${token}` : token;
 }
 
@@ -524,13 +525,53 @@ export async function fetchLinearUpload(token: string, url: string): Promise<{ b
   }
 }
 
+// ---------- Teams elegidos (sincronización) ----------
+
+export interface LinearTeamRef {
+  id: string;
+  key: string;
+  name: string;
+}
+
+/**
+ * Deja solo lo de los teams elegidos (la sincronización con Linear elige
+ * teams): teams, cycles, issues y lo que cuelga de un issue (por la clave de
+ * su identificador, ENG-12), y los projects que tienen al menos uno de esos
+ * teams. Personas, initiatives y documentos son del workspace: quedan.
+ */
+export function filterLinearItems(items: Array<{ kind: string; data: unknown }>, teams: LinearTeamRef[] | null | undefined): Array<{ kind: string; data: unknown }> {
+  if (!teams?.length) return items;
+  const keys = new Set(teams.map((t) => t.key.toUpperCase()));
+  const ext = new Set(teams.map((t) => linearTeamExtId(t.name || t.key)));
+  const keyOf = (identifier: unknown) => String(identifier ?? '').split('-')[0].toUpperCase();
+  return items.filter(({ kind, data }) => {
+    const d = data as Record<string, unknown>;
+    switch (kind) {
+      case 'team':
+        return keys.has(String(d.key ?? '').toUpperCase()) || ext.has(String(d.extId));
+      case 'plan':
+        return ((d.teamExtIds as string[]) ?? []).some((t) => ext.has(t));
+      case 'cycle':
+        return ext.has(String(d.teamExtId));
+      case 'issue':
+        return ext.has(String((d.project as { extId?: string } | undefined)?.extId)) || keys.has(keyOf(d.extId));
+      case 'comment':
+      case 'attachment':
+      case 'relation':
+        return keys.has(keyOf(d.issueExtId));
+      default:
+        return true;
+    }
+  });
+}
+
 // ---------- Paso del runner ----------
 
 /**
  * Una página de la fase actual. El cursor lleva la fase y el `after` de
  * Linear; `stage` es la fase (la UI la muestra mientras lee).
  */
-export async function fetchLinearWorkspaceStep(token: string, cursor: Record<string, unknown>): Promise<FetchStepResult> {
+export async function fetchLinearWorkspaceStep(token: string, cursor: Record<string, unknown>, teams?: LinearTeamRef[] | null): Promise<FetchStepResult> {
   const phase = (LINEAR_PHASES.includes(cursor.phase as LinearPhase) ? cursor.phase : 'viewer') as LinearPhase;
   const nextPhase = (p: LinearPhase): Record<string, unknown> => {
     const i = LINEAR_PHASES.indexOf(p);
@@ -555,7 +596,7 @@ export async function fetchLinearWorkspaceStep(token: string, cursor: Record<str
   );
   const page = data[ROOT_FIELD[phase]];
   if (!page) throw new ImportError('source_error');
-  const items = page.nodes.flatMap((n) => nodeToItems(phase, n));
+  const items = filterLinearItems(page.nodes.flatMap((n) => nodeToItems(phase, n)), teams);
   const more = page.pageInfo.hasNextPage && !!page.pageInfo.endCursor;
   const cursorNext = more ? { phase, after: page.pageInfo.endCursor } : nextPhase(phase);
   return { items, cursor: cursorNext, done: !more && phase === 'relations', stage: `read:${phase}` };

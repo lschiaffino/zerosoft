@@ -9411,6 +9411,42 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Track ↔ Linear en vivo (lib/track-linear-sync.ts): estado de la
+    // conexión que cambia el cron (fase, cursor de la reconciliación y claim
+    // por locked_until) y, por issue y campo, el último valor acordado entre
+    // los dos lados (base_hash) y cuándo se cambió en Track (local_at) para
+    // resolver conflictos campo por campo. El índice por local_id busca el id
+    // de Linear de algo de Track (id map al revés).
+    id: '297_track_linear_sync',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_linear_sync_state (
+          workspace_id TEXT PRIMARY KEY,
+          phase TEXT NOT NULL DEFAULT 'setup',
+          import_job_id TEXT,
+          since TEXT,
+          reconcile_cursor TEXT,
+          next_reconcile_at TEXT,
+          locked_until TEXT,
+          last_sync_at TEXT,
+          last_error TEXT,
+          rate_limited_until TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS track_linear_sync_fields (
+          workspace_id TEXT NOT NULL,
+          issue_id TEXT NOT NULL,
+          field TEXT NOT NULL,
+          base_hash TEXT,
+          local_at TEXT,
+          PRIMARY KEY (workspace_id, issue_id, field)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_linear_sync_fields_local ON track_linear_sync_fields(workspace_id, local_at);
+        CREATE INDEX IF NOT EXISTS idx_import_external_ids_local ON import_external_ids(workspace_id, source, kind, local_id);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -18,7 +18,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { getDb } from './db';
 
 /** Por dónde llega un cambio: queda en el audit log y evita ecos (Slack). */
-export type TrackVia = 'app' | 'api' | 'mcp' | 'github' | 'slack' | 'sentry' | 'import' | 'system' | 'triage' | 'agent';
+export type TrackVia = 'app' | 'api' | 'mcp' | 'github' | 'slack' | 'sentry' | 'import' | 'system' | 'triage' | 'agent' | 'linear';
 
 const viewerStore = new AsyncLocalStorage<{ personId: string; via: TrackVia }>();
 
