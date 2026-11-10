@@ -11,6 +11,7 @@ import type { ProviderCaps } from '@/lib/groups-provider';
 import { mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
 import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
+import { fetchIfChanged } from '@/lib/conditional-fetch';
 import ChatDetails from './ChatDetails';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
@@ -356,10 +357,13 @@ export default function ChatThread(props: ThreadProps) {
     setMessages((prev) => {
       const map = new Map(prev.map((m) => [m.id, m]));
       for (const m of incoming) map.set(m.id, m);
-      return [...map.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      // Misma hora: por orden de llegada (lo recién mandado, que todavía no lo trae, va al final).
+      return [...map.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || (a.seq ?? Number.MAX_SAFE_INTEGER) - (b.seq ?? Number.MAX_SAFE_INTEGER));
     });
   }, []);
 
+  /** Cursor para pedir los anteriores a `first`: con su orden de llegada no se saltea ningún mensaje de la misma hora. */
+  const olderCursor = (first: MessageDto) => (typeof first.seq === 'number' ? `${first.createdAt}~${first.seq}` : first.createdAt);
   const [olderDone, setOlderDone] = useState(false);
   const [fetchingOlder, setFetchingOlder] = useState(false);
   /** Trae del teléfono (el historial del gateway) los mensajes anteriores a lo importado. */
@@ -372,7 +376,7 @@ export default function ChatThread(props: ThreadProps) {
     if (res.data.added === 0 || res.data.done) setOlderDone(true);
     if (res.data.added > 0) {
       const first = messages[0];
-      const older = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=${OLDER_PAGE}&before=${encodeURIComponent(first.createdAt)}`);
+      const older = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=${OLDER_PAGE}&before=${encodeURIComponent(olderCursor(first))}`);
       if (older.data?.messages.length) {
         const box = boxRef.current;
         if (box) keepOffset.current = box.scrollHeight - box.scrollTop;
@@ -385,7 +389,7 @@ export default function ChatThread(props: ThreadProps) {
     if (loadingOlder || !hasOlder || messages.length === 0) return;
     setLoadingOlder(true);
     const first = messages[0];
-    const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=${OLDER_PAGE}&before=${encodeURIComponent(first.createdAt)}`);
+    const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=${OLDER_PAGE}&before=${encodeURIComponent(olderCursor(first))}`);
     setLoadingOlder(false);
     if (!res.data) return;
     if (res.data.messages.length < OLDER_PAGE) setHasOlder(false);
@@ -431,9 +435,13 @@ export default function ChatThread(props: ThreadProps) {
         busy = false;
       }
     };
+    let etag = '';
     const pollOnce = async () => {
-      const res = await api<{ messages: MessageDto[]; presence?: ChatPresence | null }>(`/api/groups/chats/${chat.id}/messages?limit=60`);
-      if (!res.data) return;
+      // Con ETag: si no cambió nada desde la última consulta, no se vuelve a armar ni a dibujar el hilo.
+      const r = await fetchIfChanged<{ messages: MessageDto[]; presence?: ChatPresence | null }>(`/api/groups/chats/${chat.id}/messages?limit=60`, etag);
+      if (r.state !== 'fresh') return;
+      etag = r.etag;
+      const res = { data: r.data };
       setPresence(res.data.presence ?? null);
       const fresh = res.data.messages.filter((m) => !knownIds.current.has(m.id));
       merge(res.data.messages);

@@ -319,7 +319,7 @@ export default function InboxBranch() {
                     onBlur={(e) => void rename(f, e.currentTarget.value)}
                   />
                 ) : (
-                  <Link href={href} className="docs-tree-link" aria-current={active ? 'page' : undefined} draggable={false} onKeyDown={(e) => linkKeys(e, f, hasChildren)}>
+                  <Link href={href} prefetch={false} className="docs-tree-link" aria-current={active ? 'page' : undefined} draggable={false} onKeyDown={(e) => linkKeys(e, f, hasChildren)}>
                     <span className="docs-tree-icon" aria-hidden="true">
                       <span className="ib-swatch" style={{ background: f.color || 'var(--c-inbox)' }} />
                     </span>

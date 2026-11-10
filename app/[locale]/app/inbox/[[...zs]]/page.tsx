@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { realUserId, requireUser } from '@/lib/session';
-import { accountDto, inboxCounts, listAccounts, listFolders, listSnippets, listThreads } from '@/lib/inbox/core';
+import { accountDto, inboxCounts, listAccounts, listFolders, listSnippets, listThreadsPage } from '@/lib/inbox/core';
 import { gmailAvailable } from '@/lib/inbox/gmail';
 import { isInboxView, type InboxView } from '@/lib/inbox/types';
 import { whatsappAvailable } from '@/lib/inbox/whatsapp';
@@ -24,6 +24,10 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
  * Inbox en una sola ruta: /app/inbox (?t=<chat>&new=1), /app/inbox/v/<vista>,
  * /app/inbox/f/<carpeta> y /app/inbox/settings. Todo es de la persona de la
  * sesión (su id real), sin importar el workspace activo.
+ *
+ * Esta página arma la primera pantalla. Después, pasar de una vista o carpeta
+ * a otra no vuelve acá: InboxApp lee la vista de la URL y solo cambia la
+ * lista (components/inbox/nav.ts), por eso no lleva `key`.
  */
 export default async function InboxPage(props: Props) {
   const { locale, zs = [] } = await props.params;
@@ -52,14 +56,16 @@ export default async function InboxPage(props: Props) {
     default:
       notFound();
   }
-  const threads = await listThreads(owner, { view, folderId: folder?.id });
+  // La primera página; el resto se pide al bajar en la lista.
+  const first = await listThreadsPage(owner, { view, folderId: folder?.id, limit: 60, cursor: '' });
   const openId = typeof sp.t === 'string' && /^ibt_[a-f0-9]{20}$/.test(sp.t) ? sp.t : null;
   return (
     <InboxApp
-      key={`${view}:${folder?.id ?? ''}`}
       view={view}
       folder={folder}
-      initialThreads={threads}
+      initialThreads={first.threads}
+      initialNext={first.next}
+      initialPinned={first.pinned}
       initialState={state}
       initialOpenId={openId}
       initialFocusId={openId && typeof sp.m === 'string' && /^ibm_[a-f0-9]{8,40}$/.test(sp.m) ? sp.m : null}
