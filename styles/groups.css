@@ -824,17 +824,12 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 /* Lines: selector de línea, etiqueta de línea y carpetas compartidas */
 .gr-line-select { max-width: 170px; min-width: 0; }
 .gr-line-badge { display: inline-block; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; padding: 0 6px; border: 1px solid var(--ui-border); }
-.gr-folders { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; min-width: 0; }
-.gr-folders-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.gr-folders-empty { margin: 0; }
 .gr-folder-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; max-height: 220px; overflow-y: auto; }
-.gr-folder-item { display: flex; align-items: center; gap: 2px; min-width: 0; }
-.gr-folder-item .gr-folder { flex: 1; min-width: 0; }
-.gr-folder-toggle { width: 18px; flex: none; background: none; border: 0; color: inherit; cursor: pointer; padding: 0; text-align: center; }
-.gr-folder-toggle:focus-visible, .gr-folder:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.gr-folder:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .gr-folder { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: start; background: none; border: 1px solid transparent; color: inherit; padding: 4px 8px; cursor: pointer; font: inherit; }
 .gr-folder:hover { background: var(--ui-hover); }
 .gr-folder.is-on { border-color: var(--ink); font-weight: 600; }
 .gr-folder.is-over { background: var(--ui-hover); border-color: var(--ink); border-style: dashed; }
 .gr-folder-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr-folder-pick { max-height: 50vh; }
+

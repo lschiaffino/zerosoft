@@ -20,7 +20,8 @@ import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import type { LineFolderDto } from '@/lib/groups-lines';
-import { DRAG_TYPE, FoldersPanel, LineBadge, LineSelector, MoveToFolderModal, type LineOption } from './LineFolders';
+import { DRAG_TYPE, DROP_CHATS, FOLDERS_CHANGED, FolderSelect, LineBadge, LineSelector, MoveToFolderModal, notifyFoldersChanged, type DropChatsDetail, type LineOption } from './LineFolders';
+import { useShellBranch } from '@/components/app/useShellBranch';
 import PanelSplitters from './PanelSplitters';
 
 const FILTERS: ChatFilter[] = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'];
@@ -138,6 +139,15 @@ function chatIdFromPath(pathname: string): string | null {
  * moverse, / para buscar, X marca el chat abierto para una acción en masa,
  * Esc limpia la selección.
  */
+/** Query de la bandeja: la lista guardada y la carpeta abierta viajan al cambiar de chat. */
+function inboxQuery(listId: string | null, folder: string): string {
+  const p = new URLSearchParams();
+  if (listId) p.set('list', listId);
+  if (folder) p.set('folder', folder);
+  const q = p.toString();
+  return q ? `?${q}` : '';
+}
+
 export default function InboxShell({
   labels,
   people = [],
@@ -191,7 +201,9 @@ export default function InboxShell({
   const listId = params.get('list');
   const current = chatIdFromPath(pathname);
   const [line, setLine] = useState(numbers.some((n) => n.id === initialLine) ? initialLine : 'all');
-  const [folderSel, setFolderSel] = useState('');
+  // La carpeta abierta vive en la URL (?folder=): la eligen el sidebar o el selector de la bandeja.
+  const folderSel = params.get('folder') ?? '';
+  const sideBranch = useShellBranch();
   const [folderData, setFolderData] = useState<{ folders: LineFolderDto[]; unfiled: { unread: number; chats: number } }>({ folders: [], unfiled: { unread: 0, chats: 0 } });
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const lineNames = useMemo(() => new Map(numbers.map((n) => [n.id, n.name])), [numbers]);
@@ -356,8 +368,30 @@ export default function InboxShell({
     showToast(folderId ? t('lines.movedTo', { n: res.data.updated, name }) : t('lines.removedFromFolder', { n: res.data.updated }), res.data.failed > 0);
     setSelected(new Set());
     void load(true);
-    void reloadFolders();
+    notifyFoldersChanged();
   }
+  const moveRef = useRef(moveToFolder);
+  useEffect(() => {
+    moveRef.current = moveToFolder;
+  });
+  useEffect(() => {
+    const changed = () => {
+      void reloadFolders();
+      void load(true);
+    };
+    const dropped = (e: Event) => {
+      const d = (e as CustomEvent<DropChatsDetail>).detail;
+      if (d?.ids?.length) void moveRef.current(d.ids, d.folderId);
+    };
+    window.addEventListener(FOLDERS_CHANGED, changed);
+    window.addEventListener(DROP_CHATS, dropped);
+    return () => {
+      window.removeEventListener(FOLDERS_CHANGED, changed);
+      window.removeEventListener(DROP_CHATS, dropped);
+    };
+  }, [reloadFolders, load]);
+  const pickFolder = (id: string) => router.push(`/app/lines/inbox${current ? `/${current}` : ''}${inboxQuery(listId, id)}`);
+  const folderName = folderSel === 'none' ? t('lines.unfiled') : (folderData.folders.find((f) => f.id === folderSel)?.name ?? '');
 
   const refresh = useCallback(() => void load(true), [load]);
 
@@ -368,10 +402,10 @@ export default function InboxShell({
       const next = rows[Math.min(rows.length - 1, Math.max(0, i < 0 ? 0 : i + delta))];
       if (next) {
         markChatSwitch(next.id);
-        router.push(`/app/lines/inbox/${next.id}${listId ? `?list=${listId}` : ''}`);
+        router.push(`/app/lines/inbox/${next.id}${inboxQuery(listId, folderSel)}`);
       }
     },
-    [rows, current, router, listId],
+    [rows, current, router, listId, folderSel],
   );
   useKeyShortcut('/', () => searchRef.current?.focus());
   useKeyShortcut('j', () => go(1));
@@ -596,7 +630,7 @@ export default function InboxShell({
   const canEditList = activeList ? activeList.ownerId === me || activeList.shared : false;
   const propDef = properties.find((p) => p.key === propKey) ?? null;
   const propOpts = propDef ? filterOptions(propDef) : [];
-  const listSuffix = listId ? `?list=${listId}` : '';
+  const listSuffix = inboxQuery(listId, folderSel);
   // Filtros del panel (fuera de las pestañas) que están puestos: el botón lo marca.
   const extraFilters = [kind, label, assignee, team, propKey].filter(Boolean).length;
 
@@ -687,18 +721,14 @@ export default function InboxShell({
                 )}
               </p>
             )}
-            {!archivedView && (
-              <FoldersPanel
-                folders={folderData.folders}
-                unfiled={folderData.unfiled}
-                selected={folderSel}
-                onSelect={setFolderSel}
-                onChanged={() => {
-                  void reloadFolders();
-                  void load(true);
-                }}
-                onDropChats={(ids, folderId) => void moveToFolder(ids, folderId)}
-              />
+            {!archivedView && !sideBranch && <FolderSelect folders={folderData.folders} value={folderSel} onChange={pickFolder} />}
+            {!archivedView && sideBranch && folderSel && folderName && (
+              <p className="gr-folder-current" data-testid="lines-folder-current">
+                <span className="gr-folder-name">{folderName}</span>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => pickFolder('')}>
+                  {t('lines.allChats')}
+                </button>
+              </p>
             )}
             <div className="wa-search-row">
             <span className="wa-search">

@@ -1,0 +1,40 @@
+/* Carpetas de Lines en el sidebar (GroupsFoldersBranch): el mismo árbol que Inbox (InboxBranch), con el color de Lines. */
+.grf-ftree .docs-tree-row { padding-left: calc(var(--d, 0) * 14px + 4px); }
+.grf-ftree-chevron { flex: 0 0 20px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: var(--radius-1); background: none; color: var(--dim); cursor: pointer; }
+.grf-ftree-chevron:hover { color: var(--ink); background: var(--ui-press); }
+.grf-ftree-chevron:focus-visible, .grf-ftree-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.grf-ftree-chevron svg { transition: transform var(--ui-dur) var(--ease); }
+.grf-ftree-chevron.open svg { transform: rotate(90deg); }
+.grf-ftree-actions { position: relative; display: none; align-items: center; flex-shrink: 0; }
+.grf-ftree .docs-tree-row:hover .grf-ftree-actions,
+.grf-ftree .docs-tree-row:focus-within .grf-ftree-actions,
+.grf-ftree-actions:has([aria-expanded='true']) { display: inline-flex; }
+@media (hover: none) { .grf-ftree-actions { display: inline-flex; } }
+.grf-ftree-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--radius-1); background: none; color: var(--brand-gray-2); cursor: pointer; }
+.grf-ftree-btn:hover { color: var(--ink); background: var(--ui-press); }
+.grf-ftree-menu { top: calc(100% + 2px); bottom: auto; left: auto; right: 0; z-index: 75; min-width: 180px; }
+.grf-ftree-menu .grf-menu-item:disabled { opacity: 0.45; cursor: not-allowed; }
+.grf-ftree-rename { flex: 1; min-width: 0; height: 24px; padding: 0 6px; font-size: 0.8125rem; }
+.grf-ftree-error { padding: 4px 8px; font-size: 0.75rem; }
+/* Soltar: arriba o abajo reordena (filete), al centro mete adentro o suma chats (borde). */
+.grf-ftree .docs-tree-row.drop-inside { background: var(--ui-hover); box-shadow: inset 0 0 0 2px var(--c-groups); color: var(--ink); }
+.grf-ftree .docs-tree-row.drop-before::after,
+.grf-ftree .docs-tree-row.drop-after::after { content: ''; position: absolute; left: calc(var(--d, 0) * 14px + 4px); right: 4px; height: 2px; background: var(--c-groups); pointer-events: none; }
+.grf-ftree .docs-tree-row.drop-before::after { top: -1px; }
+.grf-ftree .docs-tree-row.drop-after::after { bottom: -1px; }
+.grf-branch .docs-tree-row { position: relative; }
+.grf-branch-count { margin-left: auto; padding-left: 6px; font-size: 0.75rem; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.grf-branch-new { display: block; width: 100%; margin: 2px 0 6px; padding: 4px 8px 4px 28px; background: none; border: 0; font: inherit; font-size: 0.8125rem; color: var(--brand-gray-2); text-align: left; cursor: pointer; border-radius: var(--radius-1); }
+.grf-branch-new:hover, .grf-branch-new:focus-visible { background: var(--chrome-hover, var(--ui-hover)); color: var(--ink); }
+.grf-menu { position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 20; min-width: 200px; margin: 0; padding: 4px; list-style: none; background: var(--bg); border: 1px solid var(--ink); border-radius: var(--radius-1); }
+.grf-menu-item { display: block; width: 100%; padding: 8px 10px; background: none; border: 0; font: inherit; font-size: 0.875rem; text-align: left; color: inherit; cursor: pointer; border-radius: var(--radius-1); }
+.grf-menu-item:hover, .grf-menu-item:focus-visible { background: var(--ui-hover); }
+.grf-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.grf-menu-item.grf-danger { color: var(--bad-ink); }
+.grf-pick-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.grf-pick { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 36px; padding: 6px 10px; background: none; border: 0; font: inherit; text-align: left; color: inherit; cursor: pointer; border-radius: var(--radius-1); }
+.grf-pick:hover, .grf-pick:focus-visible { background: var(--ui-hover); }
+.grf-pick[aria-pressed='true'] { font-weight: 600; }
+/* Carpeta abierta, arriba de la lista de chats; y el selector cuando el sidebar no está a la vista. */
+.gr-folder-current { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; min-width: 0; font-weight: 600; }
+.gr-folder-select { width: 100%; }
