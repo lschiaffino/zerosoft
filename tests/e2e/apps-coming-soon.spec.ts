@@ -59,8 +59,11 @@ test('Próximamente: inicio, switcher y Cmd+K la ofrecen; la página es la lista
     // No cuentan como apps del workspace.
     await expect(p.getByTestId('home-featured').getByRole('link', { name: /Open Chat/ })).toHaveCount(0);
 
-    // Switcher: abajo, en "Coming soon".
+    // Switcher: abajo, en "Coming soon", plegado.
     await p.locator('.band-product').click();
+    // Plegado: solo el título con la cantidad; los nombres aparecen al abrirlo.
+    await expect(p.getByTestId('switcher-soon-agents')).toHaveCount(0);
+    await p.getByTestId('switcher-soon-toggle').click();
     await expect(p.getByTestId('switcher-soon-agents')).toBeVisible();
     await p.keyboard.press('Escape');
 

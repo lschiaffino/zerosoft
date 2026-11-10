@@ -60,7 +60,8 @@ test('switcher: inicio, destacadas, más apps por categoría, teclado y ⌘K', a
   await page.locator('.band-product').press('Enter');
   await expect(menu).toBeVisible();
   await expect(menu.getByRole('menuitem', { name: 'Inicio' })).toHaveAttribute('href', '/es/app');
-  await expect(menu.getByRole('group', { name: 'Destacadas' }).getByRole('menuitem')).toHaveCount(6);
+  // Solo categorías: no hay grupo de destacadas.
+  await expect(menu.getByRole('group', { name: 'Destacadas' })).toHaveCount(0);
   await expect(menu.getByRole('group', { name: 'Automatizar' }).getByRole('menuitem')).not.toHaveCount(0);
   // Con teclado el foco arranca en la app actual y las flechas lo mueven.
   await expect(menu.getByRole('menuitem', { name: 'CRM' })).toBeFocused();

@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-app-menu-categories',
+    date: '2026-11-10',
+    title: {
+      en: 'A calmer app menu',
+      es: 'Un menú de apps más tranquilo',
+      pt: 'Um menu de apps mais calmo',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'The app menu lists your apps by category only, without a featured group. Coming soon apps stay folded under one line until you open it.',
+        es: 'El menú de apps muestra tus apps solo por categoría, sin un grupo de destacadas. Las apps Próximamente quedan plegadas en una línea hasta que la abrís.',
+        pt: 'O menu de apps mostra seus apps só por categoria, sem um grupo de destaques. Os apps Em breve ficam recolhidos em uma linha até você abrir.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-lines-resizable-panels',
     date: '2026-11-10',
     title: {
