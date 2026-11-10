@@ -29,6 +29,53 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-inbox-lines-fast',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines and Inbox: the whole history, and a list that stays fast',
+      es: 'Lines e Inbox: todo el historial, y una lista que sigue rápida',
+      pt: 'Lines e Inbox: todo o histórico, e uma lista que continua rápida',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Opening a folder, a saved list, a tab or a filter only reloads the list of chats. The open conversation and what you were typing stay where they are, the folder stays in the URL, and Back and Forward work. A folder you just visited shows again at once.',
+        es: 'Abrir una carpeta, una lista guardada, una pestaña o un filtro solo vuelve a cargar la lista de chats. La conversación abierta y lo que estabas escribiendo quedan donde estaban, la carpeta queda en la URL, y Atrás y Adelante funcionan. Una carpeta que acabás de ver aparece de nuevo al instante.',
+        pt: 'Abrir uma pasta, uma lista salva, uma aba ou um filtro só recarrega a lista de conversas. A conversa aberta e o que você estava escrevendo ficam onde estavam, a pasta fica na URL, e Voltar e Avançar funcionam. Uma pasta que você acabou de ver aparece de novo na hora.',
+      },
+      {
+        product: 'groups',
+        en: 'The list no longer stops at "Showing 100 of 202": it loads more chats as you scroll, down to the oldest one. Search in messages uses a full-text index and matches the start of each word.',
+        es: 'La lista ya no se corta en "Mostrando 100 de 202": trae más chats a medida que bajás, hasta el más viejo. La búsqueda en mensajes usa un índice de texto completo y encuentra por el comienzo de cada palabra.',
+        pt: 'A lista não para mais em "Mostrando 100 de 202": traz mais conversas conforme você desce, até a mais antiga. A busca nas mensagens usa um índice de texto completo e encontra pelo começo de cada palavra.',
+      },
+      {
+        product: 'groups',
+        en: 'A newly linked number (QR, or your own Evolution server) now brings the full history the WhatsApp server kept: first the latest messages of every chat, then the rest in the background, with progress in the inbox. It picks up where it left off and never duplicates. WhatsApp only sends history when a device is linked, so a number linked before today has to be linked again to get its older messages, and anything the phone does not send stays on the phone. The Cloud API does not give access to history, and importing it from WAHA is not built yet.',
+        es: 'Un número recién vinculado (por QR, o con tu servidor de Evolution) ahora trae todo el historial que guardó el servidor de WhatsApp: primero los últimos mensajes de cada chat y después el resto en segundo plano, con el avance en la bandeja. Sigue donde quedó y no duplica nada. WhatsApp solo manda historial cuando se vincula un dispositivo: un número vinculado antes de hoy hay que vincularlo de nuevo para traer sus mensajes viejos, y lo que el teléfono no manda queda en el teléfono. La Cloud API no da acceso al historial, e importarlo desde WAHA todavía no está hecho.',
+        pt: 'Um número recém-vinculado (por QR, ou com o seu servidor Evolution) agora traz todo o histórico que o servidor do WhatsApp guardou: primeiro as últimas mensagens de cada conversa e depois o resto em segundo plano, com o progresso na caixa de entrada. Continua de onde parou e não duplica nada. O WhatsApp só envia histórico quando um dispositivo é vinculado: um número vinculado antes de hoje precisa ser vinculado de novo para trazer as mensagens antigas, e o que o celular não envia fica no celular. A Cloud API não dá acesso ao histórico, e importá-lo do WAHA ainda não está pronto.',
+      },
+      {
+        product: 'inbox',
+        en: 'Switching between the inbox, a view and a folder only swaps the list. The open chat stays open with its draft, and the list loads more chats as you scroll instead of stopping at 300.',
+        es: 'Pasar de la bandeja a una vista o a una carpeta solo cambia la lista. El chat abierto sigue abierto con su borrador, y la lista trae más chats a medida que bajás en vez de cortarse en 300.',
+        pt: 'Passar da caixa de entrada para uma visão ou uma pasta só troca a lista. A conversa aberta continua aberta com o rascunho, e a lista traz mais conversas conforme você desce em vez de parar em 300.',
+      },
+      {
+        product: 'inbox',
+        en: 'Linking WhatsApp now starts the full history import by itself, and connecting Gmail brings all your mail in the background after the recent inbox, newest first. Both can be paused in Settings and pick up where they left off.',
+        es: 'Vincular WhatsApp ahora arranca sola la importación de todo el historial, y conectar Gmail trae todo tu correo en segundo plano después de la bandeja reciente, de lo más nuevo a lo más viejo. Las dos se pueden pausar en Ajustes y siguen donde quedaron.',
+        pt: 'Vincular o WhatsApp agora inicia sozinho a importação de todo o histórico, e conectar o Gmail traz todo o seu e-mail em segundo plano depois da caixa de entrada recente, do mais novo ao mais antigo. As duas podem ser pausadas em Ajustes e continuam de onde pararam.',
+      },
+      {
+        product: 'inbox',
+        en: 'Both apps read only the page on screen from the database instead of sorting every chat on each refresh, and the checks that run every few seconds answer "nothing changed" without redrawing the screen.',
+        es: 'Las dos apps leen de la base solo la página que está en pantalla en vez de ordenar todos los chats en cada actualización, y las consultas que corren cada pocos segundos responden "no cambió nada" sin volver a dibujar la pantalla.',
+        pt: 'Os dois apps leem do banco só a página que está na tela em vez de ordenar todas as conversas a cada atualização, e as consultas que rodam a cada poucos segundos respondem "nada mudou" sem redesenhar a tela.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-calls',
     date: '2026-11-08',
     title: {
