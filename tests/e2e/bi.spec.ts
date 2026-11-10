@@ -75,7 +75,8 @@ test('SQL: autocompletado con teclado, variables y error claro', async ({ page }
   await editor.click();
   await editor.pressSequentially('SELECT COUNT(*) AS n FROM cont');
   const list = page.getByRole('listbox', { name: 'Suggestions' });
-  await expect(list.getByRole('option', { name: /contacts/ })).toBeVisible();
+  // El primero es la tabla; los siguientes son sus columnas (también dicen "contacts").
+  await expect(list.getByRole('option').first()).toContainText('contacts');
   await editor.press('Tab');
   await expect(editor).toHaveValue('SELECT COUNT(*) AS n FROM contacts');
   await editor.pressSequentially(' WHERE 1=1 [[AND first_name = {{who}}]]');

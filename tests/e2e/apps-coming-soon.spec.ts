@@ -178,7 +178,7 @@ test('Apps del workspace: solo admins y apagada cortan página, sidebar y API pa
     // "Solo algunos" con el member elegido: vuelve a entrar.
     await owner.p.getByTestId('ws-app-mode-crm').selectOption('some');
     const pick = owner.p.getByTestId('ws-apps-pick');
-    await pick.getByLabel(/Mario/).check();
+    await pick.getByLabel(/Mario/).selectOption('allow');
     await owner.p.getByRole('button', { name: 'Save' }).click();
     await expect(owner.p.getByTestId('ws-app-crm')).toContainText('1 person');
     expect((await member.p.request.get('/api/crm/contacts')).status()).toBe(200);
