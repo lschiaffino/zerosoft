@@ -18,7 +18,7 @@ export default async function NewBroadcastPage(props: { params: Promise<{ locale
   const me = user.actingUser?.id ?? user.id;
   const viewer = await pageViewer(user);
   const [numbers, chats, labels, properties] = await Promise.all([
-    listNumbers(user.id),
+    listNumbers(user.id, viewer),
     listChats(user.id, me, { limit: 200, viewer }),
     listLabels(user.id),
     listPropertyDefs(user.id),

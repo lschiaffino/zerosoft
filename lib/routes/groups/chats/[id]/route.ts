@@ -46,6 +46,10 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (typeof b.archived === 'boolean') patch.archived = b.archived;
   if (typeof b.hidden === 'boolean') patch.hidden = b.hidden;
   try {
+    if (b.folderId === null || typeof b.folderId === 'string') {
+      const { moveChatsToFolder } = await import('@/lib/groups-lines');
+      await moveChatsToFolder(s.ws, guard.viewer, [id], (b.folderId as string | null) || null);
+    }
     return NextResponse.json(maskChat(guard.viewer, await patchChatAs(s.ws, { id: s.me }, id, patch)));
   } catch (err) {
     return handleGroupsError(err);

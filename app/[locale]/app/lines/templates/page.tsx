@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { listLabels, listNumbers } from '@/lib/groups';
+import { pageViewer } from '@/lib/groups-page';
 import { listTemplates } from '@/lib/groups-org';
 import PageHeader from '@/components/ui/PageHeader';
 import TemplatesBoard from '@/components/groups/TemplatesBoard';
@@ -13,7 +14,7 @@ export default async function GroupsTemplatesPage(props: { params: Promise<{ loc
   const sp = await props.searchParams;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
-  const [templates, numbers, labels] = await Promise.all([listTemplates(user.id), listNumbers(user.id), listLabels(user.id)]);
+  const [templates, numbers, labels] = await Promise.all([listTemplates(user.id), listNumbers(user.id, await pageViewer(user)), listLabels(user.id)]);
   return (
     <div className="ui-page">
       <PageHeader title={t('templates.title')} description={t('templates.desc')} />

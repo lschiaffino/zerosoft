@@ -508,13 +508,13 @@ function toListDto(r: SavedListRow): SavedListDto {
 }
 
 /** Las compartidas del workspace y las propias de la persona. */
-export async function listSavedLists(ws: string, me: string, opts: { counts?: boolean } = {}): Promise<SavedListDto[]> {
+export async function listSavedLists(ws: string, me: string, opts: { counts?: boolean; viewer?: import('./groups-access').GroupsViewer } = {}): Promise<SavedListDto[]> {
   const rows = (await getDb()
     .prepare('SELECT * FROM groups_saved_lists WHERE user_id = ? AND (shared = 1 OR owner_id = ?) ORDER BY position, name COLLATE NOCASE')
     .all(ws, me)) as SavedListRow[];
   const lists = rows.map(toListDto);
   if (opts.counts) {
-    for (const l of lists) l.count = (await listChats(ws, me, { ...listQuery(l.filters), limit: 1 })).total;
+    for (const l of lists) l.count = (await listChats(ws, me, { ...listQuery(l.filters), limit: 1, viewer: opts.viewer })).total;
   }
   return lists;
 }

@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const auth = await requireApiUser(req, 'groups:read');
   if ('res' in auth) return auth.res;
   const viewer = await v1Viewer(auth);
-  const rows = await listNumbers(auth.user.id);
+  const rows = await listNumbers(auth.user.id, viewer);
   return NextResponse.json({
     data: rows.map((n) => ({
       id: n.id,
@@ -22,6 +22,8 @@ export async function GET(req: Request) {
       status: n.status,
       caps: n.caps,
       createdAt: n.createdAt,
+      ownerId: n.ownerId,
+      visibility: n.visibility,
     })),
   });
 }

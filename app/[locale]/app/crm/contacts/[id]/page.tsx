@@ -374,7 +374,7 @@ export default async function ContactDetailPage(props: {
                 </h2>
                 <FilesPanel endpoint={`/api/crm/contacts/${contact.id}/files`} files={recordFiles} />
               </div>
-              <CrmGroupsBlock ws={user.id} kind="contact" recordId={contact.id} locale={locale} />
+              <CrmGroupsBlock ws={user.id} kind="contact" recordId={contact.id} locale={locale} me={user.actingUser?.id ?? user.id} role={user.role} />
             </aside>
           </div>
         </RecordTabs>

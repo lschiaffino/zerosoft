@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-lines-owners-visibility-folders',
+    date: '2026-11-09',
+    title: {
+      en: 'Lines: owners, who sees each line, a line selector and folders',
+      es: 'Lines: dueños, quién ve cada línea, selector de línea y carpetas',
+      pt: 'Lines: donos, quem vê cada linha, seletor de linha e pastas',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Each line can have an owner and be limited to chosen people or teams (admins and the owner always see it). Members who cannot see a line get none of its chats, messages, search results or notifications.',
+        es: 'Cada línea puede tener un dueño y limitarse a personas o equipos elegidos (admins y dueño siempre la ven). Los miembros que no ven una línea no reciben sus chats, mensajes, resultados de búsqueda ni avisos.',
+        pt: 'Cada linha pode ter um dono e ser limitada a pessoas ou equipes escolhidas (admins e dono sempre a veem). Membros que não veem uma linha não recebem suas conversas, mensagens, resultados de busca nem avisos.',
+      },
+      {
+        product: 'groups',
+        en: 'Pick one line or all lines in the inbox, with a line badge per chat; the choice is remembered. Shared folders and subfolders sort chats for the whole workspace, with unread counts per person.',
+        es: 'Elegí una línea o todas en la bandeja, con una etiqueta de línea por chat; la elección se recuerda. Las carpetas y subcarpetas compartidas ordenan los chats de todo el workspace, con no leídos por persona.',
+        pt: 'Escolha uma linha ou todas na caixa, com uma etiqueta de linha por conversa; a escolha é lembrada. Pastas e subpastas compartilhadas organizam as conversas de todo o workspace, com não lidas por pessoa.',
+      },
+    ],
+  },
+  {
     id: '2026-11-09-voice-system-audio',
     date: '2026-11-09',
     title: {
