@@ -35,7 +35,7 @@ export function sectionOf(pathname: string): string {
   return seg;
 }
 
-const SECTIONS = ['home', 'crm', 'track', 'docs', 'flow', 'robots', 'settings', 'cal', 'link', 'talk', 'voice', 'chat', 'groups', 'agents', 'notes', 'board', 'shop', 'pulse', 'hiring', 'people', 'books', 'sign', 'forms', 'send'] as const;
+const SECTIONS = ['home', 'crm', 'track', 'docs', 'flow', 'robots', 'settings', 'cal', 'link', 'talk', 'voice', 'chat', 'groups', 'agents', 'notes', 'board', 'shop', 'pulse', 'analytics', 'hiring', 'people', 'books', 'sign', 'forms', 'send'] as const;
 
 /** Preguntas sugeridas según la página (tres por sección, traducidas). */
 export function useSuggestions(pathname: string, canWebhooks = true): string[] {

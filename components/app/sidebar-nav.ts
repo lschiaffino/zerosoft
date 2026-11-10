@@ -193,7 +193,9 @@ export interface SidebarLabels {
     store: string;
     newProduct: string;
   };
-  /** Analytics (PostHog): web, eventos, insights, tableros, personas, cohortes, flags y SQL. */
+  /** Analytics (tipo Metabase): explorar, datos y crear preguntas o tableros. */
+  bi?: { browse: string; data: string; newQuestion: string; newSql: string; newDashboard: string };
+  /** Pulse (PostHog): web, eventos, insights, tableros, personas, cohortes, flags y SQL. */
   analytics: {
     web: string;
     events: string;
@@ -322,6 +324,7 @@ export type AppProduct =
   | 'design'
   | 'shop'
   | 'pulse'
+  | 'analytics'
   | 'social'
   | 'hiring'
   | 'people'
@@ -349,6 +352,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/design', 'design'],
   ['/app/shop', 'shop'],
   ['/app/pulse', 'pulse'],
+  ['/app/analytics', 'analytics'],
   ['/app/social', 'social'],
   ['/app/hiring', 'hiring'],
   ['/app/people', 'people'],
@@ -398,6 +402,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   design: 'design',
   shop: 'shop',
   pulse: 'analytics',
+  analytics: 'dashboards',
   social: 'social',
   hiring: 'hiring',
   people: 'people',
@@ -854,6 +859,19 @@ export function buildNav(
         },
         appSettingsGroup('/app/design/settings'),
       ];
+    case 'analytics': {
+      const b = labels.bi;
+      if (!b) return [];
+      return [
+        {
+          items: [
+            // Preguntas y tableros cuelgan del ítem (BiBranch en el hueco #side-branch).
+            { href: '/app/analytics', label: b.browse, active: pathname === '/app/analytics' || at('/app/analytics/questions') || at('/app/analytics/dashboards'), icon: 'dashboards', branch: true },
+            { href: '/app/analytics/data', label: b.data, active: at('/app/analytics/data'), icon: 'sql' },
+          ],
+        },
+      ];
+    }
     case 'pulse': {
       const a = labels.analytics;
       return [
@@ -1154,6 +1172,14 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/inbox?new=1', labels.inbox.compose, 'inbox')];
     case 'sign':
       return [item('/app/sign/new', labels.sign.newEnvelope, 'sign')];
+    case 'analytics':
+      return labels.bi
+        ? [
+            item('/app/analytics/questions/new', labels.bi.newQuestion, 'insights'),
+            item('/app/analytics/questions/new?mode=sql&new=1', labels.bi.newSql, 'sql'),
+            item('/app/analytics?new=1', labels.bi.newDashboard, 'dashboards'),
+          ]
+        : [];
     case 'pulse':
       return [
         item('/app/pulse/insights/new', labels.analytics.newInsight, 'insights'),

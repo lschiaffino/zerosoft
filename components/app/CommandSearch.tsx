@@ -215,6 +215,9 @@ function useGroupOrder() {
         'analyticsExperiments',
         'analyticsAlerts',
         'analyticsSubscriptions',
+        'biQuestions',
+        'biDashboards',
+        'biCollections',
         'analyticsProjects',
         'assistantChats',
       ], []);

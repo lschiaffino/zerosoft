@@ -47,6 +47,7 @@ export const PRODUCT_CONFIG = {
   design: { name: 'Design', launch: '/app/design', path: 'design', color: '#00a5c8', category: 'build', audience: 'team' },
   shop: { name: 'Shop', launch: '/app/shop', path: 'shop', color: '#15803d', category: 'sell', audience: 'team' },
   pulse: { name: 'Pulse', launch: '/app/pulse', path: 'pulse', color: '#4f46e5', category: 'build', audience: 'team' },
+  analytics: { name: 'Analytics', launch: '/app/analytics', path: 'analytics', color: '#1d63b8', category: 'build', audience: 'team' },
   social: { name: 'Social', launch: '/app/social', path: 'social', color: '#7e22ce', category: 'sell', audience: 'team' },
   hiring: { name: 'Hiring', launch: '/app/hiring', path: 'hiring', color: '#0f766e', category: 'run', audience: 'team' },
   people: { name: 'People', launch: '/app/people', path: 'people', color: '#8b5e34', category: 'run', audience: 'team' },
@@ -86,6 +87,7 @@ export const APP_SWITCHER_ORDER = [
   'sign',
   'agents',
   'robots',
+  'analytics',
   'pulse',
 ] as const satisfies readonly (keyof typeof PRODUCT_CONFIG)[];
 
@@ -186,8 +188,8 @@ const PATH_APPS: Record<string, ProductKey> = (() => {
   return out;
 })();
 
-/** Familias de API con otro nombre que su página (Pulse conserva /api/analytics de cuando se llamaba Analytics). */
-const API_APPS: Record<string, ProductKey> = { ...PATH_APPS, boards: 'board', link: 'link', analytics: 'pulse' };
+/** Familias de API con otro nombre que su página (Pulse conserva /api/analytics de cuando se llamaba Analytics; el Analytics nuevo usa /api/bi). */
+const API_APPS: Record<string, ProductKey> = { ...PATH_APPS, boards: 'board', link: 'link', analytics: 'pulse', bi: 'analytics' };
 
 /** App de un path de página (/<locale>/app/<x>/…, /app/<x>/…) o de API (/api/<x>/…). null si no es de una app. */
 export function appFromPath(path: string | null | undefined): ProductKey | null {

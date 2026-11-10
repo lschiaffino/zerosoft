@@ -722,6 +722,30 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/people/cycles/${i.id}`))),
   },
   {
+    app: 'Analytics questions',
+    list: '/en/app/analytics',
+    // Cuelgan de "Explorar" en el sidebar (BiBranch).
+    sidebar: true,
+    create: async (request, name) => {
+      const { question } = await ok<{ question: { id: string } }>(
+        request.post('/api/bi/questions', { data: { name, query: { kind: 'sql', sql: 'SELECT COUNT(*) AS n FROM contacts', params: [] } } }),
+      );
+      return { id: question.id, name };
+    },
+    detail: (i) => `/en/app/analytics/questions/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/bi/questions/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/bi/questions/${i.id}`))),
+  },
+  {
+    app: 'Analytics dashboards',
+    list: '/en/app/analytics',
+    sidebar: true,
+    create: async (request, name) => ({ id: (await ok<{ dashboard: { id: string } }>(request.post('/api/bi/dashboards', { data: { name } }))).dashboard.id, name }),
+    detail: (i) => `/en/app/analytics/dashboards/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/bi/dashboards/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/bi/dashboards/${i.id}`))),
+  },
+  {
     app: 'Pulse insights',
     list: '/en/app/pulse/insights',
     create: async (request, name) => {

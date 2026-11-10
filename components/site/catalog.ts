@@ -39,6 +39,7 @@ export const RIVALS: Record<ProductKey, string> = {
   design: 'Canva',
   shop: 'Shopify · Tiendanube',
   pulse: 'PostHog',
+  analytics: 'Metabase',
   social: 'Hootsuite',
   hiring: 'Workable',
   people: 'BambooHR',
@@ -153,6 +154,7 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   // Sin bloque de precios: el de Shopify no se pudo verificar en USD (ver pages.json › products.shop.compare.note).
   shop: { sections: ['shot', 'features', 'parity', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   pulse: { sections: ['shot', 'features', 'how', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  analytics: { sections: ['shot', 'features', 'how', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   social: { sections: ['shot', 'features', 'parity', 'compare', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
   hiring: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
   people: { sections: ['shot', 'features', 'parity', 'how', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
