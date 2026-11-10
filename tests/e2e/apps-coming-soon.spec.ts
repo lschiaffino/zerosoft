@@ -6,6 +6,8 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
  * - una persona cualquiera ve Chat como Próximamente en el inicio, el switcher
  *   y Cmd+K; /app/chat lleva a la lista de espera, se suma en un clic y la API
  *   de Chat responde 403;
+ * - las cuentas de esta suite son @soon-e2e.io: el servidor de e2e abre las Próximamente para el resto
+ *   (E2E_COMING_SOON_OPEN, solo CI y tests), no para ellas;
  * - el staff (ADMIN_EMAILS: demo) abre Chat con el aviso de vista previa interna;
  * - en la página de producto del sitio la lista de espera pide email;
  * - Ajustes › Apps del workspace: el owner deja CRM "solo admins" y después la
@@ -33,7 +35,9 @@ async function as(browser: Browser, email: string | null, opts: { width?: number
 
 /** Cuenta nueva ya onboardeada (sin pasar el onboarding a mano). */
 async function person(browser: Browser, label: string, opts: { width?: number; dark?: boolean } = {}) {
-  const email = `${label}-${uid()}@soon-e2e.io`;
+  // En minúsculas: la identidad de prueba (zs_e2e_as) guarda el email así y el SELECT de abajo lo busca igual.
+  // El dominio @soon-e2e.io no abre las Próximamente aunque el servidor de e2e las abra para el resto (lib/workspace-apps.ts).
+  const email = `${label}-${uid()}@soon-e2e.io`.toLowerCase();
   const ctx = await as(browser, email, opts);
   const p = await ctx.newPage();
   await p.goto('/en/app', { waitUntil: 'networkidle' });
@@ -53,7 +57,7 @@ test('Próximamente: inicio, switcher y Cmd+K la ofrecen; la página es la lista
     await expect(soon).toContainText('Chat');
     await expect(soon).toContainText('Books');
     // No cuentan como apps del workspace.
-    await expect(p.getByTestId('home-featured')).not.toContainText('Chat');
+    await expect(p.getByTestId('home-featured').getByRole('link', { name: /Open Chat/ })).toHaveCount(0);
 
     // Switcher: abajo, en "Coming soon".
     await p.locator('.band-product').click();
@@ -107,7 +111,8 @@ test('staff: abre Chat con el aviso de vista previa interna', async ({ page }) =
 });
 
 test('sitio: la página de producto dice Próximamente y la lista de espera pide email', async ({ browser }) => {
-  const ctx = await as(browser, null);
+  // Sin sesión de verdad: con DEMO_MODE todo visitante sin cookie es el usuario demo, y el formulario del sitio no se vería.
+  const ctx = await as(browser, 'session');
   const p = await ctx.newPage();
   try {
     await p.goto('/en/products/shop', { waitUntil: 'networkidle' });

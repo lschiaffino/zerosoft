@@ -33,6 +33,8 @@ export default defineConfig({
       AI_GATEWAY_API_KEY: '',
       VERCEL_OIDC_TOKEN: '',
       CRON_SECRET: 'e2e-cron',
+      // Las cuentas de prueba abren las apps "Próximamente" (lib/workspace-apps.ts, solo CI y tests); las -e2e.io no.
+      E2E_COMING_SOON_OPEN: '1',
     },
   },
 });

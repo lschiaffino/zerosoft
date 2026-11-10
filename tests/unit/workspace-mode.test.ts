@@ -32,7 +32,7 @@ describe('workspace-mode', () => {
     expect(showTeamUi('team')).toBe(true);
     const featured = featuredApps({ mode: 'team' });
     expect(featured).toContain('crm');
-    expect(featured).toContain('chat');
+    expect(featured).toContain('groups');
   });
 
   it('destacadas + más apps = las 12, sin repetir, en cada modo', () => {

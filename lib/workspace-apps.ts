@@ -77,7 +77,23 @@ async function personTeamIds(ownerId: string, personId: string, db: Db): Promise
 
 /** ¿Es staff de zerosoft? (ADMIN_EMAILS: abre las apps "Próximamente" para probarlas.) */
 export function isStaff(email: string | null | undefined): boolean {
-  return isAdminEmail(email);
+  return isAdminEmail(email) || e2eOpensComingSoon(email);
+}
+
+/** Dominio de las personas de prueba que NO abren las apps "Próximamente" (e2e del corte). */
+export const E2E_NOT_STAFF_DOMAIN = '@soon-e2e.io';
+
+/**
+ * Solo en los e2e: con E2E_COMING_SOON_OPEN=1 todas las cuentas de prueba abren
+ * las apps "Próximamente" (para que las suites de esas apps sigan probándolas),
+ * menos las de @soon-e2e.io, que prueban el corte. Falla cerrado, como la
+ * identidad de prueba de lib/session.ts: además de la variable, solo en CI o
+ * tests y nunca en Vercel, así que en producción no hace nada.
+ */
+function e2eOpensComingSoon(email: string | null | undefined): boolean {
+  if (process.env.E2E_COMING_SOON_OPEN !== '1') return false;
+  if (!(Boolean(process.env.CI) || process.env.NODE_ENV === 'test') || process.env.VERCEL_ENV || process.env.VERCEL) return false;
+  return !(email ?? '').toLowerCase().endsWith(E2E_NOT_STAFF_DOMAIN);
 }
 
 /**
