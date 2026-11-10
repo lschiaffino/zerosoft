@@ -11,6 +11,7 @@ import { booksUp } from './books-migration';
 import { signUp } from './sign-migration';
 import { formsUp } from './forms-migration';
 import { sendUp } from './send-migration';
+import { callsUp } from './calls-migration';
 import { inboxUp, inboxWhatsappUp } from './inbox-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
