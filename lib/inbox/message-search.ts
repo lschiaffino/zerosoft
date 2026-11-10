@@ -169,8 +169,8 @@ export async function searchMessages(owner: string, raw: string, opts: { limit?:
     where.push('m.sent_at < ?');
     args.push(page);
   }
-  const cols = 'm.id, m.thread_id, m.from_me, m.sender_name, m.sent_at, m.media_type, m.media_name, m.body, m.subject, t.title, t.handle, t.channel, t.kind';
-  type Row = { id: string; thread_id: string; from_me: number; sender_name: string; sent_at: string; media_type: string; media_name: string; body: string; subject: string; title: string; handle: string; channel: InboxChannel; kind: string; snip?: string };
+  const cols = 'm.id, m.thread_id, m.from_me, m.sender_name, m.sent_at, m.media_type, m.media_name, m.body, m.subject, t.title, t.handle, t.channel, t.kind, t.account_id';
+  type Row = { id: string; thread_id: string; from_me: number; sender_name: string; sent_at: string; media_type: string; media_name: string; body: string; subject: string; title: string; handle: string; channel: InboxChannel; kind: string; account_id: string; snip?: string };
   let rows: Row[];
   const db = getDb();
   if (text && (await hasFts())) {
@@ -232,6 +232,16 @@ export async function searchMessages(owner: string, raw: string, opts: { limit?:
     mediaName: r.media_name,
     snippet: (r.snip && r.snip.includes(HIT_START) ? r.snip : markSnippet(r.body || r.subject || r.media_name, needles)).slice(0, 400),
   }));
+  // "@<dígitos>" (teléfono o lid) → "@Nombre" en los fragmentos de WhatsApp.
+  const shown = rows.slice(0, limit);
+  if (hits.some((h, i) => shown[i].channel === 'whatsapp' && h.snippet.includes('@'))) {
+    const { resolveTextMentions } = await import('../wa-contacts');
+    const texts = await resolveTextMentions(
+      'inbox',
+      hits.map((h, i) => ({ accountId: shown[i].channel === 'whatsapp' ? shown[i].account_id : '', text: h.snippet })),
+    ).catch(() => hits.map((h) => h.snippet));
+    hits.forEach((h, i) => (h.snippet = texts[i]));
+  }
   return { hits, more: rows.length > limit };
 }
 

@@ -609,7 +609,7 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   const page = more ? rows.slice(0, limit) : rows;
   const last = page[page.length - 1];
   return {
-    threads: [...pinned, ...page].map((r) => threadDto(r, now)),
+    threads: await withPreviewMentions([...pinned, ...page].map((r) => threadDto(r, now))),
     next: more && last && last.sort_key != null ? encodeListCursor({ k: String(last.sort_key), id: last.id }) : null,
     pinned: pinned.length,
   };
@@ -661,7 +661,20 @@ export async function getThread(owner: string, id: string): Promise<ThreadDto> {
     )
     .get(id, owner)) as (ThreadRow & { folder_ids: string | null; scheduled_count: number }) | undefined;
   if (!r) throw new InboxError('not_found', 404);
-  return threadDto(r);
+  return (await withPreviewMentions([threadDto(r)]))[0];
+}
+
+/**
+ * La vista previa de los chats de WhatsApp con "@Nombre" en lugar de
+ * "@<dígitos>" (teléfono o lid), con la libreta de la cuenta.
+ */
+async function withPreviewMentions(threads: ThreadDto[]): Promise<ThreadDto[]> {
+  const items = threads.map((t) => ({ accountId: t.channel === 'whatsapp' && t.preview.includes('@') ? t.accountId : '', text: t.preview }));
+  if (!items.some((i) => i.accountId)) return threads;
+  const { resolveTextMentions } = await import('../wa-contacts');
+  const texts = await resolveTextMentions('inbox', items).catch(() => items.map((i) => i.text));
+  threads.forEach((t, i) => (t.preview = texts[i]));
+  return threads;
 }
 
 interface MessageRow {

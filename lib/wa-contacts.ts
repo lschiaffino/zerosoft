@@ -20,7 +20,7 @@
  */
 import { randomUUID } from 'crypto';
 import { getDb } from './db';
-import { mentionCandidates, type MentionMap } from './wa-mentions';
+import { mentionCandidates, mentionDigits, replaceMentions, type MentionMap } from './wa-mentions';
 
 export type WaApp = 'inbox' | 'lines';
 
@@ -253,6 +253,31 @@ export async function resolveLidSenders<E extends { type: string }>(scope: Pick<
       const phone = cache.get(m.senderLid) ?? '';
       out.push(phone ? ({ ...e, senderPhone: phone } as E) : e);
     } else out.push(e);
+  }
+  return out;
+}
+
+/**
+ * Textos cortos (vista previa de la lista, avisos, fragmentos de búsqueda) con
+ * "@<dígitos>" reemplazado por "@Nombre" (o "@+teléfono" si solo se sabe el
+ * teléfono), con la libreta de la cuenta de cada texto. Una consulta por cuenta.
+ */
+export async function resolveTextMentions(app: WaApp, items: Array<{ accountId: string; text: string }>): Promise<string[]> {
+  const out = items.map((it) => it.text);
+  const byAccount = new Map<string, number[]>();
+  items.forEach((it, i) => {
+    if (it.accountId && it.text && mentionDigits(it.text).length) byAccount.set(it.accountId, [...(byAccount.get(it.accountId) ?? []), i]);
+  });
+  for (const [accountId, idx] of byAccount) {
+    const digits = [...new Set(idx.flatMap((i) => mentionDigits(items[i].text)))];
+    const rows = await lookupContacts({ app, accountId }, digits).catch(() => new Map<string, ContactRow>());
+    const labels = new Map<string, string>();
+    for (const d of digits) {
+      const r = rows.get(d);
+      const label = displayName(r) || (r?.phone ? `+${r.phone}` : '');
+      if (label) labels.set(d, label);
+    }
+    if (labels.size) for (const i of idx) out[i] = replaceMentions(items[i].text, labels);
   }
   return out;
 }

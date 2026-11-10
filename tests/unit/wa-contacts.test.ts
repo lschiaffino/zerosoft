@@ -7,9 +7,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
 import { mentionCandidates, mentionDigits, mentionLabel, replaceMentions, splitMentions } from '@/lib/wa-mentions';
-import { lookupContacts, mentionTargets, mergeInputs, rememberContacts, type ContactScope } from '@/lib/wa-contacts';
+import { lookupContacts, mentionTargets, mergeInputs, rememberContacts, resolveTextMentions, type ContactScope } from '@/lib/wa-contacts';
 import { evolutionContactEvents, evolutionMessageEvents, mentionIds } from '@/lib/groups-provider-bridge';
-import { createAccount, findThread, getAccountById, listMessages as listInboxMessages, upsertThread } from '@/lib/inbox/core';
+import { createAccount, findThread, getAccountById, getThread, listMessages as listInboxMessages, listThreads, upsertThread } from '@/lib/inbox/core';
 import { ingestWhatsappEvents } from '@/lib/inbox/whatsapp';
 import { groupParticipants } from '@/lib/inbox/wa-meta';
 import { connectNumber, createNumber, getChatRow, getNumberRowById, ingestEvents, listChats, listMembers, listMessages as listLinesMessages } from '@/lib/groups';
@@ -119,6 +119,20 @@ describe('libreta de contactos', () => {
     expect(mergeInputs([{ phone: '5491100000000', push: '+54 9 11 0000-0000' }])).toEqual([{ phone: '5491100000000' }]);
   });
 
+  it('textos cortos (vista previa, avisos, búsqueda): "@<lid>" y "@<teléfono>" con el nombre de la libreta de cada cuenta', async () => {
+    const s = await scope('wac3');
+    const other = await scope('wac4');
+    await rememberContacts(s, [{ phone: '5491155550000', lid: LID }, { phone: '5491166660000', push: 'Beto Ejemplo' }]);
+    await rememberContacts(other, [{ lid: LID, push: 'Otra Cuenta' }]);
+    const out = await resolveTextMentions('inbox', [
+      { accountId: s.accountId, text: `Eva: @${LID} y @5491166660000 vengan` },
+      { accountId: other.accountId, text: `@${LID} hola` },
+      { accountId: s.accountId, text: 'sin menciones' },
+      { accountId: '', text: `@${LID} sin cuenta` },
+    ]);
+    expect(out).toEqual(['Eva: @+5491155550000 y @Beto Ejemplo vengan', '@Otra Cuenta hola', 'sin menciones', `@${LID} sin cuenta`]);
+  });
+
   it('menciones: lid con nombre, teléfono mencionado sin nombre y lid desconocido', async () => {
     const s = await scope('wac2');
     await rememberContacts(s, [{ phone: '5491155550000', lid: LID, push: 'Ana Ejemplo' }]);
@@ -171,6 +185,9 @@ describe('Inbox: nombres en lugar de números', () => {
     const m = page.messages.find((x) => x.body.startsWith('@'))!;
     expect(m.meta?.mentions).toEqual([`${LID_B}@lid`]);
     expect(m.mentionNames).toEqual({ [LID_B]: { name: 'Beto Ejemplo', phone: PHONE_B } });
+    // La fila de la lista tampoco muestra el lid.
+    expect((await getThread(u.id, group.id)).preview).toBe('@Beto Ejemplo traé hielo');
+    expect((await listThreads(u.id, { view: 'groups' })).find((t) => t.id === group.id)?.preview).toBe('@Beto Ejemplo traé hielo');
     // Participante que nunca escribió en el grupo y no tiene chat 1:1: el nombre sale de la libreta.
     await rememberContacts({ app: 'inbox', accountId: acc.id, userId: u.id }, [{ phone: '5491177710003', push: 'Carla Ejemplo' }]);
     await getDb()
@@ -231,6 +248,8 @@ describe('Lines: nombres en lugar de números', () => {
     const msgs = await listLinesMessages(user.id, chat.id);
     expect(msgs.find((m) => m.body === 'hola')!.senderPhone).toBe(PHONE_B);
     expect(msgs.find((m) => m.body.startsWith('@'))!.mentionNames).toEqual({ [LID_B]: { name: 'Beto Ejemplo', phone: PHONE_B } });
+    // La fila de la lista: "@Nombre", nunca el lid.
+    expect(chat.lastMessagePreview).toBe('@Beto Ejemplo mirá esto');
     const members = await listMembers(user.id, chat.id);
     expect(members.find((m) => m.phone === PHONE_B)?.name).toBe('Beto Ejemplo');
   });

@@ -669,6 +669,10 @@ export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
   const row = await getChatRow(ws, id);
   if (!row) return null;
   const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? []);
+  if (dto.lastMessagePreview.includes('@')) {
+    const { resolveTextMentions } = await import('./wa-contacts');
+    dto.lastMessagePreview = (await resolveTextMentions('lines', [{ accountId: row.number_id, text: dto.lastMessagePreview }]).catch(() => [dto.lastMessagePreview]))[0];
+  }
   if (row.kind === 'dm') {
     // La "info" del contacto: la trae el repaso diario a la libreta del número.
     const key = row.phone || lidDigits(row.provider_chat_id);
@@ -968,11 +972,19 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   }
   const labels = await labelsFor(rows.map((r) => r.id));
   const presences = await presenceNames(rows);
+  // "@<dígitos>" (teléfono o lid) → "@Nombre" en la vista previa y en el fragmento de la búsqueda, con la libreta de cada número.
+  const { resolveTextMentions } = await import('./wa-contacts');
+  const texts = rows.flatMap((r) => [r.last_message_preview ?? '', r.match ?? snippets?.get(r.id) ?? '']);
+  const named = await resolveTextMentions(
+    'lines',
+    texts.map((text, i) => ({ accountId: text.includes('@') ? rows[Math.floor(i / 2)].number_id : '', text })),
+  ).catch(() => texts);
   return {
-    rows: rows.map((r) => {
+    rows: rows.map((r, i) => {
+      r.last_message_preview = named[i * 2];
       const [dir, st, dur, lastKind, ...rest] = (r.last_info ?? '').split('|');
       const sender = rest.join('|');
-      const match = r.match ?? snippets?.get(r.id) ?? null;
+      const match = (r.match ?? snippets?.get(r.id)) ? named[i * 2 + 1] : null;
       return maskChat(query.viewer, {
         ...toChatDto(r, labels.get(r.id) ?? []),
         lastDirection: dir || null,
@@ -2324,7 +2336,13 @@ async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow): Prom
     await notifyPerson(ws, chat.assigned_to, {
       chatId: chat.id,
       title: chatDisplayName(chat),
-      body: (msg.sender_name ? `${msg.sender_name}: ` : '') + previewOf(msg.body, msg.media_type, msg.media_name),
+      // "@<dígitos>" → "@Nombre" también en el aviso.
+      body:
+        (msg.sender_name ? `${msg.sender_name}: ` : '') +
+        (await import('./wa-contacts')
+          .then((m) => m.resolveTextMentions('lines', [{ accountId: msg.number_id, text: previewOf(msg.body, msg.media_type, msg.media_name) }]))
+          .then((t) => t[0])
+          .catch(() => previewOf(msg.body, msg.media_type, msg.media_name))),
     }).catch(() => null);
   }
   await emitEventSoon(ws, 'groups.message.received', {
