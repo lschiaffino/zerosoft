@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fake Meet</title>
+<style>
+  body { margin: 0; font: 15px system-ui, sans-serif; background: #202124; color: #e8eaed; height: 100vh; overflow: hidden; }
+  #prejoin, #waiting, #call, #ended { display: none; padding: 24px; }
+  .show { display: block !important; }
+  [role=dialog] { position: fixed; inset: 30% 30% auto 30%; background: #fff; color: #202124; padding: 16px; border-radius: 4px; }
+  button, [role=button] { cursor: pointer; padding: 8px 12px; margin: 4px; background: #3c4043; color: #e8eaed; border: 0; border-radius: 4px; display: inline-block; }
+  #grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; height: 420px; }
+  [data-participant-id] { background: #3c4043; border: 3px solid transparent; display: flex; align-items: flex-end; padding: 8px; }
+  [data-participant-id][data-speaking="true"] { border-color: #8ab4f8; }
+  [role=region][aria-label=Captions] { position: absolute; left: 24px; right: 340px; bottom: 80px; background: rgba(0,0,0,.6); padding: 8px; min-height: 40px; }
+  #chatpanel { position: absolute; right: 0; top: 0; bottom: 0; width: 320px; background: #fff; color: #202124; display: none; padding: 8px; }
+  #chatpanel.open { display: block; }
+  #controls { position: absolute; bottom: 12px; left: 24px; }
+  .msg { font-size: 13px; margin: 4px 0; }
+</style>
+</head>
+<body>
+<div role="dialog" id="intro"><p>Others may see your video differently</p><button id="gotit">Got it</button></div>
+
+<div id="prejoin" class="show">
+  <h1>Ready to join?</h1>
+  <input type="text" aria-label="Your name" placeholder="Your name">
+  <div role="button" tabindex="0" id="mic" aria-label="Turn off microphone (ctrl + d)">Mic</div>
+  <div role="button" tabindex="0" id="cam" aria-label="Turn off camera (ctrl + e)">Cam</div>
+  <button id="ask"><span>Ask to join</span></button>
+</div>
+
+<div id="waiting"><h2>Asking to be let in…</h2><p>You'll join the call when someone lets you in</p></div>
+
+<div id="call">
+  <div id="grid"></div>
+  <div role="region" aria-label="Captions" id="captions" hidden></div>
+  <div id="chatpanel">
+    <h3>In-call messages</h3>
+    <div id="msgs"></div>
+    <textarea aria-label="Send a message" placeholder="Send a message"></textarea>
+  </div>
+  <div id="controls">
+    <button id="cc" aria-label="Turn on captions (c)">CC</button>
+    <button id="chatbtn" aria-label="Chat with everyone">Chat</button>
+    <button id="people" aria-label="Show everyone"><div id="count">1</div></button>
+    <button id="leave" aria-label="Leave call">Leave</button>
+  </div>
+  <audio id="remote" autoplay></audio>
+</div>
+
+<div id="ended"><h2>The call has ended</h2><button>Return to home screen</button></div>
+
+<script>
+(() => {
+  const q = new URLSearchParams(location.search);
+  const admitSec = Number(q.get('admit') || 3);
+  const endsSec = Number(q.get('ends') || 25);
+  const code = location.pathname.split('/').pop();
+  const people = [
+    { id: 'p_ana', name: 'Ana Pérez', freq: 210 },
+    { id: 'p_bruno', name: 'Bruno Silva', freq: 130 },
+  ];
+  const script = [
+    [0, 'Hello everyone, can you hear me okay'],
+    [1, 'Yes I can hear you, thanks for joining'],
+    [0, 'Great, let us review the proposal and the pricing'],
+    [1, 'Sounds good, we have a few questions about the rollout'],
+    [0, 'Sure, the rollout takes about two weeks'],
+    [1, 'Perfect, send me the contract and we can sign'],
+  ];
+  const $ = (id) => document.getElementById(id);
+  const post = (path, body) =>
+    fetch(`/fake-meet/${code}/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {});
+
+  $('gotit').onclick = () => $('intro').remove();
+  for (const id of ['mic', 'cam']) {
+    $(id).onclick = () => {
+      const el = $(id);
+      el.setAttribute('aria-label', el.getAttribute('aria-label').replace('Turn off', 'Turn on'));
+    };
+  }
+
+  let name = '';
+  $('ask').onclick = () => {
+    name = document.querySelector('input[aria-label="Your name"]').value;
+    const micOff = $('mic').getAttribute('aria-label').startsWith('Turn on');
+    const camOff = $('cam').getAttribute('aria-label').startsWith('Turn on');
+    post('join', { name, micOff, camOff });
+    $('prejoin').classList.remove('show');
+    $('waiting').classList.add('show');
+    setTimeout(admit, admitSec * 1000);
+  };
+
+  function admit() {
+    $('waiting').classList.remove('show');
+    $('call').classList.add('show');
+    const grid = $('grid');
+    for (const p of [...people, { id: 'p_self', name }]) {
+      const tile = document.createElement('div');
+      tile.setAttribute('data-participant-id', p.id);
+      tile.setAttribute('data-speaking', 'false');
+      const n = document.createElement('div');
+      n.setAttribute('data-self-name', '');
+      n.textContent = p.name;
+      tile.appendChild(n);
+      grid.appendChild(tile);
+    }
+    $('count').textContent = String(people.length + 1);
+    // ?nochat=1: chat disabled by the host (the bot must not record).
+    if (q.get('nochat') === '1') {
+      $('chatbtn').remove();
+      $('chatpanel').remove();
+    }
+    // ?late=N: someone new joins N seconds after the bot (consent repeat).
+    const lateSec = Number(q.get('late') || 0);
+    if (lateSec > 0) {
+      setTimeout(() => {
+        if (ended) return;
+        const tile = document.createElement('div');
+        tile.setAttribute('data-participant-id', 'p_carla');
+        tile.setAttribute('data-speaking', 'false');
+        const n = document.createElement('div');
+        n.setAttribute('data-self-name', '');
+        n.textContent = 'Carla Gómez';
+        tile.appendChild(n);
+        grid.appendChild(tile);
+        $('count').textContent = String(people.length + 2);
+      }, lateSec * 1000);
+    }
+    post('admitted', {});
+    startAudio();
+    runScript();
+    if (endsSec > 0) setTimeout(endCall, endsSec * 1000);
+  }
+
+  $('cc').onclick = () => {
+    const on = $('cc').getAttribute('aria-label').startsWith('Turn on');
+    $('cc').setAttribute('aria-label', on ? 'Turn off captions (c)' : 'Turn on captions (c)');
+    $('captions').hidden = !on;
+  };
+  $('chatbtn').onclick = () => $('chatpanel').classList.toggle('open');
+  const ta = document.querySelector('textarea[aria-label="Send a message"]');
+  ta.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const text = ta.value.trim();
+    if (!text) return;
+    const m = document.createElement('div');
+    m.className = 'msg';
+    m.textContent = `${name}: ${text}`;
+    $('msgs').appendChild(m);
+    post('chat', { from: name, text });
+    ta.value = '';
+  });
+  $('leave').onclick = () => endCall('left');
+
+  // Speech-like tones: a filtered sawtooth with a syllable-rate envelope,
+  // played through an <audio> element like Meet plays remote streams.
+  let ctx, gain, osc;
+  function startAudio() {
+    ctx = new AudioContext();
+    osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 1200;
+    gain = ctx.createGain();
+    gain.gain.value = 0;
+    const dest = ctx.createMediaStreamDestination();
+    osc.connect(lp).connect(gain).connect(dest);
+    osc.start();
+    const audio = $('remote');
+    audio.srcObject = dest.stream;
+    audio.play().catch(() => {});
+    ctx.resume().catch(() => {});
+  }
+  function speak(freq, seconds) {
+    const t = ctx.currentTime;
+    osc.frequency.setValueAtTime(freq, t);
+    for (let i = 0; i < seconds * 4; i++) {
+      const s = t + i * 0.25;
+      gain.gain.setValueAtTime(0.0, s);
+      gain.gain.linearRampToValueAtTime(0.5, s + 0.05);
+      gain.gain.linearRampToValueAtTime(0.1, s + 0.2);
+      osc.frequency.setValueAtTime(freq * (0.9 + 0.2 * ((i * 7) % 5) / 5), s);
+    }
+    gain.gain.setValueAtTime(0, t + seconds);
+  }
+
+  function runScript() {
+    let i = 0;
+    const next = () => {
+      if (ended) return;
+      const [who, line] = script[i % script.length];
+      i++;
+      const p = people[who];
+      const tile = document.querySelector(`[data-participant-id="${p.id}"]`);
+      document.querySelectorAll('[data-participant-id]').forEach((t) => t.setAttribute('data-speaking', 'false'));
+      tile.setAttribute('data-speaking', 'true');
+      speak(p.freq, 3);
+      // Caption block: avatar + name, then text growing word by word.
+      const block = document.createElement('div');
+      const head = document.createElement('div');
+      head.innerHTML = '<img alt="" width="20" height="20">';
+      const nm = document.createElement('span');
+      nm.textContent = p.name;
+      head.appendChild(nm);
+      const txt = document.createElement('div');
+      block.append(head, txt);
+      const region = $('captions');
+      region.appendChild(block);
+      while (region.children.length > 2) region.firstElementChild.remove();
+      const words = line.split(' ');
+      let w = 0;
+      const grow = setInterval(() => {
+        if (w >= words.length) return clearInterval(grow);
+        txt.textContent = words.slice(0, ++w).join(' ');
+      }, 300);
+      setTimeout(() => {
+        tile.setAttribute('data-speaking', 'false');
+        setTimeout(next, 600);
+      }, 3000);
+    };
+    next();
+  }
+
+  let ended = false;
+  function endCall(kind) {
+    if (ended) return;
+    ended = true;
+    if (gain) gain.gain.value = 0;
+    post('ended', { kind: kind || 'host' });
+    $('call').remove();
+    $('ended').classList.add('show');
+  }
+})();
+</script>
+</body>
+</html>

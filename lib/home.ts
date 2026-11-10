@@ -277,7 +277,7 @@ export async function homeUnread(user: HomeUser): Promise<{ chat: number | null;
 
 // ---------- Recientes ----------
 
-export type RecentKind = 'doc' | 'note' | 'board' | 'design' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'product' | 'insight' | 'socialPost' | 'booksInvoice' | 'form' | 'sendDocument';
+export type RecentKind = 'doc' | 'note' | 'board' | 'design' | 'issue' | 'link' | 'contact' | 'deal' | 'flow' | 'product' | 'insight' | 'socialPost' | 'booksInvoice' | 'form' | 'sendDocument' | 'call';
 
 export interface RecentItem {
   kind: RecentKind;
@@ -304,6 +304,7 @@ const RECENT_PRODUCT: Record<RecentKind, ProductKey> = {
   booksInvoice: 'books',
   form: 'forms',
   sendDocument: 'send',
+  call: 'calls',
 };
 
 /** Fecha comparable: '2026-10-25 10:00:00' y '2026-10-25T10:00:00.000Z' ordenan igual. */
@@ -338,7 +339,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
 
   const socialAdmin = !user.role || user.role === 'owner' || user.role === 'admin';
   const person = user.actingUser?.id ?? user.id;
-  const [docs, notes, boards, designs, issues, links, contacts, deals, flows, products, insights, socialPosts, booksInvoices, forms, sendDocs] = await Promise.all([
+  const [docs, notes, boards, designs, issues, links, contacts, deals, flows, products, insights, socialPosts, booksInvoices, forms, sendDocs, calls] = await Promise.all([
     all(`SELECT id, title AS label, updated_at FROM docs_pages WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC LIMIT ?`, user.id, per),
     // Notas: solo las de la persona (son privadas aunque el workspace sea compartido).
     listNotes(noteOwner(user), { view: 'all', limit: per })
@@ -431,6 +432,18 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
           per,
         )
       : Promise.resolve([] as Row[]),
+    // Calls: llamadas grabadas que la persona ve (suyas, o del equipo si la visibilidad es "team"), nunca guest.
+    homeCanUse(user, 'calls') && user.role !== 'guest'
+      ? all(
+          `SELECT c.id, c.title AS label, c.updated_at FROM calls c WHERE c.workspace_id = ? AND c.deleted_at IS NULL AND c.status = 'ready'
+             AND (? = 1 OR c.owner_id = ? OR COALESCE((SELECT json_extract(s.data, '$.visibility') FROM calls_settings s WHERE s.workspace_id = c.workspace_id), 'team') = 'team')
+           ORDER BY c.updated_at DESC LIMIT ?`,
+          user.id,
+          socialAdmin ? 1 : 0,
+          person,
+          per,
+        )
+      : Promise.resolve([] as Row[]),
   ]);
 
   const href: Record<RecentKind, (id: string) => string> = {
@@ -449,6 +462,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     booksInvoice: (id) => `/app/books/invoices/${id}`,
     form: (id) => `/app/forms/${id}`,
     sendDocument: (id) => `/app/send/documents/${id}`,
+    call: (id) => `/app/calls/call/${id}`,
   };
   const groups: Array<[RecentKind, Row[]]> = [
     ['doc', docs],
@@ -466,6 +480,7 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
     ['booksInvoice', booksInvoices],
     ['form', forms],
     ['sendDocument', sendDocs],
+    ['call', calls],
   ];
   const items = groups
     .flatMap(([kind, rows]) =>

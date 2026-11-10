@@ -11,6 +11,7 @@ import { aiEnabled } from '@/lib/ai';
 import { groupsAiFakeActive } from '@/lib/groups-flag';
 import { getPlatformSettings, listLabelAccess } from '@/lib/groups-access';
 import { listIntegrations } from '@/lib/groups-integrations';
+import { HUBSPOT_SCOPES, getHubspot } from '@/lib/groups-hubspot';
 import { WEBHOOK_EVENTS } from '@/lib/webhooks-events';
 import PageHeader from '@/components/ui/PageHeader';
 import PlatformSettingsLink from '@/components/app/PlatformSettingsLink';
@@ -51,6 +52,7 @@ const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
   privacy: 'access',
   mcp: 'integrations',
   slack: 'integrations',
+  hubspot: 'integrations',
   log: 'audit',
   mobile: 'apps',
   notifications: 'apps',
@@ -119,6 +121,8 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
     body = admin ? (
       <IntegrationsPanel
         integrations={await listIntegrations(user.id)}
+        hubspot={await getHubspot(user.id)}
+        hubspotScopes={HUBSPOT_SCOPES}
         events={WEBHOOK_EVENTS.filter((e) => e.startsWith('groups.'))}
         canEdit={admin}
         mcpUrl={`${groupsBaseUrl()}/api/v1/groups/mcp`}

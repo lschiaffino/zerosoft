@@ -550,6 +550,8 @@ export interface ChatDto {
   lastKind?: string | null;
   /** Fragmento del mensaje que coincide con la búsqueda. */
   match?: string;
+  /** Empresa (o, si no hay, negocio) de HubSpot vinculada al chat (lib/groups-hubspot.ts). */
+  hubspotName?: string;
 }
 
 export interface ChatPresence {
@@ -691,7 +693,12 @@ export interface ChatQuery {
   viewer?: GroupsViewer;
   /** Solo los archivados (sin esto, la lista los deja afuera salvo al buscar). */
   archived?: boolean;
+  /** Vinculados (o no) a un registro de HubSpot. */
+  hubspot?: 'linked' | 'unlinked';
 }
+
+/** El chat tiene un vínculo con HubSpot y el workspace sigue conectado (alias c de groups_chats). */
+const HUBSPOT_LINKED_SQL = `EXISTS (SELECT 1 FROM groups_hubspot_links zhl JOIN groups_hubspot zh ON zh.user_id = zhl.user_id AND zh.token != '' WHERE zhl.chat_id = c.id)`;
 
 function likeArg(q: string): string {
   return `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
@@ -749,6 +756,8 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     where.push(`EXISTS (SELECT 1 FROM groups_chat_labels cl WHERE cl.chat_id = c.id AND cl.label_id IN (${anyLabels.map(() => '?').join(',')}))`);
     args.push(...anyLabels);
   }
+  if (query.hubspot === 'linked') where.push(HUBSPOT_LINKED_SQL);
+  else if (query.hubspot === 'unlinked') where.push(`NOT ${HUBSPOT_LINKED_SQL}`);
   if (query.assignee === 'none') where.push('c.assigned_to IS NULL');
   else if (query.assignee) {
     where.push('c.assigned_to = ?');
@@ -795,11 +804,13 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     .prepare(
       `SELECT c.*, ${matchSelect},
          (SELECT m.direction || '|' || m.status || '|' || COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.duration'), '') || '|' || CASE WHEN m.deleted_at IS NOT NULL THEN 'deleted' ELSE COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.kind'), '') END || '|' || CASE WHEN m.sender_name != '' THEN m.sender_name WHEN m.sender_phone != '' THEN '+' || m.sender_phone ELSE '' END FROM groups_messages m WHERE m.chat_id = c.id AND m.direction IN ('in', 'out')
-           ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_info
+           ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_info,
+         (SELECT zhl.name FROM groups_hubspot_links zhl JOIN groups_hubspot zh ON zh.user_id = zhl.user_id AND zh.token != ''
+           WHERE zhl.chat_id = c.id AND zhl.object_type IN ('company', 'deal') ORDER BY zhl.object_type LIMIT 1) AS hubspot_name
        FROM groups_chats c WHERE ${whereSql}
        ORDER BY (c.pinned_at IS NULL), c.pinned_at DESC, COALESCE(c.last_message_at, c.created_at) DESC, c.id LIMIT ? OFFSET ?`,
     )
-    .all(...matchArgs, ...args, limit, offset)) as Array<ChatRow & { match: string | null; last_info: string | null }>;
+    .all(...matchArgs, ...args, limit, offset)) as Array<ChatRow & { match: string | null; last_info: string | null; hubspot_name: string | null }>;
   const labels = await labelsFor(rows.map((r) => r.id));
   const presences = new Map<string, ChatPresence | null>();
   for (const r of rows) if (r.kind === 'group' && chatPresence(r)) presences.set(r.id, await presenceWithName(r));
@@ -816,6 +827,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
         lastKind: lastKind || null,
         ...(presences.has(r.id) ? { presence: presences.get(r.id) } : {}),
         ...(r.match ? { match: r.match.slice(0, 160) } : {}),
+        ...(r.hubspot_name ? { hubspotName: r.hubspot_name } : {}),
       });
     }),
     total: Number(total.c),

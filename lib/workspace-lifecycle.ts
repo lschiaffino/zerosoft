@@ -28,6 +28,17 @@ const db = () => getDb();
 
 const STEPS: Step[] = [
   {
+    // Calls: el bot deja de ir a sus reuniones y su regla automática se apaga. Las grabadas quedan (son del workspace).
+    name: 'calls',
+    run: async (e) => {
+      const ts = new Date().toISOString();
+      await db()
+        .prepare("UPDATE calls SET status = 'cancelled', will_join = 0, updated_at = ? WHERE workspace_id = ? AND owner_id = ? AND status IN ('scheduled', 'queued')")
+        .run(ts, e.ownerId, e.userId);
+      await db().prepare('DELETE FROM calls_prefs WHERE workspace_id = ? AND person_id = ?').run(e.ownerId, e.userId);
+    },
+  },
+  {
     // Sus links de Send pasan al owner: siguen sobre lo compartido; sobre lo privado se frenan, y el panel dice por qué.
     name: 'send',
     run: async (e) => {

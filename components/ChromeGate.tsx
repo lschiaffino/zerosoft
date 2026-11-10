@@ -86,6 +86,8 @@ export default function ChromeGate({
     pathname.startsWith('/sign/') ||
     // Link de Send (/send/<token>): quien lo abre ve el documento, sin chrome de marketing.
     pathname.startsWith('/send/') ||
+    // Link compartido de Calls (/call/<token>): la grabación y la transcripción, sin chrome de marketing.
+    pathname.startsWith('/call/') ||
     // Formularios del CRM (/f/<slug|token>): página del cliente, también embebida en un iframe.
     pathname.startsWith('/f/') ||
     // Formularios hospedados de Flow (/flow/form/<token>): página sola del cliente.

@@ -65,6 +65,7 @@ const PRODUCTS: Record<string, [string, string]> = {
   sign: ['Sign', '#7f1d1d'],
   forms: ['Forms', '#6e730d'],
   send: ['Send', '#0b7285'],
+  calls: ['Calls', '#a61e4d'],
 };
 
 let S: Record<string, string> = {};

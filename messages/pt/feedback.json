@@ -39,7 +39,8 @@
       "books": "Books",
       "forms": "Forms",
       "send": "Send",
-      "inbox": "Inbox"
+      "inbox": "Inbox",
+      "calls": "Calls"
     },
     "messageLabel": "Mensagem",
     "placeholder": {

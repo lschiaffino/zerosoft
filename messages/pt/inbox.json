@@ -43,7 +43,7 @@
     "dictate": "Ditar",
     "dictateHint": "Ditar com o Voice (ou segure Alt+Espaço)",
     "later": "Mais tarde",
-    "laterHint": "Enviar mais tarde. Também com clique direito em Enviar.",
+    "laterHint": "Enviar mais tarde (⌘⇧Enter). Também com clique direito em Enviar.",
     "sending": "Enviando…",
     "send": "Enviar",
     "hint": "Enter envia · Shift+Enter quebra linha · ⌘J rascunho com IA · ; snippets",

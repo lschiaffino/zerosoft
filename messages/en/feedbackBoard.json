@@ -78,7 +78,8 @@
     "books": "Books",
     "forms": "Forms",
     "send": "Send",
-    "inbox": "Inbox"
+    "inbox": "Inbox",
+    "calls": "Calls"
   },
   "empty": "No ideas yet. Suggest the first one.",
   "emptySearch": "Nothing matches. Try other words or suggest the idea.",
@@ -156,7 +157,8 @@
     "tabs": {
       "ideas": "Ideas",
       "send": "Send",
-      "news": "What's new"
+      "news": "What's new",
+      "calls": "Calls"
     },
     "unread": "{count, plural, one {# unread update} other {# unread updates}}",
     "searchPlaceholder": "Search ideas to vote",

@@ -18,6 +18,9 @@ import LinkPreview from './wa/LinkPreview';
 import Transcript from './wa/Transcript';
 import TaskModal from './TaskModal';
 import { Modal, api, isLeavingChat, useErrorText, useLeavingChat, useMediaText, useToast } from './ui';
+import WhenDialog from '@/components/ui/WhenDialog';
+import { longWhen } from '@/lib/when-presets';
+import { ScheduledStrip, notifyScheduledChanged, useWhenLabels } from './Scheduled';
 import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezone, checkRule, endsIso } from './RecurringParts';
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
@@ -190,6 +193,9 @@ export default function ChatThread(props: ThreadProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [summary, setSummary] = useState<{ text: string; error: string; busy: boolean } | null>(null);
   const [schedule, setSchedule] = useState<{ open: boolean; at: string; busy: boolean; error: string }>({ open: false, at: '', busy: false, error: '' });
+  // Enviar más tarde: el selector de "cuándo" (el mismo de Inbox).
+  const [later, setLater] = useState(false);
+  const whenLabels = useWhenLabels();
   const [pollOpen, setPollOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [presence, setPresence] = useState<ChatPresence | null>(props.chat.presence ?? null);
@@ -642,6 +648,12 @@ export default function ChatThread(props: ThreadProps) {
       setText(quickMatches[0].body);
       return;
     }
+    // ⌘⇧Enter (Ctrl+Shift+Enter): enviar más tarde, como en Inbox.
+    if (e.key === 'Enter' && e.shiftKey && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      openLater();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       if (editing) void saveEdit();
@@ -902,6 +914,62 @@ export default function ChatThread(props: ThreadProps) {
     return f ? { url: f.url, mimetype: f.type, filename: f.name } : null;
   }
 
+  /**
+   * Lo que saldría si se programa ahora: el texto (o el pie del archivo) y
+   * hasta un archivo. Si no se puede programar, el motivo, para decirlo.
+   */
+  function laterDraft(): { body: string; media: { url: string; mimetype: string; filename: string } | null } | { reason: string } {
+    if (tray.items.some((f) => f.status === 'uploading')) return { reason: t('wa.waitUploads') };
+    const files = tray.items.filter((f) => f.status === 'ready');
+    if (files.length > 1) return { reason: t('later.oneFile') };
+    const f = files[0];
+    const body = ((f?.caption ?? '').trim() || text.trim()).slice(0, 4096);
+    if (!body && !f?.url) return { reason: t('later.needsText') };
+    return { body, media: f?.url ? { url: f.url, mimetype: f.type, filename: f.name } : null };
+  }
+
+  /** Abre el selector de "cuándo" (reloj junto a Enviar, clic derecho en Enviar, ⌘⇧Enter o el menú +). */
+  function openLater() {
+    if (mode !== 'reply' || editing || later) return;
+    const d = laterDraft();
+    if ('reason' in d) return showToast(d.reason, true);
+    setLater(true);
+  }
+
+  /** Programa lo del composer para `iso`. Queda en la tira del chat; el aviso trae Deshacer. */
+  async function scheduleLater(iso: string) {
+    setLater(false);
+    const d = laterDraft();
+    if ('reason' in d) return showToast(d.reason, true);
+    const quote = replyTo;
+    const res = await api<{ id: string }>('/api/groups/broadcasts', {
+      body: { chatIds: [chat.id], body: d.body, media: d.media, scheduledAt: iso, kind: 'scheduled', replyToId: quote?.id ?? null },
+    });
+    if (!res.data) return showToast(errText(res.error), true);
+    const id = res.data.id;
+    setText('');
+    tray.clear();
+    setReplyTo(null);
+    setUndoText(null);
+    setDraftSources([]);
+    notifyScheduledChanged();
+    inputRef.current?.focus();
+    showToast(t('later.toast', { when: longWhen(iso, locale) }), false, {
+      label: t('later.undo'),
+      onClick: () =>
+        void (async () => {
+          const del = await api(`/api/groups/broadcasts/${id}`, { method: 'DELETE' });
+          notifyScheduledChanged();
+          if (!del.data) return showToast(errText(del.error), true);
+          // El texto vuelve al cuadro (si no escribió otra cosa mientras tanto); el archivo hay que adjuntarlo de nuevo.
+          setText((cur) => cur || d.body);
+          if (quote) setReplyTo((cur) => cur ?? quote);
+          showToast(d.media ? t('later.undoneFile') : t('later.undone'));
+          inputRef.current?.focus();
+        })(),
+    });
+  }
+
   async function scheduleSend() {
     if (!text.trim()) {
       setSchedule((s) => ({ ...s, error: errText('empty_message') }));
@@ -1122,6 +1190,18 @@ export default function ChatThread(props: ThreadProps) {
   }
 
   const quoteLine = (q: MessageDto) => q.body.slice(0, 160) || mediaText({ media: q.media });
+  /** En el selector de "cuándo": qué va a salir (texto, archivo, cita). */
+  const laterPreview = () => {
+    const d = laterDraft();
+    if ('reason' in d) return null;
+    return (
+      <>
+        {d.body && <span className="gr-later-preview">{d.body.slice(0, 300)}</span>}
+        {d.media && <span className="gr-later-note">{t('later.withFile', { name: d.media.filename })}</span>}
+        {replyTo && <span className="gr-later-note">{t('later.asReply', { text: quoteLine(replyTo).slice(0, 80) })}</span>}
+      </>
+    );
+  };
   const quoteAuthor = (q: MessageDto) => (q.direction === 'in' ? (chat.kind === 'group' ? inName(q) : chat.name) : q.direction === 'note' ? t('thread.modeNote') : t('wa.you'));
 
   const assignee = chat.assignedTo ? nameOf(chat.assignedTo) : '';
@@ -1655,6 +1735,8 @@ export default function ChatThread(props: ThreadProps) {
           )}
         </div>
 
+        <ScheduledStrip chatId={chat.id} onToast={showToast} />
+
         <div className={`gr-composer wa-composer${mode === 'note' ? ' is-note' : ''}`} data-voice-off>
           {mode === 'note' && (
             <p className="wa-note-strip">
@@ -1853,7 +1935,7 @@ export default function ChatThread(props: ThreadProps) {
                       { key: 'audio', icon: <MusicIcon size={17} />, label: t('wa.audio'), onSelect: () => audioRef.current?.click() },
                       ...(props.caps.contacts ? [{ key: 'contact', icon: <Person size={17} />, label: t('wa.contact'), onSelect: () => setContactOpen(true) }] : []),
                       { key: 'poll', icon: <PollIcon size={17} />, label: t('polls.button'), onSelect: () => (setPollError(''), setPollOpen(true)) },
-                      { key: 'schedule', icon: <ClockIcon size={17} />, label: t('thread.schedule'), onSelect: () => setSchedule({ open: true, at: '', busy: false, error: '' }) },
+                      { key: 'schedule', icon: <ClockIcon size={17} />, label: t('later.title'), onSelect: openLater },
                       { key: 'ai', icon: <Sparkle size={17} />, label: t('wa.aiTools'), onSelect: () => setAiOpen(true) },
                     ]}
                   />
@@ -1911,6 +1993,11 @@ export default function ChatThread(props: ThreadProps) {
                   <Sparkle size={20} />
                 </button>
               )}
+              {mode === 'reply' && !editing && canSend && (
+                <button type="button" className="wa-icon-btn wa-later-btn" data-testid="lines-send-later" onClick={openLater} aria-label={t('later.button')} title={t('later.hint')}>
+                  <ClockIcon size={20} />
+                </button>
+              )}
               {editing ? (
                 <button
                   type="button"
@@ -1928,6 +2015,12 @@ export default function ChatThread(props: ThreadProps) {
                   type="button"
                   className={`wa-send${mode === 'note' ? ' is-note' : ''}`}
                   onClick={() => void send()}
+                  onContextMenu={(e) => {
+                    // Clic derecho en Enviar: programar el envío (como en Inbox).
+                    if (mode !== 'reply' || !canSend) return;
+                    e.preventDefault();
+                    openLater();
+                  }}
                   disabled={sending || !canSend}
                   aria-busy={sending || tray.items.some((f) => f.status === 'uploading') || undefined}
                   aria-label={mode === 'note' ? t('thread.saveNote') : t('thread.send')}
@@ -2036,6 +2129,29 @@ export default function ChatThread(props: ThreadProps) {
           </label>
         </div>
       </Modal>
+
+      <WhenDialog
+        open={later}
+        title={t('later.title')}
+        labels={whenLabels}
+        help={later ? laterPreview() : undefined}
+        extra={
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              // Repetir (todos los lunes, cada mes...) sigue en su formulario.
+              setLater(false);
+              setRepeat(true);
+              setSchedule({ open: true, at: '', busy: false, error: '' });
+            }}
+          >
+            {t('later.repeat')}
+          </button>
+        }
+        onPick={(iso) => void scheduleLater(iso)}
+        onClose={() => setLater(false)}
+      />
 
       <Modal
         open={schedule.open}

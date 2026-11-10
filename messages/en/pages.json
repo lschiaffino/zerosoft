@@ -1,16 +1,16 @@
 {
   "products": {
     "meta": {
-      "title": "19 open-source business apps: CRM, docs, links and more",
-      "description": "Nineteen open-source apps, from CRM and short links to docs, e-signatures and forms. On your own server or on zerosoft Cloud with a free plan."
+      "title": "20 open-source business apps: CRM, docs, links and more",
+      "description": "Twenty open-source apps, from CRM and short links to docs, e-signatures and forms. On your own server or on zerosoft Cloud with a free plan."
     },
     "hero": {
-      "title1": "Nineteen apps.",
+      "title1": "Twenty apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all nineteen apps.",
+      "title1": "Try all twenty apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -2288,6 +2288,92 @@
         "button": "Open Inbox"
       }
     },
+    "calls": {
+      "meta": {
+        "title": "Calls: record sales calls and find what was said",
+        "description": "A notetaker joins Google Meet, records and transcribes the call, and the AI writes the summary, next steps and a methodology scorecard. Open source alternative to Gong."
+      },
+      "hero": {
+        "sub": "A notetaker joins your Google Meet calls, records them and transcribes who said what. You get the summary, next steps, talk ratio and a SPICED, MEDDIC or BANT scorecard, linked to the deal in the CRM. Zoom and Teams are not supported yet."
+      },
+      "featuresTitle": "Every sales call, on the record.",
+      "featuresTitleDim": "Searchable and scored.",
+      "f1": {
+        "t": "A notetaker for Google Meet",
+        "d": "Connect your calendar and choose which meetings it joins: every one with a Meet link, only those with external guests, or only when there is an open deal. It posts a recording notice in the chat and leaves when the meeting ends. Zoom and Teams come later."
+      },
+      "f2": {
+        "t": "A transcript you can play",
+        "d": "Video and transcript in sync, with a track for each speaker. Click a line to jump there, search inside the call, comment at a moment and save clips."
+      },
+      "f3": {
+        "t": "Analysis after each call",
+        "d": "Summary, next steps, topics, questions, objections with the answer given and competitor mentions, through the suite's AI and within your workspace quota."
+      },
+      "f4": {
+        "t": "Scorecard and stats",
+        "d": "Score each call against SPICED, MEDDIC, BANT or your own criteria, with evidence and the moment it comes from. Talk ratio, longest monologue, interactivity and patience are computed from the transcript."
+      },
+      "f5": {
+        "t": "Ask your calls",
+        "d": "Ask about one call and the answer cites the minute. Ask across all of them and it tells you which calls it used. Cmd+K finds a call by what was said."
+      },
+      "f6": {
+        "t": "Linked to the CRM",
+        "d": "Calls attach to contacts by attendee email and to their open deal, and log a meeting with the summary. The Deals view flags risks like a missing next step or a competitor mentioned. Send the summary to a Talk channel or a webhook."
+      },
+      "steps": {
+        "s1": {
+          "t": "Connect your calendar",
+          "d": "Google Calendar or Outlook, through Cal. Or upload a recording."
+        },
+        "s2": {
+          "t": "The notetaker joins",
+          "d": "It records the Meet call and leaves when it ends."
+        },
+        "s3": {
+          "t": "Review and share",
+          "d": "Transcript, summary and scorecard, ready to share by link."
+        }
+      },
+      "compare": {
+        "rival": "Gong",
+        "price": "Quote-based",
+        "per": "per-user licenses plus a platform fee",
+        "teamLabel": "A sales team of 10",
+        "team": "see Gong's pricing",
+        "zero": "$0",
+        "note": "Gong doesn't publish prices: its pricing page asks for a quote, with per-user licenses and a platform fee that grows with the team. Look at gong.io/pricing. Calls on your own server costs $0 plus your database, storage, the bot service, speech-to-text and AI."
+      },
+      "faq": {
+        "f1": {
+          "q": "Which meetings can it record?",
+          "a": "Google Meet, through the bot, and any audio or video file you upload. Zoom and Teams links are detected, but the bot does not join them yet."
+        },
+        "f2": {
+          "q": "Do participants know they are being recorded?",
+          "a": "The bot joins as zerosoft Notetaker, visible in the participant list, and posts a recording notice in the meeting chat when it joins. Recording rules vary by country, and asking for consent is up to you."
+        },
+        "f3": {
+          "q": "Where do recordings and transcripts go?",
+          "a": "Recordings stay in your workspace's storage, and transcription goes through the speech-to-text provider set up for Voice. The bot is a separate service: on your own server you deploy it next to the app."
+        },
+        "f4": {
+          "q": "How reliable is the AI analysis?",
+          "a": "It depends on the transcript and on the model your workspace uses. Summaries, scorecards and answers point to the moments they come from, so you can check them. Stats like talk ratio are computed from the transcript, not by the AI."
+        },
+        "f5": {
+          "q": "What's missing compared to Gong?",
+          "a": "Zoom, Teams and phone calls, forecast, coaching programs and team trends, Salesforce and HubSpot sync, email capture and a mobile app, among others. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Record the call.",
+        "title2": "Find what was said.",
+        "sub": "Open Calls, connect your calendar and choose which meetings the notetaker joins.",
+        "button": "Open Calls"
+      }
+    },
     "analytics": {
       "meta": {
         "title": "Analytics: open-source questions and dashboards over your data",
@@ -2388,7 +2474,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Nineteen apps, same login.",
+    "suiteTitleDim": "Twenty apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -2485,7 +2571,8 @@
       "sign": "fig. 0 · a signature at the foot of a contract",
       "forms": "fig. 0 · a form being filled in",
       "send": "fig. 0 · pages being read, with the time on each",
-      "inbox": "fig. 0 · a chat and an email in the same list"
+      "inbox": "fig. 0 · a chat and an email in the same list",
+      "calls": "fig. 0 · two voices, transcribed line by line"
     },
     "heroFigHint": "drag to rotate",
     "desktop": {
@@ -3028,6 +3115,38 @@
       "m3": "Great, thanks",
       "draft": "Here it is. Let me know if anything needs changing.",
       "draftTag": "AI draft"
+    },
+    "calls": {
+      "listTitle": "Calls",
+      "r1name": "Discovery · Acme",
+      "r1time": "38 min",
+      "r1meta": "Ana Ruiz, Tom Lee · today",
+      "r2name": "Demo · Northwind",
+      "r2time": "52 min",
+      "r2meta": "Scorecard 6 of 8",
+      "r3name": "Renewal · Globex",
+      "r3time": "24 min",
+      "r3meta": "Competitor mentioned",
+      "deal": "Deal: Acme expansion",
+      "rep": "Ana · rep",
+      "buyer": "Tom · Acme",
+      "l1time": "11:42",
+      "l1": "What happens today when a lead comes in after hours?",
+      "l2time": "11:50",
+      "l2": "It waits until morning. We lose a few every week.",
+      "l3time": "12:14",
+      "l3": "How many of those would have booked a demo?",
+      "l4time": "12:21",
+      "l4": "Hard to say. That's what I need to show my boss.",
+      "summaryTitle": "Summary",
+      "summary": "Acme loses after-hours leads. Tom needs numbers for his manager before the trial. Next step: send the ROI sheet by Friday.",
+      "ratioTitle": "Talk ratio",
+      "ratioNote": "Longest monologue 1:48",
+      "scoreTitle": "SPICED",
+      "s1": "Situation · 2:10",
+      "s2": "Pain · 11:50",
+      "s3": "Impact · partly",
+      "s4": "Critical event · not covered"
     }
   },
   "status": {
@@ -3918,7 +4037,9 @@
     "formsApiTitle": "Forms",
     "formsApiDesc": "Forms and their responses. The key acts as the person who created it and only sees the forms that person can open. Scope forms:read.",
     "mcpCta": "Connect Claude and the CLI",
-    "scope_send_read": "Read the documents the person can see, with their links and visits."
+    "scope_send_read": "Read the documents the person can see, with their links and visits.",
+    "scope_calls_read": "Read the calls the person can see, with transcripts and analysis.",
+    "scope_calls_write": "Create and edit calls, comments and clips, and send the notetaker to a meeting."
   },
   "parityOverview": {
     "title": "Feature parity, app by app.",
@@ -4118,7 +4239,7 @@
   "docsMcp": {
     "meta": {
       "title": "Connect Claude and the CLI",
-      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 19 apps as yourself."
+      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 20 apps as yourself."
     }
   }
 }

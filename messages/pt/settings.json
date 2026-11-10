@@ -129,7 +129,8 @@
       "project": "Equipes do Track",
       "page": "Páginas do Docs",
       "database": "Bancos do Docs",
-      "voice": "Reuniões do Voice"
+      "voice": "Reuniões do Voice",
+      "call": "Chamadas (Calls)"
     },
     "eventLabels": {
       "booking_created": "Reserva criada",
@@ -198,7 +199,8 @@
       "chat_conversation_tagged": "Tag em uma conversa",
       "chat_csat_submitted": "CSAT recebido",
       "voice_meeting_completed": "Reunião gravada (Voice)",
-      "voice_notes_ready": "Nota da reunião pronta (Voice)"
+      "voice_notes_ready": "Nota da reunião pronta (Voice)",
+      "call_ready": "Chamada gravada e analisada (Calls)"
     },
     "errors": {
       "https_required": "A URL precisa usar https.",

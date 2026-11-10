@@ -70,7 +70,7 @@ export default defineConfig({
       // (lib/groups-flag.ts), traducción y borradores (lib/groups-ai.ts); con la
       // cookie groups_ai_fake=off se ve el error ai_disabled.
       GROUPS_AI_FAKE: '1',
-      // Integraciones de Groups (Slack, Freshdesk, Zoho Desk) contra el servidor falso y push web en memoria.
+      // Integraciones de Groups (Slack, Freshdesk, Zoho Desk, HubSpot) contra el servidor falso y push web en memoria.
       GROUPS_INTEGRATIONS_FAKE: '1',
       GROUPS_PUSH_FAKE: '1',
       // Los e2e del cron (/api/cron/minute) mandan este Bearer: sin él, next start se niega a correrlo.
@@ -127,6 +127,9 @@ export default defineConfig({
       // e IA falsa (lib/voice-ai.ts; con la cookie voice_ai_fake=off se ve ai_disabled).
       VOICE_TRANSCRIBE_PROVIDER: 'fake',
       VOICE_AI_FAKE: '1',
+      // Calls: el bot simulado (lib/calls/fake-bot.ts) en vez de services/calls-bot y el análisis sin modelo.
+      CALLS_BOT_FAKE: '1',
+      CALLS_AI_FAKE: '1',
       // Voice → Notion sin salir a internet (lib/voice-send.ts).
       VOICE_NOTION_FAKE: '1',
       // Bases sincronizadas de Docs (GitHub, Jira, Salesforce) con datos fijos (lib/docs-sync.ts) y
