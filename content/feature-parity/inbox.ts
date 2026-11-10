@@ -229,9 +229,9 @@ const parity: ProductParity = {
     }),
     row('wa-mentions', 'whatsapp', ['Mentions in groups', 'Menciones en grupos', 'Menções em grupos'], 'partial', {
       detail: [
-        'Type @ to mention a member; received mentions show the name when it is known. Members without a visible number can not be mentioned',
-        'Con @ se menciona a alguien del grupo; las menciones que llegan muestran el nombre si se conoce. No se puede mencionar a quien no tiene el número visible',
-        'Com @ se menciona alguém do grupo; as menções recebidas mostram o nome quando é conhecido. Não dá para mencionar quem não tem o número visível',
+        'Type @ to mention a member; received mentions show the name (or the number) also when WhatsApp sends an anonymous id, using the contacts of the account. Members without a visible number can not be mentioned. Tested with the fake provider; not yet tried with real WhatsApp',
+        'Con @ se menciona a alguien del grupo; las menciones que llegan muestran el nombre (o el número) también cuando WhatsApp manda un id anónimo, con los contactos de la cuenta. No se puede mencionar a quien no tiene el número visible. Probado con el proveedor falso; falta probarlo con WhatsApp real',
+        'Com @ se menciona alguém do grupo; as menções recebidas mostram o nome (ou o número) também quando o WhatsApp envia um id anônimo, com os contatos da conta. Não dá para mencionar quem não tem o número visível. Testado com o provedor falso; falta testar com WhatsApp real',
       ],
     }),
     row('wa-link-previews', 'whatsapp', ['Link previews', 'Vista previa de links', 'Prévia de links'], 'partial', {

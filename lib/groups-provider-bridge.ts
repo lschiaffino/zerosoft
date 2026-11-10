@@ -32,6 +32,7 @@ import {
   hmacHex,
   isGroupJid,
   isLidJid,
+  lidDigits,
   phoneDigits,
   safeEqual,
   type BridgeConfig,
@@ -44,6 +45,7 @@ import {
   type GroupInfo,
   type GroupsProvider,
   type HistoryChat,
+  type HistoryContact,
   type HistorySource,
   type InboundEvent,
   type LinkPreview,
@@ -143,6 +145,43 @@ function participantPhone(raw: unknown): string {
     if (d) return d;
   }
   return '';
+}
+
+/** Lid (dígitos) de un participante de grupo (string o { id, lid, jid }), '' si no trae. */
+function participantLid(raw: unknown): string {
+  if (typeof raw === 'string') return lidDigits(raw);
+  const o = (raw ?? {}) as Json;
+  for (const k of ['lid', 'id', 'jid', '_serialized']) {
+    const d = lidDigits(typeof o[k] === 'string' ? (o[k] as string) : '');
+    if (d) return d;
+  }
+  return '';
+}
+
+/** Primer lid (dígitos) entre varios ids posibles. */
+function firstLid(...ids: unknown[]): string {
+  for (const v of ids) {
+    const d = typeof v === 'string' ? lidDigits(v) : '';
+    if (d) return d;
+  }
+  return '';
+}
+
+/**
+ * contextInfo.mentionedJid → cada id mencionado, sin repetir: los dígitos del
+ * teléfono, o "<dígitos>@lid" para un lid (el texto trae "@<dígitos>" igual).
+ */
+export function mentionIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const j of raw.slice(0, 100)) {
+    const s = typeof j === 'string' ? j : '';
+    const lid = lidDigits(s);
+    const id = lid ? `${lid}@lid` : phoneDigits(s);
+    const d = lid || id;
+    if (d && d.length >= 5 && d.length <= 20 && !out.includes(id)) out.push(id);
+  }
+  return out;
 }
 
 /** fileLength de Baileys: número, string o Long { low, high }. */
@@ -612,6 +651,8 @@ interface BaileysContent {
   poll?: { question: string; options: string[]; multi: boolean };
   forwarded?: boolean;
   link?: LinkPreview;
+  /** Ids mencionados (dígitos de teléfono o lid). */
+  mentions?: string[];
 }
 
 /**
@@ -656,6 +697,8 @@ export function baileysContent(raw: Json, topContext?: unknown): BaileysContent 
     const stanza = ctx.stanzaId ?? top.stanzaId;
     if (stanza) out.replyTo = String(stanza);
     if (ctx.isForwarded === true || top.isForwarded === true) out.forwarded = true;
+    const mentions = mentionIds(ctx.mentionedJid ?? top.mentionedJid);
+    if (mentions.length) out.mentions = mentions;
     return out;
   };
   if (typeof message.conversation === 'string') return withCtx({ body: message.conversation });
@@ -758,6 +801,13 @@ export function evolutionMessageEvents(m: Json, history = false): InboundEvent[]
   const fromMe = key.fromMe === true;
   const participant = pnJid(String(key.participant ?? m.participant ?? ''), key.participantAlt, key.participantPn, m.participantPn);
   const pushName = fromMe ? '' : cleanPushName(m.pushName);
+  // El lid de quien manda (y del chat 1:1), cuando WhatsApp lo da: con él se nombran las menciones "@<lid>".
+  const senderLid = fromMe
+    ? ''
+    : isGroup
+      ? firstLid(key.participant, m.participant, key.participantAlt, key.participantLid, m.participantLid)
+      : firstLid(key.remoteJid, key.remoteJidAlt, key.senderLid, m.senderLid);
+  const chatLid = isGroup ? '' : firstLid(key.remoteJid, key.remoteJidAlt, key.senderLid, m.senderLid);
   const pollUpdate = ((m.message ?? {}) as Json).pollUpdateMessage as Json | undefined;
   if (pollUpdate) {
     // Evolution manda el voto descifrado en vote.selectedOptions (si el gateway lo descifra).
@@ -815,20 +865,50 @@ export function evolutionMessageEvents(m: Json, history = false): InboundEvent[]
     ...(content.poll ? { poll: content.poll } : {}),
     ...(content.forwarded ? { forwarded: true } : {}),
     ...(content.link ? { link: content.link } : {}),
+    ...(content.mentions?.length ? { mentions: content.mentions } : {}),
+    ...(senderLid ? { senderLid } : {}),
+    ...(chatLid ? { chatLid } : {}),
   };
   return [out];
 }
 
-/** Contactos de Evolution (contacts.upsert / findContacts) → nombre y foto por chat. */
-function evolutionContactEvents(rows: Json[]): InboundEvent[] {
+/**
+ * Contactos de Evolution (contacts.upsert / findContacts) → nombre y foto por
+ * chat. Con Baileys 7 un contacto puede venir por su lid con el teléfono
+ * aparte (phoneNumber) o al revés (lid): esa equivalencia también viaja.
+ */
+export function evolutionContactEvents(rows: Json[]): InboundEvent[] {
   const out: InboundEvent[] = [];
   for (const c of rows) {
     const jid = String(c.remoteJid ?? c.id ?? '');
     if (!jid || !/@(s\.whatsapp\.net|g\.us|lid)$/.test(jid)) continue;
-    const name = cleanPushName(c.pushName ?? c.name ?? c.notify);
+    const name = cleanPushName(c.pushName ?? c.name ?? c.notify ?? c.verifiedName);
+    // El nombre de la libreta del teléfono, cuando el servidor lo manda aparte del de perfil.
+    const saved = typeof c.pushName === 'string' && c.name !== c.pushName ? cleanPushName(c.name) : '';
     const pictureUrl = typeof c.profilePicUrl === 'string' && /^https:\/\//.test(c.profilePicUrl) ? c.profilePicUrl : '';
-    if (!name && !pictureUrl) continue;
-    out.push({ type: 'contact', chatId: jid, ...(name ? { name } : {}), ...(pictureUrl ? { pictureUrl } : {}) });
+    const group = isGroupJid(jid);
+    const lid = group ? '' : firstLid(jid, c.lid, c.remoteJidAlt, c.jid);
+    let phone = group ? '' : phoneDigits(jid);
+    if (!group && !phone) {
+      for (const alt of [c.phoneNumber, c.jid, c.remoteJidAlt, c.senderPn]) {
+        const d = typeof alt === 'string' && !isLidJid(alt) ? phoneDigits(alt) : '';
+        if (d.length >= 8 && d.length <= 15) {
+          phone = d;
+          break;
+        }
+      }
+    }
+    const mapping = !!lid && !!phone;
+    if (!name && !pictureUrl && !mapping) continue;
+    out.push({
+      type: 'contact',
+      chatId: jid,
+      ...(name ? { name } : {}),
+      ...(pictureUrl ? { pictureUrl } : {}),
+      ...(saved && saved !== name ? { saved } : {}),
+      ...(lid ? { lid } : {}),
+      ...(lid && phone ? { phone } : {}),
+    });
   }
   return out;
 }
@@ -1083,8 +1163,10 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     },
     async contacts(page, size) {
       const rows = (await api(`/chat/findContacts/${instance}`, 'POST', { offset: size, page: page + 1 }, { maxBytes: 8 * 1024 * 1024 })) as unknown;
-      return evolutionContactEvents(Array.isArray(rows) ? (rows as Json[]) : []).flatMap((e) =>
-        e.type === 'contact' ? [{ chatId: e.chatId, name: e.name ?? '', pictureUrl: e.pictureUrl ?? '' }] : [],
+      return evolutionContactEvents(Array.isArray(rows) ? (rows as Json[]) : []).flatMap((e): HistoryContact[] =>
+        e.type === 'contact'
+          ? [{ chatId: e.chatId, name: e.name ?? '', pictureUrl: e.pictureUrl ?? '', ...(e.saved ? { saved: e.saved } : {}), ...(e.lid ? { lid: e.lid } : {}), ...(e.phone ? { phone: e.phone } : {}) }]
+          : [],
       );
     },
     async picture(chatId) {
@@ -1148,8 +1230,21 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
           pictureUrl: https(r.pictureUrl),
           participants: parts
             .slice(0, 2000)
-            .map((p) => ({ phone: participantPhone(p), role: roleOf(p.admin) }))
+            .map((p) => {
+              const lid = participantLid(p);
+              const name = cleanPushName(p.name ?? p.notify ?? p.pushName);
+              return { phone: participantPhone(p), role: roleOf(p.admin), ...(lid ? { lid } : {}), ...(name ? { name } : {}) };
+            })
             .filter((p) => p.phone),
+          // Los que solo traen lid: no se listan como teléfono, pero nombran las menciones "@<lid>".
+          lidParticipants: parts
+            .slice(0, 2000)
+            .filter((p) => !participantPhone(p))
+            .flatMap((p) => {
+              const lid = participantLid(p);
+              const name = cleanPushName(p.name ?? p.notify ?? p.pushName);
+              return lid ? [{ lid, ...(name ? { name } : {}) }] : [];
+            }),
           size: Number.isFinite(size) && size > 0 ? size : parts.length,
           ...(Number.isFinite(creation) && creation > 0 ? { createdAt: creation } : {}),
         };

@@ -171,10 +171,12 @@ describe('datos del chat por Evolution', () => {
     const p = evolutionProvider({ baseUrl: BRIDGE, apiKey: 'k', session: 'inst' }, { fetch: evo(calls) });
     const g = await p.chatInfo!('120363000000000099@g.us');
     expect(g).toMatchObject({ name: 'Vecinos del 4B', about: 'Reglas: sin spam', size: 3, createdAt: 1700000000 });
+    // Con lid ↔ teléfono de cada uno (la libreta lo aprende); el que solo trae lid queda aparte.
     expect(g!.participants).toEqual([
-      { phone: '15550001001', role: 'superadmin' },
-      { phone: '15550001002', role: 'member' },
+      { phone: '15550001001', role: 'superadmin', lid: '100000000000001' },
+      { phone: '15550001002', role: 'member', lid: '100000000000002' },
     ]);
+    expect(g!.lidParticipants).toEqual([{ lid: '100000000000003' }]);
     const d = await p.chatInfo!('15550001001@s.whatsapp.net');
     expect(d).toMatchObject({ name: '', about: 'En el trabajo', pictureUrl: 'https://pps.whatsapp.net/v/t61/ana.jpg' });
     expect(calls.some((c) => c.includes('fetchAllGroups'))).toBe(false);

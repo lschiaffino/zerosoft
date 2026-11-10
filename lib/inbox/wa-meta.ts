@@ -16,6 +16,8 @@ import { getDb } from '../db';
 import { listAccounts, nowIso, type AccountRow, type ThreadRow } from './core';
 import { InboxError, type MessageReaction, type ParticipantDto, type WaDetailsDto, type WaMessageMeta } from './types';
 import { waProviderFor } from './whatsapp';
+import { inboxScope, learnFromChatInfo } from './wa-names';
+import { namesByPhone } from '../wa-contacts';
 
 type MessageEvent = Extract<InboundEvent, { type: 'message' }>;
 
@@ -58,6 +60,8 @@ export function messageMeta(e: MessageEvent): { meta: string; kind: string } {
     out.poll = { question: e.poll.question.slice(0, 300), options: e.poll.options.slice(0, 12).map((o) => o.slice(0, 100)), multi: !!e.poll.multi };
     kind = 'poll';
   }
+  // A quién menciona (teléfono o "<lid>@lid"): con eso "@<dígitos>" se muestra con el nombre.
+  if (e.mentions?.length) out.mentions = e.mentions.filter((m) => typeof m === 'string' && /^\d{5,20}(@lid)?$/.test(m)).slice(0, 50);
   return { meta: Object.keys(out).length ? JSON.stringify(out) : '', kind };
 }
 
@@ -195,6 +199,8 @@ export async function refreshChatInfo(account: AccountRow, thread: ThreadRow, no
     return false;
   }
   await applyChatInfo(thread, info, now);
+  // La libreta aprende del grupo (lid ↔ teléfono y nombres de los participantes) o del contacto (nombre e info).
+  await learnFromChatInfo(account, thread.external_id, info).catch(() => null);
   return true;
 }
 
@@ -453,6 +459,8 @@ export async function groupParticipants(owner: string, thread: ThreadRow, myPhon
     )
     .all(thread.id, ...phones)) as Array<{ sender_handle: string; sender_name: string }>;
   const sent = new Map(senders.map((s) => [s.sender_handle, s.sender_name]));
+  // La libreta de la cuenta: nombres de contactos y de perfil de toda la cuenta (también de quien nunca escribió acá).
+  const book = await namesByPhone(inboxScope({ id: thread.account_id, owner_id: owner }), phones).catch(() => new Map<string, string>());
   const rank = { superadmin: 0, admin: 1, member: 2 } as const;
   return info.participants
     .map((p) => {
@@ -462,7 +470,7 @@ export async function groupParticipants(owner: string, thread: ThreadRow, myPhon
       return {
         phone,
         role: p.role,
-        name: me ? '' : (dm?.title && dm.title !== phone ? dm.title : '') || sent.get(phone) || '',
+        name: me ? '' : (dm?.title && dm.title !== phone ? dm.title : '') || book.get(phone) || sent.get(phone) || '',
         threadId: dm?.id ?? null,
         avatar: dm?.avatar_url ? `/api/inbox/avatar/${dm.id}` : '',
         me,
