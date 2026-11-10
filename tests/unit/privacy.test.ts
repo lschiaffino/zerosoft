@@ -4,7 +4,7 @@ import path from 'path';
 import { getClient, getDb } from '@/lib/db';
 import { createApiKey } from '@/lib/api-auth';
 import { createSession, recordSecurityEvent } from '@/lib/account-security';
-import { cancelErasure, eraseNow, exportAccountData, pendingErasure, requestErasure, runDueErasures, scopeWhere } from '@/lib/privacy';
+import { cancelErasure, eraseNow, exportAccountData, pendingErasure, requestErasure, runDueErasures, scopeWhere, secretColumn } from '@/lib/privacy';
 import { seal } from '@/lib/secret-box';
 import { addMember, createTeam } from '@/lib/teams';
 import { ensureWorkspace } from '@/lib/workspace';
@@ -202,6 +202,37 @@ describe('owner_id de persona en tablas con workspace', () => {
     await eraseNow(a.id, 'account');
     expect(await db().prepare('SELECT 1 FROM send_documents WHERE id = ?').get('sdA-on-B')).toBeTruthy();
     expect(await db().prepare('SELECT 1 FROM note_shares WHERE id = ?').get('nsA-on-B')).toBeTruthy();
+  });
+});
+
+describe('export: secretos y lo escrito en workspaces ajenos', () => {
+  it('omite sal y verifier', () => {
+    expect(secretColumn('salt')).toBe(true);
+    expect(secretColumn('verifier')).toBe(true);
+    expect(secretColumn('title')).toBe(false);
+  });
+
+  it('incluye sus comentarios en workspaces ajenos, no los de otros ni la página ajena', async () => {
+    const a = await makeUser('exa');
+    const b = await makeUser('exb');
+    await ensureWorkspace(a.id);
+    const ts = new Date().toISOString();
+    const ins = (sql: string, ...args: string[]) => db().prepare(sql).run(...args);
+    await ins("INSERT INTO docs_pages (id, user_id, title, created_at, updated_at) VALUES (?, ?, 'Pagina ajena de B', ?, ?)", 'pg-b-ex', b.id, ts, ts);
+    await ins('INSERT INTO docs_comments (id, page_id, user_id, body, created_at) VALUES (?, ?, ?, ?, ?)', 'cm-a-ex', 'pg-b-ex', a.id, 'Mi comentario en B', ts);
+    await ins('INSERT INTO docs_comments (id, page_id, user_id, body, created_at) VALUES (?, ?, ?, ?, ?)', 'cm-b-ex', 'pg-b-ex', b.id, 'Comentario de B', ts);
+    const me = (await db().prepare('SELECT * FROM users WHERE id = ?').get(a.id)) as never;
+    const exp = await exportAccountData(me);
+    const entries = await listZipEntries(bufferSource(exp.zip));
+    const entry = entries.find((e) => e.name === 'other-workspaces/docs_comments.json');
+    expect(entry).toBeTruthy();
+    const rows = JSON.parse((await readZipEntry(bufferSource(exp.zip), entry!, 1e6)).toString('utf8')) as Array<{ id: string }>;
+    expect(rows.map((r) => r.id)).toEqual(['cm-a-ex']);
+    for (const e of entries) {
+      const text = (await readZipEntry(bufferSource(exp.zip), e, 5e6)).toString('utf8');
+      expect(text).not.toContain('Comentario de B');
+      expect(text).not.toContain('Pagina ajena de B');
+    }
   });
 });
 

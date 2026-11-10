@@ -617,6 +617,18 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
 .st-session-main { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
 .st-session-meta { flex-basis: 100%; font-size: 0.8125rem; overflow-wrap: anywhere; }
 .st-cell-clip { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Registro: el evento es lo que se lee primero; persona y detalle ceden lugar. */
+.st-events .st-cell-clip { max-width: 16ch; }
+.st-page .table-wrap .st-events { min-width: 0; }
+/* Borrar cuenta o workspace: aire entre el aviso y los campos. */
+.st-delete-dialog .ui-modal-body { display: flex; flex-direction: column; gap: 16px; }
+.st-delete-dialog .ui-modal-body > p { margin: 0; }
+.st-delete-dialog .ui-field { margin: 0; }
+/* Registro y actividad como tarjetas a 390 (.table-stack, mismo corte): el evento manda. */
+@media (max-width: 640px) {
+  .st-events .st-cell-clip { max-width: none; }
+  .st-events .st-event-action { min-width: 0; font-weight: 500; }
+}
 .st-without-mfa summary { cursor: pointer; font-size: 0.875rem; }
 .st-without-mfa ul { margin: 8px 0 0; padding-left: 20px; font-size: 0.875rem; }
 @media (max-width: 480px) {

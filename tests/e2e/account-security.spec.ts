@@ -99,6 +99,14 @@ test('dos pasos, exigencia en el workspace y registro', async ({ browser }) => {
     await expect(log).toContainText('Two-step requirement changed');
     await expect(log).toContainText('Two-step verification on');
 
+    // A 390px el registro se lee como tarjetas: sin cabecera visible ni scroll lateral.
+    await p.setViewportSize({ width: 390, height: 900 });
+    await expect(p.locator('.st-events thead').first()).toHaveCSS('position', 'absolute');
+    const wrapOverflow = await log.evaluate((el) => el.scrollWidth - el.clientWidth);
+    expect(wrapOverflow).toBeLessThanOrEqual(0);
+    expect(await overflow(p)).toBeLessThanOrEqual(0);
+    await p.setViewportSize({ width: 1280, height: 900 });
+
     // CSV del registro.
     const csv = await p.request.get('/api/account/audit?format=csv');
     expect(csv.status()).toBe(200);
