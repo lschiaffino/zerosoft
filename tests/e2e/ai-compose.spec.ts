@@ -77,7 +77,8 @@ test.describe('en el teléfono', () => {
     expect(preview.x + preview.width).toBeLessThanOrEqual(390);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
     // iOS no hace zoom al enfocar el campo.
-    expect(await ask.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+    // Con un borrador a la vista el campo ya se llama "Describe a change": se busca por clase, no por nombre.
+    expect(await bar.locator('input.aic-input').evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
 
     await bar.getByRole('button', { name: 'Insert' }).click();
     await expect(bar).toBeHidden();
