@@ -1,24 +1,37 @@
 import { createClient, type Client } from '@libsql/client';
 
+const BUSY_WAIT_MS = 60_000;
+
 /**
  * La base del e2e abierta desde el test (para preparar casos que la interfaz no deja armar, como simular
- * que pasó una hora). La app escribe en el mismo archivo desde otro proceso: sin busy_timeout, una
- * escritura del test que coincide con una de la app falla al instante con SQLITE_BUSY. Con WAL (lo
- * deja la app al migrar) las lecturas no se bloquean y las escrituras esperan su turno hasta 15 s.
- * Esperar acá es síncrono, pero frena solo al proceso del test, no al servidor.
+ * que pasó una hora). La app escribe en el mismo archivo desde otro proceso, así que una escritura del
+ * test puede encontrar la base tomada (SQLITE_BUSY).
+ *
+ * Se reintenta cediendo el turno, hasta un minuto. No se usa un busy_timeout largo: esa espera es
+ * síncrona y congela el proceso del test, que también atiende los servidores falsos a los que la app
+ * llama (webhooks, proveedores simulados). Si la app tiene la base tomada mientras espera una de esas
+ * respuestas, nadie avanza hasta que vence el plazo y la escritura falla igual.
  */
 export function e2eDb(): Client {
   const client = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
   const execute = client.execute.bind(client) as (stmt: unknown) => ReturnType<Client['execute']>;
   const ready = (async () => {
-    await execute('PRAGMA busy_timeout = 15000');
+    await execute('PRAGMA busy_timeout = 25');
     await execute('PRAGMA journal_mode = WAL');
-  })();
+  })().catch(() => undefined);
   const wrap = <K extends 'execute' | 'batch' | 'executeMultiple' | 'migrate' | 'transaction'>(key: K) => {
     const original = (client[key] as (...args: unknown[]) => Promise<unknown>).bind(client);
     (client as unknown as Record<K, unknown>)[key] = async (...args: unknown[]) => {
       await ready;
-      return original(...args);
+      const deadline = Date.now() + BUSY_WAIT_MS;
+      for (let wait = 10; ; wait = Math.min(wait * 2, 250)) {
+        try {
+          return await original(...args);
+        } catch (err) {
+          if (!/SQLITE_BUSY|database is locked/i.test(String(err)) || Date.now() >= deadline) throw err;
+          await new Promise((done) => setTimeout(done, wait));
+        }
+      }
     };
   };
   wrap('execute');

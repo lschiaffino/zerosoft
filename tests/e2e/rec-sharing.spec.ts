@@ -1,6 +1,6 @@
 import fs from 'fs';
 import { expect, test, type APIRequestContext, type Browser } from '@playwright/test';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 
 /**
  * Rec, compartir como Drive: lo nuevo nace restringido; quien grabó invita por
@@ -13,7 +13,7 @@ import { createClient } from '@libsql/client';
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 async function sql(statement: string, args: Array<string | number> = []) {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   try {
     return (await db.execute({ sql: statement, args })).rows as unknown as Array<Record<string, unknown>>;
   } finally {
