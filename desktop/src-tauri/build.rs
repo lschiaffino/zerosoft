@@ -8,9 +8,13 @@ const COMMANDS: &[&str] = &[
     "desktop_open_settings",
     "desktop_notify",
     "desktop_recording",
+    "desktop_tabs",
     "desktop_system_audio_start",
     "desktop_system_audio_read",
     "desktop_system_audio_stop",
+    // Tira de pestañas (archivo local en cada ventana, tabs.rs).
+    "tabs_ready",
+    "tabs_action",
     // Indicador de grabación (ventana local).
     "indicator_state",
     "indicator_action",
@@ -31,6 +35,8 @@ const COMMANDS: &[&str] = &[
     "account_sign_in",
     "account_sign_out",
     "open_voice",
+    "tabs_prefs_get",
+    "tabs_prefs_save",
     "settings_nav",
     "settings_open_web",
     "update_check",

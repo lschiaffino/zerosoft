@@ -37,9 +37,9 @@ pub fn should_show(recording: bool, enabled: bool, main_in_front: bool) -> bool 
     recording && enabled && !main_in_front
 }
 
+/// La pestaña que graba está a la vista (tabs.rs).
 fn main_in_front(app: &AppHandle) -> bool {
-    let Some(w) = app.get_webview_window("main") else { return false };
-    w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false) && w.is_focused().unwrap_or(false)
+    crate::tabs::recording_in_front(app)
 }
 
 fn create(app: &AppHandle) -> tauri::Result<()> {
@@ -86,7 +86,7 @@ fn target(app: &AppHandle) -> Option<(f64, f64)> {
         }
     }
     let m = app
-        .get_webview_window("main")
+        .get_window(&crate::tabs::focused_label(app))
         .and_then(|m| m.current_monitor().ok().flatten())
         .or_else(|| app.primary_monitor().ok().flatten())?;
     let scale = m.scale_factor();
@@ -226,21 +226,25 @@ pub fn dismiss(app: &AppHandle) {
 
 /// Cortar desde el indicador o la bandeja: la página corta como con su botón.
 pub fn stop(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window("main") {
+    if let Some(w) = crate::tabs::recording_webview(app) {
         let _ = w.eval("window.dispatchEvent(new Event('zerosoft:stop-recording'))");
     }
 }
 
 /// Abrir la reunión en la ventana principal.
 pub fn open(app: &AppHandle) {
-    let path = app.state::<AppState>().recording.lock().unwrap().as_ref().map(|r| r.path.clone()).unwrap_or_default();
-    if valid_path(&path) {
-        let current = app.get_webview_window("main").and_then(|w| w.url().ok()).map(|u| u.path().to_string()).unwrap_or_default();
-        if current != path {
-            crate::load_app_path(app, &path);
+    // La pestaña que graba, adelante; si no se sabe cuál, la página de la reunión en la de adelante.
+    let a = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if crate::tabs::focus_recording(&a) {
+            return;
         }
-    }
-    crate::show_main(app);
+        let path = a.state::<AppState>().recording.lock().unwrap().as_ref().map(|r| r.path.clone()).unwrap_or_default();
+        if valid_path(&path) {
+            crate::load_app_path(&a, &path);
+        }
+        crate::show_main(&a);
+    });
 }
 
 #[cfg(test)]

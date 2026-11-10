@@ -20,9 +20,24 @@ export interface DesktopBadge {
   talk: number;
   bell: number;
   notifications: Array<{ id: string; title: string; body: string | null; href: string | null; createdAt: string }>;
+  /**
+   * Sin leer por segmento de /app/<x> (talk, crm, ...): los puntos de las
+   * pestañas de la app de escritorio (desktop/src-tauri/src/tabs.rs).
+   */
+  byPath: Record<string, number>;
   now: string;
   /** Apps que la persona no abre en este workspace (apagadas, restringidas o Próximamente): el escritorio esconde sus menús. */
   disabledApps: ProductKey[];
+}
+
+/** Cuenta avisos sin leer por segmento de /app/<x> del link (con o sin idioma delante). */
+export function unreadByPath(hrefs: ReadonlyArray<string | null>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const href of hrefs) {
+    const seg = href ? /^(?:\/(?:en|es|pt))?\/app\/([a-z0-9-]+)/.exec(href.split(/[?#]/)[0])?.[1] : undefined;
+    if (seg) out[seg] = (out[seg] ?? 0) + 1;
+  }
+  return out;
 }
 
 /** Menciones + conversaciones directas con algo sin leer. */
@@ -73,5 +88,20 @@ export async function desktopBadge(user: SessionUser, since: string | null): Pro
       return !app || userCanUseApp(user, app);
     })
     .map((r) => ({ id: r.id, title: r.title, body: r.body, href: r.href, createdAt: r.created_at }));
-  return { total: talk + bell, talk, bell, notifications, now, disabledApps: disabledAppsFor(user) };
+  // Para los puntos de las pestañas: de qué app son los avisos sin leer (los más nuevos, con tope).
+  const unread = (await getDb()
+    .prepare(
+      `SELECT href FROM notifications
+       WHERE user_id = ? AND read_at IS NULL AND href IS NOT NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)
+       ORDER BY created_at DESC LIMIT 200`,
+    )
+    .all(userId, now)) as Array<{ href: string | null }>;
+  const byPath = unreadByPath(
+    unread.map((r) => r.href).filter((h) => {
+      const app = appFromPath(h);
+      return !app || userCanUseApp(user, app);
+    }),
+  );
+  if (talk > 0) byPath.talk = talk;
+  return { total: talk + bell, talk, bell, notifications, byPath, now, disabledApps: disabledAppsFor(user) };
 }

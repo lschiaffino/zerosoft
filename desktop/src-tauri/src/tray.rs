@@ -91,6 +91,7 @@ pub fn on_menu(app: &AppHandle, id: &str) {
             tauri::async_runtime::spawn(async move {
                 crate::auth::sign_out(&app).await;
                 crate::load_app_path(&app, "/app");
+                crate::tabs::reload_all(&app);
             });
         }
         "quit" => app.exit(0),
@@ -165,23 +166,52 @@ pub fn app_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         .separator()
         .fullscreen()
         .build()?;
-    let window = SubmenuBuilder::new(app, "Window").minimize().close_window().build()?;
-    MenuBuilder::new(app).items(&[&app_sub, &edit, &view, &window]).build()
+    // Pestañas y ventanas (tabs.rs). ⌘1…⌘9 y ⌘⇧[ ] los atiende el puente de la página.
+    let item = |id: &str, key: &str, accel: &str| MenuItem::with_id(app, id, t(l, key), true, Some(accel));
+    let file = SubmenuBuilder::new(app, t(l, "fileMenu"))
+        .item(&item("new-tab", "newTab", "CmdOrCtrl+T")?)
+        .item(&item("new-window", "newWindow", "CmdOrCtrl+N")?)
+        .separator()
+        .item(&item("reopen-tab", "reopenTab", "CmdOrCtrl+Shift+T")?)
+        .separator()
+        .item(&item("close-tab", "closeTab", "CmdOrCtrl+W")?)
+        .item(&item("close-window", "closeWindow", "CmdOrCtrl+Shift+W")?)
+        .build()?;
+    let window = SubmenuBuilder::new(app, t(l, "windowMenu"))
+        .minimize()
+        .maximize()
+        .separator()
+        .item(&item("next-tab", "nextTab", "Ctrl+Tab")?)
+        .item(&item("prev-tab", "prevTab", "Ctrl+Shift+Tab")?)
+        .separator()
+        .build()?;
+    // Mac: el sistema suma la lista de ventanas abiertas (con el título de su pestaña).
+    #[cfg(target_os = "macos")]
+    let _ = window.set_as_windows_menu_for_nsapp();
+    MenuBuilder::new(app).items(&[&app_sub, &file, &edit, &view, &window]).build()
 }
 
 pub fn on_app_menu(app: &AppHandle, id: &str) {
+    if crate::tabs::on_menu(app, id) {
+        return;
+    }
     // El menú del indicador de grabación (clic derecho) llega por acá.
     if crate::indicator::on_menu(app, id) {
         return;
     }
-    let Some(win) = app.get_webview_window("main") else { return };
+    // Lo que no depende de una pestaña anda también sin ventanas abiertas.
     match id {
-        "settings" => crate::commands::open_settings_window(app, None),
+        "settings" => return crate::commands::open_settings_window(app, None),
         "check-updates" => {
             let app = app.clone();
             tauri::async_runtime::spawn(async move { crate::updater::check(&app, true).await });
+            return;
         }
-        "restart-update" => crate::updater::restart_to_update(app),
+        "restart-update" => return crate::updater::restart_to_update(app),
+        _ => {}
+    }
+    let Some(win) = crate::tabs::active_webview(app) else { return };
+    match id {
         "reload" => {
             let _ = win.eval("location.reload()");
         }

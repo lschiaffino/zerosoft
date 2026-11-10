@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-desktop-tabs',
+    date: '2026-11-09',
+    title: {
+      en: 'Desktop app: tabs and windows',
+      es: 'App de escritorio: pestañas y ventanas',
+      pt: 'App de desktop: abas e janelas',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'Open each app or record in its own tab or window: Command + T opens a tab with search, Command + N a window, Command + W closes and Command + Shift + T brings back the last one. Command-click or middle-click a link to open it in a new tab, or right-click it. Drag tabs to reorder them or out to their own window. Tabs show the app and the record, with a dot when there is something new.',
+        es: 'Abrí cada app o registro en su pestaña o ventana: Command + T abre una pestaña con el buscador, Command + N una ventana, Command + W cierra y Command + Shift + T trae la última. Command-clic o clic del medio en un link lo abre en pestaña nueva, o clic derecho. Arrastrá las pestañas para ordenarlas o afuera para llevarlas a su ventana. Cada pestaña muestra la app y el registro, con un punto cuando hay novedades.',
+        pt: 'Abra cada app ou registro em sua aba ou janela: Command + T abre uma aba com a busca, Command + N uma janela, Command + W fecha e Command + Shift + T traz a última. Command-clique ou clique do meio num link abre em nova aba, ou clique direito. Arraste as abas para ordenar ou para fora para levar para outra janela. Cada aba mostra o app e o registro, com um ponto quando há novidades.',
+      },
+      {
+        product: 'voice',
+        en: 'The app reopens your windows and tabs where you left them, and puts tabs you have not used for a while to sleep to save memory (Settings › General › Tabs and windows).',
+        es: 'La app vuelve a abrir tus ventanas y pestañas como las dejaste y pausa las pestañas que no usás hace un rato para ahorrar memoria (Ajustes › General › Pestañas y ventanas).',
+        pt: 'O app reabre suas janelas e abas como você deixou e pausa as abas que você não usa há um tempo para economizar memória (Ajustes › Geral › Abas e janelas).',
+      },
+    ],
+  },
+  {
     id: '2026-11-09-coming-soon-and-workspace-apps',
     date: '2026-11-09',
     title: {

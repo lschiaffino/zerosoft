@@ -22,9 +22,11 @@ mod indicator;
 mod nav;
 mod platform;
 mod retry;
+mod session;
 mod state;
 mod system_audio;
 mod strings;
+mod tabs;
 mod tray;
 mod updater;
 
@@ -33,8 +35,7 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
 use tauri::ipc::CapabilityBuilder;
-use tauri::webview::{NewWindowResponse, PageLoadEvent};
-use tauri::{AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, Manager, RunEvent, WindowEvent};
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_opener::OpenerExt;
 
@@ -47,19 +48,20 @@ fn elapsed_ms() -> u128 {
     START.get().map(|s| s.elapsed().as_millis()).unwrap_or(0)
 }
 
+/// Trae adelante la última ventana de la app con foco.
 pub fn show_main(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window("main") {
-        let _ = w.unminimize();
-        let _ = w.show();
-        let _ = w.set_focus();
-    }
+    tabs::show_last(app);
 }
 
-/// Carga una página de la app (path ya validado) en la ventana principal.
+/// Carga una página de la app (path ya validado) en la pestaña de adelante.
 pub fn load_app_path(app: &AppHandle, path: &str) {
-    let Some(w) = app.get_webview_window("main") else { return };
-    if let Ok(u) = url::Url::parse(&format!("{}{}", api::server(app), path)) {
-        let _ = w.navigate(u);
+    let (a, p) = (app.clone(), path.to_string());
+    let _ = app.run_on_main_thread(move || tabs::navigate_active(&a, &p));
+}
+
+pub(crate) fn first_load_timing() {
+    if !FIRST_LOAD.swap(true, std::sync::atomic::Ordering::Relaxed) {
+        eprintln!("zs-timing first_page_loaded_ms={}", elapsed_ms());
     }
 }
 
@@ -70,14 +72,24 @@ pub fn allow_server(app: &AppHandle) {
     if server == config::DEFAULT_SERVER || server.starts_with("http://localhost") {
         return;
     }
-    let mut cap = CapabilityBuilder::new(format!("remote-{}", server.replace([':', '/', '.'], "-"))).remote(format!("{server}/*")).window("main");
-    for p in ["allow-desktop-info", "allow-desktop-start-login", "allow-desktop-open-settings", "allow-desktop-notify", "allow-desktop-recording", "allow-desktop-system-audio-start", "allow-desktop-system-audio-read", "allow-desktop-system-audio-stop"] {
+    let mut cap = CapabilityBuilder::new(format!("remote-{}", server.replace([':', '/', '.'], "-"))).remote(format!("{server}/*")).webview("tab-*");
+    for p in [
+        "allow-desktop-info",
+        "allow-desktop-start-login",
+        "allow-desktop-open-settings",
+        "allow-desktop-notify",
+        "allow-desktop-recording",
+        "allow-desktop-tabs",
+        "allow-desktop-system-audio-start",
+        "allow-desktop-system-audio-read",
+        "allow-desktop-system-audio-stop",
+    ] {
         cap = cap.permission(p);
     }
     let _ = app.add_capability(cap);
 }
 
-fn bridge_script(server: &str, version: &str) -> String {
+pub(crate) fn bridge_script(server: &str, version: &str) -> String {
     let platform = if cfg!(target_os = "macos") { "darwin" } else { "win32" };
     let server = serde_json::to_string(server).unwrap_or_default();
     let version = serde_json::to_string(version).unwrap_or_default();
@@ -117,58 +129,86 @@ fn bridge_script(server: &str, version: &str) -> String {
   N.prototype.close = function () {{}};
   N.prototype.addEventListener = function () {{}};
   try {{ Object.defineProperty(window, 'Notification', {{ value: N, configurable: true, writable: true }}); }} catch (e) {{}}
+  // Pestañas (tabs.rs): título y ruta para la tira; ⌘-clic, clic del medio y clic derecho en links.
+  var tabs = function (a) {{ inv('desktop_tabs', a).catch(function () {{}}); }};
+  var mac = '{platform}' === 'darwin';
+  var last = '';
+  var report = function () {{
+    var p = location.pathname + location.search + location.hash;
+    // Título de la pestaña: el de la página; si es el genérico del sitio, el h1 (el registro abierto).
+    var t = document.title || '';
+    if (/^zerosoft(\s*[·|]|$)/i.test(t.trim())) {{
+      var h = document.querySelector('main h1') || document.querySelector('h1');
+      t = h ? (h.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120) : '';
+    }}
+    var k = p + '\n' + t;
+    if (k === last) return;
+    last = k;
+    tabs({{ action: 'state', path: p, title: t }});
+  }};
+  var soon = function () {{ if (!soon.t) soon.t = setTimeout(function () {{ soon.t = 0; report(); }}, 150); }};
+  ['pushState', 'replaceState'].forEach(function (m) {{
+    var orig = history[m];
+    history[m] = function () {{ var r = orig.apply(this, arguments); soon(); return r; }};
+  }});
+  addEventListener('popstate', soon);
+  addEventListener('hashchange', soon);
+  var watch = function () {{
+    soon();
+    try {{ new MutationObserver(soon).observe(document.documentElement, {{ childList: true, subtree: true, characterData: true }}); }} catch (e) {{}}
+  }};
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch); else watch();
+  var linkPath = function (t) {{
+    var a = t && t.closest ? t.closest('a[href]') : null;
+    if (!a || a.hasAttribute('download')) return null;
+    try {{
+      var u = new URL(a.getAttribute('href'), location.href);
+      return u.origin === location.origin ? u.pathname + u.search + u.hash : null;
+    }} catch (e) {{ return null; }}
+  }};
+  document.addEventListener('click', function (e) {{
+    if (e.button !== 0 || !(mac ? e.metaKey : e.ctrlKey)) return;
+    var p = linkPath(e.target);
+    if (!p) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    // ⌘-clic: atrás (o ventana, según Ajustes); ⌘⇧: pestaña adelante; ⌘⌥: ventana nueva.
+    tabs({{ action: e.altKey ? 'open-window' : e.shiftKey ? 'open-tab' : 'open', path: p }});
+  }}, true);
+  document.addEventListener('mousedown', function (e) {{ if (e.button === 1 && linkPath(e.target)) e.preventDefault(); }}, true);
+  document.addEventListener('auxclick', function (e) {{
+    if (e.button !== 1) return;
+    var p = linkPath(e.target);
+    if (!p) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    tabs({{ action: 'open', path: p }});
+  }}, true);
+  // Clic derecho en un link: el menú de la app, si la página no puso uno propio.
+  addEventListener('contextmenu', function (e) {{
+    if (e.defaultPrevented) return;
+    var p = linkPath(e.target);
+    if (!p) return;
+    e.preventDefault();
+    tabs({{ action: 'menu', path: p }});
+  }});
+  // ⌘1…⌘9 y ⌘⇧[ / ⌘⇧] (⌃Tab va por el menú).
+  document.addEventListener('keydown', function (e) {{
+    if (!(mac ? e.metaKey : e.ctrlKey) || e.altKey) return;
+    if (!e.shiftKey && /^Digit[1-9]$/.test(e.code)) {{
+      e.preventDefault();
+      tabs({{ action: 'select', n: Number(e.code.slice(5)) }});
+    }} else if (e.shiftKey && (e.code === 'BracketLeft' || e.code === 'BracketRight')) {{
+      e.preventDefault();
+      tabs({{ action: e.code === 'BracketLeft' ? 'prev' : 'next' }});
+    }}
+  }}, true);
 }})();"#
     )
 }
 
-fn create_main_window(app: &AppHandle) -> tauri::Result<()> {
-    let server = api::server(app);
-    let start = url::Url::parse(&format!("{server}/app")).map_err(|e| tauri::Error::Anyhow(e.into()))?;
-    let nav_app = app.clone();
-    let new_win_app = app.clone();
-    WebviewWindowBuilder::new(app, "main", WebviewUrl::External(start))
-        .title("zerosoft")
-        .inner_size(1280.0, 820.0)
-        .min_inner_size(400.0, 500.0)
-        .initialization_script(bridge_script(&server, &app.package_info().version.to_string()))
-        .on_navigation(move |u| route(&nav_app, u))
-        // Cámara y micrófono para la página de zerosoft (Rec, Voice, Talk) sin un segundo aviso del
-        // webview: macOS ya pregunta una vez por la app (Info.plist). Otro origen no recibe nada.
-        .on_permission_request(|webview, kind| {
-            use tauri::webview::{PermissionKind, PermissionResponse};
-            let server = api::server(webview.app_handle());
-            let ours = webview.url().map(|u| nav::classify(&u, &server) == nav::Nav::Allow).unwrap_or(false);
-            match kind {
-                PermissionKind::Camera | PermissionKind::Microphone if ours => PermissionResponse::Allow,
-                PermissionKind::Camera | PermissionKind::Microphone => PermissionResponse::Deny,
-                _ => PermissionResponse::Default,
-            }
-        })
-        .on_new_window(move |u, _| {
-            // Links con target=_blank: adentro si son de la app, si no al navegador.
-            if route(&new_win_app, &u) {
-                let app = new_win_app.clone();
-                let _ = app.clone().run_on_main_thread(move || {
-                    if let Some(w) = app.get_webview_window("main") {
-                        let _ = w.navigate(u);
-                    }
-                });
-            }
-            NewWindowResponse::Deny
-        })
-        .on_page_load(|w, payload| {
-            if payload.event() == PageLoadEvent::Finished && !FIRST_LOAD.swap(true, std::sync::atomic::Ordering::Relaxed) {
-                eprintln!("zs-timing first_page_loaded_ms={}", elapsed_ms());
-                let _ = w;
-            }
-        })
-        .build()?;
-    eprintln!("zs-timing main_window_created_ms={}", elapsed_ms());
-    Ok(())
-}
-
 /// true = navegar adentro. El resto lo maneja acá (navegador del sistema o login).
-fn route(app: &AppHandle, u: &url::Url) -> bool {
+pub(crate) fn route(app: &AppHandle, u: &url::Url) -> bool {
     match nav::classify(u, &api::server(app)) {
         nav::Nav::Allow => true,
         nav::Nav::GoogleLogin => {
@@ -192,6 +232,7 @@ fn handle_deep_link(app: &AppHandle, raw: &str) {
                 show_main(&app);
                 if ok {
                     load_app_path(&app, "/app");
+                    tabs::reload_all(&app);
                     commands::refresh_settings(&app);
                     badge::poll(&app).await;
                 }
@@ -211,7 +252,7 @@ pub fn run() {
         // Primero: una segunda instancia (y en Windows, el deep link) vuelve a la primera.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| show_main(app)))
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(tauri_plugin_window_state::Builder::new().with_denylist(&["hud", "settings"]).build())
+        .plugin(tauri_plugin_window_state::Builder::new().with_filter(|l| l == session::MAIN).build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -245,6 +286,11 @@ pub fn run() {
             commands::account_sign_in,
             commands::account_sign_out,
             commands::open_voice,
+            tabs::tabs_ready,
+            tabs::tabs_action,
+            tabs::desktop_tabs,
+            tabs::tabs_prefs_get,
+            tabs::tabs_prefs_save,
             commands::settings_nav,
             commands::settings_open_web,
             commands::update_check,
@@ -258,6 +304,7 @@ pub fn run() {
             // ZEROSOFT_SERVER solo en desarrollo (la app publicada siempre usa lo guardado).
             let env_server = if cfg!(debug_assertions) { std::env::var("ZEROSOFT_SERVER").ok() } else { None };
             let settings = config::load(&config_dir, platform, env_server.as_deref());
+            let tabs_dir = config_dir.clone();
             app.manage(AppState {
                 settings: Mutex::new(settings),
                 config_dir,
@@ -278,7 +325,8 @@ pub fn run() {
             allow_server(&handle);
             app.set_menu(tray::app_menu(&handle)?)?;
             app.on_menu_event(|app, ev| tray::on_app_menu(app, ev.id().as_ref()));
-            create_main_window(&handle)?;
+            tabs::init(&handle, tabs_dir)?;
+            eprintln!("zs-timing main_window_created_ms={}", elapsed_ms());
             tray::create(&handle)?;
             // El HUD se crea escondido: la primera vez que aparece ya está cargado.
             hud::create(&handle)?;
@@ -306,12 +354,20 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|w, ev| match ev {
-            // Cerrar la ventana principal la esconde: el dictado y los avisos siguen en la bandeja.
-            WindowEvent::CloseRequested { api, .. } if w.label() == "main" => {
-                api.prevent_close();
-                let _ = w.hide();
+            // Cerrar la última ventana la esconde: el dictado y los avisos siguen en la bandeja.
+            WindowEvent::CloseRequested { api, .. } if tabs::is_app_window(w.label()) => {
+                if tabs::on_close_requested(w.app_handle(), w.label()) {
+                    api.prevent_close();
+                }
             }
-            WindowEvent::Focused(focused) if w.label() == "main" => {
+            WindowEvent::Destroyed if tabs::is_app_window(w.label()) => tabs::on_destroyed(w.app_handle(), w.label()),
+            WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } if tabs::is_app_window(w.label()) => {
+                tabs::layout(w.app_handle(), w.label());
+                tabs::remember_bounds(w.app_handle(), w.label());
+            }
+            WindowEvent::Moved(_) if tabs::is_app_window(w.label()) => tabs::remember_bounds(w.app_handle(), w.label()),
+            WindowEvent::Focused(focused) if tabs::is_app_window(w.label()) => {
+                tabs::on_focus(w.app_handle(), w.label(), *focused);
                 indicator::update(w.app_handle());
                 if *focused {
                     let app = w.app_handle().clone();

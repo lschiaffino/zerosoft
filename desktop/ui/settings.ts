@@ -19,6 +19,7 @@ import {
   type SettingsView,
   type VoiceServerSettings,
 } from './api';
+import { tabsSection } from './settings-tabs';
 
 /** Secciones nativas: las mismas que DESKTOP_NATIVE_SECTIONS en lib/settings-nav.ts (un test las compara). */
 const TABS = ['start', 'general', 'meetings', 'voice', 'dictionary', 'history', 'permissions', 'updates', 'account'] as const;
@@ -489,6 +490,7 @@ function renderGeneral(panel: HTMLElement) {
       h('p', { class: 'help' }, s('pasteLastHint'), ': ', kbd(v.pasteLastShortcut)),
       check('restore', v.restoreClipboard, s('restoreClipboard'), 'restoreClipboard', save),
     ),
+    tabsSection(s, v.platform),
     h('section', {}, h('h2', {}, s('general')), check('login', v.openAtLogin, s('openAtLogin'), 'openAtLogin', save)),
     h(
       'section',

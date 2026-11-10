@@ -6,13 +6,17 @@
 
 #![allow(dead_code)]
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 /// Muestras (i16 mono a 16 kHz) pendientes de leer. Se acota a 60 s por si la página deja de leer.
 static BUF: Mutex<Vec<i16>> = Mutex::new(Vec::new());
 const MAX_SAMPLES: usize = 16_000 * 60;
 static RUNNING: AtomicBool = AtomicBool::new(false);
+/// Última lectura de la página (ms desde 1970). Si la página deja de leer (se cerró la pestaña, se
+/// recargó o navegó), la captura se corta sola a los IDLE_STOP_MS: nadie queda grabado sin saberlo.
+static LAST_READ: AtomicU64 = AtomicU64::new(0);
+const IDLE_STOP_MS: u64 = 30_000;
 static STOP: OnceLock<Mutex<Option<std::sync::mpsc::Sender<()>>>> = OnceLock::new();
 
 #[derive(Debug, PartialEq, Eq)]
@@ -62,8 +66,22 @@ fn push(samples: &[f32]) {
 
 /// Lo acumulado desde la última lectura, como bytes i16 little endian.
 pub fn read() -> Vec<u8> {
+    touch();
     let taken: Vec<i16> = BUF.lock().map(|mut b| std::mem::take(&mut *b)).unwrap_or_default();
     taken.iter().flat_map(|s| s.to_le_bytes()).collect()
+}
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+}
+
+fn touch() {
+    LAST_READ.store(now_ms(), Ordering::Relaxed);
+}
+
+/// La página no lee hace más de IDLE_STOP_MS.
+pub fn idle(now: u64, last: u64) -> bool {
+    now.saturating_sub(last) > IDLE_STOP_MS
 }
 
 pub fn running() -> bool {
@@ -149,7 +167,23 @@ mod mac {
             match built {
                 Ok(stream) => {
                     let _ = ready_tx.send(SysAudio::Ok);
-                    let _ = stop_rx.recv();
+                    touch();
+                    // Sale con `stop`, o sola si la página dejó de leer.
+                    loop {
+                        match stop_rx.recv_timeout(Duration::from_secs(2)) {
+                            Err(mpsc::RecvTimeoutError::Timeout) => {
+                                if idle(now_ms(), LAST_READ.load(Ordering::Relaxed)) {
+                                    log::info!("system audio: sin lecturas, se corta la captura");
+                                    RUNNING.store(false, Ordering::Relaxed);
+                                    if let Ok(mut b) = BUF.lock() {
+                                        b.clear();
+                                    }
+                                    break;
+                                }
+                            }
+                            _ => break,
+                        }
+                    }
                     let _ = stream.stop_capture();
                 }
                 Err(e) => {
@@ -202,6 +236,13 @@ mod tests {
         assert_eq!(to_i16(0.0), 0);
         assert_eq!(to_i16(1.0), 32767);
         assert_eq!(to_i16(-2.0), -32767);
+    }
+
+    #[test]
+    fn idle_after_thirty_seconds_without_reads() {
+        assert!(!idle(40_000, 20_000));
+        assert!(idle(51_000, 20_000));
+        assert!(!idle(10, 20_000));
     }
 
     #[test]

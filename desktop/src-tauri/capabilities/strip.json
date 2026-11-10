@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "strip",
+  "description": "Tira de pestañas de cada ventana (archivo local tabs.html, webviews \"strip-<ventana>\"): su estado, sus acciones y mover la ventana desde la tira.",
+  "webviews": [
+    "strip-*"
+  ],
+  "permissions": [
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize",
+    "allow-tabs-ready",
+    "allow-tabs-action"
+  ]
+}

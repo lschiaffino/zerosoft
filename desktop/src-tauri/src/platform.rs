@@ -192,7 +192,6 @@ pub const PANE_MIC: &str = "x-apple.systempreferences:com.apple.preference.secur
 pub const PANE_SCREEN: &str = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";
 pub const PANE_ACCESSIBILITY: &str = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
 pub const PANE_CAMERA: &str = "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera";
-pub const PANE_SCREEN: &str = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";
 
 pub fn camera_status() -> PermissionStatus {
     #[cfg(target_os = "macos")]
