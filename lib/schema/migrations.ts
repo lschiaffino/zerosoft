@@ -9632,6 +9632,99 @@ export const MIGRATIONS: Migration[] = [
     id: '350_calls',
     up: callsUp,
   },
+  {
+    // Lines + HubSpot: todas las propiedades de la empresa (esquema por workspace), sus valores
+    // locales, la proyección angosta para filtrar la bandeja, el registro de cambios del sync
+    // de ida y vuelta y las sugerencias para vincular grupos de a muchos.
+    id: '362_lines_hubspot_properties',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS groups_hubspot_props (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          label TEXT NOT NULL DEFAULT '',
+          type TEXT NOT NULL DEFAULT 'string',
+          field_type TEXT NOT NULL DEFAULT 'text',
+          group_name TEXT NOT NULL DEFAULT '',
+          description TEXT NOT NULL DEFAULT '',
+          options TEXT NOT NULL DEFAULT '[]',
+          read_only INTEGER NOT NULL DEFAULT 0,
+          calculated INTEGER NOT NULL DEFAULT 0,
+          hidden INTEGER NOT NULL DEFAULT 0,
+          archived INTEGER NOT NULL DEFAULT 0,
+          custom INTEGER NOT NULL DEFAULT 0,
+          owner_ref INTEGER NOT NULL DEFAULT 0,
+          position INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (user_id, name)
+        );
+        CREATE TABLE IF NOT EXISTS groups_hubspot_prop_groups (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          label TEXT NOT NULL DEFAULT '',
+          position INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (user_id, name)
+        );
+        CREATE TABLE IF NOT EXISTS groups_hubspot_companies (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          company_id TEXT NOT NULL,
+          name TEXT NOT NULL DEFAULT '',
+          props TEXT NOT NULL DEFAULT '{}',
+          prop_times TEXT NOT NULL DEFAULT '{}',
+          hs_modified_at TEXT,
+          fetched_at TEXT,
+          missing INTEGER NOT NULL DEFAULT 0,
+          missing_reason TEXT NOT NULL DEFAULT '',
+          merged_into TEXT NOT NULL DEFAULT '',
+          merged_name TEXT NOT NULL DEFAULT '',
+          PRIMARY KEY (user_id, company_id)
+        );
+        CREATE TABLE IF NOT EXISTS groups_hubspot_values (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          company_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          value TEXT NOT NULL COLLATE NOCASE,
+          num REAL,
+          PRIMARY KEY (user_id, company_id, name)
+        ) WITHOUT ROWID;
+        CREATE INDEX IF NOT EXISTS idx_groups_hubspot_values_lookup ON groups_hubspot_values(user_id, name, value);
+        CREATE TABLE IF NOT EXISTS groups_hubspot_sync_log (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          company_id TEXT NOT NULL,
+          direction TEXT NOT NULL CHECK (direction IN ('in', 'out')),
+          property TEXT NOT NULL,
+          old_value TEXT NOT NULL DEFAULT '',
+          new_value TEXT NOT NULL DEFAULT '',
+          actor_id TEXT,
+          source TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_hubspot_sync_log_company ON groups_hubspot_sync_log(user_id, company_id, created_at);
+        CREATE TABLE IF NOT EXISTS groups_hubspot_suggest (
+          chat_id TEXT PRIMARY KEY REFERENCES groups_chats(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          chat_name TEXT NOT NULL DEFAULT '',
+          company_id TEXT NOT NULL DEFAULT '',
+          company_name TEXT NOT NULL DEFAULT '',
+          domain TEXT NOT NULL DEFAULT '',
+          score REAL NOT NULL DEFAULT 0,
+          checked_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_hubspot_suggest_ws ON groups_hubspot_suggest(user_id);
+      `);
+      await addColumn(c, 'ALTER TABLE groups_hubspot ADD COLUMN schema_synced_at TEXT');
+      await addColumn(c, "ALTER TABLE groups_hubspot ADD COLUMN owners TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE groups_hubspot ADD COLUMN pinned TEXT NOT NULL DEFAULT '[]'");
+      await addColumn(c, "ALTER TABLE groups_hubspot ADD COLUMN sync_cursor TEXT NOT NULL DEFAULT '{}'");
+      await addColumn(c, 'ALTER TABLE groups_hubspot ADD COLUMN synced_at TEXT');
+      await addColumn(c, 'ALTER TABLE groups_hubspot ADD COLUMN verified_at TEXT');
+      await addColumn(c, 'ALTER TABLE groups_hubspot ADD COLUMN sync_locked_until TEXT');
+      await addColumn(c, 'ALTER TABLE groups_hubspot ADD COLUMN sync_backoff_until TEXT');
+      await addColumn(c, 'ALTER TABLE groups_hubspot ADD COLUMN sync_fails INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, "ALTER TABLE groups_hubspot ADD COLUMN webhook_secret TEXT NOT NULL DEFAULT ''");
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

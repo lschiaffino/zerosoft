@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { CHAT_FILTERS, listChats, type ChatFilter, type ChatQuery, type PropertyFilter } from '@/lib/groups';
 import { getSavedList, listQuery } from '@/lib/groups-org';
 import { groupsError, groupsSession, sessionViewer } from '@/lib/groups-http';
+import { parseHubspotFilterParam } from '@/lib/groups-hubspot-shared';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,7 +29,9 @@ function parseProps(raw: string | null): PropertyFilter[] {
 /**
  * Bandeja: chats y grupos con filtros (sin leer, sin responder, míos,
  * etiqueta, asignado, equipo, propiedades, vinculados a HubSpot con
- * ?hubspot=linked|unlinked) y búsqueda en mensajes. Los fijados
+ * ?hubspot=linked|unlinked, por propiedades de la empresa de HubSpot con
+ * ?hs=[{"name":"industry","op":"any_of","values":["RETAIL"]}]; operadores is,
+ * is_not, contains, gt, lt, any_of, none_of, empty, not_empty) y búsqueda en mensajes. Los fijados
  * van primero. ?list=<id> aplica
  * una lista guardada (los demás parámetros se suman encima).
  */
@@ -62,6 +65,7 @@ export async function GET(req: Request) {
     ownerId: p.get('owner') || base.ownerId,
     kind: kind ?? base.kind,
     hubspot: hubspot ?? base.hubspot,
+    hsProps: [...(base.hsProps ?? []), ...parseHubspotFilterParam(p.get('hs'))],
     limit: Number(p.get('limit')) || 50,
     offset: Number(p.get('offset')) || 0,
     viewer: await sessionViewer(s),

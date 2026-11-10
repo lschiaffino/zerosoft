@@ -88,7 +88,7 @@ describe('HubSpot: conexión', () => {
     const ws = await makeUser('hs-conn');
     await expect(connectHubspot(ws.id, ws.id, 'not-a-token')).rejects.toMatchObject({ code: 'hubspot_invalid_token' });
     await expect(connectHubspot(ws.id, ws.id, '   ')).rejects.toMatchObject({ code: 'hubspot_invalid_token' });
-    await expect(connectHubspot(ws.id, ws.id, 'pat-noscope-1')).rejects.toMatchObject({ code: 'hubspot_missing_scopes:crm.objects.companies.read crm.objects.deals.read' });
+    await expect(connectHubspot(ws.id, ws.id, 'pat-noscope-1')).rejects.toMatchObject({ code: 'hubspot_missing_scopes:crm.objects.companies.read crm.objects.deals.read crm.schemas.companies.read' });
     expect((await getHubspot(ws.id)).connected).toBe(false);
 
     const dto = await connectHubspot(ws.id, ws.id, TOKEN);
