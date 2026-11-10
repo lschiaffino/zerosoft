@@ -1,3 +1,4 @@
+import { ogMeta } from '@/lib/og/url';
 import type { CSSProperties } from 'react';
 import { notFound, redirect } from 'next/navigation';
 import { setRequestLocale } from 'next-intl/server';
@@ -29,13 +30,13 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   const title = item.title;
   const description = item.description ? excerpt(item.description) : t('meta.description');
   const url = absoluteItemUrl(locale, item.id, item.title);
-  const image = `/api/og/board/${encodeURIComponent(item.id)}`;
+  const og = ogMeta(`/api/og/board/${encodeURIComponent(item.id)}`, title, description, [title, description, item.status]);
   return {
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { title, description, type: 'article', url, images: [image] },
-    twitter: { card: 'summary_large_image', title, description, images: [image] },
+    openGraph: { title, description, type: 'article', url, images: og.images },
+    twitter: og.twitter,
   };
 }
 

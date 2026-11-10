@@ -1,3 +1,4 @@
+import { ogMeta } from '@/lib/og/url';
 import type { Metadata } from 'next';
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
@@ -16,7 +17,9 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const pub = await load(token);
   const t = await getTranslations({ locale, namespace: 'design.public' });
   // Nunca en buscadores; sin referrer (el token no viaja a otros sitios).
-  return { title: pub?.row.name ?? t('notFound'), robots: { index: false, follow: false }, referrer: 'no-referrer' as const };
+  const title = pub?.row.name ?? t('notFound');
+  const og = pub ? ogMeta(`/api/og/design/${encodeURIComponent(token)}`, title, undefined, [title]) : null;
+  return { title, robots: { index: false, follow: false }, referrer: 'no-referrer' as const, ...(og ? { openGraph: { title, images: og.images }, twitter: og.twitter } : {}) };
 }
 
 /** Diseño compartido con link: las páginas en solo lectura. Si el link se revocó, 404. */

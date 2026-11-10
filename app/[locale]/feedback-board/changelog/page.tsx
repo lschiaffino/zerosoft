@@ -1,3 +1,4 @@
+import { ogMeta } from '@/lib/og/url';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import BoardChrome from '@/components/board/BoardChrome';
 import ChangelogList from '@/components/ChangelogList';
@@ -15,12 +16,14 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   const t = await getTranslations({ locale, namespace: 'changelog' });
   const title = t('metaTitle');
   const description = t('metaDescription');
+  const og = ogMeta(`/api/og/changelog/${locale}`, title, description, [title, description]);
   return {
     title,
     description,
     // El canónico es /changelog del sitio: mismo contenido.
     alternates: { canonical: `/${locale}/changelog` },
-    openGraph: { title, description, type: 'website', url: absoluteBoardUrl(locale, '/changelog'), images: ['/api/og/changelog'] },
+    openGraph: { title, description, type: 'website', url: absoluteBoardUrl(locale, '/changelog'), images: og.images },
+    twitter: og.twitter,
   };
 }
 

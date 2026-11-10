@@ -1,3 +1,4 @@
+import { ogMeta } from '@/lib/og/url';
 import { notFound, redirect } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { getPublicForm, toPublicForm } from '@/lib/crm-forms';
@@ -31,7 +32,8 @@ export async function generateMetadata(props: Props) {
   const found = await resolve(zs);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const title = !found ? t('formsPublic.notFound') : found.kind === 'crm' ? found.crm.settings.title || found.crm.name : found.row.name;
-  return { title, robots: { index: false, follow: false }, referrer: 'no-referrer' as const };
+  const og = found ? ogMeta(`/api/og/form/${encodeURIComponent(zs[0])}`, title, undefined, [title]) : null;
+  return { title, robots: { index: false, follow: false }, referrer: 'no-referrer' as const, ...(og ? { openGraph: { title, images: og.images }, twitter: og.twitter } : {}) };
 }
 
 /**
