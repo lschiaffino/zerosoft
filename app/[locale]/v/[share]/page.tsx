@@ -1,3 +1,4 @@
+import { ogMeta } from '@/lib/og/url';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
@@ -19,6 +20,7 @@ export async function generateMetadata(props: Props) {
   const title = page.state === 'ok' && page.brand ? { absolute: name } : name;
   // Tarjeta del link (Slack, WhatsApp, mail) solo para videos abiertos a cualquiera.
   const og = await publicPreview(locale, share);
+  const card = og ? ogMeta(`/api/og/rec/${encodeURIComponent(share)}`, og.title, og.description || undefined, [og.title, og.image]) : null;
   return {
     title,
     robots: { index: false, follow: false },
@@ -27,8 +29,9 @@ export async function generateMetadata(props: Props) {
       ? {
           description: og.description || undefined,
           alternates: { types: { 'application/json+oembed': `${recBaseUrl()}/api/rec/oembed?url=${encodeURIComponent(og.url)}` } },
-          openGraph: { title: og.title, description: og.description || undefined, url: og.url, type: 'video.other' as const, images: og.image ? [{ url: og.image }] : undefined },
-          twitter: { card: og.image ? ('summary_large_image' as const) : ('summary' as const), title: og.title, images: og.image ? [og.image] : undefined },
+          // La tarjeta: el cuadro de portada con el play, el título y la duración (lib/og/shared-cards.ts).
+          openGraph: { title: og.title, description: og.description || undefined, url: og.url, type: 'video.other' as const, images: card!.images },
+          twitter: card!.twitter,
         }
       : {}),
   };

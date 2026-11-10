@@ -1150,6 +1150,107 @@
       "help": "Los webhooks salientes mandan eventos de issues, comentarios y equipos firmados y con reintentos. La API crea y edita issues. Las dos funcionan desde Zapier, Make o n8n con un paso de Webhooks.",
       "webhooks": "Configurar webhooks",
       "docs": "Docs de la API"
+    },
+    "linear": {
+      "help": "Pasate de Linear a tu ritmo: importá los teams que elijas y mantené Linear y Track sincronizados mientras el equipo se muda.",
+      "loadError": "No se pudo cargar la conexión con Linear.",
+      "connectOAuth": "Conectar con Linear",
+      "oauthUnavailable": "Login with Linear todavía no está configurado en este servidor. Una API key personal funciona igual.",
+      "apiKeyTitle": "Conectar con una API key",
+      "apiKeyLabel": "API key de Linear",
+      "apiKeyHelp": "En Linear: Settings › Security & access › Personal API keys. Se guarda cifrada y no se vuelve a mostrar.",
+      "connectKey": "Conectar con API key",
+      "connecting": "Conectando…",
+      "connectedTo": "Conectado a {org} como {name}.",
+      "teamsTitle": "Teams a sincronizar",
+      "teamsHelp": "Cada team de Linear pasa a ser un team de Track con su workflow, labels, projects, cycles e issues.",
+      "teamsLoading": "Cargando los teams de Linear…",
+      "teamsError": "No se pudieron leer los teams de Linear.",
+      "noTeams": "Este workspace de Linear no tiene teams.",
+      "direction": "Sentido",
+      "directions": {
+        "two_way": "En los dos sentidos",
+        "import": "Solo de Linear a Track",
+        "push": "Solo de Track a Linear"
+      },
+      "conflicts": "Si el mismo campo cambia en los dos lados, gana el último cambio.",
+      "start": "Empezar a sincronizar",
+      "restart": "Reintentar",
+      "startHelp": "Primero un import completo de los teams elegidos (sigue aunque cierres esta página) y después los cambios pasan en vivo.",
+      "status": {
+        "setup": "Elegí los teams a sincronizar.",
+        "importing": "Importando desde Linear…",
+        "live": "Sincronización activa ({direction}).",
+        "paused": "En pausa. Los cambios esperan hasta que la reanudes.",
+        "error": "La sincronización se cortó: {reason}"
+      },
+      "lastSync": "Última sincronización",
+      "never": "Todavía sin sincronizar",
+      "webhook": {
+        "live": "los cambios en Linear llegan en segundos",
+        "none": "los cambios en Linear llegan cada 5 minutos"
+      },
+      "pending": "{count, plural, one {# cambio en espera} other {# cambios en espera}}",
+      "rateLimited": "Linear pidió esperar hasta",
+      "syncNow": "Sincronizar ahora",
+      "syncing": "Sincronizando…",
+      "pause": "Pausar",
+      "resume": "Reanudar",
+      "disconnectConfirm": "¿Desconectar Linear? Todo lo que ya está en Track queda, y al conectar de nuevo sigue donde estaba.",
+      "failedTitle": "No se pudo sincronizar",
+      "retry": "Reintentar",
+      "retryAll": "Reintentar todo",
+      "log": "Registro de la sincronización",
+      "fromLinear": "Desde Linear",
+      "toLinear": "Hacia Linear",
+      "deleteNote": "Borrar un issue no se copia al otro lado: aparece acá para que decidas.",
+      "kinds": {
+        "push_issue": "Issue hacia Linear",
+        "push_comment": "Comentario hacia Linear",
+        "pull_issue": "Issue desde Linear",
+        "pull_comment": "Comentario desde Linear",
+        "pull_attachment": "Link desde Linear"
+      },
+      "events": {
+        "issue_created": "Creado",
+        "issue_updated": "Actualizado",
+        "issue_removed": "Borrado en Linear (queda en Track)",
+        "comment_created": "Comentario",
+        "attachment_created": "Link",
+        "comments": "Comentarios traídos",
+        "import_started": "Import iniciado",
+        "import_done": "Import terminado",
+        "import_failed": "Falló el import",
+        "reconcile": "Falló el chequeo con Linear",
+        "connected": "Conectado",
+        "disconnected": "Desconectado"
+      },
+      "callback": {
+        "connected": "Linear quedó conectado. Elegí los teams a sincronizar.",
+        "denied": "No se dio acceso a Linear.",
+        "invalid_state": "El link venció. Probá conectar de nuevo.",
+        "failed": "No se pudo conectar con Linear. Probá de nuevo.",
+        "forbidden": "Solo los admins del workspace pueden conectar Linear.",
+        "not_configured": "Login with Linear todavía no está configurado en este servidor."
+      },
+      "errors": {
+        "generic": "Algo salió mal. Probá de nuevo.",
+        "invalid_key": "Eso no parece una API key de Linear.",
+        "linear_unauthorized": "Linear rechazó la key o el acceso venció. Conectá de nuevo.",
+        "linear_rate_limited": "Linear pidió ir más despacio. La sincronización sigue sola.",
+        "linear_source_error": "Linear devolvió un error. Probá de nuevo en un minuto.",
+        "linear_unreachable": "No se pudo llegar a Linear. Probá de nuevo en un minuto.",
+        "linear_not_found": "Eso ya no existe en Linear.",
+        "linear_no_teams": "Elegí al menos un team.",
+        "linear_issue_not_synced": "El issue todavía no está en Linear; sale primero.",
+        "linear_linear_rejected": "Linear no aceptó el cambio.",
+        "sync_running": "Ya hay una sincronización en curso.",
+        "not_connected": "Linear no está conectado.",
+        "forbidden": "Solo los admins del workspace pueden cambiar esto.",
+        "import_failed": "El import se cortó. Probá de nuevo.",
+        "unauthorized": "Linear rechazó la key. Conectá de nuevo.",
+        "internal_error": "Algo salió mal. Probá de nuevo."
+      }
     }
   },
   "apiSettings": {
@@ -1263,7 +1364,8 @@
       "import": "import",
       "system": "sistema",
       "triage": "Triage",
-      "agent": "Agente"
+      "agent": "Agente",
+      "linear": "Linear"
     }
   },
   "issueLinks": {

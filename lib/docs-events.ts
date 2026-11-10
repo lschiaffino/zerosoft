@@ -246,6 +246,10 @@ export async function afterDocsPageSaved(opts: {
   actorId: string | null;
   titleOrContent: boolean;
 }): Promise<void> {
+  // Notion (si el workspace lo tiene conectado): la página entra a la cola de envíos.
+  if (opts.before.content !== opts.after.content || opts.before.title !== opts.after.title || opts.before.icon !== opts.after.icon || opts.before.archived !== opts.after.archived) {
+    await import('./notion-sync').then((m) => m.notionSyncLocalChange(opts.ws, opts.after.id)).catch(() => undefined);
+  }
   try {
     if (opts.titleOrContent) await markPageEdited(opts.ws, opts.after.id, opts.actorId);
     if (opts.before.content !== opts.after.content) {

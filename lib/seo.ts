@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { GITHUB_URL } from '@/components/site/catalog';
+import { OG_WIDE, isOgCard, ogImages } from '@/lib/og/url';
 
 /**
  * SEO del sitio público: una sola forma de armar metadata (title, description,
@@ -79,7 +80,10 @@ export interface PageSeo {
   path: string;
   title: string;
   description: string;
-  /** Imagen 1200×630 (PNG). Sin ella, la del home. */
+  /**
+   * Tarjeta para compartir: una ruta de /api/og (se versiona sola y suma la
+   * cuadrada) o una imagen propia 1200×630. Sin ella, la del home.
+   */
   image?: string;
   imageAlt?: string;
   /** El título va tal cual, sin " · zerosoft" (el home). */
@@ -96,6 +100,11 @@ export interface PageSeo {
 }
 
 export const DEFAULT_OG_IMAGE = '/api/og/home';
+
+/** La tarjeta del home en un idioma. */
+export function homeOgImage(locale: string): string {
+  return `/api/og/home/${isSeoLocale(locale) ? locale : DEFAULT_SEO_LOCALE}`;
+}
 
 /** Hasta este largo, el título lleva el template del layout. */
 export const TITLE_SUFFIX_MAX = 50;
@@ -121,10 +130,12 @@ export function clampDescription(text: string, max = META_DESCRIPTION_MAX): stri
 export function pageMetadata(input: PageSeo): Metadata {
   const seo = { ...input, description: clampDescription(input.description) };
   const alternates = alternatesFor(seo.path, seo.locale, seo.locales);
-  const image = seo.image ?? DEFAULT_OG_IMAGE;
+  const image = seo.image ?? homeOgImage(seo.locale);
+  const alt = seo.imageAlt ?? seo.title;
+  // Las tarjetas propias van versionadas por contenido (cache inmutable) y con su versión cuadrada.
+  const images = isOgCard(image) ? ogImages(image, alt, [seo.title, seo.description]) : [{ url: image, ...OG_WIDE, alt }];
   const ogLocale = isSeoLocale(seo.locale) ? OG_LOCALE[seo.locale] : OG_LOCALE.en;
   const others = SEO_LOCALES.filter((l) => l !== seo.locale && (!seo.locales || seo.locales.includes(l))).map((l) => OG_LOCALE[l]);
-  const images = [{ url: image, width: 1200, height: 630, alt: seo.imageAlt ?? seo.title }];
   const base = {
     siteName: 'zerosoft',
     locale: ogLocale,
@@ -150,7 +161,7 @@ export function pageMetadata(input: PageSeo): Metadata {
             tags: seo.tags,
           }
         : { ...base, type: 'website' },
-    twitter: { card: 'summary_large_image', title: seo.title, description: seo.description, images: [image] },
+    twitter: { card: 'summary_large_image', title: seo.title, description: seo.description, images: [{ url: images[0].url, alt }] },
     ...(seo.noindex ? { robots: { index: false, follow: true } } : {}),
   };
 }

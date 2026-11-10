@@ -1150,6 +1150,107 @@
       "help": "Outgoing webhooks send issue, comment and team events signed, with retries. The API creates and updates issues. Both work from Zapier, Make or n8n with a Webhooks step.",
       "webhooks": "Set up webhooks",
       "docs": "API docs"
+    },
+    "linear": {
+      "help": "Move from Linear at your own pace: import the teams you choose, then keep Linear and Track in sync while the team switches.",
+      "loadError": "Could not load the Linear connection.",
+      "connectOAuth": "Connect with Linear",
+      "oauthUnavailable": "Login with Linear is not set up on this server yet. A personal API key works the same way.",
+      "apiKeyTitle": "Connect with an API key",
+      "apiKeyLabel": "Linear API key",
+      "apiKeyHelp": "In Linear: Settings › Security & access › Personal API keys. It is stored encrypted and never shown again.",
+      "connectKey": "Connect with API key",
+      "connecting": "Connecting…",
+      "connectedTo": "Connected to {org} as {name}.",
+      "teamsTitle": "Teams to sync",
+      "teamsHelp": "Each Linear team becomes a Track team with its workflow, labels, projects, cycles and issues.",
+      "teamsLoading": "Loading Linear teams…",
+      "teamsError": "Could not read the teams from Linear.",
+      "noTeams": "This Linear workspace has no teams.",
+      "direction": "Direction",
+      "directions": {
+        "two_way": "Two-way",
+        "import": "Linear to Track only",
+        "push": "Track to Linear only"
+      },
+      "conflicts": "If the same field changes on both sides, the latest change wins.",
+      "start": "Start sync",
+      "restart": "Try again",
+      "startHelp": "First a full import of the chosen teams (it keeps going if you close this page), then changes flow live.",
+      "status": {
+        "setup": "Choose the teams to sync.",
+        "importing": "Importing from Linear…",
+        "live": "Sync on ({direction}).",
+        "paused": "Paused. Changes wait until you resume.",
+        "error": "Sync stopped: {reason}"
+      },
+      "lastSync": "Last sync",
+      "never": "Not synced yet",
+      "webhook": {
+        "live": "changes in Linear arrive in seconds",
+        "none": "changes in Linear arrive every 5 minutes"
+      },
+      "pending": "{count, plural, one {# change waiting} other {# changes waiting}}",
+      "rateLimited": "Linear asked to wait until",
+      "syncNow": "Sync now",
+      "syncing": "Syncing…",
+      "pause": "Pause",
+      "resume": "Resume",
+      "disconnectConfirm": "Disconnect Linear? Everything already in Track stays, and connecting again picks up where it left off.",
+      "failedTitle": "Could not sync",
+      "retry": "Retry",
+      "retryAll": "Retry all",
+      "log": "Sync log",
+      "fromLinear": "From Linear",
+      "toLinear": "To Linear",
+      "deleteNote": "Deleting an issue is not copied to the other side: it shows up here so you can decide.",
+      "kinds": {
+        "push_issue": "Issue to Linear",
+        "push_comment": "Comment to Linear",
+        "pull_issue": "Issue from Linear",
+        "pull_comment": "Comment from Linear",
+        "pull_attachment": "Link from Linear"
+      },
+      "events": {
+        "issue_created": "Created",
+        "issue_updated": "Updated",
+        "issue_removed": "Deleted in Linear (kept in Track)",
+        "comment_created": "Comment",
+        "attachment_created": "Link",
+        "comments": "Comments brought in",
+        "import_started": "Import started",
+        "import_done": "Import finished",
+        "import_failed": "Import failed",
+        "reconcile": "Check with Linear failed",
+        "connected": "Connected",
+        "disconnected": "Disconnected"
+      },
+      "callback": {
+        "connected": "Linear is connected. Choose the teams to sync.",
+        "denied": "Linear access was not granted.",
+        "invalid_state": "The link expired. Try connecting again.",
+        "failed": "Could not connect to Linear. Try again.",
+        "forbidden": "Only workspace admins can connect Linear.",
+        "not_configured": "Login with Linear is not set up on this server yet."
+      },
+      "errors": {
+        "generic": "Something went wrong. Try again.",
+        "invalid_key": "That does not look like a Linear API key.",
+        "linear_unauthorized": "Linear rejected the key or the access expired. Connect again.",
+        "linear_rate_limited": "Linear asked us to slow down. Sync continues on its own.",
+        "linear_source_error": "Linear returned an error. Try again in a minute.",
+        "linear_unreachable": "Could not reach Linear. Try again in a minute.",
+        "linear_not_found": "That item no longer exists in Linear.",
+        "linear_no_teams": "Choose at least one team.",
+        "linear_issue_not_synced": "The issue is not in Linear yet; it goes first.",
+        "linear_linear_rejected": "Linear did not accept the change.",
+        "sync_running": "A sync is already running.",
+        "not_connected": "Linear is not connected.",
+        "forbidden": "Only workspace admins can change this.",
+        "import_failed": "The import stopped. Try again.",
+        "unauthorized": "Linear rejected the key. Connect again.",
+        "internal_error": "Something went wrong. Try again."
+      }
     }
   },
   "apiSettings": {
@@ -1263,7 +1364,8 @@
       "import": "import",
       "system": "system",
       "triage": "Triage",
-      "agent": "Agent"
+      "agent": "Agent",
+      "linear": "Linear"
     }
   },
   "issueLinks": {

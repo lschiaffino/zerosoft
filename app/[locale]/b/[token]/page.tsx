@@ -1,3 +1,4 @@
+import { ogMeta } from '@/lib/og/url';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { getSharedBoard } from '@/lib/boards';
@@ -12,7 +13,9 @@ export async function generateMetadata(props: Props) {
   const { locale, token } = await props.params;
   const board = await getSharedBoard(token);
   const t = await getTranslations({ locale, namespace: 'board' });
-  return { title: board?.name ?? t('public.notFound'), robots: { index: false, follow: false } };
+  const title = board?.name ?? t('public.notFound');
+  const og = board ? ogMeta(`/api/og/whiteboard/${encodeURIComponent(token)}`, title, undefined, [title]) : null;
+  return { title, robots: { index: false, follow: false }, ...(og ? { openGraph: { title, images: og.images }, twitter: og.twitter } : {}) };
 }
 
 /** Pizarra compartida por link: solo lectura, sin login. */

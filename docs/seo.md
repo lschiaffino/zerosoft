@@ -12,12 +12,12 @@ el dominio. La rutina diaria del blog está en `docs/blog-routine.md`.
 | JSON-LD: Organization, WebSite, SoftwareApplication con ofertas, FAQPage, BreadcrumbList, BlogPosting, ItemList | `lib/seo.ts` |
 | sitemap.xml (tres idiomas, hreflang, lastmod real) | `app/sitemap.ts` + `lib/sitemap-entries.ts` |
 | robots.txt | `app/robots.ts` |
-| Imágenes OG en PNG, en el idioma de la página | `app/api/og/[...card]/route.tsx` + `lib/og-card.tsx` (fuentes en `lib/og-fonts`) |
+| Tarjetas para compartir (og:image) en PNG, ancha 1200×630 y cuadrada 1200×1200, en el idioma de la página | `app/api/og/[...card]/route.tsx` + `lib/og/` (render, dibujo, textos, URLs versionadas; fuentes en `lib/og-fonts`). Ver "Tarjetas para compartir" abajo |
 | Comparaciones (`/compare`, `/compare/zerosoft-vs-<x>`, `/compare/<x>-alternative`) | `lib/compare.ts`, `app/[locale]/compare` |
 | llms.txt y llms-full.txt (llmstxt.org) | `lib/llms.ts`, `app/llms.txt`, `app/llms-full.txt` |
 | Blog: tags, autor, RSS y Atom, relacionados | `lib/blog.ts`, `lib/blog-feed.ts`, `app/[locale]/blog` |
 | Búsquedas objetivo | `content/seo-keywords.json` |
-| Chequeos | `tests/unit/seo.test.ts`, `tests/unit/sitemap-llms.test.ts`, `tests/e2e/seo.spec.ts`, `scripts/seo-check.mjs`, `scripts/blog-gaps.mjs` |
+| Chequeos | `tests/unit/seo.test.ts`, `tests/unit/sitemap-llms.test.ts`, `tests/e2e/seo.spec.ts`, `scripts/seo-check.mjs`, `scripts/og-check.mjs`, `scripts/blog-gaps.mjs`, `tests/unit/og.test.ts` |
 
 Reglas que el código ya hace cumplir:
 
@@ -66,3 +66,13 @@ Comprobar: `curl -s https://zerosoft.ai/en | grep -o '<meta name="google-site-ve
 - En Search Console → Inspección de URL, pedir indexación de `/en`, `/es`, `/pt`, `/en/compare` y `/en/blog`.
 - Correr `node scripts/seo-check.mjs https://zerosoft.ai` contra producción y revisar los errores.
 - Validar una página de cada tipo en https://search.google.com/test/rich-results y https://validator.schema.org.
+
+## Tarjetas para compartir
+
+- Cada página pública tiene su tarjeta: el toroide de ceros teñido con el color de la app, el título, una línea corta y la dirección. Tinta para el sitio; papel para docs, legales y el contenido de clientes (centro de ayuda, formularios, reservas, tienda, empleos). Los videos de Rec usan el cuadro de portada con el play, el título y la duración.
+- `pageMetadata` (y `ogMeta` para el contenido de un workspace) publica dos `og:image`: la ancha y la cuadrada (`?f=sq`, el recorte de WhatsApp), con medidas, `alt` y `twitter:card summary_large_image`.
+- Las URLs llevan `?v=<hash>` del diseño (`OG_VERSION` en `lib/og/url.ts`) y del contenido: se sirven inmutables y cambian solas cuando cambia el título. Al cambiar el diseño, subir `OG_VERSION`.
+- Privacidad: el contenido de un workspace solo tiene tarjeta si cualquiera sin sesión puede abrir la página (lib/og/shared-cards.ts). Un video con contraseña, solo del workspace o vencido no tiene tarjeta (404) y la página no publica ni el título. Ese contenido se cachea 5 minutos.
+- Mirar las plantillas: `npx tsx scripts/og-preview.tsx <carpeta>` (PNG de cada una y una hoja a 300 px de ancho, como las muestra WhatsApp).
+- Chequear un servidor: `node scripts/og-check.mjs [base]` recorre el sitemap y verifica que cada página tenga `og:image` PNG que responde 200 y mide lo que declara.
+
