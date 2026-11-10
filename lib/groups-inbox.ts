@@ -93,6 +93,8 @@ async function logEvent(ws: string, chat: Pick<ChatRow, 'id' | 'number_id'>, act
 const chatHref = (chatId: string, messageId?: string) => `/app/lines/inbox/${chatId}${messageId ? `#m-${messageId}` : ''}`;
 
 async function notifyAssigned(actor: string | null, chat: ChatRow, personId: string, rule?: string): Promise<void> {
+  const { personCanSeeChat } = await import('./groups-access');
+  if (!(await personCanSeeChat(chat.user_id, personId, chat.id))) return;
   const actorName = rule ? '' : await personName(actor);
   const chatName = chatDisplayName(chat);
   await createNotification({
@@ -138,7 +140,9 @@ export async function afterNoteSaved(ws: string, actor: string | null, chat: Cha
   if (fresh.length) {
     const actorName = await personName(actor);
     const chatName = chatDisplayName(chat);
+    const { personCanSeeChat } = await import('./groups-access');
     for (const userId of fresh) {
+      if (!(await personCanSeeChat(chat.user_id, userId, chat.id))) continue;
       await createNotification({
         userId,
         type: 'mention',
@@ -642,7 +646,10 @@ export async function autoAssignChat(ws: string, chatId: string): Promise<string
           (r) => r.person_id,
         )
       : parseJson<string[]>(rule.person_ids, []);
-    const candidates = pool.filter((id) => people.has(id) && availability[id] !== false);
+    // Solo a quien ve la línea del chat: la visibilidad por línea no se salta con una asignación.
+    const { personCanSeeChat } = await import('./groups-access');
+    const candidates: string[] = [];
+    for (const id of pool) if (people.has(id) && availability[id] !== false && (await personCanSeeChat(ws, id, chat.id))) candidates.push(id);
     if (candidates.length === 0) continue;
     for (let attempt = 0; attempt < 5; attempt++) {
       const current = (await db.prepare('SELECT last_person_id FROM groups_assign_rules WHERE id = ?').get(rule.id)) as

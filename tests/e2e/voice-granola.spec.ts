@@ -12,6 +12,8 @@ test.use({
 });
 
 test.beforeEach(async ({ page, context, baseURL }) => {
+  // Sin elegir la pestaña a compartir: estos tests graban solo el micrófono simulado.
+  await context.addInitScript(() => localStorage.setItem('zs-voice-mode', 'mic'));
   // Graban de verdad (trozos de 1,5 s) y esperan a la IA falsa: más que el minuto por defecto.
   test.setTimeout(180_000);
   await context.grantPermissions(['microphone'], { origin: baseURL! });
@@ -36,7 +38,11 @@ async function recordMeeting(page: Page, title: string) {
   const titleInput = page.getByRole('textbox', { name: 'Meeting title' });
   await titleInput.fill(title);
   await titleInput.press('Enter');
+  // La transcripción en vivo está en el panel que abre la barra de abajo.
+  await page.getByRole('button', { name: 'Live transcript' }).click();
   await expect(page.locator('.vc-seg').first()).toBeVisible({ timeout: 20_000 });
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('voice-live-panel')).toBeHidden();
   return page.url().split('/').pop()!;
 }
 
@@ -44,11 +50,12 @@ test('la reunión nueva escucha sola; un link externo con ?new=1 no prende el mi
   const title = `Autostart ${uid()}`;
   const id = await recordMeeting(page, title);
   // Mientras escucha: el chat sugiere preguntas para el durante.
-  await page.getByRole('tab', { name: 'Ask' }).click();
+  await page.getByRole('combobox', { name: 'Ask about this meeting' }).click();
   await expect(page.getByText('Ask anything while the meeting goes on.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'What did I miss in the last few minutes?' })).toBeVisible();
   await page.getByRole('button', { name: 'What has been decided so far?' }).click();
   await expect(page.locator('.vc-msg.is-assistant').first()).not.toBeEmpty({ timeout: 15_000 });
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Stop', exact: true }).click();
   await expect.poll(async () => ((await (await request.get(`/api/voice/sessions/${id}`)).json()) as { status: string }).status, { timeout: 25_000 }).toBe('done');
 
@@ -103,7 +110,7 @@ test('chat: respuesta de a pedazos con citas que llevan a la transcripción, y e
   await expect(page.getByTestId('voice-enhanced')).toBeVisible({ timeout: 25_000 });
 
   // Después de la reunión: sugerencias del después y una pregunta propia.
-  await page.getByRole('tab', { name: 'Ask' }).click();
+  await page.getByRole('combobox', { name: 'Ask about this meeting' }).click();
   await expect(page.getByRole('button', { name: 'What are the action items and who owns them?' })).toBeVisible();
   const streamed = page.waitForResponse((r) => r.url().endsWith(`/api/voice/sessions/${id}/chat`) && r.request().method() === 'POST');
   await page.getByRole('combobox', { name: 'Ask about this meeting' }).fill('What did they say about billing?');
@@ -114,11 +121,11 @@ test('chat: respuesta de a pedazos con citas que llevan a la transcripción, y e
   const cite = answer.locator('button.vc-cite').first();
   await expect(cite).toHaveText(/^\d{2}:\d{2}$/);
   await cite.click();
-  await expect(page.getByRole('tab', { name: /Transcript/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('voice-live-panel')).toBeVisible();
   await expect(page.locator('.vc-seg.is-focus')).toBeVisible();
   // El chat queda guardado con la cita.
   await page.reload({ waitUntil: 'networkidle' });
-  await page.getByRole('tab', { name: 'Ask' }).click();
+  await page.getByRole('combobox', { name: 'Ask about this meeting' }).click();
   await expect(page.locator('.vc-msg.is-assistant .vc-cite').first()).toBeVisible();
 
   // Entre reuniones: sugerencias, respuesta con link a la reunión y al momento, y seguimiento.
@@ -138,7 +145,7 @@ test('chat: respuesta de a pedazos con citas que llevan a la transcripción, y e
   await expect(page.locator('.vc-turn').nth(1).locator('.vc-answer')).not.toContainText('Looking…', { timeout: 15_000 });
   await link.click();
   await expect(page).toHaveURL(/\/app\/voice\/meetings\/[^?]+\?t=\d+/);
-  await expect(page.getByRole('tab', { name: /Transcript/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('voice-live-panel')).toBeVisible();
   await expect(page.locator('.vc-seg.is-focus')).toBeVisible();
 
   // Sin IA: el error se ve y la pregunta vuelve al campo.
@@ -156,7 +163,6 @@ test('chat y reunión: 1280 y 390, claro y oscuro, sin scroll horizontal', async
   const id = await recordMeeting(page, title);
   await page.getByRole('button', { name: 'Stop', exact: true }).click();
   await expect(page.getByTestId('voice-enhanced')).toBeVisible({ timeout: 25_000 });
-  await page.getByRole('tab', { name: 'Ask' }).click();
   await page.getByRole('combobox', { name: 'Ask about this meeting' }).fill('What did they say about billing?');
   await page.getByRole('button', { name: 'Ask', exact: true }).click();
   await expect(page.locator('.vc-msg.is-assistant .vc-cite').first()).toBeVisible({ timeout: 15_000 });
@@ -166,7 +172,7 @@ test('chat y reunión: 1280 y 390, claro y oscuro, sin scroll horizontal', async
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`/en/app/voice/meetings/${id}`, { waitUntil: 'networkidle' });
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-      await page.getByRole('tab', { name: 'Ask' }).click();
+      await page.getByRole('combobox', { name: 'Ask about this meeting' }).click();
       await expect(page.locator('.vc-msg.is-assistant .vc-cite').first()).toBeVisible();
       await noHorizontalScroll(page, `meeting ${theme} ${width}`);
       await page.screenshot({ path: test.info().outputPath(`meeting-chat-${theme}-${width}.png`), fullPage: true });

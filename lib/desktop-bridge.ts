@@ -25,6 +25,14 @@ export interface DesktopBridge {
    * tocar su aviso o su menú y vale una sola vez. Un link con autostart que
    * no salió de la app (pegado en Talk, un mail) devuelve false.
    */
+  /**
+   * Audio del sistema nativo (ScreenCaptureKit en Mac, macOS 13 o más). start devuelve
+   * ok | denied | unsupported | failed; read, el PCM de 16 bits, 16 kHz, mono, en base64 que se
+   * acumuló desde la lectura anterior; stop corta. Desde la 0.4.0.
+   */
+  systemAudioStart?: () => Promise<string>;
+  systemAudioRead?: () => Promise<string>;
+  systemAudioStop?: () => Promise<void>;
   consumeAutostart?: (nonce: string) => Promise<boolean>;
 }
 

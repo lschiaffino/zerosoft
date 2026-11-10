@@ -5,8 +5,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
-export type PermissionKind = 'microphone' | 'accessibility';
-export type PermissionAsk = PermissionKind | 'accessibility-reset';
+export type PermissionKind = 'microphone' | 'accessibility' | 'camera' | 'screen';
+export type PermissionAsk = PermissionKind | 'accessibility-reset' | `reset-${PermissionKind}`;
 export type PermissionStatus = 'granted' | 'denied' | 'not-determined' | 'restricted' | 'not-needed';
 export type Failure = 'offline' | 'signed_out' | 'rate_limited' | 'server' | 'too_large' | 'empty' | 'rejected';
 export type Mode = 'both' | 'hold' | 'toggle';
@@ -51,7 +51,25 @@ export interface SettingsView {
   pending: PendingMeta[];
   lastLatency: Latency | null;
   updates: 'auto' | 'off' | 'dev';
+  /** Lo último del feed de actualizaciones (updater.rs). */
+  update: UpdateInfo;
+  /** Versión bajada y lista para instalar al reiniciar. */
+  updateReady: string | null;
   strings: Record<string, string>;
+}
+
+export interface UpdateInfo {
+  available: string | null;
+  checking: boolean;
+  checkedAt: number | null;
+  failed: boolean;
+}
+
+/** Un grupo de la nav de Ajustes del servidor (/api/settings/nav, lib/settings-nav-server.ts). */
+export interface NavGroup {
+  key: string;
+  label: string;
+  items: Array<{ key: string; href: string; label: string; keywords?: string; product?: string; color?: string; native?: string }>;
 }
 
 /** Dónde se fue el tiempo del último dictado (dictation.rs, Latency). */
@@ -130,6 +148,10 @@ export const api = {
   signIn: () => invoke<void>('account_sign_in'),
   signOut: () => invoke<SettingsView>('account_sign_out'),
   openVoice: (which: 'history' | 'settings' | 'download') => invoke<void>('open_voice', { which }),
+  settingsNav: () => invoke<Remote<{ groups: NavGroup[] }>>('settings_nav'),
+  openWeb: (path: string) => invoke<void>('settings_open_web', { path }),
+  updateCheck: () => invoke<SettingsView>('update_check'),
+  updateRestart: () => invoke<void>('update_restart'),
 };
 
 /** "0:07", "1:30": el reloj del HUD y la duración en el historial. */

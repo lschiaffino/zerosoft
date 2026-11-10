@@ -147,9 +147,37 @@ mod mac {
         }
     }
 
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        fn CGPreflightScreenCaptureAccess() -> bool;
+        fn CGRequestScreenCaptureAccess() -> bool;
+    }
+
+    /// Grabación de pantalla (Rec): macOS no dice "sin decidir", solo si está permitida.
+    pub fn screen() -> PermissionStatus {
+        if unsafe { CGPreflightScreenCaptureAccess() } {
+            PermissionStatus::Granted
+        } else {
+            PermissionStatus::Denied
+        }
+    }
+
+    /// Pide grabación de pantalla (la primera vez macOS suma la app a la lista y avisa). true si ya estaba.
+    pub fn request_screen() -> bool {
+        unsafe { CGRequestScreenCaptureAccess() }
+    }
+
+    pub fn camera() -> PermissionStatus {
+        capture_status("vide")
+    }
+
     pub fn microphone() -> PermissionStatus {
+        capture_status("soun")
+    }
+
+    fn capture_status(kind: &str) -> PermissionStatus {
         // AVAuthorizationStatus: 0 sin decidir, 1 restringido, 2 denegado, 3 permitido.
-        let media = NSString::from_str("soun");
+        let media = NSString::from_str(kind);
         let status: isize = unsafe { msg_send![class!(AVCaptureDevice), authorizationStatusForMediaType: &*media] };
         match status {
             3 => PermissionStatus::Granted,
@@ -161,7 +189,43 @@ mod mac {
 }
 
 pub const PANE_MIC: &str = "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone";
+pub const PANE_SCREEN: &str = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";
 pub const PANE_ACCESSIBILITY: &str = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
+pub const PANE_CAMERA: &str = "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera";
+pub const PANE_SCREEN: &str = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";
+
+pub fn camera_status() -> PermissionStatus {
+    #[cfg(target_os = "macos")]
+    return mac::camera();
+    #[cfg(not(target_os = "macos"))]
+    PermissionStatus::NotNeeded
+}
+
+pub fn screen_status() -> PermissionStatus {
+    #[cfg(target_os = "macos")]
+    return mac::screen();
+    #[cfg(not(target_os = "macos"))]
+    PermissionStatus::NotNeeded
+}
+
+/// Pide grabación de pantalla (Mac). true si ya estaba.
+pub fn request_screen() -> bool {
+    #[cfg(target_os = "macos")]
+    return mac::request_screen();
+    #[cfg(not(target_os = "macos"))]
+    true
+}
+
+/// Servicio de TCC (tccutil) de cada permiso que se puede restablecer.
+pub fn tcc_service(kind: &str) -> Option<&'static str> {
+    match kind {
+        "accessibility" => Some("Accessibility"),
+        "microphone" => Some("Microphone"),
+        "camera" => Some("Camera"),
+        "screen" => Some("ScreenCapture"),
+        _ => None,
+    }
+}
 
 pub fn microphone_status() -> PermissionStatus {
     #[cfg(target_os = "macos")]
@@ -195,16 +259,23 @@ pub fn can_simulate_paste() -> bool {
 /// Ajustes del Sistema pero es de la build vieja, y AXIsProcessTrusted da false. Borrarla y volver
 /// a pedir crea una entrada nueva para esta build (apagada: la persona la prende).
 pub fn reset_accessibility(bundle_id: &str) -> bool {
+    reset_permission("Accessibility", bundle_id)
+}
+
+/// Borra lo que macOS tenga guardado de un permiso (servicio de TCC) para esta app: la próxima vez
+/// lo vuelve a preguntar. Sirve cuando la llave quedó atada a otra build.
+pub fn reset_permission(service: &str, bundle_id: &str) -> bool {
     #[cfg(target_os = "macos")]
     {
-        if bundle_id.is_empty() || !bundle_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-') {
+        let ok_service = ["Accessibility", "Microphone", "Camera", "ScreenCapture"].contains(&service);
+        if !ok_service || bundle_id.is_empty() || !bundle_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-') {
             return false;
         }
-        return std::process::Command::new("/usr/bin/tccutil").args(["reset", "Accessibility", bundle_id]).output().map(|o| o.status.success()).unwrap_or(false);
+        return std::process::Command::new("/usr/bin/tccutil").args(["reset", service, bundle_id]).output().map(|o| o.status.success()).unwrap_or(false);
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = bundle_id;
+        let _ = (service, bundle_id);
         true
     }
 }
@@ -312,6 +383,13 @@ mod tests {
         assert_eq!(context_for_app("Figma"), "other");
         assert_eq!(context_for_app(""), "other");
         assert_eq!(context_for_app("Mailchimp Desktop"), "other");
+    }
+
+    #[test]
+    fn tcc_services() {
+        assert_eq!(tcc_service("screen"), Some("ScreenCapture"));
+        assert_eq!(tcc_service("accessibility"), Some("Accessibility"));
+        assert_eq!(tcc_service("all"), None);
     }
 
     #[test]

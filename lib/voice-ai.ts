@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { AiError, assertAiAvailable, assertAiQuota, recordAiUsage, resolveAiModel } from './ai';
 import { fakeModel, type FakeCallInfo, type FakeStep } from './crm-ai-fake';
 import { ruleCleanup, applyDictionary } from './voice-cleanup';
-import type { VoiceContext, VoiceDictionaryEntry, VoiceEnhanced, VoiceTone } from './voice-types';
+import type { VoiceChatModel, VoiceContext, VoiceDictionaryEntry, VoiceEnhanced, VoiceTone } from './voice-types';
 
 const LANG_NAME: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Portuguese' };
 
@@ -189,7 +189,7 @@ const enhancedSchema = z.object({
   sections: z.array(
     z.object({
       heading: z.string(),
-      points: z.array(z.object({ text: z.string(), source: z.enum(['mine', 'transcript']) })),
+      points: z.array(z.object({ text: z.string(), source: z.enum(['mine', 'transcript']), level: z.number().int().min(0).max(1) })),
     }),
   ),
   decisions: z.array(z.string()),
@@ -222,7 +222,11 @@ export function fakeEnhanced(myNotes: string, transcript: string, headings: stri
     sections: [
       {
         heading: headings[0] ?? 'Notes',
-        points: [...mine.map((text) => ({ text, source: 'mine' as const })), ...[...new Set(sentences.map((s) => s.text))].slice(0, 3).map((text) => ({ text, source: 'transcript' as const }))],
+        // Lo de la transcripción va como detalle de lo que escribió la persona (viñetas anidadas).
+        points: [
+          ...mine.map((text) => ({ text, source: 'mine' as const, level: 0 as const })),
+          ...[...new Set(sentences.map((s) => s.text))].slice(0, 3).map((text) => ({ text, source: 'transcript' as const, level: (mine.length ? 1 : 0) as 0 | 1 })),
+        ],
       },
     ],
     decisions,
@@ -236,7 +240,8 @@ export function enhanceInstructions(opts: { templateInstructions: string; locale
     'Inputs: the notes the user typed during the meeting (short, partial) and the transcript ("Me" is the user).',
     'Expand the user\'s notes with what was said: keep every point the user wrote (mark those points source "mine"), fill the gaps from the transcript (source "transcript"). Never invent facts, numbers or names that are not in the inputs.',
     opts.templateInstructions,
-    'Points are short sentences. Also return: a two or three sentence summary, the decisions taken, and action items with owner (a name from the transcript, or "" if unclear) and due date as said (or "").',
+    'Points are short sentences. Use level 0 for a main point and level 1 for a detail that belongs under the point right before it; keep nesting to that one level.',
+    'Also return: a two or three sentence summary, the decisions taken, and action items with owner (a name from the transcript, or "" if unclear) and due date as said (or "").',
     `Write in the language of the transcript; if unclear, ${LANG_NAME[opts.locale] ?? 'English'}.`,
     `Meeting: ${opts.title || 'untitled'}${opts.when ? `, ${opts.when}` : ''}${opts.attendees ? `, with ${opts.attendees}` : ''}.`,
   ].join('\n');
@@ -270,7 +275,11 @@ export async function enhanceMeeting(opts: {
   const out = res.output as VoiceEnhanced;
   return {
     summary: out.summary.slice(0, 4000),
-    sections: out.sections.slice(0, 20).map((s) => ({ heading: s.heading.slice(0, 200), points: s.points.slice(0, 60) })),
+    sections: out.sections.slice(0, 20).map((s) => ({
+      heading: s.heading.slice(0, 200),
+      // Una viñeta anidada sin una principal antes queda como principal.
+      points: s.points.slice(0, 60).map((p, i) => ({ text: p.text, source: p.source, level: (p.level === 1 && i > 0 ? 1 : 0) as 0 | 1 })),
+    })),
     decisions: out.decisions.slice(0, 40),
     actionItems: out.actionItems.slice(0, 40),
   };
@@ -316,7 +325,7 @@ export function chatInstructions(opts: { across: boolean; locale: string; contex
   return [
     opts.across
       ? 'Answer questions about the user\'s meetings using only the meetings below. Each meeting starts with a label like [M1], its title and date.'
-      : 'Answer questions about this meeting using only its notes and transcript. When someone said something, say who.',
+      : 'Answer questions about this meeting using only its notes and transcript (and the attached file, when there is one). When someone said something, say who.',
     opts.live ? 'The meeting is still going on: the transcript ends where the conversation is now.' : '',
     opts.across
       ? 'Cite every fact right after it with the meeting label and, when it comes from the transcript, the timestamp of the line, like [M2 14:05] or [M1]. Never cite a label or a time that is not below.'
@@ -334,9 +343,11 @@ export function chatInstructions(opts: { across: boolean; locale: string; contex
  * OpenRouter) si está configurado; si no, el de la suite (lib/ai.ts). En los
  * dos casos cuenta la cuota y el rate limit del workspace.
  */
-async function voiceChatModel(ws: string, fake: (info: FakeCallInfo) => FakeStep): Promise<{ model: LanguageModel; modelId: string }> {
+async function voiceChatModel(ws: string, fake: (info: FakeCallInfo) => FakeStep, pref?: VoiceChatModel): Promise<{ model: LanguageModel; modelId: string }> {
   if (await voiceAiFakeState()) return voiceModel(ws, fake);
   const { assistantState, resolveAssistantModel } = await import('./assistant/config');
+  // "A fondo": el modelo de la suite, si está; si no, el del asistente.
+  if (pref === 'deep' && (await voiceAiAvailable())) return voiceModel(ws, fake);
   if (process.env.AI_ENABLED !== 'false' && assistantState() === 'ready') {
     const resolved = resolveAssistantModel(() => fakeModel(fake));
     if (resolved) {
@@ -345,6 +356,21 @@ async function voiceChatModel(ws: string, fake: (info: FakeCallInfo) => FakeStep
     }
   }
   return voiceModel(ws, fake);
+}
+
+/**
+ * Modelos que se pueden elegir en el chat de la reunión: rápido (el del
+ * asistente) y a fondo (el de la suite). Solo los que están configurados.
+ */
+export async function voiceChatModels(): Promise<Array<{ id: VoiceChatModel; name: string }>> {
+  const fake = await voiceAiFakeState();
+  const { assistantState, assistantModelId } = await import('./assistant/config');
+  const { aiModelId } = await import('./ai');
+  const out: Array<{ id: VoiceChatModel; name: string }> = [];
+  if (fake === 'on') return [{ id: 'fast', name: 'voice-fake' }, { id: 'deep', name: 'voice-fake' }];
+  if (process.env.AI_ENABLED !== 'false' && assistantState() === 'ready') out.push({ id: 'fast', name: assistantModelId() });
+  if (await voiceAiAvailable()) out.push({ id: 'deep', name: aiModelId() });
+  return out;
 }
 
 /** ¿Hay modelo para el chat (el del asistente o el de la suite)? */
@@ -365,6 +391,8 @@ export interface AskMeetingsOptions {
   /** La reunión sigue grabando. */
   live?: boolean;
   abortSignal?: AbortSignal;
+  /** Rápido o a fondo (voiceChatModels). */
+  model?: VoiceChatModel;
 }
 
 function chatCall(opts: AskMeetingsOptions) {
@@ -383,7 +411,7 @@ function chatCall(opts: AskMeetingsOptions) {
 }
 
 export async function askMeetings(opts: AskMeetingsOptions): Promise<string> {
-  const { model, modelId } = await voiceChatModel(opts.workspaceId, () => ({ text: fakeAnswer(opts.question, opts.context) }));
+  const { model, modelId } = await voiceChatModel(opts.workspaceId, () => ({ text: fakeAnswer(opts.question, opts.context) }), opts.model);
   const res = await generateText({ model, ...chatCall(opts) });
   await record(opts.workspaceId, 'voice_chat', modelId, res.totalUsage);
   return res.text.trim();
@@ -395,7 +423,7 @@ export async function askMeetings(opts: AskMeetingsOptions): Promise<string> {
  * terminar.
  */
 export async function streamAskMeetings(opts: AskMeetingsOptions): Promise<AsyncIterable<string>> {
-  const { model, modelId } = await voiceChatModel(opts.workspaceId, () => ({ text: fakeAnswer(opts.question, opts.context) }));
+  const { model, modelId } = await voiceChatModel(opts.workspaceId, () => ({ text: fakeAnswer(opts.question, opts.context) }), opts.model);
   const res = streamText({ model, ...chatCall(opts) });
   return (async function* () {
     for await (const part of res.stream) {

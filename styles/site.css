@@ -627,7 +627,7 @@ section.status-note-block { padding: 24px; }
 
 /* ---------- Descargas (/download) ---------- */
 
-.dl-buttons .read-actions { margin-top: 28px; }
+.dl-widget { margin-top: 32px; max-width: 760px; }
 .dl-empty { max-width: 60ch; }
 .dl-body { display: grid; gap: 56px; }
 /* Las secciones de /download no llevan el padding grande de las secciones del sitio (globals.css). */
@@ -653,7 +653,6 @@ section.status-note-block { padding: 24px; }
 
 @media (max-width: 860px) {
   .dl-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-  .dl-buttons .btn { width: 100%; justify-content: center; white-space: normal; }
 }
 
 /* ---------- 404 ---------- */

@@ -363,7 +363,9 @@
   },
   "groups": {
     "account": "Account and workspace",
-    "products": "Products"
+    "products": "Products",
+    "workspace": "Workspace",
+    "device": "This device"
   },
   "sections": {
     "profile": "Profile",
@@ -377,10 +379,15 @@
     "security": "Security",
     "notifications": "Notifications",
     "desktop": "Desktop app",
-    "admin": "Admin"
+    "admin": "Admin",
+    "appearance": "Appearance",
+    "offline": "Offline"
   },
   "nav": {
-    "select": "Settings section"
+    "select": "Settings section",
+    "label": "Settings",
+    "search": "Search settings",
+    "noResults": "No settings match “{q}”"
   },
   "cmdk": {
     "section": "Settings: {section}",
@@ -852,7 +859,7 @@
     "joinApproval": "An admin approves each person before they join",
     "joinRole": "They join as members with these apps:",
     "dangerTitle": "Ownership and closing",
-    "dangerDesc": "What isn’t in the product yet, and what to do meanwhile.",
+    "dangerDesc": "Transfer ownership, and delete the workspace with everything in it.",
     "transferTitle": "Transfer ownership",
     "transferBody": "You can’t transfer ownership from the app yet. Meanwhile, make the next person an admin in Settings › Members: admins invite, change roles and edit these settings.",
     "closeTitle": "Close the workspace",
@@ -1046,7 +1053,61 @@
     "stepFirst": "Step 1",
     "notYouJoined": "You already joined {workspace} with {email}. Signing out doesn't undo that. To remove this account from {workspace}, leave it now; to come back with another account you'll need a new invitation.",
     "notYouLeave": "Leave {workspace} and sign out",
-    "notYouStay": "Only sign out"
+    "notYouStay": "Only sign out",
+    "skipStep": "Skip",
+    "skipAll": "Skip the rest",
+    "resumed": "We kept your answers from last time.",
+    "apps": {
+      "title": "Which apps will you use?",
+      "sub": "They go first on your Home, in the sidebar and in the app switcher. Every app stays one click away.",
+      "suggested": "Picked for {role}. Change anything.",
+      "suggestedNoRole": "A starting set. Change anything.",
+      "count": "{n, plural, =0 {None picked: we show the usual ones} one {# app} other {# apps}}",
+      "sample": "Add sample data to explore (contacts, a doc, a project and an event type)"
+    },
+    "setup": {
+      "savedTitle": "Your workspace is ready",
+      "stepOf": "Setup {step} of {total}",
+      "finish": "Go to Home",
+      "next": "Next"
+    },
+    "connect": {
+      "title": "Connect your accounts",
+      "sub": "So the apps you picked start with your real accounts.",
+      "calendar": {
+        "name": "Google Calendar",
+        "body": "Cal checks it for conflicts and adds bookings to it."
+      },
+      "email": {
+        "name": "Gmail",
+        "body": "Emails with your contacts appear in the CRM; send from your address."
+      },
+      "whatsapp": {
+        "name": "WhatsApp line",
+        "body": "Scan a QR to bring your chats and groups into Groups, with their history."
+      },
+      "connect": "Connect",
+      "connected": "Connected",
+      "openSettings": "Set up",
+      "result": {
+        "connected": "{name} is connected.",
+        "denied": "{name} was not connected: the permission was declined.",
+        "error": "{name} could not be connected. Try again.",
+        "scopes": "{name} needs every permission it asks for. Try again and keep them all checked."
+      }
+    },
+    "import": {
+      "title": "Coming from another tool?",
+      "sub": "Bring your data over now or later from Settings › Import. Nothing in the other tool changes.",
+      "none": "Starting fresh",
+      "go": "Import from {tool}",
+      "soon": "No importer for {tool} yet. You can start fresh and import by CSV where the app has it.",
+      "later": "Later"
+    },
+    "desktop": {
+      "title": "Get zerosoft on your computer",
+      "sub": "The desktop app is the browser version plus what a tab cannot do."
+    }
   },
   "profileForm": {
     "title": "Your details",
@@ -1385,5 +1446,282 @@
         "digest": "the weekly summary"
       }
     }
+  },
+  "security": {
+    "requiredBy": "The workspace {workspace} requires two-step verification. Turn it on below to keep working there.",
+    "working": "Working…",
+    "mfa": {
+      "title": "Two-step verification",
+      "desc": "After signing in with Google or an email code, also ask for a code from an authenticator app.",
+      "offHelp": "Use any authenticator app: 1Password, Google Authenticator, Microsoft Authenticator, Authy.",
+      "setUp": "Set up",
+      "turnOn": "Turn on",
+      "cancel": "Cancel",
+      "step1": "Scan the QR code with your authenticator app.",
+      "step2": "Or type the key below if you cannot scan.",
+      "step3": "Enter the 6-digit code the app shows",
+      "qrLabel": "QR code for your authenticator app",
+      "manual": "Setup key",
+      "on": "On",
+      "onSince": "since",
+      "recoveryLeft": "{count, plural, =0 {No recovery codes left: generate new ones.} one {# recovery code left} other {# recovery codes left}}",
+      "regenerate": "New recovery codes",
+      "disable": "Turn off",
+      "confirmWithCode": "Confirm with a code from your app or a recovery code",
+      "codesTitle": "Save your recovery codes",
+      "codesHelp": "Each code works once if you lose your phone. They will not be shown again.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "download": "Download",
+      "saved": "I saved them"
+    },
+    "sessions": {
+      "title": "Sessions",
+      "desc": "Devices signed in to your account. Signing one out takes effect on its next request.",
+      "empty": "No other active sessions.",
+      "unknownDevice": "Unknown device",
+      "current": "This device",
+      "lastSeen": "last active",
+      "revoke": "Sign out",
+      "signOutHere": "Sign out here",
+      "revokeOthers": "Sign out other sessions",
+      "confirmTitle": "Sign out of every other session?",
+      "confirmBody": "{count, plural, one {# other device will need to sign in again.} other {# other devices will need to sign in again.}}",
+      "cancel": "Cancel",
+      "error": "Could not sign out that session. Try again.",
+      "method": {
+        "google": "Google",
+        "email": "Email code",
+        "desktop": "Desktop app",
+        "other": "Earlier sign-in"
+      }
+    },
+    "workspace": {
+      "title": "Workspace security: {workspace}",
+      "desc": "Rules for everyone in this workspace.",
+      "requireMfa": "Require two-step verification for every member",
+      "requireMfaHelp": "Members without it are sent to turn it on before they can open this workspace. Guests are not affected. Turn it on for yourself first.",
+      "ownerOnly": "Only the workspace owner can change this.",
+      "withoutMfa": "{count, plural, one {# member without two-step verification} other {# members without two-step verification}}",
+      "allHaveMfa": "Every member has two-step verification on.",
+      "auditTitle": "Audit log",
+      "auditDesc": "Sign-ins, two-step changes, sessions, API keys, exports, deletions and member changes. Kept for one year.",
+      "auditEmpty": "Nothing recorded yet.",
+      "downloadCsv": "Download CSV",
+      "loadMore": "Load more"
+    },
+    "activity": {
+      "title": "Your recent activity",
+      "desc": "Security events on your account.",
+      "empty": "Nothing recorded yet."
+    },
+    "events": {
+      "time": "Time",
+      "actor": "Person",
+      "action": "Event",
+      "detail": "Detail",
+      "ip": "IP",
+      "actions": {
+        "login": "Signed in",
+        "login_failed_mfa": "Wrong two-step code",
+        "logout": "Signed out",
+        "mfa_enable": "Two-step verification on",
+        "mfa_disable": "Two-step verification off",
+        "mfa_recovery_used": "Recovery code used",
+        "mfa_recovery_regenerated": "New recovery codes",
+        "session_revoke": "Session signed out",
+        "session_revoke_others": "Other sessions signed out",
+        "workspace_require_mfa": "Two-step requirement changed",
+        "api_key_create": "API key created",
+        "api_key_revoke": "API key revoked",
+        "export_account": "Account data exported",
+        "export_workspace": "Workspace data exported",
+        "account_delete_requested": "Account deletion requested",
+        "account_delete_cancelled": "Account deletion cancelled",
+        "account_deleted": "Account deleted",
+        "workspace_deleted": "Workspace deleted",
+        "member_role": "Role changed",
+        "member_apps": "Apps changed",
+        "member_teams": "Teams changed",
+        "member_remove": "Member removed",
+        "member_reactivate": "Member reactivated",
+        "member_transfer": "Work transferred",
+        "invite_create": "Invitation sent",
+        "invite_revoke": "Invitation revoked",
+        "workspace_delete_requested": "Workspace deletion requested",
+        "login_mfa": "Two-step code accepted",
+        "workspace_delete_cancelled": "Workspace deletion cancelled"
+      }
+    },
+    "errors": {
+      "invalidCode": "That code did not work. Check the time on your phone and try the newest code.",
+      "rateLimited": "Too many attempts. Wait a few minutes and try again.",
+      "requiredByWorkspace": "Your workspace requires two-step verification, so it cannot be turned off.",
+      "enableFirst": "Turn on two-step verification for your own account first.",
+      "generic": "Something went wrong. Try again.",
+      "network": "No connection. Try again."
+    }
+  },
+  "privacy": {
+    "title": "Privacy",
+    "desc": "Download everything or delete your account.",
+    "exportTitle": "Download my data",
+    "exportBody": "A ZIP with every record of your account and of the workspace you own, one JSON file per table. Secrets such as tokens and keys are left out.",
+    "exportCta": "Download ZIP",
+    "deleteTitle": "Delete account",
+    "deleteBody": "Your account and the workspace you own are deleted 30 days after you ask, including files and connected WhatsApp numbers. Until then you can cancel and download your data.",
+    "deleteBodyMembers": "{count, plural, one {Your account and the workspace you own are deleted 30 days after you ask. # other person in your workspace loses access to it.} other {Your account and the workspace you own are deleted 30 days after you ask. # other people in your workspace lose access to it.}}",
+    "deleteDialogBody": "You will be signed out everywhere. In 30 days your account, the workspace you own, its files and its connected numbers are erased. Sign in before then to cancel.",
+    "deleteCta": "Delete account",
+    "typeEmail": "Type {email} to confirm",
+    "workspaceTitle": "Delete workspace",
+    "workspaceBody": "Erases everything in this workspace 30 days after you ask, including files and connected WhatsApp numbers. Members lose access then. Your account stays.",
+    "workspaceDialogBody": "In 30 days every app, record, file and connected number of this workspace is erased and members lose access. You can cancel until then.",
+    "workspaceCta": "Delete workspace",
+    "typeWorkspace": "Type {name} to confirm",
+    "pendingAccount": "Your account and workspace will be deleted on",
+    "pendingWorkspace": "This workspace will be deleted on",
+    "cancelDeletion": "Cancel deletion",
+    "mismatch": "That does not match. Type it exactly as shown.",
+    "error": "Something went wrong. Try again.",
+    "cancel": "Cancel",
+    "codeLabel": "Two-step code (from your app or a recovery code)",
+    "badCode": "That two-step code did not work.",
+    "rateLimited": "Too many attempts. Try again later."
+  },
+  "desktopSections": {
+    "start": "Get started",
+    "general": "General",
+    "meetings": "Meetings",
+    "voice": "Voice",
+    "dictionary": "Dictionary",
+    "history": "History",
+    "permissions": "Permissions",
+    "updates": "Updates",
+    "account": "Sign-in and server"
+  },
+  "keywords": {
+    "profile": "name, language, time zone, photo, email, account",
+    "appearance": "theme, dark mode, light mode, colors, system",
+    "notifications": "email, emails, digest, alerts, unsubscribe",
+    "workspace": "name, logo, mode, company",
+    "members": "people, invite, roles, permissions, guests",
+    "teams": "groups, departments",
+    "billing": "billing, invoices, subscription, payment, plan, usage, AI quota",
+    "api": "api keys, tokens, webhooks, integrations",
+    "connections": "google, slack, github, credentials, integrations",
+    "import": "import, migrate, move, csv",
+    "security": "security, domains, sessions, keys",
+    "offline": "offline, no connection, storage, cache, sync, pending changes",
+    "desktop": "download, mac, windows, desktop, app, version, update",
+    "admin": "admin, feedback, roadmap, changelog",
+    "product": "settings, app",
+    "native": {
+      "start": "onboarding, setup, permissions, first steps",
+      "general": "shortcut, dictation, hotkey, hands-free, clipboard, launch at login, version",
+      "meetings": "recording indicator, meetings, floating, record",
+      "voice": "language, cleanup, AI, tone, style",
+      "dictionary": "words, replacements, vocabulary",
+      "history": "dictations, transcripts, pending, retry, paste",
+      "permissions": "accessibility, microphone, camera, screen recording, privacy, reset permission",
+      "updates": "update, version, check for updates, release",
+      "account": "sign in, sign out, server, self-host"
+    }
+  },
+  "appearance": {
+    "title": "Appearance",
+    "desc": "How zerosoft looks in this browser.",
+    "themeHelp": "System follows your computer’s light or dark setting. It is the same choice as the switch at the bottom of the sidebar.",
+    "languageTitle": "Language",
+    "languageDesc": "The language of the interface and of the emails zerosoft sends you.",
+    "languageLink": "Change it in Profile"
+  },
+  "offline": {
+    "title": "Offline mode",
+    "desc": "Keep what you opened in CRM, Docs, Track and Notes on this device, so it opens and you can keep working without a connection.",
+    "loading": "Loading offline settings",
+    "enabled": "Keep apps available offline",
+    "enabledHelp": "Pages you open are saved on this device. Changes made without a connection are sent when it comes back.",
+    "disabledHelp": "Nothing is saved on this device and pages need a connection. Changes already waiting are still sent.",
+    "confirmTitle": "{n, plural, one {# change is waiting to be sent} other {# changes are waiting to be sent}}",
+    "confirmBody": "Turning offline mode off does not delete them: they stay on this device and are sent when the connection is back. Saved pages are deleted.",
+    "confirmOff": "Turn off",
+    "keepOn": "Keep it on",
+    "appsTitle": "Apps to keep available",
+    "apps": {
+      "crm": "CRM and Home",
+      "docs": "Docs",
+      "track": "Track",
+      "notes": "Notes"
+    },
+    "appsHelp": {
+      "crm": "Contacts, companies, deals and the home page",
+      "docs": "Pages you opened or marked available offline",
+      "track": "Lists, issues and projects you opened",
+      "notes": "The list of notes"
+    },
+    "appUsage": "{pages, plural, one {# page} other {# pages}}, {size}",
+    "measuring": "Measuring…",
+    "sizeTitle": "How much to store",
+    "sizes": {
+      "light": "Light",
+      "normal": "Normal",
+      "max": "Maximum"
+    },
+    "sizeHelp": "Up to {pages} pages and {size}",
+    "daysLabel": "Keep saved pages for",
+    "days": "{n} days",
+    "daysHelp": "Pages not opened in that time are removed. The oldest go first when the limit is reached.",
+    "saved": "Saved",
+    "turnedOn": "Offline mode is on",
+    "turnedOff": "Offline mode is off. Saved pages were deleted.",
+    "storageTitle": "Storage on this device",
+    "storageDesc": "What zerosoft keeps in this browser for offline use. Only your own pages are counted here.",
+    "savedHere": "Saved for offline use",
+    "appFiles": "App files",
+    "browserTotal": "Total used by zerosoft in this browser",
+    "ofQuota": "{used} of {quota} available",
+    "noWorker": "This browser cannot keep pages offline (no service worker).",
+    "clear": "Clear offline data now",
+    "clearHelp": "Deletes saved pages and app files. Changes waiting to be sent are kept.",
+    "cleared": "Offline data cleared",
+    "pendingTitle": "Changes waiting for a connection",
+    "pendingDesc": "Changes made offline on this device. They are sent in order when the connection comes back.",
+    "pendingCount": "{n, plural, one {change waiting} other {changes waiting}}",
+    "pendingQueue": "{n, plural, one {# change in CRM or Track} other {# changes in CRM or Track}}",
+    "pendingFailed": "{n, plural, one {# change the server rejected (retry it from the status bar)} other {# changes the server rejected (retry them from the status bar)}}",
+    "pendingDocs": "{n, plural, one {# Docs draft} other {# Docs drafts}}",
+    "pendingNotes": "{n, plural, one {# change in Notes} other {# changes in Notes}}"
+  },
+  "desktopApp": {
+    "title": "Desktop app",
+    "desc": "zerosoft for Mac and Windows: the whole platform in its own window, dictation in any app and a recording indicator for meetings.",
+    "installed": "Installed here",
+    "latest": "Latest version",
+    "notHere": "Not in the app",
+    "updateAuto": "Version {v} is available. The app downloads it in the background: restart zerosoft to install it, or use zerosoft › Check for updates.",
+    "updateManual": "Version {v} is available. This version cannot update itself and may not recognize the Accessibility permission: download the new one and replace it.",
+    "openSettings": "Open desktop settings",
+    "download": "Download the app",
+    "sectionsTitle": "What the app’s settings window has",
+    "sectionsDesc": "Open it with ⌘, (Ctrl+, on Windows) or from the zerosoft menu. It also has every section on this page.",
+    "sectionHelp": {
+      "start": "Sign in, microphone and Accessibility, step by step",
+      "general": "Dictation shortcut, mode, clipboard, launch at login and version",
+      "meetings": "The floating recording indicator",
+      "voice": "Dictation language, cleanup and tone per app",
+      "dictionary": "Words and replacements for dictation",
+      "history": "Your dictations and the ones waiting to be retried",
+      "permissions": "Accessibility, microphone, camera and screen recording, with Reset permission",
+      "updates": "Version, Check for updates and Restart to update",
+      "account": "Who is signed in and which server the app uses"
+    }
+  },
+  "desktopUpdate": {
+    "title": "zerosoft {v} for desktop is available.",
+    "auto": "You have {current}. Restart zerosoft to install it, or use zerosoft › Check for updates.",
+    "manual": "You have {current}, which cannot update itself and may not recognize the Accessibility permission. Download the new version and replace the app.",
+    "download": "Download",
+    "dismiss": "Not now"
   }
 }

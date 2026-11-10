@@ -96,6 +96,16 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: '/en/auth/signin' },
   secret: process.env.NEXTAUTH_SECRET,
   cookies: sessionCookies(),
+  events: {
+    // Cerrar sesión cierra también la del servidor: ese JWT ya no vale aunque alguien lo haya copiado.
+    async signOut({ token }) {
+      const sid = (token as { sid?: unknown } | null)?.sid;
+      const uid = (token as { uid?: unknown } | null)?.uid;
+      if (typeof sid !== 'string' || typeof uid !== 'string') return;
+      const { recordSecurityEvent, revokeSession } = await import('./account-security');
+      if (await revokeSession(uid, sid)) await recordSecurityEvent({ userId: uid, action: 'logout' });
+    },
+  },
   callbacks: {
     // Volver después del login: mismo origen o un host de la app de confianza
     // (p. ej. feedback.zerosoft.ai). El login siempre ocurre en NEXTAUTH_URL.
@@ -111,10 +121,18 @@ export const authOptions: NextAuthOptions = {
       await upsertUser({ email: user.email, name: user.name, image: user.image });
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user?.email) {
         const dbUser = await getUserByEmail(user.email);
-        if (dbUser) token.uid = dbUser.id;
+        if (dbUser) {
+          token.uid = dbUser.id;
+          // Cada login es una sesión del servidor (lib/account-security.ts): se lista en
+          // Ajustes › Seguridad y se puede cerrar. Con dos pasos queda pendiente hasta el código.
+          const { createSession, recordSecurityEvent } = await import('./account-security');
+          const method = account?.provider === 'google' ? 'google' : 'email';
+          token.sid = await createSession(dbUser.id, { method });
+          await recordSecurityEvent({ userId: dbUser.id, action: 'login', meta: { method, mfa: Boolean(dbUser.mfa_enabled_at) } });
+        }
       }
       return token;
     },
@@ -122,6 +140,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user && token.uid) {
         (session.user as { id?: string }).id = token.uid as string;
       }
+      if (typeof token.sid === 'string') (session as { sid?: string }).sid = token.sid;
       return session;
     },
   },

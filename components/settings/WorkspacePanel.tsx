@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { DeleteWorkspaceBlock, type PendingErasure } from './PrivacyPanel';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
@@ -23,6 +24,11 @@ export interface WorkspaceFormDto {
   editorDomain: string;
   /** Quien mira es el owner (cerrar y transferir) o alguien que se puede ir. */
   viewerIsOwner: boolean;
+  /** Borrado del workspace pedido y todavía no ejecutado (lib/privacy.ts). */
+  pendingErasure?: PendingErasure | null;
+  /** Quien mira tiene dos pasos (borrar pide un código). */
+  viewerMfa?: boolean;
+  locale?: string;
   /** Apps de quien edita: no puede ofrecer otras. */
   viewerApps: '*' | ProductKey[];
 }
@@ -243,10 +249,7 @@ export default function WorkspacePanel({ initial: init, canEdit }: { initial: Wo
               <p className="st-strong">{t('transferTitle')}</p>
               <p className="ui-help">{t('transferBody')}</p>
             </div>
-            <div>
-              <p className="st-strong">{t('closeTitle')}</p>
-              <p className="ui-help">{t('closeBody', { email: ws.ownerEmail })}</p>
-            </div>
+            <DeleteWorkspaceBlock name={ws.name} locale={ws.locale ?? 'en'} pending={init.pendingErasure ?? null} mfa={Boolean(init.viewerMfa)} />
           </div>
         </FormSection>
       ) : (

@@ -29,6 +29,174 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-lines-owners-visibility-folders',
+    date: '2026-11-09',
+    title: {
+      en: 'Lines: owners, who sees each line, a line selector and folders',
+      es: 'Lines: dueños, quién ve cada línea, selector de línea y carpetas',
+      pt: 'Lines: donos, quem vê cada linha, seletor de linha e pastas',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Each line can have an owner and be limited to chosen people or teams (admins and the owner always see it). Members who cannot see a line get none of its chats, messages, search results or notifications.',
+        es: 'Cada línea puede tener un dueño y limitarse a personas o equipos elegidos (admins y dueño siempre la ven). Los miembros que no ven una línea no reciben sus chats, mensajes, resultados de búsqueda ni avisos.',
+        pt: 'Cada linha pode ter um dono e ser limitada a pessoas ou equipes escolhidas (admins e dono sempre a veem). Membros que não veem uma linha não recebem suas conversas, mensagens, resultados de busca nem avisos.',
+      },
+      {
+        product: 'groups',
+        en: 'Pick one line or all lines in the inbox, with a line badge per chat; the choice is remembered. Shared folders and subfolders sort chats for the whole workspace, with unread counts per person.',
+        es: 'Elegí una línea o todas en la bandeja, con una etiqueta de línea por chat; la elección se recuerda. Las carpetas y subcarpetas compartidas ordenan los chats de todo el workspace, con no leídos por persona.',
+        pt: 'Escolha uma linha ou todas na caixa, com uma etiqueta de linha por conversa; a escolha é lembrada. Pastas e subpastas compartilhadas organizam as conversas de todo o workspace, com não lidas por pessoa.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-voice-system-audio',
+    date: '2026-11-09',
+    title: {
+      en: 'Voice: records the computer audio, with its own transcription allowance',
+      es: 'Voice: graba el audio de la compu, con cupo propio para transcribir',
+      pt: 'Voice: grava o áudio do computador, com cota própria para transcrever',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'Meetings record the audio of the meeting next to your microphone: the browser asks for a tab or screen with audio when you start, and the Mac app records the system audio and asks for the Screen & System Audio Recording permission. If nothing is shared, only the microphone is recorded and you are told why.',
+        es: 'Las reuniones graban el audio de la reunión junto con tu micrófono: el navegador pide una pestaña o pantalla con audio al empezar, y la app de Mac graba el audio del sistema y pide el permiso de Grabación de pantalla y audio del sistema. Si no se comparte nada, se graba solo el micrófono y se avisa por qué.',
+        pt: 'As reuniões gravam o áudio da reunião junto com o seu microfone: o navegador pede uma aba ou tela com áudio ao começar, e o app do Mac grava o áudio do sistema e pede a permissão de Gravação de tela e áudio do sistema. Se nada for compartilhado, só o microfone é gravado e você é avisado do motivo.',
+      },
+      {
+        product: 'voice',
+        en: 'Transcription has its own monthly allowance of 600 minutes per workspace, so chatting with your notes no longer leaves a meeting without a transcript.',
+        es: 'La transcripción tiene su propio cupo mensual de 600 minutos por workspace, así que charlar con tus notas ya no deja una reunión sin transcripción.',
+        pt: 'A transcrição tem a sua própria cota mensal de 600 minutos por workspace, então conversar com as suas notas não deixa mais uma reunião sem transcrição.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-voice-meeting-page',
+    date: '2026-11-09',
+    title: {
+      en: 'Voice: a cleaner meeting page with Ask anything',
+      es: 'Voice: una página de reunión más limpia con "Preguntá lo que quieras"',
+      pt: 'Voice: uma página de reunião mais limpa com "Pergunte o que quiser"',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'A meeting is now a plain page: title, a chip for enhanced or your own notes, the day and attendees from your calendar (today’s event is picked on its own, attendees grouped by company) and the folder.',
+        es: 'Una reunión ahora es una página simple: el título, un chip para ver las notas mejoradas o las tuyas, el día y los asistentes del calendario (el evento de hoy se elige solo y los asistentes se agrupan por empresa) y la carpeta.',
+        pt: 'Uma reunião agora é uma página simples: o título, um chip para ver as notas aprimoradas ou as suas, o dia e os participantes da agenda (o evento de hoje é escolhido sozinho e os participantes são agrupados por empresa) e a pasta.',
+      },
+      {
+        product: 'voice',
+        en: 'The bar under the notes holds the live transcript and Ask anything (⌘J or /): recipes like List my todos or Write TL;DR, a recipe library you can share with the workspace, separate chats with history, a fast or thorough model, a text file attached to the question and dictation.',
+        es: 'La barra debajo de las notas tiene la transcripción en vivo y "Preguntá lo que quieras" (⌘J o /): recipes como Mis pendientes o Resumen en 3 líneas, una biblioteca de recipes que se comparte con el workspace, chats separados con historial, modelo rápido o a fondo, un archivo de texto adjunto y dictado.',
+        pt: 'A barra embaixo das notas tem a transcrição ao vivo e "Pergunte o que quiser" (⌘J ou /): recipes como Minhas tarefas ou Resumo em 3 linhas, uma biblioteca de recipes compartilhada com o workspace, chats separados com histórico, modelo rápido ou a fundo, um arquivo de texto anexado e ditado.',
+      },
+      {
+        product: 'voice',
+        en: 'Write follow up email drafts the email from the notes and sends it from your connected Gmail or Outlook, or you copy it.',
+        es: '"Escribir email de seguimiento" redacta el email con la nota y lo manda desde tu Gmail u Outlook conectado, o lo copiás.',
+        pt: '"Escrever email de acompanhamento" escreve o email com a nota e envia do seu Gmail ou Outlook conectado, ou você copia.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-settings-everywhere',
+    date: '2026-11-09',
+    title: {
+      en: 'Every setting in one place, on the web and in the desktop app',
+      es: 'Todos los ajustes en un lugar, en la web y en la app de escritorio',
+      pt: 'Todas as configurações em um lugar, na web e no app de desktop',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Settings has a search box and four groups: Account (with the new Appearance), Workspace, This device and Products. The desktop settings window (⌘,) shows the same list: its own sections plus your account, workspace and the settings of each app, without leaving the window.',
+        es: 'Ajustes tiene una caja de búsqueda y cuatro grupos: Cuenta (con Apariencia, nueva), Workspace, Este dispositivo y Productos. La ventana de ajustes del escritorio (⌘,) muestra la misma lista: sus secciones propias más tu cuenta, el workspace y los ajustes de cada app, sin salir de la ventana.',
+        pt: 'Configurações tem uma caixa de busca e quatro grupos: Conta (com Aparência, nova), Workspace, Este dispositivo e Produtos. A janela de configurações do desktop (⌘,) mostra a mesma lista: as seções dela mais sua conta, o workspace e as configurações de cada app, sem sair da janela.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Offline: turn offline mode on or off on this device, pick which apps stay available, how much to store and for how long, see what it uses and clear it. Changes waiting for a connection are kept.',
+        es: 'Ajustes › Sin conexión: prendé o apagá el modo sin conexión en este dispositivo, elegí qué apps quedan disponibles, cuánto guardar y por cuánto tiempo, mirá cuánto ocupa y borralo. Los cambios que esperan conexión no se tocan.',
+        pt: 'Configurações › Sem conexão: ligue ou desligue o modo sem conexão neste dispositivo, escolha quais apps ficam disponíveis, quanto guardar e por quanto tempo, veja quanto ocupa e apague. As alterações esperando conexão são mantidas.',
+      },
+      {
+        product: 'voice',
+        en: 'Desktop 0.3.2: Permissions with Reset permission for Accessibility, microphone, camera and screen recording; the version and Check for updates in General and Updates; a notice in the app when an older version needs to be replaced; and a smaller recording indicator that you can drag anywhere.',
+        es: 'Escritorio 0.3.2: Permisos con Restablecer permiso para Accesibilidad, micrófono, cámara y grabación de pantalla; la versión y Buscar actualizaciones en General y Actualizaciones; un aviso en la app cuando hay que reemplazar una versión vieja; y un indicador de grabación más chico que se arrastra a cualquier lado.',
+        pt: 'Desktop 0.3.2: Permissões com Redefinir permissão para Acessibilidade, microfone, câmera e gravação de tela; a versão e Procurar atualizações em Geral e Atualizações; um aviso no app quando uma versão antiga precisa ser substituída; e um indicador de gravação menor que pode ser arrastado para qualquer lugar.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-onboarding-desktop',
+    date: '2026-11-08',
+    title: {
+      en: 'A new start: pick your apps, connect your accounts and get the desktop app',
+      es: 'Un comienzo nuevo: elegí tus apps, conectá tus cuentas y bajate la app de escritorio',
+      pt: 'Um começo novo: escolha seus apps, conecte suas contas e baixe o app para computador',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'The first-run setup asks which apps you will use (suggested from your role) and puts them first on Home, in the sidebar and in the app switcher. Your answers are saved as you go, so closing the tab resumes where you left off.',
+        es: 'El primer ingreso pregunta qué apps vas a usar (sugeridas según tu rol) y las pone primero en el inicio, el sidebar y el selector de apps. Las respuestas se guardan a medida que avanzás: si cerrás la pestaña, retomás donde quedaste.',
+        pt: 'O primeiro acesso pergunta quais apps você vai usar (sugeridos pela sua função) e os coloca primeiro no início, na barra lateral e no seletor de apps. As respostas são salvas enquanto você avança: se fechar a aba, retoma de onde parou.',
+      },
+      {
+        product: 'platform',
+        en: 'Then, all skippable: connect Google Calendar, Gmail or a WhatsApp line for the apps you picked, bring your data from HubSpot, Notion, Linear, Periskope and others, and download the desktop app.',
+        es: 'Después, todo salteable: conectá Google Calendar, Gmail o una línea de WhatsApp según las apps que elegiste, traé tus datos de HubSpot, Notion, Linear, Periskope y otras, y bajate la app de escritorio.',
+        pt: 'Depois, tudo opcional: conecte Google Agenda, Gmail ou uma linha de WhatsApp conforme os apps escolhidos, traga seus dados do HubSpot, Notion, Linear, Periskope e outros, e baixe o app para computador.',
+      },
+      {
+        product: 'platform',
+        en: 'Desktop downloads detect Mac (Apple silicon or Intel) and Windows, let you pick by hand, and show how to open the app the first time. The same download lives at /download and in the account menu.',
+        es: 'La descarga de escritorio detecta Mac (Apple silicon o Intel) y Windows, deja elegir a mano y explica cómo abrir la app la primera vez. La misma descarga está en /download y en el menú de la cuenta.',
+        pt: 'O download para computador detecta Mac (Apple silicon ou Intel) e Windows, deixa escolher manualmente e explica como abrir o app na primeira vez. O mesmo download está em /download e no menu da conta.',
+      },
+      {
+        product: 'platform',
+        en: 'Home shows Getting started with what is still missing. Each step checks itself off from real data (an account connected, an import, someone invited, the desktop app signed in), and you can hide it.',
+        es: 'El inicio muestra Primeros pasos con lo que falta. Cada paso se marca solo con datos reales (una cuenta conectada, un import, alguien invitado, la app de escritorio abierta con tu cuenta) y se puede ocultar.',
+        pt: 'O início mostra Primeiros passos com o que falta. Cada passo se marca sozinho com dados reais (uma conta conectada, uma importação, alguém convidado, o app para computador aberto com sua conta) e pode ser ocultado.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-analytics-questions-dashboards',
+    date: '2026-11-08',
+    title: {
+      en: 'Analytics: questions and dashboards over your data',
+      es: 'Analytics: preguntas y tableros sobre tus datos',
+      pt: 'Analytics: perguntas e painéis sobre seus dados',
+    },
+    items: [
+      {
+        product: 'analytics',
+        en: 'A new app to ask questions about your CRM, Track, Books, Lines and Pulse data, with each person seeing only what they can see in each app. Build a question without code, write SQL with autocomplete and variables, or ask in plain words and read the SQL it writes.',
+        es: 'Una app nueva para hacer preguntas sobre tus datos de CRM, Track, Books, Lines y Pulse, donde cada persona ve solo lo que puede ver en cada app. Armá una pregunta sin código, escribí SQL con autocompletado y variables, o preguntá con tus palabras y leé el SQL que arma.',
+        pt: 'Um app novo para fazer perguntas sobre seus dados de CRM, Track, Books, Lines e Pulse, em que cada pessoa vê só o que pode ver em cada app. Monte uma pergunta sem código, escreva SQL com autocompletar e variáveis, ou pergunte com suas palavras e leia o SQL que ele monta.',
+      },
+      {
+        product: 'analytics',
+        en: 'Admins can connect PostgreSQL or MySQL. Queries run read-only with a time and row limit, and admins choose who can write SQL on each database.',
+        es: 'Los admins pueden conectar PostgreSQL o MySQL. Las consultas corren de solo lectura con tope de tiempo y de filas, y los admins eligen quién puede escribir SQL en cada base.',
+        pt: 'Os admins podem conectar PostgreSQL ou MySQL. As consultas rodam só de leitura com limite de tempo e de linhas, e os admins escolhem quem pode escrever SQL em cada banco.',
+      },
+      {
+        product: 'analytics',
+        en: 'Dashboards with filters wired to each card, auto-refresh and full screen, collections, public links and iframes, and daily or weekly summaries by email or to a Talk channel.',
+        es: 'Tableros con filtros conectados a cada tarjeta, actualización automática y pantalla completa, colecciones, links públicos e iframes, y resúmenes diarios o semanales por email o a un canal de Talk.',
+        pt: 'Painéis com filtros conectados a cada cartão, atualização automática e tela cheia, coleções, links públicos e iframes, e resumos diários ou semanais por email ou para um canal do Talk.',
+      },
+    ],
+  },
+  {
     id: '2026-11-09-inbox-folders-ai-history',
     date: '2026-11-09',
     title: {

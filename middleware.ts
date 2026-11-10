@@ -298,6 +298,6 @@ export const config = {
     // Menos las subidas de adjuntos (lib/file-attachments.ts): el middleware
     // clona el cuerpo hasta 10 MB y corta el resto. Esas rutas chequean el
     // acceso por app ellas mismas.
-    '/api/((?!(?:.*/)?attachments/upload$)(?:crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk|design|shop|analytics|social|hiring|people|books|sign|forms|send|inbox)(?:/.*)?)',
+    '/api/((?!(?:.*/)?attachments/upload$)(?:crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk|design|shop|analytics|bi|social|hiring|people|books|sign|forms|send|inbox)(?:/.*)?)',
   ],
 };

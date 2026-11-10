@@ -7,31 +7,13 @@ import { useLocale, useTranslations } from 'next-intl';
 import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import CopyButton from '@/components/link/CopyButton';
+import Icon from '@/components/app/icons';
+import DesktopDownload, { DesktopFeatures, type DesktopRelease } from '@/components/desktop/DesktopDownload';
 import { Link } from '@/i18n/navigation';
+import { inDesktopApp } from '@/lib/desktop-detect';
+import { cleanApps, ONBOARDING_ROLES, SOURCE_TOOL_KEYS, SOURCE_TOOLS, suggestedApps, type OnboardingDraft } from '@/lib/onboarding-shared';
 import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
-import { featuredApps, WORKSPACE_SIZES_LIST, type WorkspaceMode } from '@/lib/workspace-mode';
-
-const ROLES = ['founder', 'sales', 'support', 'marketing', 'engineering', 'product', 'operations', 'design', 'other'] as const;
-/** Herramientas de origen (lib/onboarding.ts → SOURCE_TOOLS), con la app que la reemplaza. */
-const TOOLS: Array<{ key: string; name: string; app: ProductKey; importable: boolean }> = [
-  { key: 'hubspot', name: 'HubSpot', app: 'crm', importable: true },
-  { key: 'pipedrive', name: 'Pipedrive', app: 'crm', importable: true },
-  { key: 'salesforce', name: 'Salesforce', app: 'crm', importable: false },
-  { key: 'notion', name: 'Notion', app: 'docs', importable: true },
-  { key: 'linear', name: 'Linear', app: 'track', importable: true },
-  { key: 'jira', name: 'Jira', app: 'track', importable: true },
-  { key: 'github', name: 'GitHub Issues', app: 'track', importable: true },
-  { key: 'calendly', name: 'Calendly', app: 'cal', importable: true },
-  { key: 'bitly', name: 'Bitly', app: 'link', importable: true },
-  { key: 'evernote', name: 'Evernote', app: 'notes', importable: true },
-  { key: 'slack', name: 'Slack', app: 'talk', importable: false },
-  { key: 'intercom', name: 'Intercom', app: 'chat', importable: false },
-  { key: 'miro', name: 'Miro', app: 'board', importable: false },
-  { key: 'zapier', name: 'Zapier', app: 'flow', importable: false },
-  { key: 'loom', name: 'Loom', app: 'rec', importable: false },
-];
-
-type Step = 'use' | 'team' | 'you' | 'invite' | 'start';
+import { WORKSPACE_SIZES_LIST, type WorkspaceMode } from '@/lib/workspace-mode';
 
 interface InviteResult {
   email: string;
@@ -184,13 +166,62 @@ function InvitedWelcome({ workspaceId, workspaceName, name: initialName, email, 
   );
 }
 
+export interface SetupConnection {
+  key: 'calendar' | 'email' | 'whatsapp';
+  relevant: boolean;
+  done: boolean;
+  /** Inicio del OAuth (se le suma ?return=) o null si este servidor no lo tiene configurado. */
+  href: string | null;
+  /** Dónde se configura a mano (la app correspondiente). */
+  settings: string;
+}
+
+export interface SetupProps {
+  step: string;
+  connections: SetupConnection[];
+  sourceTool: string | null;
+  imported: boolean;
+  admin: boolean;
+  release: DesktopRelease | null;
+  desktopSeen: boolean;
+  result: { connected: string; result: string } | null;
+}
+
+type ProfileStep = 'use' | 'team' | 'you' | 'apps' | 'invite';
+
+function post(body: unknown, keepalive = false) {
+  return fetch('/api/onboarding', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+    keepalive,
+  }).catch(() => null);
+}
+
+/** Barra y "Paso n de m" arriba de cada tarjeta. */
+function Progress({ label, value }: { label: string; value: number }) {
+  return (
+    <>
+      <div className="wl-top">
+        <Logo variant="symbol" tone="current" height={28} title="" />
+        <p className="wl-progress" aria-live="polite">
+          {label}
+        </p>
+      </div>
+      <div className="wl-bar" aria-hidden="true">
+        <span style={{ width: `${Math.round(value * 100)}%` }} />
+      </div>
+    </>
+  );
+}
+
 /**
- * Onboarding de una cuenta nueva en pasos: uso (personal o equipo), equipo
- * (nombre y tamaño), vos (nombre y rol), invitar (solo equipo) y por dónde
- * empezar (herramienta de origen y app de entrada). Enter avanza, Atrás vuelve.
+ * Onboarding de una cuenta nueva, en dos tramos. El primero (este) arma el
+ * workspace: uso, equipo, vos, apps e invitaciones; guarda un borrador en cada
+ * paso (se retoma al volver) y al final todo junto. El segundo es SetupFlow.
  */
 export default function WelcomeFlow(props: {
-  kind: 'full' | 'invited';
+  kind: 'full' | 'invited' | 'setup';
   workspaceName: string;
   /** El workspace que lo invitó (para "No sos vos"). */
   workspaceId?: string;
@@ -202,55 +233,87 @@ export default function WelcomeFlow(props: {
   suggestedTeam: string;
   pendingInvites: Array<{ token: string; team: string; inviter: string }>;
   domainWorkspaces: Array<{ id: string; name: string }>;
+  draft?: OnboardingDraft;
+  setup?: SetupProps;
 }) {
+  if (props.kind === 'invited') return <InvitedWelcome workspaceId={props.workspaceId ?? ''} workspaceName={props.workspaceName} name={props.name} email={props.email} timeZone={props.timeZone} guest={Boolean(props.guest)} />;
+  if (props.kind === 'setup' && props.setup) return <SetupFlow {...props.setup} email={props.email} />;
+  return <ProfileFlow {...props} />;
+}
+
+function ProfileFlow(props: Parameters<typeof WelcomeFlow>[0]) {
   const t = useTranslations('settings.welcome');
+  const tProducts = useTranslations('common.products');
   const locale = useLocale();
-  const [mode, setMode] = useState<WorkspaceMode | null>(null);
-  const [step, setStep] = useState<Step>('use');
-  const [teamName, setTeamName] = useState(props.suggestedTeam);
-  const [size, setSize] = useState<string>('2-10');
-  const [name, setName] = useState(props.name);
-  const [role, setRole] = useState<string>('');
-  const [invites, setInvites] = useState('');
-  const [tool, setTool] = useState<string>('');
-  const [entry, setEntry] = useState<ProductKey | ''>('');
-  const [sample, setSample] = useState(false);
+  const d = props.draft ?? {};
+  const resumed = Boolean(d.step && d.step !== 'use');
+  const [mode, setMode] = useState<WorkspaceMode | null>(d.mode ?? null);
+  const [step, setStep] = useState<ProfileStep>(d.step ?? 'use');
+  const [teamName, setTeamName] = useState(d.teamName ?? props.suggestedTeam);
+  const [size, setSize] = useState<string>(d.size ?? '2-10');
+  const [name, setName] = useState(d.name ?? props.name);
+  const [role, setRole] = useState<string>(d.role ?? '');
+  const [apps, setApps] = useState<ProductKey[] | null>(d.apps ? cleanApps(d.apps) : null);
+  const [invites, setInvites] = useState(d.invites ?? '');
+  const [sample, setSample] = useState(Boolean(d.sampleData));
+  // Las apps se tocaron a mano: cambiar de rol ya no las vuelve a sugerir.
+  const [touched, setTouched] = useState(Boolean(d.apps));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<{ next: string; invites: InviteResult[]; invalid: string[]; limited: boolean } | null>(null);
+  const [results, setResults] = useState<{ invites: InviteResult[]; invalid: string[]; limited: boolean } | null>(null);
   const [requested, setRequested] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const firstRender = useRef(true);
+  // El aviso de "guardamos tus respuestas" vale hasta el primer cambio de paso.
+  const [moved, setMoved] = useState(false);
 
-  const steps: Step[] = mode === 'team' ? ['use', 'team', 'you', 'invite', 'start'] : ['use', 'you', 'start'];
-  const index = steps.indexOf(step);
+  const steps: ProfileStep[] = mode === 'team' ? ['use', 'team', 'you', 'apps', 'invite'] : ['use', 'you', 'apps'];
+  const index = Math.max(0, steps.indexOf(step));
+  // Sin elegir todavía: las sugeridas para el rol (se ven marcadas al llegar al paso).
+  const picked = apps ?? suggestedApps(role || null, mode ?? 'team');
 
   useEffect(() => {
+    // Al cargar no se roba el foco (puede venir de un borrador); al cambiar de paso, sí.
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
     heading.current?.focus();
   }, [step]);
 
-  if (props.kind === 'invited') return <InvitedWelcome workspaceId={props.workspaceId ?? ''} workspaceName={props.workspaceName} name={props.name} email={props.email} timeZone={props.timeZone} guest={Boolean(props.guest)} />;
-
-  const chosenTool = TOOLS.find((x) => x.key === tool);
-  const apps: ProductKey[] = (() => {
-    const featured = featuredApps({ mode: mode ?? 'team', entryApp: chosenTool?.app ?? null });
-    return [...featured, ...APP_SWITCHER_ORDER.filter((k) => !featured.includes(k))];
-  })();
+  function draft(nextStep: ProfileStep) {
+    setMoved(true);
+    void post({ kind: 'draft', draft: { step: nextStep, mode: mode ?? undefined, teamName, size, name, role: role || undefined, apps: apps ?? undefined, sampleData: sample, invites } });
+  }
 
   function next() {
     setError(null);
     if (step === 'use' && !mode) return;
     if (step === 'team' && !teamName.trim()) return;
+    if (step === 'apps' && apps === null) setApps(picked);
     const i = steps.indexOf(step);
-    if (i < steps.length - 1) setStep(steps[i + 1]);
-    else void finish(false);
+    if (i < steps.length - 1) {
+      const n = steps[i + 1];
+      setStep(n);
+      draft(n);
+    } else void finish();
   }
 
   function back() {
     const i = steps.indexOf(step);
-    if (i > 0) setStep(steps[i - 1]);
+    if (i > 0) {
+      setStep(steps[i - 1]);
+      draft(steps[i - 1]);
+    }
   }
 
-  async function finish(importNow: boolean) {
+  function toggleApp(k: ProductKey) {
+    setTouched(true);
+    // Sacar deja el resto en su orden; sumar la pone al final.
+    setApps(picked.includes(k) ? picked.filter((x) => x !== k) : [...picked, k]);
+  }
+
+  async function finish() {
     if (busy) return;
     setBusy(true);
     setError(null);
@@ -260,28 +323,20 @@ export default function WelcomeFlow(props: {
     } catch {
       /* sin Intl */
     }
-    const res = await fetch('/api/onboarding', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        kind: 'full',
-        mode: mode ?? 'personal',
-        teamName: mode === 'team' ? teamName.trim() : undefined,
-        size: mode === 'team' ? size : '1',
-        role: role || undefined,
-        name: name.trim() || undefined,
-        invites: mode === 'team' && invites.trim() ? invites : undefined,
-        sourceTool: tool || undefined,
-        entryApp: entry || undefined,
-        sampleData: sample,
-        importNow,
-        locale,
-        timeZone: tz,
-      }),
-    }).catch(() => null);
-    const data = res
-      ? ((await res.json().catch(() => ({}))) as { next?: string; invites?: InviteResult[]; invalid?: string[]; invitesLimited?: boolean })
-      : {};
+    const res = await post({
+      kind: 'full',
+      mode: mode ?? 'personal',
+      teamName: mode === 'team' ? teamName.trim() : undefined,
+      size: mode === 'team' ? size : '1',
+      role: role || undefined,
+      name: name.trim() || undefined,
+      invites: mode === 'team' && invites.trim() ? invites : undefined,
+      apps: picked,
+      sampleData: sample,
+      locale,
+      timeZone: tz,
+    });
+    const data = res ? ((await res.json().catch(() => ({}))) as { invites?: InviteResult[]; invalid?: string[]; invitesLimited?: boolean }) : {};
     if (!res?.ok) {
       setBusy(false);
       setError(t('error'));
@@ -291,10 +346,11 @@ export default function WelcomeFlow(props: {
     if (failed.length || data.invalid?.length || data.invitesLimited) {
       // Algún email no salió (o no era un email): se muestra antes de seguir, con los links para copiar.
       setBusy(false);
-      setResults({ next: data.next ?? '/app', invites: data.invites ?? [], invalid: data.invalid ?? [], limited: Boolean(data.invitesLimited) });
+      setResults({ invites: data.invites ?? [], invalid: data.invalid ?? [], limited: Boolean(data.invitesLimited) });
       return;
     }
-    window.location.assign(`/${locale}${data.next ?? '/app'}`);
+    // Segundo tramo (conectar, importar, escritorio): lo arma el servidor con lo que ya está hecho.
+    window.location.assign(`/${locale}/app/welcome`);
   }
 
   async function joinDomain(id: string) {
@@ -340,7 +396,7 @@ export default function WelcomeFlow(props: {
             </div>
           ))}
         </div>
-        <button type="button" className="btn btn-primary btn-block" onClick={() => window.location.assign(`/${locale}${results.next}`)}>
+        <button type="button" className="btn btn-primary btn-block" onClick={() => window.location.assign(`/${locale}/app/welcome`)}>
           {t('continue')}
         </button>
       </div>
@@ -349,22 +405,24 @@ export default function WelcomeFlow(props: {
 
   return (
     <form
-      className="wl-card"
+      className={`wl-card${step === 'apps' ? ' wl-card-wide' : ''}`}
       aria-labelledby="wl-title"
+      data-step={step}
       onSubmit={(e) => {
         e.preventDefault();
         next();
       }}
     >
-      <div className="wl-top">
-        <Logo variant="symbol" tone="current" height={28} title="" />
-        <p className="wl-progress" aria-live="polite">
-          {step === 'use' ? t('stepFirst') : t('stepOf', { step: index + 1, total: steps.length })}
+      <Progress
+        label={step === 'use' ? t('stepFirst') : t('stepOf', { step: index + 1, total: steps.length })}
+        value={step === 'use' ? 0.12 : (index + 1) / steps.length}
+      />
+
+      {resumed && !moved && (
+        <p className="wl-resumed" role="status">
+          {t('resumed')}
         </p>
-      </div>
-      <div className="wl-bar" aria-hidden="true">
-        <span style={{ width: step === 'use' ? '20%' : `${((index + 1) / steps.length) * 100}%` }} />
-      </div>
+      )}
 
       {step === 'use' && (
         <>
@@ -385,11 +443,11 @@ export default function WelcomeFlow(props: {
               {t('use.requested', { team: requested })}
             </p>
           )}
-          {requested === null && props.domainWorkspaces.map((d) => (
-            <div key={d.id} className="wl-notice">
-              <p>{t('use.domain', { team: d.name })}</p>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void joinDomain(d.id)} disabled={busy}>
-                {t('use.join', { team: d.name })}
+          {requested === null && props.domainWorkspaces.map((dw) => (
+            <div key={dw.id} className="wl-notice">
+              <p>{t('use.domain', { team: dw.name })}</p>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void joinDomain(dw.id)} disabled={busy}>
+                {t('use.join', { team: dw.name })}
               </button>
             </div>
           ))}
@@ -455,14 +513,63 @@ export default function WelcomeFlow(props: {
           <fieldset className="st-fieldset">
             <legend className="label">{t('you.role')}</legend>
             <div className="wl-tiles">
-              {ROLES.map((r) => (
+              {ONBOARDING_ROLES.map((r) => (
                 <label key={r} className={`wl-tile${role === r ? ' is-on' : ''}`}>
-                  <input type="radio" name="role" value={r} checked={role === r} onChange={() => setRole(r)} />
+                  <input
+                    type="radio"
+                    name="role"
+                    value={r}
+                    checked={role === r}
+                    onChange={() => {
+                      setRole(r);
+                      // Cambiar de rol vuelve a sugerir apps mientras no se tocaron a mano.
+                      if (!touched) setApps(null);
+                    }}
+                  />
                   <span>{t(`roles.${r}`)}</span>
                 </label>
               ))}
             </div>
           </fieldset>
+        </>
+      )}
+
+      {step === 'apps' && (
+        <>
+          <h1 id="wl-title" className="wl-title" tabIndex={-1} ref={heading}>
+            {t('apps.title')}
+          </h1>
+          <p className="wl-sub">{t('apps.sub')}</p>
+          <fieldset className="st-fieldset">
+            <legend className="wl-apps-legend">
+              <span>{picked.length === 0 ? '' : role ? t('apps.suggested', { role: t(`roles.${role}`).toLowerCase() }) : t('apps.suggestedNoRole')}</span>
+              <span className="data wl-apps-count" aria-live="polite">
+                {t('apps.count', { n: picked.length })}
+              </span>
+            </legend>
+            <div className="wl-appgrid">
+              {APP_SWITCHER_ORDER.map((k) => {
+                const on = picked.includes(k);
+                return (
+                  <label key={k} className={`wl-appcard${on ? ' is-on' : ''}`} data-testid="wl-app" data-app={k}>
+                    <input type="checkbox" name="apps" value={k} checked={on} onChange={() => toggleApp(k)} />
+                    <span className="wl-appcard-head">
+                      <ProductGlyph product={k} size={16} />
+                      <span className="wl-appcard-name">{PRODUCT_CONFIG[k].name}</span>
+                      <span className="wl-appcard-check" aria-hidden="true">
+                        {on && <Icon name="check" size={12} />}
+                      </span>
+                    </span>
+                    <span className="wl-appcard-desc">{tProducts(`${k}.desc`)}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+          <label className="ui-check wl-sample">
+            <input type="checkbox" checked={sample} onChange={(e) => setSample(e.target.checked)} />
+            <span>{t('apps.sample')}</span>
+          </label>
         </>
       )}
 
@@ -491,55 +598,6 @@ export default function WelcomeFlow(props: {
         </>
       )}
 
-      {step === 'start' && (
-        <>
-          <h1 id="wl-title" className="wl-title" tabIndex={-1} ref={heading}>
-            {t('start.title')}
-          </h1>
-          <p className="wl-sub">{t('start.sub')}</p>
-          <fieldset className="st-fieldset">
-            <legend className="label">{t('start.tool')}</legend>
-            <div className="wl-tiles">
-              <label className={`wl-tile${tool === '' ? ' is-on' : ''}`}>
-                <input type="radio" name="tool" value="" checked={tool === ''} onChange={() => setTool('')} />
-                <span>{t('start.noTool')}</span>
-              </label>
-              {TOOLS.map((x) => (
-                <label key={x.key} className={`wl-tile${tool === x.key ? ' is-on' : ''}`}>
-                  <input
-                    type="radio"
-                    name="tool"
-                    value={x.key}
-                    checked={tool === x.key}
-                    onChange={() => {
-                      setTool(x.key);
-                      if (!entry) setEntry(x.app);
-                    }}
-                  />
-                  <span>{x.name}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <fieldset className="st-fieldset">
-            <legend className="label">{t('start.app')}</legend>
-            <div className="wl-apps">
-              {apps.map((k) => (
-                <label key={k} className={`wl-app${entry === k ? ' is-on' : ''}`}>
-                  <input type="radio" name="entry" value={k} checked={entry === k} onChange={() => setEntry(k)} />
-                  <ProductGlyph product={k} size={16} />
-                  <span>{PRODUCT_CONFIG[k].name}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <label className="ui-check wl-sample">
-            <input type="checkbox" checked={sample} onChange={(e) => setSample(e.target.checked)} />
-            <span>{t('start.sample')}</span>
-          </label>
-        </>
-      )}
-
       {error && (
         <p className="ui-error" role="alert">
           {error}
@@ -560,28 +618,214 @@ export default function WelcomeFlow(props: {
               {t('invite.skip')}
             </button>
           )}
-          {step === 'start' && chosenTool?.importable && (
-            <button type="button" className="btn btn-secondary" onClick={() => void finish(true)} disabled={busy}>
-              {t('start.importFrom', { tool: chosenTool.name })}
-            </button>
-          )}
           <button
             type="submit"
             className="btn btn-primary"
             disabled={busy || (step === 'use' && !mode) || (step === 'team' && !teamName.trim())}
             aria-busy={busy || undefined}
+            data-testid="wl-next"
           >
-            {step === 'start'
-              ? entry
-                ? t('start.go', { app: PRODUCT_CONFIG[entry].name })
-                : t('start.finish')
-              : step === 'invite' && invites.trim()
-                ? t('invite.send')
-                : t('continue')}
+            {step === 'invite' && invites.trim() ? t('invite.send') : t('continue')}
           </button>
         </div>
       </div>
       <SignedInAs email={props.email} />
     </form>
+  );
+}
+
+const CONNECT_NAMES: Record<SetupConnection['key'], string> = { calendar: 'Google Calendar', email: 'Gmail', whatsapp: 'WhatsApp' };
+
+/**
+ * Segundo tramo: conectar cuentas (según las apps elegidas), traer los datos de
+ * la herramienta anterior y la app de escritorio. Cada paso se saltea; "Saltear
+ * el resto" lo termina. Lo que está hecho lo dice la base (vuelve del OAuth con
+ * ?connected=…), y lo que quede pendiente sigue en "Primeros pasos" del inicio.
+ */
+function SetupFlow(props: SetupProps & { email: string }) {
+  const t = useTranslations('settings.welcome');
+  const locale = useLocale();
+  const [desktop, setDesktop] = useState(false);
+  useEffect(() => setDesktop(inDesktopApp()), []);
+  const relevantConnections = props.connections.filter((c) => c.relevant);
+  const steps = (['connect', 'import', 'desktop'] as const).filter(
+    (s) => (s === 'connect' ? relevantConnections.length > 0 : s === 'import' ? props.admin : !desktop),
+  );
+  const initial = (steps as readonly string[]).includes(props.step) ? (props.step as (typeof steps)[number]) : steps[0];
+  const [step, setStep] = useState(initial);
+  const [tool, setTool] = useState<string>(props.sourceTool ?? '');
+  const [busy, setBusy] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const mounted = useRef(false);
+  const index = Math.max(0, steps.indexOf(step ?? 'desktop'));
+
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      // Vuelta del OAuth: la URL limpia (sin ?connected=) para que recargar no repita el aviso.
+      if (props.result) window.history.replaceState(null, '', window.location.pathname);
+      return;
+    }
+    heading.current?.focus();
+  }, [step, props.result]);
+
+  // Sin pasos (p. ej. miembro sin apps conectables, dentro de la app de escritorio): directo al inicio.
+  useEffect(() => {
+    if (desktop && steps.length === 0) void done();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [desktop, steps.length]);
+
+  async function done() {
+    if (busy) return;
+    setBusy(true);
+    await post({ kind: 'setup', done: true });
+    window.location.assign(`/${locale}/app`);
+  }
+
+  function go(n: number) {
+    const target = steps[n];
+    if (!target) {
+      void done();
+      return;
+    }
+    setStep(target);
+    void post({ kind: 'setup', step: target });
+  }
+
+  function pickTool(k: string) {
+    setTool(k);
+    void post({ kind: 'setup', sourceTool: k || null });
+  }
+
+  const last = index >= steps.length - 1;
+  const chosen = tool ? SOURCE_TOOLS[tool] : undefined;
+  const ret = encodeURIComponent(`/${locale}/app/welcome`);
+  const resultConn = props.result ? props.connections.find((c) => c.key === props.result!.connected) : undefined;
+
+  if (!step) return null;
+
+  return (
+    <div className={`wl-card${step === 'desktop' ? ' wl-card-wide' : ''}`} aria-labelledby="wl-title" data-step={step}>
+      <Progress label={t('setup.stepOf', { step: index + 1, total: steps.length })} value={(index + 1) / steps.length} />
+      {index === 0 && (
+        <p className="wl-saved">
+          <Icon name="check" size={14} />
+          {t('setup.savedTitle')}
+        </p>
+      )}
+
+      {step === 'connect' && (
+        <>
+          <h1 id="wl-title" className="wl-title" tabIndex={-1} ref={heading}>
+            {t('connect.title')}
+          </h1>
+          <p className="wl-sub">{t('connect.sub')}</p>
+          {props.result && resultConn && (
+            <p className={props.result.result === 'connected' ? 'wl-notice' : 'ui-error'} role="status" data-testid="wl-connect-result">
+              {t(`connect.result.${['connected', 'denied', 'scopes'].includes(props.result.result) ? props.result.result : 'error'}`, { name: CONNECT_NAMES[resultConn.key] })}
+            </p>
+          )}
+          <ul className="wl-connect">
+            {relevantConnections.map((c) => (
+              <li key={c.key} className={`wl-connect-row${c.done ? ' is-done' : ''}`} data-testid={`wl-connect-${c.key}`}>
+                <span className="wl-connect-icon" aria-hidden="true">
+                  <Icon name={c.key === 'calendar' ? 'calendar' : c.key === 'email' ? 'inbox' : 'groups'} size={16} />
+                </span>
+                <span className="wl-connect-text">
+                  <span className="wl-connect-name">{t(`connect.${c.key}.name`)}</span>
+                  <span className="wl-connect-body">{t(`connect.${c.key}.body`)}</span>
+                </span>
+                {c.done ? (
+                  <span className="wl-connect-done">
+                    <Icon name="check" size={14} />
+                    {t('connect.connected')}
+                  </span>
+                ) : c.href ? (
+                  <a className="btn btn-secondary btn-sm" href={`${c.href}?return=${ret}`}>
+                    {t('connect.connect')}
+                  </a>
+                ) : (
+                  // Navegación completa: el onboarding va sin el chrome de la app y una navegación del cliente lo dejaría así.
+                  <a className="btn btn-secondary btn-sm" href={`/${locale}${c.settings}`}>
+                    {t('connect.openSettings')}
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {step === 'import' && (
+        <>
+          <h1 id="wl-title" className="wl-title" tabIndex={-1} ref={heading}>
+            {t('import.title')}
+          </h1>
+          <p className="wl-sub">{t('import.sub')}</p>
+          <div className="wl-tiles" role="radiogroup" aria-label={t('import.title')}>
+            <label className={`wl-tile${tool === '' ? ' is-on' : ''}`}>
+              <input type="radio" name="tool" value="" checked={tool === ''} onChange={() => pickTool('')} />
+              <span>{t('import.none')}</span>
+            </label>
+            {SOURCE_TOOL_KEYS.map((k) => (
+              <label key={k} className={`wl-tile${tool === k ? ' is-on' : ''}`}>
+                <input type="radio" name="tool" value={k} checked={tool === k} onChange={() => pickTool(k)} />
+                <ProductGlyph product={SOURCE_TOOLS[k].app} size={12} />
+                <span>{SOURCE_TOOLS[k].name}</span>
+              </label>
+            ))}
+          </div>
+          {chosen && !chosen.importHref && <p className="ui-help">{t('import.soon', { tool: chosen.name })}</p>}
+          {chosen?.importHref && (
+            <div className="wl-import-go">
+              <a
+                className="btn btn-primary"
+                href={`/${locale}${chosen.importHref}`}
+                onClick={() => void post({ kind: 'setup', step: steps[index + 1] ?? 'desktop' }, true)}
+                data-testid="wl-import-go"
+              >
+                {t('import.go', { tool: chosen.name })}
+              </a>
+            </div>
+          )}
+        </>
+      )}
+
+      {step === 'desktop' && (
+        <>
+          <h1 id="wl-title" className="wl-title" tabIndex={-1} ref={heading}>
+            {t('desktop.title')}
+          </h1>
+          <p className="wl-sub">{t('desktop.sub')}</p>
+          <DesktopDownload release={props.release} variant="step" track watch seen={props.desktopSeen} headingLevel={2} />
+          <DesktopFeatures />
+        </>
+      )}
+
+      <div className="wl-actions">
+        {index > 0 ? (
+          <button type="button" className="btn btn-ghost" onClick={() => go(index - 1)} disabled={busy}>
+            {t('back')}
+          </button>
+        ) : (
+          <button type="button" className="btn btn-ghost" onClick={() => void done()} disabled={busy} data-testid="wl-skip-all">
+            {t('skipAll')}
+          </button>
+        )}
+        <div className="wl-actions-main">
+          <button
+            type="button"
+            className={`btn ${(step === 'import' && chosen?.importHref) || (step === 'desktop' && props.release && !props.desktopSeen) ? 'btn-secondary' : 'btn-primary'}`}
+            onClick={() => go(index + 1)}
+            disabled={busy}
+            aria-busy={busy || undefined}
+            data-testid="wl-next"
+          >
+            {last ? t('setup.finish') : step === 'import' && chosen?.importHref ? t('import.later') : t('setup.next')}
+          </button>
+        </div>
+      </div>
+      <p className="wl-foot">{t('signedInAs', { email: props.email })}</p>
+    </div>
   );
 }

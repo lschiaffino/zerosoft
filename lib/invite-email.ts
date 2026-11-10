@@ -7,7 +7,7 @@
  * (appSender: EMAIL_FROM o notifications@RESEND_EMAIL_DOMAIN) y Reply-To a
  * quien invita, así la respuesta le llega a una persona.
  */
-import { appSender, escapeHtml, namedSender, sendEmail } from './email';
+import { appSender, cleanDisplayName, escapeHtml, namedSender, sendEmail } from './email';
 import { cleanLine } from './workspace';
 
 type Lang = 'en' | 'es' | 'pt';
@@ -122,7 +122,8 @@ export function renderInviteEmail(input: InviteEmailInput): { subject: string; t
   // Sin caracteres de control: el nombre va al asunto (ninguna inyección de headers).
   const vars = { inviter: cleanLine(input.inviterName), workspace: cleanLine(input.workspaceName), date };
   const esc = (s: string) => escapeHtml(s);
-  const subject = fill(c.subject, vars);
+  // El asunto lleva el nombre limpio igual que el remitente (namedSender).
+  const subject = fill(c.subject, { ...vars, inviter: cleanDisplayName(input.inviterName) || 'zerosoft' });
   // Con apps limitadas, el email dice cuáles en vez de "las mismas apps que el resto".
   const list = (names: string[]) => new Intl.ListFormat(tag, { type: 'conjunction' }).format(names.map((a) => cleanLine(a)));
   const appsLine =

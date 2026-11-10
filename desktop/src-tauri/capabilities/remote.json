@@ -16,6 +16,9 @@
     "allow-desktop-start-login",
     "allow-desktop-open-settings",
     "allow-desktop-notify",
-    "allow-desktop-recording"
+    "allow-desktop-recording",
+    "allow-desktop-system-audio-start",
+    "allow-desktop-system-audio-read",
+    "allow-desktop-system-audio-stop"
   ]
 }

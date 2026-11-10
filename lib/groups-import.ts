@@ -148,12 +148,14 @@ export async function getImportStatus(ws: string, numberId: string): Promise<Imp
 }
 
 /** Importaciones del workspace en curso o recién terminadas (la bandeja muestra el progreso). */
-export async function activeImports(ws: string): Promise<ImportStatus[]> {
+export async function activeImports(ws: string, viewer?: import('./groups-access').GroupsViewer): Promise<ImportStatus[]> {
   const since = new Date(Date.now() - 2 * 60_000).toISOString();
   const rows = (await getDb()
     .prepare("SELECT * FROM groups_imports WHERE user_id = ? AND (status IN ('queued', 'running') OR (finished_at IS NOT NULL AND finished_at > ?))")
     .all(ws, since)) as ImportRow[];
-  return rows.map(toStatus);
+  const { visibleNumberIds } = await import('./groups-access');
+  const visible = await visibleNumberIds(viewer);
+  return rows.filter((r) => !visible || visible.has(r.number_id)).map(toStatus);
 }
 
 /** Corre una tanda después de responder (o acá mismo si no hay request). */
