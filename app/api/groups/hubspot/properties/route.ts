@@ -15,7 +15,13 @@ export async function GET() {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   if (s.user.role === 'guest') return groupsError(403, 'forbidden');
-  return NextResponse.json(await getHubspotSchema(s.ws));
+  let schema = await getHubspotSchema(s.ws);
+  // Conectado antes de que existiera el esquema (o falló al conectar): se importa la primera vez que alguien lo pide.
+  if (schema.connected && !schema.syncedAt) {
+    await refreshHubspotSchema(s.ws).catch(() => null);
+    schema = await getHubspotSchema(s.ws);
+  }
+  return NextResponse.json(schema);
 }
 
 /**

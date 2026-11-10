@@ -32,9 +32,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     id: '2026-11-10-lines-hubspot-properties',
     date: '2026-11-10',
     title: {
-      en: 'Lines: every HubSpot company property, synced both ways',
-      es: 'Lines: todas las propiedades de la empresa de HubSpot, sincronizadas en los dos sentidos',
-      pt: 'Lines: todas as propriedades da empresa do HubSpot, sincronizadas nos dois sentidos',
+      en: 'Lines: HubSpot company properties, synced both ways',
+      es: 'Lines: las propiedades de HubSpot, sincronizadas ida y vuelta',
+      pt: 'Lines: as propriedades do HubSpot, sincronizadas ida e volta',
     },
     items: [
       {
