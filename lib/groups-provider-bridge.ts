@@ -871,13 +871,32 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
     case 'contacts.update':
     case 'contacts.set':
       return evolutionContactEvents(Array.isArray(d) ? (d as Json[]) : [d]);
+    case 'chats.update': {
+      // Archivar o desarchivar desde el teléfono: la fila trae `archived` (o `archive`).
+      const rows = Array.isArray(d) ? (d as Json[]) : [d];
+      return rows.flatMap((c): InboundEvent[] => {
+        const jid = String(c.remoteJid ?? c.id ?? '');
+        const flag = typeof c.archived === 'boolean' ? c.archived : typeof c.archive === 'boolean' ? c.archive : null;
+        return jid && flag !== null && !/@(broadcast|newsletter)$/.test(jid) ? [{ type: 'archive', chatId: jid, archived: flag }] : [];
+      });
+    }
     case 'chats.set':
     case 'chats.upsert': {
       // Solo los grupos traen un nombre confiable acá (en los 1:1 Evolution pone el pushName del último mensaje, que puede ser el nuestro).
       const rows = Array.isArray(d) ? (d as Json[]) : [d];
-      return rows
+      const names = rows
         .filter((c) => isGroupJid(String(c.remoteJid ?? c.id ?? '')) && cleanPushName(c.name))
         .map((c) => ({ type: 'contact' as const, chatId: String(c.remoteJid ?? c.id), name: cleanPushName(c.name) }));
+      // CHATS_SET lo atiende ingestHistoryChats (con el resto de los datos del chat); CHATS_UPSERT trae el estado de archivado de a un chat.
+      const flags: InboundEvent[] =
+        event === 'chats.upsert'
+          ? rows.flatMap((c): InboundEvent[] => {
+              const jid = String(c.remoteJid ?? c.id ?? '');
+              const flag = typeof c.archived === 'boolean' ? c.archived : typeof c.archive === 'boolean' ? c.archive : null;
+              return jid && flag !== null && !/@(broadcast|newsletter)$/.test(jid) ? [{ type: 'archive', chatId: jid, archived: flag }] : [];
+            })
+          : [];
+      return [...names, ...flags];
     }
     case 'messages.update': {
       const rows = Array.isArray(d) ? (d as Json[]) : [d];
@@ -1025,8 +1044,27 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         const name = cleanPushName(c.pushName) || (!isGroup && lk.fromMe !== true ? cleanPushName(last.pushName) : '');
         const ts = Number(last.messageTimestamp);
         const pic = typeof c.profilePicUrl === 'string' && /^https:\/\//.test(c.profilePicUrl) ? c.profilePicUrl : '';
-        return [{ remoteJid, chatId, isGroup, name, pictureUrl: pic, unread: Math.max(0, Number(c.unreadCount) || 0), lastAt: Number.isFinite(ts) ? ts : 0 }];
+        return [{ remoteJid, chatId, isGroup, name, pictureUrl: pic, unread: Math.max(0, Number(c.unreadCount) || 0), archived: c.archived === true || c.archive === true, lastAt: Number.isFinite(ts) ? ts : 0 }];
       });
+    },
+    async messagePage(remoteJid, size, page) {
+      const r = (await api(
+        `/chat/findMessages/${instance}`,
+        'POST',
+        { where: { key: { remoteJid } }, offset: Math.max(1, Math.min(size, 500)), page: Math.max(1, Math.floor(page)) },
+        { maxBytes: 16 * 1024 * 1024 },
+      )) as Json;
+      const box = (r.messages ?? {}) as Json;
+      const list = Array.isArray(box.records) ? (box.records as Json[]) : [];
+      const pages = Number(box.pages);
+      const current = Number(box.currentPage) || Math.floor(page);
+      const events = list
+        .slice()
+        .sort((a, b) => Number(a.messageTimestamp ?? 0) - Number(b.messageTimestamp ?? 0))
+        .flatMap((m) => evolutionMessageEvents(m, true));
+      // Sin "pages" (otra versión), hay más mientras la página venga llena.
+      const more = Number.isFinite(pages) && pages > 0 ? current < pages : list.length >= size;
+      return { events, more, total: Number(box.total) || 0 };
     },
     async messages(remoteJid, limit, page = 1) {
       const r = (await api(
@@ -1141,6 +1179,11 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     /** /chat/updateBlockStatus (Evolution v2): bloquea o desbloquea el número en WhatsApp. */
     async blockContact(chatId, block) {
       await api(`/chat/updateBlockStatus/${instance}`, 'POST', { number: chatId, status: block ? 'block' : 'unblock' });
+    },
+    /** /chat/archiveChat (Evolution v2): pide el mensaje más nuevo del chat como referencia. */
+    async archiveChat(chatId, archive, last) {
+      const key = { remoteJid: chatId, fromMe: !!last?.fromMe, id: last?.id ?? '' };
+      await api(`/chat/archiveChat/${instance}`, 'POST', { lastMessage: { key }, chat: chatId, archive });
     },
     async sendText(chatId, text, o) {
       const r = (await api(`/message/sendText/${instance}`, 'POST', {

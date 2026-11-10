@@ -197,7 +197,9 @@ export interface SidebarLabels {
     store: string;
     newProduct: string;
   };
-  /** Analytics (PostHog): web, eventos, insights, tableros, personas, cohortes, flags y SQL. */
+  /** Analytics (tipo Metabase): explorar, datos y crear preguntas o tableros. */
+  bi?: { browse: string; data: string; newQuestion: string; newSql: string; newDashboard: string };
+  /** Pulse (PostHog): web, eventos, insights, tableros, personas, cohortes, flags y SQL. */
   analytics: {
     web: string;
     events: string;
@@ -327,6 +329,7 @@ export type AppProduct =
   | 'design'
   | 'shop'
   | 'pulse'
+  | 'analytics'
   | 'social'
   | 'hiring'
   | 'people'
@@ -354,6 +357,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/design', 'design'],
   ['/app/shop', 'shop'],
   ['/app/pulse', 'pulse'],
+  ['/app/analytics', 'analytics'],
   ['/app/social', 'social'],
   ['/app/hiring', 'hiring'],
   ['/app/people', 'people'],
@@ -403,6 +407,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   design: 'design',
   shop: 'shop',
   pulse: 'analytics',
+  analytics: 'dashboards',
   social: 'social',
   hiring: 'hiring',
   people: 'people',
@@ -419,6 +424,8 @@ export function appProductFromPath(pathname: string): AppProduct {
   if (pathname === '/app/settings' || pathname.startsWith('/app/settings/')) return 'home';
   // El asistente es de la plataforma (no de una app): shell neutro.
   if (pathname === '/app/assistant' || pathname.startsWith('/app/assistant/')) return 'home';
+  // La app de escritorio (menú de la cuenta) también: shell neutro, no el de Link.
+  if (pathname === '/app/download') return 'home';
   for (const [prefix, product] of PRODUCT_PREFIXES) {
     if (pathname.includes(prefix)) return product;
   }
@@ -462,13 +469,16 @@ export const HOME_APPS_LIMIT = 8;
  */
 export function homeAppGroups(
   labels: SidebarLabels,
-  opts: { allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode; staff?: boolean } = {},
+  opts: { allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode; staff?: boolean; chosen?: readonly ProductKey[] | null } = {},
 ): NavGroup[] {
   const can = (k: ProductKey) => appAllowed(opts.allowed, k);
   // Las "Próximamente" van aparte, al final: nadie las usa salvo el staff (vista previa).
   const all = APP_SWITCHER_ORDER.filter((k) => !isComingSoon(k) && can(k));
   const recent = (opts.recentApps ?? []).filter((k): k is ProductKey => (all as readonly string[]).includes(k));
-  const top = [...new Set([...recent, ...featuredApps({ mode: opts.mode ?? 'team' }).filter((k) => all.includes(k)), ...all])].slice(0, HOME_APPS_LIMIT);
+  // Con apps elegidas en el onboarding, "Tus apps" son esas (y las recientes); si no, se completa con todas.
+  const ready = (k: ProductKey) => !isComingSoon(k) && can(k);
+  const chosen = opts.chosen?.length ? opts.chosen.filter(ready) : null;
+  const top = [...new Set([...recent, ...featuredApps({ mode: opts.mode ?? 'team', chosen }).filter((k) => all.includes(k)), ...(chosen ? [] : all)])].slice(0, HOME_APPS_LIMIT);
   const rest = all.filter((k) => !top.includes(k));
   const item = (line: ProductKey): NavItem => ({
     href: switcherHref(line),
@@ -499,7 +509,7 @@ export function buildNav(
   product: AppProduct,
   pathname: string,
   labels: SidebarLabels,
-  counts: { tasksDue?: number; unread?: number; allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode; staff?: boolean } = {},
+  counts: { tasksDue?: number; unread?: number; allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode; staff?: boolean; chosen?: readonly ProductKey[] | null } = {},
 ): NavGroup[] {
   const at = (prefix: string) => pathname.startsWith(prefix);
   const tasksDue = counts.tasksDue ?? 0;
@@ -873,6 +883,19 @@ export function buildNav(
         },
         appSettingsGroup('/app/design/settings'),
       ];
+    case 'analytics': {
+      const b = labels.bi;
+      if (!b) return [];
+      return [
+        {
+          items: [
+            // Preguntas y tableros cuelgan del ítem (BiBranch en el hueco #side-branch).
+            { href: '/app/analytics', label: b.browse, active: pathname === '/app/analytics' || at('/app/analytics/questions') || at('/app/analytics/dashboards'), icon: 'dashboards', branch: true },
+            { href: '/app/analytics/data', label: b.data, active: at('/app/analytics/data'), icon: 'sql' },
+          ],
+        },
+      ];
+    }
     case 'pulse': {
       const a = labels.analytics;
       return [
@@ -1173,6 +1196,14 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/inbox?new=1', labels.inbox.compose, 'inbox')];
     case 'sign':
       return [item('/app/sign/new', labels.sign.newEnvelope, 'sign')];
+    case 'analytics':
+      return labels.bi
+        ? [
+            item('/app/analytics/questions/new', labels.bi.newQuestion, 'insights'),
+            item('/app/analytics/questions/new?mode=sql&new=1', labels.bi.newSql, 'sql'),
+            item('/app/analytics?new=1', labels.bi.newDashboard, 'dashboards'),
+          ]
+        : [];
     case 'pulse':
       return [
         item('/app/pulse/insights/new', labels.analytics.newInsight, 'insights'),

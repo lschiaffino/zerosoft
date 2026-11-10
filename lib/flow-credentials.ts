@@ -2,11 +2,11 @@
  * Credenciales por workspace para Flow (nodos de integraciones, HTTP) y
  * Robots ({{credentials.<name>.password}}). Server-only.
  *
- * Cifrado: AES-256-GCM. Clave = SHA-256 de CREDENTIALS_KEY, o de
- * ENCRYPTION_KEY / NEXTAUTH_SECRET si no está (con separación de dominio).
- * El texto cifrado queda atado al workspace y a la credencial (AAD): una fila
- * copiada a otro workspace no se puede descifrar. Rotar la clave invalida las
- * credenciales guardadas (hay que volver a cargarlas).
+ * Cifrado: AES-256-GCM. Con ENCRYPTION_KEYS, una subclave de la maestra activa
+ * (lib/key-ring.ts, "cred:v2:<kid>:"); sin ella, "cred:v1:" con SHA-256 de
+ * CREDENTIALS_KEY o de ENCRYPTION_KEY / NEXTAUTH_SECRET, que se sigue leyendo. El texto cifrado queda atado al workspace y a la credencial (AAD):
+ * una fila copiada a otro workspace no se puede descifrar. La rotación de
+ * claves (scripts/rotate-encryption-keys.ts) las vuelve a cifrar.
  *
  * Los secretos nunca vuelven al cliente: la API devuelve solo los campos no
  * secretos y una pista enmascarada.
@@ -27,10 +27,13 @@ import {
   type CredentialType,
 } from './flow-credentials-schema';
 import { open, seal } from './secret-box';
+import { activeKey, findKey, subKey, usingKeyRing } from './key-ring';
 
 const PREFIX = 'cred:v1:';
+const PREFIX_V2 = 'cred:v2:';
 
-function key(): Buffer {
+/** Clave de v1 (heredada): CREDENTIALS_KEY, o derivada de ENCRYPTION_KEY / NEXTAUTH_SECRET. */
+function legacyKey(): Buffer {
   const dedicated = process.env.CREDENTIALS_KEY;
   if (dedicated) return createHash('sha256').update(dedicated).digest();
   const secret = process.env.ENCRYPTION_KEY || process.env.NEXTAUTH_SECRET;
@@ -41,27 +44,58 @@ function key(): Buffer {
   return createHash('sha256').update(`zerosoft:flow-credentials:${secret}`).digest();
 }
 
+const PURPOSE = 'flow-credentials';
+
 function aad(workspaceId: string, credentialId: string): Buffer {
   return Buffer.from(`${workspaceId}:${credentialId}`, 'utf8');
 }
 
+/**
+ * Con ENCRYPTION_KEYS: "cred:v2:<kid>:<iv>.<tag>.<datos>", con una subclave de la maestra
+ * activa (lib/key-ring.ts). Sin ella, el formato heredado v1 (mismo criterio que secret-box).
+ */
 export function encryptCredential(workspaceId: string, credentialId: string, data: Record<string, string>): string {
+  const ring = usingKeyRing();
+  const master = activeKey();
   const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', key(), iv);
+  const cipher = createCipheriv('aes-256-gcm', ring ? subKey(master, PURPOSE) : legacyKey(), iv, { authTagLength: 16 });
   cipher.setAAD(aad(workspaceId, credentialId));
   const enc = Buffer.concat([cipher.update(JSON.stringify(data), 'utf8'), cipher.final()]);
-  return `${PREFIX}${iv.toString('base64url')}.${cipher.getAuthTag().toString('base64url')}.${enc.toString('base64url')}`;
+  const body = `${iv.toString('base64url')}.${cipher.getAuthTag().toString('base64url')}.${enc.toString('base64url')}`;
+  return ring ? `${PREFIX_V2}${master.id}:${body}` : `${PREFIX}${body}`;
+}
+
+/** ¿Está cifrada con otra clave que la activa (o en v1)? Lo usa la rotación de claves. */
+export function credentialNeedsRotation(value: string): boolean {
+  if (value.startsWith(PREFIX)) return usingKeyRing();
+  if (!value.startsWith(PREFIX_V2)) return false;
+  return value.slice(PREFIX_V2.length).split(':')[0] !== activeKey().id;
 }
 
 /** null si no se puede descifrar (otra clave, otro workspace o dato corrupto). */
 export function decryptCredential(workspaceId: string, credentialId: string, value: string): Record<string, string> | null {
-  if (!value.startsWith(PREFIX)) return null;
+  let key: Buffer;
+  let body: string;
   try {
-    const [iv, tag, data] = value.slice(PREFIX.length).split('.');
-    const decipher = createDecipheriv('aes-256-gcm', key(), Buffer.from(iv, 'base64url'));
+    if (value.startsWith(PREFIX_V2)) {
+      const rest = value.slice(PREFIX_V2.length);
+      const colon = rest.indexOf(':');
+      const master = findKey(rest.slice(0, colon));
+      if (!master) return null;
+      key = subKey(master, PURPOSE);
+      body = rest.slice(colon + 1);
+    } else if (value.startsWith(PREFIX)) {
+      key = legacyKey();
+      body = value.slice(PREFIX.length);
+    } else {
+      return null;
+    }
+    const [iv, tag, data] = body.split('.').map((p) => Buffer.from(p ?? '', 'base64url'));
+    if (iv.length !== 12 || tag.length !== 16) return null;
+    const decipher = createDecipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
     decipher.setAAD(aad(workspaceId, credentialId));
-    decipher.setAuthTag(Buffer.from(tag, 'base64url'));
-    const plain = Buffer.concat([decipher.update(Buffer.from(data, 'base64url')), decipher.final()]).toString('utf8');
+    decipher.setAuthTag(tag);
+    const plain = Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
     const parsed = JSON.parse(plain) as unknown;
     return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : null;
   } catch {

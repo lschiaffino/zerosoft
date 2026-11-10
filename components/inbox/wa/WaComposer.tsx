@@ -7,10 +7,13 @@ import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { ClockIcon, Close, Mic, SendIcon, Smiley, Sparkle } from '@/components/groups/wa/icons';
 import { api } from '../api';
+import AiWrite, { streamAi } from '../AiWrite';
 import type { ComposerHandle } from '../Composer';
 
 type Rewrite = 'shorter' | 'friendlier' | 'formal' | 'fix';
 const REWRITES: Rewrite[] = ['shorter', 'friendlier', 'formal', 'fix'];
+const LANGS = ['en', 'es', 'pt'] as const;
+const LANG_NAME: Record<(typeof LANGS)[number], string> = { en: 'English', es: 'Spanish', pt: 'Portuguese' };
 
 /**
  * Campo de WhatsApp como en WhatsApp Web: emoji, el campo que crece, y
@@ -49,6 +52,7 @@ const WaComposer = forwardRef<
   const w = useTranslations('inboxWa');
   const [text, setText] = useState(thread.draft);
   const [busy, setBusy] = useState<'' | 'send' | 'ai'>('');
+  const [aiOpen, setAiOpen] = useState(false);
   const [undo, setUndo] = useState<string | null>(null);
   const [emoji, setEmoji] = useState(false);
   const [snipQ, setSnipQ] = useState<string | null>(null);
@@ -66,6 +70,7 @@ const WaComposer = forwardRef<
     setUndo(null);
     setSnipQ(null);
     setEmoji(false);
+    setAiOpen(false);
   }, [thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Editar: el texto del mensaje en el campo; al salir, vuelve lo que había.
@@ -173,32 +178,58 @@ const WaComposer = forwardRef<
     onSent(r.data.messages);
   }, [text, busy, disabled, editing, thread.id, replyToId, onSaveEdit, onCancelBanner, onSent, onError]);
 
+  /** Pide a la IA y escribe en el campo a medida que llega; si falla, vuelve lo que había. */
+  const streamInto = useCallback(
+    async (ask: Parameters<typeof streamAi>[0]) => {
+      const before = text;
+      setBusy('ai');
+      const r = await streamAi(ask, (full) => setText(full));
+      setBusy('');
+      if (!r.ok) {
+        setText(before);
+        onError(r.code);
+        return;
+      }
+      setUndo(before);
+      setText(r.text);
+      area.current?.focus();
+    },
+    [text, onError],
+  );
+
   const draft = useCallback(async () => {
     if (busy) return;
-    setBusy('ai');
-    const r = await api<{ text: string }>('/api/inbox/ai', { method: 'POST', json: { action: 'draft', threadId: thread.id, instruction: text.trim() || undefined } });
-    setBusy('');
-    if (!r.ok) {
-      onError(r.data.error ?? 'ai_failed');
-      return;
-    }
-    setUndo(text);
-    setText(r.data.text);
-    area.current?.focus();
-  }, [busy, text, thread.id, onError]);
+    await streamInto({ action: 'draft', threadId: thread.id, instruction: text.trim() || undefined });
+  }, [busy, text, thread.id, streamInto]);
 
   const rewrite = async (mode: Rewrite) => {
     if (!text.trim() || busy) return;
-    setBusy('ai');
-    const r = await api<{ text: string }>('/api/inbox/ai', { method: 'POST', json: { action: 'rewrite', text, mode } });
-    setBusy('');
-    if (!r.ok) {
-      onError(r.data.error ?? 'ai_failed');
-      return;
-    }
-    setUndo(text);
-    setText(r.data.text);
+    await streamInto({ action: 'rewrite', text, mode, threadId: thread.id });
+  };
+
+  const translate = async (lang: (typeof LANGS)[number]) => {
+    if (!text.trim() || busy) return;
+    await streamInto({ action: 'rewrite', text, mode: 'custom', instruction: `Translate the message to ${LANG_NAME[lang]}. Keep the meaning, the tone and the formatting.`, threadId: thread.id });
+  };
+
+  /** Dicta con Voice: el texto entra en el campo. */
+  const dictate = () => {
     area.current?.focus();
+    window.dispatchEvent(new Event('zs:voice-dictate'));
+  };
+
+  /** Abre la lista de snippets (lo mismo que escribir ";"). */
+  const openSnippets = () => {
+    const el = area.current;
+    const caret = el?.selectionStart ?? text.length;
+    const sep = caret > 0 && !/\s$/.test(text.slice(0, caret)) ? ' ' : '';
+    setText(`${text.slice(0, caret)}${sep};${text.slice(caret)}`);
+    setSnipQ('');
+    setSnipIdx(0);
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(caret + sep.length + 1, caret + sep.length + 1);
+    });
   };
 
   useImperativeHandle(
@@ -243,8 +274,12 @@ const WaComposer = forwardRef<
   };
 
   const aiItems: MenuItem[] = [
+    { key: 'ask', label: t('aiAsk'), onSelect: () => setAiOpen(true) },
     { key: 'draft', label: text.trim() ? t('aiFromText') : t('aiDraft'), onSelect: () => void draft() },
     ...(text.trim() ? REWRITES.map((m) => ({ key: m, label: t(`rewrites.${m}`), onSelect: () => void rewrite(m) })) : []),
+    ...(text.trim() ? LANGS.map((l) => ({ key: `tr-${l}`, label: t(`translateTo.${l}`), onSelect: () => void translate(l) })) : []),
+    { key: 'dictate', label: t('dictate'), divider: true, onSelect: dictate },
+    ...(snippets.length ? [{ key: 'snippets', label: t('snippets'), onSelect: openSnippets }] : []),
     ...(undo !== null
       ? [
           {
@@ -288,6 +323,21 @@ const WaComposer = forwardRef<
             </li>
           ))}
         </ul>
+      )}
+      {aiOpen && (
+        <AiWrite
+          threadId={thread.id}
+          onClose={() => {
+            setAiOpen(false);
+            area.current?.focus();
+          }}
+          onInsert={(v) => {
+            setUndo(text);
+            setText(v);
+            setAiOpen(false);
+            requestAnimationFrame(() => area.current?.focus());
+          }}
+        />
       )}
       <div className="wa-bar">
         <span className="wa-emoji-wrap">
@@ -399,13 +449,18 @@ const WaComposer = forwardRef<
             align="right"
           />
         )}
-        {hasText && !editing && (
-          <button type="button" className="wa-icon-btn" aria-label={t('later')} title={t('later')} disabled={disabled || busy !== ''} onClick={() => onSendLater(text.trim())}>
+        {!editing && (
+          <button type="button" className="wa-icon-btn" data-testid="inbox-send-later" aria-label={t('later')} title={t('laterHint')} disabled={disabled || busy !== ''} onClick={() => onSendLater(text.trim())}>
             <ClockIcon size={20} />
           </button>
         )}
         {hasText || editing || !onMic ? (
-          <button type="button" className="wa-send" aria-label={editing ? w('saveEdit') : t('send')} title={editing ? w('saveEdit') : t('send')} disabled={disabled || !hasText || busy !== ''} onClick={() => void send()}>
+          <button type="button" className="wa-send" aria-label={editing ? w('saveEdit') : t('send')} title={editing ? w('saveEdit') : t('send')} disabled={disabled || !hasText || busy !== ''} onClick={() => void send()} onContextMenu={(e) => {
+            // Clic derecho en Enviar: programar el envío (como en WhatsApp).
+            if (editing || !hasText) return;
+            e.preventDefault();
+            onSendLater(text.trim());
+          }}>
             {editing ? <span aria-hidden="true">✓</span> : <SendIcon size={20} />}
           </button>
         ) : (

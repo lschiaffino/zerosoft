@@ -7,7 +7,7 @@ export type ThreadKind = 'dm' | 'group' | 'email';
 export type AccountStatus = 'disconnected' | 'pending' | 'qr' | 'connected' | 'error';
 
 /** Vistas fijas de la barra (como los splits de Superhuman). Las carpetas propias van aparte. */
-export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done'] as const;
+export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived'] as const;
 export type InboxView = (typeof INBOX_VIEWS)[number];
 
 export function isInboxView(v: unknown): v is InboxView {
@@ -52,6 +52,8 @@ export interface ThreadDto {
   unread: number;
   pinned: boolean;
   done: boolean;
+  /** Archivado (como WhatsApp): fuera de la bandeja, en "Archivados". */
+  archived: boolean;
   snoozedUntil: string | null;
   woke: '' | 'snooze' | 'followup';
   followUpAt: string | null;
@@ -180,7 +182,10 @@ export interface FolderDto {
   position: number;
   parentId: string | null;
   rule: FolderRule | null;
+  /** Chats sin leer de la carpeta y sus subcarpetas (sin repetir). */
   count: number;
+  /** Chats sin leer de la carpeta sola. */
+  ownCount: number;
 }
 
 export interface SnippetDto {
@@ -201,6 +206,16 @@ export interface ScheduledDto {
   sendAt: string;
   status: ScheduledStatus;
   error: string;
+  /** Envío de varios mensajes al que pertenece (el id propio si es uno solo). */
+  batchId: string;
+  /** Orden dentro del envío (0 = el primero). */
+  seq: number;
+  /** Espera después del mensaje anterior, en segundos. */
+  delaySec: number;
+  /** Archivo que sale con el mensaje ('' sin archivo); el texto va como pie. */
+  mediaName: string;
+  mediaType: string;
+  mediaUrl: string;
 }
 
 export const FOLDER_COLORS = ['#3d5a80', '#0e9f6e', '#7b4dff', '#e23d7f', '#c2700a', '#0284c7', '#6b7280', '#b91c1c'] as const;

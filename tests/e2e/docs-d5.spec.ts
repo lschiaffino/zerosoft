@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { readFile } from 'fs/promises';
 
@@ -317,7 +317,7 @@ test('D5: sin red mientras otra persona edita el mismo bloque, al volver (sin re
   const visit = await ctxB.newPage();
   await visit.goto('/en/app/docs', { waitUntil: 'domcontentloaded' });
   await visit.close();
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   await db.execute({ sql: "UPDATE users SET onboarded_at = datetime('now') WHERE email = ?", args: [email] });
   db.close();
   const share = await request.post(`/api/docs/pages/${doc.id}/share`, { data: { kind: 'user', email, role: 'edit' } });

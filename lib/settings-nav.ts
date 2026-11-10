@@ -30,23 +30,30 @@ export function activeRouteTab(items: RouteTab[], pathname: string): string | un
 
 export const SETTINGS_ADMIN_ROUTES = ['/app/settings/feedback', '/app/settings/roadmap', '/app/settings/changelog', '/app/settings/lifecycle', '/app/settings/waitlist'] as const;
 
-/** Secciones de "Cuenta y workspace", en el orden de la nav. Admin va al final y solo para ADMIN_EMAILS. */
-export const SETTINGS_SECTION_KEYS = [
-  'profile',
-  'workspace',
-  'members',
-  'apps',
-  'teams',
-  'billing',
-  'api',
-  'connections',
-  'import',
-  'security',
-  'notifications',
-  // La app de escritorio (Mac y Windows): lleva a /download.
-  'desktop',
-] as const;
+/**
+ * Secciones de la plataforma, en el orden de la nav. Es la única lista: la
+ * usan la nav de /app/settings, ⌘K, la ventana de Ajustes del escritorio
+ * (que la pide a /api/settings/nav) y la nav embebida en esa ventana.
+ * Admin va al final de Workspace y solo para ADMIN_EMAILS.
+ */
+export const SETTINGS_ACCOUNT_KEYS = ['profile', 'appearance', 'notifications'] as const;
+export const SETTINGS_WORKSPACE_KEYS = ['workspace', 'members', 'apps', 'teams', 'billing', 'api', 'connections', 'import', 'security'] as const;
+/** Este dispositivo: sin conexión y la app de escritorio. */
+export const SETTINGS_DEVICE_KEYS = ['offline', 'desktop'] as const;
+export const SETTINGS_SECTION_KEYS = [...SETTINGS_ACCOUNT_KEYS, ...SETTINGS_WORKSPACE_KEYS, ...SETTINGS_DEVICE_KEYS] as const;
 export type SettingsSectionKey = (typeof SETTINGS_SECTION_KEYS)[number] | 'admin';
+
+/**
+ * Secciones nativas de la ventana de Ajustes del escritorio (desktop/ui/settings.ts, TABS):
+ * viven en la app, no en la web. En la ventana, la nav embebida las lista y cada link
+ * (/app/settings/desktop/<sección>) lo intercepta la app y abre la sección nativa.
+ */
+export const DESKTOP_NATIVE_SECTIONS = ['start', 'general', 'meetings', 'voice', 'dictionary', 'history', 'permissions', 'updates', 'account'] as const;
+export type DesktopNativeSection = (typeof DESKTOP_NATIVE_SECTIONS)[number];
+
+export function desktopNativeHref(tab: DesktopNativeSection): string {
+  return `/app/settings/desktop/${tab}`;
+}
 
 export function settingsSectionKeys(isAdmin: boolean): SettingsSectionKey[] {
   return isAdmin ? [...SETTINGS_SECTION_KEYS, 'admin'] : [...SETTINGS_SECTION_KEYS];
@@ -55,7 +62,6 @@ export function settingsSectionKeys(isAdmin: boolean): SettingsSectionKey[] {
 export function settingsSectionHref(key: SettingsSectionKey): string {
   if (key === 'profile') return '/app/settings';
   if (key === 'admin') return SETTINGS_ADMIN_ROUTES[0];
-  if (key === 'desktop') return '/download';
   return `/app/settings/${key}`;
 }
 
@@ -63,32 +69,52 @@ export interface SettingsNavItem extends RouteTab {
   href: string;
   /** Solo en el grupo Productos: la app (para el nombre y la muestra de color). */
   product?: ProductKey;
+  /** Sección nativa del escritorio (solo dentro de su ventana de Ajustes). */
+  native?: DesktopNativeSection;
 }
 
+export type SettingsGroupKey = 'account' | 'workspace' | 'device' | 'products';
+
 export interface SettingsNavGroup {
-  key: 'account' | 'products';
+  key: SettingsGroupKey;
   items: SettingsNavItem[];
 }
 
+const sectionItem = (key: SettingsSectionKey): SettingsNavItem =>
+  key === 'admin' ? { key, href: SETTINGS_ADMIN_ROUTES[0], match: [...SETTINGS_ADMIN_ROUTES.slice(1)] } : { key, href: settingsSectionHref(key) };
+
 /**
- * La nav lateral de /app/settings: "Cuenta y workspace" (una ruta por
- * sección) y "Productos" (una entrada por app hacia /app/<app>/settings).
+ * La nav de Ajustes: Cuenta, Workspace, Este dispositivo y Productos (una
+ * entrada por app hacia /app/<app>/settings). Con `desktop` (la ventana de
+ * Ajustes de la app de escritorio) Este dispositivo va primero y lleva las
+ * secciones nativas de la app en lugar del link a la descarga.
  */
-export function settingsSections(isAdmin: boolean): SettingsNavGroup[] {
-  return [
-    {
-      key: 'account',
-      items: settingsSectionKeys(isAdmin).map((key) =>
-        key === 'admin'
-          ? { key, href: SETTINGS_ADMIN_ROUTES[0], match: [...SETTINGS_ADMIN_ROUTES.slice(1)] }
-          : { key, href: settingsSectionHref(key) },
-      ),
-    },
-    {
-      key: 'products',
-      items: PRODUCT_KEYS.map((product) => ({ key: product, href: productSettingsHref(product), product })),
-    },
+export function settingsSections(isAdmin: boolean, opts: { desktop?: boolean } = {}): SettingsNavGroup[] {
+  const device: SettingsNavGroup = {
+    key: 'device',
+    items: opts.desktop
+      ? [
+          ...DESKTOP_NATIVE_SECTIONS.map((tab) => ({ key: `desktop-${tab}`, href: desktopNativeHref(tab), native: tab })),
+          sectionItem('offline'),
+        ]
+      : SETTINGS_DEVICE_KEYS.map(sectionItem),
+  };
+  const groups: SettingsNavGroup[] = [
+    { key: 'account', items: SETTINGS_ACCOUNT_KEYS.map(sectionItem) },
+    { key: 'workspace', items: [...SETTINGS_WORKSPACE_KEYS, ...(isAdmin ? (['admin'] as const) : [])].map(sectionItem) },
+    device,
+    { key: 'products', items: PRODUCT_KEYS.map((product) => ({ key: product, href: productSettingsHref(product), product })) },
   ];
+  return opts.desktop ? [device, ...groups.filter((g) => g !== device)] : groups;
+}
+
+/** Filtro de la caja de búsqueda de la nav: rótulo o palabras clave, sin tildes ni mayúsculas. */
+export function matchesSettingsQuery(query: string, ...texts: Array<string | undefined>): boolean {
+  const norm = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const words = norm(query).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = norm(texts.filter(Boolean).join(' '));
+  return words.every((w) => hay.includes(w));
 }
 
 /**

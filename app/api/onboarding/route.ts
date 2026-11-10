@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { onboardingDestination, saveBasicProfile, saveOnboarding } from '@/lib/onboarding';
+import {
+  dismissChecklist,
+  markDesktopDownloaded,
+  markDesktopSeen,
+  onboardingDestination,
+  saveBasicProfile,
+  saveDraft,
+  saveOnboarding,
+  saveSetupProgress,
+  SETUP_STEPS,
+} from '@/lib/onboarding';
+import { getOnboardingState } from '@/lib/onboarding-state';
 import { rateLimit } from '@/lib/rate-limit';
-import { getCurrentUser, realUserId } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { publicBase, requestLocale } from '@/lib/teams-http';
 import { ensureWorkspace } from '@/lib/workspace';
 import { isComingSoon } from '@/lib/products';
@@ -20,6 +31,7 @@ const fullSchema = z.object({
   role: z.string().max(30).optional(),
   sourceTool: z.string().max(30).optional(),
   entryApp: z.string().max(20).optional(),
+  apps: z.array(z.string().max(20)).max(40).optional(),
   goals: z.array(z.string().max(40)).max(10).optional(),
   invites: z.union([z.string().max(20_000), z.array(z.string().max(320)).max(50)]).optional(),
   name: z.string().max(80).optional(),
@@ -38,8 +50,33 @@ const basicSchema = z.object({
   timeZone: z.string().max(64).optional(),
 });
 
+const draftSchema = z.object({ kind: z.literal('draft'), draft: z.record(z.string(), z.unknown()) });
+const setupSchema = z.object({
+  kind: z.literal('setup'),
+  step: z.enum(SETUP_STEPS).optional(),
+  done: z.boolean().optional(),
+  sourceTool: z.string().max(30).nullable().optional(),
+});
+const desktopSchema = z.object({ kind: z.literal('desktop'), event: z.enum(['seen', 'download']), platform: z.string().max(10).optional(), version: z.string().max(32).optional() });
+const checklistSchema = z.object({ kind: z.literal('checklist'), dismissed: z.boolean() });
+
+/**
+ * GET: el estado del onboarding de la persona (lib/onboarding-state.ts), sacado de los datos.
+ */
+export async function GET() {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const real = user.actingUser ?? user;
+  const state = await getOnboardingState(real.id, { workspaceId: user.id, admin: isWorkspaceAdmin(user) });
+  return NextResponse.json({ state });
+}
+
 /**
  * POST: guarda el onboarding.
+ * - { kind: 'draft', draft }: borrador del primer tramo (se retoma al volver).
+ * - { kind: 'setup', step?, done?, sourceTool? }: segundo tramo (conectar, importar, escritorio).
+ * - { kind: 'desktop', event: 'seen' | 'download' }: la app de escritorio se abrió, o se tocó un instalador.
+ * - { kind: 'checklist', dismissed }: cerrar o volver a mostrar "Primeros pasos".
  * - { kind: 'full', … }: cuenta nueva (uso, equipo, invitaciones, rol, origen, app de entrada).
  * - { kind: 'invited', name, locale, timeZone }: quien entró por una invitación.
  * Devuelve a dónde seguir (`next`) y, si invitó gente, cómo salió cada email.
@@ -48,9 +85,32 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const real = user.actingUser ?? user;
-  const limit = await rateLimit(`onboarding:${realUserId(user)}`, 20, 600);
+  const limit = await rateLimit(`onboarding:${realUserId(user)}`, 120, 600);
   if (!limit.ok) return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
   const raw = await req.json().catch(() => null);
+
+  const draft = draftSchema.safeParse(raw);
+  if (draft.success) {
+    if (real.onboarded_at) return NextResponse.json({ ok: true });
+    await saveDraft(real.id, draft.data.draft);
+    return NextResponse.json({ ok: true });
+  }
+  const setup = setupSchema.safeParse(raw);
+  if (setup.success) {
+    await saveSetupProgress(real.id, setup.data);
+    return NextResponse.json({ ok: true });
+  }
+  const desktop = desktopSchema.safeParse(raw);
+  if (desktop.success) {
+    if (desktop.data.event === 'seen') await markDesktopSeen(real.id, desktop.data);
+    else await markDesktopDownloaded(real.id);
+    return NextResponse.json({ ok: true });
+  }
+  const checklist = checklistSchema.safeParse(raw);
+  if (checklist.success) {
+    await dismissChecklist(real.id, checklist.data.dismissed);
+    return NextResponse.json({ ok: true });
+  }
 
   const basic = basicSchema.safeParse(raw);
   if (basic.success) {

@@ -27,12 +27,14 @@
     "gray-matter": "^4.0.3",
     "katex": "^0.18.11",
     "marked": "^14.1.4",
+    "mysql2": "^3.24.6",
     "nanoid": "^5.0.9",
     "next": "^15.5.27",
     "next-auth": "^4.24.15",
     "next-intl": "^4.14.9",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.4.299",
+    "pg": "^8.23.1",
     "playwright-core": "^1.64.0",
     "qrcode": "^1.5.4",
     "react": "^19.3.0",
@@ -42,6 +44,8 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.15",
+    "@electric-sql/pglite-socket": "^0.2.18",
     "@playwright/test": "^1.64.0",
     "@types/geoip-lite": "^1.4.4",
     "@types/node": "^22.20.5",

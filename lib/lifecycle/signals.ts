@@ -12,6 +12,7 @@ import { getDb } from '../db';
 import { PRODUCT_KEYS, type ProductKey } from '../products';
 import type { LifecycleLocale, LifecycleSignals } from './types';
 import { IMPORT_HREFS } from './rules';
+import { chosenApps as onboardingApps } from '../onboarding-shared';
 
 export interface SignalsSource {
   load(userId: string): Promise<LifecycleSignals | null>;
@@ -35,7 +36,7 @@ function asLocale(v: unknown): LifecycleLocale {
   return v === 'es' || v === 'pt' ? v : 'en';
 }
 
-function parseProfile(raw: unknown): { entryApp?: string; goals?: unknown; sourceTool?: string; role?: string } {
+function parseProfile(raw: unknown): { entryApp?: string; goals?: unknown; sourceTool?: string; role?: string; desktopSeenAt?: string } {
   try {
     const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
     return v && typeof v === 'object' ? v : {};
@@ -129,7 +130,8 @@ export const dbSignalsSource: SignalsSource = {
       .get(userId)) as UserBits | undefined;
     if (!u) return null;
     const profile = parseProfile(u.profile);
-    const apps = chosenApps(profile);
+    // Las apps que eligió en el onboarding (users.profile.apps, lib/onboarding-shared.ts); si no hay, las deducidas.
+    const apps = onboardingApps(u.profile) ?? chosenApps(profile);
     const ws = await workspaceOf(u);
     const owner = ws.ownerId;
     // Los datos de ejemplo del onboarding no cuentan como "creó lo primero". Las fechas
@@ -198,7 +200,8 @@ export const dbSignalsSource: SignalsSource = {
       imported: importedJobs || importedCrm || events.has('imported'),
       calendarConnected: calendar,
       whatsappConnected: whatsapp,
-      desktopInstalled: events.has('desktop_installed'),
+      // La app de escritorio avisa al abrirse con la cuenta (lib/onboarding.ts → markDesktopSeen) o al iniciar sesión.
+      desktopInstalled: events.has('desktop_installed') || Boolean(profile.desktopSeenAt),
       usedVoice: voice,
       usedAssistant: assistant,
       usedMcp: mcpGrant || mcpAudit || events.has('mcp_connected'),

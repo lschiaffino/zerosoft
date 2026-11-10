@@ -6,6 +6,7 @@ import type { FolderDto, MessageDto, ScheduledDto, SnippetDto, ThreadDto } from 
 import { avatarHue, longWhen, api } from './api';
 import Avatar from '@/components/groups/wa/Avatar';
 import { chatName } from './wa/util';
+import ScheduledList from './ScheduledList';
 import Composer, { type ComposerHandle } from './Composer';
 
 export interface ThreadDetail {
@@ -13,6 +14,8 @@ export interface ThreadDetail {
   messages: MessageDto[];
   more: boolean;
   scheduled: ScheduledDto[];
+  /** Mensaje al que ir (resultado de búsqueda). */
+  focus?: string;
 }
 
 /** Partes de un texto con links clicables (con y sin https://) y emails. */
@@ -172,6 +175,17 @@ const Conversation = forwardRef<
     }
   }, [messages]);
 
+  // Ir al mensaje buscado: centrado y marcado un momento.
+  useEffect(() => {
+    if (!detail.focus) return;
+    const el = scroller.current?.querySelector<HTMLElement>(`[data-msg="${CSS.escape(detail.focus)}"]`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center' });
+    el.classList.add('ib-msg-hit');
+    const id = window.setTimeout(() => el.classList.remove('ib-msg-hit'), 2600);
+    return () => window.clearTimeout(id);
+  }, [detail.focus, detail.thread.id]);
+
   useEffect(() => {
     setTitle(thread.title);
     setRenaming(false);
@@ -196,11 +210,6 @@ const Conversation = forwardRef<
     if (!r.ok) onError(r.data.error ?? 'generic');
   };
 
-  const scheduledAction = async (s: ScheduledDto, kind: 'send' | 'cancel') => {
-    const r = await api(`/api/inbox/scheduled/${s.id}`, { method: kind === 'send' ? 'POST' : 'DELETE' });
-    if (!r.ok) onError(r.data.error ?? 'generic');
-    onScheduledChange();
-  };
 
   const folderNames = thread.folderIds.map((id) => folders.find((f) => f.id === id)?.name).filter(Boolean) as string[];
   let prevDay = '';
@@ -317,7 +326,7 @@ const Conversation = forwardRef<
           const sep = day !== prevDay;
           prevDay = day;
           return (
-            <div key={m.id}>
+            <div key={m.id} data-msg={m.id}>
               {sep && (
                 <div className="ib-day" role="separator">
                   <span>{dayLabel(m.sentAt, locale, t('message.today'), t('message.yesterday'))}</span>
@@ -328,26 +337,7 @@ const Conversation = forwardRef<
           );
         })}
       </div>
-      {scheduled.length > 0 && (
-        <ul className="ib-scheduled" aria-label={t('scheduled.title')}>
-          {scheduled.map((s) => (
-            <li key={s.id} className={`ib-sched${s.status !== 'pending' ? ' is-bad' : ''}`}>
-              <span className="ib-sched-when">
-                {s.status === 'pending' || s.status === 'sending' ? t('scheduled.at', { when: longWhen(s.sendAt, locale) }) : t(`scheduled.status.${s.status}`)}
-              </span>
-              <span className="ib-sched-body">{s.body}</span>
-              <span className="ib-row">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => void scheduledAction(s, 'send')} disabled={!connected || s.status === 'sending'}>
-                  {t('scheduled.sendNow')}
-                </button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => void scheduledAction(s, 'cancel')} disabled={s.status === 'sending'}>
-                  {t('scheduled.cancel')}
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ScheduledList thread={thread} scheduled={scheduled} connected={connected} onChange={onScheduledChange} onError={onError} />
       <Composer ref={composerRef} thread={thread} snippets={snippets} disabled={!connected} onSent={onSent} onSendLater={onSendLater} onError={onError} />
     </section>
   );

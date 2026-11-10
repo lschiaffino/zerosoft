@@ -18,6 +18,7 @@ search (Cmd+K) and one settings page.
 | Track | Linear | `/app/track` |
 | Board | Miro | `/app/board` |
 | Design | Canva | `/app/design` |
+| Analytics | Metabase | `/app/analytics` |
 | Pulse | PostHog | `/app/pulse` |
 
 **Sell**

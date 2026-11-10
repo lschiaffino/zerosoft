@@ -3,7 +3,10 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   activeRouteTab,
+  DESKTOP_NATIVE_SECTIONS,
   groupState,
+  matchesSettingsQuery,
+  settingsSectionHref,
   legacySettingsTarget,
   quotaPct,
   SETTINGS_ELSEWHERE,
@@ -12,18 +15,21 @@ import {
   webhookEventGroups,
 } from '@/lib/settings-nav';
 import { PRODUCT_KEYS } from '@/lib/products';
+import { isSettingsRoute, isSettingsEmbed } from '@/lib/settings-embed';
 import { WEBHOOK_EVENTS } from '@/lib/webhooks-events';
 import { pageExists } from './page-exists';
 
 const root = join(__dirname, '..', '..');
 
 describe('settings: secciones de la plataforma', () => {
-  const account = (admin: boolean) => settingsSections(admin)[0].items;
+  const account = (admin: boolean) => settingsSections(admin).flatMap((g) => (g.key === 'products' ? [] : g.items));
 
-  it('dos grupos: Cuenta y workspace (Admin solo para ADMIN_EMAILS) y Productos', () => {
-    expect(settingsSections(false).map((g) => g.key)).toEqual(['account', 'products']);
+  it('cuatro grupos: Cuenta, Workspace (Admin solo para ADMIN_EMAILS), Este dispositivo y Productos', () => {
+    expect(settingsSections(false).map((g) => g.key)).toEqual(['account', 'workspace', 'device', 'products']);
     expect(account(false).map((t) => t.key)).toEqual([
       'profile',
+      'appearance',
+      'notifications',
       'workspace',
       'members',
       'apps',
@@ -33,14 +39,57 @@ describe('settings: secciones de la plataforma', () => {
       'connections',
       'import',
       'security',
-      'notifications',
+      'offline',
       'desktop',
     ]);
-    expect(account(true).map((t) => t.key).at(-1)).toBe('admin');
+    expect(settingsSections(true)[1].items.map((t) => t.key).at(-1)).toBe('admin');
+    expect(settingsSectionHref('desktop')).toBe('/app/settings/desktop');
+  });
+
+  it('en la ventana del escritorio, Este dispositivo va primero con las secciones nativas y Sin conexión', () => {
+    const groups = settingsSections(false, { desktop: true });
+    expect(groups.map((g) => g.key)).toEqual(['device', 'account', 'workspace', 'products']);
+    expect(groups[0].items.map((i) => i.native ?? i.key)).toEqual([...DESKTOP_NATIVE_SECTIONS, 'offline']);
+    expect(groups[0].items[0].href).toBe('/app/settings/desktop/start');
+    // La app intercepta esas rutas: son rutas de ajustes (y la página existe para el navegador).
+    for (const i of groups[0].items) expect(isSettingsRoute(i.href), i.href).toBe(true);
+  });
+
+  it('las secciones nativas son las mismas en la web, en la ventana del escritorio y en Rust', () => {
+    const ts = readFileSync(join(root, 'desktop', 'ui', 'settings.ts'), 'utf8');
+    const tabs = /const TABS = \[([^\]]+)\] as const/.exec(ts)?.[1].match(/'([a-z]+)'/g)?.map((x) => x.slice(1, -1));
+    expect(tabs).toEqual([...DESKTOP_NATIVE_SECTIONS]);
+    const rs = readFileSync(join(root, 'desktop', 'src-tauri', 'src', 'nav.rs'), 'utf8');
+    const native = /NATIVE_SECTIONS: \[&str; \d+\] = \[([^\]]+)\]/.exec(rs)?.[1].match(/"([a-z]+)"/g)?.map((x) => x.slice(1, -1));
+    expect(native).toEqual([...DESKTOP_NATIVE_SECTIONS]);
+    // Cada sección nativa tiene su nombre en la web (nav embebida) y en el escritorio.
+    const desktop = JSON.parse(readFileSync(join(root, 'desktop', 'strings.json'), 'utf8'));
+    for (const locale of ['en', 'es', 'pt']) {
+      const m = JSON.parse(readFileSync(join(root, 'messages', locale, 'settings.json'), 'utf8'));
+      for (const tab of DESKTOP_NATIVE_SECTIONS) {
+        const cap = `${tab[0].toUpperCase()}${tab.slice(1)}`;
+        expect(m.desktopSections[tab], `${locale}: desktopSections.${tab}`).toBeTruthy();
+        expect(desktop[locale][`tab${cap}`], `${locale}: tab${cap}`).toBe(m.desktopSections[tab]);
+        expect(desktop[locale][`kw${cap}`], `${locale}: kw${cap}`).toBeTruthy();
+      }
+    }
+  });
+
+  it('rutas de ajustes que la ventana del escritorio abre adentro', () => {
+    for (const p of ['/app/settings', '/es/app/settings/offline', '/app/crm/settings', '/pt/app/track/settings', '/app/chat/widgets']) expect(isSettingsRoute(p), p).toBe(true);
+    for (const p of ['/app/crm', '/app/settingsx', '/es/app/docs/abc', '/download']) expect(isSettingsRoute(p), p).toBe(false);
+  });
+
+  it('el filtro de la nav busca por nombre o palabra clave, sin tildes', () => {
+    expect(matchesSettingsQuery('', 'Perfil')).toBe(true);
+    expect(matchesSettingsQuery('conexion', 'Sin conexión')).toBe(true);
+    expect(matchesSettingsQuery('dark', 'Appearance', 'theme, dark mode')).toBe(true);
+    expect(matchesSettingsQuery('dark mode', 'Appearance', 'theme, dark mode')).toBe(true);
+    expect(matchesSettingsQuery('billing', 'Members')).toBe(false);
   });
 
   it('Productos: una entrada por app hacia /app/<app>/settings, y cada ruta existe', () => {
-    const products = settingsSections(false)[1].items;
+    const products = settingsSections(false).find((g) => g.key === 'products')!.items;
     expect(products.map((p) => p.product)).toEqual(PRODUCT_KEYS);
     expect(products.find((p) => p.product === 'cal')?.href).toBe('/app/calendar/settings');
     expect(products.find((p) => p.product === 'link')?.href).toBe('/app/links/settings');
@@ -57,6 +106,12 @@ describe('settings: secciones de la plataforma', () => {
     expect(activeRouteTab(tabs, '/app/settings/changelog')).toBe('admin');
     expect(activeRouteTab(tabs, '/app/settingsx')).toBeUndefined();
     expect(activeRouteTab(tabs, '/app/crm')).toBeUndefined();
+  });
+
+  it('el user agent de la ventana del escritorio activa el modo embebido', () => {
+    expect(isSettingsEmbed('Mozilla/5.0 (Macintosh) Safari/605.1.15 zerosoft-settings/0.3.2')).toBe(true);
+    expect(isSettingsEmbed('Mozilla/5.0 (Macintosh) Safari/605.1.15')).toBe(false);
+    expect(isSettingsEmbed(null)).toBe(false);
   });
 
   it('sin Admin, las rutas de admin caen en Perfil (el 404 lo da la página)', () => {
@@ -80,7 +135,10 @@ describe('settings: secciones de la plataforma', () => {
   it('cada sección y grupo tiene texto en en/es/pt', () => {
     for (const locale of ['en', 'es', 'pt']) {
       const m = JSON.parse(readFileSync(join(root, 'messages', locale, 'settings.json'), 'utf8'));
-      for (const item of account(true)) expect(m.sections[item.key], `${locale}: ${item.key}`).toBeTruthy();
+      for (const item of account(true)) {
+        expect(m.sections[item.key], `${locale}: ${item.key}`).toBeTruthy();
+        expect(m.keywords[item.key], `${locale}: keywords.${item.key}`).toBeTruthy();
+      }
       for (const g of settingsSections(true)) expect(m.groups[g.key], `${locale}: ${g.key}`).toBeTruthy();
       for (const [section, links] of Object.entries(SETTINGS_ELSEWHERE)) {
         for (const key of ['title', 'desc', 'empty']) expect(m.soon[section][key], `${locale}: soon.${section}.${key}`).toBeTruthy();

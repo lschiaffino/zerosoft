@@ -1,8 +1,7 @@
 'use client';
 
-import LocalText from '@/components/ui/LocalText';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useFormatter, useLocale, useTranslations } from 'next-intl';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import {
@@ -18,10 +17,14 @@ import { LevelBars, MicIcon, voiceErrorKey } from './voice-ui';
 import { useRecorder, type CaptureMode } from './RecorderProvider';
 import { recordingSupported, tabAudioSupported } from './audio';
 import EnhancedNotes from './EnhancedNotes';
-import { ChatPanel, DetailsPanel, TranscriptPanel } from './MeetingSide';
+import { DetailsPanel, TranscriptPanel } from './MeetingSide';
+import MeetingAsk, { type ChatModelOption } from './MeetingAsk';
+import MeetingPeople, { type LinkResult } from './MeetingPeople';
+import Pop from './Pop';
+import VoiceModal from './VoiceModal';
 import { copyText } from './insert';
 import { checkRecordingFile, importRecording } from './importRecording';
-import { BriefPanel, FollowupModal, SendModal, ShareModal } from './MeetingPrep';
+import { BriefPanel, SendModal, ShareModal } from './MeetingPrep';
 import { AUTOSTART_NONCE_RE, desktopBridge } from '@/lib/desktop-bridge';
 import { seekParam } from '@/lib/voice-cite';
 import { takeAutostart } from './autostart';
@@ -39,20 +42,35 @@ interface Props {
   blobPrefix: string | null;
   blobAccess: 'public' | 'private';
   importMaxBytes: number;
+  /** Gmail u Outlook conectado con permiso de envío (el seguimiento sale de ahí). */
+  mailbox?: { email: string; provider: 'gmail' | 'outlook' } | null;
+  /** Modelos que se pueden elegir en el chat. */
+  chatModels?: ChatModelOption[];
 }
 
 /**
- * Una reunión (como una nota de Granola): grabás, escribís tus notas
- * mientras tanto y al terminar la IA las completa con la transcripción.
- * A la derecha, la transcripción en vivo, el chat sobre la reunión y los
- * vínculos (Cal, CRM, Docs, Notes).
+ * Una reunión como una nota de Granola: una página limpia con el título, los
+ * chips (qué notas ver, el evento y la gente, la carpeta) y las notas. Abajo,
+ * la barra con el audio en vivo y "Preguntá lo que quieras", que abre el chat
+ * sobre las notas. Al cortar, la IA completa las notas con la transcripción.
  */
-export default function MeetingView({ initial, templates, folders, transcription, ai, chatAi = ai, blobPrefix, blobAccess, importMaxBytes }: Props) {
+export default function MeetingView({
+  initial,
+  templates,
+  folders: initialFolders,
+  transcription,
+  ai,
+  chatAi = ai,
+  blobPrefix,
+  blobAccess,
+  importMaxBytes,
+  mailbox = null,
+  chatModels = [],
+}: Props) {
   const t = useTranslations('voice.meeting');
   const tTpl = useTranslations('voice.templates.builtin');
   const tErr = useTranslations('voice.errors');
   const tExport = useTranslations('voice.export');
-  const format = useFormatter();
   const locale = useLocale();
   const router = useRouter();
   const [d, setD] = useState<Detail>(initial);
@@ -60,7 +78,9 @@ export default function MeetingView({ initial, templates, folders, transcription
   const [notes, setNotes] = useState(initial.myNotes);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [mode, setMode] = useState<CaptureMode>('mic');
-  const [tab, setTab] = useState<'transcript' | 'chat' | 'details'>('transcript');
+  // Lo que está abierto sobre la barra de abajo: el chat o la transcripción en vivo.
+  const [dock, setDock] = useState<'none' | 'ask' | 'transcript'>('none');
+  const [folders, setFolders] = useState(initialFolders);
   const [view, setView] = useState<'enhanced' | 'mine'>(initial.enhanced ? 'enhanced' : 'mine');
   const [enhancing, setEnhancing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -71,7 +91,7 @@ export default function MeetingView({ initial, templates, folders, transcription
   const [docsTranscript, setDocsTranscript] = useState(false);
   // Sin teamspace privado posible, el diálogo pasa a avisar que la ve todo el workspace.
   const [docsWorkspace, setDocsWorkspace] = useState(false);
-  const [modal, setModal] = useState<'share' | 'followup' | 'send' | null>(null);
+  const [modal, setModal] = useState<'share' | 'send' | 'details' | null>(null);
   const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Lo que soporta el navegador se mira después de hidratar (en el servidor no hay MediaRecorder).
   const [support, setSupport] = useState({ rec: true, tab: true });
@@ -83,6 +103,13 @@ export default function MeetingView({ initial, templates, folders, transcription
     if (bridge?.systemAudio) {
       setDesktop(true);
       setMode('mic_tab');
+    } else if (tabAudioSupported()) {
+      // Navegador: por defecto también se pide el audio de la reunión (pestaña o sistema).
+      let saved: string | null = null;
+      try {
+        saved = localStorage.getItem('zs-voice-mode');
+      } catch {}
+      if (saved !== 'mic') setMode('mic_tab');
     }
   }, []);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -358,13 +385,18 @@ export default function MeetingView({ initial, templates, folders, transcription
     if (!takeAutostart(d.id)) return;
     if (!canRecord || rec.state !== 'idle' || recordingElsewhere || otherRecorder || d.segments.length > 0) return;
     const bridge = desktopBridge();
-    void recorder.start({ sessionId: d.id, mode: bridge?.systemAudio ? 'mic_tab' : 'mic', baseOffsetMs: d.durationMs, desktop: !!bridge?.systemAudio });
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem('zs-voice-mode');
+    } catch {}
+    const wantTab = !!bridge?.systemAudio || (tabAudioSupported() && saved === 'mic_tab');
+    void recorder.start({ sessionId: d.id, mode: wantTab ? 'mic_tab' : 'mic', baseOffsetMs: d.durationMs, desktop: !!bridge?.systemAudio, softTab: true });
   }, [serverChecked, canRecord, rec.state, recordingElsewhere, otherRecorder, recorder, d.id, d.durationMs, d.segments.length]);
 
   // Ir a un momento de la transcripción: una cita del chat o ?t=<segundos> en el link.
   const [focus, setFocus] = useState<{ ms: number; n: number } | null>(null);
   const seek = useCallback((ms: number) => {
-    setTab('transcript');
+    setDock('transcript');
     setFocus({ ms, n: Date.now() });
   }, []);
   useEffect(() => {
@@ -376,22 +408,335 @@ export default function MeetingView({ initial, templates, folders, transcription
   const hasContent = d.segments.length > 0 || notes.trim().length > 0;
   const hasNotes = !!d.enhanced || notes.trim().length > 0;
   const topFolders = folders.filter((f) => !f.parentId);
-  // Asistentes (del calendario o cargados a mano), sin repetir el contacto del CRM.
-  const attendeeNames = d.attendees.filter((a) => !d.contact || a.email !== d.contact.email).map((a) => a.name || a.email).filter(Boolean);
+  const folder = folders.find((f) => f.id === d.folderId) ?? null;
+  const showingEnhanced = view === 'enhanced' && !!d.enhanced;
+  const notesBusy = notesStatus === 'queued' || notesStatus === 'running';
+  const idle = rec.state === 'idle' || rec.state === 'starting';
+
+  // Esc cierra la transcripción en vivo esté donde esté el foco (como el chat).
+  useEffect(() => {
+    if (dock !== 'transcript') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || document.querySelector('dialog[open], .vc-pop')) return;
+      setDock('none');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dock]);
+
+  const onDockOpen = useCallback((open: boolean) => setDock((cur) => (open ? 'ask' : cur === 'ask' ? 'none' : cur)), []);
+
+  const onAttendees = useCallback(
+    async (attendees: Detail['attendees']) => {
+      let prev: Detail['attendees'] = [];
+      setD((p) => {
+        prev = p.attendees;
+        return { ...p, attendees };
+      });
+      if (!(await patch({ attendees }))) {
+        setD((p) => ({ ...p, attendees: prev }));
+        setError('generic');
+      }
+    },
+    [patch],
+  );
+
+  const onLinked = useCallback((r: LinkResult) => {
+    setD((prev) => ({
+      ...prev,
+      eventKey: r.eventKey,
+      ...(r.title ? { title: prev.title.trim() ? prev.title : r.title } : {}),
+      ...(r.calBookingId !== undefined ? { calBookingId: r.calBookingId } : {}),
+      ...(r.attendees ? { attendees: r.attendees } : {}),
+      ...(r.contact !== undefined ? { contact: r.contact, contactId: r.contact?.id ?? null } : {}),
+    }));
+    // El título del evento solo entra si el campo sigue vacío (no se pisa lo que se está escribiendo).
+    if (r.title) setTitle((cur) => (cur.trim() ? cur : r.title!));
+  }, []);
+
+  async function createFolder(name: string) {
+    const clean = name.trim();
+    if (!clean) return;
+    const res = await fetch('/api/voice/folders', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: clean }) }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as (VoiceFolder & { error?: string }) | null;
+    if (!res?.ok || !data?.id) {
+      setError(data?.error ?? 'generic');
+      return;
+    }
+    setFolders((f) => [...f, { ...data, count: data.count ?? 0, parentId: data.parentId ?? null }]);
+    await moveTo(data.id);
+  }
+
+  async function copyLink() {
+    if (!d.share) {
+      setModal('share');
+      return;
+    }
+    const url = `${window.location.origin}/${locale}/m/${d.share.token}`;
+    setFlash((await copyText(url)) ? t('linkCopied') : t('copyFailed'));
+  }
+
+  const start = () => {
+    try {
+      localStorage.setItem('zs-voice-mode', mode);
+    } catch {}
+    void recorder.start({ sessionId: d.id, mode, baseOffsetMs: d.durationMs, desktop });
+  };
+  const status =
+    rec.state === 'stopping'
+      ? t('finishing')
+      : rec.lagging
+        ? t('lagging', { count: rec.pending })
+        : rec.pending > 0
+          ? t('transcribingN', { count: rec.pending })
+          : recorder.mode === 'mic_tab' && !rec.tabLive
+            ? t('tabEnded')
+            : t('recording');
+
+  const left = idle ? (
+    <div className="vc-live">
+      <button
+        type="button"
+        className="vc-live-btn is-idle"
+        disabled={!canRecord || rec.state === 'starting' || recordingElsewhere || otherRecorder}
+        aria-busy={rec.state === 'starting' || undefined}
+        onClick={start}
+      >
+        <MicIcon size={15} />
+        <span className="vc-live-label">{d.segments.length ? t('resume') : t('start')}</span>
+      </button>
+      <button
+        type="button"
+        className="vc-live-toggle"
+        aria-label={t('transcriptOpen')}
+        title={t('transcriptOpen')}
+        aria-expanded={dock === 'transcript'}
+        onClick={() => setDock((cur) => (cur === 'transcript' ? 'none' : 'transcript'))}
+      >
+        <Chevron up={dock !== 'transcript'} />
+      </button>
+    </div>
+  ) : (
+    <div className="vc-live is-live">
+      <button
+        type="button"
+        className="vc-live-btn"
+        aria-label={t('transcriptOpen')}
+        aria-expanded={dock === 'transcript'}
+        title={status}
+        onClick={() => setDock((cur) => (cur === 'transcript' ? 'none' : 'transcript'))}
+      >
+        <span className="vc-rec-dot" aria-hidden="true" />
+        <LevelBars level={rec.level} />
+        <span className="vc-rec-time data" role="timer">
+          {formatDuration(rec.elapsed)}
+        </span>
+        <Chevron up={dock !== 'transcript'} />
+      </button>
+      <button type="button" className="vc-stop-btn" aria-label={t('stop')} title={t('stop')} disabled={rec.state === 'stopping'} onClick={() => void stopRecording()}>
+        <span aria-hidden="true" />
+      </button>
+    </div>
+  );
+
+  const livePanel = (
+    <section
+      className="vc-livepanel"
+      aria-label={t('transcriptTitle')}
+      data-testid="voice-live-panel"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && !e.defaultPrevented) {
+          e.preventDefault();
+          setDock('none');
+        }
+      }}
+    >
+      <header className="vc-livepanel-head">
+        <h2 className="vc-askpanel-title">{t('transcriptTitle')}</h2>
+        {!idle && (
+          <span className="vc-muted vc-livepanel-status" role="status">
+            {status}
+          </span>
+        )}
+        <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label={t('transcriptClose')} title={`${t('transcriptClose')} (Esc)`} onClick={() => setDock('none')}>
+          <Chevron up={false} />
+        </button>
+      </header>
+      {idle && canRecord && (
+        <div className="vc-livepanel-setup">
+          <fieldset className="vc-mode" disabled={rec.state === 'starting'}>
+            <legend className="sr-only">{t('modeLabel')}</legend>
+            <label className="ui-check">
+              <input type="radio" name="vc-mode" checked={mode === 'mic'} onChange={() => setMode('mic')} />
+              <span>{t('modeMic')}</span>
+            </label>
+            {support.tab && (
+              <label className="ui-check">
+                <input type="radio" name="vc-mode" checked={mode === 'mic_tab'} onChange={() => setMode('mic_tab')} />
+                <span>{desktop ? t('modeSystem') : t('modeTab')}</span>
+              </label>
+            )}
+          </fieldset>
+          {mode === 'mic_tab' && <p className="vc-muted">{desktop ? t('systemHelp') : t('tabHelp')}</p>}
+        </div>
+      )}
+      <div className="vc-panel">
+        <TranscriptPanel
+          segments={d.segments}
+          speakers={d.speakers}
+          onRenameSpeaker={(k, n) => void renameSpeaker(k, n)}
+          recording={recording}
+          deletedAt={d.transcriptDeletedAt}
+          focus={focus}
+        />
+      </div>
+      <p className="vc-muted vc-consent">{t('consent')}</p>
+    </section>
+  );
+
+  const aboveBar =
+    dock === 'transcript' ? (
+      livePanel
+    ) : notesBusy && !recording ? (
+      <p className="vc-dock-status" role="status">
+        <span className="vc-spin" aria-hidden="true" />
+        {t('notesQueued')}
+      </p>
+    ) : !recording && hasContent && !d.enhanced && ai ? (
+      <div className="vc-dock-cta">
+        <button type="button" className="btn btn-primary btn-sm" disabled={enhancing} aria-busy={enhancing || undefined} onClick={() => void enhance(d.templateKey)}>
+          {enhancing ? t('enhancing') : t('enhance')}
+        </button>
+      </div>
+    ) : rec.lagging || (recording && recorder.mode === 'mic_tab' && !rec.tabLive) ? (
+      <p className="vc-dock-status" role="status">
+        {status}
+      </p>
+    ) : null;
+
+  const templateLabel = (key: string) => ((VOICE_BUILTIN_TEMPLATES as readonly string[]).includes(key) ? tTpl(key) : (templates.find((x) => x.id === key)?.name ?? key));
 
   return (
-    <div className="app-page ui-page vc-page vc-meeting">
-      <div className="vc-meeting-top">
+    <div className="app-page ui-page vc-page vc-meeting vc-doc-page">
+      <div className="vc-doc-top">
         <Link href="/app/voice" className="ui-page-back">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="M15 6l-6 6 6 6" />
           </svg>
           {t('back')}
         </Link>
+        <div className="vc-doc-actions">
+          <span className="vc-muted vc-save" role="status">
+            {saveState === 'saving' ? t('saving') : saveState === 'saved' ? t('saved') : saveState === 'error' ? t('saveError') : ''}
+          </span>
+          <Pop menu align="end" ariaLabel={t('more')} buttonClass="btn btn-ghost btn-sm btn-icon" panelClass="vc-menu" label={<DotsIcon />} testId="voice-more">
+            {(close) => (
+              <>
+                <MenuItem disabled={busy !== null || !hasContent} onClick={() => {
+                  close();
+                  void send('markdown');
+                }}>
+                  {t('copyMarkdown')}
+                </MenuItem>
+                <MenuItem disabled={busy !== null || !hasContent} onClick={() => {
+                  close();
+                  setDocsDialog(true);
+                }}>
+                  {t('sendDocs')}
+                </MenuItem>
+                <MenuItem disabled={busy !== null || !hasContent} onClick={() => {
+                  close();
+                  void send('notes');
+                }}>
+                  {t('sendNotes')}
+                </MenuItem>
+                <MenuItem disabled={busy !== null || !hasNotes} onClick={() => {
+                  close();
+                  setModal('send');
+                }}>
+                  {t('sendSlackNotion')}
+                </MenuItem>
+                <span className="vc-menu-sep" role="separator" />
+                <MenuItem disabled={busy !== null || !transcription || recording} onClick={() => {
+                  close();
+                  fileRef.current?.click();
+                }}>
+                  {busy === 'import' ? t('importing') : t('import')}
+                </MenuItem>
+                <MenuItem onClick={() => {
+                  close();
+                  setModal('details');
+                }}>{t('crmLinks')}</MenuItem>
+                <span className="vc-menu-sep" role="separator" />
+                <MenuItem danger disabled={busy !== null || recording} onClick={() => {
+                  close();
+                  setConfirmDelete(true);
+                }}>
+                  {t('delete')}
+                </MenuItem>
+              </>
+            )}
+          </Pop>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null} onClick={() => setModal('share')}>
+            {d.share ? t('shared') : t('share')}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm btn-icon" aria-label={t('copyLink')} title={t('copyLink')} onClick={() => void copyLink()}>
+            <LinkIcon />
+          </button>
+        </div>
       </div>
-      <header className="vc-meeting-head">
+      <input ref={fileRef} type="file" accept="audio/*,video/webm,video/mp4" className="sr-only" tabIndex={-1} aria-label={t('import')} onChange={(e) => void onFile(e.target.files?.[0])} />
+
+      <article className="vc-doc">
+        <div className="vc-doc-notices">
+          {!transcription ? <p className="vc-notice">{tErr('transcribe_disabled')}</p> : !support.rec ? <p className="vc-notice">{t('unsupported')}</p> : null}
+          {flash && (
+            <p className="vc-ok" role="status">
+              {flash}{' '}
+              {flash === t('sentDocs') && d.docsPageId && <Link href={`/app/docs/${d.docsPageId}`}>{t('open')}</Link>}
+              {flash === t('sentNotes') && d.noteId && <Link href={`/app/notes?note=${d.noteId}`}>{t('open')}</Link>}
+            </p>
+          )}
+          {error && (
+            <p className="ui-error" role="alert">
+              {tErr(voiceErrorKey(error))}
+            </p>
+          )}
+          {recError && (
+            <p className="ui-error" role="alert">
+              {tErr(voiceErrorKey(recError))}
+            </p>
+          )}
+          {otherRecorder && (
+            <p className="vc-notice" role="status">
+              {t('otherRecorder')}
+            </p>
+          )}
+          {recordingElsewhere && (
+            <p className="vc-notice" role="status">
+              {t('recordingElsewhere')} <Link href={`/app/voice/meetings/${recorder.sessionId}`}>{t('openOther')}</Link>
+            </p>
+          )}
+          {recoveredParts > 0 && failedParts === 0 && d.enhanced && rec.state === 'idle' && (
+            <p className="vc-notice" role="status">
+              {t('recoveredParts', { count: recoveredParts })}{' '}
+              <button type="button" className="btn btn-sm btn-secondary" disabled={enhancing} onClick={() => void enhance(d.templateKey)}>
+                {t('regenerate')}
+              </button>
+            </p>
+          )}
+          {failedParts > 0 && rec.state !== 'recording' && (
+            <p className="vc-notice" role="status">
+              {t('failedParts', { count: failedParts })}{' '}
+              <button type="button" className="btn btn-sm btn-secondary" onClick={() => recorder.retryFailed(d.id)}>
+                {t('retryParts')}
+              </button>
+            </p>
+          )}
+        </div>
+
         <input
-          className="vc-title-input"
+          className="vc-doc-title"
           value={title}
           placeholder={t('untitled')}
           aria-label={t('titleLabel')}
@@ -406,326 +751,163 @@ export default function MeetingView({ initial, templates, folders, transcription
             }
           }}
         />
-        <p className="vc-muted" suppressHydrationWarning>
-          <LocalText>{format.dateTime(new Date(d.startedAt), { dateStyle: 'full', timeStyle: 'short' })}</LocalText>
-          {(rec.state === 'recording' ? rec.elapsed : d.durationMs) > 0 && ` · ${formatDuration(rec.state === 'recording' ? rec.elapsed : d.durationMs)}`}
-          {d.contact && ` · ${d.contact.name}`}
-          {attendeeNames.length > 0 && (
-            <>
-              {' · '}
-              <button type="button" className="vc-link-btn" title={t('attendeesOpen')} onClick={() => setTab('details')}>
-                {attendeeNames.slice(0, 3).join(', ')}
-                {attendeeNames.length > 3 && ` +${attendeeNames.length - 3}`}
-              </button>
-            </>
-          )}
-          {d.share && ` · ${t('sharedBadge')}`}
-        </p>
-        <div className="vc-head-actions">
-          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null} onClick={() => setModal('share')}>
-            {t('share')}
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || !hasNotes} onClick={() => setModal('followup')}>
-            {t('followup')}
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || !hasNotes} onClick={() => setModal('send')}>
-            {t('sendSlackNotion')}
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || !hasContent} onClick={() => void send('markdown')}>
-            {t('copyMarkdown')}
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || !hasContent} aria-busy={busy === 'docs' || undefined} onClick={() => setDocsDialog(true)}>
-            {t('sendDocs')}
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || !hasContent} aria-busy={busy === 'notes' || undefined} onClick={() => void send('notes')}>
-            {t('sendNotes')}
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || recording} onClick={() => setConfirmDelete(true)}>
-            {t('delete')}
-          </button>
-          {folders.length > 0 && (
-            <select className="select select-sm vc-move" value={d.folderId ?? ''} aria-label={t('folder')} onChange={(e) => void moveTo(e.target.value || null)}>
-              <option value="">{t('noFolder')}</option>
-              {topFolders.map((f) => [
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>,
-                ...folders
-                  .filter((x) => x.parentId === f.id)
-                  .map((x) => (
-                    <option key={x.id} value={x.id}>
-                      {`${f.name} / ${x.name}`}
-                    </option>
-                  )),
-              ])}
-            </select>
-          )}
-        </div>
-      </header>
 
-      {flash && (
-        <p className="vc-ok" role="status">
-          {flash}{' '}
-          {flash === t('sentDocs') && d.docsPageId && <Link href={`/app/docs/${d.docsPageId}`}>{t('open')}</Link>}
-          {flash === t('sentNotes') && d.noteId && <Link href={`/app/notes?note=${d.noteId}`}>{t('open')}</Link>}
-        </p>
-      )}
-      {error && (
-        <p className="ui-error" role="alert">
-          {tErr(voiceErrorKey(error))}
-        </p>
-      )}
-
-      <section className={`vc-recorder${recording ? ' is-recording' : ''}`} aria-label={t('recorderLabel')}>
-        {!transcription ? (
-          <p className="vc-notice">{tErr('transcribe_disabled')}</p>
-        ) : !support.rec ? (
-          <p className="vc-notice">{t('unsupported')}</p>
-        ) : null}
-        <div className="vc-recorder-row">
-          {rec.state === 'idle' || rec.state === 'starting' ? (
-            <>
-              <fieldset className="vc-mode" disabled={!canRecord || rec.state === 'starting'}>
-                <legend className="sr-only">{t('modeLabel')}</legend>
-                <label className="ui-check">
-                  <input type="radio" name="vc-mode" checked={mode === 'mic'} onChange={() => setMode('mic')} />
-                  <span>{t('modeMic')}</span>
-                </label>
-                {support.tab && (
-                  <label className="ui-check">
-                    <input type="radio" name="vc-mode" checked={mode === 'mic_tab'} onChange={() => setMode('mic_tab')} />
-                    <span>{desktop ? t('modeSystem') : t('modeTab')}</span>
-                  </label>
-                )}
-              </fieldset>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={!canRecord || rec.state === 'starting' || recordingElsewhere || otherRecorder}
-                aria-busy={rec.state === 'starting' || undefined}
-                onClick={() => void recorder.start({ sessionId: d.id, mode, baseOffsetMs: d.durationMs, desktop })}
-              >
-                <MicIcon /> {d.segments.length ? t('resume') : t('start')}
-              </button>
-              <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || !transcription} aria-busy={busy === 'import' || undefined} onClick={() => fileRef.current?.click()}>
-                {busy === 'import' ? t('importing') : t('import')}
-              </button>
-              <input ref={fileRef} type="file" accept="audio/*,video/webm,video/mp4" className="sr-only" tabIndex={-1} aria-label={t('import')} onChange={(e) => void onFile(e.target.files?.[0])} />
-            </>
-          ) : (
-            <>
-              <span className="vc-rec-dot" aria-hidden="true" />
-              <LevelBars level={rec.level} />
-              <span className="vc-rec-time data" role="timer">
-                {formatDuration(rec.elapsed)}
-              </span>
-              <span className="vc-muted" role="status">
-                {rec.state === 'stopping'
-                  ? t('finishing')
-                  : rec.lagging
-                    ? t('lagging', { count: rec.pending })
-                    : rec.pending > 0
-                      ? t('transcribingN', { count: rec.pending })
-                      : recorder.mode === 'mic_tab' && !rec.tabLive
-                        ? t('tabEnded')
-                        : t('recording')}
-              </span>
-              <button type="button" className="btn btn-primary" disabled={rec.state === 'stopping'} onClick={() => void stopRecording()}>
-                {t('stop')}
-              </button>
-            </>
-          )}
-        </div>
-        {mode === 'mic_tab' && rec.state === 'idle' && <p className="vc-muted">{desktop ? t('systemHelp') : t('tabHelp')}</p>}
-        {otherRecorder && (
-          <p className="vc-notice" role="status">
-            {t('otherRecorder')}
-          </p>
-        )}
-        {recoveredParts > 0 && failedParts === 0 && d.enhanced && rec.state === 'idle' && (
-          <p className="vc-notice" role="status">
-            {t('recoveredParts', { count: recoveredParts })}{' '}
-            <button type="button" className="btn btn-sm btn-secondary" disabled={enhancing} onClick={() => void enhance(d.templateKey)}>
-              {t('regenerate')}
-            </button>
-          </p>
-        )}
-        {failedParts > 0 && rec.state !== 'recording' && (
-          <p className="vc-notice" role="status">
-            {t('failedParts', { count: failedParts })}{' '}
-            <button type="button" className="btn btn-sm btn-secondary" onClick={() => recorder.retryFailed(d.id)}>
-              {t('retryParts')}
-            </button>
-          </p>
-        )}
-        {recordingElsewhere && (
-          <p className="vc-notice" role="status">
-            {t('recordingElsewhere')} <Link href={`/app/voice/meetings/${recorder.sessionId}`}>{t('openOther')}</Link>
-          </p>
-        )}
-        {(notesStatus === 'queued' || notesStatus === 'running') && !recording && (
-          <p className="vc-muted" role="status">
-            {t('notesQueued')}
-          </p>
-        )}
-        <p className="vc-muted vc-consent">{t('consent')}</p>
-        {recError && (
-          <p className="ui-error" role="alert">
-            {tErr(voiceErrorKey(recError))}
-          </p>
-        )}
-      </section>
-
-      {/* Hasta que está la nota con IA: con la reunión que ya escucha sola, el brief sigue a mano. */}
-      {(d.brief || ((d.attendees.length > 0 || !!d.contactId) && !d.enhanced)) && (
-        <BriefPanel key={`${d.attendees.length}:${d.contactId ?? ''}`} sessionId={d.id} initial={d.brief} canBrief={d.attendees.length > 0 || !!d.contactId} />
-      )}
-
-      <div className="vc-meeting-grid">
-        <section className="vc-notes" aria-labelledby="vc-notes-title">
-          <div className="vc-notes-head">
-            <h2 id="vc-notes-title" className="ui-section-title">
-              {view === 'enhanced' && d.enhanced ? t('aiNotes') : t('myNotes')}
-            </h2>
-            {d.enhanced && (
-              <div className="btn-group" role="group" aria-label={t('viewLabel')}>
-                <button type="button" className="btn btn-sm" aria-pressed={view === 'enhanced'} onClick={() => setView('enhanced')}>
+        <div className="vc-chips">
+          <Pop
+            menu
+            panelLabel={t('viewLabel')}
+            panelClass="vc-menu"
+            testId="voice-view-chip"
+            label={
+              <>
+                <NotesIcon ai={showingEnhanced} />
+                <span>{showingEnhanced ? t('viewAi') : t('viewMine')}</span>
+                <Chevron up={false} small />
+              </>
+            }
+          >
+            {(close) => (
+              <>
+                <MenuItem radio checked={showingEnhanced} disabled={!d.enhanced} onClick={() => {
+                  close();
+                  setView('enhanced');
+                }}>
                   {t('viewAi')}
-                </button>
-                <button type="button" className="btn btn-sm" aria-pressed={view === 'mine'} onClick={() => setView('mine')}>
+                </MenuItem>
+                <MenuItem radio checked={!showingEnhanced} onClick={() => {
+                  close();
+                  setView('mine');
+                }}>
                   {t('viewMine')}
-                </button>
-              </div>
+                </MenuItem>
+                <span className="vc-menu-sep" role="separator" />
+                <span className="vc-menu-label" aria-hidden="true">
+                  {t('template')}
+                </span>
+                {[...VOICE_BUILTIN_TEMPLATES, ...templates.map((x) => x.id)].map((key) => (
+                  <MenuItem
+                    key={key}
+                    radio
+                    checked={d.templateKey === key}
+                    onClick={() => {
+                      close();
+                      setD((prev) => ({ ...prev, templateKey: key }));
+                      void patch({ templateKey: key });
+                    }}
+                  >
+                    {templateLabel(key)}
+                  </MenuItem>
+                ))}
+                <span className="vc-menu-sep" role="separator" />
+                <MenuItem disabled={enhancing || recording || !hasContent || !ai} onClick={() => {
+                  close();
+                  void enhance(d.templateKey);
+                }}>
+                  {d.enhanced ? t('regenerateWith', { template: templateLabel(d.templateKey) }) : t('enhance')}
+                </MenuItem>
+              </>
             )}
-          </div>
-          {view === 'enhanced' && d.enhanced ? (
-            <EnhancedNotes sessionId={d.id} enhanced={d.enhanced} hasContact={!!d.contactId} />
+          </Pop>
+          <MeetingPeople
+            sessionId={d.id}
+            startedAt={d.startedAt}
+            attendees={d.attendees}
+            eventKey={d.eventKey}
+            canAutoLink={!d.eventKey && !d.calBookingId && d.attendees.length === 0 && !d.enhanced}
+            onAttendees={(a) => void onAttendees(a)}
+            onLinked={onLinked}
+          />
+          <Pop
+            menu
+            panelLabel={t('folder')}
+            panelClass="vc-menu"
+            testId="voice-folder-chip"
+            label={
+              <>
+                <FolderIcon />
+                <span className="vc-chip-text">{folder ? folder.name : t('addToFolder')}</span>
+              </>
+            }
+          >
+            {(close) => (
+              <>
+                {topFolders.map((f) => [
+                  <MenuItem key={f.id} radio checked={d.folderId === f.id} onClick={() => {
+                  close();
+                  void moveTo(f.id);
+                }}>
+                    {f.name}
+                  </MenuItem>,
+                  ...folders
+                    .filter((x) => x.parentId === f.id)
+                    .map((x) => (
+                      <MenuItem key={x.id} radio checked={d.folderId === x.id} onClick={() => {
+                  close();
+                  void moveTo(x.id);
+                }}>
+                        {`${f.name} / ${x.name}`}
+                      </MenuItem>
+                    )),
+                ])}
+                {d.folderId && <MenuItem onClick={() => {
+                  close();
+                  void moveTo(null);
+                }}>{t('removeFromFolder')}</MenuItem>}
+                {folders.length > 0 && <span className="vc-menu-sep" role="separator" />}
+                <form
+                  className="vc-menu-form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const input = e.currentTarget.elements.namedItem('name') as HTMLInputElement;
+                    const name = input.value;
+                    close();
+                    void createFolder(name);
+                  }}
+                >
+                  <input name="name" className="input input-sm" maxLength={80} placeholder={t('newFolder')} aria-label={t('newFolder')} />
+                </form>
+              </>
+            )}
+          </Pop>
+        </div>
+
+        {(d.brief || ((d.attendees.length > 0 || !!d.contactId) && !d.enhanced)) && (
+          <BriefPanel key={`${d.attendees.length}:${d.contactId ?? ''}`} sessionId={d.id} initial={d.brief} canBrief={d.attendees.length > 0 || !!d.contactId} />
+        )}
+
+        <section className="vc-doc-body" aria-label={showingEnhanced ? t('aiNotes') : t('myNotes')}>
+          {showingEnhanced ? (
+            <EnhancedNotes sessionId={d.id} enhanced={d.enhanced!} hasContact={!!d.contactId} onSaveState={setSaveState} />
           ) : (
-            <>
-              <textarea
-                className="textarea vc-notes-input"
-                value={notes}
-                onChange={(e) => onNotesChange(e.target.value)}
-                placeholder={t('notesPlaceholder')}
-                aria-label={t('myNotes')}
-                data-voice-context="note"
-                rows={12}
-              />
-              <p className="vc-muted vc-save" role="status">
-                {saveState === 'saving' ? t('saving') : saveState === 'saved' ? t('saved') : saveState === 'error' ? t('saveError') : ''}
-              </p>
-            </>
+            <textarea
+              className="vc-doc-notes"
+              value={notes}
+              onChange={(e) => onNotesChange(e.target.value)}
+              placeholder={t('notesPlaceholder')}
+              aria-label={t('myNotes')}
+              data-voice-context="note"
+            />
           )}
-          <div className="vc-enhance-row">
-            <label className="vc-inline-field">
-              <span className="label">{t('template')}</span>
-              <select
-                className="select"
-                value={d.templateKey}
-                onChange={(e) => {
-                  const key = e.target.value;
-                  setD((prev) => ({ ...prev, templateKey: key }));
-                  void patch({ templateKey: key });
-                }}
-              >
-                {VOICE_BUILTIN_TEMPLATES.map((k) => (
-                  <option key={k} value={k}>
-                    {tTpl(k)}
-                  </option>
-                ))}
-                {templates.map((tp) => (
-                  <option key={tp.id} value={tp.id}>
-                    {tp.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              disabled={enhancing || recording || !hasContent}
-              aria-busy={enhancing || undefined}
-              onClick={() => void enhance(d.templateKey)}
-            >
-              {enhancing ? t('enhancing') : d.enhanced ? t('regenerate') : t('enhance')}
-            </button>
-          </div>
           {!ai && <p className="vc-muted">{tErr('ai_disabled')}</p>}
         </section>
+      </article>
 
-        <aside className="vc-side" aria-label={t('sideLabel')}>
-          <div className="ui-tabs" role="tablist" aria-label={t('sideLabel')}>
-            {(['transcript', 'chat', 'details'] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                id={`vc-tab-${k}`}
-                aria-controls={`vc-panel-${k}`}
-                aria-selected={tab === k}
-                tabIndex={tab === k ? 0 : -1}
-                className="ui-tab"
-                onClick={() => setTab(k)}
-                onKeyDown={(e) => {
-                  const order = ['transcript', 'chat', 'details'] as const;
-                  const i = order.indexOf(k);
-                  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-                    e.preventDefault();
-                    const next = order[(i + (e.key === 'ArrowRight' ? 1 : order.length - 1)) % order.length];
-                    setTab(next);
-                    document.getElementById(`vc-tab-${next}`)?.focus();
-                  }
-                }}
-              >
-                {t(`tabs.${k}`)}
-                {k === 'transcript' && d.segments.length > 0 && <span className="vc-count">{d.segments.length}</span>}
-              </button>
-            ))}
-          </div>
-          <div role="tabpanel" id={`vc-panel-${tab}`} aria-labelledby={`vc-tab-${tab}`} className="vc-panel">
-            {tab === 'transcript' && (
-              <TranscriptPanel
-                segments={d.segments}
-                speakers={d.speakers}
-                onRenameSpeaker={(k, n) => void renameSpeaker(k, n)}
-                recording={recording}
-                deletedAt={d.transcriptDeletedAt}
-                focus={focus}
-              />
-            )}
-            {tab === 'chat' && <ChatPanel sessionId={d.id} initial={d.chat} ai={chatAi} live={recording} onSeek={seek} />}
-            {tab === 'details' && (
-              <DetailsPanel
-                sessionId={d.id}
-                calBookingId={d.calBookingId}
-                contact={d.contact}
-                crmActivityId={d.crmActivityId}
-                docsPageId={d.docsPageId}
-                noteId={d.noteId}
-                attendees={d.attendees}
-                onAttendees={async (attendees) => {
-                  const prev = d.attendees;
-                  setD((p) => ({ ...p, attendees }));
-                  if (!(await patch({ attendees }))) {
-                    setD((p) => ({ ...p, attendees: prev }));
-                    setError('generic');
-                  }
-                }}
-                onLinked={(p) => {
-                  if (p.title !== undefined) setTitle(p.title);
-                  setD((prev) => ({
-                    ...prev,
-                    ...(p.title !== undefined ? { title: p.title } : {}),
-                    ...(p.calBookingId !== undefined ? { calBookingId: p.calBookingId } : {}),
-                    ...(p.contact !== undefined ? { contact: p.contact, contactId: p.contact?.id ?? null } : {}),
-                    ...(p.crmActivityId !== undefined ? { crmActivityId: p.crmActivityId } : {}),
-                  }));
-                }}
-              />
-            )}
-          </div>
-        </aside>
-      </div>
+      <MeetingAsk
+        sessionId={d.id}
+        initial={d.chat}
+        ai={chatAi}
+        live={recording}
+        open={dock === 'ask'}
+        onOpenChange={onDockOpen}
+        onSeek={seek}
+        left={left}
+        above={aboveBar}
+        models={chatModels}
+        followup={d.followup}
+        defaultTo={[...d.attendees.map((a) => a.email), ...(d.contact?.email ? [d.contact.email] : [])].filter(Boolean)}
+        mailbox={mailbox}
+        onFollowupSaved={(followup) => setD((p) => ({ ...p, followup }))}
+      />
 
       {/* Docs no tiene espacio privado todavía: la página la ve todo el workspace. */}
       <ConfirmDialog
@@ -747,16 +929,29 @@ export default function MeetingView({ initial, templates, folders, transcription
         onCancel={() => setDocsDialog(false)}
       />
       {modal === 'share' && <ShareModal sessionId={d.id} onClose={() => setModal(null)} onChange={(share) => setD((p) => ({ ...p, share }))} />}
-      {modal === 'followup' && (
-        <FollowupModal
-          sessionId={d.id}
-          initial={d.followup}
-          defaultTo={[...d.attendees.map((a) => a.email), ...(d.contact?.email ? [d.contact.email] : [])].filter(Boolean)}
-          onClose={() => setModal(null)}
-          onSaved={(followup) => setD((p) => ({ ...p, followup }))}
-        />
-      )}
       {modal === 'send' && <SendModal sessionId={d.id} onClose={() => setModal(null)} />}
+      {modal === 'details' && (
+        <VoiceModal title={t('crmLinks')} onClose={() => setModal(null)} closeLabel={t('close')} testId="voice-details">
+          <DetailsPanel
+            compact
+            sessionId={d.id}
+            calBookingId={d.calBookingId}
+            contact={d.contact}
+            crmActivityId={d.crmActivityId}
+            docsPageId={d.docsPageId}
+            noteId={d.noteId}
+            attendees={d.attendees}
+            onAttendees={(a) => void onAttendees(a)}
+            onLinked={(p) => {
+              setD((prev) => ({
+                ...prev,
+                ...(p.contact !== undefined ? { contact: p.contact, contactId: p.contact?.id ?? null } : {}),
+                ...(p.crmActivityId !== undefined ? { crmActivityId: p.crmActivityId } : {}),
+              }));
+            }}
+          />
+        </VoiceModal>
+      )}
       <ConfirmDialog
         open={confirmDelete}
         title={t('deleteTitle')}
@@ -769,5 +964,88 @@ export default function MeetingView({ initial, templates, folders, transcription
         onCancel={() => setConfirmDelete(false)}
       />
     </div>
+  );
+}
+
+function MenuItem({
+  children,
+  onClick,
+  disabled,
+  danger,
+  radio,
+  checked,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+  radio?: boolean;
+  checked?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role={radio ? 'menuitemradio' : 'menuitem'}
+      aria-checked={radio ? !!checked : undefined}
+      className={`vc-menu-item${danger ? ' is-danger' : ''}`}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <span className="vc-menu-text">{children}</span>
+      {radio && checked && (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M5 12l5 5 9-10" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+function Chevron({ up, small }: { up: boolean; small?: boolean }) {
+  const s = small ? 12 : 14;
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d={up ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'} />
+    </svg>
+  );
+}
+
+function DotsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <circle cx="5" cy="12" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="19" cy="12" r="1.6" />
+    </svg>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+      <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+    </svg>
+  );
+}
+
+function FolderIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M3.5 6.5a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z" />
+    </svg>
+  );
+}
+
+function NotesIcon({ ai }: { ai: boolean }) {
+  return ai ? (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z" />
+      <path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z" />
+    </svg>
+  ) : (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M5 4h14v16H5zM8.5 8.5h7M8.5 12h7M8.5 15.5h4" />
+    </svg>
   );
 }

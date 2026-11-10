@@ -9,6 +9,7 @@ import '@/styles/inbox.css';
 import '@/styles/groups.css';
 import '@/styles/groups-wa.css';
 import '@/styles/inbox-wa.css';
+import '@/styles/inbox-tools.css';
 
 /** Inbox (personal): WhatsApp y Gmail de la persona. Las carpetas cuelgan del sidebar del shell. */
 export default async function InboxLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {

@@ -26,9 +26,16 @@ async function noHorizontalScroll(page: Page) {
 
 test('Outlook: conectar, sincronizar emails y reuniones, enviar y desconectar', async ({ page, request }) => {
   const errors = watchErrors(page);
-  const contact = await (
-    await request.post('/api/crm/contacts', { data: { firstName: 'Ana', lastName: 'Outlook', email: 'ana@fake-outlook.test' } })
-  ).json();
+  // El Graph falso siempre trae los mismos mensajes para ana@fake-outlook.test y cada mensaje se guarda una sola
+  // vez: en un reintento (mismo DB) el email ya está en la ficha de la primera pasada, así que se reusa esa.
+  const found = (await (await request.get('/api/crm/contacts?q=ana%40fake-outlook.test')).json()) as {
+    rows: Array<{ id: string; email?: string }>;
+  };
+  const contact =
+    found.rows.find((r) => r.email === 'ana@fake-outlook.test') ??
+    (await (
+      await request.post('/api/crm/contacts', { data: { firstName: 'Ana', lastName: 'Outlook', email: 'ana@fake-outlook.test' } })
+    ).json());
 
   await page.goto('/en/app/crm/settings?tab=integrations');
   await expect(page.getByRole('heading', { name: 'Outlook and Microsoft 365' })).toBeVisible();

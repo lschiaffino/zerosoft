@@ -4,6 +4,7 @@ import { exchangeCode, googleAccountEmail, googleCalendarRedirectUri, upsertInte
 import { GOOGLE_CALENDAR_PROVIDER, invalidateBusyCache } from '@/lib/google-calendar';
 import { FAKE_GOOGLE_EMAIL, fakeGoogleCalendarAllowed, fakeGoogleTokens } from '@/lib/google-calendar-fake';
 import { logCalActivity } from '@/lib/calendar-activity';
+import { OAUTH_RETURN_COOKIE, returnUrl } from '@/lib/oauth-return';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,8 +22,9 @@ export async function GET(req: NextRequest) {
   const cookieState = req.cookies.get(STATE_COOKIE)?.value;
 
   function out(result: string): NextResponse {
-    const r = NextResponse.redirect(new URL(`/app/calendar/settings?gcal=${result}`, req.url));
+    const r = NextResponse.redirect(returnUrl(req, 'calendar', result) ?? new URL(`/app/calendar/settings?gcal=${result}`, req.url));
     r.cookies.delete(STATE_COOKIE);
+    r.cookies.delete(OAUTH_RETURN_COOKIE);
     return r;
   }
 

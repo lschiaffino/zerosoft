@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
-import { ChunkRecorder, getMic, getTabAudio, mediaErrorCode, stopStream, type AudioChunk } from './audio';
+import { ChunkRecorder, getDesktopSystemAudio, getMic, getTabAudio, mediaErrorCode, stopStream, type AudioChunk } from './audio';
 import { formatDuration, VOICE_CHUNK_MS, type VoiceSegment, type VoiceSource } from '@/lib/voice-types';
 import { chunkKey, deleteFailedChunk, loadFailedChunks, saveFailedChunk } from './failedStore';
 import { desktopBridge, DESKTOP_STOP_RECORDING_EVENT } from '@/lib/desktop-bridge';
@@ -103,6 +103,8 @@ export interface StartArgs {
   mode: CaptureMode;
   baseOffsetMs: number;
   desktop?: boolean;
+  /** Navegador: si no se comparte audio de la pestaña o del sistema, se graba solo el micrófono y se avisa. */
+  softTab?: boolean;
 }
 
 const RecorderContext = createContext<RecorderApi | null>(null);
@@ -429,18 +431,22 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
       // Si el sistema deja el pedido colgado (permiso pendiente), a los 20 s se corta con error.
       const streams: MediaStream[] = [];
       let tab: MediaStream | null = null;
+      let tabNotice: string | null = null;
       let mic: MediaStream;
       try {
         mic = await withTimeout(getMic(), MEDIA_TIMEOUT_MS);
         streams.push(mic);
         if (args.mode === 'mic_tab') {
           try {
-            tab = await withTimeout(getTabAudio(), MEDIA_TIMEOUT_MS);
+            const bridge = args.desktop ? desktopBridge() : null;
+            tab = await withTimeout(bridge?.systemAudioStart ? getDesktopSystemAudio(bridge) : getTabAudio(), MEDIA_TIMEOUT_MS);
             streams.push(tab);
           } catch (err) {
             // Escritorio sin permiso de audio del sistema: se graba igual el micrófono.
-            if (!args.desktop) throw err;
+            if (!args.desktop && !args.softTab) throw err;
             tab = null;
+            tabNotice = mediaErrorCode(err) === 'mic_denied' ? 'tab_skipped' : mediaErrorCode(err);
+            if (tabNotice === 'mic_failed') tabNotice = 'tab_skipped';
             setMode('mic');
           }
         }
@@ -465,6 +471,7 @@ export default function RecorderProvider({ children, owner }: { children: ReactN
       }
       try {
         streamsRef.current = streams;
+        if (tabNotice) setError(tabNotice);
         // Solo crece: un trozo nuevo nunca reusa el número (seq) de uno anterior de la misma reunión.
         baseRef.current = sessionRef.current === id ? Math.max(baseRef.current, args.baseOffsetMs) : args.baseOffsetMs;
         sessionRef.current = id;

@@ -13,6 +13,9 @@
  * - Edita, borra para todos, fija y reenvía (lo deja en `sent` para los tests).
  * - Entrar por invitación: cualquier código de 6+ letras entra a un grupo
  *   nuevo, salvo los que empiezan con "bad" (link vencido).
+ * - Historial guardado (como Evolution con base): solo en los números de Inbox
+ *   y con INBOX_FAKE_HISTORY=1, tres chats fijos (uno con 230 mensajes, para
+ *   paginar). Sin la variable el historial está vacío.
  */
 import { randomUUID } from 'crypto';
 import { deflateSync } from 'zlib';
@@ -23,6 +26,8 @@ import {
   type ConnectState,
   type GroupInfo,
   type GroupsProvider,
+  type HistoryChat,
+  type HistorySource,
   type InboundEvent,
   type Participant,
 } from './groups-provider';
@@ -43,7 +48,7 @@ interface FakeGroup extends GroupInfo {
 export interface FakeSent {
   chatId: string;
   text: string;
-  kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read' | 'block';
+  kind: 'text' | 'media' | 'reaction' | 'edit' | 'delete' | 'pin' | 'unpin' | 'forward' | 'poll' | 'contact' | 'read' | 'block' | 'archive';
   at: number;
 }
 
@@ -175,6 +180,65 @@ export function resetFakeProvider(): void {
   store.clear();
 }
 
+/** Chats del historial falso: id, nombre, grupo y cantidad de mensajes. */
+export const FAKE_HISTORY_CHATS: ReadonlyArray<{ chatId: string; name: string; isGroup: boolean; count: number }> = [
+  { chatId: '5491170000001@s.whatsapp.net', name: 'Historial Ana', isGroup: false, count: 230 },
+  { chatId: '5491170000002@s.whatsapp.net', name: 'Historial Beto', isGroup: false, count: 15 },
+  { chatId: '120363000000000001@g.us', name: 'Historial Asado', isGroup: true, count: 40 },
+];
+
+/** Mensaje `n` (0 = el más viejo) de un chat del historial falso: uno por hora, terminando hace un día. */
+function fakeHistoryEvent(c: (typeof FAKE_HISTORY_CHATS)[number], n: number): InboundEvent {
+  const at = Date.UTC(2026, 0, 1) + n * 3600_000;
+  const fromMe = n % 3 === 0;
+  return {
+    type: 'message',
+    chatId: c.chatId,
+    isGroup: c.isGroup,
+    chatName: c.isGroup ? c.name : undefined,
+    fromMe,
+    senderPhone: fromMe ? '15550000001' : c.isGroup ? '5491170000009' : phoneDigits(c.chatId),
+    senderName: fromMe ? '' : c.isGroup ? 'Tío Beto' : c.name,
+    providerMessageId: `HIST${phoneDigits(c.chatId).slice(-4)}${String(n).padStart(4, '0')}`,
+    body: `${c.name} mensaje ${n + 1}`,
+    timestamp: new Date(at).toISOString(),
+    history: true,
+  } as InboundEvent;
+}
+
+function fakeHistory(): HistorySource {
+  const on = process.env.INBOX_FAKE_HISTORY === '1';
+  const chats = on ? FAKE_HISTORY_CHATS : [];
+  const page = (remoteJid: string, size: number, p: number) => {
+    const c = chats.find((x) => x.chatId === remoteJid);
+    if (!c) return { events: [] as InboundEvent[], more: false, total: 0 };
+    // Como findMessages: la página 1 son los más nuevos.
+    const end = Math.max(0, c.count - (p - 1) * size);
+    const start = Math.max(0, end - size);
+    const events = Array.from({ length: end - start }, (_, i) => fakeHistoryEvent(c, start + i));
+    return { events, more: start > 0, total: c.count };
+  };
+  return {
+    async chats(p, size) {
+      return chats.slice(p * size, (p + 1) * size).map(
+        (c): HistoryChat => ({ remoteJid: c.chatId, chatId: c.chatId, isGroup: c.isGroup, name: c.name, pictureUrl: '', unread: 0, lastAt: Math.floor(Date.UTC(2026, 0, 1) / 1000) + c.count * 3600 }),
+      );
+    },
+    async messages(remoteJid, limit, p = 1) {
+      return page(remoteJid, limit, p).events;
+    },
+    async messagePage(remoteJid, size, p) {
+      return page(remoteJid, size, p);
+    },
+    async contacts() {
+      return [];
+    },
+    async picture() {
+      return '';
+    },
+  };
+}
+
 export function fakeProvider(numberId: string, opts: { instantConnect?: boolean } = {}): GroupsProvider {
   const s = stateFor(numberId);
   const group = (id: string) => {
@@ -205,6 +269,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
   return {
     kind: 'fake',
     caps: PROVIDER_CAPS.fake,
+    ...(numberId.startsWith('inbox-') ? { history: fakeHistory() } : {}),
     /**
      * Datos inventados: los grupos sembrados con su nombre; uno que llegó por
      * webhook, "Grupo NNNN". Foto (un SVG de color) solo si el número termina
@@ -240,6 +305,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     sendContact: async (chatId, contacts) => send(chatId, contacts.map((c) => `${c.name} +${c.phone}`).join(' | '), 'contact'),
     markRead: async (chatId, ids) => void send(chatId, ids.join(','), 'read'),
     blockContact: async (chatId, block) => void send(chatId, block ? 'block' : 'unblock', 'block'),
+    archiveChat: async (chatId, archive) => void send(chatId, archive ? 'archive' : 'unarchive', 'archive'),
     sendPresence: async () => undefined,
     /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, el resto una foto. */
     async fetchMedia(ref) {

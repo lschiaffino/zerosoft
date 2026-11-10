@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import path from 'path';
 
@@ -42,7 +42,7 @@ test('Uploads: .xht se rechaza; lo privado no sale por /uploads ni sin acceso', 
   expect(ok.headers()['content-disposition']).toMatch(/^attachment/);
 
   // Sin acceso a la página (es de otra persona): 404.
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   const other = `otra-${Date.now()}`;
   await db.execute({ sql: "INSERT INTO users (id, email, name) VALUES (?, ?, 'Otra')", args: [other, `${other}@e2e.test`] });
   await db.execute({ sql: 'UPDATE docs_pages SET user_id = ? WHERE id = ?', args: [other, doc.id] });

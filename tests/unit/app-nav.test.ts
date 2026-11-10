@@ -12,10 +12,11 @@ import {
   type AppProduct,
   type SidebarLabels,
 } from '@/components/app/sidebar-nav';
+import { isComingSoon } from '@/lib/products';
 import { pageExists } from './page-exists';
 
-const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'inbox', 'rec', 'hiring', 'sign', 'agents', 'robots', 'pulse'];
-const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'pulse', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
+const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'inbox', 'rec', 'hiring', 'sign', 'agents', 'robots', 'analytics', 'pulse'];
+const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'pulse', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
 
 
 /**
@@ -32,7 +33,7 @@ const appDir = join(root, 'app', '[locale]');
 function fakeLabels(): SidebarLabels {
   const proxy = (prefix: string): unknown =>
     new Proxy({}, { get: (_t, key) => (typeof key === 'string' ? `${prefix}${key}` : undefined) });
-  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox', 'notifications'];
+  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'bi', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox', 'notifications'];
   return new Proxy({} as SidebarLabels, {
     get: (_t, key) => (typeof key === 'string' && nested.includes(key) ? proxy(`${key}.`) : String(key)),
   });
@@ -262,6 +263,11 @@ describe('sidebar del inicio: tus apps y "Más apps"', () => {
     expect(groups[2]).toMatchObject({ section: 'Coming soon', collapsible: true });
     expect(groups[2].items.every((i) => i.href.startsWith('/app/soon/'))).toBe(true);
     expect(groups[0].items.length + groups[1].items.length + groups[2].items.length).toBe(SWITCHER_PRODUCTS.length);
+  });
+  it('con apps elegidas en el onboarding, "Tus apps" son esas (más las recientes), en su orden', () => {
+    const groups = homeAppGroups(L, { recentApps: ['docs'], mode: 'team', chosen: ['crm', 'cal'] });
+    expect(groups[0].items.map((i) => i.href)).toEqual(['/app/docs', '/app/crm', '/app/calendar']);
+    expect(groups[0].items.length + groups[1].items.length).toBe(SWITCHER_PRODUCTS.filter((p) => !isComingSoon(p.line)).length);
   });
   it('respeta el acceso por app y no muestra "Más apps" vacío (Inbox, personal, siempre está)', () => {
     const groups = homeAppGroups(L, { allowed: ['crm', 'social'] });

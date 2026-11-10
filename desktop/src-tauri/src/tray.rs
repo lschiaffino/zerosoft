@@ -141,6 +141,7 @@ pub fn app_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         .item(&PredefinedMenuItem::about(app, None, None)?)
         .separator()
         .item(&settings)
+        .item(&MenuItem::with_id(app, "check-updates", t(l, "checkUpdates"), true, None::<&str>)?)
         .separator()
         .item(&PredefinedMenuItem::hide(app, None)?)
         .item(&PredefinedMenuItem::hide_others(app, None)?)
@@ -169,9 +170,18 @@ pub fn app_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
 }
 
 pub fn on_app_menu(app: &AppHandle, id: &str) {
+    // El menú del indicador de grabación (clic derecho) llega por acá.
+    if crate::indicator::on_menu(app, id) {
+        return;
+    }
     let Some(win) = app.get_webview_window("main") else { return };
     match id {
         "settings" => crate::commands::open_settings_window(app, None),
+        "check-updates" => {
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move { crate::updater::check(&app, true).await });
+        }
+        "restart-update" => crate::updater::restart_to_update(app),
         "reload" => {
             let _ = win.eval("location.reload()");
         }

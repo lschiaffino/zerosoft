@@ -62,6 +62,21 @@ pub struct AppState {
     pub disabled_apps: Mutex<Vec<String>>,
     /// Versión nueva bajada y lista para instalar al reiniciar.
     pub update_ready: Mutex<Option<String>>,
+    /// Lo último que se supo del feed de actualizaciones (Ajustes › General y Actualizaciones).
+    pub update: Mutex<UpdateInfo>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateInfo {
+    /// Hay una versión más nueva publicada (se está bajando o ya está lista).
+    pub available: Option<String>,
+    /// Buscando ahora.
+    pub checking: bool,
+    /// ms desde epoch de la última búsqueda terminada.
+    pub checked_at: Option<u64>,
+    /// La última búsqueda falló (sin red, feed caído).
+    pub failed: bool,
 }
 
 pub fn now_ms() -> u64 {

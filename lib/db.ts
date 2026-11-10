@@ -27,13 +27,16 @@ const BUSY_WAIT_MS = 5000;
  * busy_timeout no sirve: la espera es síncrona, frena el event loop y la transacción nunca termina.
  * Se reintenta cediendo el turno. Turso no pasa por acá: espera del lado del servidor.
  */
-async function retryBusy<T>(run: () => Promise<T>): Promise<T> {
+async function retryBusy<T>(run: () => Promise<T>, onSnapshot?: () => Promise<void>): Promise<T> {
   const deadline = Date.now() + BUSY_WAIT_MS;
   for (let wait = 2; ; wait = Math.min(wait * 2, 50)) {
     try {
       return await run();
     } catch (err) {
       if (!/SQLITE_BUSY|database is locked/i.test(String(err)) || Date.now() >= deadline) throw err;
+      // WAL: la conexión quedó con una lectura vieja abierta (una consulta que no se cerró) y ninguna
+      // escritura suya va a pasar por más que espere. Se abre otra conexión y se reintenta.
+      if (onSnapshot && (err as { extendedCode?: string }).extendedCode === 'SQLITE_BUSY_SNAPSHOT') await onSnapshot();
       await new Promise((done) => setTimeout(done, wait));
     }
   }
@@ -175,7 +178,21 @@ let _db: Db | null = null;
 export function getDb(): Db {
   if (_db) return _db;
   const client = getClient();
-  const executor: Executor = IS_REMOTE ? client : { execute: (stmt) => retryBusy(() => client.execute(stmt)) };
+  const executor: Executor = IS_REMOTE
+    ? client
+    : {
+        execute: (stmt) =>
+          retryBusy(
+            () => client.execute(stmt),
+            async () => {
+              try {
+                await client.reconnect();
+              } catch {
+                // Sin conexión nueva se sigue reintentando con la que hay.
+              }
+            },
+          ),
+      };
   _db = {
     prepare: (sql) => makeStatement(executor, sql, ensureMigrated),
     exec: async (sql) => {

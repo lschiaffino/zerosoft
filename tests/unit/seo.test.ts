@@ -42,7 +42,7 @@ describe('apps "Próximamente"', () => {
     const { AVAILABLE_PRODUCT_KEYS, COMING_SOON_APPS, PRODUCT_KEYS } = await import('@/lib/products');
     const { readFileSync } = await import('node:fs');
     expect(AVAILABLE_PRODUCT_KEYS.length + COMING_SOON_APPS.length).toBe(PRODUCT_KEYS.length);
-    const words: Record<string, string> = { 18: 'eighteen|dieciocho|dezoito' };
+    const words: Record<string, string> = { 19: 'nineteen|diecinueve|dezenove' };
     const word = words[AVAILABLE_PRODUCT_KEYS.length];
     expect(word, 'agregá la palabra de la cuenta nueva').toBeTruthy();
     for (const locale of ['en', 'es', 'pt']) {

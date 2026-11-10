@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { isWorkspaceAdmin } from '@/lib/session';
 import { availableProviders, getSettings, groupsBaseUrl, listLabels, listNumbers, listPeople, listPropertyDefs, listQuickReplies } from '@/lib/groups';
+import { pageViewer } from '@/lib/groups-page';
 import { getAvailability, listRules, listTeams, workspacePeople } from '@/lib/groups-inbox';
 import AssignmentSettings from '@/components/groups/AssignmentSettings';
 import { aiEnabled } from '@/lib/ai';
@@ -67,7 +68,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
   const admin = isWorkspaceAdmin(user);
 
   let body;
-  if (tab === 'numbers') body = <NumbersSettings initial={await listNumbers(user.id)} providers={availableProviders()} canEdit={admin} openNew={sp.new === '1'} reconnect={sp.reconnect ?? null} />;
+  if (tab === 'numbers') body = <NumbersSettings initial={await listNumbers(user.id, await pageViewer(user))} people={await listPeople(user.id)} teams={(await listTeams(user.id)).map((tm) => ({ id: tm.id, name: tm.name }))} providers={availableProviders()} canEdit={admin} openNew={sp.new === '1'} reconnect={sp.reconnect ?? null} />;
   else if (tab === 'labels') body = <LabelsPanel initial={await listLabels(user.id)} />;
   else if (tab === 'quick') body = <QuickRepliesPanel initial={await listQuickReplies(user.id)} />;
   else if (tab === 'properties') body = <PropertiesPanel initial={await listPropertyDefs(user.id)} canEdit={admin} />;
@@ -78,7 +79,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
       listTeams(user.id),
       listRules(user.id),
       workspacePeople(user.id),
-      listNumbers(user.id),
+      listNumbers(user.id, await pageViewer(user)),
       listLabels(user.id),
       getAvailability(user.id),
     ]);
@@ -126,7 +127,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
       <p className="ui-help">{t('access.adminsOnly')}</p>
     );
   else if (tab === 'apps') body = <AppsPanel />;
-  else if (tab === 'appearance') body = <ChatStyleSection className="ui-fields" />;
+  else if (tab === 'appearance') body = <ChatStyleSection />;
   else
     body = (
       <div className="ui-fields gr-api">

@@ -9048,6 +9048,335 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Inbox: envíos programados de varios mensajes. Cada mensaje es su fila
+    // (su burbuja), atados por batch_id y ordenados por seq; delay_s es la
+    // espera después del anterior. Un mensaje puede llevar un archivo
+    // (media_url, guardado aparte hasta que sale).
+    id: '297_inbox_scheduled_batches',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE inbox_scheduled ADD COLUMN batch_id TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, 'ALTER TABLE inbox_scheduled ADD COLUMN seq INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, 'ALTER TABLE inbox_scheduled ADD COLUMN delay_s INTEGER NOT NULL DEFAULT 0');
+      await addColumn(c, "ALTER TABLE inbox_scheduled ADD COLUMN media_url TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, "ALTER TABLE inbox_scheduled ADD COLUMN media_name TEXT NOT NULL DEFAULT ''");
+      await addColumn(c, "ALTER TABLE inbox_scheduled ADD COLUMN media_type TEXT NOT NULL DEFAULT ''");
+      await c.execute("CREATE INDEX IF NOT EXISTS idx_inbox_scheduled_batch ON inbox_scheduled(batch_id, seq) WHERE batch_id <> ''");
+    },
+  },
+  {
+    // Inbox: importaciones largas que siguen solas (cron) y se retoman: todo
+    // el historial de WhatsApp desde el servidor (Evolution) o un archivo de
+    // inbox-zero subido a Blob. cursor = por dónde va; progress = lo que va
+    // importado (JSON). claimed_until: compare-and-set entre corridas.
+    id: '298_inbox_imports',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS inbox_imports (
+          id TEXT PRIMARY KEY,
+          owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          account_id TEXT,
+          kind TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'running',
+          source_url TEXT NOT NULL DEFAULT '',
+          source_name TEXT NOT NULL DEFAULT '',
+          source_size INTEGER NOT NULL DEFAULT 0,
+          cursor TEXT NOT NULL DEFAULT '',
+          progress TEXT NOT NULL DEFAULT '{}',
+          error TEXT NOT NULL DEFAULT '',
+          claimed_until TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          finished_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_inbox_imports_owner ON inbox_imports(owner_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_inbox_imports_status ON inbox_imports(status);
+      `);
+    },
+  },
+  {
+    // Inbox: búsqueda de texto completo en los mensajes (FTS5, como Talk).
+    // Índice de contenido externo sobre inbox_messages (texto, asunto,
+    // nombre del archivo y de quien escribe), al día por triggers; al crearlo
+    // se llena con lo que ya hay. Sin FTS5 (algún SQLite viejo) no se crea y
+    // la búsqueda usa LIKE.
+    id: '299_inbox_messages_fts',
+    up: async (c) => {
+      try {
+        await c.execute(
+          "CREATE VIRTUAL TABLE IF NOT EXISTS inbox_messages_fts USING fts5(body, subject, media_name, sender_name, content='inbox_messages', content_rowid='rowid', tokenize='unicode61 remove_diacritics 2')",
+        );
+      } catch {
+        return;
+      }
+      await c.executeMultiple(`
+        CREATE TRIGGER IF NOT EXISTS inbox_messages_fts_ai AFTER INSERT ON inbox_messages BEGIN
+          INSERT INTO inbox_messages_fts(rowid, body, subject, media_name, sender_name) VALUES (new.rowid, new.body, new.subject, new.media_name, new.sender_name);
+        END;
+        CREATE TRIGGER IF NOT EXISTS inbox_messages_fts_ad AFTER DELETE ON inbox_messages BEGIN
+          INSERT INTO inbox_messages_fts(inbox_messages_fts, rowid, body, subject, media_name, sender_name) VALUES ('delete', old.rowid, old.body, old.subject, old.media_name, old.sender_name);
+        END;
+        CREATE TRIGGER IF NOT EXISTS inbox_messages_fts_au AFTER UPDATE OF body, subject, media_name, sender_name ON inbox_messages BEGIN
+          INSERT INTO inbox_messages_fts(inbox_messages_fts, rowid, body, subject, media_name, sender_name) VALUES ('delete', old.rowid, old.body, old.subject, old.media_name, old.sender_name);
+          INSERT INTO inbox_messages_fts(rowid, body, subject, media_name, sender_name) VALUES (new.rowid, new.body, new.subject, new.media_name, new.sender_name);
+        END;
+        INSERT INTO inbox_messages_fts(inbox_messages_fts) VALUES ('rebuild');
+      `);
+    },
+  },
+  {
+    // Inbox: chats archivados de WhatsApp (como "Archivados" de WhatsApp Web).
+    // Salen de la bandeja y de las vistas; se ven en la vista "archived".
+    id: '340_inbox_archived',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE inbox_threads ADD COLUMN archived_at TEXT');
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_inbox_threads_archived ON inbox_threads(owner_id, archived_at)');
+    },
+  },
+  {
+    // Seguridad de la cuenta (lib/account-security.ts): verificación en dos pasos (TOTP con
+    // secreto cifrado y códigos de recuperación hasheados), sesiones del lado del servidor
+    // (cada login es una fila que se puede cerrar), registro de eventos de seguridad del
+    // workspace y la exigencia de dos pasos por workspace.
+    id: '297_account_security',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE users ADD COLUMN mfa_secret TEXT');
+      await addColumn(c, 'ALTER TABLE users ADD COLUMN mfa_pending_secret TEXT');
+      await addColumn(c, 'ALTER TABLE users ADD COLUMN mfa_enabled_at TEXT');
+      await addColumn(c, 'ALTER TABLE users ADD COLUMN mfa_last_step INTEGER');
+      await addColumn(c, 'ALTER TABLE users ADD COLUMN sessions_revoked_at TEXT');
+      await addColumn(c, 'ALTER TABLE teams ADD COLUMN require_mfa INTEGER NOT NULL DEFAULT 0');
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS user_sessions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          method TEXT NOT NULL DEFAULT '',
+          ip TEXT,
+          user_agent TEXT,
+          created_at TEXT NOT NULL,
+          last_seen_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          mfa_at TEXT,
+          revoked_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id, last_seen_at);
+        CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
+
+        CREATE TABLE IF NOT EXISTS user_mfa_recovery (
+          user_id TEXT NOT NULL,
+          code_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          used_at TEXT,
+          PRIMARY KEY (user_id, code_hash)
+        );
+
+        CREATE TABLE IF NOT EXISTS security_events (
+          id TEXT PRIMARY KEY,
+          team_id TEXT,
+          user_id TEXT,
+          action TEXT NOT NULL,
+          target TEXT NOT NULL DEFAULT '',
+          meta TEXT NOT NULL DEFAULT '{}',
+          ip TEXT,
+          user_agent TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_security_events_team ON security_events(team_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_security_events_user ON security_events(user_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at);
+      `);
+    },
+  },
+  {
+    // Borrado de cuenta o de workspace (lib/privacy.ts): se pide, quedan 30 días para
+    // arrepentirse y el cron lo ejecuta reclamando la fila (claimed_at).
+    id: '298_privacy_erasures',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS privacy_erasures (
+          id TEXT PRIMARY KEY,
+          kind TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          requested_by TEXT NOT NULL,
+          requested_at TEXT NOT NULL,
+          due_at TEXT NOT NULL,
+          claimed_at TEXT,
+          done_at TEXT,
+          cancelled_at TEXT,
+          stats TEXT,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT
+        );
+        CREATE TABLE IF NOT EXISTS privacy_file_queue (
+          erasure_id TEXT NOT NULL,
+          ref TEXT NOT NULL,
+          app TEXT NOT NULL,
+          PRIMARY KEY (erasure_id, ref)
+        );
+        CREATE INDEX IF NOT EXISTS idx_privacy_erasures_due ON privacy_erasures(due_at) WHERE done_at IS NULL AND cancelled_at IS NULL;
+        CREATE INDEX IF NOT EXISTS idx_privacy_erasures_user ON privacy_erasures(user_id);
+      `);
+    },
+  },
+  {
+    // Analytics (tipo Metabase): colecciones, bases externas, preguntas,
+    // tableros con tarjetas, links públicos firmados, suscripciones y caché
+    // de resultados. Todo por workspace; las credenciales de las bases van
+    // cifradas (lib/bi/secrets.ts).
+    id: '310_bi_analytics',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS bi_collections (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          parent_id TEXT,
+          name TEXT NOT NULL,
+          personal_owner TEXT,
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_bi_collections_ws ON bi_collections(workspace_id, parent_id);
+        CREATE TABLE IF NOT EXISTS bi_databases (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          engine TEXT NOT NULL,
+          host TEXT NOT NULL,
+          port INTEGER NOT NULL,
+          dbname TEXT NOT NULL,
+          username TEXT NOT NULL,
+          secret TEXT NOT NULL DEFAULT '',
+          ssl TEXT NOT NULL DEFAULT 'require',
+          schema_json TEXT,
+          synced_at TEXT,
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_bi_databases_ws ON bi_databases(workspace_id, name);
+        CREATE TABLE IF NOT EXISTS bi_questions (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          collection_id TEXT,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          source TEXT NOT NULL DEFAULT 'zerosoft',
+          mode TEXT NOT NULL DEFAULT 'builder',
+          query_json TEXT NOT NULL,
+          viz_json TEXT NOT NULL DEFAULT '{}',
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_bi_questions_ws ON bi_questions(workspace_id, collection_id, updated_at);
+        CREATE TABLE IF NOT EXISTS bi_dashboards (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          collection_id TEXT,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          filters_json TEXT NOT NULL DEFAULT '[]',
+          refresh_sec INTEGER NOT NULL DEFAULT 0,
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_bi_dashboards_ws ON bi_dashboards(workspace_id, collection_id, updated_at);
+        CREATE TABLE IF NOT EXISTS bi_cards (
+          id TEXT PRIMARY KEY,
+          dashboard_id TEXT NOT NULL REFERENCES bi_dashboards(id) ON DELETE CASCADE,
+          question_id TEXT,
+          kind TEXT NOT NULL DEFAULT 'question',
+          text TEXT NOT NULL DEFAULT '',
+          x INTEGER NOT NULL DEFAULT 0,
+          y INTEGER NOT NULL DEFAULT 0,
+          w INTEGER NOT NULL DEFAULT 6,
+          h INTEGER NOT NULL DEFAULT 4,
+          mapping_json TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_bi_cards_dash ON bi_cards(dashboard_id);
+        CREATE TABLE IF NOT EXISTS bi_shares (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          target_id TEXT NOT NULL,
+          token_hash TEXT NOT NULL UNIQUE,
+          params_json TEXT NOT NULL DEFAULT '{}',
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          revoked_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_bi_shares_target ON bi_shares(kind, target_id);
+        CREATE TABLE IF NOT EXISTS bi_subscriptions (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          dashboard_id TEXT NOT NULL REFERENCES bi_dashboards(id) ON DELETE CASCADE,
+          channel TEXT NOT NULL DEFAULT 'email',
+          target TEXT NOT NULL,
+          cadence TEXT NOT NULL DEFAULT 'weekly',
+          hour INTEGER NOT NULL DEFAULT 9,
+          weekday INTEGER NOT NULL DEFAULT 1,
+          timezone TEXT NOT NULL DEFAULT 'UTC',
+          next_run_at TEXT NOT NULL,
+          claimed_until TEXT,
+          last_sent_at TEXT,
+          last_error TEXT,
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_bi_subscriptions_due ON bi_subscriptions(next_run_at);
+        CREATE TABLE IF NOT EXISTS bi_cache (
+          key TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          result_json TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_bi_cache_exp ON bi_cache(expires_at);
+      `);
+    },
+  },
+  {
+    // Lines: dueño y visibilidad por línea, carpetas compartidas del workspace y preferencia de línea por persona.
+    id: '320_lines_owners_visibility_folders',
+    async up(c) {
+      await addColumn(c, 'ALTER TABLE groups_numbers ADD COLUMN owner_id TEXT');
+      await addColumn(c, "ALTER TABLE groups_numbers ADD COLUMN visibility TEXT NOT NULL DEFAULT 'all'");
+      await addColumn(c, 'ALTER TABLE groups_chats ADD COLUMN folder_id TEXT');
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS groups_number_access (
+          number_id TEXT NOT NULL REFERENCES groups_numbers(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL CHECK (kind IN ('person', 'team')),
+          ref_id TEXT NOT NULL,
+          PRIMARY KEY (number_id, kind, ref_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_number_access_ref ON groups_number_access(kind, ref_id);
+        CREATE INDEX IF NOT EXISTS idx_groups_numbers_owner ON groups_numbers(user_id, owner_id);
+        CREATE TABLE IF NOT EXISTS groups_folders (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          parent_id TEXT,
+          name TEXT NOT NULL,
+          position INTEGER NOT NULL DEFAULT 0,
+          created_by TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_folders_ws ON groups_folders(user_id, parent_id, position);
+        CREATE INDEX IF NOT EXISTS idx_groups_chats_folder ON groups_chats(user_id, folder_id) WHERE folder_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_groups_chats_number_recent ON groups_chats(user_id, number_id, last_message_at DESC);
+        CREATE TABLE IF NOT EXISTS groups_user_prefs (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          person_id TEXT NOT NULL,
+          key TEXT NOT NULL,
+          value TEXT NOT NULL DEFAULT '',
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (user_id, person_id, key)
+        );
+      `);
+    },
+  },
+  {
     // Apps "Próximamente" y Ajustes › Workspace › Apps. workspace_apps: una
     // fila por app con regla (sin fila = para todos), con las personas excluidas a mano en denied, clave el owner (los datos
     // y los equipos del workspace cuelgan de su id). app_waitlist: la lista de

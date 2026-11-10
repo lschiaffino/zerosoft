@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 /**
@@ -121,7 +121,7 @@ test('encuesta desde el chat con resultados que llegan por webhook', async ({ pa
   await expect(poll.getByText('No votes yet')).toBeVisible();
   const msgs = (await (await request.get(`/api/groups/chats/${chat.id}/messages`)).json()) as { messages: Array<{ id: string; poll?: unknown }> };
   const pollMsg = msgs.messages.find((m) => m.poll)!;
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   const pid = String((await db.execute({ sql: 'SELECT provider_message_id FROM groups_messages WHERE id = ?', args: [pollMsg.id] })).rows[0].provider_message_id);
   await events(request, n, [
     { type: 'poll_vote', chatId: gid, pollProviderMessageId: pid, voterPhone: '5491100000001', voterName: 'Ana', options: ['Tuesday'] },
@@ -230,7 +230,7 @@ test('MCP: initialize, tools/list y list_chats con una API key', async ({ reques
 });
 
 test('un miembro ve solo sus etiquetas, con los teléfonos ocultos, y el log de auditoría', async ({ page, request }) => {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   const demo = String((await db.execute("SELECT id FROM users WHERE email = 'demo@zerosoft.ai'")).rows[0].id);
   const boss = `g3-boss-${uid()}`;
   const team = `g3-team-${uid()}`;

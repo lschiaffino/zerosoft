@@ -39,6 +39,8 @@ import { pruneBoardEvents } from '@/lib/board-live';
 import { sweepUnclaimedAttachments } from '@/lib/assistant/files';
 import { runAnalyticsCron } from '@/lib/analytics/cron';
 import { runSubscriptionsCron } from '@/lib/analytics/subscriptions';
+import { runBiSubscriptions } from '@/lib/bi/subscriptions';
+import { pruneCache as pruneBiCache } from '@/lib/bi/store';
 import { runAlertsCron } from '@/lib/analytics/alerts';
 import { purgeExpiredCandidates } from '@/lib/hiring/candidates';
 import { sendFeedbackReminders } from '@/lib/hiring/evaluation';
@@ -125,6 +127,9 @@ export async function GET(req: NextRequest) {
   const analyticsAlerts = await runAlertsCron({ budgetMs: 8_000 }).catch(() => null);
   // Suscripciones de insights y tableros: claim por fila.
   const analyticsSubscriptions = await runSubscriptionsCron({ budgetMs: 8_000 }).catch(() => null);
+  // Analytics (tipo Metabase): suscripciones de tableros (claim por fila) y caché vencida.
+  const biSubscriptions = await runBiSubscriptions({ budgetMs: 8_000 }).catch(() => null);
+  const biCache = await pruneBiCache().catch(() => null);
   // Hiring: retención de candidatos (compare-and-set en purge_claimed_at), recordatorios de
   // scorecards (claim en reminded_at) y reservas de Cal de las entrevistas.
   const hiring = {
@@ -146,6 +151,13 @@ export async function GET(req: NextRequest) {
   const forms = await import('@/lib/forms/responses').then((m) => m.purgeFormsRetention()).catch(() => null);
   // Papelera del CRM: lo borrado hace más de 90 días se descarta para siempre.
   const trashPurged = await purgeExpiredTrash().catch(() => null);
+  // Retención de seguridad: eventos de más de un año, sesiones terminadas hace más de 90 días.
+  const securityPurged = await import('@/lib/account-security').then((m) => m.purgeSecurityRecords()).catch(() => null);
+  // Borrados de cuenta o workspace pedidos hace 30 días (lib/privacy.ts, reclamo por fila).
+  const erasures = await import('@/lib/privacy').then((m) => m.runDueErasures()).catch((err) => {
+    console.error('[cron] erasures', err);
+    return null;
+  });
   // Board: papelera de más de 30 días y eventos de tiempo real viejos (son efímeros).
   const boardTrashPurged = await purgeBoardTrash().catch(() => null);
   const boardEventsPruned = await pruneBoardEvents().catch(() => null);
@@ -195,6 +207,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, linkHistory, analytics, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
+  return NextResponse.json({ lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

@@ -215,6 +215,9 @@ function useGroupOrder() {
         'analyticsExperiments',
         'analyticsAlerts',
         'analyticsSubscriptions',
+        'biQuestions',
+        'biDashboards',
+        'biCollections',
         'analyticsProjects',
         'assistantChats',
       ], []);
@@ -247,6 +250,7 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
   const tPlanning = useTranslations('trackPlanning.cmdk');
   const tSections = useTranslations('settings.sections');
   const tSettingsCmdk = useTranslations('settings.cmdk');
+  const tSettingsKw = useTranslations('settings.keywords');
   const tCategories = useTranslations('common.categories');
   const router = useRouter();
   const pathname = usePathname();
@@ -393,7 +397,7 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
         label: tSettingsCmdk('section', { section: tSections(key) }),
         meta: '',
         href: settingsSectionHref(key),
-        keywords: key === 'billing' ? tSettingsCmdk('keywords.billing') : key === 'desktop' ? tSettingsCmdk('keywords.desktop') : undefined,
+        keywords: tSettingsKw.has(key) ? tSettingsKw(key) : undefined,
       })),
       {
         group: 'settings',
@@ -418,7 +422,7 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
         app: s.app,
       })),
     ],
-    [tSections, tSettingsCmdk],
+    [tSections, tSettingsCmdk, tSettingsKw],
   );
 
   // Dónde estaba el foco antes de abrir (el chip, la fila): vuelve ahí al cerrar.

@@ -1,16 +1,16 @@
 {
   "products": {
     "meta": {
-      "title": "18 apps open source para empresas: CRM, docs, links y más",
-      "description": "Dieciocho apps open source, del CRM y los links a los docs, las firmas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
+      "title": "19 apps open source para empresas: CRM, docs, links y más",
+      "description": "Diecinueve apps open source, del CRM y los links a los docs, las firmas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
     },
     "hero": {
-      "title1": "Dieciocho apps.",
+      "title1": "Diecinueve apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las dieciocho apps.",
+      "title1": "Probá las diecinueve apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -2287,6 +2287,92 @@
         "sub": "Abrí Inbox, vinculá WhatsApp y empezá a ordenar.",
         "button": "Abrir Inbox"
       }
+    },
+    "analytics": {
+      "meta": {
+        "title": "Analytics: preguntas y tableros de código abierto sobre tus datos",
+        "description": "Hacé preguntas con un constructor, SQL o tus palabras, graficá las respuestas y compartí tableros. Lee tus datos de zerosoft y tu Postgres o MySQL. Una alternativa de código abierto a Metabase."
+      },
+      "hero": {
+        "sub": "Preguntá sobre tus datos de CRM, Track, Books, Groups y Pulse, o sobre tu propio Postgres o MySQL. Armá una pregunta sin código, escribí SQL con autocompletado o escribila con tus palabras y leé el SQL que arma. Poné las respuestas en tableros con filtros y mandalos por email o a Talk."
+      },
+      "featuresTitle": "Preguntale a tus datos.",
+      "featuresTitleDim": "Compartí la respuesta.",
+      "f1": {
+        "t": "Tu workspace como tablas",
+        "d": "Contactos, empresas, deals, proyectos, issues, facturas, chats, mensajes y eventos de Pulse, de solo lectura. Cada persona ve solo las filas que puede ver en cada app."
+      },
+      "f2": {
+        "t": "Constructor sin código",
+        "d": "Elegí una tabla, filtrá, contá o sumá, agrupá por día, semana, mes o año, uní tablas relacionadas y ordená. El SQL que arma está siempre a un clic."
+      },
+      "f3": {
+        "t": "Editor SQL",
+        "d": "Autocompletado de tablas y columnas, navegador del esquema, variables con valores por defecto y filtros opcionales, y resultados que podés paginar o bajar en CSV."
+      },
+      "f4": {
+        "t": "Preguntá con tus palabras",
+        "d": "Escribí una pregunta y la IA arma el SQL sobre las tablas que podés leer. El SQL se muestra antes de que confíes en el resultado y pasa por los mismos controles de solo lectura."
+      },
+      "f5": {
+        "t": "Tableros",
+        "d": "Una grilla de tarjetas con números, líneas, barras, áreas, tortas y embudos, texto, filtros conectados a cada tarjeta, actualización automática, pantalla completa y colecciones para ordenarlo."
+      },
+      "f6": {
+        "t": "Compartir y suscribirse",
+        "d": "Links públicos e iframes que nunca muestran la consulta, y resúmenes por email a tu equipo o a un canal de Talk, diarios o semanales."
+      },
+      "steps": {
+        "s1": {
+          "t": "Elegí tus datos",
+          "d": "Tu workspace ya está listo. Para sumar Postgres o MySQL, un admin lo conecta con un usuario de solo lectura."
+        },
+        "s2": {
+          "t": "Hacé una pregunta",
+          "d": "Usá el constructor, escribí SQL o preguntá con tus palabras. Elegí el gráfico o dejá que elija uno."
+        },
+        "s3": {
+          "t": "Armá un tablero",
+          "d": "Sumá las preguntas que guardaste, conectá filtros y compartilo o suscribí a tu equipo."
+        }
+      },
+      "compare": {
+        "rival": "Metabase",
+        "price": "Según el plan",
+        "per": "Metabase Cloud: un precio por mes más cada usuario extra",
+        "teamLabel": "10 personas",
+        "team": "ver precios de Metabase",
+        "zero": "US$ 0",
+        "note": "Metabase de código abierto es gratis si lo alojás vos; Metabase Cloud cobra por mes y por usuario. No pudimos verificar todos los precios actuales, así que mirá metabase.com/pricing. Analytics en tu servidor cuesta US$ 0 más tu base de datos."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Qué datos puede leer?",
+          "a": "Tu workspace de zerosoft (CRM, Track, Books, Groups y Pulse) y bases PostgreSQL o MySQL que conecte un admin. BigQuery, Snowflake y otros motores todavía no."
+        },
+        "f2": {
+          "q": "¿Una pregunta puede cambiar mis datos?",
+          "a": "No. Las tablas del workspace se leen con una lista blanca de SQL de solo lectura. En las bases externas cada consulta corre en una transacción de solo lectura con tope de tiempo, una sentencia por vez. Igual, conectá con un usuario de la base que solo pueda leer."
+        },
+        "f3": {
+          "q": "¿Quién ve qué?",
+          "a": "Cada persona ve las filas del workspace que puede ver en cada app: visibilidad del CRM, proyectos privados de Track, roles de Books y chats de Groups. Las colecciones personales son privadas. En una base externa, los admins deciden si los miembros escriben SQL o solo usan el constructor."
+        },
+        "f4": {
+          "q": "¿Cómo funciona preguntar con tus palabras?",
+          "a": "La IA recibe los nombres de las tablas y columnas que podés leer, nunca las filas, y escribe un SELECT. Ves el SQL y lo podés editar. Necesita la IA prendida en el workspace."
+        },
+        "f5": {
+          "q": "¿Qué falta comparado con Metabase?",
+          "a": "Mapas, tablas dinámicas, drill-through con clic en un gráfico, alertas sobre una pregunta, modelos y métricas, sandboxing de filas por grupo, incrustación firmada con JWT y más motores de base de datos. La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Hacé la pregunta.",
+        "title2": "Leé la respuesta.",
+        "sub": "Abrí Analytics y preguntá algo sobre tus datos.",
+        "button": "Abrir Analytics"
+      }
     }
   },
   "product": {
@@ -2302,7 +2388,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Dieciocho apps, el mismo login.",
+    "suiteTitleDim": "Diecinueve apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -2391,6 +2477,7 @@
       "design": "fig. 0 · una forma que cambia en su mesa de trabajo",
       "shop": "fig. 0 · un catálogo de seis productos",
       "pulse": "fig. 0 · un gráfico de barras con datos de ejemplo",
+      "analytics": "fig. 0 · barras de un tablero con datos de ejemplo",
       "social": "fig. 0 · publicaciones en un calendario",
       "hiring": "fig. 0 · candidatos que pasan de etapa",
       "people": "fig. 0 · licencias en un calendario",
@@ -2749,6 +2836,22 @@
       "s1": "Vio los precios",
       "s2": "Empezó el registro",
       "s3": "Creó un proyecto"
+    },
+    "analytics": {
+      "navBrowse": "Explorar",
+      "navData": "Datos",
+      "navDashboard": "Ventas",
+      "title": "Ventas de este año",
+      "new": "Pregunta nueva",
+      "ask": "deals ganados por mes este año",
+      "statRevenue": "Ingresos ganados",
+      "statWon": "Deals ganados",
+      "chartLabel": "Deals ganados por mes",
+      "tableTitle": "Mejores clientes",
+      "tableValue": "Ingresos",
+      "r1": "Acme",
+      "r2": "Globex",
+      "r3": "Initech"
     },
     "social": {
       "sketch": "Boceto",
@@ -3732,6 +3835,8 @@
     "paramAnalyticsCohort": "Solo personas de este id de cohorte.",
     "scope_analytics_read": "Leer proyectos, eventos y personas de Pulse y correr consultas.",
     "scope_analytics_write": "Cambiar proyectos, insights, tableros, cohortes y flags de Pulse.",
+    "scope_bi_read": "Leer preguntas, tableros y colecciones de Analytics y correr consultas.",
+    "scope_bi_write": "Crear y cambiar preguntas, tableros, colecciones y suscripciones de Analytics.",
     "scope_social_read": "Leer publicaciones de Social de las cuentas que ves.",
     "scope_people_read": "Leer el directorio de People: solo campos públicos de la ficha, nunca sueldo ni datos personales.",
     "scope_hiring_read": "Leer los puestos de Hiring y los candidatos que ve quien creó la key.",
@@ -3826,18 +3931,7 @@
     },
     "title": "zerosoft en tu computadora.",
     "sub": "Todas las apps en una ventana, más lo que una pestaña del navegador no puede: dictar en cualquier app y que el texto limpio se pegue donde está el cursor.",
-    "macArm": "Descargar para Mac (Apple silicon)",
-    "macIntel": "Descargar para Mac (Intel)",
-    "win": "Descargar para Windows",
-    "otherMac": "¿Tu Mac tiene chip Intel? Descargá la versión Intel.",
-    "otherArm": "¿Tu Mac tiene Apple silicon? Descargá esa versión.",
-    "allFiles": "Todos los archivos de la versión {version}",
-    "versionLine": "Versión {version}, publicada el {date}.",
-    "noRelease": "Todavía no hay una versión publicada. Podés compilarla desde el código en desktop/ (el README explica cómo).",
-    "source": "Código en GitHub",
     "unsignedTitle": "Las versiones todavía no están firmadas",
-    "unsignedMac": "En Mac: abrí el .dmg y arrastrá zerosoft a Aplicaciones. La primera vez macOS la bloquea porque todavía no está notarizada: en macOS 15 o posterior andá a Ajustes del Sistema › Privacidad y seguridad y tocá Abrir igualmente; en macOS 14 o anterior, hacé clic derecho en la app y elegí Abrir.",
-    "unsignedWin": "En Windows: SmartScreen puede decir que protegió tu PC. Tocá Más información y después Ejecutar de todas formas.",
     "unsignedUpdates": "La app busca versiones nuevas en segundo plano y las instala cuando la reiniciás. En Mac, mientras la app no esté firmada por Apple, puede que tengas que volver a permitir Accesibilidad después de una actualización.",
     "featuresTitle": "Qué suma la app de escritorio",
     "f1t": "Dictado en cualquier app",
@@ -3941,7 +4035,7 @@
   "docsMcp": {
     "meta": {
       "title": "Conectar Claude y la CLI",
-      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 18 apps como vos."
+      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 19 apps como vos."
     }
   }
 }
