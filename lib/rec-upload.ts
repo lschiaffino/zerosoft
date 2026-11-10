@@ -112,6 +112,22 @@ export async function readRecBlob(url: string): Promise<Uint8Array> {
   return new Uint8Array(await new Response(res.stream).arrayBuffer());
 }
 
+/**
+ * Una imagen chica de Rec (la miniatura) entera, local o de Blob, para
+ * componer la tarjeta del link. null si no está o pasa de `max` bytes.
+ */
+export async function readRecImage(url: string, max = 4 * 1024 * 1024): Promise<Buffer | null> {
+  const local = localUploadPath(url, 'rec');
+  if (local) {
+    const info = await stat(local).catch(() => null);
+    if (!info?.isFile() || info.size === 0 || info.size > max) return null;
+    return readFile(local).catch(() => null);
+  }
+  if (!/^https:\/\/[^/]+\.blob\.vercel-storage\.com\//.test(url)) return null;
+  const data = await readRecBlob(url).catch(() => null);
+  return data && data.byteLength <= max ? Buffer.from(data) : null;
+}
+
 /** URL guardada válida para ese video: subida local propia o el Blob bajo rec/<ws>/<id>/. */
 export function isOwnRecUrl(url: string, ws: string, videoId: string): boolean {
   if (url.startsWith('/uploads/rec/')) {

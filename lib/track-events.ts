@@ -4,9 +4,10 @@
  *   2. los webhooks salientes (issue.created desde fuera de la app,
  *      issue.deleted, comment.created, project.*; issue.updated y
  *      issue.status_changed ya los emite updateIssue),
- *   3. Slack (avisos por canal e hilos sincronizados) y los tickets de
- *      soporte vinculados (Sentry, Zendesk, Intercom), por la cola con
- *      reintentos de lib/track-integrations.
+ *   3. Slack (avisos por canal e hilos sincronizados), los tickets de
+ *      soporte vinculados (Sentry, Zendesk, Intercom) y la sincronización con
+ *      Linear (lib/track-linear-sync), por la cola con reintentos de
+ *      lib/track-integrations.
  *
  * Lo llama lib/track-data en los puntos donde ya pasan todos los caminos
  * (app, API, MCP, Slack, GitHub, Flow). Corre después de responder (after)
@@ -228,6 +229,14 @@ export async function handleTrackEvent(event: TrackEventInput, ctx: TrackEventCo
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[track-events] support', err);
+  }
+  // Linear (sincronización en vivo): lo que no vino de Linear se encola para mandarlo.
+  try {
+    const { linearOnTrackEvent } = await import('./track-linear-sync');
+    queued += await linearOnTrackEvent(ws, event, ctx, issue);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[track-events] linear', err instanceof Error ? err.name : 'error');
   }
   if (queued > 0) await drainNewOutbox(ws);
 }

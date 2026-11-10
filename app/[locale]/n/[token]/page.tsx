@@ -1,3 +1,4 @@
+import { ogMeta } from '@/lib/og/url';
 import { notFound } from 'next/navigation';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { getSharedNote } from '@/lib/notes';
@@ -14,9 +15,13 @@ export async function generateMetadata(props: Props) {
   const { locale, token } = await props.params;
   const note = await getSharedNote(token);
   const t = await getTranslations({ locale, namespace: 'notes' });
+  const title = note ? note.title || t('untitled') : t('public.notFound');
+  // Compartida por link: el link es el permiso, la tarjeta dice el título. Revocada, nada.
+  const og = note ? ogMeta(`/api/og/note/${encodeURIComponent(token)}`, title, undefined, [title]) : null;
   return {
-    title: note ? note.title || t('untitled') : t('public.notFound'),
+    title,
     robots: { index: false, follow: false },
+    ...(og ? { openGraph: { title, type: 'article' as const, images: og.images }, twitter: og.twitter } : {}),
   };
 }
 

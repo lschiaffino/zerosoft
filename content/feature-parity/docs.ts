@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Notion',
   alsoCompared: ['Confluence'],
-  lastReviewed: '2026-11-07',
+  lastReviewed: '2026-11-09',
   areas: [
     { id: 'editing', label: { en: 'Editing', es: 'Edición', pt: 'Edição' } },
     { id: 'databases', label: { en: 'Databases', es: 'Bases de datos', pt: 'Bancos de dados' } },
@@ -158,7 +158,7 @@ const parity: ProductParity = {
       id: 'db-property-types',
       area: 'databases',
       label: { en: 'Database property types', es: 'Tipos de propiedad de base de datos', pt: 'Tipos de propriedade do banco de dados' },
-      detail: { en: 'All Notion types: text, number, select, multi-select, status with groups, date, person, files, checkbox, URL, email, phone, place, formula, relation, rollup, button, unique ID with prefix, created and edited time and by. Dates are single days (the timeline takes start and end from two properties) and numbers have no currency or bar format', es: 'Todos los tipos de Notion: texto, número, select, multi-select, estado con grupos, fecha, persona, archivos, checkbox, URL, email, teléfono, lugar, fórmula, relación, rollup, botón, ID único con prefijo, creado y editado (cuándo y quién). Las fechas son de un día (la timeline toma inicio y fin de dos propiedades) y los números no tienen formato de moneda ni barra', pt: 'Todos os tipos do Notion: texto, número, select, multisseleção, status com grupos, data, pessoa, arquivos, checkbox, URL, email, telefone, local, fórmula, relação, rollup, botão, ID único com prefixo, criado e editado (quando e por quem). As datas são de um dia (a linha do tempo usa início e fim de duas propriedades) e os números não têm formato de moeda nem barra' },
+      detail: { en: 'All Notion types: text, number, select, multi-select, status with groups, date, person, files, checkbox, URL, email, phone, place, formula, relation, rollup, button, unique ID with prefix, created and edited time and by. Dates are a day or a range (the timeline can also take start and end from two properties) and numbers have no currency or bar format', es: 'Todos los tipos de Notion: texto, número, select, multi-select, estado con grupos, fecha, persona, archivos, checkbox, URL, email, teléfono, lugar, fórmula, relación, rollup, botón, ID único con prefijo, creado y editado (cuándo y quién). Las fechas son un día o un rango (la timeline también puede tomar inicio y fin de dos propiedades) y los números no tienen formato de moneda ni barra', pt: 'Todos os tipos do Notion: texto, número, select, multisseleção, status com grupos, data, pessoa, arquivos, checkbox, URL, email, telefone, local, fórmula, relação, rollup, botão, ID único com prefixo, criado e editado (quando e por quem). As datas são um dia ou um intervalo (a linha do tempo também pode usar início e fim de duas propriedades) e os números não têm formato de moeda nem barra' },
       status: 'have',
       competitorHas: true,
       weight: 2,
@@ -433,6 +433,18 @@ const parity: ProductParity = {
       },
       status: 'have',
       competitorHas: true,
+    },
+    {
+      id: 'notion-two-way-sync',
+      area: 'import-export',
+      label: { en: 'Two-way sync with Notion during the move', es: 'Sincronización en dos vías con Notion durante la mudanza', pt: 'Sincronização nas duas direções com o Notion durante a mudança' },
+      detail: {
+        en: 'Docs › Settings › Integrations: connect with a Notion login (you pick the pages in Notion) or an internal integration token. Resumable initial import with progress, then edits travel both ways: block by block, with the latest edit winning a clash and the other version kept in page history. Databases sync properties and rows (date ranges, people by email, relations; formulas and rollups read-only), plus page comments and files. Choose two-way, import only or Docs to Notion, pause, pick what syncs and read the sync log. Tested against a simulated Notion so far',
+        es: 'Docs › Ajustes › Integraciones: conectar con el ingreso de Notion (elegís las páginas en Notion) o con el token de una integración interna. Import inicial reanudable con progreso, y después las ediciones viajan en las dos direcciones: bloque por bloque, gana la última edición en un choque y la otra versión queda en el historial. Las bases sincronizan propiedades y filas (rangos de fechas, personas por email, relaciones; fórmulas y rollups de solo lectura), además de comentarios de página y archivos. Dirección a elección (dos vías, solo importar o de Docs a Notion), pausa, qué se sincroniza y registro. Probado por ahora contra un Notion simulado',
+        pt: 'Docs › Configurações › Integrações: conectar com o login do Notion (você escolhe as páginas no Notion) ou com o token de uma integração interna. Importação inicial que continua de onde parou, com progresso, e depois as edições vão e voltam: bloco por bloco, vence a última edição em um conflito e a outra versão fica no histórico. Os bancos sincronizam propriedades e linhas (intervalos de datas, pessoas por email, relações; fórmulas e rollups só leitura), além de comentários de página e arquivos. Direção à escolha (duas vias, só importar ou do Docs para o Notion), pausa, o que sincroniza e registro. Testado por enquanto contra um Notion simulado',
+      },
+      status: 'partial',
+      competitorHas: false,
     },
     {
       id: 'import-csv',

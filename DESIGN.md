@@ -238,7 +238,7 @@ Animated figures drawn with the torus ramp (` ·°o0Ø`), in one `<pre>`. `lib/z
 - **`ProductGlyph`** `{ product, size? }`: an app's mark, the zero in the app color (`.product-zero card-<key>`).
 - **`BrandSymbol`**: the zero as a bullet (product steps, section signs).
 - **`AccentGlyph`** `{ color, height? }`: the zero in a given color, used by `EmptyState` and the help-center header.
-- **Favicon / app icon / OG:** `app/icon.svg` and `app/apple-icon.tsx` are the white zero on an ink square; product, changelog and tool OG images (`lib/product-og.ts`) are a zero made of zeros on ink; blog covers (`lib/blog-cover.ts`) are zeros only.
+- **Favicon / app icon / OG:** `app/icon.svg` and `app/apple-icon.tsx` are the white zero on an ink square. Share cards (`lib/og/`, 1200×630 and 1200×1200) are the ASCII torus in the app's color bleeding off the right edge, zeros drifting toward the text, the title in Space Grotesk 500 and the address in mono; ink for the site, paper for docs, legal pages and customers' content; the home adds the row of every app's zero. Blog covers (`lib/blog-cover.ts`) are zeros only.
 
 ### App shell
 `app/[locale]/app/layout.tsx` + `components/app/AppSidebar.tsx` + `styles/app.css`.

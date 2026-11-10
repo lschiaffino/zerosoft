@@ -1,3 +1,4 @@
+import { ogMeta } from '@/lib/og/url';
 import { setRequestLocale } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
 import BoardChrome from '@/components/board/BoardChrome';
@@ -20,6 +21,7 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   const title = t('meta.title');
   const description = t('meta.description');
   const url = absoluteBoardUrl(locale);
+  const og = ogMeta(`/api/og/feedback-board/${locale}`, title, description, [title, description]);
   return {
     title,
     description,
@@ -30,7 +32,7 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
         'x-default': absoluteBoardUrl('en'),
       },
     },
-    openGraph: { title, description, type: 'website', url, images: [{ url: '/api/og/home', width: 1200, height: 630, alt: title }] },
+    openGraph: { title, description, type: 'website', url, images: og.images }, twitter: og.twitter,
   };
 }
 

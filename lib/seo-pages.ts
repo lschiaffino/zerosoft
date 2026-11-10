@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { pageMetadata } from '@/lib/seo';
+import { homeOgImage, pageMetadata } from '@/lib/seo';
 import { STATIC_PAGES, type StaticPage, type StaticPageKey } from '@/lib/seo-routes';
 
 export { STATIC_PAGES, isStaticPageKey, type StaticPage, type StaticPageKey } from '@/lib/seo-routes';
@@ -14,9 +14,12 @@ export async function staticPageText(key: StaticPageKey, locale: string): Promis
   return { title: t(page.title as never), description: t(page.description as never) };
 }
 
-/** Imagen OG de una página fija (el home usa la de la marca). */
+/** Tarjeta para compartir de una página fija (home, changelog y herramientas tienen la suya). */
 export function staticPageImage(key: StaticPageKey, locale: string): string {
-  return key === 'home' ? '/api/og/home' : `/api/og/page/${locale}/${key}`;
+  if (key === 'home') return homeOgImage(locale);
+  if (key === 'changelog') return `/api/og/changelog/${locale}`;
+  if (key === 'tools') return `/api/og/tool/hub/${locale}`;
+  return `/api/og/page/${locale}/${key}`;
 }
 
 /** generateMetadata de una página fija. `extra` suma campos (feeds del changelog, etc.). */

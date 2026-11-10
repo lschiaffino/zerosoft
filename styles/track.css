@@ -2995,6 +2995,79 @@ a.track-board-card-title:hover {
   overflow-wrap: anywhere;
 }
 
+/* Linear (sincronización en vivo) */
+.track-linear-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.track-linear-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand-gray-3);
+}
+
+.track-linear-status[data-tone='good'] .track-linear-dot {
+  background: var(--ok);
+}
+
+.track-linear-status[data-tone='warn'] .track-linear-dot {
+  background: var(--warn);
+}
+
+.track-linear-status[data-tone='bad'] {
+  color: var(--bad-ink);
+}
+
+.track-linear-status[data-tone='bad'] .track-linear-dot {
+  background: var(--bad);
+}
+
+.track-linear-teams {
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.track-linear-team-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: 4px 16px;
+}
+
+.track-linear-team-list .ui-check {
+  min-width: 0;
+}
+
+.track-linear-team-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-linear-direction {
+  max-width: 360px;
+  margin-top: 12px;
+}
+
+.track-linear-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .track-int-code {
   margin: 0;
   padding: 12px;

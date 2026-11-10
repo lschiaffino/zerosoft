@@ -13,6 +13,8 @@ export interface GqlField {
 }
 
 export interface GqlOperation {
+  /** query o mutation (el fake de Linear también acepta mutations). */
+  kind: 'query' | 'mutation';
   name: string | null;
   variables: string[];
   selection: GqlField[];
@@ -76,9 +78,10 @@ export function parseOperation(src: string, variables: Record<string, unknown> =
   };
 
   let name: string | null = null;
+  let kind: GqlOperation['kind'] = 'query';
   const vars: string[] = [];
-  if (peek()?.k === 'name' && peek().v === 'query') {
-    take();
+  if (peek()?.k === 'name' && (peek().v === 'query' || peek().v === 'mutation')) {
+    kind = take().v as GqlOperation['kind'];
     if (peek()?.k === 'name') name = take().v;
     if (peek()?.v === '(') {
       take('(');
@@ -147,11 +150,11 @@ export function parseOperation(src: string, variables: Record<string, unknown> =
 
   const sel = selection();
   if (p !== t.length) throw new Error('trailing tokens');
-  return { name, variables: vars, selection: sel };
+  return { kind, name, variables: vars, selection: sel };
 }
 
 /** Errores como los de un servidor GraphQL ("Cannot query field ..."). Vacío si la operación es válida. */
-export function validateOperation(op: GqlOperation, schema: GqlSchemaMap, root = 'Query'): string[] {
+export function validateOperation(op: GqlOperation, schema: GqlSchemaMap, root = op.kind === 'mutation' ? 'Mutation' : 'Query'): string[] {
   const errors: string[] = [];
   const walk = (type: string, fields: GqlField[]) => {
     const def = schema[type];

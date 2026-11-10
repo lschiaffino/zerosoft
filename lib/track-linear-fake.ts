@@ -17,17 +17,29 @@
  *   y movido de estado, un comentario y un issue nuevos) para probar que
  *   reimportar actualiza sin duplicar.
  * - lin_api_fake_big: además 2.500 issues generados (velocidad con muchos).
+ * - lin_api_fake_sync: el workspace de lin_api_fake para la sincronización en
+ *   vivo (lib/track-linear-sync.ts), con su propio estado.
+ *
+ * Mutations (issueCreate, issueUpdate, commentCreate, webhookCreate,
+ * webhookDelete): cambian un estado en memoria por key (resetLinearFake lo
+ * limpia) y, como Linear, mandan un webhook firmado a cada webhook creado con
+ * webhookCreate, después de responder (también por los cambios que hace la
+ * sincronización: así se prueba que no rebota). Los tests pueden recibirlos en
+ * proceso con setLinearFakeWebhookSink.
  */
+import { createHmac } from 'crypto';
 import { parseOperation, validateOperation, type GqlField, type GqlSchemaMap } from './graphql-lite';
 import schemaJson from './fixtures/linear-schema.json';
 
 const SCHEMA = schemaJson as unknown as GqlSchemaMap;
 
-export const LINEAR_FAKE_TOKENS = ['lin_api_fake', 'lin_api_fake_v2', 'lin_api_fake_big'] as const;
+export const LINEAR_FAKE_TOKENS = ['lin_api_fake', 'lin_api_fake_v2', 'lin_api_fake_big', 'lin_api_fake_sync'] as const;
 
 export function linearFakeAllowed(): boolean {
   if (process.env.TRACK_LINEAR_FAKE !== '1') return false;
-  return process.env.NODE_ENV === 'test' || process.env.DEMO_MODE === 'true';
+  if (process.env.NODE_ENV === 'test') return true;
+  // Demo en producción solo con el permiso explícito de la demo (como el middleware) y nunca en Vercel.
+  return process.env.DEMO_MODE === 'true' && (process.env.NODE_ENV !== 'production' || process.env.DEMO_MODE_ALLOW_PRODUCTION === 'true') && !process.env.VERCEL;
 }
 
 /** Toda key lin_api_fake… va al fake; las que no están en la lista dan AUTHENTICATION_ERROR (key equivocada). */
@@ -129,7 +141,7 @@ export function linearFakeWorkspace(token: string, now = Date.now()): Record<str
     },
   ];
 
-  const label = (name: string, color: string) => ({ name, color });
+  const label = (name: string, color: string) => ({ id: `l-${name.toLowerCase()}`, name, color });
   const bug = label('Bug', '#eb5757');
   const feature = label('Feature', '#bb87fc');
   const perf = label('Performance', '#4ea7fc');
@@ -237,7 +249,7 @@ export function linearFakeWorkspace(token: string, now = Date.now()): Record<str
     parent: s.parent ? { id: s.parent, identifier: byId.get(s.parent)!.identifier } : null,
     labels: { nodes: s.labels ?? [] },
   }));
-  const ref = (id: string) => ({ id, identifier: byId.get(id)!.identifier });
+  const ref = (id: string) => ({ id, identifier: byId.get(id)!.identifier, team: teamRef(byId.get(id)!.team) });
 
   const comments = [
     { id: 'cm-1', body: 'Started on the queue, PR coming.', createdAt: day(-10, base), updatedAt: day(-10, base), user: users.ana, externalUser: null, issue: ref('i-1'), parent: null },
@@ -248,10 +260,10 @@ export function linearFakeWorkspace(token: string, now = Date.now()): Record<str
   if (v2) comments.push({ id: 'cm-5', body: 'Moved to review.', createdAt: day(0, base), updatedAt: day(0, base), user: users.ana, externalUser: null, issue: ref('i-1'), parent: null });
 
   const attachments = [
-    { id: 'at-1', title: 'Offline queue', subtitle: 'Open', url: 'https://github.com/acme/mobile/pull/42', sourceType: 'github', createdAt: day(-8, base), issue: ref('i-1') },
-    { id: 'at-2', title: 'Thread in #mobile', subtitle: 'Slack message', url: 'https://acme.slack.com/archives/C123/p1700000000000100', sourceType: 'slack', createdAt: day(-8, base), issue: ref('i-1') },
-    { id: 'at-3', title: 'Spec', subtitle: null, url: 'https://docs.example.com/offline-spec', sourceType: null, createdAt: day(-7, base), issue: ref('i-1') },
-    { id: 'at-4', title: 'Illustrations', subtitle: null, url: 'https://www.figma.com/file/AbC123/Offline', sourceType: 'figma', createdAt: day(-6, base), issue: ref('i-10') },
+    { id: 'at-1', title: 'Offline queue', subtitle: 'Open', url: 'https://github.com/acme/mobile/pull/42', sourceType: 'github', createdAt: day(-8, base), updatedAt: day(-8, base), issue: ref('i-1') },
+    { id: 'at-2', title: 'Thread in #mobile', subtitle: 'Slack message', url: 'https://acme.slack.com/archives/C123/p1700000000000100', sourceType: 'slack', createdAt: day(-8, base), updatedAt: day(-8, base), issue: ref('i-1') },
+    { id: 'at-3', title: 'Spec', subtitle: null, url: 'https://docs.example.com/offline-spec', sourceType: null, createdAt: day(-7, base), updatedAt: day(-7, base), issue: ref('i-1') },
+    { id: 'at-4', title: 'Illustrations', subtitle: null, url: 'https://www.figma.com/file/AbC123/Offline', sourceType: 'figma', createdAt: day(-6, base), updatedAt: day(-6, base), issue: ref('i-10') },
   ];
 
   const relations = [
@@ -266,6 +278,7 @@ export function linearFakeWorkspace(token: string, now = Date.now()): Record<str
     organization: { id: 'o-acme', name: 'Acme', urlKey: 'acme' },
     users: Object.values(users),
     teams: [eng, des],
+    issueLabels: [bug, feature, perf],
     projects,
     cycles,
     issues,
@@ -335,6 +348,252 @@ const decode = (c: unknown) => {
   return m ? Number(m[1]) : 0;
 };
 
+// ---------- Estado en memoria (mutations) ----------
+
+interface FakeStore {
+  /** Cambios de issues existentes, por id. */
+  patches: Map<string, Node>;
+  created: Node[];
+  comments: Node[];
+  webhooks: Array<{ id: string; url: string; secret: string; resourceTypes: string[] }>;
+  seq: number;
+}
+
+type WebhookSink = (delivery: { url: string; body: string; headers: Record<string, string> }) => Promise<void> | void;
+
+const g = globalThis as unknown as { __zsLinearFake?: Map<string, FakeStore>; __zsLinearFakeSink?: WebhookSink | null };
+const stores = (g.__zsLinearFake ??= new Map<string, FakeStore>());
+
+function store(token: string): FakeStore {
+  let s = stores.get(token);
+  if (!s) {
+    s = { patches: new Map(), created: [], comments: [], webhooks: [], seq: 0 };
+    stores.set(token, s);
+  }
+  return s;
+}
+
+/** Vuelve el fake al workspace de origen (tests). */
+export function resetLinearFake(token?: string): void {
+  if (token) stores.delete(token);
+  else stores.clear();
+}
+
+/** Los webhooks del fake van a esta función en vez de a su URL (tests unitarios). */
+export function setLinearFakeWebhookSink(sink: WebhookSink | null): void {
+  g.__zsLinearFakeSink = sink;
+}
+
+/** Workspace con los cambios hechos por mutations. */
+function currentWorkspace(token: string): Record<string, Node[] | Node> {
+  const ws = linearFakeWorkspace(token);
+  const st = stores.get(token);
+  if (!st) return ws;
+  ws.issues = [...(ws.issues as Node[]).map((i) => (st.patches.has(i.id as string) ? { ...i, ...st.patches.get(i.id as string) } : i)), ...st.created];
+  ws.comments = [...(ws.comments as Node[]), ...st.comments];
+  return ws;
+}
+
+/** Hora de un cambio: siempre después de la anterior (dos cambios en el mismo ms quedan ordenados). */
+function stamp(st: FakeStore): string {
+  st.seq += 1;
+  return new Date(Date.now() + st.seq).toISOString();
+}
+
+function allStates(ws: Record<string, Node[] | Node>): Node[] {
+  return (ws.teams as Node[]).flatMap((t) => ((t.states as Node).nodes as Node[]));
+}
+
+function issueRef(ws: Record<string, Node[] | Node>, id: unknown): Node | null {
+  const i = (ws.issues as Node[]).find((x) => x.id === id);
+  return i ? { id: i.id, identifier: i.identifier, team: i.team } : null;
+}
+
+const FLAT: Record<string, string> = { state: 'stateId', assignee: 'assigneeId', parent: 'parentId', project: 'projectId', projectMilestone: 'projectMilestoneId', labels: 'labelIds' };
+
+/** IssueCreateInput / IssueUpdateInput → campos del nodo. */
+function issueFieldsFromInput(ws: Record<string, Node[] | Node>, input: Node): Node {
+  const out: Node = {};
+  for (const k of ['title', 'description', 'priority', 'estimate', 'dueDate'] as const) if (k in input) out[k] = input[k] ?? null;
+  if ('stateId' in input) {
+    const st = allStates(ws).find((s) => s.id === input.stateId);
+    if (st) out.state = st;
+  }
+  if ('assigneeId' in input) out.assignee = (ws.users as Node[]).find((u) => u.id === input.assigneeId) ?? null;
+  if ('labelIds' in input) {
+    const ids = (input.labelIds as string[] | null) ?? [];
+    out.labels = { nodes: (ws.issueLabels as Node[]).filter((l) => ids.includes(l.id as string)) };
+  }
+  if ('parentId' in input) out.parent = input.parentId ? issueRef(ws, input.parentId) : null;
+  if ('projectId' in input) {
+    const p = (ws.projects as Node[]).find((x) => x.id === input.projectId);
+    out.project = p ? { id: p.id, name: p.name } : null;
+  }
+  if ('projectMilestoneId' in input) {
+    const m = (ws.projects as Node[]).flatMap((p) => (p.projectMilestones as Node).nodes as Node[]).find((x) => x.id === input.projectMilestoneId);
+    out.projectMilestone = m ? { id: m.id, name: m.name } : null;
+  }
+  return out;
+}
+
+/** Como Linear: data con los ids planos (stateId, teamId…). */
+function webhookData(node: Node): Node {
+  const ref = (k: string) => ((node[k] as Node | null | undefined)?.id as string | undefined) ?? null;
+  return {
+    ...node,
+    teamId: ref('team'),
+    stateId: ref('state'),
+    assigneeId: ref('assignee'),
+    projectId: ref('project'),
+    parentId: ref('parent'),
+    issueId: ref('issue'),
+    labelIds: ((node.labels as Node | undefined)?.nodes as Node[] | undefined)?.map((l) => l.id) ?? undefined,
+  };
+}
+
+function deliver(token: string, type: 'Issue' | 'Comment', action: 'create' | 'update', node: Node, updatedFrom?: Node): void {
+  const st = stores.get(token);
+  if (!st?.webhooks.length) return;
+  for (const hook of st.webhooks) {
+    if (hook.resourceTypes.length && !hook.resourceTypes.includes(type)) continue;
+    const body = JSON.stringify({
+      action,
+      type,
+      data: webhookData(node),
+      ...(updatedFrom ? { updatedFrom } : {}),
+      url: `https://linear.app/acme/issue/${String(node.identifier ?? '')}`,
+      createdAt: new Date().toISOString(),
+      organizationId: 'o-acme',
+      webhookTimestamp: Date.now(),
+      webhookId: hook.id,
+    });
+    const headers = {
+      'content-type': 'application/json',
+      'linear-event': type,
+      'linear-delivery': crypto.randomUUID(),
+      'linear-signature': createHmac('sha256', hook.secret).update(body).digest('hex'),
+    };
+    // Después de responder la mutation, como Linear.
+    setTimeout(() => {
+      const sink = g.__zsLinearFakeSink;
+      const run = sink ? Promise.resolve(sink({ url: hook.url, body, headers })) : fetch(hook.url, { method: 'POST', headers, body }).then(() => undefined);
+      run.catch(() => undefined);
+    }, 0);
+  }
+}
+
+function gqlError(message: string, code = 'INVALID_INPUT') {
+  return { status: 400, body: { errors: [{ message, extensions: { code } }] } };
+}
+
+type MutationResult = { ok: true; value: Node } | { ok: false; res: { status: number; body: unknown } };
+
+function runMutation(token: string, ws: Record<string, Node[] | Node>, f: GqlField): MutationResult {
+  const st = store(token);
+  const input = (f.args.input ?? {}) as Node;
+  switch (f.name) {
+    case 'issueUpdate': {
+      const current = (ws.issues as Node[]).find((i) => i.id === f.args.id);
+      if (!current) return { ok: false, res: gqlError('Entity not found: Issue') };
+      const fields = issueFieldsFromInput(ws, input);
+      const updatedFrom: Node = {};
+      for (const [k, v] of Object.entries(fields)) {
+        if (JSON.stringify(current[k] ?? null) === JSON.stringify(v)) continue;
+        if (k === 'labels') updatedFrom.labelIds = (((current.labels as Node)?.nodes as Node[]) ?? []).map((l) => l.id);
+        else if (FLAT[k]) updatedFrom[FLAT[k]] = (current[k] as Node | null)?.id ?? null;
+        else updatedFrom[k] = current[k] ?? null;
+      }
+      const updated = { ...current, ...fields, updatedAt: stamp(st) };
+      if (st.created.some((c) => c.id === current.id)) st.created = st.created.map((c) => (c.id === current.id ? updated : c));
+      else st.patches.set(current.id as string, { ...(st.patches.get(current.id as string) ?? {}), ...fields, updatedAt: updated.updatedAt });
+      if (Object.keys(updatedFrom).length) deliver(token, 'Issue', 'update', updated, { ...updatedFrom, updatedAt: current.updatedAt });
+      return { ok: true, value: { success: true, lastSyncId: st.seq, issue: updated } };
+    }
+    case 'issueCreate': {
+      const team = (ws.teams as Node[]).find((t) => t.id === input.teamId);
+      if (!team) return { ok: false, res: gqlError('Entity not found: Team') };
+      if (!input.title) return { ok: false, res: gqlError('title must be a string') };
+      const nums = (ws.issues as Node[]).filter((i) => (i.team as Node).id === team.id).map((i) => Number(String(i.identifier).split('-')[1]) || 0);
+      const states = ((team.states as Node).nodes as Node[]).slice().sort((a, b) => Number(a.position) - Number(b.position));
+      const at = stamp(st);
+      const node: Node = {
+        id: typeof input.id === 'string' && input.id ? input.id : crypto.randomUUID(),
+        identifier: `${team.key}-${Math.max(0, ...nums) + 1}`,
+        title: '',
+        description: null,
+        priority: 0,
+        estimate: null,
+        createdAt: at,
+        updatedAt: at,
+        dueDate: null,
+        archivedAt: null,
+        state: states.find((s) => s.type === 'unstarted') ?? states[0],
+        team: { id: team.id, key: team.key, name: team.name },
+        project: null,
+        projectMilestone: null,
+        cycle: null,
+        assignee: null,
+        creator: ws.viewer,
+        parent: null,
+        labels: { nodes: [] },
+        ...issueFieldsFromInput(ws, input),
+      };
+      st.created.push(node);
+      deliver(token, 'Issue', 'create', node);
+      return { ok: true, value: { success: true, lastSyncId: st.seq, issue: node } };
+    }
+    case 'commentCreate': {
+      const issue = issueRef(ws, input.issueId);
+      if (!issue) return { ok: false, res: gqlError('Entity not found: Issue') };
+      const at = stamp(st);
+      const node: Node = {
+        id: typeof input.id === 'string' && input.id ? input.id : crypto.randomUUID(),
+        body: String(input.body ?? ''),
+        createdAt: at,
+        updatedAt: at,
+        user: ws.viewer,
+        externalUser: null,
+        issue,
+        parent: input.parentId ? { id: input.parentId } : null,
+      };
+      st.comments.push(node);
+      deliver(token, 'Comment', 'create', node);
+      return { ok: true, value: { success: true, lastSyncId: st.seq, comment: node } };
+    }
+    case 'webhookCreate': {
+      if (typeof input.url !== 'string' || !/^https?:\/\//.test(input.url)) return { ok: false, res: gqlError('url must be a URL address') };
+      const hook = {
+        id: `wh-${st.webhooks.length + 1}`,
+        url: input.url,
+        secret: typeof input.secret === 'string' && input.secret ? input.secret : 'lin_wh_fake',
+        resourceTypes: Array.isArray(input.resourceTypes) ? (input.resourceTypes as string[]) : [],
+      };
+      st.webhooks.push(hook);
+      return { ok: true, value: { success: true, lastSyncId: st.seq, webhook: { id: hook.id, url: hook.url, enabled: true, label: input.label ?? null } } };
+    }
+    case 'webhookDelete': {
+      const before = st.webhooks.length;
+      st.webhooks = st.webhooks.filter((w) => w.id !== f.args.id);
+      return { ok: true, value: { success: before !== st.webhooks.length, lastSyncId: st.seq, entityId: f.args.id } };
+    }
+    default:
+      return { ok: false, res: gqlError(`Unknown mutation ${f.name}`) };
+  }
+}
+
+/** filter de Linear, lo que usa la sincronización: updatedAt.gt, team.id.in, id.eq. */
+function matchesFilter(row: Node, filter: unknown): boolean {
+  if (!filter || typeof filter !== 'object') return true;
+  const fl = filter as Node;
+  const gt = (fl.updatedAt as Node | undefined)?.gt;
+  if (typeof gt === 'string' && !(String(row.updatedAt ?? '') > gt)) return false;
+  const teamIn = ((fl.team as Node | undefined)?.id as Node | undefined)?.in;
+  if (Array.isArray(teamIn) && !teamIn.includes((row.team as Node | undefined)?.id)) return false;
+  const idEq = (fl.id as Node | undefined)?.eq;
+  if (typeof idEq === 'string' && row.id !== idEq) return false;
+  return true;
+}
+
 export function fakeLinearGraphql(token: string, query: string, variables: Record<string, unknown>): { status: number; body: unknown } {
   if (!(LINEAR_FAKE_TOKENS as readonly string[]).includes(token)) {
     return { status: 400, body: { errors: [{ message: 'Authentication required, not authenticated', extensions: { code: 'AUTHENTICATION_ERROR' } }] } };
@@ -348,9 +607,23 @@ export function fakeLinearGraphql(token: string, query: string, variables: Recor
   const errors = validateOperation(op, SCHEMA);
   if (errors.length) return { status: 400, body: { errors: errors.map((message) => ({ message, extensions: { code: 'GRAPHQL_VALIDATION_FAILED' } })) } };
 
-  const ws = linearFakeWorkspace(token);
+  const ws = currentWorkspace(token);
   const data: Node = {};
+  if (op.kind === 'mutation') {
+    for (const f of op.selection) {
+      const res = runMutation(token, ws, f);
+      if (!res.ok) return res.res;
+      data[f.name] = shape(res.value, f.selection);
+    }
+    return { status: 200, body: { data } };
+  }
   for (const f of op.selection) {
+    if (f.name === 'issue') {
+      const row = (ws.issues as Node[]).find((i) => i.id === f.args.id || i.identifier === f.args.id);
+      if (!row) return gqlError('Entity not found: Issue');
+      data.issue = shape(row, f.selection);
+      continue;
+    }
     const src = ws[f.name];
     if (!Array.isArray(src)) {
       data[f.name] = shape(src, f.selection);
@@ -360,6 +633,7 @@ export function fakeLinearGraphql(token: string, query: string, variables: Recor
     if (first > 250) return { status: 400, body: { errors: [{ message: 'first must be <= 250', extensions: { code: 'INVALID_INPUT' } }] } };
     let rows = src;
     if (f.name === 'issues' && f.args.includeArchived !== true) rows = rows.filter((r) => !(r as Node).archivedAt);
+    if (f.args.filter) rows = rows.filter((r) => matchesFilter(r as Node, f.args.filter));
     const start = decode(f.args.after);
     const nodes = rows.slice(start, start + first);
     const end = start + nodes.length;

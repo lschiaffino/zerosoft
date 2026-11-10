@@ -369,9 +369,22 @@ export function localDateKey(d: Date): string {
 }
 
 /** Día (local) de un valor de fecha: 'YYYY-MM-DD' tal cual o un timestamp ISO. */
+/** Rango de fechas guardado en una propiedad fecha: "inicio/fin" (como el de Notion). */
+export const DATE_RANGE_RE = /^(\d{4}-\d{2}-\d{2})\/(\d{4}-\d{2}-\d{2})$/;
+
+/** Inicio y fin de un valor de fecha (fin null si es un solo día). */
+export function dateRange(v: unknown): { start: string; end: string | null } | null {
+  if (typeof v !== 'string') return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return { start: v, end: null };
+  const m = DATE_RANGE_RE.exec(v);
+  return m ? { start: m[1], end: m[2] } : null;
+}
+
 export function dayKey(v: unknown): string | null {
   if (typeof v !== 'string' || !v) return null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const range = DATE_RANGE_RE.exec(v);
+  if (range) return range[1];
   const t = Date.parse(v);
   if (Number.isNaN(t)) return null;
   return localDateKey(new Date(t));
@@ -422,8 +435,12 @@ export function formatValue(prop: DbProperty, row: DbRow, ctx: DbFormatContext =
       return (Array.isArray(v) ? v : []).map((id) => ctx.people?.[id] ?? '').filter(Boolean).join(', ');
     case 'checkbox':
       return v === true ? 'Yes' : 'No';
-    case 'date':
-      return typeof v === 'string' ? (/^\d{4}-\d{2}-\d{2}$/.test(v) ? formatDate(v, ctx.locale) : formatTimestamp(v, ctx.locale)) : '';
+    case 'date': {
+      if (typeof v !== 'string') return '';
+      const range = DATE_RANGE_RE.exec(v);
+      if (range) return `${formatDate(range[1], ctx.locale)} → ${formatDate(range[2], ctx.locale)}`;
+      return /^\d{4}-\d{2}-\d{2}$/.test(v) ? formatDate(v, ctx.locale) : formatTimestamp(v, ctx.locale);
+    }
     case 'created_time':
     case 'last_edited_time':
       return typeof v === 'string' ? formatTimestamp(v, ctx.locale) : '';
@@ -1053,7 +1070,8 @@ function sortKey(prop: DbProperty, row: DbRow, ctx: DbFormatContext): string | n
   if (isEmptyValue(v)) return null;
   if (prop.type === 'relation' || prop.type === 'files') return formatValue(prop, row, ctx) || null;
   if (type === 'date') {
-    const t = Date.parse(String(v).length === 10 ? `${v}T00:00:00` : String(v));
+    const raw = DATE_RANGE_RE.exec(String(v))?.[1] ?? String(v);
+    const t = Date.parse(raw.length === 10 ? `${raw}T00:00:00` : raw);
     return Number.isNaN(t) ? null : t;
   }
   switch (type) {

@@ -341,6 +341,20 @@
    "type": "PageInfo"
   }
  },
+ "CommentPayload": {
+  "comment": {
+   "args": [],
+   "type": "Comment"
+  },
+  "lastSyncId": {
+   "args": [],
+   "type": "Float"
+  },
+  "success": {
+   "args": [],
+   "type": "Boolean"
+  }
+ },
  "CustomerNeedConnection": {
   "edges": {
    "args": [],
@@ -520,6 +534,20 @@
   "pageInfo": {
    "args": [],
    "type": "PageInfo"
+  }
+ },
+ "DeletePayload": {
+  "entityId": {
+   "args": [],
+   "type": "String"
+  },
+  "lastSyncId": {
+   "args": [],
+   "type": "Float"
+  },
+  "success": {
+   "args": [],
+   "type": "Boolean"
   }
  },
  "Document": {
@@ -1781,6 +1809,20 @@
    "type": "PageInfo"
   }
  },
+ "IssuePayload": {
+  "issue": {
+   "args": [],
+   "type": "Issue"
+  },
+  "lastSyncId": {
+   "args": [],
+   "type": "Float"
+  },
+  "success": {
+   "args": [],
+   "type": "Boolean"
+  }
+ },
  "IssueRelation": {
   "archivedAt": {
    "args": [],
@@ -1851,6 +1893,39 @@
   "pageInfo": {
    "args": [],
    "type": "PageInfo"
+  }
+ },
+ "Mutation": {
+  "commentCreate": {
+   "args": [
+    "input"
+   ],
+   "type": "CommentPayload"
+  },
+  "issueCreate": {
+   "args": [
+    "input"
+   ],
+   "type": "IssuePayload"
+  },
+  "issueUpdate": {
+   "args": [
+    "id",
+    "input"
+   ],
+   "type": "IssuePayload"
+  },
+  "webhookCreate": {
+   "args": [
+    "input"
+   ],
+   "type": "WebhookPayload"
+  },
+  "webhookDelete": {
+   "args": [
+    "id"
+   ],
+   "type": "DeletePayload"
   }
  },
  "Organization": {
@@ -4090,6 +4165,44 @@
    "type": "PageInfo"
   }
  },
+ "Webhook": {
+  "allPublicTeams": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "createdAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "enabled": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "id": {
+   "args": [],
+   "type": "ID"
+  },
+  "label": {
+   "args": [],
+   "type": "String"
+  },
+  "resourceTypes": {
+   "args": [],
+   "type": "String"
+  },
+  "secret": {
+   "args": [],
+   "type": "String"
+  },
+  "updatedAt": {
+   "args": [],
+   "type": "DateTime"
+  },
+  "url": {
+   "args": [],
+   "type": "String"
+  }
+ },
  "WebhookConnection": {
   "edges": {
    "args": [],
@@ -4102,6 +4215,20 @@
   "pageInfo": {
    "args": [],
    "type": "PageInfo"
+  }
+ },
+ "WebhookPayload": {
+  "lastSyncId": {
+   "args": [],
+   "type": "Float"
+  },
+  "success": {
+   "args": [],
+   "type": "Boolean"
+  },
+  "webhook": {
+   "args": [],
+   "type": "Webhook"
   }
  },
  "WorkflowDefinitionConnection": {

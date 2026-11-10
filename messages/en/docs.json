@@ -790,7 +790,8 @@
       "loadError": "Could not load the source database.",
       "pickOther": "Pick another database",
       "openSource": "Open the source page"
-    }
+    },
+    "dateEnd": "End date of {name}"
   },
   "mentions": {
     "noPages": "No pages",
@@ -1382,7 +1383,8 @@
     "isDefaultHelp": "Everyone in the workspace is a member, now and when they join. Only one per workspace.",
     "defaultBadge": "Default",
     "everyone": "everyone in the workspace",
-    "siteTab": "Site"
+    "siteTab": "Site",
+    "integrationsTab": "Integrations"
   },
   "audit": {
     "group": {
@@ -1435,7 +1437,8 @@
         "updated": "Changed Docs settings",
         "exported": "Exported the workspace",
         "imported": "Imported pages",
-        "site": "Changed the published site"
+        "site": "Changed the published site",
+        "notion": "Changed the Notion sync"
       }
     }
   },
@@ -1802,5 +1805,126 @@
     "revoked": "You no longer have access to this page. Changes from others stopped and nothing you type here is saved.",
     "backToDocs": "Back to Docs",
     "revokedView": "You no longer have access to this page."
+  },
+  "notionSync": {
+    "title": "Notion",
+    "intro": "Keep Notion and Docs in sync while your team moves over. Pages, databases, comments and files come over with their structure, and edits travel both ways.",
+    "connectOauth": "Connect with Notion",
+    "oauthHelp": "Notion asks which pages and databases to share. Only those sync.",
+    "oauthMissing": "Connecting with a Notion login is not set up on this server yet. You can use an internal integration token below.",
+    "tokenLabel": "Internal integration token",
+    "tokenHelp": "In Notion, go to Settings › Connections › Develop or manage integrations, create an internal integration with read, update and insert content, and share the pages you want with it. The token is stored encrypted.",
+    "connectToken": "Connect with token",
+    "connecting": "Connecting…",
+    "connectedTo": "Connected to {name}.",
+    "viaOauth": "Notion login",
+    "viaToken": "Integration token",
+    "syncNow": "Sync now",
+    "syncedNow": "Synced.",
+    "alreadyRunning": "A sync is already running. It will finish on its own.",
+    "pause": "Pause",
+    "resume": "Resume",
+    "disconnect": "Disconnect",
+    "disconnectTitle": "Disconnect Notion?",
+    "disconnectBody": "Sync stops. Pages already in Docs stay where they are, and nothing is deleted in Notion. Reconnecting the same workspace picks up where it left off.",
+    "cancel": "Cancel",
+    "state": {
+      "discovering": "Finding shared pages",
+      "importing": "Importing",
+      "live": "In sync",
+      "error": "Stopped",
+      "paused": "Paused"
+    },
+    "progress": "{done} of {total} pages, databases and rows",
+    "summary": "{synced, plural, one {# item} other {# items}} in sync of {total}",
+    "lastSync": "last checked {time}",
+    "itemErrors": "{count, plural, one {# item could not sync. It retries on its own.} other {# items could not sync. They retry on their own.}}",
+    "liveWebhooks": "Changes in Notion arrive through webhooks, with a check every 10 minutes.",
+    "livePolling": "Notion is checked for changes every 2 minutes. Edits in Docs go out within a minute.",
+    "directionTitle": "Direction",
+    "directionHelp": "Choose where edits flow. You can change it at any time.",
+    "directions": {
+      "two_way": {
+        "title": "Two-way",
+        "help": "Edits in either app show up in the other. When both change the same block, the latest edit wins and the other version stays in page history."
+      },
+      "import": {
+        "title": "Import only",
+        "help": "Notion changes come into Docs. Nothing is written to Notion."
+      },
+      "to_notion": {
+        "title": "Docs to Notion",
+        "help": "Edits in Docs go to Notion. Changes made in Notion are not brought back."
+      }
+    },
+    "rootsTitle": "What syncs",
+    "rootsHelp": "Top-level pages and databases shared with the integration. Everything inside them syncs too.",
+    "rootsEmpty": "Nothing is shared yet. In Notion, open a page, choose ••• › Connections and add the integration.",
+    "rootsLoading": "Looking for shared pages…",
+    "kindPage": "Page",
+    "kindDatabase": "Database",
+    "untitled": "Untitled",
+    "logTitle": "Sync log",
+    "logHelp": "The latest changes, in both directions.",
+    "logEmpty": "Nothing synced yet.",
+    "dir": {
+      "in": "Notion → Docs",
+      "out": "Docs → Notion",
+      "sys": "Sync"
+    },
+    "actions": {
+      "created": "Created",
+      "updated": "Updated",
+      "archived": "Moved to trash",
+      "restored": "Restored",
+      "comment": "Comment",
+      "unshared": "No longer shared in Notion",
+      "conflict_notion": "Both sides changed a block. Notion was newer, the Docs version is in history",
+      "conflict_docs": "Both sides changed a block. Docs was newer and went to Notion",
+      "too_large": "Page too large to sync",
+      "error": "Could not sync",
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "discovered": "Found the shared pages",
+      "imported": "Initial import finished",
+      "paused": "Paused",
+      "resumed": "Resumed",
+      "rate_limited": "Notion asked to slow down. Retrying shortly",
+      "direction_two_way": "Direction set to two-way",
+      "direction_import": "Direction set to import only",
+      "direction_to_notion": "Direction set to Docs to Notion"
+    },
+    "webhookTitle": "Notion webhooks",
+    "webhookHelp": "Server setting. In the public integration, add a webhook subscription pointing to this path on your domain. Notion sends a verification token here: paste it back in Notion to verify.",
+    "webhookWaiting": "Waiting for Notion to send the verification token (15 minutes).",
+    "webhookClear": "Clear token",
+    "notice": {
+      "connected": "Notion is connected. The import starts now.",
+      "denied": "The connection was cancelled in Notion.",
+      "error": "Could not connect to Notion. Try again."
+    },
+    "loading": "Loading Notion sync",
+    "loadError": "Could not load the Notion sync.",
+    "retry": "Retry",
+    "errors": {
+      "invalid_token": "Notion did not accept that token.",
+      "notion_unreachable": "Could not reach Notion. Try again in a minute.",
+      "not_connected": "Notion is not connected.",
+      "invalid_direction": "Choose a direction.",
+      "invalid_teamspace": "That teamspace is not available.",
+      "rate_limited": "Too many attempts. Wait a few minutes.",
+      "revoked": "Notion revoked access. Connect again to resume.",
+      "unauthorized": "Notion revoked access.",
+      "restricted": "The integration lacks a permission in Notion.",
+      "not_found": "Not found in Notion.",
+      "invalid_request": "Notion rejected a change.",
+      "source_unreachable": "Could not reach Notion.",
+      "source_error": "Notion returned an error.",
+      "internal_error": "Unexpected error.",
+      "failed": "Something went wrong. Try again."
+    },
+    "privacy": "Imported pages are visible to the whole workspace, or to the teamspace you choose. Subpages with narrower access stay only in Docs.",
+    "webhookIdle": "To verify the subscription, start waiting here, then create or resend it in Notion.",
+    "webhookOpen": "Wait for the token"
   }
 }

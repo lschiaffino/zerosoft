@@ -81,8 +81,10 @@ export async function GET(req: NextRequest) {
   // Track: avisos de SLA en riesgo / vencido (claim por fila) y trabajo pendiente de agentes (claim por sesión).
   const trackSla = await runSlaChecks({ limit: 200 }).catch(() => null);
   const trackAgents = await processPendingAgentSessions({ limit: 10, budgetMs: 20_000 }).catch(() => null);
-  // Cola de Track hacia Slack y Sentry (claim por fila).
+  // Cola de Track hacia Slack, Sentry y Linear (claim por fila).
   const trackIntegrations = await processTrackIntegrationQueue({ limit: 100 }).catch(() => null);
+  // Linear ↔ Track: fase del import y reconciliación cada 5 minutos (claim por conexión en locked_until).
+  const linearSync = await import('@/lib/track-linear-sync').then((m) => m.runLinearSyncCron({ budgetMs: 25_000 })).catch(() => null);
   // Groups: envíos masivos y programados, chats sin responder y tickets vencidos (claims por fila).
   const groups = await runGroupsCron({ budgetMs: 30_000 }).catch(() => null);
   // Inbox (personal): pospuestos y "recordame si no contesta" que vencieron, envíos programados (claim pending → sending),
@@ -95,6 +97,8 @@ export async function GET(req: NextRequest) {
   // Docs: page.updated agrupado (claim por marca) y bases sincronizadas vencidas (claim por origen).
   const docsEvents = await flushPageUpdatedEvents().catch(() => null);
   const docsSync = await syncDueSources({ budgetMs: 20_000 }).catch(() => null);
+  // Docs ↔ Notion: descubrir, cola de envíos, pendientes y sondeo (claim por conexión en claimed_until).
+  const notionSync = await import('@/lib/notion-sync').then((m) => m.runNotionSync({ budgetMs: 25_000 })).catch(() => null);
   // Rec: transcripción y resumen de los videos que quedaron en cola.
   const rec = await processPendingRec({ limit: 5, budgetMs: 20_000 }).catch(() => null);
   // Shop: pedidos online sin pagar vencidos (compare-and-set por pedido): se cancelan y liberan stock y código.
@@ -119,5 +123,5 @@ export async function GET(req: NextRequest) {
   const talkRecaps = await import('@/lib/talk-ai').then((m) => m.sendDailyRecaps({ budgetMs: 15_000 })).catch(() => null);
   // Notes: archivos para la búsqueda, al final y con tope de tiempo (no le saca el minuto a lo demás).
   const noteFiles = await processNoteFileQueue({ limit: 10, budgetMs: 20_000 }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, groups, inbox, voice, crmAiRuns, docsEvents, docsSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
 }
