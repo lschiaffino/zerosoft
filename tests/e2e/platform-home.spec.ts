@@ -179,10 +179,10 @@ async function expectHomeAppsStructure(page: import('@playwright/test').Page) {
 test('sidebar del inicio: tus apps a la vista y el resto en "Más apps"', async ({ page }) => {
   await page.goto('/es/app', { waitUntil: 'networkidle' });
   await expectHomeAppsStructure(page);
-  // La app que se usó recién pasa arriba.
-  await page.goto('/es/app/robots', { waitUntil: 'networkidle' });
+  // La app que se usó recién pasa arriba (una Próximamente no entra en "Tus apps", por eso Flow y no Robots).
+  await page.goto('/es/app/flow', { waitUntil: 'networkidle' });
   await page.goto('/es/app', { waitUntil: 'networkidle' });
-  await expect(page.locator('.side-line .side-group').filter({ has: page.locator('.side-section', { hasText: 'Tus apps' }) }).locator('a.side-stop').first()).toHaveText(/Robots/);
+  await expect(page.locator('.side-line .side-group').filter({ has: page.locator('.side-section', { hasText: 'Tus apps' }) }).locator('a.side-stop').first()).toHaveText(/Flow/);
 });
 
 test('switcher en el teléfono: ←/→ cruzan entre columnas', async ({ page }) => {
