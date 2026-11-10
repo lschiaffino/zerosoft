@@ -8,7 +8,8 @@
   "ignorePatterns": [
     "public/",
     "scripts/_*",
-    "/desktop/"
+    "/desktop/",
+    "/services/"
   ],
   "overrides": [
     {

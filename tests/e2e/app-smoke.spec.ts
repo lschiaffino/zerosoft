@@ -958,6 +958,15 @@ const APPS: AppCase[] = [
     rename: async (request, i, name) => void (await ok(request.patch(`/api/inbox/threads/${i.id}`, { data: { title: name } }))),
     remove: async (request, i) => void (await ok(request.delete(`/api/inbox/threads/${i.id}`))),
   },
+  {
+    // Calls: una llamada grabada por el bot simulado (CALLS_BOT_FAKE), con transcripción y análisis.
+    app: 'Calls',
+    list: '/en/app/calls',
+    create: async (request, name) => ({ id: (await ok<{ call: { id: string } }>(request.post('/api/calls/calls', { data: { meetingUrl: 'https://meet.google.com/abc-defg-hij', title: name } }))).call.id, name }),
+    detail: (i) => `/en/app/calls/call/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/calls/calls/${i.id}`, { data: { title: name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/calls/calls/${i.id}`))),
+  },
 ];
 
 /** Errores de JS, de consola y respuestas 5xx mientras corre el test. */

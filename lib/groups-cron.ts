@@ -1,7 +1,8 @@
 /**
  * Groups: trabajo del cron de cada minuto. Envíos masivos y programados,
  * chats sin responder (flagged_at), tickets vencidos (con su email de SLA),
- * recordatorios de tareas y asignación automática. Cada paso reclama sus
+ * recordatorios de tareas, asignación automática y HubSpot (vínculo por
+ * teléfono y nota diaria). Cada paso reclama sus
  * filas con compare-and-set, así dos corridas no hacen lo mismo dos veces.
  * Server-only.
  */
@@ -45,6 +46,10 @@ export async function runGroupsCron(opts: { budgetMs?: number; importBudgetMs?: 
   const recurring = await runDueRecurring().catch(() => null);
   const broadcasts = await processBroadcasts({ budgetMs: opts.budgetMs ?? 30_000 }).catch(() => null);
   const remoteTickets = await syncRemoteTickets().catch(() => null);
+  // HubSpot: vínculo automático por teléfono (si el workspace lo prendió) y la nota diaria de cada chat vinculado.
+  const { sweepHubspotAutoLink, syncHubspotNotes } = await import('./groups-hubspot');
+  const hubspotLinked = await sweepHubspotAutoLink().catch(() => null);
+  const hubspotNotes = await syncHubspotNotes().catch(() => null);
   // Los reintentos de webhooks (también los de Groups) los corre /api/cron/minute con retryDueWebhooks.
   // Round-robin de lo que quedó sin asignar (nadie disponible cuando llegó, o recién se armó la regla).
   const { sweepAutoAssign } = await import('./groups-inbox');
@@ -52,5 +57,5 @@ export async function runGroupsCron(opts: { budgetMs?: number; importBudgetMs?: 
   // Importación de chats al conectar un número: una tanda por corrida (claim por fila; retoma donde quedó).
   const { runImports } = await import('./groups-import');
   const imports = await runImports({ budgetMs: opts.importBudgetMs ?? 20_000 }).catch(() => null);
-  return { flagged, breached, reminders, recurring, broadcasts, remoteTickets, assigned, imports };
+  return { flagged, breached, reminders, recurring, broadcasts, remoteTickets, hubspotLinked, hubspotNotes, assigned, imports };
 }

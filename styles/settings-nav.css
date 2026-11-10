@@ -87,3 +87,20 @@
 .zs-desk-update p { flex: 1 1 280px; margin: 0; min-width: 0; color: var(--brand-gray-1); }
 .zs-desk-update strong { color: var(--ink); font-weight: 600; }
 .zs-desk-update-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Aviso de versión nueva de la web: flota arriba, fuera del flujo. Las apps a pantalla completa
+   (Inbox, Lines, Chat, Flow) reparten el ancho entre sus hijos y un aviso en el flujo les rompía la pantalla.
+   En esas apps el aviso del escritorio flota igual. */
+.zs-app-update,
+.app-content:has(> .chat-inbox, > .ib-app, > .gr-inbox, > .flow-editor) > .zs-desk-update {
+  position: fixed;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 90;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  margin: 0;
+  background: var(--bg);
+  border-color: var(--ink);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.16);
+}

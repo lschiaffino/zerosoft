@@ -118,7 +118,7 @@ async function fromApiKey(raw: string): Promise<McpCaller | 'no_mcp_access' | nu
 const APP_SCOPE: Record<string, string> = {
   crm: 'crm', link: 'links', cal: 'cal', chat: 'chat', groups: 'groups', voice: 'voice', track: 'track', docs: 'docs',
   talk: 'talk', board: 'boards', design: 'design', shop: 'shop', hiring: 'hiring', sign: 'sign', pulse: 'analytics', analytics: 'bi',
-  social: 'social', people: 'people', books: 'books', forms: 'forms', send: 'send', notes: 'notes',
+  social: 'social', people: 'people', books: 'books', forms: 'forms', send: 'send', calls: 'calls', notes: 'notes',
 };
 
 const ALL_API_SCOPES = parseScopes('*');

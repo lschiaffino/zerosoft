@@ -6,7 +6,7 @@ export const RESERVED_SLUGS = new Set([
   'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'subprocessors', 'status',
   'admin', 'www', 'mail', 'support', 'help', 'about', 'new',
   'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos', 'roadmap', 'tools',
-  'feedback-board', 'send', 'brand', 'nuevo-branding', 'download', 'store', 'careers', 'compare',
+  'feedback-board', 'send', 'call', 'brand', 'nuevo-branding', 'download', 'store', 'careers', 'compare',
 ]);
 
 export const SLUG_REGEX = /^[A-Za-z0-9_-]{2,32}$/;

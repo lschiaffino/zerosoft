@@ -47,6 +47,7 @@ import SignMockup from './mockups/SignMockup';
 import FormsMockup from './mockups/FormsMockup';
 import SendMockup from './mockups/SendMockup';
 import InboxMockup from './mockups/InboxMockup';
+import CallsMockup from './mockups/CallsMockup';
 import DesktopCta from '@/components/site/DesktopCta';
 import DesktopHud from '@/components/site/DesktopHud';
 
@@ -81,6 +82,7 @@ const MOCKUPS: Record<ProductKey, ComponentType> = {
   forms: FormsMockup,
   send: SendMockup,
   inbox: InboxMockup,
+  calls: CallsMockup,
 };
 
 const STEP_IDS = ['s1', 's2', 's3'] as const;

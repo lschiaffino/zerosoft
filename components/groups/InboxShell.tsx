@@ -10,6 +10,7 @@ import type { ChatDto, ChatFilter, GroupsPerson, LabelDto, PropertyDef } from '@
 import type { SavedListDto, SavedListFilters } from '@/lib/groups-org';
 import { LISTS_CHANGED, notifyListsChanged } from './GroupsListsBranch';
 import { filterOptions } from './PropertyInput';
+import { ScheduledAllButton } from './Scheduled';
 import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useToast } from './ui';
 import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
@@ -20,7 +21,8 @@ import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import type { LineFolderDto } from '@/lib/groups-lines';
-import { DRAG_TYPE, FoldersPanel, LineBadge, LineSelector, MoveToFolderModal, type LineOption } from './LineFolders';
+import { DRAG_TYPE, DROP_CHATS, FOLDERS_CHANGED, FolderSelect, LineBadge, LineSelector, MoveToFolderModal, notifyFoldersChanged, type DropChatsDetail, type LineOption } from './LineFolders';
+import { useShellBranch } from '@/components/app/useShellBranch';
 import PanelSplitters from './PanelSplitters';
 
 const FILTERS: ChatFilter[] = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'];
@@ -76,22 +78,25 @@ interface Controls {
   team: string;
   propKey: string;
   propValue: string;
+  /** Vinculados (o no) a HubSpot. */
+  hubspot: '' | 'linked' | 'unlinked';
   q: string;
 }
 
-const EMPTY: Controls = { filter: 'all', label: '', kind: '', assignee: '', team: '', propKey: '', propValue: '', q: '' };
+const EMPTY: Controls = { filter: 'all', label: '', kind: '', assignee: '', team: '', propKey: '', propValue: '', hubspot: '', q: '' };
 
 function readSaved(): Partial<Controls> | null {
   try {
     const raw = window.sessionStorage.getItem(STORE);
     if (!raw) return null;
-    const v = JSON.parse(raw) as { filter?: string; label?: string; kind?: string; assignee?: string; team?: string };
+    const v = JSON.parse(raw) as { filter?: string; label?: string; kind?: string; assignee?: string; team?: string; hubspot?: string };
     return {
       filter: FILTERS.includes(v.filter as ChatFilter) ? (v.filter as ChatFilter) : 'all',
       label: typeof v.label === 'string' ? v.label : '',
       kind: v.kind === 'group' || v.kind === 'dm' ? v.kind : '',
       assignee: typeof v.assignee === 'string' ? v.assignee : '',
       team: typeof v.team === 'string' ? v.team : '',
+      hubspot: v.hubspot === 'linked' || v.hubspot === 'unlinked' ? v.hubspot : '',
     };
   } catch {
     return null;
@@ -107,6 +112,7 @@ export function controlsToFilters(c: Controls): SavedListFilters {
   if (c.assignee) f.assignee = c.assignee;
   if (c.kind === 'dm' || c.kind === 'group') f.kind = c.kind;
   if (c.propKey) f.props = [c.propValue ? { key: c.propKey, op: 'is', value: c.propValue } : { key: c.propKey, op: 'set' }];
+  if (c.hubspot) f.hubspot = c.hubspot;
   return f;
 }
 
@@ -120,6 +126,7 @@ export function filtersToControls(f: SavedListFilters): Controls {
     team: '',
     propKey: p?.key ?? '',
     propValue: p?.op === 'is' ? (p.value ?? '') : '',
+    hubspot: f.hubspot ?? '',
     q: f.q ?? '',
   };
 }
@@ -138,6 +145,15 @@ function chatIdFromPath(pathname: string): string | null {
  * moverse, / para buscar, X marca el chat abierto para una acción en masa,
  * Esc limpia la selección.
  */
+/** Query de la bandeja: la lista guardada y la carpeta abierta viajan al cambiar de chat. */
+function inboxQuery(listId: string | null, folder: string): string {
+  const p = new URLSearchParams();
+  if (listId) p.set('list', listId);
+  if (folder) p.set('folder', folder);
+  const q = p.toString();
+  return q ? `?${q}` : '';
+}
+
 export default function InboxShell({
   labels,
   people = [],
@@ -191,12 +207,16 @@ export default function InboxShell({
   const listId = params.get('list');
   const current = chatIdFromPath(pathname);
   const [line, setLine] = useState(numbers.some((n) => n.id === initialLine) ? initialLine : 'all');
-  const [folderSel, setFolderSel] = useState('');
+  // La carpeta abierta vive en la URL (?folder=): la eligen el sidebar o el selector de la bandeja.
+  const folderSel = params.get('folder') ?? '';
+  const sideBranch = useShellBranch();
   const [folderData, setFolderData] = useState<{ folders: LineFolderDto[]; unfiled: { unread: number; chats: number } }>({ folders: [], unfiled: { unread: 0, chats: 0 } });
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const lineNames = useMemo(() => new Map(numbers.map((n) => [n.id, n.name])), [numbers]);
   const [controls, setControls] = useState<Controls>(EMPTY);
-  const { filter, label, kind, assignee, team, propKey, propValue, q } = controls;
+  const { filter, label, kind, assignee, team, propKey, propValue, hubspot, q } = controls;
+  // HubSpot conectado en el workspace: la bandeja ofrece el filtro de vinculados.
+  const [hubspotOn, setHubspotOn] = useState(false);
   const set = (patch: Partial<Controls>) => setControls((c) => ({ ...c, ...patch }));
   const [debounced, setDebounced] = useState('');
   const [rows, setRows] = useState<ChatDto[]>([]);
@@ -217,7 +237,7 @@ export default function InboxShell({
     const saved = readSaved();
     if (saved) {
       setControls((c) => ({ ...c, ...saved }));
-      if (saved.assignee || saved.team) setMoreOpen(true);
+      if (saved.assignee || saved.team || saved.hubspot) setMoreOpen(true);
     }
     // Solo al entrar: una lista abierta manda sobre lo guardado en la pestaña.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,17 +248,17 @@ export default function InboxShell({
     const c = filtersToControls(activeList.filters);
     setControls(c);
     setDebounced(c.q.trim());
-    if (c.assignee || c.propKey) setMoreOpen(true);
+    if (c.assignee || c.propKey || c.hubspot) setMoreOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeList?.id, activeList?.updatedAt]);
   useEffect(() => {
     if (listId) return;
     try {
-      window.sessionStorage.setItem(STORE, JSON.stringify({ filter, label, kind, assignee, team }));
+      window.sessionStorage.setItem(STORE, JSON.stringify({ filter, label, kind, assignee, team, hubspot }));
     } catch {
       // Sin storage: los filtros duran lo que dura la página.
     }
-  }, [filter, label, kind, assignee, team, listId]);
+  }, [filter, label, kind, assignee, team, hubspot, listId]);
   useEffect(() => {
     const id = setTimeout(() => setDebounced(q.trim()), 250);
     return () => clearTimeout(id);
@@ -265,8 +285,9 @@ export default function InboxShell({
     if (assignee) p.set('assignee', assignee);
     if (team) p.set('team', team);
     if (propKey) p.set('props', JSON.stringify([propValue ? { key: propKey, op: 'is', value: propValue } : { key: propKey, op: 'set' }]));
+    if (hubspot) p.set('hubspot', hubspot);
     return p.toString();
-  }, [filter, debounced, label, kind, assignee, team, propKey, propValue, pageSize, archivedView, line, folderSel]);
+  }, [filter, debounced, label, kind, assignee, team, propKey, propValue, hubspot, pageSize, archivedView, line, folderSel]);
 
   const load = useCallback(
     async (silent: boolean) => {
@@ -282,6 +303,7 @@ export default function InboxShell({
           unreadChats?: number;
           archived?: { total: number; unread: number };
           dropped?: DroppedNumber[];
+          hubspot?: boolean;
         };
         if (mine !== seq.current) return;
         if (filter === 'unread' && lastQuery.current === query && current && !data.rows.some((r) => r.id === current)) {
@@ -295,6 +317,7 @@ export default function InboxShell({
         setImports(data.imports ?? []);
         if (data.archived) setArchivedInfo(data.archived);
         setDropped(data.dropped ?? []);
+        setHubspotOn(data.hubspot === true);
         if (typeof data.unreadChats === 'number') setUnreadTotal(data.unreadChats);
         setError(false);
       } catch {
@@ -356,8 +379,30 @@ export default function InboxShell({
     showToast(folderId ? t('lines.movedTo', { n: res.data.updated, name }) : t('lines.removedFromFolder', { n: res.data.updated }), res.data.failed > 0);
     setSelected(new Set());
     void load(true);
-    void reloadFolders();
+    notifyFoldersChanged();
   }
+  const moveRef = useRef(moveToFolder);
+  useEffect(() => {
+    moveRef.current = moveToFolder;
+  });
+  useEffect(() => {
+    const changed = () => {
+      void reloadFolders();
+      void load(true);
+    };
+    const dropped = (e: Event) => {
+      const d = (e as CustomEvent<DropChatsDetail>).detail;
+      if (d?.ids?.length) void moveRef.current(d.ids, d.folderId);
+    };
+    window.addEventListener(FOLDERS_CHANGED, changed);
+    window.addEventListener(DROP_CHATS, dropped);
+    return () => {
+      window.removeEventListener(FOLDERS_CHANGED, changed);
+      window.removeEventListener(DROP_CHATS, dropped);
+    };
+  }, [reloadFolders, load]);
+  const pickFolder = (id: string) => router.push(`/app/lines/inbox${current ? `/${current}` : ''}${inboxQuery(listId, id)}`);
+  const folderName = folderSel === 'none' ? t('lines.unfiled') : (folderData.folders.find((f) => f.id === folderSel)?.name ?? '');
 
   const refresh = useCallback(() => void load(true), [load]);
 
@@ -368,10 +413,10 @@ export default function InboxShell({
       const next = rows[Math.min(rows.length - 1, Math.max(0, i < 0 ? 0 : i + delta))];
       if (next) {
         markChatSwitch(next.id);
-        router.push(`/app/lines/inbox/${next.id}${listId ? `?list=${listId}` : ''}`);
+        router.push(`/app/lines/inbox/${next.id}${inboxQuery(listId, folderSel)}`);
       }
     },
-    [rows, current, router, listId],
+    [rows, current, router, listId, folderSel],
   );
   useKeyShortcut('/', () => searchRef.current?.focus());
   useKeyShortcut('j', () => go(1));
@@ -556,7 +601,7 @@ export default function InboxShell({
                 {c.pinned && <PinIcon size={16} className="gr-pin-icon" label={t('inbox.pinned')} />}
               </span>
             </span>
-            {(c.flagged || c.awaitingSince || c.labels.length > 0 || c.assignedTo || (line === 'all' && numbers.length > 1)) && (
+            {(c.flagged || c.awaitingSince || c.labels.length > 0 || c.assignedTo || c.hubspotName || (line === 'all' && numbers.length > 1)) && (
               <span className="gr-row-meta">
                 {line === 'all' && numbers.length > 1 && lineNames.get(c.numberId) && <LineBadge name={lineNames.get(c.numberId) as string} />}
                 {c.flagged ? (
@@ -567,6 +612,11 @@ export default function InboxShell({
                 {c.labels.slice(0, 2).map((l) => (
                   <LabelTag key={l.id} name={l.name} color={l.color} />
                 ))}
+                {c.hubspotName && (
+                  <span className="gr-line-badge gr-row-hubspot" title={t('hubspot.rowLabel', { name: c.hubspotName })}>
+                    {c.hubspotName}
+                  </span>
+                )}
                 {c.assignedTo && <span className="gr-row-assignee">{peopleById.get(c.assignedTo) ?? ''}</span>}
               </span>
             )}
@@ -596,9 +646,9 @@ export default function InboxShell({
   const canEditList = activeList ? activeList.ownerId === me || activeList.shared : false;
   const propDef = properties.find((p) => p.key === propKey) ?? null;
   const propOpts = propDef ? filterOptions(propDef) : [];
-  const listSuffix = listId ? `?list=${listId}` : '';
+  const listSuffix = inboxQuery(listId, folderSel);
   // Filtros del panel (fuera de las pestañas) que están puestos: el botón lo marca.
-  const extraFilters = [kind, label, assignee, team, propKey].filter(Boolean).length;
+  const extraFilters = [kind, label, assignee, team, propKey, hubspot].filter(Boolean).length;
 
   async function saveChanges() {
     if (!activeList) return;
@@ -687,18 +737,14 @@ export default function InboxShell({
                 )}
               </p>
             )}
-            {!archivedView && (
-              <FoldersPanel
-                folders={folderData.folders}
-                unfiled={folderData.unfiled}
-                selected={folderSel}
-                onSelect={setFolderSel}
-                onChanged={() => {
-                  void reloadFolders();
-                  void load(true);
-                }}
-                onDropChats={(ids, folderId) => void moveToFolder(ids, folderId)}
-              />
+            {!archivedView && !sideBranch && <FolderSelect folders={folderData.folders} value={folderSel} onChange={pickFolder} />}
+            {!archivedView && sideBranch && folderSel && folderName && (
+              <p className="gr-folder-current" data-testid="lines-folder-current">
+                <span className="gr-folder-name">{folderName}</span>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => pickFolder('')}>
+                  {t('lines.allChats')}
+                </button>
+              </p>
             )}
             <div className="wa-search-row">
             <span className="wa-search">
@@ -728,6 +774,7 @@ export default function InboxShell({
               <FilterIcon size={20} />
               {extraFilters > 0 && <span className="wa-filter-dot" aria-hidden="true" />}
             </button>
+            <ScheduledAllButton />
             <button
               type="button"
               className={`wa-icon-btn wa-filter-btn${selectMode ? ' is-on' : ''}`}
@@ -799,6 +846,13 @@ export default function InboxShell({
                     ))}
                   </select>
                 )}
+                {(hubspotOn || hubspot) && (
+                  <select className="select" value={hubspot} onChange={(e) => set({ hubspot: e.target.value as Controls['hubspot'] })} aria-label={t('hubspot.filter')}>
+                    <option value="">{t('hubspot.filterAll')}</option>
+                    <option value="linked">{t('hubspot.filterLinked')}</option>
+                    <option value="unlinked">{t('hubspot.filterUnlinked')}</option>
+                  </select>
+                )}
                 {properties.length > 0 && (
                   <select className="select" value={propKey} onChange={(e) => set({ propKey: e.target.value, propValue: '' })} aria-label={t('lists.property')}>
                     <option value="">{t('lists.anyProperty')}</option>
@@ -830,7 +884,7 @@ export default function InboxShell({
                   ))}
               </div>
             <div className="gr-list-save">
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ kind: '', label: '', assignee: '', team: '', propKey: '', propValue: '' })} disabled={extraFilters === 0}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ kind: '', label: '', assignee: '', team: '', propKey: '', propValue: '', hubspot: '' })} disabled={extraFilters === 0}>
                 {t('wa.clearFilters')}
               </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSaving('new')}>

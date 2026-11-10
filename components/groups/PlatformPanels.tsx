@@ -9,6 +9,8 @@ import type { GroupsPerson, LabelDto } from '@/lib/groups';
 import type { PlatformSettings } from '@/lib/groups-access';
 import type { AuditEntry } from '@/lib/groups-audit';
 import type { IntegrationDto, IntegrationKind } from '@/lib/groups-integrations';
+import type { HubspotDto } from '@/lib/groups-hubspot';
+import HubspotCard, { type HubspotScopes } from './HubspotCard';
 import type { WebhookDto } from '@/lib/webhooks';
 import type { WebhookDeliveryDto as DeliveryDto } from '@/lib/webhooks';
 import { registerAppServiceWorker } from '@/lib/sw-client';
@@ -686,11 +688,15 @@ function IntegrationCard({ kind, initial, canEdit }: { kind: IntegrationKind; in
 
 export function IntegrationsPanel({
   integrations,
+  hubspot,
+  hubspotScopes,
   events,
   canEdit,
   mcpUrl,
 }: {
   integrations: IntegrationDto[];
+  hubspot: HubspotDto;
+  hubspotScopes: HubspotScopes;
   events: string[];
   canEdit: boolean;
   mcpUrl: string;
@@ -704,6 +710,7 @@ export function IntegrationsPanel({
           {t('integrations.appsTitle')}
         </h2>
         <ul className="gr-mini-list">
+          <HubspotCard initial={hubspot} scopes={hubspotScopes} canEdit={canEdit} />
           {(['slack', 'freshdesk', 'zoho'] as const).map((k) => (
             <IntegrationCard key={k} kind={k} initial={integrations.find((i) => i.kind === k) ?? null} canEdit={canEdit} />
           ))}

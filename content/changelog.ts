@@ -29,6 +29,122 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-calls',
+    date: '2026-11-08',
+    title: {
+      en: 'Calls: record sales calls on Google Meet and review them with AI',
+      es: 'Calls: grabá llamadas de venta en Google Meet y revisalas con IA',
+      pt: 'Calls: grave chamadas de venda no Google Meet e revise com IA',
+    },
+    items: [
+      {
+        product: 'calls',
+        en: 'New app, an open-source alternative to Gong. zerosoft Notetaker joins Google Meet as a guest, posts a recording notice in the chat, records audio and video, and leaves when the meeting ends. The bot is new and only joins Meet for now; Zoom and Teams links are detected and will come later. You can also upload a recording.',
+        es: 'App nueva, alternativa open source a Gong. zerosoft Notetaker entra a Google Meet como invitado, publica un aviso de grabación en el chat, graba audio y video, y se va cuando termina la reunión. El bot es nuevo y por ahora solo entra a Meet; los links de Zoom y Teams se detectan y llegan más adelante. También podés subir una grabación.',
+        pt: 'App novo, alternativa open source ao Gong. O zerosoft Notetaker entra no Google Meet como convidado, publica um aviso de gravação no chat, grava áudio e vídeo, e sai quando a reunião termina. O bot é novo e por enquanto só entra no Meet; os links do Zoom e do Teams são detectados e chegam mais adiante. Você também pode enviar uma gravação.',
+      },
+      {
+        product: 'calls',
+        en: 'It joins on its own from the Google Calendar or Outlook connected in Cal, with a rule per person: every Meet meeting, only with external guests, only with an open deal, or manual.',
+        es: 'Entra solo desde el Google Calendar o el Outlook conectado en Cal, con una regla por persona: toda reunión de Meet, solo con invitados externos, solo con un deal abierto o manual.',
+        pt: 'Entra sozinho a partir do Google Calendar ou do Outlook conectado no Cal, com uma regra por pessoa: toda reunião do Meet, só com convidados externos, só com um deal aberto ou manual.',
+      },
+      {
+        product: 'calls',
+        en: 'Each call has a player with the transcript in sync and a track per speaker, comments at a moment, clips, a public read-only link and exports to Markdown, TXT, WebVTT and JSON. Cmd+K finds a call by what was said.',
+        es: 'Cada llamada tiene un reproductor con la transcripción sincronizada y una pista por persona, comentarios en un momento, clips, un link público de solo lectura y exportes a Markdown, TXT, WebVTT y JSON. Cmd+K encuentra una llamada por lo que se dijo.',
+        pt: 'Cada chamada tem um player com a transcrição sincronizada e uma faixa por pessoa, comentários num momento, clipes, um link público somente leitura e exportações para Markdown, TXT, WebVTT e JSON. O Cmd+K encontra uma chamada pelo que foi dito.',
+      },
+      {
+        product: 'calls',
+        en: 'With the suite\'s AI: summary, next steps, topics, questions, objections, competitor mentions, a SPICED, MEDDIC, BANT or custom scorecard, and questions about one call or all of them. Talk ratio, longest monologue, interactivity and patience are computed from the transcript.',
+        es: 'Con la IA de la suite: resumen, próximos pasos, temas, preguntas, objeciones, menciones de competidores, un scorecard SPICED, MEDDIC, BANT o propio, y preguntas sobre una llamada o sobre todas. Talk ratio, monólogo más largo, interactividad y paciencia se calculan desde la transcripción.',
+        pt: 'Com a IA da suíte: resumo, próximos passos, temas, perguntas, objeções, menções de concorrentes, um scorecard SPICED, MEDDIC, BANT ou próprio, e perguntas sobre uma chamada ou sobre todas. Talk ratio, monólogo mais longo, interatividade e paciência são calculados a partir da transcrição.',
+      },
+      {
+        product: 'calls',
+        en: 'Calls link to CRM contacts and their open deal and log a meeting with the summary. A Deals view shows call activity and risk signals, and the summary can go to a Talk channel or the call.ready webhook.',
+        es: 'Las llamadas se vinculan a contactos del CRM y a su deal abierto, y registran una reunión con el resumen. Una vista de Deals muestra la actividad de llamadas y señales de riesgo, y el resumen puede ir a un canal de Talk o al webhook call.ready.',
+        pt: 'As chamadas se vinculam a contatos do CRM e ao deal aberto deles, e registram uma reunião com o resumo. Uma visão de Deals mostra a atividade de chamadas e sinais de risco, e o resumo pode ir para um canal do Talk ou para o webhook call.ready.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-lines-hubspot',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines: link each chat or group to HubSpot',
+      es: 'Lines: cada chat o grupo se vincula a HubSpot',
+      pt: 'Lines: cada conversa ou grupo se vincula ao HubSpot',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Connect HubSpot in Lines settings with a private app token. In the chat details, search HubSpot and link the chat or group to a company, a deal and a contact: you see the owner, the stage, the amount and the close date, with a link to the record. The inbox can filter chats linked or not linked to HubSpot.',
+        es: 'Conectá HubSpot en los ajustes de Lines con el token de una private app. En los detalles del chat, buscá en HubSpot y vinculá el chat o grupo a una empresa, un negocio y un contacto: ves el dueño, la etapa, el monto y la fecha de cierre, con un link al registro. La bandeja puede filtrar los chats vinculados o sin vincular a HubSpot.',
+        pt: 'Conecte o HubSpot nos ajustes do Lines com o token de um private app. Nos detalhes da conversa, busque no HubSpot e vincule a conversa ou o grupo a uma empresa, um negócio e um contato: você vê o proprietário, a etapa, o valor e a data de fechamento, com um link para o registro. A caixa pode filtrar as conversas vinculadas ou sem vínculo com o HubSpot.',
+      },
+      {
+        product: 'groups',
+        en: 'For a 1:1 chat, Lines suggests the HubSpot contact with that phone number and its company, and links them when you confirm. Two workspace settings, both off by default: link automatically when exactly one contact matches, and log each linked conversation to HubSpot as one note per day. Tested against a simulated HubSpot; not yet tried with a real account.',
+        es: 'Para un chat 1 a 1, Lines propone el contacto de HubSpot con ese teléfono y su empresa, y los vincula cuando confirmás. Dos ajustes del workspace, apagados por defecto: vincular solo cuando hay una única coincidencia, y registrar cada conversación vinculada en HubSpot como una nota por día. Probado contra un HubSpot simulado; falta probarlo con una cuenta real.',
+        pt: 'Para uma conversa 1 a 1, o Lines sugere o contato do HubSpot com esse telefone e a empresa dele, e os vincula quando você confirma. Dois ajustes do workspace, desligados por padrão: vincular sozinho quando há uma única correspondência, e registrar cada conversa vinculada no HubSpot como uma nota por dia. Testado contra um HubSpot simulado; falta testar com uma conta real.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-lines-send-later',
+    date: '2026-11-10',
+    title: {
+      en: 'Send later in Lines',
+      es: 'Enviar más tarde en Lines',
+      pt: 'Enviar mais tarde no Lines',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The clock next to Send (also right-click on Send, or ⌘⇧Enter) opens the same picker as Inbox: six presets with shortcuts 1 to 6, or your own date and time. A notice confirms the time and lets you undo. Repeat is one click away in the same picker.',
+        es: 'El reloj al lado de Enviar (también con clic derecho en Enviar, o ⌘⇧Enter) abre el mismo selector que Inbox: seis opciones con atajos del 1 al 6, o tu propia fecha y hora. Un aviso confirma la hora y te deja deshacer. Repetir queda a un clic en el mismo selector.',
+        pt: 'O relógio ao lado de Enviar (também com clique direito em Enviar, ou ⌘⇧Enter) abre o mesmo seletor do Inbox: seis opções com atalhos de 1 a 6, ou a sua própria data e hora. Um aviso confirma o horário e deixa desfazer. Repetir fica a um clique no mesmo seletor.',
+      },
+      {
+        product: 'groups',
+        en: 'A scheduled message stays in view above the message box of its chat, where you can send it now, change the time, edit the text or cancel it. It can carry a file and reply to a specific message.',
+        es: 'Un mensaje programado queda a la vista arriba del cuadro de su chat, donde podés enviarlo ahora, cambiarle la hora, editar el texto o cancelarlo. Puede llevar un archivo y responder a un mensaje puntual.',
+        pt: 'Uma mensagem agendada fica à vista acima da caixa da sua conversa, onde dá para enviar agora, mudar o horário, editar o texto ou cancelar. Ela pode levar um arquivo e responder a uma mensagem específica.',
+      },
+      {
+        product: 'groups',
+        en: 'The clock at the top of the chat list shows every scheduled message across chats, yours or the whole team\'s, with the same actions.',
+        es: 'El reloj arriba de la lista de chats muestra todos los mensajes programados de todos los chats, los tuyos o los de todo el equipo, con las mismas acciones.',
+        pt: 'O relógio no topo da lista de conversas mostra todas as mensagens agendadas de todas as conversas, as suas ou as de toda a equipe, com as mesmas ações.',
+      },
+      {
+        product: 'inbox',
+        en: '⌘⇧Enter in the message box opens Send later.',
+        es: '⌘⇧Enter en el cuadro del mensaje abre Enviar más tarde.',
+        pt: '⌘⇧Enter na caixa da mensagem abre Enviar mais tarde.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-lines-folders-sidebar',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines folders move to the sidebar',
+      es: 'Las carpetas de Lines pasan al menú lateral',
+      pt: 'As pastas do Lines vão para o menu lateral',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Folders now hang under Inbox in the sidebar, like in Inbox: open one to filter the chats, drag folders to reorder or nest them, rename in place, and drop chats onto them. The chat list gets its space back. On the phone, a folder picker sits above the list.',
+        es: 'Las carpetas ahora cuelgan de Bandeja en el menú lateral, como en Inbox: abrí una para filtrar los chats, arrastralas para ordenarlas o meterlas en otra, renombralas en el lugar y soltales chats encima. La lista de chats recupera su espacio. En el teléfono hay un selector de carpeta arriba de la lista.',
+        pt: 'As pastas agora ficam sob a Caixa de entrada no menu lateral, como no Inbox: abra uma para filtrar os chats, arraste para ordenar ou aninhar, renomeie no lugar e solte chats sobre elas. A lista de chats recupera o espaço. No celular há um seletor de pasta acima da lista.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-app-menu-categories',
     date: '2026-11-10',
     title: {

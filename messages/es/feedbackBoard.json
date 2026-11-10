@@ -78,7 +78,8 @@
     "books": "Books",
     "forms": "Forms",
     "send": "Send",
-    "inbox": "Inbox"
+    "inbox": "Inbox",
+    "calls": "Calls"
   },
   "empty": "Todavía no hay ideas. Proponé la primera.",
   "emptySearch": "Nada coincide con la búsqueda. Probá con otras palabras o proponé la idea.",
@@ -156,7 +157,8 @@
     "tabs": {
       "ideas": "Ideas",
       "send": "Enviar",
-      "news": "Novedades"
+      "news": "Novedades",
+      "calls": "Calls"
     },
     "unread": "{count, plural, one {# novedad sin leer} other {# novedades sin leer}}",
     "searchPlaceholder": "Buscar ideas para votar",

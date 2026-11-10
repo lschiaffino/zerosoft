@@ -22,7 +22,7 @@ const RESERVED = new Set([
   'blog', 'products', 'docs', 'terms', 'privacy', 'security', 'subprocessors', 'status',
   'admin', 'www', 'mail', 'support', 'help', 'about', 'new',
   'login', 'signin', 'demo', 'manifesto', 'changelog', 'feedback', 'videos', 'roadmap', 'tools',
-  'feedback-board', 'send', 'brand', 'nuevo-branding', 'download', 'store', 'careers', 'compare',
+  'feedback-board', 'send', 'call', 'brand', 'nuevo-branding', 'download', 'store', 'careers', 'compare',
 ]);
 
 /** Páginas de la app que un dominio propio sí sirve: la puerta de contraseña y /gone. */
@@ -298,6 +298,6 @@ export const config = {
     // Menos las subidas de adjuntos (lib/file-attachments.ts): el middleware
     // clona el cuerpo hasta 10 MB y corta el resto. Esas rutas chequean el
     // acceso por app ellas mismas.
-    '/api/((?!(?:.*/)?attachments/upload$)(?:crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk|design|shop|analytics|bi|social|hiring|people|books|sign|forms|send|inbox)(?:/.*)?)',
+    '/api/((?!(?:.*/)?attachments/upload$)(?:crm|track|docs|notes|board|boards|links|calendar|chat|groups|agents|flow|robots|voice|rec|talk|design|shop|analytics|bi|social|hiring|people|books|sign|forms|send|inbox|calls)(?:/.*)?)',
   ],
 };

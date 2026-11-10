@@ -1570,7 +1570,9 @@
     "description": "Calendly launched Notetaker in August 2026: it joins Zoom, Meet and Teams, records, and produces recaps, action items and follow-up email drafts (https://calendly.com/newsroom/press-release/calendly-new-ai-product-suite). Bookings already create a CRM contact and meeting in our suite. Scope: start with notes the host pastes or a transcript upload, summarized by AI into the CRM meeting with action items as CRM tasks; a recording bot can come later.\n\nPriority: low. Effort: L. Compared with Calendly.",
     "product": "cal",
     "kind": "idea",
-    "parity": "notetaker"
+    "parity": "notetaker",
+    "status": "done",
+    "changelog": "2026-11-08-calls"
   },
   {
     "title": "Chat: Add WhatsApp and Instagram as channels in the shared inbox",
@@ -1697,7 +1699,9 @@
     "description": "HubSpot Notetaker does meeting prep, recap and conversation intelligence with tracked terms (https://www.hubspot.com/pricing/sales/starter, Notetaker section). Our Cal bookings already create a meeting activity on the contact, but after the call nothing lands there unless someone writes a note. First scope: upload or link a recording (or import a transcript from the video provider) on the meeting activity, generate a summary with next steps and suggested property updates when AI is enabled, and offer to create the follow-up tasks; later, a bot that joins the call.\n\nPriority: medium. Effort: L. Compared with HubSpot Notetaker and Attio Call Intelligence.",
     "product": "crm",
     "kind": "idea",
-    "parity": "meeting-call-summaries"
+    "parity": "meeting-call-summaries",
+    "status": "done",
+    "changelog": "2026-11-08-calls"
   },
   {
     "title": "CRM: Add forecast categories and a per-rep forecast submission with manager roll-up",

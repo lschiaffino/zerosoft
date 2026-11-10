@@ -1,6 +1,6 @@
 {
   "meta": {
-    "tagline": "Dezenove apps open source para o seu time.",
+    "tagline": "Vinte apps open source para o seu time.",
     "description": "Apps open source para empresas: CRM, chat de suporte, agentes de IA, automações, docs e mais. Rode no seu servidor por $0 ou use a zerosoft Cloud.",
     "homeTitle": "zerosoft: apps open source para empresas, do CRM aos docs"
   },
@@ -48,7 +48,8 @@
       "books": "Faturas, despesas, bancos e contabilidade",
       "forms": "Formulários e pesquisas, uma pergunta por vez",
       "send": "Compartilhe documentos por link e veja quem leu o quê",
-      "inbox": "Seu WhatsApp e seu Gmail em uma caixa guiada pelo teclado"
+      "inbox": "Seu WhatsApp e seu Gmail em uma caixa guiada pelo teclado",
+      "calls": "Grava chamadas de venda e mostra o que move os negócios"
     },
     "building": "Em breve",
     "downloadMac": "Baixar para Mac",
@@ -222,6 +223,7 @@
     "groupSend": "Documentos para enviar",
     "untitled": "Sem título",
     "groupInbox": "Inbox",
+    "groupCalls": "Chamadas",
     "preview": "Prévia",
     "comingSoon": "Em breve",
     "soonApp": "{name}: lista de espera",
@@ -232,7 +234,7 @@
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
-    "p2": "Rodar esse software custa bem menos. Os dezenove apps da zerosoft cabem em <strong>um contêiner e um arquivo SQLite</strong>, num servidor pequeno.",
+    "p2": "Rodar esse software custa bem menos. Os vinte apps da zerosoft cabem em <strong>um contêiner e um arquivo SQLite</strong>, num servidor pequeno.",
     "p3": "Por isso publicamos o código. O core de cada app é AGPLv3: você pode ler, modificar e rodar no seu servidor sem nos pagar nada.",
     "final": "Por que fazemos a zerosoft.",
     "p4": "Se preferir que a gente opere, a zerosoft Cloud cobra por workspace e por uso. Colocar mais alguém no time não muda a fatura.",
@@ -319,6 +321,9 @@
     },
     "inbox": {
       "desc": "Seu WhatsApp e seu Gmail, organizados em uma lista só pelo teclado."
+    },
+    "calls": {
+      "desc": "Um bot entra nas suas chamadas de venda no Google Meet, grava e transforma cada uma em transcrição, análise e atividade no CRM."
     }
   },
   "model": {
@@ -460,9 +465,9 @@
   },
   "home": {
     "hero": {
-      "title1": "Dezenove apps para o seu time.",
+      "title1": "Vinte apps para o seu time.",
       "title2": "Zero licenças.",
-      "sub": "Alternativas open source ao HubSpot, Calendly, Linear, Notion, Bitly e mais 13 produtos que o seu time paga todo mês. Rode no seu servidor por $0 ou use na zerosoft Cloud.",
+      "sub": "Alternativas open source ao HubSpot, Calendly, Linear, Notion, Bitly e mais 14 produtos que o seu time paga todo mês. Rode no seu servidor por $0 ou use na zerosoft Cloud.",
       "ctaStart": "Comece grátis",
       "ctaSelfHost": "Hospede você",
       "note1": "Sem cartão",
@@ -517,7 +522,7 @@
         "b3": "Modelos, comentários e compartilhamento"
       },
       "one": {
-        "title": "Uma conta para os dezenove apps.",
+        "title": "Uma conta para os vinte apps.",
         "desc": "Convide seu time uma vez. Encontre contatos, empresas, negócios, links, docs e tarefas em uma única barra de busca, e pule entre apps sem trocar de ferramenta."
       },
       "replaces": "Substitui {rival}",
@@ -584,6 +589,9 @@
       "inbox": {
         "line": "Seu WhatsApp e seu Gmail em uma caixa guiada pelo teclado."
       },
+      "calls": {
+        "line": "Grava chamadas de venda e mostra o que move os negócios."
+      },
       "analytics": {
         "line": "Perguntas, SQL e painéis sobre seus dados."
       }
@@ -600,7 +608,7 @@
       "total": "Total por ano",
       "zeroTitle": "zerosoft, no seu servidor",
       "footnote": "Preços de tabela citados nas nossas páginas de produto, com cobrança mensal, para 10 usuários (Bitly Core é um plano fixo). Os fornecedores mudam os preços: confira nos sites deles. A zerosoft não tem afiliação com nenhuma dessas empresas.",
-      "rApps": "Os dezenove apps",
+      "rApps": "Os vinte apps",
       "rSeats": "Usuários",
       "rLicense": "Licença",
       "rData": "Seus dados",
@@ -699,7 +707,7 @@
   },
   "appHome": {
     "title": "Seus apps",
-    "lead": "Os dezenove apps do seu workspace. Escolha um para começar.",
+    "lead": "Os vinte apps do seu workspace. Escolha um para começar.",
     "apps": "Apps",
     "open": "Abrir {name}",
     "linkSummary": "Visão geral do Link",
@@ -756,7 +764,8 @@
         "socialPost": "Publicação do Social",
         "booksInvoice": "Fatura",
         "form": "Formulário",
-        "sendDocument": "Documento compartilhado"
+        "sendDocument": "Documento compartilhado",
+        "call": "Chamada"
       },
       "untitled": "Sem título",
       "partial": "Não conseguimos carregar alguns apps. Recarregue a página para vê-los."
@@ -882,7 +891,7 @@
   "notFound": {
     "sign": "Erro 404",
     "title": "Esta página não existe.",
-    "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos dezenove apps.",
+    "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos vinte apps.",
     "cta": "Ir para o início",
     "meta": "Página não encontrada"
   },

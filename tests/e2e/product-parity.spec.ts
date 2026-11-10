@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test';
  */
 
 const SOON = ['chat', 'agents', 'robots', 'design', 'shop', 'social', 'hiring', 'books'];
-const PRODUCTS_ALL = ['crm', 'chat', 'lines', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'pulse', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
+const PRODUCTS_ALL = ['crm', 'chat', 'lines', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'pulse', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox', 'calls'];
 /** Las que se pueden usar: la paridad del sitio no cuenta las Próximamente. */
 const PRODUCTS = PRODUCTS_ALL.filter((k) => !SOON.includes(k));
 

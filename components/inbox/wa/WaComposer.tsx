@@ -427,6 +427,12 @@ const WaComposer = forwardRef<
               void draft();
               return;
             }
+            // ⌘⇧Enter (Ctrl+Shift+Enter): enviar más tarde.
+            if (e.key === 'Enter' && e.shiftKey && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              if (!editing && !disabled && busy === '') onSendLater(text.trim());
+              return;
+            }
             if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               void send();
