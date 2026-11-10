@@ -1,7 +1,7 @@
 'use client';
 
 import LocalText from '@/components/ui/LocalText';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { VoiceBrief, VoiceCalendarEvent, VoiceFollowup, VoiceShareAccess, VoiceShareInfo } from '@/lib/voice-types';
@@ -128,18 +128,23 @@ export function BriefPanel({ sessionId, initial, canBrief }: { sessionId: string
   );
 }
 
-/** Email de seguimiento: la IA lo redacta, se edita y se abre en Gmail, Outlook o el correo. */
-export function FollowupModal({
+/**
+ * Email de seguimiento (en el panel de preguntas): la IA lo redacta, se edita
+ * y sale desde el Gmail u Outlook conectado de la persona, o se copia o se
+ * abre en su correo.
+ */
+export function FollowupComposer({
   sessionId,
   initial,
   defaultTo,
-  onClose,
+  mailbox,
   onSaved,
 }: {
   sessionId: string;
   initial: VoiceFollowup | null;
   defaultTo: string[];
-  onClose: () => void;
+  /** Buzón conectado con permiso de envío (o null: se ofrece conectarlo). */
+  mailbox: { email: string; provider: 'gmail' | 'outlook' } | null;
   onSaved: (f: VoiceFollowup) => void;
 }) {
   const t = useTranslations('voice.followup');
@@ -151,6 +156,8 @@ export function FollowupModal({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [sentAt, setSentAt] = useState<string | null>(initial?.sentAt ?? null);
+  const started = useRef(false);
 
   async function generate() {
     setBusy('generate');
@@ -169,8 +176,17 @@ export function FollowupModal({
     }
     const to = data.followup.to.length ? data.followup.to : defaultTo;
     setDraft({ to: to.join(', '), subject: data.followup.subject, body: data.followup.body });
+    setSentAt(null);
     onSaved(data.followup);
   }
+
+  // Sin borrador guardado, se escribe solo al abrir (como "Write follow up email" en Granola).
+  useEffect(() => {
+    if (started.current || initial) return;
+    started.current = true;
+    void generate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const parsed = draft ? { to: draft.to.split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean), subject: draft.subject, body: draft.body } : null;
   const badTo = parsed ? parsed.to.some((e) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) : false;
@@ -194,72 +210,121 @@ export function FollowupModal({
     setFlash(t('saved'));
   }
 
+  async function send() {
+    if (!parsed || badTo || !parsed.to.length || busy) return;
+    setBusy('send');
+    setError(null);
+    setFlash(null);
+    const res = await fetch(`/api/voice/sessions/${sessionId}/assist`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ kind: 'send', followup: parsed }),
+    }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { followup?: VoiceFollowup; from?: string; error?: string } | null;
+    setBusy(null);
+    if (!res?.ok || !data?.followup) {
+      setError(data?.error ?? 'network');
+      return;
+    }
+    onSaved(data.followup);
+    setSentAt(data.followup.sentAt ?? new Date().toISOString());
+    setFlash(t('sent', { email: data.from ?? mailbox?.email ?? '' }));
+  }
+
   const links = parsed ? composeLinks(parsed) : null;
-  return (
-    <VoiceModal
-      wide
-      title={t('title')}
-      onClose={onClose}
-      closeLabel={t('close')}
-      testId="voice-followup"
-      footer={
-        draft && links ? (
+  if (!draft) {
+    return (
+      <div className="vc-followup-start" data-testid="voice-followup">
+        {busy === 'generate' ? (
+          <p className="vc-muted" role="status">
+            {t('writing')}
+          </p>
+        ) : (
           <>
-            <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || badTo} onClick={() => void save()}>
-              {t('save')}
+            <p className="vc-muted">{t('help')}</p>
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy !== null} onClick={() => void generate()}>
+              {t('generate')}
             </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={async () => setFlash((await copyText(`${parsed!.subject}\n\n${parsed!.body}`)) ? t('copied') : t('copyFailed'))}
-            >
-              {t('copy')}
-            </button>
-            <a className="btn btn-sm" href={links.mailto}>
-              {t('mail')}
-            </a>
-            <a className="btn btn-sm" href={links.outlook} target="_blank" rel="noreferrer">
-              {t('outlook')}
-            </a>
+          </>
+        )}
+        {error && (
+          <p className="ui-error" role="alert">
+            {tErr(voiceErrorKey(error))}
+          </p>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="vc-followup-form" data-testid="voice-followup">
+      <div className="ui-field">
+        <label className="label" htmlFor="vc-fu-to">
+          {t('to')}
+        </label>
+        <input id="vc-fu-to" className="input" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} aria-invalid={badTo || undefined} />
+        <p className="ui-help">{badTo ? t('toInvalid') : t('toHelp')}</p>
+      </div>
+      <div className="ui-field">
+        <label className="label" htmlFor="vc-fu-subject">
+          {t('subject')}
+        </label>
+        <input id="vc-fu-subject" className="input" maxLength={200} value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} data-voice-context="email" />
+      </div>
+      <div className="ui-field">
+        <label className="label" htmlFor="vc-fu-body">
+          {t('body')}
+        </label>
+        <textarea id="vc-fu-body" className="textarea" rows={10} maxLength={10_000} value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} data-voice-context="email" />
+      </div>
+      <div className="vc-followup-actions">
+        {mailbox ? (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            disabled={busy !== null || badTo || !parsed?.to.length || !draft.body.trim()}
+            aria-busy={busy === 'send' || undefined}
+            onClick={() => void send()}
+            title={t('sendFrom', { email: mailbox.email })}
+          >
+            {busy === 'send' ? t('sending') : sentAt ? t('sendAgain') : t('send')}
+          </button>
+        ) : (
+          links && (
             <a className="btn btn-primary btn-sm" href={links.gmail} target="_blank" rel="noreferrer">
               {t('gmail')}
             </a>
-          </>
-        ) : undefined
-      }
-    >
-      {!draft ? (
-        <div className="vc-followup-start">
-          <p className="vc-muted">{t('help')}</p>
-          <button type="button" className="btn btn-primary" disabled={busy !== null} aria-busy={busy === 'generate' || undefined} onClick={() => void generate()}>
-            {busy === 'generate' ? t('writing') : t('generate')}
-          </button>
-        </div>
+          )
+        )}
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={async () => setFlash((await copyText(`${parsed!.subject}\n\n${parsed!.body}`)) ? t('copied') : t('copyFailed'))}
+        >
+          {t('copy')}
+        </button>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null || badTo} onClick={() => void save()}>
+          {t('save')}
+        </button>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null} aria-busy={busy === 'generate' || undefined} onClick={() => void generate()}>
+          {busy === 'generate' ? t('writing') : t('regenerate')}
+        </button>
+        {links && mailbox && (
+          <a className="btn btn-ghost btn-sm" href={mailbox.provider === 'outlook' ? links.outlook : links.gmail} target="_blank" rel="noreferrer">
+            {mailbox.provider === 'outlook' ? t('outlook') : t('gmail')}
+          </a>
+        )}
+        {links && !mailbox && (
+          <a className="btn btn-ghost btn-sm" href={links.outlook} target="_blank" rel="noreferrer">
+            {t('outlook')}
+          </a>
+        )}
+      </div>
+      {mailbox ? (
+        <p className="vc-muted vc-followup-from">{sentAt ? t('sentNote', { email: mailbox.email }) : t('sendFrom', { email: mailbox.email })}</p>
       ) : (
-        <div className="vc-followup-form">
-          <div className="ui-field">
-            <label className="label" htmlFor="vc-fu-to">
-              {t('to')}
-            </label>
-            <input id="vc-fu-to" className="input" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} aria-invalid={badTo || undefined} />
-            <p className="ui-help">{badTo ? t('toInvalid') : t('toHelp')}</p>
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="vc-fu-subject">
-              {t('subject')}
-            </label>
-            <input id="vc-fu-subject" className="input" maxLength={200} value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} data-voice-context="email" />
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="vc-fu-body">
-              {t('body')}
-            </label>
-            <textarea id="vc-fu-body" className="textarea" rows={12} maxLength={10_000} value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} data-voice-context="email" />
-          </div>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null} aria-busy={busy === 'generate' || undefined} onClick={() => void generate()}>
-            {busy === 'generate' ? t('writing') : t('regenerate')}
-          </button>
-        </div>
+        <p className="vc-muted vc-followup-from">
+          {t('connectHelp')} <Link href="/app/crm/settings?tab=integrations">{t('connect')}</Link>
+        </p>
       )}
       {flash && (
         <p className="vc-ok" role="status">
@@ -271,7 +336,7 @@ export function FollowupModal({
           {tErr(voiceErrorKey(error))}
         </p>
       )}
-    </VoiceModal>
+    </div>
   );
 }
 

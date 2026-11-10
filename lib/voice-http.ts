@@ -46,17 +46,26 @@ export function voiceJsonError(status: number, code: string): NextResponse {
 /** Error conocido → respuesta con código; el resto, 500 sin detalles. */
 export function voiceErrorResponse(err: unknown): NextResponse {
   if (err instanceof AiError) {
+    console.warn('[voice] ai error', err.code);
     const res = voiceJsonError(err.code === 'ai_disabled' ? 503 : 429, err.code);
     // El grabador reintenta el trozo cuando pasa la ventana del rate limit.
     if (err.code === 'rate_limited') res.headers.set('retry-after', '20');
     return res;
   }
   if (err instanceof VoiceTranscribeError) {
+    console.warn('[voice] transcribe error', err.code);
     const status = err.code === 'transcribe_disabled' ? 503 : err.code === 'audio_too_large' ? 413 : err.code === 'audio_type' || err.code === 'empty_audio' ? 400 : 502;
     return voiceJsonError(status, err.code);
   }
   if (err instanceof VoiceError) {
-    const status = err.code === 'not_found' ? 404 : err.code === 'duplicate' || err.code === 'not_recorder' || err.code === 'recording_elsewhere' || err.code === 'docs_private_unavailable' ? 409 : 400;
+    const status =
+      err.code === 'not_found'
+        ? 404
+        : err.code === 'send_failed'
+          ? 502
+          : err.code === 'duplicate' || err.code === 'not_recorder' || err.code === 'recording_elsewhere' || err.code === 'docs_private_unavailable' || err.code === 'mailbox_not_connected'
+            ? 409
+            : 400;
     return voiceJsonError(status, err.code);
   }
   console.error('[voice] request failed', err instanceof Error ? err.name : 'error');

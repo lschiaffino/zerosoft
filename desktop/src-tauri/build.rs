@@ -8,6 +8,9 @@ const COMMANDS: &[&str] = &[
     "desktop_open_settings",
     "desktop_notify",
     "desktop_recording",
+    "desktop_system_audio_start",
+    "desktop_system_audio_read",
+    "desktop_system_audio_stop",
     // Indicador de grabación (ventana local).
     "indicator_state",
     "indicator_action",
@@ -34,7 +37,26 @@ const COMMANDS: &[&str] = &[
     "update_restart",
 ];
 
+/// ScreenCaptureKit (system_audio.rs) trae un puente en Swift: el binario final necesita saber dónde
+/// están las librerías de Swift (el rpath de la dependencia no llega al enlace de esta crate).
+fn link_swift() {
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("macos") {
+        return;
+    }
+    println!("cargo:rustc-link-arg=-Wl,-rpath,/usr/lib/swift");
+    let dev = std::process::Command::new("xcode-select").arg("-p").output().ok().and_then(|o| String::from_utf8(o.stdout).ok()).map(|s| s.trim().to_string()).unwrap_or_default();
+    if dev.is_empty() {
+        return;
+    }
+    let base = format!("{dev}/Toolchains/XcodeDefault.xctoolchain/usr/lib");
+    for dir in ["swift/macosx", "swift-5.5/macosx"] {
+        println!("cargo:rustc-link-search=native={base}/{dir}");
+    }
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{base}/swift/macosx");
+}
+
 fn main() {
+    link_swift();
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(tauri_build::AppManifest::new().commands(COMMANDS)))
         .expect("tauri build");
 }

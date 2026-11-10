@@ -23,6 +23,7 @@ mod nav;
 mod platform;
 mod retry;
 mod state;
+mod system_audio;
 mod strings;
 mod tray;
 mod updater;
@@ -70,7 +71,7 @@ pub fn allow_server(app: &AppHandle) {
         return;
     }
     let mut cap = CapabilityBuilder::new(format!("remote-{}", server.replace([':', '/', '.'], "-"))).remote(format!("{server}/*")).window("main");
-    for p in ["allow-desktop-info", "allow-desktop-start-login", "allow-desktop-open-settings", "allow-desktop-notify", "allow-desktop-recording"] {
+    for p in ["allow-desktop-info", "allow-desktop-start-login", "allow-desktop-open-settings", "allow-desktop-notify", "allow-desktop-recording", "allow-desktop-system-audio-start", "allow-desktop-system-audio-read", "allow-desktop-system-audio-stop"] {
         cap = cap.permission(p);
     }
     let _ = app.add_capability(cap);
@@ -80,6 +81,7 @@ fn bridge_script(server: &str, version: &str) -> String {
     let platform = if cfg!(target_os = "macos") { "darwin" } else { "win32" };
     let server = serde_json::to_string(server).unwrap_or_default();
     let version = serde_json::to_string(version).unwrap_or_default();
+    let system_audio = cfg!(target_os = "macos");
     format!(
         r#"(function () {{
   if (location.origin !== {server}) return;
@@ -90,7 +92,7 @@ fn bridge_script(server: &str, version: &str) -> String {
   var bridge = Object.freeze({{
     version: {version},
     platform: '{platform}',
-    systemAudio: false,
+    systemAudio: {system_audio},
     dictation: true,
     recordingIndicator: true,
     startLogin: function () {{ inv('desktop_start_login'); }},
@@ -100,6 +102,11 @@ fn bridge_script(server: &str, version: &str) -> String {
       s = s || {{}};
       return inv('desktop_recording', {{ active: !!s.active, startedAt: typeof s.startedAt === 'number' ? s.startedAt : null, path: typeof s.path === 'string' ? s.path : null }});
     }},
+    // Audio del sistema (ScreenCaptureKit en Mac): start devuelve ok | denied | unsupported | failed;
+    // read devuelve PCM de 16 bits, 16 kHz, mono, en base64 (lo acumulado desde la lectura anterior).
+    systemAudioStart: function () {{ return inv('desktop_system_audio_start'); }},
+    systemAudioRead: function () {{ return inv('desktop_system_audio_read'); }},
+    systemAudioStop: function () {{ return inv('desktop_system_audio_stop'); }},
     notify: function (title, body) {{ return inv('desktop_notify', {{ title: String(title), body: body == null ? null : String(body) }}); }}
   }});
   Object.defineProperty(window, 'zerosoftDesktop', {{ value: bridge }});
@@ -217,6 +224,9 @@ pub fn run() {
             commands::desktop_open_settings,
             commands::desktop_notify,
             commands::desktop_recording,
+            commands::desktop_system_audio_start,
+            commands::desktop_system_audio_read,
+            commands::desktop_system_audio_stop,
             commands::indicator_state,
             commands::indicator_action,
             commands::settings_get,

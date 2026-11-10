@@ -4,11 +4,9 @@ import LocalText from '@/components/ui/LocalText';
 import { useEffect, useRef, useState } from 'react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import { speakerKey, type VoiceAttendee, type VoiceChatMessage, type VoiceSegment } from '@/lib/voice-types';
+import { speakerKey, type VoiceAttendee, type VoiceSegment } from '@/lib/voice-types';
 import type { LinkableBooking } from '@/lib/voice-integrations';
 import { voiceErrorKey } from './voice-ui';
-import RecipeInput, { type RecipeOption } from './RecipeInput';
-import { CitedText, streamVoice, Suggestions } from './chat-ui';
 
 function mmss(ms: number): string {
   const t = Math.floor(ms / 1000);
@@ -138,149 +136,6 @@ export function TranscriptPanel({
   );
 }
 
-/**
- * Chat sobre la reunión ("¿qué dijo Ana del precio?"), durante y después:
- * la respuesta llega de a pedazos y cita los momentos de la transcripción.
- */
-export function ChatPanel({
-  sessionId,
-  initial,
-  ai,
-  live,
-  onSeek,
-}: {
-  sessionId: string;
-  initial: VoiceChatMessage[];
-  ai: boolean;
-  /** La reunión se está grabando: sugerencias para el durante. */
-  live: boolean;
-  onSeek: (ms: number) => void;
-}) {
-  const t = useTranslations('voice.chat');
-  const tErr = useTranslations('voice.errors');
-  const locale = useLocale();
-  const [messages, setMessages] = useState(initial);
-  const [q, setQ] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [streaming, setStreaming] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const ctrl = useRef<AbortController | null>(null);
-  const listRef = useRef<HTMLOListElement>(null);
-
-  useEffect(() => () => ctrl.current?.abort(), []);
-  useEffect(() => {
-    const panel = listRef.current?.closest('.vc-panel');
-    if (panel) panel.scrollTop = panel.scrollHeight;
-  }, [messages.length, streaming]);
-
-  async function send(question: string, recipe?: RecipeOption) {
-    if ((!question && !recipe) || busy) return;
-    setBusy(true);
-    setError(null);
-    setStreaming('');
-    const shown = recipe ? `/${recipe.name}` : question;
-    const before = messages;
-    setMessages((m) => [...m, { role: 'user', text: shown, at: new Date().toISOString() }]);
-    setQ('');
-    const fail = (code: string) => {
-      setMessages(before);
-      setStreaming('');
-      setQ(shown);
-      if (code !== 'aborted') setError(code);
-    };
-    if (recipe) {
-      // Los recipes corren enteros (salida armada): JSON, sin stream.
-      const res = await fetch(`/api/voice/sessions/${sessionId}/chat`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ recipeId: recipe.id, locale }),
-      }).catch(() => null);
-      const data = (await res?.json().catch(() => null)) as { chat?: VoiceChatMessage[]; error?: string } | null;
-      setBusy(false);
-      if (!res?.ok || !data?.chat) return fail(data?.error ?? 'network');
-      setMessages(data.chat);
-      return;
-    }
-    ctrl.current = new AbortController();
-    let text = '';
-    let saved: VoiceChatMessage[] | null = null;
-    const code = await streamVoice(
-      `/api/voice/sessions/${sessionId}/chat`,
-      { question, locale },
-      (e) => {
-        if (e.type === 'text') {
-          text += e.delta;
-          setStreaming(text);
-        } else if (e.type === 'done' && Array.isArray(e.chat)) saved = e.chat as VoiceChatMessage[];
-      },
-      ctrl.current.signal,
-    );
-    ctrl.current = null;
-    setBusy(false);
-    if (code || !saved) return fail(code ?? 'generic');
-    setStreaming('');
-    setMessages(saved);
-  }
-
-  const suggestions = (t.raw(live ? 'suggestLive' : 'suggestAfter') as string[]) ?? [];
-
-  return (
-    <div className="vc-chat">
-      {!ai && <p className="vc-notice">{tErr('ai_disabled')}</p>}
-      {messages.length === 0 ? (
-        <>
-          <p className="vc-muted">{live ? t('emptyLive') : t('empty')}</p>
-          {ai && <Suggestions items={suggestions} disabled={busy} onPick={(s) => void send(s)} />}
-        </>
-      ) : (
-        <ol className="vc-chat-list" ref={listRef}>
-          {messages.map((m, i) => (
-            <li key={i} className={`vc-msg is-${m.role}`}>
-              <span className="sr-only">{m.role === 'user' ? t('you') : t('assistant')}: </span>
-              {m.role === 'assistant' ? <CitedText text={m.text} onSeek={onSeek} /> : m.text}
-            </li>
-          ))}
-          {busy && streaming && (
-            <li className="vc-msg is-assistant is-streaming" aria-busy="true">
-              <span className="sr-only">{t('assistant')}: </span>
-              <CitedText text={streaming} onSeek={onSeek} />
-            </li>
-          )}
-        </ol>
-      )}
-      <div aria-live="polite" className="sr-only">
-        {!busy && messages[messages.length - 1]?.role === 'assistant' ? messages[messages.length - 1].text : ''}
-      </div>
-      {busy && (
-        <p className="vc-muted vc-chat-status" role="status">
-          {streaming ? t('writing') : t('thinking')}
-          {ctrl.current && (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => ctrl.current?.abort()}>
-              {t('stop')}
-            </button>
-          )}
-        </p>
-      )}
-      {error && (
-        <p className="ui-error" role="alert">
-          {tErr(voiceErrorKey(error))}
-        </p>
-      )}
-      <RecipeInput
-        value={q}
-        onChange={setQ}
-        onAsk={(question) => void send(question)}
-        onRecipe={(r) => void send('', r)}
-        placeholder={t('placeholder')}
-        label={t('placeholder')}
-        busy={busy}
-        submitLabel={t('send')}
-      />
-      <p className="vc-muted vc-hint">{t('recipesHint')}</p>
-    </div>
-  );
-}
-
 /** Asistentes de la reunión (salen del calendario o se cargan a mano): con ellos se arman el brief y el email. */
 function AttendeesSection({ attendees, onChange }: { attendees: VoiceAttendee[]; onChange: (next: VoiceAttendee[]) => void }) {
   const t = useTranslations('voice.details');
@@ -342,7 +197,10 @@ export function DetailsPanel({
   attendees,
   onAttendees,
   onLinked,
+  compact = false,
 }: {
+  /** En la reunión el chip "Hoy · Yo" ya maneja asistentes y calendario: solo CRM y envíos. */
+  compact?: boolean;
   sessionId: string;
   calBookingId: string | null;
   contact: ContactOption | null;
@@ -365,6 +223,7 @@ export function DetailsPanel({
   const [logged, setLogged] = useState(false);
 
   useEffect(() => {
+    if (compact) return;
     let alive = true;
     void fetch('/api/voice/bookings')
       .then((r) => (r.ok ? r.json() : { bookings: [] }))
@@ -373,7 +232,7 @@ export function DetailsPanel({
     return () => {
       alive = false;
     };
-  }, []);
+  }, [compact]);
 
   useEffect(() => {
     const q = contactQ.trim();
@@ -454,8 +313,8 @@ export function DetailsPanel({
 
   return (
     <div className="vc-details">
-      <AttendeesSection attendees={attendees} onChange={onAttendees} />
-      <section>
+      {!compact && <AttendeesSection attendees={attendees} onChange={onAttendees} />}
+      {!compact && <section>
         <h3 className="vc-h3">{t('calTitle')}</h3>
         {calBookingId && (
           <p>
@@ -483,7 +342,7 @@ export function DetailsPanel({
             ))}
           </select>
         )}
-      </section>
+      </section>}
 
       <section>
         <h3 className="vc-h3">{t('crmTitle')}</h3>

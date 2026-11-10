@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { claimRecorder, closeRecording, deleteSession, getSessionDetail, getSessionRow, saveEnhanced, saveMyNotes, updateSession } from '@/lib/voice';
+import { claimRecorder, closeRecording, deleteSession, getSessionDetail, getSessionRow, saveEditedEnhanced, saveEnhanced, saveMyNotes, updateSession } from '@/lib/voice';
 import { queueNoteAfterResponse } from '@/lib/voice-jobs';
 import { renameSpeakersInNote } from '@/lib/voice-speakers';
 import { voiceAuth } from '@/lib/voice-route';
@@ -46,6 +46,22 @@ const patchSchema = z.object({
   queueNotes: z.boolean().optional(),
   /** Con status "recording": id de la pestaña que graba (claim de la grabación). */
   recorderId: z.string().min(8).max(64).optional(),
+  /** La nota mejorada editada a mano: resumen y secciones con sus viñetas. */
+  enhanced: z
+    .object({
+      summary: z.string().max(4000),
+      sections: z
+        .array(
+          z.object({
+            heading: z.string().max(200),
+            points: z
+              .array(z.object({ text: z.string().max(2000), source: z.enum(['mine', 'transcript']), level: z.union([z.literal(0), z.literal(1)]).optional() }))
+              .max(120),
+          }),
+        )
+        .max(30),
+    })
+    .optional(),
 });
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
@@ -67,6 +83,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (p.myNotes !== undefined) {
       if (row.kind !== 'meeting') return voiceJsonError(400, 'invalid_input');
       await saveMyNotes(id, p.myNotes);
+    }
+    if (p.enhanced) {
+      if (row.kind !== 'meeting' || !(await saveEditedEnhanced(id, p.enhanced))) return voiceJsonError(400, 'invalid_state');
     }
     if (p.status === 'recording') {
       // Una sola pestaña o dispositivo graba cada reunión (compare-and-set con latido).

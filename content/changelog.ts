@@ -29,6 +29,58 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-voice-system-audio',
+    date: '2026-11-09',
+    title: {
+      en: 'Voice: records the computer audio, with its own transcription allowance',
+      es: 'Voice: graba el audio de la compu, con cupo propio para transcribir',
+      pt: 'Voice: grava o áudio do computador, com cota própria para transcrever',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'Meetings record the audio of the meeting next to your microphone: the browser asks for a tab or screen with audio when you start, and the Mac app records the system audio and asks for the Screen & System Audio Recording permission. If nothing is shared, only the microphone is recorded and you are told why.',
+        es: 'Las reuniones graban el audio de la reunión junto con tu micrófono: el navegador pide una pestaña o pantalla con audio al empezar, y la app de Mac graba el audio del sistema y pide el permiso de Grabación de pantalla y audio del sistema. Si no se comparte nada, se graba solo el micrófono y se avisa por qué.',
+        pt: 'As reuniões gravam o áudio da reunião junto com o seu microfone: o navegador pede uma aba ou tela com áudio ao começar, e o app do Mac grava o áudio do sistema e pede a permissão de Gravação de tela e áudio do sistema. Se nada for compartilhado, só o microfone é gravado e você é avisado do motivo.',
+      },
+      {
+        product: 'voice',
+        en: 'Transcription has its own monthly allowance of 600 minutes per workspace, so chatting with your notes no longer leaves a meeting without a transcript.',
+        es: 'La transcripción tiene su propio cupo mensual de 600 minutos por workspace, así que charlar con tus notas ya no deja una reunión sin transcripción.',
+        pt: 'A transcrição tem a sua própria cota mensal de 600 minutos por workspace, então conversar com as suas notas não deixa mais uma reunião sem transcrição.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-voice-meeting-page',
+    date: '2026-11-09',
+    title: {
+      en: 'Voice: a cleaner meeting page with Ask anything',
+      es: 'Voice: una página de reunión más limpia con "Preguntá lo que quieras"',
+      pt: 'Voice: uma página de reunião mais limpa com "Pergunte o que quiser"',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'A meeting is now a plain page: title, a chip for enhanced or your own notes, the day and attendees from your calendar (today’s event is picked on its own, attendees grouped by company) and the folder.',
+        es: 'Una reunión ahora es una página simple: el título, un chip para ver las notas mejoradas o las tuyas, el día y los asistentes del calendario (el evento de hoy se elige solo y los asistentes se agrupan por empresa) y la carpeta.',
+        pt: 'Uma reunião agora é uma página simples: o título, um chip para ver as notas aprimoradas ou as suas, o dia e os participantes da agenda (o evento de hoje é escolhido sozinho e os participantes são agrupados por empresa) e a pasta.',
+      },
+      {
+        product: 'voice',
+        en: 'The bar under the notes holds the live transcript and Ask anything (⌘J or /): recipes like List my todos or Write TL;DR, a recipe library you can share with the workspace, separate chats with history, a fast or thorough model, a text file attached to the question and dictation.',
+        es: 'La barra debajo de las notas tiene la transcripción en vivo y "Preguntá lo que quieras" (⌘J o /): recipes como Mis pendientes o Resumen en 3 líneas, una biblioteca de recipes que se comparte con el workspace, chats separados con historial, modelo rápido o a fondo, un archivo de texto adjunto y dictado.',
+        pt: 'A barra embaixo das notas tem a transcrição ao vivo e "Pergunte o que quiser" (⌘J ou /): recipes como Minhas tarefas ou Resumo em 3 linhas, uma biblioteca de recipes compartilhada com o workspace, chats separados com histórico, modelo rápido ou a fundo, um arquivo de texto anexado e ditado.',
+      },
+      {
+        product: 'voice',
+        en: 'Write follow up email drafts the email from the notes and sends it from your connected Gmail or Outlook, or you copy it.',
+        es: '"Escribir email de seguimiento" redacta el email con la nota y lo manda desde tu Gmail u Outlook conectado, o lo copiás.',
+        pt: '"Escrever email de acompanhamento" escreve o email com a nota e envia do seu Gmail ou Outlook conectado, ou você copia.',
+      },
+    ],
+  },
+  {
     id: '2026-11-09-settings-everywhere',
     date: '2026-11-09',
     title: {

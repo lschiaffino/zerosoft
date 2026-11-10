@@ -47,7 +47,9 @@
     "mic_denied": "O navegador bloqueou o microfone. Permita o acesso e tente de novo.",
     "mic_missing": "Nenhum microfone foi encontrado.",
     "mic_failed": "Não foi possível abrir o microfone.",
-    "no_tab_audio": "A aba compartilhada não tem áudio. Compartilhe de novo e ative \"Compartilhar áudio da guia\".",
+    "no_tab_audio": "A tela compartilhada não tem áudio. No Chrome escolha uma guia e ative \"Compartilhar áudio da guia\" (no Windows, a tela inteira com \"Compartilhar áudio do sistema\" também funciona).",
+    "tab_skipped": "Só o seu microfone está sendo gravado: o áudio da reunião não foi compartilhado. Pare e comece de novo para compartilhar uma guia ou o áudio do sistema.",
+    "screen_denied": "O zerosoft precisa de permissão para gravar o áudio do computador. Ative o zerosoft em Ajustes do Sistema > Privacidade e segurança > Gravação de tela e áudio do sistema, reabra o app e comece de novo. Por enquanto só o seu microfone está sendo gravado.",
     "too_short": "Foi curto demais. Segure a tecla enquanto fala.",
     "nothing_heard": "Nada foi ouvido.",
     "not_found": "Essa reunião não existe ou foi apagada.",
@@ -80,7 +82,11 @@
     "notion_not_connected": "Essa conexão do Notion não está disponível.",
     "notion_failed": "O Notion não respondeu. Tente de novo.",
     "notion_parent": "O Notion não encontra essa página. Cole o link e compartilhe com a integração.",
-    "ai_failed": "A IA não conseguiu responder. Tente de novo."
+    "ai_failed": "A IA não conseguiu responder. Tente de novo.",
+    "attachment_type": "Anexe um arquivo de texto (txt, md, csv, json, vtt ou srt).",
+    "attachment_too_large": "O arquivo é grande demais. Anexe um com menos de 2 MB.",
+    "mailbox_not_connected": "Conecte o Gmail ou o Outlook para enviar emails daqui.",
+    "send_failed": "Seu provedor de email não aceitou a mensagem. Tente de novo."
   },
   "meetings": {
     "title": "Reuniões",
@@ -166,7 +172,11 @@
     "noProjects": "Crie um projeto no Track para enviar issues.",
     "sentTrack": "{count, plural, one {# issue criada:} other {# issues criadas:}}",
     "sentCrm": "{count, plural, one {# tarefa criada.} other {# tarefas criadas.}}",
-    "openTasks": "Ver tarefas"
+    "openTasks": "Ver tarefas",
+    "summaryPlaceholder": "Escreva um resumo…",
+    "heading": "Título da seção",
+    "pointMine": "Sua nota",
+    "pointAi": "Nota da transcrição"
   },
   "transcript": {
     "me": "Eu",
@@ -187,7 +197,6 @@
     "thinking": "Lendo a reunião…",
     "placeholder": "Pergunte sobre esta reunião",
     "send": "Perguntar",
-    "recipesHint": "Digite / para recipes como próximos passos ou um follow-up.",
     "emptyLive": "Pergunte o que quiser enquanto a reunião continua. O Voice lê a transcrição até agora.",
     "suggestionsLabel": "Experimente perguntar",
     "suggestLive": [
@@ -248,7 +257,6 @@
     "cancel": "Cancelar",
     "deleteTitle": "Apagar esta reunião?",
     "deleteBody": "A transcrição e as notas serão apagadas. O que já foi enviado para Docs ou Notes fica.",
-    "recorderLabel": "Gravador",
     "unsupported": "Este navegador não consegue gravar áudio. Use Chrome, Edge, Firefox ou Safari.",
     "modeLabel": "O que gravar",
     "modeMic": "Microfone (presencial ou com alto-falantes)",
@@ -269,22 +277,16 @@
     "myNotes": "Minhas notas",
     "aiNotes": "Nota da reunião",
     "viewLabel": "Qual nota ver",
-    "viewAi": "Com IA",
-    "viewMine": "As minhas",
-    "notesPlaceholder": "Anote o importante enquanto acontece. Frases curtas bastam: a IA completa o resto com a transcrição.",
+    "viewAi": "Notas aprimoradas",
+    "viewMine": "Minhas notas",
+    "notesPlaceholder": "Escreva suas notas…",
     "saving": "Salvando…",
     "saved": "Salvo",
     "saveError": "Não foi possível salvar. Confira a conexão.",
     "template": "Modelo",
-    "enhance": "Montar a nota com IA",
+    "enhance": "Gerar notas",
     "regenerate": "Gerar de novo",
-    "enhancing": "Escrevendo…",
-    "sideLabel": "Transcrição, chat e vínculos",
-    "tabs": {
-      "transcript": "Transcrição",
-      "chat": "Perguntar",
-      "details": "Vínculos"
-    },
+    "enhancing": "Gerando as notas…",
     "recordingElsewhere": "Outra reunião está sendo gravada.",
     "openOther": "Abrir",
     "notesQueued": "Montando a nota com IA. Você pode sair desta página: ela fica salva na reunião.",
@@ -299,12 +301,22 @@
     "recoveredParts": "{count, plural, one {Mais # parte foi transcrita. Gere a nota de novo para incluí-la.} other {Mais # partes foram transcritas. Gere a nota de novo para incluí-las.}}",
     "docsPrivateBody": "A página vai para o seu teamspace privado “{space}” no Docs: só você vê até compartilhar.",
     "share": "Compartilhar",
-    "followup": "Email de follow-up",
     "sendSlackNotion": "Slack ou Notion",
-    "sharedBadge": "Compartilhada por link",
     "folder": "Pasta",
     "noFolder": "Sem pasta",
-    "attendeesOpen": "Ver participantes"
+    "more": "Mais ações",
+    "copyLink": "Copiar link",
+    "linkCopied": "Link copiado.",
+    "crmLinks": "CRM e vínculos",
+    "close": "Fechar",
+    "addToFolder": "Adicionar à pasta",
+    "removeFromFolder": "Tirar da pasta",
+    "newFolder": "Nova pasta…",
+    "transcriptOpen": "Transcrição ao vivo",
+    "transcriptClose": "Ocultar a transcrição",
+    "transcriptTitle": "Transcrição",
+    "regenerateWith": "Gerar de novo com {template}",
+    "shared": "Compartilhada"
   },
   "templates": {
     "builtin": {
@@ -627,7 +639,7 @@
   "followup": {
     "title": "Email de follow-up",
     "close": "Fechar",
-    "help": "A IA escreve o email com a nota da reunião. Você pode editar e abrir no Gmail, no Outlook ou no seu app de email.",
+    "help": "A IA escreve o email com a nota da reunião. Você edita e envia do seu email, ou copia.",
     "generate": "Escrever o rascunho",
     "regenerate": "Escrever de novo",
     "writing": "Escrevendo…",
@@ -643,7 +655,15 @@
     "copyFailed": "O navegador não deixou copiar.",
     "mail": "App de email",
     "outlook": "Abrir no Outlook",
-    "gmail": "Abrir no Gmail"
+    "gmail": "Abrir no Gmail",
+    "send": "Enviar",
+    "sendAgain": "Enviar de novo",
+    "sending": "Enviando…",
+    "sendFrom": "Sai de {email}.",
+    "sentNote": "Enviado de {email}.",
+    "sent": "Enviado de {email}.",
+    "connectHelp": "Conecte o Gmail ou o Outlook para enviar daqui.",
+    "connect": "Conectar seu email"
   },
   "share": {
     "title": "Compartilhar esta reunião",
@@ -754,6 +774,18 @@
       "coach": {
         "name": "Coaching",
         "prompt": "Me dê um retorno honesto de como conduzi esta conversa: o que foi bem, o que melhorar e uma coisa para testar da próxima vez. Cite momentos curtos."
+      },
+      "todos": {
+        "name": "Minhas tarefas",
+        "prompt": "Liste o que eu (Eu) preciso fazer depois desta reunião, uma por linha, com a data se foi dita."
+      },
+      "longer": {
+        "name": "Notas mais longas",
+        "prompt": "Reescreva as notas da reunião com mais detalhes: mesmos títulos e, em cada ponto, o que diz a transcrição."
+      },
+      "tldr": {
+        "name": "Resumo em 3 linhas",
+        "prompt": "Escreva um resumo da reunião em três linhas curtas: do que se falou, o que foi decidido e o que vem depois."
       }
     },
     "transforms": {
@@ -778,5 +810,90 @@
         "prompt": "Traduza para um inglês natural."
       }
     }
+  },
+  "people": {
+    "panel": "Evento e participantes",
+    "eventTitle": "Escolher evento da agenda",
+    "loading": "Carregando os eventos de hoje…",
+    "noEvents": "Não há eventos na sua agenda hoje.",
+    "connectHelp": "Conecte o Google Agenda ou o Outlook no Cal para escolher os eventos de hoje.",
+    "connect": "Conectar uma agenda",
+    "untitledEvent": "Evento sem título",
+    "hasNotes": "Já tem notas",
+    "unlink": "Desvincular o evento",
+    "unlinkNamed": "Desvincular “{title}”",
+    "attendees": "Participantes",
+    "add": "Adicionar participantes…",
+    "suggestions": "Sugestões",
+    "teamTag": "Workspace",
+    "empty": "Ainda não há participantes. Escolha um evento ou adicione pessoas por nome ou email.",
+    "team": "Sua equipe",
+    "personal": "Emails pessoais",
+    "remove": "Remover {name}",
+    "today": "Hoje",
+    "yesterday": "Ontem",
+    "me": "Eu",
+    "meAnd": "{count, plural, one {Eu + # pessoa} other {Eu + # pessoas}}"
+  },
+  "ask": {
+    "panel": "Perguntas sobre a reunião",
+    "history": "Histórico de chats",
+    "historyEmpty": "Ainda não há chats.",
+    "turns": "{count, plural, one {# pergunta} other {# perguntas}}",
+    "model": "Modelo",
+    "models": {
+      "fast": "Rápido",
+      "deep": "A fundo"
+    },
+    "expand": "Ampliar",
+    "collapse": "Reduzir",
+    "newChat": "Novo chat",
+    "close": "Fechar",
+    "followupTitle": "Email de acompanhamento",
+    "recipes": "Recipes",
+    "followup": "Escrever email de acompanhamento",
+    "allRecipes": "Todos os recipes",
+    "sayMore": "Fale mais",
+    "sayMoreQuestion": "Fale mais sobre isso, com mais detalhes.",
+    "copy": "Copiar",
+    "copied": "Copiado.",
+    "copyFailed": "O navegador não deixou copiar.",
+    "stopAnswer": "Parar de escrever",
+    "placeholder": "Pergunte o que quiser",
+    "placeholderLive": "Pergunte sobre a reunião até agora",
+    "attach": "Anexar um arquivo de texto",
+    "attachRemove": "Remover {name}",
+    "attachCut": "Arquivo longo: só a primeira parte vai com a pergunta.",
+    "dictate": "Ditar a pergunta",
+    "dictateStop": "Terminar o ditado",
+    "mistakes": "A IA pode errar. Confira os dados importantes."
+  },
+  "library": {
+    "title": "Recipes",
+    "close": "Fechar",
+    "search": "Buscar recipes",
+    "new": "Novo recipe",
+    "name": "Nome",
+    "namePlaceholder": "Preparar a próxima ligação",
+    "prompt": "O que pede",
+    "promptPlaceholder": "Leia a reunião e liste o que preciso preparar para a próxima ligação, com responsáveis.",
+    "shared": "Compartilhar com o workspace",
+    "save": "Salvar recipe",
+    "cancel": "Cancelar",
+    "loading": "Carregando recipes…",
+    "mine": "Seus",
+    "mineEmpty": "Os recipes que você criar aparecem aqui. Digite / no chat para rodar um.",
+    "noMatch": "Nenhum recipe corresponde.",
+    "team": "Compartilhados pela sua equipe",
+    "builtin": "De fábrica",
+    "sharedTag": "compartilhado",
+    "edit": "Editar",
+    "editNamed": "Editar {name}",
+    "delete": "Excluir",
+    "deleteNamed": "Excluir {name}",
+    "run": "Rodar",
+    "runNamed": "Rodar {name}",
+    "deleteTitle": "Excluir “{name}”?",
+    "deleteBody": "Os chats onde já rodou mantêm as respostas."
   }
 }
