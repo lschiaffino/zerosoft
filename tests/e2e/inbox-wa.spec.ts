@@ -466,3 +466,59 @@ test('cabecera y campo de la conversación de WhatsApp: todas las acciones de In
   await expect(page.locator('.ib-item', { hasText: renamed })).toHaveCount(0);
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+test('Más tarde visible junto a Enviar (también con clic derecho) y los archivados en una entrada "Archived" de la lista', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const dm = `${phone('3')}@s.whatsapp.net`;
+  const other = `${phone('4')}@s.whatsapp.net`;
+  const name = `Arch ${uid()}`;
+  const otherName = `Otro ${uid()}`;
+  await events(request, acc, [message(dm, { senderName: name, body: 'hola' }), message(other, { senderName: otherName, body: 'chau' })]);
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
+  const thread = page.locator('.ib-wa-thread');
+
+  // El reloj está siempre a la vista; con el campo vacío abre el programador para escribir ahí.
+  const later = thread.getByTestId('inbox-send-later');
+  await expect(later).toBeVisible();
+  const field = page.getByRole('textbox', { name: 'Message' });
+  await field.fill('te escribo mañana');
+  await thread.getByRole('button', { name: 'Send', exact: true }).click({ button: 'right' });
+  const dialog = page.getByRole('dialog', { name: 'Send later' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /Tomorrow morning/ }).click();
+  await expect(thread.getByText('te escribo mañana')).toBeVisible();
+
+  // Archivar desde el menú: sale de la lista y aparece la entrada "Archived" arriba.
+  await thread.locator('.gr-thread-actions').getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Archive', exact: true }).click();
+  await expect(page.locator('.ib-item', { hasText: name })).toHaveCount(0);
+  const entry = page.getByTestId('inbox-archived-entry');
+  await expect(entry).toBeVisible();
+  await expect(entry).toContainText('1');
+  await entry.click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Archived' })).toBeVisible();
+  const row = page.locator('.ib-item', { hasText: name });
+  await expect(row).toBeVisible();
+  await expect(page.locator('.ib-item', { hasText: otherName })).toHaveCount(0);
+
+  // Un mensaje nuevo lo saca de Archivados, como WhatsApp.
+  await events(request, acc, [message(dm, { senderName: name, body: 'volví', timestamp: new Date(Date.now() + 5000).toISOString() })]);
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(page.locator('.ib-item', { hasText: name })).toHaveCount(0);
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await expect(page.locator('.ib-item', { hasText: name })).toBeVisible();
+  await expect(page.getByTestId('inbox-archived-entry')).toHaveCount(0);
+
+  // Desarchivar desde el menú.
+  await page.locator('.ib-item', { hasText: otherName }).locator('.ib-row-btn').click();
+  await page.locator('.ib-wa-thread .gr-thread-actions').getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Archive', exact: true }).click();
+  await page.getByTestId('inbox-archived-entry').click();
+  await page.locator('.ib-item', { hasText: otherName }).locator('.ib-row-btn').click();
+  await page.locator('.ib-wa-thread .gr-thread-actions').getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: 'Unarchive' }).click();
+  await expect(page.locator('.ib-item', { hasText: otherName })).toHaveCount(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});

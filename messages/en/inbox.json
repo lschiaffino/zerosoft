@@ -11,7 +11,8 @@
     "pinned": "Pinned",
     "snoozed": "Snoozed",
     "scheduled": "Scheduled",
-    "done": "Done"
+    "done": "Done",
+    "archived": "Archived"
   },
   "tabs": { "inbox": "All", "whatsapp": "WhatsApp", "email": "Email", "groups": "Groups", "unread": "Unread" },
   "when": {
@@ -42,6 +43,7 @@
     "dictate": "Dictate",
     "dictateHint": "Dictate with Voice (or hold Alt+Space)",
     "later": "Later",
+    "laterHint": "Send later. You can also right-click Send.",
     "sending": "Sending…",
     "send": "Send",
     "hint": "Enter sends · Shift+Enter new line · ⌘J AI draft · ; snippets",
@@ -66,6 +68,8 @@
     "save": "Save",
     "undone": "Move to inbox",
     "done": "Done",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
     "snooze": "Snooze",
     "followUp": "Remind me",
     "move": "Folder",
@@ -79,6 +83,8 @@
     "group": "Group",
     "snoozedUntil": "Snoozed until {when}",
     "followUpAt": "Reminder {when}",
+    "archivedEntry": "Archived",
+    "archivedBack": "Back to the inbox",
     "woke": "Back",
     "noReply": "No reply",
     "select": "Select {name}",
@@ -172,6 +178,7 @@
       "snoozed": "Nothing snoozed. Press H on a chat to snooze it.",
       "scheduled": "Nothing scheduled. Use Later next to Send.",
       "done": "Nothing marked done yet",
+      "archived": "Nothing archived. Archive a chat from its menu.",
       "folder": "This folder is empty. Press V on a chat to add it."
     }
   },
@@ -216,6 +223,8 @@
     "unread": "{n, plural, one {Marked unread} other {# chats marked unread}}",
     "pin": "{n, plural, one {Pinned} other {# chats pinned}}",
     "unpin": "{n, plural, one {Unpinned} other {# chats unpinned}}",
+    "archive": "{n, plural, one {Archived} other {# chats archived}}",
+    "unarchive": "{n, plural, one {Unarchived} other {# chats unarchived}}",
     "snooze": "{n, plural, one {Snoozed} other {# chats snoozed}}",
     "unsnooze": "{n, plural, one {Unsnoozed} other {# chats unsnoozed}}",
     "followUp": "{n, plural, one {You will be reminded if there is no reply} other {Reminder set for # chats}}",

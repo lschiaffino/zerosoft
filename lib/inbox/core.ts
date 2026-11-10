@@ -160,6 +160,7 @@ export interface ThreadRow {
   unread: number;
   pinned_at: string | null;
   done_at: string | null;
+  archived_at?: string | null;
   snoozed_until: string | null;
   woke_at: string | null;
   woke_reason: string;
@@ -323,6 +324,7 @@ export async function addMessage(thread: ThreadRow, m: NewMessage): Promise<bool
          last_outbound_at = CASE WHEN ? = 1 AND (last_outbound_at IS NULL OR last_outbound_at < ?) THEN ? ELSE last_outbound_at END,
          unread = CASE WHEN ? = 1 THEN 0 ELSE unread + ? END,
          done_at = CASE WHEN ? = 1 THEN NULL ELSE done_at END,
+         archived_at = CASE WHEN ? = 1 AND (muted_until IS NULL OR muted_until <= ?) THEN NULL ELSE archived_at END,
          snoozed_until = CASE WHEN ? = 1 THEN NULL ELSE snoozed_until END,
          follow_up_at = CASE WHEN ? = 1 THEN NULL ELSE follow_up_at END,
          updated_at = ?
@@ -352,6 +354,9 @@ export async function addMessage(thread: ThreadRow, m: NewMessage): Promise<bool
       unreadInc,
       // Llega algo nuevo de la otra persona: vuelve a la bandeja.
       !m.fromMe && !m.history && newer ? 1 : 0,
+      // Como WhatsApp: un mensaje nuevo saca el chat de Archivados (salvo que esté silenciado).
+      !m.fromMe && !m.history && newer ? 1 : 0,
+      nowIso(),
       !m.fromMe && !m.history && newer ? 1 : 0,
       !m.fromMe && !m.history ? 1 : 0,
       nowIso(),
@@ -415,7 +420,7 @@ export async function listThreads(owner: string, opts: ListOptions = {}): Promis
   const args: Array<string | number> = [owner];
   const q = (opts.q ?? '').trim().slice(0, LIMITS.searchQuery);
   const view = opts.view ?? 'inbox';
-  const active = '(t.done_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?))';
+  const active = '(t.done_at IS NULL AND t.archived_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?))';
   if (q) {
     // Nombre, número o vista previa del chat, o algún mensaje (índice de texto completo; sin él, LIKE).
     const parsed = parseSearch(q);
@@ -479,7 +484,7 @@ export async function listThreads(owner: string, opts: ListOptions = {}): Promis
         args.push(nowS);
         break;
       case 'pinned':
-        where.push('t.pinned_at IS NOT NULL');
+        where.push('t.pinned_at IS NOT NULL', 't.archived_at IS NULL');
         break;
       case 'snoozed':
         where.push('t.snoozed_until > ?');
@@ -489,7 +494,10 @@ export async function listThreads(owner: string, opts: ListOptions = {}): Promis
         where.push("EXISTS (SELECT 1 FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed'))");
         break;
       case 'done':
-        where.push('t.done_at IS NOT NULL');
+        where.push('t.done_at IS NOT NULL', 't.archived_at IS NULL');
+        break;
+      case 'archived':
+        where.push('t.archived_at IS NOT NULL');
         break;
     }
   }
@@ -498,6 +506,8 @@ export async function listThreads(owner: string, opts: ListOptions = {}): Promis
       ? 't.snoozed_until ASC'
       : view === 'done' && !q && !opts.folderId
         ? 't.done_at DESC'
+        : view === 'archived' && !q && !opts.folderId
+          ? '(t.last_message_at IS NULL) ASC, COALESCE(t.last_message_at, t.created_at) DESC'
         : // Los chats sin mensajes (los que trae el historial de WhatsApp antes que sus mensajes) van al final.
           '(t.pinned_at IS NOT NULL) DESC, (t.last_message_at IS NULL) ASC, COALESCE(t.last_message_at, t.created_at) DESC';
   const limit = Math.min(Math.max(opts.limit ?? 300, 1), 1000);
@@ -529,6 +539,7 @@ export function threadDto(r: ThreadRow & { folder_ids?: string | null; scheduled
     unread: Number(r.unread),
     pinned: !!r.pinned_at,
     done: !!r.done_at,
+    archived: !!r.archived_at,
     snoozedUntil: snoozed,
     woke: r.woke_at && (r.woke_reason === 'snooze' || r.woke_reason === 'followup') ? r.woke_reason : '',
     followUpAt: r.follow_up_at,
@@ -686,6 +697,8 @@ export type ThreadAction =
   | { action: 'unread' }
   | { action: 'pin' }
   | { action: 'unpin' }
+  | { action: 'archive' }
+  | { action: 'unarchive' }
   | { action: 'snooze'; until: string }
   | { action: 'unsnooze' }
   | { action: 'followUp'; at: string }
@@ -738,6 +751,14 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
     case 'unpin':
       sql = 'pinned_at = NULL';
       break;
+    case 'archive':
+      // Como WhatsApp: archivar suelta el fijado.
+      sql = 'archived_at = COALESCE(archived_at, ?), pinned_at = NULL';
+      extra = [nowS];
+      break;
+    case 'unarchive':
+      sql = 'archived_at = NULL';
+      break;
     case 'snooze':
       sql = 'snoozed_until = ?, done_at = NULL, woke_at = NULL, woke_reason = \'\'';
       extra = [futureIso(a.until, now)];
@@ -778,6 +799,11 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
   }
   const marks = unique.map(() => '?').join(',');
   await db.prepare(`UPDATE inbox_threads SET ${sql}, updated_at = ? WHERE owner_id = ? AND id IN (${marks})`).run(...extra, nowS, owner, ...unique);
+  // Archivar o desarchivar también se manda a WhatsApp (si el proveedor lo permite).
+  if (a.action === 'archive' || a.action === 'unarchive') {
+    const { pushWhatsappArchive } = await import('./whatsapp');
+    for (const id of unique) await pushWhatsappArchive(owner, id, a.action === 'archive').catch(() => undefined);
+  }
   return unique;
 }
 
@@ -814,16 +840,17 @@ export async function inboxCounts(owner: string, now = new Date()): Promise<Reco
   const r = (await getDb()
     .prepare(
       `SELECT
-         SUM(CASE WHEN done_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?) AND unread > 0 THEN 1 ELSE 0 END) AS inbox,
-         SUM(CASE WHEN done_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?) AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL THEN 1 ELSE 0 END) AS reply,
-         SUM(CASE WHEN snoozed_until > ? THEN 1 ELSE 0 END) AS snoozed
+         SUM(CASE WHEN done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?) AND unread > 0 THEN 1 ELSE 0 END) AS inbox,
+         SUM(CASE WHEN done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?) AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL THEN 1 ELSE 0 END) AS reply,
+         SUM(CASE WHEN snoozed_until > ? THEN 1 ELSE 0 END) AS snoozed,
+         SUM(CASE WHEN archived_at IS NOT NULL THEN 1 ELSE 0 END) AS archived
        FROM inbox_threads WHERE owner_id = ?`,
     )
-    .get(nowS, nowS, nowS, owner)) as { inbox: number | null; reply: number | null; snoozed: number | null } | undefined;
+    .get(nowS, nowS, nowS, owner)) as { inbox: number | null; reply: number | null; snoozed: number | null; archived: number | null } | undefined;
   const s = (await getDb()
     .prepare("SELECT COUNT(*) AS n FROM inbox_scheduled WHERE owner_id = ? AND status IN ('pending','failed','missed')")
     .get(owner)) as { n: number };
-  return { inbox: Number(r?.inbox ?? 0), reply: Number(r?.reply ?? 0), snoozed: Number(r?.snoozed ?? 0), scheduled: Number(s.n) };
+  return { inbox: Number(r?.inbox ?? 0), reply: Number(r?.reply ?? 0), snoozed: Number(r?.snoozed ?? 0), archived: Number(r?.archived ?? 0), scheduled: Number(s.n) };
 }
 
 // ---------------------------------------------------------------------------
@@ -866,7 +893,7 @@ export async function listFolders(owner: string, now = new Date()): Promise<Fold
   const manual = (await db
     .prepare(
       `SELECT tf.folder_id, t.id FROM inbox_thread_folders tf JOIN inbox_threads t ON t.id = tf.thread_id
-       WHERE t.owner_id = ? AND t.done_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) AND t.unread > 0`,
+       WHERE t.owner_id = ? AND t.done_at IS NULL AND t.archived_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) AND t.unread > 0`,
     )
     .all(owner, nowS)) as Array<{ folder_id: string; id: string }>;
   for (const r of manual) own.set(r.folder_id, new Set([...(own.get(r.folder_id) ?? []), r.id]));
@@ -874,7 +901,7 @@ export async function listFolders(owner: string, now = new Date()): Promise<Fold
     const rs = ruleSql(parseRuleText(f.rule));
     if (!rs) continue;
     const hits = (await db
-      .prepare(`SELECT t.id FROM inbox_threads t WHERE t.owner_id = ? AND t.done_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) AND t.unread > 0 AND (${rs.sql}) LIMIT 1000`)
+      .prepare(`SELECT t.id FROM inbox_threads t WHERE t.owner_id = ? AND t.done_at IS NULL AND t.archived_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) AND t.unread > 0 AND (${rs.sql}) LIMIT 1000`)
       .all(owner, nowS, ...rs.args)) as Array<{ id: string }>;
     own.set(f.id, new Set([...(own.get(f.id) ?? []), ...hits.map((h) => h.id)]));
   }

@@ -55,6 +55,7 @@ export interface ImportProgress {
   drafts?: number;
   snoozes?: number;
   notes?: number;
+  archived?: number;
 }
 
 export interface ImportJobDto {
@@ -334,7 +335,7 @@ async function readRange(url: string, offset: number, size: number): Promise<Buf
 }
 
 function addCounts(p: ImportProgress, r: ImportResult) {
-  for (const k of ['folders', 'scheduled', 'drafts', 'snoozes', 'notes', 'messages'] as const) p[k] = (p[k] ?? 0) + r[k];
+  for (const k of ['folders', 'scheduled', 'drafts', 'snoozes', 'notes', 'archived', 'messages'] as const) p[k] = (p[k] ?? 0) + r[k];
   p.chats = (p.chats ?? 0) + r.chats;
 }
 

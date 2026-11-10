@@ -213,6 +213,8 @@ export type InboundEvent =
     }
   /** Nombre o foto de un contacto o grupo (historial, contactos de WhatsApp). */
   | { type: 'contact'; chatId: string; name?: string; pictureUrl?: string }
+  /** El chat se archivó o se sacó de archivados en WhatsApp (Evolution: CHATS_UPDATE / CHATS_UPSERT con `archived`). */
+  | { type: 'archive'; chatId: string; archived: boolean }
   /** El contacto escribe, graba un audio, está en línea o se fue (Evolution: PRESENCE_UPDATE). */
   | { type: 'presence'; chatId: string; who: string; state: 'composing' | 'recording' | 'available' | 'unavailable' | 'paused' }
   | {
@@ -275,6 +277,8 @@ export interface HistoryChat {
   name: string;
   pictureUrl: string;
   unread: number;
+  /** Archivado en WhatsApp (si el servidor lo informa). */
+  archived?: boolean;
   /** Último mensaje (segundos). */
   lastAt: number;
 }
@@ -336,6 +340,8 @@ export interface GroupsProvider {
   chatInfo?(chatId: string): Promise<ChatInfo | null>;
   /** Bloquear o desbloquear un contacto en WhatsApp. */
   blockContact?(chatId: string, block: boolean): Promise<void>;
+  /** Archivar o sacar de archivados un chat en WhatsApp (`last`: el mensaje más nuevo, que pide el servidor). */
+  archiveChat?(chatId: string, archive: boolean, last?: { id: string; fromMe: boolean }): Promise<void>;
   /** Presencia propia en un chat (escribiendo, grabando) y suscribirse a la del otro (escribiendo, en línea). */
   sendPresence?(chatId: string, state: 'composing' | 'recording' | 'paused', ms: number): Promise<void>;
   readonly caps: ProviderCaps;

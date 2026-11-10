@@ -7,7 +7,7 @@ export type ThreadKind = 'dm' | 'group' | 'email';
 export type AccountStatus = 'disconnected' | 'pending' | 'qr' | 'connected' | 'error';
 
 /** Vistas fijas de la barra (como los splits de Superhuman). Las carpetas propias van aparte. */
-export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done'] as const;
+export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived'] as const;
 export type InboxView = (typeof INBOX_VIEWS)[number];
 
 export function isInboxView(v: unknown): v is InboxView {
@@ -52,6 +52,8 @@ export interface ThreadDto {
   unread: number;
   pinned: boolean;
   done: boolean;
+  /** Archivado (como WhatsApp): fuera de la bandeja, en "Archivados". */
+  archived: boolean;
   snoozedUntil: string | null;
   woke: '' | 'snooze' | 'followup';
   followUpAt: string | null;

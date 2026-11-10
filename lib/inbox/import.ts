@@ -12,7 +12,7 @@ import { createHash } from 'crypto';
 import { z } from 'zod';
 import { getDb } from '../db';
 import { addMessage, findThread, newId, nowIso, upsertThread, type AccountRow, type ThreadRow } from './core';
-import { ensureWhatsappAccount } from './whatsapp';
+import { ensureWhatsappAccount, markArchived } from './whatsapp';
 import { FOLDER_COLORS, InboxError, LIMITS, normalizeWaJid, waKindOf, waPhoneOf } from './types';
 
 export const EXPORT_FORMAT = 'inbox-zero-export';
@@ -39,7 +39,7 @@ export const metaSchema = z.object({
     .max(LIMITS.folders)
     .default([]),
   chatFolders: z.array(z.object({ chatId, folderId: z.union([z.number(), z.string()]) })).max(20_000).default([]),
-  chats: z.array(z.object({ chatId, name: text(300).optional().default(''), isGroup: z.boolean().optional() })).max(20_000).default([]),
+  chats: z.array(z.object({ chatId, name: text(300).optional().default(''), isGroup: z.boolean().optional(), archived: z.boolean().optional() })).max(20_000).default([]),
   scheduled: z
     // Un programado de varios mensajes trae todos juntos (separados por \u001e).
     .array(z.object({ chatId, chatName: text(300).optional().default(''), text: text(LIMITS.message * 10), sendAt: z.number(), status: text(20).optional().default('pending') }))
@@ -77,6 +77,8 @@ export interface ImportResult {
   drafts: number;
   snoozes: number;
   notes: number;
+  /** Chats que quedaron archivados (como en WhatsApp). */
+  archived: number;
   messages: number;
 }
 
@@ -114,7 +116,7 @@ function color(raw: string, i: number): string {
 }
 
 export async function importPart(owner: string, part: ImportPart, now = new Date()): Promise<ImportResult> {
-  const out: ImportResult = { folders: 0, chats: 0, scheduled: 0, drafts: 0, snoozes: 0, notes: 0, messages: 0 };
+  const out: ImportResult = { folders: 0, chats: 0, scheduled: 0, drafts: 0, snoozes: 0, notes: 0, archived: 0, messages: 0 };
   const account = await ensureWhatsappAccount(owner);
   const cache = new Map<string, ThreadRow>();
   const db = getDb();
@@ -144,6 +146,11 @@ export async function importPart(owner: string, part: ImportPart, now = new Date
   for (const c of part.chats) {
     const t = await threadFor(account, cache, c.chatId, c.name);
     if (t) out.chats++;
+    // Los archivados entran como archivados: no llenan la bandeja y se ven en "Archivados".
+    if (t && c.archived && !t.archived_at) {
+      await markArchived(t.id);
+      out.archived++;
+    }
   }
 
   // Carpetas: por nombre (reimportar no duplica). Las subcarpetas, después de sus padres.

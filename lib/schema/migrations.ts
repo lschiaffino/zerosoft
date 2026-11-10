@@ -9123,6 +9123,15 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Inbox: chats archivados de WhatsApp (como "Archivados" de WhatsApp Web).
+    // Salen de la bandeja y de las vistas; se ven en la vista "archived".
+    id: '340_inbox_archived',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE inbox_threads ADD COLUMN archived_at TEXT');
+      await c.execute('CREATE INDEX IF NOT EXISTS idx_inbox_threads_archived ON inbox_threads(owner_id, archived_at)');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
