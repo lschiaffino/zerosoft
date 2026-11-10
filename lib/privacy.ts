@@ -207,7 +207,7 @@ function ownBlobHost(): string | null {
   return m ? `${m[1].toLowerCase()}.public.blob.vercel-storage.com` : null;
 }
 
-const PRIVATE_APPS = ['hiring', 'sign', 'send', 'books', 'assistant'] as const;
+const PRIVATE_APPS = ['hiring', 'sign', 'send', 'calls', 'books', 'assistant'] as const;
 type PrivateApp = (typeof PRIVATE_APPS)[number];
 const UUID_BIN = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.bin';
 
@@ -247,6 +247,8 @@ async function privateRemover(app: string): Promise<((refs: string[]) => Promise
       return (await import('./sign/files')).deleteSignFiles;
     case 'send':
       return (await import('./send/files')).deleteSendFiles;
+    case 'calls':
+      return (await import('./calls/files')).deleteCallFiles;
     case 'books':
       return (await import('./books-files')).deleteBooksFiles;
     case 'assistant':

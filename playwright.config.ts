@@ -127,6 +127,9 @@ export default defineConfig({
       // e IA falsa (lib/voice-ai.ts; con la cookie voice_ai_fake=off se ve ai_disabled).
       VOICE_TRANSCRIBE_PROVIDER: 'fake',
       VOICE_AI_FAKE: '1',
+      // Calls: el bot simulado (lib/calls/fake-bot.ts) en vez de services/calls-bot y el análisis sin modelo.
+      CALLS_BOT_FAKE: '1',
+      CALLS_AI_FAKE: '1',
       // Voice → Notion sin salir a internet (lib/voice-send.ts).
       VOICE_NOTION_FAKE: '1',
       // Bases sincronizadas de Docs (GitHub, Jira, Salesforce) con datos fijos (lib/docs-sync.ts) y

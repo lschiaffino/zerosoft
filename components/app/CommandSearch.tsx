@@ -160,6 +160,7 @@ function useGroupOrder() {
         'forms',
         'send',
         'inbox',
+        'calls',
         'links',
         'docs',
         'notes',

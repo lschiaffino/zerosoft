@@ -1,0 +1,19 @@
+{
+  "name": "zerosoft-calls-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "zerosoft Notetaker: joins meetings, records audio and video, uploads to the zerosoft app.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "selftest": "node selftest.js"
+  },
+  "dependencies": {
+    "playwright-core": "1.64.0"
+  }
+}

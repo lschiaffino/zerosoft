@@ -9626,6 +9626,11 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Calls (como Gong): llamadas grabadas por el bot o subidas, partes, comentarios, clips y ajustes.
+    id: '350_calls',
+    up: callsUp,
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

@@ -38,6 +38,8 @@ import { searchForms } from '@/lib/forms/search';
 import { searchSend } from '@/lib/send/search';
 import { sendActorOf } from '@/lib/send/actor';
 import { searchInbox } from '@/lib/inbox/search';
+import { searchCalls } from '@/lib/calls/search';
+import { callsActorOf } from '@/lib/calls/actor';
 import { actorOf as formsActorOf } from '@/lib/forms/http';
 import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
@@ -68,7 +70,7 @@ async function getPrivate(req: NextRequest) {
   if (!q) return NextResponse.json<SearchResponse>({ q, items: [] });
 
   const scope = await sessionScope(user);
-  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people, books, sign, forms, send, inbox] = await Promise.all([
+  const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people, books, sign, forms, send, inbox, calls] = await Promise.all([
     searchAll(user.id, q, scope),
     listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
@@ -114,6 +116,8 @@ async function getPrivate(req: NextRequest) {
     userCanUseApp(user, 'send') && user.role !== 'guest' ? searchSend(sendActorOf(user), q).catch(() => []) : Promise.resolve([]),
     // Inbox: chats y correos de la persona (los suyos, nunca de otra persona del workspace).
     searchInbox(user.actingUser?.id ?? user.id, q).catch(() => []),
+    // Calls: llamadas por título o por lo que se dijo, solo las que la persona ve.
+    userCanUseApp(user, 'calls') && user.role !== 'guest' ? searchCalls(callsActorOf(user), q).catch(() => []) : Promise.resolve([]),
   ]);
 
   const items: SearchResultItem[] = [];
@@ -217,6 +221,7 @@ async function getPrivate(req: NextRequest) {
   for (const f of forms) items.push({ id: `forms:${f.id}`, group: 'forms', label: f.label, meta: f.meta, href: f.href });
   for (const f of send) items.push({ id: `send:${f.id}`, group: 'send', label: f.label, meta: f.meta, href: f.href });
   for (const f of inbox) items.push({ id: `inbox:${f.id}`, group: 'inbox', label: f.label, meta: f.meta, href: f.href });
+  for (const c of calls) items.push({ id: `calls:${c.id}`, group: 'calls', label: c.label, meta: c.meta, href: c.href });
 
   const PEOPLE_GROUP = { person: 'people', template: 'peopleTemplates', cycle: 'peopleCycles', survey: 'peopleSurveys', report: 'peopleReports' } as const;
   const PEOPLE_HREF = { person: (id: string) => `/app/people/${id}`, template: (id: string) => `/app/people/onboarding/templates/${id}`, cycle: (id: string) => `/app/people/reviews/${id}`, survey: () => '/app/people/reviews#surveys', report: (id: string) => `/app/people/reports?report=${id}` } as const;

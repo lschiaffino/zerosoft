@@ -12,7 +12,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # El build de Next pasa el heap por defecto de Node (el mismo tope que usa el check de CI).
 ENV NODE_OPTIONS=--max-old-space-size=6144
 # El build prerenderiza páginas estáticas; usa una base temporal.
-RUN NEXTAUTH_SECRET=build-only TURSO_DATABASE_URL=file:/tmp/build.db npm run build && npm prune --omit=dev && mkdir -p public
+# Heap de 6 GB para el build (como en CI): con todas las apps, el default de Node no alcanza en el runner de CI.
+RUN NODE_OPTIONS=--max-old-space-size=6144 NEXTAUTH_SECRET=build-only TURSO_DATABASE_URL=file:/tmp/build.db npm run build && npm prune --omit=dev && mkdir -p public
 
 FROM node:24-bookworm-slim AS run
 WORKDIR /app

@@ -48,6 +48,7 @@ export const RIVALS: Record<ProductKey, string> = {
   forms: 'Typeform',
   send: 'DocSend',
   inbox: 'Superhuman · WhatsApp Web',
+  calls: 'Gong',
 };
 
 /** Las seis apps de la tabla de costos del home (precio por usuario o plan fijo). */
@@ -167,4 +168,6 @@ export const PRODUCT_PAGES: Record<ProductKey, ProductPageSpec> = {
   send: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'split' },
   // Personal: el precio de Superhuman es por persona; el bloque lo cita como referencia.
   inbox: { sections: ['shot', 'features', 'how', 'parity', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
+  // Gong no publica precios: el bloque remite a gong.io/pricing.
+  calls: { sections: ['shot', 'features', 'parity', 'how', 'compare', 'model', 'faq'], features: 6, faqs: 5, featureLayout: 'columns' },
 };

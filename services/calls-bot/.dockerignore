@@ -1,0 +1,17 @@
+node_modules
+test
+*.md
+.env*
+*.pem
+*.key
+*.crt
+*.p12
+*.log
+*.mp4
+*.ogg
+.git
+.gitignore
+.dockerignore
+.railway
+railway.json
+.DS_Store

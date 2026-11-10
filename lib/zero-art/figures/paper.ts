@@ -186,6 +186,73 @@ function send(): Figure {
   };
 }
 
+/** Calls: dos voces en sus pistas; lo que dice cada una baja a la transcripción, renglón por renglón. */
+function calls(): Figure {
+  const rand = seeded(53);
+  const X = 8;
+  const W = COLS - X - 2;
+  const PERIOD = 15;
+  const PLAY = 12;
+  // Quién habla en cada tramo de la llamada (0 = quien vende, 1 = quien compra) y cuánto dura.
+  const turns = [
+    [0, 0.08],
+    [1, 0.16],
+    [0, 0.06],
+    [1, 0.2],
+    [0, 0.1],
+    [1, 0.14],
+    [0, 0.12],
+    [1, 0.14],
+  ] as const;
+  let at = 0;
+  const segs = turns.map(([who, len]) => {
+    const seg = { who, from: at, to: at + len, line: words(rand, 26 + Math.floor(rand() * 32)) };
+    at += len;
+    return seg;
+  });
+  return {
+    cols: COLS,
+    rows: ROWS,
+    fps: 20,
+    still: 9.4,
+    draw(c, time) {
+      c.clear();
+      const t = time % PERIOD;
+      const fade = 1 - smooth((t - PERIOD + 1.2) / 1);
+      const head = clamp(t / PLAY);
+      // Las dos pistas: una por voz, con el tramo que suena más claro.
+      for (let track = 0; track < 2; track++) {
+        const y = 2 + track * 4;
+        c.slab(0, y, 4, 2, (track === 0 ? 0.85 : 0.5) * fade, true);
+        for (let i = 0; i < W; i += 2) c.lift(X + i, y + 1, 0.1);
+        for (const seg of segs) {
+          if (seg.who !== track) continue;
+          const a = Math.round(X + seg.from * W);
+          const b = Math.round(X + Math.min(seg.to, head) * W);
+          const now = head >= seg.from && head < seg.to;
+          for (let i = a; i < b; i++) {
+            c.lift(i, y, (now ? 0.9 : 0.5) * fade);
+            c.lift(i, y + 1, (now ? 0.9 : 0.5) * fade);
+          }
+        }
+      }
+      // El cabezal de reproducción.
+      const hx = Math.round(X + head * W);
+      for (let j = 1; j < 8; j++) c.lift(hx, j, 0.35 * fade);
+      for (let i = 0; i < COLS; i++) c.lift(i, 10, 0.18);
+      // La transcripción: cada tramo es un renglón con la marca de quien habla.
+      segs.forEach((seg, n) => {
+        if (head < seg.from) return;
+        const row = 14 + n * 2;
+        const typed = clamp((head - seg.from) / (seg.to - seg.from));
+        const now = head < seg.to;
+        c.slab(0, row, 4, 1, (seg.who === 0 ? 0.85 : 0.5) * fade, true);
+        run(c, X, row, seg.line, (now ? 1 : 0.5) * fade, Math.ceil(typed * seg.line.length));
+      });
+    },
+  };
+}
+
 interface Bubble {
   mine: boolean;
   lines: boolean[][];
@@ -488,6 +555,8 @@ export function paperFigure(variant: string): Figure {
       return forms();
     case 'send':
       return send();
+    case 'calls':
+      return calls();
     case 'chat':
       return chat();
     case 'talk':

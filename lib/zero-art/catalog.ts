@@ -37,4 +37,5 @@ export const PRODUCT_FIGURES: Record<ProductKey, FigureRef> = {
   forms: ['paper', 'forms'],
   send: ['paper', 'send'],
   inbox: ['paper', 'groups'],
+  calls: ['paper', 'calls'],
 };

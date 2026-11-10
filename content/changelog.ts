@@ -29,6 +29,47 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-calls',
+    date: '2026-11-08',
+    title: {
+      en: 'Calls: record sales calls on Google Meet and review them with AI',
+      es: 'Calls: grabá llamadas de venta en Google Meet y revisalas con IA',
+      pt: 'Calls: grave chamadas de venda no Google Meet e revise com IA',
+    },
+    items: [
+      {
+        product: 'calls',
+        en: 'New app, an open-source alternative to Gong. zerosoft Notetaker joins Google Meet as a guest, posts a recording notice in the chat, records audio and video, and leaves when the meeting ends. The bot is new and only joins Meet for now; Zoom and Teams links are detected and will come later. You can also upload a recording.',
+        es: 'App nueva, alternativa open source a Gong. zerosoft Notetaker entra a Google Meet como invitado, publica un aviso de grabación en el chat, graba audio y video, y se va cuando termina la reunión. El bot es nuevo y por ahora solo entra a Meet; los links de Zoom y Teams se detectan y llegan más adelante. También podés subir una grabación.',
+        pt: 'App novo, alternativa open source ao Gong. O zerosoft Notetaker entra no Google Meet como convidado, publica um aviso de gravação no chat, grava áudio e vídeo, e sai quando a reunião termina. O bot é novo e por enquanto só entra no Meet; os links do Zoom e do Teams são detectados e chegam mais adiante. Você também pode enviar uma gravação.',
+      },
+      {
+        product: 'calls',
+        en: 'It joins on its own from the Google Calendar or Outlook connected in Cal, with a rule per person: every Meet meeting, only with external guests, only with an open deal, or manual.',
+        es: 'Entra solo desde el Google Calendar o el Outlook conectado en Cal, con una regla por persona: toda reunión de Meet, solo con invitados externos, solo con un deal abierto o manual.',
+        pt: 'Entra sozinho a partir do Google Calendar ou do Outlook conectado no Cal, com uma regra por pessoa: toda reunião do Meet, só com convidados externos, só com um deal aberto ou manual.',
+      },
+      {
+        product: 'calls',
+        en: 'Each call has a player with the transcript in sync and a track per speaker, comments at a moment, clips, a public read-only link and exports to Markdown, TXT, WebVTT and JSON. Cmd+K finds a call by what was said.',
+        es: 'Cada llamada tiene un reproductor con la transcripción sincronizada y una pista por persona, comentarios en un momento, clips, un link público de solo lectura y exportes a Markdown, TXT, WebVTT y JSON. Cmd+K encuentra una llamada por lo que se dijo.',
+        pt: 'Cada chamada tem um player com a transcrição sincronizada e uma faixa por pessoa, comentários num momento, clipes, um link público somente leitura e exportações para Markdown, TXT, WebVTT e JSON. O Cmd+K encontra uma chamada pelo que foi dito.',
+      },
+      {
+        product: 'calls',
+        en: 'With the suite\'s AI: summary, next steps, topics, questions, objections, competitor mentions, a SPICED, MEDDIC, BANT or custom scorecard, and questions about one call or all of them. Talk ratio, longest monologue, interactivity and patience are computed from the transcript.',
+        es: 'Con la IA de la suite: resumen, próximos pasos, temas, preguntas, objeciones, menciones de competidores, un scorecard SPICED, MEDDIC, BANT o propio, y preguntas sobre una llamada o sobre todas. Talk ratio, monólogo más largo, interactividad y paciencia se calculan desde la transcripción.',
+        pt: 'Com a IA da suíte: resumo, próximos passos, temas, perguntas, objeções, menções de concorrentes, um scorecard SPICED, MEDDIC, BANT ou próprio, e perguntas sobre uma chamada ou sobre todas. Talk ratio, monólogo mais longo, interatividade e paciência são calculados a partir da transcrição.',
+      },
+      {
+        product: 'calls',
+        en: 'Calls link to CRM contacts and their open deal and log a meeting with the summary. A Deals view shows call activity and risk signals, and the summary can go to a Talk channel or the call.ready webhook.',
+        es: 'Las llamadas se vinculan a contactos del CRM y a su deal abierto, y registran una reunión con el resumen. Una vista de Deals muestra la actividad de llamadas y señales de riesgo, y el resumen puede ir a un canal de Talk o al webhook call.ready.',
+        pt: 'As chamadas se vinculam a contatos do CRM e ao deal aberto deles, e registram uma reunião com o resumo. Uma visão de Deals mostra a atividade de chamadas e sinais de risco, e o resumo pode ir para um canal do Talk ou para o webhook call.ready.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-lines-hubspot',
     date: '2026-11-10',
     title: {

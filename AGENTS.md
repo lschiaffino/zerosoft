@@ -28,7 +28,10 @@ the person who opens the pull request must understand and test the change.
 - Migrations: `lib/schema/migrations.ts`.
 - Crons: `app/api/cron/minute` (every minute), `app/api/cron/tick` (hourly),
   `app/api/cron/robots` (every 5 minutes), `app/api/cron/send-render` (every
-  minute).
+  minute), `app/api/cron/calls` (every minute: Calls scheduling, the recording
+  bot and transcription).
+- Separate services: `services/calls-bot/` (the Calls meeting bot, Docker on
+  Railway; protocol in `docs/calls-bot.md`). Not part of the Next.js build.
 - Enterprise code: `ee/`. Do not edit it in outside contributions.
 
 ## Setup without network

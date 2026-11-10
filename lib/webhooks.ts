@@ -216,7 +216,7 @@ export interface WebhookDeliveryDto {
  * (Docs con teamspaces privados, canales privados, reuniones de Voice): su cuerpo solo lo ve esa persona.
  */
 export function isRestrictedEvent(event: string): boolean {
-  return event.startsWith('page.') || event.startsWith('database.') || event.startsWith('talk.') || event.startsWith('voice.');
+  return event.startsWith('page.') || event.startsWith('database.') || event.startsWith('talk.') || event.startsWith('voice.') || event.startsWith('call.');
 }
 
 export async function listDeliveries(userId: string, webhookId: string, limit = 50, viewerId?: string): Promise<WebhookDeliveryDto[] | null> {
