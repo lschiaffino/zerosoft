@@ -241,6 +241,17 @@
     "undo": "Undo",
     "reverted": "Undone"
   },
+  "swipe": {
+    "read": "Read",
+    "unread": "Unread",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "more": "More",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "dropTitle": "Add to a folder",
+    "dropEmpty": "No folders yet. Create one from the sidebar."
+  },
   "move": { "title": "Add to folder", "filter": "Filter folders", "none": "No folders yet.", "remove": "Remove", "newFolder": "New folder", "close": "Close" },
   "more": {
     "deleteConfirm": "This removes the chat and its saved messages from Inbox. Nothing is deleted on WhatsApp or Gmail.",

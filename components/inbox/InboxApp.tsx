@@ -7,13 +7,17 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { ThreadAction } from '@/lib/inbox/core';
 import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
 import type { MessageHit } from '@/lib/inbox/message-search';
-import { api, INBOX_CHANGED, INBOX_DROP_THREADS, longWhen, notifyInboxChanged, shortWhen, THREADS_MIME, typingIn, type DropThreadsDetail } from './api';
+import { api, INBOX_CHANGED, longWhen, notifyInboxChanged, shortWhen, typingIn } from './api';
 import ChatRow from './wa/ChatRow';
 import WaConversation, { type WaThreadDetail } from './wa/WaConversation';
 import ContactPanel from './wa/ContactPanel';
 import { ArchiveIcon, ArrowLeft } from '@/components/groups/wa/icons';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
-import { rowSwipe } from './wa/gestures';
+import Avatar from '@/components/groups/wa/Avatar';
+import { chatName } from './wa/util';
+import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
+import { dragIds } from '@/lib/chat-gestures';
+import { flattenTree } from '@/lib/inbox/folder-tree';
 import Conversation from './Conversation';
 import type { ComposerHandle } from './Composer';
 import WhenDialog, { type WhenKind } from './WhenDialog';
@@ -119,6 +123,8 @@ export default function InboxApp(props: {
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const [plan, setPlan] = useState<ScheduleTarget | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  // "Más" abierto desde una fila (deslizar o toque largo): actúa sobre ese chat y no sobre el abierto.
+  const [moreFor, setMoreFor] = useState<string | null>(null);
   const [moreConfirm, setMoreConfirm] = useState(false);
   const moreActionRef = useRef<(a: MoreAction) => Promise<void>>(async () => {});
   const [infoOpen, setInfoOpen] = useState(false);
@@ -368,10 +374,12 @@ export default function InboxApp(props: {
           setMoveIds(ids);
           break;
         case 'more':
+          setMoreFor(null);
           setMoreConfirm(false);
           setMoreOpen(true);
           break;
         case 'delete':
+          setMoreFor(null);
           setMoreConfirm(true);
           setMoreOpen(true);
           break;
@@ -404,7 +412,7 @@ export default function InboxApp(props: {
    * actual). Deshacer vuelve exactamente a como estaban.
    */
   const dropOnFolder = useCallback(
-    async ({ ids, folderId, folderName }: DropThreadsDetail) => {
+    async ({ ids, folderId, folderName }: { ids: string[]; folderId: string; folderName: string }) => {
       const from = folder && folder.id !== folderId ? folder.id : null;
       const fresh = ids.filter((id) => !(threads.find((x) => x.id === id)?.folderIds ?? []).includes(folderId));
       const post = (list: string[], a: ThreadAction) => (list.length ? api('/api/inbox/threads', { method: 'POST', json: { ids: list, ...a } }) : Promise.resolve({ ok: true, status: 200, data: {} as { error?: string } }));
@@ -430,12 +438,6 @@ export default function InboxApp(props: {
     [folder, threads, toast, errText, t, reloadList, reloadState],
   );
 
-  useEffect(() => {
-    const on = (e: Event) => void dropOnFolder((e as CustomEvent<DropThreadsDetail>).detail);
-    window.addEventListener(INBOX_DROP_THREADS, on);
-    return () => window.removeEventListener(INBOX_DROP_THREADS, on);
-  }, [dropOnFolder]);
-
   const open = (id: string) => {
     const idx = threads.findIndex((x) => x.id === id);
     if (idx >= 0) setCursor(idx);
@@ -453,7 +455,7 @@ export default function InboxApp(props: {
   const moreAction = async (a: MoreAction) => {
     setMoreOpen(false);
     setMoreConfirm(false);
-    const th = detail?.thread ?? current;
+    const th = (moreFor ? threads.find((x) => x.id === moreFor) : null) ?? detail?.thread ?? current;
     if (!th) return;
     if (a === 'delete') {
       const r = await api(`/api/inbox/threads/${th.id}`, { method: 'DELETE' });
@@ -477,7 +479,13 @@ export default function InboxApp(props: {
     if (a === 'pin') await runAction([th.id], { action: th.pinned ? 'unpin' : 'pin' });
     if (a === 'clearFollowUp') await runAction([th.id], { action: 'clearFollowUp' });
     if (a === 'unsnooze') await runAction([th.id], { action: 'unsnooze' });
-    if (a === 'aiDraft') composer.current?.draft();
+    if (a === 'aiDraft') {
+      // El borrador se escribe en la conversación: si "Más" vino de otra fila, primero se abre.
+      if (moreFor && openId !== th.id) {
+        open(th.id);
+        window.setTimeout(() => composer.current?.draft(), 350);
+      } else composer.current?.draft();
+    }
   };
   moreActionRef.current = moreAction;
 
@@ -614,6 +622,55 @@ export default function InboxApp(props: {
 
   const viewTitle = folder ? folder.name : q ? t('list.searchResults') : t(`views.${view}`);
 
+  /**
+   * Deslizar una fila, como WhatsApp (y como Lines): a la derecha, leído o no
+   * leído (la principal) y fijar; a la izquierda, archivar (la principal) y
+   * más. Con chats seleccionados no se desliza. Todo sigue en el menú y en los
+   * atajos (U, P, V, M).
+   */
+  const swipeActions = (id: string): SwipeActions | null => {
+    const th = threads.find((x) => x.id === id);
+    if (!th || selected.size > 0) return null;
+    return {
+      right: [
+        { key: 'unread', label: th.unread > 0 ? t('swipe.read') : t('swipe.unread'), icon: th.unread > 0 ? 'read' : 'unread', onSelect: () => void runAction([id], { action: th.unread > 0 ? 'read' : 'unread' }) },
+        { key: 'pin', label: th.pinned ? t('swipe.unpin') : t('swipe.pin'), icon: th.pinned ? 'unpin' : 'pin', onSelect: () => void runAction([id], { action: th.pinned ? 'unpin' : 'pin' }) },
+      ],
+      left: [
+        { key: 'archive', label: th.archived ? t('swipe.unarchive') : t('swipe.archive'), icon: th.archived ? 'unarchive' : 'archive', leaves: true, onSelect: () => void runAction([id], { action: th.archived ? 'unarchive' : 'archive' }) },
+        { key: 'more', label: t('swipe.more'), icon: 'more', onSelect: () => openMoreFor(id) },
+      ],
+    };
+  };
+  const openMoreFor = (id: string) => {
+    setMoreFor(id);
+    setMoreConfirm(false);
+    setMoreOpen(true);
+  };
+  const gestures = useChatGestures({
+    scope: 'inbox',
+    actionsFor: swipeActions,
+    // Levantar un chat seleccionado lleva la selección entera.
+    idsFor: (id) => dragIds(id, selected, threads.map((x) => x.id)),
+    chipFor: (id, ids) => {
+      const th = threads.find((x) => x.id === id);
+      if (ids.length > 1 || !th) return { label: t('list.dragMany', { n: ids.length }) };
+      const name = chatName(th, w('group'));
+      return { label: name, avatar: <Avatar name={name} kind={th.kind === 'group' ? 'group' : 'dm'} src={th.avatar || undefined} seed={th.id} size={24} /> };
+    },
+    // Un chat puede estar en varias carpetas: no sirve soltarlo donde ya están todos.
+    canDrop: (ids, target) => ids.some((id) => !(threads.find((x) => x.id === id)?.folderIds ?? []).includes(target)),
+    onDrop: (ids, target, name) => void dropOnFolder({ ids, folderId: target, folderName: state.folders.find((f) => f.id === target)?.name ?? name }),
+    onHoldTap: (id) => {
+      if (selected.size === 0) openMoreFor(id);
+    },
+    tray: {
+      title: t('swipe.dropTitle'),
+      empty: t('swipe.dropEmpty'),
+      items: flattenTree(state.folders).map(({ folder: f, depth }) => ({ id: f.id, name: f.name, depth })),
+    },
+  });
+
   const rowFor = (th: ThreadDto, i: number) => {
     const isSel = selected.has(th.id);
     const marker = th.woke === 'snooze' ? t('list.woke') : th.woke === 'followup' ? t('list.noReply') : '';
@@ -622,21 +679,9 @@ export default function InboxApp(props: {
         key={th.id}
         data-idx={i}
         className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}
-        draggable
-        onDragStart={(e) => {
-          // Arrastrar a una carpeta del sidebar: la selección entera si este chat está en ella.
-          const ids = isSel ? [...selected] : [th.id];
-          e.dataTransfer.effectAllowed = 'move';
-          e.dataTransfer.setData(THREADS_MIME, JSON.stringify(ids));
-          e.dataTransfer.setData('text/plain', ids.length > 1 ? t('list.dragMany', { n: ids.length }) : th.title);
-        }}
-        data-left-label={th.done ? t('actions.undone') : t('actions.done')}
-        data-right-label={th.pinned ? w('unpin') : w('pin')}
-        {...rowSwipe({
-          onLeft: () => void runAction([th.id], { action: th.done ? 'undone' : 'done' }),
-          onRight: () => void runAction([th.id], { action: th.pinned ? 'unpin' : 'pin' }),
-        })}
+        {...gestures.rowProps(th.id)}
       >
+        {gestures.actions(th.id)}
         <input
           type="checkbox"
           className="ib-check"
@@ -654,7 +699,6 @@ export default function InboxApp(props: {
         <button
           type="button"
           className="ib-row-btn"
-          data-swipe-body
           aria-current={th.id === openId ? 'true' : undefined}
           onClick={(e) => {
             if (e.shiftKey || e.metaKey) {
@@ -847,7 +891,7 @@ export default function InboxApp(props: {
             )}
           </div>
         ) : (
-          <ul className="ib-list" ref={listRef} aria-label={viewTitle} aria-busy={loading || undefined}>
+          <ul className="ib-list" ref={listRef} data-chat-list aria-label={viewTitle} aria-busy={loading || undefined}>
             {threads.map(rowFor)}
             {q.trim() !== '' && msgHits.length > 0 && (
               <li className="ib-hits" role="presentation">
@@ -1066,7 +1110,7 @@ export default function InboxApp(props: {
       />
       <MoreDialog
         open={moreOpen}
-        thread={detail?.thread ?? current}
+        thread={(moreFor ? threads.find((x) => x.id === moreFor) : null) ?? detail?.thread ?? current}
         onClose={() => {
           setMoreOpen(false);
           setMoreConfirm(false);
@@ -1102,6 +1146,7 @@ export default function InboxApp(props: {
           else if (f && folderEdit === 'new' && moveIds === null) toast(t('toast.folderCreated', { name: f.name }));
         }}
       />
+      {gestures.layer}
       <div className="ui-toasts" role="status" aria-live="polite">
         {toasts.map((x) => (
           <div key={x.id} className={`ui-toast${x.bad ? ' ui-toast-bad' : ''} ib-toast`}>

@@ -16,12 +16,14 @@ import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
 import { ArchiveIcon, ArrowLeft, Ban, CheckIcon, Chevron, FilterIcon, Mic, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
-import { longPress } from './wa/longPress';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import type { LineFolderDto } from '@/lib/groups-lines';
-import { DRAG_TYPE, DROP_CHATS, FOLDERS_CHANGED, FolderSelect, LineBadge, LineSelector, MoveToFolderModal, notifyFoldersChanged, type DropChatsDetail, type LineOption } from './LineFolders';
+import { FOLDERS_CHANGED, FolderSelect, LineBadge, LineSelector, MoveToFolderModal, notifyFoldersChanged, type LineOption } from './LineFolders';
+import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
+import { dragIds } from '@/lib/chat-gestures';
+import { flattenTree } from '@/lib/inbox/folder-tree';
 import { useShellBranch } from '@/components/app/useShellBranch';
 import PanelSplitters from './PanelSplitters';
 
@@ -372,34 +374,40 @@ export default function InboxShell({
     void api('/api/groups/prefs', { method: 'PUT', body: { line: v } });
   }
 
+  /** Mueve chats a una carpeta (o los saca, con null). El aviso dice a dónde fueron y deja deshacer: cada chat vuelve a la carpeta donde estaba. */
   async function moveToFolder(ids: string[], folderId: string | null) {
+    const before = new Map<string | null, string[]>();
+    for (const id of ids) {
+      const row = rowsRef.current.find((r) => r.id === id);
+      if (!row || row.folderId === folderId) continue;
+      before.set(row.folderId, [...(before.get(row.folderId) ?? []), id]);
+    }
     const res = await api<{ updated: number; failed: number }>('/api/groups/chats/bulk', { body: { ids, action: 'folder', folderId } });
     if (!res.data) return showToast(errText(res.error), true);
     const name = folderId ? (folderData.folders.find((f) => f.id === folderId)?.name ?? '') : '';
-    showToast(folderId ? t('lines.movedTo', { n: res.data.updated, name }) : t('lines.removedFromFolder', { n: res.data.updated }), res.data.failed > 0);
+    const after = () => {
+      void load(true);
+      notifyFoldersChanged();
+    };
+    const undo = async () => {
+      for (const [prev, list] of before) await api('/api/groups/chats/bulk', { body: { ids: list, action: 'folder', folderId: prev } });
+      after();
+    };
+    showToast(
+      folderId ? t('lines.movedTo', { n: res.data.updated, name }) : t('lines.removedFromFolder', { n: res.data.updated }),
+      res.data.failed > 0,
+      before.size > 0 && res.data.updated > 0 ? { label: t('swipe.undo'), onClick: () => void undo() } : undefined,
+    );
     setSelected(new Set());
-    void load(true);
-    notifyFoldersChanged();
+    after();
   }
-  const moveRef = useRef(moveToFolder);
-  useEffect(() => {
-    moveRef.current = moveToFolder;
-  });
   useEffect(() => {
     const changed = () => {
       void reloadFolders();
       void load(true);
     };
-    const dropped = (e: Event) => {
-      const d = (e as CustomEvent<DropChatsDetail>).detail;
-      if (d?.ids?.length) void moveRef.current(d.ids, d.folderId);
-    };
     window.addEventListener(FOLDERS_CHANGED, changed);
-    window.addEventListener(DROP_CHATS, dropped);
-    return () => {
-      window.removeEventListener(FOLDERS_CHANGED, changed);
-      window.removeEventListener(DROP_CHATS, dropped);
-    };
+    return () => window.removeEventListener(FOLDERS_CHANGED, changed);
   }, [reloadFolders, load]);
   const pickFolder = (id: string) => router.push(`/app/lines/inbox${current ? `/${current}` : ''}${inboxQuery(listId, id)}`);
   const folderName = folderSel === 'none' ? t('lines.unfiled') : (folderData.folders.find((f) => f.id === folderSel)?.name ?? '');
@@ -490,15 +498,16 @@ export default function InboxShell({
     return !c.match || c.name.toLowerCase().includes(q) || (digits.length >= 3 && c.phone.includes(digits));
   }
 
+  /** Archivar o desarchivar, con deshacer en el aviso. */
+  function toggleArchived(c: ChatDto) {
+    void rowAction(c, { archived: !c.archived }).then(() =>
+      showToast(c.archived ? t('wa.unarchived') : t('wa.archived'), false, { label: t('swipe.undo'), onClick: () => void rowAction(c, { archived: c.archived }) }),
+    );
+  }
+
   function rowMenu(c: ChatDto): MenuItem[] {
     return [
-      {
-        key: 'archive',
-        label: c.archived ? t('wa.unarchive') : t('wa.archive'),
-        onSelect: () => {
-          void rowAction(c, { archived: !c.archived }).then(() => showToast(c.archived ? t('wa.unarchived') : t('wa.archived')));
-        },
-      },
+      { key: 'archive', label: c.archived ? t('wa.unarchive') : t('wa.archive'), onSelect: () => toggleArchived(c) },
       { key: 'close', label: c.status === 'open' ? t('wa.closeChat') : t('thread.reopen'), onSelect: () => void rowAction(c, { status: c.status === 'open' ? 'closed' : 'open' }) },
       { key: 'mute', label: c.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void rowAction(c, { muted: !c.muted }) },
       { key: 'pin', label: c.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
@@ -509,6 +518,55 @@ export default function InboxShell({
     ];
   }
 
+  /**
+   * Deslizar una fila, como WhatsApp: a la derecha, leído o no leído (la
+   * principal) y fijar; a la izquierda, archivar (la principal) y más (el menú
+   * de la fila). Con chats seleccionados no se desliza.
+   */
+  function swipeActions(id: string): SwipeActions | null {
+    const c = rowsRef.current.find((r) => r.id === id);
+    if (!c || selectMode || visibleSelected.length > 0) return null;
+    return {
+      right: [
+        { key: 'unread', label: c.unread > 0 ? t('swipe.read') : t('swipe.unread'), icon: c.unread > 0 ? 'read' : 'unread', onSelect: () => void rowAction(c, { read: c.unread > 0 }) },
+        { key: 'pin', label: c.pinned ? t('swipe.unpin') : t('swipe.pin'), icon: c.pinned ? 'unpin' : 'pin', onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
+      ],
+      left: [
+        { key: 'archive', label: c.archived ? t('swipe.unarchive') : t('swipe.archive'), icon: c.archived ? 'unarchive' : 'archive', leaves: true, onSelect: () => toggleArchived(c) },
+        { key: 'more', label: t('swipe.more'), icon: 'more', onSelect: () => openRowMenu(id, 220) },
+      ],
+    };
+  }
+  // Desde el deslizado, el menú espera a que la fila vuelva a su lugar.
+  const openRowMenu = (id: string, wait = 0) =>
+    window.setTimeout(() => document.querySelector<HTMLButtonElement>(`[data-chat-row="${CSS.escape(id)}"] .wa-row-chevron`)?.click(), wait);
+  const gestures = useChatGestures({
+    scope: 'lines',
+    actionsFor: swipeActions,
+    // Levantar un chat seleccionado lleva la selección entera.
+    idsFor: (id) => dragIds(id, selected, rows.map((r) => r.id)),
+    chipFor: (id, ids) => {
+      const c = rowsRef.current.find((r) => r.id === id);
+      if (ids.length > 1 || !c) return { label: t('swipe.dragMany', { n: ids.length }) };
+      return { label: c.name, avatar: <Avatar name={c.name} kind={c.kind} src={c.pictureUrl} seed={c.id} size={24} /> };
+    },
+    canDrop: (ids, target) => {
+      const to = target === 'none' ? null : target;
+      return ids.some((id) => (rowsRef.current.find((r) => r.id === id)?.folderId ?? null) !== to);
+    },
+    onDrop: (ids, target) => void moveToFolder(ids, target === 'none' ? null : target),
+    onHoldTap: (id) => {
+      if (!selectMode && visibleSelected.length === 0) openRowMenu(id);
+    },
+    tray: {
+      title: t('swipe.dropTitle'),
+      empty: t('swipe.dropEmpty'),
+      items: folderData.folders.length
+        ? [...flattenTree(folderData.folders).map(({ folder: f, depth }) => ({ id: f.id, name: f.name, depth })), { id: 'none', name: t('lines.unfiled'), depth: 0 }]
+        : [],
+    },
+  });
+
   /** Una fila de la lista (también en los resultados de búsqueda). */
   function renderRow(c: ChatDto, opts: { snippet?: boolean } = {}) {
     const draft = c.id !== current ? readDraft(c.id) : '';
@@ -517,19 +575,14 @@ export default function InboxShell({
       <li
         key={`${opts.snippet ? 'm' : 'c'}-${c.id}`}
         className={`gr-row-item${c.muted ? ' is-muted' : ''}`}
-        draggable={!showCheck}
-        onDragStart={(e) => {
-          const ids = selected.has(c.id) ? [...selected] : [c.id];
-          e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(ids));
-          e.dataTransfer.effectAllowed = 'move';
-        }}
+        {...gestures.rowProps(c.id)}
         onContextMenu={(e) => {
           if (showCheck) return;
           e.preventDefault();
           e.currentTarget.querySelector<HTMLButtonElement>('.wa-row-chevron')?.click();
         }}
-        {...longPress((el) => el.querySelector<HTMLButtonElement>('.wa-row-chevron')?.click())}
       >
+        {gestures.actions(c.id)}
         {showCheck && (
           <input type="checkbox" className="gr-row-check" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} aria-label={t('bulkInbox.select', { name: c.name })} />
         )}
@@ -546,6 +599,7 @@ export default function InboxShell({
           }}
           className={`gr-row${c.id === current ? ' is-active' : ''}${c.unread > 0 ? ' is-unread' : ''}`}
           aria-current={c.id === current ? 'page' : undefined}
+          draggable={false}
         >
           <Avatar name={c.name} kind={c.kind} src={c.pictureUrl} seed={c.id} />
           <span className="gr-row-main">
@@ -623,7 +677,7 @@ export default function InboxShell({
           </span>
         </Link>
         {!showCheck && (
-          <span className="gr-row-menu">
+          <span className="gr-row-menu" data-no-gesture>
             <MessageMenu label={t('wa.chatOptions', { name: c.name })} items={rowMenu(c)} trigger={<Chevron size={20} />} className="wa-row-chevron" align="right" />
           </span>
         )}
@@ -1001,6 +1055,7 @@ export default function InboxShell({
           ) : (
             <ul
               className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}`}
+              data-chat-list
               onScroll={(e) => {
                 const el = e.currentTarget;
                 // Más chats al llegar al final (de a 100, hasta 500 en pantalla).
@@ -1075,6 +1130,7 @@ export default function InboxShell({
           void moveToFolder(ids, folderId);
         }}
       />
+      {gestures.layer}
       {toast}
     </Ctx.Provider>
   );

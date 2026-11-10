@@ -330,8 +330,9 @@ test('teléfono: deslizar un mensaje responde y deslizar una fila la archiva', a
   await swipe('.ib-wa-thread .gr-msg-in', 100);
   await expect(page.locator('.wa-replying .gr-quote')).toContainText('Deslizame para responder');
   await page.getByRole('button', { name: 'Back to the list' }).click();
-  await swipe(`.ib-item:has-text("${name}")`, -120);
-  await expect(page.locator('.ib-toast', { hasText: 'Marked done' })).toBeVisible();
+  // Deslizar hasta el fondo a la izquierda archiva (como WhatsApp); a mitad de camino solo abre las acciones.
+  await swipe(`.ib-item:has-text("${name}")`, -300);
+  await expect(page.locator('.ib-toast', { hasText: 'Archived' })).toBeVisible();
   await expect(page.locator('.ib-item', { hasText: name })).toHaveCount(0);
 });
 

@@ -10,7 +10,7 @@ import { useShellBranch } from '@/components/app/useShellBranch';
 import type { LineFolderDto } from '@/lib/groups-lines';
 import { canMoveFolder, childrenMap, depthOf, flattenTree, MAX_FOLDER_DEPTH } from '@/lib/inbox/folder-tree';
 import { Modal, api, useErrorText } from './ui';
-import { DRAG_TYPE, DROP_CHATS, FOLDERS_CHANGED, notifyFoldersChanged, type DropChatsDetail } from './LineFolders';
+import { FOLDERS_CHANGED, notifyFoldersChanged } from './LineFolders';
 
 type FolderDto = LineFolderDto;
 interface FolderData {
@@ -19,7 +19,6 @@ interface FolderData {
 }
 
 const FOLDER_MIME = 'application/x-zs-lines-folder';
-const THREADS_MIME = DRAG_TYPE;
 const COLLAPSED_KEY = 'zs-lines-folders-collapsed';
 
 type Zone = 'before' | 'inside' | 'after';
@@ -37,7 +36,9 @@ function readCollapsed(): Set<string> {
  * Inbox (InboxBranch). Subcarpetas que se pliegan, no leídos que suben a los
  * padres, la abierta marcada y un menú por carpeta (subcarpeta, renombrar,
  * subir, bajar, mover, borrar). Las carpetas se arrastran para ordenarlas o
- * meterlas en otra; los chats de la lista se sueltan encima. Con el teclado:
+ * meterlas en otra; los chats de la lista se sueltan encima (cada fila es un
+ * destino `data-chat-drop` de components/ui/chat-gestures.tsx, que la marca
+ * y mueve los chats). Con el teclado:
  * Alt+↑/↓ ordena, Alt+→ mete en la de arriba, Alt+← saca un nivel, F2
  * renombra. La carpeta abierta va en la URL (?folder=). Con el sidebar
  * colapsado o en el teléfono la bandeja ofrece un selector en su lugar.
@@ -197,12 +198,6 @@ export default function GroupsFoldersBranch() {
 
   const onDragOver = (e: DragEvent<HTMLLIElement>, f: FolderDto) => {
     const types = Array.from(e.dataTransfer.types);
-    if (types.includes(THREADS_MIME)) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if (drop?.id !== f.id || drop.zone !== 'inside') setDrop({ id: f.id, zone: 'inside' });
-      return;
-    }
     const id = dragId.current;
     if (!id || !types.includes(FOLDER_MIME) || id === f.id) return;
     const zone = zoneFor(e);
@@ -220,17 +215,6 @@ export default function GroupsFoldersBranch() {
     e.preventDefault();
     const zone = drop?.zone ?? 'inside';
     setDrop(null);
-    const raw = e.dataTransfer.getData(THREADS_MIME);
-    if (raw) {
-      let ids: string[] = [];
-      try {
-        ids = (JSON.parse(raw) as unknown[]).filter((x): x is string => typeof x === 'string').slice(0, 500);
-      } catch {
-        ids = [];
-      }
-      if (ids.length) window.dispatchEvent(new CustomEvent<DropChatsDetail>(DROP_CHATS, { detail: { ids, folderId: f.id } }));
-      return;
-    }
     const id = dragId.current;
     dragId.current = null;
     const dragged = id ? byId.get(id) : null;
@@ -279,7 +263,7 @@ export default function GroupsFoldersBranch() {
   };
 
   return createPortal(
-    <nav ref={navRef} className="docs-branch grf-branch" aria-label={tl('folders')} data-testid="lines-folders">
+    <nav ref={navRef} className="docs-branch grf-branch" aria-label={tl('folders')} data-testid="lines-folders" data-chat-drop-zone="lines">
       {folders.length === 0 ? (
         <p className="docs-sidebar-empty">{t('branchEmpty')}</p>
       ) : (
@@ -294,6 +278,9 @@ export default function GroupsFoldersBranch() {
               <li
                 key={f.id}
                 data-folder={f.id}
+                data-chat-drop={f.id}
+                data-chat-drop-scope="lines"
+                data-chat-drop-name={f.name}
                 className={`docs-tree-row${active ? ' active' : ''}${dropCls}`}
                 style={{ ['--d' as string]: depth }}
                 draggable={renaming !== f.id}
@@ -318,6 +305,7 @@ export default function GroupsFoldersBranch() {
                     type="button"
                     className={`grf-ftree-chevron${open ? ' open' : ''}`}
                     aria-expanded={open}
+                    data-chat-drop-expand
                     aria-label={open ? t('collapse', { name: f.name }) : t('expand', { name: f.name })}
                     onClick={() => toggle(f.id)}
                   >
@@ -363,7 +351,7 @@ export default function GroupsFoldersBranch() {
                   </Link>
                 )}
                 {renaming !== f.id && (
-                  <span className="grf-ftree-actions">
+                  <span className="grf-ftree-actions" data-chat-drop-hide>
                     <button
                       type="button"
                       className="grf-ftree-btn"
@@ -424,25 +412,7 @@ export default function GroupsFoldersBranch() {
               </li>
             );
           })}
-          <li
-            className={`docs-tree-row${selected === 'none' ? ' active' : ''}${drop?.id === 'none' ? ' drop drop-inside' : ''}`}
-            onDragOver={(e) => {
-              if (!Array.from(e.dataTransfer.types).includes(THREADS_MIME)) return;
-              e.preventDefault();
-              if (drop?.id !== 'none') setDrop({ id: 'none', zone: 'inside' });
-            }}
-            onDragLeave={() => drop?.id === 'none' && setDrop(null)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDrop(null);
-              try {
-                const ids = (JSON.parse(e.dataTransfer.getData(THREADS_MIME)) as unknown[]).filter((x): x is string => typeof x === 'string').slice(0, 500);
-                if (ids.length) window.dispatchEvent(new CustomEvent<DropChatsDetail>(DROP_CHATS, { detail: { ids, folderId: null } }));
-              } catch {
-                /* lo soltado no era un chat */
-              }
-            }}
-          >
+          <li className={`docs-tree-row${selected === 'none' ? ' active' : ''}`} data-chat-drop="none" data-chat-drop-scope="lines" data-chat-drop-name={tl('unfiled')}>
             <span className="docs-tree-chevron-spacer" aria-hidden="true" />
             <Link href={selected === 'none' ? base : hrefOf('none')} className="docs-tree-link" aria-current={selected === 'none' ? 'page' : undefined}>
               <span className="docs-tree-title">{tl('unfiled')}</span>

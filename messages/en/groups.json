@@ -1653,6 +1653,19 @@
     "rescan": "Scan the QR again",
     "reconnect": "Reconnect"
   },
+  "swipe": {
+    "read": "Read",
+    "unread": "Unread",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "more": "More",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "dragMany": "{n} chats",
+    "dropTitle": "Move to a folder",
+    "dropEmpty": "No folders yet. Create one from the sidebar.",
+    "undo": "Undo"
+  },
   "lines": {
     "selectorLabel": "Line",
     "all": "All lines",

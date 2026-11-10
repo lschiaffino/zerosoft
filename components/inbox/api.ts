@@ -23,16 +23,6 @@ export function notifyInboxChanged() {
   window.dispatchEvent(new Event(INBOX_CHANGED));
 }
 
-/** Arrastrar chats de la lista: tipo de dato con los ids (JSON). */
-export const THREADS_MIME = 'application/x-zs-inbox-threads';
-/** Chats soltados sobre una carpeta del sidebar: la app los mueve y ofrece deshacer. */
-export const INBOX_DROP_THREADS = 'zs:inbox-drop-threads';
-export interface DropThreadsDetail {
-  ids: string[];
-  folderId: string;
-  folderName: string;
-}
-
 /** ¿El foco está en un campo de texto? (los atajos de una letra no corren ahí). */
 export function typingIn(el: Element | null): boolean {
   if (!el) return false;

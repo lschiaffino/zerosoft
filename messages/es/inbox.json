@@ -241,6 +241,17 @@
     "undo": "Deshacer",
     "reverted": "Deshecho"
   },
+  "swipe": {
+    "read": "Leído",
+    "unread": "No leído",
+    "pin": "Fijar",
+    "unpin": "Desfijar",
+    "more": "Más",
+    "archive": "Archivar",
+    "unarchive": "Desarchivar",
+    "dropTitle": "Sumar a una carpeta",
+    "dropEmpty": "Todavía no hay carpetas. Creá una desde la barra lateral."
+  },
   "move": { "title": "Sumar a carpeta", "filter": "Filtrar carpetas", "none": "Todavía no hay carpetas.", "remove": "Sacar", "newFolder": "Carpeta nueva", "close": "Cerrar" },
   "more": {
     "deleteConfirm": "Se saca el chat y sus mensajes guardados de Inbox. No se borra nada en WhatsApp ni en Gmail.",

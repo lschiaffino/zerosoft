@@ -1,0 +1,98 @@
+/*
+ * Gestos de una fila de chat (Lines e Inbox): deslizar a los costados y
+ * levantar la conversación para soltarla en una carpeta. La lógica está en
+ * components/ui/chat-gestures.tsx; acá, lo que se ve.
+ */
+
+/* ---------- Deslizar ---------- */
+
+[data-chat-row] { touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+[data-chat-row] a, [data-chat-row] img { -webkit-user-drag: none; -webkit-touch-callout: none; }
+[data-chat-row][data-swipe] { overflow: hidden; }
+/* `translate` y no `transform`: hay hijos (la casilla, el menú) que ya usan transform para ubicarse. */
+[data-chat-row][data-swipe] > :not(.zs-swipe-actions) { translate: var(--swipe-x, 0) 0; }
+[data-chat-row][data-swipe-settling] > :not(.zs-swipe-actions) { transition: translate 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); }
+[data-chat-row][data-swipe-settling] > .zs-swipe-actions { transition: width 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+.zs-swipe-actions { position: absolute; top: 0; bottom: 0; z-index: 1; display: flex; width: var(--swipe-w, 0); overflow: hidden; }
+[data-chat-row]:not([data-swipe]) > .zs-swipe-actions { display: none; }
+.zs-swipe-actions[data-side='right'] { left: 0; }
+.zs-swipe-actions[data-side='left'] { right: 0; flex-direction: row-reverse; }
+.zs-swipe-action {
+  flex: 1 1 0; min-width: 0; min-height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 0; overflow: hidden; border: 0; border-radius: 0; font: inherit; font-size: 0.75rem; font-weight: 600; line-height: 1.1; white-space: nowrap; cursor: pointer;
+  color: var(--bg); background: color-mix(in srgb, var(--ink) 62%, var(--bg));
+  transition: flex-grow 0.16s ease-out, opacity 0.16s ease-out;
+}
+.zs-swipe-action svg { flex: none; }
+.zs-swipe-action[data-primary] { background: var(--ink); }
+.zs-swipe-action:hover { filter: brightness(1.12); }
+.zs-swipe-action:focus-visible { outline: 2px solid var(--bg); outline-offset: -4px; }
+.zs-swipe-action-label { max-width: 100%; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; }
+/* Pasado el umbral, la acción principal ocupa toda la franja: soltar la ejecuta. */
+[data-swipe-commit] .zs-swipe-action:not([data-primary]) { flex-grow: 0; opacity: 0; }
+
+/* ---------- Levantar y soltar en una carpeta ---------- */
+
+body[data-chat-gesture] { -webkit-user-select: none; user-select: none; }
+body[data-chat-gesture='drag'], body[data-chat-gesture='drag'] * { cursor: grabbing !important; }
+
+/* La fila de origen queda en su lugar, apagada. */
+[data-chat-row][data-chat-dragging] { opacity: 0.4; }
+
+/* La ficha que sigue al puntero: chica y corrida, para que la carpeta de abajo se vea. */
+.zs-drag-chip {
+  position: fixed; left: 0; top: 0; z-index: calc(var(--z-toast) + 1); display: inline-flex; align-items: center; gap: 8px; max-width: min(260px, calc(100vw - 16px)); height: 36px; padding: 0 12px 0 6px;
+  color: var(--ink); background: var(--bg); border: 1px solid var(--ink); border-radius: var(--radius-1); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  font-size: 0.8125rem; font-weight: 600; white-space: nowrap; pointer-events: none; visibility: hidden; will-change: transform;
+}
+.zs-drag-chip[data-placed] { visibility: visible; }
+.zs-drag-chip-avatar { display: inline-flex; flex: none; width: 24px; height: 24px; overflow: hidden; border-radius: 50%; }
+.zs-drag-chip-count { flex: none; min-width: 24px; height: 24px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; color: var(--bg); background: var(--ink); border-radius: var(--radius-1); font-variant-numeric: tabular-nums; }
+.zs-drag-chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.zs-drag-chip-dest { display: none; align-items: center; gap: 4px; min-width: 0; color: var(--ink); }
+.zs-drag-chip-dest > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.zs-drag-chip[data-over] { background: var(--ink); color: var(--bg); }
+.zs-drag-chip[data-over] .zs-drag-chip-dest { display: inline-flex; flex: 0 1 auto; color: inherit; }
+.zs-drag-chip[data-over] .zs-drag-chip-count { color: var(--ink); background: var(--bg); }
+
+/* Carpetas: la que está debajo del puntero se marca entera; donde no sirve soltar, apagado. */
+[data-chat-drop-scope='lines'] { --drop-accent: var(--c-groups); }
+[data-chat-drop-scope='inbox'] { --drop-accent: var(--c-inbox); }
+body[data-chat-dragging] [data-chat-drop] { transition: background-color 0.12s ease-out, box-shadow 0.12s ease-out; }
+body[data-chat-dragging] [data-chat-drop][data-drop-hover],
+body[data-chat-dragging] .docs-tree-row[data-chat-drop][data-drop-hover] {
+  color: var(--ink); background: color-mix(in srgb, var(--drop-accent, var(--ink)) 22%, var(--bg)); box-shadow: inset 0 0 0 2px var(--drop-accent, var(--ink));
+}
+body[data-chat-dragging] [data-chat-drop][data-drop-hover] .docs-tree-title,
+body[data-chat-dragging] [data-chat-drop][data-drop-hover] .zs-drag-tray-name { font-weight: 700; }
+body[data-chat-dragging] [data-chat-drop][data-drop-disabled] { opacity: 0.42; }
+body[data-chat-dragging] [data-chat-drop][data-drop-disabled]:hover { background: none; }
+/* Mientras se arrastra, el resto del sidebar no compite: ni menús de carpeta ni el resaltado del mouse. */
+body[data-chat-dragging] [data-chat-drop-zone] [data-chat-drop-hide] { visibility: hidden; }
+body[data-chat-dragging] .side-stop, body[data-chat-dragging] .side-section, body[data-chat-dragging] .side-new, body[data-chat-dragging] .side-foot { opacity: 0.45; }
+body[data-chat-dragging] .docs-tree-row:not([data-drop-hover]):not(.active):hover { background: none; }
+
+/* Bandeja de carpetas: solo mientras se arrastra y el sidebar no está a la vista. */
+.zs-drag-tray {
+  position: fixed; z-index: var(--z-drawer); display: flex; flex-direction: column; gap: 4px; width: 264px; max-width: calc(100vw - 16px); max-height: min(60vh, 440px); padding: 8px;
+  overflow-y: auto; overscroll-behavior: contain; color: var(--ink); background: var(--bg); border: 1px solid var(--ink); border-radius: var(--radius-1); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+  animation: zs-tray-in 0.16s ease-out;
+}
+.zs-drag-tray[data-mode='bottom'] { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: auto; max-height: 46vh; animation-name: zs-tray-up; }
+.zs-drag-tray-title { margin: 0; padding: 2px 6px 4px; font-size: 0.75rem; font-weight: 700; color: var(--brand-gray-2); }
+.zs-drag-tray-empty { margin: 0; padding: 6px; font-size: 0.875rem; color: var(--brand-gray-2); }
+.zs-drag-tray-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.zs-drag-tray-item { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px 0 calc(var(--d, 0) * 16px + 10px); border-radius: var(--radius-1); font-size: 0.9375rem; }
+.zs-drag-tray-swatch { flex: none; width: 10px; height: 10px; border-radius: 2px; background: var(--drop-accent, var(--ink)); }
+.zs-drag-tray-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes zs-tray-in { from { opacity: 0; transform: translateX(-6px); } }
+@keyframes zs-tray-up { from { opacity: 0; transform: translateY(10px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-chat-row][data-swipe-settling] > :not(.zs-swipe-actions),
+  [data-chat-row][data-swipe-settling] > .zs-swipe-actions,
+  .zs-swipe-action,
+  body[data-chat-dragging] [data-chat-drop] { transition: none; }
+  .zs-drag-tray { animation: none; }
+}
