@@ -221,7 +221,8 @@
     "groupForms": "Formulários",
     "groupSend": "Documentos para enviar",
     "untitled": "Sem título",
-    "groupInbox": "Inbox"
+    "groupInbox": "Inbox",
+    "downloadDesktop": "App para computador"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
@@ -734,6 +735,54 @@
       "title": "Ainda não há apps ativados para você",
       "body": "Um admin de {workspace} pode ativá-los em Configurações › Membros.",
       "bodyAdmin": "O owner de {workspace} pode ativá-los em Configurações › Membros."
+    },
+    "start": {
+      "title": "Primeiros passos",
+      "progress": "{done} de {total} concluídos",
+      "hide": "Ocultar",
+      "hideLabel": "Ocultar primeiros passos",
+      "allSet": "Tudo pronto. O que você escolheu no começo está conectado.",
+      "error": "Não deu para ocultar. Tente de novo.",
+      "continueSetup": "Continuar a configuração",
+      "steps": {
+        "profile": {
+          "title": "Configure seu workspace",
+          "body": "Nome, função e os apps que você usa.",
+          "cta": "Editar"
+        },
+        "invite": {
+          "title": "Convide sua equipe",
+          "body": "Todos compartilham o mesmo CRM, Docs e Track.",
+          "cta": "Convidar"
+        },
+        "import": {
+          "title": "Traga seus dados do {tool}",
+          "body": "Contatos, páginas ou issues chegam com o histórico.",
+          "cta": "Importar",
+          "titleAny": "Traga seus dados"
+        },
+        "calendar": {
+          "title": "Conecte sua agenda",
+          "body": "O Cal consulta a agenda para evitar conflitos e adiciona as novas reservas.",
+          "cta": "Conectar"
+        },
+        "email": {
+          "title": "Conecte seu email",
+          "body": "Os emails com seus contatos aparecem no CRM e você envia do seu endereço.",
+          "cta": "Conectar"
+        },
+        "whatsapp": {
+          "title": "Conecte uma linha de WhatsApp",
+          "body": "Suas conversas e grupos chegam ao Groups, com o histórico.",
+          "cta": "Conectar"
+        },
+        "desktop": {
+          "title": "Baixe o app para computador",
+          "body": "Ditado em qualquer app, notas de reuniões e notificações nativas.",
+          "cta": "Baixar"
+        }
+      },
+      "done": "Concluído"
     }
   },
   "publicPage": {
@@ -906,5 +955,55 @@
     "unknownShort": "{count, plural, one {# alteração não enviada} other {# alterações não enviadas}}",
     "unknownTitle": "Não enviadas",
     "unknownBody": "{count, plural, one {Há # alteração antiga} other {Há # alterações antigas}} neste dispositivo que não dá para ligar a uma sessão. Elas não são enviadas com a sua. Descarte se não precisar delas."
+  },
+  "desktop": {
+    "pickLabel": "Seu computador",
+    "macArm": "Mac com Apple silicon",
+    "macIntel": "Mac com Intel",
+    "win": "Windows",
+    "detected": "Detectado",
+    "probable": "Mais provável",
+    "download": {
+      "mac-arm": "Baixar para Mac",
+      "mac-intel": "Baixar para Mac (Intel)",
+      "win": "Baixar para Windows"
+    },
+    "meta": "Versão {version}",
+    "metaSize": "Versão {version} · {size}",
+    "chipHelp": "Não sabe qual é o seu Mac? Menu Apple › Sobre Este Mac: “Chip Apple M…” é Apple silicon, “Processador Intel…” é Intel.",
+    "allFiles": "Todos os arquivos no GitHub",
+    "noRelease": "Agora não há uma versão publicada. Enquanto isso, use o zerosoft no navegador; a página de releases tem todas as anteriores.",
+    "releases": "Ver releases",
+    "mobile": "O app para computador é para Mac e Windows. Abra esta página no seu computador para baixá-lo.",
+    "copyLink": "Copiar link",
+    "copied": "Link copiado",
+    "linux": "Ainda não há versão para Linux. O zerosoft funciona igual no navegador.",
+    "inApp": "Você está no app para computador.",
+    "inAppBody": "O ditado, as notificações e o contador no dock estão ativos. Os ajustes do ditado ficam no menu do app.",
+    "installTitle": "Instale",
+    "installTitleAfter": "Baixando. Agora instale",
+    "mac": {
+      "s1": "Abra o .dmg que você baixou e arraste o zerosoft para Aplicativos.",
+      "s2": "Abra o zerosoft em Aplicativos. Na primeira vez, o macOS diz que não pode verificar o desenvolvedor: a versão ainda não é notarizada pela Apple.",
+      "s3": "No macOS 15 ou posterior, vá em Ajustes do Sistema › Privacidade e Segurança, role para baixo e clique em Abrir Mesmo Assim. No macOS 14 ou anterior, clique com o botão direito no app, escolha Abrir e confirme.",
+      "s4": "Entre com esta conta. O ditado pede o microfone, e Acessibilidade para colar onde está o seu cursor."
+    },
+    "windows": {
+      "s1": "Execute o .exe que você baixou.",
+      "s2": "Se o SmartScreen disser “O Windows protegeu o computador”, clique em Mais informações e depois em Executar assim mesmo. A versão ainda não é assinada.",
+      "s3": "O instalador adiciona o Microsoft Edge WebView2 se faltar no seu Windows 10, e abre o zerosoft.",
+      "s4": "Entre com esta conta."
+    },
+    "waiting": "Quando você entrar no app para computador, este passo se marca sozinho.",
+    "seen": "O app para computador já está conectado à sua conta.",
+    "featuresTitle": "O que ele traz",
+    "f1t": "Ditado em qualquer app",
+    "f1d": "Segure Option + Espaço (Ctrl + Alt + Espaço no Windows), fale e solte: o texto limpo vai para onde está o seu cursor.",
+    "f2t": "Notas de reuniões com o Voice",
+    "f2d": "Grave uma reunião pela janela do app com o seu microfone e tenha a transcrição e o resumo no Voice.",
+    "f3t": "Notificações nativas",
+    "f3d": "Menções, mensagens diretas e o sino como notificações do sistema e um contador no ícone do dock.",
+    "f4t": "Leve e rápido",
+    "f4d": "Cerca de 3 MB para baixar. Todos os apps numa janela."
   }
 }

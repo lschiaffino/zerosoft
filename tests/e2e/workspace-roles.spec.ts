@@ -65,16 +65,20 @@ test('cuenta personal con datos de ejemplo: cae en la app elegida y el inicio en
     await expect(p.getByRole('button', { name: 'Not you? Sign out' })).toBeVisible();
     await p.getByLabel('Your name').fill('Sol');
     await p.getByRole('button', { name: 'Continue' }).click();
-    await expect(p.getByRole('heading', { name: 'Where do you start?' })).toBeVisible();
-    await p.locator('label.wl-app', { hasText: 'Docs' }).click();
+    await expect(p.getByRole('heading', { name: 'Which apps will you use?' })).toBeVisible();
+    // Sin rol, las destacadas de uso personal ya vienen marcadas.
+    await expect(p.locator('[data-testid="wl-app"][data-app="docs"] input')).toBeChecked();
     await p.getByLabel(/sample data/).check();
-    await p.getByRole('button', { name: 'Go to Docs' }).click();
-    await p.waitForURL(/\/en\/app\/docs/);
-    await p.goto('/en/app', { waitUntil: 'networkidle' });
+    await p.getByRole('button', { name: 'Continue' }).click();
+    // Segundo tramo: se puede saltear entero.
+    await expect(p.getByRole('heading', { name: 'Connect your accounts' })).toBeVisible();
+    await p.getByTestId('wl-skip-all').click();
+    await p.waitForURL(/\/en\/app$/);
     await expect(p.getByRole('heading', { name: /Sol$/ })).toBeVisible();
-    // Uso personal: sin "Sumá a tu equipo", con importar; los datos de ejemplo aparecen en Recientes.
+    // Uso personal: sin "Sumá a tu equipo"; invitar e importar quedan en "Primeros pasos".
+    await expect(p.getByTestId('getting-started')).toBeVisible();
+    await expect(p.getByTestId('gs-invite')).toHaveCount(0);
     await expect(p.getByTestId('home-invite')).toHaveCount(0);
-    await expect(p.getByTestId('home-import')).toBeVisible();
     // El owner ve la zona de propiedad y cierre.
     await p.goto('/en/app/settings/workspace', { waitUntil: 'networkidle' });
     await expect(p.getByTestId('ws-danger-owner')).toContainText('Delete workspace');

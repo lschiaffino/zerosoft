@@ -29,6 +29,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-08-onboarding-desktop',
+    date: '2026-11-08',
+    title: {
+      en: 'A new start: pick your apps, connect your accounts and get the desktop app',
+      es: 'Un comienzo nuevo: elegí tus apps, conectá tus cuentas y bajate la app de escritorio',
+      pt: 'Um começo novo: escolha seus apps, conecte suas contas e baixe o app para computador',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'The first-run setup asks which apps you will use (suggested from your role) and puts them first on Home, in the sidebar and in the app switcher. Your answers are saved as you go, so closing the tab resumes where you left off.',
+        es: 'El primer ingreso pregunta qué apps vas a usar (sugeridas según tu rol) y las pone primero en el inicio, el sidebar y el selector de apps. Las respuestas se guardan a medida que avanzás: si cerrás la pestaña, retomás donde quedaste.',
+        pt: 'O primeiro acesso pergunta quais apps você vai usar (sugeridos pela sua função) e os coloca primeiro no início, na barra lateral e no seletor de apps. As respostas são salvas enquanto você avança: se fechar a aba, retoma de onde parou.',
+      },
+      {
+        product: 'platform',
+        en: 'Then, all skippable: connect Google Calendar, Gmail or a WhatsApp line for the apps you picked, bring your data from HubSpot, Notion, Linear, Periskope and others, and download the desktop app.',
+        es: 'Después, todo salteable: conectá Google Calendar, Gmail o una línea de WhatsApp según las apps que elegiste, traé tus datos de HubSpot, Notion, Linear, Periskope y otras, y bajate la app de escritorio.',
+        pt: 'Depois, tudo opcional: conecte Google Agenda, Gmail ou uma linha de WhatsApp conforme os apps escolhidos, traga seus dados do HubSpot, Notion, Linear, Periskope e outros, e baixe o app para computador.',
+      },
+      {
+        product: 'platform',
+        en: 'Desktop downloads detect Mac (Apple silicon or Intel) and Windows, let you pick by hand, and show how to open the app the first time. The same download lives at /download and in the account menu.',
+        es: 'La descarga de escritorio detecta Mac (Apple silicon o Intel) y Windows, deja elegir a mano y explica cómo abrir la app la primera vez. La misma descarga está en /download y en el menú de la cuenta.',
+        pt: 'O download para computador detecta Mac (Apple silicon ou Intel) e Windows, deixa escolher manualmente e explica como abrir o app na primeira vez. O mesmo download está em /download e no menu da conta.',
+      },
+      {
+        product: 'platform',
+        en: 'Home shows Getting started with what is still missing. Each step checks itself off from real data (an account connected, an import, someone invited, the desktop app signed in), and you can hide it.',
+        es: 'El inicio muestra Primeros pasos con lo que falta. Cada paso se marca solo con datos reales (una cuenta conectada, un import, alguien invitado, la app de escritorio abierta con tu cuenta) y se puede ocultar.',
+        pt: 'O início mostra Primeiros passos com o que falta. Cada passo se marca sozinho com dados reais (uma conta conectada, uma importação, alguém convidado, o app para computador aberto com sua conta) e pode ser ocultado.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-analytics-questions-dashboards',
     date: '2026-11-08',
     title: {

@@ -1046,7 +1046,61 @@
     "stepFirst": "Passo 1",
     "notYouJoined": "Você já entrou em {workspace} com {email}. Sair da sessão não desfaz isso. Para tirar esta conta de {workspace}, saia agora; para voltar com outra conta, será preciso um novo convite.",
     "notYouLeave": "Sair de {workspace} e encerrar a sessão",
-    "notYouStay": "Só encerrar a sessão"
+    "notYouStay": "Só encerrar a sessão",
+    "skipStep": "Pular",
+    "skipAll": "Pular o resto",
+    "resumed": "Guardamos suas respostas da última vez.",
+    "apps": {
+      "title": "Quais apps você vai usar?",
+      "sub": "Eles aparecem primeiro no seu início, na barra lateral e no seletor de apps. Os outros ficam a um clique.",
+      "suggested": "Escolhidos para {role}. Mude o que quiser.",
+      "suggestedNoRole": "Um ponto de partida. Mude o que quiser.",
+      "count": "{n, plural, =0 {Nenhum: mostramos os de sempre} one {# app} other {# apps}}",
+      "sample": "Adicionar dados de exemplo para explorar (contatos, um doc, um projeto e um tipo de evento)"
+    },
+    "setup": {
+      "savedTitle": "Seu workspace está pronto",
+      "stepOf": "Configuração {step} de {total}",
+      "finish": "Ir para o início",
+      "next": "Próximo"
+    },
+    "connect": {
+      "title": "Conecte suas contas",
+      "sub": "Assim os apps que você escolheu começam com suas contas de verdade.",
+      "calendar": {
+        "name": "Google Agenda",
+        "body": "O Cal consulta para evitar conflitos e adiciona as reservas."
+      },
+      "email": {
+        "name": "Gmail",
+        "body": "Os emails com seus contatos aparecem no CRM; envie do seu endereço."
+      },
+      "whatsapp": {
+        "name": "Linha de WhatsApp",
+        "body": "Escaneie um QR para trazer suas conversas e grupos ao Groups, com o histórico."
+      },
+      "connect": "Conectar",
+      "connected": "Conectado",
+      "openSettings": "Configurar",
+      "result": {
+        "connected": "{name} está conectado.",
+        "denied": "{name} não foi conectado: a permissão foi recusada.",
+        "error": "Não deu para conectar {name}. Tente de novo.",
+        "scopes": "{name} precisa de todas as permissões que pede. Tente de novo e deixe todas marcadas."
+      }
+    },
+    "import": {
+      "title": "Vem de outra ferramenta?",
+      "sub": "Traga seus dados agora ou depois em Ajustes › Importar. Nada muda na outra ferramenta.",
+      "none": "Começo do zero",
+      "go": "Importar do {tool}",
+      "soon": "Ainda não há importador do {tool}. Você pode começar do zero e importar por CSV onde o app permite.",
+      "later": "Depois"
+    },
+    "desktop": {
+      "title": "Tenha o zerosoft no seu computador",
+      "sub": "O app para computador é a versão do navegador mais o que uma aba não consegue fazer."
+    }
   },
   "profileForm": {
     "title": "Seus dados",

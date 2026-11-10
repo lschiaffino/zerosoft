@@ -419,6 +419,8 @@ export function appProductFromPath(pathname: string): AppProduct {
   if (pathname === '/app/settings' || pathname.startsWith('/app/settings/')) return 'home';
   // El asistente es de la plataforma (no de una app): shell neutro.
   if (pathname === '/app/assistant' || pathname.startsWith('/app/assistant/')) return 'home';
+  // La app de escritorio (menú de la cuenta) también: shell neutro, no el de Link.
+  if (pathname === '/app/download') return 'home';
   for (const [prefix, product] of PRODUCT_PREFIXES) {
     if (pathname.includes(prefix)) return product;
   }
@@ -462,12 +464,14 @@ export const HOME_APPS_LIMIT = 8;
  */
 export function homeAppGroups(
   labels: SidebarLabels,
-  opts: { allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode } = {},
+  opts: { allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode; chosen?: readonly ProductKey[] | null } = {},
 ): NavGroup[] {
   const can = (k: ProductKey) => appAllowed(opts.allowed, k);
   const all = APP_SWITCHER_ORDER.filter(can);
   const recent = (opts.recentApps ?? []).filter((k): k is ProductKey => (all as readonly string[]).includes(k));
-  const top = [...new Set([...recent, ...featuredApps({ mode: opts.mode ?? 'team' }).filter(can), ...all])].slice(0, HOME_APPS_LIMIT);
+  // Con apps elegidas en el onboarding, "Tus apps" son esas (y las recientes); si no, se completa con todas.
+  const chosen = opts.chosen?.length ? opts.chosen.filter(can) : null;
+  const top = [...new Set([...recent, ...featuredApps({ mode: opts.mode ?? 'team', chosen }).filter(can), ...(chosen ? [] : all)])].slice(0, HOME_APPS_LIMIT);
   const rest = all.filter((k) => !top.includes(k));
   const item = (line: ProductKey): NavItem => ({
     href: switcherHref(line),
@@ -485,7 +489,7 @@ export function buildNav(
   product: AppProduct,
   pathname: string,
   labels: SidebarLabels,
-  counts: { tasksDue?: number; unread?: number; allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode } = {},
+  counts: { tasksDue?: number; unread?: number; allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode; chosen?: readonly ProductKey[] | null } = {},
 ): NavGroup[] {
   const at = (prefix: string) => pathname.startsWith(prefix);
   const tasksDue = counts.tasksDue ?? 0;
