@@ -10,6 +10,7 @@
  *
  * Quién ve qué lo deciden las funciones puras de lib/people-access.ts.
  */
+import { isWorkspaceOwnerPerson } from './workspace';
 import { getDb } from './db';
 import { open as openSecret, seal } from './secret-box';
 import { listOwnerSpacePeople } from './workspace';
@@ -255,7 +256,7 @@ export async function isHrAdmin(ws: string, personId: string, wsAdmin: boolean):
 
 /** Sueldos y nómina: el owner o un HR admin marcado (por el owner). Un admin sin marca, no. */
 export async function hasCompensationAccess(ws: string, personId: string): Promise<boolean> {
-  if (ws === personId) return true;
+  if (await isWorkspaceOwnerPerson(ws, personId)) return true;
   if (await isTerminatedPerson(ws, personId)) return false;
   return Boolean(
     await db()
@@ -320,7 +321,7 @@ export async function peopleContext(ws: string, personId: string, wsRole: string
     personId,
     wsAdmin,
     wsRole: ws === personId ? 'owner' : wsRole,
-    viewer: { personId, employeeId, hr, comp, wsOwner: ws === personId, reports: employeeId && !gone ? reportsOf(employeeId, map) : new Set() },
+    viewer: { personId, employeeId, hr, comp, wsOwner: ws === personId || wsRole === 'owner', reports: employeeId && !gone ? reportsOf(employeeId, map) : new Set() },
     visibility: parseJson<VisibilitySettings>(settings?.visibility, {}),
     hasManager: Boolean(me?.manager_id),
     needsSync,

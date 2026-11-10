@@ -15,6 +15,8 @@ import { PRODUCT_CONFIG, comingSoonHref, isComingSoon, isProductKey, type Produc
 import { isValidTimeZone } from './user-tz';
 import { cleanLine, ensureWorkspace, updateWorkspace, WORKSPACE_SIZES } from './workspace';
 import type { WorkspaceMode } from './workspace-mode';
+import { createTeamWorkspace, defaultTeamName, ensureTeamWorkspace, ownedTeamWorkspace } from './workspace-principal';
+import { setActiveTeam } from './teams';
 import {
   cleanApps,
   cleanDraft,
@@ -175,15 +177,23 @@ export interface OnboardingInput {
  * el segundo tramo (conectar, importar, escritorio), que se puede saltear.
  */
 export async function saveOnboarding(user: Pick<UserRow, 'id' | 'name' | 'email'>, input: OnboardingInput): Promise<OnboardingProfile> {
-  const team = await ensureWorkspace(user.id);
+  // Dos workspaces: el personal (la ficha propia) y uno de equipo con su propio
+  // titular (lib/workspace-principal.ts), así lo del equipo no se mezcla con lo
+  // personal. "Para mi equipo" arranca en el de equipo, con el nombre que puso;
+  // "Solo yo" arranca en el personal y el de equipo queda vacío para después.
+  const own = await ensureWorkspace(user.id);
   const mode: WorkspaceMode = input.mode === 'team' ? 'team' : 'personal';
   const size = input.size && (WORKSPACE_SIZES as readonly string[]).includes(input.size) ? input.size : undefined;
   const teamName = input.teamName ? cleanLine(input.teamName) : undefined;
-  await updateWorkspace(team.id, {
-    mode,
-    ...(mode === 'team' && teamName ? { name: teamName } : {}),
-    ...(size ? { size } : mode === 'personal' ? { size: '1' } : {}),
-  });
+  await updateWorkspace(own.id, { mode: 'personal', size: '1' });
+  const owned = await ownedTeamWorkspace(user.id);
+  const person = { ...user, name: (input.name && cleanLine(input.name)) || user.name };
+  const team = owned ?? (mode === 'team' ? await createTeamWorkspace(user, teamName || defaultTeamName(person)) : (await ensureTeamWorkspace(person)).team);
+  if (mode === 'team') {
+    if (owned && teamName) await updateWorkspace(team.id, { name: teamName });
+    if (size) await updateWorkspace(team.id, { size });
+    await setActiveTeam(user.id, team.id);
+  }
   const apps = cleanApps(input.apps);
   const entryApp = input.entryApp && isProductKey(input.entryApp) ? input.entryApp : apps[0];
   const profile: OnboardingProfile = {
@@ -208,7 +218,8 @@ export async function saveOnboarding(user: Pick<UserRow, 'id' | 'name' | 'email'
   await patchProfile(user.id, { draft: null });
   if (input.sampleData) {
     const { seedUserIfNeeded } = await import('./seed');
-    await seedUserIfNeeded(user.id, { groups: true });
+    // Los datos de ejemplo van al workspace donde arranca (el de equipo, con "Para mi equipo").
+    await seedUserIfNeeded(mode === 'team' ? team.owner_id : user.id, { groups: true });
   }
   return profile;
 }

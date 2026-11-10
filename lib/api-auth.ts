@@ -7,7 +7,7 @@ import { API_SCOPES, hasScope, keyHasMcpAccess, MCP_KEY_SCOPE, parseScopes, seri
 import { isComingSoon, PRODUCT_CONFIG, type ProductKey } from './products';
 import { blockedAppsFor } from './workspace-apps';
 import { normalizeRole, resolveWorkspace, type TeamRole } from './teams';
-import { parseApps } from './workspace';
+import { isPrincipalId, parseApps } from './workspace';
 import { delegatedIdentity } from './mcp/identity';
 
 export function sha256(input: string): string {
@@ -92,6 +92,8 @@ export async function personAppAccess(ownerId: string, personId: string): Promis
     )
     .get(ownerId, personId)) as { blocked: number } | undefined;
   if (mfa) return null;
+  // En un workspace de equipo con titular propio, el rol owner de team_members es el owner de verdad.
+  if (isPrincipalId(ownerId) && rows.some((r) => r.role === 'owner')) return { role: 'owner', apps: '*' };
   const role: TeamRole = rows.some((r) => r.role === 'admin' || r.role === 'owner') ? 'admin' : 'member';
   const lists = rows.map((r) => parseApps(r.apps));
   if (lists.includes('*')) return { role, apps: '*' };

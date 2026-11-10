@@ -11,7 +11,8 @@ export type PeopleEventType = 'people.hired' | 'people.timeoff.approved' | 'peop
 
 /** ¿Quien armó el flow es HR de People en el workspace (y tiene la app)? */
 export async function isPeopleHr(ws: string, personId: string): Promise<boolean> {
-  if (personId === ws) return true;
+  const { isWorkspaceOwnerPerson } = await import('./workspace');
+  if (await isWorkspaceOwnerPerson(ws, personId)) return true;
   const { listOwnerSpacePeople } = await import('./workspace');
   const person = (await listOwnerSpacePeople(ws, { app: 'people' })).find((p) => p.id === personId);
   if (!person) return false;
@@ -48,13 +49,14 @@ export async function notifyPeople(userIds: Array<string | null | undefined>, n:
 /** HR del workspace con People (owner, admins y HR admins). */
 export async function hrPeople(ws: string): Promise<string[]> {
   try {
-    const { listOwnerSpacePeople } = await import('./workspace');
+    const { listOwnerSpacePeople, workspaceOwnerPersonId } = await import('./workspace');
     const people = await listOwnerSpacePeople(ws, { app: 'people' });
+    const owner = await workspaceOwnerPersonId(ws);
     const extra = (await getDb().prepare('SELECT user_id FROM people_hr_admins WHERE workspace_id = ?').all(ws)) as Array<{ user_id: string }>;
     const extraSet = new Set(extra.map((e) => e.user_id));
     const gone = (await getDb().prepare("SELECT user_id FROM people_employees WHERE workspace_id = ? AND status = 'terminated' AND user_id IS NOT NULL").all(ws)) as Array<{ user_id: string }>;
     const goneSet = new Set(gone.map((g) => g.user_id));
-    return [...new Set([ws, ...people.filter((p) => !goneSet.has(p.id) && (p.role === 'owner' || p.role === 'admin' || extraSet.has(p.id))).map((p) => p.id)])];
+    return [...new Set([owner, ...people.filter((p) => !goneSet.has(p.id) && (p.role === 'owner' || p.role === 'admin' || extraSet.has(p.id))).map((p) => p.id)])];
   } catch {
     return [ws];
   }

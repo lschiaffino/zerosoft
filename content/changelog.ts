@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-personal-and-team-workspaces',
+    date: '2026-11-09',
+    title: {
+      en: 'A personal and a team workspace for everyone',
+      es: 'Un workspace personal y uno de equipo para cada persona',
+      pt: 'Um workspace pessoal e um de equipe para cada pessoa',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Every account now has two workspaces in the switcher: your personal one and a team one ("<Name> Team" or the company name from sign-up). What you add to one does not show up in the other. Signing up "with my team" starts you in the team workspace; "just me" starts you in your personal one. People invited to someone else\'s team keep their personal workspace.',
+        es: 'Cada cuenta tiene ahora dos workspaces en el switcher: el personal y uno de equipo ("<Nombre> Team" o el nombre de la empresa del alta). Lo que sumás en uno no aparece en el otro. Si te registrás "con mi equipo" arrancás en el de equipo; con "solo yo", en el personal. Quien entra invitado al equipo de otra persona conserva su workspace personal.',
+        pt: 'Cada conta agora tem dois workspaces no seletor: o pessoal e um de equipe ("<Nome> Team" ou o nome da empresa do cadastro). O que você cria em um não aparece no outro. Quem se cadastra "com meu time" começa no de equipe; com "só eu", no pessoal. Quem entra convidado no time de outra pessoa mantém o seu workspace pessoal.',
+      },
+    ],
+  },
+  {
     id: '2026-11-09-docs-notion-two-way-sync',
     date: '2026-11-09',
     title: {

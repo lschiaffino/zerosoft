@@ -111,8 +111,8 @@ describe('128_workspace_teams: migración aditiva sobre datos de antes', () => {
     expect((await exec("SELECT COUNT(*) AS n FROM chat_team_members WHERE user_id = 'b'")).rows[0].n).toBe(1);
     expect((await exec("SELECT COUNT(*) AS n FROM crm_sales_team_members WHERE user_id = 'a'")).rows[0].n).toBe(1);
     expect((await exec("SELECT apps FROM workspace_groups WHERE id = 's1'")).rows[0].apps).toBe('["crm"]');
-    // Idempotente: correrla de nuevo no cambia nada.
-    const count = async () => (await exec('SELECT (SELECT COUNT(*) FROM teams) + (SELECT COUNT(*) FROM workspace_groups) + (SELECT COUNT(*) FROM team_members) AS n')).rows[0].n;
+    // Idempotente: correrla de nuevo no cambia nada (los titulares de equipo de la 295 no son personas: no cuentan).
+    const count = async () => (await exec('SELECT (SELECT COUNT(*) FROM teams) + (SELECT COUNT(*) FROM workspace_groups) + (SELECT COUNT(*) FROM team_members WHERE user_id NOT LIKE \'wsp_%\') AS n')).rows[0].n;
     const n = await count();
     await workspaceTeamsUp(client);
     expect(await count()).toBe(n);
@@ -344,8 +344,12 @@ describe('ficha, dominios y onboarding', () => {
     expect(row.locale).toBe('es');
     expect(row.onboarded_at).toBeTruthy();
     expect(JSON.parse(row.profile)).toMatchObject({ role: 'sales', sourceTool: 'hubspot', entryApp: 'crm', nameEdited: true });
-    const ws = (await getDb().prepare('SELECT name, use_mode, size FROM teams WHERE owner_id = ?').get(u.id)) as Record<string, string>;
+    // El equipo es un workspace aparte, con titular propio; la ficha de la persona queda como su personal.
+    const ws = (await getDb()
+      .prepare("SELECT t.name, t.use_mode, t.size FROM teams t JOIN team_members m ON m.team_id = t.id WHERE m.user_id = ? AND m.role = 'owner' AND t.owner_id != ?")
+      .get(u.id, u.id)) as Record<string, string>;
     expect(ws).toEqual({ name: 'Darwin AI', use_mode: 'team', size: '11-50' });
+    expect(((await getDb().prepare('SELECT use_mode FROM teams WHERE owner_id = ?').get(u.id)) as { use_mode: string }).use_mode).toBe('personal');
     // El nombre editado no lo pisa el de Google en el próximo login.
     await upsertUser({ email: u.email, name: 'Google Name' });
     expect(((await getDb().prepare('SELECT name FROM users WHERE id = ?').get(u.id)) as { name: string }).name).toBe('Ana Pérez');

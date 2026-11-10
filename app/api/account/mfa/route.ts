@@ -48,7 +48,13 @@ export async function POST(req: NextRequest) {
   }
   if (body.action === 'disable') {
     // Quien exige dos pasos en su workspace no los puede apagar: se quedaría afuera de su propia regla.
-    const owns = (await getDb().prepare('SELECT 1 FROM teams WHERE owner_id = ? AND require_mfa = 1 LIMIT 1').get(me.id)) as unknown;
+    // Vale igual para el workspace de equipo con titular propio donde es owner.
+    const owns = (await getDb()
+      .prepare(
+        `SELECT 1 FROM teams t WHERE t.require_mfa = 1 AND (t.owner_id = ?
+           OR (t.owner_id LIKE 'wsp\\_%' ESCAPE '\\' AND EXISTS (SELECT 1 FROM team_members m WHERE m.team_id = t.id AND m.user_id = ? AND m.role = 'owner'))) LIMIT 1`,
+      )
+      .get(me.id, me.id)) as unknown;
     if (owns) return NextResponse.json({ error: 'required_by_workspace' }, { status: 409 });
     const res = await disableMfa(me.id, body.code);
     if (!res.ok) return NextResponse.json({ error: res.error }, { status: 400 });

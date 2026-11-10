@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { getDb } from '../db';
 import { localized } from '../notification-copy';
 import { ensureSettings, getJobRow, getSettings, newId, nowIso, parseJson, requireManage, type SettingsRow } from './core';
-import { listOwnerSpacePeople } from '../workspace';
+import { listOwnerSpacePeople, workspaceOwnerPersonId } from '../workspace';
 import { notifyTeam } from './events';
 import { HiringError, type HiringActor } from './types';
 
@@ -75,10 +75,12 @@ async function joinTeam(jobId: string, ids: string[]): Promise<void> {
  */
 export async function resolveSteps(ws: string, approvers: string[], creator: string): Promise<Array<{ userId: string; status: StepStatus; note: string }>> {
   const people = await listOwnerSpacePeople(ws, { app: 'hiring' });
-  const active = new Set([ws, ...people.map((p) => p.id)]);
+  // El owner como persona: en un workspace de equipo con titular propio es quien tiene ese rol.
+  const owner = await workspaceOwnerPersonId(ws);
+  const active = new Set([owner, ...people.map((p) => p.id)]);
   const steps = approvers.filter((id) => active.has(id)).map((userId) => ({ userId, status: (userId === creator ? 'skipped' : 'pending') as StepStatus, note: '' }));
   if (steps.some((st) => st.status === 'pending')) return steps;
-  const other = creator !== ws ? ws : people.find((p) => p.id !== creator && (p.role === 'admin' || p.role === 'owner'))?.id;
+  const other = creator !== owner ? owner : people.find((p) => p.id !== creator && (p.role === 'admin' || p.role === 'owner'))?.id;
   if (!other) throw new HiringError('no_other_approver', 409);
   return [...steps.filter((st) => st.userId !== other), { userId: other, status: 'pending', note: 'fallback' }];
 }
@@ -121,8 +123,9 @@ export async function reassignApprover(ws: string, userId: string): Promise<void
   const rows = (await db.prepare("SELECT id, subject_type, subject_id, requested_by FROM hiring_approvals WHERE workspace_id = ? AND user_id = ? AND status = 'pending'").all(ws, userId)) as Array<{ id: string; subject_type: string; subject_id: string; requested_by: string | null }>;
   const people = await listOwnerSpacePeople(ws, { app: 'hiring' });
   const notified = new Set<string>();
+  const owner = await workspaceOwnerPersonId(ws);
   for (const r of rows) {
-    const candidates = [ws, ...people.filter((p) => p.id !== userId && (p.role === 'admin' || p.role === 'owner')).map((p) => p.id)];
+    const candidates = [owner, ...people.filter((p) => p.id !== userId && (p.role === 'admin' || p.role === 'owner')).map((p) => p.id)];
     const steps = await listChain(ws, r.subject_type as ApprovalSubject, r.subject_id);
     const other = steps.some((st) => st.status === 'pending' && st.userId !== userId);
     if (other) {

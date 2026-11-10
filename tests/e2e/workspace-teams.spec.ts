@@ -331,20 +331,31 @@ test('onboarding de una cuenta nueva: equipo, invitaciones, rol y app de entrada
     await p.getByRole('button', { name: 'Go to Home' }).click();
     await p.waitForURL(/\/en\/app$/);
     await expect(p.getByTestId('workspace-switcher')).toContainText('Acme Norte');
-    const row = (await sql('SELECT u.onboarded_at, u.profile, t.name, t.use_mode, t.size FROM users u JOIN teams t ON t.owner_id = u.id WHERE u.email = ?', [email]))[0];
+    // Dos workspaces: el de equipo (titular propio, la persona es owner) y el personal.
+    const row = (
+      await sql(
+        `SELECT u.onboarded_at, u.profile, u.active_team_id, t.id AS team_id, t.name, t.use_mode, t.size, t.owner_id FROM users u
+         JOIN team_members m ON m.user_id = u.id AND m.role = 'owner' JOIN teams t ON t.id = m.team_id AND t.owner_id != u.id WHERE u.email = ?`,
+        [email],
+      )
+    )[0];
     expect(row.onboarded_at).toBeTruthy();
     expect(JSON.parse(String(row.profile))).toMatchObject({ role: 'sales', sourceTool: 'hubspot', entryApp: 'crm', v: 2 });
     expect(JSON.parse(String(row.profile)).apps).toContain('groups');
     expect([row.name, row.use_mode, row.size]).toEqual(['Acme Norte', 'team', '11-50']);
+    expect(String(row.owner_id)).toMatch(/^wsp_/);
+    expect(row.active_team_id).toBe(row.team_id);
+    const personal = (await sql('SELECT t.use_mode FROM users u JOIN teams t ON t.owner_id = u.id WHERE u.email = ?', [email]))[0];
+    expect(personal.use_mode).toBe('personal');
     // "Primeros pasos": la invitación ya cuenta (sale de la base) y lo demás queda pendiente.
     await expect(p.getByTestId('gs-invite')).toHaveAttribute('data-done', '1');
     await expect(p.getByTestId('gs-import')).toContainText('Bring your data from HubSpot');
     await expect(p.getByTestId('gs-desktop')).toHaveAttribute('data-done', '0');
 
-    // Switcher: abre con teclado, muestra el workspace y Esc cierra.
+    // Switcher: abre con teclado, muestra los dos y Esc cierra.
     await p.getByTestId('workspace-switcher').click();
     await expect(p.getByRole('menu', { name: 'Workspaces' })).toBeVisible();
-    await expect(p.getByTestId('workspace-entry')).toHaveCount(1);
+    await expect(p.getByTestId('workspace-entry')).toHaveCount(2);
     await p.keyboard.press('Escape');
     await expect(p.getByRole('menu', { name: 'Workspaces' })).toHaveCount(0);
 
@@ -366,7 +377,7 @@ test('onboarding de una cuenta nueva: equipo, invitaciones, rol y app de entrada
     await p.getByRole('dialog').getByLabel('Name', { exact: true }).fill('Ventas Norte');
     await p.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
     await expect(p.getByTestId('group-row')).toContainText('@ventas-norte');
-    const crm = (await sql("SELECT name FROM crm_sales_teams WHERE user_id = (SELECT id FROM users WHERE email = ?)", [email])).map((r) => r.name);
+    const crm = (await sql('SELECT name FROM crm_sales_teams WHERE user_id = ?', [String(row.owner_id)])).map((r) => r.name);
     expect(crm).toEqual(['Ventas Norte']);
     await p.getByTestId('group-row').getByRole('button', { name: 'Delete Ventas Norte' }).click();
     await p.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();

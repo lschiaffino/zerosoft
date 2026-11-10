@@ -348,7 +348,8 @@ export async function listTeamPeople(
   const owner = (await db.prepare('SELECT id, email, name, image, created_at FROM users WHERE id = ?').get(team.owner_id)) as
     | { id: string; email: string; name: string | null; image: string | null; created_at: string }
     | undefined;
-  if (owner) {
+  // El titular de un workspace de equipo no es una persona: no se lista.
+  if (owner && !isPrincipalId(owner.id)) {
     const own = rows.find((r) => r.user_id === owner.id);
     out.push({
       user_id: owner.id,
@@ -371,8 +372,8 @@ export async function listTeamPeople(
       email: String(r.email),
       name: (r.name as string | null) ?? null,
       image: (r.image as string | null) ?? null,
-      role: role === 'owner' ? 'admin' : role,
-      apps: parseApps(r.apps),
+      role: role === 'owner' && !isPrincipalId(team.owner_id) ? 'admin' : role,
+      apps: role === 'owner' && isPrincipalId(team.owner_id) ? '*' : parseApps(r.apps),
       title: String(r.title ?? ''),
       created_at: String(r.created_at ?? ''),
     };
@@ -380,6 +381,44 @@ export async function listTeamPeople(
     out.push(member);
   }
   return out;
+}
+
+/**
+ * Titular de un workspace de equipo (lib/workspace-principal.ts): una fila de
+ * users que no es una persona. En sus workspaces, quien tiene el rol owner en
+ * team_members es el owner de verdad (en los demás, solo lo es owner_id).
+ */
+export function isPrincipalId(id: string | null | undefined): boolean {
+  return typeof id === 'string' && id.startsWith('wsp_');
+}
+
+/**
+ * ¿La persona es el owner del workspace cuyos datos cuelgan de `ws`? El
+ * titular mismo, o (en un workspace de equipo con titular propio) quien tiene
+ * el rol owner. Para el código que preguntaba `personId === ws`.
+ */
+export async function isWorkspaceOwnerPerson(ws: string, personId: string | null | undefined, db: Db = getDb()): Promise<boolean> {
+  if (!personId) return false;
+  if (personId === ws) return true;
+  if (!isPrincipalId(ws)) return false;
+  const row = await db
+    .prepare("SELECT 1 AS x FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.user_id = ? AND m.role = 'owner'")
+    .get(ws, personId);
+  return Boolean(row);
+}
+
+/**
+ * La persona que es owner del workspace cuyos datos cuelgan de `ws`: `ws`
+ * mismo, salvo en un workspace de equipo con titular propio, donde es quien
+ * tiene el rol owner. Para avisos, aprobaciones y traspasos "al owner": el
+ * titular no es una persona y no los recibe. Sin nadie con ese rol, devuelve `ws`.
+ */
+export async function workspaceOwnerPersonId(ws: string, db: Db = getDb()): Promise<string> {
+  if (!isPrincipalId(ws)) return ws;
+  const row = (await db
+    .prepare("SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.role = 'owner' ORDER BY m.created_at, m.user_id LIMIT 1")
+    .get(ws)) as { user_id: string } | undefined;
+  return row?.user_id ?? ws;
 }
 
 /** Membresía de la persona en el equipo (null = no es parte). */
@@ -394,6 +433,7 @@ export async function getMembership(
     | undefined;
   if (!row) return null;
   const role = normalizeWorkspaceRole(row.role);
+  if (role === 'owner' && isPrincipalId(team.owner_id)) return { role: 'owner', apps: '*' };
   return { role: role === 'owner' ? 'admin' : role, apps: parseApps(row.apps) };
 }
 
@@ -432,6 +472,9 @@ export interface SpacePerson {
 /**
  * Personas del espacio del owner (ver ownerSpaceSql): el owner primero. Con
  * `app`, solo quienes tienen esa app (pools de Chat, hosts de Cal…).
+ *
+ * En un workspace de equipo con titular propio, el titular no es una persona
+ * (no se lista) y el owner es quien tiene ese rol en team_members.
  */
 export async function listOwnerSpacePeople(ownerId: string, opts: { app?: ProductKey } = {}, db: Db = getDb()): Promise<SpacePerson[]> {
   const rows = (await db
@@ -442,14 +485,20 @@ export async function listOwnerSpacePeople(ownerId: string, opts: { app?: Produc
                 WHERE ot.owner_id = ? AND ot.keyed_by = 'owner' AND om.user_id = u.id AND om.role = 'admin') THEN 'admin' ELSE 'member' END AS role,
               (SELECT om.apps FROM team_members om JOIN teams ot ON ot.id = om.team_id
                WHERE ot.owner_id = ? AND ot.keyed_by = 'owner' AND om.user_id = u.id AND om.role != 'guest'
-               ORDER BY om.apps = '*' DESC LIMIT 1) AS apps
+               ORDER BY om.apps = '*' DESC LIMIT 1) AS apps,
+              EXISTS (SELECT 1 FROM team_members om JOIN teams ot ON ot.id = om.team_id
+               WHERE ot.owner_id = ? AND ot.keyed_by = 'owner' AND om.user_id = u.id AND om.role = 'owner') AS owner_member
        FROM users u
        WHERE ${ownerSpaceSql('?', 'u.id')}
        ORDER BY u.id = ? DESC, u.name COLLATE NOCASE ASC, u.email ASC`,
     )
-    .all(ownerId, ownerId, ownerId, ownerId, ownerId, ownerId)) as Array<{ id: string; email: string; name: string | null; role: string; apps: string | null }>;
+    .all(ownerId, ownerId, ownerId, ownerId, ownerId, ownerId, ownerId)) as Array<{ id: string; email: string; name: string | null; role: string; apps: string | null; owner_member: number }>;
+  const principal = isPrincipalId(ownerId);
+  const isOwner = (r: { id: string; owner_member: number }) => (principal ? Boolean(r.owner_member) : r.id === ownerId);
   return rows
-    .map((r) => ({ id: r.id, email: r.email, name: r.name, role: normalizeWorkspaceRole(r.role), apps: r.id === ownerId ? '*' : r.apps }))
+    .filter((r) => !(principal && r.id === ownerId))
+    .map((r) => ({ id: r.id, email: r.email, name: r.name, role: isOwner(r) ? ('owner' as WorkspaceRole) : normalizeWorkspaceRole(r.role), apps: isOwner(r) ? '*' : r.apps, first: isOwner(r) }))
+    .sort((a, b) => Number(b.first) - Number(a.first))
     .filter((r) => !opts.app || canUseApp({ role: r.role, apps: r.apps }, opts.app))
     .map(({ id, email, name, role }) => ({ id, email, name, role }));
 }

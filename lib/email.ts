@@ -135,6 +135,8 @@ function captureEmail(opts: SendOptions): void {
 }
 
 export async function sendEmail(opts: SendOptions): Promise<{ ok: boolean; provider?: string; id?: string; error?: string; status?: number; retryAfter?: number }> {
+  // El titular de un workspace de equipo (lib/workspace-principal.ts) no es una persona: no tiene buzón.
+  if (/@workspaces\.zerosoft\.invalid$/i.test(opts.to.trim())) return { ok: false, error: 'no_mailbox' };
   if (process.env.RESEND_API_KEY) {
     const resend = await sendResend(opts);
     if (resend.ok) return { ok: true, provider: 'resend', id: resend.id };

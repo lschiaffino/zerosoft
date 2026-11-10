@@ -102,7 +102,8 @@ export async function getOnboardingState(userId: string, opts: { workspaceId?: s
   const [invited, imported, calendar, email, whatsapp, desktopLogin] = await Promise.all([
     team
       ? (async () =>
-          (await exists("SELECT 1 FROM team_members WHERE team_id = ? AND user_id != ? AND role != 'guest' LIMIT 1", [team.id, team.owner_id])) ||
+          // En un workspace de equipo con titular propio, quien tiene el rol owner es su dueño, no alguien invitado.
+          (await exists(`SELECT 1 FROM team_members WHERE team_id = ? AND user_id != ? AND role != 'guest'${team.owner_id.startsWith('wsp_') ? " AND role != 'owner'" : ''} LIMIT 1`, [team.id, team.owner_id])) ||
           (await exists("SELECT 1 FROM team_invites WHERE team_id = ? AND status IN ('pending', 'accepted') AND COALESCE(kind, 'invite') = 'invite' LIMIT 1", [team.id])))()
       : Promise.resolve(false),
     (async () =>

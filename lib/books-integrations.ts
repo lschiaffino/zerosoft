@@ -11,6 +11,7 @@
  *
  * Nada de lo que es aviso tira: el documento ya quedó guardado.
  */
+import { isWorkspaceOwnerPerson } from './workspace';
 import { localized, type NotificationText } from './notification-copy';
 import { getDb } from './db';
 import { assertCan, audit, createContact, ensureBooks, getContactRow, listTaxRates, type SettingsRow } from './books';
@@ -27,7 +28,7 @@ function appUrl(): string {
 /** ¿La persona usa Books en el workspace? (owner siempre). */
 export async function personUsesBooks(ws: string, personId: string | null): Promise<boolean> {
   if (!personId) return false;
-  if (personId === ws) return true;
+  if (await isWorkspaceOwnerPerson(ws, personId)) return true;
   const access = await personAppAccess(ws, personId).catch(() => null);
   if (!access) return false;
   return access.role === 'owner' || access.apps === '*' || access.apps.includes('books');
@@ -63,10 +64,10 @@ async function emit(ws: string, type: 'books.invoice.paid' | 'books.invoice.over
 
 export async function notifyStaff(ws: string, title: NotificationText, body: NotificationText, href: string, sourceId: string): Promise<void> {
   try {
-    const { listOwnerSpacePeople } = await import('./workspace');
+    const { listOwnerSpacePeople, workspaceOwnerPersonId } = await import('./workspace');
     const { createNotification } = await import('./notifications');
     const people = await listOwnerSpacePeople(ws, { app: 'books' }).catch(() => []);
-    const ids = [...new Set([ws, ...people.filter((p) => p.role === 'owner' || p.role === 'admin').map((p) => p.id)])];
+    const ids = [...new Set([await workspaceOwnerPersonId(ws), ...people.filter((p) => p.role === 'owner' || p.role === 'admin').map((p) => p.id)])];
     for (const userId of ids) await createNotification({ userId, type: 'books_invoice', title, body, href, sourceType: 'books_invoice', sourceId });
   } catch (err) {
     console.error('[books] notify failed', err instanceof Error ? err.message : 'error');

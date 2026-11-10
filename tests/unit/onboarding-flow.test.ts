@@ -15,7 +15,7 @@ import {
 } from '@/lib/onboarding';
 import { getOnboardingState } from '@/lib/onboarding-state';
 import { createInvite } from '@/lib/teams';
-import { ensureWorkspace } from '@/lib/workspace';
+import { ownedTeamWorkspace } from '@/lib/workspace-principal';
 import { featuredApps, moreAppsByCategory } from '@/lib/workspace-mode';
 import { formatSize, macChipFromArch, macChipFromRenderer, platformFromUa } from '@/lib/desktop-detect';
 import { safeReturnPath } from '@/lib/oauth-return';
@@ -80,7 +80,10 @@ describe('onboarding: apps, borrador y segundo tramo', () => {
     const u = await freshUser('state');
     await saveOnboarding(u, { mode: 'team', teamName: 'Acme', role: 'sales', apps: ['crm', 'cal', 'groups'] });
     await saveSetupProgress(u.id, { sourceTool: 'hubspot' });
-    let s = (await getOnboardingState(u.id))!;
+    // "Para mi equipo" arranca en el workspace de equipo (titular propio): el estado se mira ahí, como hace la app.
+    const team = (await ownedTeamWorkspace(u.id))!;
+    const at = { workspaceId: team.owner_id, admin: true };
+    let s = (await getOnboardingState(u.id, at))!;
     expect(s.newFlow).toBe(true);
     expect(s.showChecklist).toBe(true);
     expect(s.steps.filter((x) => x.relevant).map((x) => x.key)).toEqual(['profile', 'invite', 'import', 'calendar', 'email', 'whatsapp', 'desktop']);
@@ -89,7 +92,7 @@ describe('onboarding: apps, borrador y segundo tramo', () => {
 
     // Hacer clic en "Descargar" no lo marca: solo que la app avise.
     await markDesktopDownloaded(u.id);
-    s = (await getOnboardingState(u.id))!;
+    s = (await getOnboardingState(u.id, at))!;
     expect(s.pending).toContain('desktop');
     expect(s.desktop.downloadedAt).toBeTruthy();
     await markDesktopSeen(u.id, { platform: 'darwin', version: '0.4.0' });
@@ -99,24 +102,23 @@ describe('onboarding: apps, borrador y segundo tramo', () => {
     expect(p.desktopSeenAt).toBe(firstSeen);
     expect(p).toMatchObject({ desktopPlatform: 'darwin', desktopVersion: '0.4.0' });
 
-    const team = await ensureWorkspace(u.id);
     await createInvite(team.id, `mate-${Date.now()}@test.local`, u.id);
     await getDb()
       .prepare("INSERT INTO integrations (user_id, provider, email) VALUES (?, 'google_calendar', 'a@b.c')")
       .run(u.id);
-    s = (await getOnboardingState(u.id))!;
+    s = (await getOnboardingState(u.id, at))!;
     expect(s.pending).toEqual(['import', 'email', 'whatsapp']);
     expect(s.doneCount).toBe(4);
     expect(s.totalCount).toBe(7);
 
     // Un miembro (no admin) no ve invitar, importar ni WhatsApp.
-    const asMember = (await getOnboardingState(u.id, { admin: false }))!;
+    const asMember = (await getOnboardingState(u.id, { ...at, admin: false }))!;
     expect(asMember.steps.filter((x) => x.relevant).map((x) => x.key)).toEqual(['profile', 'calendar', 'email', 'desktop']);
 
     await dismissChecklist(u.id);
-    expect((await getOnboardingState(u.id))!.showChecklist).toBe(false);
+    expect((await getOnboardingState(u.id, at))!.showChecklist).toBe(false);
     await dismissChecklist(u.id, false);
-    expect((await getOnboardingState(u.id))!.showChecklist).toBe(true);
+    expect((await getOnboardingState(u.id, at))!.showChecklist).toBe(true);
   });
 
   it('los emails del ciclo de vida leen las apps elegidas y la app de escritorio del onboarding', async () => {

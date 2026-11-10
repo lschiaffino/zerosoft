@@ -88,7 +88,7 @@ export async function ensureStateRows(now = new Date(), limit = 500): Promise<nu
     .prepare(
       `INSERT OR IGNORE INTO lifecycle_state (user_id, legacy, created_at, next_check_at)
        SELECT u.id, CASE WHEN ${norm} < ? THEN 1 ELSE 0 END, ${norm} || 'Z', CASE WHEN ${norm} < ? THEN NULL ELSE ? END
-       FROM users u WHERE NOT EXISTS (SELECT 1 FROM lifecycle_state s WHERE s.user_id = u.id) LIMIT ?`,
+       FROM users u WHERE COALESCE(u.kind, 'person') != 'workspace' AND NOT EXISTS (SELECT 1 FROM lifecycle_state s WHERE s.user_id = u.id) LIMIT ?`,
     )
     .run(cutoff, cutoff, now.toISOString(), limit);
   return res.changes ?? 0;

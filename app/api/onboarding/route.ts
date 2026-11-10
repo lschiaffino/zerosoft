@@ -16,6 +16,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { publicBase, requestLocale } from '@/lib/teams-http';
 import { ensureWorkspace } from '@/lib/workspace';
+import { ownedTeamWorkspace } from '@/lib/workspace-principal';
 import { isComingSoon } from '@/lib/products';
 import { joinWaitlist, normalizeLang, sendWaitlistJoined } from '@/lib/waitlist';
 import { inviteMany, type InviteOutcome } from '@/lib/workspace-invites';
@@ -132,7 +133,7 @@ export async function POST(req: NextRequest) {
   let results: InviteOutcome[] = [];
   let invalid: string[] = [];
   if (input.mode === 'team' && input.invites && (Array.isArray(input.invites) ? input.invites.length : input.invites.trim())) {
-    const team = await ensureWorkspace(real.id);
+    const team = (await ownedTeamWorkspace(real.id)) ?? (await ensureWorkspace(real.id));
     const invLimit = await rateLimit(`teams:invite:${real.id}`, 30, 3600);
     if (!invLimit.ok) return NextResponse.json({ ok: true, next: onboardingDestination(profile, Boolean(input.importNow)), invites: [], invitesLimited: true });
     const sent = await inviteMany({
