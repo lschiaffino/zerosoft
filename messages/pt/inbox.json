@@ -31,23 +31,14 @@
     "disconnected": "Conecte esta conta nas configurações do Inbox para responder.",
     "placeholder": "Digite uma mensagem. ; para snippets",
     "placeholderEmail": "Escreva sua resposta. ; para snippets",
-    "aiDraftHint": "Rascunho com IA (⌘J). O que você escreveu vira a instrução.",
-    "aiWorking": "Escrevendo…",
-    "aiFromText": "Escrever com IA",
-    "aiDraft": "Rascunho com IA",
-    "aiAsk": "O que você quer dizer?",
-    "rewrite": "Reescrever",
-    "rewrites": { "shorter": "Mais curto", "friendlier": "Mais caloroso", "formal": "Mais formal", "fix": "Corrigir ortografia e gramática" },
-    "translateTo": { "en": "Traduzir para inglês", "es": "Traduzir para espanhol", "pt": "Traduzir para português" },
-    "undoAi": "Desfazer IA",
     "dictate": "Ditar",
     "dictateHint": "Ditar com o Voice (ou segure Alt+Espaço)",
     "later": "Mais tarde",
     "laterHint": "Enviar mais tarde (⌘⇧Enter). Também com clique direito em Enviar.",
     "sending": "Enviando…",
     "send": "Enviar",
-    "hint": "Enter envia · Shift+Enter quebra linha · ⌘J rascunho com IA · ; snippets",
-    "hintEmail": "⌘Enter envia · ⌘J rascunho com IA · ; snippets"
+    "hint": "Enter envia · Shift+Enter quebra linha · ⌘J ajude-me a escrever · ; snippets",
+    "hintEmail": "⌘Enter envia · ⌘J ajude-me a escrever · ; snippets"
   },
   "message": {
     "media": { "image": "Foto", "video": "Vídeo", "audio": "Mensagem de voz", "document": "Documento", "sticker": "Figurinha" },
@@ -202,7 +193,7 @@
       "moveFolder": "Adicionar a uma pasta",
       "search": "Buscar",
       "goto": "Ir para caixa, concluídos, adiados",
-      "ai": "Rascunho com IA",
+      "ai": "Ajude-me a escrever",
       "snippet": "Inserir um snippet",
       "send": "Enviar",
       "undo": "Desfazer a última ação",
@@ -266,7 +257,7 @@
     "unmute": "Tirar o silêncio",
     "clearFollowUp": "Remover lembrete",
     "unsnooze": "Parar de adiar",
-    "aiDraft": "Rascunho de resposta com IA",
+    "aiDraft": "Ajude-me a escrever",
     "delete": "Remover do Inbox"
   },
   "compose": {
@@ -457,26 +448,6 @@
       "resume": "Continuar",
       "cancel": "Cancelar"
     }
-  },
-  "ai": {
-    "title": "Escrever com IA",
-    "ask": "O que você quer dizer?",
-    "askPlaceholder": "Ex: diga que vou chegar 20 minutos atrasado",
-    "write": "Escrever",
-    "again": "Outra versão",
-    "writing": "Escrevendo…",
-    "close": "Fechar",
-    "refine": {
-      "shorter": "Mais curto",
-      "formal": "Mais formal",
-      "friendlier": "Mais caloroso"
-    },
-    "refineLabel": "Outra mudança",
-    "refinePlaceholder": "Outra mudança, ex: sem emojis",
-    "previous": "Versão anterior",
-    "insert": "Inserir",
-    "insertHint": "Coloca no campo para você revisar (⌘Enter)",
-    "notConfigured": "A IA não está configurada neste servidor. Quem administra precisa definir OPENROUTER_API_KEY (ou AI_GATEWAY_API_KEY)."
   },
   "schedule": {
     "title": "Enviar mais tarde",

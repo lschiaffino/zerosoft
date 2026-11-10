@@ -15,6 +15,9 @@ import { fetchIfChanged } from '@/lib/conditional-fetch';
 import ChatDetails from './ChatDetails';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
+import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
+import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
+import { linesCompose } from './ai-compose';
 import LinkPreview from './wa/LinkPreview';
 import Transcript from './wa/Transcript';
 import TaskModal from './TaskModal';
@@ -49,7 +52,6 @@ import {
   Plus,
   SendIcon,
   Smiley,
-  Sparkle,
   Ticks,
   Trash,
   PhotoIcon,
@@ -144,6 +146,7 @@ function senderKey(m: MessageDto): string {
 export default function ChatThread(props: ThreadProps) {
   const t = useTranslations('groups');
   const tw = useTranslations('inboxWa');
+  const tc = useTranslations('common.aiCompose');
   const { style: chatStyle, setStyle: setChatStyle } = useChatStyle();
   const locale = useLocale();
   const errText = useErrorText();
@@ -190,7 +193,6 @@ export default function ChatThread(props: ThreadProps) {
   const [sendError, setSendError] = useState('');
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [summary, setSummary] = useState<{ text: string; error: string; busy: boolean } | null>(null);
   const [schedule, setSchedule] = useState<{ open: boolean; at: string; busy: boolean; error: string }>({ open: false, at: '', busy: false, error: '' });
@@ -219,9 +221,6 @@ export default function ChatThread(props: ThreadProps) {
   const [translations, setTranslations] = useState<Record<string, { lang: string; text: string }>>({});
   const [translateError, setTranslateError] = useState('');
   const [showOriginal, setShowOriginal] = useState<Set<string>>(new Set());
-  const [aiBusy, setAiBusy] = useState<'' | 'draft' | 'polish' | 'translate'>('');
-  const [undoText, setUndoText] = useState<string | null>(null);
-  const [draftSources, setDraftSources] = useState<string[]>([]);
   const [mentionIndex, setMentionIndex] = useState(0);
   const [taskFor, setTaskFor] = useState<MessageDto | null>(null);
   const [hasOlder, setHasOlder] = useState(props.messages.length >= 200);
@@ -528,6 +527,28 @@ export default function ChatThread(props: ThreadProps) {
     return '';
   }, [messages, translations]);
 
+  // "Ayudame a escribir": el borrador sale con el contexto de este chat y vuelve al composer para revisarlo.
+  const hasMessages = messages.some((m) => m.direction === 'in' || m.direction === 'out');
+  const aiAdapter = useMemo<ComposeAdapter>(
+    () => ({
+      canSuggest: hasMessages,
+      languages: [
+        ...(customerLang ? [{ code: customerLang, label: t('thread.toCustomerLang', { lang: t(`langs.${customerLang}`) }) }] : []),
+        ...Object.keys(TRANSLATE_LANGS).map((code) => ({ code, label: t(`langs.${code}`) })),
+      ],
+      run: (request, _onText, signal) => linesCompose(chat.id, request, signal),
+    }),
+    [chat.id, customerLang, hasMessages, t],
+  );
+  const ai = useAiCompose({
+    adapter: aiAdapter,
+    text,
+    setText,
+    focusComposer: () => inputRef.current?.focus(),
+    resetKey: chat.id,
+  });
+  const aiAllowed = mode === 'reply' && !editing && !leaving;
+
   function pickMention(i: number) {
     const p = mentionMatches[i];
     if (!p || !mentionQuery) return;
@@ -609,8 +630,7 @@ export default function ChatThread(props: ThreadProps) {
     if (mode === 'reply') setChat((c) => ({ ...c, awaitingSince: null, flagged: false }));
     if (!voice && !files.length) setText('');
     setReplyTo(null);
-    setUndoText(null);
-    setDraftSources([]);
+    ai.clearUndo();
     refresh();
     inputRef.current?.focus();
   }
@@ -654,6 +674,13 @@ export default function ChatThread(props: ThreadProps) {
     if (quickMatches.length > 0 && (e.key === 'Enter' || e.key === 'Tab')) {
       e.preventDefault();
       setText(quickMatches[0].body);
+      return;
+    }
+    // ⌘J (Ctrl+J) en el campo: "Ayudame a escribir", como en Inbox.
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'j' && aiAllowed) {
+      e.preventDefault();
+      e.stopPropagation();
+      ai.openBar();
       return;
     }
     // ⌘⇧Enter (Ctrl+Shift+Enter): enviar más tarde, como en Inbox.
@@ -862,45 +889,6 @@ export default function ChatThread(props: ThreadProps) {
     setSummary({ text: res.data?.summary ?? '', error: res.error ? errText(res.error) : '', busy: false });
   }
 
-  async function aiDraft() {
-    if (aiBusy) return;
-    const polish = text.trim().length > 0;
-    setAiBusy(polish ? 'polish' : 'draft');
-    setSendError('');
-    const res = await api<{ text: string; sources: Array<{ title: string }> }>(`/api/groups/chats/${chat.id}/draft`, {
-      body: { mode: polish ? 'polish' : 'draft', text },
-    });
-    setAiBusy('');
-    if (!res.data) {
-      setSendError(errText(res.error));
-      return;
-    }
-    setUndoText(text);
-    setText(res.data.text);
-    setDraftSources(res.data.sources.map((s) => s.title));
-    inputRef.current?.focus();
-  }
-
-  async function translateReply(to: string) {
-    if (!to || aiBusy) return;
-    if (!text.trim()) {
-      setSendError(errText('empty_message'));
-      return;
-    }
-    setAiBusy('translate');
-    setSendError('');
-    const res = await api<{ text: string }>('/api/groups/translate', { body: { text, to } });
-    setAiBusy('');
-    if (!res.data) {
-      setSendError(errText(res.error));
-      return;
-    }
-    setUndoText(text);
-    setText(res.data.text);
-    setDraftSources([]);
-    inputRef.current?.focus();
-  }
-
   async function sendPoll() {
     const options = poll.options.map((o) => o.trim()).filter(Boolean);
     if (!poll.question.trim()) return setPollError(errText('poll_question'));
@@ -958,8 +946,7 @@ export default function ChatThread(props: ThreadProps) {
     setText('');
     tray.clear();
     setReplyTo(null);
-    setUndoText(null);
-    setDraftSources([]);
+    ai.clearUndo();
     notifyScheduledChanged();
     inputRef.current?.focus();
     showToast(t('later.toast', { when: longWhen(iso, locale) }), false, {
@@ -1751,31 +1738,7 @@ export default function ChatThread(props: ThreadProps) {
               {t('thread.noteHint')}
             </p>
           )}
-          {aiOpen && mode === 'reply' && (
-            <div className="wa-ai-row" role="group" aria-label={t('wa.aiTools')}>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void aiDraft()} aria-busy={aiBusy === 'draft' || aiBusy === 'polish' || undefined}>
-                <Sparkle size={15} /> {text.trim() ? t('thread.aiPolish') : t('thread.aiDraft')}
-              </button>
-              <select
-                className="select gr-translate-select"
-                value=""
-                onChange={(e) => void translateReply(e.target.value)}
-                aria-label={t('thread.translateReply')}
-                aria-busy={aiBusy === 'translate' || undefined}
-              >
-                <option value="">{t('thread.translateReply')}</option>
-                {customerLang && <option value={customerLang}>{t('thread.toCustomerLang', { lang: t(`langs.${customerLang}`) })}</option>}
-                {Object.keys(TRANSLATE_LANGS).map((code) => (
-                  <option key={code} value={code}>
-                    {t(`langs.${code}`)}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="wa-icon-btn wa-ai-close" onClick={() => setAiOpen(false)} aria-label={t('common.close')} title={t('common.close')}>
-                <Close size={16} />
-              </button>
-            </div>
-          )}
+          {aiAllowed && <AiComposeBar ai={ai} />}
           {editing && (
             <div className="wa-replying wa-editing">
               <span className="gr-quote wa-q-me">
@@ -1825,24 +1788,6 @@ export default function ChatThread(props: ThreadProps) {
                 </li>
               ))}
             </ul>
-          )}
-          {(undoText !== null || draftSources.length > 0) && (
-            <p className="gr-ai-note">
-              {draftSources.length > 0 && <span className="ui-help">{t('thread.draftSources', { list: draftSources.join(', ') })}</span>}
-              {undoText !== null && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => {
-                    setText(undoText);
-                    setUndoText(null);
-                    setDraftSources([]);
-                  }}
-                >
-                  {t('thread.undoAi')}
-                </button>
-              )}
-            </p>
           )}
           {sendError && (
             <p className="ui-error" role="alert">
@@ -1944,7 +1889,7 @@ export default function ChatThread(props: ThreadProps) {
                       ...(props.caps.contacts ? [{ key: 'contact', icon: <Person size={17} />, label: t('wa.contact'), onSelect: () => setContactOpen(true) }] : []),
                       { key: 'poll', icon: <PollIcon size={17} />, label: t('polls.button'), onSelect: () => (setPollError(''), setPollOpen(true)) },
                       { key: 'schedule', icon: <ClockIcon size={17} />, label: t('later.title'), onSelect: openLater },
-                      { key: 'ai', icon: <Sparkle size={17} />, label: t('wa.aiTools'), onSelect: () => setAiOpen(true) },
+                      { key: 'ai', icon: <PencilSparkle size={17} />, label: tc('open'), onSelect: ai.openBar },
                     ]}
                   />
                 </>
@@ -1989,18 +1934,7 @@ export default function ChatThread(props: ThreadProps) {
               >
                 <Lock size={20} />
               </button>
-              {mode === 'reply' && (
-                <button
-                  type="button"
-                  className={`wa-icon-btn wa-ai-btn${aiOpen ? ' is-on' : ''}`}
-                  onClick={() => setAiOpen((v) => !v)}
-                  aria-expanded={aiOpen}
-                  aria-label={t('wa.aiTools')}
-                  title={t('wa.aiTools')}
-                >
-                  <Sparkle size={20} />
-                </button>
-              )}
+              {aiAllowed && <AiComposeButton ai={ai} className="wa-icon-btn wa-ai-btn" />}
               {mode === 'reply' && !editing && canSend && (
                 <button type="button" className="wa-icon-btn wa-later-btn" data-testid="lines-send-later" onClick={openLater} aria-label={t('later.button')} title={t('later.hint')}>
                   <ClockIcon size={20} />

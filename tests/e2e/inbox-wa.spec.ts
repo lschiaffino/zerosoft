@@ -422,7 +422,7 @@ test('cabecera y campo de la conversación de WhatsApp: todas las acciones de In
   // Menú "…": el resto, sin pasar por un diálogo.
   const more = actions.getByRole('button', { name: 'More actions' });
   await more.click();
-  for (const name of ['Mark unread', 'Pin', 'Draft a reply with AI', 'Mute for 8 hours', 'Mute for a week', 'Rename chat', 'Remove from Inbox']) {
+  for (const name of ['Mark unread', 'Pin', 'Help me write', 'Mute for 8 hours', 'Mute for a week', 'Rename chat', 'Remove from Inbox']) {
     await expect(page.getByRole('menuitem', { name, exact: true })).toBeVisible();
   }
   await page.getByRole('menuitem', { name: 'Pin', exact: true }).click();
@@ -441,16 +441,27 @@ test('cabecera y campo de la conversación de WhatsApp: todas las acciones de In
   await page.keyboard.press('Enter');
   await expect(thread.locator('.wa-head h2')).toHaveText(renamed);
 
-  // Menú de la IA con texto: borrador, instrucción, reescribir, traducir, dictar.
+  // "Help me write" con texto en el campo: la barra ofrece mejorarlo. El menú + suma escribir con AI y dictar.
   const field = page.getByRole('textbox', { name: 'Message' });
   await field.fill('hola como estas');
-  await thread.getByRole('button', { name: /AI/ }).click();
-  for (const name of ['What do you want to say?', 'Write it with AI', 'Shorter', 'Friendlier', 'More formal', 'Fix spelling and grammar', 'Translate to English', 'Translate to Spanish', 'Translate to Portuguese', 'Dictate']) {
+  await thread.getByTestId('ai-compose-open').click();
+  const bar = thread.getByTestId('ai-compose');
+  await expect(bar.getByRole('textbox', { name: 'Describe a change' })).toBeFocused();
+  for (const name of ['Shorter', 'Longer', 'More formal', 'More casual', 'Fix grammar']) {
+    await expect(bar.getByRole('button', { name, exact: true })).toBeVisible();
+  }
+  await expect(bar.getByLabel('Translate to')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(bar).toBeHidden();
+  await expect(field).toBeFocused();
+  await thread.getByRole('button', { name: 'Attach', exact: true }).click();
+  for (const name of ['Help me write', 'Dictate']) {
     await expect(page.getByRole('menuitem', { name, exact: true })).toBeVisible();
   }
-  await page.getByRole('menuitem', { name: 'What do you want to say?' }).click();
-  await expect(thread.locator('.ib-ai')).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Help me write', exact: true }).click();
+  await expect(bar).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(bar).toBeHidden();
 
   // Shift+Enter baja de línea sin enviar.
   await field.fill('uno');

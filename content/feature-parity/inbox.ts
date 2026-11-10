@@ -116,9 +116,9 @@ const parity: ProductParity = {
     row('ai-write', 'writing', ['Write with AI', 'Escribir con IA', 'Escrever com IA'], 'partial', {
       weight: 2,
       detail: [
-        'Tell it what you want to say and it drafts it in your tone (learned from what you write in that chat), then refine it (shorter, more formal or your own change) and insert it. The text streams in. Also a reply draft and rewrites. Tested with the fake model',
-        'Le decís qué querés decir y lo escribe con tu tono (aprendido de lo que escribís en ese chat), lo refinás (más corto, más formal o un cambio propio) y lo insertás. El texto llega de a poco. También borrador de respuesta y reescrituras. Probado con el modelo falso',
-        'Você diz o que quer dizer e ele escreve no seu tom (aprendido do que você escreve nessa conversa), você refina (mais curto, mais formal ou uma mudança sua) e insere. O texto chega aos poucos. Também rascunho de resposta e reescritas. Testado com o modelo falso',
+        'Help me write, in WhatsApp chats, email threads and New message: describe the message and it is drafted in your tone (learned from what you send) for that channel, with a subject on a new email. Review it before it reaches the field, refine it (shorter, longer, tone, grammar, your own change), translate it, insert it and undo. With text already typed it improves that text. The text streams in. Tested with the fake model',
+        'Ayudame a escribir, en chats de WhatsApp, hilos de correo y Mensaje nuevo: describís el mensaje y se redacta con tu tono (aprendido de lo que enviás) para ese canal, con asunto en un correo nuevo. Lo revisás antes de que llegue al campo, lo ajustás (más corto, más largo, tono, gramática, un cambio propio), lo traducís, lo insertás y podés deshacer. Con texto ya escrito, mejora ese texto. El texto llega de a poco. Probado con el modelo falso',
+        'Ajude-me a escrever, em conversas do WhatsApp, fios de e-mail e Nova mensagem: você descreve a mensagem e ela é redigida no seu tom (aprendido do que você envia) para esse canal, com assunto num e-mail novo. Você revisa antes de chegar ao campo, ajusta (mais curto, mais longo, tom, gramática, uma mudança sua), traduz, insere e pode desfazer. Com texto já escrito, melhora esse texto. O texto chega aos poucos. Testado com o modelo falso',
       ],
     }),
     row('dictation', 'writing', ['Dictation', 'Dictado', 'Ditado'], 'better', {
