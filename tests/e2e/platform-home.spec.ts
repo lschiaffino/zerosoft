@@ -140,8 +140,8 @@ for (const [width, height] of [[1280, 720], [1440, 900]] as const) {
     await page.goto('/es', { waitUntil: 'networkidle' });
     await page.locator('.site-header .hd-trigger').click();
     const mega = page.locator('#hd-mega');
-    // Ya no quedan apps en construcción: el menú no tiene la fila aparte.
-    await expect(mega.locator('.hd-building')).toHaveCount(0);
+    // Las apps Próximamente van en su fila aparte del menú.
+    await expect(mega.locator('.hd-building')).toHaveCount(1);
     for (const link of await mega.locator('a.hd-prod').all()) await expect(link).toBeInViewport({ ratio: 1 });
   });
 }
@@ -172,7 +172,8 @@ async function expectHomeAppsStructure(page: import('@playwright/test').Page) {
   await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   const more = groups.filter({ has: page.getByRole('button', { name: 'Más apps' }) }).locator('a.side-stop');
-  expect(n + (await more.count())).toBe(27);
+  // Las 8 Próximamente van aparte, en su propio grupo: acá solo las 19 que se pueden usar.
+  expect(n + (await more.count())).toBe(19);
 }
 
 test('sidebar del inicio: tus apps a la vista y el resto en "Más apps"', async ({ page }) => {

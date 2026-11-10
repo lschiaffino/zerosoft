@@ -140,7 +140,8 @@ test('Apps del workspace: solo admins y apagada cortan página, sidebar y API pa
     await sql("INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', '*')", [team, member.id]);
     await sql('UPDATE users SET active_team_id = ? WHERE id = ?', [team, member.id]);
     // Un contacto del owner: tiene que seguir ahí después de apagar CRM.
-    await owner.p.request.post('/api/crm/contacts', { data: { first_name: 'Keep', email: `keep-${uid()}@x.io` } });
+    const made = await owner.p.request.post('/api/crm/contacts', { data: { firstName: 'Keep', email: `keep-${uid()}@x.io` } });
+    expect(made.status()).toBe(201);
 
     // El member entra a CRM.
     await member.p.goto('/en/app/crm', { waitUntil: 'networkidle' });

@@ -53,7 +53,7 @@ test('la nav tiene cuatro grupos y marca la sección abierta en cada ruta', asyn
     await expect(nav.getByRole('link', { name: label, exact: true }), path).toHaveAttribute('aria-current', 'page');
     await expect(nav.locator('[aria-current="page"]'), path).toHaveCount(1);
   }
-  for (const name of ['Account', 'Workspace', 'This device']) await expect(nav.getByRole('group', { name, exact: true })).toBeVisible();
+  for (const name of ['Account and workspace', 'Workspace', 'This device']) await expect(nav.getByRole('group', { name, exact: true })).toBeVisible();
   const products = nav.getByRole('group', { name: 'Products' });
   await expect(products.getByRole('link')).toHaveCount(27);
 

@@ -97,7 +97,8 @@ test('invitar con apps limitadas, entrar sin Google con un código por email y s
     const tom = `tom-${uid()}@acme-e2e.io`;
     const allButTrack = (await page.evaluate(() => Array.from(document.querySelectorAll('input[id^="ws-inv-app-"]')).map((i) => i.id.replace('ws-inv-app-', ''))))
       .filter((k) => k !== 'track');
-    expect(allButTrack.length).toBeGreaterThan(20);
+    // Sin las Próximamente (no se invitan a apps que todavía no salieron).
+    expect(allButTrack.length).toBeGreaterThan(15);
     expect((await page.request.post('/api/teams/invites', { data: { emails: tom, role: 'member', apps: allButTrack } })).status()).toBe(201);
     await page.reload({ waitUntil: 'networkidle' });
     await expect(page.getByRole('row').filter({ hasText: tom })).toContainText('All apps except Track');
