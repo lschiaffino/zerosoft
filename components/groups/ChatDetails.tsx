@@ -10,6 +10,7 @@ import type { ChatDto, GroupsPerson, LabelDto, MemberDto, PropertyDef } from '@/
 import type { ProviderCaps } from '@/lib/groups-provider';
 import { useGroupsInbox } from './InboxShell';
 import GroupSettingsSection from './GroupSettingsSection';
+import HubspotSection from './HubspotSection';
 import PropertyInput from './PropertyInput';
 import { ChatTasksSection } from './TaskModal';
 import { LabelTag, api, useErrorText, useToast } from './ui';
@@ -39,7 +40,7 @@ interface ScheduledLite {
 
 /**
  * Detalles de un chat o grupo: asignación, etiquetas, propiedades, vínculo
- * con el CRM, agente de Agents, miembros (agregar, quitar, admins), link de
+ * con el CRM y con HubSpot, agente de Agents, miembros (agregar, quitar, admins), link de
  * invitación, tickets, programados y export. Lo usan la bandeja (columna
  * derecha) y la página del grupo.
  */
@@ -349,6 +350,8 @@ export default function ChatDetails({
         )}
         <p className="ui-help">{t('details.crmHelp')}</p>
       </section>
+
+      <HubspotSection chatId={chat.id} isAdmin={isAdmin} showToast={showToast} />
 
       {properties.length > 0 && (
         <section className="gr-detail-section">
