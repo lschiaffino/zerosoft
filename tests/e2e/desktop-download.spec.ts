@@ -138,6 +138,8 @@ test.describe('sin app para el sistema', () => {
 async function resetDesktopEvents() {
   const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
   await db.execute("DELETE FROM lifecycle_events WHERE event IN ('desktop_installed', 'desktop_hint_dismissed')");
+  // Abrir el inicio con el puente del escritorio deja desktopSeenAt en el perfil, y con eso la tarjeta no vuelve.
+  await db.execute("UPDATE users SET profile = json_remove(profile, '$.desktopSeenAt') WHERE json_valid(profile)");
   db.close();
 }
 
