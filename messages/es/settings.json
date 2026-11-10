@@ -1792,5 +1792,11 @@
     "manual": "Tenés la {current}, que no se actualiza sola y puede no reconocer el permiso de Accesibilidad. Bajá la versión nueva y reemplazá la app.",
     "download": "Descargar",
     "dismiss": "Ahora no"
+  },
+  "appUpdate": {
+    "title": "Hay una versión nueva de zerosoft.",
+    "body": "Recargá para usarla. Antes guardá lo que estés escribiendo.",
+    "reload": "Recargar",
+    "dismiss": "Ahora no"
   }
 }

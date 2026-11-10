@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-new-version-notice',
+    date: '2026-11-10',
+    title: {
+      en: 'A notice when there is a new version',
+      es: 'Un aviso cuando hay una versión nueva',
+      pt: 'Um aviso quando há uma versão nova',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'When zerosoft ships an update while you have a tab open, a notice at the top offers to reload. It never reloads on its own, so nothing you are writing is lost.',
+        es: 'Cuando sale una actualización de zerosoft con una pestaña abierta, un aviso arriba ofrece recargar. Nunca recarga sola, así no se pierde lo que estés escribiendo.',
+        pt: 'Quando sai uma atualização do zerosoft com uma aba aberta, um aviso no topo oferece recarregar. Nunca recarrega sozinha, para não perder o que você está escrevendo.',
+      },
+    ],
+  },
+  {
     id: '2026-11-09-docs-notion-two-way-sync',
     date: '2026-11-09',
     title: {
