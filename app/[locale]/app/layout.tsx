@@ -53,6 +53,7 @@ import { settingsNavGroups } from '@/lib/settings-nav-server';
 import PlatformSettingsNav from '@/components/app/PlatformSettingsNav';
 import SettingsEmbedGuard from '@/components/app/SettingsEmbedGuard';
 import DesktopUpdateBanner from '@/components/app/DesktopUpdateBanner';
+import AppUpdateBanner from '@/components/app/AppUpdateBanner';
 import NavProgress from '@/components/app/NavProgress';
 import RouterNudge from '@/components/app/RouterNudge';
 import IntentPrefetch from '@/components/app/IntentPrefetch';
@@ -217,7 +218,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'notes.nav', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'settings.keywords', 'settings.desktopUpdate', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut', 'assistant']}>
+    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'notes.nav', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'settings.keywords', 'settings.desktopUpdate', 'settings.appUpdate', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut', 'assistant']}>
       <ThemeProvider initial={themePref}>
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
@@ -803,6 +804,7 @@ export default async function AppLayout(
             )}
             {previewApp && <PreviewBanner app={previewApp} locale={locale} />}
             <DesktopUpdateBanner />
+            <AppUpdateBanner />
             {children}
           </main>
         </div>

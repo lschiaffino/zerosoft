@@ -1792,5 +1792,11 @@
     "manual": "You have {current}, which cannot update itself and may not recognize the Accessibility permission. Download the new version and replace the app.",
     "download": "Download",
     "dismiss": "Not now"
+  },
+  "appUpdate": {
+    "title": "A new version of zerosoft is ready.",
+    "body": "Reload to get it. Save what you are writing first.",
+    "reload": "Reload",
+    "dismiss": "Not now"
   }
 }
