@@ -37,6 +37,7 @@ export const DOCS_AUDIT_ACTIONS = [
   'settings.exported',
   'settings.imported',
   'settings.site',
+  'settings.notion',
 ] as const;
 
 export type DocsAuditAction = (typeof DOCS_AUDIT_ACTIONS)[number];

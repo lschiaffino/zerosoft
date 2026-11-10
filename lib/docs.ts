@@ -470,6 +470,8 @@ export async function createDocPage(
     .run(id, ownerId, parentId, title, icon, coverUrl, content, teamspaceId, now, now);
 
   const row = (await getDb().prepare('SELECT * FROM docs_pages WHERE id = ?').get(id)) as DocsPageRow;
+  // Subpágina de una página sincronizada con Notion: se crea allá también.
+  if (parentId) await import('./notion-sync').then((m) => m.notionSyncLocalChange(ownerId, id)).catch(() => undefined);
   return toDocPage(row);
 }
 
@@ -1062,6 +1064,10 @@ export async function deleteDocPage(ownerId: string, pageId: string): Promise<bo
   await getDb()
     .prepare(`DELETE FROM docs_pages WHERE id IN (${placeholders})`)
     .run(...ids);
+  // Sincronizadas con Notion: se archivan allá (la cola ve que ya no están acá).
+  await import('./notion-sync').then(async (m) => {
+    for (const x of ids) await m.notionSyncLocalChange(ownerId, x);
+  }).catch(() => undefined);
   // Quien la tenía abierta (o una subpágina) deja de verla en el acto.
   await docsAccessChangedLazy(ownerId, null).catch(() => undefined);
   return true;
@@ -1455,6 +1461,9 @@ export async function createDocComment(
   if (parentId) {
     await getDb().prepare('UPDATE docs_comments SET resolved = 0 WHERE id = ? OR parent_id = ?').run(parentId, parentId);
   }
+  // Página sincronizada con Notion: el comentario sale en la próxima vuelta.
+  const owner = (await getDb().prepare('SELECT user_id FROM docs_pages WHERE id = ?').get(pageId)) as { user_id: string } | undefined;
+  if (owner) await import('./notion-sync').then((m) => m.notionSyncLocalChange(owner.user_id, pageId)).catch(() => undefined);
   return (await getDocComment(id))!;
 }
 

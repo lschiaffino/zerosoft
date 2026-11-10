@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-docs-notion-two-way-sync',
+    date: '2026-11-09',
+    title: {
+      en: 'Docs and Notion, in sync while you move',
+      es: 'Docs y Notion sincronizados mientras te mudás',
+      pt: 'Docs e Notion sincronizados durante a mudança',
+    },
+    items: [
+      {
+        product: 'docs',
+        en: 'Connect Notion from Docs › Settings › Integrations with a Notion login or an integration token. Pages, databases, comments and files come over with their structure, and from then on edits travel both ways, block by block. Pick the direction and follow every change in the sync log.',
+        es: 'Conectá Notion desde Docs › Ajustes › Integraciones con el ingreso de Notion o el token de una integración. Páginas, bases, comentarios y archivos llegan con su estructura, y desde ahí las ediciones viajan en las dos direcciones, bloque por bloque. Elegí la dirección y seguí cada cambio en el registro.',
+        pt: 'Conecte o Notion em Docs › Configurações › Integrações com o login do Notion ou o token de uma integração. Páginas, bancos, comentários e arquivos chegam com a estrutura, e daí em diante as edições vão e voltam, bloco por bloco. Escolha a direção e acompanhe cada mudança no registro.',
+      },
+      {
+        product: 'docs',
+        en: 'Date properties can hold a range: set an end date in the cell, and the timeline uses it when there is no end property.',
+        es: 'Las propiedades de fecha aceptan un rango: poné una fecha de fin en la celda, y la timeline la usa cuando no hay propiedad de fin.',
+        pt: 'As propriedades de data aceitam um intervalo: defina uma data de término na célula, e a linha do tempo a usa quando não há propriedade de fim.',
+      },
+    ],
+  },
+  {
     id: '2026-11-09-track-linear-sync',
     date: '2026-11-09',
     title: {

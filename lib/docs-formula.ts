@@ -420,7 +420,8 @@ export function toBool(v: FValue): boolean {
 export function parseFDate(v: unknown): FDate | null {
   if (v instanceof FDate) return v;
   if (typeof v !== 'string' || !v) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  // Rango de fechas ("inicio/fin"): cuenta el inicio.
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:\/\d{4}-\d{2}-\d{2})?$/.exec(v);
   if (m) return new FDate(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime(), true);
   const t = Date.parse(v);
   return Number.isNaN(t) ? null : new FDate(t, false);

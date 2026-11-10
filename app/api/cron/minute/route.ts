@@ -97,6 +97,8 @@ export async function GET(req: NextRequest) {
   // Docs: page.updated agrupado (claim por marca) y bases sincronizadas vencidas (claim por origen).
   const docsEvents = await flushPageUpdatedEvents().catch(() => null);
   const docsSync = await syncDueSources({ budgetMs: 20_000 }).catch(() => null);
+  // Docs ↔ Notion: descubrir, cola de envíos, pendientes y sondeo (claim por conexión en claimed_until).
+  const notionSync = await import('@/lib/notion-sync').then((m) => m.runNotionSync({ budgetMs: 25_000 })).catch(() => null);
   // Rec: transcripción y resumen de los videos que quedaron en cola.
   const rec = await processPendingRec({ limit: 5, budgetMs: 20_000 }).catch(() => null);
   // Shop: pedidos online sin pagar vencidos (compare-and-set por pedido): se cancelan y liberan stock y código.
@@ -121,5 +123,5 @@ export async function GET(req: NextRequest) {
   const talkRecaps = await import('@/lib/talk-ai').then((m) => m.sendDailyRecaps({ budgetMs: 15_000 })).catch(() => null);
   // Notes: archivos para la búsqueda, al final y con tope de tiempo (no le saca el minuto a lo demás).
   const noteFiles = await processNoteFileQueue({ limit: 10, budgetMs: 20_000 }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, voice, crmAiRuns, docsEvents, docsSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
 }
