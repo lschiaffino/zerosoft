@@ -39,9 +39,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       {
         product: 'groups',
-        en: 'Folders now hang under Inbox in the sidebar, like in Inbox: open one to filter the chats, create and rename them there, and drop chats onto them. The chat list gets its space back. On the phone, a folder picker sits above the list.',
-        es: 'Las carpetas ahora cuelgan de Bandeja en el menú lateral, como en Inbox: abrí una para filtrar los chats, crealas y renombralas ahí, y soltales chats encima. La lista de chats recupera su espacio. En el teléfono hay un selector de carpeta arriba de la lista.',
-        pt: 'As pastas agora ficam sob a Caixa de entrada no menu lateral, como no Inbox: abra uma para filtrar os chats, crie e renomeie ali, e solte chats sobre elas. A lista de chats recupera o espaço. No celular há um seletor de pasta acima da lista.',
+        en: 'Folders now hang under Inbox in the sidebar, like in Inbox: open one to filter the chats, drag folders to reorder or nest them, rename in place, and drop chats onto them. The chat list gets its space back. On the phone, a folder picker sits above the list.',
+        es: 'Las carpetas ahora cuelgan de Bandeja en el menú lateral, como en Inbox: abrí una para filtrar los chats, arrastralas para ordenarlas o meterlas en otra, renombralas en el lugar y soltales chats encima. La lista de chats recupera su espacio. En el teléfono hay un selector de carpeta arriba de la lista.',
+        pt: 'As pastas agora ficam sob a Caixa de entrada no menu lateral, como no Inbox: abra uma para filtrar os chats, arraste para ordenar ou aninhar, renomeie no lugar e solte chats sobre elas. A lista de chats recupera o espaço. No celular há um seletor de pasta acima da lista.',
       },
     ],
   },

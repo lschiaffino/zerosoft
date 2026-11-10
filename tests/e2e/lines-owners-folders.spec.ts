@@ -74,6 +74,15 @@ test('dueño, selector de línea y carpetas', async ({ page, request }) => {
   // Las carpetas cuelgan de "Inbox" en el sidebar; abrir una filtra la bandeja y queda en la URL.
   const side = page.locator('#side-branch').getByTestId('lines-folders');
   await expect(side).toBeVisible();
+  // El mismo árbol que Inbox: la subcarpeta cuelga de su carpeta y se pliega; el menú de cada una ofrece mover y renombrar.
+  await expect(side.getByTestId('lines-folder').filter({ hasText: 'VIP' })).toBeVisible();
+  await side.getByRole('button', { name: `Collapse Clientes ${tag}` }).click();
+  await expect(side.getByTestId('lines-folder').filter({ hasText: 'VIP' })).toHaveCount(0);
+  await side.getByRole('button', { name: `Expand Clientes ${tag}` }).click();
+  await side.getByTestId('lines-folder').filter({ hasText: `Clientes ${tag}` }).hover();
+  await side.getByRole('button', { name: `Actions for Clientes ${tag}` }).click();
+  await expect(side.getByRole('menuitem', { name: 'Move to…' })).toBeVisible();
+  await page.keyboard.press('Escape');
   await side.getByTestId('lines-folder').filter({ hasText: `Clientes ${tag}` }).click();
   await expect(page).toHaveURL(new RegExp(`folder=${folder.id}`));
   await expect(page.getByTestId('lines-folder-current')).toContainText(`Clientes ${tag}`);

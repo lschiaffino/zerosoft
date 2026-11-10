@@ -1618,6 +1618,25 @@
     "access": "Dono e acesso",
     "restrictedTag": "Restrita",
     "filterOwner": "Filtrar por dono",
-    "allOwners": "Todos os donos"
+    "allOwners": "Todos os donos",
+    "branch": {
+      "branchEmpty": "Ainda não há pastas.",
+      "new": "Nova pasta",
+      "collapse": "Recolher {name}",
+      "expand": "Expandir {name}",
+      "renameLabel": "Nome de {name}",
+      "actionsFor": "Ações de {name}",
+      "moveTitle": "Mover {name}",
+      "moveFilter": "Filtrar pastas",
+      "topLevel": "Primeiro nível",
+      "menu": {
+        "newSub": "Nova subpasta",
+        "rename": "Renomear",
+        "moveUp": "Subir",
+        "moveDown": "Descer",
+        "moveTo": "Mover para…",
+        "delete": "Excluir"
+      }
+    }
   }
 }

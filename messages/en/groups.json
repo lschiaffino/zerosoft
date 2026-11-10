@@ -1618,6 +1618,25 @@
     "access": "Owner and access",
     "restrictedTag": "Restricted",
     "filterOwner": "Filter by owner",
-    "allOwners": "All owners"
+    "allOwners": "All owners",
+    "branch": {
+      "branchEmpty": "No folders yet.",
+      "new": "New folder",
+      "collapse": "Collapse {name}",
+      "expand": "Expand {name}",
+      "renameLabel": "Name of {name}",
+      "actionsFor": "Actions for {name}",
+      "moveTitle": "Move {name}",
+      "moveFilter": "Filter folders",
+      "topLevel": "Top level",
+      "menu": {
+        "newSub": "New subfolder",
+        "rename": "Rename",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "moveTo": "Move to…",
+        "delete": "Delete"
+      }
+    }
   }
 }

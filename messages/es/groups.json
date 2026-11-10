@@ -1618,6 +1618,25 @@
     "access": "Dueño y acceso",
     "restrictedTag": "Restringida",
     "filterOwner": "Filtrar por dueño",
-    "allOwners": "Todos los dueños"
+    "allOwners": "Todos los dueños",
+    "branch": {
+      "branchEmpty": "Todavía no hay carpetas.",
+      "new": "Carpeta nueva",
+      "collapse": "Plegar {name}",
+      "expand": "Desplegar {name}",
+      "renameLabel": "Nombre de {name}",
+      "actionsFor": "Acciones de {name}",
+      "moveTitle": "Mover {name}",
+      "moveFilter": "Filtrar carpetas",
+      "topLevel": "Primer nivel",
+      "menu": {
+        "newSub": "Subcarpeta nueva",
+        "rename": "Renombrar",
+        "moveUp": "Subir",
+        "moveDown": "Bajar",
+        "moveTo": "Mover a…",
+        "delete": "Borrar"
+      }
+    }
   }
 }
