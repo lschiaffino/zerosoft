@@ -5,6 +5,7 @@ import '@/styles/desktop-download.css';
 import { useLocale, useTranslations } from 'next-intl';
 import Icon from '@/components/app/icons';
 import { detectPlatform, formatSize, inDesktopApp, type DesktopTarget, type DetectedPlatform } from '@/lib/desktop-detect';
+import { downloadHref, type DownloadPlacement } from '@/lib/desktop-os';
 
 export interface DesktopRelease {
   version: string;
@@ -33,11 +34,14 @@ function sizeFor(r: DesktopRelease, t: DesktopTarget): number | null {
  * - `variant="step"` (onboarding): los pasos aparecen al descargar y, con `watch`, espera
  *   a que la app avise que se abrió con esta cuenta (GET /api/onboarding) y se marca sola.
  * - `track`: avisa la descarga a /api/onboarding (solo con sesión).
+ * - `from`: el lugar con el que se cuenta el clic en Pulse (lib/desktop-track.ts), igual que
+ *   el resto de los botones de descarga del sitio.
  */
 export default function DesktopDownload({
   release,
   variant = 'page',
   track = false,
+  from,
   watch = false,
   seen = false,
   onSeen,
@@ -46,6 +50,7 @@ export default function DesktopDownload({
   release: DesktopRelease | null;
   variant?: 'page' | 'step';
   track?: boolean;
+  from?: DownloadPlacement;
   watch?: boolean;
   seen?: boolean;
   onSeen?: () => void;
@@ -120,6 +125,10 @@ export default function DesktopDownload({
 
   function onDownload() {
     setDownloaded(true);
+    if (from) {
+      // Solo cuenta el clic: el link ya baja el instalador, así que la redirección no se sigue.
+      void fetch(downloadHref(from, { os: target, locale }), { redirect: 'manual', keepalive: true }).catch(() => {});
+    }
     if (track) {
       void fetch('/api/onboarding', {
         method: 'POST',

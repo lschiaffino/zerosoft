@@ -822,7 +822,7 @@ function SetupFlow(props: SetupProps & { email: string }) {
             {t('desktop.title')}
           </h1>
           <p className="wl-sub">{t('desktop.sub')}</p>
-          <DesktopDownload release={props.release} variant="step" track watch seen={props.desktopSeen} headingLevel={2} />
+          <DesktopDownload release={props.release} variant="step" from="onboarding" track watch seen={props.desktopSeen} headingLevel={2} />
           <DesktopFeatures />
         </>
       )}

@@ -12,7 +12,8 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 45: instalar ffmpeg por apt puede tardar más de 10 minutos y el build quedaba cortado a los 30.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

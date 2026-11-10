@@ -184,6 +184,8 @@ export function renderBrandedHtml(opts: {
   logoUrl?: string | null;
   /** Línea chica sobre el título (default "zerosoft · cal"). */
   eyebrow?: string;
+  /** HTML ya escapado, chico y en gris, arriba del pie (la línea de la app de escritorio, lib/desktop-email.ts). */
+  note?: string | null;
 }): string {
   const accent = safeHex(opts.brandColor) ?? '#000000';
   const logo =
@@ -203,6 +205,7 @@ export function renderBrandedHtml(opts: {
     <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#888888;">${escapeHtml(opts.eyebrow ?? 'zerosoft · cal')}</p>
     <h1 style="margin:0 0 24px;font-size:20px;font-weight:500;letter-spacing:-0.01em;color:#000000;border-bottom:2px solid ${accent};display:inline-block;padding-bottom:6px;">${escapeHtml(opts.heading)}</h1>
     ${paragraphs}
+    ${opts.note ? `<p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#888888;">${opts.note}</p>` : ''}
     <p style="margin:32px 0 0;padding-top:16px;border-top:1px solid #e5e5e5;font-size:11px;color:#999999;">zerosoft.ai — software that costs zero</p>
   </div>
 </body></html>`;

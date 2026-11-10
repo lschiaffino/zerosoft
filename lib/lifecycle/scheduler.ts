@@ -222,6 +222,7 @@ async function deliver(d: Delivery, send: Sender, now: Date): Promise<'sent' | '
     unsubscribeAllUrl: links.unsubscribeAllUrl,
     preferencesUrl: links.preferencesUrl,
     category,
+    desktopInstalled: d.signals.desktopInstalled,
   });
   const res = await send({
     to: d.signals.email,

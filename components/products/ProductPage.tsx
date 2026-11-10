@@ -47,6 +47,11 @@ import SignMockup from './mockups/SignMockup';
 import FormsMockup from './mockups/FormsMockup';
 import SendMockup from './mockups/SendMockup';
 import InboxMockup from './mockups/InboxMockup';
+import DesktopCta from '@/components/site/DesktopCta';
+import DesktopHud from '@/components/site/DesktopHud';
+
+/** Apps a las que la app de escritorio les suma algo concreto (copy en pages.json, product.desktop.<key>). */
+const DESKTOP_PRODUCTS: readonly ProductKey[] = ['voice', 'talk', 'track', 'notes'];
 
 const MOCKUPS: Record<ProductKey, ComponentType> = {
   link: LinkMockup,
@@ -305,6 +310,58 @@ export default async function ProductPage({ locale, product }: { locale: string;
     ),
   };
 
+  // Qué suma la app de escritorio a esta app, después de las funciones (solo donde suma algo).
+  const desktopBlock = () => {
+    const d = `product.desktop.${product}`;
+    return (
+      <section className="lp-section pd-desktop" id="desktop" key="desktop" aria-labelledby="h-desktop" data-testid="product-desktop">
+        <SectionSign id="h-desktop" title={t(`${d}.title`)} sub={t('product.desktop.titleDim')} product={product} />
+        <div className={`container ${product === 'voice' ? 'lp-split' : 'pd-desktop-inner'}`}>
+          <div className="lp-split-text">
+            <p className="lp-lede">{t(`${d}.lede`)}</p>
+            <ul className="dev-list">
+              {(['b1', 'b2'] as const).map((b) => (
+                <li key={b}>
+                  <strong>{t(`${d}.${b}t`)}</strong>
+                  <p>{t(`${d}.${b}`)}</p>
+                </li>
+              ))}
+            </ul>
+            <div className="lp-desktop-actions">
+              <DesktopCta
+                from="product"
+                locale={locale}
+                className="btn btn-secondary"
+                labels={{ generic: tcm('home.desktop.cta'), mac: tcm('home.desktop.ctaMac'), win: tcm('home.desktop.ctaWin') }}
+              />
+              <Link className="lp-textlink" href="/download">
+                {tcm('home.desktop.more')} <Icon name="arrow" size={14} />
+              </Link>
+            </div>
+            <p className="lp-desktop-note">{tcm('home.desktop.note')}</p>
+          </div>
+          {product === 'voice' && (
+            <div className="lp-split-code">
+              <DesktopHud
+                labels={{
+                  window: tcm('home.desktop.fig.window'),
+                  to: tcm('home.desktop.fig.to'),
+                  subject: tcm('home.desktop.fig.subject'),
+                  body: tcm('home.desktop.fig.body'),
+                  listening: tcm('home.desktop.fig.listening'),
+                  hint: tcm('home.desktop.fig.hint'),
+                  caption: tcm('home.desktop.fig.caption'),
+                  alt: tcm('home.desktop.fig.alt'),
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  };
+  const withDesktop = !building && DESKTOP_PRODUCTS.includes(product);
+
   const sections = spec.sections.map((s) => ({ id: SECTION_IDS[s], label: t(`product.nav.${s}`) }));
 
   // JSON-LD: la app con su oferta real, las migas y las preguntas que se ven en la página.
@@ -382,7 +439,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
 
       <ProductSectionNav product={product} sections={sections} label={t('product.navLabel', { name: cfg.name })} />
 
-      {spec.sections.map((s) => blocks[s]())}
+      {spec.sections.map((s) => (s === 'features' && withDesktop ? [blocks[s](), desktopBlock()] : blocks[s]()))}
 
       {/* Cierre: la página se vuelve tinta, de a ceros, y la banda con las once apps. */}
       <ZeroEdge />

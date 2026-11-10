@@ -14,6 +14,8 @@ import HomeAsk from '@/components/assistant/HomeAsk';
 import RequestAccessButton from '@/components/app/RequestAccessButton';
 import LostAccessNotice from '@/components/app/LostAccessNotice';
 import { isRequestPending, lostAccessNotice } from '@/lib/workspace-access-request';
+import { desktopHintState, showDesktopHint } from '@/lib/desktop-hint';
+import DesktopHomeCard from '@/components/app/home/DesktopHomeCard';
 import { chosenApps } from '@/lib/onboarding';
 import { getOnboardingState } from '@/lib/onboarding-state';
 import GettingStarted from '@/components/app/home/GettingStarted';
@@ -87,12 +89,17 @@ export default async function PlatformHomePage(props: {
   const wsOff = wsDenial === 'workspace_off';
   // "Pedido enviado" sigue al recargar: sale de la base, no del estado del botón.
   const alreadyAsked = Boolean(blocked && user.actingUser && user.workspace && (await isRequestPending(user.workspace.id, person.id, blocked)));
-  const [lost, onboarding] = await Promise.all([
+  const [lost, onboarding, desktopState] = await Promise.all([
     lostAccessNotice(person.id),
     getOnboardingState(person.id, { workspaceId: user.id, admin }).catch(() => null),
+    desktopHintState(person.id),
   ]);
   // Con "Primeros pasos" a la vista, invitar e importar ya están ahí.
   const showCards = canShowCards && !onboarding?.showChecklist;
+  // La app de escritorio, a quien no la instaló ni cerró la tarjeta (el cliente la esconde en el teléfono y en la app).
+  // Con "Primeros pasos" a la vista no se repite: la lista ya tiene ese paso.
+  const desktopHint = showDesktopHint(desktopState) && !onboarding?.showChecklist && !onboarding?.desktop.seenAt;
+  const aside = showCards || desktopHint;
   const todayBlocks = can('crm') || can('track') || can('cal') || can('groups');
 
   const appCard = (k: ProductKey) => (
@@ -172,7 +179,7 @@ export default async function PlatformHomePage(props: {
       </section>
       )}
 
-      <div className={`home-split${showCards ? '' : ' home-split-full'}`}>
+      <div className={`home-split${aside ? '' : ' home-split-full'}`}>
         <section className="home-section" aria-labelledby="home-recent">
           <h2 id="home-recent" className="home-h">
             {t('recent.title')}
@@ -182,9 +189,9 @@ export default async function PlatformHomePage(props: {
           </Suspense>
         </section>
 
-        {showCards && (
-          <aside className="home-cards" aria-label={t('import.title')}>
-            {team && (
+        {aside && (
+          <aside className="home-cards" aria-label={t('cardsLabel')}>
+            {showCards && team && (
               <div className="home-card" data-testid="home-invite">
                 <h3 className="home-card-title">{t('invite.title')}</h3>
                 <p className="home-card-body">{t('invite.body')}</p>
@@ -193,13 +200,28 @@ export default async function PlatformHomePage(props: {
                 </Link>
               </div>
             )}
-            <div className="home-card" data-testid="home-import">
-              <h3 className="home-card-title">{t('import.title')}</h3>
-              <p className="home-card-body">{t('import.body')}</p>
-              <Link href="/app/settings/import" className="btn btn-secondary btn-sm">
-                {t('import.cta')}
-              </Link>
-            </div>
+            {showCards && (
+              <div className="home-card" data-testid="home-import">
+                <h3 className="home-card-title">{t('import.title')}</h3>
+                <p className="home-card-body">{t('import.body')}</p>
+                <Link href="/app/settings/import" className="btn btn-secondary btn-sm">
+                  {t('import.cta')}
+                </Link>
+              </div>
+            )}
+            {desktopHint && (
+              <DesktopHomeCard
+                locale={locale}
+                labels={{
+                  title: t('desktop.title'),
+                  body: t('desktop.body'),
+                  mac: t('desktop.mac'),
+                  win: t('desktop.win'),
+                  dismiss: t('desktop.dismiss'),
+                  dismissError: t('desktop.dismissError'),
+                }}
+              />
+            )}
           </aside>
         )}
       </div>

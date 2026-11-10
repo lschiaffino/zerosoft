@@ -50,7 +50,10 @@
       "send": "Share documents by link and see who read what",
       "inbox": "Your WhatsApp and Gmail in one keyboard-first inbox"
     },
-    "building": "Coming soon"
+    "building": "Coming soon",
+    "downloadMac": "Download for Mac",
+    "downloadWin": "Download for Windows",
+    "downloadShort": "Download"
   },
   "sidebar": {
     "desktopSettings": "Desktop app settings",
@@ -447,6 +450,12 @@
     "videos": "Videos",
     "desktopApp": "Desktop app",
     "compare": "Comparisons",
+    "colDownload": "Download",
+    "dlMacArm": "Mac (Apple silicon)",
+    "dlMacIntel": "Mac (Intel)",
+    "dlWin": "Windows",
+    "dlAll": "All releases",
+    "dlLinux": "Linux: not yet",
     "subprocessors": "Subprocessors"
   },
   "home": {
@@ -649,6 +658,34 @@
     },
     "tour": {
       "fig": "fig. 1 · demo mode, sample data, 48 s"
+    },
+    "desktop": {
+      "title": "zerosoft on your computer.",
+      "titleDim": "Mac and Windows, about 3 MB.",
+      "p": "The desktop app opens your apps in their own window and does what a browser tab can’t.",
+      "b1t": "Dictation in any app",
+      "b1": "Hold Option + Space (Ctrl + Alt + Space on Windows), talk, and let go. The cleaned-up text lands where your cursor is: an email, a doc, a chat.",
+      "b2t": "Meetings in the background",
+      "b2": "While Voice records a meeting and the window is behind others, a small indicator on top shows the time and lets you stop.",
+      "b3t": "System notifications",
+      "b3": "Mentions, direct messages and bell alerts as notifications, with the unread count on the dock icon.",
+      "b4t": "Dictation offline",
+      "b4": "If a dictation can’t reach the server, it stays on your computer and is sent again when you’re back online.",
+      "cta": "Download the app",
+      "ctaMac": "Download for Mac",
+      "ctaWin": "Download for Windows",
+      "more": "What’s included and requirements",
+      "note": "No Linux build yet. On your phone, add zerosoft to your home screen from the browser.",
+      "fig": {
+        "window": "New message",
+        "to": "To: team@acme.com",
+        "subject": "Meeting notes",
+        "body": "We locked the scope on Monday. Ana drafts the proposal and we send it Thursday.",
+        "listening": "Listening",
+        "hint": "Esc cancels",
+        "caption": "The app’s dictation bar, redrawn: it shows up at the bottom center, over whatever app is in front.",
+        "alt": "An email window with dictated text and, below it, the zerosoft dictation bar: red dot, level meter, Listening, 0:06, Esc cancels."
+      }
     }
   },
   "ui": {
@@ -738,6 +775,15 @@
       "title": "No apps turned on yet",
       "body": "An admin of {workspace} can turn apps on for you in Settings › Members.",
       "bodyAdmin": "The owner of {workspace} can turn apps on for you in Settings › Members."
+    },
+    "cardsLabel": "Suggestions",
+    "desktop": {
+      "title": "Desktop app",
+      "body": "Dictate into any app with a shortcut and get mentions and messages as system notifications.",
+      "mac": "Download for Mac",
+      "win": "Download for Windows",
+      "dismiss": "Hide",
+      "dismissError": "Couldn't hide it. Try again."
     },
     "start": {
       "title": "Getting started",

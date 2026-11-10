@@ -2487,7 +2487,42 @@
       "send": "fig. 0 · páginas sendo lidas, com o tempo de cada uma",
       "inbox": "fig. 0 · uma conversa e um e-mail na mesma lista"
     },
-    "heroFigHint": "arraste para girar"
+    "heroFigHint": "arraste para girar",
+    "desktop": {
+      "titleDim": "Com o app para desktop.",
+      "voice": {
+        "title": "Voice fora do navegador.",
+        "lede": "Com o app para desktop, o ditado do Voice funciona em qualquer app do seu computador, não só no zerosoft.",
+        "b1t": "Um atalho, em qualquer app",
+        "b1": "Option + Espaço no Mac, Ctrl + Alt + Espaço no Windows. Usa o idioma, o dicionário e os estilos que você configurou no Voice.",
+        "b2t": "Reuniões com a janela atrás",
+        "b2": "Enquanto uma reunião é gravada, um indicador pequeno por cima de tudo mostra o tempo e deixa abrir ou parar."
+      },
+      "talk": {
+        "title": "Talk com notificações do sistema.",
+        "lede": "O app para desktop avisa quando alguém chama você, mesmo se você estiver em outro app.",
+        "b1t": "Menções e mensagens diretas",
+        "b1": "Chegam como notificação do sistema quando a janela do zerosoft está em segundo plano ou fechada na barra de menus.",
+        "b2t": "O contador no dock",
+        "b2": "O ícone mostra quantas menções, mensagens e avisos você ainda não leu."
+      },
+      "track": {
+        "title": "Track sem a aba aberta.",
+        "lede": "Atribuições, menções e mudanças nas suas issues vão para o sino. O app para desktop mostra tudo como notificação do sistema.",
+        "b1t": "Cada aviso, na hora",
+        "b1": "Com a janela em segundo plano, cada aviso novo do sino aparece como notificação, e o ícone mantém a contagem.",
+        "b2t": "Dite issues e comentários",
+        "b2": "Com Option + Espaço você dita a descrição de uma issue ou um comentário, e o texto é colado onde está o cursor."
+      },
+      "notes": {
+        "title": "Notes, ditadas.",
+        "lede": "Com o app para desktop você dita notas com um atalho, no zerosoft ou em qualquer outro app.",
+        "b1t": "Fale e solte",
+        "b1": "Segure Option + Espaço (Ctrl + Alt + Espaço no Windows): o texto limpo cai onde está o cursor.",
+        "b2t": "Fica guardado sem conexão",
+        "b2": "Se um ditado não chega ao servidor, fica salvo no seu computador e é enviado quando a rede volta."
+      }
+    }
   },
   "mockups": {
     "link": {
@@ -3959,7 +3994,55 @@
     "offOtherT": "Ainda não",
     "offOther": "Board, Chat, Calendar, Voice, Talk e os outros apps precisam de conexão por enquanto.",
     "offPrivacyT": "Seu dispositivo",
-    "offPrivacy": "O que fica salvo é da sua sessão: ao sair, tudo é apagado, inclusive alterações que não foram enviadas, e outra pessoa no mesmo computador não vê nada seu."
+    "offPrivacy": "O que fica salvo é da sua sessão: ao sair, tudo é apagado, inclusive alterações que não foram enviadas, e outra pessoa no mesmo computador não vê nada seu.",
+    "reqLinux": "Ainda não há versão para Linux. Enquanto isso, zerosoft.ai/app funciona em qualquer navegador.",
+    "start": {
+      "metaTitle": "Baixando o zerosoft",
+      "kicker": "Versão {version}",
+      "title": "Baixando o zerosoft para {system}.",
+      "sub": "O download de <file></file> começa sozinho. Se não começar, <again>baixe de novo</again>.",
+      "system": {
+        "mac-arm": "Mac (Apple silicon)",
+        "mac-intel": "Mac (Intel)",
+        "win": "Windows"
+      },
+      "stepsTitle": "Como instalar",
+      "steps": {
+        "macOpen": {
+          "t": "Abra o .dmg",
+          "d": "Está em Downloads ({file}). Arraste o zerosoft para Aplicativos."
+        },
+        "macGatekeeper": {
+          "t": "Permita abrir na primeira vez",
+          "d": "Ele ainda não é notarizado, então o macOS bloqueia. No macOS 15 ou posterior: Ajustes do Sistema › Privacidade e Segurança › Abrir Mesmo Assim. No macOS 14 ou anterior: clique com o botão direito no app e escolha Abrir."
+        },
+        "signIn": {
+          "t": "Entre com a sua conta",
+          "d": "Com seu email na mesma janela, ou com o Google: o navegador abre e o app volta sozinho."
+        },
+        "macDictate": {
+          "t": "Teste o ditado",
+          "d": "Segure Option + Espaço em qualquer app, fale e solte. Na primeira vez o macOS pede o microfone e, para colar o texto, Acessibilidade."
+        },
+        "winOpen": {
+          "t": "Abra o instalador",
+          "d": "Está em Downloads ({file}). Siga os passos e o zerosoft aparece no menu Iniciar."
+        },
+        "winSmartScreen": {
+          "t": "Se aparecer o SmartScreen",
+          "d": "Como ainda não é assinado, o Windows pode dizer que protegeu o seu PC. Clique em Mais informações e depois em Executar assim mesmo."
+        },
+        "winDictate": {
+          "t": "Teste o ditado",
+          "d": "Segure Ctrl + Alt + Espaço em qualquer app, fale e solte: o texto é colado onde está o cursor."
+        }
+      },
+      "otherIntel": "Seu Mac tem chip Intel? Baixe essa versão.",
+      "otherArm": "Seu Mac tem Apple silicon? Baixe essa versão.",
+      "allDownloads": "Todos os downloads",
+      "missingTitle": "Não encontramos esse instalador.",
+      "missingBody": "Talvez a última versão ainda esteja sendo publicada. A página de download lista todas as disponíveis."
+    }
   },
   "compare": {
     "crumb": "Comparar",

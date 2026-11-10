@@ -10,6 +10,7 @@ import { CATEGORY_PRODUCTS, GITHUB_URL, PRODUCT_NAMES } from './site/catalog';
 import Logo from './brand/Logo';
 import ProductGlyph from './brand/ProductGlyph';
 import { COMING_SOON_APPS, PRODUCT_CONFIG, isComingSoon, isProductKey, productHref } from '@/lib/products';
+import { detectDesktopOs, downloadHref, inDesktopShell, type DesktopOs } from '@/lib/desktop-os';
 
 interface HeaderClientProps {
   locale: string;
@@ -44,6 +45,8 @@ export default function HeaderClient({ locale, labels }: HeaderClientProps) {
   /** Panel hamburguesa (≤960px). */
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  /** Mac o Windows: el link de descarga del header. En el teléfono, Linux o la app de escritorio no hay. */
+  const [desktopOs, setDesktopOs] = useState<DesktopOs | null>(null);
   const pathname = usePathname();
   const tp = useTranslations('common.products');
   const th = useTranslations('common.header');
@@ -57,6 +60,18 @@ export default function HeaderClient({ locale, labels }: HeaderClientProps) {
     setMenuOpen(false);
     setMegaOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!inDesktopShell()) {
+      void detectDesktopOs().then((os) => {
+        if (alive && os !== 'mobile' && os !== 'other') setDesktopOs(os);
+      });
+    }
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 4);
@@ -223,6 +238,22 @@ export default function HeaderClient({ locale, labels }: HeaderClientProps) {
         <div className="hd-right">
           <ThemeSwitcher />
           <LocaleSwitcher locale={locale} />
+          {/* Descargar, solo con un sistema que tiene app: lleva directo al instalador (cuenta el clic, lib/desktop-os.ts). */}
+          {desktopOs && !pathname.startsWith('/download') && (
+            <a
+              className="hd-link hd-download"
+              href={downloadHref('header', { os: desktopOs, locale })}
+              rel="nofollow"
+              title={th(desktopOs === 'win' ? 'downloadWin' : 'downloadMac')}
+              data-testid="header-download"
+            >
+              <Icon name="download" size={14} />
+              <span className="hd-dl-long">{th(desktopOs === 'win' ? 'downloadWin' : 'downloadMac')}</span>
+              <span className="hd-dl-short" aria-hidden="true">
+                {th('downloadShort')}
+              </span>
+            </a>
+          )}
           {/* Las dos variantes van en el HTML (estático, igual para todos); SESSION_HINT_SCRIPT marca
               <html data-session="in"> antes del primer paint y el CSS muestra la que corresponde. */}
           <button

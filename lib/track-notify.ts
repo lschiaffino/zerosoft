@@ -22,6 +22,7 @@ import { getDb } from './db';
 import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
 import { siteUrl } from './board-urls';
+import { desktopNoteFor } from './desktop-email';
 import { localDayIn, localHourIn, safeTimeZone } from './track-recurrence';
 import en from '@/messages/en/track.json';
 import es from '@/messages/es/track.json';
@@ -176,6 +177,8 @@ export function buildTrackEmail(
   locale: TrackMailLocale,
   kind: 'immediate' | 'digest',
   total = items.length,
+  /** La línea de la app de escritorio (lib/desktop-email.ts), solo a quien no la tiene. */
+  desktopNote: { html: string; text: string } | null = null,
 ): { subject: string; text: string; html: string } {
   const m = MAIL[locale];
   const lines = items.map((i) => ({ text: describeItem(i, locale), detail: i.body ?? '', url: itemUrl(i, locale) }));
@@ -197,10 +200,12 @@ export function buildTrackEmail(
     `${m.openInbox}: ${inbox}`,
     '',
     `${why} ${m.manage}: ${settings}`,
+    ...(desktopNote ? ['', desktopNote.text] : []),
   ].join('\n');
   const html = renderBrandedHtml({
     heading,
     eyebrow: 'zerosoft · track',
+    note: desktopNote?.html ?? null,
     paragraphs: [
       ...lines.map(
         (l) =>
@@ -255,7 +260,7 @@ export async function sendImmediateTrackEmails(opts: { now?: Date; limit?: numbe
       .all(...args, IMMEDIATE_MAX_ITEMS)) as TrackMailItem[];
     if (items.length === 0) continue;
     const total = ((await db.prepare(`SELECT COUNT(*) AS c FROM notifications n WHERE ${where}`).get(...args)) as { c: number }).c;
-    const mail = buildTrackEmail(items, mailLocale(u.locale), 'immediate', total);
+    const mail = buildTrackEmail(items, mailLocale(u.locale), 'immediate', total, await desktopNoteFor(u.user_id, mailLocale(u.locale)));
     const res = await sendEmail({ to: u.email, ...mail }).catch(() => null);
     if (res?.ok) sent++;
   }
@@ -328,7 +333,7 @@ export async function sendTrackDigests(opts: { now?: Date; limit?: number } = {}
     await db.prepare('UPDATE track_notify_prefs SET cursor_at = ? WHERE user_id = ?').run(nowTs, c.user_id);
     if (items.length === 0) continue;
     const total = ((await db.prepare(`SELECT COUNT(*) AS c FROM notifications n WHERE ${where}`).get(...args)) as { c: number }).c;
-    const mail = buildTrackEmail(items, mailLocale(c.locale), 'digest', total);
+    const mail = buildTrackEmail(items, mailLocale(c.locale), 'digest', total, await desktopNoteFor(c.user_id, mailLocale(c.locale)));
     const res = await sendEmail({ to: c.email, ...mail }).catch(() => null);
     if (res?.ok) sent++;
   }

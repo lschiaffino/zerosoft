@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
 import { desktopBadge } from '@/lib/desktop-badge';
 import { jsonError } from '@/lib/write-limit';
+import { recordLifecycleEvent } from '@/lib/lifecycle/signals';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,9 @@ export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
   const since = req.nextUrl.searchParams.get('since')?.slice(0, 40) ?? null;
+  // La primera consulta de cada arranque (sin since): la app está instalada, aunque se haya entrado
+  // con email dentro de la ventana y no por el login del navegador (lib/desktop-auth.ts).
+  if (!since) await recordLifecycleEvent(realUserId(user), 'desktop_installed');
   const badge = await desktopBadge(user, since);
   return NextResponse.json({ ...badge, user: { email: user.email, name: user.name ?? '' } }, { headers: { 'cache-control': 'no-store' } });
 }

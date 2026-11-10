@@ -42,7 +42,7 @@ export default async function DownloadPage(props: { params: Promise<{ locale: st
         <h1 className="read-title">{t('title')}</h1>
         <p className="read-intro">{t('sub')}</p>
         <div className="dl-widget">
-          <DesktopDownload release={release} variant="page" />
+          <DesktopDownload release={release} variant="page" from="download" />
         </div>
         {!release && (
           <div className="read-actions">
@@ -85,6 +85,10 @@ export default async function DownloadPage(props: { params: Promise<{ locale: st
             <li className="dl-row">
               <span className="status-name">Windows</span>
               <span className="status-desc">{t('reqWin')}</span>
+            </li>
+            <li className="dl-row" data-testid="download-linux">
+              <span className="status-name">Linux</span>
+              <span className="status-desc">{t('reqLinux')}</span>
             </li>
           </ul>
         </section>

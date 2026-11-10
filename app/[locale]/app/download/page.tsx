@@ -32,7 +32,7 @@ export default async function AppDownloadPage(props: { params: Promise<{ locale:
     <div className="app-page app-download">
       <PageHeader title={t('title')} description={t('sub')} />
       <div className="app-download-body">
-        <DesktopDownload release={release} variant="page" track watch seen={Boolean(profile.desktopSeenAt)} />
+        <DesktopDownload release={release} variant="page" from="in-app" track watch seen={Boolean(profile.desktopSeenAt)} />
         <DesktopFeatures />
       </div>
     </div>

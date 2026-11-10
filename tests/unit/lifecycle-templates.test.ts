@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import en from '@/messages/en/lifecycleEmails.json';
 import es from '@/messages/es/lifecycleEmails.json';
 import pt from '@/messages/pt/lifecycleEmails.json';
-import { ctaPath, renderLifecycleEmail, sampleRenderInput } from '@/lib/lifecycle/templates';
+import { ctaPath, lifecycleCopy, renderLifecycleEmail, sampleRenderInput } from '@/lib/lifecycle/templates';
 import { LIFECYCLE_TEMPLATES, type LifecycleLocale } from '@/lib/lifecycle/types';
 
 const LOCALES: LifecycleLocale[] = ['en', 'es', 'pt'];
@@ -37,7 +37,9 @@ describe('plantillas de ciclo de vida', () => {
         expect(out.html).toContain('<title>');
         // Un solo botón, a la pantalla de la app con el idioma.
         expect(out.html.match(/class="lc-btn"/g)).toHaveLength(1);
-        expect(out.ctaUrl.startsWith(`https://zerosoft.ai/${locale}/`)).toBe(true);
+        // La app de escritorio pasa por el contador de clics (placement email) y termina en /download.
+        if (template === 'feature_desktop') expect(out.ctaUrl).toBe(`https://zerosoft.ai/api/desktop/download?from=email&locale=${locale}`);
+        else expect(out.ctaUrl.startsWith(`https://zerosoft.ai/${locale}/`)).toBe(true);
         expect(out.html).toContain(out.ctaUrl.replace(/&/g, "&amp;"));
         expect(out.text).toContain(out.ctaUrl);
         // Baja y preferencias en el pie, en HTML y en texto.
@@ -80,6 +82,24 @@ describe('plantillas de ciclo de vida', () => {
     const dark = renderLifecycleEmail({ ...sampleRenderInput('welcome', 'en'), theme: 'dark' }).html;
     expect(dark).not.toContain('prefers-color-scheme');
     expect(dark).toContain('background:#111111');
+  });
+
+  it('la línea de la app de escritorio va en el pie, salvo en su propio email o si ya la tiene', () => {
+    for (const locale of LOCALES) {
+      const url = `https://zerosoft.ai/api/desktop/download?from=email&amp;locale=${locale}`;
+      const welcome = renderLifecycleEmail(sampleRenderInput('welcome', locale));
+      expect(welcome.html).toContain(url);
+      expect(welcome.html).toContain(lifecycleCopy(locale).common.desktopLine.text);
+      expect(welcome.text).toContain(`${lifecycleCopy(locale).common.desktopLine.link}: https://zerosoft.ai/api/desktop/download?from=email&locale=${locale}`);
+      // Ya instalada: nada.
+      const installed = renderLifecycleEmail({ ...sampleRenderInput('digest', locale), desktopInstalled: true });
+      expect(installed.html).not.toContain('/api/desktop/download');
+      expect(installed.text).not.toContain('/api/desktop/download');
+      // Su propio email: el botón ya es la descarga, sin repetirla en el pie.
+      const own = renderLifecycleEmail(sampleRenderInput('feature_desktop', locale));
+      expect(own.html.match(/api\/desktop\/download/g)).toHaveLength(3); // botón, y href y texto del link de respaldo
+      expect(own.html).not.toContain(lifecycleCopy(locale).common.desktopLine.text);
+    }
   });
 
   it('cada botón lleva a donde se hace lo que pide', () => {

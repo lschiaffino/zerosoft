@@ -2487,7 +2487,42 @@
       "send": "fig. 0 · pages being read, with the time on each",
       "inbox": "fig. 0 · a chat and an email in the same list"
     },
-    "heroFigHint": "drag to rotate"
+    "heroFigHint": "drag to rotate",
+    "desktop": {
+      "titleDim": "With the desktop app.",
+      "voice": {
+        "title": "Voice outside the browser.",
+        "lede": "With the desktop app, Voice dictation works in any app on your computer, not just in zerosoft.",
+        "b1t": "One shortcut, any app",
+        "b1": "Option + Space on Mac, Ctrl + Alt + Space on Windows. It uses the language, dictionary and styles you set up in Voice.",
+        "b2t": "Meetings with the window behind",
+        "b2": "While a meeting records, a small indicator on top of everything shows the time and lets you open or stop it."
+      },
+      "talk": {
+        "title": "Talk with system notifications.",
+        "lede": "The desktop app tells you when someone needs you, even while you’re in another app.",
+        "b1t": "Mentions and direct messages",
+        "b1": "They arrive as system notifications when the zerosoft window is in the background or tucked into the menu bar.",
+        "b2t": "The count on the dock",
+        "b2": "The icon shows how many mentions, messages and alerts you haven’t read."
+      },
+      "track": {
+        "title": "Track without the tab open.",
+        "lede": "Assignments, mentions and changes to your issues go to the bell. The desktop app shows them as system notifications.",
+        "b1t": "Every alert as it arrives",
+        "b1": "With the window in the background, each new bell alert pops up as a notification, and the icon keeps count.",
+        "b2t": "Dictate issues and comments",
+        "b2": "Hold Option + Space to dictate an issue description or a comment, and the text is pasted where your cursor is."
+      },
+      "notes": {
+        "title": "Notes, dictated.",
+        "lede": "With the desktop app you dictate notes with a shortcut, in zerosoft or any other app.",
+        "b1t": "Talk and let go",
+        "b1": "Hold Option + Space (Ctrl + Alt + Space on Windows): the cleaned-up text lands where your cursor is.",
+        "b2t": "Kept even offline",
+        "b2": "If a dictation can’t reach the server, it’s saved on your computer and sent when you’re back online."
+      }
+    }
   },
   "mockups": {
     "link": {
@@ -3959,7 +3994,55 @@
     "offOtherT": "Not yet",
     "offOther": "Board, Chat, Calendar, Voice, Talk and the other apps need a connection for now.",
     "offPrivacyT": "Your device",
-    "offPrivacy": "What is stored belongs to your session: signing out deletes all of it, including changes that were not sent, and someone else on the same computer sees nothing of yours."
+    "offPrivacy": "What is stored belongs to your session: signing out deletes all of it, including changes that were not sent, and someone else on the same computer sees nothing of yours.",
+    "reqLinux": "No Linux build yet. Meanwhile, zerosoft.ai/app works in any browser.",
+    "start": {
+      "metaTitle": "Downloading zerosoft",
+      "kicker": "Version {version}",
+      "title": "Downloading zerosoft for {system}.",
+      "sub": "<file></file> should start downloading on its own. If it doesn’t, <again>download it again</again>.",
+      "system": {
+        "mac-arm": "Mac (Apple silicon)",
+        "mac-intel": "Mac (Intel)",
+        "win": "Windows"
+      },
+      "stepsTitle": "How to install it",
+      "steps": {
+        "macOpen": {
+          "t": "Open the .dmg",
+          "d": "It’s in Downloads ({file}). Drag zerosoft to Applications."
+        },
+        "macGatekeeper": {
+          "t": "Allow it the first time",
+          "d": "It isn’t notarized yet, so macOS blocks it. On macOS 15 or later: System Settings › Privacy & Security › Open Anyway. On macOS 14 or earlier: right-click the app and choose Open."
+        },
+        "signIn": {
+          "t": "Sign in",
+          "d": "With your email in the same window, or with Google: your browser opens and the app picks it up on its own."
+        },
+        "macDictate": {
+          "t": "Try dictation",
+          "d": "Hold Option + Space in any app, talk, and let go. The first time, macOS asks for the microphone and, to paste the text, Accessibility."
+        },
+        "winOpen": {
+          "t": "Run the installer",
+          "d": "It’s in Downloads ({file}). Follow the steps and zerosoft shows up in the Start menu."
+        },
+        "winSmartScreen": {
+          "t": "If SmartScreen shows up",
+          "d": "The build isn’t signed yet, so Windows may say it protected your PC. Click More info, then Run anyway."
+        },
+        "winDictate": {
+          "t": "Try dictation",
+          "d": "Hold Ctrl + Alt + Space in any app, talk, and let go: the text is pasted where your cursor is."
+        }
+      },
+      "otherIntel": "Mac with an Intel chip? Get that version.",
+      "otherArm": "Mac with Apple silicon? Get that version.",
+      "allDownloads": "All downloads",
+      "missingTitle": "We couldn’t find that installer.",
+      "missingBody": "The latest version may still be publishing. The download page lists everything available."
+    }
   },
   "compare": {
     "crumb": "Compare",
