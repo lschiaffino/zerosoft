@@ -685,7 +685,7 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   .tp-plans-table .tp-row .tp-row-link { min-height: 40px; }
   /* Chevron de sub-issues: el botón mide 40px y el ícono queda igual. */
   /* button.x (0,1,1): le gana a las reglas base de track-ux.css, que tienen la misma especificidad (0,1,0) y se cargan después. */
-  button.track-tree-toggle { width: 40px; height: 40px; margin-right: 0; vertical-align: middle; }
+  button.track-tree-toggle { width: 40px; min-width: 40px; flex: none; height: 40px; margin-right: 0; vertical-align: middle; }
   /* Interruptores de Display (Track): el botón es de 44×40 y el interruptor de 28×16 se dibuja adentro. */
   button.track-display-switch { width: 44px; height: 40px; background: transparent; flex: none; }
   button.track-display-switch::before { content: ''; position: absolute; left: 8px; top: 12px; width: 28px; height: 16px; background: var(--line); border-radius: var(--radius-1); }

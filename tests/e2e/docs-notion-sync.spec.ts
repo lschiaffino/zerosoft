@@ -90,10 +90,11 @@ test('Notion: conectar con token, importar y editar de ida y vuelta', async ({ p
   await page.getByTestId('notion-sync-pause').click();
   await expect(page.getByTestId('notion-sync-state')).toHaveAttribute('data-status', 'paused');
   await page.getByTestId('notion-sync-disconnect').click();
+  await expect(page.getByRole('alertdialog')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await page.getByTestId('notion-sync-disconnect').click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Disconnect' }).click();
   await expect(page.getByTestId('notion-sync-disconnected')).toBeVisible();
   // Lo importado queda en Docs.
   expect((await request.get(`/api/docs/pages/${hit!.id}`)).ok()).toBeTruthy();
