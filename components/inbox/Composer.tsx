@@ -228,6 +228,12 @@ const Composer = forwardRef<
             return;
           }
           const mod = e.metaKey || e.ctrlKey;
+          // ⌘⇧Enter (Ctrl+Shift+Enter): enviar más tarde.
+          if (e.key === 'Enter' && mod && e.shiftKey && !e.nativeEvent.isComposing) {
+            e.preventDefault();
+            if (!disabled && busy === '' && text.trim()) onSendLater(text.trim());
+            return;
+          }
           if (e.key === 'Enter' && !e.nativeEvent.isComposing && ((mod && !e.shiftKey) || (!email && !mod && !e.shiftKey && !e.altKey))) {
             e.preventDefault();
             void send();

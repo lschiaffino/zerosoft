@@ -29,6 +29,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-lines-send-later',
+    date: '2026-11-10',
+    title: {
+      en: 'Send later in Lines',
+      es: 'Enviar más tarde en Lines',
+      pt: 'Enviar mais tarde no Lines',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The clock next to Send (also right-click on Send, or ⌘⇧Enter) opens the same picker as Inbox: six presets with shortcuts 1 to 6, or your own date and time. A notice confirms the time and lets you undo. Repeat is one click away in the same picker.',
+        es: 'El reloj al lado de Enviar (también con clic derecho en Enviar, o ⌘⇧Enter) abre el mismo selector que Inbox: seis opciones con atajos del 1 al 6, o tu propia fecha y hora. Un aviso confirma la hora y te deja deshacer. Repetir queda a un clic en el mismo selector.',
+        pt: 'O relógio ao lado de Enviar (também com clique direito em Enviar, ou ⌘⇧Enter) abre o mesmo seletor do Inbox: seis opções com atalhos de 1 a 6, ou a sua própria data e hora. Um aviso confirma o horário e deixa desfazer. Repetir fica a um clique no mesmo seletor.',
+      },
+      {
+        product: 'groups',
+        en: 'A scheduled message stays in view above the message box of its chat, where you can send it now, change the time, edit the text or cancel it. It can carry a file and reply to a specific message.',
+        es: 'Un mensaje programado queda a la vista arriba del cuadro de su chat, donde podés enviarlo ahora, cambiarle la hora, editar el texto o cancelarlo. Puede llevar un archivo y responder a un mensaje puntual.',
+        pt: 'Uma mensagem agendada fica à vista acima da caixa da sua conversa, onde dá para enviar agora, mudar o horário, editar o texto ou cancelar. Ela pode levar um arquivo e responder a uma mensagem específica.',
+      },
+      {
+        product: 'groups',
+        en: 'The clock at the top of the chat list shows every scheduled message across chats, yours or the whole team\'s, with the same actions.',
+        es: 'El reloj arriba de la lista de chats muestra todos los mensajes programados de todos los chats, los tuyos o los de todo el equipo, con las mismas acciones.',
+        pt: 'O relógio no topo da lista de conversas mostra todas as mensagens agendadas de todas as conversas, as suas ou as de toda a equipe, com as mesmas ações.',
+      },
+      {
+        product: 'inbox',
+        en: '⌘⇧Enter in the message box opens Send later.',
+        es: '⌘⇧Enter en el cuadro del mensaje abre Enviar más tarde.',
+        pt: '⌘⇧Enter na caixa da mensagem abre Enviar mais tarde.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-lines-folders-sidebar',
     date: '2026-11-10',
     title: {

@@ -68,16 +68,4 @@ export function shortWhen(iso: string | null, locale: string, now = new Date()):
   return d.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: '2-digit' });
 }
 
-/** "lun 19 oct, 21:40" para fechas futuras (posponer, programar). */
-export function longWhen(iso: string | null, locale: string): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString(locale, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
-
-/** Valor para <input type="datetime-local"> en la zona del navegador. */
-export function localInputValue(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+export { localInputValue, longWhen } from '@/lib/when-presets';

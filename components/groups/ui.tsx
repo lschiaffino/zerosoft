@@ -179,11 +179,17 @@ export function Modal({
 }
 
 /** Aviso corto abajo a la derecha (se va solo). */
-export function useToast(): [ReactNode, (msg: string, bad?: boolean) => void] {
-  const [toast, setToast] = useState<{ msg: string; bad: boolean } | null>(null);
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
+/** Aviso corto abajo. Con `action` (por ejemplo "Deshacer") dura más y trae su botón. */
+export function useToast(): [ReactNode, (msg: string, bad?: boolean, action?: ToastAction) => void] {
+  const [toast, setToast] = useState<{ msg: string; bad: boolean; action?: ToastAction } | null>(null);
   useEffect(() => {
     if (!toast) return;
-    const id = setTimeout(() => setToast(null), 3500);
+    const id = setTimeout(() => setToast(null), toast.action ? 8000 : 3500);
     return () => clearTimeout(id);
   }, [toast]);
   const node = (
@@ -191,11 +197,24 @@ export function useToast(): [ReactNode, (msg: string, bad?: boolean) => void] {
       {toast && (
         <div className="ui-toast" data-tone={toast.bad ? 'error' : undefined}>
           {toast.msg}
+          {toast.action && (
+            <button
+              type="button"
+              className="ui-toast-action"
+              onClick={() => {
+                const act = toast.action;
+                setToast(null);
+                act?.onClick();
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
         </div>
       )}
     </div>
   );
-  const show = useCallback((msg: string, bad = false) => setToast({ msg, bad }), []);
+  const show = useCallback((msg: string, bad = false, action?: ToastAction) => setToast({ msg, bad, action }), []);
   return [node, show];
 }
 

@@ -9558,6 +9558,13 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Lines: un mensaje programado puede citar un mensaje del chat.
+    id: '361_lines_send_later',
+    up: async (c) => {
+      await addColumn(c, 'ALTER TABLE groups_broadcasts ADD COLUMN reply_to_id TEXT');
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
