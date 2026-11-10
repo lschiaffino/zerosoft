@@ -9558,6 +9558,67 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Lines: HubSpot. La conexión del workspace (token de private app cifrado),
+    // el vínculo de cada chat con una empresa, un negocio y un contacto, las
+    // coincidencias por teléfono y la nota diaria que se deja en HubSpot.
+    id: '360_lines_hubspot',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS groups_hubspot (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          token TEXT NOT NULL DEFAULT '',
+          portal_id TEXT NOT NULL DEFAULT '',
+          ui_domain TEXT NOT NULL DEFAULT 'app.hubspot.com',
+          scopes TEXT NOT NULL DEFAULT '[]',
+          auto_link INTEGER NOT NULL DEFAULT 0,
+          log_notes INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT NOT NULL DEFAULT '',
+          last_used_at TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS groups_hubspot_links (
+          chat_id TEXT NOT NULL REFERENCES groups_chats(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          object_type TEXT NOT NULL CHECK (object_type IN ('company', 'deal', 'contact')),
+          object_id TEXT NOT NULL,
+          name TEXT NOT NULL DEFAULT '',
+          props TEXT NOT NULL DEFAULT '{}',
+          fetched_at TEXT,
+          missing INTEGER NOT NULL DEFAULT 0,
+          linked_by TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (chat_id, object_type)
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_hubspot_links_ws ON groups_hubspot_links(user_id, object_type, object_id);
+        CREATE TABLE IF NOT EXISTS groups_hubspot_matches (
+          chat_id TEXT PRIMARY KEY REFERENCES groups_chats(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          phone TEXT NOT NULL DEFAULT '',
+          matches TEXT NOT NULL DEFAULT '[]',
+          dismissed INTEGER NOT NULL DEFAULT 0,
+          checked_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_hubspot_matches_ws ON groups_hubspot_matches(user_id);
+        CREATE TABLE IF NOT EXISTS groups_hubspot_notes (
+          chat_id TEXT NOT NULL REFERENCES groups_chats(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          day TEXT NOT NULL,
+          note_id TEXT NOT NULL DEFAULT '',
+          targets TEXT NOT NULL DEFAULT '[]',
+          message_count INTEGER NOT NULL DEFAULT 0,
+          last_message_at TEXT NOT NULL DEFAULT '',
+          synced_at TEXT,
+          locked_until TEXT,
+          last_error TEXT NOT NULL DEFAULT '',
+          PRIMARY KEY (chat_id, day)
+        );
+        CREATE INDEX IF NOT EXISTS idx_groups_hubspot_notes_ws ON groups_hubspot_notes(user_id, day);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

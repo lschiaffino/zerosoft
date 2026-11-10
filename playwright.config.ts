@@ -70,7 +70,7 @@ export default defineConfig({
       // (lib/groups-flag.ts), traducción y borradores (lib/groups-ai.ts); con la
       // cookie groups_ai_fake=off se ve el error ai_disabled.
       GROUPS_AI_FAKE: '1',
-      // Integraciones de Groups (Slack, Freshdesk, Zoho Desk) contra el servidor falso y push web en memoria.
+      // Integraciones de Groups (Slack, Freshdesk, Zoho Desk, HubSpot) contra el servidor falso y push web en memoria.
       GROUPS_INTEGRATIONS_FAKE: '1',
       GROUPS_PUSH_FAKE: '1',
       // Los e2e del cron (/api/cron/minute) mandan este Bearer: sin él, next start se niega a correrlo.

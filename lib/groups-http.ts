@@ -10,6 +10,7 @@ import { limitWrites } from './write-limit';
 import { GroupsError } from './groups';
 import { ProviderError } from './groups-provider';
 import { canSeeChat, groupsViewer, type GroupsViewer } from './groups-access';
+import { HubspotError } from './groups-hubspot';
 
 export function groupsError(status: number, error: string): NextResponse {
   return NextResponse.json({ error }, { status });
@@ -54,6 +55,7 @@ export async function groupsSession(opts: { write?: boolean; admin?: boolean } =
 export function handleGroupsError(err: unknown): NextResponse {
   if (err instanceof GroupsError) return groupsError(err.status, err.code);
   if (err instanceof ProviderError) return groupsError(502, err.code);
+  if (err instanceof HubspotError) return groupsError(err.status, err.code);
   if (err instanceof AiError) return groupsError(err.code === 'ai_disabled' ? 503 : 429, err.code);
   // eslint-disable-next-line no-console
   console.error('[groups] request failed', (err as Error)?.name ?? 'error');

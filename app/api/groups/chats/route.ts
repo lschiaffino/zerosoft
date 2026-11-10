@@ -27,7 +27,8 @@ function parseProps(raw: string | null): PropertyFilter[] {
 
 /**
  * Bandeja: chats y grupos con filtros (sin leer, sin responder, míos,
- * etiqueta, asignado, equipo, propiedades) y búsqueda en mensajes. Los fijados
+ * etiqueta, asignado, equipo, propiedades, vinculados a HubSpot con
+ * ?hubspot=linked|unlinked) y búsqueda en mensajes. Los fijados
  * van primero. ?list=<id> aplica
  * una lista guardada (los demás parámetros se suman encima).
  */
@@ -46,6 +47,7 @@ export async function GET(req: Request) {
   const kind = p.get('kind') === 'group' || p.get('kind') === 'dm' ? (p.get('kind') as 'group' | 'dm') : undefined;
   const props = parseProps(p.get('props'));
   const labels = (p.get('labels') ?? '').split(',').filter(Boolean);
+  const hubspot = p.get('hubspot') === 'linked' || p.get('hubspot') === 'unlinked' ? (p.get('hubspot') as 'linked' | 'unlinked') : undefined;
   const res = await listChats(s.ws, s.me, {
     ...base,
     filter: filter && filter !== 'all' ? filter : (base.filter ?? 'all'),
@@ -59,6 +61,7 @@ export async function GET(req: Request) {
     folderId: p.get('folder') || base.folderId,
     ownerId: p.get('owner') || base.ownerId,
     kind: kind ?? base.kind,
+    hubspot: hubspot ?? base.hubspot,
     limit: Number(p.get('limit')) || 50,
     offset: Number(p.get('offset')) || 0,
     viewer: await sessionViewer(s),
@@ -75,5 +78,8 @@ export async function GET(req: Request) {
   const dropped = await droppedNumbers(s.ws, viewer).catch(() => []);
   // Mientras alguien mira la bandeja, la importación avanza sin esperar al cron (cada tanda reclama su fila).
   for (const im of imports) if (im.status === 'queued' || im.status === 'running') await kickImport(im.numberId);
-  return NextResponse.json({ ...res, imports, unreadChats, archived, dropped });
+  // Con HubSpot conectado, la bandeja ofrece el filtro "Vinculados a HubSpot".
+  const { hubspotConnected } = await import('@/lib/groups-hubspot');
+  const hubspotOn = await hubspotConnected(s.ws).catch(() => false);
+  return NextResponse.json({ ...res, imports, unreadChats, archived, dropped, hubspot: hubspotOn });
 }

@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-09',
+  lastReviewed: '2026-11-10',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -294,6 +294,14 @@ const parity: ProductParity = {
     row('crm-native', 'integrations', ['CRM link with timeline', 'Vínculo con el CRM y timeline', 'Vínculo com o CRM e timeline'], 'better', {
       weight: 2,
       detail: ['Native: the CRM record shows the WhatsApp messages and open tickets', 'Nativo: la ficha del CRM muestra los mensajes de WhatsApp y los tickets abiertos', 'Nativo: a ficha do CRM mostra as mensagens de WhatsApp e os tickets abertos'],
+    }),
+    row('hubspot', 'integrations', ['HubSpot: chats linked to companies and deals', 'HubSpot: chats vinculados a empresas y negocios', 'HubSpot: conversas vinculadas a empresas e negócios'], 'partial', {
+      weight: 2,
+      detail: [
+        'Connect with a private app token; link each chat or group to a HubSpot company, deal and contact, with a suggestion by phone number, a daily note on the linked records and an inbox filter. Periskope also creates HubSpot tickets from a chat and sends WhatsApp from a HubSpot workflow. Tested against a simulated HubSpot; not yet tried with a real account',
+        'Se conecta con el token de una private app; cada chat o grupo se vincula a una empresa, un negocio y un contacto de HubSpot, con sugerencia por teléfono, una nota diaria en los registros vinculados y un filtro en la bandeja. Periskope además crea tickets de HubSpot desde un chat y manda WhatsApp desde un workflow de HubSpot. Probado contra un HubSpot simulado; falta probarlo con una cuenta real',
+        'Conecta com o token de um private app; cada conversa ou grupo se vincula a uma empresa, um negócio e um contato do HubSpot, com sugestão por telefone, uma nota diária nos registros vinculados e um filtro na caixa. O Periskope também cria tickets do HubSpot a partir de uma conversa e envia WhatsApp a partir de um workflow do HubSpot. Testado contra um HubSpot simulado; falta testar com uma conta real',
+      ],
     }),
     row('webhooks', 'integrations', ['Outgoing webhooks', 'Webhooks salientes', 'Webhooks de saída'], 'have', {
       detail: [

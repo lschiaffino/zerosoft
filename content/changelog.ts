@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-lines-hubspot',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines: link each chat or group to HubSpot',
+      es: 'Lines: cada chat o grupo se vincula a HubSpot',
+      pt: 'Lines: cada conversa ou grupo se vincula ao HubSpot',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Connect HubSpot in Lines settings with a private app token. In the chat details, search HubSpot and link the chat or group to a company, a deal and a contact: you see the owner, the stage, the amount and the close date, with a link to the record. The inbox can filter chats linked or not linked to HubSpot.',
+        es: 'Conectá HubSpot en los ajustes de Lines con el token de una private app. En los detalles del chat, buscá en HubSpot y vinculá el chat o grupo a una empresa, un negocio y un contacto: ves el dueño, la etapa, el monto y la fecha de cierre, con un link al registro. La bandeja puede filtrar los chats vinculados o sin vincular a HubSpot.',
+        pt: 'Conecte o HubSpot nos ajustes do Lines com o token de um private app. Nos detalhes da conversa, busque no HubSpot e vincule a conversa ou o grupo a uma empresa, um negócio e um contato: você vê o proprietário, a etapa, o valor e a data de fechamento, com um link para o registro. A caixa pode filtrar as conversas vinculadas ou sem vínculo com o HubSpot.',
+      },
+      {
+        product: 'groups',
+        en: 'For a 1:1 chat, Lines suggests the HubSpot contact with that phone number and its company, and links them when you confirm. Two workspace settings, both off by default: link automatically when exactly one contact matches, and log each linked conversation to HubSpot as one note per day. Tested against a simulated HubSpot; not yet tried with a real account.',
+        es: 'Para un chat 1 a 1, Lines propone el contacto de HubSpot con ese teléfono y su empresa, y los vincula cuando confirmás. Dos ajustes del workspace, apagados por defecto: vincular solo cuando hay una única coincidencia, y registrar cada conversación vinculada en HubSpot como una nota por día. Probado contra un HubSpot simulado; falta probarlo con una cuenta real.',
+        pt: 'Para uma conversa 1 a 1, o Lines sugere o contato do HubSpot com esse telefone e a empresa dele, e os vincula quando você confirma. Dois ajustes do workspace, desligados por padrão: vincular sozinho quando há uma única correspondência, e registrar cada conversa vinculada no HubSpot como uma nota por dia. Testado contra um HubSpot simulado; falta testar com uma conta real.',
+      },
+    ],
+  },
+  {
     id: '2026-11-09-desktop-download',
     date: '2026-11-09',
     title: {
