@@ -1,0 +1,113 @@
+/* Lines + HubSpot: la pantalla de propiedades de la empresa (.gr-hsx), el
+   filtro de la bandeja por propiedad (.gr-hsf), los grupos sin empresa
+   (.gr-hsu) y los agregados de la sección compacta y de los ajustes.
+   Controles y tokens: los de styles/ui.css y styles/groups.css. */
+
+/* ---------- Sección compacta de los detalles ---------- */
+.gr-hs-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.gr-hs-title .btn { flex: none; }
+.gr-hs-broken { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; overflow-wrap: anywhere; }
+
+/* ---------- Ajustes ---------- */
+.gr-hs-refresh { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.gr-hs-refresh .ui-help { margin: 0; }
+.gr-hs-pins { list-style: none; margin: 0 0 8px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.gr-hs-pins:empty { display: none; }
+.gr-hs-pins li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 2px 4px 2px 12px; font-size: 0.875rem; overflow-wrap: anywhere; }
+.gr-hs-pins li + li { border-top: 1px solid var(--line); }
+.gr-hs-pins .btn { flex: none; }
+.gr-hs-webhook-url { margin: 0; padding: 8px 10px; font-size: 0.8125rem; background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--radius-1); overflow-wrap: anywhere; user-select: all; }
+
+/* ---------- Pantalla de HubSpot de un chat ---------- */
+dialog.ui-drawer.gr-hsx { width: min(760px, 100vw); }
+.gr-hsx-head { align-items: flex-start; }
+.gr-hsx-heading { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gr-hsx-company { margin: 0; font-size: 0.9375rem; color: var(--brand-gray-2); overflow-wrap: anywhere; }
+.gr-hsx-head .btn { flex: none; }
+.gr-hsx-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; padding: 10px 20px 0; border-bottom: 1px solid var(--line); }
+.gr-hsx-synced { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gr-hsx-synced p { margin: 0; overflow-wrap: anywhere; }
+.gr-hsx-done { font-size: 0.8125rem; font-weight: 600; color: var(--ink); }
+.gr-hsx-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.gr-hsx-tabs { grid-column: 1 / -1; border-bottom: 0; }
+.gr-hsx-tools { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; padding-bottom: 10px; }
+.gr-hsx-tools .input { flex: 1 1 220px; min-width: 0; }
+.gr-hsx-option { min-height: 40px; align-items: center; }
+.gr-hsx-option .ui-check { flex: none; }
+.gr-hsx-body { display: flex; flex-direction: column; gap: 20px; overscroll-behavior: contain; }
+.gr-hsx-notice { margin: 0; overflow-wrap: anywhere; }
+.gr-hsx-section { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.gr-hsx-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.gr-hsx-row { display: grid; grid-template-columns: minmax(0, 13rem) minmax(0, 1fr); align-items: start; gap: 4px 16px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.gr-hsx-row.has-pin { grid-template-columns: minmax(0, 13rem) minmax(0, 1fr) 40px; }
+.gr-hsx-label { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 40px; font-size: 0.8125rem; color: var(--brand-gray-2); overflow-wrap: anywhere; }
+.gr-hsx-tag { flex: none; padding: 1px 6px; font-size: 0.6875rem; line-height: 1.5; color: var(--brand-gray-2); border: 1px solid var(--line); border-radius: var(--radius-1); white-space: nowrap; }
+.gr-hsx-value { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.gr-hsx-value .ui-error { margin: 0; overflow-wrap: anywhere; }
+.gr-hsx-text { min-width: 0; font-size: 0.9375rem; color: var(--ink); overflow-wrap: anywhere; white-space: pre-wrap; text-align: start; }
+.gr-hsx-none { color: var(--brand-gray-2); }
+.gr-hsx-static { display: flex; align-items: center; min-height: 40px; padding: 4px 8px; }
+.gr-hsx-edit { display: flex; align-items: center; width: 100%; min-height: 40px; padding: 4px 8px; font: inherit; background: transparent; border: 1px solid transparent; border-radius: var(--radius-1); cursor: pointer; }
+.gr-hsx-edit:hover { background: var(--ui-hover); border-color: var(--line); }
+.gr-hsx-edit:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.gr-hsx-edit[aria-busy='true'] { opacity: 0.6; }
+.gr-hsx-pin { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; color: var(--brand-gray-2); background: transparent; border: 0; border-radius: var(--radius-1); cursor: pointer; opacity: 0.45; }
+.gr-hsx-pin:hover, .gr-hsx-pin:focus-visible, .gr-hsx-pin[aria-pressed='true'] { opacity: 1; }
+.gr-hsx-pin[aria-pressed='true'] { color: var(--ink); }
+.gr-hsx-pin:hover { background: var(--ui-hover); }
+.gr-hsx-pin:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.gr-hsx-pin:disabled { cursor: default; }
+.gr-hsx-editor { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.gr-hsx-editor .input, .gr-hsx-editor .select, .gr-hsx-editor .textarea { width: 100%; min-width: 0; }
+.gr-hsx-editor-actions { display: flex; gap: 6px; }
+.gr-hsx-options { display: flex; flex-direction: column; margin: 0; padding: 0; border: 0; min-width: 0; }
+.gr-hsx-log { list-style: none; margin: 0; padding: 0; }
+.gr-hsx-log li { display: flex; flex-direction: column; gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.gr-hsx-log-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.875rem; overflow-wrap: anywhere; }
+.gr-hsx-log-change { font-size: 0.875rem; overflow-wrap: anywhere; }
+/* En el teléfono (y en el táctil) el alfiler no puede depender del hover. */
+@media (hover: none), (max-width: 640px) {
+  .gr-hsx-pin { opacity: 1; }
+}
+@media (max-width: 640px) {
+  .gr-hsx-bar { grid-template-columns: minmax(0, 1fr); padding: 10px 16px 0; }
+  .gr-hsx-actions { justify-content: flex-start; }
+  .gr-hsx-row, .gr-hsx-row.has-pin { grid-template-columns: minmax(0, 1fr) 40px; gap: 0 8px; }
+  .gr-hsx-row:not(.has-pin) { grid-template-columns: minmax(0, 1fr); }
+  .gr-hsx-label { grid-column: 1; min-height: 28px; padding: 4px 8px 0; }
+  .gr-hsx-value { grid-column: 1; grid-row: 2; }
+  .gr-hsx-row.has-pin .gr-hsx-pin { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+}
+
+/* ---------- Filtro de la bandeja por propiedad de HubSpot ---------- */
+.gr-hsf { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.gr-hsf-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-1); min-width: 0; }
+.gr-hsf-row > .select, .gr-hsf-row > .input { flex: 1 1 140px; min-width: 0; }
+.gr-hsf > .select { width: 100%; min-width: 0; }
+.gr-hsf-values { flex: 1 1 100%; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.gr-hsf-values .select { width: 100%; min-width: 0; }
+.gr-hsf-chosen { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.gr-hsf-chosen .btn { max-width: 100%; white-space: normal; text-align: start; overflow-wrap: anywhere; }
+.gr-hsf-row > .btn { flex: none; margin-inline-start: auto; }
+
+/* ---------- Grupos sin empresa ---------- */
+.gr-hsu { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.gr-hsu-tools { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
+.gr-hsu-tools .input { flex: 1 1 240px; max-width: 420px; min-width: 0; }
+.gr-hsu-tools .ui-help { margin: 0; }
+.gr-hsu-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.gr-hsu-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 12px 24px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.gr-hsu-group { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.gr-hsu-names { display: flex; flex-direction: column; min-width: 0; }
+.gr-hsu-name { display: inline-flex; align-items: center; min-height: 40px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.gr-hsu-names .ui-help { overflow-wrap: anywhere; }
+.gr-hsu-link { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.gr-hsu-link .ui-help, .gr-hsu-link .ui-error { margin: 0; }
+.gr-hsu-link .input { width: 100%; min-width: 0; }
+.gr-hsu-suggestion { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg-soft); min-width: 0; }
+.gr-hsu-suggested { display: flex; flex-direction: column; min-width: 0; font-size: 0.875rem; overflow-wrap: anywhere; }
+.gr-hsu-actions { display: flex; gap: 6px; flex: none; }
+.gr-hsu-empty { padding: 24px 0; }
+@media (max-width: 720px) {
+  .gr-hsu-row { grid-template-columns: minmax(0, 1fr); }
+}

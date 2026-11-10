@@ -704,6 +704,8 @@ export interface ChatQuery {
   cursor?: string | null;
   /** false: no cuenta el total (la bandeja no lo usa; contar recorre todos los chats). */
   count?: boolean;
+  /** Condiciones sobre propiedades de la empresa de HubSpot vinculada (lib/groups-hubspot-filter.ts). */
+  hsProps?: import('./groups-hubspot-shared').HubspotPropFilter[];
 }
 
 /** Cursor de la bandeja: (orden, id) del último chat de la página. */
@@ -837,6 +839,14 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   }
   if (query.hubspot === 'linked') where.push(HUBSPOT_LINKED_SQL);
   else if (query.hubspot === 'unlinked') where.push(`NOT ${HUBSPOT_LINKED_SQL}`);
+  if (query.hsProps?.length) {
+    const { hubspotFilterSql } = await import('./groups-hubspot-filter');
+    const hs = await hubspotFilterSql(ws, query.hsProps);
+    if (hs) {
+      where.push(hs.sql);
+      args.push(...hs.args);
+    }
+  }
   if (query.assignee === 'none') where.push('c.assigned_to IS NULL');
   else if (query.assignee) {
     where.push('c.assigned_to = ?');

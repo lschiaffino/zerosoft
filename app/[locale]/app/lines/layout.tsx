@@ -12,6 +12,7 @@ import '@/styles/groups-wa.css';
 import '@/styles/lines-folders.css';
 import '@/styles/chat-gestures.css';
 import '@/styles/groups-later.css';
+import '@/styles/groups-hubspot.css';
 
 /** Instalable en iOS desde "Agregar a inicio" (el manifest de la suite sale de app/manifest.ts). */
 export const metadata: Metadata = {

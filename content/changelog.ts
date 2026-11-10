@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-lines-hubspot-properties',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines: HubSpot company properties, synced both ways',
+      es: 'Lines: las propiedades de HubSpot, sincronizadas ida y vuelta',
+      pt: 'Lines: as propriedades do HubSpot, sincronizadas ida e volta',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'A chat or group linked to a HubSpot company now has a HubSpot screen, one click from its details: all the company properties (custom ones too) grouped as in HubSpot, search by name, the ones your workspace pins at the top, and empty ones behind "Show empty". Edit a property there and it is saved in HubSpot right away; if HubSpot rejects the value, the old one comes back with the reason. Read-only and calculated properties are shown and cannot be edited.',
+        es: 'Un chat o grupo vinculado a una empresa de HubSpot ahora tiene una pantalla de HubSpot, a un clic de sus detalles: todas las propiedades de la empresa (también las propias) agrupadas como en HubSpot, búsqueda por nombre, arriba las que fija tu workspace y las vacías detrás de "Mostrar vacías". Editás una propiedad ahí y se guarda en HubSpot en el momento; si HubSpot rechaza el valor, vuelve el anterior con el motivo. Las de solo lectura y las calculadas se ven y no se editan.',
+        pt: 'Uma conversa ou grupo vinculado a uma empresa do HubSpot agora tem uma tela do HubSpot, a um clique dos detalhes: todas as propriedades da empresa (também as personalizadas) agrupadas como no HubSpot, busca por nome, no topo as que o seu workspace fixa e as vazias atrás de "Mostrar vazias". Você edita uma propriedade ali e ela é salva no HubSpot na hora; se o HubSpot recusar o valor, o anterior volta com o motivo. As somente leitura e as calculadas aparecem e não são editadas.',
+      },
+      {
+        product: 'groups',
+        en: 'Changes made in HubSpot reach Lines within about a minute, when you open the screen, or with "Sync now"; an optional signed webhook brings them right away. When both sides change the same property, the last write wins, and every change applied is listed in a sync log with its direction, the old and new value, and who made it. A company deleted or merged in HubSpot is flagged on the chat.',
+        es: 'Los cambios hechos en HubSpot llegan a Lines en más o menos un minuto, al abrir la pantalla o con "Sincronizar ahora"; un webhook firmado opcional los trae en el momento. Cuando los dos lados cambian la misma propiedad, gana la última escritura, y cada cambio aplicado queda en un registro con su dirección, el valor anterior y el nuevo, y quién lo hizo. Una empresa borrada o fusionada en HubSpot queda marcada en el chat.',
+        pt: 'As mudanças feitas no HubSpot chegam ao Lines em cerca de um minuto, ao abrir a tela ou com "Sincronizar agora"; um webhook assinado opcional as traz na hora. Quando os dois lados mudam a mesma propriedade, vale a última escrita, e cada mudança aplicada fica em um registro com a direção, o valor anterior e o novo, e quem fez. Uma empresa excluída ou mesclada no HubSpot fica marcada na conversa.',
+      },
+      {
+        product: 'groups',
+        en: 'The inbox filters by any HubSpot company property: is, is not, contains, greater or less than for numbers, before or after for dates, any of for selects, and empty. Those filters are saved in lists like the others. A new view lists the groups without a company, suggests one when the names look alike and links it when you confirm. The private app now needs the crm.schemas.companies.read scope, and crm.objects.companies.write to edit. Tested against a simulated HubSpot; not yet tried with a real account.',
+        es: 'La bandeja filtra por cualquier propiedad de la empresa de HubSpot: es, no es, contiene, mayor o menor para números, antes o después para fechas, alguna de para selecciones, y vacía. Esos filtros se guardan en las listas como los demás. Una vista nueva muestra los grupos sin empresa, propone una cuando los nombres se parecen y la vincula cuando confirmás. La private app ahora necesita el permiso crm.schemas.companies.read, y crm.objects.companies.write para editar. Probado contra un HubSpot simulado; falta probarlo con una cuenta real.',
+        pt: 'A caixa filtra por qualquer propriedade da empresa do HubSpot: é, não é, contém, maior ou menor para números, antes ou depois para datas, alguma de para seleções, e vazia. Esses filtros são salvos nas listas como os demais. Uma nova visão mostra os grupos sem empresa, sugere uma quando os nomes se parecem e a vincula quando você confirma. O private app agora precisa da permissão crm.schemas.companies.read, e de crm.objects.companies.write para editar. Testado contra um HubSpot simulado; falta testar com uma conta real.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-help-me-write',
     date: '2026-11-10',
     title: {
