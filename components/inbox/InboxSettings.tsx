@@ -509,7 +509,11 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
       <ChatStyleSection variant="inbox" />
       <FoldersSection folders={state.folders} onChange={() => void reload()} />
       <SnippetsSection snippets={state.snippets} onChange={() => void reload()} />
-      <ImportPanel whatsappConnected={state.accounts.some((a) => a.kind === 'whatsapp' && a.status === 'connected')} onDone={reloadQuiet} />
+      <ImportPanel
+        whatsappConnected={state.accounts.some((a) => a.kind === 'whatsapp' && a.status === 'connected')}
+        gmailConnected={state.accounts.some((a) => a.kind === 'gmail' && a.status === 'connected')}
+        onDone={reloadQuiet}
+      />
       <section className="ib-section" id="shortcuts" aria-labelledby="ib-keys-h">
         <h2 className="ib-h2" id="ib-keys-h">
           {th('title')}

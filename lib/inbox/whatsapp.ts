@@ -130,9 +130,17 @@ async function applyState(account: AccountRow, state: ConnectState): Promise<voi
   if (state.phone) patch.address = phoneDigits(state.phone);
   // Primera conexión: arranca la importación de lo que guardó el servidor, con un margen
   // para que WhatsApp termine de mandar el historial (cada tanda nueva la vuelve a correr).
-  if (status === 'connected' && !account.sync_cursor) patch.sync_cursor = backfillCursor(Date.now() + BACKFILL_DELAY_MS);
+  const first = status === 'connected' && !account.sync_cursor;
+  if (first) patch.sync_cursor = backfillCursor(Date.now() + BACKFILL_DELAY_MS);
   await setAccountState(account.id, patch);
   Object.assign(account, patch);
+  // Y, detrás de ese arranque rápido (los chats recientes), todo el historial que guardó el servidor: una
+  // importación en segundo plano que se retoma sola (lib/inbox/import-jobs.ts). Una vez por cuenta. El servidor
+  // falso de las pruebas no la arranca solo: sus chats de mentira no tienen que aparecer en cada cuenta de prueba.
+  if (first && account.provider !== 'fake') {
+    const { ensureAutoImport } = await import('./import-jobs');
+    await ensureAutoImport(account, 'whatsapp').catch(() => null);
+  }
 }
 
 /**

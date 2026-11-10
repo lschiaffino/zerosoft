@@ -150,7 +150,7 @@ function envelope(event: string, instance: string, token: string, data: unknown)
 }
 
 describe('Inbox WhatsApp: historial al vincular', () => {
-  it('la instancia de Inbox pide el historial completo (también si ya existía); la de Groups no', async () => {
+  it('la instancia de Inbox pide el historial completo (también si ya existía); sin la opción no se pide', async () => {
     const mock = evolutionMock();
     vi.stubGlobal('fetch', mock.handler);
     const u = await makeUser('ibsync-create');
