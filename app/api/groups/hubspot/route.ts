@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  * cuenta, los permisos del token y los ajustes. El token nunca vuelve. Quien
  * no es admin solo ve si está conectado.
  */
-export async function GET(req?: Request) {
+export async function GET(req: Request) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   const dto = await getHubspot(s.ws);

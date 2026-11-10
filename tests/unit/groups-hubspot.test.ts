@@ -125,11 +125,11 @@ describe('HubSpot: conexión', () => {
     expect(((await bad.json()) as { error: string }).error).toContain('hubspot_missing_scopes:');
     const ok = await connRoute.POST(new Request('http://x/api/groups/hubspot', { method: 'POST', body: JSON.stringify({ token: TOKEN, autoLink: true }) }));
     expect(ok.status).toBe(200);
-    const text = await (await connRoute.GET()).text();
+    const text = await (await connRoute.GET(new Request('http://localhost/api/groups/hubspot'))).text();
     expect(text).not.toContain(TOKEN);
     expect(JSON.parse(text)).toMatchObject({ connected: true, autoLink: true });
     session.user = { ...ws, role: 'member', actingUser: { id: member.id } };
-    expect(await (await connRoute.GET()).json()).toEqual({ connected: true });
+    expect(await (await connRoute.GET(new Request('http://localhost/api/groups/hubspot'))).json()).toEqual({ connected: true });
   });
 });
 
