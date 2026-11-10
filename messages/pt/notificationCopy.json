@@ -89,5 +89,7 @@
   "peopleHireUndone": "A contratação de {name} foi desfeita: o perfil continua no People",
   "peopleExitFinished": "A data de saída de {name} passou: o perfil foi encerrado",
   "sendLinksTransferred": "{count} links do Send de {who} passaram para você",
-  "sendLinksStopped": "{count} pararam porque os documentos são privados. Cada link diz o que fazer."
+  "sendLinksStopped": "{count} pararam porque os documentos são privados. Cada link diz o que fazer.",
+  "callsComment": "{who} comentou a chamada {title}",
+  "callsReady": "A chamada {title} está pronta: transcrição e análise"
 }

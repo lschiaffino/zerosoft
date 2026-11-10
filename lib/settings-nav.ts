@@ -181,7 +181,8 @@ export type WebhookGroupKey =
   | 'project'
   | 'page'
   | 'database'
-  | 'talk';
+  | 'talk'
+  | 'call';
 
 /** Los eventos agrupados por recurso (el prefijo antes del primer punto), en el orden de WEBHOOK_EVENTS. */
 export function webhookEventGroups(

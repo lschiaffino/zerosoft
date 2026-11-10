@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Calendly',
   alsoCompared: ['Cal.com'],
-  lastReviewed: '2026-11-06',
+  lastReviewed: '2026-11-08',
   areas: [
     { id: 'event-types', label: { en: 'Event types and availability', es: 'Tipos de evento y disponibilidad', pt: 'Tipos de evento e disponibilidade' } },
     { id: 'booking', label: { en: 'Booking page and payments', es: 'Página de reserva y cobros', pt: 'Página de reserva e cobranças' } },
@@ -479,7 +479,12 @@ const parity: ProductParity = {
       id: 'notetaker',
       area: 'mobile-ai',
       label: { en: 'Meeting notetaker and summaries', es: 'Notetaker y resumen de reuniones', pt: 'Notetaker e resumo de reuniões' },
-      status: 'missing',
+      detail: {
+        en: 'Through Calls: a bot joins Google Meet meetings from the connected calendar, records them and writes the summary and next steps. Meet only, tested against a simulated Meet page; no Zoom or Teams yet',
+        es: 'Con Calls: un bot entra a las reuniones de Google Meet del calendario conectado, las graba y escribe el resumen y los próximos pasos. Solo Meet, probado contra una página de Meet simulada; todavía sin Zoom ni Teams',
+        pt: 'Com o Calls: um bot entra nas reuniões do Google Meet da agenda conectada, grava e escreve o resumo e os próximos passos. Só Meet, testado contra uma página do Meet simulada; ainda sem Zoom nem Teams',
+      },
+      status: 'partial',
       competitorHas: true,
     },
     {

@@ -1,0 +1,189 @@
+/* Calls: biblioteca, llamada (reproductor, transcripción, panel), agenda y link compartido.
+   Tokens y controles de styles/ui.css; el color del producto es --c-calls. */
+.cl-page { --accent: var(--c-calls); min-width: 0; }
+.cl-narrow { max-width: 760px; }
+.cl-muted { color: var(--brand-gray-2); font-size: 0.875rem; margin: 0; }
+.cl-small { font-size: 0.8125rem; }
+.cl-block { display: block; }
+.cl-wrap { overflow-wrap: anywhere; }
+.cl-grow { flex: 1 1 auto; min-width: 0; }
+.cl-push { margin-left: auto; }
+.cl-note { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); background: var(--ui-hover); font-size: 0.875rem; }
+.cl-alert { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--bad-ink); color: var(--bad-ink); }
+.cl-alert p { margin: 4px 0 0; color: var(--ink); }
+.cl-h2 { font-size: 1rem; font-weight: 700; margin: 0; }
+.cl-h3 { font-size: 0.875rem; font-weight: 700; margin: 0 0 6px; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.cl-count { font-family: var(--font-data); font-weight: 400; color: var(--brand-gray-2); font-size: 0.75rem; }
+.cl-prose { margin: 0; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
+.cl-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; line-height: 1.45; overflow-wrap: anywhere; }
+.cl-list-timed { list-style: none; padding-left: 0; }
+.cl-stack { display: grid; gap: 20px; min-width: 0; }
+.cl-stack section { min-width: 0; }
+.cl-form { display: grid; gap: 10px; min-width: 0; }
+.cl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.cl-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; }
+.cl-clock { width: 72px; font-family: var(--font-data); }
+.cl-time { font: inherit; font-family: var(--font-data); font-size: 0.8125rem; color: var(--c-calls-ink, var(--c-calls)); background: none; border: 0; padding: 0 2px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.cl-time:hover { color: var(--ink); }
+.cl-time:focus-visible, .cl-utt-time:focus-visible, .cl-rowlink:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Estado */
+.cl-status { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; }
+.cl-rec-dot { display: inline-block; width: 8px; height: 8px; background: var(--c-calls); animation: cl-pulse 1.4s ease-in-out infinite; flex: none; }
+@keyframes cl-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .cl-rec-dot { animation: none; } }
+.cl-live { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 16px; padding: 12px; border: 1px solid var(--c-calls); background: color-mix(in srgb, var(--c-calls) 7%, var(--bg)); }
+.cl-live .cl-rec-dot { margin-top: 6px; }
+.cl-live p { margin: 2px 0 0; font-size: 0.875rem; }
+
+/* Biblioteca */
+.cl-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin: 0 0 12px; }
+.cl-filter-q { flex: 1 1 240px; min-width: 0; }
+.cl-filters .select { max-width: 220px; min-width: 0; }
+.cl-date { display: grid; gap: 2px; font-size: 0.75rem; color: var(--brand-gray-2); }
+.cl-date .input { width: 150px; }
+.cl-table th[scope='row'] { font-weight: 400; min-width: 0; }
+.cl-rowlink { display: flex; flex-direction: column; color: inherit; text-decoration: none; min-width: 0; }
+.cl-table tbody tr:has(.cl-rowlink) { position: relative; }
+.cl-table tbody tr:has(.cl-rowlink):hover { background: var(--ui-hover); }
+.cl-rowlink::after { content: ''; position: absolute; inset: 0; }
+.cl-rowlink:hover .cl-rowtitle { text-decoration: underline; }
+.cl-rowtitle { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.cl-rowmeta { display: block; color: var(--brand-gray-2); font-size: 0.8125rem; }
+.cl-rowsummary { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--brand-gray-2); font-size: 0.8125rem; margin-top: 2px; max-width: 70ch; }
+.cl-show-sm { display: none; }
+.cl-risks { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* Llamada */
+.cl-call-head .ui-page-title { overflow-wrap: anywhere; }
+/* Título editable: se lee como el h1 y muestra el borde solo al pasar o editar. */
+.cl-call-head textarea.ui-title-input { padding: 2px 4px; margin: -2px -4px 0; width: calc(100% + 8px); border: 1px solid transparent; background: transparent; }
+.cl-call-head textarea.ui-title-input:hover { border-color: var(--line); }
+.cl-call-head textarea.ui-title-input:focus { outline: none; border-color: var(--ink); }
+.cl-call-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.cl-call-meta .cl-status { margin: 0; }
+.cl-deal-link { color: inherit; font-weight: 600; }
+.cl-danger { color: var(--bad-ink); }
+.cl-call-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr); gap: 24px; align-items: start; }
+.cl-main { display: grid; gap: 14px; min-width: 0; }
+.cl-player { width: 100%; max-height: 62vh; background: #000; display: block; }
+.cl-player-audio { background: none; }
+.cl-tracks { display: grid; gap: 4px; }
+.cl-track { display: grid; grid-template-columns: minmax(80px, 140px) minmax(0, 1fr); gap: 8px; align-items: center; font-size: 0.8125rem; }
+.cl-track-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--brand-gray-2); }
+.cl-track-bar { position: relative; height: 12px; background: var(--ui-hover); }
+.cl-track-seg { position: absolute; top: 0; bottom: 0; padding: 0; border: 0; background: color-mix(in srgb, var(--ink) 45%, transparent); cursor: pointer; }
+.cl-track.is-internal .cl-track-seg { background: var(--c-calls); }
+.cl-track-now { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink); }
+.cl-track-pin { position: absolute; top: 1px; width: 8px; height: 10px; margin-left: -4px; padding: 0; border: 1px solid var(--ink); background: var(--bg); cursor: pointer; }
+.cl-track-pin:focus-visible, .cl-track-pin:hover { background: var(--ink); }
+.cl-transcript-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.cl-find { width: 240px; max-width: 100%; }
+.cl-transcript { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 70vh; overflow-y: auto; overscroll-behavior: contain; }
+.cl-utt { position: relative; display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 8px; padding: 8px 6px; }
+.cl-utt:hover { background: var(--ui-hover); }
+.cl-utt.is-active { background: color-mix(in srgb, var(--c-calls) 8%, var(--bg)); }
+.cl-utt-time { font: inherit; font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); background: none; border: 0; padding: 2px 0 0; text-align: left; cursor: pointer; align-self: start; }
+.cl-utt-time:hover { color: var(--ink); text-decoration: underline; }
+.cl-utt-body { min-width: 0; }
+.cl-utt-who { display: block; font-weight: 700; font-size: 0.8125rem; }
+.cl-utt.is-internal .cl-utt-who { color: var(--c-calls-ink, var(--c-calls)); }
+.cl-utt-body p { margin: 2px 0 0; line-height: 1.5; overflow-wrap: anywhere; }
+/* Comentar y Clip flotan arriba a la derecha al pasar: no le quitan ancho al texto. */
+.cl-utt-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 2px; opacity: 0; background: var(--bg); border: 1px solid var(--line); }
+.cl-utt:hover .cl-utt-actions, .cl-utt:focus-within .cl-utt-actions { opacity: 1; }
+@media (hover: none) { .cl-utt-actions { display: none; } }
+.cl-side { position: sticky; top: 12px; min-width: 0; border: 1px solid var(--line); background: var(--bg); }
+.cl-side .ui-tabs { padding: 0 4px; gap: 0; border-bottom: 1px solid var(--line); overflow-x: auto; display: flex; }
+/* Cinco pestañas con contadores entran en la columna sin cortar la última. */
+.cl-side .ui-tab { flex: 1 0 auto; justify-content: center; padding: 0 6px; gap: 4px; font-size: 0.8125rem; }
+.cl-side .ui-tab::after { left: 6px; right: 6px; }
+.cl-side-body { padding: 14px; max-height: calc(100dvh - 140px); overflow-y: auto; }
+
+.cl-menu { position: relative; }
+.cl-menu > summary { list-style: none; }
+.cl-menu > summary::-webkit-details-marker { display: none; }
+.cl-menu-list { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: grid; min-width: 260px; border: 1px solid var(--ink); background: var(--bg); padding: 4px; }
+.cl-menu-list a { padding: 8px 10px; color: inherit; text-decoration: none; font-size: 0.875rem; }
+.cl-menu-list a:hover, .cl-menu-list a:focus-visible { background: var(--ui-hover); }
+
+.cl-ratio-bar { height: 10px; background: color-mix(in srgb, var(--ink) 18%, transparent); }
+.cl-ratio-bar span { display: block; height: 100%; background: var(--c-calls); }
+.cl-ratio-legend { display: flex; justify-content: space-between; margin: 4px 0 0; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.cl-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 12px 0 0; }
+.cl-stats div { border-top: 1px solid var(--line); padding-top: 6px; }
+.cl-stats dt { font-size: 0.75rem; color: var(--brand-gray-2); }
+.cl-stats dd { margin: 2px 0 0; font-family: var(--font-data); font-size: 1rem; }
+.cl-score { font-family: var(--font-data); font-weight: 700; color: var(--c-calls-ink, var(--c-calls)); }
+.cl-scorecard { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.cl-score-row { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-weight: 600; font-size: 0.875rem; }
+.cl-score-dots { display: inline-flex; gap: 3px; flex: none; }
+.cl-score-dots i { width: 10px; height: 10px; border: 1px solid var(--ink); }
+.cl-score-dots i.on { background: var(--c-calls); border-color: var(--c-calls); }
+.cl-speakers { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cl-speakers li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; border-top: 1px solid var(--line); padding-top: 6px; }
+.cl-speaker-name { font-weight: 600; overflow-wrap: anywhere; }
+.cl-speaker-actions { display: inline-flex; gap: 4px; margin-left: auto; }
+.cl-speaker-actions .select { padding-top: 2px; padding-bottom: 2px; }
+.cl-comments { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.cl-comments li { border-top: 1px solid var(--line); padding-top: 8px; min-width: 0; }
+.cl-comment-head { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; margin-bottom: 4px; }
+.cl-deal-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+.cl-deal-search { display: grid; gap: 6px; }
+.cl-picklist { list-style: none; margin: 0; padding: 4px; border: 1px solid var(--line); max-height: 220px; overflow: auto; }
+.cl-picklist button { width: 100%; text-align: left; background: none; border: 0; padding: 8px; color: inherit; font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.cl-picklist button:hover, .cl-picklist button:focus-visible { background: var(--ui-hover); }
+.cl-answer { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 6px; }
+.cl-question { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.cl-sources { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+
+/* Agenda */
+.cl-rules { border: 0; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; }
+.cl-rules > legend { font-weight: 700; margin-bottom: 6px; }
+.cl-rule { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; cursor: pointer; }
+.cl-rule input { margin: 3px 0 0; accent-color: var(--c-calls); }
+.cl-rule small { display: block; color: var(--brand-gray-2); font-size: 0.8125rem; }
+.cl-events { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.cl-event { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.cl-event-main { display: grid; gap: 2px; min-width: 0; flex: 1 1 280px; }
+.cl-event-when { font-family: var(--font-data); font-size: 0.8125rem; color: var(--brand-gray-2); }
+.cl-event-side { display: flex; align-items: center; }
+.cl-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.cl-page .cl-list a, .cl-page .ui-help a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.cl-examples ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.cl-ask-form { grid-template-columns: minmax(0, 1fr) auto; margin-bottom: 12px; }
+
+/* Modal */
+.cl-dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); }
+.cl-dialog-tabs { padding: 0 16px; border-bottom: 1px solid var(--line); display: flex; overflow-x: auto; }
+/* El pie va dentro del <form> (que es el cuerpo): ocupa todo el ancho, como en el resto de los modales. */
+.cl-dialog .ui-modal-body > .ui-modal-foot { margin: 6px -20px -20px; }
+.cl-row > .input.cl-grow { width: auto; flex: 1 1 220px; }
+
+/* Link compartido */
+.cl-share { max-width: 860px; margin: 0 auto; padding: 32px 16px 48px; display: grid; gap: 24px; align-content: start; }
+.cl-player.is-audio-only { height: 54px; background: none; }
+.cl-share-head { display: grid; gap: 4px; }
+/* Las secciones del sitio traen padding vertical de página de marketing: acá no. */
+.cl-share section { padding: 0; }
+.cl-share .cl-h2 { margin-bottom: 6px; }
+.cl-share .cl-transcript { max-height: none; }
+.cl-share-foot { border-top: 1px solid var(--line); padding-top: 12px; }
+
+@media (max-width: 960px) {
+  .cl-call-grid { grid-template-columns: minmax(0, 1fr); }
+  .cl-side { position: static; }
+  .cl-side-body { max-height: none; }
+  .cl-transcript { max-height: 60vh; }
+}
+@media (max-width: 640px) {
+  .cl-hide-sm { display: none; }
+  .cl-show-sm { display: inline; }
+  .cl-filters .select, .cl-date, .cl-date .input { width: 100%; max-width: none; }
+  .cl-filters > * { flex: 1 1 100%; }
+  .cl-utt { grid-template-columns: 44px minmax(0, 1fr); }
+  .cl-utt-actions { position: static; grid-column: 2; opacity: 1; background: none; border: 0; }
+  .cl-track { grid-template-columns: 72px minmax(0, 1fr); }
+  .cl-ask-form { grid-template-columns: minmax(0, 1fr); }
+  .cl-menu-list { right: auto; left: 0; min-width: min(260px, calc(100vw - 32px)); }
+}

@@ -265,6 +265,8 @@ export interface SidebarLabels {
   send: { documents: string; spaces: string; newDocument: string };
   /** Inbox (personal): WhatsApp y Gmail. */
   inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string };
+  /** Calls (Gong): biblioteca, próximas, deals, preguntas. */
+  calls: { library: string; upcoming: string; deals: string; ask: string; newCall: string };
   /** Sign (DocuSign): sobres, plantillas. */
   sign: {
     home: string;
@@ -337,7 +339,8 @@ export type AppProduct =
   | 'sign'
   | 'forms'
   | 'send'
-  | 'inbox';
+  | 'inbox'
+  | 'calls';
 
 const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/crm', 'crm'],
@@ -366,6 +369,7 @@ const PRODUCT_PREFIXES: Array<[string, AppProduct]> = [
   ['/app/forms', 'forms'],
   ['/app/send', 'send'],
   ['/app/inbox', 'inbox'],
+  ['/app/calls', 'calls'],
 ];
 
 /** La app del shell para una clave de producto (Cal vive en /app/calendar). */
@@ -416,6 +420,7 @@ const APP_ICONS: Record<ProductKey, IconName> = {
   forms: 'forms',
   send: 'send',
   inbox: 'inbox',
+  calls: 'calls',
 };
 
 /** Producto de la app según la ruta. /app (inicio) y /app/settings son la plataforma (neutro); /app/links es Link. */
@@ -999,6 +1004,18 @@ export function buildNav(
         appSettingsGroup('/app/inbox/settings'),
       ];
     }
+    case 'calls':
+      return [
+        {
+          items: [
+            { href: '/app/calls', label: labels.calls.library, active: pathname === '/app/calls' || at('/app/calls/call'), icon: 'calls' },
+            { href: '/app/calls/upcoming', label: labels.calls.upcoming, active: at('/app/calls/upcoming'), icon: 'calendar' },
+            { href: '/app/calls/deals', label: labels.calls.deals, active: at('/app/calls/deals'), icon: 'deals' },
+            { href: '/app/calls/ask', label: labels.calls.ask, active: at('/app/calls/ask'), icon: 'assistant' },
+          ],
+        },
+        appSettingsGroup('/app/calls/settings'),
+      ];
 
     case 'sign': {
       const s = labels.sign;
@@ -1194,6 +1211,8 @@ export function buildNewItems(product: AppProduct, labels: SidebarLabels, opts: 
       return [item('/app/send/new', labels.send.newDocument, 'send')];
     case 'inbox':
       return [item('/app/inbox?new=1', labels.inbox.compose, 'inbox')];
+    case 'calls':
+      return [item('/app/calls?new=1', labels.calls.newCall, 'calls')];
     case 'sign':
       return [item('/app/sign/new', labels.sign.newEnvelope, 'sign')];
     case 'analytics':

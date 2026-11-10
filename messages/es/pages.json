@@ -1,16 +1,16 @@
 {
   "products": {
     "meta": {
-      "title": "19 apps open source para empresas: CRM, docs, links y más",
-      "description": "Diecinueve apps open source, del CRM y los links a los docs, las firmas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
+      "title": "20 apps open source para empresas: CRM, docs, links y más",
+      "description": "Veinte apps open source, del CRM y los links a los docs, las firmas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
     },
     "hero": {
-      "title1": "Diecinueve apps.",
+      "title1": "Veinte apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las diecinueve apps.",
+      "title1": "Probá las veinte apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -2288,6 +2288,92 @@
         "button": "Abrir Inbox"
       }
     },
+    "calls": {
+      "meta": {
+        "title": "Calls: grabá llamadas de venta y encontrá lo que se dijo",
+        "description": "Un notetaker entra a Google Meet, graba y transcribe la llamada, y la IA escribe el resumen, los próximos pasos y un scorecard por metodología. Alternativa open source a Gong."
+      },
+      "hero": {
+        "sub": "Un notetaker entra a tus llamadas de Google Meet, las graba y transcribe quién dijo qué. Tenés el resumen, los próximos pasos, el talk ratio y un scorecard SPICED, MEDDIC o BANT, vinculados al deal en el CRM. Zoom y Teams todavía no están soportados."
+      },
+      "featuresTitle": "Cada llamada de venta, registrada.",
+      "featuresTitleDim": "Con búsqueda y puntaje.",
+      "f1": {
+        "t": "Un notetaker para Google Meet",
+        "d": "Conectá tu calendario y elegí a qué reuniones entra: todas las que tienen link de Meet, solo las que tienen invitados externos o solo cuando hay un deal abierto. Publica un aviso de grabación en el chat y se va cuando termina la reunión. Zoom y Teams vienen después."
+      },
+      "f2": {
+        "t": "Una transcripción que se reproduce",
+        "d": "Video y transcripción sincronizados, con una pista por persona. Un clic en una línea salta ahí; buscás dentro de la llamada, comentás en un momento y guardás clips."
+      },
+      "f3": {
+        "t": "Análisis después de cada llamada",
+        "d": "Resumen, próximos pasos, temas, preguntas, objeciones con la respuesta que se dio y menciones de competidores, con la IA de la suite y dentro de la cuota de tu workspace."
+      },
+      "f4": {
+        "t": "Scorecard y métricas",
+        "d": "Puntuá cada llamada con SPICED, MEDDIC, BANT o criterios propios, con evidencia y el momento de donde sale. Talk ratio, monólogo más largo, interactividad y paciencia se calculan desde la transcripción."
+      },
+      "f5": {
+        "t": "Preguntale a tus llamadas",
+        "d": "Preguntá sobre una llamada y la respuesta cita el minuto. Preguntá sobre todas y te dice qué llamadas usó. Cmd+K encuentra una llamada por lo que se dijo."
+      },
+      "f6": {
+        "t": "Vinculado al CRM",
+        "d": "Las llamadas se asocian a contactos por el email de los invitados y a su deal abierto, y registran una reunión con el resumen. La vista de Deals marca riesgos como un próximo paso que falta o un competidor mencionado. Mandá el resumen a un canal de Talk o a un webhook."
+      },
+      "steps": {
+        "s1": {
+          "t": "Conectá tu calendario",
+          "d": "Google Calendar u Outlook, desde Cal. O subí una grabación."
+        },
+        "s2": {
+          "t": "Entra el notetaker",
+          "d": "Graba la llamada de Meet y se va cuando termina."
+        },
+        "s3": {
+          "t": "Revisá y compartí",
+          "d": "Transcripción, resumen y scorecard, listos para compartir por link."
+        }
+      },
+      "compare": {
+        "rival": "Gong",
+        "price": "Precio a pedido",
+        "per": "con licencias por usuario más un cargo de plataforma",
+        "teamLabel": "Un equipo de ventas de 10",
+        "team": "ver los precios de Gong",
+        "zero": "$0",
+        "note": "Gong no publica precios: su página pide una cotización, con licencias por usuario y un cargo de plataforma que crece con el equipo. Mirá gong.io/pricing. Calls en tu servidor cuesta $0 más tu base, almacenamiento, el servicio del bot, la transcripción y la IA."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Qué reuniones puede grabar?",
+          "a": "Google Meet, con el bot, y cualquier archivo de audio o video que subas. Los links de Zoom y Teams se detectan, pero el bot todavía no entra."
+        },
+        "f2": {
+          "q": "¿Los participantes saben que se graba?",
+          "a": "El bot entra como zerosoft Notetaker, visible en la lista de participantes, y publica un aviso de grabación en el chat de la reunión al entrar. Las reglas sobre grabar cambian según el país, y pedir consentimiento queda a tu cargo."
+        },
+        "f3": {
+          "q": "¿Dónde quedan las grabaciones y transcripciones?",
+          "a": "Las grabaciones quedan en el almacenamiento de tu workspace, y la transcripción pasa por el proveedor de voz a texto configurado para Voice. El bot es un servicio aparte: en tu servidor lo desplegás al lado de la app."
+        },
+        "f4": {
+          "q": "¿Qué tan confiable es el análisis con IA?",
+          "a": "Depende de la transcripción y del modelo que use tu workspace. Resúmenes, scorecards y respuestas señalan el momento de donde salen, así los podés verificar. Métricas como el talk ratio se calculan desde la transcripción, no las hace la IA."
+        },
+        "f5": {
+          "q": "¿Qué falta comparado con Gong?",
+          "a": "Zoom, Teams y llamadas telefónicas, forecast, programas de coaching y tendencias del equipo, sincronización con Salesforce y HubSpot, captura de emails y app para el celular, entre otras cosas. La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Grabá la llamada.",
+        "title2": "Encontrá lo que se dijo.",
+        "sub": "Abrí Calls, conectá tu calendario y elegí a qué reuniones entra el notetaker.",
+        "button": "Abrir Calls"
+      }
+    },
     "analytics": {
       "meta": {
         "title": "Analytics: preguntas y tableros de código abierto sobre tus datos",
@@ -2388,7 +2474,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Diecinueve apps, el mismo login.",
+    "suiteTitleDim": "Veinte apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -2485,7 +2571,8 @@
       "sign": "fig. 0 · una firma al pie de un contrato",
       "forms": "fig. 0 · un formulario que se completa",
       "send": "fig. 0 · páginas que se leen, con el tiempo de cada una",
-      "inbox": "fig. 0 · un chat y un correo en la misma lista"
+      "inbox": "fig. 0 · un chat y un correo en la misma lista",
+      "calls": "fig. 0 · dos voces, transcriptas línea por línea"
     },
     "heroFigHint": "arrastrá para girar",
     "desktop": {
@@ -3028,6 +3115,38 @@
       "m3": "Genial, gracias",
       "draft": "Acá está. Avisame si hay que cambiar algo.",
       "draftTag": "Borrador con IA"
+    },
+    "calls": {
+      "listTitle": "Llamadas",
+      "r1name": "Discovery · Acme",
+      "r1time": "38 min",
+      "r1meta": "Ana Ruiz, Tomás Lee · hoy",
+      "r2name": "Demo · Northwind",
+      "r2time": "52 min",
+      "r2meta": "Scorecard 6 de 8",
+      "r3name": "Renovación · Globex",
+      "r3time": "24 min",
+      "r3meta": "Competidor mencionado",
+      "deal": "Deal: expansión Acme",
+      "rep": "Ana · ventas",
+      "buyer": "Tomás · Acme",
+      "l1time": "11:42",
+      "l1": "¿Qué pasa hoy cuando entra un lead fuera de horario?",
+      "l2time": "11:50",
+      "l2": "Espera hasta la mañana. Perdemos algunos cada semana.",
+      "l3time": "12:14",
+      "l3": "¿Cuántos de esos habrían agendado una demo?",
+      "l4time": "12:21",
+      "l4": "Difícil saberlo. Eso es lo que necesito mostrarle a mi jefe.",
+      "summaryTitle": "Resumen",
+      "summary": "Acme pierde leads fuera de horario. Tomás necesita números para su jefe antes de la prueba. Próximo paso: mandar la planilla de ROI el viernes.",
+      "ratioTitle": "Talk ratio",
+      "ratioNote": "Monólogo más largo 1:48",
+      "scoreTitle": "SPICED",
+      "s1": "Situación · 2:10",
+      "s2": "Dolor · 11:50",
+      "s3": "Impacto · en parte",
+      "s4": "Evento crítico · sin cubrir"
     }
   },
   "status": {
@@ -3918,7 +4037,9 @@
     "formsApiTitle": "Forms",
     "formsApiDesc": "Formularios y sus respuestas. La key actúa como la persona que la creó y solo ve los formularios que esa persona puede abrir. Scope forms:read.",
     "mcpCta": "Conectar Claude y la CLI",
-    "scope_send_read": "Leer los documentos que la persona ve, con sus links y visitas."
+    "scope_send_read": "Leer los documentos que la persona ve, con sus links y visitas.",
+    "scope_calls_read": "Leer las llamadas que la persona ve, con transcripciones y análisis.",
+    "scope_calls_write": "Crear y editar llamadas, comentarios y clips, y mandar el notetaker a una reunión."
   },
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
@@ -4118,7 +4239,7 @@
   "docsMcp": {
     "meta": {
       "title": "Conectar Claude y la CLI",
-      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 19 apps como vos."
+      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 20 apps como vos."
     }
   }
 }

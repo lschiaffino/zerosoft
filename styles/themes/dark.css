@@ -104,6 +104,10 @@
   --c-inbox-ink: #9db8dc;
   --c-inbox: #9db8dc;
   --c-inbox-on: #111111;
+  /* Calls: el vino base no se lee sobre el fondo oscuro. */
+  --c-calls-ink: #f783ac;
+  --c-calls: #f783ac;
+  --c-calls-on: #111111;
   --c-sign-ink: #ffb3b3;
   --c-sign: #ffb3b3;
   --c-sign-on: #111111;
@@ -237,6 +241,10 @@
   --c-inbox-ink: #9db8dc;
   --c-inbox: #9db8dc;
   --c-inbox-on: #111111;
+  /* Calls: el vino base no se lee sobre el fondo oscuro. */
+  --c-calls-ink: #f783ac;
+  --c-calls: #f783ac;
+  --c-calls-on: #111111;
   --c-sign-ink: #ffb3b3;
   --c-sign: #ffb3b3;
   --c-sign-on: #111111;
@@ -285,6 +293,7 @@
   :root:not([data-theme='light']) .card-people { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-send { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-inbox { --on-accent: #111111; }
+  :root:not([data-theme='light']) .card-calls { --on-accent: #111111; }
   :root:not([data-theme='light']) .card-sign { --on-accent: #111111; }
 }
 :root[data-theme='dark'] .card-talk { --on-accent: #111111; }
@@ -293,4 +302,5 @@
 :root[data-theme='dark'] .card-people { --on-accent: #111111; }
 :root[data-theme='dark'] .card-send { --on-accent: #111111; }
 :root[data-theme='dark'] .card-inbox { --on-accent: #111111; }
+:root[data-theme='dark'] .card-calls { --on-accent: #111111; }
 :root[data-theme='dark'] .card-sign { --on-accent: #111111; }

@@ -67,6 +67,7 @@ export const WEBHOOK_EVENTS = [
   'talk.message.posted',
   'voice.meeting.completed',
   'voice.notes.ready',
+  'call.ready',
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 

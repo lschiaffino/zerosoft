@@ -188,6 +188,11 @@
       "a": "¿Quién leyó la última propuesta?",
       "b": "¿Qué links vencen esta semana?",
       "c": "¿Cuánto tiempo le dedicaron a mi presentación?"
+    },
+    "calls": {
+      "a": "¿Qué objeciones aparecieron en las llamadas de esta semana?",
+      "b": "¿Qué deals no tienen una llamada en las últimas dos semanas?",
+      "c": "Resumí mi última llamada con los próximos pasos"
     }
   },
   "page": {
