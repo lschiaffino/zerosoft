@@ -31,7 +31,8 @@ async function freshUser(label: string) {
 describe('onboarding: apps, borrador y segundo tramo', () => {
   it('sugiere apps por rol y modo, y limpia lo que llega del navegador', () => {
     expect(suggestedApps('sales', 'team')).toEqual(['crm', 'cal', 'link', 'send', 'docs']);
-    expect(suggestedApps('support', 'team')).toEqual(expect.arrayContaining(['chat', 'groups']));
+    // Chat es Próximamente: las sugeridas no la incluyen.
+    expect(suggestedApps('support', 'team')).toEqual(['groups', 'docs', 'track']);
     // En uso personal suma Notes y Cal; sin rol, las destacadas del modo.
     expect(suggestedApps('engineering', 'personal')).toEqual(expect.arrayContaining(['track', 'notes', 'cal']));
     expect(suggestedApps(null, 'personal')).toEqual(cleanApps(featuredApps({ mode: 'personal' }).concat(['notes', 'cal'])));

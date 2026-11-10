@@ -137,6 +137,8 @@ export async function GET(req: NextRequest) {
     reminders: await sendFeedbackReminders().catch(() => null),
     interviews: await syncAllInterviews().catch(() => null),
   };
+  // Lista de espera: una app que salió de Próximamente le avisa a su lista (claim por fila en notified_at).
+  const waitlist = await import('@/lib/waitlist').then((m) => m.notifyLiveApps({ limit: 200 })).catch(() => null);
   // People: las licencias aprobadas que empiezan hoy ponen "fuera de la oficina" en Talk (claim por pedido).
   const peopleOoo = await peopleTick().catch(() => null);
   const peopleScheduled = await applyDueChanges().catch(() => null);
@@ -205,6 +207,6 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
-  return NextResponse.json({ lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, hiring, sign, books, forms, trashPurged, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
+  return NextResponse.json({ lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
     docsDomainsPurged, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
 }

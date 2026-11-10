@@ -3,7 +3,9 @@ import { nanoid } from 'nanoid';
 import { NextResponse } from 'next/server';
 import { getDb, type ApiKeyRow, type UserRow } from './db';
 import { clientIp, rateLimit } from './rate-limit';
-import { API_SCOPES, hasScope, keyHasMcpAccess, MCP_KEY_SCOPE, parseScopes, serializeScopes, type ApiScope, scopesForApps } from './api-scopes';
+import { API_SCOPES, hasScope, keyHasMcpAccess, MCP_KEY_SCOPE, parseScopes, serializeScopes, type ApiScope, scopesForApps, scopesWithoutApps, SCOPE_APP } from './api-scopes';
+import { isComingSoon, PRODUCT_CONFIG, type ProductKey } from './products';
+import { blockedAppsFor } from './workspace-apps';
 import { normalizeRole, resolveWorkspace, type TeamRole } from './teams';
 import { parseApps } from './workspace';
 import { delegatedIdentity } from './mcp/identity';
@@ -57,12 +59,16 @@ export async function validateApiKeyAuth(rawKey: string): Promise<ApiKeyAuth | n
   if (!user) return null;
   const personId = row.created_by ?? row.user_id;
   const scopes = parseScopes(row.scopes);
-  if (personId === row.user_id) return { user, personId, role: 'owner', scopes };
+  if (personId === row.user_id) {
+    const blocked = await blockedAppsFor({ ownerId: user.id, personId, role: 'owner', email: user.email });
+    return { user, personId, role: 'owner', scopes: scopesWithoutApps(scopes, blocked) };
+  }
   // La key de un miembro vale lo que hoy vale esa persona en el workspace: si
   // salió (o es guest) no sirve, y solo conserva los scopes de sus apps.
   const access = await personAppAccess(row.user_id, personId);
   if (!access) return null;
-  return { user, personId, role: access.role, scopes: scopesForApps(scopes, access.apps) };
+  const blocked = await blockedAppsFor({ ownerId: user.id, personId, role: access.role, email: await personEmail(personId) });
+  return { user, personId, role: access.role, scopes: scopesWithoutApps(scopesForApps(scopes, access.apps), blocked) };
 }
 
 /**
@@ -90,6 +96,11 @@ export async function personAppAccess(ownerId: string, personId: string): Promis
   const lists = rows.map((r) => parseApps(r.apps));
   if (lists.includes('*')) return { role, apps: '*' };
   return { role, apps: [...new Set(lists.flatMap((l) => (l === '*' ? [] : l)))] };
+}
+
+async function personEmail(personId: string): Promise<string | null> {
+  const row = (await getDb().prepare('SELECT email FROM users WHERE id = ?').get(personId)) as { email: string } | undefined;
+  return row?.email ?? null;
 }
 
 /** Compat: solo el dueño del workspace. */
@@ -132,6 +143,8 @@ export async function requireApiUser(req: Request, scope: ApiScope): Promise<Api
     return { res: apiError(401, 'invalid_key', 'Invalid or revoked API key.') };
   }
   if (!hasScope(auth.scopes, scope)) {
+    const app = SCOPE_APP[scope.split(':')[0]] ?? '';
+    if (isComingSoon(app)) return { res: apiError(403, 'coming_soon', `${PRODUCT_CONFIG[app as ProductKey].name} is not available yet.`) };
     return { res: apiError(403, 'insufficient_scope', `This API key is missing the "${scope}" scope.`) };
   }
   return auth;
@@ -144,7 +157,8 @@ async function delegatedApiAuth(d: NonNullable<ReturnType<typeof delegatedIdenti
   if (d.pinnedTeamId && workspace.id !== d.pinnedTeamId) return denied();
   const access = await personAppAccess(owner.id, d.real.id);
   if (!access) return denied();
-  const allowed = scopesForApps(d.apiScopes ?? parseScopes('*'), access.apps);
+  const blocked = await blockedAppsFor({ ownerId: owner.id, personId: d.real.id, role: access.role, email: d.real.email });
+  const allowed = scopesWithoutApps(scopesForApps(d.apiScopes ?? parseScopes('*'), access.apps), blocked);
   if (!hasScope(allowed, scope)) return denied();
   return { user: owner, personId: d.real.id, role: access.role, scopes: allowed };
 }

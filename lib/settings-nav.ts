@@ -28,7 +28,7 @@ export function activeRouteTab(items: RouteTab[], pathname: string): string | un
   return best?.key;
 }
 
-export const SETTINGS_ADMIN_ROUTES = ['/app/settings/feedback', '/app/settings/roadmap', '/app/settings/changelog', '/app/settings/lifecycle'] as const;
+export const SETTINGS_ADMIN_ROUTES = ['/app/settings/feedback', '/app/settings/roadmap', '/app/settings/changelog', '/app/settings/lifecycle', '/app/settings/waitlist'] as const;
 
 /**
  * Secciones de la plataforma, en el orden de la nav. Es la única lista: la
@@ -37,7 +37,7 @@ export const SETTINGS_ADMIN_ROUTES = ['/app/settings/feedback', '/app/settings/r
  * Admin va al final de Workspace y solo para ADMIN_EMAILS.
  */
 export const SETTINGS_ACCOUNT_KEYS = ['profile', 'appearance', 'notifications'] as const;
-export const SETTINGS_WORKSPACE_KEYS = ['workspace', 'members', 'teams', 'billing', 'api', 'connections', 'import', 'security'] as const;
+export const SETTINGS_WORKSPACE_KEYS = ['workspace', 'members', 'apps', 'teams', 'billing', 'api', 'connections', 'import', 'security'] as const;
 /** Este dispositivo: sin conexión y la app de escritorio. */
 export const SETTINGS_DEVICE_KEYS = ['offline', 'desktop'] as const;
 export const SETTINGS_SECTION_KEYS = [...SETTINGS_ACCOUNT_KEYS, ...SETTINGS_WORKSPACE_KEYS, ...SETTINGS_DEVICE_KEYS] as const;

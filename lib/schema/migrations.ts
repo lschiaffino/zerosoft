@@ -9376,6 +9376,41 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Apps "Próximamente" y Ajustes › Workspace › Apps. workspace_apps: una
+    // fila por app con regla (sin fila = para todos), con las personas excluidas a mano en denied, clave el owner (los datos
+    // y los equipos del workspace cuelgan de su id). app_waitlist: la lista de
+    // espera de cada app, una fila por email; notified_at al avisar que salió.
+    id: '330_app_access',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS workspace_apps (
+          owner_id TEXT NOT NULL,
+          app TEXT NOT NULL,
+          mode TEXT NOT NULL DEFAULT 'all',
+          people TEXT NOT NULL DEFAULT '[]',
+          teams TEXT NOT NULL DEFAULT '[]',
+          denied TEXT NOT NULL DEFAULT '[]',
+          updated_by TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (owner_id, app)
+        );
+        CREATE TABLE IF NOT EXISTS app_waitlist (
+          id TEXT PRIMARY KEY,
+          app TEXT NOT NULL,
+          email TEXT NOT NULL,
+          user_id TEXT,
+          use_case TEXT NOT NULL DEFAULT '',
+          locale TEXT NOT NULL DEFAULT 'en',
+          source TEXT NOT NULL DEFAULT 'app',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          notified_at TEXT,
+          UNIQUE (app, email)
+        );
+        CREATE INDEX IF NOT EXISTS idx_app_waitlist_pending ON app_waitlist(app, notified_at);
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {

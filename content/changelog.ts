@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-coming-soon-and-workspace-apps',
+    date: '2026-11-09',
+    title: {
+      en: 'Coming soon apps and workspace app settings',
+      es: 'Apps Próximamente y apps del workspace',
+      pt: 'Apps Em breve e apps do workspace',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Chat, Agents, Robots, Books, Hiring, Design, Social and Shop are now marked Coming soon: they cannot be used yet. Each one has a waitlist in the app, at sign-up and on its product page, with an optional note on what you would use it for. We email you once, the day it ships. Data already created in them is kept.',
+        es: 'Chat, Agents, Robots, Books, Hiring, Design, Social y Shop pasan a Próximamente: todavía no se pueden usar. Cada una tiene lista de espera en la app, en el alta y en su página de producto, con una nota opcional de para qué la usarías. Te escribimos una vez, el día que salga. Lo que ya estaba creado en ellas queda guardado.',
+        pt: 'Chat, Agents, Robots, Books, Hiring, Design, Social e Shop passam a Em breve: ainda não podem ser usados. Cada um tem lista de espera no app, no cadastro e na página do produto, com uma nota opcional de para que você usaria. Escrevemos uma vez, no dia do lançamento. O que já tinha sido criado neles fica guardado.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Workspace › Apps: owners and admins turn each app on or off for the whole workspace, choose who gets it (everyone, specific teams or people, or only admins) and exclude single people. Off hides the app from the sidebar, home, search, its pages, API, MCP and the desktop app, and keeps its data. It applies on top of each person\'s enabled apps.',
+        es: 'Ajustes › Workspace › Apps: el owner y los admins prenden o apagan cada app para todo el workspace, eligen quién la usa (todos, equipos o personas puntuales, o solo admins) y excluyen a personas una por una. Apagada la saca del menú, del inicio, de la búsqueda, de sus páginas, su API, el MCP y la app de escritorio, y guarda sus datos. Vale encima de las apps habilitadas de cada persona.',
+        pt: 'Ajustes › Workspace › Apps: o owner e os admins ligam ou desligam cada app para todo o workspace, escolhem quem usa (todos, equipes ou pessoas específicas, ou só admins) e excluem pessoas uma a uma. Desligado tira o app do menu, do início, da busca, das páginas, da API, do MCP e do app de desktop, e guarda os dados. Vale por cima dos apps habilitados de cada pessoa.',
+      },
+    ],
+  },
+  {
     id: '2026-11-09-lines-owners-visibility-folders',
     date: '2026-11-09',
     title: {

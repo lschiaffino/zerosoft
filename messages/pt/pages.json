@@ -1,16 +1,16 @@
 {
   "products": {
     "meta": {
-      "title": "27 apps open source para empresas: CRM, chat, docs e mais",
-      "description": "Vinte e sete apps open source, do CRM e do chat de suporte aos docs, faturas e formulários. No seu servidor ou na zerosoft Cloud com plano grátis."
+      "title": "19 apps open source para empresas: CRM, docs, links e mais",
+      "description": "Dezenove apps open source, do CRM e dos links curtos aos docs, assinaturas e formulários. No seu servidor ou na zerosoft Cloud com plano grátis."
     },
     "hero": {
-      "title1": "Vinte e sete apps.",
+      "title1": "Dezenove apps.",
       "title2": "Um só workspace.",
       "sub": "Para a sua empresa: CRM, suporte, agentes de IA, automações, robôs, projetos e links. Para você: docs, notas, agenda e quadro branco. O core de cada um é open source e roda no seu servidor por $0."
     },
     "cta": {
-      "title1": "Teste os vinte e sete apps.",
+      "title1": "Teste os dezenove apps.",
       "title2": "Com uma só conta.",
       "sub": "Entre com o Google, crie um workspace e comece no plano grátis. Se depois preferir o seu servidor, o código está no GitHub.",
       "button": "Abrir o app"
@@ -1610,92 +1610,6 @@
         "button": "Abrir o Pulse"
       }
     },
-    "analytics": {
-      "meta": {
-        "title": "Analytics: perguntas e painéis open source sobre seus dados",
-        "description": "Faça perguntas com um construtor, SQL ou suas palavras, gere gráficos das respostas e compartilhe painéis. Lê seus dados do zerosoft e seu Postgres ou MySQL. Uma alternativa open source ao Metabase."
-      },
-      "hero": {
-        "sub": "Pergunte sobre seus dados de CRM, Track, Books, Groups e Pulse, ou sobre seu próprio Postgres ou MySQL. Monte uma pergunta sem código, escreva SQL com autocompletar ou escreva com suas palavras e leia o SQL que ele monta. Coloque as respostas em painéis com filtros e envie por email ou para o Talk."
-      },
-      "featuresTitle": "Pergunte aos seus dados.",
-      "featuresTitleDim": "Compartilhe a resposta.",
-      "f1": {
-        "t": "Seu workspace como tabelas",
-        "d": "Contatos, empresas, deals, projetos, issues, faturas, chats, mensagens e eventos do Pulse, só leitura. Cada pessoa vê só as linhas que pode ver em cada app."
-      },
-      "f2": {
-        "t": "Construtor sem código",
-        "d": "Escolha uma tabela, filtre, conte ou some, agrupe por dia, semana, mês ou ano, una tabelas relacionadas e ordene. O SQL que ele monta fica sempre a um clique."
-      },
-      "f3": {
-        "t": "Editor SQL",
-        "d": "Autocompletar de tabelas e colunas, navegador do esquema, variáveis com valores padrão e filtros opcionais, e resultados que você pode paginar ou baixar em CSV."
-      },
-      "f4": {
-        "t": "Pergunte com suas palavras",
-        "d": "Escreva uma pergunta e a IA monta o SQL sobre as tabelas que você pode ler. O SQL aparece antes de você confiar no resultado e passa pelos mesmos controles de só leitura."
-      },
-      "f5": {
-        "t": "Painéis",
-        "d": "Uma grade de cartões com números, linhas, barras, áreas, pizzas e funis, texto, filtros conectados a cada cartão, atualização automática, tela cheia e coleções para organizar."
-      },
-      "f6": {
-        "t": "Compartilhar e assinar",
-        "d": "Links públicos e iframes que nunca mostram a consulta, e resumos por email para sua equipe ou para um canal do Talk, diários ou semanais."
-      },
-      "steps": {
-        "s1": {
-          "t": "Escolha seus dados",
-          "d": "Seu workspace já está pronto. Para adicionar Postgres ou MySQL, um admin conecta com um usuário só de leitura."
-        },
-        "s2": {
-          "t": "Faça uma pergunta",
-          "d": "Use o construtor, escreva SQL ou pergunte com suas palavras. Escolha o gráfico ou deixe ele escolher."
-        },
-        "s3": {
-          "t": "Monte um painel",
-          "d": "Adicione as perguntas que salvou, conecte filtros e compartilhe ou inscreva sua equipe."
-        }
-      },
-      "compare": {
-        "rival": "Metabase",
-        "price": "Conforme o plano",
-        "per": "Metabase Cloud: um preço por mês mais cada usuário extra",
-        "teamLabel": "10 pessoas",
-        "team": "ver preços do Metabase",
-        "zero": "US$ 0",
-        "note": "O Metabase open source é grátis se você hospedar; o Metabase Cloud cobra por mês e por usuário. Não conseguimos verificar todos os preços atuais, então confira metabase.com/pricing. O Analytics no seu servidor custa US$ 0 mais o seu banco de dados."
-      },
-      "faq": {
-        "f1": {
-          "q": "Que dados ele pode ler?",
-          "a": "Seu workspace do zerosoft (CRM, Track, Books, Groups e Pulse) e bancos PostgreSQL ou MySQL que um admin conectar. BigQuery, Snowflake e outros motores ainda não."
-        },
-        "f2": {
-          "q": "Uma pergunta pode mudar meus dados?",
-          "a": "Não. As tabelas do workspace são lidas com uma lista branca de SQL só de leitura. Nos bancos externos cada consulta roda numa transação só de leitura com limite de tempo, uma instrução por vez. Mesmo assim, conecte com um usuário do banco que só possa ler."
-        },
-        "f3": {
-          "q": "Quem vê o quê?",
-          "a": "Cada pessoa vê as linhas do workspace que pode ver em cada app: visibilidade do CRM, projetos privados do Track, papéis do Books e chats do Groups. As coleções pessoais são privadas. Num banco externo, os admins decidem se os membros escrevem SQL ou só usam o construtor."
-        },
-        "f4": {
-          "q": "Como funciona perguntar com suas palavras?",
-          "a": "A IA recebe os nomes das tabelas e colunas que você pode ler, nunca as linhas, e escreve um SELECT. Você vê o SQL e pode editar. Precisa da IA ligada no workspace."
-        },
-        "f5": {
-          "q": "O que falta em comparação com o Metabase?",
-          "a": "Mapas, tabelas dinâmicas, drill-through clicando num gráfico, alertas sobre uma pergunta, modelos e métricas, sandboxing de linhas por grupo, incorporação assinada com JWT e mais motores de banco. A tabela de paridade acima tem a lista completa."
-        }
-      },
-      "cta": {
-        "title1": "Faça a pergunta.",
-        "title2": "Leia a resposta.",
-        "sub": "Abra o Analytics e pergunte algo sobre seus dados.",
-        "button": "Abrir o Analytics"
-      }
-    },
     "social": {
       "meta": {
         "title": "Social: alternativa open source ao Hootsuite",
@@ -2373,6 +2287,92 @@
         "sub": "Abra o Inbox, vincule o WhatsApp e comece a organizar.",
         "button": "Abrir o Inbox"
       }
+    },
+    "analytics": {
+      "meta": {
+        "title": "Analytics: perguntas e painéis open source sobre seus dados",
+        "description": "Faça perguntas com um construtor, SQL ou suas palavras, gere gráficos das respostas e compartilhe painéis. Lê seus dados do zerosoft e seu Postgres ou MySQL. Uma alternativa open source ao Metabase."
+      },
+      "hero": {
+        "sub": "Pergunte sobre seus dados de CRM, Track, Books, Groups e Pulse, ou sobre seu próprio Postgres ou MySQL. Monte uma pergunta sem código, escreva SQL com autocompletar ou escreva com suas palavras e leia o SQL que ele monta. Coloque as respostas em painéis com filtros e envie por email ou para o Talk."
+      },
+      "featuresTitle": "Pergunte aos seus dados.",
+      "featuresTitleDim": "Compartilhe a resposta.",
+      "f1": {
+        "t": "Seu workspace como tabelas",
+        "d": "Contatos, empresas, deals, projetos, issues, faturas, chats, mensagens e eventos do Pulse, só leitura. Cada pessoa vê só as linhas que pode ver em cada app."
+      },
+      "f2": {
+        "t": "Construtor sem código",
+        "d": "Escolha uma tabela, filtre, conte ou some, agrupe por dia, semana, mês ou ano, una tabelas relacionadas e ordene. O SQL que ele monta fica sempre a um clique."
+      },
+      "f3": {
+        "t": "Editor SQL",
+        "d": "Autocompletar de tabelas e colunas, navegador do esquema, variáveis com valores padrão e filtros opcionais, e resultados que você pode paginar ou baixar em CSV."
+      },
+      "f4": {
+        "t": "Pergunte com suas palavras",
+        "d": "Escreva uma pergunta e a IA monta o SQL sobre as tabelas que você pode ler. O SQL aparece antes de você confiar no resultado e passa pelos mesmos controles de só leitura."
+      },
+      "f5": {
+        "t": "Painéis",
+        "d": "Uma grade de cartões com números, linhas, barras, áreas, pizzas e funis, texto, filtros conectados a cada cartão, atualização automática, tela cheia e coleções para organizar."
+      },
+      "f6": {
+        "t": "Compartilhar e assinar",
+        "d": "Links públicos e iframes que nunca mostram a consulta, e resumos por email para sua equipe ou para um canal do Talk, diários ou semanais."
+      },
+      "steps": {
+        "s1": {
+          "t": "Escolha seus dados",
+          "d": "Seu workspace já está pronto. Para adicionar Postgres ou MySQL, um admin conecta com um usuário só de leitura."
+        },
+        "s2": {
+          "t": "Faça uma pergunta",
+          "d": "Use o construtor, escreva SQL ou pergunte com suas palavras. Escolha o gráfico ou deixe ele escolher."
+        },
+        "s3": {
+          "t": "Monte um painel",
+          "d": "Adicione as perguntas que salvou, conecte filtros e compartilhe ou inscreva sua equipe."
+        }
+      },
+      "compare": {
+        "rival": "Metabase",
+        "price": "Conforme o plano",
+        "per": "Metabase Cloud: um preço por mês mais cada usuário extra",
+        "teamLabel": "10 pessoas",
+        "team": "ver preços do Metabase",
+        "zero": "US$ 0",
+        "note": "O Metabase open source é grátis se você hospedar; o Metabase Cloud cobra por mês e por usuário. Não conseguimos verificar todos os preços atuais, então confira metabase.com/pricing. O Analytics no seu servidor custa US$ 0 mais o seu banco de dados."
+      },
+      "faq": {
+        "f1": {
+          "q": "Que dados ele pode ler?",
+          "a": "Seu workspace do zerosoft (CRM, Track, Books, Groups e Pulse) e bancos PostgreSQL ou MySQL que um admin conectar. BigQuery, Snowflake e outros motores ainda não."
+        },
+        "f2": {
+          "q": "Uma pergunta pode mudar meus dados?",
+          "a": "Não. As tabelas do workspace são lidas com uma lista branca de SQL só de leitura. Nos bancos externos cada consulta roda numa transação só de leitura com limite de tempo, uma instrução por vez. Mesmo assim, conecte com um usuário do banco que só possa ler."
+        },
+        "f3": {
+          "q": "Quem vê o quê?",
+          "a": "Cada pessoa vê as linhas do workspace que pode ver em cada app: visibilidade do CRM, projetos privados do Track, papéis do Books e chats do Groups. As coleções pessoais são privadas. Num banco externo, os admins decidem se os membros escrevem SQL ou só usam o construtor."
+        },
+        "f4": {
+          "q": "Como funciona perguntar com suas palavras?",
+          "a": "A IA recebe os nomes das tabelas e colunas que você pode ler, nunca as linhas, e escreve um SELECT. Você vê o SQL e pode editar. Precisa da IA ligada no workspace."
+        },
+        "f5": {
+          "q": "O que falta em comparação com o Metabase?",
+          "a": "Mapas, tabelas dinâmicas, drill-through clicando num gráfico, alertas sobre uma pergunta, modelos e métricas, sandboxing de linhas por grupo, incorporação assinada com JWT e mais motores de banco. A tabela de paridade acima tem a lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Faça a pergunta.",
+        "title2": "Leia a resposta.",
+        "sub": "Abra o Analytics e pergunte algo sobre seus dados.",
+        "button": "Abrir o Analytics"
+      }
     }
   },
   "product": {
@@ -2388,7 +2388,7 @@
     "apiDocs": "Docs da API",
     "howTitle": "Como funciona.",
     "suiteTitle": "Um workspace.",
-    "suiteTitleDim": "Vinte e sete apps, o mesmo login.",
+    "suiteTitleDim": "Dezenove apps, o mesmo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Localização",
     "navLabel": "Seções do {name}",
@@ -2443,14 +2443,20 @@
       "kickerCounts": "comparado com {competitor}"
     },
     "building": {
-      "badge": "Em construção",
-      "tagline": "Estamos construindo a alternativa open source ao {rival}",
+      "badge": "Em breve",
+      "tagline": "A alternativa open source ao {rival}, ainda em construção",
       "propose": "Propor uma ideia",
       "roadmap": "Ver o roadmap",
       "shotFig": "fig. 1 · {name}, esboço do design: ainda não dá para usar",
       "faqTitleDim": "O que já sabemos e o que falta.",
       "compareZero": "Com a zerosoft, quando estiver pronto",
-      "zeroApp": "{name} no seu servidor, quando estiver pronto"
+      "zeroApp": "{name} no seu servidor, quando estiver pronto",
+      "waitlistLead": "O {name} ainda não pode ser usado e não tem data. Deixe seu email e avisamos no dia do lançamento.",
+      "parityNote": "O {name} ainda não pode ser usado. A tabela conta o que já está construído no código.",
+      "ctaTitle": "Tem interesse no {name}?",
+      "ctaTitleDim": "Avisamos quando der para usar.",
+      "ctaSub": "Entre na lista de espera do {name}. Um único email, no dia do lançamento.",
+      "join": "Entrar na lista de espera"
     },
     "heroFig": {
       "link": "fig. 0 · uma corrente de elos",
@@ -3882,7 +3888,7 @@
   "parityOverview": {
     "title": "Paridade de funções, app por app.",
     "titleDim": "Medida contra cada concorrente.",
-    "lead": "Paridade média de {apps} dos 27 apps: {average} %. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
+    "lead": "Paridade média dos {apps} apps que já podem ser usados: {average} %. Comparamos {counted} capacidades da ferramenta que cada app substitui.",
     "col": {
       "app": "App",
       "competitor": "Comparado com",
@@ -3893,7 +3899,8 @@
       "beyond": "Além"
     },
     "method": "Cada app soma 1 por capacidade incluída, 0,5 por parcial e 0 por faltante, com peso dobrado para as centrais. É a nossa avaliação contra o código e é atualizada a cada versão. Abra um app para ver a lista completa.",
-    "notComparable": "Não comparável"
+    "notComparable": "Não comparável",
+    "comingSoon": "Em breve"
   },
   "desktopLogin": {
     "title": "Entrar no app do zerosoft",
@@ -4022,12 +4029,13 @@
     "relatedTitle": "Guias e posts",
     "otherTitle": "Outras comparações",
     "tryCta": "Testar {name}",
-    "productCta": "A página do {name}"
+    "productCta": "A página do {name}",
+    "waitlistCta": "Entrar na lista de espera do {name}"
   },
   "docsMcp": {
     "meta": {
       "title": "Conectar o Claude e a CLI",
-      "description": "Conecte o Claude Code ou a CLI da zerosoft à sua conta com seu login de sempre, e trabalhe nos 27 apps como você."
+      "description": "Conecte o Claude Code ou a CLI da zerosoft à sua conta com seu login de sempre, e trabalhe nos 19 apps como você."
     }
   }
 }

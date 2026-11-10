@@ -1,6 +1,6 @@
 {
   "meta": {
-    "tagline": "Vinte e sete apps open source para o seu time.",
+    "tagline": "Dezenove apps open source para o seu time.",
     "description": "Apps open source para empresas: CRM, chat de suporte, agentes de IA, automações, docs e mais. Rode no seu servidor por $0 ou use a zerosoft Cloud.",
     "homeTitle": "zerosoft: apps open source para empresas, do CRM aos docs"
   },
@@ -50,7 +50,7 @@
       "send": "Compartilhe documentos por link e veja quem leu o quê",
       "inbox": "Seu WhatsApp e seu Gmail em uma caixa guiada pelo teclado"
     },
-    "building": "Em construção"
+    "building": "Em breve"
   },
   "sidebar": {
     "desktopSettings": "Ajustes do app para desktop",
@@ -59,7 +59,7 @@
     "new": "Novo",
     "backToSite": "Voltar ao site",
     "docs": "Ajuda",
-    "soon": "em breve",
+    "soon": "Em breve",
     "signOut": "Sair",
     "records": "Registros",
     "activity": "Atividades",
@@ -198,9 +198,6 @@
     "groupAnalyticsSurveys": "Pesquisas do Pulse",
     "groupAnalyticsCohorts": "Coortes do Pulse",
     "groupAnalyticsProjects": "Projetos do Pulse",
-    "groupBiQuestions": "Perguntas do Analytics",
-    "groupBiDashboards": "Painéis do Analytics",
-    "groupBiCollections": "Coleções do Analytics",
     "groupSocialPosts": "Publicações do Social",
     "groupSocialLibrary": "Biblioteca do Social",
     "yourApps": "Seus apps",
@@ -222,11 +219,17 @@
     "groupSend": "Documentos para enviar",
     "untitled": "Sem título",
     "groupInbox": "Inbox",
+    "preview": "Prévia",
+    "comingSoon": "Em breve",
+    "soonApp": "{name}: lista de espera",
+    "groupBiQuestions": "Perguntas do Analytics",
+    "groupBiDashboards": "Painéis do Analytics",
+    "groupBiCollections": "Coleções do Analytics",
     "downloadDesktop": "App para computador"
   },
   "manifesto": {
     "p1": "Um time de dez pessoas paga <strong>US$ 6.000 por ano</strong> por um CRM, US$ 1.440 para agendar reuniões e US$ 420 para encurtar links. Esses preços são calculados por pessoa ou por plano.",
-    "p2": "Rodar esse software custa bem menos. Os vinte e sete apps da zerosoft cabem em <strong>um contêiner e um arquivo SQLite</strong>, num servidor pequeno.",
+    "p2": "Rodar esse software custa bem menos. Os dezenove apps da zerosoft cabem em <strong>um contêiner e um arquivo SQLite</strong>, num servidor pequeno.",
     "p3": "Por isso publicamos o código. O core de cada app é AGPLv3: você pode ler, modificar e rodar no seu servidor sem nos pagar nada.",
     "final": "Por que fazemos a zerosoft.",
     "p4": "Se preferir que a gente opere, a zerosoft Cloud cobra por workspace e por uso. Colocar mais alguém no time não muda a fatura.",
@@ -448,9 +451,9 @@
   },
   "home": {
     "hero": {
-      "title1": "Vinte e sete apps para o seu time.",
+      "title1": "Dezenove apps para o seu time.",
       "title2": "Zero licenças.",
-      "sub": "Alternativas open source ao HubSpot, Intercom, Calendly, Linear, Notion e mais 19 produtos que o seu time paga todo mês. Rode no seu servidor por $0 ou use na zerosoft Cloud.",
+      "sub": "Alternativas open source ao HubSpot, Calendly, Linear, Notion, Bitly e mais 13 produtos que o seu time paga todo mês. Rode no seu servidor por $0 ou use na zerosoft Cloud.",
       "ctaStart": "Comece grátis",
       "ctaSelfHost": "Hospede você",
       "note1": "Sem cartão",
@@ -505,7 +508,7 @@
         "b3": "Modelos, comentários e compartilhamento"
       },
       "one": {
-        "title": "Uma conta para os vinte e sete apps.",
+        "title": "Uma conta para os dezenove apps.",
         "desc": "Convide seu time uma vez. Encontre contatos, empresas, negócios, links, docs e tarefas em uma única barra de busca, e pule entre apps sem trocar de ferramenta."
       },
       "replaces": "Substitui {rival}",
@@ -547,10 +550,7 @@
       "pulse": {
         "line": "Analytics de produto, analytics web e feature flags."
       },
-      "analytics": {
-        "line": "Perguntas, SQL e painéis sobre seus dados."
-      },
-      "building": "Em construção · como {rival}",
+      "building": "Em breve · como {rival}",
       "social": {
         "line": "Planeje, publique e responda nas redes sociais."
       },
@@ -574,12 +574,15 @@
       },
       "inbox": {
         "line": "Seu WhatsApp e seu Gmail em uma caixa guiada pelo teclado."
+      },
+      "analytics": {
+        "line": "Perguntas, SQL e painéis sobre seus dados."
       }
     },
     "stack": {
       "title": "{total} por ano.",
       "titleDim": "Ou $0.",
-      "sub": "O que um time de 10 pessoas paga a preço de tabela por HubSpot, Intercom, Calendly, Notion, Linear e Bitly. Os apps da zerosoft que os substituem custam $0 no seu servidor.",
+      "sub": "O que um time de 10 pessoas paga a preço de tabela por HubSpot, Calendly, Notion, Linear e Bitly. Os apps da zerosoft que os substituem custam $0 no seu servidor.",
       "colTool": "Ferramenta",
       "colPrice": "Preço de tabela",
       "colYear": "Time de 10 / ano",
@@ -588,7 +591,7 @@
       "total": "Total por ano",
       "zeroTitle": "zerosoft, no seu servidor",
       "footnote": "Preços de tabela citados nas nossas páginas de produto, com cobrança mensal, para 10 usuários (Bitly Core é um plano fixo). Os fornecedores mudam os preços: confira nos sites deles. A zerosoft não tem afiliação com nenhuma dessas empresas.",
-      "rApps": "Os vinte e sete apps",
+      "rApps": "Os dezenove apps",
       "rSeats": "Usuários",
       "rLicense": "Licença",
       "rData": "Seus dados",
@@ -659,7 +662,7 @@
   },
   "appHome": {
     "title": "Seus apps",
-    "lead": "Os vinte e sete apps do seu workspace. Escolha um para começar.",
+    "lead": "Os dezenove apps do seu workspace. Escolha um para começar.",
     "apps": "Apps",
     "open": "Abrir {name}",
     "linkSummary": "Visão geral do Link",
@@ -833,7 +836,7 @@
   "notFound": {
     "sign": "Erro 404",
     "title": "Esta página não existe.",
-    "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos vinte e sete apps.",
+    "body": "O link pode ter um erro ou a página mudou de lugar. Pelo início você chega aos dezenove apps.",
     "cta": "Ir para o início",
     "meta": "Página não encontrada"
   },
@@ -955,6 +958,30 @@
     "unknownShort": "{count, plural, one {# alteração não enviada} other {# alterações não enviadas}}",
     "unknownTitle": "Não enviadas",
     "unknownBody": "{count, plural, one {Há # alteração antiga} other {Há # alterações antigas}} neste dispositivo que não dá para ligar a uma sessão. Elas não são enviadas com a sua. Descarte se não precisar delas."
+  },
+  "comingSoon": {
+    "badge": "Em breve",
+    "title": "O {name} ainda não pode ser usado",
+    "lead": "Ainda não tem data. Entre na lista de espera e avisamos por email no dia em que der para usar.",
+    "join": "Entrar na lista de espera",
+    "joinShort": "Lista de espera",
+    "joining": "Entrando…",
+    "joined": "Você está na lista de espera do {name}. Vamos escrever para {email}.",
+    "joinedSite": "Pronto. Avisamos por email no dia em que o {name} puder ser usado.",
+    "already": "Você já está na lista de espera do {name}.",
+    "useCase": "Para que você usaria? (opcional)",
+    "useCasePlaceholder": "Por exemplo: responder o chat do site entre duas pessoas",
+    "email": "Seu email",
+    "emailPlaceholder": "voce@empresa.com",
+    "invalidEmail": "Confira o email.",
+    "error": "Não conseguimos adicionar você. Tente de novo.",
+    "limited": "Muitas tentativas. Tente em alguns minutos.",
+    "privacy": "Um único email, no dia do lançamento.",
+    "back": "Voltar ao início",
+    "others": "Outros apps que ainda não podem ser usados",
+    "openPreview": "Abrir a prévia interna do {name}",
+    "previewTag": "Prévia interna",
+    "previewBanner": "O {name} ainda não está disponível para os clientes. Você vê porque faz parte do time da zerosoft."
   },
   "desktop": {
     "pickLabel": "Seu computador",

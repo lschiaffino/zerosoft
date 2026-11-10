@@ -1,16 +1,16 @@
 {
   "products": {
     "meta": {
-      "title": "24 open-source business apps: CRM, chat, docs and more",
-      "description": "Twenty-seven open-source apps, from CRM and support chat to docs, invoicing and forms. On your own server or on zerosoft Cloud with a free plan."
+      "title": "19 open-source business apps: CRM, docs, links and more",
+      "description": "Nineteen open-source apps, from CRM and short links to docs, e-signatures and forms. On your own server or on zerosoft Cloud with a free plan."
     },
     "hero": {
-      "title1": "Twenty-seven apps.",
+      "title1": "Nineteen apps.",
       "title2": "One workspace.",
       "sub": "For your company: CRM, support, AI agents, automations, robots, projects and links. For you: docs, notes, scheduling and a whiteboard. The core of each one is open source and runs on your server for $0."
     },
     "cta": {
-      "title1": "Try all twenty-seven apps.",
+      "title1": "Try all nineteen apps.",
       "title2": "With one account.",
       "sub": "Sign in with Google, create a workspace and start on the free plan. If you later prefer your own server, the code is on GitHub.",
       "button": "Open the app"
@@ -1610,92 +1610,6 @@
         "button": "Open Pulse"
       }
     },
-    "analytics": {
-      "meta": {
-        "title": "Analytics: open-source questions and dashboards over your data",
-        "description": "Ask questions with a builder, SQL or plain words, chart the answers and share dashboards. Reads your zerosoft data and your Postgres or MySQL. An open-source alternative to Metabase."
-      },
-      "hero": {
-        "sub": "Ask about your CRM, Track, Books, Groups and Pulse data, or about your own Postgres or MySQL. Build a question without code, write SQL with autocomplete, or type it in plain words and read the SQL it writes. Put the answers on dashboards with filters and send them by email or to Talk."
-      },
-      "featuresTitle": "Ask your data.",
-      "featuresTitleDim": "Share the answer.",
-      "f1": {
-        "t": "Your workspace as tables",
-        "d": "Contacts, companies, deals, projects, issues, invoices, chats, messages and Pulse events, read-only. Each person sees only the rows they can see in each app."
-      },
-      "f2": {
-        "t": "Builder without code",
-        "d": "Pick a table, filter, count or sum, group by day, week, month or year, join related tables and sort. The SQL it writes is always one click away."
-      },
-      "f3": {
-        "t": "SQL editor",
-        "d": "Autocomplete of tables and columns, a schema browser, variables with defaults and optional filters, and results you can page through or download as CSV."
-      },
-      "f4": {
-        "t": "Ask in plain words",
-        "d": "Type a question and AI writes the SQL over the tables you can read. The SQL is shown before you trust the result, and it goes through the same read-only checks."
-      },
-      "f5": {
-        "t": "Dashboards",
-        "d": "A grid of cards with numbers, lines, bars, areas, pies and funnels, text, filters wired to each card, auto-refresh, full screen and collections to keep it tidy."
-      },
-      "f6": {
-        "t": "Share and subscribe",
-        "d": "Public links and iframes that never show the query, and summaries by email to your team or to a Talk channel, daily or weekly."
-      },
-      "steps": {
-        "s1": {
-          "t": "Pick your data",
-          "d": "Your workspace is ready. To add Postgres or MySQL, an admin connects it with a read-only user."
-        },
-        "s2": {
-          "t": "Ask a question",
-          "d": "Use the builder, write SQL or ask in plain words. Pick the chart or let it choose one."
-        },
-        "s3": {
-          "t": "Build a dashboard",
-          "d": "Add the questions you saved, wire filters and share it or subscribe your team."
-        }
-      },
-      "compare": {
-        "rival": "Metabase",
-        "price": "By plan",
-        "per": "Metabase Cloud: a monthly price plus each extra user",
-        "teamLabel": "10 people",
-        "team": "see Metabase pricing",
-        "zero": "$0",
-        "note": "Metabase open source is free if you host it yourself; Metabase Cloud charges per month plus per user. We could not verify every current price, so check metabase.com/pricing. Analytics on your server costs $0 plus your database."
-      },
-      "faq": {
-        "f1": {
-          "q": "Which data can it read?",
-          "a": "Your zerosoft workspace (CRM, Track, Books, Groups and Pulse) and PostgreSQL or MySQL databases an admin connects. BigQuery, Snowflake and other engines are not supported yet."
-        },
-        "f2": {
-          "q": "Can a question change my data?",
-          "a": "No. Workspace tables are read through a whitelist of read-only SQL. External databases run each query in a read-only transaction with a time limit, one statement at a time. Still, connect with a database user that can only read."
-        },
-        "f3": {
-          "q": "Who sees what?",
-          "a": "Each person sees the workspace rows they can see in each app: CRM visibility, private Track projects, Books roles and Groups chats. Personal collections stay private. On an external database, admins decide if members can write SQL or only use the builder."
-        },
-        "f4": {
-          "q": "How does asking in plain words work?",
-          "a": "AI gets the names of the tables and columns you can read, never the rows, and writes one SELECT. You see the SQL and can edit it. It needs AI turned on in the workspace."
-        },
-        "f5": {
-          "q": "What is missing compared to Metabase?",
-          "a": "Maps, pivot tables, drill-through by clicking a chart, alerts on a question, models and metrics, row-level sandboxing by group, signed JWT embedding and more database engines. The parity table above has the full list."
-        }
-      },
-      "cta": {
-        "title1": "Ask the question.",
-        "title2": "Read the answer.",
-        "sub": "Open Analytics and ask something about your data.",
-        "button": "Open Analytics"
-      }
-    },
     "social": {
       "meta": {
         "title": "Social: open-source Hootsuite alternative",
@@ -2373,6 +2287,92 @@
         "sub": "Open Inbox, link WhatsApp and start triaging.",
         "button": "Open Inbox"
       }
+    },
+    "analytics": {
+      "meta": {
+        "title": "Analytics: open-source questions and dashboards over your data",
+        "description": "Ask questions with a builder, SQL or plain words, chart the answers and share dashboards. Reads your zerosoft data and your Postgres or MySQL. An open-source alternative to Metabase."
+      },
+      "hero": {
+        "sub": "Ask about your CRM, Track, Books, Groups and Pulse data, or about your own Postgres or MySQL. Build a question without code, write SQL with autocomplete, or type it in plain words and read the SQL it writes. Put the answers on dashboards with filters and send them by email or to Talk."
+      },
+      "featuresTitle": "Ask your data.",
+      "featuresTitleDim": "Share the answer.",
+      "f1": {
+        "t": "Your workspace as tables",
+        "d": "Contacts, companies, deals, projects, issues, invoices, chats, messages and Pulse events, read-only. Each person sees only the rows they can see in each app."
+      },
+      "f2": {
+        "t": "Builder without code",
+        "d": "Pick a table, filter, count or sum, group by day, week, month or year, join related tables and sort. The SQL it writes is always one click away."
+      },
+      "f3": {
+        "t": "SQL editor",
+        "d": "Autocomplete of tables and columns, a schema browser, variables with defaults and optional filters, and results you can page through or download as CSV."
+      },
+      "f4": {
+        "t": "Ask in plain words",
+        "d": "Type a question and AI writes the SQL over the tables you can read. The SQL is shown before you trust the result, and it goes through the same read-only checks."
+      },
+      "f5": {
+        "t": "Dashboards",
+        "d": "A grid of cards with numbers, lines, bars, areas, pies and funnels, text, filters wired to each card, auto-refresh, full screen and collections to keep it tidy."
+      },
+      "f6": {
+        "t": "Share and subscribe",
+        "d": "Public links and iframes that never show the query, and summaries by email to your team or to a Talk channel, daily or weekly."
+      },
+      "steps": {
+        "s1": {
+          "t": "Pick your data",
+          "d": "Your workspace is ready. To add Postgres or MySQL, an admin connects it with a read-only user."
+        },
+        "s2": {
+          "t": "Ask a question",
+          "d": "Use the builder, write SQL or ask in plain words. Pick the chart or let it choose one."
+        },
+        "s3": {
+          "t": "Build a dashboard",
+          "d": "Add the questions you saved, wire filters and share it or subscribe your team."
+        }
+      },
+      "compare": {
+        "rival": "Metabase",
+        "price": "By plan",
+        "per": "Metabase Cloud: a monthly price plus each extra user",
+        "teamLabel": "10 people",
+        "team": "see Metabase pricing",
+        "zero": "$0",
+        "note": "Metabase open source is free if you host it yourself; Metabase Cloud charges per month plus per user. We could not verify every current price, so check metabase.com/pricing. Analytics on your server costs $0 plus your database."
+      },
+      "faq": {
+        "f1": {
+          "q": "Which data can it read?",
+          "a": "Your zerosoft workspace (CRM, Track, Books, Groups and Pulse) and PostgreSQL or MySQL databases an admin connects. BigQuery, Snowflake and other engines are not supported yet."
+        },
+        "f2": {
+          "q": "Can a question change my data?",
+          "a": "No. Workspace tables are read through a whitelist of read-only SQL. External databases run each query in a read-only transaction with a time limit, one statement at a time. Still, connect with a database user that can only read."
+        },
+        "f3": {
+          "q": "Who sees what?",
+          "a": "Each person sees the workspace rows they can see in each app: CRM visibility, private Track projects, Books roles and Groups chats. Personal collections stay private. On an external database, admins decide if members can write SQL or only use the builder."
+        },
+        "f4": {
+          "q": "How does asking in plain words work?",
+          "a": "AI gets the names of the tables and columns you can read, never the rows, and writes one SELECT. You see the SQL and can edit it. It needs AI turned on in the workspace."
+        },
+        "f5": {
+          "q": "What is missing compared to Metabase?",
+          "a": "Maps, pivot tables, drill-through by clicking a chart, alerts on a question, models and metrics, row-level sandboxing by group, signed JWT embedding and more database engines. The parity table above has the full list."
+        }
+      },
+      "cta": {
+        "title1": "Ask the question.",
+        "title2": "Read the answer.",
+        "sub": "Open Analytics and ask something about your data.",
+        "button": "Open Analytics"
+      }
     }
   },
   "product": {
@@ -2388,7 +2388,7 @@
     "apiDocs": "API docs",
     "howTitle": "How it works.",
     "suiteTitle": "One workspace.",
-    "suiteTitleDim": "Twenty-seven apps, same login.",
+    "suiteTitleDim": "Nineteen apps, same login.",
     "shotTitle": "{name}, inside.",
     "crumbs": "Breadcrumb",
     "navLabel": "{name} sections",
@@ -2443,14 +2443,20 @@
       "kickerCounts": "compared with {competitor}"
     },
     "building": {
-      "badge": "In the works",
-      "tagline": "We are building the open-source alternative to {rival}",
+      "badge": "Coming soon",
+      "tagline": "The open-source alternative to {rival}, still being built",
       "propose": "Propose an idea",
       "roadmap": "See the roadmap",
       "shotFig": "fig. 1 · {name}, design sketch: you can't use it yet",
       "faqTitleDim": "What we know so far and what's missing.",
       "compareZero": "With zerosoft, once it's ready",
-      "zeroApp": "{name} on your server, once it's ready"
+      "zeroApp": "{name} on your server, once it's ready",
+      "waitlistLead": "{name} isn't usable yet and has no date. Leave your email and we'll let you know the day it ships.",
+      "parityNote": "{name} isn't usable yet. The table counts what's already built in the code.",
+      "ctaTitle": "Interested in {name}?",
+      "ctaTitleDim": "We'll tell you when it's ready.",
+      "ctaSub": "Join the {name} waitlist. One email, the day it ships.",
+      "join": "Join the waitlist"
     },
     "heroFig": {
       "link": "fig. 0 · a chain of links",
@@ -3882,7 +3888,7 @@
   "parityOverview": {
     "title": "Feature parity, app by app.",
     "titleDim": "Measured against each competitor.",
-    "lead": "Average parity across {apps} of the 27 apps: {average}%. We compare {counted} capabilities of the tool each app replaces.",
+    "lead": "Average parity across the {apps} apps you can use today: {average}%. We compare {counted} capabilities of the tool each app replaces.",
     "col": {
       "app": "App",
       "competitor": "Compared with",
@@ -3893,7 +3899,8 @@
       "beyond": "Beyond"
     },
     "method": "Each app counts 1 for an included capability, 0.5 for a partial one and 0 for a missing one, with double weight for core capabilities. It is our own review against the code, updated with every release. Open an app to see its full list.",
-    "notComparable": "Not comparable"
+    "notComparable": "Not comparable",
+    "comingSoon": "Coming soon"
   },
   "desktopLogin": {
     "title": "Sign in to the zerosoft app",
@@ -4022,12 +4029,13 @@
     "relatedTitle": "Guides and posts",
     "otherTitle": "Other comparisons",
     "tryCta": "Try {name}",
-    "productCta": "The {name} page"
+    "productCta": "The {name} page",
+    "waitlistCta": "Join the {name} waitlist"
   },
   "docsMcp": {
     "meta": {
       "title": "Connect Claude and the CLI",
-      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 27 apps as yourself."
+      "description": "Connect Claude Code or the zerosoft CLI to your account with your normal login, and work in all 19 apps as yourself."
     }
   }
 }

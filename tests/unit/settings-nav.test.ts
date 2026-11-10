@@ -32,6 +32,7 @@ describe('settings: secciones de la plataforma', () => {
       'notifications',
       'workspace',
       'members',
+      'apps',
       'teams',
       'billing',
       'api',

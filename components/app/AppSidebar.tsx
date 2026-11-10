@@ -19,6 +19,7 @@ import {
   appProductOf,
   buildNav,
   buildNewItems,
+  comingSoonHref,
   settingsNavItem,
   importNavItem,
   productKeyOf,
@@ -26,7 +27,7 @@ import {
   SWITCHER_PRODUCTS,
   type SidebarLabels,
 } from './sidebar-nav';
-import { PRODUCT_CONFIG, appAllowed, isBuildingProduct, type ProductKey } from '@/lib/products';
+import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, appAllowed, isComingSoon, type ProductKey } from '@/lib/products';
 import { DEFAULT_WORKSPACE_MODE, featuredApps, moreAppsByCategory, type WorkspaceMode } from '@/lib/workspace-mode';
 import NotificationBell from './NotificationBell';
 import WorkspaceSwitcher, { type SwitcherEntry } from './WorkspaceSwitcher';
@@ -129,8 +130,11 @@ export default function AppSidebar({
   crumb = null,
   mode = DEFAULT_WORKSPACE_MODE,
   docsCanCreate = true,
+  staff = false,
   chosenApps = null,
 }: {
+  /** Staff de zerosoft (ADMIN_EMAILS): abre las apps "Próximamente" como vista previa. */
+  staff?: boolean;
   /** Apps que la persona eligió en el onboarding: van primero en el switcher y el inicio. */
   chosenApps?: ProductKey[] | null;
   /** Puede crear páginas de Docs de primer nivel (si no, el "+ Nuevo" no las ofrece). */
@@ -351,7 +355,7 @@ export default function AppSidebar({
     asideRef.current?.closest('.app-frame')?.classList.toggle('sidebar-collapsed', next);
   }
 
-  const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount, allowed: allowedApps, recentApps, mode, chosen: chosenApps });
+  const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount, allowed: allowedApps, recentApps, mode, staff, chosen: chosenApps });
   const newItems = buildNewItems(product, labels, { docsCanCreate, pathname });
   const settingsItem = settingsNavItem(pathname, labels);
   const importItem = importNavItem(product, labels);
@@ -362,6 +366,8 @@ export default function AppSidebar({
 
   // Switcher: destacadas según el modo del workspace y el resto por categoría.
   const allowed = (k: ProductKey) => appAllowed(allowedApps, k);
+  // "Próximamente" al pie del switcher (lista de espera); el staff las ve entre las demás, como vista previa.
+  const soonApps = APP_SWITCHER_ORDER.filter((k) => isComingSoon(k) && !(staff && allowed(k)));
   const featured = featuredApps({ mode, chosen: chosenApps }).filter(allowed);
   const more = moreAppsByCategory({ mode, chosen: chosenApps })
     .map((g) => ({ ...g, apps: g.apps.filter(allowed) }))
@@ -379,7 +385,7 @@ export default function AppSidebar({
       >
         <ProductGlyph product={line} size={14} />
         <span>{PRODUCT_CONFIG[line].name}</span>
-        {isBuildingProduct(line) && <span className="app-soon-tag">{labels.soon}</span>}
+        {isComingSoon(line) && <span className="app-soon-tag">{labels.preview ?? labels.soon}</span>}
       </Link>
     );
   };
@@ -490,6 +496,28 @@ export default function AppSidebar({
                       {apps.map(switcherItem)}
                     </div>
                   ))}
+                </div>
+              )}
+              {soonApps.length > 0 && (
+                <div className="band-menu-soon" role="group" aria-label={labels.comingSoon ?? labels.soon}>
+                  <p className="band-menu-cat-title" aria-hidden="true">
+                    {labels.comingSoon ?? labels.soon}
+                  </p>
+                  <div className="band-menu-soon-list">
+                    {soonApps.map((line) => (
+                      <Link
+                        key={line}
+                        href={comingSoonHref(line)}
+                        role="menuitem"
+                        className="band-menu-item band-menu-soon-item"
+                        onClick={() => setSwitcherOpen(false)}
+                        data-testid={`switcher-soon-${line}`}
+                      >
+                        <ProductGlyph product={line} size={14} />
+                        <span>{PRODUCT_CONFIG[line].name}</span>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
               <button
@@ -645,7 +673,7 @@ export default function AppSidebar({
                       <Icon name={item.icon} size={15} />
                     </span>
                     <span className="side-label">{item.label}</span>
-                    {item.soon && <span className="app-soon-tag side-soon">{labels.soon}</span>}
+                    {item.soon === 'preview' && <span className="app-soon-tag side-soon">{labels.preview ?? labels.soon}</span>}
                     {item.badge ? <span className="side-badge data">{item.badge}</span> : null}
                   </Link>
                   {/* Hueco bajo el ítem: la página del producto lo llena con un portal (el árbol de Docs). */}

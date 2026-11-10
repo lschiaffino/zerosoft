@@ -12,7 +12,7 @@ import DesktopDownload, { DesktopFeatures, type DesktopRelease } from '@/compone
 import { Link } from '@/i18n/navigation';
 import { inDesktopApp } from '@/lib/desktop-detect';
 import { cleanApps, ONBOARDING_ROLES, SOURCE_TOOL_KEYS, SOURCE_TOOLS, suggestedApps, type OnboardingDraft } from '@/lib/onboarding-shared';
-import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { APP_SWITCHER_ORDER, isComingSoon, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import { WORKSPACE_SIZES_LIST, type WorkspaceMode } from '@/lib/workspace-mode';
 
 interface InviteResult {
@@ -254,6 +254,9 @@ function ProfileFlow(props: Parameters<typeof WelcomeFlow>[0]) {
   const [name, setName] = useState(d.name ?? props.name);
   const [role, setRole] = useState<string>(d.role ?? '');
   const [apps, setApps] = useState<ProductKey[] | null>(d.apps ? cleanApps(d.apps) : null);
+  // Las "Próximamente" no se abren: se puede sumar a su lista de espera desde el paso de apps.
+  const [waitlist, setWaitlist] = useState<ProductKey[]>([]);
+  const soonApps = APP_SWITCHER_ORDER.filter((k) => isComingSoon(k));
   const [invites, setInvites] = useState(d.invites ?? '');
   const [sample, setSample] = useState(Boolean(d.sampleData));
   // Las apps se tocaron a mano: cambiar de rol ya no las vuelve a sugerir.
@@ -332,6 +335,7 @@ function ProfileFlow(props: Parameters<typeof WelcomeFlow>[0]) {
       name: name.trim() || undefined,
       invites: mode === 'team' && invites.trim() ? invites : undefined,
       apps: picked,
+      waitlist: waitlist.length ? waitlist : undefined,
       sampleData: sample,
       locale,
       timeZone: tz,
@@ -548,7 +552,7 @@ function ProfileFlow(props: Parameters<typeof WelcomeFlow>[0]) {
               </span>
             </legend>
             <div className="wl-appgrid">
-              {APP_SWITCHER_ORDER.map((k) => {
+              {APP_SWITCHER_ORDER.filter((k) => !isComingSoon(k)).map((k) => {
                 const on = picked.includes(k);
                 return (
                   <label key={k} className={`wl-appcard${on ? ' is-on' : ''}`} data-testid="wl-app" data-app={k}>
@@ -566,6 +570,27 @@ function ProfileFlow(props: Parameters<typeof WelcomeFlow>[0]) {
               })}
             </div>
           </fieldset>
+          {soonApps.length > 0 && (
+            <fieldset className="st-fieldset">
+              <legend className="label">{t('start.soon')}</legend>
+              <p className="ui-help">{t('start.soonHelp')}</p>
+              <div className="wl-apps" data-testid="welcome-soon">
+                {soonApps.map((k) => (
+                  <label key={k} className={`wl-app${waitlist.includes(k) ? ' is-on' : ''}`}>
+                    <input
+                      type="checkbox"
+                      name="waitlist"
+                      value={k}
+                      checked={waitlist.includes(k)}
+                      onChange={(e) => setWaitlist((w) => (e.target.checked ? [...w, k] : w.filter((x) => x !== k)))}
+                    />
+                    <ProductGlyph product={k} size={16} />
+                    <span>{PRODUCT_CONFIG[k].name}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
           <label className="ui-check wl-sample">
             <input type="checkbox" checked={sample} onChange={(e) => setSample(e.target.checked)} />
             <span>{t('apps.sample')}</span>

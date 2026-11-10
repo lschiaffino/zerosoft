@@ -16,6 +16,8 @@ import { rateLimit } from '@/lib/rate-limit';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { publicBase, requestLocale } from '@/lib/teams-http';
 import { ensureWorkspace } from '@/lib/workspace';
+import { isComingSoon } from '@/lib/products';
+import { joinWaitlist, normalizeLang, sendWaitlistJoined } from '@/lib/waitlist';
 import { inviteMany, type InviteOutcome } from '@/lib/workspace-invites';
 
 export const runtime = 'nodejs';
@@ -37,6 +39,8 @@ const fullSchema = z.object({
   timeZone: z.string().max(64).optional(),
   sampleData: z.boolean().optional(),
   importNow: z.boolean().optional(),
+  /** Apps "Próximamente" a cuya lista de espera se suma. */
+  waitlist: z.array(z.string().max(20)).max(20).optional(),
 });
 
 const basicSchema = z.object({
@@ -119,6 +123,12 @@ export async function POST(req: NextRequest) {
   if (real.onboarded_at || user.actingUser) return NextResponse.json({ error: 'already_onboarded' }, { status: 409 });
   const input = parsed.data;
   const profile = await saveOnboarding(real, input);
+  // Listas de espera elegidas en el último paso (las que no son "Próximamente" se ignoran).
+  for (const app of new Set(input.waitlist ?? [])) {
+    if (!isComingSoon(app)) continue;
+    const joined = await joinWaitlist({ app, email: real.email, userId: real.id, locale: input.locale, source: 'app' }).catch(() => null);
+    if (joined?.created) await sendWaitlistJoined(joined.email, joined.app, normalizeLang(input.locale)).catch(() => false);
+  }
   let results: InviteOutcome[] = [];
   let invalid: string[] = [];
   if (input.mode === 'team' && input.invites && (Array.isArray(input.invites) ? input.invites.length : input.invites.trim())) {

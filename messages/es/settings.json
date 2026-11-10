@@ -359,6 +359,22 @@
         "failed": "Falló",
         "skipped": "Salteado"
       }
+    },
+    "waitlist": {
+      "nav": "Lista de espera",
+      "desc": "Personas que esperan cada app \"Próximamente\". Cuando una app sale, el cron de cada hora les manda un email. Solo lo ven los ADMIN_EMAILS.",
+      "exportAll": "Bajar CSV",
+      "emptyTitle": "Nadie se sumó todavía",
+      "emptyBody": "Lo que llegue desde la app, el onboarding y las páginas de producto aparece acá.",
+      "app": "App",
+      "total": "Personas",
+      "last7": "Últimos 7 días",
+      "withUseCase": "Con \"para qué\"",
+      "state": "Estado",
+      "export": "CSV",
+      "soon": "Próximamente",
+      "live": "Salió: avisadas {notified} de {total}",
+      "csv": "CSV"
     }
   },
   "groups": {
@@ -380,6 +396,7 @@
     "notifications": "Avisos",
     "desktop": "App de escritorio",
     "admin": "Admin",
+    "apps": "Apps del workspace",
     "appearance": "Apariencia",
     "offline": "Sin conexión"
   },
@@ -718,7 +735,8 @@
         "transfer": "{actor} pasó el trabajo de {target} a {to}",
         "invite": "{actor} invitó a {target}",
         "link": "{actor} creó un link de invitación",
-        "revoke": "{actor} revocó la invitación de {target}"
+        "revoke": "{actor} revocó la invitación de {target}",
+        "workspaceApp": "{actor} cambió quién usa {target}: {to}"
       },
       "someone": "alguien",
       "undo": "Deshacer",
@@ -911,7 +929,10 @@
     "guardStay": "Ir a mi workspace activo",
     "guardHome": "Ir al inicio",
     "guardSwitchError": "No se pudo volver. Probá de nuevo.",
-    "guardClose": "Cerrar"
+    "guardClose": "Cerrar",
+    "offTitle": "{app} está apagada en tu workspace",
+    "offBody": "Un admin de {workspace} apagó {app}. Pedile que la vuelva a prender si la necesitás.",
+    "offBodyAdmin": "{app} está apagada en {workspace}. Volvé a prenderla en Ajustes › Workspace › Apps."
   },
   "invite": {
     "metaTitle": "Invitación",
@@ -1026,7 +1047,9 @@
       "sample": "Agregar datos de ejemplo para explorar (contactos, un doc, un proyecto y un tipo de evento)",
       "importFrom": "Importar de {tool}",
       "go": "Ir a {app}",
-      "finish": "Terminar"
+      "finish": "Terminar",
+      "soon": "Próximamente",
+      "soonHelp": "Todavía no se pueden usar. Marcá las que te interesan y te avisamos por email cuando salgan."
     },
     "invited": {
       "title": "Te damos la bienvenida a {workspace}",
@@ -1447,6 +1470,51 @@
       }
     }
   },
+  "appsPanel": {
+    "title": "Apps del workspace",
+    "desc": "Prendé o apagá cada app para el workspace, elegí quién la usa (todos, equipos o personas) y ajustala por persona. Apagar una la saca de todos lados para todos; lo que tiene adentro no se borra.",
+    "readOnly": "Solo el owner y los admins cambian esto.",
+    "modes": {
+      "all": "Todos",
+      "some": "Equipos o personas",
+      "admins": "Solo admins",
+      "off": "Apagada"
+    },
+    "summary": {
+      "all": "La usan todos los que la tienen habilitada.",
+      "some": "{people, plural, =0 {Ninguna persona} one {# persona} other {# personas}} y {teams, plural, =0 {ningún equipo} one {# equipo} other {# equipos}}, más el owner y los admins.",
+      "admins": "Solo el owner y los admins.",
+      "off": "Apagada para todos. Sus datos quedan guardados.",
+      "deniedCount": "{count, plural, one {# persona excluida} other {# personas excluidas}}"
+    },
+    "edit": "Elegir",
+    "error": "No se guardó. Probá de nuevo.",
+    "saved": "Guardado",
+    "accessFor": "Quién usa {name}",
+    "compose": "Encima de esto valen las apps habilitadas de cada persona en Miembros y permisos.",
+    "pickTitle": "¿Quién usa {name}?",
+    "pickSave": "Guardar",
+    "cancel": "Cancelar",
+    "pickHelp": "El owner y los admins la usan siempre. Elegí equipos, personas o las dos cosas, y excluí a quien quieras por nombre.",
+    "teams": "Equipos",
+    "people": "Personas",
+    "teamCount": "{count, plural, one {# persona} other {# personas}}",
+    "noMembers": "Todavía no hay miembros en el workspace.",
+    "enabled": "Activada",
+    "enabledFor": "{name} activada para el workspace",
+    "accessLabel": "Acceso",
+    "exceptions": "Excepciones",
+    "choose": "Personas y equipos",
+    "person": {
+      "default": "Según el acceso de arriba",
+      "allow": "Siempre puede",
+      "deny": "Nunca puede"
+    },
+    "pickHelpAll": "La usan todos. Excluí acá a personas puntuales; el owner y los admins la conservan siempre.",
+    "pickHelpAdmins": "La usan solo el owner y los admins. Las exclusiones no cambian eso.",
+    "pickPeople": "Por persona",
+    "offNote": "Apagada: desaparece del menú, del inicio, de la búsqueda, de sus páginas y su API, del MCP y de la app de escritorio. Sus datos quedan guardados."
+  },
   "security": {
     "requiredBy": "El workspace {workspace} exige la verificación en dos pasos. Activala acá abajo para seguir trabajando ahí.",
     "working": "Un momento…",
@@ -1626,7 +1694,8 @@
       "permissions": "accesibilidad, micrófono, cámara, grabación de pantalla, privacidad, restablecer permiso",
       "updates": "actualizar, versión, buscar actualizaciones",
       "account": "iniciar sesión, cerrar sesión, servidor, instalación propia"
-    }
+    },
+    "apps": "apps del workspace, prender, apagar, ocultar, acceso, quién puede usar"
   },
   "appearance": {
     "title": "Apariencia",

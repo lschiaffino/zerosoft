@@ -4,7 +4,7 @@
  * servidor (lib/onboarding.ts, lib/onboarding-state.ts) y el cliente
  * (components/settings/WelcomeFlow.tsx).
  */
-import { APP_SWITCHER_ORDER, isProductKey, type ProductKey } from './products';
+import { APP_SWITCHER_ORDER, isComingSoon, isProductKey, type ProductKey } from './products';
 import { featuredApps, WORKSPACE_SIZES_LIST, type WorkspaceMode } from './workspace-mode';
 
 export const ONBOARDING_ROLES = ['founder', 'sales', 'support', 'marketing', 'engineering', 'product', 'operations', 'design', 'other'] as const;
@@ -110,7 +110,7 @@ export function cleanDraft(raw: unknown): OnboardingDraft {
  */
 export function cleanApps(raw: unknown): ProductKey[] {
   if (!Array.isArray(raw)) return [];
-  return [...new Set(raw.filter((k): k is ProductKey => typeof k === 'string' && isProductKey(k)))].slice(0, APP_SWITCHER_ORDER.length);
+  return [...new Set(raw.filter((k): k is ProductKey => typeof k === 'string' && isProductKey(k) && !isComingSoon(k)))].slice(0, APP_SWITCHER_ORDER.length);
 }
 
 /**

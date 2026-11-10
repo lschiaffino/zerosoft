@@ -359,6 +359,22 @@
         "failed": "Failed",
         "skipped": "Skipped"
       }
+    },
+    "waitlist": {
+      "nav": "Waitlist",
+      "desc": "People waiting for each \"Coming soon\" app. When an app ships, the hourly cron emails them. Only ADMIN_EMAILS see this.",
+      "exportAll": "Download CSV",
+      "emptyTitle": "Nobody joined yet",
+      "emptyBody": "Sign-ups from the app, onboarding and product pages show up here.",
+      "app": "App",
+      "total": "People",
+      "last7": "Last 7 days",
+      "withUseCase": "With \"what for\"",
+      "state": "State",
+      "export": "CSV",
+      "soon": "Coming soon",
+      "live": "Shipped: {notified} of {total} notified",
+      "csv": "CSV"
     }
   },
   "groups": {
@@ -380,6 +396,7 @@
     "notifications": "Notifications",
     "desktop": "Desktop app",
     "admin": "Admin",
+    "apps": "Workspace apps",
     "appearance": "Appearance",
     "offline": "Offline"
   },
@@ -718,7 +735,8 @@
         "transfer": "{actor} passed the work of {target} to {to}",
         "invite": "{actor} invited {target}",
         "link": "{actor} created an invite link",
-        "revoke": "{actor} revoked the invitation for {target}"
+        "revoke": "{actor} revoked the invitation for {target}",
+        "workspaceApp": "{actor} changed who uses {target}: {to}"
       },
       "someone": "someone",
       "undo": "Undo",
@@ -911,7 +929,10 @@
     "guardStay": "Go to my active workspace",
     "guardHome": "Go to Home",
     "guardSwitchError": "Couldn't switch back. Try again.",
-    "guardClose": "Dismiss"
+    "guardClose": "Dismiss",
+    "offTitle": "{app} is turned off in this workspace",
+    "offBody": "An admin of {workspace} turned {app} off. Ask them if you need it back.",
+    "offBodyAdmin": "{app} is off for {workspace}. Turn it back on in Settings › Workspace › Apps."
   },
   "invite": {
     "metaTitle": "Invitation",
@@ -1026,7 +1047,9 @@
       "sample": "Add sample data to explore (contacts, a doc, a project and an event type)",
       "importFrom": "Import from {tool}",
       "go": "Go to {app}",
-      "finish": "Finish"
+      "finish": "Finish",
+      "soon": "Coming soon",
+      "soonHelp": "Not usable yet. Tick the ones you care about and we'll email you when they ship."
     },
     "invited": {
       "title": "Welcome to {workspace}",
@@ -1447,6 +1470,51 @@
       }
     }
   },
+  "appsPanel": {
+    "title": "Workspace apps",
+    "desc": "Turn each app on or off for the workspace, choose who gets it (everyone, teams or people) and override it per person. Turning one off removes it everywhere for everyone; what's inside is kept.",
+    "readOnly": "Only the owner and admins can change this.",
+    "modes": {
+      "all": "Everyone",
+      "some": "Specific teams or people",
+      "admins": "Only admins",
+      "off": "Off"
+    },
+    "summary": {
+      "all": "Everyone who has it enabled can use it.",
+      "some": "{people, plural, =0 {No people} one {# person} other {# people}} and {teams, plural, =0 {no teams} one {# team} other {# teams}}, plus the owner and admins.",
+      "admins": "Only the owner and admins.",
+      "off": "Off for everyone. Its data stays saved.",
+      "deniedCount": "{count, plural, one {# person excluded} other {# people excluded}}"
+    },
+    "edit": "Choose",
+    "error": "Didn't save. Try again.",
+    "saved": "Saved",
+    "accessFor": "Who uses {name}",
+    "compose": "On top of this, each person's enabled apps in Members & permissions still apply.",
+    "pickTitle": "Who uses {name}?",
+    "pickSave": "Save",
+    "cancel": "Cancel",
+    "pickHelp": "The owner and admins always have it. Pick teams, people or both, and exclude anyone by name.",
+    "teams": "Teams",
+    "people": "People",
+    "teamCount": "{count, plural, one {# person} other {# people}}",
+    "noMembers": "There are no members in the workspace yet.",
+    "enabled": "On",
+    "enabledFor": "{name} on for the workspace",
+    "accessLabel": "Access",
+    "exceptions": "Exceptions",
+    "choose": "People and teams",
+    "person": {
+      "default": "By the access above",
+      "allow": "Always can",
+      "deny": "Never can"
+    },
+    "pickHelpAll": "Everyone can use it. Exclude specific people here; the owner and admins always keep it.",
+    "pickHelpAdmins": "Only the owner and admins use it. Exclusions don't change that.",
+    "pickPeople": "Per person",
+    "offNote": "Turned off: it disappears from the sidebar, home, search, its pages and API, the MCP and the desktop app. Its data stays saved."
+  },
   "security": {
     "requiredBy": "The workspace {workspace} requires two-step verification. Turn it on below to keep working there.",
     "working": "Working…",
@@ -1626,7 +1694,8 @@
       "permissions": "accessibility, microphone, camera, screen recording, privacy, reset permission",
       "updates": "update, version, check for updates, release",
       "account": "sign in, sign out, server, self-host"
-    }
+    },
+    "apps": "workspace apps, turn on, turn off, hide, access, who can use"
   },
   "appearance": {
     "title": "Appearance",

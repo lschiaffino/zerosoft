@@ -2,7 +2,7 @@ import { importHubHref } from '@/lib/import-registry';
 import type { IconName } from './icons';
 import { isNewLinkPath } from '@/lib/link-detail-tabs';
 import type { NotificationTextLabels } from '@/lib/notification-text';
-import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, appAllowed, isBuildingProduct, type ProductCategory, type ProductKey } from '@/lib/products';
+import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, appAllowed, comingSoonHref, isComingSoon, type ProductCategory, type ProductKey } from '@/lib/products';
 import { featuredApps, type WorkspaceMode } from '@/lib/workspace-mode';
 
 /** Resumen de Link (antes vivía en /app, que ahora es el inicio de la plataforma). */
@@ -20,6 +20,10 @@ export interface SidebarLabels {
   backToSite: string;
   docsSite: string;
   soon: string;
+  /** Etiqueta de una app "Próximamente" que el staff abre (vista previa interna). */
+  preview?: string;
+  /** Grupo de las apps "Próximamente" (sidebar del inicio y switcher). */
+  comingSoon?: string;
   signOut: string;
   records: string;
   activity: string;
@@ -293,7 +297,8 @@ export interface NavItem {
   /** Solo el hueco del árbol, sin el ítem (Track lista los teams directo bajo "Your teams"). */
   branchOnly?: boolean;
   /** App en construcción: el sidebar le suma la marca "pronto". */
-  soon?: boolean;
+  /** Etiqueta: 'preview' = vista previa interna (staff); true = Próximamente. */
+  soon?: boolean | 'preview';
 }
 
 export interface NavGroup {
@@ -464,32 +469,47 @@ export const HOME_APPS_LIMIT = 8;
  */
 export function homeAppGroups(
   labels: SidebarLabels,
-  opts: { allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode; chosen?: readonly ProductKey[] | null } = {},
+  opts: { allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode; staff?: boolean; chosen?: readonly ProductKey[] | null } = {},
 ): NavGroup[] {
   const can = (k: ProductKey) => appAllowed(opts.allowed, k);
-  const all = APP_SWITCHER_ORDER.filter(can);
+  // Las "Próximamente" van aparte, al final: nadie las usa salvo el staff (vista previa).
+  const all = APP_SWITCHER_ORDER.filter((k) => !isComingSoon(k) && can(k));
   const recent = (opts.recentApps ?? []).filter((k): k is ProductKey => (all as readonly string[]).includes(k));
   // Con apps elegidas en el onboarding, "Tus apps" son esas (y las recientes); si no, se completa con todas.
-  const chosen = opts.chosen?.length ? opts.chosen.filter(can) : null;
-  const top = [...new Set([...recent, ...featuredApps({ mode: opts.mode ?? 'team', chosen }).filter(can), ...(chosen ? [] : all)])].slice(0, HOME_APPS_LIMIT);
+  const ready = (k: ProductKey) => !isComingSoon(k) && can(k);
+  const chosen = opts.chosen?.length ? opts.chosen.filter(ready) : null;
+  const top = [...new Set([...recent, ...featuredApps({ mode: opts.mode ?? 'team', chosen }).filter((k) => all.includes(k)), ...(chosen ? [] : all)])].slice(0, HOME_APPS_LIMIT);
   const rest = all.filter((k) => !top.includes(k));
   const item = (line: ProductKey): NavItem => ({
     href: switcherHref(line),
     label: PRODUCT_CONFIG[line].name,
     active: false,
     icon: APP_ICONS[line],
-    soon: isBuildingProduct(line) || undefined,
   });
   const groups: NavGroup[] = top.length ? [{ section: labels.yourApps, items: top.map(item) }] : [];
   if (rest.length) groups.push({ section: labels.moreApps, items: rest.map(item), collapsible: true });
+  const soon = APP_SWITCHER_ORDER.filter((k) => isComingSoon(k));
+  if (soon.length) {
+    groups.push({
+      section: labels.comingSoon ?? labels.soon,
+      collapsible: true,
+      items: soon.map((line) =>
+        opts.staff && can(line)
+          ? { ...item(line), soon: 'preview' as const }
+          : { ...item(line), href: comingSoonHref(line) },
+      ),
+    });
+  }
   return groups;
 }
+
+export { comingSoonHref };
 
 export function buildNav(
   product: AppProduct,
   pathname: string,
   labels: SidebarLabels,
-  counts: { tasksDue?: number; unread?: number; allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode; chosen?: readonly ProductKey[] | null } = {},
+  counts: { tasksDue?: number; unread?: number; allowed?: '*' | readonly string[]; recentApps?: readonly string[]; mode?: WorkspaceMode; staff?: boolean; chosen?: readonly ProductKey[] | null } = {},
 ): NavGroup[] {
   const at = (prefix: string) => pathname.startsWith(prefix);
   const tasksDue = counts.tasksDue ?? 0;

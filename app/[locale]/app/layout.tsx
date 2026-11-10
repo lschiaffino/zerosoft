@@ -6,7 +6,9 @@ import { sessionGuardScript, WHO_COOKIE_NAME } from '@/lib/session-guard';
 import { redirect } from 'next/navigation';
 import { DEMO_EMAIL, DEMO_MODE, requireUser } from '@/lib/session';
 import { RETURN_PATH_HEADER } from '@/lib/return-path';
-import { PRODUCT_KEYS } from '@/lib/products';
+import { appFromPath, isComingSoon, PRODUCT_KEYS } from '@/lib/products';
+import { isStaff } from '@/lib/workspace-apps';
+import PreviewBanner from '@/components/app/PreviewBanner';
 import { listMyWorkspaces, userCanUseApp } from '@/lib/workspace';
 import type { SwitcherEntry } from '@/components/app/WorkspaceSwitcher';
 import OfflineIdentity from '@/components/app/OfflineIdentity';
@@ -104,7 +106,8 @@ export default async function AppLayout(
   // Acceso por app (team_members.apps): una página de una app que la persona no
   // tiene en el workspace activo ya se armó con su workspace propio (lib/session):
   // se la manda al inicio con el aviso.
-  if (user.blockedApp) redirect(`/${locale}/app?blocked=${user.blockedApp}`);
+  // Una app "Próximamente" va a su página de lista de espera.
+  if (user.blockedApp) redirect(isComingSoon(user.blockedApp) ? `/${locale}/app/soon/${user.blockedApp}` : `/${locale}/app?blocked=${user.blockedApp}`);
   // El workspace exige dos pasos y la persona no los tiene: primero los activa.
   if (user.mfaRequiredBy && !/^\/(?:en|es|pt)\/app\/settings\/security(?:[/?]|$)/.test(path)) {
     redirect(`/${locale}/app/settings/security?required=1`);
@@ -138,6 +141,13 @@ export default async function AppLayout(
       </ClientMessages>
     );
   }
+  // Apps que abre (las tres capas de lib/app-access.ts): sidebar, switcher y Cmd+K salen de acá.
+  const openable = PRODUCT_KEYS.filter((key) => userCanUseApp(user, key));
+  const allowedApps = openable.length === PRODUCT_KEYS.length ? ('*' as const) : openable;
+  const staff = isStaff(real.email);
+  // Staff dentro de una app "Próximamente": vista previa interna, con aviso.
+  const pathApp = appFromPath(path);
+  const previewApp = pathApp && isComingSoon(pathApp) && userCanUseApp(user, pathApp) ? pathApp : null;
   // Entrada activa del switcher: el workspace ajeno, un equipo propio de antes de 128, o el propio (null).
   const effective = user.actingUser ? (user.workspace?.id ?? null) : user.team ? (real.active_team_id ?? null) : null;
   // Las lecturas de la base arrancan juntas (en Turso cada query es un RTT): el switcher, el permiso
@@ -233,7 +243,8 @@ export default async function AppLayout(
           }}
           teamName={user.actingUser ? (user.workspace?.name ?? user.team?.name ?? null) : null}
           workspaces={workspaces}
-          allowedApps={user.role === 'owner' ? '*' : (user.apps ?? '*')}
+          allowedApps={allowedApps}
+          staff={staff}
           crumb={
             <AppTopbar
               sections={[
@@ -450,6 +461,8 @@ export default async function AppLayout(
             backToSite: tSide('backToSite'),
             docsSite: tSide('docs'),
             soon: tSide('soon'),
+            preview: tSide('preview'),
+            comingSoon: tSide('comingSoon'),
             signOut: tSide('signOut'),
             records: tSide('records'),
             activity: tSide('activity'),
@@ -787,11 +800,12 @@ export default async function AppLayout(
                 }}
               />
             )}
+            {previewApp && <PreviewBanner app={previewApp} locale={locale} />}
             <DesktopUpdateBanner />
             {children}
           </main>
         </div>
-        <CommandSearch allowedApps={user.role === 'owner' ? '*' : PRODUCT_KEYS.filter((key) => userCanUseApp(user, key))} />
+        <CommandSearch allowedApps={allowedApps} staff={staff} />
         {/* Asistente de la plataforma: ⌘J o el botón de la banda, en toda la app. */}
         <AssistantPanel />
         {/* Un solo menú abierto a la vez también para los menús que no usan lib/ui/layers.ts. */}
