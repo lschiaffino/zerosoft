@@ -991,7 +991,7 @@ export default function MembersPanel({
               key: 'active',
               header: tp('colLastActive'),
               cell: (m: MemberDto) => (
-                <span className="ws-cell-muted" title={m.lastActiveAt ? fmt(m.lastActiveAt) : undefined}>
+                <span suppressHydrationWarning className="ws-cell-muted" title={m.lastActiveAt ? fmt(m.lastActiveAt) : undefined}>
                   {m.userId === me ? new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(0, 'second') : ago(m.lastActiveAt)}
                 </span>
               ),
@@ -1224,7 +1224,7 @@ export default function MembersPanel({
               {dir.audit.slice(0, 20).map((a) => (
                 <li key={a.id} className="ws-log-item">
                   <span className="ws-log-line">{logLine(a)}</span>
-                  <time className="data st-muted ws-log-time" dateTime={a.createdAt} title={fmt(a.createdAt)}>
+                  <time suppressHydrationWarning className="data st-muted ws-log-time" dateTime={a.createdAt} title={fmt(a.createdAt)}>
                     {ago(a.createdAt)}
                   </time>
                 </li>
@@ -1423,7 +1423,7 @@ export default function MembersPanel({
                       {view.history.slice(0, 8).map((a) => (
                         <li key={a.id} className="ws-log-item">
                           <span className="ws-log-line">{logLine(a)}</span>
-                          <time className="data st-muted ws-log-time" dateTime={a.createdAt} title={fmt(a.createdAt)}>
+                          <time suppressHydrationWarning className="data st-muted ws-log-time" dateTime={a.createdAt} title={fmt(a.createdAt)}>
                             {ago(a.createdAt)}
                           </time>
                         </li>

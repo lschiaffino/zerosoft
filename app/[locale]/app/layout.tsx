@@ -106,8 +106,9 @@ export default async function AppLayout(
   // Acceso por app (team_members.apps): una página de una app que la persona no
   // tiene en el workspace activo ya se armó con su workspace propio (lib/session):
   // se la manda al inicio con el aviso.
-  // Una app "Próximamente" va a su página de lista de espera.
-  if (user.blockedApp) redirect(isComingSoon(user.blockedApp) ? `/${locale}/app/soon/${user.blockedApp}` : `/${locale}/app?blocked=${user.blockedApp}`);
+  // Una app "Próximamente" cortada por la plataforma va a su página de lista de espera; si el staff la abre pero
+  // no la tiene (apps de la persona), es el aviso de acceso de siempre.
+  if (user.blockedApp) redirect(isComingSoon(user.blockedApp) && user.blockedApps?.includes(user.blockedApp) ? `/${locale}/app/soon/${user.blockedApp}` : `/${locale}/app?blocked=${user.blockedApp}`);
   // El workspace exige dos pasos y la persona no los tiene: primero los activa.
   if (user.mfaRequiredBy && !/^\/(?:en|es|pt)\/app\/settings\/security(?:[/?]|$)/.test(path)) {
     redirect(`/${locale}/app/settings/security?required=1`);

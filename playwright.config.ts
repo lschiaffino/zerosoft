@@ -44,6 +44,9 @@ export default defineConfig({
       ALLOW_PRIVATE_WEBHOOKS: 'true',
       // El usuario demo administra feedback, roadmap y changelog (pestaña Admin de Ajustes).
       ADMIN_EMAILS: 'demo@zerosoft.ai',
+      // Las cuentas de prueba abren las apps "Próximamente" (chat, agents, robots, design, shop, social, hiring, books) para que sus
+      // suites sigan probándolas; apps-coming-soon.spec usa cuentas @soon-e2e.io, que no (lib/workspace-apps.ts, solo CI y tests).
+      E2E_COMING_SOON_OPEN: '1',
       // Sin AI real: .env.local puede traer un VERCEL_OIDC_TOKEN y el resultado
       // dependería de la máquina (y de los créditos del Gateway).
       // Import de CRM contra el proveedor falso (lib/crm-import-fake.ts, token "fake").

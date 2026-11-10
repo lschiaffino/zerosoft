@@ -35,6 +35,11 @@ export function fromDoc(doc: Doc): Pick<VoiceEnhanced, 'summary' | 'sections'> {
   };
 }
 
+/** Lo editable de una nota, para saber si lo que llega es otra nota o la misma. */
+function signature(e: Pick<VoiceEnhanced, 'summary' | 'sections'>): string {
+  return JSON.stringify([e.summary.trim(), e.sections.map((s) => [s.heading.trim(), s.points.map((p) => [p.text.trim(), p.source, p.level ? 1 : 0])])]);
+}
+
 /** Texto editable en el lugar (sin formato): no se pisa mientras tiene el foco. */
 function Editable({
   tag: Tag,
@@ -112,10 +117,20 @@ export default function NotesEditor({
   const latest = useRef(doc);
   const dirty = useRef(false);
 
-  // Una nota nueva (regenerada) reemplaza el documento.
+  // Una nota nueva (regenerada) reemplaza el documento. No al montar (ya se armó con ella) ni
+  // cuando llega la misma nota otra vez (un refresco de la reunión): rehacerlo cambia los ids de
+  // las viñetas y se pierde el foco y lo que se está escribiendo.
+  const seen = useRef(signature(enhanced));
   useEffect(() => {
-    setDoc(toDoc(enhanced));
+    const sig = signature(enhanced);
+    if (sig === seen.current) return;
+    seen.current = sig;
+    if (sig === signature(fromDoc(latest.current))) return;
+    const next = toDoc(enhanced);
+    // `latest` es de donde salen las ediciones: tiene que ser el documento que se muestra.
+    latest.current = next;
     dirty.current = false;
+    setDoc(next);
   }, [enhanced]);
 
   const flush = () => {

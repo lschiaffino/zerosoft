@@ -46,6 +46,15 @@ function linearError(err: unknown): NextResponse {
   return trackError(500, 'internal_error');
 }
 
+/**
+ * Lo que devuelven las acciones (todas piden admin): el estado con isAdmin,
+ * igual que GET. Sin eso la pantalla tomaba la respuesta como de alguien sin
+ * permisos y escondía teams, pausa y el registro hasta recargar.
+ */
+async function adminView(ws: string) {
+  return { ...(await linearSyncView(ws, true)), isAdmin: true };
+}
+
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
@@ -100,7 +109,7 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       return linearError(err);
     }
-    return NextResponse.json(await linearSyncView(ws, true));
+    return NextResponse.json(await adminView(ws));
   }
 
   const parsed = actionSchema.safeParse(body);
@@ -109,7 +118,7 @@ export async function POST(req: NextRequest) {
   try {
     if (parsed.data.action === 'start') {
       const jobId = await startLinearImport(ws);
-      return NextResponse.json({ ...(await linearSyncView(ws, true)), importJobId: jobId });
+      return NextResponse.json({ ...(await adminView(ws)), importJobId: jobId });
     }
     if (parsed.data.action === 'sync') {
       const ran = await syncLinearNow(ws);
@@ -122,7 +131,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     return linearError(err);
   }
-  return NextResponse.json(await linearSyncView(ws, true));
+  return NextResponse.json(await adminView(ws));
 }
 
 const patchSchema = z.object({
@@ -154,7 +163,7 @@ export async function PATCH(req: NextRequest) {
   if (parsed.data.paused !== undefined) patch.paused = parsed.data.paused;
   await updateLinearConfig(ws, patch);
   await recordAudit({ workspaceId: ws, actorId: realUserId(user), action: 'integration.updated', entityType: 'integration', entityLabel: 'Linear', data: { changes: Object.keys(patch) } });
-  return NextResponse.json(await linearSyncView(ws, true));
+  return NextResponse.json(await adminView(ws));
 }
 
 export async function DELETE() {
@@ -164,5 +173,5 @@ export async function DELETE() {
   const ws = wsOf(user);
   const removed = await disconnectLinear(ws);
   if (removed) await recordAudit({ workspaceId: ws, actorId: realUserId(user), action: 'integration.disconnected', entityType: 'integration', entityLabel: 'Linear' });
-  return NextResponse.json(await linearSyncView(ws, true));
+  return NextResponse.json(await adminView(ws));
 }

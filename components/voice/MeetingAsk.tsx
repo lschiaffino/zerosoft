@@ -137,6 +137,19 @@ export default function MeetingAsk({
     return () => document.removeEventListener('mousedown', onDown);
   }, [open, onOpenChange]);
 
+  // Si el foco quedó fuera del panel (el botón de enviar se desactiva mientras responde), Esc igual lo cierra.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (dockRef.current?.contains(document.activeElement)) return;
+      if (document.querySelector('dialog[open], .vc-pop')) return;
+      onOpenChange(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onOpenChange]);
+
   function pickModel(v: VoiceChatModel) {
     setModel(v);
     try {

@@ -158,7 +158,10 @@ test('documento: el evento de ahora se elige solo, asistentes por empresa, chat 
   // Las conversaciones quedan guardadas.
   await page.reload({ waitUntil: 'networkidle' });
   await page.getByRole('combobox', { name: 'Ask about this meeting' }).click();
-  await expect(page.getByTestId('voice-ask-panel').locator('.vc-msg.is-assistant')).toHaveCount(2);
+  // Al volver se abre el último chat (el de billing, con una respuesta); el otro sigue en el historial.
+  await expect(page.getByTestId('voice-ask-panel').locator('.vc-msg.is-assistant')).toHaveCount(1);
+  await page.getByTestId('voice-ask-panel').getByRole('button', { name: 'Chat history' }).click();
+  await expect(page.getByRole('menu', { name: 'Chat history' }).getByRole('menuitemradio')).toHaveCount(2);
   const saved = (await (await page.request.get(`/api/voice/sessions/${id}`)).json()) as { chat: Array<{ thread?: string }> };
   expect(new Set(saved.chat.map((m) => m.thread ?? '')).size).toBe(2);
 });
