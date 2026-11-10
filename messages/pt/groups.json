@@ -35,6 +35,9 @@
   "inbox": {
     "title": "Caixa de entrada",
     "listLabel": "Conversas e grupos",
+    "resizeList": "Redimensionar a lista de conversas",
+    "resizeDetails": "Redimensionar o painel de detalhes",
+    "resizeHint": "Arraste para mudar a largura. Clique duas vezes para voltar ao original.",
     "search": "Buscar conversas e mensagens",
     "searchPlaceholder": "Buscar conversas e mensagens  /",
     "filters": "Filtros",

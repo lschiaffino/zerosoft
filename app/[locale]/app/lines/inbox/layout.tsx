@@ -7,6 +7,7 @@ import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { droppedNumbers, listLabels, listNumbers, listPeople, listPropertyDefs } from '@/lib/groups';
 import { pageViewer } from '@/lib/groups-page';
 import { getSelectedLine } from '@/lib/groups-lines';
+import { linesPanelsScript } from '@/lib/groups-panels';
 import { managedAvailable } from '@/lib/groups-provider-managed';
 import { listTeams } from '@/lib/groups-inbox';
 import { listSavedLists } from '@/lib/groups-org';
@@ -59,6 +60,8 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   const nothingConnected = !hasSample && numbers.every((n) => n.status !== 'connected') && (await droppedNumbers(user.id, viewer).catch(() => [])).length === 0;
   return (
     <>
+      {/* Anchos de paneles guardados: se aplican antes del primer pintado. */}
+      <script dangerouslySetInnerHTML={{ __html: linesPanelsScript(me) }} />
       <InboxShell
         banner={
           hasSample ? (

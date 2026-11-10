@@ -35,6 +35,9 @@
   "inbox": {
     "title": "Inbox",
     "listLabel": "Chats and groups",
+    "resizeList": "Resize chat list",
+    "resizeDetails": "Resize details panel",
+    "resizeHint": "Drag to resize. Double-click to reset.",
     "search": "Search chats and messages",
     "searchPlaceholder": "Search chats and messages  /",
     "filters": "Filters",
