@@ -702,6 +702,26 @@ dialog.ui-drawer[open] { display: flex; }
 @keyframes ui-slide { from { transform: translateX(24px); opacity: 0; } }
 @keyframes ui-fade { from { opacity: 0; } }
 
+/* Elegir cuándo (components/ui/WhenDialog): presets con su atajo [1]..[6] y
+   una fecha propia. Lo usan Inbox (posponer, enviar más tarde) y Lines. */
+.ui-when-body { display: grid; gap: 12px; }
+.ui-when-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ui-when-opt {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 9px 10px;
+  background: none; border: 1px solid transparent; border-radius: var(--radius-1);
+  font: inherit; font-size: 0.9063rem; text-align: left; color: inherit; cursor: pointer;
+}
+.ui-when-opt:hover, .ui-when-opt:focus-visible { background: var(--ui-hover); border-color: var(--line); }
+.ui-when-label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ui-when-at { color: var(--brand-gray-2); font-size: 0.8125rem; white-space: nowrap; }
+.ui-when-custom { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.ui-when-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ui-when-row .input { flex: 1; min-width: 0; }
+.ui-when .ui-modal-foot > :first-child:not(:last-child) { margin-right: auto; }
+@media (max-width: 720px) {
+  .ui-when-row .input, .ui-when-row .btn, .ui-when .ui-modal-foot .btn { min-height: 40px; }
+}
+
 /* ---------- 8. Toasts ---------- */
 
 /* <div class="ui-toasts" role="status" aria-live="polite"><div class="ui-toast">…</div></div>

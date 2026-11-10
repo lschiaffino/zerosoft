@@ -308,46 +308,9 @@ export function fillSnippet(body: string, chatTitle: string): string {
     .replace(/\{(primer_nombre|first_name|primeiro_nome)\}/gi, first);
 }
 
-/**
- * Presets de "posponer" y "recordame si no contesta" a partir de ahora, en la
- * zona del navegador: más tarde (3 h), esta noche (20 h), mañana (8 h), el
- * fin de semana (sábado 9 h), la semana que viene (lunes 8 h), en una semana.
- */
-export type SnoozePreset = 'later' | 'tonight' | 'tomorrow' | 'weekend' | 'nextWeek' | 'inWeek';
-export const SNOOZE_PRESETS: readonly SnoozePreset[] = ['later', 'tonight', 'tomorrow', 'weekend', 'nextWeek', 'inWeek'];
-
-export function presetDate(preset: SnoozePreset, now = new Date()): Date {
-  const d = new Date(now);
-  const at = (h: number) => {
-    d.setHours(h, 0, 0, 0);
-    return d;
-  };
-  switch (preset) {
-    case 'later':
-      return new Date(now.getTime() + 3 * 3600_000);
-    case 'tonight': {
-      at(20);
-      if (d.getTime() <= now.getTime() + 30 * 60_000) d.setDate(d.getDate() + 1);
-      return d;
-    }
-    case 'tomorrow':
-      d.setDate(d.getDate() + 1);
-      return at(8);
-    case 'weekend': {
-      const add = (6 - d.getDay() + 7) % 7 || 7;
-      d.setDate(d.getDate() + add);
-      return at(9);
-    }
-    case 'nextWeek': {
-      const add = (8 - d.getDay()) % 7 || 7;
-      d.setDate(d.getDate() + add);
-      return at(8);
-    }
-    case 'inWeek':
-      d.setDate(d.getDate() + 7);
-      return at(8);
-  }
-}
+// Los presets de "cuándo" (posponer, recordar, enviar más tarde) son comunes a
+// Inbox y Lines: viven en lib/when-presets.ts.
+export { presetDate, SNOOZE_PRESETS, type SnoozePreset } from '../when-presets';
 
 /** Atajos de teclado (como Superhuman). Se muestran en la ayuda (?) y en Ajustes. */
 export const SHORTCUTS: ReadonlyArray<{ keys: string; id: string }> = [

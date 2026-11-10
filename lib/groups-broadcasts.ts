@@ -39,6 +39,7 @@ export interface BroadcastRow {
   finished_at: string | null;
   recurring_id?: string | null;
   poll?: string;
+  reply_to_id?: string | null;
 }
 
 export interface BroadcastDto {
@@ -59,6 +60,8 @@ export interface BroadcastDto {
   /** Serie recurrente de la que salió esta corrida. */
   recurringId: string | null;
   poll: PollInput | null;
+  /** Mensaje citado (solo un programado a un chat). */
+  replyToId: string | null;
 }
 
 export interface RecipientDto {
@@ -89,6 +92,7 @@ export function toBroadcastDto(r: BroadcastRow): BroadcastDto {
     finishedAt: r.finished_at,
     recurringId: r.recurring_id ?? null,
     poll: parsePoll(r.poll),
+    replyToId: r.reply_to_id ?? null,
   };
 }
 
@@ -105,6 +109,8 @@ export interface CreateBroadcastInput {
   kind?: 'broadcast' | 'scheduled';
   /** Encuesta en lugar de texto (solo números WAHA o Evolution). */
   poll?: unknown;
+  /** Cita a un mensaje del chat. Solo para un programado a un único chat. */
+  replyToId?: string | null;
 }
 
 export async function createBroadcast(ws: string, actor: string, input: CreateBroadcastInput): Promise<BroadcastDto> {
@@ -144,11 +150,19 @@ export async function createBroadcast(ws: string, actor: string, input: CreateBr
   const id = randomUUID();
   const now = nowIso();
   const kind = input.kind === 'scheduled' ? 'scheduled' : 'broadcast';
+  let replyToId: string | null = null;
+  if (input.replyToId) {
+    // La cita es de un chat: no tiene sentido en un envío a varios.
+    if (kind !== 'scheduled' || mine.length !== 1 || poll) throw new GroupsError('invalid_reply');
+    const target = await db.prepare('SELECT id FROM groups_messages WHERE id = ? AND user_id = ? AND chat_id = ?').get(input.replyToId, ws, mine[0].id);
+    if (!target) throw new GroupsError('invalid_reply');
+    replyToId = input.replyToId;
+  }
   await db
     .prepare(
       `INSERT INTO groups_broadcasts (id, user_id, number_id, name, body, media_url, media_type, media_name, kind, status, scheduled_at,
-         per_minute, total, created_by, created_at, poll)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?)`,
+         per_minute, total, created_by, created_at, poll, reply_to_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -166,6 +180,7 @@ export async function createBroadcast(ws: string, actor: string, input: CreateBr
       actor,
       now,
       poll ? JSON.stringify(poll) : '',
+      replyToId,
     );
   for (const c of mine) {
     await db.prepare('INSERT OR IGNORE INTO groups_broadcast_recipients (id, broadcast_id, chat_id) VALUES (?, ?, ?)').run(randomUUID(), id, c.id);
@@ -281,6 +296,95 @@ export async function cancelBroadcast(ws: string, id: string): Promise<Broadcast
   return toBroadcastDto((await getBroadcastRow(ws, id)) as BroadcastRow);
 }
 
+/**
+ * "Enviar ahora" de un programado: adelanta la hora a este momento. Quien
+ * llama corre processBroadcasts después (o lo hace el cron del minuto).
+ */
+export async function sendBroadcastNow(ws: string, id: string): Promise<BroadcastDto> {
+  const r = await getDb()
+    .prepare("UPDATE groups_broadcasts SET scheduled_at = ? WHERE id = ? AND user_id = ? AND status = 'scheduled'")
+    .run(nowIso(), id, ws);
+  const row = await getBroadcastRow(ws, id);
+  if (!row) throw new GroupsError('not_found', 404);
+  if (r.changes === 0) throw new GroupsError('not_editable', 409);
+  return toBroadcastDto(row);
+}
+
+/**
+ * ¿Puede tocar este envío? Con acceso restringido (por etiqueta o por línea),
+ * solo si ve todos los chats a los que va. `visible` null = ve todo.
+ */
+export async function canAccessBroadcast(ws: string, id: string, visible: Set<string> | null): Promise<boolean> {
+  const db = getDb();
+  const row = await db.prepare('SELECT id FROM groups_broadcasts WHERE id = ? AND user_id = ?').get(id, ws);
+  if (!row) return false;
+  if (!visible) return true;
+  const rec = (await db.prepare('SELECT chat_id FROM groups_broadcast_recipients WHERE broadcast_id = ?').all(id)) as Array<{ chat_id: string }>;
+  return rec.every((r) => visible.has(r.chat_id));
+}
+
+export interface ScheduledMessageDto extends BroadcastDto {
+  /** El chat al que va (el pedido, o el primero si va a varios). */
+  chat: { id: string; name: string; kind: 'dm' | 'group' };
+  /** A cuántos chats más va (programado desde la selección múltiple). */
+  otherChats: number;
+  createdBy: string | null;
+  mine: boolean;
+}
+
+/**
+ * Mensajes programados que todavía no salieron, del más próximo al más
+ * lejano: los de un chat (la tira de la conversación) o los de todo el
+ * workspace (la vista "Programados"). `visible` filtra por acceso: un
+ * programado que va a algún chat que la persona no ve no aparece.
+ */
+export async function listScheduledMessages(
+  ws: string,
+  me: string,
+  opts: { chatId?: string; mine?: boolean; visible?: Set<string> | null; mask?: (c: { name: string; phone: string }) => { name: string; phone: string } } = {},
+): Promise<ScheduledMessageDto[]> {
+  const db = getDb();
+  const where = ["b.user_id = ?", "b.kind = 'scheduled'", "b.status IN ('scheduled', 'sending')"];
+  const args: string[] = [ws];
+  if (opts.chatId) {
+    where.push("EXISTS (SELECT 1 FROM groups_broadcast_recipients r WHERE r.broadcast_id = b.id AND r.chat_id = ? AND r.status IN ('pending', 'sending'))");
+    args.push(opts.chatId);
+  }
+  if (opts.mine) {
+    where.push('b.created_by = ?');
+    args.push(me);
+  }
+  const rows = (await db
+    .prepare(`SELECT b.* FROM groups_broadcasts b WHERE ${where.join(' AND ')} ORDER BY b.scheduled_at, b.created_at LIMIT 200`)
+    .all(...args)) as BroadcastRow[];
+  if (rows.length === 0) return [];
+  const marks = rows.map(() => '?').join(',');
+  const rec = (await db
+    .prepare(
+      `SELECT r.broadcast_id, r.chat_id, c.name, c.phone, c.provider_chat_id, c.kind FROM groups_broadcast_recipients r
+       JOIN groups_chats c ON c.id = r.chat_id WHERE r.broadcast_id IN (${marks}) ORDER BY r.rowid`,
+    )
+    .all(...rows.map((r) => r.id))) as Array<{ broadcast_id: string; chat_id: string; name: string; phone: string; provider_chat_id: string; kind: 'dm' | 'group' }>;
+  const byBroadcast = new Map<string, typeof rec>();
+  for (const r of rec) byBroadcast.set(r.broadcast_id, [...(byBroadcast.get(r.broadcast_id) ?? []), r]);
+  const out: ScheduledMessageDto[] = [];
+  for (const row of rows) {
+    const chats = byBroadcast.get(row.id) ?? [];
+    if (chats.length === 0) continue;
+    if (opts.visible && !chats.every((c) => opts.visible!.has(c.chat_id))) continue;
+    const c = chats.find((x) => x.chat_id === opts.chatId) ?? chats[0];
+    const shown = { name: chatDisplayName(c), phone: c.phone };
+    out.push({
+      ...toBroadcastDto(row),
+      chat: { id: c.chat_id, name: (opts.mask ? opts.mask(shown) : shown).name, kind: c.kind },
+      otherChats: chats.length - 1,
+      createdBy: row.created_by,
+      mine: row.created_by === me,
+    });
+  }
+  return out;
+}
+
 export async function deleteBroadcast(ws: string, id: string): Promise<boolean> {
   return (await getDb().prepare("DELETE FROM groups_broadcasts WHERE id = ? AND user_id = ? AND status != 'sending'").run(id, ws)).changes > 0;
 }
@@ -372,7 +476,12 @@ export async function processBroadcasts(
         } else {
           const text = renderVariables(b.body, chatVariables({ name: chatDisplayName(chat), phone: chat.phone, properties: JSON.parse(chat.properties || '{}') }));
           try {
+            // Si el mensaje citado ya no está, sale sin la cita (mejor que no salir).
+            const quoted = b.reply_to_id
+              ? await db.prepare('SELECT id FROM groups_messages WHERE id = ? AND user_id = ? AND chat_id = ?').get(b.reply_to_id, b.user_id, chat.id)
+              : null;
             const msg = await sendMessage(b.user_id, b.created_by, chat.id, {
+              replyToId: quoted ? b.reply_to_id : null,
               poll: parsePoll(b.poll),
               body: text,
               media: b.media_type ? { url: b.media_url, mimetype: b.media_type, filename: b.media_name } : null,

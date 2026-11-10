@@ -43,7 +43,7 @@
     "dictate": "Dictate",
     "dictateHint": "Dictate with Voice (or hold Alt+Space)",
     "later": "Later",
-    "laterHint": "Send later. You can also right-click Send.",
+    "laterHint": "Send later (⌘⇧Enter). You can also right-click Send.",
     "sending": "Sending…",
     "send": "Send",
     "hint": "Enter sends · Shift+Enter new line · ⌘J AI draft · ; snippets",

@@ -10,6 +10,7 @@ import type { ChatDto, ChatFilter, GroupsPerson, LabelDto, PropertyDef } from '@
 import type { SavedListDto, SavedListFilters } from '@/lib/groups-org';
 import { LISTS_CHANGED, notifyListsChanged } from './GroupsListsBranch';
 import { filterOptions } from './PropertyInput';
+import { ScheduledAllButton } from './Scheduled';
 import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useToast } from './ui';
 import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
@@ -727,6 +728,7 @@ export default function InboxShell({
               <FilterIcon size={20} />
               {extraFilters > 0 && <span className="wa-filter-dot" aria-hidden="true" />}
             </button>
+            <ScheduledAllButton />
             <button
               type="button"
               className={`wa-icon-btn wa-filter-btn${selectMode ? ' is-on' : ''}`}
