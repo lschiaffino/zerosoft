@@ -30,7 +30,8 @@ test('Notion: conectar con token, importar y editar de ida y vuelta', async ({ p
   // Token inválido: error claro, nada se conecta.
   await page.getByLabel('Internal integration token').fill('secret_wrong');
   await page.getByTestId('notion-sync-connect').click();
-  await expect(page.getByRole('alert')).toContainText('Notion did not accept that token');
+  // El anunciador de rutas de Next también es role=alert: se busca el aviso por su texto.
+  await expect(page.getByRole('alert').filter({ hasText: 'Notion did not accept that token' })).toBeVisible();
 
   await page.getByLabel('Internal integration token').fill(token);
   await page.getByTestId('notion-sync-connect').click();
