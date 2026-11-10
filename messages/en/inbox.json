@@ -31,23 +31,14 @@
     "disconnected": "Connect this account in Inbox settings to reply.",
     "placeholder": "Type a message. ; for snippets",
     "placeholderEmail": "Write your reply. ; for snippets",
-    "aiDraftHint": "Draft a reply with AI (⌘J). What you typed is used as the instruction.",
-    "aiWorking": "Writing…",
-    "aiFromText": "Write it with AI",
-    "aiDraft": "Draft with AI",
-    "aiAsk": "What do you want to say?",
-    "rewrite": "Rewrite",
-    "rewrites": { "shorter": "Shorter", "friendlier": "Friendlier", "formal": "More formal", "fix": "Fix spelling and grammar" },
-    "translateTo": { "en": "Translate to English", "es": "Translate to Spanish", "pt": "Translate to Portuguese" },
-    "undoAi": "Undo AI",
     "dictate": "Dictate",
     "dictateHint": "Dictate with Voice (or hold Alt+Space)",
     "later": "Later",
     "laterHint": "Send later (⌘⇧Enter). You can also right-click Send.",
     "sending": "Sending…",
     "send": "Send",
-    "hint": "Enter sends · Shift+Enter new line · ⌘J AI draft · ; snippets",
-    "hintEmail": "⌘Enter sends · ⌘J AI draft · ; snippets"
+    "hint": "Enter sends · Shift+Enter new line · ⌘J help me write · ; snippets",
+    "hintEmail": "⌘Enter sends · ⌘J help me write · ; snippets"
   },
   "message": {
     "media": { "image": "Photo", "video": "Video", "audio": "Voice note", "document": "Document", "sticker": "Sticker" },
@@ -202,7 +193,7 @@
       "moveFolder": "Add to a folder",
       "search": "Search",
       "goto": "Go to inbox, done, snoozed",
-      "ai": "Draft with AI",
+      "ai": "Help me write",
       "snippet": "Insert a snippet",
       "send": "Send",
       "undo": "Undo the last action",
@@ -255,7 +246,7 @@
     "unmute": "Unmute",
     "clearFollowUp": "Remove reminder",
     "unsnooze": "Unsnooze",
-    "aiDraft": "Draft a reply with AI",
+    "aiDraft": "Help me write",
     "delete": "Remove from Inbox"
   },
   "compose": {
@@ -437,26 +428,6 @@
       "resume": "Resume",
       "cancel": "Cancel"
     }
-  },
-  "ai": {
-    "title": "Write with AI",
-    "ask": "What do you want to say?",
-    "askPlaceholder": "E.g. tell them I will be 20 minutes late",
-    "write": "Write",
-    "again": "Another version",
-    "writing": "Writing…",
-    "close": "Close",
-    "refine": {
-      "shorter": "Shorter",
-      "formal": "More formal",
-      "friendlier": "Warmer"
-    },
-    "refineLabel": "Another change",
-    "refinePlaceholder": "Another change, e.g. no emojis",
-    "previous": "Previous version",
-    "insert": "Insert",
-    "insertHint": "Puts it in the field so you can review it (⌘Enter)",
-    "notConfigured": "AI is not set up on this server. The admin needs to add OPENROUTER_API_KEY (or AI_GATEWAY_API_KEY)."
   },
   "schedule": {
     "title": "Send later",

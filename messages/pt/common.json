@@ -1087,5 +1087,55 @@
     "f3d": "Menções, mensagens diretas e o sino como notificações do sistema e um contador no ícone do dock.",
     "f4t": "Leve e rápido",
     "f4d": "Cerca de 3 MB para baixar. Todos os apps numa janela."
+  },
+  "aiCompose": {
+    "open": "Ajude-me a escrever",
+    "openHint": "Ajude-me a escrever (⌘J)",
+    "describeLabel": "Descreva sua mensagem",
+    "describePlaceholder": "Descreva sua mensagem",
+    "changeLabel": "Descreva uma mudança",
+    "changePlaceholder": "Descreva uma mudança, por exemplo: cite a fatura",
+    "write": "Escrever",
+    "apply": "Aplicar a mudança",
+    "suggest": "Sugerir uma resposta",
+    "improveHint": "Isto trabalha sobre o que você já escreveu. Escolha uma mudança ou descreva uma.",
+    "writing": "Escrevendo…",
+    "stop": "Parar",
+    "close": "Fechar",
+    "preview": "Rascunho",
+    "changesLabel": "Ajustar",
+    "changes": {
+      "shorter": "Mais curto",
+      "longer": "Mais longo",
+      "formal": "Mais formal",
+      "casual": "Mais informal",
+      "fix": "Corrigir gramática"
+    },
+    "translate": "Traduzir…",
+    "translateLabel": "Traduzir para",
+    "langs": {
+      "en": "Inglês",
+      "es": "Espanhol",
+      "pt": "Português"
+    },
+    "insert": "Inserir",
+    "insertHint": "Coloca o rascunho no campo da mensagem para você revisar (⌘Enter). Nada é enviado.",
+    "regenerate": "Outra versão",
+    "previous": "Versão anterior",
+    "discard": "Descartar",
+    "sources": "Com base em {list}",
+    "inserted": "Rascunho inserido. Nada foi enviado.",
+    "undo": "Desfazer",
+    "errors": {
+      "off": "A IA está desativada neste workspace. Um admin pode ativá-la nas configurações.",
+      "notConfigured": "A IA não está configurada neste servidor. Quem o administra precisa adicionar uma chave de IA.",
+      "quota": "A cota de IA deste mês acabou. Ela recomeça no dia 1.",
+      "busy": "Houve muitos pedidos à IA no último minuto. Espere um momento e tente de novo.",
+      "empty": "A IA não devolveu nada. Tente descrever de outra forma.",
+      "noMessages": "Este chat ainda não tem mensagens para responder. Descreva o que você quer dizer.",
+      "offline": "Sem conexão. Verifique sua internet e tente de novo.",
+      "gone": "Esta conversa não está mais disponível. Recarregue a página.",
+      "failed": "A IA não conseguiu escrever isto. Tente de novo."
+    }
   }
 }

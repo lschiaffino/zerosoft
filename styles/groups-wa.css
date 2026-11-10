@@ -627,8 +627,6 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 
 /* Composer: una sola fila como WhatsApp; nota y AI son íconos. */
 .wa-note-strip { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 0.75rem; color: var(--wa-text-2); }
-.wa-ai-row { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; padding: 4px 6px; background: var(--wa-panel); border-radius: 8px; }
-.wa-ai-row .wa-ai-close { width: 30px; height: 30px; margin-left: auto; }
 .wa-bar .wa-note-toggle.is-on { color: #b7791f; background: color-mix(in srgb, #e8c46a 25%, transparent); }
 
 /* Remitente en grupos: nombre en color y teléfono gris, en una línea. */

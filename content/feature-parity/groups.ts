@@ -290,9 +290,9 @@ const parity: ProductParity = {
     }),
     row('ai-drafts', 'automation', ['AI drafts and translation of replies', 'Borradores y traducción AI de respuestas', 'Rascunhos e tradução IA de respostas'], 'have', {
       detail: [
-        "Draft or improve a reply from the chat, quick replies and the chat agent's knowledge or public Docs, and translate it to the customer's language before sending",
-        'Borrador o mejora de la respuesta con el chat, las respuestas rápidas y el conocimiento del agente del chat o las páginas públicas de Docs, y traducción al idioma del cliente antes de mandar',
-        'Rascunho ou melhoria da resposta com o chat, as respostas rápidas e o conhecimento do agente do chat ou as páginas públicas do Docs, e tradução para o idioma do cliente antes de enviar',
+        "Help me write: describe the message and it is drafted from the chat, quick replies and the chat agent's knowledge or public Docs. Review it before it reaches the message field, refine it (shorter, longer, tone, grammar, your own change), translate it to the customer's language, insert it and undo. Tested with the fake model",
+        'Ayudame a escribir: describís el mensaje y se redacta con el chat, las respuestas rápidas y el conocimiento del agente del chat o las páginas públicas de Docs. Lo revisás antes de que llegue al campo del mensaje, lo ajustás (más corto, más largo, tono, gramática, un cambio propio), lo traducís al idioma del cliente, lo insertás y podés deshacer. Probado con el modelo falso',
+        'Ajude-me a escrever: você descreve a mensagem e ela é redigida com a conversa, as respostas rápidas e o conhecimento do agente da conversa ou as páginas públicas do Docs. Você revisa antes de chegar ao campo da mensagem, ajusta (mais curto, mais longo, tom, gramática, uma mudança sua), traduz para o idioma do cliente, insere e pode desfazer. Testado com o modelo falso',
       ],
     }),
 

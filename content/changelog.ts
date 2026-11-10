@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-help-me-write',
+    date: '2026-11-10',
+    title: {
+      en: 'Help me write: describe your message in Lines and Inbox',
+      es: 'Ayudame a escribir: describí tu mensaje en Lines e Inbox',
+      pt: 'Ajude-me a escrever: descreva sua mensagem no Lines e no Inbox',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The pencil next to Send (or Cmd+J in the message field) opens a "Describe your message" bar. Write what you want to say and the AI drafts it with the chat as context, in the language the customer writes in, using your quick replies and knowledge. You see the draft before it touches the message field: make it shorter, longer, more formal or more casual, fix the grammar, describe your own change, translate it or ask for another version, then insert it. If you already typed something, the bar improves that text. Nothing is sent on its own, and Undo brings back what you had. It replaces the AI draft and translate row.',
+        es: 'El lápiz al lado de Enviar (o Cmd+J en el campo del mensaje) abre una barra "Describí tu mensaje". Escribís lo que querés decir y la IA lo redacta con el chat como contexto, en el idioma en que escribe el cliente, usando tus respuestas rápidas y tu conocimiento. Ves el borrador antes de que toque el campo del mensaje: lo hacés más corto, más largo, más formal o más informal, corregís la gramática, describís un cambio propio, lo traducís o pedís otra versión, y lo insertás. Si ya habías escrito algo, la barra mejora ese texto. Nada se envía solo, y Deshacer devuelve lo que tenías. Reemplaza la fila de borrador y traducción con IA.',
+        pt: 'O lápis ao lado de Enviar (ou Cmd+J no campo da mensagem) abre uma barra "Descreva sua mensagem". Você escreve o que quer dizer e a IA redige com a conversa como contexto, no idioma em que o cliente escreve, usando suas respostas rápidas e seu conhecimento. Você vê o rascunho antes de ele tocar o campo da mensagem: deixa mais curto, mais longo, mais formal ou mais informal, corrige a gramática, descreve uma mudança sua, traduz ou pede outra versão, e insere. Se você já tinha escrito algo, a barra melhora esse texto. Nada é enviado sozinho, e Desfazer devolve o que você tinha. Substitui a linha de rascunho e tradução com IA.',
+      },
+      {
+        product: 'inbox',
+        en: 'The same bar in WhatsApp chats, email threads and New message. It writes in your tone, learned from what you send, and knows the channel: a WhatsApp message stays short, an email gets a greeting and a sign-off, and a new email comes with a subject. One "Help me write" button replaces the three AI buttons the reply field had. Cmd+J now opens the bar instead of writing straight into the field.',
+        es: 'La misma barra en los chats de WhatsApp, los hilos de correo y Mensaje nuevo. Escribe con tu tono, aprendido de lo que enviás, y sabe por qué canal va: un WhatsApp queda corto, un correo lleva saludo y despedida, y un correo nuevo viene con asunto. Un solo botón "Ayudame a escribir" reemplaza los tres botones de IA que tenía el campo de respuesta. Cmd+J ahora abre la barra en vez de escribir directo en el campo.',
+        pt: 'A mesma barra nas conversas do WhatsApp, nos fios de e-mail e em Nova mensagem. Ela escreve no seu tom, aprendido do que você envia, e sabe por qual canal vai: um WhatsApp fica curto, um e-mail leva saudação e despedida, e um e-mail novo vem com assunto. Um único botão "Ajude-me a escrever" substitui os três botões de IA que o campo de resposta tinha. Cmd+J agora abre a barra em vez de escrever direto no campo.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-calls',
     date: '2026-11-08',
     title: {

@@ -187,39 +187,69 @@ test('enviar más tarde, snippets con ; y borrador con IA', async ({ page, reque
   await page.locator('.ib-sched', { hasText: 'Siempreviva' }).getByRole('button', { name: 'Cancel' }).click();
   await expect(page.locator('.ib-sched')).toHaveCount(0);
 
-  // ⌘J: borrador con la IA (modelo falso), con lo escrito como instrucción.
-  await field.fill('decile que a las 8');
+  // ⌘J abre "Help me write" con el foco en el campo. Con el chat a la vista, sugiere la respuesta.
+  await field.fill('');
   await field.press('ControlOrMeta+j');
-  await expect(field).toHaveValue('Borrador: decile que a las 8');
-  await page.getByRole('button', { name: 'AI: draft or rewrite' }).click();
-  await page.getByRole('menuitem', { name: 'Undo AI' }).click();
-  await expect(field).toHaveValue('decile que a las 8');
+  const bar = page.getByTestId('ai-compose');
+  const draft = bar.getByTestId('ai-compose-draft');
+  const ask = bar.getByRole('textbox', { name: 'Describe your message' });
+  await expect(ask).toBeFocused();
+  await bar.getByRole('button', { name: 'Suggest a reply' }).click();
+  await expect(draft).toHaveText(/Lo veo y te respondo hoy/);
+  await bar.getByRole('button', { name: 'Discard' }).click();
+  await expect(draft).toHaveCount(0);
+  await expect(ask).toBeFocused();
 
-  // "¿Qué querés decir?": instrucción, borrador que llega de a pedazos, refinar e insertar.
-  await page.getByRole('button', { name: 'AI: draft or rewrite' }).click();
-  await page.getByRole('menuitem', { name: 'What do you want to say?' }).click();
-  const panel = page.getByRole('region', { name: 'Write with AI' });
-  await expect(panel.getByRole('textbox', { name: 'What do you want to say?' })).toBeFocused();
-  await panel.getByRole('textbox', { name: 'What do you want to say?' }).fill('que llego tarde');
-  await panel.getByRole('textbox', { name: 'What do you want to say?' }).press('Enter');
-  await expect(panel.getByTestId('inbox-ai-draft')).toHaveText('Borrador: que llego tarde');
-  await panel.getByRole('button', { name: 'More formal' }).click();
-  await expect(panel.getByTestId('inbox-ai-draft')).toHaveText('Borrador: que llego tarde (formal)');
-  await panel.getByRole('textbox', { name: 'Another change' }).fill('sin emojis');
-  await panel.getByRole('textbox', { name: 'Another change' }).press('Enter');
-  await expect(panel.getByTestId('inbox-ai-draft')).toHaveText('Borrador: que llego tarde (formal) (sin emojis)');
-  await panel.getByRole('button', { name: 'Previous version' }).click();
-  await expect(panel.getByTestId('inbox-ai-draft')).toHaveText('Borrador: que llego tarde (formal)');
-  await panel.getByRole('button', { name: 'Insert' }).click();
-  await expect(panel).toBeHidden();
+  // Describir el mensaje: el borrador llega de a pedazos (modelo falso) y no toca el campo hasta insertarlo.
+  await ask.fill('que llego tarde');
+  await ask.press('Enter');
+  await expect(draft).toHaveText('Borrador: que llego tarde');
+  await expect(field).toHaveValue('');
+  // Ajustar con un chip y con un cambio propio; volver a la versión anterior; otra versión.
+  await bar.getByRole('button', { name: 'More formal' }).click();
+  await expect(draft).toHaveText('Borrador: que llego tarde (formal)');
+  const change = bar.getByRole('textbox', { name: 'Describe a change' });
+  await change.fill('sin emojis');
+  await change.press('Enter');
+  await expect(draft).toHaveText('Borrador: que llego tarde (formal) (sin emojis)');
+  await bar.getByRole('button', { name: 'Previous version' }).click();
+  await expect(draft).toHaveText('Borrador: que llego tarde (formal)');
+  await bar.getByRole('button', { name: 'Another version' }).click();
+  await expect(draft).toHaveText('Borrador: que llego tarde (formal)');
+  await expect(draft).not.toHaveAttribute('aria-busy', 'true');
+  // Insertar: va al campo (no se manda), la barra se cierra y el foco vuelve al campo. Deshacer devuelve lo que había.
+  await bar.getByRole('button', { name: 'Insert' }).click();
+  await expect(bar).toBeHidden();
   await expect(field).toHaveValue('Borrador: que llego tarde (formal)');
-  // Esc cierra el panel sin tocar el campo.
-  await page.getByRole('button', { name: 'AI: draft or rewrite' }).click();
-  await page.getByRole('menuitem', { name: 'What do you want to say?' }).click();
-  await expect(page.getByRole('region', { name: 'Write with AI' })).toBeVisible();
+  await expect(field).toBeFocused();
+  await expect(page.locator('.gr-msg-out', { hasText: 'que llego tarde' })).toHaveCount(0);
+  const undo = page.getByTestId('ai-compose-undo');
+  await expect(undo).toContainText('Nothing was sent');
+  await undo.getByRole('button', { name: 'Undo' }).click();
+  await expect(field).toHaveValue('');
+  await expect(undo).toHaveCount(0);
+
+  // Con texto en el campo, la barra mejora ese texto: el campo de la barra describe el cambio.
+  await field.fill('Hola. Te aviso mañana.');
+  await page.getByTestId('ai-compose-open').click();
+  await expect(bar.getByRole('textbox', { name: 'Describe a change' })).toBeFocused();
+  await bar.getByRole('button', { name: 'Shorter' }).click();
+  await expect(draft).toHaveText('Hola.');
+  await expect(field).toHaveValue('Hola. Te aviso mañana.');
+  await bar.getByLabel('Translate to').selectOption('en');
+  await expect(draft).toHaveText('Hola. (Translate the message to English. Keep the meaning, the tone and the formatting.)');
+  // ⌘Enter inserta; deshacer devuelve lo escrito a mano.
+  await bar.getByRole('textbox', { name: 'Describe a change' }).press('ControlOrMeta+Enter');
+  await expect(field).toHaveValue(/^Hola\. \(Translate/);
+  await undo.getByRole('button', { name: 'Undo' }).click();
+  await expect(field).toHaveValue('Hola. Te aviso mañana.');
+  // Esc cierra la barra sin tocar el campo y le devuelve el foco.
+  await page.getByTestId('ai-compose-open').click();
+  await expect(bar).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('region', { name: 'Write with AI' })).toBeHidden();
-  await expect(field).toHaveValue('Borrador: que llego tarde (formal)');
+  await expect(bar).toBeHidden();
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue('Hola. Te aviso mañana.');
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
@@ -401,6 +431,23 @@ test('Gmail (cuenta de prueba): conectar, sincronizar y responder en el hilo', a
   // En correo Enter baja de línea; ⌘Enter manda.
   await field.press('ControlOrMeta+Enter');
   await expect(page.locator('.ib-mail.is-me', { hasText: 'Voy!' }).last()).toBeVisible();
+
+  // "Help me write" en el correo: el botón lleva su nombre; el borrador se inserta (no se manda) y se puede deshacer.
+  const open = page.getByTestId('ai-compose-open');
+  await expect(open).toHaveText('Help me write');
+  await open.click();
+  const bar = page.getByTestId('ai-compose');
+  const ask = bar.getByRole('textbox', { name: 'Describe your message' });
+  await expect(ask).toBeFocused();
+  await ask.fill('decile que llevo el postre');
+  await ask.press('Enter');
+  await expect(bar.getByTestId('ai-compose-draft')).toHaveText('Borrador: decile que llevo el postre');
+  await bar.getByRole('button', { name: 'Insert' }).click();
+  await expect(bar).toBeHidden();
+  await expect(field).toHaveValue('Borrador: decile que llevo el postre');
+  await expect(page.locator('.ib-mail.is-me', { hasText: 'postre' })).toHaveCount(0);
+  await page.getByTestId('ai-compose-undo').getByRole('button', { name: 'Undo' }).click();
+  await expect(field).toHaveValue('');
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
