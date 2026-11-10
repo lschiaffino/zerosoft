@@ -1,3 +1,5 @@
+import type { RecOverlayState } from './rec-controls';
+
 /**
  * Puente con la app de escritorio (desktop/src/preload/app.ts): existe solo
  * dentro de la app, y solo en páginas del servidor configurado. En el
@@ -34,10 +36,21 @@ export interface DesktopBridge {
   systemAudioRead?: () => Promise<string>;
   systemAudioStop?: () => Promise<void>;
   consumeAutostart?: (nonce: string) => Promise<boolean>;
+  /**
+   * Rec (como Loom): mientras se graba, la app muestra una barra flotante (reloj, micrófono,
+   * pausa, terminar, reiniciar, descartar) y, con `camera`, la burbuja de la cámara encima de
+   * todo. Lo que se toca ahí llega como DESKTOP_REC_CONTROL_EVENT. Desde la 0.3.4.
+   */
+  recOverlay?: (state: RecOverlayState) => Promise<void>;
+  /** Nivel del micrófono (0 a 1) para la barra flotante. */
+  recLevel?: (level: number) => Promise<void>;
 }
 
 /** Lo manda la app de escritorio cuando se toca Cortar en su indicador de grabación. */
 export const DESKTOP_STOP_RECORDING_EVENT = 'zerosoft:stop-recording';
+
+/** Controles de Rec desde la app de escritorio: CustomEvent con `detail` = un RecControl (lib/rec-controls.ts). */
+export const DESKTOP_REC_CONTROL_EVENT = 'zerosoft:rec-control';
 
 /** Forma del nonce de autostart (desktop/src/shared/nonce.ts). */
 export const AUTOSTART_NONCE_RE = /^[A-Za-z0-9_-]{22,64}$/;

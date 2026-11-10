@@ -21,6 +21,7 @@ mod hud;
 mod indicator;
 mod nav;
 mod platform;
+mod rec_overlay;
 mod retry;
 mod session;
 mod state;
@@ -83,6 +84,8 @@ pub fn allow_server(app: &AppHandle) {
         "allow-desktop-system-audio-start",
         "allow-desktop-system-audio-read",
         "allow-desktop-system-audio-stop",
+        "allow-desktop-rec-overlay",
+        "allow-desktop-rec-level",
     ] {
         cap = cap.permission(p);
     }
@@ -119,6 +122,12 @@ pub(crate) fn bridge_script(server: &str, version: &str) -> String {
     systemAudioStart: function () {{ return inv('desktop_system_audio_start'); }},
     systemAudioRead: function () {{ return inv('desktop_system_audio_read'); }},
     systemAudioStop: function () {{ return inv('desktop_system_audio_stop'); }},
+    // Rec: barra flotante y burbuja de la cámara mientras se graba (rec_overlay.rs).
+    recOverlay: function (s) {{
+      s = s || {{}};
+      return inv('desktop_rec_overlay', {{ active: !!s.active, phase: typeof s.phase === 'string' ? s.phase : null, elapsedMs: typeof s.elapsedMs === 'number' ? s.elapsedMs : null, mic: typeof s.mic === 'string' ? s.mic : null, camera: typeof s.camera === 'string' ? s.camera : null }});
+    }},
+    recLevel: function (l) {{ return inv('desktop_rec_level', {{ level: Number(l) || 0 }}); }},
     notify: function (title, body) {{ return inv('desktop_notify', {{ title: String(title), body: body == null ? null : String(body) }}); }}
   }});
   Object.defineProperty(window, 'zerosoftDesktop', {{ value: bridge }});
@@ -268,6 +277,10 @@ pub fn run() {
             commands::desktop_system_audio_start,
             commands::desktop_system_audio_read,
             commands::desktop_system_audio_stop,
+            rec_overlay::desktop_rec_overlay,
+            rec_overlay::desktop_rec_level,
+            rec_overlay::rec_overlay_state,
+            rec_overlay::rec_overlay_action,
             commands::indicator_state,
             commands::indicator_action,
             commands::settings_get,
@@ -379,6 +392,11 @@ pub fn run() {
             WindowEvent::Moved(p) if w.label() == indicator::LABEL => {
                 let scale = w.scale_factor().unwrap_or(1.0);
                 indicator::moved(w.app_handle(), p.x as f64 / scale, p.y as f64 / scale);
+            }
+            // La barra o la burbuja de Rec se arrastraron: se recuerda dónde, mientras la app está abierta.
+            WindowEvent::Moved(p) if w.label() == rec_overlay::BAR || w.label() == rec_overlay::BUBBLE => {
+                let scale = w.scale_factor().unwrap_or(1.0);
+                rec_overlay::moved(w.label(), p.x as f64 / scale, p.y as f64 / scale);
             }
             WindowEvent::Destroyed if w.label() == "settings" => {
                 let app = w.app_handle();

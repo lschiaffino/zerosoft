@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-rec-desktop-controls',
+    date: '2026-11-10',
+    title: {
+      en: 'Rec: your camera and the recording controls float over other apps in the desktop app',
+      es: 'Rec: tu cámara y los controles de la grabación flotan sobre las otras apps en la app de escritorio',
+      pt: 'Rec: sua câmera e os controles da gravação flutuam sobre os outros apps no app para desktop',
+    },
+    items: [
+      {
+        product: 'rec',
+        en: 'In the desktop app (version 0.3.4), while you record a small bar stays on top of every app with the timer, the microphone level, mute, pause and resume, restart, discard and finish. Finish opens the recording. Option+Shift+P pauses or resumes and Option+Shift+S finishes (Alt+Shift on Windows). The bar is left out of the video where the system allows it.',
+        es: 'En la app de escritorio (versión 0.3.4), mientras grabás queda arriba de todas las apps una barra chica con el reloj, el nivel del micrófono, silenciar, pausar y seguir, empezar de nuevo, descartar y terminar. Terminar abre la grabación. Option+Shift+P pausa o sigue y Option+Shift+S termina (Alt+Shift en Windows). La barra no sale en el video donde el sistema lo permite.',
+        pt: 'No app para desktop (versão 0.3.4), enquanto você grava fica por cima de todos os apps uma barra pequena com o relógio, o nível do microfone, silenciar, pausar e continuar, recomeçar, descartar e terminar. Terminar abre a gravação. Option+Shift+P pausa ou continua e Option+Shift+S termina (Alt+Shift no Windows). A barra não aparece no vídeo onde o sistema permite.',
+      },
+      {
+        product: 'rec',
+        en: 'Recording your whole screen with the camera, your face shows in a round bubble over other apps, like Loom. Drag it anywhere, make it bigger or smaller, or hide it: the video shows it where you leave it. Recording a window or a tab, the bubble is drawn into the video as before.',
+        es: 'Grabando la pantalla entera con la cámara, tu cara aparece en una burbuja redonda encima de las otras apps, como en Loom. Arrastrala a donde quieras, agrandala, achicala u ocultala: el video la muestra donde la dejes. Grabando una ventana o una pestaña, la burbuja se dibuja en el video como antes.',
+        pt: 'Gravando a tela inteira com a câmera, seu rosto aparece numa bolha redonda por cima dos outros apps, como no Loom. Arraste para onde quiser, aumente, diminua ou oculte: o vídeo mostra a bolha onde você deixar. Gravando uma janela ou uma aba, a bolha é desenhada no vídeo como antes.',
+      },
+      {
+        product: 'rec',
+        en: 'In the browser the recording bar adds mute and restart. Restart asks first, deletes the take and counts down again with the same screen.',
+        es: 'En el navegador la barra de la grabación suma silenciar y empezar de nuevo. Empezar de nuevo pregunta antes, borra la toma y vuelve a contar con la misma pantalla.',
+        pt: 'No navegador a barra da gravação ganha silenciar e recomeçar. Recomeçar pergunta antes, apaga a tomada e conta de novo com a mesma tela.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-calls',
     date: '2026-11-08',
     title: {

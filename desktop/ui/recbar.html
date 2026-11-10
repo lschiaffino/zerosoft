@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>zerosoft rec</title>
+    <style>
+      /* Barra de Rec: un rectángulo negro como el indicador, del tamaño de la ventana (392 × 44,
+         rec_overlay.rs). No sale en la grabación (content_protected). */
+      html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; -webkit-user-select: none; user-select: none; cursor: default; }
+      body { font: 500 12px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; color: #f2f2f2; }
+      .bar {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        height: 100%;
+        padding: 0 6px 0 12px;
+        background: #0d0d0d;
+        border: 1px solid #2e2e2e;
+        border-radius: 3px;
+      }
+      body[data-on='false'] .bar { visibility: hidden; }
+      .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #ff453a; animation: blink 1.2s steps(2) infinite; }
+      body[data-phase='paused'] .dot { background: #f5a623; animation: none; }
+      body[data-phase='countdown'] .dot, body[data-phase='finishing'] .dot { background: #8a8a8a; animation: none; }
+      @keyframes blink { 50% { opacity: 0.35; } }
+      .clock { min-width: 42px; margin-left: 6px; font-variant-numeric: tabular-nums; color: #f2f2f2; }
+      .state { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      .grip { flex: 1; align-self: stretch; }
+      button {
+        all: unset;
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        height: 30px;
+        min-width: 30px;
+        padding: 0 7px;
+        border-radius: 3px;
+        color: #d6d6d6;
+        cursor: pointer;
+      }
+      button:hover { background: #262626; color: #ffffff; }
+      button:active { background: #333333; }
+      button:focus-visible { outline: 2px solid #f2f2f2; outline-offset: -2px; }
+      button[disabled] { opacity: 0.4; cursor: default; background: none; }
+      button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+      .mic { gap: 5px; }
+      .level { width: 26px; height: 4px; border-radius: 2px; background: #333333; overflow: hidden; }
+      .level i { display: block; height: 100%; background: #3ddc84; transform-origin: left; transform: scaleX(0); transition: transform 80ms linear; }
+      body[data-mic='muted'] .mic { color: #ff6961; }
+      body[data-mic='muted'] .level, body[data-mic='none'] .level { display: none; }
+      .finish { background: #ffffff; color: #0d0d0d; font-weight: 600; padding: 0 12px; margin-left: 2px; }
+      .finish:hover { background: #e6e6e6; color: #0d0d0d; }
+      .sep { width: 1px; height: 18px; background: #2e2e2e; margin: 0 2px; }
+      [hidden] { display: none !important; }
+      .ask { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #f2f2f2; padding-left: 6px; }
+      .danger { color: #ff6961; }
+      @media (prefers-reduced-motion: reduce) { .dot { animation: none; } .level i { transition: none; } }
+    </style>
+  </head>
+  <body data-on="false" data-phase="recording" data-mic="none">
+    <div class="bar" id="bar" role="toolbar">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="clock" id="clock" role="timer"></span>
+      <span class="state" id="state" role="status"></span>
+      <span class="grip" id="grip"></span>
+      <span id="main" style="display: contents">
+        <button type="button" class="mic" id="mic"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="mic-path" d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM6 11a6 6 0 0 0 12 0M12 17v4" /><path id="mic-off" d="M4 4l16 16" /></svg><span class="level" aria-hidden="true"><i id="level"></i></span></button>
+        <button type="button" id="camera" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="10" r="3" /><path d="M7 18a6 6 0 0 1 10 0" /></svg></button>
+        <span class="sep" aria-hidden="true"></span>
+        <button type="button" id="pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="pause-icon" d="M9 6v12M15 6v12" /><path id="resume-icon" d="M8 5l11 7-11 7z" /></svg></button>
+        <button type="button" id="restart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v5h5" /></svg></button>
+        <button type="button" id="discard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13" /></svg></button>
+        <button type="button" class="finish" id="finish"></button>
+      </span>
+      <span id="confirm" style="display: contents" hidden>
+        <span class="ask" id="ask" role="alert"></span>
+        <button type="button" id="keep"></button>
+        <button type="button" class="danger" id="yes"></button>
+      </span>
+    </div>
+    <script src="recbar.js"></script>
+  </body>
+</html>

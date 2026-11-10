@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-rec-overlay-state"
+description = "Enables the rec_overlay_state command without any pre-configured scope."
+commands.allow = ["rec_overlay_state"]
+
+[[permission]]
+identifier = "deny-rec-overlay-state"
+description = "Denies the rec_overlay_state command without any pre-configured scope."
+commands.deny = ["rec_overlay_state"]
