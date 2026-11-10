@@ -183,7 +183,7 @@ describe('Service worker: solo sirve lo guardado a la misma sesión (zs_who)', (
     // El worker arranca de nuevo 31 días después de la última confirmación.
     const metaName = [...caches.all.keys()].find((k) => k.endsWith('-meta'))!;
     const meta = caches.all.get(metaName)!;
-    const key = [...meta.keys()][0];
+    const key = [...meta.keys()].find((k) => k.includes('__zs-user'))!;
     const old = (await meta.get(key)!.clone().json()) as { at: number };
     meta.set(key, new Response(JSON.stringify({ ...old, at: Date.now() - 31 * 24 * 60 * 60 * 1000 })));
     expect(await boot().pagesCache()).toBeNull();

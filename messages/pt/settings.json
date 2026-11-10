@@ -363,7 +363,9 @@
   },
   "groups": {
     "account": "Conta e workspace",
-    "products": "Produtos"
+    "products": "Produtos",
+    "workspace": "Workspace",
+    "device": "Este dispositivo"
   },
   "sections": {
     "profile": "Perfil",
@@ -377,10 +379,15 @@
     "security": "Segurança",
     "notifications": "Avisos",
     "desktop": "App de desktop",
-    "admin": "Admin"
+    "admin": "Admin",
+    "appearance": "Aparência",
+    "offline": "Sem conexão"
   },
   "nav": {
-    "select": "Seção de ajustes"
+    "select": "Seção de ajustes",
+    "label": "Configurações",
+    "search": "Buscar nas configurações",
+    "noResults": "Nenhuma configuração corresponde a “{q}”"
   },
   "cmdk": {
     "section": "Ajustes: {section}",
@@ -1581,5 +1588,140 @@
     "codeLabel": "Código de duas etapas (do app ou de recuperação)",
     "badCode": "Esse código de duas etapas não funcionou.",
     "rateLimited": "Muitas tentativas. Tente mais tarde."
+  },
+  "desktopSections": {
+    "start": "Primeiros passos",
+    "general": "Geral",
+    "meetings": "Reuniões",
+    "voice": "Voice",
+    "dictionary": "Dicionário",
+    "history": "Histórico",
+    "permissions": "Permissões",
+    "updates": "Atualizações",
+    "account": "Sessão e servidor"
+  },
+  "keywords": {
+    "profile": "nome, idioma, fuso horário, foto, email, conta",
+    "appearance": "tema, modo escuro, modo claro, cores, sistema",
+    "notifications": "email, emails, resumo, avisos, cancelar inscrição",
+    "workspace": "nome, logo, modo, empresa",
+    "members": "pessoas, convidar, funções, permissões, convidados",
+    "teams": "grupos, áreas",
+    "billing": "cobrança, faturamento, billing, faturas, assinatura, pagamento, plano, uso, cota de IA",
+    "api": "chaves de api, tokens, webhooks, integrações",
+    "connections": "google, slack, github, credenciais, integrações",
+    "import": "importar, migrar, mudar, csv",
+    "security": "segurança, domínios, sessões, chaves",
+    "offline": "sem conexão, offline, armazenamento, cache, sincronizar, alterações pendentes",
+    "desktop": "baixar, mac, windows, desktop, app, versão, atualizar",
+    "admin": "admin, feedback, roadmap, novidades",
+    "product": "configurações, app",
+    "native": {
+      "start": "primeiros passos, configurar, permissões",
+      "general": "atalho, ditado, tecla, mãos livres, área de transferência, abrir ao entrar, versão",
+      "meetings": "indicador de gravação, reuniões, flutuante, gravar",
+      "voice": "idioma, limpeza, IA, tom, estilo",
+      "dictionary": "palavras, substituições, vocabulário",
+      "history": "ditados, transcrições, pendentes, tentar de novo, colar",
+      "permissions": "acessibilidade, microfone, câmera, gravação de tela, privacidade, redefinir permissão",
+      "updates": "atualizar, versão, procurar atualizações",
+      "account": "entrar, sair, servidor, instalação própria"
+    }
+  },
+  "appearance": {
+    "title": "Aparência",
+    "desc": "Como o zerosoft aparece neste navegador.",
+    "themeHelp": "Sistema segue o modo claro ou escuro do seu computador. É a mesma opção do seletor no rodapé da barra lateral.",
+    "languageTitle": "Idioma",
+    "languageDesc": "O idioma da interface e dos emails que o zerosoft envia.",
+    "languageLink": "Altere em Perfil"
+  },
+  "offline": {
+    "title": "Modo sem conexão",
+    "desc": "Guarda neste dispositivo o que você abriu no CRM, Docs, Track e Notes, para abrir e continuar trabalhando sem conexão.",
+    "loading": "Carregando as configurações sem conexão",
+    "enabled": "Manter os apps disponíveis sem conexão",
+    "enabledHelp": "As páginas que você abre ficam guardadas neste dispositivo. O que você alterar sem conexão é enviado quando ela volta.",
+    "disabledHelp": "Nada é guardado neste dispositivo e as páginas precisam de conexão. As alterações que já esperam são enviadas mesmo assim.",
+    "confirmTitle": "{n, plural, one {# alteração está esperando para ser enviada} other {# alterações estão esperando para ser enviadas}}",
+    "confirmBody": "Desligar o modo sem conexão não as apaga: ficam neste dispositivo e são enviadas quando a conexão voltar. As páginas guardadas são apagadas.",
+    "confirmOff": "Desligar",
+    "keepOn": "Manter ligado",
+    "appsTitle": "Apps disponíveis sem conexão",
+    "apps": {
+      "crm": "CRM e Início",
+      "docs": "Docs",
+      "track": "Track",
+      "notes": "Notes"
+    },
+    "appsHelp": {
+      "crm": "Contatos, empresas, negócios e a página inicial",
+      "docs": "As páginas que você abriu ou marcou como disponíveis sem conexão",
+      "track": "As listas, issues e projetos que você abriu",
+      "notes": "A lista de notas"
+    },
+    "appUsage": "{pages, plural, one {# página} other {# páginas}}, {size}",
+    "measuring": "Medindo…",
+    "sizeTitle": "Quanto guardar",
+    "sizes": {
+      "light": "Leve",
+      "normal": "Normal",
+      "max": "Máximo"
+    },
+    "sizeHelp": "Até {pages} páginas e {size}",
+    "daysLabel": "Guardar as páginas por",
+    "days": "{n} dias",
+    "daysHelp": "As páginas que não forem abertas nesse tempo são apagadas. Ao chegar no limite, saem primeiro as mais antigas.",
+    "saved": "Salvo",
+    "turnedOn": "O modo sem conexão está ligado",
+    "turnedOff": "O modo sem conexão está desligado. As páginas guardadas foram apagadas.",
+    "storageTitle": "Espaço neste dispositivo",
+    "storageDesc": "O que o zerosoft guarda neste navegador para usar sem conexão. Aqui só contam as suas páginas.",
+    "savedHere": "Guardado para usar sem conexão",
+    "appFiles": "Arquivos do app",
+    "browserTotal": "Total usado pelo zerosoft neste navegador",
+    "ofQuota": "{used} de {quota} disponíveis",
+    "noWorker": "Este navegador não consegue guardar páginas sem conexão (não tem service worker).",
+    "clear": "Apagar os dados sem conexão",
+    "clearHelp": "Apaga as páginas e os arquivos guardados. As alterações esperando envio continuam.",
+    "cleared": "Os dados sem conexão foram apagados",
+    "pendingTitle": "Alterações esperando conexão",
+    "pendingDesc": "O que você alterou sem conexão neste dispositivo. É enviado em ordem quando a conexão volta.",
+    "pendingCount": "{n, plural, one {alteração esperando} other {alterações esperando}}",
+    "pendingQueue": "{n, plural, one {# alteração no CRM ou Track} other {# alterações no CRM ou Track}}",
+    "pendingFailed": "{n, plural, one {# alteração que o servidor recusou (tente de novo pela barra de status)} other {# alterações que o servidor recusou (tente de novo pela barra de status)}}",
+    "pendingDocs": "{n, plural, one {# rascunho do Docs} other {# rascunhos do Docs}}",
+    "pendingNotes": "{n, plural, one {# alteração no Notes} other {# alterações no Notes}}"
+  },
+  "desktopApp": {
+    "title": "App de desktop",
+    "desc": "zerosoft para Mac e Windows: a plataforma inteira na sua própria janela, ditado em qualquer app e um indicador de gravação para as reuniões.",
+    "installed": "Instalado aqui",
+    "latest": "Última versão",
+    "notHere": "Fora do app",
+    "updateAuto": "A versão {v} está disponível. O app baixa em segundo plano: reinicie o zerosoft para instalar, ou use zerosoft › Procurar atualizações.",
+    "updateManual": "A versão {v} está disponível. Esta versão não se atualiza sozinha e pode não reconhecer a permissão de Acessibilidade: baixe a nova e substitua.",
+    "openSettings": "Abrir as configurações do app",
+    "download": "Baixar o app",
+    "sectionsTitle": "O que tem a janela de configurações do app",
+    "sectionsDesc": "Abra com ⌘, (Ctrl+, no Windows) ou pelo menu zerosoft. Ela também tem todas as seções desta página.",
+    "sectionHelp": {
+      "start": "Sessão, microfone e Acessibilidade, passo a passo",
+      "general": "Atalho e modo do ditado, área de transferência, abrir ao entrar e versão",
+      "meetings": "O indicador flutuante de gravação",
+      "voice": "Idioma do ditado, limpeza e tom por app",
+      "dictionary": "Palavras e substituições para o ditado",
+      "history": "Seus ditados e os que esperam nova tentativa",
+      "permissions": "Acessibilidade, microfone, câmera e gravação de tela, com Redefinir permissão",
+      "updates": "Versão, Procurar atualizações e Reiniciar para atualizar",
+      "account": "Quem está com a sessão e qual servidor o app usa"
+    }
+  },
+  "desktopUpdate": {
+    "title": "O zerosoft {v} para desktop está disponível.",
+    "auto": "Você tem a {current}. Reinicie o zerosoft para instalar, ou use zerosoft › Procurar atualizações.",
+    "manual": "Você tem a {current}, que não se atualiza sozinha e pode não reconhecer a permissão de Acessibilidade. Baixe a versão nova e substitua o app.",
+    "download": "Baixar",
+    "dismiss": "Agora não"
   }
 }

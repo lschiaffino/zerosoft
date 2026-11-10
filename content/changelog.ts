@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-09-settings-everywhere',
+    date: '2026-11-09',
+    title: {
+      en: 'Every setting in one place, on the web and in the desktop app',
+      es: 'Todos los ajustes en un lugar, en la web y en la app de escritorio',
+      pt: 'Todas as configurações em um lugar, na web e no app de desktop',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Settings has a search box and four groups: Account (with the new Appearance), Workspace, This device and Products. The desktop settings window (⌘,) shows the same list: its own sections plus your account, workspace and the settings of each app, without leaving the window.',
+        es: 'Ajustes tiene una caja de búsqueda y cuatro grupos: Cuenta (con Apariencia, nueva), Workspace, Este dispositivo y Productos. La ventana de ajustes del escritorio (⌘,) muestra la misma lista: sus secciones propias más tu cuenta, el workspace y los ajustes de cada app, sin salir de la ventana.',
+        pt: 'Configurações tem uma caixa de busca e quatro grupos: Conta (com Aparência, nova), Workspace, Este dispositivo e Produtos. A janela de configurações do desktop (⌘,) mostra a mesma lista: as seções dela mais sua conta, o workspace e as configurações de cada app, sem sair da janela.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Offline: turn offline mode on or off on this device, pick which apps stay available, how much to store and for how long, see what it uses and clear it. Changes waiting for a connection are kept.',
+        es: 'Ajustes › Sin conexión: prendé o apagá el modo sin conexión en este dispositivo, elegí qué apps quedan disponibles, cuánto guardar y por cuánto tiempo, mirá cuánto ocupa y borralo. Los cambios que esperan conexión no se tocan.',
+        pt: 'Configurações › Sem conexão: ligue ou desligue o modo sem conexão neste dispositivo, escolha quais apps ficam disponíveis, quanto guardar e por quanto tempo, veja quanto ocupa e apague. As alterações esperando conexão são mantidas.',
+      },
+      {
+        product: 'voice',
+        en: 'Desktop 0.3.2: Permissions with Reset permission for Accessibility, microphone, camera and screen recording; the version and Check for updates in General and Updates; a notice in the app when an older version needs to be replaced; and a smaller recording indicator that you can drag anywhere.',
+        es: 'Escritorio 0.3.2: Permisos con Restablecer permiso para Accesibilidad, micrófono, cámara y grabación de pantalla; la versión y Buscar actualizaciones en General y Actualizaciones; un aviso en la app cuando hay que reemplazar una versión vieja; y un indicador de grabación más chico que se arrastra a cualquier lado.',
+        pt: 'Desktop 0.3.2: Permissões com Redefinir permissão para Acessibilidade, microfone, câmera e gravação de tela; a versão e Procurar atualizações em Geral e Atualizações; um aviso no app quando uma versão antiga precisa ser substituída; e um indicador de gravação menor que pode ser arrastado para qualquer lugar.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-onboarding-desktop',
     date: '2026-11-08',
     title: {

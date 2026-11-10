@@ -104,8 +104,12 @@ test.describe('/download', () => {
   test('Ajustes y Cmd+K llevan a la app de escritorio', async ({ page }) => {
     await page.goto('/en/app/settings');
     const link = page.locator('.st-nav').getByRole('link', { name: 'Desktop app' });
-    await expect(link).toHaveAttribute('href', '/en/download');
+    await expect(link).toHaveAttribute('href', '/en/app/settings/desktop');
     await link.click();
+    await expect(page).toHaveURL(/\/en\/app\/settings\/desktop$/);
+    // Fuera de la app: qué es, la última versión y la descarga.
+    await expect(page.getByTestId('desktop-app-settings')).toBeVisible();
+    await page.getByRole('link', { name: 'Download the app' }).click();
     await expect(page).toHaveURL(/\/en\/download$/);
   });
 

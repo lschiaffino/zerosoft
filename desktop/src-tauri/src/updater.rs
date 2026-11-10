@@ -21,6 +21,17 @@ pub fn enabled(app: &AppHandle) -> bool {
     !cfg!(debug_assertions) && app.config().plugins.0.get("updater").and_then(|u| u.get("pubkey")).and_then(|k| k.as_str()).is_some_and(|k| !k.is_empty())
 }
 
+fn set_info(app: &AppHandle, f: impl FnOnce(&mut crate::state::UpdateInfo)) {
+    {
+        let st = app.state::<AppState>();
+        let mut info = st.update.lock().unwrap();
+        f(&mut info);
+    }
+    crate::commands::refresh_settings(app);
+}
+
+/// Busca una versión nueva y, si hay, la baja (Mac: la deja instalada para el próximo arranque).
+/// `interactive`: lo pidió la persona (menú o Ajustes): se avisa también si está al día.
 pub async fn check(app: &AppHandle, interactive: bool) {
     let l = app.state::<AppState>().locale;
     if !enabled(app) {
@@ -29,29 +40,47 @@ pub async fn check(app: &AppHandle, interactive: bool) {
         }
         return;
     }
+    if app.state::<AppState>().update.lock().unwrap().checking {
+        return;
+    }
+    set_info(app, |i| i.checking = true);
+    let finish = |app: &AppHandle, failed: bool| {
+        set_info(app, |i| {
+            i.checking = false;
+            i.failed = failed;
+            i.checked_at = Some(crate::state::now_ms());
+        })
+    };
     let feed = format!("{}/api/desktop/update/latest.json", crate::api::server(app));
-    let Ok(url) = url::Url::parse(&feed) else { return };
-    let Ok(builder) = app.updater_builder().endpoints(vec![url]) else { return };
-    let Ok(updater) = builder.timeout(Duration::from_secs(30)).build() else { return };
+    let Ok(url) = url::Url::parse(&feed) else { return finish(app, true) };
+    let Ok(builder) = app.updater_builder().endpoints(vec![url]) else { return finish(app, true) };
+    let Ok(updater) = builder.timeout(Duration::from_secs(30)).build() else { return finish(app, true) };
     let update = match updater.check().await {
         Ok(Some(u)) => u,
-        _ => {
-            if interactive {
+        res => {
+            finish(app, res.is_err());
+            if interactive && res.is_ok() {
                 let _ = app.notification().builder().title(t(l, "upToDate")).body(format!("v{}", app.package_info().version)).show();
             }
             return;
         }
     };
     let version = update.version.clone();
-    let Ok(bytes) = update.download(|_, _| {}, || {}).await else { return };
+    // Se sabe que hay versión nueva antes de bajarla: Ajustes ya lo muestra.
+    set_info(app, |i| i.available = Some(version.clone()));
+    if app.state::<AppState>().update_ready.lock().unwrap().as_deref() == Some(version.as_str()) {
+        return finish(app, false);
+    }
+    let Ok(bytes) = update.download(|_, _| {}, || {}).await else { return finish(app, true) };
     if cfg!(target_os = "macos") {
         if update.install(&bytes).is_err() {
-            return;
+            return finish(app, true);
         }
     } else {
         *DOWNLOADED.lock().unwrap() = Some((update, bytes));
     }
     *app.state::<AppState>().update_ready.lock().unwrap() = Some(version.clone());
+    finish(app, false);
     crate::tray::rebuild(app);
     let _ = app.notification().builder().title(t(l, "updateReady")).body(fill(&t(l, "updateReadyBody"), &[("v", &version)])).show();
 }
