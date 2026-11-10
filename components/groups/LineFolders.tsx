@@ -6,8 +6,6 @@ import type { LineFolderDto } from '@/lib/groups-lines';
 import { flattenTree } from '@/lib/inbox/folder-tree';
 import { Modal } from './ui';
 
-export const DRAG_TYPE = 'application/x-zs-lines-chats';
-
 export interface LineOption {
   id: string;
   name: string;
@@ -45,12 +43,6 @@ export function LineBadge({ name }: { name: string }) {
 export const FOLDERS_CHANGED = 'zs:lines-folders-changed';
 export function notifyFoldersChanged() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(FOLDERS_CHANGED));
-}
-/** Chats soltados sobre una carpeta del sidebar: la bandeja los mueve y avisa. */
-export const DROP_CHATS = 'zs:lines-drop-chats';
-export interface DropChatsDetail {
-  ids: string[];
-  folderId: string | null;
 }
 
 /** Selector de carpeta para cuando el sidebar no está a la vista (teléfono o sidebar colapsado). */

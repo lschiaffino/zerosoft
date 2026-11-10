@@ -1657,6 +1657,19 @@
     "rescan": "Escanear el QR de nuevo",
     "reconnect": "Reconectar"
   },
+  "swipe": {
+    "read": "Leído",
+    "unread": "No leído",
+    "pin": "Fijar",
+    "unpin": "Desfijar",
+    "more": "Más",
+    "archive": "Archivar",
+    "unarchive": "Desarchivar",
+    "dragMany": "{n} chats",
+    "dropTitle": "Mover a una carpeta",
+    "dropEmpty": "Todavía no hay carpetas. Creá una desde la barra lateral.",
+    "undo": "Deshacer"
+  },
   "lines": {
     "selectorLabel": "Línea",
     "all": "Todas las líneas",

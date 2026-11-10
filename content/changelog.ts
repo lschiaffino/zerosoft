@@ -29,6 +29,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-chat-gestures',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines and Inbox: swipe a conversation like in WhatsApp, and hold it to drop it into a folder',
+      es: 'Lines e Inbox: deslizá una conversación como en WhatsApp y mantenela apretada para soltarla en una carpeta',
+      pt: 'Lines e Inbox: deslize uma conversa como no WhatsApp e segure para soltar numa pasta',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Swipe a chat in the list, with a finger, the mouse or the trackpad. To the right you get Read or Unread and Pin; to the left, Archive and More. Stop halfway and the buttons stay open; swipe all the way and the first one runs. Archiving shows Undo. Everything is still in the chat menu.',
+        es: 'Deslizá un chat de la lista, con el dedo, el mouse o el trackpad. A la derecha aparecen Leído o No leído y Fijar; a la izquierda, Archivar y Más. Si frenás a mitad de camino los botones quedan abiertos; si deslizás hasta el fondo se ejecuta el primero. Archivar ofrece Deshacer. Todo sigue en el menú del chat.',
+        pt: 'Deslize uma conversa da lista, com o dedo, o mouse ou o trackpad. À direita aparecem Lida ou Não lida e Fixar; à esquerda, Arquivar e Mais. Parando no meio do caminho os botões ficam abertos; deslizando até o fim, o primeiro é executado. Arquivar oferece Desfazer. Tudo continua no menu da conversa.',
+      },
+      {
+        product: 'groups',
+        en: 'Press and hold a chat to pick it up and drop it on a folder or subfolder. A small tag follows the pointer without covering the folder under it, the folder lights up, a collapsed folder opens when you wait on it, and the sidebar scrolls near its edges. Esc cancels, and the notice names the folder and has Undo. With several chats selected, they all travel together.',
+        es: 'Mantené apretado un chat para levantarlo y soltarlo en una carpeta o subcarpeta. Una ficha chica sigue al puntero sin tapar la carpeta que está debajo, la carpeta se resalta, una carpeta plegada se abre si te quedás encima y la barra lateral corre cerca de sus bordes. Esc cancela, y el aviso nombra la carpeta y trae Deshacer. Con varios chats seleccionados, viajan todos juntos.',
+        pt: 'Segure uma conversa para levantá-la e soltá-la numa pasta ou subpasta. Uma etiqueta pequena segue o ponteiro sem cobrir a pasta que está embaixo, a pasta fica destacada, uma pasta recolhida abre se você esperar em cima dela e a barra lateral rola perto das bordas. Esc cancela, e o aviso diz o nome da pasta e traz Desfazer. Com várias conversas selecionadas, todas vão juntas.',
+      },
+      {
+        product: 'groups',
+        en: 'On a phone, or with the sidebar collapsed, picking a chat up shows a tray with your folders to drop it on.',
+        es: 'En el teléfono, o con la barra lateral colapsada, al levantar un chat aparece una bandeja con tus carpetas para soltarlo.',
+        pt: 'No celular, ou com a barra lateral recolhida, ao levantar uma conversa aparece uma bandeja com as suas pastas para soltá-la.',
+      },
+      {
+        product: 'inbox',
+        en: 'The same gestures as Lines. Swiping left now archives, like WhatsApp; Done is still on the E key and in the chat header. Dropping a chat on a folder adds it there, with Undo.',
+        es: 'Los mismos gestos que Lines. Deslizar a la izquierda ahora archiva, como WhatsApp; Hecho sigue en la tecla E y en el encabezado del chat. Soltar un chat en una carpeta lo suma ahí, con Deshacer.',
+        pt: 'Os mesmos gestos do Lines. Deslizar para a esquerda agora arquiva, como no WhatsApp; Concluir continua na tecla E e no cabeçalho da conversa. Soltar uma conversa numa pasta a adiciona ali, com Desfazer.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-inbox-lines-fast',
     date: '2026-11-10',
     title: {

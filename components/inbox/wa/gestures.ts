@@ -3,8 +3,10 @@
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 
 /**
- * Gestos de WhatsApp en el teléfono. Solo con el dedo (con el mouse no
- * hacen nada); el movimiento vertical es scroll y cancela. El estado del
+ * Gestos de WhatsApp sobre un mensaje, en el teléfono. Solo con el dedo (con
+ * el mouse no hacen nada); el movimiento vertical es scroll y cancela. Los
+ * de la fila de la lista (deslizar, levantar) están en
+ * components/ui/chat-gestures.tsx. El estado del
  * gesto vive en el elemento (no en el render): la lista o el chat pueden
  * volver a dibujarse en medio del gesto sin cortarlo.
  */
@@ -57,77 +59,6 @@ const swallowClick = (e: ReactMouseEvent<HTMLElement>) => {
     s.fired = false;
   }
 };
-
-/**
- * Deslizar una fila de la lista para los dos lados: a la izquierda archiva
- * (Hecho), a la derecha fija. El contenido (`[data-swipe-body]`) se corre y
- * atrás asoma la acción (data-swipe="left" o "right"; data-swipe-ready al
- * pasar el umbral).
- */
-export function rowSwipe(opts: { onLeft?: () => void; onRight?: () => void; threshold?: number }) {
-  const limit = opts.threshold ?? 72;
-  const body = (el: HTMLElement) => el.querySelector<HTMLElement>('[data-swipe-body]') ?? el;
-  const end = (el: HTMLElement) => {
-    const b = body(el);
-    settle(b, []);
-    el.removeAttribute('data-swipe');
-    el.removeAttribute('data-swipe-ready');
-  };
-  return {
-    onPointerDown: (e: ReactPointerEvent<HTMLElement>) => {
-      if (e.pointerType !== 'touch') return;
-      const s = stateOf(e.currentTarget);
-      s.start = { x: e.clientX, y: e.clientY };
-      s.swiping = false;
-      s.fired = false;
-      s.dx = 0;
-    },
-    onPointerMove: (e: ReactPointerEvent<HTMLElement>) => {
-      const s = stateOf(e.currentTarget);
-      if (!s.start) return;
-      const mx = e.clientX - s.start.x;
-      const my = e.clientY - s.start.y;
-      if (!s.swiping) {
-        if (Math.abs(my) > 10 && Math.abs(my) > Math.abs(mx)) {
-          s.start = null;
-          return;
-        }
-        if ((mx < -12 && opts.onLeft) || (mx > 12 && opts.onRight)) s.swiping = true;
-        else return;
-      }
-      s.dx = Math.max(opts.onLeft ? -limit * 1.4 : 0, Math.min(opts.onRight ? limit * 1.4 : 0, mx));
-      const el = e.currentTarget;
-      body(el).style.transform = `translateX(${s.dx}px)`;
-      el.setAttribute('data-swipe', s.dx < 0 ? 'left' : 'right');
-      if (Math.abs(s.dx) >= limit) el.setAttribute('data-swipe-ready', '');
-      else el.removeAttribute('data-swipe-ready');
-    },
-    onPointerUp: (e: ReactPointerEvent<HTMLElement>) => {
-      const s = stateOf(e.currentTarget);
-      if (s.swiping) {
-        if (s.dx <= -limit) {
-          s.fired = true;
-          buzz(8);
-          opts.onLeft?.();
-        } else if (s.dx >= limit) {
-          s.fired = true;
-          buzz(8);
-          opts.onRight?.();
-        }
-        end(e.currentTarget);
-      }
-      s.swiping = false;
-      s.start = null;
-    },
-    onPointerCancel: (e: ReactPointerEvent<HTMLElement>) => {
-      const s = stateOf(e.currentTarget);
-      if (s.swiping) end(e.currentTarget);
-      s.swiping = false;
-      s.start = null;
-    },
-    onClickCapture: swallowClick,
-  };
-}
 
 /** Cuánto hay que deslizar para que cuente (px) y el tope del arrastre. */
 export const SWIPE_TRIGGER = 56;

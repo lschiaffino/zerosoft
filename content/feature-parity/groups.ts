@@ -49,9 +49,9 @@ const parity: ProductParity = {
     }),
     row('shared-folders', 'organize', ['Shared chat folders', 'Carpetas compartidas de chats', 'Pastas compartilhadas de conversas'], 'have', {
       detail: [
-        'Folders and subfolders shared by the workspace, with unread counts per person, drag a chat onto a folder or use Move to folder',
-        'Carpetas y subcarpetas compartidas por el workspace, con no leídos por persona; arrastrá un chat a una carpeta o usá Mover a carpeta',
-        'Pastas e subpastas compartilhadas pelo workspace, com não lidas por pessoa; arraste uma conversa para a pasta ou use Mover para pasta',
+        'Folders and subfolders shared by the workspace, with unread counts per person, hold a chat (or a selection) and drop it on a folder, with undo, or use Move to folder',
+        'Carpetas y subcarpetas compartidas por el workspace, con no leídos por persona; mantené apretado un chat (o una selección) y soltalo en una carpeta, con deshacer, o usá Mover a carpeta',
+        'Pastas e subpastas compartilhadas pelo workspace, com não lidas por pessoa; segure uma conversa (ou uma seleção) e solte numa pasta, com desfazer, ou use Mover para pasta',
       ],
     }),
     row('qr-connect', 'numbers', ['Connect a number with a QR code', 'Conectar un número con QR', 'Conectar um número com QR'], 'partial', {

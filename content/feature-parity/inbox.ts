@@ -84,9 +84,9 @@ const parity: ProductParity = {
     }),
     row('folders', 'triage', ['Folders and subfolders', 'Carpetas y subcarpetas', 'Pastas e subpastas'], 'have', {
       detail: [
-        'Nested folders in the sidebar that collapse, unread counts that add up to the parent, drag chats (one or a selection) onto a folder with undo, and drag folders to sort or nest them. V and Alt+arrows from the keyboard',
-        'Carpetas anidadas en la barra que se pliegan, no leídos que suben al padre, arrastrar chats (uno o una selección) a una carpeta con deshacer y arrastrar carpetas para ordenarlas o anidarlas. V y Alt+flechas desde el teclado',
-        'Pastas aninhadas na barra que recolhem, não lidos que sobem para a pasta mãe, arrastar conversas (uma ou uma seleção) para uma pasta com desfazer e arrastar pastas para ordenar ou aninhar. V e Alt+setas pelo teclado',
+        'Nested folders in the sidebar that collapse, unread counts that add up to the parent, hold a chat (or a selection) and drop it on a folder with undo, and drag folders to sort or nest them. V and Alt+arrows from the keyboard',
+        'Carpetas anidadas en la barra que se pliegan, no leídos que suben al padre, mantener apretado un chat (o una selección) y soltarlo en una carpeta con deshacer, y arrastrar carpetas para ordenarlas o anidarlas. V y Alt+flechas desde el teclado',
+        'Pastas aninhadas na barra que recolhem, não lidos que sobem para a pasta mãe, segurar uma conversa (ou uma seleção) e soltar numa pasta com desfazer, e arrastar pastas para ordenar ou aninhar. V e Alt+setas pelo teclado',
       ],
     }),
     row('auto-labels', 'triage', ['AI labels and auto-archive', 'Etiquetas por IA y archivado automático', 'Etiquetas por IA e arquivamento automático'], 'missing'),
@@ -273,9 +273,9 @@ const parity: ProductParity = {
     }),
     row('wa-mobile', 'whatsapp', ['Phone gestures', 'Gestos del teléfono', 'Gestos do celular'], 'partial', {
       detail: [
-        'Swipe a message right to reply, swipe a chat left for Done or right to pin, long press for the menu. In the browser, not a native app',
-        'Deslizar un mensaje a la derecha para responder, un chat a la izquierda para Hecho o a la derecha para fijar, toque largo para el menú. En el navegador, no es una app nativa',
-        'Deslizar uma mensagem para a direita para responder, uma conversa para a esquerda para Concluir ou para a direita para fixar, toque longo para o menu. No navegador, não é um app nativo',
+        'Swipe a message right to reply, swipe a chat right for read and pin or left for archive and more (also with the mouse), hold it to drop it on a folder. In the browser, not a native app',
+        'Deslizar un mensaje a la derecha para responder, un chat a la derecha para leído y fijar o a la izquierda para archivar y más (también con el mouse), mantenerlo apretado para soltarlo en una carpeta. En el navegador, no es una app nativa',
+        'Deslizar uma mensagem para a direita para responder, uma conversa para a direita para lida e fixar ou para a esquerda para arquivar e mais (também com o mouse), segurar para soltar numa pasta. No navegador, não é um app nativo',
       ],
     }),
     row('wa-reactions-live', 'whatsapp', ['Reactions and typing arrive live', 'Reacciones y "escribiendo" en vivo', 'Reações e "digitando" ao vivo'], 'partial', {

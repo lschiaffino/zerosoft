@@ -241,6 +241,17 @@
     "undo": "Desfazer",
     "reverted": "Desfeito"
   },
+  "swipe": {
+    "read": "Lida",
+    "unread": "Não lida",
+    "pin": "Fixar",
+    "unpin": "Desafixar",
+    "more": "Mais",
+    "archive": "Arquivar",
+    "unarchive": "Desarquivar",
+    "dropTitle": "Adicionar a uma pasta",
+    "dropEmpty": "Ainda não há pastas. Crie uma na barra lateral."
+  },
   "move": { "title": "Adicionar à pasta", "filter": "Filtrar pastas", "none": "Ainda não há pastas.", "remove": "Remover", "newFolder": "Nova pasta", "close": "Fechar" },
   "more": {
     "deleteConfirm": "A conversa e as mensagens salvas saem do Inbox. Nada é apagado no WhatsApp nem no Gmail.",
