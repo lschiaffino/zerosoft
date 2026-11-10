@@ -360,7 +360,24 @@
         "verify_rate_limited": "Muitos códigos testados a partir desta rede. Espere 15 minutos e tente de novo."
       }
     },
-    "subGoogle": "Entre com a sua conta Google. Não tem senha para criar."
+    "subGoogle": "Entre com a sua conta Google. Não tem senha para criar.",
+    "mfa": {
+      "title": "Verificação em duas etapas",
+      "sub": "Digite o código do seu app autenticador para terminar de entrar.",
+      "codeLabel": "Código de verificação",
+      "recoveryLabel": "Código de recuperação",
+      "verify": "Verificar",
+      "verifying": "Verificando…",
+      "useRecovery": "Usar um código de recuperação",
+      "useApp": "Usar o app autenticador",
+      "signOut": "Sair",
+      "errors": {
+        "bad_code": "Esse código não funcionou. Tente o mais novo.",
+        "rate_limited": "Muitas tentativas. Espere alguns minutos.",
+        "expired": "Este login expirou. Entre de novo.",
+        "network": "Sem conexão. Tente de novo."
+      }
+    }
   },
   "blog": {
     "label": "Blog",

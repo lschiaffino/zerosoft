@@ -568,3 +568,33 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
   .st-lc { grid-template-columns: minmax(0, 1fr); }
   .st-lc-templates ul { flex-direction: row; flex-wrap: wrap; }
 }
+
+/* Ajustes › Seguridad: dos pasos, sesiones y registro. */
+.st-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; max-width: 72ch; }
+.st-mfa-qr { width: 176px; height: 176px; padding: 8px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.st-mfa-qr svg { display: block; width: 100%; height: 100%; }
+.st-mfa-secret { display: inline-block; max-width: 100%; padding: 6px 8px; overflow-wrap: anywhere; background: var(--brand-enamel); border-radius: var(--radius-1); }
+.st-mfa-code { max-width: 420px; }
+.st-mfa-input { width: 16ch; font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+.st-codes {
+  margin: 0;
+  padding: 12px;
+  column-count: 2;
+  column-gap: 24px;
+  max-width: 360px;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+}
+.st-sessions { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.st-session { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.st-session-main { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.st-session-meta { flex-basis: 100%; font-size: 0.8125rem; overflow-wrap: anywhere; }
+.st-cell-clip { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-without-mfa summary { cursor: pointer; font-size: 0.875rem; }
+.st-without-mfa ul { margin: 8px 0 0; padding-left: 20px; font-size: 0.875rem; }
+@media (max-width: 480px) {
+  .st-codes { column-count: 1; }
+  .st-session { align-items: flex-start; }
+}

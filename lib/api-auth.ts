@@ -78,6 +78,14 @@ export async function personAppAccess(ownerId: string, personId: string): Promis
     )
     .all(ownerId, personId)) as Array<{ role: string; apps: string | null }>;
   if (!rows.length) return null;
+  // El workspace exige dos pasos y la persona no los tiene: sus keys y conexiones no entran.
+  const mfa = (await getDb()
+    .prepare(
+      `SELECT 1 AS blocked FROM teams t, users u
+       WHERE t.owner_id = ? AND t.require_mfa = 1 AND u.id = ? AND u.mfa_enabled_at IS NULL LIMIT 1`,
+    )
+    .get(ownerId, personId)) as { blocked: number } | undefined;
+  if (mfa) return null;
   const role: TeamRole = rows.some((r) => r.role === 'admin' || r.role === 'owner') ? 'admin' : 'member';
   const lists = rows.map((r) => parseApps(r.apps));
   if (lists.includes('*')) return { role, apps: '*' };

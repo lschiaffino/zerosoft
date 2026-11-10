@@ -77,8 +77,8 @@ test('cuenta personal con datos de ejemplo: cae en la app elegida y el inicio en
     await expect(p.getByTestId('home-import')).toBeVisible();
     // El owner ve la zona de propiedad y cierre.
     await p.goto('/en/app/settings/workspace', { waitUntil: 'networkidle' });
-    await expect(p.getByTestId('ws-danger-owner')).toContainText('reply by hand');
-    await expect(p.getByTestId('ws-danger-owner')).not.toContainText('30 days');
+    await expect(p.getByTestId('ws-danger-owner')).toContainText('Delete workspace');
+    await expect(p.getByTestId('ws-danger-owner')).toContainText('30 days');
   } finally {
     await ctx.close();
   }
