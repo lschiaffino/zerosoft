@@ -1,6 +1,6 @@
 {
   "meta": {
-    "tagline": "Veintiséis apps open source para tu equipo.",
+    "tagline": "Diecinueve apps open source para tu equipo.",
     "description": "Apps open source para empresas: CRM, chat de soporte, agentes de IA, automatizaciones, docs y más. Corrélas en tu servidor por $0 o usá zerosoft Cloud.",
     "homeTitle": "zerosoft: apps open source para empresas, del CRM a los docs"
   },
@@ -40,6 +40,7 @@
       "shop": "Tienda online con checkout y pedidos",
       "design": "Diseño gráfico desde plantillas, con tu marca",
       "pulse": "Analítica de producto y feature flags",
+      "analytics": "Preguntas y tableros sobre tus datos",
       "social": "Programación, bandeja y métricas de redes sociales",
       "people": "Directorio, licencias y evaluaciones",
       "hiring": "Selección de personal con página de empleos",
@@ -49,7 +50,7 @@
       "send": "Compartí documentos por link y mirá quién leyó qué",
       "inbox": "Tu WhatsApp y tu Gmail en una bandeja manejada con el teclado"
     },
-    "building": "En construcción"
+    "building": "Próximamente"
   },
   "sidebar": {
     "desktopSettings": "Ajustes de la app de escritorio",
@@ -58,7 +59,7 @@
     "new": "Nuevo",
     "backToSite": "Volver al sitio",
     "docs": "Ayuda",
-    "soon": "pronto",
+    "soon": "Próximamente",
     "signOut": "Salir",
     "records": "Registros",
     "activity": "Actividad",
@@ -217,11 +218,18 @@
     "groupForms": "Formularios",
     "groupSend": "Documentos para enviar",
     "untitled": "Sin título",
-    "groupInbox": "Inbox"
+    "groupInbox": "Inbox",
+    "preview": "Vista previa",
+    "comingSoon": "Próximamente",
+    "soonApp": "{name}: lista de espera",
+    "groupBiQuestions": "Preguntas de Analytics",
+    "groupBiDashboards": "Tableros de Analytics",
+    "groupBiCollections": "Colecciones de Analytics",
+    "downloadDesktop": "App de escritorio"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",
-    "p2": "Correr ese software cuesta mucho menos. Las veintiséis apps de zerosoft entran en <strong>un contenedor y un archivo SQLite</strong>, en un servidor chico.",
+    "p2": "Correr ese software cuesta mucho menos. Las diecinueve apps de zerosoft entran en <strong>un contenedor y un archivo SQLite</strong>, en un servidor chico.",
     "p3": "Por eso publicamos el código. El core de cada app es AGPLv3: lo podés leer, cambiar y correr en tu servidor sin pagarnos nada.",
     "final": "Por qué hacemos zerosoft.",
     "p4": "Si preferís que lo operemos nosotros, zerosoft Cloud cobra por workspace y por uso. Sumar a alguien al equipo no cambia la factura.",
@@ -281,6 +289,9 @@
     },
     "pulse": {
       "desc": "Eventos, embudos, retención y feature flags para tu producto."
+    },
+    "analytics": {
+      "desc": "Preguntas, SQL y tableros sobre tu workspace y tus bases de datos."
     },
     "social": {
       "desc": "Planeá, publicá y contestá en redes sociales."
@@ -360,7 +371,24 @@
         "verify_rate_limited": "Se probaron demasiados códigos desde esta red. Esperá 15 minutos y probá de nuevo."
       }
     },
-    "subGoogle": "Entrás con tu cuenta de Google. No hay contraseña que crear."
+    "subGoogle": "Entrás con tu cuenta de Google. No hay contraseña que crear.",
+    "mfa": {
+      "title": "Verificación en dos pasos",
+      "sub": "Escribí el código de tu app autenticadora para terminar de entrar.",
+      "codeLabel": "Código de verificación",
+      "recoveryLabel": "Código de recuperación",
+      "verify": "Verificar",
+      "verifying": "Revisando…",
+      "useRecovery": "Usar un código de recuperación",
+      "useApp": "Usar la app autenticadora",
+      "signOut": "Cerrar sesión",
+      "errors": {
+        "bad_code": "Ese código no sirvió. Probá con el más nuevo.",
+        "rate_limited": "Demasiados intentos. Esperá unos minutos.",
+        "expired": "Este inicio de sesión venció. Volvé a entrar.",
+        "network": "Sin conexión. Probá de nuevo."
+      }
+    }
   },
   "blog": {
     "label": "Blog",
@@ -418,13 +446,14 @@
     "feedback": "Feedback",
     "videos": "Videos",
     "desktopApp": "App de escritorio",
-    "compare": "Comparaciones"
+    "compare": "Comparaciones",
+    "subprocessors": "Subprocesadores"
   },
   "home": {
     "hero": {
-      "title1": "Veintiséis apps para tu equipo.",
+      "title1": "Diecinueve apps para tu equipo.",
       "title2": "Cero licencias.",
-      "sub": "Alternativas open source a HubSpot, Intercom, Calendly, Linear, Notion y 19 productos más que tu equipo paga cada mes. Corrélas en tu servidor por $0 o usalas en zerosoft Cloud.",
+      "sub": "Alternativas open source a HubSpot, Calendly, Linear, Notion, Bitly y 13 productos más que tu equipo paga cada mes. Corrélas en tu servidor por $0 o usalas en zerosoft Cloud.",
       "ctaStart": "Empezá gratis",
       "ctaSelfHost": "Hostealo vos",
       "note1": "Sin tarjeta",
@@ -479,7 +508,7 @@
         "b3": "Plantillas, comentarios y permisos"
       },
       "one": {
-        "title": "Una cuenta para las veintiséis apps.",
+        "title": "Una cuenta para las diecinueve apps.",
         "desc": "Invitás a tu equipo una sola vez. Encontrás contactos, empresas, negocios, links, docs y tareas desde una sola barra de búsqueda, y saltás entre apps sin cambiar de herramienta."
       },
       "replaces": "Reemplaza a {rival}",
@@ -521,7 +550,7 @@
       "pulse": {
         "line": "Analítica de producto, analítica web y feature flags."
       },
-      "building": "En construcción · como {rival}",
+      "building": "Próximamente · como {rival}",
       "social": {
         "line": "Planeá, publicá y contestá en redes sociales."
       },
@@ -545,12 +574,15 @@
       },
       "inbox": {
         "line": "Tu WhatsApp y tu Gmail en una bandeja manejada con el teclado."
+      },
+      "analytics": {
+        "line": "Preguntas, SQL y tableros sobre tus datos."
       }
     },
     "stack": {
       "title": "{total} por año.",
       "titleDim": "O $0.",
-      "sub": "Lo que paga un equipo de 10 personas a precio de lista por HubSpot, Intercom, Calendly, Notion, Linear y Bitly. Las apps de zerosoft que los reemplazan cuestan $0 en tu servidor.",
+      "sub": "Lo que paga un equipo de 10 personas a precio de lista por HubSpot, Calendly, Notion, Linear y Bitly. Las apps de zerosoft que los reemplazan cuestan $0 en tu servidor.",
       "colTool": "Herramienta",
       "colPrice": "Precio de lista",
       "colYear": "Equipo de 10 / año",
@@ -559,7 +591,7 @@
       "total": "Total por año",
       "zeroTitle": "zerosoft, en tu servidor",
       "footnote": "Precios de lista citados en nuestras páginas de producto, con facturación mensual, para 10 usuarios (Bitly Core es un plan fijo). Los proveedores cambian sus precios: chequeá sus sitios. zerosoft no está afiliado a ninguna de estas empresas.",
-      "rApps": "Las veintiséis apps",
+      "rApps": "Las diecinueve apps",
       "rSeats": "Usuarios",
       "rLicense": "Licencia",
       "rData": "Tus datos",
@@ -630,7 +662,7 @@
   },
   "appHome": {
     "title": "Tus apps",
-    "lead": "Las veintiséis apps de tu workspace. Elegí una para empezar.",
+    "lead": "Las diecinueve apps de tu workspace. Elegí una para empezar.",
     "apps": "Apps",
     "open": "Abrir {name}",
     "linkSummary": "Resumen de Link",
@@ -706,6 +738,54 @@
       "title": "Todavía no tenés apps habilitadas",
       "body": "Un admin de {workspace} te las puede habilitar en Ajustes › Miembros.",
       "bodyAdmin": "El owner de {workspace} te las puede habilitar en Ajustes › Miembros."
+    },
+    "start": {
+      "title": "Primeros pasos",
+      "progress": "{done} de {total} listos",
+      "hide": "Ocultar",
+      "hideLabel": "Ocultar primeros pasos",
+      "allSet": "Ya está todo. Lo que elegiste al empezar está conectado.",
+      "error": "No se pudo ocultar. Probá de nuevo.",
+      "continueSetup": "Seguir configurando",
+      "steps": {
+        "profile": {
+          "title": "Armá tu workspace",
+          "body": "Nombre, rol y las apps que usás.",
+          "cta": "Editar"
+        },
+        "invite": {
+          "title": "Invitá a tu equipo",
+          "body": "Todos comparten el mismo CRM, Docs y Track.",
+          "cta": "Invitar"
+        },
+        "import": {
+          "title": "Traé tus datos de {tool}",
+          "body": "Contactos, páginas o issues llegan con su historial.",
+          "cta": "Importar",
+          "titleAny": "Traé tus datos"
+        },
+        "calendar": {
+          "title": "Conectá tu calendario",
+          "body": "Cal lo mira para no superponer y le suma las reservas nuevas.",
+          "cta": "Conectar"
+        },
+        "email": {
+          "title": "Conectá tu email",
+          "body": "Los emails con tus contactos aparecen en el CRM y mandás desde tu dirección.",
+          "cta": "Conectar"
+        },
+        "whatsapp": {
+          "title": "Conectá una línea de WhatsApp",
+          "body": "Tus chats y grupos llegan a Groups, con su historial.",
+          "cta": "Conectar"
+        },
+        "desktop": {
+          "title": "Bajate la app de escritorio",
+          "body": "Dictado en cualquier app, notas de reuniones y avisos nativos.",
+          "cta": "Descargar"
+        }
+      },
+      "done": "Listo"
     }
   },
   "publicPage": {
@@ -756,7 +836,7 @@
   "notFound": {
     "sign": "Error 404",
     "title": "Esta página no existe.",
-    "body": "El link puede tener un error o la página se mudó. Desde el inicio llegás a las veintiséis apps.",
+    "body": "El link puede tener un error o la página se mudó. Desde el inicio llegás a las diecinueve apps.",
     "cta": "Ir al inicio",
     "meta": "Página no encontrada"
   },
@@ -878,5 +958,79 @@
     "unknownShort": "{count, plural, one {# cambio sin enviar} other {# cambios sin enviar}}",
     "unknownTitle": "Sin enviar",
     "unknownBody": "{count, plural, one {Hay # cambio} other {Hay # cambios}} de antes en este dispositivo que no se sabe de qué sesión son. No se mandan con la tuya. Descartalos si no los necesitás."
+  },
+  "comingSoon": {
+    "badge": "Próximamente",
+    "title": "{name} todavía no se puede usar",
+    "lead": "Todavía no tiene fecha. Sumate a la lista de espera y te avisamos por email el día que se pueda usar.",
+    "join": "Unirme a la lista de espera",
+    "joinShort": "Lista de espera",
+    "joining": "Sumando…",
+    "joined": "Estás en la lista de espera de {name}. Te avisamos a {email}.",
+    "joinedSite": "Listo. Te avisamos por email el día que {name} se pueda usar.",
+    "already": "Ya estás en la lista de espera de {name}.",
+    "useCase": "¿Para qué la usarías? (opcional)",
+    "useCasePlaceholder": "Por ejemplo: responder el chat de la web entre dos personas",
+    "email": "Tu email",
+    "emailPlaceholder": "vos@empresa.com",
+    "invalidEmail": "Revisá el email.",
+    "error": "No pudimos sumarte. Probá de nuevo.",
+    "limited": "Demasiados intentos. Probá en unos minutos.",
+    "privacy": "Un solo email, el día que salga.",
+    "back": "Volver al inicio",
+    "others": "Otras apps que todavía no se pueden usar",
+    "openPreview": "Abrir la vista previa interna de {name}",
+    "previewTag": "Vista previa interna",
+    "previewBanner": "{name} todavía no está disponible para los clientes. La ves porque sos del equipo de zerosoft."
+  },
+  "desktop": {
+    "pickLabel": "Tu computadora",
+    "macArm": "Mac con Apple silicon",
+    "macIntel": "Mac con Intel",
+    "win": "Windows",
+    "detected": "Detectada",
+    "probable": "Lo más probable",
+    "download": {
+      "mac-arm": "Descargar para Mac",
+      "mac-intel": "Descargar para Mac (Intel)",
+      "win": "Descargar para Windows"
+    },
+    "meta": "Versión {version}",
+    "metaSize": "Versión {version} · {size}",
+    "chipHelp": "¿No sabés qué Mac tenés? Menú Apple › Acerca de esta Mac: “Chip Apple M…” es Apple silicon, “Procesador Intel…” es Intel.",
+    "allFiles": "Todos los archivos en GitHub",
+    "noRelease": "Ahora no hay una versión publicada. Mientras tanto usá zerosoft en el navegador; en la página de releases están todas las anteriores.",
+    "releases": "Ver releases",
+    "mobile": "La app de escritorio es para Mac y Windows. Abrí esta página en tu computadora para descargarla.",
+    "copyLink": "Copiar link",
+    "copied": "Link copiado",
+    "linux": "Todavía no hay versión para Linux. zerosoft funciona igual en el navegador.",
+    "inApp": "Estás en la app de escritorio.",
+    "inAppBody": "El dictado, los avisos y el contador del dock están activos. Los ajustes del dictado están en el menú de la app.",
+    "installTitle": "Instalala",
+    "installTitleAfter": "Se está descargando. Ahora instalala",
+    "mac": {
+      "s1": "Abrí el .dmg que descargaste y arrastrá zerosoft a Aplicaciones.",
+      "s2": "Abrí zerosoft desde Aplicaciones. La primera vez macOS dice que no puede verificar al desarrollador: la versión todavía no está notarizada por Apple.",
+      "s3": "En macOS 15 o posterior, andá a Ajustes del Sistema › Privacidad y seguridad, bajá y tocá Abrir igualmente. En macOS 14 o anterior, hacé clic derecho en la app, elegí Abrir y confirmá.",
+      "s4": "Entrá con esta cuenta. El dictado pide el micrófono, y Accesibilidad para pegar donde está tu cursor."
+    },
+    "windows": {
+      "s1": "Ejecutá el .exe que descargaste.",
+      "s2": "Si SmartScreen dice “Windows protegió tu PC”, tocá Más información y después Ejecutar de todas formas. La versión todavía no está firmada.",
+      "s3": "El instalador suma Microsoft Edge WebView2 si a tu Windows 10 le falta, y abre zerosoft.",
+      "s4": "Entrá con esta cuenta."
+    },
+    "waiting": "Cuando entres en la app de escritorio, este paso se marca solo.",
+    "seen": "La app de escritorio ya está conectada a tu cuenta.",
+    "featuresTitle": "Qué suma",
+    "f1t": "Dictado en cualquier app",
+    "f1d": "Mantené Option + Espacio (Ctrl + Alt + Espacio en Windows), hablá y soltá: el texto limpio queda donde está tu cursor.",
+    "f2t": "Notas de reuniones con Voice",
+    "f2d": "Grabá una reunión desde la ventana de la app con tu micrófono y tené la transcripción y el resumen en Voice.",
+    "f3t": "Avisos nativos",
+    "f3d": "Menciones, mensajes directos y la campana como avisos del sistema y un contador en el ícono del dock.",
+    "f4t": "Liviana y rápida",
+    "f4d": "Unos 3 MB de descarga. Todas las apps en una ventana."
   }
 }

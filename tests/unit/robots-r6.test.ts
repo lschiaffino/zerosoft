@@ -20,6 +20,10 @@ import { endpointScope, API_ENDPOINTS } from '@/lib/api-docs';
 import { makeUser } from './helpers';
 import { scriptedModel } from './ai-mock';
 
+// Esta suite prueba la app por dentro: el corte de "Próximamente" (lib/app-access.ts) tiene sus propios tests.
+vi.mock('@/lib/workspace-apps', async (orig) => ({ ...(await orig<typeof import('@/lib/workspace-apps')>()), blockedAppsFor: async () => [] }));
+
+
 const listRoute = await import('@/app/api/v1/robots/route');
 const runsRoute = await import('@/app/api/v1/robots/[id]/runs/route');
 const bulkRoute = await import('@/lib/routes/v1/robots/[id]/bulk/route');

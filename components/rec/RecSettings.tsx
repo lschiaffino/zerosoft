@@ -25,7 +25,7 @@ export default function RecSettings() {
   const locale = useLocale();
   const [data, setData] = useState<Data | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [privacy, setPrivacy] = useState<'link' | 'workspace'>('link');
+  const [privacy, setPrivacy] = useState<'people' | 'link' | 'workspace'>('people');
   const [download, setDownload] = useState(true);
   const [brandName, setBrandName] = useState('');
   const [brandColor, setBrandColor] = useState('');
@@ -169,6 +169,10 @@ export default function RecSettings() {
         <p className="ui-help">{t('defaultsHelp')}</p>
         <fieldset className="rec-share-group" disabled={ro}>
           <legend className="label">{t('defaultPrivacy')}</legend>
+          <label className="ui-check">
+            <input type="radio" name="rec-def-p" checked={privacy === 'people'} onChange={() => setPrivacy('people')} data-testid="rec-default-people" />
+            <span>{t('privacyPeople')}</span>
+          </label>
           <label className="ui-check">
             <input type="radio" name="rec-def-p" checked={privacy === 'link'} onChange={() => setPrivacy('link')} />
             <span>{t('privacyLink')}</span>

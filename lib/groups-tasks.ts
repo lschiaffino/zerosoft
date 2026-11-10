@@ -403,6 +403,9 @@ export async function fireTaskReminders(opts: { now?: Date; limit?: number } = {
     const chatName = chatDisplayName({ name: r.chat_name, phone: r.chat_phone, provider_chat_id: r.chat_pid });
     const href = `/app/lines/inbox/${encodeURIComponent(r.chat_id)}`;
     const mail = buildTaskEmail({ title: r.subject, chatName, dueAt: r.due_at, timezone: r.timezone }, locale, `${siteUrl()}/${locale}${href}`);
+    const { personCanSeeChat } = await import('./groups-access');
+    // Sin ver la línea del chat no hay aviso: ni la notificación ni el email nombran el chat.
+    if (person && !(await personCanSeeChat(r.user_id, person, r.chat_id).catch(() => true))) continue;
     if (person) {
       await createNotification({
         userId: person,

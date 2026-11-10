@@ -389,7 +389,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
                 </h2>
                 <FilesPanel endpoint={`/api/crm/companies/${company.id}/files`} files={recordFiles} />
               </div>
-              <CrmGroupsBlock ws={user.id} kind="company" recordId={company.id} locale={locale} />
+              <CrmGroupsBlock ws={user.id} kind="company" recordId={company.id} locale={locale} me={user.actingUser?.id ?? user.id} role={user.role} />
             </aside>
           </div>
         </RecordTabs>

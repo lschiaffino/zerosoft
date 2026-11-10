@@ -46,6 +46,15 @@ pub struct Settings {
     /// Versión con la que se vio Accesibilidad permitida por última vez (para avisar que una
     /// actualización la dejó atada a la build vieja).
     pub accessibility_seen_in: String,
+    /// Dónde dejó la persona el indicador de grabación (posición lógica de la ventana); None =
+    /// arriba a la derecha.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub indicator_pos: Option<(f64, f64)>,
+}
+
+/// Una posición guardada razonable (números finitos, dentro de un rango de pantallas).
+pub fn valid_pos(x: f64, y: f64) -> bool {
+    x.is_finite() && y.is_finite() && (-20_000.0..=20_000.0).contains(&x) && (-20_000.0..=20_000.0).contains(&y)
 }
 
 /// http(s) con host; http solo para localhost (desarrollo). Devuelve el origen sin barra final.
@@ -110,6 +119,11 @@ pub fn normalize(raw: &Value, platform: &str, server: String) -> Settings {
         onboarded: raw.get("onboarded").and_then(Value::as_bool) == Some(true),
         recording_indicator: raw.get("recordingIndicator").and_then(Value::as_bool) != Some(false),
         accessibility_seen_in: raw.get("accessibilitySeenIn").and_then(Value::as_str).filter(|v| v.len() <= 40).unwrap_or("").to_string(),
+        indicator_pos: raw
+            .get("indicatorPos")
+            .and_then(Value::as_array)
+            .and_then(|a| Some((a.first()?.as_f64()?, a.get(1)?.as_f64()?)))
+            .filter(|(x, y)| valid_pos(*x, *y)),
     }
 }
 
@@ -182,6 +196,8 @@ mod tests {
         assert!(!mac.onboarded);
         assert!(mac.recording_indicator);
         assert_eq!(mac.accessibility_seen_in, "");
+        assert_eq!(mac.indicator_pos, None);
+        assert_eq!(normalize(&json!({"indicatorPos": [1e9, 3]}), "macos", DEFAULT_SERVER.into()).indicator_pos, None);
         assert_eq!(normalize(&Value::Null, "windows", DEFAULT_SERVER.into()).shortcut, "Control+Alt+Space");
     }
 
@@ -207,7 +223,7 @@ mod tests {
         let next = merge_input(&cur, &json!({"mode": "toggle", "shortcut": "Control+Shift+Space", "restoreClipboard": false, "recordingIndicator": false}));
         assert_eq!((next.mode.as_str(), next.shortcut.as_str(), next.restore_clipboard, next.recording_indicator), ("toggle", "Control+Shift+Space", false, false));
         // La versión de Accesibilidad no se cambia desde Ajustes.
-        assert_eq!(merge_input(&cur, &json!({"mode": "x", "shortcut": "Q", "server": "http://evil", "accessibilitySeenIn": "9.9.9"})), cur);
+        assert_eq!(merge_input(&cur, &json!({"mode": "x", "shortcut": "Q", "server": "http://evil", "accessibilitySeenIn": "9.9.9", "indicatorPos": [1, 2]})), cur);
     }
 
     #[test]
@@ -217,6 +233,7 @@ mod tests {
         s.mode = "hold".into();
         s.recording_indicator = false;
         s.accessibility_seen_in = "0.3.0".into();
+        s.indicator_pos = Some((1200.0, 40.5));
         save(&dir, &s).unwrap();
         assert_eq!(load(&dir, "macos", None), s);
         assert_eq!(load(&dir, "macos", Some("http://localhost:3210")).server, "http://localhost:3210");

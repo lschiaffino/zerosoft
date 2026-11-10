@@ -16,6 +16,13 @@ export interface UserRow {
   profile?: string | null;
   locale?: string | null;
   time_zone?: string | null;
+  /** Dos pasos (297_account_security): secreto TOTP cifrado, pendiente de confirmar, activado. */
+  mfa_secret?: string | null;
+  mfa_pending_secret?: string | null;
+  mfa_enabled_at?: string | null;
+  mfa_last_step?: number | null;
+  /** "Cerrar todas las sesiones": invalida también los JWT de antes de las sesiones del servidor. */
+  sessions_revoked_at?: string | null;
   created_at: string;
 }
 
@@ -839,6 +846,8 @@ export interface TeamRow {
   settings?: string;
   allowed_domains?: string;
   updated_at?: string | null;
+  /** 1 = cada miembro (no guest) necesita la verificación en dos pasos para entrar (297_account_security). */
+  require_mfa?: number | null;
 }
 
 export interface TeamMemberRow {

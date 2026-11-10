@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { TrayItem } from './attachments';
-import { extensionOf, fileSize } from './format';
+import { extensionOf, fileSize, posterFrame } from './format';
 import { Close, DocIcon, Plus, SendIcon } from './icons';
 
 /** Errores que no se arreglan reintentando la subida (tamaño o tipo). */
@@ -110,7 +110,7 @@ export default function AttachPreview({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={f.preview} alt="" />
                 ) : f.preview && f.type.startsWith('video/') ? (
-                  <video src={`${f.preview}#t=0.1`} muted preload="metadata" tabIndex={-1} aria-hidden="true" />
+                  <video src={posterFrame(f.preview)} muted preload="metadata" tabIndex={-1} aria-hidden="true" />
                 ) : (
                   <span className="wa-tray-doc" aria-hidden="true">
                     <DocIcon size={18} />

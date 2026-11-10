@@ -301,14 +301,17 @@ html[data-session='in'] .hd-out { display: none !important; }
   align-items: center;
   gap: 8px;
   margin-top: 24px;
-  height: 36px;
-  padding: 0 14px;
+  min-height: 36px;
+  max-width: 100%;
+  padding: 8px 14px;
+  line-height: 1.3;
   border: 1px solid var(--brand-on-ink-2);
   font-size: 14px;
   font-weight: 600;
   color: var(--brand-on-ink);
   transition: background var(--ui-dur) var(--ease), color var(--ui-dur) var(--ease);
 }
+.footer-gh svg { flex: none; }
 .footer-gh:hover { background: var(--brand-on-ink); color: var(--brand-ink); }
 
 .footer-col h4 {
@@ -624,7 +627,7 @@ section.status-note-block { padding: 24px; }
 
 /* ---------- Descargas (/download) ---------- */
 
-.dl-buttons .read-actions { margin-top: 28px; }
+.dl-widget { margin-top: 32px; max-width: 760px; }
 .dl-empty { max-width: 60ch; }
 .dl-body { display: grid; gap: 56px; }
 /* Las secciones de /download no llevan el padding grande de las secciones del sitio (globals.css). */
@@ -650,7 +653,6 @@ section.status-note-block { padding: 24px; }
 
 @media (max-width: 860px) {
   .dl-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-  .dl-buttons .btn { width: 100%; justify-content: center; white-space: normal; }
 }
 
 /* ---------- 404 ---------- */

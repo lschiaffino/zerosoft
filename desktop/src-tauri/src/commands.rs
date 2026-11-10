@@ -20,8 +20,9 @@ use crate::strings;
 
 type CmdResult<T> = Result<T, String>;
 
+/// Solo la página local de la ventana de Ajustes (no una ruta del servidor cargada ahí).
 fn from_settings(w: &WebviewWindow) -> CmdResult<()> {
-    if w.label() == "settings" {
+    if w.label() == "settings" && w.url().map(|u| crate::nav::is_local(&u)).unwrap_or(false) {
         Ok(())
     } else {
         Err("forbidden".into())
@@ -79,6 +80,9 @@ pub struct SettingsView {
     pending: Vec<PendingMeta>,
     last_latency: Option<dictation::Latency>,
     updates: &'static str,
+    /// Lo último del feed de actualizaciones y la versión lista para instalar al reiniciar.
+    update: crate::state::UpdateInfo,
+    update_ready: Option<String>,
     strings: serde_json::Map<String, Value>,
 }
 
@@ -116,6 +120,8 @@ async fn view(app: &AppHandle) -> SettingsView {
         let _ = config::save(&st.config_dir, &cur);
     }
     let signature = platform::signature_kind();
+    let update = st.update.lock().unwrap().clone();
+    let update_ready = st.update_ready.lock().unwrap().clone();
     SettingsView {
         locale: st.locale,
         platform: if mac { "darwin" } else { "win32" },
@@ -130,13 +136,20 @@ async fn view(app: &AppHandle) -> SettingsView {
         open_at_login: app.autolaunch().is_enabled().unwrap_or(false),
         onboarded: s.onboarded,
         recording_indicator: s.recording_indicator,
-        permissions: json!({ "microphone": platform::microphone_status(), "accessibility": accessibility }),
+        permissions: json!({
+            "microphone": platform::microphone_status(),
+            "accessibility": accessibility,
+            "camera": platform::camera_status(),
+            "screen": platform::screen_status(),
+        }),
         accessibility_hint: accessibility_hint(granted, &s.accessibility_seen_in, &version, signature),
         signature,
         account,
         pending: st.pending.list(now_ms()),
         last_latency,
         updates: if cfg!(debug_assertions) { "dev" } else if crate::updater::enabled(app) { "auto" } else { "off" },
+        update,
+        update_ready,
         strings: strings::table(st.locale),
     }
 }
@@ -163,10 +176,85 @@ pub fn refresh_settings(app: &AppHandle) {
     let _ = app.emit_to("settings", "settings://refresh", ());
 }
 
+/// Origen de las páginas locales de la app (Mac: tauri://localhost; Windows: http://tauri.localhost).
+fn local_origin() -> &'static str {
+    if cfg!(windows) {
+        "http://tauri.localhost"
+    } else {
+        "tauri://localhost"
+    }
+}
+
+/// User agent de la ventana de Ajustes: termina en zerosoft-settings/<versión>, que el servidor
+/// reconoce (lib/settings-embed.ts) para armar sus secciones sin el chrome de la app.
+pub fn settings_user_agent(version: &str) -> String {
+    let base = if cfg!(target_os = "macos") {
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+    } else {
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0"
+    };
+    format!("{base} zerosoft-settings/{version}")
+}
+
+/// En una sección web de la ventana de Ajustes, Esc (si la página no lo usó para cerrar algo)
+/// cierra la ventana como en las secciones nativas: pide la ruta "close", que la app intercepta.
+fn settings_remote_script(server: &str) -> String {
+    let server = serde_json::to_string(server).unwrap_or_default();
+    format!(
+        r#"(function () {{
+  if (location.origin !== {server}) return;
+  document.addEventListener('keydown', function (e) {{
+    if (e.key !== 'Escape' || e.defaultPrevented) return;
+    if (document.querySelector('dialog[open], [aria-modal="true"]')) return;
+    location.assign('/app/settings/desktop/close');
+  }});
+}})();"#
+    )
+}
+
+/// Navegación de la ventana de Ajustes (nav.rs, classify_settings): true = cargar adentro.
+fn settings_route(app: &AppHandle, u: &url::Url) -> bool {
+    use crate::nav::SettingsNav;
+    match crate::nav::classify_settings(u, &api::server(app)) {
+        SettingsNav::Local | SettingsNav::Web => true,
+        SettingsNav::Native(tab) => {
+            let app2 = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                let Some(w) = app2.get_webview_window("settings") else { return };
+                if tab == "close" {
+                    let _ = w.close();
+                } else if let Ok(local) = url::Url::parse(&format!("{}/settings.html#{tab}", local_origin())) {
+                    let _ = w.navigate(local);
+                }
+            });
+            false
+        }
+        SettingsNav::Main(path) => {
+            crate::load_app_path(app, &path);
+            crate::show_main(app);
+            false
+        }
+        SettingsNav::GoogleLogin => {
+            crate::auth::begin_login(app);
+            false
+        }
+        SettingsNav::External => {
+            let _ = app.opener().open_url(u.as_str(), None::<&str>);
+            false
+        }
+        SettingsNav::Block => false,
+    }
+}
+
 pub fn open_settings_window(app: &AppHandle, tab: Option<&str>) {
     if let Some(w) = app.get_webview_window("settings") {
         if let Some(t) = tab {
-            let _ = app.emit_to("settings", "settings://tab", t);
+            // Si está mostrando una sección web, vuelve a la página local en esa sección.
+            if w.url().map(|u| crate::nav::is_local(&u)).unwrap_or(false) {
+                let _ = app.emit_to("settings", "settings://tab", t);
+            } else if let Ok(local) = url::Url::parse(&format!("{}/settings.html#{t}", local_origin())) {
+                let _ = w.navigate(local);
+            }
         }
         let _ = w.show();
         let _ = w.set_focus();
@@ -177,11 +265,25 @@ pub fn open_settings_window(app: &AppHandle, tab: Option<&str>) {
         None => "settings.html".into(),
     };
     let title = strings::t(app.state::<AppState>().locale, "settingsTitle");
+    let version = app.package_info().version.to_string();
+    let nav_app = app.clone();
+    let win_app = app.clone();
     let _ = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App(path.into()))
         .title(title)
-        .inner_size(720.0, 640.0)
+        .inner_size(860.0, 640.0)
         .min_inner_size(380.0, 480.0)
         .center()
+        .user_agent(&settings_user_agent(&version))
+        .initialization_script(settings_remote_script(&api::server(app)))
+        .on_navigation(move |u| settings_route(&nav_app, u))
+        .on_new_window(move |u, _| {
+            // target=_blank desde una sección web: afuera, o a la ventana principal.
+            if settings_route(&win_app, &u) {
+                crate::load_app_path(&win_app, u.path());
+                crate::show_main(&win_app);
+            }
+            tauri::webview::NewWindowResponse::Deny
+        })
         .build();
 }
 
@@ -251,6 +353,32 @@ pub async fn permission_ask(app: AppHandle, window: WebviewWindow, kind: String)
             platform::reset_accessibility(&app.config().identifier);
             if !platform::prompt_accessibility() {
                 let _ = app.opener().open_url(platform::PANE_ACCESSIBILITY, None::<&str>);
+            }
+        }
+        "camera" => {
+            if platform::camera_status() != PermissionStatus::Granted {
+                let _ = app.opener().open_url(platform::PANE_CAMERA, None::<&str>);
+            }
+        }
+        "screen" => {
+            if !platform::request_screen() {
+                let _ = app.opener().open_url(platform::PANE_SCREEN, None::<&str>);
+            }
+        }
+        // Restablecer micrófono, cámara o pantalla: se borra la entrada de macOS y se abre su
+        // lista; la app lo vuelve a pedir la próxima vez que lo use.
+        k if k.starts_with("reset-") => {
+            let kind = &k["reset-".len()..];
+            let Some(service) = platform::tcc_service(kind) else { return Err("kind".into()) };
+            platform::reset_permission(service, &app.config().identifier);
+            let pane = match kind {
+                "microphone" => platform::PANE_MIC,
+                "camera" => platform::PANE_CAMERA,
+                "screen" => platform::PANE_SCREEN,
+                _ => platform::PANE_ACCESSIBILITY,
+            };
+            if kind != "accessibility" || !platform::prompt_accessibility() {
+                let _ = app.opener().open_url(pane, None::<&str>);
             }
         }
         _ => return Err("kind".into()),
@@ -419,6 +547,46 @@ pub fn open_voice(app: AppHandle, window: WebviewWindow, which: String) -> CmdRe
     Ok(())
 }
 
+/// La nav de Ajustes de la persona (grupos, secciones y productos que tiene), del servidor.
+#[tauri::command]
+pub async fn settings_nav(app: AppHandle, window: WebviewWindow) -> CmdResult<Value> {
+    from_settings(&window)?;
+    let locale = app.state::<AppState>().locale;
+    let res = api::get(&app, &format!("/api/settings/nav?locale={locale}&desktop=1")).await;
+    Ok(match remote(&res).and_then(|b| b.get("groups").cloned()) {
+        Some(Value::Array(groups)) => json!({ "ok": true, "groups": groups }),
+        _ => remote_err(&res),
+    })
+}
+
+/// Abre una sección web (ruta de ajustes del servidor) en la ventana de Ajustes.
+#[tauri::command]
+pub fn settings_open_web(app: AppHandle, window: WebviewWindow, path: String) -> CmdResult<()> {
+    from_settings(&window)?;
+    if !crate::nav::valid_settings_path(&path) {
+        return Err("path".into());
+    }
+    let u = url::Url::parse(&format!("{}{}", api::server(&app), path)).map_err(|_| "path".to_string())?;
+    window.navigate(u).map_err(|_| "navigate".to_string())
+}
+
+/// "Buscar actualizaciones" desde Ajustes: el estado llega con settings://refresh.
+#[tauri::command]
+pub async fn update_check(app: AppHandle, window: WebviewWindow) -> CmdResult<SettingsView> {
+    from_settings(&window)?;
+    let a = app.clone();
+    tauri::async_runtime::spawn(async move { crate::updater::check(&a, false).await });
+    tokio::time::sleep(std::time::Duration::from_millis(60)).await;
+    Ok(view(&app).await)
+}
+
+#[tauri::command]
+pub fn update_restart(app: AppHandle, window: WebviewWindow) -> CmdResult<()> {
+    from_settings(&window)?;
+    crate::updater::restart_to_update(&app);
+    Ok(())
+}
+
 // ---------- Puente de la página (window.zerosoftDesktop) ----------
 
 #[derive(Serialize)]
@@ -436,7 +604,7 @@ pub fn desktop_info(app: AppHandle, window: tauri::Webview) -> CmdResult<Desktop
     Ok(DesktopInfo {
         version: app.package_info().version.to_string(),
         platform: if cfg!(target_os = "macos") { "darwin" } else { "win32" },
-        system_audio: false,
+        system_audio: cfg!(target_os = "macos"),
         dictation: !app.state::<AppState>().shortcut_taken.load(Ordering::Relaxed),
     })
 }
@@ -506,6 +674,9 @@ pub fn indicator_action(app: AppHandle, window: WebviewWindow, action: String) -
         "open" => crate::indicator::open(&app),
         "stop" => crate::indicator::stop(&app),
         "hide" => crate::indicator::dismiss(&app),
+        "menu" => crate::indicator::menu(&app),
+        "expand" => crate::indicator::expand(&app, true),
+        "collapse" => crate::indicator::expand(&app, false),
         _ => return Err("action".into()),
     }
     Ok(())
@@ -523,7 +694,13 @@ pub fn desktop_notify(app: AppHandle, window: tauri::Webview, title: String, bod
 
 #[cfg(test)]
 mod tests {
-    use super::accessibility_hint;
+    use super::{accessibility_hint, settings_user_agent};
+
+    #[test]
+    fn settings_ua_is_recognized_by_the_server() {
+        // lib/settings-embed.ts: SETTINGS_EMBED_UA = 'zerosoft-settings/'.
+        assert!(settings_user_agent("0.3.2").ends_with(" zerosoft-settings/0.3.2"));
+    }
 
     #[test]
     fn accessibility_hints() {
@@ -534,4 +711,32 @@ mod tests {
         assert_eq!(accessibility_hint(false, "0.3.0", "0.3.0", "stable"), "off");
         assert_eq!(accessibility_hint(false, "", "0.3.0", "unknown"), "off");
     }
+}
+
+/// Empieza a capturar el audio del sistema para las notas de reunión. Devuelve
+/// "ok" | "denied" | "unsupported" | "failed". Sin permiso, pide el aviso de macOS y abre el panel
+/// de Grabación de pantalla (la persona lo activa y vuelve a empezar; macOS pide reabrir la app).
+#[tauri::command]
+pub async fn desktop_system_audio_start(app: AppHandle, window: tauri::Webview) -> CmdResult<String> {
+    from_app(&app, &window)?;
+    let res = tauri::async_runtime::spawn_blocking(crate::system_audio::start).await.map_err(|e| e.to_string())?;
+    if res == crate::system_audio::SysAudio::Denied {
+        let _ = app.opener().open_url(platform::PANE_SCREEN, None::<&str>);
+    }
+    Ok(res.code().to_string())
+}
+
+/// Lo capturado desde la lectura anterior (PCM i16 little endian, 16 kHz, mono) en base64.
+#[tauri::command]
+pub fn desktop_system_audio_read(app: AppHandle, window: tauri::Webview) -> CmdResult<String> {
+    from_app(&app, &window)?;
+    use base64::Engine;
+    Ok(base64::engine::general_purpose::STANDARD.encode(crate::system_audio::read()))
+}
+
+#[tauri::command]
+pub fn desktop_system_audio_stop(app: AppHandle, window: tauri::Webview) -> CmdResult<()> {
+    from_app(&app, &window)?;
+    crate::system_audio::stop();
+    Ok(())
 }

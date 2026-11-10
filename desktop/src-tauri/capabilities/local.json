@@ -27,6 +27,10 @@
     "allow-account-sign-out",
     "allow-open-voice",
     "allow-tabs-prefs-get",
-    "allow-tabs-prefs-save"
+    "allow-tabs-prefs-save",
+    "allow-settings-nav",
+    "allow-settings-open-web",
+    "allow-update-check",
+    "allow-update-restart"
   ]
 }

@@ -46,6 +46,11 @@ const store = privateFileStore({
   unavailable: () => new AttachmentError('storage_unavailable'),
 });
 
+/** Borra archivos por referencia (borrado de cuenta o workspace, lib/privacy.ts). Best effort. */
+export async function deleteAssistantFiles(refs: string[]): Promise<void> {
+  await store.remove(refs);
+}
+
 export interface AttachmentRow {
   id: string;
   workspace_id: string;

@@ -100,8 +100,13 @@ export function sessionCookieInfo(): { name: string; domain: string | null; secu
 export async function mintSessionToken(user: UserRow): Promise<string> {
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) throw new Error('missing_secret');
+  // Sesión propia del escritorio (se lista y se cierra como cualquier otra). El código se pidió
+  // desde una sesión del navegador que ya pasó los dos pasos (getCurrentUser), así que esta también.
+  const { createSession, recordSecurityEvent } = await import('./account-security');
+  const sid = await createSession(user.id, { method: 'desktop', mfaVerified: true, maxAgeSec: DESKTOP_SESSION_MAX_AGE });
+  await recordSecurityEvent({ userId: user.id, action: 'login', meta: { method: 'desktop' } });
   return encode({
-    token: { sub: user.id, uid: user.id, email: user.email, name: user.name ?? null, picture: user.image ?? null },
+    token: { sub: user.id, uid: user.id, sid, email: user.email, name: user.name ?? null, picture: user.image ?? null },
     secret,
     maxAge: DESKTOP_SESSION_MAX_AGE,
   });

@@ -1,10 +1,10 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type APIResponse, type Browser, type BrowserContext } from '@playwright/test';
 
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 async function sql(q: string, args: Array<string | number | null> = []) {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   try {
     // La app escribe en la misma base: un lock momentáneo se reintenta.
     for (let i = 0; ; i++) {

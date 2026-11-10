@@ -4,7 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { publicPreview, recBaseUrl, recShareUrl, resolvePublicPage } from '@/lib/rec-page';
 import RecWatch from '@/components/rec/RecWatch';
 import RecGate from '@/components/rec/RecGate';
-import { RecEmailGate, RecRequestAccess } from '@/components/rec/RecAccessGate';
+import { RecEmailGate, RecMagicLink, RecOpenInvite, RecRequestAccess } from '@/components/rec/RecAccessGate';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,14 +35,28 @@ export async function generateMetadata(props: Props) {
 }
 
 /** Video compartido por link (como la página de un Loom). */
-export default async function RecPublicPage(props: Props) {
+export default async function RecPublicPage(props: Props & { searchParams: Promise<{ invite?: string | string[] }> }) {
   const { locale, share } = await props.params;
+  const sp = await props.searchParams;
+  const invite = typeof sp.invite === 'string' && /^[\w-]{20,64}$/.test(sp.invite) ? sp.invite : null;
   setRequestLocale(locale);
   const page = await resolvePublicPage(share);
   if (page.state === 'not_found') notFound();
   const t = await getTranslations({ locale, namespace: 'rec.watch' });
   if (page.state !== 'ok') {
     const back = `/${locale}/v/${share}`;
+    // Link mágico de una invitación: se usa con un clic (los antivirus del correo no lo gastan al abrirlo).
+    if (invite) {
+      return (
+        <main className="rec-watch rec-gate" data-testid="rec-gate" data-state="invite">
+          <div className="rec-gate-card">
+            <h1 className="rec-watch-title">{t('gate.invite.title')}</h1>
+            <p className="muted">{t('gate.invite.body')}</p>
+            <RecOpenInvite shareId={share} token={invite} />
+          </div>
+        </main>
+      );
+    }
     return (
       <main className="rec-watch rec-gate" data-testid="rec-gate" data-state={page.state}>
         <div className="rec-gate-card">
@@ -56,6 +70,7 @@ export default async function RecPublicPage(props: Props) {
               {t('signIn')}
             </Link>
           )}
+          {(page.state === 'signin' || page.state === 'forbidden') && <RecMagicLink shareId={share} />}
         </div>
       </main>
     );

@@ -5,6 +5,8 @@ import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { droppedNumbers, listLabels, listNumbers, listPeople, listPropertyDefs } from '@/lib/groups';
+import { pageViewer } from '@/lib/groups-page';
+import { getSelectedLine } from '@/lib/groups-lines';
 import { managedAvailable } from '@/lib/groups-provider-managed';
 import { listTeams } from '@/lib/groups-inbox';
 import { listSavedLists } from '@/lib/groups-org';
@@ -22,13 +24,14 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
   const me = user.actingUser?.id ?? user.id;
+  const viewer = await pageViewer(user);
   const [numbers, labels, people, teams, properties, lists] = await Promise.all([
-    listNumbers(user.id),
+    listNumbers(user.id, viewer),
     listLabels(user.id),
     listPeople(user.id),
     listTeams(user.id),
     listPropertyDefs(user.id),
-    listSavedLists(user.id, me),
+    listSavedLists(user.id, me, { viewer }),
   ]);
 
   if (numbers.length === 0) {
@@ -53,7 +56,7 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   const hasSample = numbers.some((n) => n.provider === 'sample');
   // Números agregados que nunca terminaron de conectar: cómo seguir, o probar con el ejemplo.
   // Una línea que ya tuvo chats y se cayó tiene su propio aviso en la lista (reconectar con QR).
-  const nothingConnected = !hasSample && numbers.every((n) => n.status !== 'connected') && (await droppedNumbers(user.id).catch(() => [])).length === 0;
+  const nothingConnected = !hasSample && numbers.every((n) => n.status !== 'connected') && (await droppedNumbers(user.id, viewer).catch(() => [])).length === 0;
   return (
     <>
       <InboxShell
@@ -73,6 +76,8 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
         properties={properties}
         me={me}
         initialLists={lists}
+        numbers={numbers.map((n) => ({ id: n.id, name: n.name || (n.phone ? `+${n.phone}` : ''), phone: n.phone, ownerId: n.ownerId, ownerName: n.ownerName }))}
+        initialLine={await getSelectedLine(viewer)}
       >
         {props.children}
       </InboxShell>

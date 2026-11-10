@@ -9,7 +9,8 @@
  * tabla no está (o falla), esa línea queda en "Puede usarla".
  */
 import { getDb, type TeamRow } from './db';
-import { APP_SWITCHER_ORDER, type ProductKey } from './products';
+import { APP_SWITCHER_ORDER, isComingSoon, type ProductKey } from './products';
+import { blockedAppsFor } from './workspace-apps';
 import { canUseApp, getMembership } from './workspace';
 import { listAudit, ownedStuff, type AuditEntry, type OwnedStuff } from './workspace-admin';
 import { groupIdsOf } from './workspace-groups';
@@ -170,9 +171,12 @@ export async function personAccess(team: TeamRow, userId: string, locale = 'en')
     n('SELECT COUNT(*) AS n FROM track_project_access a JOIN track_projects p ON p.id = a.project_id WHERE a.user_id = ? AND p.owner_id IN (?, ?)', userId, ws, team.id),
     n('SELECT COUNT(*) AS n FROM docs_teamspace_members m JOIN docs_teamspaces t ON t.id = m.teamspace_id WHERE m.user_id = ? AND t.workspace_id = ?', userId, ws),
   ]);
-  // Inbox es personal (la tiene todo el mundo): no es un permiso del workspace.
-  const apps = APP_SWITCHER_ORDER.filter((app) => app !== 'inbox').map((app) => {
-    const allowed = canUseApp(m, app);
+  // Inbox es personal (la tiene todo el mundo): no es un permiso del workspace. Las "Próximamente" no son de nadie.
+  // Lo que corta Apps del workspace (apagada, solo admins, solo algunos) también cuenta: es lo que ve de verdad.
+  const email = ((await getDb().prepare('SELECT email FROM users WHERE id = ?').get(userId)) as { email?: string } | undefined)?.email ?? null;
+  const blocked = await blockedAppsFor({ ownerId: ws, personId: userId, role: m.role, email });
+  const apps = APP_SWITCHER_ORDER.filter((app) => app !== 'inbox' && !isComingSoon(app)).map((app) => {
+    const allowed = canUseApp(m, app) && !blocked.includes(app);
     const d = allowed ? details[app] : undefined;
     return { app, allowed, detail: d ? detailText(d, locale) || null : null };
   });

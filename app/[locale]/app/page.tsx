@@ -5,13 +5,18 @@ import { isWorkspaceAdmin, requireUser, userCanUseApp } from '@/lib/session';
 import { dayPart, getWorkspaceMode, homeCanUse, normalizeTaskScope } from '@/lib/home';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { featuredApps, moreAppsByCategory, showTeamUi } from '@/lib/workspace-mode';
-import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { APP_SWITCHER_ORDER, comingSoonHref, isComingSoon, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
+import { isStaff, loadWorkspaceAppRules } from '@/lib/workspace-apps';
+import { appDenial } from '@/lib/app-access';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import PageHeader from '@/components/ui/PageHeader';
 import HomeAsk from '@/components/assistant/HomeAsk';
 import RequestAccessButton from '@/components/app/RequestAccessButton';
 import LostAccessNotice from '@/components/app/LostAccessNotice';
 import { isRequestPending, lostAccessNotice } from '@/lib/workspace-access-request';
+import { chosenApps } from '@/lib/onboarding';
+import { getOnboardingState } from '@/lib/onboarding-state';
+import GettingStarted from '@/components/app/home/GettingStarted';
 import {
   CalBookingsBlock,
   CrmTasksBlock,
@@ -56,21 +61,38 @@ export default async function PlatformHomePage(props: {
   const admin = isWorkspaceAdmin(user);
   // Solo las apps que la persona tiene en este workspace.
   const can = (k: ProductKey) => homeCanUse(user, k);
-  const featured = featuredApps({ mode }).filter(can);
-  const more = moreAppsByCategory({ mode })
-    .map((g) => ({ ...g, apps: g.apps.filter(can) }))
+  // Las "Próximamente" no cuentan como apps del workspace: van aparte, al final, con su lista de espera.
+  const ready = (k: ProductKey) => can(k) && !isComingSoon(k);
+  // Las apps que la persona eligió al empezar van primero (si no eligió, las del modo).
+  const chosen = chosenApps(person.profile);
+  const featured = featuredApps({ mode, chosen }).filter(ready);
+  const more = moreAppsByCategory({ mode, chosen })
+    .map((g) => ({ ...g, apps: g.apps.filter(ready) }))
     .filter((g) => g.apps.length > 0);
   // Apps del workspace (Inbox es personal: la tiene todo el mundo y no cuenta como acceso al workspace).
   const workspaceApps = [...featured, ...more.flatMap((g) => g.apps)].filter((k) => k !== 'inbox');
   // Sin apps no hay nada que invitar a usar ni que importar: solo lo que esa persona puede hacer.
-  const showCards = admin && workspaceApps.length > 0;
+  const canShowCards = admin && workspaceApps.length > 0;
+  const staff = isStaff(person.email);
+  const soon = APP_SWITCHER_ORDER.filter((k) => isComingSoon(k));
+  const tSoon = await getTranslations({ locale, namespace: 'common.comingSoon' });
   const blockedKey = (await props.searchParams).blocked;
   // El link puede quedar viejo: si ya tiene la app (se la dieron), no hay nada que avisar.
   const blocked = typeof blockedKey === 'string' && blockedKey in PRODUCT_CONFIG && !userCanUseApp(user, blockedKey as ProductKey) ? (blockedKey as ProductKey) : null;
   const tAccess = blocked ? await getTranslations({ locale, namespace: 'settings.access' }) : null;
+  // Apagada o restringida por el workspace (Ajustes › Workspace › Apps) y no por los toggles de la persona: otro aviso, sin pedir acceso.
+  const wsDenial = blocked
+    ? appDenial({ role: user.role, personId: person.id, teamIds: [], staff: isStaff(person.email) }, blocked, await loadWorkspaceAppRules(user.id))
+    : null;
+  const wsOff = wsDenial === 'workspace_off';
   // "Pedido enviado" sigue al recargar: sale de la base, no del estado del botón.
   const alreadyAsked = Boolean(blocked && user.actingUser && user.workspace && (await isRequestPending(user.workspace.id, person.id, blocked)));
-  const lost = await lostAccessNotice(person.id);
+  const [lost, onboarding] = await Promise.all([
+    lostAccessNotice(person.id),
+    getOnboardingState(person.id, { workspaceId: user.id, admin }).catch(() => null),
+  ]);
+  // Con "Primeros pasos" a la vista, invitar e importar ya están ahí.
+  const showCards = canShowCards && !onboarding?.showChecklist;
   const todayBlocks = can('crm') || can('track') || can('cal') || can('groups');
 
   const appCard = (k: ProductKey) => (
@@ -88,11 +110,13 @@ export default async function PlatformHomePage(props: {
       <PageHeader title={greeting} description={t('homeLead')} />
       {blocked && tAccess && (
         <div className="home-blocked" role="status" data-testid="home-blocked">
-          <p className="home-blocked-title">{tAccess('title', { app: PRODUCT_CONFIG[blocked].name })}</p>
+          <p className="home-blocked-title">{tAccess(wsOff ? 'offTitle' : 'title', { app: PRODUCT_CONFIG[blocked].name })}</p>
           <p className="home-blocked-body">
-            {tAccess(user.role === 'admin' ? 'bodyAdmin' : 'body', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })}
+            {wsOff
+              ? tAccess(admin ? 'offBodyAdmin' : 'offBody', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })
+              : tAccess(user.role === 'admin' ? 'bodyAdmin' : 'body', { app: PRODUCT_CONFIG[blocked].name, workspace: user.workspace?.name ?? '' })}
           </p>
-          {user.actingUser && (
+          {user.actingUser && !wsOff && (
             <RequestAccessButton
               app={blocked}
               alreadyAsked={alreadyAsked}
@@ -103,6 +127,8 @@ export default async function PlatformHomePage(props: {
       )}
 
       {lost && <LostAccessNotice id={lost.id} title={lost.title} body={lost.body} />}
+
+      {onboarding?.showChecklist && <GettingStarted state={onboarding} locale={locale} />}
 
       {/* El asistente de la plataforma: preguntar abre la charla a página completa. */}
       <HomeAsk />
@@ -219,6 +245,25 @@ export default async function PlatformHomePage(props: {
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {soon.length > 0 && (
+        <section className="home-section" aria-labelledby="home-soon">
+          <h2 id="home-soon" className="home-h">
+            {tSoon('badge')}
+          </h2>
+          <ul className="home-more-list home-soon-list" data-testid="home-soon">
+            {soon.map((k) => (
+              <li key={k}>
+                <Link href={staff && userCanUseApp(user, k) ? PRODUCT_CONFIG[k].launch : comingSoonHref(k)} className={`home-more-app card-${k}`}>
+                  <ProductGlyph product={k} size={14} />
+                  <span className="home-more-name">{PRODUCT_CONFIG[k].name}</span>
+                  <span className="home-more-desc">{staff && userCanUseApp(user, k) ? tSoon('previewTag') : tSoon('joinShort')}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </div>

@@ -26,6 +26,8 @@ export interface DesktopBadge {
    */
   byPath: Record<string, number>;
   now: string;
+  /** Apps que la persona no abre en este workspace (apagadas, restringidas o Próximamente): el escritorio esconde sus menús. */
+  disabledApps: ProductKey[];
 }
 
 /** Cuenta avisos sin leer por segmento de /app/<x> del link (con o sin idioma delante). */
@@ -48,9 +50,13 @@ export function talkBadgeCount(channels: Array<{ kind: string; unread: boolean; 
   return n;
 }
 
+/** Apps que la persona no abre hoy: lo apagado en Ajustes › Workspace › Apps, lo restringido y lo Próximamente. */
+export function disabledAppsFor(user: SessionUser): ProductKey[] {
+  return (Object.keys(PRODUCT_CONFIG) as ProductKey[]).filter((k) => !userCanUseApp(user, k));
+}
+
 function hiddenAppPaths(user: SessionUser): string[] {
-  if (!user.actingUser) return [];
-  return (Object.keys(PRODUCT_CONFIG) as ProductKey[]).filter((k) => !userCanUseApp(user, k)).map((k) => PRODUCT_CONFIG[k].launch);
+  return disabledAppsFor(user).map((k) => PRODUCT_CONFIG[k].launch);
 }
 
 export async function desktopBadge(user: SessionUser, since: string | null): Promise<DesktopBadge> {
@@ -97,5 +103,5 @@ export async function desktopBadge(user: SessionUser, since: string | null): Pro
     }),
   );
   if (talk > 0) byPath.talk = talk;
-  return { total: talk + bell, talk, bell, notifications, byPath, now };
+  return { total: talk + bell, talk, bell, notifications, byPath, now, disabledApps: disabledAppsFor(user) };
 }

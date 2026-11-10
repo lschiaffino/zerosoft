@@ -6,7 +6,9 @@ import { Link, useRouter } from '@/i18n/navigation';
 import { SHORTCUTS, type FolderDto, type InboxAccountDto, type SnippetDto } from '@/lib/inbox/types';
 import { api, longWhen, notifyInboxChanged } from './api';
 import { FolderDialog, Modal } from './InboxDialogs';
+import ImportPanel from './ImportPanel';
 import type { InboxStateDto } from './InboxApp';
+import ChatStyleSection from '@/components/chat-style/ChatStyleSection';
 
 interface ConnectState {
   status: 'pending' | 'qr' | 'connected' | 'disconnected' | 'error';
@@ -466,139 +468,6 @@ function FoldersSection({ folders, onChange }: { folders: FolderDto[]; onChange:
   );
 }
 
-interface ExportFile {
-  format: string;
-  version: number;
-  folders?: unknown[];
-  chatFolders?: unknown[];
-  chats?: unknown[];
-  scheduled?: unknown[];
-  drafts?: unknown[];
-  snoozes?: unknown[];
-  notes?: unknown[];
-  messages?: unknown[];
-}
-
-const CHUNK = 500;
-
-function ImportSection({ onDone }: { onDone: () => void }) {
-  const t = useTranslations('inbox.settings.import');
-  const te = useTranslations('inbox.errors');
-  const [file, setFile] = useState<ExportFile | null>(null);
-  const [name, setName] = useState('');
-  const [err, setErr] = useState('');
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [result, setResult] = useState<Record<string, number> | null>(null);
-  const input = useRef<HTMLInputElement>(null);
-
-  const pick = async (f: File | undefined) => {
-    setErr('');
-    setResult(null);
-    setFile(null);
-    if (!f) return;
-    setName(f.name);
-    try {
-      const data = JSON.parse(await f.text()) as ExportFile;
-      if (data?.format !== 'inbox-zero-export' || data.version !== 1) throw new Error('format');
-      setFile(data);
-    } catch {
-      setErr(te('invalid_file'));
-    }
-  };
-
-  const run = async () => {
-    if (!file) return;
-    setErr('');
-    const messages = Array.isArray(file.messages) ? file.messages : [];
-    const total = 1 + Math.ceil(messages.length / CHUNK);
-    setProgress({ done: 0, total });
-    const sum: Record<string, number> = {};
-    const add = (r: Record<string, number>) => {
-      for (const [k, v] of Object.entries(r)) sum[k] = (sum[k] ?? 0) + v;
-    };
-    const meta = await api<{ result: Record<string, number> }>('/api/inbox/import', {
-      method: 'POST',
-      json: { part: 'meta', format: file.format, version: file.version, folders: file.folders ?? [], chatFolders: file.chatFolders ?? [], chats: file.chats ?? [], scheduled: file.scheduled ?? [], drafts: file.drafts ?? [], snoozes: file.snoozes ?? [], notes: file.notes ?? [] },
-    });
-    if (!meta.ok) {
-      setErr(te.has(meta.data.error ?? '') ? te(meta.data.error as string) : te('generic'));
-      setProgress(null);
-      return;
-    }
-    add(meta.data.result);
-    for (let i = 0; i < messages.length; i += CHUNK) {
-      setProgress({ done: 1 + i / CHUNK, total });
-      const r = await api<{ result: Record<string, number> }>('/api/inbox/import', { method: 'POST', json: { part: 'messages', messages: messages.slice(i, i + CHUNK) } });
-      if (!r.ok) {
-        setErr(t('partial', { done: Math.floor(i / CHUNK), total: total - 1 }));
-        setProgress(null);
-        setResult(sum);
-        onDone();
-        return;
-      }
-      add(r.data.result);
-    }
-    setProgress(null);
-    setResult(sum);
-    setFile(null);
-    if (input.current) input.current.value = '';
-    onDone();
-    notifyInboxChanged();
-  };
-
-  const count = (k: keyof ExportFile) => (Array.isArray(file?.[k]) ? (file?.[k] as unknown[]).length : 0);
-  return (
-    <section className="ib-section" id="import" aria-labelledby="ib-import-h">
-      <h2 className="ib-h2" id="ib-import-h">
-        {t('title')}
-      </h2>
-      <p className="ib-help">{t('help')}</p>
-      <ol className="ib-steps">
-        <li>{t('step1')}</li>
-        <li>
-          {t('step2')}
-          <pre className="ib-code">node scripts/inbox-zero-export.mjs ~/inbox-zero --out inbox-zero-export.json</pre>
-        </li>
-        <li>{t('step3')}</li>
-      </ol>
-      <div className="ui-field">
-        <label className="label" htmlFor="ib-import-file">
-          {t('file')}
-        </label>
-        <input id="ib-import-file" ref={input} type="file" accept="application/json,.json" className="input" onChange={(e) => void pick(e.target.files?.[0])} />
-      </div>
-      {file && (
-        <div className="ib-import-summary" role="status">
-          <p>
-            <strong>{name}</strong>
-          </p>
-          <p className="ib-help">
-            {t('summary', { folders: count('folders'), chats: count('chats'), scheduled: count('scheduled'), drafts: count('drafts'), snoozes: count('snoozes'), notes: count('notes'), messages: count('messages') })}
-          </p>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => void run()} disabled={!!progress}>
-            {t('run')}
-          </button>
-        </div>
-      )}
-      {progress && (
-        <p className="ib-help" role="status" aria-live="polite">
-          {t('progress', { done: progress.done, total: progress.total })}
-        </p>
-      )}
-      {result && (
-        <p className="ib-ok" role="status">
-          {t('result', { folders: result.folders ?? 0, chats: result.chats ?? 0, scheduled: result.scheduled ?? 0, drafts: result.drafts ?? 0, snoozes: result.snoozes ?? 0, notes: result.notes ?? 0, messages: result.messages ?? 0 })}
-        </p>
-      )}
-      {err && (
-        <p className="ui-error" role="alert">
-          {err}
-        </p>
-      )}
-    </section>
-  );
-}
-
 /** Ajustes de Inbox: cuentas, carpetas, snippets, importar y atajos. */
 export default function InboxSettings({ initial, gmailResult }: { initial: InboxStateDto; gmailResult: string | null }) {
   const t = useTranslations('inbox.settings');
@@ -609,6 +478,7 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
     const r = await api<InboxStateDto>('/api/inbox/state');
     if (r.ok) setState(r.data);
   }, []);
+  const reloadQuiet = useCallback(() => void reload(), [reload]);
   const wa = state.accounts.find((a) => a.kind === 'whatsapp');
   const gmail = state.accounts.filter((a) => a.kind === 'gmail');
   return (
@@ -636,9 +506,10 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
           <GmailCard accounts={gmail} available={state.available.gmail} onChange={() => void reload()} />
         </div>
       </section>
+      <ChatStyleSection variant="inbox" />
       <FoldersSection folders={state.folders} onChange={() => void reload()} />
       <SnippetsSection snippets={state.snippets} onChange={() => void reload()} />
-      <ImportSection onDone={() => void reload()} />
+      <ImportPanel whatsappConnected={state.accounts.some((a) => a.kind === 'whatsapp' && a.status === 'connected')} onDone={reloadQuiet} />
       <section className="ib-section" id="shortcuts" aria-labelledby="ib-keys-h">
         <h2 className="ib-h2" id="ib-keys-h">
           {th('title')}

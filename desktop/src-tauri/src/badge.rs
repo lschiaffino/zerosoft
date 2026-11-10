@@ -16,6 +16,23 @@ pub async fn poll(app: &AppHandle) {
     };
     let res = crate::api::get(app, &path).await;
     let Some(body) = res.body.filter(|_| res.status == Some(200)) else { return };
+    // Apps apagadas para esta persona (Ajustes › Workspace › Apps): si cambia, el menú del tray se rearma sin esos ítems.
+    if let Some(list) = body.get("disabledApps").and_then(Value::as_array) {
+        let next: Vec<String> = list.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+        let changed = {
+            let st = app.state::<AppState>();
+            let mut cur = st.disabled_apps.lock().unwrap();
+            if *cur != next {
+                *cur = next;
+                true
+            } else {
+                false
+            }
+        };
+        if changed {
+            crate::tray::rebuild(app);
+        }
+    }
     let total = body.get("total").and_then(Value::as_i64).unwrap_or(0);
     // Puntos en las pestañas: productos (segmento de /app/<x>) con algo sin leer.
     let mut products: Vec<String> = body.get("byPath").and_then(Value::as_object).map(|m| m.iter().filter(|(_, v)| v.as_i64().unwrap_or(0) > 0).map(|(k, _)| k.clone()).collect()).unwrap_or_default();

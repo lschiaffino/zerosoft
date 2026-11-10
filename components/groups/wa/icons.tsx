@@ -214,6 +214,17 @@ export const Note = (p: P) => (
     <path d="M14 20v-5h5" />
   </Svg>
 );
+export const Bell = (p: P) => (
+  <Svg {...p}>
+    <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z" />
+    <path d="M10 21h4" />
+  </Svg>
+);
+export const FolderIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M3.5 6.5a1 1 0 0 1 1-1h5l2 2.5h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z" />
+  </Svg>
+);
 export const Ticket = (p: P) => (
   <Svg {...p}>
     <path d="M4 7.5h16v3a1.5 1.5 0 0 0 0 3v3H4v-3a1.5 1.5 0 0 0 0-3z" />

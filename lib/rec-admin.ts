@@ -44,7 +44,7 @@ function parseJson<T>(text: string | null | undefined, fallback: T): T {
 
 // ---------- Textos de lo que se manda: en el idioma de quien lo recibe ----------
 
-type Lang = 'en' | 'es' | 'pt';
+export type Lang = 'en' | 'es' | 'pt';
 const TEXT = {
   en: {
     accessSubject: 'You can now watch the video you asked for',
@@ -84,14 +84,14 @@ const TEXT = {
   },
 };
 
-const lang = (l: unknown): Lang => (l === 'es' || l === 'pt' ? l : 'en');
+export const lang = (l: unknown): Lang => (l === 'es' || l === 'pt' ? l : 'en');
 
-async function userLang(id: string): Promise<Lang> {
+export async function userLang(id: string): Promise<Lang> {
   const r = (await getDb().prepare('SELECT locale FROM users WHERE id = ?').get(id).catch(() => undefined)) as { locale?: string | null } | undefined;
   return lang(r?.locale);
 }
 
-async function emailLang(email: string): Promise<Lang> {
+export async function emailLang(email: string): Promise<Lang> {
   const r = (await getDb().prepare('SELECT locale FROM users WHERE lower(email) = ? LIMIT 1').get(email.toLowerCase()).catch(() => undefined)) as { locale?: string | null } | undefined;
   return lang(r?.locale);
 }
@@ -105,7 +105,7 @@ function requireAdmin(a: RecActor): void {
   if (!a.admin) throw new RecError('forbidden', 403);
 }
 
-async function limited(key: string, limit: number, windowSec: number): Promise<void> {
+export async function limited(key: string, limit: number, windowSec: number): Promise<void> {
   if (process.env.RATE_LIMIT_DISABLED === 'true') return;
   const { rateLimit } = await import('./rate-limit');
   const r = await rateLimit(key, limit, windowSec);
@@ -229,7 +229,8 @@ export async function setSpaceMembers(a: RecActor, id: string, userIds: string[]
 // ============================================================
 
 export interface RecSettingsDto {
-  defaultPrivacy: 'link' | 'workspace';
+  /** Acceso general de lo que se graba de nuevo. 'people' = restringido (el default). */
+  defaultPrivacy: 'people' | 'link' | 'workspace';
   defaultAllowDownload: boolean;
   brandName: string;
   brandColor: string | null;
@@ -258,7 +259,7 @@ async function settingsRow(ws: string): Promise<SettingsRow | null> {
 export async function getRecSettings(ws: string): Promise<RecSettingsDto> {
   const s = await settingsRow(ws);
   return {
-    defaultPrivacy: s?.default_privacy === 'workspace' ? 'workspace' : 'link',
+    defaultPrivacy: s?.default_privacy === 'workspace' || s?.default_privacy === 'link' ? s.default_privacy : 'people',
     defaultAllowDownload: s ? !!s.default_allow_download : true,
     brandName: s?.brand_name ?? '',
     brandColor: cleanBrandColor(s?.brand_color),
@@ -292,7 +293,7 @@ function dateDb(ms: number): string {
 
 export async function updateRecSettings(
   a: RecActor,
-  patch: { defaultPrivacy?: 'link' | 'workspace'; defaultAllowDownload?: boolean; brandName?: string; brandColor?: string | null; retentionDays?: number | null },
+  patch: { defaultPrivacy?: 'people' | 'link' | 'workspace'; defaultAllowDownload?: boolean; brandName?: string; brandColor?: string | null; retentionDays?: number | null },
 ): Promise<RecSettingsDto> {
   requireAdmin(a);
   const db = getDb();
@@ -305,7 +306,7 @@ export async function updateRecSettings(
     sets.push(`${col} = ?`);
     args.push(val);
   };
-  if (patch.defaultPrivacy !== undefined) set('default_privacy', patch.defaultPrivacy === 'workspace' ? 'workspace' : 'link');
+  if (patch.defaultPrivacy !== undefined) set('default_privacy', patch.defaultPrivacy === 'workspace' || patch.defaultPrivacy === 'link' ? patch.defaultPrivacy : 'people');
   if (patch.defaultAllowDownload !== undefined) set('default_allow_download', patch.defaultAllowDownload ? 1 : 0);
   if (patch.brandName !== undefined) set('brand_name', patch.brandName.trim().slice(0, 80));
   if (patch.brandColor !== undefined) {
@@ -410,8 +411,8 @@ export async function applyRetention(opts: { budgetMs?: number; limit?: number }
     const cutoff = dateDb(Date.now() - w.retention_days * 86_400_000);
     const asked = left;
     const videos = (await db
-      .prepare("SELECT id, created_by, url, audio_url, thumb_url, gif_url, trimmed_url FROM rec_videos WHERE workspace_id = ? AND status = 'ready' AND created_at < ? LIMIT ?")
-      .all(w.workspace_id, cutoff, left)) as Array<Pick<RecVideoRow, 'id' | 'created_by' | 'url' | 'audio_url' | 'thumb_url' | 'gif_url' | 'trimmed_url'>>;
+      .prepare("SELECT id, created_by, url, audio_url, thumb_url, gif_url, trimmed_url, mp4_url FROM rec_videos WHERE workspace_id = ? AND status = 'ready' AND created_at < ? LIMIT ?")
+      .all(w.workspace_id, cutoff, left)) as Array<Pick<RecVideoRow, 'id' | 'created_by' | 'url' | 'audio_url' | 'thumb_url' | 'gif_url' | 'trimmed_url' | 'mp4_url'>>;
     let here = 0;
     let stopped = false;
     const byAuthor = new Map<string, number>();
@@ -424,7 +425,7 @@ export async function applyRetention(opts: { budgetMs?: number; limit?: number }
       if (!res.changes) continue;
       here++;
       byAuthor.set(v.created_by, (byAuthor.get(v.created_by) ?? 0) + 1);
-      await dropRecFiles([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url].filter((u): u is string => !!u)).catch(() => undefined);
+      await dropRecFiles([v.url, v.audio_url, v.thumb_url, v.gif_url, v.trimmed_url, v.mp4_url].filter((u): u is string => !!u)).catch(() => undefined);
     }
     left -= here;
     deleted += here;
@@ -559,9 +560,19 @@ export async function listAccessRequests(a: RecActor, videoId: string): Promise<
   return rows.map((r) => ({ id: r.id, email: r.email, name: r.name, status: r.status, createdAt: r.created_at }));
 }
 
-/** Aprobar suma el email a la lista (quitarlo después corta el acceso al toque) y le avisa una sola vez. */
-export async function decideAccessRequest(a: RecActor, videoId: string, requestId: string, approve: boolean, shareUrl: string): Promise<{ allowedEmails: string[] }> {
-  await getManageableVideo(a, videoId);
+/**
+ * Aprobar suma el email a la lista (quitarlo después corta el acceso al toque)
+ * y le manda, una sola vez, un link mágico (el email del pedido puede no estar
+ * verificado: solo quien lo lee entra).
+ */
+export async function decideAccessRequest(
+  a: RecActor,
+  videoId: string,
+  requestId: string,
+  approve: boolean,
+  link: { base: string; locale: string },
+): Promise<{ allowedEmails: string[] }> {
+  const video = await getManageableVideo(a, videoId);
   const db = getDb();
   const req = (await db.prepare("SELECT email FROM rec_access_requests WHERE id = ? AND video_id = ? AND status = 'pending'").get(requestId, videoId)) as { email: string } | undefined;
   if (!req) throw new RecError('not_found', 404);
@@ -579,17 +590,9 @@ export async function decideAccessRequest(a: RecActor, videoId: string, requestI
   const claim = await db.prepare("UPDATE rec_access_requests SET status = ?, decided_at = datetime('now') WHERE id = ? AND status = 'pending'").run(approve ? 'approved' : 'denied', requestId);
   const after = (await getDb().prepare('SELECT allowed_emails FROM rec_videos WHERE id = ?').get(videoId)) as { allowed_emails: string };
   if (approve && claim.changes) {
-    const { sendEmail, appSender } = await import('./email');
-    const tx = TEXT[await emailLang(email)];
     // Sin el título ni el nombre: a alguien de afuera no le sale texto libre.
-    await sendEmail({
-      to: email,
-      from: appSender(),
-      subject: tx.accessSubject,
-      text: `${tx.accessBody}\n\n${shareUrl}`,
-      html: `<p>${escapeHtml(tx.accessBody)}</p><p><a href="${escapeHtml(shareUrl)}">${escapeHtml(shareUrl)}</a></p>`,
-      idempotencyKey: `rec-access-${requestId}`,
-    }).catch(() => undefined);
+    const { sendMagicLink } = await import('./rec-share');
+    await sendMagicLink(video, email, 'approved', link).catch(() => undefined);
   }
   return { allowedEmails: parseJson<string[]>(after.allowed_emails, []) };
 }

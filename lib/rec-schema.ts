@@ -6,7 +6,11 @@
 export type RecMode = 'screen_camera' | 'screen' | 'camera';
 export const REC_MODES: readonly RecMode[] = ['screen_camera', 'screen', 'camera'];
 export type RecSpace = 'personal' | 'workspace';
+/** Acceso general del link: 'people' es "Restringido" (solo quien grabó y las personas invitadas). */
 export type RecPrivacy = 'link' | 'workspace' | 'people';
+/** Rol de una persona invitada por email: mira, o mira y comenta. */
+export type RecRole = 'viewer' | 'commenter';
+export const REC_ROLES: readonly RecRole[] = ['viewer', 'commenter'];
 export type RecCtaMode = 'always' | 'end';
 export type RecTranscriptStatus = 'none' | 'pending' | 'processing' | 'done' | 'failed' | 'disabled';
 
@@ -336,6 +340,26 @@ export function cleanEmails(input: string | string[]): string[] {
   return [...out];
 }
 
+/**
+ * Rol de un email invitado. Sin rol guardado (listas de antes de los roles),
+ * comentador: hasta entonces toda persona de la lista podía comentar.
+ */
+export function roleFor(roles: Record<string, string> | null | undefined, email: string): RecRole {
+  return roles?.[email.trim().toLowerCase()] === 'viewer' ? 'viewer' : 'commenter';
+}
+
+/** Roles limpios: solo de emails que están en la lista y con un rol válido. */
+export function cleanRoles(roles: unknown, emails: string[]): Record<string, RecRole> {
+  const out: Record<string, RecRole> = {};
+  if (!roles || typeof roles !== 'object') return out;
+  const allowed = new Set(emails);
+  for (const [k, v] of Object.entries(roles as Record<string, unknown>)) {
+    const e = k.trim().toLowerCase();
+    if (allowed.has(e) && (v === 'viewer' || v === 'commenter')) out[e] = v;
+  }
+  return out;
+}
+
 // ============================================================
 // Overlays: texto, caja y flecha sobre el video (los dibuja el reproductor)
 // ============================================================
@@ -520,16 +544,17 @@ export const REC_RECAP_DAILY_NEW = 10;
 
 /**
  * Qué avisa el diálogo de mover antes de mandar el cambio (la misma regla que
- * aplica updateVideo): "Solo estas personas" no entra a un lugar compartido, y
- * un video de un espacio con "solo workspace" pasa a "Solo estas personas" al
- * ir a Mis videos (si no, lo vería todo el workspace).
+ * aplica updateVideo): un video restringido que entra a un lugar compartido
+ * pasa a verlo la gente de ese lugar (las personas invitadas siguen), y un
+ * video de un espacio con "solo workspace" pasa a restringido al ir a Mis
+ * videos (si no, lo vería todo el workspace).
  */
 export function recMoveNotice(
   video: { spaceId: string | null; privacy: RecPrivacy },
   target: { space: RecSpace; folderId: string | null; spaceId?: string | null },
-): 'needs_privacy' | 'becomes_people' | null {
+): 'becomes_shared' | 'becomes_people' | null {
   const toPersonal = target.space === 'personal' && !target.spaceId;
-  if (video.privacy === 'people' && !toPersonal) return 'needs_privacy';
+  if (video.privacy === 'people' && !toPersonal) return 'becomes_shared';
   if (video.spaceId && video.privacy === 'workspace' && toPersonal) return 'becomes_people';
   return null;
 }

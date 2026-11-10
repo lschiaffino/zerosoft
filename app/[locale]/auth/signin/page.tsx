@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, sessionGate } from '@/lib/session';
 import ZeroTorus from '@/components/zero/ZeroTorus';
 import Logo from '@/components/brand/Logo';
 import GoogleButton from '@/components/auth/GoogleButton';
@@ -28,6 +28,10 @@ export default async function SignInPage(props: {
 
   const user = await getCurrentUser();
   if (user) redirect(callbackUrl ?? `/${locale}/app/start`);
+  // Ya entró, le falta el segundo paso.
+  if ((await sessionGate()).state === 'mfa_pending') {
+    redirect(`/${locale}/auth/mfa${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`);
+  }
 
   const t = await getTranslations({ locale, namespace: 'common.auth' });
 

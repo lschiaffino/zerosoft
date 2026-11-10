@@ -1,11 +1,11 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test } from '@playwright/test';
 
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 /** Simula que el DNS ya apunta acá (en la vida real lo hace "Verificar"). */
 async function markVerified(id: string) {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   await db.execute({ sql: 'UPDATE link_domains SET verified = 1 WHERE id = ?', args: [id] });
   db.close();
 }

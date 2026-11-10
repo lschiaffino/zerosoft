@@ -2,39 +2,65 @@
 
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { colorIndex, duration, extensionOf, fileSize } from './format';
+import { duration, extensionOf, fileSize, posterFrame, waveBars } from './format';
 import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, Play } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 
-/** Barras fijas por mensaje (parecen una onda, sin decodificar el audio). */
-function bars(seed: string, n = 36): number[] {
-  const out: number[] = [];
-  let h = colorIndex(seed, 9973) + 7;
-  for (let i = 0; i < n; i++) {
-    h = (h * 1103515245 + 12345) & 0x7fffffff;
-    out.push(0.25 + ((h >> 8) % 1000) / 1333);
+const SPEEDS = [1, 1.5, 2];
+const POS_KEY = 'wa-voice-pos:';
+const SPEED_KEY = 'wa-voice-speed';
+
+function readStore(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
   }
-  return out;
 }
 
-const SPEEDS = [1, 1.5, 2];
+function writeStore(key: string, value: string | null) {
+  try {
+    if (value === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, value);
+  } catch {
+    // Sin storage: no se recuerda.
+  }
+}
 
-/** Nota de voz o audio: reproducir, avanzar, velocidad (como WhatsApp). */
-export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src: string; seconds?: number; voice?: boolean; name?: string }) {
-  const t = useTranslations('groups.wa');
+/**
+ * Nota de voz o audio: reproducir, avanzar, velocidad 1×/1,5×/2× (queda
+ * elegida), forma de onda real si WhatsApp la manda, y sigue donde se dejó
+ * (la posición queda en este navegador hasta terminarlo).
+ */
+export function VoicePlayer({ id, src, seconds, voice, name, waveform }: { id: string; src: string; seconds?: number; voice?: boolean; name?: string; waveform?: number[] }) {
+  const tw = useTranslations('groups.wa');
   const ref = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [total, setTotal] = useState(seconds ?? 0);
   const [speed, setSpeed] = useState(1);
   const [failed, setFailed] = useState(false);
-  const shape = bars(id);
+  const shape = waveBars(waveform, id);
   const progress = total > 0 ? Math.min(1, time / total) : 0;
+
+  // Velocidad elegida y dónde había quedado este audio.
+  useEffect(() => {
+    const s = Number(readStore(SPEED_KEY));
+    if (SPEEDS.includes(s)) setSpeed(s);
+    const p = Number(readStore(POS_KEY + id));
+    if (p > 0) setTime(p);
+  }, [id]);
 
   useEffect(() => {
     const a = ref.current;
     if (a) a.playbackRate = speed;
   }, [speed]);
+
+  // Al empezar, retoma desde la posición guardada.
+  const resumed = useRef(false);
+  useEffect(() => {
+    resumed.current = false;
+  }, [id]);
 
   function toggle() {
     const a = ref.current;
@@ -42,6 +68,11 @@ export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src
     if (a.paused) {
       // Una sola a la vez, como en WhatsApp.
       document.querySelectorAll<HTMLAudioElement>('audio.wa-audio-el').forEach((x) => x !== a && x.pause());
+      if (!resumed.current) {
+        resumed.current = true;
+        if (time > 0 && (!total || time < total - 0.5)) a.currentTime = time;
+      }
+      a.playbackRate = speed;
       void a.play().catch(() => setFailed(true));
     } else a.pause();
   }
@@ -58,12 +89,17 @@ export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src
         onEnded={() => {
           setPlaying(false);
           setTime(0);
+          writeStore(POS_KEY + id, null);
         }}
-        onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+        onTimeUpdate={(e) => {
+          const pos = e.currentTarget.currentTime;
+          setTime(pos);
+          if (pos > 1) writeStore(POS_KEY + id, pos.toFixed(1));
+        }}
         onLoadedMetadata={(e) => Number.isFinite(e.currentTarget.duration) && setTotal(e.currentTarget.duration)}
         onError={() => setFailed(true)}
       />
-      <button type="button" className="wa-voice-play" onClick={toggle} aria-label={playing ? t('pause') : t('play')} disabled={failed}>
+      <button type="button" className="wa-voice-play" onClick={toggle} aria-label={playing ? tw('pause') : tw('play')} disabled={failed}>
         {playing ? <Pause size={24} /> : <Play size={24} />}
       </button>
       <div className="wa-voice-track">
@@ -88,7 +124,7 @@ export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src
           max={Math.max(1, total)}
           step={0.1}
           value={time}
-          aria-label={t('seek')}
+          aria-label={tw('seek')}
           onChange={(e) => {
             const v = Number(e.target.value);
             if (ref.current) ref.current.currentTime = v;
@@ -96,9 +132,15 @@ export function VoicePlayer({ id, src, seconds, voice, name }: { id: string; src
           }}
         />
         <span className="wa-voice-meta">
-          <span>{failed ? t('audioUnavailable') : duration(playing || time > 0 ? time : total)}</span>
-          {playing && (
-            <button type="button" className="wa-voice-speed" onClick={() => setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length])} aria-label={t('speed')}>
+          <span>{failed ? tw('audioUnavailable') : duration(playing || time > 0 ? time : total)}</span>
+          {(playing || time > 0) && (
+            <button type="button" className="wa-voice-speed" onClick={() => {
+                const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
+                setSpeed(next);
+                writeStore(SPEED_KEY, String(next));
+              }}
+              aria-label={tw('speed')}
+            >
               {speed}×
             </button>
           )}
@@ -239,7 +281,7 @@ export function VideoView({ url, seconds, thumbnail, width, height, onOpen }: { 
         // eslint-disable-next-line @next/next/no-img-element
         <img src={thumbnail} alt="" aria-hidden="true" />
       ) : (
-        <video src={`${url}#t=0.1`} preload="metadata" muted playsInline tabIndex={-1} aria-hidden="true" />
+        <video src={posterFrame(url)} preload="metadata" muted playsInline tabIndex={-1} aria-hidden="true" />
       )}
       <span className="wa-video-play" aria-hidden="true">
         <Play size={30} />
@@ -251,7 +293,7 @@ export function VideoView({ url, seconds, thumbnail, width, height, onOpen }: { 
 
 /** Ubicación compartida: abre el mapa (sin mapa incrustado). */
 export function LocationCard({ lat, lng, name, address, url, live }: { lat: number; lng: number; name: string; address?: string; url?: string; live?: boolean }) {
-  const t = useTranslations('groups.wa');
+  const tw = useTranslations('groups.wa');
   const href = url && /^https:\/\//.test(url) ? url : `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`;
   return (
     <a className="wa-location" href={href} target="_blank" rel="noreferrer">
@@ -259,7 +301,7 @@ export function LocationCard({ lat, lng, name, address, url, live }: { lat: numb
         <MapPin size={28} />
       </span>
       <span className="wa-location-text">
-        <strong>{name || (live ? t('liveLocation') : t('location'))}</strong>
+        <strong>{name || (live ? tw('liveLocation') : tw('location'))}</strong>
         {address && address !== name && <span>{address}</span>}
         <span className="wa-location-coords">
           {lat.toFixed(5)}, {lng.toFixed(5)}
@@ -271,7 +313,7 @@ export function LocationCard({ lat, lng, name, address, url, live }: { lat: numb
 
 /** Contacto compartido, con "Enviar mensaje" (busca su chat) y "Guardar" (lo agrega al CRM). */
 export function ContactCard({ name, phone, onMessage, onSave }: { name: string; phone: string; onMessage?: () => void; onSave?: () => void }) {
-  const t = useTranslations('groups.wa');
+  const tw = useTranslations('groups.wa');
   return (
     <span className="wa-contact-card">
       <span className="wa-contact">
@@ -287,12 +329,12 @@ export function ContactCard({ name, phone, onMessage, onSave }: { name: string; 
         <span className="wa-contact-actions">
           {onMessage && (
             <button type="button" onClick={onMessage}>
-              {t('contactMessage')}
+              {tw('contactMessage')}
             </button>
           )}
           {onSave && (
             <button type="button" onClick={onSave}>
-              {t('contactSave')}
+              {tw('contactSave')}
             </button>
           )}
         </span>

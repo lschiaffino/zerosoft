@@ -722,6 +722,30 @@ const APPS: AppCase[] = [
     remove: async (request, i) => void (await ok(request.delete(`/api/people/cycles/${i.id}`))),
   },
   {
+    app: 'Analytics questions',
+    list: '/en/app/analytics',
+    // Cuelgan de "Explorar" en el sidebar (BiBranch).
+    sidebar: true,
+    create: async (request, name) => {
+      const { question } = await ok<{ question: { id: string } }>(
+        request.post('/api/bi/questions', { data: { name, query: { kind: 'sql', sql: 'SELECT COUNT(*) AS n FROM contacts', params: [] } } }),
+      );
+      return { id: question.id, name };
+    },
+    detail: (i) => `/en/app/analytics/questions/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/bi/questions/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/bi/questions/${i.id}`))),
+  },
+  {
+    app: 'Analytics dashboards',
+    list: '/en/app/analytics',
+    sidebar: true,
+    create: async (request, name) => ({ id: (await ok<{ dashboard: { id: string } }>(request.post('/api/bi/dashboards', { data: { name } }))).dashboard.id, name }),
+    detail: (i) => `/en/app/analytics/dashboards/${i.id}`,
+    rename: async (request, i, name) => void (await ok(request.patch(`/api/bi/dashboards/${i.id}`, { data: { name } }))),
+    remove: async (request, i) => void (await ok(request.delete(`/api/bi/dashboards/${i.id}`))),
+  },
+  {
     app: 'Pulse insights',
     list: '/en/app/pulse/insights',
     create: async (request, name) => {
@@ -1073,6 +1097,29 @@ for (const c of APPS) {
     });
   });
 }
+
+// Ajustes › Workspace › Apps: cada app disponible (menos Inbox, que siempre está) tiene su interruptor y su acceso.
+test.describe('smoke apps del workspace', () => {
+  test('lista todas las apps con interruptor, en claro y oscuro y a 390px sin scroll horizontal', async ({ page, context, baseURL }) => {
+    const errors = watchErrors(page);
+    for (const theme of ['light', 'dark'] as const) {
+      await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
+      await page.goto('/en/app/settings/apps', { waitUntil: 'networkidle' });
+      await expect(page.getByTestId('workspace-apps')).toBeVisible();
+      for (const app of ['crm', 'track', 'docs', 'notes', 'rec']) {
+        await expect(page.getByTestId(`ws-app-switch-${app}`)).toBeVisible();
+        await expect(page.getByTestId(`ws-app-mode-${app}`)).toBeVisible();
+      }
+      await expect(page.getByTestId('ws-app-inbox')).toHaveCount(0);
+      await expect(page.getByTestId('ws-app-chat')).toHaveCount(0);
+    }
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto('/en/app/settings/apps', { waitUntil: 'networkidle' });
+    const { scroll, inner } = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, inner: window.innerWidth }));
+    expect(scroll, `scrollWidth ${scroll} > innerWidth ${inner}`).toBeLessThanOrEqual(inner + 1);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+});
 
 // El inicio de la plataforma (/app) junta lo último de todas las apps.
 test.describe('smoke inicio', () => {

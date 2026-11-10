@@ -50,7 +50,7 @@ import {
 import { fakeProvider, fakeProviderAllowed } from './groups-provider-fake';
 import { deleteManagedInstance, managedAvailable, managedProvider, newManagedInstance, queueManagedDelete } from './groups-provider-managed';
 import { sampleProvider } from './groups-provider-sample';
-import { chatAccessSql, maskChat, type GroupsViewer } from './groups-access';
+import { chatAccessSql, maskChat, numberAccessSql, type GroupsViewer } from './groups-access';
 import { parsePoll, pollPreview, tallyPoll, voteOptions, type PollDto, type PollInput } from './groups-polls';
 import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyText, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
 
@@ -86,6 +86,10 @@ export interface NumberRow {
   created_by: string;
   created_at: string;
   updated_at: string;
+  /** Persona dueña de la línea (null = sin dueño). */
+  owner_id?: string | null;
+  /** 'all' = todo el workspace; 'restricted' = solo dueño, admins y lo que figure en groups_number_access. */
+  visibility?: string;
 }
 
 export interface NumberDto {
@@ -101,6 +105,11 @@ export interface NumberDto {
   /** Campos no secretos, para editar. */
   settings: { baseUrl?: string; session?: string; phoneNumberId?: string; wabaId?: string };
   createdAt: string;
+  ownerId: string | null;
+  ownerName: string;
+  visibility: 'all' | 'restricted';
+  /** Quién la ve cuando es restringida (solo se devuelve a admins). */
+  access?: { personIds: string[]; teamIds: string[] };
 }
 
 const SECRET_KEYS = ['accessToken', 'appSecret', 'verifyToken', 'apiKey'] as const;
@@ -132,6 +141,9 @@ export function toNumberDto(row: NumberRow): NumberDto {
     // La instancia administrada es nuestra: su servidor y su nombre no se muestran.
     settings: row.provider === 'managed' || row.provider === 'sample' ? {} : { baseUrl: cfg.baseUrl, session: cfg.session, phoneNumberId: cfg.phoneNumberId, wabaId: cfg.wabaId },
     createdAt: row.created_at,
+    ownerId: row.owner_id ?? null,
+    ownerName: '',
+    visibility: row.visibility === 'restricted' ? 'restricted' : 'all',
   };
 }
 
@@ -184,23 +196,58 @@ function cleanConfig(kind: ProviderKind, input: Record<string, unknown>, prev: P
   return out as ProviderConfig;
 }
 
-export async function listNumbers(ws: string): Promise<NumberDto[]> {
-  const rows = (await getDb().prepare('SELECT * FROM groups_numbers WHERE user_id = ? ORDER BY created_at').all(ws)) as NumberRow[];
-  return rows.map(toNumberDto);
+/**
+ * Líneas del workspace. Con `viewer`, solo las que esa persona puede ver
+ * (visibilidad por línea); los admins reciben además quién las ve. Dueño y
+ * lista de acceso se arman con dos consultas, no una por línea.
+ */
+export async function listNumbers(ws: string, viewer?: GroupsViewer): Promise<NumberDto[]> {
+  const db = getDb();
+  const access = numberAccessSql(viewer, 'n');
+  const rows = (await db
+    .prepare(`SELECT n.* FROM groups_numbers n WHERE n.user_id = ?${access ? ` AND ${access.sql}` : ''} ORDER BY n.created_at`)
+    .all(ws, ...(access?.args ?? []))) as NumberRow[];
+  if (rows.length === 0) return [];
+  const ownerIds = [...new Set(rows.map((r) => r.owner_id).filter((x): x is string => Boolean(x)))];
+  const names = new Map<string, string>();
+  if (ownerIds.length) {
+    const us = (await db
+      .prepare(`SELECT id, name, email FROM users WHERE id IN (${ownerIds.map(() => '?').join(',')})`)
+      .all(...ownerIds)) as Array<{ id: string; name: string | null; email: string }>;
+    for (const u of us) names.set(u.id, u.name || u.email);
+  }
+  const lists = new Map<string, { personIds: string[]; teamIds: string[] }>();
+  if (!viewer?.linesScoped) {
+    const acc = (await db
+      .prepare(`SELECT a.number_id, a.kind, a.ref_id FROM groups_number_access a JOIN groups_numbers n ON n.id = a.number_id WHERE n.user_id = ?`)
+      .all(ws)) as Array<{ number_id: string; kind: 'person' | 'team'; ref_id: string }>;
+    for (const a of acc) {
+      const l = lists.get(a.number_id) ?? { personIds: [], teamIds: [] };
+      (a.kind === 'person' ? l.personIds : l.teamIds).push(a.ref_id);
+      lists.set(a.number_id, l);
+    }
+  }
+  return rows.map((r) => {
+    const d = toNumberDto(r);
+    d.ownerName = r.owner_id ? (names.get(r.owner_id) ?? '') : '';
+    if (!viewer?.linesScoped) d.access = lists.get(r.id) ?? { personIds: [], teamIds: [] };
+    return d;
+  });
 }
 
 /**
  * Líneas caídas: tenían chats (estuvieron conectadas) y ahora piden QR, se
  * desconectaron o dan error. La bandeja muestra un aviso para reconectarlas.
  */
-export async function droppedNumbers(ws: string): Promise<Array<{ id: string; name: string; phone: string; status: string; qr: boolean }>> {
+export async function droppedNumbers(ws: string, viewer?: GroupsViewer): Promise<Array<{ id: string; name: string; phone: string; status: string; qr: boolean }>> {
+  const access = numberAccessSql(viewer, 'n');
   const rows = (await getDb()
     .prepare(
       `SELECT n.id, n.name, n.phone, n.status, n.provider FROM groups_numbers n
-       WHERE n.user_id = ? AND n.status IN ('qr', 'disconnected', 'error')
+       WHERE n.user_id = ? AND n.status IN ('qr', 'disconnected', 'error')${access ? ` AND ${access.sql}` : ''}
          AND EXISTS (SELECT 1 FROM groups_chats c WHERE c.number_id = n.id) ORDER BY n.created_at`,
     )
-    .all(ws)) as Array<{ id: string; name: string; phone: string; status: string; provider: ProviderKind }>;
+    .all(ws, ...(access?.args ?? []))) as Array<{ id: string; name: string; phone: string; status: string; provider: ProviderKind }>;
   return rows.map((r) => ({ id: r.id, name: r.name, phone: r.phone, status: r.status, qr: PROVIDER_CAPS[r.provider]?.qr ?? false }));
 }
 
@@ -409,6 +456,7 @@ export interface ChatRow {
   id: string;
   user_id: string;
   number_id: string;
+  folder_id?: string | null;
   provider_chat_id: string;
   kind: 'dm' | 'group';
   name: string;
@@ -455,6 +503,8 @@ export interface LabelDto {
 export interface ChatDto {
   id: string;
   numberId: string;
+  /** Carpeta compartida del workspace (null = sin carpeta). */
+  folderId: string | null;
   kind: 'dm' | 'group';
   name: string;
   phone: string;
@@ -547,6 +597,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
   return {
     id: row.id,
     numberId: row.number_id,
+    folderId: row.folder_id ?? null,
     kind: row.kind,
     name: chatDisplayName(row),
     phone: row.phone,
@@ -630,6 +681,10 @@ export interface ChatQuery {
   props?: PropertyFilter[];
   kind?: 'dm' | 'group';
   numberId?: string;
+  /** Carpeta (incluye sus subcarpetas) o 'none' para los que no están en ninguna. */
+  folderId?: string;
+  /** Líneas de las que esta persona es dueña. */
+  ownerId?: string;
   limit?: number;
   offset?: number;
   /** Quién mira: acceso por etiqueta y teléfonos ocultos (lib/groups-access.ts). */
@@ -666,6 +721,20 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   if (query.numberId) {
     where.push('c.number_id = ?');
     args.push(query.numberId);
+  }
+  if (query.ownerId) {
+    where.push('c.number_id IN (SELECT zo.id FROM groups_numbers zo WHERE zo.user_id = c.user_id AND zo.owner_id = ?)');
+    args.push(query.ownerId === 'me' ? me : query.ownerId);
+  }
+  if (query.folderId === 'none') where.push('c.folder_id IS NULL');
+  else if (query.folderId) {
+    const { folderScope } = await import('./groups-lines');
+    const ids = await folderScope(ws, query.folderId);
+    if (ids.length === 0) where.push('0 = 1');
+    else {
+      where.push(`c.folder_id IN (${ids.map(() => '?').join(',')})`);
+      args.push(...ids);
+    }
   }
   if (query.teamId) {
     where.push('c.assigned_team_id = ?');
@@ -2797,11 +2866,13 @@ export async function chatsForCrmRecord(
   kind: 'contact' | 'company',
   recordId: string,
   messagesPerChat = 5,
+  viewer?: GroupsViewer,
 ): Promise<CrmChatSummary[]> {
   const col = kind === 'contact' ? 'crm_contact_id' : 'crm_company_id';
+  const access = chatAccessSql(viewer, 'c');
   const rows = (await getDb()
-    .prepare(`SELECT * FROM groups_chats WHERE user_id = ? AND ${col} = ? ORDER BY COALESCE(last_message_at, created_at) DESC LIMIT 10`)
-    .all(ws, recordId)
+    .prepare(`SELECT c.* FROM groups_chats c WHERE c.user_id = ? AND c.${col} = ?${access ? ` AND ${access.sql}` : ''} ORDER BY COALESCE(c.last_message_at, c.created_at) DESC LIMIT 10`)
+    .all(ws, recordId, ...(access?.args ?? []))
     .catch(() => [])) as ChatRow[];
   const labels = await labelsFor(rows.map((r) => r.id));
   const out: CrmChatSummary[] = [];

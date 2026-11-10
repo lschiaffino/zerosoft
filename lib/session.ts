@@ -12,6 +12,9 @@ import { seedUserIfNeeded } from './seed';
 import { delegatedIdentity } from './mcp/identity';
 import { can } from './permissions';
 import { touchActivity } from './workspace-admin';
+import { blockedAppsFor } from './workspace-apps';
+import { isComingSoon } from './products';
+import { getSessionRow, mfaEnabled, sessionState, touchSession, type SessionState } from './account-security';
 
 /**
  * DEMO_MODE convierte a todo visitante en el usuario demo compartido. En
@@ -56,11 +59,23 @@ export interface SessionUser extends UserRow {
   /** Apps a las que accede en el workspace activo ('*' = todas). */
   apps?: AppAccess;
   /**
+   * Apps que no abre por la plataforma (Próximamente) o por Apps del workspace,
+   * ya resueltas para la persona (lib/app-access.ts). Las cuenta userCanUseApp.
+   */
+  blockedApps?: ProductKey[];
+  /**
    * La página pedida es de una app que la persona no tiene en el workspace
    * activo: la sesión cae a su workspace propio (ninguna página carga datos
    * del ajeno) y el layout de la app redirige con un aviso.
    */
   blockedApp?: ProductKey;
+  /**
+   * El workspace activo exige la verificación en dos pasos y la persona no la tiene: la sesión
+   * cae a su workspace propio y el layout la manda a Ajustes › Seguridad a activarla.
+   */
+  mfaRequiredBy?: string;
+  /** Id de la sesión del servidor (user_sessions) de esta request; null en sesiones de antes o demo. */
+  sid?: string | null;
 }
 
 
@@ -75,6 +90,11 @@ export function realUserId(user: SessionUser): string {
 }
 
 export { hasAllApps, userCanUseApp, workspaceTeamId };
+
+/** Adonde va la API de una app cortada: /api/apps/blocked responde 403 con el motivo. */
+function appGatePath(app: ProductKey): string {
+  return `/api/apps/blocked?app=${app}&reason=${isComingSoon(app) ? 'coming_soon' : 'workspace'}`;
+}
 
 // Usuario demo ya sembrado en este proceso: evita el UPDATE de reclamo de
 // seedUserIfNeeded en cada request (después de la primera siempre es no-op).
@@ -120,6 +140,7 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
   const delegated = delegatedIdentity();
   if (delegated) return delegatedUser(delegated);
   let real: UserRow | null;
+  let sid: string | null = null;
   // Ficha del workspace propio, pedida junto con el usuario (no después): en Turso cada query es
   // una ida y vuelta, y esta resolución corre en cada página y cada API.
   let ownWorkspace: Promise<TeamRow | null> | null = null;
@@ -129,48 +150,90 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
     ownWorkspace?.catch(() => {});
     real = e2e ?? (await getDemoUser());
   } else {
-    const session = await getServerSession(authOptions);
-    const email = session?.user?.email;
-    if (!email) return null;
-    const uid = (session.user as { id?: unknown }).id;
-    if (typeof uid === 'string' && uid) ownWorkspace = getWorkspace(uid);
-    ownWorkspace?.catch(() => {});
-    real = (await getUserByEmail(email)) ?? null;
+    const gate = await sessionGate();
+    if (gate.state !== 'ok' || !gate.user) return null;
+    real = gate.user;
+    sid = gate.sid;
+    ownWorkspace = gate.ownWorkspace;
   }
   if (!real) return null;
   const { owner, team, workspace, role, apps } = await resolveWorkspace(real, ownWorkspace);
+  const expected = await requestHeader(WORKSPACE_HEADER);
+  // El workspace ajeno exige dos pasos y esta persona no los tiene: no entra a sus datos.
+  if (owner.id !== real.id && workspace?.require_mfa && !mfaEnabled(real)) {
+    const own = await ensureWorkspace(real.id);
+    // La pestaña ya está en su workspace propio (la cayó acá el layout): sus pedidos valen.
+    if (expected && expected !== own.id) return null;
+    return { ...real, sid, team: null, workspace: own, role: 'owner', apps: '*', mfaRequiredBy: workspace.name };
+  }
   const user: SessionUser =
-    owner.id === real.id ? { ...real, team, workspace, role, apps } : { ...owner, actingUser: real, team, workspace, role, apps };
+    owner.id === real.id ? { ...real, sid, team, workspace, role, apps } : { ...owner, sid, actingUser: real, team, workspace, role, apps };
   // La pestaña escribe pensando en otro workspace (la sacaron, o cambió en otra pestaña): nada se
   // guarda en el lugar equivocado. Responde como sin sesión y la pestaña avisa y ofrece recargar.
-  const expected = await requestHeader(WORKSPACE_HEADER);
   if (expected && workspace && expected !== workspace.id) return null;
-  // Acceso por app: la API de una app que la persona no tiene en este
-  // workspace responde como sin sesión. Las páginas las corta el layout.
-  if (user.actingUser) {
-    const app = appFromPath(await requestHeader(API_PATH_HEADER));
-    if (app && !userCanUseApp(user, app)) return null;
-    const page = appFromPath(await requestHeader(RETURN_PATH_HEADER));
-    if (page && !userCanUseApp(user, page)) {
-      // Las páginas (y su payload RSC) se arman con el workspace propio: nada del ajeno viaja.
-      return { ...real, team: null, workspace: await ensureWorkspace(real.id), role: 'owner', apps: '*', blockedApp: page };
+  // Acceso por app (lib/app-access.ts): Próximamente, Apps del workspace y las
+  // apps habilitadas de la persona. Una app cortada por la plataforma o el
+  // workspace responde 403 en su API; una que la persona no tiene, como sin sesión.
+  // Las páginas las corta el layout.
+  user.blockedApps = await blockedAppsFor({ ownerId: owner.id, personId: real.id, role, email: real.email });
+  const app = appFromPath(await requestHeader(API_PATH_HEADER));
+  if (app && !userCanUseApp(user, app)) {
+    if (user.blockedApps.includes(app)) redirect(appGatePath(app));
+    return null;
+  }
+  const page = appFromPath(await requestHeader(RETURN_PATH_HEADER));
+  if (page && !userCanUseApp(user, page)) {
+    // Las páginas (y su payload RSC) se arman con el workspace propio: nada del ajeno viaja.
+    if (user.actingUser) {
+      return { ...real, team: null, workspace: await ensureWorkspace(real.id), role: 'owner', apps: '*', blockedApps: user.blockedApps, blockedApp: page };
     }
+    return { ...user, blockedApp: page };
   }
   // "Última actividad" de Miembros y permisos (a lo sumo una escritura cada 10 minutos, sin esperar).
   touchActivity(workspace?.id, real.id);
   return user;
 }
 
+interface SessionGate {
+  state: SessionState | 'none';
+  user: UserRow | null;
+  sid: string | null;
+  /** Ficha del workspace propio, pedida en paralelo (no se espera acá). */
+  ownWorkspace: Promise<TeamRow | null> | null;
+}
+
+/**
+ * La sesión de NextAuth contra la del servidor (lib/account-security.ts): 'none' sin cookie,
+ * 'invalid' si se cerró o venció, 'mfa_pending' si falta el segundo paso. La persona y la fila
+ * de la sesión se piden juntas (en Turso cada query es una ida y vuelta).
+ */
+export const sessionGate = cache(async (): Promise<SessionGate> => {
+  const session = await getServerSession(authOptions);
+  const email = session?.user?.email;
+  if (!email) return { state: 'none', user: null, sid: null, ownWorkspace: null };
+  const rawSid = (session as { sid?: unknown }).sid;
+  const sid = typeof rawSid === 'string' && rawSid ? rawSid : null;
+  const uid = (session.user as { id?: unknown }).id;
+  const ownWorkspace = typeof uid === 'string' && uid ? getWorkspace(uid) : null;
+  ownWorkspace?.catch(() => {});
+  const [user, row] = await Promise.all([getUserByEmail(email), sid ? getSessionRow(sid) : Promise.resolve(null)]);
+  if (!user) return { state: 'none', user: null, sid, ownWorkspace: null };
+  const state = sessionState(user, sid, row);
+  if (state === 'ok' && row) touchSession(row);
+  return { state, user, sid, ownWorkspace: state === 'ok' ? ownWorkspace : null };
+});
+
 async function delegatedUser(d: NonNullable<ReturnType<typeof delegatedIdentity>>): Promise<SessionUser | null> {
   const { owner, team, workspace, role, apps } = await resolveWorkspace(d.real);
   // Fijado a un workspace del que ya no es parte: sin acceso, nunca cae al propio.
   if (d.pinnedTeamId && workspace.id !== d.pinnedTeamId) return null;
+  // Un workspace que exige dos pasos tampoco se abre por el MCP sin ellos.
+  if (owner.id !== d.real.id && workspace.require_mfa && !mfaEnabled(d.real)) return null;
   const user: SessionUser =
     owner.id === d.real.id ? { ...d.real, team, workspace, role, apps } : { ...owner, actingUser: d.real, team, workspace, role, apps };
-  if (user.actingUser) {
-    const app = appFromPath(d.apiPath);
-    if (app && !userCanUseApp(user, app)) return null;
-  }
+  user.blockedApps = await blockedAppsFor({ ownerId: owner.id, personId: d.real.id, role, email: d.real.email });
+  const app = appFromPath(d.apiPath);
+  if (app && !userCanUseApp(user, app)) return null;
   return user;
 }
 
@@ -192,6 +255,18 @@ async function requestHeader(name: string): Promise<string | null> {
  */
 export async function requireUser(locale: string, returnTo?: string): Promise<SessionUser> {
   const user = await getCurrentUser();
-  if (!user) redirect(signInPath(locale, returnTo ?? (await requestHeader(RETURN_PATH_HEADER))));
+  if (!user) {
+    const back = returnTo ?? (await requestHeader(RETURN_PATH_HEADER));
+    // Entró con Google o el código, falta el segundo paso.
+    if (!DEMO_MODE && (await sessionGate()).state === 'mfa_pending') {
+      redirect(`/${locale}/auth/mfa${back ? `?callbackUrl=${encodeURIComponent(back)}` : ''}`);
+    }
+    redirect(signInPath(locale, back));
+  }
+  // Página de una app cortada (Próximamente, Apps del workspace o la persona no la tiene). Se corta acá
+  // y no solo en el layout de /app: en una navegación del cliente ese layout no se vuelve a armar.
+  if (user.blockedApp) {
+    redirect(isComingSoon(user.blockedApp) ? `/${locale}/app/soon/${user.blockedApp}` : `/${locale}/app?blocked=${user.blockedApp}`);
+  }
   return user;
 }

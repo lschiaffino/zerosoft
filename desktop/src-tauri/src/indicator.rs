@@ -1,19 +1,29 @@
 //! Indicador de grabación (como el de Granola): mientras una reunión se graba en la ventana
 //! principal y esa ventana no está adelante (minimizada, escondida o detrás de otra app), un
-//! recuadro chico y siempre encima, arriba a la derecha, muestra que se está grabando, el reloj, y
-//! deja abrir la reunión o cortar. La página avisa que graba por el puente (desktop_recording);
-//! cortar le manda a la página el evento `zerosoft:stop-recording`.
-//! Se apaga en Ajustes › General (por defecto, prendido).
+//! rectángulo negro chico, siempre encima, con un punto rojo que late. Clic: abre la reunión.
+//! Al pasar el mouse se estira hacia la izquierda y muestra el tiempo; clic derecho: menú con
+//! Abrir, Cortar y Ocultar. Se arrastra a cualquier lado y la posición se recuerda
+//! (settings.indicator_pos). La página avisa que graba por el puente (desktop_recording); cortar
+//! le manda a la página el evento `zerosoft:stop-recording`.
+//! Se apaga en Ajustes › Reuniones (por defecto, prendido).
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{AppHandle, Emitter, LogicalPosition, Manager, WebviewUrl, WebviewWindowBuilder};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use tauri::menu::{MenuBuilder, MenuItem};
+use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use crate::state::{AppState, Recording};
 
 pub const LABEL: &str = "indicator";
-const W: f64 = 300.0;
-const H: f64 = 44.0;
+/// Cerrado: solo el punto.
+const W: f64 = 44.0;
+/// Con el mouse encima: el punto y el reloj.
+const W_OPEN: f64 = 96.0;
+const H: f64 = 28.0;
 const MARGIN: f64 = 12.0;
+/// Está estirado (el borde derecho queda donde estaba).
+static EXPANDED: AtomicBool = AtomicBool::new(false);
+/// Sube con cada movimiento: solo el último guarda la posición.
+static MOVES: AtomicU64 = AtomicU64::new(0);
 /// La persona lo cerró con la ×: no vuelve hasta la próxima grabación.
 static DISMISSED: AtomicBool = AtomicBool::new(false);
 
@@ -41,6 +51,7 @@ fn create(app: &AppHandle) -> tauri::Result<()> {
     if let Some((x, y)) = target(app) {
         b = b.position(x, y);
     }
+    EXPANDED.store(false, Ordering::Relaxed);
     b.title("zerosoft")
         .inner_size(W, H)
         .resizable(false)
@@ -59,8 +70,21 @@ fn create(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Arriba a la derecha del monitor de la ventana principal (en coordenadas lógicas).
+/// Donde la dejó la persona (si sigue dentro de algún monitor) o arriba a la derecha del monitor
+/// de la ventana principal (en coordenadas lógicas).
 fn target(app: &AppHandle) -> Option<(f64, f64)> {
+    let saved = app.state::<AppState>().settings.lock().unwrap().indicator_pos;
+    if let Some((x, y)) = saved {
+        let visible = app.available_monitors().unwrap_or_default().iter().any(|m| {
+            let s = m.scale_factor();
+            let (mx, my) = (m.position().x as f64 / s, m.position().y as f64 / s);
+            let (mw, mh) = (m.size().width as f64 / s, m.size().height as f64 / s);
+            on_screen((x, y), (mx, my, mw, mh))
+        });
+        if visible {
+            return Some((x, y));
+        }
+    }
     let m = app
         .get_window(&crate::tabs::focused_label(app))
         .and_then(|m| m.current_monitor().ok().flatten())
@@ -98,6 +122,7 @@ pub fn update(app: &AppHandle) {
                 }
             }
         } else if let Some(w) = app2.get_webview_window(LABEL) {
+            expand(&app2, false);
             let _ = w.hide();
         }
     });
@@ -118,7 +143,82 @@ pub fn set_recording(app: &AppHandle, rec: Option<Recording>) {
     update(app);
 }
 
-/// La × del indicador.
+/// Mouse encima o afuera: se estira hacia la izquierda para mostrar el reloj (o vuelve).
+pub fn expand(app: &AppHandle, open: bool) {
+    let Some(w) = app.get_webview_window(LABEL) else { return };
+    if EXPANDED.swap(open, Ordering::Relaxed) == open {
+        return;
+    }
+    let scale = w.scale_factor().unwrap_or(1.0);
+    let Ok(pos) = w.outer_position() else { return };
+    let (x, y) = (pos.x as f64 / scale, pos.y as f64 / scale);
+    let dx = W_OPEN - W;
+    let (nx, nw) = if open { (x - dx, W_OPEN) } else { (x + dx, W) };
+    let _ = w.set_size(LogicalSize::new(nw, H));
+    let _ = w.set_position(LogicalPosition::new(nx, y));
+}
+
+/// La ventana del indicador se movió (arrastre o estirarse): se recuerda dónde queda cerrado,
+/// medio segundo después del último movimiento.
+pub fn moved(app: &AppHandle, x: f64, y: f64) {
+    let closed_x = if EXPANDED.load(Ordering::Relaxed) { x + (W_OPEN - W) } else { x };
+    if !crate::config::valid_pos(closed_x, y) {
+        return;
+    }
+    let n = MOVES.fetch_add(1, Ordering::Relaxed) + 1;
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        if MOVES.load(Ordering::Relaxed) != n {
+            return;
+        }
+        let st = app.state::<AppState>();
+        let mut s = st.settings.lock().unwrap();
+        if s.indicator_pos != Some((closed_x, y)) {
+            s.indicator_pos = Some((closed_x, y));
+            let _ = crate::config::save(&st.config_dir, &s);
+        }
+    });
+}
+
+/// Clic derecho: Abrir, Cortar y Ocultar (menú del sistema).
+pub fn menu(app: &AppHandle) {
+    let Some(w) = app.get_webview_window(LABEL) else { return };
+    let l = app.state::<AppState>().locale;
+    let t = |k: &str| crate::strings::t(l, k);
+    let built = (|| {
+        MenuBuilder::new(app)
+            .item(&MenuItem::with_id(app, "ind-open", t("indicatorOpen"), true, None::<&str>)?)
+            .item(&MenuItem::with_id(app, "ind-stop", t("indicatorStop"), true, None::<&str>)?)
+            .separator()
+            .item(&MenuItem::with_id(app, "ind-hide", t("indicatorHide"), true, None::<&str>)?)
+            .build()
+    })();
+    if let Ok(m) = built {
+        let _ = w.popup_menu(&m);
+    }
+}
+
+/// Lo elegido en el menú del indicador (llega por el manejador de menús de la app).
+pub fn on_menu(app: &AppHandle, id: &str) -> bool {
+    match id {
+        "ind-open" => open(app),
+        "ind-stop" => stop(app),
+        "ind-hide" => dismiss(app),
+        _ => return false,
+    }
+    true
+}
+
+/// ¿Una posición guardada cae dentro de un monitor (x, y, ancho, alto)? Con margen para que se
+/// vea al menos una parte.
+pub fn on_screen(pos: (f64, f64), m: (f64, f64, f64, f64)) -> bool {
+    let (x, y) = pos;
+    let (mx, my, mw, mh) = m;
+    x + W > mx + 8.0 && x < mx + mw - 8.0 && y >= my - 4.0 && y < my + mh - H / 2.0
+}
+
+/// Ocultar (menú o Esc): no vuelve hasta la próxima grabación.
 pub fn dismiss(app: &AppHandle) {
     DISMISSED.store(true, Ordering::Relaxed);
     update(app);
@@ -157,6 +257,15 @@ mod tests {
         for bad in ["/voice", "/app//x", "/app/../admin", "https://evil.com/app/x", "/app/x?y=1", "/app/x#h", ""] {
             assert!(!valid_path(bad), "{bad}");
         }
+    }
+
+    #[test]
+    fn saved_position_must_be_on_a_screen() {
+        let m = (0.0, 0.0, 1440.0, 900.0);
+        assert!(on_screen((1384.0, 12.0), m));
+        assert!(!on_screen((3000.0, 12.0), m));
+        assert!(!on_screen((100.0, 2000.0), m));
+        assert!(on_screen((-30.0, 100.0), m));
     }
 
     #[test]

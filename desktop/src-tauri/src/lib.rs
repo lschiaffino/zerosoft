@@ -24,6 +24,7 @@ mod platform;
 mod retry;
 mod session;
 mod state;
+mod system_audio;
 mod strings;
 mod tabs;
 mod tray;
@@ -72,7 +73,17 @@ pub fn allow_server(app: &AppHandle) {
         return;
     }
     let mut cap = CapabilityBuilder::new(format!("remote-{}", server.replace([':', '/', '.'], "-"))).remote(format!("{server}/*")).webview("tab-*");
-    for p in ["allow-desktop-info", "allow-desktop-start-login", "allow-desktop-open-settings", "allow-desktop-notify", "allow-desktop-recording", "allow-desktop-tabs"] {
+    for p in [
+        "allow-desktop-info",
+        "allow-desktop-start-login",
+        "allow-desktop-open-settings",
+        "allow-desktop-notify",
+        "allow-desktop-recording",
+        "allow-desktop-tabs",
+        "allow-desktop-system-audio-start",
+        "allow-desktop-system-audio-read",
+        "allow-desktop-system-audio-stop",
+    ] {
         cap = cap.permission(p);
     }
     let _ = app.add_capability(cap);
@@ -82,6 +93,7 @@ pub(crate) fn bridge_script(server: &str, version: &str) -> String {
     let platform = if cfg!(target_os = "macos") { "darwin" } else { "win32" };
     let server = serde_json::to_string(server).unwrap_or_default();
     let version = serde_json::to_string(version).unwrap_or_default();
+    let system_audio = cfg!(target_os = "macos");
     format!(
         r#"(function () {{
   if (location.origin !== {server}) return;
@@ -92,7 +104,7 @@ pub(crate) fn bridge_script(server: &str, version: &str) -> String {
   var bridge = Object.freeze({{
     version: {version},
     platform: '{platform}',
-    systemAudio: false,
+    systemAudio: {system_audio},
     dictation: true,
     recordingIndicator: true,
     startLogin: function () {{ inv('desktop_start_login'); }},
@@ -102,6 +114,11 @@ pub(crate) fn bridge_script(server: &str, version: &str) -> String {
       s = s || {{}};
       return inv('desktop_recording', {{ active: !!s.active, startedAt: typeof s.startedAt === 'number' ? s.startedAt : null, path: typeof s.path === 'string' ? s.path : null }});
     }},
+    // Audio del sistema (ScreenCaptureKit en Mac): start devuelve ok | denied | unsupported | failed;
+    // read devuelve PCM de 16 bits, 16 kHz, mono, en base64 (lo acumulado desde la lectura anterior).
+    systemAudioStart: function () {{ return inv('desktop_system_audio_start'); }},
+    systemAudioRead: function () {{ return inv('desktop_system_audio_read'); }},
+    systemAudioStop: function () {{ return inv('desktop_system_audio_stop'); }},
     notify: function (title, body) {{ return inv('desktop_notify', {{ title: String(title), body: body == null ? null : String(body) }}); }}
   }});
   Object.defineProperty(window, 'zerosoftDesktop', {{ value: bridge }});
@@ -248,6 +265,9 @@ pub fn run() {
             commands::desktop_open_settings,
             commands::desktop_notify,
             commands::desktop_recording,
+            commands::desktop_system_audio_start,
+            commands::desktop_system_audio_read,
+            commands::desktop_system_audio_stop,
             commands::indicator_state,
             commands::indicator_action,
             commands::settings_get,
@@ -271,6 +291,10 @@ pub fn run() {
             tabs::desktop_tabs,
             tabs::tabs_prefs_get,
             tabs::tabs_prefs_save,
+            commands::settings_nav,
+            commands::settings_open_web,
+            commands::update_check,
+            commands::update_restart,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -294,7 +318,9 @@ pub fn run() {
                 auth: Mutex::new(None),
                 shortcut_taken: AtomicBool::new(false),
                 badge_since: Mutex::new(None),
+                disabled_apps: Mutex::new(Vec::new()),
                 update_ready: Mutex::new(None),
+                update: Mutex::new(state::UpdateInfo::default()),
             });
             allow_server(&handle);
             app.set_menu(tray::app_menu(&handle)?)?;
@@ -349,6 +375,11 @@ pub fn run() {
                 }
             }
             WindowEvent::Focused(true) if w.label() == "settings" => commands::refresh_settings(w.app_handle()),
+            // El indicador se arrastró: se recuerda dónde (en coordenadas lógicas).
+            WindowEvent::Moved(p) if w.label() == indicator::LABEL => {
+                let scale = w.scale_factor().unwrap_or(1.0);
+                indicator::moved(w.app_handle(), p.x as f64 / scale, p.y as f64 / scale);
+            }
             WindowEvent::Destroyed if w.label() == "settings" => {
                 let app = w.app_handle();
                 let st = app.state::<AppState>();
