@@ -11,7 +11,7 @@ const MIN_GAP_MS = 60_000;
 
 /**
  * Una pestaña abierta sigue con el código del deploy con el que cargó. Cuando
- * el servidor ya sirve otro, se avisa arriba de la página y se ofrece
+ * el servidor ya sirve otro, se avisa con un cartel flotante arriba y se ofrece
  * recargar; nunca se recarga sola, para no perder lo que se está escribiendo.
  * Se revisa al volver a la pestaña y cada 10 minutos. "Ahora no" lo esconde
  * hasta la versión siguiente.
@@ -61,7 +61,7 @@ export default function AppUpdateBanner() {
     setNext(null);
   };
   return (
-    <div className="zs-desk-update" role="status" data-testid="app-update-banner">
+    <div className="zs-desk-update zs-app-update" role="status" data-testid="app-update-banner">
       <p>
         <strong>{t('title')}</strong> {t('body')}
       </p>
