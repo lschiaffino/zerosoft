@@ -1483,4 +1483,16 @@ td.cell-actions > * + * { margin-left: 4px; }
   border: 1px dashed var(--ink-3);
   background: var(--surface-2);
 }
+/* En las apps a pantalla completa (.app-content en flex: Chat, Lines, Flow, Inbox) el aviso flota abajo a la derecha:
+   no entra en el layout ni intercepta clics. */
+.app-content:has(> .chat-inbox, > .ib-app, > .gr-inbox, > .flow-editor) > .preview-banner {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 40;
+  max-width: 320px;
+  margin: 0;
+  background: var(--bg);
+  pointer-events: none;
+}
 .preview-banner strong { font-family: var(--mono); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }

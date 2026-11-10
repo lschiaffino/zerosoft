@@ -53,6 +53,7 @@ import { settingsNavGroups } from '@/lib/settings-nav-server';
 import PlatformSettingsNav from '@/components/app/PlatformSettingsNav';
 import SettingsEmbedGuard from '@/components/app/SettingsEmbedGuard';
 import DesktopUpdateBanner from '@/components/app/DesktopUpdateBanner';
+import AppUpdateBanner from '@/components/app/AppUpdateBanner';
 import NavProgress from '@/components/app/NavProgress';
 import RouterNudge from '@/components/app/RouterNudge';
 import IntentPrefetch from '@/components/app/IntentPrefetch';
@@ -106,8 +107,9 @@ export default async function AppLayout(
   // Acceso por app (team_members.apps): una página de una app que la persona no
   // tiene en el workspace activo ya se armó con su workspace propio (lib/session):
   // se la manda al inicio con el aviso.
-  // Una app "Próximamente" va a su página de lista de espera.
-  if (user.blockedApp) redirect(isComingSoon(user.blockedApp) ? `/${locale}/app/soon/${user.blockedApp}` : `/${locale}/app?blocked=${user.blockedApp}`);
+  // Una app "Próximamente" cortada por la plataforma va a su página de lista de espera; si el staff la abre pero
+  // no la tiene (apps de la persona), es el aviso de acceso de siempre.
+  if (user.blockedApp) redirect(isComingSoon(user.blockedApp) && user.blockedApps?.includes(user.blockedApp) ? `/${locale}/app/soon/${user.blockedApp}` : `/${locale}/app?blocked=${user.blockedApp}`);
   // El workspace exige dos pasos y la persona no los tiene: primero los activa.
   if (user.mfaRequiredBy && !/^\/(?:en|es|pt)\/app\/settings\/security(?:[/?]|$)/.test(path)) {
     redirect(`/${locale}/app/settings/security?required=1`);
@@ -216,7 +218,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'notes.nav', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'settings.keywords', 'settings.desktopUpdate', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut', 'assistant']}>
+    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'notes.nav', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'settings.keywords', 'settings.desktopUpdate', 'settings.appUpdate', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut', 'assistant']}>
       <ThemeProvider initial={themePref}>
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
@@ -802,6 +804,7 @@ export default async function AppLayout(
             )}
             {previewApp && <PreviewBanner app={previewApp} locale={locale} />}
             <DesktopUpdateBanner />
+            <AppUpdateBanner />
             {children}
           </main>
         </div>

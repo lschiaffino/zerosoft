@@ -6,9 +6,12 @@ import { expect, test } from '@playwright/test';
  * link al board. Y el porcentaje al lado de cada app en /products.
  */
 
-const PRODUCTS = ['crm', 'chat', 'lines', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'pulse', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
+const SOON = ['chat', 'agents', 'robots', 'design', 'shop', 'social', 'hiring', 'books'];
+const PRODUCTS_ALL = ['crm', 'chat', 'lines', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'pulse', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
+/** Las que se pueden usar: la paridad del sitio no cuenta las Próximamente. */
+const PRODUCTS = PRODUCTS_ALL.filter((k) => !SOON.includes(k));
 
-for (const product of PRODUCTS) {
+for (const product of PRODUCTS_ALL) {
   test(`paridad en /es/products/${product}`, async ({ page }) => {
     await page.goto(`/es/products/${product}`);
     const section = page.locator('#parity');
@@ -73,9 +76,9 @@ for (const path of ['/es', '/es/products']) {
   test(`tabla de paridad de todas las apps en ${path}`, async ({ page }) => {
     await page.goto(path);
     const table = page.locator('#paridad .parity-overview-table');
-    await expect(table.locator('tbody tr')).toHaveCount(PRODUCTS.length);
+    await expect(table.locator('tbody tr')).toHaveCount(PRODUCTS_ALL.length);
     await expect(table.locator('.po-percent').first()).toHaveText(/^\d{1,3}%$/);
-    await expect(page.locator('#paridad .parity-overview-lead')).toContainText('27 apps');
+    await expect(page.locator('#paridad .parity-overview-lead')).toContainText(/las \d+ apps que ya se pueden usar/);
     await table.locator('a.po-app', { hasText: 'Lines' }).click();
     await expect(page).toHaveURL(/\/es\/products\/lines#parity$/);
   });
@@ -102,11 +105,10 @@ test('/es/products/voice es una app real', async ({ page }) => {
 });
 
 // Design (como Canva) sale como app real: la landing lleva a la app.
-test('/es/products/design es un producto real', async ({ page }) => {
+test('/es/products/design es Próximamente: la landing no lleva a la app', async ({ page }) => {
   await page.goto('/es/products/design');
-  await expect(page.locator('.pd-building')).toHaveCount(0);
-  await expect(page.locator('#parity .parity-num .data')).not.toHaveText('0%');
-  await expect(page.locator('.pd-actions .btn-primary')).toHaveAttribute('href', '/es/app/design');
+  await expect(page.locator('.pd-building')).toHaveCount(1);
+  await expect(page.locator('.pd-building')).toHaveText('Próximamente');
 });
 
 // Rec ya salió (tanda 4c): la landing lleva a la app y la paridad deja de ser 0 %.

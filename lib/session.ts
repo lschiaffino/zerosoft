@@ -266,7 +266,7 @@ export async function requireUser(locale: string, returnTo?: string): Promise<Se
   // Página de una app cortada (Próximamente, Apps del workspace o la persona no la tiene). Se corta acá
   // y no solo en el layout de /app: en una navegación del cliente ese layout no se vuelve a armar.
   if (user.blockedApp) {
-    redirect(isComingSoon(user.blockedApp) ? `/${locale}/app/soon/${user.blockedApp}` : `/${locale}/app?blocked=${user.blockedApp}`);
+    redirect(isComingSoon(user.blockedApp) && user.blockedApps?.includes(user.blockedApp) ? `/${locale}/app/soon/${user.blockedApp}` : `/${locale}/app?blocked=${user.blockedApp}`);
   }
   return user;
 }

@@ -72,7 +72,8 @@ test('dueño, selector de línea y carpetas', async ({ page, request }) => {
   await select.selectOption('all');
   await expect(page.getByText(`Alfa ${tag}`).first()).toBeVisible();
   await expect(page.getByTestId('lines-folders')).toBeVisible();
-  await page.getByRole('button', { name: `Clientes ${tag}` }).click();
+  // La fila tiene tres botones con el nombre de la carpeta (plegar, abrir, opciones): se elige el de abrir.
+  await page.getByTestId('lines-folder').filter({ hasText: `Clientes ${tag}` }).click();
   await expect(page.getByText(`Alfa ${tag}`).first()).toBeVisible();
   await expect(page.getByText(`Beta ${tag}`)).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 800 });

@@ -7,7 +7,11 @@ const blobStore = /^vercel_blob_rw_([A-Za-z0-9]+)_/.exec(process.env.BLOB_READ_W
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  env: { NEXT_PUBLIC_OWN_BLOB_HOST: blobStore ? `${blobStore[1].toLowerCase()}.public.blob.vercel-storage.com` : '' },
+  env: {
+    // Commit del build: la pestaña lo compara con /api/version para avisar que hay versión nueva.
+    NEXT_PUBLIC_BUILD_ID: (process.env.APP_BUILD_ID || process.env.VERCEL_GIT_COMMIT_SHA || '').trim(),
+    NEXT_PUBLIC_OWN_BLOB_HOST: blobStore ? `${blobStore[1].toLowerCase()}.public.blob.vercel-storage.com` : '',
+  },
   // El <title> va siempre en el <head>: con metadata en streaming cae en el <body> y compite
   // con la hidratación (error #418 intermitente en rutas con loading.tsx).
   htmlLimitedBots: /.*/,

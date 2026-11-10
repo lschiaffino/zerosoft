@@ -127,7 +127,9 @@ test('reunión: grabar, transcripción en vivo, nota con IA, tareas, chat, busca
   await page.getByRole('combobox', { name: 'Ask about this meeting' }).fill('What did they say about billing?');
   await page.getByRole('button', { name: 'Ask', exact: true }).click();
   await expect(page.locator('.vc-msg.is-assistant').first()).toContainText(/annual billing/i);
+  // Esc cierra el chat aunque el foco haya quedado fuera (el botón de enviar se desactiva al responder).
   await page.keyboard.press('Escape');
+  await expect(page.getByTestId('voice-ask-panel')).toBeHidden();
 
   // Próximos pasos → tareas del CRM.
   await expect(enhanced).toContainText(/contract/i);
@@ -379,6 +381,8 @@ test('un trozo que la transcripción rechaza no traba la cola y se reintenta des
   });
   await page.goto(`/en/app/voice/meetings/${id}`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Start recording' }).click();
+  // Al empezar a grabar la barra cambia (el botón de cortar queda donde estaba la flecha): se espera el reloj.
+  await expect(page.getByRole('timer')).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Live transcript' }).click();
   // El primer trozo falla 3 veces y queda aparte; los siguientes se transcriben igual.
   await expect(page.locator('.vc-seg').first()).toBeVisible({ timeout: 30_000 });
