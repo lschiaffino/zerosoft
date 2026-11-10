@@ -23,11 +23,40 @@ export function pushUrl(url: string): void {
  * navegue como siempre. No toca clics con Cmd/Ctrl/Shift, botón del medio,
  * links a otra pestaña ni descargas.
  */
-export function useShallowLinks(resolve: (url: URL, link: HTMLAnchorElement) => string | null): void {
+type Resolve = (url: URL, link: HTMLAnchorElement) => string | null;
+
+/** Las pantallas montadas que atienden sus links sin ir al servidor. */
+const resolvers = new Set<{ current: Resolve }>();
+
+/**
+ * ¿Este link lo atiende una pantalla sin pedir la página? La precarga por
+ * intención (IntentPrefetch) lo pregunta para no pedir al servidor una
+ * página que el clic no va a usar.
+ */
+export function isShallowLink(link: HTMLAnchorElement): boolean {
+  if (resolvers.size === 0) return false;
+  let url: URL;
+  try {
+    url = new URL(link.href, window.location.href);
+  } catch {
+    return false;
+  }
+  if (url.origin !== window.location.origin || url.hash) return false;
+  for (const r of resolvers) if (r.current(url, link) !== null) return true;
+  return false;
+}
+
+export function useShallowLinks(resolve: Resolve): void {
   const ref = useRef(resolve);
   useEffect(() => {
     ref.current = resolve;
   });
+  useEffect(() => {
+    resolvers.add(ref);
+    return () => {
+      resolvers.delete(ref);
+    };
+  }, []);
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;

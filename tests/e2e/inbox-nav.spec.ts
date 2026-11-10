@@ -40,7 +40,7 @@ async function linkWhatsapp(request: APIRequestContext): Promise<{ id: string; s
   return { id: String(row.id), secret: String(row.webhook_secret) };
 }
 
-async function inbound(request: APIRequestContext, acc: { id: string; secret: string }, chats: Array<{ phone: string; name: string; body: string }>) {
+async function inbound(request: APIRequestContext, acc: { id: string; secret: string }, chats: Array<{ phone: string; name: string; body: string }>, at: Date = new Date()) {
   const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.secret}`, {
     data: {
       events: chats.map((c) => ({
@@ -52,7 +52,7 @@ async function inbound(request: APIRequestContext, acc: { id: string; secret: st
         senderName: c.name,
         providerMessageId: `nav-${uid()}`,
         body: c.body,
-        timestamp: new Date().toISOString(),
+        timestamp: at.toISOString(),
       })),
     },
   });
@@ -191,6 +191,8 @@ test('la lista trae más chats al bajar, hasta el final', async ({ page, request
     request,
     acc,
     Array.from({ length: 75 }, (_, i) => ({ phone: String(base + i), name: `Largo ${tag} ${String(i).padStart(2, '0')}`, body: `mensaje ${i}` })),
+    // Viejos: la cuenta es compartida y 75 chats de hoy dejarían fuera de la primera página a los de otros specs.
+    new Date('2016-03-01T12:00:00Z'),
   );
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   await page.locator('#ib-search').fill(`Largo ${tag}`);

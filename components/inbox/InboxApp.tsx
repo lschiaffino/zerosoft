@@ -15,6 +15,7 @@ import { ArchiveIcon, ArrowLeft } from '@/components/groups/wa/icons';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
+import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
 import { inboxUrl, parseInboxPath, type InboxRoute } from './nav';
 import Avatar from '@/components/groups/wa/Avatar';
@@ -302,15 +303,8 @@ export default function InboxApp(props: {
   }, [listKey, listBase, listCache, fetchHead, showList]);
 
   // Al llegar al final de la lista se pide la página que sigue (toda la historia, de a una página).
-  useEffect(() => {
-    const el = moreRef.current;
-    if (!el || !next || switching) return;
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) void loadMore();
-    }, { rootMargin: '600px 0px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [next, switching, threads.length, loadMore]);
+  const nearEnd = useCallback(() => void loadMore(), [loadMore]);
+  useNearEnd(moreRef, !!next && !switching, nearEnd, threads.length);
 
   /** Va a otra vista o carpeta sin recargar la pantalla: el chat abierto sigue abierto. */
   const openRef = useRef(openId);

@@ -84,6 +84,16 @@ export default function AiComposeBar({ ai, tone = 'chat' }: { ai: AiCompose; ton
     if (open) field.current?.focus();
   }, [open]);
 
+  // Un botón que se usó puede dejar de estar (p. ej. "Sugerir una respuesta" mientras la AI escribe): el foco
+  // caería en la página y Esc cerraría el chat en vez de la barra. Vuelve al campo.
+  const phase = state.phase;
+  const hasError = state.error !== null && state.error !== undefined;
+  useEffect(() => {
+    if (!open) return;
+    const active = document.activeElement;
+    if (!active || active === document.body) field.current?.focus();
+  }, [open, phase, hasError]);
+
   if (!open) {
     if (ai.undo === null) return null;
     return (

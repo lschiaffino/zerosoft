@@ -486,6 +486,12 @@ test('Más tarde visible junto a Enviar (también con clic derecho) y los archiv
   const other = `${phone('4')}@s.whatsapp.net`;
   const name = `Arch ${uid()}`;
   const otherName = `Otro ${uid()}`;
+  // La cuenta es compartida entre specs: lo que otro dejó archivado se desarchiva, así la entrada cuenta solo lo de acá.
+  const left = (await (await request.get('/api/inbox/threads?view=archived')).json()) as { threads: Array<{ id: string }> };
+  if (left.threads.length > 0) {
+    const cleared = await request.post('/api/inbox/threads', { data: { ids: left.threads.map((t) => t.id), action: 'unarchive' } });
+    expect(cleared.ok(), await cleared.text()).toBe(true);
+  }
   await events(request, acc, [message(dm, { senderName: name, body: 'hola' }), message(other, { senderName: otherName, body: 'chau' })]);
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
