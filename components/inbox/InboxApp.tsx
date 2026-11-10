@@ -319,10 +319,15 @@ export default function InboxApp(props: {
   // Otra vista o carpeta: la búsqueda se limpia (como al entrar).
   const routeKey = `${view}:${folderId ?? ''}`;
   const lastRoute = useRef(routeKey);
+  const closeRef = useRef<() => void>(() => {});
   useEffect(() => {
     if (lastRoute.current === routeKey) return;
     lastRoute.current = routeKey;
     setQ('');
+    // Pantalla chica (un panel por vez): con un chat abierto la lista no se ve, y elegir otra vista o carpeta es
+    // ir a esa lista. En pantallas anchas el chat sigue abierto al lado.
+    const pane = document.querySelector<HTMLElement>('.ib-list-pane');
+    if (pane && window.getComputedStyle(pane).display === 'none') closeRef.current();
   }, [routeKey]);
   // La carpeta de la URL ya no existe (se borró): a la bandeja.
   useEffect(() => {
@@ -641,6 +646,7 @@ export default function InboxApp(props: {
     window.history.replaceState(window.history.state, '', url.toString());
     requestAnimationFrame(() => listRef.current?.querySelector<HTMLElement>(`[data-idx="${cursor}"] .ib-row-btn`)?.focus());
   }, [cursor]);
+  closeRef.current = closeConvo;
 
   const moreAction = async (a: MoreAction) => {
     setMoreOpen(false);
