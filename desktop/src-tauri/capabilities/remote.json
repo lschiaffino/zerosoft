@@ -1,9 +1,9 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "remote",
-  "description": "La página de zerosoft en la ventana principal: solo el puente (versión, login, Ajustes, avisos y el estado de la grabación). Un servidor propio se suma en runtime (lib.rs, allow_server).",
-  "windows": [
-    "main"
+  "description": "La página de zerosoft en cada pestaña (webviews \"tab-<id>\", tabs.rs): solo el puente (versión, login, Ajustes, avisos, el estado de la grabación y las pestañas). Un servidor propio se suma en runtime (lib.rs, allow_server).",
+  "webviews": [
+    "tab-*"
   ],
   "remote": {
     "urls": [
@@ -16,6 +16,10 @@
     "allow-desktop-start-login",
     "allow-desktop-open-settings",
     "allow-desktop-notify",
-    "allow-desktop-recording"
+    "allow-desktop-recording",
+    "allow-desktop-tabs",
+    "allow-desktop-system-audio-start",
+    "allow-desktop-system-audio-read",
+    "allow-desktop-system-audio-stop"
   ]
 }

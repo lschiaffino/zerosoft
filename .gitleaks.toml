@@ -11,4 +11,6 @@ paths = [
   '''(^|/)Cargo\.lock$''',
   '''^messages/''',
   '''^content/''',
+  # Nombres de variables del anillo de claves (ENCRYPTION_KEY...), sin valores: falso positivo de generic-api-key.
+  '''^lib/key-ring\.ts$''',
 ]

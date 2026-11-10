@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { getClient, getDb, type UserRow } from '@/lib/db';
 import { MIGRATIONS } from '@/lib/schema/migrations';
 import { addMember, resolveWorkspace } from '@/lib/teams';
-import { ensureWorkspace, getMembership, listMyWorkspaces, listTeamPeople } from '@/lib/workspace';
+import { ensureWorkspace, getMembership, listMyWorkspaces, listOwnerSpacePeople, listTeamPeople, workspaceOwnerPersonId } from '@/lib/workspace';
+import { createNotification, listNotifications } from '@/lib/notifications';
+import { resolveSteps } from '@/lib/hiring/approvals';
+import { getOnboardingState } from '@/lib/onboarding-state';
 import { createTeamWorkspace, ensurePersonalAndTeam, isPrincipalEmail, ownedTeamWorkspace, teamWorkspaceOf } from '@/lib/workspace-principal';
 import { personAppAccess } from '@/lib/api-auth';
 import { saveOnboarding } from '@/lib/onboarding';
@@ -47,6 +50,34 @@ describe('workspace de equipo con titular propio', () => {
     const own = await ensureWorkspace(carla.id);
     await getDb().prepare("INSERT INTO team_members (team_id, user_id, role) VALUES (?, ?, 'owner')").run(own.id, beto.id);
     expect((await getMembership(own, beto.id))?.role).toBe('admin');
+  });
+
+  it('"el owner" como persona es quien tiene el rol: listas, avisos y aprobaciones no van al titular', async () => {
+    const ana = await makeUser('wp8');
+    const beto = await makeUser('wp8b');
+    const team = await createTeamWorkspace(ana, 'Acme');
+    const ws = team.owner_id;
+    await addMember(team.id, beto.id, 'member');
+    expect(await workspaceOwnerPersonId(ws)).toBe(ana.id);
+    expect(await workspaceOwnerPersonId(ana.id)).toBe(ana.id);
+    // Las personas del workspace: Ana primero y como owner; el titular no está.
+    expect((await listOwnerSpacePeople(ws)).map((p) => [p.id, p.role])).toEqual([[ana.id, 'owner'], [beto.id, 'member']]);
+    // Un aviso "al owner" le llega a Ana.
+    const n = await createNotification({ userId: ws, type: 'people', title: 'Hola', sourceType: 'people', sourceId: 'x' });
+    expect(n.user_id).toBe(ana.id);
+    expect((await listNotifications(ana.id)).map((r) => r.title)).toContain('Hola');
+    // Aprobaciones: si pide Beto, revisa Ana; si pide Ana y no hay otro admin, no hay quien revise.
+    expect(await resolveSteps(ws, [], beto.id)).toEqual([{ userId: ana.id, status: 'pending', note: 'fallback' }]);
+    await expect(resolveSteps(ws, [ana.id], ana.id)).rejects.toMatchObject({ code: 'no_other_approver' });
+  });
+
+  it('Primeros pasos: ser owner del equipo no cuenta como haber invitado a alguien', async () => {
+    const ana = await makeUser('wp9');
+    const team = await createTeamWorkspace(ana, 'Acme');
+    expect((await getOnboardingState(ana.id, { workspaceId: team.owner_id, admin: true }))?.steps.find((s) => s.key === 'invite')?.done).toBe(false);
+    const beto = await makeUser('wp9b');
+    await addMember(team.id, beto.id, 'member');
+    expect((await getOnboardingState(ana.id, { workspaceId: team.owner_id, admin: true }))?.steps.find((s) => s.key === 'invite')?.done).toBe(true);
   });
 
   it('el titular no recibe emails', async () => {

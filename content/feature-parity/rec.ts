@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Loom',
-  lastReviewed: '2026-10-31',
+  lastReviewed: '2026-11-08',
   areas: [
     { id: 'capture', label: loc(['Recording', 'Grabación', 'Gravação']) },
     { id: 'recorder', label: loc(['Recording tools', 'Herramientas al grabar', 'Ferramentas de gravação']) },
@@ -185,12 +185,20 @@ const parity: ProductParity = {
     }),
 
     // Privacidad
-    row('privacy-levels', 'privacy', ['Who can watch: link, workspace or specific people', 'Quién lo ve: link, workspace o personas puntuales', 'Quem assiste: link, workspace ou pessoas específicas'], 'partial', {
+    row('privacy-levels', 'privacy', ['General access: restricted, workspace or anyone with the link', 'Acceso general: restringido, workspace o cualquiera con el link', 'Acesso geral: restrito, workspace ou qualquer pessoa com o link'], 'partial', {
       weight: 2,
       detail: [
-        'Anyone with the link, signed-in members of the workspace (or of the space), or only the emails you list, checked on every request. Workspace default for new videos. The link can be reset. Files in a public Blob store (the default without REC_BLOB_ACCESS=private) stay readable by anyone holding the storage URL; the app never shows that URL. Private storage is not in place yet',
-        'Cualquiera con el link, miembros del workspace con sesión (o del espacio), o solo los emails que listás, chequeado en cada pedido. Privacidad por defecto del workspace para lo nuevo. El link se puede cambiar. Los archivos en un store público de Blob (el default sin REC_BLOB_ACCESS=private) siguen siendo leíbles por quien tenga la URL del almacenamiento; la app nunca la muestra. Todavía no hay almacenamiento privado',
-        'Qualquer pessoa com o link, membros do workspace com sessão (ou do espaço), ou só os emails que você lista, verificado em cada pedido. Privacidade padrão do workspace para os novos. O link pode ser trocado. Os arquivos num store público do Blob (o padrão sem REC_BLOB_ACCESS=private) continuam legíveis por quem tiver a URL do armazenamento; o app nunca a mostra. Ainda não há armazenamento privado',
+        'New videos start restricted (only the owner and invited people) unless the workspace picks another default. Workspace (or space) members, or anyone with the link, checked on every request: page, file, thumbnail, captions, comments, views, embed and link previews. Videos shared by link before this change keep working and show as "Anyone with the link". The link can be reset. Files in a public Blob store (the default without REC_BLOB_ACCESS=private) stay readable by anyone holding the storage URL; the app never shows that URL',
+        'Lo nuevo nace restringido (solo quien grabó y las personas invitadas), salvo que el workspace elija otro default. Miembros del workspace (o del espacio), o cualquiera con el link, chequeado en cada pedido: página, archivo, miniatura, subtítulos, comentarios, vistas, inserción y vista previa del link. Los videos compartidos por link antes de este cambio siguen andando y aparecen como "Cualquiera con el link". El link se puede cambiar. Los archivos en un store público de Blob (el default sin REC_BLOB_ACCESS=private) siguen siendo leíbles por quien tenga la URL del almacenamiento; la app nunca la muestra',
+        'Os novos nascem restritos (só quem gravou e as pessoas convidadas), salvo se o workspace escolher outro padrão. Membros do workspace (ou do espaço), ou qualquer pessoa com o link, verificado em cada pedido: página, arquivo, miniatura, legendas, comentários, visualizações, incorporação e prévia do link. Os vídeos compartilhados por link antes desta mudança continuam funcionando e aparecem como "Qualquer pessoa com o link". O link pode ser trocado. Os arquivos num store público do Blob (o padrão sem REC_BLOB_ACCESS=private) continuam legíveis por quem tiver a URL do armazenamento; o app nunca a mostra',
+      ],
+    }),
+    row('invite-people', 'privacy', ['Invite people by email with a role', 'Invitar personas por email con rol', 'Convidar pessoas por email com papel'], 'partial', {
+      weight: 2,
+      detail: [
+        'Workspace members and outside emails, as viewer or commenter, with a list of who has access, whether they watched, role change and remove (cuts access right away). Members sign in; outside people get a one-time magic link by email that keeps them in for 30 days on that browser. Invited people skip the link password and expiry. Emails go out through Resend; the tests read the captured email',
+        'Miembros del workspace y emails de afuera, como lector o comentador, con la lista de quién tiene acceso, si ya lo vio, cambio de rol y quitar (corta el acceso al toque). Los miembros entran con su cuenta; la gente de afuera recibe por mail un link mágico de un solo uso que la deja adentro 30 días en ese navegador. Las personas invitadas no necesitan la contraseña del link ni las frena el vencimiento. Los mails salen por Resend; las pruebas leen el mail capturado',
+        'Membros do workspace e emails de fora, como leitor ou comentador, com a lista de quem tem acesso, se já assistiu, troca de papel e remover (corta o acesso na hora). Os membros entram com a conta; as pessoas de fora recebem por email um link mágico de uso único que as mantém dentro por 30 dias naquele navegador. As pessoas convidadas não precisam da senha do link nem são barradas pela expiração. Os emails saem pelo Resend; os testes leem o email capturado',
       ],
     }),
     row('password-protect', 'privacy', ['Password-protected videos', 'Videos con contraseña', 'Vídeos com senha'], 'have', {
@@ -202,9 +210,16 @@ const parity: ProductParity = {
     }),
     row('request-access', 'privacy', ['Request access or ask for an email to watch', 'Pedir acceso o pedir email para ver', 'Pedir acesso ou pedir email para assistir'], 'have', {
       detail: [
-        'Signed-in people without access ask for it; the owner gets a notice and approves or declines in Share, and an approval sends one email. "Ask for an email to watch" collects an email from people who are not signed in: it is not verified',
-        'Quien entró con su cuenta y no tiene acceso lo pide; el autor recibe un aviso y aprueba o rechaza en Compartir, y al aprobar sale un mail. "Pedir email para ver" le pide un email a quien no entró con su cuenta: no se verifica',
-        'Quem entrou com a conta e não tem acesso pede; o autor recebe um aviso e aprova ou recusa em Compartilhar, e ao aprovar sai um email. "Pedir email para assistir" pede um email a quem não entrou com a conta: não é verificado',
+        'People without access ask for it with their account or with an email; the owner gets a notice and approves or declines in Share, and an approval emails a magic link to that address. An invited person who lost the link asks for a new one the same way. "Ask for an email to watch" collects an email from people who are not signed in: it is not verified',
+        'Quien no tiene acceso lo pide con su cuenta o con un email; el autor recibe un aviso y aprueba o rechaza en Compartir, y al aprobar le llega un link mágico a ese email. Una persona invitada que perdió el link pide uno nuevo igual. "Pedir email para ver" le pide un email a quien no entró con su cuenta: no se verifica',
+        'Quem não tem acesso pede com a conta ou com um email; o autor recebe um aviso e aprova ou recusa em Compartilhar, e ao aprovar chega um link mágico nesse email. Uma pessoa convidada que perdeu o link pede um novo do mesmo jeito. "Pedir email para assistir" pede um email a quem não entrou com a conta: não é verificado',
+      ],
+    }),
+    row('mp4-download', 'sharing', ['Download as MP4', 'Descargar en MP4', 'Baixar em MP4'], 'partial', {
+      detail: [
+        'Downloads come as H.264/AAC MP4 named after the video, of the version others see (trim applied), built once and kept. Recording stays WebM so trimming and joining work without re-encoding. With ffmpeg on the server (self-host, CI) it is tested with ffprobe; on Vercel it runs in a Vercel Sandbox microVM, not yet tried in production. Without either, the original file downloads',
+        'La descarga sale en MP4 H.264/AAC con el nombre del video, de la versión que ven los demás (con el recorte aplicado), armada una vez y guardada. La grabación sigue en WebM para recortar y unir sin recodificar. Con ffmpeg en el servidor (self-host, CI) está probado con ffprobe; en Vercel corre en una microVM de Vercel Sandbox, todavía sin probar en producción. Sin ninguno, se baja el archivo original',
+        'O download sai em MP4 H.264/AAC com o nome do vídeo, da versão que os outros veem (com o corte aplicado), montado uma vez e guardado. A gravação continua em WebM para cortar e juntar sem recodificar. Com ffmpeg no servidor (self-host, CI) está testado com ffprobe; na Vercel roda numa microVM do Vercel Sandbox, ainda sem testar em produção. Sem nenhum, baixa o arquivo original',
       ],
     }),
     row('download-restriction', 'privacy', ['Block downloads', 'Bloquear la descarga', 'Bloquear o download'], 'have', {

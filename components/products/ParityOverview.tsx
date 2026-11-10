@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { PARITY } from "@/content/feature-parity";
 import { computeParity, loc } from "@/lib/feature-parity";
-import { PRODUCT_CONFIG, PRODUCT_KEYS, productHref } from "@/lib/products";
+import { PRODUCT_CONFIG, PRODUCT_KEYS, isComingSoon, productHref } from "@/lib/products";
 import { SECTION_IDS } from "@/components/site/catalog";
 import SectionSign from "@/components/site/SectionSign";
 
@@ -28,9 +28,11 @@ export default async function ParityOverview({
     competitor: PARITY[k].competitor,
     score: computeParity(PARITY[k].rows),
     note: PARITY[k].percentHidden?.note ?? null,
+    soon: isComingSoon(k),
   }));
-  // El promedio deja afuera a las apps sin porcentaje: miden otra cosa.
-  const comparable = rows.filter((r) => !r.note);
+  // El promedio deja afuera a las apps sin porcentaje (miden otra cosa) y a las
+  // "Próximamente" (todavía no se pueden usar: no cuentan como disponibles).
+  const comparable = rows.filter((r) => !r.note && !r.soon);
   const counted = comparable.reduce((s, r) => s + r.score.counted, 0);
   // Promedio simple de los porcentajes por app, truncado como computeParity.
   const average = Math.floor(
@@ -71,7 +73,7 @@ export default async function ParityOverview({
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ key, competitor, score, note }) => (
+              {rows.map(({ key, competitor, score, note, soon }) => (
                 <tr key={key}>
                   <th scope="row">
                     <Link
@@ -88,7 +90,9 @@ export default async function ParityOverview({
                   </th>
                   <td className="po-competitor po-sm-hide">{competitor}</td>
                   <td className="po-bar-col">
-                    {note ? (
+                    {soon ? (
+                      <span className="po-no-percent">{t("comingSoon")}</span>
+                    ) : note ? (
                       <span className="po-no-percent">{t("notComparable")}</span>
                     ) : (
                       <span className="po-bar-cell">

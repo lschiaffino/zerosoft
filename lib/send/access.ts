@@ -4,7 +4,7 @@
  * en cada pedido. Server-only.
  */
 import { getDb } from '../db';
-import { canUseApp } from '../workspace';
+import { canUseApp, workspaceOwnerPersonId } from '../workspace';
 import { createNotification } from '../notifications';
 import { localized } from '../notification-copy';
 
@@ -68,9 +68,10 @@ export async function linkProblem(link: LinkLike): Promise<LinkProblem | null> {
 /** Quién recibe un aviso: los que siguen en el workspace; por los que se fueron, el owner. */
 export async function activeRecipients(workspaceId: string, ids: string[]): Promise<string[]> {
   const out = new Set<string>();
+  const owner = await workspaceOwnerPersonId(workspaceId);
   for (const id of ids) {
     const a = await creatorAccess(workspaceId, id);
-    out.add(a.role === 'none' ? workspaceId : id);
+    out.add(a.role === 'none' ? owner : id);
   }
   return [...out];
 }
@@ -82,19 +83,22 @@ export async function activeRecipients(workspaceId: string, ids: string[]): Prom
 export async function transferLinksOfRemoved(e: { ownerId: string; userId: string }): Promise<{ moved: number; stopped: number }> {
   if (e.userId === e.ownerId) return { moved: 0, stopped: 0 };
   const db = getDb();
+  // Quien los recibe es una persona: en un workspace de equipo con titular propio, quien tiene el rol owner.
+  const to = await workspaceOwnerPersonId(e.ownerId);
+  if (to === e.userId) return { moved: 0, stopped: 0 };
   const rows = (await db
     .prepare('SELECT id, workspace_id, created_by, transferred_from, document_id, space_id FROM send_links WHERE workspace_id = ? AND created_by = ? AND deleted_at IS NULL')
     .all(e.ownerId, e.userId)) as Array<LinkLike & { id: string }>;
   if (!rows.length) return { moved: 0, stopped: 0 };
   let stopped = 0;
   for (const r of rows) {
-    const res = await db.prepare('UPDATE send_links SET created_by = ?, transferred_from = ?, updated_at = ? WHERE id = ? AND created_by = ?').run(e.ownerId, e.userId, new Date().toISOString(), r.id, e.userId);
+    const res = await db.prepare('UPDATE send_links SET created_by = ?, transferred_from = ?, updated_at = ? WHERE id = ? AND created_by = ?').run(to, e.userId, new Date().toISOString(), r.id, e.userId);
     if (!res.changes) continue;
-    if (await linkProblem({ ...r, created_by: e.ownerId, transferred_from: e.userId })) stopped++;
+    if (await linkProblem({ ...r, created_by: to, transferred_from: e.userId })) stopped++;
   }
   const person = (await db.prepare('SELECT name, email FROM users WHERE id = ?').get(e.userId)) as { name: string | null; email: string | null } | undefined;
   await createNotification({
-    userId: e.ownerId,
+    userId: to,
     type: 'send_activity',
     title: localized('sendLinksTransferred', { who: person?.name || person?.email || null, count: rows.length }),
     body: stopped ? localized('sendLinksStopped', { count: stopped }) : undefined,

@@ -1,0 +1,61 @@
+/*
+ * Apps "Próximamente": la página de lista de espera dentro de la app
+ * (/app/soon/<app>), el formulario (también en las páginas de producto del
+ * sitio) y el aviso de vista previa interna del staff.
+ */
+
+.wait-page { max-width: 720px; display: flex; flex-direction: column; gap: 32px; }
+.wait-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--accent, var(--ink));
+  background: var(--surface-1);
+}
+.wait-kicker { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 0.875rem; font-weight: 600; }
+.wait-badge {
+  padding: 0 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 18px;
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+}
+.wait-title {
+  margin: 0;
+  font-family: var(--font-signage);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
+  letter-spacing: var(--signage-tracking);
+  font-size: 1.75rem;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+.wait-desc { margin: 0; color: var(--ink); max-width: 60ch; }
+.wait-lead { margin: 0; color: var(--ink-2); font-size: 0.9375rem; max-width: 60ch; }
+.wait-form { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; max-width: 520px; }
+.wait-form .textarea { resize: vertical; min-height: 56px; }
+.wait-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.wait-privacy { font-size: 0.8125rem; color: var(--ink-3); }
+.wait-more { align-self: flex-start; }
+.wait-done {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  font-size: 0.9375rem;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--ink);
+  max-width: 60ch;
+}
+.wait-form .ui-error { margin: 0; }
+/* Honeypot: fuera de la pantalla, no display:none (algunos bots lo saltean). */
+.wait-hp { position: absolute; left: -10000px; width: 1px; height: 1px; opacity: 0; }
+.wait-preview, .wait-back { margin: 0; font-size: 0.875rem; }
+.wait-others { display: flex; flex-direction: column; gap: 8px; }
+
+@media (max-width: 560px) {
+  .wait-card { padding: 16px; }
+  .wait-title { font-size: 1.375rem; }
+}

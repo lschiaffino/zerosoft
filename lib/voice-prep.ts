@@ -7,7 +7,7 @@
  */
 import { getDb } from './db';
 import { followupEmail, meetingBrief, type PastMeeting } from './voice-ai';
-import { askAcross, chat } from './voice-service';
+import { askAcross, chat, type ChatArgs } from './voice-service';
 import { getSessionDetail, getSessionRow, parseAttendees, VoiceError, type VoiceOwner } from './voice';
 import { meetingPlainText, type MeetingLabels } from './voice-integrations';
 import { getUsablePrompt } from './voice-library';
@@ -137,6 +137,64 @@ export async function followupForSession(args: {
   return followup;
 }
 
+/**
+ * Buzón de la persona para mandar el seguimiento: su Gmail o su Outlook
+ * conectados (en el CRM o Inbox) con permiso de envío. Solo mira la conexión,
+ * sin pedir token: sirve para mostrar el botón.
+ */
+export async function followupMailbox(personId: string): Promise<{ email: string; provider: 'gmail' | 'outlook' } | null> {
+  const { getIntegration } = await import('./integrations');
+  const { scopeAllowsSend } = await import('./gmail');
+  const { OUTLOOK_PROVIDER, outlookScopeAllowsSend } = await import('./microsoft');
+  const gmail = await getIntegration(personId, 'gmail').catch(() => null);
+  if (gmail && scopeAllowsSend(gmail.scope)) return { email: gmail.email, provider: 'gmail' };
+  const outlook = await getIntegration(personId, OUTLOOK_PROVIDER).catch(() => null);
+  if (outlook && outlookScopeAllowsSend(outlook.scope)) return { email: outlook.email, provider: 'outlook' };
+  return null;
+}
+
+/**
+ * Manda el seguimiento desde el buzón de la persona (nunca desde el correo
+ * del sistema: sale con su nombre o no sale). Queda guardado con la hora.
+ */
+export async function sendFollowup(
+  owner: VoiceOwner,
+  sessionId: string,
+  f: { to: string[]; subject: string; body: string },
+): Promise<{ via: 'gmail' | 'outlook'; from: string; followup: VoiceFollowup }> {
+  const row = await getSessionRow(owner, sessionId);
+  if (!row || row.kind !== 'meeting') throw new VoiceError('not_found');
+  if (!f.to.length || !f.body.trim()) throw new VoiceError('invalid_state');
+  const { gmailSender, textToEmailHtml } = await import('./crm-email');
+  const html = textToEmailHtml(f.body, { tracking: false });
+  const to = f.to.join(', ');
+  let via: 'gmail' | 'outlook';
+  let from: string;
+  const gmail = await gmailSender(owner.personId);
+  if (gmail) {
+    const { buildMime, gmailSend } = await import('./gmail');
+    await gmailSend(gmail.token, buildMime({ from: gmail.email, to, subject: f.subject, text: f.body, html })).catch(() => {
+      throw new VoiceError('send_failed');
+    });
+    via = 'gmail';
+    from = gmail.email;
+  } else {
+    const { outlookSender } = await import('./crm-outlook-sync');
+    const outlook = await outlookSender(owner.personId);
+    if (!outlook) throw new VoiceError('mailbox_not_connected');
+    const { graphSendMail } = await import('./microsoft');
+    await graphSendMail(outlook.token, { to, subject: f.subject, html }).catch(() => {
+      throw new VoiceError('send_failed');
+    });
+    via = 'outlook';
+    from = outlook.email;
+  }
+  const at = new Date().toISOString();
+  const followup: VoiceFollowup = { ...f, at, sentAt: at };
+  await saveFollowup(sessionId, followup);
+  return { via, from, followup };
+}
+
 export async function saveFollowup(sessionId: string, followup: VoiceFollowup): Promise<void> {
   await getDb()
     .prepare(
@@ -169,8 +227,18 @@ export async function runRecipeOnMeeting(args: {
   recipe: { name: string; prompt: string };
   locale: string;
   labels: MeetingLabels;
-}): Promise<VoiceChatMessage[]> {
-  return chat({ owner: args.owner, sessionId: args.sessionId, question: args.recipe.prompt, shownQuestion: `/${args.recipe.name}`, locale: args.locale, labels: args.labels });
+} & Pick<ChatArgs, 'thread' | 'model' | 'attachment'>): Promise<VoiceChatMessage[]> {
+  return chat({
+    owner: args.owner,
+    sessionId: args.sessionId,
+    question: args.recipe.prompt,
+    shownQuestion: `/${args.recipe.name}`,
+    locale: args.locale,
+    labels: args.labels,
+    thread: args.thread,
+    model: args.model,
+    attachment: args.attachment,
+  });
 }
 
 /** Corre un recipe sobre varias reuniones (las que mencionan el tema, o las últimas). */

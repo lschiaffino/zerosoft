@@ -25,6 +25,8 @@ export async function POST(req: NextRequest) {
   const app = parsed.data.app;
   // En tu propio workspace, o si ya la tenés, no hay nada que pedir.
   if (!ctx.user.actingUser || userCanUseApp(ctx.user, app)) return teamsError('already_has_access', 409);
+  // Si el workspace la apagó o no la abrió para esta persona, un admin no puede arreglarlo desde Miembros: no hay nada que pedir.
+  if (ctx.user.blockedApps?.includes(app)) return teamsError('app_disabled', 409);
   const burst = await rateLimit(`teams:access-request:${ctx.realId}`, 20, 3600);
   if (!burst.ok) return teamsError('rate_limited', 429);
   const { already } = await askForApp(ctx.team, { id: ctx.realId, name: ctx.real.name, email: ctx.real.email, role: ctx.role }, app);

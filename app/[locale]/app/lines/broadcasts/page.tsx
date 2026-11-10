@@ -19,7 +19,7 @@ export default async function GroupsBroadcastsPage(props: { params: Promise<{ lo
   const t = await getTranslations({ locale, namespace: 'groups' });
   const [broadcasts, numbers, recurringAll, visible] = await Promise.all([
     listBroadcasts(user.id),
-    listNumbers(user.id),
+    listNumbers(user.id, await pageViewer(user)),
     listRecurring(user.id),
     pageViewer(user).then(visibleChatIds),
   ]);

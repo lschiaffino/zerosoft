@@ -15,7 +15,8 @@
  * - Los subequipos viven en lib/workspace-groups.ts.
  */
 import { getDb, type Db, type TeamRow, type UserRow } from './db';
-import { appFromPath, isAlwaysOnApp, isProductKey, type ProductKey } from './products';
+import { appFromPath, isProductKey, type ProductKey } from './products';
+import { memberDenied } from './app-access';
 import { normalizeWorkspaceMode, WORKSPACE_SIZES_LIST, type WorkspaceMode } from './workspace-mode';
 import { slugifyName } from './schema/workspace-migrations';
 
@@ -47,19 +48,26 @@ export function serializeApps(apps: AppAccess | readonly string[] | null | undef
   return parsed === '*' ? '*' : JSON.stringify(parsed);
 }
 
-/** ¿La persona puede usar la app en el workspace? Owner siempre; guest nunca; admin y member según `apps`. */
+/**
+ * ¿La persona puede usar la app según sus apps habilitadas? Owner siempre;
+ * guest nunca; admin y member según `apps`. Es la capa de la persona de
+ * lib/app-access.ts; la plataforma y el workspace los suma `userCanUseApp`.
+ */
 export function canUseApp(access: { role?: string | null; apps?: AppAccess | string | null }, app: ProductKey): boolean {
-  const role = access.role ?? 'owner';
-  if (role === 'owner') return true;
-  // Inbox es personal (los mensajes de la persona, no del workspace): siempre la tiene.
-  if (isAlwaysOnApp(app)) return true;
-  if (role === 'guest') return false;
   const apps = typeof access.apps === 'string' || access.apps == null ? parseApps(access.apps) : access.apps;
-  return apps === '*' || apps.includes(app);
+  return !memberDenied(access.role ?? 'owner', apps, app);
 }
 
-/** ¿La sesión puede usar la app en el workspace activo? (rol y apps de la sesión). */
-export function userCanUseApp(user: { role?: string | null; apps?: AppAccess | string | null }, app: ProductKey): boolean {
+/**
+ * ¿La sesión puede usar la app en el workspace activo? Las tres capas de
+ * lib/app-access.ts: `blockedApps` (Próximamente y Apps del workspace, ya
+ * resuelto para la persona) y sus apps habilitadas.
+ */
+export function userCanUseApp(
+  user: { role?: string | null; apps?: AppAccess | string | null; blockedApps?: readonly ProductKey[] | null },
+  app: ProductKey,
+): boolean {
+  if (user.blockedApps?.includes(app)) return false;
   return canUseApp({ role: user.role ?? 'owner', apps: user.apps ?? '*' }, app);
 }
 
@@ -399,6 +407,20 @@ export async function isWorkspaceOwnerPerson(ws: string, personId: string | null
   return Boolean(row);
 }
 
+/**
+ * La persona que es owner del workspace cuyos datos cuelgan de `ws`: `ws`
+ * mismo, salvo en un workspace de equipo con titular propio, donde es quien
+ * tiene el rol owner. Para avisos, aprobaciones y traspasos "al owner": el
+ * titular no es una persona y no los recibe. Sin nadie con ese rol, devuelve `ws`.
+ */
+export async function workspaceOwnerPersonId(ws: string, db: Db = getDb()): Promise<string> {
+  if (!isPrincipalId(ws)) return ws;
+  const row = (await db
+    .prepare("SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.role = 'owner' ORDER BY m.created_at, m.user_id LIMIT 1")
+    .get(ws)) as { user_id: string } | undefined;
+  return row?.user_id ?? ws;
+}
+
 /** Membresía de la persona en el equipo (null = no es parte). */
 export async function getMembership(
   team: Pick<TeamRow, 'id' | 'owner_id'>,
@@ -450,6 +472,9 @@ export interface SpacePerson {
 /**
  * Personas del espacio del owner (ver ownerSpaceSql): el owner primero. Con
  * `app`, solo quienes tienen esa app (pools de Chat, hosts de Cal…).
+ *
+ * En un workspace de equipo con titular propio, el titular no es una persona
+ * (no se lista) y el owner es quien tiene ese rol en team_members.
  */
 export async function listOwnerSpacePeople(ownerId: string, opts: { app?: ProductKey } = {}, db: Db = getDb()): Promise<SpacePerson[]> {
   const rows = (await db
@@ -460,14 +485,20 @@ export async function listOwnerSpacePeople(ownerId: string, opts: { app?: Produc
                 WHERE ot.owner_id = ? AND ot.keyed_by = 'owner' AND om.user_id = u.id AND om.role = 'admin') THEN 'admin' ELSE 'member' END AS role,
               (SELECT om.apps FROM team_members om JOIN teams ot ON ot.id = om.team_id
                WHERE ot.owner_id = ? AND ot.keyed_by = 'owner' AND om.user_id = u.id AND om.role != 'guest'
-               ORDER BY om.apps = '*' DESC LIMIT 1) AS apps
+               ORDER BY om.apps = '*' DESC LIMIT 1) AS apps,
+              EXISTS (SELECT 1 FROM team_members om JOIN teams ot ON ot.id = om.team_id
+               WHERE ot.owner_id = ? AND ot.keyed_by = 'owner' AND om.user_id = u.id AND om.role = 'owner') AS owner_member
        FROM users u
        WHERE ${ownerSpaceSql('?', 'u.id')}
        ORDER BY u.id = ? DESC, u.name COLLATE NOCASE ASC, u.email ASC`,
     )
-    .all(ownerId, ownerId, ownerId, ownerId, ownerId, ownerId)) as Array<{ id: string; email: string; name: string | null; role: string; apps: string | null }>;
+    .all(ownerId, ownerId, ownerId, ownerId, ownerId, ownerId, ownerId)) as Array<{ id: string; email: string; name: string | null; role: string; apps: string | null; owner_member: number }>;
+  const principal = isPrincipalId(ownerId);
+  const isOwner = (r: { id: string; owner_member: number }) => (principal ? Boolean(r.owner_member) : r.id === ownerId);
   return rows
-    .map((r) => ({ id: r.id, email: r.email, name: r.name, role: normalizeWorkspaceRole(r.role), apps: r.id === ownerId ? '*' : r.apps }))
+    .filter((r) => !(principal && r.id === ownerId))
+    .map((r) => ({ id: r.id, email: r.email, name: r.name, role: isOwner(r) ? ('owner' as WorkspaceRole) : normalizeWorkspaceRole(r.role), apps: isOwner(r) ? '*' : r.apps, first: isOwner(r) }))
+    .sort((a, b) => Number(b.first) - Number(a.first))
     .filter((r) => !opts.app || canUseApp({ role: r.role, apps: r.apps }, opts.app))
     .map(({ id, email, name, role }) => ({ id, email, name, role }));
 }

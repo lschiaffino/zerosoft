@@ -101,7 +101,8 @@
     "guest": "Invitado",
     "authorBadge": "Autor",
     "more": "Ver comentarios anteriores ({shown} de {total})",
-    "signinToComment": "Entrá con tu cuenta para comentar este video."
+    "signinToComment": "Entrá con tu cuenta para comentar este video.",
+    "viewOnly": "Podés ver este video. Los comentarios no están habilitados para vos."
   },
   "common": {
     "copied": "Copiado",
@@ -146,7 +147,7 @@
       "offline_start": "Sin conexión: para empezar a grabar hace falta conexión.",
       "invalid_path": "Esa subida no es válida.",
       "part_missing": "Falta una parte de la grabación en este navegador.",
-      "people_needs_personal": "\"Solo personas puntuales\" es para videos de Mis videos.",
+      "people_needs_personal": "Restringido es para videos de Mis videos.",
       "invalid_space": "Ese espacio no está disponible.",
       "invalid_color": "Usá un color como #e11d48.",
       "edit_too_large": "Los archivos de más de 600 MB no se pueden editar en el navegador.",
@@ -162,9 +163,13 @@
       "export_widens": "Confirmá primero: más gente leería este video.",
       "transfer_owner": "El contenido de la dueña no se puede traspasar.",
       "transfer_not_former": "Solo se traspasa el contenido de alguien que se fue del workspace.",
-      "transfer_self": "Elegí a otra persona para recibirlo."
+      "transfer_self": "Elegí a otra persona para recibirlo.",
+      "invite_quota": "Demasiadas invitaciones por hoy.",
+      "comment_forbidden": "Podés ver este video, pero no comentarlo.",
+      "invalid_link": "Este link ya se usó o venció."
     },
-    "downloading": "Descargando {pct}%"
+    "downloading": "Descargando {pct}%",
+    "preparingMp4": "Preparando el MP4…"
   },
   "watch": {
     "copyLink": "Copiar link",
@@ -195,7 +200,7 @@
       },
       "signin": {
         "title": "Entrá para verlo",
-        "body": "Este video lo pueden ver solo algunas personas. Entrá con tu cuenta para saber si sos una de ellas."
+        "body": "Este video lo pueden ver solo algunas personas. Entrá con tu cuenta o pedí un link con tu email."
       },
       "forbidden": {
         "title": "No podés ver este video",
@@ -208,6 +213,10 @@
       "email": {
         "title": "Dejá tu email para ver",
         "body": "Quien compartió este video ve el email que escribas acá."
+      },
+      "invite": {
+        "title": "Te compartieron un video",
+        "body": "Abrilo con este link. Sirve una vez en este navegador."
       }
     },
     "email": "Tu email",
@@ -216,7 +225,13 @@
     "invalidEmail": "Escribí un email válido.",
     "requestAccess": "Pedir acceso",
     "requestSent": "Pedido enviado. Si lo aprueban, te llega un mail.",
-    "requestDenied": "Quien grabó el video rechazó este pedido."
+    "requestDenied": "Quien grabó el video rechazó este pedido.",
+    "inviteUsed": "Este link ya se usó o venció. Pedí uno nuevo con tu email.",
+    "openVideo": "Abrir el video",
+    "magicTitle": "¿Te invitaron por email?",
+    "magicHelp": "Escribí tu email. Si te compartieron el video, te mandamos un link para verlo. Si no, le pedimos acceso a quien lo grabó.",
+    "magicSend": "Mandame un link",
+    "magicSent": "Listo. Mirá tu email: si tenés acceso, ahí está el link. Si no, a quien lo grabó le llegó tu pedido."
   },
   "library": {
     "mine": "Mis videos",
@@ -257,7 +272,6 @@
     "deleteBody": "Se borran el video, sus comentarios y sus vistas, y el link deja de andar.",
     "moveTitle": "Mover video",
     "moveHelp": "Los videos del workspace los ve todo el workspace.",
-    "moveNeedsPrivacy": "Este video está en \"Solo personas puntuales\", que solo funciona en Mis videos. Cambiá quién puede verlo en Compartir y después movelo.",
     "moveBecomesPeople": "En Mis videos este video pasa a \"Solo personas puntuales\": el resto del workspace deja de verlo.",
     "move": "Mover",
     "branchEmpty": "Todavía no hay carpetas",
@@ -291,7 +305,8 @@
     "archiveAction": "Archivar",
     "restore": "Restaurar",
     "archived": "Archivado",
-    "restored": "Restaurado"
+    "restored": "Restaurado",
+    "moveBecomesShared": "En un espacio compartido lo ven sus miembros. Las personas que invitaste siguen teniendo acceso."
   },
   "record": {
     "title": "Grabar un video",
@@ -311,13 +326,9 @@
   },
   "share": {
     "title": "Compartir",
-    "link": "Link",
     "copyLink": "Copiar link",
     "embed": "Insertar",
     "copyEmbed": "Copiar código",
-    "who": "Quién lo puede ver",
-    "anyone": "Cualquiera con el link",
-    "workspaceOnly": "Solo miembros de este workspace con sesión iniciada",
     "changePassword": "Contraseña nueva",
     "password": "Contraseña (opcional)",
     "passwordSet": "Tiene contraseña",
@@ -331,11 +342,7 @@
     "passwordHelp": "Al menos 8 caracteres. Con contraseña, la descarga arranca apagada.",
     "downloadNote": "Apagarla saca el botón de descarga. El video se sigue transmitiendo, así que alguien decidido podría capturarlo.",
     "requireAccount": "Solo pueden comentar personas con sesión iniciada",
-    "peopleOnly": "Solo personas puntuales",
-    "peopleNeedsPersonal": "\"Solo personas puntuales\" es para videos de Mis videos. En un espacio compartido lo ven sus miembros.",
-    "peopleList": "Quiénes lo ven (emails)",
-    "peopleExtra": "Dejar ver también a estas personas (emails)",
-    "peopleHelp": "Tienen que entrar con ese email. Uno por línea o separados por comas. Sacar un email corta el acceso al toque. No se manda nada: copiá el link y compartilo.",
+    "peopleNeedsPersonal": "Restringido es para videos de Mis videos. Los de un espacio compartido los ven sus miembros.",
     "requests": "Pedidos de acceso",
     "approve": "Aprobar",
     "deny": "Rechazar",
@@ -345,7 +352,46 @@
     "rotateHelp": "El link actual y lo insertado dejan de andar.",
     "rotateGo": "Cambiar link",
     "rotateTitle": "¿Cambiar el link?",
-    "rotateBody": "Quien tenga el link actual o lo tenga insertado pierde el acceso. Vas a tener que compartir el nuevo."
+    "rotateBody": "Quien tenga el link actual o lo tenga insertado pierde el acceso. Vas a tener que compartir el nuevo.",
+    "titleOf": "Compartir “{title}”",
+    "addPeople": "Sumar personas",
+    "addPlaceholder": "Emails, separados por comas",
+    "role": "Rol",
+    "roleCommenter": "Puede comentar",
+    "roleViewer": "Puede ver",
+    "invite": "Invitar",
+    "sendMail": "Mandarles un mail con el link para ver",
+    "addInvalid": "Escribí emails válidos, separados por comas.",
+    "addFull": "Un video se puede compartir con hasta 100 personas.",
+    "addQuota": "Demasiadas invitaciones por hoy. Probá mañana.",
+    "addError": "No se pudo guardar el cambio. Probá de nuevo.",
+    "addedSent": "{n, plural, one {Invitación enviada} other {# invitaciones enviadas}}.",
+    "added": "{n, plural, =0 {Rol actualizado} one {Persona sumada} other {# personas sumadas}}.",
+    "peopleWithAccess": "Personas con acceso",
+    "owner": "Dueño",
+    "loadingPeople": "Cargando…",
+    "peopleError": "No se pudo cargar quién tiene acceso.",
+    "retry": "Reintentar",
+    "member": "Del workspace",
+    "viewed": "Lo vio",
+    "notViewed": "Todavía no lo vio",
+    "roleFor": "Rol de {email}",
+    "removeFor": "Quitar a {email}",
+    "remove": "Quitar",
+    "noPeople": "Todavía no invitaste a nadie. Sumá emails arriba.",
+    "generalAccess": "Acceso general",
+    "accessPeople": "Restringido",
+    "accessWorkspace": "Cualquiera del workspace",
+    "accessSpace": "Cualquiera de este espacio",
+    "accessLink": "Cualquiera con el link",
+    "accessPeopleHelp": "Solo vos y las personas de arriba pueden abrir el link.",
+    "accessWorkspaceHelp": "Lo abren los miembros del workspace con su sesión, y las personas de arriba.",
+    "accessSpaceHelp": "Lo abren los miembros de este espacio, y las personas de arriba.",
+    "accessLinkHelp": "Cualquiera que tenga el link lo puede ver, sin entrar.",
+    "linkOptions": "Opciones del link",
+    "invitedSkip": "Las personas invitadas por email no necesitan la contraseña y siguen entrando aunque el link venza.",
+    "embedAndLink": "Insertar y cambiar el link",
+    "embedHelp": "Insertado, solo se reproduce para quien puede abrir el link."
   },
   "detail": {
     "library": "Videos",
@@ -441,7 +487,7 @@
     "restored": "Restaurado",
     "rotated": "Link nuevo listo",
     "badgeArchived": "Archivado",
-    "badgePeople": "Personas puntuales"
+    "badgePeople": "Restringido"
   },
   "pending": {
     "title": "Grabaciones esperando para subir",
@@ -579,6 +625,7 @@
     "transferDone": "Se traspasaron {videos, plural, one {# video} other {# videos}} y {folders, plural, one {# carpeta} other {# carpetas}}.",
     "transferConfirmTitle": "¿Traspasar este contenido?",
     "transferConfirmBody": "{videos, plural, one {# video} other {# videos}} y {folders, plural, one {# carpeta} other {# carpetas}} pasan de {from} a {to}. {to} va a ver también los videos personales de {from}.",
-    "transferNone": "Nadie que se haya ido tiene videos o carpetas acá."
+    "transferNone": "Nadie que se haya ido tiene videos o carpetas acá.",
+    "privacyPeople": "Restringido: solo quien lo graba y quienes invite"
   }
 }

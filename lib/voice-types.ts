@@ -178,6 +178,8 @@ export interface VoiceEnhancedPoint {
   text: string;
   /** De dónde salió: lo que escribió la persona o la transcripción. */
   source: 'mine' | 'transcript';
+  /** 1 = viñeta adentro de la anterior (un detalle). */
+  level?: 0 | 1;
 }
 
 export interface VoiceEnhanced {
@@ -193,7 +195,20 @@ export interface VoiceChatMessage {
   role: 'user' | 'assistant';
   text: string;
   at: string;
+  /** Conversación dentro de la reunión ("Nuevo chat" abre otra); sin valor, la primera. */
+  thread?: string;
 }
+
+/** Modelos del chat: rápido (el del asistente) o a fondo (el de la suite). */
+export type VoiceChatModel = 'fast' | 'deep';
+
+/** Archivo de texto que se adjunta a una pregunta (no se guarda: va como contexto). */
+export interface VoiceChatAttachment {
+  name: string;
+  text: string;
+}
+
+export const VOICE_ATTACHMENT_MAX_CHARS = 60_000;
 
 export interface VoiceSessionDetail extends VoiceSessionSummary {
   rawText: string;
@@ -241,6 +256,8 @@ export interface VoiceFollowup {
   subject: string;
   body: string;
   at: string;
+  /** Se mandó desde el buzón de la persona. */
+  sentAt?: string;
 }
 
 export interface VoiceFolder {
@@ -268,7 +285,7 @@ export interface VoicePrompt {
 }
 
 /** Recipes y transforms de fábrica (el texto vive en messages/<locale>/voice.json › prompts). */
-export const VOICE_BUILTIN_RECIPES = ['action_items', 'follow_up', 'my_commitments', 'objections', 'coach'] as const;
+export const VOICE_BUILTIN_RECIPES = ['action_items', 'follow_up', 'my_commitments', 'objections', 'coach', 'todos', 'longer', 'tldr'] as const;
 export const VOICE_BUILTIN_TRANSFORMS = ['shorter', 'formal', 'friendly', 'bullets', 'translate_en'] as const;
 
 export type VoiceShareAccess = 'workspace' | 'people' | 'anyone';

@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, request as pwRequest, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
 
 /**
@@ -61,7 +61,7 @@ async function shareWith(request: APIRequestContext, ctx: BrowserContext, pageId
   const visit = await ctx.newPage();
   await visit.goto('/en/app/docs', { waitUntil: 'domcontentloaded' });
   await visit.close();
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   try {
     await db.execute({ sql: "UPDATE users SET onboarded_at = datetime('now') WHERE email = ?", args: [email] });
   } finally {

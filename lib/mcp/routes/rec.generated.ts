@@ -17,10 +17,11 @@ import * as r14 from "@/lib/routes/rec/videos/[id]/file/route";
 import * as r15 from "@/app/api/rec/videos/[id]/finalize/route";
 import * as r16 from "@/lib/routes/rec/videos/[id]/later/route";
 import * as r17 from "@/lib/routes/rec/videos/[id]/parts/route";
-import * as r18 from "@/lib/routes/rec/videos/[id]/recap/route";
-import * as r19 from "@/lib/routes/rec/videos/[id]/requests/route";
-import * as r20 from "@/lib/routes/rec/videos/[id]/requests/[rid]/route";
-import * as r21 from "@/app/api/rec/videos/[id]/transcribe/route";
+import * as r18 from "@/lib/routes/rec/videos/[id]/people/route";
+import * as r19 from "@/lib/routes/rec/videos/[id]/recap/route";
+import * as r20 from "@/lib/routes/rec/videos/[id]/requests/route";
+import * as r21 from "@/lib/routes/rec/videos/[id]/requests/[rid]/route";
+import * as r22 from "@/app/api/rec/videos/[id]/transcribe/route";
 
 export const routes: Record<string, unknown> = {
   "/api/rec/folders": r0,
@@ -41,8 +42,9 @@ export const routes: Record<string, unknown> = {
   "/api/rec/videos/[id]/finalize": r15,
   "/api/rec/videos/[id]/later": r16,
   "/api/rec/videos/[id]/parts": r17,
-  "/api/rec/videos/[id]/recap": r18,
-  "/api/rec/videos/[id]/requests": r19,
-  "/api/rec/videos/[id]/requests/[rid]": r20,
-  "/api/rec/videos/[id]/transcribe": r21,
+  "/api/rec/videos/[id]/people": r18,
+  "/api/rec/videos/[id]/recap": r19,
+  "/api/rec/videos/[id]/requests": r20,
+  "/api/rec/videos/[id]/requests/[rid]": r21,
+  "/api/rec/videos/[id]/transcribe": r22,
 };

@@ -91,6 +91,12 @@ export interface GroupsViewer {
   restricted: boolean;
   /** Teléfonos ocultos. */
   mask: boolean;
+  /**
+   * Ve solo las líneas (números) que le dejaron ver: las de visibilidad "todo
+   * el workspace", las que tiene a su nombre, las que le dieron por persona o
+   * por equipo. Admins y dueño ven todas.
+   */
+  linesScoped: boolean;
 }
 
 export function viewerFrom(ws: string, me: string, role: TeamRole, settings: PlatformSettings): GroupsViewer {
@@ -100,6 +106,7 @@ export function viewerFrom(ws: string, me: string, role: TeamRole, settings: Pla
     role,
     restricted: (settings.labelAccess && role === 'member') || role === 'guest',
     mask: role === 'guest' || (role !== 'owner' && settings.maskRoles.includes(role)),
+    linesScoped: role === 'member' || role === 'guest',
   };
 }
 
@@ -109,20 +116,62 @@ export async function groupsViewer(ws: string, me: string, role: TeamRole): Prom
 
 /** Sin restricciones (cron, webhooks, Flow): ve todo y sin máscara. */
 export function systemViewer(ws: string): GroupsViewer {
-  return { ws, me: ws, role: 'owner', restricted: false, mask: false };
+  return { ws, me: ws, role: 'owner', restricted: false, mask: false, linesScoped: false };
+}
+
+/**
+ * Condición SQL para las líneas que ve (alias de groups_numbers). null si ve
+ * todas. Los args van en el orden del SQL.
+ */
+export function numberAccessSql(viewer: GroupsViewer | null | undefined, alias = 'n'): { sql: string; args: string[] } | null {
+  if (!viewer?.linesScoped) return null;
+  return {
+    sql: `(${alias}.visibility = 'all' OR ${alias}.owner_id = ? OR EXISTS (SELECT 1 FROM groups_number_access zna WHERE zna.number_id = ${alias}.id
+           AND ((zna.kind = 'person' AND zna.ref_id = ?)
+             OR (zna.kind = 'team' AND zna.ref_id IN (SELECT ztm.team_id FROM groups_team_members ztm WHERE ztm.person_id = ?)))))`,
+    args: [viewer.me, viewer.me, viewer.me],
+  };
 }
 
 /**
  * Condición SQL para los chats que ve (alias de groups_chats). null si ve
- * todos. Los args van en el orden del SQL.
+ * todos. Los args van en el orden del SQL. Junta la visibilidad por línea y,
+ * si está activo, el acceso por etiqueta.
  */
 export function chatAccessSql(viewer: GroupsViewer | null | undefined, alias = 'c'): { sql: string; args: string[] } | null {
-  if (!viewer?.restricted) return null;
-  return {
-    sql: `(${alias}.assigned_to = ? OR EXISTS (SELECT 1 FROM groups_chat_labels zl JOIN groups_label_access za ON za.label_id = zl.label_id
-           WHERE zl.chat_id = ${alias}.id AND za.person_id = ?))`,
-    args: [viewer.me, viewer.me],
-  };
+  const parts: string[] = [];
+  const args: string[] = [];
+  const line = numberAccessSql(viewer, 'zn');
+  if (line) {
+    parts.push(`EXISTS (SELECT 1 FROM groups_numbers zn WHERE zn.id = ${alias}.number_id AND ${line.sql})`);
+    args.push(...line.args);
+  }
+  if (viewer?.restricted) {
+    parts.push(`(${alias}.assigned_to = ? OR EXISTS (SELECT 1 FROM groups_chat_labels zl JOIN groups_label_access za ON za.label_id = zl.label_id
+           WHERE zl.chat_id = ${alias}.id AND za.person_id = ?))`);
+    args.push(viewer.me, viewer.me);
+  }
+  return parts.length ? { sql: parts.join(' AND '), args } : null;
+}
+
+/** ¿Ve esta línea? (visibilidad por línea; las etiquetas no cuentan). */
+export async function canSeeNumber(viewer: GroupsViewer | null | undefined, numberId: string): Promise<boolean> {
+  if (!viewer) return false;
+  const access = numberAccessSql(viewer);
+  const row = await getDb()
+    .prepare(`SELECT 1 AS x FROM groups_numbers n WHERE n.id = ? AND n.user_id = ?${access ? ` AND ${access.sql}` : ''}`)
+    .get(numberId, viewer.ws, ...(access?.args ?? []));
+  return Boolean(row);
+}
+
+/** Ids de las líneas que ve. null = todas. */
+export async function visibleNumberIds(viewer: GroupsViewer | null | undefined): Promise<Set<string> | null> {
+  const access = numberAccessSql(viewer);
+  if (!viewer || !access) return null;
+  const rows = (await getDb().prepare(`SELECT n.id FROM groups_numbers n WHERE n.user_id = ? AND ${access.sql}`).all(viewer.ws, ...access.args)) as Array<{
+    id: string;
+  }>;
+  return new Set(rows.map((r) => r.id));
 }
 
 export async function canSeeChat(viewer: GroupsViewer | null | undefined, chatId: string): Promise<boolean> {
@@ -133,6 +182,15 @@ export async function canSeeChat(viewer: GroupsViewer | null | undefined, chatId
     .prepare(`SELECT 1 AS x FROM groups_chats c WHERE c.id = ? AND c.user_id = ?${access ? ` AND ${access.sql}` : ''}`)
     .get(chatId, viewer.ws, ...(access?.args ?? []));
   return Boolean(row);
+}
+
+/**
+ * ¿Esta persona puede ver el chat? Para avisos (push, notificaciones, emails)
+ * que se arman fuera de un request: nunca se avisa de un chat que no ve.
+ */
+export async function personCanSeeChat(ws: string, personId: string, chatId: string): Promise<boolean> {
+  const { workspaceRole } = await import('./api-auth');
+  return canSeeChat(await groupsViewer(ws, personId, await workspaceRole(ws, personId)), chatId);
 }
 
 /** Ids de los chats visibles (para filtrar listas que no son de chats: tickets, reportes). null = todos. */

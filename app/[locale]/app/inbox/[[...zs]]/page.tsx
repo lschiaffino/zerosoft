@@ -62,6 +62,7 @@ export default async function InboxPage(props: Props) {
       initialThreads={threads}
       initialState={state}
       initialOpenId={openId}
+      initialFocusId={openId && typeof sp.m === 'string' && /^ibm_[a-f0-9]{8,40}$/.test(sp.m) ? sp.m : null}
       composeOnLoad={sp.new === '1'}
     />
   );

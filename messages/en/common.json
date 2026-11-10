@@ -1,6 +1,6 @@
 {
   "meta": {
-    "tagline": "Twenty-six open-source apps for your team.",
+    "tagline": "Nineteen open-source apps for your team.",
     "description": "Open-source business apps: CRM, support chat, AI agents, automations, docs and more. Run them on your server for $0 or use zerosoft Cloud.",
     "homeTitle": "zerosoft: open-source business apps, from CRM to docs"
   },
@@ -40,6 +40,7 @@
       "shop": "Online store with checkout and orders",
       "design": "Graphic design from templates, with your brand",
       "pulse": "Product analytics and feature flags",
+      "analytics": "Questions and dashboards over your data",
       "social": "Schedule, inbox and analytics for social media",
       "people": "Employee directory, time off and reviews",
       "hiring": "Applicant tracking with a careers page",
@@ -49,7 +50,7 @@
       "send": "Share documents by link and see who read what",
       "inbox": "Your WhatsApp and Gmail in one keyboard-first inbox"
     },
-    "building": "In the works"
+    "building": "Coming soon"
   },
   "sidebar": {
     "desktopSettings": "Desktop app settings",
@@ -58,7 +59,7 @@
     "new": "New",
     "backToSite": "Back to site",
     "docs": "Help",
-    "soon": "soon",
+    "soon": "Coming soon",
     "signOut": "Sign out",
     "records": "Records",
     "activity": "Activity",
@@ -217,11 +218,18 @@
     "groupForms": "Forms",
     "groupSend": "Documents to send",
     "untitled": "Untitled",
-    "groupInbox": "Inbox"
+    "groupInbox": "Inbox",
+    "preview": "Preview",
+    "comingSoon": "Coming soon",
+    "soonApp": "{name}: waitlist",
+    "groupBiQuestions": "Analytics questions",
+    "groupBiDashboards": "Analytics dashboards",
+    "groupBiCollections": "Analytics collections",
+    "downloadDesktop": "Desktop app"
   },
   "manifesto": {
     "p1": "A team of ten pays <strong>$6,000 a year</strong> for a CRM, $1,440 to book meetings and $420 to shorten links. Those prices are set per head or per plan.",
-    "p2": "Running that software costs far less. All twenty-six zerosoft apps fit in <strong>one container and one SQLite file</strong> on a small server.",
+    "p2": "Running that software costs far less. All nineteen zerosoft apps fit in <strong>one container and one SQLite file</strong> on a small server.",
     "p3": "So we publish the code. The core of every app is AGPLv3: you can read it, change it and run it on your server without paying us.",
     "final": "Why we build zerosoft.",
     "p4": "If you would rather we run it, zerosoft Cloud bills per workspace, by usage. Adding someone to the team does not change the bill.",
@@ -281,6 +289,9 @@
     },
     "pulse": {
       "desc": "Events, funnels, retention and feature flags for your product."
+    },
+    "analytics": {
+      "desc": "Questions, SQL and dashboards over your workspace and your databases."
     },
     "social": {
       "desc": "Plan, publish and answer on social media."
@@ -360,7 +371,24 @@
         "verify_rate_limited": "Too many codes checked from this network. Wait 15 minutes and try again."
       }
     },
-    "subGoogle": "Sign in with your Google account. There is no password to create."
+    "subGoogle": "Sign in with your Google account. There is no password to create.",
+    "mfa": {
+      "title": "Two-step verification",
+      "sub": "Enter the code from your authenticator app to finish signing in.",
+      "codeLabel": "Authentication code",
+      "recoveryLabel": "Recovery code",
+      "verify": "Verify",
+      "verifying": "Checking…",
+      "useRecovery": "Use a recovery code",
+      "useApp": "Use the authenticator app",
+      "signOut": "Sign out",
+      "errors": {
+        "bad_code": "That code did not work. Try the newest one.",
+        "rate_limited": "Too many attempts. Wait a few minutes.",
+        "expired": "This sign-in expired. Sign in again.",
+        "network": "No connection. Try again."
+      }
+    }
   },
   "blog": {
     "label": "Blog",
@@ -423,9 +451,9 @@
   },
   "home": {
     "hero": {
-      "title1": "<nb>Twenty-six</nb> apps for your team.",
+      "title1": "<nb>Nineteen</nb> apps for your team.",
       "title2": "Zero licenses.",
-      "sub": "Open-source alternatives to HubSpot, Intercom, Calendly, Linear, Notion and 19 more products your team pays for every month. Run them on your server for $0 or use them on zerosoft Cloud.",
+      "sub": "Open-source alternatives to HubSpot, Calendly, Linear, Notion, Bitly and 13 more products your team pays for every month. Run them on your server for $0 or use them on zerosoft Cloud.",
       "ctaStart": "Start free",
       "ctaSelfHost": "Self-host",
       "note1": "No credit card",
@@ -480,7 +508,7 @@
         "b3": "Templates, comments and sharing"
       },
       "one": {
-        "title": "One account for all twenty-six apps.",
+        "title": "One account for all nineteen apps.",
         "desc": "Invite your team once. Find contacts, companies, deals, links, docs and tasks from a single search bar, and jump between apps without changing tools."
       },
       "replaces": "Replaces {rival}",
@@ -522,7 +550,7 @@
       "pulse": {
         "line": "Product analytics, web analytics and feature flags."
       },
-      "building": "In the works · like {rival}",
+      "building": "Coming soon · like {rival}",
       "social": {
         "line": "Plan, publish and answer on social media."
       },
@@ -546,12 +574,15 @@
       },
       "inbox": {
         "line": "Your WhatsApp and Gmail in one keyboard-first inbox."
+      },
+      "analytics": {
+        "line": "Questions, SQL and dashboards over your data."
       }
     },
     "stack": {
       "title": "{total} a year.",
       "titleDim": "Or $0.",
-      "sub": "What a team of 10 pays at list price for HubSpot, Intercom, Calendly, Notion, Linear and Bitly. The zerosoft apps that replace them cost $0 on your server.",
+      "sub": "What a team of 10 pays at list price for HubSpot, Calendly, Notion, Linear and Bitly. The zerosoft apps that replace them cost $0 on your server.",
       "colTool": "Tool",
       "colPrice": "List price",
       "colYear": "Team of 10 / year",
@@ -560,7 +591,7 @@
       "total": "Total per year",
       "zeroTitle": "zerosoft, on your server",
       "footnote": "List prices as cited on our product pages, billed monthly, for 10 users (Bitly Core is a flat plan). Vendors change their prices, so check their sites. zerosoft is not affiliated with any of these companies.",
-      "rApps": "All twenty-six apps",
+      "rApps": "All nineteen apps",
       "rSeats": "Users",
       "rLicense": "License",
       "rData": "Your data",
@@ -631,7 +662,7 @@
   },
   "appHome": {
     "title": "Your apps",
-    "lead": "The twenty-six apps in your workspace. Pick one to get started.",
+    "lead": "The nineteen apps in your workspace. Pick one to get started.",
     "apps": "Apps",
     "open": "Open {name}",
     "linkSummary": "Link overview",
@@ -707,6 +738,54 @@
       "title": "No apps turned on yet",
       "body": "An admin of {workspace} can turn apps on for you in Settings › Members.",
       "bodyAdmin": "The owner of {workspace} can turn apps on for you in Settings › Members."
+    },
+    "start": {
+      "title": "Getting started",
+      "progress": "{done} of {total} done",
+      "hide": "Hide",
+      "hideLabel": "Hide getting started",
+      "allSet": "You are all set. Everything from your setup is connected.",
+      "error": "Couldn't hide it. Try again.",
+      "continueSetup": "Continue setup",
+      "steps": {
+        "profile": {
+          "title": "Set up your workspace",
+          "body": "Name, role and the apps you use.",
+          "cta": "Edit"
+        },
+        "invite": {
+          "title": "Invite your team",
+          "body": "Everyone shares the same CRM, Docs and Track.",
+          "cta": "Invite"
+        },
+        "import": {
+          "title": "Bring your data from {tool}",
+          "body": "Contacts, pages or issues come over with their history.",
+          "cta": "Import",
+          "titleAny": "Bring your data"
+        },
+        "calendar": {
+          "title": "Connect your calendar",
+          "body": "Cal checks it for conflicts and adds new bookings to it.",
+          "cta": "Connect"
+        },
+        "email": {
+          "title": "Connect your email",
+          "body": "Emails with your contacts show up in the CRM and you send from your own address.",
+          "cta": "Connect"
+        },
+        "whatsapp": {
+          "title": "Connect a WhatsApp line",
+          "body": "Your chats and groups land in Groups, with their history.",
+          "cta": "Connect"
+        },
+        "desktop": {
+          "title": "Get the desktop app",
+          "body": "Dictation in any app, meeting notes and native notifications.",
+          "cta": "Download"
+        }
+      },
+      "done": "Done"
     }
   },
   "publicPage": {
@@ -757,7 +836,7 @@
   "notFound": {
     "sign": "Error 404",
     "title": "This page does not exist.",
-    "body": "The link may have a typo or the page moved. The home page takes you to all twenty-six apps.",
+    "body": "The link may have a typo or the page moved. The home page takes you to all nineteen apps.",
     "cta": "Go to the home page",
     "meta": "Page not found"
   },
@@ -879,5 +958,79 @@
     "unknownShort": "{count, plural, one {# change not sent} other {# changes not sent}}",
     "unknownTitle": "Not sent",
     "unknownBody": "{count, plural, one {There is # older change} other {There are # older changes}} on this device that cannot be tied to a session. They are not sent with yours. Discard them if you do not need them."
+  },
+  "comingSoon": {
+    "badge": "Coming soon",
+    "title": "{name} isn't available yet",
+    "lead": "There's no date yet. Join the waitlist and we'll email you the day you can use it.",
+    "join": "Join the waitlist",
+    "joinShort": "Waitlist",
+    "joining": "Joining…",
+    "joined": "You're on the {name} waitlist. We'll write to {email}.",
+    "joinedSite": "Done. We'll email you the day {name} is ready to use.",
+    "already": "You're already on the {name} waitlist.",
+    "useCase": "What would you use it for? (optional)",
+    "useCasePlaceholder": "For example: answering website chat between two people",
+    "email": "Your email",
+    "emailPlaceholder": "you@company.com",
+    "invalidEmail": "Check the email.",
+    "error": "We couldn't add you. Try again.",
+    "limited": "Too many tries. Try again in a few minutes.",
+    "privacy": "One email, the day it ships.",
+    "back": "Back to home",
+    "others": "Other apps you can't use yet",
+    "openPreview": "Open the internal preview of {name}",
+    "previewTag": "Internal preview",
+    "previewBanner": "{name} isn't available to customers yet. You see it because you're on the zerosoft team."
+  },
+  "desktop": {
+    "pickLabel": "Your computer",
+    "macArm": "Mac with Apple silicon",
+    "macIntel": "Mac with Intel",
+    "win": "Windows",
+    "detected": "Detected",
+    "probable": "Most likely",
+    "download": {
+      "mac-arm": "Download for Mac",
+      "mac-intel": "Download for Mac (Intel)",
+      "win": "Download for Windows"
+    },
+    "meta": "Version {version}",
+    "metaSize": "Version {version} · {size}",
+    "chipHelp": "Not sure which Mac? Apple menu › About This Mac: “Chip Apple M…” is Apple silicon, “Processor Intel…” is Intel.",
+    "allFiles": "All files on GitHub",
+    "noRelease": "There is no published build right now. Use zerosoft in the browser meanwhile; the releases page has every past version.",
+    "releases": "See releases",
+    "mobile": "The desktop app is for Mac and Windows. Open this page on your computer to download it.",
+    "copyLink": "Copy link",
+    "copied": "Link copied",
+    "linux": "There is no Linux build yet. zerosoft works the same in the browser.",
+    "inApp": "You are in the desktop app.",
+    "inAppBody": "Dictation, notifications and the dock badge are on. Settings for dictation are in the app menu.",
+    "installTitle": "Install it",
+    "installTitleAfter": "Downloading. Now install it",
+    "mac": {
+      "s1": "Open the .dmg you downloaded and drag zerosoft to Applications.",
+      "s2": "Open zerosoft from Applications. The first time, macOS says it cannot check the developer: the build is not notarized by Apple yet.",
+      "s3": "On macOS 15 or later, go to System Settings › Privacy & Security, scroll down and click Open Anyway. On macOS 14 or earlier, right-click the app, choose Open and confirm.",
+      "s4": "Sign in with this account. Dictation asks for the microphone, and for Accessibility so it can paste where your cursor is."
+    },
+    "windows": {
+      "s1": "Run the .exe you downloaded.",
+      "s2": "If SmartScreen says “Windows protected your PC”, click More info and then Run anyway. The build is not signed yet.",
+      "s3": "The installer adds Microsoft Edge WebView2 if your Windows 10 is missing it, and opens zerosoft.",
+      "s4": "Sign in with this account."
+    },
+    "waiting": "When you sign in on the desktop app, this step marks itself done.",
+    "seen": "Desktop app connected to your account.",
+    "featuresTitle": "What it adds",
+    "f1t": "Dictation in any app",
+    "f1d": "Hold Option + Space (Ctrl + Alt + Space on Windows), speak, let go: clean text lands where your cursor is.",
+    "f2t": "Meeting notes with Voice",
+    "f2d": "Record a meeting from the app window with your microphone and get the transcript and summary in Voice.",
+    "f3t": "Native notifications",
+    "f3d": "Mentions, direct messages and the bell as system notifications and a badge on the dock icon.",
+    "f4t": "Light and fast",
+    "f4d": "About 3 MB to download. Every app in one window."
   }
 }

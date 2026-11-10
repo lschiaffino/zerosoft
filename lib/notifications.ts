@@ -3,6 +3,7 @@
  * Scoped first for Track (mentions, assignments, status changes, comments).
  */
 import { getDb } from './db';
+import { isPrincipalId, workspaceOwnerPersonId } from './workspace';
 import type { NotificationRow } from './db';
 import { localized, renderForRecipient, type NotificationText } from './notification-copy';
 
@@ -41,6 +42,8 @@ export async function createNotification(payload: NotificationCreatePayload): Pr
   const db = getDb();
   const id = crypto.randomUUID();
   const now = nowIso();
+  // "Al owner" en un workspace de equipo con titular propio: el titular no es una persona, lo recibe quien es owner.
+  if (isPrincipalId(payload.userId)) payload = { ...payload, userId: await workspaceOwnerPersonId(payload.userId, db) };
   const [title, body] = await renderForRecipient(payload.userId, [payload.title, payload.body]);
   await db
     .prepare(

@@ -54,13 +54,17 @@ async function signIn(browser: Browser, name: string): Promise<Person> {
   return { ctx, page: await ctx.newPage(), email, id };
 }
 
-/** Owner con un workspace de equipo. */
-async function owner(browser: Browser): Promise<Person & { teamId: string }> {
+/**
+ * Owner con un workspace de equipo. El onboarding "para mi equipo" crea uno con
+ * titular propio (lib/workspace-principal.ts): `teamId` es su ficha y `wsId` el
+ * id del que cuelgan sus datos (no es el de la persona).
+ */
+async function owner(browser: Browser): Promise<Person & { teamId: string; wsId: string }> {
   const p = await signIn(browser, 'owner');
   const res = await p.ctx.request.post('/api/onboarding', { data: { kind: 'full', mode: 'team', teamName: `Acme ${uid()}`, size: '2-10', name: 'Olga Owner' } });
   expect(res.ok(), await res.text()).toBe(true);
-  const teamId = String((await sql('SELECT id FROM teams WHERE owner_id = ?', [p.id]))[0].id);
-  return { ...p, teamId };
+  const team = (await sql("SELECT t.id, t.owner_id FROM teams t JOIN team_members m ON m.team_id = t.id WHERE m.user_id = ? AND m.role = 'owner' AND t.owner_id != ?", [p.id, p.id]))[0];
+  return { ...p, teamId: String(team.id), wsId: String(team.owner_id) };
 }
 
 /** Invita desde el owner y la persona acepta con su sesión. */
@@ -379,16 +383,16 @@ test('una server action de la pestaña que quedó atrás avisa: Docs y CRM, al c
     // Docs: cambia en otra pestaña (misma sesión) y el botón de esta no hace nada callado.
     await ada.page.goto('/en/app/docs', { waitUntil: 'networkidle' });
     expect((await ada.ctx.request.post('/api/teams/switch', { data: { teamId: null } })).ok()).toBe(true);
-    const before = [await count(ada.id), await count(olga.id)];
+    const before = [await count(ada.id), await count(olga.wsId)];
     await ada.page.getByRole('button', { name: /New page/ }).first().click();
     await expect(guard).toContainText('changed in another tab', { timeout: 20_000 });
-    expect([await count(ada.id), await count(olga.id)]).toEqual(before);
+    expect([await count(ada.id), await count(olga.wsId)]).toEqual(before);
     await guard.getByRole('button', { name: /Switch back to/ }).click();
     await expect(guard).toHaveCount(0, { timeout: 20_000 });
     await ada.page.waitForLoadState('networkidle');
     await ada.page.getByRole('button', { name: /New page/ }).first().click();
     await ada.page.waitForURL(/\/app\/docs\/[^/?]+/);
-    expect(await count(olga.id)).toBe(before[1] + 1);
+    expect(await count(olga.wsId)).toBe(before[1] + 1);
 
     // CRM: quitar el contacto de un lead.
     const contact = (await (await olga.ctx.request.post('/api/crm/contacts', { data: { firstName: 'Ana', lastName: uid() } })).json()) as { id: string; firstName?: string; lastName?: string };

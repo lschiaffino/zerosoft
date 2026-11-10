@@ -58,6 +58,8 @@ export default defineConfig({
       GROUPS_FAKE: '1',
       // Inbox: Gmail de prueba (hilos de ejemplo, envíos en memoria) y la IA de borradores sin modelo real. WhatsApp usa GROUPS_FAKE.
       INBOX_FAKE: '1',
+      // Inbox: el WhatsApp falso tiene historial guardado (3 chats, uno con 230 mensajes) para "Traer todo el historial".
+      INBOX_FAKE_HISTORY: '1',
       // QR administrado contra un Evolution API simulado que levanta tests/e2e/groups-start.spec.ts en PORT + 31.
       GROUPS_BRIDGE_URL: `http://127.0.0.1:${PORT + 31}`,
       GROUPS_BRIDGE_KEY: 'e2e-bridge-global-key',
@@ -99,6 +101,10 @@ export default defineConfig({
       // IA de Track (triage, resúmenes, agentes) contra el mismo modelo falso
       // (lib/track-ai.ts); con la cookie track_ai_fake=off se ve ai_disabled.
       TRACK_AI_FAKE: '1',
+      // Analytics: preguntar en lenguaje natural contra el modelo falso (lib/bi/ai.ts; la cookie bi_ai_fake=off
+      // se comporta como sin IA) y bases externas en 127.0.0.1 (el Postgres en proceso de tests/e2e/bi.spec.ts).
+      BI_AI_FAKE: '1',
+      ANALYTICS_ALLOW_PRIVATE_DB: '1',
       // Importadores: Linear, GitHub, Jira, Asana, Shortcut y Calendly apuntan a un mock local
       // (tests/e2e/importers.spec.ts lo levanta en PORT + 1). Nada sale a internet.
       IMPORT_LINEAR_API_URL: `http://127.0.0.1:${PORT + 1}/linear`,

@@ -21,7 +21,7 @@ pub fn server(app: &AppHandle) -> String {
 
 /// "nombre=valor; ..." de las cookies del servidor en el webview principal.
 pub async fn cookie_header(app: &AppHandle) -> String {
-    let Some(win) = app.get_webview_window("main") else { return String::new() };
+    let Some(win) = crate::tabs::any_webview(app) else { return String::new() };
     let Ok(url) = url::Url::parse(&server(app)) else { return String::new() };
     let (tx, rx) = tokio::sync::oneshot::channel();
     // Hilo aparte: en Windows la lectura de cookies no puede bloquear el hilo de eventos.

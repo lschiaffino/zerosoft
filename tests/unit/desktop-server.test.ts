@@ -9,7 +9,7 @@ vi.mock('@/lib/session', async (orig) => ({ ...(await orig<object>()), getCurren
 
 import { createDesktopLoginCode, exchangeDesktopLoginCode, mintSessionToken, pkceChallenge, sessionCookieInfo } from '@/lib/desktop-auth';
 import { desktopDownloads, pickDesktopRelease, rewriteUpdateYml, type GhRelease } from '@/lib/desktop-release';
-import { talkBadgeCount, desktopBadge } from '@/lib/desktop-badge';
+import { talkBadgeCount, desktopBadge, unreadByPath } from '@/lib/desktop-badge';
 import { confirmPage, escapeHtml, parseLoginDevice, returnPage } from '@/lib/desktop-login-page';
 import { createNotification } from '@/lib/notifications';
 import { GET as loginGet, POST as loginPost } from '@/app/api/desktop/login/route';
@@ -179,6 +179,10 @@ describe('desktop: contador y avisos', () => {
     ).toBe(6);
   });
 
+  it('avisos sin leer por app del link (puntos de las pestañas)', () => {
+    expect(unreadByPath(['/app/track/issues/1', '/es/app/track?x=1', '/app/crm#d', '/pricing', null, '/app'])).toEqual({ track: 2, crm: 1 });
+  });
+
   it('la campana sin leer y los avisos nuevos desde la última consulta', async () => {
     const u = await makeUser('badge');
     session.user = { ...u, role: 'owner', apps: '*' };
@@ -190,6 +194,8 @@ describe('desktop: contador y avisos', () => {
     expect(data.bell).toBe(1);
     expect(data.total).toBeGreaterThanOrEqual(1);
     expect(data.notifications.map((n) => n.title)).toEqual(['Ana te mencionó']);
+    // Puntos de las pestañas del escritorio: por app del link.
+    expect(data.byPath.track).toBe(1);
     expect((data as unknown as { user: { email: string } }).user.email).toBe(u.email);
     const later = (await (await badgeGet(new NextRequest(`http://x/api/desktop/badge?since=${encodeURIComponent(data.now)}`))).json()) as typeof data;
     expect(later.notifications).toEqual([]);

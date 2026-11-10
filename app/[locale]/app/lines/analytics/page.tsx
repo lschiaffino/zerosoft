@@ -25,7 +25,7 @@ export default async function GroupsAnalyticsPage(props: { params: Promise<{ loc
   const [people, labels, numbers, groups] = await Promise.all([
     listPeople(user.id),
     listLabels(user.id),
-    listNumbers(user.id),
+    listNumbers(user.id, viewer),
     listChats(user.id, viewer.me, { kind: 'group', limit: 200, viewer }),
   ]);
   const day = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);

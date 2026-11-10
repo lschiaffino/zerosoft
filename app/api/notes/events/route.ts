@@ -4,7 +4,7 @@ import { noteOwner } from '@/lib/notes';
 import { invalidInput, jsonError, limitWrites } from '@/lib/write-limit';
 import { z } from 'zod';
 import { getTranslations } from 'next-intl/server';
-import { canUseApp } from '@/lib/workspace';
+import { userCanUseApp } from '@/lib/workspace';
 import { listNoteEvents, noteFromEvent } from '@/lib/notes-events';
 
 export const runtime = 'nodejs';
@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
-  if (!canUseApp({ role: user.role, apps: user.apps }, 'cal')) return NextResponse.json({ events: [] });
+  if (!userCanUseApp(user, 'cal')) return NextResponse.json({ events: [] });
   return NextResponse.json({ events: await listNoteEvents(noteOwner(user)) });
 }
 
@@ -24,7 +24,7 @@ const schema = z.object({ event_id: z.string().min(1).max(64), locale: z.enum(['
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return jsonError(401, 'unauthorized');
-  if (!canUseApp({ role: user.role, apps: user.apps }, 'cal')) return jsonError(404, 'not_found');
+  if (!userCanUseApp(user, 'cal')) return jsonError(404, 'not_found');
   const owner = noteOwner(user);
   const limited = await limitWrites('notes:write', owner.personId);
   if (limited) return limited;

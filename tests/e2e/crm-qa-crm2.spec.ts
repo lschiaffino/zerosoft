@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
 /**
@@ -264,7 +264,7 @@ test.describe('detalle de tarea: vencimiento en la hora local', () => {
     await input.press('Enter');
     await expect
       .poll(async () => {
-        const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+        const db = e2eDb();
         try {
           return String((await db.execute({ sql: 'SELECT due_at FROM crm_activities WHERE id = ?', args: [task.id] })).rows[0]?.due_at);
         } finally {

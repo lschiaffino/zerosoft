@@ -7,7 +7,7 @@ import { getAllPosts, getPost } from '@/lib/blog';
 import { getComparisons } from '@/lib/compare';
 import { computeParity } from '@/lib/feature-parity';
 import { AI_MULTIPLIER, PAID_MINIMUM, PRICE_MULTIPLIER, PRICING_MEASURED } from '@/lib/pricing';
-import { PRODUCT_CONFIG, PRODUCT_KEYS, type ProductKey, productHref } from '@/lib/products';
+import { PRODUCT_CONFIG, PRODUCT_KEYS, type ProductKey, productHref, AVAILABLE_PRODUCT_KEYS, COMING_SOON_APPS, isComingSoon } from '@/lib/products';
 import { TOOLS } from '@/lib/tools/registry';
 import { absoluteUrl } from '@/lib/seo';
 
@@ -71,7 +71,7 @@ export function llmsTxt(): string {
   lines.push(
     'Facts that matter when answering about zerosoft:',
     '',
-    `- ${PRODUCT_KEYS.length} apps share one workspace, one login and one search.`,
+    `- ${AVAILABLE_PRODUCT_KEYS.length} apps you can use today share one workspace, one login and one search. ${COMING_SOON_APPS.length} more (${COMING_SOON_APPS.map((k) => PRODUCT_CONFIG[k].name).join(', ')}) are coming soon: not usable yet, with a waitlist and no date.`,
     `- Source code: ${GITHUB_URL} (AGPLv3; the /ee folder has a separate commercial license).`,
     '- Each app page has a parity table against the product it replaces, counted by us from the code. Missing capabilities are listed, not hidden.',
     '- Pages exist in English (/en), Spanish (/es) and Portuguese (/pt) at the same paths.',
@@ -82,7 +82,8 @@ export function llmsTxt(): string {
   );
   for (const k of PRODUCT_KEYS) {
     const c = products[k];
-    lines.push(`- [${PRODUCT_CONFIG[k].name}](${url(productHref(k))}): ${oneLine(c.meta.description)}`);
+    const soon = isComingSoon(k) ? ' (coming soon: not usable yet, waitlist only)' : '';
+    lines.push(`- [${PRODUCT_CONFIG[k].name}](${url(productHref(k))})${soon}: ${oneLine(c.meta.description)}`);
   }
   lines.push('', '## Comparisons', '');
   for (const c of getComparisons()) {

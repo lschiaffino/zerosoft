@@ -26,7 +26,8 @@ export type AuditAction =
   | 'member.reactivate'
   | 'member.transfer'
   | 'invite.create'
-  | 'invite.revoke';
+  | 'invite.revoke'
+  | 'workspace.app';
 
 export interface AuditEntry {
   id: string;

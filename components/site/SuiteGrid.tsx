@@ -3,7 +3,7 @@ import { Link } from '@/i18n/navigation';
 import Icon from './Icon';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import { CATEGORY_PRODUCTS, PRODUCT_NAMES, RIVALS } from './catalog';
-import { isBuildingProduct, type ProductKey, productHref } from '@/lib/products';
+import { isComingSoon, type ProductKey, productHref } from '@/lib/products';
 
 /**
  * La suite por categoría (vender, atender, automatizar, construir, trabajo
@@ -42,7 +42,7 @@ export default function SuiteGrid({
                   <span className="suite-name">{PRODUCT_NAMES[k]}</span>
                   <span className="suite-line">{h(`suite.${k}.line`)}</span>
                   <span className="suite-vs">
-                    {isBuildingProduct(k) ? h('suite.building', { rival: RIVALS[k] }) : h('suite.replaces', { rival: RIVALS[k] })}
+                    {isComingSoon(k) ? h('suite.building', { rival: RIVALS[k] }) : h('suite.replaces', { rival: RIVALS[k] })}
                     {parity?.[k] && <span className="suite-parity data">{parity[k]}</span>}
                   </span>
                   <Icon name="arrow" size={16} />

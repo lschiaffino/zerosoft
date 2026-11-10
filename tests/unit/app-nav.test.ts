@@ -12,10 +12,11 @@ import {
   type AppProduct,
   type SidebarLabels,
 } from '@/components/app/sidebar-nav';
+import { isComingSoon } from '@/lib/products';
 import { pageExists } from './page-exists';
 
-const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'inbox', 'rec', 'hiring', 'sign', 'agents', 'robots', 'pulse'];
-const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'pulse', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
+const SWITCHER_ORDER: AppProduct[] = ['track', 'link', 'crm', 'shop', 'books', 'forms', 'send', 'docs', 'calendar', 'chat', 'groups', 'social', 'flow', 'notes', 'board', 'design', 'talk', 'people', 'voice', 'inbox', 'rec', 'hiring', 'sign', 'agents', 'robots', 'analytics', 'pulse'];
+const PRODUCTS: AppProduct[] = ['home', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'pulse', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
 
 
 /**
@@ -32,7 +33,7 @@ const appDir = join(root, 'app', '[locale]');
 function fakeLabels(): SidebarLabels {
   const proxy = (prefix: string): unknown =>
     new Proxy({}, { get: (_t, key) => (typeof key === 'string' ? `${prefix}${key}` : undefined) });
-  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox', 'notifications'];
+  const nested = ['categories', 'link', 'crm', 'docs', 'calendar', 'track', 'chat', 'flow', 'notes', 'board', 'agents', 'robots', 'groups', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'bi', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox', 'notifications'];
   return new Proxy({} as SidebarLabels, {
     get: (_t, key) => (typeof key === 'string' && nested.includes(key) ? proxy(`${key}.`) : String(key)),
   });
@@ -251,17 +252,29 @@ describe('base compartida del rediseño', () => {
 });
 
 describe('sidebar del inicio: tus apps y "Más apps"', () => {
-  const L = { yourApps: 'Your apps', moreApps: 'More apps' } as unknown as SidebarLabels;
+  const L = { yourApps: 'Your apps', moreApps: 'More apps', comingSoon: 'Coming soon' } as unknown as SidebarLabels;
   it('arriba hasta 8 (recientes primero, después las destacadas) y el resto plegado; ninguna se pierde', () => {
-    const groups = homeAppGroups(L, { recentApps: ['robots', 'nope'], mode: 'team' });
+    const groups = homeAppGroups(L, { recentApps: ['pulse', 'nope'], mode: 'team' });
     expect(groups[0].section).toBe('Your apps');
     expect(groups[0].items.length).toBe(HOME_APPS_LIMIT);
-    expect(groups[0].items[0].href).toBe('/app/robots');
+    expect(groups[0].items[0].href).toBe('/app/pulse');
     expect(groups[1]).toMatchObject({ section: 'More apps', collapsible: true });
-    expect(groups[0].items.length + groups[1].items.length).toBe(SWITCHER_PRODUCTS.length);
+    // Las "Próximamente" van en su propio grupo, al final, hacia la lista de espera.
+    expect(groups[2]).toMatchObject({ section: 'Coming soon', collapsible: true });
+    expect(groups[2].items.every((i) => i.href.startsWith('/app/soon/'))).toBe(true);
+    expect(groups[0].items.length + groups[1].items.length + groups[2].items.length).toBe(SWITCHER_PRODUCTS.length);
+  });
+  it('con apps elegidas en el onboarding, "Tus apps" son esas (más las recientes), en su orden', () => {
+    const groups = homeAppGroups(L, { recentApps: ['docs'], mode: 'team', chosen: ['crm', 'cal'] });
+    expect(groups[0].items.map((i) => i.href)).toEqual(['/app/docs', '/app/crm', '/app/calendar']);
+    expect(groups[0].items.length + groups[1].items.length).toBe(SWITCHER_PRODUCTS.filter((p) => !isComingSoon(p.line)).length);
   });
   it('respeta el acceso por app y no muestra "Más apps" vacío (Inbox, personal, siempre está)', () => {
     const groups = homeAppGroups(L, { allowed: ['crm', 'social'] });
-    expect(groups.map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/social', '/app/inbox']]);
+    expect(groups.slice(0, -1).map((g) => g.items.map((i) => i.href))).toEqual([['/app/crm', '/app/inbox']]);
+  });
+  it('el staff abre las Próximamente como vista previa', () => {
+    const soon = homeAppGroups(L, { staff: true }).at(-1)!;
+    expect(soon.items.find((i) => i.label === 'Chat')).toMatchObject({ href: '/app/chat', soon: 'preview' });
   });
 });

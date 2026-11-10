@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import type { VoiceEnhanced } from '@/lib/voice-types';
 import { voiceErrorKey } from './voice-ui';
+import NotesEditor from './NotesEditor';
 
 interface ProjectOption {
   id: string;
@@ -12,18 +13,21 @@ interface ProjectOption {
 }
 
 /**
- * Nota mejorada: resumen, secciones de la plantilla (lo que escribiste en
- * tinta, lo que salió de la transcripción en gris, como Granola), decisiones
- * y próximos pasos, que se mandan a Track o al CRM.
+ * Nota mejorada: resumen y secciones de la plantilla, editables en el lugar
+ * (lo que escribiste en tinta, lo que salió de la transcripción en gris, como
+ * Granola), decisiones y próximos pasos, que se mandan a Track o al CRM.
  */
 export default function EnhancedNotes({
   sessionId,
   enhanced,
   hasContact,
+  onSaveState,
 }: {
   sessionId: string;
   enhanced: VoiceEnhanced;
   hasContact: boolean;
+  /** Estado del guardado de lo que se edita (se muestra arriba, como el de mis notas). */
+  onSaveState?: (s: 'saving' | 'saved' | 'error') => void;
 }) {
   const t = useTranslations('voice.notes');
   const tErr = useTranslations('voice.errors');
@@ -58,6 +62,16 @@ export default function EnhancedNotes({
     };
   }, [enhanced.actionItems.length]);
 
+  async function saveEdit(edit: Pick<VoiceEnhanced, 'summary' | 'sections'>) {
+    onSaveState?.('saving');
+    const res = await fetch(`/api/voice/sessions/${sessionId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ enhanced: edit }),
+    }).catch(() => null);
+    onSaveState?.(res?.ok ? 'saved' : 'error');
+  }
+
   async function send(target: 'track' | 'crm') {
     const items = enhanced.actionItems.filter((_, i) => picked.has(i)).map((a) => (a.owner ? `${a.text} (${a.owner})` : a.text));
     if (!items.length) return;
@@ -79,27 +93,7 @@ export default function EnhancedNotes({
 
   return (
     <div className="vc-enhanced" data-testid="voice-enhanced">
-      {enhanced.summary && (
-        <section>
-          <h3 className="vc-h3">{t('summary')}</h3>
-          <p>{enhanced.summary}</p>
-        </section>
-      )}
-      {enhanced.sections
-        .filter((s) => s.points.length)
-        .map((s, i) => (
-          <section key={i}>
-            <h3 className="vc-h3">{s.heading}</h3>
-            <ul className="vc-points">
-              {s.points.map((p, j) => (
-                <li key={j} className={p.source === 'mine' ? 'is-mine' : 'is-ai'} title={p.source === 'mine' ? t('fromMine') : t('fromTranscript')}>
-                  {p.text}
-                  <span className="sr-only"> ({p.source === 'mine' ? t('fromMine') : t('fromTranscript')})</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+      <NotesEditor enhanced={enhanced} onSave={(edit) => void saveEdit(edit)} />
       {enhanced.decisions.length > 0 && (
         <section>
           <h3 className="vc-h3">{t('decisions')}</h3>

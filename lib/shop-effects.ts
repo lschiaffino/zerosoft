@@ -70,10 +70,10 @@ async function emit(store: StoreRow, type: 'shop.order.created' | 'shop.order.pa
 /** Personas a avisar: owner y admins con Shop. */
 async function staffToNotify(ws: string): Promise<string[]> {
   try {
-    const { listOwnerSpacePeople } = await import('./workspace');
+    const { listOwnerSpacePeople, workspaceOwnerPersonId } = await import('./workspace');
     const people = await listOwnerSpacePeople(ws, { app: 'shop' });
     const ids = people.filter((p) => p.role === 'owner' || p.role === 'admin').map((p) => p.id);
-    return [...new Set([ws, ...ids])];
+    return [...new Set([await workspaceOwnerPersonId(ws), ...ids])];
   } catch {
     return [ws];
   }

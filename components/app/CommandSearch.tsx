@@ -21,7 +21,7 @@ import {
 import { PriorityIcon, StatusDot } from '@/components/track/glyphs';
 import TrackIcon, { type TrackIconName } from '@/components/track/TrackIcon';
 import { SETTINGS_SECTION_KEYS, settingsSectionHref } from '@/lib/settings-nav';
-import { hrefAllowed, PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref, type AllowedApps, type ProductKey } from '@/lib/products';
+import { comingSoonHref, hrefAllowed, isComingSoon, PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref, type AllowedApps, type ProductKey } from '@/lib/products';
 import { RIVALS } from '@/components/site/catalog';
 import { IMPORT_SOURCES, importHubHref } from '@/lib/import-registry';
 import { focusReturnTarget, useLayer } from '@/lib/ui/layers';
@@ -215,6 +215,9 @@ function useGroupOrder() {
         'analyticsExperiments',
         'analyticsAlerts',
         'analyticsSubscriptions',
+        'biQuestions',
+        'biDashboards',
+        'biCollections',
         'analyticsProjects',
         'assistantChats',
       ], []);
@@ -237,7 +240,7 @@ function useGroupLabel(t: (key: string) => string) {
  * evento 'zs:open-search' (botón de la sidebar). Busca en todos los productos
  * usando la API unificada /api/search.
  */
-export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: AllowedApps }) {
+export default function CommandSearch({ allowedApps = '*', staff = false }: { allowedApps?: AllowedApps; staff?: boolean }) {
   const t = useTranslations('common.sidebar');
   const locale = useLocale();
   const tNotes = useTranslations('notes');
@@ -247,6 +250,7 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   const tPlanning = useTranslations('trackPlanning.cmdk');
   const tSections = useTranslations('settings.sections');
   const tSettingsCmdk = useTranslations('settings.cmdk');
+  const tSettingsKw = useTranslations('settings.keywords');
   const tCategories = useTranslations('common.categories');
   const router = useRouter();
   const pathname = usePathname();
@@ -369,16 +373,20 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   const appItems = useMemo<ResultItem[]>(
     () => [
       { group: 'apps', label: t('goHome'), meta: '', href: '/app', keywords: `home,inicio,início,dashboard,${t('platformHome')}` },
-      ...PRODUCT_KEYS.map((key) => ({
-        group: 'apps',
-        label: t('openApp', { name: PRODUCT_CONFIG[key].name }),
-        meta: tCategories(`${PRODUCT_CONFIG[key].category}.title`),
-        href: PRODUCT_CONFIG[key].launch,
-        keywords: `${PRODUCT_CONFIG[key].name},${key},${RIVALS[key]},${tCategories(`${PRODUCT_CONFIG[key].category}.title`)}`,
-      })),
+      ...PRODUCT_KEYS.map((key) => {
+        // "Próximamente": lleva a su lista de espera (el staff la abre como vista previa).
+        const soon = isComingSoon(key) && !staff;
+        return {
+          group: 'apps',
+          label: soon ? t('soonApp', { name: PRODUCT_CONFIG[key].name }) : t('openApp', { name: PRODUCT_CONFIG[key].name }),
+          meta: soon ? t('comingSoon') : tCategories(`${PRODUCT_CONFIG[key].category}.title`),
+          href: soon ? comingSoonHref(key) : PRODUCT_CONFIG[key].launch,
+          keywords: `${PRODUCT_CONFIG[key].name},${key},${RIVALS[key]},${tCategories(`${PRODUCT_CONFIG[key].category}.title`)}`,
+        };
+      }),
       { group: 'apps', label: t('linkOverview'), meta: 'Link', href: '/app/links/overview', keywords: 'link,overview,resumen,resumo' },
     ],
-    [t, tCategories],
+    [t, tCategories, staff],
   );
 
   // Secciones de Ajustes (plataforma y cada app): solo aparecen al buscar.
@@ -389,7 +397,7 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
         label: tSettingsCmdk('section', { section: tSections(key) }),
         meta: '',
         href: settingsSectionHref(key),
-        keywords: key === 'billing' ? tSettingsCmdk('keywords.billing') : key === 'desktop' ? tSettingsCmdk('keywords.desktop') : undefined,
+        keywords: tSettingsKw.has(key) ? tSettingsKw(key) : undefined,
       })),
       {
         group: 'settings',
@@ -414,7 +422,7 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
         app: s.app,
       })),
     ],
-    [tSections, tSettingsCmdk],
+    [tSections, tSettingsCmdk, tSettingsKw],
   );
 
   // Dónde estaba el foco antes de abrir (el chip, la fila): vuelve ahí al cerrar.

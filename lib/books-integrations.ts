@@ -64,10 +64,10 @@ async function emit(ws: string, type: 'books.invoice.paid' | 'books.invoice.over
 
 export async function notifyStaff(ws: string, title: NotificationText, body: NotificationText, href: string, sourceId: string): Promise<void> {
   try {
-    const { listOwnerSpacePeople } = await import('./workspace');
+    const { listOwnerSpacePeople, workspaceOwnerPersonId } = await import('./workspace');
     const { createNotification } = await import('./notifications');
     const people = await listOwnerSpacePeople(ws, { app: 'books' }).catch(() => []);
-    const ids = [...new Set([ws, ...people.filter((p) => p.role === 'owner' || p.role === 'admin').map((p) => p.id)])];
+    const ids = [...new Set([await workspaceOwnerPersonId(ws), ...people.filter((p) => p.role === 'owner' || p.role === 'admin').map((p) => p.id)])];
     for (const userId of ids) await createNotification({ userId, type: 'books_invoice', title, body, href, sourceType: 'books_invoice', sourceId });
   } catch (err) {
     console.error('[books] notify failed', err instanceof Error ? err.message : 'error');

@@ -7,7 +7,7 @@ export type ThreadKind = 'dm' | 'group' | 'email';
 export type AccountStatus = 'disconnected' | 'pending' | 'qr' | 'connected' | 'error';
 
 /** Vistas fijas de la barra (como los splits de Superhuman). Las carpetas propias van aparte. */
-export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done'] as const;
+export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived'] as const;
 export type InboxView = (typeof INBOX_VIEWS)[number];
 
 export function isInboxView(v: unknown): v is InboxView {
@@ -52,6 +52,8 @@ export interface ThreadDto {
   unread: number;
   pinned: boolean;
   done: boolean;
+  /** Archivado (como WhatsApp): fuera de la bandeja, en "Archivados". */
+  archived: boolean;
   snoozedUntil: string | null;
   woke: '' | 'snooze' | 'followup';
   followUpAt: string | null;
@@ -59,6 +61,87 @@ export interface ThreadDto {
   draft: string;
   folderIds: string[];
   scheduledCount: number;
+  /** WhatsApp: link a la foto ('' sin foto). */
+  avatar: string;
+  /** Quién mandó el último mensaje en un grupo (para "Ana: hola"). */
+  lastSender: string;
+  /** Tipo de media del último mensaje (image, video, audio, voice, document, sticker, location, contact, poll). */
+  lastKind: string;
+  /** Tildes del último mensaje propio (sent, delivered, read, failed). */
+  lastStatus: string;
+  presence: '' | 'typing' | 'recording' | 'online';
+  /** En un grupo, quién escribe (teléfono). */
+  presenceWho: string;
+  lastSeenAt: string | null;
+  /** Último mensaje con foto o video (su miniatura en la fila). */
+  lastMediaId?: string | null;
+}
+
+/** Datos de presentación de un mensaje de WhatsApp (los que manda el servidor). */
+export interface WaMessageMeta {
+  width?: number;
+  height?: number;
+  /** Segundos (audio, nota de voz, video). */
+  duration?: number;
+  /** Nota de voz. */
+  ptt?: boolean;
+  pages?: number;
+  size?: number;
+  mime?: string;
+  /** Miniatura chica (data URL). */
+  thumb?: string;
+  viewOnce?: boolean;
+  animated?: boolean;
+  /** Forma de onda de la nota de voz (0 a 100). */
+  waveform?: number[];
+  location?: { lat: number; lng: number; name?: string; address?: string; url?: string; live?: boolean };
+  contacts?: Array<{ name: string; phones: string[] }>;
+  poll?: { question: string; options: string[]; multi: boolean };
+  /** Vista previa del link (título, descripción, miniatura). */
+  link?: { url: string; title: string; description?: string; thumb?: string };
+}
+
+export interface ParticipantDto {
+  phone: string;
+  role: 'member' | 'admin' | 'superadmin';
+  name: string;
+  /** Chat 1:1 con esa persona en Inbox (para abrirlo). */
+  threadId: string | null;
+  avatar: string;
+  me: boolean;
+}
+
+/** Info del contacto o del grupo (panel de la derecha y subtítulo de la cabecera). */
+export interface WaDetailsDto {
+  /** "Info" del contacto o descripción del grupo. */
+  about: string;
+  size: number;
+  createdAt: string | null;
+  isBusiness: boolean;
+  /** Mi número (para "Vos" en la lista de participantes). */
+  myPhone: string;
+  participants: ParticipantDto[];
+  infoAt: string | null;
+  /** Bloqueado desde Inbox. */
+  blocked?: boolean;
+  /** Grupos en común (chat 1:1). */
+  commonGroups?: Array<{ id: string; title: string; avatar: string }>;
+}
+
+export interface MessageReaction {
+  emoji: string;
+  /** Teléfono de quien reaccionó ('me' si fui yo). */
+  by: string;
+  name: string;
+}
+
+export interface MessageQuote {
+  id: string;
+  fromMe: boolean;
+  senderName: string;
+  senderHandle: string;
+  body: string;
+  mediaType: string;
 }
 
 export interface MessageDto {
@@ -76,6 +159,12 @@ export interface MessageDto {
   edited: boolean;
   revoked: boolean;
   sentAt: string;
+  /** Mensaje citado (respuesta), si se encuentra en el chat. */
+  reply?: MessageQuote | null;
+  reactions?: MessageReaction[];
+  forwarded?: boolean;
+  starred?: boolean;
+  meta?: WaMessageMeta | null;
 }
 
 export interface FolderRule {
@@ -93,7 +182,10 @@ export interface FolderDto {
   position: number;
   parentId: string | null;
   rule: FolderRule | null;
+  /** Chats sin leer de la carpeta y sus subcarpetas (sin repetir). */
   count: number;
+  /** Chats sin leer de la carpeta sola. */
+  ownCount: number;
 }
 
 export interface SnippetDto {
@@ -114,6 +206,16 @@ export interface ScheduledDto {
   sendAt: string;
   status: ScheduledStatus;
   error: string;
+  /** Envío de varios mensajes al que pertenece (el id propio si es uno solo). */
+  batchId: string;
+  /** Orden dentro del envío (0 = el primero). */
+  seq: number;
+  /** Espera después del mensaje anterior, en segundos. */
+  delaySec: number;
+  /** Archivo que sale con el mensaje ('' sin archivo); el texto va como pie. */
+  mediaName: string;
+  mediaType: string;
+  mediaUrl: string;
 }
 
 export const FOLDER_COLORS = ['#3d5a80', '#0e9f6e', '#7b4dff', '#e23d7f', '#c2700a', '#0284c7', '#6b7280', '#b91c1c'] as const;

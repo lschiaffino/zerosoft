@@ -1453,3 +1453,28 @@ td.cell-actions > * + * { margin-left: 4px; }
   .cmdk:not(.is-anchored) { width: calc(100vw - 16px); }
   .cmdk:not(.is-anchored) .cmdk-results { max-height: 50dvh; }
 }
+
+/* ---------- Apps "Próximamente" ---------- */
+
+/* Switcher: al pie, en una fila compacta y apagada (llevan a la lista de espera). */
+.band-menu-soon { margin-top: 6px; }
+.band-menu-soon-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 var(--switcher-gap); }
+.band-menu-soon-item { color: var(--ink-2); }
+@media (max-width: 560px) {
+  .band-menu-soon-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* Vista previa interna del staff dentro de una app "Próximamente". */
+.preview-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--ink);
+  border: 1px dashed var(--ink-3);
+  background: var(--surface-2);
+}
+.preview-banner strong { font-family: var(--mono); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }

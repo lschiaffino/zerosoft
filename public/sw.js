@@ -50,6 +50,17 @@
  *   El texto nunca pasa por el servicio de push.
  * - notificationclick: abre (o enfoca) el chat del aviso.
  * - La bandeja de Groups no se cachea: siempre se ve al día.
+ *
+ * Ajustes de la persona (Ajustes › Sin conexión, lib/offline-prefs.ts):
+ * - La página manda {type:'zs-offline-prefs', prefs}: prendido o apagado, qué
+ *   apps se guardan, cuánto (vistas y megas) y por cuántos días. Se guardan en
+ *   META y valen para todo lo de abajo. Apagado: no se guarda ni se sirve nada
+ *   (se borran las vistas y los archivos guardados) y los cambios sin red ya no
+ *   se encolan; lo que ya estaba en la cola se sigue enviando.
+ * - Cada vista o archivo guardado se anota en un índice (META) con su app, su
+ *   tamaño y cuándo se guardó: con eso se recorta (offlineEvictions) y se
+ *   muestra el uso por app (zs-offline-usage).
+ * - zs-offline-clear borra vistas y archivos guardados; nunca la cola.
  */
 const VERSION = 'zs-app-v7';
 const PAGES = `${VERSION}-pages`;
@@ -61,8 +72,6 @@ const STORE = 'queue';
 const FAILED = 'failed';
 const CONFLICTS = 'conflicts';
 const DB_VERSION = 2;
-/** Tope de vistas guardadas por persona (las más viejas salen primero). */
-const MAX_PAGES = 300;
 const SYNC_TAG = 'zs-crm-queue';
 const QUEUED_HEADER = 'x-zs-queued';
 const WORKSPACE_HEADER = 'x-zs-workspace';
@@ -73,6 +82,68 @@ const LABEL_HEADER = 'x-zs-label';
 const CONFLICT_HEADER = 'x-zs-conflict';
 const RETRY_HEADER = 'x-zs-retry';
 const REPLAY_HEADER = 'x-zs-replay';
+const PREFS_KEY = '/__zs-offline-prefs';
+const INDEX_KEY = '/__zs-offline-index';
+
+// ---------- Ajustes (las mismas reglas que lib/offline-prefs.ts) ----------
+
+const OFFLINE_APPS = ['crm', 'docs', 'track', 'notes'];
+const OFFLINE_SIZES = ['light', 'normal', 'max'];
+const OFFLINE_DAYS = [7, 30, 90];
+const OFFLINE_LIMITS = { light: { pages: 60, mb: 50 }, normal: { pages: 300, mb: 200 }, max: { pages: 1000, mb: 1024 } };
+const DEFAULT_PREFS = { enabled: true, apps: { crm: true, docs: true, track: true, notes: true }, size: 'normal', days: 30 };
+
+function parseOfflinePrefs(raw) {
+  const d = DEFAULT_PREFS;
+  const apps = { ...d.apps };
+  if (!raw || typeof raw !== 'object') return { ...d, apps };
+  if (raw.apps && typeof raw.apps === 'object') for (const a of OFFLINE_APPS) if (typeof raw.apps[a] === 'boolean') apps[a] = raw.apps[a];
+  return {
+    enabled: typeof raw.enabled === 'boolean' ? raw.enabled : d.enabled,
+    apps,
+    size: OFFLINE_SIZES.includes(raw.size) ? raw.size : d.size,
+    days: OFFLINE_DAYS.includes(raw.days) ? raw.days : d.days,
+  };
+}
+
+function offlineAppOf(pathname) {
+  const p = pathname.replace(/^\/(en|es|pt)(?=\/)/, '');
+  if (/^\/app\/notes\/?$/.test(p)) return 'notes';
+  if (/^\/app\/?$/.test(p) || /^\/app\/crm(\/|$)/.test(p) || /^\/api\/crm\//.test(p)) return 'crm';
+  if (/^\/app\/docs(\/|$)/.test(p)) return 'docs';
+  if (/^\/app\/track(\/|$)/.test(p)) return 'track';
+  return null;
+}
+
+function offlineAllows(prefs, pathname) {
+  if (!prefs.enabled) return false;
+  const app = offlineAppOf(pathname);
+  return app !== null && prefs.apps[app];
+}
+
+function offlineEvictions(entries, prefs, now) {
+  const limit = OFFLINE_LIMITS[prefs.size];
+  const maxAge = prefs.days * 86400000;
+  const out = new Set();
+  const live = [...entries].sort((a, b) => a.at - b.at).filter((e) => {
+    if (now - e.at > maxAge) {
+      out.add(e.url);
+      return false;
+    }
+    return true;
+  });
+  let pages = live.filter((e) => e.app !== 'static').length;
+  let bytes = live.reduce((n, e) => n + e.bytes, 0);
+  const cap = limit.mb * 1024 * 1024;
+  for (const e of live) {
+    if (pages <= limit.pages && bytes <= cap) break;
+    if (e.app === 'static' && bytes <= cap) continue;
+    out.add(e.url);
+    bytes -= e.bytes;
+    if (e.app !== 'static') pages -= 1;
+  }
+  return [...out];
+}
 
 const NEVER_QUEUE = [
   '/api/crm/emails',
@@ -398,6 +469,117 @@ async function getUser() {
 async function dropPages() {
   const keys = await caches.keys();
   await Promise.all(keys.filter((k) => k.startsWith(PAGES)).map((k) => caches.delete(k)));
+  await editIndex((index) => index.filter((e) => e.app === 'static'));
+}
+
+let currentPrefs;
+
+async function getPrefs() {
+  if (currentPrefs) return currentPrefs;
+  try {
+    const hit = await (await caches.open(META)).match(PREFS_KEY);
+    currentPrefs = parseOfflinePrefs(hit ? await hit.json() : null);
+  } catch {
+    currentPrefs = parseOfflinePrefs(null);
+  }
+  return currentPrefs;
+}
+
+/**
+ * Ajustes nuevos: se guardan y se aplican. Apagado: fuera vistas y archivos.
+ * Una app apagada: fuera sus vistas. Después se recorta con los topes nuevos.
+ */
+async function setPrefs(raw) {
+  const next = parseOfflinePrefs(raw);
+  currentPrefs = next;
+  await (await caches.open(META)).put(PREFS_KEY, new Response(JSON.stringify(next), { headers: { 'content-type': 'application/json' } }));
+  if (!next.enabled) {
+    await clearOffline();
+    return;
+  }
+  const index = await readIndex();
+  await evict(index.filter((e) => e.app !== 'static' && !next.apps[e.app]).map((e) => e.url));
+  await trim();
+}
+
+// Índice de lo guardado: [{ url, cache, app, bytes, at }]. Las escrituras van en fila.
+let indexChain = Promise.resolve();
+
+async function readIndex() {
+  await indexChain;
+  try {
+    const hit = await (await caches.open(META)).match(INDEX_KEY);
+    const data = hit ? await hit.json() : [];
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+function editIndex(fn) {
+  indexChain = indexChain
+    .then(async () => {
+      let cur = [];
+      try {
+        const hit = await (await caches.open(META)).match(INDEX_KEY);
+        const data = hit ? await hit.json() : [];
+        cur = Array.isArray(data) ? data : [];
+      } catch {
+        cur = [];
+      }
+      await (await caches.open(META)).put(INDEX_KEY, new Response(JSON.stringify(fn(cur)), { headers: { 'content-type': 'application/json' } }));
+    })
+    .catch(() => undefined);
+  return indexChain;
+}
+
+/** Guarda una respuesta y la anota en el índice (con el tamaño del cuerpo). */
+async function store(cache, cacheName, request, res, app) {
+  const buf = await res.clone().arrayBuffer().catch(() => null);
+  if (!buf) return;
+  await cache.put(request, res.clone()).catch(() => undefined);
+  const url = typeof request === 'string' ? request : request.url;
+  await editIndex((index) => [...index.filter((e) => e.url !== url), { url, cache: cacheName, app, bytes: buf.byteLength, at: Date.now() }]);
+}
+
+async function evict(urls) {
+  if (!urls.length) return;
+  const drop = new Set(urls);
+  for (const e of await readIndex()) {
+    if (!drop.has(e.url)) continue;
+    try {
+      await (await caches.open(e.cache)).delete(e.url);
+    } catch {
+      /* ya no estaba */
+    }
+  }
+  await editIndex((cur) => cur.filter((e) => !drop.has(e.url)));
+}
+
+/** Que lo guardado respete los ajustes: lo vencido y lo más viejo, afuera. */
+async function trim() {
+  await evict(offlineEvictions(await readIndex(), await getPrefs(), Date.now()));
+}
+
+/** Borra vistas y archivos guardados (nunca la cola de cambios). */
+async function clearOffline() {
+  const keys = await caches.keys();
+  await Promise.all(keys.filter((k) => k.startsWith(PAGES) || k === STATIC).map((k) => caches.delete(k)));
+  await editIndex(() => []);
+}
+
+/** Uso de la persona actual: sus vistas por app y los archivos de la app. */
+async function broadcastUsage() {
+  const meta = await getMeta();
+  const mine = meta ? `${PAGES}-${encodeURIComponent(meta.id)}` : null;
+  const usage = { crm: { pages: 0, bytes: 0 }, docs: { pages: 0, bytes: 0 }, track: { pages: 0, bytes: 0 }, notes: { pages: 0, bytes: 0 }, static: { pages: 0, bytes: 0 } };
+  for (const e of await readIndex()) {
+    if (!usage[e.app]) continue;
+    if (e.app !== 'static' && e.cache !== mine) continue;
+    usage[e.app].pages += 1;
+    usage[e.app].bytes += e.bytes;
+  }
+  await broadcast({ type: 'zs-offline-usage', usage, prefs: await getPrefs() });
 }
 
 /**
@@ -455,13 +637,17 @@ async function pagesCache() {
 }
 
 async function networkFirst(request) {
+  const url = new URL(request.url);
+  // Apagado o una app que no se guarda: como sin worker.
+  if (!offlineAllows(await getPrefs(), url.pathname)) return fetch(request);
   const cache = await pagesCache();
   if (!cache) return fetch(request);
   try {
     const res = await fetch(request);
-    if (res && res.ok && res.status === 200 && res.type === 'basic' && !res.redirected && storable(new URL(request.url))) {
-      await cache.put(request, res.clone()).catch(() => undefined);
-      await trimPages(cache);
+    if (res && res.ok && res.status === 200 && res.type === 'basic' && !res.redirected && storable(url)) {
+      const meta = await getMeta();
+      await store(cache, `${PAGES}-${encodeURIComponent(meta.id)}`, request, res, offlineAppOf(url.pathname));
+      await trim();
     }
     return res;
   } catch (err) {
@@ -471,21 +657,16 @@ async function networkFirst(request) {
   }
 }
 
-/** Que las vistas guardadas no crezcan sin fin: fuera las más viejas. */
-async function trimPages(cache) {
-  try {
-    const keys = await cache.keys();
-    for (const k of keys.slice(0, Math.max(0, keys.length - MAX_PAGES))) await cache.delete(k);
-  } catch {
-    /* nada que recortar */
-  }
-}
-
 async function crmNavigation(request) {
   const url = new URL(request.url);
   try {
     return await networkFirst(request);
   } catch {
+    // Sin conexión con el modo apagado (o esta app afuera): no se sirve nada guardado.
+    if (!offlineAllows(await getPrefs(), url.pathname)) {
+      const l = (CRM_PAGE.exec(url.pathname) || DOCS_PAGE.exec(url.pathname) || TRACK_PAGE.exec(url.pathname) || [])[1] || 'en';
+      return new Response(offlineHtml(l), { status: 503, headers: { 'content-type': 'text/html; charset=utf-8' } });
+    }
     const cache = (await pagesCache()) || (await caches.open(`${PAGES}-none`));
     // /app, /app/crm o /app/docs sin locale (como abre la app instalada): la versión cacheada en cualquier idioma.
     if (CRM_ROOT.test(url.pathname) || DOCS_ROOT.test(url.pathname) || TRACK_ROOT.test(url.pathname)) {
@@ -514,11 +695,13 @@ async function crmNavigation(request) {
 }
 
 async function cacheFirst(request) {
+  // Apagado: los archivos de la app ni se guardan ni se sirven guardados.
+  if (!(await getPrefs()).enabled) return fetch(request);
   const cache = await caches.open(STATIC);
   const hit = await cache.match(request);
   if (hit) return hit;
   const res = await fetch(request);
-  if (res && res.ok) await cache.put(request, res.clone());
+  if (res && res.ok) await store(cache, STATIC, request, res, 'static');
   return res;
 }
 
@@ -540,6 +723,8 @@ async function queueOrSend(request) {
   try {
     return await fetch(request);
   } catch (err) {
+    // Modo sin conexión apagado: el cambio falla como sin worker (lo ya encolado se sigue enviando).
+    if (!(await getPrefs()).enabled) throw err;
     // Sin persona confirmada no se guarda nada: el cambio falla como sin worker.
     const owner = (await sessionMatches().catch(() => false)) ? await getUser().catch(() => null) : null;
     if (!owner) throw err;
@@ -609,6 +794,9 @@ self.addEventListener('sync', (event) => {
 self.addEventListener('message', (event) => {
   const data = event.data || {};
   if (data.type === 'zs-user') event.waitUntil(setUser(data.id, data.who));
+  else if (data.type === 'zs-offline-prefs') event.waitUntil(setPrefs(data.prefs).then(broadcastUsage));
+  else if (data.type === 'zs-offline-usage') event.waitUntil(broadcastUsage());
+  else if (data.type === 'zs-offline-clear') event.waitUntil(clearOffline().then(broadcastUsage));
   else if (data.type === 'zs-sync') event.waitUntil(replay());
   else if (data.type === 'zs-drop-unscoped') {
     // La persona descarta lo que no se sabe de qué workspace es.
@@ -693,22 +881,29 @@ self.addEventListener('message', (event) => {
       (async () => {
         // La página manda quién es junto con lo que hay que guardar.
         if ('user' in data) await setUser(data.user, data.who);
+        const prefs = await getPrefs();
+        if (!prefs.enabled) return;
         const statics = await caches.open(STATIC);
         const pages = await pagesCache();
+        const meta = await getMeta();
         for (const raw of data.urls.slice(0, 200)) {
           try {
             const u = new URL(raw, self.location.origin);
             if (u.origin !== self.location.origin) continue;
             if (u.pathname.startsWith('/_next/static/')) {
-              if (!(await statics.match(u.href))) await statics.add(u.href);
-            } else if (pages && isOfflineNavigation(u) && storable(u)) {
+              if (!(await statics.match(u.href))) {
+                const res = await fetch(u.href);
+                if (res.ok) await store(statics, STATIC, u.href, res, 'static');
+              }
+            } else if (pages && meta && isOfflineNavigation(u) && storable(u) && offlineAllows(prefs, u.pathname)) {
               const res = await fetch(u.href, { credentials: 'same-origin' });
-              if (res.ok && !res.redirected) await pages.put(u.href, res);
+              if (res.ok && !res.redirected) await store(pages, `${PAGES}-${encodeURIComponent(meta.id)}`, u.href, res, offlineAppOf(u.pathname));
             }
           } catch {
             /* sin red o recurso que ya no existe */
           }
         }
+        await trim();
       })(),
     );
   }
@@ -767,4 +962,4 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // Para tests/unit/offline-queue.test.ts (en el navegador no molesta).
-self.__zsOffline = { shouldQueue, replayQueue, NEVER_QUEUE, NEVER_OPT_IN, OPT_IN_PREFIXES, isOfflineNavigation, setUser, getUser, pagesCache, sessionMatches };
+self.__zsOffline = { shouldQueue, replayQueue, NEVER_QUEUE, NEVER_OPT_IN, OPT_IN_PREFIXES, isOfflineNavigation, setUser, getUser, pagesCache, sessionMatches, parseOfflinePrefs, offlineAppOf, offlineAllows, offlineEvictions, OFFLINE_LIMITS, DEFAULT_PREFS, setPrefs, getPrefs, clearOffline };

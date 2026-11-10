@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync } from 'fs';
 import path from 'path';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { PDFDocument } from 'pdf-lib';
 import { buildZip } from '../../lib/zip-reader';
@@ -74,7 +74,7 @@ async function linkFor(request: APIRequestContext, id: string, data: Record<stri
 const analytics = async (request: APIRequestContext, id: string) => (await (await request.get(`/api/send/documents/${id}/analytics`)).json()) as { totals: { visits: number }; visits: Array<{ email: string | null; seconds: number; pagesSeen: number; pageTotal: number; pages: Array<{ page: number; seconds: number }> }> };
 
 async function sql(statement: string, args: Array<string | number | null> = []) {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   try {
     return (await db.execute({ sql: statement, args })).rows as unknown as Array<Record<string, unknown>>;
   } finally {

@@ -101,7 +101,8 @@
     "guest": "Guest",
     "authorBadge": "Author",
     "more": "Show older comments ({shown} of {total})",
-    "signinToComment": "Sign in to comment on this video."
+    "signinToComment": "Sign in to comment on this video.",
+    "viewOnly": "You can watch this video. Commenting is off for you."
   },
   "common": {
     "copied": "Copied",
@@ -146,7 +147,7 @@
       "offline_start": "No connection: the recording needs a connection to start.",
       "invalid_path": "That upload is not valid.",
       "part_missing": "Part of the recording is missing in this browser.",
-      "people_needs_personal": "\"Only specific people\" is for videos in My videos.",
+      "people_needs_personal": "Restricted is for videos in My videos.",
       "invalid_space": "That space is not available.",
       "invalid_color": "Use a color like #e11d48.",
       "edit_too_large": "Files over 600 MB cannot be edited in the browser.",
@@ -162,9 +163,13 @@
       "export_widens": "Confirm first: more people would read this video.",
       "transfer_owner": "The owner's content cannot be transferred.",
       "transfer_not_former": "You can only transfer the content of someone who left the workspace.",
-      "transfer_self": "Choose another person to receive it."
+      "transfer_self": "Choose another person to receive it.",
+      "invite_quota": "Too many invitations today.",
+      "comment_forbidden": "You can watch but not comment on this video.",
+      "invalid_link": "This link was already used or expired."
     },
-    "downloading": "Downloading {pct}%"
+    "downloading": "Downloading {pct}%",
+    "preparingMp4": "Preparing MP4…"
   },
   "watch": {
     "copyLink": "Copy link",
@@ -195,7 +200,7 @@
       },
       "signin": {
         "title": "Sign in to watch",
-        "body": "Only some people can watch this video. Sign in to check if you are one of them."
+        "body": "Only some people can watch this video. Sign in, or ask for a link with your email."
       },
       "forbidden": {
         "title": "You can't watch this video",
@@ -208,6 +213,10 @@
       "email": {
         "title": "Enter your email to watch",
         "body": "The person who shared this video sees the email you enter here."
+      },
+      "invite": {
+        "title": "A video was shared with you",
+        "body": "Open it with this link. It works once on this browser."
       }
     },
     "email": "Your email",
@@ -216,7 +225,13 @@
     "invalidEmail": "Enter a valid email.",
     "requestAccess": "Request access",
     "requestSent": "Request sent. You will get an email if it is approved.",
-    "requestDenied": "The owner declined this request."
+    "requestDenied": "The owner declined this request.",
+    "inviteUsed": "This link was already used or expired. Ask for a new one with your email.",
+    "openVideo": "Open video",
+    "magicTitle": "Were you invited by email?",
+    "magicHelp": "Enter your email. If the video was shared with you, we email you a link to watch. If not, we ask the owner for access.",
+    "magicSend": "Send me a link",
+    "magicSent": "Done. Check your email: if you have access, the link is there. If not, the owner got your request."
   },
   "library": {
     "mine": "My videos",
@@ -257,7 +272,6 @@
     "deleteBody": "The video, its comments and views are deleted, and the link stops working.",
     "moveTitle": "Move video",
     "moveHelp": "Videos in the workspace are visible to everyone in it.",
-    "moveNeedsPrivacy": "This video is set to \"Only specific people\", which only works in My videos. Change who can see it in Share first, then move it.",
     "moveBecomesPeople": "In My videos this video changes to \"Only specific people\", so the rest of the workspace stops seeing it.",
     "move": "Move",
     "branchEmpty": "No folders yet",
@@ -291,7 +305,8 @@
     "archiveAction": "Archive",
     "restore": "Restore",
     "archived": "Archived",
-    "restored": "Restored"
+    "restored": "Restored",
+    "moveBecomesShared": "In a shared space its members can watch this video. People you invited keep access."
   },
   "record": {
     "title": "Record a video",
@@ -311,13 +326,9 @@
   },
   "share": {
     "title": "Share",
-    "link": "Link",
     "copyLink": "Copy link",
     "embed": "Embed",
     "copyEmbed": "Copy code",
-    "who": "Who can watch",
-    "anyone": "Anyone with the link",
-    "workspaceOnly": "Only signed-in members of this workspace",
     "changePassword": "New password",
     "password": "Password (optional)",
     "passwordSet": "A password is set",
@@ -331,11 +342,7 @@
     "passwordHelp": "At least 8 characters. With a password, downloads start turned off.",
     "downloadNote": "Turning it off removes the download button. The video still streams, so a determined viewer could capture it.",
     "requireAccount": "Only signed-in people can comment",
-    "peopleOnly": "Only specific people",
-    "peopleNeedsPersonal": "\"Only specific people\" is for videos in My videos. In a shared space its members can see it.",
-    "peopleList": "Who can watch (emails)",
-    "peopleExtra": "Also let these people watch (emails)",
-    "peopleHelp": "They need to sign in with that email. One per line or separated by commas. Removing an email cuts access right away. Nothing is sent: copy the link and share it.",
+    "peopleNeedsPersonal": "Restricted is for videos in My videos. Videos in a shared space are visible to its members.",
     "requests": "Access requests",
     "approve": "Approve",
     "deny": "Decline",
@@ -345,7 +352,46 @@
     "rotateHelp": "The current link and embeds stop working.",
     "rotateGo": "Reset link",
     "rotateTitle": "Reset the link?",
-    "rotateBody": "Anyone with the current link or an embed loses access. You will need to share the new link."
+    "rotateBody": "Anyone with the current link or an embed loses access. You will need to share the new link.",
+    "titleOf": "Share “{title}”",
+    "addPeople": "Add people",
+    "addPlaceholder": "Emails, separated by commas",
+    "role": "Role",
+    "roleCommenter": "Can comment",
+    "roleViewer": "Can view",
+    "invite": "Invite",
+    "sendMail": "Email them a link to watch",
+    "addInvalid": "Enter valid emails, separated by commas.",
+    "addFull": "A video can be shared with up to 100 people.",
+    "addQuota": "Too many invitations today. Try again tomorrow.",
+    "addError": "Could not save the change. Try again.",
+    "addedSent": "{n, plural, one {Invitation sent} other {# invitations sent}}.",
+    "added": "{n, plural, =0 {Role updated} one {Person added} other {# people added}}.",
+    "peopleWithAccess": "People with access",
+    "owner": "Owner",
+    "loadingPeople": "Loading…",
+    "peopleError": "Could not load who has access.",
+    "retry": "Retry",
+    "member": "Workspace member",
+    "viewed": "Watched",
+    "notViewed": "Not watched yet",
+    "roleFor": "Role of {email}",
+    "removeFor": "Remove {email}",
+    "remove": "Remove",
+    "noPeople": "Nobody invited yet. Add emails above.",
+    "generalAccess": "General access",
+    "accessPeople": "Restricted",
+    "accessWorkspace": "Anyone in the workspace",
+    "accessSpace": "Anyone in this space",
+    "accessLink": "Anyone with the link",
+    "accessPeopleHelp": "Only you and the people above can open the link.",
+    "accessWorkspaceHelp": "Signed-in members of this workspace can open the link, plus the people above.",
+    "accessSpaceHelp": "Members of this space can open the link, plus the people above.",
+    "accessLinkHelp": "Anyone who has the link can watch, without signing in.",
+    "linkOptions": "Link options",
+    "invitedSkip": "People you invite by email don’t need the password and keep access after the link expires.",
+    "embedAndLink": "Embed and reset link",
+    "embedHelp": "The embed only plays for people who can open the link."
   },
   "detail": {
     "library": "Videos",
@@ -441,7 +487,7 @@
     "restored": "Restored",
     "rotated": "New link ready",
     "badgeArchived": "Archived",
-    "badgePeople": "Specific people"
+    "badgePeople": "Restricted"
   },
   "pending": {
     "title": "Recordings waiting to upload",
@@ -579,6 +625,7 @@
     "transferDone": "Transferred {videos, plural, one {# video} other {# videos}} and {folders, plural, one {# folder} other {# folders}}.",
     "transferConfirmTitle": "Transfer this content?",
     "transferConfirmBody": "{videos, plural, one {# video} other {# videos}} and {folders, plural, one {# folder} other {# folders}} go from {from} to {to}. {to} will also see the personal videos of {from}.",
-    "transferNone": "Nobody who left has videos or folders here."
+    "transferNone": "Nobody who left has videos or folders here.",
+    "privacyPeople": "Restricted: only the person who records it and who they invite"
   }
 }

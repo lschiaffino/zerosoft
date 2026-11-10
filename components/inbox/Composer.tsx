@@ -4,6 +4,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { useTranslations } from 'next-intl';
 import { fillSnippet, type MessageDto, type SnippetDto, type ThreadDto } from '@/lib/inbox/types';
 import { api } from './api';
+import AiWrite, { streamAi } from './AiWrite';
 
 export interface ComposerHandle {
   focus: () => void;
@@ -37,6 +38,7 @@ const Composer = forwardRef<
   const [busy, setBusy] = useState<'' | 'send' | 'ai'>('');
   const [undo, setUndo] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [snipQ, setSnipQ] = useState<string | null>(null);
   const [snipIdx, setSnipIdx] = useState(0);
   const area = useRef<HTMLTextAreaElement>(null);
@@ -49,6 +51,7 @@ const Composer = forwardRef<
     saved.current = thread.draft;
     setUndo(null);
     setSnipQ(null);
+    setAiOpen(false);
   }, [thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Borrador guardado solo (se escribe en el chat, lo ven las otras pestañas al recargar).
@@ -90,33 +93,34 @@ const Composer = forwardRef<
     onSent(r.data.messages);
   }, [text, busy, disabled, thread.id, onSent, onError]);
 
+  /** Pide a la IA y escribe en el campo a medida que llega; si falla, vuelve lo que había. */
+  const streamInto = useCallback(
+    async (ask: Parameters<typeof streamAi>[0]) => {
+      const before = text;
+      setBusy('ai');
+      const r = await streamAi(ask, (full) => setText(full));
+      setBusy('');
+      if (!r.ok) {
+        setText(before);
+        onError(r.code);
+        return;
+      }
+      setUndo(before);
+      setText(r.text);
+      area.current?.focus();
+    },
+    [text, onError],
+  );
+
   const draft = useCallback(async () => {
     if (busy) return;
-    setBusy('ai');
-    const r = await api<{ text: string }>('/api/inbox/ai', { method: 'POST', json: { action: 'draft', threadId: thread.id, instruction: text.trim() || undefined } });
-    setBusy('');
-    if (!r.ok) {
-      onError(r.data.error ?? 'ai_failed');
-      return;
-    }
-    setUndo(text);
-    setText(r.data.text);
-    area.current?.focus();
-  }, [busy, text, thread.id, onError]);
+    await streamInto({ action: 'draft', threadId: thread.id, instruction: text.trim() || undefined });
+  }, [busy, text, thread.id, streamInto]);
 
   const rewrite = async (mode: Rewrite) => {
     setMenu(false);
     if (!text.trim() || busy) return;
-    setBusy('ai');
-    const r = await api<{ text: string }>('/api/inbox/ai', { method: 'POST', json: { action: 'rewrite', text, mode } });
-    setBusy('');
-    if (!r.ok) {
-      onError(r.data.error ?? 'ai_failed');
-      return;
-    }
-    setUndo(text);
-    setText(r.data.text);
-    area.current?.focus();
+    await streamInto({ action: 'rewrite', text, mode, threadId: thread.id });
   };
 
   useImperativeHandle(
@@ -158,6 +162,21 @@ const Composer = forwardRef<
 
   return (
     <div className="ib-composer" aria-busy={busy !== '' || undefined}>
+      {aiOpen && (
+        <AiWrite
+          threadId={thread.id}
+          onClose={() => {
+            setAiOpen(false);
+            area.current?.focus();
+          }}
+          onInsert={(v) => {
+            setUndo(text);
+            setText(v);
+            setAiOpen(false);
+            requestAnimationFrame(() => area.current?.focus());
+          }}
+        />
+      )}
       {snipQ !== null && matches.length > 0 && (
         <ul className="ib-snippets" role="listbox" aria-label={t('snippets')}>
           {matches.map((s, i) => (
@@ -225,6 +244,9 @@ const Composer = forwardRef<
         <div className="ib-composer-tools">
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => void draft()} disabled={disabled || busy !== ''} title={t('aiDraftHint')}>
             {busy === 'ai' ? t('aiWorking') : text.trim() ? t('aiFromText') : t('aiDraft')}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" aria-expanded={aiOpen} onClick={() => setAiOpen((o) => !o)} disabled={disabled}>
+            {t('aiAsk')}
           </button>
           <div className="ib-menu-wrap">
             <button type="button" className="btn btn-ghost btn-sm" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)} disabled={disabled || !text.trim() || busy !== ''}>

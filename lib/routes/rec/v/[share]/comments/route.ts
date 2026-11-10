@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { addComment, canManage, listComments } from '@/lib/rec';
-import { actorOf, publicVideoFor, recFail, resolveViewer, withViewerCookie } from '@/lib/rec-http';
+import { addComment, canCommentAs, canManage, listComments } from '@/lib/rec';
+import { actorOf, publicVideoFor, recFail, resolveViewer, withViewerCookie, sameSiteJson } from '@/lib/rec-http';
 import { limitByIp } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   // Moderar (borrar comentarios ajenos): quien administra el video.
   const canModerate = !!user && canManage(actorOf(user), r.v);
   return withViewerCookie(
-    NextResponse.json({ ...page, me: { name: viewer.name, signedIn: !!viewer.userId, canModerate, requireAccount: !!r.v.comments_require_account } }),
+    NextResponse.json({ ...page, me: { name: viewer.name, signedIn: !!viewer.userId, canModerate, requireAccount: !!r.v.comments_require_account, canComment: canCommentAs(r.v, r.viewer) } }),
     newKey,
   );
 }
@@ -35,6 +35,8 @@ const schema = z.object({
 
 /** Comentario o reacción con el segundo del video. Sin login, con el nombre que escribe quien mira. */
 export async function POST(req: NextRequest, ctx: Ctx) {
+  const bad = sameSiteJson(req);
+  if (bad) return bad;
   const limited = await limitByIp(req, 'rec:comment', 60, 600);
   if (limited) return limited;
   const { share } = await ctx.params;
@@ -42,6 +44,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   if ('res' in r) return r.res;
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
+  // Las personas invitadas con rol de lector miran y leen, pero no comentan.
+  if (!canCommentAs(r.v, r.viewer)) return NextResponse.json({ error: r.v.allow_comments ? 'comment_forbidden' : 'comments_off' }, { status: 403 });
   const { viewer, newKey } = await resolveViewer(req, r.v, parsed.data.name);
   try {
     const comment = await addComment(r.v, viewer, parsed.data);

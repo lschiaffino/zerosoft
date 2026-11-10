@@ -1,8 +1,11 @@
 import type { ComponentType, ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { PRODUCT_CONFIG, isBuildingProduct, type SiteProductKey as ProductKey, productHref } from '@/lib/products';
+import { PRODUCT_CONFIG, isComingSoon, type SiteProductKey as ProductKey, productHref } from '@/lib/products';
 import Icon from '@/components/site/Icon';
+import WaitlistForm from '@/components/waitlist/WaitlistForm';
+import { waitlistLabels } from '@/components/waitlist/labels';
+import '@/styles/waitlist.css';
 import { GITHUB_URL, HAS_API, PRODUCT_PAGES, SECTION_IDS, type PageSection } from '@/components/site/catalog';
 import SectionSign from '@/components/site/SectionSign';
 import HeroVisual from '@/components/site/HeroVisual';
@@ -35,6 +38,7 @@ import TalkMockup from './mockups/TalkMockup';
 import DesignMockup from './mockups/DesignMockup';
 import ShopMockup from './mockups/ShopMockup';
 import AnalyticsMockup from './mockups/AnalyticsMockup';
+import BiMockup from './mockups/BiMockup';
 import SocialMockup from './mockups/SocialMockup';
 import HiringMockup from './mockups/HiringMockup';
 import PeopleMockup from './mockups/PeopleMockup';
@@ -63,6 +67,7 @@ const MOCKUPS: Record<ProductKey, ComponentType> = {
   design: DesignMockup,
   shop: ShopMockup,
   pulse: AnalyticsMockup,
+  analytics: BiMockup,
   social: SocialMockup,
   hiring: HiringMockup,
   people: PeopleMockup,
@@ -84,8 +89,9 @@ const ids = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `
  * cero del primer viewport y el índice de secciones (ProductSectionNav). El
  * copy vive en messages/<locale>/pages.json (products.<key> y product.*).
  *
- * Las apps en construcción (BUILDING_PRODUCTS) lo dicen arriba del título,
- * muestran la vista como boceto y llevan a proponer ideas en vez de a la app.
+ * Las apps "Próximamente" (status: 'coming_soon' en lib/products.ts) lo dicen
+ * arriba del título, muestran la vista como boceto y en vez de llevar a la app
+ * ofrecen la lista de espera (email y, opcional, para qué la usarías).
  */
 export default async function ProductPage({ locale, product }: { locale: string; product: ProductKey }) {
   const t = await getTranslations({ locale, namespace: 'pages' });
@@ -99,9 +105,10 @@ export default async function ProductPage({ locale, product }: { locale: string;
   const Mockup = MOCKUPS[product];
   const p = `products.${product}`;
   const rival = t(`${p}.compare.rival`);
-  const building = isBuildingProduct(product);
-  // En construcción no hay app para probar: las acciones llevan al board público.
-  const primaryHref = building ? `/feedback-board/new?product=${product}` : cfg.launch;
+  const building = isComingSoon(product);
+  // Próximamente no hay app para probar: las acciones llevan a la lista de espera.
+  const primaryHref = building ? '#waitlist' : cfg.launch;
+  const waitLabels = building ? await waitlistLabels(locale, cfg.name) : null;
 
   const sign = (key: PageSection, title: ReactNode, sub?: ReactNode) => (
     <SectionSign id={`h-${SECTION_IDS[key]}`} title={title} sub={sub} product={product} />
@@ -160,6 +167,7 @@ export default async function ProductPage({ locale, product }: { locale: string;
           t('product.parity.sectionTitle', { name: cfg.name, competitor: PARITY[product].competitor }),
           t('product.parity.sectionTitleDim'),
         )}
+        {building && <p className="container pd-parity-soon">{t('product.building.parityNote', { name: cfg.name })}</p>}
         <FeatureParity locale={locale} product={product} headingId={`h-${SECTION_IDS.parity}`} />
         <p className="container pd-compare-links">
           <Link href={`/compare/${comparison.vsSlug}`} className="parity-link">
@@ -338,25 +346,31 @@ export default async function ProductPage({ locale, product }: { locale: string;
             </span>
           </h1>
           <p className="pd-sub">{t(`${p}.hero.sub`)}</p>
-          <div className="pd-actions">
-            <Link className="btn btn-primary btn-lg" href={primaryHref}>
-              {building ? t('product.building.propose') : t('product.launch', { name: cfg.name })}
-            </Link>
-            {building ? (
-              <Link className="btn btn-secondary btn-lg" href="/feedback-board/roadmap">
-                {t('product.building.roadmap')}
+          {building && waitLabels ? (
+            <div className="pd-waitlist" id="waitlist">
+              <p className="pd-waitlist-lead">{t('product.building.waitlistLead', { name: cfg.name })}</p>
+              <WaitlistForm app={product} locale={locale} signedIn={false} labels={waitLabels} compact />
+              <p className="pd-waitlist-more">
+                <Link href="/feedback-board/roadmap" className="lp-textlink">
+                  {t('product.building.roadmap')}
+                </Link>
+              </p>
+            </div>
+          ) : (
+            <div className="pd-actions">
+              <Link className="btn btn-primary btn-lg" href={primaryHref}>
+                {t('product.launch', { name: cfg.name })}
               </Link>
-            ) : (
               <a className="btn btn-secondary btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">
                 <Icon name="github" size={16} /> {t('product.selfHost')}
               </a>
-            )}
-            {HAS_API.includes(product) && (
-              <Link className="btn btn-ghost btn-lg" href="/docs">
-                <Icon name="code" size={16} /> {t('product.apiDocs')}
-              </Link>
-            )}
-          </div>
+              {HAS_API.includes(product) && (
+                <Link className="btn btn-ghost btn-lg" href="/docs">
+                  <Icon name="code" size={16} /> {t('product.apiDocs')}
+                </Link>
+              )}
+            </div>
+          )}
         </div>
         <HeroVisual
           focus={product}
@@ -375,15 +389,21 @@ export default async function ProductPage({ locale, product }: { locale: string;
       <section className="lp-end" aria-labelledby="h-end">
         <div className="container lp-end-inner">
           <h2 id="h-end">
-            {t(`${p}.cta.title1`)}
+            {building ? t('product.building.ctaTitle', { name: cfg.name }) : t(`${p}.cta.title1`)}
             <br />
-            <span>{t(`${p}.cta.title2`)}</span>
+            <span>{building ? t('product.building.ctaTitleDim') : t(`${p}.cta.title2`)}</span>
           </h2>
-          <p className="lp-end-sub">{t(`${p}.cta.sub`)}</p>
+          <p className="lp-end-sub">{building ? t('product.building.ctaSub', { name: cfg.name }) : t(`${p}.cta.sub`)}</p>
           <div className="lp-ctas">
-            <Link className="btn btn-invert-solid btn-lg" href={primaryHref}>
-              {t(`${p}.cta.button`)}
-            </Link>
+            {building ? (
+              <a className="btn btn-invert-solid btn-lg" href="#waitlist">
+                {t('product.building.join')}
+              </a>
+            ) : (
+              <Link className="btn btn-invert-solid btn-lg" href={primaryHref}>
+                {t(`${p}.cta.button`)}
+              </Link>
+            )}
             <a className="btn btn-invert btn-lg" href={GITHUB_URL} target="_blank" rel="noreferrer">
               <Icon name="github" size={16} /> {t('product.selfHost')}
             </a>

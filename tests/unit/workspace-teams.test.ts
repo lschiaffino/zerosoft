@@ -337,7 +337,7 @@ describe('ficha, dominios y onboarding', () => {
     const u = await makeUser('ob');
     await getDb().prepare('UPDATE users SET onboarded_at = NULL WHERE id = ?').run(u.id);
     const profile = await saveOnboarding(u, { mode: 'team', teamName: 'Darwin AI', size: '11-50', role: 'sales', sourceTool: 'hubspot', entryApp: 'crm', name: 'Ana Pérez', locale: 'es', timeZone: 'America/Argentina/Buenos_Aires' });
-    expect(onboardingDestination(profile, true)).toBe('/app/crm/settings?tab=import&from=hubspot');
+    expect(onboardingDestination(profile, true)).toBe('/app/settings/import?source=crm:hubspot');
     expect(onboardingDestination(profile, false)).toBe('/app/crm');
     const row = (await getDb().prepare('SELECT name, locale, time_zone, onboarded_at, profile FROM users WHERE id = ?').get(u.id)) as Record<string, string>;
     expect(row.name).toBe('Ana Pérez');
