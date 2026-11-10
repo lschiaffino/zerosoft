@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
@@ -136,7 +136,7 @@ test.describe('sin app para el sistema', () => {
 
 // La tarjeta del inicio: la marca de instalada y la de cerrada viven en lifecycle_events.
 async function resetDesktopEvents() {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   await db.execute("DELETE FROM lifecycle_events WHERE event IN ('desktop_installed', 'desktop_hint_dismissed')");
   // Abrir el inicio con el puente del escritorio deja desktopSeenAt en el perfil, y con eso la tarjeta no vuelve.
   await db.execute("UPDATE users SET profile = json_remove(profile, '$.desktopSeenAt') WHERE json_valid(profile)");
@@ -167,7 +167,7 @@ test.describe('tarjeta del inicio de la app', () => {
     });
 
     test('quien ya instaló la app no la ve', async ({ page }) => {
-      const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+      const db = e2eDb();
       await db.execute("INSERT OR IGNORE INTO lifecycle_events (user_id, event, first_at) SELECT id, 'desktop_installed', '2026-11-01T00:00:00Z' FROM users");
       db.close();
       await page.goto('/en/app', { waitUntil: 'networkidle' });

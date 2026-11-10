@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 /**
@@ -20,7 +20,7 @@ test.beforeEach(async ({ context, baseURL }) => {
   await context.addCookies([{ name: 'zs_e2e_as', value: WHO, url: baseURL! }]);
   // El primer pedido crea la persona; después se salta el onboarding de la primera vez.
   await context.request.get('/api/track/integrations/linear');
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   try {
     await db.execute({ sql: "UPDATE users SET onboarded_at = COALESCE(onboarded_at, datetime('now')) WHERE email = ?", args: [WHO] });
   } finally {
