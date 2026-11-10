@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** Mensajes anteriores a ?before= (al subir en la conversación). */
+/** Mensajes anteriores a ?before= (el `cursor` de la página que ya se tiene, o una fecha), al subir en la conversación: { messages, more, cursor }. */
 export async function GET(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   return withOwner(async (owner) => {
@@ -30,6 +30,6 @@ export async function POST(req: Request, ctx: Ctx) {
     if (body.replyTo || body.mentions?.length) await sendWaMessage(owner, id, body.body, { replyTo: body.replyTo, mentions: body.mentions });
     else await sendToThread(owner, id, body.body);
     const page = await listMessages(owner, id);
-    return iJson({ messages: page.messages, more: page.more }, 201);
+    return iJson({ messages: page.messages, more: page.more, cursor: page.cursor }, 201);
   });
 }

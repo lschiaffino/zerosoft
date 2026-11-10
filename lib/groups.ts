@@ -10,6 +10,7 @@
 import { randomBytes, randomUUID } from 'crypto';
 import { after } from 'next/server';
 import { getDb } from './db';
+import { linesSortKey } from './schema/inbox-lines-perf-migration';
 import { open, seal } from './secret-box';
 import { emitEventSoon } from './events';
 import {
@@ -367,7 +368,8 @@ export function providerFor(row: NumberRow): GroupsProvider {
       return bridgeProvider(row.provider, cfg as BridgeConfig, { webhookSecret: row.webhook_secret });
     case 'managed':
       if (!managedAvailable()) throw new GroupsError('provider_unavailable', 503);
-      return managedProvider(cfg);
+      // Con todo el historial: WhatsApp lo manda solo al vincular y solo si la instancia lo pide (ver groups-import.ts).
+      return managedProvider(cfg, { fullHistory: true });
     case 'sample':
       return sampleProvider(row.id);
     case 'fake':
@@ -695,6 +697,83 @@ export interface ChatQuery {
   archived?: boolean;
   /** Vinculados (o no) a un registro de HubSpot. */
   hubspot?: 'linked' | 'unlinked';
+  /**
+   * Paginado por cursor (la bandeja): '' pide la primera página y el `next` de
+   * una página pide la que sigue. Sin esto, `limit` y `offset` como siempre.
+   */
+  cursor?: string | null;
+  /** false: no cuenta el total (la bandeja no lo usa; contar recorre todos los chats). */
+  count?: boolean;
+}
+
+/** Cursor de la bandeja: (orden, id) del último chat de la página. */
+export function encodeChatCursor(k: string, id: string): string {
+  return Buffer.from(JSON.stringify([k, id]), 'utf8').toString('base64url');
+}
+
+export function decodeChatCursor(raw: string | null | undefined): { k: string; id: string } | null {
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as unknown;
+    if (Array.isArray(v) && typeof v[0] === 'string' && typeof v[1] === 'string' && v[0].length <= 80 && v[1].length <= 120) return { k: v[0], id: v[1] };
+  } catch {
+    /* cursor roto: primera página */
+  }
+  return null;
+}
+
+let ftsOk: boolean | null = null;
+
+/** ¿Está el índice de texto completo de los mensajes? (migración 370; sin FTS5 la búsqueda usa LIKE). */
+async function hasMessagesFts(): Promise<boolean> {
+  if (ftsOk !== null) return ftsOk;
+  try {
+    await getDb().prepare("SELECT rowid FROM groups_messages_fts WHERE groups_messages_fts MATCH '\"x\"' LIMIT 1").all();
+    ftsOk = true;
+  } catch {
+    ftsOk = false;
+  }
+  return ftsOk;
+}
+
+/** Expresión MATCH: todas las palabras, cada una como prefijo ("fact" encuentra "factura"). '' si no hay palabras. */
+export function chatSearchMatch(q: string): string {
+  const words = q
+    .normalize('NFKC')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean)
+    .slice(0, 8);
+  return words.map((w) => `"${w}"*`).join(' ');
+}
+
+/** Tope de mensajes que se miran por búsqueda (los más recientes que coinciden). */
+const SEARCH_HITS = 400;
+
+/**
+ * Chats con algún mensaje que coincide con la búsqueda y el fragmento más
+ * nuevo de cada uno. null: sin índice de texto completo (se busca con LIKE).
+ * Siempre dentro del workspace; el acceso por línea y etiqueta lo aplica la
+ * lista, que solo usa estos ids para filtrar.
+ */
+async function chatsMatchingMessages(ws: string, q: string): Promise<Map<string, string> | null> {
+  const match = chatSearchMatch(q);
+  if (!match || !(await hasMessagesFts())) return null;
+  try {
+    const rows = (await getDb()
+      .prepare(
+        `SELECT m.chat_id, m.body, m.created_at FROM groups_messages_fts f JOIN groups_messages m ON m.rowid = f.rowid
+         WHERE groups_messages_fts MATCH ? AND m.user_id = ? ORDER BY f.rowid DESC LIMIT ${SEARCH_HITS}`,
+      )
+      .all(match, ws)) as Array<{ chat_id: string; body: string; created_at: string }>;
+    const latest = new Map<string, { body: string; at: string }>();
+    for (const r of rows) {
+      const prev = latest.get(r.chat_id);
+      if (!prev || r.created_at > prev.at) latest.set(r.chat_id, { body: r.body, at: r.created_at });
+    }
+    return new Map([...latest].map(([id, v]) => [id, v.body]));
+  } catch {
+    return null;
+  }
 }
 
 /** El chat tiene un vínculo con HubSpot y el workspace sigue conectado (alias c de groups_chats). */
@@ -704,7 +783,7 @@ function likeArg(q: string): string {
   return `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 }
 
-export async function listChats(ws: string, me: string, query: ChatQuery = {}): Promise<{ rows: ChatDto[]; total: number }> {
+export async function listChats(ws: string, me: string, query: ChatQuery = {}): Promise<{ rows: ChatDto[]; total: number; next?: string | null; pinned?: number }> {
   const where: string[] = ['c.user_id = ?', 'c.hidden_at IS NULL'];
   const args: Array<string | number> = [ws];
   const filter = query.filter ?? 'all';
@@ -786,38 +865,86 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const q = (query.q ?? '').trim().slice(0, 200);
   let matchSelect = 'NULL AS match';
   const matchArgs: string[] = [];
+  // Fragmento del mensaje que coincide, por chat (cuando la búsqueda usa el índice de texto completo).
+  let snippets: Map<string, string> | null = null;
   if (q) {
     const like = likeArg(q);
-    where.push(
-      `(c.name LIKE ? ESCAPE '\\' OR c.phone LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM groups_messages m WHERE m.chat_id = c.id AND m.body LIKE ? ESCAPE '\\'))`,
-    );
-    args.push(like, like, like);
-    matchSelect = `(SELECT body FROM groups_messages m WHERE m.chat_id = c.id AND m.body LIKE ? ESCAPE '\\' ORDER BY m.created_at DESC LIMIT 1) AS match`;
-    matchArgs.push(like);
+    snippets = await chatsMatchingMessages(ws, q);
+    if (snippets) {
+      const ids = [...snippets.keys()];
+      where.push(`(c.name LIKE ? ESCAPE '\\' OR c.phone LIKE ? ESCAPE '\\'${ids.length ? ` OR c.id IN (${ids.map(() => '?').join(',')})` : ''})`);
+      args.push(like, like, ...ids);
+    } else {
+      where.push(
+        `(c.name LIKE ? ESCAPE '\\' OR c.phone LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM groups_messages m WHERE m.chat_id = c.id AND m.body LIKE ? ESCAPE '\\'))`,
+      );
+      args.push(like, like, like);
+      matchSelect = `(SELECT body FROM groups_messages m WHERE m.chat_id = c.id AND m.body LIKE ? ESCAPE '\\' ORDER BY m.created_at DESC LIMIT 1) AS match`;
+      matchArgs.push(like);
+    }
   }
-  const limit = Math.min(Math.max(1, query.limit ?? 50), 500);
+  const keyset = query.cursor !== undefined && query.cursor !== null;
+  // Por cursor, la bandeja refresca de una vez todo lo que ya cargó (hasta 1000).
+  const limit = Math.min(Math.max(1, query.limit ?? 50), keyset ? 1000 : 500);
   const offset = Math.max(0, query.offset ?? 0);
   const whereSql = where.join(' AND ');
   const db = getDb();
-  const total = (await db.prepare(`SELECT COUNT(*) AS c FROM groups_chats c WHERE ${whereSql}`).get(...args)) as { c: number };
-  const rows = (await db
-    .prepare(
-      `SELECT c.*, ${matchSelect},
+  const total = query.count === false ? { c: 0 } : ((await db.prepare(`SELECT COUNT(*) AS c FROM groups_chats c WHERE ${whereSql}`).get(...args)) as { c: number });
+  const select = `SELECT c.*, ${matchSelect},
          (SELECT m.direction || '|' || m.status || '|' || COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.duration'), '') || '|' || CASE WHEN m.deleted_at IS NOT NULL THEN 'deleted' ELSE COALESCE(json_extract(CASE WHEN json_valid(m.meta) THEN m.meta END, '$.media.kind'), '') END || '|' || CASE WHEN m.sender_name != '' THEN m.sender_name WHEN m.sender_phone != '' THEN '+' || m.sender_phone ELSE '' END FROM groups_messages m WHERE m.chat_id = c.id AND m.direction IN ('in', 'out')
            ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_info,
          (SELECT zhl.name FROM groups_hubspot_links zhl JOIN groups_hubspot zh ON zh.user_id = zhl.user_id AND zh.token != ''
-           WHERE zhl.chat_id = c.id AND zhl.object_type IN ('company', 'deal') ORDER BY zhl.object_type LIMIT 1) AS hubspot_name
+           WHERE zhl.chat_id = c.id AND zhl.object_type IN ('company', 'deal') ORDER BY zhl.object_type LIMIT 1) AS hubspot_name`;
+  type ListRow = ChatRow & { match: string | null; last_info: string | null; hubspot_name: string | null; sort_key?: string | null };
+  let rows: ListRow[];
+  let next: string | null = null;
+  let pinnedCount = 0;
+  if (keyset) {
+    // Por cursor: los fijados entran todos en la primera página; el resto va por (orden, id) y cada página lee solo
+    // sus filas (idx_groups_chats_list). Una carpeta es un conjunto chico: `+` hace que se filtre por carpeta y se ordene eso.
+    const key = linesSortKey('c');
+    const cursor = decodeChatCursor(query.cursor);
+    const smallSet = Boolean(query.folderId && query.folderId !== 'none');
+    const pinned = cursor
+      ? []
+      : ((await db
+          // Los fijados son pocos: se leen por su índice (sin él, el motor recorre la bandeja entera buscándolos).
+          .prepare(
+            `${select}, ${key} AS sort_key FROM groups_chats c INDEXED BY idx_groups_chats_pinned WHERE ${whereSql} AND c.pinned_at IS NOT NULL ORDER BY c.pinned_at DESC, ${key} DESC, c.id DESC LIMIT 100`,
+          )
+          .all(...matchArgs, ...args)) as ListRow[]);
+    const rest = [whereSql, 'c.pinned_at IS NULL'];
+    const restArgs: Array<string | number> = [...args];
+    if (cursor) {
+      // El primer término deja que el índice arranque en la clave del cursor.
+      rest.push(`${key} <= ?`, `(${key} < ? OR c.id < ?)`);
+      restArgs.push(cursor.k, cursor.k, cursor.id);
+    }
+    const page = (await db
+      .prepare(`${select}, ${key} AS sort_key FROM groups_chats c WHERE ${rest.join(' AND ')} ORDER BY ${smallSet ? '+' : ''}${key} DESC, c.id DESC LIMIT ?`)
+      .all(...matchArgs, ...restArgs, limit + 1)) as ListRow[];
+    const more = page.length > limit;
+    const shown = more ? page.slice(0, limit) : page;
+    const last = shown[shown.length - 1];
+    if (more && last && last.sort_key != null) next = encodeChatCursor(String(last.sort_key), last.id);
+    rows = [...pinned, ...shown];
+    pinnedCount = pinned.length;
+  } else {
+    rows = (await db
+      .prepare(
+        `${select}
        FROM groups_chats c WHERE ${whereSql}
        ORDER BY (c.pinned_at IS NULL), c.pinned_at DESC, COALESCE(c.last_message_at, c.created_at) DESC, c.id LIMIT ? OFFSET ?`,
-    )
-    .all(...matchArgs, ...args, limit, offset)) as Array<ChatRow & { match: string | null; last_info: string | null; hubspot_name: string | null }>;
+      )
+      .all(...matchArgs, ...args, limit, offset)) as ListRow[];
+  }
   const labels = await labelsFor(rows.map((r) => r.id));
-  const presences = new Map<string, ChatPresence | null>();
-  for (const r of rows) if (r.kind === 'group' && chatPresence(r)) presences.set(r.id, await presenceWithName(r));
+  const presences = await presenceNames(rows);
   return {
     rows: rows.map((r) => {
       const [dir, st, dur, lastKind, ...rest] = (r.last_info ?? '').split('|');
       const sender = rest.join('|');
+      const match = r.match ?? snippets?.get(r.id) ?? null;
       return maskChat(query.viewer, {
         ...toChatDto(r, labels.get(r.id) ?? []),
         lastDirection: dir || null,
@@ -826,12 +953,41 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
         lastDuration: Number(dur) || null,
         lastKind: lastKind || null,
         ...(presences.has(r.id) ? { presence: presences.get(r.id) } : {}),
-        ...(r.match ? { match: r.match.slice(0, 160) } : {}),
+        ...(match ? { match: matchExcerpt(match, q) } : {}),
         ...(r.hubspot_name ? { hubspotName: r.hubspot_name } : {}),
       });
     }),
     total: Number(total.c),
+    ...(keyset ? { next, pinned: pinnedCount } : {}),
   };
+}
+
+/** El fragmento del mensaje alrededor de lo buscado (160 caracteres), para que la coincidencia se vea. */
+function matchExcerpt(body: string, q: string): string {
+  if (body.length <= 160) return body;
+  const first = q.trim().split(/\s+/)[0]?.toLowerCase() ?? '';
+  const at = first ? body.toLowerCase().indexOf(first) : -1;
+  if (at < 100) return body.slice(0, 160);
+  const from = Math.max(0, at - 40);
+  return `…${body.slice(from, from + 159)}`;
+}
+
+/** Quién escribe en los grupos de la página con presencia vigente: una consulta para todos (antes, una por grupo). */
+async function presenceNames(rows: ChatRow[]): Promise<Map<string, ChatPresence | null>> {
+  const out = new Map<string, ChatPresence | null>();
+  for (const r of rows) if (r.kind === 'group' && chatPresence(r)) out.set(r.id, chatPresence(r));
+  const live = rows.filter((r) => out.has(r.id) && r.presence_who);
+  if (live.length === 0) return out;
+  const marks = live.map(() => '?').join(',');
+  const names = (await getDb()
+    .prepare(`SELECT chat_id, phone, name FROM groups_members WHERE chat_id IN (${marks}) AND phone IN (${marks})`)
+    .all(...live.map((r) => r.id), ...live.map((r) => r.presence_who as string))) as Array<{ chat_id: string; phone: string; name: string }>;
+  const byKey = new Map(names.map((n) => [`${n.chat_id}|${n.phone}`, n.name]));
+  for (const r of live) {
+    const p = out.get(r.id);
+    if (p) out.set(r.id, { ...p, name: byKey.get(`${r.id}|${r.presence_who}`) ?? '' });
+  }
+  return out;
 }
 
 /** Chats abiertos con algo sin leer (sin los silenciados), con el mismo acceso que la bandeja. */
@@ -1136,6 +1292,8 @@ export interface MessageDto {
   needsReply?: boolean | null;
   /** Encuesta con sus resultados (votos por webhook). */
   poll?: PollDto | null;
+  /** Orden de llegada (solo al listar): con createdAt arma el cursor para pedir los anteriores ("<createdAt>~<seq>"). */
+  seq?: number;
 }
 
 /**
@@ -1180,7 +1338,7 @@ function mediaUrlFor(row: MessageRow): string {
   return row.media_url;
 }
 
-export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll_votes?: string | null }): MessageDto {
+export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll_votes?: string | null; rn?: number }): MessageDto {
   const poll = parsePoll(row.poll);
   const { media: storedMedia, location, contacts, ...meta } = parseJson<StoredMeta>(row.meta ?? '', {});
   return {
@@ -1209,6 +1367,7 @@ export function toMessageDto(row: MessageRow & { ticket_id?: string | null; poll
     meta,
     needsReply: row.needs_reply == null ? null : Boolean(row.needs_reply),
     ...(poll ? { poll: tallyPoll(poll, parseJson<string[]>(row.poll_votes, []).map((v) => parseJson<string[]>(v, []))) } : {}),
+    ...(typeof row.rn === 'number' ? { seq: row.rn } : {}),
   };
 }
 
@@ -1218,17 +1377,33 @@ export async function listMessages(
   opts: { after?: string; before?: string; limit?: number } = {},
 ): Promise<MessageDto[]> {
   const limit = Math.min(Math.max(1, opts.limit ?? 200), 500);
-  // `before`: los anteriores a ese momento (cargar más al subir en el hilo).
+  // `before`: los anteriores (cargar más al subir en el hilo). Con "<createdAt>~<seq>" el corte es exacto: los
+  // mensajes de la misma hora que el más viejo no se saltean. Con una fecha sola, los estrictamente anteriores.
+  const [beforeAt, beforeSeq] = (opts.before ?? '').split('~');
+  const seq = beforeSeq && /^\d{1,15}$/.test(beforeSeq) ? Number(beforeSeq) : null;
+  const where = ['m.chat_id = ?', 'm.user_id = ?'];
+  const args: Array<string | number> = [chatId, ws];
+  if (opts.after) {
+    where.push('m.created_at > ?');
+    args.push(opts.after);
+  }
+  if (beforeAt && seq !== null) {
+    where.push('m.created_at <= ?', '(m.created_at < ? OR m.rowid < ?)');
+    args.push(beforeAt, beforeAt, seq);
+  } else if (beforeAt) {
+    where.push('m.created_at < ?');
+    args.push(beforeAt);
+  }
   const rows = (await getDb()
     .prepare(
       `SELECT * FROM (
          SELECT m.*, m.rowid AS rn, (SELECT t.id FROM groups_tickets t WHERE t.message_id = m.id) AS ticket_id,
            CASE WHEN m.poll != '' THEN (SELECT json_group_array(v.options) FROM groups_poll_votes v WHERE v.message_id = m.id) END AS poll_votes
-         FROM groups_messages m WHERE m.chat_id = ? AND m.user_id = ? AND (? IS NULL OR m.created_at > ?) AND (? IS NULL OR m.created_at < ?)
+         FROM groups_messages m WHERE ${where.join(' AND ')}
          ORDER BY m.created_at DESC, m.rowid DESC LIMIT ?
        ) ORDER BY created_at ASC, rn ASC`,
     )
-    .all(chatId, ws, opts.after ?? null, opts.after ?? null, opts.before ?? null, opts.before ?? null, limit)) as Array<MessageRow & { ticket_id: string | null }>;
+    .all(...args, limit)) as Array<MessageRow & { ticket_id: string | null; rn: number }>;
   return rows.map(toMessageDto);
 }
 
