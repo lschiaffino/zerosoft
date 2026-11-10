@@ -35,6 +35,9 @@
   "inbox": {
     "title": "Bandeja",
     "listLabel": "Chats y grupos",
+    "resizeList": "Cambiar el ancho de la lista de chats",
+    "resizeDetails": "Cambiar el ancho del panel de detalles",
+    "resizeHint": "Arrastrá para cambiar el ancho. Doble clic para volver al original.",
     "search": "Buscar chats y mensajes",
     "searchPlaceholder": "Buscar chats y mensajes  /",
     "filters": "Filtros",

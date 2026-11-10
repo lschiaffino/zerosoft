@@ -81,10 +81,19 @@
 .wa-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* ---------- Columnas ---------- */
-.gr-inbox { grid-template-columns: clamp(340px, 30%, 460px) minmax(0, 1fr) 340px; background: var(--wa-panel); color: var(--wa-text); font-family: var(--wa-font); }
+.gr-inbox { --gr-list-default: clamp(340px, 30%, 460px); grid-template-columns: var(--gr-list-w, var(--gr-list-default)) minmax(0, 1fr) var(--gr-details-w, 340px); background: var(--wa-panel); color: var(--wa-text); font-family: var(--wa-font); }
 .gr-inbox .gr-list { background: var(--wa-panel); border-right: 1px solid var(--wa-border-strong); }
 .gr-inbox .gr-thread { border-right: 1px solid var(--wa-border-strong); background: var(--wa-conv-bg); position: relative; }
 .gr-inbox .gr-details { background: var(--wa-panel); }
+
+/* ---------- Divisores: cambiar el ancho de la lista y de los detalles ----------
+   components/groups/PanelSplitters.tsx pone --gr-list-w y --gr-details-w en .gr-inbox.
+   Cada divisor va montado sobre el filete que ya separa los paneles. */
+.gr-inbox:has(> .gr-splitter) { position: relative; }
+.gr-inbox > .gr-splitter { --splitter-color: var(--wa-primary); }
+.gr-inbox > .gr-splitter-list { left: calc(var(--gr-list-w, var(--gr-list-default)) - 2px); }
+.gr-inbox > .gr-splitter-details { right: calc(var(--gr-details-w, 340px) - 6px); }
+.gr-inbox:not(:has(> .gr-details)) > .gr-splitter-details { display: none; }
 
 /* ---------- Avatar ---------- */
 .wa-avatar {
@@ -536,7 +545,8 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 
 /* ---------- Anchos ---------- */
 @media (max-width: 1439px) {
-  .gr-inbox { grid-template-columns: clamp(320px, 34%, 420px) minmax(0, 1fr); }
+  .gr-inbox { --gr-list-default: clamp(320px, 34%, 420px); grid-template-columns: var(--gr-list-w, var(--gr-list-default)) minmax(0, 1fr); }
+  .gr-inbox > .gr-splitter-details { display: none; }
   .wa-details-close { display: inline-flex; }
   .gr-inbox .gr-details.is-open { background: var(--wa-panel); border-left: 1px solid var(--wa-border-strong); box-shadow: -4px 0 18px rgba(11, 20, 26, 0.12); }
 }
@@ -546,6 +556,7 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 }
 @media (max-width: 1023px) {
   .gr-inbox { grid-template-columns: minmax(0, 1fr); }
+  .gr-inbox > .gr-splitter { display: none; }
   .gr-inbox .wa-head { flex-wrap: wrap; padding: 6px 8px; gap: 4px 6px; }
   .gr-inbox .wa-head .gr-back { display: inline-flex; }
   .gr-inbox .gr-thread-actions { flex-basis: 100%; justify-content: flex-end; flex-wrap: wrap; }

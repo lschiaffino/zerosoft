@@ -21,6 +21,7 @@ import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import type { LineFolderDto } from '@/lib/groups-lines';
 import { DRAG_TYPE, FoldersPanel, LineBadge, LineSelector, MoveToFolderModal, type LineOption } from './LineFolders';
+import PanelSplitters from './PanelSplitters';
 
 const FILTERS: ChatFilter[] = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'];
 /** Pestañas de la lista, como WhatsApp (Todos, No leídos, Grupos) y después las del equipo. */
@@ -968,6 +969,7 @@ export default function InboxShell({
           {loaded && total > rows.length && <p className="ui-help gr-list-more">{t('inbox.showing', { shown: rows.length, total })}</p>}
         </section>
         {children}
+        <PanelSplitters me={me} />
       </div>
       <SaveListModal
         mode={saving}

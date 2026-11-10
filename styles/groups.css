@@ -106,7 +106,7 @@
 .gr-inbox {
   flex: 1;
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr) 320px;
+  grid-template-columns: var(--gr-list-w, 340px) minmax(0, 1fr) var(--gr-details-w, 320px);
   height: calc(100dvh - var(--band-h));
   min-height: 0;
   min-width: 0;
@@ -453,7 +453,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 /* ---------- Responsive ---------- */
 
 @media (max-width: 1439px) {
-  .gr-inbox { grid-template-columns: 320px minmax(0, 1fr); }
+  .gr-inbox { grid-template-columns: var(--gr-list-w, 320px) minmax(0, 1fr); }
   .gr-details-toggle { display: inline-flex; }
   .gr-details { display: none; }
   .gr-details.is-open {

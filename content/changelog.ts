@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-lines-resizable-panels',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines: resize the inbox panels',
+      es: 'Lines: los paneles de la bandeja cambian de tamaño',
+      pt: 'Lines: os painéis da caixa de entrada mudam de tamanho',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Drag the line between the chat list and the conversation, or between the conversation and the details panel, to make each one wider or narrower. Your widths are remembered in that browser, and a double-click on the line brings back the original width. It also works from the keyboard with the arrow keys.',
+        es: 'Arrastrá la línea entre la lista de chats y la conversación, o entre la conversación y el panel de detalles, para hacer cada uno más ancho o más angosto. Los anchos quedan guardados en ese navegador y con doble clic en la línea vuelve el ancho original. También funciona con el teclado, con las flechas.',
+        pt: 'Arraste a linha entre a lista de conversas e a conversa, ou entre a conversa e o painel de detalhes, para deixar cada um mais largo ou mais estreito. As larguras ficam salvas nesse navegador e um clique duplo na linha traz de volta a largura original. Também funciona pelo teclado, com as setas.',
+      },
+    ],
+  },
+  {
     id: '2026-11-09-desktop-download',
     date: '2026-11-09',
     title: {
