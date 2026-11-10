@@ -75,11 +75,11 @@ const parity: ProductParity = {
       ],
     }),
     row('number-ops', 'numbers', ['Reconnect, resync groups and remove a number', 'Reconectar, resincronizar grupos y borrar un número', 'Reconectar, ressincronizar grupos e remover um número'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
-    row('history-import', 'numbers', ['Import chats and recent messages when a number connects', 'Importar chats y mensajes recientes al conectar un número', 'Importar conversas e mensagens recentes ao conectar um número'], 'partial', {
+    row('history-import', 'numbers', ['Import chats and their full history when a number connects', 'Importar chats y todo su historial al conectar un número', 'Importar conversas e todo o histórico ao conectar um número'], 'partial', {
       detail: [
-        'Chats, groups, names, photos, unread counts and the last messages per chat, in resumable batches and without triggering rules or notifications. Tested against a simulated Evolution with 200 chats; payload shapes checked against a real instance.',
-        'Chats, grupos, nombres, fotos, no leídos y los últimos mensajes de cada chat, en tandas que se retoman y sin disparar reglas ni avisos. Probado contra un Evolution simulado con 200 chats; los formatos se verificaron contra una instancia real.',
-        'Conversas, grupos, nomes, fotos, não lidas e as últimas mensagens de cada conversa, em lotes retomáveis e sem disparar regras nem avisos. Testado contra um Evolution simulado com 200 conversas; os formatos foram conferidos com uma instância real.',
+        'Chats, groups, names, photos, unread counts and every message the WhatsApp server kept (the latest of each chat first, the rest in the background), in resumable batches and without triggering rules or notifications. QR and Evolution only; how far back it goes depends on what the phone sends when linking. Tested against a simulated Evolution with 200 chats; payload shapes checked against a real instance.',
+        'Chats, grupos, nombres, fotos, no leídos y todos los mensajes que guardó el servidor de WhatsApp (primero los últimos de cada chat, el resto en segundo plano), en tandas que se retoman y sin disparar reglas ni avisos. Solo por QR y Evolution; hasta dónde llega depende de lo que el teléfono manda al vincular. Probado contra un Evolution simulado con 200 chats; los formatos se verificaron contra una instancia real.',
+        'Conversas, grupos, nomes, fotos, não lidas e todas as mensagens que o servidor do WhatsApp guardou (primeiro as últimas de cada conversa, o resto em segundo plano), em lotes retomáveis e sem disparar regras nem avisos. Só por QR e Evolution; até onde chega depende do que o celular envia ao vincular. Testado contra um Evolution simulado com 200 conversas; os formatos foram conferidos com uma instância real.',
       ],
       weight: 2,
     }),

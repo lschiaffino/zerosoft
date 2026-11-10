@@ -180,8 +180,8 @@ describe('visibilidad por línea', () => {
     expect((await listChats(w.owner.id, w.pablo.id, { viewer: v, numberId: w.priv.id })).rows.map((c) => c.name)).toEqual(['Cliente Priv']);
     expect((await listChats(w.owner.id, w.pablo.id, { viewer: v, ownerId: w.olga.id })).rows.map((c) => c.name)).toEqual(['Cliente Priv']);
     // Los índices existen para el listado por línea.
-    const idx = (await getDb().prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('idx_groups_chats_number_recent', 'idx_groups_chats_folder')").all()) as Array<{ name: string }>;
-    expect(idx).toHaveLength(2);
+    const idx = (await getDb().prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('idx_groups_chats_number_recent', 'idx_groups_chats_folder_list', 'idx_groups_chats_list', 'idx_groups_chats_line_list')").all()) as Array<{ name: string }>;
+    expect(idx).toHaveLength(4);
   });
 });
 

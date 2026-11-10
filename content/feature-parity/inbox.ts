@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-08',
+  lastReviewed: '2026-11-10',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -170,9 +170,9 @@ const parity: ProductParity = {
     row('history-import', 'platform', ['Full WhatsApp history', 'Todo el historial de WhatsApp', 'Todo o histórico do WhatsApp'], 'partial', {
       competitorHas: false,
       detail: [
-        'Brings every chat and every message the WhatsApp server stored, page by page, with progress, pause and resume. Tested with the fake server',
-        'Trae todos los chats y todos los mensajes que guardó el servidor de WhatsApp, página por página, con avance, pausa y seguir. Probado con el servidor falso',
-        'Traz todas as conversas e todas as mensagens que o servidor do WhatsApp guardou, página por página, com progresso, pausa e continuar. Testado com o servidor falso',
+        'Brings every chat and every message the WhatsApp server stored, page by page, with progress, pause and resume. It starts by itself when WhatsApp is linked; how far back it goes depends on what the phone sends when linking. Gmail brings all the mail of the account the same way. Tested with the fake server',
+        'Trae todos los chats y todos los mensajes que guardó el servidor de WhatsApp, página por página, con avance, pausa y seguir. Arranca sola al vincular WhatsApp; hasta dónde llega depende de lo que el teléfono manda al vincular. Gmail trae todo el correo de la cuenta de la misma forma. Probado con el servidor falso',
+        'Traz todas as conversas e todas as mensagens que o servidor do WhatsApp guardou, página por página, com progresso, pausa e continuar. Começa sozinha ao vincular o WhatsApp; até onde chega depende do que o celular envia ao vincular. O Gmail traz todo o e-mail da conta do mesmo jeito. Testado com o servidor falso',
       ],
     }),
     row('self-host', 'platform', ['Run it on your own server', 'Correrlo en tu servidor', 'Rodar no seu servidor'], 'have', { competitorHas: false }),

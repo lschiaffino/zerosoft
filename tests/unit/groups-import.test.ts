@@ -177,6 +177,99 @@ describe('Importación al conectar', () => {
     expect(rows[0]).toMatchObject({ name: 'Nora', unread: 0, awaitingSince: null, flagged: false });
   });
 
+  it('trae todo el historial de cada chat por páginas, se retoma donde quedó y no duplica al repetir', async () => {
+    // 3 chats con 250 mensajes cada uno: 3 páginas de 100 por chat.
+    const { data, calls } = stubEvolution(buildEvolutionData({ chats: 3, groups: 0, perChat: 250 }));
+    const { user, row } = await connectedNumber('imp-all');
+    const expected = data.chats.reduce((a, c) => a + c.messages.filter((m) => m.messageType !== 'reactionMessage').length, 0);
+    expect(expected).toBeGreaterThanOrEqual(700);
+    // Sin decir cuántos: todo el historial.
+    expect(await queueImport(row)).toBe(true);
+    expect((await getImportStatus(user.id, row.id))?.perChat).toBe(0);
+    const count = async () => Number(((await getDb().prepare('SELECT COUNT(*) AS n FROM groups_messages WHERE number_id = ?').get(row.id)) as { n: number }).n);
+    // Tandas cortas (como un timeout de la función): cada una deja la página de cada chat guardada.
+    let sawOlder = false;
+    let midCount = 0;
+    for (let i = 0; i < 400; i++) {
+      const st = await runImportChunk(row.id, { budgetMs: 1 });
+      if (!st) continue;
+      if (st.phase === 'older' && !sawOlder) {
+        sawOlder = true;
+        // La primera pasada dejó la página más nueva de cada chat: la bandeja ya se puede usar.
+        midCount = await count();
+        expect(st).toMatchObject({ status: 'running', chatsTotal: 3, chatsDone: 3 });
+        const pages = (await getDb().prepare('SELECT page, done FROM groups_import_chats WHERE number_id = ?').all(row.id)) as Array<{ page: number; done: number }>;
+        expect(pages.every((p) => p.page === 1 && p.done === 0)).toBe(true);
+      }
+      if (st.status === 'done' || st.status === 'error') break;
+    }
+    expect(sawOlder).toBe(true);
+    expect(midCount).toBeGreaterThanOrEqual(300);
+    expect(midCount).toBeLessThan(expected);
+    expect(await getImportStatus(user.id, row.id)).toMatchObject({ status: 'done', phase: 'done', messages: expected });
+    expect(await count()).toBe(expected);
+    const state = (await getDb().prepare('SELECT page, done, complete FROM groups_import_chats WHERE number_id = ?').all(row.id)) as Array<{ page: number; done: number; complete: number }>;
+    expect(state.every((r) => r.page === 3 && r.done === 1 && r.complete === 1)).toBe(true);
+    // El hilo queda completo y en orden.
+    const chat = (await listChats(user.id, user.id)).rows[0];
+    const oldest = (await getDb().prepare('SELECT MIN(created_at) AS at FROM groups_messages WHERE chat_id = ?').get(chat.id)) as { at: string };
+    expect(Date.parse(oldest.at)).toBeLessThan(Date.now() - 24 * 3600_000);
+
+    // Otra vez (reconectar o "Reimportar"): no duplica y no vuelve a caminar todo el historial.
+    const before = calls.filter((c) => c.startsWith('/chat/findMessages/')).length;
+    await queueImport(row, { restart: true });
+    const again = await runToEnd(row.id);
+    expect(again).toMatchObject({ status: 'done', messages: 0 });
+    expect(await count()).toBe(expected);
+    // Una página por chat alcanza para ver que ya estaba todo (antes: 3 por chat).
+    expect(calls.filter((c) => c.startsWith('/chat/findMessages/')).length - before).toBe(3);
+
+    // Llegó un mensaje al gateway mientras el número estaba desconectado: la reimportación lo trae.
+    const first = data.chats[0];
+    first.messages.push({ ...first.messages[first.messages.length - 1], key: { ...(first.messages[first.messages.length - 1].key as Record<string, unknown>), id: '3EB0NEWMESSAGE0001' }, message: { conversation: 'llegó mientras estaba caído' }, messageType: 'conversation', messageTimestamp: Math.floor(Date.now() / 1000) });
+    await queueImport(row, { restart: true });
+    expect(await runToEnd(row.id)).toMatchObject({ status: 'done', messages: 1 });
+    expect(await count()).toBe(expected + 1);
+  }, 120_000);
+
+  it('con un tope por chat trae solo los últimos, como antes; el gateway caído no pierde el avance', async () => {
+    const { data } = stubEvolution(buildEvolutionData({ chats: 2, groups: 0, perChat: 120 }));
+    const { user, row } = await connectedNumber('imp-cap');
+    await queueImport(row, { perChat: 20 });
+    expect((await runToEnd(row.id))?.status).toBe('done');
+    const n = (await getDb().prepare('SELECT COUNT(*) AS n FROM groups_messages WHERE number_id = ?').get(row.id)) as { n: number };
+    expect(Number(n.n)).toBeLessThanOrEqual(40);
+    expect(Number(n.n)).toBeGreaterThan(0);
+
+    // Ahora todo el historial, con el gateway fallando en el medio.
+    await queueImport(row, { restart: true });
+    let fail = false;
+    const real = globalThis.fetch;
+    vi.stubGlobal('fetch', async (input: string | URL | Request, init?: RequestInit) => {
+      if (fail && String(input instanceof Request ? input.url : input).includes('/chat/findMessages/')) return new Response('{}', { status: 503 });
+      return real(input as never, init);
+    });
+    let failedOnce = false;
+    for (let i = 0; i < 400; i++) {
+      const st = await runImportChunk(row.id, { budgetMs: 1 });
+      if (st?.phase === 'older' && !failedOnce) {
+        failedOnce = true;
+        fail = true;
+        const broken = await runImportChunk(row.id, { budgetMs: 5_000 });
+        // Queda en curso, con el error anotado y una espera antes de reintentar.
+        expect(broken).toMatchObject({ status: 'running', phase: 'older' });
+        expect((await getImportStatus(user.id, row.id))?.error).not.toBe('');
+        fail = false;
+        await getDb().prepare('UPDATE groups_imports SET claimed_until = NULL WHERE number_id = ?').run(row.id);
+      }
+      if (st?.status === 'done' || st?.status === 'error') break;
+    }
+    expect(failedOnce).toBe(true);
+    expect((await getImportStatus(user.id, row.id))?.status).toBe('done');
+    const all = (await getDb().prepare('SELECT COUNT(*) AS n FROM groups_messages WHERE number_id = ?').get(row.id)) as { n: number };
+    expect(Number(all.n)).toBe(data.chats.reduce((a, c) => a + c.messages.filter((m) => m.messageType !== 'reactionMessage').length, 0));
+  }, 120_000);
+
   it('no cruza workspaces: la importación de un número solo escribe en el suyo', async () => {
     stubEvolution(buildEvolutionData({ chats: 5, groups: 1 }));
     const a = await connectedNumber('imp-ws-a');

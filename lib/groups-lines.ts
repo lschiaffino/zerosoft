@@ -16,7 +16,7 @@ import { randomUUID } from 'crypto';
 import { getDb } from './db';
 import { GroupsError, getNumberRow } from './groups';
 import { chatAccessSql, canSeeNumber, type GroupsViewer } from './groups-access';
-import { MAX_FOLDER_DEPTH, canMoveFolder, depthOf, descendantIds, rollupUnread, siblingOrder, type TreeFolder } from './inbox/folder-tree';
+import { MAX_FOLDER_DEPTH, canMoveFolder, depthOf, descendantIds, siblingOrder, type TreeFolder } from './inbox/folder-tree';
 
 const nowIso = () => new Date().toISOString();
 
@@ -134,24 +134,36 @@ export async function listFolders(ws: string, viewer?: GroupsViewer): Promise<{ 
   const rows = await folderRows(ws);
   const access = chatAccessSql(viewer, 'c');
   const accessSql = access ? ` AND ${access.sql}` : '';
+  const accessArgs = access?.args ?? [];
   const base = `c.user_id = ? AND c.hidden_at IS NULL AND c.archived_at IS NULL AND c.status = 'open'${accessSql}`;
-  const per = (await db
-    .prepare(`SELECT c.folder_id AS fid, c.id, c.unread_count AS u FROM groups_chats c WHERE ${base} AND c.folder_id IS NOT NULL`)
-    .all(ws, ...(access?.args ?? []))) as Array<{ fid: string; id: string; u: number }>;
-  const own = new Map<string, Set<string>>();
-  const counts = new Map<string, number>();
-  for (const r of per) {
-    counts.set(r.fid, (counts.get(r.fid) ?? 0) + 1);
-    if (r.u > 0) {
-      const set = own.get(r.fid) ?? new Set<string>();
-      set.add(r.id);
-      own.set(r.fid, set);
-    }
+  // Un chat está en una sola carpeta: se cuenta agrupando (una fila por carpeta, del índice idx_groups_chats_folder_list)
+  // en vez de traer una fila por chat. Las consultas van juntas: no esperan una a la otra.
+  const [per, un] = await Promise.all([
+    db
+      .prepare(`SELECT c.folder_id AS fid, COUNT(*) AS n, SUM(CASE WHEN c.unread_count > 0 THEN 1 ELSE 0 END) AS u FROM groups_chats c WHERE ${base} AND c.folder_id IS NOT NULL GROUP BY c.folder_id`)
+      .all(ws, ...accessArgs) as Promise<Array<{ fid: string; n: number; u: number | null }>>,
+    // "Sin carpeta": con acceso por línea o etiqueta se cuenta directo; si no, el total (dos conteos que salen de sus
+    // índices, sin leer las filas) menos lo que está en carpetas.
+    access
+      ? (db
+          .prepare(`SELECT COUNT(*) AS n, SUM(CASE WHEN c.unread_count > 0 THEN 1 ELSE 0 END) AS u, 1 AS direct FROM groups_chats c WHERE ${base} AND c.folder_id IS NULL`)
+          .get(ws, ...accessArgs) as Promise<{ n: number; u: number | null; direct: number }>)
+      : (db
+          .prepare(
+            `SELECT (SELECT COUNT(*) FROM groups_chats c WHERE ${base}) AS n,
+                    (SELECT COUNT(*) FROM groups_chats c WHERE ${base} AND c.unread_count > 0) AS u, 0 AS direct`,
+          )
+          .get(ws, ws) as Promise<{ n: number; u: number | null; direct: number }>),
+  ]);
+  const counts = new Map(per.map((r) => [r.fid, Number(r.n)]));
+  const own = new Map(per.map((r) => [r.fid, Number(r.u ?? 0)]));
+  if (!un.direct) {
+    un.n = Math.max(0, Number(un.n) - per.reduce((sum, r) => sum + Number(r.n), 0));
+    un.u = Math.max(0, Number(un.u ?? 0) - per.reduce((sum, r) => sum + Number(r.u ?? 0), 0));
   }
-  const rolled = rollupUnread(asTree(rows), own);
-  const un = (await db
-    .prepare(`SELECT COUNT(*) AS n, SUM(CASE WHEN c.unread_count > 0 THEN 1 ELSE 0 END) AS u FROM groups_chats c WHERE ${base} AND c.folder_id IS NULL`)
-    .get(ws, ...(access?.args ?? []))) as { n: number; u: number | null };
+  // Los no leídos suben a los padres: cada carpeta suma los de sus subcarpetas.
+  const tree = asTree(rows);
+  const rolled = new Map(rows.map((r) => [r.id, [r.id, ...descendantIds(tree, r.id)].reduce((sum, id) => sum + (own.get(id) ?? 0), 0)]));
   return {
     folders: rows.map((r) => ({
       id: r.id,

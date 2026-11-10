@@ -99,7 +99,8 @@ export default function NumbersSettings({
     router.refresh();
   }
 
-  const [perChat, setPerChat] = useState(50);
+  // 0: todo el historial que guardó el servidor de WhatsApp (lo normal); si no, los últimos N de cada chat.
+  const [perChat, setPerChat] = useState(0);
   async function reimport(n: NumberDto) {
     const res = await api(`/api/groups/numbers/${n.id}/connect`, { body: { action: 'import', perChat } });
     if (!res.data) return showToast(errText(res.error), true);
@@ -156,6 +157,17 @@ export default function NumbersSettings({
                   {n.visibility === 'restricted' ? ` · ${t('lines.restrictedTag')}` : ''}
                 </span>
                 {n.lastError && <span className="ui-error">{errText(n.lastError)}</span>}
+                {/* Qué historial trae cada tipo de conexión, sin prometer lo que el proveedor no da. */}
+                {(n.provider === 'cloud' || n.provider === 'waha') && (
+                  <span className="ui-help gr-number-note" data-testid="line-history-note">
+                    {t(n.provider === 'cloud' ? 'wa.historyNoneCloud' : 'wa.historyNoneWaha')}
+                  </span>
+                )}
+                {(n.provider === 'managed' || n.provider === 'evolution') && (
+                  <span className="ui-help gr-number-note" data-testid="line-history-note">
+                    {t('wa.historyLinked')}
+                  </span>
+                )}
               </div>
               {canEdit && (
                 <div className="gr-number-actions">
@@ -190,9 +202,9 @@ export default function NumbersSettings({
                         {t('wa.perChat')}
                       </label>
                       <select id={`per-chat-${n.id}`} className="select" value={perChat} onChange={(e) => setPerChat(Number(e.target.value))}>
-                        {[20, 50, 100, 200].map((v) => (
+                        {[0, 20, 50, 100, 200].map((v) => (
                           <option key={v} value={v}>
-                            {v}
+                            {v === 0 ? t('wa.perChatAll') : v}
                           </option>
                         ))}
                       </select>

@@ -10,12 +10,18 @@ import { NextResponse } from 'next/server';
 import { ZodError, type z } from 'zod';
 import { getCurrentUser, realUserId } from '../session';
 import { delegatedIdentity } from '../mcp/identity';
+import { conditionalJson } from '../etag';
 import { InboxError } from './types';
 
 const NO_STORE = { 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex, nofollow', 'referrer-policy': 'no-referrer' };
 
 export function iJson<T>(body: T, status = 200) {
   return NextResponse.json(body, { status, headers: NO_STORE });
+}
+
+/** Como iJson, con ETag: 304 si quien pide ya tiene este contenido (lo que la pantalla consulta cada pocos segundos). */
+export function iJsonIfChanged<T>(req: Request, body: T) {
+  return conditionalJson(req, body, NO_STORE);
 }
 
 export function iFail(err: unknown) {

@@ -131,8 +131,8 @@ export function managedProvider(
           token,
           qrcode: true,
           integration: 'WHATSAPP-BAILEYS',
-          // Groups: sin historial viejo. Inbox (fullHistory): WhatsApp manda el historial
-          // solo al vincular y solo si se pide acá; sin esto llegan los chats sin mensajes.
+          // fullHistory (Lines e Inbox): WhatsApp manda el historial solo al vincular y solo si
+          // se pide acá; sin esto llegan los chats con lo más reciente y nada de lo anterior.
           syncFullHistory: !!opts.fullHistory,
           webhook,
         });

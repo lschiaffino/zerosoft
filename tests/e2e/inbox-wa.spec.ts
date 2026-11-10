@@ -517,6 +517,8 @@ test('Más tarde visible junto a Enviar (también con clic derecho) y los archiv
   await page.getByRole('menuitem', { name: 'Archive', exact: true }).click();
   await page.getByTestId('inbox-archived-entry').click();
   await page.locator('.ib-item', { hasText: otherName }).locator('.ib-row-btn').click();
+  // Cambiar de vista ya no cierra el chat que estaba abierto: se espera a que el panel muestre el que se acaba de abrir.
+  await expect(page.locator('.ib-wa-thread .gr-thread-head')).toContainText(otherName);
   await page.locator('.ib-wa-thread .gr-thread-actions').getByRole('button', { name: 'More actions' }).click();
   await page.getByRole('menuitem', { name: 'Unarchive' }).click();
   await expect(page.locator('.ib-item', { hasText: otherName })).toHaveCount(0);

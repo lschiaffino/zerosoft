@@ -350,7 +350,7 @@ export default function GroupsFoldersBranch() {
                     onBlur={(e) => void rename(f, e.currentTarget.value)}
                   />
                 ) : (
-                  <Link href={href} className="docs-tree-link" data-testid="lines-folder" aria-current={active ? 'page' : undefined} draggable={false} onKeyDown={(e) => linkKeys(e, f, hasChildren)}>
+                  <Link href={href} prefetch={false} className="docs-tree-link" data-testid="lines-folder" aria-current={active ? 'page' : undefined} draggable={false} onKeyDown={(e) => linkKeys(e, f, hasChildren)}>
                     <span className="docs-tree-icon" aria-hidden="true">
                       <span className="grf-swatch" style={{ background: 'var(--c-groups)' }} />
                     </span>
@@ -444,7 +444,7 @@ export default function GroupsFoldersBranch() {
             }}
           >
             <span className="docs-tree-chevron-spacer" aria-hidden="true" />
-            <Link href={selected === 'none' ? base : hrefOf('none')} className="docs-tree-link" aria-current={selected === 'none' ? 'page' : undefined}>
+            <Link href={selected === 'none' ? base : hrefOf('none')} prefetch={false} className="docs-tree-link" aria-current={selected === 'none' ? 'page' : undefined}>
               <span className="docs-tree-title">{tl('unfiled')}</span>
               {data.unfiled.unread > 0 && (
                 <span className="grf-branch-count" aria-label={tl('folderUnread', { n: data.unfiled.unread })}>

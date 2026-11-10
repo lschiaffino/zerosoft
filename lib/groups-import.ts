@@ -3,8 +3,19 @@
  * WhatsApp Web o Periskope al vincular). Lee el historial que el gateway ya
  * guardó (Evolution con base de datos) y lo trae en tandas:
  *
- *   groups → chats → contacts → messages → pictures → done
+ *   groups → chats → contacts → messages → pictures → older → done
  *
+ * - Por defecto trae TODO el historial que guardó el gateway, en dos
+ *   pasadas: `messages` trae la página más nueva de cada chat (la bandeja
+ *   queda usable enseguida, de los chats más recientes a los más viejos) y
+ *   `older` sigue hacia atrás, página por página, hasta el principio de cada
+ *   chat. La página de cada chat queda guardada (groups_import_chats.page):
+ *   un timeout o una caída del gateway se retoma en el mismo punto.
+ * - El tope real lo pone WhatsApp: un dispositivo vinculado solo recibe el
+ *   historial que el teléfono le manda al vincular. Lo anterior no está en
+ *   el gateway y no se puede traer.
+ * - Con `per_chat` > 0 (elegido en "Reimportar") trae solo los últimos N de
+ *   cada chat, como antes.
  * - Una fila por número en groups_imports con su fase y cursor. Cada tanda
  *   reclama la fila (compare-and-set en claimed_until) y corre con un tope
  *   de tiempo: el cron de cada minuto la retoma donde quedó, así sobrevive a
@@ -41,7 +52,7 @@ import { isGroupJid, isLidJid, phoneDigits, type GroupsProvider, type InboundEve
 import { parsePoll, pollPreview, voteOptions } from './groups-polls';
 import { defaultBridgeFetch } from './groups-provider-bridge';
 
-export type ImportPhase = 'groups' | 'chats' | 'contacts' | 'messages' | 'pictures' | 'done';
+export type ImportPhase = 'groups' | 'chats' | 'contacts' | 'messages' | 'pictures' | 'older' | 'done';
 export type ImportState = 'queued' | 'running' | 'done' | 'error';
 
 export interface ImportStatus {
@@ -75,9 +86,16 @@ interface ImportRow {
   updated_at: string;
 }
 
-/** Mensajes por chat que se traen: lo que pidió la persona, entre 10 y 500 (50 por defecto). */
-export const IMPORT_PER_CHAT_OPTIONS = [20, 50, 100, 200] as const;
-export const IMPORT_PER_CHAT_DEFAULT = 50;
+/** Mensajes por chat que se traen: 0 es todo el historial (lo normal); si no, los últimos N, entre 10 y 500. */
+export const IMPORT_ALL = 0;
+export const IMPORT_PER_CHAT_OPTIONS = [IMPORT_ALL, 20, 50, 100, 200] as const;
+export const IMPORT_PER_CHAT_DEFAULT = IMPORT_ALL;
+/** Mensajes por página al recorrer todo el historial de un chat. */
+export const HISTORY_PAGE = 100;
+/** Páginas por chat como máximo (100 × 1000 = 100.000 mensajes). */
+const MAX_PAGES_PER_CHAT = 1000;
+/** Pausa entre páginas del historial viejo (no saturar al gateway). */
+const OLDER_GAP_MS = 150;
 const CHATS_PAGE = 100;
 const CONTACTS_PAGE = 500;
 const PICTURES_PAGE = 10;
@@ -105,6 +123,7 @@ function toStatus(r: ImportRow): ImportStatus {
 }
 
 export function clampPerChat(raw: unknown): number {
+  if (raw === 'all') return IMPORT_ALL;
   const n = Math.round(Number(raw));
   if (!Number.isFinite(n) || n <= 0) return IMPORT_PER_CHAT_DEFAULT;
   return Math.max(10, Math.min(500, n));
@@ -130,7 +149,9 @@ export async function queueImport(
   const perChat = clampPerChat(opts.perChat ?? IMPORT_PER_CHAT_DEFAULT);
   const existing = (await db.prepare('SELECT * FROM groups_imports WHERE number_id = ?').get(number.id)) as ImportRow | undefined;
   if (existing && !opts.restart && (existing.status === 'queued' || existing.status === 'running')) return false;
-  await db.prepare('DELETE FROM groups_import_chats WHERE number_id = ?').run(number.id);
+  // Los chats ya recorridos quedan anotados (complete): la corrida nueva los vuelve a mirar desde lo más nuevo y corta
+  // al llegar a lo que ya tenía, en vez de recorrer todo el historial otra vez.
+  await db.prepare('UPDATE groups_import_chats SET done = 0, page = 0 WHERE number_id = ?').run(number.id);
   await db
     .prepare(
       `INSERT INTO groups_imports (number_id, user_id, status, phase, cursor, per_chat, chats_total, chats_done, messages, error, attempts, claimed_until, started_at, finished_at, updated_at)
@@ -439,20 +460,55 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
       return;
     }
     case 'messages': {
-      // Los chats más recientes primero: lo que se ve arriba de la lista se completa antes.
+      // Los chats más recientes primero: lo que se ve arriba de la lista se completa antes. De cada chat, lo más nuevo.
       const next = (await db
-        .prepare('SELECT remote_jid, chat_id FROM groups_import_chats WHERE number_id = ? AND done = 0 ORDER BY last_at DESC LIMIT 1')
-        .get(number.id)) as { remote_jid: string; chat_id: string } | undefined;
+        .prepare('SELECT remote_jid, chat_id, complete FROM groups_import_chats WHERE number_id = ? AND done = 0 AND page = 0 ORDER BY last_at DESC LIMIT 1')
+        .get(number.id)) as { remote_jid: string; chat_id: string; complete: number } | undefined;
       if (!next) {
         await save(job, { phase: 'pictures', cursor: 0 });
         return;
       }
-      const events = await history.messages(next.remote_jid, job.per_chat);
+      const all = job.per_chat === IMPORT_ALL;
+      let events: InboundEvent[];
+      let more = false;
+      if (all && history.messagePage) {
+        const page = await history.messagePage(next.remote_jid, HISTORY_PAGE, 1);
+        events = page.events;
+        more = page.more;
+      } else events = await history.messages(next.remote_jid, all ? 500 : job.per_chat);
       const r = await ingestHistory(number, events);
-      await db.prepare('UPDATE groups_import_chats SET done = 1 WHERE number_id = ? AND remote_jid = ?').run(number.id, next.remote_jid);
-      // Un chat con dos ids (teléfono y lid) cuenta una vez: está hecho cuando no le queda ninguno.
-      const left = (await db.prepare('SELECT COUNT(*) AS n FROM groups_import_chats WHERE number_id = ? AND chat_id = ? AND done = 0').get(number.id, next.chat_id)) as { n: number };
+      // Queda para la pasada `older` si hay mensajes anteriores, salvo que este chat ya se haya recorrido entero
+      // antes y esta página no traiga nada nuevo (reimportar no vuelve a caminar todo el historial).
+      const keep = all && more && !(Number(next.complete) === 1 && r.messages === 0);
+      await db
+        .prepare('UPDATE groups_import_chats SET page = 1, done = ?, complete = CASE WHEN ? = 1 THEN 1 ELSE complete END WHERE number_id = ? AND remote_jid = ?')
+        .run(keep ? 0 : 1, all && !more ? 1 : 0, number.id, next.remote_jid);
+      // Un chat con dos ids (teléfono y lid) cuenta una vez: está hecho cuando a ninguno le falta su primera página.
+      const left = (await db.prepare('SELECT COUNT(*) AS n FROM groups_import_chats WHERE number_id = ? AND chat_id = ? AND page = 0').get(number.id, next.chat_id)) as { n: number };
       await save(job, { messages: job.messages + r.messages, chats_done: job.chats_done + (Number(left.n) === 0 ? 1 : 0) });
+      return;
+    }
+    case 'older': {
+      // El resto del historial, hacia atrás: una página por paso, con la página de cada chat guardada.
+      const next = (await db
+        .prepare('SELECT remote_jid, page, complete FROM groups_import_chats WHERE number_id = ? AND done = 0 ORDER BY last_at DESC LIMIT 1')
+        .get(number.id)) as { remote_jid: string; page: number; complete: number } | undefined;
+      if (!next || !history.messagePage) {
+        await db.prepare('UPDATE groups_import_chats SET done = 1 WHERE number_id = ? AND done = 0').run(number.id);
+        await save(job, { phase: 'done', cursor: 0 });
+        return;
+      }
+      const pageNo = Math.max(1, Number(next.page)) + 1;
+      const page = await history.messagePage(next.remote_jid, HISTORY_PAGE, pageNo);
+      const r = await ingestHistory(number, page.events);
+      const end = !page.more || pageNo >= MAX_PAGES_PER_CHAT;
+      // Ya recorrido antes y esta página no trajo nada nuevo: lo anterior ya está.
+      const caughtUp = Number(next.complete) === 1 && r.messages === 0;
+      await db
+        .prepare('UPDATE groups_import_chats SET page = ?, done = ?, complete = CASE WHEN ? = 1 THEN 1 ELSE complete END WHERE number_id = ? AND remote_jid = ?')
+        .run(pageNo, end || caughtUp ? 1 : 0, end ? 1 : 0, number.id, next.remote_jid);
+      await save(job, { messages: job.messages + r.messages, cursor: job.cursor + 1 });
+      if (Date.now() + OLDER_GAP_MS < deadline) await new Promise((done) => setTimeout(done, OLDER_GAP_MS));
       return;
     }
     case 'pictures': {
@@ -476,7 +532,8 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
         }
       }
       // Hasta 500 fotos por importación (las demás llegan con los mensajes nuevos).
-      if (rows.length < PICTURES_PAGE || job.cursor + PICTURES_PAGE >= 500) await save(job, { phase: 'done', cursor: 0 });
+      // Con todo el historial pedido, después de las fotos sigue hacia atrás en cada chat.
+      if (rows.length < PICTURES_PAGE || job.cursor + PICTURES_PAGE >= 500) await save(job, { phase: job.per_chat === IMPORT_ALL ? 'older' : 'done', cursor: 0 });
       else await save(job, { cursor: job.cursor + PICTURES_PAGE });
       return;
     }
