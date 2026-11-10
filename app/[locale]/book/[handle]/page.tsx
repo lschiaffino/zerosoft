@@ -1,3 +1,4 @@
+import { ogMeta } from '@/lib/og/url';
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
@@ -14,7 +15,9 @@ export const dynamic = 'force-dynamic';
 export async function generateMetadata(props: { params: Promise<{ handle: string }> }): Promise<Metadata> {
   const { handle } = await props.params;
   const profile = await getPublicProfile(handle);
-  return profile ? { title: { absolute: profile.name } } : {};
+  if (!profile) return {};
+  const og = ogMeta(`/api/og/book/${encodeURIComponent(profile.handle)}`, profile.name, undefined, [profile.name, profile.eventTypes.map((e) => e.title)]);
+  return { title: { absolute: profile.name }, openGraph: { title: profile.name, images: og.images }, twitter: og.twitter };
 }
 
 /**

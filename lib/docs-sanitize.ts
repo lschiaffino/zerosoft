@@ -136,7 +136,13 @@ function sanitizeDbValue(prop: DbProperty, v: DbValue): DbValue | undefined {
     case 'checkbox':
       return typeof v === 'boolean' ? v : undefined;
     case 'date':
-      return typeof v === 'string' && DAY_RE.test(v) ? v : undefined;
+      // Un día o un rango "inicio/fin" (el fin no antes del inicio).
+      if (typeof v !== 'string') return undefined;
+      if (DAY_RE.test(v)) return v;
+      {
+        const [a, b] = v.split('/');
+        return v.length === 21 && DAY_RE.test(a ?? '') && DAY_RE.test(b ?? '') ? (b < a ? a : b === a ? a : v) : undefined;
+      }
     case 'select':
     case 'status':
       return typeof v === 'string' && prop.options?.some((o) => o.id === v) ? v : undefined;

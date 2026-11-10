@@ -790,7 +790,8 @@
       "loadError": "No se pudo cargar la base de origen.",
       "pickOther": "Elegir otra base",
       "openSource": "Abrir la página de origen"
-    }
+    },
+    "dateEnd": "Fecha de fin de {name}"
   },
   "mentions": {
     "noPages": "Sin páginas",
@@ -1382,7 +1383,8 @@
     "isDefaultHelp": "Todo el workspace es miembro, ahora y quien se sume después. Uno solo por workspace.",
     "defaultBadge": "Por defecto",
     "everyone": "todo el workspace",
-    "siteTab": "Sitio"
+    "siteTab": "Sitio",
+    "integrationsTab": "Integraciones"
   },
   "audit": {
     "group": {
@@ -1435,7 +1437,8 @@
         "updated": "Cambió los ajustes de Docs",
         "exported": "Exportó el workspace",
         "imported": "Importó páginas",
-        "site": "Cambió el sitio publicado"
+        "site": "Cambió el sitio publicado",
+        "notion": "Cambió la sincronización con Notion"
       }
     }
   },
@@ -1802,5 +1805,126 @@
     "revoked": "Ya no tenés acceso a esta página. Dejaron de llegar los cambios de las demás personas y lo que escribas acá no se guarda.",
     "backToDocs": "Volver a Docs",
     "revokedView": "Ya no tenés acceso a esta página."
+  },
+  "notionSync": {
+    "title": "Notion",
+    "intro": "Notion y Docs al día mientras el equipo se muda. Páginas, bases, comentarios y archivos llegan con su estructura, y las ediciones viajan en las dos direcciones.",
+    "connectOauth": "Conectar con Notion",
+    "oauthHelp": "Notion te pregunta qué páginas y bases compartir. Solo esas se sincronizan.",
+    "oauthMissing": "Este servidor todavía no tiene configurado el ingreso con Notion. Podés usar el token de una integración interna acá abajo.",
+    "tokenLabel": "Token de integración interna",
+    "tokenHelp": "En Notion, andá a Configuración › Conexiones › Desarrollar o administrar integraciones, creá una integración interna con leer, actualizar e insertar contenido, y compartile las páginas que quieras. El token se guarda cifrado.",
+    "connectToken": "Conectar con token",
+    "connecting": "Conectando…",
+    "connectedTo": "Conectado a {name}.",
+    "viaOauth": "Ingreso con Notion",
+    "viaToken": "Token de integración",
+    "syncNow": "Sincronizar ahora",
+    "syncedNow": "Sincronizado.",
+    "alreadyRunning": "Ya hay una sincronización en curso. Termina sola.",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "disconnect": "Desconectar",
+    "disconnectTitle": "¿Desconectar Notion?",
+    "disconnectBody": "La sincronización se detiene. Las páginas que ya están en Docs quedan donde están y nada se borra en Notion. Si reconectás el mismo workspace, sigue desde donde quedó.",
+    "cancel": "Cancelar",
+    "state": {
+      "discovering": "Buscando lo compartido",
+      "importing": "Importando",
+      "live": "Sincronizado",
+      "error": "Detenida",
+      "paused": "En pausa"
+    },
+    "progress": "{done} de {total} páginas, bases y filas",
+    "summary": "{synced, plural, one {# elemento sincronizado} other {# elementos sincronizados}} de {total}",
+    "lastSync": "última revisión {time}",
+    "itemErrors": "{count, plural, one {# elemento no se pudo sincronizar. Se reintenta solo.} other {# elementos no se pudieron sincronizar. Se reintentan solos.}}",
+    "liveWebhooks": "Los cambios de Notion llegan por webhooks, con una revisión cada 10 minutos.",
+    "livePolling": "Notion se revisa cada 2 minutos. Lo editado en Docs sale en menos de un minuto.",
+    "directionTitle": "Dirección",
+    "directionHelp": "Elegí hacia dónde van las ediciones. Se puede cambiar cuando quieras.",
+    "directions": {
+      "two_way": {
+        "title": "En las dos direcciones",
+        "help": "Lo que se edita en una app aparece en la otra. Si los dos cambian el mismo bloque, gana la última edición y la otra versión queda en el historial de la página."
+      },
+      "import": {
+        "title": "Solo importar",
+        "help": "Los cambios de Notion entran a Docs. No se escribe nada en Notion."
+      },
+      "to_notion": {
+        "title": "De Docs a Notion",
+        "help": "Lo editado en Docs va a Notion. Los cambios hechos en Notion no vuelven."
+      }
+    },
+    "rootsTitle": "Qué se sincroniza",
+    "rootsHelp": "Las páginas y bases de primer nivel compartidas con la integración. Todo lo que tienen adentro se sincroniza también.",
+    "rootsEmpty": "Todavía no hay nada compartido. En Notion, abrí una página, elegí ••• › Conexiones y agregá la integración.",
+    "rootsLoading": "Buscando las páginas compartidas…",
+    "kindPage": "Página",
+    "kindDatabase": "Base",
+    "untitled": "Sin título",
+    "logTitle": "Registro",
+    "logHelp": "Los últimos cambios, en las dos direcciones.",
+    "logEmpty": "Todavía no se sincronizó nada.",
+    "dir": {
+      "in": "Notion → Docs",
+      "out": "Docs → Notion",
+      "sys": "Sincronización"
+    },
+    "actions": {
+      "created": "Creada",
+      "updated": "Actualizada",
+      "archived": "A la papelera",
+      "restored": "Restaurada",
+      "comment": "Comentario",
+      "unshared": "Ya no se comparte en Notion",
+      "conflict_notion": "Los dos lados cambiaron un bloque. Notion era más nuevo y la versión de Docs quedó en el historial",
+      "conflict_docs": "Los dos lados cambiaron un bloque. Docs era más nuevo y se mandó a Notion",
+      "too_large": "Página demasiado grande para sincronizar",
+      "error": "No se pudo sincronizar",
+      "connected": "Conectado",
+      "disconnected": "Desconectado",
+      "discovered": "Se encontraron las páginas compartidas",
+      "imported": "Terminó el import inicial",
+      "paused": "En pausa",
+      "resumed": "Reanudada",
+      "rate_limited": "Notion pidió bajar el ritmo. Se reintenta enseguida",
+      "direction_two_way": "Dirección: en las dos direcciones",
+      "direction_import": "Dirección: solo importar",
+      "direction_to_notion": "Dirección: de Docs a Notion"
+    },
+    "webhookTitle": "Webhooks de Notion",
+    "webhookHelp": "Ajuste del servidor. En la integración pública, agregá una suscripción de webhook a esta ruta de tu dominio. Notion manda acá un token de verificación: pegalo en Notion para verificar.",
+    "webhookWaiting": "Esperando que Notion mande el token de verificación (15 minutos).",
+    "webhookClear": "Borrar token",
+    "notice": {
+      "connected": "Notion quedó conectado. El import empieza ahora.",
+      "denied": "La conexión se canceló en Notion.",
+      "error": "No se pudo conectar con Notion. Probá de nuevo."
+    },
+    "loading": "Cargando la sincronización con Notion",
+    "loadError": "No se pudo cargar la sincronización con Notion.",
+    "retry": "Reintentar",
+    "errors": {
+      "invalid_token": "Notion no aceptó ese token.",
+      "notion_unreachable": "No se pudo llegar a Notion. Probá en un minuto.",
+      "not_connected": "Notion no está conectado.",
+      "invalid_direction": "Elegí una dirección.",
+      "invalid_teamspace": "Ese teamspace no está disponible.",
+      "rate_limited": "Demasiados intentos. Esperá unos minutos.",
+      "revoked": "Notion quitó el acceso. Conectá de nuevo para seguir.",
+      "unauthorized": "Notion quitó el acceso.",
+      "restricted": "A la integración le falta un permiso en Notion.",
+      "not_found": "No está en Notion.",
+      "invalid_request": "Notion rechazó un cambio.",
+      "source_unreachable": "No se pudo llegar a Notion.",
+      "source_error": "Notion devolvió un error.",
+      "internal_error": "Error inesperado.",
+      "failed": "Algo salió mal. Probá de nuevo."
+    },
+    "privacy": "Las páginas importadas las ve todo el workspace, o el teamspace que elijas. Las subpáginas con acceso más cerrado quedan solo en Docs.",
+    "webhookIdle": "Para verificar la suscripción, empezá a esperar acá y después creala o reenviala en Notion.",
+    "webhookOpen": "Esperar el token"
   }
 }

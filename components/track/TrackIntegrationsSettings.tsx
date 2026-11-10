@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Track › Ajustes: Integraciones (Slack, Sentry, Zendesk, Intercom, Figma,
+ * Track › Ajustes: Integraciones (Linear, Slack, Sentry, Zendesk, Intercom, Figma,
  * Zapier), API y MCP, Acceso (proyectos privados e invitados) y Audit log.
  */
 import LocalText from '@/components/ui/LocalText';
@@ -17,6 +17,7 @@ import type { AuditEntry } from '@/lib/track-audit';
 import type { TrackGuest, ProjectAccessMember } from '@/lib/track-access';
 import { CopyField } from './TrackSettingsClient';
 import WorkspaceInviteForm from './WorkspaceInviteForm';
+import LinearSyncSettings from './LinearSyncSettings';
 
 async function send<T>(url: string, method: string, body?: unknown): Promise<{ ok: boolean; status: number; data: T }> {
   const res = await fetch(url, {
@@ -136,6 +137,7 @@ export function IntegrationsSettings({ locale }: { locale: string }) {
   }
   return (
     <div className="ui-page" data-testid="track-integrations-settings">
+      <LinearSyncSettings locale={locale} />
       <SlackSection data={data} projects={projects} reload={load} locale={locale} />
       <SentrySection data={data} projects={projects} reload={load} locale={locale} />
       <SupportSection provider="zendesk" data={data} reload={load} locale={locale} />

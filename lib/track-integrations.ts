@@ -16,7 +16,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { getDb } from './db';
 import { open, seal } from './secret-box';
 
-export type IntegrationProvider = 'slack' | 'sentry' | 'zendesk' | 'intercom' | 'github' | 'figma';
+export type IntegrationProvider = 'slack' | 'sentry' | 'zendesk' | 'intercom' | 'github' | 'figma' | 'linear';
 
 // ---------- Config por workspace ----------
 
@@ -280,6 +280,7 @@ type OutboxHandler = (workspaceId: string, kind: string, payload: Record<string,
 
 async function handlerFor(provider: string): Promise<OutboxHandler | null> {
   if (provider === 'slack') return (await import('./track-slack')).runSlackOutbox;
+  if (provider === 'linear') return (await import('./track-linear-sync')).runLinearOutbox;
   if (provider === 'sentry' || provider === 'zendesk' || provider === 'intercom') {
     return (await import('./track-support')).runSupportOutbox;
   }

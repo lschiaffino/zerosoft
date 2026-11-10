@@ -83,7 +83,7 @@ export function trackSourceKind(source: string): TrackImportSource {
   return externalSource(source) as TrackImportSource;
 }
 
-async function listMembers(job: Pick<ImportJob, 'team_id' | 'workspace_id'>): Promise<Member[]> {
+export async function listMembers(job: Pick<ImportJob, 'team_id' | 'workspace_id'>): Promise<Member[]> {
   const db = getDb();
   if (job.team_id) {
     return (await db

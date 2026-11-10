@@ -15,35 +15,37 @@ import * as r12 from "@/app/api/docs/meetings/[id]/audio/route";
 import * as r13 from "@/app/api/docs/meetings/[id]/summary/route";
 import * as r14 from "@/lib/routes/docs/meetings/[id]/tasks/route";
 import * as r15 from "@/app/api/docs/members/route";
-import * as r16 from "@/app/api/docs/pages/route";
-import * as r17 from "@/lib/routes/docs/pages/[id]/route";
-import * as r18 from "@/lib/routes/docs/pages/[id]/append/route";
-import * as r19 from "@/app/api/docs/pages/[id]/autofill/route";
-import * as r20 from "@/lib/routes/docs/pages/[id]/comments/route";
-import * as r21 from "@/lib/routes/docs/pages/[id]/comments/[commentId]/route";
-import * as r22 from "@/lib/routes/docs/pages/[id]/duplicate/route";
-import * as r23 from "@/lib/routes/docs/pages/[id]/export/route";
-import * as r24 from "@/lib/routes/docs/pages/[id]/files/route";
-import * as r25 from "@/lib/routes/docs/pages/[id]/import/route";
-import * as r26 from "@/lib/routes/docs/pages/[id]/live/route";
-import * as r27 from "@/lib/routes/docs/pages/[id]/mentions/route";
-import * as r28 from "@/lib/routes/docs/pages/[id]/site/route";
-import * as r29 from "@/lib/routes/docs/pages/[id]/verify/route";
-import * as r30 from "@/lib/routes/docs/pages/[id]/versions/route";
-import * as r31 from "@/lib/routes/docs/pages/[id]/versions/[versionId]/route";
-import * as r32 from "@/lib/routes/docs/pages/[id]/versions/[versionId]/restore/route";
-import * as r33 from "@/lib/routes/docs/pages/[id]/views/route";
-import * as r34 from "@/app/api/docs/search/route";
-import * as r35 from "@/app/api/docs/settings/route";
-import * as r36 from "@/app/api/docs/site/route";
-import * as r37 from "@/app/api/docs/site/domain/route";
-import * as r38 from "@/app/api/docs/sync/[id]/route";
-import * as r39 from "@/lib/routes/docs/synced/[id]/route";
-import * as r40 from "@/app/api/docs/teamspaces/route";
-import * as r41 from "@/lib/routes/docs/teamspaces/[id]/route";
-import * as r42 from "@/lib/routes/docs/teamspaces/[id]/members/route";
-import * as r43 from "@/app/api/docs/templates/route";
-import * as r44 from "@/app/api/docs/unfurl/route";
+import * as r16 from "@/app/api/docs/notion/route";
+import * as r17 from "@/app/api/docs/notion/sync/route";
+import * as r18 from "@/app/api/docs/pages/route";
+import * as r19 from "@/lib/routes/docs/pages/[id]/route";
+import * as r20 from "@/lib/routes/docs/pages/[id]/append/route";
+import * as r21 from "@/app/api/docs/pages/[id]/autofill/route";
+import * as r22 from "@/lib/routes/docs/pages/[id]/comments/route";
+import * as r23 from "@/lib/routes/docs/pages/[id]/comments/[commentId]/route";
+import * as r24 from "@/lib/routes/docs/pages/[id]/duplicate/route";
+import * as r25 from "@/lib/routes/docs/pages/[id]/export/route";
+import * as r26 from "@/lib/routes/docs/pages/[id]/files/route";
+import * as r27 from "@/lib/routes/docs/pages/[id]/import/route";
+import * as r28 from "@/lib/routes/docs/pages/[id]/live/route";
+import * as r29 from "@/lib/routes/docs/pages/[id]/mentions/route";
+import * as r30 from "@/lib/routes/docs/pages/[id]/site/route";
+import * as r31 from "@/lib/routes/docs/pages/[id]/verify/route";
+import * as r32 from "@/lib/routes/docs/pages/[id]/versions/route";
+import * as r33 from "@/lib/routes/docs/pages/[id]/versions/[versionId]/route";
+import * as r34 from "@/lib/routes/docs/pages/[id]/versions/[versionId]/restore/route";
+import * as r35 from "@/lib/routes/docs/pages/[id]/views/route";
+import * as r36 from "@/app/api/docs/search/route";
+import * as r37 from "@/app/api/docs/settings/route";
+import * as r38 from "@/app/api/docs/site/route";
+import * as r39 from "@/app/api/docs/site/domain/route";
+import * as r40 from "@/app/api/docs/sync/[id]/route";
+import * as r41 from "@/lib/routes/docs/synced/[id]/route";
+import * as r42 from "@/app/api/docs/teamspaces/route";
+import * as r43 from "@/lib/routes/docs/teamspaces/[id]/route";
+import * as r44 from "@/lib/routes/docs/teamspaces/[id]/members/route";
+import * as r45 from "@/app/api/docs/templates/route";
+import * as r46 from "@/app/api/docs/unfurl/route";
 
 export const routes: Record<string, unknown> = {
   "/api/docs/ai": r0,
@@ -62,33 +64,35 @@ export const routes: Record<string, unknown> = {
   "/api/docs/meetings/[id]/summary": r13,
   "/api/docs/meetings/[id]/tasks": r14,
   "/api/docs/members": r15,
-  "/api/docs/pages": r16,
-  "/api/docs/pages/[id]": r17,
-  "/api/docs/pages/[id]/append": r18,
-  "/api/docs/pages/[id]/autofill": r19,
-  "/api/docs/pages/[id]/comments": r20,
-  "/api/docs/pages/[id]/comments/[commentId]": r21,
-  "/api/docs/pages/[id]/duplicate": r22,
-  "/api/docs/pages/[id]/export": r23,
-  "/api/docs/pages/[id]/files": r24,
-  "/api/docs/pages/[id]/import": r25,
-  "/api/docs/pages/[id]/live": r26,
-  "/api/docs/pages/[id]/mentions": r27,
-  "/api/docs/pages/[id]/site": r28,
-  "/api/docs/pages/[id]/verify": r29,
-  "/api/docs/pages/[id]/versions": r30,
-  "/api/docs/pages/[id]/versions/[versionId]": r31,
-  "/api/docs/pages/[id]/versions/[versionId]/restore": r32,
-  "/api/docs/pages/[id]/views": r33,
-  "/api/docs/search": r34,
-  "/api/docs/settings": r35,
-  "/api/docs/site": r36,
-  "/api/docs/site/domain": r37,
-  "/api/docs/sync/[id]": r38,
-  "/api/docs/synced/[id]": r39,
-  "/api/docs/teamspaces": r40,
-  "/api/docs/teamspaces/[id]": r41,
-  "/api/docs/teamspaces/[id]/members": r42,
-  "/api/docs/templates": r43,
-  "/api/docs/unfurl": r44,
+  "/api/docs/notion": r16,
+  "/api/docs/notion/sync": r17,
+  "/api/docs/pages": r18,
+  "/api/docs/pages/[id]": r19,
+  "/api/docs/pages/[id]/append": r20,
+  "/api/docs/pages/[id]/autofill": r21,
+  "/api/docs/pages/[id]/comments": r22,
+  "/api/docs/pages/[id]/comments/[commentId]": r23,
+  "/api/docs/pages/[id]/duplicate": r24,
+  "/api/docs/pages/[id]/export": r25,
+  "/api/docs/pages/[id]/files": r26,
+  "/api/docs/pages/[id]/import": r27,
+  "/api/docs/pages/[id]/live": r28,
+  "/api/docs/pages/[id]/mentions": r29,
+  "/api/docs/pages/[id]/site": r30,
+  "/api/docs/pages/[id]/verify": r31,
+  "/api/docs/pages/[id]/versions": r32,
+  "/api/docs/pages/[id]/versions/[versionId]": r33,
+  "/api/docs/pages/[id]/versions/[versionId]/restore": r34,
+  "/api/docs/pages/[id]/views": r35,
+  "/api/docs/search": r36,
+  "/api/docs/settings": r37,
+  "/api/docs/site": r38,
+  "/api/docs/site/domain": r39,
+  "/api/docs/sync/[id]": r40,
+  "/api/docs/synced/[id]": r41,
+  "/api/docs/teamspaces": r42,
+  "/api/docs/teamspaces/[id]": r43,
+  "/api/docs/teamspaces/[id]/members": r44,
+  "/api/docs/templates": r45,
+  "/api/docs/unfurl": r46,
 };

@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Linear',
   alsoCompared: ['Jira', 'GitHub Projects'],
-  lastReviewed: '2026-11-08',
+  lastReviewed: '2026-11-09',
   areas: [
     { id: 'issues', label: { en: 'Issues and data model', es: 'Issues y modelo de datos', pt: 'Issues e modelo de dados' } },
     { id: 'views', label: { en: 'Views and navigation', es: 'Vistas y navegación', pt: 'Visualizações e navegação' } },
@@ -495,6 +495,18 @@ const parity: ProductParity = {
       status: 'have',
       competitorHas: true,
       weight: 2,
+    },
+    {
+      id: 'linear-live-sync',
+      area: 'import-export',
+      label: { en: 'Two-way sync with Linear during the move', es: 'Sincronización con Linear en los dos sentidos durante la mudanza', pt: 'Sincronização com o Linear nos dois sentidos durante a mudança' },
+      detail: {
+        en: 'Track › Settings › Integrations › Linear: connect with Login with Linear or a personal API key, pick teams and direction (two-way or one way), a full import with progress, then live changes both ways: Linear webhooks plus a check every 5 minutes, and Track changes sent through a queue with retries. Title, description, status, priority, estimate, assignee, labels, due date, parent, project and milestone go both ways; cycles, comments and links come in; comments go out. The latest change wins per field. Deletions are not copied, and it has only been tested against a simulated Linear so far',
+        es: 'Track › Ajustes › Integraciones › Linear: conectar con Login with Linear o una API key personal, elegir teams y sentido (los dos o uno), un import completo con progreso y después los cambios en vivo: webhooks de Linear más un chequeo cada 5 minutos, y los cambios de Track por una cola con reintentos. Título, descripción, estado, prioridad, estimación, asignado, labels, vencimiento, padre, project y milestone van y vienen; cycles, comentarios y links entran; los comentarios salen. Por campo gana el último cambio. Los borrados no se copian, y por ahora solo se probó contra un Linear simulado',
+        pt: 'Track › Configurações › Integrações › Linear: conectar com Login with Linear ou uma API key pessoal, escolher times e sentido (os dois ou um), uma importação completa com progresso e depois as mudanças ao vivo: webhooks do Linear mais uma verificação a cada 5 minutos, e as mudanças do Track por uma fila com novas tentativas. Título, descrição, status, prioridade, estimativa, responsável, labels, vencimento, pai, project e milestone vão e voltam; cycles, comentários e links entram; os comentários saem. Por campo vale a última mudança. Exclusões não são copiadas, e por enquanto só foi testado contra um Linear simulado',
+      },
+      status: 'partial',
+      competitorHas: false,
     },
     {
       id: 'csv-import-export',

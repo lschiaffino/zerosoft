@@ -131,12 +131,35 @@ test('imágenes OG en PNG por página', async ({ request }) => {
     '/api/og/page/en/blog',
     '/api/og/tool/hub/es',
     '/api/og/changelog/en',
+    '/api/og/home/pt',
+    '/api/og/page/es/docs',
+    '/api/og/page/en/security',
+    '/api/og/feedback-board/es/roadmap',
   ]) {
     const res = await request.get(path);
     expect(res.status(), path).toBe(200);
     expect(res.headers()['content-type'], path).toBe('image/png');
+    // Ancho 1200×630 (encabezado del PNG).
+    const png = await res.body();
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)], path).toEqual([1200, 630]);
   }
   expect((await request.get('/api/og/compare/en/zerosoft-vs-nadie')).status()).toBe(404);
+  expect((await request.get('/api/og/rec/no-existe')).status()).toBe(404);
+  expect((await request.get('/api/og/job/no-existe/x')).status()).toBe(404);
+
+  // La página apunta a su tarjeta versionada (inmutable) y a la cuadrada.
+  const html = await (await request.get('/es/products/crm')).text();
+  const urls = [...html.matchAll(/property="og:image" content="([^"]+)"/g)].map((m) => m[1].replace(/&amp;/g, '&'));
+  expect(urls).toHaveLength(2);
+  expect(urls[0]).toMatch(/\/api\/og\/product\/crm\/es\?v=[0-9a-z]+$/);
+  expect(urls[1]).toMatch(/&f=sq$/);
+  expect(html).toContain('property="og:image:width" content="1200"');
+  expect(html).toContain('property="og:image:alt"');
+  expect(html).toContain('name="twitter:card" content="summary_large_image"');
+  const wide = await request.get(new URL(urls[0]).pathname + new URL(urls[0]).search);
+  expect(wide.headers()['cache-control']).toContain('immutable');
+  const square = await (await request.get(new URL(urls[1]).pathname + new URL(urls[1]).search)).body();
+  expect([square.readUInt32BE(16), square.readUInt32BE(20)]).toEqual([1200, 1200]);
 });
 
 test('el índice del blog no trae las tapas dentro del HTML', async ({ page, request }) => {

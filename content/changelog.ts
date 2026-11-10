@@ -46,6 +46,46 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-09-docs-notion-two-way-sync',
+    date: '2026-11-09',
+    title: {
+      en: 'Docs and Notion, in sync while you move',
+      es: 'Docs y Notion sincronizados mientras te mudás',
+      pt: 'Docs e Notion sincronizados durante a mudança',
+    },
+    items: [
+      {
+        product: 'docs',
+        en: 'Connect Notion from Docs › Settings › Integrations with a Notion login or an integration token. Pages, databases, comments and files come over with their structure, and from then on edits travel both ways, block by block. Pick the direction and follow every change in the sync log.',
+        es: 'Conectá Notion desde Docs › Ajustes › Integraciones con el ingreso de Notion o el token de una integración. Páginas, bases, comentarios y archivos llegan con su estructura, y desde ahí las ediciones viajan en las dos direcciones, bloque por bloque. Elegí la dirección y seguí cada cambio en el registro.',
+        pt: 'Conecte o Notion em Docs › Configurações › Integrações com o login do Notion ou o token de uma integração. Páginas, bancos, comentários e arquivos chegam com a estrutura, e daí em diante as edições vão e voltam, bloco por bloco. Escolha a direção e acompanhe cada mudança no registro.',
+      },
+      {
+        product: 'docs',
+        en: 'Date properties can hold a range: set an end date in the cell, and the timeline uses it when there is no end property.',
+        es: 'Las propiedades de fecha aceptan un rango: poné una fecha de fin en la celda, y la timeline la usa cuando no hay propiedad de fin.',
+        pt: 'As propriedades de data aceitam um intervalo: defina uma data de término na célula, e a linha do tempo a usa quando não há propriedade de fim.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-track-linear-sync',
+    date: '2026-11-09',
+    title: {
+      en: 'Track keeps Linear in sync while you move',
+      es: 'Track queda sincronizado con Linear mientras te mudás',
+      pt: 'O Track fica sincronizado com o Linear enquanto você muda',
+    },
+    items: [
+      {
+        product: 'track',
+        en: 'Track › Settings › Integrations › Linear connects with Login with Linear or a personal API key. Pick the teams, Track imports them, and from then on edits travel both ways: an issue changed in Linear shows up in Track in seconds, and one changed in Track goes back to Linear. If the same field changes on both sides, the latest change wins. You can pause, sync now, choose one direction only and see a log with a retry button.',
+        es: 'Track › Ajustes › Integraciones › Linear se conecta con Login with Linear o una API key personal. Elegís los teams, Track los importa y desde ahí los cambios van y vienen: un issue editado en Linear aparece en Track en segundos y uno editado en Track vuelve a Linear. Si el mismo campo cambia en los dos lados, gana el último cambio. Se puede pausar, sincronizar ahora, elegir un solo sentido y ver un registro con botón para reintentar.',
+        pt: 'Track › Configurações › Integrações › Linear conecta com Login with Linear ou uma API key pessoal. Você escolhe os times, o Track os importa e daí em diante as mudanças vão e voltam: um issue editado no Linear aparece no Track em segundos e um editado no Track volta para o Linear. Se o mesmo campo mudar dos dois lados, vale a última mudança. Dá para pausar, sincronizar agora, escolher um só sentido e ver um registro com botão para tentar de novo.',
+      },
+    ],
+  },
+  {
     id: '2026-11-09-desktop-tabs',
     date: '2026-11-09',
     title: {

@@ -1,3 +1,4 @@
+import { ogMeta } from '@/lib/og/url';
 import type { CSSProperties } from 'react';
 import { routing } from '@/i18n/routing';
 import { setRequestLocale } from 'next-intl/server';
@@ -19,13 +20,14 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
   const title = t('meta.roadmapTitle');
   const description = t('meta.roadmapDescription');
   const url = absoluteBoardUrl(locale, '/roadmap');
+  const og = ogMeta(`/api/og/feedback-board/${locale}/roadmap`, title, description, [title, description]);
   return { title, description, alternates: {
       canonical: url,
       languages: {
         ...Object.fromEntries(routing.locales.map((l) => [l, absoluteBoardUrl(l, '/roadmap')])),
         'x-default': absoluteBoardUrl('en', '/roadmap'),
       },
-    }, openGraph: { title, description, type: 'website', url, images: [{ url: '/api/og/home', width: 1200, height: 630, alt: title }] } };
+    }, openGraph: { title, description, type: 'website', url, images: og.images }, twitter: og.twitter };
 }
 
 /** Roadmap: lo comprometido (planeado, en curso, lanzado). */

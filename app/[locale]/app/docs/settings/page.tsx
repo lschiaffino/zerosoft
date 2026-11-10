@@ -11,6 +11,7 @@ import { DocsAccessSettings, DocsAuditLog, DocsTeamspacesSettings } from '@/comp
 import { DocsSiteSettings, DocsWorkspaceExport } from '@/components/docs/DocsSiteSettings';
 import { docsAllowed } from '@/lib/docs-guard';
 import { verifiedSiteHost } from '@/lib/docs-site';
+import { DocsNotionSettings } from '@/components/docs/DocsNotionSettings';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,14 +23,15 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
 
 /**
  * Ajustes de Docs: acceso de los miembros y seguridad (exportar, publicar,
- * invitados), teamspaces y el registro de auditoría (admins).
+ * invitados), teamspaces, integraciones (Notion en dos vías) y el registro de
+ * auditoría (admins).
  */
 export default async function DocsSettingsPage(props: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; notion?: string }>;
 }) {
   const { locale } = await props.params;
-  const { tab: rawTab } = await props.searchParams;
+  const { tab: rawTab, notion } = await props.searchParams;
   const user = await requireUser(locale);
   const admin = isWorkspaceAdmin(user);
   const t = await getTranslations({ locale, namespace: 'docs.admin' });
@@ -38,6 +40,7 @@ export default async function DocsSettingsPage(props: {
     { key: 'general', label: ts('general') },
     { key: 'teamspaces', label: t('teamspacesTab') },
     ...(admin ? [{ key: 'site', label: t('siteTab') }] : []),
+    ...(admin ? [{ key: 'integrations', label: t('integrationsTab') }] : []),
     ...(admin ? [{ key: 'audit', label: t('auditTab') }] : []),
   ];
   const tab = tabs.some((x) => x.key === rawTab) ? rawTab : 'general';
@@ -85,6 +88,7 @@ export default async function DocsSettingsPage(props: {
             publicBase={user.handle ? (siteHost ? `https://${siteHost}` : `${(process.env.NEXTAUTH_URL ?? '').replace(/\/$/, '')}/${locale}/h/${user.handle}`) : null}
           />
         )}
+        {tab === 'integrations' && admin && <DocsNotionSettings notice={notion === 'connected' || notion === 'denied' || notion === 'error' ? notion : null} />}
         {tab === 'audit' && admin && (
           <DocsAuditLog people={people.map((p) => ({ id: p.id, name: p.name?.trim() || p.email }))} />
         )}

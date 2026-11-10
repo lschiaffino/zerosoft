@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { DbFile, DbProperty, DbRow, DbValue, DocsMentionableUser } from '@/lib/docs-types';
-import { cellValue, isTextType, parseNumber } from '@/lib/docs-database';
+import { useTranslations } from 'next-intl';
+import { cellValue, dateRange, isTextType, parseNumber } from '@/lib/docs-database';
 import DbPopover from './DbPopover';
 import DbOptionPicker from './DbOptionPicker';
 import { DbFilesEditor, DbRelationPicker, type RelationChoice } from './DbRelationPicker';
@@ -54,6 +55,7 @@ export default function DbCellEditor({
   onCreateOption: (name: string) => void;
   onExit: (move: DbExitMove) => void;
 }) {
+  const t = useTranslations('docs.database');
   const v = cellValue(prop, row);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [numText, setNumText] = useState(() => (initialText ?? (typeof v === 'number' ? String(v) : '')));
@@ -170,17 +172,38 @@ export default function DbCellEditor({
   }
 
   if (prop.type === 'date') {
+    // Un día o un rango ("inicio/fin", como en Notion): el fin es opcional.
+    const range = dateRange(v);
+    const start = range?.start ?? '';
+    const end = range?.end ?? '';
+    const setRange = (s: string, e: string) => onChange(s ? (e && e > s ? `${s}/${e}` : s) : null);
+    const leave = (e: React.FocusEvent<HTMLElement>) => {
+      if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) return;
+      exit(null);
+    };
     return (
-      <input
-        ref={inputRef}
-        className="docs-db-input mono"
-        type="date"
-        aria-label={prop.name}
-        value={typeof v === 'string' ? v : ''}
-        onChange={(e) => onChange(e.target.value || null)}
-        onKeyDown={keys}
-        onBlur={() => exit(null)}
-      />
+      <span className="docs-db-date-range" onBlur={leave}>
+        <input
+          ref={inputRef}
+          className="docs-db-input mono"
+          type="date"
+          aria-label={prop.name}
+          value={start}
+          onChange={(e) => setRange(e.target.value, end)}
+          onKeyDown={keys}
+        />
+        {start ? (
+          <input
+            className="docs-db-input mono"
+            type="date"
+            aria-label={t('dateEnd', { name: prop.name })}
+            value={end}
+            min={start}
+            onChange={(e) => setRange(start, e.target.value)}
+            onKeyDown={keys}
+          />
+        ) : null}
+      </span>
     );
   }
 

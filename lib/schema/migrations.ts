@@ -9412,6 +9412,153 @@ export const MIGRATIONS: Migration[] = [
     },
   },
   {
+    // Track ↔ Linear en vivo (lib/track-linear-sync.ts): estado de la
+    // conexión que cambia el cron (fase, cursor de la reconciliación y claim
+    // por locked_until) y, por issue y campo, el último valor acordado entre
+    // los dos lados (base_hash) y cuándo se cambió en Track (local_at) para
+    // resolver conflictos campo por campo. El índice por local_id busca el id
+    // de Linear de algo de Track (id map al revés).
+    id: '297_track_linear_sync',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS track_linear_sync_state (
+          workspace_id TEXT PRIMARY KEY,
+          phase TEXT NOT NULL DEFAULT 'setup',
+          import_job_id TEXT,
+          since TEXT,
+          reconcile_cursor TEXT,
+          next_reconcile_at TEXT,
+          locked_until TEXT,
+          last_sync_at TEXT,
+          last_error TEXT,
+          rate_limited_until TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS track_linear_sync_fields (
+          workspace_id TEXT NOT NULL,
+          issue_id TEXT NOT NULL,
+          field TEXT NOT NULL,
+          base_hash TEXT,
+          local_at TEXT,
+          PRIMARY KEY (workspace_id, issue_id, field)
+        );
+        CREATE INDEX IF NOT EXISTS idx_track_linear_sync_fields_local ON track_linear_sync_fields(workspace_id, local_at);
+        CREATE INDEX IF NOT EXISTS idx_import_external_ids_local ON import_external_ids(workspace_id, source, kind, local_id);
+      `);
+    },
+  },
+  {
+    // Docs ↔ Notion en dos vías (lib/notion-sync.ts): la conexión del
+    // workspace (OAuth o token de integración interna, cifrado), las raíces
+    // que se sincronizan, el mapa persistente Notion ↔ Docs (páginas, bases,
+    // filas; bloques y propiedades con sus huellas en `state`), la cola de
+    // envíos hacia Notion con reintentos (claim por fila en claimed_until),
+    // los comentarios ya copiados y el registro visible de la sincronización.
+    id: '294_notion_sync',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS notion_sync_connections (
+          workspace_id TEXT PRIMARY KEY,
+          kind TEXT NOT NULL DEFAULT 'token',
+          token TEXT NOT NULL,
+          refresh_token TEXT,
+          bot_id TEXT,
+          notion_workspace_id TEXT,
+          notion_workspace_name TEXT NOT NULL DEFAULT '',
+          direction TEXT NOT NULL DEFAULT 'two_way',
+          paused INTEGER NOT NULL DEFAULT 0,
+          teamspace_id TEXT,
+          status TEXT NOT NULL DEFAULT 'discovering',
+          error TEXT,
+          users TEXT,
+          discover_cursor TEXT,
+          poll_since TEXT,
+          next_poll_at TEXT,
+          claimed_until TEXT,
+          last_sync_at TEXT,
+          webhook_at TEXT,
+          created_by TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS notion_sync_connections_nws ON notion_sync_connections(notion_workspace_id);
+        CREATE INDEX IF NOT EXISTS notion_sync_connections_due ON notion_sync_connections(next_poll_at);
+        CREATE TABLE IF NOT EXISTS notion_sync_items (
+          workspace_id TEXT NOT NULL,
+          notion_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          parent_notion_id TEXT,
+          parent_kind TEXT,
+          root_id TEXT,
+          depth INTEGER NOT NULL DEFAULT 0,
+          local_page_id TEXT,
+          row_id TEXT,
+          notion_edited TEXT,
+          synced_edited TEXT,
+          local_synced_at TEXT,
+          state TEXT,
+          status TEXT NOT NULL DEFAULT 'pending',
+          attempts INTEGER NOT NULL DEFAULT 0,
+          error TEXT,
+          due_at TEXT,
+          claimed_until TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (workspace_id, notion_id)
+        );
+        CREATE INDEX IF NOT EXISTS notion_sync_items_local ON notion_sync_items(workspace_id, local_page_id);
+        CREATE INDEX IF NOT EXISTS notion_sync_items_due ON notion_sync_items(workspace_id, status, depth);
+        CREATE TABLE IF NOT EXISTS notion_sync_roots (
+          workspace_id TEXT NOT NULL,
+          notion_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          enabled INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (workspace_id, notion_id)
+        );
+        CREATE TABLE IF NOT EXISTS notion_sync_outbox (
+          workspace_id TEXT NOT NULL,
+          local_page_id TEXT NOT NULL,
+          due_at TEXT NOT NULL,
+          dirty INTEGER NOT NULL DEFAULT 0,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          claimed_until TEXT,
+          error TEXT,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (workspace_id, local_page_id)
+        );
+        CREATE INDEX IF NOT EXISTS notion_sync_outbox_due ON notion_sync_outbox(due_at);
+        CREATE TABLE IF NOT EXISTS notion_sync_comments (
+          workspace_id TEXT NOT NULL,
+          notion_id TEXT NOT NULL,
+          local_id TEXT NOT NULL,
+          discussion_id TEXT,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (workspace_id, notion_id)
+        );
+        CREATE INDEX IF NOT EXISTS notion_sync_comments_local ON notion_sync_comments(workspace_id, local_id);
+        CREATE TABLE IF NOT EXISTS notion_sync_log (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT NOT NULL,
+          dir TEXT NOT NULL,
+          action TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          local_page_id TEXT,
+          detail TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS notion_sync_log_ws ON notion_sync_log(workspace_id, created_at);
+        CREATE TABLE IF NOT EXISTS notion_sync_webhook (
+          id TEXT PRIMARY KEY,
+          token TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+      `);
+    },
+  },
+  {
     // Personal y equipo (lib/workspace-principal.ts): users.kind marca a los
     // titulares de workspaces de equipo ('workspace'), que no son personas. A
     // quien ya pasó el onboarding y no tiene ningún workspace de equipo (ni uno

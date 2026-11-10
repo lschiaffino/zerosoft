@@ -1,3 +1,4 @@
+import { ogMeta } from '@/lib/og/url';
 import type { Metadata } from 'next';
 import { cache, type CSSProperties } from 'react';
 import { notFound } from 'next/navigation';
@@ -38,12 +39,13 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const canonical = domain ? `https://${domain}/${article.slug}` : `/${locale}/h/${ws.handle}/${article.slug}`;
   const description = seo?.seo_description || article.excerpt || undefined;
   const noindex = !site.indexing || seo?.seo_noindex;
+  const og = ogMeta(`/api/og/help/${encodeURIComponent(ws.handle)}/${encodeURIComponent(article.slug)}/${locale}`, article.title || t('untitled'), description, [ws.name, article.title, description]);
   return {
     title: { absolute: `${article.title || t('untitled')} · ${ws.name}` },
     description,
     alternates: { canonical },
-    openGraph: { title: article.title, description, type: 'article', url: canonical, siteName: ws.name, modifiedTime: article.updated_at },
-    twitter: { card: 'summary', title: article.title, description },
+    openGraph: { title: article.title, description, type: 'article', url: canonical, siteName: ws.name, modifiedTime: article.updated_at, images: og.images },
+    twitter: og.twitter,
     ...(noindex ? { robots: { index: false, follow: false } } : {}),
   };
 }

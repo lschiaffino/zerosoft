@@ -16,7 +16,7 @@
  */
 import { createHash } from 'crypto';
 import { ImportError, ImportRetryError } from './import-jobs';
-import { DOCS_MAX_INDENT, type DbOption, type DbProperty, type DbPropertyType, type DbRow, type DbValue, type DocsBlock } from './docs-types';
+import { DOCS_COLOR_NAMES, DOCS_MAX_INDENT, type DocsBlockColor, type DbOption, type DbProperty, type DbPropertyType, type DbRow, type DbValue, type DocsBlock } from './docs-types';
 import { guessStatusGroup } from './docs-database';
 
 export const NOTION_API_BASE = 'https://api.notion.com/v1';
@@ -165,6 +165,10 @@ export interface NotionClientOptions {
 export interface NotionClient {
   get<T>(path: string): Promise<T>;
   post<T>(path: string, body: unknown): Promise<T>;
+  patch<T>(path: string, body: unknown): Promise<T>;
+  del<T>(path: string): Promise<T>;
+  /** POST multipart (subida de archivos: /file_uploads/<id>/send). */
+  send<T>(path: string, form: FormData): Promise<T>;
   /** GET de un archivo alojado por Notion (lo baja lib/docs-notion-api-import.ts). */
   fetchFile(url: string, init?: RequestInit): Promise<Response>;
   fake: boolean;
@@ -198,7 +202,8 @@ export function createNotionClient(token: string, opts: NotionClientOptions = {}
           headers: {
             authorization: `Bearer ${token}`,
             'notion-version': NOTION_VERSION,
-            'content-type': 'application/json',
+            // Multipart: el boundary lo pone fetch.
+            ...(init.body instanceof FormData ? {} : { 'content-type': 'application/json' }),
           },
           signal: AbortSignal.timeout(25_000),
           cache: 'no-store',
@@ -238,6 +243,9 @@ export function createNotionClient(token: string, opts: NotionClientOptions = {}
   return {
     get: (path) => call(path, { method: 'GET' }),
     post: (path, body) => call(path, { method: 'POST', body: JSON.stringify(body ?? {}) }),
+    patch: (path, body) => call(path, { method: 'PATCH', body: JSON.stringify(body ?? {}) }),
+    del: (path) => call(path, { method: 'DELETE' }),
+    send: (path, form) => call(path, { method: 'POST', body: form }),
     fetchFile: (url, init) => doFetch(url, { ...init, signal: AbortSignal.timeout(30_000), cache: 'no-store' }),
     fake: Boolean(opts.noThrottle),
   };
@@ -286,6 +294,11 @@ export interface NotionConvertContext {
   titleFor?(notionId: string): string | null;
   /** Nombre de una persona de Notion por id (menciones). */
   userName?(userId: string): string | null;
+  /**
+   * Id del bloque de Docs para un bloque de Notion (la sincronización usa ids
+   * estables y guarda el par). Sin esto, cada conversión da ids nuevos.
+   */
+  blockId?(notionBlockId: string): string;
 }
 
 function pageAnchor(target: { pageId: string; rowId?: string }, label: string): string {
@@ -346,6 +359,8 @@ export function richTextToHtml(rt: NRichText[] | undefined | null, ctx: NotionCo
     if (a.italic) piece = `<em>${piece}</em>`;
     if (a.strikethrough) piece = `<s>${piece}</s>`;
     if (a.underline) piece = `<u>${piece}</u>`;
+    const color = notionColor(a.color);
+    if (color) piece = `<span data-color="${color}">${piece}</span>`;
     const href = r.text?.link?.url ?? r.href ?? null;
     if (href) {
       const l = linkHref(href, ctx);
@@ -357,6 +372,15 @@ export function richTextToHtml(rt: NRichText[] | undefined | null, ctx: NotionCo
     out += piece;
   }
   return out;
+}
+
+/** Color de Notion ("red", "red_background") → color de Docs ("red", "red_bg"); null si es el default. */
+export function notionColor(color: string | undefined | null): DocsBlockColor | null {
+  if (!color || color === 'default') return null;
+  const bg = color.endsWith('_background');
+  const name = bg ? color.slice(0, -'_background'.length) : color;
+  if (!(DOCS_COLOR_NAMES as readonly string[]).includes(name)) return null;
+  return (bg ? `${name}_bg` : name) as DocsBlockColor;
 }
 
 // ---------- Bloques ----------
@@ -418,8 +442,11 @@ let markerSeq = 0;
 export function convertBlocks(nodes: NBlockNode[], ctx: NotionConvertContext, indent = 0): ConvertedBlocks {
   const out: ConvertedBlocks = { blocks: [], media: [], unsupported: [] };
   const lvl = Math.min(indent, DOCS_MAX_INDENT);
+  /** Bloque de Notion que se está convirtiendo (para el id estable). */
+  let current = '';
+  const idFor = (nid: string) => (ctx.blockId ? ctx.blockId(nid) : crypto.randomUUID());
   const push = (b: Omit<DocsBlock, 'id'> & { id?: string }) => {
-    out.blocks.push({ id: crypto.randomUUID(), ...b, ...(lvl > 0 ? { indent: lvl } : {}) } as DocsBlock);
+    out.blocks.push({ id: idFor(current), ...b, ...(lvl > 0 ? { indent: lvl } : {}) } as DocsBlock);
   };
   const nest = (children: NBlockNode[], extra = 1) => {
     if (!children.length) return;
@@ -437,11 +464,13 @@ export function convertBlocks(nodes: NBlockNode[], ctx: NotionConvertContext, in
 
   for (const node of nodes) {
     const b = node.block;
+    current = b.id;
     const data = (b[b.type] ?? {}) as Record<string, unknown>;
     const rt = data.rich_text as NRichText[] | undefined;
     const textType = TEXT_TYPES[b.type];
+    const color = notionColor(data.color as string | undefined);
     if (textType) {
-      const block: Omit<DocsBlock, 'id'> = { type: textType, content: richTextToHtml(rt, ctx) };
+      const block: Omit<DocsBlock, 'id'> = { type: textType, content: richTextToHtml(rt, ctx), ...(color ? { color } : {}) };
       if (b.type === 'to_do') block.checked = Boolean(data.checked);
       if (b.type === 'callout') {
         const icon = data.icon as NIcon | undefined;
@@ -457,7 +486,7 @@ export function convertBlocks(nodes: NBlockNode[], ctx: NotionConvertContext, in
       case 'heading_3': {
         const level = Number(b.type.slice(-1)) as 1 | 2 | 3;
         const toggle = Boolean(data.is_toggleable);
-        push({ type: 'heading', level, content: richTextToHtml(rt, ctx), ...(toggle ? { toggle: true } : {}) });
+        push({ type: 'heading', level, content: richTextToHtml(rt, ctx), ...(toggle ? { toggle: true } : {}), ...(color ? { color } : {}) });
         nest(node.children);
         break;
       }
@@ -477,17 +506,18 @@ export function convertBlocks(nodes: NBlockNode[], ctx: NotionConvertContext, in
         push({ type: 'breadcrumb', content: '' });
         break;
       case 'table': {
+        const tableData = data as { has_column_header?: boolean };
         const rows = node.children
           .filter((c) => c.block.type === 'table_row')
           .slice(0, 200)
           .map((c) => (((c.block.table_row as { cells?: NRichText[][] } | undefined)?.cells ?? []) as NRichText[][]).slice(0, 20).map((cell) => richTextToHtml(cell, ctx)));
-        push({ type: 'table', content: '', rows: rows.length ? rows : [['']] });
+        push({ type: 'table', content: '', rows: rows.length ? rows : [['']], ...(tableData.has_column_header ? { header_row: true } : {}) });
         break;
       }
       case 'column_list': {
         push({ type: 'columns', content: '' });
         for (const col of node.children.filter((c) => c.block.type === 'column')) {
-          out.blocks.push({ id: crypto.randomUUID(), type: 'column', content: '', indent: Math.min(indent + 1, DOCS_MAX_INDENT) });
+          out.blocks.push({ id: idFor(col.block.id), type: 'column', content: '', indent: Math.min(indent + 1, DOCS_MAX_INDENT) });
           nest(col.children, 2);
         }
         break;
@@ -759,7 +789,13 @@ export function convertDatabase(db: NDatabase, rows: NotionRowInput[], ctx: Data
         break;
       case 'date':
         prop.type = 'date';
-        value = (v) => ymd((v?.date as { start?: string } | null)?.start);
+        // Un rango de Notion queda en la misma propiedad: "inicio/fin".
+        value = (v) => {
+          const d = v?.date as { start?: string; end?: string | null } | null;
+          const start = ymd(d?.start);
+          const end = ymd(d?.end);
+          return start ? (end && end > start ? `${start}/${end}` : start) : null;
+        };
         break;
       case 'created_time':
       case 'last_edited_time':

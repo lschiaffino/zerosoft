@@ -569,7 +569,7 @@ export function isNotionFileHost(url: string): boolean {
   }
 }
 
-async function readCapped(res: Response, max: number): Promise<Buffer | null> {
+export async function readCapped(res: Response, max: number): Promise<Buffer | null> {
   const len = Number(res.headers.get('content-length'));
   if (Number.isFinite(len) && len > max) {
     await res.body?.cancel().catch(() => undefined);
@@ -626,10 +626,10 @@ function fileKey(url: string): string {
  * Baja un archivo de Notion al storage propio (o reusa el que ya bajó un
  * import anterior). null si es muy grande, de un tipo no permitido o falla.
  */
-async function downloadFile(client: NotionClient, job: ImportJob, url: string, name: string): Promise<StoredFile | null> {
+export async function downloadNotionFile(client: NotionClient, workspaceId: string, url: string, name: string): Promise<StoredFile | null> {
   if (!isNotionFileHost(url)) return null;
   const key = fileKey(url);
-  const prev = await getExternalId(job.workspace_id, NOTION_API_SOURCE, 'file', key);
+  const prev = await getExternalId(workspaceId, NOTION_API_SOURCE, 'file', key);
   if (prev) {
     try {
       // Mismo archivo de Notion ya copiado: se reusa (con el nombre que trae este bloque).
@@ -639,7 +639,7 @@ async function downloadFile(client: NotionClient, job: ImportJob, url: string, n
     }
   }
   const saved = await downloadFresh(client, url, name);
-  if (saved) await setExternalId(job.workspace_id, NOTION_API_SOURCE, 'file', key, JSON.stringify(saved));
+  if (saved) await setExternalId(workspaceId, NOTION_API_SOURCE, 'file', key, JSON.stringify(saved));
   return saved;
 }
 
@@ -684,8 +684,23 @@ async function pageBlocks(client: NotionClient, job: ImportJob, idx: WriteIndex,
   const tree = await fetchBlockTree(client, n.id);
   if (tree.truncated) pushError(report, `${n.title || 'Untitled'}: content_truncated`);
   const conv = convertBlocks(tree.nodes, convertContext(idx));
+  const out = await resolveNotionMedia(client, job.workspace_id, conv, includeOf(job).files, report);
+  return out.slice(0, DOCS_IMPORT_MAX_BLOCKS);
+}
+
+/**
+ * Archivos de bloques convertidos: los de Notion se bajan al storage propio
+ * (o se reusan), los externos quedan como embed o bookmark y los que no se
+ * pueden bajar, como un párrafo con el nombre. Mantiene el id del bloque.
+ */
+export async function resolveNotionMedia(
+  client: NotionClient,
+  workspaceId: string,
+  conv: { blocks: DocsBlock[]; media: NotionMediaRef[] },
+  files: boolean,
+  report?: Pick<NotionApiReport, 'files' | 'filesSkipped'>,
+): Promise<DocsBlock[]> {
   const byMarker = new Map(conv.media.map((m) => [m.marker, m]));
-  const include = includeOf(job);
   const out: DocsBlock[] = [];
   for (const b of conv.blocks) {
     const ref: NotionMediaRef | undefined = b.type === 'paragraph' ? byMarker.get(b.content) : undefined;
@@ -695,20 +710,20 @@ async function pageBlocks(client: NotionClient, job: ImportJob, idx: WriteIndex,
     }
     const keep = b.indent ? { indent: b.indent } : {};
     if (!ref.hosted) {
-      out.push({ ...externalMediaBlock(ref), ...keep });
+      out.push({ ...externalMediaBlock(ref), id: b.id, ...keep });
       continue;
     }
-    const saved = include.files ? await downloadFile(client, job, ref.url, ref.name) : null;
+    const saved = files ? await downloadNotionFile(client, workspaceId, ref.url, ref.name) : null;
     if (!saved) {
-      report.filesSkipped += 1;
+      if (report) report.filesSkipped += 1;
       out.push({ id: b.id, type: 'paragraph', content: ref.name.replace(/[<&>]/g, ''), ...keep });
       continue;
     }
-    report.files += 1;
+    if (report) report.files += 1;
     const kind = ref.kind === 'file' ? 'file' : fileKindFor(saved.mime);
     out.push({ id: b.id, type: kind, content: '', url: saved.url, name: saved.name, size: saved.size, mime: saved.mime, ...(ref.caption ? { caption: ref.caption } : {}), ...keep });
   }
-  return out.slice(0, DOCS_IMPORT_MAX_BLOCKS);
+  return out;
 }
 
 async function canStillWrite(job: ImportJob, teamspaceId: string | null): Promise<boolean> {
@@ -808,7 +823,7 @@ async function writeDatabase(client: NotionClient, job: ImportJob, idx: WriteInd
   for (const f of conv.files) {
     const row = byRow.get(f.rowId);
     if (!row) continue;
-    const saved = include.files && f.hosted ? await downloadFile(client, job, f.url, f.name) : null;
+    const saved = include.files && f.hosted ? await downloadNotionFile(client, job.workspace_id, f.url, f.name) : null;
     if (!saved) {
       report.filesSkipped += 1;
       continue;
