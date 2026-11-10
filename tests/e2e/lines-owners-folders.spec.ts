@@ -63,7 +63,7 @@ test('dueño, selector de línea y carpetas', async ({ page, request }) => {
   const put = await request.put('/api/groups/prefs', { data: { line: b.id } });
   expect(((await put.json()) as { line: string }).line).toBe(b.id);
 
-  // Pantalla: selector, solo la línea B, carpetas con el conteo, sin scroll horizontal a 390px.
+  // Pantalla: selector, solo la línea B, carpetas en el sidebar, sin scroll horizontal a 390px.
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const select = page.getByLabel('Line', { exact: true });
   await expect(select).toHaveValue(b.id);
@@ -71,12 +71,19 @@ test('dueño, selector de línea y carpetas', async ({ page, request }) => {
   await expect(page.getByText(`Alfa ${tag}`)).toHaveCount(0);
   await select.selectOption('all');
   await expect(page.getByText(`Alfa ${tag}`).first()).toBeVisible();
-  await expect(page.getByTestId('lines-folders')).toBeVisible();
-  // La fila tiene tres botones con el nombre de la carpeta (plegar, abrir, opciones): se elige el de abrir.
-  await page.getByTestId('lines-folder').filter({ hasText: `Clientes ${tag}` }).click();
+  // Las carpetas cuelgan de "Inbox" en el sidebar; abrir una filtra la bandeja y queda en la URL.
+  const side = page.locator('#side-branch').getByTestId('lines-folders');
+  await expect(side).toBeVisible();
+  await side.getByTestId('lines-folder').filter({ hasText: `Clientes ${tag}` }).click();
+  await expect(page).toHaveURL(new RegExp(`folder=${folder.id}`));
+  await expect(page.getByTestId('lines-folder-current')).toContainText(`Clientes ${tag}`);
   await expect(page.getByText(`Alfa ${tag}`).first()).toBeVisible();
   await expect(page.getByText(`Beta ${tag}`)).toHaveCount(0);
+  // En el teléfono no hay sidebar a la vista: la bandeja ofrece un selector con la misma carpeta.
   await page.setViewportSize({ width: 390, height: 800 });
+  await expect(page.getByTestId('lines-folder-select')).toHaveValue(folder.id);
+  await page.getByTestId('lines-folder-select').selectOption('');
+  await expect(page.getByText(`Beta ${tag}`).first()).toBeVisible();
   const w = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, inner: window.innerWidth }));
   expect(w.scroll).toBeLessThanOrEqual(w.inner + 1);
   await request.put('/api/groups/prefs', { data: { line: 'all' } });

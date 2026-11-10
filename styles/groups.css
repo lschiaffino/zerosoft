@@ -824,17 +824,29 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 /* Lines: selector de línea, etiqueta de línea y carpetas compartidas */
 .gr-line-select { max-width: 170px; min-width: 0; }
 .gr-line-badge { display: inline-block; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; padding: 0 6px; border: 1px solid var(--ui-border); }
-.gr-folders { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; min-width: 0; }
-.gr-folders-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.gr-folders-empty { margin: 0; }
 .gr-folder-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; max-height: 220px; overflow-y: auto; }
-.gr-folder-item { display: flex; align-items: center; gap: 2px; min-width: 0; }
-.gr-folder-item .gr-folder { flex: 1; min-width: 0; }
-.gr-folder-toggle { width: 18px; flex: none; background: none; border: 0; color: inherit; cursor: pointer; padding: 0; text-align: center; }
-.gr-folder-toggle:focus-visible, .gr-folder:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.gr-folder:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .gr-folder { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: start; background: none; border: 1px solid transparent; color: inherit; padding: 4px 8px; cursor: pointer; font: inherit; }
 .gr-folder:hover { background: var(--ui-hover); }
 .gr-folder.is-on { border-color: var(--ink); font-weight: 600; }
 .gr-folder.is-over { background: var(--ui-hover); border-color: var(--ink); border-style: dashed; }
 .gr-folder-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr-folder-pick { max-height: 50vh; }
+
+/* ---------- Carpetas en el sidebar (GroupsFoldersBranch), colgadas de "Bandeja" ---------- */
+.gr-folders-branch { padding-top: 6px; }
+.gr-fb-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 28px; padding: 0 2px 0 8px; }
+.gr-fb-title { font-size: 0.75rem; font-weight: 500; color: var(--brand-gray-2); }
+.gr-fb-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--radius-1); background: none; color: var(--brand-gray-2); cursor: pointer; font: inherit; line-height: 1; }
+.gr-fb-btn:hover { color: var(--ink); background: var(--ui-press); }
+.gr-fb-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.gr-fb-chevron { width: 20px; height: 20px; }
+.gr-fb-chevron svg { transition: transform var(--ui-dur) var(--ease); }
+.gr-fb-chevron.open svg { transform: rotate(90deg); }
+.gr-fb-row .gr-menu { display: none; flex: none; }
+.gr-fb-row:hover .gr-menu, .gr-fb-row:focus-within .gr-menu, .gr-fb-row .gr-menu:has([aria-expanded='true']) { display: inline-flex; }
+.gr-fb-row.is-over { box-shadow: inset 0 0 0 2px var(--ink); }
+.gr-branch-unread { color: var(--ink); font-weight: 600; }
+/* Carpeta abierta, arriba de la lista de chats; y el selector cuando el sidebar no está a la vista. */
+.gr-folder-current { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; min-width: 0; font-weight: 600; }
+.gr-folder-select { width: 100%; }

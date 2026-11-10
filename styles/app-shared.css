@@ -693,7 +693,7 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   button.track-display-switch.is-on::before { background: var(--ink); }
   button.track-display-switch > span { top: 14px; left: 10px; }
   /* Selector de tema del sidebar y carpetas de Lines: objetivos de 40px. */
-  :is(.theme-switcher button, .gr-folder, .gr-folder-toggle, .gr-folder-menu) { min-height: 40px !important; min-width: 40px !important; }
+  :is(.theme-switcher button, .gr-folder) { min-height: 40px !important; min-width: 40px !important; }
   /* El ID repite el link del título: en el teléfono se va y el título gana el ancho. */
   @media (max-width: 640px) { .track-table-wrap.is-linear .track-col-id { display: none; } }
   /* Hoja de "Agregar widget" (CRM): cada opción es una fila de 44px. */
