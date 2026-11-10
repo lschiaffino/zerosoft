@@ -28,7 +28,7 @@ import ProductGlyph from '@/components/brand/ProductGlyph';
 import DesktopCta from '@/components/site/DesktopCta';
 import DesktopHud from '@/components/site/DesktopHud';
 import { GITHUB_URL, INCUMBENTS, PRODUCT_NAMES, annualCost } from '@/components/site/catalog';
-import { PRODUCT_CONFIG } from '@/lib/products';
+import { PRODUCT_CONFIG, isComingSoon, productHref } from '@/lib/products';
 import { staticPageMetadata } from '@/lib/seo-pages';
 import { faqLd, graphLd, jsonLdString, organizationLd, websiteLd } from '@/lib/seo';
 import '@/styles/pages.css';
@@ -46,6 +46,8 @@ const SHOWCASE = [
 
 /** Orden de la tabla de costos: de la más cara a la más barata. */
 const STACK_ORDER = ['track', 'crm', 'chat', 'cal', 'docs', 'link'] as const;
+/** Solo las apps que ya se pueden usar: una "Próximamente" no reemplaza nada todavía. */
+const STACK = STACK_ORDER.filter((k) => !isComingSoon(k));
 
 const FAQ = ['1', '2', '3', '4', '5', '6', '7'] as const;
 
@@ -67,7 +69,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
     currencyDisplay: 'narrowSymbol',
     maximumFractionDigits: 0,
   });
-  const totals = STACK_ORDER.map((k) => annualCost(k));
+  const totals = STACK.map((k) => annualCost(k));
   const total = totals.reduce((a, b) => a + b, 0);
   const maxRow = Math.max(...totals);
 
@@ -152,7 +154,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                 </BrowserFrame>
                 <div className="lp-proof-foot">
                   <span className="fig-cap">{h('proof.caption', { name: PRODUCT_NAMES[p.key].toLowerCase() })}</span>
-                  <Link href={`/products/${p.key}`} className="lp-textlink">
+                  <Link href={productHref(p.key)} className="lp-textlink">
                     {h('suite.explore', { name: PRODUCT_NAMES[p.key] })} <Icon name="arrow" size={14} />
                   </Link>
                 </div>
@@ -195,7 +197,7 @@ export default function HomePage(props: { params: Promise<{ locale: string }> })
                   </tr>
                 </thead>
                 <tbody>
-                  {STACK_ORDER.map((k, i) => {
+                  {STACK.map((k, i) => {
                     const inc = INCUMBENTS[k];
                     return (
                       <tr key={k}>

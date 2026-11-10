@@ -1,5 +1,5 @@
 import { createHmac } from 'crypto';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -261,7 +261,7 @@ test('Link: deep linking diferido y cloaking en dominio propio', async ({ reques
   expect((await noDomain.json()).error).toBe('cloak_needs_domain');
   const hostname = `cl-${uid()}.example.com`;
   const domain = await (await request.post('/api/links/domains', { data: { hostname } })).json();
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   await db.execute({ sql: 'UPDATE link_domains SET verified = 1 WHERE id = ?', args: [domain.id] });
   db.close();
   const cslug = `cloak${uid()}`;

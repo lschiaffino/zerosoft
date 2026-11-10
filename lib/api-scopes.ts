@@ -33,6 +33,8 @@ export const API_SCOPES = [
   'sign:read',
   'analytics:read',
   'analytics:write',
+  'bi:read',
+  'bi:write',
   'social:read',
   'social:write',
   'people:read',
@@ -100,6 +102,7 @@ export const SCOPE_APP: Record<string, string> = {
   design: 'design',
   shop: 'shop',
   analytics: 'pulse',
+  bi: 'analytics',
   social: 'social',
   hiring: 'hiring',
   people: 'people',
@@ -110,6 +113,12 @@ export const SCOPE_APP: Record<string, string> = {
 };
 
 /** Solo los scopes de apps permitidas ('*' = todas). */
+/** Saca los scopes de las apps cortadas (Próximamente o Apps del workspace). */
+export function scopesWithoutApps(scopes: readonly ApiScope[], blocked: readonly string[]): ApiScope[] {
+  if (!blocked.length) return [...scopes];
+  return scopes.filter((s) => !blocked.includes(SCOPE_APP[s.split(':')[0]] ?? ''));
+}
+
 export function scopesForApps(scopes: readonly ApiScope[], apps: '*' | readonly string[]): ApiScope[] {
   if (apps === '*') return [...scopes];
   return scopes.filter((s) => apps.includes(SCOPE_APP[s.split(':')[0]] ?? ''));

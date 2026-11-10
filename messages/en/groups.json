@@ -241,10 +241,10 @@
     "tickets": "Tickets",
     "noTickets": "No tickets in this chat.",
     "scheduled": "Scheduled messages",
-    "since": "In Groups since {time}",
+    "since": "In Lines since {time}",
     "exportMessages": "Export messages",
-    "remove": "Remove from Groups",
-    "removeTitle": "Remove this chat from Groups?",
+    "remove": "Remove from Lines",
+    "removeTitle": "Remove this chat from Lines?",
     "removeBody": "Its messages, notes and labels are deleted here. The chat or group stays in WhatsApp, and a new message brings it back.",
     "removeConfirm": "Remove",
     "description": "Description",
@@ -462,13 +462,13 @@
     "volume": "Messages per day",
     "volumeAria": "{inbound} received and {outbound} sent in the period",
     "byAgent": "By person",
-    "noAgents": "Nobody has replied from Groups in this period.",
+    "noAgents": "Nobody has replied from Lines in this period.",
     "person": "Person",
     "replies": "Replies",
     "resolved": "Tickets resolved",
     "byChat": "By chat or group",
     "chat": "Chat",
-    "note": "First response counts replies from Groups, from the phone and from agents. Broadcasts do not count.",
+    "note": "First response counts replies from Lines, from the phone and from agents. Broadcasts do not count.",
     "exportChats": "Export chats",
     "exportTickets": "Export tickets",
     "filters": "Report filters",
@@ -485,7 +485,7 @@
     "rangeInverted": "The end date is before the start date. Pick an end date on or after the start to apply the range."
   },
   "settings": {
-    "title": "Groups settings",
+    "title": "Lines settings",
     "desc": "Numbers, labels, quick replies, properties, assignment and ticket rules.",
     "tabs": {
       "numbers": "Numbers",
@@ -513,7 +513,7 @@
     "edit": "Edit",
     "disconnect": "Disconnect",
     "deleteTitle": "Delete this number?",
-    "deleteBody": "Its chats, groups, messages and tickets are deleted from Groups. Nothing changes in WhatsApp.",
+    "deleteBody": "Its chats, groups, messages and tickets are deleted from Lines. Nothing changes in WhatsApp.",
     "addTitle": "Add a WhatsApp number",
     "editTitle": "Edit number",
     "addAndConnect": "Save and connect",
@@ -564,7 +564,7 @@
     "syncing": "Bringing in your groups...",
     "syncedAuto": "{n, plural, =0 {No groups on this number yet.} one {We brought in # group.} other {We brought in # groups.}}",
     "openInbox": "Go to inbox",
-    "deleteBodyManaged": "Its chats, groups, messages and tickets are deleted from Groups and the linked session on the phone is logged out.",
+    "deleteBodyManaged": "Its chats, groups, messages and tickets are deleted from Lines and the linked session on the phone is logged out.",
     "adminOnly": "Only workspace admins add, connect and delete numbers."
   },
   "providers": {
@@ -662,7 +662,7 @@
   "rules": {
     "intro": "When a chat counts as unanswered, what creates a ticket and how long each priority has.",
     "emoji": "Ticket emoji",
-    "emojiHelp": "Reacting with it to a message, from Groups or from the phone, creates a ticket. Empty turns it off.",
+    "emojiHelp": "Reacting with it to a message, from Lines or from the phone, creates a ticket. Empty turns it off.",
     "keywords": "Ticket keywords",
     "keywordsPlaceholder": "urgent, broken, refund",
     "keywordsHelp": "A customer message with one of these words creates a ticket. Comma separated.",
@@ -696,14 +696,14 @@
     "scopes": "Create a key with the groups:read and groups:write scopes in",
     "keys": "workspace settings",
     "webhooks": "Outgoing webhooks and Flow triggers for these events:",
-    "flow": "Flow can also send a WhatsApp message with the step Groups: send WhatsApp message.",
+    "flow": "Flow can also send a WhatsApp message with the step Lines: send WhatsApp message.",
     "docs": "Every endpoint with examples is in",
     "docsLink": "the API docs",
     "webhooksManage": "Create endpoints, see the delivery log and resend from"
   },
   "crmBlock": {
     "title": "WhatsApp",
-    "empty": "No chat or group linked. Link one from its details panel in Groups.",
+    "empty": "No chat or group linked. Link one from its details panel in Lines.",
     "tickets": "{n, plural, one {# open ticket} other {# open tickets}}",
     "waiting": "Waiting for reply"
   },
@@ -846,7 +846,14 @@
     "file_too_large_local": "This server takes files up to 4.5 MB. To send files up to 100 MB an admin has to set up Blob storage.",
     "send_rate_limited": "This line sent too many messages in a minute. Wait a bit before sending more, so WhatsApp doesn’t block it.",
     "contacts_unsupported": "This line can’t send contact cards.",
-    "invalid_contact_card": "Check the phone number: it needs the country code."
+    "invalid_contact_card": "Check the phone number: it needs the country code.",
+    "invalid_owner": "The owner must be someone in the workspace.",
+    "invalid_visibility": "Invalid visibility.",
+    "invalid_parent": "That parent folder is not valid.",
+    "too_deep": "Folders can only go a few levels deep.",
+    "duplicate_folder": "There is already a folder with that name here.",
+    "too_many_folders": "Too many folders.",
+    "invalid_folder": "Invalid folder."
   },
   "media": {
     "image": "Image",
@@ -986,14 +993,14 @@
     "help": "Changes apply in WhatsApp. The connected number has to be an admin of the group.",
     "leave": "Leave group",
     "leaveTitle": "Leave {name}?",
-    "leaveBody": "The number leaves the group in WhatsApp. The chat stays in Groups as history, closed and without members."
+    "leaveBody": "The number leaves the group in WhatsApp. The chat stays in Lines as history, closed and without members."
   },
   "join": {
     "button": "Join with link",
     "title": "Join a group by invite",
     "submit": "Join group",
     "link": "Invite link",
-    "help": "Paste the WhatsApp invite link or its code. The group shows up in Groups with its members.",
+    "help": "Paste the WhatsApp invite link or its code. The group shows up in Lines with its members.",
     "done": "Joined the group"
   },
   "templates": {
@@ -1138,7 +1145,7 @@
     "firstResponse": "first response",
     "resolution": "resolution",
     "open": "Open the ticket",
-    "why": "You get this email because SLA alerts are on in Groups settings."
+    "why": "You get this email because SLA alerts are on in Lines settings."
   },
   "taskEmail": {
     "subject": "Reminder: {title}",
@@ -1146,7 +1153,7 @@
     "body": "\"{title}\" is due {when}.",
     "chat": "From the chat {chat}.",
     "open": "Open the chat",
-    "why": "You get this email because the task is yours in Groups.",
+    "why": "You get this email because the task is yours in Lines.",
     "notification": "Reminder: {title}"
   },
   "access": {
@@ -1184,7 +1191,7 @@
       "reopened": "Reopened",
       "labels": "Labels",
       "renamed": "Renamed",
-      "deleted": "Removed from Groups",
+      "deleted": "Removed from Lines",
       "exported": "Exported",
       "members": "Members",
       "ticket_created": "Ticket created",
@@ -1202,7 +1209,7 @@
       "crm_link": "changed the CRM link",
       "agent": "changed the AI agent",
       "flag_cleared": "cleared the unanswered mark",
-      "deleted": "removed the chat from Groups",
+      "deleted": "removed the chat from Lines",
       "exported": "exported {type}",
       "members": "{action} {count} members",
       "ticket_created": "created ticket #{n}",
@@ -1320,9 +1327,9 @@
   },
   "apps": {
     "installTitle": "Install the app",
-    "installIntro": "Groups installs as an app on your phone and computer: its own icon and window, and notifications for chats assigned to you.",
+    "installIntro": "Lines installs as an app on your phone and computer: its own icon and window, and notifications for chats assigned to you.",
     "installed": "Installed on this device.",
-    "install": "Install Groups",
+    "install": "Install Lines",
     "howDesktop": "Chrome or Edge on the computer: the install icon at the end of the address bar.",
     "howAndroid": "Android: browser menu, then Install app.",
     "howIos": "iPhone: Share in Safari, then Add to Home Screen. Notifications work from the installed app (iOS 16.4 or later).",
@@ -1338,7 +1345,7 @@
     "disable": "Turn off here",
     "enabled": "Notifications on",
     "test": "Send a test",
-    "testTitle": "Groups",
+    "testTitle": "Lines",
     "testBody": "Notifications work on this device.",
     "testSent": "Test sent"
   },
@@ -1427,7 +1434,7 @@
     "composerNote": "Sample number: the message is saved as sent and does not go out to WhatsApp."
   },
   "notFound": {
-    "title": "This is no longer in Groups",
+    "title": "This is no longer in Lines",
     "body": "The chat, group or ticket was deleted or you no longer have access.",
     "action": "Go to inbox"
   },
@@ -1574,5 +1581,43 @@
     "line": "Your line",
     "rescan": "Scan the QR again",
     "reconnect": "Reconnect"
+  },
+  "lines": {
+    "selectorLabel": "Line",
+    "all": "All lines",
+    "allChats": "All chats",
+    "folders": "Folders",
+    "newFolder": "New folder",
+    "newSubfolder": "New subfolder",
+    "renameFolder": "Rename folder",
+    "rename": "Rename",
+    "folderName": "Folder name",
+    "foldersEmpty": "No folders yet. Create one to sort chats; everyone in the workspace sees the same folders.",
+    "unfiled": "No folder",
+    "folderUnread": "{n, plural, one {# unread chat} other {# unread chats}}",
+    "folderOptions": "Options for folder {name}",
+    "expand": "Expand {name}",
+    "collapse": "Collapse {name}",
+    "deleteFolderTitle": "Delete folder {name}?",
+    "deleteFolderBody": "Its subfolders are deleted too. The chats are not deleted: they go back to no folder.",
+    "moveToFolder": "Move to folder",
+    "moveTitle": "Move to folder",
+    "movedTo": "{n, plural, one {# chat moved to {name}} other {# chats moved to {name}}}",
+    "removedFromFolder": "{n, plural, one {# chat removed from its folder} other {# chats removed from their folder}}",
+    "accessTitle": "Owner and access of {name}",
+    "owner": "Owner",
+    "noOwner": "No owner",
+    "ownerIs": "Owner: {name}",
+    "ownerHelp": "The owner always sees this line.",
+    "visibility": "Who can see this line",
+    "visibilityAll": "Everyone in the workspace",
+    "visibilityRestricted": "Only some people and teams",
+    "visibilityHelp": "Admins and the owner always see it. Members who cannot see a line do not get its chats, messages, search results or notifications.",
+    "people": "People",
+    "teams": "Teams",
+    "access": "Owner and access",
+    "restrictedTag": "Restricted",
+    "filterOwner": "Filter by owner",
+    "allOwners": "All owners"
   }
 }

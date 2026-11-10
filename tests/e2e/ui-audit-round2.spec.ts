@@ -1,11 +1,11 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 
 /** Segunda ronda de la auditoría de UI: guardas por workspace, 404 reales, 390 y detalles de teclado. */
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 async function sql(statement: string, args: Array<string | number | null> = []) {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   try {
     return (await db.execute({ sql: statement, args })).rows as unknown as Array<Record<string, unknown>>;
   } finally {
@@ -96,7 +96,7 @@ test('Talk: un link a un canal de otro workspace de la persona la lleva ahí', a
 
 test('más ids desconocidos responden 404 y los válidos abren', async ({ request, browser, baseURL }) => {
   // Sin números el layout de la bandeja no renderiza la página hija: el id igual da 404.
-  expect((await request.get('/en/app/groups/inbox/zzz')).status()).toBe(404);
+  expect((await request.get('/en/app/lines/inbox/zzz')).status()).toBe(404);
   for (const path of [
     'chat/inbox/zzz',
     'crm/tasks/zzz',

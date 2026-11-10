@@ -241,10 +241,10 @@
     "tickets": "Tickets",
     "noTickets": "Não há tickets nesta conversa.",
     "scheduled": "Mensagens agendadas",
-    "since": "No Groups desde {time}",
+    "since": "No Lines desde {time}",
     "exportMessages": "Exportar mensagens",
-    "remove": "Remover do Groups",
-    "removeTitle": "Remover esta conversa do Groups?",
+    "remove": "Remover do Lines",
+    "removeTitle": "Remover esta conversa do Lines?",
     "removeBody": "As mensagens, notas e etiquetas dela são excluídas aqui. A conversa ou o grupo continua no WhatsApp, e uma mensagem nova a traz de volta.",
     "removeConfirm": "Remover",
     "description": "Descrição",
@@ -462,13 +462,13 @@
     "volume": "Mensagens por dia",
     "volumeAria": "{inbound} recebidas e {outbound} enviadas no período",
     "byAgent": "Por pessoa",
-    "noAgents": "Ninguém respondeu pelo Groups neste período.",
+    "noAgents": "Ninguém respondeu pelo Lines neste período.",
     "person": "Pessoa",
     "replies": "Respostas",
     "resolved": "Tickets resolvidos",
     "byChat": "Por conversa ou grupo",
     "chat": "Conversa",
-    "note": "A primeira resposta conta as respostas pelo Groups, pelo celular e dos agentes. Os envios em massa não contam.",
+    "note": "A primeira resposta conta as respostas pelo Lines, pelo celular e dos agentes. Os envios em massa não contam.",
     "exportChats": "Exportar conversas",
     "exportTickets": "Exportar tickets",
     "filters": "Filtros do relatório",
@@ -485,7 +485,7 @@
     "rangeInverted": "A data final é anterior à inicial. Escolha uma data final igual ou posterior para aplicar o período."
   },
   "settings": {
-    "title": "Configurações do Groups",
+    "title": "Configurações do Lines",
     "desc": "Números, etiquetas, respostas rápidas, propriedades, atribuição e regras de tickets.",
     "tabs": {
       "numbers": "Números",
@@ -513,7 +513,7 @@
     "edit": "Editar",
     "disconnect": "Desconectar",
     "deleteTitle": "Excluir este número?",
-    "deleteBody": "As conversas, grupos, mensagens e tickets dele são excluídos do Groups. Nada muda no WhatsApp.",
+    "deleteBody": "As conversas, grupos, mensagens e tickets dele são excluídos do Lines. Nada muda no WhatsApp.",
     "addTitle": "Adicionar um número de WhatsApp",
     "editTitle": "Editar número",
     "addAndConnect": "Salvar e conectar",
@@ -564,7 +564,7 @@
     "syncing": "Trazendo seus grupos...",
     "syncedAuto": "{n, plural, =0 {Ainda não há grupos neste número.} one {Trouxemos # grupo.} other {Trouxemos # grupos.}}",
     "openInbox": "Ir para a caixa",
-    "deleteBodyManaged": "As conversas, grupos, mensagens e tickets dele são excluídos do Groups e a sessão vinculada no celular é encerrada.",
+    "deleteBodyManaged": "As conversas, grupos, mensagens e tickets dele são excluídos do Lines e a sessão vinculada no celular é encerrada.",
     "adminOnly": "Só os admins do workspace adicionam, conectam e excluem números."
   },
   "providers": {
@@ -662,7 +662,7 @@
   "rules": {
     "intro": "Quando uma conversa conta como sem resposta, o que cria um ticket e quanto tempo cada prioridade tem.",
     "emoji": "Emoji de ticket",
-    "emojiHelp": "Reagir com ele a uma mensagem, pelo Groups ou pelo celular, cria um ticket. Vazio desativa.",
+    "emojiHelp": "Reagir com ele a uma mensagem, pelo Lines ou pelo celular, cria um ticket. Vazio desativa.",
     "keywords": "Palavras-chave de ticket",
     "keywordsPlaceholder": "urgente, quebrado, reembolso",
     "keywordsHelp": "Uma mensagem de cliente com uma dessas palavras cria um ticket. Separadas por vírgula.",
@@ -696,14 +696,14 @@
     "scopes": "Crie uma chave com os escopos groups:read e groups:write em",
     "keys": "configurações do workspace",
     "webhooks": "Webhooks de saída e gatilhos do Flow para estes eventos:",
-    "flow": "O Flow também pode enviar uma mensagem de WhatsApp com a etapa Groups: enviar mensagem de WhatsApp.",
+    "flow": "O Flow também pode enviar uma mensagem de WhatsApp com a etapa Lines: enviar mensagem de WhatsApp.",
     "docs": "Cada endpoint com exemplos está em",
     "docsLink": "a documentação da API",
     "webhooksManage": "Crie endpoints, veja o log de entregas e reenvie em"
   },
   "crmBlock": {
     "title": "WhatsApp",
-    "empty": "Nenhuma conversa ou grupo vinculado. Vincule um pelo painel de detalhes dele no Groups.",
+    "empty": "Nenhuma conversa ou grupo vinculado. Vincule um pelo painel de detalhes dele no Lines.",
     "tickets": "{n, plural, one {# ticket aberto} other {# tickets abertos}}",
     "waiting": "Aguardando resposta"
   },
@@ -846,7 +846,14 @@
     "file_too_large_local": "Este servidor aceita arquivos de até 4,5 MB. Para enviar até 100 MB, um admin precisa configurar o armazenamento Blob.",
     "send_rate_limited": "Esta linha enviou mensagens demais em um minuto. Espere um pouco antes de continuar, para o WhatsApp não bloqueá-la.",
     "contacts_unsupported": "Esta linha não pode enviar contatos.",
-    "invalid_contact_card": "Confira o número: ele precisa do código do país."
+    "invalid_contact_card": "Confira o número: ele precisa do código do país.",
+    "invalid_owner": "O dono precisa ser alguém do workspace.",
+    "invalid_visibility": "Visibilidade inválida.",
+    "invalid_parent": "Essa pasta pai não é válida.",
+    "too_deep": "As pastas só podem ter alguns níveis.",
+    "duplicate_folder": "Já existe uma pasta com esse nome aqui.",
+    "too_many_folders": "Pastas demais.",
+    "invalid_folder": "Pasta inválida."
   },
   "media": {
     "image": "Imagem",
@@ -986,14 +993,14 @@
     "help": "As mudanças valem no WhatsApp. O número conectado precisa ser admin do grupo.",
     "leave": "Sair do grupo",
     "leaveTitle": "Sair de {name}?",
-    "leaveBody": "O número sai do grupo no WhatsApp. O chat fica no Groups como histórico, fechado e sem membros."
+    "leaveBody": "O número sai do grupo no WhatsApp. O chat fica no Lines como histórico, fechado e sem membros."
   },
   "join": {
     "button": "Entrar com link",
     "title": "Entrar em um grupo por convite",
     "submit": "Entrar no grupo",
     "link": "Link de convite",
-    "help": "Cole o link de convite do WhatsApp ou o código. O grupo aparece no Groups com os membros.",
+    "help": "Cole o link de convite do WhatsApp ou o código. O grupo aparece no Lines com os membros.",
     "done": "Você entrou no grupo"
   },
   "templates": {
@@ -1138,7 +1145,7 @@
     "firstResponse": "primeira resposta",
     "resolution": "resolução",
     "open": "Abrir o ticket",
-    "why": "Você recebe este email porque os avisos de SLA estão ativos nas configurações do Groups."
+    "why": "Você recebe este email porque os avisos de SLA estão ativos nas configurações do Lines."
   },
   "taskEmail": {
     "subject": "Lembrete: {title}",
@@ -1146,7 +1153,7 @@
     "body": "\"{title}\" vence {when}.",
     "chat": "Do chat {chat}.",
     "open": "Abrir o chat",
-    "why": "Você recebe este email porque a tarefa é sua no Groups.",
+    "why": "Você recebe este email porque a tarefa é sua no Lines.",
     "notification": "Lembrete: {title}"
   },
   "access": {
@@ -1184,7 +1191,7 @@
       "reopened": "Reaberto",
       "labels": "Etiquetas",
       "renamed": "Renomeado",
-      "deleted": "Removido do Groups",
+      "deleted": "Removido do Lines",
       "exported": "Exportado",
       "members": "Membros",
       "ticket_created": "Ticket criado",
@@ -1202,7 +1209,7 @@
       "crm_link": "mudou o vínculo com o CRM",
       "agent": "mudou o agente IA",
       "flag_cleared": "tirou a marca de sem resposta",
-      "deleted": "removeu o chat do Groups",
+      "deleted": "removeu o chat do Lines",
       "exported": "exportou {type}",
       "members": "{action} {count} membros",
       "ticket_created": "criou o ticket #{n}",
@@ -1320,9 +1327,9 @@
   },
   "apps": {
     "installTitle": "Instalar o app",
-    "installIntro": "O Groups se instala como app no celular e no computador: ícone e janela próprios, e avisos dos chats atribuídos a você.",
+    "installIntro": "O Lines se instala como app no celular e no computador: ícone e janela próprios, e avisos dos chats atribuídos a você.",
     "installed": "Instalado neste dispositivo.",
-    "install": "Instalar Groups",
+    "install": "Instalar Lines",
     "howDesktop": "Chrome ou Edge no computador: o ícone de instalar no fim da barra de endereço.",
     "howAndroid": "Android: menu do navegador e depois Instalar app.",
     "howIos": "iPhone: Compartilhar no Safari e depois Adicionar à Tela de Início. Os avisos funcionam no app instalado (iOS 16.4 ou mais).",
@@ -1338,7 +1345,7 @@
     "disable": "Desativar aqui",
     "enabled": "Notificações ativadas",
     "test": "Enviar um teste",
-    "testTitle": "Groups",
+    "testTitle": "Lines",
     "testBody": "Os avisos funcionam neste dispositivo.",
     "testSent": "Teste enviado"
   },
@@ -1427,7 +1434,7 @@
     "composerNote": "Número de exemplo: a mensagem fica como enviada e não sai para o WhatsApp."
   },
   "notFound": {
-    "title": "Isto não está mais no Groups",
+    "title": "Isto não está mais no Lines",
     "body": "A conversa, grupo ou ticket foi excluído ou você não tem mais acesso.",
     "action": "Ir para a caixa"
   },
@@ -1574,5 +1581,43 @@
     "line": "Sua linha",
     "rescan": "Escanear o QR de novo",
     "reconnect": "Reconectar"
+  },
+  "lines": {
+    "selectorLabel": "Linha",
+    "all": "Todas as linhas",
+    "allChats": "Todas as conversas",
+    "folders": "Pastas",
+    "newFolder": "Nova pasta",
+    "newSubfolder": "Nova subpasta",
+    "renameFolder": "Renomear pasta",
+    "rename": "Renomear",
+    "folderName": "Nome da pasta",
+    "foldersEmpty": "Ainda não há pastas. Crie uma para organizar as conversas; todo o workspace vê as mesmas pastas.",
+    "unfiled": "Sem pasta",
+    "folderUnread": "{n, plural, one {# conversa não lida} other {# conversas não lidas}}",
+    "folderOptions": "Opções da pasta {name}",
+    "expand": "Expandir {name}",
+    "collapse": "Recolher {name}",
+    "deleteFolderTitle": "Excluir a pasta {name}?",
+    "deleteFolderBody": "As subpastas também são excluídas. As conversas não são excluídas: voltam a ficar sem pasta.",
+    "moveToFolder": "Mover para pasta",
+    "moveTitle": "Mover para pasta",
+    "movedTo": "{n, plural, one {# conversa movida para {name}} other {# conversas movidas para {name}}}",
+    "removedFromFolder": "{n, plural, one {# conversa tirada da pasta} other {# conversas tiradas da pasta}}",
+    "accessTitle": "Dono e acesso de {name}",
+    "owner": "Dono",
+    "noOwner": "Sem dono",
+    "ownerIs": "Dono: {name}",
+    "ownerHelp": "O dono sempre vê esta linha.",
+    "visibility": "Quem vê esta linha",
+    "visibilityAll": "Todo o workspace",
+    "visibilityRestricted": "Só algumas pessoas e equipes",
+    "visibilityHelp": "Admins e o dono sempre a veem. Membros que não veem uma linha não recebem suas conversas, mensagens, resultados de busca nem avisos.",
+    "people": "Pessoas",
+    "teams": "Equipes",
+    "access": "Dono e acesso",
+    "restrictedTag": "Restrita",
+    "filterOwner": "Filtrar por dono",
+    "allOwners": "Todos os donos"
   }
 }

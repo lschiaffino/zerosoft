@@ -6,13 +6,13 @@ import { expect, test } from '@playwright/test';
  * link al board. Y el porcentaje al lado de cada app en /products.
  */
 
-const PRODUCTS = ['crm', 'chat', 'groups', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
+const PRODUCTS = ['crm', 'chat', 'lines', 'agents', 'flow', 'robots', 'track', 'link', 'docs', 'notes', 'cal', 'board', 'voice', 'rec', 'talk', 'design', 'shop', 'analytics', 'pulse', 'social', 'hiring', 'people', 'books', 'sign', 'forms', 'send', 'inbox'];
 
 for (const product of PRODUCTS) {
   test(`paridad en /es/products/${product}`, async ({ page }) => {
     await page.goto(`/es/products/${product}`);
     const section = page.locator('#parity');
-    if (['analytics', 'people', 'hiring'].includes(product)) {
+    if (['pulse', 'people', 'hiring'].includes(product)) {
       // Miden toda la documentación del competidor: cuentas por estado y una nota, sin porcentaje.
       await expect(section.locator('.parity-num')).toHaveCount(0);
       await expect(section.getByTestId('parity-scope-note')).toBeVisible();
@@ -75,9 +75,9 @@ for (const path of ['/es', '/es/products']) {
     const table = page.locator('#paridad .parity-overview-table');
     await expect(table.locator('tbody tr')).toHaveCount(PRODUCTS.length);
     await expect(table.locator('.po-percent').first()).toHaveText(/^\d{1,3}%$/);
-    await expect(page.locator('#paridad .parity-overview-lead')).toContainText('26 apps');
-    await table.locator('a.po-app', { hasText: 'Groups' }).click();
-    await expect(page).toHaveURL(/\/es\/products\/groups#parity$/);
+    await expect(page.locator('#paridad .parity-overview-lead')).toContainText('27 apps');
+    await table.locator('a.po-app', { hasText: 'Lines' }).click();
+    await expect(page).toHaveURL(/\/es\/products\/lines#parity$/);
   });
 }
 

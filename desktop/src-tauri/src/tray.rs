@@ -23,25 +23,31 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let recording = dictation::is_recording(app);
     let key = shortcut_label(&shortcut);
     let hint = if mode == "toggle" { None } else { Some(fill(&t(l, "dictateHint"), &[("key", &key)])) };
-    let recording_meeting = st.recording.lock().unwrap().is_some();
+    let (voice_off, rec_off) = {
+        let d = st.disabled_apps.lock().unwrap();
+        (d.iter().any(|a| a == "voice"), d.iter().any(|a| a == "rec"))
+    };
+    let recording_meeting = st.recording.lock().unwrap().is_some() && !rec_off;
     let mut b = MenuBuilder::new(app).item(&MenuItem::with_id(app, "open", t(l, "open"), true, None::<&str>)?);
     if recording_meeting {
         b = b
             .item(&MenuItem::with_id(app, "rec-open", t(l, "recOpenItem"), true, None::<&str>)?)
             .item(&MenuItem::with_id(app, "rec-stop", t(l, "recStopItem"), true, None::<&str>)?);
     }
-    b = b
-        .separator()
-        .item(&MenuItem::with_id(app, "dictate", if recording { t(l, "dictateStop") } else { t(l, "dictateStart") }, true, None::<&str>)?);
-    if let Some(h) = hint {
-        b = b.item(&MenuItem::with_id(app, "hint", h, false, None::<&str>)?);
+    b = b.separator();
+    // El dictado es de la app Voice: si el workspace la apagó, sus ítems no salen.
+    if !voice_off {
+        b = b.item(&MenuItem::with_id(app, "dictate", if recording { t(l, "dictateStop") } else { t(l, "dictateStart") }, true, None::<&str>)?);
+        if let Some(h) = hint {
+            b = b.item(&MenuItem::with_id(app, "hint", h, false, None::<&str>)?);
+        }
+        let last = paste_last_shortcut(if cfg!(target_os = "macos") { "macos" } else { "windows" });
+        b = b.item(&MenuItem::with_id(app, "paste-last", format!("{}  ({})", t(l, "pasteLastItem"), shortcut_label(last)), true, None::<&str>)?);
+        if pending > 0 {
+            b = b.item(&MenuItem::with_id(app, "retry", fill(&t(l, "retryPendingItem"), &[("n", &pending.to_string())]), true, None::<&str>)?);
+        }
+        b = b.item(&MenuItem::with_id(app, "history", t(l, "historyItem"), true, None::<&str>)?).separator();
     }
-    let last = paste_last_shortcut(if cfg!(target_os = "macos") { "macos" } else { "windows" });
-    b = b.item(&MenuItem::with_id(app, "paste-last", format!("{}  ({})", t(l, "pasteLastItem"), shortcut_label(last)), true, None::<&str>)?);
-    if pending > 0 {
-        b = b.item(&MenuItem::with_id(app, "retry", fill(&t(l, "retryPendingItem"), &[("n", &pending.to_string())]), true, None::<&str>)?);
-    }
-    b = b.item(&MenuItem::with_id(app, "history", t(l, "historyItem"), true, None::<&str>)?).separator();
     if let Some(v) = st.update_ready.lock().unwrap().clone() {
         b = b.item(&MenuItem::with_id(app, "restart-update", format!("{} ({v})", t(l, "restartToUpdate")), true, None::<&str>)?);
     }
@@ -85,6 +91,7 @@ pub fn on_menu(app: &AppHandle, id: &str) {
             tauri::async_runtime::spawn(async move {
                 crate::auth::sign_out(&app).await;
                 crate::load_app_path(&app, "/app");
+                crate::tabs::reload_all(&app);
             });
         }
         "quit" => app.exit(0),
@@ -135,6 +142,7 @@ pub fn app_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         .item(&PredefinedMenuItem::about(app, None, None)?)
         .separator()
         .item(&settings)
+        .item(&MenuItem::with_id(app, "check-updates", t(l, "checkUpdates"), true, None::<&str>)?)
         .separator()
         .item(&PredefinedMenuItem::hide(app, None)?)
         .item(&PredefinedMenuItem::hide_others(app, None)?)
@@ -158,14 +166,52 @@ pub fn app_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         .separator()
         .fullscreen()
         .build()?;
-    let window = SubmenuBuilder::new(app, "Window").minimize().close_window().build()?;
-    MenuBuilder::new(app).items(&[&app_sub, &edit, &view, &window]).build()
+    // Pestañas y ventanas (tabs.rs). ⌘1…⌘9 y ⌘⇧[ ] los atiende el puente de la página.
+    let item = |id: &str, key: &str, accel: &str| MenuItem::with_id(app, id, t(l, key), true, Some(accel));
+    let file = SubmenuBuilder::new(app, t(l, "fileMenu"))
+        .item(&item("new-tab", "newTab", "CmdOrCtrl+T")?)
+        .item(&item("new-window", "newWindow", "CmdOrCtrl+N")?)
+        .separator()
+        .item(&item("reopen-tab", "reopenTab", "CmdOrCtrl+Shift+T")?)
+        .separator()
+        .item(&item("close-tab", "closeTab", "CmdOrCtrl+W")?)
+        .item(&item("close-window", "closeWindow", "CmdOrCtrl+Shift+W")?)
+        .build()?;
+    let window = SubmenuBuilder::new(app, t(l, "windowMenu"))
+        .minimize()
+        .maximize()
+        .separator()
+        .item(&item("next-tab", "nextTab", "Ctrl+Tab")?)
+        .item(&item("prev-tab", "prevTab", "Ctrl+Shift+Tab")?)
+        .separator()
+        .build()?;
+    // Mac: el sistema suma la lista de ventanas abiertas (con el título de su pestaña).
+    #[cfg(target_os = "macos")]
+    let _ = window.set_as_windows_menu_for_nsapp();
+    MenuBuilder::new(app).items(&[&app_sub, &file, &edit, &view, &window]).build()
 }
 
 pub fn on_app_menu(app: &AppHandle, id: &str) {
-    let Some(win) = app.get_webview_window("main") else { return };
+    if crate::tabs::on_menu(app, id) {
+        return;
+    }
+    // El menú del indicador de grabación (clic derecho) llega por acá.
+    if crate::indicator::on_menu(app, id) {
+        return;
+    }
+    // Lo que no depende de una pestaña anda también sin ventanas abiertas.
     match id {
-        "settings" => crate::commands::open_settings_window(app, None),
+        "settings" => return crate::commands::open_settings_window(app, None),
+        "check-updates" => {
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move { crate::updater::check(&app, true).await });
+            return;
+        }
+        "restart-update" => return crate::updater::restart_to_update(app),
+        _ => {}
+    }
+    let Some(win) = crate::tabs::active_webview(app) else { return };
+    match id {
         "reload" => {
             let _ = win.eval("location.reload()");
         }

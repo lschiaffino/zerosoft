@@ -41,7 +41,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   grid-area: band;
   position: sticky;
   top: 0;
-  z-index: 60;
+  z-index: var(--z-band);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -103,7 +103,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  z-index: 70;
+  z-index: var(--z-menu);
   display: grid;
   grid-template-columns: 1fr;
   min-width: 232px;
@@ -315,7 +315,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   position: sticky;
   top: var(--band-h);
   /* Sticky crea su propio contexto de apilado: sin z-index, el contenido de la página (filas con position) pinta encima de los menús del sidebar. Debajo de la banda (60), que abre sus menús sobre el sidebar. */
-  z-index: 55;
+  z-index: var(--z-sidebar);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -391,7 +391,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  z-index: 70;
+  z-index: var(--z-menu);
   min-width: 200px;
   padding: 4px;
   background: var(--bg);
@@ -575,6 +575,12 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   .band-search:hover { background: var(--chrome-hover); }
   .band-search-label,
   .band-search .kbd { display: none; }
+  /* El asistente y el de CRM quedan como ícono: del mismo tamaño que la búsqueda. */
+  .band-search.band-ai { width: 40px; padding: 0; }
+  /* Un nombre de app largo ("Analytics") se corta antes de empujar los íconos fuera de la banda. */
+  .band-switcher { flex-shrink: 1; min-width: 0; }
+  .band-product { max-width: 100%; min-width: 0; }
+  .band-product-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* Sin conexión en el teléfono: el texto corto se recorta y el panel ocupa el ancho. */
   .band-offline-btn { height: 40px; padding: 0 10px; gap: 6px; border: 0; }
   .band-offline-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -586,7 +592,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
     top: var(--band-h);
     bottom: 0;
     left: 0;
-    z-index: 80;
+    z-index: var(--z-drawer);
     width: min(300px, 86vw);
     height: auto;
     border-right: 1px solid var(--ink);
@@ -599,11 +605,21 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   .side-backdrop {
     position: fixed;
     inset: var(--band-h) 0 0 0;
-    z-index: 70;
+    z-index: var(--z-menu);
     background: var(--ui-backdrop);
   }
 
   .app-content { padding: 16px 16px 96px; }
+}
+
+/* Teléfono: menos aire entre los íconos de la banda para que el nombre de la app ("CRM", "Docs") entre entero. */
+@media (max-width: 420px) {
+  /* El cero de inicio repite "Inicio" del switcher y del drawer: en el teléfono deja el lugar al nombre de la app. */
+  .band-home { display: none; }
+  .band-product { min-width: 64px; }
+  .band-right { gap: 0; }
+  .band-product { gap: 6px; padding: 0 4px 0 6px; }
+  .app-band { gap: 0; }
 }
 
 @media (max-width: 380px) {
@@ -620,7 +636,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   position: fixed;
   inset: 0;
   /* Encima de los modales de las apps (el composer de Track abre sus menús acá). */
-  z-index: 120;
+  z-index: var(--z-command);
   display: flex;
   justify-content: center;
   padding-top: 14vh;
@@ -696,7 +712,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
 .cmdk-item-label { flex: 1 1 auto; }
 /* Menú anclado a un chip (propiedad del issue, como los dropdowns de Linear). */
 .cmdk-backdrop.is-anchored { padding-top: 0; background: transparent; }
-.cmdk.is-anchored { z-index: 91; }
+.cmdk.is-anchored { z-index: calc(var(--z-modal) - 9); }
 .cmdk.is-anchored .cmdk-input { height: 36px; padding: 0 10px; font-size: 0.8125rem; }
 .cmdk.is-anchored .cmdk-results { max-height: 320px; }
 .cmdk.is-anchored .cmdk-item { min-height: 30px; padding: 4px 8px; font-size: 0.8125rem; }
@@ -737,7 +753,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   border-color: var(--ink);
   border-radius: var(--radius-1);
   padding: 4px;
-  z-index: 50;
+  z-index: var(--z-dropdown);
 }
 
 .column-toggle-row {
@@ -903,7 +919,7 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  z-index: 70;
+  z-index: var(--z-menu);
   width: 340px;
   max-width: calc(100vw - 16px);
   max-height: 440px;
@@ -1378,6 +1394,8 @@ td.cell-actions > * + * { margin-left: 4px; }
   -webkit-box-orient: vertical;
   white-space: normal;
   line-height: 1.35;
+  /* Un título sin espacios (una URL, un hash) se corta en vez de ensanchar el bloque y la página. */
+  overflow-wrap: anywhere;
 }
 .home-recent-partial { padding: 8px 0 4px; font-size: 0.8125rem; color: var(--dim); border-top: 1px solid var(--line); }
 .home-split.home-split-full { grid-template-columns: minmax(0, 1fr); }
@@ -1430,4 +1448,39 @@ td.cell-actions > * + * { margin-left: 4px; }
   .side-handle,
   .side-menu-item { height: 44px; }
   .band-search { height: 40px; }
+  .cmdk-item, .cmdk.is-anchored .cmdk-item { min-height: 44px; }
+  .cmdk.is-anchored .cmdk-input { height: 44px; font-size: 1rem; }
+  .column-toggle-row { min-height: 44px; }
 }
+
+/* Teléfono: ⌘K arriba, pegado a la banda, con los resultados por encima del teclado. */
+@media (max-width: 640px) {
+  .cmdk-backdrop:not(.is-anchored) { padding-top: 8px; }
+  .cmdk:not(.is-anchored) { width: calc(100vw - 16px); }
+  .cmdk:not(.is-anchored) .cmdk-results { max-height: 50dvh; }
+}
+
+/* ---------- Apps "Próximamente" ---------- */
+
+/* Switcher: al pie, en una fila compacta y apagada (llevan a la lista de espera). */
+.band-menu-soon { margin-top: 6px; }
+.band-menu-soon-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 var(--switcher-gap); }
+.band-menu-soon-item { color: var(--ink-2); }
+@media (max-width: 560px) {
+  .band-menu-soon-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* Vista previa interna del staff dentro de una app "Próximamente". */
+.preview-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--ink);
+  border: 1px dashed var(--ink-3);
+  background: var(--surface-2);
+}
+.preview-banner strong { font-family: var(--mono); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }

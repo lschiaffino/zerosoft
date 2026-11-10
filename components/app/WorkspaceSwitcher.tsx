@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import QuickModal from '@/components/app/QuickModal';
+import { useLayer } from '@/lib/ui/layers';
 import Icon from './icons';
 import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 
@@ -72,20 +73,15 @@ export default function WorkspaceSwitcher({
   const [teamName, setTeamName] = useState('');
   const ref = useRef<HTMLDivElement>(null);
   const btn = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
   const current = entries.find((e) => e.current) ?? entries[0];
   const name = current ? (current.personal && !current.name ? t('personal') : current.name) : person;
   const label = (e: SwitcherEntry) => (e.personal && !e.name ? t('personal') : e.name);
   const admin = current ? current.role === 'owner' || current.role === 'admin' : false;
   const canCreateTeam = current?.own && current.mode === 'personal';
 
-  useEffect(() => {
-    if (!open) return;
-    function onDoc(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [open]);
+  // Una sola capa abierta: abrir este menú cierra el switcher de apps (y al revés), clic afuera y Esc lo cierran.
+  useLayer(open, () => setOpen(false), { root: ref, trigger: btn, panel: menu });
 
   function onMenuKey(e: KeyboardEvent<HTMLDivElement>) {
     const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role^="menuitem"]'));
@@ -94,6 +90,9 @@ export default function WorkspaceSwitcher({
       e.preventDefault();
       setOpen(false);
       btn.current?.focus();
+    } else if (e.key === 'Tab') {
+      // El foco sale del menú: se cierra (como el switcher de apps), así no queda abierto debajo de otro.
+      setOpen(false);
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       items[(i + 1) % items.length]?.focus();
@@ -172,7 +171,7 @@ export default function WorkspaceSwitcher({
         </span>
       </button>
       {open && (
-        <div className="side-menu ws-switcher-menu" role="menu" aria-label={t('menu')} onKeyDown={onMenuKey}>
+        <div ref={menu} className="side-menu ws-switcher-menu" role="menu" aria-label={t('menu')} onKeyDown={onMenuKey}>
           {entries.length > 0 && <p className="side-menu-note ws-switcher-heading">{t('workspaces')}</p>}
           {entries.map((e) => (
             <button

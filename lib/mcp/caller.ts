@@ -12,6 +12,8 @@ import { userCanUseApp, type AppAccess } from '../workspace';
 import { canonicalResource, grantForAccessToken, hasWriteScope, mcpResourceUrl, type GrantRow } from '../oauth/store';
 import type { DelegatedIdentity } from './identity';
 import type { Operation } from './catalog';
+import type { ProductKey } from '../products';
+import { blockedAppsFor } from '../workspace-apps';
 
 export interface McpCaller {
   /** session: el asistente del panel, con la sesión de la persona (lib/assistant/tools-catalog.ts). */
@@ -115,7 +117,7 @@ async function fromApiKey(raw: string): Promise<McpCaller | 'no_mcp_access' | nu
 /** Scope de la API v1 que corresponde a una app (las keys con scopes solo llegan a esas). */
 const APP_SCOPE: Record<string, string> = {
   crm: 'crm', link: 'links', cal: 'cal', chat: 'chat', groups: 'groups', voice: 'voice', track: 'track', docs: 'docs',
-  talk: 'talk', board: 'boards', design: 'design', shop: 'shop', hiring: 'hiring', sign: 'sign', pulse: 'analytics',
+  talk: 'talk', board: 'boards', design: 'design', shop: 'shop', hiring: 'hiring', sign: 'sign', pulse: 'analytics', analytics: 'bi',
   social: 'social', people: 'people', books: 'books', forms: 'forms', send: 'send', notes: 'notes',
 };
 
@@ -143,6 +145,8 @@ export interface ResolvedPerson {
   workspace: TeamRow;
   role: TeamRole;
   apps: AppAccess;
+  /** Apps cortadas por la plataforma (Próximamente) o por Apps del workspace. */
+  blockedApps: ProductKey[];
   identity: (apiPath: string) => DelegatedIdentity;
 }
 
@@ -155,18 +159,20 @@ export async function resolvePerson(caller: McpCaller): Promise<ResolvedPerson |
   if (caller.teamId && workspace.id !== caller.teamId) return null;
   // Una key de un miembro además tiene que seguir siendo del equipo (no guest).
   if (caller.kind === 'api_key' && owner.id !== real.id && !(await personAppAccess(owner.id, real.id))) return null;
+  const blockedApps = await blockedAppsFor({ ownerId: owner.id, personId: real.id, role, email: row.email });
   return {
     person: row,
     owner,
     workspace,
     role,
     apps,
+    blockedApps,
     identity: (apiPath) => ({ real, pinnedTeamId: caller.teamId, apiPath, ...(caller.apiScopes ? { apiScopes: caller.apiScopes } : {}) }),
   };
 }
 
 /** ¿La persona tiene esa app? Las operaciones de workspace no son de una app: las decide cada handler. */
-export function personCanUseApp(person: Pick<ResolvedPerson, 'role' | 'apps'>, app: Operation['app']): boolean {
+export function personCanUseApp(person: Pick<ResolvedPerson, 'role' | 'apps'> & { blockedApps?: ProductKey[] }, app: Operation['app']): boolean {
   if (app === 'workspace') return true;
-  return userCanUseApp({ role: person.role, apps: person.apps }, app);
+  return userCanUseApp({ role: person.role, apps: person.apps, blockedApps: person.blockedApps }, app);
 }

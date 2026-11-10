@@ -2,7 +2,10 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "local",
   "description": "Ajustes y HUD (archivos locales de la app): sus comandos y los eventos que reciben.",
-  "windows": ["settings", "hud"],
+  "windows": [
+    "settings",
+    "hud"
+  ],
   "permissions": [
     "core:event:allow-listen",
     "core:event:allow-unlisten",
@@ -22,6 +25,12 @@
     "allow-pending-discard",
     "allow-account-sign-in",
     "allow-account-sign-out",
-    "allow-open-voice"
+    "allow-open-voice",
+    "allow-tabs-prefs-get",
+    "allow-tabs-prefs-save",
+    "allow-settings-nav",
+    "allow-settings-open-web",
+    "allow-update-check",
+    "allow-update-restart"
   ]
 }

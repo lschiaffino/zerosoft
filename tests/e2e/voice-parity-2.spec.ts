@@ -1,5 +1,5 @@
 import http from 'http';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
@@ -15,6 +15,8 @@ test.use({
 });
 
 test.beforeEach(async ({ context, baseURL }) => {
+  // Sin elegir la pestaña a compartir: estos tests graban solo el micrófono simulado.
+  await context.addInitScript(() => localStorage.setItem('zs-voice-mode', 'mic'));
   await context.grantPermissions(['microphone', 'clipboard-read', 'clipboard-write'], { origin: baseURL! });
 });
 
@@ -38,6 +40,12 @@ test('calendario: eventos de Google con asistentes, brief, tomar notas y aviso p
     await expect(page.getByText('Google Calendar connected.')).toBeVisible();
   }
 
+  // Una reunión nueva de otro test pudo tomar sola el evento (como Granola): se suelta.
+  const { events } = (await (await page.request.get('/api/voice/events')).json()) as { events: Array<{ title: string; sessionId: string | null }> };
+  for (const e of events.filter((x) => x.title === 'Pricing review' && x.sessionId)) {
+    await page.request.post(`/api/voice/sessions/${e.sessionId}/link`, { data: { eventKey: null } });
+  }
+
   await page.goto('/en/app/voice', { waitUntil: 'networkidle' });
   const upcoming = page.getByTestId('voice-upcoming');
   const event = upcoming.locator('li').filter({ hasText: 'Pricing review' });
@@ -59,10 +67,11 @@ test('calendario: eventos de Google con asistentes, brief, tomar notas y aviso p
   else await open.click();
   await expect(page).toHaveURL(/\/app\/voice\/meetings\//);
   await expect(page.getByRole('textbox', { name: 'Meeting title' })).toHaveValue('Pricing review');
-  // Los asistentes del evento se ven arriba.
-  await expect(page.locator('.vc-meeting-head')).toContainText('Ana Guest');
-  await page.getByRole('tab', { name: 'Links' }).click();
-  await expect(page.locator('.vc-attendees')).toContainText('Ana Guest');
+  // Los asistentes del evento están en el chip de la fecha.
+  await expect(page.getByTestId('voice-people-chip')).toContainText(/Me \+ \d/);
+  await page.getByTestId('voice-people-chip').click();
+  await expect(page.getByRole('dialog', { name: 'Event and attendees' })).toContainText('Ana Guest');
+  await page.keyboard.press('Escape');
   // Brief dentro de la reunión (sigue a mano mientras graba).
   await page.getByRole('button', { name: /Prepare a brief|Update brief/ }).click();
   await expect(page.locator('.vc-brief')).toContainText(/no previous meetings|Based on/);
@@ -147,7 +156,7 @@ test('compartir por link, email de seguimiento, recipes y Notion', async ({ page
   await share.getByRole('button', { name: 'Save' }).click();
   await expect(share.getByText('Saved.')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.getByText('Shared by link')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Shared', exact: true })).toBeVisible();
 
   const viewer = await page.context().newPage();
   await viewer.goto(url, { waitUntil: 'networkidle' });
@@ -156,7 +165,7 @@ test('compartir por link, email de seguimiento, recipes y Notion', async ({ page
   // Sin la transcripción: no se incluyó.
   await expect(viewer.getByText('Transcript', { exact: true })).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  await page.getByRole('button', { name: 'Shared', exact: true }).click();
   await share.getByRole('button', { name: 'Stop sharing' }).click();
   await expect(share.getByText(/Stopped sharing/)).toBeVisible();
   await page.keyboard.press('Escape');
@@ -164,30 +173,29 @@ test('compartir por link, email de seguimiento, recipes y Notion', async ({ page
   expect(gone?.status()).toBe(404);
   await viewer.close();
 
-  // Email de seguimiento: borrador editable que abre Gmail.
-  await page.getByRole('button', { name: 'Follow-up email' }).click();
+  // Email de seguimiento: borrador editable que abre Gmail (se escribe solo al abrirlo).
+  await page.getByRole('button', { name: 'Write follow up email' }).click();
   const fu = page.getByTestId('voice-followup');
-  await fu.getByRole('button', { name: 'Write the draft' }).click();
-  await expect(fu.getByRole('textbox', { name: 'Subject' })).toHaveValue(/Follow-up/);
+  await expect(fu.getByRole('textbox', { name: 'Subject' })).toHaveValue(/Follow-up/, { timeout: 20_000 });
   await fu.getByRole('textbox', { name: 'To' }).fill('ana@acme.test');
   await expect(fu.getByRole('link', { name: 'Open in Gmail' })).toHaveAttribute('href', /mail\.google\.com.*to=ana%40acme\.test/);
   await expect(fu.getByRole('link', { name: 'Open in Outlook' })).toHaveAttribute('href', /outlook\.office\.com/);
   await fu.getByRole('button', { name: 'Save draft' }).click();
   await expect(fu.getByText('Draft saved.')).toBeVisible();
-  await page.keyboard.press('Escape');
 
   // Recipe de fábrica con / en el chat de la reunión.
-  await page.getByRole('tab', { name: 'Ask' }).click();
   const ask = page.getByRole('combobox', { name: 'Ask about this meeting' });
   await ask.fill('/act');
   await expect(page.getByRole('option', { name: /Action items/ })).toBeVisible();
   await ask.press('Enter');
   await expect(page.locator('.vc-msg.is-user').last()).toContainText('/Action items');
   await expect(page.locator('.vc-msg.is-assistant').last()).not.toBeEmpty();
+  await page.keyboard.press('Escape');
 
   // Notion con una credencial de Flow (Notion falso).
   await request.post('/api/flow/credentials', { data: { name: `notion_${uid()}`, type: 'notion', data: { token: 'ntn_fake' } } });
-  await page.getByRole('button', { name: 'Slack or Notion' }).click();
+  await page.getByTestId('voice-more').click();
+  await page.getByRole('menuitem', { name: 'Slack or Notion' }).click();
   const send = page.getByTestId('voice-send');
   await send.getByRole('textbox', { name: /Parent page/ }).fill('https://www.notion.so/Team-0123456789abcdef0123456789abcdef');
   await send.getByRole('button', { name: 'Create Notion page' }).click();
@@ -307,7 +315,7 @@ test('API: MCP solo con voice:read y solo las reuniones propias', async ({ reque
 // ---------- Webhooks voice.* (entrega real) ----------
 
 async function sql(statement: string, args: Array<string | number | null> = []) {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   try {
     return (await db.execute({ sql: statement, args })).rows as unknown as Array<Record<string, unknown>>;
   } finally {

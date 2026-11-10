@@ -5,6 +5,7 @@ import TrackBranch from '@/components/track/TrackBranch';
 import TrackUndoToast from '@/components/track/TrackUndoToast';
 import IssuePeek from '@/components/track/IssuePeek';
 import TrackListMemory from '@/components/track/TrackListMemory';
+import TrackIssueDnd from '@/components/track/TrackIssueDnd';
 import '@/styles/track.css';
 import '@/styles/track-quick.css';
 import '@/styles/track-ux.css';
@@ -17,7 +18,7 @@ import '@/styles/track-issue.css';
 export default async function TrackLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   return (
-    <ClientMessages locale={locale} namespaces={['track', 'trackPlanning', 'trackTriage']}>
+    <ClientMessages locale={locale} namespaces={['track', 'trackPlanning', 'trackTriage', 'trackList']}>
       {props.children}
       <Suspense fallback={null}>
         <TrackShortcuts />
@@ -28,6 +29,7 @@ export default async function TrackLayout(props: { children: ReactNode; params: 
       <TrackUndoToast />
       <IssuePeek />
       <TrackListMemory />
+      <TrackIssueDnd />
     </ClientMessages>
   );
 }

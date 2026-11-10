@@ -6,5 +6,7 @@
     <string>zerosoft uses the microphone for dictation, meeting notes, calls and screen recordings.</string>
     <key>NSCameraUsageDescription</key>
     <string>zerosoft uses the camera for video calls and for screen recordings with your camera.</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>zerosoft records the audio of your computer (the other people in a call) for meeting notes.</string>
   </dict>
 </plist>

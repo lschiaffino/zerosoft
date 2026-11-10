@@ -19,6 +19,10 @@ import { createProject } from '@/lib/track-data';
 import { makeUser } from './helpers';
 import { scriptedModel } from './ai-mock';
 
+// Esta suite prueba la app por dentro: el corte de "Próximamente" (lib/app-access.ts) tiene sus propios tests.
+vi.mock('@/lib/workspace-apps', async (orig) => ({ ...(await orig<typeof import('@/lib/workspace-apps')>()), blockedAppsFor: async () => [] }));
+
+
 const listRoute = await import('@/app/api/v1/chat/conversations/route');
 const getRoute = await import('@/lib/routes/v1/chat/conversations/[id]/route');
 const replyRoute = await import('@/lib/routes/v1/chat/conversations/[id]/messages/route');

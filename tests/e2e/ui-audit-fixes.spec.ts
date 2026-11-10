@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type Page } from '@playwright/test';
 
 /** Regresiones de la auditoría de UI: arreglos compartidos y errores funcionales. */
@@ -199,7 +199,7 @@ test('abrir un perfil de People deja una sola fila en la auditoría de datos per
   expect(created.ok()).toBe(true);
   const { employee } = (await created.json()) as { employee: { id: string } };
   const views = async () => {
-    const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+    const db = e2eDb();
     try {
       const { rows } = await db.execute({ sql: "SELECT COUNT(*) AS n FROM people_audit WHERE employee_id = ? AND action = 'view' AND field = 'personal'", args: [employee.id] });
       return Number(rows[0].n);

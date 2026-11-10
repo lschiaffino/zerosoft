@@ -2,7 +2,7 @@
   "name": "zerosoft-desktop",
   "productName": "zerosoft",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.3.3",
   "description": "zerosoft for Mac and Windows (Tauri): the whole platform in a native window and dictation in any app.",
   "author": "zerosoft <hello@zerosoft.ai>",
   "homepage": "https://zerosoft.ai/download",
@@ -19,7 +19,7 @@
   "devDependencies": {
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/cli": "^2.9.0",
-    "esbuild": "~0.27.0",
+    "esbuild": "^0.28.1",
     "typescript": "~5.7.2"
   },
   "allowScripts": {

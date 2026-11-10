@@ -190,7 +190,7 @@ export default function GroupsList({
           ))}
         {properties.length > 0 && (
           <div className="gr-columns">
-            <button type="button" className="btn btn-ghost" aria-expanded={columnsOpen} onClick={() => setColumnsOpen((v) => !v)}>
+            <button type="button" className="btn btn-ghost" aria-haspopup="true" aria-expanded={columnsOpen} onClick={() => setColumnsOpen((v) => !v)}>
               {t('list.columns')}
             </button>
             {columnsOpen && (
@@ -213,7 +213,7 @@ export default function GroupsList({
           </div>
         )}
         <span className="gr-toolbar-spacer" />
-        <Link href="/app/groups/templates" className="btn btn-secondary">
+        <Link href="/app/lines/templates" className="btn btn-secondary">
           {t('templates.title')}
         </Link>
         <button type="button" className="btn btn-secondary" onClick={() => setJoinOpen(true)} disabled={groupNumbers.length === 0}>
@@ -249,7 +249,7 @@ export default function GroupsList({
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            onClick={() => router.push(`/app/groups/broadcasts/new?chats=${[...selected].join(',')}`)}
+            onClick={() => router.push(`/app/lines/broadcasts/new?chats=${[...selected].join(',')}`)}
           >
             {t('list.bulkBroadcast')}
           </button>
@@ -294,13 +294,15 @@ export default function GroupsList({
             <thead>
               <tr>
                 <th className="gr-check-col">
-                  <input
-                    type="checkbox"
-                    className="ui-check"
-                    checked={allSelected}
-                    onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
-                    aria-label={t('list.selectAll')}
-                  />
+                  <label className="tap-cell">
+                    <input
+                      type="checkbox"
+                      className="ui-check"
+                      checked={allSelected}
+                      onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
+                      aria-label={t('list.selectAll')}
+                    />
+                  </label>
                 </th>
                 <th>{t('list.colName')}</th>
                 <th className="num">{t('list.colMembers')}</th>
@@ -317,10 +319,13 @@ export default function GroupsList({
               {rows.map((c) => (
                 <tr key={c.id}>
                   <td className="gr-check-col">
-                    <input type="checkbox" className="ui-check" checked={selected.has(c.id)} onChange={() => toggle(c.id)} aria-label={t('list.select', { name: c.name })} />
+                    {/* El label es el área táctil (40px): la casilla sola es chica para el dedo. */}
+                    <label className="tap-cell">
+                      <input type="checkbox" className="ui-check" checked={selected.has(c.id)} onChange={() => toggle(c.id)} aria-label={t('list.select', { name: c.name })} />
+                    </label>
                   </td>
                   <td>
-                    <Link href={`/app/groups/list/${c.id}`} className="gr-table-name">
+                    <Link href={`/app/lines/list/${c.id}`} className="gr-table-name">
                       <ChatPlate name={c.name} kind="group" />
                       <span>{c.name}</span>
                       {c.leftAt ? (
@@ -358,12 +363,12 @@ export default function GroupsList({
         labels={labels}
         onClose={() => {
           setCreateOpen(false);
-          if (openNew) router.replace('/app/groups/list');
+          if (openNew) router.replace('/app/lines/list');
         }}
         onCreated={(id) => {
           setCreateOpen(false);
           showToast(t('list.created'));
-          router.push(`/app/groups/list/${id}`);
+          router.push(`/app/lines/list/${id}`);
         }}
       />
       <CsvModal open={csvOpen} numbers={groupNumbers} onClose={() => setCsvOpen(false)} onDone={() => void load()} />
@@ -380,7 +385,7 @@ export default function GroupsList({
         onJoined={(id) => {
           setJoinOpen(false);
           showToast(t('join.done'));
-          router.push(`/app/groups/list/${id}`);
+          router.push(`/app/lines/list/${id}`);
         }}
       />
       <BulkModal
@@ -589,7 +594,7 @@ function CsvModal({ open, numbers, onClose, onDone }: { open: boolean; numbers: 
             <ul className="gr-mini-list">
               {results.map((r, i) => (
                 <li key={`${r.name}-${i}`}>
-                  {r.ok && r.chatId ? <Link href={`/app/groups/list/${r.chatId}`}>{r.name}</Link> : <span>{r.name || '—'}</span>}
+                  {r.ok && r.chatId ? <Link href={`/app/lines/list/${r.chatId}`}>{r.name}</Link> : <span>{r.name || '—'}</span>}
                   {r.ok ? (
                     r.notAdded && r.notAdded.length > 0 ? (
                       <span className="badge badge-warn">{t('csv.notAdded', { n: r.notAdded.length })}</span>

@@ -52,6 +52,8 @@ export interface DesktopDownloads {
   macArm64: string | null;
   macX64: string | null;
   win: string | null;
+  /** Tamaño de cada instalador en bytes (null si no se sabe). */
+  sizes: { macArm64: number | null; macX64: number | null; win: number | null };
 }
 
 function semver(tag: string): [number, number, number] | null {
@@ -74,8 +76,12 @@ export function pickDesktopRelease(releases: readonly GhRelease[]): GhRelease | 
 
 /** Instaladores por sistema, por nombre de archivo (artifactName de desktop/electron-builder.yml). */
 export function desktopDownloads(r: GhRelease): DesktopDownloads {
-  const find = (re: RegExp) => r.assets.find((a) => re.test(a.name))?.browser_download_url ?? null;
+  const asset = (re: RegExp) => r.assets.find((a) => re.test(a.name)) ?? null;
+  const find = (re: RegExp) => asset(re)?.browser_download_url ?? null;
+  const size = (a: GhAsset | null) => (a && a.size > 1 ? a.size : null);
+  const winAsset = asset(/-win-x64\.exe$/i) ?? asset(/\.exe$/i);
   return {
+    sizes: { macArm64: size(asset(/-mac-arm64\.dmg$/i)), macX64: size(asset(/-mac-x64\.dmg$/i)), win: size(winAsset) },
     version: r.tag_name.slice(DESKTOP_TAG_PREFIX.length),
     tag: r.tag_name,
     pageUrl: r.html_url,
@@ -164,4 +170,21 @@ export async function updateFeed(file: 'latest-mac.yml' | 'latest.yml' | 'latest
       return null;
     }
   });
+}
+
+/**
+ * El último release listo para components/desktop/DesktopDownload (links y tamaños
+ * por sistema), o null si GitHub no responde o no hay instaladores.
+ */
+export async function desktopReleaseForClient(): Promise<{
+  version: string;
+  pageUrl: string;
+  links: { macArm64: string | null; macX64: string | null; win: string | null };
+  sizes: DesktopDownloads['sizes'];
+} | null> {
+  const release = await latestDesktopRelease().catch(() => null);
+  if (!release) return null;
+  const dl = desktopDownloads(release);
+  if (!dl.macArm64 && !dl.macX64 && !dl.win) return null;
+  return { version: dl.version, pageUrl: dl.pageUrl, links: { macArm64: dl.macArm64, macX64: dl.macX64, win: dl.win }, sizes: dl.sizes };
 }

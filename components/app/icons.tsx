@@ -80,7 +80,9 @@ export type IconName =
   | 'orgchart'
   | 'clock'
   | 'check'
-  | 'download';
+  | 'download'
+  | 'desktop'
+  | 'plug';
 
 // Íconos geométricos mínimos (trazo, estilo Feather/Lucide) para el sidebar.
 const PATHS: Record<IconName, ReactNode> = {
@@ -526,8 +528,16 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   themeDark: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
-  // Bajar la app de escritorio (menú de la cuenta).
-  download: <path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14" />,
+  download: <path d="M12 4v11M7 10.5l5 5 5-5M5 20h14" />,
+  // App de escritorio: una ventana con su barra.
+  desktop: (
+    <>
+      <rect x="3" y="4" width="18" height="14" />
+      <path d="M3 8h18M8 21h8" />
+    </>
+  ),
+  // Conectar una cuenta externa.
+  plug: <path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4" />,
 };
 
 export default function Icon({ name, size = 14 }: { name: IconName; size?: number }) {

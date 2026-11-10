@@ -363,7 +363,8 @@ describe('videos, carpetas y acceso', () => {
     const author = { ws: owner.ws, userId: owner.actor };
     const mate = { ws: owner.ws, userId: 'rec-member' };
     await expect(updateVideo(owner, v.id, { password: 'corta' })).rejects.toMatchObject({ code: 'invalid_password' });
-    await updateVideo(owner, v.id, { password: 'clave-uno' });
+    // Lo nuevo nace restringido; la contraseña y el vencimiento son del link abierto.
+    await updateVideo(owner, v.id, { privacy: 'link', password: 'clave-uno' });
     let row = (await getPublicVideoRow(v.share_id))!;
     // Con contraseña la descarga arranca apagada.
     expect(row.allow_download).toBe(0);

@@ -43,10 +43,15 @@ function fromEmail(): string {
  * app. El "vía" deja claro que no es el dominio del cliente (el nombre lo
  * pone el workspace) y el nombre se limpia y se acorta.
  */
+/** Un nombre escrito por una persona, listo para un remitente o un asunto: sin comillas, <>, @ ni saltos, hasta 60. */
+export function cleanDisplayName(name: string): string {
+  return name.replace(/["\\<>@\r\n]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+}
+
 export function namedSender(name: string, via = 'via'): string {
   const base = appSender();
   const address = base.match(/<([^>]+)>/)?.[1] ?? base.trim();
-  const clean = name.replace(/["\\<>@\r\n]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  const clean = cleanDisplayName(name);
   return clean ? `"${clean} ${via} zerosoft" <${address}>` : base;
 }
 

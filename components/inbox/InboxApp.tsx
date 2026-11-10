@@ -6,11 +6,20 @@ import { Link, useRouter } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ThreadAction } from '@/lib/inbox/core';
 import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
-import { api, avatarHue, INBOX_CHANGED, initials, longWhen, notifyInboxChanged, shortWhen, typingIn } from './api';
-import Conversation, { type ThreadDetail } from './Conversation';
+import type { MessageHit } from '@/lib/inbox/message-search';
+import { api, INBOX_CHANGED, INBOX_DROP_THREADS, longWhen, notifyInboxChanged, shortWhen, THREADS_MIME, typingIn, type DropThreadsDetail } from './api';
+import ChatRow from './wa/ChatRow';
+import WaConversation, { type WaThreadDetail } from './wa/WaConversation';
+import ContactPanel from './wa/ContactPanel';
+import { ArchiveIcon, ArrowLeft } from '@/components/groups/wa/icons';
+import { useChatStyle } from '@/components/chat-style/ChatStyle';
+import { rowSwipe } from './wa/gestures';
+import Conversation from './Conversation';
 import type { ComposerHandle } from './Composer';
 import WhenDialog, { type WhenKind } from './WhenDialog';
-import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog } from './InboxDialogs';
+import ScheduleDialog, { type ScheduleTarget } from './ScheduleDialog';
+import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog, type MoreAction } from './InboxDialogs';
+import { WhatsappQrDialog } from './InboxSettings';
 
 export interface InboxStateDto {
   accounts: InboxAccountDto[];
@@ -30,19 +39,22 @@ const UNDO: Partial<Record<ThreadAction['action'], ThreadAction['action']>> = {
   unread: 'read',
   snooze: 'unsnooze',
   followUp: 'clearFollowUp',
+  archive: 'unarchive',
+  unarchive: 'archive',
 };
 /** Acciones que sacan el chat de la vista actual. */
 const LEAVES: Partial<Record<InboxView, ThreadAction['action'][]>> = {
-  inbox: ['done', 'snooze'],
-  whatsapp: ['done', 'snooze'],
-  email: ['done', 'snooze'],
-  groups: ['done', 'snooze'],
-  unread: ['done', 'snooze', 'read'],
-  reply: ['done', 'snooze'],
-  waiting: ['done', 'snooze'],
-  pinned: ['unpin'],
+  inbox: ['done', 'snooze', 'archive'],
+  whatsapp: ['done', 'snooze', 'archive'],
+  email: ['done', 'snooze', 'archive'],
+  groups: ['done', 'snooze', 'archive'],
+  unread: ['done', 'snooze', 'read', 'archive'],
+  reply: ['done', 'snooze', 'archive'],
+  waiting: ['done', 'snooze', 'archive'],
+  pinned: ['unpin', 'archive'],
+  archived: ['unarchive'],
   snoozed: ['unsnooze', 'done'],
-  done: ['undone', 'snooze'],
+  done: ['undone', 'snooze', 'archive'],
 };
 
 interface Toast {
@@ -50,6 +62,18 @@ interface Toast {
   text: string;
   bad?: boolean;
   undo?: () => void;
+}
+
+const HIT_MARK_START = '\u0002';
+
+/** Texto de un resultado con lo encontrado resaltado (marcas \u0002…\u0003 del servidor; nunca HTML). */
+function Highlighted({ text }: { text: string }) {
+  const parts = text.split(/(\u0002[^\u0003]*\u0003)/);
+  return (
+    <>
+      {parts.map((p, i) => (p.startsWith('\u0002') ? <mark key={i}>{p.slice(1, -1)}</mark> : <span key={i}>{p}</span>))}
+    </>
+  );
 }
 
 function viewHref(v: InboxView): string {
@@ -67,9 +91,13 @@ export default function InboxApp(props: {
   initialThreads: ThreadDto[];
   initialState: InboxStateDto;
   initialOpenId: string | null;
+  /** Mensaje al que ir al abrir (desde Cmd+K). */
+  initialFocusId?: string | null;
   composeOnLoad: boolean;
 }) {
   const t = useTranslations('inbox');
+  const w = useTranslations('inboxWa');
+  const { style: chatStyle } = useChatStyle();
   const locale = useLocale();
   const router = useRouter();
   const { view, folder } = props;
@@ -77,7 +105,11 @@ export default function InboxApp(props: {
   const [state, setState] = useState(props.initialState);
   const [cursor, setCursor] = useState(0);
   const [openId, setOpenId] = useState<string | null>(props.initialOpenId);
-  const [detail, setDetail] = useState<ThreadDetail | null>(null);
+  // Mensaje al que ir cuando se abre el chat (resultado de búsqueda).
+  const focusRef = useRef<{ threadId: string; messageId: string } | null>(props.initialOpenId && props.initialFocusId ? { threadId: props.initialOpenId, messageId: props.initialFocusId } : null);
+  const [msgHits, setMsgHits] = useState<MessageHit[]>([]);
+  const [msgMore, setMsgMore] = useState(false);
+  const [detail, setDetail] = useState<(WaThreadDetail & { focus?: string }) | null>(null);
   const [detailErr, setDetailErr] = useState('');
   const [listErr, setListErr] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -85,9 +117,17 @@ export default function InboxApp(props: {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [when, setWhen] = useState<{ kind: WhenKind; ids: string[]; text?: string } | null>(null);
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
+  const [plan, setPlan] = useState<ScheduleTarget | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [moreConfirm, setMoreConfirm] = useState(false);
+  const moreActionRef = useRef<(a: MoreAction) => Promise<void>>(async () => {});
+  const [infoOpen, setInfoOpen] = useState(false);
+  // Otro chat: el panel de info se cierra (como en WhatsApp Web).
+  useEffect(() => setInfoOpen(false), [openId]);
   const [compose, setCompose] = useState(props.composeOnLoad);
   const [help, setHelp] = useState(false);
+  // Vincular WhatsApp con QR desde la bandeja vacía, sin pasar por Ajustes.
+  const [qrOpen, setQrOpen] = useState(false);
   const [folderEdit, setFolderEdit] = useState<FolderDto | 'new' | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const lastUndo = useRef<(() => void) | null>(null);
@@ -97,7 +137,7 @@ export default function InboxApp(props: {
   const composer = useRef<ComposerHandle>(null);
   const gPending = useRef(0);
 
-  const errText = useCallback((code?: string) => (code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic')), [t]);
+  const errText = useCallback((code?: string) => (code && t.has(`errors.${code}`) ? t(`errors.${code}`) : code && w.has(`errors.${code}`) ? w(`errors.${code}`) : t('errors.generic')), [t, w]);
   const toast = useCallback((text: string, opts: { bad?: boolean; undo?: () => void } = {}) => {
     const id = ++seq.current;
     setToasts((x) => [...x.slice(-2), { id, text, ...opts }]);
@@ -130,13 +170,54 @@ export default function InboxApp(props: {
 
   const loadDetail = useCallback(async (id: string, quiet = false) => {
     if (!quiet) setDetailErr('');
-    const r = await api<ThreadDetail>(`/api/inbox/threads/${id}`);
+    const focus = !quiet && focusRef.current?.threadId === id ? focusRef.current.messageId : '';
+    if (focus) focusRef.current = null;
+    const r = await api<WaThreadDetail>(`/api/inbox/threads/${id}${focus ? `?around=${encodeURIComponent(focus)}` : ''}`);
     if (!r.ok) {
       if (!quiet) setDetailErr(r.data.error ?? 'generic');
       return;
     }
-    setDetail((d) => (quiet && d && d.thread.id === id && d.messages.length > r.data.messages.length ? { ...r.data, messages: d.messages, more: d.more } : r.data));
+    if (focus) {
+      setDetail({ ...r.data, focus, extended: true });
+      return;
+    }
+    setDetail((d) => {
+      // Con mensajes anteriores ya cargados: quedan los de antes de esta página y lo reciente se actualiza
+      // (reacciones, tildes, borrados). Si no, la página nueva tal cual.
+      if (!(quiet && d && d.thread.id === id && d.extended)) return r.data;
+      const first = r.data.messages[0]?.sentAt;
+      const older = first ? d.messages.filter((m) => m.sentAt < first) : d.messages;
+      return { ...r.data, messages: [...older, ...r.data.messages], more: d.more, extended: true };
+    });
   }, []);
+
+  /** Mensajes que coinciden con la búsqueda (texto completo y filtros). */
+  const searchMsgs = useCallback(
+    async (more = false) => {
+      const term = q.trim();
+      if (!term) {
+        setMsgHits([]);
+        setMsgMore(false);
+        return;
+      }
+      const last = more ? msgHits[msgHits.length - 1]?.sentAt : undefined;
+      const r = await api<{ messages: MessageHit[]; more: boolean }>(`/api/inbox/search?q=${encodeURIComponent(term)}${last ? `&before=${encodeURIComponent(last)}` : ''}`);
+      if (!r.ok) return;
+      setMsgHits((h) => (more ? [...h, ...r.data.messages] : r.data.messages));
+      setMsgMore(r.data.more);
+    },
+    [q, msgHits],
+  );
+
+  const openHit = (h: MessageHit) => {
+    focusRef.current = { threadId: h.threadId, messageId: h.id };
+    if (openId === h.threadId) void loadDetail(h.threadId);
+    else {
+      const idx = threads.findIndex((x) => x.id === h.threadId);
+      if (idx >= 0) setCursor(idx);
+      setOpenId(h.threadId);
+    }
+  };
 
   // Búsqueda: espera a que se deje de escribir.
   const firstSearch = useRef(true);
@@ -146,9 +227,12 @@ export default function InboxApp(props: {
       return;
     }
     setLoading(true);
-    const id = window.setTimeout(() => void reloadList().finally(() => setLoading(false)), 220);
+    const id = window.setTimeout(() => {
+      void reloadList().finally(() => setLoading(false));
+      void searchMsgs();
+    }, 220);
     return () => window.clearTimeout(id);
-  }, [reloadList]);
+  }, [reloadList]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Abrir un chat: lo trae, lo marca leído (y "volvió" visto) y deja la URL compartible.
   useEffect(() => {
@@ -188,6 +272,16 @@ export default function InboxApp(props: {
     };
   }, [reloadList, reloadState, loadDetail, openId]);
 
+  // Chat de WhatsApp abierto: cada 3 s (escribiendo…, tildes, reacciones), como en vivo.
+  const openIsWa = detail?.thread.channel === 'whatsapp' && detail.thread.id === openId;
+  useEffect(() => {
+    if (!openId || !openIsWa) return;
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void loadDetail(openId, true);
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [openId, openIsWa, loadDetail]);
+
   useEffect(() => {
     if (cursor >= threads.length && threads.length) setCursor(threads.length - 1);
   }, [threads.length, cursor]);
@@ -212,7 +306,7 @@ export default function InboxApp(props: {
         toast(errText(r.data.error), { bad: true });
         return false;
       }
-      const leaves = !q && (folder ? ['done', 'snooze'] : (LEAVES[view] ?? [])).includes(action.action);
+      const leaves = !q && (folder ? ['done', 'snooze', 'archive'] : (LEAVES[view] ?? [])).includes(action.action);
       if (leaves) {
         const idx = threads.findIndex((x) => ids.includes(x.id));
         const rest = threads.filter((x) => !ids.includes(x.id));
@@ -274,7 +368,24 @@ export default function InboxApp(props: {
           setMoveIds(ids);
           break;
         case 'more':
+          setMoreConfirm(false);
           setMoreOpen(true);
+          break;
+        case 'delete':
+          setMoreConfirm(true);
+          setMoreOpen(true);
+          break;
+        case 'aiDraft':
+        case 'mute8h':
+        case 'muteWeek':
+        case 'unmute':
+        case 'clearFollowUp':
+        case 'unsnooze':
+          void moreActionRef.current(name);
+          break;
+        case 'archive':
+        case 'unarchive':
+          void runAction(ids, { action: name });
           break;
         case 'unread':
           void runAction(ids, { action: th && th.unread > 0 ? 'read' : 'unread' });
@@ -286,6 +397,44 @@ export default function InboxApp(props: {
     },
     [targetIds, threads, detail, runAction],
   );
+
+  /**
+   * Chats soltados sobre una carpeta del sidebar. En la bandeja (o una vista)
+   * se suman a la carpeta; dentro de otra carpeta se mueven (salen de la
+   * actual). Deshacer vuelve exactamente a como estaban.
+   */
+  const dropOnFolder = useCallback(
+    async ({ ids, folderId, folderName }: DropThreadsDetail) => {
+      const from = folder && folder.id !== folderId ? folder.id : null;
+      const fresh = ids.filter((id) => !(threads.find((x) => x.id === id)?.folderIds ?? []).includes(folderId));
+      const post = (list: string[], a: ThreadAction) => (list.length ? api('/api/inbox/threads', { method: 'POST', json: { ids: list, ...a } }) : Promise.resolve({ ok: true, status: 200, data: {} as { error?: string } }));
+      const r = await post(fresh, { action: 'addFolder', folderId });
+      const r2 = r.ok && from ? await post(ids, { action: 'removeFolder', folderId: from }) : r;
+      if (!r.ok || !r2.ok) {
+        toast(errText((r.ok ? r2 : r).data.error), { bad: true });
+        return;
+      }
+      setSelected(new Set());
+      const refresh = () => {
+        void reloadList();
+        void reloadState();
+        notifyInboxChanged();
+      };
+      refresh();
+      const undo = () =>
+        void post(fresh, { action: 'removeFolder', folderId })
+          .then(() => (from ? post(ids, { action: 'addFolder', folderId: from }) : null))
+          .then(refresh);
+      toast(t(from ? 'toast.movedTo' : 'toast.addedTo', { n: ids.length, name: folderName }), { undo });
+    },
+    [folder, threads, toast, errText, t, reloadList, reloadState],
+  );
+
+  useEffect(() => {
+    const on = (e: Event) => void dropOnFolder((e as CustomEvent<DropThreadsDetail>).detail);
+    window.addEventListener(INBOX_DROP_THREADS, on);
+    return () => window.removeEventListener(INBOX_DROP_THREADS, on);
+  }, [dropOnFolder]);
 
   const open = (id: string) => {
     const idx = threads.findIndex((x) => x.id === id);
@@ -301,7 +450,38 @@ export default function InboxApp(props: {
     requestAnimationFrame(() => listRef.current?.querySelector<HTMLElement>(`[data-idx="${cursor}"] .ib-row-btn`)?.focus());
   }, [cursor]);
 
-  const modalOpen = !!when || !!moveIds || moreOpen || compose || help || !!folderEdit;
+  const moreAction = async (a: MoreAction) => {
+    setMoreOpen(false);
+    setMoreConfirm(false);
+    const th = detail?.thread ?? current;
+    if (!th) return;
+    if (a === 'delete') {
+      const r = await api(`/api/inbox/threads/${th.id}`, { method: 'DELETE' });
+      if (!r.ok) {
+        toast(errText(r.data.error), { bad: true });
+        return;
+      }
+      setThreads((xs) => xs.filter((x) => x.id !== th.id));
+      if (openId === th.id) closeConvo();
+      toast(t('toast.deleted'));
+      void reloadState();
+      notifyInboxChanged();
+      return;
+    }
+    if (a === 'mute8h' || a === 'muteWeek' || a === 'unmute') {
+      const until = a === 'unmute' ? null : new Date(Date.now() + (a === 'mute8h' ? 8 : 168) * 3600_000).toISOString();
+      await runAction([th.id], { action: 'mute', until });
+      return;
+    }
+    if (a === 'unread') await runAction([th.id], { action: th.unread > 0 ? 'read' : 'unread' });
+    if (a === 'pin') await runAction([th.id], { action: th.pinned ? 'unpin' : 'pin' });
+    if (a === 'clearFollowUp') await runAction([th.id], { action: 'clearFollowUp' });
+    if (a === 'unsnooze') await runAction([th.id], { action: 'unsnooze' });
+    if (a === 'aiDraft') composer.current?.draft();
+  };
+  moreActionRef.current = moreAction;
+
+  const modalOpen = !!when || !!plan || !!moveIds || moreOpen || compose || help || qrOpen || !!folderEdit;
 
   // Atajos de una letra (fuera de los campos y sin modales abiertos).
   useEffect(() => {
@@ -347,6 +527,7 @@ export default function InboxApp(props: {
           break;
         case 'Escape':
           if (selected.size) setSelected(new Set());
+          else if (infoOpen) setInfoOpen(false);
           else if (openId) closeConvo();
           else if (q) setQ('');
           break;
@@ -424,7 +605,7 @@ export default function InboxApp(props: {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [modalOpen, threads, current, openId, selected, q, act, closeConvo, router, toast, t]);
+  }, [modalOpen, threads, current, openId, selected, q, act, closeConvo, router, toast, t, infoOpen]);
 
   const accounts = state.accounts;
   const noAccounts = accounts.length === 0;
@@ -437,7 +618,25 @@ export default function InboxApp(props: {
     const isSel = selected.has(th.id);
     const marker = th.woke === 'snooze' ? t('list.woke') : th.woke === 'followup' ? t('list.noReply') : '';
     return (
-      <li key={th.id} data-idx={i} className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}>
+      <li
+        key={th.id}
+        data-idx={i}
+        className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}
+        draggable
+        onDragStart={(e) => {
+          // Arrastrar a una carpeta del sidebar: la selección entera si este chat está en ella.
+          const ids = isSel ? [...selected] : [th.id];
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData(THREADS_MIME, JSON.stringify(ids));
+          e.dataTransfer.setData('text/plain', ids.length > 1 ? t('list.dragMany', { n: ids.length }) : th.title);
+        }}
+        data-left-label={th.done ? t('actions.undone') : t('actions.done')}
+        data-right-label={th.pinned ? w('unpin') : w('pin')}
+        {...rowSwipe({
+          onLeft: () => void runAction([th.id], { action: th.done ? 'undone' : 'done' }),
+          onRight: () => void runAction([th.id], { action: th.pinned ? 'unpin' : 'pin' }),
+        })}
+      >
         <input
           type="checkbox"
           className="ib-check"
@@ -455,6 +654,7 @@ export default function InboxApp(props: {
         <button
           type="button"
           className="ib-row-btn"
+          data-swipe-body
           aria-current={th.id === openId ? 'true' : undefined}
           onClick={(e) => {
             if (e.shiftKey || e.metaKey) {
@@ -465,37 +665,27 @@ export default function InboxApp(props: {
           }}
           onFocus={() => setCursor(i)}
         >
-          <span className="ib-avatar" style={{ background: `hsl(${avatarHue(th.id)} 35% 45%)` }} aria-hidden>
-            {initials(th.title)}
-          </span>
-          <span className="ib-row-main">
-            <span className="ib-row-top">
-              <span className="ib-row-title">
-                {th.pinned && <span className="ib-pin" aria-label={t('list.pinned')} title={t('list.pinned')} />}
-                {th.title}
-              </span>
-              <span className="ib-row-when">{view === 'snoozed' && th.snoozedUntil ? longWhen(th.snoozedUntil, locale) : shortWhen(th.lastMessageAt, locale)}</span>
-            </span>
-            <span className="ib-row-bottom">
-              <span className="ib-row-preview">
-                <span className="ib-chan-dot" data-ch={th.channel} aria-label={th.channel === 'gmail' ? 'Gmail' : 'WhatsApp'} />
+          <ChatRow
+            th={th}
+            timeLabel={view === 'snoozed' && th.snoozedUntil ? longWhen(th.snoozedUntil, locale) : undefined}
+            extra={
+              <>
+                {th.channel === 'gmail' && <span className="ib-chan-dot" data-ch="gmail" role="img" aria-label="Gmail" />}
                 {marker && <span className="ib-tag ib-tag-strong">{marker}</span>}
-                {th.draft ? <span className="ib-draft">{t('list.draft')}</span> : th.lastFromMe ? <span className="ib-dim">{t('list.you')} </span> : null}
-                {th.draft || th.preview}
-              </span>
-              {th.scheduledCount > 0 && <span className="ib-tag">{t('list.scheduled', { n: th.scheduledCount })}</span>}
-              {th.unread > 0 && <span className="ib-unread">{th.unread > 99 ? '99+' : th.unread}</span>}
-            </span>
-          </span>
+                {th.scheduledCount > 0 && <span className="ib-tag">{t('list.scheduled', { n: th.scheduledCount })}</span>}
+              </>
+            }
+          />
         </button>
       </li>
     );
   };
 
   const anyConnected = accounts.some((a) => a.status === 'connected');
+  const showInfo = infoOpen && !!openId && detail?.thread.channel === 'whatsapp' && detail.thread.id === openId;
 
   return (
-    <div className={`ib-app${openId ? ' has-open' : ''}`}>
+    <div className={`ib-app gr-inbox${openId ? ' has-open' : ''}${showInfo ? ' has-details' : ''}`} data-chat-style={chatStyle}>
       <div className="ib-list-pane">
         <div className="ib-list-head">
           <div className="ib-list-title">
@@ -561,7 +751,7 @@ export default function InboxApp(props: {
                 router.push(kind === 'f' ? `/app/inbox/f/${id}` : viewHref(id as InboxView));
               }}
             >
-              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done'] as InboxView[]).map((v) => (
+              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived'] as InboxView[]).map((v) => (
                 <option key={v} value={`v:${v}`}>
                   {t(`views.${v}`)}
                 </option>
@@ -585,12 +775,28 @@ export default function InboxApp(props: {
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => act('move')}>
                 {t('actions.move')}
               </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => act(view === 'archived' ? 'unarchive' : 'archive')}>
+                {view === 'archived' ? t('actions.unarchive') : t('actions.archive')}
+              </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())}>
                 {t('actions.clear')}
               </button>
             </div>
           )}
         </div>
+        {!q && !folder && view !== 'archived' && (state.counts.archived ?? 0) > 0 && (
+          <Link href={viewHref('archived')} className="ib-archived-entry" data-testid="inbox-archived-entry">
+            <ArchiveIcon size={20} />
+            <span>{t('list.archivedEntry')}</span>
+            <span className="ib-archived-n">{state.counts.archived}</span>
+          </Link>
+        )}
+        {view === 'archived' && !q && !folder && (
+          <Link href={viewHref('inbox')} className="ib-archived-entry" data-testid="inbox-archived-back">
+            <ArrowLeft size={20} />
+            <span>{t('list.archivedBack')}</span>
+          </Link>
+        )}
         {listErr && threads.length === 0 ? (
           <div className="ib-list-msg" role="alert">
             <p>{t('errors.list')}</p>
@@ -604,15 +810,32 @@ export default function InboxApp(props: {
               <span key={i} className="ui-skeleton ui-skeleton-row" />
             ))}
           </div>
-        ) : threads.length === 0 ? (
+        ) : threads.length === 0 && !(q.trim() && msgHits.length) ? (
           <div className="ib-list-empty">
             {noAccounts && !q ? (
               <EmptyState
                 product="inbox"
                 title={t('empty.connectTitle')}
                 body={t('empty.connectBody')}
-                action={{ label: t('empty.connectAction'), href: '/app/inbox/settings' }}
-                secondary={<Link href="/app/inbox/settings#import">{t('empty.importLink')}</Link>}
+                action={
+                  state.available.whatsapp ? (
+                    <button type="button" className="btn btn-primary" data-testid="inbox-empty-qr" onClick={() => setQrOpen(true)}>
+                      {t('empty.qrAction')}
+                    </button>
+                  ) : (
+                    { label: t('empty.connectAction'), href: '/app/inbox/settings' }
+                  )
+                }
+                secondary={
+                  <>
+                    {state.available.whatsapp && (
+                      <>
+                        <Link href="/app/inbox/settings">{t('empty.otherAccounts')}</Link>{' '}
+                      </>
+                    )}
+                    <Link href="/app/inbox/settings#import">{t('empty.importLink')}</Link>
+                  </>
+                }
               />
             ) : (
               <EmptyState
@@ -626,6 +849,35 @@ export default function InboxApp(props: {
         ) : (
           <ul className="ib-list" ref={listRef} aria-label={viewTitle} aria-busy={loading || undefined}>
             {threads.map(rowFor)}
+            {q.trim() !== '' && msgHits.length > 0 && (
+              <li className="ib-hits" role="presentation">
+                <h2 className="ib-hits-h" id="ib-hits-h">
+                  {t('list.messagesFound')}
+                </h2>
+                <ul className="ib-hits-list" aria-labelledby="ib-hits-h">
+                  {msgHits.map((h) => (
+                    <li key={h.id}>
+                      <button type="button" className="ib-hit" onClick={() => openHit(h)} data-testid="inbox-search-hit">
+                        <span className="ib-hit-top">
+                          <span className="ib-hit-chat">{h.threadTitle}</span>
+                          <span className="ib-row-when">{shortWhen(h.sentAt, locale)}</span>
+                        </span>
+                        <span className="ib-hit-text">
+                          <span className="ib-dim">{h.fromMe ? t('list.you') : h.kind === 'group' && h.senderName ? `${h.senderName}: ` : ''} </span>
+                          {h.mediaName && !h.snippet.includes(HIT_MARK_START) && <span className="ib-tag">{h.mediaName}</span>}
+                          <Highlighted text={h.snippet} />
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {msgMore && (
+                  <button type="button" className="btn btn-ghost btn-sm ib-hits-more" onClick={() => void searchMsgs(true)}>
+                    {t('list.moreMessages')}
+                  </button>
+                )}
+              </li>
+            )}
           </ul>
         )}
         <p className="ib-keys-hint">
@@ -651,6 +903,47 @@ export default function InboxApp(props: {
             <span className="ui-skeleton ui-skeleton-row" />
             <span className="ui-skeleton ui-skeleton-row" />
           </div>
+        ) : detail && openId && detail.thread.channel === 'whatsapp' ? (
+          <WaConversation
+            ref={composer}
+            detail={detail}
+            folders={state.folders}
+            snippets={state.snippets}
+            connected={detailAccount?.status === 'connected'}
+            threads={threads}
+            infoOpen={infoOpen}
+            onBack={closeConvo}
+            onAction={act}
+            onSent={(messages: MessageDto[]) => {
+              setDetail((d) => (d ? { ...d, messages } : d));
+              void reloadList();
+            }}
+            onSendLater={(text) => setPlan({ threadId: detail.thread.id, channel: detail.thread.channel, text })}
+            onScheduledChange={() => {
+              void loadDetail(detail.thread.id, true);
+              void reloadState();
+              void reloadList();
+            }}
+            onError={(code) => toast(errText(code), { bad: true })}
+            onToast={(text) => toast(text)}
+            onToggleInfo={() => setInfoOpen((v) => !v)}
+            onRename={async (title) => {
+              const r = await api(`/api/inbox/threads/${detail.thread.id}`, { method: 'PATCH', json: { title } });
+              if (!r.ok) toast(errText(r.data.error), { bad: true });
+              void loadDetail(detail.thread.id, true);
+              void reloadList();
+            }}
+            onRefresh={() => {
+              void loadDetail(detail.thread.id, true);
+              void reloadList();
+            }}
+            loadOlder={async () => {
+              const first = detail.messages[0];
+              if (!first) return;
+              const r = await api<{ messages: MessageDto[]; more: boolean }>(`/api/inbox/threads/${detail.thread.id}/messages?before=${encodeURIComponent(first.sentAt)}`);
+              if (r.ok) setDetail((d) => (d ? { ...d, messages: [...r.data.messages, ...d.messages], more: r.data.more, extended: true } : d));
+            }}
+          />
         ) : detail && openId ? (
           <Conversation
             ref={composer}
@@ -664,7 +957,7 @@ export default function InboxApp(props: {
               setDetail((d) => (d ? { ...d, messages } : d));
               void reloadList();
             }}
-            onSendLater={(text) => setWhen({ kind: 'sendLater', ids: [detail.thread.id], text })}
+            onSendLater={(text) => setPlan({ threadId: detail.thread.id, channel: detail.thread.channel, text })}
             onScheduledChange={() => {
               void loadDetail(detail.thread.id, true);
               void reloadState();
@@ -681,7 +974,7 @@ export default function InboxApp(props: {
               const first = detail.messages[0];
               if (!first) return;
               const r = await api<{ messages: MessageDto[]; more: boolean }>(`/api/inbox/threads/${detail.thread.id}/messages?before=${encodeURIComponent(first.sentAt)}`);
-              if (r.ok) setDetail((d) => (d ? { ...d, messages: [...r.data.messages, ...d.messages], more: r.data.more } : d));
+              if (r.ok) setDetail((d) => (d ? { ...d, messages: [...r.data.messages, ...d.messages], more: r.data.more, extended: true } : d));
             }}
           />
         ) : (
@@ -693,6 +986,31 @@ export default function InboxApp(props: {
           </div>
         )}
       </div>
+      {showInfo && detail && (
+        <ContactPanel
+          thread={detail.thread}
+          wa={detail.wa ?? null}
+          onClose={() => setInfoOpen(false)}
+          onOpenThread={(id) => {
+            setInfoOpen(false);
+            open(id);
+          }}
+          onStartChat={async (phone) => {
+            const r = await api<{ thread: ThreadDto }>('/api/inbox/compose', { method: 'POST', json: { channel: 'whatsapp', to: phone } });
+            if (!r.ok) {
+              toast(errText(r.data.error), { bad: true });
+              return;
+            }
+            setInfoOpen(false);
+            setThreads((xs) => [r.data.thread, ...xs.filter((x) => x.id !== r.data.thread.id)]);
+            setOpenId(r.data.thread.id);
+          }}
+          onMute={(until) => void runAction([detail.thread.id], { action: 'mute', until })}
+          onError={(code) => toast(errText(code), { bad: true })}
+          onToast={(text) => toast(text)}
+          onChanged={() => void loadDetail(detail.thread.id, true)}
+        />
+      )}
 
       <WhenDialog
         kind={when?.kind ?? null}
@@ -717,6 +1035,20 @@ export default function InboxApp(props: {
           await runAction(w.ids, w.kind === 'snooze' ? { action: 'snooze', until: iso } : { action: 'followUp', at: iso });
         }}
       />
+      <ScheduleDialog
+        target={plan}
+        onClose={() => setPlan(null)}
+        onDone={(_scheduled, sendAt) => {
+          const p = plan;
+          setPlan(null);
+          if (!p) return;
+          composer.current?.clear();
+          toast(t('toast.scheduled', { when: longWhen(sendAt, locale) }));
+          void loadDetail(p.threadId, true);
+          void reloadState();
+          void reloadList();
+        }}
+      />
       <MoveDialog
         open={!!moveIds}
         folders={state.folders}
@@ -735,35 +1067,12 @@ export default function InboxApp(props: {
       <MoreDialog
         open={moreOpen}
         thread={detail?.thread ?? current}
-        onClose={() => setMoreOpen(false)}
-        onAction={async (a) => {
+        onClose={() => {
           setMoreOpen(false);
-          const th = detail?.thread ?? current;
-          if (!th) return;
-          if (a === 'delete') {
-            const r = await api(`/api/inbox/threads/${th.id}`, { method: 'DELETE' });
-            if (!r.ok) {
-              toast(errText(r.data.error), { bad: true });
-              return;
-            }
-            setThreads((xs) => xs.filter((x) => x.id !== th.id));
-            if (openId === th.id) closeConvo();
-            toast(t('toast.deleted'));
-            void reloadState();
-            notifyInboxChanged();
-            return;
-          }
-          if (a === 'mute8h' || a === 'muteWeek' || a === 'unmute') {
-            const until = a === 'unmute' ? null : new Date(Date.now() + (a === 'mute8h' ? 8 : 168) * 3600_000).toISOString();
-            await runAction([th.id], { action: 'mute', until });
-            return;
-          }
-          if (a === 'unread') await runAction([th.id], { action: 'unread' });
-          if (a === 'pin') await runAction([th.id], { action: th.pinned ? 'unpin' : 'pin' });
-          if (a === 'clearFollowUp') await runAction([th.id], { action: 'clearFollowUp' });
-          if (a === 'unsnooze') await runAction([th.id], { action: 'unsnooze' });
-          if (a === 'aiDraft') composer.current?.draft();
+          setMoreConfirm(false);
         }}
+        startConfirm={moreConfirm}
+        onAction={(a) => void moreAction(a)}
       />
       <ComposeDialog
         open={compose}
@@ -778,8 +1087,10 @@ export default function InboxApp(props: {
         }}
       />
       <HelpDialog open={help} onClose={() => setHelp(false)} />
+      <WhatsappQrDialog open={qrOpen} onClose={() => setQrOpen(false)} onLinked={() => void reloadState()} />
       <FolderDialog
         folder={folderEdit === 'new' ? null : folderEdit}
+        folders={state.folders}
         open={!!folderEdit}
         onClose={() => setFolderEdit(null)}
         onSaved={(f, deleted) => {

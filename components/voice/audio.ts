@@ -21,6 +21,8 @@ export function pickMimeType(): string {
   return '';
 }
 
+import type { DesktopBridge } from '@/lib/desktop-bridge';
+
 export function recordingSupported(): boolean {
   return typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';
 }
@@ -35,6 +37,7 @@ export function mediaErrorCode(err: unknown): string {
   if (name === 'NotAllowedError' || name === 'SecurityError') return 'mic_denied';
   if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'mic_missing';
   if (err instanceof Error && err.message === 'no_tab_audio') return 'no_tab_audio';
+  if (err instanceof Error && err.message === 'screen_denied') return 'screen_denied';
   return 'mic_failed';
 }
 
@@ -48,7 +51,7 @@ export async function getTabAudio(): Promise<MediaStream> {
     video: true,
     audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     // Chrome: sumar el audio del sistema cuando se comparte la pantalla entera.
-    ...({ systemAudio: 'include', preferCurrentTab: false } as Record<string, unknown>),
+    ...({ systemAudio: 'include', preferCurrentTab: false, selfBrowserSurface: 'exclude', surfaceSwitching: 'include', monitorTypeSurfaces: 'include' } as Record<string, unknown>),
   } as DisplayMediaStreamOptions);
   const audio = display.getAudioTracks();
   if (!audio.length) {
@@ -56,6 +59,72 @@ export async function getTabAudio(): Promise<MediaStream> {
     throw new Error('no_tab_audio');
   }
   return display;
+}
+
+/** Rate del PCM que entrega la app de escritorio (system_audio.rs). */
+const DESKTOP_RATE = 16_000;
+const DESKTOP_POLL_MS = 250;
+
+/** Pasa el PCM de 16 bits little endian (base64) a muestras float. */
+export function pcm16Base64ToFloat(b64: string): Float32Array<ArrayBuffer> {
+  const bin = atob(b64);
+  const n = Math.floor(bin.length / 2);
+  const out = new Float32Array(new ArrayBuffer(n * 4));
+  for (let i = 0; i < n; i++) {
+    let v = bin.charCodeAt(i * 2) | (bin.charCodeAt(i * 2 + 1) << 8);
+    if (v >= 0x8000) v -= 0x10000;
+    out[i] = v / 32768;
+  }
+  return out;
+}
+
+/**
+ * Audio del sistema desde la app de escritorio: pide la captura nativa, lee el PCM cada 250 ms y lo
+ * reproduce en un destino de WebAudio sin salida, así que el grabador lo toma como cualquier otro
+ * MediaStream. Al cortar la pista (stopStream) se corta la captura nativa.
+ */
+export async function getDesktopSystemAudio(bridge: DesktopBridge): Promise<MediaStream> {
+  if (!bridge.systemAudioStart || !bridge.systemAudioRead) throw new Error('no_tab_audio');
+  const res = await bridge.systemAudioStart();
+  if (res !== 'ok') throw new Error(res === 'denied' ? 'screen_denied' : 'no_tab_audio');
+  const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  const ctx = new AC();
+  const dest = ctx.createMediaStreamDestination();
+  let next = 0;
+  let closed = false;
+  const timer = setInterval(async () => {
+    if (closed) return;
+    try {
+      const b64 = await bridge.systemAudioRead!();
+      if (!b64 || closed) return;
+      const samples = pcm16Base64ToFloat(b64);
+      if (!samples.length) return;
+      const buf = ctx.createBuffer(1, samples.length, DESKTOP_RATE);
+      buf.copyToChannel(samples, 0);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(dest);
+      next = Math.max(next, ctx.currentTime + 0.05);
+      src.start(next);
+      next += buf.duration;
+    } catch {
+      // Una lectura que falla se salta: la siguiente retoma.
+    }
+  }, DESKTOP_POLL_MS);
+  const track = dest.stream.getAudioTracks()[0];
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    clearInterval(timer);
+    void Promise.resolve(bridge.systemAudioStop?.()).catch(() => undefined);
+    void ctx.close().catch(() => undefined);
+  };
+  const origStop = track.stop.bind(track);
+  track.stop = () => {
+    origStop();
+    close();
+  };
+  return dest.stream;
 }
 
 export function stopStream(stream: MediaStream | null | undefined) {

@@ -1,16 +1,16 @@
 {
   "products": {
     "meta": {
-      "title": "26 apps open source para empresas: CRM, chat, docs y más",
-      "description": "Veintiséis apps open source, del CRM y el chat de soporte a los docs, las facturas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
+      "title": "19 apps open source para empresas: CRM, docs, links y más",
+      "description": "Diecinueve apps open source, del CRM y los links a los docs, las firmas y los formularios. En tu servidor o en zerosoft Cloud con plan gratis."
     },
     "hero": {
-      "title1": "Veintiséis apps.",
+      "title1": "Diecinueve apps.",
       "title2": "Un solo workspace.",
       "sub": "Para tu empresa: CRM, soporte, agentes de IA, automatizaciones, robots, proyectos y links. Para vos: docs, notas, agenda y pizarra. El core de cada una es open source y corre en tu servidor por $0."
     },
     "cta": {
-      "title1": "Probá las veintiséis apps.",
+      "title1": "Probá las diecinueve apps.",
       "title2": "Con una sola cuenta.",
       "sub": "Entrá con Google, creá un workspace y empezá con el plan gratis. Si después preferís tu servidor, el código está en GitHub.",
       "button": "Abrir la app"
@@ -568,7 +568,7 @@
         },
         "f2": {
           "q": "¿Atiende email o WhatsApp?",
-          "a": "Email sí: reenviás tu dirección de soporte a la del widget y respondés desde la bandeja. Las respuestas salen desde la dirección de la app, todavía no desde tu dominio, y el reenvío se probó con el payload de la doc de Resend, no contra Resend real. WhatsApp todavía no está en Chat; para eso está Groups."
+          "a": "Email sí: reenviás tu dirección de soporte a la del widget y respondés desde la bandeja. Las respuestas salen desde la dirección de la app, todavía no desde tu dominio, y el reenvío se probó con el payload de la doc de Resend, no contra Resend real. WhatsApp todavía no está en Chat; para eso está Lines."
         },
         "f3": {
           "q": "¿Cómo funciona el bot?",
@@ -606,7 +606,7 @@
     },
     "groups": {
       "meta": {
-        "title": "Groups: bandeja de WhatsApp para equipos, open source",
+        "title": "Lines: bandeja de WhatsApp para equipos, open source",
         "description": "Bandeja compartida para chats y grupos de WhatsApp: asignación, notas, tickets, SLA y envíos, vinculada a tu CRM. Alternativa open source a Periskope."
       },
       "hero": {
@@ -656,7 +656,7 @@
         "per": "/ asiento / mes",
         "team": "$3.000",
         "zero": "$0",
-        "note": "Periskope Starter cuesta $25 por asiento por mes (pago mensual, Pro cuesta $35). Un equipo de diez paga $3.000 al año. Groups en tu servidor cuesta $0; vos corrés el gateway de WhatsApp o le pagás a Meta la API oficial."
+        "note": "Periskope Starter cuesta $25 por asiento por mes (pago mensual, Pro cuesta $35). Un equipo de diez paga $3.000 al año. Lines en tu servidor cuesta $0; vos corrés el gateway de WhatsApp o le pagás a Meta la API oficial."
       },
       "faq": {
         "f1": {
@@ -665,26 +665,26 @@
         },
         "f2": {
           "q": "¿El modo QR es seguro para mi número?",
-          "a": "Usa una sesión no oficial de WhatsApp Web, y WhatsApp puede restringir un número usado así, sobre todo si agrega muchos desconocidos o manda muchos mensajes no pedidos. Groups manda los envíos al ritmo que elijas y sugiere links de invitación. Para mensajes 1:1 recomendamos la API oficial."
+          "a": "Usa una sesión no oficial de WhatsApp Web, y WhatsApp puede restringir un número usado así, sobre todo si agrega muchos desconocidos o manda muchos mensajes no pedidos. Lines manda los envíos al ritmo que elijas y sugiere links de invitación. Para mensajes 1:1 recomendamos la API oficial."
         },
         "f3": {
           "q": "¿Puedo gestionar grupos con la API oficial?",
-          "a": "En Groups, por ahora no. La API oficial cubre chats 1:1; crear grupos y manejar miembros pasa por el gateway con QR."
+          "a": "En Lines, por ahora no. La API oficial cubre chats 1:1; crear grupos y manejar miembros pasa por el gateway con QR."
         },
         "f4": {
           "q": "¿Cómo funcionan los tickets?",
-          "a": "Un ticket sale de un mensaje: a mano, reaccionando con el emoji de ticket (desde Groups o el teléfono) o cuando un cliente escribe una de tus palabras clave. Cada uno tiene estado, prioridad, asignado y vencimientos de primera respuesta y resolución."
+          "a": "Un ticket sale de un mensaje: a mano, reaccionando con el emoji de ticket (desde Lines o el teléfono) o cuando un cliente escribe una de tus palabras clave. Cada uno tiene estado, prioridad, asignado y vencimientos de primera respuesta y resolución."
         },
         "f5": {
           "q": "¿Qué falta comparado con Periskope?",
-          "a": "Apps nativas en App Store y Google Play (hay una app instalable con push), y llamar o grabar desde Groups: los proveedores no dan el audio, así que solo queda el registro de llamadas de la Cloud API. Tampoco hay app en el directorio de Zapier ni endpoints de contactos y propiedades en la API, y el MCP trae 9 herramientas contra 56."
+          "a": "Apps nativas en App Store y Google Play (hay una app instalable con push), y llamar o grabar desde Lines: los proveedores no dan el audio, así que solo queda el registro de llamadas de la Cloud API. Tampoco hay app en el directorio de Zapier ni endpoints de contactos y propiedades en la API, y el MCP trae 9 herramientas contra 56."
         }
       },
       "cta": {
         "title1": "Cada grupo respondido.",
         "title2": "Cada mensaje en la ficha.",
         "sub": "Conectá un número, traé tus grupos y empezá a responder desde una sola bandeja.",
-        "button": "Abrir Groups"
+        "button": "Abrir Lines"
       },
       "steps": {
         "s1": {
@@ -755,7 +755,7 @@
         },
         "f3": {
           "q": "¿Dónde habla con mis clientes?",
-          "a": "En el widget de Chat de tu sitio, en una página pública propia, por email (con el email entrante de Chat configurado) y por la API v1 (scope agents:run). También en WhatsApp a través de Groups, en Slack, Messenger e Instagram con tu propia app, y por teléfono en un número de Twilio que asigna el admin de la instancia."
+          "a": "En el widget de Chat de tu sitio, en una página pública propia, por email (con el email entrante de Chat configurado) y por la API v1 (scope agents:run). También en WhatsApp a través de Lines, en Slack, Messenger e Instagram con tu propia app, y por teléfono en un número de Twilio que asigna el admin de la instancia."
         },
         "f4": {
           "q": "¿Puede cambiar mis datos?",
@@ -2287,6 +2287,92 @@
         "sub": "Abrí Inbox, vinculá WhatsApp y empezá a ordenar.",
         "button": "Abrir Inbox"
       }
+    },
+    "analytics": {
+      "meta": {
+        "title": "Analytics: preguntas y tableros de código abierto sobre tus datos",
+        "description": "Hacé preguntas con un constructor, SQL o tus palabras, graficá las respuestas y compartí tableros. Lee tus datos de zerosoft y tu Postgres o MySQL. Una alternativa de código abierto a Metabase."
+      },
+      "hero": {
+        "sub": "Preguntá sobre tus datos de CRM, Track, Books, Groups y Pulse, o sobre tu propio Postgres o MySQL. Armá una pregunta sin código, escribí SQL con autocompletado o escribila con tus palabras y leé el SQL que arma. Poné las respuestas en tableros con filtros y mandalos por email o a Talk."
+      },
+      "featuresTitle": "Preguntale a tus datos.",
+      "featuresTitleDim": "Compartí la respuesta.",
+      "f1": {
+        "t": "Tu workspace como tablas",
+        "d": "Contactos, empresas, deals, proyectos, issues, facturas, chats, mensajes y eventos de Pulse, de solo lectura. Cada persona ve solo las filas que puede ver en cada app."
+      },
+      "f2": {
+        "t": "Constructor sin código",
+        "d": "Elegí una tabla, filtrá, contá o sumá, agrupá por día, semana, mes o año, uní tablas relacionadas y ordená. El SQL que arma está siempre a un clic."
+      },
+      "f3": {
+        "t": "Editor SQL",
+        "d": "Autocompletado de tablas y columnas, navegador del esquema, variables con valores por defecto y filtros opcionales, y resultados que podés paginar o bajar en CSV."
+      },
+      "f4": {
+        "t": "Preguntá con tus palabras",
+        "d": "Escribí una pregunta y la IA arma el SQL sobre las tablas que podés leer. El SQL se muestra antes de que confíes en el resultado y pasa por los mismos controles de solo lectura."
+      },
+      "f5": {
+        "t": "Tableros",
+        "d": "Una grilla de tarjetas con números, líneas, barras, áreas, tortas y embudos, texto, filtros conectados a cada tarjeta, actualización automática, pantalla completa y colecciones para ordenarlo."
+      },
+      "f6": {
+        "t": "Compartir y suscribirse",
+        "d": "Links públicos e iframes que nunca muestran la consulta, y resúmenes por email a tu equipo o a un canal de Talk, diarios o semanales."
+      },
+      "steps": {
+        "s1": {
+          "t": "Elegí tus datos",
+          "d": "Tu workspace ya está listo. Para sumar Postgres o MySQL, un admin lo conecta con un usuario de solo lectura."
+        },
+        "s2": {
+          "t": "Hacé una pregunta",
+          "d": "Usá el constructor, escribí SQL o preguntá con tus palabras. Elegí el gráfico o dejá que elija uno."
+        },
+        "s3": {
+          "t": "Armá un tablero",
+          "d": "Sumá las preguntas que guardaste, conectá filtros y compartilo o suscribí a tu equipo."
+        }
+      },
+      "compare": {
+        "rival": "Metabase",
+        "price": "Según el plan",
+        "per": "Metabase Cloud: un precio por mes más cada usuario extra",
+        "teamLabel": "10 personas",
+        "team": "ver precios de Metabase",
+        "zero": "US$ 0",
+        "note": "Metabase de código abierto es gratis si lo alojás vos; Metabase Cloud cobra por mes y por usuario. No pudimos verificar todos los precios actuales, así que mirá metabase.com/pricing. Analytics en tu servidor cuesta US$ 0 más tu base de datos."
+      },
+      "faq": {
+        "f1": {
+          "q": "¿Qué datos puede leer?",
+          "a": "Tu workspace de zerosoft (CRM, Track, Books, Groups y Pulse) y bases PostgreSQL o MySQL que conecte un admin. BigQuery, Snowflake y otros motores todavía no."
+        },
+        "f2": {
+          "q": "¿Una pregunta puede cambiar mis datos?",
+          "a": "No. Las tablas del workspace se leen con una lista blanca de SQL de solo lectura. En las bases externas cada consulta corre en una transacción de solo lectura con tope de tiempo, una sentencia por vez. Igual, conectá con un usuario de la base que solo pueda leer."
+        },
+        "f3": {
+          "q": "¿Quién ve qué?",
+          "a": "Cada persona ve las filas del workspace que puede ver en cada app: visibilidad del CRM, proyectos privados de Track, roles de Books y chats de Groups. Las colecciones personales son privadas. En una base externa, los admins deciden si los miembros escriben SQL o solo usan el constructor."
+        },
+        "f4": {
+          "q": "¿Cómo funciona preguntar con tus palabras?",
+          "a": "La IA recibe los nombres de las tablas y columnas que podés leer, nunca las filas, y escribe un SELECT. Ves el SQL y lo podés editar. Necesita la IA prendida en el workspace."
+        },
+        "f5": {
+          "q": "¿Qué falta comparado con Metabase?",
+          "a": "Mapas, tablas dinámicas, drill-through con clic en un gráfico, alertas sobre una pregunta, modelos y métricas, sandboxing de filas por grupo, incrustación firmada con JWT y más motores de base de datos. La tabla de paridad de arriba tiene la lista completa."
+        }
+      },
+      "cta": {
+        "title1": "Hacé la pregunta.",
+        "title2": "Leé la respuesta.",
+        "sub": "Abrí Analytics y preguntá algo sobre tus datos.",
+        "button": "Abrir Analytics"
+      }
     }
   },
   "product": {
@@ -2302,7 +2388,7 @@
     "apiDocs": "Docs de la API",
     "howTitle": "Cómo se usa.",
     "suiteTitle": "Un workspace.",
-    "suiteTitleDim": "Veintiséis apps, el mismo login.",
+    "suiteTitleDim": "Diecinueve apps, el mismo login.",
     "shotTitle": "{name}, por dentro.",
     "crumbs": "Ubicación",
     "navLabel": "Secciones de {name}",
@@ -2357,14 +2443,20 @@
       "kickerCounts": "comparado con {competitor}"
     },
     "building": {
-      "badge": "En construcción",
-      "tagline": "Estamos construyendo la alternativa open source a {rival}",
+      "badge": "Próximamente",
+      "tagline": "La alternativa open source a {rival}, todavía en construcción",
       "propose": "Proponer una idea",
       "roadmap": "Ver el roadmap",
       "shotFig": "fig. 1 · {name}, boceto del diseño: todavía no se puede usar",
       "faqTitleDim": "Lo que ya sabemos y lo que falta.",
       "compareZero": "Con zerosoft, cuando esté lista",
-      "zeroApp": "{name} en tu servidor, cuando esté lista"
+      "zeroApp": "{name} en tu servidor, cuando esté lista",
+      "waitlistLead": "{name} todavía no se puede usar y no tiene fecha. Dejá tu email y te avisamos el día que salga.",
+      "parityNote": "{name} todavía no se puede usar. La tabla cuenta lo que ya está construido en el código.",
+      "ctaTitle": "¿Te interesa {name}?",
+      "ctaTitleDim": "Te avisamos cuando se pueda usar.",
+      "ctaSub": "Sumate a la lista de espera de {name}. Un solo email, el día que salga.",
+      "join": "Unirme a la lista de espera"
     },
     "heroFig": {
       "link": "fig. 0 · una cadena de eslabones",
@@ -2385,6 +2477,7 @@
       "design": "fig. 0 · una forma que cambia en su mesa de trabajo",
       "shop": "fig. 0 · un catálogo de seis productos",
       "pulse": "fig. 0 · un gráfico de barras con datos de ejemplo",
+      "analytics": "fig. 0 · barras de un tablero con datos de ejemplo",
       "social": "fig. 0 · publicaciones en un calendario",
       "hiring": "fig. 0 · candidatos que pasan de etapa",
       "people": "fig. 0 · licencias en un calendario",
@@ -2778,6 +2871,22 @@
       "s1": "Vio los precios",
       "s2": "Empezó el registro",
       "s3": "Creó un proyecto"
+    },
+    "analytics": {
+      "navBrowse": "Explorar",
+      "navData": "Datos",
+      "navDashboard": "Ventas",
+      "title": "Ventas de este año",
+      "new": "Pregunta nueva",
+      "ask": "deals ganados por mes este año",
+      "statRevenue": "Ingresos ganados",
+      "statWon": "Deals ganados",
+      "chartLabel": "Deals ganados por mes",
+      "tableTitle": "Mejores clientes",
+      "tableValue": "Ingresos",
+      "r1": "Acme",
+      "r2": "Globex",
+      "r3": "Initech"
     },
     "social": {
       "sketch": "Boceto",
@@ -3383,7 +3492,7 @@
     "scope_chat_write": "Responder, asignar, resolver y reabrir conversaciones de Chat (incluye chat:read).",
     "webhooksChatTitle": "Payload de los eventos de Chat",
     "webhooksChatDesc": "Los eventos de Chat traen la conversación. chat.message.created suma el mensaje (del visitante, del equipo o del bot; las notas internas no se mandan) y chat.conversation.assigned suma previousAssignedTo.",
-    "groupsTitle": "Groups (WhatsApp)",
+    "groupsTitle": "Lines (WhatsApp)",
     "groupsDesc": "Leé chats y grupos de WhatsApp, mandá mensajes y creá tickets desde tus sistemas. Los mensajes salen del número al que pertenece el chat.",
     "groupsChatsListTitle": "Listar chats y grupos",
     "groupsChatsListDesc": "Chats y grupos abiertos, los más recientes primero, con etiquetas, asignado y si esperan respuesta.",
@@ -3444,8 +3553,8 @@
     "paramGroupsRule": "Objeto con freq (daily, weekly, monthly o cron), time (HH:MM), days (0 a 6), dayOfMonth o cron",
     "paramGroupsTimezone": "Zona horaria IANA (por defecto UTC)",
     "paramGroupsEndsAt": "Fecha ISO de fin, opcional",
-    "scope_groups_read": "Leer chats, mensajes y tickets de WhatsApp en Groups.",
-    "scope_groups_write": "Mandar mensajes de WhatsApp y crear tickets en Groups.",
+    "scope_groups_read": "Leer chats, mensajes y tickets de WhatsApp en Lines.",
+    "scope_groups_write": "Mandar mensajes de WhatsApp y crear tickets en Lines.",
     "scope_track_read": "Leer issues y pedidos de clientes de Track.",
     "scope_track_write": "Crear issues de Track desde pedidos de clientes (email, formularios, Flow).",
     "crmLeadsTitle": "CRM · Leads",
@@ -3761,6 +3870,8 @@
     "paramAnalyticsCohort": "Solo personas de este id de cohorte.",
     "scope_analytics_read": "Leer proyectos, eventos y personas de Pulse y correr consultas.",
     "scope_analytics_write": "Cambiar proyectos, insights, tableros, cohortes y flags de Pulse.",
+    "scope_bi_read": "Leer preguntas, tableros y colecciones de Analytics y correr consultas.",
+    "scope_bi_write": "Crear y cambiar preguntas, tableros, colecciones y suscripciones de Analytics.",
     "scope_social_read": "Leer publicaciones de Social de las cuentas que ves.",
     "scope_people_read": "Leer el directorio de People: solo campos públicos de la ficha, nunca sueldo ni datos personales.",
     "scope_hiring_read": "Leer los puestos de Hiring y los candidatos que ve quien creó la key.",
@@ -3812,7 +3923,7 @@
   "parityOverview": {
     "title": "Paridad de funciones, app por app.",
     "titleDim": "Medida contra cada competidor.",
-    "lead": "Paridad promedio de {apps} de las 26 apps: {average} %. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
+    "lead": "Paridad promedio de las {apps} apps que ya se pueden usar: {average} %. Comparamos {counted} capacidades de la herramienta que reemplaza cada app.",
     "col": {
       "app": "App",
       "competitor": "Comparada con",
@@ -3823,7 +3934,8 @@
       "beyond": "Más allá"
     },
     "method": "Cada app suma 1 por capacidad incluida, 0,5 por parcial y 0 por faltante, con peso doble para las centrales. Es nuestra evaluación contra el código y se actualiza con cada versión. Abrí una app para ver la lista completa.",
-    "notComparable": "No comparable"
+    "notComparable": "No comparable",
+    "comingSoon": "Próximamente"
   },
   "desktopLogin": {
     "title": "Entrar a la app de zerosoft",
@@ -3854,18 +3966,7 @@
     },
     "title": "zerosoft en tu computadora.",
     "sub": "Todas las apps en una ventana, más lo que una pestaña del navegador no puede: dictar en cualquier app y que el texto limpio se pegue donde está el cursor.",
-    "macArm": "Descargar para Mac (Apple silicon)",
-    "macIntel": "Descargar para Mac (Intel)",
-    "win": "Descargar para Windows",
-    "otherMac": "¿Tu Mac tiene chip Intel? Descargá la versión Intel.",
-    "otherArm": "¿Tu Mac tiene Apple silicon? Descargá esa versión.",
-    "allFiles": "Todos los archivos de la versión {version}",
-    "versionLine": "Versión {version}, publicada el {date}.",
-    "noRelease": "Todavía no hay una versión publicada. Podés compilarla desde el código en desktop/ (el README explica cómo).",
-    "source": "Código en GitHub",
     "unsignedTitle": "Las versiones todavía no están firmadas",
-    "unsignedMac": "En Mac: abrí el .dmg y arrastrá zerosoft a Aplicaciones. La primera vez macOS la bloquea porque todavía no está notarizada: en macOS 15 o posterior andá a Ajustes del Sistema › Privacidad y seguridad y tocá Abrir igualmente; en macOS 14 o anterior, hacé clic derecho en la app y elegí Abrir.",
-    "unsignedWin": "En Windows: SmartScreen puede decir que protegió tu PC. Tocá Más información y después Ejecutar de todas formas.",
     "unsignedUpdates": "La app busca versiones nuevas en segundo plano y las instala cuando la reiniciás. En Mac, mientras la app no esté firmada por Apple, puede que tengas que volver a permitir Accesibilidad después de una actualización.",
     "featuresTitle": "Qué suma la app de escritorio",
     "f1t": "Dictado en cualquier app",
@@ -4011,12 +4112,13 @@
     "relatedTitle": "Guías y posts",
     "otherTitle": "Otras comparaciones",
     "tryCta": "Probar {name}",
-    "productCta": "La página de {name}"
+    "productCta": "La página de {name}",
+    "waitlistCta": "Unirme a la lista de espera de {name}"
   },
   "docsMcp": {
     "meta": {
       "title": "Conectar Claude y la CLI",
-      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 26 apps como vos."
+      "description": "Conectá Claude Code o la CLI de zerosoft a tu cuenta con tu login de siempre, y trabajá en las 19 apps como vos."
     }
   }
 }

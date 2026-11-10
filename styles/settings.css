@@ -25,22 +25,7 @@
 .st-page .table td.data { white-space: nowrap; }
 .st-stack { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 
-/* Nav lateral de la plataforma: dos grupos con rótulo; bajo 1180px, un select arriba (con el sidebar abierto, al lado del nav las tablas no entran). */
-.st-layout { grid-template-columns: 220px minmax(0, 1fr); }
-.st-nav-wrap { position: sticky; top: 72px; min-width: 0; }
-.st-nav { display: flex; flex-direction: column; gap: 20px; }
-.st-nav-group { display: flex; flex-direction: column; gap: 2px; }
-.st-nav-heading { padding: 0 10px 4px; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2); }
-.st-nav-link { gap: 8px; }
-.st-nav-swatch { flex: 0 0 8px; width: 8px; height: 8px; border-radius: var(--radius-1); }
-.st-nav-select { display: none; }
-@media (max-width: 1180px) {
-  .st-layout { grid-template-columns: minmax(0, 1fr); }
-  .st-nav-wrap { position: static; }
-  .st-nav { display: none; }
-  .st-nav-select { display: flex; flex-direction: column; gap: 6px; }
-  .st-nav-select .select { width: 100%; }
-}
+/* Nav lateral: styles/settings-nav.css (también la usa la ventana de Ajustes del escritorio). */
 
 /* Sección todavía sin contenido: qué va acá y dónde está hoy. */
 .st-soon { display: flex; flex-direction: column; gap: 16px; }
@@ -444,7 +429,7 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
   .st-fb-promote .select { width: 100%; flex: 1 1 100%; }
   .st-rm-grid, .ui-drawer .st-rm-grid { grid-template-columns: minmax(0, 1fr); }
   .st-cl-top, .st-cl-lang { grid-template-columns: minmax(0, 1fr); }
-  .st-kb { grid-template-columns: repeat(7, minmax(78vw, 1fr)); }
+  .st-kb { grid-template-columns: repeat(7, minmax(78vw, 1fr)); min-width: 0; max-width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -568,3 +553,129 @@ dialog.st-kb-drawer { width: min(560px, 100vw); }
   .st-lc { grid-template-columns: minmax(0, 1fr); }
   .st-lc-templates ul { flex-direction: row; flex-wrap: wrap; }
 }
+
+/* ---------- Apps del workspace ---------- */
+.ws-apps { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.ws-apps-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) minmax(150px, 180px);
+  align-items: start;
+  gap: 4px 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ws-apps-glyph { padding-top: 2px; }
+.ws-apps-row.is-off .ws-apps-glyph, .ws-apps-row.is-off .ws-apps-name { opacity: 0.55; }
+.ws-apps-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ws-apps-name { font-weight: 600; font-size: 0.9375rem; }
+.ws-apps-desc { font-size: 0.8125rem; color: var(--ink-2); line-height: 1.4; }
+.ws-apps-sum { font-size: 0.8125rem; color: var(--ink-3); }
+.ws-apps-status { margin-left: 8px; }
+.ws-apps-control { display: flex; flex-direction: column; gap: 8px; }
+.ws-apps-control .select { width: 100%; }
+.ws-apps-personrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 190px); gap: 8px; align-items: center; padding: 4px 0; }
+.ws-apps-edit {
+  padding: 0;
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.ws-apps-edit:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ws-apps-foot { margin-top: 12px; }
+.ws-apps-pick { display: flex; flex-direction: column; gap: 12px; max-height: 60vh; overflow-y: auto; }
+.ws-apps-person { overflow-wrap: anywhere; }
+.st-waitlist-table td.num, .st-waitlist-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) {
+  .ws-apps-row { grid-template-columns: 20px minmax(0, 1fr); }
+  .ws-apps-control { grid-column: 2; }
+  .ws-apps-personrow { grid-template-columns: minmax(0, 1fr); }
+}
+/* Ajustes › Seguridad: dos pasos, sesiones y registro. */
+.st-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; max-width: 72ch; }
+.st-mfa-qr { width: 176px; height: 176px; padding: 8px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.st-mfa-qr svg { display: block; width: 100%; height: 100%; }
+.st-mfa-secret { display: inline-block; max-width: 100%; padding: 6px 8px; overflow-wrap: anywhere; background: var(--brand-enamel); border-radius: var(--radius-1); }
+.st-mfa-code { max-width: 420px; }
+.st-mfa-input { width: 16ch; font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+.st-codes {
+  margin: 0;
+  padding: 12px;
+  column-count: 2;
+  column-gap: 24px;
+  max-width: 360px;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  background: var(--brand-enamel);
+  border-radius: var(--radius-1);
+}
+.st-sessions { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.st-session { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.st-session-main { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.st-session-meta { flex-basis: 100%; font-size: 0.8125rem; overflow-wrap: anywhere; }
+.st-cell-clip { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Registro: el evento es lo que se lee primero; persona y detalle ceden lugar. */
+.st-events .st-cell-clip { max-width: 16ch; }
+.st-page .table-wrap .st-events { min-width: 0; }
+/* Borrar cuenta o workspace: aire entre el aviso y los campos. */
+.st-delete-dialog .ui-modal-body { display: flex; flex-direction: column; gap: 16px; }
+.st-delete-dialog .ui-modal-body > p { margin: 0; }
+.st-delete-dialog .ui-field { margin: 0; }
+/* Registro y actividad como tarjetas a 390 (.table-stack, mismo corte): el evento manda. */
+@media (max-width: 640px) {
+  .st-events .st-cell-clip { max-width: none; }
+  .st-events .st-event-action { min-width: 0; font-weight: 500; }
+}
+.st-without-mfa summary { cursor: pointer; font-size: 0.875rem; }
+.st-without-mfa ul { margin: 8px 0 0; padding-left: 20px; font-size: 0.875rem; }
+@media (max-width: 480px) {
+  .st-codes { column-count: 1; }
+  .st-session { align-items: flex-start; }
+}
+/* ---------- Sin conexión (components/settings/OfflineSettings.tsx) ---------- */
+
+.st-offline-switch { font-weight: 500; }
+.st-offline-apps, .st-offline-size { padding-top: 4px; }
+.st-offline-apps legend, .st-offline-size legend { margin-bottom: 4px; padding: 0; }
+.st-offline-apps:disabled .st-email-pref,
+.st-offline-size:disabled .st-email-pref { opacity: 0.55; cursor: default; }
+.st-radio input[type='radio'] { flex: 0 0 16px; width: 16px; height: 16px; margin: 1px 0 0; accent-color: var(--ink); cursor: pointer; }
+.st-radio input[type='radio']:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.st-offline-days { max-width: 280px; }
+.st-offline-status:empty { display: none; }
+.st-offline-usage { flex: none; }
+.st-offline-pending { display: flex; align-items: baseline; gap: 8px; margin: 0; }
+.st-offline-pending .data { font-size: 1.25rem; }
+.st-offline-pending-list { margin: 0; padding-left: 18px; font-size: 0.875rem; color: var(--brand-gray-1); display: flex; flex-direction: column; gap: 2px; }
+
+/* ---------- Apariencia ---------- */
+
+.st-theme-options { display: grid; grid-template-columns: repeat(3, minmax(0, 168px)); gap: 12px; }
+.st-theme-option { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-1); cursor: pointer; background: var(--bg); transition: border-color var(--ui-dur) var(--ease); }
+.st-theme-option:hover { border-color: var(--brand-gray-3); }
+.st-theme-option:has(input:checked) { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.st-theme-option:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+.st-theme-option input { position: absolute; opacity: 0; pointer-events: none; }
+.st-theme-swatch { display: grid; grid-template-columns: 28% 1fr; height: 64px; border: 1px solid var(--line); border-radius: var(--radius-1); overflow: hidden; }
+.st-theme-swatch i { display: block; }
+.st-theme-swatch[data-theme='light'] i:first-child { background: #fafafa; border-right: 1px solid #e8e8e8; }
+.st-theme-swatch[data-theme='light'] i:last-child { background: #ffffff linear-gradient(#0d0d0d, #0d0d0d) 10px 12px / 40% 4px no-repeat; }
+.st-theme-swatch[data-theme='dark'] i:first-child { background: #161616; border-right: 1px solid #2a2a2a; }
+.st-theme-swatch[data-theme='dark'] i:last-child { background: #0d0d0d linear-gradient(#f2f2f2, #f2f2f2) 10px 12px / 40% 4px no-repeat; }
+.st-theme-swatch[data-theme='system'] { grid-template-columns: 1fr 1fr; }
+.st-theme-swatch[data-theme='system'] i:first-child { background: #ffffff linear-gradient(#0d0d0d, #0d0d0d) 10px 12px / 50% 4px no-repeat; }
+.st-theme-swatch[data-theme='system'] i:last-child { background: #0d0d0d linear-gradient(#f2f2f2, #f2f2f2) 10px 12px / 50% 4px no-repeat; }
+.st-theme-label { font-size: 0.875rem; font-weight: 500; }
+@media (max-width: 520px) {
+  .st-theme-options { grid-template-columns: minmax(0, 1fr); }
+  .st-theme-swatch { height: 44px; }
+}
+
+/* ---------- App de escritorio ---------- */
+
+.st-desktop-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 28px; margin: 0; }
+.st-desktop-sections > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.st-desktop-sections dd { margin: 0; }

@@ -39,7 +39,7 @@ test.describe('sitio en Mac', () => {
     await expect(link.locator('.hd-dl-long')).toBeHidden();
     // En /download ya está todo: el header no lo repite.
     await page.goto('/en/download');
-    await expect(page.getByTestId('download-primary')).toBeVisible();
+    await expect(page.getByTestId('desktop-download')).toBeVisible();
     await expect(page.getByTestId('header-download')).toHaveCount(0);
     await page.goto('/en');
     await expect(link).toHaveAttribute('href', '/api/desktop/download?from=header&os=mac-arm&locale=en');

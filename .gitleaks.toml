@@ -1,0 +1,16 @@
+# Reglas por defecto de gitleaks, más las rutas con valores de prueba o de ejemplo.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fixtures, lockfiles y textos de ejemplo"
+paths = [
+  '''^tests/''',
+  '''\.test\.ts$''',
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)Cargo\.lock$''',
+  '''^messages/''',
+  '''^content/''',
+  # Nombres de variables del anillo de claves (ENCRYPTION_KEY...), sin valores: falso positivo de generic-api-key.
+  '''^lib/key-ring\.ts$''',
+]

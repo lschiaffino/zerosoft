@@ -154,6 +154,11 @@
       "b": "¿Qué insights hay guardados en este proyecto?",
       "c": "¿Qué feature flags están activos?"
     },
+    "analytics": {
+      "a": "¿Qué tableros tenemos?",
+      "b": "¿Cuántos deals ganamos por mes este año?",
+      "c": "¿Qué preguntas usan el CRM?"
+    },
     "people": {
       "a": "¿Quién está fuera esta semana?",
       "b": "¿Cuántos días de vacaciones me quedan?",

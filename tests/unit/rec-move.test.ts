@@ -44,9 +44,9 @@ async function ready(actor: RecActor, title: string, extra: { spaceId?: string }
 }
 
 describe('aviso del diálogo de mover', () => {
-  it('avisa que "solo estas personas" no entra a un lugar compartido', () => {
-    expect(recMoveNotice({ spaceId: null, privacy: 'people' }, { space: 'workspace', folderId: null, spaceId: 's1' })).toBe('needs_privacy');
-    expect(recMoveNotice({ spaceId: null, privacy: 'people' }, { space: 'workspace', folderId: null })).toBe('needs_privacy');
+  it('avisa que un restringido que entra a un lugar compartido lo ve la gente de ese lugar', () => {
+    expect(recMoveNotice({ spaceId: null, privacy: 'people' }, { space: 'workspace', folderId: null, spaceId: 's1' })).toBe('becomes_shared');
+    expect(recMoveNotice({ spaceId: null, privacy: 'people' }, { space: 'workspace', folderId: null })).toBe('becomes_shared');
     expect(recMoveNotice({ spaceId: null, privacy: 'people' }, { space: 'personal', folderId: 'f1' })).toBeNull();
   });
   it('avisa que un video de un espacio pasa a "solo estas personas" en Mis videos', () => {
@@ -61,11 +61,11 @@ describe('aviso del diálogo de mover', () => {
     await updateVideo(member, v.id, { folderId: null, space: 'personal', spaceId: null });
     const back = (await getVideoRow(member, v.id))!;
     expect(back.people_only).toBe(1);
-    // Volver al espacio sin cambiar quién lo ve falla, como avisa el diálogo.
-    expect(recMoveNotice({ spaceId: null, privacy: 'people' }, { space: 'workspace', folderId: null, spaceId: s.id })).toBe('needs_privacy');
-    await expect(updateVideo(member, v.id, { folderId: null, space: 'workspace', spaceId: s.id })).rejects.toMatchObject({ code: 'people_needs_personal' });
-    await updateVideo(member, v.id, { privacy: 'workspace', folderId: null, space: 'workspace', spaceId: s.id });
-    expect((await getVideoRow(member, v.id))!.space_id).toBe(s.id);
+    // Volver al espacio lo abre a sus miembros, como avisa el diálogo.
+    expect(recMoveNotice({ spaceId: null, privacy: 'people' }, { space: 'workspace', folderId: null, spaceId: s.id })).toBe('becomes_shared');
+    await updateVideo(member, v.id, { folderId: null, space: 'workspace', spaceId: s.id });
+    const again = (await getVideoRow(member, v.id))!;
+    expect([again.space_id, again.privacy, again.people_only]).toEqual([s.id, 'workspace', 0]);
   });
 });
 

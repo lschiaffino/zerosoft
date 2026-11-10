@@ -1,5 +1,5 @@
 import http from 'http';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type Browser, type BrowserContext } from '@playwright/test';
 import { buildEvolutionData, evolutionImportResponse } from '../support/evolution-fake';
 
@@ -13,7 +13,7 @@ const PORT = Number(process.env.E2E_PORT) || 3210;
 const uid = () => Math.random().toString(36).slice(2, 8);
 
 async function sql(statement: string, args: Array<string | number | null> = []) {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   try {
     return (await db.execute({ sql: statement, args })).rows as unknown as Array<Record<string, unknown>>;
   } finally {
@@ -75,7 +75,7 @@ test('importar al conectar: 212 chats con nombres, fotos y mensajes; el hilo se 
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(err.message));
   try {
-    await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     await page.getByRole('link', { name: 'Scan QR code' }).click();
     await page.getByRole('dialog', { name: 'Add a WhatsApp number' }).getByRole('button', { name: 'Show QR code' }).click();
     const connect = page.getByRole('dialog', { name: /^Connect / });
@@ -152,7 +152,7 @@ test('la bandeja a 390px: lista y conversación sin scroll horizontal, en claro 
       const page = await ctx.newPage();
       await page.setViewportSize({ width: 390, height: 844 });
       await page.emulateMedia({ colorScheme: scheme });
-      await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+      await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
       await page.locator('.gr-row', { hasText: 'Acme · Rollout' }).click();
       await expect(page.locator('.gr-msg').first()).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

@@ -47,7 +47,9 @@
     "mic_denied": "El navegador bloqueó el micrófono. Permitilo y probá de nuevo.",
     "mic_missing": "No se encontró un micrófono.",
     "mic_failed": "No se pudo abrir el micrófono.",
-    "no_tab_audio": "La pestaña compartida no trae audio. Compartila de nuevo y activá \"Compartir audio de la pestaña\".",
+    "no_tab_audio": "La pantalla compartida no trae audio. En Chrome elegí una pestaña y activá \"Compartir audio de la pestaña\" (en Windows también sirve toda la pantalla con \"Compartir audio del sistema\").",
+    "tab_skipped": "Se graba solo tu micrófono: no se compartió el audio de la reunión. Cortá y empezá de nuevo para compartir una pestaña o el audio del sistema.",
+    "screen_denied": "zerosoft necesita permiso para grabar el audio de la compu. Activá zerosoft en Ajustes del Sistema > Privacidad y seguridad > Grabación de pantalla y audio del sistema, reabrí la app y empezá de nuevo. Por ahora se graba solo tu micrófono.",
     "too_short": "Fue muy corto. Mantené la tecla mientras hablás.",
     "nothing_heard": "No se escuchó nada.",
     "not_found": "Esa reunión no existe o se borró.",
@@ -80,7 +82,11 @@
     "notion_not_connected": "Esa conexión de Notion no está disponible.",
     "notion_failed": "Notion no respondió. Probá de nuevo.",
     "notion_parent": "Notion no encuentra esa página. Pegá su link y compartila con la integración.",
-    "ai_failed": "La IA no pudo responder. Probá de nuevo."
+    "ai_failed": "La IA no pudo responder. Probá de nuevo.",
+    "attachment_type": "Adjuntá un archivo de texto (txt, md, csv, json, vtt o srt).",
+    "attachment_too_large": "El archivo es muy grande. Adjuntá uno de menos de 2 MB.",
+    "mailbox_not_connected": "Conectá Gmail u Outlook para mandar emails desde acá.",
+    "send_failed": "Tu proveedor de correo no aceptó el mensaje. Probá de nuevo."
   },
   "meetings": {
     "title": "Reuniones",
@@ -166,7 +172,11 @@
     "noProjects": "Creá un proyecto en Track para mandar issues.",
     "sentTrack": "{count, plural, one {Se creó # issue:} other {Se crearon # issues:}}",
     "sentCrm": "{count, plural, one {Se creó # tarea.} other {Se crearon # tareas.}}",
-    "openTasks": "Ver tareas"
+    "openTasks": "Ver tareas",
+    "summaryPlaceholder": "Escribí un resumen…",
+    "heading": "Título de la sección",
+    "pointMine": "Tu nota",
+    "pointAi": "Nota de la transcripción"
   },
   "transcript": {
     "me": "Yo",
@@ -187,7 +197,6 @@
     "thinking": "Leyendo la reunión…",
     "placeholder": "Preguntá sobre esta reunión",
     "send": "Preguntar",
-    "recipesHint": "Escribí / para recipes como próximos pasos o un seguimiento.",
     "emptyLive": "Preguntá lo que quieras mientras sigue la reunión. Voice lee la transcripción hasta ahora.",
     "suggestionsLabel": "Probá con",
     "suggestLive": [
@@ -248,7 +257,6 @@
     "cancel": "Cancelar",
     "deleteTitle": "¿Borrar esta reunión?",
     "deleteBody": "Se borran la transcripción y las notas. Lo que ya mandaste a Docs o Notes queda.",
-    "recorderLabel": "Grabador",
     "unsupported": "Este navegador no puede grabar audio. Usá Chrome, Edge, Firefox o Safari.",
     "modeLabel": "Qué grabar",
     "modeMic": "Micrófono (en persona o con parlantes)",
@@ -269,22 +277,16 @@
     "myNotes": "Mis notas",
     "aiNotes": "Nota de la reunión",
     "viewLabel": "Qué nota ver",
-    "viewAi": "Con IA",
-    "viewMine": "Las mías",
-    "notesPlaceholder": "Anotá lo importante mientras pasa. Alcanzan frases cortas: la IA completa el resto con la transcripción.",
+    "viewAi": "Notas mejoradas",
+    "viewMine": "Mis notas",
+    "notesPlaceholder": "Escribí tus notas…",
     "saving": "Guardando…",
     "saved": "Guardado",
     "saveError": "No se pudo guardar. Revisá la conexión.",
     "template": "Plantilla",
-    "enhance": "Armar la nota con IA",
+    "enhance": "Generar notas",
     "regenerate": "Volver a generar",
-    "enhancing": "Escribiendo…",
-    "sideLabel": "Transcripción, chat y vínculos",
-    "tabs": {
-      "transcript": "Transcripción",
-      "chat": "Preguntar",
-      "details": "Vínculos"
-    },
+    "enhancing": "Generando las notas…",
     "recordingElsewhere": "Se está grabando otra reunión.",
     "openOther": "Abrirla",
     "notesQueued": "Armando la nota con IA. Podés salir de esta página: queda guardada en la reunión.",
@@ -299,12 +301,22 @@
     "recoveredParts": "{count, plural, one {Se transcribió # parte más. Regenerá la nota para sumarla.} other {Se transcribieron # partes más. Regenerá la nota para sumarlas.}}",
     "docsPrivateBody": "La página va a tu teamspace privado “{space}” en Docs: solo vos la ves hasta que la compartas.",
     "share": "Compartir",
-    "followup": "Email de seguimiento",
     "sendSlackNotion": "Slack o Notion",
-    "sharedBadge": "Compartida por link",
     "folder": "Carpeta",
     "noFolder": "Sin carpeta",
-    "attendeesOpen": "Ver asistentes"
+    "more": "Más acciones",
+    "copyLink": "Copiar link",
+    "linkCopied": "Link copiado.",
+    "crmLinks": "CRM y vínculos",
+    "close": "Cerrar",
+    "addToFolder": "Agregar a carpeta",
+    "removeFromFolder": "Sacar de la carpeta",
+    "newFolder": "Carpeta nueva…",
+    "transcriptOpen": "Transcripción en vivo",
+    "transcriptClose": "Ocultar la transcripción",
+    "transcriptTitle": "Transcripción",
+    "regenerateWith": "Regenerar con {template}",
+    "shared": "Compartida"
   },
   "templates": {
     "builtin": {
@@ -356,7 +368,7 @@
       "voice": "Voice",
       "calendar": "Cal",
       "board": "Board",
-      "groups": "Groups",
+      "groups": "Lines",
       "flow": "Flow",
       "desktop": "App de escritorio",
       "other": "Otras"
@@ -627,7 +639,7 @@
   "followup": {
     "title": "Email de seguimiento",
     "close": "Cerrar",
-    "help": "La IA redacta el email con la nota de la reunión. Lo podés editar y abrir en Gmail, Outlook o tu app de correo.",
+    "help": "La IA redacta el email con la nota de la reunión. Lo editás y lo mandás desde tu correo, o lo copiás.",
     "generate": "Redactar el borrador",
     "regenerate": "Redactarlo de nuevo",
     "writing": "Redactando…",
@@ -643,7 +655,15 @@
     "copyFailed": "El navegador no dejó copiar.",
     "mail": "App de correo",
     "outlook": "Abrir en Outlook",
-    "gmail": "Abrir en Gmail"
+    "gmail": "Abrir en Gmail",
+    "send": "Enviar",
+    "sendAgain": "Enviar de nuevo",
+    "sending": "Enviando…",
+    "sendFrom": "Sale desde {email}.",
+    "sentNote": "Enviado desde {email}.",
+    "sent": "Enviado desde {email}.",
+    "connectHelp": "Conectá Gmail u Outlook para mandarlo desde acá.",
+    "connect": "Conectar tu correo"
   },
   "share": {
     "title": "Compartir esta reunión",
@@ -754,6 +774,18 @@
       "coach": {
         "name": "Coaching",
         "prompt": "Dame una devolución honesta de cómo llevé esta conversación: qué salió bien, qué mejorar y una cosa para probar la próxima vez. Citá momentos cortos."
+      },
+      "todos": {
+        "name": "Mis pendientes",
+        "prompt": "Listá lo que tengo que hacer yo (Yo) después de esta reunión, uno por renglón, con la fecha si se dijo."
+      },
+      "longer": {
+        "name": "Notas más largas",
+        "prompt": "Reescribí las notas de la reunión con más detalle: mismos títulos y, bajo cada punto, lo que dice la transcripción."
+      },
+      "tldr": {
+        "name": "Resumen en 3 líneas",
+        "prompt": "Escribí un resumen de la reunión en tres renglones cortos: de qué se habló, qué se decidió y qué sigue."
       }
     },
     "transforms": {
@@ -778,5 +810,90 @@
         "prompt": "Traducilo a un inglés natural."
       }
     }
+  },
+  "people": {
+    "panel": "Evento y asistentes",
+    "eventTitle": "Elegir evento del calendario",
+    "loading": "Cargando los eventos de hoy…",
+    "noEvents": "No hay eventos en tu calendario hoy.",
+    "connectHelp": "Conectá Google Calendar u Outlook en Cal para elegir los eventos de hoy.",
+    "connect": "Conectar un calendario",
+    "untitledEvent": "Evento sin título",
+    "hasNotes": "Ya tiene notas",
+    "unlink": "Desvincular el evento",
+    "unlinkNamed": "Desvincular “{title}”",
+    "attendees": "Asistentes",
+    "add": "Agregar asistentes…",
+    "suggestions": "Sugerencias",
+    "teamTag": "Workspace",
+    "empty": "Todavía no hay asistentes. Elegí un evento o agregá gente por nombre o email.",
+    "team": "Tu equipo",
+    "personal": "Emails personales",
+    "remove": "Quitar a {name}",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "me": "Yo",
+    "meAnd": "{count, plural, one {Yo + # persona} other {Yo + # personas}}"
+  },
+  "ask": {
+    "panel": "Preguntas sobre la reunión",
+    "history": "Historial de chats",
+    "historyEmpty": "Todavía no hay chats.",
+    "turns": "{count, plural, one {# pregunta} other {# preguntas}}",
+    "model": "Modelo",
+    "models": {
+      "fast": "Rápido",
+      "deep": "A fondo"
+    },
+    "expand": "Agrandar",
+    "collapse": "Achicar",
+    "newChat": "Chat nuevo",
+    "close": "Cerrar",
+    "followupTitle": "Email de seguimiento",
+    "recipes": "Recipes",
+    "followup": "Escribir email de seguimiento",
+    "allRecipes": "Todos los recipes",
+    "sayMore": "Decime más",
+    "sayMoreQuestion": "Contame más sobre eso, con más detalle.",
+    "copy": "Copiar",
+    "copied": "Copiado.",
+    "copyFailed": "El navegador no dejó copiar.",
+    "stopAnswer": "Dejar de escribir",
+    "placeholder": "Preguntá lo que quieras",
+    "placeholderLive": "Preguntá sobre lo que va de la reunión",
+    "attach": "Adjuntar un archivo de texto",
+    "attachRemove": "Quitar {name}",
+    "attachCut": "Archivo largo: con la pregunta va solo la primera parte.",
+    "dictate": "Dictar la pregunta",
+    "dictateStop": "Terminar el dictado",
+    "mistakes": "La IA puede equivocarse. Revisá los datos importantes."
+  },
+  "library": {
+    "title": "Recipes",
+    "close": "Cerrar",
+    "search": "Buscar recipes",
+    "new": "Recipe nuevo",
+    "name": "Nombre",
+    "namePlaceholder": "Preparar la próxima llamada",
+    "prompt": "Qué pide",
+    "promptPlaceholder": "Leé la reunión y listá lo que tengo que preparar para la próxima llamada, con responsables.",
+    "shared": "Compartir con el workspace",
+    "save": "Guardar recipe",
+    "cancel": "Cancelar",
+    "loading": "Cargando recipes…",
+    "mine": "Tuyos",
+    "mineEmpty": "Los recipes que crees aparecen acá. Escribí / en el chat para correr uno.",
+    "noMatch": "Ningún recipe coincide.",
+    "team": "Compartidos por tu equipo",
+    "builtin": "De fábrica",
+    "sharedTag": "compartido",
+    "edit": "Editar",
+    "editNamed": "Editar {name}",
+    "delete": "Borrar",
+    "deleteNamed": "Borrar {name}",
+    "run": "Correr",
+    "runNamed": "Correr {name}",
+    "deleteTitle": "¿Borrar “{name}”?",
+    "deleteBody": "Los chats donde ya corrió conservan sus respuestas."
   }
 }

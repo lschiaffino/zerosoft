@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState, type ReactNode, type Ref } from 'react';
 import { useTranslations } from 'next-intl';
 import type { VoicePrompt } from '@/lib/voice-types';
 
@@ -12,7 +12,7 @@ export interface RecipeOption {
 }
 
 /** Recipes que puede correr la persona: los propios, los del equipo y los de fábrica. */
-export function useRecipes(): RecipeOption[] {
+export function useRecipes(version = 0): RecipeOption[] {
   const tPrompts = useTranslations('voice.prompts');
   const raw = tPrompts.raw('recipes') as Record<string, { name: string }>;
   const builtin = useMemo(() => Object.entries(raw).map(([k, v]) => ({ id: `builtin:${k}`, name: v.name, origin: 'builtin' as const })), [raw]);
@@ -26,7 +26,7 @@ export function useRecipes(): RecipeOption[] {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [version]);
   return useMemo(() => [...own, ...builtin], [own, builtin]);
 }
 
@@ -45,6 +45,13 @@ export default function RecipeInput({
   disabled,
   busy,
   submitLabel,
+  inputRef,
+  onFocus,
+  before,
+  after,
+  className = '',
+  recipesVersion = 0,
+  submitIcon,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -55,9 +62,19 @@ export default function RecipeInput({
   disabled?: boolean;
   busy?: boolean;
   submitLabel: string;
+  inputRef?: Ref<HTMLInputElement>;
+  onFocus?: () => void;
+  /** Botones antes y después del campo (en la barra de la reunión). */
+  before?: ReactNode;
+  after?: ReactNode;
+  className?: string;
+  /** Cambia al crear o editar un recipe: la lista se vuelve a pedir. */
+  recipesVersion?: number;
+  /** El botón de enviar como ícono (el texto queda como nombre accesible). */
+  submitIcon?: ReactNode;
 }) {
   const t = useTranslations('voice.recipes');
-  const recipes = useRecipes();
+  const recipes = useRecipes(recipesVersion);
   const listId = useId();
   const [active, setActive] = useState(0);
   const [closed, setClosed] = useState(false);
@@ -79,7 +96,7 @@ export default function RecipeInput({
 
   return (
     <form
-      className="vc-ask vc-recipe-input"
+      className={`vc-ask vc-recipe-input ${className}`}
       onSubmit={(e) => {
         e.preventDefault();
         if (disabled || busy) return;
@@ -87,9 +104,12 @@ export default function RecipeInput({
         if (value.trim() && !slash) onAsk(value.trim());
       }}
     >
+      {before}
       <input
+        ref={inputRef}
         className="input"
         value={value}
+        onFocus={onFocus}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={label}
@@ -116,8 +136,16 @@ export default function RecipeInput({
           }
         }}
       />
-      <button type="submit" className="btn btn-secondary" disabled={disabled || busy || !value.trim() || (slash && !matches.length)} aria-busy={busy || undefined}>
-        {submitLabel}
+      {after}
+      <button
+        type="submit"
+        className={submitIcon ? 'btn btn-primary btn-sm btn-icon vc-ask-send' : 'btn btn-secondary'}
+        disabled={disabled || busy || !value.trim() || (slash && !matches.length)}
+        aria-busy={busy || undefined}
+        aria-label={submitIcon ? submitLabel : undefined}
+        title={submitIcon ? submitLabel : undefined}
+      >
+        {submitIcon ?? submitLabel}
       </button>
       {open && (
         <ul className="vc-recipe-menu" role="listbox" id={listId} aria-label={t('label')}>

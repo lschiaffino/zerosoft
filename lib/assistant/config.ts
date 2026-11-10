@@ -57,7 +57,17 @@ export function resolveAssistantModel(fake: () => LanguageModel): { model: Langu
   const state = assistantState();
   if (state !== 'ready') return null;
   if (assistantFake()) return { model: fake(), modelId: 'assistant-fake' };
-  const key = process.env.OPENROUTER_API_KEY!.trim();
+  const modelId = assistantModelId();
+  return { model: openRouterChatModel(modelId, 'zerosoft assistant'), modelId: `openrouter:${modelId}` };
+}
+
+/**
+ * Modelo de chat de OpenRouter con la key del entorno (OPENROUTER_API_KEY).
+ * Lo usan el asistente y la IA de Inbox. Sin key tira: el llamador chequea antes.
+ */
+export function openRouterChatModel(modelId: string, title: string): LanguageModel {
+  const key = process.env.OPENROUTER_API_KEY?.trim();
+  if (!key) throw new Error('openrouter_not_configured');
   const provider = createOpenAICompatible({
     name: 'openrouter',
     baseURL: OPENROUTER_BASE_URL,
@@ -66,9 +76,8 @@ export function resolveAssistantModel(fake: () => LanguageModel): { model: Langu
     headers: {
       // Atribución opcional de OpenRouter (ranking de apps); no es un secreto.
       'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://zerosoft.ai',
-      'X-Title': 'zerosoft assistant',
+      'X-Title': title,
     },
   });
-  const modelId = assistantModelId();
-  return { model: provider.chatModel(modelId), modelId: `openrouter:${modelId}` };
+  return provider.chatModel(modelId);
 }

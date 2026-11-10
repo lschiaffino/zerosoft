@@ -7,7 +7,7 @@ import FeatureParity from '@/components/products/FeatureParity';
 import { GITHUB_URL, PRODUCT_PAGES } from '@/components/site/catalog';
 import { beyondRows, compareSlugs, findComparison, gapRows, getComparisons, rivalMatches, strongestRows, type Comparison } from '@/lib/compare';
 import { loc } from '@/lib/feature-parity';
-import { PRODUCT_CONFIG, isBuildingProduct, isProductKey } from '@/lib/products';
+import { PRODUCT_CONFIG, isComingSoon, isProductKey, productHref } from '@/lib/products';
 import { postsAbout } from '@/lib/blog';
 import { breadcrumbLd, faqLd, graphLd, jsonLdString, pageMetadata, softwareLd, type FaqItem } from '@/lib/seo';
 import '@/styles/pages.css';
@@ -71,7 +71,7 @@ export default async function ComparePage(props: { params: Promise<Params> }) {
   const v = vars(c, locale);
   const cfg = PRODUCT_CONFIG[c.product];
   const p = `products.${c.product}`;
-  const launch = isBuildingProduct(c.product) ? `/feedback-board/new?product=${c.product}` : cfg.launch;
+  const launch = isComingSoon(c.product) ? `${productHref(c.product)}#waitlist` : cfg.launch;
 
   // Precio de lista: solo si la página de producto lo cita para este mismo competidor.
   const rival = tp(`${p}.compare.rival`);
@@ -104,7 +104,7 @@ export default async function ComparePage(props: { params: Promise<Params> }) {
       locale,
       name: `zerosoft ${cfg.name}`,
       description: tp(`${p}.meta.description`),
-      path: `/products/${c.product}`,
+      path: productHref(c.product),
       image: `/api/og/product/${c.product}/${locale}`,
     }),
     ...(faq.length ? [faqLd(faq)] : []),
@@ -136,9 +136,10 @@ export default async function ComparePage(props: { params: Promise<Params> }) {
           </h1>
           <p className="read-intro">{t(c.percentNote ? (kind === 'vs' ? 'vs.leadCounts' : 'alt.leadCounts') : kind === 'vs' ? 'vs.lead' : 'alt.lead', v)}</p>
           {c.percentNote && <p className="cmp-scope-note">{loc(c.percentNote, locale)}</p>}
+          {isComingSoon(c.product) && <p className="cmp-scope-note">{tp('product.building.parityNote', { name: c.name })}</p>}
           <div className="read-actions">
             <Link className="btn btn-primary" href={launch}>
-              {t('tryCta', v)}
+              {isComingSoon(c.product) ? t('waitlistCta', v) : t('tryCta', v)}
             </Link>
             {kind === 'vs' ? (
               <Link className="btn btn-secondary" href={`/compare/${c.altSlug}`}>
@@ -311,7 +312,7 @@ export default async function ComparePage(props: { params: Promise<Params> }) {
         </h2>
         <ul className="cmp-other">
           <li>
-            <Link href={`/products/${c.product}`}>{t('productCta', v)}</Link>
+            <Link href={productHref(c.product)}>{t('productCta', v)}</Link>
           </li>
           <li>
             <Link href={kind === 'vs' ? `/compare/${c.altSlug}` : `/compare/${c.vsSlug}`}>

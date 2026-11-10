@@ -2,6 +2,8 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { chatsForCrmRecord, mediaKind } from '@/lib/groups';
 import LocalDate from '@/components/ui/LocalDate';
+import { groupsViewer } from '@/lib/groups-access';
+import type { TeamRole } from '@/lib/teams';
 
 /**
  * Bloque de Groups en la ficha de un contacto o empresa del CRM: los chats y
@@ -9,9 +11,25 @@ import LocalDate from '@/components/ui/LocalDate';
  * respuesta y los tickets abiertos. Se vincula desde el panel de detalles
  * del chat en Groups.
  */
-export default async function CrmGroupsBlock({ ws, kind, recordId, locale }: { ws: string; kind: 'contact' | 'company'; recordId: string; locale: string }) {
+export default async function CrmGroupsBlock({
+  ws,
+  kind,
+  recordId,
+  locale,
+  me,
+  role,
+}: {
+  ws: string;
+  kind: 'contact' | 'company';
+  recordId: string;
+  locale: string;
+  /** Quién mira y con qué rol: la ficha respeta la visibilidad por línea y por etiqueta. */
+  me: string;
+  role: TeamRole;
+}) {
   const t = await getTranslations({ locale, namespace: 'groups' });
-  const chats = await chatsForCrmRecord(ws, kind, recordId).catch(() => []);
+  const viewer = await groupsViewer(ws, me, role);
+  const chats = await chatsForCrmRecord(ws, kind, recordId, 5, viewer).catch(() => []);
   return (
     <div className="record-summary-block gr-crm-block" data-testid="crm-groups">
       <h2 className="record-summary-title">
@@ -24,7 +42,7 @@ export default async function CrmGroupsBlock({ ws, kind, recordId, locale }: { w
           {chats.map(({ chat, messages, openTickets }) => (
             <li key={chat.id}>
               <div className="gr-crm-chat-head">
-                <Link href={`/app/groups/inbox/${chat.id}`}>{chat.name}</Link>
+                <Link href={`/app/lines/inbox/${chat.id}`}>{chat.name}</Link>
                 <span className="muted">
                   {chat.kind === 'group' ? t('thread.groupMeta', { n: chat.memberCount }) : `+${chat.phone}`}
                   {openTickets > 0 ? ` · ${t('crmBlock.tickets', { n: openTickets })}` : ''}

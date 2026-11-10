@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { availableProviders, createNumber, listNumbers } from '@/lib/groups';
-import { groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
-  return NextResponse.json({ numbers: await listNumbers(s.ws), providers: availableProviders(), canEdit: s.isAdmin });
+  return NextResponse.json({ numbers: await listNumbers(s.ws, await sessionViewer(s)), providers: availableProviders(), canEdit: s.isAdmin });
 }
 
 /** Agrega un número (admins). Las credenciales se guardan cifradas. */

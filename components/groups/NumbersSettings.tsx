@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import type { NumberDto } from '@/lib/groups';
+import type { GroupsPerson, NumberDto } from '@/lib/groups';
+import LineAccess from './LineAccess';
 import type { ConnectState, ProviderKind } from '@/lib/groups-provider';
 import { Modal, api, useErrorText, useToast } from './ui';
 
@@ -45,8 +46,12 @@ export default function NumbersSettings({
   canEdit,
   openNew,
   reconnect = null,
+  people = [],
+  teams = [],
 }: {
   initial: NumberDto[];
+  people?: GroupsPerson[];
+  teams?: Array<{ id: string; name: string }>;
   providers: ProviderKind[];
   canEdit: boolean;
   openNew: boolean;
@@ -65,6 +70,9 @@ export default function NumbersSettings({
   const [removing, setRemoving] = useState<NumberDto | null>(null);
   const [disconnecting, setDisconnecting] = useState<NumberDto | null>(null);
   const [editing, setEditing] = useState<NumberDto | null>(null);
+  const [accessFor, setAccessFor] = useState<NumberDto | null>(null);
+  const [ownerFilter, setOwnerFilter] = useState('');
+  const owners = people.filter((p) => numbers.some((n) => n.ownerId === p.id));
 
   const syncStatus = useCallback((id: string, status: ConnectState['status']) => {
     setNumbers((list) => (list.some((x) => x.id === id && x.status !== status) ? list.map((x) => (x.id === id ? { ...x, status } : x)) : list));
@@ -117,11 +125,21 @@ export default function NumbersSettings({
           </button>
         )}
       </div>
+      {owners.length > 0 && (
+        <select className="select" value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)} aria-label={t('lines.filterOwner')} data-testid="lines-owner-filter">
+          <option value="">{t('lines.allOwners')}</option>
+          {owners.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name || p.email}
+            </option>
+          ))}
+        </select>
+      )}
       {numbers.length === 0 ? (
         <p className="ui-help">{t('numbers.empty')}</p>
       ) : (
         <ul className="gr-numbers">
-          {numbers.map((n) => (
+          {numbers.filter((n) => !ownerFilter || n.ownerId === ownerFilter).map((n) => (
             <li key={n.id} className="panel gr-number">
               <div className="gr-number-main">
                 <strong>{n.name}</strong>
@@ -133,8 +151,19 @@ export default function NumbersSettings({
                 ) : (
                   <span className={`badge ${n.status === 'connected' ? 'badge-ok' : n.status === 'error' ? 'badge-bad' : 'badge-warn'}`}>{t(`numberStatus.${n.status}`)}</span>
                 )}
+                <span className="ui-help" data-testid="line-owner-label">
+                  {n.ownerName ? t('lines.ownerIs', { name: n.ownerName }) : t('lines.noOwner')}
+                  {n.visibility === 'restricted' ? ` · ${t('lines.restrictedTag')}` : ''}
+                </span>
                 {n.lastError && <span className="ui-error">{errText(n.lastError)}</span>}
               </div>
+              {canEdit && (
+                <div className="gr-number-actions">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAccessFor(n)} data-testid="line-access-btn">
+                    {t('lines.access')}
+                  </button>
+                </div>
+              )}
               {canEdit && n.provider === 'sample' && (
                 <div className="gr-number-actions">
                   <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(n)}>
@@ -203,6 +232,18 @@ export default function NumbersSettings({
             setFreshId(n.id);
             setConnecting(n);
           } else showToast(t('common.saved'));
+        }}
+      />
+      <LineAccess
+        number={accessFor}
+        people={people}
+        teams={teams}
+        onClose={() => setAccessFor(null)}
+        onSaved={(n) => {
+          setNumbers((list) => list.map((x) => (x.id === n.id ? { ...x, ...n } : x)));
+          setAccessFor(null);
+          showToast(t('common.saved'));
+          router.refresh();
         }}
       />
       <ConnectModal
@@ -498,7 +539,7 @@ function ConnectModal({
             </button>
             <button type="button" className="btn btn-primary" disabled={synced.busy} onClick={() => {
                 // La bandeja pudo quedar en caché vacía (se vio antes de conectar): se pide de nuevo.
-                router.push('/app/groups/inbox');
+                router.push('/app/lines/inbox');
                 router.refresh();
               }}>
               {t('numbers.openInbox')}

@@ -1,5 +1,5 @@
 import http from 'http';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type Browser, type BrowserContext } from '@playwright/test';
 
 /**
@@ -16,7 +16,7 @@ const uid = () => Math.random().toString(36).slice(2, 8);
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
 async function sql(statement: string, args: Array<string | number | null> = []) {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   try {
     return (await db.execute({ sql: statement, args })).rows as unknown as Array<Record<string, unknown>>;
   } finally {
@@ -41,7 +41,7 @@ test('datos de ejemplo: cargar, responder sin salir a WhatsApp y borrar todo', a
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(err.message));
   try {
-    await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     await expect(page.getByRole('heading', { name: 'Your WhatsApp inbox is empty' })).toBeVisible();
     // Con el QR administrado, escanear es la acción principal y el ejemplo la otra.
     await expect(page.getByRole('link', { name: 'Scan QR code' })).toBeVisible();
@@ -128,7 +128,7 @@ test('QR administrado: escanear, traer grupos solo, recibir y responder, borrar 
   const { ctx } = await newPerson(browser, baseURL!);
   const page = await ctx.newPage();
   try {
-    await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     await page.getByRole('link', { name: 'Scan QR code' }).click();
     const dialog = page.getByRole('dialog', { name: 'Add a WhatsApp number' });
     await expect(dialog.getByLabel(/Scan QR code/)).toBeChecked();
@@ -179,7 +179,7 @@ test('QR administrado: escanear, traer grupos solo, recibir y responder, borrar 
     expect(send.body).toMatchObject({ number: '5491100002222@s.whatsapp.net', text: 'Sí, confirmado.' });
 
     // Borrar el número cierra la sesión y borra la instancia del servidor.
-    await page.goto('/en/app/groups/settings?tab=numbers', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/settings?tab=numbers', { waitUntil: 'networkidle' });
     await page.locator('.gr-number').getByRole('button', { name: 'Delete' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
     await expect.poll(() => hits.some((h) => h.method === 'DELETE' && h.path === `/instance/delete/${instance}` && h.apikey === GLOBAL_KEY)).toBe(true);
@@ -208,7 +208,7 @@ test('cambiar de chat y mandar enseguida nunca manda al chat anterior', async ({
     const chats = await chatsOf(ctx);
     const lucia = chats.find((c) => c.name === 'Lucía Fernández')!;
     const pablo = chats.find((c) => c.name === 'Pablo Ortiz')!;
-    await page.goto(`/en/app/groups/inbox/${lucia.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/lines/inbox/${lucia.id}`, { waitUntil: 'networkidle' });
     await expect(page.getByRole('heading', { level: 2, name: 'Lucía Fernández' })).toBeVisible();
     const text = `Para Pablo ${uid()}`;
     // Clic en otro chat y a escribir sin esperar: lo que se escribe nunca termina en el chat que se deja.
@@ -221,7 +221,7 @@ test('cambiar de chat y mandar enseguida nunca manda al chat anterior', async ({
     expect(await bodiesOf(ctx, lucia.id)).not.toContain(text);
     // Si llegó a mandarse, fue a Pablo; si no, quedó como borrador del chat donde se escribió (no se perdió).
     if (!(await bodiesOf(ctx, pablo.id)).includes(text)) {
-      await page.goto(`/en/app/groups/inbox/${lucia.id}`, { waitUntil: 'networkidle' });
+      await page.goto(`/en/app/lines/inbox/${lucia.id}`, { waitUntil: 'networkidle' });
       await expect(page.getByLabel('WhatsApp', { exact: true })).toHaveValue(text);
     }
   } finally {
@@ -235,7 +235,7 @@ test('abrir un chat con una imagen deja a la vista el último mensaje', async ({
   try {
     await ctx.request.post('/api/groups/sample', { data: { locale: 'en' } });
     const acme = (await chatsOf(ctx)).find((c) => c.name === 'Acme · Rollout')!;
-    await page.goto(`/en/app/groups/inbox/${acme.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/lines/inbox/${acme.id}`, { waitUntil: 'networkidle' });
     await expect(page.locator('.gr-media img')).toBeVisible();
     await expect
       .poll(() => page.locator('.gr-messages').evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight), { timeout: 5000 })
@@ -252,7 +252,7 @@ test('descripción del grupo: se ve, se edita y queda; sumar un miembro actualiz
   try {
     await ctx.request.post('/api/groups/sample', { data: { locale: 'en' } });
     const acme = (await chatsOf(ctx)).find((c) => c.name === 'Acme · Rollout')!;
-    await page.goto(`/en/app/groups/list/${acme.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/lines/list/${acme.id}`, { waitUntil: 'networkidle' });
     const field = page.getByLabel('Description', { exact: true });
     await expect(field).toHaveValue('Acme rollout. Questions, progress and files.');
     const next = `Rollout notes ${uid()}`;
@@ -276,7 +276,7 @@ test('cerrar el QR sin escanear no deja un número esperando; un número sin con
   const { ctx } = await newPerson(browser, baseURL!);
   const page = await ctx.newPage();
   try {
-    await page.goto('/en/app/groups/settings?tab=numbers&new=1', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/settings?tab=numbers&new=1', { waitUntil: 'networkidle' });
     await page.getByRole('dialog', { name: 'Add a WhatsApp number' }).getByRole('button', { name: 'Show QR code' }).click();
     const connect = page.getByRole('dialog', { name: /^Connect / });
     await expect(connect.getByRole('img', { name: 'QR code to link WhatsApp' })).toBeVisible();
@@ -285,12 +285,12 @@ test('cerrar el QR sin escanear no deja un número esperando; un número sin con
     await expect.poll(async () => ((await (await ctx.request.get('/api/groups/numbers')).json()) as { numbers: unknown[] }).numbers.length).toBe(0);
     const instance = String(hits.find((h) => h.path === '/instance/create')?.body?.instanceName);
     await expect.poll(() => hits.some((h) => h.method === 'DELETE' && h.path === `/instance/delete/${instance}`)).toBe(true);
-    await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     await expect(page.getByRole('button', { name: 'Try with sample data' })).toBeVisible();
 
     // Un número agregado que nunca conectó (credenciales propias): la bandeja lo dice y ofrece seguir.
     await ctx.request.post('/api/groups/numbers', { data: { provider: 'fake', name: `Pending ${uid()}` } });
-    await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     await expect(page.getByText('Your number is not connected yet.')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Finish connecting' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Try with sample data' })).toBeVisible();

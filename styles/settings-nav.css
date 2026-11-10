@@ -1,0 +1,89 @@
+/* ============================================================
+   NAV DE AJUSTES (components/app/PlatformSettingsNav.tsx) y el marco
+   embebido de la ventana de Ajustes del escritorio (.st-embed, lo arma
+   app/[locale]/app/layout.tsx con el user agent zerosoft-settings/).
+   ============================================================ */
+
+/* Nav lateral: grupos con rótulo y una caja que filtra; bajo 1180px, un select arriba
+   (con el sidebar de la app abierto, al lado del nav las tablas no entran). */
+.st-layout { grid-template-columns: 220px minmax(0, 1fr); }
+.st-nav-wrap { position: sticky; top: 72px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.st-nav { display: flex; flex-direction: column; gap: 20px; }
+.st-nav-group { display: flex; flex-direction: column; gap: 2px; }
+.st-nav-heading { padding: 0 10px 4px; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2); }
+.st-nav-link { gap: 8px; }
+.st-nav-swatch { flex: 0 0 8px; width: 8px; height: 8px; border-radius: var(--radius-1); }
+.st-nav-select { display: none; }
+.st-nav-search .input { min-height: 32px; }
+.st-nav-search .input::-webkit-search-cancel-button { cursor: pointer; }
+.st-nav-empty { padding: 0 10px; font-size: 0.8125rem; color: var(--brand-gray-2); overflow-wrap: anywhere; }
+@media (max-width: 1180px) {
+  .st-layout { grid-template-columns: minmax(0, 1fr); }
+  .st-nav-wrap:not(.st-nav-embed) { position: static; }
+  .st-nav-wrap:not(.st-nav-embed) .st-nav,
+  .st-nav-wrap:not(.st-nav-embed) .st-nav-search { display: none; }
+  .st-nav-wrap:not(.st-nav-embed) .st-nav-select { display: flex; flex-direction: column; gap: 6px; }
+  .st-nav-select .select { width: 100%; }
+}
+
+/* ---------- Ventana de Ajustes del escritorio ---------- */
+
+/* El marco ocupa la ventana: la nav a la izquierda con su propio scroll, como las
+   secciones nativas (desktop/ui/settings.html), y la sección al lado. */
+.st-embed {
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+}
+.st-embed .st-nav-wrap {
+  position: static;
+  height: 100%;
+  overflow-y: auto;
+  padding: 14px 8px 24px;
+  background: var(--side-bg);
+  border-right: 1px solid var(--line);
+  gap: 14px;
+}
+.st-embed .st-nav { gap: 16px; }
+.st-embed .st-nav-heading { padding: 0 10px 2px; }
+.st-embed .ui-settings-link { min-height: 30px; font-size: 0.8125rem; border-radius: var(--radius-1); box-shadow: none; white-space: normal; }
+/* ui.css convierte los links en pestañas bajo 900px; en la ventana la nav sigue al costado. */
+.st-embed .ui-settings-link:hover { background: var(--ui-hover); }
+.st-embed .ui-settings-link[aria-current='page'] { background: var(--ui-selected); box-shadow: none; }
+.st-embed .ui-settings-link[aria-current='page']:hover { background: var(--ui-selected-hover); }
+/* Los ajustes de cada app traen un botón a los de la plataforma: en la ventana la nav ya los tiene. */
+.st-embed [data-testid='platform-settings-link'] { display: none; }
+.st-embed-main { min-width: 0; height: 100%; overflow-y: auto; padding: 24px 28px 48px; }
+.st-embed-main > .ui-page,
+.st-embed-main .ui-page { padding: 0; max-width: 760px; }
+.st-page-embed { display: flex; flex-direction: column; gap: 24px; }
+@media (max-width: 600px) {
+  .st-embed { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .st-embed .st-nav-wrap { height: auto; padding: 10px 16px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .st-embed .st-nav,
+  .st-embed .st-nav-search { display: none; }
+  .st-embed .st-nav-select { display: flex; flex-direction: column; gap: 6px; }
+  .st-embed-main { padding: 18px 16px 32px; }
+}
+
+/* ---------- Aviso de versión nueva del escritorio (DesktopUpdateBanner) ---------- */
+
+.zs-desk-update {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--panel, var(--side-bg));
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+.zs-desk-update p { flex: 1 1 280px; margin: 0; min-width: 0; color: var(--brand-gray-1); }
+.zs-desk-update strong { color: var(--ink); font-weight: 600; }
+.zs-desk-update-actions { display: flex; gap: 8px; flex-wrap: wrap; }

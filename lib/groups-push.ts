@@ -159,6 +159,11 @@ export async function notifyPerson(ws: string, personId: string, n: Notification
     if (subs.length === 0) return 0;
     const keys = vapidKeys();
     if (!keys) return 0;
+    // Un chat de una línea que la persona no ve no genera aviso (ni título ni texto).
+    if (n.chatId) {
+      const { personCanSeeChat } = await import('./groups-access');
+      if (!(await personCanSeeChat(ws, personId, n.chatId))) return 0;
+    }
     // Si la persona tiene los teléfonos ocultos, el aviso tampoco los muestra.
     const { groupsViewer } = await import('./groups-access');
     const { workspaceRole } = await import('./api-auth');
@@ -173,7 +178,7 @@ export async function notifyPerson(ws: string, personId: string, n: Notification
         n.chatId,
         clean(n.title).slice(0, 120),
         clean(n.body).slice(0, 240),
-        n.chatId ? `/app/groups/inbox/${n.chatId}` : '/app/groups/inbox',
+        n.chatId ? `/app/lines/inbox/${n.chatId}` : '/app/lines/inbox',
         new Date().toISOString(),
       );
     let sent = 0;

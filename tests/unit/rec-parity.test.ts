@@ -282,7 +282,9 @@ describe('personas puntuales y pedido de acceso', () => {
     await expect(updateVideo(owner, v.id, { privacy: 'people' })).rejects.toMatchObject({ code: 'people_needs_personal' });
     const p = await ready(owner, 'Personal');
     await updateVideo(owner, p.id, { privacy: 'people' });
-    await expect(updateVideo(owner, p.id, { space: 'workspace' })).rejects.toMatchObject({ code: 'people_needs_personal' });
+    // Moverlo a lo compartido lo abre a esa gente (no queda un restringido que el workspace igual ve en la biblioteca).
+    await updateVideo(owner, p.id, { space: 'workspace' });
+    expect((await getVideoRow(owner, p.id))!.people_only).toBe(0);
   });
 
   it('pedir acceso: una fila por persona, aviso una sola vez, aprobar suma el email y rechazar no', async () => {
@@ -296,20 +298,20 @@ describe('personas puntuales y pedido de acceso', () => {
     await expect(listAccessRequests(member, v.id)).rejects.toBeInstanceOf(RecError);
     const [r] = await listAccessRequests(owner, v.id);
     expect(r.email).toBe('ask@out.test');
-    const { allowedEmails } = await decideAccessRequest(owner, v.id, r.id, true, 'https://z.test/v/x');
+    const { allowedEmails } = await decideAccessRequest(owner, v.id, r.id, true, { base: 'https://z.test', locale: 'en' });
     expect(allowedEmails).toEqual(['ask@out.test']);
-    await expect(decideAccessRequest(owner, v.id, r.id, true, 'https://z.test/v/x')).rejects.toMatchObject({ status: 404 });
+    await expect(decideAccessRequest(owner, v.id, r.id, true, { base: 'https://z.test', locale: 'en' })).rejects.toMatchObject({ status: 404 });
     expect(await listAccessRequests(owner, v.id)).toEqual([]);
 
     expect(await requestAccess(v, { email: 'no@out.test', name: '' })).toBe('pending');
     const [d] = await listAccessRequests(owner, v.id);
-    expect((await decideAccessRequest(owner, v.id, d.id, false, 'https://z.test/v/x')).allowedEmails).toEqual(['ask@out.test']);
+    expect((await decideAccessRequest(owner, v.id, d.id, false, { base: 'https://z.test', locale: 'en' })).allowedEmails).toEqual(['ask@out.test']);
     expect(await requestAccess(v, { email: 'no@out.test', name: '' })).toBe('denied');
   });
 
   it('pedido de email: frena sin sesión, no saltea la contraseña y no aplica a quien entró', async () => {
     const v = await ready(owner, 'Email');
-    await updateVideo(owner, v.id, { requireEmail: true });
+    await updateVideo(owner, v.id, { privacy: 'link', requireEmail: true });
     let row = (await getPublicVideoRow(v.share_id))!;
     expect(publicAccess(row, anon, null)).toBe('email');
     expect(publicAccess(row, { ...anon, emailPassed: true }, null)).toBe('ok');
@@ -429,15 +431,16 @@ describe('espacios con miembros', () => {
 describe('ajustes del workspace', () => {
   it('solo admins; los defaults valen para lo nuevo y lo viejo no se toca', async () => {
     const old = await ready(owner, 'Viejo');
-    expect(old.privacy).toBe('link');
+    // Sin ajustes, lo nuevo nace restringido.
+    expect([old.privacy, old.people_only]).toEqual(['workspace', 1]);
     expect(old.allow_download).toBe(1);
     await expect(updateRecSettings(member, { defaultPrivacy: 'workspace' })).rejects.toMatchObject({ status: 403 });
     await updateRecSettings(owner, { defaultPrivacy: 'workspace', defaultAllowDownload: false });
     const fresh = await ready(owner, 'Nuevo');
-    expect(fresh.privacy).toBe('workspace');
+    expect([fresh.privacy, fresh.people_only]).toEqual(['workspace', 0]);
     expect(fresh.allow_download).toBe(0);
-    expect((await getVideoRow(owner, old.id))!.privacy).toBe('link');
-    await updateRecSettings(owner, { defaultPrivacy: 'link', defaultAllowDownload: true });
+    expect((await getVideoRow(owner, old.id))!.people_only).toBe(1);
+    await updateRecSettings(owner, { defaultPrivacy: 'people', defaultAllowDownload: true });
   });
 
   it('marca: valida el color y no hay marca sin configurar', async () => {
@@ -535,6 +538,7 @@ describe('borrar un espacio no abre nada', () => {
     const v = await ready(member, 'Cerrado', { spaceId: s.id });
     await updateVideo(member, v.id, { privacy: 'workspace', allowedEmails: ['ok@out.test'] });
     const open = await ready(member, 'Abierto', { spaceId: s.id });
+    await updateVideo(member, open.id, { privacy: 'link' });
     await deleteSpace(member, s.id);
     const row = (await getPublicVideoRow(v.share_id))!;
     expect(row.people_only).toBe(1);
@@ -602,13 +606,13 @@ describe('logo y pedidos', () => {
     await updateVideo(owner, v.id, { privacy: 'people' });
     await requestAccess(v, { email: 'r@out.test', name: '' });
     const [r] = await listAccessRequests(owner, v.id);
-    await decideAccessRequest(owner, v.id, r.id, true, 'https://z.test');
+    await decideAccessRequest(owner, v.id, r.id, true, { base: 'https://z.test', locale: 'en' });
     await updateVideo(owner, v.id, { allowedEmails: [] });
     expect(await requestAccess(v, { email: 'r@out.test', name: '' })).toBe('pending');
     const full = Array.from({ length: 100 }, (_, i) => `p${i}@x.io`);
     await updateVideo(owner, v.id, { allowedEmails: full });
     const [again] = await listAccessRequests(owner, v.id);
-    await expect(decideAccessRequest(owner, v.id, again.id, true, 'https://z.test')).rejects.toMatchObject({ code: 'allowed_full' });
+    await expect(decideAccessRequest(owner, v.id, again.id, true, { base: 'https://z.test', locale: 'en' })).rejects.toMatchObject({ code: 'allowed_full' });
     expect((await listAccessRequests(owner, v.id))).toHaveLength(1);
     await expect(updateVideo(owner, v.id, { allowedEmails: [...full, 'x@x.io'] })).rejects.toMatchObject({ code: 'allowed_full' });
   });
@@ -618,7 +622,7 @@ describe('logo y pedidos', () => {
     await requestAccess(v, { email: 'a@out.test', name: '' });
     await requestAccess(v, { email: 'b@out.test', name: '' });
     const rs = await listAccessRequests(owner, v.id);
-    await Promise.all(rs.map((r) => decideAccessRequest(owner, v.id, r.id, true, 'https://z.test')));
+    await Promise.all(rs.map((r) => decideAccessRequest(owner, v.id, r.id, true, { base: 'https://z.test', locale: 'en' })));
     const row = (await getVideoRow(owner, v.id))!;
     expect(JSON.parse(row.allowed_emails).sort()).toEqual(['a@out.test', 'b@out.test']);
   });
@@ -743,6 +747,8 @@ describe('avisos de retención', () => {
 describe('la migración deja los videos como estaban', () => {
   it('los valores por defecto no cambian el acceso de lo que ya existe', async () => {
     const v = await ready(owner, 'Existente');
+    // Un video compartido por link antes de que lo nuevo naciera restringido.
+    await getDb().prepare("UPDATE rec_videos SET privacy = 'link', people_only = 0 WHERE id = ?").run(v.id);
     const row = (await getPublicVideoRow(v.share_id))!;
     expect(row.people_only).toBe(0);
     expect(row.require_email).toBe(0);

@@ -6,16 +6,21 @@ import { sessionGuardScript, WHO_COOKIE_NAME } from '@/lib/session-guard';
 import { redirect } from 'next/navigation';
 import { DEMO_EMAIL, DEMO_MODE, requireUser } from '@/lib/session';
 import { RETURN_PATH_HEADER } from '@/lib/return-path';
-import { PRODUCT_KEYS } from '@/lib/products';
+import { appFromPath, isComingSoon, PRODUCT_KEYS } from '@/lib/products';
+import { isStaff } from '@/lib/workspace-apps';
+import PreviewBanner from '@/components/app/PreviewBanner';
 import { listMyWorkspaces, userCanUseApp } from '@/lib/workspace';
 import type { SwitcherEntry } from '@/components/app/WorkspaceSwitcher';
 import OfflineIdentity from '@/components/app/OfflineIdentity';
 import { countDueTasks } from '@/lib/crm';
 import { getWorkspaceMode } from '@/lib/home';
+import { chosenApps, parseProfile } from '@/lib/onboarding';
+import DesktopSeen from '@/components/desktop/DesktopSeen';
 import AppSidebar from '@/components/app/AppSidebar';
 import AppTopbar from '@/components/app/AppTopbar';
 import CommandSearch from '@/components/app/CommandSearch';
 import AssistantPanel from '@/components/assistant/AssistantPanel';
+import MenuLayerGuard from '@/components/app/MenuLayerGuard';
 import DictationHost from '@/components/voice/DictationHost';
 import MeetingReminders from '@/components/voice/MeetingReminders';
 import RecorderProvider from '@/components/voice/RecorderProvider';
@@ -42,6 +47,12 @@ import '@/styles/color.css';
 import '@/styles/voice-host.css';
 import '@/styles/workspace.css';
 import '@/styles/assistant.css';
+import '@/styles/settings-nav.css';
+import { isSettingsEmbed } from '@/lib/settings-embed';
+import { settingsNavGroups } from '@/lib/settings-nav-server';
+import PlatformSettingsNav from '@/components/app/PlatformSettingsNav';
+import SettingsEmbedGuard from '@/components/app/SettingsEmbedGuard';
+import DesktopUpdateBanner from '@/components/app/DesktopUpdateBanner';
 import NavProgress from '@/components/app/NavProgress';
 import RouterNudge from '@/components/app/RouterNudge';
 import IntentPrefetch from '@/components/app/IntentPrefetch';
@@ -95,7 +106,48 @@ export default async function AppLayout(
   // Acceso por app (team_members.apps): una página de una app que la persona no
   // tiene en el workspace activo ya se armó con su workspace propio (lib/session):
   // se la manda al inicio con el aviso.
-  if (user.blockedApp) redirect(`/${locale}/app?blocked=${user.blockedApp}`);
+  // Una app "Próximamente" va a su página de lista de espera.
+  if (user.blockedApp) redirect(isComingSoon(user.blockedApp) ? `/${locale}/app/soon/${user.blockedApp}` : `/${locale}/app?blocked=${user.blockedApp}`);
+  // El workspace exige dos pasos y la persona no los tiene: primero los activa.
+  if (user.mfaRequiredBy && !/^\/(?:en|es|pt)\/app\/settings\/security(?:[/?]|$)/.test(path)) {
+    redirect(`/${locale}/app/settings/security?required=1`);
+  }
+  // Ventana de Ajustes del escritorio (user agent zerosoft-settings/): solo la nav de Ajustes
+  // (con las secciones nativas de la app) y la sección, sin el chrome de la app.
+  if (isSettingsEmbed((await headers()).get('user-agent'))) {
+    const [tNav, navGroups, embedTheme] = await Promise.all([
+      getTranslations({ locale, namespace: 'settings.nav' }),
+      settingsNavGroups(user, locale, { desktop: true }),
+      getThemePref(),
+    ]);
+    return (
+      <ClientMessages locale={locale} namespaces={['settings.switcher', 'settings.sections', 'link.common', 'common.theme']}>
+        <ThemeProvider initial={embedTheme}>
+          <div className="st-embed">
+            <script dangerouslySetInnerHTML={{ __html: sessionGuardScript(whoCookie, `/${locale}/auth/signin`) }} />
+            <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
+            <SettingsEmbedGuard />
+            <PlatformSettingsNav
+              embed
+              groups={navGroups}
+              label={tNav('label')}
+              selectLabel={tNav('select')}
+              searchLabel={tNav('search')}
+              noResults={tNav.raw('noResults') as string}
+            />
+            <main className="st-embed-main app-content">{children}</main>
+          </div>
+        </ThemeProvider>
+      </ClientMessages>
+    );
+  }
+  // Apps que abre (las tres capas de lib/app-access.ts): sidebar, switcher y Cmd+K salen de acá.
+  const openable = PRODUCT_KEYS.filter((key) => userCanUseApp(user, key));
+  const allowedApps = openable.length === PRODUCT_KEYS.length ? ('*' as const) : openable;
+  const staff = isStaff(real.email);
+  // Staff dentro de una app "Próximamente": vista previa interna, con aviso.
+  const pathApp = appFromPath(path);
+  const previewApp = pathApp && isComingSoon(pathApp) && userCanUseApp(user, pathApp) ? pathApp : null;
   // Entrada activa del switcher: el workspace ajeno, un equipo propio de antes de 128, o el propio (null).
   const effective = user.actingUser ? (user.workspace?.id ?? null) : user.team ? (real.active_team_id ?? null) : null;
   // Las lecturas de la base arrancan juntas (en Turso cada query es un RTT): el switcher, el permiso
@@ -112,6 +164,7 @@ export default async function AppLayout(
   const tTriage = await getTranslations({ locale, namespace: 'trackTriage' });
   const tAnalyticsReplay = await getTranslations({ locale, namespace: 'analyticsReplay' });
   const tAnalyticsMore = await getTranslations({ locale, namespace: 'analyticsMore' });
+  const tBi = await getTranslations({ locale, namespace: 'bi' });
   // Lecturas independientes en paralelo (en Turso cada query es un RTT).
   const [tSettings, tSide, tLink, tCrm, tDocs, tCalendar, tTrack, tChat, tFlow, tNotes, tBoard, tAgents, tRobots, tGroups, tVoice, tRec, tTalk, tDesign, tShop, tAnalytics, tSocial, tHiring, tPeople, tBooks, tSign, tForms, tSend, tInbox, tasksDue, serverTz, tPlanning, mode, tCat] =
     await Promise.all([
@@ -163,7 +216,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'notes.nav', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut', 'assistant']}>
+    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'notes.nav', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'settings.keywords', 'settings.desktopUpdate', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut', 'assistant']}>
       <ThemeProvider initial={themePref}>
       <RecorderProvider owner={`${user.actingUser?.id ?? user.id}:${user.id}`}>
       {/* El script pone sidebar-collapsed antes del primer paint; React no toca la clase al hidratar. */}
@@ -173,10 +226,13 @@ export default async function AppLayout(
         <script dangerouslySetInnerHTML={{ __html: SIDEBAR_COLLAPSED_SCRIPT }} />
         <OfflineIdentity id={`${user.actingUser?.id ?? user.id}:${user.id}`} />
         <AppPwa />
+        {/* La app de escritorio avisa una vez que se abrió con esta cuenta ("Primeros pasos"). */}
+        {!parseProfile(real.profile).desktopSeenAt && <DesktopSeen />}
         <AppSidebar
           docsCanCreate={docsCanCreate}
           demo={DEMO_MODE}
           mode={mode}
+          chosenApps={chosenApps(real.profile)}
           tasksDue={tasksDue}
           user={{
             name: user.actingUser?.name ?? user.name,
@@ -187,7 +243,8 @@ export default async function AppLayout(
           }}
           teamName={user.actingUser ? (user.workspace?.name ?? user.team?.name ?? null) : null}
           workspaces={workspaces}
-          allowedApps={user.role === 'owner' ? '*' : (user.apps ?? '*')}
+          allowedApps={allowedApps}
+          staff={staff}
           crumb={
             <AppTopbar
               sections={[
@@ -295,14 +352,14 @@ export default async function AppLayout(
                 { href: '/app/agents', label: tAgents('sidebar.agents') },
                 { href: '/app/robots', label: tRobots('sidebar.robots') },
                 { href: '/app/robots/recorder', label: tRobots('recorder.title') },
-                { href: '/app/groups/inbox', label: tGroups('sidebar.inbox') },
-                { href: '/app/groups/list', label: tGroups('sidebar.groups') },
-                { href: '/app/groups/tickets', label: tGroups('sidebar.tickets') },
-                { href: '/app/groups/tasks', label: tGroups('sidebar.tasks') },
-                { href: '/app/groups/templates', label: tGroups('sidebar.templates') },
-                { href: '/app/groups/broadcasts', label: tGroups('sidebar.broadcasts') },
-                { href: '/app/groups/analytics', label: tGroups('sidebar.analytics') },
-                { href: '/app/groups/settings', label: tGroups('sidebar.settings') },
+                { href: '/app/lines/inbox', label: tGroups('sidebar.inbox') },
+                { href: '/app/lines/list', label: tGroups('sidebar.groups') },
+                { href: '/app/lines/tickets', label: tGroups('sidebar.tickets') },
+                { href: '/app/lines/tasks', label: tGroups('sidebar.tasks') },
+                { href: '/app/lines/templates', label: tGroups('sidebar.templates') },
+                { href: '/app/lines/broadcasts', label: tGroups('sidebar.broadcasts') },
+                { href: '/app/lines/analytics', label: tGroups('sidebar.analytics') },
+                { href: '/app/lines/settings', label: tGroups('sidebar.settings') },
                 { href: '/app/voice', label: tVoice('nav.meetings') },
                 { href: '/app/voice/dictation', label: tVoice('nav.dictation') },
                 { href: '/app/rec', label: tRec('sidebar.home') },
@@ -343,6 +400,9 @@ export default async function AppLayout(
                 { href: '/app/pulse/llm', label: tAnalyticsMore('sidebar.llm') },
                 { href: '/app/pulse/sql', label: tAnalytics('sidebar.sql') },
                 { href: '/app/pulse/projects', label: tAnalytics('sidebar.projects') },
+                { href: '/app/analytics', label: tBi('nav.browse') },
+                { href: '/app/analytics/data', label: tBi('nav.data') },
+                { href: '/app/analytics/settings', label: tSide('appSettings') },
                 { href: '/app/social', label: tSocial('sidebar.calendar') },
                 { href: '/app/social/posts', label: tSocial('sidebar.posts') },
                 { href: '/app/social/inbox', label: tSocial('sidebar.inbox') },
@@ -391,6 +451,7 @@ export default async function AppLayout(
                 { href: '/app/inbox/v/scheduled', label: tInbox('nav.scheduled') },
                 { href: '/app/inbox/v/done', label: tInbox('nav.done') },
                 { href: '/app/assistant', label: tSide('assistant') },
+                { href: '/app/download', label: tSide('downloadDesktop') },
               ]}
             />
           }
@@ -400,6 +461,8 @@ export default async function AppLayout(
             backToSite: tSide('backToSite'),
             docsSite: tSide('docs'),
             soon: tSide('soon'),
+            preview: tSide('preview'),
+            comingSoon: tSide('comingSoon'),
             signOut: tSide('signOut'),
             records: tSide('records'),
             activity: tSide('activity'),
@@ -493,6 +556,9 @@ export default async function AppLayout(
               polls: tCalendar('sidebar.polls'),
             },
             track: {
+              newIssue: tTrack('sidebar.newIssue'),
+              newPlan: tTrack('sidebar.newPlan'),
+              newTeam: tTrack('sidebar.newTeam'),
               overview: tTrack('sidebar.overview'),
               myTasks: tTrack('sidebar.myTasks'),
               projects: tTrack('sidebar.projects'),
@@ -565,6 +631,7 @@ export default async function AppLayout(
               store: tShop('nav.store'),
               newProduct: tShop('products.new'),
             },
+            bi: { browse: tBi('nav.browse'), data: tBi('nav.data'), newQuestion: tBi('nav.newQuestion'), newSql: tBi('nav.newSql'), newDashboard: tBi('nav.newDashboard') },
             analytics: {
               web: tAnalytics('sidebar.web'),
               events: tAnalytics('sidebar.events'),
@@ -733,12 +800,16 @@ export default async function AppLayout(
                 }}
               />
             )}
+            {previewApp && <PreviewBanner app={previewApp} locale={locale} />}
+            <DesktopUpdateBanner />
             {children}
           </main>
         </div>
-        <CommandSearch allowedApps={user.role === 'owner' ? '*' : PRODUCT_KEYS.filter((key) => userCanUseApp(user, key))} />
+        <CommandSearch allowedApps={allowedApps} staff={staff} />
         {/* Asistente de la plataforma: ⌘J o el botón de la banda, en toda la app. */}
         <AssistantPanel />
+        {/* Un solo menú abierto a la vez también para los menús que no usan lib/ui/layers.ts. */}
+        <MenuLayerGuard />
         {/* Dictado en toda la app y avisos de reunión: solo para quien tiene Voice en este workspace. */}
         {userCanUseApp(user, 'voice') && (
           <>

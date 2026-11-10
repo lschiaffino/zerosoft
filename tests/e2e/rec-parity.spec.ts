@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from 'fs';
 import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 
 /**
  * Rec, paridad con Loom: personas puntuales y pedido de acceso, email para ver,
@@ -10,7 +10,7 @@ import { createClient } from '@libsql/client';
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
-const db = () => createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+const db = () => e2eDb();
 
 async function ok<T = Record<string, unknown>>(res: Promise<import('@playwright/test').APIResponse>): Promise<T> {
   const r = await res;
@@ -59,7 +59,8 @@ async function upload(request: APIRequestContext, body: Buffer, title: string, d
   expect(put.status()).toBe(204);
   await ok(request.post(`/api/rec/videos/${video.id}/complete`, { data: { kind: 'video', contentType: 'video/webm', parts: 1 } }));
   await ok(request.post(`/api/rec/videos/${video.id}/finalize`, { data: { durationSec } }));
-  await ok(request.patch(`/api/rec/videos/${video.id}`, { data: { title } }));
+  // Lo nuevo nace restringido: estas pruebas parten del link abierto.
+  await ok(request.patch(`/api/rec/videos/${video.id}`, { data: { title, privacy: 'link' } }));
   return video;
 }
 
@@ -90,9 +91,9 @@ test('personas puntuales: frena a los demás en página y API, pedir acceso, apr
 
   await page.goto(`/en/app/rec/${v.id}`);
   await page.getByTestId('rec-share').click();
-  await page.getByTestId('rec-share-people').check();
+  await page.getByTestId('rec-share-access').selectOption('people');
   await page.getByTestId('rec-share-save').click();
-  await expect(page.getByTestId('rec-detail')).toContainText('Specific people');
+  await expect(page.getByTestId('rec-detail')).toContainText('Restricted');
 
   // Sin sesión: pide entrar; ni la página ni la API dicen el título.
   const anon = await asPerson(browser, baseURL!, 'session');
@@ -126,7 +127,7 @@ test('personas puntuales: frena a los demás en página y API, pedir acceso, apr
   await expect(page.getByTestId('rec-share-requests')).toContainText(email);
   await page.getByTestId('rec-request-approve').click();
   await expect(page.getByTestId('rec-share-requests')).toHaveCount(0);
-  await expect(page.getByTestId('rec-share-emails')).toHaveValue(email);
+  await expect(page.getByTestId('rec-share-person').filter({ hasText: email })).toBeVisible();
 
   // Ya puede ver.
   await guest.page.goto(`/en/v/${v.shareId}`);
@@ -184,6 +185,7 @@ test('cambiar el link: confirma, el viejo deja de andar y el nuevo anda', async 
   const v = await upload(request, tiny, `Rotar ${uid()}`);
   await page.goto(`/en/app/rec/${v.id}`);
   await page.getByTestId('rec-share').click();
+  await page.getByText('Embed and reset link').click();
   await page.getByTestId('rec-share-rotate').click();
   await page.getByRole('button', { name: 'Reset link' }).last().click();
   await expect(page.getByTestId('rec-toast')).toContainText('New link');
@@ -463,7 +465,7 @@ test('ajustes: marca en la página y el embed, no en la puerta; defaults para lo
   const { video: unchanged } = await ok<{ video: { privacy: string; allowDownload: boolean } }>(request.get(`/api/rec/videos/${before.id}`));
   expect(unchanged.privacy).toBe('link');
   expect(unchanged.allowDownload).toBe(true);
-  await ok(request.patch('/api/rec/settings', { data: { defaultPrivacy: 'link', defaultAllowDownload: true, brandName: '', brandColor: null } }));
+  await ok(request.patch('/api/rec/settings', { data: { defaultPrivacy: 'people', defaultAllowDownload: true, brandName: '', brandColor: null } }));
 
   // Retención: confirma con la cuenta; cancelar no prende.
   await page.getByTestId('rec-retention').selectOption('30');

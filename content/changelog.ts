@@ -52,6 +52,382 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-09-desktop-tabs',
+    date: '2026-11-09',
+    title: {
+      en: 'Desktop app: tabs and windows',
+      es: 'App de escritorio: pestañas y ventanas',
+      pt: 'App de desktop: abas e janelas',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'Open each app or record in its own tab or window: Command + T opens a tab with search, Command + N a window, Command + W closes and Command + Shift + T brings back the last one. Command-click or middle-click a link to open it in a new tab, or right-click it. Drag tabs to reorder them or out to their own window. Tabs show the app and the record, with a dot when there is something new.',
+        es: 'Abrí cada app o registro en su pestaña o ventana: Command + T abre una pestaña con el buscador, Command + N una ventana, Command + W cierra y Command + Shift + T trae la última. Command-clic o clic del medio en un link lo abre en pestaña nueva, o clic derecho. Arrastrá las pestañas para ordenarlas o afuera para llevarlas a su ventana. Cada pestaña muestra la app y el registro, con un punto cuando hay novedades.',
+        pt: 'Abra cada app ou registro em sua aba ou janela: Command + T abre uma aba com a busca, Command + N uma janela, Command + W fecha e Command + Shift + T traz a última. Command-clique ou clique do meio num link abre em nova aba, ou clique direito. Arraste as abas para ordenar ou para fora para levar para outra janela. Cada aba mostra o app e o registro, com um ponto quando há novidades.',
+      },
+      {
+        product: 'voice',
+        en: 'The app reopens your windows and tabs where you left them, and puts tabs you have not used for a while to sleep to save memory (Settings › General › Tabs and windows).',
+        es: 'La app vuelve a abrir tus ventanas y pestañas como las dejaste y pausa las pestañas que no usás hace un rato para ahorrar memoria (Ajustes › General › Pestañas y ventanas).',
+        pt: 'O app reabre suas janelas e abas como você deixou e pausa as abas que você não usa há um tempo para economizar memória (Ajustes › Geral › Abas e janelas).',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-coming-soon-and-workspace-apps',
+    date: '2026-11-09',
+    title: {
+      en: 'Coming soon apps and workspace app settings',
+      es: 'Apps Próximamente y apps del workspace',
+      pt: 'Apps Em breve e apps do workspace',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Chat, Agents, Robots, Books, Hiring, Design, Social and Shop are now marked Coming soon: they cannot be used yet. Each one has a waitlist in the app, at sign-up and on its product page, with an optional note on what you would use it for. We email you once, the day it ships. Data already created in them is kept.',
+        es: 'Chat, Agents, Robots, Books, Hiring, Design, Social y Shop pasan a Próximamente: todavía no se pueden usar. Cada una tiene lista de espera en la app, en el alta y en su página de producto, con una nota opcional de para qué la usarías. Te escribimos una vez, el día que salga. Lo que ya estaba creado en ellas queda guardado.',
+        pt: 'Chat, Agents, Robots, Books, Hiring, Design, Social e Shop passam a Em breve: ainda não podem ser usados. Cada um tem lista de espera no app, no cadastro e na página do produto, com uma nota opcional de para que você usaria. Escrevemos uma vez, no dia do lançamento. O que já tinha sido criado neles fica guardado.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Workspace › Apps: owners and admins turn each app on or off for the whole workspace, choose who gets it (everyone, specific teams or people, or only admins) and exclude single people. Off hides the app from the sidebar, home, search, its pages, API, MCP and the desktop app, and keeps its data. It applies on top of each person\'s enabled apps.',
+        es: 'Ajustes › Workspace › Apps: el owner y los admins prenden o apagan cada app para todo el workspace, eligen quién la usa (todos, equipos o personas puntuales, o solo admins) y excluyen a personas una por una. Apagada la saca del menú, del inicio, de la búsqueda, de sus páginas, su API, el MCP y la app de escritorio, y guarda sus datos. Vale encima de las apps habilitadas de cada persona.',
+        pt: 'Ajustes › Workspace › Apps: o owner e os admins ligam ou desligam cada app para todo o workspace, escolhem quem usa (todos, equipes ou pessoas específicas, ou só admins) e excluem pessoas uma a uma. Desligado tira o app do menu, do início, da busca, das páginas, da API, do MCP e do app de desktop, e guarda os dados. Vale por cima dos apps habilitados de cada pessoa.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-lines-owners-visibility-folders',
+    date: '2026-11-09',
+    title: {
+      en: 'Lines: owners, who sees each line, a line selector and folders',
+      es: 'Lines: dueños, quién ve cada línea, selector de línea y carpetas',
+      pt: 'Lines: donos, quem vê cada linha, seletor de linha e pastas',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Each line can have an owner and be limited to chosen people or teams (admins and the owner always see it). Members who cannot see a line get none of its chats, messages, search results or notifications.',
+        es: 'Cada línea puede tener un dueño y limitarse a personas o equipos elegidos (admins y dueño siempre la ven). Los miembros que no ven una línea no reciben sus chats, mensajes, resultados de búsqueda ni avisos.',
+        pt: 'Cada linha pode ter um dono e ser limitada a pessoas ou equipes escolhidas (admins e dono sempre a veem). Membros que não veem uma linha não recebem suas conversas, mensagens, resultados de busca nem avisos.',
+      },
+      {
+        product: 'groups',
+        en: 'Pick one line or all lines in the inbox, with a line badge per chat; the choice is remembered. Shared folders and subfolders sort chats for the whole workspace, with unread counts per person.',
+        es: 'Elegí una línea o todas en la bandeja, con una etiqueta de línea por chat; la elección se recuerda. Las carpetas y subcarpetas compartidas ordenan los chats de todo el workspace, con no leídos por persona.',
+        pt: 'Escolha uma linha ou todas na caixa, com uma etiqueta de linha por conversa; a escolha é lembrada. Pastas e subpastas compartilhadas organizam as conversas de todo o workspace, com não lidas por pessoa.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-voice-system-audio',
+    date: '2026-11-09',
+    title: {
+      en: 'Voice: records the computer audio, with its own transcription allowance',
+      es: 'Voice: graba el audio de la compu, con cupo propio para transcribir',
+      pt: 'Voice: grava o áudio do computador, com cota própria para transcrever',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'Meetings record the audio of the meeting next to your microphone: the browser asks for a tab or screen with audio when you start, and the Mac app records the system audio and asks for the Screen & System Audio Recording permission. If nothing is shared, only the microphone is recorded and you are told why.',
+        es: 'Las reuniones graban el audio de la reunión junto con tu micrófono: el navegador pide una pestaña o pantalla con audio al empezar, y la app de Mac graba el audio del sistema y pide el permiso de Grabación de pantalla y audio del sistema. Si no se comparte nada, se graba solo el micrófono y se avisa por qué.',
+        pt: 'As reuniões gravam o áudio da reunião junto com o seu microfone: o navegador pede uma aba ou tela com áudio ao começar, e o app do Mac grava o áudio do sistema e pede a permissão de Gravação de tela e áudio do sistema. Se nada for compartilhado, só o microfone é gravado e você é avisado do motivo.',
+      },
+      {
+        product: 'voice',
+        en: 'Transcription has its own monthly allowance of 600 minutes per workspace, so chatting with your notes no longer leaves a meeting without a transcript.',
+        es: 'La transcripción tiene su propio cupo mensual de 600 minutos por workspace, así que charlar con tus notas ya no deja una reunión sin transcripción.',
+        pt: 'A transcrição tem a sua própria cota mensal de 600 minutos por workspace, então conversar com as suas notas não deixa mais uma reunião sem transcrição.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-voice-meeting-page',
+    date: '2026-11-09',
+    title: {
+      en: 'Voice: a cleaner meeting page with Ask anything',
+      es: 'Voice: una página de reunión más limpia con "Preguntá lo que quieras"',
+      pt: 'Voice: uma página de reunião mais limpa com "Pergunte o que quiser"',
+    },
+    items: [
+      {
+        product: 'voice',
+        en: 'A meeting is now a plain page: title, a chip for enhanced or your own notes, the day and attendees from your calendar (today’s event is picked on its own, attendees grouped by company) and the folder.',
+        es: 'Una reunión ahora es una página simple: el título, un chip para ver las notas mejoradas o las tuyas, el día y los asistentes del calendario (el evento de hoy se elige solo y los asistentes se agrupan por empresa) y la carpeta.',
+        pt: 'Uma reunião agora é uma página simples: o título, um chip para ver as notas aprimoradas ou as suas, o dia e os participantes da agenda (o evento de hoje é escolhido sozinho e os participantes são agrupados por empresa) e a pasta.',
+      },
+      {
+        product: 'voice',
+        en: 'The bar under the notes holds the live transcript and Ask anything (⌘J or /): recipes like List my todos or Write TL;DR, a recipe library you can share with the workspace, separate chats with history, a fast or thorough model, a text file attached to the question and dictation.',
+        es: 'La barra debajo de las notas tiene la transcripción en vivo y "Preguntá lo que quieras" (⌘J o /): recipes como Mis pendientes o Resumen en 3 líneas, una biblioteca de recipes que se comparte con el workspace, chats separados con historial, modelo rápido o a fondo, un archivo de texto adjunto y dictado.',
+        pt: 'A barra embaixo das notas tem a transcrição ao vivo e "Pergunte o que quiser" (⌘J ou /): recipes como Minhas tarefas ou Resumo em 3 linhas, uma biblioteca de recipes compartilhada com o workspace, chats separados com histórico, modelo rápido ou a fundo, um arquivo de texto anexado e ditado.',
+      },
+      {
+        product: 'voice',
+        en: 'Write follow up email drafts the email from the notes and sends it from your connected Gmail or Outlook, or you copy it.',
+        es: '"Escribir email de seguimiento" redacta el email con la nota y lo manda desde tu Gmail u Outlook conectado, o lo copiás.',
+        pt: '"Escrever email de acompanhamento" escreve o email com a nota e envia do seu Gmail ou Outlook conectado, ou você copia.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-settings-everywhere',
+    date: '2026-11-09',
+    title: {
+      en: 'Every setting in one place, on the web and in the desktop app',
+      es: 'Todos los ajustes en un lugar, en la web y en la app de escritorio',
+      pt: 'Todas as configurações em um lugar, na web e no app de desktop',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Settings has a search box and four groups: Account (with the new Appearance), Workspace, This device and Products. The desktop settings window (⌘,) shows the same list: its own sections plus your account, workspace and the settings of each app, without leaving the window.',
+        es: 'Ajustes tiene una caja de búsqueda y cuatro grupos: Cuenta (con Apariencia, nueva), Workspace, Este dispositivo y Productos. La ventana de ajustes del escritorio (⌘,) muestra la misma lista: sus secciones propias más tu cuenta, el workspace y los ajustes de cada app, sin salir de la ventana.',
+        pt: 'Configurações tem uma caixa de busca e quatro grupos: Conta (com Aparência, nova), Workspace, Este dispositivo e Produtos. A janela de configurações do desktop (⌘,) mostra a mesma lista: as seções dela mais sua conta, o workspace e as configurações de cada app, sem sair da janela.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Offline: turn offline mode on or off on this device, pick which apps stay available, how much to store and for how long, see what it uses and clear it. Changes waiting for a connection are kept.',
+        es: 'Ajustes › Sin conexión: prendé o apagá el modo sin conexión en este dispositivo, elegí qué apps quedan disponibles, cuánto guardar y por cuánto tiempo, mirá cuánto ocupa y borralo. Los cambios que esperan conexión no se tocan.',
+        pt: 'Configurações › Sem conexão: ligue ou desligue o modo sem conexão neste dispositivo, escolha quais apps ficam disponíveis, quanto guardar e por quanto tempo, veja quanto ocupa e apague. As alterações esperando conexão são mantidas.',
+      },
+      {
+        product: 'voice',
+        en: 'Desktop 0.3.2: Permissions with Reset permission for Accessibility, microphone, camera and screen recording; the version and Check for updates in General and Updates; a notice in the app when an older version needs to be replaced; and a smaller recording indicator that you can drag anywhere.',
+        es: 'Escritorio 0.3.2: Permisos con Restablecer permiso para Accesibilidad, micrófono, cámara y grabación de pantalla; la versión y Buscar actualizaciones en General y Actualizaciones; un aviso en la app cuando hay que reemplazar una versión vieja; y un indicador de grabación más chico que se arrastra a cualquier lado.',
+        pt: 'Desktop 0.3.2: Permissões com Redefinir permissão para Acessibilidade, microfone, câmera e gravação de tela; a versão e Procurar atualizações em Geral e Atualizações; um aviso no app quando uma versão antiga precisa ser substituída; e um indicador de gravação menor que pode ser arrastado para qualquer lugar.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-onboarding-desktop',
+    date: '2026-11-08',
+    title: {
+      en: 'A new start: pick your apps, connect your accounts and get the desktop app',
+      es: 'Un comienzo nuevo: elegí tus apps, conectá tus cuentas y bajate la app de escritorio',
+      pt: 'Um começo novo: escolha seus apps, conecte suas contas e baixe o app para computador',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'The first-run setup asks which apps you will use (suggested from your role) and puts them first on Home, in the sidebar and in the app switcher. Your answers are saved as you go, so closing the tab resumes where you left off.',
+        es: 'El primer ingreso pregunta qué apps vas a usar (sugeridas según tu rol) y las pone primero en el inicio, el sidebar y el selector de apps. Las respuestas se guardan a medida que avanzás: si cerrás la pestaña, retomás donde quedaste.',
+        pt: 'O primeiro acesso pergunta quais apps você vai usar (sugeridos pela sua função) e os coloca primeiro no início, na barra lateral e no seletor de apps. As respostas são salvas enquanto você avança: se fechar a aba, retoma de onde parou.',
+      },
+      {
+        product: 'platform',
+        en: 'Then, all skippable: connect Google Calendar, Gmail or a WhatsApp line for the apps you picked, bring your data from HubSpot, Notion, Linear, Periskope and others, and download the desktop app.',
+        es: 'Después, todo salteable: conectá Google Calendar, Gmail o una línea de WhatsApp según las apps que elegiste, traé tus datos de HubSpot, Notion, Linear, Periskope y otras, y bajate la app de escritorio.',
+        pt: 'Depois, tudo opcional: conecte Google Agenda, Gmail ou uma linha de WhatsApp conforme os apps escolhidos, traga seus dados do HubSpot, Notion, Linear, Periskope e outros, e baixe o app para computador.',
+      },
+      {
+        product: 'platform',
+        en: 'Desktop downloads detect Mac (Apple silicon or Intel) and Windows, let you pick by hand, and show how to open the app the first time. The same download lives at /download and in the account menu.',
+        es: 'La descarga de escritorio detecta Mac (Apple silicon o Intel) y Windows, deja elegir a mano y explica cómo abrir la app la primera vez. La misma descarga está en /download y en el menú de la cuenta.',
+        pt: 'O download para computador detecta Mac (Apple silicon ou Intel) e Windows, deixa escolher manualmente e explica como abrir o app na primeira vez. O mesmo download está em /download e no menu da conta.',
+      },
+      {
+        product: 'platform',
+        en: 'Home shows Getting started with what is still missing. Each step checks itself off from real data (an account connected, an import, someone invited, the desktop app signed in), and you can hide it.',
+        es: 'El inicio muestra Primeros pasos con lo que falta. Cada paso se marca solo con datos reales (una cuenta conectada, un import, alguien invitado, la app de escritorio abierta con tu cuenta) y se puede ocultar.',
+        pt: 'O início mostra Primeiros passos com o que falta. Cada passo se marca sozinho com dados reais (uma conta conectada, uma importação, alguém convidado, o app para computador aberto com sua conta) e pode ser ocultado.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-analytics-questions-dashboards',
+    date: '2026-11-08',
+    title: {
+      en: 'Analytics: questions and dashboards over your data',
+      es: 'Analytics: preguntas y tableros sobre tus datos',
+      pt: 'Analytics: perguntas e painéis sobre seus dados',
+    },
+    items: [
+      {
+        product: 'analytics',
+        en: 'A new app to ask questions about your CRM, Track, Books, Lines and Pulse data, with each person seeing only what they can see in each app. Build a question without code, write SQL with autocomplete and variables, or ask in plain words and read the SQL it writes.',
+        es: 'Una app nueva para hacer preguntas sobre tus datos de CRM, Track, Books, Lines y Pulse, donde cada persona ve solo lo que puede ver en cada app. Armá una pregunta sin código, escribí SQL con autocompletado y variables, o preguntá con tus palabras y leé el SQL que arma.',
+        pt: 'Um app novo para fazer perguntas sobre seus dados de CRM, Track, Books, Lines e Pulse, em que cada pessoa vê só o que pode ver em cada app. Monte uma pergunta sem código, escreva SQL com autocompletar e variáveis, ou pergunte com suas palavras e leia o SQL que ele monta.',
+      },
+      {
+        product: 'analytics',
+        en: 'Admins can connect PostgreSQL or MySQL. Queries run read-only with a time and row limit, and admins choose who can write SQL on each database.',
+        es: 'Los admins pueden conectar PostgreSQL o MySQL. Las consultas corren de solo lectura con tope de tiempo y de filas, y los admins eligen quién puede escribir SQL en cada base.',
+        pt: 'Os admins podem conectar PostgreSQL ou MySQL. As consultas rodam só de leitura com limite de tempo e de linhas, e os admins escolhem quem pode escrever SQL em cada banco.',
+      },
+      {
+        product: 'analytics',
+        en: 'Dashboards with filters wired to each card, auto-refresh and full screen, collections, public links and iframes, and daily or weekly summaries by email or to a Talk channel.',
+        es: 'Tableros con filtros conectados a cada tarjeta, actualización automática y pantalla completa, colecciones, links públicos e iframes, y resúmenes diarios o semanales por email o a un canal de Talk.',
+        pt: 'Painéis com filtros conectados a cada cartão, atualização automática e tela cheia, coleções, links públicos e iframes, e resumos diários ou semanais por email ou para um canal do Talk.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-inbox-folders-ai-history',
+    date: '2026-11-09',
+    title: {
+      en: 'Inbox: subfolders, write with AI in your tone, sequences that send later and your full history',
+      es: 'Inbox: subcarpetas, escribir con IA con tu tono, secuencias para más tarde y todo tu historial',
+      pt: 'Inbox: subpastas, escrever com IA no seu tom, sequências para mais tarde e todo o seu histórico',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Folders nest in the sidebar, collapse and add up their unread chats. Drag a chat, or a whole selection, onto a folder to file it, with undo.',
+        es: 'Las carpetas se anidan en la barra, se pliegan y suman los no leídos de sus subcarpetas. Arrastrá un chat, o una selección entera, a una carpeta para guardarlo, con deshacer.',
+        pt: 'As pastas se aninham na barra, recolhem e somam os não lidos das subpastas. Arraste uma conversa, ou uma seleção inteira, para uma pasta, com desfazer.',
+      },
+      {
+        product: 'inbox',
+        en: 'Write with AI now works and answers as you type. "What do you want to say?" drafts the message in your tone, and you can make it shorter or more formal before inserting it.',
+        es: 'Escribir con IA ya funciona y el texto llega a medida que se escribe. "¿Qué querés decir?" arma el mensaje con tu tono, y lo podés hacer más corto o más formal antes de insertarlo.',
+        pt: 'Escrever com IA já funciona e o texto chega enquanto é escrito. "O que você quer dizer?" monta a mensagem no seu tom, e dá para deixar mais curta ou mais formal antes de inserir.',
+      },
+      {
+        product: 'inbox',
+        en: 'Send later can schedule several messages, each its own bubble, with waits between them and a file on WhatsApp.',
+        es: 'Enviar más tarde programa varios mensajes, cada uno su burbuja, con esperas entre ellos y un archivo en WhatsApp.',
+        pt: 'Enviar mais tarde programa várias mensagens, cada uma sua bolha, com esperas entre elas e um arquivo no WhatsApp.',
+      },
+      {
+        product: 'inbox',
+        en: 'Bring your full WhatsApp history from the server, and import inbox-zero with the WhatsApp Desktop history of your Mac. Large files upload directly and keep importing in the background.',
+        es: 'Traé todo tu historial de WhatsApp desde el servidor e importá inbox-zero con la historia de WhatsApp Desktop de tu Mac. Los archivos grandes suben directo y siguen importándose en segundo plano.',
+        pt: 'Traga todo o seu histórico do WhatsApp do servidor e importe o inbox-zero com o histórico do WhatsApp Desktop do seu Mac. Arquivos grandes sobem direto e continuam importando em segundo plano.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-inbox-whatsapp-web',
+    date: '2026-11-09',
+    title: {
+      en: 'Inbox: WhatsApp looks and works like WhatsApp Web',
+      es: 'Inbox: WhatsApp se ve y se usa como WhatsApp Web',
+      pt: 'Inbox: o WhatsApp parece e funciona como o WhatsApp Web',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Real group names and profile photos, and a chat list with ticks, the sender in groups, media icons and typing.',
+        es: 'Nombres reales de los grupos y fotos de perfil, y una lista de chats con tildes, quién mandó en los grupos, íconos de media y "escribiendo".',
+        pt: 'Nomes reais dos grupos e fotos de perfil, e uma lista de conversas com confirmações, quem enviou nos grupos, ícones de mídia e "digitando".',
+      },
+      {
+        product: 'inbox',
+        en: 'The conversation has bubbles, reactions, replies, forwarding, editing, deleting, stars, mentions, link previews, photos with a viewer, voice notes and documents. Drop, paste or pick files to send them with a caption, or record a voice note.',
+        es: 'La conversación tiene burbujas, reacciones, respuestas, reenviar, editar, borrar, destacados, menciones, vista previa de links, fotos con visor, notas de voz y documentos. Arrastrá, pegá o elegí archivos para mandarlos con un comentario, o grabá una nota de voz.',
+        pt: 'A conversa tem balões, reações, respostas, encaminhar, editar, apagar, favoritas, menções, prévia de links, fotos com visualizador, notas de voz e documentos. Arraste, cole ou escolha arquivos para enviar com legenda, ou grave uma nota de voz.',
+      },
+      {
+        product: 'inbox',
+        en: 'Click the header for contact or group info: members, shared media, groups in common, mute, block and an AI summary of the chat. On the phone, swipe a message to reply and a chat to archive or pin.',
+        es: 'Tocando la cabecera se ve la info del contacto o del grupo: integrantes, lo compartido, grupos en común, silenciar, bloquear y un resumen con IA del chat. En el teléfono, deslizá un mensaje para responder y un chat para archivarlo o fijarlo.',
+        pt: 'Tocando no cabeçalho aparecem os dados do contato ou do grupo: membros, o que foi compartilhado, grupos em comum, silenciar, bloquear e um resumo com IA da conversa. No celular, deslize uma mensagem para responder e uma conversa para arquivar ou fixar.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-09-account-security-and-your-data',
+    date: '2026-11-09',
+    title: {
+      en: 'Two-step verification, sessions, audit log and your data',
+      es: 'Verificación en dos pasos, sesiones, registro de auditoría y tus datos',
+      pt: 'Verificação em duas etapas, sessões, registro de auditoria e seus dados',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Turn on two-step verification with any authenticator app, with ten recovery codes. Workspace owners can require it for every member.',
+        es: 'Activá la verificación en dos pasos con cualquier app autenticadora, con diez códigos de recuperación. El owner del workspace puede exigirla a todos.',
+        pt: 'Ative a verificação em duas etapas com qualquer app autenticador, com dez códigos de recuperação. O dono do workspace pode exigi-la de todos.',
+      },
+      {
+        product: 'platform',
+        en: 'Settings › Security lists the devices signed in to your account and signs out one or all of them. Owners and admins get an audit log of sign-ins, keys, exports and member changes, with CSV download.',
+        es: 'Ajustes › Seguridad muestra los dispositivos con tu cuenta abierta y cierra uno o todos. Owners y admins tienen un registro de auditoría de inicios de sesión, keys, exportaciones y cambios de miembros, con descarga en CSV.',
+        pt: 'Configurações › Segurança mostra os dispositivos com sua conta aberta e encerra um ou todos. Donos e admins têm um registro de auditoria de logins, chaves, exportações e mudanças de membros, com download em CSV.',
+      },
+      {
+        product: 'platform',
+        en: 'Download everything in your account and workspace as a ZIP, and delete your account or workspace from Settings, with 30 days to change your mind.',
+        es: 'Descargá todo lo de tu cuenta y tu workspace en un ZIP, y borrá tu cuenta o tu workspace desde Ajustes, con 30 días para arrepentirte.',
+        pt: 'Baixe tudo da sua conta e do seu workspace em um ZIP, e exclua sua conta ou seu workspace em Configurações, com 30 dias para voltar atrás.',
+      },
+      {
+        product: 'platform',
+        en: 'New subprocessors page, and the security and privacy pages now describe these controls and our compliance status as it is.',
+        es: 'Nueva página de subprocesadores, y las páginas de seguridad y privacidad ahora describen estos controles y el estado real de las certificaciones.',
+        pt: 'Nova página de subprocessadores, e as páginas de segurança e privacidade agora descrevem esses controles e o estado real das certificações.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-rec-sharing',
+    date: '2026-11-08',
+    title: {
+      en: 'Rec: new videos are private, and you choose who watches',
+      es: 'Rec: los videos nuevos son privados y elegís quién los ve',
+      pt: 'Rec: os vídeos novos são privados e você escolhe quem assiste',
+    },
+    items: [
+      {
+        product: 'rec',
+        en: 'New recordings start restricted: only you and the people you invite can open the link. Admins can change the default in Rec settings. Videos already shared by link keep working and show as "Anyone with the link" in Share, so you can restrict them.',
+        es: 'Lo que grabás arranca restringido: el link lo abren solo vos y las personas que invites. Los admins pueden cambiar el default en los ajustes de Rec. Los videos que ya estaban compartidos por link siguen andando y aparecen como "Cualquiera con el link" en Compartir, para que los puedas restringir.',
+        pt: 'O que você grava começa restrito: só você e as pessoas que convidar abrem o link. Admins podem mudar o padrão nos ajustes do Rec. Os vídeos já compartilhados por link continuam funcionando e aparecem como "Qualquer pessoa com o link" em Compartilhar, para você poder restringir.',
+      },
+      {
+        product: 'rec',
+        en: 'Share works like Drive: invite workspace members or any email as viewer or commenter, see who has access and who watched, change roles and remove people. People outside the workspace get a sign-in link by email; anyone without access can ask for it from the video page.',
+        es: 'Compartir funciona como en Drive: invitás a miembros del workspace o a cualquier email como lector o comentador, ves quién tiene acceso y quién lo vio, cambiás roles y quitás personas. A la gente de afuera le llega un link por mail para entrar; quien no tiene acceso lo puede pedir desde la página del video.',
+        pt: 'Compartilhar funciona como no Drive: você convida membros do workspace ou qualquer email como leitor ou comentador, vê quem tem acesso e quem assistiu, muda papéis e remove pessoas. Quem é de fora recebe um link por email para entrar; quem não tem acesso pode pedir na página do vídeo.',
+      },
+      {
+        product: 'rec',
+        en: 'Downloads come as MP4 (H.264 and AAC) named after the video, so they open in QuickTime, WhatsApp or Slides. The first download of each version takes a moment to prepare.',
+        es: 'Las descargas salen en MP4 (H.264 y AAC) con el nombre del video, así se abren en QuickTime, WhatsApp o Slides. La primera descarga de cada versión tarda un momento en prepararse.',
+        pt: 'Os downloads saem em MP4 (H.264 e AAC) com o nome do vídeo, para abrir no QuickTime, WhatsApp ou Slides. O primeiro download de cada versão leva um momento para ficar pronto.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-groups-is-now-lines',
+    date: '2026-11-08',
+    title: {
+      en: 'Groups is now Lines',
+      es: 'Groups ahora se llama Lines',
+      pt: 'Groups agora se chama Lines',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The WhatsApp app for teams is now called Lines, and it lives at /app/lines. Old /app/groups links, bookmarks and installed apps redirect on their own, and connected numbers keep working with no changes.',
+        es: 'La app de WhatsApp para equipos ahora se llama Lines y vive en /app/lines. Los links, favoritos y apps instaladas con /app/groups redirigen solos, y los números conectados siguen funcionando sin cambios.',
+        pt: 'O app de WhatsApp para equipes agora se chama Lines e fica em /app/lines. Links, favoritos e apps instalados com /app/groups redirecionam sozinhos, e os números conectados continuam funcionando sem mudanças.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-08-one-menu-at-a-time',
+    date: '2026-11-08',
+    title: {
+      en: 'One menu open at a time',
+      es: 'Un menú abierto a la vez',
+      pt: 'Um menu aberto por vez',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Opening a menu now closes the one that was open, also from the keyboard or with ⌘K and ⌘J: the app switcher and the account menu no longer end up one on top of the other. Esc closes only the top menu and puts focus back on its button, and menus open upward or sideways when they would not fit on screen.',
+        es: 'Abrir un menú ahora cierra el que estaba abierto, también con el teclado o con ⌘K y ⌘J: el switcher de apps y el menú de la cuenta ya no quedan uno encima del otro. Esc cierra solo el menú de arriba y devuelve el foco a su botón, y los menús abren para arriba o de costado cuando no entran en pantalla.',
+        pt: 'Abrir um menu agora fecha o que estava aberto, também pelo teclado ou com ⌘K e ⌘J: o seletor de apps e o menu da conta não ficam mais um em cima do outro. Esc fecha só o menu de cima e devolve o foco ao seu botão, e os menus abrem para cima ou para o lado quando não cabem na tela.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-pulse-rename',
     date: '2026-11-08',
     title: {
@@ -267,6 +643,23 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'The inbox has a Sort menu: newest activity, oldest activity or waiting longest. Waiting counts from the visitor\'s first message after the last reply from a person or the bot; internal notes do not count.',
         es: 'La bandeja tiene un menú de orden: actividad más reciente, más vieja o espera más larga. La espera cuenta desde el primer mensaje del visitante después de la última respuesta de una persona o del bot; las notas internas no cuentan.',
         pt: 'A caixa de entrada tem um menu de ordem: atividade mais recente, mais antiga ou espera mais longa. A espera conta a partir da primeira mensagem do visitante depois da última resposta de uma pessoa ou do bot; notas internas não contam.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-07-track-linear-workspace-import',
+    date: '2026-11-07',
+    title: {
+      en: 'Track: move a whole Linear workspace in one go',
+      es: 'Track: mudá un workspace entero de Linear de una vez',
+      pt: 'Track: traga um workspace inteiro do Linear de uma vez',
+    },
+    items: [
+      {
+        product: 'track',
+        en: 'The Linear importer now brings teams with their workflow, projects with milestones and updates, cycles, issues with their original IDs, comment threads, links, pull requests, relations and sub-issues. People are matched by email, and the preview can invite the ones who are missing. Run it again before you switch: it updates what changed in Linear and never duplicates.',
+        es: 'El importador de Linear ahora trae los teams con su workflow, los projects con milestones y updates, cycles, issues con sus IDs originales, hilos de comentarios, links, pull requests, relaciones y sub-issues. Las personas se asocian por email y la vista previa puede invitar a las que faltan. Corrélo de nuevo antes de cambiarte: actualiza lo que cambió en Linear y nunca duplica.',
+        pt: 'O importador do Linear agora traz os teams com o workflow, os projects com milestones e updates, cycles, issues com os IDs originais, threads de comentários, links, pull requests, relações e sub-issues. As pessoas são associadas pelo e-mail e a prévia pode convidar quem falta. Rode de novo antes de trocar: atualiza o que mudou no Linear e nunca duplica.',
       },
     ],
   },

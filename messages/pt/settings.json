@@ -118,7 +118,7 @@
       "deal": "Deals",
       "robot": "Robôs",
       "chat": "Chat",
-      "groups": "Groups (WhatsApp)",
+      "groups": "Lines (WhatsApp)",
       "talk": "Talk",
       "company": "Empresas",
       "task": "Tarefas",
@@ -156,9 +156,9 @@
       "chat_message_created": "Mensagem de chat",
       "chat_conversation_assigned": "Conversa atribuída",
       "chat_conversation_resolved": "Conversa resolvida",
-      "groups_message_received": "Mensagem de WhatsApp recebida (Groups)",
-      "groups_ticket_created": "Ticket criado (Groups)",
-      "groups_ticket_updated": "Ticket atualizado (Groups)",
+      "groups_message_received": "Mensagem de WhatsApp recebida (Lines)",
+      "groups_ticket_created": "Ticket criado (Lines)",
+      "groups_ticket_updated": "Ticket atualizado (Lines)",
       "contact_property_changed": "Propriedade do contato alterada",
       "contact_deleted": "Contato excluído",
       "company_created": "Empresa criada",
@@ -180,13 +180,13 @@
       "project_created": "Projeto criado",
       "project_updated": "Projeto editado",
       "project_deleted": "Projeto excluído",
-      "groups_message_sent": "Mensagem enviada (Groups)",
-      "groups_chat_created": "Chat ou grupo novo (Groups)",
-      "groups_chat_assigned": "Chat atribuído (Groups)",
-      "groups_chat_closed": "Chat fechado (Groups)",
-      "groups_member_joined": "Membro entrou em um grupo (Groups)",
-      "groups_member_left": "Membro saiu de um grupo (Groups)",
-      "groups_poll_voted": "Voto em uma enquete (Groups)",
+      "groups_message_sent": "Mensagem enviada (Lines)",
+      "groups_chat_created": "Chat ou grupo novo (Lines)",
+      "groups_chat_assigned": "Chat atribuído (Lines)",
+      "groups_chat_closed": "Chat fechado (Lines)",
+      "groups_member_joined": "Membro entrou em um grupo (Lines)",
+      "groups_member_left": "Membro saiu de um grupo (Lines)",
+      "groups_poll_voted": "Voto em uma enquete (Lines)",
       "talk_message_posted": "Mensagem em um canal (Talk)",
       "page_created": "Página criada (Docs)",
       "page_updated": "Página editada (Docs)",
@@ -359,11 +359,29 @@
         "failed": "Falhou",
         "skipped": "Pulado"
       }
+    },
+    "waitlist": {
+      "nav": "Lista de espera",
+      "desc": "Pessoas esperando cada app \"Em breve\". Quando um app sai, o cron de cada hora manda um email para elas. Só os ADMIN_EMAILS veem isto.",
+      "exportAll": "Baixar CSV",
+      "emptyTitle": "Ninguém entrou ainda",
+      "emptyBody": "O que chegar pelo app, pelo onboarding e pelas páginas de produto aparece aqui.",
+      "app": "App",
+      "total": "Pessoas",
+      "last7": "Últimos 7 dias",
+      "withUseCase": "Com \"para quê\"",
+      "state": "Estado",
+      "export": "CSV",
+      "soon": "Em breve",
+      "live": "Lançado: {notified} de {total} avisadas",
+      "csv": "CSV"
     }
   },
   "groups": {
     "account": "Conta e workspace",
-    "products": "Produtos"
+    "products": "Produtos",
+    "workspace": "Workspace",
+    "device": "Este dispositivo"
   },
   "sections": {
     "profile": "Perfil",
@@ -377,10 +395,16 @@
     "security": "Segurança",
     "notifications": "Avisos",
     "desktop": "App de desktop",
-    "admin": "Admin"
+    "admin": "Admin",
+    "apps": "Apps do workspace",
+    "appearance": "Aparência",
+    "offline": "Sem conexão"
   },
   "nav": {
-    "select": "Seção de ajustes"
+    "select": "Seção de ajustes",
+    "label": "Configurações",
+    "search": "Buscar nas configurações",
+    "noResults": "Nenhuma configuração corresponde a “{q}”"
   },
   "cmdk": {
     "section": "Ajustes: {section}",
@@ -431,7 +455,7 @@
       "empty": "Por enquanto cada app conecta suas contas nos próprios ajustes.",
       "google": "Google Calendar em Cal › Conexões",
       "gmail": "Gmail em CRM › Integrações",
-      "whatsapp": "Números de WhatsApp em Groups › Números",
+      "whatsapp": "Números de WhatsApp em Lines › Números",
       "github": "GitHub em Track › GitHub",
       "apps": "Claude e outros apps conectados"
     },
@@ -711,7 +735,8 @@
         "transfer": "{actor} passou o trabalho de {target} para {to}",
         "invite": "{actor} convidou {target}",
         "link": "{actor} criou um link de convite",
-        "revoke": "{actor} revogou o convite de {target}"
+        "revoke": "{actor} revogou o convite de {target}",
+        "workspaceApp": "{actor} mudou quem usa {target}: {to}"
       },
       "someone": "alguém",
       "undo": "Desfazer",
@@ -767,7 +792,7 @@
     "deleteBody": "Ela some de todos os apps. As conversas e regras do Chat que a usavam ficam sem equipe. As pessoas continuam no workspace.",
     "save": "Salvar",
     "cancel": "Cancelar",
-    "uses": "Cada equipe é usada no Talk para as @menções (@vendas avisa a equipe toda) e no Cal para adicionar uma equipe inteira a um pool de hosts. No CRM, Chat e Groups só é usada se você ativar.",
+    "uses": "Cada equipe é usada no Talk para as @menções (@vendas avisa a equipe toda) e no Cal para adicionar uma equipe inteira a um pool de hosts. No CRM, Chat e Lines só é usada se você ativar.",
     "errors": {
       "save": "Não foi possível salvar a equipe. Tente de novo.",
       "duplicate_name": "Já existe uma equipe com esse nome.",
@@ -776,7 +801,7 @@
       "forbidden": "Para isso você precisa ser admin deste workspace."
     },
     "useIn": "Usar em",
-    "useHelp": "O Talk (@menções) e o Cal (pools de hosts) sempre podem usar. CRM, Chat e Groups só se você marcar aqui.",
+    "useHelp": "O Talk (@menções) e o Cal (pools de hosts) sempre podem usar. CRM, Chat e Lines só se você marcar aqui.",
     "usedIn": "Usada em {apps}, Talk e Cal",
     "usedInNone": "Usada em Talk e Cal",
     "useApps": {
@@ -789,7 +814,7 @@
         "desc": "caixa de entrada por equipe"
       },
       "groups": {
-        "title": "Groups",
+        "title": "Lines",
         "desc": "atribuição de chats"
       }
     }
@@ -852,7 +877,7 @@
     "joinApproval": "Um admin aprova cada pessoa antes de ela entrar",
     "joinRole": "Entram como membros com estes apps:",
     "dangerTitle": "Propriedade e encerramento",
-    "dangerDesc": "O que ainda não está no produto e o que fazer enquanto isso.",
+    "dangerDesc": "Transferir a propriedade e excluir o workspace com tudo o que tem.",
     "transferTitle": "Transferir a propriedade",
     "transferBody": "Ainda não dá para transferir a propriedade pelo app. Enquanto isso, torne a próxima pessoa admin em Configurações › Membros: admins convidam, mudam papéis e editam estas configurações.",
     "closeTitle": "Encerrar o workspace",
@@ -904,7 +929,10 @@
     "guardStay": "Ir para meu workspace ativo",
     "guardHome": "Ir para o início",
     "guardSwitchError": "Não foi possível voltar. Tente de novo.",
-    "guardClose": "Fechar"
+    "guardClose": "Fechar",
+    "offTitle": "{app} está desativado no seu workspace",
+    "offBody": "Um admin de {workspace} desativou {app}. Peça para reativar se precisar.",
+    "offBodyAdmin": "{app} está desativado em {workspace}. Reative em Ajustes › Workspace › Apps."
   },
   "invite": {
     "metaTitle": "Convite",
@@ -1020,9 +1048,8 @@
       "importFrom": "Importar do {tool}",
       "go": "Ir para o {app}",
       "finish": "Concluir",
-      "desktop": "Também tem app para Mac e Windows, com ditado em qualquer app.",
-      "desktopMac": "Baixar para Mac",
-      "desktopWin": "Baixar para Windows"
+      "soon": "Em breve",
+      "soonHelp": "Ainda não podem ser usados. Marque os que interessam e avisamos por email quando saírem."
     },
     "invited": {
       "title": "Boas-vindas a {workspace}",
@@ -1049,7 +1076,61 @@
     "stepFirst": "Passo 1",
     "notYouJoined": "Você já entrou em {workspace} com {email}. Sair da sessão não desfaz isso. Para tirar esta conta de {workspace}, saia agora; para voltar com outra conta, será preciso um novo convite.",
     "notYouLeave": "Sair de {workspace} e encerrar a sessão",
-    "notYouStay": "Só encerrar a sessão"
+    "notYouStay": "Só encerrar a sessão",
+    "skipStep": "Pular",
+    "skipAll": "Pular o resto",
+    "resumed": "Guardamos suas respostas da última vez.",
+    "apps": {
+      "title": "Quais apps você vai usar?",
+      "sub": "Eles aparecem primeiro no seu início, na barra lateral e no seletor de apps. Os outros ficam a um clique.",
+      "suggested": "Escolhidos para {role}. Mude o que quiser.",
+      "suggestedNoRole": "Um ponto de partida. Mude o que quiser.",
+      "count": "{n, plural, =0 {Nenhum: mostramos os de sempre} one {# app} other {# apps}}",
+      "sample": "Adicionar dados de exemplo para explorar (contatos, um doc, um projeto e um tipo de evento)"
+    },
+    "setup": {
+      "savedTitle": "Seu workspace está pronto",
+      "stepOf": "Configuração {step} de {total}",
+      "finish": "Ir para o início",
+      "next": "Próximo"
+    },
+    "connect": {
+      "title": "Conecte suas contas",
+      "sub": "Assim os apps que você escolheu começam com suas contas de verdade.",
+      "calendar": {
+        "name": "Google Agenda",
+        "body": "O Cal consulta para evitar conflitos e adiciona as reservas."
+      },
+      "email": {
+        "name": "Gmail",
+        "body": "Os emails com seus contatos aparecem no CRM; envie do seu endereço."
+      },
+      "whatsapp": {
+        "name": "Linha de WhatsApp",
+        "body": "Escaneie um QR para trazer suas conversas e grupos ao Groups, com o histórico."
+      },
+      "connect": "Conectar",
+      "connected": "Conectado",
+      "openSettings": "Configurar",
+      "result": {
+        "connected": "{name} está conectado.",
+        "denied": "{name} não foi conectado: a permissão foi recusada.",
+        "error": "Não deu para conectar {name}. Tente de novo.",
+        "scopes": "{name} precisa de todas as permissões que pede. Tente de novo e deixe todas marcadas."
+      }
+    },
+    "import": {
+      "title": "Vem de outra ferramenta?",
+      "sub": "Traga seus dados agora ou depois em Ajustes › Importar. Nada muda na outra ferramenta.",
+      "none": "Começo do zero",
+      "go": "Importar do {tool}",
+      "soon": "Ainda não há importador do {tool}. Você pode começar do zero e importar por CSV onde o app permite.",
+      "later": "Depois"
+    },
+    "desktop": {
+      "title": "Tenha o zerosoft no seu computador",
+      "sub": "O app para computador é a versão do navegador mais o que uma aba não consegue fazer."
+    }
   },
   "profileForm": {
     "title": "Seus dados",
@@ -1388,5 +1469,328 @@
         "digest": "o resumo semanal"
       }
     }
+  },
+  "appsPanel": {
+    "title": "Apps do workspace",
+    "desc": "Ligue ou desligue cada app para o workspace, escolha quem usa (todos, equipes ou pessoas) e ajuste por pessoa. Desativar uma tira de todo lugar para todos; o que está dentro fica guardado.",
+    "readOnly": "Só o owner e os admins mudam isto.",
+    "modes": {
+      "all": "Todos",
+      "some": "Equipes ou pessoas",
+      "admins": "Só admins",
+      "off": "Desativado"
+    },
+    "summary": {
+      "all": "Todos que o têm habilitado podem usar.",
+      "some": "{people, plural, =0 {Nenhuma pessoa} one {# pessoa} other {# pessoas}} e {teams, plural, =0 {nenhum time} one {# time} other {# times}}, mais o owner e os admins.",
+      "admins": "Só o owner e os admins.",
+      "off": "Desligado para todos. Os dados continuam guardados.",
+      "deniedCount": "{count, plural, one {# pessoa excluída} other {# pessoas excluídas}}"
+    },
+    "edit": "Escolher",
+    "error": "Não foi salvo. Tente de novo.",
+    "saved": "Salvo",
+    "accessFor": "Quem usa o {name}",
+    "compose": "Acima disso, continuam valendo os apps habilitados de cada pessoa em Membros e permissões.",
+    "pickTitle": "Quem usa o {name}?",
+    "pickSave": "Salvar",
+    "cancel": "Cancelar",
+    "pickHelp": "O owner e os admins sempre têm acesso. Escolha equipes, pessoas ou os dois, e exclua quem quiser pelo nome.",
+    "teams": "Times",
+    "people": "Pessoas",
+    "teamCount": "{count, plural, one {# pessoa} other {# pessoas}}",
+    "noMembers": "Ainda não há membros no workspace.",
+    "enabled": "Ativado",
+    "enabledFor": "{name} ativado para o workspace",
+    "accessLabel": "Acesso",
+    "exceptions": "Exceções",
+    "choose": "Pessoas e equipes",
+    "person": {
+      "default": "Conforme o acesso acima",
+      "allow": "Sempre pode",
+      "deny": "Nunca pode"
+    },
+    "pickHelpAll": "Todos usam. Exclua aqui pessoas específicas; o owner e os admins sempre mantêm o acesso.",
+    "pickHelpAdmins": "Só o owner e os admins usam. As exclusões não mudam isso.",
+    "pickPeople": "Por pessoa",
+    "offNote": "Desativado: some do menu, do início, da busca, das páginas e da API, do MCP e do app de desktop. Os dados ficam guardados."
+  },
+  "security": {
+    "requiredBy": "O workspace {workspace} exige a verificação em duas etapas. Ative abaixo para continuar trabalhando nele.",
+    "working": "Um momento…",
+    "mfa": {
+      "title": "Verificação em duas etapas",
+      "desc": "Depois de entrar com o Google ou com o código por email, pedir também um código de um app autenticador.",
+      "offHelp": "Qualquer app autenticador serve: 1Password, Google Authenticator, Microsoft Authenticator, Authy.",
+      "setUp": "Configurar",
+      "turnOn": "Ativar",
+      "cancel": "Cancelar",
+      "step1": "Escaneie o código QR com seu app autenticador.",
+      "step2": "Se não conseguir escanear, digite a chave abaixo.",
+      "step3": "Digite o código de 6 dígitos que o app mostra",
+      "qrLabel": "Código QR para seu app autenticador",
+      "manual": "Chave de configuração",
+      "on": "Ativada",
+      "onSince": "desde",
+      "recoveryLeft": "{count, plural, =0 {Não restam códigos de recuperação: gere novos.} one {Resta # código de recuperação} other {Restam # códigos de recuperação}}",
+      "regenerate": "Novos códigos de recuperação",
+      "disable": "Desativar",
+      "confirmWithCode": "Confirme com um código do app ou um de recuperação",
+      "codesTitle": "Guarde seus códigos de recuperação",
+      "codesHelp": "Cada código funciona uma vez se você perder o celular. Eles não serão mostrados de novo.",
+      "copy": "Copiar",
+      "copied": "Copiados",
+      "download": "Baixar",
+      "saved": "Já guardei"
+    },
+    "sessions": {
+      "title": "Sessões",
+      "desc": "Dispositivos com sua conta aberta. Encerrar uma vale a partir do próximo pedido dela.",
+      "empty": "Não há outras sessões abertas.",
+      "unknownDevice": "Dispositivo desconhecido",
+      "current": "Este dispositivo",
+      "lastSeen": "última atividade",
+      "revoke": "Encerrar sessão",
+      "signOutHere": "Sair aqui",
+      "revokeOthers": "Encerrar as outras sessões",
+      "confirmTitle": "Encerrar todas as outras sessões?",
+      "confirmBody": "{count, plural, one {# outro dispositivo vai precisar entrar de novo.} other {# outros dispositivos vão precisar entrar de novo.}}",
+      "cancel": "Cancelar",
+      "error": "Não foi possível encerrar essa sessão. Tente de novo.",
+      "method": {
+        "google": "Google",
+        "email": "Código por email",
+        "desktop": "App para desktop",
+        "other": "Login anterior"
+      }
+    },
+    "workspace": {
+      "title": "Segurança do workspace: {workspace}",
+      "desc": "Regras para todas as pessoas deste workspace.",
+      "requireMfa": "Exigir a verificação em duas etapas de cada membro",
+      "requireMfaHelp": "Quem não tiver vai precisar ativar antes de abrir este workspace. Convidados não são afetados. Ative primeiro na sua conta.",
+      "ownerOnly": "Só o dono do workspace pode mudar isso.",
+      "withoutMfa": "{count, plural, one {# membro sem verificação em duas etapas} other {# membros sem verificação em duas etapas}}",
+      "allHaveMfa": "Todos os membros têm a verificação em duas etapas ativada.",
+      "auditTitle": "Registro de auditoria",
+      "auditDesc": "Logins, mudanças de duas etapas, sessões, chaves de API, exportações, exclusões e mudanças de membros. Guardado por um ano.",
+      "auditEmpty": "Ainda não há nada registrado.",
+      "downloadCsv": "Baixar CSV",
+      "loadMore": "Carregar mais"
+    },
+    "activity": {
+      "title": "Sua atividade recente",
+      "desc": "Eventos de segurança da sua conta.",
+      "empty": "Ainda não há nada registrado."
+    },
+    "events": {
+      "time": "Hora",
+      "actor": "Pessoa",
+      "action": "Evento",
+      "detail": "Detalhe",
+      "ip": "IP",
+      "actions": {
+        "login": "Entrou",
+        "login_failed_mfa": "Código de duas etapas incorreto",
+        "logout": "Saiu",
+        "mfa_enable": "Ativou a verificação em duas etapas",
+        "mfa_disable": "Desativou a verificação em duas etapas",
+        "mfa_recovery_used": "Usou um código de recuperação",
+        "mfa_recovery_regenerated": "Novos códigos de recuperação",
+        "session_revoke": "Encerrou uma sessão",
+        "session_revoke_others": "Encerrou as outras sessões",
+        "workspace_require_mfa": "Mudou a exigência de duas etapas",
+        "api_key_create": "Criou uma chave de API",
+        "api_key_revoke": "Revogou uma chave de API",
+        "export_account": "Exportou os dados da conta",
+        "export_workspace": "Exportou dados do workspace",
+        "account_delete_requested": "Pediu para excluir a conta",
+        "account_delete_cancelled": "Cancelou a exclusão da conta",
+        "account_deleted": "Conta excluída",
+        "workspace_deleted": "Workspace excluído",
+        "member_role": "Mudou um papel",
+        "member_apps": "Mudou apps",
+        "member_teams": "Mudou equipes",
+        "member_remove": "Removeu um membro",
+        "member_reactivate": "Reativou um membro",
+        "member_transfer": "Transferiu trabalho",
+        "invite_create": "Convidou alguém",
+        "invite_revoke": "Revogou um convite",
+        "workspace_delete_requested": "Pediu para excluir o workspace",
+        "login_mfa": "Passou a segunda etapa",
+        "workspace_delete_cancelled": "Cancelou a exclusão do workspace"
+      }
+    },
+    "errors": {
+      "invalidCode": "Esse código não funcionou. Confira a hora do celular e tente o código mais novo.",
+      "rateLimited": "Muitas tentativas. Espere alguns minutos e tente de novo.",
+      "requiredByWorkspace": "Seu workspace exige a verificação em duas etapas, então ela não pode ser desativada.",
+      "enableFirst": "Primeiro ative a verificação em duas etapas na sua conta.",
+      "generic": "Algo deu errado. Tente de novo.",
+      "network": "Sem conexão. Tente de novo."
+    }
+  },
+  "privacy": {
+    "title": "Privacidade",
+    "desc": "Baixe tudo ou exclua sua conta.",
+    "exportTitle": "Baixar meus dados",
+    "exportBody": "Um ZIP com cada registro da sua conta e do workspace do qual você é dono, um arquivo JSON por tabela. Segredos, como tokens e chaves, ficam de fora.",
+    "exportCta": "Baixar ZIP",
+    "deleteTitle": "Excluir a conta",
+    "deleteBody": "Sua conta e o workspace do qual você é dono são excluídos 30 dias depois do pedido, com os arquivos e os números de WhatsApp conectados. Até lá você pode cancelar e baixar seus dados.",
+    "deleteBodyMembers": "{count, plural, one {Sua conta e o workspace do qual você é dono são excluídos 30 dias depois do pedido. # outra pessoa do seu workspace perde o acesso.} other {Sua conta e o workspace do qual você é dono são excluídos 30 dias depois do pedido. # outras pessoas do seu workspace perdem o acesso.}}",
+    "deleteDialogBody": "Todas as suas sessões são encerradas. Em 30 dias sua conta, o workspace do qual você é dono, os arquivos e os números conectados são apagados. Se entrar antes, pode cancelar.",
+    "deleteCta": "Excluir a conta",
+    "typeEmail": "Digite {email} para confirmar",
+    "workspaceTitle": "Excluir o workspace",
+    "workspaceBody": "Apaga tudo deste workspace 30 dias depois do pedido, com os arquivos e os números de WhatsApp conectados. Aí os membros perdem o acesso. Sua conta continua.",
+    "workspaceDialogBody": "Em 30 dias todos os apps, registros, arquivos e números conectados deste workspace são apagados e os membros perdem o acesso. Até lá você pode cancelar.",
+    "workspaceCta": "Excluir o workspace",
+    "typeWorkspace": "Digite {name} para confirmar",
+    "pendingAccount": "Sua conta e seu workspace serão excluídos em",
+    "pendingWorkspace": "Este workspace será excluído em",
+    "cancelDeletion": "Cancelar a exclusão",
+    "mismatch": "Não confere. Digite exatamente como aparece.",
+    "error": "Algo deu errado. Tente de novo.",
+    "cancel": "Cancelar",
+    "codeLabel": "Código de duas etapas (do app ou de recuperação)",
+    "badCode": "Esse código de duas etapas não funcionou.",
+    "rateLimited": "Muitas tentativas. Tente mais tarde."
+  },
+  "desktopSections": {
+    "start": "Primeiros passos",
+    "general": "Geral",
+    "meetings": "Reuniões",
+    "voice": "Voice",
+    "dictionary": "Dicionário",
+    "history": "Histórico",
+    "permissions": "Permissões",
+    "updates": "Atualizações",
+    "account": "Sessão e servidor"
+  },
+  "keywords": {
+    "profile": "nome, idioma, fuso horário, foto, email, conta",
+    "appearance": "tema, modo escuro, modo claro, cores, sistema",
+    "notifications": "email, emails, resumo, avisos, cancelar inscrição",
+    "workspace": "nome, logo, modo, empresa",
+    "members": "pessoas, convidar, funções, permissões, convidados",
+    "teams": "grupos, áreas",
+    "billing": "cobrança, faturamento, billing, faturas, assinatura, pagamento, plano, uso, cota de IA",
+    "api": "chaves de api, tokens, webhooks, integrações",
+    "connections": "google, slack, github, credenciais, integrações",
+    "import": "importar, migrar, mudar, csv",
+    "security": "segurança, domínios, sessões, chaves",
+    "offline": "sem conexão, offline, armazenamento, cache, sincronizar, alterações pendentes",
+    "desktop": "baixar, mac, windows, desktop, app, versão, atualizar",
+    "admin": "admin, feedback, roadmap, novidades",
+    "product": "configurações, app",
+    "native": {
+      "start": "primeiros passos, configurar, permissões",
+      "general": "atalho, ditado, tecla, mãos livres, área de transferência, abrir ao entrar, versão",
+      "meetings": "indicador de gravação, reuniões, flutuante, gravar",
+      "voice": "idioma, limpeza, IA, tom, estilo",
+      "dictionary": "palavras, substituições, vocabulário",
+      "history": "ditados, transcrições, pendentes, tentar de novo, colar",
+      "permissions": "acessibilidade, microfone, câmera, gravação de tela, privacidade, redefinir permissão",
+      "updates": "atualizar, versão, procurar atualizações",
+      "account": "entrar, sair, servidor, instalação própria"
+    },
+    "apps": "apps do workspace, ligar, desligar, ocultar, acesso, quem pode usar"
+  },
+  "appearance": {
+    "title": "Aparência",
+    "desc": "Como o zerosoft aparece neste navegador.",
+    "themeHelp": "Sistema segue o modo claro ou escuro do seu computador. É a mesma opção do seletor no rodapé da barra lateral.",
+    "languageTitle": "Idioma",
+    "languageDesc": "O idioma da interface e dos emails que o zerosoft envia.",
+    "languageLink": "Altere em Perfil"
+  },
+  "offline": {
+    "title": "Modo sem conexão",
+    "desc": "Guarda neste dispositivo o que você abriu no CRM, Docs, Track e Notes, para abrir e continuar trabalhando sem conexão.",
+    "loading": "Carregando as configurações sem conexão",
+    "enabled": "Manter os apps disponíveis sem conexão",
+    "enabledHelp": "As páginas que você abre ficam guardadas neste dispositivo. O que você alterar sem conexão é enviado quando ela volta.",
+    "disabledHelp": "Nada é guardado neste dispositivo e as páginas precisam de conexão. As alterações que já esperam são enviadas mesmo assim.",
+    "confirmTitle": "{n, plural, one {# alteração está esperando para ser enviada} other {# alterações estão esperando para ser enviadas}}",
+    "confirmBody": "Desligar o modo sem conexão não as apaga: ficam neste dispositivo e são enviadas quando a conexão voltar. As páginas guardadas são apagadas.",
+    "confirmOff": "Desligar",
+    "keepOn": "Manter ligado",
+    "appsTitle": "Apps disponíveis sem conexão",
+    "apps": {
+      "crm": "CRM e Início",
+      "docs": "Docs",
+      "track": "Track",
+      "notes": "Notes"
+    },
+    "appsHelp": {
+      "crm": "Contatos, empresas, negócios e a página inicial",
+      "docs": "As páginas que você abriu ou marcou como disponíveis sem conexão",
+      "track": "As listas, issues e projetos que você abriu",
+      "notes": "A lista de notas"
+    },
+    "appUsage": "{pages, plural, one {# página} other {# páginas}}, {size}",
+    "measuring": "Medindo…",
+    "sizeTitle": "Quanto guardar",
+    "sizes": {
+      "light": "Leve",
+      "normal": "Normal",
+      "max": "Máximo"
+    },
+    "sizeHelp": "Até {pages} páginas e {size}",
+    "daysLabel": "Guardar as páginas por",
+    "days": "{n} dias",
+    "daysHelp": "As páginas que não forem abertas nesse tempo são apagadas. Ao chegar no limite, saem primeiro as mais antigas.",
+    "saved": "Salvo",
+    "turnedOn": "O modo sem conexão está ligado",
+    "turnedOff": "O modo sem conexão está desligado. As páginas guardadas foram apagadas.",
+    "storageTitle": "Espaço neste dispositivo",
+    "storageDesc": "O que o zerosoft guarda neste navegador para usar sem conexão. Aqui só contam as suas páginas.",
+    "savedHere": "Guardado para usar sem conexão",
+    "appFiles": "Arquivos do app",
+    "browserTotal": "Total usado pelo zerosoft neste navegador",
+    "ofQuota": "{used} de {quota} disponíveis",
+    "noWorker": "Este navegador não consegue guardar páginas sem conexão (não tem service worker).",
+    "clear": "Apagar os dados sem conexão",
+    "clearHelp": "Apaga as páginas e os arquivos guardados. As alterações esperando envio continuam.",
+    "cleared": "Os dados sem conexão foram apagados",
+    "pendingTitle": "Alterações esperando conexão",
+    "pendingDesc": "O que você alterou sem conexão neste dispositivo. É enviado em ordem quando a conexão volta.",
+    "pendingCount": "{n, plural, one {alteração esperando} other {alterações esperando}}",
+    "pendingQueue": "{n, plural, one {# alteração no CRM ou Track} other {# alterações no CRM ou Track}}",
+    "pendingFailed": "{n, plural, one {# alteração que o servidor recusou (tente de novo pela barra de status)} other {# alterações que o servidor recusou (tente de novo pela barra de status)}}",
+    "pendingDocs": "{n, plural, one {# rascunho do Docs} other {# rascunhos do Docs}}",
+    "pendingNotes": "{n, plural, one {# alteração no Notes} other {# alterações no Notes}}"
+  },
+  "desktopApp": {
+    "title": "App de desktop",
+    "desc": "zerosoft para Mac e Windows: a plataforma inteira na sua própria janela, ditado em qualquer app e um indicador de gravação para as reuniões.",
+    "installed": "Instalado aqui",
+    "latest": "Última versão",
+    "notHere": "Fora do app",
+    "updateAuto": "A versão {v} está disponível. O app baixa em segundo plano: reinicie o zerosoft para instalar, ou use zerosoft › Procurar atualizações.",
+    "updateManual": "A versão {v} está disponível. Esta versão não se atualiza sozinha e pode não reconhecer a permissão de Acessibilidade: baixe a nova e substitua.",
+    "openSettings": "Abrir as configurações do app",
+    "download": "Baixar o app",
+    "sectionsTitle": "O que tem a janela de configurações do app",
+    "sectionsDesc": "Abra com ⌘, (Ctrl+, no Windows) ou pelo menu zerosoft. Ela também tem todas as seções desta página.",
+    "sectionHelp": {
+      "start": "Sessão, microfone e Acessibilidade, passo a passo",
+      "general": "Atalho e modo do ditado, área de transferência, abrir ao entrar e versão",
+      "meetings": "O indicador flutuante de gravação",
+      "voice": "Idioma do ditado, limpeza e tom por app",
+      "dictionary": "Palavras e substituições para o ditado",
+      "history": "Seus ditados e os que esperam nova tentativa",
+      "permissions": "Acessibilidade, microfone, câmera e gravação de tela, com Redefinir permissão",
+      "updates": "Versão, Procurar atualizações e Reiniciar para atualizar",
+      "account": "Quem está com a sessão e qual servidor o app usa"
+    }
+  },
+  "desktopUpdate": {
+    "title": "O zerosoft {v} para desktop está disponível.",
+    "auto": "Você tem a {current}. Reinicie o zerosoft para instalar, ou use zerosoft › Procurar atualizações.",
+    "manual": "Você tem a {current}, que não se atualiza sozinha e pode não reconhecer a permissão de Acessibilidade. Baixe a versão nova e substitua o app.",
+    "download": "Baixar",
+    "dismiss": "Agora não"
   }
 }

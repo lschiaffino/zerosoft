@@ -113,7 +113,7 @@ export default function BroadcastComposer({
       });
       setBusy(false);
       if (!res.data) return setError(errText(res.error));
-      router.push(`/app/groups/broadcasts/recurring/${res.data.id}`);
+      router.push(`/app/lines/broadcasts/recurring/${res.data.id}`);
       return;
     }
     let scheduledAt: string | null = null;
@@ -128,7 +128,7 @@ export default function BroadcastComposer({
     });
     setBusy(false);
     if (!res.data) return setError(errText(res.error));
-    router.push(`/app/groups/broadcasts/${res.data.id}`);
+    router.push(`/app/lines/broadcasts/${res.data.id}`);
   }
 
   return (

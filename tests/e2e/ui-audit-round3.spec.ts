@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type Browser } from '@playwright/test';
 
 /** Tercera ronda de la auditoría de UI: hidratación fuera de UTC, listas a 390 y metadatos para compartir. */
@@ -16,9 +16,9 @@ const ROUTES = [
   '/es/app/crm',
   '/es/app/crm/deals',
   '/es/app/crm/contacts',
-  '/es/app/groups/list',
-  '/es/app/groups/tasks',
-  '/es/app/groups/tickets',
+  '/es/app/lines/list',
+  '/es/app/lines/tasks',
+  '/es/app/lines/tickets',
   '/es/app/books/invoices',
   '/es/app/people',
   '/es/app/hiring/reports',
@@ -81,7 +81,7 @@ test.describe('listas a 390', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test('Books y Groups muestran todo sin scroll lateral', async ({ page }) => {
-    for (const route of ['/es/app/books/invoices', '/es/app/books/contacts', '/es/app/groups/list', '/es/app/groups/tasks', '/es/app/groups/templates', '/es/app/groups/broadcasts']) {
+    for (const route of ['/es/app/books/invoices', '/es/app/books/contacts', '/es/app/lines/list', '/es/app/lines/tasks', '/es/app/lines/templates', '/es/app/lines/broadcasts']) {
       await page.goto(route, { waitUntil: 'networkidle' });
       const overflow = await page.evaluate(() => [...document.querySelectorAll('.table-stack')].filter((w) => w.scrollWidth > w.clientWidth + 1).length);
       expect(overflow, route).toBe(0);
@@ -92,7 +92,7 @@ test.describe('listas a 390', () => {
 });
 
 test('People: leer no crea fichas y la que falta se da de alta sin colgar la página', async ({ page, request }) => {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   await page.goto('/en/app/people', { waitUntil: 'networkidle' });
   const count = async () => Number((await db.execute("SELECT COUNT(*) AS n FROM people_employees WHERE workspace_id = 'demo'")).rows[0].n);
   const id = `orphan-${uid()}`;

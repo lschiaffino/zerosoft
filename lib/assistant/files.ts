@@ -46,6 +46,11 @@ const store = privateFileStore({
   unavailable: () => new AttachmentError('storage_unavailable'),
 });
 
+/** Borra archivos por referencia (borrado de cuenta o workspace, lib/privacy.ts). Best effort. */
+export async function deleteAssistantFiles(refs: string[]): Promise<void> {
+  await store.remove(refs);
+}
+
 export interface AttachmentRow {
   id: string;
   workspace_id: string;
@@ -404,7 +409,7 @@ export function publicRefIds(args: Record<string, unknown>): string[] {
 
 export class AttachmentUseError extends Error {
   constructor() {
-    super('A file can go as a media or a URL only when it is sent to a Groups chat. To attach it to an issue or a page, use propose_attach_file or files: [{ field, attachment }].');
+    super('A file can go as a media or a URL only when it is sent to a Lines chat. To attach it to an issue or a page, use propose_attach_file or files: [{ field, attachment }].');
   }
 }
 

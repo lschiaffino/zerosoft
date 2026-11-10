@@ -1,5 +1,5 @@
 import http from 'http';
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
 /**
@@ -19,7 +19,7 @@ const PDF = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
 const OGG = Buffer.from('OggS\0voice-note-bytes');
 
 async function sql(statement: string, args: Array<string | number | null> = []) {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   try {
     return (await db.execute({ sql: statement, args })).rows as unknown as Array<Record<string, unknown>>;
   } finally {
@@ -170,7 +170,7 @@ test('media por Evolution: subir y mandar imagen y documento, recibir imagen, no
     expect(Buffer.from(await voice.body())).toEqual(OGG);
 
     // En el chat: las imágenes (mandada y recibida) y el documento recibido.
-    await page.goto(`/en/app/groups/inbox/${chatId}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/lines/inbox/${chatId}`, { waitUntil: 'networkidle' });
     await expect(page.getByRole('heading', { level: 2, name: 'Marta Media' })).toBeVisible();
     await expect(page.locator('.gr-messages img')).toHaveCount(2);
     await expect(page.locator('.gr-messages').getByText('Factura 0042.pdf')).toBeVisible();

@@ -122,7 +122,7 @@ export default function TasksBoard({ initial, people, me, openId = null }: { ini
           quiet
           title={q || owner || status !== 'open' ? t('tasks.noResults') : t('tasks.emptyTitle')}
           body={q || owner || status !== 'open' ? undefined : t('tasks.emptyBody')}
-          action={q || owner || status !== 'open' ? undefined : { label: t('tasks.goInbox'), href: '/app/groups/inbox' }}
+          action={q || owner || status !== 'open' ? undefined : { label: t('tasks.goInbox'), href: '/app/lines/inbox' }}
           product="groups"
         />
       ) : (
@@ -147,7 +147,9 @@ export default function TasksBoard({ initial, people, me, openId = null }: { ini
                 return (
                   <tr key={task.id} className={task.done ? 'is-done' : undefined}>
                     <td className="gr-check-col">
-                      <input type="checkbox" className="ui-check" checked={task.done} onChange={() => void patch(task, { done: !task.done })} aria-label={t('tasks.markDone', { title: task.title })} />
+                      <label className="tap-cell">
+                        <input type="checkbox" className="ui-check" checked={task.done} onChange={() => void patch(task, { done: !task.done })} aria-label={t('tasks.markDone', { title: task.title })} />
+                      </label>
                     </td>
                     <td>
                       <div className="gr-ticket-title">
@@ -155,7 +157,7 @@ export default function TasksBoard({ initial, people, me, openId = null }: { ini
                           {task.title}
                         </button>
                         <span className="ui-help">
-                          <Link href={`/app/groups/inbox/${task.chatId}${task.messageId ? `#m-${task.messageId}` : ''}`}>{task.chatName}</Link>
+                          <Link href={`/app/lines/inbox/${task.chatId}${task.messageId ? `#m-${task.messageId}` : ''}`}>{task.chatName}</Link>
                           {task.messageBody ? ` · ${task.messageBody.slice(0, 80)}` : ''}
                         </span>
                       </div>

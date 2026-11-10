@@ -78,11 +78,11 @@
       "cta": "Conectar agenda"
     },
     "setup_whatsapp": {
-      "subject": "Conecte sua linha de WhatsApp ao Groups",
+      "subject": "Conecte sua linha de WhatsApp ao Lines",
       "preheader": "Você escaneia um QR e os chats aparecem na caixa de entrada.",
       "heading": "Conecte uma linha de WhatsApp",
       "body": [
-        "O Groups ainda não tem uma linha conectada. Escaneie o QR pelo WhatsApp no seu celular e os grupos aparecem na caixa de entrada compartilhada.",
+        "Você ainda não conectou um número de WhatsApp ao Lines. Escaneie o QR pelo WhatsApp no seu celular e os grupos aparecem na caixa de entrada compartilhada.",
         "Dali você atribui chats, deixa notas internas e responde com a sua equipe."
       ],
       "cta": "Conectar linha"

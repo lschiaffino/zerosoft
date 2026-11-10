@@ -96,7 +96,7 @@ export function ctaPath(template: LifecycleTemplate, opts: { app?: ProductKey | 
     case 'setup_calendar':
       return '/app/calendar/settings?tab=connections';
     case 'setup_whatsapp':
-      return '/app/groups/settings?tab=numbers';
+      return '/app/lines/settings?tab=numbers';
     case 'team_invite':
     case 'team_pending':
       return '/app/settings/members';

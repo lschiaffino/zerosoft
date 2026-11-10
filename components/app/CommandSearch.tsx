@@ -21,9 +21,10 @@ import {
 import { PriorityIcon, StatusDot } from '@/components/track/glyphs';
 import TrackIcon, { type TrackIconName } from '@/components/track/TrackIcon';
 import { SETTINGS_SECTION_KEYS, settingsSectionHref } from '@/lib/settings-nav';
-import { hrefAllowed, PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref, type AllowedApps, type ProductKey } from '@/lib/products';
+import { comingSoonHref, hrefAllowed, isComingSoon, PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref, type AllowedApps, type ProductKey } from '@/lib/products';
 import { RIVALS } from '@/components/site/catalog';
 import { IMPORT_SOURCES, importHubHref } from '@/lib/import-registry';
+import { focusReturnTarget, useLayer } from '@/lib/ui/layers';
 
 interface ResultItem {
   group: string;
@@ -214,6 +215,9 @@ function useGroupOrder() {
         'analyticsExperiments',
         'analyticsAlerts',
         'analyticsSubscriptions',
+        'biQuestions',
+        'biDashboards',
+        'biCollections',
         'analyticsProjects',
         'assistantChats',
       ], []);
@@ -236,7 +240,7 @@ function useGroupLabel(t: (key: string) => string) {
  * evento 'zs:open-search' (botón de la sidebar). Busca en todos los productos
  * usando la API unificada /api/search.
  */
-export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: AllowedApps }) {
+export default function CommandSearch({ allowedApps = '*', staff = false }: { allowedApps?: AllowedApps; staff?: boolean }) {
   const t = useTranslations('common.sidebar');
   const locale = useLocale();
   const tNotes = useTranslations('notes');
@@ -246,6 +250,7 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   const tPlanning = useTranslations('trackPlanning.cmdk');
   const tSections = useTranslations('settings.sections');
   const tSettingsCmdk = useTranslations('settings.cmdk');
+  const tSettingsKw = useTranslations('settings.keywords');
   const tCategories = useTranslations('common.categories');
   const router = useRouter();
   const pathname = usePathname();
@@ -267,11 +272,17 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   const [asyncItems, setAsyncItems] = useState<CommandAction[]>([]);
   // Tipear o cambiar de página vuelve a la primera opción (el mouse quieto
   // sobre la lista no deja elegida una que el filtro ya sacó).
+  // Lo que llega del servidor también: "Create …" (siempre al final) no queda
+  // elegido por haber estado primero mientras cargaban las opciones existentes.
   useEffect(() => {
     setSel(0);
-  }, [q, pages]);
+  }, [q, pages, asyncItems]);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevFocusRef = useRef<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // ⌘K es una capa de diálogo: al abrirse cierra los menús abiertos (la cuenta, el switcher). Esc y el clic
+  // en el fondo los maneja la paleta.
+  useLayer(open, () => setOpen(false), { root: dialogRef, kind: 'dialog', outside: false, escape: false });
   const groupOrder = useGroupOrder();
   const groupLabel = useGroupLabel(t);
 
@@ -293,7 +304,16 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
       { group: 'track', label: tTrack('cmdk.allIssues'), meta: '', href: '/app/track/issues' },
       { group: 'track', label: tTrack('cmdk.inbox'), meta: '', href: '/app/track/inbox' },
       // Planificación (como Linear): plans, initiatives, roadmap, cycles, insights y dashboards.
-      { group: 'track', label: tPlanning('newPlan'), meta: '', href: '/app/track/projects?new=1' },
+      // En un team, el project nuevo queda en ese team (como Linear).
+      {
+        group: 'track',
+        label: tPlanning('newPlan'),
+        meta: '',
+        href: (() => {
+          const key = /\/app\/track\/team\/([^/?#]+)/.exec(pathname ?? '')?.[1];
+          return key ? `/app/track/projects/new?team=${encodeURIComponent(key)}` : '/app/track/projects/new';
+        })(),
+      },
       { group: 'track', label: tPlanning('newInitiative'), meta: '', href: '/app/track/initiatives?new=1' },
       { group: 'track', label: tPlanning('plans'), meta: '', href: '/app/track/projects' },
       { group: 'track', label: tPlanning('roadmap'), meta: '', href: '/app/track/roadmap' },
@@ -340,29 +360,33 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
       { group, label: tBoard('list.new'), meta: '', href: '/app/board?new=1' },
       { group, label: t('newAgent'), meta: '', href: '/app/agents' },
       { group, label: t('newRobot'), meta: '', href: '/app/robots?new=1' },
-      { group, label: t('newGroup'), meta: '', href: '/app/groups/list?new=1' },
-      { group, label: t('newGroupTemplate'), meta: '', href: '/app/groups/templates?new=1' },
+      { group, label: t('newGroup'), meta: '', href: '/app/lines/list?new=1' },
+      { group, label: t('newGroupTemplate'), meta: '', href: '/app/lines/templates?new=1' },
       { group, label: tVoice('newMeeting'), meta: '', href: '/app/voice?new=1' },
       { group, label: tVoice('dictate'), meta: '', href: '/app/voice/dictation', event: 'zs:voice-dictate' },
       { group, label: tVoice('dictation'), meta: '', href: '/app/voice/dictation' },
     ];
     return inTrack ? [...track, ...rest] : [...rest, ...track];
-  }, [t, tNotes, tBoard, tTrack, tPlanning, tVoice, inTrack, inCrm, inDocs]);
+  }, [t, tNotes, tBoard, tTrack, tPlanning, tVoice, inTrack, inCrm, inDocs, pathname]);
 
   // Las apps (y el inicio): "crm", "hubspot" o "vender" llevan a la app. Solo al buscar.
   const appItems = useMemo<ResultItem[]>(
     () => [
       { group: 'apps', label: t('goHome'), meta: '', href: '/app', keywords: `home,inicio,início,dashboard,${t('platformHome')}` },
-      ...PRODUCT_KEYS.map((key) => ({
-        group: 'apps',
-        label: t('openApp', { name: PRODUCT_CONFIG[key].name }),
-        meta: tCategories(`${PRODUCT_CONFIG[key].category}.title`),
-        href: PRODUCT_CONFIG[key].launch,
-        keywords: `${PRODUCT_CONFIG[key].name},${RIVALS[key]},${tCategories(`${PRODUCT_CONFIG[key].category}.title`)}`,
-      })),
+      ...PRODUCT_KEYS.map((key) => {
+        // "Próximamente": lleva a su lista de espera (el staff la abre como vista previa).
+        const soon = isComingSoon(key) && !staff;
+        return {
+          group: 'apps',
+          label: soon ? t('soonApp', { name: PRODUCT_CONFIG[key].name }) : t('openApp', { name: PRODUCT_CONFIG[key].name }),
+          meta: soon ? t('comingSoon') : tCategories(`${PRODUCT_CONFIG[key].category}.title`),
+          href: soon ? comingSoonHref(key) : PRODUCT_CONFIG[key].launch,
+          keywords: `${PRODUCT_CONFIG[key].name},${key},${RIVALS[key]},${tCategories(`${PRODUCT_CONFIG[key].category}.title`)}`,
+        };
+      }),
       { group: 'apps', label: t('linkOverview'), meta: 'Link', href: '/app/links/overview', keywords: 'link,overview,resumen,resumo' },
     ],
-    [t, tCategories],
+    [t, tCategories, staff],
   );
 
   // Secciones de Ajustes (plataforma y cada app): solo aparecen al buscar.
@@ -373,7 +397,7 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
         label: tSettingsCmdk('section', { section: tSections(key) }),
         meta: '',
         href: settingsSectionHref(key),
-        keywords: key === 'billing' ? tSettingsCmdk('keywords.billing') : key === 'desktop' ? tSettingsCmdk('keywords.desktop') : undefined,
+        keywords: tSettingsKw.has(key) ? tSettingsKw(key) : undefined,
       })),
       {
         group: 'settings',
@@ -398,14 +422,16 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
         app: s.app,
       })),
     ],
-    [tSections, tSettingsCmdk],
+    [tSections, tSettingsCmdk, tSettingsKw],
   );
 
   // Dónde estaba el foco antes de abrir (el chip, la fila): vuelve ahí al cerrar.
   // Se guarda al pedir la apertura: en el efecto, el input ya tomó el foco.
   const rememberFocus = useCallback(() => {
     const el = document.activeElement as HTMLElement | null;
-    if (el && !el.closest('.cmdk')) prevFocusRef.current = el;
+    if (!el || el.closest('.cmdk')) return;
+    // Desde un ítem de un menú abierto (que se cierra al abrir ⌘K): el foco vuelve a su botón, no a un nodo desmontado.
+    prevFocusRef.current = focusReturnTarget(el);
   }, []);
 
   useEffect(() => {
@@ -712,6 +738,7 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
   return (
     <div className={`cmdk-backdrop${anchored ? ' is-anchored' : ''}`} onMouseDown={() => setOpen(false)}>
       <div
+        ref={dialogRef}
         className={`cmdk${anchored ? ' is-anchored' : ''}`}
         role="dialog"
         aria-modal="true"
@@ -766,7 +793,8 @@ export default function CommandSearch({ allowedApps = '*' }: { allowedApps?: All
                     aria-selected={i === sel}
                     tabIndex={-1}
                     className={`cmdk-item${i === sel ? ' sel' : ''}`}
-                    onMouseEnter={() => setSel(i)}
+                    // Solo con el mouse en movimiento: una lista que cambia debajo del puntero quieto no cambia la elegida.
+                    onMouseMove={() => (i === sel ? undefined : setSel(i))}
                     onClick={() => go(item)}
                   >
                     <span className="cmdk-item-label">

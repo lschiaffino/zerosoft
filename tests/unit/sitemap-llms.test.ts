@@ -4,7 +4,7 @@ import { llmsFullTxt, llmsTxt } from '@/lib/llms';
 import { atomFeed, rssFeed } from '@/lib/blog-feed';
 import { BLOG_LOCALES, getAllPosts, getAllSlugs, getPost, getTags, postLocales, relatedPosts, TAG_MIN_POSTS } from '@/lib/blog';
 import { compareSlugs, getComparisons } from '@/lib/compare';
-import { PRODUCT_CONFIG, PRODUCT_KEYS } from '@/lib/products';
+import { PRODUCT_CONFIG, PRODUCT_KEYS, productHref, productKeyFromSlug } from '@/lib/products';
 import { TOOLS } from '@/lib/tools/registry';
 import { siteOrigin } from '@/lib/seo';
 import { STATIC_PAGES } from '@/lib/seo-routes';
@@ -23,7 +23,7 @@ describe('sitemap.xml', () => {
   it('cada página fija, app, comparación y herramienta en los tres idiomas', () => {
     for (const l of ['en', 'es', 'pt']) {
       for (const p of Object.values(STATIC_PAGES)) expect(urls).toContain(`${origin}/${l}${p.path}`);
-      for (const k of PRODUCT_KEYS) expect(urls).toContain(`${origin}/${l}/products/${k}`);
+      for (const k of PRODUCT_KEYS) expect(urls).toContain(`${origin}/${l}${productHref(k)}`);
       for (const s of compareSlugs()) expect(urls).toContain(`${origin}/${l}/compare/${s}`);
       for (const t of TOOLS) expect(urls).toContain(`${origin}/${l}/tools/${t.slug}`);
     }
@@ -80,7 +80,7 @@ describe('llms.txt', () => {
     expect(txt).toMatch(/^## Optional$/m);
   });
   it('lista cada app y cada comparación con URL estable en inglés', () => {
-    for (const k of PRODUCT_KEYS) expect(txt).toContain(`[${PRODUCT_CONFIG[k].name}](${origin}/en/products/${k})`);
+    for (const k of PRODUCT_KEYS) expect(txt).toContain(`[${PRODUCT_CONFIG[k].name}](${origin}/en${productHref(k)})`);
     for (const c of getComparisons()) {
       expect(txt).toContain(`${origin}/en/compare/${c.vsSlug}`);
       // Una app sin porcentaje público (content/feature-parity) lista sus cuentas.
@@ -117,7 +117,7 @@ describe('feeds', () => {
 describe('contenido del blog', () => {
   const routes = new Set([
     ...Object.values(STATIC_PAGES).map((p) => p.path || '/'),
-    ...PRODUCT_KEYS.map((k) => `/products/${k}`),
+    ...PRODUCT_KEYS.map((k) => productHref(k)),
     ...compareSlugs().map((s) => `/compare/${s}`),
     ...TOOLS.map((t) => `/tools/${t.slug}`),
     '/feedback-board',
@@ -176,7 +176,7 @@ describe('content/seo-keywords.json', () => {
         const t = k.target as string;
         if (t.startsWith('/blog/')) return !slugs.has(t.slice(6));
         if (t.startsWith('/compare/')) return !compare.has(t.slice(9));
-        if (t.startsWith('/products/')) return !(PRODUCT_KEYS as string[]).includes(t.slice(10));
+        if (t.startsWith('/products/')) return !productKeyFromSlug(t.slice(10));
         return false;
       })
       .map((k) => `${k.query} → ${k.target}`);

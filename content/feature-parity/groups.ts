@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-08',
+  lastReviewed: '2026-11-09',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -40,6 +40,20 @@ const parity: ProductParity = {
   ],
   rows: [
     // Números
+    row('line-selector', 'inbox', ['Pick a line or see all lines together', 'Elegir una línea o ver todas juntas', 'Escolher uma linha ou ver todas juntas'], 'have', {
+      detail: [
+        'A selector in the inbox switches between one line and all lines (a badge shows the line of each chat). The choice is remembered per person',
+        'Un selector en la bandeja cambia entre una línea y todas (una etiqueta muestra la línea de cada chat). La elección se recuerda por persona',
+        'Um seletor na caixa alterna entre uma linha e todas (uma etiqueta mostra a linha de cada conversa). A escolha é lembrada por pessoa',
+      ],
+    }),
+    row('shared-folders', 'organize', ['Shared chat folders', 'Carpetas compartidas de chats', 'Pastas compartilhadas de conversas'], 'have', {
+      detail: [
+        'Folders and subfolders shared by the workspace, with unread counts per person, drag a chat onto a folder or use Move to folder',
+        'Carpetas y subcarpetas compartidas por el workspace, con no leídos por persona; arrastrá un chat a una carpeta o usá Mover a carpeta',
+        'Pastas e subpastas compartilhadas pelo workspace, com não lidas por pessoa; arraste uma conversa para a pasta ou use Mover para pasta',
+      ],
+    }),
     row('qr-connect', 'numbers', ['Connect a number with a QR code', 'Conectar un número con QR', 'Conectar um número com QR'], 'partial', {
       weight: 2,
       detail: [
@@ -77,9 +91,9 @@ const parity: ProductParity = {
     row('reactions', 'inbox', ['Reactions', 'Reacciones', 'Reações'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
     row('edit-delete-forward', 'inbox', ['Edit, delete, forward and pin messages', 'Editar, borrar, reenviar y fijar mensajes', 'Editar, apagar, encaminhar e fixar mensagens'], 'partial', {
       detail: [
-        'Edit (15 min) and delete for everyone on WAHA and Evolution numbers, also when it happens on the phone. Pins go to WhatsApp on WAHA and stay in Groups elsewhere. Forward is native on WAHA and a copy elsewhere. The Cloud API cannot edit or delete. Tested against a simulated gateway; not yet tried with real WhatsApp',
-        'Editar (15 min) y borrar para todos en números WAHA y Evolution, también cuando pasa desde el teléfono. Fijar llega a WhatsApp en WAHA y queda en Groups en el resto. Reenviar es nativo en WAHA y una copia en el resto. La Cloud API no deja editar ni borrar. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
-        'Editar (15 min) e apagar para todos em números WAHA e Evolution, também quando acontece no telefone. Fixar chega ao WhatsApp no WAHA e fica no Groups nos outros. Encaminhar é nativo no WAHA e uma cópia nos outros. A Cloud API não deixa editar nem apagar. Testado contra um gateway simulado; falta testar com WhatsApp real',
+        'Edit (15 min) and delete for everyone on WAHA and Evolution numbers, also when it happens on the phone. Pins go to WhatsApp on WAHA and stay in Lines elsewhere. Forward is native on WAHA and a copy elsewhere. The Cloud API cannot edit or delete. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Editar (15 min) y borrar para todos en números WAHA y Evolution, también cuando pasa desde el teléfono. Fijar llega a WhatsApp en WAHA y queda en Lines en el resto. Reenviar es nativo en WAHA y una copia en el resto. La Cloud API no deja editar ni borrar. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Editar (15 min) e apagar para todos em números WAHA e Evolution, também quando acontece no telefone. Fixar chega ao WhatsApp no WAHA e fica no Lines nos outros. Encaminhar é nativo no WAHA e uma cópia nos outros. A Cloud API não deixa editar nem apagar. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
     row('assignment', 'inbox', ['Assign chats', 'Asignar chats', 'Atribuir chats'], 'have', {
@@ -123,9 +137,9 @@ const parity: ProductParity = {
     }),
     row('calls', 'inbox', ['Voice calls with recording', 'Llamadas de voz con grabación', 'Chamadas de voz com gravação'], 'partial', {
       detail: [
-        'Call log in the chat: incoming, outgoing, missed and declined, with duration on the Cloud API (Calling API). Calling from Groups and recordings are not available: the providers do not expose the call audio',
-        'Registro de llamadas en el chat: entrantes, salientes, perdidas y rechazadas, con duración en la Cloud API (Calling API). Llamar desde Groups y grabar no están: los proveedores no dan el audio de la llamada',
-        'Registro de chamadas no chat: recebidas, feitas, perdidas e recusadas, com duração na Cloud API (Calling API). Ligar pelo Groups e gravar não estão disponíveis: os provedores não entregam o áudio da chamada',
+        'Call log in the chat: incoming, outgoing, missed and declined, with duration on the Cloud API (Calling API). Calling from Lines and recordings are not available: the providers do not expose the call audio',
+        'Registro de llamadas en el chat: entrantes, salientes, perdidas y rechazadas, con duración en la Cloud API (Calling API). Llamar desde Lines y grabar no están: los proveedores no dan el audio de la llamada',
+        'Registro de chamadas no chat: recebidas, feitas, perdidas e recusadas, com duração na Cloud API (Calling API). Ligar pelo Lines e gravar não estão disponíveis: os provedores não entregam o áudio da chamada',
       ],
     }),
     row('translation', 'inbox', ['Message translation', 'Traducción de mensajes', 'Tradução de mensagens'], 'have', {
@@ -192,7 +206,7 @@ const parity: ProductParity = {
     row('ticket-from-message', 'tickets', ['Ticket from a message', 'Ticket desde un mensaje', 'Ticket a partir de uma mensagem'], 'have', { weight: 2 }),
     row('emoji-ticket', 'tickets', ['Ticket by emoji reaction', 'Ticket por reacción con emoji', 'Ticket por reação com emoji'], 'have', {
       weight: 2,
-      detail: ['From Groups or from the phone, one ticket per message', 'Desde Groups o desde el teléfono, un ticket por mensaje', 'Pelo Groups ou pelo telefone, um ticket por mensagem'],
+      detail: ['From Lines or from the phone, one ticket per message', 'Desde Lines o desde el teléfono, un ticket por mensaje', 'Pelo Lines ou pelo telefone, um ticket por mensagem'],
     }),
     row('keyword-ticket', 'tickets', ['Ticket by keyword', 'Ticket por palabra clave', 'Ticket por palavra-chave'], 'have'),
     row('ticket-fields', 'tickets', ['Status, priority, assignee and due time', 'Estado, prioridad, asignado y vencimiento', 'Status, prioridade, responsável e vencimento'], 'have'),
@@ -319,6 +333,13 @@ const parity: ProductParity = {
         'Per label, who sees it; members also see the chats assigned to them; applies to inbox, search, Cmd+K, reports, export, API and MCP',
         'Por etiqueta, quién la ve; los miembros ven además los chats que tienen asignados; aplica en bandeja, búsqueda, Cmd+K, reportes, export, API y MCP',
         'Por etiqueta, quem a vê; os membros também veem os chats atribuídos a eles; vale na caixa, na busca, no Cmd+K, nos relatórios, no export, na API e no MCP',
+      ],
+    }),
+    row('line-owner-visibility', 'admin', ['Line owner and who can see each line', 'Dueño de cada línea y quién la ve', 'Dono de cada linha e quem a vê'], 'have', {
+      detail: [
+        'Each line has an owner and can be limited to chosen people or teams; admins and the owner always see it. Chats, messages, search, Cmd+K, the API, MCP, CRM and notifications all follow it. Covered by unit tests; not yet tried by a real team',
+        'Cada línea tiene un dueño y se puede limitar a personas o equipos elegidos; admins y dueño siempre la ven. Chats, mensajes, búsqueda, Cmd+K, API, MCP, CRM y avisos la respetan. Cubierto con tests unitarios; falta probarlo con un equipo real',
+        'Cada linha tem um dono e pode ser limitada a pessoas ou equipes escolhidas; admins e dono sempre a veem. Conversas, mensagens, busca, Cmd+K, API, MCP, CRM e avisos a respeitam. Coberto com testes unitários; falta testar com uma equipe real',
       ],
     }),
     row('masking', 'admin', ['Phone number masking', 'Ocultar números de teléfono', 'Ocultar números de telefone'], 'have', {

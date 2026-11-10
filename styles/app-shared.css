@@ -637,3 +637,96 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   .table-stack .bk-ellipsis { max-width: none; }
   .table-stack a.cell-link { white-space: normal; overflow-wrap: anywhere; }
 }
+
+/* ---------- Teléfono: menús anclados como hoja de acciones ----------
+   Un menú que se abre pegado a su botón (Más, Playbooks, Agendar, Agregar widget,
+   Columnas, Alertas) se salía de la pantalla cuando el botón estaba cerca de un borde.
+   A 640px o menos baja al pie, a todo el ancho y con telón, como una hoja de acciones. */
+@media (max-width: 640px) {
+  /* "Mover a…" del tablero ya se ubica junto a su card dentro de la pantalla: queda anclado. */
+  :is(.record-more-menu:not(.kb-move-menu), .book-meeting-menu, .dash-add-menu, .chat-alerts-panel, .column-toggle-menu) {
+    position: fixed !important;
+    top: auto !important;
+    right: 8px !important;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 8px !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    max-height: 70dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-shadow: 0 0 0 100vmax var(--ui-backdrop);
+  }
+}
+
+/* ---------- Tacto: piso de 40px para los controles densos de cada app ----------
+   En escritorio estas apps copian la densidad de Linear, HubSpot o Notion (chips y filas
+   de 24-32px). Con el dedo cada control mide al menos 40px; las filas de menú, 44px.
+   min-height le gana al height fijo; el !important, a los min-height densos más específicos
+   de cada app (es un piso, no un estilo). */
+@media (pointer: coarse) {
+  /* Menús y listas propias (las que no llevan role="menuitem"). */
+  :is(.track-menu-item, .record-more-item, .docs-menu-item, .gr-menu-item) { min-height: 44px !important; }
+  /* Chips, pestañas y botones de herramienta. */
+  :is(
+    .track-inline-trigger, .track-prop-chip, .track-qc-chip, .track-tool, .track-team-tab,
+    .track-display-choice-btn, .track-display-prop, .track-group-toggle, .track-quick-add-btn, .track-color-swatch,
+    .stage-step-btn, .lead-path-step, .view-tab, .record-tags-plus, .dash-widget-x, .report-tab, .report-type-tab,
+    .cell-inline, .filter-more, .column-toggle-btn, .tpl-var, .phone-touch-btn,
+    .gr-filter, .wa-icon-btn, .docs-tree-btn, .chat-swatch, .board-swatch, .board-canvas-tool, .board-folder-tab,
+    .board-back, .dz-tab, .ui-page-back, .home-block-more, .record-summary-more, .track-filter-prop, .track-qc-team,
+    .docs-tree-search, .chip, .rb-viz > button, .locale-switcher a, .home-block-scope a
+  ) { min-height: 40px !important; min-width: 40px !important; }
+  :is(.home-block-scope a, .phone-touch-btn, .track-breadcrumb a, .track-team-crumb, .asst-home-foot a, .ui-modal-foot a) { display: inline-flex; align-items: center; justify-content: center; }
+  :is(.track-breadcrumb a, .track-team-crumb, .asst-home-foot a, .ui-modal-foot a) { min-height: 40px; }
+  .tp-row-link { display: flex; align-items: center; min-height: 40px; }
+  /* Lista de projects angosta: el nombre ocupa su fila entera y se toca con 40px, como el resto. */
+  .tp-plans-table .tp-row .tp-row-link { min-height: 40px; }
+  /* Chevron de sub-issues: el botón mide 40px y el ícono queda igual. */
+  .track-tree-toggle { width: 40px; height: 40px; margin-right: 0; vertical-align: middle; }
+  /* Interruptores de Display (Track): el botón es de 44×40 y el interruptor de 28×16 se dibuja adentro. */
+  .track-display-switch { width: 44px; height: 40px; background: transparent; flex: none; }
+  .track-display-switch::before { content: ''; position: absolute; left: 8px; top: 12px; width: 28px; height: 16px; background: var(--line); border-radius: var(--radius-1); }
+  .track-display-switch.is-on { background: transparent; }
+  .track-display-switch.is-on::before { background: var(--ink); }
+  .track-display-switch > span { top: 14px; left: 10px; }
+  /* El ID repite el link del título: en el teléfono se va y el título gana el ancho. */
+  @media (max-width: 640px) { .track-table-wrap.is-linear .track-col-id { display: none; } }
+  /* Hoja de "Agregar widget" (CRM): cada opción es una fila de 44px. */
+  .dash-add-menu button { min-height: 44px; }
+  /* Emojis de Groups: 8 columnas de 40px en vez de 9 de 38. */
+  .wa-emoji .wa-emoji-grid { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)) !important; }
+  .wa-emoji .wa-emoji-grid button { height: 40px !important; }
+  /* Casilla de selección de Track: la celda de 40px es el objetivo y la casilla se ve (no hay hover que la muestre). */
+  .track-table-wrap.is-linear .track-col-select { flex: 0 0 40px !important; width: 40px !important; align-self: stretch; display: flex; align-items: center; justify-content: center; }
+  .track-select-box { width: 20px !important; height: 20px !important; }
+  .track-table-wrap.is-linear:not(.has-selection) tr:not(:hover):not(.is-kb-active):not(.is-selected) .track-select-box:not(:focus-visible) { opacity: 0.35 !important; }
+  /* Excalidraw (Board): sus botones de herramienta usan estas variables (definidas en .excalidraw). */
+  .excalidraw.excalidraw { --default-button-size: 2.5rem; --lg-button-size: 2.5rem; }
+  .excalidraw .dropdown-menu-button { min-width: 40px; min-height: 40px; }
+  /* El dictado de escritorio dentro de los campos sobra: el teclado del teléfono ya dicta. */
+  .vc-bar { display: none !important; }
+  /* Filas que son links: la fila entera se toca. */
+  :is(.docs-tree-link, .an-row-link, .cal-row-main, .st-lc-template, .qm-link, .home-row) { min-height: 40px !important; }
+  /* Lista de issues de Track: la fila entera (título) mide 44px y ocupa el ancho libre (un título corto también). */
+  .track-table-wrap.is-linear td.track-col-title > a { min-height: 44px; width: 100%; }
+  .track-inbox-link { display: flex; align-items: center; min-height: 40px; }
+  :is(.track-status-color, .docs-tree-chevron, .saved-report-del) { min-width: 40px !important; min-height: 40px !important; }
+  .panel-more { display: inline-flex; align-items: center; min-height: 40px; }
+  :is(.docs-trash-summary, .gr-link-button) { display: flex; align-items: center; min-height: 40px; }
+  .book-meeting-menu a { display: flex; align-items: center; min-height: 40px; }
+  :is(.board-card-name, .cal-summary-link) { display: inline-flex; align-items: center; min-height: 40px; }
+  .chat-row-check { width: 40px !important; height: 40px !important; top: 4px !important; left: 10px !important; }
+  .gr-ticket-title .ui-help a { display: inline-flex; align-items: center; min-height: 40px; }
+  /* Links de tabla y listas de links: la línea entera es el objetivo. */
+  td > a.cell-link { display: inline-flex; align-items: center; min-height: 40px; }
+  :is(.gr-ticket-title a, .an-link) { display: inline-flex; align-items: center; min-height: 40px; }
+  /* Atajos de llamar y escribir del CRM: visibles con el dedo (sin hover) y de 40px. */
+  .cell-quick { display: inline-flex !important; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; }
+  /* Disclosure: la fila del resumen es el objetivo. */
+  details > summary { min-height: 40px; padding-block: 10px; box-sizing: border-box; }
+  /* El ID de Track (tablet) y el destino de cada link: objetivos de 40px. */
+  .track-table-wrap.is-linear .track-col-id a { display: inline-flex; align-items: center; min-width: 40px; min-height: 40px; }
+  .lk-dest { display: inline-flex; align-items: center; min-height: 40px; }
+}

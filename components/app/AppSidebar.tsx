@@ -8,10 +8,9 @@ import NotesSignOutDialog from '@/components/notes/NotesSignOutDialog';
 import OfflineStatus from './OfflineStatus';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { pendingWrites } from '@/lib/offline-fetch';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { TZ_CHANGED_EVENT } from '@/lib/tz-client';
 import { desktopBridge, type DesktopBridge } from '@/lib/desktop-bridge';
-import { downloadHref } from '@/lib/desktop-os';
 import { collapsedFrom, denseRoute, storageKey } from '@/lib/sidebar-collapsed';
 import { Link, usePathname } from '@/i18n/navigation';
 import Icon from './icons';
@@ -20,6 +19,7 @@ import {
   appProductOf,
   buildNav,
   buildNewItems,
+  comingSoonHref,
   settingsNavItem,
   importNavItem,
   productKeyOf,
@@ -27,13 +27,15 @@ import {
   SWITCHER_PRODUCTS,
   type SidebarLabels,
 } from './sidebar-nav';
-import { PRODUCT_CONFIG, isBuildingProduct, type ProductKey } from '@/lib/products';
+import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, appAllowed, isComingSoon, type ProductKey } from '@/lib/products';
 import { DEFAULT_WORKSPACE_MODE, featuredApps, moreAppsByCategory, type WorkspaceMode } from '@/lib/workspace-mode';
 import NotificationBell from './NotificationBell';
 import WorkspaceSwitcher, { type SwitcherEntry } from './WorkspaceSwitcher';
 import Logo from '@/components/brand/Logo';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import ThemeSwitcher from '@/components/theme/ThemeSwitcher';
+import { inDesktopApp } from '@/lib/desktop-detect';
+import { useLayer } from '@/lib/ui/layers';
 
 export type { SidebarLabels };
 
@@ -128,7 +130,13 @@ export default function AppSidebar({
   crumb = null,
   mode = DEFAULT_WORKSPACE_MODE,
   docsCanCreate = true,
+  staff = false,
+  chosenApps = null,
 }: {
+  /** Staff de zerosoft (ADMIN_EMAILS): abre las apps "Próximamente" como vista previa. */
+  staff?: boolean;
+  /** Apps que la persona eligió en el onboarding: van primero en el switcher y el inicio. */
+  chosenApps?: ProductKey[] | null;
   /** Puede crear páginas de Docs de primer nivel (si no, el "+ Nuevo" no las ofrece). */
   docsCanCreate?: boolean;
   /** Modo del workspace: ordena el switcher (destacadas y "Más apps"). */
@@ -146,7 +154,6 @@ export default function AppSidebar({
   crumb?: ReactNode;
 }) {
   const t = useTranslations('common.sidebar');
-  const locale = useLocale();
   // Dentro de la app de escritorio: sus Ajustes (dictado, permisos, indicador) en el menú de la cuenta.
   const [desktop, setDesktop] = useState<DesktopBridge | null>(null);
   useEffect(() => setDesktop(desktopBridge()), []);
@@ -160,6 +167,9 @@ export default function AppSidebar({
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  // Dentro de la app de escritorio no se ofrece descargarla.
+  const [inDesktop, setInDesktop] = useState(false);
+  useEffect(() => setInDesktop(inDesktopApp()), []);
   // Cerrar sesión: si quedaron grabaciones de Rec sin subir en este navegador, primero se avisa.
   const recOwner = user.id && user.ws ? { userId: user.id, ws: user.ws } : null;
   const [recPending, setRecPending] = useState(0);
@@ -283,6 +293,8 @@ export default function AppSidebar({
   const switcherByKeyboard = useRef(false);
   const newRef = useRef<HTMLDivElement>(null);
   const newBtn = useRef<HTMLButtonElement>(null);
+  const switcherPanel = useRef<HTMLDivElement>(null);
+  const newPanel = useRef<HTMLDivElement>(null);
   const menuBtn = useRef<HTMLButtonElement>(null);
 
   const bellLabels = labels.notifications;
@@ -296,16 +308,10 @@ export default function AppSidebar({
     if (focus) newBtn.current?.focus();
   }, []);
 
-  // Clic afuera cierra los menús.
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      const target = e.target as Node;
-      if (switcherRef.current && !switcherRef.current.contains(target)) setSwitcherOpen(false);
-      if (newRef.current && !newRef.current.contains(target)) setNewOpen(false);
-    }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, []);
+  // Capas (lib/ui/layers.ts): abrir uno cierra cualquier otro menú de la app (la cuenta, la campana, los de la página),
+  // clic afuera y Esc cierran, y el panel se acomoda dentro de la pantalla.
+  useLayer(switcherOpen, () => setSwitcherOpen(false), { root: switcherRef, trigger: switcherBtn, panel: switcherPanel });
+  useLayer(newOpen, () => setNewOpen(false), { root: newRef, trigger: newBtn, panel: newPanel });
 
   // Al abrir un menú, el foco va al primer ítem. En el switcher va al actual si se abrió con teclado;
   // con el mouse queda en el panel, para que las flechas funcionen sin pintar un anillo que nadie pidió.
@@ -327,18 +333,11 @@ export default function AppSidebar({
     setNewOpen(false);
   }, [pathname]);
 
-  // Drawer: Esc lo cierra y devuelve el foco al botón de menú.
+  // Drawer (teléfono): es una capa más. Abrir el switcher o ⌘K lo cierra, y Esc lo cierra (devolviendo el foco al
+  // botón de menú) solo si no hay otra capa arriba: con el menú de la cuenta abierto, Esc cierra ese menú.
+  useLayer(drawerOpen, () => setDrawerOpen(false), { root: asideRef, trigger: menuBtn });
   useEffect(() => {
-    if (!drawerOpen) return;
-    asideRef.current?.querySelector<HTMLElement>('a, button')?.focus();
-    function onKey(e: globalThis.KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setDrawerOpen(false);
-        menuBtn.current?.focus();
-      }
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    if (drawerOpen) asideRef.current?.querySelector<HTMLElement>('a, button')?.focus();
   }, [drawerOpen]);
 
   // Colapsado: persiste en localStorage; la clase vive en .app-frame (grid).
@@ -356,8 +355,8 @@ export default function AppSidebar({
     asideRef.current?.closest('.app-frame')?.classList.toggle('sidebar-collapsed', next);
   }
 
-  const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount, allowed: allowedApps, recentApps, mode });
-  const newItems = buildNewItems(product, labels, { docsCanCreate });
+  const nav = buildNav(product, pathname, labels, { tasksDue: dueCount, unread: unreadCount, allowed: allowedApps, recentApps, mode, staff, chosen: chosenApps });
+  const newItems = buildNewItems(product, labels, { docsCanCreate, pathname });
   const settingsItem = settingsNavItem(pathname, labels);
   const importItem = importNavItem(product, labels);
 
@@ -366,9 +365,11 @@ export default function AppSidebar({
   }
 
   // Switcher: destacadas según el modo del workspace y el resto por categoría.
-  const allowed = (k: ProductKey) => allowedApps === '*' || allowedApps.includes(k);
-  const featured = featuredApps({ mode }).filter(allowed);
-  const more = moreAppsByCategory({ mode })
+  const allowed = (k: ProductKey) => appAllowed(allowedApps, k);
+  // "Próximamente" al pie del switcher (lista de espera); el staff las ve entre las demás, como vista previa.
+  const soonApps = APP_SWITCHER_ORDER.filter((k) => isComingSoon(k) && !(staff && allowed(k)));
+  const featured = featuredApps({ mode, chosen: chosenApps }).filter(allowed);
+  const more = moreAppsByCategory({ mode, chosen: chosenApps })
     .map((g) => ({ ...g, apps: g.apps.filter(allowed) }))
     .filter((g) => g.apps.length > 0);
   const switcherItem = (line: ProductKey) => {
@@ -384,7 +385,7 @@ export default function AppSidebar({
       >
         <ProductGlyph product={line} size={14} />
         <span>{PRODUCT_CONFIG[line].name}</span>
-        {isBuildingProduct(line) && <span className="app-soon-tag">{labels.soon}</span>}
+        {isComingSoon(line) && <span className="app-soon-tag">{labels.preview ?? labels.soon}</span>}
       </Link>
     );
   };
@@ -450,7 +451,6 @@ export default function AppSidebar({
             onClick={(e) => {
               switcherByKeyboard.current = e.detail === 0;
               setSwitcherOpen((v) => !v);
-              setNewOpen(false);
             }}
             aria-haspopup="menu"
             aria-expanded={switcherOpen}
@@ -463,6 +463,7 @@ export default function AppSidebar({
           </button>
           {switcherOpen && (
             <div
+              ref={switcherPanel}
               className="band-menu-panel band-switcher-panel"
               role="menu"
               tabIndex={-1}
@@ -495,6 +496,28 @@ export default function AppSidebar({
                       {apps.map(switcherItem)}
                     </div>
                   ))}
+                </div>
+              )}
+              {soonApps.length > 0 && (
+                <div className="band-menu-soon" role="group" aria-label={labels.comingSoon ?? labels.soon}>
+                  <p className="band-menu-cat-title" aria-hidden="true">
+                    {labels.comingSoon ?? labels.soon}
+                  </p>
+                  <div className="band-menu-soon-list">
+                    {soonApps.map((line) => (
+                      <Link
+                        key={line}
+                        href={comingSoonHref(line)}
+                        role="menuitem"
+                        className="band-menu-item band-menu-soon-item"
+                        onClick={() => setSwitcherOpen(false)}
+                        data-testid={`switcher-soon-${line}`}
+                      >
+                        <ProductGlyph product={line} size={14} />
+                        <span>{PRODUCT_CONFIG[line].name}</span>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
               <button
@@ -582,7 +605,6 @@ export default function AppSidebar({
             className="btn btn-secondary btn-block side-new-btn"
             onClick={() => {
               setNewOpen((v) => !v);
-              setSwitcherOpen(false);
             }}
             aria-haspopup="menu"
             aria-expanded={newOpen}
@@ -592,7 +614,7 @@ export default function AppSidebar({
             <span className="side-label">{labels.new}</span>
           </button>
           {newOpen && (
-            <div className="side-menu" role="menu" onKeyDown={(e) => menuKeys(e, () => closeNew(true))}>
+            <div ref={newPanel} className="side-menu" role="menu" onKeyDown={(e) => menuKeys(e, () => closeNew(true))}>
               {newItems.length === 0 && <p className="side-menu-note">{t('newReadOnly')}</p>}
               {newItems.map((item) => (
                 <Link
@@ -651,7 +673,7 @@ export default function AppSidebar({
                       <Icon name={item.icon} size={15} />
                     </span>
                     <span className="side-label">{item.label}</span>
-                    {item.soon && <span className="app-soon-tag side-soon">{labels.soon}</span>}
+                    {item.soon === 'preview' && <span className="app-soon-tag side-soon">{labels.preview ?? labels.soon}</span>}
                     {item.badge ? <span className="side-badge data">{item.badge}</span> : null}
                   </Link>
                   {/* Hueco bajo el ítem: la página del producto lo llena con un portal (el árbol de Docs). */}
@@ -699,13 +721,6 @@ export default function AppSidebar({
                   {t('desktopSettings')}
                 </button>
               )}
-              {/* En el navegador: la app de escritorio (dentro de la app, sus ajustes, arriba). */}
-              {!desktop && (
-                <a href={downloadHref('menu', { locale })} role="menuitem" className="side-menu-item" rel="nofollow" data-testid="side-desktop-download">
-                  <Icon name="download" size={14} />
-                  {t('desktopDownload')}
-                </a>
-              )}
               {importItem && (
                 <Link
                   href={importItem.href}
@@ -716,6 +731,12 @@ export default function AppSidebar({
                 >
                   <Icon name={importItem.icon} size={14} />
                   {importItem.label}
+                </Link>
+              )}
+              {!inDesktop && (
+                <Link href="/app/download" role="menuitem" className="side-menu-item" data-testid="side-download">
+                  <Icon name="desktop" size={14} />
+                  {t('downloadDesktop')}
                 </Link>
               )}
               <Link href="/docs" role="menuitem" className="side-menu-item" data-testid="side-help">

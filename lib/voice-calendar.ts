@@ -64,15 +64,19 @@ function fromExternal(provider: 'google' | 'outlook', e: ExternalMeetingEvent): 
  * Eventos de la persona en la ventana, ordenados por inicio. Un proveedor que
  * falla no corta la lista (cada uno es best-effort). Cache de 60 s por persona.
  */
-export async function listCalendarEvents(owner: VoiceOwner, opts: { now?: Date; fresh?: boolean } = {}): Promise<VoiceCalendarEvent[]> {
+export async function listCalendarEvents(
+  owner: VoiceOwner,
+  opts: { now?: Date; fresh?: boolean; window?: { from: Date; to: Date } } = {},
+): Promise<VoiceCalendarEvent[]> {
   const now = opts.now ?? new Date();
+  const win = opts.window ?? defaultWindow(now);
   // Conectar o desconectar un calendario cambia la clave: la lista se vuelve a pedir enseguida.
   const [g, o] = await Promise.all([googleCalendarConnected(owner.personId).catch(() => false), outlookCalendarConnected(owner.personId).catch(() => false)]);
-  const key = `${owner.workspaceId}:${owner.personId}:${g ? 'g' : ''}${o ? 'o' : ''}`;
+  const key = `${owner.workspaceId}:${owner.personId}:${g ? 'g' : ''}${o ? 'o' : ''}${opts.window ? `:${win.from.toISOString()}` : ''}`;
   const hit = cache.get(key);
   let events = !opts.fresh && hit && Date.now() - hit.at < TTL_MS ? hit.events : null;
   if (!events) {
-    const { from, to } = defaultWindow(now);
+    const { from, to } = win;
     const [bookings, google, outlook] = await Promise.all([
       // Siempre las que atiende la persona (anfitriona o co-anfitriona), sea cual sea su rol: a un
       // admin no le aparecen ni le avisan las reservas de los demás.
@@ -129,11 +133,28 @@ export async function listCalendarEvents(owner: VoiceOwner, opts: { now?: Date; 
   return events.map((e) => ({ ...e, sessionId: linked.get(e.key) ?? null }));
 }
 
+/**
+ * Ventana de "hoy" que pide el cliente (su día local): se acota a 36 horas
+ * para que no sirva para leer el calendario entero.
+ */
+export function dayWindow(fromRaw: string | null, toRaw: string | null): { from: Date; to: Date } | null {
+  const from = fromRaw ? new Date(fromRaw) : null;
+  const to = toRaw ? new Date(toRaw) : null;
+  if (!from || !to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return null;
+  if (to <= from || to.getTime() - from.getTime() > 36 * 3_600_000) return null;
+  return { from, to };
+}
+
 /** Un evento de la persona por su clave (para empezar la reunión desde el calendario). */
 export async function findCalendarEvent(owner: VoiceOwner, key: string): Promise<VoiceCalendarEvent | null> {
   if (!parseEventKey(key)) return null;
   const list = await listCalendarEvents(owner);
-  return list.find((e) => e.key === key) ?? (await listCalendarEvents(owner, { fresh: true })).find((e) => e.key === key) ?? null;
+  const hit = list.find((e) => e.key === key) ?? (await listCalendarEvents(owner, { fresh: true })).find((e) => e.key === key);
+  if (hit) return hit;
+  // Un evento de hoy que ya empezó hace más de una hora (el selector de la reunión muestra el día entero).
+  const now = Date.now();
+  const around = { from: new Date(now - 26 * 3_600_000), to: new Date(now + 26 * 3_600_000) };
+  return (await listCalendarEvents(owner, { window: around })).find((e) => e.key === key) ?? null;
 }
 
 /** Tras empezar una reunión desde un evento: que la próxima lista lo muestre vinculado. */

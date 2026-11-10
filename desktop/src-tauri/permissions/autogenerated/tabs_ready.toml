@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tabs-ready"
+description = "Enables the tabs_ready command without any pre-configured scope."
+commands.allow = ["tabs_ready"]
+
+[[permission]]
+identifier = "deny-tabs-ready"
+description = "Denies the tabs_ready command without any pre-configured scope."
+commands.deny = ["tabs_ready"]

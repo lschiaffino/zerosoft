@@ -32,7 +32,7 @@ export default function GetStarted({
 
   if (!canEdit) return inline ? null : <p className="ui-help">{t('sample.askAdmin')}</p>;
   const size = inline ? ' btn-sm' : '';
-  const connectHref = finish ? '/app/groups/settings?tab=numbers' : '/app/groups/settings?tab=numbers&new=1';
+  const connectHref = finish ? '/app/lines/settings?tab=numbers' : '/app/lines/settings?tab=numbers&new=1';
   const connectLabel = finish ? t('inbox.finishConnect') : managed ? t('inbox.scanQr') : t('inbox.connect');
 
   async function load() {

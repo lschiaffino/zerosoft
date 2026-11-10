@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 /**
@@ -70,7 +70,7 @@ test('mensaje recurrente: se arma en Envíos, muestra las próximas corridas, se
   const n = await fakeNumber(request);
   const tag = uid();
   await events(request, n, [message(`1203639${Date.now()}@g.us`, 'hola', `Rec${tag}`)]);
-  await page.goto('/en/app/groups/broadcasts/new?repeat=1', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/broadcasts/new?repeat=1', { waitUntil: 'networkidle' });
   await page.getByLabel('From number').selectOption(n.id).catch(() => null);
   await page.getByLabel('Name (only for you)').fill(`Weekly ${tag}`);
   await page.getByRole('textbox', { name: 'Message' }).fill('Hi {{name}}, weekly check-in');
@@ -94,7 +94,7 @@ test('mensaje recurrente: se arma en Envíos, muestra las próximas corridas, se
   await page.getByRole('button', { name: 'Save' }).click();
   // exact y en el aviso: sin eso "Saved" también matchea el texto "SaveDelete" de los botones del formulario.
   await expect(page.getByRole('status').getByText('Saved', { exact: true })).toBeVisible();
-  await page.goto('/en/app/groups/broadcasts', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/broadcasts', { waitUntil: 'networkidle' });
   const row = page.getByRole('row', { name: new RegExp(`Weekly ${tag}`) });
   await expect(row).toBeVisible();
   await expect(row.getByText(/Custom \(cron\): 0 9 \* \* 1-5/)).toBeVisible();
@@ -107,7 +107,7 @@ test('encuesta desde el chat con resultados que llegan por webhook', async ({ pa
   const tag = uid();
   await events(request, n, [message(gid, 'hola', `Poll${tag}`)]);
   const chat = await chatByName(request, `Poll${tag}`);
-  await page.goto(`/en/app/groups/inbox/${chat.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/lines/inbox/${chat.id}`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Attach' }).click();
   await page.getByRole('menuitem', { name: 'Poll', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'New poll' });
@@ -121,7 +121,7 @@ test('encuesta desde el chat con resultados que llegan por webhook', async ({ pa
   await expect(poll.getByText('No votes yet')).toBeVisible();
   const msgs = (await (await request.get(`/api/groups/chats/${chat.id}/messages`)).json()) as { messages: Array<{ id: string; poll?: unknown }> };
   const pollMsg = msgs.messages.find((m) => m.poll)!;
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   const pid = String((await db.execute({ sql: 'SELECT provider_message_id FROM groups_messages WHERE id = ?', args: [pollMsg.id] })).rows[0].provider_message_id);
   await events(request, n, [
     { type: 'poll_vote', chatId: gid, pollProviderMessageId: pid, voterPhone: '5491100000001', voterName: 'Ana', options: ['Tuesday'] },
@@ -138,7 +138,7 @@ test('reportes: rango propio y filtro por etiqueta', async ({ page, request }) =
   const chat = await chatByName(request, `Rep${tag}`);
   const label = (await (await request.post('/api/groups/labels', { data: { name: `L${tag}`, color: 'green' } })).json()) as { id: string };
   await request.patch(`/api/groups/chats/${chat.id}`, { data: { labelIds: [label.id] } });
-  await page.goto('/en/app/groups/analytics', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/analytics', { waitUntil: 'networkidle' });
   const form = page.getByRole('form', { name: 'Report filters' });
   const today = new Date().toISOString().slice(0, 10);
   // exact: el nombre del select de etiquetas incluye las etiquetas (un uid puede contener "to").
@@ -156,7 +156,7 @@ test('reportes: rango propio y filtro por etiqueta', async ({ page, request }) =
 
 test('integraciones: Freshdesk crea el ticket allá, webhooks con log y reenvío, Slack', async ({ page, request }) => {
   const errors = watchErrors(page);
-  await page.goto('/en/app/groups/settings?tab=integrations', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/settings?tab=integrations', { waitUntil: 'networkidle' });
   // Freshdesk (servidor falso en memoria).
   const fd = page.locator('.gr-integration', { hasText: 'Freshdesk' });
   await fd.getByRole('button', { name: /Connect|Edit/ }).click();
@@ -202,7 +202,7 @@ test('integraciones: Freshdesk crea el ticket allá, webhooks con log y reenvío
   await events(request, n, [message(`5491177${Date.now().toString().slice(-6)}@c.us`, 'La factura no llegó', `Fd${tag}`)]);
   const chat = await chatByName(request, `Fd${tag}`);
   await request.post('/api/groups/tickets', { data: { chatId: chat.id, title: `Factura ${tag}` } });
-  await page.goto('/en/app/groups/tickets', { waitUntil: 'networkidle' });
+  await page.goto('/en/app/lines/tickets', { waitUntil: 'networkidle' });
   await expect(page.getByRole('row', { name: new RegExp(`Factura ${tag}`) }).getByRole('link', { name: /Freshdesk #\d+/ })).toBeVisible();
   expect(errors, errors.join('\n')).toEqual([]);
 });
@@ -230,7 +230,7 @@ test('MCP: initialize, tools/list y list_chats con una API key', async ({ reques
 });
 
 test('un miembro ve solo sus etiquetas, con los teléfonos ocultos, y el log de auditoría', async ({ page, request }) => {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  const db = e2eDb();
   const demo = String((await db.execute("SELECT id FROM users WHERE email = 'demo@zerosoft.ai'")).rows[0].id);
   const boss = `g3-boss-${uid()}`;
   const team = `g3-team-${uid()}`;
@@ -249,10 +249,10 @@ test('un miembro ve solo sus etiquetas, con los teléfonos ocultos, y el log de 
     ]);
     const vip = await chatByName(request, `Vip${tag}`);
     const label = (await (await request.post('/api/groups/labels', { data: { name: `Cuenta ${tag}`, color: 'blue' } })).json()) as { id: string };
-    await page.goto(`/en/app/groups/inbox/${vip.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/lines/inbox/${vip.id}`, { waitUntil: 'networkidle' });
     await request.patch(`/api/groups/chats/${vip.id}`, { data: { labelIds: [label.id], assignedTo: demo } });
 
-    await page.goto('/en/app/groups/settings?tab=access', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/settings?tab=access', { waitUntil: 'networkidle' });
     await page.getByLabel('Members see only chats with their labels').check();
     await expect(page.getByText('Saved')).toBeVisible();
     await page.getByLabel('Hide for members').check();
@@ -273,7 +273,7 @@ test('un miembro ve solo sus etiquetas, con los teléfonos ocultos, y el log de 
     expect((await request.get(`/api/groups/chats/${String(other.rows[0].id)}`)).status()).toBe(404);
     const csv = await (await request.get(`/api/groups/export?type=messages&chat=${vip.id}`)).text();
     expect(csv).not.toContain('5491199990001');
-    await page.goto(`/en/app/groups/inbox/${vip.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/lines/inbox/${vip.id}`, { waitUntil: 'networkidle' });
     await expect(page.getByText(/\+54 ••• /).first()).toBeVisible();
     await expect(page.locator('body')).not.toContainText('5491199990001');
     // Log de auditoría del chat.
@@ -282,7 +282,7 @@ test('un miembro ve solo sus etiquetas, con los teléfonos ocultos, y el log de 
     await expect(page.getByText(/assigned the chat to/).first()).toBeVisible();
     await expect(page.getByText(/exported messages/).first()).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/en/app/groups/inbox', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     await noHorizontalScroll(page);
   } finally {
     await db.execute({ sql: 'UPDATE users SET active_team_id = NULL WHERE id = ?', args: [demo] });
@@ -293,7 +293,7 @@ test('app instalable: manifiesto, service worker y panel de notificaciones en cl
   // Un solo manifest y un solo service worker para toda la suite (CRM offline + push de Groups).
   const manifest = await (await request.get('/manifest.webmanifest')).json();
   expect(manifest).toMatchObject({ short_name: 'zerosoft', display: 'standalone', start_url: '/app' });
-  expect((manifest.shortcuts as Array<{ url: string }>).map((s) => s.url)).toContain('/app/groups/inbox');
+  expect((manifest.shortcuts as Array<{ url: string }>).map((s) => s.url)).toContain('/app/lines/inbox');
   const icon = await request.get('/api/pwa-icon/512');
   expect(icon.headers()['content-type']).toContain('image/png');
   const sw = await (await request.get('/sw.js')).text();
@@ -301,7 +301,7 @@ test('app instalable: manifiesto, service worker y panel de notificaciones en cl
   for (const theme of ['light', 'dark'] as const) {
     await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
     const errors = watchErrors(page);
-    await page.goto('/en/app/groups/settings?tab=apps', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/lines/settings?tab=apps', { waitUntil: 'networkidle' });
     await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
     await expect(page.getByRole('heading', { name: 'Install the app' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Turn on notifications' })).toBeVisible();
