@@ -423,11 +423,14 @@ export default function MembersPanel({
     });
   }
 
+  /** El checkbox cambia al tocarlo aunque haya otro guardado en curso (synced los encola). */
+  function showNow(userId: string, patch: Patch) {
+    setDir((cur) => ({ ...cur, members: cur.members.map((x) => (x.userId === userId ? { ...x, ...patch } : x)) }));
+  }
+
   async function changeApps(m: MemberDto, next: Apps, label: string) {
     const prev = m.apps;
-    // Optimista ya, no cuando le toque en la cola: un segundo clic mientras guarda el primero parte de
-    // este estado y su checkbox no vuelve atrás.
-    setDir((cur) => ({ ...cur, members: cur.members.map((x) => (x.userId === m.userId ? { ...x, apps: next } : x)) }));
+    showNow(m.userId, { apps: next });
     await synced(async () => {
       if (!(await patchPerson(m.userId, { apps: next }))) return;
       await afterChange(m.userId);
@@ -444,6 +447,7 @@ export default function MembersPanel({
   }
 
   async function changeTeams(m: MemberDto, next: string[]) {
+    showNow(m.userId, { groupIds: next });
     await synced(async () => {
       const prev = m.groupIds;
       if (!(await patchPerson(m.userId, { groupIds: next }))) return;
