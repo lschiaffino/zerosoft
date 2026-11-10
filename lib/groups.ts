@@ -267,8 +267,9 @@ export async function createNumber(
 ): Promise<NumberDto> {
   const kind = input.provider as ProviderKind;
   if (!availableProviders().includes(kind)) throw new GroupsError('invalid_provider');
-  const count = (await getDb().prepare('SELECT COUNT(*) AS c FROM groups_numbers WHERE user_id = ?').get(ws)) as { c: number };
-  if (Number(count.c) >= 50) throw new GroupsError('too_many_numbers');
+  // Los números del proveedor de prueba (solo existe en tests) no cuentan ni tienen tope: la suite e2e crea decenas en el mismo workspace.
+  const count = (await getDb().prepare("SELECT COUNT(*) AS c FROM groups_numbers WHERE user_id = ? AND provider <> 'fake'").get(ws)) as { c: number };
+  if (kind !== 'fake' && Number(count.c) >= 50) throw new GroupsError('too_many_numbers');
   const cfg = cleanConfig(kind, input.config ?? {});
   if ((kind === 'waha' || kind === 'evolution') && !cfg.session) cfg.session = `zs-${randomBytes(4).toString('hex')}`;
   // QR administrado: nombre y token de la instancia los genera el servidor.
