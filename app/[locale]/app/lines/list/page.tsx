@@ -3,6 +3,8 @@ import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { managedAvailable } from '@/lib/groups-provider-managed';
 import { listChats, listLabels, listNumbers, listPropertyDefs } from '@/lib/groups';
 import { pageViewer } from '@/lib/groups-page';
+import { hubspotConnected } from '@/lib/groups-hubspot';
+import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import GroupsList from '@/components/groups/GroupsList';
 
@@ -24,7 +26,18 @@ export default async function GroupsListPage(props: { params: Promise<{ locale: 
   ]);
   return (
     <div className="ui-page">
-      <PageHeader title={t('list.title')} description={t('list.desc')} />
+      <PageHeader
+        title={t('list.title')}
+        description={t('list.desc')}
+        actions={
+          // Con HubSpot conectado: los grupos que todavía no tienen empresa, para vincular de a muchos.
+          user.role !== 'guest' && (await hubspotConnected(user.id).catch(() => false)) ? (
+            <Link href="/app/lines/list/unlinked" className="btn btn-secondary">
+              {t('hubspot.bulk.open')}
+            </Link>
+          ) : undefined
+        }
+      />
       <GroupsList
         initial={[...open.rows, ...closed.rows]}
         numbers={numbers}

@@ -8,6 +8,8 @@ import { useKeyShortcut } from '@/components/app/QuickModal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, ChatFilter, GroupsPerson, LabelDto, PropertyDef } from '@/lib/groups';
 import type { SavedListDto, SavedListFilters } from '@/lib/groups-org';
+import { cleanHubspotFilters, type HubspotPropFilter } from '@/lib/groups-hubspot-shared';
+import HubspotFilter from './HubspotFilter';
 import { LISTS_CHANGED, notifyListsChanged } from './GroupsListsBranch';
 import { filterOptions } from './PropertyInput';
 import { ScheduledAllButton } from './Scheduled';
@@ -80,16 +82,18 @@ interface Controls {
   propValue: string;
   /** Vinculados (o no) a HubSpot. */
   hubspot: '' | 'linked' | 'unlinked';
+  /** Condiciones sobre propiedades de la empresa de HubSpot. */
+  hsProps: HubspotPropFilter[];
   q: string;
 }
 
-const EMPTY: Controls = { filter: 'all', label: '', kind: '', assignee: '', team: '', propKey: '', propValue: '', hubspot: '', q: '' };
+const EMPTY: Controls = { filter: 'all', label: '', kind: '', assignee: '', team: '', propKey: '', propValue: '', hubspot: '', hsProps: [], q: '' };
 
 function readSaved(): Partial<Controls> | null {
   try {
     const raw = window.sessionStorage.getItem(STORE);
     if (!raw) return null;
-    const v = JSON.parse(raw) as { filter?: string; label?: string; kind?: string; assignee?: string; team?: string; hubspot?: string };
+    const v = JSON.parse(raw) as { filter?: string; label?: string; kind?: string; assignee?: string; team?: string; hubspot?: string; hsProps?: unknown };
     return {
       filter: FILTERS.includes(v.filter as ChatFilter) ? (v.filter as ChatFilter) : 'all',
       label: typeof v.label === 'string' ? v.label : '',
@@ -97,6 +101,7 @@ function readSaved(): Partial<Controls> | null {
       assignee: typeof v.assignee === 'string' ? v.assignee : '',
       team: typeof v.team === 'string' ? v.team : '',
       hubspot: v.hubspot === 'linked' || v.hubspot === 'unlinked' ? v.hubspot : '',
+      hsProps: cleanHubspotFilters(v.hsProps),
     };
   } catch {
     return null;
@@ -113,6 +118,7 @@ export function controlsToFilters(c: Controls): SavedListFilters {
   if (c.kind === 'dm' || c.kind === 'group') f.kind = c.kind;
   if (c.propKey) f.props = [c.propValue ? { key: c.propKey, op: 'is', value: c.propValue } : { key: c.propKey, op: 'set' }];
   if (c.hubspot) f.hubspot = c.hubspot;
+  if (c.hsProps.length) f.hsProps = c.hsProps;
   return f;
 }
 
@@ -127,6 +133,7 @@ export function filtersToControls(f: SavedListFilters): Controls {
     propKey: p?.key ?? '',
     propValue: p?.op === 'is' ? (p.value ?? '') : '',
     hubspot: f.hubspot ?? '',
+    hsProps: f.hsProps ?? [],
     q: f.q ?? '',
   };
 }
@@ -214,7 +221,7 @@ export default function InboxShell({
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const lineNames = useMemo(() => new Map(numbers.map((n) => [n.id, n.name])), [numbers]);
   const [controls, setControls] = useState<Controls>(EMPTY);
-  const { filter, label, kind, assignee, team, propKey, propValue, hubspot, q } = controls;
+  const { filter, label, kind, assignee, team, propKey, propValue, hubspot, hsProps, q } = controls;
   // HubSpot conectado en el workspace: la bandeja ofrece el filtro de vinculados.
   const [hubspotOn, setHubspotOn] = useState(false);
   const set = (patch: Partial<Controls>) => setControls((c) => ({ ...c, ...patch }));
@@ -237,7 +244,7 @@ export default function InboxShell({
     const saved = readSaved();
     if (saved) {
       setControls((c) => ({ ...c, ...saved }));
-      if (saved.assignee || saved.team || saved.hubspot) setMoreOpen(true);
+      if (saved.assignee || saved.team || saved.hubspot || saved.hsProps?.length) setMoreOpen(true);
     }
     // Solo al entrar: una lista abierta manda sobre lo guardado en la pestaña.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -248,17 +255,17 @@ export default function InboxShell({
     const c = filtersToControls(activeList.filters);
     setControls(c);
     setDebounced(c.q.trim());
-    if (c.assignee || c.propKey || c.hubspot) setMoreOpen(true);
+    if (c.assignee || c.propKey || c.hubspot || c.hsProps.length) setMoreOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeList?.id, activeList?.updatedAt]);
   useEffect(() => {
     if (listId) return;
     try {
-      window.sessionStorage.setItem(STORE, JSON.stringify({ filter, label, kind, assignee, team, hubspot }));
+      window.sessionStorage.setItem(STORE, JSON.stringify({ filter, label, kind, assignee, team, hubspot, hsProps }));
     } catch {
       // Sin storage: los filtros duran lo que dura la página.
     }
-  }, [filter, label, kind, assignee, team, hubspot, listId]);
+  }, [filter, label, kind, assignee, team, hubspot, hsProps, listId]);
   useEffect(() => {
     const id = setTimeout(() => setDebounced(q.trim()), 250);
     return () => clearTimeout(id);
@@ -286,8 +293,11 @@ export default function InboxShell({
     if (team) p.set('team', team);
     if (propKey) p.set('props', JSON.stringify([propValue ? { key: propKey, op: 'is', value: propValue } : { key: propKey, op: 'set' }]));
     if (hubspot) p.set('hubspot', hubspot);
+    // Solo las condiciones completas: una a medio armar no vuelve a pedir la lista.
+    const hs = cleanHubspotFilters(hsProps);
+    if (hs.length) p.set('hs', JSON.stringify(hs));
     return p.toString();
-  }, [filter, debounced, label, kind, assignee, team, propKey, propValue, hubspot, pageSize, archivedView, line, folderSel]);
+  }, [filter, debounced, label, kind, assignee, team, propKey, propValue, hubspot, hsProps, pageSize, archivedView, line, folderSel]);
 
   const load = useCallback(
     async (silent: boolean) => {
@@ -648,7 +658,7 @@ export default function InboxShell({
   const propOpts = propDef ? filterOptions(propDef) : [];
   const listSuffix = inboxQuery(listId, folderSel);
   // Filtros del panel (fuera de las pestañas) que están puestos: el botón lo marca.
-  const extraFilters = [kind, label, assignee, team, propKey, hubspot].filter(Boolean).length;
+  const extraFilters = [kind, label, assignee, team, propKey, hubspot].filter(Boolean).length + hsProps.length;
 
   async function saveChanges() {
     if (!activeList) return;
@@ -883,8 +893,9 @@ export default function InboxShell({
                     />
                   ))}
               </div>
+            {(hubspotOn || hsProps.length > 0) && <HubspotFilter value={hsProps} onChange={(next) => set({ hsProps: next })} />}
             <div className="gr-list-save">
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ kind: '', label: '', assignee: '', team: '', propKey: '', propValue: '', hubspot: '' })} disabled={extraFilters === 0}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ kind: '', label: '', assignee: '', team: '', propKey: '', propValue: '', hubspot: '', hsProps: [] })} disabled={extraFilters === 0}>
                 {t('wa.clearFilters')}
               </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSaving('new')}>
