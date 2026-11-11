@@ -125,8 +125,9 @@ test('persona nueva: borrador retomable, apps, Google Calendar, origen, escritor
 
     // "Tus apps" son las elegidas.
     const featured = p.getByTestId('home-featured');
-    for (const name of ['Track', 'Docs', 'Notes', 'Cal', 'Talk']) await expect(featured.getByRole('link', { name: `Open ${name}` })).toBeVisible();
-    await expect(featured.getByRole('link', { name: 'Open Board' })).toHaveCount(0);
+    // Primero las elegidas, después el resto.
+    const first = (await featured.getByRole('link').allTextContents()).slice(0, 5).join(' ');
+    for (const name of ['Track', 'Docs', 'Notes', 'Cal', 'Talk']) expect(first).toContain(name);
 
     // El menú de la cuenta lleva a la app de escritorio.
     await p.getByTestId('workspace-switcher').click();

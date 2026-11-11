@@ -253,7 +253,8 @@
   .qm-overlay,
   .qm-overlay-center {
     padding: 0;
-    align-items: stretch;
+    /* flex-start, no stretch: con stretch el diálogo medía justo la pantalla y lo más largo quedaba sin fondo al hacer scroll. */
+    align-items: flex-start;
   }
   .qm {
     max-width: none !important;

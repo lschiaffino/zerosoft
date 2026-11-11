@@ -1130,20 +1130,8 @@ test.describe('smoke apps del workspace', () => {
   });
 });
 
-// El inicio de la plataforma (/app) junta lo último de todas las apps.
+// El inicio de la plataforma (/app): las apps, en los dos temas y en el teléfono.
 test.describe('smoke inicio', () => {
-  test('lo creado en una app aparece en Recientes y lo abre', async ({ page, request }) => {
-    const errors = watchErrors(page);
-    const name = freshName();
-    const { id } = await ok<{ id: string }>(request.post('/api/docs/pages', { data: { title: name } }));
-    await page.goto('/en/app', { waitUntil: 'networkidle' });
-    const recent = page.getByTestId('home-recent');
-    await expect(recent.getByRole('link', { name: new RegExp(name) })).toBeVisible();
-    await recent.getByRole('link', { name: new RegExp(name) }).click();
-    await expect(page).toHaveURL(new RegExp(`/en/app/docs/${id}`));
-    expect(errors, errors.join('\n')).toEqual([]);
-  });
-
   for (const theme of ['light', 'dark'] as const) {
     test(`inicio en tema ${theme} sin errores`, async ({ page, context, baseURL }) => {
       await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);

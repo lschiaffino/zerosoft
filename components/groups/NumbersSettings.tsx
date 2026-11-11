@@ -44,15 +44,19 @@ export default function NumbersSettings({
   initial,
   providers,
   canEdit,
+  isAdmin = canEdit,
   openNew,
   reconnect = null,
   people = [],
   teams = [],
 }: {
+  /** Owner o admin: administra todas las líneas y cambia dueños. Si no, solo las suyas (`canManage`). */
+  isAdmin?: boolean;
   initial: NumberDto[];
   people?: GroupsPerson[];
   teams?: Array<{ id: string; name: string }>;
   providers: ProviderKind[];
+  /** Puede agregar líneas (admins, o members con permiso para conectar números). */
   canEdit: boolean;
   openNew: boolean;
   /** Llega desde el aviso "se cayó la línea" de la bandeja: abre la conexión (QR) de ese número. */
@@ -64,7 +68,7 @@ export default function NumbersSettings({
   const [toast, showToast] = useToast();
   const [numbers, setNumbers] = useState(initial);
   const [adding, setAdding] = useState(openNew && canEdit);
-  const [connecting, setConnecting] = useState<NumberDto | null>(() => (canEdit && reconnect ? (initial.find((n) => n.id === reconnect) ?? null) : null));
+  const [connecting, setConnecting] = useState<NumberDto | null>(() => (reconnect ? (initial.find((n) => n.id === reconnect && n.canManage) ?? null) : null));
   // Número recién agregado: si se cierra el QR sin escanear, no queda uno "esperando".
   const [freshId, setFreshId] = useState<string | null>(null);
   const [removing, setRemoving] = useState<NumberDto | null>(null);
@@ -120,6 +124,11 @@ export default function NumbersSettings({
       <div className="gr-detail-head">
         <p className="ui-help">{t('numbers.intro')}</p>
         {!canEdit && <p className="ui-help">{t('numbers.adminOnly')}</p>}
+        {canEdit && !isAdmin && (
+          <p className="ui-help" data-testid="numbers-member-note">
+            {t('numbers.memberNote')}
+          </p>
+        )}
         {canEdit && (
           <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
             {t('numbers.add')}
@@ -169,21 +178,21 @@ export default function NumbersSettings({
                   </span>
                 )}
               </div>
-              {canEdit && (
+              {n.canManage && (
                 <div className="gr-number-actions">
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAccessFor(n)} data-testid="line-access-btn">
                     {t('lines.access')}
                   </button>
                 </div>
               )}
-              {canEdit && n.provider === 'sample' && (
+              {n.canManage && n.provider === 'sample' && (
                 <div className="gr-number-actions">
                   <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setRemoving(n)}>
                     {t('sample.clear')}
                   </button>
                 </div>
               )}
-              {canEdit && n.provider !== 'sample' && (
+              {n.canManage && n.provider !== 'sample' && (
                 <div className="gr-number-actions">
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConnecting(n)}>
                     {n.status === 'connected' ? t('numbers.status') : n.status === 'disconnected' || n.status === 'error' ? t('numbers.reconnect') : t('numbers.connect')}
@@ -247,6 +256,7 @@ export default function NumbersSettings({
         }}
       />
       <LineAccess
+        canChangeOwner={isAdmin}
         number={accessFor}
         people={people}
         teams={teams}

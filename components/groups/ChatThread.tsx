@@ -33,6 +33,7 @@ import RichText, { type MentionLabels } from './wa/RichText';
 import { mentionLabel } from '@/lib/wa-mentions';
 import { longPress } from './wa/longPress';
 import EmojiPicker from './wa/EmojiPicker';
+import { useEmojiSuggest } from './wa/useEmojiSuggest';
 import MediaViewer from './wa/MediaViewer';
 import AttachPreview from './wa/AttachPreview';
 import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
@@ -674,7 +675,24 @@ export default function ChatThread(props: ThreadProps) {
     inputRef.current?.focus();
   }
 
+  const emojiSuggest = useEmojiSuggest({
+    text,
+    caret,
+    disabled: !!editing,
+    apply: (start, end, emoji) => {
+      const next = text.slice(0, start) + emoji + text.slice(end);
+      setText(next);
+      const at = start + emoji.length;
+      setCaret(at);
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        inputRef.current?.setSelectionRange(at, at);
+      });
+    },
+  });
+
   function onComposerKey(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (!editing && emojiSuggest.onKeyDown(e)) return;
     if (mentionMatches.length > 0) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
@@ -1794,6 +1812,7 @@ export default function ChatThread(props: ThreadProps) {
               ))}
             </ul>
           )}
+          {emojiSuggest.strip}
           {mentionMatches.length > 0 && (
             <ul className="gr-quick" role="listbox" aria-label={t('thread.mentionPeople')}>
               {mentionMatches.map((p, i) => (

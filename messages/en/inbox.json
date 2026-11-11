@@ -1,4 +1,5 @@
 {
+  "panels": { "list": "Resize the chat list", "details": "Resize the contact info", "hint": "Drag to change the width. Double-click to go back to the original." },
   "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Done", "compose": "New message" },
   "views": {
     "inbox": "Inbox",

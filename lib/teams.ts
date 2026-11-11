@@ -1,6 +1,7 @@
 import { getDb, type TeamInviteRow, type TeamRow, type UserRow } from './db';
 import { cleanLine, ensureWorkspace, getMembership, parseApps, serializeApps, teamKeyed, type AppAccess } from './workspace';
 import { describeApps } from './app-access-label';
+import { parseCapabilities, serializeCapabilities, type Capability } from './capabilities';
 
 /**
  * Teams: el workspace de un owner compartido con su gente (ver lib/workspace.ts).
@@ -46,6 +47,8 @@ export async function setMemberRole(teamId: string, userId: string, role: 'admin
     .prepare("UPDATE team_members SET role = ? WHERE team_id = ? AND user_id = ? AND role != 'owner'")
     .run(role, teamId, userId);
   if (res.changes > 0 && role === 'guest') {
+    // Un guest no tiene capacidades: no quedan guardadas para cuando vuelva a ser member.
+    await getDb().prepare("UPDATE team_members SET capabilities = '[]' WHERE team_id = ? AND user_id = ?").run(teamId, userId);
     // Pasar a guest saca a la persona del workspace: mismas limpiezas que al sacarla.
     const team = await getTeamById(teamId);
     if (team) {
@@ -83,6 +86,26 @@ async function boardAccessChanged(teamId: string): Promise<void> {
   } catch {
     /* sin Board: nada que avisar */
   }
+}
+
+/** Capacidades guardadas de una persona (lib/capabilities.ts). Vacío si no es parte o es el owner. */
+export async function getMemberCapabilities(teamId: string, userId: string): Promise<Capability[]> {
+  const row = (await getDb().prepare('SELECT * FROM team_members WHERE team_id = ? AND user_id = ?').get(teamId, userId)) as
+    | { capabilities?: string | null }
+    | undefined;
+  return parseCapabilities(row?.capabilities);
+}
+
+/**
+ * Guarda las capacidades de una persona (nunca del owner). La sesión las lee
+ * de la base en cada pedido, así que quitar una corta el acceso en el próximo
+ * pedido, sin esperar a que la persona vuelva a entrar.
+ */
+export async function setMemberCapabilities(teamId: string, userId: string, caps: readonly string[]): Promise<boolean> {
+  const res = await getDb()
+    .prepare("UPDATE team_members SET capabilities = ? WHERE team_id = ? AND user_id = ? AND role != 'owner'")
+    .run(serializeCapabilities(caps), teamId, userId);
+  return res.changes > 0;
 }
 
 /** Acceso por app de una persona ('*' o lista). */
@@ -573,6 +596,8 @@ export interface ResolvedWorkspace {
   workspace: TeamRow;
   role: TeamRole;
   apps: AppAccess;
+  /** Capacidades que le dieron (lib/capabilities.ts); vacío para owner (las tiene todas por rol). */
+  caps: Capability[];
 }
 
 /**
@@ -598,13 +623,14 @@ export async function resolveWorkspace(
       workspace: pre && pre.owner_id === user.id ? pre : await ensureWorkspace(user.id),
       role: 'owner',
       apps: '*',
+      caps: [],
     };
   };
   if (!user.active_team_id) return own();
   const team = await getTeamById(user.active_team_id);
   if (team && team.owner_id === user.id) {
     // Equipo propio: los de antes de 128 siguen con su clave; la ficha nueva es el workspace propio.
-    return { owner: user, team: teamKeyed(team) ? team : null, workspace: team, role: 'owner', apps: '*' };
+    return { owner: user, team: teamKeyed(team) ? team : null, workspace: team, role: 'owner', apps: '*', caps: [] };
   }
   const membership = team ? await getMembership(team, user.id) : null;
   if (!team || !membership || membership.role === 'guest') {
@@ -621,5 +647,6 @@ export async function resolveWorkspace(
     workspace: team,
     role: normalizeRole(membership.role),
     apps: membership.apps,
+    caps: membership.caps,
   };
 }

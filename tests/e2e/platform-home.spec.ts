@@ -10,22 +10,22 @@ test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
 });
 
-test('/app es el inicio: saludo, Para hoy, recientes, apps e importar', async ({ page }) => {
+test('/app es el inicio: saludo y solo las apps, cada una con su ícono y para qué sirve', async ({ page }) => {
   await page.goto('/es/app', { waitUntil: 'networkidle' });
   await expect(page.locator('h1.ui-page-title')).toHaveText(/^(Buen día|Buenas tardes|Buenas noches)/);
   await expect(page.locator('.band-product-name')).toHaveText('zerosoft');
-  await expect(page.getByRole('heading', { name: 'Para hoy', level: 2 })).toBeVisible();
-  for (const id of ['home-crm-tasks', 'home-track', 'home-cal', 'home-unread']) {
-    await expect(page.getByTestId(id)).toBeVisible();
-    await expect(page.getByTestId(id)).not.toHaveAttribute('aria-busy', 'true');
+  const apps = page.getByTestId('home-featured');
+  await expect(apps.getByRole('link', { name: 'Abrir CRM' })).toBeVisible();
+  const tiles = apps.locator('a.home-tile');
+  expect(await tiles.count()).toBeGreaterThan(6);
+  for (const tile of (await tiles.all()).slice(0, 4)) {
+    await expect(tile.locator('.home-tile-icon svg')).toBeVisible();
+    await expect(tile.locator('.home-tile-desc')).not.toBeEmpty();
   }
-  await expect(page.getByTestId('home-recent')).toBeVisible();
-  // Modo equipo (por defecto): destacadas de equipo, invitar visible.
-  await expect(page.getByTestId('home-featured').getByRole('link')).toHaveCount(6);
-  await expect(page.getByTestId('home-featured').getByRole('link', { name: 'Abrir CRM' })).toBeVisible();
-  await expect(page.getByTestId('home-more').getByRole('heading', { level: 3 }).first()).toBeVisible();
-  await expect(page.getByTestId('home-invite').getByRole('link', { name: 'Invitar' })).toHaveAttribute('href', '/es/app/settings/members');
-  await expect(page.getByTestId('home-import').getByRole('link', { name: 'Importar' })).toHaveAttribute('href', '/es/app/settings/import');
+  // Nada más: sin "Para hoy", recientes, asistente ni tarjetas al costado.
+  await expect(page.getByRole('heading', { name: 'Para hoy', level: 2 })).toHaveCount(0);
+  for (const id of ['home-recent', 'home-crm-tasks', 'home-invite', 'home-import', 'home-more']) await expect(page.getByTestId(id)).toHaveCount(0);
+  await expect(page.locator('.home-ask, .home-cards')).toHaveCount(0);
   // El sidebar del inicio: "Tus apps" arriba y el resto plegado en "Más apps".
   await expect(page.locator('.side-line .side-section').first()).toHaveText('Tus apps');
   await expect(page.locator('.side-line [aria-current="page"]')).toHaveAttribute('href', '/es/app');
@@ -45,7 +45,7 @@ test('Link vive en /app/links: el switcher y el resumen', async ({ page }) => {
   // El logo de la banda vuelve al inicio, no a Link.
   await page.locator('.band-home').click();
   await expect(page).toHaveURL(/\/es\/app$/);
-  await expect(page.getByRole('heading', { name: 'Para hoy', level: 2 })).toBeVisible();
+  await expect(page.getByTestId('home-featured')).toBeVisible();
 });
 
 test('switcher: inicio, destacadas, más apps por categoría, teclado y ⌘K', async ({ page }) => {
@@ -146,15 +146,6 @@ for (const [width, height] of [[1280, 720], [1440, 900]] as const) {
     for (const link of await mega.locator('a.hd-prod').all()) await expect(link).toBeInViewport({ ratio: 1 });
   });
 }
-
-test('Tareas del CRM: mías por defecto y todas con un clic', async ({ page }) => {
-  await page.goto('/es/app', { waitUntil: 'networkidle' });
-  const block = page.getByTestId('home-crm-tasks');
-  await expect(block.getByRole('link', { name: 'Mías' })).toHaveAttribute('aria-current', 'true');
-  await block.getByRole('link', { name: 'Todas' }).click();
-  await expect(page).toHaveURL(/\/es\/app\?tasks=all$/);
-  await expect(page.getByTestId('home-crm-tasks').getByRole('link', { name: 'Todas' })).toHaveAttribute('aria-current', 'true');
-});
 
 /** Estructura del sidebar del inicio: hasta 8 apps propias a la vista y el resto en "Más apps", plegado y con teclado. */
 async function expectHomeAppsStructure(page: import('@playwright/test').Page) {

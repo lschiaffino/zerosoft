@@ -1,9 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import PanelSplitter from '@/components/ui/PanelSplitter';
-import { linesPanelMode, linesPanelsKey, parseSavedPanels, resolveLinesPanels, type LinesPanelMode, type SavedPanels } from '@/lib/groups-panels';
+import { LINES_LAYOUT, linesPanelMode, linesPanelsKey, parseSavedPanels, resolveLinesPanels, type LinesPanelMode, type PanelsLayout, type SavedPanels } from '@/lib/groups-panels';
 
 // En el servidor no hay layout que medir: el efecto corre solo en el navegador.
 const useBrowserLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
@@ -17,14 +16,29 @@ const VARS = { list: '--gr-list-w', details: '--gr-details-w' } as const;
  * ellas). Los anchos quedan en localStorage por persona y se acomodan a la
  * ventana cada vez que cambia de tamaño. En una sola columna no se usan.
  */
-export default function PanelSplitters({ me }: { me: string }) {
-  const t = useTranslations('groups');
+export default function PanelSplitters({
+  me,
+  storageKey,
+  layout = LINES_LAYOUT,
+  hasDetails = true,
+  labels,
+}: {
+  me: string;
+  /** Clave en localStorage; por defecto la de Lines. */
+  storageKey?: string;
+  layout?: PanelsLayout;
+  /** false: no hay panel de detalles a la vista (Inbox sin la info abierta). */
+  hasDetails?: boolean;
+  /** Textos de cada app (cada ruta carga sus propios mensajes). */
+  labels: { list: string; details: string; hint: string };
+}) {
+  const text = labels;
   const anchor = useRef<HTMLSpanElement>(null);
   const [saved, setSaved] = useState<SavedPanels>({});
   // Hasta medir: un escritorio común, igual en el servidor y en el navegador.
   const [box, setBox] = useState<{ width: number; mode: LinesPanelMode }>({ width: 1200, mode: 'three' });
   const [ready, setReady] = useState(false);
-  const key = linesPanelsKey(me);
+  const key = storageKey ?? linesPanelsKey(me);
 
   useBrowserLayoutEffect(() => {
     const el = anchor.current?.parentElement;
@@ -35,7 +49,7 @@ export default function PanelSplitters({ me }: { me: string }) {
       /* sin almacenamiento: anchos por defecto */
     }
     const measure = () => {
-      const next = { width: el.clientWidth, mode: linesPanelMode(window.innerWidth) };
+      const next = { width: el.clientWidth, mode: linesPanelMode(window.innerWidth, layout, hasDetails) };
       setBox((b) => (b.width === next.width && b.mode === next.mode ? b : next));
     };
     measure();
@@ -48,9 +62,9 @@ export default function PanelSplitters({ me }: { me: string }) {
       window.removeEventListener('resize', measure);
       for (const v of Object.values(VARS)) el.style.removeProperty(v);
     };
-  }, [key]);
+  }, [key, layout, hasDetails]);
 
-  const { list, details } = resolveLinesPanels(saved, box.width, box.mode);
+  const { list, details } = resolveLinesPanels(saved, box.width, box.mode, layout);
   const listW = list?.custom ? list.value : null;
   const detailsW = details?.custom ? details.value : null;
 
@@ -89,8 +103,8 @@ export default function PanelSplitters({ me }: { me: string }) {
       {list && (
         <PanelSplitter
           className="gr-splitter gr-splitter-list"
-          label={t('inbox.resizeList')}
-          hint={t('inbox.resizeHint')}
+          label={text.list}
+          hint={text.hint}
           side="start"
           value={list.value}
           min={list.min}
@@ -103,8 +117,8 @@ export default function PanelSplitters({ me }: { me: string }) {
       {details && (
         <PanelSplitter
           className="gr-splitter gr-splitter-details"
-          label={t('inbox.resizeDetails')}
-          hint={t('inbox.resizeHint')}
+          label={text.details}
+          hint={text.hint}
           side="end"
           value={details.value}
           min={details.min}
