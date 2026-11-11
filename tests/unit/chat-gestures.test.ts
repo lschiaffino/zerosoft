@@ -13,10 +13,16 @@ import {
   openWidth,
   rubberBand,
   SCROLL_MAX,
+  swipeEnd,
+  swipeMove,
   swipeOffset,
   swipeRelease,
+  swipeStart,
   SWIPE_SLOP,
   trayPlacement,
+  type SwipeEnd,
+  type SwipeSide,
+  type SwipeTrack,
 } from '@/lib/chat-gestures';
 
 describe('Gestos de una fila de chat: eje y toque largo', () => {
@@ -42,25 +48,20 @@ describe('Gestos de una fila de chat: eje y toque largo', () => {
 });
 
 describe('Gestos de una fila de chat: deslizar', () => {
-  const row = { width: 390, left: 2, right: 2 };
-
-  it('la fila sigue al dedo hacia un lado con acciones, hasta su ancho', () => {
-    expect(swipeOffset(0, row)).toBe(0);
-    expect(swipeOffset(-120, row)).toBe(-120);
-    expect(swipeOffset(200, row)).toBe(200);
-    expect(swipeOffset(-900, row)).toBe(-390);
-    expect(swipeOffset(900, row)).toBe(390);
+  it('la fila sigue al dedo hacia su lado, hasta su ancho', () => {
+    expect(swipeOffset({ base: 0, dx: 0, side: 'left', width: 390 })).toBe(0);
+    expect(swipeOffset({ base: 0, dx: -120, side: 'left', width: 390 })).toBe(-120);
+    expect(swipeOffset({ base: 0, dx: 200, side: 'right', width: 390 })).toBe(200);
+    expect(swipeOffset({ base: 0, dx: -900, side: 'left', width: 390 })).toBe(-390);
+    expect(swipeOffset({ base: 0, dx: 900, side: 'right', width: 390 })).toBe(390);
   });
 
-  it('hacia un lado sin acciones solo cede un poco (goma)', () => {
-    const none = { width: 390, left: 0, right: 2 };
-    const a = swipeOffset(-40, none);
-    const b = swipeOffset(-400, none);
-    expect(a).toBeLessThan(0);
-    expect(a).toBeGreaterThan(-40);
-    expect(b).toBeLessThan(a);
-    expect(b).toBeGreaterThan(-40);
-    expect(swipeOffset(100, none)).toBe(100);
+  it('de vuelta se frena en 0: nunca cruza al otro lado', () => {
+    expect(swipeOffset({ base: 0, dx: 50, side: 'left', width: 390 })).toBe(0);
+    expect(swipeOffset({ base: 0, dx: -50, side: 'right', width: 390 })).toBe(0);
+    expect(swipeOffset({ base: -152, dx: 100, side: 'left', width: 390 })).toBe(-52);
+    expect(swipeOffset({ base: -152, dx: 400, side: 'left', width: 390 })).toBe(0);
+    expect(swipeOffset({ base: 152, dx: -400, side: 'right', width: 390 })).toBe(0);
   });
 
   it('la goma crece cada vez menos y nunca pasa del tope', () => {
@@ -83,7 +84,7 @@ describe('Gestos de una fila de chat: deslizar', () => {
     expect(commitAt(390, 2)).toBeGreaterThan(openWidth(2, 390));
   });
 
-  it('soltar: poco vuelve, a mitad de camino queda abierto, hasta el fondo ejecuta', () => {
+  it('soltar una fila cerrada: poco vuelve, a mitad de camino queda abierta, hasta el fondo ejecuta', () => {
     expect(swipeRelease({ x: -20, width: 390, count: 2 })).toBe('close');
     expect(swipeRelease({ x: -75, width: 390, count: 2 })).toBe('close');
     expect(swipeRelease({ x: -76, width: 390, count: 2 })).toBe('open');
@@ -93,7 +94,7 @@ describe('Gestos de una fila de chat: deslizar', () => {
     expect(swipeRelease({ x: -390, width: 390, count: 2 })).toBe('commit');
   });
 
-  it('soltar: un envión hacia afuera abre, uno de vuelta cierra, y sin acciones siempre vuelve', () => {
+  it('soltar una fila cerrada: un envión hacia afuera abre, uno de vuelta cierra, y sin acciones siempre vuelve', () => {
     expect(swipeRelease({ x: -40, width: 390, count: 2, velocity: -0.9 })).toBe('open');
     expect(swipeRelease({ x: 40, width: 390, count: 2, velocity: 0.9 })).toBe('open');
     expect(swipeRelease({ x: -10, width: 390, count: 2, velocity: -0.9 })).toBe('close');
@@ -101,6 +102,27 @@ describe('Gestos de una fila de chat: deslizar', () => {
     expect(swipeRelease({ x: 150, width: 390, count: 2, velocity: -0.6 })).toBe('close');
     expect(swipeRelease({ x: -300, width: 390, count: 0 })).toBe('close');
     expect(swipeRelease({ x: 0, width: 390, count: 2 })).toBe('close');
+  });
+
+  it('soltar una fila abierta: volver un 30% alcanza para cerrarla; menos, queda abierta', () => {
+    const open = { width: 390, count: 2, from: 'open' as const };
+    expect(swipeRelease({ ...open, x: -152 })).toBe('open');
+    expect(swipeRelease({ ...open, x: -120 })).toBe('open');
+    expect(swipeRelease({ ...open, x: -107 })).toBe('open');
+    expect(swipeRelease({ ...open, x: -106 })).toBe('close');
+    expect(swipeRelease({ ...open, x: -100 })).toBe('close');
+    expect(swipeRelease({ ...open, x: 0 })).toBe('close');
+    expect(swipeRelease({ ...open, x: 100 })).toBe('close');
+    expect(swipeRelease({ ...open, x: 140 })).toBe('open');
+    expect(swipeRelease({ ...open, x: -260 })).toBe('commit');
+  });
+
+  it('soltar una fila abierta: un envión de vuelta la cierra, pero un temblor no', () => {
+    const open = { width: 390, count: 2, from: 'open' as const };
+    expect(swipeRelease({ ...open, x: -130, velocity: 0.6 })).toBe('close');
+    expect(swipeRelease({ ...open, x: -146, velocity: 0.9 })).toBe('open');
+    expect(swipeRelease({ ...open, x: -80, velocity: -0.6 })).toBe('open');
+    expect(swipeRelease({ ...open, x: 130, velocity: -0.6 })).toBe('close');
   });
 
   it('un deslizado con el mouse que sale de la lista pasa a ser un arrastre', () => {
@@ -186,5 +208,269 @@ describe('Gestos de una fila de chat: levantar y soltar', () => {
     expect(trayPlacement({ left: 56, top: 120, right: 420, bottom: 800 }, 1280)).toEqual({ mode: 'side', left: 432, top: 128 });
     expect(trayPlacement({ left: 700, top: 0, right: 1270, bottom: 800 }, 1280)).toEqual({ mode: 'side', left: 424, top: 8 });
     expect(trayPlacement({ left: 0, top: 110, right: 390, bottom: 844 }, 390)).toEqual({ mode: 'bottom' });
+  });
+});
+
+// ---------- Secuencias completas: el gesto entero, de apoyar a soltar ----------
+
+const W = 390;
+const COUNTS = { left: 2, right: 2 };
+const OPEN = openWidth(2, W);
+
+type Pt = [dx: number, dy: number, ms: number];
+
+/** Recorre un gesto entero: puntos relativos al apoyo, con su tiempo. Devuelve cada corrimiento pintado y qué pasa al soltar. */
+function play(path: Pt[], o: { open?: SwipeSide; upAfter?: number; counts?: { left: number; right: number } } = {}) {
+  let t: SwipeTrack = swipeStart({ x: 200, y: 300, t: 0, width: W, counts: o.counts ?? COUNTS, open: o.open });
+  const offsets: number[] = [t.offset];
+  let last = 0;
+  for (const [dx, dy, ms] of path) {
+    t = swipeMove(t, { x: 200 + dx, y: 300 + dy, t: ms });
+    offsets.push(t.offset);
+    last = ms;
+  }
+  const end: SwipeEnd = swipeEnd(t, last + (o.upAfter ?? 8));
+  return { t, offsets, end };
+}
+
+/** De `from` a `to` (px en x) en `ms`, con un punto cada 8 ms (un cuadro de 120 Hz). */
+function glide(from: number, to: number, ms: number, t0 = 0): Pt[] {
+  const steps = Math.max(1, Math.round(ms / 8));
+  return Array.from({ length: steps }, (_, i) => {
+    const k = (i + 1) / steps;
+    return [from + (to - from) * k, 0, t0 + ms * k] as Pt;
+  });
+}
+
+const neverRight = (xs: number[]) => xs.every((x) => x <= 0);
+const neverLeft = (xs: number[]) => xs.every((x) => x >= 0);
+
+describe('Deslizar: abierta a la izquierda, arrastrar a la derecha (el caso del dueño)', () => {
+  it('arranca abierta del lado de sus acciones', () => {
+    const t = swipeStart({ x: 0, y: 0, t: 0, width: W, counts: COUNTS, open: 'left' });
+    expect(t.base).toBe(-OPEN);
+    expect(t.offset).toBe(-OPEN);
+    expect(t.side).toBe('left');
+  });
+
+  it('lento y lejos: se frena en 0, nunca muestra el otro lado, y al soltar se cierra', () => {
+    const r = play(glide(0, 320, 600), { open: 'left' });
+    expect(neverRight(r.offsets)).toBe(true);
+    expect(r.offsets.at(-1)).toBe(0);
+    expect(r.t.side).toBe('left');
+    expect(r.end).toBe('close');
+  });
+
+  it('rápido y lejos (un envión): se cierra sin pasar al otro lado', () => {
+    const r = play(glide(0, 260, 80), { open: 'left' });
+    expect(neverRight(r.offsets)).toBe(true);
+    expect(r.end).toBe('close');
+  });
+
+  it('hasta el borde de la pantalla y un rato quieto: igual se cierra', () => {
+    const r = play([...glide(0, 400, 300), [400, 0, 900]], { open: 'left', upAfter: 400 });
+    expect(neverRight(r.offsets)).toBe(true);
+    expect(r.end).toBe('close');
+  });
+
+  it('pasa del 0 y vuelve un poco en el mismo gesto: sigue en 0 mientras el dedo esté pasado', () => {
+    const r = play([...glide(0, 250, 200), ...glide(250, 170, 200, 200)], { open: 'left' });
+    expect(neverRight(r.offsets)).toBe(true);
+    expect(r.offsets.at(-1)).toBe(0);
+    expect(r.end).toBe('close');
+  });
+
+  it('pasa del 0 y vuelve del todo: la fila acompaña de nuevo hacia su lado', () => {
+    const r = play([...glide(0, 250, 200), ...glide(250, 0, 300, 200)], { open: 'left', upAfter: 150 });
+    expect(neverRight(r.offsets)).toBe(true);
+    expect(r.offsets.at(-1)).toBeLessThan(-OPEN + 20);
+    expect(r.end).toBe('open');
+  });
+
+  it('un poco de vuelta (menos del 30%) y soltar despacio: queda abierta', () => {
+    const r = play(glide(0, 30, 300), { open: 'left', upAfter: 150 });
+    expect(r.end).toBe('open');
+  });
+
+  it('un tercio de vuelta y soltar despacio: se cierra', () => {
+    const r = play(glide(0, 60, 400), { open: 'left', upAfter: 150 });
+    expect(r.end).toBe('close');
+  });
+
+  it('un toquecito de vuelta con envión: se cierra', () => {
+    const r = play(glide(0, 34, 40), { open: 'left' });
+    expect(r.end).toBe('close');
+  });
+
+  it('un envión hacia afuera la deja abierta; arrastrar hasta el fondo ejecuta', () => {
+    expect(play(glide(0, -40, 60), { open: 'left' }).end).toBe('open');
+    const far = play(glide(0, -160, 300), { open: 'left' });
+    expect(far.end).toBe('commit');
+    expect(neverRight(far.offsets)).toBe(true);
+  });
+
+  it('temblores alrededor de donde está: no la cierran', () => {
+    const jitter: Pt[] = Array.from({ length: 30 }, (_, i) => [(i % 2 ? 1 : -1) * 10, 2, (i + 1) * 8]);
+    const r = play(jitter, { open: 'left' });
+    expect(neverRight(r.offsets)).toBe(true);
+    expect(r.end).toBe('open');
+  });
+
+  it('arrastre que empieza vertical (scroll): la fila no se mueve y el gesto no es deslizar', () => {
+    const r = play([[2, 12, 8], [40, 60, 40], [200, 80, 120]], { open: 'left' });
+    expect(r.t.axis).toBe('y');
+    expect(r.offsets.every((x) => x === -OPEN)).toBe(true);
+    expect(r.end).toBe('close');
+  });
+});
+
+describe('Deslizar: abierta a la derecha, arrastrar a la izquierda', () => {
+  it('lento y lejos: se frena en 0 y se cierra', () => {
+    const r = play(glide(0, -320, 600), { open: 'right' });
+    expect(neverLeft(r.offsets)).toBe(true);
+    expect(r.offsets.at(-1)).toBe(0);
+    expect(r.end).toBe('close');
+  });
+
+  it('rápido: se cierra sin mostrar la izquierda', () => {
+    const r = play(glide(0, -200, 60), { open: 'right' });
+    expect(neverLeft(r.offsets)).toBe(true);
+    expect(r.end).toBe('close');
+  });
+
+  it('poco de vuelta: queda abierta; más allá del 30%: se cierra', () => {
+    expect(play(glide(0, -25, 300), { open: 'right', upAfter: 150 }).end).toBe('open');
+    expect(play(glide(0, -70, 300), { open: 'right', upAfter: 150 }).end).toBe('close');
+  });
+});
+
+describe('Deslizar desde cerrada', () => {
+  it('izquierda y después derecha en el mismo gesto: no cruza, vuelve a cerrada', () => {
+    const r = play([...glide(0, -100, 200), ...glide(-100, 300, 400, 200)]);
+    expect(r.t.side).toBe('left');
+    expect(neverRight(r.offsets)).toBe(true);
+    expect(r.end).toBe('close');
+  });
+
+  it('derecha y después izquierda en el mismo gesto: no cruza', () => {
+    const r = play([...glide(0, 120, 200), ...glide(120, -300, 300, 200)]);
+    expect(r.t.side).toBe('right');
+    expect(neverLeft(r.offsets)).toBe(true);
+    expect(r.end).toBe('close');
+  });
+
+  it('temblor alrededor del 0: nada se abre', () => {
+    const jitter: Pt[] = Array.from({ length: 40 }, (_, i) => [(i % 2 ? 1 : -1) * 11, 0, (i + 1) * 8]);
+    const r = play(jitter);
+    expect(r.offsets.every((x) => Math.abs(x) <= 3)).toBe(true);
+    expect(r.end).toBe('close');
+  });
+
+  it('un envión corto hacia afuera abre; uno de pocos px no', () => {
+    expect(play(glide(0, -40, 40)).end).toBe('open');
+    expect(play(glide(0, 40, 40)).end).toBe('open');
+    expect(play(glide(0, -14, 16)).end).toBe('close');
+  });
+
+  it('despacio: pasada la mitad de las acciones abre, antes no', () => {
+    expect(play(glide(0, -(OPEN / 2 + SWIPE_SLOP + 4), 500), { upAfter: 150 }).end).toBe('open');
+    expect(play(glide(0, -(OPEN / 2 + SWIPE_SLOP - 6), 500), { upAfter: 150 }).end).toBe('close');
+  });
+
+  it('afuera y un envión de vuelta: se cierra', () => {
+    const r = play([...glide(0, -160, 300), ...glide(-160, -110, 40, 300)]);
+    expect(r.end).toBe('close');
+  });
+
+  it('hasta el fondo ejecuta la principal', () => {
+    expect(play(glide(0, -300, 300)).end).toBe('commit');
+    expect(play(glide(0, 300, 300)).end).toBe('commit');
+  });
+
+  it('arrastre que empieza vertical: no se desliza aunque después vaya de costado', () => {
+    const r = play([[1, 10, 8], [3, 30, 16], [150, 40, 80]]);
+    expect(r.t.axis).toBe('y');
+    expect(r.offsets.every((x) => x === 0)).toBe(true);
+  });
+
+  it('diagonal mayormente vertical gana el scroll; mayormente horizontal, el deslizado', () => {
+    expect(play([[6, 9, 8]]).t.axis).toBe('y');
+    expect(play([[9, 6, 8]]).t.axis).toBe('x');
+  });
+
+  it('el eje no se decide antes del umbral', () => {
+    const r = play([[3, 2, 8], [-4, 3, 16], [5, -5, 24]]);
+    expect(r.t.axis).toBeNull();
+    expect(r.end).toBe('close');
+  });
+
+  it('el lado sin acciones no se mueve', () => {
+    const r = play(glide(0, -200, 200), { counts: { left: 0, right: 2 } });
+    expect(r.offsets.every((x) => x === 0)).toBe(true);
+    expect(r.end).toBe('close');
+  });
+
+  it('la fila no salta al decidir el eje', () => {
+    const r = play(glide(0, -40, 80));
+    const firstMoved = r.offsets.find((x) => x !== 0) ?? 0;
+    expect(Math.abs(firstMoved)).toBeLessThanOrEqual(6);
+  });
+
+  it('quedarse quieto antes de soltar anula el envión', () => {
+    expect(play(glide(0, -40, 40), { upAfter: 8 }).end).toBe('open');
+    expect(play(glide(0, -40, 40), { upAfter: 200 }).end).toBe('close');
+  });
+});
+
+describe('Deslizar: varias filas', () => {
+  it('una fila abierta no cambia cómo arranca otra', () => {
+    const a = swipeStart({ x: 0, y: 0, t: 0, width: W, counts: COUNTS, open: 'left' });
+    const b = swipeStart({ x: 0, y: 0, t: 0, width: W, counts: COUNTS });
+    expect(a.base).toBe(-OPEN);
+    expect(b.base).toBe(0);
+    expect(b.side).toBeNull();
+  });
+
+  it('abierta de un lado que ya no tiene acciones: arranca cerrada', () => {
+    const t = swipeStart({ x: 0, y: 0, t: 0, width: W, counts: { left: 0, right: 2 }, open: 'left' });
+    expect(t.base).toBe(0);
+    expect(t.side).toBeNull();
+  });
+});
+
+describe('Deslizar: miles de gestos al azar', () => {
+  // Generador con semilla: el mismo resultado en cada corrida.
+  let seed = 7;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+
+  it('nunca cruza al otro lado, nunca pasa del ancho, y soltar en 0 siempre cierra', () => {
+    let crossings = 0;
+    for (let n = 0; n < 3000; n++) {
+      const open = ([undefined, 'left', 'right'] as const)[Math.floor(rand() * 3)];
+      const path: Pt[] = [];
+      let x = 0;
+      let y = 0;
+      let ms = 0;
+      for (let i = 0, len = 3 + Math.floor(rand() * 40); i < len; i++) {
+        x += (rand() - 0.5) * 120;
+        y += (rand() - 0.5) * (rand() < 0.2 ? 40 : 6);
+        ms += 4 + Math.floor(rand() * 30);
+        path.push([x, y, ms]);
+      }
+      const r = play(path, { open, upAfter: Math.floor(rand() * 150) });
+      const side = r.t.side;
+      for (const off of r.offsets) {
+        if (Math.abs(off) > W) crossings++;
+        if (side === 'left' && off > 0) crossings++;
+        if (side === 'right' && off < 0) crossings++;
+      }
+      if (r.t.offset === 0) expect(r.end).toBe('close');
+      if (r.end === 'commit') expect(Math.abs(r.t.offset)).toBeGreaterThanOrEqual(commitAt(W, 2));
+      if (open) expect(side).toBe(open);
+    }
+    expect(crossings).toBe(0);
   });
 });

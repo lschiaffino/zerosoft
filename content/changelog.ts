@@ -29,6 +29,105 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-whatsapp-archive-sync',
+    date: '2026-11-11',
+    title: {
+      en: 'Inbox and Lines: archiving stays in step with WhatsApp',
+      es: 'Inbox y Lines: archivar queda igual que en WhatsApp',
+      pt: 'Inbox e Lines: arquivar fica igual ao WhatsApp',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'The chat list updates as soon as something changes: a new message in an archived chat brings it back to the inbox within a second or two, without waiting for the next refresh.',
+        es: 'La lista de chats se actualiza apenas algo cambia: un mensaje nuevo en un chat archivado lo devuelve a la bandeja en uno o dos segundos, sin esperar la próxima actualización.',
+        pt: 'A lista de conversas se atualiza assim que algo muda: uma mensagem nova numa conversa arquivada a traz de volta para a caixa em um ou dois segundos, sem esperar a próxima atualização.',
+      },
+      {
+        product: 'inbox',
+        en: 'Archiving or unarchiving a chat here now reaches WhatsApp on your phone: the request carries the latest message and its time, which WhatsApp needs to apply it. If WhatsApp does not answer, it is retried in the background.',
+        es: 'Archivar o desarchivar un chat acá ahora llega a WhatsApp en el teléfono: el pedido lleva el último mensaje y su hora, que WhatsApp necesita para aplicarlo. Si WhatsApp no responde, se reintenta en segundo plano.',
+        pt: 'Arquivar ou desarquivar uma conversa aqui agora chega ao WhatsApp no celular: o pedido leva a última mensagem e o horário dela, que o WhatsApp precisa para aplicá-lo. Se o WhatsApp não responde, tenta de novo em segundo plano.',
+      },
+      {
+        product: 'groups',
+        en: 'Lines does the same: archiving or unarchiving a chat also archives it in WhatsApp on the number, and the inbox list updates right away when a message arrives or a teammate changes a chat.',
+        es: 'Lines hace lo mismo: archivar o desarchivar un chat también lo archiva en el WhatsApp del número, y la bandeja se actualiza al instante cuando llega un mensaje o alguien del equipo cambia un chat.',
+        pt: 'O Lines faz o mesmo: arquivar ou desarquivar uma conversa também a arquiva no WhatsApp do número, e a caixa se atualiza na hora quando chega uma mensagem ou alguém da equipe muda uma conversa.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-11-chat-row-menu',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines and Inbox: right-click a chat, a conversation that stays put, and drafts that show up right away',
+      es: 'Lines e Inbox: clic derecho en un chat, una conversación que no se mueve sola y borradores que aparecen al instante',
+      pt: 'Lines e Inbox: clique direito numa conversa, uma conversa que não se mexe sozinha e rascunhos que aparecem na hora',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Right-click a chat in the list, or press the menu key or Shift+F10, for a menu like WhatsApp: open it in a new window, mark it read or unread, archive, pin, mute for 8 hours or a week, add it to a folder, contact or group info, and remove it from Inbox. It opens where you click, stays inside the window and works from the keyboard. On a phone, press and hold still opens the chat options. It also works in the desktop app.',
+        es: 'Clic derecho en un chat de la lista, o la tecla de menú o Shift+F10, abre un menú como el de WhatsApp: abrirlo en otra ventana, marcarlo leído o no leído, archivar, fijar, silenciar por 8 horas o una semana, agregarlo a una carpeta, la info del contacto o del grupo, y sacarlo de Inbox. Se abre donde hacés clic, no se sale de la ventana y se usa con el teclado. En el teléfono, mantener apretado sigue abriendo las opciones del chat. También anda en la app de escritorio.',
+        pt: 'Clique direito numa conversa da lista, ou a tecla de menu ou Shift+F10, abre um menu como o do WhatsApp: abrir em outra janela, marcar como lida ou não lida, arquivar, fixar, silenciar por 8 horas ou uma semana, adicionar a uma pasta, os dados do contato ou do grupo, e tirar do Inbox. Abre onde você clica, não sai da janela e funciona pelo teclado. No celular, segurar continua abrindo as opções da conversa. Também funciona no app para desktop.',
+      },
+      {
+        product: 'groups',
+        en: 'Lines has the same menu, at the pointer, with what its chat menu already had plus open in a new window, contact or group info and export chat.',
+        es: 'Lines tiene el mismo menú, en el puntero, con lo que ya tenía el menú del chat más abrir en otra ventana, la info del contacto o del grupo y exportar el chat.',
+        pt: 'O Lines tem o mesmo menu, no ponteiro, com o que o menu da conversa já tinha mais abrir em outra janela, os dados do contato ou do grupo e exportar a conversa.',
+      },
+      {
+        product: 'inbox',
+        en: 'While you read further up in a conversation, it no longer jumps on its own when new messages arrive, a photo finishes loading or older messages load above. At the bottom, it keeps following the newest message, and sending always takes you there.',
+        es: 'Mientras leés más arriba en una conversación, ya no salta sola cuando llegan mensajes nuevos, termina de cargar una foto o se suman mensajes anteriores arriba. Abajo de todo sigue al último mensaje, y al mandar uno siempre te lleva ahí.',
+        pt: 'Enquanto você lê mais acima numa conversa, ela não pula mais sozinha quando chegam mensagens novas, uma foto termina de carregar ou mensagens anteriores entram acima. No final, ela continua seguindo a última mensagem, e ao enviar sempre leva você até lá.',
+      },
+      {
+        product: 'inbox',
+        en: 'Drafts show up like in WhatsApp: type in a chat and switch to another, and the first one says "Draft" in the list right away; clear the text and the label goes away right away. A draft typed just before switching chats or closing the page is no longer lost.',
+        es: 'Los borradores aparecen como en WhatsApp: escribís en un chat y pasás a otro, y el primero dice "Borrador" en la lista en el momento; borrás el texto y la etiqueta se va en el momento. Un borrador escrito justo antes de cambiar de chat o cerrar la página ya no se pierde.',
+        pt: 'Os rascunhos aparecem como no WhatsApp: você escreve numa conversa e passa para outra, e a primeira mostra "Rascunho" na lista na hora; apaga o texto e a etiqueta some na hora. Um rascunho escrito logo antes de trocar de conversa ou fechar a página não se perde mais.',
+      },
+      {
+        product: 'groups',
+        en: 'In Lines, the chat you leave shows its draft from the moment you click the next one, without waiting for it to open.',
+        es: 'En Lines, el chat que dejás muestra su borrador desde que hacés clic en el siguiente, sin esperar a que se abra.',
+        pt: 'No Lines, a conversa que você deixa mostra o rascunho desde o clique na próxima, sem esperar que ela abra.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-swipe-back',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines and Inbox: swiping a chat back closes it, like on the iPhone',
+      es: 'Lines e Inbox: deslizar un chat de vuelta lo cierra, como en el iPhone',
+      pt: 'Lines e Inbox: deslizar uma conversa de volta a fecha, como no iPhone',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'With a chat swiped open, dragging it back now stops at the closed row and never opens the buttons on the other side. A short drag back or a quick flick is enough to close it; to open the other side, let go and swipe again.',
+        es: 'Con un chat deslizado y los botones a la vista, arrastrarlo de vuelta ahora frena en la fila cerrada y nunca abre los botones del otro lado. Alcanza con volver un poco o con un movimiento rápido para cerrarlo; para abrir el otro lado, soltá y deslizá de nuevo.',
+        pt: 'Com uma conversa deslizada e os botões à vista, arrastá-la de volta agora para na linha fechada e nunca abre os botões do outro lado. Basta voltar um pouco ou um movimento rápido para fechá-la; para abrir o outro lado, solte e deslize de novo.',
+      },
+      {
+        product: 'groups',
+        en: 'Tapping the open chat, tapping another one or scrolling the list closes it without opening the chat. Only one chat stays open at a time.',
+        es: 'Tocar el chat abierto, tocar otro o correr la lista lo cierra sin abrir el chat. Solo queda uno abierto a la vez.',
+        pt: 'Tocar na conversa aberta, tocar em outra ou rolar a lista a fecha sem abrir a conversa. Só uma fica aberta por vez.',
+      },
+      {
+        product: 'inbox',
+        en: 'The same behavior in the Inbox list.',
+        es: 'Lo mismo en la lista de Inbox.',
+        pt: 'O mesmo na lista do Inbox.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-rec-black-screen',
     date: '2026-11-11',
     title: {

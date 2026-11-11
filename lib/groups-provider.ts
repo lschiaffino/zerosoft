@@ -357,14 +357,31 @@ export interface ChatInfo {
   isBusiness?: boolean;
 }
 
+/**
+ * El mensaje de referencia para archivar en WhatsApp: Baileys (chatModify)
+ * arma la acción de app-state con la clave completa y la hora en segundos, y
+ * en un grupo un mensaje ajeno necesita quién lo mandó (`participant`).
+ */
+export interface ArchiveRef {
+  id: string;
+  fromMe: boolean;
+  /** Hora del mensaje en segundos (epoch). */
+  timestamp: number;
+  /** Grupo, mensaje recibido: el id de quien lo mandó ("<tel>@s.whatsapp.net" o "<lid>@lid"). */
+  participant?: string;
+}
+
 export interface GroupsProvider {
   readonly kind: ProviderKind;
   /** Nombre, foto y datos de un chat (grupo: asunto, descripción y participantes; persona: perfil). */
   chatInfo?(chatId: string): Promise<ChatInfo | null>;
   /** Bloquear o desbloquear un contacto en WhatsApp. */
   blockContact?(chatId: string, block: boolean): Promise<void>;
-  /** Archivar o sacar de archivados un chat en WhatsApp (`last`: el mensaje más nuevo, que pide el servidor). */
-  archiveChat?(chatId: string, archive: boolean, last?: { id: string; fromMe: boolean }): Promise<void>;
+  /**
+   * Archivar o sacar de archivados un chat en WhatsApp. `last`: el mensaje más
+   * nuevo del chat (WhatsApp arma la acción con su clave y su hora).
+   */
+  archiveChat?(chatId: string, archive: boolean, last?: ArchiveRef): Promise<void>;
   /** Presencia propia en un chat (escribiendo, grabando) y suscribirse a la del otro (escribiendo, en línea). */
   sendPresence?(chatId: string, state: 'composing' | 'recording' | 'paused', ms: number): Promise<void>;
   readonly caps: ProviderCaps;

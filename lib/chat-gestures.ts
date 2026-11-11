@@ -51,20 +51,6 @@ export function rubberBand(over: number, limit: number): number {
   return (1 - 1 / ((over * 0.55) / limit + 1)) * limit;
 }
 
-/**
- * Corrimiento de la fila para un arrastre de `raw` px. Hacia un lado con
- * acciones sigue al dedo hasta el ancho de la fila; hacia un lado sin
- * acciones solo cede un poco (goma).
- */
-export function swipeOffset(raw: number, o: { width: number; left: number; right: number }): number {
-  if (raw === 0) return 0;
-  const sign = raw < 0 ? -1 : 1;
-  const count = raw < 0 ? o.left : o.right;
-  const dist = Math.abs(raw);
-  if (count <= 0) return sign * rubberBand(dist, 40);
-  return sign * Math.min(dist, Math.max(o.width, 0));
-}
-
 /** Ancho con las acciones abiertas. */
 export function openWidth(count: number, width: number): number {
   return Math.min(count * ACTION_WIDTH, Math.max(width - 56, 0));
@@ -75,21 +61,125 @@ export function commitAt(width: number, count: number): number {
   return Math.max(openWidth(count, width) + 48, width * COMMIT_RATIO);
 }
 
+/** Envión (px/ms) que decide por sí solo al soltar. */
+export const FLICK = 0.3;
+/** Recorrido mínimo (px) para que un envión cuente: un temblor del dedo no abre ni cierra. */
+export const FLICK_MIN = 20;
+/** Parte de las acciones abiertas que hay que volver para que la fila se cierre al soltar. */
+export const CLOSE_RATIO = 0.3;
+/** Si el puntero quedó quieto este tiempo (ms) antes de soltar, no hay envión. */
+export const FLICK_STALE_MS = 80;
+
 export type SwipeEnd = 'commit' | 'open' | 'close';
 
+const signOf = (side: SwipeSide) => (side === 'left' ? -1 : 1);
+
 /**
- * Qué pasa al soltar: pasado el umbral se ejecuta la acción principal; a
- * mitad de camino (o con un envión hacia afuera) las acciones quedan
- * abiertas; si no, la fila vuelve. `velocity` en px/ms, con el signo del eje.
+ * Corrimiento de la fila. El lado queda fijo durante todo el gesto (el de
+ * las acciones abiertas, o el del primer movimiento): hacia afuera sigue al
+ * dedo hasta el ancho de la fila; de vuelta se frena en 0 y nunca pasa al
+ * otro lado. Para abrir el otro lado hay que soltar y empezar de nuevo.
  */
-export function swipeRelease(o: { x: number; width: number; count: number; velocity?: number }): SwipeEnd {
+export function swipeOffset(o: { base: number; dx: number; side: SwipeSide; width: number }): number {
+  const sign = signOf(o.side);
+  const out = sign * (o.base + o.dx);
+  if (out <= 0) return 0;
+  return sign * Math.min(out, Math.max(o.width, 0));
+}
+
+/**
+ * Qué pasa al soltar. `x` es el corrimiento, `velocity` el envión en px/ms
+ * con el signo del eje, `from` cómo estaba la fila al empezar.
+ *
+ * - Pasado el umbral, ejecuta la acción principal.
+ * - Un envión manda: hacia afuera abre, de vuelta cierra (si hubo recorrido
+ *   de verdad, no un temblor).
+ * - Si no, cuenta la distancia, con histéresis: una fila cerrada se abre
+ *   pasada la mitad de las acciones; una abierta se cierra con volver un 30%.
+ */
+export function swipeRelease(o: { x: number; width: number; count: number; velocity?: number; from?: 'closed' | 'open' }): SwipeEnd {
   const dist = Math.abs(o.x);
   if (o.count <= 0 || dist === 0) return 'close';
   if (dist >= commitAt(o.width, o.count)) return 'commit';
+  const ow = openWidth(o.count, o.width);
   const outward = (o.velocity ?? 0) * (o.x < 0 ? -1 : 1);
-  if (outward < -0.3) return 'close';
-  if (outward > 0.5 && dist > 24) return 'open';
-  return dist >= openWidth(o.count, o.width) / 2 ? 'open' : 'close';
+  if (o.from === 'open') {
+    const back = ow - dist;
+    if (outward < -FLICK && back >= FLICK_MIN) return 'close';
+    if (outward > FLICK) return 'open';
+    return back >= ow * CLOSE_RATIO ? 'close' : 'open';
+  }
+  if (outward < -FLICK) return 'close';
+  if (outward > FLICK && dist >= FLICK_MIN) return 'open';
+  return dist >= ow / 2 ? 'open' : 'close';
+}
+
+/**
+ * Un deslizado en curso, sin DOM: lo que la capa de la fila necesita para
+ * pintar y decidir. `swipeStart` al apoyar, `swipeMove` en cada movimiento,
+ * `swipeEnd` al soltar.
+ */
+export interface SwipeTrack {
+  sx: number;
+  sy: number;
+  /** Corrimiento con el que empezó (0 cerrada, ± el ancho de las acciones si estaba abierta). */
+  base: number;
+  /** Lado fijo del gesto: el de las acciones abiertas, o el del primer movimiento horizontal. */
+  side: SwipeSide | null;
+  /** Eje decidido: null mientras no pasa el umbral. */
+  axis: Axis;
+  /** Corrimiento del puntero cuando se decidió el eje (para que la fila no salte). */
+  ox: number;
+  offset: number;
+  velocity: number;
+  lastX: number;
+  lastT: number;
+  width: number;
+  counts: { left: number; right: number };
+}
+
+export function swipeCount(t: Pick<SwipeTrack, 'side' | 'counts'>): number {
+  return t.side ? t.counts[t.side] : 0;
+}
+
+export function swipeStart(o: { x: number; y: number; t: number; width: number; counts: { left: number; right: number }; open?: SwipeSide | null }): SwipeTrack {
+  const side = o.open && o.counts[o.open] > 0 ? o.open : null;
+  const base = side ? signOf(side) * openWidth(o.counts[side], o.width) : 0;
+  return { sx: o.x, sy: o.y, base, side, axis: null, ox: 0, offset: base, velocity: 0, lastX: o.x, lastT: o.t, width: o.width, counts: o.counts };
+}
+
+/**
+ * Un movimiento del puntero. Hasta pasar el umbral no hay eje; al decidirlo
+ * en horizontal, el lado queda fijo (si la fila estaba abierta, es el suyo
+ * para cualquier dirección). Después, el corrimiento sigue al dedo sin
+ * cruzar al otro lado.
+ */
+export function swipeMove(t: SwipeTrack, p: { x: number; y: number; t: number }): SwipeTrack {
+  const n = { ...t };
+  const dt = p.t - t.lastT;
+  if (dt > 0) {
+    n.velocity = 0.7 * ((p.x - t.lastX) / dt) + 0.3 * t.velocity;
+    n.lastT = p.t;
+    n.lastX = p.x;
+  }
+  const dx = p.x - t.sx;
+  if (!n.axis) {
+    const axis = lockAxis(dx, p.y - t.sy);
+    if (!axis) return n;
+    n.axis = axis;
+    if (axis !== 'x') return n;
+    n.ox = (dx < 0 ? -1 : 1) * SWIPE_SLOP;
+    if (!n.side) n.side = dx < 0 ? 'left' : 'right';
+  }
+  if (n.axis === 'x' && n.side && swipeCount(n) > 0) n.offset = swipeOffset({ base: n.base, dx: dx - n.ox, side: n.side, width: n.width });
+  return n;
+}
+
+/** Al soltar: qué hacer con la fila. `t` es el momento de soltar (sin movimiento reciente no hay envión). */
+export function swipeEnd(s: SwipeTrack, t?: number): SwipeEnd {
+  if (s.axis !== 'x' || !s.side) return 'close';
+  const velocity = t !== undefined && t - s.lastT > FLICK_STALE_MS ? 0 : s.velocity;
+  return swipeRelease({ x: s.offset, width: s.width, count: swipeCount(s), velocity, from: s.base !== 0 ? 'open' : 'closed' });
 }
 
 /** ¿El puntero salió de la lista? Un deslizado con el mouse que se va de la lista pasa a ser un arrastre. */
