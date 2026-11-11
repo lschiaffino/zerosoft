@@ -14,7 +14,7 @@ import { sendUp } from './send-migration';
 import { callsUp } from './calls-migration';
 import { inboxLinesPerfUp } from './inbox-lines-perf-migration';
 import { inboxUp, inboxWhatsappUp } from './inbox-migration';
-import { WA_LIVE_TRIGGERS } from './wa-live-triggers';
+import { WA_LIVE_MESSAGE_TRIGGERS, WA_LIVE_TRIGGERS } from './wa-live-triggers';
 import { fewerReadsUp } from './fewer-reads-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
@@ -9861,6 +9861,15 @@ export const MIGRATIONS: Migration[] = [
     // de WhatsApp, y la versión de los avisos de cada persona (lib/schema/fewer-reads-migration.ts).
     id: '393_fewer_reads',
     up: fewerReadsUp,
+  },
+  {
+    // Inbox y Lines: el chat abierto se entera al momento de lo que cambia en un mensaje (tildes,
+    // reacciones, ediciones, notas) por el mismo aviso de las listas (lib/wa-live.ts), en vez de
+    // releerse cada pocos segundos. OJO: un trigger vive con su tabla (ver 391_wa_archive_sync).
+    id: '394_wa_live_messages',
+    up: async (c) => {
+      for (const [name, body] of WA_LIVE_MESSAGE_TRIGGERS) await c.execute(`CREATE TRIGGER IF NOT EXISTS ${name} ${body}`);
+    },
   },
 ];
 

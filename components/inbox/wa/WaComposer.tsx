@@ -3,6 +3,8 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { initialDraft, useDraftAutosave } from '@/components/ui/useDraft';
+import { newClientId, sendQueue } from '@/lib/optimistic-send';
+import { pendingSends, tempInboxMessage } from './pending';
 import { fillSnippet, type MessageDto, type SnippetDto, type ThreadDto } from '@/lib/inbox/types';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import { useEmojiSuggest } from '@/components/groups/wa/useEmojiSuggest';
@@ -100,6 +102,8 @@ const WaComposer = forwardRef<
   }, [replyToId]);
 
   // Borrador: la fila de la lista lo muestra al instante y se guarda solo (no mientras se edita un mensaje).
+  // Los textos de este chat salen de a uno y en orden, aunque se escriban seguidos.
+  const sendInOrder = useRef(sendQueue()).current;
   const draft = useDraftAutosave({ scope: 'inbox', id: thread.id, text, saved, paused: !!editing, save: async (id, value) => (await api(`/api/inbox/threads/${id}`, { method: 'PATCH', json: { draft: value }, keepalive: true })).ok });
 
   useEffect(() => {
@@ -151,8 +155,6 @@ const WaComposer = forwardRef<
       }
       return;
     }
-    setBusy('send');
-    draft.sending();
     // Menciones: "@Ana" sale como "@5491…" con la lista de teléfonos (WhatsApp la muestra con el nombre).
     let out = body;
     const mentions: string[] = [];
@@ -161,6 +163,38 @@ const WaComposer = forwardRef<
       out = out.split(`@${label}`).join(`@${phone}`);
       mentions.push(phone);
     }
+    // Texto solo (sin responder a otro): la burbuja aparece ya y el envío sigue por detrás, en orden; el campo queda
+    // libre para el próximo. Si no sale, la burbuja se va, el texto vuelve al campo y se avisa el error.
+    if (!replyToId) {
+      const clientId = newClientId();
+      const temp = tempInboxMessage(clientId, body);
+      const threadId = thread.id;
+      pendingSends.emit({ type: 'add', threadId, message: temp });
+      draft.sending();
+      picked.current.clear();
+      setText('');
+      saved.current = '';
+      ai.clearUndo();
+      void sendInOrder(async () => {
+        const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${threadId}/messages`, {
+          method: 'POST',
+          json: { body: out, clientId, ...(mentions.length ? { mentions } : {}) },
+        });
+        if (!r.ok) {
+          pendingSends.emit({ type: 'drop', threadId, id: temp.id });
+          draft.failed(body);
+          setText((cur) => (cur.trim() ? `${body}\n${cur}` : body));
+          onError(r.data.error ?? 'send_failed');
+          return;
+        }
+        // Salió: la provisoria se va y entra la página del servidor, que ya trae el mensaje guardado.
+        pendingSends.emit({ type: 'drop', threadId, id: temp.id });
+        onSent(r.data.messages);
+      });
+      return;
+    }
+    setBusy('send');
+    draft.sending();
     const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${thread.id}/messages`, {
       method: 'POST',
       json: { body: out, ...(replyToId ? { replyTo: replyToId } : {}), ...(mentions.length ? { mentions } : {}) },

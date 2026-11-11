@@ -25,6 +25,7 @@ import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import LinkPreview from '@/components/groups/wa/LinkPreview';
 import Transcript from '@/components/groups/wa/Transcript';
 import { AttachButton, useSendTray, VoiceBar } from './media-send';
+import { pendingSends } from './pending';
 import AttachPreview from '@/components/groups/wa/AttachPreview';
 import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
 import ScheduledList from '../ScheduledList';
@@ -125,6 +126,8 @@ const WaConversation = forwardRef<
     props.onSent(msgs);
   };
   const tray = useSendTray(thread.id, sentHere);
+  // El texto que se acaba de mandar aparece ya (burbuja provisoria, ./pending.ts): la conversación va abajo de todo.
+  useEffect(() => pendingSends.subscribe((e) => void (e.type === 'add' && e.threadId === thread.id && anchor.toBottom())), [thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Presencia: al abrir se suscribe a la del otro; escribiendo y grabando salen cada 4 s como mucho.
   const lastPresence = useRef(0);
   const presence = useCallback(
@@ -512,7 +515,7 @@ const WaConversation = forwardRef<
             )}
             {m.edited && !m.revoked && <span className="wa-edited">{w('edited')}</span>}
             <time dateTime={m.sentAt}>{time}</time>
-            {m.fromMe && !m.revoked && m.status && <Ticks status={m.status} label={t(`message.status.${['sent', 'delivered', 'read', 'failed'].includes(m.status) ? m.status : 'sent'}`)} />}
+            {m.fromMe && !m.revoked && m.status && <Ticks status={m.status} label={t(`message.status.${['pending', 'sent', 'delivered', 'read', 'failed'].includes(m.status) ? m.status : 'sent'}`)} />}
           </p>
           <span className="wa-hover">
             <MessageMenu label={w('messageMenu')} items={menuFor(m)} trigger={<Chevron size={18} />} className="wa-chevron" align={m.fromMe ? 'right' : 'left'} />

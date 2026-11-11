@@ -7,7 +7,9 @@ import { readTextCapped } from '@/lib/safe-fetch';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// El mismo valor que el stream de avisos (app/api/inbox/live): con la misma configuración pueden compartir
+// instancia, y entonces el aviso a la pantalla abierta sale en el acto (lib/wa-live.ts).
+export const maxDuration = 250;
 
 type Ctx = { params: Promise<{ id: string; secret: string }> };
 
@@ -19,10 +21,10 @@ const MAX_BODY = 2 * 1024 * 1024;
  * coincide) y que el cuerpo venga de la instancia de esa cuenta.
  */
 export async function POST(req: Request, ctx: Ctx) {
-  const limited = await limitByIp(req, 'inbox-webhook', 600, 60).catch(() => null);
-  if (limited) return limited;
   const { id, secret } = await ctx.params;
-  const account = await getAccountById(id);
+  // El límite por IP y la fila de la cuenta, a la vez: son dos idas a la base que no dependen una de la otra.
+  const [limited, account] = await Promise.all([limitByIp(req, 'inbox-webhook', 600, 60).catch(() => null), getAccountById(id)]);
+  if (limited) return limited;
   if (!account || account.kind !== 'whatsapp' || !account.webhook_secret || !safeEqual(secret, account.webhook_secret)) {
     return new NextResponse('not found', { status: 404 });
   }

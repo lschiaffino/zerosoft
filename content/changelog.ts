@@ -29,6 +29,47 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-whatsapp-realtime-speed',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines and Inbox: WhatsApp messages arrive and go out without waiting',
+      es: 'Lines e Inbox: los mensajes de WhatsApp llegan y salen sin esperar',
+      pt: 'Lines e Inbox: as mensagens do WhatsApp chegam e saem sem esperar',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'A message that arrives shows up in the open chat as soon as it is saved. Before, the open chat looked for new messages every 4 seconds; now the server tells it the moment something changes in that chat. Ticks, reactions, edits, notes from a teammate and "typing" reach the open chat the same way.',
+        es: 'Un mensaje que llega aparece en el chat abierto apenas queda guardado. Antes el chat abierto buscaba mensajes nuevos cada 4 segundos; ahora el servidor le avisa en el momento en que algo cambia en ese chat. Las tildes, las reacciones, las ediciones, las notas de un compañero y "escribiendo" llegan al chat abierto de la misma forma.',
+        pt: 'Uma mensagem que chega aparece na conversa aberta assim que é salva. Antes a conversa aberta buscava mensagens novas a cada 4 segundos; agora o servidor avisa no momento em que algo muda nessa conversa. Os tiques, as reações, as edições, as notas de um colega e "digitando" chegam à conversa aberta do mesmo jeito.',
+      },
+      {
+        product: 'inbox',
+        en: 'The same in Inbox: a WhatsApp message appears in the open chat as soon as it is saved, and ticks and reactions on any message update right away (before, every 3 to 10 seconds). If the live connection cannot be kept open, Inbox and Lines go back to checking every 3 seconds on their own.',
+        es: 'Lo mismo en Inbox: un mensaje de WhatsApp aparece en el chat abierto apenas queda guardado, y las tildes y las reacciones de cualquier mensaje se actualizan enseguida (antes, cada 3 a 10 segundos). Si la conexión en vivo no se puede mantener abierta, Inbox y Lines vuelven solos a consultar cada 3 segundos.',
+        pt: 'O mesmo no Inbox: uma mensagem do WhatsApp aparece na conversa aberta assim que é salva, e os tiques e as reações de qualquer mensagem se atualizam na hora (antes, a cada 3 a 10 segundos). Se a conexão ao vivo não puder ficar aberta, o Inbox e o Lines voltam sozinhos a consultar a cada 3 segundos.',
+      },
+      {
+        product: 'groups',
+        en: 'A text you send appears in the chat when you press Enter, with a clock while it goes out, and the field is free for the next one right away. Texts written one after another go out in order. If one does not go out, its bubble stays marked as not sent and you can retry it or remove it.',
+        es: 'Un texto que mandás aparece en el chat al apretar Enter, con un reloj mientras sale, y el campo queda libre para el próximo enseguida. Los textos escritos uno atrás del otro salen en orden. Si uno no sale, su burbuja queda marcada como no enviada y se puede reintentar o quitar.',
+        pt: 'Um texto que você envia aparece na conversa ao apertar Enter, com um relógio enquanto sai, e o campo fica livre para o próximo na hora. Textos escritos um atrás do outro saem em ordem. Se um não sair, o balão fica marcado como não enviado e dá para tentar de novo ou remover.',
+      },
+      {
+        product: 'inbox',
+        en: 'In Inbox too: a WhatsApp text appears when you press Enter and you can keep writing. If it does not go out, the text goes back to the field with the error, so nothing is lost.',
+        es: 'En Inbox también: un texto de WhatsApp aparece al apretar Enter y podés seguir escribiendo. Si no sale, el texto vuelve al campo con el error, así no se pierde nada.',
+        pt: 'No Inbox também: um texto do WhatsApp aparece ao apertar Enter e você pode continuar escrevendo. Se não sair, o texto volta para o campo com o erro, então nada se perde.',
+      },
+      {
+        product: 'groups',
+        en: 'Saving a message that arrives takes 4 database queries instead of 11 in Lines and 4 instead of 7 in Inbox, and the chat list is told in the same step. Sending a text from Lines reaches WhatsApp after 2 waits on the database instead of 6.',
+        es: 'Guardar un mensaje que llega lleva 4 consultas a la base en vez de 11 en Lines y 4 en vez de 7 en Inbox, y la lista de chats se entera en el mismo paso. Mandar un texto desde Lines llega a WhatsApp después de 2 esperas a la base en vez de 6.',
+        pt: 'Salvar uma mensagem que chega leva 4 consultas ao banco em vez de 11 no Lines e 4 em vez de 7 no Inbox, e a lista de conversas fica sabendo no mesmo passo. Enviar um texto pelo Lines chega ao WhatsApp depois de 2 esperas pelo banco em vez de 6.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-lines-analytics-dashboard',
     date: '2026-11-11',
     title: {

@@ -49,7 +49,7 @@
     "showQuote": "Ver texto citado",
     "revoked": "Apagada para todos · guardada aqui",
     "edited": "Editada",
-    "status": { "sent": "Enviada", "delivered": "Entregue", "read": "Lida", "failed": "Não enviada" },
+    "status": { "pending": "Enviando", "sent": "Enviada", "delivered": "Entregue", "read": "Lida", "failed": "Não enviada" },
     "older": "Ver mensagens anteriores",
     "empty": "Ainda não há mensagens. Diga oi.",
     "today": "Hoje",

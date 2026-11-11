@@ -12,8 +12,9 @@ import { fakeArchives, fakeFailArchives, resetFakeProvider } from '@/lib/groups-
 import { connectNumber, createNumber, getChat, getNumberRowById, ingestEvents, listChats, updateChat, type NumberRow } from '@/lib/groups';
 import { ECHO_WINDOW_MS, RETRY_BACKOFF_MS, flushArchivePush, getArchivePush, isArchiveEcho, pickRef, runArchivePushes, secondsOf } from '@/lib/wa-archive-sync';
 import { fetchLive, latestLiveId, liveBatch, livePoll } from '@/lib/wa-live';
-import { WA_LIVE_TRIGGERS } from '@/lib/schema/wa-live-triggers';
+import { WA_LIVE_MESSAGE_TRIGGERS, WA_LIVE_TRIGGERS } from '@/lib/schema/wa-live-triggers';
 import { makeUser } from './helpers';
+import { planOf } from './read-probe';
 
 beforeEach(() => {
   vi.stubEnv('GROUPS_FAKE', '1');
@@ -311,7 +312,7 @@ describe('Lines ↔ WhatsApp', () => {
 describe('aviso en vivo de las listas', () => {
   it('los triggers existen (una migración que reconstruya las tablas tiene que recrearlos)', async () => {
     const rows = (await getDb().prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'wa_live_%'").all()) as Array<{ name: string }>;
-    expect(rows.map((r) => r.name).sort()).toEqual(WA_LIVE_TRIGGERS.map(([n]) => n).sort());
+    expect(rows.map((r) => r.name).sort()).toEqual([...WA_LIVE_TRIGGERS, ...WA_LIVE_MESSAGE_TRIGGERS].map(([n]) => n).sort());
   });
 
   it('la consulta va por índice: sin cambios no recorre la tabla', async () => {
@@ -319,8 +320,9 @@ describe('aviso en vivo de las listas', () => {
       .prepare('EXPLAIN QUERY PLAN SELECT id, chat_id, number_id FROM wa_live_events WHERE app = ? AND scope_id = ? AND id > ? ORDER BY id LIMIT ?')
       .all('inbox', 'x', 0, 200)) as Array<{ detail: string }>;
     expect(plan.map((p) => p.detail).join(' ')).toMatch(/USING (COVERING )?INDEX idx_wa_live_scope/);
-    const prune = (await getDb().prepare('EXPLAIN QUERY PLAN DELETE FROM wa_live_events WHERE created_at < ?').all('2026-01-01')) as Array<{ detail: string }>;
-    expect(prune.map((p) => p.detail).join(' ')).toMatch(/idx_wa_live_created/);
+    // El plan de una escritura, por la conexión aparte de read-probe (ver planOf).
+    const prune = await planOf('DELETE FROM wa_live_events WHERE created_at < ?', ['2026-01-01']);
+    expect(prune.join(' ')).toMatch(/idx_wa_live_created/);
     const due = (await getDb()
       .prepare('EXPLAIN QUERY PLAN SELECT app, chat_id FROM wa_archive_push WHERE done_at IS NULL AND next_at <= ? ORDER BY next_at LIMIT ?')
       .all('2026-01-01', 10)) as Array<{ detail: string }>;

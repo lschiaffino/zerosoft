@@ -11,19 +11,36 @@ import { BLOCKED_SQL, readInboxMedia, scheduleNextPart } from './schedule';
 import { sendWhatsappText, waProviderFor } from './whatsapp';
 import { InboxError, LIMITS } from './types';
 
-async function deliver(account: AccountRow, thread: ThreadRow, text: string): Promise<void> {
-  if (thread.channel === 'whatsapp') await sendWhatsappText(account, thread, text);
+async function deliver(account: AccountRow, thread: ThreadRow, text: string, clientId?: string): Promise<void> {
+  if (thread.channel === 'whatsapp') await sendWhatsappText(account, thread, text, clientId ? { clientId } : {});
   else await sendGmailReply(account, thread, text);
 }
 
+/**
+ * El chat y su cuenta, los dos de la persona, en una sola ida a la base (en
+ * vez de una consulta detrás de la otra). 404 si alguno no es suyo.
+ */
+export async function threadWithAccount(owner: string, threadId: string): Promise<{ thread: ThreadRow; account: AccountRow }> {
+  const [thread, account] = await Promise.all([
+    getThreadRow(owner, threadId),
+    getDb()
+      .prepare(
+        `SELECT a.* FROM inbox_accounts a
+         WHERE a.owner_id = ? AND a.id = (SELECT t.account_id FROM inbox_threads t WHERE t.id = ? AND t.owner_id = ?)`,
+      )
+      .get(owner, threadId, owner) as Promise<AccountRow | undefined>,
+  ]);
+  if (!account || account.id !== thread.account_id) throw new InboxError('not_found', 404);
+  return { thread, account };
+}
+
 /** Manda ya. Si lo mandado es el borrador guardado, el borrador se limpia. */
-export async function sendToThread(owner: string, threadId: string, body: string): Promise<void> {
+export async function sendToThread(owner: string, threadId: string, body: string, clientId?: string): Promise<void> {
   const text = body.trim();
   if (!text) throw new InboxError('invalid_input', 400);
   if (text.length > LIMITS.message) throw new InboxError('too_long', 400);
-  const thread = await getThreadRow(owner, threadId);
-  const account = await getAccount(owner, thread.account_id);
-  await deliver(account, thread, text);
+  const { thread, account } = await threadWithAccount(owner, threadId);
+  await deliver(account, thread, text, clientId);
   if (thread.draft.trim()) await saveDraft(owner, threadId, '');
 }
 

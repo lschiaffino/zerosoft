@@ -5,7 +5,7 @@
  * tampoco siendo admin del workspace.
  */
 import { createHash, randomBytes, randomUUID } from 'crypto';
-import { getDb } from '../db';
+import { dbBatch, getDb, type BatchStatement } from '../db';
 import { inboxSortKey } from '../schema/inbox-lines-perf-migration';
 import { open, seal } from '../secret-box';
 import { parseSearch, threadIdsMatching } from './message-search';
@@ -221,21 +221,40 @@ export async function findThread(accountId: string, externalId: string): Promise
 /** Busca o crea el chat de una cuenta. El título solo se pisa si viene uno y el actual está vacío o `forceTitle`. */
 export async function upsertThread(
   account: Pick<AccountRow, 'id' | 'owner_id' | 'kind'>,
-  input: { externalId: string; kind: ThreadKind; title?: string; handle?: string; forceTitle?: boolean },
+  input: ThreadInput,
 ): Promise<ThreadRow> {
   const db = getDb();
+  const insert = threadInsert(account, input);
+  await db.prepare(insert.sql).run(...insert.args);
+  const row = (await findThread(account.id, input.externalId.slice(0, 300)))!;
+  return finishThread(row, input);
+}
+
+export interface ThreadInput {
+  externalId: string;
+  kind: ThreadKind;
+  title?: string;
+  handle?: string;
+  forceTitle?: boolean;
+}
+
+/** El INSERT de un chat que puede existir (no pisa nada si ya está). */
+function threadInsert(account: Pick<AccountRow, 'id' | 'owner_id' | 'kind'>, input: ThreadInput): BatchStatement {
   const now = nowIso();
-  const title = (input.title ?? '').trim().slice(0, 200);
-  await db
-    .prepare(
-      `INSERT INTO inbox_threads (id, owner_id, account_id, channel, kind, external_id, title, handle, created_at, updated_at)
+  return {
+    sql: `INSERT INTO inbox_threads (id, owner_id, account_id, channel, kind, external_id, title, handle, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (account_id, external_id) DO NOTHING`,
-    )
-    .run(newId('ibt'), account.owner_id, account.id, account.kind, input.kind, input.externalId.slice(0, 300), title, (input.handle ?? '').slice(0, 200), now, now);
-  const row = (await findThread(account.id, input.externalId.slice(0, 300)))!;
+    args: [newId('ibt'), account.owner_id, account.id, account.kind, input.kind, input.externalId.slice(0, 300), (input.title ?? '').trim().slice(0, 200), (input.handle ?? '').slice(0, 200), now, now],
+  };
+}
+
+/** Lo que sigue a tener la fila del chat: completar el nombre y el número si faltaban. */
+async function finishThread(row: ThreadRow, input: ThreadInput): Promise<ThreadRow> {
+  const db = getDb();
+  const title = (input.title ?? '').trim().slice(0, 200);
   if (title && (input.forceTitle || !row.title) && row.title !== title) {
-    await db.prepare('UPDATE inbox_threads SET title = ?, updated_at = ? WHERE id = ?').run(title, now, row.id);
+    await db.prepare('UPDATE inbox_threads SET title = ?, updated_at = ? WHERE id = ?').run(title, nowIso(), row.id);
     row.title = title;
   }
   if (input.handle && !row.handle) {
@@ -278,72 +297,72 @@ export interface NewMessage {
  * persona, el chat vuelve a la bandeja (sale de Hecho) y se cancela el
  * "recordame si no contesta" (contestó). Devuelve false si ya estaba.
  */
-export async function addMessage(thread: ThreadRow, m: NewMessage): Promise<boolean> {
-  const db = getDb();
-  const sentAt = validIso(m.sentAt) ?? nowIso();
-  const res = await db
-    .prepare(
-      `INSERT INTO inbox_messages (id, owner_id, thread_id, external_id, from_me, sender_name, sender_handle, subject, body, email_to, email_cc,
-         email_message_id, media_type, media_name, media_ref, reply_to, status, sent_at, created_at, meta, forwarded)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT (thread_id, external_id) DO NOTHING`,
-    )
-    .run(
-      newId('ibm'),
-      thread.owner_id,
-      thread.id,
-      m.externalId.slice(0, 300),
-      m.fromMe ? 1 : 0,
-      (m.senderName ?? '').slice(0, 200),
-      (m.senderHandle ?? '').slice(0, 200),
-      (m.subject ?? '').slice(0, 500),
-      m.body.slice(0, 100_000),
-      (m.emailTo ?? '').slice(0, 2000),
-      (m.emailCc ?? '').slice(0, 2000),
-      (m.emailMessageId ?? '').slice(0, 500),
-      (m.mediaType ?? '').slice(0, 40),
-      (m.mediaName ?? '').slice(0, 300),
-      (m.mediaRef ?? '').slice(0, 4000),
-      (m.replyTo ?? '').slice(0, 300),
-      (m.status ?? '').slice(0, 20),
-      sentAt,
-      nowIso(),
-      (m.meta ?? '').slice(0, 40_000),
-      m.forwarded ? 1 : 0,
-    );
-  if (res.changes === 0) return false;
+const NEW_MESSAGE_COLS = `id, owner_id, thread_id, external_id, from_me, sender_name, sender_handle, subject, body, email_to, email_cc,
+         email_message_id, media_type, media_name, media_ref, reply_to, status, sent_at, created_at, meta, forwarded`;
+
+/** Los valores de un mensaje nuevo después de thread_id, en el orden de NEW_MESSAGE_COLS. */
+function messageTail(m: NewMessage, sentAt: string): Array<string | number> {
+  return [
+    m.externalId.slice(0, 300),
+    m.fromMe ? 1 : 0,
+    (m.senderName ?? '').slice(0, 200),
+    (m.senderHandle ?? '').slice(0, 200),
+    (m.subject ?? '').slice(0, 500),
+    m.body.slice(0, 100_000),
+    (m.emailTo ?? '').slice(0, 2000),
+    (m.emailCc ?? '').slice(0, 2000),
+    (m.emailMessageId ?? '').slice(0, 500),
+    (m.mediaType ?? '').slice(0, 40),
+    (m.mediaName ?? '').slice(0, 300),
+    (m.mediaRef ?? '').slice(0, 4000),
+    (m.replyTo ?? '').slice(0, 300),
+    (m.status ?? '').slice(0, 20),
+    sentAt,
+    nowIso(),
+    (m.meta ?? '').slice(0, 40_000),
+    m.forwarded ? 1 : 0,
+  ];
+}
+
+const MESSAGE_TAIL_MARKS = '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?';
+
+/**
+ * Lo que un mensaje nuevo le cambia a su chat en la lista (`where` elige el
+ * chat). "Es el más nuevo" se decide en la base, contra la fila como está en
+ * ese momento: last_message_at vacío o anterior o igual a la hora del mensaje.
+ */
+function threadTouch(m: NewMessage, sentAt: string, where: string, whereArgs: string[]): BatchStatement {
   const preview = previewOf(m.subject ? `${m.subject} · ${m.body}` : m.body, m.mediaType);
-  const newer = !thread.last_message_at || sentAt >= thread.last_message_at;
-  const unreadInc = !m.fromMe && !m.history && !m.read ? 1 : 0;
-  await db
-    .prepare(
-      `UPDATE inbox_threads SET
-         preview = CASE WHEN ? THEN ? ELSE preview END,
-         last_from_me = CASE WHEN ? THEN ? ELSE last_from_me END,
-         last_sender = CASE WHEN ? THEN ? ELSE last_sender END,
-         last_kind = CASE WHEN ? THEN ? ELSE last_kind END,
-         last_status = CASE WHEN ? THEN ? ELSE last_status END,
+  const newer = '(last_message_at IS NULL OR last_message_at <= ?)';
+  const live = !m.fromMe && !m.history ? 1 : 0;
+  const now = nowIso();
+  return {
+    sql: `UPDATE inbox_threads SET
+         preview = CASE WHEN ${newer} THEN ? ELSE preview END,
+         last_from_me = CASE WHEN ${newer} THEN ? ELSE last_from_me END,
+         last_sender = CASE WHEN ${newer} THEN ? ELSE last_sender END,
+         last_kind = CASE WHEN ${newer} THEN ? ELSE last_kind END,
+         last_status = CASE WHEN ${newer} THEN ? ELSE last_status END,
          last_message_at = CASE WHEN last_message_at IS NULL OR last_message_at < ? THEN ? ELSE last_message_at END,
          last_inbound_at = CASE WHEN ? = 0 AND (last_inbound_at IS NULL OR last_inbound_at < ?) THEN ? ELSE last_inbound_at END,
          last_outbound_at = CASE WHEN ? = 1 AND (last_outbound_at IS NULL OR last_outbound_at < ?) THEN ? ELSE last_outbound_at END,
          unread = CASE WHEN ? = 1 THEN 0 ELSE unread + ? END,
-         done_at = CASE WHEN ? = 1 THEN NULL ELSE done_at END,
-         archived_at = CASE WHEN ? = 1 AND (muted_until IS NULL OR muted_until <= ?) THEN NULL ELSE archived_at END,
-         snoozed_until = CASE WHEN ? = 1 THEN NULL ELSE snoozed_until END,
+         done_at = CASE WHEN ? = 1 AND ${newer} THEN NULL ELSE done_at END,
+         archived_at = CASE WHEN ? = 1 AND ${newer} AND (muted_until IS NULL OR muted_until <= ?) THEN NULL ELSE archived_at END,
+         snoozed_until = CASE WHEN ? = 1 AND ${newer} THEN NULL ELSE snoozed_until END,
          follow_up_at = CASE WHEN ? = 1 THEN NULL ELSE follow_up_at END,
          updated_at = ?
-       WHERE id = ?`,
-    )
-    .run(
-      newer ? 1 : 0,
+       WHERE ${where}`,
+    args: [
+      sentAt,
       preview,
-      newer ? 1 : 0,
+      sentAt,
       m.fromMe ? 1 : 0,
-      newer ? 1 : 0,
+      sentAt,
       m.fromMe ? '' : (m.senderName || m.senderHandle || '').slice(0, 200),
-      newer ? 1 : 0,
+      sentAt,
       (m.kind || m.mediaType || '').slice(0, 20),
-      newer ? 1 : 0,
+      sentAt,
       m.fromMe ? (m.status ?? '').slice(0, 20) : '',
       sentAt,
       sentAt,
@@ -355,23 +374,83 @@ export async function addMessage(thread: ThreadRow, m: NewMessage): Promise<bool
       sentAt,
       // Un mensaje mío en vivo (desde el teléfono o desde acá) deja el chat leído.
       m.fromMe && !m.history ? 1 : 0,
-      unreadInc,
+      !m.fromMe && !m.history && !m.read ? 1 : 0,
       // Llega algo nuevo de la otra persona: vuelve a la bandeja.
-      !m.fromMe && !m.history && newer ? 1 : 0,
+      live,
+      sentAt,
       // Como WhatsApp: un mensaje nuevo saca el chat de Archivados (salvo que esté silenciado).
-      !m.fromMe && !m.history && newer ? 1 : 0,
-      nowIso(),
-      !m.fromMe && !m.history && newer ? 1 : 0,
-      !m.fromMe && !m.history ? 1 : 0,
-      nowIso(),
-      thread.id,
-    );
-  if (newer) {
-    thread.last_message_at = sentAt;
-    thread.preview = preview;
-    thread.last_from_me = m.fromMe ? 1 : 0;
-  }
+      live,
+      sentAt,
+      now,
+      live,
+      sentAt,
+      live,
+      now,
+      ...whereArgs,
+    ],
+  };
+}
+
+/** Lo que cambia en la fila que ya tiene quien llama (así el próximo mensaje de la tanda compara contra lo nuevo). */
+function noteNewest(thread: ThreadRow, m: NewMessage, sentAt: string): void {
+  if (thread.last_message_at && sentAt < thread.last_message_at) return;
+  thread.last_message_at = sentAt;
+  thread.preview = previewOf(m.subject ? `${m.subject} · ${m.body}` : m.body, m.mediaType);
+  thread.last_from_me = m.fromMe ? 1 : 0;
+}
+
+/**
+ * Guarda un mensaje y lo que le cambia a su chat en la lista, en una sola ida
+ * a la base (todo o nada). false si ya estaba (mismo id del proveedor en el
+ * chat): el chat no se toca.
+ */
+export async function addMessage(thread: ThreadRow, m: NewMessage): Promise<boolean> {
+  const sentAt = validIso(m.sentAt) ?? nowIso();
+  const id = newId('ibm');
+  const res = await dbBatch([
+    {
+      sql: `INSERT INTO inbox_messages (${NEW_MESSAGE_COLS})
+       VALUES (?, ?, ?, ${MESSAGE_TAIL_MARKS})
+       ON CONFLICT (thread_id, external_id) DO NOTHING`,
+      args: [id, thread.owner_id, thread.id, ...messageTail(m, sentAt)],
+    },
+    // Solo si el mensaje entró: uno repetido no existe con este id.
+    threadTouch(m, sentAt, 'id = ? AND EXISTS (SELECT 1 FROM inbox_messages WHERE id = ?)', [thread.id, id]),
+  ]);
+  if (res[0].changes === 0) return false;
+  noteNewest(thread, m, sentAt);
   return true;
+}
+
+/**
+ * Un mensaje que llega por webhook, en una sola ida a la base: el chat (se
+ * crea si no estaba), el mensaje y lo que le cambia al chat en la lista (que
+ * es lo que avisa a la pantalla abierta). Todo o nada. Devuelve el chat y si
+ * el mensaje era nuevo.
+ */
+export async function addMessageToChat(
+  account: Pick<AccountRow, 'id' | 'owner_id' | 'kind'>,
+  input: ThreadInput,
+  m: NewMessage,
+): Promise<{ thread: ThreadRow; added: boolean }> {
+  const sentAt = validIso(m.sentAt) ?? nowIso();
+  const id = newId('ibm');
+  const external = input.externalId.slice(0, 300);
+  const res = await dbBatch([
+    threadInsert(account, input),
+    { sql: 'SELECT * FROM inbox_threads WHERE account_id = ? AND external_id = ?', args: [account.id, external] },
+    {
+      sql: `INSERT INTO inbox_messages (${NEW_MESSAGE_COLS})
+       VALUES (?, ?, (SELECT id FROM inbox_threads WHERE account_id = ? AND external_id = ?), ${MESSAGE_TAIL_MARKS})
+       ON CONFLICT (thread_id, external_id) DO NOTHING`,
+      args: [id, account.owner_id, account.id, external, ...messageTail(m, sentAt)],
+    },
+    threadTouch(m, sentAt, 'id = (SELECT thread_id FROM inbox_messages WHERE id = ?)', [id]),
+  ]);
+  const thread = await finishThread(res[1].rows[0] as unknown as ThreadRow, input);
+  const added = res[2].changes > 0;
+  if (added) noteNewest(thread, m, sentAt);
+  return { thread, added };
 }
 
 function validIso(s: string | undefined | null): string | null {

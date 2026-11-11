@@ -6,7 +6,9 @@ import { readTextCapped } from '@/lib/safe-fetch';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// El mismo valor que el stream de avisos (app/api/groups/live): con la misma configuración pueden compartir
+// instancia, y entonces el aviso a las pantallas abiertas sale en el acto (lib/wa-live.ts).
+export const maxDuration = 250;
 
 type Ctx = { params: Promise<{ id: string; secret: string }> };
 
@@ -41,9 +43,9 @@ export async function GET(req: Request, ctx: Ctx) {
  * lo que ya guardamos.
  */
 export async function POST(req: Request, ctx: Ctx) {
-  const limited = await limitByIp(req, 'groups-webhook', 600, 60).catch(() => null);
+  // El límite por IP y la fila del número, a la vez: son dos idas a la base que no dependen una de la otra.
+  const [limited, row] = await Promise.all([limitByIp(req, 'groups-webhook', 600, 60).catch(() => null), numberFor(ctx)]);
   if (limited) return limited;
-  const row = await numberFor(ctx);
   if (!row) return new NextResponse('not found', { status: 404 });
   // Tope antes de leer (content-length) y mientras se lee (un cuerpo sin largo declarado tampoco pasa).
   if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY) return new NextResponse('too large', { status: 413 });

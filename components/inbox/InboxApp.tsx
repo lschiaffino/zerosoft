@@ -16,7 +16,9 @@ import ContactPanel from './wa/ContactPanel';
 import { ArchiveIcon, ArrowLeft } from '@/components/groups/wa/icons';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
-import { useWaLive } from '@/lib/wa-live-client';
+import { useWaLive, useWaLiveChat } from '@/lib/wa-live-client';
+import { isTempId } from '@/lib/optimistic-send';
+import { applyPending, keepPending, pendingSends } from './wa/pending';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
@@ -375,13 +377,15 @@ export default function InboxApp(props: {
     detailEtag.current = { id, etag: r.etag };
     setDetail((d) => {
       // Con mensajes anteriores ya cargados: quedan los de antes de esta página y lo reciente se actualiza
-      // (reacciones, tildes, borrados). Si no, la página nueva tal cual.
-      if (!(quiet && d && d.thread.id === id && d.extended)) return data;
+      // (reacciones, tildes, borrados). Si no, la página nueva tal cual. Lo que se está mandando sigue a la vista.
+      if (!(quiet && d && d.thread.id === id && d.extended)) return keepPending(d, data);
       const first = data.messages[0]?.sentAt;
-      const older = first ? d.messages.filter((m) => m.sentAt < first) : d.messages;
-      return { ...data, messages: [...older, ...data.messages], more: d.more, cursor: d.cursor, extended: true };
+      const older = first ? d.messages.filter((m) => m.sentAt < first && !isTempId(m.id)) : d.messages.filter((m) => !isTempId(m.id));
+      return keepPending(d, { ...data, messages: [...older, ...data.messages], more: d.more, cursor: d.cursor, extended: true });
     });
   }, []);
+  // El texto que se acaba de mandar aparece ya en la conversación (components/inbox/wa/pending.ts).
+  useEffect(() => pendingSends.subscribe((e) => setDetail((d) => applyPending(d, e))), []);
   useEffect(() => {
     if (!detail) return;
     const { focus: _focus, ...rest } = detail;
@@ -462,11 +466,15 @@ export default function InboxApp(props: {
   // Al instante: un mensaje nuevo (también el que saca un chat de Archivados), archivar desde el teléfono, otra pestaña.
   // Una consulta por índice cada 3 s (lib/wa-live.ts) reemplaza releer la lista y el estado cada pocos segundos:
   // se releen solo cuando algo cambió.
-  const { live: liveOn } = useWaLive('inbox', (ids) => {
+  const { live: liveOn } = useWaLive('inbox', () => {
     void reloadList();
     void reloadState();
+  });
+  // El chat abierto no espera a que se junten los avisos de la lista: se relee apenas llega el suyo (un mensaje, las
+  // tildes, una reacción, escribiendo…).
+  useWaLiveChat('inbox', openId, () => {
     const o = openRef.current;
-    if (o && (!ids.length || ids.includes(o))) void loadDetail(o, true);
+    return o ? loadDetail(o, true) : undefined;
   });
 
   // La primera lista viene con la página: una relectura al arrancar pide los datos que faltan de los chats a la vista
@@ -498,14 +506,14 @@ export default function InboxApp(props: {
     };
   }, [reloadList, reloadState, loadDetail, openId, liveOn]);
 
-  // Chat de WhatsApp abierto: escribiendo…, tildes y reacciones. Los mensajes nuevos ya llegan por el aviso: con él
-  // andando, cada 10 s; si no, cada 3 s.
+  // Chat de WhatsApp abierto: escribiendo…, tildes y reacciones llegan por el aviso (lib/wa-live-client.ts); con él
+  // andando queda una relectura cada 30 s como red de seguridad; si no, cada 3 s.
   const openIsWa = detail?.thread.channel === 'whatsapp' && detail.thread.id === openId;
   useEffect(() => {
     if (!openId || !openIsWa) return;
     const id = window.setInterval(() => {
       if (document.visibilityState === 'visible') void loadDetail(openId, true);
-    }, liveOn ? 10_000 : 3000);
+    }, liveOn ? 30_000 : 3000);
     return () => window.clearInterval(id);
   }, [openId, openIsWa, loadDetail, liveOn]);
 
@@ -1263,7 +1271,8 @@ export default function InboxApp(props: {
             onBack={closeConvo}
             onAction={act}
             onSent={(messages: MessageDto[]) => {
-              setDetail((d) => (d ? { ...d, messages } : d));
+              // Lo que todavía se está mandando (otro texto escrito enseguida) sigue a la vista.
+              setDetail((d) => (d ? keepPending(d, { ...d, messages }) : d));
               void reloadList();
             }}
             onSendLater={(text) => setPlan({ threadId: detail.thread.id, channel: detail.thread.channel, text })}
