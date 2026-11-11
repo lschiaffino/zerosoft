@@ -43,6 +43,12 @@ export const CHANGELOG: ChangelogEntry[] = [
         es: 'Una pestaña nueva en la app de escritorio abría con el buscador encima. Ahora abre en Inicio; el buscador sigue a un ⌘K.',
         pt: 'Uma aba nova no app de desktop abria com a busca por cima. Agora abre no Início; a busca continua a um ⌘K.',
       },
+      {
+        product: 'platform',
+        en: 'In the desktop settings, "Done" at the end of the dictation setup now closes the window, and the account shown is yours even when you are working in someone else\'s workspace (it used to show the workspace owner\'s email).',
+        es: 'En los ajustes del escritorio, "Listo" al final de la configuración del dictado ahora cierra la ventana, y la cuenta que se muestra es la tuya aunque estés trabajando en el workspace de otra persona (antes mostraba el email del dueño del workspace).',
+        pt: 'Nos ajustes do desktop, "Concluir" no fim da configuração do ditado agora fecha a janela, e a conta mostrada é a sua mesmo trabalhando no workspace de outra pessoa (antes mostrava o email do dono do workspace).',
+      },
     ],
   },
   {
