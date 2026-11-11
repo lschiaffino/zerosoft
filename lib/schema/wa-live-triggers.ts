@@ -47,20 +47,24 @@ export const WA_LIVE_TRIGGERS: Array<[string, string]> = [
 /**
  * El chat abierto (migración 394_wa_live_messages): lo que cambia en un mensaje
  * sin mover la lista (las tildes de un mensaje que no es el último, una
- * reacción, una edición, un borrado, el archivo que terminó de bajar, el voto
- * de una encuesta) y una nota interna o un aviso del sistema. Con esto el chat
+ * reacción, una edición, un borrado, el archivo que terminó de bajar y sus
+ * datos, el voto de una encuesta, el ticket abierto sobre un mensaje) y una
+ * nota interna o un aviso del sistema. Con esto el chat
  * abierto se relee cuando algo cambió en vez de cada pocos segundos.
  *
  * Un mensaje nuevo (entrante o saliente) ya avisa por su chat (arriba), así
  * que no se anota dos veces. Borrar filas no avisa: borrar un chat borra todos
  * sus mensajes y anotaría uno por cada uno.
  */
-const LINES_MSG_COLS = ['status', 'body', 'reactions', 'deleted_at', 'edited_at', 'pinned_at', 'media_url', 'error'];
+const LINES_MSG_COLS = ['status', 'body', 'reactions', 'deleted_at', 'edited_at', 'pinned_at', 'media_url', 'error', 'meta', 'needs_reply'];
 const INBOX_MSG_COLS = ['status', 'body', 'edited', 'revoked_at', 'reactions', 'starred_at'];
 
 const linesMsgNote = `INSERT INTO wa_live_events (app, scope_id, chat_id, number_id) VALUES ('lines', NEW.user_id, NEW.chat_id, NEW.number_id);`;
 const inboxMsgNote = `INSERT INTO wa_live_events (app, scope_id, chat_id) VALUES ('inbox', NEW.owner_id, NEW.thread_id);`;
 const voteNote = `INSERT INTO wa_live_events (app, scope_id, chat_id, number_id) SELECT 'lines', m.user_id, m.chat_id, m.number_id FROM groups_messages m WHERE m.id = NEW.message_id;`;
+/** Un ticket de un chat (la marca en su mensaje): se abre, cambia de estado o de mensaje, o se borra. */
+const ticketNote = (row: 'NEW' | 'OLD') =>
+  `INSERT INTO wa_live_events (app, scope_id, chat_id, number_id) SELECT 'lines', c.user_id, c.id, c.number_id FROM groups_chats c WHERE c.id = ${row}.chat_id;`;
 /** Solo lo de recién: importar el historial no anota una fila por mensaje viejo. */
 const RECENT = `NEW.created_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-10 minutes')`;
 
@@ -69,5 +73,8 @@ export const WA_LIVE_MESSAGE_TRIGGERS: Array<[string, string]> = [
   ['wa_live_lines_msg_note', `AFTER INSERT ON groups_messages WHEN NEW.direction NOT IN ('in', 'out') AND ${RECENT} BEGIN ${linesMsgNote} END`],
   ['wa_live_lines_vote_ins', `AFTER INSERT ON groups_poll_votes BEGIN ${voteNote} END`],
   ['wa_live_lines_vote_upd', `AFTER UPDATE ON groups_poll_votes WHEN OLD.options IS NOT NEW.options BEGIN ${voteNote} END`],
+  ['wa_live_lines_ticket_ins', `AFTER INSERT ON groups_tickets WHEN NEW.chat_id IS NOT NULL BEGIN ${ticketNote('NEW')} END`],
+  ['wa_live_lines_ticket_upd', `AFTER UPDATE ON groups_tickets WHEN NEW.chat_id IS NOT NULL AND (${changed(['status', 'message_id', 'chat_id'])}) BEGIN ${ticketNote('NEW')} END`],
+  ['wa_live_lines_ticket_del', `AFTER DELETE ON groups_tickets WHEN OLD.chat_id IS NOT NULL BEGIN ${ticketNote('OLD')} END`],
   ['wa_live_inbox_msg_upd', `AFTER UPDATE ON inbox_messages WHEN ${changed(INBOX_MSG_COLS)} BEGIN ${inboxMsgNote} END`],
 ];

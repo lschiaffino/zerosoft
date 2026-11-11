@@ -374,6 +374,18 @@ describe('qué avisa (migración 394_wa_live_messages)', () => {
     from = await latestLiveId(viewer);
     await sendMessage(ws, ws, chat.id, { body: 'nota para el equipo', note: true });
     expect((await fetchLive(viewer, from)).length).toBeGreaterThan(0);
+    // Un ticket abierto sobre un mensaje (la marca en la burbuja) avisa al chat, y cerrarlo también.
+    from = await latestLiveId(viewer);
+    const { createTicket, updateTicket } = await import('@/lib/groups-tickets');
+    const { ticket } = await createTicket(ws, ws, { chatId: chat.id, messageId: sent.id, source: 'manual' });
+    expect((await fetchLive(viewer, from)).some((e) => e.chat_id === chat.id)).toBe(true);
+    from = await latestLiveId(viewer);
+    await updateTicket(ws, ticket.id, { status: 'resolved' });
+    expect((await fetchLive(viewer, from)).some((e) => e.chat_id === chat.id)).toBe(true);
+    // Los datos de un archivo que terminó de procesarse (meta) también.
+    from = await latestLiveId(viewer);
+    await getDb().prepare("UPDATE groups_messages SET meta = json_set(meta, '$.media', json('{\"width\":10}')) WHERE id = ?").run(sent.id);
+    expect(await fetchLive(viewer, from)).toHaveLength(1);
     // Una nota vieja (historial importado) no anota nada.
     from = await latestLiveId(viewer);
     await getDb()

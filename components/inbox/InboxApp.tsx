@@ -507,13 +507,14 @@ export default function InboxApp(props: {
   }, [reloadList, reloadState, loadDetail, openId, liveOn]);
 
   // Chat de WhatsApp abierto: escribiendo…, tildes y reacciones llegan por el aviso (lib/wa-live-client.ts); con él
-  // andando queda una relectura cada 30 s como red de seguridad; si no, cada 3 s.
+  // andando queda la relectura de cada 10 s como red de seguridad (sin cambios es un 304 que lee una fila); si no,
+  // cada 3 s.
   const openIsWa = detail?.thread.channel === 'whatsapp' && detail.thread.id === openId;
   useEffect(() => {
     if (!openId || !openIsWa) return;
     const id = window.setInterval(() => {
       if (document.visibilityState === 'visible') void loadDetail(openId, true);
-    }, liveOn ? 30_000 : 3000);
+    }, liveOn ? 10_000 : 3000);
     return () => window.clearInterval(id);
   }, [openId, openIsWa, loadDetail, liveOn]);
 

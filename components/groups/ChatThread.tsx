@@ -454,7 +454,7 @@ export default function ChatThread(props: ThreadProps) {
   }
 
   // Los últimos 60: lo nuevo y los cambios en lo reciente (estado, reacciones, ediciones, llamadas). Con el aviso en
-  // vivo andando (lib/wa-live-client.ts) se releen apenas algo cambia en este chat, y cada minuto como red de seguridad;
+  // vivo andando (lib/wa-live-client.ts) se releen apenas algo cambia en este chat, y cada 20 s como red de seguridad;
   // sin el aviso, cada 4 s como antes.
   const pollNow = useRef<() => void>(() => {});
   const { live: liveOn } = useWaLiveChat('groups', chat.id, () => pollNow.current());
@@ -479,7 +479,7 @@ export default function ChatThread(props: ThreadProps) {
         void api(`/api/groups/chats/${chat.id}`, { method: 'PATCH', body: { read: true } }).then(() => refresh());
       }
     };
-    const id = setInterval(poll, liveOn ? 60_000 : 4000);
+    const id = setInterval(poll, liveOn ? 20_000 : 4000);
     // Al volver a la pestaña o a la ventana: lo nuevo en el acto (y queda leído si llegó algo).
     const onBack = () => poll();
     document.addEventListener('visibilitychange', onBack);
