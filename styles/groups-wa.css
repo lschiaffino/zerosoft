@@ -691,6 +691,8 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-star { font-size: 0.75rem; color: #e0a800; }
 .gr-inbox .wa-deleted { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 0; font-style: italic; color: var(--wa-text-2); }
 .gr-inbox .wa-deleted .gr-link-btn { font-style: normal; font-size: 0.75rem; }
+/* Mención de WhatsApp ("@Nombre"): el color de los links, sin subrayar. */
+.wa-mention { color: var(--wa-link); font-weight: 500; }
 .wa-code, .wa-pre { font-family: var(--font-data, ui-monospace, monospace); font-size: 0.8125rem; background: var(--wa-quote-bg); border-radius: 3px; padding: 0 3px; }
 .wa-pre { display: block; padding: 6px 8px; margin: 2px 0; white-space: pre-wrap; }
 .gr-inbox .wa-text.is-editing { opacity: 0.55; }

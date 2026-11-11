@@ -51,6 +51,7 @@ import {
 import { isGroupJid, isLidJid, phoneDigits, type GroupsProvider, type InboundEvent } from './groups-provider';
 import { parsePoll, pollPreview, voteOptions } from './groups-polls';
 import { defaultBridgeFetch } from './groups-provider-bridge';
+import { fillLinesNames, learnLinesContacts, learnLinesEvents } from './groups-wa-names';
 
 export type ImportPhase = 'groups' | 'chats' | 'contacts' | 'messages' | 'pictures' | 'older' | 'done';
 export type ImportState = 'queued' | 'running' | 'done' | 'error';
@@ -222,8 +223,10 @@ export async function applyContact(number: Pick<NumberRow, 'id' | 'user_id'>, ev
  * Guarda eventos del historial sin efectos: ni avisos, ni reglas, ni SLA, ni
  * no leídos, ni eventos. Agrupa por chat para tocar cada chat una sola vez.
  */
-export async function ingestHistory(number: NumberRow, events: InboundEvent[]): Promise<IngestResult> {
+export async function ingestHistory(number: NumberRow, incoming: InboundEvent[]): Promise<IngestResult> {
   const res: IngestResult = { messages: 0, duplicates: 0, ignored: 0 };
+  // La libreta del número (nombres de perfil, lid ↔ teléfono) antes de guardar: quien vino solo con su lid sale con teléfono.
+  const events = await learnLinesEvents(number, incoming.slice(0, 2000));
   const db = getDb();
   const ws = number.user_id;
   const chats = new Map<string, ChatRow>();
@@ -387,7 +390,7 @@ async function save(job: ImportRow, patch: Partial<Pick<ImportRow, 'phase' | 'cu
 }
 
 /** Baja la foto de perfil y la guarda en nuestro storage (las URLs de WhatsApp vencen). */
-async function storePicture(url: string): Promise<string> {
+export async function storePicture(url: string): Promise<string> {
   if (!/^https?:\/\//.test(url)) return '';
   const res = await defaultBridgeFetch(url, { method: 'GET' });
   if (!res.ok) {
@@ -454,9 +457,13 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
     }
     case 'contacts': {
       const rows = await history.contacts(job.cursor, CONTACTS_PAGE).catch(() => []);
+      // La libreta del número (nombres y lid ↔ teléfono) y, con ella, los chats y miembros que solo tenían el número.
+      await learnLinesContacts(number, rows).catch(() => 0);
       for (const c of rows) await applyContact(number, { chatId: c.chatId, name: c.name });
-      if (rows.length < CONTACTS_PAGE || job.cursor >= 100) await save(job, { phase: 'messages', cursor: 0 });
-      else await save(job, { cursor: job.cursor + 1 });
+      if (rows.length < CONTACTS_PAGE || job.cursor >= 100) {
+        await fillLinesNames(number.id).catch(() => 0);
+        await save(job, { phase: 'messages', cursor: 0 });
+      } else await save(job, { cursor: job.cursor + 1 });
       return;
     }
     case 'messages': {
@@ -533,7 +540,11 @@ async function step(job: ImportRow, number: NumberRow, provider: GroupsProvider,
       }
       // Hasta 500 fotos por importación (las demás llegan con los mensajes nuevos).
       // Con todo el historial pedido, después de las fotos sigue hacia atrás en cada chat.
-      if (rows.length < PICTURES_PAGE || job.cursor + PICTURES_PAGE >= 500) await save(job, { phase: job.per_chat === IMPORT_ALL ? 'older' : 'done', cursor: 0 });
+      if (rows.length < PICTURES_PAGE || job.cursor + PICTURES_PAGE >= 500) {
+        // Los miembros que trajo WhatsApp sin nombre: el de la libreta.
+        await fillLinesNames(number.id).catch(() => 0);
+        await save(job, { phase: job.per_chat === IMPORT_ALL ? 'older' : 'done', cursor: 0 });
+      }
       else await save(job, { cursor: job.cursor + PICTURES_PAGE });
       return;
     }

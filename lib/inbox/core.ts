@@ -23,6 +23,7 @@ import {
   type InboxAccountDto,
   type InboxChannel,
   type InboxView,
+  type MentionNames,
   type MessageDto,
   type MessageQuote,
   type MessageReaction,
@@ -137,7 +138,9 @@ export async function setAccountState(id: string, patch: Partial<Pick<AccountRow
 
 /** Borra la cuenta con sus chats, mensajes y envíos (cascade). */
 export async function deleteAccountRow(owner: string, id: string): Promise<void> {
-  await getDb().prepare('DELETE FROM inbox_accounts WHERE id = ? AND owner_id = ?').run(id, owner);
+  const r = await getDb().prepare('DELETE FROM inbox_accounts WHERE id = ? AND owner_id = ?').run(id, owner);
+  // La libreta de WhatsApp de la cuenta se va con ella.
+  if (r.changes > 0) await import('../wa-contacts').then((m) => m.forgetContacts('inbox', id)).catch(() => null);
 }
 
 // ---------------------------------------------------------------------------
@@ -606,7 +609,7 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   const page = more ? rows.slice(0, limit) : rows;
   const last = page[page.length - 1];
   return {
-    threads: [...pinned, ...page].map((r) => threadDto(r, now)),
+    threads: await withPreviewMentions([...pinned, ...page].map((r) => threadDto(r, now))),
     next: more && last && last.sort_key != null ? encodeListCursor({ k: String(last.sort_key), id: last.id }) : null,
     pinned: pinned.length,
   };
@@ -658,7 +661,20 @@ export async function getThread(owner: string, id: string): Promise<ThreadDto> {
     )
     .get(id, owner)) as (ThreadRow & { folder_ids: string | null; scheduled_count: number }) | undefined;
   if (!r) throw new InboxError('not_found', 404);
-  return threadDto(r);
+  return (await withPreviewMentions([threadDto(r)]))[0];
+}
+
+/**
+ * La vista previa de los chats de WhatsApp con "@Nombre" en lugar de
+ * "@<dígitos>" (teléfono o lid), con la libreta de la cuenta.
+ */
+async function withPreviewMentions(threads: ThreadDto[]): Promise<ThreadDto[]> {
+  const items = threads.map((t) => ({ accountId: t.channel === 'whatsapp' && t.preview.includes('@') ? t.accountId : '', text: t.preview }));
+  if (!items.some((i) => i.accountId)) return threads;
+  const { resolveTextMentions } = await import('../wa-contacts');
+  const texts = await resolveTextMentions('inbox', items).catch(() => items.map((i) => i.text));
+  threads.forEach((t, i) => (t.preview = texts[i]));
+  return threads;
 }
 
 interface MessageRow {
@@ -736,7 +752,30 @@ export interface MessagePage {
  * acepta una fecha sola. Lo nuevo que llega mientras se sube no mueve las páginas.
  */
 export async function listMessages(owner: string, threadId: string, opts: { before?: string; limit?: number; around?: string } = {}): Promise<MessagePage> {
-  await getThreadRow(owner, threadId);
+  const thread = await getThreadRow(owner, threadId);
+  const page = await messagePage(owner, threadId, opts);
+  if (thread.channel === 'whatsapp') await withMentionNames(thread.account_id, page.messages).catch(() => null);
+  return page;
+}
+
+/**
+ * Cada mensaje con "@<dígitos>" lleva a quién menciona (nombre y teléfono,
+ * de la libreta de la cuenta): la pantalla lo muestra como "@Nombre".
+ */
+async function withMentionNames(accountId: string, messages: MessageDto[]): Promise<void> {
+  const { inboxMentions } = await import('./wa-names');
+  const map = await inboxMentions(accountId, messages);
+  if (!Object.keys(map).length) return;
+  const { mentionCandidates } = await import('../wa-mentions');
+  for (const m of messages) {
+    if (!m.body.includes('@')) continue;
+    const own: MentionNames = {};
+    for (const d of mentionCandidates([{ body: m.body, mentions: m.meta?.mentions }])) if (map[d]) own[d] = map[d];
+    if (Object.keys(own).length) m.mentionNames = own;
+  }
+}
+
+async function messagePage(owner: string, threadId: string, opts: { before?: string; limit?: number; around?: string }): Promise<MessagePage> {
   type Row = MessageRow & { rid: number };
   if (opts.around) {
     // Ir a un mensaje (desde la búsqueda): 40 anteriores y todo lo que sigue hasta el más nuevo (con tope).

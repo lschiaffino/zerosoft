@@ -29,7 +29,8 @@ import { DEFAULT_RULE, PollFields, PollResults, RecurrenceFields, browserTimezon
 import type { RecurrenceRule } from '@/lib/groups-recurrence';
 import { parseDbUtc } from '@/lib/utils';
 import Avatar from './wa/Avatar';
-import RichText from './wa/RichText';
+import RichText, { type MentionLabels } from './wa/RichText';
+import { mentionLabel } from '@/lib/wa-mentions';
 import { longPress } from './wa/longPress';
 import EmojiPicker from './wa/EmojiPicker';
 import MediaViewer from './wa/MediaViewer';
@@ -284,6 +285,21 @@ export default function ChatThread(props: ThreadProps) {
   const nameOf = useCallback((id: string | null | undefined) => (id ? peopleById.get(id) ?? '' : ''), [peopleById]);
   const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
   const memberNames = useMemo(() => new Map(props.members.filter((m) => m.name).map((m) => [m.phone, m.name])), [props.members]);
+  // Menciones de WhatsApp ("@<dígitos>" → "@Nombre"): los miembros y, por mensaje, lo que resolvió el servidor (también lids).
+  const baseMentions = useMemo<MentionLabels>(() => Object.fromEntries(memberNames), [memberNames]);
+  const mentionsFor = useCallback(
+    (m: { body: string; mentionNames?: MessageDto['mentionNames'] }): MentionLabels | undefined => {
+      if (!m.body || !m.body.includes('@')) return undefined;
+      if (!m.mentionNames) return baseMentions;
+      const out: MentionLabels = { ...baseMentions };
+      for (const [d, target] of Object.entries(m.mentionNames)) {
+        const label = mentionLabel(target, (p) => `+${p}`);
+        if (label && !out[d]) out[d] = label;
+      }
+      return out;
+    },
+    [baseMentions],
+  );
   const viewer = useMemo(() => ({ me: props.me, isAdmin: props.isAdmin }), [props.me, props.isAdmin]);
   const mentionPeople = useMemo(() => props.people.map((p) => ({ id: p.id, name: p.name || null, email: p.email })), [props.people]);
 
@@ -1348,7 +1364,7 @@ export default function ChatThread(props: ThreadProps) {
             >
               <strong>{quoteAuthor(quoted)}</strong>
               <span>
-                <RichText text={quoteLine(quoted)} inline />
+                <RichText text={quoteLine(quoted)} inline mentions={mentionsFor({ body: quoteLine(quoted), mentionNames: quoted.mentionNames })} />
               </span>
             </button>
           )}
@@ -1434,7 +1450,7 @@ export default function ChatThread(props: ThreadProps) {
                           <span key={i}>{seg.text}</span>
                         ),
                       )
-                    : <RichText text={m.body} />}
+                    : <RichText text={m.body} mentions={mentionsFor(m)} />}
                 {/* Lugar para la hora flotante (como en WhatsApp: el texto no se pisa con la hora). */}
                 <span className="wa-spacer" aria-hidden="true" style={{ width: `${Math.ceil(time.length * 6.6 + (m.direction === 'out' ? 26 : 8) + (m.editedAt ? 52 : 0) + (m.pinnedAt ? 16 : 0))}px` }} />
               </p>

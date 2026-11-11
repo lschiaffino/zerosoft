@@ -269,6 +269,12 @@ export default function ChatDetails({
           {caps.groups && <p className="ui-help">{t('details.descriptionHelp')}</p>}
         </section>
       )}
+      {!isGroup && chat.about && (
+        <section className="gr-detail-section">
+          <h3 className="gr-detail-title">{t('details.about')}</h3>
+          <p className="gr-pre gr-description-text wa-about">{chat.about}</p>
+        </section>
+      )}
       {compact && isGroup && chat.description && (
         <section className="gr-detail-section">
           <h3 className="gr-detail-title">{t('details.description')}</h3>
