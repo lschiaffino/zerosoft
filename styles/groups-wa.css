@@ -543,6 +543,13 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .wa-details-head span { font-size: 0.875rem; color: var(--wa-text-2); }
 .wa-details-close { position: absolute; top: 8px; right: 8px; display: none; }
 
+/* Pantalla ancha con el panel de detalles escondido (components/groups/details-hidden.ts). */
+@media (min-width: 1440px) {
+  .gr-inbox.is-details-hidden { grid-template-columns: var(--gr-list-w, var(--gr-list-default)) minmax(0, 1fr); }
+  .gr-inbox.is-details-hidden .gr-details,
+  .gr-inbox.is-details-hidden > .gr-splitter-details { display: none; }
+}
+
 /* ---------- Anchos ---------- */
 @media (max-width: 1439px) {
   .gr-inbox { --gr-list-default: clamp(320px, 34%, 420px); grid-template-columns: var(--gr-list-w, var(--gr-list-default)) minmax(0, 1fr); }

@@ -30,6 +30,7 @@ import { dragIds } from '@/lib/chat-gestures';
 import { flattenTree } from '@/lib/inbox/folder-tree';
 import { useShellBranch } from '@/components/app/useShellBranch';
 import PanelSplitters from './PanelSplitters';
+import { useDetailsHidden } from './details-hidden';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { useWaLive } from '@/lib/wa-live-client';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
@@ -270,6 +271,7 @@ export default function InboxShell({
   const [error, setError] = useState(false);
   const [lists, setLists] = useState<SavedListDto[]>(initialLists);
   const [saving, setSaving] = useState<'new' | 'rename' | null>(null);
+  const { hidden: detailsHidden } = useDetailsHidden();
   const [removing, setRemoving] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -916,7 +918,7 @@ export default function InboxShell({
 
   return (
     <Ctx.Provider value={value}>
-      <div className={`gr-inbox${current ? ' has-chat' : ''}`} data-chat-style={chatStyle}>
+      <div className={`gr-inbox${current ? ' has-chat' : ''}${detailsHidden ? ' is-details-hidden' : ''}`} data-chat-style={chatStyle}>
         <section className="gr-list" aria-label={t('inbox.listLabel')}>
           <div className="gr-list-head">
             {banner}
@@ -1274,7 +1276,7 @@ export default function InboxShell({
           )}
         </section>
         {children}
-        <PanelSplitters me={me} labels={{ list: t('inbox.resizeList'), details: t('inbox.resizeDetails'), hint: t('inbox.resizeHint') }} />
+        <PanelSplitters me={me} hasDetails={!detailsHidden} labels={{ list: t('inbox.resizeList'), details: t('inbox.resizeDetails'), hint: t('inbox.resizeHint') }} />
       </div>
       <SaveListModal
         mode={saving}

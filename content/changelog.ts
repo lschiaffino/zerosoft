@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-lines-details-collapse',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines: hide the details panel on wide screens',
+      es: 'Lines: esconder el panel de detalles en pantallas anchas',
+      pt: 'Lines: esconder o painel de detalhes em telas largas',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'On wide screens the button at the top right of a chat did nothing. It now hides and shows the details panel, and Lines remembers your choice.',
+        es: 'En pantallas anchas, el botón de arriba a la derecha del chat no hacía nada. Ahora esconde y muestra el panel de detalles, y Lines recuerda cómo lo dejaste.',
+        pt: 'Em telas largas, o botão no canto superior direito do chat não fazia nada. Agora esconde e mostra o painel de detalhes, e o Lines lembra a sua escolha.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-lines-analytics-dashboard',
     date: '2026-11-11',
     title: {
