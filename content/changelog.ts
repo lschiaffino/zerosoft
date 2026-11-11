@@ -243,6 +243,52 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-10-home-apps',
+    date: '2026-11-10',
+    title: {
+      en: 'Home: just your apps, with what each one is for',
+      es: 'Inicio: solo tus apps, con para qué sirve cada una',
+      pt: 'Início: só os seus apps, com para que serve cada um',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'The home page now shows only your apps, each with its icon, its name and a line on what it is for. Coming soon apps go in one quiet line at the bottom. The assistant is still one ⌘J away from anywhere.',
+        es: 'El inicio ahora muestra solo tus apps, cada una con su ícono, su nombre y una línea de para qué sirve. Las que vienen pronto van en una línea discreta al pie. El asistente sigue a un ⌘J desde cualquier lado.',
+        pt: 'O início agora mostra só os seus apps, cada um com seu ícone, seu nome e uma linha sobre para que serve. Os que chegam em breve ficam numa linha discreta no fim. O assistente continua a um ⌘J de qualquer lugar.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-11-desktop-connect-accounts',
+    date: '2026-11-11',
+    title: {
+      en: 'Connecting Gmail and other accounts works from the desktop app',
+      es: 'Conectar Gmail y otras cuentas funciona desde la app de escritorio',
+      pt: 'Conectar o Gmail e outras contas funciona pelo app para desktop',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'In the desktop app (version 0.3.5), Connect Gmail in Inbox opens the Google permission screen in your browser. Before, the app treated it as signing in to zerosoft again and the account was never connected. Gmail and Outlook in CRM, Google Calendar and Outlook in Cal, Notion in Docs, and Slack and Linear in Track now connect the same way, in your browser.',
+        es: 'En la app de escritorio (versión 0.3.5), Conectar Gmail en Inbox abre la pantalla de permisos de Google en tu navegador. Antes la app lo tomaba como volver a entrar a zerosoft y la cuenta nunca quedaba conectada. Gmail y Outlook en CRM, Google Calendar y Outlook en Cal, Notion en Docs, y Slack y Linear en Track ahora se conectan igual, en tu navegador.',
+        pt: 'No app para desktop (versão 0.3.5), Conectar Gmail no Inbox abre a tela de permissões do Google no seu navegador. Antes o app tratava isso como entrar de novo no zerosoft e a conta nunca ficava conectada. Gmail e Outlook no CRM, Google Calendar e Outlook no Cal, Notion no Docs, e Slack e Linear no Track agora se conectam do mesmo jeito, no seu navegador.',
+      },
+      {
+        product: 'platform',
+        en: 'If your browser is not signed in to zerosoft when you connect an account, it asks you to sign in and then continues with the connection, instead of showing an error.',
+        es: 'Si tu navegador no tiene la sesión de zerosoft iniciada cuando conectás una cuenta, te pide entrar y después sigue con la conexión, en vez de mostrar un error.',
+        pt: 'Se o seu navegador não está com a sessão do zerosoft iniciada quando você conecta uma conta, ele pede para entrar e depois continua com a conexão, em vez de mostrar um erro.',
+      },
+      {
+        product: 'platform',
+        en: 'When you come back to the settings page after connecting an account in another window, the account shows up without reloading.',
+        es: 'Cuando volvés a la página de ajustes después de conectar una cuenta en otra ventana, la cuenta aparece sin recargar.',
+        pt: 'Quando você volta para a página de ajustes depois de conectar uma conta em outra janela, a conta aparece sem recarregar.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-rec-desktop-controls',
     date: '2026-11-10',
     title: {
@@ -303,23 +349,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Lines does the same for each number: names for chats and members, mentions as @Name, and the contact info of a one-to-one chat in its details. Once a day, slowly and picking up where it stopped, each number refreshes contact names and info, group subjects, descriptions, members and photos. A name you typed yourself stays. Tested with the simulated WhatsApp; not yet tried with a real one.',
         es: 'Lines hace lo mismo con cada número: nombres en chats y miembros, menciones como @Nombre y la info del contacto de un chat 1:1 en sus detalles. Una vez por día, despacio y retomando donde quedó, cada número repasa nombres e info de los contactos, asuntos, descripciones, miembros y fotos de los grupos. Un nombre que escribiste vos queda. Probado con el WhatsApp simulado; falta probarlo con uno real.',
         pt: 'O Lines faz o mesmo com cada número: nomes nas conversas e nos membros, menções como @Nome e o recado do contato de uma conversa individual nos detalhes. Uma vez por dia, devagar e retomando de onde parou, cada número atualiza nomes e recados dos contatos, assuntos, descrições, membros e fotos dos grupos. Um nome que você digitou fica. Testado com o WhatsApp simulado; falta testar com um real.',
-      },
-    ],
-  },
-  {
-    id: '2026-11-10-home-apps',
-    date: '2026-11-10',
-    title: {
-      en: 'Home: just your apps, with what each one is for',
-      es: 'Inicio: solo tus apps, con para qué sirve cada una',
-      pt: 'Início: só os seus apps, com para que serve cada um',
-    },
-    items: [
-      {
-        product: 'platform',
-        en: 'The home page now shows only your apps, each with its icon, its name and a line on what it is for. Coming soon apps go in one quiet line at the bottom. The assistant is still one ⌘J away from anywhere.',
-        es: 'El inicio ahora muestra solo tus apps, cada una con su ícono, su nombre y una línea de para qué sirve. Las que vienen pronto van en una línea discreta al pie. El asistente sigue a un ⌘J desde cualquier lado.',
-        pt: 'O início agora mostra só os seus apps, cada um com seu ícone, seu nome e uma linha sobre para que serve. Os que chegam em breve ficam numa linha discreta no fim. O assistente continua a um ⌘J de qualquer lugar.',
       },
     ],
   },

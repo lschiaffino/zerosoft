@@ -15,6 +15,7 @@ import LocalText from '@/components/ui/LocalText';
 import { ImportProgress, type ImportJobView } from '@/components/app/ImportJob';
 import type { LinearSyncView } from '@/lib/track-linear-sync';
 import type { LinearTeamRef } from '@/lib/track-linear-import';
+import { useRefetchOnReturn } from '@/lib/use-refetch-on-return';
 
 type View = LinearSyncView & { isAdmin: boolean; availableTeams: LinearTeamRef[] | null };
 type Direction = 'two_way' | 'import' | 'push';
@@ -132,6 +133,8 @@ export default function LinearSyncSettings({ locale }: { locale: string }) {
   useEffect(() => {
     void load(true);
   }, [load]);
+  // Conectar pasa en otra pestaña o en el navegador del sistema (app de escritorio): al volver se actualiza.
+  useRefetchOnReturn(() => load(true), !!data && !data.connection);
 
   const importJob = useDriveImport(data?.phase === 'importing' ? data.importJobId : null, () => void load(false));
 

@@ -9,6 +9,7 @@ import { FolderDialog, Modal } from './InboxDialogs';
 import ImportPanel from './ImportPanel';
 import type { InboxStateDto } from './InboxApp';
 import ChatStyleSection from '@/components/chat-style/ChatStyleSection';
+import { useRefetchOnReturn } from '@/lib/use-refetch-on-return';
 
 interface ConnectState {
   status: 'pending' | 'qr' | 'connected' | 'disconnected' | 'error';
@@ -479,6 +480,8 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
     if (r.ok) setState(r.data);
   }, []);
   const reloadQuiet = useCallback(() => void reload(), [reload]);
+  // Conectar pasa en otra pestaña o en el navegador del sistema (app de escritorio): al volver se actualiza.
+  useRefetchOnReturn(reload);
   const wa = state.accounts.find((a) => a.kind === 'whatsapp');
   const gmail = state.accounts.filter((a) => a.kind === 'gmail');
   return (

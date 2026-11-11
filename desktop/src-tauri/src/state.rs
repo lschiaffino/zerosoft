@@ -56,6 +56,9 @@ pub struct AppState {
     pub recording: Mutex<Option<Recording>>,
     pub http: reqwest::Client,
     pub auth: Mutex<Option<AuthPending>>,
+    /// Última navegación propia que se dejó pasar en una ventana de la app, y cuándo (lib.rs,
+    /// open_connect: la ruta de inicio de un OAuth de integración).
+    pub last_nav: Mutex<Option<(url::Url, std::time::Instant)>>,
     pub shortcut_taken: AtomicBool,
     pub badge_since: Mutex<Option<String>>,
     /// Apps que el workspace apagó o no abrió para esta persona (la lista que trae /api/desktop/badge): sus menús no se muestran.

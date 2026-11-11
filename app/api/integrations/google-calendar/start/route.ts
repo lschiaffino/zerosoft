@@ -4,6 +4,7 @@ import { getCurrentUser, realUserId } from '@/lib/session';
 import { googleAuthUrl, googleCalendarRedirectUri, googleOAuthConfigured } from '@/lib/integrations';
 import { GOOGLE_CALENDAR_SCOPE } from '@/lib/google-calendar';
 import { fakeGoogleCalendarAllowed } from '@/lib/google-calendar-fake';
+import { signInToConnect } from '@/lib/oauth-signin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,7 @@ const STATE_COOKIE = 'zs-gcal-state';
 /** Conecta el Google Calendar de la persona logueada (no del workspace). */
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!user) return signInToConnect(req);
   const fake = fakeGoogleCalendarAllowed();
   if (!fake && !googleOAuthConfigured()) return NextResponse.json({ error: 'not_configured' }, { status: 500 });
 

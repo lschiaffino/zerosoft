@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import { useRefetchOnReturn } from '@/lib/use-refetch-on-return';
 
 interface OutlookPanelProps {
   /** MS_CLIENT_ID / MS_CLIENT_SECRET configurados en la instancia. */
@@ -34,6 +35,8 @@ export default function OutlookPanel({
   const [busy, setBusy] = useState<'sync' | 'disconnect' | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Conectar pasa en otra pestaña o en el navegador del sistema (app de escritorio): al volver se actualiza.
+  useRefetchOnReturn(() => router.refresh(), !connected);
 
   async function sync() {
     if (busy) return;

@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { useRefetchOnReturn } from '@/lib/use-refetch-on-return';
 
 type Direction = 'two_way' | 'import' | 'to_notion';
 
@@ -70,6 +71,8 @@ export function DocsNotionSettings({ notice }: { notice?: string | null }) {
   }, [load]);
 
   const conn = status?.connection ?? null;
+  // Conectar pasa en otra pestaña o en el navegador del sistema (app de escritorio): al volver se actualiza.
+  useRefetchOnReturn(load, !!status && !conn);
   const importing = Boolean(conn && !conn.paused && (conn.status === 'discovering' || conn.status === 'importing'));
 
   // Import inicial: la pantalla abierta lo hace avanzar (de a unos segundos por pedido).

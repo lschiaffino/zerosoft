@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin, realUserId, userCanUseApp } from '@/lib/session';
 import { notionAuthUrl, notionOAuthConfigured } from '@/lib/notion-sync';
+import { signInToConnect } from '@/lib/oauth-signin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,9 +12,9 @@ const STATE_COOKIE = 'zs-notion-state';
  * "Conectar con Notion": state en cookie httpOnly y redirect al consentimiento
  * de Notion (ahí se eligen las páginas y bases que se comparten).
  */
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!user) return signInToConnect(req);
   if (!userCanUseApp(user, 'docs') || !isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   if (!notionOAuthConfigured()) return NextResponse.json({ error: 'not_configured' }, { status: 501 });
   const state = `${user.id}.${realUserId(user)}.${crypto.randomUUID()}`;

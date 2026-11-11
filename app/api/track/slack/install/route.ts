@@ -4,7 +4,8 @@ import { trackWorkspaceId } from '@/lib/track-labels';
 import { saveSlackConnection, slackAuthorizeUrl, slackConfigured, slackFake } from '@/lib/track-slack';
 import { signOAuthState } from '@/lib/track-integrations';
 import { recordAudit } from '@/lib/track-audit';
-import { trackError, unauthorized } from '@/lib/track-http';
+import { trackError } from '@/lib/track-http';
+import { signInToConnect } from '@/lib/oauth-signin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic';
 /** Empieza el OAuth de Slack (o conecta el Slack de prueba con SLACK_FAKE=1). */
 export async function GET(req: Request) {
   const user = await getCurrentUser();
-  if (!user) return unauthorized();
+  if (!user) return signInToConnect(req);
   if (!isWorkspaceAdmin(user)) return trackError(403, 'forbidden');
   if (!slackConfigured()) return trackError(503, 'slack_not_configured');
   const workspaceId = trackWorkspaceId(user.team?.id ?? null, user.id);
