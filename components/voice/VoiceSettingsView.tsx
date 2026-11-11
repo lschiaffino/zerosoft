@@ -11,7 +11,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import {
   VOICE_BUILTIN_TEMPLATES,
-  VOICE_CLEANUP_MODES,
+  VOICE_CLEANUP_DEPTHS, VOICE_CLEANUP_MODES,
   VOICE_CONTEXTS,
   VOICE_LANGUAGES,
   VOICE_SHORTCUTS,
@@ -102,6 +102,7 @@ function DictationSettings({ initial }: { initial: VoiceSettings }) {
             shortcut: String(fd.get('shortcut')),
             language: String(fd.get('language')),
             cleanupMode: String(fd.get('cleanupMode')) as VoiceSettings['cleanupMode'],
+            cleanupDepth: String(fd.get('cleanupDepth')) as VoiceSettings['cleanupDepth'],
             showBar: fd.get('showBar') === 'on',
             aiCleanup: fd.get('aiCleanup') === 'on',
             commandMode: fd.get('commandMode') === 'on',
@@ -147,6 +148,19 @@ function DictationSettings({ initial }: { initial: VoiceSettings }) {
               ))}
             </select>
             <p className="ui-help">{t('cleanupModeHelp')}</p>
+          </div>
+          <div className="ui-field">
+            <label className="label" htmlFor="vc-depth">
+              {t('cleanupDepth')}
+            </label>
+            <select id="vc-depth" name="cleanupDepth" className="select" defaultValue={s.cleanupDepth}>
+              {VOICE_CLEANUP_DEPTHS.map((m) => (
+                <option key={m} value={m}>
+                  {t(`cleanupDepths.${m}`)}
+                </option>
+              ))}
+            </select>
+            <p className="ui-help">{t('cleanupDepthHelp')}</p>
           </div>
         </div>
         <label className="ui-switch">
