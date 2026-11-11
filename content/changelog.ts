@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-lines-analytics-dashboard',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines: a full analytics dashboard',
+      es: 'Lines: un tablero de analítica completo',
+      pt: 'Lines: um painel de análise completo',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Analytics in Lines is now a dashboard with eight tabs: Overview, Conversations, Response, Team, Groups, Broadcasts, Tickets and tasks, and Labels. Each tab has its own link. Every number shows how it changed against the same number of days before, and the charts draw themselves when you open a tab (not if your system asks for less motion).',
+        es: 'La analítica de Lines ahora es un tablero con ocho pestañas: Resumen, Conversaciones, Respuesta, Equipo, Grupos, Envíos, Tickets y tareas, y Etiquetas. Cada pestaña tiene su propio link. Cada número muestra cuánto cambió contra la misma cantidad de días anteriores, y los gráficos se dibujan al abrir una pestaña (no si tu sistema pide menos movimiento).',
+        pt: 'A análise do Lines agora é um painel com oito abas: Resumo, Conversas, Resposta, Equipe, Grupos, Envios, Tickets e tarefas, e Etiquetas. Cada aba tem seu próprio link. Cada número mostra quanto mudou contra a mesma quantidade de dias anteriores, e os gráficos se desenham ao abrir uma aba (não se o seu sistema pede menos movimento).',
+      },
+      {
+        product: 'groups',
+        en: 'New numbers: received and sent per day, new chats, the hours and weekdays when messages arrive, volume by line, first response time (median and 9 out of 10, per day and by how fast), chats waiting now by how long, messages and first responses by person, chats assigned and closed, the most active groups, broadcast delivery from sent to replied, tickets by priority, status and origin, tasks, and messages by label.',
+        es: 'Números nuevos: recibidos y enviados por día, chats nuevos, las horas y los días en que llegan los mensajes, volumen por línea, tiempo de primera respuesta (mediana y 9 de cada 10, por día y según la rapidez), chats esperando ahora según hace cuánto, mensajes y primeras respuestas por persona, chats asignados y cerrados, los grupos más activos, la entrega de los envíos de enviado a respondido, tickets por prioridad, estado y origen, tareas, y mensajes por etiqueta.',
+        pt: 'Números novos: recebidas e enviadas por dia, chats novos, as horas e os dias em que as mensagens chegam, volume por linha, tempo de primeira resposta (mediana e 9 em cada 10, por dia e pela rapidez), chats esperando agora por tempo de espera, mensagens e primeiras respostas por pessoa, chats atribuídos e fechados, os grupos mais ativos, a entrega dos envios de enviado a respondido, tickets por prioridade, status e origem, tarefas, e mensagens por etiqueta.',
+      },
+      {
+        product: 'groups',
+        en: 'Filter by line, by the person a chat is assigned to, by label and by 7, 30 or 90 days or your own dates (up to a year). Days and hours follow your time zone. Each tab exports to CSV. Members see numbers only for the lines and chats they can open.',
+        es: 'Filtrá por línea, por la persona que tiene asignado el chat, por etiqueta y por 7, 30 o 90 días o tus propias fechas (hasta un año). Los días y las horas siguen tu zona horaria. Cada pestaña se exporta a CSV. Los miembros ven números solo de las líneas y los chats que pueden abrir.',
+        pt: 'Filtre por linha, pela pessoa responsável pelo chat, por etiqueta e por 7, 30 ou 90 dias ou suas próprias datas (até um ano). Os dias e as horas seguem o seu fuso horário. Cada aba exporta para CSV. Os membros veem números só das linhas e dos chats que podem abrir.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-whatsapp-archive-sync',
     date: '2026-11-11',
     title: {
