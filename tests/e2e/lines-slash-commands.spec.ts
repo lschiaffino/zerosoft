@@ -201,7 +201,7 @@ test('una respuesta rápida sigue entrando con /atajo, y "/hello" se manda como 
   await expect(page).toHaveURL(/\/lines\/inbox\/[^/?#]+/);
   await field.press('Enter');
   await expect(out.filter({ hasText: '/close' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Close/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Close (E)', exact: true })).toBeVisible();
 
   // Borrar la "/" cierra el menú.
   await field.pressSequentially('/');

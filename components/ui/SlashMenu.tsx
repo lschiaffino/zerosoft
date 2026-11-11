@@ -70,7 +70,7 @@ export default function SlashMenu({
             {view.command.emptyText ?? labels.empty}
           </p>
         ) : (
-          view.options.map((o, i) => row(i, o.id, optionName(o, labels), <OptionRow o={o} checked={labels.checked} />))
+          view.options.map((o, i) => row(i, `o-${o.id}`, optionName(o, labels), <OptionRow o={o} checked={labels.checked} />))
         )}
       </>
     );
