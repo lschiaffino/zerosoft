@@ -45,7 +45,7 @@ test('Link vive en /app/links: el switcher y el resumen', async ({ page }) => {
   // El logo de la banda vuelve al inicio, no a Link.
   await page.locator('.band-home').click();
   await expect(page).toHaveURL(/\/es\/app$/);
-  await expect(page.getByRole('heading', { name: 'Para hoy', level: 2 })).toBeVisible();
+  await expect(page.getByTestId('home-featured')).toBeVisible();
 });
 
 test('switcher: inicio, destacadas, más apps por categoría, teclado y ⌘K', async ({ page }) => {

@@ -1549,8 +1549,10 @@ td.cell-actions > * + * { margin-left: 4px; }
 /* Próximamente: una línea discreta al pie, no compite con las apps. */
 .home-soon { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding-top: 16px; border-top: 1px solid var(--line); }
 .home-soon-title { font-size: 0.8125rem; font-weight: 600; color: var(--brand-gray-1); }
-.home-soon-list { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 14px; }
-.home-soon-app { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--brand-gray-1); text-decoration: none; }
+.home-soon-list { list-style: none; display: flex; flex-wrap: wrap; gap: 0 4px; }
+/* Áreas de toque de 40 px aunque el texto sea chico (tests/e2e/responsive-audit.ts). */
+.home-soon-app { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; min-width: 40px; padding: 0 8px; font-size: 0.8125rem; color: var(--brand-gray-1); text-decoration: none; border-radius: var(--radius-1); }
+.home-soon-app:hover { background: var(--ui-hover); }
 .home-soon-app:hover { color: var(--ink); }
 
 @media (max-width: 720px) {
