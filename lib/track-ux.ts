@@ -126,6 +126,8 @@ export async function setViewFavorite(viewId: string, userId: string, favorite: 
 /** Favoritas de la persona en proyectos del workspace (para el sidebar). */
 export async function listFavoriteViews(teamId: string | null, ownerId: string, userId: string): Promise<TrackSavedView[]> {
   const s = scope(teamId, ownerId);
+  // Solo de los proyectos que la persona ve ahora (lib/track-access).
+  const vis = trackVisibleSql('p', userId);
   const rows = (await getDb()
     .prepare(
       `SELECT v.*, u.name AS owner_name, u.email AS owner_email, 1 AS favorite,
@@ -134,11 +136,11 @@ export async function listFavoriteViews(teamId: string | null, ownerId: string, 
        JOIN track_issue_views v ON v.id = f.view_id
        JOIN users u ON u.id = v.user_id
        JOIN track_projects p ON p.id = v.project_id
-       WHERE f.user_id = ? AND ${s.where} AND p.status = 'active' AND (v.user_id = ? OR v.shared = 1)
+       WHERE f.user_id = ? AND ${s.where} AND ${vis.sql} AND p.status = 'active' AND (v.user_id = ? OR v.shared = 1)
        ORDER BY f.created_at ASC
        LIMIT 50`,
     )
-    .all(userId, s.arg, userId)) as ViewRow[];
+    .all(userId, s.arg, ...vis.args, userId)) as ViewRow[];
   return rows.map((r) => toView(r, userId));
 }
 

@@ -8,6 +8,7 @@
 import type { InStatement } from '@libsql/client';
 import { getClient, getDb } from './db';
 import type { TrackProjectRow } from './db';
+import { currentVisibleSql } from './track-access';
 import { safeHexColor } from './track-color';
 import type { IssueLabel } from './track-schema';
 
@@ -60,18 +61,28 @@ export function parseIssueLabels(raw: string | null | undefined): IssueLabel[] {
   }
 }
 
+/**
+ * Labels del workspace como los ve quien mira (lib/track-access): los propios
+ * de un team solo si ve ese team, y los conteos solo con los issues que ve.
+ * Sin persona (cron, import del sistema) van todos.
+ */
 export async function listLabels(workspaceId: string, withCounts = false): Promise<TrackLabel[]> {
   const db = getDb();
+  const vis = await currentVisibleSql('p');
   const rows = (await db
-    .prepare('SELECT * FROM track_labels WHERE workspace_id = ? ORDER BY name COLLATE NOCASE ASC')
-    .all(workspaceId)) as TrackLabel[];
+    .prepare(
+      `SELECT l.* FROM track_labels l WHERE l.workspace_id = ?
+         AND (l.project_id IS NULL OR NOT EXISTS (SELECT 1 FROM track_projects p WHERE p.id = l.project_id AND NOT (${vis.sql})))
+       ORDER BY l.name COLLATE NOCASE ASC`,
+    )
+    .all(workspaceId, ...vis.args)) as TrackLabel[];
   if (!withCounts || rows.length === 0) return rows;
   const issues = (await db
     .prepare(
       `SELECT i.labels FROM track_issues i JOIN track_projects p ON p.id = i.project_id
-       WHERE COALESCE(p.team_id, p.owner_id) = ? AND i.labels != '[]'`,
+       WHERE COALESCE(p.team_id, p.owner_id) = ? AND i.labels != '[]' AND ${vis.sql}`,
     )
-    .all(workspaceId)) as Array<{ labels: string }>;
+    .all(workspaceId, ...vis.args)) as Array<{ labels: string }>;
   const counts = new Map<string, number>();
   for (const i of issues) for (const l of parseIssueLabels(i.labels)) counts.set(l.id, (counts.get(l.id) ?? 0) + 1);
   return rows.map((r) => ({ ...r, issue_count: counts.get(r.id) ?? 0 }));

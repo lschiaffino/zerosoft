@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireApiUser } from '@/lib/api-auth';
 import { createLabel, listLabels } from '@/lib/groups';
-import { v1Error, v1Json } from '@/lib/groups-v1';
+import { v1Error, v1Json, v1Viewer } from '@/lib/groups-v1';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   const auth = await requireApiUser(req, 'groups:read');
   if ('res' in auth) return auth.res;
-  return NextResponse.json({ data: await listLabels(auth.user.id) });
+  return NextResponse.json({ data: await listLabels(auth.user.id, await v1Viewer(auth)) });
 }
 
 /** POST /api/v1/groups/labels { name, color? } */

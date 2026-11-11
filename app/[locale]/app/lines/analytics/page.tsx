@@ -24,7 +24,7 @@ export default async function GroupsAnalyticsPage(props: { params: Promise<{ loc
   const viewer = await pageViewer(user);
   const [people, labels, numbers, groups] = await Promise.all([
     listPeople(user.id),
-    listLabels(user.id),
+    listLabels(user.id, viewer),
     listNumbers(user.id, viewer),
     listChats(user.id, viewer.me, { kind: 'group', limit: 200, viewer }),
   ]);

@@ -87,7 +87,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
       />
     );
   }
-  else if (tab === 'labels') body = <LabelsPanel initial={await listLabels(user.id)} />;
+  else if (tab === 'labels') body = <LabelsPanel initial={await listLabels(user.id, await pageViewer(user))} />;
   else if (tab === 'quick') body = <QuickRepliesPanel initial={await listQuickReplies(user.id)} />;
   else if (tab === 'properties') body = <PropertiesPanel initial={await listPropertyDefs(user.id)} canEdit={admin} />;
   else if (tab === 'ticketFields') body = <PropertiesPanel initial={await listPropertyDefs(user.id, 'ticket')} canEdit={admin} scope="ticket" />;

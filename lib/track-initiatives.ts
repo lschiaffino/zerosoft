@@ -5,7 +5,7 @@
  * sus plans en curso.
  */
 import { getDb } from './db';
-import { inScope, listPlans, listWorkspaceMembers, scopeWhere, type PlanSummary, type WorkspaceScope } from './track-plans';
+import { inScope, listPlans, listWorkspaceMembers, planningClosed, scopeWhere, type PlanSummary, type WorkspaceScope } from './track-plans';
 import type { HealthState } from './track-planning-core';
 import type { InitiativeCreatePayload, InitiativeStatus, InitiativeUpdatePayload } from './track-planning-schema';
 
@@ -61,7 +61,8 @@ export async function getInitiative(id: string): Promise<TrackInitiativeRow | un
 
 export async function getAccessibleInitiative(id: string, scope: WorkspaceScope): Promise<TrackInitiativeRow | undefined> {
   const row = await getInitiative(id);
-  return row && inScope(row, scope) ? row : undefined;
+  if (!row || !inScope(row, scope)) return undefined;
+  return (await planningClosed(scope)) ? undefined : row;
 }
 
 async function validParent(scope: WorkspaceScope, id: string | null | undefined, self?: string): Promise<string | null> {
@@ -164,6 +165,7 @@ export async function deleteInitiative(id: string): Promise<boolean> {
 /** Initiatives del workspace con plans, progreso agregado y salud. */
 export async function listInitiatives(scope: WorkspaceScope, opts: { ids?: string[]; q?: string } = {}): Promise<InitiativeSummary[]> {
   const db = getDb();
+  if (await planningClosed(scope)) return [];
   const s = scopeWhere(scope, 'i');
   const rows = (await db
     .prepare(

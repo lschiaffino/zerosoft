@@ -232,12 +232,23 @@ export async function updateFolder(ws: string, id: string, input: { name?: unkno
   }
 }
 
-/** Borra la carpeta y sus subcarpetas; los chats quedan sin carpeta (no se borran). */
-export async function deleteFolder(ws: string, id: string): Promise<boolean> {
+/**
+ * Borra la carpeta y sus subcarpetas; los chats quedan sin carpeta (no se borran).
+ * Con `viewer`, solo si ve todos los chats que hay adentro (como mover chats,
+ * que solo toca los que la persona ve): si no, 403 y no cambia nada.
+ */
+export async function deleteFolder(ws: string, id: string, viewer?: GroupsViewer): Promise<boolean> {
   const ids = await folderScope(ws, id);
   if (ids.length === 0) return false;
   const db = getDb();
   const marks = ids.map(() => '?').join(',');
+  const access = chatAccessSql(viewer, 'c');
+  if (access) {
+    const other = await db
+      .prepare(`SELECT 1 AS x FROM groups_chats c WHERE c.user_id = ? AND c.folder_id IN (${marks}) AND NOT (${access.sql}) LIMIT 1`)
+      .get(ws, ...ids, ...access.args);
+    if (other) throw new GroupsError('forbidden', 403);
+  }
   await db.prepare(`UPDATE groups_chats SET folder_id = NULL WHERE user_id = ? AND folder_id IN (${marks})`).run(ws, ...ids);
   await db.prepare(`DELETE FROM groups_folders WHERE user_id = ? AND id IN (${marks})`).run(ws, ...ids);
   return true;

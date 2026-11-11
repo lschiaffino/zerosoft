@@ -269,8 +269,9 @@ export async function promoteTaskToTrack(
     .prepare("SELECT id, subject, body, owner_id, priority, due_at FROM crm_activities WHERE id = ? AND user_id = ? AND type = 'task'")
     .get(taskId, ws)) as { id: string; subject: string; body: string; owner_id: string | null; priority: string | null; due_at: string | null } | undefined;
   if (!task) return { error: 'not_found' };
-  const existing = await linkedIssue(taskId);
-  if (existing) return { ...existing, created: false };
+  const person = user.actingUser?.id ?? user.id;
+  const existing = await linkedIssue(taskId, person);
+  if (existing) return existing.visible ? { issueId: existing.issueId, identifier: existing.identifier, created: false } : { error: 'not_found' };
   const { listProjectMetas, createIssue } = await import('./track-data');
   const projects = await listProjectMetas(user.team?.id ?? null, user.id);
   if (!projects.some((p) => p.id === projectId)) return { error: 'project_not_found' };
@@ -285,8 +286,8 @@ export async function promoteTaskToTrack(
   if (!claimed.changes) {
     // Otro pedido está creando el issue: esperar a que termine (unos segundos como mucho).
     for (let i = 0; i < 50; i++) {
-      const other = await linkedIssue(taskId);
-      if (other) return { ...other, created: false };
+      const other = await linkedIssue(taskId, person);
+      if (other) return other.visible ? { issueId: other.issueId, identifier: other.identifier, created: false } : { error: 'not_found' };
       const pending = await db.prepare("SELECT 1 FROM task_links WHERE task_id = ? AND kind = 'track_issue'").get(taskId);
       if (!pending) break;
       await new Promise((r) => setTimeout(r, 100));
@@ -316,14 +317,17 @@ export async function promoteTaskToTrack(
   }
 }
 
-async function linkedIssue(taskId: string): Promise<{ issueId: string; identifier: string } | null> {
+/** Issue vinculado a la tarea y si la persona ve su equipo (lib/track-access). */
+async function linkedIssue(taskId: string, person: string): Promise<{ issueId: string; identifier: string; visible: boolean } | null> {
+  const v = trackVisibleSql('p', person);
   const row = (await getDb()
     .prepare(
-      `SELECT i.id, i.identifier FROM task_links l JOIN track_issues i ON i.id = l.ref_id
+      `SELECT i.id, i.identifier, ${v.sql} AS visible FROM task_links l JOIN track_issues i ON i.id = l.ref_id
+       JOIN track_projects p ON p.id = i.project_id
        WHERE l.task_id = ? AND l.kind = 'track_issue' LIMIT 1`,
     )
-    .get(taskId)) as { id: string; identifier: string } | undefined;
-  return row ? { issueId: row.id, identifier: row.identifier } : null;
+    .get(...v.args, taskId)) as { id: string; identifier: string; visible: number } | undefined;
+  return row ? { issueId: row.id, identifier: row.identifier, visible: Boolean(row.visible) } : null;
 }
 
 /** Tareas vinculadas a un issue de Track (para mostrarlas en el issue). */
