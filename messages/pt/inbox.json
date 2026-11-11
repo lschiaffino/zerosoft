@@ -1,5 +1,6 @@
 {
   "panels": { "list": "Mudar a largura da lista de conversas", "details": "Mudar a largura da info do contato", "hint": "Arraste para mudar a largura. Clique duas vezes para voltar ao original." },
+  "rowMenu": { "label": "Opções de {name}", "newWindow": "Abrir em outra janela", "archive": "Arquivar conversa", "unarchive": "Desarquivar conversa", "pin": "Fixar conversa", "unpin": "Desafixar conversa", "mute": "Silenciar notificações", "unmute": "Ativar notificações", "move": "Adicionar a uma pasta", "contactInfo": "Dados do contato", "groupInfo": "Dados do grupo" },
   "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Concluídos", "compose": "Nova mensagem" },
   "views": {
     "inbox": "Caixa de entrada",

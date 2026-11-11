@@ -8,6 +8,7 @@ import { listTime } from '@/components/groups/wa/format';
 import { plainWa } from '@/components/groups/wa/rich';
 import { CameraIcon, DocIcon, MapPin, Mic, MusicIcon, MuteIcon, Person, PhotoIcon, PinIcon, PollIcon, Smiley, Ticks } from '@/components/groups/wa/icons';
 import { chatName, previewKind, previewText, type PreviewKind } from './util';
+import { useDraft } from '@/components/ui/useDraft';
 
 const KIND_ICON: Record<Exclude<PreviewKind, ''>, (p: { size?: number }) => ReactNode> = {
   image: PhotoIcon,
@@ -48,6 +49,8 @@ export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra
   const unread = th.unread > 0;
   const muted = !!th.mutedUntil;
   const typing = th.presence === 'typing' || th.presence === 'recording';
+  // Lo que se acaba de escribir en el composer, sin esperar a que se guarde (lib/draft-store.ts).
+  const draft = useDraft('inbox', th.id, th.draft);
   return (
     <>
       <Avatar name={name} kind={th.kind === 'group' ? 'group' : 'dm'} src={th.avatar || undefined} seed={th.id} />
@@ -63,10 +66,10 @@ export default function ChatRow({ th, extra, timeLabel }: { th: ThreadDto; extra
             {extra}
             {typing ? (
               <span className="wa-row-typing">{w(th.presence === 'recording' ? 'recording' : 'typing')}</span>
-            ) : th.draft ? (
+            ) : draft ? (
               <>
                 <span className="wa-row-draft">{t('list.draft')}</span>
-                <span className="wa-row-text">{th.draft}</span>
+                <span className="wa-row-text">{draft}</span>
               </>
             ) : (
               <>

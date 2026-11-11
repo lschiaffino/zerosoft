@@ -1656,7 +1656,11 @@
     "lineDropped": "{name} perdeu a conexão com o WhatsApp. As mensagens novas não chegam até você reconectar.",
     "line": "Sua linha",
     "rescan": "Escanear o QR de novo",
-    "reconnect": "Reconectar"
+    "reconnect": "Reconectar",
+    "openNewWindow": "Abrir em outra janela",
+    "contactInfo": "Dados do contato",
+    "groupInfo": "Dados do grupo",
+    "exportChat": "Exportar conversa"
   },
   "swipe": {
     "read": "Lida",

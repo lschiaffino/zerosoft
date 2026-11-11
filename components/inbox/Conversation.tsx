@@ -140,6 +140,8 @@ const Conversation = forwardRef<
     folders: FolderDto[];
     snippets: SnippetDto[];
     connected: boolean;
+    /** Se está abriendo otro chat (esta conversación es la anterior hasta que llegue). */
+    paused?: boolean;
     onBack: () => void;
     onAction: (action: string) => void;
     onSent: (messages: MessageDto[]) => void;
@@ -149,7 +151,7 @@ const Conversation = forwardRef<
     onError: (code: string) => void;
     loadOlder: () => Promise<void>;
   }
->(function Conversation({ detail, folders, snippets, connected, onBack, onAction, onSent, onSendLater, onScheduledChange, onRename, onError, loadOlder }, composerRef) {
+>(function Conversation({ detail, folders, snippets, connected, paused, onBack, onAction, onSent, onSendLater, onScheduledChange, onRename, onError, loadOlder }, composerRef) {
   const t = useTranslations('inbox');
   const locale = useLocale();
   const { thread, messages, scheduled } = detail;
@@ -338,7 +340,7 @@ const Conversation = forwardRef<
         })}
       </div>
       <ScheduledList thread={thread} scheduled={scheduled} connected={connected} onChange={onScheduledChange} onError={onError} />
-      <Composer ref={composerRef} thread={thread} snippets={snippets} disabled={!connected} onSent={onSent} onSendLater={onSendLater} onError={onError} />
+      <Composer key={thread.id} ref={composerRef} thread={thread} snippets={snippets} disabled={!connected} paused={paused} onSent={onSent} onSendLater={onSendLater} onError={onError} />
     </section>
   );
 });

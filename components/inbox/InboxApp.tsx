@@ -23,6 +23,7 @@ import { inboxUrl, parseInboxPath, type InboxRoute } from './nav';
 import Avatar from '@/components/groups/wa/Avatar';
 import { chatName } from './wa/util';
 import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
+import { ContextMenu, openInNewWindow, useRowContextMenu, type ContextMenuItem } from '@/components/ui/ContextMenu';
 import { dragIds } from '@/lib/chat-gestures';
 import { flattenTree } from '@/lib/inbox/folder-tree';
 import Conversation from './Conversation';
@@ -165,8 +166,13 @@ export default function InboxApp(props: {
   const [moreConfirm, setMoreConfirm] = useState(false);
   const moreActionRef = useRef<(a: MoreAction) => Promise<void>>(async () => {});
   const [infoOpen, setInfoOpen] = useState(false);
-  // Otro chat: el panel de info se cierra (como en WhatsApp Web).
-  useEffect(() => setInfoOpen(false), [openId]);
+  // "Info del contacto" desde el menú de una fila: el chat se abre con el panel a la vista.
+  const infoFor = useRef<string | null>(null);
+  // Otro chat: el panel de info se cierra (como en WhatsApp Web), salvo que se haya pedido.
+  useEffect(() => {
+    setInfoOpen(!!openId && infoFor.current === openId);
+    infoFor.current = null;
+  }, [openId]);
   const [compose, setCompose] = useState(props.composeOnLoad);
   const [help, setHelp] = useState(false);
   // Vincular WhatsApp con QR desde la bandeja vacía, sin pasar por Ajustes.
@@ -842,6 +848,68 @@ export default function InboxApp(props: {
       ],
     };
   };
+  /**
+   * Clic derecho sobre un chat (o la tecla de menú), como WhatsApp: las
+   * mismas acciones de "Más", del deslizado y de los atajos, en el puntero.
+   */
+  const rowMenu = useRowContextMenu();
+  const rowMenuItems = (id: string): ContextMenuItem[] => {
+    const th = threads.find((x) => x.id === id);
+    if (!th) return [];
+    const mute = (until: string | null) => void runAction([id], { action: 'mute', until });
+    const hours = (h: number) => new Date(Date.now() + h * 3600_000).toISOString();
+    const items: ContextMenuItem[] = [
+      {
+        key: 'newWindow',
+        label: t('rowMenu.newWindow'),
+        onSelect: () => {
+          const url = new URL(window.location.href);
+          url.searchParams.set('t', id);
+          openInNewWindow(url.pathname + url.search);
+        },
+      },
+      { key: 'unread', label: th.unread > 0 ? t('more.read') : t('more.unread'), onSelect: () => void runAction([id], { action: th.unread > 0 ? 'read' : 'unread' }) },
+      { key: 'archive', label: th.archived ? t('rowMenu.unarchive') : t('rowMenu.archive'), onSelect: () => void runAction([id], { action: th.archived ? 'unarchive' : 'archive' }) },
+      { key: 'pin', label: th.pinned ? t('rowMenu.unpin') : t('rowMenu.pin'), onSelect: () => void runAction([id], { action: th.pinned ? 'unpin' : 'pin' }) },
+      th.mutedUntil
+        ? { key: 'unmute', label: t('rowMenu.unmute'), onSelect: () => mute(null) }
+        : {
+            key: 'mute',
+            label: t('rowMenu.mute'),
+            submenu: [
+              { key: 'mute8h', label: t('more.mute8h'), onSelect: () => mute(hours(8)) },
+              { key: 'muteWeek', label: t('more.muteWeek'), onSelect: () => mute(hours(168)) },
+            ],
+          },
+      { key: 'move', label: t('rowMenu.move'), onSelect: () => setMoveIds([id]) },
+    ];
+    if (th.channel === 'whatsapp') {
+      items.push({
+        key: 'info',
+        label: th.kind === 'group' ? t('rowMenu.groupInfo') : t('rowMenu.contactInfo'),
+        divider: true,
+        onSelect: () => {
+          if (openId === id) setInfoOpen(true);
+          else {
+            infoFor.current = id;
+            open(id);
+          }
+        },
+      });
+    }
+    items.push({
+      key: 'delete',
+      label: t('more.delete'),
+      danger: true,
+      divider: th.channel !== 'whatsapp',
+      onSelect: () => {
+        setMoreFor(id);
+        setMoreConfirm(true);
+        setMoreOpen(true);
+      },
+    });
+    return items;
+  };
   const openMoreFor = (id: string) => {
     setMoreFor(id);
     setMoreConfirm(false);
@@ -880,6 +948,7 @@ export default function InboxApp(props: {
         data-idx={i}
         className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}
         {...gestures.rowProps(th.id)}
+        {...rowMenu.handlers(th.id, t('rowMenu.label', { name: chatName(th, w('group')) }), selected.size === 0)}
       >
         {gestures.actions(th.id)}
         <input
@@ -1166,6 +1235,7 @@ export default function InboxApp(props: {
             folders={state.folders}
             snippets={state.snippets}
             connected={detailAccount?.status === 'connected'}
+            paused={!!openId && detail.thread.id !== openId}
             threads={threads}
             infoOpen={infoOpen}
             onBack={closeConvo}
@@ -1202,6 +1272,7 @@ export default function InboxApp(props: {
             folders={state.folders}
             snippets={state.snippets}
             connected={detailAccount?.status === 'connected'}
+            paused={!!openId && detail.thread.id !== openId}
             onBack={closeConvo}
             onAction={act}
             onSent={(messages: MessageDto[]) => {
@@ -1349,6 +1420,7 @@ export default function InboxApp(props: {
         }}
       />
       {gestures.layer}
+      <ContextMenu anchor={rowMenu.open?.anchor ?? null} items={rowMenu.open ? rowMenuItems(rowMenu.open.id) : []} onClose={rowMenu.close} />
       <div className="ui-toasts" role="status" aria-live="polite">
         {toasts.map((x) => (
           <div key={x.id} className={`ui-toast${x.bad ? ' ui-toast-bad' : ''} ib-toast`}>
