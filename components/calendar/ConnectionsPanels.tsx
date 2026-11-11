@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import FormSection from '@/components/ui/FormSection';
 import { Link } from '@/i18n/navigation';
 import CalCopyButton from './CalCopyButton';
+import { useRefetchOnReturn } from '@/lib/use-refetch-on-return';
 
 interface ExternalCalendar {
   id: string;
@@ -103,6 +104,10 @@ export function CalendarConnectionsPanel({
   useEffect(() => {
     void load();
   }, [load]);
+  // Conectar pasa en otra pestaña o en el navegador del sistema (app de escritorio): al volver se actualiza.
+  // Solo después de tocar Conectar: recargar pisa lo que se está eligiendo sin guardar.
+  const [awaiting, setAwaiting] = useState(false);
+  useRefetchOnReturn(load, awaiting);
 
   async function disconnect(provider: Provider) {
     setBusy(provider);
@@ -219,6 +224,7 @@ export function CalendarConnectionsPanel({
                       className="btn btn-sm btn-primary"
                       onClick={() => {
                         // Navegación completa: el endpoint redirige al consentimiento del proveedor.
+                        setAwaiting(true);
                         window.location.href = START[p.key as Exclude<Provider, 'icloud'>];
                       }}
                     >
@@ -281,7 +287,7 @@ export function CalendarConnectionsPanel({
                 {st.connected && st.needsReconnect && p.key !== 'icloud' && (
                   <p className="ui-help">
                     {t('connections.reconnect')}{' '}
-                    <a className="cal-inline-link" href={START[p.key as Exclude<Provider, 'icloud'>]}>
+                    <a className="cal-inline-link" href={START[p.key as Exclude<Provider, 'icloud'>]} onClick={() => setAwaiting(true)}>
                       {t('connections.reconnectCta')}
                     </a>
                   </p>

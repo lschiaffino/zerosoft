@@ -6,6 +6,7 @@ import { connectFakeGmail, gmailAvailable, inboxFakeAllowed, inboxGmailAuthUrl, 
 import { iJson, parseBody, withOwner } from '@/lib/inbox/http';
 import { InboxError } from '@/lib/inbox/types';
 import { z } from 'zod';
+import { signInToConnect } from '@/lib/oauth-signin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,7 +20,7 @@ export const maxDuration = 60;
 export async function GET(req: Request) {
   if (delegatedIdentity()) return iJson({ error: 'unauthorized' }, 401);
   const user = await getCurrentUser();
-  if (!user) return iJson({ error: 'unauthorized' }, 401);
+  if (!user) return signInToConnect(req);
   const owner = realUserId(user);
   const settings = new URL('/app/inbox/settings', req.url);
   if (inboxFakeAllowed()) {

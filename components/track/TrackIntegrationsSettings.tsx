@@ -18,6 +18,7 @@ import type { TrackGuest, ProjectAccessMember } from '@/lib/track-access';
 import { CopyField } from './TrackSettingsClient';
 import WorkspaceInviteForm from './WorkspaceInviteForm';
 import LinearSyncSettings from './LinearSyncSettings';
+import { useRefetchOnReturn } from '@/lib/use-refetch-on-return';
 
 async function send<T>(url: string, method: string, body?: unknown): Promise<{ ok: boolean; status: number; data: T }> {
   const res = await fetch(url, {
@@ -112,6 +113,8 @@ export function IntegrationsSettings({ locale }: { locale: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+  // Conectar pasa en otra pestaña o en el navegador del sistema (app de escritorio): al volver se actualiza.
+  useRefetchOnReturn(load, !!data && !data.slack.connection);
 
   if (failed) {
     return (

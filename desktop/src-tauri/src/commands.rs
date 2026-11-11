@@ -216,7 +216,11 @@ fn settings_remote_script(server: &str) -> String {
 fn settings_route(app: &AppHandle, u: &url::Url) -> bool {
     use crate::nav::SettingsNav;
     match crate::nav::classify_settings(u, &api::server(app)) {
-        SettingsNav::Local | SettingsNav::Web => true,
+        SettingsNav::Local => true,
+        SettingsNav::Web => {
+            crate::remember_nav(app, u);
+            true
+        }
         SettingsNav::Native(tab) => {
             let app2 = app.clone();
             let _ = app.run_on_main_thread(move || {
@@ -236,6 +240,10 @@ fn settings_route(app: &AppHandle, u: &url::Url) -> bool {
         }
         SettingsNav::GoogleLogin => {
             crate::auth::begin_login(app);
+            false
+        }
+        SettingsNav::Connect => {
+            crate::open_connect(app, u);
             false
         }
         SettingsNav::External => {

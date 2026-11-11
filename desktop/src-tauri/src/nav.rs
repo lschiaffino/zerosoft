@@ -1,13 +1,32 @@
 //! Navegación de la ventana principal (puro): adentro solo el origen exacto del servidor; el login
-//! de Google va por el navegador del sistema (PKCE, auth.rs); el resto de http(s), mailto y tel
-//! al navegador; cualquier otro esquema se bloquea.
+//! de Google va por el navegador del sistema (PKCE, auth.rs); conectar una cuenta (el OAuth de una
+//! integración: Gmail, Calendar, Microsoft, Slack, Notion, Linear…) también va por el navegador,
+//! empezando por la ruta de inicio del servidor; el resto de http(s), mailto y tel al navegador;
+//! cualquier otro esquema se bloquea.
+
+use std::time::Duration;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Nav {
     Allow,
+    /// Entrar a la app con Google (next-auth): auth.rs.
     GoogleLogin,
+    /// El consentimiento OAuth de una integración que vuelve a un callback del servidor. No es un
+    /// login: se abre en el navegador la ruta de inicio que llevó hasta acá (`connect_start`).
+    Connect,
     External,
     Block,
+}
+
+/// Callback del login con Google (next-auth). Cualquier otro redirect_uri es una integración.
+const LOGIN_CALLBACK: &str = "/api/auth/callback/google";
+
+/// Cuánto vale la última navegación propia como "ruta de inicio" del redirect que la sigue.
+pub const CONNECT_START_TTL: Duration = Duration::from_secs(30);
+
+fn redirect_uri(target: &url::Url) -> Option<url::Url> {
+    let raw = target.query_pairs().find(|(k, _)| k == "redirect_uri")?.1;
+    url::Url::parse(&raw).ok().filter(|u| matches!(u.scheme(), "http" | "https"))
 }
 
 fn origin(u: &url::Url) -> String {
@@ -25,10 +44,36 @@ pub fn classify(target: &url::Url, server: &str) -> Nav {
         return Nav::Allow;
     }
     let host = target.host_str().unwrap_or("");
+    let back = redirect_uri(target);
     if host == "accounts.google.com" || host.ends_with(".accounts.google.com") {
-        return Nav::GoogleLogin;
+        // Sin redirect_uri reconocible queda como login (lo de siempre).
+        return match back {
+            Some(b) if b.path() != LOGIN_CALLBACK => Nav::Connect,
+            _ => Nav::GoogleLogin,
+        };
     }
-    Nav::External
+    // Otro proveedor que vuelve a un callback de este servidor: también es conectar una cuenta.
+    match back {
+        Some(b) if origin(&b) == server => Nav::Connect,
+        _ => Nav::External,
+    }
+}
+
+/// La ruta de inicio a abrir en el navegador del sistema para un `Nav::Connect`: la última
+/// navegación que se dejó pasar, si es reciente, del servidor y una ruta de API (las de inicio de
+/// OAuth lo son: ponen la cookie de state y redirigen al proveedor). El state se valida contra esa
+/// cookie, así que todo el recorrido tiene que pasar en el mismo navegador. Nunca devuelve una URL
+/// de otro origen ni las rutas de next-auth.
+pub fn connect_start(last: Option<(&url::Url, Duration)>, server: &str) -> Option<String> {
+    let (u, age) = last?;
+    if age > CONNECT_START_TTL || !matches!(u.scheme(), "http" | "https") || origin(u) != server {
+        return None;
+    }
+    let path = u.path();
+    if !path.starts_with("/api/") || path.starts_with("/api/auth/") {
+        return None;
+    }
+    Some(u.to_string())
 }
 
 /// Navegación de la ventana de Ajustes: la página local (secciones nativas), las rutas de ajustes
@@ -45,6 +90,7 @@ pub enum SettingsNav {
     /// Otra página de la app: a la ventana principal (path con query).
     Main(String),
     GoogleLogin,
+    Connect,
     External,
     Block,
 }
@@ -107,6 +153,7 @@ pub fn classify_settings(target: &url::Url, server: &str) -> SettingsNav {
             }
         }
         Nav::GoogleLogin => SettingsNav::GoogleLogin,
+        Nav::Connect => SettingsNav::Connect,
         Nav::External => SettingsNav::External,
         Nav::Block => SettingsNav::Block,
     }
@@ -137,12 +184,57 @@ mod tests {
         assert_eq!(c("https://zerosoft.ai.evil.com/app"), Nav::External);
         assert_eq!(c("http://zerosoft.ai/app"), Nav::External);
         assert_eq!(c("https://accounts.google.com/o/oauth2/v2/auth?x=1"), Nav::GoogleLogin);
+        assert_eq!(c("https://accounts.google.com/o/oauth2/v2/auth?client_id=x&redirect_uri=https%3A%2F%2Fzerosoft.ai%2Fapi%2Fauth%2Fcallback%2Fgoogle&state=s"), Nav::GoogleLogin);
         assert_eq!(c("https://example.com/docs"), Nav::External);
         assert_eq!(c("mailto:a@b.c"), Nav::External);
         assert_eq!(c("file:///etc/passwd"), Nav::Block);
         assert_eq!(c("javascript:alert(1)"), Nav::Block);
         assert_eq!(c("about:blank"), Nav::Allow);
         assert_eq!(classify(&url::Url::parse("http://localhost:3210/app").unwrap(), "http://localhost:3210"), Nav::Allow);
+    }
+
+    fn urlencode(s: &str) -> String {
+        url::form_urlencoded::byte_serialize(s.as_bytes()).collect()
+    }
+
+    #[test]
+    fn connect_is_not_login() {
+        // Gmail (CRM e Inbox), Calendar y YouTube: Google, pero con el callback de la integración.
+        for cb in ["/api/integrations/gmail/callback", "/api/integrations/google-calendar/callback", "/api/social/oauth/callback"] {
+            let u = format!("https://accounts.google.com/o/oauth2/v2/auth?client_id=x&redirect_uri={}&state=s", urlencode(&format!("{S}{cb}")));
+            assert_eq!(c(&u), Nav::Connect, "{cb}");
+        }
+        // Otros proveedores que vuelven a este servidor.
+        assert_eq!(c("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?redirect_uri=https%3A%2F%2Fzerosoft.ai%2Fapi%2Fintegrations%2Foutlook%2Fcallback"), Nav::Connect);
+        assert_eq!(c("https://slack.com/oauth/v2/authorize?state=s&redirect_uri=https%3A%2F%2Fzerosoft.ai%2Fapi%2Ftrack%2Fslack%2Fcallback"), Nav::Connect);
+        assert_eq!(c("https://api.notion.com/v1/oauth/authorize?redirect_uri=https%3A%2F%2Fzerosoft.ai%2Fapi%2Fintegrations%2Fnotion%2Fcallback"), Nav::Connect);
+        assert_eq!(c("https://linear.app/oauth/authorize?redirect_uri=https%3A%2F%2Fzerosoft.ai%2Fapi%2Fintegrations%2Flinear%2Fcallback"), Nav::Connect);
+        // Un redirect_uri de otro sitio, roto o de otro esquema es un link externo cualquiera.
+        assert_eq!(c("https://slack.com/oauth/v2/authorize?redirect_uri=https%3A%2F%2Fevil.com%2Fapi%2Fx"), Nav::External);
+        assert_eq!(c("https://slack.com/oauth/v2/authorize?redirect_uri=https%3A%2F%2Fzerosoft.ai.evil.com%2Fapi%2Fx"), Nav::External);
+        assert_eq!(c("https://slack.com/oauth/v2/authorize?redirect_uri=nope"), Nav::External);
+        assert_eq!(c("https://slack.com/oauth/v2/authorize?redirect_uri=javascript%3Aalert(1)"), Nav::External);
+        assert_eq!(c("https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=nope"), Nav::GoogleLogin);
+        // El origen propio siempre va adentro, tenga el parámetro que tenga.
+        assert_eq!(c("https://zerosoft.ai/api/inbox/gmail?redirect_uri=https%3A%2F%2Fzerosoft.ai%2Fx"), Nav::Allow);
+    }
+
+    #[test]
+    fn connect_start_only_own_api_routes() {
+        let s = |u: &str, secs: u64| connect_start(Some((&url::Url::parse(u).unwrap(), Duration::from_secs(secs))), S);
+        assert_eq!(s("https://zerosoft.ai/api/inbox/gmail", 0), Some("https://zerosoft.ai/api/inbox/gmail".into()));
+        assert_eq!(
+            s("https://zerosoft.ai/api/integrations/gmail/start?return=%2Fes%2Fapp%2Fwelcome", 2),
+            Some("https://zerosoft.ai/api/integrations/gmail/start?return=%2Fes%2Fapp%2Fwelcome".into())
+        );
+        // Vieja, una página (no una ruta de inicio), next-auth u otro origen: nada.
+        assert_eq!(s("https://zerosoft.ai/api/inbox/gmail", 31), None);
+        assert_eq!(s("https://zerosoft.ai/es/app/social/accounts", 0), None);
+        assert_eq!(s("https://zerosoft.ai/api/auth/signin/google", 0), None);
+        assert_eq!(s("https://evil.com/api/inbox/gmail", 0), None);
+        assert_eq!(s("http://zerosoft.ai/api/inbox/gmail", 0), None);
+        assert_eq!(s("about:blank", 0), None);
+        assert_eq!(connect_start(None, S), None);
     }
 
     #[test]
@@ -162,6 +254,7 @@ mod tests {
         assert_eq!(c("https://zerosoft.ai/es/app/settingsx"), SettingsNav::Main("/es/app/settingsx".into()));
         assert_eq!(c("https://example.com/app/settings"), SettingsNav::External);
         assert_eq!(c("https://accounts.google.com/o"), SettingsNav::GoogleLogin);
+        assert_eq!(c("https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=https%3A%2F%2Fzerosoft.ai%2Fapi%2Fintegrations%2Fgmail%2Fcallback"), SettingsNav::Connect);
         assert_eq!(c("file:///etc/passwd"), SettingsNav::Block);
         assert_eq!(c("tauri://evil/settings.html"), SettingsNav::Block);
     }

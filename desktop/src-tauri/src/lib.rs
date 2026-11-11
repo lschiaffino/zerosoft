@@ -6,7 +6,8 @@
 //! Seguridad: la página remota solo ve `window.zerosoftDesktop` (script de inicio que se activa
 //! con el origen del servidor) y solo puede llamar a los comandos del puente (capabilities); cada
 //! comando revisa además la ventana y el origen. Navegación estricta (nav.rs): Google va por el
-//! navegador del sistema con PKCE (auth.rs); otros sitios, al navegador.
+//! navegador del sistema con PKCE (auth.rs); conectar una cuenta (OAuth de una integración) abre
+//! su ruta de inicio en el navegador; otros sitios, al navegador.
 
 mod api;
 mod audio;
@@ -216,12 +217,38 @@ pub(crate) fn bridge_script(server: &str, version: &str) -> String {
     )
 }
 
+/// Una navegación propia que se dejó pasar: si lo que sigue es el redirect al consentimiento de
+/// un proveedor, esta es la ruta de inicio (nav::connect_start).
+pub(crate) fn remember_nav(app: &AppHandle, u: &url::Url) {
+    if matches!(u.scheme(), "http" | "https") {
+        *app.state::<AppState>().last_nav.lock().unwrap() = Some((u.clone(), Instant::now()));
+    }
+}
+
+/// Conectar una cuenta (nav::Nav::Connect): Google y otros proveedores no dejan hacer OAuth en un
+/// webview, y el callback valida el state contra una cookie que pone la ruta de inicio. Por eso se
+/// abre en el navegador del sistema la ruta de inicio del servidor (no la URL del proveedor): todo
+/// el recorrido pasa ahí. Sin ruta de inicio conocida (el state vive en el servidor, como en
+/// Social) se abre la URL del proveedor, como cualquier link externo.
+pub(crate) fn open_connect(app: &AppHandle, provider: &url::Url) {
+    let last = app.state::<AppState>().last_nav.lock().unwrap().take();
+    let start = nav::connect_start(last.as_ref().map(|(u, at)| (u, at.elapsed())), &api::server(app));
+    let _ = app.opener().open_url(start.as_deref().unwrap_or(provider.as_str()), None::<&str>);
+}
+
 /// true = navegar adentro. El resto lo maneja acá (navegador del sistema o login).
 pub(crate) fn route(app: &AppHandle, u: &url::Url) -> bool {
     match nav::classify(u, &api::server(app)) {
-        nav::Nav::Allow => true,
+        nav::Nav::Allow => {
+            remember_nav(app, u);
+            true
+        }
         nav::Nav::GoogleLogin => {
             auth::begin_login(app);
+            false
+        }
+        nav::Nav::Connect => {
+            open_connect(app, u);
             false
         }
         nav::Nav::External => {
@@ -329,6 +356,7 @@ pub fn run() {
                 recording: Mutex::new(None),
                 http: api::client(),
                 auth: Mutex::new(None),
+                last_nav: Mutex::new(None),
                 shortcut_taken: AtomicBool::new(false),
                 badge_since: Mutex::new(None),
                 disabled_apps: Mutex::new(Vec::new()),

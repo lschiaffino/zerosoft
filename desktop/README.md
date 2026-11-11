@@ -30,6 +30,12 @@ stderr `zs-timing main_window_created_ms` y `first_page_loaded_ms`, y la memoria
   `zerosoft://auth/callback` y se canjea en `POST /api/desktop/token`; la cookie de sesión va al cookie
   store del webview, que la guarda. La app no guarda una copia propia del token: para sus pedidos lee la
   cookie del webview (`src/api.rs`, `src/auth.rs`).
+- **Conectar cuentas** (desde la 0.3.5): el OAuth de una integración (Gmail, Calendar, Outlook, Notion,
+  Slack, Linear) no es un login. Cuando la ruta de inicio del servidor redirige al proveedor, la app
+  corta esa navegación y abre **la ruta de inicio** en el navegador del sistema (`src/nav.rs`,
+  `Nav::Connect` y `connect_start`): el callback valida el `state` contra una cookie que pone esa ruta,
+  así que todo el recorrido pasa en el mismo navegador. Si ahí no hay sesión, la ruta manda al login y
+  vuelve (`lib/oauth-signin.ts`). La cuenta queda conectada para quien tenga la sesión en ese navegador.
 - **Deep links** `zerosoft://open?path=/app/talk` (validados campo por campo, `src/deeplink.rs`).
 - **Puente con la página** (`window.zerosoftDesktop`): versión, plataforma, `startLogin`, `openSettings` y
   `notify`, más un `window.Notification` que manda avisos nativos. Solo existe con el origen del

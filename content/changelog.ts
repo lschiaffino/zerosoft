@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-desktop-connect-accounts',
+    date: '2026-11-11',
+    title: {
+      en: 'Connecting Gmail and other accounts works from the desktop app',
+      es: 'Conectar Gmail y otras cuentas funciona desde la app de escritorio',
+      pt: 'Conectar o Gmail e outras contas funciona pelo app para desktop',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'In the desktop app (version 0.3.5), Connect Gmail in Inbox opens the Google permission screen in your browser. Before, the app treated it as signing in to zerosoft again and the account was never connected. Gmail and Outlook in CRM, Google Calendar and Outlook in Cal, Notion in Docs, and Slack and Linear in Track now connect the same way, in your browser.',
+        es: 'En la app de escritorio (versión 0.3.5), Conectar Gmail en Inbox abre la pantalla de permisos de Google en tu navegador. Antes la app lo tomaba como volver a entrar a zerosoft y la cuenta nunca quedaba conectada. Gmail y Outlook en CRM, Google Calendar y Outlook en Cal, Notion en Docs, y Slack y Linear en Track ahora se conectan igual, en tu navegador.',
+        pt: 'No app para desktop (versão 0.3.5), Conectar Gmail no Inbox abre a tela de permissões do Google no seu navegador. Antes o app tratava isso como entrar de novo no zerosoft e a conta nunca ficava conectada. Gmail e Outlook no CRM, Google Calendar e Outlook no Cal, Notion no Docs, e Slack e Linear no Track agora se conectam do mesmo jeito, no seu navegador.',
+      },
+      {
+        product: 'platform',
+        en: 'If your browser is not signed in to zerosoft when you connect an account, it asks you to sign in and then continues with the connection, instead of showing an error.',
+        es: 'Si tu navegador no tiene la sesión de zerosoft iniciada cuando conectás una cuenta, te pide entrar y después sigue con la conexión, en vez de mostrar un error.',
+        pt: 'Se o seu navegador não está com a sessão do zerosoft iniciada quando você conecta uma conta, ele pede para entrar e depois continua com a conexão, em vez de mostrar um erro.',
+      },
+      {
+        product: 'platform',
+        en: 'When you come back to the settings page after connecting an account in another window, the account shows up without reloading.',
+        es: 'Cuando volvés a la página de ajustes después de conectar una cuenta en otra ventana, la cuenta aparece sin recargar.',
+        pt: 'Quando você volta para a página de ajustes depois de conectar uma conta em outra janela, a conta aparece sem recarregar.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-rec-desktop-controls',
     date: '2026-11-10',
     title: {
