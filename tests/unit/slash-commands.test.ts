@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildSlashView,
@@ -304,5 +306,42 @@ describe('borrar el comando sin tocar el resto', () => {
   it('replaceRange deja el cursor después de lo insertado', () => {
     expect(replaceRange('a /x b', 2, 4, 'hola')).toEqual({ text: 'a hola b', caret: 6 });
     expect(replaceRange('/asi', 0, 4, '/asignar ')).toEqual({ text: '/asignar ', caret: 9 });
+  });
+});
+
+describe('los nombres de los comandos en los tres idiomas', () => {
+  type Entry = { name: string; desc: string; keys: string };
+  const load = (locale: string, file: string): Record<string, unknown> => JSON.parse(readFileSync(join(process.cwd(), 'messages', locale, `${file}.json`), 'utf8'));
+  const entries = (tree: unknown): Array<[string, Entry]> => Object.entries(tree as Record<string, Entry>).filter(([, v]) => typeof v === 'object' && v !== null && 'name' in v);
+
+  for (const locale of ['en', 'es', 'pt']) {
+    const ai = entries((load(locale, 'common').slash as { aiCommands: unknown }).aiCommands);
+    const lines = entries(load(locale, 'groups').slash);
+    const inbox = entries(load(locale, 'inbox').slash);
+
+    it(`${locale}: se pueden escribir después de "/" (una palabra, sin "/", cortos) y traen descripción`, () => {
+      for (const [id, e] of [...ai, ...lines, ...inbox]) {
+        expect(e.name, id).toMatch(/^[^\s/]+$/);
+        expect(e.name.length, id).toBeLessThanOrEqual(32);
+        expect(slashTokenAt(`/${e.name}`, e.name.length + 1), id).toMatchObject({ name: e.name });
+        expect(e.desc.trim(), id).not.toBe('');
+      }
+    });
+
+    it(`${locale}: no se repiten dentro de una app`, () => {
+      // En Lines, "traducir" junta el del chat y el de la AI en un solo comando.
+      const linesNames = [...lines, ...ai.filter(([id]) => id !== 'translate')].map(([, e]) => fold(e.name));
+      const inboxNames = [...inbox, ...ai].map(([, e]) => fold(e.name));
+      expect(linesNames.filter((n, i) => linesNames.indexOf(n) !== i)).toEqual([]);
+      expect(inboxNames.filter((n, i) => inboxNames.indexOf(n) !== i)).toEqual([]);
+    });
+  }
+
+  it('las tres lenguas tienen los mismos comandos', () => {
+    const ids = (locale: string, file: string) => Object.keys(load(locale, file).slash as object).sort();
+    for (const file of ['groups', 'inbox']) {
+      expect(ids('es', file)).toEqual(ids('en', file));
+      expect(ids('pt', file)).toEqual(ids('en', file));
+    }
   });
 });

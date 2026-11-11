@@ -31,7 +31,7 @@
   text-align: left;
 }
 .slash-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px; overscroll-behavior: contain; }
-.slash-section { margin: 0; padding: 8px 10px 4px; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--slash-ink-2); }
+.slash-section { margin: 0; padding: 8px 10px 4px; font-size: 0.75rem; font-weight: 600; color: var(--slash-ink-2); }
 .slash-group + .slash-group { margin-top: 2px; border-top: 1px solid var(--slash-line); }
 .slash-item { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border-radius: var(--radius-1); cursor: pointer; scroll-margin: 28px 0 4px; }
 .slash-item.is-active { background: var(--slash-hover); }
@@ -45,6 +45,7 @@
 .slash-check { flex: none; font-size: 0.875rem; color: var(--slash-ink-2); }
 .slash-dot { display: inline-flex; }
 .slash-dot i { display: block; width: 10px; height: 10px; border-radius: 1px; }
+:where(.slash-dot) i { background: var(--slash-ink-2); }
 .slash-head { display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 8px 10px 6px; font-size: 0.8125rem; }
 .slash-head strong { flex: none; font-weight: 600; }
 .slash-head span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--slash-ink-2); }
