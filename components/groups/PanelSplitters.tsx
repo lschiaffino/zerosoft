@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import PanelSplitter from '@/components/ui/PanelSplitter';
 import { LINES_LAYOUT, linesPanelMode, linesPanelsKey, parseSavedPanels, resolveLinesPanels, type LinesPanelMode, type PanelsLayout, type SavedPanels } from '@/lib/groups-panels';
 
@@ -30,11 +29,10 @@ export default function PanelSplitters({
   layout?: PanelsLayout;
   /** false: no hay panel de detalles a la vista (Inbox sin la info abierta). */
   hasDetails?: boolean;
-  /** Textos propios (Inbox no carga los de Lines). */
-  labels?: { list: string; details: string; hint: string };
+  /** Textos de cada app (cada ruta carga sus propios mensajes). */
+  labels: { list: string; details: string; hint: string };
 }) {
-  const t = useTranslations('groups');
-  const text = labels ?? { list: t('inbox.resizeList'), details: t('inbox.resizeDetails'), hint: t('inbox.resizeHint') };
+  const text = labels;
   const anchor = useRef<HTMLSpanElement>(null);
   const [saved, setSaved] = useState<SavedPanels>({});
   // Hasta medir: un escritorio común, igual en el servidor y en el navegador.
