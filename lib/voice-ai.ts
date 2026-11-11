@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { AiError, assertAiAvailable, assertAiQuota, recordAiUsage, resolveAiModel } from './ai';
 import { fakeModel, type FakeCallInfo, type FakeStep } from './crm-ai-fake';
 import { ruleCleanup, applyDictionary } from './voice-cleanup';
-import type { VoiceChatModel, VoiceContext, VoiceDictionaryEntry, VoiceEnhanced, VoiceTone } from './voice-types';
+import type { VoiceChatModel, VoiceCleanupDepth, VoiceContext, VoiceDictionaryEntry, VoiceEnhanced, VoiceTone } from './voice-types';
 
 const LANG_NAME: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Portuguese' };
 
@@ -74,7 +74,9 @@ const CONTEXT_TEXT: Record<VoiceContext, string> = {
   other: 'a text field',
 };
 
-export function cleanupInstructions(opts: { context: VoiceContext; tone: VoiceTone; words: string[] }): string {
+export function cleanupInstructions(opts: { context: VoiceContext; tone: VoiceTone; words: string[]; depth?: VoiceCleanupDepth }): string {
+  const depth = opts.depth ?? 'standard';
+  const light = depth === 'light';
   return [
     'You clean up dictated speech so it can be pasted as written text.',
     `It will be pasted into ${CONTEXT_TEXT[opts.context]}. Tone: ${TONE_TEXT[opts.tone]}.`,
@@ -82,19 +84,26 @@ export function cleanupInstructions(opts: { context: VoiceContext; tone: VoiceTo
     '- Keep the speaker\'s words and meaning. Do not add facts, greetings, sign-offs or answers. Do not translate.',
     '- Add punctuation and capitals. Remove filler words (um, uh, eh, este, tipo, né) and false starts.',
     '- Apply spoken self-corrections: "Monday, no, I mean Tuesday" or "el lunes, no, quise decir el martes" keeps only the correction. "Scratch that" deletes the previous sentence.',
-    '- Remove asides to self about the dictation that carry no content ("let me think", "déjame pensar", "wait, I got that wrong", "me equivoqué").',
+    light ? '' : '- Remove asides to self about the dictation that carry no content ("let me think", "déjame pensar", "wait, I got that wrong", "me equivoqué").',
     '- "New line" and "new paragraph" are line breaks.',
-    'Layout (rearrange only what was said; never add or reword content to make it fit):',
-    '- When the speaker enumerates three or more items (things to buy, tasks, names, options), write them as a bulleted list: one line per item starting with "- ", capitalised, without the "and"/"y"/"e" and without a final period, right after the words that introduce them (end those with a colon). Two items stay inside the sentence.',
-    '- Use a numbered list ("1. ") instead when the order matters: steps, or "first… second…", "primero… segundo…".',
-    '- When a long dictation changes topic, split it into short paragraphs separated by a blank line.',
-    opts.context === 'email'
+    depth === 'thorough'
+      ? '- Remove repetitions, restarts and circling back: when the speaker says the same thing more than once, or drops a sentence and starts it again, keep only the final complete version. Drop words that only announce what is about to be said ("what I wanted to say is", "lo que te quería decir era"). Tighten wordy phrasing lightly, but keep every piece of information, name and number, and the speaker\'s own vocabulary.'
+      : '',
+    ...(light
+      ? ['- Keep the sentences as spoken apart from that: do not reorder, shorten or reformat them.']
+      : [
+      'Layout (rearrange only what was said; never add or reword content to make it fit):',
+      '- When the speaker enumerates three or more items (things to buy, tasks, names, options), write them as a bulleted list: one line per item starting with "- ", capitalised, without the "and"/"y"/"e" and without a final period, right after the words that introduce them (end those with a colon). Two items stay inside the sentence.',
+      '- Use a numbered list ("1. ") instead when the order matters: steps, or "first… second…", "primero… segundo…".',
+      '- When a long dictation changes topic, split it into short paragraphs separated by a blank line.',
+      opts.context === 'email'
       ? '- It is an email: a spoken greeting goes on its own line, the body in paragraphs, and a spoken sign-off and name each on their own line. If the speaker did not say a greeting or a sign-off, do not write one.'
       : opts.context === 'chat'
-        ? '- It is a chat message: keep it compact, one paragraph unless there is a list.'
-        : '',
-    'Example. Dictated: "te paso la lista de compras quiero comprar huevos leche jugo de naranja y pan". Written:',
-    'Te paso la lista de compras. Quiero comprar:\n- Huevos\n- Leche\n- Jugo de naranja\n- Pan',
+      ? '- It is a chat message: keep it compact, one paragraph unless there is a list.'
+      : '',
+      'Example. Dictated: "te paso la lista de compras quiero comprar huevos leche jugo de naranja y pan". Written:',
+      'Te paso la lista de compras. Quiero comprar:\n- Huevos\n- Leche\n- Jugo de naranja\n- Pan',
+        ]),
     opts.words.length ? `- Spell these names and terms exactly like this: ${opts.words.slice(0, 200).join(', ')}.` : '',
     'Reply with the cleaned text only.',
   ]
@@ -145,6 +154,8 @@ export async function cleanupDictation(opts: {
   tone: VoiceTone;
   dictionary: VoiceDictionaryEntry[];
   useAi: boolean;
+  /** Cuánto limpia (por defecto 'standard'). */
+  depth?: VoiceCleanupDepth;
   /**
    * Modo rápido (la app de escritorio espera el texto para pegarlo): frases
    * cortas por reglas, la IA con un tope de tiempo y sin reintentos.
@@ -154,13 +165,13 @@ export async function cleanupDictation(opts: {
   const raw = opts.raw.trim();
   if (!raw) return { text: '', ai: false, aiError: null };
   if (!opts.useAi) return { text: ruleCleanup(raw, opts.dictionary), ai: false, aiError: null };
-  if (opts.fast && canSkipAiCleanup(raw, opts.tone)) return { text: ruleCleanup(raw, opts.dictionary), ai: false, aiError: null };
+  if (opts.fast && opts.depth !== 'thorough' && canSkipAiCleanup(raw, opts.tone)) return { text: ruleCleanup(raw, opts.dictionary), ai: false, aiError: null };
   const words = opts.dictionary.filter((d) => d.kind === 'word').map((d) => d.phrase);
   const run = async (preferredId: string) => {
     const { model, modelId } = await voiceModel(opts.workspaceId, () => ({ text: ruleCleanup(raw, []) }), preferredId);
     const res = await generateText({
       model,
-      instructions: cleanupInstructions({ context: opts.context, tone: opts.tone, words }),
+      instructions: cleanupInstructions({ context: opts.context, tone: opts.tone, words, depth: opts.depth }),
       prompt: raw.slice(0, 20_000),
       temperature: 0,
       maxOutputTokens: Math.min(4000, 64 + raw.length),

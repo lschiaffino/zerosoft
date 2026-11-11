@@ -434,6 +434,9 @@
       "commandMode": "Command Mode: com texto selecionado, diga o que fazer com ele",
       "commandModeHelp": "Selecione texto em um campo, segure {shortcut} e diga \"deixa mais curto\" ou \"traduz para o inglês\". A seleção é substituída. Desligado por padrão.",
       "learnCorrections": "Aprender com minhas correções: corrigir um ditado no histórico adiciona os nomes e termos corrigidos ao dicionário",
+      "cleanupDepth": "Quanto limpar",
+      "cleanupDepthHelp": "Vale quando a limpeza com IA está ligada. Nenhum nível acrescenta palavras que você não disse.",
+      "cleanupDepths": {"light": "Pouco: pontuação e vícios de linguagem", "standard": "Normal: tira hesitações e monta listas", "thorough": "Muito: também tira repetições e voltas"},
       "cleanupMode": "Limpeza",
       "cleanupModeHelp": "Vale aqui e no app desktop. Sem limpeza mantém o que você disse palavra por palavra, só com as substituições do dicionário.",
       "cleanupModes": {

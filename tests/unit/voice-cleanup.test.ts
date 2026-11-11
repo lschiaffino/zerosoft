@@ -89,3 +89,19 @@ describe('instrucciones de la limpieza con IA', () => {
     expect(t).toContain('do not write one');
   });
 });
+
+describe('cuánto limpia la IA', () => {
+  it('poco: ni titubeos ni listas; mucho: además repeticiones', () => {
+    const light = cleanupInstructions({ context: 'note', tone: 'neutral', words: [], depth: 'light' });
+    expect(light).not.toContain('bulleted list');
+    expect(light).not.toContain('Remove asides');
+    expect(light).toContain('do not reorder, shorten or reformat');
+    const std = cleanupInstructions({ context: 'note', tone: 'neutral', words: [], depth: 'standard' });
+    expect(std).toContain('Remove asides');
+    expect(std).not.toContain('Remove repetitions');
+    const deep = cleanupInstructions({ context: 'note', tone: 'neutral', words: ['HubSpot'], depth: 'thorough' });
+    expect(deep).toContain('Remove repetitions');
+    expect(deep).toContain('keep every piece of information');
+    expect(deep).toContain('HubSpot');
+  });
+});

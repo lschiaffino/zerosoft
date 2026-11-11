@@ -434,6 +434,9 @@
       "commandMode": "Command Mode: with text selected, say what to do with it",
       "commandModeHelp": "Select text in a field, hold {shortcut} and say \"make it shorter\" or \"translate it to English\". The selection is replaced. Off by default.",
       "learnCorrections": "Learn from my corrections: fixing a dictation in the history adds the corrected names and terms to the dictionary",
+      "cleanupDepth": "How much to clean",
+      "cleanupDepthHelp": "Applies when AI cleanup is on. No level adds words you did not say.",
+      "cleanupDepths": {"light": "A little: punctuation and filler words", "standard": "Normal: removes hesitations and builds lists", "thorough": "A lot: also removes repetitions and detours"},
       "cleanupMode": "Cleanup",
       "cleanupModeHelp": "Applies here and in the desktop app. Raw keeps what you said word for word, with only your dictionary replacements.",
       "cleanupModes": {

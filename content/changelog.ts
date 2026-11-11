@@ -45,6 +45,12 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'voice',
+        en: 'New setting "How much to clean" (Voice › Settings, and in the desktop app after its next update): a little (punctuation and filler words), normal (also removes hesitations like "let me think" and builds lists) or a lot (also removes repetitions and detours).',
+        es: 'Ajuste nuevo "Cuánto limpia" (Voice › Ajustes, y en la app de escritorio con su próxima actualización): poco (puntuación y muletillas), normal (además saca titubeos como "déjame pensar" y arma listas) o mucho (también saca repeticiones y vueltas).',
+        pt: 'Ajuste novo "Quanto limpar" (Voice › Ajustes, e no app de desktop com a próxima atualização): pouco (pontuação e vícios de linguagem), normal (também tira hesitações como "deixa eu pensar" e monta listas) ou muito (também tira repetições e voltas).',
+      },
+      {
+        product: 'voice',
         en: 'Phrases the transcription makes up during silence (subtitle credits, a newsreader greeting in another language) are removed.',
         es: 'Las frases que la transcripción inventa en el silencio (créditos de subtítulos, un saludo de noticiero en otro idioma) se sacan.',
         pt: 'As frases que a transcrição inventa no silêncio (créditos de legendas, uma saudação de telejornal em outro idioma) são removidas.',
