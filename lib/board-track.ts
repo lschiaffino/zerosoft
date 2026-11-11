@@ -6,6 +6,7 @@
  * El issue lleva el texto del sticky y un link de vuelta a la pizarra.
  */
 import { getDb } from './db';
+import { trackVisibleSql } from './track-access';
 import { canAccessTrackProject, createIssue, getProject } from './track-data';
 import { stickyIssueTitle } from './board-stickies';
 
@@ -73,12 +74,23 @@ export async function createIssuesFromStickies(args: {
       .run(args.boardId, item.elementId, issue.id, args.personId, new Date().toISOString());
     createdIds.push(issue.id);
   }
-  const cards = await listBoardTrackCards(args.boardId);
+  const cards = await listBoardTrackCards(args.boardId, args.personId);
   return { ok: true, created: cards.filter((c) => createdIds.includes(c.issue_id)), skipped };
 }
 
-/** Tarjetas en vivo: los issues ligados a elementos de la pizarra, con su estado actual. */
-export async function listBoardTrackCards(boardId: string): Promise<BoardTrackCard[]> {
+/**
+ * Tarjetas en vivo: los issues ligados a elementos de la pizarra, con su estado actual.
+ * Con `viewerId` (string) solo los de equipos que esa persona ve; con null (invitado sin
+ * cuenta) solo los de equipos abiertos; sin pasarlo, todos (uso interno).
+ */
+export async function listBoardTrackCards(boardId: string, viewerId?: string | null): Promise<BoardTrackCard[]> {
+  const v = typeof viewerId === 'string' ? trackVisibleSql('vp', viewerId) : null;
+  const filter =
+    viewerId === undefined
+      ? ''
+      : v
+        ? ` AND EXISTS (SELECT 1 FROM track_projects vp WHERE vp.id = i.project_id AND ${v.sql})`
+        : ` AND EXISTS (SELECT 1 FROM track_projects vp WHERE vp.id = i.project_id AND COALESCE(vp.visibility, 'workspace') <> 'private')`;
   const rows = (await getDb()
     .prepare(
       `SELECT l.element_id, i.id AS issue_id, i.identifier, i.title, s.name AS status_name, s.color AS status_color,
@@ -87,10 +99,10 @@ export async function listBoardTrackCards(boardId: string): Promise<BoardTrackCa
        JOIN track_issues i ON i.id = l.issue_id
        LEFT JOIN track_statuses s ON s.id = i.status_id
        LEFT JOIN users u ON u.id = i.assignee_id
-       WHERE l.board_id = ?
+       WHERE l.board_id = ?${filter}
        ORDER BY l.created_at`,
     )
-    .all(boardId)) as Array<BoardTrackCard & { assignee_email: string | null }>;
+    .all(boardId, ...(v?.args ?? []))) as Array<BoardTrackCard & { assignee_email: string | null }>;
   return rows.map(({ assignee_email, ...r }) => ({ ...r, assignee_name: r.assignee_name ?? assignee_email ?? null }));
 }
 

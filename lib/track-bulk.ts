@@ -24,6 +24,7 @@ import {
   type TrackIssueWithStatus,
 } from './track-data';
 import { labelsByIds, parseIssueLabels, projectWorkspaceId } from './track-labels';
+import { currentTrackViewer, projectVisibleTo } from './track-access';
 import type { BulkIssuesPayload, IssueUpdatePayload, TriageActionPayload } from './track-schema';
 
 export interface BulkResult {
@@ -118,6 +119,11 @@ export async function validateIssueRefs(
       : undefined;
     if (!parent || !parentProject || projectWorkspaceId(parentProject) !== projectWorkspaceId(project)) {
       return 'invalid_parent';
+    }
+    // El padre tiene que ser de un equipo que la persona ve (privados e invitados).
+    if (parentProject.id !== project.id) {
+      const viewer = await currentTrackViewer();
+      if (viewer && !(await projectVisibleTo(parentProject.id, viewer))) return 'invalid_parent';
     }
     if (opts.issueId) {
       // Subir por la cadena de padres: si aparece el issue editado, sería un ciclo.

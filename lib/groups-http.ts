@@ -9,7 +9,7 @@ import { roleAtLeast } from './teams';
 import { limitWrites } from './write-limit';
 import { GroupsError } from './groups';
 import { ProviderError } from './groups-provider';
-import { canSeeChat, groupsViewer, type GroupsViewer } from './groups-access';
+import { canSeeChat, canSeeNumber, groupsViewer, type GroupsViewer } from './groups-access';
 import { HubspotError } from './groups-hubspot';
 
 export function groupsError(status: number, error: string): NextResponse {
@@ -34,6 +34,13 @@ export async function sessionViewer(s: GroupsSession): Promise<GroupsViewer> {
 export async function chatGuard(s: GroupsSession, chatId: string): Promise<{ viewer: GroupsViewer } | NextResponse> {
   const viewer = await sessionViewer(s);
   if (!(await canSeeChat(viewer, chatId))) return groupsError(404, 'not_found');
+  return { viewer };
+}
+
+/** 404 si la línea no existe o la persona no la puede ver (líneas restringidas). */
+export async function numberGuard(s: GroupsSession, numberId: string): Promise<{ viewer: GroupsViewer } | NextResponse> {
+  const viewer = await sessionViewer(s);
+  if (!(await canSeeNumber(viewer, numberId))) return groupsError(404, 'not_found');
   return { viewer };
 }
 

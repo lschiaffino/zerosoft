@@ -7,6 +7,8 @@ import { searchDocPagesContent, searchSharedDocPages } from '@/lib/docs';
 import { docsHidden } from '@/lib/docs-guard';
 import { listTeamspaces } from '@/lib/docs-access';
 import { listLinks, toLinkDto } from '@/lib/links';
+import { viewerOf } from '@/lib/link-folders';
+import { delegatedIdentity } from '@/lib/mcp/identity';
 import { noteOwner, searchNotesForPalette } from '@/lib/notes';
 import { searchNoteTemplates, searchSavedSearches } from '@/lib/notes-library';
 import notesEn from '@/messages/en/notes.json';
@@ -72,7 +74,8 @@ async function getPrivate(req: NextRequest) {
   const scope = await sessionScope(user);
   const [crm, links, docs, tasks, notes, apps, aiRuns, leads, records, objects, reports, media, planning, rec, designs, shop, hiring, people, books, sign, forms, send, inbox, calls] = await Promise.all([
     searchAll(user.id, q, scope),
-    listLinks(user.id, { q, pageSize: 8, archived: 'all' }),
+    // Links: con el acceso por carpeta de la persona, como la lista.
+    listLinks(user.id, { q, pageSize: 8, archived: 'all', viewer: viewerOf(user) }),
     // Docs: título y texto de los bloques (el fragmento va como meta).
     // Propias y, para un invitado, las compartidas desde otros workspaces.
     Promise.all([searchDocPagesContent(user.id, q, 10, await docsHidden(user)), searchSharedDocPages(user, q, 5)]).then(([own, shared]) => {
@@ -115,7 +118,8 @@ async function getPrivate(req: NextRequest) {
     // Send: documentos y espacios por título, solo los que la persona ve.
     userCanUseApp(user, 'send') && user.role !== 'guest' ? searchSend(sendActorOf(user), q).catch(() => []) : Promise.resolve([]),
     // Inbox: chats y correos de la persona (los suyos, nunca de otra persona del workspace).
-    searchInbox(user.actingUser?.id ?? user.id, q).catch(() => []),
+    // Con un token (MCP, API, asistente) no se lee la bandeja personal, como en /api/inbox.
+    delegatedIdentity() ? Promise.resolve([]) : searchInbox(user.actingUser?.id ?? user.id, q).catch(() => []),
     // Calls: llamadas por título o por lo que se dijo, solo las que la persona ve.
     userCanUseApp(user, 'calls') && user.role !== 'guest' ? searchCalls(callsActorOf(user), q).catch(() => []) : Promise.resolve([]),
   ]);

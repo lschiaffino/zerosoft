@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { joinGroup } from '@/lib/groups-org';
-import { groupsError, groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { groupsError, groupsSession, numberGuard, handleGroupsError, readJson, str } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,6 +12,8 @@ export async function POST(req: Request) {
   const b = await readJson(req);
   const numberId = str(b.numberId, 100) ?? '';
   if (!numberId) return groupsError(400, 'invalid_number');
+  const line = await numberGuard(s, numberId);
+  if (line instanceof NextResponse) return line;
   try {
     return NextResponse.json(await joinGroup(s.ws, numberId, str(b.invite, 300) ?? ''), { status: 201 });
   } catch (err) {

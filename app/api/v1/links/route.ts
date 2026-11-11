@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { apiViewerOf } from '@/lib/link-folders';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createLink, listLinks, toLinkDto, type CreateLinkError } from '@/lib/links';
 import { parseLinkListQuery } from '@/lib/link-api-query';
@@ -97,6 +98,7 @@ export async function POST(req: NextRequest) {
     maxClicks: input.maxClicks ?? null,
     domainId,
     createdBy: auth.personId,
+    viewer: apiViewerOf(auth),
     via: 'api',
   });
   if (!result.ok) {
@@ -112,7 +114,7 @@ export async function GET(req: NextRequest) {
   const auth = await requireApiUser(req, 'links:read');
   if ('res' in auth) return auth.res;
 
-  const result = await listLinks(auth.user.id, parseLinkListQuery(req.nextUrl.searchParams));
+  const result = await listLinks(auth.user.id, { ...parseLinkListQuery(req.nextUrl.searchParams), viewer: apiViewerOf(auth) });
 
   return NextResponse.json({
     links: result.links.map((l) => {

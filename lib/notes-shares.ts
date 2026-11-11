@@ -65,6 +65,21 @@ export async function listNoteShares(owner: NoteOwner, target: NoteShareTarget):
   return rows.map((r) => ({ person_id: r.person_id, name: r.name, email: r.email, role: r.role === 'edit' ? 'edit' : 'view' }));
 }
 
+/**
+ * Cuántas personas ven la nota por haberla compartido su dueño, sola o con su libreta
+ * (para el indicador "Solo vos" / "Compartida" del editor). null si no es del dueño.
+ */
+export async function noteAudienceCount(owner: NoteOwner, noteId: string): Promise<number | null> {
+  if (!(await targetOwned(owner, { kind: 'note', id: noteId }))) return null;
+  const row = (await getDb()
+    .prepare(
+      `SELECT COUNT(DISTINCT s.person_id) AS c FROM note_shares s JOIN notes n ON n.id = ?
+       WHERE s.owner_id = ? AND s.workspace_id = ? AND (s.note_id = n.id OR (s.notebook_id IS NOT NULL AND s.notebook_id = n.notebook_id))`,
+    )
+    .get(noteId, owner.personId, owner.workspaceId)) as { c: number } | undefined;
+  return Number(row?.c ?? 0);
+}
+
 /** Personas del workspace con las que se puede compartir (todas menos el dueño). */
 export async function noteShareCandidates(owner: NoteOwner): Promise<Array<{ id: string; name: string | null; email: string }>> {
   return (await listBoardMembers(owner.workspaceId)).filter((m) => m.id !== owner.personId);

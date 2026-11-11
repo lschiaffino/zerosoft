@@ -339,8 +339,16 @@ export async function homeRecents(user: HomeUser, limit = 8): Promise<{ items: R
 
   const socialAdmin = !user.role || user.role === 'owner' || user.role === 'admin';
   const person = user.actingUser?.id ?? user.id;
+  // Docs: sin las páginas de teamspaces cerrados o privados de los que la persona no es parte.
+  const { hiddenTeamspaceIds, teamspaceFilterSql } = await import('./docs-access');
+  const docsFilter = teamspaceFilterSql(await hiddenTeamspaceIds(user.id, person));
   const [docs, notes, boards, designs, issues, links, contacts, deals, flows, products, insights, socialPosts, booksInvoices, forms, sendDocs, calls] = await Promise.all([
-    all(`SELECT id, title AS label, updated_at FROM docs_pages WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC LIMIT ?`, user.id, per),
+    all(
+      `SELECT id, title AS label, updated_at FROM docs_pages WHERE user_id = ? AND archived = 0${docsFilter.sql} ORDER BY updated_at DESC LIMIT ?`,
+      user.id,
+      ...docsFilter.args,
+      per,
+    ),
     // Notas: solo las de la persona (son privadas aunque el workspace sea compartido).
     listNotes(noteOwner(user), { view: 'all', limit: per })
       .then((rows) => rows.map((n) => ({ id: n.id, label: n.title, updated_at: n.updated_at })))

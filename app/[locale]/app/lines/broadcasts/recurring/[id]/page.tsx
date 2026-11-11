@@ -18,9 +18,11 @@ export default async function RecurringPage(props: { params: Promise<{ locale: s
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
   const viewer = await pageViewer(user);
-  const rec = await getRecurring(user.id, id);
+  const found = await getRecurring(user.id, id);
   const visible = await visibleChatIds(viewer);
-  if (!rec || (visible && !rec.chatIds.some((c) => visible.has(c)))) notFound();
+  if (!found || (visible && !found.chatIds.some((c) => visible.has(c)))) notFound();
+  // Solo los chats que la persona ve (los demás de la serie no se nombran).
+  const rec = visible ? { ...found, chatIds: found.chatIds.filter((c) => visible.has(c)) } : found;
   const marks = rec.chatIds.map(() => '?').join(',') || "''";
   const chats = (await getDb()
     .prepare(`SELECT id, name, phone, provider_chat_id, kind FROM groups_chats WHERE user_id = ? AND id IN (${marks})`)

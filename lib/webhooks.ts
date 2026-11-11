@@ -219,6 +219,28 @@ export function isRestrictedEvent(event: string): boolean {
   return event.startsWith('page.') || event.startsWith('database.') || event.startsWith('talk.') || event.startsWith('voice.') || event.startsWith('call.');
 }
 
+/** Eventos de Track que pueden ser de un equipo privado (se mira el proyecto del cuerpo). */
+const TRACK_EVENT = /^(issue|comment|project)\./;
+
+/**
+ * ¿El cuerpo de esta entrega se armó con el acceso de quien creó el webhook? Además de los
+ * eventos de isRestrictedEvent, los de Track de un equipo privado (o que ya no existe).
+ */
+export async function restrictedDelivery(event: string, payload: string): Promise<boolean> {
+  if (isRestrictedEvent(event)) return true;
+  if (!TRACK_EVENT.test(event)) return false;
+  let projectId: unknown = null;
+  try {
+    const body = JSON.parse(payload) as { data?: { project?: { id?: unknown }; projectId?: unknown } };
+    projectId = body.data?.project?.id ?? body.data?.projectId ?? null;
+  } catch {
+    return true;
+  }
+  if (typeof projectId !== 'string') return false;
+  const row = (await getDb().prepare('SELECT visibility FROM track_projects WHERE id = ?').get(projectId)) as { visibility: string | null } | undefined;
+  return !row || row.visibility === 'private';
+}
+
 export async function listDeliveries(userId: string, webhookId: string, limit = 50, viewerId?: string): Promise<WebhookDeliveryDto[] | null> {
   const owns = await getDb().prepare('SELECT 1 FROM webhooks WHERE id = ? AND user_id = ?').get(webhookId, userId);
   if (!owns) return null;
@@ -231,7 +253,11 @@ export async function listDeliveries(userId: string, webhookId: string, limit = 
     .all(webhookId, Math.min(Math.max(limit, 1), 200))) as Array<Record<string, unknown>>;
   // Cuerpo restringido: solo para la persona con cuyo acceso se armó esa entrega
   // (aunque el webhook haya pasado después a otra).
-  const hidden = (r: Record<string, unknown>) => viewerId !== undefined && isRestrictedEvent(String(r.event)) && (r.captured_by ?? null) !== viewerId;
+  const restricted = new Map<string, boolean>();
+  for (const r of rows) {
+    if (viewerId !== undefined && (r.captured_by ?? null) !== viewerId) restricted.set(String(r.id), await restrictedDelivery(String(r.event), String(r.payload ?? '')));
+  }
+  const hidden = (r: Record<string, unknown>) => restricted.get(String(r.id)) === true;
   return rows.map((r) => ({
     id: String(r.id),
     event: String(r.event),
@@ -264,7 +290,7 @@ export async function resendDelivery(userId: string, deliveryId: string, personI
     .get(deliveryId, userId)) as { webhook_id: string; event: string; payload: string; captured_by: string | null } | undefined;
   if (!row) return null;
   // Contenido restringido: lo reenvía solo la persona con cuyo acceso se armó.
-  if (isRestrictedEvent(row.event) && personId !== undefined && row.captured_by !== personId) return 'not_owner';
+  if (personId !== undefined && row.captured_by !== personId && (await restrictedDelivery(row.event, row.payload))) return 'not_owner';
   const id = crypto.randomUUID();
   await insertDelivery(id, row.webhook_id, row.event, row.payload, row.captured_by);
   await attempt(id, { force: true });

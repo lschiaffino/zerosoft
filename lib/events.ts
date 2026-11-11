@@ -63,6 +63,11 @@ export async function emitEvent(
   data: unknown,
   opts: EmitOptions = {},
 ): Promise<void> {
+  // Notes es de cada persona: sus eventos solo llegan a los flows y webhooks que creó ella misma.
+  if (type.startsWith('note.') && !opts.audience) {
+    const author = data && typeof data === 'object' ? (data as { personId?: unknown }).personId : null;
+    opts = { ...opts, audience: async (creator) => typeof author === 'string' && creator === author };
+  }
   if ((WEBHOOK_EVENTS as readonly string[]).includes(type)) {
     await emitWebhook(workspaceId, type as WebhookEvent, data, opts.audience, opts.personalize);
     // Apps del CRM (Slack): mismos eventos que los webhooks (nunca lo restringido).

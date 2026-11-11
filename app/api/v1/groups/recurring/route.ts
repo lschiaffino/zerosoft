@@ -14,7 +14,10 @@ export async function GET(req: Request) {
   if ('res' in auth) return auth.res;
   const visible = await visibleChatIds(await v1Viewer(auth));
   const list = await listRecurring(auth.user.id);
-  return NextResponse.json({ data: visible ? list.filter((r) => r.chatIds.some((id) => visible.has(id))) : list });
+  // Solo las series con algún chat visible, y de cada una solo esos chats.
+  return NextResponse.json({
+    data: visible ? list.filter((r) => r.chatIds.some((id) => visible.has(id))).map((r) => ({ ...r, chatIds: r.chatIds.filter((id) => visible.has(id)) })) : list,
+  });
 }
 
 /** POST /api/v1/groups/recurring { chatIds, body | poll, rule, timezone?, endsAt?, perMinute?, name? } */

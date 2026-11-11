@@ -134,7 +134,8 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   // Reservas: un member encuentra solo las que atiende (owner y admins, todas).
   const bookingScope = bookingScopeFor(user.role ?? 'owner', user.actingUser?.id ?? user.id) ?? '';
   const gViewer = await groupsViewer(user.id, user.actingUser?.id ?? user.id, user.role ?? 'owner').catch(() => null);
-  const gAccess = chatAccessSql(gViewer, 'c');
+  // Sin poder resolver quién mira, no se busca en Lines (nunca se abre todo por un error).
+  const gAccess = gViewer ? chatAccessSql(gViewer, 'c') : { sql: '0', args: [] };
   const gWhere = gAccess ? ` AND ${gAccess.sql}` : '';
   const gArgs = gAccess?.args ?? [];
   const gMask = (r: Row): Row => (gViewer?.mask ? { ...r, label: maskPhoneText(r.label), meta: r.meta ? maskPhoneText(r.meta) : r.meta } : r);
@@ -271,9 +272,12 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ),
     // Groups: mensajes recurrentes por nombre o texto.
     all(
-      `SELECT id, CASE WHEN name != '' THEN name ELSE substr(body, 1, 80) END AS label, '' AS meta
-       FROM groups_recurring WHERE user_id = ? AND (name LIKE ? ESCAPE '\\' OR body LIKE ? ESCAPE '\\') ORDER BY created_at DESC LIMIT ?`,
+      `SELECT r.id, CASE WHEN r.name != '' THEN r.name ELSE substr(r.body, 1, 80) END AS label, '' AS meta
+       FROM groups_recurring r WHERE r.user_id = ?${
+         gAccess ? ` AND EXISTS (SELECT 1 FROM json_each(r.chat_ids) j JOIN groups_chats c ON c.id = j.value WHERE c.user_id = r.user_id${gWhere})` : ''
+       } AND (r.name LIKE ? ESCAPE '\\' OR r.body LIKE ? ESCAPE '\\') ORDER BY r.created_at DESC LIMIT ?`,
       user.id,
+      ...gArgs,
       like,
       like,
     ),

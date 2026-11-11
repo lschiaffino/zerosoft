@@ -35,7 +35,7 @@ export interface BoardBootstrap {
 export async function boardBootstrap(workspaceId: string, boardId: string, personId: string): Promise<BoardBootstrap> {
   const [workshop, track, threads, members] = await Promise.all([
     workshopState(workspaceId, boardId, personId),
-    listBoardTrackCards(boardId),
+    listBoardTrackCards(boardId, personId),
     listThreads(workspaceId, boardId),
     boardAudience(workspaceId, boardId),
   ]);

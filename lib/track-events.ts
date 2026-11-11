@@ -16,7 +16,7 @@
 import { after } from 'next/server';
 import type { TrackProjectRow } from './db';
 import type { TrackIssueWithStatus } from './track-data';
-import { currentTrackVia, currentTrackViewer, type TrackVia } from './track-access';
+import { currentTrackVia, currentTrackViewer, trackEventAudience, type TrackVia } from './track-access';
 import { recordAudit } from './track-audit';
 import { processOutbox } from './track-integrations';
 
@@ -109,7 +109,7 @@ export async function handleTrackEvent(event: TrackEventInput, ctx: TrackEventCo
       data: e.changes?.length ? { changes: e.changes } : {},
     });
     if (e.project.owner_id) {
-      await emitWebhook(e.project.owner_id, e.type, { project: toApiProject(e.project), changes: e.changes ?? [] });
+      await emitWebhook(e.project.owner_id, e.type, { project: toApiProject(e.project), changes: e.changes ?? [] }, trackEventAudience(e.project));
     }
     return;
   }
@@ -133,7 +133,7 @@ export async function handleTrackEvent(event: TrackEventInput, ctx: TrackEventCo
       await emitWebhook(project.owner_id, 'issue.deleted', {
         issue: { id: event.issue.id, identifier: event.issue.identifier, title: event.issue.title },
         project: { id: project.id, name: project.name },
-      });
+      }, trackEventAudience(project));
     }
     return;
   }
@@ -175,8 +175,8 @@ export async function handleTrackEvent(event: TrackEventInput, ctx: TrackEventCo
         source: event.source,
         data: apiIssue,
       };
-      if (event.source === 'flow') await emitWebhook(project.owner_id, 'issue.created', payload);
-      else await emitEvent(project.owner_id, 'issue.created', payload);
+      if (event.source === 'flow') await emitWebhook(project.owner_id, 'issue.created', payload, trackEventAudience(project));
+      else await emitEvent(project.owner_id, 'issue.created', payload, { audience: trackEventAudience(project) });
     }
   } else if (event.type === 'issue.updated') {
     const diff = issueDiff(event.before, event.after);
@@ -210,7 +210,7 @@ export async function handleTrackEvent(event: TrackEventInput, ctx: TrackEventCo
         comment: { id: event.commentId, body: event.body, authorId: event.actorId, issueId: issue.id },
         issue: { id: issue.id, identifier: issue.identifier, title: issue.title },
         project: projectRef,
-      });
+      }, trackEventAudience(project));
     }
   }
 

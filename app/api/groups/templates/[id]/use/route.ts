@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { parseCsv } from '@/lib/csv-parse';
 import { createFromTemplate, getTemplate, missingVariables, parseTemplateCsv, previewTemplateUse, type TemplateUse } from '@/lib/groups-org';
-import { groupsError, groupsSession, handleGroupsError, readJson, str, strArr } from '@/lib/groups-http';
+import { groupsError, groupsSession, numberGuard, handleGroupsError, readJson, str, strArr } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,6 +38,8 @@ export async function POST(req: Request, ctx: Ctx) {
   if (b.preview === true) return NextResponse.json({ rows: previewTemplateUse(template, uses), errors });
   const numberId = str(b.numberId, 100) ?? '';
   if (!numberId) return groupsError(400, 'invalid_number');
+  const line = await numberGuard(s, numberId);
+  if (line instanceof NextResponse) return line;
   try {
     const results = await createFromTemplate(s.ws, s.me, numberId, id, uses);
     return NextResponse.json({ results, errors }, { status: 201 });

@@ -350,8 +350,11 @@ async function walk(
   mode: 'erase' | 'export',
   visit: (table: string, where: Where) => Promise<void>,
   path: string[],
+  narrow?: (table: string, where: Where) => Where,
 ): Promise<void> {
   if (path.includes(table) || path.length > 6 || SKIP_TABLES.has(table)) return;
+  // El export acota cada tabla antes de bajar a sus hijas: lo que no sale tampoco arrastra lo suyo.
+  if (narrow) where = narrow(table, where);
   for (const fk of schema.children.get(table) ?? []) {
     if (fk.table === table || SKIP_TABLES.has(fk.table)) continue;
     const childWhere = { sql: `${quote(fk.from)} IN (SELECT ${quote(fk.to)} FROM ${quote(table)} WHERE ${where.sql})`, args: where.args };
@@ -360,7 +363,7 @@ async function walk(
       if (mode === 'erase') await client.execute({ sql: `UPDATE ${quote(fk.table)} SET ${quote(fk.from)} = NULL WHERE ${childWhere.sql}`, args: childWhere.args }).catch(() => undefined);
       continue;
     }
-    await walk(client, schema, fk.table, childWhere, mode, visit, [...path, table]);
+    await walk(client, schema, fk.table, childWhere, mode, visit, [...path, table], narrow);
   }
   await visit(table, where);
 }
@@ -587,6 +590,114 @@ const OWN_CONTENT: Record<string, string> = {
   groups_messages: 'author_id',
 };
 
+/**
+ * Contenido de cada persona del workspace que el dueño no ve en la app (Notes, Voice, el
+ * asistente, los videos de Rec en el espacio personal, DMs y canales privados de Talk de los
+ * que no es parte, equipos privados de Track, teamspaces cerrados o privados de Docs): en el
+ * export de una cuenta sale solo lo que esa persona ve. El borrado del workspace sí lo alcanza
+ * entero (no usa esto). `cols`: columnas que la regla necesita en la tabla.
+ */
+const PERSONAL_EXPORT: Record<string, { cols: string[]; where: (me: string) => Where }> = {
+  notes: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  note_notebooks: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  note_reminders: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  note_saved_searches: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  note_templates: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  note_versions: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  note_prefs: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  note_shares: { cols: ['owner_id', 'person_id'], where: (me) => ({ sql: '(owner_id = ? OR person_id = ?)', args: [me, me] }) },
+  note_access_requests: { cols: ['requester_id'], where: (me) => ({ sql: 'requester_id = ?', args: [me] }) },
+  voice_sessions: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  voice_folders: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  voice_settings: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  voice_templates: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  voice_shares: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  voice_dictionary: { cols: ['person_id', 'shared'], where: (me) => ({ sql: '(person_id = ? OR shared = 1)', args: [me] }) },
+  voice_prompts: { cols: ['person_id', 'shared'], where: (me) => ({ sql: '(person_id = ? OR shared = 1)', args: [me] }) },
+  assistant_conversations: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  assistant_actions: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  assistant_audit: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  assistant_files: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  calls_prefs: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  rec_videos: { cols: ['space', 'created_by'], where: (me) => ({ sql: "(space != 'personal' OR created_by = ?)", args: [me] }) },
+  rec_folders: { cols: ['space', 'created_by'], where: (me) => ({ sql: "(space != 'personal' OR created_by = ?)", args: [me] }) },
+  // Talk: lo de cada persona (borradores, programados, guardados, recordatorios, resúmenes de IA, secciones).
+  ...Object.fromEntries(
+    [
+      'talk_agent_runs',
+      'talk_ai_summaries',
+      'talk_drafts',
+      'talk_scheduled',
+      'talk_saved',
+      'talk_reminders',
+      'talk_sections',
+      'talk_section_items',
+      'talk_prefs',
+      'talk_thread_follows',
+      'talk_email_queue',
+    ].map((t) => [t, { cols: ['user_id'], where: (me: string) => ({ sql: 'user_id = ?', args: [me] }) }]),
+  ),
+  talk_channels: {
+    cols: ['id', 'kind'],
+    where: (me) => ({ sql: "(kind = 'public' OR id IN (SELECT channel_id FROM talk_members WHERE user_id = ?))", args: [me] }),
+  },
+  track_projects: {
+    cols: ['id', 'visibility'],
+    where: (me) => ({
+      sql: "(COALESCE(visibility, 'workspace') <> 'private' OR id IN (SELECT project_id FROM track_project_access WHERE user_id = ?))",
+      args: [me],
+    }),
+  },
+  docs_pages: {
+    cols: ['teamspace_id'],
+    where: (me) => ({
+      sql: `(teamspace_id IS NULL OR teamspace_id NOT IN (SELECT t.id FROM docs_teamspaces t WHERE t.access IN ('closed', 'private') AND t.is_default = 0
+        AND NOT EXISTS (SELECT 1 FROM docs_teamspace_members m WHERE m.teamspace_id = t.id AND m.user_id = ?)))`,
+      args: [me],
+    }),
+  },
+};
+
+/**
+ * La condición de `table`: su regla propia y, para lo que cuelga (FK) de una tabla con regla
+ * (archivos de una nota, mensajes de un canal, comentarios de un issue), la de sus padres.
+ */
+function personalRule(table: string, schema: Pick<Schema, 'tables' | 'parents'>, me: string, visiting: Set<string> = new Set()): Where | null {
+  if (visiting.has(table)) return null;
+  visiting.add(table);
+  const parts: string[] = [];
+  const args: InValue[] = [];
+  const cols = schema.tables.get(table) ?? [];
+  const own = PERSONAL_EXPORT[table];
+  if (own && own.cols.every((c) => cols.includes(c))) {
+    const w = own.where(me);
+    parts.push(w.sql);
+    args.push(...w.args);
+  }
+  for (const fk of schema.parents.get(table) ?? []) {
+    if (fk.parent === table || fk.parent === 'users' || fk.parent === 'teams') continue;
+    const rule = personalRule(fk.parent, schema, me, visiting);
+    if (!rule) continue;
+    parts.push(`(${quote(fk.from)} IS NULL OR ${quote(fk.from)} IN (SELECT ${quote(fk.to)} FROM ${quote(fk.parent)} WHERE ${rule.sql}))`);
+    args.push(...rule.args);
+  }
+  visiting.delete(table);
+  return parts.length ? { sql: parts.join(' AND '), args } : null;
+}
+
+/** `where` de una tabla del export, acotado a lo que la persona ve (ver PERSONAL_EXPORT). */
+export function personalExportWhere(
+  table: string,
+  schema: Pick<Schema, 'tables' | 'parents'>,
+  where: Where,
+  me: string,
+  cache: Map<string, Where | null> = new Map(),
+): Where {
+  if (!cache.has(table)) cache.set(table, personalRule(table, schema, me));
+  const rule = cache.get(table) ?? null;
+  return rule ? { sql: `(${where.sql}) AND ${rule.sql}`, args: [...where.args, ...rule.args] } : where;
+}
+
 export interface ExportResult {
   zip: Buffer;
   tables: number;
@@ -612,10 +723,20 @@ export async function exportAccountData(user: UserRow, client: Client = getClien
   };
   const me = (await client.execute({ sql: 'SELECT * FROM users WHERE id = ?', args: [user.id] })).rows as unknown as Array<Record<string, unknown>>;
   keep('users', me);
+  const rules = new Map<string, Where | null>();
   for (const table of rootOrder(schema)) {
     const where = scopeWhere(table, schema.tables.get(table)!, scope, schema);
     if (!where) continue;
-    await walk(client, schema, table, where, 'export', async (t, w) => readRows(client, schema, t, w, (rows) => keep(t, rows)), []);
+    await walk(
+      client,
+      schema,
+      table,
+      where,
+      'export',
+      async (t, w) => readRows(client, schema, t, w, (rows) => keep(t, rows)),
+      [],
+      (t, w) => personalExportWhere(t, schema, w, user.id, rules),
+    );
   }
   const files: Array<{ name: string; data: string; deflate: boolean }> = [];
   let rows = 0;

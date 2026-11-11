@@ -28,7 +28,7 @@ export default async function NewBroadcastPage(props: { params: Promise<{ locale
   const rows: ChatDto[] = [...chats.rows];
   if (sp.list) {
     // Solo los chats que esta persona puede ver (acceso por etiqueta).
-    const listed = await savedListChatIds(user.id, me, sp.list).catch(() => []);
+    const listed = await savedListChatIds(user.id, me, sp.list, viewer).catch(() => []);
     const fromList = [];
     for (const c of listed) if (await canSeeChat(viewer, c.id)) fromList.push(c);
     preselected = [...new Set([...preselected, ...fromList.map((c) => c.id)])];

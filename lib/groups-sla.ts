@@ -103,7 +103,7 @@ export async function notifyBreach(ws: string, ticket: TicketDto, kind: 'first_r
     const res = await sendEmail({ to: r.email, from: appSender(), ...mail }).catch(() => ({ ok: false }));
     if (res.ok) sent++;
     const { personCanSeeChat } = await import('./groups-access');
-    if (r.userId && (!ticket.chatId || (await personCanSeeChat(ws, r.userId, ticket.chatId).catch(() => true)))) {
+    if (r.userId && (!ticket.chatId || (await personCanSeeChat(ws, r.userId, ticket.chatId).catch(() => false)))) {
       await createNotification({
         userId: r.userId,
         type: 'groups_sla',

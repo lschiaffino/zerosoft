@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { trackWorkspaceId } from '@/lib/track-labels';
 import { AUDIT_ACTIONS, auditToCsv, listAudit } from '@/lib/track-audit';
 import { trackError, unauthorized } from '@/lib/track-http';
@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
     actorId: sp.get('actor'),
     entityType: sp.get('entity'),
     q: sp.get('q'),
+    viewerId: realUserId(user),
   };
   const ws = trackWorkspaceId(user.team?.id ?? null, user.id);
   if (sp.get('format') === 'csv') {

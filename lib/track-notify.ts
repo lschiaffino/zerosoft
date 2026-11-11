@@ -19,6 +19,7 @@
  */
 import { ownerSpaceSql } from './workspace';
 import { getDb } from './db';
+import { trackVisibleExpr } from './track-access';
 import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
 import { siteUrl } from './board-urls';
@@ -403,6 +404,7 @@ export async function fireIssueReminders(opts: { now?: Date; limit?: number } = 
              SELECT 1 FROM team_members m WHERE m.team_id = p.team_id AND m.user_id = r.user_id
            ))
          )
+         AND ${trackVisibleExpr('p', 'r.user_id')}
        ORDER BY r.remind_at ASC LIMIT ?`,
     )
     .all(now, Math.min(Math.max(opts.limit ?? 200, 1), 1000))) as Array<{

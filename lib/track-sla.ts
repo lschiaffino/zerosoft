@@ -11,6 +11,7 @@
  * Server-only.
  */
 import { getDb } from './db';
+import { trackVisibleExpr } from './track-access';
 import { createNotification } from './notifications';
 import { getTriageSettings } from './track-triage';
 import { slaRiskAt, slaState, type IssueSla, type SlaState, type TrackPriority } from './track-triage-shared';
@@ -141,10 +142,15 @@ export async function resyncProjectSlas(projectId: string): Promise<number> {
 async function slaRecipients(issueId: string): Promise<string[]> {
   const rows = (await getDb()
     .prepare(
-      `SELECT user_id FROM track_issue_subscriptions WHERE issue_id = ? AND subscribed = 1
-       UNION SELECT assignee_id AS user_id FROM track_issues WHERE id = ? AND assignee_id IS NOT NULL`,
+      `SELECT x.user_id FROM (
+         SELECT user_id FROM track_issue_subscriptions WHERE issue_id = ? AND subscribed = 1
+         UNION SELECT assignee_id AS user_id FROM track_issues WHERE id = ? AND assignee_id IS NOT NULL
+       ) x
+       JOIN track_issues si ON si.id = ?
+       JOIN track_projects p ON p.id = si.project_id
+       WHERE ${trackVisibleExpr('p', 'x.user_id')}`,
     )
-    .all(issueId, issueId)
+    .all(issueId, issueId, issueId)
     .catch(() => [] as Array<{ user_id: string }>)) as Array<{ user_id: string }>;
   return [...new Set(rows.map((r) => r.user_id).filter(Boolean))];
 }

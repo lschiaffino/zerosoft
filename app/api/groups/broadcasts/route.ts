@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ scheduled });
   }
   const kind = p.get('kind') === 'scheduled' || p.get('kind') === 'broadcast' ? (p.get('kind') as 'scheduled' | 'broadcast') : undefined;
-  return NextResponse.json({ broadcasts: await listBroadcasts(s.ws, { kind, chatId }) });
+  return NextResponse.json({ broadcasts: await listBroadcasts(s.ws, { kind, chatId, visible: await visibleChatIds(await sessionViewer(s)) }) });
 }
 
 /**

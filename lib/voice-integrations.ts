@@ -11,6 +11,7 @@ import { markdownToBlocks } from './docs-import';
 import { sanitizeDocsHtml } from './docs-sanitize';
 import { createNote } from './notes';
 import { canAccessTrackProject, createIssue, getProject } from './track-data';
+import { projectVisibleTo } from './track-access';
 import { createActivity, updateActivity } from './crm';
 import { canSeeEntity, type OwnerScope } from './crm-visibility';
 import { findContactByEmail } from './crm-integrations';
@@ -166,7 +167,10 @@ export async function tasksToTrack(args: {
   const items = args.items.map((s) => s.trim()).filter(Boolean).slice(0, 40);
   if (!items.length) return { ok: false, code: 'nothing_to_send' };
   const project = await getProject(args.projectId);
-  if (!project || !canAccessTrackProject(project, args.teamId, args.owner.workspaceId)) return { ok: false, code: 'project_not_found' };
+  // El equipo del workspace y, además, que la persona vea ese equipo (privados e invitados).
+  if (!project || !(await canAccessTrackProject(project, args.teamId, args.owner.workspaceId)) || !(await projectVisibleTo(project.id, args.owner.personId))) {
+    return { ok: false, code: 'project_not_found' };
+  }
   const created: Array<{ id: string; label: string }> = [];
   for (const title of items) {
     const issue = await createIssue(
