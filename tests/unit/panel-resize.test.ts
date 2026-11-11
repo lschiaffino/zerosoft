@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PANEL_BIG_STEP, PANEL_STEP, clampWidth, dragWidth, panelMax, resizeByKey } from '@/lib/panel-resize';
-import { LINES_PANELS, defaultListWidth, linesPanelMode, linesPanelsKey, linesPanelsScript, parseSavedPanels, resolveLinesPanels } from '@/lib/groups-panels';
+import { INBOX_LAYOUT, LINES_PANELS, defaultListWidth, linesPanelMode, linesPanelsKey, linesPanelsScript, parseSavedPanels, resolveLinesPanels } from '@/lib/groups-panels';
 
 describe('divisor de paneles: cuentas', () => {
   it('clampWidth redondea y respeta mínimo y máximo', () => {
@@ -107,5 +107,27 @@ describe('paneles de la bandeja de Lines', () => {
     expect(js).toContain('--gr-list-w');
     expect(js).toContain('--gr-details-w');
     expect(() => new Function(js)).not.toThrow();
+  });
+});
+
+describe('Inbox: anchos de paneles', () => {
+  it('tres columnas solo con la info abierta y desde 1366', () => {
+    expect(linesPanelMode(1400, INBOX_LAYOUT, true)).toBe('three');
+    expect(linesPanelMode(1400, INBOX_LAYOUT, false)).toBe('two');
+    expect(linesPanelMode(1365, INBOX_LAYOUT, true)).toBe('two');
+    expect(linesPanelMode(1023, INBOX_LAYOUT, false)).toBe('one');
+  });
+  it('los anchos por defecto son los del CSS de Inbox', () => {
+    expect(defaultListWidth(1200, 'two', INBOX_LAYOUT)).toBe(360);
+    expect(defaultListWidth(1500, 'three', INBOX_LAYOUT)).toBe(420);
+    const r = resolveLinesPanels({}, 1500, 'three', INBOX_LAYOUT);
+    expect(r.details?.value).toBe(390);
+    expect(r.details?.custom).toBe(false);
+  });
+  it('lo guardado se acomoda a la ventana y en una columna no hay divisores', () => {
+    const r = resolveLinesPanels({ list: 900 }, 1100, 'two', INBOX_LAYOUT);
+    expect(r.list?.value).toBe(600);
+    expect(r.details).toBeNull();
+    expect(resolveLinesPanels({ list: 400 }, 800, 'one', INBOX_LAYOUT)).toEqual({ list: null, details: null });
   });
 });

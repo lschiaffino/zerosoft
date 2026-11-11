@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-inbox-resizable-panels',
+    date: '2026-11-10',
+    title: {
+      en: 'Inbox: drag to resize the chat list and the contact info',
+      es: 'Inbox: arrastrá para cambiar el ancho de la lista y de la info del contacto',
+      pt: 'Inbox: arraste para mudar a largura da lista e da info do contato',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Like in Lines, the borders between the chat list, the conversation and the contact info can be dragged. The width stays saved in your browser, double-click goes back to the original, and the arrow keys work on the focused divider.',
+        es: 'Como en Lines, los bordes entre la lista de chats, la conversación y la info del contacto se pueden arrastrar. El ancho queda guardado en tu navegador, doble clic vuelve al original y las flechas funcionan con el divisor en foco.',
+        pt: 'Como no Lines, as bordas entre a lista de conversas, a conversa e a info do contato podem ser arrastadas. A largura fica salva no seu navegador, clique duplo volta ao original e as setas funcionam com o divisor em foco.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-rec-desktop-controls',
     date: '2026-11-10',
     title: {

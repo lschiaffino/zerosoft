@@ -8,13 +8,20 @@
 
 /* ---------- Grilla (pisa la de .gr-inbox) ---------- */
 .ib-app.gr-inbox {
-  grid-template-columns: clamp(340px, 30%, 460px) minmax(0, 1fr);
+  --gr-list-default: clamp(340px, 30%, 460px);
+  --ib-details-default: clamp(300px, 26%, 400px);
+  grid-template-columns: var(--gr-list-w, var(--gr-list-default)) minmax(0, 1fr);
   height: calc(100dvh - var(--band-h, 0px));
   background: var(--wa-panel);
   color: var(--wa-text);
   font-family: var(--wa-font);
 }
-.ib-app.gr-inbox.has-details { grid-template-columns: clamp(320px, 28%, 420px) minmax(0, 1fr) clamp(300px, 26%, 400px); }
+.ib-app.gr-inbox.has-details {
+  --gr-list-default: clamp(320px, 28%, 420px);
+  grid-template-columns: var(--gr-list-w, var(--gr-list-default)) minmax(0, 1fr) var(--gr-details-w, var(--ib-details-default));
+}
+/* Divisores (components/groups/PanelSplitters.tsx): los mismos de Lines, sobre los filetes de Inbox. */
+.ib-app.gr-inbox > .gr-splitter-details { display: block; right: calc(var(--gr-details-w, var(--ib-details-default)) - 6px); }
 .ib-app.gr-inbox :focus-visible { outline-color: var(--wa-primary); }
 .ib-app.gr-inbox .ib-list-pane { background: var(--wa-panel); border-right: 1px solid var(--wa-border-strong); }
 .ib-app.gr-inbox .ib-convo-pane { background: var(--wa-conv-bg); }
@@ -198,11 +205,13 @@
 /* Sin lugar para tres columnas: el panel se apoya sobre la conversación, a la derecha. */
 @media (max-width: 1365px) {
   .ib-app.gr-inbox { position: relative; }
-  .ib-app.gr-inbox.has-details { grid-template-columns: clamp(340px, 30%, 460px) minmax(0, 1fr); }
+  .ib-app.gr-inbox.has-details { --gr-list-default: clamp(340px, 30%, 460px); grid-template-columns: var(--gr-list-w, var(--gr-list-default)) minmax(0, 1fr); }
+  .ib-app.gr-inbox > .gr-splitter-details { display: none; }
   .ib-wa-details { position: absolute; top: 0; right: 0; bottom: 0; z-index: 60; width: min(400px, 100%); box-shadow: -4px 0 18px rgba(11, 20, 26, 0.14); }
 }
 @media (max-width: 1023px) {
   .ib-app.gr-inbox, .ib-app.gr-inbox.has-details { grid-template-columns: minmax(0, 1fr); }
+  .ib-app.gr-inbox > .gr-splitter { display: none; }
   .ib-app.gr-inbox .ib-wa-thread .gr-msg { max-width: 85%; }
   /* El panel de info cubre la conversación (como WhatsApp en el teléfono). */
   .ib-wa-details { position: fixed; inset: var(--band-h, 0px) 0 0 0; z-index: 70; width: auto; border-left: 0; box-shadow: none; }

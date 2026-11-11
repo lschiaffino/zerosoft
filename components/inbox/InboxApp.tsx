@@ -1,5 +1,7 @@
 'use client';
 
+import PanelSplitters from '@/components/groups/PanelSplitters';
+import { INBOX_LAYOUT, inboxPanelsKey } from '@/lib/groups-panels';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
@@ -928,6 +930,13 @@ export default function InboxApp(props: {
 
   return (
     <div className={`ib-app gr-inbox${openId ? ' has-open' : ''}${showInfo ? ' has-details' : ''}`} data-chat-style={chatStyle}>
+      <PanelSplitters
+        me=""
+        storageKey={inboxPanelsKey('')}
+        layout={INBOX_LAYOUT}
+        hasDetails={showInfo}
+        labels={{ list: t('panels.list'), details: t('panels.details'), hint: t('panels.hint') }}
+      />
       <div className="ib-list-pane">
         <div className="ib-list-head">
           <div className="ib-list-title">

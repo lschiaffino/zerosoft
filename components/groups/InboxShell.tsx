@@ -1229,7 +1229,7 @@ export default function InboxShell({
           )}
         </section>
         {children}
-        <PanelSplitters me={me} />
+        <PanelSplitters me={me} labels={{ list: t('inbox.resizeList'), details: t('inbox.resizeDetails'), hint: t('inbox.resizeHint') }} />
       </div>
       <SaveListModal
         mode={saving}
