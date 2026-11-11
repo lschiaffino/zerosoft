@@ -47,7 +47,7 @@ test('emojis por nombre en el composer: :fue → 🔥 con Enter, Esc cierra, las
   const strip = page.getByTestId('emoji-suggest');
   await expect(strip).toBeVisible();
   await expect(strip.getByRole('option').first()).toHaveAttribute('aria-selected', 'true');
-  await expect(strip.getByRole('option', { name: 'fire' })).toBeVisible();
+  await expect(strip.getByRole('option', { name: 'fire', exact: true })).toBeVisible();
   // Elegir con el teclado: Enter pone el emoji y no manda.
   const options = await strip.getByRole('option').allInnerTexts();
   const target = options.indexOf('🔥');
