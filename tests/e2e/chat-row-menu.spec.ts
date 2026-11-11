@@ -391,10 +391,11 @@ test('Lines: clic derecho en un chat abre su menú en el puntero, con exportar, 
   // Silenciar desde el menú.
   await rightClick(page, row);
   await menu(page).getByRole('menuitem', { name: 'Mute notifications' }).click();
-  await expect(row).toHaveClass(/is-muted/);
+  // La primera acción sobre el chat compila su ruta en `next dev`.
+  await expect(row).toHaveClass(/is-muted/, { timeout: 30_000 });
   await rightClick(page, row);
   await menu(page).getByRole('menuitem', { name: 'Unmute notifications' }).click();
-  await expect(row).not.toHaveClass(/is-muted/);
+  await expect(row).not.toHaveClass(/is-muted/, { timeout: 30_000 });
 
   // Teclado: Shift+F10 en la fila, Esc devuelve el foco.
   await row.getByRole('link').first().focus();
