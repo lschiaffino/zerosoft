@@ -15,6 +15,7 @@ const KNOWN_ERRORS = new Set([
   'no_tab_audio',
   'tab_skipped',
   'screen_denied',
+  'system_silent',
   'too_short',
   'nothing_heard',
   'not_found',
