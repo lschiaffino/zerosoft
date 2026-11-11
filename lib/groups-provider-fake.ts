@@ -543,7 +543,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       for (const e of events) if ((e as { type?: unknown })?.type === 'fake_contacts') applyFakeContacts(s, (e as { contacts?: unknown }).contacts);
       const out = events.filter((e): e is InboundEvent => {
         const t = (e as { type?: unknown })?.type;
-        return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote', 'contact', 'presence'].includes(String(t));
+        return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote', 'contact', 'presence', 'archive'].includes(String(t));
       });
       // El asunto que llegó con el mensaje es el que devuelve chatInfo (como el servidor real).
       for (const e of out) {
