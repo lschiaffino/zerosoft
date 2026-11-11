@@ -99,6 +99,10 @@
 }
 .gr-label-toggle:hover { background: var(--ui-hover); }
 .gr-label-toggle.is-on { border-color: var(--ink); background: var(--bg-soft); }
+/* En el teléfono cada etiqueta para elegir (plantillas, detalles del chat, lista) tiene alto de dedo. */
+@media (max-width: 720px) {
+  .gr-label-toggle { display: inline-flex; align-items: center; min-width: 40px; min-height: 40px; padding: 4px 10px; }
+}
 
 /* ---------- Bandeja: tres columnas a alto completo ---------- */
 
