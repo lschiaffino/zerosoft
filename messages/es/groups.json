@@ -563,7 +563,8 @@
     "syncedAuto": "{n, plural, =0 {Todavía no hay grupos en este número.} one {Trajimos # grupo.} other {Trajimos # grupos.}}",
     "openInbox": "Ir a la bandeja",
     "deleteBodyManaged": "Sus chats, grupos, mensajes y tickets se borran de Lines y se cierra la sesión vinculada en el teléfono.",
-    "adminOnly": "Solo los admins del workspace agregan, conectan y borran números."
+    "adminOnly": "Solo los admins del workspace, o quien un admin habilitó para conectar números, agregan y conectan números.",
+    "memberNote": "Los números que agregás son tuyos y privados: sus chats los ven solo vos y los admins del workspace hasta que los compartas desde Acceso."
   },
   "providers": {
     "cloud": {
@@ -710,7 +711,7 @@
     "pageBody": "Algo falló de nuestro lado. Probá de nuevo.",
     "generic": "Algo salió mal. Probá de nuevo.",
     "unauthorized": "Tu sesión terminó. Iniciá sesión de nuevo.",
-    "forbidden": "Solo los admins del workspace pueden hacer eso.",
+    "forbidden": "No tenés permiso para hacer eso.",
     "not_found": "Ya no existe.",
     "invalid_input": "Revisá los campos.",
     "network_error": "Sin conexión. Probá de nuevo.",
@@ -1496,7 +1497,7 @@
     "badge": "Ejemplo",
     "load": "Probar con datos de ejemplo",
     "loading": "Cargando ejemplo...",
-    "askAdmin": "Pedile a un admin del workspace que conecte un número o cargue datos de ejemplo.",
+    "askAdmin": "Pedile a un admin del workspace que conecte un número o que te habilite para conectarlo.",
     "banner": "Datos de ejemplo: lo que mandes no sale a WhatsApp.",
     "clear": "Borrar datos de ejemplo",
     "clearTitle": "¿Borrar los datos de ejemplo?",
@@ -1724,7 +1725,8 @@
         "moveTo": "Mover a…",
         "delete": "Borrar"
       }
-    }
+    },
+    "ownerFixed": "Sos el dueño de esta línea. Solo un admin la puede pasar a otra persona."
   },
   "hubspot": {
     "title": "HubSpot",

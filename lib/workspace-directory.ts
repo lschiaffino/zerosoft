@@ -10,6 +10,8 @@ import { inviteExpired, listPendingInvites, normalizeInviteRole, type TeamRole }
 import { canGrantApps, listTeamPeople, parseApps, type AppAccess, type WorkspaceRole } from './workspace';
 import { listGroups } from './workspace-groups';
 import { inviteUrl } from './workspace-invites';
+import { parseCapabilities, type Capability } from './capabilities';
+import { getDb } from './db';
 import { lastActiveByPerson, listAudit, listDeactivated, type AuditEntry, type DeactivatedDto } from './workspace-admin';
 
 export interface MemberDto {
@@ -21,6 +23,8 @@ export interface MemberDto {
   image: string | null;
   role: WorkspaceRole;
   apps: AppAccess;
+  /** Capacidades que le dieron (lib/capabilities.ts). Solo se cargan para admins; vacío para los demás. */
+  caps: Capability[];
   groupIds: string[];
   joinedAt: string;
   /** Última vez que usó el workspace (null = nunca o antes de que se registrara). */
@@ -86,9 +90,17 @@ export function canHandleInvite(role: TeamRole, apps: AppAccess, invite: Pick<Te
   return normalizeInviteRole(invite.role) === 'guest' || canGrantApps(apps, parseApps(invite.apps));
 }
 
+async function memberCaps(teamId: string): Promise<Map<string, Capability[]>> {
+  const rows = (await getDb()
+    .prepare("SELECT user_id, capabilities FROM team_members WHERE team_id = ? AND capabilities IS NOT NULL AND capabilities <> '[]'")
+    .all(teamId)
+    .catch(() => [])) as Array<{ user_id: string; capabilities: string }>;
+  return new Map(rows.map((r) => [r.user_id, parseCapabilities(r.capabilities)]));
+}
+
 export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: string, viewerApps: AppAccess = '*', viewerId?: string): Promise<DirectoryDto> {
   const admin = viewerRole === 'owner' || viewerRole === 'admin';
-  const [people, invites, groups, requests, lastActive, deactivated, audit] = await Promise.all([
+  const [people, invites, groups, requests, lastActive, deactivated, audit, caps] = await Promise.all([
     listTeamPeople(team, { includeGuests: true }),
     admin ? listPendingInvites(team.id) : Promise.resolve([]),
     listGroups(team.owner_id),
@@ -96,6 +108,7 @@ export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: s
     admin ? lastActiveByPerson(team.id) : Promise.resolve(new Map<string, string>()),
     admin ? listDeactivated(team.id) : Promise.resolve([]),
     admin ? listAudit(team.id, { limit: 50 }).catch(() => []) : Promise.resolve([]),
+    admin ? memberCaps(team.id) : Promise.resolve(new Map<string, Capability[]>()),
   ]);
   const groupsOf = new Map<string, string[]>();
   for (const g of groups) for (const m of g.members) groupsOf.set(m.user_id, [...(groupsOf.get(m.user_id) ?? []), g.id]);
@@ -108,6 +121,7 @@ export async function loadDirectory(team: TeamRow, viewerRole: TeamRole, base: s
       image: p.image,
       role: p.role,
       apps: p.apps,
+      caps: p.role === 'member' ? (caps.get(p.user_id) ?? []) : [],
       groupIds: groupsOf.get(p.user_id) ?? [],
       joinedAt: p.created_at,
       lastActiveAt: lastActive.get(p.user_id) ?? null,

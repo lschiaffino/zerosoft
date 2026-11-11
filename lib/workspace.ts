@@ -17,6 +17,7 @@
 import { getDb, type Db, type TeamRow, type UserRow } from './db';
 import { appFromPath, isProductKey, type ProductKey } from './products';
 import { memberDenied } from './app-access';
+import { parseCapabilities, type Capability } from './capabilities';
 import { normalizeWorkspaceMode, WORKSPACE_SIZES_LIST, type WorkspaceMode } from './workspace-mode';
 import { slugifyName } from './schema/workspace-migrations';
 
@@ -387,14 +388,14 @@ export async function getMembership(
   team: Pick<TeamRow, 'id' | 'owner_id'>,
   personId: string,
   db: Db = getDb(),
-): Promise<{ role: WorkspaceRole; apps: AppAccess } | null> {
-  if (team.owner_id === personId) return { role: 'owner', apps: '*' };
-  const row = (await db.prepare('SELECT role, apps FROM team_members WHERE team_id = ? AND user_id = ?').get(team.id, personId)) as
-    | { role: string; apps: string }
+): Promise<{ role: WorkspaceRole; apps: AppAccess; caps: Capability[] } | null> {
+  if (team.owner_id === personId) return { role: 'owner', apps: '*', caps: [] };
+  const row = (await db.prepare('SELECT * FROM team_members WHERE team_id = ? AND user_id = ?').get(team.id, personId)) as
+    | { role: string; apps: string; capabilities?: string | null }
     | undefined;
   if (!row) return null;
   const role = normalizeWorkspaceRole(row.role);
-  return { role: role === 'owner' ? 'admin' : role, apps: parseApps(row.apps) };
+  return { role: role === 'owner' ? 'admin' : role, apps: parseApps(row.apps), caps: parseCapabilities(row.capabilities) };
 }
 
 /**

@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-member-permissions',
+    date: '2026-11-10',
+    title: {
+      en: 'Extra permissions for members, starting with connecting numbers in Lines',
+      es: 'Permisos extra para members, empezando por conectar números en Lines',
+      pt: 'Permissões extras para members, começando por conectar números no Lines',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'In Settings › Members and permissions, each member now has an Extra permissions section: things only admins could do, given to one person without making them an admin. Granting one asks for confirmation, removing it applies on their next action, and every change shows up in the change log. Making someone an admin now asks for confirmation too.',
+        es: 'En Ajustes › Miembros y permisos, cada member tiene ahora una sección de Permisos extra: cosas que solo podían hacer los admins, dadas a una persona sin hacerla admin. Dar uno pide confirmación, quitarlo vale desde su próxima acción, y cada cambio queda en el registro. Hacer admin a alguien ahora también pide confirmación.',
+        pt: 'Em Ajustes › Membros e permissões, cada member agora tem uma seção de Permissões extras: coisas que só os admins podiam fazer, dadas a uma pessoa sem torná-la admin. Dar uma pede confirmação, tirar vale a partir da próxima ação dela, e cada mudança fica no registro. Tornar alguém admin agora também pede confirmação.',
+      },
+      {
+        product: 'groups',
+        en: 'The first one is "Can connect numbers in Lines": the member adds WhatsApp numbers with a QR code or credentials and reconnects, renames, shares, disconnects and deletes the ones they add. Those numbers are theirs and private: only they and the admins see the chats until they share them. Numbers added by other people stay out of their reach.',
+        es: 'El primero es "Puede conectar números en Lines": el member agrega números de WhatsApp con QR o credenciales y reconecta, renombra, comparte, desconecta y borra los que agrega. Esos números quedan a su nombre y privados: los chats los ven solo esa persona y los admins hasta que los comparta. Los números que agregaron otras personas quedan fuera de su alcance.',
+        pt: 'A primeira é "Pode conectar números no Lines": o member adiciona números de WhatsApp com QR ou credenciais e reconecta, renomeia, compartilha, desconecta e exclui os que adiciona. Esses números ficam no nome dele e privados: só ele e os admins veem os chats até ele compartilhá-los. Os números que outras pessoas adicionaram ficam fora do alcance dele.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-whatsapp-contact-names',
     date: '2026-11-10',
     title: {

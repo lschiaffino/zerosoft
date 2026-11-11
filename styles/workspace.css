@@ -477,6 +477,13 @@ body:has(.wl-page) .zs-support-launcher { display: none; }
 .ws-access-app { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; padding: 4px 0; border-bottom: 1px solid var(--line); }
 .ws-access-app .ws-access-detail { text-align: right; overflow-wrap: anywhere; }
 .ws-access-app:not(.is-on) .ws-access-detail { color: var(--ink-3); }
+.ws-access-caps { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.ws-access-cap { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.ws-access-cap-input { flex-shrink: 0; margin: 3px 0 0; width: 16px; height: 16px; accent-color: var(--ink); }
+.ws-access-cap-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.ws-access-cap-text label { cursor: pointer; }
+.ws-access-cap-input:disabled + .ws-access-cap-text label { cursor: default; }
+.ws-access-cap-warn { color: var(--ink); }
 .ws-access-list { margin: 0; padding-left: 18px; font-size: 0.875rem; line-height: 1.6; }
 .ws-access .ws-request-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0; padding: 10px 12px; border: 1px solid var(--line); }
 .ws-access .ws-request-line p { margin: 0; flex: 1 1 200px; }

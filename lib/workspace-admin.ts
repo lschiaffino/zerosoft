@@ -22,6 +22,7 @@ export type AuditAction =
   | 'member.role'
   | 'member.apps'
   | 'member.teams'
+  | 'member.caps'
   | 'member.remove'
   | 'member.reactivate'
   | 'member.transfer'
