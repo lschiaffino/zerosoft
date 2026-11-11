@@ -51,6 +51,8 @@
       "no_camera": "No encontramos una cámara. Conectá una o grabá solo la pantalla.",
       "device": "La cámara o el micrófono no arrancaron. Cerrá otras apps que los usen y probá de nuevo.",
       "screen_unsupported": "Este navegador no puede grabar la pantalla. Probá con Chrome, Edge o Firefox en una computadora.",
+      "screen_black": "La pantalla salió en negro: tu computadora no deja que el navegador la grabe. En Mac, abrí Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y audio del sistema, activá tu navegador y volvé a abrirlo.",
+      "screen_black_desktop": "La pantalla salió en negro: macOS no deja que zerosoft la grabe. Abrí Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y audio del sistema, activá zerosoft, cerralo con ⌘Q y volvé a abrirlo.",
       "screen_denied": "Se canceló o se bloqueó compartir la pantalla.",
       "upload": "La grabación no pudo empezar. Probá de nuevo.",
       "unsupported": "Este navegador no puede grabar video. Probá con Chrome, Edge o Firefox."
