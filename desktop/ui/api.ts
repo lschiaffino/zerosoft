@@ -101,6 +101,7 @@ export type Remote<T> = ({ ok: true } & T) | { ok: false; error: RemoteError };
 export interface VoiceServerSettings {
   language: string;
   cleanupMode: 'raw' | 'clean' | 'formal' | 'per_app';
+  cleanupDepth: 'light' | 'standard' | 'thorough';
   aiCleanup: boolean;
   styles: Record<'email' | 'chat' | 'note' | 'other', 'formal' | 'neutral' | 'casual'>;
 }

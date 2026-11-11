@@ -566,6 +566,13 @@ async function renderVoice(panel: HTMLElement) {
   ];
   const mode = h('select', { id: 'cleanup', onchange: (e: Event) => void save({ cleanupMode: (e.target as HTMLSelectElement).value as VoiceServerSettings['cleanupMode'] }) });
   for (const [m, k] of modes) mode.append(h('option', { value: m, selected: m === cur.cleanupMode }, s(k)));
+  const depths: Array<[VoiceServerSettings['cleanupDepth'], string]> = [
+    ['light', 'depthLight'],
+    ['standard', 'depthStandard'],
+    ['thorough', 'depthThorough'],
+  ];
+  const depth = h('select', { id: 'depth', onchange: (e: Event) => void save({ cleanupDepth: (e.target as HTMLSelectElement).value as VoiceServerSettings['cleanupDepth'] }) });
+  for (const [m, k] of depths) depth.append(h('option', { value: m, selected: m === (cur.cleanupDepth ?? 'standard') }, s(k)));
   const ai = h('input', { type: 'checkbox', id: 'ai', checked: cur.aiCleanup, onchange: (e: Event) => void save({ aiCleanup: (e.target as HTMLInputElement).checked }) });
   const ctxs: Array<[keyof VoiceServerSettings['styles'], string]> = [
     ['email', 'ctxEmail'],
@@ -580,6 +587,7 @@ async function renderVoice(panel: HTMLElement) {
   });
   const sync = () => {
     ai.disabled = cur.cleanupMode === 'raw';
+    (depth as HTMLSelectElement).disabled = cur.cleanupMode === 'raw' || !cur.aiCleanup;
     styleSelects.forEach((d) => ((d.querySelector('select') as HTMLSelectElement).disabled = cur.cleanupMode !== 'per_app'));
   };
   sync();
@@ -595,6 +603,7 @@ async function renderVoice(panel: HTMLElement) {
       ),
       h('p', { class: 'help' }, s('cleanupHelp')),
       h('label', { class: 'check' }, ai, h('span', {}, s('aiCleanup'))),
+      h('div', { style: 'margin-top:12px' }, h('label', { class: 'field', for: 'depth' }, s('cleanupDepth')), depth),
     ),
     h('section', {}, h('h2', {}, s('stylesTitle')), h('div', { class: 'grid2' }, ...styleSelects), h('p', { class: 'help' }, s('stylesHelp'))),
     h('p', {}, h('button', { class: 'btn link', type: 'button', onclick: () => void api.openVoice('settings') }, `${s('openInVoice')} ↗`)),

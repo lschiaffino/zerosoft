@@ -157,6 +157,27 @@ export function finishSentences(text: string): string {
   return out;
 }
 
+/**
+ * Frases que los modelos de transcripción inventan cuando hay silencio o ruido (vienen de los
+ * subtítulos con los que se entrenaron). Las de créditos se sacan donde estén; las de despedida,
+ * solo si son todo el texto (alguien las puede decir de verdad).
+ */
+const HALLUCINATED_ANYWHERE: RegExp[] = [
+  /MBC\s*뉴스\s*\S+입니다\.?/gu,
+  /(?:subt[ií]tulos|subtitles|legendas|sous-titres)\b[^.\n]{0,60}\bamara\.org\b[^.\n]{0,30}\.?/giu,
+  /字幕由\s*Amara\.org\s*社[区區]提供/gu,
+  /시청해\s*주셔서 감사합니다\.?/gu,
+  /ご視聴ありがとうございました。?/gu,
+];
+const HALLUCINATED_WHOLE = /^(?:thanks? (?:you )?for watching[.!]?|gracias por ver(?: el video)?[.!]?|obrigado por assistir[.!]?|\.+|you)$/iu;
+
+export function stripHallucinations(text: string): string {
+  let out = text;
+  for (const re of HALLUCINATED_ANYWHERE) out = out.replace(re, ' ');
+  out = out.replace(/[ \t]{2,}/g, ' ').trim();
+  return HALLUCINATED_WHOLE.test(out) ? '' : out;
+}
+
 /** Limpieza completa por reglas. */
 export function ruleCleanup(raw: string, entries: Pick<VoiceDictionaryEntry, 'kind' | 'phrase' | 'replacement'>[] = []): string {
   let t = raw.replace(/\s+/g, ' ').trim();
