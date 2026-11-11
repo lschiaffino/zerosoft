@@ -145,14 +145,13 @@ test('un member sin CRM no recibe herramientas del CRM', async ({ browser, page 
   }
 });
 
-test('historial a página completa: preguntar desde el inicio, renombrar, buscar y borrar', async ({ page }) => {
+test('historial a página completa: preguntar, renombrar, buscar y borrar', async ({ page }) => {
   const errors = watchErrors(page);
-  await page.goto('/en/app', { waitUntil: 'networkidle' });
-  const home = page.getByTestId('home-assistant');
-  await expect(home).toBeVisible();
+  await page.goto('/en/app/assistant', { waitUntil: 'networkidle' });
   const question = `Who is in this workspace ${uid()}`;
-  await home.getByRole('textbox').fill(question);
-  await home.getByRole('button', { name: 'Ask' }).click();
+  const input = page.getByTestId('assistant-page').getByRole('textbox', { name: 'Ask anything or describe a change' });
+  await input.fill(question);
+  await input.press('Enter');
   await expect(page).toHaveURL(/\/en\/app\/assistant/);
   // Shell de la plataforma (no el de Link) con el ítem del asistente marcado.
   await expect(page.locator('#app-side .side-stop[href$="/app/assistant"]')).toHaveAttribute('aria-current', 'page');

@@ -99,13 +99,6 @@ test('una tarea creada en el chat se ve en el contacto, en la tarea con link al 
   await page.goto('/en/app/crm/tasks?bucket=today', { waitUntil: 'networkidle' });
   const row = page.locator('.task-row', { hasText: body });
   if ((await row.count()) > 0) await expect(row.locator('.task-source')).toContainText(chatName);
-  await page.goto('/en/app', { waitUntil: 'networkidle' });
-  const home = page.getByTestId('home-crm-tasks');
-  if (await page.getByText(body).count()) {
-    await expect(home.getByRole('link', { name: new RegExp(body) })).toHaveAttribute('href', new RegExp(`/app/crm/tasks/${task.id}$`));
-    // Con contacto, el contacto; la app de origen adelante.
-    await expect(home).toContainText(`WhatsApp · Ana Tasks ${tag}`);
-  }
 
   expect(errors).toEqual([]);
 });

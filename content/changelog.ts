@@ -93,6 +93,23 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-10-home-apps',
+    date: '2026-11-10',
+    title: {
+      en: 'Home: just your apps, with what each one is for',
+      es: 'Inicio: solo tus apps, con para qué sirve cada una',
+      pt: 'Início: só os seus apps, com para que serve cada um',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'The home page now shows only your apps, each with its icon, its name and a line on what it is for. Coming soon apps go in one quiet line at the bottom. The assistant is still one ⌘J away from anywhere.',
+        es: 'El inicio ahora muestra solo tus apps, cada una con su ícono, su nombre y una línea de para qué sirve. Las que vienen pronto van en una línea discreta al pie. El asistente sigue a un ⌘J desde cualquier lado.',
+        pt: 'O início agora mostra só os seus apps, cada um com seu ícone, seu nome e uma linha sobre para que serve. Os que chegam em breve ficam numa linha discreta no fim. O assistente continua a um ⌘J de qualquer lugar.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-lines-hubspot-properties',
     date: '2026-11-10',
     title: {
