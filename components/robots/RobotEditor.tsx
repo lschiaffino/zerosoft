@@ -285,7 +285,9 @@ export default function RobotEditor({ robot: initial, runs: initialRuns, usage: 
   const pending = runs.some((r) => r.status === 'queued' || r.status === 'running');
   useEffect(() => {
     if (!pending || tab !== 'runs') return;
-    const timer = window.setInterval(() => void refreshRuns(), 5000);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshRuns();
+    }, 5000);
     return () => window.clearInterval(timer);
   }, [pending, tab, refreshRuns]);
 

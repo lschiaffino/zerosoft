@@ -120,7 +120,7 @@ export async function countUnreadNotifications(userId: string, opts: { hidePaths
   const hideArgs = hide.flatMap((p) => [p, `${p}/%`, `${p}?%`, `/__${p}`, `/__${p}/%`]);
   const row = (await db
     .prepare(
-      `SELECT COUNT(*) AS c FROM notifications WHERE user_id = ? AND read_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)${
+      `SELECT COUNT(*) AS c FROM notifications INDEXED BY idx_notifications_unread WHERE user_id = ? AND read_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)${
         hide.length ? ` AND NOT (href IS NOT NULL AND (${hideSql}))` : ''
       }`,
     )

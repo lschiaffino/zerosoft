@@ -168,8 +168,10 @@ export async function runSlaChecks(opts: { now?: Date; limit?: number } = {}): P
     .prepare(
       `SELECT s.*, i.identifier, i.title, p.name AS project_name
        FROM track_issue_slas s JOIN track_issues i ON i.id = s.issue_id JOIN track_projects p ON p.id = i.project_id
-       WHERE s.completed_at IS NULL AND (
-         (s.risk_notified_at IS NULL AND s.risk_at <= ?) OR (s.breach_notified_at IS NULL AND s.due_at <= ?)
+       WHERE s.issue_id IN (
+         SELECT issue_id FROM track_issue_slas INDEXED BY idx_track_issue_slas_risk_due WHERE completed_at IS NULL AND risk_notified_at IS NULL AND risk_at <= ?
+         UNION
+         SELECT issue_id FROM track_issue_slas INDEXED BY idx_track_issue_slas_breach_due WHERE completed_at IS NULL AND breach_notified_at IS NULL AND due_at <= ?
        )
        ORDER BY s.risk_at ASC LIMIT ?`,
     )

@@ -10,6 +10,7 @@ import {
 } from '@/lib/notifications';
 import { unauthorized } from '@/lib/track-http';
 import { noStore } from '@/lib/no-store';
+import { nextSnoozeWake, notificationKey, notificationRev, notificationTag, notificationTagFresh } from '@/lib/notification-rev';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,15 +32,24 @@ async function getPrivate(req: NextRequest) {
   const types = sp.getAll('type').filter(Boolean);
   const snoozed = sp.get('snoozed') === '1';
 
-  const [rows, unreadCount] = await Promise.all([
-    listNotifications(realUserId(user), {
+  // Nada cambió desde la última respuesta (lib/notification-rev.ts): 304 leyendo una fila.
+  const uid = realUserId(user);
+  const hide = hiddenAppPaths(user);
+  const key = notificationKey(uid, req.nextUrl.search, hide);
+  const rev = await notificationRev(uid);
+  const sent = req.headers.get('if-none-match');
+  if (notificationTagFresh(sent, rev, key)) return new NextResponse(null, { status: 304, headers: { etag: sent! } });
+
+  const [rows, unreadCount, wakeAt] = await Promise.all([
+    listNotifications(uid, {
       unreadOnly,
       limit,
       page,
       type: types.length ? (types as NotificationType[]) : undefined,
       snoozed,
     }),
-    countUnreadNotifications(realUserId(user), { hidePaths: hiddenAppPaths(user) }),
+    countUnreadNotifications(uid, { hidePaths: hide }),
+    nextSnoozeWake(uid),
   ]);
 
   // Acceso por app: en un workspace ajeno no se muestran avisos de apps que la persona no tiene.
@@ -47,7 +57,7 @@ async function getPrivate(req: NextRequest) {
     const app = appFromPath(n.href);
     return !app || userCanUseApp(user, app);
   }) : rows;
-  return NextResponse.json({ rows: visible, unreadCount });
+  return NextResponse.json({ rows: visible, unreadCount }, { headers: { etag: notificationTag(rev, wakeAt, key) } });
 }
 
 async function patchPrivate(req: NextRequest) {

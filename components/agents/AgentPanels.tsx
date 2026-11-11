@@ -441,7 +441,9 @@ export function SourcesPanel({ agentId, canEdit }: { agentId: string; canEdit: b
   const pending = list?.some((s) => s.status === 'pending');
   useEffect(() => {
     if (!pending) return;
-    const timer = window.setInterval(() => void load(), 5000);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void load();
+    }, 5000);
     return () => window.clearInterval(timer);
   }, [pending, load]);
 

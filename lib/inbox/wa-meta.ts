@@ -204,6 +204,17 @@ export async function refreshChatInfo(account: AccountRow, thread: ThreadRow, no
   return true;
 }
 
+/** ¿Algún chat de la cuenta sin datos o con datos vencidos? Dos búsquedas por idx_inbox_threads_info (una fila cada una). */
+export async function hasStaleInfo(accountId: string, stale: string): Promise<boolean> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT EXISTS (SELECT 1 FROM inbox_threads WHERE account_id = ? AND info_at IS NULL)
+           OR EXISTS (SELECT 1 FROM inbox_threads WHERE account_id = ? AND info_at < ?) AS due`,
+    )
+    .get(accountId, accountId, stale)) as { due: number } | undefined;
+  return Number(row?.due ?? 0) === 1;
+}
+
 /**
  * Chats que necesitan datos: grupos sin asunto primero, después los que
  * nunca se pidieron y los vencidos, los más recientes antes. Cada chat se
@@ -216,6 +227,8 @@ export async function refreshStaleInfo(account: AccountRow, opts: { now?: Date; 
   const db = getDb();
   const stale = new Date(now.getTime() - INFO_TTL_MS).toISOString();
   const byIds = opts.ids?.length ? ` AND id IN (${opts.ids.map(() => '?').join(',')})` : '';
+  // El cron pasa cada minuto: si ningún chat de la cuenta tiene datos por pedir o vencidos, no se leen sus chats.
+  if (!byIds && !(await hasStaleInfo(account.id, stale))) return 0;
   const rows = (await db
     .prepare(
       `SELECT * FROM inbox_threads WHERE account_id = ? AND channel = 'whatsapp' AND (info_at IS NULL OR info_at < ?)${byIds}

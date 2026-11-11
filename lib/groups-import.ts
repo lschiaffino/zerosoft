@@ -213,7 +213,8 @@ export async function applyContact(number: Pick<NumberRow, 'id' | 'user_id'>, ev
   if (phone && !isGroupJid(ev.chatId)) {
     await db
       .prepare(
-        `UPDATE groups_members SET name = ? WHERE phone = ? AND name = '' AND chat_id IN (SELECT id FROM groups_chats WHERE number_id = ?)`,
+        `UPDATE groups_members SET name = ? WHERE phone = ? AND name = ''
+           AND EXISTS (SELECT 1 FROM groups_chats c WHERE c.id = groups_members.chat_id AND c.number_id = ?)`,
       )
       .run(ev.name.slice(0, 120), phone, number.id);
   }

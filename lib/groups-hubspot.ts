@@ -879,8 +879,8 @@ export async function sweepHubspotAutoLink(limit = 10): Promise<number> {
   const db = getDb();
   const rows = (await db
     .prepare(
-      `SELECT c.id, c.user_id, c.kind, c.phone FROM groups_chats c JOIN groups_hubspot h ON h.user_id = c.user_id AND h.token != '' AND h.auto_link = 1
-       WHERE c.kind = 'dm' AND c.phone != '' AND c.hidden_at IS NULL
+      `SELECT c.id, c.user_id, c.kind, c.phone FROM groups_hubspot h CROSS JOIN groups_chats c ON c.user_id = h.user_id
+       WHERE h.token != '' AND h.auto_link = 1 AND c.kind = 'dm' AND c.phone != '' AND c.hidden_at IS NULL
          AND NOT EXISTS (SELECT 1 FROM groups_hubspot_links l WHERE l.chat_id = c.id AND l.object_type = 'contact')
          AND NOT EXISTS (SELECT 1 FROM groups_hubspot_matches m WHERE m.chat_id = c.id)
        ORDER BY COALESCE(c.last_message_at, c.created_at) DESC LIMIT ?`,
@@ -1145,11 +1145,11 @@ export async function syncHubspotNotes(opts: { limit?: number; budgetMs?: number
   const groups = (await db
     .prepare(
       `SELECT m.user_id, m.chat_id, substr(m.created_at, 1, 10) AS day, COUNT(*) AS n, MAX(m.created_at) AS last
-       FROM groups_messages m
-       JOIN groups_hubspot h ON h.user_id = m.user_id AND h.token != '' AND h.log_notes = 1
+       FROM groups_hubspot h
+       CROSS JOIN groups_messages m ON m.user_id = h.user_id
        JOIN groups_chats c ON c.id = m.chat_id
        JOIN groups_numbers nb ON nb.id = c.number_id AND nb.visibility = 'all'
-       WHERE m.created_at >= ? AND ${MESSAGE_FILTER}
+       WHERE h.token != '' AND h.log_notes = 1 AND m.created_at >= ? AND ${MESSAGE_FILTER}
          AND EXISTS (SELECT 1 FROM groups_hubspot_links l WHERE l.chat_id = m.chat_id AND l.missing = 0)
        GROUP BY m.user_id, m.chat_id, substr(m.created_at, 1, 10)
        ORDER BY last LIMIT 500`,

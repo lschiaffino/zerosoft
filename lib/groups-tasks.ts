@@ -395,7 +395,7 @@ export async function fireTaskReminders(opts: { now?: Date; limit?: number } = {
     .prepare(
       `SELECT t.id, t.user_id, t.chat_id, t.created_by, t.locale, t.timezone, a.subject, a.due_at, a.owner_id, c.name AS chat_name, c.phone AS chat_phone,
          c.provider_chat_id AS chat_pid, u.email AS owner_email
-       FROM groups_tasks t JOIN crm_activities a ON a.id = t.activity_id JOIN groups_chats c ON c.id = t.chat_id
+       FROM groups_tasks t CROSS JOIN crm_activities a ON a.id = t.activity_id JOIN groups_chats c ON c.id = t.chat_id
        LEFT JOIN users u ON u.id = COALESCE(a.owner_id, t.created_by)
        WHERE a.done = 0 AND a.due_at IS NOT NULL AND datetime(a.due_at) <= datetime(?) AND (t.reminded_for IS NULL OR t.reminded_for != a.due_at)
        ORDER BY a.due_at ASC LIMIT ?`,

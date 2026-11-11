@@ -6,12 +6,20 @@ import { useLocale } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import Icon from './icons';
 import { relDate } from '@/lib/utils';
-import { useVisiblePoll } from '@/lib/use-visible-poll';
+import { failureBackoffMs, useVisiblePoll } from '@/lib/use-visible-poll';
+import { fetchIfChanged } from '@/lib/conditional-fetch';
 import { useLayer } from '@/lib/ui/layers';
 import { notificationTitle, type NotificationTextLabels } from '@/lib/notification-text';
 
 /** Evento que dispara quien cambia avisos (la bandeja) para que la campana se actualice. */
 export const NOTIFICATIONS_CHANGED_EVENT = 'zs:notifications-changed';
+
+/** Cada cuánto consulta la campana con la ventana en uso. */
+const POLL_MS = 30_000;
+/** A la vista pero sin foco. */
+const UNFOCUSED_POLL_MS = 120_000;
+/** Tope de la espera después de pedidos fallidos. */
+const MAX_BACKOFF_MS = 5 * 60_000;
 
 interface Notification {
   id: string;
@@ -51,22 +59,38 @@ export default function NotificationBell({ labels, onCountChange }: Notification
 
   // Los pospuestos no cuentan ni se listan (el API los excluye). Se recarga al
   // abrir y cuando la bandeja avisa un cambio, para no mostrar un estado viejo.
-  const load = useCallback(async () => {
-    const res = await fetch('/api/notifications?limit=5').catch(() => null);
-    if (!res?.ok) {
-      setState((s) => (s === 'ready' ? s : 'error'));
-      return;
-    }
-    const data = (await res.json()) as { rows: Notification[]; unreadCount: number };
-    setState('ready');
-    setNotifications(data.rows ?? []);
-    setUnreadCount(data.unreadCount ?? 0);
-    onCountChange?.(data.unreadCount ?? 0);
-  }, [onCountChange]);
+  // El pedido es condicional (ETag con la versión de los avisos): si nada cambió
+  // el servidor responde 304 sin leer los avisos. Si falla, la consulta de
+  // fondo espera cada vez más (hasta 5 min); abrir la campana pide igual.
+  const etag = useRef<string | null>(null);
+  const failures = useRef(0);
+  const retryAt = useRef(0);
+  const load = useCallback(
+    async (force = true) => {
+      if (!force && Date.now() < retryAt.current) return;
+      const res = await fetchIfChanged<{ rows: Notification[]; unreadCount: number }>('/api/notifications?limit=5', etag.current);
+      if (res.state === 'error') {
+        failures.current += 1;
+        retryAt.current = Date.now() + failureBackoffMs(failures.current, POLL_MS, MAX_BACKOFF_MS);
+        setState((s) => (s === 'ready' ? s : 'error'));
+        return;
+      }
+      failures.current = 0;
+      retryAt.current = 0;
+      if (res.state !== 'fresh') return;
+      etag.current = res.etag || null;
+      setState('ready');
+      setNotifications(res.data.rows ?? []);
+      setUnreadCount(res.data.unreadCount ?? 0);
+      onCountChange?.(res.data.unreadCount ?? 0);
+    },
+    [onCountChange],
+  );
 
-  // Cada 30 s con la pestaña visible, y al volver a ella; oculta no pide nada.
+  // Cada 30 s con la ventana a la vista y en uso; a la vista sin foco (otra
+  // ventana encima), cada 2 min; oculta no pide nada. Al volver, en el acto.
   // La primera, con el navegador libre: no compite con los datos de la página.
-  useVisiblePoll(load, 30_000, { idleStart: true });
+  useVisiblePoll(() => load(false), POLL_MS, { idleStart: true, unfocusedMs: UNFOCUSED_POLL_MS });
   useEffect(() => {
     const onChanged = () => void load();
     window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);

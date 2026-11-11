@@ -236,7 +236,7 @@ export async function processDueReplays(opts: { now?: Date; limit?: number; dead
   const now = (opts.now ?? new Date()).toISOString();
   const rows = (await db
     .prepare(
-      `SELECT r.id, r.user_id, r.replay_at FROM flow_runs r JOIN flow_flows f ON f.id = r.flow_id
+      `SELECT r.id, r.user_id, r.replay_at FROM flow_runs r INDEXED BY idx_flow_runs_replay JOIN flow_flows f ON f.id = r.flow_id
        WHERE r.replay_at IS NOT NULL AND r.replay_at <= ? AND r.status = 'failed' AND f.enabled = 1
        ORDER BY r.replay_at LIMIT ?`,
     )
@@ -259,8 +259,8 @@ export async function processDueReplays(opts: { now?: Date; limit?: number; dead
   // Flows apagados: sus replays pendientes se descartan (no corren al prenderlo días después).
   await db
     .prepare(
-      `UPDATE flow_runs SET replay_at = NULL WHERE replay_at IS NOT NULL AND replay_at <= ?
-         AND flow_id IN (SELECT id FROM flow_flows WHERE enabled = 0)`,
+      `UPDATE flow_runs INDEXED BY idx_flow_runs_replay SET replay_at = NULL WHERE replay_at IS NOT NULL AND replay_at <= ?
+         AND EXISTS (SELECT 1 FROM flow_flows f WHERE f.id = flow_runs.flow_id AND f.enabled = 0)`,
     )
     .run(now);
   return done;
