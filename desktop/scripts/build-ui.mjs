@@ -1,4 +1,4 @@
-// Compila las páginas locales (Ajustes, HUD, indicador de grabación y tira de pestañas) con esbuild a dist-ui/, que Tauri embebe en el binario.
+// Compila las páginas locales (Ajustes, HUD, indicador de grabación, tira de pestañas y barra y burbuja de Rec) con esbuild a dist-ui/, que Tauri embebe en el binario.
 import { build } from 'esbuild';
 import fs from 'fs';
 import path from 'path';
@@ -10,7 +10,7 @@ fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
 
 await Promise.all(
-  ['settings', 'hud', 'indicator', 'tabs'].map((name) =>
+  ['settings', 'hud', 'indicator', 'tabs', 'recbar', 'recbubble'].map((name) =>
     build({
       entryPoints: [path.join(root, `ui/${name}.ts`)],
       outfile: path.join(out, `${name}.js`),
@@ -24,5 +24,5 @@ await Promise.all(
     }),
   ),
 );
-for (const name of ['settings.html', 'hud.html', 'indicator.html', 'tabs.html']) fs.copyFileSync(path.join(root, 'ui', name), path.join(out, name));
+for (const name of ['settings.html', 'hud.html', 'indicator.html', 'tabs.html', 'recbar.html', 'recbubble.html']) fs.copyFileSync(path.join(root, 'ui', name), path.join(out, name));
 console.log('ui build ok');

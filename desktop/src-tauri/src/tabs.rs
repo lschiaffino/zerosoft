@@ -713,6 +713,16 @@ pub fn recording_webview(app: &AppHandle) -> Option<Webview> {
     app.get_webview(&tab_label(id))
 }
 
+/// La pestaña de una webview ("tab-<id>"), adelante y con su ventana al frente (Rec, rec_overlay.rs).
+pub fn focus_webview(app: &AppHandle, label: &str) -> bool {
+    let Some(id) = tab_id(label) else { return false };
+    let win = st(app).s.lock().unwrap().window_of(id).map(str::to_string);
+    let Some(win) = win else { return false };
+    show_tab(app, id, true);
+    show_window(app, &win);
+    true
+}
+
 /// "Abrir" del indicador: la pestaña que graba, adelante.
 pub fn focus_recording(app: &AppHandle) -> bool {
     let found = st(app).s.lock().unwrap().windows.iter().flat_map(|w| &w.tabs).find(|t| t.recording).map(|t| t.id);

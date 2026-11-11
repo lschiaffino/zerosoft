@@ -57,6 +57,10 @@
     },
     "discardConfirm": "¿Descartar esta grabación?",
     "keepRecording": "Seguir grabando",
+    "mute": "Silenciar micrófono",
+    "unmute": "Activar micrófono",
+    "restart": "Empezar de nuevo",
+    "restartConfirm": "¿Borrar esta toma y empezar de nuevo?",
     "stopHint": "Terminar (Alt+Shift+S)",
     "pauseHint": "Pausar o seguir (Alt+Shift+P)"
   },
