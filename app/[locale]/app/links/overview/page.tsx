@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { getUserOverview } from '@/lib/track';
+import { viewerOf } from '@/lib/link-folders';
 import { formatNumber, shortUrl } from '@/lib/utils';
 import LinkChart from '@/components/link/LinkChart';
 import PageHeader from '@/components/ui/PageHeader';
@@ -19,7 +20,7 @@ export default async function LinkOverviewPage(props: { params: Promise<{ locale
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'link' });
   const tHome = await getTranslations({ locale, namespace: 'common.appHome' });
-  const o = await getUserOverview(user.id);
+  const o = await getUserOverview(user.id, viewerOf(user));
 
   const maxTop = Math.max(...o.topLinks.map((l) => l.clicks), 1);
 

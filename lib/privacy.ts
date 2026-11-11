@@ -648,6 +648,20 @@ const PERSONAL_EXPORT: Record<string, { cols: string[]; where: (me: string) => W
       args: [me],
     }),
   },
+  // Track: el audit log de equipos privados, como en Ajustes › Audit log.
+  track_audit_log: {
+    cols: ['project_id'],
+    where: (me) => ({
+      sql: `(project_id IS NULL OR project_id IN (SELECT id FROM track_projects WHERE COALESCE(visibility, 'workspace') <> 'private'
+        OR id IN (SELECT project_id FROM track_project_access WHERE user_id = ?)))`,
+      args: [me],
+    }),
+  },
+  // Board: las notas del modo privado son de quien las escribió hasta que se revelan.
+  board_private_drafts: { cols: ['author'], where: (me) => ({ sql: 'author = ?', args: [me] }) },
+  // Flow y webhooks: los datos de una corrida o entrega se armaron con el acceso de quien la creó.
+  flow_runs: { cols: ['captured_by'], where: (me) => ({ sql: '(captured_by IS NULL OR captured_by = ?)', args: [me] }) },
+  webhook_deliveries: { cols: ['captured_by'], where: (me) => ({ sql: '(captured_by IS NULL OR captured_by = ?)', args: [me] }) },
   docs_pages: {
     cols: ['teamspace_id'],
     where: (me) => ({

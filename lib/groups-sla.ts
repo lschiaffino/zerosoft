@@ -100,10 +100,13 @@ export async function notifyBreach(ws: string, ticket: TicketDto, kind: 'first_r
   const mail = buildSlaEmail(ticket, kind, locale, `${siteUrl()}/${locale}${href}`);
   let sent = 0;
   for (const r of recipients) {
+    // Una persona del workspace que no ve el chat del ticket no recibe ni el email ni el aviso.
+    const { personCanSeeChat } = await import('./groups-access');
+    const sees = !r.userId || !ticket.chatId || (await personCanSeeChat(ws, r.userId, ticket.chatId).catch(() => false));
+    if (!sees) continue;
     const res = await sendEmail({ to: r.email, from: appSender(), ...mail }).catch(() => ({ ok: false }));
     if (res.ok) sent++;
-    const { personCanSeeChat } = await import('./groups-access');
-    if (r.userId && (!ticket.chatId || (await personCanSeeChat(ws, r.userId, ticket.chatId).catch(() => false)))) {
+    if (r.userId) {
       await createNotification({
         userId: r.userId,
         type: 'groups_sla',

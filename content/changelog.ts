@@ -131,9 +131,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'link',
-        en: 'Folder access now also applies to the API and to Cmd+K: an API key sees and edits the same links as the person who created it.',
-        es: 'El acceso por carpeta ahora también vale en la API y en Cmd+K: una API key ve y edita los mismos links que la persona que la creó.',
-        pt: 'O acesso por pasta agora também vale na API e no Cmd+K: uma chave de API vê e edita os mesmos links que a pessoa que a criou.',
+        en: 'Folder access now also applies to the API, to Cmd+K, to the overview and to the tag and creator filters: an API key sees and edits the same links as the person who created it.',
+        es: 'El acceso por carpeta ahora también vale en la API, en Cmd+K, en el resumen y en los filtros por etiqueta y por autor: una API key ve y edita los mismos links que la persona que la creó.',
+        pt: 'O acesso por pasta agora também vale na API, no Cmd+K, no resumo e nos filtros por etiqueta e por autor: uma chave de API vê e edita os mesmos links que a pessoa que a criou.',
       },
       {
         product: 'docs',

@@ -12,6 +12,7 @@ import { randomUUID } from 'crypto';
 import { getDb } from './db';
 import { GroupsError, chatDisplayName, getNumberRow, sendMessage, type ChatRow } from './groups';
 import { PROVIDER_CAPS } from './groups-provider';
+import { maskPhoneText } from './groups-mask';
 import { normalizePoll, parsePoll, type PollInput } from './groups-polls';
 import { allowedSends, chatVariables, clampPerMinute, renderVariables, sendGapMs } from './groups-rules';
 
@@ -219,7 +220,8 @@ export async function listBroadcasts(
   return rows.filter((r) => !hidden.has(r.id)).map(toBroadcastDto);
 }
 
-export async function getBroadcast(ws: string, id: string): Promise<{ broadcast: BroadcastDto; recipients: RecipientDto[] } | null> {
+/** Con `mask` (quien mira tiene los teléfonos ocultos), los chats sin nombre van enmascarados. */
+export async function getBroadcast(ws: string, id: string, opts: { mask?: boolean } = {}): Promise<{ broadcast: BroadcastDto; recipients: RecipientDto[] } | null> {
   const row = await getBroadcastRow(ws, id);
   if (!row) return null;
   const rec = (await getDb()
@@ -243,7 +245,7 @@ export async function getBroadcast(ws: string, id: string): Promise<{ broadcast:
     recipients: rec.map((r) => ({
       id: r.id,
       chatId: r.chat_id,
-      chatName: chatDisplayName(r),
+      chatName: opts.mask && !r.name ? maskPhoneText(chatDisplayName(r)) : chatDisplayName(r),
       kind: r.kind,
       status: r.status,
       error: r.error,

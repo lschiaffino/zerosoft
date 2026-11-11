@@ -314,6 +314,11 @@ export async function resolveTriage(
     if (!original || original.triage || !a || !b || projectWorkspaceId(a) !== projectWorkspaceId(b)) {
       return { ok: false, reason: 'invalid_duplicate' };
     }
+    // El original tiene que ser de un equipo que la persona ve.
+    if (b.id !== a.id) {
+      const viewer = await currentTrackViewer();
+      if (viewer && !(await projectVisibleTo(b.id, viewer))) return { ok: false, reason: 'invalid_duplicate' };
+    }
     if (!(await claimTriage(issue.id))) return { ok: false, reason: 'not_in_triage' };
     await createIssueRelation(issue.id, actorId, original.id, 'duplicates').catch(() => undefined);
     await updateIssue(issue.id, { statusId: cancelled }, actorId);

@@ -8,6 +8,7 @@ import type { TeamRole } from '@/lib/teams';
 import { chatAccessSql, groupsViewer } from '@/lib/groups-access';
 import { maskPhoneText } from '@/lib/groups-mask';
 import { bookingScopeFor } from './calendar-access';
+import { dealScopeSql, ownerScopeFor } from './crm-visibility';
 import { agentAccessFor } from './agents-access';
 
 /**
@@ -127,6 +128,10 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   const widgetWhere = `${teamId ? 'team_id = ?' : 'user_id = ?'}${widgetVisible}`;
   // Pizarras: las restringidas solo para quien tiene acceso, como la lista.
   const boardsVisible = boardVisibleSql(boardViewer(user));
+  // CRM: presupuestos y aprobaciones solo de los deals que la persona ve (visibilidad por owner).
+  const crmScope = await ownerScopeFor({ workspaceId: user.id, personId: user.actingUser?.id ?? user.id, role: user.role ?? 'owner' }).catch(() => [] as string[]);
+  const quoteDeals = dealScopeSql('q.deal_id', crmScope);
+  const approvalDeals = dealScopeSql('a.deal_id', crmScope);
   const boardFolders = await all(`SELECT id, name AS label FROM board_folders WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like);
 
   const waGroup = WA_GROUP[locale] ?? WA_GROUP.en;
@@ -287,18 +292,20 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     // pendientes por nombre del deal y scores de lead scoring por nombre.
     all(`SELECT id, name AS label FROM crm_forms WHERE user_id = ? AND status != 'archived' AND name LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT ?`, user.id, like),
     all(
-      `SELECT id, CASE WHEN title != '' THEN title ELSE number END AS label, number AS meta FROM crm_quotes
-       WHERE user_id = ? AND (title LIKE ? ESCAPE '\\' OR number LIKE ? ESCAPE '\\') ORDER BY updated_at DESC LIMIT ?`,
+      `SELECT q.id, CASE WHEN q.title != '' THEN q.title ELSE q.number END AS label, q.number AS meta FROM crm_quotes q
+       WHERE q.user_id = ? AND (q.title LIKE ? ESCAPE '\\' OR q.number LIKE ? ESCAPE '\\')${quoteDeals.sql ? ` AND ${quoteDeals.sql}` : ''} ORDER BY q.updated_at DESC LIMIT ?`,
       user.id,
       like,
       like,
+      ...quoteDeals.args,
     ),
     all(
       `SELECT a.id, d.name AS label, COALESCE(st.name, '') AS meta FROM crm_deal_approvals a
        JOIN crm_deals d ON d.id = a.deal_id LEFT JOIN crm_stages st ON st.id = a.stage_id
-       WHERE a.user_id = ? AND a.status = 'pending' AND d.name LIKE ? ESCAPE '\\' ORDER BY a.created_at DESC LIMIT ?`,
+       WHERE a.user_id = ? AND a.status = 'pending' AND d.name LIKE ? ESCAPE '\\'${approvalDeals.sql ? ` AND ${approvalDeals.sql}` : ''} ORDER BY a.created_at DESC LIMIT ?`,
       user.id,
       like,
+      ...approvalDeals.args,
     ),
     all(`SELECT id, name AS label FROM crm_scores WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY position ASC LIMIT ?`, user.id, like),
     // Groups: listas guardadas (las compartidas y las propias) y plantillas. Las tareas de los chats son

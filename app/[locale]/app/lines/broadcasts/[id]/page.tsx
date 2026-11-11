@@ -13,9 +13,10 @@ export default async function BroadcastPage(props: { params: Promise<{ locale: s
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
   // Como la API: solo si el envío va a chats que esta persona ve.
-  const visible = await visibleChatIds(await groupsViewer(user.id, user.actingUser?.id ?? user.id, user.role));
+  const viewer = await groupsViewer(user.id, user.actingUser?.id ?? user.id, user.role);
+  const visible = await visibleChatIds(viewer);
   if (!(await canAccessBroadcast(user.id, id, visible))) notFound();
-  const data = await getBroadcast(user.id, id);
+  const data = await getBroadcast(user.id, id, { mask: viewer.mask });
   if (!data) notFound();
   return (
     <div className="ui-page">

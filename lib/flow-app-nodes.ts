@@ -260,6 +260,8 @@ export async function trackUpdateNode(ws: string, actorId: string, cfg: Cfg, tct
   const issue = await track.getIssue(issueId);
   const project = issue ? await track.getProject(issue.project_id) : undefined;
   if (!issue || !project || project.owner_id !== ws) throw new StepError('issue_not_found');
+  // Un equipo privado: solo si lo ve la persona con cuyo acceso corre el flow.
+  if (project.visibility === 'private' && !(await (await import('./track-access')).projectVisibleTo(project.id, actorId))) throw new StepError('issue_not_found');
 
   const payload: Record<string, unknown> = {};
   const status = text(cfg, 'status', tctx);
