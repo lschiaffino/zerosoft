@@ -41,7 +41,7 @@ export async function exportIssuesCsv(teamId: string | null, ownerId: string, pr
   let scope = teamId ? 'p.team_id = ?' : '(p.team_id IS NULL AND p.owner_id = ?)';
   const args: string[] = [teamId ?? ownerId];
   // Privados e invitados: solo los proyectos que ve quien exporta.
-  const viewer = teamId ? await currentTrackViewer() : null;
+  const viewer = await currentTrackViewer();
   if (viewer) {
     const v = trackVisibleSql('p', viewer);
     scope = `${scope} AND ${v.sql}`;

@@ -3,6 +3,7 @@ import { emitEvent } from '@/lib/events';
 import { withIdempotency } from '@/lib/offline-idempotency';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { validateIssueRefs } from '@/lib/track-bulk';
+import { trackEventAudience } from '@/lib/track-access';
 import { createIssue, getProject, listIssues, canAccessTrackProject } from '@/lib/track-data';
 import { issueCreateSchema } from '@/lib/track-schema';
 import { ISSUE_SORTS } from '@/lib/track-views';
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
           assigneeId: issue.assignee_id,
         },
         project: { id: project.id, name: project.name },
-      }),
+      }, { audience: trackEventAudience(project) }),
     );
     return NextResponse.json(issue, { status: 201 });
   });

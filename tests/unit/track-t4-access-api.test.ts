@@ -260,12 +260,19 @@ describe('Track T4: audit log y webhooks', () => {
     const s = await setup();
     const hookId = crypto.randomUUID();
     await getDb()
-      .prepare("INSERT INTO webhooks (id, user_id, url, events, secret, active) VALUES (?, ?, 'https://hooks.invalid/x', ?, 'whsec_x', 1)")
-      .run(hookId, s.owner.id, JSON.stringify(['issue.deleted', 'comment.created', 'project.updated']));
+      .prepare("INSERT INTO webhooks (id, user_id, url, events, secret, active, created_by) VALUES (?, ?, 'https://hooks.invalid/x', ?, 'whsec_x', 1, ?)")
+      .run(hookId, s.owner.id, JSON.stringify(['issue.deleted', 'comment.created', 'project.updated']), s.owner.id);
+    // Un webhook de alguien que no es del equipo privado: no recibe lo de ese equipo.
+    const otherHook = crypto.randomUUID();
+    await getDb()
+      .prepare("INSERT INTO webhooks (id, user_id, url, events, secret, active, created_by) VALUES (?, ?, 'https://hooks.invalid/y', ?, 'whsec_y', 1, ?)")
+      .run(otherHook, s.owner.id, JSON.stringify(['issue.deleted', 'comment.created']), s.member.id);
     await handleTrackEvent({ type: 'issue.deleted', issue: s.openIssue, actorId: s.owner.id, count: 1 }, { via: 'app' });
     await handleTrackEvent({ type: 'comment.created', issueId: s.secretIssue.id, commentId: 'c1', actorId: s.owner.id, body: 'hola' }, { via: 'app' });
     const rows = (await getDb().prepare('SELECT event, payload FROM webhook_deliveries WHERE webhook_id = ? ORDER BY created_at').all(hookId)) as Array<{ event: string; payload: string }>;
     expect(rows.map((r) => r.event).sort()).toEqual(['comment.created', 'issue.deleted']);
+    const others = (await getDb().prepare('SELECT event FROM webhook_deliveries WHERE webhook_id = ?').all(otherHook)) as Array<{ event: string }>;
+    expect(others.map((r) => r.event)).toEqual(['issue.deleted']);
     const del = JSON.parse(rows.find((r) => r.event === 'issue.deleted')!.payload) as { data: { issue: { identifier: string } } };
     expect(del.data.issue.identifier).toBe(s.openIssue.identifier);
   });

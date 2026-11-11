@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
-import { getBroadcast } from '@/lib/groups-broadcasts';
+import { canAccessBroadcast, getBroadcast } from '@/lib/groups-broadcasts';
+import { groupsViewer, visibleChatIds } from '@/lib/groups-access';
 import PageHeader from '@/components/ui/PageHeader';
 import BroadcastDetail from '@/components/groups/BroadcastDetail';
 
@@ -11,7 +12,11 @@ export default async function BroadcastPage(props: { params: Promise<{ locale: s
   const { locale, id } = await props.params;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
-  const data = await getBroadcast(user.id, id);
+  // Como la API: solo si el envío va a chats que esta persona ve.
+  const viewer = await groupsViewer(user.id, user.actingUser?.id ?? user.id, user.role);
+  const visible = await visibleChatIds(viewer);
+  if (!(await canAccessBroadcast(user.id, id, visible))) notFound();
+  const data = await getBroadcast(user.id, id, { mask: viewer.mask });
   if (!data) notFound();
   return (
     <div className="ui-page">

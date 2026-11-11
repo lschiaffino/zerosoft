@@ -220,13 +220,15 @@ async function candidatesFor(issue: IssueCtx): Promise<Candidates> {
     name: string;
   }>;
   // Issues del workspace (no los de triage): base para duplicados y para quién suele tomar qué.
+  // La sugerencia la ve todo el que ve este issue: solo su mismo equipo y los equipos abiertos.
   const issues = (await db
     .prepare(
       `SELECT i.id, i.identifier, i.title, i.assignee_id, i.labels FROM track_issues i JOIN track_projects p ON p.id = i.project_id
        WHERE COALESCE(p.team_id, p.owner_id) = ? AND i.id != ? AND i.triage = 0
+         AND (p.id = ? OR COALESCE(p.visibility, 'workspace') <> 'private')
        ORDER BY i.updated_at DESC LIMIT 200`,
     )
-    .all(ws, issue.id)) as Candidates['issues'];
+    .all(ws, issue.id, issue.project_id)) as Candidates['issues'];
   return { members, labels, issues };
 }
 

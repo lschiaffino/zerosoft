@@ -24,6 +24,7 @@ import {
   type TrackIssueWithStatus,
 } from './track-data';
 import { labelsByIds, parseIssueLabels, projectWorkspaceId } from './track-labels';
+import { currentTrackViewer, projectVisibleTo } from './track-access';
 import type { BulkIssuesPayload, IssueUpdatePayload, TriageActionPayload } from './track-schema';
 
 export interface BulkResult {
@@ -118,6 +119,11 @@ export async function validateIssueRefs(
       : undefined;
     if (!parent || !parentProject || projectWorkspaceId(parentProject) !== projectWorkspaceId(project)) {
       return 'invalid_parent';
+    }
+    // El padre tiene que ser de un equipo que la persona ve (privados e invitados).
+    if (parentProject.id !== project.id) {
+      const viewer = await currentTrackViewer();
+      if (viewer && !(await projectVisibleTo(parentProject.id, viewer))) return 'invalid_parent';
     }
     if (opts.issueId) {
       // Subir por la cadena de padres: si aparece el issue editado, sería un ciclo.
@@ -307,6 +313,11 @@ export async function resolveTriage(
     ]);
     if (!original || original.triage || !a || !b || projectWorkspaceId(a) !== projectWorkspaceId(b)) {
       return { ok: false, reason: 'invalid_duplicate' };
+    }
+    // El original tiene que ser de un equipo que la persona ve.
+    if (b.id !== a.id) {
+      const viewer = await currentTrackViewer();
+      if (viewer && !(await projectVisibleTo(b.id, viewer))) return { ok: false, reason: 'invalid_duplicate' };
     }
     if (!(await claimTriage(issue.id))) return { ok: false, reason: 'not_in_triage' };
     await createIssueRelation(issue.id, actorId, original.id, 'duplicates').catch(() => undefined);

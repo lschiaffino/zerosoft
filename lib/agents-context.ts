@@ -133,6 +133,7 @@ export async function visitorContextBlock(workspaceId: string, identity: AgentVi
        LEFT JOIN track_statuses s ON s.id = i.status_id
        LEFT JOIN crm_contacts c ON c.id = r.contact_id
        WHERE r.workspace_id = ? AND p.owner_id = ? AND (lower(r.customer_email) = ? OR lower(c.email) = ?)
+         AND COALESCE(p.visibility, 'workspace') <> 'private'
          AND i.archived_at IS NULL AND COALESCE(s.category, 'todo') NOT IN ('done', 'cancelled')
        ORDER BY i.updated_at DESC LIMIT 5`,
     )

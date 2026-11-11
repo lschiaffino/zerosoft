@@ -663,5 +663,10 @@
     "unnamed": "Arquivo sem nome",
     "ocrOff": "A leitura de imagens e digitalizações está desligada neste workspace, então esses arquivos não foram reprocessados. Um admin pode ligá-la nas configurações do Notes.",
     "tooLarge": "Passam do limite de leitura de 12 MB e não entram na busca: {names}."
+  },
+  "audience": {
+    "private": "Só você",
+    "people": "Compartilhada com {count, plural, one {# pessoa} other {# pessoas}}",
+    "link": "Compartilhada por link"
   }
 }

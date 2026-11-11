@@ -43,6 +43,7 @@ import { createTicket, listTickets, markBreachedTickets, updateTicket } from '@/
 import { createGroupTask, fireTaskReminders, listGroupTasks, updateGroupTask } from '@/lib/groups-tasks';
 import { flagInbound } from '@/lib/groups-flag';
 import { searchApps } from '@/lib/app-search';
+import { groupsViewer } from '@/lib/groups-access';
 import { makeUser } from './helpers';
 
 const mail = vi.hoisted(() => ({ sent: [] as Array<{ to: string; subject: string; text: string }> }));
@@ -324,7 +325,7 @@ describe('listas guardadas', () => {
       ['Pro de Mate', 1],
     ]);
     expect((await listChats(user.id, mate.id, listQuery(shared.filters))).rows.map((r) => r.id)).toEqual([grp]);
-    expect((await savedListChatIds(user.id, user.id, mine.id)).map((c) => c.id)).toEqual([grp]);
+    expect((await savedListChatIds(user.id, user.id, mine.id, await groupsViewer(user.id, user.id, 'owner'))).map((c) => c.id)).toEqual([grp]);
     // Quien no la creó no la edita (salvo un admin); la personal ajena no existe para él.
     await expect(updateSavedList(user.id, mate.id, shared.id, { name: 'X' })).rejects.toMatchObject({ code: 'forbidden' });
     await expect(updateSavedList(user.id, mate.id, mine.id, { name: 'X' })).rejects.toMatchObject({ code: 'not_found' });

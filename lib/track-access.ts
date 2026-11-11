@@ -83,6 +83,15 @@ export async function projectVisibleTo(projectId: string, personId: string): Pro
   return Boolean(row);
 }
 
+/**
+ * Para los eventos de un proyecto privado (webhooks, Flow): solo los reciben los que creó una
+ * persona que ve ese proyecto. Los de proyectos abiertos llegan como siempre (undefined).
+ */
+export function trackEventAudience(project: { id: string; visibility?: string | null }): ((creatorId: string | null) => Promise<boolean>) | undefined {
+  if ((project.visibility ?? 'workspace') !== 'private') return undefined;
+  return async (creatorId) => (creatorId ? projectVisibleTo(project.id, creatorId) : false);
+}
+
 // ---------- Invitados ----------
 
 export interface TrackGuest {

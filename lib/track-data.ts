@@ -49,7 +49,7 @@ import type {
 import { safeHexColor, STATUS_CATEGORY_COLORS } from './track-color';
 import { normalizeIssueLabels, projectWorkspaceId } from './track-labels';
 import { notifyTrackEvent } from './track-events';
-import { currentTrackViewer, projectVisibleTo, trackVisibleExpr, trackVisibleSql } from './track-access';
+import { currentTrackViewer, projectVisibleTo, trackEventAudience, trackVisibleExpr, trackVisibleSql } from './track-access';
 import { ISSUE_CUSTOMERS_SQL, ISSUE_REVENUE_SQL, issueOrderBy, issueSearchClause, labelIdLike, type IssueSort } from './track-views';
 import { defaultIssueStatus } from './track-tasks';
 
@@ -976,8 +976,10 @@ export function issueSelect(extraWhere = ''): string {
       (SELECT COUNT(*) FROM track_issues child WHERE child.parent_id = i.id) AS child_count,
       (SELECT COUNT(*) FROM track_issues child JOIN track_statuses cs ON cs.id = child.status_id
         WHERE child.parent_id = i.id AND cs.category IN ('done', 'cancelled')) AS child_done,
-      (SELECT pi.identifier FROM track_issues pi WHERE pi.id = i.parent_id) AS parent_identifier,
-      (SELECT pi.title FROM track_issues pi WHERE pi.id = i.parent_id) AS parent_title,
+      (SELECT pi.identifier FROM track_issues pi JOIN track_projects pp ON pp.id = pi.project_id
+        WHERE pi.id = i.parent_id AND (pi.project_id = i.project_id OR COALESCE(pp.visibility, 'workspace') <> 'private')) AS parent_identifier,
+      (SELECT pi.title FROM track_issues pi JOIN track_projects pp ON pp.id = pi.project_id
+        WHERE pi.id = i.parent_id AND (pi.project_id = i.project_id OR COALESCE(pp.visibility, 'workspace') <> 'private')) AS parent_title,
       ${ISSUE_CUSTOMERS_SQL} AS customer_count,
       ${ISSUE_REVENUE_SQL} AS customer_revenue,
       (SELECT sla.due_at FROM track_issue_slas sla WHERE sla.issue_id = i.id AND sla.completed_at IS NULL) AS sla_due_at,
@@ -2002,13 +2004,14 @@ export function scheduleIssueEvents(before: TrackIssueWithStatus, updated: Track
       project: { id: project.id, name: project.name },
       changes,
     };
-    await emitEvent(project.owner_id, 'issue.updated', payload);
+    const audience = trackEventAudience(project);
+    await emitEvent(project.owner_id, 'issue.updated', payload, { audience });
     if (updated.status_id !== before.status_id) {
       await emitEvent(project.owner_id, 'issue.status_changed', {
         ...payload,
         from: before.status_name ?? null,
         to: updated.status_name ?? null,
-      });
+      }, { audience });
     }
   };
   try {
@@ -2052,15 +2055,26 @@ export async function deleteIssue(id: string): Promise<boolean> {
   return (await deleteIssueTree(id)).length > 0;
 }
 
+/** Filtro de issues (alias `i`) a los de equipos que ve quien mira; vacío si es el sistema. */
+async function viewerIssueFilter(): Promise<{ sql: string; args: string[] }> {
+  const viewer = await currentTrackViewer();
+  if (!viewer) return { sql: '', args: [] };
+  const v = trackVisibleSql('vp', viewer);
+  return { sql: ` AND EXISTS (SELECT 1 FROM track_projects vp WHERE vp.id = i.project_id AND ${v.sql})`, args: v.args };
+}
+
 export async function listIssueChildren(issueId: string): Promise<TrackIssueWithStatus[]> {
-  // Orden manual (arrastrar) y, sin orden, por creación.
+  // Orden manual (arrastrar) y, sin orden, por creación. Solo los de equipos que la persona ve.
+  const f = await viewerIssueFilter();
   return (await getDb()
-    .prepare(`${issueSelect('WHERE i.parent_id = ?')} ORDER BY i.sub_order IS NULL, i.sub_order ASC, i.created_at ASC`)
-    .all(issueId)) as TrackIssueWithStatus[];
+    .prepare(`${issueSelect(`WHERE i.parent_id = ?${f.sql}`)} ORDER BY i.sub_order IS NULL, i.sub_order ASC, i.created_at ASC`)
+    .all(issueId, ...f.args)) as TrackIssueWithStatus[];
 }
 
 export async function getIssueParentChain(issueId: string): Promise<IssueParentSummary[]> {
   const chain: IssueParentSummary[] = [];
+  // La cadena se corta en el primer padre de un equipo que la persona no ve.
+  const f = await viewerIssueFilter();
   const db = getDb();
   let currentId: string | null = issueId;
   const seen = new Set<string>();
@@ -2076,8 +2090,8 @@ export async function getIssueParentChain(issueId: string): Promise<IssueParentS
     if (!row) break;
     if (row.parent_id) {
       const parent = (await db
-        .prepare('SELECT id, identifier, title FROM track_issues WHERE id = ?')
-        .get(row.parent_id)) as IssueParentSummary | undefined;
+        .prepare(`SELECT i.id, i.identifier, i.title FROM track_issues i WHERE i.id = ?${f.sql}`)
+        .get(row.parent_id, ...f.args)) as IssueParentSummary | undefined;
       if (parent) {
         chain.unshift(parent);
         currentId = row.parent_id;
@@ -2478,21 +2492,31 @@ export async function deleteIssueComment(
 
 // ---------- Relations ----------
 
+/**
+ * Identificador y título del otro issue para el historial de este: el título solo si es del
+ * mismo equipo o de uno abierto (el historial lo ve todo el que ve este issue).
+ */
+const RELATED_TITLE_SQL = `SELECT o.identifier, CASE WHEN o.project_id = (SELECT project_id FROM track_issues WHERE id = ?)
+    OR COALESCE(op.visibility, 'workspace') <> 'private' THEN o.title ELSE '' END AS title
+  FROM track_issues o JOIN track_projects op ON op.id = o.project_id WHERE o.id = ?`;
+
 export async function listIssueRelations(issueId: string): Promise<TrackIssueRelationWithTarget[]> {
+  // Solo las relaciones con issues de equipos que la persona ve.
+  const f = await viewerIssueFilter();
   return (await getDb()
     .prepare(
       `SELECT r.*, i.identifier, i.title, 'outgoing' AS direction
        FROM track_issue_relations r
        JOIN track_issues i ON i.id = r.related_issue_id
-       WHERE r.issue_id = ?
+       WHERE r.issue_id = ?${f.sql}
        UNION ALL
        SELECT r.*, i.identifier, i.title, 'incoming' AS direction
        FROM track_issue_relations r
        JOIN track_issues i ON i.id = r.issue_id
-       WHERE r.related_issue_id = ?
+       WHERE r.related_issue_id = ?${f.sql}
        ORDER BY created_at DESC`,
     )
-    .all(issueId, issueId)) as TrackIssueRelationWithTarget[];
+    .all(issueId, ...f.args, issueId, ...f.args)) as TrackIssueRelationWithTarget[];
 }
 
 export async function createIssueRelation(
@@ -2508,7 +2532,9 @@ export async function createIssueRelation(
       'INSERT INTO track_issue_relations (id, issue_id, related_issue_id, type) VALUES (?, ?, ?, ?)',
     )
     .run(id, issueId, relatedIssueId, type);
-  const related = (await db.prepare('SELECT identifier, title FROM track_issues WHERE id = ?').get(relatedIssueId)) as
+  const related = (await db
+    .prepare(RELATED_TITLE_SQL)
+    .get(issueId, relatedIssueId)) as
     | { identifier: string; title: string }
     | undefined;
   await createIssueActivity(issueId, userId, 'relation_added', {
@@ -2540,7 +2566,9 @@ export async function deleteIssueRelation(id: string, issueId: string, userId: s
   // el workspace): si no, se podría borrar una relación ajena por id.
   if (!row || (row.issue_id !== issueId && row.related_issue_id !== issueId)) return false;
   const otherIssueId = row.issue_id === issueId ? row.related_issue_id : row.issue_id;
-  const related = (await db.prepare('SELECT identifier, title FROM track_issues WHERE id = ?').get(otherIssueId)) as
+  const related = (await db
+    .prepare(RELATED_TITLE_SQL)
+    .get(row.issue_id, otherIssueId)) as
     | { identifier: string; title: string }
     | undefined;
   const res = await db

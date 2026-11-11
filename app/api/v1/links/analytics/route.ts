@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser } from '@/lib/api-auth';
+import { apiViewerOf } from '@/lib/link-folders';
 import { getWorkspaceAnalytics, parseWorkspaceFilters, parseWorkspaceRange } from '@/lib/link-analytics';
 
 export const runtime = 'nodejs';
@@ -17,6 +18,7 @@ export async function GET(req: NextRequest) {
     await getWorkspaceAnalytics(auth.user.id, parseWorkspaceRange(sp.get('from'), sp.get('to')), {
       filters: parseWorkspaceFilters(sp),
       timezone: sp.get('tz') ?? undefined,
+      viewer: apiViewerOf(auth),
     }),
   );
 }

@@ -213,6 +213,8 @@ export default function NoteEditorPane({
   }, [openShare, share]);
   const [tplOpen, setTplOpen] = useState(false);
   const [peopleCount, setPeopleCount] = useState(0);
+  /** Cuántas personas ven la nota (sola o por su libreta); null mientras no se sabe. */
+  const [audience, setAudience] = useState<number | null>(null);
   /** Nota bloqueada abierta en esta pestaña: el contenido descifrado y la clave. */
   const [unlocked, setUnlocked] = useState<{ payload: LockedPayload; key: NoteKey } | null>(null);
   const insertRef = useRef<((blocks: DocsBlock[]) => void) | null>(null);
@@ -221,6 +223,18 @@ export default function NoteEditorPane({
   /** Propia, o compartida por otra persona (para ver o editar). */
   const access = note.access ?? 'owner';
   const isOwner = access === 'owner';
+  // Indicador de quién ve la nota: se pide al abrirla y otra vez al cerrar Compartir.
+  useEffect(() => {
+    if (!isOwner || offline || share.open) return;
+    let alive = true;
+    void fetch(`/api/notes/${encodeURIComponent(note.id)}/shares`)
+      .then(async (res) => (res.ok ? ((await res.json()) as { audience?: number }) : null))
+      .then((data) => alive && setAudience(typeof data?.audience === 'number' ? data.audience : null))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [note.id, isOwner, offline, share.open, peopleCount]);
   const locked = Boolean(note.locked && note.lock);
 
   // Clave ya abierta en esta pestaña: se abre sola.
@@ -716,6 +730,18 @@ export default function NoteEditorPane({
           <span className="note-locked-badge" title={t('lock.locked')}>
             <NotesIcon name="lock" size={13} />
             <span className="note-bar-label">{t('lock.locked')}</span>
+          </span>
+        )}
+        {!offline && (note.shared || audience !== null) && (
+          <span className="note-locked-badge note-audience" data-testid="note-audience">
+            <NotesIcon name={note.shared || (audience ?? 0) > 0 ? 'users' : 'lock'} size={13} />
+            <span className="note-bar-label">
+              {note.shared
+                ? t('audience.link')
+                : (audience ?? 0) > 0
+                  ? t('audience.people', { count: audience ?? 0 })
+                  : t('audience.private')}
+            </span>
           </span>
         )}
         <span className={`note-status${status === 'error' ? ' is-error' : ''}`} aria-live="polite">

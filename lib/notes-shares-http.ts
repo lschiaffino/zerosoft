@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { noteOwner } from './notes';
 import { notePeopleShareSchema } from './notes-schema';
-import { listNoteShares, noteShareCandidates, setNoteShare, type NoteShareTarget } from './notes-shares';
+import { listNoteShares, noteAudienceCount, noteShareCandidates, setNoteShare, type NoteShareTarget } from './notes-shares';
 import { invalidInput, jsonError, limitWrites } from './write-limit';
 
 type SessionLike = { id: string; actingUser?: { id: string } | null };
@@ -12,7 +12,9 @@ export async function sharesGet(user: SessionLike | null, target: NoteShareTarge
   const owner = noteOwner(user);
   const shares = await listNoteShares(owner, target);
   if (!shares) return jsonError(404, 'not_found');
-  return NextResponse.json({ shares, candidates: await noteShareCandidates(owner) });
+  // Una nota: también cuenta quién la ve por su libreta compartida.
+  const audience = target.kind === 'note' ? await noteAudienceCount(owner, target.id) : shares.length;
+  return NextResponse.json({ shares, candidates: await noteShareCandidates(owner), audience });
 }
 
 /** PATCH: { personId, role } comparte o cambia el rol; role null deja de compartir. */
