@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-rec-black-screen',
+    date: '2026-11-11',
+    title: {
+      en: 'Rec: a clear warning when the computer only lets it record a black screen',
+      es: 'Rec: aviso claro cuando la computadora solo deja grabar la pantalla en negro',
+      pt: 'Rec: aviso claro quando o computador só deixa gravar a tela preta',
+    },
+    items: [
+      {
+        product: 'rec',
+        en: 'On a Mac without the Screen Recording permission, the system sends black frames instead of failing. Rec now notices before the countdown, stops, and tells you where to turn the permission on, for the browser or for the desktop app.',
+        es: 'En una Mac sin el permiso de Grabación de pantalla, el sistema manda cuadros negros en vez de fallar. Rec ahora lo nota antes de la cuenta regresiva, frena y te dice dónde activar el permiso, para el navegador o para la app de escritorio.',
+        pt: 'Num Mac sem a permissão de Gravação de Tela, o sistema manda quadros pretos em vez de falhar. O Rec agora percebe antes da contagem regressiva, para e diz onde ativar a permissão, para o navegador ou para o app de desktop.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-rec-desktop-controls',
     date: '2026-11-10',
     title: {

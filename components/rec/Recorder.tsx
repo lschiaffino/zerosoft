@@ -18,6 +18,7 @@ import {
   pickAudioMime,
   pickVideoMime,
   recorderSupported,
+  screenLooksBlack,
   screenSupported,
   snapshot,
   type QualityKey,
@@ -343,6 +344,13 @@ export default function Recorder({
           // Opciones de Chrome: dejar elegir pestaña, ventana o pantalla y traer el audio del sistema.
           ...({ selfBrowserSurface: 'include', surfaceSwitching: 'include', systemAudio: systemAudio ? 'include' : 'exclude' } as Record<string, string>),
         } as DisplayMediaStreamOptions);
+        // Sin permiso de grabar la pantalla, la Mac manda cuadros negros en vez de fallar: se avisa antes de grabar.
+        const firstTrack = screen.getVideoTracks()[0];
+        if (firstTrack && (await screenLooksBlack(firstTrack))) {
+          stopTracks(screen);
+          setError(t(desktop ? 'errors.screen_black_desktop' : 'errors.screen_black'));
+          return;
+        }
         screenStream.current = screen;
         screen.getVideoTracks()[0]?.addEventListener('ended', () => {
           if (recorder.current && recorder.current.state !== 'inactive') void stop();
