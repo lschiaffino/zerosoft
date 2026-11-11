@@ -150,8 +150,6 @@
 }
 .gr-filter:hover { color: var(--ink); background: var(--ui-hover); }
 .gr-filter.is-on { color: var(--ink); font-weight: 600; border-color: var(--ink); }
-.gr-list-selects { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.gr-list-selects .select { width: 100%; }
 .gr-list-loading { padding: 12px 16px; }
 .gr-list-empty { padding: 24px 16px; font-size: 0.875rem; color: var(--brand-gray-2); }
 /* Cambio de carpeta o filtro: las filas anteriores quedan atenuadas hasta que llegan las nuevas. */
@@ -702,7 +700,6 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-view.is-on { color: var(--ink); border-color: var(--ink); font-weight: 600; }
 .gr-view:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .gr-list-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 0; }
-.gr-list-save { display: flex; justify-content: space-between; gap: 6px; margin: 0 -8px; }
 .gr-branch-count { margin-left: auto; font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); }
 .gr-multi { display: flex; flex-wrap: wrap; gap: 4px; }
 .gr-multi-opt {

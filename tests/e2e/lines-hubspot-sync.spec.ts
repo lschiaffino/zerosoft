@@ -376,39 +376,65 @@ test('bandeja: filtrar por propiedades de HubSpot y guardarlo en una lista', asy
   await page.getByRole('searchbox', { name: 'Search chats and messages' }).fill(tag);
   const rowOf = (name: string) => page.locator('.gr-row', { hasText: name });
   await expect(rowOf(loose.name)).toBeVisible();
-  await page.getByRole('button', { name: 'Filters and lists' }).click();
-  const filters = page.getByRole('group', { name: 'HubSpot property filters' });
+  // Las condiciones de HubSpot viven en el panel de filtros: se arman ahí y valen al tocar "Aplicar".
+  const panel = page.getByRole('dialog', { name: 'Filters' });
+  const filters = panel.getByRole('group', { name: 'HubSpot property filters' });
+  const openHs = async () => {
+    await page.getByTestId('lines-filter-button').click();
+    await panel.getByRole('navigation', { name: 'Filter fields' }).getByRole('button', { name: /^HubSpot company properties/ }).click();
+    await expect(filters).toBeVisible();
+  };
+  const apply = async () => {
+    await panel.getByRole('button', { name: 'Apply' }).click();
+    await expect(panel).toHaveCount(0);
+  };
+  await openHs();
   // Selección: "es alguna de", con las opciones de HubSpot.
-  const filtered = page.waitForRequest((req) => req.url().includes('/api/groups/chats') && req.url().includes('hs='));
   await filters.getByRole('combobox', { name: 'Filter by a HubSpot property' }).selectOption('plan_tier');
   await expect(filters.getByRole('combobox', { name: 'Condition' })).toHaveValue('any_of');
   await filters.getByRole('combobox', { name: 'Choose a value' }).selectOption('starter');
+  // Hasta aplicar es un borrador: la lista no cambia.
+  await expect(rowOf(loose.name)).toBeVisible();
   // El filtro viaja en la URL del pedido.
+  const filtered = page.waitForRequest((req) => req.url().includes('/api/groups/chats') && req.url().includes('f='));
+  await apply();
   expect(decodeURIComponent((await filtered).url())).toContain('"name":"plan_tier"');
+  await expect(page.getByTestId('filter-chips').locator('[data-chip="hsProps"]')).toContainText('HubSpot company properties: 1 condition');
   await expect(rowOf(globex.name)).toBeVisible();
   await expect(rowOf(acme.name)).toHaveCount(0);
   await expect(rowOf(loose.name)).toHaveCount(0);
+  await openHs();
   await filters.getByRole('combobox', { name: 'Choose a value' }).selectOption('growth');
+  await apply();
   await expect(rowOf(acme.name)).toBeVisible();
   await expect(rowOf(globex.name)).toBeVisible();
+  await openHs();
   await filters.getByRole('button', { name: 'Remove Starter' }).click();
+  await apply();
   await expect(rowOf(globex.name)).toHaveCount(0);
   await expect(rowOf(acme.name)).toBeVisible();
   // "Está vacía".
+  await openHs();
   await filters.getByRole('combobox', { name: 'Condition' }).selectOption('empty');
+  await apply();
   await expect(rowOf(initech.name)).toBeVisible();
   await expect(rowOf(acme.name)).toHaveCount(0);
-  // Número: mayor que.
+  // Número: mayor que. Lo escrito vale al aplicar, sin esperar.
+  await openHs();
   await filters.getByRole('combobox', { name: 'HubSpot property', exact: true }).selectOption('numberofemployees');
   await filters.getByRole('combobox', { name: 'Condition' }).selectOption('gt');
   await filters.getByRole('textbox', { name: 'Value' }).fill('100');
+  await apply();
   await expect(rowOf(acme.name)).toBeVisible();
   await expect(rowOf(initech.name)).toBeVisible();
   await expect(rowOf(globex.name)).toHaveCount(0);
   // Una segunda condición se suma.
+  await openHs();
   await filters.getByRole('combobox', { name: 'Filter by a HubSpot property' }).selectOption('name');
   await filters.getByRole('combobox', { name: 'Condition' }).nth(1).selectOption('contains');
   await filters.getByRole('textbox', { name: 'Value' }).nth(1).fill('initech');
+  await apply();
+  await expect(page.getByTestId('filter-chips').locator('[data-chip="hsProps"]')).toContainText('2 conditions');
   await expect(rowOf(initech.name)).toBeVisible();
   await expect(rowOf(acme.name)).toHaveCount(0);
 
@@ -431,11 +457,13 @@ test('bandeja: filtrar por propiedades de HubSpot y guardarlo en una lista', asy
     expect(viaList.rows.map((r) => r.name)).toEqual([initech.name]);
     // Al volver a abrirla, la bandeja carga sus condiciones.
     await page.goto(`/en/app/lines/inbox?list=${listId}`, { waitUntil: 'networkidle' });
-    const again = page.getByRole('group', { name: 'HubSpot property filters' });
-    await expect(again.getByRole('combobox', { name: 'HubSpot property', exact: true }).first()).toHaveValue('numberofemployees');
-    await expect(again.getByRole('textbox', { name: 'Value' }).first()).toHaveValue('100');
+    await expect(page.getByTestId('filter-chips').locator('[data-chip="hsProps"]')).toContainText('2 conditions');
     await expect(rowOf(initech.name)).toBeVisible();
     await expect(rowOf(acme.name)).toHaveCount(0);
+    await openHs();
+    await expect(filters.getByRole('combobox', { name: 'HubSpot property', exact: true }).first()).toHaveValue('numberofemployees');
+    await expect(filters.getByRole('textbox', { name: 'Value' }).first()).toHaveValue('100');
+    await page.keyboard.press('Escape');
 
     // ---------- Teléfono ----------
     const phone = await browser.newContext({ baseURL, viewport: PHONE, hasTouch: true, isMobile: true });
@@ -445,8 +473,13 @@ test('bandeja: filtrar por propiedades de HubSpot y guardarlo en una lista', asy
         await setTheme(phone, baseURL!, theme);
         await mobile.goto(`/en/app/lines/inbox?list=${listId}`, { waitUntil: 'domcontentloaded' });
         await settle(mobile);
-        await expect(mobile.getByRole('group', { name: 'HubSpot property filters' })).toBeVisible();
+        await expect(mobile.getByTestId('filter-chips').locator('[data-chip="hsProps"]')).toBeVisible();
         await check(mobile, `lines hubspot filtro 390 ${theme}`);
+        // El editor de condiciones, en la hoja del panel.
+        await mobile.getByTestId('filter-chips').locator('[data-chip="hsProps"]').getByRole('button', { name: /HubSpot company properties:/ }).click();
+        await expect(mobile.getByRole('dialog', { name: 'Filters' }).getByRole('group', { name: 'HubSpot property filters' })).toBeVisible();
+        await check(mobile, `lines hubspot filtro 390 ${theme} editor`);
+        await mobile.getByRole('dialog', { name: 'Filters' }).getByRole('button', { name: 'Close' }).click();
       }
     } finally {
       await phone.close();
@@ -455,18 +488,21 @@ test('bandeja: filtrar por propiedades de HubSpot y guardarlo en una lista', asy
     await request.delete(`/api/groups/lists/${listId}`);
   }
 
-  // "Clear filters" saca también los de HubSpot. (Los filtros quedan guardados en la pestaña: se arranca sin ellos.)
+  // "Limpiar" saca también los de HubSpot. (Los filtros quedan guardados en la pestaña: se arranca sin ellos.)
   await page.evaluate(() => window.sessionStorage.clear());
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   await page.getByRole('searchbox', { name: 'Search chats and messages' }).fill(tag);
-  await page.getByRole('button', { name: 'Filters and lists' }).click();
-  const fresh = page.getByRole('group', { name: 'HubSpot property filters' });
-  await fresh.getByRole('combobox', { name: 'Filter by a HubSpot property' }).selectOption('plan_tier');
-  await fresh.getByRole('combobox', { name: 'Choose a value' }).selectOption('starter');
+  await openHs();
+  await filters.getByRole('combobox', { name: 'Filter by a HubSpot property' }).selectOption('plan_tier');
+  await filters.getByRole('combobox', { name: 'Choose a value' }).selectOption('starter');
+  await apply();
   await expect(rowOf(acme.name)).toHaveCount(0);
-  await page.getByRole('button', { name: 'Clear filters' }).click();
+  await page.getByTestId('filter-chips').getByRole('button', { name: 'Clear', exact: true }).click();
   await expect(rowOf(acme.name)).toBeVisible();
-  await expect(fresh.getByRole('combobox', { name: 'HubSpot property', exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('filter-chips')).toHaveCount(0);
+  await openHs();
+  await expect(filters.getByRole('combobox', { name: 'HubSpot property', exact: true })).toHaveCount(0);
+  await page.keyboard.press('Escape');
 
   expect(errors, errors.join('\n')).toEqual([]);
 });

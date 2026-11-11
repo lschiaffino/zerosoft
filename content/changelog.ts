@@ -29,6 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-lines-filter-panel',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines: a filter panel for the inbox',
+      es: 'Lines: un panel de filtros para la bandeja',
+      pt: 'Lines: um painel de filtros para a caixa de entrada',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The filter button in the inbox now opens a wide panel: the filters on the left, grouped and searchable, and the choices for each one on the right. Pick several people, labels or lines at once, a period for the last message, or yes or no for unread, pinned, muted, with an open ticket and more. Nothing changes until you press Apply.',
+        es: 'El botón de filtros de la bandeja ahora abre un panel amplio: a la izquierda los filtros, agrupados y con buscador, y a la derecha las opciones de cada uno. Se pueden elegir varias personas, etiquetas o líneas a la vez, un período para el último mensaje, o sí o no para no leídos, fijados, silenciados, con ticket abierto y más. Nada cambia hasta tocar Aplicar.',
+        pt: 'O botão de filtros da caixa de entrada agora abre um painel amplo: à esquerda os filtros, agrupados e com busca, e à direita as opções de cada um. Dá para escolher várias pessoas, etiquetas ou linhas de uma vez, um período para a última mensagem, ou sim ou não para não lidas, fixadas, silenciadas, com ticket aberto e mais. Nada muda até tocar em Aplicar.',
+      },
+      {
+        product: 'groups',
+        en: 'The filters that are on show under the search box, each with an × to remove it, and the button shows how many there are. The tabs (Unread, Waiting, Mine and the rest) are shortcuts for the same filters, and saved lists keep every filter. Lists you saved before open as they did.',
+        es: 'Los filtros puestos se ven debajo de la búsqueda, cada uno con una × para sacarlo, y el botón muestra cuántos hay. Las pestañas (No leídos, Esperando, Míos y las demás) son atajos de esos mismos filtros, y las listas guardadas conservan todos los filtros. Las listas que ya tenías se abren como antes.',
+        pt: 'Os filtros ativos aparecem embaixo da busca, cada um com um × para tirar, e o botão mostra quantos são. As abas (Não lidas, Aguardando, Minhas e as outras) são atalhos desses mesmos filtros, e as listas salvas guardam todos os filtros. As listas que você já tinha abrem como antes.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-lines-details-collapse',
     date: '2026-11-11',
     title: {
