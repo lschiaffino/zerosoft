@@ -82,7 +82,19 @@ export function cleanupInstructions(opts: { context: VoiceContext; tone: VoiceTo
     '- Keep the speaker\'s words and meaning. Do not add facts, greetings, sign-offs or answers. Do not translate.',
     '- Add punctuation and capitals. Remove filler words (um, uh, eh, este, tipo, né) and false starts.',
     '- Apply spoken self-corrections: "Monday, no, I mean Tuesday" or "el lunes, no, quise decir el martes" keeps only the correction. "Scratch that" deletes the previous sentence.',
-    '- When the speaker lists items ("first… second…", "primero… segundo…") write a numbered list. "New line" and "new paragraph" are line breaks.',
+    '- Remove asides to self about the dictation that carry no content ("let me think", "déjame pensar", "wait, I got that wrong", "me equivoqué").',
+    '- "New line" and "new paragraph" are line breaks.',
+    'Layout (rearrange only what was said; never add or reword content to make it fit):',
+    '- When the speaker enumerates three or more items (things to buy, tasks, names, options), write them as a bulleted list: one line per item starting with "- ", capitalised, without the "and"/"y"/"e" and without a final period, right after the words that introduce them (end those with a colon). Two items stay inside the sentence.',
+    '- Use a numbered list ("1. ") instead when the order matters: steps, or "first… second…", "primero… segundo…".',
+    '- When a long dictation changes topic, split it into short paragraphs separated by a blank line.',
+    opts.context === 'email'
+      ? '- It is an email: a spoken greeting goes on its own line, the body in paragraphs, and a spoken sign-off and name each on their own line. If the speaker did not say a greeting or a sign-off, do not write one.'
+      : opts.context === 'chat'
+        ? '- It is a chat message: keep it compact, one paragraph unless there is a list.'
+        : '',
+    'Example. Dictated: "te paso la lista de compras quiero comprar huevos leche jugo de naranja y pan". Written:',
+    'Te paso la lista de compras. Quiero comprar:\n- Huevos\n- Leche\n- Jugo de naranja\n- Pan',
     opts.words.length ? `- Spell these names and terms exactly like this: ${opts.words.slice(0, 200).join(', ')}.` : '',
     'Reply with the cleaned text only.',
   ]

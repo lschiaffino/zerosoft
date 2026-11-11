@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { applyBacktrack, applyDictionary, formatSpokenList, removeFillers, ruleCleanup } from '@/lib/voice-cleanup';
+import { applyBacktrack, applyDictionary, formatSpokenList, removeFillers, ruleCleanup, stripHallucinations } from '@/lib/voice-cleanup';
+import { cleanupInstructions } from '@/lib/voice-ai';
 import { contextForPath, countWords, formatDuration, parseShortcut, speakerKey } from '@/lib/voice-types';
 
 describe('voice cleanup rules', () => {
@@ -58,5 +59,33 @@ describe('voice helpers', () => {
     expect(countWords(' a b  c ')).toBe(3);
     expect(speakerKey('them', '1')).toBe('them:1');
     expect(speakerKey('me', '0')).toBe('me');
+  });
+});
+
+describe('frases inventadas por el modelo en el silencio', () => {
+  it('saca los créditos de subtítulos y el saludo de noticiero donde estén', () => {
+    expect(stripHallucinations('hola MBC 뉴스 이덕영입니다.')).toBe('hola');
+    expect(stripHallucinations('Nos vemos mañana. Subtítulos realizados por la comunidad de Amara.org')).toBe('Nos vemos mañana.');
+  });
+
+  it('una despedida de video se saca solo si es todo el texto', () => {
+    expect(stripHallucinations('Thanks for watching!')).toBe('');
+    expect(stripHallucinations('Tell them thanks for watching the demo.')).toBe('Tell them thanks for watching the demo.');
+    expect(stripHallucinations('La reunión es el martes.')).toBe('La reunión es el martes.');
+  });
+});
+
+describe('instrucciones de la limpieza con IA', () => {
+  it('piden viñetas para enumeraciones y no agregar contenido', () => {
+    const t = cleanupInstructions({ context: 'note', tone: 'neutral', words: [] });
+    expect(t).toContain('bulleted list');
+    expect(t).toContain('never add or reword content');
+    expect(t).not.toContain('It is an email');
+  });
+
+  it('en un mail, el saludo y la despedida van en su línea solo si se dijeron', () => {
+    const t = cleanupInstructions({ context: 'email', tone: 'neutral', words: [] });
+    expect(t).toContain('It is an email');
+    expect(t).toContain('do not write one');
   });
 });
