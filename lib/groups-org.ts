@@ -578,12 +578,18 @@ export async function deleteSavedList(ws: string, me: string, id: string, isAdmi
 }
 
 /** Ids de los chats de una lista (audiencia de un envío masivo), hasta 500. */
-export async function savedListChatIds(ws: string, me: string, id: string): Promise<Array<{ id: string; name: string }>> {
+export async function savedListChatIds(
+  ws: string,
+  me: string,
+  id: string,
+  viewer: import('./groups-access').GroupsViewer,
+): Promise<Array<{ id: string; name: string }>> {
   const l = await getSavedList(ws, me, id);
   if (!l) throw new GroupsError('not_found', 404);
   const out: Array<{ id: string; name: string }> = [];
   for (let offset = 0; offset < 500; offset += 200) {
-    const page = await listChats(ws, me, { ...listQuery(l.filters), limit: 200, offset });
+    // Solo los chats que esta persona ve, con los teléfonos como los ve ella.
+    const page = await listChats(ws, me, { ...listQuery(l.filters), limit: 200, offset, viewer });
     out.push(...page.rows.map((c) => ({ id: c.id, name: c.name })));
     if (page.rows.length < 200) break;
   }

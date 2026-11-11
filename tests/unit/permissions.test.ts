@@ -216,7 +216,7 @@ describe('cada rol contra las rutas', () => {
     expect((await member.POST(send(U, 'POST', { action: 'reactivate' }), params({ userId: c.mem.id }))).status).toBe(403);
     await actAs(c.owner, c.admin, 'admin');
     expect((await member.POST(send(U, 'POST', { action: 'reactivate' }), params({ userId: c.mem.id }))).status).toBe(200);
-    expect(await getMembership(c.team, c.mem.id)).toEqual({ role: 'member', apps: ['crm', 'docs'] });
+    expect(await getMembership(c.team, c.mem.id)).toEqual({ role: 'member', apps: ['crm', 'docs'], caps: [] });
     const back = (await getDb().prepare('SELECT 1 AS x FROM workspace_group_members WHERE group_id = ? AND user_id = ?').get(g, c.mem.id)) as { x: number } | undefined;
     expect(back?.x).toBe(1);
     expect((await member.POST(send(U, 'POST', { action: 'reactivate' }), params({ userId: c.mem.id }))).status).toBe(404);

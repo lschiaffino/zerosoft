@@ -328,7 +328,7 @@ export function sseLiveResponse<E extends { id?: number }>(opts: SseLiveOptions<
       } catch {
         /* sin atraso: sigue en vivo */
       }
-      if (opts.check && !(await opts.check().catch(() => true))) return close('revoked');
+      if (opts.check && !(await opts.check().catch(() => false))) return close('revoked');
       // El cursor real (hasta dónde llega lo que sigue). Sin id: el id lo llevan los frames de eventos.
       const readyCursor = back.gap ? back.cursor : Math.max(cursor, back.cursor);
       write(`retry: 1500\n${sseFrame('ready', { cursor: readyCursor })}`);

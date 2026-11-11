@@ -243,6 +243,20 @@ describe('visibilidad: quotes', () => {
     expect(await canSeeQuote(w.owner.id, q1.quote.id, scope)).toBe(true);
     expect((await listQuotes(w.owner.id, {})).total).toBe(2);
   });
+
+  it('Cmd+K: presupuestos y aprobaciones pendientes solo de los deals que la persona ve', async () => {
+    const w = await workspace();
+    for (const d of [w.d1, w.d2]) await addLineItem(w.owner.id, d.id, { name: 'Seat', quantity: 1, unitPrice: 10 });
+    const q1 = await createQuote(w.owner.id, w.d1.id, { title: 'Propuesta Uno' });
+    const q2 = await createQuote(w.owner.id, w.d2.id, { title: 'Propuesta Dos' });
+    if (!q1.ok || !q2.ok) throw new Error('quote');
+    await setMemberVisibility(w.owner.id, 'mine');
+    const { searchApps } = await import('@/lib/app-search');
+    const quotesFor = async (user: Parameters<typeof searchApps>[0]) => (await searchApps(user, 'Propuesta', 20)).filter((i) => i.group === 'crmQuotes').map((i) => i.id);
+    expect(await quotesFor({ id: w.owner.id, team: { id: w.team.id }, actingUser: { id: w.m1.id }, role: 'member' })).toEqual([q1.quote.id]);
+    expect((await quotesFor({ id: w.owner.id, team: { id: w.team.id }, actingUser: { id: w.adm.id }, role: 'admin' })).sort()).toEqual([q1.quote.id, q2.quote.id].sort());
+    expect((await quotesFor({ id: w.owner.id, team: { id: w.team.id }, role: 'owner' })).sort()).toEqual([q1.quote.id, q2.quote.id].sort());
+  });
 });
 
 describe('visibilidad: asociaciones y tags', () => {

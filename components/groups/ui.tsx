@@ -276,6 +276,18 @@ export function isLeavingChat(chatId: string): boolean {
   return switchingTo !== null && switchingTo !== chatId;
 }
 
+/** El chat al que se está yendo (desde el clic hasta que se monta), o null. La lista lo usa para marcar al instante el borrador del que se deja. */
+export function useSwitchingTo(): string | null {
+  const [to, setTo] = useState<string | null>(switchingTo);
+  useEffect(() => {
+    const sync = () => setTo(switchingTo);
+    sync();
+    window.addEventListener(SWITCH_EVENT, sync);
+    return () => window.removeEventListener(SWITCH_EVENT, sync);
+  }, []);
+  return to;
+}
+
 export function useLeavingChat(chatId: string): boolean {
   const [leaving, setLeaving] = useState(false);
   useEffect(() => {

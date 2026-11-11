@@ -3,6 +3,8 @@
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { FolderDto, MessageDto, ScheduledDto, SnippetDto, ThreadDto, WaDetailsDto } from '@/lib/inbox/types';
+import { useScrollAnchor } from '@/components/ui/useScrollAnchor';
+import { atBottom as isAtBottom } from '@/lib/scroll-anchor';
 import Avatar from '@/components/groups/wa/Avatar';
 import RichText from '@/components/groups/wa/RichText';
 import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer';
@@ -71,6 +73,8 @@ const WaConversation = forwardRef<
     folders: FolderDto[];
     snippets: SnippetDto[];
     connected: boolean;
+    /** Se está abriendo otro chat (esta conversación es la anterior hasta que llegue). */
+    paused?: boolean;
     threads: ThreadDto[];
     infoOpen: boolean;
     onBack: () => void;
@@ -96,7 +100,7 @@ const WaConversation = forwardRef<
   const group = thread.kind === 'group';
   const name = chatName(thread, w('group'));
   const scroller = useRef<HTMLDivElement>(null);
-  const lastId = useRef('');
+  const openedFor = useRef('');
   const [replyTo, setReplyTo] = useState<MessageDto | null>(null);
   const [editing, setEditing] = useState<MessageDto | null>(null);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
@@ -115,7 +119,12 @@ const WaConversation = forwardRef<
   const [recording, setRecording] = useState(false);
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
-  const tray = useSendTray(thread.id, props.onSent);
+  // Lo que mando desde acá: la conversación va abajo de todo (aunque estuviera leyendo más arriba).
+  const sentHere = (msgs: MessageDto[]) => {
+    anchor.toBottom();
+    props.onSent(msgs);
+  };
+  const tray = useSendTray(thread.id, sentHere);
   // Presencia: al abrir se suscribe a la del otro; escribiendo y grabando salen cada 4 s como mucho.
   const lastPresence = useRef(0);
   const presence = useCallback(
@@ -166,34 +175,34 @@ const WaConversation = forwardRef<
     return out;
   };
 
-  // Al abrir o al llegar uno nuevo: abajo de todo (si ya estaba abajo o el último es mío).
+  // Leyendo más arriba, la conversación no se mueve sola (fotos que cargan, reacciones o
+  // "editado" que llegan con la consulta, anteriores que se suman arriba); abajo de todo, sigue al final.
+  const anchor = useScrollAnchor(scroller, [messages]);
+  // Al abrir el chat: abajo de todo, una sola vez. Las cargas que siguen (la página completa, la
+  // consulta periódica) no fuerzan nada: si se estaba leyendo más arriba, ahí se queda.
   useLayoutEffect(() => {
-    const el = scroller.current;
     const last = messages[messages.length - 1];
-    if (!el || !last || last.id === lastId.current) return;
-    const first = lastId.current === '' || !messages.some((m) => m.id === lastId.current);
-    if (first || atBottom || last.fromMe) el.scrollTop = el.scrollHeight;
-    lastId.current = last.id;
-  }, [messages, atBottom]);
+    if (!scroller.current || !last) return;
+    // Por chat (no por mensaje): cambiar de chat abre el nuevo abajo de todo en el mismo render.
+    if (openedFor.current !== thread.id) anchor.toBottom();
+    openedFor.current = thread.id;
+  }, [messages, thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    lastId.current = '';
-  }, [thread.id]);
 
   const onScroll = () => {
     const el = scroller.current;
     if (!el) return;
-    setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
+    anchor.capture();
+    setAtBottom(isAtBottom(el));
   };
 
-  const keepAtEnd = () => {
-    const el = scroller.current;
-    if (el && atBottom) el.scrollTop = el.scrollHeight;
-  };
+  // Una foto que terminó de cargar: la conversación queda donde estaba (o abajo de todo, si estaba ahí).
+  const keepAtEnd = () => anchor.restore();
 
   const jumpTo = (id: string) => {
     const el = document.getElementById(`m-${id}`);
     if (!el) return;
+    anchor.unstick();
     el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     setFlash(id);
     window.setTimeout(() => setFlash((f) => (f === id ? null : f)), 1500);
@@ -698,7 +707,7 @@ const WaConversation = forwardRef<
           ))}
         </div>
         {!atBottom && (
-          <button type="button" className="wa-to-end" aria-label={w('toEnd')} onClick={() => scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' })}>
+          <button type="button" className="wa-to-end" aria-label={w('toEnd')} onClick={() => anchor.toBottom()}>
             <ArrowDown size={20} />
           </button>
         )}
@@ -712,7 +721,7 @@ const WaConversation = forwardRef<
             replyTo={replyTo?.id}
             onSent={(msgs) => {
               setReplyTo(null);
-              props.onSent(msgs);
+              sentHere(msgs);
             }}
             onError={onError}
             onDone={() => setRecording(false)}
@@ -721,10 +730,12 @@ const WaConversation = forwardRef<
         </div>
       ) : (
         <WaComposer
+          key={thread.id}
           ref={composerRef}
           thread={thread}
           snippets={props.snippets}
           disabled={!connected}
+          paused={props.paused}
           banner={banner}
           editing={editing}
           replyToId={replyTo?.id ?? null}
@@ -737,7 +748,7 @@ const WaConversation = forwardRef<
             setEditing(null);
             setReplyTo(null);
           }}
-          onSent={props.onSent}
+          onSent={sentHere}
           onSaveEdit={async (m, body) => act(m, { action: 'edit', body })}
           onSendLater={props.onSendLater}
           onError={onError}

@@ -13,11 +13,15 @@ import { api, useErrorText } from './ui';
 export default function GetStarted({
   managed,
   canEdit,
+  sample = canEdit,
   finish = false,
   inline = false,
 }: {
   managed: boolean;
+  /** Puede conectar números (admins, o members con ese permiso). */
   canEdit: boolean;
+  /** Puede cargar los datos de ejemplo (solo admins). */
+  sample?: boolean;
   /** Ya hay un número sin conectar: el link lleva a terminar la conexión. */
   finish?: boolean;
   /** Dentro de un aviso: botones chicos en línea. */
@@ -57,12 +61,12 @@ export default function GetStarted({
   return (
     <div className={`gr-start${inline ? ' is-inline' : ''}`}>
       <div className="gr-start-actions">
-        {managed || finish ? (
+        {managed || finish || !sample ? (
           <>
             <Link href={connectHref} className={`btn btn-primary${size}`}>
               {connectLabel}
             </Link>
-            {sampleButton(false)}
+            {sample && sampleButton(false)}
           </>
         ) : (
           <>

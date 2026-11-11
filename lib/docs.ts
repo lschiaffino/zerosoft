@@ -32,6 +32,7 @@ import {
 import { isActiveMember, listMembers, listOwnedTeams, type TeamRole } from './teams';
 import {
   canWriteAccess,
+  pageVisibleToWorkspace,
   getDocsSettings,
   getTeamspace,
   hiddenTeamspaceIds,
@@ -1548,7 +1549,10 @@ export async function createDocWorkspaceTemplate(
     .prepare('SELECT * FROM docs_pages WHERE id = ? AND user_id = ?')
     .get(input.page_id, workspaceId)) as DocsPageRow | undefined;
   if (!page || page.archived === 1) return null;
-  if (!(await getDocAccess(page, actor, { includePublished: false, includePublicLink: false }))) return null;
+  // Una plantilla la ve todo el workspace: solo desde páginas que ya ve todo el workspace y
+  // que quien la guarda puede editar (no una copia de algo que le compartieron para leer).
+  const access = await getDocAccess(page, actor, { includePublished: false, includePublicLink: false });
+  if (!canWriteAccess(access) || !(await pageVisibleToWorkspace(page.teamspace_id))) return null;
   const count = (await getDb()
     .prepare('SELECT COUNT(*) AS c FROM docs_templates WHERE workspace_id = ?')
     .get(workspaceId)) as { c: number };

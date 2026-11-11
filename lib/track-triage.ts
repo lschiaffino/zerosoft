@@ -13,6 +13,7 @@ import { getDb } from './db';
 import type { TrackIssueWithStatus } from './track-data';
 import { createNotification } from './notifications';
 import { parseIssueLabels, projectWorkspaceId } from './track-labels';
+import { projectVisibleTo } from './track-access';
 import {
   currentTriageOwner,
   normalizeAiModes,
@@ -425,7 +426,9 @@ export async function onIssueEnteredTriage(issue: TrackIssueWithStatus): Promise
 
   // Responsable de turno: solo si el issue sigue en triage.
   let current = (await getIssue(issue.id)) ?? issue;
-  const ownerId = settings.ownerAction !== 'off' ? currentTriageOwner(settings) : null;
+  const candidate = settings.ownerAction !== 'off' ? currentTriageOwner(settings) : null;
+  // Solo alguien que ve el equipo (privados e invitados) recibe o toma el issue.
+  const ownerId = candidate && (await projectVisibleTo(project.id, candidate)) ? candidate : null;
   if (ownerId && current.triage === 1) {
     if (settings.ownerAction === 'assign' && !current.assignee_id) {
       await updateIssue(issue.id, { assigneeId: ownerId }, actor, { via: { source: 'triage', author: 'Triage' } });

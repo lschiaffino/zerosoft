@@ -28,6 +28,11 @@ export function viewerOf(user: { id: string; actingUser?: { id: string }; role?:
   };
 }
 
+/** Viewer de una API key o token: actúa como la persona que lo creó, con su rol. */
+export function apiViewerOf(auth: { personId: string; role: string }): LinkViewer {
+  return { id: auth.personId, admin: auth.role === 'owner' || auth.role === 'admin' };
+}
+
 const RANK: Record<LinkFolderAccess, number> = { none: 0, view: 1, edit: 2 };
 
 /** El acceso alcanza lo pedido ('view' < 'edit'). */

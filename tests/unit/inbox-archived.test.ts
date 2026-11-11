@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
 import { applyThreadAction, inboxCounts, listThreads } from '@/lib/inbox/core';
 import { importPart, parseImport } from '@/lib/inbox/import';
-import { connectWhatsapp, ingestHistoryChats, ingestWhatsappEvents, pushWhatsappArchive } from '@/lib/inbox/whatsapp';
+import { connectWhatsapp, ingestHistoryChats, ingestWhatsappEvents } from '@/lib/inbox/whatsapp';
 import { actionSchema } from '@/lib/inbox/schemas';
 import { parseEvolutionWebhook } from '@/lib/groups-provider-bridge';
 import { fakeSent, resetFakeProvider } from '@/lib/groups-provider-fake';
@@ -122,7 +122,6 @@ describe('Chats archivados de WhatsApp en Inbox', () => {
     await applyThreadAction(u.id, [t.id], { action: 'archive' });
     await applyThreadAction(u.id, [t.id], { action: 'unarchive' });
     expect(fakeSent(`inbox-${account.id}`).filter((s) => s.kind === 'archive').map((s) => s.text)).toEqual(['archive', 'unarchive']);
-    expect(await pushWhatsappArchive(u.id, t.id, true)).toBe(true);
   });
 
   it('el archivo de inbox-zero trae los archivados y la importación los deja archivados sin que los mensajes los desarchiven', async () => {

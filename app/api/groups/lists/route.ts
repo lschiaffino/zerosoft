@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSavedList, listSavedLists } from '@/lib/groups-org';
-import { groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   const counts = new URL(req.url).searchParams.get('counts') === '1';
-  return NextResponse.json({ lists: await listSavedLists(s.ws, s.me, { counts }) });
+  return NextResponse.json({ lists: await listSavedLists(s.ws, s.me, { counts, viewer: await sessionViewer(s) }) });
 }
 
 /** { name, shared, filters }. Una compartida la ve todo el equipo; la edita quien la creó o un admin. */

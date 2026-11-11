@@ -35,6 +35,7 @@ import {
   lidDigits,
   phoneDigits,
   safeEqual,
+  type ArchiveRef,
   type BridgeConfig,
   type ChatInfo,
   type ConnectState,
@@ -934,6 +935,34 @@ export function evolutionPresence(d: Json): InboundEvent[] {
   return [{ type: 'presence', chatId, who: isGroupJid(chatId) ? best.who : '', state: best.state as 'composing' }];
 }
 
+/**
+ * Cuerpo de /chat/archiveChat (Evolution v2). Evolution pasa `lastMessage`
+ * tal cual a Baileys (chatModify), que arma la acción de app-state que
+ * sincroniza el teléfono:
+ * - `key` completa: id y remoteJid no vacíos (si no, Evolution responde 400 o
+ *   Baileys "Incomplete key"); en un grupo, un mensaje ajeno lleva
+ *   `participant`;
+ * - `messageTimestamp` en segundos: si falta, Evolution pone Date.now() (en
+ *   milisegundos) y la acción sale con una hora inválida;
+ * - el chat sale de `key.remoteJid`, así que va el id del chat.
+ * Sin un mensaje de referencia usable se manda solo { chat, archive } (Evolution
+ * lo busca en su base).
+ */
+export function evolutionArchiveBody(chatId: string, archive: boolean, last?: ArchiveRef): Record<string, unknown> {
+  const body: Record<string, unknown> = { chat: chatId, archive };
+  if (!last?.id || !chatId) return body;
+  const raw = Number(last.timestamp);
+  // Hora en segundos aunque venga en milisegundos.
+  const ts = Number.isFinite(raw) && raw > 0 ? Math.floor(raw > 1e12 ? raw / 1000 : raw) : 0;
+  if (!ts) return body;
+  const group = isGroupJid(chatId);
+  if (group && !last.fromMe && !last.participant) return body;
+  const key: Record<string, unknown> = { remoteJid: chatId, fromMe: !!last.fromMe, id: last.id };
+  if (group && !last.fromMe && last.participant) key.participant = last.participant;
+  body.lastMessage = { key, messageTimestamp: ts };
+  return body;
+}
+
 /** Webhook de Evolution API → eventos normalizados. */
 export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
   const b = (body ?? {}) as Json;
@@ -1277,10 +1306,9 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async blockContact(chatId, block) {
       await api(`/chat/updateBlockStatus/${instance}`, 'POST', { number: chatId, status: block ? 'block' : 'unblock' });
     },
-    /** /chat/archiveChat (Evolution v2): pide el mensaje más nuevo del chat como referencia. */
+    /** /chat/archiveChat (Evolution v2): el cuerpo lo arma evolutionArchiveBody. */
     async archiveChat(chatId, archive, last) {
-      const key = { remoteJid: chatId, fromMe: !!last?.fromMe, id: last?.id ?? '' };
-      await api(`/chat/archiveChat/${instance}`, 'POST', { lastMessage: { key }, chat: chatId, archive });
+      await api(`/chat/archiveChat/${instance}`, 'POST', evolutionArchiveBody(chatId, archive, last));
     },
     async sendText(chatId, text, o) {
       const r = (await api(`/message/sendText/${instance}`, 'POST', {

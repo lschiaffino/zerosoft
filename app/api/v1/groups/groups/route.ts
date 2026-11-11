@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { apiError, requireApiUser } from '@/lib/api-auth';
 import { MAX_BULK_GROUPS, createGroups, type CreateGroupRow } from '@/lib/groups';
-import { v1Error, v1Json } from '@/lib/groups-v1';
+import { v1Error, v1Json, v1Viewer } from '@/lib/groups-v1';
+import { canSeeNumber } from '@/lib/groups-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,7 @@ export async function POST(req: Request) {
   if ('res' in auth) return auth.res;
   const b = await v1Json(req);
   if (typeof b.numberId !== 'string') return apiError(400, 'invalid_input', 'numberId is required.');
+  if (!(await canSeeNumber(await v1Viewer(auth), b.numberId))) return apiError(404, 'not_found', 'Number not found.');
   const arr = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
   const toRow = (r: Record<string, unknown>): CreateGroupRow => ({
     name: typeof r.name === 'string' ? r.name : '',

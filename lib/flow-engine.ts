@@ -443,12 +443,14 @@ async function crmDealsNode(ws: string, cfg: Record<string, unknown>) {
   return { count: deals.length, total, deals };
 }
 
-async function trackIssueNode(ws: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
+async function trackIssueNode(ws: string, actorId: string, cfg: Record<string, unknown>, tctx: Record<string, unknown>) {
   const projectId = renderString(cfg.projectId ?? '', tctx).trim();
   if (!projectId) throw new StepError('missing_project');
   const { getProject, createIssue } = await import('./track-data');
   const project = await getProject(projectId);
   if (!project || project.owner_id !== ws) throw new StepError('project_not_found');
+  // Un equipo privado: solo si lo ve la persona con cuyo acceso corre el flow.
+  if (project.visibility === 'private' && !(await (await import('./track-access')).projectVisibleTo(project.id, actorId))) throw new StepError('project_not_found');
   const title = renderString(cfg.title ?? '', tctx).trim().slice(0, 300);
   if (!title) throw new StepError('missing_title');
   const description = renderString(cfg.description ?? '', tctx);
@@ -1079,7 +1081,7 @@ async function runNodeLogic(state: RunState, node: FlowNode, loop?: LoopScope): 
     case 'app.crm_deals':
       return { kind: 'ok', output: await crmDealsNode(ws, cfg), handles: ['out'] };
     case 'app.track_issue':
-      return { kind: 'ok', output: await trackIssueNode(ws, cfg, tctx), handles: ['out'] };
+      return { kind: 'ok', output: await trackIssueNode(ws, state.flow.created_by ?? ws, cfg, tctx), handles: ['out'] };
     case 'app.track_update':
       return { kind: 'ok', output: await trackUpdateNode(ws, state.flow.created_by ?? ws, cfg, tctx), handles: ['out'] };
     case 'app.crm_update':

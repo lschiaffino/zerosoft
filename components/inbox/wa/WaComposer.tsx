@@ -2,8 +2,10 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import { initialDraft, useDraftAutosave } from '@/components/ui/useDraft';
 import { fillSnippet, type MessageDto, type SnippetDto, type ThreadDto } from '@/lib/inbox/types';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
+import { useEmojiSuggest } from '@/components/groups/wa/useEmojiSuggest';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { ClockIcon, Close, Mic, Plus, SendIcon, Smiley } from '@/components/groups/wa/icons';
 import { api } from '../api';
@@ -26,6 +28,8 @@ const WaComposer = forwardRef<
     thread: ThreadDto;
     snippets: SnippetDto[];
     disabled: boolean;
+    /** Se está abriendo otro chat: lo que se escriba ahora no va a este (el campo queda quieto hasta que abre). */
+    paused?: boolean;
     /** Barra de la cita o de la edición (la arma la conversación). */
     banner?: ReactNode;
     editing: MessageDto | null;
@@ -45,10 +49,12 @@ const WaComposer = forwardRef<
     /** Se escribió algo (para mandar "escribiendo"). */
     onTyping?: () => void;
   }
->(function WaComposer({ thread, snippets, disabled, banner, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping }, ref) {
+>(function WaComposer({ thread, snippets, disabled, paused, banner, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping }, ref) {
   const t = useTranslations('inbox.composer');
   const w = useTranslations('inboxWa');
-  const [text, setText] = useState(thread.draft);
+  // Un composer por chat (WaConversation lo monta con key): abre con el borrador más nuevo, el local o el del servidor.
+  const [text, setText] = useState(() => initialDraft('inbox', thread.id, thread.draft));
+  const [caret, setCaret] = useState(0);
   const tc = useTranslations('common.aiCompose');
   const [busy, setBusy] = useState<'' | 'send'>('');
   const [emoji, setEmoji] = useState(false);
@@ -61,12 +67,6 @@ const WaComposer = forwardRef<
   const [mentionIdx, setMentionIdx] = useState(0);
   const picked = useRef(new Map<string, string>());
 
-  useEffect(() => {
-    setText(thread.draft);
-    saved.current = thread.draft;
-    setSnipQ(null);
-    setEmoji(false);
-  }, [thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // "Ayudame a escribir": el borrador sale con el contexto de este chat y vuelve al campo para revisarlo.
   const aiAdapter = useMemo<ComposeAdapter>(
@@ -99,15 +99,8 @@ const WaComposer = forwardRef<
     if (replyToId) area.current?.focus();
   }, [replyToId]);
 
-  // Borrador guardado solo (no mientras se edita un mensaje).
-  useEffect(() => {
-    if (editing || text === saved.current) return;
-    const id = window.setTimeout(() => {
-      saved.current = text;
-      void api(`/api/inbox/threads/${thread.id}`, { method: 'PATCH', json: { draft: text } });
-    }, 700);
-    return () => window.clearTimeout(id);
-  }, [text, thread.id, editing]);
+  // Borrador: la fila de la lista lo muestra al instante y se guarda solo (no mientras se edita un mensaje).
+  const draft = useDraftAutosave({ scope: 'inbox', id: thread.id, text, saved, paused: !!editing, save: async (id, value) => (await api(`/api/inbox/threads/${id}`, { method: 'PATCH', json: { draft: value }, keepalive: true })).ok });
 
   useEffect(() => {
     const el = area.current;
@@ -147,7 +140,7 @@ const WaComposer = forwardRef<
 
   const send = useCallback(async () => {
     const body = text.trim();
-    if (!body || busy || disabled) return;
+    if (!body || busy || disabled || paused) return;
     if (editing) {
       setBusy('send');
       const ok = await onSaveEdit(editing, body);
@@ -159,6 +152,7 @@ const WaComposer = forwardRef<
       return;
     }
     setBusy('send');
+    draft.sending();
     // Menciones: "@Ana" sale como "@5491…" con la lista de teléfonos (WhatsApp la muestra con el nombre).
     let out = body;
     const mentions: string[] = [];
@@ -173,6 +167,7 @@ const WaComposer = forwardRef<
     });
     setBusy('');
     if (!r.ok) {
+      draft.failed(text);
       onError(r.data.error ?? 'send_failed');
       return;
     }
@@ -211,14 +206,27 @@ const WaComposer = forwardRef<
       draft: () => ai.openBar(),
       clear: () => {
         setText('');
-        saved.current = '';
         ai.clearUndo();
-        void api(`/api/inbox/threads/${thread.id}`, { method: 'PATCH', json: { draft: '' } });
       },
     }),
     [ai.openBar, ai.clearUndo, thread.id], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  const emojiSuggest = useEmojiSuggest({
+    text,
+    caret,
+    disabled: !!disabled,
+    apply: (start, end, emoji) => {
+      const next = text.slice(0, start) + emoji + text.slice(end);
+      setText(next);
+      const at = start + emoji.length;
+      setCaret(at);
+      requestAnimationFrame(() => {
+        area.current?.focus();
+        area.current?.setSelectionRange(at, at);
+      });
+    },
+  });
   const insertAtCaret = (s: string) => {
     const el = area.current;
     const start = el?.selectionStart ?? text.length;
@@ -282,6 +290,7 @@ const WaComposer = forwardRef<
         </ul>
       )}
       {!editing && <AiComposeBar ai={ai} />}
+      {emojiSuggest.strip}
       <div className="wa-bar">
         <span className="wa-emoji-wrap">
           <button type="button" className="wa-icon-btn" aria-label={w('emoji')} title={w('emoji')} aria-expanded={emoji} onClick={() => setEmoji((v) => !v)} disabled={disabled}>
@@ -304,6 +313,8 @@ const WaComposer = forwardRef<
         <textarea
           id={`ib-compose-${thread.id}`}
           ref={area}
+          readOnly={paused}
+          aria-busy={paused || undefined}
           className="wa-input"
           rows={1}
           value={text}
@@ -316,9 +327,11 @@ const WaComposer = forwardRef<
             e.preventDefault();
             onPasteFiles(files);
           }}
+          onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
           onChange={(e) => {
             const v = e.target.value;
             setText(v);
+            setCaret(e.target.selectionStart ?? v.length);
             if (v.trim()) onTyping?.();
             const m = /(?:^|\s);([\w-]*)$/.exec(v.slice(0, e.target.selectionStart));
             setSnipQ(m && snippets.length ? m[1] : null);
@@ -328,6 +341,7 @@ const WaComposer = forwardRef<
             setMentionIdx(0);
           }}
           onKeyDown={(e) => {
+            if (emojiSuggest.onKeyDown(e)) return;
             if (mentionQ !== null && people.length) {
               if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();

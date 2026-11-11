@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectNumber, disconnectNumber, getNumberRow, refreshNumber, syncGroups } from '@/lib/groups';
-import { groupsError, groupsSession, handleGroupsError, sessionViewer } from '@/lib/groups-http';
+import { groupsError, groupsSession, handleGroupsError, numberGuard, sessionViewer } from '@/lib/groups-http';
+import { canManageNumber } from '@/lib/groups-number-perms';
 import { canSeeNumber } from '@/lib/groups-access';
 import { getImportStatus, kickImport, reimport } from '@/lib/groups-import';
 
@@ -14,10 +15,10 @@ export async function GET(_req: Request, ctx: Ctx) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
-  // El QR vincula el número: solo lo ven los admins. Los demás ven el último estado guardado, sin consultar al proveedor.
-  if (!s.isAdmin) {
-    const row = await getNumberRow(s.ws, id);
-    if (!row || !(await canSeeNumber(await sessionViewer(s), id))) return groupsError(404, 'not_found');
+  // El QR vincula el número: solo lo ve quien administra la línea. Los demás ven el último estado guardado, sin consultar al proveedor.
+  const row = await getNumberRow(s.ws, id);
+  if (!row || !(await canSeeNumber(await sessionViewer(s), id))) return groupsError(404, 'not_found');
+  if (!canManageNumber(s.manager, row)) {
     const imp = await getImportStatus(s.ws, id);
     return NextResponse.json({ status: row.status, phone: row.phone || undefined, ...(imp ? { import: imp } : {}) });
   }
@@ -34,9 +35,12 @@ export async function GET(_req: Request, ctx: Ctx) {
 
 /** { action: 'connect' | 'disconnect' | 'sync' | 'import' }. Conectar registra el webhook en el proveedor. Con 'import', `perChat` son los últimos mensajes por chat (10 a 500); sin él o con 0 trae todo el historial que guardó el servidor de WhatsApp, en segundo plano. */
 export async function POST(req: Request, ctx: Ctx) {
-  const s = await groupsSession({ write: true, admin: true });
+  const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
+  // Conectar, reconectar, traer grupos, importar o desconectar: admins, o el dueño de la línea con permiso para conectar números.
+  const guard = await numberGuard(s, id);
+  if (guard instanceof NextResponse) return guard;
   const body = (await req.json().catch(() => ({}))) as { action?: string };
   try {
     if (body.action === 'disconnect') {

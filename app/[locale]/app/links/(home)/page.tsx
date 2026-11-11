@@ -52,9 +52,9 @@ export default async function LinksPage(props: LinksPageProps) {
       viewer,
       page,
     }),
-    userTags(user.id),
+    userTags(user.id, viewer),
     listDomains(user.id),
-    linkCreators(user.id),
+    linkCreators(user.id, viewer),
     listFolders(user.id, viewer),
   ]);
   const folderAccessById = new Map(folders.map((f) => [f.id, f.access]));

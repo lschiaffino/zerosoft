@@ -7,9 +7,10 @@ import { AiError } from './ai';
 import { getCurrentUser, type SessionUser } from './session';
 import { roleAtLeast } from './teams';
 import { limitWrites } from './write-limit';
-import { GroupsError } from './groups';
+import { GroupsError, getNumberRow, type NumberRow } from './groups';
+import { canManageNumber, numberManager, type NumberManager } from './groups-number-perms';
 import { ProviderError } from './groups-provider';
-import { canSeeChat, groupsViewer, type GroupsViewer } from './groups-access';
+import { canSeeChat, canSeeNumber, groupsViewer, type GroupsViewer } from './groups-access';
 import { HubspotError } from './groups-hubspot';
 
 export function groupsError(status: number, error: string): NextResponse {
@@ -23,6 +24,8 @@ export interface GroupsSession {
   /** Persona real logueada. */
   me: string;
   isAdmin: boolean;
+  /** Qué líneas puede agregar y administrar (lib/groups-number-perms.ts). */
+  manager: NumberManager;
 }
 
 /** Quién mira en este request (acceso por etiqueta y teléfonos ocultos). */
@@ -37,6 +40,13 @@ export async function chatGuard(s: GroupsSession, chatId: string): Promise<{ vie
   return { viewer };
 }
 
+/** 404 si la línea no existe o la persona no la puede ver (líneas restringidas). */
+export async function lineGuard(s: GroupsSession, numberId: string): Promise<{ viewer: GroupsViewer } | NextResponse> {
+  const viewer = await sessionViewer(s);
+  if (!(await canSeeNumber(viewer, numberId))) return groupsError(404, 'not_found');
+  return { viewer };
+}
+
 /** Sesión o respuesta 401. `write` aplica el rate limit de escrituras. */
 export async function groupsSession(opts: { write?: boolean; admin?: boolean } = {}): Promise<GroupsSession | NextResponse> {
   const user = await getCurrentUser();
@@ -48,7 +58,21 @@ export async function groupsSession(opts: { write?: boolean; admin?: boolean } =
     const limited = await limitWrites('groups', me);
     if (limited) return limited;
   }
-  return { user, ws: user.id, me, isAdmin };
+  return { user, ws: user.id, me, isAdmin, manager: numberManager(user) };
+}
+
+/**
+ * Para administrar una línea (conectar, editar, desconectar, borrar): la fila
+ * si quien pide puede, o la respuesta. Sin permiso para administrar líneas,
+ * 403; una línea que no existe o que no ve, 404; una que ve pero no es suya, 403.
+ */
+export async function numberGuard(s: GroupsSession, id: string): Promise<NumberRow | NextResponse> {
+  if (!s.manager.canAdd) return groupsError(403, 'forbidden');
+  const row = await getNumberRow(s.ws, id);
+  if (!row) return groupsError(404, 'not_found');
+  if (s.manager.isAdmin) return row;
+  if (!(await canSeeNumber(await sessionViewer(s), id))) return groupsError(404, 'not_found');
+  return canManageNumber(s.manager, row) ? row : groupsError(403, 'forbidden');
 }
 
 /** Error conocido → respuesta. Lo desconocido se loguea sin detalles y es 500. */

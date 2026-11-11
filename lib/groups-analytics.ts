@@ -6,6 +6,7 @@
  */
 import { getDb } from './db';
 import { chatDisplayName } from './groups';
+import { maskPhoneText } from './groups-mask';
 
 export interface AnalyticsFilters {
   /** Rango propio (YYYY-MM-DD, inclusive). Si no, los últimos `days`. */
@@ -17,6 +18,8 @@ export interface AnalyticsFilters {
   kind?: 'dm' | 'group';
   /** Chats que la persona ve (acceso por etiqueta). null = todos. */
   visible?: Set<string> | null;
+  /** Quien mira tiene los teléfonos ocultos: los chats sin nombre van enmascarados. */
+  mask?: boolean;
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -164,7 +167,7 @@ export async function groupsAnalytics(
       const c = chatById.get(id);
       return {
         id,
-        name: c ? chatDisplayName(c) : id,
+        name: c ? (filters.mask && !c.name ? maskPhoneText(chatDisplayName(c)) : chatDisplayName(c)) : id,
         kind: c?.kind ?? 'group',
         inbound: v.inbound,
         outbound: v.outbound,

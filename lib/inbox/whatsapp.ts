@@ -11,14 +11,12 @@
 import { fakeProvider, fakeProviderAllowed } from '../groups-provider-fake';
 import { deleteManagedInstance, managedEnv, managedProvider, newManagedInstance, queueManagedDelete, validManagedConfig, type ManagedEnv } from '../groups-provider-managed';
 import { cleanPushName } from '../groups-provider-bridge';
-import { ProviderError, phoneDigits, type ConnectState, type GroupsProvider, type InboundEvent } from '../groups-provider';
+import { ProviderError, isLidJid, lidDigits, phoneDigits, type ConnectState, type GroupsProvider, type InboundEvent } from '../groups-provider';
 import { getDb } from '../db';
 import {
   addMessage,
   createAccount,
   findThread,
-  getAccount,
-  getThreadRow,
   listAccounts,
   nowIso,
   readAccountConfig,
@@ -31,7 +29,7 @@ import {
 import { InboxError, normalizeWaJid, waKindOf, type AccountStatus } from './types';
 import { messageMeta, storePresence, storeReaction } from './wa-meta';
 import { inboxScope, learnFromEvents, senderPhoneFor } from './wa-names';
-import { lookupContacts, displayName } from '../wa-contacts';
+import { lookupContacts, displayName, phoneForLid } from '../wa-contacts';
 
 function appBase(): string {
   return (process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -228,6 +226,27 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
   });
 }
 
+/**
+ * Archivar o desarchivar desde el teléfono (WhatsApp avisa con el id del chat,
+ * que puede ser su lid). Un chat que todavía no está en Inbox no se crea por
+ * esto; uno que ya está así no se toca; el eco viejo de un pedido nuestro se
+ * ignora (lib/wa-archive-sync.ts). Nunca manda nada de vuelta a WhatsApp.
+ */
+export async function applyPhoneArchive(account: AccountRow, chatId: string, archived: boolean): Promise<boolean> {
+  let t = await findThread(account.id, normalizeWaJid(chatId));
+  if (!t && isLidJid(chatId)) {
+    const phone = await phoneForLid(inboxScope(account), lidDigits(chatId)).catch(() => '');
+    if (phone) t = await findThread(account.id, `${phone}@s.whatsapp.net`);
+  }
+  if (!t || !!t.archived_at === archived) return false;
+  const { isArchiveEcho } = await import('../wa-archive-sync');
+  if (await isArchiveEcho('inbox', t.id, archived)) return false;
+  await getDb()
+    .prepare('UPDATE inbox_threads SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
+    .run(archived ? nowIso() : null, archived ? 1 : 0, nowIso(), t.id);
+  return true;
+}
+
 /** Guarda lo que manda el servidor de WhatsApp (webhook o historial). Devuelve cuántos mensajes nuevos entraron. */
 export async function ingestWhatsappEvents(account: AccountRow, events: InboundEvent[], opts: { history?: boolean } = {}): Promise<{ messages: number }> {
   const db = getDb();
@@ -247,13 +266,9 @@ export async function ingestWhatsappEvents(account: AccountRow, events: InboundE
           if (e.pictureUrl && /^https:\/\//.test(e.pictureUrl) && !t.avatar_url) await db.prepare('UPDATE inbox_threads SET avatar_url = ? WHERE id = ?').run(e.pictureUrl.slice(0, 2000), t.id);
           break;
         }
-        case 'archive': {
-          // Archivar o desarchivar desde el teléfono. Un chat que todavía no está en Inbox no se crea por esto.
-          const t = await findThread(account.id, normalizeWaJid(e.chatId));
-          if (!t) break;
-          await db.prepare('UPDATE inbox_threads SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END WHERE id = ?').run(e.archived ? (t.archived_at ?? nowIso()) : null, e.archived ? 1 : 0, t.id);
+        case 'archive':
+          await applyPhoneArchive(account, e.chatId, e.archived);
           break;
-        }
         case 'status': {
           // Las tildes no vuelven atrás (llega "entregado" después de "leído").
           const rank = "CASE status WHEN 'read' THEN 3 WHEN 'delivered' THEN 2 WHEN 'sent' THEN 1 ELSE 0 END";
@@ -333,25 +348,6 @@ export async function ingestHistoryChats(account: AccountRow, rows: unknown): Pr
 /** Marca un chat como archivado sin tocar uno que ya lo está (conserva la fecha). */
 export async function markArchived(threadId: string): Promise<void> {
   await getDb().prepare('UPDATE inbox_threads SET archived_at = COALESCE(archived_at, ?), pinned_at = NULL WHERE id = ?').run(nowIso(), threadId);
-}
-
-/**
- * Archivar o desarchivar en WhatsApp lo que se hizo en Inbox (si el proveedor
- * lo permite y la cuenta está conectada). No hace nada para Gmail. Si falla,
- * el estado de Inbox queda igual: es el que manda para esta persona.
- */
-export async function pushWhatsappArchive(owner: string, threadId: string, archive: boolean): Promise<boolean> {
-  const t = await getThreadRow(owner, threadId);
-  if (t.channel !== 'whatsapp') return false;
-  const account = await getAccount(owner, t.account_id);
-  if (account.status !== 'connected') return false;
-  const provider = waProviderFor(account);
-  if (!provider.archiveChat) return false;
-  const last = (await getDb()
-    .prepare('SELECT external_id, from_me FROM inbox_messages WHERE thread_id = ? ORDER BY sent_at DESC LIMIT 1')
-    .get(t.id)) as { external_id: string; from_me: number } | undefined;
-  await provider.archiveChat(t.external_id, archive, last ? { id: last.external_id, fromMe: last.from_me === 1 } : undefined);
-  return true;
 }
 
 const BACKFILL_DELAY_MS = 60_000;

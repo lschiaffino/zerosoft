@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslations } from 'next-intl';
 import type { EmojiCategory } from './emoji-data';
 
-const RECENT_KEY = 'zs-groups-emoji-recent';
+export const RECENT_KEY = 'zs-groups-emoji-recent';
 const CATS: Array<{ key: 'recent' | EmojiCategory; icon: string }> = [
   { key: 'recent', icon: '🕘' },
   { key: 'smileys', icon: '😀' },
@@ -18,7 +18,7 @@ const CATS: Array<{ key: 'recent' | EmojiCategory; icon: string }> = [
 ];
 
 /** Palabras en español y portugués para buscar los más usados (los nombres de Unicode están en inglés). */
-const ALIASES: Record<string, string> = {
+export const ALIASES: Record<string, string> = {
   corazon: 'heart', coração: 'heart', risa: 'joy laughing', riso: 'joy laughing', llorar: 'crying', chorar: 'crying', ok: 'ok thumbs up',
   gracias: 'folded hands', obrigado: 'folded hands', fuego: 'fire', fogo: 'fire', fiesta: 'party', festa: 'party', beso: 'kiss', beijo: 'kiss',
   feliz: 'smiling grinning', triste: 'sad frowning', enojo: 'angry pouting', raiva: 'angry pouting', perro: 'dog', cachorro: 'dog', gato: 'cat',
@@ -28,7 +28,7 @@ const ALIASES: Record<string, string> = {
   bandera: 'flag', bandeira: 'flag', argentina: 'flag ar', brasil: 'flag br', mexico: 'flag mx', españa: 'flag es', espanha: 'flag es',
 };
 
-function readRecent(): string[] {
+export function readRecent(): string[] {
   try {
     const raw = window.localStorage.getItem(RECENT_KEY);
     const v = raw ? (JSON.parse(raw) as unknown) : null;
@@ -38,7 +38,7 @@ function readRecent(): string[] {
   }
 }
 
-function saveRecent(list: string[]) {
+export function saveRecent(list: string[]) {
   try {
     window.localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 32)));
   } catch {

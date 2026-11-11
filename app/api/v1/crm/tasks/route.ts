@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   const { links: wanted, ...data } = parsed.data;
   const { linkTargetExists, linkTask, taskLinks } = await import('@/lib/tasks');
   for (const l of wanted ?? []) {
-    if (!(await linkTargetExists(auth.user.id, l.kind, l.id))) return apiError(400, 'invalid_link', 'A linked record does not exist.');
+    if (!(await linkTargetExists(auth.user.id, l.kind, l.id, { personId: auth.personId, role: auth.role }))) return apiError(400, 'invalid_link', 'A linked record does not exist.');
   }
   const task = await catchRef(createActivity(auth.user.id, { ...data, type: 'task' }));
   if (task instanceof CrmRefError) return apiError(400, task.code, 'A referenced record does not exist.');

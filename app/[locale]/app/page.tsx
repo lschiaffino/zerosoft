@@ -1,53 +1,38 @@
-import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, requireUser, userCanUseApp } from '@/lib/session';
-import { dayPart, getWorkspaceMode, homeCanUse, normalizeTaskScope } from '@/lib/home';
+import { dayPart, getWorkspaceMode, homeCanUse } from '@/lib/home';
 import { getUserTimeZone } from '@/lib/user-tz';
-import { featuredApps, moreAppsByCategory, showTeamUi } from '@/lib/workspace-mode';
+import { featuredApps, moreAppsByCategory } from '@/lib/workspace-mode';
 import { APP_SWITCHER_ORDER, comingSoonHref, isComingSoon, PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
 import { isStaff, loadWorkspaceAppRules } from '@/lib/workspace-apps';
 import { appDenial } from '@/lib/app-access';
 import ProductGlyph from '@/components/brand/ProductGlyph';
 import PageHeader from '@/components/ui/PageHeader';
-import HomeAsk from '@/components/assistant/HomeAsk';
 import RequestAccessButton from '@/components/app/RequestAccessButton';
 import LostAccessNotice from '@/components/app/LostAccessNotice';
 import { isRequestPending, lostAccessNotice } from '@/lib/workspace-access-request';
-import { desktopHintState, showDesktopHint } from '@/lib/desktop-hint';
-import DesktopHomeCard from '@/components/app/home/DesktopHomeCard';
 import { chosenApps } from '@/lib/onboarding';
 import { getOnboardingState } from '@/lib/onboarding-state';
 import GettingStarted from '@/components/app/home/GettingStarted';
-import {
-  CalBookingsBlock,
-  CrmTasksBlock,
-  HomeBlockLoading,
-  RecentBlock,
-  RecentLoading,
-  TrackIssuesBlock,
-  UnreadBlock,
-} from '@/components/app/home/HomeBlocks';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Inicio de la plataforma: saludo, "Para hoy" (CRM, Track, Cal, sin leer),
- * recientes de todas las apps, las apps destacadas según el modo del
- * workspace y el resto por categoría. Cada bloque con datos va en su propio
- * Suspense: la página pinta enseguida y cada bloque llega cuando está.
+ * Inicio de la plataforma: el saludo y tus apps, cada una con su ícono y para
+ * qué sirve. Nada más: lo del día vive en cada app y el asistente se abre con
+ * ⌘J desde cualquier lado. Arriba, solo los avisos que hacen falta (acceso
+ * bloqueado, acceso perdido, primeros pasos).
  */
 export default async function PlatformHomePage(props: {
   params: Promise<{ locale: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await props.params;
-  const taskScope = normalizeTaskScope((await props.searchParams).tasks);
   const user = await requireUser(locale);
-  const [t, tProducts, tCat, mode, timeZone] = await Promise.all([
+  const [t, tProducts, mode, timeZone] = await Promise.all([
     getTranslations({ locale, namespace: 'common.appHome' }),
     getTranslations({ locale, namespace: 'common.products' }),
-    getTranslations({ locale, namespace: 'common.categories' }),
     getWorkspaceMode(user),
     getUserTimeZone(),
   ]);
@@ -58,23 +43,16 @@ export default async function PlatformHomePage(props: {
   const partKey = part === 'morning' ? 'Morning' : part === 'afternoon' ? 'Afternoon' : 'Evening';
   const greeting = firstName ? t(`greeting${partKey}`, { name: firstName }) : t(`greeting${partKey}Anon`);
 
-  const team = showTeamUi(mode);
-  // Invitar e importar son de quien administra el workspace.
   const admin = isWorkspaceAdmin(user);
-  // Solo las apps que la persona tiene en este workspace.
-  const can = (k: ProductKey) => homeCanUse(user, k);
-  // Las "Próximamente" no cuentan como apps del workspace: van aparte, al final, con su lista de espera.
-  const ready = (k: ProductKey) => can(k) && !isComingSoon(k);
-  // Las apps que la persona eligió al empezar van primero (si no eligió, las del modo).
+  // Solo las apps que la persona tiene en este workspace; las "Próximamente" van aparte, al pie.
+  const ready = (k: ProductKey) => homeCanUse(user, k) && !isComingSoon(k);
+  // Las que la persona eligió al empezar (o las del modo) primero, después el resto en el orden del menú.
   const chosen = chosenApps(person.profile);
   const featured = featuredApps({ mode, chosen }).filter(ready);
-  const more = moreAppsByCategory({ mode, chosen })
-    .map((g) => ({ ...g, apps: g.apps.filter(ready) }))
-    .filter((g) => g.apps.length > 0);
-  // Apps del workspace (Inbox es personal: la tiene todo el mundo y no cuenta como acceso al workspace).
-  const workspaceApps = [...featured, ...more.flatMap((g) => g.apps)].filter((k) => k !== 'inbox');
-  // Sin apps no hay nada que invitar a usar ni que importar: solo lo que esa persona puede hacer.
-  const canShowCards = admin && workspaceApps.length > 0;
+  const rest = moreAppsByCategory({ mode, chosen }).flatMap((g) => g.apps).filter(ready);
+  const apps = [...new Set([...featured, ...rest])];
+  // Inbox es personal (la tiene todo el mundo): no cuenta como acceso al workspace.
+  const workspaceApps = apps.filter((k) => k !== 'inbox');
   const staff = isStaff(person.email);
   const soon = APP_SWITCHER_ORDER.filter((k) => isComingSoon(k));
   const tSoon = await getTranslations({ locale, namespace: 'common.comingSoon' });
@@ -89,32 +67,14 @@ export default async function PlatformHomePage(props: {
   const wsOff = wsDenial === 'workspace_off';
   // "Pedido enviado" sigue al recargar: sale de la base, no del estado del botón.
   const alreadyAsked = Boolean(blocked && user.actingUser && user.workspace && (await isRequestPending(user.workspace.id, person.id, blocked)));
-  const [lost, onboarding, desktopState] = await Promise.all([
+  const [lost, onboarding] = await Promise.all([
     lostAccessNotice(person.id),
     getOnboardingState(person.id, { workspaceId: user.id, admin }).catch(() => null),
-    desktopHintState(person.id),
   ]);
-  // Con "Primeros pasos" a la vista, invitar e importar ya están ahí.
-  const showCards = canShowCards && !onboarding?.showChecklist;
-  // La app de escritorio, a quien no la instaló ni cerró la tarjeta (el cliente la esconde en el teléfono y en la app).
-  // Con "Primeros pasos" a la vista no se repite: la lista ya tiene ese paso.
-  const desktopHint = showDesktopHint(desktopState) && !onboarding?.showChecklist && !onboarding?.desktop.seenAt;
-  const aside = showCards || desktopHint;
-  const todayBlocks = can('crm') || can('track') || can('cal') || can('groups');
-
-  const appCard = (k: ProductKey) => (
-    <li key={k}>
-      <Link href={PRODUCT_CONFIG[k].launch} className={`app-home-app card-${k}`} aria-label={t('open', { name: PRODUCT_CONFIG[k].name })}>
-        <ProductGlyph product={k} size={20} />
-        <span className="app-home-app-name">{PRODUCT_CONFIG[k].name}</span>
-        <span className="app-home-app-desc">{tProducts(`${k}.desc`)}</span>
-      </Link>
-    </li>
-  );
 
   return (
-    <div className="app-page app-home" data-mode={mode}>
-      <PageHeader title={greeting} description={t('homeLead')} />
+    <div className="app-page app-home app-home-clean" data-mode={mode}>
+      <PageHeader title={greeting} description={t('homeLeadApps')} />
       {blocked && tAccess && (
         <div className="home-blocked" role="status" data-testid="home-blocked">
           <p className="home-blocked-title">{tAccess(wsOff ? 'offTitle' : 'title', { app: PRODUCT_CONFIG[blocked].name })}</p>
@@ -137,106 +97,6 @@ export default async function PlatformHomePage(props: {
 
       {onboarding?.showChecklist && <GettingStarted state={onboarding} locale={locale} />}
 
-      {/* El asistente de la plataforma: preguntar abre la charla a página completa. */}
-      <HomeAsk />
-
-      {todayBlocks && (
-      <section className="home-section" aria-labelledby="home-today">
-        <h2 id="home-today" className="home-h">
-          {t('today.title')}
-        </h2>
-        <div className="home-today">
-          <Suspense
-            fallback={<HomeBlockLoading locale={locale} product="crm" titleKey="today.crm" href="/app/crm/tasks" testId="home-crm-tasks" />}
-          >
-            {/* Tareas de toda la suite. En uso personal, o sin CRM, el bloque aparece solo si hay tareas. */}
-            {(can('crm') || can('groups')) && (
-              <CrmTasksBlock user={user} locale={locale} hideWhenEmpty={!team && can('crm')} scope={taskScope} />
-            )}
-          </Suspense>
-          <Suspense
-            fallback={
-              <HomeBlockLoading locale={locale} product="track" titleKey="today.track" href="/app/track/my-tasks" testId="home-track" />
-            }
-          >
-            {can('track') && <TrackIssuesBlock user={user} locale={locale} />}
-          </Suspense>
-          <Suspense
-            fallback={
-              <HomeBlockLoading locale={locale} product="cal" titleKey="today.cal" href="/app/calendar/bookings" testId="home-cal" />
-            }
-          >
-            {can('cal') && <CalBookingsBlock user={user} locale={locale} timeZone={timeZone} />}
-          </Suspense>
-          <Suspense
-            fallback={
-              <HomeBlockLoading locale={locale} product="chat" titleKey="today.inbox" href="/app/chat/inbox" testId="home-unread" />
-            }
-          >
-            {can('chat') && can('groups') && <UnreadBlock user={user} locale={locale} hideWhenEmpty={!team} />}
-          </Suspense>
-        </div>
-      </section>
-      )}
-
-      <div className={`home-split${aside ? '' : ' home-split-full'}`}>
-        <section className="home-section" aria-labelledby="home-recent">
-          <h2 id="home-recent" className="home-h">
-            {t('recent.title')}
-          </h2>
-          <Suspense fallback={<RecentLoading locale={locale} />}>
-            <RecentBlock user={user} locale={locale} />
-          </Suspense>
-        </section>
-
-        {aside && (
-          <aside className="home-cards" aria-label={t('cardsLabel')}>
-            {showCards && team && (
-              <div className="home-card" data-testid="home-invite">
-                <h3 className="home-card-title">{t('invite.title')}</h3>
-                <p className="home-card-body">{t('invite.body')}</p>
-                <Link href="/app/settings/members" className="btn btn-secondary btn-sm">
-                  {t('invite.cta')}
-                </Link>
-              </div>
-            )}
-            {showCards && (
-              <div className="home-card" data-testid="home-import">
-                <h3 className="home-card-title">{t('import.title')}</h3>
-                <p className="home-card-body">{t('import.body')}</p>
-                <Link href="/app/settings/import" className="btn btn-secondary btn-sm">
-                  {t('import.cta')}
-                </Link>
-              </div>
-            )}
-            {desktopHint && (
-              <DesktopHomeCard
-                locale={locale}
-                labels={{
-                  title: t('desktop.title'),
-                  body: t('desktop.body'),
-                  mac: t('desktop.mac'),
-                  win: t('desktop.win'),
-                  dismiss: t('desktop.dismiss'),
-                  dismissError: t('desktop.dismissError'),
-                }}
-              />
-            )}
-          </aside>
-        )}
-      </div>
-
-      {featured.length > 0 && (
-        <section className="home-section" aria-labelledby="home-apps">
-          <h2 id="home-apps" className="home-h">
-            {t('featured')}
-          </h2>
-          <nav className="app-home-apps" aria-labelledby="home-apps" data-testid="home-featured">
-            <ul>{featured.map(appCard)}</ul>
-          </nav>
-        </section>
-      )}
-
       {workspaceApps.length === 0 && (
         <div className="home-no-apps" data-testid="home-no-apps">
           <p className="home-blocked-title">{t('noApps.title')}</p>
@@ -244,44 +104,39 @@ export default async function PlatformHomePage(props: {
         </div>
       )}
 
-      {more.length > 0 && (
-        <section className="home-section" aria-labelledby="home-more">
-          <h2 id="home-more" className="home-h">
-            {t('more')}
-          </h2>
-          <div className="home-more" data-testid="home-more">
-            {more.map(({ category, apps }) => (
-              <div key={category} className="home-more-group">
-                <h3 className="home-more-title">{tCat(`${category}.title`)}</h3>
-                <ul className="home-more-list">
-                  {apps.map((k) => (
-                    <li key={k}>
-                      <Link href={PRODUCT_CONFIG[k].launch} className={`home-more-app card-${k}`}>
-                        <ProductGlyph product={k} size={14} />
-                        <span className="home-more-name">{PRODUCT_CONFIG[k].name}</span>
-                        <span className="home-more-desc">{tProducts(`${k}.desc`)}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+      {apps.length > 0 && (
+        <nav className="home-apps" aria-label={t('featured')} data-testid="home-featured">
+          <ul>
+            {apps.map((k, i) => (
+              <li key={k} style={{ ['--i' as string]: i }}>
+                <Link href={PRODUCT_CONFIG[k].launch} className={`home-tile card-${k}`} aria-label={t('open', { name: PRODUCT_CONFIG[k].name })}>
+                  <span className="home-tile-icon" aria-hidden="true">
+                    <ProductGlyph product={k} size={30} />
+                  </span>
+                  <span className="home-tile-name">{PRODUCT_CONFIG[k].name}</span>
+                  <span className="home-tile-desc">{tProducts(`${k}.desc`)}</span>
+                </Link>
+              </li>
             ))}
-          </div>
-        </section>
+          </ul>
+        </nav>
       )}
 
       {soon.length > 0 && (
-        <section className="home-section" aria-labelledby="home-soon">
-          <h2 id="home-soon" className="home-h">
+        <section className="home-soon" aria-labelledby="home-soon-title" data-testid="home-soon">
+          <h2 id="home-soon-title" className="home-soon-title">
             {tSoon('badge')}
           </h2>
-          <ul className="home-more-list home-soon-list" data-testid="home-soon">
+          <ul className="home-soon-list">
             {soon.map((k) => (
               <li key={k}>
-                <Link href={staff && userCanUseApp(user, k) ? PRODUCT_CONFIG[k].launch : comingSoonHref(k)} className={`home-more-app card-${k}`}>
-                  <ProductGlyph product={k} size={14} />
-                  <span className="home-more-name">{PRODUCT_CONFIG[k].name}</span>
-                  <span className="home-more-desc">{staff && userCanUseApp(user, k) ? tSoon('previewTag') : tSoon('joinShort')}</span>
+                <Link
+                  href={staff && userCanUseApp(user, k) ? PRODUCT_CONFIG[k].launch : comingSoonHref(k)}
+                  className="home-soon-app"
+                  title={tProducts(`${k}.desc`)}
+                >
+                  <ProductGlyph product={k} size={12} />
+                  <span>{PRODUCT_CONFIG[k].name}</span>
                 </Link>
               </li>
             ))}

@@ -33,6 +33,7 @@ import RichText, { type MentionLabels } from './wa/RichText';
 import { mentionLabel } from '@/lib/wa-mentions';
 import { longPress } from './wa/longPress';
 import EmojiPicker from './wa/EmojiPicker';
+import { useEmojiSuggest } from './wa/useEmojiSuggest';
 import MediaViewer from './wa/MediaViewer';
 import AttachPreview from './wa/AttachPreview';
 import { MAX_TRAY, filesFrom, hasFiles, useAttachTray } from './wa/attachments';
@@ -69,6 +70,7 @@ import {
   Person,
 } from './wa/icons';
 import ContactPicker from './wa/ContactPicker';
+import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const TRANSLATE_STORE = 'zs-groups-translate';
@@ -195,6 +197,15 @@ export default function ChatThread(props: ThreadProps) {
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // "Info del contacto" desde el menú de la fila (clic derecho en la lista): abre los detalles.
+  useEffect(() => {
+    if (takeChatInfo(chat.id)) setDetailsOpen(true);
+    const onInfo = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === chat.id && takeChatInfo(chat.id)) setDetailsOpen(true);
+    };
+    window.addEventListener(CHAT_INFO_EVENT, onInfo);
+    return () => window.removeEventListener(CHAT_INFO_EVENT, onInfo);
+  }, [chat.id]);
   const [summary, setSummary] = useState<{ text: string; error: string; busy: boolean } | null>(null);
   const [schedule, setSchedule] = useState<{ open: boolean; at: string; busy: boolean; error: string }>({ open: false, at: '', busy: false, error: '' });
   // Enviar más tarde: el selector de "cuándo" (el mismo de Inbox).
@@ -674,7 +685,24 @@ export default function ChatThread(props: ThreadProps) {
     inputRef.current?.focus();
   }
 
+  const emojiSuggest = useEmojiSuggest({
+    text,
+    caret,
+    disabled: !!editing,
+    apply: (start, end, emoji) => {
+      const next = text.slice(0, start) + emoji + text.slice(end);
+      setText(next);
+      const at = start + emoji.length;
+      setCaret(at);
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        inputRef.current?.setSelectionRange(at, at);
+      });
+    },
+  });
+
   function onComposerKey(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (!editing && emojiSuggest.onKeyDown(e)) return;
     if (mentionMatches.length > 0) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
@@ -1794,6 +1822,7 @@ export default function ChatThread(props: ThreadProps) {
               ))}
             </ul>
           )}
+          {emojiSuggest.strip}
           {mentionMatches.length > 0 && (
             <ul className="gr-quick" role="listbox" aria-label={t('thread.mentionPeople')}>
               {mentionMatches.map((p, i) => (

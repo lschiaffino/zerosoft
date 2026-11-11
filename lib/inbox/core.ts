@@ -954,10 +954,13 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
   }
   const marks = unique.map(() => '?').join(',');
   await db.prepare(`UPDATE inbox_threads SET ${sql}, updated_at = ? WHERE owner_id = ? AND id IN (${marks})`).run(...extra, nowS, owner, ...unique);
-  // Archivar o desarchivar también se manda a WhatsApp (si el proveedor lo permite).
+  // Archivar o desarchivar también se manda a WhatsApp: después de responder y con reintentos (lib/wa-archive-sync.ts).
   if (a.action === 'archive' || a.action === 'unarchive') {
-    const { pushWhatsappArchive } = await import('./whatsapp');
-    for (const id of unique) await pushWhatsappArchive(owner, id, a.action === 'archive').catch(() => undefined);
+    const wa = (await db
+      .prepare(`SELECT id FROM inbox_threads WHERE owner_id = ? AND channel = 'whatsapp' AND id IN (${marks})`)
+      .all(owner, ...unique)) as Array<{ id: string }>;
+    const { requestArchivePush } = await import('../wa-archive-sync');
+    await requestArchivePush('inbox', owner, wa.map((r) => r.id), a.action === 'archive');
   }
   return unique;
 }

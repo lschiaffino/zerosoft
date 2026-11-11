@@ -6,6 +6,7 @@
 import { getDb } from './db';
 import type { TrackIssueViewRow } from './schema/types';
 import type { IssueSort } from './track-views';
+import { trackVisibleSql } from './track-access';
 
 function nowIso() {
   return new Date().toISOString();
@@ -296,15 +297,18 @@ export interface IssueRef {
   ref?: string;
 }
 
-/** Identificadores (ZER-12) e ids → issue con su estado, solo del workspace de la persona. */
+/** Identificadores (ZER-12) e ids → issue con su estado, solo del workspace y de los equipos que la persona ve. */
 export async function resolveIssueRefs(
   refs: string[],
   teamId: string | null,
   ownerId: string,
+  personId: string,
 ): Promise<IssueRef[]> {
   const list = Array.from(new Set(refs.map((r) => r.trim()).filter((r) => r && r.length <= 80))).slice(0, 50);
   if (list.length === 0) return [];
-  const s = scope(teamId, ownerId);
+  const base = scope(teamId, ownerId);
+  const v = trackVisibleSql('p', personId);
+  const s = { where: `${base.where} AND ${v.sql}`, args: [base.arg, ...v.args] };
   const ph = list.map(() => '?').join(', ');
   const rows = (await getDb()
     .prepare(
@@ -314,7 +318,7 @@ export async function resolveIssueRefs(
        LEFT JOIN track_statuses st ON st.id = i.status_id
        WHERE ${s.where} AND (i.identifier IN (${ph}) OR i.id IN (${ph}))`,
     )
-    .all(s.arg, ...list, ...list)) as IssueRef[];
+    .all(...s.args, ...list, ...list)) as IssueRef[];
   // Identificadores viejos de issues que se movieron de team (WEB-12 → OPS-31):
   // siguen llevando al issue, como en Linear.
   const found = new Set(rows.flatMap((r) => [r.id, r.identifier]));
@@ -329,7 +333,7 @@ export async function resolveIssueRefs(
          LEFT JOIN track_statuses st ON st.id = i.status_id
          WHERE ${s.where} AND a.type = 'cycle_change' AND a.meta LIKE ? ORDER BY a.created_at DESC LIMIT 1`,
       )
-      .get(s.arg, `%"fromIdentifier":"${old}"%`)) as IssueRef | undefined;
+      .get(...s.args, `%"fromIdentifier":"${old}"%`)) as IssueRef | undefined;
     if (hit) rows.push({ ...hit, ref: old });
   }
   return rows;

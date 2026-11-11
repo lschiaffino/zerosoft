@@ -610,7 +610,8 @@
       "invalid_transfer": "Escolha alguém que ainda esteja no workspace para receber o trabalho.",
       "already_member": "Essa pessoa já está no workspace.",
       "admin_link": "Admins são convidados por email, não com um link.",
-      "link_invite": "Um link de convite não tem email para reenviar. Copie o link."
+      "link_invite": "Um link de convite não tem email para reenviar. Copie o link.",
+      "caps_members_only": "As permissões extras são para members. Admins e owner já as têm."
     },
     "approve": "Aprovar",
     "allowAnyEmail": "Permitir outro email",
@@ -639,7 +640,7 @@
     "roleLegend": {
       "owner": "Usa todos os apps e vê os salários no People. É a única pessoa que nomeia, muda ou remove admins e nomeia admins de RH. Não pode sair do workspace.",
       "admin": "Usa os apps ativados para ele. Também convida pessoas, muda o papel e os apps de membros e convidados e edita as configurações do workspace. Vê salários só se o owner o nomear admin de RH.",
-      "member": "Usa os apps ativados para ele. O que vê em cada um depende de como está compartilhado.",
+      "member": "Usa os apps ativados para ele. O que vê em cada um depende de como está compartilhado. Um admin pode dar permissões extras, como conectar números no Lines.",
       "guest": "Não entra no workspace. Só vê o que compartilham com ele, como uma página do Docs."
     },
     "requestWorkspace": {
@@ -738,7 +739,10 @@
         "invite": "{actor} convidou {target}",
         "link": "{actor} criou um link de convite",
         "revoke": "{actor} revogou o convite de {target}",
-        "workspaceApp": "{actor} mudou quem usa {target}: {to}"
+        "workspaceApp": "{actor} mudou quem usa {target}: {to}",
+        "capsGiven": "{actor} deu a {target}: {caps}",
+        "capsTaken": "{actor} tirou de {target}: {caps}",
+        "caps": "{actor} mudou as permissões de {target}"
       },
       "someone": "alguém",
       "undo": "Desfazer",
@@ -753,7 +757,9 @@
         "addedBack": "{name} voltou",
         "bulk": "{count, plural, one {# pessoa atualizada} other {# pessoas atualizadas}}",
         "skipped": "{count, plural, one {# sem mudar: você não pode editá-la} other {# sem mudar: você não pode editá-las}}",
-        "undone": "Mudança desfeita"
+        "undone": "Mudança desfeita",
+        "capOn": "{name} agora tem: {cap}",
+        "capOff": "{name} não tem mais: {cap}"
       },
       "rolesTitle": "O que cada papel pode fazer",
       "rolesDesc": "Além do papel, cada pessoa tem os apps que você habilitar.",
@@ -768,7 +774,24 @@
       "yes": "Sim",
       "no": "Não",
       "approveRequest": "Dar {apps}",
-      "noTeams": "Não está em nenhuma equipe"
+      "noTeams": "Não está em nenhuma equipe",
+      "capsTitle": "Permissões extras",
+      "capsIntro": "Coisas que só os admins fazem, dadas a esta pessoa sem torná-la admin. As mudanças valem a partir da próxima ação dela.",
+      "capsByRole": "O owner e os admins já podem fazer tudo isso pelo papel deles.",
+      "capsNeedsApp": "Só vale enquanto puder usar {app}.",
+      "caps": {
+        "lines_numbers_manage": {
+          "label": "Pode conectar números no Lines",
+          "help": "Adiciona números de WhatsApp com QR ou credenciais, e reconecta, renomeia, desconecta e exclui os números que adiciona. Os números dela são privados: só ela e os admins veem os chats até que ela os compartilhe. Não deixa ver números nem chats de outras pessoas.",
+          "confirm": "Vai poder vincular números de WhatsApp a este workspace e excluir os que adicionar, com os chats. Os números que outras pessoas adicionaram ficam fora do alcance dela."
+        }
+      },
+      "promoteTitle": "Tornar {name} admin?",
+      "promoteManyTitle": "Tornar {count, plural, one {# pessoa} other {# pessoas}} admin?",
+      "promoteBody": "Os admins convidam e removem pessoas, mudam papéis, apps e permissões de members e convidados, editam os ajustes do workspace e veem todos os números do Lines com os chats. Se a pessoa só precisa de uma dessas coisas, mantenha como member e dê essa permissão.",
+      "promoteConfirm": "Tornar admin",
+      "capGrantTitle": "Dar a {name} esta permissão: {cap}?",
+      "capGrantConfirm": "Dar permissão"
     }
   },
   "teamsForm": {
