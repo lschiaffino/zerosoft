@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { build } from 'esbuild';
+import ts from 'typescript';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
@@ -15,35 +15,22 @@ const UI = path.join(ROOT, 'desktop/ui');
 const FACTS = JSON.parse(fs.readFileSync(path.join(ROOT, 'desktop/privacy-facts.json'), 'utf8'));
 const STRINGS = JSON.parse(fs.readFileSync(path.join(ROOT, 'desktop/strings.json'), 'utf8'));
 
-let html = '';
-
-test.beforeAll(async () => {
-  // El IPC de Tauri, reemplazado por lo mínimo: invoke va a window.__TAURI_INTERNALS__.
-  const out = await build({
-    entryPoints: [path.join(UI, 'settings.ts')],
-    bundle: true,
-    write: false,
-    format: 'iife',
-    platform: 'browser',
-    target: 'es2020',
-    logLevel: 'silent',
-    plugins: [
-      {
-        name: 'tauri-stub',
-        setup(b) {
-          b.onResolve({ filter: /^@tauri-apps\/api\// }, (a) => ({ path: a.path, namespace: 'tauri-stub' }));
-          b.onLoad({ filter: /.*/, namespace: 'tauri-stub' }, (a) => ({
-            contents: a.path.endsWith('/event')
-              ? 'export const listen = (name, cb) => { (window.__listeners ||= {})[name] = cb; return Promise.resolve(() => {}); };'
-              : 'export const invoke = (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, args);',
-            loader: 'js',
-          }));
-        },
-      },
-    ],
-  });
-  html = fs.readFileSync(path.join(UI, 'settings.html'), 'utf8').replace('<script src="settings.js"></script>', () => `<script>${out.outputFiles[0].text}</script>`);
-});
+// Las páginas locales se sirven transpiladas, como módulos, desde un origen de mentira; el IPC de
+// Tauri se reemplaza por lo mínimo: invoke va a window.__TAURI_INTERNALS__.
+const ORIGIN = 'http://zs-desktop.test';
+const module = (file: string) => ts.transpileModule(fs.readFileSync(path.join(UI, file), 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext } }).outputText;
+const FILES: Record<string, string> = {
+  '/settings.js': module('settings.ts'),
+  '/api': module('api.ts'),
+  '/settings-privacy': module('settings-privacy.ts'),
+  '/settings-tabs': module('settings-tabs.ts'),
+  '/tauri-core.js': 'export const invoke = (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, args);',
+  '/tauri-event.js': 'export const listen = () => Promise.resolve(() => {});',
+};
+const IMPORT_MAP = JSON.stringify({ imports: { '@tauri-apps/api/core': '/tauri-core.js', '@tauri-apps/api/event': '/tauri-event.js' } });
+const html = fs
+  .readFileSync(path.join(UI, 'settings.html'), 'utf8')
+  .replace('<script src="settings.js"></script>', () => `<script type="importmap">${IMPORT_MAP}</script><script type="module" src="/settings.js"></script>`);
 
 const NOW = Date.UTC(2026, 10, 11, 15, 0, 0);
 
@@ -150,8 +137,12 @@ async function open(page: Page, opts: { platform?: 'darwin' | 'win32'; width?: n
     },
     { st },
   );
-  await page.goto('about:blank');
-  await page.setContent(html.replace('</head>', '<script>history.replaceState(null, "", "#privacy")</script></head>'));
+  await page.route(`${ORIGIN}/**`, (route) => {
+    const file = new URL(route.request().url()).pathname;
+    if (file === '/') return route.fulfill({ contentType: 'text/html', body: html });
+    return file in FILES ? route.fulfill({ contentType: 'text/javascript', body: FILES[file] }) : route.fulfill({ status: 404, body: '' });
+  });
+  await page.goto(`${ORIGIN}/#privacy`);
   // Cada dato de los hechos tiene su fila (los que no existen en este sistema lo dicen).
   await expect(page.locator('#priv-stores li')).toHaveCount(FACTS.stores.length);
   return st;
