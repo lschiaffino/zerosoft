@@ -55,6 +55,12 @@ export const CHANGELOG: ChangelogEntry[] = [
         es: 'Escribir una nota interna ahora es una pestaña arriba del cuadro de mensaje, al lado de WhatsApp, así siempre ves a dónde va lo que escribís. N y R siguen cambiando entre una y otra.',
         pt: 'Escrever uma nota interna agora é uma aba acima da caixa de mensagem, ao lado de WhatsApp, então você sempre vê para onde vai o que digita. N e R continuam alternando entre uma e outra.',
       },
+      {
+        product: 'groups',
+        en: 'The "Import finished" notice in the inbox can be closed, and it stays closed.',
+        es: 'El aviso de "Importación terminada" en la bandeja se puede cerrar, y queda cerrado.',
+        pt: 'O aviso de "Importação concluída" na caixa de entrada pode ser fechado, e continua fechado.',
+      },
     ],
   },
   {

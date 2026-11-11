@@ -165,6 +165,8 @@
 
 .wa-import { display: flex; flex-direction: column; gap: 6px; margin: 0 16px 8px; padding: 10px 12px; font-size: 0.8125rem; color: var(--wa-text); background: var(--wa-chip-bg); border-radius: var(--radius-1); }
 .wa-import.is-done { color: var(--wa-chip-on-ink); background: var(--wa-chip-on-bg); }
+.wa-import.is-done { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+.wa-import-close { flex: none; width: 28px; height: 28px; color: inherit; }
 .wa-import.is-bad { color: var(--bad-ink); background: var(--bad-soft); }
 .wa-dropped { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
 .wa-dropped .btn { flex: none; }
