@@ -106,10 +106,18 @@ export async function GET(req: Request) {
     if (guard instanceof NextResponse) return guard;
     const rows = (await getDb()
       .prepare(
-        `SELECT m.created_at, m.direction, m.sender_name, m.sender_phone, m.author_id, m.body, m.media_type, m.status
+        `SELECT m.created_at, m.direction, m.sender_name, m.sender_phone, m.author_id, m.body, m.media_type, m.status, m.meta, m.number_id
          FROM groups_messages m WHERE m.chat_id = ? AND m.user_id = ? ORDER BY m.created_at LIMIT 50000`,
       )
       .all(chat, s.ws)) as Array<Record<string, unknown>>;
+    // "@<dígitos>" → "@Nombre" (las notas internas no llevan menciones de WhatsApp).
+    const { linesMentionTexts, storedMentions } = await import('@/lib/groups-wa-names');
+    const named = await linesMentionTexts(
+      s.ws,
+      rows.map((r) => ({ numberId: r.direction === 'note' ? '' : String(r.number_id ?? ''), text: String(r.body ?? ''), mentions: storedMentions(r.meta as string | null) })),
+      { mask: viewer.mask },
+    );
+    rows.forEach((r, i) => (r.body = named[i]));
     body = csv([
       ['created_at', 'direction', 'sender_name', 'sender_phone', 'author_id', 'body', 'media_type', 'status'],
       ...rows.map((r) => [r.created_at, r.direction, r.sender_name, viewer.mask && r.sender_phone ? maskPhone(String(r.sender_phone)) : r.sender_phone, r.author_id, r.body, r.media_type, r.status]),

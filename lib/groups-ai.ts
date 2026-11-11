@@ -13,6 +13,7 @@ import { getDb } from './db';
 import { GroupsError, chatDisplayName, getChatRow, type MessageRow } from './groups';
 import { TRANSLATE_LANGS, cleanLang } from './groups-inbox-rules';
 import { maskPhoneText } from './groups-mask';
+import { linesRowTexts } from './groups-wa-names';
 import { CHANGE_RULE, CHANNEL_RULE, DATA_RULE, LANGUAGE_RULE, fence, isComposeChange, type ComposeChange } from './ai-compose';
 
 const LOCALE_NAME: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Portuguese' };
@@ -48,9 +49,11 @@ export async function summarizeChat(
     .all(chat.id, since)) as MessageRow[];
   if (rows.length === 0) throw new GroupsError('no_messages');
   const hide = opts.maskPhones === true;
-  const lines = rows.map((m) => {
+  // "@<dígitos>" → "@Nombre": el resumen habla de personas, no de números.
+  const bodies = await linesRowTexts(ws, rows, { mask: hide });
+  const lines = rows.map((m, i) => {
     const who = m.direction === 'out' ? 'Team' : m.sender_name || (m.sender_phone && !hide ? `+${m.sender_phone}` : 'Customer');
-    const text = (m.body || (m.media_type ? `[${m.media_type}]` : '')).replace(/\s+/g, ' ').slice(0, 600);
+    const text = (bodies[i] || (m.media_type ? `[${m.media_type}]` : '')).replace(/\s+/g, ' ').slice(0, 600);
     return `[${m.created_at.slice(0, 16).replace('T', ' ')}] ${hide ? maskPhoneText(who) : who}: ${hide ? maskPhoneText(text) : text}`;
   });
   const name = chatDisplayName(chat);
@@ -352,9 +355,10 @@ export async function draftReply(ws: string, chatId: string, req: DraftRequest, 
   // Sin mensajes y sin instrucción no hay de dónde escribir; con instrucción, es el primer mensaje del chat.
   if (rows.length === 0 && req.mode === 'draft' && !ask) throw new GroupsError('no_messages');
   const hide = opts.maskPhones === true;
-  const lines = rows.map((m) => {
+  const bodies = await linesRowTexts(ws, rows, { mask: hide });
+  const lines = rows.map((m, i) => {
     const who = m.direction === 'out' ? 'Team' : m.sender_name || (m.sender_phone && !hide ? `+${m.sender_phone}` : 'Customer');
-    const body = (m.body || (m.media_type ? `[${m.media_type}]` : '')).replace(/\s+/g, ' ').slice(0, 600);
+    const body = (bodies[i] || (m.media_type ? `[${m.media_type}]` : '')).replace(/\s+/g, ' ').slice(0, 600);
     return `${hide ? maskPhoneText(who) : who}: ${hide ? maskPhoneText(body) : body}`;
   });
 

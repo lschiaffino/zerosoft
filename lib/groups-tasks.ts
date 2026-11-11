@@ -78,11 +78,13 @@ interface TaskJoin {
   chat_phone: string;
   chat_pid: string;
   message_body: string | null;
+  message_meta?: string | null;
+  number_id?: string | null;
 }
 
 const SELECT = `SELECT t.id, t.activity_id, t.chat_id, t.message_id, t.created_at,
     a.subject, a.body, a.due_at, a.done, a.owner_id, u.name AS owner_name, u.email AS owner_email, a.priority, 'lines' AS source,
-    c.name AS chat_name, c.phone AS chat_phone, c.provider_chat_id AS chat_pid, m.body AS message_body
+    c.name AS chat_name, c.phone AS chat_phone, c.provider_chat_id AS chat_pid, m.body AS message_body, m.meta AS message_meta, c.number_id AS number_id
   FROM groups_tasks t
   JOIN crm_activities a ON a.id = t.activity_id
   JOIN groups_chats c ON c.id = t.chat_id
@@ -95,7 +97,7 @@ const SELECT = `SELECT t.id, t.activity_id, t.chat_id, t.message_id, t.created_a
  */
 const SELECT_RECORD = `SELECT a.id AS id, a.id AS activity_id, c.id AS chat_id, NULL AS message_id, a.created_at,
     a.subject, a.body, a.due_at, a.done, a.owner_id, u.name AS owner_name, u.email AS owner_email, a.priority, 'crm' AS source,
-    c.name AS chat_name, c.phone AS chat_phone, c.provider_chat_id AS chat_pid, NULL AS message_body
+    c.name AS chat_name, c.phone AS chat_phone, c.provider_chat_id AS chat_pid, NULL AS message_body, NULL AS message_meta, c.number_id AS number_id
   FROM crm_activities a
   JOIN groups_chats c ON c.user_id = a.user_id
     AND ((a.contact_id IS NOT NULL AND c.crm_contact_id = a.contact_id) OR (a.company_id IS NOT NULL AND c.crm_company_id = a.company_id))
@@ -174,13 +176,27 @@ export async function getGroupTask(ws: string, id: string, crm?: OwnerScope | fa
   const r = (await getDb()
     .prepare(`${SELECT} WHERE t.id = ? AND t.user_id = ?${access ? ` AND ${access.sql}` : ''}`)
     .get(id, ws, ...(access?.args ?? []))) as TaskJoin | undefined;
-  if (r) return forViewer(toDto(r), viewer);
+  if (r) return (await toDtos(ws, [r], viewer))[0];
   const scope = recordScope(crm);
   if (!scope) return null;
   const rec = (await getDb()
     .prepare(`${SELECT_RECORD} AND a.id = ? AND a.user_id = ?${scope.sql ? ` AND ${scope.sql}` : ''}${access ? ` AND ${access.sql}` : ''} LIMIT 1`)
     .get(id, ws, ...scope.args, ...(access?.args ?? []))) as TaskJoin | undefined;
-  return rec ? forViewer(toDto(rec), viewer) : null;
+  return rec ? (await toDtos(ws, [rec], viewer))[0] : null;
+}
+
+/** Las tareas para quien mira, con las menciones del mensaje de origen nombradas ("@Nombre" en lugar de "@<dígitos>"). */
+async function toDtos(ws: string, rows: TaskJoin[], viewer?: GroupsViewer): Promise<GroupTaskDto[]> {
+  if (rows.some((r) => r.message_body?.includes('@'))) {
+    const { linesRowTexts } = await import('./groups-wa-names');
+    const named = await linesRowTexts(
+      ws,
+      rows.map((r) => ({ body: r.message_body, meta: r.message_meta, number_id: r.number_id })),
+      { mask: viewer?.mask === true },
+    );
+    rows = rows.map((r, i) => (r.message_body ? { ...r, message_body: named[i] } : r));
+  }
+  return rows.map((r) => forViewer(toDto(r), viewer));
 }
 
 function forViewer(t: GroupTaskDto, viewer?: GroupsViewer): GroupTaskDto {
@@ -208,6 +224,11 @@ export async function createGroupTask(ws: string, actor: string, input: CreateTa
     const msg = await getMessageRow(ws, input.messageId);
     if (!msg || msg.chat_id !== chat.id) throw new GroupsError('invalid_message');
     messageBody = msg.body;
+    // "@<dígitos>" → "@Nombre" en lo que la tarea copia del mensaje.
+    if (messageBody.includes('@')) {
+      const { linesRowTexts } = await import('./groups-wa-names');
+      messageBody = (await linesRowTexts(ws, [msg], { shared: true }))[0];
+    }
   }
   const title = (input.title ?? '').trim().slice(0, 200) || messageBody.split('\n').find((l) => l.trim())?.trim().slice(0, 120) || '';
   if (!title) throw new GroupsError('invalid_title');
@@ -318,7 +339,7 @@ export async function listGroupTasks(ws: string, me: string, query: TaskQuery = 
         y.created_at.localeCompare(x.created_at),
     );
   }
-  return rows.slice(0, limit).map((r) => forViewer(toDto(r), query.viewer));
+  return toDtos(ws, rows.slice(0, limit), query.viewer);
 }
 
 export interface TaskPatch {

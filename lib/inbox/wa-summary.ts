@@ -9,7 +9,7 @@ import { AiError, aiGenerateText } from '../ai';
 import { getDb } from '../db';
 import { getThreadRow, nowIso } from './core';
 import { inboxFakeAllowed } from './gmail';
-import { transcriptLines } from './ai';
+import { nameMentions, transcriptLines } from './ai';
 import { InboxError } from './types';
 
 export interface SummaryDto {
@@ -39,9 +39,11 @@ export async function makeSummary(owner: string, threadId: string, now = new Dat
   const t = await getThreadRow(owner, threadId);
   if (t.channel !== 'whatsapp') throw new InboxError('unsupported', 400);
   const rows = ((await getDb()
-    .prepare('SELECT from_me, sender_name, subject, body, media_type, sent_at FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND hidden_at IS NULL ORDER BY sent_at DESC LIMIT 120')
-    .all(threadId, owner)) as unknown as Array<{ from_me: number; sender_name: string; subject: string; body: string; media_type: string; sent_at: string }>).reverse();
+    .prepare('SELECT from_me, sender_name, subject, body, media_type, sent_at, meta FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND hidden_at IS NULL ORDER BY sent_at DESC LIMIT 120')
+    .all(threadId, owner)) as unknown as Array<{ from_me: number; sender_name: string; subject: string; body: string; media_type: string; sent_at: string; meta?: string | null }>).reverse();
   if (!rows.length) throw new InboxError('nothing_to_summarize', 400);
+  // El resumen habla de personas: "@<dígitos>" → "@Nombre".
+  await nameMentions(owner, t.account_id, rows);
   let text: string;
   if (inboxFakeAllowed()) {
     const last = rows[rows.length - 1];

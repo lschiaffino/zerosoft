@@ -473,14 +473,19 @@ export async function ticketLinks(ticketId: string): Promise<TicketLinkDto[]> {
 async function ticketContext(ws: string, ticketId: string): Promise<{ input: RemoteTicketInput; status: TicketStatus } | null> {
   const t = (await getDb()
     .prepare(
-      `SELECT t.title, t.status, t.priority, c.name AS chat_name, c.phone AS chat_phone, c.kind AS chat_kind, m.body, m.sender_phone, m.sender_name
+      `SELECT t.title, t.status, t.priority, c.name AS chat_name, c.phone AS chat_phone, c.kind AS chat_kind, m.body, m.sender_phone, m.sender_name, m.meta, m.number_id
        FROM groups_tickets t LEFT JOIN groups_chats c ON c.id = t.chat_id LEFT JOIN groups_messages m ON m.id = t.message_id
        WHERE t.id = ? AND t.user_id = ?`,
     )
     .get(ticketId, ws)) as
-    | { title: string; status: TicketStatus; priority: string; chat_name: string | null; chat_phone: string | null; chat_kind: string | null; body: string | null; sender_phone: string | null; sender_name: string | null }
+    | { title: string; status: TicketStatus; priority: string; chat_name: string | null; chat_phone: string | null; chat_kind: string | null; body: string | null; sender_phone: string | null; sender_name: string | null; meta: string | null; number_id: string | null }
     | undefined;
   if (!t) return null;
+  // "@<dígitos>" → "@Nombre" en la descripción que va a la otra herramienta.
+  if (t.body?.includes('@')) {
+    const { linesRowTexts } = await import('./groups-wa-names');
+    t.body = (await linesRowTexts(ws, [t], { shared: true }))[0];
+  }
   const phone = t.sender_phone || (t.chat_kind === 'dm' ? t.chat_phone ?? '' : '');
   const where = t.chat_name ? `WhatsApp: ${t.chat_name}` : 'WhatsApp';
   return {
