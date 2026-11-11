@@ -13,6 +13,7 @@ import { getDb } from './db';
 import { GroupsError, chatDisplayName, getChatRow, type MessageRow } from './groups';
 import { TRANSLATE_LANGS, cleanLang } from './groups-inbox-rules';
 import { maskPhoneText } from './groups-mask';
+import { linesRowTexts } from './groups-wa-names';
 import { CHANGE_RULE, CHANNEL_RULE, DATA_RULE, LANGUAGE_RULE, fence, isComposeChange, type ComposeChange } from './ai-compose';
 
 const LOCALE_NAME: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Portuguese' };
@@ -48,9 +49,11 @@ export async function summarizeChat(
     .all(chat.id, since)) as MessageRow[];
   if (rows.length === 0) throw new GroupsError('no_messages');
   const hide = opts.maskPhones === true;
-  const lines = rows.map((m) => {
+  // "@<dígitos>" → "@Nombre": el resumen habla de personas, no de números.
+  const bodies = await linesRowTexts(ws, rows, { mask: hide });
+  const lines = rows.map((m, i) => {
     const who = m.direction === 'out' ? 'Team' : m.sender_name || (m.sender_phone && !hide ? `+${m.sender_phone}` : 'Customer');
-    const text = (m.body || (m.media_type ? `[${m.media_type}]` : '')).replace(/\s+/g, ' ').slice(0, 600);
+    const text = (bodies[i] || (m.media_type ? `[${m.media_type}]` : '')).replace(/\s+/g, ' ').slice(0, 600);
     return `[${m.created_at.slice(0, 16).replace('T', ' ')}] ${hide ? maskPhoneText(who) : who}: ${hide ? maskPhoneText(text) : text}`;
   });
   const name = chatDisplayName(chat);
@@ -103,25 +106,34 @@ async function groupsObject<T>(opts: {
   schema: z.ZodType<T>;
   fake: () => T;
   maxOutputTokens?: number;
+  /**
+   * Para resultados que son un solo texto: si la respuesta estructurada falla (el modelo no devolvió
+   * el objeto, el proveedor rechazó el formato), se pide de nuevo como texto y esto lo envuelve.
+   */
+  plain?: (text: string) => T;
 }): Promise<T> {
   const { model, modelId } = await groupsModel(opts.ws, () => ({ text: JSON.stringify(opts.fake()) }));
-  const result = await generateText({
-    model,
-    instructions: opts.instructions,
-    prompt: opts.prompt,
-    output: Output.object({ schema: opts.schema }),
-    maxOutputTokens: opts.maxOutputTokens ?? 1200,
-    temperature: 0.2,
-    timeout: 45_000,
-    maxRetries: 1,
-  });
-  await recordAiUsage({
-    workspaceId: opts.ws,
-    feature: opts.feature,
-    model: modelId,
-    inputTokens: result.totalUsage?.inputTokens ?? 0,
-    outputTokens: result.totalUsage?.outputTokens ?? 0,
-  }).catch(() => {});
+  const base = { model, prompt: opts.prompt, maxOutputTokens: opts.maxOutputTokens ?? 1200, temperature: 0.2, timeout: 45_000 };
+  const usage = (u: { inputTokens?: number; outputTokens?: number } | undefined) =>
+    recordAiUsage({ workspaceId: opts.ws, feature: opts.feature, model: modelId, inputTokens: u?.inputTokens ?? 0, outputTokens: u?.outputTokens ?? 0 }).catch(() => {});
+  let result;
+  try {
+    result = await generateText({ ...base, instructions: opts.instructions, output: Output.object({ schema: opts.schema }), maxRetries: 1 });
+  } catch (err) {
+    if (err instanceof AiError) throw err;
+    // Solo el tipo de error y el estado: ni el texto del chat ni la respuesta del modelo van al log.
+    const e = err as { name?: string; statusCode?: number };
+    console.error('[groups-ai] structured output failed', opts.feature, modelId, e?.name ?? 'error', e?.statusCode ?? '');
+    if (!opts.plain) throw err;
+    const again = await generateText({
+      ...base,
+      instructions: `${opts.instructions}\nReply with the text only: no JSON, no quotes around it, no explanation.`,
+      maxRetries: 0,
+    });
+    await usage(again.totalUsage);
+    return opts.plain(again.text);
+  }
+  await usage(result.totalUsage);
   return result.output as T;
 }
 
@@ -228,6 +240,7 @@ export async function translateText(ws: string, text: string, target: string): P
     ].join('\n'),
     prompt: clean,
     schema: z.object({ text: z.string() }),
+    plain: (text) => ({ text }),
     fake: () => ({ text: `[${lang}] ${clean}` }),
   });
   return { text: res.text.trim().slice(0, 4096) };
@@ -352,9 +365,10 @@ export async function draftReply(ws: string, chatId: string, req: DraftRequest, 
   // Sin mensajes y sin instrucción no hay de dónde escribir; con instrucción, es el primer mensaje del chat.
   if (rows.length === 0 && req.mode === 'draft' && !ask) throw new GroupsError('no_messages');
   const hide = opts.maskPhones === true;
-  const lines = rows.map((m) => {
+  const bodies = await linesRowTexts(ws, rows, { mask: hide });
+  const lines = rows.map((m, i) => {
     const who = m.direction === 'out' ? 'Team' : m.sender_name || (m.sender_phone && !hide ? `+${m.sender_phone}` : 'Customer');
-    const body = (m.body || (m.media_type ? `[${m.media_type}]` : '')).replace(/\s+/g, ' ').slice(0, 600);
+    const body = (bodies[i] || (m.media_type ? `[${m.media_type}]` : '')).replace(/\s+/g, ' ').slice(0, 600);
     return `${hide ? maskPhoneText(who) : who}: ${hide ? maskPhoneText(body) : body}`;
   });
 
@@ -385,6 +399,7 @@ export async function draftReply(ws: string, chatId: string, req: DraftRequest, 
     instructions,
     prompt,
     schema: z.object({ text: z.string() }),
+    plain: (text) => ({ text }),
     fake: () => ({ text: fakeDraft(req, quickHits[0]?.text) }),
   });
   return { text: res.text.trim().slice(0, 4096), sources };
