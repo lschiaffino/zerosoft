@@ -1,4 +1,5 @@
 {
+  "panels": { "list": "Cambiar el ancho de la lista de chats", "details": "Cambiar el ancho de la info del contacto", "hint": "Arrastrá para cambiar el ancho. Doble clic para volver al original." },
   "nav": { "inbox": "Bandeja", "reply": "Por responder", "waiting": "Esperando", "snoozed": "Pospuestos", "scheduled": "Programados", "done": "Hechos", "compose": "Mensaje nuevo" },
   "views": {
     "inbox": "Bandeja",
