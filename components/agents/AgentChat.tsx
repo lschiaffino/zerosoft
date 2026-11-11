@@ -168,8 +168,16 @@ export default function AgentChat({
 
   useEffect(() => {
     if (!handedOff || !conversationId || !canLoad) return;
-    const timer = window.setInterval(() => void loadHistory(conversationId), POLL_MS);
-    return () => window.clearInterval(timer);
+    // Solo con la pestaña a la vista; al volver a ella, al día en el acto.
+    const tick = () => {
+      if (document.visibilityState === 'visible') void loadHistory(conversationId);
+    };
+    const timer = window.setInterval(tick, POLL_MS);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', tick);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handedOff, conversationId, canLoad]);
 

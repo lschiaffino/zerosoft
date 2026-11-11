@@ -15,6 +15,7 @@ import { callsUp } from './calls-migration';
 import { inboxLinesPerfUp } from './inbox-lines-perf-migration';
 import { inboxUp, inboxWhatsappUp } from './inbox-migration';
 import { WA_LIVE_TRIGGERS } from './wa-live-triggers';
+import { fewerReadsUp } from './fewer-reads-migration';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -9854,6 +9855,12 @@ export const MIGRATIONS: Migration[] = [
       `);
       for (const [name, body] of WA_LIVE_TRIGGERS) await c.execute(`CREATE TRIGGER IF NOT EXISTS ${name} ${body}`);
     },
+  },
+  {
+    // Menos filas leídas con todo quieto: índices para lo que corre cada minuto o por cada evento
+    // de WhatsApp, y la versión de los avisos de cada persona (lib/schema/fewer-reads-migration.ts).
+    id: '393_fewer_reads',
+    up: fewerReadsUp,
   },
 ];
 

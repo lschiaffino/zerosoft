@@ -129,10 +129,12 @@ export async function rememberContacts(scope: ContactScope, items: ContactInput[
     try {
       const rows = (await db
         .prepare(
-          `SELECT * FROM wa_contacts WHERE app = ? AND account_id = ?
-             AND ((? <> '' AND phone = ?) OR (? <> '' AND lid = ?)) LIMIT 4`,
+          `SELECT * FROM wa_contacts WHERE app = ? AND account_id = ? AND phone = ? AND ? <> ''
+           UNION
+           SELECT * FROM wa_contacts WHERE app = ? AND account_id = ? AND lid = ? AND ? <> ''
+           LIMIT 4`,
         )
-        .all(scope.app, scope.accountId, phone, phone, lid, lid)) as unknown as ContactRow[];
+        .all(scope.app, scope.accountId, phone, phone, scope.app, scope.accountId, lid, lid)) as unknown as ContactRow[];
       // La fila principal es la del teléfono; una fila suelta del lid se junta con ella.
       const main = rows.find((r) => phone && r.phone === phone) ?? rows[0];
       const extra = rows.filter((r) => r !== main);
@@ -188,8 +190,13 @@ export async function lookupContacts(scope: Pick<ContactScope, 'app' | 'accountI
     const chunk = list.slice(i, i + 200);
     const marks = chunk.map(() => '?').join(',');
     const rows = (await db
-      .prepare(`SELECT * FROM wa_contacts WHERE app = ? AND account_id = ? AND (phone IN (${marks}) OR lid IN (${marks}))`)
-      .all(scope.app, scope.accountId, ...chunk, ...chunk)) as unknown as ContactRow[];
+      // Dos búsquedas por índice (teléfono y lid) en vez de un OR que recorre la libreta de la cuenta.
+      .prepare(
+        `SELECT * FROM wa_contacts WHERE app = ? AND account_id = ? AND phone IN (${marks})
+         UNION
+         SELECT * FROM wa_contacts WHERE app = ? AND account_id = ? AND lid IN (${marks})`,
+      )
+      .all(scope.app, scope.accountId, ...chunk, scope.app, scope.accountId, ...chunk)) as unknown as ContactRow[];
     for (const r of rows) {
       if (r.phone) out.set(r.phone, r);
       if (r.lid) out.set(r.lid, r);

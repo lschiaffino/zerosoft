@@ -678,14 +678,20 @@ export async function autoAssignChat(ws: string, chatId: string): Promise<string
 
 /** Cron: chats abiertos que esperan respuesta sin nadie asignado, en workspaces con reglas. */
 export async function sweepAutoAssign(opts: { ws?: string; limit?: number } = {}): Promise<number> {
-  const rows = (await getDb()
+  const db = getDb();
+  // Primero los workspaces con alguna regla prendida (casi siempre ninguno o pocos): sin reglas no se lee ningún chat.
+  const withRules = ((await db.prepare('SELECT DISTINCT user_id FROM groups_assign_rules WHERE enabled = 1').all()) as Array<{ user_id: string }>)
+    .map((r) => r.user_id)
+    .filter((ws) => !opts.ws || ws === opts.ws)
+    .slice(0, 500);
+  if (!withRules.length) return 0;
+  const rows = (await db
     .prepare(
-      `SELECT c.user_id, c.id FROM groups_chats c
-       WHERE c.status = 'open' AND c.assigned_to IS NULL AND c.awaiting_since IS NOT NULL AND (? IS NULL OR c.user_id = ?)
-         AND EXISTS (SELECT 1 FROM groups_assign_rules r WHERE r.user_id = c.user_id AND r.enabled = 1)
+      `SELECT c.user_id, c.id FROM groups_chats c INDEXED BY idx_groups_chats_to_assign
+       WHERE c.user_id IN (${withRules.map(() => '?').join(',')}) AND c.status = 'open' AND c.assigned_to IS NULL AND c.awaiting_since IS NOT NULL
        ORDER BY c.awaiting_since LIMIT ?`,
     )
-    .all(opts.ws ?? null, opts.ws ?? null, opts.limit ?? 100)) as Array<{ user_id: string; id: string }>;
+    .all(...withRules, opts.limit ?? 100)) as Array<{ user_id: string; id: string }>;
   let n = 0;
   for (const r of rows) if (await autoAssignChat(r.user_id, r.id).catch(() => null)) n++;
   return n;

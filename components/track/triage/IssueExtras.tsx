@@ -362,7 +362,10 @@ function AgentBlock({ issueId, locale, onIssueChange }: { issueId: string; local
   // Mientras el agente trabaja, se refresca hasta que responde.
   useEffect(() => {
     if (!working) return;
-    const id = setInterval(() => void reload(), 2000);
+    const id = setInterval(() => {
+      // Con la pestaña oculta no se consulta (al volver, el próximo intervalo la pone al día).
+      if (document.visibilityState === 'visible') void reload();
+    }, 2000);
     return () => clearInterval(id);
   }, [working, reload]);
 

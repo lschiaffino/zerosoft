@@ -36,7 +36,9 @@ export function useSessionRecordings(projectId: string, events: ReadonlyArray<{ 
       }
     };
     void look();
-    const id = setInterval(() => void look(), 20_000);
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') void look();
+    }, 20_000);
     return () => {
       gone = true;
       clearInterval(id);

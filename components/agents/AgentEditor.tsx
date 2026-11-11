@@ -367,6 +367,7 @@ export default function AgentEditor(props: Props) {
   useEffect(() => {
     if (tab !== 'knowledge' || !sitemapsBusy) return;
     const timer = window.setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
       const res = await api<{ urls?: AgentKnowledgeUrlDto[]; sitemaps?: AgentSitemapStatusDto[] }>(`/api/agents/${agent.id}/knowledge`);
       if (res.ok && res.data.sitemaps) setSitemaps(res.data.sitemaps);
     }, 5000);

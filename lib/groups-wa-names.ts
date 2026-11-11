@@ -51,7 +51,7 @@ export async function applyLinesRenames(numberId: string, renamed: Renamed[]): P
         await db
           .prepare(
             `UPDATE groups_members SET name = ? WHERE phone = ? AND (name = '' OR name = ?) AND name <> ?
-               AND chat_id IN (SELECT id FROM groups_chats WHERE number_id = ? AND kind = 'group')`,
+               AND EXISTS (SELECT 1 FROM groups_chats c WHERE c.id = groups_members.chat_id AND c.number_id = ? AND c.kind = 'group')`,
           )
           .run(name.slice(0, 120), r.phone, r.before, name.slice(0, 120), numberId)
       ).changes;

@@ -116,6 +116,7 @@ export default function RecDetail({
   useEffect(() => {
     if (video.transcriptStatus !== 'pending' && video.transcriptStatus !== 'processing') return;
     const id = window.setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
       const res = await fetch(`/api/rec/videos/${video.id}`).catch(() => null);
       if (!res?.ok) return;
       const { video: v } = (await res.json()) as { video: RecVideoDto };

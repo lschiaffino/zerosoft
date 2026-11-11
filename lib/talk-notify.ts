@@ -40,6 +40,7 @@ import {
 import { ACTIVE_MS } from './talk-extras';
 import { inDndSchedule, parseDays } from './talk-quiet';
 import { talkPush } from './talk-push';
+import { TALK_EPHEMERAL_KINDS } from './schema/fewer-reads-migration';
 import en from '@/messages/en/talk.json';
 import es from '@/messages/es/talk.json';
 import pt from '@/messages/pt/talk.json';
@@ -404,12 +405,12 @@ export async function runTalkCron(): Promise<Record<string, unknown>> {
     .catch(() => undefined);
   // Lo que ya está escrito como evento de "escribiendo" no sirve después de unos segundos.
   await getDb()
-    .prepare("DELETE FROM talk_events WHERE kind = 'typing' AND created_at < ?")
+    .prepare(`DELETE FROM talk_events WHERE ${TALK_EPHEMERAL_KINDS} AND kind = 'typing' AND created_at < ?`)
     .run(new Date(Date.now() - 10 * 60_000).toISOString())
     .catch(() => undefined);
   // La señalización de huddles (SDP con direcciones IP) no queda guardada más que unos minutos.
   await getDb()
-    .prepare("DELETE FROM talk_events WHERE kind IN ('signal', 'ephemeral') AND created_at < ?")
+    .prepare(`DELETE FROM talk_events WHERE ${TALK_EPHEMERAL_KINDS} AND kind IN ('signal', 'ephemeral') AND created_at < ?`)
     .run(new Date(Date.now() - 5 * 60_000).toISOString())
     .catch(() => undefined);
   const { sweepHuddles } = await import('./talk-huddles');

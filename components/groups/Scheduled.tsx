@@ -50,8 +50,16 @@ function useScheduled(query: string) {
   const soon = Boolean(items?.some((i) => i.status === 'sending' || Date.parse(i.scheduledAt) <= Date.now() + 60_000));
   useEffect(() => {
     if (!count) return;
-    const id = setInterval(() => void load(), soon ? 5000 : 30_000);
-    return () => clearInterval(id);
+    // Solo con la pestaña a la vista; al volver a ella, al día en el acto.
+    const tick = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
+    const id = setInterval(tick, soon ? 5000 : 30_000);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', tick);
+    };
   }, [count, soon, load]);
   return { items, failed, load };
 }

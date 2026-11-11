@@ -138,11 +138,11 @@ export function visitorConversationFilter(widgetId: string, visitorId: string) {
   };
 }
 
-/** Limpia el feed: lo de más de una hora ya no sirve para reconectar. */
+/** Limpia el feed: lo de más de una hora ya no sirve para reconectar (por el índice de created_at: lee solo lo que borra, hasta 5000 por corrida). */
 export async function pruneChatEvents(now = new Date()): Promise<number> {
   const before = new Date(now.getTime() - 3_600_000).toISOString().replace('T', ' ').slice(0, 19);
   const res = await getDb()
-    .prepare('DELETE FROM chat_events WHERE id IN (SELECT id FROM chat_events ORDER BY id LIMIT 5000) AND created_at < ?')
+    .prepare('DELETE FROM chat_events WHERE id IN (SELECT id FROM chat_events WHERE created_at < ? ORDER BY created_at LIMIT 5000)')
     .run(before);
   return res.changes;
 }

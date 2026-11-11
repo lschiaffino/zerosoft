@@ -2157,6 +2157,9 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
   const res: IngestResult = { messages: 0, duplicates: 0, ignored: 0 };
   const ws = number.user_id;
   const later: Array<{ messageId: string; ref: MediaRef }> = [];
+  // Los ajustes del workspace se leen una vez por tanda (antes: dos veces por cada mensaje entrante).
+  let settingsOnce: ReturnType<typeof getSettings> | null = null;
+  const batchSettings = () => (settingsOnce ??= getSettings(ws));
   // La libreta del número primero (nombres de perfil, lid ↔ teléfono): quien vino solo con su lid ya sale con teléfono.
   const batch = await learnLinesEvents(number, events.slice(0, 200));
   for (const ev of batch) {
@@ -2210,7 +2213,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         }
         await touchChat(chat.id, at, previewOfRow(row), !ev.fromMe);
         if (!ev.fromMe) {
-          const st = await getSettings(ws);
+          const st = await batchSettings();
           // Modo "preguntas": el chat espera recién cuando la AI dice que el mensaje pide respuesta (lib/groups-flag.ts).
           if (st.flagMode === 'questions') {
             await getDb().prepare('UPDATE groups_chats SET awaiting_since = NULL WHERE id = ? AND awaiting_since = ?').run(chat.id, at);
@@ -2241,7 +2244,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           });
           continue;
         }
-        await afterInbound(ws, chat, row);
+        await afterInbound(ws, chat, row, await batchSettings());
       } else if (ev.type === 'reaction') {
         const msg = (await getDb()
           .prepare('SELECT * FROM groups_messages WHERE number_id = ? AND provider_message_id = ?')
@@ -2371,9 +2374,9 @@ export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'
 }
 
 /** Mensaje de cliente nuevo: ticket por palabra clave, eventos (Flow/webhooks) y agente. */
-async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow): Promise<void> {
+async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow, known?: Awaited<ReturnType<typeof getSettings>>): Promise<void> {
   let chat = chatRow;
-  const settings = await getSettings(ws);
+  const settings = known ?? (await getSettings(ws));
   const keyword = matchKeyword(settings.ticketKeywords, msg.body);
   if (keyword) {
     const { createTicket } = await import('./groups-tickets');

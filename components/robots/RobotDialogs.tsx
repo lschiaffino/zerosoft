@@ -817,7 +817,9 @@ export function BatchesPanel({ robotId, initial, canRun, refreshKey }: { robotId
   const live = batches.some((b) => b.counts.queued + b.counts.running > 0);
   useEffect(() => {
     if (!live) return;
-    const timer = setInterval(() => void load(), 5000);
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') void load();
+    }, 5000);
     return () => clearInterval(timer);
   }, [live, load]);
 
