@@ -123,6 +123,19 @@ describe('QR administrado: llamadas a Evolution', () => {
     expect(rest.some((c) => c.url === `${BRIDGE}/webhook/set/${cfg.session}`)).toBe(true);
   });
 
+  it('reconectar una sesión cerrada la arranca y devuelve el QR', async () => {
+    const ev = evolutionMock({ state: 'close' });
+    const p = managedProvider({ session: 'zs-0123456789abcdef0123', instanceToken: 'a'.repeat(48) }, { fetch: ev.f });
+    const st = await p.connect('https://zerosoft.test/api/groups/webhook/n1/s1');
+    expect(st.status).toBe('qr');
+    expect(st.qr).toBe('data:image/png;base64,QRDATA');
+    expect(ev.calls.some((c) => new URL(c.url).pathname.startsWith('/instance/connect/'))).toBe(true);
+    // Consultar el estado (el sondeo del diálogo) no arranca nada.
+    ev.calls.length = 0;
+    expect((await p.state()).status).toBe('disconnected');
+    expect(ev.calls.some((c) => new URL(c.url).pathname.startsWith('/instance/connect/'))).toBe(false);
+  });
+
   it('desconectar cierra la sesión y borra la instancia; borrar el número también', async () => {
     const mock = evolutionMock({ state: 'open' });
     vi.stubGlobal('fetch', mock.handler);
