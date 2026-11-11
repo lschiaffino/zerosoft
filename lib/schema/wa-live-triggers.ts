@@ -4,13 +4,14 @@
  * stream de lib/wa-live.ts los reparte a las pantallas abiertas, que releen
  * la lista por sus rutas de siempre. Solo ids: nada del contenido.
  *
- * También "escribiendo…" (la columna presence, solo cuando cambia). Lo que no
- * se ve en la lista (foto, info, la hora de la presencia) no avisa.
+ * También "escribiendo…" (la columna presence) y la foto y los datos del chat
+ * (el asunto de un grupo), solo cuando cambian. Lo que no se ve en la lista
+ * (la hora de la presencia, borradores, notas) no avisa.
  */
 
 const changed = (cols: string[]) => cols.map((c) => `OLD.${c} IS NOT NEW.${c}`).join(' OR ');
 
-const INBOX_COLS = ['archived_at', 'last_message_at', 'unread', 'done_at', 'snoozed_until', 'pinned_at', 'muted_until', 'woke_at', 'title', 'preview', 'last_status', 'presence'];
+const INBOX_COLS = ['archived_at', 'last_message_at', 'unread', 'done_at', 'snoozed_until', 'pinned_at', 'muted_until', 'woke_at', 'title', 'preview', 'last_status', 'presence', 'avatar_url', 'info'];
 const LINES_COLS = [
   'archived_at',
   'last_message_at',
@@ -28,6 +29,7 @@ const LINES_COLS = [
   'awaiting_since',
   'last_message_preview',
   'presence',
+  'picture_url',
 ];
 
 const inboxNote = (row: 'NEW' | 'OLD') => `INSERT INTO wa_live_events (app, scope_id, chat_id) VALUES ('inbox', ${row}.owner_id, ${row}.id);`;

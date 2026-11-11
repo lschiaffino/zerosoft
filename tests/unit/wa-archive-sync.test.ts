@@ -336,7 +336,7 @@ describe('aviso en vivo de las listas', () => {
     await applyThreadAction(owner, [t.id], { action: 'archive' });
     const before = await latestLiveId(viewer);
     expect(before).toBeGreaterThan(0);
-    await getDb().prepare("UPDATE inbox_threads SET avatar_url = 'https://example.test/x.jpg' WHERE id = ?").run(t.id);
+    await getDb().prepare("UPDATE inbox_threads SET notes = 'nota privada' WHERE id = ?").run(t.id);
     expect(await latestLiveId(viewer)).toBe(before);
     expect(await livePoll(viewer, before)).toEqual({ events: [], cursor: before });
     await ingestWhatsappEvents(account, [inbound(jid, { body: 'sigo acá' })]);
