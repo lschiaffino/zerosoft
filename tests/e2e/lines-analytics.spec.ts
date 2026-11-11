@@ -110,6 +110,8 @@ async function seed(request: APIRequestContext) {
 }
 
 test('tablero: pestañas con URL propia, números de la línea filtrada y sin scroll horizontal', async ({ page, request }) => {
+  // Recorre las ocho pestañas dos veces y cinco más a 390 px: más de veinte cargas.
+  test.setTimeout(180_000);
   const errors = watchErrors(page);
   const s = await seed(request);
   await page.goto(`/en/app/lines/analytics?number=${s.line.id}`, { waitUntil: 'networkidle' });

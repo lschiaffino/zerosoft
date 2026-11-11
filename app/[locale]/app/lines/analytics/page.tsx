@@ -7,6 +7,7 @@ import { ANALYTICS_PERIODS, ANALYTICS_TABS, ANALYTICS_TZ_COOKIE, analyticsTab, i
 import { pageViewer } from '@/lib/groups-page';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import SettingsTabs from '@/components/ui/SettingsTabs';
 import { TimeZoneSync } from '@/components/groups/analytics/charts';
 import { AnalyticsView, type Fmt } from '@/components/groups/analytics/views';
 import '@/styles/lines-analytics.css';
@@ -202,13 +203,8 @@ export default async function LinesAnalyticsPage(props: { params: Promise<{ loca
           {t('analytics.rangeInverted')}
         </p>
       )}
-      <nav className="ui-tabs" aria-label={t('analytics.tabsLabel')}>
-        {ANALYTICS_TABS.map((k) => (
-          <Link key={k} href={href({ tab: k === 'overview' ? undefined : k })} className="ui-tab" aria-current={k === tab ? 'page' : undefined} scroll={false}>
-            {tabLabel(k)}
-          </Link>
-        ))}
-      </nav>
+      {/* Las pestañas de siempre (?tab=, conservan los filtros): un clic antes de hidratar o que el router descarta navega igual. */}
+      <SettingsTabs mode="query" param="tab" layout="top" label={t('analytics.tabsLabel')} className="la-tabs" items={ANALYTICS_TABS.map((k) => ({ key: k, label: tabLabel(k) }))} />
       <p className="la-range" role="status">
         <strong>{t('analytics.showing', { from: range.from, to: range.to })}</strong>
         <span>{t('analytics.compare', { n: range.days, from: range.prevFrom, to: range.prevTo })}</span>
