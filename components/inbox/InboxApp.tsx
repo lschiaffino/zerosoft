@@ -461,6 +461,15 @@ export default function InboxApp(props: {
     if (o && (!ids.length || ids.includes(o))) void loadDetail(o, true);
   });
 
+  // La primera lista viene con la página: una relectura al arrancar pide los datos que faltan de los chats a la vista
+  // (asunto de un grupo, foto), que llegan después por el aviso.
+  const primed = useRef(false);
+  useEffect(() => {
+    if (!liveOn || primed.current) return;
+    primed.current = true;
+    void reloadList();
+  }, [liveOn, reloadList]);
+
   // Red de seguridad (y lo que el aviso no cubre, como Gmail): cada 8 s si el aviso no anda, cada 2 min si anda;
   // y al volver a la pestaña.
   useEffect(() => {
