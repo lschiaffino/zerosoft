@@ -42,7 +42,7 @@ export function mediaErrorCode(err: unknown): string {
 }
 
 export async function getMic(): Promise<MediaStream> {
-  return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: false } });
 }
 
 /** Audio de una pestaña o ventana compartida (hay que tildar "compartir audio"). */

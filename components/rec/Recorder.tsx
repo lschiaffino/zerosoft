@@ -13,6 +13,7 @@ import {
   canvasToBlob,
   createTicker,
   drawBubble,
+  micConstraints,
   mixAudio,
   pickAudioMime,
   pickVideoMime,
@@ -225,7 +226,7 @@ export default function Recorder({
         }
         if (micId !== 'none') {
           const mic = await navigator.mediaDevices
-            .getUserMedia({ audio: { deviceId: micId ? { exact: micId } : undefined, noiseSuppression: noise, echoCancellation: noise, autoGainControl: true } })
+            .getUserMedia({ audio: micConstraints(micId, noise) })
             .catch(() => null);
           if (!alive) return stopTracks(mic);
           micStream.current = mic;
@@ -419,7 +420,7 @@ export default function Recorder({
     }
     if (micId !== 'none' && !micStream.current) {
       micStream.current = await navigator.mediaDevices
-        .getUserMedia({ audio: { deviceId: micId ? { exact: micId } : undefined, noiseSuppression: noise, echoCancellation: noise, autoGainControl: true } })
+        .getUserMedia({ audio: micConstraints(micId, noise) })
         .catch(() => null);
     }
   }

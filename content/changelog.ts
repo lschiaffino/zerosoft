@@ -51,6 +51,12 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         product: 'rec',
+        en: 'Recording no longer changes your microphone in a call you are in: Rec, Docs meeting notes and Voice stop adjusting the system microphone volume and stop switching it to voice mode, which made the other person hear you differently.',
+        es: 'Grabar ya no cambia tu micrófono en una llamada en la que estás: Rec, las notas de reunión de Docs y Voice dejan de ajustar el volumen del micrófono del sistema y de pasarlo a modo voz, que hacía que la otra persona te escuchara distinto.',
+        pt: 'Gravar não muda mais o seu microfone numa chamada em que você está: Rec, as notas de reunião do Docs e o Voice deixam de ajustar o volume do microfone do sistema e de passá-lo para o modo de voz, o que fazia a outra pessoa ouvir você diferente.',
+      },
+      {
+        product: 'rec',
         en: 'In the browser the recording bar adds mute and restart. Restart asks first, deletes the take and counts down again with the same screen.',
         es: 'En el navegador la barra de la grabación suma silenciar y empezar de nuevo. Empezar de nuevo pregunta antes, borra la toma y vuelve a contar con la misma pantalla.',
         pt: 'No navegador a barra da gravação ganha silenciar e recomeçar. Recomeçar pergunta antes, apaga a tomada e conta de novo com a mesma tela.',
