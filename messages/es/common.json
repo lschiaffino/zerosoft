@@ -1103,9 +1103,11 @@
     "writing": "Escribiendo…",
     "stop": "Detener",
     "close": "Cerrar",
+    "polishHint": "Pulir lo que escribiste: corrige y aclara, sin cambiar lo que decís",
     "preview": "Borrador",
     "changesLabel": "Ajustar",
     "changes": {
+      "polish": "Pulir",
       "shorter": "Más corto",
       "longer": "Más largo",
       "formal": "Más formal",

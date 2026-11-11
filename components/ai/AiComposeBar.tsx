@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { COMPOSE_CHANGES, composeErrorKey } from '@/lib/ai-compose';
+import { COMPOSE_CHANGES, composeErrorKey, worthPolishing } from '@/lib/ai-compose';
 import { shownDraft } from './compose-machine';
 import type { AiCompose } from './useAiCompose';
 import '@/styles/ai-compose.css';
@@ -95,6 +95,24 @@ export default function AiComposeBar({ ai, tone = 'chat' }: { ai: AiCompose; ton
   }, [open, phase, hasError]);
 
   if (!open) {
+    // Un mensaje largo escrito a mano: se ofrece pulirlo (abre la barra con el resultado para revisar; nunca manda).
+    if (ai.undo === null && worthPolishing(ai.composerText)) {
+      return (
+        <p className={`aic-undo aic-polish aic-${tone}`} data-testid="ai-compose-polish">
+          <button
+            type="button"
+            className="aic-link"
+            title={t('polishHint')}
+            onClick={() => {
+              ai.openBar();
+              ai.refine('polish');
+            }}
+          >
+            <PencilSparkle size={15} /> {t('changes.polish')}
+          </button>
+        </p>
+      );
+    }
     if (ai.undo === null) return null;
     return (
       <p className={`aic-undo aic-${tone}`} role="status" data-testid="ai-compose-undo">
