@@ -1197,7 +1197,8 @@ export default function InboxShell({
               </button>
             </div>
           )}
-          {dropped.map((n) => (
+          {/* Con una línea elegida, solo sus avisos: los de otra línea no son de esta vista. */}
+          {dropped.filter((n) => line === 'all' || n.id === line).map((n) => (
             <div key={n.id} className="wa-import is-bad wa-dropped" role="alert">
               <span>{t('wa.lineDropped', { name: n.name || (n.phone ? `+${n.phone}` : t('wa.line')) })}</span>
               <Link className="btn btn-secondary btn-sm" href={`/app/lines/settings?tab=numbers&reconnect=${n.id}`}>
@@ -1213,7 +1214,7 @@ export default function InboxShell({
               <h3>{t('wa.archivedTitle')}</h3>
             </div>
           )}
-          {imports.map((im) => (
+          {imports.filter((im) => line === 'all' || im.numberId === line).map((im) => (
             <div key={im.numberId} className={`wa-import${im.status === 'error' ? ' is-bad' : im.status === 'done' ? ' is-done' : ''}`} role="status">
               <span>
                 {im.status === 'done'

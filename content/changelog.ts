@@ -43,6 +43,12 @@ export const CHANGELOG: ChangelogEntry[] = [
         es: 'En pantallas anchas, el botón de arriba a la derecha del chat no hacía nada. Ahora esconde y muestra el panel de detalles, y Lines recuerda cómo lo dejaste.',
         pt: 'Em telas largas, o botão no canto superior direito do chat não fazia nada. Agora esconde e mostra o painel de detalhes, e o Lines lembra a sua escolha.',
       },
+      {
+        product: 'groups',
+        en: 'With one line selected in the inbox, the notices about a lost connection or a history import are only the ones for that line.',
+        es: 'Con una línea elegida en la bandeja, los avisos de conexión perdida o de historial en importación son solo los de esa línea.',
+        pt: 'Com uma linha escolhida na caixa de entrada, os avisos de conexão perdida ou de importação do histórico são só os dessa linha.',
+      },
     ],
   },
   {
