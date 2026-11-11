@@ -1,10 +1,22 @@
 import { after } from 'next/server';
-import { deleteThread, getAccount, getThread, getThreadRow, listMessages, listScheduled, renameThread, saveDraft, saveNotes, type ThreadAction } from '@/lib/inbox/core';
-import { iJson, iJsonIfChanged, parseBody, withOwner } from '@/lib/inbox/http';
+import {
+  deleteThread,
+  getAccount,
+  getThread,
+  getThreadRow,
+  listMessages,
+  listScheduled,
+  renameThread,
+  saveDraft,
+  saveNotes,
+  type ThreadAction,
+} from '@/lib/inbox/core';
+import { iJson, parseBody, withOwner } from '@/lib/inbox/http';
 import { threadPatchSchema } from '@/lib/inbox/schemas';
 import { threadAction } from '@/lib/inbox/send';
 import { markChatReadOnWhatsapp } from '@/lib/inbox/wa-actions';
 import { refreshStaleInfo, waDetails } from '@/lib/inbox/wa-meta';
+import { threadRev, versionTag, versioned } from '@/lib/inbox/revisions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,19 +31,38 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   return withOwner(async (owner) => {
-    let row = await getThreadRow(owner, id);
-    // Primera vez que se abre un chat de WhatsApp sin datos: nombre, foto e integrantes antes de mostrarlo.
-    if (row.channel === 'whatsapp' && !row.info_at) {
-      const account = await getAccount(owner, row.account_id);
-      await refreshStaleInfo(account, { ids: [row.id], limit: 1, deadline: Date.now() + 4000 }).catch(() => 0);
-      row = await getThreadRow(owner, id);
-    }
-    const thread = await getThread(owner, id);
     const around = new URL(req.url).searchParams.get('around')?.slice(0, 60) || undefined;
-    const [page, scheduled] = await Promise.all([listMessages(owner, id, { around }), listScheduled(owner, id)]);
-    const wa = row.channel === 'whatsapp' ? await waDetails(owner, row, await getAccount(owner, row.account_id)) : null;
-    return iJsonIfChanged(req, { thread, messages: page.messages, more: page.more, cursor: page.cursor, scheduled, notes: row.notes, wa });
+    // Sin cambios desde la última vez (una fila): 304 sin armar el chat.
+    const rev = await threadRev(owner, id);
+    if (rev === null) await getThreadRow(owner, id);
+    return versioned(req, versionTag('t', rev ?? 0, `${id},${around ?? ''}`), () => buildDetail(owner, id, around));
   });
+}
+
+async function buildDetail(owner: string, id: string, around: string | undefined) {
+  let row = await getThreadRow(owner, id);
+  // Primera vez que se abre un chat de WhatsApp sin datos: nombre, foto e integrantes antes de mostrarlo.
+  if (row.channel === 'whatsapp' && !row.info_at) {
+    const account = await getAccount(owner, row.account_id);
+    await refreshStaleInfo(account, {
+      ids: [row.id],
+      limit: 1,
+      deadline: Date.now() + 4000,
+    }).catch(() => 0);
+    row = await getThreadRow(owner, id);
+  }
+  const thread = await getThread(owner, id);
+  const [page, scheduled] = await Promise.all([listMessages(owner, id, { around }), listScheduled(owner, id)]);
+  const wa = row.channel === 'whatsapp' ? await waDetails(owner, row, await getAccount(owner, row.account_id)) : null;
+  return {
+    thread,
+    messages: page.messages,
+    more: page.more,
+    cursor: page.cursor,
+    scheduled,
+    notes: row.notes,
+    wa,
+  };
 }
 
 /** Acción (Hecho, posponer, fijar…), borrador, notas o nombre. */

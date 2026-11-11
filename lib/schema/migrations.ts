@@ -9781,6 +9781,36 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, "ALTER TABLE team_members ADD COLUMN capabilities TEXT NOT NULL DEFAULT '[]'");
     },
   },
+  {
+    // Inbox: versión por chat y por persona, que mantienen triggers. Lo que la pantalla consulta cada pocos
+    // segundos responde 304 leyendo una fila (lib/inbox/revisions.ts) en vez de armar todo para comparar.
+    id: '390_inbox_revisions',
+    async up(c) {
+      await addColumn(c, 'ALTER TABLE inbox_threads ADD COLUMN rev INTEGER NOT NULL DEFAULT 0');
+      await c.execute(`CREATE TABLE IF NOT EXISTS inbox_rev (owner_id TEXT PRIMARY KEY, rev INTEGER NOT NULL DEFAULT 0)`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_threads_rev_insert AFTER INSERT ON inbox_threads BEGIN INSERT INTO inbox_rev (owner_id, rev) VALUES (NEW.owner_id, 1) ON CONFLICT(owner_id) DO UPDATE SET rev = rev + 1; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_threads_rev_update AFTER UPDATE ON inbox_threads BEGIN INSERT INTO inbox_rev (owner_id, rev) VALUES (NEW.owner_id, 1) ON CONFLICT(owner_id) DO UPDATE SET rev = rev + 1; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_threads_rev_delete AFTER DELETE ON inbox_threads BEGIN INSERT INTO inbox_rev (owner_id, rev) VALUES (OLD.owner_id, 1) ON CONFLICT(owner_id) DO UPDATE SET rev = rev + 1; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_threads_selfrev AFTER UPDATE ON inbox_threads WHEN NEW.rev = OLD.rev BEGIN UPDATE inbox_threads SET rev = rev + 1 WHERE id = NEW.id; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_messages_rev_insert AFTER INSERT ON inbox_messages BEGIN UPDATE inbox_threads SET rev = rev + 1 WHERE id = NEW.thread_id; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_messages_rev_update AFTER UPDATE ON inbox_messages BEGIN UPDATE inbox_threads SET rev = rev + 1 WHERE id = NEW.thread_id; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_messages_rev_delete AFTER DELETE ON inbox_messages BEGIN UPDATE inbox_threads SET rev = rev + 1 WHERE id = OLD.thread_id; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_scheduled_rev_insert AFTER INSERT ON inbox_scheduled BEGIN UPDATE inbox_threads SET rev = rev + 1 WHERE id = NEW.thread_id; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_scheduled_rev_update AFTER UPDATE ON inbox_scheduled BEGIN UPDATE inbox_threads SET rev = rev + 1 WHERE id = NEW.thread_id; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_scheduled_rev_delete AFTER DELETE ON inbox_scheduled BEGIN UPDATE inbox_threads SET rev = rev + 1 WHERE id = OLD.thread_id; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_thread_folders_rev_insert AFTER INSERT ON inbox_thread_folders BEGIN UPDATE inbox_threads SET rev = rev + 1 WHERE id = NEW.thread_id; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_thread_folders_rev_delete AFTER DELETE ON inbox_thread_folders BEGIN UPDATE inbox_threads SET rev = rev + 1 WHERE id = OLD.thread_id; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_accounts_rev_insert AFTER INSERT ON inbox_accounts BEGIN INSERT INTO inbox_rev (owner_id, rev) VALUES (NEW.owner_id, 1) ON CONFLICT(owner_id) DO UPDATE SET rev = rev + 1; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_accounts_rev_update AFTER UPDATE ON inbox_accounts BEGIN INSERT INTO inbox_rev (owner_id, rev) VALUES (NEW.owner_id, 1) ON CONFLICT(owner_id) DO UPDATE SET rev = rev + 1; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_accounts_rev_delete AFTER DELETE ON inbox_accounts BEGIN INSERT INTO inbox_rev (owner_id, rev) VALUES (OLD.owner_id, 1) ON CONFLICT(owner_id) DO UPDATE SET rev = rev + 1; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_folders_rev_insert AFTER INSERT ON inbox_folders BEGIN INSERT INTO inbox_rev (owner_id, rev) VALUES (NEW.owner_id, 1) ON CONFLICT(owner_id) DO UPDATE SET rev = rev + 1; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_folders_rev_update AFTER UPDATE ON inbox_folders BEGIN INSERT INTO inbox_rev (owner_id, rev) VALUES (NEW.owner_id, 1) ON CONFLICT(owner_id) DO UPDATE SET rev = rev + 1; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_folders_rev_delete AFTER DELETE ON inbox_folders BEGIN INSERT INTO inbox_rev (owner_id, rev) VALUES (OLD.owner_id, 1) ON CONFLICT(owner_id) DO UPDATE SET rev = rev + 1; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_snippets_rev_insert AFTER INSERT ON inbox_snippets BEGIN INSERT INTO inbox_rev (owner_id, rev) VALUES (NEW.owner_id, 1) ON CONFLICT(owner_id) DO UPDATE SET rev = rev + 1; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_snippets_rev_update AFTER UPDATE ON inbox_snippets BEGIN INSERT INTO inbox_rev (owner_id, rev) VALUES (NEW.owner_id, 1) ON CONFLICT(owner_id) DO UPDATE SET rev = rev + 1; END`);
+      await c.execute(`CREATE TRIGGER IF NOT EXISTS trg_inbox_snippets_rev_delete AFTER DELETE ON inbox_snippets BEGIN INSERT INTO inbox_rev (owner_id, rev) VALUES (OLD.owner_id, 1) ON CONFLICT(owner_id) DO UPDATE SET rev = rev + 1; END`);
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
