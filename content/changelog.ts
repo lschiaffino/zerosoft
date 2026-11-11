@@ -70,6 +70,70 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-10-rec-desktop-controls',
+    date: '2026-11-10',
+    title: {
+      en: 'Rec: your camera and the recording controls float over other apps in the desktop app',
+      es: 'Rec: tu cámara y los controles de la grabación flotan sobre las otras apps en la app de escritorio',
+      pt: 'Rec: sua câmera e os controles da gravação flutuam sobre os outros apps no app para desktop',
+    },
+    items: [
+      {
+        product: 'rec',
+        en: 'In the desktop app (version 0.3.4), while you record a small bar stays on top of every app with the timer, the microphone level, mute, pause and resume, restart, discard and finish. Finish opens the recording. Option+Shift+P pauses or resumes and Option+Shift+S finishes (Alt+Shift on Windows). The bar is left out of the video where the system allows it.',
+        es: 'En la app de escritorio (versión 0.3.4), mientras grabás queda arriba de todas las apps una barra chica con el reloj, el nivel del micrófono, silenciar, pausar y seguir, empezar de nuevo, descartar y terminar. Terminar abre la grabación. Option+Shift+P pausa o sigue y Option+Shift+S termina (Alt+Shift en Windows). La barra no sale en el video donde el sistema lo permite.',
+        pt: 'No app para desktop (versão 0.3.4), enquanto você grava fica por cima de todos os apps uma barra pequena com o relógio, o nível do microfone, silenciar, pausar e continuar, recomeçar, descartar e terminar. Terminar abre a gravação. Option+Shift+P pausa ou continua e Option+Shift+S termina (Alt+Shift no Windows). A barra não aparece no vídeo onde o sistema permite.',
+      },
+      {
+        product: 'rec',
+        en: 'Recording your whole screen with the camera, your face shows in a round bubble over other apps, like Loom. Drag it anywhere, make it bigger or smaller, or hide it: the video shows it where you leave it. Recording a window or a tab, the bubble is drawn into the video as before.',
+        es: 'Grabando la pantalla entera con la cámara, tu cara aparece en una burbuja redonda encima de las otras apps, como en Loom. Arrastrala a donde quieras, agrandala, achicala u ocultala: el video la muestra donde la dejes. Grabando una ventana o una pestaña, la burbuja se dibuja en el video como antes.',
+        pt: 'Gravando a tela inteira com a câmera, seu rosto aparece numa bolha redonda por cima dos outros apps, como no Loom. Arraste para onde quiser, aumente, diminua ou oculte: o vídeo mostra a bolha onde você deixar. Gravando uma janela ou uma aba, a bolha é desenhada no vídeo como antes.',
+      },
+      {
+        product: 'rec',
+        en: 'Recording no longer changes your microphone in a call you are in: Rec, Docs meeting notes and Voice stop adjusting the system microphone volume and stop switching it to voice mode, which made the other person hear you differently.',
+        es: 'Grabar ya no cambia tu micrófono en una llamada en la que estás: Rec, las notas de reunión de Docs y Voice dejan de ajustar el volumen del micrófono del sistema y de pasarlo a modo voz, que hacía que la otra persona te escuchara distinto.',
+        pt: 'Gravar não muda mais o seu microfone numa chamada em que você está: Rec, as notas de reunião do Docs e o Voice deixam de ajustar o volume do microfone do sistema e de passá-lo para o modo de voz, o que fazia a outra pessoa ouvir você diferente.',
+      },
+      {
+        product: 'rec',
+        en: 'In the browser the recording bar adds mute and restart. Restart asks first, deletes the take and counts down again with the same screen.',
+        es: 'En el navegador la barra de la grabación suma silenciar y empezar de nuevo. Empezar de nuevo pregunta antes, borra la toma y vuelve a contar con la misma pantalla.',
+        pt: 'No navegador a barra da gravação ganha silenciar e recomeçar. Recomeçar pergunta antes, apaga a tomada e conta de novo com a mesma tela.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-whatsapp-contact-names',
+    date: '2026-11-10',
+    title: {
+      en: 'Inbox and Lines: WhatsApp names instead of numbers',
+      es: 'Inbox y Lines: nombres de WhatsApp en lugar de números',
+      pt: 'Inbox e Lines: nomes do WhatsApp em vez de números',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Each WhatsApp account now keeps its contacts: the names from WhatsApp, every profile name seen in a message, and the match between a phone number and the anonymous id WhatsApp sometimes sends instead. Chats that only showed a number, group members and message senders use those names. Contacts come in when you connect, with the full history import, and again once a day.',
+        es: 'Cada cuenta de WhatsApp ahora guarda sus contactos: los nombres de WhatsApp, cada nombre de perfil que aparece en un mensaje y la relación entre un teléfono y el id anónimo que WhatsApp a veces manda en su lugar. Los chats que solo mostraban un número, los miembros de los grupos y quién manda cada mensaje usan esos nombres. Los contactos entran al conectar, con la importación del historial completo, y otra vez una vez por día.',
+        pt: 'Cada conta do WhatsApp agora guarda seus contatos: os nomes do WhatsApp, cada nome de perfil que aparece numa mensagem e a relação entre um telefone e o id anônimo que o WhatsApp às vezes envia no lugar dele. As conversas que só mostravam um número, os membros dos grupos e quem envia cada mensagem usam esses nomes. Os contatos entram ao conectar, com a importação do histórico completo, e de novo uma vez por dia.',
+      },
+      {
+        product: 'inbox',
+        en: 'A mention in a group shows as @Name, styled like in WhatsApp, also when WhatsApp wrote the anonymous id in the text. If only the number is known, the number shows.',
+        es: 'Una mención en un grupo se ve como @Nombre, con el estilo de WhatsApp, también cuando WhatsApp escribió el id anónimo en el texto. Si solo se conoce el número, se ve el número.',
+        pt: 'Uma menção num grupo aparece como @Nome, com o estilo do WhatsApp, também quando o WhatsApp escreveu o id anônimo no texto. Se só o número é conhecido, aparece o número.',
+      },
+      {
+        product: 'groups',
+        en: 'Lines does the same for each number: names for chats and members, mentions as @Name, and the contact info of a one-to-one chat in its details. Once a day, slowly and picking up where it stopped, each number refreshes contact names and info, group subjects, descriptions, members and photos. A name you typed yourself stays. Tested with the simulated WhatsApp; not yet tried with a real one.',
+        es: 'Lines hace lo mismo con cada número: nombres en chats y miembros, menciones como @Nombre y la info del contacto de un chat 1:1 en sus detalles. Una vez por día, despacio y retomando donde quedó, cada número repasa nombres e info de los contactos, asuntos, descripciones, miembros y fotos de los grupos. Un nombre que escribiste vos queda. Probado con el WhatsApp simulado; falta probarlo con uno real.',
+        pt: 'O Lines faz o mesmo com cada número: nomes nas conversas e nos membros, menções como @Nome e o recado do contato de uma conversa individual nos detalhes. Uma vez por dia, devagar e retomando de onde parou, cada número atualiza nomes e recados dos contatos, assuntos, descrições, membros e fotos dos grupos. Um nome que você digitou fica. Testado com o WhatsApp simulado; falta testar com um real.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-lines-hubspot-properties',
     date: '2026-11-10',
     title: {

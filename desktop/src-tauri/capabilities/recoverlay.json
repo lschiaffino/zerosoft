@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "recoverlay",
+  "description": "Barra y burbuja de cámara de Rec (archivos locales, rec_overlay.rs): su estado, sus acciones, arrastrarlas y los eventos que reciben.",
+  "windows": [
+    "recbar",
+    "recbubble"
+  ],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:window:allow-start-dragging",
+    "allow-rec-overlay-state",
+    "allow-rec-overlay-action"
+  ]
+}

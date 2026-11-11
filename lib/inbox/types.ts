@@ -99,6 +99,8 @@ export interface WaMessageMeta {
   poll?: { question: string; options: string[]; multi: boolean };
   /** Vista previa del link (título, descripción, miniatura). */
   link?: { url: string; title: string; description?: string; thumb?: string };
+  /** Ids mencionados: dígitos de un teléfono o "<dígitos>@lid". */
+  mentions?: string[];
 }
 
 export interface ParticipantDto {
@@ -165,7 +167,12 @@ export interface MessageDto {
   forwarded?: boolean;
   starred?: boolean;
   meta?: WaMessageMeta | null;
+  /** A quién son las menciones del texto ("@<dígitos>" → nombre y teléfono), si se sabe. */
+  mentionNames?: MentionNames;
 }
+
+/** Una página de mensajes de WhatsApp trae, aparte, a quién son las menciones ("@<dígitos>" → nombre y teléfono). */
+export type MentionNames = Record<string, { name: string; phone: string }>;
 
 export interface FolderRule {
   channel?: InboxChannel;

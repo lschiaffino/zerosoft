@@ -77,6 +77,29 @@ reloj y deja Abrir la reunión o Cortar. La página avisa por el puente (`record
 manda `zerosoft:stop-recording`. Se apaga en Ajustes › General. La bandeja también muestra Abrir y
 Cortar mientras se graba.
 
+### Rec: barra flotante y burbuja de la cámara (`ui/recbar.*`, `ui/recbubble.*`, `src/rec_overlay.rs`)
+
+Mientras Rec graba en una pestaña (desde la 0.3.4), una barra chica queda encima de todas las apps:
+punto rojo y reloj (se frena en pausa), nivel del micrófono (clic silencia), mostrar u ocultar la
+cámara, Pausar o Seguir, Empezar de nuevo y Descartar (las dos preguntan en la misma barra) y
+Terminar, que termina y trae adelante la pestaña (la subida y después el video). Atajos globales
+solo mientras graba: Option+Shift+P pausa o sigue y Option+Shift+S termina (Alt+Shift en Windows).
+La página cuenta su estado por el puente (`recOverlay`, `recLevel`); cada botón vuelve a esa
+pestaña como el evento `zerosoft:rec-control` con un control de una lista fija
+(`lib/rec-controls.ts`).
+
+Con **pantalla y cámara** grabando la **pantalla entera** (`displaySurface: monitor`), la cara va en
+una burbuja redonda flotante, como en Loom: se arrastra, se agranda o achica y se oculta, y la
+captura de pantalla la graba donde quede. La página suelta la cámara, la burbuja la abre (página
+local: el permiso de cámara se le da solo a ella) y la página deja de dibujar la cara en el video,
+así no sale dos veces. Grabando una ventana o una pestaña, o si la burbuja no consigue la cámara
+(`bubble-failed`), la página la sigue dibujando en el video como en el navegador.
+
+Captura: la barra se excluye de la grabación (`content_protected`: NSWindowSharingNone en Mac,
+WDA_EXCLUDEFROMCAPTURE en Windows 10 2004 o más; en Windows más viejos sale en el video). La burbuja
+no se excluye: es la que pone la cara en el video. Dónde quedaron la barra y la burbuja y el tamaño
+de la burbuja se recuerdan mientras la app está abierta.
+
 ### Ajustes (`ui/settings.*`)
 
 Es el lugar de todos los ajustes de la app. Se abre desde el ícono de la barra de menú (o la

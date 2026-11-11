@@ -12,12 +12,17 @@ const COMMANDS: &[&str] = &[
     "desktop_system_audio_start",
     "desktop_system_audio_read",
     "desktop_system_audio_stop",
+    "desktop_rec_overlay",
+    "desktop_rec_level",
     // Tira de pestañas (archivo local en cada ventana, tabs.rs).
     "tabs_ready",
     "tabs_action",
     // Indicador de grabación (ventana local).
     "indicator_state",
     "indicator_action",
+    // Barra y burbuja de Rec (ventanas locales, rec_overlay.rs).
+    "rec_overlay_state",
+    "rec_overlay_action",
     // Ajustes (ventana local).
     "settings_get",
     "settings_save",

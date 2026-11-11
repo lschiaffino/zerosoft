@@ -18,7 +18,7 @@ use crate::retry::PendingMeta;
 use crate::state::{now_ms, AppState};
 use crate::strings;
 
-type CmdResult<T> = Result<T, String>;
+pub(crate) type CmdResult<T> = Result<T, String>;
 
 /// Solo la página local de la ventana de Ajustes (no una ruta del servidor cargada ahí).
 fn from_settings(w: &WebviewWindow) -> CmdResult<()> {
@@ -29,7 +29,7 @@ fn from_settings(w: &WebviewWindow) -> CmdResult<()> {
     }
 }
 
-fn from_app(app: &AppHandle, w: &tauri::Webview) -> CmdResult<()> {
+pub(crate) fn from_app(app: &AppHandle, w: &tauri::Webview) -> CmdResult<()> {
     let server = api::server(app);
     let ok = crate::tabs::tab_id(w.label()).is_some() && w.url().map(|u| crate::nav::classify(&u, &server) == crate::nav::Nav::Allow).unwrap_or(false);
     if ok {

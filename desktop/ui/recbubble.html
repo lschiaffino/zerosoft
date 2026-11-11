@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>zerosoft camera</title>
+    <style>
+      /* Burbuja de la cámara de Rec: un círculo del tamaño de la ventana (168 o 280, rec_overlay.rs),
+         en espejo como en Loom. Esta ventana sí sale en la grabación: es la cara del video. */
+      html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; -webkit-user-select: none; user-select: none; cursor: grab; }
+      body { font: 500 12px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+      .face {
+        position: absolute;
+        inset: 0;
+        box-sizing: border-box;
+        border-radius: 50%;
+        overflow: hidden;
+        background: #0d0d0d;
+        border: 3px solid rgba(255, 255, 255, 0.9);
+      }
+      video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+      body[data-ready='false'] video { visibility: hidden; }
+      .tools {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 12%;
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        opacity: 0;
+        transition: opacity 120ms ease-out;
+      }
+      body:hover .tools, .tools:focus-within { opacity: 1; }
+      button {
+        all: unset;
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 3px;
+        background: rgba(13, 13, 13, 0.82);
+        color: #f2f2f2;
+        cursor: pointer;
+      }
+      button:hover { background: #0d0d0d; }
+      button:focus-visible { outline: 2px solid #f2f2f2; outline-offset: 1px; }
+      button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+      @media (prefers-reduced-motion: reduce) { .tools { transition: none; } }
+    </style>
+  </head>
+  <body data-ready="false">
+    <div class="face" id="face" role="img">
+      <video id="video" muted playsinline autoplay></video>
+    </div>
+    <div class="tools">
+      <button type="button" id="size"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="grow" d="M14 4h6v6M10 20H4v-6M20 4l-6 6M4 20l6-6" /><path id="shrink" d="M20 10h-6V4M4 14h6v6M14 10l6-6M10 14l-6 6" /></svg></button>
+      <button type="button" id="hide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
+    </div>
+    <script src="recbubble.js"></script>
+  </body>
+</html>

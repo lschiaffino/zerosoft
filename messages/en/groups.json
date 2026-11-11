@@ -244,6 +244,7 @@
     "removeTitle": "Remove this chat from Lines?",
     "removeBody": "Its messages, notes and labels are deleted here. The chat or group stays in WhatsApp, and a new message brings it back.",
     "removeConfirm": "Remove",
+    "about": "About",
     "description": "Description",
     "descriptionPlaceholder": "What the group is about",
     "descriptionHelp": "It also changes in WhatsApp.",

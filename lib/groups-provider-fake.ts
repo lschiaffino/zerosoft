@@ -16,6 +16,12 @@
  * - Historial guardado (como Evolution con base): solo en los números de Inbox
  *   y con INBOX_FAKE_HISTORY=1, tres chats fijos (uno con 230 mensajes, para
  *   paginar). Sin la variable el historial está vacío.
+ * - Libreta de contactos del servidor: un evento `{ type: 'fake_contacts',
+ *   contacts: [{ phone?, lid?, name?, about?, groups? }] }` en el webhook la
+ *   cambia sin pasar por la app (como si la persona renombrara a alguien en el
+ *   teléfono). La devuelven findContacts (historial de Inbox), chatInfo
+ *   (nombre, info, participantes con lid y nombre) y participants. `groups`
+ *   suma a la persona a esos grupos (solo con lid si no trae teléfono).
  */
 import { randomUUID } from 'crypto';
 import { deflateSync } from 'zlib';
@@ -39,6 +45,8 @@ export function fakeProviderAllowed(): boolean {
 
 interface FakeGroup extends GroupInfo {
   participants: Participant[];
+  /** Participantes que solo se ven por su lid (sin teléfono). */
+  lids?: string[];
   inviteCode: string;
   ephemeral?: number;
   picture?: string;
@@ -58,6 +66,59 @@ interface FakeState {
   sent: FakeSent[];
   /** Asuntos de grupos que llegaron por webhook (para chatInfo). */
   chatNames?: Map<string, string>;
+  /** Libreta de contactos del servidor (por teléfono o "lid:<dígitos>"). */
+  directory?: Map<string, FakeContact>;
+}
+
+export interface FakeContact {
+  phone?: string;
+  lid?: string;
+  name?: string;
+  about?: string;
+}
+
+function directoryOf(s: FakeState): Map<string, FakeContact> {
+  return (s.directory ??= new Map());
+}
+
+function findContact(s: FakeState, key: { phone?: string; lid?: string }): FakeContact | undefined {
+  const dir = directoryOf(s);
+  return (key.phone ? dir.get(key.phone) : undefined) ?? (key.lid ? dir.get(`lid:${key.lid}`) ?? [...dir.values()].find((c) => c.lid === key.lid) : undefined);
+}
+
+/** Aplica un `fake_contacts` del webhook a la libreta (y a los grupos que nombra). */
+function applyFakeContacts(s: FakeState, raw: unknown): void {
+  const list = Array.isArray(raw) ? raw : [];
+  const dir = directoryOf(s);
+  for (const r of list.slice(0, 500)) {
+    const c = (r ?? {}) as { phone?: unknown; lid?: unknown; name?: unknown; about?: unknown; groups?: unknown };
+    const phone = String(c.phone ?? '').replace(/\D/g, '');
+    const lid = String(c.lid ?? '').replace(/\D/g, '');
+    if (!phone && !lid) continue;
+    const prev = findContact(s, { phone, lid }) ?? {};
+    const next: FakeContact = {
+      ...prev,
+      ...(phone ? { phone } : {}),
+      ...(lid ? { lid } : {}),
+      ...(typeof c.name === 'string' ? { name: c.name } : {}),
+      ...(typeof c.about === 'string' ? { about: c.about } : {}),
+    };
+    if (next.phone) {
+      dir.delete(`lid:${next.lid ?? ''}`);
+      dir.set(next.phone, next);
+    } else dir.set(`lid:${next.lid}`, next);
+    for (const gid of Array.isArray(c.groups) ? c.groups.map(String) : []) {
+      if (!gid.endsWith('@g.us')) continue;
+      let g = s.groups.get(gid);
+      if (!g) {
+        g = { id: gid, name: s.chatNames?.get(gid) ?? '', description: '', participants: [{ phone: '15550000001', role: 'superadmin' }], inviteCode: randomUUID().slice(0, 8) };
+        s.groups.set(gid, g);
+      }
+      if (next.phone) {
+        if (!g.participants.some((p) => p.phone === next.phone)) g.participants.push({ phone: next.phone, role: 'member' });
+      } else if (next.lid && !(g.lids ??= []).includes(next.lid)) g.lids.push(next.lid);
+    }
+  }
 }
 
 const store = ((globalThis as unknown as { __groupsFake?: Map<string, FakeState> }).__groupsFake ??= new Map());
@@ -206,7 +267,7 @@ function fakeHistoryEvent(c: (typeof FAKE_HISTORY_CHATS)[number], n: number): In
   } as InboundEvent;
 }
 
-function fakeHistory(): HistorySource {
+function fakeHistory(s: FakeState): HistorySource {
   const on = process.env.INBOX_FAKE_HISTORY === '1';
   const chats = on ? FAKE_HISTORY_CHATS : [];
   const page = (remoteJid: string, size: number, p: number) => {
@@ -230,8 +291,15 @@ function fakeHistory(): HistorySource {
     async messagePage(remoteJid, size, p) {
       return page(remoteJid, size, p);
     },
-    async contacts() {
-      return [];
+    async contacts(p, size) {
+      const all = [...directoryOf(s).values()];
+      return all.slice(p * size, (p + 1) * size).map((c) => ({
+        chatId: c.phone ? `${c.phone}@s.whatsapp.net` : `${c.lid}@lid`,
+        name: c.name ?? '',
+        pictureUrl: '',
+        ...(c.lid ? { lid: c.lid } : {}),
+        ...(c.phone ? { phone: c.phone } : {}),
+      }));
     },
     async picture() {
       return '';
@@ -269,7 +337,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
   return {
     kind: 'fake',
     caps: PROVIDER_CAPS.fake,
-    ...(numberId.startsWith('inbox-') ? { history: fakeHistory() } : {}),
+    ...(numberId.startsWith('inbox-') ? { history: fakeHistory(s) } : {}),
     /**
      * Datos inventados: los grupos sembrados con su nombre; uno que llegó por
      * webhook, "Grupo NNNN". Foto (un SVG de color) solo si el número termina
@@ -280,10 +348,28 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       const pic = /[02468]$/.test(digits) ? fakePicture(digits) : '';
       if (chatId.endsWith('@g.us')) {
         const g = s.groups.get(chatId);
-        if (g) return { name: g.name, about: g.description ?? '', pictureUrl: g.picture || pic, participants: g.participants.map((p) => ({ phone: p.phone, role: p.role })), size: g.participants.length };
+        if (g) {
+          const participants = g.participants.map((p) => {
+            const c = findContact(s, { phone: p.phone });
+            return { phone: p.phone, role: p.role, ...(c?.lid ? { lid: c.lid } : {}), ...(c?.name ? { name: c.name } : {}) };
+          });
+          const lidParticipants = (g.lids ?? []).map((lid) => {
+            const c = findContact(s, { lid });
+            return { lid, ...(c?.name ? { name: c.name } : {}) };
+          });
+          return {
+            name: g.name || s.chatNames?.get(chatId) || `Grupo ${digits.slice(-4)}`,
+            about: g.description ?? '',
+            pictureUrl: g.picture || pic,
+            participants,
+            ...(lidParticipants.length ? { lidParticipants } : {}),
+            size: g.participants.length + (g.lids?.length ?? 0),
+          };
+        }
         return { name: s.chatNames?.get(chatId) ?? `Grupo ${digits.slice(-4)}`, about: '', pictureUrl: pic, participants: [{ phone: '15550000001', role: 'superadmin' }], size: 1 };
       }
-      return { name: '', about: digits.endsWith('1') ? '' : 'Disponible', pictureUrl: pic };
+      const known = findContact(s, { phone: digits });
+      return { name: known?.name ?? '', about: known?.about ?? (digits.endsWith('1') ? '' : 'Disponible'), pictureUrl: pic };
     },
     async connect() {
       s.connectedAt = s.connectedAt ?? Date.now();
@@ -336,7 +422,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     },
     async participants(groupId) {
       requireConnected();
-      return group(groupId).participants.map((p) => ({ ...p }));
+      return group(groupId).participants.map((p) => ({ ...p, name: p.name || findContact(s, { phone: p.phone })?.name || '' }));
     },
     async updateParticipants(groupId, action, phones) {
       requireConnected();
@@ -421,6 +507,8 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     parseWebhook(body) {
       const events = (body as { events?: unknown })?.events;
       if (!Array.isArray(events)) return [];
+      // La libreta del servidor cambia sin que la app se entere (la trae el repaso diario).
+      for (const e of events) if ((e as { type?: unknown })?.type === 'fake_contacts') applyFakeContacts(s, (e as { contacts?: unknown }).contacts);
       const out = events.filter((e): e is InboundEvent => {
         const t = (e as { type?: unknown })?.type;
         return ['message', 'reaction', 'status', 'participants', 'session', 'edit', 'revoke', 'call', 'poll_vote', 'contact', 'presence'].includes(String(t));

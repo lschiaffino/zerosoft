@@ -9733,6 +9733,46 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, "ALTER TABLE groups_hubspot ADD COLUMN webhook_secret TEXT NOT NULL DEFAULT ''");
     },
   },
+  {
+    // Inbox y Lines: libreta de contactos de WhatsApp por cuenta o número (teléfono, lid, nombre
+    // de la libreta y de perfil, "info", foto) y el estado del repaso diario de nombres, info,
+    // asuntos y fotos de cada cuenta (fase, cursor y claim). Ver lib/wa-contacts.ts.
+    id: '380_wa_contacts',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS wa_contacts (
+          id TEXT PRIMARY KEY,
+          app TEXT NOT NULL CHECK (app IN ('inbox', 'lines')),
+          account_id TEXT NOT NULL,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          phone TEXT NOT NULL DEFAULT '',
+          lid TEXT NOT NULL DEFAULT '',
+          saved_name TEXT NOT NULL DEFAULT '',
+          push_name TEXT NOT NULL DEFAULT '',
+          about TEXT NOT NULL DEFAULT '',
+          picture_url TEXT NOT NULL DEFAULT '',
+          updated_at TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_wa_contacts_phone ON wa_contacts(app, account_id, phone) WHERE phone <> '';
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_wa_contacts_lid ON wa_contacts(app, account_id, lid) WHERE lid <> '';
+        CREATE INDEX IF NOT EXISTS idx_wa_contacts_user ON wa_contacts(user_id);
+        CREATE TABLE IF NOT EXISTS wa_contact_sync (
+          app TEXT NOT NULL CHECK (app IN ('inbox', 'lines')),
+          account_id TEXT NOT NULL,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          phase TEXT NOT NULL DEFAULT 'contacts',
+          cursor TEXT NOT NULL DEFAULT '',
+          started_at TEXT,
+          finished_at TEXT,
+          claimed_until TEXT,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (app, account_id)
+        );
+      `);
+      // Lines: de qué foto de WhatsApp salió la que guardamos (la URL sin la firma que vence), para bajarla de nuevo solo si cambió.
+      await addColumn(c, "ALTER TABLE groups_chats ADD COLUMN picture_src TEXT NOT NULL DEFAULT ''");
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
