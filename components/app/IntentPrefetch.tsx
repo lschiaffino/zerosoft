@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { PrefetchKind } from 'next/dist/client/components/router-reducer/router-reducer-types';
+import { isShallowLink } from './shallowNav';
 import { INTENT_DWELL_MS, INTENT_FRESH_MS, INTENT_REFRESH_AFTER_MS, INTENT_SELECTOR, intentTarget, needsPrefetch } from '@/lib/intent-prefetch';
 
 /** PrefetchKind.FULL (el enum es interno de Next; su valor es estable). */
@@ -33,6 +34,8 @@ export default function IntentPrefetch() {
       if (e.pointerType === 'touch') return;
       const a = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>(INTENT_SELECTOR) : null;
       if (!a || a === pending) return;
+      // La pantalla cambia esa lista sin ir al servidor (shallowNav): precargar la página sería pedirla de más.
+      if (isShallowLink(a)) return;
       cancel();
       const target = intentTarget(
         { href: a.href, target: a.target, hasDownload: a.hasAttribute('download') },

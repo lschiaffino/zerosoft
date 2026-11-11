@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { MessageDto } from '@/lib/inbox/types';
 import type { TrayItem } from '@/components/groups/wa/attachments';
-import { MessageMenu } from '@/components/groups/wa/Menu';
+import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { DocIcon, PhotoIcon, Plus, SendIcon, Trash } from '@/components/groups/wa/icons';
 import { duration } from '@/components/groups/wa/format';
 
@@ -140,7 +140,7 @@ export function useSendTray(threadId: string, onSent: (messages: MessageDto[]) =
 }
 
 /** "+" del campo: documento o fotos y videos (como el menú de adjuntar de WhatsApp Web). */
-export function AttachButton({ onFiles, disabled }: { onFiles: (files: File[]) => void; disabled?: boolean }) {
+export function AttachButton({ onFiles, disabled, extra = [] }: { onFiles: (files: File[]) => void; disabled?: boolean; /** Lo que el composer suma al menú (escribir con AI, dictar, snippets). */ extra?: MenuItem[] }) {
   const w = useTranslations('inboxWa');
   const docs = useRef<HTMLInputElement>(null);
   const media = useRef<HTMLInputElement>(null);
@@ -164,6 +164,7 @@ export function AttachButton({ onFiles, disabled }: { onFiles: (files: File[]) =
           items={[
             { key: 'doc', label: w('attachDocument'), icon: <DocIcon size={16} />, onSelect: () => pick(docs.current) },
             { key: 'photo', label: w('attachMedia'), icon: <PhotoIcon size={16} />, onSelect: () => pick(media.current) },
+            ...extra,
           ]}
         />
       )}

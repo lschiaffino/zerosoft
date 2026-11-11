@@ -18,7 +18,6 @@
   "you": "Vos",
   "emoji": "Emoji",
   "placeholder": "Escribí un mensaje",
-  "aiTools": "IA: borrador o reescribir",
   "saveEdit": "Guardar edición",
   "recordVoice": "Grabar un mensaje de voz",
   "lastSeenToday": "últ. vez hoy a las {time}",
@@ -161,5 +160,6 @@
   "showMore": "Ver más",
   "showLess": "Ver menos",
   "audioSummary": "Resumen:",
-  "transcript": "Transcripción"
+  "transcript": "Transcripción",
+  "moreTools": "Más: escribir con IA, dictar, snippets"
 }

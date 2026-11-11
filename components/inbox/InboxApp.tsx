@@ -2,18 +2,27 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
+import { Link, usePathname } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ThreadAction } from '@/lib/inbox/core';
 import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
 import type { MessageHit } from '@/lib/inbox/message-search';
-import { api, INBOX_CHANGED, INBOX_DROP_THREADS, longWhen, notifyInboxChanged, shortWhen, THREADS_MIME, typingIn, type DropThreadsDetail } from './api';
+import { api, INBOX_CHANGED, longWhen, notifyInboxChanged, shortWhen, typingIn } from './api';
 import ChatRow from './wa/ChatRow';
 import WaConversation, { type WaThreadDetail } from './wa/WaConversation';
 import ContactPanel from './wa/ContactPanel';
 import { ArchiveIcon, ArrowLeft } from '@/components/groups/wa/icons';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
-import { rowSwipe } from './wa/gestures';
+import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
+import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
+import { useNearEnd } from '@/components/app/useNearEnd';
+import DebouncedInput from '@/components/app/DebouncedInput';
+import { inboxUrl, parseInboxPath, type InboxRoute } from './nav';
+import Avatar from '@/components/groups/wa/Avatar';
+import { chatName } from './wa/util';
+import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
+import { dragIds } from '@/lib/chat-gestures';
+import { flattenTree } from '@/lib/inbox/folder-tree';
 import Conversation from './Conversation';
 import type { ComposerHandle } from './Composer';
 import WhenDialog, { type WhenKind } from './WhenDialog';
@@ -66,6 +75,23 @@ interface Toast {
 
 const HIT_MARK_START = '\u0002';
 
+/** Chats por página de la lista (se piden más al llegar al final). */
+const PAGE = 60;
+/** Tope de filas que se refrescan de una vez (lo que la API devuelve como máximo). */
+const MAX_HEAD = 1000;
+
+interface ListPage {
+  threads: ThreadDto[];
+  next: string | null;
+  /** Fijados que van adelante en la primera página (no cuentan para el tamaño de página). */
+  pinned?: number;
+}
+/** Una lista ya vista (por vista o carpeta, y búsqueda): sus filas, el cursor para seguir y dónde quedó el scroll. */
+interface CachedList extends ListPage {
+  top: number;
+}
+type Detail = WaThreadDetail & { focus?: string; cursor?: string | null };
+
 /** Texto de un resultado con lo encontrado resaltado (marcas \u0002…\u0003 del servidor; nunca HTML). */
 function Highlighted({ text }: { text: string }) {
   const parts = text.split(/(\u0002[^\u0003]*\u0003)/);
@@ -89,6 +115,10 @@ export default function InboxApp(props: {
   view: InboxView;
   folder: FolderDto | null;
   initialThreads: ThreadDto[];
+  /** Cursor de la página que sigue a initialThreads (null si no hay más). */
+  initialNext?: string | null;
+  /** Cuántos de initialThreads son los fijados de adelante. */
+  initialPinned?: number;
   initialState: InboxStateDto;
   initialOpenId: string | null;
   /** Mensaje al que ir al abrir (desde Cmd+K). */
@@ -99,26 +129,37 @@ export default function InboxApp(props: {
   const w = useTranslations('inboxWa');
   const { style: chatStyle } = useChatStyle();
   const locale = useLocale();
-  const router = useRouter();
-  const { view, folder } = props;
-  const [threads, setThreads] = useState(props.initialThreads);
   const [state, setState] = useState(props.initialState);
+  // La vista o carpeta sale de la URL. Cambiarla (pestañas, sidebar, atrás y adelante) solo cambia la lista:
+  // la pantalla, el chat abierto y lo escrito en el composer quedan como están (ver ./nav.ts).
+  const pathname = usePathname();
+  const route = useMemo(() => parseInboxPath(pathname), [pathname]);
+  const view = route ? route.view : props.view;
+  const folderId = route ? route.folderId : (props.folder?.id ?? null);
+  const folder = useMemo(
+    () => (folderId ? (state.folders.find((f) => f.id === folderId) ?? (props.folder?.id === folderId ? props.folder : null)) : null),
+    [folderId, state.folders, props.folder],
+  );
+  const [threads, setThreads] = useState(props.initialThreads);
   const [cursor, setCursor] = useState(0);
   const [openId, setOpenId] = useState<string | null>(props.initialOpenId);
   // Mensaje al que ir cuando se abre el chat (resultado de búsqueda).
   const focusRef = useRef<{ threadId: string; messageId: string } | null>(props.initialOpenId && props.initialFocusId ? { threadId: props.initialOpenId, messageId: props.initialFocusId } : null);
   const [msgHits, setMsgHits] = useState<MessageHit[]>([]);
   const [msgMore, setMsgMore] = useState(false);
-  const [detail, setDetail] = useState<(WaThreadDetail & { focus?: string }) | null>(null);
+  const [detail, setDetail] = useState<Detail | null>(null);
+  const detailRef = useRef<Detail | null>(null);
+  detailRef.current = detail;
   const [detailErr, setDetailErr] = useState('');
   const [listErr, setListErr] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [when, setWhen] = useState<{ kind: WhenKind; ids: string[]; text?: string } | null>(null);
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const [plan, setPlan] = useState<ScheduleTarget | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  // "Más" abierto desde una fila (deslizar o toque largo): actúa sobre ese chat y no sobre el abierto.
+  const [moreFor, setMoreFor] = useState<string | null>(null);
   const [moreConfirm, setMoreConfirm] = useState(false);
   const moreActionRef = useRef<(a: MoreAction) => Promise<void>>(async () => {});
   const [infoOpen, setInfoOpen] = useState(false);
@@ -145,49 +186,211 @@ export default function InboxApp(props: {
     window.setTimeout(() => setToasts((x) => x.filter((i) => i.id !== id)), opts.undo ? 6000 : 4000);
   }, []);
 
-  const listUrl = useMemo(() => {
+  // ---- La lista: una entrada de caché por vista o carpeta (y búsqueda), páginas con cursor y pedidos que se cortan.
+  const listKey = `${folderId ? `f:${folderId}` : `v:${view}`}|${q.trim()}`;
+  const listBase = useMemo(() => {
     const p = new URLSearchParams();
-    if (folder) p.set('folder', folder.id);
+    if (folderId) p.set('folder', folderId);
     else p.set('view', view);
     if (q.trim()) p.set('q', q.trim());
     return `/api/inbox/threads?${p.toString()}`;
-  }, [folder, view, q]);
+  }, [folderId, view, q]);
+  const [next, setNext] = useState<string | null>(props.initialNext ?? null);
+  // De qué lista son las filas en pantalla: al cambiar de carpeta quedan las anteriores (atenuadas) hasta que llegan las nuevas.
+  const [shownKey, setShownKey] = useState(listKey);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const listCache = useRef(new ListCache<CachedList>(30)).current;
+  const live = useRef({ want: listKey, base: listBase, shown: listKey, threads: props.initialThreads, next: props.initialNext ?? null, pinned: props.initialPinned ?? 0, etag: '', etagUrl: '', more: false });
+  const listAbort = useRef<AbortController | null>(null);
+  const moreAbort = useRef<AbortController | null>(null);
+  const moreRef = useRef<HTMLLIElement>(null);
+  const switching = shownKey !== listKey;
 
-  const reloadList = useCallback(async () => {
-    const r = await api<{ threads: ThreadDto[] }>(listUrl);
-    if (!r.ok) {
-      setListErr(true);
-      return;
-    }
-    setListErr(false);
-    setThreads(r.data.threads);
-  }, [listUrl]);
-
-  const reloadState = useCallback(async () => {
-    const r = await api<InboxStateDto>('/api/inbox/state');
-    if (r.ok) setState(r.data);
+  const showList = useCallback((key: string, page: ListPage) => {
+    const L = live.current;
+    L.shown = key;
+    L.threads = page.threads;
+    L.next = page.next;
+    if (page.pinned !== undefined) L.pinned = page.pinned;
+    setThreads(page.threads);
+    setNext(page.next);
+    setShownKey(key);
   }, []);
 
+  /**
+   * Trae el principio de la lista `key`. Si es la que está en pantalla, refresca lo ya cargado (con ETag: sin
+   * cambios no toca nada); si es otra, la pone en pantalla cuando llega. Un pedido anterior en curso se corta.
+   */
+  const fetchHead = useCallback(
+    async (key: string, base: string) => {
+      const L = live.current;
+      const size = L.shown === key ? Math.min(Math.max(L.threads.length - L.pinned, PAGE), MAX_HEAD) : PAGE;
+      const url = `${base}&cursor=&limit=${size}`;
+      listAbort.current?.abort();
+      const ctrl = new AbortController();
+      listAbort.current = ctrl;
+      const r = await fetchIfChanged<ListPage>(url, L.etagUrl === url ? L.etag : null, ctrl.signal);
+      if (r.state === 'aborted' || live.current.want !== key) return;
+      if (r.state === 'error') {
+        // No llegó la lista pedida: no quedan a la vista las filas de la anterior (se ve el error con "Reintentar").
+        if (L.shown !== key) showList(key, { threads: [], next: null, pinned: 0 });
+        setListErr(true);
+        return;
+      }
+      setListErr(false);
+      if (r.state === 'same') return;
+      L.etag = r.etag;
+      L.etagUrl = url;
+      const prev = L.shown === key ? L.threads : [];
+      // Si hay más filas cargadas que las que cubre esta respuesta (se bajó más mientras llegaba, o pasan el tope),
+      // las del fondo quedan como estaban y el cursor sigue siendo el de ellas.
+      const ids = new Set(r.data.threads.map((t) => t.id));
+      const covered = size + (r.data.pinned ?? 0);
+      const tail = r.data.next !== null && prev.length > covered ? prev.slice(covered).filter((t) => !ids.has(t.id)) : [];
+      showList(key, { threads: reuseRows(prev, tail.length ? [...r.data.threads, ...tail] : r.data.threads), next: tail.length ? L.next : r.data.next, pinned: r.data.pinned ?? 0 });
+    },
+    [showList],
+  );
+
+  const reloadList = useCallback(() => fetchHead(live.current.want, live.current.base), [fetchHead]);
+
+  /** La página que sigue (al llegar al final de la lista). */
+  const loadMore = useCallback(async () => {
+    const L = live.current;
+    if (!L.next || L.more || L.shown !== L.want) return;
+    L.more = true;
+    setLoadingMore(true);
+    const key = L.shown;
+    const ctrl = new AbortController();
+    moreAbort.current = ctrl;
+    const r = await fetchIfChanged<ListPage>(`${L.base}&cursor=${encodeURIComponent(L.next)}&limit=${PAGE}`, null, ctrl.signal);
+    L.more = false;
+    setLoadingMore(false);
+    if (r.state !== 'fresh' || live.current.shown !== key || live.current.want !== key) return;
+    const have = new Set(L.threads.map((t) => t.id));
+    showList(key, { threads: [...L.threads, ...r.data.threads.filter((t) => !have.has(t.id))], next: r.data.next });
+  }, [showList]);
+
+  // Las filas en pantalla quedan en la caché de su lista (también lo que cambian las acciones).
+  useEffect(() => {
+    const L = live.current;
+    L.threads = threads;
+    listCache.set(L.shown, { threads, next: L.next, pinned: L.pinned, top: listCache.get(L.shown)?.top ?? 0 });
+  }, [threads, next, shownKey, listCache]);
+
+  // Otra vista, carpeta o búsqueda: si ya se vio, aparece al instante (con su scroll) y se revalida; si no,
+  // quedan las filas anteriores atenuadas hasta que llega la nueva. Lo pedido para la lista anterior se corta.
+  useEffect(() => {
+    const L = live.current;
+    if (L.want === listKey) return;
+    const left = listCache.get(L.shown);
+    if (left) left.top = listRef.current?.scrollTop ?? 0;
+    L.want = listKey;
+    L.base = listBase;
+    moreAbort.current?.abort();
+    setSelected(new Set());
+    setCursor(0);
+    const hit = listCache.get(listKey);
+    if (hit) {
+      showList(listKey, hit);
+      requestAnimationFrame(() => {
+        if (listRef.current && live.current.shown === listKey) listRef.current.scrollTop = hit.top;
+      });
+    }
+    void fetchHead(listKey, listBase).then(() => {
+      if (!hit && live.current.shown === listKey && listRef.current) listRef.current.scrollTop = 0;
+    });
+  }, [listKey, listBase, listCache, fetchHead, showList]);
+
+  // Al llegar al final de la lista se pide la página que sigue (toda la historia, de a una página).
+  const nearEnd = useCallback(() => void loadMore(), [loadMore]);
+  useNearEnd(moreRef, !!next && !switching, nearEnd, threads.length);
+
+  /** Va a otra vista o carpeta sin recargar la pantalla: el chat abierto sigue abierto. */
+  const openRef = useRef(openId);
+  openRef.current = openId;
+  const go = useCallback((to: InboxRoute) => pushUrl(inboxUrl(to, openRef.current)), []);
+  // Los links a una vista o carpeta (pestañas, carpetas del sidebar, "Archivados") cambian la lista acá mismo.
+  // Un link con parámetros (?new=1, ?t=<chat>) pide otra cosa: navega como siempre.
+  useShallowLinks((url) => {
+    const to = url.search ? null : parseInboxPath(url.pathname);
+    return to ? inboxUrl(to, openRef.current) : null;
+  });
+  // Otra vista o carpeta: la búsqueda se limpia (como al entrar).
+  const routeKey = `${view}:${folderId ?? ''}`;
+  const lastRoute = useRef(routeKey);
+  const closeRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    if (lastRoute.current === routeKey) return;
+    lastRoute.current = routeKey;
+    setQ('');
+    // Pantalla chica (un panel por vez): con un chat abierto la lista no se ve, y elegir otra vista o carpeta es
+    // ir a esa lista. En pantallas anchas el chat sigue abierto al lado.
+    const pane = document.querySelector<HTMLElement>('.ib-list-pane');
+    if (pane && window.getComputedStyle(pane).display === 'none') closeRef.current();
+  }, [routeKey]);
+  // La carpeta de la URL ya no existe (se borró): a la bandeja.
+  useEffect(() => {
+    if (folderId && !folder && state.folders !== props.initialState.folders) go({ view: 'inbox', folderId: null });
+  }, [folderId, folder, state.folders, props.initialState.folders, go]);
+
+  const stateEtag = useRef('');
+  const reloadState = useCallback(async () => {
+    const r = await fetchIfChanged<InboxStateDto>('/api/inbox/state', stateEtag.current);
+    if (r.state !== 'fresh') return;
+    stateEtag.current = r.etag;
+    setState(r.data);
+  }, []);
+
+  // Chats ya abiertos: al volver a uno se ve al instante con lo último que se tenía, y se pone al día.
+  const detailCache = useRef(new ListCache<Detail>(20)).current;
+  const detailEtag = useRef({ id: '', etag: '' });
   const loadDetail = useCallback(async (id: string, quiet = false) => {
     if (!quiet) setDetailErr('');
     const focus = !quiet && focusRef.current?.threadId === id ? focusRef.current.messageId : '';
     if (focus) focusRef.current = null;
-    const r = await api<WaThreadDetail>(`/api/inbox/threads/${id}${focus ? `?around=${encodeURIComponent(focus)}` : ''}`);
-    if (!r.ok) {
-      if (!quiet) setDetailErr(r.data.error ?? 'generic');
+    // Lo que se consulta cada pocos segundos va con ETag: sin cambios no se vuelve a dibujar la conversación.
+    const r = await fetchIfChanged<Detail>(`/api/inbox/threads/${id}${focus ? `?around=${encodeURIComponent(focus)}` : ''}`, quiet && detailEtag.current.id === id ? detailEtag.current.etag : null);
+    // Se abrió otro chat mientras llegaba la respuesta: no es para este.
+    if (openRef.current !== id || r.state === 'same' || r.state === 'aborted') return;
+    if (r.state === 'error') {
+      if (!quiet) setDetailErr(r.code);
       return;
     }
+    const data = r.data;
     if (focus) {
-      setDetail({ ...r.data, focus, extended: true });
+      detailEtag.current = { id: '', etag: '' };
+      setDetail({ ...data, focus, extended: true });
       return;
     }
+    detailEtag.current = { id, etag: r.etag };
     setDetail((d) => {
       // Con mensajes anteriores ya cargados: quedan los de antes de esta página y lo reciente se actualiza
       // (reacciones, tildes, borrados). Si no, la página nueva tal cual.
-      if (!(quiet && d && d.thread.id === id && d.extended)) return r.data;
-      const first = r.data.messages[0]?.sentAt;
+      if (!(quiet && d && d.thread.id === id && d.extended)) return data;
+      const first = data.messages[0]?.sentAt;
       const older = first ? d.messages.filter((m) => m.sentAt < first) : d.messages;
-      return { ...r.data, messages: [...older, ...r.data.messages], more: d.more, extended: true };
+      return { ...data, messages: [...older, ...data.messages], more: d.more, cursor: d.cursor, extended: true };
+    });
+  }, []);
+  useEffect(() => {
+    if (!detail) return;
+    const { focus: _focus, ...rest } = detail;
+    detailCache.set(detail.thread.id, rest);
+  }, [detail, detailCache]);
+
+  /** Los mensajes anteriores a los que hay (al subir en la conversación), con el cursor de la página más vieja. */
+  const loadOlder = useCallback(async () => {
+    const d = detailRef.current;
+    const first = d?.messages[0];
+    if (!d || !first) return;
+    const id = d.thread.id;
+    const r = await api<{ messages: MessageDto[]; more: boolean; cursor?: string | null }>(`/api/inbox/threads/${id}/messages?before=${encodeURIComponent(d.cursor ?? first.sentAt)}`);
+    if (!r.ok) return;
+    setDetail((cur) => {
+      if (!cur || cur.thread.id !== id) return cur;
+      const have = new Set(cur.messages.map((m) => m.id));
+      return { ...cur, messages: [...r.data.messages.filter((m) => !have.has(m.id)), ...cur.messages], more: r.data.more, cursor: r.data.cursor ?? null, extended: true };
     });
   }, []);
 
@@ -219,20 +422,11 @@ export default function InboxApp(props: {
     }
   };
 
-  // Búsqueda: espera a que se deje de escribir.
-  const firstSearch = useRef(true);
+  // Búsqueda: los mensajes que coinciden (la lista de chats la pide el cambio de `listKey`).
   useEffect(() => {
-    if (firstSearch.current) {
-      firstSearch.current = false;
-      return;
-    }
-    setLoading(true);
-    const id = window.setTimeout(() => {
-      void reloadList().finally(() => setLoading(false));
-      void searchMsgs();
-    }, 220);
-    return () => window.clearTimeout(id);
-  }, [reloadList]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!q.trim() && msgHits.length === 0) return;
+    void searchMsgs();
+  }, [q]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Abrir un chat: lo trae, lo marca leído (y "volvió" visto) y deja la URL compartible.
   useEffect(() => {
@@ -240,7 +434,10 @@ export default function InboxApp(props: {
       setDetail(null);
       return;
     }
-    void loadDetail(openId);
+    // Ya se abrió antes: se ve al instante y se pone al día sin esqueleto.
+    const cached = focusRef.current?.threadId === openId ? undefined : detailCache.get(openId);
+    if (cached) setDetail(cached);
+    void loadDetail(openId, !!cached);
     const url = new URL(window.location.href);
     url.searchParams.set('t', openId);
     window.history.replaceState(window.history.state, '', url.toString());
@@ -368,10 +565,12 @@ export default function InboxApp(props: {
           setMoveIds(ids);
           break;
         case 'more':
+          setMoreFor(null);
           setMoreConfirm(false);
           setMoreOpen(true);
           break;
         case 'delete':
+          setMoreFor(null);
           setMoreConfirm(true);
           setMoreOpen(true);
           break;
@@ -404,7 +603,7 @@ export default function InboxApp(props: {
    * actual). Deshacer vuelve exactamente a como estaban.
    */
   const dropOnFolder = useCallback(
-    async ({ ids, folderId, folderName }: DropThreadsDetail) => {
+    async ({ ids, folderId, folderName }: { ids: string[]; folderId: string; folderName: string }) => {
       const from = folder && folder.id !== folderId ? folder.id : null;
       const fresh = ids.filter((id) => !(threads.find((x) => x.id === id)?.folderIds ?? []).includes(folderId));
       const post = (list: string[], a: ThreadAction) => (list.length ? api('/api/inbox/threads', { method: 'POST', json: { ids: list, ...a } }) : Promise.resolve({ ok: true, status: 200, data: {} as { error?: string } }));
@@ -430,12 +629,6 @@ export default function InboxApp(props: {
     [folder, threads, toast, errText, t, reloadList, reloadState],
   );
 
-  useEffect(() => {
-    const on = (e: Event) => void dropOnFolder((e as CustomEvent<DropThreadsDetail>).detail);
-    window.addEventListener(INBOX_DROP_THREADS, on);
-    return () => window.removeEventListener(INBOX_DROP_THREADS, on);
-  }, [dropOnFolder]);
-
   const open = (id: string) => {
     const idx = threads.findIndex((x) => x.id === id);
     if (idx >= 0) setCursor(idx);
@@ -449,11 +642,12 @@ export default function InboxApp(props: {
     window.history.replaceState(window.history.state, '', url.toString());
     requestAnimationFrame(() => listRef.current?.querySelector<HTMLElement>(`[data-idx="${cursor}"] .ib-row-btn`)?.focus());
   }, [cursor]);
+  closeRef.current = closeConvo;
 
   const moreAction = async (a: MoreAction) => {
     setMoreOpen(false);
     setMoreConfirm(false);
-    const th = detail?.thread ?? current;
+    const th = (moreFor ? threads.find((x) => x.id === moreFor) : null) ?? detail?.thread ?? current;
     if (!th) return;
     if (a === 'delete') {
       const r = await api(`/api/inbox/threads/${th.id}`, { method: 'DELETE' });
@@ -477,7 +671,13 @@ export default function InboxApp(props: {
     if (a === 'pin') await runAction([th.id], { action: th.pinned ? 'unpin' : 'pin' });
     if (a === 'clearFollowUp') await runAction([th.id], { action: 'clearFollowUp' });
     if (a === 'unsnooze') await runAction([th.id], { action: 'unsnooze' });
-    if (a === 'aiDraft') composer.current?.draft();
+    if (a === 'aiDraft') {
+      // El borrador se escribe en la conversación: si "Más" vino de otra fila, primero se abre.
+      if (moreFor && openId !== th.id) {
+        open(th.id);
+        window.setTimeout(() => composer.current?.draft(), 350);
+      } else composer.current?.draft();
+    }
   };
   moreActionRef.current = moreAction;
 
@@ -491,10 +691,10 @@ export default function InboxApp(props: {
       const k = e.key;
       if (gPending.current && Date.now() - gPending.current < 1200) {
         gPending.current = 0;
-        const go: Record<string, InboxView> = { i: 'inbox', d: 'done', s: 'snoozed', r: 'reply', w: 'waiting', l: 'scheduled', u: 'unread' };
-        if (go[k]) {
+        const jump: Record<string, InboxView> = { i: 'inbox', d: 'done', s: 'snoozed', r: 'reply', w: 'waiting', l: 'scheduled', u: 'unread' };
+        if (jump[k]) {
           e.preventDefault();
-          router.push(viewHref(go[k]));
+          go({ view: jump[k], folderId: null });
         }
         return;
       }
@@ -605,7 +805,7 @@ export default function InboxApp(props: {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [modalOpen, threads, current, openId, selected, q, act, closeConvo, router, toast, t, infoOpen]);
+  }, [modalOpen, threads, current, openId, selected, q, act, closeConvo, go, toast, t, infoOpen]);
 
   const accounts = state.accounts;
   const noAccounts = accounts.length === 0;
@@ -613,6 +813,61 @@ export default function InboxApp(props: {
   const tabView = folder ? null : TABS.includes(view) ? view : null;
 
   const viewTitle = folder ? folder.name : q ? t('list.searchResults') : t(`views.${view}`);
+  const loading = switching;
+  // El título de la pestaña sigue a la vista (la página no se vuelve a pedir al cambiarla).
+  const tabTitle = folder ? folder.name : t(`views.${view}`);
+  useEffect(() => {
+    document.title = `${tabTitle} · Inbox`;
+  }, [tabTitle]);
+
+  /**
+   * Deslizar una fila, como WhatsApp (y como Lines): a la derecha, leído o no
+   * leído (la principal) y fijar; a la izquierda, archivar (la principal) y
+   * más. Con chats seleccionados no se desliza. Todo sigue en el menú y en los
+   * atajos (U, P, V, M).
+   */
+  const swipeActions = (id: string): SwipeActions | null => {
+    const th = threads.find((x) => x.id === id);
+    if (!th || selected.size > 0) return null;
+    return {
+      right: [
+        { key: 'unread', label: th.unread > 0 ? t('swipe.read') : t('swipe.unread'), icon: th.unread > 0 ? 'read' : 'unread', onSelect: () => void runAction([id], { action: th.unread > 0 ? 'read' : 'unread' }) },
+        { key: 'pin', label: th.pinned ? t('swipe.unpin') : t('swipe.pin'), icon: th.pinned ? 'unpin' : 'pin', onSelect: () => void runAction([id], { action: th.pinned ? 'unpin' : 'pin' }) },
+      ],
+      left: [
+        { key: 'archive', label: th.archived ? t('swipe.unarchive') : t('swipe.archive'), icon: th.archived ? 'unarchive' : 'archive', leaves: true, onSelect: () => void runAction([id], { action: th.archived ? 'unarchive' : 'archive' }) },
+        { key: 'more', label: t('swipe.more'), icon: 'more', onSelect: () => openMoreFor(id) },
+      ],
+    };
+  };
+  const openMoreFor = (id: string) => {
+    setMoreFor(id);
+    setMoreConfirm(false);
+    setMoreOpen(true);
+  };
+  const gestures = useChatGestures({
+    scope: 'inbox',
+    actionsFor: swipeActions,
+    // Levantar un chat seleccionado lleva la selección entera.
+    idsFor: (id) => dragIds(id, selected, threads.map((x) => x.id)),
+    chipFor: (id, ids) => {
+      const th = threads.find((x) => x.id === id);
+      if (ids.length > 1 || !th) return { label: t('list.dragMany', { n: ids.length }) };
+      const name = chatName(th, w('group'));
+      return { label: name, avatar: <Avatar name={name} kind={th.kind === 'group' ? 'group' : 'dm'} src={th.avatar || undefined} seed={th.id} size={24} /> };
+    },
+    // Un chat puede estar en varias carpetas: no sirve soltarlo donde ya están todos.
+    canDrop: (ids, target) => ids.some((id) => !(threads.find((x) => x.id === id)?.folderIds ?? []).includes(target)),
+    onDrop: (ids, target, name) => void dropOnFolder({ ids, folderId: target, folderName: state.folders.find((f) => f.id === target)?.name ?? name }),
+    onHoldTap: (id) => {
+      if (selected.size === 0) openMoreFor(id);
+    },
+    tray: {
+      title: t('swipe.dropTitle'),
+      empty: t('swipe.dropEmpty'),
+      items: flattenTree(state.folders).map(({ folder: f, depth }) => ({ id: f.id, name: f.name, depth })),
+    },
+  });
 
   const rowFor = (th: ThreadDto, i: number) => {
     const isSel = selected.has(th.id);
@@ -622,21 +877,9 @@ export default function InboxApp(props: {
         key={th.id}
         data-idx={i}
         className={`ib-item${i === cursor ? ' is-cursor' : ''}${th.id === openId ? ' is-open' : ''}${th.unread ? ' is-unread' : ''}${isSel ? ' is-selected' : ''}`}
-        draggable
-        onDragStart={(e) => {
-          // Arrastrar a una carpeta del sidebar: la selección entera si este chat está en ella.
-          const ids = isSel ? [...selected] : [th.id];
-          e.dataTransfer.effectAllowed = 'move';
-          e.dataTransfer.setData(THREADS_MIME, JSON.stringify(ids));
-          e.dataTransfer.setData('text/plain', ids.length > 1 ? t('list.dragMany', { n: ids.length }) : th.title);
-        }}
-        data-left-label={th.done ? t('actions.undone') : t('actions.done')}
-        data-right-label={th.pinned ? w('unpin') : w('pin')}
-        {...rowSwipe({
-          onLeft: () => void runAction([th.id], { action: th.done ? 'undone' : 'done' }),
-          onRight: () => void runAction([th.id], { action: th.pinned ? 'unpin' : 'pin' }),
-        })}
+        {...gestures.rowProps(th.id)}
       >
+        {gestures.actions(th.id)}
         <input
           type="checkbox"
           className="ib-check"
@@ -654,7 +897,6 @@ export default function InboxApp(props: {
         <button
           type="button"
           className="ib-row-btn"
-          data-swipe-body
           aria-current={th.id === openId ? 'true' : undefined}
           onClick={(e) => {
             if (e.shiftKey || e.metaKey) {
@@ -705,7 +947,7 @@ export default function InboxApp(props: {
             <label className="sr-only" htmlFor="ib-search">
               {t('list.search')}
             </label>
-            <input
+            <DebouncedInput
               id="ib-search"
               ref={searchRef}
               className="input"
@@ -713,7 +955,7 @@ export default function InboxApp(props: {
               placeholder={t('list.searchPlaceholder')}
               value={q}
               maxLength={200}
-              onChange={(e) => setQ(e.target.value)}
+              onCommit={setQ}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   e.preventDefault();
@@ -732,7 +974,7 @@ export default function InboxApp(props: {
           {tabView && !q && (
             <nav className="ui-tabs ib-tabs" aria-label={t('list.filters')}>
               {TABS.map((v) => (
-                <Link key={v} href={viewHref(v)} className={`ui-tab${v === view ? ' is-active' : ''}`} aria-current={v === view ? 'page' : undefined}>
+                <Link key={v} href={viewHref(v)} prefetch={false} className={`ui-tab${v === view ? ' is-active' : ''}`} aria-current={v === view ? 'page' : undefined}>
                   {t(`tabs.${v}`)}
                 </Link>
               ))}
@@ -748,7 +990,7 @@ export default function InboxApp(props: {
               value={folder ? `f:${folder.id}` : `v:${view}`}
               onChange={(e) => {
                 const [kind, id] = e.target.value.split(':');
-                router.push(kind === 'f' ? `/app/inbox/f/${id}` : viewHref(id as InboxView));
+                go(kind === 'f' ? { view: 'inbox', folderId: id } : { view: id as InboxView, folderId: null });
               }}
             >
               {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived'] as InboxView[]).map((v) => (
@@ -785,14 +1027,14 @@ export default function InboxApp(props: {
           )}
         </div>
         {!q && !folder && view !== 'archived' && (state.counts.archived ?? 0) > 0 && (
-          <Link href={viewHref('archived')} className="ib-archived-entry" data-testid="inbox-archived-entry">
+          <Link href={viewHref('archived')} prefetch={false} className="ib-archived-entry" data-testid="inbox-archived-entry">
             <ArchiveIcon size={20} />
             <span>{t('list.archivedEntry')}</span>
             <span className="ib-archived-n">{state.counts.archived}</span>
           </Link>
         )}
         {view === 'archived' && !q && !folder && (
-          <Link href={viewHref('inbox')} className="ib-archived-entry" data-testid="inbox-archived-back">
+          <Link href={viewHref('inbox')} prefetch={false} className="ib-archived-entry" data-testid="inbox-archived-back">
             <ArrowLeft size={20} />
             <span>{t('list.archivedBack')}</span>
           </Link>
@@ -847,8 +1089,13 @@ export default function InboxApp(props: {
             )}
           </div>
         ) : (
-          <ul className="ib-list" ref={listRef} aria-label={viewTitle} aria-busy={loading || undefined}>
+          <ul className={`ib-list${switching ? ' is-stale' : ''}`} ref={listRef} aria-label={viewTitle} aria-busy={loading || undefined} data-list={shownKey} data-chat-list>
             {threads.map(rowFor)}
+            {next && !switching && (
+              <li ref={moreRef} className="ib-list-more" role="presentation" aria-busy={loadingMore || undefined} data-testid="inbox-list-more">
+                <span className="ui-skeleton ui-skeleton-row" />
+              </li>
+            )}
             {q.trim() !== '' && msgHits.length > 0 && (
               <li className="ib-hits" role="presentation">
                 <h2 className="ib-hits-h" id="ib-hits-h">
@@ -937,12 +1184,7 @@ export default function InboxApp(props: {
               void loadDetail(detail.thread.id, true);
               void reloadList();
             }}
-            loadOlder={async () => {
-              const first = detail.messages[0];
-              if (!first) return;
-              const r = await api<{ messages: MessageDto[]; more: boolean }>(`/api/inbox/threads/${detail.thread.id}/messages?before=${encodeURIComponent(first.sentAt)}`);
-              if (r.ok) setDetail((d) => (d ? { ...d, messages: [...r.data.messages, ...d.messages], more: r.data.more, extended: true } : d));
-            }}
+            loadOlder={loadOlder}
           />
         ) : detail && openId ? (
           <Conversation
@@ -970,12 +1212,7 @@ export default function InboxApp(props: {
               void reloadList();
             }}
             onError={(code) => toast(errText(code), { bad: true })}
-            loadOlder={async () => {
-              const first = detail.messages[0];
-              if (!first) return;
-              const r = await api<{ messages: MessageDto[]; more: boolean }>(`/api/inbox/threads/${detail.thread.id}/messages?before=${encodeURIComponent(first.sentAt)}`);
-              if (r.ok) setDetail((d) => (d ? { ...d, messages: [...r.data.messages, ...d.messages], more: r.data.more, extended: true } : d));
-            }}
+            loadOlder={loadOlder}
           />
         ) : (
           <div className="ib-convo-blank">
@@ -1066,7 +1303,7 @@ export default function InboxApp(props: {
       />
       <MoreDialog
         open={moreOpen}
-        thread={detail?.thread ?? current}
+        thread={(moreFor ? threads.find((x) => x.id === moreFor) : null) ?? detail?.thread ?? current}
         onClose={() => {
           setMoreOpen(false);
           setMoreConfirm(false);
@@ -1097,11 +1334,12 @@ export default function InboxApp(props: {
           setFolderEdit(null);
           notifyInboxChanged();
           void reloadState();
-          if (deleted) router.push('/app/inbox');
-          else if (f && folder && f.id === folder.id) router.refresh();
+          if (deleted) go({ view: 'inbox', folderId: null });
+          else if (f && folder && f.id === folder.id) void reloadList();
           else if (f && folderEdit === 'new' && moveIds === null) toast(t('toast.folderCreated', { name: f.name }));
         }}
       />
+      {gestures.layer}
       <div className="ui-toasts" role="status" aria-live="polite">
         {toasts.map((x) => (
           <div key={x.id} className={`ui-toast${x.bad ? ' ui-toast-bad' : ''} ib-toast`}>

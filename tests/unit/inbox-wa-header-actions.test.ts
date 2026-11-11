@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import en from '@/messages/en/inbox.json';
 import es from '@/messages/es/inbox.json';
 import pt from '@/messages/pt/inbox.json';
+import enCommon from '@/messages/en/common.json';
+import esCommon from '@/messages/es/common.json';
+import ptCommon from '@/messages/pt/common.json';
 import { readFileSync } from 'node:fs';
 
 /** Textos que usan la cabecera y el campo de la conversación de WhatsApp (las acciones de Inbox). */
@@ -9,14 +12,15 @@ const MORE = ['pin', 'unpin', 'read', 'unread', 'mute8h', 'muteWeek', 'unmute', 
 const ACTIONS = ['done', 'undone', 'snooze', 'followUp', 'move', 'notes', 'more', 'rename', 'save'];
 
 describe('acciones de Inbox en la conversación de WhatsApp', () => {
-  for (const [lang, d] of [['en', en], ['es', es], ['pt', pt]] as const) {
+  for (const [lang, d, common] of [['en', en, enCommon], ['es', es, esCommon], ['pt', pt, ptCommon]] as const) {
     it(`${lang}: textos de cabecera, menú y campo`, () => {
       const msgs = d as unknown as Record<string, Record<string, unknown>>;
       for (const k of MORE) expect(msgs.more[k], `more.${k}`).toBeTruthy();
       for (const k of ACTIONS) expect(msgs.actions[k], `actions.${k}`).toBeTruthy();
-      const tr = msgs.composer.translateTo as Record<string, string>;
-      expect(Object.keys(tr).sort()).toEqual(['en', 'es', 'pt']);
-      for (const k of ['dictate', 'snippets', 'aiAsk', 'aiDraft', 'aiFromText', 'later', 'undoAi']) expect(msgs.composer[k], `composer.${k}`).toBeTruthy();
+      // Escribir con IA (y a qué idiomas traduce) es de la barra compartida: common.aiCompose.
+      expect(Object.keys(common.aiCompose.langs).sort()).toEqual(['en', 'es', 'pt']);
+      expect(common.aiCompose.open).toBeTruthy();
+      for (const k of ['dictate', 'snippets', 'later']) expect(msgs.composer[k], `composer.${k}`).toBeTruthy();
     });
   }
 
@@ -29,8 +33,8 @@ describe('acciones de Inbox en la conversación de WhatsApp', () => {
     expect(src).toContain('onRename');
   });
 
-  it('el campo ofrece IA con instrucción, reescrituras, traducir, dictar y snippets', () => {
+  it('el campo ofrece "Ayudame a escribir" (barra compartida), dictar y snippets', () => {
     const src = readFileSync('components/inbox/wa/WaComposer.tsx', 'utf8');
-    for (const k of ["key: 'ask'", "key: 'draft'", 'REWRITES.map', 'LANGS.map', "key: 'dictate'", "key: 'snippets'", 'zs:voice-dictate']) expect(src, k).toContain(k);
+    for (const k of ['<AiComposeBar', '<AiComposeButton', 'INBOX_TRANSLATE_LANGS', "key: 'ai'", "key: 'dictate'", "key: 'snippets'", 'zs:voice-dictate']) expect(src, k).toContain(k);
   });
 });

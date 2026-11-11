@@ -14,6 +14,9 @@
  *   con la conversación de ese día. La actualiza el cron o la acción manual.
  *   El cron solo registra chats de líneas visibles para todo el workspace: lo
  *   de una línea restringida no se copia solo a HubSpot.
+ * - Propiedades de la empresa: el esquema completo, los valores locales, el
+ *   sync de ida y vuelta y el filtro de la bandeja viven en
+ *   lib/groups-hubspot-sync.ts (usa la conexión de este módulo).
  *
  * Las llamadas salen por safeFetch. Con GROUPS_INTEGRATIONS_FAKE=1 (tests,
  * demo) responde lib/groups-hubspot-fake.ts y nada sale a internet.
@@ -32,12 +35,20 @@ const API = 'https://api.hubapi.com';
 export const HUBSPOT_TYPES = ['company', 'deal', 'contact'] as const;
 export type HubspotType = (typeof HUBSPOT_TYPES)[number];
 
-/** Permisos de la private app. `read` hacen falta siempre; `log` solo para dejar notas. */
+/**
+ * Permisos de la private app. `read` hacen falta siempre (el último es para
+ * leer la definición de las propiedades de la empresa); `sync` para editar
+ * propiedades desde Lines; `optional` para el nombre y el selector de dueño;
+ * `log` solo para dejar notas.
+ */
 export const HUBSPOT_SCOPES = {
-  read: ['crm.objects.companies.read', 'crm.objects.deals.read', 'crm.objects.contacts.read'],
+  read: ['crm.objects.companies.read', 'crm.objects.deals.read', 'crm.objects.contacts.read', 'crm.schemas.companies.read'],
+  sync: ['crm.objects.companies.write'],
   optional: ['crm.objects.owners.read'],
   log: ['crm.objects.contacts.write', 'crm.objects.companies.write', 'crm.objects.deals.write'],
 } as const;
+/** Sin este no se edita una empresa desde Lines. */
+export const HUBSPOT_WRITE_SCOPE = 'crm.objects.companies.write';
 /** Sin este no se puede escribir una nota. */
 const NOTE_SCOPE = 'crm.objects.contacts.write';
 
@@ -72,6 +83,8 @@ export class HubspotError extends Error {
   constructor(
     public code: string,
     public status = 400,
+    /** Lo que dijo HubSpot (un valor que no aceptó). Nunca lleva el token. */
+    public detail = '',
   ) {
     super(code);
     this.name = 'HubspotError';
@@ -92,9 +105,12 @@ interface ConnRow {
   log_notes: number;
   last_error: string;
   last_used_at: string | null;
+  schema_synced_at?: string | null;
+  synced_at?: string | null;
+  webhook_secret?: string;
 }
 
-interface Conn {
+export interface HubspotConn {
   ws: string;
   token: string;
   portalId: string;
@@ -115,7 +131,16 @@ export interface HubspotDto {
   logNotes: boolean;
   lastError: string;
   lastUsedAt: string | null;
+  /** Permisos que le faltan para editar propiedades de la empresa desde Lines. */
+  missingSyncScopes: string[];
+  /** Última importación de las propiedades y última pasada del sync. */
+  schemaSyncedAt: string | null;
+  syncedAt: string | null;
+  /** Hay un secreto guardado para validar los webhooks de HubSpot (nunca vuelve). */
+  webhook: boolean;
 }
+
+type Conn = HubspotConn;
 
 function parseList(raw: string): string[] {
   try {
@@ -154,6 +179,13 @@ async function getConn(ws: string): Promise<Conn | null> {
   return toConn(await connRow(ws));
 }
 
+/** La conexión del workspace con el token abierto. Solo para el servidor: nunca se devuelve. */
+export const hubspotConn = getConn;
+
+export async function requireHubspotConn(ws: string): Promise<HubspotConn> {
+  return requireConn(ws);
+}
+
 async function requireConn(ws: string): Promise<Conn> {
   const conn = await getConn(ws);
   if (!conn) throw new HubspotError('hubspot_not_connected', 409);
@@ -172,6 +204,10 @@ function toDto(row: ConnRow | null): HubspotDto {
     logNotes: connected && row?.log_notes === 1,
     lastError: connected && row ? row.last_error : '',
     lastUsedAt: connected && row ? row.last_used_at : null,
+    missingSyncScopes: connected ? HUBSPOT_SCOPES.sync.filter((s) => !scopes.includes(s)) : [],
+    schemaSyncedAt: connected && row ? (row.schema_synced_at ?? null) : null,
+    syncedAt: connected && row ? (row.synced_at ?? null) : null,
+    webhook: connected && Boolean(row?.webhook_secret),
   };
 }
 
@@ -185,6 +221,10 @@ export async function hubspotConnected(ws: string): Promise<boolean> {
   return Boolean(row);
 }
 
+export async function markHubspotUsed(ws: string, error = ''): Promise<void> {
+  return markUsed(ws, error);
+}
+
 async function markUsed(ws: string, error = ''): Promise<void> {
   await getDb().prepare('UPDATE groups_hubspot SET last_error = ?, last_used_at = ? WHERE user_id = ?').run(error, new Date().toISOString(), ws);
 }
@@ -196,6 +236,10 @@ async function markUsed(ws: string, error = ''): Promise<void> {
 function fetcher(): FetchLike {
   return fakeMode() ? fakeHubspotFetch : (url, init) => safeFetch(url, init, 15_000);
 }
+
+/** El fetch hacia HubSpot (safeFetch, o el falso en tests y demo). */
+export const hubspotFetcher = fetcher;
+export const HUBSPOT_API = API;
 
 async function request(token: string, method: string, path: string, body?: unknown, auth = true): Promise<Record<string, unknown>> {
   let res: Response;
@@ -267,6 +311,18 @@ async function inspectToken(token: string): Promise<{ portalId: string; uiDomain
         if (!(err instanceof HubspotError) || err.code !== 'hubspot_missing_scopes') throw err;
       }
     }
+    // La definición de las propiedades y los dueños: lecturas que se pueden probar. Escribir no se prueba.
+    for (const [path, scope] of [
+      ['/crm/v3/properties/companies/name', 'crm.schemas.companies.read'],
+      ['/crm/v3/owners?limit=1', 'crm.objects.owners.read'],
+    ] as const) {
+      try {
+        await request(token, 'GET', path);
+        scopes.push(scope);
+      } catch (err) {
+        if (!(err instanceof HubspotError) || err.code !== 'hubspot_missing_scopes') throw err;
+      }
+    }
   }
   if (!/^\d{1,20}$/.test(portalId)) throw new HubspotError('hubspot_invalid_token');
   return { portalId, uiDomain, scopes };
@@ -302,16 +358,25 @@ export async function connectHubspot(ws: string, actor: string, rawToken: string
     )
     .run(ws, seal(token), info.portalId, info.uiDomain, JSON.stringify(info.scopes), actor, now, now, canLog ? 1 : 0);
   caches.delete(ws);
+  // Al conectar se importan las propiedades de la empresa. Si falla, lo reintenta el cron.
+  const { refreshHubspotSchema } = await import('./groups-hubspot-sync');
+  await refreshHubspotSchema(ws).catch(() => null);
   return getHubspot(ws);
 }
 
 /** Ajustes: vincular solo con una única coincidencia y dejar la conversación como notas. */
-export async function updateHubspotSettings(ws: string, patch: { autoLink?: boolean; logNotes?: boolean }): Promise<HubspotDto> {
+export async function updateHubspotSettings(ws: string, patch: { autoLink?: boolean; logNotes?: boolean; webhookSecret?: string }): Promise<HubspotDto> {
   const conn = await requireConn(ws);
   if (patch.logNotes === true && !conn.scopes.includes(NOTE_SCOPE)) throw new HubspotError(`hubspot_missing_scopes:${NOTE_SCOPE}`);
   const db = getDb();
   if (typeof patch.autoLink === 'boolean') await db.prepare('UPDATE groups_hubspot SET auto_link = ?, updated_at = ? WHERE user_id = ?').run(patch.autoLink ? 1 : 0, new Date().toISOString(), ws);
   if (typeof patch.logNotes === 'boolean') await db.prepare('UPDATE groups_hubspot SET log_notes = ?, updated_at = ? WHERE user_id = ?').run(patch.logNotes ? 1 : 0, new Date().toISOString(), ws);
+  if (typeof patch.webhookSecret === 'string') {
+    // El client secret de la private app, para validar la firma de sus webhooks. Vacío lo borra.
+    const secret = patch.webhookSecret.trim();
+    if (secret.length > 200 || /\s/.test(secret)) throw new HubspotError('invalid_input');
+    await db.prepare('UPDATE groups_hubspot SET webhook_secret = ?, updated_at = ? WHERE user_id = ?').run(secret ? seal(secret) : '', new Date().toISOString(), ws);
+  }
   return getHubspot(ws);
 }
 
@@ -320,6 +385,14 @@ async function clearWorkspaceData(ws: string): Promise<void> {
   await db.prepare('DELETE FROM groups_hubspot_links WHERE user_id = ?').run(ws);
   await db.prepare('DELETE FROM groups_hubspot_matches WHERE user_id = ?').run(ws);
   await db.prepare('DELETE FROM groups_hubspot_notes WHERE user_id = ?').run(ws);
+  for (const table of ['groups_hubspot_props', 'groups_hubspot_prop_groups', 'groups_hubspot_companies', 'groups_hubspot_values', 'groups_hubspot_sync_log', 'groups_hubspot_suggest']) {
+    await db.prepare(`DELETE FROM ${table} WHERE user_id = ?`).run(ws);
+  }
+  await db
+    .prepare(
+      "UPDATE groups_hubspot SET schema_synced_at = NULL, owners = '[]', pinned = '[]', sync_cursor = '{}', synced_at = NULL, verified_at = NULL, sync_backoff_until = NULL, sync_fails = 0, webhook_secret = '' WHERE user_id = ?",
+    )
+    .run(ws);
 }
 
 /**
@@ -328,7 +401,7 @@ async function clearWorkspaceData(ws: string): Promise<void> {
  */
 export async function disconnectHubspot(ws: string): Promise<boolean> {
   const res = await getDb()
-    .prepare("UPDATE groups_hubspot SET token = '', scopes = '[]', auto_link = 0, log_notes = 0, last_error = '', updated_at = ? WHERE user_id = ? AND token != ''")
+    .prepare("UPDATE groups_hubspot SET token = '', scopes = '[]', auto_link = 0, log_notes = 0, last_error = '', webhook_secret = '', updated_at = ? WHERE user_id = ? AND token != ''")
     .run(new Date().toISOString(), ws);
   caches.delete(ws);
   return res.changes > 0;
@@ -413,6 +486,10 @@ async function stageName(conn: Conn, stageId: string): Promise<string> {
     }
   }
   return cache.stages.get(stageId) ?? stageId;
+}
+
+export function hubspotRecordUrl(conn: Pick<HubspotConn, 'uiDomain' | 'portalId'>, type: HubspotType, id: string): string {
+  return recordUrl(conn, type, id);
 }
 
 function recordUrl(conn: Pick<Conn, 'uiDomain' | 'portalId'>, type: HubspotType, id: string): string {
@@ -570,11 +647,18 @@ export async function linkHubspot(
   if (!(await chatOf(ws, chatId))) throw new HubspotError('not_found', 404);
   const rec = await fetchRecord(conn, type, String(objectId));
   await saveLink(ws, chatId, rec, actor);
+  // Una empresa trae todas sus propiedades (si falla, las importa el cron).
+  const importCompany = async (id: string) => {
+    const { importHubspotCompanies } = await import('./groups-hubspot-sync');
+    await importHubspotCompanies(ws, [id], 'link').catch(() => null);
+  };
+  if (type === 'company') await importCompany(rec.id);
   if (type === 'contact' && opts.withCompany && rec.companyId) {
     const has = (await linkRows(ws, chatId)).some((l) => l.object_type === 'company');
     if (!has) {
       try {
         await saveLink(ws, chatId, await fetchRecord(conn, 'company', rec.companyId), actor);
+        await importCompany(rec.companyId);
       } catch (err) {
         // La empresa principal no se pudo leer: queda solo el contacto.
         if (!(err instanceof HubspotError)) throw err;
@@ -758,6 +842,8 @@ export interface ChatHubspotDto {
   logNotes: boolean;
   /** Última vez que se dejó una nota de este chat. */
   lastLoggedAt: string | null;
+  /** La empresa vinculada con sus propiedades fijadas (lib/groups-hubspot-sync.ts). */
+  company?: import('./groups-hubspot-sync').ChatCompanySummary | null;
 }
 
 /** Lo que muestra el panel del chat. El que llama ya chequeó el acceso al chat. */
@@ -779,7 +865,9 @@ export async function chatHubspot(ws: string, chatId: string): Promise<ChatHubsp
     if (!(err instanceof HubspotError)) throw err;
   }
   const last = (await getDb().prepare("SELECT MAX(synced_at) AS at FROM groups_hubspot_notes WHERE chat_id = ? AND note_id != ''").get(chatId)) as { at: string | null } | undefined;
-  return { connected: true, links, suggestions, canLog: conn.scopes.includes(NOTE_SCOPE), logNotes: conn.logNotes, lastLoggedAt: last?.at ?? null };
+  const { chatCompanySummary } = await import('./groups-hubspot-sync');
+  const company = await chatCompanySummary(ws, chatId).catch(() => null);
+  return { connected: true, links, suggestions, canLog: conn.scopes.includes(NOTE_SCOPE), logNotes: conn.logNotes, lastLoggedAt: last?.at ?? null, company };
 }
 
 /**

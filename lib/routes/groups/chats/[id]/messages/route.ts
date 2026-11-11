@@ -4,13 +4,18 @@ import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, str
 import { maskMessage } from '@/lib/groups-access';
 import { normalizePoll } from '@/lib/groups-polls';
 import { mediaFromBody } from '@/lib/groups-media-input';
+import { conditionalJson } from '@/lib/etag';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** Mensajes del chat. ?after=<iso> trae solo los nuevos (la pantalla consulta cada pocos segundos). */
+/**
+ * Mensajes del chat (los últimos ?limit=). ?after=<iso> trae solo los nuevos. ?before= trae los anteriores, al subir
+ * en el hilo: acepta "<createdAt>~<seq>" del mensaje más viejo que ya se tiene (así no se saltea ni repite ninguno
+ * cuando varios tienen la misma hora) o una fecha sola. Con If-None-Match y sin cambios responde 304.
+ */
 export async function GET(req: Request, ctx: Ctx) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
@@ -24,11 +29,12 @@ export async function GET(req: Request, ctx: Ctx) {
   // ?before=<createdAt>: los anteriores (el hilo carga más al subir).
   const before = p.get('before') || undefined;
   const limit = Number(p.get('limit')) || undefined;
-  return NextResponse.json({
-    messages: (await listMessages(s.ws, id, { after, before, limit })).map((m) => maskMessage(guard.viewer, m)),
+  const [messages, presence] = await Promise.all([
+    listMessages(s.ws, id, { after, before, limit }),
     // Escribiendo, grabando o en línea (llega por webhook; dura unos segundos).
-    presence: await presenceWithName(chat).catch(() => null),
-  });
+    presenceWithName(chat).catch(() => null),
+  ]);
+  return conditionalJson(req, { messages: messages.map((m) => maskMessage(guard.viewer, m)), presence });
 }
 
 /** Manda texto, media (ver mediaFromBody), una encuesta ({ poll: { question, options, multi } }), contactos ({ contacts: [{ name, phone }] }) o una nota interna ({ note: true }). */

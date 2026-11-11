@@ -7,7 +7,7 @@ import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useShellBranch } from '@/components/app/useShellBranch';
 import { canMoveFolder, childrenMap, depthOf, flattenTree, MAX_FOLDER_DEPTH } from '@/lib/inbox/folder-tree';
 import type { FolderDto } from '@/lib/inbox/types';
-import { api, INBOX_CHANGED, INBOX_DROP_THREADS, notifyInboxChanged, THREADS_MIME, type DropThreadsDetail } from './api';
+import { api, INBOX_CHANGED, notifyInboxChanged } from './api';
 import { FolderDialog, Modal } from './InboxDialogs';
 
 const FOLDER_MIME = 'application/x-zs-inbox-folder';
@@ -29,7 +29,8 @@ function readCollapsed(): Set<string> {
  * padres, la abierta marcada y un menú por carpeta (subcarpeta, renombrar,
  * editar, subir, bajar, mover, borrar). Las carpetas se arrastran para
  * ordenarlas o meterlas en otra; los chats de la lista se sueltan encima para
- * moverlos. Con el teclado: Alt+↑/↓ ordena, Alt+→ mete en la de arriba,
+ * moverlos (cada fila es un destino `data-chat-drop` de
+ * components/ui/chat-gestures.tsx, que la marca y mueve los chats). Con el teclado: Alt+↑/↓ ordena, Alt+→ mete en la de arriba,
  * Alt+← saca un nivel. Se recarga al navegar y con INBOX_CHANGED.
  */
 export default function InboxBranch() {
@@ -165,12 +166,6 @@ export default function InboxBranch() {
 
   const onDragOver = (e: DragEvent<HTMLLIElement>, f: FolderDto) => {
     const types = Array.from(e.dataTransfer.types);
-    if (types.includes(THREADS_MIME)) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if (drop?.id !== f.id || drop.zone !== 'inside') setDrop({ id: f.id, zone: 'inside' });
-      return;
-    }
     const id = dragId.current;
     if (!id || !types.includes(FOLDER_MIME) || id === f.id) return;
     const zone = zoneFor(e);
@@ -188,17 +183,6 @@ export default function InboxBranch() {
     e.preventDefault();
     const zone = drop?.zone ?? 'inside';
     setDrop(null);
-    const raw = e.dataTransfer.getData(THREADS_MIME);
-    if (raw) {
-      let ids: string[] = [];
-      try {
-        ids = (JSON.parse(raw) as unknown[]).filter((x): x is string => typeof x === 'string').slice(0, 500);
-      } catch {
-        ids = [];
-      }
-      if (ids.length) window.dispatchEvent(new CustomEvent<DropThreadsDetail>(INBOX_DROP_THREADS, { detail: { ids, folderId: f.id, folderName: f.name } }));
-      return;
-    }
     const id = dragId.current;
     dragId.current = null;
     const dragged = id ? byId.get(id) : null;
@@ -248,7 +232,7 @@ export default function InboxBranch() {
   };
 
   return createPortal(
-    <nav ref={navRef} className="docs-branch ib-branch" aria-label={t('title')}>
+    <nav ref={navRef} className="docs-branch ib-branch" aria-label={t('title')} data-chat-drop-zone="inbox">
       {folders.length === 0 ? (
         <p className="docs-sidebar-empty">{t('branchEmpty')}</p>
       ) : (
@@ -263,6 +247,9 @@ export default function InboxBranch() {
               <li
                 key={f.id}
                 data-folder={f.id}
+                data-chat-drop={f.id}
+                data-chat-drop-scope="inbox"
+                data-chat-drop-name={f.name}
                 className={`docs-tree-row${active ? ' active' : ''}${dropCls}`}
                 style={{ ['--d' as string]: depth }}
                 draggable={renaming !== f.id}
@@ -287,6 +274,7 @@ export default function InboxBranch() {
                     type="button"
                     className={`ib-ftree-chevron${open ? ' open' : ''}`}
                     aria-expanded={open}
+                    data-chat-drop-expand
                     aria-label={open ? t('collapse', { name: f.name }) : t('expand', { name: f.name })}
                     onClick={() => toggle(f.id)}
                   >
@@ -319,7 +307,7 @@ export default function InboxBranch() {
                     onBlur={(e) => void rename(f, e.currentTarget.value)}
                   />
                 ) : (
-                  <Link href={href} className="docs-tree-link" aria-current={active ? 'page' : undefined} draggable={false} onKeyDown={(e) => linkKeys(e, f, hasChildren)}>
+                  <Link href={href} prefetch={false} className="docs-tree-link" aria-current={active ? 'page' : undefined} draggable={false} onKeyDown={(e) => linkKeys(e, f, hasChildren)}>
                     <span className="docs-tree-icon" aria-hidden="true">
                       <span className="ib-swatch" style={{ background: f.color || 'var(--c-inbox)' }} />
                     </span>
@@ -332,7 +320,7 @@ export default function InboxBranch() {
                   </Link>
                 )}
                 {renaming !== f.id && (
-                  <span className="ib-ftree-actions">
+                  <span className="ib-ftree-actions" data-chat-drop-hide>
                     <button
                       type="button"
                       className="ib-ftree-btn"

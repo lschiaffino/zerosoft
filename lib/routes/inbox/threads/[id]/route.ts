@@ -1,6 +1,6 @@
 import { after } from 'next/server';
 import { deleteThread, getAccount, getThread, getThreadRow, listMessages, listScheduled, renameThread, saveDraft, saveNotes, type ThreadAction } from '@/lib/inbox/core';
-import { iJson, parseBody, withOwner } from '@/lib/inbox/http';
+import { iJson, iJsonIfChanged, parseBody, withOwner } from '@/lib/inbox/http';
 import { threadPatchSchema } from '@/lib/inbox/schemas';
 import { threadAction } from '@/lib/inbox/send';
 import { markChatReadOnWhatsapp } from '@/lib/inbox/wa-actions';
@@ -11,7 +11,11 @@ export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** El chat con sus últimos mensajes, los envíos programados y (WhatsApp) la info del contacto o del grupo. ?around=<mensaje> trae desde un poco antes de ese mensaje (ir desde la búsqueda). */
+/**
+ * El chat con sus últimos mensajes, los envíos programados y (WhatsApp) la info del contacto o del grupo.
+ * ?around=<mensaje> trae desde un poco antes de ese mensaje (ir desde la búsqueda). `cursor` sirve para
+ * pedir los anteriores (GET …/messages?before=). Con If-None-Match y sin cambios responde 304.
+ */
 export async function GET(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   return withOwner(async (owner) => {
@@ -26,7 +30,7 @@ export async function GET(req: Request, ctx: Ctx) {
     const around = new URL(req.url).searchParams.get('around')?.slice(0, 60) || undefined;
     const [page, scheduled] = await Promise.all([listMessages(owner, id, { around }), listScheduled(owner, id)]);
     const wa = row.channel === 'whatsapp' ? await waDetails(owner, row, await getAccount(owner, row.account_id)) : null;
-    return iJson({ thread, messages: page.messages, more: page.more, scheduled, notes: row.notes, wa });
+    return iJsonIfChanged(req, { thread, messages: page.messages, more: page.more, cursor: page.cursor, scheduled, notes: row.notes, wa });
   });
 }
 

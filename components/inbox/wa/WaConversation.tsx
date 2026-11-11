@@ -713,7 +713,7 @@ const WaConversation = forwardRef<
           banner={banner}
           editing={editing}
           replyToId={replyTo?.id ?? null}
-          attach={<AttachButton onFiles={tray.add} disabled={!connected} />}
+          attach={(extra) => <AttachButton onFiles={tray.add} disabled={!connected} extra={extra} />}
           onMic={connected && typeof MediaRecorder !== 'undefined' ? () => setRecording(true) : undefined}
           onPasteFiles={connected ? tray.add : undefined}
           mentionables={group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name })) : undefined}

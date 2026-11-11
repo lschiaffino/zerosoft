@@ -49,9 +49,9 @@ const parity: ProductParity = {
     }),
     row('shared-folders', 'organize', ['Shared chat folders', 'Carpetas compartidas de chats', 'Pastas compartilhadas de conversas'], 'have', {
       detail: [
-        'Folders and subfolders shared by the workspace, with unread counts per person, drag a chat onto a folder or use Move to folder',
-        'Carpetas y subcarpetas compartidas por el workspace, con no leídos por persona; arrastrá un chat a una carpeta o usá Mover a carpeta',
-        'Pastas e subpastas compartilhadas pelo workspace, com não lidas por pessoa; arraste uma conversa para a pasta ou use Mover para pasta',
+        'Folders and subfolders shared by the workspace, with unread counts per person, hold a chat (or a selection) and drop it on a folder, with undo, or use Move to folder',
+        'Carpetas y subcarpetas compartidas por el workspace, con no leídos por persona; mantené apretado un chat (o una selección) y soltalo en una carpeta, con deshacer, o usá Mover a carpeta',
+        'Pastas e subpastas compartilhadas pelo workspace, com não lidas por pessoa; segure uma conversa (ou uma seleção) e solte numa pasta, com desfazer, ou use Mover para pasta',
       ],
     }),
     row('qr-connect', 'numbers', ['Connect a number with a QR code', 'Conectar un número con QR', 'Conectar um número com QR'], 'partial', {
@@ -75,11 +75,11 @@ const parity: ProductParity = {
       ],
     }),
     row('number-ops', 'numbers', ['Reconnect, resync groups and remove a number', 'Reconectar, resincronizar grupos y borrar un número', 'Reconectar, ressincronizar grupos e remover um número'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
-    row('history-import', 'numbers', ['Import chats and recent messages when a number connects', 'Importar chats y mensajes recientes al conectar un número', 'Importar conversas e mensagens recentes ao conectar um número'], 'partial', {
+    row('history-import', 'numbers', ['Import chats and their full history when a number connects', 'Importar chats y todo su historial al conectar un número', 'Importar conversas e todo o histórico ao conectar um número'], 'partial', {
       detail: [
-        'Chats, groups, names, photos, unread counts and the last messages per chat, in resumable batches and without triggering rules or notifications. Tested against a simulated Evolution with 200 chats; payload shapes checked against a real instance.',
-        'Chats, grupos, nombres, fotos, no leídos y los últimos mensajes de cada chat, en tandas que se retoman y sin disparar reglas ni avisos. Probado contra un Evolution simulado con 200 chats; los formatos se verificaron contra una instancia real.',
-        'Conversas, grupos, nomes, fotos, não lidas e as últimas mensagens de cada conversa, em lotes retomáveis e sem disparar regras nem avisos. Testado contra um Evolution simulado com 200 conversas; os formatos foram conferidos com uma instância real.',
+        'Chats, groups, names, photos, unread counts and every message the WhatsApp server kept (the latest of each chat first, the rest in the background), in resumable batches and without triggering rules or notifications. QR and Evolution only; how far back it goes depends on what the phone sends when linking. Tested against a simulated Evolution with 200 chats; payload shapes checked against a real instance.',
+        'Chats, grupos, nombres, fotos, no leídos y todos los mensajes que guardó el servidor de WhatsApp (primero los últimos de cada chat, el resto en segundo plano), en tandas que se retoman y sin disparar reglas ni avisos. Solo por QR y Evolution; hasta dónde llega depende de lo que el teléfono manda al vincular. Probado contra un Evolution simulado con 200 chats; los formatos se verificaron contra una instancia real.',
+        'Conversas, grupos, nomes, fotos, não lidas e todas as mensagens que o servidor do WhatsApp guardou (primeiro as últimas de cada conversa, o resto em segundo plano), em lotes retomáveis e sem disparar regras nem avisos. Só por QR e Evolution; até onde chega depende do que o celular envia ao vincular. Testado contra um Evolution simulado com 200 conversas; os formatos foram conferidos com uma instância real.',
       ],
       weight: 2,
     }),
@@ -290,9 +290,9 @@ const parity: ProductParity = {
     }),
     row('ai-drafts', 'automation', ['AI drafts and translation of replies', 'Borradores y traducción AI de respuestas', 'Rascunhos e tradução IA de respostas'], 'have', {
       detail: [
-        "Draft or improve a reply from the chat, quick replies and the chat agent's knowledge or public Docs, and translate it to the customer's language before sending",
-        'Borrador o mejora de la respuesta con el chat, las respuestas rápidas y el conocimiento del agente del chat o las páginas públicas de Docs, y traducción al idioma del cliente antes de mandar',
-        'Rascunho ou melhoria da resposta com o chat, as respostas rápidas e o conhecimento do agente do chat ou as páginas públicas do Docs, e tradução para o idioma do cliente antes de enviar',
+        "Help me write: describe the message and it is drafted from the chat, quick replies and the chat agent's knowledge or public Docs. Review it before it reaches the message field, refine it (shorter, longer, tone, grammar, your own change), translate it to the customer's language, insert it and undo. Tested with the fake model",
+        'Ayudame a escribir: describís el mensaje y se redacta con el chat, las respuestas rápidas y el conocimiento del agente del chat o las páginas públicas de Docs. Lo revisás antes de que llegue al campo del mensaje, lo ajustás (más corto, más largo, tono, gramática, un cambio propio), lo traducís al idioma del cliente, lo insertás y podés deshacer. Probado con el modelo falso',
+        'Ajude-me a escrever: você descreve a mensagem e ela é redigida com a conversa, as respostas rápidas e o conhecimento do agente da conversa ou as páginas públicas do Docs. Você revisa antes de chegar ao campo da mensagem, ajusta (mais curto, mais longo, tom, gramática, uma mudança sua), traduz para o idioma do cliente, insere e pode desfazer. Testado com o modelo falso',
       ],
     }),
 
@@ -304,9 +304,9 @@ const parity: ProductParity = {
     row('hubspot', 'integrations', ['HubSpot: chats linked to companies and deals', 'HubSpot: chats vinculados a empresas y negocios', 'HubSpot: conversas vinculadas a empresas e negócios'], 'partial', {
       weight: 2,
       detail: [
-        'Connect with a private app token; link each chat or group to a HubSpot company, deal and contact, with a suggestion by phone number, a daily note on the linked records and an inbox filter. Periskope also creates HubSpot tickets from a chat and sends WhatsApp from a HubSpot workflow. Tested against a simulated HubSpot; not yet tried with a real account',
-        'Se conecta con el token de una private app; cada chat o grupo se vincula a una empresa, un negocio y un contacto de HubSpot, con sugerencia por teléfono, una nota diaria en los registros vinculados y un filtro en la bandeja. Periskope además crea tickets de HubSpot desde un chat y manda WhatsApp desde un workflow de HubSpot. Probado contra un HubSpot simulado; falta probarlo con una cuenta real',
-        'Conecta com o token de um private app; cada conversa ou grupo se vincula a uma empresa, um negócio e um contato do HubSpot, com sugestão por telefone, uma nota diária nos registros vinculados e um filtro na caixa. O Periskope também cria tickets do HubSpot a partir de uma conversa e envia WhatsApp a partir de um workflow do HubSpot. Testado contra um HubSpot simulado; falta testar com uma conta real',
+        'Connect with a private app token; link each chat or group to a HubSpot company, deal and contact, with a suggestion by phone number, a daily note on the linked records and an inbox filter. All the company properties (custom ones too) are imported and synced both ways, editable from a HubSpot screen on the chat, usable as inbox filters, and there is a view to link groups in bulk. Periskope also creates HubSpot tickets from a chat and sends WhatsApp from a HubSpot workflow; deal and contact properties are still a fixed handful here. Tested against a simulated HubSpot; not yet tried with a real account',
+        'Se conecta con el token de una private app; cada chat o grupo se vincula a una empresa, un negocio y un contacto de HubSpot, con sugerencia por teléfono, una nota diaria en los registros vinculados y un filtro en la bandeja. Todas las propiedades de la empresa (también las propias) se importan y se sincronizan en los dos sentidos, se editan desde una pantalla de HubSpot en el chat, sirven como filtros de la bandeja, y hay una vista para vincular grupos de a muchos. Periskope además crea tickets de HubSpot desde un chat y manda WhatsApp desde un workflow de HubSpot; las propiedades de negocios y contactos acá siguen siendo unas pocas fijas. Probado contra un HubSpot simulado; falta probarlo con una cuenta real',
+        'Conecta com o token de um private app; cada conversa ou grupo se vincula a uma empresa, um negócio e um contato do HubSpot, com sugestão por telefone, uma nota diária nos registros vinculados e um filtro na caixa. Todas as propriedades da empresa (também as personalizadas) são importadas e sincronizadas nos dois sentidos, editadas em uma tela do HubSpot na conversa, usadas como filtros da caixa, e há uma visão para vincular grupos em massa. O Periskope também cria tickets do HubSpot a partir de uma conversa e envia WhatsApp a partir de um workflow do HubSpot; as propriedades de negócios e contatos aqui continuam sendo poucas e fixas. Testado contra um HubSpot simulado; falta testar com uma conta real',
       ],
     }),
     row('webhooks', 'integrations', ['Outgoing webhooks', 'Webhooks salientes', 'Webhooks de saída'], 'have', {

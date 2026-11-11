@@ -5,6 +5,7 @@
  */
 import { randomUUID } from 'crypto';
 import { getDb } from './db';
+import { cleanHubspotFilters, type HubspotPropFilter } from './groups-hubspot-shared';
 import {
   CHAT_FILTERS,
   GroupsError,
@@ -445,6 +446,8 @@ export interface SavedListFilters {
   numberId?: string;
   props?: PropertyFilter[];
   hubspot?: 'linked' | 'unlinked';
+  /** Condiciones sobre propiedades de la empresa de HubSpot. */
+  hsProps?: HubspotPropFilter[];
 }
 
 export interface SavedListDto {
@@ -483,6 +486,8 @@ export function cleanListFilters(raw: unknown): SavedListFilters {
   if (r.kind === 'dm' || r.kind === 'group') out.kind = r.kind;
   if (typeof r.numberId === 'string' && r.numberId && r.numberId.length <= 100) out.numberId = r.numberId;
   if (r.hubspot === 'linked' || r.hubspot === 'unlinked') out.hubspot = r.hubspot;
+  const hsProps = cleanHubspotFilters(r.hsProps);
+  if (hsProps.length) out.hsProps = hsProps;
   if (Array.isArray(r.props)) {
     const props = (r.props as Array<Record<string, unknown>>)
       .map((p) => ({ key: String(p?.key ?? ''), op: (['is', 'set', 'unset'].includes(String(p?.op)) ? p.op : 'is') as PropertyFilter['op'], value: p?.value == null ? undefined : String(p.value).slice(0, 200) }))
@@ -494,7 +499,7 @@ export function cleanListFilters(raw: unknown): SavedListFilters {
 }
 
 export function listQuery(f: SavedListFilters): ChatQuery {
-  return { filter: f.filter ?? 'all', q: f.q, labelIds: f.labelIds, assignee: f.assignee, kind: f.kind, numberId: f.numberId, props: f.props, hubspot: f.hubspot };
+  return { filter: f.filter ?? 'all', q: f.q, labelIds: f.labelIds, assignee: f.assignee, kind: f.kind, numberId: f.numberId, props: f.props, hubspot: f.hubspot, hsProps: f.hsProps };
 }
 
 function toListDto(r: SavedListRow): SavedListDto {

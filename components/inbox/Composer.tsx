@@ -4,22 +4,22 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { useTranslations } from 'next-intl';
 import { fillSnippet, type MessageDto, type SnippetDto, type ThreadDto } from '@/lib/inbox/types';
 import { api } from './api';
-import AiWrite, { streamAi } from './AiWrite';
+import AiComposeBar, { AiComposeButton } from '@/components/ai/AiComposeBar';
+import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
+import { INBOX_TRANSLATE_LANGS, inboxCompose } from './ai-compose';
 
 export interface ComposerHandle {
   focus: () => void;
+  /** Abre "Ayudame a escribir". */
   draft: () => void;
   /** Vacía el campo y el borrador guardado (después de programar el envío). */
   clear: () => void;
 }
 
-type Rewrite = 'shorter' | 'friendlier' | 'formal' | 'fix';
-const REWRITES: Rewrite[] = ['shorter', 'friendlier', 'formal', 'fix'];
-
 /**
  * Campo de respuesta. WhatsApp: Enter manda y Shift+Enter baja de línea (como
- * WhatsApp Web); correo: ⌘Enter manda. ";" abre los snippets, ⌘J pide un
- * borrador a la IA (con lo escrito como instrucción), el micrófono dicta con
+ * WhatsApp Web); correo: ⌘Enter manda. ";" abre los snippets, ⌘J abre
+ * "Ayudame a escribir" (components/ai/AiComposeBar), el micrófono dicta con
  * Voice y "Más tarde" programa el envío. El borrador se guarda solo.
  */
 const Composer = forwardRef<
@@ -35,10 +35,8 @@ const Composer = forwardRef<
 >(function Composer({ thread, snippets, disabled, onSent, onError, onSendLater }, ref) {
   const t = useTranslations('inbox.composer');
   const [text, setText] = useState(thread.draft);
-  const [busy, setBusy] = useState<'' | 'send' | 'ai'>('');
-  const [undo, setUndo] = useState<string | null>(null);
-  const [menu, setMenu] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
+  const tc = useTranslations('common.aiCompose');
+  const [busy, setBusy] = useState<'' | 'send'>('');
   const [snipQ, setSnipQ] = useState<string | null>(null);
   const [snipIdx, setSnipIdx] = useState(0);
   const area = useRef<HTMLTextAreaElement>(null);
@@ -49,10 +47,19 @@ const Composer = forwardRef<
   useEffect(() => {
     setText(thread.draft);
     saved.current = thread.draft;
-    setUndo(null);
     setSnipQ(null);
-    setAiOpen(false);
   }, [thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // "Ayudame a escribir": el borrador sale con el contexto de este chat y vuelve al campo para revisarlo.
+  const aiAdapter = useMemo<ComposeAdapter>(
+    () => ({
+      canSuggest: true,
+      languages: INBOX_TRANSLATE_LANGS.map((code) => ({ code, label: tc(`langs.${code}`) })),
+      run: (request, onText, signal) => inboxCompose(request, { threadId: thread.id }, onText, signal),
+    }),
+    [thread.id, tc],
+  );
+  const ai = useAiCompose({ adapter: aiAdapter, text, setText, focusComposer: () => area.current?.focus(), resetKey: thread.id });
 
   // Borrador guardado solo (se escribe en el chat, lo ven las otras pestañas al recargar).
   useEffect(() => {
@@ -89,53 +96,23 @@ const Composer = forwardRef<
     }
     setText('');
     saved.current = '';
-    setUndo(null);
+    ai.clearUndo();
     onSent(r.data.messages);
-  }, [text, busy, disabled, thread.id, onSent, onError]);
-
-  /** Pide a la IA y escribe en el campo a medida que llega; si falla, vuelve lo que había. */
-  const streamInto = useCallback(
-    async (ask: Parameters<typeof streamAi>[0]) => {
-      const before = text;
-      setBusy('ai');
-      const r = await streamAi(ask, (full) => setText(full));
-      setBusy('');
-      if (!r.ok) {
-        setText(before);
-        onError(r.code);
-        return;
-      }
-      setUndo(before);
-      setText(r.text);
-      area.current?.focus();
-    },
-    [text, onError],
-  );
-
-  const draft = useCallback(async () => {
-    if (busy) return;
-    await streamInto({ action: 'draft', threadId: thread.id, instruction: text.trim() || undefined });
-  }, [busy, text, thread.id, streamInto]);
-
-  const rewrite = async (mode: Rewrite) => {
-    setMenu(false);
-    if (!text.trim() || busy) return;
-    await streamInto({ action: 'rewrite', text, mode, threadId: thread.id });
-  };
+  }, [text, busy, disabled, thread.id, onSent, onError, ai.clearUndo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useImperativeHandle(
     ref,
     () => ({
       focus: () => area.current?.focus(),
-      draft: () => void draft(),
+      draft: () => ai.openBar(),
       clear: () => {
         setText('');
         saved.current = '';
-        setUndo(null);
+        ai.clearUndo();
         void api(`/api/inbox/threads/${thread.id}`, { method: 'PATCH', json: { draft: '' } });
       },
     }),
-    [draft, thread.id],
+    [ai.openBar, ai.clearUndo, thread.id], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const insertSnippet = (s: SnippetDto) => {
@@ -162,21 +139,7 @@ const Composer = forwardRef<
 
   return (
     <div className="ib-composer" aria-busy={busy !== '' || undefined}>
-      {aiOpen && (
-        <AiWrite
-          threadId={thread.id}
-          onClose={() => {
-            setAiOpen(false);
-            area.current?.focus();
-          }}
-          onInsert={(v) => {
-            setUndo(text);
-            setText(v);
-            setAiOpen(false);
-            requestAnimationFrame(() => area.current?.focus());
-          }}
-        />
-      )}
+      <AiComposeBar ai={ai} tone="app" />
       {snipQ !== null && matches.length > 0 && (
         <ul className="ib-snippets" role="listbox" aria-label={t('snippets')}>
           {matches.map((s, i) => (
@@ -224,7 +187,7 @@ const Composer = forwardRef<
           if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
             e.preventDefault();
             e.stopPropagation();
-            void draft();
+            if (!disabled) ai.openBar();
             return;
           }
           const mod = e.metaKey || e.ctrlKey;
@@ -248,49 +211,7 @@ const Composer = forwardRef<
       />
       <div className="ib-composer-bar">
         <div className="ib-composer-tools">
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => void draft()} disabled={disabled || busy !== ''} title={t('aiDraftHint')}>
-            {busy === 'ai' ? t('aiWorking') : text.trim() ? t('aiFromText') : t('aiDraft')}
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" aria-expanded={aiOpen} onClick={() => setAiOpen((o) => !o)} disabled={disabled}>
-            {t('aiAsk')}
-          </button>
-          <div className="ib-menu-wrap">
-            <button type="button" className="btn btn-ghost btn-sm" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)} disabled={disabled || !text.trim() || busy !== ''}>
-              {t('rewrite')}
-            </button>
-            {menu && (
-              <ul
-                className="ib-menu"
-                role="menu"
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    e.stopPropagation();
-                    setMenu(false);
-                  }
-                }}
-              >
-                {REWRITES.map((m, i) => (
-                  <li key={m} role="none">
-                    <button type="button" role="menuitem" className="ib-menu-item" autoFocus={i === 0} onClick={() => void rewrite(m)}>
-                      {t(`rewrites.${m}`)}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          {undo !== null && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                setText(undo);
-                setUndo(null);
-              }}
-            >
-              {t('undoAi')}
-            </button>
-          )}
+          <AiComposeButton ai={ai} className="btn btn-ghost btn-sm aic-open-label" showLabel size={15} disabled={disabled} />
           <button
             type="button"
             className="btn btn-ghost btn-sm btn-icon"

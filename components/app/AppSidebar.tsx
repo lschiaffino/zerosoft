@@ -28,7 +28,7 @@ import {
   type SidebarLabels,
 } from './sidebar-nav';
 import { APP_SWITCHER_ORDER, PRODUCT_CONFIG, appAllowed, isComingSoon, type ProductKey } from '@/lib/products';
-import { DEFAULT_WORKSPACE_MODE, featuredApps, moreAppsByCategory, type WorkspaceMode } from '@/lib/workspace-mode';
+import { DEFAULT_WORKSPACE_MODE, appsByCategory, type WorkspaceMode } from '@/lib/workspace-mode';
 import NotificationBell from './NotificationBell';
 import WorkspaceSwitcher, { type SwitcherEntry } from './WorkspaceSwitcher';
 import Logo from '@/components/brand/Logo';
@@ -164,6 +164,11 @@ export default function AppSidebar({
   const current = app ?? { name: labels.platform, line: null };
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  // "Próximamente" del switcher: plegado hasta que se lo pide, para no llenar el menú de apps que no se pueden usar.
+  const [soonOpen, setSoonOpen] = useState(false);
+  useEffect(() => {
+    if (!switcherOpen) setSoonOpen(false);
+  }, [switcherOpen]);
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -364,12 +369,11 @@ export default function AppSidebar({
     window.dispatchEvent(new CustomEvent('zs:open-search'));
   }
 
-  // Switcher: destacadas según el modo del workspace y el resto por categoría.
+  // Switcher: todas las apps por categoría, sin un grupo de destacadas.
   const allowed = (k: ProductKey) => appAllowed(allowedApps, k);
   // "Próximamente" al pie del switcher (lista de espera); el staff las ve entre las demás, como vista previa.
   const soonApps = APP_SWITCHER_ORDER.filter((k) => isComingSoon(k) && !(staff && allowed(k)));
-  const featured = featuredApps({ mode, chosen: chosenApps }).filter(allowed);
-  const more = moreAppsByCategory({ mode, chosen: chosenApps })
+  const more = appsByCategory()
     .map((g) => ({ ...g, apps: g.apps.filter(allowed) }))
     .filter((g) => g.apps.length > 0);
   const switcherItem = (line: ProductKey) => {
@@ -480,12 +484,6 @@ export default function AppSidebar({
                 <Icon name="overview" size={14} />
                 <span>{labels.platformHome}</span>
               </Link>
-              <p className="band-menu-section" aria-hidden="true">
-                {labels.featured}
-              </p>
-              <div className="band-menu-featured" role="group" aria-label={labels.featured}>
-                {featured.map(switcherItem)}
-              </div>
               {more.length > 0 && (
                 <div className="band-menu-grid" role="group" aria-label={labels.moreApps}>
                   {more.map(({ category, apps }) => (
@@ -500,24 +498,35 @@ export default function AppSidebar({
               )}
               {soonApps.length > 0 && (
                 <div className="band-menu-soon" role="group" aria-label={labels.comingSoon ?? labels.soon}>
-                  <p className="band-menu-cat-title" aria-hidden="true">
-                    {labels.comingSoon ?? labels.soon}
-                  </p>
-                  <div className="band-menu-soon-list">
-                    {soonApps.map((line) => (
-                      <Link
-                        key={line}
-                        href={comingSoonHref(line)}
-                        role="menuitem"
-                        className="band-menu-item band-menu-soon-item"
-                        onClick={() => setSwitcherOpen(false)}
-                        data-testid={`switcher-soon-${line}`}
-                      >
-                        <ProductGlyph product={line} size={14} />
-                        <span>{PRODUCT_CONFIG[line].name}</span>
-                      </Link>
-                    ))}
-                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={`band-menu-item band-menu-soon-toggle${soonOpen ? ' open' : ''}`}
+                    aria-expanded={soonOpen}
+                    onClick={() => setSoonOpen((v) => !v)}
+                    data-testid="switcher-soon-toggle"
+                  >
+                    <Icon name="chevronRight" size={12} />
+                    <span>{labels.comingSoon ?? labels.soon}</span>
+                    <span className="band-menu-soon-count">{soonApps.length}</span>
+                  </button>
+                  {soonOpen && (
+                    <div className="band-menu-soon-list">
+                      {soonApps.map((line) => (
+                        <Link
+                          key={line}
+                          href={comingSoonHref(line)}
+                          role="menuitem"
+                          className="band-menu-item band-menu-soon-item"
+                          onClick={() => setSwitcherOpen(false)}
+                          data-testid={`switcher-soon-${line}`}
+                        >
+                          <ProductGlyph product={line} size={14} />
+                          <span>{PRODUCT_CONFIG[line].name}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               <button

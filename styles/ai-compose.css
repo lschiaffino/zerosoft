@@ -1,0 +1,118 @@
+/* ============================================================
+   "Ayudame a escribir": la barra pegada al composer (Lines e Inbox).
+   components/ai/AiComposeBar.tsx.
+
+   Dos tonos:
+   - .aic-chat: adentro de un chat. Usa los tokens --wa-* de la bandeja, que
+     ya cambian con el estilo elegido (WhatsApp o zerosoft) y con claro/oscuro.
+   - .aic-app: correo y diálogos. Tokens de la app.
+   Sin píldoras: el campo y los chips llevan el radio del lugar donde están.
+   ============================================================ */
+
+.aic,
+.aic-undo {
+  --aic-ink: var(--ink);
+  --aic-ink-2: var(--brand-gray-2);
+  --aic-line: var(--line);
+  --aic-field: var(--bg);
+  --aic-soft: var(--bg-soft);
+  --aic-hover: var(--ui-hover);
+  --aic-accent: var(--ink);
+  --aic-radius: var(--radius-1);
+}
+.aic-chat {
+  --aic-ink: var(--wa-text);
+  --aic-ink-2: var(--wa-text-2);
+  --aic-line: var(--wa-border-strong);
+  --aic-field: var(--wa-input);
+  --aic-soft: var(--wa-panel-header);
+  --aic-hover: color-mix(in srgb, var(--wa-icon) 12%, transparent);
+  --aic-accent: var(--wa-primary);
+  --aic-radius: 8px;
+}
+.gr-inbox[data-chat-style='zerosoft'] .aic-chat { --aic-radius: var(--radius-1); }
+
+.aic { display: grid; gap: 8px; min-width: 0; margin: 0 0 8px; color: var(--aic-ink); }
+.wa-composer > .aic { padding-top: 8px; }
+
+/* El campo: ancho, callado, con el lápiz adelante. */
+.aic-top { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.aic-field {
+  display: flex; align-items: center; flex: 1; min-width: 0; height: 40px; padding: 0 4px 0 10px; gap: 8px;
+  background: var(--aic-field); border: 1px solid var(--aic-line); border-radius: var(--aic-radius);
+}
+.aic-field:focus-within { border-color: var(--aic-accent); outline: 2px solid color-mix(in srgb, var(--aic-accent) 35%, transparent); outline-offset: 0; }
+.aic-field-icon { display: inline-flex; flex: none; color: var(--aic-accent); }
+.aic-input {
+  flex: 1; min-width: 0; height: 100%; padding: 0; font: inherit; font-size: 0.9063rem; color: var(--aic-ink);
+  background: transparent; border: 0; outline: 0; box-shadow: none;
+}
+.aic-input::placeholder { color: var(--aic-ink-2); opacity: 1; }
+.aic-go,
+.aic-close {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 32px; height: 32px; padding: 0;
+  color: var(--aic-ink-2); background: transparent; border: 0; border-radius: var(--aic-radius); cursor: pointer;
+}
+.aic-close { width: 40px; height: 40px; }
+.aic-go:hover:not([aria-disabled='true']),
+.aic-close:hover { color: var(--aic-ink); background: var(--aic-hover); }
+.aic-go[aria-disabled='true'] { opacity: 0.4; cursor: default; }
+.aic-go.is-stop { color: var(--aic-ink); }
+.aic-go:focus-visible,
+.aic-close:focus-visible,
+.aic-chip:focus-visible,
+.aic-link:focus-visible { outline: 2px solid var(--aic-accent); outline-offset: 1px; }
+
+/* Chips: cambios rápidos sobre el texto. */
+.aic-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.aic-chip {
+  display: inline-flex; align-items: center; height: 28px; padding: 0 10px; font: inherit; font-size: 0.8125rem; line-height: 1;
+  color: var(--aic-ink); background: transparent; border: 1px solid var(--aic-line); border-radius: var(--aic-radius); cursor: pointer; white-space: nowrap;
+}
+.aic-chip:hover:not([aria-disabled='true']):not(:disabled) { background: var(--aic-hover); border-color: var(--aic-ink-2); }
+.aic-chip[aria-disabled='true'],
+.aic-chip:disabled { opacity: 0.45; cursor: default; }
+.aic-select { max-width: 100%; padding-right: 6px; appearance: auto; }
+
+.aic-hint { margin: 0; font-size: 0.8125rem; line-height: 1.4; color: var(--aic-ink-2); overflow-wrap: anywhere; }
+.aic-error { margin: 0; font-size: 0.8125rem; line-height: 1.4; color: var(--bad-ink); }
+
+/* Vista previa: el borrador antes de que toque el composer. */
+.aic-preview { display: grid; gap: 6px; min-width: 0; }
+.aic-draft {
+  max-height: min(30vh, 260px); overflow-y: auto; padding: 10px 12px; font-size: 0.9063rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere;
+  color: var(--aic-ink); background: var(--aic-field); border: 1px solid var(--aic-line); border-radius: var(--aic-radius);
+}
+.aic-writing { color: var(--aic-ink-2); }
+@media (prefers-reduced-motion: no-preference) {
+  .aic-writing { animation: aic-pulse 1.4s ease-in-out infinite; }
+}
+@keyframes aic-pulse { 50% { opacity: 0.45; } }
+
+.aic-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.aic-actions .aic-discard { margin-left: auto; }
+.aic-actions .btn[aria-disabled='true'] { opacity: 0.45; cursor: default; }
+/* En el estilo WhatsApp, Insertar lleva el verde del chat; en zerosoft, la tinta de la app. */
+.aic-chat .aic-actions .btn-primary { --btn-bg: var(--aic-accent); --btn-bd: var(--aic-accent); --btn-bg-hover: var(--wa-primary-ink); --btn-bd-hover: var(--wa-primary-ink); --btn-fg: #fff; }
+.gr-inbox[data-chat-style='zerosoft'] .aic-chat .aic-actions .btn-primary { --btn-fg: var(--bg); }
+.aic-chat .aic-actions .btn-ghost { --btn-fg: var(--aic-ink); }
+
+/* Después de insertar: "Insertado. Deshacer". */
+.aic-undo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 0.8125rem; color: var(--aic-ink-2); }
+.wa-composer > .aic-undo { padding-top: 6px; }
+.aic-link { padding: 0; font: inherit; font-weight: 600; color: var(--aic-ink); background: none; border: 0; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+
+/* El botón que abre la barra, con texto (composer de correo, mensaje nuevo). */
+.aic-open-label { gap: 6px; }
+
+/* Teléfono y tacto: objetivos de 40px y letra de 16px en el campo (iOS no hace zoom). */
+@media (pointer: coarse), (max-width: 720px) {
+  .aic-field { height: 44px; }
+  .aic-input { font-size: 1rem; }
+  .aic-go { width: 40px; height: 40px; }
+  .aic-chip { height: 40px; padding: 0 12px; font-size: 0.875rem; }
+  .aic-select { font-size: 1rem; }
+  .aic-link { min-height: 40px; padding: 0 6px; }
+  .aic-actions .btn { --btn-h: 40px; min-height: 40px; }
+  .aic-undo { gap: 4px; }
+}

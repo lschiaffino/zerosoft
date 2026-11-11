@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-08',
+  lastReviewed: '2026-11-10',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -84,9 +84,9 @@ const parity: ProductParity = {
     }),
     row('folders', 'triage', ['Folders and subfolders', 'Carpetas y subcarpetas', 'Pastas e subpastas'], 'have', {
       detail: [
-        'Nested folders in the sidebar that collapse, unread counts that add up to the parent, drag chats (one or a selection) onto a folder with undo, and drag folders to sort or nest them. V and Alt+arrows from the keyboard',
-        'Carpetas anidadas en la barra que se pliegan, no leídos que suben al padre, arrastrar chats (uno o una selección) a una carpeta con deshacer y arrastrar carpetas para ordenarlas o anidarlas. V y Alt+flechas desde el teclado',
-        'Pastas aninhadas na barra que recolhem, não lidos que sobem para a pasta mãe, arrastar conversas (uma ou uma seleção) para uma pasta com desfazer e arrastar pastas para ordenar ou aninhar. V e Alt+setas pelo teclado',
+        'Nested folders in the sidebar that collapse, unread counts that add up to the parent, hold a chat (or a selection) and drop it on a folder with undo, and drag folders to sort or nest them. V and Alt+arrows from the keyboard',
+        'Carpetas anidadas en la barra que se pliegan, no leídos que suben al padre, mantener apretado un chat (o una selección) y soltarlo en una carpeta con deshacer, y arrastrar carpetas para ordenarlas o anidarlas. V y Alt+flechas desde el teclado',
+        'Pastas aninhadas na barra que recolhem, não lidos que sobem para a pasta mãe, segurar uma conversa (ou uma seleção) e soltar numa pasta com desfazer, e arrastar pastas para ordenar ou aninhar. V e Alt+setas pelo teclado',
       ],
     }),
     row('auto-labels', 'triage', ['AI labels and auto-archive', 'Etiquetas por IA y archivado automático', 'Etiquetas por IA e arquivamento automático'], 'missing'),
@@ -116,9 +116,9 @@ const parity: ProductParity = {
     row('ai-write', 'writing', ['Write with AI', 'Escribir con IA', 'Escrever com IA'], 'partial', {
       weight: 2,
       detail: [
-        'Tell it what you want to say and it drafts it in your tone (learned from what you write in that chat), then refine it (shorter, more formal or your own change) and insert it. The text streams in. Also a reply draft and rewrites. Tested with the fake model',
-        'Le decís qué querés decir y lo escribe con tu tono (aprendido de lo que escribís en ese chat), lo refinás (más corto, más formal o un cambio propio) y lo insertás. El texto llega de a poco. También borrador de respuesta y reescrituras. Probado con el modelo falso',
-        'Você diz o que quer dizer e ele escreve no seu tom (aprendido do que você escreve nessa conversa), você refina (mais curto, mais formal ou uma mudança sua) e insere. O texto chega aos poucos. Também rascunho de resposta e reescritas. Testado com o modelo falso',
+        'Help me write, in WhatsApp chats, email threads and New message: describe the message and it is drafted in your tone (learned from what you send) for that channel, with a subject on a new email. Review it before it reaches the field, refine it (shorter, longer, tone, grammar, your own change), translate it, insert it and undo. With text already typed it improves that text. The text streams in. Tested with the fake model',
+        'Ayudame a escribir, en chats de WhatsApp, hilos de correo y Mensaje nuevo: describís el mensaje y se redacta con tu tono (aprendido de lo que enviás) para ese canal, con asunto en un correo nuevo. Lo revisás antes de que llegue al campo, lo ajustás (más corto, más largo, tono, gramática, un cambio propio), lo traducís, lo insertás y podés deshacer. Con texto ya escrito, mejora ese texto. El texto llega de a poco. Probado con el modelo falso',
+        'Ajude-me a escrever, em conversas do WhatsApp, fios de e-mail e Nova mensagem: você descreve a mensagem e ela é redigida no seu tom (aprendido do que você envia) para esse canal, com assunto num e-mail novo. Você revisa antes de chegar ao campo, ajusta (mais curto, mais longo, tom, gramática, uma mudança sua), traduz, insere e pode desfazer. Com texto já escrito, melhora esse texto. O texto chega aos poucos. Testado com o modelo falso',
       ],
     }),
     row('dictation', 'writing', ['Dictation', 'Dictado', 'Ditado'], 'better', {
@@ -170,9 +170,9 @@ const parity: ProductParity = {
     row('history-import', 'platform', ['Full WhatsApp history', 'Todo el historial de WhatsApp', 'Todo o histórico do WhatsApp'], 'partial', {
       competitorHas: false,
       detail: [
-        'Brings every chat and every message the WhatsApp server stored, page by page, with progress, pause and resume. Tested with the fake server',
-        'Trae todos los chats y todos los mensajes que guardó el servidor de WhatsApp, página por página, con avance, pausa y seguir. Probado con el servidor falso',
-        'Traz todas as conversas e todas as mensagens que o servidor do WhatsApp guardou, página por página, com progresso, pausa e continuar. Testado com o servidor falso',
+        'Brings every chat and every message the WhatsApp server stored, page by page, with progress, pause and resume. It starts by itself when WhatsApp is linked; how far back it goes depends on what the phone sends when linking. Gmail brings all the mail of the account the same way. Tested with the fake server',
+        'Trae todos los chats y todos los mensajes que guardó el servidor de WhatsApp, página por página, con avance, pausa y seguir. Arranca sola al vincular WhatsApp; hasta dónde llega depende de lo que el teléfono manda al vincular. Gmail trae todo el correo de la cuenta de la misma forma. Probado con el servidor falso',
+        'Traz todas as conversas e todas as mensagens que o servidor do WhatsApp guardou, página por página, com progresso, pausa e continuar. Começa sozinha ao vincular o WhatsApp; até onde chega depende do que o celular envia ao vincular. O Gmail traz todo o e-mail da conta do mesmo jeito. Testado com o servidor falso',
       ],
     }),
     row('self-host', 'platform', ['Run it on your own server', 'Correrlo en tu servidor', 'Rodar no seu servidor'], 'have', { competitorHas: false }),
@@ -273,9 +273,9 @@ const parity: ProductParity = {
     }),
     row('wa-mobile', 'whatsapp', ['Phone gestures', 'Gestos del teléfono', 'Gestos do celular'], 'partial', {
       detail: [
-        'Swipe a message right to reply, swipe a chat left for Done or right to pin, long press for the menu. In the browser, not a native app',
-        'Deslizar un mensaje a la derecha para responder, un chat a la izquierda para Hecho o a la derecha para fijar, toque largo para el menú. En el navegador, no es una app nativa',
-        'Deslizar uma mensagem para a direita para responder, uma conversa para a esquerda para Concluir ou para a direita para fixar, toque longo para o menu. No navegador, não é um app nativo',
+        'Swipe a message right to reply, swipe a chat right for read and pin or left for archive and more (also with the mouse), hold it to drop it on a folder. In the browser, not a native app',
+        'Deslizar un mensaje a la derecha para responder, un chat a la derecha para leído y fijar o a la izquierda para archivar y más (también con el mouse), mantenerlo apretado para soltarlo en una carpeta. En el navegador, no es una app nativa',
+        'Deslizar uma mensagem para a direita para responder, uma conversa para a direita para lida e fixar ou para a esquerda para arquivar e mais (também com o mouse), segurar para soltar numa pasta. No navegador, não é um app nativo',
       ],
     }),
     row('wa-reactions-live', 'whatsapp', ['Reactions and typing arrive live', 'Reacciones y "escribiendo" en vivo', 'Reações e "digitando" ao vivo'], 'partial', {

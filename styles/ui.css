@@ -647,6 +647,8 @@ dialog.ui-drawer {
 :is(.ui-modal-body, .ui-drawer-body) > :is(.ui-field + .ui-field, .ui-field + p, p + .ui-field) { margin-top: 16px; }
 .ui-drawer { display: flex; flex-direction: column; }
 dialog.ui-drawer[open] { display: flex; }
+/* Un <dialog> cerrado que queda montado no se ve ni tapa los clics (la regla de arriba le ganaba al display:none del navegador). */
+dialog.ui-drawer:not([open]) { display: none; }
 .ui-drawer-body { flex: 1; }
 .ui-modal-foot,
 .ui-drawer-foot {

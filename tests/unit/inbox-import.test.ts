@@ -4,9 +4,9 @@ import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
-import { listMessages, listThreads, upsertThread } from '@/lib/inbox/core';
+import { createAccount, listMessages, listThreads, upsertThread, writeAccountConfig } from '@/lib/inbox/core';
 import { importPart, parseImport, stanzaIdOf } from '@/lib/inbox/import';
-import { isInboxImportUrl, listImports, runInboxImports, setImportState, startFileImport, startWhatsappImport, stepOwnImport } from '@/lib/inbox/import-jobs';
+import { ensureAutoImport, isInboxImportUrl, listImports, runInboxImports, setImportState, startFileImport, startGmailImport, startWhatsappImport, stepOwnImport } from '@/lib/inbox/import-jobs';
 import { connectWhatsapp, ingestWhatsappEvents } from '@/lib/inbox/whatsapp';
 import { resetFakeProvider } from '@/lib/groups-provider-fake';
 import { makeUser } from './helpers';
@@ -238,5 +238,135 @@ describe('Todo el historial de WhatsApp desde el servidor', () => {
   it('sin WhatsApp conectado no empieza', async () => {
     const u = await makeUser('izn');
     await expect(startWhatsappImport(u.id)).rejects.toMatchObject({ code: 'not_connected' });
+  });
+});
+
+describe('Todo el correo de Gmail en segundo plano', () => {
+  /** Un Gmail de mentira: `pages` páginas de `size` hilos, cada hilo con 2 mensajes. */
+  function stubGmail(pages: number, size: number) {
+    const calls: string[] = [];
+    const state = { failThread: '', rateLimit: false };
+    const msg = (thread: string, n: number, labels: string[]) => ({
+      id: `${thread}-m${n}`,
+      threadId: thread,
+      labelIds: labels,
+      internalDate: String(Date.parse('2024-03-01T10:00:00Z') + n * 60_000),
+      payload: { mimeType: 'text/plain', headers: [{ name: 'From', value: `Remitente ${thread} <${thread}@z.com>` }, { name: 'To', value: 'me@x.com' }, { name: 'Subject', value: `Asunto ${thread}` }], body: { data: Buffer.from(`texto ${thread} ${n}`).toString('base64url') } },
+    });
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const path = url.replace('https://gmail.googleapis.com/gmail/v1/users/me', '');
+      calls.push(path);
+      const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { 'content-type': 'application/json' } });
+      if (url.startsWith('https://oauth2.googleapis.com/token')) return json({ access_token: 'fresh', expires_in: 3600 });
+      if (path === '/profile') return json({ historyId: '1', emailAddress: 'me@x.com', threadsTotal: pages * size });
+      if (path.startsWith('/threads?')) {
+        const page = Number(new URL(url).searchParams.get('pageToken') ?? 0);
+        expect(new URL(url).searchParams.get('q')).toBe('-in:draft -in:chats');
+        return json({ threads: Array.from({ length: size }, (_, i) => ({ id: `t${page}x${i}` })), ...(page + 1 < pages ? { nextPageToken: String(page + 1) } : {}) });
+      }
+      const m = /^\/threads\/([^?]+)/.exec(path);
+      if (m) {
+        if (state.rateLimit) return json({}, 429);
+        if (m[1] === state.failThread) return json({}, 500);
+        // El primero de cada página sigue en la bandeja y sin leer; el resto está archivado en Gmail.
+        const inbox = m[1].endsWith('x0');
+        return json({ id: m[1], messages: [msg(m[1], 1, inbox ? ['INBOX', 'UNREAD'] : []), msg(m[1], 2, inbox ? ['INBOX'] : ['SENT'])] });
+      }
+      return json({}, 404);
+    });
+    return { calls, state };
+  }
+
+  async function gmailAccount(label: string) {
+    vi.stubEnv('GOOGLE_CLIENT_ID', 'cid');
+    vi.stubEnv('GOOGLE_CLIENT_SECRET', 'secret');
+    const u = await makeUser(label);
+    const a = await createAccount(u.id, { kind: 'gmail', provider: 'google', address: 'me@x.com' });
+    await writeAccountConfig(a.id, { accessToken: 'old', refreshToken: 'r1', expiresAt: 0, scope: '' });
+    await getDb().prepare("UPDATE inbox_accounts SET status = 'connected' WHERE id = ?").run(a.id);
+    return { owner: u.id, account: a };
+  }
+
+  it('recorre todas las páginas de hilos, guarda cada hilo como historial y no duplica al repetir', async () => {
+    const { calls } = stubGmail(3, 4);
+    const { owner } = await gmailAccount('izg');
+    const job = await startGmailImport(owner);
+    expect(job).toMatchObject({ kind: 'gmail', status: 'running', sourceName: 'me@x.com' });
+    // Empezar otra vez devuelve la misma.
+    expect((await startGmailImport(owner)).id).toBe(job.id);
+    let last = await stepOwnImport(owner, job.id);
+    for (let i = 0; i < 20 && last.status !== 'done'; i++) last = await stepOwnImport(owner, job.id);
+    expect(last.status).toBe('done');
+    expect(last.progress).toMatchObject({ chats: 12, chatsDone: 12, messages: 24, pages: 3 });
+    expect(calls.filter((c) => c.startsWith('/threads?'))).toHaveLength(3);
+    // Lo que en Gmail está en la bandeja queda en la bandeja; lo demás, en Hecho. Lo leído no cuenta como no leído.
+    const inbox = await listThreads(owner, { view: 'email' });
+    expect(inbox).toHaveLength(3);
+    expect(inbox.every((t) => t.unread === 1)).toBe(true);
+    expect(await listThreads(owner, { view: 'done' })).toHaveLength(9);
+    const one = inbox[0];
+    expect((await listMessages(owner, one.id)).messages.map((m) => m.body)).toEqual([expect.stringContaining(' 1'), expect.stringContaining(' 2')]);
+    // Otra vez: mismos hilos, ningún mensaje repetido.
+    const again = await startGmailImport(owner);
+    expect(again.id).not.toBe(job.id);
+    let second = await stepOwnImport(owner, again.id);
+    for (let i = 0; i < 20 && second.status !== 'done'; i++) second = await stepOwnImport(owner, again.id);
+    expect(second.status).toBe('done');
+    const n = (await getDb().prepare('SELECT COUNT(*) AS n FROM inbox_messages WHERE owner_id = ?').get(owner)) as { n: number };
+    expect(Number(n.n)).toBe(24);
+    expect((await listThreads(owner, { view: 'email' })).length + (await listThreads(owner, { view: 'done' })).length).toBe(12);
+  });
+
+  it('un hilo que falla o un límite de Gmail no pierden el avance: sigue desde el mismo hilo; es de quien la empezó', async () => {
+    const { state } = stubGmail(2, 3);
+    const { owner } = await gmailAccount('izg2');
+    state.failThread = 't0x2';
+    const job = await startGmailImport(owner);
+    const stuck = await stepOwnImport(owner, job.id);
+    expect(stuck).toMatchObject({ status: 'running', error: 'gmail_unavailable' });
+    expect(stuck.progress).toMatchObject({ chatsDone: 2, failures: 1 });
+    // Gmail pide ir más despacio: no cuenta como falla.
+    state.failThread = '';
+    state.rateLimit = true;
+    const slow = await stepOwnImport(owner, job.id);
+    expect(slow).toMatchObject({ status: 'running', error: 'rate_limited' });
+    expect(slow.progress).toMatchObject({ chatsDone: 2, failures: 1 });
+    state.rateLimit = false;
+    // Pausar frena; seguir retoma en el hilo que faltaba.
+    await setImportState(owner, job.id, 'pause');
+    expect((await stepOwnImport(owner, job.id)).progress.chatsDone).toBe(2);
+    await setImportState(owner, job.id, 'resume');
+    let last = await stepOwnImport(owner, job.id);
+    for (let i = 0; i < 20 && last.status !== 'done'; i++) last = await stepOwnImport(owner, job.id);
+    expect(last).toMatchObject({ status: 'done' });
+    expect(last.progress).toMatchObject({ chats: 6, chatsDone: 6, messages: 12 });
+    const other = await makeUser('izg-other');
+    await expect(stepOwnImport(other.id, job.id)).rejects.toMatchObject({ code: 'not_found' });
+    await expect(startGmailImport(other.id)).rejects.toMatchObject({ code: 'not_connected' });
+    expect(await listThreads(other.id, { view: 'done' })).toHaveLength(0);
+  });
+
+  it('la importación automática al conectar se crea una sola vez por cuenta y no vuelve si se canceló', async () => {
+    stubGmail(1, 2);
+    const { owner, account } = await gmailAccount('izg3');
+    expect(await ensureAutoImport(account, 'gmail')).toBe(true);
+    // Dos pedidos a la vez (o reconectar): sigue habiendo una.
+    expect(await ensureAutoImport(account, 'gmail')).toBe(false);
+    const [job] = await listImports(owner);
+    expect(job).toMatchObject({ kind: 'gmail', status: 'running' });
+    // El cron la avanza sola.
+    for (let i = 0; i < 5; i++) await runInboxImports();
+    expect((await listImports(owner))[0]).toMatchObject({ status: 'done', progress: expect.objectContaining({ chatsDone: 2 }) });
+    // La de WhatsApp queda esperando a que WhatsApp termine de mandar el historial.
+    const u = await makeUser('izw-auto');
+    const { account: wa } = await connectWhatsapp(u.id);
+    expect(await ensureAutoImport(wa, 'whatsapp')).toBe(true);
+    expect(await ensureAutoImport(wa, 'whatsapp')).toBe(false);
+    const [auto] = await listImports(u.id);
+    expect(auto).toMatchObject({ kind: 'whatsapp', status: 'waiting', error: 'history_syncing' });
+    await setImportState(u.id, auto.id, 'cancel');
+    expect(await ensureAutoImport(wa, 'whatsapp')).toBe(false);
+    expect((await listImports(u.id)).map((j) => j.status)).toEqual(['cancelled']);
   });
 });

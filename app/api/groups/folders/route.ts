@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createFolder, deleteFolder, listFolders, updateFolder } from '@/lib/groups-lines';
 import { groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
+import { conditionalJson } from '@/lib/etag';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Carpetas compartidas del workspace, con los no leídos de quien mira (solo chats que ve). */
-export async function GET() {
+/** Carpetas compartidas del workspace, con los no leídos de quien mira (solo chats que ve). Con If-None-Match y sin cambios responde 304. */
+export async function GET(req: Request) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
-  return NextResponse.json(await listFolders(s.ws, await sessionViewer(s)));
+  return conditionalJson(req, await listFolders(s.ws, await sessionViewer(s)));
 }
 
 /** { name, parentId? } crea una carpeta (hasta 3 niveles de subcarpetas). */

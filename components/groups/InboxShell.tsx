@@ -8,6 +8,8 @@ import { useKeyShortcut } from '@/components/app/QuickModal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, ChatFilter, GroupsPerson, LabelDto, PropertyDef } from '@/lib/groups';
 import type { SavedListDto, SavedListFilters } from '@/lib/groups-org';
+import { cleanHubspotFilters, type HubspotPropFilter } from '@/lib/groups-hubspot-shared';
+import HubspotFilter from './HubspotFilter';
 import { LISTS_CHANGED, notifyListsChanged } from './GroupsListsBranch';
 import { filterOptions } from './PropertyInput';
 import { ScheduledAllButton } from './Scheduled';
@@ -16,14 +18,20 @@ import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
 import { ArchiveIcon, ArrowLeft, Ban, CheckIcon, Chevron, FilterIcon, Mic, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
-import { longPress } from './wa/longPress';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import type { LineFolderDto } from '@/lib/groups-lines';
-import { DRAG_TYPE, DROP_CHATS, FOLDERS_CHANGED, FolderSelect, LineBadge, LineSelector, MoveToFolderModal, notifyFoldersChanged, type DropChatsDetail, type LineOption } from './LineFolders';
+import { FOLDERS_CHANGED, FolderSelect, LineBadge, LineSelector, MoveToFolderModal, notifyFoldersChanged, type LineOption } from './LineFolders';
+import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
+import { dragIds } from '@/lib/chat-gestures';
+import { flattenTree } from '@/lib/inbox/folder-tree';
 import { useShellBranch } from '@/components/app/useShellBranch';
 import PanelSplitters from './PanelSplitters';
+import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
+import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
+import { useNearEnd } from '@/components/app/useNearEnd';
+import DebouncedInput from '@/components/app/DebouncedInput';
 
 const FILTERS: ChatFilter[] = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'];
 /** Pestañas de la lista, como WhatsApp (Todos, No leídos, Grupos) y después las del equipo. */
@@ -53,6 +61,29 @@ function readDraft(chatId: string): string {
   }
 }
 const STORE = 'zs-groups-inbox';
+/** Chats por página de la lista (se piden más al llegar al final). */
+const PAGE = 60;
+/** Tope de filas que se refrescan de una vez (lo que la API devuelve como máximo). */
+const MAX_HEAD = 1000;
+
+interface ListData {
+  rows: ChatDto[];
+  next: string | null;
+  /** Fijados que van adelante en la primera página (no cuentan para el tamaño de página). */
+  pinned?: number;
+  imports?: ImportStatus[];
+  unreadChats?: number;
+  archived?: { total: number; unread: number };
+  dropped?: DroppedNumber[];
+  hubspot?: boolean;
+}
+/** Una lista ya vista (por carpeta, línea, filtros y búsqueda): sus filas, el cursor para seguir y dónde quedó el scroll. */
+interface CachedList {
+  rows: ChatDto[];
+  next: string | null;
+  pinned: number;
+  top: number;
+}
 
 interface InboxCtx {
   rows: ChatDto[];
@@ -80,16 +111,18 @@ interface Controls {
   propValue: string;
   /** Vinculados (o no) a HubSpot. */
   hubspot: '' | 'linked' | 'unlinked';
+  /** Condiciones sobre propiedades de la empresa de HubSpot. */
+  hsProps: HubspotPropFilter[];
   q: string;
 }
 
-const EMPTY: Controls = { filter: 'all', label: '', kind: '', assignee: '', team: '', propKey: '', propValue: '', hubspot: '', q: '' };
+const EMPTY: Controls = { filter: 'all', label: '', kind: '', assignee: '', team: '', propKey: '', propValue: '', hubspot: '', hsProps: [], q: '' };
 
 function readSaved(): Partial<Controls> | null {
   try {
     const raw = window.sessionStorage.getItem(STORE);
     if (!raw) return null;
-    const v = JSON.parse(raw) as { filter?: string; label?: string; kind?: string; assignee?: string; team?: string; hubspot?: string };
+    const v = JSON.parse(raw) as { filter?: string; label?: string; kind?: string; assignee?: string; team?: string; hubspot?: string; hsProps?: unknown };
     return {
       filter: FILTERS.includes(v.filter as ChatFilter) ? (v.filter as ChatFilter) : 'all',
       label: typeof v.label === 'string' ? v.label : '',
@@ -97,6 +130,7 @@ function readSaved(): Partial<Controls> | null {
       assignee: typeof v.assignee === 'string' ? v.assignee : '',
       team: typeof v.team === 'string' ? v.team : '',
       hubspot: v.hubspot === 'linked' || v.hubspot === 'unlinked' ? v.hubspot : '',
+      hsProps: cleanHubspotFilters(v.hsProps),
     };
   } catch {
     return null;
@@ -113,6 +147,7 @@ export function controlsToFilters(c: Controls): SavedListFilters {
   if (c.kind === 'dm' || c.kind === 'group') f.kind = c.kind;
   if (c.propKey) f.props = [c.propValue ? { key: c.propKey, op: 'is', value: c.propValue } : { key: c.propKey, op: 'set' }];
   if (c.hubspot) f.hubspot = c.hubspot;
+  if (c.hsProps.length) f.hsProps = c.hsProps;
   return f;
 }
 
@@ -127,6 +162,7 @@ export function filtersToControls(f: SavedListFilters): Controls {
     propKey: p?.key ?? '',
     propValue: p?.op === 'is' ? (p.value ?? '') : '',
     hubspot: f.hubspot ?? '',
+    hsProps: f.hsProps ?? [],
     q: f.q ?? '',
   };
 }
@@ -192,12 +228,9 @@ export default function InboxShell({
   const [archivedInfo, setArchivedInfo] = useState({ total: 0, unread: 0 });
   const [dropped, setDropped] = useState<DroppedNumber[]>([]);
   const [hiding, setHiding] = useState<ChatDto | null>(null);
-  const [pageSize, setPageSize] = useState(100);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const [unreadTotal, setUnreadTotal] = useState<number | null>(null);
-  const lastQuery = useRef('');
-  const rowsRef = useRef<ChatDto[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null);
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p.name || p.email])), [people]);
@@ -214,13 +247,21 @@ export default function InboxShell({
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const lineNames = useMemo(() => new Map(numbers.map((n) => [n.id, n.name])), [numbers]);
   const [controls, setControls] = useState<Controls>(EMPTY);
-  const { filter, label, kind, assignee, team, propKey, propValue, hubspot, q } = controls;
+  const { filter, label, kind, assignee, team, propKey, propValue, hubspot, hsProps, q } = controls;
   // HubSpot conectado en el workspace: la bandeja ofrece el filtro de vinculados.
   const [hubspotOn, setHubspotOn] = useState(false);
   const set = (patch: Partial<Controls>) => setControls((c) => ({ ...c, ...patch }));
   const [debounced, setDebounced] = useState('');
   const [rows, setRows] = useState<ChatDto[]>([]);
-  const [total, setTotal] = useState(0);
+  // Las filas a la vista, para los gestos (deslizar, arrastrar) que corren fuera del render.
+  const rowsRef = useRef<ChatDto[]>([]);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+  const [next, setNext] = useState<string | null>(null);
+  // De qué lista son las filas en pantalla: al cambiar de carpeta o filtro quedan las anteriores (atenuadas) hasta que llegan las nuevas.
+  const [shownKey, setShownKey] = useState('');
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [lists, setLists] = useState<SavedListDto[]>(initialLists);
@@ -228,7 +269,12 @@ export default function InboxShell({
   const [removing, setRemoving] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
-  const seq = useRef(0);
+  const rowsBox = useRef<HTMLUListElement>(null);
+  const moreRef = useRef<HTMLLIElement>(null);
+  const listCache = useRef(new ListCache<CachedList>(30)).current;
+  const live = useRef({ want: '', shown: '', rows: [] as ChatDto[], next: null as string | null, pinned: 0, kept: 0, etag: '', etagUrl: '', more: false, filter: 'all' as ChatFilter, current: null as string | null });
+  const listAbort = useRef<AbortController | null>(null);
+  const moreAbort = useRef<AbortController | null>(null);
   const activeList = lists.find((l) => l.id === listId) ?? null;
 
   useEffect(() => {
@@ -237,7 +283,7 @@ export default function InboxShell({
     const saved = readSaved();
     if (saved) {
       setControls((c) => ({ ...c, ...saved }));
-      if (saved.assignee || saved.team || saved.hubspot) setMoreOpen(true);
+      if (saved.assignee || saved.team || saved.hubspot || saved.hsProps?.length) setMoreOpen(true);
     }
     // Solo al entrar: una lista abierta manda sobre lo guardado en la pestaña.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -248,17 +294,17 @@ export default function InboxShell({
     const c = filtersToControls(activeList.filters);
     setControls(c);
     setDebounced(c.q.trim());
-    if (c.assignee || c.propKey || c.hubspot) setMoreOpen(true);
+    if (c.assignee || c.propKey || c.hubspot || c.hsProps.length) setMoreOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeList?.id, activeList?.updatedAt]);
   useEffect(() => {
     if (listId) return;
     try {
-      window.sessionStorage.setItem(STORE, JSON.stringify({ filter, label, kind, assignee, team, hubspot }));
+      window.sessionStorage.setItem(STORE, JSON.stringify({ filter, label, kind, assignee, team, hubspot, hsProps }));
     } catch {
       // Sin storage: los filtros duran lo que dura la página.
     }
-  }, [filter, label, kind, assignee, team, hubspot, listId]);
+  }, [filter, label, kind, assignee, team, hubspot, hsProps, listId]);
   useEffect(() => {
     const id = setTimeout(() => setDebounced(q.trim()), 250);
     return () => clearTimeout(id);
@@ -274,8 +320,9 @@ export default function InboxShell({
     return () => window.removeEventListener(LISTS_CHANGED, reloadLists);
   }, [reloadLists, pathname]);
 
+  // La lista: una entrada de caché por carpeta, línea, filtros y búsqueda; páginas con cursor; pedidos que se cortan.
   const query = useMemo(() => {
-    const p = new URLSearchParams({ filter, limit: String(pageSize) });
+    const p = new URLSearchParams({ filter });
     if (archivedView) p.set('archived', '1');
     if (line !== 'all') p.set('number', line);
     if (folderSel) p.set('folder', folderSel);
@@ -286,53 +333,138 @@ export default function InboxShell({
     if (team) p.set('team', team);
     if (propKey) p.set('props', JSON.stringify([propValue ? { key: propKey, op: 'is', value: propValue } : { key: propKey, op: 'set' }]));
     if (hubspot) p.set('hubspot', hubspot);
+    // Solo las condiciones completas: una a medio armar no vuelve a pedir la lista.
+    const hs = cleanHubspotFilters(hsProps);
+    if (hs.length) p.set('hs', JSON.stringify(hs));
     return p.toString();
-  }, [filter, debounced, label, kind, assignee, team, propKey, propValue, hubspot, pageSize, archivedView, line, folderSel]);
+  }, [filter, debounced, label, kind, assignee, team, propKey, propValue, hubspot, hsProps, archivedView, line, folderSel]);
+  live.current.filter = filter;
+  live.current.current = current;
+  const switching = loaded && shownKey !== query;
 
+  const showRows = useCallback((key: string, list: ChatDto[], cursor: string | null, pinned?: number) => {
+    const L = live.current;
+    L.shown = key;
+    L.rows = list;
+    L.next = cursor;
+    if (pinned !== undefined) L.pinned = pinned;
+    setRows(list);
+    setNext(cursor);
+    setShownKey(key);
+  }, []);
+
+  /**
+   * Trae el principio de la lista pedida. Si es la que está en pantalla, refresca lo ya cargado (con ETag: sin
+   * cambios no toca nada); si es otra, la pone en pantalla cuando llega. Un pedido anterior en curso se corta,
+   * así una respuesta vieja nunca pisa a una nueva.
+   */
   const load = useCallback(
     async (silent: boolean) => {
-      const mine = ++seq.current;
+      const L = live.current;
+      const key = L.want;
+      // Lo que cuenta para el tamaño de página: sin los fijados de adelante ni el chat abierto que se mantiene en "no leídos".
+      const size = L.shown === key ? Math.min(Math.max(L.rows.length - L.pinned - L.kept, PAGE), MAX_HEAD) : PAGE;
+      const url = `/api/groups/chats?${key}&cursor=&limit=${size}`;
+      listAbort.current?.abort();
+      const ctrl = new AbortController();
+      listAbort.current = ctrl;
       if (!silent) setError(false);
-      try {
-        const res = await fetch(`/api/groups/chats?${query}`);
-        if (!res.ok) throw new Error('failed');
-        const data = (await res.json()) as {
-          rows: ChatDto[];
-          total: number;
-          imports?: ImportStatus[];
-          unreadChats?: number;
-          archived?: { total: number; unread: number };
-          dropped?: DroppedNumber[];
-          hubspot?: boolean;
-        };
-        if (mine !== seq.current) return;
-        if (filter === 'unread' && lastQuery.current === query && current && !data.rows.some((r) => r.id === current)) {
-          const prevIdx = rowsRef.current.findIndex((r) => r.id === current);
-          if (prevIdx >= 0) data.rows.splice(Math.min(prevIdx, data.rows.length), 0, { ...rowsRef.current[prevIdx], unread: 0, markedUnread: false });
-        }
-        lastQuery.current = query;
-        rowsRef.current = data.rows;
-        setRows(data.rows);
-        setTotal(data.total);
-        setImports(data.imports ?? []);
-        if (data.archived) setArchivedInfo(data.archived);
-        setDropped(data.dropped ?? []);
-        setHubspotOn(data.hubspot === true);
-        if (typeof data.unreadChats === 'number') setUnreadTotal(data.unreadChats);
-        setError(false);
-      } catch {
-        if (mine === seq.current && !silent) setError(true);
-      } finally {
-        if (mine === seq.current) setLoaded(true);
+      const r = await fetchIfChanged<ListData>(url, L.etagUrl === url ? L.etag : null, ctrl.signal);
+      if (r.state === 'aborted' || live.current.want !== key) return;
+      setLoaded(true);
+      if (r.state === 'error') {
+        // No llegó la lista pedida: no quedan a la vista las filas de la anterior (se ve el error con "Reintentar").
+        if (L.shown !== key) {
+          showRows(key, [], null, 0);
+          setError(true);
+        } else if (!silent) setError(true);
+        return;
       }
+      setError(false);
+      if (r.state === 'same') return;
+      L.etag = r.etag;
+      L.etagUrl = url;
+      const data = r.data;
+      const prev = L.shown === key ? L.rows : [];
+      // En "no leídos", el chat abierto sigue en la lista aunque ya se haya leído.
+      let kept = 0;
+      if (L.filter === 'unread' && L.shown === key && L.current && !data.rows.some((x) => x.id === L.current)) {
+        const prevIdx = prev.findIndex((x) => x.id === L.current);
+        if (prevIdx >= 0) {
+          data.rows.splice(Math.min(prevIdx, data.rows.length), 0, { ...prev[prevIdx], unread: 0, markedUnread: false });
+          kept = 1;
+        }
+      }
+      L.kept = kept;
+      // Si hay más filas cargadas que las que cubre esta respuesta (se bajó más mientras llegaba, o pasan el tope),
+      // las del fondo quedan como estaban y el cursor sigue siendo el de ellas.
+      const ids = new Set(data.rows.map((x) => x.id));
+      const covered = size + (data.pinned ?? 0) + kept;
+      const tail = data.next !== null && prev.length > covered ? prev.slice(covered).filter((x) => !ids.has(x.id)) : [];
+      showRows(key, reuseRows(prev, tail.length ? [...data.rows, ...tail] : data.rows), tail.length ? L.next : data.next, data.pinned ?? 0);
+      setImports((cur) => (JSON.stringify(cur) === JSON.stringify(data.imports ?? []) ? cur : (data.imports ?? [])));
+      if (data.archived) setArchivedInfo((cur) => (cur.total === data.archived!.total && cur.unread === data.archived!.unread ? cur : data.archived!));
+      setDropped((cur) => (JSON.stringify(cur) === JSON.stringify(data.dropped ?? []) ? cur : (data.dropped ?? [])));
+      setHubspotOn(data.hubspot === true);
+      if (typeof data.unreadChats === 'number') setUnreadTotal(data.unreadChats);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [query, current],
+    [showRows],
   );
 
+  /** La página que sigue (al llegar al final de la lista): así se recorre toda la historia. */
+  const loadMore = useCallback(async () => {
+    const L = live.current;
+    if (!L.next || L.more || L.shown !== L.want) return;
+    L.more = true;
+    setLoadingMore(true);
+    const key = L.shown;
+    const ctrl = new AbortController();
+    moreAbort.current = ctrl;
+    const r = await fetchIfChanged<ListData>(`/api/groups/chats?${key}&cursor=${encodeURIComponent(L.next)}&limit=${PAGE}&meta=0`, null, ctrl.signal);
+    L.more = false;
+    setLoadingMore(false);
+    if (r.state !== 'fresh' || live.current.shown !== key || live.current.want !== key) return;
+    const have = new Set(L.rows.map((x) => x.id));
+    showRows(key, [...L.rows, ...r.data.rows.filter((x) => !have.has(x.id))], r.data.next);
+  }, [showRows]);
+
+  // Las filas en pantalla quedan en la caché de su lista.
   useEffect(() => {
-    void load(false);
-  }, [load]);
+    const L = live.current;
+    if (!L.shown) return;
+    L.rows = rows;
+    listCache.set(L.shown, { rows, next: L.next, pinned: L.pinned, top: listCache.get(L.shown)?.top ?? 0 });
+  }, [rows, next, shownKey, listCache]);
+
+  // Otra carpeta, línea, filtro o búsqueda: si ya se vio, aparece al instante (con su scroll) y se revalida; si
+  // no, quedan las filas anteriores atenuadas hasta que llega la nueva. Lo pedido para la lista anterior se corta.
+  useEffect(() => {
+    const L = live.current;
+    const left = L.shown ? listCache.get(L.shown) : undefined;
+    if (left) left.top = rowsBox.current?.scrollTop ?? 0;
+    L.want = query;
+    moreAbort.current?.abort();
+    const hit = listCache.get(query);
+    if (hit && L.shown !== query) {
+      showRows(query, hit.rows, hit.next, hit.pinned);
+      requestAnimationFrame(() => {
+        if (rowsBox.current && live.current.shown === query) rowsBox.current.scrollTop = hit.top;
+      });
+    }
+    void load(false).then(() => {
+      if (!hit && live.current.shown === query && rowsBox.current) rowsBox.current.scrollTop = 0;
+    });
+  }, [query, listCache, load, showRows]);
+  // Otro chat abierto: la lista se pone al día (el que se abrió queda leído).
+  const lastCurrent = useRef(current);
+  useEffect(() => {
+    if (lastCurrent.current === current) return;
+    lastCurrent.current = current;
+    void load(true);
+  }, [current, load]);
+  // Al llegar al final de la lista se pide la página que sigue.
+  const nearEnd = useCallback(() => void loadMore(), [loadMore]);
+  useNearEnd(moreRef, !!next && !switching, nearEnd, rows.length);
   useEffect(() => {
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') void load(true);
@@ -354,54 +486,75 @@ export default function InboxShell({
     };
   }, [load]);
 
+  // Carpeta, lista guardada y "todos los chats" viven en la URL (?folder=, ?list=). Cambiarlas no pasa por el
+  // servidor: la URL cambia con pushState (atrás y adelante funcionan) y solo se vuelve a pedir la lista. El chat
+  // abierto y lo escrito en el composer quedan como están. Un link a la bandeja con ?list= o ?folder= (el sidebar)
+  // se aplica sobre el chat abierto.
+  useShallowLinks((url) => {
+    const here = window.location.pathname;
+    if (url.pathname === here) return `${here}${url.search}`;
+    const root = /^(.*\/app\/lines\/inbox)(?:\/[^/]+)?$/.exec(here)?.[1];
+    if (root && url.pathname === root && (url.searchParams.has('list') || url.searchParams.has('folder'))) return `${here}${url.search}`;
+    return null;
+  });
+
+  const foldersEtag = useRef('');
   const reloadFolders = useCallback(async () => {
-    const r = await api<{ folders: LineFolderDto[]; unfiled: { unread: number; chats: number } }>('/api/groups/folders');
-    if (r.data) setFolderData(r.data);
+    const r = await fetchIfChanged<{ folders: LineFolderDto[]; unfiled: { unread: number; chats: number } }>('/api/groups/folders', foldersEtag.current);
+    if (r.state !== 'fresh') return;
+    foldersEtag.current = r.etag;
+    setFolderData(r.data);
   }, []);
   useEffect(() => {
     void reloadFolders();
+    // Los nombres de las carpetas cambian poco: cada 30 s (y al momento con FOLDERS_CHANGED), con ETag.
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') void reloadFolders();
-    }, 10000);
+    }, 30000);
     return () => clearInterval(id);
   }, [reloadFolders]);
 
   function pickLine(v: string) {
     setLine(v);
-    setPageSize(100);
     void api('/api/groups/prefs', { method: 'PUT', body: { line: v } });
   }
 
+  /** Mueve chats a una carpeta (o los saca, con null). El aviso dice a dónde fueron y deja deshacer: cada chat vuelve a la carpeta donde estaba. */
   async function moveToFolder(ids: string[], folderId: string | null) {
+    const before = new Map<string | null, string[]>();
+    for (const id of ids) {
+      const row = rowsRef.current.find((r) => r.id === id);
+      if (!row || row.folderId === folderId) continue;
+      before.set(row.folderId, [...(before.get(row.folderId) ?? []), id]);
+    }
     const res = await api<{ updated: number; failed: number }>('/api/groups/chats/bulk', { body: { ids, action: 'folder', folderId } });
     if (!res.data) return showToast(errText(res.error), true);
     const name = folderId ? (folderData.folders.find((f) => f.id === folderId)?.name ?? '') : '';
-    showToast(folderId ? t('lines.movedTo', { n: res.data.updated, name }) : t('lines.removedFromFolder', { n: res.data.updated }), res.data.failed > 0);
+    const after = () => {
+      void load(true);
+      notifyFoldersChanged();
+    };
+    const undo = async () => {
+      for (const [prev, list] of before) await api('/api/groups/chats/bulk', { body: { ids: list, action: 'folder', folderId: prev } });
+      after();
+    };
+    showToast(
+      folderId ? t('lines.movedTo', { n: res.data.updated, name }) : t('lines.removedFromFolder', { n: res.data.updated }),
+      res.data.failed > 0,
+      before.size > 0 && res.data.updated > 0 ? { label: t('swipe.undo'), onClick: () => void undo() } : undefined,
+    );
     setSelected(new Set());
-    void load(true);
-    notifyFoldersChanged();
+    after();
   }
-  const moveRef = useRef(moveToFolder);
-  useEffect(() => {
-    moveRef.current = moveToFolder;
-  });
   useEffect(() => {
     const changed = () => {
       void reloadFolders();
       void load(true);
     };
-    const dropped = (e: Event) => {
-      const d = (e as CustomEvent<DropChatsDetail>).detail;
-      if (d?.ids?.length) void moveRef.current(d.ids, d.folderId);
-    };
     window.addEventListener(FOLDERS_CHANGED, changed);
-    window.addEventListener(DROP_CHATS, dropped);
-    return () => {
-      window.removeEventListener(FOLDERS_CHANGED, changed);
-      window.removeEventListener(DROP_CHATS, dropped);
-    };
+    return () => window.removeEventListener(FOLDERS_CHANGED, changed);
   }, [reloadFolders, load]);
-  const pickFolder = (id: string) => router.push(`/app/lines/inbox${current ? `/${current}` : ''}${inboxQuery(listId, id)}`);
+  const pickFolder = (id: string) => pushUrl(`${window.location.pathname}${inboxQuery(listId, id)}`);
   const folderName = folderSel === 'none' ? t('lines.unfiled') : (folderData.folders.find((f) => f.id === folderSel)?.name ?? '');
 
   const refresh = useCallback(() => void load(true), [load]);
@@ -490,15 +643,16 @@ export default function InboxShell({
     return !c.match || c.name.toLowerCase().includes(q) || (digits.length >= 3 && c.phone.includes(digits));
   }
 
+  /** Archivar o desarchivar, con deshacer en el aviso. */
+  function toggleArchived(c: ChatDto) {
+    void rowAction(c, { archived: !c.archived }).then(() =>
+      showToast(c.archived ? t('wa.unarchived') : t('wa.archived'), false, { label: t('swipe.undo'), onClick: () => void rowAction(c, { archived: c.archived }) }),
+    );
+  }
+
   function rowMenu(c: ChatDto): MenuItem[] {
     return [
-      {
-        key: 'archive',
-        label: c.archived ? t('wa.unarchive') : t('wa.archive'),
-        onSelect: () => {
-          void rowAction(c, { archived: !c.archived }).then(() => showToast(c.archived ? t('wa.unarchived') : t('wa.archived')));
-        },
-      },
+      { key: 'archive', label: c.archived ? t('wa.unarchive') : t('wa.archive'), onSelect: () => toggleArchived(c) },
       { key: 'close', label: c.status === 'open' ? t('wa.closeChat') : t('thread.reopen'), onSelect: () => void rowAction(c, { status: c.status === 'open' ? 'closed' : 'open' }) },
       { key: 'mute', label: c.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void rowAction(c, { muted: !c.muted }) },
       { key: 'pin', label: c.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
@@ -509,6 +663,55 @@ export default function InboxShell({
     ];
   }
 
+  /**
+   * Deslizar una fila, como WhatsApp: a la derecha, leído o no leído (la
+   * principal) y fijar; a la izquierda, archivar (la principal) y más (el menú
+   * de la fila). Con chats seleccionados no se desliza.
+   */
+  function swipeActions(id: string): SwipeActions | null {
+    const c = rowsRef.current.find((r) => r.id === id);
+    if (!c || selectMode || visibleSelected.length > 0) return null;
+    return {
+      right: [
+        { key: 'unread', label: c.unread > 0 ? t('swipe.read') : t('swipe.unread'), icon: c.unread > 0 ? 'read' : 'unread', onSelect: () => void rowAction(c, { read: c.unread > 0 }) },
+        { key: 'pin', label: c.pinned ? t('swipe.unpin') : t('swipe.pin'), icon: c.pinned ? 'unpin' : 'pin', onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
+      ],
+      left: [
+        { key: 'archive', label: c.archived ? t('swipe.unarchive') : t('swipe.archive'), icon: c.archived ? 'unarchive' : 'archive', leaves: true, onSelect: () => toggleArchived(c) },
+        { key: 'more', label: t('swipe.more'), icon: 'more', onSelect: () => openRowMenu(id, 220) },
+      ],
+    };
+  }
+  // Desde el deslizado, el menú espera a que la fila vuelva a su lugar.
+  const openRowMenu = (id: string, wait = 0) =>
+    window.setTimeout(() => document.querySelector<HTMLButtonElement>(`[data-chat-row="${CSS.escape(id)}"] .wa-row-chevron`)?.click(), wait);
+  const gestures = useChatGestures({
+    scope: 'lines',
+    actionsFor: swipeActions,
+    // Levantar un chat seleccionado lleva la selección entera.
+    idsFor: (id) => dragIds(id, selected, rows.map((r) => r.id)),
+    chipFor: (id, ids) => {
+      const c = rowsRef.current.find((r) => r.id === id);
+      if (ids.length > 1 || !c) return { label: t('swipe.dragMany', { n: ids.length }) };
+      return { label: c.name, avatar: <Avatar name={c.name} kind={c.kind} src={c.pictureUrl} seed={c.id} size={24} /> };
+    },
+    canDrop: (ids, target) => {
+      const to = target === 'none' ? null : target;
+      return ids.some((id) => (rowsRef.current.find((r) => r.id === id)?.folderId ?? null) !== to);
+    },
+    onDrop: (ids, target) => void moveToFolder(ids, target === 'none' ? null : target),
+    onHoldTap: (id) => {
+      if (!selectMode && visibleSelected.length === 0) openRowMenu(id);
+    },
+    tray: {
+      title: t('swipe.dropTitle'),
+      empty: t('swipe.dropEmpty'),
+      items: folderData.folders.length
+        ? [...flattenTree(folderData.folders).map(({ folder: f, depth }) => ({ id: f.id, name: f.name, depth })), { id: 'none', name: t('lines.unfiled'), depth: 0 }]
+        : [],
+    },
+  });
+
   /** Una fila de la lista (también en los resultados de búsqueda). */
   function renderRow(c: ChatDto, opts: { snippet?: boolean } = {}) {
     const draft = c.id !== current ? readDraft(c.id) : '';
@@ -517,19 +720,14 @@ export default function InboxShell({
       <li
         key={`${opts.snippet ? 'm' : 'c'}-${c.id}`}
         className={`gr-row-item${c.muted ? ' is-muted' : ''}`}
-        draggable={!showCheck}
-        onDragStart={(e) => {
-          const ids = selected.has(c.id) ? [...selected] : [c.id];
-          e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(ids));
-          e.dataTransfer.effectAllowed = 'move';
-        }}
+        {...gestures.rowProps(c.id)}
         onContextMenu={(e) => {
           if (showCheck) return;
           e.preventDefault();
           e.currentTarget.querySelector<HTMLButtonElement>('.wa-row-chevron')?.click();
         }}
-        {...longPress((el) => el.querySelector<HTMLButtonElement>('.wa-row-chevron')?.click())}
       >
+        {gestures.actions(c.id)}
         {showCheck && (
           <input type="checkbox" className="gr-row-check" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} aria-label={t('bulkInbox.select', { name: c.name })} />
         )}
@@ -546,6 +744,7 @@ export default function InboxShell({
           }}
           className={`gr-row${c.id === current ? ' is-active' : ''}${c.unread > 0 ? ' is-unread' : ''}`}
           aria-current={c.id === current ? 'page' : undefined}
+          draggable={false}
         >
           <Avatar name={c.name} kind={c.kind} src={c.pictureUrl} seed={c.id} />
           <span className="gr-row-main">
@@ -623,7 +822,7 @@ export default function InboxShell({
           </span>
         </Link>
         {!showCheck && (
-          <span className="gr-row-menu">
+          <span className="gr-row-menu" data-no-gesture>
             <MessageMenu label={t('wa.chatOptions', { name: c.name })} items={rowMenu(c)} trigger={<Chevron size={20} />} className="wa-row-chevron" align="right" />
           </span>
         )}
@@ -648,7 +847,7 @@ export default function InboxShell({
   const propOpts = propDef ? filterOptions(propDef) : [];
   const listSuffix = inboxQuery(listId, folderSel);
   // Filtros del panel (fuera de las pestañas) que están puestos: el botón lo marca.
-  const extraFilters = [kind, label, assignee, team, propKey, hubspot].filter(Boolean).length;
+  const extraFilters = [kind, label, assignee, team, propKey, hubspot].filter(Boolean).length + hsProps.length;
 
   async function saveChanges() {
     if (!activeList) return;
@@ -667,7 +866,7 @@ export default function InboxShell({
     if (!r.data) return showToast(errText(r.error), true);
     setLists((ls) => ls.filter((l) => l.id !== activeList.id));
     notifyListsChanged();
-    router.push(current ? `/app/lines/inbox/${current}` : '/app/lines/inbox');
+    pushUrl(window.location.pathname);
   }
 
   return (
@@ -696,6 +895,7 @@ export default function InboxShell({
               <nav className="gr-list-views" aria-label={t('lists.sidebar')}>
                 <Link
                   href={`/app/lines/inbox${current ? `/${current}` : ''}`}
+                  prefetch={false}
                   className={`gr-view${!listId ? ' is-on' : ''}`}
                   aria-current={!listId ? 'page' : undefined}
                   onClick={() => setControls(EMPTY)}
@@ -706,6 +906,7 @@ export default function InboxShell({
                   <Link
                     key={l.id}
                     href={`/app/lines/inbox${current ? `/${current}` : ''}?list=${l.id}`}
+                    prefetch={false}
                     className={`gr-view${l.id === listId ? ' is-on' : ''}`}
                     aria-current={l.id === listId ? 'page' : undefined}
                   >
@@ -749,12 +950,17 @@ export default function InboxShell({
             <div className="wa-search-row">
             <span className="wa-search">
               <Search size={18} />
-            <input
+            <DebouncedInput
               ref={searchRef}
               className="input gr-search"
               type="search"
               value={q}
-              onChange={(e) => set({ q: e.target.value })}
+              delay={250}
+              clearOnEscape={false}
+              onCommit={(v) => {
+                set({ q: v });
+                setDebounced(v.trim());
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') (e.target as HTMLInputElement).blur();
               }}
@@ -883,8 +1089,9 @@ export default function InboxShell({
                     />
                   ))}
               </div>
+            {(hubspotOn || hsProps.length > 0) && <HubspotFilter value={hsProps} onChange={(next) => set({ hsProps: next })} />}
             <div className="gr-list-save">
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ kind: '', label: '', assignee: '', team: '', propKey: '', propValue: '', hubspot: '' })} disabled={extraFilters === 0}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ kind: '', label: '', assignee: '', team: '', propKey: '', propValue: '', hubspot: '', hsProps: [] })} disabled={extraFilters === 0}>
                 {t('wa.clearFilters')}
               </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSaving('new')}>
@@ -968,9 +1175,11 @@ export default function InboxShell({
                     : t('wa.importDone', { chats: im.chatsTotal, messages: im.messages })
                   : im.status === 'error'
                     ? t('wa.importFailed')
-                    : im.phase === 'messages' || im.phase === 'pictures'
-                      ? t('wa.importMessages', { done: im.chatsDone, total: im.chatsTotal })
-                      : t('wa.importChats', { n: im.chatsTotal })}
+                    : im.phase === 'older'
+                      ? t('wa.importOlder', { messages: im.messages })
+                      : im.phase === 'messages' || im.phase === 'pictures'
+                        ? t('wa.importMessages', { done: im.chatsDone, total: im.chatsTotal })
+                        : t('wa.importChats', { n: im.chatsTotal })}
               </span>
               {(im.status === 'queued' || im.status === 'running') && (
                 <span className="wa-import-bar" role="progressbar" aria-label={t('wa.importProgress')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={im.chatsTotal ? Math.round((im.chatsDone / im.chatsTotal) * 100) : 0}>
@@ -999,14 +1208,7 @@ export default function InboxShell({
               <p className="gr-list-empty">{debounced ? t('inbox.noResults') : archivedView ? t('wa.archivedEmpty') : activeList ? t('lists.empty') : t(`inbox.empty.${filter}`)}</p>
             </>
           ) : (
-            <ul
-              className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}`}
-              onScroll={(e) => {
-                const el = e.currentTarget;
-                // Más chats al llegar al final (de a 100, hasta 500 en pantalla).
-                if (el.scrollHeight - el.scrollTop - el.clientHeight < 400 && total > rows.length && pageSize < 500) setPageSize((n) => Math.min(500, n + 100));
-              }}
-            >
+            <ul ref={rowsBox} className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}${switching ? ' is-stale' : ''}`} aria-busy={switching || undefined} data-list={shownKey} data-chat-list>
               {archivedRow && <li>{archivedRow}</li>}
               {debounced ? (
                 <>
@@ -1018,9 +1220,13 @@ export default function InboxShell({
               ) : (
                 rows.map((c) => renderRow(c))
               )}
+              {next && !switching && (
+                <li ref={moreRef} className="gr-rows-more" role="presentation" aria-busy={loadingMore || undefined} data-testid="lines-list-more">
+                  <span className="ui-skeleton ui-skeleton-row" />
+                </li>
+              )}
             </ul>
           )}
-          {loaded && total > rows.length && <p className="ui-help gr-list-more">{t('inbox.showing', { shown: rows.length, total })}</p>}
         </section>
         {children}
         <PanelSplitters me={me} />
@@ -1034,7 +1240,7 @@ export default function InboxShell({
           setSaving(null);
           void reloadLists();
           notifyListsChanged();
-          router.push(`/app/lines/inbox${current ? `/${current}` : ''}?list=${l.id}`);
+          pushUrl(`${window.location.pathname}?list=${l.id}`);
         }}
       />
       <ConfirmDialog
@@ -1075,6 +1281,7 @@ export default function InboxShell({
           void moveToFolder(ids, folderId);
         }}
       />
+      {gestures.layer}
       {toast}
     </Ctx.Provider>
   );

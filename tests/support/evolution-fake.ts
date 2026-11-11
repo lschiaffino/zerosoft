@@ -230,7 +230,9 @@ export function evolutionImportResponse(
     const offset = Number(body?.offset ?? 50);
     const chat = data.chats.find((c) => c.remoteJid === remoteJid);
     const all = (chat?.messages ?? []).slice().sort((a, b) => Number(b.messageTimestamp) - Number(a.messageTimestamp));
-    return { status: 200, json: { messages: { total: all.length, pages: Math.ceil(all.length / offset), currentPage: 1, records: all.slice(0, offset) } } };
+    // Como Evolution: la página 1 son los más nuevos.
+    const page = Math.max(1, Number(body?.page ?? 1));
+    return { status: 200, json: { messages: { total: all.length, pages: Math.ceil(all.length / offset), currentPage: page, records: all.slice((page - 1) * offset, page * offset) } } };
   }
   if (method === 'POST' && path.startsWith('/chat/findContacts/')) {
     const size = Number(body?.offset ?? 0) || data.contacts.length;

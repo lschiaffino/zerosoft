@@ -330,8 +330,9 @@ test('teléfono: deslizar un mensaje responde y deslizar una fila la archiva', a
   await swipe('.ib-wa-thread .gr-msg-in', 100);
   await expect(page.locator('.wa-replying .gr-quote')).toContainText('Deslizame para responder');
   await page.getByRole('button', { name: 'Back to the list' }).click();
-  await swipe(`.ib-item:has-text("${name}")`, -120);
-  await expect(page.locator('.ib-toast', { hasText: 'Marked done' })).toBeVisible();
+  // Deslizar hasta el fondo a la izquierda archiva (como WhatsApp); a mitad de camino solo abre las acciones.
+  await swipe(`.ib-item:has-text("${name}")`, -300);
+  await expect(page.locator('.ib-toast', { hasText: 'Archived' })).toBeVisible();
   await expect(page.locator('.ib-item', { hasText: name })).toHaveCount(0);
 });
 
@@ -421,7 +422,7 @@ test('cabecera y campo de la conversación de WhatsApp: todas las acciones de In
   // Menú "…": el resto, sin pasar por un diálogo.
   const more = actions.getByRole('button', { name: 'More actions' });
   await more.click();
-  for (const name of ['Mark unread', 'Pin', 'Draft a reply with AI', 'Mute for 8 hours', 'Mute for a week', 'Rename chat', 'Remove from Inbox']) {
+  for (const name of ['Mark unread', 'Pin', 'Help me write', 'Mute for 8 hours', 'Mute for a week', 'Rename chat', 'Remove from Inbox']) {
     await expect(page.getByRole('menuitem', { name, exact: true })).toBeVisible();
   }
   await page.getByRole('menuitem', { name: 'Pin', exact: true }).click();
@@ -440,16 +441,27 @@ test('cabecera y campo de la conversación de WhatsApp: todas las acciones de In
   await page.keyboard.press('Enter');
   await expect(thread.locator('.wa-head h2')).toHaveText(renamed);
 
-  // Menú de la IA con texto: borrador, instrucción, reescribir, traducir, dictar.
+  // "Help me write" con texto en el campo: la barra ofrece mejorarlo. El menú + suma escribir con AI y dictar.
   const field = page.getByRole('textbox', { name: 'Message' });
   await field.fill('hola como estas');
-  await thread.getByRole('button', { name: /AI/ }).click();
-  for (const name of ['What do you want to say?', 'Write it with AI', 'Shorter', 'Friendlier', 'More formal', 'Fix spelling and grammar', 'Translate to English', 'Translate to Spanish', 'Translate to Portuguese', 'Dictate']) {
+  await thread.getByTestId('ai-compose-open').click();
+  const bar = thread.getByTestId('ai-compose');
+  await expect(bar.getByRole('textbox', { name: 'Describe a change' })).toBeFocused();
+  for (const name of ['Shorter', 'Longer', 'More formal', 'More casual', 'Fix grammar']) {
+    await expect(bar.getByRole('button', { name, exact: true })).toBeVisible();
+  }
+  await expect(bar.getByLabel('Translate to')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(bar).toBeHidden();
+  await expect(field).toBeFocused();
+  await thread.getByRole('button', { name: 'Attach', exact: true }).click();
+  for (const name of ['Help me write', 'Dictate']) {
     await expect(page.getByRole('menuitem', { name, exact: true })).toBeVisible();
   }
-  await page.getByRole('menuitem', { name: 'What do you want to say?' }).click();
-  await expect(thread.locator('.ib-ai')).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Help me write', exact: true }).click();
+  await expect(bar).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(bar).toBeHidden();
 
   // Shift+Enter baja de línea sin enviar.
   await field.fill('uno');
@@ -474,6 +486,12 @@ test('Más tarde visible junto a Enviar (también con clic derecho) y los archiv
   const other = `${phone('4')}@s.whatsapp.net`;
   const name = `Arch ${uid()}`;
   const otherName = `Otro ${uid()}`;
+  // La cuenta es compartida entre specs: lo que otro dejó archivado se desarchiva, así la entrada cuenta solo lo de acá.
+  const left = (await (await request.get('/api/inbox/threads?view=archived')).json()) as { threads: Array<{ id: string }> };
+  if (left.threads.length > 0) {
+    const cleared = await request.post('/api/inbox/threads', { data: { ids: left.threads.map((t) => t.id), action: 'unarchive' } });
+    expect(cleared.ok(), await cleared.text()).toBe(true);
+  }
   await events(request, acc, [message(dm, { senderName: name, body: 'hola' }), message(other, { senderName: otherName, body: 'chau' })]);
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
@@ -517,6 +535,8 @@ test('Más tarde visible junto a Enviar (también con clic derecho) y los archiv
   await page.getByRole('menuitem', { name: 'Archive', exact: true }).click();
   await page.getByTestId('inbox-archived-entry').click();
   await page.locator('.ib-item', { hasText: otherName }).locator('.ib-row-btn').click();
+  // Cambiar de vista ya no cierra el chat que estaba abierto: se espera a que el panel muestre el que se acaba de abrir.
+  await expect(page.locator('.ib-wa-thread .gr-thread-head')).toContainText(otherName);
   await page.locator('.ib-wa-thread .gr-thread-actions').getByRole('button', { name: 'More actions' }).click();
   await page.getByRole('menuitem', { name: 'Unarchive' }).click();
   await expect(page.locator('.ib-item', { hasText: otherName })).toHaveCount(0);

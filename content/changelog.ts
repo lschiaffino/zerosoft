@@ -29,6 +29,140 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-lines-hubspot-properties',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines: HubSpot company properties, synced both ways',
+      es: 'Lines: las propiedades de HubSpot, sincronizadas ida y vuelta',
+      pt: 'Lines: as propriedades do HubSpot, sincronizadas ida e volta',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'A chat or group linked to a HubSpot company now has a HubSpot screen, one click from its details: all the company properties (custom ones too) grouped as in HubSpot, search by name, the ones your workspace pins at the top, and empty ones behind "Show empty". Edit a property there and it is saved in HubSpot right away; if HubSpot rejects the value, the old one comes back with the reason. Read-only and calculated properties are shown and cannot be edited.',
+        es: 'Un chat o grupo vinculado a una empresa de HubSpot ahora tiene una pantalla de HubSpot, a un clic de sus detalles: todas las propiedades de la empresa (también las propias) agrupadas como en HubSpot, búsqueda por nombre, arriba las que fija tu workspace y las vacías detrás de "Mostrar vacías". Editás una propiedad ahí y se guarda en HubSpot en el momento; si HubSpot rechaza el valor, vuelve el anterior con el motivo. Las de solo lectura y las calculadas se ven y no se editan.',
+        pt: 'Uma conversa ou grupo vinculado a uma empresa do HubSpot agora tem uma tela do HubSpot, a um clique dos detalhes: todas as propriedades da empresa (também as personalizadas) agrupadas como no HubSpot, busca por nome, no topo as que o seu workspace fixa e as vazias atrás de "Mostrar vazias". Você edita uma propriedade ali e ela é salva no HubSpot na hora; se o HubSpot recusar o valor, o anterior volta com o motivo. As somente leitura e as calculadas aparecem e não são editadas.',
+      },
+      {
+        product: 'groups',
+        en: 'Changes made in HubSpot reach Lines within about a minute, when you open the screen, or with "Sync now"; an optional signed webhook brings them right away. When both sides change the same property, the last write wins, and every change applied is listed in a sync log with its direction, the old and new value, and who made it. A company deleted or merged in HubSpot is flagged on the chat.',
+        es: 'Los cambios hechos en HubSpot llegan a Lines en más o menos un minuto, al abrir la pantalla o con "Sincronizar ahora"; un webhook firmado opcional los trae en el momento. Cuando los dos lados cambian la misma propiedad, gana la última escritura, y cada cambio aplicado queda en un registro con su dirección, el valor anterior y el nuevo, y quién lo hizo. Una empresa borrada o fusionada en HubSpot queda marcada en el chat.',
+        pt: 'As mudanças feitas no HubSpot chegam ao Lines em cerca de um minuto, ao abrir a tela ou com "Sincronizar agora"; um webhook assinado opcional as traz na hora. Quando os dois lados mudam a mesma propriedade, vale a última escrita, e cada mudança aplicada fica em um registro com a direção, o valor anterior e o novo, e quem fez. Uma empresa excluída ou mesclada no HubSpot fica marcada na conversa.',
+      },
+      {
+        product: 'groups',
+        en: 'The inbox filters by any HubSpot company property: is, is not, contains, greater or less than for numbers, before or after for dates, any of for selects, and empty. Those filters are saved in lists like the others. A new view lists the groups without a company, suggests one when the names look alike and links it when you confirm. The private app now needs the crm.schemas.companies.read scope, and crm.objects.companies.write to edit. Tested against a simulated HubSpot; not yet tried with a real account.',
+        es: 'La bandeja filtra por cualquier propiedad de la empresa de HubSpot: es, no es, contiene, mayor o menor para números, antes o después para fechas, alguna de para selecciones, y vacía. Esos filtros se guardan en las listas como los demás. Una vista nueva muestra los grupos sin empresa, propone una cuando los nombres se parecen y la vincula cuando confirmás. La private app ahora necesita el permiso crm.schemas.companies.read, y crm.objects.companies.write para editar. Probado contra un HubSpot simulado; falta probarlo con una cuenta real.',
+        pt: 'A caixa filtra por qualquer propriedade da empresa do HubSpot: é, não é, contém, maior ou menor para números, antes ou depois para datas, alguma de para seleções, e vazia. Esses filtros são salvos nas listas como os demais. Uma nova visão mostra os grupos sem empresa, sugere uma quando os nomes se parecem e a vincula quando você confirma. O private app agora precisa da permissão crm.schemas.companies.read, e de crm.objects.companies.write para editar. Testado contra um HubSpot simulado; falta testar com uma conta real.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-help-me-write',
+    date: '2026-11-10',
+    title: {
+      en: 'Help me write: describe your message in Lines and Inbox',
+      es: 'Ayudame a escribir: describí tu mensaje en Lines e Inbox',
+      pt: 'Ajude-me a escrever: descreva sua mensagem no Lines e no Inbox',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'The pencil next to Send (or Cmd+J in the message field) opens a "Describe your message" bar. Write what you want to say and the AI drafts it with the chat as context, in the language the customer writes in, using your quick replies and knowledge. You see the draft before it touches the message field: make it shorter, longer, more formal or more casual, fix the grammar, describe your own change, translate it or ask for another version, then insert it. If you already typed something, the bar improves that text. Nothing is sent on its own, and Undo brings back what you had. It replaces the AI draft and translate row.',
+        es: 'El lápiz al lado de Enviar (o Cmd+J en el campo del mensaje) abre una barra "Describí tu mensaje". Escribís lo que querés decir y la IA lo redacta con el chat como contexto, en el idioma en que escribe el cliente, usando tus respuestas rápidas y tu conocimiento. Ves el borrador antes de que toque el campo del mensaje: lo hacés más corto, más largo, más formal o más informal, corregís la gramática, describís un cambio propio, lo traducís o pedís otra versión, y lo insertás. Si ya habías escrito algo, la barra mejora ese texto. Nada se envía solo, y Deshacer devuelve lo que tenías. Reemplaza la fila de borrador y traducción con IA.',
+        pt: 'O lápis ao lado de Enviar (ou Cmd+J no campo da mensagem) abre uma barra "Descreva sua mensagem". Você escreve o que quer dizer e a IA redige com a conversa como contexto, no idioma em que o cliente escreve, usando suas respostas rápidas e seu conhecimento. Você vê o rascunho antes de ele tocar o campo da mensagem: deixa mais curto, mais longo, mais formal ou mais informal, corrige a gramática, descreve uma mudança sua, traduz ou pede outra versão, e insere. Se você já tinha escrito algo, a barra melhora esse texto. Nada é enviado sozinho, e Desfazer devolve o que você tinha. Substitui a linha de rascunho e tradução com IA.',
+      },
+      {
+        product: 'inbox',
+        en: 'The same bar in WhatsApp chats, email threads and New message. It writes in your tone, learned from what you send, and knows the channel: a WhatsApp message stays short, an email gets a greeting and a sign-off, and a new email comes with a subject. One "Help me write" button replaces the three AI buttons the reply field had. Cmd+J now opens the bar instead of writing straight into the field.',
+        es: 'La misma barra en los chats de WhatsApp, los hilos de correo y Mensaje nuevo. Escribe con tu tono, aprendido de lo que enviás, y sabe por qué canal va: un WhatsApp queda corto, un correo lleva saludo y despedida, y un correo nuevo viene con asunto. Un solo botón "Ayudame a escribir" reemplaza los tres botones de IA que tenía el campo de respuesta. Cmd+J ahora abre la barra en vez de escribir directo en el campo.',
+        pt: 'A mesma barra nas conversas do WhatsApp, nos fios de e-mail e em Nova mensagem. Ela escreve no seu tom, aprendido do que você envia, e sabe por qual canal vai: um WhatsApp fica curto, um e-mail leva saudação e despedida, e um e-mail novo vem com assunto. Um único botão "Ajude-me a escrever" substitui os três botões de IA que o campo de resposta tinha. Cmd+J agora abre a barra em vez de escrever direto no campo.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-chat-gestures',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines and Inbox: swipe a conversation like in WhatsApp, and hold it to drop it into a folder',
+      es: 'Lines e Inbox: deslizá una conversación como en WhatsApp y mantenela apretada para soltarla en una carpeta',
+      pt: 'Lines e Inbox: deslize uma conversa como no WhatsApp e segure para soltar numa pasta',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Swipe a chat in the list, with a finger, the mouse or the trackpad. To the right you get Read or Unread and Pin; to the left, Archive and More. Stop halfway and the buttons stay open; swipe all the way and the first one runs. Archiving shows Undo. Everything is still in the chat menu.',
+        es: 'Deslizá un chat de la lista, con el dedo, el mouse o el trackpad. A la derecha aparecen Leído o No leído y Fijar; a la izquierda, Archivar y Más. Si frenás a mitad de camino los botones quedan abiertos; si deslizás hasta el fondo se ejecuta el primero. Archivar ofrece Deshacer. Todo sigue en el menú del chat.',
+        pt: 'Deslize uma conversa da lista, com o dedo, o mouse ou o trackpad. À direita aparecem Lida ou Não lida e Fixar; à esquerda, Arquivar e Mais. Parando no meio do caminho os botões ficam abertos; deslizando até o fim, o primeiro é executado. Arquivar oferece Desfazer. Tudo continua no menu da conversa.',
+      },
+      {
+        product: 'groups',
+        en: 'Press and hold a chat to pick it up and drop it on a folder or subfolder. A small tag follows the pointer without covering the folder under it, the folder lights up, a collapsed folder opens when you wait on it, and the sidebar scrolls near its edges. Esc cancels, and the notice names the folder and has Undo. With several chats selected, they all travel together.',
+        es: 'Mantené apretado un chat para levantarlo y soltarlo en una carpeta o subcarpeta. Una ficha chica sigue al puntero sin tapar la carpeta que está debajo, la carpeta se resalta, una carpeta plegada se abre si te quedás encima y la barra lateral corre cerca de sus bordes. Esc cancela, y el aviso nombra la carpeta y trae Deshacer. Con varios chats seleccionados, viajan todos juntos.',
+        pt: 'Segure uma conversa para levantá-la e soltá-la numa pasta ou subpasta. Uma etiqueta pequena segue o ponteiro sem cobrir a pasta que está embaixo, a pasta fica destacada, uma pasta recolhida abre se você esperar em cima dela e a barra lateral rola perto das bordas. Esc cancela, e o aviso diz o nome da pasta e traz Desfazer. Com várias conversas selecionadas, todas vão juntas.',
+      },
+      {
+        product: 'groups',
+        en: 'On a phone, or with the sidebar collapsed, picking a chat up shows a tray with your folders to drop it on.',
+        es: 'En el teléfono, o con la barra lateral colapsada, al levantar un chat aparece una bandeja con tus carpetas para soltarlo.',
+        pt: 'No celular, ou com a barra lateral recolhida, ao levantar uma conversa aparece uma bandeja com as suas pastas para soltá-la.',
+      },
+      {
+        product: 'inbox',
+        en: 'The same gestures as Lines. Swiping left now archives, like WhatsApp; Done is still on the E key and in the chat header. Dropping a chat on a folder adds it there, with Undo.',
+        es: 'Los mismos gestos que Lines. Deslizar a la izquierda ahora archiva, como WhatsApp; Hecho sigue en la tecla E y en el encabezado del chat. Soltar un chat en una carpeta lo suma ahí, con Deshacer.',
+        pt: 'Os mesmos gestos do Lines. Deslizar para a esquerda agora arquiva, como no WhatsApp; Concluir continua na tecla E e no cabeçalho da conversa. Soltar uma conversa numa pasta a adiciona ali, com Desfazer.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-inbox-lines-fast',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines and Inbox: the whole history, and a list that stays fast',
+      es: 'Lines e Inbox: todo el historial, y una lista que sigue rápida',
+      pt: 'Lines e Inbox: todo o histórico, e uma lista que continua rápida',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Opening a folder, a saved list, a tab or a filter only reloads the list of chats. The open conversation and what you were typing stay where they are, the folder stays in the URL, and Back and Forward work. A folder you just visited shows again at once.',
+        es: 'Abrir una carpeta, una lista guardada, una pestaña o un filtro solo vuelve a cargar la lista de chats. La conversación abierta y lo que estabas escribiendo quedan donde estaban, la carpeta queda en la URL, y Atrás y Adelante funcionan. Una carpeta que acabás de ver aparece de nuevo al instante.',
+        pt: 'Abrir uma pasta, uma lista salva, uma aba ou um filtro só recarrega a lista de conversas. A conversa aberta e o que você estava escrevendo ficam onde estavam, a pasta fica na URL, e Voltar e Avançar funcionam. Uma pasta que você acabou de ver aparece de novo na hora.',
+      },
+      {
+        product: 'groups',
+        en: 'The list no longer stops at "Showing 100 of 202": it loads more chats as you scroll, down to the oldest one. Search in messages uses a full-text index and matches the start of each word.',
+        es: 'La lista ya no se corta en "Mostrando 100 de 202": trae más chats a medida que bajás, hasta el más viejo. La búsqueda en mensajes usa un índice de texto completo y encuentra por el comienzo de cada palabra.',
+        pt: 'A lista não para mais em "Mostrando 100 de 202": traz mais conversas conforme você desce, até a mais antiga. A busca nas mensagens usa um índice de texto completo e encontra pelo começo de cada palavra.',
+      },
+      {
+        product: 'groups',
+        en: 'A newly linked number (QR, or your own Evolution server) now brings the full history the WhatsApp server kept: first the latest messages of every chat, then the rest in the background, with progress in the inbox. It picks up where it left off and never duplicates. WhatsApp only sends history when a device is linked, so a number linked before today has to be linked again to get its older messages, and anything the phone does not send stays on the phone. The Cloud API does not give access to history, and importing it from WAHA is not built yet.',
+        es: 'Un número recién vinculado (por QR, o con tu servidor de Evolution) ahora trae todo el historial que guardó el servidor de WhatsApp: primero los últimos mensajes de cada chat y después el resto en segundo plano, con el avance en la bandeja. Sigue donde quedó y no duplica nada. WhatsApp solo manda historial cuando se vincula un dispositivo: un número vinculado antes de hoy hay que vincularlo de nuevo para traer sus mensajes viejos, y lo que el teléfono no manda queda en el teléfono. La Cloud API no da acceso al historial, e importarlo desde WAHA todavía no está hecho.',
+        pt: 'Um número recém-vinculado (por QR, ou com o seu servidor Evolution) agora traz todo o histórico que o servidor do WhatsApp guardou: primeiro as últimas mensagens de cada conversa e depois o resto em segundo plano, com o progresso na caixa de entrada. Continua de onde parou e não duplica nada. O WhatsApp só envia histórico quando um dispositivo é vinculado: um número vinculado antes de hoje precisa ser vinculado de novo para trazer as mensagens antigas, e o que o celular não envia fica no celular. A Cloud API não dá acesso ao histórico, e importá-lo do WAHA ainda não está pronto.',
+      },
+      {
+        product: 'inbox',
+        en: 'Switching between the inbox, a view and a folder only swaps the list. The open chat stays open with its draft, and the list loads more chats as you scroll instead of stopping at 300.',
+        es: 'Pasar de la bandeja a una vista o a una carpeta solo cambia la lista. El chat abierto sigue abierto con su borrador, y la lista trae más chats a medida que bajás en vez de cortarse en 300.',
+        pt: 'Passar da caixa de entrada para uma visão ou uma pasta só troca a lista. A conversa aberta continua aberta com o rascunho, e a lista traz mais conversas conforme você desce em vez de parar em 300.',
+      },
+      {
+        product: 'inbox',
+        en: 'Linking WhatsApp now starts the full history import by itself, and connecting Gmail brings all your mail in the background after the recent inbox, newest first. Both can be paused in Settings and pick up where they left off.',
+        es: 'Vincular WhatsApp ahora arranca sola la importación de todo el historial, y conectar Gmail trae todo tu correo en segundo plano después de la bandeja reciente, de lo más nuevo a lo más viejo. Las dos se pueden pausar en Ajustes y siguen donde quedaron.',
+        pt: 'Vincular o WhatsApp agora inicia sozinho a importação de todo o histórico, e conectar o Gmail traz todo o seu e-mail em segundo plano depois da caixa de entrada recente, do mais novo ao mais antigo. As duas podem ser pausadas em Ajustes e continuam de onde pararam.',
+      },
+      {
+        product: 'inbox',
+        en: 'Both apps read only the page on screen from the database instead of sorting every chat on each refresh, and the checks that run every few seconds answer "nothing changed" without redrawing the screen.',
+        es: 'Las dos apps leen de la base solo la página que está en pantalla en vez de ordenar todos los chats en cada actualización, y las consultas que corren cada pocos segundos responden "no cambió nada" sin volver a dibujar la pantalla.',
+        pt: 'Os dois apps leem do banco só a página que está na tela em vez de ordenar todas as conversas a cada atualização, e as consultas que rodam a cada poucos segundos respondem "nada mudou" sem redesenhar a tela.',
+      },
+    ],
+  },
+  {
     id: '2026-11-08-calls',
     date: '2026-11-08',
     title: {
@@ -141,6 +275,23 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Folders now hang under Inbox in the sidebar, like in Inbox: open one to filter the chats, drag folders to reorder or nest them, rename in place, and drop chats onto them. The chat list gets its space back. On the phone, a folder picker sits above the list.',
         es: 'Las carpetas ahora cuelgan de Bandeja en el menú lateral, como en Inbox: abrí una para filtrar los chats, arrastralas para ordenarlas o meterlas en otra, renombralas en el lugar y soltales chats encima. La lista de chats recupera su espacio. En el teléfono hay un selector de carpeta arriba de la lista.',
         pt: 'As pastas agora ficam sob a Caixa de entrada no menu lateral, como no Inbox: abra uma para filtrar os chats, arraste para ordenar ou aninhar, renomeie no lugar e solte chats sobre elas. A lista de chats recupera o espaço. No celular há um seletor de pasta acima da lista.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-app-menu-categories',
+    date: '2026-11-10',
+    title: {
+      en: 'A calmer app menu',
+      es: 'Un menú de apps más tranquilo',
+      pt: 'Um menu de apps mais calmo',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'The app menu lists your apps by category only, without a featured group. Coming soon apps stay folded under one line until you open it.',
+        es: 'El menú de apps muestra tus apps solo por categoría, sin un grupo de destacadas. Las apps Próximamente quedan plegadas en una línea hasta que la abrís.',
+        pt: 'O menu de apps mostra seus apps só por categoria, sem um grupo de destaques. Os apps Em breve ficam recolhidos em uma linha até você abrir.',
       },
     ],
   },
