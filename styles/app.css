@@ -1500,3 +1500,69 @@ td.cell-actions > * + * { margin-left: 4px; }
   pointer-events: none;
 }
 .preview-banner strong { font-family: var(--mono); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ---------- Inicio limpio: solo las apps, con su ícono y para qué sirven ---------- */
+.app-home-clean { gap: 32px; }
+.home-apps ul {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.home-apps li {
+  animation: home-tile-in 420ms var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 35ms);
+}
+@keyframes home-tile-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.home-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 20px;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  transition: border-color var(--ui-dur) var(--ease), transform var(--ui-dur) var(--ease), background-color var(--ui-dur) var(--ease);
+}
+.home-tile:hover { border-color: var(--ink); transform: translateY(-2px); }
+.home-tile:active { transform: none; }
+.home-tile:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.home-tile-icon { display: flex; height: 36px; align-items: center; margin-bottom: 6px; }
+.home-tile-icon svg { transition: transform var(--ui-dur) var(--ease); }
+.home-tile:hover .home-tile-icon svg { transform: scale(1.08); }
+.home-tile-name {
+  font-family: var(--font-signage);
+  letter-spacing: var(--signage-tracking);
+  font-stretch: var(--signage-stretch);
+  font-weight: var(--signage-weight);
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+.home-tile-desc { font-size: 0.875rem; line-height: 1.45; color: var(--brand-gray-1); }
+
+/* Próximamente: una línea discreta al pie, no compite con las apps. */
+.home-soon { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding-top: 16px; border-top: 1px solid var(--line); }
+.home-soon-title { font-size: 0.8125rem; font-weight: 600; color: var(--brand-gray-1); }
+.home-soon-list { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.home-soon-app { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--brand-gray-1); text-decoration: none; }
+.home-soon-app:hover { color: var(--ink); }
+
+@media (max-width: 720px) {
+  .home-apps ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .home-tile { padding: 14px; }
+  .home-tile-icon { height: 30px; margin-bottom: 2px; }
+  .home-tile-name { font-size: 1.0625rem; }
+  .home-tile-desc { font-size: 0.8125rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-apps li { animation: none; }
+  .home-tile, .home-tile-icon svg { transition: none; }
+  .home-tile:hover { transform: none; }
+  .home-tile:hover .home-tile-icon svg { transform: none; }
+}

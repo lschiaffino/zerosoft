@@ -841,7 +841,8 @@
         }
       },
       "done": "Done"
-    }
+    },
+    "homeLeadApps": "Your apps, and what each one is for."
   },
   "publicPage": {
     "poweredBy": "Powered by zerosoft"

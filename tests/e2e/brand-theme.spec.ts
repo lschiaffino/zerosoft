@@ -9,9 +9,8 @@ test('default: shell neutro, sin estaciones, y /app como inicio con todas las ap
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/es/app', { waitUntil: 'networkidle' });
   await expect(page.locator('html')).toHaveAttribute('data-brand', 'default');
-  // Destacadas arriba y el resto en "Más apps": entre las dos, las 28.
-  await expect(page.locator('.app-home-apps a.app-home-app')).toHaveCount(6);
-  await expect(page.locator('a.home-more-app')).toHaveCount(22);
+  // Todas las apps en una sola grilla: las 28.
+  await expect(page.locator('.home-apps a.home-tile')).toHaveCount(28);
   await expect(page.locator('.app-home-network')).toHaveCount(0);
   await expect(page.locator('.side-station')).toHaveCount(0);
   await expect(page.locator('.side-line .side-icon').first()).toBeVisible();

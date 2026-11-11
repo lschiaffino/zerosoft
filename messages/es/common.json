@@ -841,7 +841,8 @@
         }
       },
       "done": "Listo"
-    }
+    },
+    "homeLeadApps": "Tus apps y para qué sirve cada una."
   },
   "publicPage": {
     "poweredBy": "Hecho con zerosoft"
