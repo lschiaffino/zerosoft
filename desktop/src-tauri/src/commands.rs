@@ -428,6 +428,7 @@ fn pick_voice(b: &Value) -> Option<Value> {
     Some(json!({ "ok": true, "settings": {
         "language": s.get("language").cloned().unwrap_or(json!("auto")),
         "cleanupMode": s.get("cleanupMode").cloned().unwrap_or(json!("per_app")),
+        "cleanupDepth": s.get("cleanupDepth").cloned().unwrap_or(json!("standard")),
         "aiCleanup": s.get("aiCleanup").cloned().unwrap_or(json!(true)),
         "styles": s.get("styles").cloned().unwrap_or(json!({})),
     }}))
@@ -445,7 +446,7 @@ pub async fn voice_save(app: AppHandle, window: WebviewWindow, patch: Value) -> 
     from_settings(&window)?;
     // El servidor valida cada campo: acá solo se filtra la forma.
     let mut body = serde_json::Map::new();
-    for k in ["language", "cleanupMode", "aiCleanup", "styles"] {
+    for k in ["language", "cleanupMode", "cleanupDepth", "aiCleanup", "styles"] {
         if let Some(v) = patch.get(k) {
             body.insert(k.into(), v.clone());
         }

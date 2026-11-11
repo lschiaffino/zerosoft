@@ -78,6 +78,36 @@ export function pcm16Base64ToFloat(b64: string): Float32Array<ArrayBuffer> {
   return out;
 }
 
+/** Estado de la captura del audio del sistema: muestras recibidas, si alguna trajo sonido y si se está reproduciendo hacia el grabador. */
+export interface DesktopAudioStats {
+  received: number;
+  heard: boolean;
+  running: boolean;
+}
+
+const desktopStats = new WeakMap<MediaStream, () => DesktopAudioStats>();
+
+/** Stats de un stream de getDesktopSystemAudio (null si el stream es otro). */
+export function desktopAudioStats(stream: MediaStream | null | undefined): DesktopAudioStats | null {
+  return (stream && desktopStats.get(stream)?.()) ?? null;
+}
+
+/** ¿Hay algo más que silencio digital? (una captura sin permiso real entrega ceros) */
+export function hasSound(samples: Float32Array): boolean {
+  for (let i = 0; i < samples.length; i++) if (Math.abs(samples[i]) > 0.002) return true;
+  return false;
+}
+
+/**
+ * ¿La captura del audio del sistema está muda? Sin muestras o sin reproducir es una falla segura a
+ * los 8 s; con muestras pero todas en silencio se avisa recién a los 45 s (puede que nadie haya hablado).
+ */
+export function systemAudioSilent(st: DesktopAudioStats, elapsedMs: number): boolean {
+  if (st.heard && st.running) return false;
+  if (elapsedMs >= 8_000 && (st.received === 0 || !st.running)) return true;
+  return elapsedMs >= 45_000 && !st.heard;
+}
+
 /**
  * Audio del sistema desde la app de escritorio: pide la captura nativa, lee el PCM cada 250 ms y lo
  * reproduce en un destino de WebAudio sin salida, así que el grabador lo toma como cualquier otro
@@ -89,9 +119,13 @@ export async function getDesktopSystemAudio(bridge: DesktopBridge): Promise<Medi
   if (res !== 'ok') throw new Error(res === 'denied' ? 'screen_denied' : 'no_tab_audio');
   const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
   const ctx = new AC();
+  // Una grabación que empieza sola (sin clic) puede dejar el contexto en pausa: sin esto no suena nada.
+  await ctx.resume().catch(() => undefined);
   const dest = ctx.createMediaStreamDestination();
   let next = 0;
   let closed = false;
+  const stats = { received: 0, heard: false };
+  desktopStats.set(dest.stream, () => ({ ...stats, running: ctx.state === 'running' }));
   const timer = setInterval(async () => {
     if (closed) return;
     try {
@@ -99,6 +133,9 @@ export async function getDesktopSystemAudio(bridge: DesktopBridge): Promise<Medi
       if (!b64 || closed) return;
       const samples = pcm16Base64ToFloat(b64);
       if (!samples.length) return;
+      stats.received += samples.length;
+      if (!stats.heard && hasSound(samples)) stats.heard = true;
+      if (ctx.state !== 'running') void ctx.resume().catch(() => undefined);
       const buf = ctx.createBuffer(1, samples.length, DESKTOP_RATE);
       buf.copyToChannel(samples, 0);
       const src = ctx.createBufferSource();
