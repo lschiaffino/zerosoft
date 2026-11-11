@@ -118,8 +118,19 @@ async function e2eIdentity(): Promise<UserRow | 'session' | null> {
     // zs_e2e_as=session: la sesión real de NextAuth (o ninguna), para probar el login por código.
     if (email === 'session') return 'session';
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email === DEMO_EMAIL) return null;
-    return (await getUserByEmail(email)) ?? (await upsertUser({ email, name: email.split('@')[0], image: null }));
-  } catch {
+    // La base del e2e puede estar tomada un momento (SQLITE_BUSY): se reintenta. Nunca se sigue como el usuario
+    // demo cuando se pidió otra persona: el test vería datos de otro sin enterarse.
+    const deadline = Date.now() + 15_000;
+    for (let wait = 50; ; wait = Math.min(wait * 2, 500)) {
+      try {
+        return (await getUserByEmail(email)) ?? (await upsertUser({ email, name: email.split('@')[0], image: null }));
+      } catch (err) {
+        if (!/SQLITE_BUSY|database is locked/i.test(String(err)) || Date.now() >= deadline) throw err;
+        await new Promise((done) => setTimeout(done, wait));
+      }
+    }
+  } catch (err) {
+    if (/SQLITE_BUSY|database is locked/i.test(String(err))) throw err;
     return null;
   }
 }

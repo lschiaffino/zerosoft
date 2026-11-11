@@ -31,7 +31,7 @@ import { issueHref, isTypingTarget as isTextTarget, rowTargetId, useTrackCommand
 import { readListNav } from './trackNav';
 import { restoreCursorOnReturn } from './kbCursor';
 import { TRACK_VIEWS_CHANGED } from './trackEvents';
-import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
+import { dropUndo, pushNotice, pushUndo, scheduleDelete } from './trackUndo';
 import { useTrackLive } from './useTrackLive';
 import type { TrackUiLabels } from './ui-labels';
 import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
@@ -406,29 +406,17 @@ export default function IssueDetailClient({
 
   // ---------- Cambios del issue (optimistas, con ⌘Z) ----------
 
+  // Los cambios del issue salen en orden: un ⌘Z que llega con el cambio anterior todavía en camino no lo adelanta en el servidor.
+  const patchChain = useRef<Promise<unknown>>(Promise.resolve());
   const patchIssue = useCallback(
     async (patch: IssuePatch, opts: { undo?: boolean } = {}) => {
       const prev = issueRef.current;
       setIssue((cur) => applyIssuePatch(cur, patch, initialStatuses, initialMembers, project));
-      // Sin red queda guardado en el dispositivo (lib/offline-fetch.ts) y el cambio optimista se mantiene.
-      const { res, queued } = await offlineFetch(`/api/track/issues/${prev.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch),
-        base: prev.updated_at,
-        label: `${prev.identifier} ${prev.title}`,
-      });
-      if (!queued && !res?.ok) {
-        setIssue(prev);
-        setSaveError(ui.inline.saveError);
-        return false;
-      }
-      if (res && !queued) setIssue((await res.json()) as TrackIssueWithStatus);
-      if (!queued) void refreshActivities();
-      if (patch.parentId !== undefined) router.refresh();
+      // ⌘Z se registra en el momento (no al volver la respuesta): si no, un ⌘Z rápido deshace el cambio de antes.
+      let undoId: string | null = null;
       if (opts.undo !== false) {
         const inverse = inversePatch(prev, patch);
-        pushUndo(
+        undoId = pushUndo(
           tx('undo.updatedOne', { id: prev.identifier }),
           async () => {
             await patchIssueRef.current(inverse, { undo: false });
@@ -439,6 +427,27 @@ export default function IssueDetailClient({
           { silent: true },
         );
       }
+      // Sin red queda guardado en el dispositivo (lib/offline-fetch.ts) y el cambio optimista se mantiene.
+      const sent = patchChain.current.then(() =>
+        offlineFetch(`/api/track/issues/${prev.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patch),
+          base: prev.updated_at,
+          label: `${prev.identifier} ${prev.title}`,
+        }),
+      );
+      patchChain.current = sent.catch(() => undefined);
+      const { res, queued } = await sent;
+      if (!queued && !res?.ok) {
+        if (undoId) dropUndo(undoId);
+        setIssue(prev);
+        setSaveError(ui.inline.saveError);
+        return false;
+      }
+      if (res && !queued) setIssue((await res.json()) as TrackIssueWithStatus);
+      if (!queued) void refreshActivities();
+      if (patch.parentId !== undefined) router.refresh();
       return true;
     },
     [initialStatuses, initialMembers, project, ui.inline.saveError, refreshActivities, router, tx],
