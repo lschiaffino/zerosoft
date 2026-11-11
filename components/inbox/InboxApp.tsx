@@ -15,7 +15,6 @@ import { ArchiveIcon, ArrowLeft } from '@/components/groups/wa/icons';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { useWaLive } from '@/lib/wa-live-client';
-import type { RealtimeMode } from '@/lib/realtime-client';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
@@ -126,8 +125,6 @@ export default function InboxApp(props: {
   /** Mensaje al que ir al abrir (desde Cmd+K). */
   initialFocusId?: string | null;
   composeOnLoad: boolean;
-  /** Aviso en vivo de la lista: SSE, o polling corto (tests: con el stream abierto la página no llega a networkidle). */
-  liveMode?: RealtimeMode;
 }) {
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
@@ -454,7 +451,18 @@ export default function InboxApp(props: {
     }
   }, [openId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // En vivo: cada 8 s con la pestaña visible, y al volver a la pestaña.
+  // Al instante: un mensaje nuevo (también el que saca un chat de Archivados), archivar desde el teléfono, otra pestaña.
+  // Una consulta por índice cada 3 s (lib/wa-live.ts) reemplaza releer la lista y el estado cada pocos segundos:
+  // se releen solo cuando algo cambió.
+  const { live: liveOn } = useWaLive('inbox', (ids) => {
+    void reloadList();
+    void reloadState();
+    const o = openRef.current;
+    if (o && (!ids.length || ids.includes(o))) void loadDetail(o, true);
+  });
+
+  // Red de seguridad (y lo que el aviso no cubre, como Gmail): cada 8 s si el aviso no anda, cada 2 min si anda;
+  // y al volver a la pestaña.
   useEffect(() => {
     const tick = () => {
       if (document.visibilityState !== 'visible') return;
@@ -462,7 +470,7 @@ export default function InboxApp(props: {
       void reloadState();
       if (openId) void loadDetail(openId, true);
     };
-    const id = window.setInterval(tick, 8000);
+    const id = window.setInterval(tick, liveOn ? 120_000 : 8000);
     const onVis = () => tick();
     document.addEventListener('visibilitychange', onVis);
     window.addEventListener(INBOX_CHANGED, tick);
@@ -471,29 +479,18 @@ export default function InboxApp(props: {
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener(INBOX_CHANGED, tick);
     };
-  }, [reloadList, reloadState, loadDetail, openId]);
+  }, [reloadList, reloadState, loadDetail, openId, liveOn]);
 
-  // Al instante: un mensaje que saca un chat de Archivados, archivar desde el teléfono, otra pestaña (lib/wa-live.ts).
-  useWaLive(
-    'inbox',
-    (ids) => {
-      void reloadList();
-      void reloadState();
-      const o = openRef.current;
-      if (o && (!ids.length || ids.includes(o))) void loadDetail(o, true);
-    },
-    props.liveMode,
-  );
-
-  // Chat de WhatsApp abierto: cada 3 s (escribiendo…, tildes, reacciones), como en vivo.
+  // Chat de WhatsApp abierto: escribiendo…, tildes y reacciones. Los mensajes nuevos ya llegan por el aviso: con él
+  // andando, cada 10 s; si no, cada 3 s.
   const openIsWa = detail?.thread.channel === 'whatsapp' && detail.thread.id === openId;
   useEffect(() => {
     if (!openId || !openIsWa) return;
     const id = window.setInterval(() => {
       if (document.visibilityState === 'visible') void loadDetail(openId, true);
-    }, 3000);
+    }, liveOn ? 10_000 : 3000);
     return () => window.clearInterval(id);
-  }, [openId, openIsWa, loadDetail]);
+  }, [openId, openIsWa, loadDetail, liveOn]);
 
   useEffect(() => {
     if (cursor >= threads.length && threads.length) setCursor(threads.length - 1);

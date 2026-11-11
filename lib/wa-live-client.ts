@@ -1,32 +1,36 @@
 'use client';
 
 /**
- * Inbox y Lines (navegador): escucha el aviso en vivo de la lista de chats
- * (lib/wa-live.ts) y llama a `onChange` con los chats que cambiaron, juntando
- * los avisos de un momento en una sola llamada. Al reconectar o con un hueco
- * grande llama con [] (releer todo). SSE con polling corto de respaldo
- * (lib/realtime-client.ts).
+ * Inbox y Lines (navegador): consulta el aviso en vivo de la lista de chats
+ * (lib/wa-live.ts) cada 3 s con la pestaña visible (oculta, casi nada; al
+ * volver, en el acto) y llama a `onChange` con los chats que cambiaron,
+ * juntando los avisos de un momento en una sola llamada. Con un hueco grande o
+ * al volver de un corte llama con [] (releer todo). `live`: la consulta anda,
+ * así la pantalla deja de consultar la lista cada pocos segundos.
  */
 import { useCallback, useEffect, useRef } from 'react';
-import { useRealtime, type RealtimeMode } from './realtime-client';
+import { useRealtime } from './realtime-client';
 
 interface LiveEvent {
   id: number;
   chatId: string;
 }
 
+/** Cada cuánto se consulta con la pestaña visible. */
+export const LIVE_POLL_MS = 3000;
+/** Oculta: casi nunca (al volver a la pestaña se consulta en el acto). */
+const HIDDEN_POLL_MS = 10 * 60_000;
 /** Espera para juntar avisos seguidos (una tanda de mensajes) en una sola relectura. */
 const GATHER_MS = 120;
 
-/** `mode`: lo elige la página del servidor (WA_LIVE=poll fuerza el polling, para los tests). */
-export function useWaLive(app: 'inbox' | 'groups', onChange: (chatIds: string[]) => void, mode?: RealtimeMode) {
+export function useWaLive(app: 'inbox' | 'groups', onChange: (chatIds: string[]) => void): { live: boolean } {
   const cb = useRef(onChange);
   cb.current = onChange;
   const pending = useRef<Set<string> | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queue = useCallback((ids: string[]) => {
     const set = (pending.current ??= new Set());
-    // Un aviso sin chat (o la reconexión) pide releer todo: se marca con ''.
+    // Un aviso sin chat (o la vuelta de un corte) pide releer todo: se marca con ''.
     if (!ids.length) set.add('');
     for (const id of ids) set.add(id);
     if (timer.current) return;
@@ -44,15 +48,17 @@ export function useWaLive(app: 'inbox' | 'groups', onChange: (chatIds: string[])
     },
     [],
   );
-  return useRealtime<LiveEvent>({
+  const { status } = useRealtime<LiveEvent>({
     streamUrl: `/api/${app}/live`,
-    pollUrl: `/api/${app}/live?poll=1`,
+    pollUrl: `/api/${app}/live`,
     cursor: 0,
-    mode,
-    // Con polling (de respaldo o forzado), cada 1,5 s con la pestaña visible.
-    pollMs: 1500,
+    // Polling por índice, sin SSE (ver lib/wa-live.ts).
+    mode: 'poll',
+    pollMs: LIVE_POLL_MS,
+    hiddenPollMs: HIDDEN_POLL_MS,
     onEvents: (events) => queue(events.some((e) => !e.chatId) ? [] : events.map((e) => e.chatId)),
     onConnect: () => queue([]),
     onReset: () => queue([]),
   });
+  return { live: status === 'polling' };
 }

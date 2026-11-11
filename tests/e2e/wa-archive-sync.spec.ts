@@ -7,14 +7,15 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
  * - archivar acá deja el pedido mandado a WhatsApp con la hora del último
  *   mensaje (en segundos);
  * - un mensaje nuevo en un chat archivado lo devuelve a la lista sin recargar,
- *   en menos de lo que tarda la consulta periódica (Inbox 8 s, Lines 5 s);
+ *   con el aviso en vivo (consulta cada 3 s), sin esperar la red de seguridad
+ *   (Inbox 2 min, Lines 1 min);
  * - archivar o desarchivar desde el teléfono se ve al instante;
  * - el eco del teléfono no genera otro envío.
  * Nombres y números inventados.
  */
 
-/** Menos que la consulta periódica de las listas: lo que llega antes es por el aviso en vivo. */
-const LIVE_MS = 4_000;
+/** Mucho menos que la red de seguridad de las listas (1-2 min): lo que llega antes es por el aviso en vivo. */
+const LIVE_MS = 7_000;
 
 async function sql(statement: string, args: Array<string | number> = []): Promise<Array<Record<string, unknown>>> {
   const db = e2eDb();

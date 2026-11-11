@@ -11,7 +11,7 @@ import { evolutionArchiveBody } from '@/lib/groups-provider-bridge';
 import { fakeArchives, fakeFailArchives, resetFakeProvider } from '@/lib/groups-provider-fake';
 import { connectNumber, createNumber, getChat, getNumberRowById, ingestEvents, listChats, updateChat, type NumberRow } from '@/lib/groups';
 import { ECHO_WINDOW_MS, RETRY_BACKOFF_MS, flushArchivePush, getArchivePush, isArchiveEcho, pickRef, runArchivePushes, secondsOf } from '@/lib/wa-archive-sync';
-import { fetchLive, latestLiveId, liveBatch, liveFilter, livePoll } from '@/lib/wa-live';
+import { fetchLive, latestLiveId, liveBatch, livePoll } from '@/lib/wa-live';
 import { WA_LIVE_TRIGGERS } from '@/lib/schema/wa-live-triggers';
 import { makeUser } from './helpers';
 
@@ -314,42 +314,67 @@ describe('aviso en vivo de las listas', () => {
     expect(rows.map((r) => r.name).sort()).toEqual(WA_LIVE_TRIGGERS.map(([n]) => n).sort());
   });
 
+  it('la consulta va por índice: sin cambios no recorre la tabla', async () => {
+    const plan = (await getDb()
+      .prepare('EXPLAIN QUERY PLAN SELECT id, chat_id, number_id FROM wa_live_events WHERE app = ? AND scope_id = ? AND id > ? ORDER BY id LIMIT ?')
+      .all('inbox', 'x', 0, 200)) as Array<{ detail: string }>;
+    expect(plan.map((p) => p.detail).join(' ')).toMatch(/USING (COVERING )?INDEX idx_wa_live_scope/);
+    const prune = (await getDb().prepare('EXPLAIN QUERY PLAN DELETE FROM wa_live_events WHERE created_at < ?').all('2026-01-01')) as Array<{ detail: string }>;
+    expect(prune.map((p) => p.detail).join(' ')).toMatch(/idx_wa_live_created/);
+    const due = (await getDb()
+      .prepare('EXPLAIN QUERY PLAN SELECT app, chat_id FROM wa_archive_push WHERE done_at IS NULL AND next_at <= ? ORDER BY next_at LIMIT ?')
+      .all('2026-01-01', 10)) as Array<{ detail: string }>;
+    expect(due.map((p) => p.detail).join(' ')).toMatch(/idx_wa_archive_push_due/);
+  });
+
   it('un mensaje que saca un chat de Archivados avisa; un cambio que no mueve la lista no', async () => {
     const { owner, account } = await inboxSetup('wa-live-a');
+    const viewer = { app: 'inbox' as const, owner };
     const jid = '5491100004401@s.whatsapp.net';
     await ingestWhatsappEvents(account, [inbound(jid)]);
     const [t] = await listThreads(owner);
     await applyThreadAction(owner, [t.id], { action: 'archive' });
-    const before = await latestLiveId();
+    const before = await latestLiveId(viewer);
+    expect(before).toBeGreaterThan(0);
     await getDb().prepare("UPDATE inbox_threads SET avatar_url = 'https://example.test/x.jpg' WHERE id = ?").run(t.id);
-    expect(await latestLiveId()).toBe(before);
+    expect(await latestLiveId(viewer)).toBe(before);
+    expect(await livePoll(viewer, before)).toEqual({ events: [], cursor: before });
     await ingestWhatsappEvents(account, [inbound(jid, { body: 'sigo acá' })]);
-    const mine = (await fetchLive(before)).filter((e) => e.chat_id === t.id);
-    expect(mine.length).toBeGreaterThan(0);
-    expect(mine[0]).toMatchObject({ app: 'inbox', scope_id: owner });
+    expect((await fetchLive(viewer, before)).every((e) => e.chat_id === t.id)).toBe(true);
     expect((await listThreads(owner)).map((x) => x.id)).toContain(t.id);
-    // Por polling, la persona ve su chat y otra persona no.
-    const poll = await livePoll({ app: 'inbox', owner }, before);
-    expect(poll.events.map((e) => e.chatId)).toContain(t.id);
-    expect((await livePoll({ app: 'inbox', owner: 'otra-persona' }, before)).events).toEqual([]);
+    const poll = await livePoll(viewer, before);
+    expect(poll.events.map((e) => e.chatId)).toEqual([t.id]);
+    // Otra persona no ve nada (ni lee las filas de esta).
+    expect(await livePoll({ app: 'inbox', owner: 'otra-persona' }, before)).toEqual({ events: [], cursor: before });
+    // Sin cursor: solo el cursor actual.
+    expect(await livePoll(viewer, 0)).toEqual({ events: [], cursor: poll.cursor });
   });
 
-  it('Lines: avisa al workspace y solo de las líneas que la persona ve', async () => {
+  it('Lines: avisa al workspace y solo de las líneas que la persona ve (pedidas solo si hay avisos)', async () => {
     const { ws, number } = await linesSetup('wa-live-b');
-    const before = await latestLiveId();
+    const viewer = { app: 'lines' as const, ws, numbers: null };
+    const before = await latestLiveId(viewer);
+    let asked = 0;
+    const lines = (set: Set<string> | null) => async () => {
+      asked++;
+      return set;
+    };
+    expect((await livePoll(viewer, before || 1, lines(null))).events).toEqual([]);
+    expect(asked).toBe(0);
     await ingestEvents(number, [inbound('5491100004402@s.whatsapp.net')]);
-    const rows = await fetchLive(before);
-    expect(liveBatch(rows, liveFilter({ app: 'lines', ws, numbers: null })).length).toBe(1);
-    expect(liveBatch(rows, liveFilter({ app: 'lines', ws, numbers: new Set(['otra-linea']) }))).toEqual([]);
-    expect(liveBatch(rows, liveFilter({ app: 'lines', ws: 'otro-ws', numbers: null }))).toEqual([]);
-    expect(liveBatch(rows, liveFilter({ app: 'inbox', owner: ws }))).toEqual([]);
+    const from = before || 1;
+    expect((await livePoll(viewer, from, lines(null))).events).toHaveLength(1);
+    expect((await livePoll(viewer, from, lines(new Set(['otra-linea'])))).events).toEqual([]);
+    expect((await livePoll({ app: 'lines', ws: 'otro-ws', numbers: null }, from)).events).toEqual([]);
+    expect((await livePoll({ app: 'inbox', owner: ws }, from)).events).toEqual([]);
   });
 
   it('una tanda de avisos del mismo chat sale una vez', () => {
-    const e = (id: number, chat: string) => ({ id, app: 'inbox' as const, scope_id: 'p', chat_id: chat, number_id: '' });
-    expect(liveBatch([e(1, 'a'), e(2, 'b'), e(3, 'a')], () => true)).toEqual([
+    const e = (id: number, chat: string) => ({ id, chat_id: chat, number_id: 'n1' });
+    expect(liveBatch([e(1, 'a'), e(2, 'b'), e(3, 'a')], { app: 'inbox', owner: 'p' })).toEqual([
       { id: 3, chatId: 'a' },
       { id: 2, chatId: 'b' },
     ]);
+    expect(liveBatch([e(1, 'a')], { app: 'lines', ws: 'w', numbers: new Set(['n2']) })).toEqual([]);
   });
 });

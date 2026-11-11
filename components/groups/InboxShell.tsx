@@ -30,7 +30,6 @@ import { useShellBranch } from '@/components/app/useShellBranch';
 import PanelSplitters from './PanelSplitters';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { useWaLive } from '@/lib/wa-live-client';
-import type { RealtimeMode } from '@/lib/realtime-client';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
@@ -202,7 +201,6 @@ export default function InboxShell({
   numbers = [],
   initialLine = 'all',
   banner = null,
-  liveMode,
   children,
 }: {
   labels: LabelDto[];
@@ -215,8 +213,6 @@ export default function InboxShell({
   numbers?: LineOption[];
   /** Línea elegida la última vez ('all' = todas). */
   initialLine?: string;
-  /** Aviso en vivo de la lista: SSE, o polling corto (tests: con el stream abierto la página no llega a networkidle). */
-  liveMode?: RealtimeMode;
   /** Aviso arriba de la lista (datos de ejemplo). */
   banner?: ReactNode;
   children: ReactNode;
@@ -470,10 +466,15 @@ export default function InboxShell({
   // Al llegar al final de la lista se pide la página que sigue.
   const nearEnd = useCallback(() => void loadMore(), [loadMore]);
   useNearEnd(moreRef, !!next && !switching, nearEnd, rows.length);
+  // Al instante: un mensaje nuevo (también el que saca un chat de Archivados), archivar desde el teléfono, lo que hace
+  // otra persona. Una consulta por índice cada 3 s (lib/wa-live.ts) reemplaza releer la lista cada 5 s: se relee solo
+  // cuando algo cambió.
+  const { live: liveOn } = useWaLive('groups', () => void load(true));
   useEffect(() => {
+    // Red de seguridad (escribiendo…, importaciones, líneas caídas): cada 5 s si el aviso no anda, cada minuto si anda.
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') void load(true);
-    }, 5000);
+    }, liveOn ? 60_000 : 5000);
     // Al volver a la pestaña (o a la ventana), al día en el acto: sin esperar al próximo intervalo.
     // visibilitychange y focus llegan juntos al volver: una sola carga.
     let lastBack = 0;
@@ -489,10 +490,8 @@ export default function InboxShell({
       document.removeEventListener('visibilitychange', onBack);
       window.removeEventListener('focus', onBack);
     };
-  }, [load]);
+  }, [load, liveOn]);
 
-  // Al instante: un mensaje que saca un chat de Archivados, archivar desde el teléfono, lo que hace otra persona (lib/wa-live.ts).
-  useWaLive('groups', () => void load(true), liveMode);
 
   // Carpeta, lista guardada y "todos los chats" viven en la URL (?folder=, ?list=). Cambiarlas no pasa por el
   // servidor: la URL cambia con pushState (atrás y adelante funcionan) y solo se vuelve a pedir la lista. El chat

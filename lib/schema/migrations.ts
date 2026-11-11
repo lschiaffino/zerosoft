@@ -9810,6 +9810,9 @@ export const MIGRATIONS: Migration[] = [
           number_id TEXT NOT NULL DEFAULT '',
           created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
+        CREATE INDEX IF NOT EXISTS idx_wa_live_scope ON wa_live_events(app, scope_id, id);
+        CREATE INDEX IF NOT EXISTS idx_wa_live_created ON wa_live_events(created_at);
+        CREATE INDEX IF NOT EXISTS idx_wa_archive_push_done ON wa_archive_push(done_at) WHERE done_at IS NOT NULL;
       `);
       for (const [name, body] of WA_LIVE_TRIGGERS) await c.execute(`CREATE TRIGGER IF NOT EXISTS ${name} ${body}`);
     },
