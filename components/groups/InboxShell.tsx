@@ -29,6 +29,8 @@ import { flattenTree } from '@/lib/inbox/folder-tree';
 import { useShellBranch } from '@/components/app/useShellBranch';
 import PanelSplitters from './PanelSplitters';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
+import { useWaLive } from '@/lib/wa-live-client';
+import type { RealtimeMode } from '@/lib/realtime-client';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
@@ -200,6 +202,7 @@ export default function InboxShell({
   numbers = [],
   initialLine = 'all',
   banner = null,
+  liveMode,
   children,
 }: {
   labels: LabelDto[];
@@ -212,6 +215,8 @@ export default function InboxShell({
   numbers?: LineOption[];
   /** Línea elegida la última vez ('all' = todas). */
   initialLine?: string;
+  /** Aviso en vivo de la lista: SSE, o polling corto (tests: con el stream abierto la página no llega a networkidle). */
+  liveMode?: RealtimeMode;
   /** Aviso arriba de la lista (datos de ejemplo). */
   banner?: ReactNode;
   children: ReactNode;
@@ -485,6 +490,9 @@ export default function InboxShell({
       window.removeEventListener('focus', onBack);
     };
   }, [load]);
+
+  // Al instante: un mensaje que saca un chat de Archivados, archivar desde el teléfono, lo que hace otra persona (lib/wa-live.ts).
+  useWaLive('groups', () => void load(true), liveMode);
 
   // Carpeta, lista guardada y "todos los chats" viven en la URL (?folder=, ?list=). Cambiarlas no pasa por el
   // servidor: la URL cambia con pushState (atrás y adelante funcionan) y solo se vuelve a pedir la lista. El chat

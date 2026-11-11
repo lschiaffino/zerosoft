@@ -1227,6 +1227,12 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
     await db.prepare(`UPDATE groups_chats SET ${sets.join(', ')}, updated_at = ? WHERE id = ? AND user_id = ?`).run(...args, nowIso(), id, ws);
   }
   if (patch.labelIds !== undefined) await setChatLabels(ws, id, patch.labelIds);
+  // Archivar o desarchivar también se manda a WhatsApp (después de responder, con reintentos: lib/wa-archive-sync.ts).
+  // "Eliminar chat" (hidden) saca el archivado solo acá: en el teléfono el chat queda como estaba.
+  if (patch.archived !== undefined && patch.hidden === undefined && patch.archived !== !!row.archived_at) {
+    const { requestArchivePush } = await import('./wa-archive-sync');
+    await requestArchivePush('lines', ws, [id], patch.archived);
+  }
   const { afterChatChange } = await import('./groups-inbox');
   await afterChatChange(ws, actor, row, patch);
   return (await getChat(ws, id)) as ChatDto;
@@ -2301,6 +2307,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
       } else if (ev.type === 'contact') {
         const { applyContact } = await import('./groups-import');
         await applyContact(number, ev);
+      } else if (ev.type === 'archive') {
+        if (!(await applyPhoneArchive(number, ev.chatId, ev.archived))) res.ignored++;
       } else if (ev.type === 'presence') {
         // Solo los chats que ya existen: la presencia no crea chats.
         const state = ev.state === 'paused' || ev.state === 'unavailable' ? null : ev.state;
@@ -2316,6 +2324,34 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
   }
   if (later.length) await runAfter(() => storeInboundBatch(number, later));
   return res;
+}
+
+/**
+ * Archivar o desarchivar desde el teléfono (WhatsApp avisa con el id del chat,
+ * que puede ser su lid). Un chat que no existe no se crea; uno que ya está así
+ * no se toca; el eco viejo de un pedido nuestro se ignora
+ * (lib/wa-archive-sync.ts). Nunca manda nada de vuelta a WhatsApp.
+ */
+export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'>, chatId: string, archived: boolean): Promise<boolean> {
+  const db = getDb();
+  const find = (jid: string) =>
+    db.prepare('SELECT * FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?').get(number.id, jid) as Promise<ChatRow | undefined>;
+  let chat = await find(chatId);
+  // El mismo chat con el otro sufijo o id que conoce WhatsApp (teléfono ↔ lid).
+  if (!chat && /@(s\.whatsapp\.net|c\.us)$/.test(chatId)) chat = await find(chatId.endsWith('@c.us') ? chatId.replace(/@c\.us$/, '@s.whatsapp.net') : chatId.replace(/@s\.whatsapp\.net$/, '@c.us'));
+  if (!chat && isLidJid(chatId)) {
+    const { phoneForLid } = await import('./wa-contacts');
+    const phone = await phoneForLid({ app: 'lines', accountId: number.id }, lidDigits(chatId)).catch(() => '');
+    if (phone) chat = (await find(`${phone}@s.whatsapp.net`)) ?? (await find(`${phone}@c.us`));
+  }
+  if (!chat || chat.hidden_at || !!chat.archived_at === archived) return false;
+  const { isArchiveEcho } = await import('./wa-archive-sync');
+  if (await isArchiveEcho('lines', chat.id, archived)) return false;
+  const now = nowIso();
+  await db
+    .prepare('UPDATE groups_chats SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
+    .run(archived ? now : null, archived ? 1 : 0, now, chat.id);
+  return true;
 }
 
 /** Mensaje de cliente nuevo: ticket por palabra clave, eventos (Flow/webhooks) y agente. */

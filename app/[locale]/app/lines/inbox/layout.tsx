@@ -81,6 +81,7 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
         initialLists={lists}
         numbers={numbers.map((n) => ({ id: n.id, name: n.name || (n.phone ? `+${n.phone}` : ''), phone: n.phone, ownerId: n.ownerId, ownerName: n.ownerName }))}
         initialLine={await getSelectedLine(viewer)}
+        liveMode={process.env.WA_LIVE === 'poll' ? 'poll' : 'sse'}
       >
         {props.children}
       </InboxShell>

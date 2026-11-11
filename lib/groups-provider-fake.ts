@@ -9,6 +9,8 @@
  * - Conectar muestra un QR y a los ~1,5 s queda "conectado" (como si se
  *   escaneara).
  * - Los teléfonos que terminan en 99 rechazan altas a grupos (privacidad).
+ * - Archivar en WhatsApp: queda en fakeArchives() con el mensaje de
+ *   referencia; fakeFailArchives(n) hace fallar los próximos n (reintentos).
  * - El webhook acepta eventos ya normalizados: { events: InboundEvent[] }.
  * - Edita, borra para todos, fija y reenvía (lo deja en `sent` para los tests).
  * - Entrar por invitación: cualquier código de 6+ letras entra a un grupo
@@ -29,6 +31,7 @@ import {
   PROVIDER_CAPS,
   ProviderError,
   phoneDigits,
+  type ArchiveRef,
   type ConnectState,
   type GroupInfo,
   type GroupsProvider,
@@ -68,6 +71,17 @@ interface FakeState {
   chatNames?: Map<string, string>;
   /** Libreta de contactos del servidor (por teléfono o "lid:<dígitos>"). */
   directory?: Map<string, FakeContact>;
+  /** Cada archivar o desarchivar que pidió la app, con su mensaje de referencia (tests). */
+  archives?: FakeArchive[];
+  /** Cuántos archivar seguidos fallan (el servidor no responde): para probar los reintentos. */
+  failArchives?: number;
+}
+
+export interface FakeArchive {
+  chatId: string;
+  archive: boolean;
+  last?: ArchiveRef;
+  at: number;
 }
 
 export interface FakeContact {
@@ -156,6 +170,16 @@ function stateFor(numberId: string): FakeState {
 /** Lo que mandó el número falso (tests). */
 export function fakeSent(numberId: string): FakeSent[] {
   return stateFor(numberId).sent;
+}
+
+/** Los archivar/desarchivar que recibió el número falso, con la referencia que mandó la app (tests). */
+export function fakeArchives(numberId: string): FakeArchive[] {
+  return (stateFor(numberId).archives ??= []);
+}
+
+/** Los próximos `n` archivar del número falso fallan con 'unreachable' (tests). */
+export function fakeFailArchives(numberId: string, n: number): void {
+  stateFor(numberId).failArchives = Math.max(0, n);
 }
 
 /** Estado de un grupo del número falso (tests). */
@@ -391,7 +415,15 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     sendContact: async (chatId, contacts) => send(chatId, contacts.map((c) => `${c.name} +${c.phone}`).join(' | '), 'contact'),
     markRead: async (chatId, ids) => void send(chatId, ids.join(','), 'read'),
     blockContact: async (chatId, block) => void send(chatId, block ? 'block' : 'unblock', 'block'),
-    archiveChat: async (chatId, archive) => void send(chatId, archive ? 'archive' : 'unarchive', 'archive'),
+    archiveChat: async (chatId, archive, last) => {
+      requireConnected();
+      if (s.failArchives) {
+        s.failArchives--;
+        throw new ProviderError('unreachable');
+      }
+      (s.archives ??= []).push({ chatId, archive, ...(last ? { last } : {}), at: Date.now() });
+      void send(chatId, archive ? 'archive' : 'unarchive', 'archive');
+    },
     sendPresence: async () => undefined,
     /** Archivos inventados según el prefijo del id: "aud-" audio, "vid-" o "doc-" documento, el resto una foto. */
     async fetchMedia(ref) {

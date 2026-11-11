@@ -14,6 +14,8 @@ import ContactPanel from './wa/ContactPanel';
 import { ArchiveIcon, ArrowLeft } from '@/components/groups/wa/icons';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
+import { useWaLive } from '@/lib/wa-live-client';
+import type { RealtimeMode } from '@/lib/realtime-client';
 import { pushUrl, useShallowLinks } from '@/components/app/shallowNav';
 import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
@@ -124,6 +126,8 @@ export default function InboxApp(props: {
   /** Mensaje al que ir al abrir (desde Cmd+K). */
   initialFocusId?: string | null;
   composeOnLoad: boolean;
+  /** Aviso en vivo de la lista: SSE, o polling corto (tests: con el stream abierto la página no llega a networkidle). */
+  liveMode?: RealtimeMode;
 }) {
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
@@ -468,6 +472,18 @@ export default function InboxApp(props: {
       window.removeEventListener(INBOX_CHANGED, tick);
     };
   }, [reloadList, reloadState, loadDetail, openId]);
+
+  // Al instante: un mensaje que saca un chat de Archivados, archivar desde el teléfono, otra pestaña (lib/wa-live.ts).
+  useWaLive(
+    'inbox',
+    (ids) => {
+      void reloadList();
+      void reloadState();
+      const o = openRef.current;
+      if (o && (!ids.length || ids.includes(o))) void loadDetail(o, true);
+    },
+    props.liveMode,
+  );
 
   // Chat de WhatsApp abierto: cada 3 s (escribiendo…, tildes, reacciones), como en vivo.
   const openIsWa = detail?.thread.channel === 'whatsapp' && detail.thread.id === openId;

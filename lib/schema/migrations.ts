@@ -14,6 +14,7 @@ import { sendUp } from './send-migration';
 import { callsUp } from './calls-migration';
 import { inboxLinesPerfUp } from './inbox-lines-perf-migration';
 import { inboxUp, inboxWhatsappUp } from './inbox-migration';
+import { WA_LIVE_TRIGGERS } from './wa-live-triggers';
 import { ACTIVITY_DATE_TABLES, ACTIVITY_DATE_TRIGGERS, activityDateTriggersSql, activityDatesUpdateSql } from '../crm-activity-dates';
 
 /**
@@ -9771,6 +9772,46 @@ export const MIGRATIONS: Migration[] = [
       `);
       // Lines: de qué foto de WhatsApp salió la que guardamos (la URL sin la firma que vence), para bajarla de nuevo solo si cambió.
       await addColumn(c, "ALTER TABLE groups_chats ADD COLUMN picture_src TEXT NOT NULL DEFAULT ''");
+    },
+  },
+  {
+    // Inbox y Lines: archivar en WhatsApp lo que se archiva acá, con reintentos (una fila por chat
+    // con el último estado pedido, claim y backoff; lib/wa-archive-sync.ts), y el aviso en vivo de
+    // las listas de chats (wa_live_events, lo llenan triggers; lib/wa-live.ts).
+    // OJO: un trigger vive con su tabla. Una migración que reconstruya inbox_threads o groups_chats
+    // tiene que recrearlos (tests/unit/wa-live.test.ts falla si faltan).
+    id: '384_wa_archive_sync',
+    up: async (c) => {
+      await c.executeMultiple(`
+        CREATE TABLE IF NOT EXISTS wa_archive_push (
+          app TEXT NOT NULL CHECK (app IN ('inbox', 'lines')),
+          chat_id TEXT NOT NULL,
+          scope_id TEXT NOT NULL,
+          archived INTEGER NOT NULL,
+          version INTEGER NOT NULL DEFAULT 1,
+          requested_at TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          next_at TEXT NOT NULL,
+          claimed_until TEXT,
+          done_at TEXT,
+          last_error TEXT NOT NULL DEFAULT '',
+          sent TEXT NOT NULL DEFAULT '',
+          sent_count INTEGER NOT NULL DEFAULT 0,
+          prev_archived INTEGER,
+          prev_at TEXT,
+          PRIMARY KEY (app, chat_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_wa_archive_push_due ON wa_archive_push(next_at) WHERE done_at IS NULL;
+        CREATE TABLE IF NOT EXISTS wa_live_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          app TEXT NOT NULL,
+          scope_id TEXT NOT NULL,
+          chat_id TEXT NOT NULL,
+          number_id TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+      for (const [name, body] of WA_LIVE_TRIGGERS) await c.execute(`CREATE TRIGGER IF NOT EXISTS ${name} ${body}`);
     },
   },
 ];
