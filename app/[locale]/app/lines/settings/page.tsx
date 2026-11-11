@@ -5,6 +5,7 @@ import { requireUser } from '@/lib/session';
 import { isWorkspaceAdmin } from '@/lib/session';
 import { availableProviders, getSettings, groupsBaseUrl, listLabels, listNumbers, listPeople, listPropertyDefs, listQuickReplies } from '@/lib/groups';
 import { pageViewer } from '@/lib/groups-page';
+import { numberManager, withManage } from '@/lib/groups-number-perms';
 import { getAvailability, listRules, listTeams, workspacePeople } from '@/lib/groups-inbox';
 import AssignmentSettings from '@/components/groups/AssignmentSettings';
 import { aiEnabled } from '@/lib/ai';
@@ -70,7 +71,22 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
   const admin = isWorkspaceAdmin(user);
 
   let body;
-  if (tab === 'numbers') body = <NumbersSettings initial={await listNumbers(user.id, await pageViewer(user))} people={await listPeople(user.id)} teams={(await listTeams(user.id)).map((tm) => ({ id: tm.id, name: tm.name }))} providers={availableProviders()} canEdit={admin} openNew={sp.new === '1'} reconnect={sp.reconnect ?? null} />;
+  if (tab === 'numbers') {
+    // Admins administran todas las líneas; un member con permiso para conectar números, las suyas.
+    const manager = numberManager(user);
+    body = (
+      <NumbersSettings
+        initial={withManage(manager, await listNumbers(user.id, await pageViewer(user)))}
+        people={await listPeople(user.id)}
+        teams={(await listTeams(user.id)).map((tm) => ({ id: tm.id, name: tm.name }))}
+        providers={availableProviders()}
+        canEdit={manager.canAdd}
+        isAdmin={admin}
+        openNew={sp.new === '1'}
+        reconnect={sp.reconnect ?? null}
+      />
+    );
+  }
   else if (tab === 'labels') body = <LabelsPanel initial={await listLabels(user.id)} />;
   else if (tab === 'quick') body = <QuickRepliesPanel initial={await listQuickReplies(user.id)} />;
   else if (tab === 'properties') body = <PropertiesPanel initial={await listPropertyDefs(user.id)} canEdit={admin} />;

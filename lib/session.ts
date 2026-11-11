@@ -8,6 +8,7 @@ import { getUserByEmail, upsertUser, type TeamRow, type UserRow } from './db';
 import { resolveWorkspace, type TeamRole } from './teams';
 import { appFromPath, ensureWorkspace, getWorkspace, hasAllApps, userCanUseApp, workspaceTeamId, type AppAccess } from './workspace';
 import type { ProductKey } from './products';
+import type { Capability } from './capabilities';
 import { seedUserIfNeeded } from './seed';
 import { delegatedIdentity } from './mcp/identity';
 import { can } from './permissions';
@@ -58,6 +59,11 @@ export interface SessionUser extends UserRow {
   role: TeamRole;
   /** Apps a las que accede en el workspace activo ('*' = todas). */
   apps?: AppAccess;
+  /**
+   * Capacidades que le dieron en el workspace activo (lib/capabilities.ts),
+   * leídas de la base en cada pedido. Se chequean con can(user, '<clave>').
+   */
+  caps?: Capability[];
   /**
    * Apps que no abre por la plataforma (Próximamente) o por Apps del workspace,
    * ya resueltas para la persona (lib/app-access.ts). Las cuenta userCanUseApp.
@@ -168,7 +174,7 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
     ownWorkspace = gate.ownWorkspace;
   }
   if (!real) return null;
-  const { owner, team, workspace, role, apps } = await resolveWorkspace(real, ownWorkspace);
+  const { owner, team, workspace, role, apps, caps } = await resolveWorkspace(real, ownWorkspace);
   const expected = await requestHeader(WORKSPACE_HEADER);
   // El workspace ajeno exige dos pasos y esta persona no los tiene: no entra a sus datos.
   if (owner.id !== real.id && workspace?.require_mfa && !mfaEnabled(real)) {
@@ -178,7 +184,7 @@ async function loadCurrentUser(): Promise<SessionUser | null> {
     return { ...real, sid, team: null, workspace: own, role: 'owner', apps: '*', mfaRequiredBy: workspace.name };
   }
   const user: SessionUser =
-    owner.id === real.id ? { ...real, sid, team, workspace, role, apps } : { ...owner, sid, actingUser: real, team, workspace, role, apps };
+    owner.id === real.id ? { ...real, sid, team, workspace, role, apps, caps } : { ...owner, sid, actingUser: real, team, workspace, role, apps, caps };
   // La pestaña escribe pensando en otro workspace (la sacaron, o cambió en otra pestaña): nada se
   // guarda en el lugar equivocado. Responde como sin sesión y la pestaña avisa y ofrece recargar.
   if (expected && workspace && expected !== workspace.id) return null;
@@ -235,13 +241,13 @@ export const sessionGate = cache(async (): Promise<SessionGate> => {
 });
 
 async function delegatedUser(d: NonNullable<ReturnType<typeof delegatedIdentity>>): Promise<SessionUser | null> {
-  const { owner, team, workspace, role, apps } = await resolveWorkspace(d.real);
+  const { owner, team, workspace, role, apps, caps } = await resolveWorkspace(d.real);
   // Fijado a un workspace del que ya no es parte: sin acceso, nunca cae al propio.
   if (d.pinnedTeamId && workspace.id !== d.pinnedTeamId) return null;
   // Un workspace que exige dos pasos tampoco se abre por el MCP sin ellos.
   if (owner.id !== d.real.id && workspace.require_mfa && !mfaEnabled(d.real)) return null;
   const user: SessionUser =
-    owner.id === d.real.id ? { ...d.real, team, workspace, role, apps } : { ...owner, actingUser: d.real, team, workspace, role, apps };
+    owner.id === d.real.id ? { ...d.real, team, workspace, role, apps, caps } : { ...owner, actingUser: d.real, team, workspace, role, apps, caps };
   user.blockedApps = await blockedAppsFor({ ownerId: owner.id, personId: d.real.id, role, email: d.real.email });
   const app = appFromPath(d.apiPath);
   if (app && !userCanUseApp(user, app)) return null;

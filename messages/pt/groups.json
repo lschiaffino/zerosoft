@@ -563,7 +563,8 @@
     "syncedAuto": "{n, plural, =0 {Ainda não há grupos neste número.} one {Trouxemos # grupo.} other {Trouxemos # grupos.}}",
     "openInbox": "Ir para a caixa",
     "deleteBodyManaged": "As conversas, grupos, mensagens e tickets dele são excluídos do Lines e a sessão vinculada no celular é encerrada.",
-    "adminOnly": "Só os admins do workspace adicionam, conectam e excluem números."
+    "adminOnly": "Só os admins do workspace, ou quem um admin liberou para conectar números, adicionam e conectam números.",
+    "memberNote": "Os números que você adiciona são seus e privados: só você e os admins do workspace veem os chats até você compartilhá-los em Acesso."
   },
   "providers": {
     "cloud": {
@@ -710,7 +711,7 @@
     "pageBody": "Algo falhou do nosso lado. Tente de novo.",
     "generic": "Algo deu errado. Tente de novo.",
     "unauthorized": "Sua sessão terminou. Entre de novo.",
-    "forbidden": "Só os admins do workspace podem fazer isso.",
+    "forbidden": "Você não tem permissão para fazer isso.",
     "not_found": "Isso não existe mais.",
     "invalid_input": "Confira os campos.",
     "network_error": "Sem conexão. Tente de novo.",
@@ -1496,7 +1497,7 @@
     "badge": "Exemplo",
     "load": "Testar com dados de exemplo",
     "loading": "Carregando exemplo...",
-    "askAdmin": "Peça a um admin do workspace para conectar um número ou carregar dados de exemplo.",
+    "askAdmin": "Peça a um admin do workspace para conectar um número ou liberar você para conectar.",
     "banner": "Dados de exemplo: o que você enviar não sai para o WhatsApp.",
     "clear": "Excluir dados de exemplo",
     "clearTitle": "Excluir os dados de exemplo?",
@@ -1725,7 +1726,8 @@
         "moveTo": "Mover para…",
         "delete": "Excluir"
       }
-    }
+    },
+    "ownerFixed": "Você é o dono desta linha. Só um admin pode passá-la para outra pessoa."
   },
   "hubspot": {
     "title": "HubSpot",

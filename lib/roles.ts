@@ -3,6 +3,10 @@
  * pantalla de Miembros y permisos). La entrada para el servidor es
  * lib/permissions.ts, que suma el acceso por app.
  */
+import { hasCapability, isCapability, type Capability } from './capabilities';
+
+export type { Capability } from './capabilities';
+
 export type Role = 'owner' | 'admin' | 'member' | 'guest';
 export const ROLES: readonly Role[] = ['owner', 'admin', 'member', 'guest'];
 const RANK: Record<Role, number> = { guest: -1, member: 0, admin: 1, owner: 2 };
@@ -10,6 +14,8 @@ const RANK: Record<Role, number> = { guest: -1, member: 0, admin: 1, owner: 2 };
 export interface Actor {
   role: Role | string | null | undefined;
   apps?: unknown;
+  /** Capacidades que le dieron (lib/capabilities.ts); solo cuentan para members. */
+  caps?: unknown;
 }
 
 export type Action =
@@ -71,10 +77,15 @@ export function assignableRoles(actor: Role | string | null | undefined): Array<
   return [];
 }
 
-/** La regla única. Sin contexto, contesta por el caso general de la acción. */
-export function can(actor: Actor, action: Action, ctx: ActionContext = {}): boolean {
+/**
+ * La regla única. Sin contexto, contesta por el caso general de la acción.
+ * También contesta por una capacidad (`can(user, 'lines.numbers.manage')`):
+ * owner y admins la tienen siempre; un member, si se la dieron.
+ */
+export function can(actor: Actor, action: Action | Capability, ctx: ActionContext = {}): boolean {
   // Sin rol no hay permisos: nunca se asume owner.
   const role = normalizeRole(actor.role ?? 'guest');
+  if (isCapability(action)) return hasCapability({ role, apps: actor.apps, caps: actor.caps }, action);
   const admin = roleAtLeast(role, 'admin');
   switch (action) {
     case 'members.view':

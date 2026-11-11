@@ -18,15 +18,22 @@ import type { PersonAccessView } from '@/lib/workspace-access-view';
 import { parseDbUtc } from '@/lib/utils';
 import { describeApps, joinNames } from '@/lib/app-access-label';
 import { assignableRoles, can, canManageRole, ROLE_MATRIX, ROLES, type Role } from '@/lib/roles';
+import { CAPABILITIES, capabilityDef, capabilityMessageKey, type Capability } from '@/lib/capabilities';
 
 type Apps = '*' | ProductKey[];
-type Patch = { role?: Exclude<Role, 'owner'>; apps?: Apps; groupIds?: string[] };
+type Patch = { role?: Exclude<Role, 'owner'>; apps?: Apps; groupIds?: string[]; capabilities?: Capability[] };
 
 function initial(name: string | null, email: string): string {
   return ((name ?? email).trim().charAt(0) || '?').toUpperCase();
 }
 
 const nameOf = (m: { name: string | null; email: string }) => m.name || m.email.split('@')[0];
+
+/** La persona con el cambio aplicado (en la pantalla, antes de que conteste el servidor). */
+function withPatch(m: MemberDto, patch: Patch): MemberDto {
+  const { capabilities, ...rest } = patch;
+  return { ...m, ...rest, ...(capabilities ? { caps: capabilities } : {}), ...(rest.role && rest.role !== 'member' ? { caps: [] } : {}) };
+}
 
 /**
  * Selector de apps: "Todas" o una lista, en el orden del sidebar. `limit`: las
@@ -288,7 +295,7 @@ export default function MembersPanel({
 
   /** Cambia a la persona en la pantalla ya (los checkboxes responden al instante); si el pedido falla, se recarga la lista. */
   async function patchPerson(userId: string, patch: Patch): Promise<Response | null> {
-    setDir((cur) => ({ ...cur, members: cur.members.map((m) => (m.userId === userId ? { ...m, ...patch } : m)) }));
+    setDir((cur) => ({ ...cur, members: cur.members.map((m) => (m.userId === userId ? withPatch(m, patch) : m)) }));
     const res = await call(`/api/teams/members/${encodeURIComponent(userId)}`, { method: 'PATCH', body: JSON.stringify({ ...patch, workspaceId: dir.team.id }) });
     if (!res) await refresh();
     return res;
@@ -425,7 +432,35 @@ export default function MembersPanel({
 
   /** El checkbox cambia al tocarlo aunque haya otro guardado en curso (synced los encola). */
   function showNow(userId: string, patch: Patch) {
-    setDir((cur) => ({ ...cur, members: cur.members.map((x) => (x.userId === userId ? { ...x, ...patch } : x)) }));
+    setDir((cur) => ({ ...cur, members: cur.members.map((x) => (x.userId === userId ? withPatch(x, patch) : x)) }));
+  }
+
+  // Pasar a admin pide confirmación: suma la gestión de personas y de los ajustes del workspace.
+  const [promoting, setPromoting] = useState<MemberDto | null>(null);
+  function requestRole(m: MemberDto, next: Exclude<Role, 'owner'>) {
+    if (next === 'admin' && m.role !== 'admin') setPromoting(m);
+    else void changeRole(m, next);
+  }
+
+  // Dar una capacidad marcada como sensible pide confirmación; quitarla es al instante (con deshacer).
+  const [granting, setGranting] = useState<{ m: MemberDto; cap: Capability } | null>(null);
+  function requestCap(m: MemberDto, cap: Capability, on: boolean) {
+    if (on && capabilityDef(cap).confirmGrant) setGranting({ m, cap });
+    else void toggleCap(m, cap, on);
+  }
+
+  async function toggleCap(m: MemberDto, cap: Capability, on: boolean) {
+    const prev = m.caps;
+    const next = on ? CAPABILITIES.map((c) => c.key).filter((k) => k === cap || prev.includes(k)) : prev.filter((k) => k !== cap);
+    const label = tp(`caps.${capabilityMessageKey(cap)}.label` as 'caps.lines_numbers_manage.label');
+    showNow(m.userId, { capabilities: next });
+    await synced(async () => {
+      if (!(await patchPerson(m.userId, { capabilities: next }))) return;
+      await afterChange(m.userId);
+      showToast(tp(on ? 'toast.capOn' : 'toast.capOff', { name: nameOf(m), cap: label }), async () => {
+        if (await patchPerson(m.userId, { capabilities: prev })) await afterChange(m.userId, true);
+      });
+    });
   }
 
   async function changeApps(m: MemberDto, next: Apps, label: string) {
@@ -499,8 +534,10 @@ export default function MembersPanel({
     );
   }
 
+  const [bulkPromote, setBulkPromote] = useState(false);
   function onBulkRole(value: string) {
     if (!value) return;
+    if (value === 'admin') return setBulkPromote(true);
     void bulk((m) => (m.role === value ? null : { role: value as Exclude<Role, 'owner'> }));
   }
   function onBulkGive(app: string) {
@@ -646,6 +683,20 @@ export default function MembersPanel({
         return tp('log.apps', { actor: actorName, target, to: appsLabel((a.after.apps as Apps) ?? [], 'member') });
       case 'member.teams':
         return tp('log.teams', { actor: actorName, target });
+      case 'member.caps': {
+        const before = new Set((a.before.caps as string[] | undefined) ?? []);
+        const after = new Set((a.after.caps as string[] | undefined) ?? []);
+        const names = (keys: string[]) =>
+          joinNames(
+            keys.filter((k) => CAPABILITIES.some((c) => c.key === k)).map((k) => tp(`caps.${capabilityMessageKey(k as Capability)}.label` as 'caps.lines_numbers_manage.label')),
+            locale,
+          );
+        const given = [...after].filter((k) => !before.has(k));
+        const taken = [...before].filter((k) => !after.has(k));
+        if (given.length && !taken.length) return tp('log.capsGiven', { actor: actorName, target, caps: names(given) });
+        if (taken.length && !given.length) return tp('log.capsTaken', { actor: actorName, target, caps: names(taken) });
+        return tp('log.caps', { actor: actorName, target });
+      }
       case 'member.remove':
         return a.after.left ? tp('log.left', { target }) : tp('log.remove', { actor: actorName, target });
       case 'member.reactivate':
@@ -948,7 +999,7 @@ export default function MembersPanel({
                     aria-label={t('roleOf', { name: m.name || m.email })}
                     value={m.role}
                     disabled={locked}
-                    onChange={(e) => void changeRole(m, e.target.value as Exclude<Role, 'owner'>)}
+                    onChange={(e) => requestRole(m, e.target.value as Exclude<Role, 'owner'>)}
                   >
                     {inviteRoles.includes('admin') && <option value="admin">{t('roles.admin')}</option>}
                     <option value="member">{t('roles.member')}</option>
@@ -1293,7 +1344,7 @@ export default function MembersPanel({
                   aria-label={t('roleOf', { name: viewingNow.name || viewingNow.email })}
                   value={viewingNow.role}
                   disabled={locked}
-                  onChange={(e) => void changeRole(viewingNow, e.target.value as Exclude<Role, 'owner'>)}
+                  onChange={(e) => requestRole(viewingNow, e.target.value as Exclude<Role, 'owner'>)}
                 >
                   {inviteRoles.includes('admin') && <option value="admin">{t('roles.admin')}</option>}
                   <option value="member">{t('roles.member')}</option>
@@ -1352,6 +1403,55 @@ export default function MembersPanel({
                 </>
               )}
             </section>
+
+            {viewingNow.role !== 'guest' && (
+              <section className="ws-access-block" aria-labelledby="ws-access-caps" data-testid="caps-section">
+                <h3 id="ws-access-caps" className="ws-access-title">
+                  {tp('capsTitle')}
+                </h3>
+                {viewingNow.role === 'member' ? (
+                  <>
+                    <p className="ui-help">{tp('capsIntro')}</p>
+                    <ul className="ws-access-caps">
+                      {CAPABILITIES.map((c) => {
+                        const k = capabilityMessageKey(c.key) as 'lines_numbers_manage';
+                        const on = (viewingNow.caps ?? []).includes(c.key);
+                        const appOn = viewingNow.apps === '*' || viewingNow.apps.includes(c.app as ProductKey);
+                        return (
+                          <li key={c.key} className={`ws-access-cap${on ? ' is-on' : ''}`}>
+                            <input
+                              id={`ws-cap-${k}`}
+                              type="checkbox"
+                              className="ws-access-cap-input"
+                              checked={on}
+                              disabled={!canEditViewing}
+                              aria-describedby={`ws-cap-${k}-help`}
+                              onChange={(e) => requestCap(viewingNow, c.key, e.target.checked)}
+                              data-testid={`cap-${c.key}`}
+                            />
+                            <span className="ws-access-cap-text">
+                              <label htmlFor={`ws-cap-${k}`} className="st-strong">
+                                {tp(`caps.${k}.label`)}
+                              </label>
+                              <span id={`ws-cap-${k}-help`} className="ui-help">
+                                {tp(`caps.${k}.help`)}
+                              </span>
+                              {on && !appOn && (
+                                <span className="ui-help ws-access-cap-warn" role="note">
+                                  {tp('capsNeedsApp', { app: PRODUCT_CONFIG[c.app as ProductKey].name })}
+                                </span>
+                              )}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                ) : (
+                  <p className="ui-help">{tp('capsByRole')}</p>
+                )}
+              </section>
+            )}
 
             {viewingNow.role !== 'guest' && dir.groups.length > 0 && (
               <section className="ws-access-block">
@@ -1487,6 +1587,50 @@ export default function MembersPanel({
         cancelLabel={t('revokeConfirm.cancel')}
         onConfirm={() => void revoke()}
         onCancel={() => setRevoking(null)}
+      />
+      <ConfirmDialog
+        open={promoting !== null}
+        busy={busy}
+        title={tp('promoteTitle', { name: promoting ? nameOf(promoting) : '' })}
+        body={tp('promoteBody')}
+        confirmLabel={tp('promoteConfirm')}
+        cancelLabel={t('cancel')}
+        onConfirm={() => {
+          const m = promoting;
+          setPromoting(null);
+          if (m) void changeRole(m, 'admin');
+        }}
+        onCancel={() => setPromoting(null)}
+      />
+      <ConfirmDialog
+        open={bulkPromote}
+        busy={busy}
+        title={tp('promoteManyTitle', { count: selected.size })}
+        body={tp('promoteBody')}
+        confirmLabel={tp('promoteConfirm')}
+        cancelLabel={t('cancel')}
+        onConfirm={() => {
+          setBulkPromote(false);
+          void bulk((m) => (m.role === 'admin' ? null : { role: 'admin' }));
+        }}
+        onCancel={() => setBulkPromote(false)}
+      />
+      <ConfirmDialog
+        open={granting !== null}
+        busy={busy}
+        title={tp('capGrantTitle', {
+          name: granting ? nameOf(granting.m) : '',
+          cap: granting ? tp(`caps.${capabilityMessageKey(granting.cap)}.label` as 'caps.lines_numbers_manage.label') : '',
+        })}
+        body={granting ? tp(`caps.${capabilityMessageKey(granting.cap)}.confirm` as 'caps.lines_numbers_manage.confirm') : ''}
+        confirmLabel={tp('capGrantConfirm')}
+        cancelLabel={t('cancel')}
+        onConfirm={() => {
+          const g = granting;
+          setGranting(null);
+          if (g) void toggleCap(g.m, g.cap, true);
+        }}
+        onCancel={() => setGranting(null)}
       />
       <ConfirmDialog
         open={leaving}

@@ -9773,6 +9773,14 @@ export const MIGRATIONS: Migration[] = [
       await addColumn(c, "ALTER TABLE groups_chats ADD COLUMN picture_src TEXT NOT NULL DEFAULT ''");
     },
   },
+  {
+    // Capacidades por persona (lib/capabilities.ts): permisos puntuales que un admin le da a un
+    // member encima de su rol, como conectar números en Lines. Lista JSON de claves.
+    id: '381_member_capabilities',
+    up: async (c) => {
+      await addColumn(c, "ALTER TABLE team_members ADD COLUMN capabilities TEXT NOT NULL DEFAULT '[]'");
+    },
+  },
 ];
 
 export async function runMigrations(client: Client, migrations: Migration[] = MIGRATIONS): Promise<string[]> {
