@@ -41,7 +41,8 @@ test('Inbox: la lista cambia de ancho, se guarda y vuelve al original con doble 
   const wide = await width(list);
   // El divisor queda sobre el borde de la lista.
   const box = (await sep.boundingBox())!;
-  expect(Math.abs(box.x + box.width / 2 - wide)).toBeLessThan(12);
+  const edge = await list.evaluate((el) => el.getBoundingClientRect().right);
+  expect(Math.abs(box.x + box.width / 2 - edge)).toBeLessThan(12);
 
   await page.reload({ waitUntil: 'networkidle' });
   await expect.poll(() => width(list)).toBeGreaterThan(wide - 4);
