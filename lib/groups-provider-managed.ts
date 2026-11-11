@@ -154,7 +154,7 @@ export function managedProvider(
       }
       // El webhook se registra aparte también: versiones de v2 que ignoran el del alta.
       await asInstance(`/webhook/set/${instance}`, 'POST', { webhook });
-      return inner.state();
+      return inner.start();
     },
     async disconnect() {
       await asInstance(`/instance/logout/${instance}`, 'DELETE').catch(() => null);
