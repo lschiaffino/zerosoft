@@ -586,7 +586,6 @@ export default function ChatThread(props: ThreadProps) {
     apply: (next, at) => {
       setText(next);
       setCaret(at);
-      pendingCaret.current = at;
     },
     inserts: mode === 'reply' ? props.quickReplies : [],
     insertsLabel: t('thread.quickReplies'),

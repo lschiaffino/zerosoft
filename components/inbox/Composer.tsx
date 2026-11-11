@@ -147,10 +147,6 @@ const Composer = forwardRef<
     apply: (next, at) => {
       setText(next);
       setCaret(at);
-      requestAnimationFrame(() => {
-        area.current?.focus();
-        area.current?.setSelectionRange(at, at);
-      });
     },
     commands: [...(commands ?? []), ...fieldCommands, ...aiCommands],
     inserts: snippets.map((sn) => ({ id: sn.id, shortcut: sn.shortcut, title: sn.title, body: fillSnippet(sn.body, thread.title) })),

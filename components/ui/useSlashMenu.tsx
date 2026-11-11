@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { useTranslations } from 'next-intl';
 import { buildSlashView, removalEnd, replaceRange, slashTokenAt, type SlashCommand, type SlashInsert, type SlashOption } from '@/lib/slash-commands';
 import SlashMenu from './SlashMenu';
@@ -42,7 +42,7 @@ export interface SlashMenuApi {
 export function useSlashMenu(opts: {
   text: string;
   caret: number;
-  /** Cambia el texto del campo y deja el cursor en `caret` (con el foco en el campo). */
+  /** Cambia el texto del campo y el cursor que guarda el composer. El foco y la selección del campo los pone el menú. */
   apply: (text: string, caret: number) => void;
   commands: SlashCommand[];
   /** Respuestas guardadas que entran con "/atajo". */
@@ -63,6 +63,23 @@ export function useSlashMenu(opts: {
   // Lo último de cada render, para ejecutar el comando con el campo ya actualizado.
   const live = useRef(opts);
   live.current = opts;
+  // Dónde dejar el cursor después de cambiar el texto.
+  const wantCaret = useRef<number | null>(null);
+  const change = (next: string, at: number) => {
+    wantCaret.current = at;
+    live.current.apply(next, at);
+  };
+  // El foco y el cursor vuelven al campo al pintar el texto nuevo, antes de que corra el comando:
+  // si el comando abre algo que toma el foco (la barra de AI, un diálogo), se lo queda.
+  useLayoutEffect(() => {
+    const at = wantCaret.current;
+    if (at === null) return;
+    wantCaret.current = null;
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(at, at);
+  }, [text, inputRef]);
 
   const found = disabled ? null : slashTokenAt(text, caret);
   // Mientras se compone con un IME no hay menú (lo cerrado con Esc sigue cerrado al terminar).
@@ -131,7 +148,7 @@ export function useSlashMenu(opts: {
       const option = view.options[i];
       if (!option) return;
       const end = removalEnd(text, view.start, view.end);
-      opts.apply(text.slice(0, view.start) + text.slice(end), view.start);
+      change(text.slice(0, view.start) + text.slice(end), view.start);
       setPending({ commandId: view.command.id, option });
       return;
     }
@@ -139,19 +156,19 @@ export function useSlashMenu(opts: {
     if (!it) return;
     if (it.kind === 'insert') {
       const next = replaceRange(text, view.start, view.end, it.insert.body);
-      opts.apply(next.text, next.caret);
+      change(next.text, next.caret);
       return;
     }
     if (it.command.args) {
       // Con argumento: el campo queda en "/comando " y el menú pasa a sus opciones.
       const spaced = text[view.end] === ' ';
       const next = replaceRange(text, view.start, view.end, `/${it.command.name}${spaced ? '' : ' '}`);
-      opts.apply(next.text, view.start + it.command.name.length + 2);
+      change(next.text, view.start + it.command.name.length + 2);
       return;
     }
     const end = removalEnd(text, view.start, view.end);
     const cut = end - view.start;
-    opts.apply(text.slice(0, view.start) + text.slice(end), caret <= view.start ? caret : Math.max(view.start, caret - cut));
+    change(text.slice(0, view.start) + text.slice(end), caret <= view.start ? caret : Math.max(view.start, caret - cut));
     setPending({ commandId: it.command.id });
   };
 
@@ -189,6 +206,7 @@ export function useSlashMenu(opts: {
     const sep = at > 0 && !/\s/.test(o.text[at - 1]) ? ' ' : '';
     const tail = to < o.text.length && !/\s/.test(o.text[to]) ? ' ' : '';
     setDismissed(null);
+    wantCaret.current = at + sep.length + 1;
     o.apply(`${o.text.slice(0, at)}${sep}/${tail}${o.text.slice(to)}`, at + sep.length + 1);
   }, []);
 
