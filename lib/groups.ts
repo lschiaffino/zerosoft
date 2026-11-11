@@ -112,8 +112,10 @@ export interface NumberDto {
   ownerId: string | null;
   ownerName: string;
   visibility: 'all' | 'restricted';
-  /** Quién la ve cuando es restringida (solo se devuelve a admins). */
+  /** Quién la ve cuando es restringida (solo se devuelve a admins y a quien es dueño de la línea). */
   access?: { personIds: string[]; teamIds: string[] };
+  /** Quien mira puede conectarla, editarla y borrarla (lib/groups-number-perms.ts). Lo completan la ruta y la página. */
+  canManage?: boolean;
 }
 
 const SECRET_KEYS = ['accessToken', 'appSecret', 'verifyToken', 'apiKey'] as const;
@@ -221,7 +223,9 @@ export async function listNumbers(ws: string, viewer?: GroupsViewer): Promise<Nu
     for (const u of us) names.set(u.id, u.name || u.email);
   }
   const lists = new Map<string, { personIds: string[]; teamIds: string[] }>();
-  if (!viewer?.linesScoped) {
+  // Quién ve cada línea: los admins, de todas; un member, solo de las que son suyas (las comparte él).
+  const showAccess = (r: NumberRow) => !viewer?.linesScoped || (Boolean(r.owner_id) && r.owner_id === viewer.me);
+  if (rows.some(showAccess)) {
     const acc = (await db
       .prepare(`SELECT a.number_id, a.kind, a.ref_id FROM groups_number_access a JOIN groups_numbers n ON n.id = a.number_id WHERE n.user_id = ?`)
       .all(ws)) as Array<{ number_id: string; kind: 'person' | 'team'; ref_id: string }>;
@@ -234,7 +238,7 @@ export async function listNumbers(ws: string, viewer?: GroupsViewer): Promise<Nu
   return rows.map((r) => {
     const d = toNumberDto(r);
     d.ownerName = r.owner_id ? (names.get(r.owner_id) ?? '') : '';
-    if (!viewer?.linesScoped) d.access = lists.get(r.id) ?? { personIds: [], teamIds: [] };
+    if (showAccess(r)) d.access = lists.get(r.id) ?? { personIds: [], teamIds: [] };
     return d;
   });
 }
@@ -266,7 +270,7 @@ export async function getNumberRowById(id: string): Promise<NumberRow | null> {
 export async function createNumber(
   ws: string,
   actor: string,
-  input: { name?: string; provider: string; config?: Record<string, unknown> },
+  input: { name?: string; provider: string; config?: Record<string, unknown>; ownerId?: string | null; visibility?: 'all' | 'restricted' },
 ): Promise<NumberDto> {
   const kind = input.provider as ProviderKind;
   if (!availableProviders().includes(kind)) throw new GroupsError('invalid_provider');
@@ -281,10 +285,22 @@ export async function createNumber(
   const now = nowIso();
   await getDb()
     .prepare(
-      `INSERT INTO groups_numbers (id, user_id, name, provider, status, config, webhook_secret, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
+      `INSERT INTO groups_numbers (id, user_id, name, provider, status, config, webhook_secret, created_by, created_at, updated_at, owner_id, visibility)
+       VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, ws, (input.name ?? '').trim().slice(0, 80) || defaultNumberName(kind), kind, seal(JSON.stringify(cfg)), randomBytes(24).toString('hex'), actor, now, now);
+    .run(
+      id,
+      ws,
+      (input.name ?? '').trim().slice(0, 80) || defaultNumberName(kind),
+      kind,
+      seal(JSON.stringify(cfg)),
+      randomBytes(24).toString('hex'),
+      actor,
+      now,
+      now,
+      input.ownerId ?? null,
+      input.visibility === 'restricted' ? 'restricted' : 'all',
+    );
   return toNumberDto((await getNumberRow(ws, id)) as NumberRow);
 }
 
@@ -1227,6 +1243,12 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
     await db.prepare(`UPDATE groups_chats SET ${sets.join(', ')}, updated_at = ? WHERE id = ? AND user_id = ?`).run(...args, nowIso(), id, ws);
   }
   if (patch.labelIds !== undefined) await setChatLabels(ws, id, patch.labelIds);
+  // Archivar o desarchivar también se manda a WhatsApp (después de responder, con reintentos: lib/wa-archive-sync.ts).
+  // "Eliminar chat" (hidden) saca el archivado solo acá: en el teléfono el chat queda como estaba.
+  if (patch.archived !== undefined && patch.hidden === undefined && patch.archived !== !!row.archived_at) {
+    const { requestArchivePush } = await import('./wa-archive-sync');
+    await requestArchivePush('lines', ws, [id], patch.archived);
+  }
   const { afterChatChange } = await import('./groups-inbox');
   await afterChatChange(ws, actor, row, patch);
   return (await getChat(ws, id)) as ChatDto;
@@ -2301,6 +2323,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
       } else if (ev.type === 'contact') {
         const { applyContact } = await import('./groups-import');
         await applyContact(number, ev);
+      } else if (ev.type === 'archive') {
+        if (!(await applyPhoneArchive(number, ev.chatId, ev.archived))) res.ignored++;
       } else if (ev.type === 'presence') {
         // Solo los chats que ya existen: la presencia no crea chats.
         const state = ev.state === 'paused' || ev.state === 'unavailable' ? null : ev.state;
@@ -2316,6 +2340,34 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
   }
   if (later.length) await runAfter(() => storeInboundBatch(number, later));
   return res;
+}
+
+/**
+ * Archivar o desarchivar desde el teléfono (WhatsApp avisa con el id del chat,
+ * que puede ser su lid). Un chat que no existe no se crea; uno que ya está así
+ * no se toca; el eco viejo de un pedido nuestro se ignora
+ * (lib/wa-archive-sync.ts). Nunca manda nada de vuelta a WhatsApp.
+ */
+export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'>, chatId: string, archived: boolean): Promise<boolean> {
+  const db = getDb();
+  const find = (jid: string) =>
+    db.prepare('SELECT * FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?').get(number.id, jid) as Promise<ChatRow | undefined>;
+  let chat = await find(chatId);
+  // El mismo chat con el otro sufijo o id que conoce WhatsApp (teléfono ↔ lid).
+  if (!chat && /@(s\.whatsapp\.net|c\.us)$/.test(chatId)) chat = await find(chatId.endsWith('@c.us') ? chatId.replace(/@c\.us$/, '@s.whatsapp.net') : chatId.replace(/@s\.whatsapp\.net$/, '@c.us'));
+  if (!chat && isLidJid(chatId)) {
+    const { phoneForLid } = await import('./wa-contacts');
+    const phone = await phoneForLid({ app: 'lines', accountId: number.id }, lidDigits(chatId)).catch(() => '');
+    if (phone) chat = (await find(`${phone}@s.whatsapp.net`)) ?? (await find(`${phone}@c.us`));
+  }
+  if (!chat || chat.hidden_at || !!chat.archived_at === archived) return false;
+  const { isArchiveEcho } = await import('./wa-archive-sync');
+  if (await isArchiveEcho('lines', chat.id, archived)) return false;
+  const now = nowIso();
+  await db
+    .prepare('UPDATE groups_chats SET archived_at = ?, pinned_at = CASE WHEN ? THEN NULL ELSE pinned_at END, updated_at = ? WHERE id = ?')
+    .run(archived ? now : null, archived ? 1 : 0, now, chat.id);
+  return true;
 }
 
 /** Mensaje de cliente nuevo: ticket por palabra clave, eventos (Flow/webhooks) y agente. */

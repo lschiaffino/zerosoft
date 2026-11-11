@@ -89,6 +89,28 @@ body[data-chat-dragging] .docs-tree-row:not([data-drop-hover]):not(.active):hove
 @keyframes zs-tray-in { from { opacity: 0; transform: translateX(-6px); } }
 @keyframes zs-tray-up { from { opacity: 0; transform: translateY(10px); } }
 
+/* ---------- Menú del clic derecho sobre un chat (components/ui/ContextMenu.tsx) ---------- */
+
+.zs-ctx-menu {
+  position: fixed; z-index: var(--z-menu); display: flex; flex-direction: column; min-width: 208px; max-width: min(280px, calc(100vw - 16px)); padding: 4px;
+  overflow-y: auto; overscroll-behavior: contain; color: var(--ink); background: var(--bg); border: 1px solid var(--ink); border-radius: var(--radius-1);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18); outline: none;
+}
+.zs-ctx-item {
+  display: flex; align-items: center; gap: 12px; min-height: 34px; padding: 0 10px; text-align: left; font: inherit; font-size: 0.875rem; color: var(--ink);
+  background: transparent; border: 0; border-radius: var(--radius-1); cursor: pointer; white-space: nowrap;
+}
+.zs-ctx-item:hover,
+.zs-ctx-item:focus-visible,
+.zs-ctx-item:focus,
+.zs-ctx-item[aria-expanded='true'] { background: var(--ui-hover); outline: none; }
+.zs-ctx-item.has-divider { margin-top: 5px; position: relative; }
+.zs-ctx-item.has-divider::before { content: ''; position: absolute; left: -4px; right: -4px; top: -3px; border-top: 1px solid var(--line); }
+.zs-ctx-item.is-danger { color: var(--bad-ink); }
+.zs-ctx-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.zs-ctx-chevron { flex: none; color: var(--brand-gray-2); }
+@media (pointer: coarse) { .zs-ctx-item { min-height: 44px; } }
+
 @media (prefers-reduced-motion: reduce) {
   [data-chat-row][data-swipe-settling] > :not(.zs-swipe-actions),
   [data-chat-row][data-swipe-settling] > .zs-swipe-actions,

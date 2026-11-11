@@ -1,6 +1,7 @@
 import UAParser from 'ua-parser-js';
 import { ensureMigrated, getClient, getDb, type ClickRow } from './db';
 import { cleanReferrerUrl } from './link-url';
+import { visibleLinksSql, type LinkViewer } from './link-folders';
 
 // geoip-lite preloads su .dat con fs al importarse: en Vercel el bundle no lo
 // incluye y rompe el módulo entero (ENOENT). Se carga lazy y a prueba de fallos —
@@ -503,53 +504,56 @@ export interface UserOverview {
   recent: OverviewLink[];
 }
 
-export async function getUserOverview(userId: string): Promise<UserOverview> {
+/** Con `viewer`, solo los links de las carpetas que esa persona ve (como la lista). */
+export async function getUserOverview(userId: string, viewer?: LinkViewer): Promise<UserOverview> {
   const db = getDb();
+  const vis = visibleLinksSql(viewer);
+  const only = vis.sql ? ` AND ${vis.sql}` : '';
 
   const activeLinks = (
     (await db
-      .prepare('SELECT COUNT(*) AS c FROM links WHERE user_id = ? AND archived = 0')
-      .get(userId)) as { c: number }
+      .prepare(`SELECT COUNT(*) AS c FROM links l WHERE l.user_id = ? AND l.archived = 0${only}`)
+      .get(userId, ...vis.args)) as { c: number }
   ).c;
   const totalClicks = (
     (await db
-      .prepare('SELECT COALESCE(SUM(clicks), 0) AS c FROM links WHERE user_id = ?')
-      .get(userId)) as { c: number }
+      .prepare(`SELECT COALESCE(SUM(l.clicks), 0) AS c FROM links l WHERE l.user_id = ?${only}`)
+      .get(userId, ...vis.args)) as { c: number }
   ).c;
   const clicksToday = (
     (await db
       .prepare(
         `SELECT COUNT(*) AS c FROM clicks c JOIN links l ON c.link_id = l.id
-         WHERE l.user_id = ? AND c.ts >= date('now')`,
+         WHERE l.user_id = ? AND c.ts >= date('now')${only}`,
       )
-      .get(userId)) as { c: number }
+      .get(userId, ...vis.args)) as { c: number }
   ).c;
   const topLink =
     ((await db
       .prepare(
-        'SELECT slug, clicks FROM links WHERE user_id = ? AND clicks > 0 ORDER BY clicks DESC LIMIT 1',
+        `SELECT l.slug, l.clicks FROM links l WHERE l.user_id = ? AND l.clicks > 0${only} ORDER BY l.clicks DESC LIMIT 1`,
       )
-      .get(userId)) as { slug: string; clicks: number } | undefined) ?? null;
+      .get(userId, ...vis.args)) as { slug: string; clicks: number } | undefined) ?? null;
 
   const end = todayUtc();
   const start = addDays(end, -29);
   const rows = (await db
     .prepare(
       `SELECT date(c.ts) AS d, COUNT(*) AS c FROM clicks c JOIN links l ON c.link_id = l.id
-       WHERE l.user_id = ? AND c.ts >= ? GROUP BY date(c.ts)`,
+       WHERE l.user_id = ? AND c.ts >= ?${only} GROUP BY date(c.ts)`,
     )
-    .all(userId, start)) as Array<{ d: string; c: number }>;
+    .all(userId, start, ...vis.args)) as Array<{ d: string; c: number }>;
   const map = new Map(rows.map((r) => [r.d, r.c]));
   const byDay = dayList(start, end).map((date) => ({ date, count: map.get(date) ?? 0 }));
 
   const cols =
     'l.id, l.slug, l.url, l.title, l.clicks, l.created_at, d.hostname AS domain_hostname FROM links l LEFT JOIN link_domains d ON d.id = l.domain_id';
   const topLinks = (await db
-    .prepare(`SELECT ${cols} WHERE l.user_id = ? ORDER BY l.clicks DESC LIMIT 5`)
-    .all(userId)) as OverviewLink[];
+    .prepare(`SELECT ${cols} WHERE l.user_id = ?${only} ORDER BY l.clicks DESC LIMIT 5`)
+    .all(userId, ...vis.args)) as OverviewLink[];
   const recent = (await db
-    .prepare(`SELECT ${cols} WHERE l.user_id = ? ORDER BY l.created_at DESC LIMIT 5`)
-    .all(userId)) as OverviewLink[];
+    .prepare(`SELECT ${cols} WHERE l.user_id = ?${only} ORDER BY l.created_at DESC LIMIT 5`)
+    .all(userId, ...vis.args)) as OverviewLink[];
 
   return { activeLinks, totalClicks, clicksToday, topLink, byDay, topLinks, recent };
 }

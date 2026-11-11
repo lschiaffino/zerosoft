@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createRecurring, listRecurring } from '@/lib/groups-recurring';
-import { visibleChatIds } from '@/lib/groups-access';
-import { groupsSession, handleGroupsError, readJson, sessionViewer, str, strArr } from '@/lib/groups-http';
+import { canSeeNumber, visibleChatIds } from '@/lib/groups-access';
+import { groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str, strArr } from '@/lib/groups-http';
 import { mediaFromBody } from '@/lib/groups-media-input';
 
 export const runtime = 'nodejs';
@@ -14,7 +14,11 @@ export async function GET(req: Request) {
   const chat = new URL(req.url).searchParams.get('chat') || undefined;
   const visible = await visibleChatIds(await sessionViewer(s));
   const list = await listRecurring(s.ws, { chatId: chat });
-  return NextResponse.json({ recurring: visible ? list.filter((r) => r.chatIds.some((id) => visible.has(id))) : list });
+  return NextResponse.json({
+    recurring: visible
+      ? list.filter((r) => r.chatIds.some((id) => visible.has(id))).map((r) => ({ ...r, chatIds: r.chatIds.filter((id) => visible.has(id)) }))
+      : list,
+  });
 }
 
 /**
@@ -26,10 +30,13 @@ export async function POST(req: Request) {
   if (s instanceof NextResponse) return s;
   const b = await readJson(req);
   try {
-    const visible = await visibleChatIds(await sessionViewer(s));
+    const viewer = await sessionViewer(s);
+    const numberId = str(b.numberId, 100);
+    if (numberId && !(await canSeeNumber(viewer, numberId))) return groupsError(404, 'not_found');
+    const visible = await visibleChatIds(viewer);
     const chatIds = strArr(b.chatIds, 2000).filter((id) => !visible || visible.has(id));
     const rec = await createRecurring(s.ws, s.me, {
-      numberId: str(b.numberId, 100),
+      numberId,
       name: str(b.name, 120),
       body: str(b.body) ?? '',
       media: mediaFromBody(b.media, req),

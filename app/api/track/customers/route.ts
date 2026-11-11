@@ -1,3 +1,4 @@
+import { trackVisibleSql } from '@/lib/track-access';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, realUserId } from '@/lib/session';
@@ -56,12 +57,14 @@ export async function POST(req: NextRequest) {
   if (!b.companyId && !b.contactId) return trackError(400, 'missing_customer');
   const teamId = user.team?.id ?? null;
   const scopeSql = teamId ? 'p.team_id = ?' : '(p.team_id IS NULL AND p.owner_id = ?)';
+  // Solo issues de equipos que la persona ve (privados e invitados).
+  const visible = trackVisibleSql('p', realUserId(user));
   const rows = (await getDb()
     .prepare(
       `SELECT i.id FROM track_issues i JOIN track_projects p ON p.id = i.project_id
-       WHERE ${scopeSql} AND (i.id = ? OR UPPER(i.identifier) = ?) LIMIT 2`,
+       WHERE ${scopeSql} AND ${visible.sql} AND (i.id = ? OR UPPER(i.identifier) = ?) LIMIT 2`,
     )
-    .all(teamId ?? user.id, b.issue, b.issue.toUpperCase())) as Array<{ id: string }>;
+    .all(teamId ?? user.id, ...visible.args, b.issue, b.issue.toUpperCase())) as Array<{ id: string }>;
   if (rows.length !== 1) return trackError(404, 'issue_not_found');
   try {
     const row = await createCustomerRequest(

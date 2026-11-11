@@ -342,6 +342,13 @@ const parity: ProductParity = {
     row('roles', 'admin', ['Admin and member roles', 'Roles admin y miembro', 'Papéis admin e membro'], 'have', {
       detail: ['Admins connect numbers and change rules; members work the inbox', 'Admins conectan números y cambian reglas; miembros atienden la bandeja', 'Admins conectam números e mudam regras; membros atendem a caixa'],
     }),
+    row('member-connect-numbers', 'admin', ['Let a member connect numbers without being admin', 'Dejar que un miembro conecte números sin ser admin', 'Deixar um membro conectar números sem ser admin'], 'have', {
+      detail: [
+        'An admin turns on "Can connect numbers in Lines" for one member in Members and permissions. The member manages only the numbers they add, which start private. Covered by unit and e2e tests against the test provider; not yet tried by a real team',
+        'Un admin le activa "Puede conectar números en Lines" a un miembro en Miembros y permisos. El miembro administra solo los números que agrega, que nacen privados. Cubierto con tests unitarios y e2e contra el proveedor de prueba; falta probarlo con un equipo real',
+        'Um admin ativa "Pode conectar números no Lines" para um membro em Membros e permissões. O membro administra só os números que adiciona, que nascem privados. Coberto com testes unitários e e2e contra o provedor de teste; falta testar com uma equipe real',
+      ],
+    }),
     row('label-access', 'admin', ['Members see only chats with their labels', 'Miembros ven solo chats con sus etiquetas', 'Membros veem só chats com suas etiquetas'], 'have', {
       detail: [
         'Per label, who sees it; members also see the chats assigned to them; applies to inbox, search, Cmd+K, reports, export, API and MCP',

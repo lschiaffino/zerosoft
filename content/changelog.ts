@@ -58,6 +58,220 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-11-whatsapp-archive-sync',
+    date: '2026-11-11',
+    title: {
+      en: 'Inbox and Lines: archiving stays in step with WhatsApp',
+      es: 'Inbox y Lines: archivar queda igual que en WhatsApp',
+      pt: 'Inbox e Lines: arquivar fica igual ao WhatsApp',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'The chat list updates as soon as something changes: a new message in an archived chat brings it back to the inbox within a second or two, without waiting for the next refresh.',
+        es: 'La lista de chats se actualiza apenas algo cambia: un mensaje nuevo en un chat archivado lo devuelve a la bandeja en uno o dos segundos, sin esperar la próxima actualización.',
+        pt: 'A lista de conversas se atualiza assim que algo muda: uma mensagem nova numa conversa arquivada a traz de volta para a caixa em um ou dois segundos, sem esperar a próxima atualização.',
+      },
+      {
+        product: 'inbox',
+        en: 'Archiving or unarchiving a chat here now reaches WhatsApp on your phone: the request carries the latest message and its time, which WhatsApp needs to apply it. If WhatsApp does not answer, it is retried in the background.',
+        es: 'Archivar o desarchivar un chat acá ahora llega a WhatsApp en el teléfono: el pedido lleva el último mensaje y su hora, que WhatsApp necesita para aplicarlo. Si WhatsApp no responde, se reintenta en segundo plano.',
+        pt: 'Arquivar ou desarquivar uma conversa aqui agora chega ao WhatsApp no celular: o pedido leva a última mensagem e o horário dela, que o WhatsApp precisa para aplicá-lo. Se o WhatsApp não responde, tenta de novo em segundo plano.',
+      },
+      {
+        product: 'groups',
+        en: 'Lines does the same: archiving or unarchiving a chat also archives it in WhatsApp on the number, and the inbox list updates right away when a message arrives or a teammate changes a chat.',
+        es: 'Lines hace lo mismo: archivar o desarchivar un chat también lo archiva en el WhatsApp del número, y la bandeja se actualiza al instante cuando llega un mensaje o alguien del equipo cambia un chat.',
+        pt: 'O Lines faz o mesmo: arquivar ou desarquivar uma conversa também a arquiva no WhatsApp do número, e a caixa se atualiza na hora quando chega uma mensagem ou alguém da equipe muda uma conversa.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-11-chat-row-menu',
+    date: '2026-11-11',
+    title: {
+      en: 'Lines and Inbox: right-click a chat, a conversation that stays put, and drafts that show up right away',
+      es: 'Lines e Inbox: clic derecho en un chat, una conversación que no se mueve sola y borradores que aparecen al instante',
+      pt: 'Lines e Inbox: clique direito numa conversa, uma conversa que não se mexe sozinha e rascunhos que aparecem na hora',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Right-click a chat in the list, or press the menu key or Shift+F10, for a menu like WhatsApp: open it in a new window, mark it read or unread, archive, pin, mute for 8 hours or a week, add it to a folder, contact or group info, and remove it from Inbox. It opens where you click, stays inside the window and works from the keyboard. On a phone, press and hold still opens the chat options. It also works in the desktop app.',
+        es: 'Clic derecho en un chat de la lista, o la tecla de menú o Shift+F10, abre un menú como el de WhatsApp: abrirlo en otra ventana, marcarlo leído o no leído, archivar, fijar, silenciar por 8 horas o una semana, agregarlo a una carpeta, la info del contacto o del grupo, y sacarlo de Inbox. Se abre donde hacés clic, no se sale de la ventana y se usa con el teclado. En el teléfono, mantener apretado sigue abriendo las opciones del chat. También anda en la app de escritorio.',
+        pt: 'Clique direito numa conversa da lista, ou a tecla de menu ou Shift+F10, abre um menu como o do WhatsApp: abrir em outra janela, marcar como lida ou não lida, arquivar, fixar, silenciar por 8 horas ou uma semana, adicionar a uma pasta, os dados do contato ou do grupo, e tirar do Inbox. Abre onde você clica, não sai da janela e funciona pelo teclado. No celular, segurar continua abrindo as opções da conversa. Também funciona no app para desktop.',
+      },
+      {
+        product: 'groups',
+        en: 'Lines has the same menu, at the pointer, with what its chat menu already had plus open in a new window, contact or group info and export chat.',
+        es: 'Lines tiene el mismo menú, en el puntero, con lo que ya tenía el menú del chat más abrir en otra ventana, la info del contacto o del grupo y exportar el chat.',
+        pt: 'O Lines tem o mesmo menu, no ponteiro, com o que o menu da conversa já tinha mais abrir em outra janela, os dados do contato ou do grupo e exportar a conversa.',
+      },
+      {
+        product: 'inbox',
+        en: 'While you read further up in a conversation, it no longer jumps on its own when new messages arrive, a photo finishes loading or older messages load above. At the bottom, it keeps following the newest message, and sending always takes you there.',
+        es: 'Mientras leés más arriba en una conversación, ya no salta sola cuando llegan mensajes nuevos, termina de cargar una foto o se suman mensajes anteriores arriba. Abajo de todo sigue al último mensaje, y al mandar uno siempre te lleva ahí.',
+        pt: 'Enquanto você lê mais acima numa conversa, ela não pula mais sozinha quando chegam mensagens novas, uma foto termina de carregar ou mensagens anteriores entram acima. No final, ela continua seguindo a última mensagem, e ao enviar sempre leva você até lá.',
+      },
+      {
+        product: 'inbox',
+        en: 'Drafts show up like in WhatsApp: type in a chat and switch to another, and the first one says "Draft" in the list right away; clear the text and the label goes away right away. A draft typed just before switching chats or closing the page is no longer lost.',
+        es: 'Los borradores aparecen como en WhatsApp: escribís en un chat y pasás a otro, y el primero dice "Borrador" en la lista en el momento; borrás el texto y la etiqueta se va en el momento. Un borrador escrito justo antes de cambiar de chat o cerrar la página ya no se pierde.',
+        pt: 'Os rascunhos aparecem como no WhatsApp: você escreve numa conversa e passa para outra, e a primeira mostra "Rascunho" na lista na hora; apaga o texto e a etiqueta some na hora. Um rascunho escrito logo antes de trocar de conversa ou fechar a página não se perde mais.',
+      },
+      {
+        product: 'groups',
+        en: 'In Lines, the chat you leave shows its draft from the moment you click the next one, without waiting for it to open.',
+        es: 'En Lines, el chat que dejás muestra su borrador desde que hacés clic en el siguiente, sin esperar a que se abra.',
+        pt: 'No Lines, a conversa que você deixa mostra o rascunho desde o clique na próxima, sem esperar que ela abra.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-swipe-back',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines and Inbox: swiping a chat back closes it, like on the iPhone',
+      es: 'Lines e Inbox: deslizar un chat de vuelta lo cierra, como en el iPhone',
+      pt: 'Lines e Inbox: deslizar uma conversa de volta a fecha, como no iPhone',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'With a chat swiped open, dragging it back now stops at the closed row and never opens the buttons on the other side. A short drag back or a quick flick is enough to close it; to open the other side, let go and swipe again.',
+        es: 'Con un chat deslizado y los botones a la vista, arrastrarlo de vuelta ahora frena en la fila cerrada y nunca abre los botones del otro lado. Alcanza con volver un poco o con un movimiento rápido para cerrarlo; para abrir el otro lado, soltá y deslizá de nuevo.',
+        pt: 'Com uma conversa deslizada e os botões à vista, arrastá-la de volta agora para na linha fechada e nunca abre os botões do outro lado. Basta voltar um pouco ou um movimento rápido para fechá-la; para abrir o outro lado, solte e deslize de novo.',
+      },
+      {
+        product: 'groups',
+        en: 'Tapping the open chat, tapping another one or scrolling the list closes it without opening the chat. Only one chat stays open at a time.',
+        es: 'Tocar el chat abierto, tocar otro o correr la lista lo cierra sin abrir el chat. Solo queda uno abierto a la vez.',
+        pt: 'Tocar na conversa aberta, tocar em outra ou rolar a lista a fecha sem abrir a conversa. Só uma fica aberta por vez.',
+      },
+      {
+        product: 'inbox',
+        en: 'The same behavior in the Inbox list.',
+        es: 'Lo mismo en la lista de Inbox.',
+        pt: 'O mesmo na lista do Inbox.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-11-rec-black-screen',
+    date: '2026-11-11',
+    title: {
+      en: 'Rec: a clear warning when the computer only lets it record a black screen',
+      es: 'Rec: aviso claro cuando la computadora solo deja grabar la pantalla en negro',
+      pt: 'Rec: aviso claro quando o computador só deixa gravar a tela preta',
+    },
+    items: [
+      {
+        product: 'rec',
+        en: 'On a Mac without the Screen Recording permission, the system sends black frames instead of failing. Rec now notices before the countdown, stops, and tells you where to turn the permission on, for the browser or for the desktop app.',
+        es: 'En una Mac sin el permiso de Grabación de pantalla, el sistema manda cuadros negros en vez de fallar. Rec ahora lo nota antes de la cuenta regresiva, frena y te dice dónde activar el permiso, para el navegador o para la app de escritorio.',
+        pt: 'Num Mac sem a permissão de Gravação de Tela, o sistema manda quadros pretos em vez de falhar. O Rec agora percebe antes da contagem regressiva, para e diz onde ativar a permissão, para o navegador ou para o app de desktop.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-member-permissions',
+    date: '2026-11-10',
+    title: {
+      en: 'Extra permissions for members, starting with connecting numbers in Lines',
+      es: 'Permisos extra para members, empezando por conectar números en Lines',
+      pt: 'Permissões extras para members, começando por conectar números no Lines',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'In Settings › Members and permissions, each member now has an Extra permissions section: things only admins could do, given to one person without making them an admin. Granting one asks for confirmation, removing it applies on their next action, and every change shows up in the change log. Making someone an admin now asks for confirmation too.',
+        es: 'En Ajustes › Miembros y permisos, cada member tiene ahora una sección de Permisos extra: cosas que solo podían hacer los admins, dadas a una persona sin hacerla admin. Dar uno pide confirmación, quitarlo vale desde su próxima acción, y cada cambio queda en el registro. Hacer admin a alguien ahora también pide confirmación.',
+        pt: 'Em Ajustes › Membros e permissões, cada member agora tem uma seção de Permissões extras: coisas que só os admins podiam fazer, dadas a uma pessoa sem torná-la admin. Dar uma pede confirmação, tirar vale a partir da próxima ação dela, e cada mudança fica no registro. Tornar alguém admin agora também pede confirmação.',
+      },
+      {
+        product: 'groups',
+        en: 'The first one is "Can connect numbers in Lines": the member adds WhatsApp numbers with a QR code or credentials and reconnects, renames, shares, disconnects and deletes the ones they add. Those numbers are theirs and private: only they and the admins see the chats until they share them. Numbers added by other people stay out of their reach.',
+        es: 'El primero es "Puede conectar números en Lines": el member agrega números de WhatsApp con QR o credenciales y reconecta, renombra, comparte, desconecta y borra los que agrega. Esos números quedan a su nombre y privados: los chats los ven solo esa persona y los admins hasta que los comparta. Los números que agregaron otras personas quedan fuera de su alcance.',
+        pt: 'A primeira é "Pode conectar números no Lines": o member adiciona números de WhatsApp com QR ou credenciais e reconecta, renomeia, compartilha, desconecta e exclui os que adiciona. Esses números ficam no nome dele e privados: só ele e os admins veem os chats até ele compartilhá-los. Os números que outras pessoas adicionaram ficam fora do alcance dele.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-emoji-shortcodes',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines and Inbox: type ":" and a name to add an emoji',
+      es: 'Lines e Inbox: escribí ":" y un nombre para poner un emoji',
+      pt: 'Lines e Inbox: digite ":" e um nome para colocar um emoji',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Like WhatsApp and Slack: type ":che" and the matching emojis show above the box. Arrows pick one, Enter or Tab puts it in, Esc closes. It understands Spanish and Portuguese words too, and your recent emojis come first.',
+        es: 'Como en WhatsApp y Slack: escribí ":che" y arriba de la caja aparecen los emojis que coinciden. Las flechas eligen, Enter o Tab lo ponen y Esc cierra. Entiende palabras en español y portugués, y tus emojis recientes van primero.',
+        pt: 'Como no WhatsApp e no Slack: digite ":che" e os emojis que combinam aparecem acima da caixa. As setas escolhem, Enter ou Tab colocam e Esc fecha. Entende palavras em espanhol e português, e seus emojis recentes vêm primeiro.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-inbox-resizable-panels',
+    date: '2026-11-10',
+    title: {
+      en: 'Inbox: drag to resize the chat list and the contact info',
+      es: 'Inbox: arrastrá para cambiar el ancho de la lista y de la info del contacto',
+      pt: 'Inbox: arraste para mudar a largura da lista e da info do contato',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Like in Lines, the borders between the chat list, the conversation and the contact info can be dragged. The width stays saved in your browser, double-click goes back to the original, and the arrow keys work on the focused divider.',
+        es: 'Como en Lines, los bordes entre la lista de chats, la conversación y la info del contacto se pueden arrastrar. El ancho queda guardado en tu navegador, doble clic vuelve al original y las flechas funcionan con el divisor en foco.',
+        pt: 'Como no Lines, as bordas entre a lista de conversas, a conversa e a info do contato podem ser arrastadas. A largura fica salva no seu navegador, clique duplo volta ao original e as setas funcionam com o divisor em foco.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-privacy-between-members',
+    date: '2026-11-10',
+    title: {
+      en: 'Privacy between members of a workspace',
+      es: 'Privacidad entre las personas de un workspace',
+      pt: 'Privacidade entre as pessoas de um workspace',
+    },
+    items: [
+      {
+        product: 'notes',
+        en: 'An open note now says who can see it, next to its title: "Only you", "Shared with 2 people" (counting people who get it through a shared notebook) or "Shared by link". Notes from other people in the workspace are no longer included when the owner downloads the account data, and Flow automations about notes only run for flows created by the person who wrote the note.',
+        es: 'Una nota abierta ahora dice quién la ve, al lado del título: "Solo vos", "Compartida con 2 personas" (cuenta también a quienes la reciben por una libreta compartida) o "Compartida por link". Las notas de otras personas del workspace ya no entran cuando el dueño descarga los datos de la cuenta, y las automatizaciones de Flow sobre notas solo corren en los flows que creó la persona que escribió la nota.',
+        pt: 'Uma nota aberta agora diz quem pode vê-la, ao lado do título: "Só você", "Compartilhada com 2 pessoas" (conta também quem a recebe por um caderno compartilhado) ou "Compartilhada por link". As notas de outras pessoas do workspace não entram mais quando o dono baixa os dados da conta, e as automações do Flow sobre notas só rodam nos flows criados pela pessoa que escreveu a nota.',
+      },
+      {
+        product: 'groups',
+        en: 'Lines on restricted access stay out of reach everywhere for people who do not have them: group settings, adding or removing members, creating or joining groups from that line, tasks, saved lists, broadcasts, recurring messages and Cmd+K.',
+        es: 'Las líneas con acceso restringido quedan fuera del alcance de quien no las tiene en todos lados: ajustes del grupo, sumar o sacar participantes, crear o unirse a grupos desde esa línea, tareas, listas guardadas, envíos masivos, mensajes recurrentes y Cmd+K.',
+        pt: 'As linhas com acesso restrito ficam fora do alcance de quem não as tem em todos os lugares: configurações do grupo, adicionar ou remover participantes, criar ou entrar em grupos por essa linha, tarefas, listas salvas, envios em massa, mensagens recorrentes e Cmd+K.',
+      },
+      {
+        product: 'track',
+        en: 'Issues in private teams only show up for the people in those teams: in issue references, related and sub-issues, AI triage suggestions, tasks linked from the CRM, boards, the CSV export, reminders and SLA alerts, the audit log, and the webhooks and Flow automations created by people outside the team.',
+        es: 'Los issues de equipos privados solo aparecen para las personas de esos equipos: en las referencias a issues, los relacionados y sub-issues, las sugerencias del triage con IA, las tareas vinculadas desde el CRM, las pizarras, el export a CSV, los recordatorios y avisos de SLA, el audit log y los webhooks y automatizaciones de Flow que creó alguien de fuera del equipo.',
+        pt: 'As issues de equipes privadas só aparecem para as pessoas dessas equipes: nas referências a issues, nas relacionadas e sub-issues, nas sugestões da triagem com IA, nas tarefas vinculadas pelo CRM, nos quadros, na exportação em CSV, nos lembretes e avisos de SLA, no log de auditoria e nos webhooks e automações do Flow criados por alguém de fora da equipe.',
+      },
+      {
+        product: 'link',
+        en: 'Folder access now also applies to the API, to Cmd+K, to the overview and to the tag and creator filters: an API key sees and edits the same links as the person who created it.',
+        es: 'El acceso por carpeta ahora también vale en la API, en Cmd+K, en el resumen y en los filtros por etiqueta y por autor: una API key ve y edita los mismos links que la persona que la creó.',
+        pt: 'O acesso por pasta agora também vale na API, no Cmd+K, no resumo e nos filtros por etiqueta e por autor: uma chave de API vê e edita os mesmos links que a pessoa que a criou.',
+      },
+      {
+        product: 'docs',
+        en: 'Recent pages on Home leave out closed and private teamspaces you are not part of, and a page can be saved as a workspace template only by someone who can edit it, from a part of Docs the whole workspace already sees.',
+        es: 'Las páginas recientes del inicio dejan afuera los teamspaces cerrados y privados de los que no sos parte, y una página se guarda como plantilla del workspace solo si quien la guarda puede editarla y está en una parte de Docs que ya ve todo el workspace.',
+        pt: 'As páginas recentes do início deixam de fora os teamspaces fechados e privados dos quais você não faz parte, e uma página só vira modelo do workspace se quem a salva puder editá-la e ela estiver numa parte do Docs que todo o workspace já vê.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-rec-desktop-controls',
     date: '2026-11-10',
     title: {
@@ -118,6 +332,23 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Lines does the same for each number: names for chats and members, mentions as @Name, and the contact info of a one-to-one chat in its details. Once a day, slowly and picking up where it stopped, each number refreshes contact names and info, group subjects, descriptions, members and photos. A name you typed yourself stays. Tested with the simulated WhatsApp; not yet tried with a real one.',
         es: 'Lines hace lo mismo con cada número: nombres en chats y miembros, menciones como @Nombre y la info del contacto de un chat 1:1 en sus detalles. Una vez por día, despacio y retomando donde quedó, cada número repasa nombres e info de los contactos, asuntos, descripciones, miembros y fotos de los grupos. Un nombre que escribiste vos queda. Probado con el WhatsApp simulado; falta probarlo con uno real.',
         pt: 'O Lines faz o mesmo com cada número: nomes nas conversas e nos membros, menções como @Nome e o recado do contato de uma conversa individual nos detalhes. Uma vez por dia, devagar e retomando de onde parou, cada número atualiza nomes e recados dos contatos, assuntos, descrições, membros e fotos dos grupos. Um nome que você digitou fica. Testado com o WhatsApp simulado; falta testar com um real.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-home-apps',
+    date: '2026-11-10',
+    title: {
+      en: 'Home: just your apps, with what each one is for',
+      es: 'Inicio: solo tus apps, con para qué sirve cada una',
+      pt: 'Início: só os seus apps, com para que serve cada um',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'The home page now shows only your apps, each with its icon, its name and a line on what it is for. Coming soon apps go in one quiet line at the bottom. The assistant is still one ⌘J away from anywhere.',
+        es: 'El inicio ahora muestra solo tus apps, cada una con su ícono, su nombre y una línea de para qué sirve. Las que vienen pronto van en una línea discreta al pie. El asistente sigue a un ⌘J desde cualquier lado.',
+        pt: 'O início agora mostra só os seus apps, cada um com seu ícone, seu nome e uma linha sobre para que serve. Os que chegam em breve ficam numa linha discreta no fim. O assistente continua a um ⌘J de qualquer lugar.',
       },
     ],
   },

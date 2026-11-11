@@ -663,5 +663,10 @@
     "unnamed": "Unnamed file",
     "ocrOff": "Reading images and scans is turned off in this workspace, so those files were not retried. An admin can turn it on in Notes settings.",
     "tooLarge": "Over the 12 MB reading limit, so not searchable: {names}."
+  },
+  "audience": {
+    "private": "Only you",
+    "people": "Shared with {count, plural, one {# person} other {# people}}",
+    "link": "Shared by link"
   }
 }

@@ -2,6 +2,7 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { initialDraft, useDraftAutosave } from '@/components/ui/useDraft';
 import { fillSnippet, type MessageDto, type SnippetDto, type ThreadDto } from '@/lib/inbox/types';
 import { api } from './api';
 import AiComposeBar, { AiComposeButton } from '@/components/ai/AiComposeBar';
@@ -28,13 +29,16 @@ const Composer = forwardRef<
     thread: ThreadDto;
     snippets: SnippetDto[];
     disabled: boolean;
+    /** Se está abriendo otro chat: lo que se escriba ahora no va a este (el campo queda quieto hasta que abre). */
+    paused?: boolean;
     onSent: (messages: MessageDto[]) => void;
     onSendLater: (text: string) => void;
     onError: (code: string) => void;
   }
->(function Composer({ thread, snippets, disabled, onSent, onError, onSendLater }, ref) {
+>(function Composer({ thread, snippets, disabled, paused, onSent, onError, onSendLater }, ref) {
   const t = useTranslations('inbox.composer');
-  const [text, setText] = useState(thread.draft);
+  // Un composer por chat (Conversation lo monta con key): abre con el borrador más nuevo, el local o el del servidor.
+  const [text, setText] = useState(() => initialDraft('inbox', thread.id, thread.draft));
   const tc = useTranslations('common.aiCompose');
   const [busy, setBusy] = useState<'' | 'send'>('');
   const [snipQ, setSnipQ] = useState<string | null>(null);
@@ -43,12 +47,6 @@ const Composer = forwardRef<
   const saved = useRef(thread.draft);
   const email = thread.channel === 'gmail';
 
-  // Otro chat: su borrador.
-  useEffect(() => {
-    setText(thread.draft);
-    saved.current = thread.draft;
-    setSnipQ(null);
-  }, [thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // "Ayudame a escribir": el borrador sale con el contexto de este chat y vuelve al campo para revisarlo.
   const aiAdapter = useMemo<ComposeAdapter>(
@@ -61,15 +59,8 @@ const Composer = forwardRef<
   );
   const ai = useAiCompose({ adapter: aiAdapter, text, setText, focusComposer: () => area.current?.focus(), resetKey: thread.id });
 
-  // Borrador guardado solo (se escribe en el chat, lo ven las otras pestañas al recargar).
-  useEffect(() => {
-    if (text === saved.current) return;
-    const id = window.setTimeout(() => {
-      saved.current = text;
-      void api(`/api/inbox/threads/${thread.id}`, { method: 'PATCH', json: { draft: text } });
-    }, 700);
-    return () => window.clearTimeout(id);
-  }, [text, thread.id]);
+  // Borrador: la fila de la lista lo muestra al instante y se guarda solo (lo ven las otras pestañas al recargar).
+  const draft = useDraftAutosave({ scope: 'inbox', id: thread.id, text, saved, save: async (id, value) => (await api(`/api/inbox/threads/${id}`, { method: 'PATCH', json: { draft: value }, keepalive: true })).ok });
 
   useEffect(() => {
     const el = area.current;
@@ -86,11 +77,13 @@ const Composer = forwardRef<
 
   const send = useCallback(async () => {
     const body = text.trim();
-    if (!body || busy || disabled) return;
+    if (!body || busy || disabled || paused) return;
     setBusy('send');
+    draft.sending();
     const r = await api<{ messages: MessageDto[] }>(`/api/inbox/threads/${thread.id}/messages`, { method: 'POST', json: { body } });
     setBusy('');
     if (!r.ok) {
+      draft.failed(text);
       onError(r.data.error ?? 'send_failed');
       return;
     }
@@ -107,9 +100,7 @@ const Composer = forwardRef<
       draft: () => ai.openBar(),
       clear: () => {
         setText('');
-        saved.current = '';
         ai.clearUndo();
-        void api(`/api/inbox/threads/${thread.id}`, { method: 'PATCH', json: { draft: '' } });
       },
     }),
     [ai.openBar, ai.clearUndo, thread.id], // eslint-disable-line react-hooks/exhaustive-deps
@@ -159,6 +150,8 @@ const Composer = forwardRef<
       <textarea
         id={`ib-compose-${thread.id}`}
         ref={area}
+        readOnly={paused}
+        aria-busy={paused || undefined}
         className="textarea ib-textarea"
         rows={1}
         value={text}

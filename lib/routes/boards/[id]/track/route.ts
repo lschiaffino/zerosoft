@@ -23,7 +23,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   const user = await getCurrentUser();
   const access = await requireBoardAccess(user, id, 'view');
   if (isDenied(access)) return access;
-  return NextResponse.json({ cards: await listBoardTrackCards(id) });
+  return NextResponse.json({ cards: await listBoardTrackCards(id, access.viewer.personId) });
 }
 
 /** Stickies → issues. Body: { projectId, items: [{ elementId, text }], locale? }. */
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     fromLabel: FROM[locale] ?? FROM.en,
   });
   if (!res.ok) return jsonError(404, res.code);
-  return NextResponse.json({ created: res.created, skipped: res.skipped, cards: await listBoardTrackCards(id) }, { status: 201 });
+  return NextResponse.json({ created: res.created, skipped: res.skipped, cards: await listBoardTrackCards(id, access.viewer.personId) }, { status: 201 });
 }
 
 /** Suelta el issue de un sticky: ?element=<id>. El issue no se borra. */
@@ -62,5 +62,5 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const element = req.nextUrl.searchParams.get('element') ?? '';
   if (!element) return jsonError(400, 'invalid_input');
   await unlinkBoardTrackCard(id, element);
-  return NextResponse.json({ cards: await listBoardTrackCards(id) });
+  return NextResponse.json({ cards: await listBoardTrackCards(id, access.viewer.personId) });
 }

@@ -23,6 +23,8 @@ import { createNotification } from './notifications';
 import { siteUrl } from './board-urls';
 import { safeTimezone } from './notes-reminders';
 import { GroupsError, chatDisplayName, getChatRow, getMessageRow } from './groups';
+import { canSeeChat, chatAccessSql, type GroupsViewer } from './groups-access';
+import { maskPhoneText } from './groups-mask';
 import en from '@/messages/en/groups.json';
 import es from '@/messages/es/groups.json';
 import pt from '@/messages/pt/groups.json';
@@ -163,15 +165,26 @@ async function assertPerson(ws: string, personId: string): Promise<void> {
  * La tarea de un chat. Con `crm` (la visibilidad del CRM de quien mira),
  * también una tarea del CRM sobre el contacto o la empresa de algún chat.
  */
-export async function getGroupTask(ws: string, id: string, crm?: OwnerScope | false): Promise<GroupTaskDto | null> {
-  const r = (await getDb().prepare(`${SELECT} WHERE t.id = ? AND t.user_id = ?`).get(id, ws)) as TaskJoin | undefined;
-  if (r) return toDto(r);
+/**
+ * Con `viewer`, solo las tareas de chats que esa persona ve (líneas restringidas y acceso por etiqueta),
+ * con el nombre del chat enmascarado si a ella se le ocultan los teléfonos.
+ */
+export async function getGroupTask(ws: string, id: string, crm?: OwnerScope | false, viewer?: GroupsViewer): Promise<GroupTaskDto | null> {
+  const access = viewer ? chatAccessSql(viewer) : null;
+  const r = (await getDb()
+    .prepare(`${SELECT} WHERE t.id = ? AND t.user_id = ?${access ? ` AND ${access.sql}` : ''}`)
+    .get(id, ws, ...(access?.args ?? []))) as TaskJoin | undefined;
+  if (r) return forViewer(toDto(r), viewer);
   const scope = recordScope(crm);
   if (!scope) return null;
   const rec = (await getDb()
-    .prepare(`${SELECT_RECORD} AND a.id = ? AND a.user_id = ?${scope.sql ? ` AND ${scope.sql}` : ''} LIMIT 1`)
-    .get(id, ws, ...scope.args)) as TaskJoin | undefined;
-  return rec ? toDto(rec) : null;
+    .prepare(`${SELECT_RECORD} AND a.id = ? AND a.user_id = ?${scope.sql ? ` AND ${scope.sql}` : ''}${access ? ` AND ${access.sql}` : ''} LIMIT 1`)
+    .get(id, ws, ...scope.args, ...(access?.args ?? []))) as TaskJoin | undefined;
+  return rec ? forViewer(toDto(rec), viewer) : null;
+}
+
+function forViewer(t: GroupTaskDto, viewer?: GroupsViewer): GroupTaskDto {
+  return viewer?.mask ? { ...t, chatName: maskPhoneText(t.chatName) } : t;
 }
 
 export interface CreateTaskInput {
@@ -187,9 +200,9 @@ export interface CreateTaskInput {
 }
 
 /** Crea la tarea (del CRM) ligada al chat y, si viene, al mensaje. */
-export async function createGroupTask(ws: string, actor: string, input: CreateTaskInput, now = new Date()): Promise<GroupTaskDto> {
+export async function createGroupTask(ws: string, actor: string, input: CreateTaskInput, now = new Date(), viewer?: GroupsViewer): Promise<GroupTaskDto> {
   const chat = await getChatRow(ws, input.chatId);
-  if (!chat) throw new GroupsError('not_found', 404);
+  if (!chat || (viewer && !(await canSeeChat(viewer, chat.id)))) throw new GroupsError('not_found', 404);
   let messageBody = '';
   if (input.messageId) {
     const msg = await getMessageRow(ws, input.messageId);
@@ -226,7 +239,7 @@ export async function createGroupTask(ws: string, actor: string, input: CreateTa
   );
   await link.run(id, ws, 'lines_chat', chat.id, actor, now.toISOString());
   if (input.messageId) await link.run(id, ws, 'lines_message', input.messageId, actor, now.toISOString());
-  return (await getGroupTask(ws, id)) as GroupTaskDto;
+  return (await getGroupTask(ws, id, undefined, viewer)) as GroupTaskDto;
 }
 
 export interface TaskQuery {
@@ -238,6 +251,8 @@ export interface TaskQuery {
   limit?: number;
   /** Con chatId: sumar las tareas del CRM del contacto o la empresa del chat, con esta visibilidad. */
   crm?: OwnerScope | false;
+  /** Solo las tareas de chats que esta persona ve. */
+  viewer?: GroupsViewer;
 }
 
 /** Tareas de Groups: abiertas primero por vencimiento (las sin fecha al final). */
@@ -259,6 +274,11 @@ export async function listGroupTasks(ws: string, me: string, query: TaskQuery = 
     where.push(`(a.subject LIKE ? ESCAPE '\\' OR c.name LIKE ? ESCAPE '\\')`);
     const like = `%${query.q.trim().slice(0, 100).replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
     args.push(like, like);
+  }
+  const access = query.viewer ? chatAccessSql(query.viewer) : null;
+  if (access) {
+    where.push(access.sql);
+    args.push(...access.args);
   }
   const limit = Math.min(Math.max(1, query.limit ?? 200), 500);
   const rows = (await getDb()
@@ -282,6 +302,10 @@ export async function listGroupTasks(ws: string, me: string, query: TaskQuery = 
       rWhere.push(scope.sql);
       rArgs.push(...scope.args);
     }
+    if (access) {
+      rWhere.push(access.sql);
+      rArgs.push(...access.args);
+    }
     const extra = (await getDb()
       .prepare(`${SELECT_RECORD} AND ${rWhere.join(' AND ')} LIMIT ?`)
       .all(...rArgs, limit)) as TaskJoin[];
@@ -294,7 +318,7 @@ export async function listGroupTasks(ws: string, me: string, query: TaskQuery = 
         y.created_at.localeCompare(x.created_at),
     );
   }
-  return rows.slice(0, limit).map(toDto);
+  return rows.slice(0, limit).map((r) => forViewer(toDto(r), query.viewer));
 }
 
 export interface TaskPatch {
@@ -306,8 +330,8 @@ export interface TaskPatch {
   priority?: TaskPriority;
 }
 
-export async function updateGroupTask(ws: string, id: string, patch: TaskPatch, crm?: OwnerScope | false): Promise<GroupTaskDto> {
-  const task = await getGroupTask(ws, id, crm);
+export async function updateGroupTask(ws: string, id: string, patch: TaskPatch, crm?: OwnerScope | false, viewer?: GroupsViewer): Promise<GroupTaskDto> {
+  const task = await getGroupTask(ws, id, crm, viewer);
   if (!task) throw new GroupsError('not_found', 404);
   const data: Parameters<typeof updateActivity>[2] = {};
   if (patch.title !== undefined) {
@@ -324,12 +348,12 @@ export async function updateGroupTask(ws: string, id: string, patch: TaskPatch, 
   if (patch.done !== undefined) data.done = patch.done;
   if (patch.priority !== undefined) data.priority = cleanPriority(patch.priority);
   await updateActivity(ws, task.activityId, data);
-  return (await getGroupTask(ws, id, crm)) as GroupTaskDto;
+  return (await getGroupTask(ws, id, crm, viewer)) as GroupTaskDto;
 }
 
 /** Borra una tarea que salió de un chat (las del CRM se borran en el CRM). */
-export async function deleteGroupTask(ws: string, id: string): Promise<boolean> {
-  const task = await getGroupTask(ws, id);
+export async function deleteGroupTask(ws: string, id: string, viewer?: GroupsViewer): Promise<boolean> {
+  const task = await getGroupTask(ws, id, undefined, viewer);
   if (!task) return false;
   await deleteActivity(ws, task.activityId).catch(() => false);
   return (await getDb().prepare('DELETE FROM groups_tasks WHERE id = ? AND user_id = ?').run(id, ws)).changes > 0;
@@ -405,7 +429,7 @@ export async function fireTaskReminders(opts: { now?: Date; limit?: number } = {
     const mail = buildTaskEmail({ title: r.subject, chatName, dueAt: r.due_at, timezone: r.timezone }, locale, `${siteUrl()}/${locale}${href}`);
     const { personCanSeeChat } = await import('./groups-access');
     // Sin ver la línea del chat no hay aviso: ni la notificación ni el email nombran el chat.
-    if (person && !(await personCanSeeChat(r.user_id, person, r.chat_id).catch(() => true))) continue;
+    if (person && !(await personCanSeeChat(r.user_id, person, r.chat_id).catch(() => false))) continue;
     if (person) {
       await createNotification({
         userId: person,

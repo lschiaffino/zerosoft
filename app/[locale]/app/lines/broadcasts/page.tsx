@@ -17,13 +17,17 @@ export default async function GroupsBroadcastsPage(props: { params: Promise<{ lo
   const { locale } = await props.params;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'groups' });
-  const [broadcasts, numbers, recurringAll, visible] = await Promise.all([
-    listBroadcasts(user.id),
-    listNumbers(user.id, await pageViewer(user)),
+  const viewer = await pageViewer(user);
+  const visible = await visibleChatIds(viewer);
+  const [broadcasts, numbers, recurringAll] = await Promise.all([
+    // Solo los envíos que van a chats que la persona ve (acceso por etiqueta o por línea).
+    listBroadcasts(user.id, { visible }),
+    listNumbers(user.id, viewer),
     listRecurring(user.id),
-    pageViewer(user).then(visibleChatIds),
   ]);
-  const recurring = visible ? recurringAll.filter((r) => r.chatIds.some((id) => visible.has(id))) : recurringAll;
+  const recurring = visible
+    ? recurringAll.filter((r) => r.chatIds.some((id) => visible.has(id))).map((r) => ({ ...r, chatIds: r.chatIds.filter((id) => visible.has(id)) }))
+    : recurringAll;
   const fmt = (iso: string) => new Date(iso).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
   return (
     <div className="ui-page">

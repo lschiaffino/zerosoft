@@ -32,7 +32,7 @@ export interface LineAccessInput {
   teamIds?: string[];
 }
 
-/** Cambia dueño, visibilidad y accesos de una línea (la ruta exige admin). */
+/** Cambia dueño, visibilidad y accesos de una línea (la ruta exige poder administrarla; el dueño, admin). */
 export async function setLineAccess(ws: string, numberId: string, input: LineAccessInput): Promise<void> {
   const row = await getNumberRow(ws, numberId);
   if (!row) throw new GroupsError('not_found', 404);

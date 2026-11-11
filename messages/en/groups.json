@@ -702,7 +702,8 @@
     "syncedAuto": "{n, plural, =0 {No groups on this number yet.} one {We brought in # group.} other {We brought in # groups.}}",
     "openInbox": "Go to inbox",
     "deleteBodyManaged": "Its chats, groups, messages and tickets are deleted from Lines and the linked session on the phone is logged out.",
-    "adminOnly": "Only workspace admins add, connect and delete numbers."
+    "adminOnly": "Only workspace admins, or people an admin allowed to connect numbers, add and connect numbers.",
+    "memberNote": "The numbers you add are yours and private: only you and the workspace admins see their chats until you share them with Access."
   },
   "providers": {
     "cloud": {
@@ -849,7 +850,7 @@
     "pageBody": "Something failed on our side. Try again.",
     "generic": "Something went wrong. Try again.",
     "unauthorized": "Your session ended. Sign in again.",
-    "forbidden": "Only workspace admins can do that.",
+    "forbidden": "You don’t have permission to do that.",
     "not_found": "It no longer exists.",
     "invalid_input": "Check the fields.",
     "network_error": "No connection. Try again.",
@@ -1635,7 +1636,7 @@
     "badge": "Sample",
     "load": "Try with sample data",
     "loading": "Loading sample...",
-    "askAdmin": "Ask a workspace admin to connect a number or load sample data.",
+    "askAdmin": "Ask a workspace admin to connect a number, or to let you connect one.",
     "banner": "Sample data: nothing you send goes out to WhatsApp.",
     "clear": "Delete sample data",
     "clearTitle": "Delete the sample data?",
@@ -1656,6 +1657,7 @@
     "pages": "{n, plural, one {# page} other {# pages}}",
     "location": "Location",
     "emoji": "Emoji",
+    "emojiSuggest": "Emoji suggestions",
     "emojiSets": {
       "recent": "Recent",
       "smileys": "Smileys and people",
@@ -1793,7 +1795,11 @@
     "lineDropped": "{name} lost its WhatsApp connection. New messages won’t arrive until you reconnect it.",
     "line": "Your line",
     "rescan": "Scan the QR again",
-    "reconnect": "Reconnect"
+    "reconnect": "Reconnect",
+    "openNewWindow": "Open in new window",
+    "contactInfo": "Contact info",
+    "groupInfo": "Group info",
+    "exportChat": "Export chat"
   },
   "swipe": {
     "read": "Read",
@@ -1863,7 +1869,8 @@
         "moveTo": "Move to…",
         "delete": "Delete"
       }
-    }
+    },
+    "ownerFixed": "You are the owner of this line. Only an admin can pass it to someone else."
   },
   "hubspot": {
     "title": "HubSpot",

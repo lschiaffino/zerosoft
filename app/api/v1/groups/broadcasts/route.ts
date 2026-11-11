@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   const auth = await requireApiUser(req, 'groups:read');
   if ('res' in auth) return auth.res;
-  return NextResponse.json({ data: await listBroadcasts(auth.user.id) });
+  return NextResponse.json({ data: await listBroadcasts(auth.user.id, { visible: await visibleChatIds(await v1Viewer(auth)) }) });
 }
 
 /**

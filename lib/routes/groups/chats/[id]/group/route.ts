@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { leaveGroup, updateGroupSettings } from '@/lib/groups-org';
-import { groupsError, groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { maskChat } from '@/lib/groups-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,9 +17,11 @@ export async function POST(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
+  const guard = await chatGuard(s, id);
+  if (guard instanceof NextResponse) return guard;
   const b = await readJson(req);
   try {
-    if (b.action === 'leave') return NextResponse.json(await leaveGroup(s.ws, id));
+    if (b.action === 'leave') return NextResponse.json(maskChat(guard.viewer, await leaveGroup(s.ws, id)));
     if (b.action !== 'settings') return groupsError(400, 'invalid_action');
     let picture: { url: string; mimetype: string } | null | undefined;
     if (b.picture === null) picture = null;
@@ -27,7 +30,7 @@ export async function POST(req: Request, ctx: Ctx) {
       picture = { url: str(p.url, 1000) ?? '', mimetype: str(p.mimetype, 100) ?? '' };
     }
     return NextResponse.json(
-      await updateGroupSettings(
+      maskChat(guard.viewer, await updateGroupSettings(
         s.ws,
         id,
         {
@@ -37,7 +40,7 @@ export async function POST(req: Request, ctx: Ctx) {
           picture,
         },
         new URL(req.url).origin,
-      ),
+      )),
     );
   } catch (err) {
     return handleGroupsError(err);

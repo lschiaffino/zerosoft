@@ -21,7 +21,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   const id = (await ctx.params).id;
   const denied = await broadcastGuard(s, id);
   if (denied) return denied;
-  const res = await getBroadcast(s.ws, id);
+  const res = await getBroadcast(s.ws, id, { mask: (await sessionViewer(s)).mask });
   return res ? NextResponse.json(res) : groupsError(404, 'not_found');
 }
 

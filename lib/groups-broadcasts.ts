@@ -12,6 +12,7 @@ import { randomUUID } from 'crypto';
 import { getDb } from './db';
 import { GroupsError, chatDisplayName, getNumberRow, sendMessage, type ChatRow } from './groups';
 import { PROVIDER_CAPS } from './groups-provider';
+import { maskPhoneText } from './groups-mask';
 import { normalizePoll, parsePoll, type PollInput } from './groups-polls';
 import { allowedSends, chatVariables, clampPerMinute, renderVariables, sendGapMs } from './groups-rules';
 
@@ -192,7 +193,11 @@ async function getBroadcastRow(ws: string, id: string): Promise<BroadcastRow | n
   return ((await getDb().prepare('SELECT * FROM groups_broadcasts WHERE id = ? AND user_id = ?').get(id, ws)) as BroadcastRow) ?? null;
 }
 
-export async function listBroadcasts(ws: string, opts: { kind?: 'broadcast' | 'scheduled'; chatId?: string } = {}): Promise<BroadcastDto[]> {
+/** Con `visible` (chats que ve la persona; null = todos), solo los envíos que van únicamente a chats que ve. */
+export async function listBroadcasts(
+  ws: string,
+  opts: { kind?: 'broadcast' | 'scheduled'; chatId?: string; visible?: Set<string> | null } = {},
+): Promise<BroadcastDto[]> {
   const where = ['b.user_id = ?'];
   const args: string[] = [ws];
   if (opts.kind) {
@@ -206,10 +211,17 @@ export async function listBroadcasts(ws: string, opts: { kind?: 'broadcast' | 's
   const rows = (await getDb()
     .prepare(`SELECT b.* FROM groups_broadcasts b WHERE ${where.join(' AND ')} ORDER BY b.created_at DESC LIMIT 200`)
     .all(...args)) as BroadcastRow[];
-  return rows.map(toBroadcastDto);
+  const visible = opts.visible;
+  if (!visible || !rows.length) return rows.map(toBroadcastDto);
+  const recipients = (await getDb()
+    .prepare(`SELECT broadcast_id, chat_id FROM groups_broadcast_recipients WHERE broadcast_id IN (${rows.map(() => '?').join(', ')})`)
+    .all(...rows.map((r) => r.id))) as Array<{ broadcast_id: string; chat_id: string }>;
+  const hidden = new Set(recipients.filter((r) => !visible.has(r.chat_id)).map((r) => r.broadcast_id));
+  return rows.filter((r) => !hidden.has(r.id)).map(toBroadcastDto);
 }
 
-export async function getBroadcast(ws: string, id: string): Promise<{ broadcast: BroadcastDto; recipients: RecipientDto[] } | null> {
+/** Con `mask` (quien mira tiene los teléfonos ocultos), los chats sin nombre van enmascarados. */
+export async function getBroadcast(ws: string, id: string, opts: { mask?: boolean } = {}): Promise<{ broadcast: BroadcastDto; recipients: RecipientDto[] } | null> {
   const row = await getBroadcastRow(ws, id);
   if (!row) return null;
   const rec = (await getDb()
@@ -233,7 +245,7 @@ export async function getBroadcast(ws: string, id: string): Promise<{ broadcast:
     recipients: rec.map((r) => ({
       id: r.id,
       chatId: r.chat_id,
-      chatName: chatDisplayName(r),
+      chatName: opts.mask && !r.name ? maskPhoneText(chatDisplayName(r)) : chatDisplayName(r),
       kind: r.kind,
       status: r.status,
       error: r.error,

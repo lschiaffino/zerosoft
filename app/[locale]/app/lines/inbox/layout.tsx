@@ -6,6 +6,7 @@ import { getTranslations } from 'next-intl/server';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { droppedNumbers, listLabels, listNumbers, listPeople, listPropertyDefs } from '@/lib/groups';
 import { pageViewer } from '@/lib/groups-page';
+import { numberManager } from '@/lib/groups-number-perms';
 import { getSelectedLine } from '@/lib/groups-lines';
 import { linesPanelsScript } from '@/lib/groups-panels';
 import { managedAvailable } from '@/lib/groups-provider-managed';
@@ -26,6 +27,8 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
   const t = await getTranslations({ locale, namespace: 'groups' });
   const me = user.actingUser?.id ?? user.id;
   const viewer = await pageViewer(user);
+  // Admins, o members con permiso para conectar números: ven el camino para conectar uno.
+  const canConnect = numberManager(user).canAdd;
   const [numbers, labels, people, teams, properties, lists] = await Promise.all([
     listNumbers(user.id, viewer),
     listLabels(user.id),
@@ -44,8 +47,8 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
         <PageHeader title={t('inbox.title')} />
         <EmptyState
           title={t('inbox.noNumbersTitle')}
-          body={!isWorkspaceAdmin(user) ? t('sample.askAdmin') : managedAvailable() ? t('inbox.noNumbersBodyQr') : t('inbox.noNumbersBody')}
-          action={isWorkspaceAdmin(user) ? <GetStarted managed={managedAvailable()} canEdit /> : undefined}
+          body={!canConnect ? t('sample.askAdmin') : managedAvailable() ? t('inbox.noNumbersBodyQr') : t('inbox.noNumbersBody')}
+          action={canConnect ? <GetStarted managed={managedAvailable()} canEdit sample={isWorkspaceAdmin(user)} /> : undefined}
           product="groups"
         />
       </div>
@@ -69,7 +72,7 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
           ) : nothingConnected ? (
             <div className="gr-banner gr-sample-banner is-warn" role="status">
               <span>{t('inbox.pendingBanner')}</span>
-              <GetStarted managed={managedAvailable()} canEdit={isWorkspaceAdmin(user)} finish inline />
+              <GetStarted managed={managedAvailable()} canEdit={canConnect} sample={isWorkspaceAdmin(user)} finish inline />
             </div>
           ) : null
         }

@@ -51,6 +51,8 @@
       "no_camera": "No camera found. Connect one or record your screen only.",
       "device": "The camera or microphone could not start. Close other apps that use it and try again.",
       "screen_unsupported": "This browser cannot record the screen. Try Chrome, Edge or Firefox on a computer.",
+      "screen_black": "The screen came out black: your computer isn't letting the browser record it. On a Mac, open System Settings › Privacy & Security › Screen & System Audio Recording, turn on your browser and reopen it.",
+      "screen_black_desktop": "The screen came out black: macOS isn't letting zerosoft record it. Open System Settings › Privacy & Security › Screen & System Audio Recording, turn on zerosoft, quit it with ⌘Q and open it again.",
       "screen_denied": "Screen sharing was cancelled or blocked.",
       "upload": "The recording could not start. Try again.",
       "unsupported": "This browser cannot record video. Try Chrome, Edge or Firefox."

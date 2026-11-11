@@ -10,13 +10,15 @@ import {
   EXPAND_MS,
   HOLD_MS,
   holdBroken,
-  lockAxis,
   openWidth,
-  swipeOffset,
-  swipeRelease,
+  swipeCount,
+  swipeEnd,
+  swipeMove,
+  swipeStart,
   SWIPE_SLOP,
   trayPlacement,
   type SwipeSide,
+  type SwipeTrack,
   type TrayPlacement,
 } from '@/lib/chat-gestures';
 
@@ -25,7 +27,11 @@ import {
  *
  * - Deslizar a los costados (dedo, mouse o trackpad): atrás de la fila
  *   aparecen las acciones, como en WhatsApp. Soltar a mitad de camino las
- *   deja abiertas; deslizar hasta el fondo ejecuta la principal.
+ *   deja abiertas; deslizar hasta el fondo ejecuta la principal. Un gesto
+ *   tiene un solo lado: volver frena en la fila cerrada y no abre el otro.
+ *   Con la fila abierta, arrastrarla de vuelta (o tocarla, tocar otra o
+ *   correr la lista) la cierra sin abrir el chat. Las cuentas están en
+ *   lib/chat-gestures.ts (swipeStart, swipeMove, swipeEnd).
  * - Mantener apretado (o arrastrar con el mouse hacia arriba, abajo o fuera
  *   de la lista) levanta la conversación: una ficha chica sigue al puntero
  *   sin tapar lo que hay debajo, y se suelta sobre una carpeta. Las carpetas
@@ -100,18 +106,13 @@ interface Live {
   sy: number;
   x: number;
   y: number;
-  /** Corrimiento del puntero cuando el deslizado arrancó (para que la fila no salte). */
-  ox: number;
-  offset: number;
-  side: SwipeSide;
-  counts: { left: number; right: number };
-  width: number;
+  /** El deslizado (lib/chat-gestures.ts). */
+  track: SwipeTrack | null;
+  /** La fila estaba abierta al apoyar: el gesto la sigue desde ahí. */
+  wasOpen: boolean;
   list: DOMRect | null;
   hold: number;
   ready: boolean;
-  lastT: number;
-  lastX: number;
-  velocity: number;
   ids: string[];
   moved: boolean;
   hover: HTMLElement | null;
@@ -133,17 +134,11 @@ const idle = (): Live => ({
   sy: 0,
   x: 0,
   y: 0,
-  ox: 0,
-  offset: 0,
-  side: 'left',
-  counts: { left: 0, right: 0 },
-  width: 0,
+  track: null,
+  wasOpen: false,
   list: null,
   hold: 0,
   ready: false,
-  lastT: 0,
-  lastX: 0,
-  velocity: 0,
   ids: [],
   moved: false,
   hover: null,
@@ -474,14 +469,17 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
   );
 
   const endSwipe = useCallback(
-    (cancel: boolean) => {
+    (cancel: boolean, at?: number) => {
       const L = live.current;
       const row = L.row;
       if (!row) return;
       swallowUntil.current = Date.now() + 400;
-      const { id, side, offset, width } = L;
-      const count = side === 'left' ? L.counts.left : L.counts.right;
-      const end = cancel ? 'close' : swipeRelease({ x: offset, width, count, velocity: L.velocity });
+      const tr = L.track;
+      if (!tr?.side) return;
+      const { id } = L;
+      const { side, width } = tr;
+      const count = swipeCount(tr);
+      const end = cancel ? 'close' : swipeEnd(tr, at);
       row.removeAttribute('data-swipe-commit');
       const sign = side === 'left' ? -1 : 1;
       if (end === 'open') {
@@ -522,8 +520,10 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
     const L = live.current;
     if (L.phase === 'swipe') endSwipe(true);
     else if (L.phase === 'drag') endDrag(false);
+    // Se apoyó sobre la fila abierta y el navegador se llevó el gesto (scroll): la fila se cierra.
+    else if (L.phase === 'pending' && L.wasOpen && open.current?.row === L.row) closeSwipe();
     finish();
-  }, [endDrag, endSwipe, finish]);
+  }, [closeSwipe, endDrag, endSwipe, finish]);
 
   const onPointerDown = useCallback(
     (id: string, e: ReactPointerEvent<HTMLElement>) => {
@@ -532,10 +532,17 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
       closedByTap.current = false;
       // Un gesto que quedó colgado (se soltó fuera de la ventana) o un segundo dedo: se corta y se empieza de nuevo.
       if (live.current.phase !== 'idle') abort();
-      if (e.pointerType === 'mouse' && (e.button !== 0 || e.ctrlKey)) return;
-      const target = e.target as HTMLElement;
-      if (target.closest('input, select, textarea, [data-no-gesture], .zs-swipe-actions')) return;
       const row = e.currentTarget;
+      const wasOpen = open.current?.row === row ? open.current : null;
+      const target = e.target as HTMLElement;
+      if ((e.pointerType === 'mouse' && (e.button !== 0 || e.ctrlKey)) || target.closest('input, select, textarea, [data-no-gesture], .zs-swipe-actions')) {
+        // Sobre la fila abierta, fuera de sus botones: la cierra y no hace nada más.
+        if (wasOpen && !target.closest('.zs-swipe-actions')) {
+          closeSwipe();
+          swallowUntil.current = Date.now() + 600;
+        }
+        return;
+      }
       const acts = opts.current.actionsFor(id);
       const L = idle();
       live.current = L;
@@ -544,13 +551,25 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
       L.row = row;
       L.pointerId = e.pointerId;
       L.touch = e.pointerType === 'touch' || e.pointerType === 'pen';
-      L.sx = L.x = L.lastX = e.clientX;
+      L.sx = L.x = e.clientX;
       L.sy = L.y = e.clientY;
-      L.lastT = e.timeStamp;
-      L.counts = { left: acts?.left.length ?? 0, right: acts?.right.length ?? 0 };
-      L.hold = window.setTimeout(() => {
-        if (live.current === L && L.phase === 'pending') beginDrag();
-      }, HOLD_MS);
+      L.wasOpen = !!wasOpen;
+      const openSide = wasOpen ? ((row.getAttribute('data-swipe') as SwipeSide | null) ?? null) : null;
+      L.track = swipeStart({ x: e.clientX, y: e.clientY, t: e.timeStamp, width: row.offsetWidth, counts: { left: acts?.left.length ?? 0, right: acts?.right.length ?? 0 }, open: openSide });
+      // Con la fila abierta, apoyar es para cerrarla o arrastrarla: no levanta la conversación.
+      if (!wasOpen) {
+        L.hold = window.setTimeout(() => {
+          if (live.current === L && L.phase === 'pending') beginDrag();
+        }, HOLD_MS);
+      }
+
+      /** La fila abierta se cierra (un toque, scroll, o un gesto que no es deslizar) y el clic de este toque no abre el chat. */
+      const shut = () => {
+        if (!L.wasOpen) return;
+        L.wasOpen = false;
+        if (open.current?.row === row) closeSwipe();
+        swallowUntil.current = Date.now() + 600;
+      };
 
       const move = (ev: PointerEvent) => {
         if (live.current !== L || ev.pointerId !== L.pointerId) return;
@@ -558,33 +577,33 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
         if (ev.pointerType === 'mouse' && ev.buttons === 0) return abort();
         const dx = ev.clientX - L.sx;
         const dy = ev.clientY - L.sy;
-        const dt = ev.timeStamp - L.lastT;
-        if (dt > 0) {
-          L.velocity = 0.7 * ((ev.clientX - L.lastX) / dt) + 0.3 * L.velocity;
-          L.lastT = ev.timeStamp;
-          L.lastX = ev.clientX;
-        }
         L.x = ev.clientX;
         L.y = ev.clientY;
+        const tr = L.track ? swipeMove(L.track, { x: ev.clientX, y: ev.clientY, t: ev.timeStamp }) : null;
+        L.track = tr;
         if (L.phase === 'pending') {
           if (holdBroken(dx, dy)) window.clearTimeout(L.hold);
-          const axis = lockAxis(dx, dy);
-          if (!axis) return;
-          const count = dx < 0 ? L.counts.left : L.counts.right;
+          if (!tr?.axis) return;
           L.list = (row.closest<HTMLElement>('[data-chat-list]') ?? row.parentElement ?? row).getBoundingClientRect();
           const gone = !L.touch && escapedList({ x: ev.clientX, y: ev.clientY }, L.list);
-          if (axis === 'x' && count > 0 && !gone) {
+          if (tr.axis === 'x' && swipeCount(tr) > 0 && !gone) {
             L.phase = 'swipe';
-            L.ox = (dx < 0 ? -1 : 1) * SWIPE_SLOP;
-            L.side = dx < 0 ? 'left' : 'right';
-            L.width = row.offsetWidth;
-            closeSwipe(true);
+            if (L.wasOpen) {
+              // La fila abierta pasa a ser de este gesto: sigue desde donde estaba, del mismo lado.
+              open.current = null;
+            } else {
+              closeSwipe(true);
+            }
             document.body.setAttribute('data-chat-gesture', 'swipe');
             settleSeq.set(row, (settleSeq.get(row) ?? 0) + 1);
             row.removeAttribute('data-swipe-settling');
-            L.offset = swipeOffset(dx - L.ox, { width: L.width, left: L.counts.left, right: L.counts.right });
-            paint(row, L.offset, L.side);
-            setSwipe({ id, side: L.side });
+            paint(row, tr.offset, tr.side!);
+            setSwipe({ id, side: tr.side! });
+          } else if (L.wasOpen) {
+            // Con la fila abierta, cualquier otro gesto (scroll, arrastre vertical) solo la cierra.
+            shut();
+            if (L.touch) finish();
+            else L.phase = 'dead';
           } else if (!L.touch) {
             // Con el mouse, arrastrar hacia arriba o abajo levanta la conversación sin esperar.
             L.sx = ev.clientX;
@@ -597,22 +616,15 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
           }
           return;
         }
-        if (L.phase === 'swipe') {
+        if (L.phase === 'swipe' && tr?.side) {
           if (!L.touch && L.list && escapedList({ x: ev.clientX, y: ev.clientY }, L.list)) {
             // El mouse salió de la lista: iba a una carpeta. Pasa a ser un arrastre.
             beginDrag();
             L.moved = true;
             return;
           }
-          const x = swipeOffset(dx - L.ox, { width: L.width, left: L.counts.left, right: L.counts.right });
-          const side: SwipeSide = x < 0 ? 'left' : x > 0 ? 'right' : L.side;
-          if (side !== L.side) {
-            L.side = side;
-            setSwipe({ id, side });
-          }
-          L.offset = x;
-          paint(row, x, side);
-          const ready = Math.abs(x) >= commitAt(L.width, side === 'left' ? L.counts.left : L.counts.right);
+          paint(row, tr.offset, tr.side);
+          const ready = Math.abs(tr.offset) >= commitAt(tr.width, swipeCount(tr));
           if (ready !== L.ready) {
             L.ready = ready;
             row.toggleAttribute('data-swipe-commit', ready);
@@ -626,11 +638,10 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
         if (live.current !== L || ev.pointerId !== L.pointerId) return;
         L.x = ev.clientX;
         L.y = ev.clientY;
-        // Si el puntero se quedó quieto antes de soltar, no hay envión.
-        if (ev.timeStamp - L.lastT > 80) L.velocity = 0;
-        if (L.phase === 'swipe') endSwipe(false);
+        if (L.phase === 'swipe') endSwipe(false, ev.timeStamp);
         else if (L.phase === 'drag') endDrag(true);
         else if (L.phase === 'dead') swallowUntil.current = Date.now() + 400;
+        else if (L.phase === 'pending') shut();
         finish();
       };
       const cancel = (ev: PointerEvent) => {
@@ -672,7 +683,8 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
     [abort, beginDrag, closeSwipe, endDrag, endSwipe, finish],
   );
 
-  // Acciones abiertas: tocar en otro lado o Esc las cierra (y ese toque no abre nada).
+  // Acciones abiertas: tocar en otro lado, correr la lista o Esc las cierra (y ese toque no abre nada).
+  // Sobre la misma fila decide su propio gesto (onPointerDown): un toque la cierra, arrastrarla la lleva.
   useEffect(() => {
     if (!swipe) return;
     const down = (e: PointerEvent) => {
@@ -680,8 +692,15 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
       if (!o) return;
       const t = e.target as HTMLElement | null;
       if (t?.closest('.zs-swipe-actions')) return;
+      if (t && o.row.contains(t)) return;
       closedByTap.current = !!t?.closest('[data-chat-row]');
       closeSwipe();
+    };
+    const scroll = (e: Event) => {
+      const o = open.current;
+      const t = e.target;
+      if (!o || live.current.phase === 'swipe') return;
+      if (t === document || (t instanceof Node && t.contains(o.row))) closeSwipe();
     };
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || !open.current) return;
@@ -691,9 +710,11 @@ export function useChatGestures(options: ChatGesturesOptions): ChatGestures {
     };
     window.addEventListener('pointerdown', down, true);
     window.addEventListener('keydown', key, true);
+    window.addEventListener('scroll', scroll, { capture: true, passive: true });
     return () => {
       window.removeEventListener('pointerdown', down, true);
       window.removeEventListener('keydown', key, true);
+      window.removeEventListener('scroll', scroll, { capture: true });
     };
   }, [swipe, closeSwipe]);
 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createGroups, parseGroupsCsv, type CreateGroupRow } from '@/lib/groups';
 import { parseCsv } from '@/lib/csv-parse';
-import { groupsError, groupsSession, handleGroupsError, readJson, str, strArr } from '@/lib/groups-http';
+import { groupsError, groupsSession, lineGuard, handleGroupsError, readJson, str, strArr } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,6 +41,8 @@ export async function POST(req: Request) {
   }
   if (b.preview === true) return NextResponse.json({ rows, errors });
   if (!numberId) return groupsError(400, 'invalid_number');
+  const line = await lineGuard(s, numberId);
+  if (line instanceof NextResponse) return line;
   try {
     const results = await createGroups(s.ws, numberId, rows);
     return NextResponse.json({ results, errors }, { status: 201 });
