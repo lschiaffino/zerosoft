@@ -152,10 +152,12 @@ export async function listWorkspaceMembers(scope: WorkspaceScope): Promise<PlanM
 
 /** Proyectos de Track (equipos) del workspace, activos. */
 export async function listScopeTeams(scope: WorkspaceScope): Promise<PlanTeam[]> {
-  const s = scopeWhere(scope);
+  const s = scopeWhere(scope, 'p');
+  // Solo los equipos que ve quien mira (privados e invitados).
+  const vis = await currentVisibleSql('p');
   return (await getDb()
-    .prepare(`SELECT id, name, icon FROM track_projects WHERE ${s.where} AND status = 'active' ORDER BY name ASC LIMIT 200`)
-    .all(s.arg)) as PlanTeam[];
+    .prepare(`SELECT p.id, p.name, p.icon FROM track_projects p WHERE ${s.where} AND p.status = 'active' AND ${vis.sql} ORDER BY p.name ASC LIMIT 200`)
+    .all(s.arg, ...vis.args)) as PlanTeam[];
 }
 
 async function validMemberIds(scope: WorkspaceScope, ids: string[]): Promise<string[]> {
@@ -166,10 +168,12 @@ async function validMemberIds(scope: WorkspaceScope, ids: string[]): Promise<str
 
 async function validTeamIds(scope: WorkspaceScope, ids: string[]): Promise<string[]> {
   if (!ids.length) return [];
-  const s = scopeWhere(scope);
+  const s = scopeWhere(scope, 'p');
+  // Solo equipos que ve quien edita el plan.
+  const vis = await currentVisibleSql('p');
   const rows = (await getDb()
-    .prepare(`SELECT id FROM track_projects WHERE ${s.where} AND id IN ${inClause(ids.length)}`)
-    .all(s.arg, ...ids)) as Array<{ id: string }>;
+    .prepare(`SELECT p.id FROM track_projects p WHERE ${s.where} AND ${vis.sql} AND p.id IN ${inClause(ids.length)}`)
+    .all(s.arg, ...vis.args, ...ids)) as Array<{ id: string }>;
   return rows.map((r) => r.id);
 }
 
@@ -224,7 +228,11 @@ async function logEvent(planId: string, userId: string | null, type: string, met
 
 async function setPlanTeams(planId: string, teamIds: string[]): Promise<void> {
   const db = getDb();
-  await db.prepare('DELETE FROM track_plan_teams WHERE plan_id = ?').run(planId);
+  // Los equipos que no ve quien edita quedan como estaban.
+  const vis = await currentVisibleSql('p');
+  await db
+    .prepare(`DELETE FROM track_plan_teams WHERE plan_id = ? AND project_id IN (SELECT p.id FROM track_projects p WHERE ${vis.sql})`)
+    .run(planId, ...vis.args);
   for (const t of teamIds) {
     await db.prepare('INSERT OR IGNORE INTO track_plan_teams (plan_id, project_id) VALUES (?, ?)').run(planId, t);
   }
@@ -477,13 +485,15 @@ export async function listPlans(scope: WorkspaceScope, opts: ListPlansOptions = 
   if (!rows.length) return [];
   const ids = rows.map((r) => r.id);
   const inIds = inClause(ids.length);
+  // Equipos del plan: solo los que ve quien mira.
+  const teamVis = await currentVisibleSql('p');
   const [teams, members, inits, stats, milestones, planLabels] = await Promise.all([
     db
       .prepare(
         `SELECT t.plan_id, p.id, p.name, p.icon FROM track_plan_teams t JOIN track_projects p ON p.id = t.project_id
-         WHERE t.plan_id IN ${inIds} ORDER BY p.name`,
+         WHERE t.plan_id IN ${inIds} AND ${teamVis.sql} ORDER BY p.name`,
       )
-      .all(...ids) as Promise<Array<PlanTeam & { plan_id: string }>>,
+      .all(...ids, ...teamVis.args) as Promise<Array<PlanTeam & { plan_id: string }>>,
     db.prepare(`SELECT plan_id, user_id FROM track_plan_members WHERE plan_id IN ${inIds}`).all(...ids) as Promise<
       Array<{ plan_id: string; user_id: string }>
     >,
@@ -635,9 +645,14 @@ export async function setIssuePlanMilestone(planId: string, issueId: string, mil
     const m = await db.prepare('SELECT id FROM track_plan_milestones WHERE id = ? AND plan_id = ?').get(milestoneId, planId);
     if (!m) return false;
   }
+  // Solo issues de equipos que ve quien mira.
+  const vis = await currentVisibleSql('p');
   const res = await db
-    .prepare('UPDATE track_issues SET plan_milestone_id = ?, updated_at = ? WHERE id = ? AND plan_id = ?')
-    .run(milestoneId, nowIso(), issueId, planId);
+    .prepare(
+      `UPDATE track_issues SET plan_milestone_id = ?, updated_at = ? WHERE id = ? AND plan_id = ?
+         AND project_id IN (SELECT p.id FROM track_projects p WHERE ${vis.sql})`,
+    )
+    .run(milestoneId, nowIso(), issueId, planId, ...vis.args);
   return res.changes > 0;
 }
 

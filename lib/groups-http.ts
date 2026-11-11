@@ -40,6 +40,13 @@ export async function chatGuard(s: GroupsSession, chatId: string): Promise<{ vie
   return { viewer };
 }
 
+/** 404 si la línea no existe o la persona no la puede ver (líneas restringidas). */
+export async function lineGuard(s: GroupsSession, numberId: string): Promise<{ viewer: GroupsViewer } | NextResponse> {
+  const viewer = await sessionViewer(s);
+  if (!(await canSeeNumber(viewer, numberId))) return groupsError(404, 'not_found');
+  return { viewer };
+}
+
 /** Sesión o respuesta 401. `write` aplica el rate limit de escrituras. */
 export async function groupsSession(opts: { write?: boolean; admin?: boolean } = {}): Promise<GroupsSession | NextResponse> {
   const user = await getCurrentUser();

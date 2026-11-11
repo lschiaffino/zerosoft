@@ -663,5 +663,10 @@
     "unnamed": "Archivo sin nombre",
     "ocrOff": "Leer imágenes y escaneos está apagado en este workspace, así que esos archivos no se reintentaron. Un admin puede prenderlo en los ajustes de Notes.",
     "tooLarge": "Pasan el tope de lectura de 12 MB y no se pueden buscar: {names}."
+  },
+  "audience": {
+    "private": "Solo vos",
+    "people": "Compartida con {count, plural, one {# persona} other {# personas}}",
+    "link": "Compartida por link"
   }
 }

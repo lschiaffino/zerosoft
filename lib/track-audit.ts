@@ -5,7 +5,7 @@
  * Track › Ajustes › Audit log, con filtro y export a CSV.
  */
 import { getDb } from './db';
-import { currentTrackVia, type TrackVia } from './track-access';
+import { currentTrackVia, trackVisibleSql, type TrackVia } from './track-access';
 
 export interface AuditInput {
   workspaceId: string;
@@ -83,6 +83,8 @@ export interface AuditQuery {
   q?: string | null;
   limit?: number;
   offset?: number;
+  /** Quién mira: los issues y comentarios de equipos privados que no ve no aparecen. */
+  viewerId?: string;
 }
 
 export const AUDIT_ACTIONS = [
@@ -125,6 +127,12 @@ export async function listAudit(workspaceId: string, query: AuditQuery = {}): Pr
     const like = `%${query.q.trim().replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
     where.push("(a.entity_label LIKE ? ESCAPE '\\' OR a.data LIKE ? ESCAPE '\\')");
     args.push(like, like);
+  }
+  if (query.viewerId) {
+    const v = trackVisibleSql('vp', query.viewerId);
+    where.push(`(a.entity_type NOT IN ('issue', 'comment') OR a.project_id IS NULL
+      OR EXISTS (SELECT 1 FROM track_projects vp WHERE vp.id = a.project_id AND ${v.sql}))`);
+    args.push(...v.args);
   }
   const whereSql = where.join(' AND ');
   const limit = Math.min(Math.max(query.limit ?? 50, 1), 5000);

@@ -28,7 +28,9 @@ export default async function GroupsTicketsPage(props: { params: Promise<{ local
     )
     .all(user.id)) as Array<{ ticket_id: string; kind: string; remote_id: string; remote_url: string }>;
   const remote: Record<string, Array<{ kind: string; remoteId: string; remoteUrl: string }>> = {};
-  for (const l of links) (remote[l.ticket_id] ??= []).push({ kind: l.kind, remoteId: l.remote_id, remoteUrl: l.remote_url });
+  // Solo los de tickets que la persona ve.
+  const shown = new Set(tickets.map((x) => x.id));
+  for (const l of links) if (shown.has(l.ticket_id)) (remote[l.ticket_id] ??= []).push({ kind: l.kind, remoteId: l.remote_id, remoteUrl: l.remote_url });
   return (
     <div className="ui-page">
       <PageHeader title={t('tickets.pageTitle')} description={t('tickets.desc', { emoji: settings.ticketEmoji || '🎫' })} />

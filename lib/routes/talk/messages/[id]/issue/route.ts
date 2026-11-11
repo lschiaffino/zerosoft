@@ -9,6 +9,7 @@ import { readableMessage, listTalkPeople } from '@/lib/talk';
 import { talkPlainText } from '@/lib/talk-markdown';
 import { canAccessTrackProject, createIssue, getProject } from '@/lib/track-data';
 import { emitEventSoon } from '@/lib/events';
+import { trackEventAudience } from '@/lib/track-access';
 import { siteUrl } from '@/lib/board-urls';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       const found = await readableMessage(actor, id);
       if (!found || found.message.deleted_at) return jsonError(404, 'not_found');
       const project = await getProject(body.projectId);
-      if (!project || !canAccessTrackProject(project, actor.teamId, actor.workspaceId)) return jsonError(404, 'project_not_found');
+      if (!project || !(await canAccessTrackProject(project, actor.teamId, actor.workspaceId))) return jsonError(404, 'project_not_found');
       const people = await listTalkPeople(actor.workspaceId);
       const byId = new Map(people.map((p) => [p.id, p.name]));
       const text = talkPlainText(found.message.body, { user: (u) => byId.get(u) });
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       const where = found.access.channel.kind === 'public' || found.access.channel.kind === 'private' ? `#${found.access.channel.name}` : 'Talk';
       const description = `${text}\n\n${author ? `${author} · ` : ''}${where}: ${link}`;
       const issue = await createIssue(project.id, actor.personId, { title, description: [{ type: 'text', text: description }], priority: body.priority }, { source: 'app' });
-      await emitEventSoon(actor.workspaceId, 'issue.created', { id: issue.id, identifier: issue.identifier, title: issue.title, projectId: project.id });
+      await emitEventSoon(actor.workspaceId, 'issue.created', { id: issue.id, identifier: issue.identifier, title: issue.title, projectId: project.id }, { audience: trackEventAudience(project) });
       return NextResponse.json({ id: issue.id, identifier: issue.identifier, title: issue.title, url: `/app/track/issues/${issue.id}` }, { status: 201 });
     },
     { write: 'issues', limit: 60 },

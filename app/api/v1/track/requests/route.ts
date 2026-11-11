@@ -5,6 +5,7 @@ import { apiScope } from '@/lib/crm-visibility';
 import { createIssue, getIssue, getIssueByIdentifier, getProject } from '@/lib/track-data';
 import { createCustomerRequest, CustomerRequestError, listIssueRequests } from '@/lib/track-customers';
 import { onIssueEnteredTriage } from '@/lib/track-triage';
+import { projectVisibleTo } from '@/lib/track-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,7 +37,7 @@ export async function GET(req: Request) {
   let issue = ref ? await getIssue(ref) : undefined;
   if (!issue && ref && projectId) issue = await getIssueByIdentifier(projectId, ref.toUpperCase());
   const project = issue ? await getProject(issue.project_id) : undefined;
-  if (!issue || !project || project.owner_id !== auth.user.id) return apiError(404, 'not_found', 'Issue not found.');
+  if (!issue || !project || project.owner_id !== auth.user.id || !(await projectVisibleTo(project.id, auth.personId))) return apiError(404, 'not_found', 'Issue not found.');
   return NextResponse.json({ data: await listIssueRequests(issue.id) });
 }
 
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return apiError(400, 'invalid_input', parsed.error.issues.map((i) => `${i.path.join('.') || 'body'}: ${i.message}`).join('; '));
   const b = parsed.data;
   const project = await getProject(b.projectId);
-  if (!project || project.owner_id !== auth.user.id) return apiError(404, 'not_found', 'Project not found.');
+  if (!project || project.owner_id !== auth.user.id || !(await projectVisibleTo(project.id, auth.personId))) return apiError(404, 'not_found', 'Project not found.');
   let issue = b.issue ? ((await getIssue(b.issue)) ?? (await getIssueByIdentifier(project.id, b.issue.toUpperCase()))) : undefined;
   if (b.issue && (!issue || issue.project_id !== project.id)) return apiError(404, 'not_found', 'Issue not found.');
   let created = false;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createGroupTask, crmTaskScope, listGroupTasks } from '@/lib/groups-tasks';
 import { cleanPriority } from '@/lib/tasks-shared';
-import { chatGuard, groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { chatGuard, groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
 import { requestLocale } from '@/lib/request-locale';
 
 export const runtime = 'nodejs';
@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
       ownerId: p.get('owner') || undefined,
       q: p.get('q') ?? undefined,
       crm,
+      viewer: await sessionViewer(s),
     }),
   });
 }
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
       priority: cleanPriority(b.priority),
       timezone: str(b.timezone, 60) ?? req.cookies.get('tz')?.value,
       locale: requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language')),
-    });
+    }, new Date(), await sessionViewer(s));
     return NextResponse.json(task, { status: 201 });
   } catch (err) {
     return handleGroupsError(err);

@@ -74,8 +74,8 @@ export interface NoteLockEnvelope {
 
 /**
  * Datos de una nota para los disparadores de Flow (note.*): título y
- * etiquetas, nunca el contenido (las notas son de cada persona y un flow lo
- * ve todo el workspace).
+ * etiquetas, nunca el contenido. Solo los reciben los flows y webhooks que
+ * creó la misma persona (lib/events.ts).
  */
 export function noteEventPayload(note: NoteSummary, personId: string) {
   return {

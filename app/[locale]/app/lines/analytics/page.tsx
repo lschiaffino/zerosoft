@@ -40,7 +40,7 @@ export default async function GroupsAnalyticsPage(props: { params: Promise<{ loc
   };
   const custom = Boolean(filters.from);
   const filtered = custom || Boolean(filters.labelId || filters.chatId || filters.numberId);
-  const a = await groupsAnalytics(user.id, days, people, { ...filters, visible: await visibleChatIds(viewer) });
+  const a = await groupsAnalytics(user.id, days, people, { ...filters, visible: await visibleChatIds(viewer), mask: viewer.mask });
   const keep = (extra: Record<string, string>) => {
     const q = new URLSearchParams();
     if (filters.labelId) q.set('label', filters.labelId);

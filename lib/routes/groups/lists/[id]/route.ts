@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { deleteSavedList, getSavedList, savedListChatIds, updateSavedList } from '@/lib/groups-org';
-import { groupsError, groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,7 +14,7 @@ export async function GET(req: Request, ctx: Ctx) {
   const id = (await ctx.params).id;
   const list = await getSavedList(s.ws, s.me, id);
   if (!list) return groupsError(404, 'not_found');
-  if (new URL(req.url).searchParams.get('chats') === '1') return NextResponse.json({ list, chats: await savedListChatIds(s.ws, s.me, id) });
+  if (new URL(req.url).searchParams.get('chats') === '1') return NextResponse.json({ list, chats: await savedListChatIds(s.ws, s.me, id, await sessionViewer(s)) });
   return NextResponse.json({ list });
 }
 

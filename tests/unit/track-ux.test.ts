@@ -413,8 +413,8 @@ describe('Track UX: datos y rutas', () => {
     expect(await issueSignature(i.id)).not.toBe(is1);
     expect(await issueSignature('nope')).toBe('gone');
 
-    expect((await resolveIssueRefs([i.identifier], null, a.id)).map((r) => r.id)).toEqual([i.id]);
-    expect(await resolveIssueRefs([i.identifier, i.id], null, b.id)).toEqual([]);
+    expect((await resolveIssueRefs([i.identifier], null, a.id, a.id)).map((r) => r.id)).toEqual([i.id]);
+    expect(await resolveIssueRefs([i.identifier, i.id], null, b.id, b.id)).toEqual([]);
 
     session.user = { ...a, team: null, role: 'owner' };
     const live = (await (await liveRoute.POST(json('/x', 'POST', { issueId: i.id, present: true }))).json()) as { sig: string; viewers: unknown[] };

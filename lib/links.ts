@@ -210,16 +210,17 @@ export async function listLinks(
 }
 
 /** All distinct tags used by a user's links (for filter chips). */
-export async function userTags(userId: string): Promise<string[]> {
+export async function userTags(userId: string, viewer?: LinkViewer): Promise<string[]> {
+  const vis = visibleLinksSql(viewer);
   // DISTINCT en la base: no viaja una fila por link (un workspace puede tener
   // decenas de miles) solo para armar los chips. JSON roto cuenta como sin tags.
   const rows = (await getDb()
     .prepare(
       `SELECT DISTINCT j.value AS tag FROM links l,
          json_each(CASE WHEN json_valid(l.tags) THEN l.tags ELSE '[]' END) j
-       WHERE l.user_id = ? AND j.type = 'text' LIMIT 500`,
+       WHERE l.user_id = ? AND j.type = 'text'${vis.sql ? ` AND ${vis.sql}` : ''} LIMIT 500`,
     )
-    .all(userId)) as Array<{ tag: string }>;
+    .all(userId, ...vis.args)) as Array<{ tag: string }>;
   return rows.map((r) => r.tag).sort();
 }
 
@@ -230,14 +231,15 @@ export interface LinkCreator {
 }
 
 /** Las personas que crearon algún link del workspace (para el filtro "Creado por"). */
-export async function linkCreators(userId: string): Promise<LinkCreator[]> {
+export async function linkCreators(userId: string, viewer?: LinkViewer): Promise<LinkCreator[]> {
+  const vis = visibleLinksSql(viewer);
   return (await getDb()
     .prepare(
       `SELECT u.id, u.name, u.email FROM users u
-       WHERE u.id IN (SELECT DISTINCT created_by FROM links WHERE user_id = ? AND created_by IS NOT NULL)
+       WHERE u.id IN (SELECT DISTINCT l.created_by FROM links l WHERE l.user_id = ? AND l.created_by IS NOT NULL${vis.sql ? ` AND ${vis.sql}` : ''})
        ORDER BY COALESCE(u.name, u.email) LIMIT 200`,
     )
-    .all(userId)) as LinkCreator[];
+    .all(userId, ...vis.args)) as LinkCreator[];
 }
 
 /** Nombre (o email) de quien creó el link; null si es un link viejo o la persona ya no existe. */

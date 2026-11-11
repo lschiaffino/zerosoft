@@ -202,6 +202,47 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-10-privacy-between-members',
+    date: '2026-11-10',
+    title: {
+      en: 'Privacy between members of a workspace',
+      es: 'Privacidad entre las personas de un workspace',
+      pt: 'Privacidade entre as pessoas de um workspace',
+    },
+    items: [
+      {
+        product: 'notes',
+        en: 'An open note now says who can see it, next to its title: "Only you", "Shared with 2 people" (counting people who get it through a shared notebook) or "Shared by link". Notes from other people in the workspace are no longer included when the owner downloads the account data, and Flow automations about notes only run for flows created by the person who wrote the note.',
+        es: 'Una nota abierta ahora dice quién la ve, al lado del título: "Solo vos", "Compartida con 2 personas" (cuenta también a quienes la reciben por una libreta compartida) o "Compartida por link". Las notas de otras personas del workspace ya no entran cuando el dueño descarga los datos de la cuenta, y las automatizaciones de Flow sobre notas solo corren en los flows que creó la persona que escribió la nota.',
+        pt: 'Uma nota aberta agora diz quem pode vê-la, ao lado do título: "Só você", "Compartilhada com 2 pessoas" (conta também quem a recebe por um caderno compartilhado) ou "Compartilhada por link". As notas de outras pessoas do workspace não entram mais quando o dono baixa os dados da conta, e as automações do Flow sobre notas só rodam nos flows criados pela pessoa que escreveu a nota.',
+      },
+      {
+        product: 'groups',
+        en: 'Lines on restricted access stay out of reach everywhere for people who do not have them: group settings, adding or removing members, creating or joining groups from that line, tasks, saved lists, broadcasts, recurring messages and Cmd+K.',
+        es: 'Las líneas con acceso restringido quedan fuera del alcance de quien no las tiene en todos lados: ajustes del grupo, sumar o sacar participantes, crear o unirse a grupos desde esa línea, tareas, listas guardadas, envíos masivos, mensajes recurrentes y Cmd+K.',
+        pt: 'As linhas com acesso restrito ficam fora do alcance de quem não as tem em todos os lugares: configurações do grupo, adicionar ou remover participantes, criar ou entrar em grupos por essa linha, tarefas, listas salvas, envios em massa, mensagens recorrentes e Cmd+K.',
+      },
+      {
+        product: 'track',
+        en: 'Issues in private teams only show up for the people in those teams: in issue references, related and sub-issues, AI triage suggestions, tasks linked from the CRM, boards, the CSV export, reminders and SLA alerts, the audit log, and the webhooks and Flow automations created by people outside the team.',
+        es: 'Los issues de equipos privados solo aparecen para las personas de esos equipos: en las referencias a issues, los relacionados y sub-issues, las sugerencias del triage con IA, las tareas vinculadas desde el CRM, las pizarras, el export a CSV, los recordatorios y avisos de SLA, el audit log y los webhooks y automatizaciones de Flow que creó alguien de fuera del equipo.',
+        pt: 'As issues de equipes privadas só aparecem para as pessoas dessas equipes: nas referências a issues, nas relacionadas e sub-issues, nas sugestões da triagem com IA, nas tarefas vinculadas pelo CRM, nos quadros, na exportação em CSV, nos lembretes e avisos de SLA, no log de auditoria e nos webhooks e automações do Flow criados por alguém de fora da equipe.',
+      },
+      {
+        product: 'link',
+        en: 'Folder access now also applies to the API, to Cmd+K, to the overview and to the tag and creator filters: an API key sees and edits the same links as the person who created it.',
+        es: 'El acceso por carpeta ahora también vale en la API, en Cmd+K, en el resumen y en los filtros por etiqueta y por autor: una API key ve y edita los mismos links que la persona que la creó.',
+        pt: 'O acesso por pasta agora também vale na API, no Cmd+K, no resumo e nos filtros por etiqueta e por autor: uma chave de API vê e edita os mesmos links que a pessoa que a criou.',
+      },
+      {
+        product: 'docs',
+        en: 'Recent pages on Home leave out closed and private teamspaces you are not part of, and a page can be saved as a workspace template only by someone who can edit it, from a part of Docs the whole workspace already sees.',
+        es: 'Las páginas recientes del inicio dejan afuera los teamspaces cerrados y privados de los que no sos parte, y una página se guarda como plantilla del workspace solo si quien la guarda puede editarla y está en una parte de Docs que ya ve todo el workspace.',
+        pt: 'As páginas recentes do início deixam de fora os teamspaces fechados e privados dos quais você não faz parte, e uma página só vira modelo do workspace se quem a salva puder editá-la e ela estiver numa parte do Docs que todo o workspace já vê.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-rec-desktop-controls',
     date: '2026-11-10',
     title: {

@@ -16,6 +16,7 @@
  * un registro. Server-only.
  */
 import { getDb } from './db';
+import { trackVisibleSql } from './track-access';
 import { LINK_APP, isTaskLinkKind, visibleLinks, type TaskLink, type TaskLinkKind } from './tasks-shared';
 
 export {
@@ -51,21 +52,49 @@ function inList(n: number): string {
   return Array.from({ length: n }, () => '?').join(', ');
 }
 
-/** ¿El registro existe en el workspace? (Track se valida aparte, por proyecto visible.) */
-export async function linkTargetExists(ws: string, kind: TaskLinkKind, refId: string): Promise<boolean> {
+/** Track: el issue es de un equipo de este workspace que la persona ve. */
+function trackIssueSql(person: string): { sql: string; args: string[] } {
+  const v = trackVisibleSql('p', person);
+  return {
+    sql: `SELECT i.id, i.identifier, i.title FROM track_issues i JOIN track_projects p ON p.id = i.project_id
+      WHERE (p.owner_id = ? OR p.team_id IN (SELECT t.id FROM teams t WHERE t.owner_id = ?)) AND ${v.sql}`,
+    args: v.args,
+  };
+}
+
+/**
+ * ¿El registro existe en el workspace y la persona lo puede ver? (chats de líneas que ve,
+ * páginas fuera de teamspaces cerrados, issues de equipos que ve).
+ */
+export async function linkTargetExists(
+  ws: string,
+  kind: TaskLinkKind,
+  refId: string,
+  viewer: { personId: string; role: import('./teams').TeamRole },
+): Promise<boolean> {
   const db = getDb();
   const one = async (sql: string) => Boolean(await db.prepare(sql).get(refId, ws));
   switch (kind) {
     case 'lines_chat':
-      return one('SELECT 1 FROM groups_chats WHERE id = ? AND user_id = ?');
-    case 'lines_message':
-      return one('SELECT 1 FROM groups_messages WHERE id = ? AND user_id = ?');
+    case 'lines_message': {
+      const row = (await db
+        .prepare(kind === 'lines_chat' ? 'SELECT id AS chat_id FROM groups_chats WHERE id = ? AND user_id = ?' : 'SELECT chat_id FROM groups_messages WHERE id = ? AND user_id = ?')
+        .get(refId, ws)) as { chat_id: string } | undefined;
+      if (!row) return false;
+      const { canSeeChat, groupsViewer } = await import('./groups-access');
+      return canSeeChat(await groupsViewer(ws, viewer.personId, viewer.role), row.chat_id);
+    }
     case 'chat_conversation':
       return one('SELECT 1 FROM chat_conversations c JOIN chat_widgets w ON w.id = c.widget_id WHERE c.id = ? AND w.user_id = ?');
-    case 'docs_page':
-      return one('SELECT 1 FROM docs_pages WHERE id = ? AND user_id = ?');
-    case 'track_issue':
-      return Boolean(await db.prepare('SELECT 1 FROM track_issues WHERE id = ?').get(refId));
+    case 'docs_page': {
+      const { hiddenTeamspaceIds, teamspaceFilterSql } = await import('./docs-access');
+      const f = teamspaceFilterSql(await hiddenTeamspaceIds(ws, viewer.personId));
+      return Boolean(await db.prepare(`SELECT 1 FROM docs_pages WHERE id = ? AND user_id = ?${f.sql}`).get(refId, ws, ...f.args));
+    }
+    case 'track_issue': {
+      const t = trackIssueSql(viewer.personId);
+      return Boolean(await db.prepare(`${t.sql} AND i.id = ?`).get(ws, ws, ...t.args, refId));
+    }
   }
 }
 
@@ -85,7 +114,10 @@ export class TaskLinkError extends Error {
  */
 export async function linkTask(ws: string, taskId: string, kind: TaskLinkKind, refId: string, actor: string | null = null): Promise<void> {
   if (!(await isTask(ws, taskId))) throw new TaskLinkError('not_found');
-  if (!isTaskLinkKind(kind) || !refId || !(await linkTargetExists(ws, kind, refId))) throw new TaskLinkError('invalid_link');
+  if (!isTaskLinkKind(kind) || !refId) throw new TaskLinkError('invalid_link');
+  const { workspaceRole } = await import('./api-auth');
+  const viewer = actor ? { personId: actor, role: await workspaceRole(ws, actor) } : { personId: ws, role: 'owner' as const };
+  if (!(await linkTargetExists(ws, kind, refId, viewer))) throw new TaskLinkError('invalid_link');
   await getDb()
     .prepare('INSERT OR IGNORE INTO task_links (task_id, workspace_id, kind, ref_id, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)')
     .run(taskId, ws, kind, refId, actor, new Date().toISOString());
@@ -326,11 +358,33 @@ export async function taskLinksFor(
     chats = await visibleChatIds(viewer);
     if (viewer.mask) mask = maskPhoneText;
   }
+  // Páginas de teamspaces cerrados e issues de equipos privados que la persona no ve: sin nombre ni link.
+  const person = user.actingUser?.id ?? user.id;
+  const refsOf = (kind: TaskLink['kind']) => [...new Set([...all.values()].flatMap((ls) => ls.filter((l) => l.kind === kind).map((l) => l.refId)))];
+  const hidden = new Set<string>();
+  const pages = refsOf('docs_page');
+  if (pages.length) {
+    const { hiddenTeamspaceIds, teamspaceFilterSql } = await import('./docs-access');
+    const f = teamspaceFilterSql(await hiddenTeamspaceIds(user.id, person));
+    const ok = (await getDb()
+      .prepare(`SELECT id FROM docs_pages WHERE id IN (${inList(pages.length)}) AND user_id = ?${f.sql}`)
+      .all(...pages, user.id, ...f.args)) as Array<{ id: string }>;
+    const seen = new Set(ok.map((r) => r.id));
+    for (const p of pages) if (!seen.has(p)) hidden.add(`docs_page:${p}`);
+  }
+  const issues = refsOf('track_issue');
+  if (issues.length) {
+    const t = trackIssueSql(person);
+    const ok = (await getDb().prepare(`${t.sql} AND i.id IN (${inList(issues.length)})`).all(user.id, user.id, ...t.args, ...issues)) as Array<{ id: string }>;
+    const seen = new Set(ok.map((r) => r.id));
+    for (const i of issues) if (!seen.has(i)) hidden.add(`track_issue:${i}`);
+  }
   const out = new Map<string, TaskLink[]>();
   for (const [id, ls] of all) {
     out.set(
       id,
       visibleLinks(ls, can).map((l) => {
+        if (hidden.has(`${l.kind}:${l.refId}`)) return { ...l, label: '', detail: '', href: '' };
         if (!l.chatId) return l;
         if (chats && !chats.has(l.chatId)) return { ...l, label: '', detail: '', href: '' };
         return mask ? { ...l, label: mask(l.label), detail: mask(l.detail) } : l;
