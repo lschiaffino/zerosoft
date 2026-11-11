@@ -1,7 +1,7 @@
 import { getDb } from '@/lib/db';
 import { roleAtLeast } from '@/lib/teams';
 import { likeContains } from '@/lib/track-views';
-import { trackVisibleSql } from '@/lib/track-access';
+import { isGuest, trackVisibleSql } from '@/lib/track-access';
 import { boardViewer, boardVisibleSql } from '@/lib/board-access';
 import { snippet as boardSnippet } from '@/lib/boards';
 import type { TeamRole } from '@/lib/teams';
@@ -169,13 +169,28 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
       ...projectArgs,
       like,
     ),
+    // Los plans quedan fuera del alcance de un invitado de Track (lib/track-access).
+    isGuest(ws, person)
+      .catch(() => true)
+      .then((guest) =>
+        guest
+          ? ([] as Row[])
+          : all(
+              `SELECT m.id, m.name AS label, m.plan_id AS meta FROM track_plan_milestones m JOIN track_plans pl ON pl.id = m.plan_id
+               WHERE ${planWhere} AND m.name LIKE ? ESCAPE '\\' ORDER BY m.name LIMIT ?`,
+              teamId ?? user.id,
+              like,
+            ),
+      ),
+    // Los labels propios de un team, solo si la persona ve ese team.
     all(
-      `SELECT m.id, m.name AS label, m.plan_id AS meta FROM track_plan_milestones m JOIN track_plans pl ON pl.id = m.plan_id
-       WHERE ${planWhere} AND m.name LIKE ? ESCAPE '\\' ORDER BY m.name LIMIT ?`,
-      teamId ?? user.id,
+      `SELECT l.id, l.name AS label FROM track_labels l WHERE l.workspace_id = ?
+         AND (l.project_id IS NULL OR NOT EXISTS (SELECT 1 FROM track_projects p WHERE p.id = l.project_id AND NOT (${visible.sql})))
+         AND l.name LIKE ? ESCAPE '\\' ORDER BY l.name LIMIT ?`,
+      ws,
+      ...visible.args,
       like,
     ),
-    all(`SELECT id, name AS label FROM track_labels WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, ws, like),
   ]);
   const [boards, projects, issues, eventTypes, bookings, calPolls, widgets, flows, agents, robots, groupChats, groupTickets, groupMessages, groupRecurring, playbooks, forms, quotes, approvals, scores, groupLists, groupTemplates, talkChannels, talkDms, talkPeople, voiceSessions] = await Promise.all([
     // Por nombre o por lo que dice adentro (stickies, textos, frames): la línea que coincidió va de meta.

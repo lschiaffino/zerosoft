@@ -15,6 +15,7 @@ import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { getDb } from './db';
 import type { TrackStatusRow } from './db';
 import { open as openSecret, seal } from './secret-box';
+import { currentVisibleSql } from './track-access';
 import type { GithubConfigPayload } from './track-schema';
 
 export { branchNameFor } from './track-branch';
@@ -543,13 +544,15 @@ function rulesFromRow(r: RulesRow): GithubProjectRules {
   return { projectId: r.project_id, onDraft: r.on_draft, onOpen: r.on_open, onReview: r.on_review, onMerge: r.on_merge, syncRepo: r.sync_repo };
 }
 
+/** Reglas de los proyectos del workspace que ve quien mira (lib/track-access); sin persona, todas. */
 export async function listGithubRules(workspaceId: string): Promise<GithubProjectRules[]> {
+  const vis = await currentVisibleSql('p');
   const rows = (await getDb()
     .prepare(
       `SELECT r.* FROM track_github_rules r JOIN track_projects p ON p.id = r.project_id
-       WHERE COALESCE(p.team_id, p.owner_id) = ?`,
+       WHERE COALESCE(p.team_id, p.owner_id) = ? AND ${vis.sql}`,
     )
-    .all(workspaceId)) as RulesRow[];
+    .all(workspaceId, ...vis.args)) as RulesRow[];
   return rows.map(rulesFromRow);
 }
 

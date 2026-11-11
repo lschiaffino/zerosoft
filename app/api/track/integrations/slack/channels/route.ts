@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     projectId: project.id,
     data: { events: parsed.data.events },
   });
-  return NextResponse.json({ subs: await listChannelSubs(a.ws) });
+  return NextResponse.json({ subs: await listChannelSubs(a.ws, { forViewer: true }) });
 }
 
 export async function DELETE(req: NextRequest) {
@@ -63,5 +63,5 @@ export async function DELETE(req: NextRequest) {
   if ('res' in a) return a.res;
   const id = new URL(req.url).searchParams.get('id') ?? '';
   if (!(await deleteChannelSub(a.ws, id))) return trackError(404, 'not_found');
-  return NextResponse.json({ subs: await listChannelSubs(a.ws) });
+  return NextResponse.json({ subs: await listChannelSubs(a.ws, { forViewer: true }) });
 }

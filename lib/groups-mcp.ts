@@ -207,7 +207,7 @@ const TOOLS: ToolDef[] = [
     scope: 'groups:read',
     readOnly: true,
     inputSchema: { type: 'object', properties: {} },
-    run: async (ctx) => ({ labels: (await listLabels(ctx.ws)).map((l) => ({ id: l.id, name: l.name, color: l.color, chats: l.count })) }),
+    run: async (ctx) => ({ labels: (await listLabels(ctx.ws, ctx.viewer)).map((l) => ({ id: l.id, name: l.name, color: l.color, chats: l.count })) }),
   },
   {
     name: 'create_ticket',

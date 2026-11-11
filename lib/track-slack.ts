@@ -20,7 +20,7 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import { getDb } from './db';
 import { open, seal } from './secret-box';
-import { runAsTrackViewer, type TrackVia } from './track-access';
+import { currentVisibleSql, runAsTrackViewer, type TrackVia } from './track-access';
 import { appBaseUrl, descriptionToText, issueUrl, textToDescription } from './track-api';
 import type { TrackIssueWithStatus } from './track-data';
 import type { TrackProjectRow } from './db';
@@ -299,13 +299,18 @@ function parseEvents(raw: string): SlackChannelEvent[] {
   }
 }
 
-export async function listChannelSubs(workspaceId: string): Promise<SlackChannelSub[]> {
+/**
+ * Avisos a canales del workspace. Con `forViewer` (los ajustes), solo los de
+ * los proyectos que ve quien mira; el envío de avisos los usa todos.
+ */
+export async function listChannelSubs(workspaceId: string, opts: { forViewer?: boolean } = {}): Promise<SlackChannelSub[]> {
+  const vis = opts.forViewer ? await currentVisibleSql('p') : { sql: '1 = 1', args: [] };
   const rows = (await getDb()
     .prepare(
       `SELECT c.*, p.name AS project_name FROM track_slack_channels c JOIN track_projects p ON p.id = c.project_id
-       WHERE c.workspace_id = ? ORDER BY p.name, c.channel_name`,
+       WHERE c.workspace_id = ? AND ${vis.sql} ORDER BY p.name, c.channel_name`,
     )
-    .all(workspaceId)) as Array<{ id: string; project_id: string; project_name: string; channel_id: string; channel_name: string; events: string }>;
+    .all(workspaceId, ...vis.args)) as Array<{ id: string; project_id: string; project_name: string; channel_id: string; channel_name: string; events: string }>;
   return rows.map((r) => ({
     id: r.id,
     projectId: r.project_id,

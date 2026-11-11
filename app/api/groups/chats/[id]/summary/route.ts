@@ -16,7 +16,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const days = Math.min(90, Math.max(1, Number(b.days) || 7));
   const locale = b.locale === 'es' || b.locale === 'pt' ? b.locale : 'en';
   try {
-    return NextResponse.json(await summarizeChat(s.ws, (await ctx.params).id, { days, locale }));
+    return NextResponse.json(await summarizeChat(s.ws, (await ctx.params).id, { days, locale, maskPhones: guard.viewer.mask }));
   } catch (err) {
     return handleGroupsError(err);
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createLabel, listLabels } from '@/lib/groups';
-import { groupsSession, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
-  return NextResponse.json({ labels: await listLabels(s.ws) });
+  return NextResponse.json({ labels: await listLabels(s.ws, await sessionViewer(s)) });
 }
 
 export async function POST(req: Request) {

@@ -37,7 +37,7 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
     listMessages(ws, chatId),
     listMembers(ws, chatId),
     listPeople(ws),
-    listLabels(ws),
+    listLabels(ws, viewer),
     listQuickReplies(ws),
     listPropertyDefs(ws),
     getNumberRow(ws, chat.numberId),
