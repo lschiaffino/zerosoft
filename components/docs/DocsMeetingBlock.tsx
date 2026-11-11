@@ -191,7 +191,7 @@ const DocsMeetingBlock = forwardRef<HTMLDivElement, Props>(({ block, index, focu
       return;
     }
     try {
-      const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: false } });
       streams.current = [mic];
       let mixed: MediaStream = mic;
       if (withTab && navigator.mediaDevices.getDisplayMedia) {

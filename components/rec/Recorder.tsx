@@ -5,12 +5,15 @@ import { useTranslations } from 'next-intl';
 import { REC_MODES, fmtClock, type RecMode } from '@/lib/rec-schema';
 import { patchWebmDuration } from '@/lib/rec-webm';
 import { encodeGif, type GifFrame } from '@/lib/rec-gif';
+import { clockElapsed, clockIdle, clockPause, clockResume, clockStart, controlAllowed, overlayState, parseRecControl, type RecClock, type RecControl } from '@/lib/rec-controls';
+import { DESKTOP_REC_CONTROL_EVENT, desktopBridge } from '@/lib/desktop-bridge';
 import {
   QUALITY,
   audioLevel,
   canvasToBlob,
   createTicker,
   drawBubble,
+  micConstraints,
   mixAudio,
   pickAudioMime,
   pickVideoMime,
@@ -31,7 +34,16 @@ import {
  *   audio de la pestaña o del sistema (si el navegador lo comparte), mezclados
  *   en una pista. Medidor de nivel.
  * - Calidad 720p, 1080p o 4K (según la fuente), cuenta regresiva de 3 s
- *   (Esc la cancela), pausar y retomar.
+ *   (Esc la cancela), pausar y retomar (MediaRecorder.pause: lo pausado no
+ *   queda en el archivo y el reloj se frena), silenciar el micrófono,
+ *   reiniciar y descartar.
+ * - En la app de escritorio (window.zerosoftDesktop.recOverlay) la app
+ *   muestra una barra flotante con los mismos controles, que llegan como
+ *   eventos `zerosoft:rec-control`. Con pantalla y cámara grabando la
+ *   pantalla entera, la cara va en una burbuja flotante de la app (la captura
+ *   de pantalla la graba, como en Loom) y la página deja de dibujarla en el
+ *   video para que no salga dos veces; con una ventana o pestaña, o si la
+ *   burbuja no consigue la cámara, la página la sigue dibujando.
  * - Con `sink` (Rec) cada trozo sale mientras se graba para subirlo por
  *   partes; sin él (CRM) se arma el archivo entero al final, con la duración
  *   escrita en el header para poder adelantar.
@@ -113,6 +125,11 @@ export default function Recorder({
   const [elapsed, setElapsed] = useState(0);
   const [bubble, setBubble] = useState<Bubble>({ x: 0.14, y: 0.78, d: 0.3 });
   const [supported, setSupported] = useState(true);
+  const [muted, setMuted] = useState(false);
+  /** App de escritorio con barra flotante. */
+  const [desktop, setDesktop] = useState(false);
+  /** Cámara de la burbuja flotante de escritorio ('' = la de siempre); null = la cara va dibujada en el video. */
+  const [nativeCam, setNativeCam] = useState<string | null>(null);
 
   const camStream = useRef<MediaStream | null>(null);
   const micStream = useRef<MediaStream | null>(null);
@@ -129,8 +146,9 @@ export default function Recorder({
   const stopTicker = useRef<(() => void) | null>(null);
   const audioCtx = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
-  const activeMs = useRef(0);
-  const resumedAt = useRef(0);
+  const clock = useRef<RecClock>(clockIdle());
+  const nativeBubble = useRef(false);
+  const lastLevelAt = useRef(0);
   const gifFrames = useRef<GifFrame[]>([]);
   const lastGifAt = useRef(-Infinity);
   const thumb = useRef<Blob | null>(null);
@@ -151,6 +169,7 @@ export default function Recorder({
 
   useEffect(() => {
     setSupported(recorderSupported());
+    setDesktop(typeof desktopBridge()?.recOverlay === 'function');
   }, []);
 
   useEffect(() => {
@@ -207,7 +226,7 @@ export default function Recorder({
         }
         if (micId !== 'none') {
           const mic = await navigator.mediaDevices
-            .getUserMedia({ audio: { deviceId: micId ? { exact: micId } : undefined, noiseSuppression: noise, echoCancellation: noise, autoGainControl: true } })
+            .getUserMedia({ audio: micConstraints(micId, noise) })
             .catch(() => null);
           if (!alive) return stopTracks(mic);
           micStream.current = mic;
@@ -240,14 +259,20 @@ export default function Recorder({
   // Reloj de la grabación (lo que se grabó, sin las pausas).
   useEffect(() => {
     if (phase !== 'recording' && phase !== 'paused') return;
-    const id = window.setInterval(() => {
-      const ms = activeMs.current + (phase === 'recording' ? performance.now() - resumedAt.current : 0);
-      setElapsed(Math.floor(ms / 1000));
-    }, 250);
+    const id = window.setInterval(() => setElapsed(Math.floor(clockElapsed(clock.current, performance.now()) / 1000)), 250);
     return () => window.clearInterval(id);
   }, [phase]);
 
-  const currentActiveMs = () => activeMs.current + (recorder.current?.state === 'recording' ? performance.now() - resumedAt.current : 0);
+  const currentActiveMs = () => clockElapsed(clock.current, performance.now());
+
+  // App de escritorio: la barra flotante sigue la fase, el reloj, el micrófono y la burbuja.
+  const micState: 'on' | 'muted' | 'none' = micId === 'none' ? 'none' : muted ? 'muted' : 'on';
+  useEffect(() => {
+    if (!desktop) return;
+    const st = overlayState(phase, clockElapsed(clock.current, performance.now()), micState, nativeCam);
+    void desktopBridge()?.recOverlay?.(st)?.catch(() => undefined);
+  }, [desktop, phase, micState, nativeCam]);
+  useEffect(() => () => void desktopBridge()?.recOverlay?.({ active: false })?.catch(() => undefined), []);
 
   function previewSource(): HTMLCanvasElement | HTMLVideoElement | null {
     if (mode === 'screen_camera') return canvasRef.current;
@@ -256,7 +281,15 @@ export default function Recorder({
   }
 
   function tick() {
-    if (meterRef.current) meterRef.current.style.transform = `scaleX(${audioLevel(analyser.current, levelBuf.current).toFixed(2)})`;
+    const level = audioLevel(analyser.current, levelBuf.current);
+    if (meterRef.current) meterRef.current.style.transform = `scaleX(${level.toFixed(2)})`;
+    if (desktop) {
+      const now = performance.now();
+      if (now - lastLevelAt.current >= 150) {
+        lastLevelAt.current = now;
+        void desktopBridge()?.recLevel?.(Math.round(level * 100) / 100)?.catch(() => undefined);
+      }
+    }
     if (mode === 'screen_camera') {
       const c = canvasRef.current;
       const g = c?.getContext('2d');
@@ -265,7 +298,8 @@ export default function Recorder({
         g.drawImage(sv, 0, 0, c.width, c.height);
         const b = bubbleRef.current;
         const cam = camVideo.current;
-        if (cam && camStream.current) drawBubble(g, cam, b.x * c.width, b.y * c.height, b.d * c.height);
+        // Con la burbuja flotante de escritorio la cara ya sale en la captura de pantalla.
+        if (cam && camStream.current && !nativeBubble.current) drawBubble(g, cam, b.x * c.width, b.y * c.height, b.d * c.height);
       }
     }
     if (recorder.current?.state !== 'recording') return;
@@ -317,11 +351,27 @@ export default function Recorder({
           screenVideo.current.srcObject = screen;
           void screenVideo.current.play().catch(() => undefined);
         }
+        // Escritorio, pantalla entera y cámara: la cara pasa a la burbuja flotante (la graba la
+        // captura de pantalla). La página suelta la cámara para que la burbuja la abra.
+        const surface = (screen.getVideoTracks()[0]?.getSettings() as { displaySurface?: string } | undefined)?.displaySurface;
+        const cam = camStream.current?.getVideoTracks()[0];
+        if (desktop && mode === 'screen_camera' && surface === 'monitor' && cam) {
+          const label = cam.label.slice(0, 200);
+          nativeBubble.current = true;
+          stopTracks(camStream.current);
+          camStream.current = null;
+          if (camVideo.current) camVideo.current.srcObject = null;
+          setNativeCam(label);
+        }
       } catch {
         setError(t('errors.screen_denied'));
         return;
       }
     }
+    countdown();
+  }
+
+  function countdown() {
     setCount(3);
     setPhase('countdown');
     const step = (n: number) => {
@@ -341,10 +391,42 @@ export default function Recorder({
     countdownTimer.current = null;
     stopTracks(screenStream.current);
     screenStream.current = null;
+    resetLive();
     setPhase('setup');
   }
 
+  /** Vuelve a la configuración: sin burbuja flotante y con el micrófono prendido. */
+  function resetLive() {
+    nativeBubble.current = false;
+    setNativeCam(null);
+    setMuted(false);
+  }
+
+  /**
+   * Cámara y micrófono que la vista previa todavía no tenía (se tocó Empezar antes de que
+   * terminaran de abrir y la vista previa los soltó al cambiar de fase).
+   */
+  async function ensureDevices() {
+    const q = QUALITY[quality];
+    if (usesCamera && !nativeBubble.current && !camStream.current) {
+      const cam = await navigator.mediaDevices
+        .getUserMedia({ video: { deviceId: camId ? { exact: camId } : undefined, width: { ideal: Math.min(q.width, 1920) }, height: { ideal: Math.min(q.height, 1080) } } })
+        .catch(() => null);
+      camStream.current = cam;
+      if (cam && camVideo.current) {
+        camVideo.current.srcObject = cam;
+        await camVideo.current.play().catch(() => undefined);
+      }
+    }
+    if (micId !== 'none' && !micStream.current) {
+      micStream.current = await navigator.mediaDevices
+        .getUserMedia({ audio: micConstraints(micId, noise) })
+        .catch(() => null);
+    }
+  }
+
   async function begin() {
+    await ensureDevices();
     const q = QUALITY[quality];
     let videoTrack: MediaStreamTrack | undefined;
     let width = 0;
@@ -379,6 +461,7 @@ export default function Recorder({
     if (!videoTrack) {
       setError(t('errors.device'));
       releaseScreen();
+      resetLive();
       setPhase('setup');
       return;
     }
@@ -394,6 +477,7 @@ export default function Recorder({
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : t('errors.upload'));
       releaseScreen();
+      resetLive();
       setPhase('setup');
       return;
     }
@@ -402,7 +486,7 @@ export default function Recorder({
     gifFrames.current = [];
     lastGifAt.current = -Infinity;
     thumb.current = null;
-    activeMs.current = 0;
+    clock.current = clockIdle();
     // Un keyframe cada 2 s (Chrome 125+): cada cluster WebM arranca decodificable y el recorte
     // puede cortar por clusters sin recodificar (lib/rec-webm.ts cutWebm).
     const rec = new MediaRecorder(new MediaStream(tracks), {
@@ -431,7 +515,7 @@ export default function Recorder({
     stopTicker.current?.();
     stopTicker.current = createTicker(30, tick);
     rec.start(1000);
-    resumedAt.current = performance.now();
+    clock.current = clockStart(performance.now());
     setElapsed(0);
     sizeRef.current = { width, height };
     setPhase('recording');
@@ -447,7 +531,7 @@ export default function Recorder({
     if (!r || r.state !== 'recording') return;
     r.pause();
     audioRecorder.current?.pause();
-    activeMs.current += performance.now() - resumedAt.current;
+    clock.current = clockPause(clock.current, performance.now());
     setPhase('paused');
   }
 
@@ -456,7 +540,7 @@ export default function Recorder({
     if (!r || r.state !== 'paused') return;
     r.resume();
     audioRecorder.current?.resume();
-    resumedAt.current = performance.now();
+    clock.current = clockResume(clock.current, performance.now());
     setPhase('recording');
   }
 
@@ -471,7 +555,7 @@ export default function Recorder({
   async function stop() {
     const r = recorder.current;
     if (!r || r.state === 'inactive') return;
-    if (r.state === 'recording') activeMs.current += performance.now() - resumedAt.current;
+    clock.current = clockPause(clock.current, performance.now());
     setPhase('finishing');
     if (!thumb.current) {
       const src = previewSource();
@@ -481,7 +565,7 @@ export default function Recorder({
     await Promise.all([stopRecorder(r), stopRecorder(audioRecorder.current)]);
     stopTicker.current?.();
     stopTicker.current = null;
-    const durationSec = Math.max(1, Math.round(activeMs.current / 100) / 10);
+    const durationSec = Math.max(1, Math.round(clock.current.activeMs / 100) / 10);
     const mime = mimeRef.current;
     const type = mime.split(';')[0] || 'video/webm';
     let blob: Blob | null = null;
@@ -505,6 +589,8 @@ export default function Recorder({
     releaseAll();
     recorder.current = null;
     audioRecorder.current = null;
+    // La barra y la burbuja flotantes se van (la página sigue con la subida y abre el video).
+    if (desktop) void desktopBridge()?.recOverlay?.({ active: false })?.catch(() => undefined);
     onDone({
       blob,
       mime: type,
@@ -528,13 +614,85 @@ export default function Recorder({
     stopTicker.current?.();
     stopTicker.current = null;
     releaseScreen();
+    resetLive();
     setPhase('setup');
   }
 
-  // Mientras se graba: Alt+Shift+P pausa o sigue, Alt+Shift+S termina, Esc pide confirmar descartar.
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  /** Tira lo grabado y empieza de nuevo con la misma pantalla (sin volver a elegirla), tras la cuenta regresiva. */
+  async function restart() {
+    setConfirm(null);
+    cancelled.current = true;
+    await Promise.all([stopRecorder(recorder.current), stopRecorder(audioRecorder.current)]);
+    recorder.current = null;
+    audioRecorder.current = null;
+    sink?.abort();
+    cancelled.current = false;
+    clock.current = clockIdle();
+    setElapsed(0);
+    const screenAlive = screenStream.current?.getVideoTracks()[0]?.readyState === 'live';
+    const camAlive = camStream.current?.getVideoTracks()[0]?.readyState === 'live';
+    if ((usesScreen && !screenAlive) || (mode === 'camera' && !camAlive)) {
+      stopTicker.current?.();
+      stopTicker.current = null;
+      releaseScreen();
+      resetLive();
+      setPhase('setup');
+      return;
+    }
+    countdown();
+  }
+
+  function setMic(off: boolean) {
+    micStream.current?.getAudioTracks().forEach((tr) => {
+      tr.enabled = !off;
+    });
+    setMuted(off);
+  }
+
+  /** La burbuja flotante no consiguió la cámara: la página la vuelve a abrir y la dibuja en el video. */
+  async function bubbleFailed() {
+    if (!nativeBubble.current) return;
+    nativeBubble.current = false;
+    setNativeCam(null);
+    try {
+      const cam = await navigator.mediaDevices.getUserMedia({ video: { deviceId: camId ? { exact: camId } : undefined, width: { ideal: 1280 }, height: { ideal: 720 } } });
+      if (!screenStream.current || nativeBubble.current) return stopTracks(cam);
+      camStream.current = cam;
+      if (camVideo.current) {
+        camVideo.current.srcObject = cam;
+        void camVideo.current.play().catch(() => undefined);
+      }
+    } catch {
+      // Sin cámara: sigue grabando la pantalla.
+    }
+  }
+
+  function control(c: RecControl) {
+    if (!controlAllowed(phase, c)) return;
+    if (c === 'pause' || (c === 'toggle' && phase === 'recording')) pause();
+    else if (c === 'resume' || c === 'toggle') resume();
+    else if (c === 'stop') void stop();
+    else if (c === 'restart') void restart();
+    else if (c === 'discard') void discard();
+    else if (c === 'mute' || c === 'unmute') setMic(c === 'mute');
+    else if (c === 'bubble-failed') void bubbleFailed();
+  }
+
+  // Controles de la app de escritorio (barra flotante y atajos globales).
   useEffect(() => {
-    if (phase !== 'recording' && phase !== 'paused') setConfirmDiscard(false);
+    if (!desktop) return;
+    const onControl = (e: Event) => {
+      const c = parseRecControl((e as CustomEvent<unknown>).detail);
+      if (c) control(c);
+    };
+    window.addEventListener(DESKTOP_REC_CONTROL_EVENT, onControl);
+    return () => window.removeEventListener(DESKTOP_REC_CONTROL_EVENT, onControl);
+  });
+
+  // Mientras se graba: Alt+Shift+P pausa o sigue, Alt+Shift+S termina, Esc pide confirmar descartar.
+  const [confirm, setConfirm] = useState<'discard' | 'restart' | null>(null);
+  useEffect(() => {
+    if (phase !== 'recording' && phase !== 'paused') setConfirm(null);
   }, [phase]);
   useEffect(() => {
     if (phase !== 'recording' && phase !== 'paused') return;
@@ -549,7 +707,7 @@ export default function Recorder({
         void stop();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        setConfirmDiscard((c) => !c);
+        setConfirm((c) => (c ? null : 'discard'));
       }
     };
     window.addEventListener('keydown', onKey);
@@ -750,7 +908,7 @@ export default function Recorder({
           />
           <video ref={screenVideo} className={`rec-screen${mode === 'screen' && live ? '' : ' rec-offscreen'}`} muted playsInline aria-hidden="true" />
           <canvas ref={canvasRef} className={`rec-canvas${mode === 'screen_camera' && live ? '' : ' rec-offscreen'}`} aria-label={t('livePreview')} />
-          {mode === 'screen_camera' && live && (
+          {mode === 'screen_camera' && live && nativeCam === null && (
             <div
               className="rec-bubble-handle"
               style={bubbleStyle}
@@ -796,16 +954,37 @@ export default function Recorder({
               <span ref={meterRef} className="rec-meter-fill" />
             </span>
           )}
+          {micId !== 'none' && phase !== 'finishing' && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setMic(!muted)}
+              aria-pressed={muted}
+              data-testid="rec-mute"
+            >
+              {muted ? t('unmute') : t('mute')}
+            </button>
+          )}
           {status && <span className="rec-upload-status">{status}</span>}
           <span className="rec-bar-spacer" />
-          {confirmDiscard && phase !== 'finishing' && (
-            <span className="rec-confirm" role="alertdialog" aria-label={t('discardConfirm')} data-testid="rec-discard-confirm">
-              <span>{t('discardConfirm')}</span>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDiscard(false)} autoFocus>
+          {confirm && phase !== 'finishing' && (
+            <span
+              className="rec-confirm"
+              role="alertdialog"
+              aria-label={confirm === 'discard' ? t('discardConfirm') : t('restartConfirm')}
+              data-testid={confirm === 'discard' ? 'rec-discard-confirm' : 'rec-restart-confirm'}
+            >
+              <span>{confirm === 'discard' ? t('discardConfirm') : t('restartConfirm')}</span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirm(null)} autoFocus>
                 {t('keepRecording')}
               </button>
-              <button type="button" className="btn btn-ghost btn-danger btn-sm" onClick={() => void discard()}>
-                {t('discard')}
+              <button
+                type="button"
+                className="btn btn-ghost btn-danger btn-sm"
+                onClick={() => void (confirm === 'discard' ? discard() : restart())}
+                data-testid={confirm === 'discard' ? 'rec-discard-yes' : 'rec-restart-yes'}
+              >
+                {confirm === 'discard' ? t('discard') : t('restart')}
               </button>
             </span>
           )}
@@ -819,8 +998,13 @@ export default function Recorder({
               {t('resume')}
             </button>
           )}
-          {!confirmDiscard && (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDiscard(true)} disabled={phase === 'finishing'} data-testid="rec-discard">
+          {!confirm && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirm('restart')} disabled={phase === 'finishing'} data-testid="rec-restart">
+              {t('restart')}
+            </button>
+          )}
+          {!confirm && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirm('discard')} disabled={phase === 'finishing'} data-testid="rec-discard">
               {t('discard')}
             </button>
           )}

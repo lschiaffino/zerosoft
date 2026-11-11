@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Loom',
-  lastReviewed: '2026-11-08',
+  lastReviewed: '2026-11-10',
   areas: [
     { id: 'capture', label: loc(['Recording', 'Grabación', 'Gravação']) },
     { id: 'recorder', label: loc(['Recording tools', 'Herramientas al grabar', 'Ferramentas de gravação']) },
@@ -62,8 +62,12 @@ const parity: ProductParity = {
       ],
     }),
     row('browser-extension', 'capture', ['Chrome extension', 'Extensión de Chrome', 'Extensão do Chrome'], 'missing'),
-    row('desktop-app', 'capture', ['Desktop app', 'App de escritorio', 'App desktop'], 'missing', {
-      detail: ['Mac and Windows, records over any app', 'Mac y Windows, graba sobre cualquier app', 'Mac e Windows, grava sobre qualquer app'],
+    row('desktop-app', 'capture', ['Desktop app', 'App de escritorio', 'App desktop'], 'partial', {
+      detail: [
+        'Mac and Windows: the camera bubble and a control bar (timer, mic, pause, restart, discard, finish) float over any app while you record, with global shortcuts. Recording starts from the Rec page in the app',
+        'Mac y Windows: la burbuja de la cámara y una barra de controles (reloj, micrófono, pausa, empezar de nuevo, descartar, terminar) flotan sobre cualquier app mientras grabás, con atajos globales. La grabación se empieza desde la página de Rec en la app',
+        'Mac e Windows: a bolha da câmera e uma barra de controles (relógio, microfone, pausa, recomeçar, descartar, terminar) flutuam sobre qualquer app enquanto você grava, com atalhos globais. A gravação começa pela página do Rec no app',
+      ],
     }),
     row('mobile-app', 'capture', ['Mobile app', 'App móvil', 'App mobile'], 'missing', {
       detail: [
@@ -82,9 +86,9 @@ const parity: ProductParity = {
     }),
     row('pause-rewind', 'capture', ['Pause, resume and rewind while recording', 'Pausar, retomar y volver atrás mientras se graba', 'Pausar, retomar e voltar enquanto grava'], 'partial', {
       detail: [
-        'Pause and resume with a 3 second countdown before starting. No Live Rewind',
-        'Pausar y seguir, con cuenta regresiva de 3 segundos al empezar. Sin Live Rewind',
-        'Pausar e continuar, com contagem de 3 segundos ao começar. Sem Live Rewind',
+        'Pause and resume, restart the take and mute the mic, with a 3 second countdown before starting. No Live Rewind',
+        'Pausar y seguir, empezar la toma de nuevo y silenciar el micrófono, con cuenta regresiva de 3 segundos al empezar. Sin Live Rewind',
+        'Pausar e continuar, recomeçar a tomada e silenciar o microfone, com contagem de 3 segundos ao começar. Sem Live Rewind',
       ],
     }),
     row('meeting-recording', 'capture', ['Record meetings', 'Grabar reuniones', 'Gravar reuniões'], 'missing'),

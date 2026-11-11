@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "remote",
-  "description": "La página de zerosoft en cada pestaña (webviews \"tab-<id>\", tabs.rs): solo el puente (versión, login, Ajustes, avisos, el estado de la grabación y las pestañas). Un servidor propio se suma en runtime (lib.rs, allow_server).",
+  "description": "La página de zerosoft en cada pestaña (webviews \"tab-<id>\", tabs.rs): solo el puente (versión, login, Ajustes, avisos, el estado de la grabación, la barra de Rec y las pestañas). Un servidor propio se suma en runtime (lib.rs, allow_server).",
   "webviews": [
     "tab-*"
   ],
@@ -20,6 +20,8 @@
     "allow-desktop-tabs",
     "allow-desktop-system-audio-start",
     "allow-desktop-system-audio-read",
-    "allow-desktop-system-audio-stop"
+    "allow-desktop-system-audio-stop",
+    "allow-desktop-rec-overlay",
+    "allow-desktop-rec-level"
   ]
 }

@@ -169,6 +169,93 @@ test('pantalla y cámara: la burbuja se mueve con el teclado y el video se guard
   await expect(page.getByTestId('rec-player')).toBeVisible();
 });
 
+test('controles: silenciar, empezar de nuevo y la barra de la app de escritorio (pausa, sigue y termina)', async ({ page }) => {
+  test.setTimeout(120_000);
+  // El puente de la app de escritorio, falso: anota lo que la página le cuenta a la barra flotante.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __recStates: unknown[]; __recLevels: number; zerosoftDesktop: unknown };
+    w.__recStates = [];
+    w.__recLevels = 0;
+    w.zerosoftDesktop = {
+      version: '99.0.0',
+      platform: 'darwin',
+      systemAudio: false,
+      dictation: false,
+      startLogin() {},
+      openSettings() {},
+      recOverlay: (s: unknown) => {
+        w.__recStates.push(s);
+        return Promise.resolve();
+      },
+      recLevel: () => {
+        w.__recLevels++;
+        return Promise.resolve();
+      },
+    };
+  });
+  const lastState = () => page.evaluate(() => (window as unknown as { __recStates: Array<Record<string, unknown>> }).__recStates.at(-1) ?? null);
+  const control = (detail: string) => page.evaluate((d) => window.dispatchEvent(new CustomEvent('zerosoft:rec-control', { detail: d })), detail);
+  const created: string[] = [];
+  page.on('response', async (r) => {
+    if (r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/rec/videos' && r.ok()) {
+      const body = (await r.json().catch(() => null)) as { video?: { id: string } } | null;
+      if (body?.video?.id) created.push(body.video.id);
+    }
+  });
+
+  await page.goto('/en/app/rec/new', { waitUntil: 'networkidle' });
+  await page.getByText('Camera only', { exact: true }).click();
+  await page.getByTestId('rec-start').click();
+  await expect.poll(lastState).toMatchObject({ active: true, phase: 'countdown', camera: null });
+  await expect(page.getByTestId('rec-time')).toBeVisible({ timeout: 15_000 });
+  await expect.poll(lastState).toMatchObject({ active: true, phase: 'recording', mic: 'on' });
+
+  // Silenciar el micrófono: la barra de la página y la flotante lo muestran.
+  await page.getByTestId('rec-mute').click();
+  await expect(page.getByTestId('rec-mute')).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(lastState).toMatchObject({ mic: 'muted' });
+  await control('unmute');
+  await expect(page.getByTestId('rec-mute')).toHaveAttribute('aria-pressed', 'false');
+
+  // Empezar de nuevo (con confirmación): la toma anterior se borra y vuelve la cuenta regresiva, sin elegir de nuevo.
+  await page.waitForTimeout(1500);
+  await page.getByTestId('rec-restart').click();
+  await expect(page.getByTestId('rec-restart-confirm')).toBeVisible();
+  await page.getByTestId('rec-restart-yes').click();
+  await expect(page.getByTestId('rec-countdown')).toBeVisible();
+  await expect(page.getByTestId('rec-time')).toBeVisible({ timeout: 15_000 });
+  await expect.poll(() => created.length).toBe(2);
+  await expect
+    .poll(async () => {
+      const c = db();
+      const rows = (await c.execute({ sql: 'SELECT id FROM rec_videos WHERE id = ?', args: [created[0]] })).rows.length;
+      c.close();
+      return rows;
+    })
+    .toBe(0);
+
+  // Desde la barra flotante: pausar frena el reloj, seguir lo retoma y terminar abre el video.
+  await page.waitForTimeout(2200);
+  await control('pause');
+  await expect(page.getByRole('status').filter({ hasText: 'Paused' })).toBeVisible();
+  await expect.poll(lastState).toMatchObject({ phase: 'paused' });
+  const paused = (await lastState()) as { elapsedMs: number };
+  expect(paused.elapsedMs).toBeGreaterThan(1500);
+  const shown = await page.getByTestId('rec-time').textContent();
+  await page.waitForTimeout(1300);
+  await expect(page.getByTestId('rec-time')).toHaveText(shown!);
+  // Un control que no vale en esta fase se ignora.
+  await control('resume-now');
+  await control('pause');
+  await expect.poll(lastState).toMatchObject({ phase: 'paused' });
+  await control('toggle');
+  await expect.poll(lastState).toMatchObject({ phase: 'recording' });
+  expect(await page.evaluate(() => (window as unknown as { __recLevels: number }).__recLevels)).toBeGreaterThan(3);
+  await page.waitForTimeout(1200);
+  await control('stop');
+  await expect(page).toHaveURL(new RegExp(`/en/app/rec/${created[1]}\\?created=`), { timeout: 30_000 });
+});
+
 test('biblioteca: carpeta nueva, mover, renombrar y borrar sin recargar; ⌘K', async ({ page }) => {
   const body = await (async () => {
     await page.goto('/en/app/rec', { waitUntil: 'networkidle' });

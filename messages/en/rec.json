@@ -57,6 +57,10 @@
     },
     "discardConfirm": "Discard this recording?",
     "keepRecording": "Keep recording",
+    "mute": "Mute mic",
+    "unmute": "Unmute mic",
+    "restart": "Restart",
+    "restartConfirm": "Delete this take and start again?",
     "stopHint": "Finish (Alt+Shift+S)",
     "pauseHint": "Pause or resume (Alt+Shift+P)"
   },

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-rec-level"
+description = "Enables the desktop_rec_level command without any pre-configured scope."
+commands.allow = ["desktop_rec_level"]
+
+[[permission]]
+identifier = "deny-desktop-rec-level"
+description = "Denies the desktop_rec_level command without any pre-configured scope."
+commands.deny = ["desktop_rec_level"]

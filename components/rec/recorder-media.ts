@@ -19,6 +19,23 @@ export function pickAudioMime(): string {
   return candidates.find((c) => MediaRecorder.isTypeSupported(c)) ?? '';
 }
 
+/**
+ * Pedido del micrófono para grabar sin molestar a otras apps (por ejemplo, una
+ * llamada en curso). Sin control automático de ganancia: en Chrome y en
+ * Windows mueve el volumen de entrada del sistema, y la otra app lo nota. Sin
+ * cancelación de eco: en Mac pasa el micrófono al modo "procesamiento de voz",
+ * que baja y altera el audio de las demás apps. El audio del sistema se graba
+ * aparte, así que el eco no hace falta. La supresión de ruido queda a elección.
+ */
+export function micConstraints(micId: string, noise: boolean): MediaTrackConstraints {
+  return {
+    deviceId: micId ? { exact: micId } : undefined,
+    autoGainControl: false,
+    echoCancellation: false,
+    noiseSuppression: noise,
+  };
+}
+
 export function recorderSupported(): boolean {
   return typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && !!pickVideoMime();
 }
