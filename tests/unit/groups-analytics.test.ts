@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
 import { addMember, createTeam } from '@/lib/teams';
 import { resetFakeProvider } from '@/lib/groups-provider-fake';
@@ -36,7 +36,31 @@ import {
   type TeamData,
   type TicketsData,
 } from '@/lib/groups-analytics-shared';
-import { makeUser } from './helpers';
+import { makeUser as newUser } from './helpers';
+
+/**
+ * La base es una sola para toda la corrida y hay crons que miran todos los
+ * workspaces (recordatorios de tareas, tickets vencidos, chats sin responder).
+ * Lo que este archivo deja a medias (una tarea atrasada, chats esperando) se
+ * limpia al final para no cambiarle la cuenta a otro test.
+ */
+const workspaces: string[] = [];
+async function makeUser(label: string) {
+  const u = await newUser(label);
+  workspaces.push(u.id);
+  return u;
+}
+
+afterAll(async () => {
+  const db = getDb();
+  for (const ws of workspaces) {
+    await db.prepare('UPDATE crm_activities SET done = 1 WHERE id IN (SELECT activity_id FROM groups_tasks WHERE user_id = ?)').run(ws);
+    await db.prepare('DELETE FROM groups_tasks WHERE user_id = ?').run(ws);
+    await db.prepare('DELETE FROM groups_tickets WHERE user_id = ?').run(ws);
+    await db.prepare('DELETE FROM groups_broadcasts WHERE user_id = ?').run(ws);
+    await db.prepare('UPDATE groups_chats SET awaiting_since = NULL, flagged_at = NULL WHERE user_id = ?').run(ws);
+  }
+});
 
 /** Un "ahora" fijo: miércoles 11 de noviembre de 2026, 15:00 UTC. */
 const NOW = new Date('2026-11-11T15:00:00.000Z');
