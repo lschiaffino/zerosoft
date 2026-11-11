@@ -1463,8 +1463,18 @@ td.cell-actions > * + * { margin-left: 4px; }
 /* ---------- Apps "Próximamente" ---------- */
 
 /* Switcher: al pie, en una fila compacta y apagada (llevan a la lista de espera). */
-.band-menu-soon { margin-top: 6px; }
-.band-menu-soon-toggle { width: 100%; color: var(--ink-2); font-size: 0.8125rem; }
+.band-menu-soon { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+/* Botón nativo: sin borde ni fondo del navegador; se ve como una fila de texto más, discreta. */
+.band-menu-soon-toggle {
+  width: 100%;
+  border: 0;
+  background: none;
+  appearance: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ink-2);
+}
+.band-switcher-panel .band-menu-soon-toggle { font-size: 0.875rem; height: 30px; }
 .band-menu-soon-toggle svg { flex: none; transition: transform var(--ui-dur) var(--ease); }
 .band-menu-soon-toggle.open svg { transform: rotate(90deg); }
 .band-menu-soon-count { margin-left: auto; font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); }
