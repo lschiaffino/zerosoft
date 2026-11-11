@@ -2,6 +2,7 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import { initialDraft, useDraftAutosave } from '@/components/ui/useDraft';
 import { fillSnippet, type MessageDto, type SnippetDto, type ThreadDto } from '@/lib/inbox/types';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
@@ -26,6 +27,8 @@ const WaComposer = forwardRef<
     thread: ThreadDto;
     snippets: SnippetDto[];
     disabled: boolean;
+    /** Se está abriendo otro chat: lo que se escriba ahora no va a este (el campo queda quieto hasta que abre). */
+    paused?: boolean;
     /** Barra de la cita o de la edición (la arma la conversación). */
     banner?: ReactNode;
     editing: MessageDto | null;
@@ -45,10 +48,11 @@ const WaComposer = forwardRef<
     /** Se escribió algo (para mandar "escribiendo"). */
     onTyping?: () => void;
   }
->(function WaComposer({ thread, snippets, disabled, banner, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping }, ref) {
+>(function WaComposer({ thread, snippets, disabled, paused, banner, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping }, ref) {
   const t = useTranslations('inbox.composer');
   const w = useTranslations('inboxWa');
-  const [text, setText] = useState(thread.draft);
+  // Un composer por chat (WaConversation lo monta con key): abre con el borrador más nuevo, el local o el del servidor.
+  const [text, setText] = useState(() => initialDraft('inbox', thread.id, thread.draft));
   const tc = useTranslations('common.aiCompose');
   const [busy, setBusy] = useState<'' | 'send'>('');
   const [emoji, setEmoji] = useState(false);
@@ -61,12 +65,6 @@ const WaComposer = forwardRef<
   const [mentionIdx, setMentionIdx] = useState(0);
   const picked = useRef(new Map<string, string>());
 
-  useEffect(() => {
-    setText(thread.draft);
-    saved.current = thread.draft;
-    setSnipQ(null);
-    setEmoji(false);
-  }, [thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // "Ayudame a escribir": el borrador sale con el contexto de este chat y vuelve al campo para revisarlo.
   const aiAdapter = useMemo<ComposeAdapter>(
@@ -99,15 +97,8 @@ const WaComposer = forwardRef<
     if (replyToId) area.current?.focus();
   }, [replyToId]);
 
-  // Borrador guardado solo (no mientras se edita un mensaje).
-  useEffect(() => {
-    if (editing || text === saved.current) return;
-    const id = window.setTimeout(() => {
-      saved.current = text;
-      void api(`/api/inbox/threads/${thread.id}`, { method: 'PATCH', json: { draft: text } });
-    }, 700);
-    return () => window.clearTimeout(id);
-  }, [text, thread.id, editing]);
+  // Borrador: la fila de la lista lo muestra al instante y se guarda solo (no mientras se edita un mensaje).
+  const draft = useDraftAutosave({ scope: 'inbox', id: thread.id, text, saved, paused: !!editing, save: async (id, value) => (await api(`/api/inbox/threads/${id}`, { method: 'PATCH', json: { draft: value }, keepalive: true })).ok });
 
   useEffect(() => {
     const el = area.current;
@@ -147,7 +138,7 @@ const WaComposer = forwardRef<
 
   const send = useCallback(async () => {
     const body = text.trim();
-    if (!body || busy || disabled) return;
+    if (!body || busy || disabled || paused) return;
     if (editing) {
       setBusy('send');
       const ok = await onSaveEdit(editing, body);
@@ -159,6 +150,7 @@ const WaComposer = forwardRef<
       return;
     }
     setBusy('send');
+    draft.sending();
     // Menciones: "@Ana" sale como "@5491…" con la lista de teléfonos (WhatsApp la muestra con el nombre).
     let out = body;
     const mentions: string[] = [];
@@ -173,6 +165,7 @@ const WaComposer = forwardRef<
     });
     setBusy('');
     if (!r.ok) {
+      draft.failed(text);
       onError(r.data.error ?? 'send_failed');
       return;
     }
@@ -211,9 +204,7 @@ const WaComposer = forwardRef<
       draft: () => ai.openBar(),
       clear: () => {
         setText('');
-        saved.current = '';
         ai.clearUndo();
-        void api(`/api/inbox/threads/${thread.id}`, { method: 'PATCH', json: { draft: '' } });
       },
     }),
     [ai.openBar, ai.clearUndo, thread.id], // eslint-disable-line react-hooks/exhaustive-deps
@@ -304,6 +295,8 @@ const WaComposer = forwardRef<
         <textarea
           id={`ib-compose-${thread.id}`}
           ref={area}
+          readOnly={paused}
+          aria-busy={paused || undefined}
           className="wa-input"
           rows={1}
           value={text}

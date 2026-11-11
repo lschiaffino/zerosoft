@@ -1654,7 +1654,11 @@
     "lineDropped": "{name} perdió la conexión con WhatsApp. Los mensajes nuevos no llegan hasta que la reconectes.",
     "line": "Tu línea",
     "rescan": "Escanear el QR de nuevo",
-    "reconnect": "Reconectar"
+    "reconnect": "Reconectar",
+    "openNewWindow": "Abrir en otra ventana",
+    "contactInfo": "Info del contacto",
+    "groupInfo": "Info del grupo",
+    "exportChat": "Exportar chat"
   },
   "swipe": {
     "read": "Leído",

@@ -69,6 +69,7 @@ import {
   Person,
 } from './wa/icons';
 import ContactPicker from './wa/ContactPicker';
+import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const TRANSLATE_STORE = 'zs-groups-translate';
@@ -195,6 +196,15 @@ export default function ChatThread(props: ThreadProps) {
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // "Info del contacto" desde el menú de la fila (clic derecho en la lista): abre los detalles.
+  useEffect(() => {
+    if (takeChatInfo(chat.id)) setDetailsOpen(true);
+    const onInfo = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === chat.id && takeChatInfo(chat.id)) setDetailsOpen(true);
+    };
+    window.addEventListener(CHAT_INFO_EVENT, onInfo);
+    return () => window.removeEventListener(CHAT_INFO_EVENT, onInfo);
+  }, [chat.id]);
   const [summary, setSummary] = useState<{ text: string; error: string; busy: boolean } | null>(null);
   const [schedule, setSchedule] = useState<{ open: boolean; at: string; busy: boolean; error: string }>({ open: false, at: '', busy: false, error: '' });
   // Enviar más tarde: el selector de "cuándo" (el mismo de Inbox).

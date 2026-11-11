@@ -13,7 +13,7 @@ import HubspotFilter from './HubspotFilter';
 import { LISTS_CHANGED, notifyListsChanged } from './GroupsListsBranch';
 import { filterOptions } from './PropertyInput';
 import { ScheduledAllButton } from './Scheduled';
-import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useToast } from './ui';
+import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRelativeTime, useSwitchingTo, useToast } from './ui';
 import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
@@ -24,6 +24,8 @@ import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import type { LineFolderDto } from '@/lib/groups-lines';
 import { FOLDERS_CHANGED, FolderSelect, LineBadge, LineSelector, MoveToFolderModal, notifyFoldersChanged, type LineOption } from './LineFolders';
 import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
+import { ContextMenu, openInNewWindow, useRowContextMenu, type ContextMenuItem } from '@/components/ui/ContextMenu';
+import { requestChatInfo } from '@/lib/chat-info-request';
 import { dragIds } from '@/lib/chat-gestures';
 import { flattenTree } from '@/lib/inbox/folder-tree';
 import { useShellBranch } from '@/components/app/useShellBranch';
@@ -239,6 +241,7 @@ export default function InboxShell({
   const params = useSearchParams();
   const listId = params.get('list');
   const current = chatIdFromPath(pathname);
+  const switchingTo = useSwitchingTo();
   const [line, setLine] = useState(numbers.some((n) => n.id === initialLine) ? initialLine : 'all');
   // La carpeta abierta vive en la URL (?folder=): la eligen el sidebar o el selector de la bandeja.
   const folderSel = params.get('folder') ?? '';
@@ -664,6 +667,40 @@ export default function InboxShell({
   }
 
   /**
+   * Clic derecho sobre un chat (o la tecla de menú), como WhatsApp: en el
+   * puntero, las mismas acciones del menú de la fila, más abrir en otra
+   * ventana, la info del contacto o del grupo y exportar.
+   */
+  const ctxMenu = useRowContextMenu();
+  function ctxItems(id: string): ContextMenuItem[] {
+    const c = rowsRef.current.find((r) => r.id === id);
+    if (!c) return [];
+    const by = Object.fromEntries(rowMenu(c).map((it) => [it.key, it]));
+    const from = (key: string, extra: Partial<ContextMenuItem> = {}): ContextMenuItem[] => (by[key] ? [{ key, label: by[key].label, danger: by[key].danger, onSelect: by[key].onSelect, ...extra }] : []);
+    return [
+      { key: 'newWindow', label: t('wa.openNewWindow'), onSelect: () => openInNewWindow(`${window.location.pathname.replace(/\/app\/lines\/inbox.*$/, '')}/app/lines/inbox/${c.id}${listSuffix}`) },
+      ...from('unread'),
+      ...from('archive'),
+      ...from('pin'),
+      ...from('mute'),
+      ...from('close'),
+      ...from('assign'),
+      ...from('folder'),
+      {
+        key: 'info',
+        label: c.kind === 'group' ? t('wa.groupInfo') : t('wa.contactInfo'),
+        divider: true,
+        onSelect: () => {
+          requestChatInfo(c.id);
+          if (current !== c.id) router.push(`/app/lines/inbox/${c.id}${listSuffix}`);
+        },
+      },
+      { key: 'export', label: t('wa.exportChat'), onSelect: () => window.location.assign(`/api/groups/export?type=messages&chat=${encodeURIComponent(c.id)}`) },
+      ...from('hide', { divider: true }),
+    ];
+  }
+
+  /**
    * Deslizar una fila, como WhatsApp: a la derecha, leído o no leído (la
    * principal) y fijar; a la izquierda, archivar (la principal) y más (el menú
    * de la fila). Con chats seleccionados no se desliza.
@@ -714,18 +751,15 @@ export default function InboxShell({
 
   /** Una fila de la lista (también en los resultados de búsqueda). */
   function renderRow(c: ChatDto, opts: { snippet?: boolean } = {}) {
-    const draft = c.id !== current ? readDraft(c.id) : '';
+    // El chat que se deja muestra su borrador ya, desde el clic (sin esperar a que el otro termine de abrir).
+    const draft = c.id !== (switchingTo ?? current) ? readDraft(c.id) : '';
     const showCheck = selectMode || visibleSelected.length > 0;
     return (
       <li
         key={`${opts.snippet ? 'm' : 'c'}-${c.id}`}
         className={`gr-row-item${c.muted ? ' is-muted' : ''}`}
         {...gestures.rowProps(c.id)}
-        onContextMenu={(e) => {
-          if (showCheck) return;
-          e.preventDefault();
-          e.currentTarget.querySelector<HTMLButtonElement>('.wa-row-chevron')?.click();
-        }}
+        {...ctxMenu.handlers(c.id, t('wa.chatOptions', { name: c.name }), !showCheck)}
       >
         {gestures.actions(c.id)}
         {showCheck && (
@@ -740,7 +774,11 @@ export default function InboxShell({
               return;
             }
             // Abrir en otra pestaña no cambia el chat de esta.
-            if (!e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0 && c.id !== current) markChatSwitch(c.id);
+            if (!e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) {
+              // Volver al chat abierto mientras se abría otro cancela ese cambio.
+              if (c.id !== current) markChatSwitch(c.id);
+              else if (switchingTo) markChatSwitch(null);
+            }
           }}
           className={`gr-row${c.id === current ? ' is-active' : ''}${c.unread > 0 ? ' is-unread' : ''}`}
           aria-current={c.id === current ? 'page' : undefined}
@@ -1282,6 +1320,7 @@ export default function InboxShell({
         }}
       />
       {gestures.layer}
+      <ContextMenu anchor={ctxMenu.open?.anchor ?? null} items={ctxMenu.open ? ctxItems(ctxMenu.open.id) : []} onClose={ctxMenu.close} />
       {toast}
     </Ctx.Provider>
   );
