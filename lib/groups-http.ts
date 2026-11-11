@@ -41,7 +41,7 @@ export async function chatGuard(s: GroupsSession, chatId: string): Promise<{ vie
 }
 
 /** 404 si la línea no existe o la persona no la puede ver (líneas restringidas). */
-export async function numberGuard(s: GroupsSession, numberId: string): Promise<{ viewer: GroupsViewer } | NextResponse> {
+export async function lineGuard(s: GroupsSession, numberId: string): Promise<{ viewer: GroupsViewer } | NextResponse> {
   const viewer = await sessionViewer(s);
   if (!(await canSeeNumber(viewer, numberId))) return groupsError(404, 'not_found');
   return { viewer };
