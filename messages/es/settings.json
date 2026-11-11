@@ -1808,6 +1808,7 @@
       "dictionary": "Palabras y reemplazos para el dictado",
       "history": "Tus dictados y los que esperan reintento",
       "permissions": "Accesibilidad, micrófono, cámara y grabación de pantalla, con Restablecer permiso",
+      "privacy": "A qué accede la app, qué guarda y qué manda, y un registro de actividad local",
       "updates": "Versión, Buscar actualizaciones y Reiniciar para actualizar",
       "account": "Quién tiene la sesión y qué servidor usa la app"
     }
