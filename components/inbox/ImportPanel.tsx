@@ -56,7 +56,7 @@ function writeOffset(f: File, n: number | null) {
  * servidor (cron) y se pueden pausar; con la pantalla abierta avanzan más
  * rápido porque la pantalla también pide pasos.
  */
-export default function ImportPanel({ whatsappConnected, onDone }: { whatsappConnected: boolean; onDone: () => void }) {
+export default function ImportPanel({ whatsappConnected, gmailConnected = false, onDone }: { whatsappConnected: boolean; gmailConnected?: boolean; onDone: () => void }) {
   const t = useTranslations('inbox.settings.import');
   const te = useTranslations('inbox.errors');
   const locale = useLocale();
@@ -66,7 +66,7 @@ export default function ImportPanel({ whatsappConnected, onDone }: { whatsappCon
   const [err, setErr] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [legacy, setLegacy] = useState<ExportFile | null>(null);
-  const [busy, setBusy] = useState<'' | 'upload' | 'local' | 'legacy' | 'start'>('');
+  const [busy, setBusy] = useState<'' | 'upload' | 'local' | 'legacy' | 'start' | 'gmail'>('');
   const [progress, setProgress] = useState<{ done: number; total: number; unit: 'bytes' | 'parts' } | null>(null);
   const [result, setResult] = useState<Counts | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -291,6 +291,18 @@ export default function ImportPanel({ whatsappConnected, onDone }: { whatsappCon
   const count = (k: keyof ExportFile) => (Array.isArray(legacy?.[k]) ? (legacy?.[k] as unknown[]).length : 0);
   const mb = (n: number) => (n / (1024 * 1024)).toLocaleString(locale, { maximumFractionDigits: 1 });
   const waJob = jobs?.find((j) => j.kind === 'whatsapp' && (ACTIVE.has(j.status) || j.status === 'paused'));
+  const gmailJob = jobs?.find((j) => j.kind === 'gmail' && (ACTIVE.has(j.status) || j.status === 'paused'));
+  const startGmail = async () => {
+    setErr('');
+    setBusy('gmail');
+    const r = await api<{ import: ImportJobDto }>('/api/inbox/import', { method: 'POST', json: { action: 'gmail' } });
+    setBusy('');
+    if (!r.ok) {
+      setErr(errText(r.data.error));
+      return;
+    }
+    await load();
+  };
 
   return (
     <section className="ib-section" id="import" aria-labelledby="ib-import-h">
@@ -306,6 +318,18 @@ export default function ImportPanel({ whatsappConnected, onDone }: { whatsappCon
             {busy === 'start' ? t('starting') : t('waStart')}
           </button>
           {!whatsappConnected && <span className="ib-help">{t('waNeedsLink')}</span>}
+        </div>
+        <p className="ib-help">{t('waLimit')}</p>
+      </div>
+
+      <div className="ib-import-block">
+        <h3 className="ib-h3">{t('gmailTitle')}</h3>
+        <p className="ib-help">{t('gmailHelp')}</p>
+        <div className="ib-row">
+          <button type="button" className="btn btn-secondary btn-sm" data-testid="inbox-import-gmail" onClick={() => void startGmail()} disabled={!gmailConnected || busy === 'gmail' || !!gmailJob}>
+            {busy === 'gmail' ? t('starting') : t('gmailStart')}
+          </button>
+          {!gmailConnected && <span className="ib-help">{t('gmailNeedsLink')}</span>}
         </div>
       </div>
 
@@ -411,12 +435,25 @@ function JobRow({ job, onAct }: { job: ImportJobDto; onAct: (a: 'pause' | 'resum
   const detail =
     job.kind === 'file'
       ? t('jobFile', { messages: p.messages ?? 0, pct })
-      : t('jobWa', { done: p.chatsDone ?? 0, chats: p.chats ?? 0, messages: p.messages ?? 0 });
-  const why = job.error === 'history_syncing' ? t('whySyncing') : job.error === 'not_connected' ? t('whyNotConnected') : job.error ? (te.has(job.error) ? te(job.error) : te('generic')) : '';
+      : job.kind === 'gmail'
+        ? t('jobGmail', { done: p.chatsDone ?? 0, chats: Math.max(p.chats ?? 0, p.chatsDone ?? 0), messages: p.messages ?? 0 })
+        : t('jobWa', { done: p.chatsDone ?? 0, chats: p.chats ?? 0, messages: p.messages ?? 0 });
+  const why =
+    job.error === 'history_syncing'
+      ? t('whySyncing')
+      : job.error === 'not_connected'
+        ? t(job.kind === 'gmail' ? 'whyGmailNotConnected' : 'whyNotConnected')
+        : job.error === 'rate_limited' && job.kind === 'gmail'
+          ? t('whyGmailSlow')
+          : job.error
+            ? te.has(job.error)
+              ? te(job.error)
+              : te('generic')
+            : '';
   return (
     <li className={`ib-job is-${job.status}`}>
       <div className="ib-job-head">
-        <strong className="ib-job-name">{job.kind === 'whatsapp' ? t('waTitle') : job.sourceName}</strong>
+        <strong className="ib-job-name">{job.kind === 'whatsapp' ? t('waTitle') : job.kind === 'gmail' ? t('gmailJobName', { address: job.sourceName }) : job.sourceName}</strong>
         <span className="ib-job-status">{t(`status.${job.status}`)}</span>
       </div>
       {job.status !== 'cancelled' && <progress max={100} value={pct} aria-label={t('progressOf', { name: job.kind === 'whatsapp' ? t('waTitle') : job.sourceName })} />}

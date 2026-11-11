@@ -207,28 +207,62 @@ test('AI: traducir entrantes, traducir la respuesta, borrador y error sin AI', a
   await msg.getByRole('button', { name: 'See original' }).click();
   await expect(msg.getByText('Hola, ¿cuándo llega la factura?', { exact: true })).toBeVisible();
 
-  // Respuesta traducida al idioma del cliente, editable antes de mandar.
+  // "Help me write" con texto en el composer: traducir al idioma del cliente. Se ve antes de tocar el composer.
   const composer = page.getByLabel('WhatsApp', { exact: true });
+  const bar = page.getByTestId('ai-compose');
+  const draft = bar.getByTestId('ai-compose-draft');
+  const undo = page.getByTestId('ai-compose-undo');
   await composer.fill('It arrives tomorrow');
-  await page.getByRole('button', { name: 'AI: draft and translate' }).click();
-  await page.getByLabel('Translate reply').selectOption({ label: "Customer's language (Spanish)" });
+  await page.getByTestId('ai-compose-open').click();
+  await expect(bar.getByRole('textbox', { name: 'Describe a change' })).toBeFocused();
+  await bar.getByLabel('Translate to').selectOption({ label: "Customer's language (Spanish)" });
+  await expect(draft).toHaveText('[es] It arrives tomorrow');
+  await expect(composer).toHaveValue('It arrives tomorrow');
+  await bar.getByRole('button', { name: 'Insert' }).click();
+  await expect(bar).toBeHidden();
   await expect(composer).toHaveValue('[es] It arrives tomorrow');
-  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(composer).toBeFocused();
+  await undo.getByRole('button', { name: 'Undo' }).click();
   await expect(composer).toHaveValue('It arrives tomorrow');
 
-  // Borrador AI con el chat vacío; "Mejorar" con texto.
+  // Composer vacío, ⌘J: sugerir la respuesta (usa el chat) o describir el mensaje.
   await composer.fill('');
-  await page.getByRole('button', { name: 'AI draft' }).click();
-  await expect(composer).toHaveValue(/Thanks for writing/);
-  await composer.fill('it arrives tomorrow');
-  await page.getByRole('button', { name: 'Improve with AI' }).click();
-  await expect(composer).toHaveValue('It arrives tomorrow.');
+  await composer.press('ControlOrMeta+j');
+  const ask = bar.getByRole('textbox', { name: 'Describe your message' });
+  await expect(ask).toBeFocused();
+  await bar.getByRole('button', { name: 'Suggest a reply' }).click();
+  await expect(draft).toHaveText(/Thanks for writing/);
+  await bar.getByRole('button', { name: 'Discard' }).click();
+  await expect(draft).toHaveCount(0);
+  await ask.fill('tell them it arrives tomorrow');
+  await ask.press('Enter');
+  await expect(draft).toHaveText('Draft: tell them it arrives tomorrow');
+  await expect(composer).toHaveValue('');
+  await bar.getByRole('button', { name: 'More formal' }).click();
+  await expect(draft).toHaveText('Draft: tell them it arrives tomorrow (formal)');
+  await bar.getByRole('button', { name: 'Previous version' }).click();
+  await expect(draft).toHaveText('Draft: tell them it arrives tomorrow');
+  await bar.getByRole('button', { name: 'Insert' }).click();
+  await expect(composer).toHaveValue('Draft: tell them it arrives tomorrow');
 
-  // Sin AI: error claro.
+  // Con texto escrito: corregirlo. ⌘Enter inserta. Nada se mandó en todo el camino.
+  await composer.fill('it arrives tomorrow');
+  await composer.press('ControlOrMeta+j');
+  await bar.getByRole('button', { name: 'Fix grammar' }).click();
+  await expect(draft).toHaveText('It arrives tomorrow.');
+  await page.keyboard.press('ControlOrMeta+Enter');
+  await expect(composer).toHaveValue('It arrives tomorrow.');
+  await expect(page.locator('.gr-msg-out')).toHaveCount(0);
+
+  // Sin AI: el error en palabras, en la barra. Esc la cierra y el foco vuelve al composer.
   await context.addCookies([{ name: 'groups_ai_fake', value: 'off', url: new URL(page.url()).origin }]);
   await composer.fill('');
-  await page.getByRole('button', { name: 'AI draft' }).click();
-  await expect(page.getByRole('alert').getByText('AI is off in this workspace. An admin can turn it on in settings.')).toBeVisible();
+  await composer.press('ControlOrMeta+j');
+  await bar.getByRole('button', { name: 'Suggest a reply' }).click();
+  await expect(bar.getByRole('alert')).toHaveText('AI is off in this workspace. An admin can turn it on in settings.');
+  await page.keyboard.press('Escape');
+  await expect(bar).toBeHidden();
+  await expect(composer).toBeFocused();
   await context.clearCookies({ name: 'groups_ai_fake' });
   expect(errors).toEqual([]);
 });

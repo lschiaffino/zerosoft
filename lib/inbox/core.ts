@@ -6,6 +6,7 @@
  */
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { getDb } from '../db';
+import { inboxSortKey } from '../schema/inbox-lines-perf-migration';
 import { open, seal } from '../secret-box';
 import { parseSearch, threadIdsMatching } from './message-search';
 import { canMoveFolder, depthOf, descendantIds, MAX_FOLDER_DEPTH, rollupUnread, siblingOrder } from './folder-tree';
@@ -406,6 +407,50 @@ export interface ListOptions {
   q?: string;
   limit?: number;
   now?: Date;
+  /** Cursor de la página anterior (`next`): trae los chats que siguen. */
+  cursor?: string | null;
+}
+
+/** Columnas que usa una fila de la lista (sin info del contacto, notas ni resumen: no viajan en cada consulta). */
+const LIST_COLS = [
+  'id', 'account_id', 'channel', 'kind', 'external_id', 'title', 'handle', 'preview', 'last_message_at', 'last_from_me', 'unread', 'pinned_at', 'done_at',
+  'archived_at', 'snoozed_until', 'woke_at', 'woke_reason', 'follow_up_at', 'muted_until', 'draft', 'avatar_url', 'last_sender', 'last_kind', 'last_status',
+  'presence', 'presence_who', 'presence_at', 'last_seen_at',
+]
+  .map((c) => `t.${c}`)
+  .join(', ');
+
+const SORT_KEY = inboxSortKey('t');
+
+/** Tope de fijados que entran en la primera página (son pocos: se fijan a mano). */
+const MAX_PINNED = 200;
+
+interface ListCursor {
+  k: string;
+  id: string;
+}
+
+export function encodeListCursor(c: ListCursor): string {
+  return Buffer.from(JSON.stringify([c.k, c.id]), 'utf8').toString('base64url');
+}
+
+export function decodeListCursor(raw: string | null | undefined): ListCursor | null {
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as unknown;
+    if (Array.isArray(v) && typeof v[0] === 'string' && typeof v[1] === 'string' && v[0].length <= 80 && v[1].length <= 80) return { k: v[0], id: v[1] };
+  } catch {
+    /* cursor roto: primera página */
+  }
+  return null;
+}
+
+export interface ThreadPage {
+  threads: ThreadDto[];
+  /** Cursor para la página que sigue; null si no hay más. */
+  next: string | null;
+  /** Cuántos de `threads` son los fijados que van adelante en la primera página (no cuentan para `limit`). */
+  pinned: number;
 }
 
 /**
@@ -414,13 +459,25 @@ export interface ListOptions {
  * texto de los mensajes.
  */
 export async function listThreads(owner: string, opts: ListOptions = {}): Promise<ThreadDto[]> {
+  return (await listThreadsPage(owner, opts)).threads;
+}
+
+/**
+ * Una página de la lista, con cursor (keyset): los fijados entran todos en la
+ * primera; el resto va por (orden, id), así lo que llega mientras se baja no
+ * repite ni saltea filas. Cada consulta lee solo su página (índices
+ * idx_inbox_threads_list y idx_inbox_threads_unread).
+ */
+export async function listThreadsPage(owner: string, opts: ListOptions = {}): Promise<ThreadPage> {
   const now = opts.now ?? new Date();
   const nowS = now.toISOString();
-  const where: string[] = ['t.owner_id = ?'];
-  const args: Array<string | number> = [owner];
+  const where: string[] = [];
+  const args: Array<string | number> = [];
   const q = (opts.q ?? '').trim().slice(0, LIMITS.searchQuery);
   const view = opts.view ?? 'inbox';
   const active = '(t.done_at IS NULL AND t.archived_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?))';
+  // Una carpeta sin reglas es un conjunto chico de chats: se buscan por id y se ordenan, en vez de recorrer la bandeja en orden.
+  let smallSet = false;
   if (q) {
     // Nombre, número o vista previa del chat, o algún mensaje (índice de texto completo; sin él, LIKE).
     const parsed = parseSearch(q);
@@ -449,6 +506,7 @@ export async function listThreads(owner: string, opts: ListOptions = {}): Promis
       `(t.id IN (SELECT thread_id FROM inbox_thread_folders WHERE folder_id IN (${ids.map(() => '?').join(', ')}))${rules.map((r) => ` OR (${r.sql})`).join('')})`,
     );
     args.push(...ids, ...rules.flatMap((r) => r.args));
+    smallSet = rules.length === 0;
     if (!q) {
       where.push(active);
       args.push(nowS);
@@ -501,26 +559,57 @@ export async function listThreads(owner: string, opts: ListOptions = {}): Promis
         break;
     }
   }
-  const order =
-    view === 'snoozed' && !q && !opts.folderId
-      ? 't.snoozed_until ASC'
-      : view === 'done' && !q && !opts.folderId
-        ? 't.done_at DESC'
-        : view === 'archived' && !q && !opts.folderId
-          ? '(t.last_message_at IS NULL) ASC, COALESCE(t.last_message_at, t.created_at) DESC'
-        : // Los chats sin mensajes (los que trae el historial de WhatsApp antes que sus mensajes) van al final.
-          '(t.pinned_at IS NOT NULL) DESC, (t.last_message_at IS NULL) ASC, COALESCE(t.last_message_at, t.created_at) DESC';
+  // Orden: una sola clave más el id (desempate estable para el cursor). Los fijados van aparte, primero.
+  const plain = !q && !opts.folderId;
+  const mode: { key: string; dir: 'ASC' | 'DESC'; pinnedFirst: boolean } =
+    plain && view === 'snoozed'
+      ? { key: 't.snoozed_until', dir: 'ASC', pinnedFirst: false }
+      : plain && view === 'done'
+        ? { key: 't.done_at', dir: 'DESC', pinnedFirst: false }
+        : plain && view === 'archived'
+          ? { key: SORT_KEY, dir: 'DESC', pinnedFirst: false }
+          : // Los chats sin mensajes (los que trae el historial de WhatsApp antes que sus mensajes) van al final.
+            { key: SORT_KEY, dir: 'DESC', pinnedFirst: true };
   const limit = Math.min(Math.max(opts.limit ?? 300, 1), 1000);
-  const rows = (await getDb()
-    .prepare(
-      `SELECT t.*,
+  const cursor = decodeListCursor(opts.cursor);
+  // `+` saca al índice del orden: el motor filtra por los ids de la carpeta y ordena ese conjunto.
+  const ownerSql = smallSet ? '+t.owner_id = ?' : 't.owner_id = ?';
+  const orderSql = `${smallSet ? '+' : ''}${mode.key} ${mode.dir}, t.id ${mode.dir}`;
+  const select = `SELECT ${LIST_COLS}, ${mode.key} AS sort_key,
          (SELECT group_concat(folder_id) FROM inbox_thread_folders f WHERE f.thread_id = t.id) AS folder_ids,
          (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed')) AS scheduled_count,
          CASE WHEN t.last_kind IN ('image', 'video') THEN (SELECT m.id FROM inbox_messages m WHERE m.thread_id = t.id AND m.hidden_at IS NULL ORDER BY m.sent_at DESC LIMIT 1) END AS last_media_id
-       FROM inbox_threads t WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ${limit}`,
-    )
-    .all(...args)) as Array<ThreadRow & { folder_ids: string | null; scheduled_count: number }>;
-  return rows.map((r) => threadDto(r, now));
+       FROM inbox_threads t`;
+  type Row = ThreadRow & { folder_ids: string | null; scheduled_count: number; sort_key: string | null };
+  const db = getDb();
+  const base = [ownerSql, ...where];
+  // Los fijados son pocos: se leen por su índice (sin él, el motor recorre la bandeja entera buscándolos).
+  const pinned =
+    mode.pinnedFirst && !cursor
+      ? ((await db
+          .prepare(
+            `${select} INDEXED BY idx_inbox_threads_pinned WHERE ${['t.owner_id = ?', ...where, 't.pinned_at IS NOT NULL'].join(' AND ')} ORDER BY ${mode.key} ${mode.dir}, t.id ${mode.dir} LIMIT ${MAX_PINNED}`,
+          )
+          .all(owner, ...args)) as unknown as Row[])
+      : [];
+  const rest = [...base];
+  const restArgs: Array<string | number> = [owner, ...args];
+  if (mode.pinnedFirst) rest.push('t.pinned_at IS NULL');
+  if (cursor) {
+    // (clave, id) después del cursor. El primer término deja que el índice arranque en la clave.
+    const op = mode.dir === 'DESC' ? '<' : '>';
+    rest.push(`${mode.key} ${op}= ?`, `(${mode.key} ${op} ? OR t.id ${op} ?)`);
+    restArgs.push(cursor.k, cursor.k, cursor.id);
+  }
+  const rows = (await db.prepare(`${select} WHERE ${rest.join(' AND ')} ORDER BY ${orderSql} LIMIT ${limit + 1}`).all(...restArgs)) as unknown as Row[];
+  const more = rows.length > limit;
+  const page = more ? rows.slice(0, limit) : rows;
+  const last = page[page.length - 1];
+  return {
+    threads: [...pinned, ...page].map((r) => threadDto(r, now)),
+    next: more && last && last.sort_key != null ? encodeListCursor({ k: String(last.sort_key), id: last.id }) : null,
+    pinned: pinned.length,
+  };
 }
 
 export function threadDto(r: ThreadRow & { folder_ids?: string | null; scheduled_count?: number; last_media_id?: string | null }, now = new Date()): ThreadDto {
@@ -628,9 +717,27 @@ function messageDto(r: MessageRow, reply: MessageQuote | null = null): MessageDt
   };
 }
 
-/** Los últimos `limit` mensajes (o los anteriores a `before`), en orden cronológico. */
-export async function listMessages(owner: string, threadId: string, opts: { before?: string; limit?: number; around?: string } = {}): Promise<{ messages: MessageDto[]; more: boolean }> {
+/** Cursor de una página de mensajes: "<sent_at>~<rowid>" del más viejo que se tiene. */
+function messageCursor(r: { sent_at: string; rid?: number | null } | undefined): string | null {
+  return r && r.rid != null ? `${r.sent_at}~${r.rid}` : null;
+}
+
+export interface MessagePage {
+  messages: MessageDto[];
+  more: boolean;
+  /** Para pedir la página anterior (?before=): el mensaje más viejo de esta. */
+  cursor: string | null;
+}
+
+/**
+ * Los últimos `limit` mensajes (o los anteriores a `before`), en orden
+ * cronológico. `before` es el cursor de la página anterior ("<sent_at>~<rowid>":
+ * varios mensajes en el mismo segundo no se saltean ni se repiten); también
+ * acepta una fecha sola. Lo nuevo que llega mientras se sube no mueve las páginas.
+ */
+export async function listMessages(owner: string, threadId: string, opts: { before?: string; limit?: number; around?: string } = {}): Promise<MessagePage> {
   await getThreadRow(owner, threadId);
+  type Row = MessageRow & { rid: number };
   if (opts.around) {
     // Ir a un mensaje (desde la búsqueda): 40 anteriores y todo lo que sigue hasta el más nuevo (con tope).
     const target = (await getDb().prepare('SELECT sent_at FROM inbox_messages WHERE id = ? AND thread_id = ? AND owner_id = ?').get(opts.around, threadId, owner)) as { sent_at: string } | undefined;
@@ -640,23 +747,32 @@ export async function listMessages(owner: string, threadId: string, opts: { befo
         .get(threadId, owner, target.sent_at)) as { sent_at: string } | undefined;
       const from = older?.sent_at ?? '';
       const rows = (await getDb()
-        .prepare('SELECT * FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND hidden_at IS NULL AND sent_at >= ? ORDER BY sent_at ASC, created_at ASC LIMIT 3000')
-        .all(threadId, owner, from)) as unknown as MessageRow[];
+        .prepare('SELECT *, rowid AS rid FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND hidden_at IS NULL AND sent_at >= ? ORDER BY sent_at ASC, rowid ASC LIMIT 3000')
+        .all(threadId, owner, from)) as unknown as Row[];
       const quotes = await quotesFor(threadId, rows);
-      return { messages: rows.map((r) => messageDto(r, r.reply_to ? (quotes.get(r.reply_to) ?? null) : null)), more: !!older };
+      return { messages: rows.map((r) => messageDto(r, r.reply_to ? (quotes.get(r.reply_to) ?? null) : null)), more: !!older, cursor: messageCursor(rows[0]) };
     }
   }
   const limit = Math.min(Math.max(opts.limit ?? 150, 1), 500);
-  const before = validIso(opts.before);
+  const [rawAt, rawRid] = (opts.before ?? '').split('~');
+  const before = validIso(rawAt);
+  const rid = rawRid && /^\d{1,15}$/.test(rawRid) ? Number(rawRid) : null;
+  const where = ['thread_id = ?', 'owner_id = ?', 'hidden_at IS NULL'];
+  const args: Array<string | number> = [threadId, owner];
+  if (before && rid !== null) {
+    where.push('sent_at <= ?', '(sent_at < ? OR rowid < ?)');
+    args.push(before, before, rid);
+  } else if (before) {
+    where.push('sent_at < ?');
+    args.push(before);
+  }
   const rows = (await getDb()
-    .prepare(
-      `SELECT * FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND hidden_at IS NULL ${before ? 'AND sent_at < ?' : ''} ORDER BY sent_at DESC, created_at DESC LIMIT ?`,
-    )
-    .all(...(before ? [threadId, owner, before, limit + 1] : [threadId, owner, limit + 1]))) as unknown as MessageRow[];
+    .prepare(`SELECT *, rowid AS rid FROM inbox_messages WHERE ${where.join(' AND ')} ORDER BY sent_at DESC, rowid DESC LIMIT ?`)
+    .all(...args, limit + 1)) as unknown as Row[];
   const more = rows.length > limit;
   const page = rows.slice(0, limit).reverse();
   const quotes = await quotesFor(threadId, page);
-  return { messages: page.map((r) => messageDto(r, r.reply_to ? (quotes.get(r.reply_to) ?? null) : null)), more };
+  return { messages: page.map((r) => messageDto(r, r.reply_to ? (quotes.get(r.reply_to) ?? null) : null)), more, cursor: messageCursor(page[0]) };
 }
 
 /** Los mensajes citados por las respuestas de una página (por id del proveedor, dentro del mismo chat). */
@@ -834,23 +950,24 @@ export async function deleteThread(owner: string, threadId: string): Promise<voi
   if (res.changes === 0) throw new InboxError('not_found', 404);
 }
 
-/** Contadores de la barra: no leídos de la bandeja, por responder, pospuestos, programados y por carpeta. */
+/**
+ * Contadores de la barra: no leídos de la bandeja, por responder, pospuestos, archivados y programados.
+ * Cada uno sale de su índice (idx_inbox_threads_unread, _reply, _snoozed, _archived): no recorre los chats de la persona.
+ */
 export async function inboxCounts(owner: string, now = new Date()): Promise<Record<string, number>> {
   const nowS = now.toISOString();
   const r = (await getDb()
     .prepare(
       `SELECT
-         SUM(CASE WHEN done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?) AND unread > 0 THEN 1 ELSE 0 END) AS inbox,
-         SUM(CASE WHEN done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?) AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL THEN 1 ELSE 0 END) AS reply,
-         SUM(CASE WHEN snoozed_until > ? THEN 1 ELSE 0 END) AS snoozed,
-         SUM(CASE WHEN archived_at IS NOT NULL THEN 1 ELSE 0 END) AS archived
-       FROM inbox_threads WHERE owner_id = ?`,
+         (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_unread WHERE owner_id = ? AND unread > 0 AND done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)) AS inbox,
+         (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_reply WHERE owner_id = ? AND done_at IS NULL AND archived_at IS NULL AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL
+            AND (snoozed_until IS NULL OR snoozed_until <= ?)) AS reply,
+         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND snoozed_until > ?) AS snoozed,
+         (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND archived_at IS NOT NULL) AS archived,
+         (SELECT COUNT(*) FROM inbox_scheduled WHERE owner_id = ? AND status IN ('pending','failed','missed')) AS scheduled`,
     )
-    .get(nowS, nowS, nowS, owner)) as { inbox: number | null; reply: number | null; snoozed: number | null; archived: number | null } | undefined;
-  const s = (await getDb()
-    .prepare("SELECT COUNT(*) AS n FROM inbox_scheduled WHERE owner_id = ? AND status IN ('pending','failed','missed')")
-    .get(owner)) as { n: number };
-  return { inbox: Number(r?.inbox ?? 0), reply: Number(r?.reply ?? 0), snoozed: Number(r?.snoozed ?? 0), archived: Number(r?.archived ?? 0), scheduled: Number(s.n) };
+    .get(owner, nowS, owner, nowS, owner, nowS, owner, owner)) as { inbox: number | null; reply: number | null; snoozed: number | null; archived: number | null; scheduled: number | null } | undefined;
+  return { inbox: Number(r?.inbox ?? 0), reply: Number(r?.reply ?? 0), snoozed: Number(r?.snoozed ?? 0), archived: Number(r?.archived ?? 0), scheduled: Number(r?.scheduled ?? 0) };
 }
 
 // ---------------------------------------------------------------------------
@@ -883,27 +1000,59 @@ async function getFolderRow(owner: string, id: string): Promise<FolderRow> {
   return r;
 }
 
+/** Como LIKE de SQLite: sin distinguir mayúsculas en ASCII. */
+function asciiLower(s: string): string {
+  return s.replace(/[A-Z]/g, (c) => c.toLowerCase());
+}
+
+/** ¿El chat cumple la regla de la carpeta? Lo mismo que ruleSql (LIKE de SQLite), sobre una fila ya leída: el contador y la lista coinciden. */
+function matchesRuleSql(rule: FolderRule | null, t: { channel: string; kind: string; title: string; handle: string }): boolean {
+  if (!rule) return false;
+  let any = false;
+  if (rule.channel) {
+    if (t.channel !== rule.channel) return false;
+    any = true;
+  }
+  if (rule.kind) {
+    if (t.kind !== rule.kind) return false;
+    any = true;
+  }
+  if (rule.from) {
+    const needle = asciiLower(rule.from);
+    if (!asciiLower(t.title).includes(needle) && !asciiLower(t.handle).includes(needle)) return false;
+    any = true;
+  }
+  return any;
+}
+
+/** Tope de chats sin leer que se miran para los contadores de carpetas (el contador muestra 99+). */
+const MAX_UNREAD_SCAN = 5000;
+
 export async function listFolders(owner: string, now = new Date()): Promise<FolderDto[]> {
   const db = getDb();
   const rows = (await db.prepare('SELECT * FROM inbox_folders WHERE owner_id = ? ORDER BY position, created_at').all(owner)) as unknown as FolderRow[];
   if (!rows.length) return [];
   const nowS = now.toISOString();
-  // Chats sin leer de cada carpeta (a mano o por regla); después suben a los padres sin repetir.
-  const own = new Map<string, Set<string>>();
-  const manual = (await db
+  // Chats sin leer de la bandeja, una sola consulta (índice idx_inbox_threads_unread), con sus carpetas a mano.
+  // Las reglas se evalúan acá sobre esas filas; después los no leídos suben a los padres sin repetir.
+  const unread = (await db
     .prepare(
-      `SELECT tf.folder_id, t.id FROM inbox_thread_folders tf JOIN inbox_threads t ON t.id = tf.thread_id
-       WHERE t.owner_id = ? AND t.done_at IS NULL AND t.archived_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) AND t.unread > 0`,
+      `SELECT t.id, t.channel, t.kind, t.title, t.handle,
+         (SELECT group_concat(folder_id) FROM inbox_thread_folders f WHERE f.thread_id = t.id) AS folder_ids
+       FROM inbox_threads t INDEXED BY idx_inbox_threads_unread
+       WHERE t.owner_id = ? AND t.unread > 0 AND t.done_at IS NULL AND t.archived_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) LIMIT ${MAX_UNREAD_SCAN}`,
     )
-    .all(owner, nowS)) as Array<{ folder_id: string; id: string }>;
-  for (const r of manual) own.set(r.folder_id, new Set([...(own.get(r.folder_id) ?? []), r.id]));
-  for (const f of rows) {
-    const rs = ruleSql(parseRuleText(f.rule));
-    if (!rs) continue;
-    const hits = (await db
-      .prepare(`SELECT t.id FROM inbox_threads t WHERE t.owner_id = ? AND t.done_at IS NULL AND t.archived_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?) AND t.unread > 0 AND (${rs.sql}) LIMIT 1000`)
-      .all(owner, nowS, ...rs.args)) as Array<{ id: string }>;
-    own.set(f.id, new Set([...(own.get(f.id) ?? []), ...hits.map((h) => h.id)]));
+    .all(owner, nowS)) as Array<{ id: string; channel: string; kind: string; title: string; handle: string; folder_ids: string | null }>;
+  const own = new Map<string, Set<string>>();
+  const add = (folderId: string, threadId: string) => {
+    const set = own.get(folderId);
+    if (set) set.add(threadId);
+    else own.set(folderId, new Set([threadId]));
+  };
+  const rules = rows.map((f) => ({ id: f.id, rule: parseRuleText(f.rule) })).filter((f) => f.rule !== null);
+  for (const t of unread) {
+    if (t.folder_ids) for (const fid of String(t.folder_ids).split(',')) add(fid, t.id);
+    for (const f of rules) if (matchesRuleSql(f.rule, t)) add(f.id, t.id);
   }
   const tree = rows.map((f) => ({ id: f.id, parentId: f.parent_id, position: f.position }));
   const total = rollupUnread(tree, own);

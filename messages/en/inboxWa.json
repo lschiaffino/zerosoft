@@ -18,7 +18,6 @@
   "you": "You",
   "emoji": "Emoji",
   "placeholder": "Type a message",
-  "aiTools": "AI: draft or rewrite",
   "saveEdit": "Save edit",
   "recordVoice": "Record a voice message",
   "lastSeenToday": "last seen today at {time}",
@@ -161,5 +160,6 @@
   "showMore": "Show more",
   "showLess": "Show less",
   "audioSummary": "Summary:",
-  "transcript": "Transcript"
+  "transcript": "Transcript",
+  "moreTools": "More: write with AI, dictate, snippets"
 }

@@ -1119,6 +1119,8 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
           instanceName: cfg.session || 'zerosoft',
           qrcode: true,
           integration: 'WHATSAPP-BAILEYS',
+          // WhatsApp manda el historial solo al vincular y solo si la instancia lo pide.
+          syncFullHistory: true,
           webhook,
         });
       } catch (err) {

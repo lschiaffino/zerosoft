@@ -135,6 +135,11 @@ export async function completeGmailConnect(owner: string, code: string): Promise
     scope: tok.scope ?? '',
   });
   await setAccountState(account.id, { status: 'connected', error: '', provider: 'google' });
+  // Cuenta nueva: además de la bandeja reciente, todo el correo viejo entra en segundo plano (una vez por cuenta).
+  if (!existing) {
+    const { ensureAutoImport } = await import('./import-jobs');
+    await ensureAutoImport(account, 'gmail').catch(() => null);
+  }
   return account;
 }
 
@@ -304,6 +309,68 @@ export async function syncGmail(account: AccountRow, opts: { maxThreads?: number
   await setAccountState(account.id, { sync_cursor: historyId, last_sync_at: nowIso(), status: 'connected', error: '' });
   account.sync_cursor = historyId;
   return n;
+}
+
+/** Hilos de la cuenta falsa para probar la importación de todo el correo (INBOX_FAKE_HISTORY=1): 3 páginas de 5. */
+const FAKE_HISTORY_PAGES = 3;
+const FAKE_HISTORY_PAGE = 5;
+
+/**
+ * Una página de ids de hilos de todo el correo (sin spam, papelera,
+ * borradores ni chats), de los más nuevos a los más viejos. `next` es el
+ * token de la página que sigue ('' si no hay más); `total`, cuántos hilos
+ * dice Gmail que tiene la cuenta (solo en la primera página).
+ */
+export async function listGmailThreadPage(account: AccountRow, pageToken = '', size = 100): Promise<{ ids: string[]; next: string; total: number }> {
+  if (account.provider === 'fake') {
+    if (process.env.INBOX_FAKE_HISTORY !== '1') return { ids: [], next: '', total: 0 };
+    const page = Math.max(0, Number(pageToken) || 0);
+    const ids = Array.from({ length: FAKE_HISTORY_PAGE }, (_, i) => `fake-old-${page * FAKE_HISTORY_PAGE + i}`);
+    return { ids, next: page + 1 < FAKE_HISTORY_PAGES ? String(page + 1) : '', total: FAKE_HISTORY_PAGES * FAKE_HISTORY_PAGE };
+  }
+  const token = await accessToken(account);
+  const params = new URLSearchParams({ q: '-in:draft -in:chats', maxResults: String(Math.min(Math.max(size, 1), 500)) });
+  if (pageToken) params.set('pageToken', pageToken);
+  const list = await gmail<{ threads?: Array<{ id: string }>; nextPageToken?: string }>(token, `/threads?${params.toString()}`);
+  let total = 0;
+  if (!pageToken) total = Number((await gmail<{ threadsTotal?: number }>(token, '/profile').catch(() => ({ threadsTotal: 0 }))).threadsTotal ?? 0) || 0;
+  return { ids: (list.threads ?? []).map((t) => t.id), next: String(list.nextPageToken ?? ''), total };
+}
+
+/**
+ * Trae un hilo entero y lo guarda como historial: sin avisos, con leído o no
+ * leído y bandeja o Hecho como está en Gmail. Importarlo dos veces no
+ * duplica nada. Devuelve cuántos mensajes tiene (0 si el hilo ya no existe).
+ */
+export async function importGmailThread(account: AccountRow, id: string): Promise<number> {
+  if (account.provider === 'fake') {
+    const n = Number(id.replace(/\D/g, '')) || 0;
+    const at = new Date(Date.UTC(2025, 0, 1) - n * 86_400_000).toISOString();
+    await applyGmailThread(
+      account,
+      id,
+      [{ id: `${id}-m1`, threadId: id, labelIds: [], subject: `Correo viejo ${n + 1}`, from: `Contacto ${n + 1} <viejo${n + 1}@example.test>`, to: account.address, cc: '', messageId: `<${id}@example.test>`, inReplyTo: '', references: '', snippet: '', text: `Texto del correo viejo ${n + 1}`, html: '', internalDate: at }],
+      { initial: true },
+    );
+    return 1;
+  }
+  const token = await accessToken(account);
+  let t: GmailThreadRes;
+  try {
+    t = await gmail<GmailThreadRes>(token, `/threads/${encodeURIComponent(id)}?format=full`);
+  } catch (err) {
+    // Borrado entre el listado y la lectura: se sigue con el próximo.
+    if (err instanceof GmailHttpError && err.status === 404) return 0;
+    throw err;
+  }
+  const messages = (t.messages ?? []).map(parseGmailMessage);
+  await applyGmailThread(account, id, messages, { initial: true });
+  return messages.length;
+}
+
+/** ¿El error es de Gmail pidiendo ir más despacio (límite de uso)? La importación espera y sigue. */
+export function isGmailRateLimit(err: unknown): boolean {
+  return err instanceof GmailHttpError && (err.status === 429 || err.status === 403);
 }
 
 /** Refleja en Gmail una acción de Inbox (mejor esfuerzo: si falla, queda el cambio local). */

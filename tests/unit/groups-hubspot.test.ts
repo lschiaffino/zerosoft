@@ -88,7 +88,7 @@ describe('HubSpot: conexión', () => {
     const ws = await makeUser('hs-conn');
     await expect(connectHubspot(ws.id, ws.id, 'not-a-token')).rejects.toMatchObject({ code: 'hubspot_invalid_token' });
     await expect(connectHubspot(ws.id, ws.id, '   ')).rejects.toMatchObject({ code: 'hubspot_invalid_token' });
-    await expect(connectHubspot(ws.id, ws.id, 'pat-noscope-1')).rejects.toMatchObject({ code: 'hubspot_missing_scopes:crm.objects.companies.read crm.objects.deals.read' });
+    await expect(connectHubspot(ws.id, ws.id, 'pat-noscope-1')).rejects.toMatchObject({ code: 'hubspot_missing_scopes:crm.objects.companies.read crm.objects.deals.read crm.schemas.companies.read' });
     expect((await getHubspot(ws.id)).connected).toBe(false);
 
     const dto = await connectHubspot(ws.id, ws.id, TOKEN);
@@ -125,11 +125,11 @@ describe('HubSpot: conexión', () => {
     expect(((await bad.json()) as { error: string }).error).toContain('hubspot_missing_scopes:');
     const ok = await connRoute.POST(new Request('http://x/api/groups/hubspot', { method: 'POST', body: JSON.stringify({ token: TOKEN, autoLink: true }) }));
     expect(ok.status).toBe(200);
-    const text = await (await connRoute.GET()).text();
+    const text = await (await connRoute.GET(new Request('http://localhost/api/groups/hubspot'))).text();
     expect(text).not.toContain(TOKEN);
     expect(JSON.parse(text)).toMatchObject({ connected: true, autoLink: true });
     session.user = { ...ws, role: 'member', actingUser: { id: member.id } };
-    expect(await (await connRoute.GET()).json()).toEqual({ connected: true });
+    expect(await (await connRoute.GET(new Request('http://localhost/api/groups/hubspot'))).json()).toEqual({ connected: true });
   });
 });
 

@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { FOLDER_COLORS, SHORTCUTS, type FolderDto, type FolderRule, type InboxAccountDto, type ThreadDto } from '@/lib/inbox/types';
 import { api } from './api';
+import AiComposeBar, { AiComposeButton } from '@/components/ai/AiComposeBar';
+import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
+import { splitSubject } from '@/lib/ai-compose';
+import { INBOX_TRANSLATE_LANGS, inboxCompose } from './ai-compose';
 import { canMoveFolder, depthOf, flattenTree, MAX_FOLDER_DEPTH } from '@/lib/inbox/folder-tree';
 
 /** Modal (<dialog>): Esc y el telón cierran, el foco queda adentro. */
@@ -192,6 +196,29 @@ export function ComposeDialog({ open, accounts, onClose, onCreated }: { open: bo
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const none = !wa && gmail.length === 0;
+  // "Ayudame a escribir" para un mensaje que todavía no tiene chat: el modelo sabe el canal, a quién va y el asunto.
+  const tc = useTranslations('common.aiCompose');
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const aiAdapter = useMemo<ComposeAdapter>(
+    () => ({
+      languages: INBOX_TRANSLATE_LANGS.map((code) => ({ code, label: tc(`langs.${code}`) })),
+      run: (request, onText, signal) => inboxCompose(request, { channel, to, subject }, onText, signal),
+    }),
+    [channel, to, subject, tc],
+  );
+  const ai = useAiCompose({
+    adapter: aiAdapter,
+    text: body,
+    // Un correo nuevo vuelve con "Subject: ..." arriba: va al campo Asunto si está vacío, y el resto al mensaje.
+    setText: (v) => {
+      if (channel !== 'gmail') return setBody(v);
+      const parts = splitSubject(v);
+      if (parts.subject && !subject.trim()) setSubject(parts.subject);
+      setBody(parts.body);
+    },
+    focusComposer: () => bodyRef.current?.focus(),
+    resetKey: `${open ? 'open' : 'closed'}:${channel}`,
+  });
   const submit = async () => {
     if (busy) return;
     setBusy(true);
@@ -246,10 +273,31 @@ export function ComposeDialog({ open, accounts, onClose, onCreated }: { open: bo
               </div>
             )}
             <div className="ui-field">
-              <label className="label" htmlFor="ib-body">
-                {t('message')}
-              </label>
-              <textarea id="ib-body" className="textarea" rows={5} value={body} maxLength={8000} required={channel === 'gmail'} onChange={(e) => setBody(e.target.value)} />
+              <div className="ib-compose-label">
+                <label className="label" htmlFor="ib-body">
+                  {t('message')}
+                </label>
+                <AiComposeButton ai={ai} className="btn btn-ghost btn-sm aic-open-label" showLabel size={15} />
+              </div>
+              <AiComposeBar ai={ai} tone="app" />
+              <textarea
+                id="ib-body"
+                ref={bodyRef}
+                className="textarea"
+                rows={5}
+                value={body}
+                maxLength={8000}
+                required={channel === 'gmail'}
+                onChange={(e) => setBody(e.target.value)}
+                onKeyDown={(e) => {
+                  // ⌘J (Ctrl+J): "Ayudame a escribir", igual que en el campo de respuesta.
+                  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'j') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    ai.openBar();
+                  }
+                }}
+              />
             </div>
             {err && (
               <p className="ui-error" role="alert">

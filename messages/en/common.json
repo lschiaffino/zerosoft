@@ -1087,5 +1087,55 @@
     "f3d": "Mentions, direct messages and the bell as system notifications and a badge on the dock icon.",
     "f4t": "Light and fast",
     "f4d": "About 3 MB to download. Every app in one window."
+  },
+  "aiCompose": {
+    "open": "Help me write",
+    "openHint": "Help me write (⌘J)",
+    "describeLabel": "Describe your message",
+    "describePlaceholder": "Describe your message",
+    "changeLabel": "Describe a change",
+    "changePlaceholder": "Describe a change, like: mention the invoice",
+    "write": "Write",
+    "apply": "Apply the change",
+    "suggest": "Suggest a reply",
+    "improveHint": "This works on what you already wrote. Pick a change or describe one.",
+    "writing": "Writing…",
+    "stop": "Stop",
+    "close": "Close",
+    "preview": "Draft",
+    "changesLabel": "Refine",
+    "changes": {
+      "shorter": "Shorter",
+      "longer": "Longer",
+      "formal": "More formal",
+      "casual": "More casual",
+      "fix": "Fix grammar"
+    },
+    "translate": "Translate…",
+    "translateLabel": "Translate to",
+    "langs": {
+      "en": "English",
+      "es": "Spanish",
+      "pt": "Portuguese"
+    },
+    "insert": "Insert",
+    "insertHint": "Puts the draft in the message field so you can review it (⌘Enter). Nothing is sent.",
+    "regenerate": "Another version",
+    "previous": "Previous version",
+    "discard": "Discard",
+    "sources": "Based on {list}",
+    "inserted": "Draft inserted. Nothing was sent.",
+    "undo": "Undo",
+    "errors": {
+      "off": "AI is off in this workspace. An admin can turn it on in settings.",
+      "notConfigured": "AI is not set up on this server. Whoever runs it needs to add an AI key.",
+      "quota": "This month's AI allowance is used up. It starts again on the 1st.",
+      "busy": "Too many AI requests in the last minute. Wait a moment and try again.",
+      "empty": "The AI came back with nothing. Try describing it another way.",
+      "noMessages": "This chat has no messages to reply to yet. Describe what you want to say.",
+      "offline": "No connection. Check your internet and try again.",
+      "gone": "This conversation is no longer available. Reload the page.",
+      "failed": "The AI could not write this. Try again."
+    }
   }
 }

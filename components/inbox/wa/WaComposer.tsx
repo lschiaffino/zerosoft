@@ -5,21 +5,19 @@ import { useTranslations } from 'next-intl';
 import { fillSnippet, type MessageDto, type SnippetDto, type ThreadDto } from '@/lib/inbox/types';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
-import { ClockIcon, Close, Mic, SendIcon, Smiley, Sparkle } from '@/components/groups/wa/icons';
+import { ClockIcon, Close, Mic, Plus, SendIcon, Smiley } from '@/components/groups/wa/icons';
 import { api } from '../api';
-import AiWrite, { streamAi } from '../AiWrite';
+import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
+import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
+import { INBOX_TRANSLATE_LANGS, inboxCompose } from '../ai-compose';
 import type { ComposerHandle } from '../Composer';
-
-type Rewrite = 'shorter' | 'friendlier' | 'formal' | 'fix';
-const REWRITES: Rewrite[] = ['shorter', 'friendlier', 'formal', 'fix'];
-const LANGS = ['en', 'es', 'pt'] as const;
-const LANG_NAME: Record<(typeof LANGS)[number], string> = { en: 'English', es: 'Spanish', pt: 'Portuguese' };
 
 /**
  * Campo de WhatsApp como en WhatsApp Web: emoji, el campo que crece, y
  * enviar (o el micrófono con el campo vacío). Arriba, la cita de la
- * respuesta o el mensaje que se edita. Lo de Inbox (borrador con IA,
- * reescribir, snippets con ";", enviar más tarde) va en íconos al lado.
+ * respuesta o el mensaje que se edita. Lo de Inbox va en íconos al lado:
+ * "Ayudame a escribir" (el lápiz, ⌘J; components/ai/AiComposeBar), enviar
+ * más tarde, y un menú con dictar y snippets.
  * Enter manda, Shift+Enter baja de línea, Esc cancela la cita o la edición.
  */
 const WaComposer = forwardRef<
@@ -32,8 +30,8 @@ const WaComposer = forwardRef<
     banner?: ReactNode;
     editing: MessageDto | null;
     replyToId: string | null;
-    /** Adjuntar (lo agrega la conversación cuando hay envío de archivos). */
-    attach?: ReactNode;
+    /** Adjuntar (lo agrega la conversación cuando hay envío de archivos). Recibe lo que el composer suma a ese menú. */
+    attach?: (extra: MenuItem[]) => ReactNode;
     onCancelBanner: () => void;
     onSent: (messages: MessageDto[]) => void;
     onSaveEdit: (m: MessageDto, body: string) => Promise<boolean>;
@@ -51,9 +49,8 @@ const WaComposer = forwardRef<
   const t = useTranslations('inbox.composer');
   const w = useTranslations('inboxWa');
   const [text, setText] = useState(thread.draft);
-  const [busy, setBusy] = useState<'' | 'send' | 'ai'>('');
-  const [aiOpen, setAiOpen] = useState(false);
-  const [undo, setUndo] = useState<string | null>(null);
+  const tc = useTranslations('common.aiCompose');
+  const [busy, setBusy] = useState<'' | 'send'>('');
   const [emoji, setEmoji] = useState(false);
   const [snipQ, setSnipQ] = useState<string | null>(null);
   const [snipIdx, setSnipIdx] = useState(0);
@@ -67,11 +64,20 @@ const WaComposer = forwardRef<
   useEffect(() => {
     setText(thread.draft);
     saved.current = thread.draft;
-    setUndo(null);
     setSnipQ(null);
     setEmoji(false);
-    setAiOpen(false);
   }, [thread.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // "Ayudame a escribir": el borrador sale con el contexto de este chat y vuelve al campo para revisarlo.
+  const aiAdapter = useMemo<ComposeAdapter>(
+    () => ({
+      canSuggest: true,
+      languages: INBOX_TRANSLATE_LANGS.map((code) => ({ code, label: tc(`langs.${code}`) })),
+      run: (request, onText, signal) => inboxCompose(request, { threadId: thread.id }, onText, signal),
+    }),
+    [thread.id, tc],
+  );
+  const ai = useAiCompose({ adapter: aiAdapter, text, setText, focusComposer: () => area.current?.focus(), resetKey: thread.id });
 
   // Editar: el texto del mensaje en el campo; al salir, vuelve lo que había.
   useEffect(() => {
@@ -173,44 +179,10 @@ const WaComposer = forwardRef<
     picked.current.clear();
     setText('');
     saved.current = '';
-    setUndo(null);
+    ai.clearUndo();
     if (replyToId) onCancelBanner();
     onSent(r.data.messages);
-  }, [text, busy, disabled, editing, thread.id, replyToId, onSaveEdit, onCancelBanner, onSent, onError]);
-
-  /** Pide a la IA y escribe en el campo a medida que llega; si falla, vuelve lo que había. */
-  const streamInto = useCallback(
-    async (ask: Parameters<typeof streamAi>[0]) => {
-      const before = text;
-      setBusy('ai');
-      const r = await streamAi(ask, (full) => setText(full));
-      setBusy('');
-      if (!r.ok) {
-        setText(before);
-        onError(r.code);
-        return;
-      }
-      setUndo(before);
-      setText(r.text);
-      area.current?.focus();
-    },
-    [text, onError],
-  );
-
-  const draft = useCallback(async () => {
-    if (busy) return;
-    await streamInto({ action: 'draft', threadId: thread.id, instruction: text.trim() || undefined });
-  }, [busy, text, thread.id, streamInto]);
-
-  const rewrite = async (mode: Rewrite) => {
-    if (!text.trim() || busy) return;
-    await streamInto({ action: 'rewrite', text, mode, threadId: thread.id });
-  };
-
-  const translate = async (lang: (typeof LANGS)[number]) => {
-    if (!text.trim() || busy) return;
-    await streamInto({ action: 'rewrite', text, mode: 'custom', instruction: `Translate the message to ${LANG_NAME[lang]}. Keep the meaning, the tone and the formatting.`, threadId: thread.id });
-  };
+  }, [text, busy, disabled, editing, thread.id, replyToId, onSaveEdit, onCancelBanner, onSent, onError, ai.clearUndo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Dicta con Voice: el texto entra en el campo. */
   const dictate = () => {
@@ -236,15 +208,15 @@ const WaComposer = forwardRef<
     ref,
     () => ({
       focus: () => area.current?.focus(),
-      draft: () => void draft(),
+      draft: () => ai.openBar(),
       clear: () => {
         setText('');
         saved.current = '';
-        setUndo(null);
+        ai.clearUndo();
         void api(`/api/inbox/threads/${thread.id}`, { method: 'PATCH', json: { draft: '' } });
       },
     }),
-    [draft, thread.id],
+    [ai.openBar, ai.clearUndo, thread.id], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const insertAtCaret = (s: string) => {
@@ -273,26 +245,11 @@ const WaComposer = forwardRef<
     });
   };
 
-  const aiItems: MenuItem[] = [
-    { key: 'ask', label: t('aiAsk'), onSelect: () => setAiOpen(true) },
-    { key: 'draft', label: text.trim() ? t('aiFromText') : t('aiDraft'), onSelect: () => void draft() },
-    ...(text.trim() ? REWRITES.map((m) => ({ key: m, label: t(`rewrites.${m}`), onSelect: () => void rewrite(m) })) : []),
-    ...(text.trim() ? LANGS.map((l) => ({ key: `tr-${l}`, label: t(`translateTo.${l}`), onSelect: () => void translate(l) })) : []),
-    { key: 'dictate', label: t('dictate'), divider: true, onSelect: dictate },
-    ...(snippets.length ? [{ key: 'snippets', label: t('snippets'), onSelect: openSnippets }] : []),
-    ...(undo !== null
-      ? [
-          {
-            key: 'undo',
-            label: t('undoAi'),
-            divider: true,
-            onSelect: () => {
-              setText(undo);
-              setUndo(null);
-            },
-          },
-        ]
-      : []),
+  // Van en el menú "+", debajo de adjuntar: "Ayudame a escribir" (en el teléfono no hay lugar para el lápiz en la fila), dictar y snippets.
+  const toolItems: MenuItem[] = [
+    ...(editing ? [] : [{ key: 'ai', label: tc('open'), icon: <PencilSparkle size={16} />, divider: true, onSelect: ai.openBar }]),
+    { key: 'dictate', label: t('dictate'), icon: <Mic size={16} />, divider: !!editing, onSelect: dictate },
+    ...(snippets.length ? [{ key: 'snippets', label: t('snippets'), icon: <SnippetIcon />, onSelect: openSnippets }] : []),
   ];
 
   const hasText = !!text.trim();
@@ -324,21 +281,7 @@ const WaComposer = forwardRef<
           ))}
         </ul>
       )}
-      {aiOpen && (
-        <AiWrite
-          threadId={thread.id}
-          onClose={() => {
-            setAiOpen(false);
-            area.current?.focus();
-          }}
-          onInsert={(v) => {
-            setUndo(text);
-            setText(v);
-            setAiOpen(false);
-            requestAnimationFrame(() => area.current?.focus());
-          }}
-        />
-      )}
+      {!editing && <AiComposeBar ai={ai} />}
       <div className="wa-bar">
         <span className="wa-emoji-wrap">
           <button type="button" className="wa-icon-btn" aria-label={w('emoji')} title={w('emoji')} aria-expanded={emoji} onClick={() => setEmoji((v) => !v)} disabled={disabled}>
@@ -354,7 +297,7 @@ const WaComposer = forwardRef<
             />
           )}
         </span>
-        {attach}
+        {attach ? attach(toolItems) : <MessageMenu label={w('moreTools')} items={toolItems} trigger={<Plus size={24} />} className="wa-icon-btn wa-attach" align="left" />}
         <label className="sr-only" htmlFor={`ib-compose-${thread.id}`}>
           {t('label')}
         </label>
@@ -424,7 +367,7 @@ const WaComposer = forwardRef<
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
               e.preventDefault();
               e.stopPropagation();
-              void draft();
+              if (!editing && !disabled) ai.openBar();
               return;
             }
             // ⌘⇧Enter (Ctrl+Shift+Enter): enviar más tarde.
@@ -446,15 +389,7 @@ const WaComposer = forwardRef<
             }
           }}
         />
-        {!editing && (
-          <MessageMenu
-            label={w('aiTools')}
-            items={aiItems}
-            trigger={<Sparkle size={20} />}
-            className={`wa-icon-btn wa-ai-btn${busy === 'ai' ? ' is-on' : ''}`}
-            align="right"
-          />
-        )}
+        {!editing && <AiComposeButton ai={ai} className="wa-icon-btn wa-ai-btn" disabled={disabled} />}
         {!editing && (
           <button type="button" className="wa-icon-btn" data-testid="inbox-send-later" aria-label={t('later')} title={t('laterHint')} disabled={disabled || busy !== ''} onClick={() => onSendLater(text.trim())}>
             <ClockIcon size={20} />
@@ -480,6 +415,15 @@ const WaComposer = forwardRef<
 });
 
 export default WaComposer;
+
+/** Ícono de snippets: un bloque de texto guardado. */
+function SnippetIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5 6h14M5 12h14M5 18h8" />
+    </svg>
+  );
+}
 
 /** Barra arriba del campo: la cita de la respuesta o el mensaje que se edita, con la X para cancelar. */
 export function ComposerBanner({ children, onClose, label }: { children: ReactNode; onClose: () => void; label: string }) {

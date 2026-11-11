@@ -6,6 +6,8 @@ import { Link } from '@/i18n/navigation';
 import LocalText from '@/components/ui/LocalText';
 import type { ChatHubspotDto, HubspotRecord, HubspotSuggestion, HubspotType } from '@/lib/groups-hubspot';
 import { parseDbUtc } from '@/lib/utils';
+import { formatHubspotValue } from '@/lib/groups-hubspot-shared';
+import HubspotScreen from './HubspotScreen';
 import { useGroupsInbox } from './InboxShell';
 import { api, useErrorText } from './ui';
 
@@ -67,6 +69,7 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [screen, setScreen] = useState(false);
   const seq = useRef(0);
 
   const load = useCallback(async () => {
@@ -119,6 +122,8 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
     setResults(null);
     showToast(t('hubspot.linked', { name: rec.name }));
     inbox.refresh();
+    // La empresa nueva trae sus propiedades fijadas.
+    if (rec.type !== 'deal') void load();
   }
 
   async function unlink(rec: HubspotRecord) {
@@ -149,6 +154,15 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
   // Sin HubSpot conectado: un admin ve dónde conectarlo; el resto no ve la sección.
   if (state && !state.connected && !isAdmin) return null;
 
+  const company = state?.company ?? null;
+  const hasCompany = Boolean(state?.connected && state.links.some((l) => l.type === 'company'));
+  /** Las propiedades fijadas por el workspace, con su valor como se lee. */
+  const pinnedProps = (company?.pinned ?? []).map((p) => ({
+    key: p.name,
+    label: p.label,
+    value: formatHubspotValue(p, p.value, { locale, owners: p.ownerName ? [{ id: p.value, name: p.ownerName }] : [], yes: t('props.yes'), no: t('hubspot.screen.no') }),
+  }));
+
   const suggestion = (sg: HubspotSuggestion) => (
     <li key={sg.contact.id} className="gr-hs-suggestion">
       <span className="gr-hs-suggestion-who">
@@ -163,9 +177,16 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
 
   return (
     <section className="gr-detail-section gr-hs" aria-labelledby={titleId}>
-      <h3 className="gr-detail-title" id={titleId}>
-        {t('hubspot.title')}
-      </h3>
+      <div className="gr-hs-title">
+        <h3 className="gr-detail-title" id={titleId}>
+          {t('hubspot.title')}
+        </h3>
+        {hasCompany && (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setScreen(true)}>
+            {t('hubspot.screen.open')}
+          </button>
+        )}
+      </div>
       {failed ? (
         <p className="ui-help" role="alert">
           {t('hubspot.loadError')}{' '}
@@ -196,19 +217,41 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
                       {t('hubspot.unlink')}
                     </button>
                   </span>
-                  {r.missing ? (
+                  {r.type === 'company' && company?.broken ? (
+                    <span className="ui-error gr-hs-broken" role="alert">
+                      {company.broken.reason === 'merged' ? t('hubspot.brokenMerged', { name: company.broken.mergedName || company.broken.mergedInto }) : t('hubspot.brokenDeleted')}
+                      {company.broken.reason === 'merged' && company.broken.mergedInto && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          disabled={busy}
+                          onClick={() => void link({ type: 'company', id: company.broken?.mergedInto ?? '', name: company.broken?.mergedName || company.broken?.mergedInto || '' })}
+                        >
+                          {t('hubspot.relink', { name: company.broken.mergedName || company.broken.mergedInto })}
+                        </button>
+                      )}
+                    </span>
+                  ) : r.missing ? (
                     <span className="ui-error">{t('hubspot.missing')}</span>
                   ) : (
-                    recordProps(r).length > 0 && (
-                      <dl className="gr-hs-props">
-                        {recordProps(r).map((p) => (
-                          <div key={p.key}>
-                            <dt>{p.label}</dt>
-                            <dd>{p.value}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    )
+                    (() => {
+                      // La empresa muestra las propiedades que fijó el workspace; el resto, las de siempre.
+                      const shown = r.type === 'company' && pinnedProps.length > 0 ? pinnedProps : recordProps(r);
+                      return (
+                        shown.length > 0 && (
+                          <dl className="gr-hs-props">
+                            {shown.map((p) => (
+                              <div key={p.key}>
+                                <dt>{p.label}</dt>
+                                <dd>
+                                  <LocalText>{p.value}</LocalText>
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                        )
+                      );
+                    })()
                   )}
                 </li>
               ))}
@@ -306,6 +349,17 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
           )}
         </>
       )}
+      <HubspotScreen
+        chatId={chatId}
+        open={screen}
+        isAdmin={isAdmin}
+        onClose={() => {
+          setScreen(false);
+          // Lo que se editó o fijó en la pantalla se ve en la sección y en la fila de la bandeja.
+          void load();
+          inbox.refresh();
+        }}
+      />
     </section>
   );
 }

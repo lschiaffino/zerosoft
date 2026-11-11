@@ -103,6 +103,13 @@ export async function runUndo(id?: string): Promise<boolean> {
   return true;
 }
 
+/** Saca una entrada que ya no vale (el cambio no se guardó), sin deshacerla. */
+export function dropUndo(id: string) {
+  const before = stack.length;
+  stack = stack.filter((e) => e.id !== id);
+  if (stack.length !== before) emit();
+}
+
 /** Saca el toast sin deshacer (la entrada sigue para ⌘Z). */
 export function dismissUndo(id: string) {
   const entry = stack.find((e) => e.id === id);

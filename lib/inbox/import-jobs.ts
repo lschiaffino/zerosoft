@@ -6,23 +6,34 @@
  *   páginas de mensajes (findMessages), de la más nueva a la más vieja.
  *   Espera a que WhatsApp termine de mandar el historial al vincular. Pide de
  *   a una página por vez, con una pausa entre pedidos, y corta a tiempo.
+ * - gmail: todo el correo de una cuenta de Gmail (sin spam, papelera ni
+ *   borradores): recorre el listado de hilos página por página, del más nuevo
+ *   al más viejo, y trae cada hilo entero. Lo que en Gmail no está en la
+ *   bandeja queda en Hecho.
  * - file: una exportación de inbox-zero en NDJSON subida a Blob. Lee el
  *   archivo por rangos de bytes (nunca entero) y procesa línea por línea.
+ *
+ * La de WhatsApp y la de Gmail arrancan solas la primera vez que se conecta
+ * la cuenta (ensureAutoImport): traer todo el historial es lo normal, no un
+ * paso aparte. El tope de WhatsApp lo pone WhatsApp: un dispositivo
+ * vinculado solo recibe el historial que el teléfono le manda al vincular.
  *
  * Cada paso reclama la importación con compare-and-set (claimed_until): dos
  * corridas (el cron y la pantalla abierta) nunca la procesan a la vez. Todo es
  * idempotente: reimportar no duplica mensajes. Server-only.
  */
+import { createHash } from 'crypto';
 import { getDb } from '../db';
 import { ProviderError, type GroupsProvider } from '../groups-provider';
 import { deleteUploads } from '../uploads';
 import { listAccounts, newId, nowIso, upsertThread, type AccountRow } from './core';
+import { importGmailThread, isGmailRateLimit, listGmailThreadPage } from './gmail';
 import { importPart, parseImport, type ImportResult } from './import';
 import { InboxError } from './types';
 import { ingestWhatsappEvents, waProviderFor } from './whatsapp';
 import { phoneDigits } from '../groups-provider';
 
-export type ImportKind = 'whatsapp' | 'file';
+export type ImportKind = 'whatsapp' | 'gmail' | 'file';
 export type ImportStatus = 'running' | 'waiting' | 'paused' | 'done' | 'failed' | 'cancelled';
 
 /** Tope del archivo de inbox-zero subido a Blob. */
@@ -38,6 +49,9 @@ const MAX_REQUESTS = 40;
 const MAX_PAGES_PER_CHAT = 1000;
 /** Fallos seguidos del servidor antes de dar la importación por fallida. */
 const MAX_FAILURES = 8;
+/** Hilos de Gmail por página del listado y por paso como máximo. */
+const GMAIL_PAGE = 100;
+const GMAIL_MAX_THREADS = 60;
 /** Bytes que se leen del archivo por pedido. */
 const FILE_CHUNK = 2 * 1024 * 1024;
 const MAX_LINE = 16 * 1024 * 1024;
@@ -147,6 +161,68 @@ export async function startWhatsappImport(owner: string, now = new Date()): Prom
     .prepare("INSERT INTO inbox_imports (id, owner_id, account_id, kind, status, source_name, cursor, progress, created_at, updated_at) VALUES (?, ?, ?, 'whatsapp', 'running', 'WhatsApp', ?, ?, ?, ?)")
     .run(id, owner, account.id, JSON.stringify(cursor), JSON.stringify({ chats: 0, chatsDone: 0, messages: 0, pages: 0 }), nowS, nowS);
   return dto(await getJob(owner, id));
+}
+
+interface GmailCursor {
+  /** Token de la página del listado que sigue ('' = la primera). */
+  pageToken: string;
+  /** Hilos de la página actual que faltan traer. */
+  pending: string[];
+  /** Ya no hay más páginas que listar. */
+  listed: boolean;
+}
+
+/** Empieza (o retoma, si ya hay una) la importación de todo el correo de una cuenta de Gmail (la primera conectada si no se dice cuál). */
+export async function startGmailImport(owner: string, accountId?: string, now = new Date()): Promise<ImportJobDto> {
+  const accounts = (await listAccounts(owner)).filter((a) => a.kind === 'gmail');
+  const account = accountId ? accounts.find((a) => a.id === accountId) : accounts.find((a) => a.status === 'connected');
+  if (!account) throw new InboxError(accountId ? 'not_found' : 'not_connected', accountId ? 404 : 409);
+  if (account.status !== 'connected') throw new InboxError('not_connected', 409);
+  const db = getDb();
+  const open = (await db.prepare(`SELECT * FROM inbox_imports WHERE owner_id = ? AND kind = 'gmail' AND account_id = ? AND status IN ${ACTIVE} ORDER BY created_at DESC LIMIT 1`).get(owner, account.id)) as JobRow | undefined;
+  if (open) {
+    if (open.status === 'paused') await db.prepare("UPDATE inbox_imports SET status = 'running', updated_at = ? WHERE id = ?").run(nowIso(now), open.id);
+    return dto(await getJob(owner, open.id));
+  }
+  const id = newId('ibi');
+  const nowS = nowIso(now);
+  const cursor: GmailCursor = { pageToken: '', pending: [], listed: false };
+  await db
+    .prepare("INSERT INTO inbox_imports (id, owner_id, account_id, kind, status, source_name, cursor, progress, created_at, updated_at) VALUES (?, ?, ?, 'gmail', 'running', ?, ?, ?, ?, ?)")
+    .run(id, owner, account.id, account.address.slice(0, 200), JSON.stringify(cursor), JSON.stringify({ chats: 0, chatsDone: 0, messages: 0, pages: 0 }), nowS, nowS);
+  return dto(await getJob(owner, id));
+}
+
+/**
+ * Primera conexión de una cuenta: deja en marcha la importación de todo su
+ * historial, una sola vez (el id sale de la cuenta: dos pedidos a la vez no
+ * crean dos, y si la persona la canceló no vuelve a arrancar sola). La de
+ * WhatsApp espera a que WhatsApp termine de mandar el historial de la
+ * vinculación y sigue sola con el cron.
+ */
+export async function ensureAutoImport(account: Pick<AccountRow, 'id' | 'owner_id' | 'address'>, kind: 'whatsapp' | 'gmail', now = new Date()): Promise<boolean> {
+  const id = `ibi_${createHash('sha256').update(`auto:${kind}:${account.id}`).digest('hex').slice(0, 20)}`;
+  const nowS = nowIso(now);
+  const cursor = kind === 'whatsapp' ? ({ phase: 'chats', chatPage: 0, queue: [], page: 1 } satisfies WaCursor) : ({ pageToken: '', pending: [], listed: false } satisfies GmailCursor);
+  const r = await getDb()
+    .prepare(
+      `INSERT OR IGNORE INTO inbox_imports (id, owner_id, account_id, kind, status, source_name, cursor, progress, error, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      id,
+      account.owner_id,
+      account.id,
+      kind,
+      kind === 'whatsapp' ? 'waiting' : 'running',
+      kind === 'whatsapp' ? 'WhatsApp' : account.address.slice(0, 200),
+      JSON.stringify(cursor),
+      JSON.stringify({ chats: 0, chatsDone: 0, messages: 0, pages: 0 }),
+      kind === 'whatsapp' ? 'history_syncing' : '',
+      nowS,
+      nowS,
+    );
+  return r.changes > 0;
 }
 
 /** ¿La URL es una exportación subida para Inbox? (Blob, bajo inbox-import/, .json o .ndjson). */
@@ -307,6 +383,53 @@ async function stepWhatsapp(job: JobRow, deadline: number, now: Date): Promise<v
   await save(job, { status: cursor.phase === 'done' ? 'done' : failed ? 'failed' : 'running', cursor, progress, error }, now);
 }
 
+/** Un paso de la importación de todo el correo de Gmail: lista una página de hilos y los trae de a uno. */
+async function stepGmail(job: JobRow, deadline: number, now: Date): Promise<void> {
+  const account = (await listAccounts(job.owner_id)).find((a) => a.id === job.account_id && a.kind === 'gmail');
+  if (!account || account.status !== 'connected') {
+    await save(job, { status: 'waiting', error: account?.error === 'gmail_reconnect' ? 'gmail_reconnect' : 'not_connected' }, now);
+    return;
+  }
+  const cursor = parse<GmailCursor>(job.cursor, { pageToken: '', pending: [], listed: false });
+  const progress = parse<ImportProgress>(job.progress, {});
+  let error = '';
+  let wait = false;
+  let fetched = 0;
+  try {
+    while (Date.now() + 4_000 < deadline && fetched < GMAIL_MAX_THREADS) {
+      if (cursor.pending.length === 0) {
+        if (cursor.listed) break;
+        const page = await listGmailThreadPage(account, cursor.pageToken, GMAIL_PAGE);
+        cursor.pending = page.ids;
+        cursor.pageToken = page.next;
+        cursor.listed = !page.next;
+        if (page.total) progress.chats = Math.max(page.total, progress.chatsDone ?? 0);
+        progress.pages = (progress.pages ?? 0) + 1;
+        continue;
+      }
+      // El hilo sale de la lista después de guardarlo: si el paso se corta en el medio, se vuelve a traer (no duplica).
+      progress.messages = (progress.messages ?? 0) + (await importGmailThread(account, cursor.pending[0]));
+      cursor.pending.shift();
+      progress.chatsDone = (progress.chatsDone ?? 0) + 1;
+      fetched++;
+    }
+    progress.failures = 0;
+  } catch (err) {
+    if (err instanceof InboxError && err.code === 'gmail_reconnect') {
+      wait = true;
+      error = 'gmail_reconnect';
+    } else {
+      // Gmail falló o pidió ir más despacio: se sigue en el próximo paso desde el mismo hilo.
+      progress.failures = (progress.failures ?? 0) + (isGmailRateLimit(err) ? 0 : 1);
+      error = isGmailRateLimit(err) ? 'rate_limited' : 'gmail_unavailable';
+    }
+  }
+  const done = cursor.listed && cursor.pending.length === 0;
+  if (done) progress.chats = progress.chatsDone ?? 0;
+  const failed = (progress.failures ?? 0) >= MAX_FAILURES;
+  await save(job, { status: done ? 'done' : failed ? 'failed' : wait ? 'waiting' : 'running', cursor, progress, error }, now);
+}
+
 /** Lee `size` bytes desde `offset` (Range; si el servidor lo ignora, salta lo leído). */
 async function readRange(url: string, offset: number, size: number): Promise<Buffer> {
   const res = await fetch(url, { headers: { range: `bytes=${offset}-${offset + size - 1}` }, signal: AbortSignal.timeout(30_000) });
@@ -391,6 +514,7 @@ export async function runImportStep(id: string, deadline: number, now = new Date
   if (!job) return false;
   try {
     if (job.kind === 'whatsapp') await stepWhatsapp(job, deadline, now);
+    else if (job.kind === 'gmail') await stepGmail(job, deadline, now);
     else await stepFile(job, deadline, now);
   } catch {
     await save(job, { error: 'import_failed' }, now);

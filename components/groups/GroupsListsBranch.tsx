@@ -54,7 +54,7 @@ export default function GroupsListsBranch() {
           return (
             <li key={l.id} className={`docs-tree-row${active ? ' active' : ''}`}>
               <span className="docs-tree-chevron-spacer" aria-hidden="true" />
-              <Link href={`/app/lines/inbox?list=${l.id}`} className="docs-tree-link" aria-current={active ? 'page' : undefined}>
+              <Link href={`/app/lines/inbox?list=${l.id}`} prefetch={false} className="docs-tree-link" aria-current={active ? 'page' : undefined}>
                 <span className="docs-tree-icon" aria-hidden="true">
                   <Icon name="lists" size={14} />
                 </span>

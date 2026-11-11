@@ -32,7 +32,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   }
 }
 
-/** { action: 'connect' | 'disconnect' | 'sync' | 'import' }. Conectar registra el webhook en el proveedor. */
+/** { action: 'connect' | 'disconnect' | 'sync' | 'import' }. Conectar registra el webhook en el proveedor. Con 'import', `perChat` son los últimos mensajes por chat (10 a 500); sin él o con 0 trae todo el historial que guardó el servidor de WhatsApp, en segundo plano. */
 export async function POST(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true, admin: true });
   if (s instanceof NextResponse) return s;

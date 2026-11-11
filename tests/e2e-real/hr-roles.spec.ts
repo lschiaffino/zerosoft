@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { createClient } from '@libsql/client';
+import { e2eDb } from '../e2e/helpers/db';
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 
 /**
@@ -13,7 +13,8 @@ const uid = () => `x${Math.random().toString(36).slice(2, 8)}`;
 let ip = 100;
 
 async function sql(statement: string, args: Array<string | number | null> = []) {
-  const db = createClient({ url: `file:${process.env.E2E_DB_FILE}` });
+  // Con reintento si la app tiene la base tomada (SQLITE_BUSY): ver tests/e2e/helpers/db.ts.
+  const db = e2eDb();
   try {
     return (await db.execute({ sql: statement, args })).rows as unknown as Array<Record<string, unknown>>;
   } finally {
