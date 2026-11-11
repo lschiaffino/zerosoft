@@ -37,7 +37,7 @@ export async function flagUnansweredChats(now = new Date(), limit = 1000): Promi
   return n;
 }
 
-export async function runGroupsCron(opts: { budgetMs?: number; importBudgetMs?: number } = {}) {
+export async function runGroupsCron(opts: { budgetMs?: number; importBudgetMs?: number; dailyBudgetMs?: number } = {}) {
   const flagged = await flagUnansweredChats().catch(() => null);
   const breached = await markBreachedTickets().catch(() => null);
   // Tareas y recordatorios de los chats (claim por fila en reminded_for).
@@ -60,5 +60,8 @@ export async function runGroupsCron(opts: { budgetMs?: number; importBudgetMs?: 
   // Importación de chats al conectar un número: una tanda por corrida (claim por fila; retoma donde quedó).
   const { runImports } = await import('./groups-import');
   const imports = await runImports({ budgetMs: opts.importBudgetMs ?? 20_000 }).catch(() => null);
-  return { flagged, breached, reminders, recurring, broadcasts, remoteTickets, hubspotLinked, hubspotNotes, hubspotSync, assigned, imports };
+  // Repaso diario de cada número: contactos, nombres, info, asuntos, descripciones, miembros y fotos (despacio, retoma donde quedó).
+  const { refreshLinesDaily } = await import('./wa-contacts-refresh');
+  const daily = await refreshLinesDaily(new Date(), Date.now() + (opts.dailyBudgetMs ?? 10_000)).catch(() => null);
+  return { flagged, breached, reminders, recurring, broadcasts, remoteTickets, hubspotLinked, hubspotNotes, hubspotSync, assigned, imports, daily };
 }

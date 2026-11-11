@@ -30,6 +30,8 @@ import {
 } from './core';
 import { InboxError, normalizeWaJid, waKindOf, type AccountStatus } from './types';
 import { messageMeta, storePresence, storeReaction } from './wa-meta';
+import { inboxScope, learnFromEvents, senderPhoneFor } from './wa-names';
+import { lookupContacts, displayName } from '../wa-contacts';
 
 function appBase(): string {
   return (process.env.NEXTAUTH_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -189,7 +191,18 @@ function threadInput(e: { chatId: string; isGroup?: boolean; chatName?: string; 
 }
 
 async function ingestMessage(account: AccountRow, e: MessageEvent, history: boolean): Promise<boolean> {
-  const thread = await upsertThread(account, threadInput(e));
+  const input = threadInput(e);
+  const thread = await upsertThread(account, input);
+  // Un chat 1:1 que quedaría con el número (lo abrí yo, o llegó sin nombre): el nombre de la libreta.
+  if (input.kind === 'dm' && thread.handle && (!thread.title || thread.title === thread.handle)) {
+    const known = displayName((await lookupContacts(inboxScope(account), [thread.handle])).get(thread.handle));
+    if (known) {
+      await getDb().prepare("UPDATE inbox_threads SET title = ? WHERE id = ? AND (title = '' OR title = handle)").run(known.slice(0, 200), thread.id);
+      thread.title = known;
+    }
+  }
+  // Quien manda solo con su lid: el teléfono, si la libreta ya lo conoce.
+  const senderPhone = e.fromMe ? '' : await senderPhoneFor(account, e).catch(() => e.senderPhone);
   const media = e.media;
   let body = e.body ?? '';
   if (!body && e.location) body = [e.location.name, e.location.address].filter(Boolean).join(' · ') || '📍';
@@ -203,7 +216,7 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
     externalId: e.providerMessageId,
     fromMe: e.fromMe,
     senderName: e.fromMe ? '' : e.senderName,
-    senderHandle: e.fromMe ? '' : e.senderPhone,
+    senderHandle: senderPhone,
     body,
     mediaType: media ? mediaKind(media.type, '') || 'document' : '',
     mediaName: media?.name ?? '',
@@ -219,6 +232,8 @@ async function ingestMessage(account: AccountRow, e: MessageEvent, history: bool
 export async function ingestWhatsappEvents(account: AccountRow, events: InboundEvent[], opts: { history?: boolean } = {}): Promise<{ messages: number }> {
   const db = getDb();
   let messages = 0;
+  // Primero la libreta (nombres de perfil, lid ↔ teléfono): los mensajes de la tanda ya la usan.
+  await learnFromEvents(account, events.slice(0, 2000)).catch(() => null);
   for (const e of events.slice(0, 2000)) {
     try {
       switch (e.type) {

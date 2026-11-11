@@ -20,6 +20,7 @@ import {
   isGroupJid,
   isLidJid,
   isValidPhone,
+  lidDigits,
   phoneDigits,
   splitPhones,
   type BridgeConfig,
@@ -51,6 +52,8 @@ import {
 import { fakeProvider, fakeProviderAllowed } from './groups-provider-fake';
 import { deleteManagedInstance, managedAvailable, managedProvider, newManagedInstance, queueManagedDelete } from './groups-provider-managed';
 import { sampleProvider } from './groups-provider-sample';
+import { learnLinesEvents, withLinesMentions } from './groups-wa-names';
+import type { MentionMap } from './wa-mentions';
 import { chatAccessSql, maskChat, numberAccessSql, type GroupsViewer } from './groups-access';
 import { parsePoll, pollPreview, tallyPoll, voteOptions, type PollDto, type PollInput } from './groups-polls';
 import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyText, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
@@ -338,6 +341,8 @@ export async function deleteNumber(ws: string, id: string): Promise<boolean> {
   const files = await inboundUploads('m.number_id = ?', [id]);
   const r = await getDb().prepare('DELETE FROM groups_numbers WHERE id = ? AND user_id = ?').run(id, ws);
   if (r.changes > 0) await deleteStoredFiles(files);
+  // La libreta de WhatsApp del número se va con él.
+  if (r.changes > 0) await import('./wa-contacts').then((m) => m.forgetContacts('lines', id)).catch(() => null);
   return r.changes > 0;
 }
 
@@ -512,6 +517,8 @@ export interface ChatDto {
   name: string;
   phone: string;
   description: string;
+  /** Chat 1:1: la "info" (estado) del contacto en WhatsApp, de la libreta del número (solo al abrir el chat). */
+  about?: string;
   inviteLink: string;
   memberCount: number;
   assignedTo: string | null;
@@ -661,7 +668,21 @@ export async function getChatRow(ws: string, id: string): Promise<ChatRow | null
 export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
   const row = await getChatRow(ws, id);
   if (!row) return null;
-  return toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? []);
+  const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? []);
+  if (dto.lastMessagePreview.includes('@')) {
+    const { resolveTextMentions } = await import('./wa-contacts');
+    dto.lastMessagePreview = (await resolveTextMentions('lines', [{ accountId: row.number_id, text: dto.lastMessagePreview }]).catch(() => [dto.lastMessagePreview]))[0];
+  }
+  if (row.kind === 'dm') {
+    // La "info" del contacto: la trae el repaso diario a la libreta del número.
+    const key = row.phone || lidDigits(row.provider_chat_id);
+    if (key) {
+      const { lookupContacts } = await import('./wa-contacts');
+      const about = (await lookupContacts({ app: 'lines', accountId: row.number_id }, [key]).catch(() => new Map())).get(key)?.about ?? '';
+      if (about) dto.about = about;
+    }
+  }
+  return dto;
 }
 
 export const CHAT_FILTERS = ['all', 'unread', 'unanswered', 'flagged', 'mine', 'unassigned', 'closed'] as const;
@@ -951,11 +972,19 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   }
   const labels = await labelsFor(rows.map((r) => r.id));
   const presences = await presenceNames(rows);
+  // "@<dígitos>" (teléfono o lid) → "@Nombre" en la vista previa y en el fragmento de la búsqueda, con la libreta de cada número.
+  const { resolveTextMentions } = await import('./wa-contacts');
+  const texts = rows.flatMap((r) => [r.last_message_preview ?? '', r.match ?? snippets?.get(r.id) ?? '']);
+  const named = await resolveTextMentions(
+    'lines',
+    texts.map((text, i) => ({ accountId: text.includes('@') ? rows[Math.floor(i / 2)].number_id : '', text })),
+  ).catch(() => texts);
   return {
-    rows: rows.map((r) => {
+    rows: rows.map((r, i) => {
+      r.last_message_preview = named[i * 2];
       const [dir, st, dur, lastKind, ...rest] = (r.last_info ?? '').split('|');
       const sender = rest.join('|');
-      const match = r.match ?? snippets?.get(r.id) ?? null;
+      const match = (r.match ?? snippets?.get(r.id)) ? named[i * 2 + 1] : null;
       return maskChat(query.viewer, {
         ...toChatDto(r, labels.get(r.id) ?? []),
         lastDirection: dir || null,
@@ -1050,6 +1079,18 @@ export async function upsertChat(
   if (input.name && !row.name) {
     await db.prepare('UPDATE groups_chats SET name = ? WHERE id = ?').run(input.name.slice(0, 200), row.id);
     row.name = input.name.slice(0, 200);
+  }
+  // Un 1:1 sin nombre (lo abrió el número, o llegó sin perfil) o con el genérico del lid: el de la libreta, si lo tiene.
+  if (input.kind === 'dm' && (!row.name || Object.values(LID_CHAT_NAME).includes(row.name))) {
+    const key = row.phone || lidDigits(row.provider_chat_id);
+    if (key) {
+      const { displayName, lookupContacts } = await import('./wa-contacts');
+      const known = displayName((await lookupContacts({ app: 'lines', accountId: number.id }, [key]).catch(() => new Map())).get(key));
+      if (known && known !== row.name) {
+        await db.prepare('UPDATE groups_chats SET name = ? WHERE id = ?').run(known.slice(0, 200), row.id);
+        row.name = known.slice(0, 200);
+      }
+    }
   }
   // Importados del historial: no disparan flujos ni webhooks de "chat nuevo".
   if (inserted.changes > 0 && !opts.silent) await emitEventSoon(number.user_id, 'groups.chat.created', { chat: chatEventInfo(row) });
@@ -1305,6 +1346,8 @@ export interface MessageDto {
   poll?: PollDto | null;
   /** Orden de llegada (solo al listar): con createdAt arma el cursor para pedir los anteriores ("<createdAt>~<seq>"). */
   seq?: number;
+  /** A quién son las menciones del texto ("@<dígitos>" → nombre y teléfono, de la libreta del número). */
+  mentionNames?: MentionMap;
 }
 
 /**
@@ -1415,7 +1458,10 @@ export async function listMessages(
        ) ORDER BY created_at ASC, rn ASC`,
     )
     .all(...args, limit)) as Array<MessageRow & { ticket_id: string | null; rn: number }>;
-  return rows.map(toMessageDto);
+  const out = rows.map(toMessageDto);
+  // "@<dígitos>" → "@Nombre" con la libreta del número (los mensajes de un chat son de un solo número).
+  if (rows.length) await withLinesMentions(rows[0].number_id, out).catch(() => null);
+  return out;
 }
 
 export async function getMessageRow(ws: string, id: string): Promise<MessageRow | null> {
@@ -1958,6 +2004,9 @@ export function inboundMeta(ev: Extract<InboundEvent, { type: 'message' }>): Sto
   if (ev.media?.info) meta.media = compactInfo(ev.media.info);
   if (ev.location) meta.location = ev.location;
   if (ev.contacts?.length) meta.contacts = ev.contacts.slice(0, 20);
+  // A quién menciona (teléfono o "<lid>@lid"): con eso "@<dígitos>" se muestra con el nombre.
+  const mentions = (ev.mentions ?? []).filter((m) => typeof m === 'string' && /^\d{5,20}(@lid)?$/.test(m)).slice(0, 50);
+  if (mentions.length) meta.mentions = mentions;
   return Object.keys(meta).length ? meta : undefined;
 }
 
@@ -2086,7 +2135,9 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
   const res: IngestResult = { messages: 0, duplicates: 0, ignored: 0 };
   const ws = number.user_id;
   const later: Array<{ messageId: string; ref: MediaRef }> = [];
-  for (const ev of events.slice(0, 200)) {
+  // La libreta del número primero (nombres de perfil, lid ↔ teléfono): quien vino solo con su lid ya sale con teléfono.
+  const batch = await learnLinesEvents(number, events.slice(0, 200));
+  for (const ev of batch) {
     try {
       if (ev.type === 'message') {
         const isGroup = ev.isGroup || isGroupJid(ev.chatId);
@@ -2285,7 +2336,13 @@ async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow): Prom
     await notifyPerson(ws, chat.assigned_to, {
       chatId: chat.id,
       title: chatDisplayName(chat),
-      body: (msg.sender_name ? `${msg.sender_name}: ` : '') + previewOf(msg.body, msg.media_type, msg.media_name),
+      // "@<dígitos>" → "@Nombre" también en el aviso.
+      body:
+        (msg.sender_name ? `${msg.sender_name}: ` : '') +
+        (await import('./wa-contacts')
+          .then((m) => m.resolveTextMentions('lines', [{ accountId: msg.number_id, text: previewOf(msg.body, msg.media_type, msg.media_name) }]))
+          .then((t) => t[0])
+          .catch(() => previewOf(msg.body, msg.media_type, msg.media_name))),
     }).catch(() => null);
   }
   await emitEventSoon(ws, 'groups.message.received', {
@@ -2340,7 +2397,11 @@ export interface MemberDto {
 export async function listMembers(ws: string, chatId: string): Promise<MemberDto[]> {
   const rows = (await getDb()
     .prepare(
-      `SELECT m.phone, m.name, m.role FROM groups_members m JOIN groups_chats c ON c.id = m.chat_id
+      // Sin nombre guardado en el grupo: el de la libreta del número (contactos y nombres de perfil de todos sus chats).
+      `SELECT m.phone, CASE WHEN m.name <> '' THEN m.name ELSE COALESCE((
+           SELECT CASE WHEN w.saved_name <> '' THEN w.saved_name ELSE w.push_name END FROM wa_contacts w
+           WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = m.phone LIMIT 1), '') END AS name, m.role
+       FROM groups_members m JOIN groups_chats c ON c.id = m.chat_id
        WHERE m.chat_id = ? AND c.user_id = ? ORDER BY CASE m.role WHEN 'superadmin' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END, m.phone`,
     )
     .all(chatId, ws)) as MemberDto[];
@@ -2401,6 +2462,15 @@ export async function syncMembers(ws: string, chatId: string): Promise<MemberDto
   } catch (err) {
     throw new GroupsError(providerErrorCode(err), 502);
   }
+  await storeMembers(chatId, list);
+  return listMembers(ws, chatId);
+}
+
+/**
+ * Reemplaza los miembros de un grupo por los que dio WhatsApp (sincronizar o
+ * el repaso diario). Los nombres que ya conocíamos se conservan.
+ */
+export async function storeMembers(chatId: string, list: Array<{ phone: string; role: MemberRole; name?: string }>): Promise<void> {
   const db = getDb();
   const now = nowIso();
   // Los nombres que ya conocíamos (de sus mensajes) se conservan: WhatsApp no siempre los manda.
@@ -2420,7 +2490,6 @@ export async function syncMembers(ws: string, chatId: string): Promise<MemberDto
       .run(...chunk.flatMap((p) => [chatId, p.phone, (p.name || known.get(p.phone) || '').slice(0, 120), p.role, now]));
   }
   await refreshMemberCount(chatId);
-  return listMembers(ws, chatId);
 }
 
 export interface BulkMemberResult {

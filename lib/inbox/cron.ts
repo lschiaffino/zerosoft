@@ -11,6 +11,7 @@ import { runInboxImports } from './import-jobs';
 import { sendDueScheduled } from './send';
 import { runWhatsappBackfill } from './whatsapp';
 import { refreshAllStaleInfo } from './wa-meta';
+import { refreshInboxDaily } from '../wa-contacts-refresh';
 
 /** Pospuestos que vencieron: vuelven a la bandeja marcados como "volvió". */
 export async function wakeSnoozed(now = new Date()): Promise<number> {
@@ -93,5 +94,7 @@ export async function runInboxCron(now = new Date(), budgetMs = 40_000): Promise
   const imports = await runInboxImports(now, deadline).catch(() => 0);
   // Asunto y foto de los grupos, "info" y foto de los contactos (en tandas, los que faltan primero).
   const chatInfo = await refreshAllStaleInfo(now, Math.min(deadline, Date.now() + 15_000)).catch(() => 0);
-  return { woke, followUps, sent: scheduled.sent, failed: scheduled.failed, missed: scheduled.missed, gmail, backfill, imports, chatInfo };
+  // Repaso diario de cada cuenta de WhatsApp: contactos, nombres, info, asuntos y fotos (despacio, retoma donde quedó).
+  const daily = await refreshInboxDaily(now, Math.min(deadline, Date.now() + 10_000)).catch(() => 0);
+  return { woke, followUps, sent: scheduled.sent, failed: scheduled.failed, missed: scheduled.missed, gmail, backfill, imports, chatInfo, daily };
 }

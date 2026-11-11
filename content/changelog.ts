@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-whatsapp-contact-names',
+    date: '2026-11-10',
+    title: {
+      en: 'Inbox and Lines: WhatsApp names instead of numbers',
+      es: 'Inbox y Lines: nombres de WhatsApp en lugar de números',
+      pt: 'Inbox e Lines: nomes do WhatsApp em vez de números',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Each WhatsApp account now keeps its contacts: the names from WhatsApp, every profile name seen in a message, and the match between a phone number and the anonymous id WhatsApp sometimes sends instead. Chats that only showed a number, group members and message senders use those names. Contacts come in when you connect, with the full history import, and again once a day.',
+        es: 'Cada cuenta de WhatsApp ahora guarda sus contactos: los nombres de WhatsApp, cada nombre de perfil que aparece en un mensaje y la relación entre un teléfono y el id anónimo que WhatsApp a veces manda en su lugar. Los chats que solo mostraban un número, los miembros de los grupos y quién manda cada mensaje usan esos nombres. Los contactos entran al conectar, con la importación del historial completo, y otra vez una vez por día.',
+        pt: 'Cada conta do WhatsApp agora guarda seus contatos: os nomes do WhatsApp, cada nome de perfil que aparece numa mensagem e a relação entre um telefone e o id anônimo que o WhatsApp às vezes envia no lugar dele. As conversas que só mostravam um número, os membros dos grupos e quem envia cada mensagem usam esses nomes. Os contatos entram ao conectar, com a importação do histórico completo, e de novo uma vez por dia.',
+      },
+      {
+        product: 'inbox',
+        en: 'A mention in a group shows as @Name, styled like in WhatsApp, also when WhatsApp wrote the anonymous id in the text. If only the number is known, the number shows.',
+        es: 'Una mención en un grupo se ve como @Nombre, con el estilo de WhatsApp, también cuando WhatsApp escribió el id anónimo en el texto. Si solo se conoce el número, se ve el número.',
+        pt: 'Uma menção num grupo aparece como @Nome, com o estilo do WhatsApp, também quando o WhatsApp escreveu o id anônimo no texto. Se só o número é conhecido, aparece o número.',
+      },
+      {
+        product: 'groups',
+        en: 'Lines does the same for each number: names for chats and members, mentions as @Name, and the contact info of a one-to-one chat in its details. Once a day, slowly and picking up where it stopped, each number refreshes contact names and info, group subjects, descriptions, members and photos. A name you typed yourself stays. Tested with the simulated WhatsApp; not yet tried with a real one.',
+        es: 'Lines hace lo mismo con cada número: nombres en chats y miembros, menciones como @Nombre y la info del contacto de un chat 1:1 en sus detalles. Una vez por día, despacio y retomando donde quedó, cada número repasa nombres e info de los contactos, asuntos, descripciones, miembros y fotos de los grupos. Un nombre que escribiste vos queda. Probado con el WhatsApp simulado; falta probarlo con uno real.',
+        pt: 'O Lines faz o mesmo com cada número: nomes nas conversas e nos membros, menções como @Nome e o recado do contato de uma conversa individual nos detalhes. Uma vez por dia, devagar e retomando de onde parou, cada número atualiza nomes e recados dos contatos, assuntos, descrições, membros e fotos dos grupos. Um nome que você digitou fica. Testado com o WhatsApp simulado; falta testar com um real.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-lines-hubspot-properties',
     date: '2026-11-10',
     title: {

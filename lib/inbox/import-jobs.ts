@@ -2,8 +2,10 @@
  * Inbox: importaciones largas que siguen solas y se retoman.
  *
  * - whatsapp: todo el historial que guardó el servidor de WhatsApp
- *   (Evolution): recorre todos los chats (findChats) y, de cada uno, todas las
- *   páginas de mensajes (findMessages), de la más nueva a la más vieja.
+ *   (Evolution): recorre todos los chats (findChats), los contactos
+ *   (findContacts: nombres y lids para la libreta, lib/wa-contacts.ts) y, de
+ *   cada chat, todas las páginas de mensajes (findMessages), de la más nueva a
+ *   la más vieja.
  *   Espera a que WhatsApp termine de mandar el historial al vincular. Pide de
  *   a una página por vez, con una pausa entre pedidos, y corta a tiempo.
  * - gmail: todo el correo de una cuenta de Gmail (sin spam, papelera ni
@@ -31,6 +33,7 @@ import { importGmailThread, isGmailRateLimit, listGmailThreadPage } from './gmai
 import { importPart, parseImport, type ImportResult } from './import';
 import { InboxError } from './types';
 import { ingestWhatsappEvents, waProviderFor } from './whatsapp';
+import { fillInboxTitles, learnFromHistoryContacts } from './wa-names';
 import { phoneDigits } from '../groups-provider';
 
 export type ImportKind = 'whatsapp' | 'gmail' | 'file';
@@ -41,6 +44,10 @@ export const MAX_IMPORT_BYTES = 2 * 1024 * 1024 * 1024;
 /** Mensajes por página de findMessages. */
 export const MESSAGE_PAGE = 100;
 const CHAT_PAGE = 100;
+/** Contactos por página de findContacts. */
+const CONTACT_PAGE = 500;
+/** Tope de páginas de contactos (500 × 100 = 50.000 contactos). */
+const MAX_CONTACT_PAGES = 100;
 /** Pausa entre pedidos al servidor de WhatsApp (no saturarlo). */
 const REQUEST_GAP_MS = 250;
 /** Pedidos por paso como máximo (el resto, en el próximo). */
@@ -102,8 +109,10 @@ interface JobRow {
 }
 
 interface WaCursor {
-  phase: 'chats' | 'messages' | 'done';
+  phase: 'chats' | 'contacts' | 'messages' | 'done';
   chatPage: number;
+  /** Página de findContacts (fase contacts). */
+  contactPage?: number;
   queue: string[];
   jid?: string;
   page: number;
@@ -346,8 +355,22 @@ async function stepWhatsapp(job: JobRow, deadline: number, now: Date): Promise<v
           }
         }
         progress.chats = cursor.queue.length + (progress.chatsDone ?? 0);
-        if (rows.length < CHAT_PAGE) cursor.phase = 'messages';
-        else cursor.chatPage++;
+        if (rows.length < CHAT_PAGE) {
+          cursor.phase = 'contacts';
+          cursor.contactPage = 0;
+        } else cursor.chatPage++;
+        continue;
+      }
+      if (cursor.phase === 'contacts') {
+        // La libreta: nombres (de la agenda y de perfil) y lid ↔ teléfono, para nombrar chats, participantes y menciones.
+        const page = cursor.contactPage ?? 0;
+        const rows = await history.contacts(page, CONTACT_PAGE);
+        await learnFromHistoryContacts(account, rows);
+        if (rows.length < CONTACT_PAGE || page + 1 >= MAX_CONTACT_PAGES) {
+          await fillInboxTitles(account.id);
+          cursor.phase = 'messages';
+          cursor.contactPage = undefined;
+        } else cursor.contactPage = page + 1;
         continue;
       }
       const jid = cursor.jid ?? cursor.queue.shift();

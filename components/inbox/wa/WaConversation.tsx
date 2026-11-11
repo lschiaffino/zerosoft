@@ -15,7 +15,9 @@ import { api, longWhen } from '../api';
 import { Modal } from '../InboxDialogs';
 import type { ComposerHandle } from '../Composer';
 import WaComposer, { ComposerBanner } from './WaComposer';
-import { chatName, formatPhone, groupReactions, senderLabel, withMentions } from './util';
+import { chatName, formatPhone, groupReactions, senderLabel } from './util';
+import { mentionLabel } from '@/lib/wa-mentions';
+import type { MentionLabels } from '@/components/groups/wa/RichText';
 import { swipeAndHold } from './gestures';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import LinkPreview from '@/components/groups/wa/LinkPreview';
@@ -150,6 +152,19 @@ const WaConversation = forwardRef<
     if (wa?.myPhone) m.set(wa.myPhone, w('you'));
     return m;
   }, [wa, messages, w]);
+
+  // Menciones ("@<dígitos>" → "@Nombre"): los participantes y, por mensaje, lo que resolvió el servidor (también lids).
+  const baseMentions = useMemo<MentionLabels>(() => Object.fromEntries(names), [names]);
+  const mentionsFor = (m: { body: string; mentionNames?: MessageDto['mentionNames'] }): MentionLabels | undefined => {
+    if (!m.body || !m.body.includes('@')) return undefined;
+    if (!m.mentionNames) return baseMentions;
+    const out: MentionLabels = { ...baseMentions };
+    for (const [d, target] of Object.entries(m.mentionNames)) {
+      const label = mentionLabel(target, formatPhone);
+      if (label && !out[d]) out[d] = label;
+    }
+    return out;
+  };
 
   // Al abrir o al llegar uno nuevo: abajo de todo (si ya estaba abajo o el último es mío).
   useLayoutEffect(() => {
@@ -366,7 +381,7 @@ const WaConversation = forwardRef<
     const reactions = groupReactions(m.reactions ?? []);
     const url = m.hasMedia ? `/api/inbox/media/${m.id}` : '';
     const flush = (kind === 'image' || kind === 'video') && !!url && !hidden;
-    const body = m.body ? withMentions(m.body, names) : '';
+    const body = m.body ?? '';
     const poll = meta.poll;
     const caption = !!body && !poll && !(kind === 'document' && body === m.mediaName);
     const spacer = Math.ceil(time.length * 6.6 + (m.fromMe ? 26 : 8) + (m.edited ? 52 : 0) + (m.starred ? 14 : 0));
@@ -414,7 +429,7 @@ const WaConversation = forwardRef<
             >
               <strong>{quoteAuthor(m.reply)}</strong>
               <span>
-                <RichText text={quoteText(m.reply)} inline />
+                <RichText text={quoteText(m.reply)} inline mentions={mentionsFor({ body: quoteText(m.reply) })} />
               </span>
             </button>
           )}
@@ -475,7 +490,7 @@ const WaConversation = forwardRef<
           )}
           {caption && !hidden && !(meta.location && body === [meta.location.name, meta.location.address].filter(Boolean).join(' · ')) && !(meta.contacts && body === meta.contacts.map((c) => c.name).join(', ')) && (
             <p className={`gr-pre wa-text${bigEmoji ? ' is-emoji' : ''}${editing?.id === m.id ? ' is-editing' : ''}`} dir="auto">
-              <RichText text={body} />
+              <RichText text={body} mentions={mentionsFor(m)} />
               <span className="wa-spacer" aria-hidden="true" style={{ width: `${spacer}px` }} />
             </p>
           )}
@@ -555,7 +570,7 @@ const WaConversation = forwardRef<
       <span className={`gr-quote gr-quote-plain ${replyTo.fromMe ? 'wa-q-me' : group ? `wa-q${colorIndex(replyTo.senderHandle || replyTo.senderName)}` : 'wa-q-them'}`}>
         <strong>{quoteAuthor(replyTo)}</strong>
         <span>
-          <RichText text={quoteText(replyTo)} inline />
+          <RichText text={quoteText(replyTo)} inline mentions={mentionsFor({ body: quoteText(replyTo) })} />
         </span>
       </span>
     </ComposerBanner>

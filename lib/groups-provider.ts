@@ -210,9 +210,24 @@ export type InboundEvent =
       link?: LinkPreview;
       /** Datos de presentación: nota de voz, duración, ubicación, contacto compartido. */
       meta?: Record<string, unknown>;
+      /**
+       * Ids mencionados con "@" en el texto (contextInfo.mentionedJid): los
+       * dígitos de un teléfono, o "<dígitos>@lid" para un lid. El texto trae
+       * "@<esos dígitos>".
+       */
+      mentions?: string[];
+      /** Lid (dígitos) de quien manda, cuando WhatsApp lo da además del teléfono (o en lugar de él). */
+      senderLid?: string;
+      /** Lid (dígitos) del chat 1:1 cuando vino como "@lid" y se resolvió al teléfono. */
+      chatLid?: string;
     }
-  /** Nombre o foto de un contacto o grupo (historial, contactos de WhatsApp). */
-  | { type: 'contact'; chatId: string; name?: string; pictureUrl?: string }
+  /**
+   * Nombre o foto de un contacto o grupo (historial, contactos de WhatsApp).
+   * `lid` y `phone` (dígitos): la equivalencia entre el id anónimo y el
+   * teléfono, cuando el servidor la da. `saved`: el nombre de la libreta del
+   * teléfono (si no, `name` es el que la persona puso en su perfil).
+   */
+  | { type: 'contact'; chatId: string; name?: string; pictureUrl?: string; lid?: string; phone?: string; saved?: string }
   /** El chat se archivó o se sacó de archivados en WhatsApp (Evolution: CHATS_UPDATE / CHATS_UPSERT con `archived`). */
   | { type: 'archive'; chatId: string; archived: boolean }
   /** El contacto escribe, graba un audio, está en línea o se fue (Evolution: PRESENCE_UPDATE). */
@@ -287,6 +302,12 @@ export interface HistoryContact {
   chatId: string;
   name: string;
   pictureUrl: string;
+  /** Nombre en la libreta del teléfono, si el servidor lo distingue del de perfil. */
+  saved?: string;
+  /** Lid (dígitos), si el contacto lo trae. */
+  lid?: string;
+  /** Teléfono (dígitos), también cuando chatId es un "@lid". */
+  phone?: string;
 }
 
 /**
@@ -325,8 +346,10 @@ export interface ChatInfo {
   about: string;
   /** URL de la foto en el servidor de WhatsApp ('' si no tiene o no se ve). */
   pictureUrl: string;
-  /** Participantes con teléfono conocido (los "@lid" sin teléfono no vienen). */
-  participants?: Array<{ phone: string; role: MemberRole }>;
+  /** Participantes con teléfono conocido (los "@lid" sin teléfono no vienen). `lid` y `name` si el servidor los da. */
+  participants?: Array<{ phone: string; role: MemberRole; lid?: string; name?: string }>;
+  /** Participantes que solo traen un lid (sin teléfono a la vista): sirven para nombrar menciones. */
+  lidParticipants?: Array<{ lid: string; name?: string }>;
   /** Cantidad total de participantes (también los que no traen teléfono). */
   size?: number;
   /** Creación del grupo (segundos). */
@@ -436,6 +459,12 @@ export function phoneDigits(raw: string): string {
 /** "123456789012345@lid": id anónimo de WhatsApp (no es un teléfono). */
 export function isLidJid(raw: string): boolean {
   return /@lid$/i.test(String(raw ?? '').trim());
+}
+
+/** Dígitos de un id "@lid" ('' si no es un lid). */
+export function lidDigits(raw: string): string {
+  const s = String(raw ?? '').trim();
+  return isLidJid(s) ? s.replace(/@.*$/, '').replace(/[^\d]/g, '') : '';
 }
 
 /** Número válido para WhatsApp (E.164 sin "+": 8 a 15 dígitos). */
