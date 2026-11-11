@@ -1302,6 +1302,14 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async sendPresence(chatId, state, ms) {
       await api(`/chat/sendPresence/${instance}`, 'POST', { number: chatId, presence: state, delay: Math.max(0, Math.min(ms, 10_000)) });
     },
+    /** /chat/whatsappNumbers (Evolution v2): si el teléfono tiene WhatsApp y con qué id. No manda nada al contacto. */
+    async checkNumber(phone) {
+      const rows = (await api(`/chat/whatsappNumbers/${instance}`, 'POST', { numbers: [phoneDigits(phone)] })) as unknown;
+      const first = Array.isArray(rows) ? ((rows[0] ?? null) as Json | null) : null;
+      if (!first || typeof first.exists !== 'boolean') return null;
+      const jid = typeof first.jid === 'string' && /^\d{8,15}@s\.whatsapp\.net$/.test(first.jid) ? first.jid : undefined;
+      return { exists: first.exists, ...(jid ? { jid } : {}) };
+    },
     /** /chat/updateBlockStatus (Evolution v2): bloquea o desbloquea el número en WhatsApp. */
     async blockContact(chatId, block) {
       await api(`/chat/updateBlockStatus/${instance}`, 'POST', { number: chatId, status: block ? 'block' : 'unblock' });

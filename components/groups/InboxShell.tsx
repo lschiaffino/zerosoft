@@ -17,7 +17,7 @@ import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useRe
 import Avatar from './wa/Avatar';
 import { duration, listTime } from './wa/format';
 import { plainWa } from './wa/rich';
-import { ArchiveIcon, ArrowLeft, Ban, CheckIcon, Chevron, FilterIcon, Mic, MuteIcon, PinIcon, Search, Ticks } from './wa/icons';
+import { ArchiveIcon, ArrowLeft, Ban, CheckIcon, Chevron, FilterIcon, Mic, MuteIcon, PinIcon, Plus, Search, Ticks } from './wa/icons';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
@@ -30,6 +30,7 @@ import { dragIds } from '@/lib/chat-gestures';
 import { flattenTree } from '@/lib/inbox/folder-tree';
 import { useShellBranch } from '@/components/app/useShellBranch';
 import PanelSplitters from './PanelSplitters';
+import NewChatDialog from './NewChatDialog';
 import { useDetailsHidden } from './details-hidden';
 import { fetchIfChanged, ListCache, reuseRows } from '@/lib/conditional-fetch';
 import { useWaLive } from '@/lib/wa-live-client';
@@ -274,6 +275,7 @@ export default function InboxShell({
   const { hidden: detailsHidden } = useDetailsHidden();
   const [removing, setRemoving] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [newChat, setNewChat] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const rowsBox = useRef<HTMLUListElement>(null);
   const moreRef = useRef<HTMLLIElement>(null);
@@ -937,6 +939,9 @@ export default function InboxShell({
                   {available ? t('inbox.available') : t('inbox.away')}
                 </button>
               )}
+              <button type="button" className="wa-icon-btn gr-newchat-open" onClick={() => setNewChat(true)} aria-label={t('newChat.open')} title={t('newChat.open')}>
+                <Plus size={20} />
+              </button>
             </div>
             {lists.length > 0 && (
               <nav className="gr-list-views" aria-label={t('lists.sidebar')}>
@@ -1319,6 +1324,7 @@ export default function InboxShell({
         onConfirm={() => void removeList()}
         onCancel={() => setRemoving(false)}
       />
+      <NewChatDialog open={newChat} onClose={() => setNewChat(false)} line={line} suffix={listSuffix} />
       <MoveToFolderModal
         open={!!moveIds}
         folders={folderData.folders}

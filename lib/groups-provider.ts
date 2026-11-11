@@ -378,6 +378,12 @@ export interface GroupsProvider {
   /** Bloquear o desbloquear un contacto en WhatsApp. */
   blockContact?(chatId: string, block: boolean): Promise<void>;
   /**
+   * ¿Ese teléfono tiene WhatsApp? `jid`: el id del chat que WhatsApp le da (puede
+   * diferir del número escrito). null si el proveedor no lo pudo decir. Solo
+   * los proveedores que lo saben sin mandar nada (Evolution).
+   */
+  checkNumber?(phone: string): Promise<{ exists: boolean; jid?: string } | null>;
+  /**
    * Archivar o sacar de archivados un chat en WhatsApp. `last`: el mensaje más
    * nuevo del chat (WhatsApp arma la acción con su clave y su hora).
    */

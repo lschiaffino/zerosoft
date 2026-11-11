@@ -88,6 +88,24 @@
     "pendingBanner": "Tu número todavía no está conectado.",
     "finishConnect": "Terminar de conectar"
   },
+  "newChat": {
+    "open": "Chat nuevo",
+    "title": "Chat nuevo",
+    "from": "Desde la línea",
+    "search": "Nombre o teléfono",
+    "placeholder": "Buscá un contacto o escribí un número",
+    "message": "Escribirle a {phone}",
+    "messageHelp": "Abre el chat. No se manda nada hasta que escribas.",
+    "newGroup": "Grupo nuevo",
+    "results": "Contactos y chats",
+    "recent": "Chats recientes",
+    "empty": "Buscá un contacto de esta línea, o escribí un número con su código de país.",
+    "noResults": "Ningún contacto ni chat coincide. Para escribirle a un número nuevo, ponelo con su código de país.",
+    "tooShort": "Ese número es muy corto. Escribilo completo, con el código de país (de 8 a 15 dígitos).",
+    "tooLong": "Ese número es muy largo. Un teléfono tiene 15 dígitos como máximo.",
+    "lineOff": "Esta línea no puede empezar chats ahora ({status}). Los chats que ya tiene se pueden abrir.",
+    "loadError": "No se pudieron cargar los contactos. Probá de nuevo."
+  },
   "filters": {
     "all": "Todos",
     "unread": "No leídos",
@@ -1005,7 +1023,10 @@
     "hubspot_validation": "HubSpot no aceptó ese valor.",
     "hubspot_invalid_value": "Ese valor no corresponde a este tipo de propiedad.",
     "hubspot_read_only": "HubSpot no deja editar esa propiedad.",
-    "hubspot_company_gone": "Esa empresa ya no está en HubSpot. Vinculá este chat a otra empresa."
+    "hubspot_company_gone": "Esa empresa ya no está en HubSpot. Vinculá este chat a otra empresa.",
+    "own_number": "Ese es el número de esta misma línea.",
+    "not_on_whatsapp": "Ese número no tiene WhatsApp. Revisalo, con el código de país.",
+    "chat_no_access": "Esta línea ya tiene un chat con ese número y no tenés acceso. Pedíselo a un admin."
   },
   "media": {
     "image": "Imagen",
