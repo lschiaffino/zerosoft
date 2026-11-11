@@ -49,6 +49,12 @@ export const CHANGELOG: ChangelogEntry[] = [
         es: 'Con una línea elegida en la bandeja, los avisos de conexión perdida o de historial en importación son solo los de esa línea.',
         pt: 'Com uma linha escolhida na caixa de entrada, os avisos de conexão perdida ou de importação do histórico são só os dessa linha.',
       },
+      {
+        product: 'groups',
+        en: 'Writing an internal note is now a tab above the message box, next to WhatsApp, so you always see where what you type is going. N and R still switch between them.',
+        es: 'Escribir una nota interna ahora es una pestaña arriba del cuadro de mensaje, al lado de WhatsApp, así siempre ves a dónde va lo que escribís. N y R siguen cambiando entre una y otra.',
+        pt: 'Escrever uma nota interna agora é uma aba acima da caixa de mensagem, ao lado de WhatsApp, então você sempre vê para onde vai o que digita. N e R continuam alternando entre uma e outra.',
+      },
     ],
   },
   {

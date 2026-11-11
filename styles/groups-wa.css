@@ -449,11 +449,13 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-inbox .wa-composer { padding: 6px 16px 10px; background: var(--wa-panel-header); border-top: 0; }
 .gr-inbox .wa-composer.is-note { background: color-mix(in srgb, var(--wa-note) 70%, var(--wa-panel-header)); }
 .wa-team-row { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; margin-bottom: 6px; }
-.wa-mode { display: inline-flex; gap: 0; padding: 2px; margin: 0; background: var(--wa-panel); border-radius: var(--radius-1); }
-.wa-mode-tab { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; font-size: 0.78rem; color: var(--wa-text-2); background: transparent; border: 0; border-radius: var(--radius-1); cursor: pointer; }
-.wa-mode-tab[aria-selected='true'] { color: var(--wa-text); background: var(--wa-row-active); font-weight: 500; }
-.wa-composer.is-note .wa-mode-tab[aria-selected='true'] { background: var(--wa-note); }
-.wa-mode-tab:focus-visible { outline: 2px solid var(--wa-primary); }
+.wa-mode { display: flex; align-items: flex-end; gap: 2px; margin: -6px 0 6px; padding: 0; border-bottom: 1px solid var(--wa-border); }
+.wa-mode-tab { display: inline-flex; align-items: center; gap: 5px; height: 30px; margin-bottom: -1px; padding: 0 12px; font-size: 0.8125rem; color: var(--wa-text-2); background: transparent; border: 1px solid transparent; border-bottom: 0; border-radius: var(--radius-1) var(--radius-1) 0 0; cursor: pointer; }
+.wa-mode-tab:hover { color: var(--wa-text); }
+.wa-mode-tab[aria-selected='true'] { color: var(--wa-text); font-weight: 500; background: var(--wa-panel-header); border-color: var(--wa-border); }
+.wa-mode-note[aria-selected='true'] { color: var(--wa-text); background: color-mix(in srgb, var(--wa-note) 70%, var(--wa-panel-header)); border-color: var(--wa-note-line); }
+.wa-composer.is-note .wa-mode { border-bottom-color: var(--wa-note-line); }
+.wa-mode-tab:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
 .wa-mode-tab .kbd { font-size: 0.625rem; }
 .wa-team-tools { display: inline-flex; align-items: center; gap: 4px; }
 .wa-team-tools .btn { gap: 5px; }
@@ -634,7 +636,6 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 
 /* Composer: una sola fila como WhatsApp; nota y AI son íconos. */
 .wa-note-strip { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 0.75rem; color: var(--wa-text-2); }
-.wa-bar .wa-note-toggle.is-on { color: #b7791f; background: color-mix(in srgb, #e8c46a 25%, transparent); }
 
 /* Remitente en grupos: nombre en color y teléfono gris, en una línea. */
 .gr-inbox .gr-msg-author { min-width: 0; white-space: nowrap; }
