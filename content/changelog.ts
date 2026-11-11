@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-swipe-back',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines and Inbox: swiping a chat back closes it, like on the iPhone',
+      es: 'Lines e Inbox: deslizar un chat de vuelta lo cierra, como en el iPhone',
+      pt: 'Lines e Inbox: deslizar uma conversa de volta a fecha, como no iPhone',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'With a chat swiped open, dragging it back now stops at the closed row and never opens the buttons on the other side. A short drag back or a quick flick is enough to close it; to open the other side, let go and swipe again.',
+        es: 'Con un chat deslizado y los botones a la vista, arrastrarlo de vuelta ahora frena en la fila cerrada y nunca abre los botones del otro lado. Alcanza con volver un poco o con un movimiento rápido para cerrarlo; para abrir el otro lado, soltá y deslizá de nuevo.',
+        pt: 'Com uma conversa deslizada e os botões à vista, arrastá-la de volta agora para na linha fechada e nunca abre os botões do outro lado. Basta voltar um pouco ou um movimento rápido para fechá-la; para abrir o outro lado, solte e deslize de novo.',
+      },
+      {
+        product: 'groups',
+        en: 'Tapping the open chat, tapping another one or scrolling the list closes it without opening the chat. Only one chat stays open at a time.',
+        es: 'Tocar el chat abierto, tocar otro o correr la lista lo cierra sin abrir el chat. Solo queda uno abierto a la vez.',
+        pt: 'Tocar na conversa aberta, tocar em outra ou rolar a lista a fecha sem abrir a conversa. Só uma fica aberta por vez.',
+      },
+      {
+        product: 'inbox',
+        en: 'The same behavior in the Inbox list.',
+        es: 'Lo mismo en la lista de Inbox.',
+        pt: 'O mesmo na lista do Inbox.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-whatsapp-contact-names',
     date: '2026-11-10',
     title: {

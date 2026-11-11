@@ -457,3 +457,256 @@ test.describe('Inbox', () => {
     expect(errors, errors.join('\n')).toEqual([]);
   });
 });
+
+// ---------- Deslizar de vuelta (como iOS Mail y WhatsApp) ----------
+//
+// Con la fila abierta, arrastrarla de vuelta la cierra: se frena en la fila
+// cerrada y nunca pasa al otro lado en el mismo gesto. Tocarla, tocar otra o
+// empezar un scroll también la cierra, sin abrir el chat. Con el dedo los
+// eventos se arman a mano (pointerType touch, con tiempos de verdad entre
+// movimientos) y se anota cómo quedó pintada la fila después de cada uno.
+
+type Step = [dx: number, dy: number, waitMs: number];
+interface Seen {
+  x: number;
+  side: string | null;
+}
+
+/** De `from` a `to` en x, en `ms`, con un movimiento cada ~16 ms. */
+function glide(from: number, to: number, ms: number): Step[] {
+  const steps = Math.max(1, Math.round(ms / 16));
+  return Array.from({ length: steps }, (_, i) => [from + ((to - from) * (i + 1)) / steps, 0, ms / steps] as Step);
+}
+
+/**
+ * Un gesto con el dedo sobre la fila. Arranca a 40 px del borde contrario a
+ * donde va el primer movimiento (o en el centro), mueve por `path` y suelta
+ * después de `rest` ms. Con `release: false` queda apoyado: la próxima
+ * llamada sigue el mismo gesto.
+ */
+async function touch(row: Locator, path: Step[], o: { rest?: number; release?: boolean; at?: 'center' } = {}): Promise<Seen[]> {
+  return row.evaluate(
+    async (el, { path, rest, release, at }) => {
+      const w = window as unknown as { __zsTouch?: { x: number; y: number; lx: number; ly: number } };
+      const fire = (type: string, x: number, y: number) =>
+        el.dispatchEvent(
+          new PointerEvent(type, { pointerType: 'touch', pointerId: 21, isPrimary: true, clientX: x, clientY: y, bubbles: true, cancelable: true, button: 0, buttons: type === 'pointerup' ? 0 : 1 }),
+        );
+      const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      const seen: Array<{ x: number; side: string | null }> = [];
+      let g = w.__zsTouch;
+      if (!g) {
+        const b = el.getBoundingClientRect();
+        const first = path[0]?.[0] ?? 0;
+        const x = at === 'center' ? b.left + b.width / 2 : first > 0 ? b.left + 40 : b.right - 40;
+        g = { x, y: b.top + b.height / 2, lx: x, ly: b.top + b.height / 2 };
+        w.__zsTouch = g;
+        fire('pointerdown', g.x, g.y);
+      }
+      for (const [dx, dy, ms] of path) {
+        await wait(ms);
+        g.lx = g.x + dx;
+        g.ly = g.y + dy;
+        fire('pointermove', g.lx, g.ly);
+        seen.push({ x: parseFloat((el as HTMLElement).style.getPropertyValue('--swipe-x') || '0'), side: el.getAttribute('data-swipe') });
+      }
+      if (release !== false) {
+        await wait(rest ?? 16);
+        fire('pointerup', g.lx, g.ly);
+        delete w.__zsTouch;
+      }
+      return seen;
+    },
+    { path, rest: o.rest, release: o.release, at: o.at },
+  );
+}
+
+/** Lo mismo con el mouse de verdad (eventos del navegador). */
+async function mouseDrag(page: Page, row: Locator, dx: number, steps = 20): Promise<Seen[]> {
+  const b = (await row.boundingBox())!;
+  const x = b.x + b.width / 2;
+  const y = b.y + b.height / 2;
+  const seen: Seen[] = [];
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(x + (dx * i) / steps, y);
+    seen.push(await row.evaluate((el) => ({ x: parseFloat((el as HTMLElement).style.getPropertyValue('--swipe-x') || '0'), side: el.getAttribute('data-swipe') })));
+  }
+  await page.mouse.up();
+  return seen;
+}
+
+async function settled(row: Locator, side: 'left' | 'right') {
+  await expect(row.getByTestId('swipe-actions')).toHaveAttribute('data-side', side);
+  await expect(row).not.toHaveAttribute('data-swipe-settling', '');
+}
+
+/** La fila abierta a la izquierda con el dedo (aparecen Archivar y Más). */
+async function openLeft(row: Locator) {
+  await touch(row, glide(0, -140, 200), { rest: 120 });
+  await settled(row, 'left');
+}
+
+/** La fila abierta a la derecha con el dedo (aparecen Leído y Fijar). */
+async function openRight(row: Locator) {
+  await touch(row, glide(0, 140, 200), { rest: 120 });
+  await settled(row, 'right');
+}
+
+const crossedRight = (seen: Seen[]) => seen.filter((s) => s.x > 0 || s.side === 'right');
+const crossedLeft = (seen: Seen[]) => seen.filter((s) => s.x < 0 || s.side === 'left');
+
+async function closedRow(row: Locator) {
+  await expect(row.getByTestId('swipe-actions')).toHaveCount(0);
+  await expect(row).not.toHaveAttribute('data-swipe', /.*/);
+}
+
+/** Lo mismo en Lines y en Inbox: la fila abierta y el arrastre de vuelta, de todas las formas. */
+async function gauntlet(page: Page, row: Locator, other: Locator, listUrl: RegExp, shots: string) {
+  // El caso del dueño: abierta a la izquierda, arrastrar a la derecha lejos y despacio. Se frena en 0 y no abre la derecha.
+  await openLeft(row);
+  const mid = await touch(row, glide(0, 260, 520), { release: false });
+  expect(crossedRight(mid), JSON.stringify(mid)).toEqual([]);
+  expect(mid.at(-1)?.x).toBe(0);
+  await expect(row.locator('[data-action="unread"], [data-action="read"], [data-action="pin"]')).toHaveCount(0);
+  await page.screenshot({ path: `${shots}-1-pasado-del-cero.png` });
+  const rest = await touch(row, glide(260, 300, 100));
+  expect(crossedRight(rest)).toEqual([]);
+  await closedRow(row);
+  await page.screenshot({ path: `${shots}-2-soltada.png` });
+  await expect(page).toHaveURL(listUrl);
+
+  // A mitad de camino de vuelta, para la captura.
+  await openLeft(row);
+  await touch(row, glide(0, 70, 200), { release: false });
+  await page.screenshot({ path: `${shots}-0-a-mitad-de-vuelta.png` });
+  await touch(row, [], { rest: 150 });
+  await closedRow(row);
+
+  // Rápido (un envión de vuelta): igual se cierra sin pasar.
+  await openLeft(row);
+  const flick = await touch(row, glide(0, 220, 60), { rest: 0 });
+  expect(crossedRight(flick)).toEqual([]);
+  await closedRow(row);
+
+  // Un poco de vuelta y quieto: queda abierta. Un tercio: se cierra.
+  await openLeft(row);
+  await touch(row, glide(0, 30, 300), { rest: 150 });
+  await settled(row, 'left');
+  await touch(row, glide(0, 64, 300), { rest: 150 });
+  await closedRow(row);
+
+  // Ir y venir unos px sobre la fila abierta: queda abierta.
+  await openLeft(row);
+  await touch(row, [[-12, 0, 16], [10, 0, 16], [-10, 0, 16], [6, 0, 16]], { rest: 150 });
+  await settled(row, 'left');
+  await page.keyboard.press('Escape');
+  await closedRow(row);
+
+  // Abierta a la derecha, arrastrar a la izquierda: tampoco cruza.
+  await openRight(row);
+  const back = await touch(row, glide(0, -300, 400));
+  expect(crossedLeft(back), JSON.stringify(back)).toEqual([]);
+  await closedRow(row);
+
+  // Cerrada: izquierda y después derecha en el mismo gesto. Vuelve a cerrada sin mostrar la derecha.
+  const zig = await touch(row, [...glide(0, -100, 200), ...glide(-100, 280, 400)]);
+  expect(crossedRight(zig), JSON.stringify(zig)).toEqual([]);
+  await closedRow(row);
+
+  // Para el otro lado hay que soltar y empezar de nuevo.
+  await openLeft(row);
+  await touch(row, glide(0, 260, 300));
+  await closedRow(row);
+  await openRight(row);
+  await touch(row, glide(0, -260, 300));
+  await closedRow(row);
+
+  // Tocar la fila abierta la cierra y no abre el chat.
+  await openLeft(row);
+  const b = (await row.boundingBox())!;
+  await page.mouse.click(b.x + 60, b.y + b.height / 2);
+  await closedRow(row);
+  await expect(page).toHaveURL(listUrl);
+
+  // Tocar otra fila la cierra y tampoco abre nada.
+  await openLeft(row);
+  const ob = (await other.boundingBox())!;
+  await page.mouse.click(ob.x + 60, ob.y + ob.height / 2);
+  await closedRow(row);
+  await expect(page).toHaveURL(listUrl);
+
+  // Un arrastre que empieza vertical (scroll) sobre la fila abierta la cierra.
+  await openLeft(row);
+  await touch(row, [[1, 6, 16], [2, 20, 16], [3, 40, 16]], { at: 'center' });
+  await closedRow(row);
+
+  // Una sola fila abierta a la vez.
+  await openLeft(row);
+  await openLeft(other);
+  await closedRow(row);
+  await touch(other, glide(0, 200, 200));
+  await closedRow(other);
+
+  // Con el mouse (o el trackpad): abierta, arrastrar a la derecha. Igual se frena en 0 y no abre el chat.
+  await swipe(page, row, 'left', 130);
+  await settled(row, 'left');
+  const m = await mouseDrag(page, row, 170);
+  expect(crossedRight(m), JSON.stringify(m)).toEqual([]);
+  await closedRow(row);
+  await expect(page).toHaveURL(listUrl);
+
+  // Y un deslizado nuevo desde cerrada sigue abriendo cualquiera de los dos lados.
+  await openRight(row);
+  await page.keyboard.press('Escape');
+  await closedRow(row);
+  await openLeft(row);
+  await page.keyboard.press('Escape');
+  await closedRow(row);
+}
+
+test.describe('Deslizar de vuelta', () => {
+  // Son muchos gestos seguidos, y en `next dev` la primera carga compila.
+  test.describe.configure({ timeout: 180_000 });
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+  });
+
+  test('Lines: con la fila abierta, volver la cierra y nunca abre el otro lado', async ({ page, request }, info) => {
+    const errors = watchErrors(page);
+    await request.put('/api/groups/prefs', { data: { line: 'all' } });
+    const tag = uid();
+    const n = await fakeNumber(request, `Vuelta ${tag}`);
+    const name = `Vuelvo ${tag}`;
+    const otherName = `Vecino ${tag}`;
+    await linesInbound(request, n.webhookUrl, otherName);
+    await linesInbound(request, n.webhookUrl, name);
+    await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+    const row = page.locator('[data-chat-row]', { hasText: name });
+    const other = page.locator('[data-chat-row]', { hasText: otherName });
+    await expect(row).toBeVisible({ timeout: 30_000 });
+    await expect(other).toBeVisible();
+    await gauntlet(page, row, other, /\/app\/lines\/inbox(\?|$)/, info.outputPath('lines'));
+    await noSideScroll(page);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+
+  test('Inbox: con la fila abierta, volver la cierra y nunca abre el otro lado', async ({ page, request }, info) => {
+    const errors = watchErrors(page);
+    const acc = await linkWhatsapp(request);
+    const name = `Vuelvo ${uid()}`;
+    const otherName = `Vecino ${uid()}`;
+    await inboxInbound(request, acc, otherName);
+    await inboxInbound(request, acc, name);
+    await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+    const row = page.locator('[data-chat-row]', { hasText: name });
+    const other = page.locator('[data-chat-row]', { hasText: otherName });
+    await expect(row).toBeVisible({ timeout: 30_000 });
+    await expect(other).toBeVisible();
+    await gauntlet(page, row, other, /\/app\/inbox(\?|$)/, info.outputPath('inbox'));
+    await expect(row).not.toHaveClass(/is-open/);
+    await noSideScroll(page);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
+});
