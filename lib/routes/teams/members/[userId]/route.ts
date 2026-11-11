@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { can, canGiveApps } from '@/lib/permissions';
 import { rateLimit } from '@/lib/rate-limit';
-import { getMemberRole, removeMember, setMemberApps, setMemberRole } from '@/lib/teams';
+import { getMemberCapabilities, getMemberRole, removeMember, setMemberApps, setMemberCapabilities, setMemberRole } from '@/lib/teams';
+import { isCapability, parseCapabilities } from '@/lib/capabilities';
 import { isResponse, requestLocale, teamsCtx, teamsError } from '@/lib/teams-http';
 import { canUseApp, getMembership, parseApps, type AppAccess } from '@/lib/workspace';
 import { audit, deactivateMember, forgetDeactivated, getDeactivated, ownedStuff, reactivateMember, snapshotMember, transferStuff } from '@/lib/workspace-admin';
@@ -126,13 +127,17 @@ const patchSchema = z.object({
   role: z.enum(['admin', 'member', 'guest']).optional(),
   apps: z.union([z.literal('*'), z.array(z.string().max(20)).max(64)]).optional(),
   groupIds: z.array(z.string().max(64)).max(100).optional(),
+  /** Capacidades de un member (lib/capabilities.ts): la lista completa que queda. Claves desconocidas, 400. */
+  capabilities: z.array(z.string().max(64).refine(isCapability)).max(32).optional(),
   /** El workspace que la pantalla cree estar editando: si cambió en otra pestaña, no se toca nada. */
   workspaceId: z.string().max(128).optional(),
 });
 
 /**
- * Cambiar rol, apps permitidas o subequipos de una persona. Solo owner y
- * admins; un admin no puede tocar a otro admin ni nombrar admins.
+ * Cambiar rol, apps permitidas, subequipos o capacidades de una persona. Solo
+ * owner y admins; un admin no puede tocar a otro admin ni nombrar admins.
+ * Las capacidades son de members: owner y admins ya las tienen por su rol, y
+ * un guest no tiene ninguna.
  */
 export async function PATCH(req: NextRequest, props: { params: Promise<{ userId: string }> }) {
   const params = await props.params;
@@ -151,6 +156,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ userId:
   // Sumar apps, o devolverle a un guest las que tenía guardadas, es dar acceso.
   if (body.apps !== undefined && !canGiveApps(ctx.user, parseApps(body.apps), before.role === 'guest' ? [] : before.apps)) return teamsError('apps_not_yours', 403);
   if (body.role && body.role !== 'guest' && before.role === 'guest' && !canGiveApps(ctx.user, before.apps)) return teamsError('apps_not_yours', 403);
+  // Capacidades solo para quien queda como member (se valida antes de cambiar nada).
+  if (body.capabilities?.length && (body.role ?? before.role) !== 'member') return teamsError('caps_members_only');
   const who = await label(params.userId);
   if (body.role && body.role !== before.role) {
     if (!(await setMemberRole(ctx.team.id, params.userId, body.role))) return teamsError('not_found', 404);
@@ -168,6 +175,14 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ userId:
     if (after && after.role !== 'guest') {
       await notifyAppsGranted(ctx.team, params.userId, ctx.real, grantedApps(before.apps, after.apps)).catch(() => undefined);
       await resolveRequests(ctx.team.id, params.userId, after.apps, 'granted', ctx.realId).catch(() => undefined);
+    }
+  }
+  if (body.capabilities !== undefined) {
+    const next = parseCapabilities(body.capabilities);
+    const prev = await getMemberCapabilities(ctx.team.id, params.userId);
+    if (prev.join() !== next.join()) {
+      if (!(await setMemberCapabilities(ctx.team.id, params.userId, next))) return teamsError('not_found', 404);
+      await audit({ teamId: ctx.team.id, actorId: ctx.realId, targetId: params.userId, targetLabel: who, action: 'member.caps', before: { caps: prev }, after: { caps: next } });
     }
   }
   if (body.groupIds !== undefined && (body.role ?? targetRole) !== 'guest') {

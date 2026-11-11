@@ -36,6 +36,52 @@ export function micConstraints(micId: string, noise: boolean): MediaTrackConstra
   };
 }
 
+/** true si el cuadro es negro (todo por debajo de `threshold` de luz). Puro: se prueba aparte. */
+export function isBlackPixels(data: Uint8ClampedArray, threshold = 10): boolean {
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i] > threshold || data[i + 1] > threshold || data[i + 2] > threshold) return false;
+  }
+  return true;
+}
+
+/**
+ * La captura de pantalla llega en negro: en Mac, sin el permiso de "Grabación de pantalla" el
+ * sistema no corta, manda cuadros negros. Mira varios cuadros durante `ms` (los primeros pueden
+ * venir negros mientras arranca): negro solo si todos lo son.
+ */
+export async function screenLooksBlack(track: MediaStreamTrack, ms = 1500): Promise<boolean> {
+  if (typeof document === 'undefined' || track.readyState !== 'live') return false;
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.srcObject = new MediaStream([track]);
+  try {
+    await video.play();
+  } catch {
+    return false;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = 48;
+  canvas.height = 27;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return false;
+  const until = Date.now() + ms;
+  let sampled = 0;
+  try {
+    while (Date.now() < until) {
+      await new Promise((r) => setTimeout(r, 250));
+      if (video.videoWidth === 0) continue;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      sampled++;
+      if (!isBlackPixels(ctx.getImageData(0, 0, canvas.width, canvas.height).data)) return false;
+    }
+    return sampled > 0;
+  } finally {
+    video.pause();
+    video.srcObject = null;
+  }
+}
+
 export function recorderSupported(): boolean {
   return typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && !!pickVideoMime();
 }

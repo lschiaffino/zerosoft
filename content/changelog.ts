@@ -29,6 +29,80 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-rec-black-screen',
+    date: '2026-11-11',
+    title: {
+      en: 'Rec: a clear warning when the computer only lets it record a black screen',
+      es: 'Rec: aviso claro cuando la computadora solo deja grabar la pantalla en negro',
+      pt: 'Rec: aviso claro quando o computador só deixa gravar a tela preta',
+    },
+    items: [
+      {
+        product: 'rec',
+        en: 'On a Mac without the Screen Recording permission, the system sends black frames instead of failing. Rec now notices before the countdown, stops, and tells you where to turn the permission on, for the browser or for the desktop app.',
+        es: 'En una Mac sin el permiso de Grabación de pantalla, el sistema manda cuadros negros en vez de fallar. Rec ahora lo nota antes de la cuenta regresiva, frena y te dice dónde activar el permiso, para el navegador o para la app de escritorio.',
+        pt: 'Num Mac sem a permissão de Gravação de Tela, o sistema manda quadros pretos em vez de falhar. O Rec agora percebe antes da contagem regressiva, para e diz onde ativar a permissão, para o navegador ou para o app de desktop.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-member-permissions',
+    date: '2026-11-10',
+    title: {
+      en: 'Extra permissions for members, starting with connecting numbers in Lines',
+      es: 'Permisos extra para members, empezando por conectar números en Lines',
+      pt: 'Permissões extras para members, começando por conectar números no Lines',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'In Settings › Members and permissions, each member now has an Extra permissions section: things only admins could do, given to one person without making them an admin. Granting one asks for confirmation, removing it applies on their next action, and every change shows up in the change log. Making someone an admin now asks for confirmation too.',
+        es: 'En Ajustes › Miembros y permisos, cada member tiene ahora una sección de Permisos extra: cosas que solo podían hacer los admins, dadas a una persona sin hacerla admin. Dar uno pide confirmación, quitarlo vale desde su próxima acción, y cada cambio queda en el registro. Hacer admin a alguien ahora también pide confirmación.',
+        pt: 'Em Ajustes › Membros e permissões, cada member agora tem uma seção de Permissões extras: coisas que só os admins podiam fazer, dadas a uma pessoa sem torná-la admin. Dar uma pede confirmação, tirar vale a partir da próxima ação dela, e cada mudança fica no registro. Tornar alguém admin agora também pede confirmação.',
+      },
+      {
+        product: 'groups',
+        en: 'The first one is "Can connect numbers in Lines": the member adds WhatsApp numbers with a QR code or credentials and reconnects, renames, shares, disconnects and deletes the ones they add. Those numbers are theirs and private: only they and the admins see the chats until they share them. Numbers added by other people stay out of their reach.',
+        es: 'El primero es "Puede conectar números en Lines": el member agrega números de WhatsApp con QR o credenciales y reconecta, renombra, comparte, desconecta y borra los que agrega. Esos números quedan a su nombre y privados: los chats los ven solo esa persona y los admins hasta que los comparta. Los números que agregaron otras personas quedan fuera de su alcance.',
+        pt: 'A primeira é "Pode conectar números no Lines": o member adiciona números de WhatsApp com QR ou credenciais e reconecta, renomeia, compartilha, desconecta e exclui os que adiciona. Esses números ficam no nome dele e privados: só ele e os admins veem os chats até ele compartilhá-los. Os números que outras pessoas adicionaram ficam fora do alcance dele.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-emoji-shortcodes',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines and Inbox: type ":" and a name to add an emoji',
+      es: 'Lines e Inbox: escribí ":" y un nombre para poner un emoji',
+      pt: 'Lines e Inbox: digite ":" e um nome para colocar um emoji',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Like WhatsApp and Slack: type ":che" and the matching emojis show above the box. Arrows pick one, Enter or Tab puts it in, Esc closes. It understands Spanish and Portuguese words too, and your recent emojis come first.',
+        es: 'Como en WhatsApp y Slack: escribí ":che" y arriba de la caja aparecen los emojis que coinciden. Las flechas eligen, Enter o Tab lo ponen y Esc cierra. Entiende palabras en español y portugués, y tus emojis recientes van primero.',
+        pt: 'Como no WhatsApp e no Slack: digite ":che" e os emojis que combinam aparecem acima da caixa. As setas escolhem, Enter ou Tab colocam e Esc fecha. Entende palavras em espanhol e português, e seus emojis recentes vêm primeiro.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-inbox-resizable-panels',
+    date: '2026-11-10',
+    title: {
+      en: 'Inbox: drag to resize the chat list and the contact info',
+      es: 'Inbox: arrastrá para cambiar el ancho de la lista y de la info del contacto',
+      pt: 'Inbox: arraste para mudar a largura da lista e da info do contato',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'Like in Lines, the borders between the chat list, the conversation and the contact info can be dragged. The width stays saved in your browser, double-click goes back to the original, and the arrow keys work on the focused divider.',
+        es: 'Como en Lines, los bordes entre la lista de chats, la conversación y la info del contacto se pueden arrastrar. El ancho queda guardado en tu navegador, doble clic vuelve al original y las flechas funcionan con el divisor en foco.',
+        pt: 'Como no Lines, as bordas entre a lista de conversas, a conversa e a info do contato podem ser arrastadas. A largura fica salva no seu navegador, clique duplo volta ao original e as setas funcionam com o divisor em foco.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-rec-desktop-controls',
     date: '2026-11-10',
     title: {
@@ -89,6 +163,23 @@ export const CHANGELOG: ChangelogEntry[] = [
         en: 'Lines does the same for each number: names for chats and members, mentions as @Name, and the contact info of a one-to-one chat in its details. Once a day, slowly and picking up where it stopped, each number refreshes contact names and info, group subjects, descriptions, members and photos. A name you typed yourself stays. Tested with the simulated WhatsApp; not yet tried with a real one.',
         es: 'Lines hace lo mismo con cada número: nombres en chats y miembros, menciones como @Nombre y la info del contacto de un chat 1:1 en sus detalles. Una vez por día, despacio y retomando donde quedó, cada número repasa nombres e info de los contactos, asuntos, descripciones, miembros y fotos de los grupos. Un nombre que escribiste vos queda. Probado con el WhatsApp simulado; falta probarlo con uno real.',
         pt: 'O Lines faz o mesmo com cada número: nomes nas conversas e nos membros, menções como @Nome e o recado do contato de uma conversa individual nos detalhes. Uma vez por dia, devagar e retomando de onde parou, cada número atualiza nomes e recados dos contatos, assuntos, descrições, membros e fotos dos grupos. Um nome que você digitou fica. Testado com o WhatsApp simulado; falta testar com um real.',
+      },
+    ],
+  },
+  {
+    id: '2026-11-10-home-apps',
+    date: '2026-11-10',
+    title: {
+      en: 'Home: just your apps, with what each one is for',
+      es: 'Inicio: solo tus apps, con para qué sirve cada una',
+      pt: 'Início: só os seus apps, com para que serve cada um',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'The home page now shows only your apps, each with its icon, its name and a line on what it is for. Coming soon apps go in one quiet line at the bottom. The assistant is still one ⌘J away from anywhere.',
+        es: 'El inicio ahora muestra solo tus apps, cada una con su ícono, su nombre y una línea de para qué sirve. Las que vienen pronto van en una línea discreta al pie. El asistente sigue a un ⌘J desde cualquier lado.',
+        pt: 'O início agora mostra só os seus apps, cada um com seu ícone, seu nome e uma linha sobre para que serve. Os que chegam em breve ficam numa linha discreta no fim. O assistente continua a um ⌘J de qualquer lugar.',
       },
     ],
   },

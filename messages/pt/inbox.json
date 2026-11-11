@@ -1,4 +1,5 @@
 {
+  "panels": { "list": "Mudar a largura da lista de conversas", "details": "Mudar a largura da info do contato", "hint": "Arraste para mudar a largura. Clique duas vezes para voltar ao original." },
   "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Concluídos", "compose": "Nova mensagem" },
   "views": {
     "inbox": "Caixa de entrada",

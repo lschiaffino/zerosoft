@@ -70,6 +70,7 @@ test('owner: rol y apps en línea con deshacer, lote, qué puede ver, quitar con
 
     // Rol en línea y deshacer.
     await row(page, ana.email).getByRole('combobox').selectOption('admin');
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Make admin' }).click();
     await expect(page.getByTestId('members-toast')).toContainText('is now Admin');
     await expect.poll(async () => (await memberOf(ana.team, ana.id))?.role).toBe('admin');
     await page.getByTestId('members-undo').click();

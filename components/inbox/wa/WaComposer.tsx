@@ -4,6 +4,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { useTranslations } from 'next-intl';
 import { fillSnippet, type MessageDto, type SnippetDto, type ThreadDto } from '@/lib/inbox/types';
 import EmojiPicker from '@/components/groups/wa/EmojiPicker';
+import { useEmojiSuggest } from '@/components/groups/wa/useEmojiSuggest';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { ClockIcon, Close, Mic, Plus, SendIcon, Smiley } from '@/components/groups/wa/icons';
 import { api } from '../api';
@@ -49,6 +50,7 @@ const WaComposer = forwardRef<
   const t = useTranslations('inbox.composer');
   const w = useTranslations('inboxWa');
   const [text, setText] = useState(thread.draft);
+  const [caret, setCaret] = useState(0);
   const tc = useTranslations('common.aiCompose');
   const [busy, setBusy] = useState<'' | 'send'>('');
   const [emoji, setEmoji] = useState(false);
@@ -219,6 +221,21 @@ const WaComposer = forwardRef<
     [ai.openBar, ai.clearUndo, thread.id], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  const emojiSuggest = useEmojiSuggest({
+    text,
+    caret,
+    disabled: !!disabled,
+    apply: (start, end, emoji) => {
+      const next = text.slice(0, start) + emoji + text.slice(end);
+      setText(next);
+      const at = start + emoji.length;
+      setCaret(at);
+      requestAnimationFrame(() => {
+        area.current?.focus();
+        area.current?.setSelectionRange(at, at);
+      });
+    },
+  });
   const insertAtCaret = (s: string) => {
     const el = area.current;
     const start = el?.selectionStart ?? text.length;
@@ -282,6 +299,7 @@ const WaComposer = forwardRef<
         </ul>
       )}
       {!editing && <AiComposeBar ai={ai} />}
+      {emojiSuggest.strip}
       <div className="wa-bar">
         <span className="wa-emoji-wrap">
           <button type="button" className="wa-icon-btn" aria-label={w('emoji')} title={w('emoji')} aria-expanded={emoji} onClick={() => setEmoji((v) => !v)} disabled={disabled}>
@@ -316,9 +334,11 @@ const WaComposer = forwardRef<
             e.preventDefault();
             onPasteFiles(files);
           }}
+          onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
           onChange={(e) => {
             const v = e.target.value;
             setText(v);
+            setCaret(e.target.selectionStart ?? v.length);
             if (v.trim()) onTyping?.();
             const m = /(?:^|\s);([\w-]*)$/.exec(v.slice(0, e.target.selectionStart));
             setSnipQ(m && snippets.length ? m[1] : null);
@@ -328,6 +348,7 @@ const WaComposer = forwardRef<
             setMentionIdx(0);
           }}
           onKeyDown={(e) => {
+            if (emojiSuggest.onKeyDown(e)) return;
             if (mentionQ !== null && people.length) {
               if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();

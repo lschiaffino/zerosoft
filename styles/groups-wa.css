@@ -915,3 +915,36 @@ a.wa-doc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2
 .gr-inbox .ib-archived-entry:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
 .gr-inbox .ib-archived-entry > span:first-of-type { flex: 1 1 auto; min-width: 0; color: var(--wa-text); }
 .gr-inbox .ib-archived-n { flex: none; font-size: 0.75rem; color: var(--wa-primary); }
+
+/* ---------- Emojis por nombre (":che") encima del composer, como WhatsApp ---------- */
+.wa-emoji-suggest {
+  display: flex;
+  gap: 4px;
+  margin: 0 12px 6px;
+  padding: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--wa-panel);
+  border: 1px solid var(--wa-border);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(11, 20, 26, 0.1);
+  animation: wa-emoji-suggest-in 140ms ease-out both;
+}
+.wa-emoji-suggest::-webkit-scrollbar { display: none; }
+.wa-emoji-suggest-item {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  font-size: 28px;
+  line-height: 1;
+  background: none;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.wa-emoji-suggest-item.is-active { border-color: var(--wa-primary); background: var(--wa-hover, rgba(0, 0, 0, 0.04)); }
+@keyframes wa-emoji-suggest-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .wa-emoji-suggest { animation: none; } }
