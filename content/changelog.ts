@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-10-emoji-shortcodes',
+    date: '2026-11-10',
+    title: {
+      en: 'Lines and Inbox: type ":" and a name to add an emoji',
+      es: 'Lines e Inbox: escribí ":" y un nombre para poner un emoji',
+      pt: 'Lines e Inbox: digite ":" e um nome para colocar um emoji',
+    },
+    items: [
+      {
+        product: 'groups',
+        en: 'Like WhatsApp and Slack: type ":che" and the matching emojis show above the box. Arrows pick one, Enter or Tab puts it in, Esc closes. It understands Spanish and Portuguese words too, and your recent emojis come first.',
+        es: 'Como en WhatsApp y Slack: escribí ":che" y arriba de la caja aparecen los emojis que coinciden. Las flechas eligen, Enter o Tab lo ponen y Esc cierra. Entiende palabras en español y portugués, y tus emojis recientes van primero.',
+        pt: 'Como no WhatsApp e no Slack: digite ":che" e os emojis que combinam aparecem acima da caixa. As setas escolhem, Enter ou Tab colocam e Esc fecha. Entende palavras em espanhol e português, e seus emojis recentes vêm primeiro.',
+      },
+    ],
+  },
+  {
     id: '2026-11-10-whatsapp-contact-names',
     date: '2026-11-10',
     title: {

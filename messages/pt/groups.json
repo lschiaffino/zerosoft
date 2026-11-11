@@ -1517,6 +1517,7 @@
     "pages": "{n, plural, one {# página} other {# páginas}}",
     "location": "Localização",
     "emoji": "Emojis",
+    "emojiSuggest": "Emojis sugeridos",
     "emojiSets": {
       "recent": "Recentes",
       "smileys": "Carinhas e pessoas",
