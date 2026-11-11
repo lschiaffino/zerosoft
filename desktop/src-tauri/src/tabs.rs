@@ -216,6 +216,12 @@ fn content_webview(app: &AppHandle, id: u64, path: &str) -> WebviewBuilder<Wry> 
             use tauri::webview::{PermissionKind, PermissionResponse};
             let server = crate::api::server(webview.app_handle());
             let ours = webview.url().map(|u| crate::nav::classify(&u, &server) == crate::nav::Nav::Allow).unwrap_or(false);
+            // Registro de actividad: la app le dio el micrófono o la cámara a la página.
+            if ours && matches!(kind, PermissionKind::Camera | PermissionKind::Microphone) {
+                use crate::privacy::{Event, Kind, Tag};
+                let what = if matches!(kind, PermissionKind::Camera) { Tag::Camera } else { Tag::Microphone };
+                crate::privacy::record(webview.app_handle(), Event::new(Kind::PageMedia).trigger(Tag::Page).result(what));
+            }
             match kind {
                 PermissionKind::Camera | PermissionKind::Microphone if ours => PermissionResponse::Allow,
                 PermissionKind::Camera | PermissionKind::Microphone => PermissionResponse::Deny,
@@ -708,6 +714,22 @@ pub fn recording_in_front(app: &AppHandle) -> bool {
     w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false) && w.is_focused().unwrap_or(false) && st(app).s.lock().unwrap().active_of(&label) == Some(id)
 }
 
+/// La pestaña está a la vista: es la de adelante de su ventana, y la ventana no está escondida ni
+/// minimizada (para empezar a capturar el audio de la computadora, commands.rs).
+pub fn tab_visible(app: &AppHandle, id: u64) -> bool {
+    let label = {
+        let s = st(app);
+        let s = s.s.lock().unwrap();
+        let Some(label) = s.window_of(id).map(str::to_string) else { return false };
+        if s.active_of(&label) != Some(id) {
+            return false;
+        }
+        label
+    };
+    let Some(w) = app.get_window(&label) else { return false };
+    w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false)
+}
+
 pub fn recording_webview(app: &AppHandle) -> Option<Webview> {
     let id = st(app).s.lock().unwrap().windows.iter().flat_map(|w| &w.tabs).find(|t| t.recording).map(|t| t.id)?;
     app.get_webview(&tab_label(id))
@@ -1007,17 +1029,13 @@ pub async fn desktop_tabs(app: AppHandle, webview: Webview, action: String, path
 
 #[tauri::command]
 pub fn tabs_prefs_get(app: AppHandle, window: tauri::WebviewWindow) -> Result<Value, String> {
-    if window.label() != "settings" {
-        return Err("forbidden".into());
-    }
+    crate::commands::from_settings(&window)?;
     Ok(prefs(&app))
 }
 
 #[tauri::command]
 pub fn tabs_prefs_save(app: AppHandle, window: tauri::WebviewWindow, input: Value) -> Result<Value, String> {
-    if window.label() != "settings" {
-        return Err("forbidden".into());
-    }
+    crate::commands::from_settings(&window)?;
     Ok(save_prefs(&app, &input))
 }
 

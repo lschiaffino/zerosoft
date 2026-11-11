@@ -665,6 +665,18 @@ section.status-note-block { padding: 24px; }
 .dl-p { max-width: 68ch; }
 .dl-p a { text-decoration: underline; text-underline-offset: 3px; }
 
+/* /download/privacy: qué ve, guarda y manda la app de escritorio. */
+.dp-body .dl-p { margin-bottom: 12px; }
+.dp-line { display: block; margin-top: 6px; }
+.dp-code { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 13px; overflow-wrap: anywhere; }
+.dp-src { display: block; margin-top: 6px; font-size: 13px; }
+.dp-src a, .dp-body .dl-p a { text-decoration: underline; text-underline-offset: 3px; }
+.dp-plain { list-style: disc; padding-left: 20px; max-width: 72ch; display: grid; gap: 12px; font-size: 15px; color: var(--brand-gray-1); }
+.dp-plain .dp-src { display: inline; margin: 0; }
+@media (max-width: 720px) {
+  .dp-body .dl-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+}
+
 /* /download/start: la descarga en curso y los pasos para instalar. */
 .dl-start-kicker { font-family: var(--font-data); font-size: 13px; color: var(--brand-gray-2); margin-bottom: 12px; }
 .dl-start-hero .read-intro a { text-decoration: underline; text-underline-offset: 3px; }

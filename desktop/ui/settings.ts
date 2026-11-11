@@ -19,10 +19,11 @@ import {
   type SettingsView,
   type VoiceServerSettings,
 } from './api';
+import { renderPrivacy } from './settings-privacy';
 import { tabsSection } from './settings-tabs';
 
 /** Secciones nativas: las mismas que DESKTOP_NATIVE_SECTIONS en lib/settings-nav.ts (un test las compara). */
-const TABS = ['start', 'general', 'meetings', 'voice', 'dictionary', 'history', 'permissions', 'updates', 'account'] as const;
+const TABS = ['start', 'general', 'meetings', 'voice', 'dictionary', 'history', 'permissions', 'privacy', 'updates', 'account'] as const;
 type Tab = (typeof TABS)[number];
 
 const NAV_CACHE = 'zs-settings-nav';
@@ -294,6 +295,19 @@ function go(t: Tab) {
   else if (t === 'dictionary') void renderDictionary(panel);
   else if (t === 'history') void renderHistory(panel);
   else if (t === 'permissions') renderPermissions(panel);
+  else if (t === 'privacy')
+    void renderPrivacy(panel, {
+      s,
+      view: () => view!,
+      alive: () => tab === 'privacy' && panel.isConnected,
+      save: async (input) => {
+        const res = await api.save(input);
+        if (res.ok && res.view) view = res.view;
+        return Boolean(res.ok && res.view);
+      },
+      // El permiso se pide y la sección se vuelve a pintar con el estado nuevo.
+      ask,
+    });
   else if (t === 'updates') renderUpdates(panel);
   else renderAccount(panel);
 }
@@ -438,7 +452,7 @@ async function ask(kind: PermissionAsk) {
   const next = await api.ask(kind);
   if (next) {
     view = next;
-    if (tab === 'start' || tab === 'permissions') go(tab);
+    if (tab === 'start' || tab === 'permissions' || tab === 'privacy') go(tab);
   }
 }
 
@@ -851,7 +865,12 @@ function renderPermissions(panel: HTMLElement) {
       ),
     );
   }
-  panel.append(list, h('p', { class: 'help' }, h('button', { class: 'btn link', type: 'button', style: 'padding:0', onclick: () => void reload(false) }, s('checkAgain'))));
+  panel.append(
+    list,
+    h('p', { class: 'help' }, h('button', { class: 'btn link', type: 'button', style: 'padding:0', onclick: () => void reload(false) }, s('checkAgain'))),
+    // Qué hace la app con cada permiso, cuándo lo usó y qué guarda y manda.
+    h('p', {}, h('button', { class: 'btn link', type: 'button', id: 'perm-privacy', style: 'padding:0', onclick: () => go('privacy') }, `${s('tabPrivacy')} →`)),
+  );
   if (v.permissions.accessibility !== 'granted') panel.append(h('p', { class: 'notice', id: 'perm-why' }, s('accessibilityStaleAny')));
   // Mientras falte algo, se relee (los cambios en Ajustes del Sistema no avisan).
   const missing = (['accessibility', 'microphone'] as const).some((k) => v.permissions[k] !== 'granted');

@@ -73,6 +73,19 @@ export default async function DownloadPage(props: { params: Promise<{ locale: st
           </ul>
         </section>
 
+        {/* Qué ve, guarda y manda la app: /download/privacy (los mismos hechos que Ajustes › Privacidad y datos). */}
+        <section className="dl-section" id="privacy" aria-labelledby="dl-privacy">
+          <h2 id="dl-privacy" className="dl-h2">
+            {t('privacyTitle')}
+          </h2>
+          <p className="status-desc dl-p">
+            {t('privacyBody')}{' '}
+            <Link href="/download/privacy" data-testid="download-privacy-link">
+              {t('privacyLink')}
+            </Link>
+          </p>
+        </section>
+
         <section className="dl-section" aria-labelledby="dl-req">
           <h2 id="dl-req" className="dl-h2">
             {t('reqTitle')}

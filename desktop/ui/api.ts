@@ -43,6 +43,10 @@ export interface SettingsView {
   openAtLogin: boolean;
   onboarded: boolean;
   recordingIndicator: boolean;
+  /** Ajustes › Privacidad y datos (config.rs). */
+  sendAppName: boolean;
+  keepFailedDictations: boolean;
+  allowSystemAudio: boolean;
   permissions: Record<PermissionKind, PermissionStatus>;
   /** Qué decir si falta Accesibilidad: ok, off, adhoc (la llave puede ser de otra build) o updated. */
   accessibilityHint: 'ok' | 'off' | 'adhoc' | 'updated';
@@ -92,6 +96,9 @@ export interface SettingsInput {
   openAtLogin?: boolean;
   onboarded?: boolean;
   recordingIndicator?: boolean;
+  sendAppName?: boolean;
+  keepFailedDictations?: boolean;
+  allowSystemAudio?: boolean;
 }
 
 export type RemoteError = 'signed_out' | 'offline' | 'failed';

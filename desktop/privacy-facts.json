@@ -1,0 +1,1303 @@
+{
+ "version": 1,
+ "repo": "https://github.com/lschiaffino/zerosoft/blob/main/",
+ "path": "/download/privacy",
+ "limits": {
+  "activityEvents": 500,
+  "activityDays": 30,
+  "pendingMax": 20,
+  "pendingDays": 7,
+  "systemAudioIdleSeconds": 30,
+  "badgeSeconds": 30,
+  "updateHours": 4,
+  "dictationMaxSeconds": 120,
+  "clipboardRestoreMs": 450
+ },
+ "page": {
+  "en": {
+   "title": "Desktop app: privacy and data",
+   "description": "What the zerosoft desktop app can access on your computer, what it stores there, what it sends and to which server, with the source file behind each statement.",
+   "intro": "This page lists what the desktop app for Mac and Windows reads, stores and sends. Every row names the source file that does it, so you can check. The same list is inside the app, in Settings, Privacy and data, next to the real state of your computer: permissions, files with their size, and a log of what the app did.",
+   "updated": "Applies to version 0.3.7 and later.",
+   "permissions": "Permissions",
+   "permissionsLead": "What each system permission lets the app do. On Windows there is no per-app switch for most of these.",
+   "stores": "Stored on your computer",
+   "storesLead": "Every file and folder the app or its webview writes. Nothing else is kept.",
+   "network": "What leaves your computer",
+   "networkLead": "Every request the native part of the app makes. \"Your server\" is zerosoft.ai, or the address you set in Settings, Account. It must be HTTPS (plain HTTP only for localhost).",
+   "never": "What the app does not do",
+   "indicators": "When something is recording",
+   "events": "The activity log",
+   "eventsLead": "The app keeps a local log of the events below: the last {n} or {d} days, whichever is less. It holds the event, the time, a duration, a size, the host and, if you allow it, the name of the app in front. It has no field for audio, text or clipboard contents. You can read it, export it and clear it in Settings. It is never sent.",
+   "controls": "Switches you control",
+   "security": "How the app is locked down",
+   "limitsTitle": "What is not solved yet",
+   "where": "Where",
+   "what": "What it holds",
+   "kept": "How long",
+   "sent": "What is sent",
+   "when": "When",
+   "to": "To",
+   "source": "Source",
+   "mac": "macOS",
+   "win": "Windows",
+   "content": "May hold your content",
+   "metadata": "Settings or metadata only",
+   "yourServer": "Your server",
+   "inApp": "In the app: Settings, Privacy and data.",
+   "report": "Found something that does not match the code? Write to security@zerosoft.ai."
+  },
+  "es": {
+   "title": "App de escritorio: privacidad y datos",
+   "description": "A qué puede acceder la app de escritorio de zerosoft en tu computadora, qué guarda ahí, qué manda y a qué servidor, con el archivo de código detrás de cada afirmación.",
+   "intro": "Esta página lista lo que la app de escritorio para Mac y Windows lee, guarda y manda. Cada fila nombra el archivo de código que lo hace, para que lo puedas revisar. La misma lista está dentro de la app, en Ajustes, Privacidad y datos, junto al estado real de tu computadora: permisos, archivos con su tamaño y un registro de lo que hizo la app.",
+   "updated": "Vale para la versión 0.3.7 y las que siguen.",
+   "permissions": "Permisos",
+   "permissionsLead": "Qué le deja hacer a la app cada permiso del sistema. En Windows casi ninguno tiene una llave por app.",
+   "stores": "Guardado en tu computadora",
+   "storesLead": "Cada archivo y carpeta que escribe la app o su webview. No se guarda nada más.",
+   "network": "Qué sale de tu computadora",
+   "networkLead": "Cada pedido que hace la parte nativa de la app. \"Tu servidor\" es zerosoft.ai, o la dirección que pusiste en Ajustes, Cuenta. Tiene que ser HTTPS (HTTP solo para localhost).",
+   "never": "Lo que la app no hace",
+   "indicators": "Cuando algo está grabando",
+   "events": "El registro de actividad",
+   "eventsLead": "La app lleva un registro local de los eventos de abajo: los últimos {n} o {d} días, lo que sea menos. Guarda el evento, la hora, una duración, un tamaño, el host y, si lo permitís, el nombre de la app de adelante. No tiene ningún campo para audio, texto ni contenido del portapapeles. Lo podés leer, exportar y vaciar en Ajustes. Nunca se manda.",
+   "controls": "Llaves que manejás vos",
+   "security": "Cómo está cerrada la app",
+   "limitsTitle": "Lo que todavía no está resuelto",
+   "where": "Dónde",
+   "what": "Qué tiene",
+   "kept": "Cuánto tiempo",
+   "sent": "Qué se manda",
+   "when": "Cuándo",
+   "to": "A dónde",
+   "source": "Código",
+   "mac": "macOS",
+   "win": "Windows",
+   "content": "Puede tener contenido tuyo",
+   "metadata": "Solo ajustes o metadatos",
+   "yourServer": "Tu servidor",
+   "inApp": "En la app: Ajustes, Privacidad y datos.",
+   "report": "¿Encontraste algo que no coincide con el código? Escribí a security@zerosoft.ai."
+  },
+  "pt": {
+   "title": "App de desktop: privacidade e dados",
+   "description": "O que o app de desktop do zerosoft pode acessar no seu computador, o que guarda nele, o que envia e para qual servidor, com o arquivo de código por trás de cada afirmação.",
+   "intro": "Esta página lista o que o app de desktop para Mac e Windows lê, guarda e envia. Cada linha indica o arquivo de código que faz isso, para você conferir. A mesma lista está dentro do app, em Ajustes, Privacidade e dados, junto com o estado real do seu computador: permissões, arquivos com o tamanho e um registro do que o app fez.",
+   "updated": "Vale para a versão 0.3.7 e as seguintes.",
+   "permissions": "Permissões",
+   "permissionsLead": "O que cada permissão do sistema deixa o app fazer. No Windows quase nenhuma tem uma chave por app.",
+   "stores": "Guardado no seu computador",
+   "storesLead": "Cada arquivo e pasta que o app ou o webview dele grava. Nada mais é guardado.",
+   "network": "O que sai do seu computador",
+   "networkLead": "Cada pedido que a parte nativa do app faz. \"Seu servidor\" é zerosoft.ai, ou o endereço que você definiu em Ajustes, Conta. Precisa ser HTTPS (HTTP só para localhost).",
+   "never": "O que o app não faz",
+   "indicators": "Quando algo está gravando",
+   "events": "O registro de atividade",
+   "eventsLead": "O app mantém um registro local dos eventos abaixo: os últimos {n} ou {d} dias, o que for menor. Guarda o evento, a hora, uma duração, um tamanho, o host e, se você permitir, o nome do app da frente. Não tem nenhum campo para áudio, texto nem conteúdo da área de transferência. Você pode ler, exportar e limpar em Ajustes. Nunca é enviado.",
+   "controls": "Chaves que você controla",
+   "security": "Como o app é fechado",
+   "limitsTitle": "O que ainda não está resolvido",
+   "where": "Onde",
+   "what": "O que tem",
+   "kept": "Por quanto tempo",
+   "sent": "O que é enviado",
+   "when": "Quando",
+   "to": "Para onde",
+   "source": "Código",
+   "mac": "macOS",
+   "win": "Windows",
+   "content": "Pode ter conteúdo seu",
+   "metadata": "Só ajustes ou metadados",
+   "yourServer": "Seu servidor",
+   "inApp": "No app: Ajustes, Privacidade e dados.",
+   "report": "Encontrou algo que não bate com o código? Escreva para security@zerosoft.ai."
+  }
+ },
+ "permissions": [
+  {
+   "id": "microphone",
+   "code": [
+    "desktop/src-tauri/src/audio.rs",
+    "desktop/src-tauri/src/dictation.rs",
+    "desktop/src-tauri/src/tabs.rs"
+   ],
+   "os": [
+    "macos"
+   ],
+   "pane": "microphone",
+   "en": {
+    "name": "Microphone",
+    "why": "Records your voice while you dictate: from the shortcut until you release it, press it again or reach 2 minutes. The zerosoft page in a tab also gets it for meetings, calls and Rec recordings you start there."
+   },
+   "es": {
+    "name": "Micrófono",
+    "why": "Graba tu voz mientras dictás: desde el atajo hasta que lo soltás, lo tocás de nuevo o pasan 2 minutos. La página de zerosoft de una pestaña también lo recibe para las reuniones, llamadas y grabaciones de Rec que empezás ahí."
+   },
+   "pt": {
+    "name": "Microfone",
+    "why": "Grava sua voz enquanto você dita: do atalho até você soltar, tocar de novo ou chegar a 2 minutos. A página do zerosoft de uma aba também o recebe para as reuniões, chamadas e gravações do Rec que você inicia nela."
+   }
+  },
+  {
+   "id": "accessibility",
+   "code": [
+    "desktop/src-tauri/src/platform.rs",
+    "desktop/src-tauri/src/clipboard.rs"
+   ],
+   "os": [
+    "macos"
+   ],
+   "pane": "accessibility",
+   "en": {
+    "name": "Accessibility",
+    "why": "Used for one thing: sending the Paste keystroke (Command+V) to the app in front, so dictated text lands where your cursor is. To pick the right key it reads your current keyboard layout. It does not read other apps' windows, text or keys. Without it the text stays on the clipboard and you paste it yourself."
+   },
+   "es": {
+    "name": "Accesibilidad",
+    "why": "Se usa para una sola cosa: mandar la tecla de pegar (Command+V) a la app de adelante, así el texto dictado cae donde está el cursor. Para elegir la tecla lee tu distribución de teclado actual. No lee ventanas, texto ni teclas de otras apps. Sin este permiso el texto queda en el portapapeles y lo pegás vos."
+   },
+   "pt": {
+    "name": "Acessibilidade",
+    "why": "Serve para uma coisa só: enviar a tecla de colar (Command+V) ao app da frente, para o texto ditado cair onde está o cursor. Para escolher a tecla, lê o layout de teclado atual. Não lê janelas, texto nem teclas de outros apps. Sem ela o texto fica na área de transferência e você cola."
+   }
+  },
+  {
+   "id": "screen",
+   "code": [
+    "desktop/src-tauri/src/system_audio.rs",
+    "desktop/src-tauri/src/commands.rs"
+   ],
+   "os": [
+    "macos"
+   ],
+   "pane": "screen",
+   "en": {
+    "name": "Screen and system audio recording",
+    "why": "Meeting notes capture the sound your computer plays (the other people in a call). macOS puts that under screen recording. The system requires a video stream, so the app asks for one of 2 by 2 pixels and never reads it. Screen recordings in Rec are made by the page in the tab through the webview, and macOS can ask for this same permission for them."
+   },
+   "es": {
+    "name": "Grabación de pantalla y audio del sistema",
+    "why": "Las notas de reunión capturan lo que suena en tu computadora (la otra gente de una llamada). macOS lo pone bajo grabación de pantalla. El sistema exige un stream de video, así que la app pide uno de 2 por 2 píxeles y nunca lo lee. Las grabaciones de pantalla de Rec las hace la página de la pestaña con el webview, y macOS puede pedir este mismo permiso para ellas."
+   },
+   "pt": {
+    "name": "Gravação de tela e áudio do sistema",
+    "why": "As notas de reunião capturam o som que o computador toca (as outras pessoas de uma chamada). O macOS coloca isso em gravação de tela. O sistema exige um stream de vídeo, então o app pede um de 2 por 2 pixels e nunca o lê. As gravações de tela do Rec são feitas pela página da aba pelo webview, e o macOS pode pedir esta mesma permissão para elas."
+   }
+  },
+  {
+   "id": "camera",
+   "code": [
+    "desktop/src-tauri/src/tabs.rs",
+    "desktop/src-tauri/src/rec_overlay.rs"
+   ],
+   "os": [
+    "macos"
+   ],
+   "pane": "camera",
+   "en": {
+    "name": "Camera",
+    "why": "Video calls in Talk and your face in Rec recordings. The app hands the camera only to the zerosoft page of your server in a tab and to the Rec camera bubble. In a tab, any other address is refused."
+   },
+   "es": {
+    "name": "Cámara",
+    "why": "Videollamadas en Talk y tu cara en las grabaciones de Rec. La app le da la cámara solo a la página de zerosoft de tu servidor en una pestaña y a la burbuja de cámara de Rec. En una pestaña, cualquier otra dirección queda rechazada."
+   },
+   "pt": {
+    "name": "Câmera",
+    "why": "Videochamadas no Talk e seu rosto nas gravações do Rec. O app entrega a câmera só à página do zerosoft do seu servidor em uma aba e à bolha de câmera do Rec. Em uma aba, qualquer outro endereço é recusado."
+   }
+  },
+  {
+   "id": "clipboard",
+   "code": [
+    "desktop/src-tauri/src/clipboard.rs",
+    "desktop/src-tauri/src/dictation.rs"
+   ],
+   "os": [],
+   "en": {
+    "name": "Clipboard",
+    "why": "No system permission. To paste, the app keeps what is on your clipboard (text or image) in memory, writes the dictated text, sends Paste and 450 ms later puts back what was there, unless you copied something else meanwhile. What it held is never written to disk and never sent."
+   },
+   "es": {
+    "name": "Portapapeles",
+    "why": "No pide permiso del sistema. Para pegar, la app guarda en memoria lo que hay en tu portapapeles (texto o imagen), escribe el texto dictado, manda la tecla de pegar y 450 ms después devuelve lo que había, salvo que hayas copiado otra cosa en el medio. Lo que guardó nunca se escribe en disco ni se manda."
+   },
+   "pt": {
+    "name": "Área de transferência",
+    "why": "Não pede permissão do sistema. Para colar, o app guarda na memória o que está na área de transferência (texto ou imagem), escreve o texto ditado, envia a tecla de colar e 450 ms depois devolve o que havia, a menos que você tenha copiado outra coisa nesse meio. O que guardou nunca é gravado em disco nem enviado."
+   }
+  },
+  {
+   "id": "shortcuts",
+   "code": [
+    "desktop/src-tauri/src/dictation.rs",
+    "desktop/src-tauri/src/rec_overlay.rs"
+   ],
+   "os": [],
+   "en": {
+    "name": "Global shortcuts",
+    "why": "No system permission. The app registers specific key combinations with the system: the dictation shortcut, \"paste last\", Esc only while it dictates, and two Rec shortcuts only while Rec records. It installs no keyboard hook, so it cannot see any other key you press."
+   },
+   "es": {
+    "name": "Atajos globales",
+    "why": "No piden permiso del sistema. La app registra combinaciones puntuales en el sistema: el atajo de dictado, \"pegar el último\", Esc solo mientras dicta y dos atajos de Rec solo mientras Rec graba. No instala ningún hook de teclado, así que no puede ver ninguna otra tecla."
+   },
+   "pt": {
+    "name": "Atalhos globais",
+    "why": "Não pedem permissão do sistema. O app registra combinações específicas no sistema: o atalho de ditado, \"colar o último\", Esc só enquanto dita e dois atalhos do Rec só enquanto o Rec grava. Não instala nenhum hook de teclado, então não consegue ver nenhuma outra tecla."
+   }
+  },
+  {
+   "id": "notifications",
+   "code": [
+    "desktop/src-tauri/src/badge.rs",
+    "desktop/src-tauri/src/commands.rs"
+   ],
+   "os": [],
+   "en": {
+    "name": "Notifications",
+    "why": "Shows new mentions, messages and updates as system notifications. Title and text come from your server and go straight to the system; the app does not save them."
+   },
+   "es": {
+    "name": "Notificaciones",
+    "why": "Muestra menciones, mensajes y actualizaciones como avisos del sistema. El título y el texto vienen de tu servidor y van directo al sistema; la app no los guarda."
+   },
+   "pt": {
+    "name": "Notificações",
+    "why": "Mostra menções, mensagens e atualizações como avisos do sistema. O título e o texto vêm do seu servidor e vão direto ao sistema; o app não os guarda."
+   }
+  }
+ ],
+ "stores": [
+  {
+   "id": "settings",
+   "code": [
+    "desktop/src-tauri/src/config.rs"
+   ],
+   "mac": "~/Library/Application Support/ai.zerosoft.desktop/settings.json",
+   "win": "%APPDATA%\\ai.zerosoft.desktop\\settings.json",
+   "content": false,
+   "delete": false,
+   "en": {
+    "name": "App settings",
+    "what": "Server address, dictation shortcut and mode, the switches on this page, where you left the recording indicator and the app version in which Accessibility was last seen allowed. Plain JSON. No account data.",
+    "kept": "Until you delete all local data."
+   },
+   "es": {
+    "name": "Ajustes de la app",
+    "what": "Dirección del servidor, atajo y modo de dictado, las llaves de esta página, dónde dejaste el indicador de grabación y la versión de la app con la que Accesibilidad se vio permitida por última vez. JSON sin cifrar. Sin datos de la cuenta.",
+    "kept": "Hasta que borres todos los datos locales."
+   },
+   "pt": {
+    "name": "Ajustes do app",
+    "what": "Endereço do servidor, atalho e modo de ditado, as chaves desta página, onde você deixou o indicador de gravação e a versão do app em que a Acessibilidade foi vista permitida pela última vez. JSON sem criptografia. Sem dados da conta.",
+    "kept": "Até você apagar todos os dados locais."
+   }
+  },
+  {
+   "id": "session",
+   "code": [
+    "desktop/src-tauri/src/session.rs",
+    "desktop/src-tauri/src/tabs.rs"
+   ],
+   "mac": "~/Library/Application Support/ai.zerosoft.desktop/session.json",
+   "win": "%APPDATA%\\ai.zerosoft.desktop\\session.json",
+   "content": true,
+   "delete": false,
+   "en": {
+    "name": "Open windows and tabs",
+    "what": "For each tab, its path inside zerosoft and its title, which can include the name of a record such as a document or a contact. Also window sizes and positions, and your tab preferences. Plain JSON. With \"Reopen my windows and tabs\" off, only the preferences are saved.",
+    "kept": "Rewritten as tabs change. Removed when you delete all local data."
+   },
+   "es": {
+    "name": "Ventanas y pestañas abiertas",
+    "what": "De cada pestaña, su ruta dentro de zerosoft y su título, que puede incluir el nombre de un registro, como un documento o un contacto. También el tamaño y la posición de las ventanas, y tus preferencias de pestañas. JSON sin cifrar. Con \"volver a abrir mis ventanas y pestañas\" apagado, solo se guardan las preferencias.",
+    "kept": "Se reescribe cuando cambian las pestañas. Se borra con \"borrar todos los datos locales\"."
+   },
+   "pt": {
+    "name": "Janelas e abas abertas",
+    "what": "De cada aba, o caminho dentro do zerosoft e o título, que pode incluir o nome de um registro, como um documento ou um contato. Também o tamanho e a posição das janelas, e suas preferências de abas. JSON sem criptografia. Com \"reabrir minhas janelas e abas\" desligado, só as preferências são salvas.",
+    "kept": "É regravado quando as abas mudam. Apagado com \"apagar todos os dados locais\"."
+   }
+  },
+  {
+   "id": "window_state",
+   "code": [
+    "desktop/src-tauri/src/lib.rs"
+   ],
+   "mac": "~/Library/Application Support/ai.zerosoft.desktop/.window-state.json",
+   "win": "%APPDATA%\\ai.zerosoft.desktop\\.window-state.json",
+   "content": false,
+   "delete": false,
+   "en": {
+    "name": "Main window position",
+    "what": "Size and position of the main window, written by the window-state plugin.",
+    "kept": "Removed when you delete all local data. The plugin writes it again when the app quits."
+   },
+   "es": {
+    "name": "Posición de la ventana principal",
+    "what": "Tamaño y posición de la ventana principal, escritos por el plugin window-state.",
+    "kept": "Se borra con \"borrar todos los datos locales\". El plugin lo vuelve a escribir cuando la app se cierra."
+   },
+   "pt": {
+    "name": "Posição da janela principal",
+    "what": "Tamanho e posição da janela principal, gravados pelo plugin window-state.",
+    "kept": "Apagado com \"apagar todos os dados locais\". O plugin grava de novo quando o app fecha."
+   }
+  },
+  {
+   "id": "pending",
+   "code": [
+    "desktop/src-tauri/src/retry.rs",
+    "desktop/src-tauri/src/dictation.rs"
+   ],
+   "mac": "~/Library/Application Support/ai.zerosoft.desktop/pending/",
+   "win": "%APPDATA%\\ai.zerosoft.desktop\\pending\\",
+   "content": true,
+   "delete": true,
+   "en": {
+    "name": "Dictations that were not sent",
+    "what": "The audio of a dictation that could not be sent (no connection, signed out, server error), as a WAV file, plus when it was recorded, how long it is, why it failed and, if that switch is on, the name of the app in front. Not encrypted. On macOS only your user can read the files (mode 600). Audio that was sent is not kept.",
+    "kept": "At most 20, each for 7 days or until it is sent. Turn off \"Keep dictations that could not be sent\" and none is written."
+   },
+   "es": {
+    "name": "Dictados que no se enviaron",
+    "what": "El audio de un dictado que no se pudo enviar (sin conexión, sin sesión, error del servidor), como archivo WAV, más cuándo se grabó, cuánto dura, por qué falló y, si esa llave está prendida, el nombre de la app de adelante. Sin cifrar. En macOS solo tu usuario puede leer los archivos (modo 600). El audio que sí se envió no se guarda.",
+    "kept": "Como mucho 20, cada uno 7 días o hasta que se envía. Apagá \"guardar los dictados que no se pudieron enviar\" y no se escribe ninguno."
+   },
+   "pt": {
+    "name": "Ditados que não foram enviados",
+    "what": "O áudio de um ditado que não pôde ser enviado (sem conexão, sem sessão, erro do servidor), como arquivo WAV, mais quando foi gravado, a duração, por que falhou e, se essa chave estiver ligada, o nome do app da frente. Sem criptografia. No macOS só o seu usuário pode ler os arquivos (modo 600). O áudio que foi enviado não é guardado.",
+    "kept": "No máximo 20, cada um por 7 dias ou até ser enviado. Desligue \"guardar os ditados que não puderam ser enviados\" e nenhum é gravado."
+   }
+  },
+  {
+   "id": "activity",
+   "code": [
+    "desktop/src-tauri/src/privacy.rs"
+   ],
+   "mac": "~/Library/Application Support/ai.zerosoft.desktop/privacy/activity.json",
+   "win": "%APPDATA%\\ai.zerosoft.desktop\\privacy\\activity.json",
+   "content": false,
+   "delete": true,
+   "en": {
+    "name": "Activity log and last use",
+    "what": "The log on this page and when each permission was last used. Event type, time, duration, size, host and, if that switch is on, the name of the app in front. It holds no audio, text or clipboard contents.",
+    "kept": "The last 500 events or 30 days. Clearing deletes the file."
+   },
+   "es": {
+    "name": "Registro de actividad y último uso",
+    "what": "El registro de esta página y cuándo se usó cada permiso por última vez. Tipo de evento, hora, duración, tamaño, host y, si esa llave está prendida, el nombre de la app de adelante. No guarda audio, texto ni contenido del portapapeles.",
+    "kept": "Los últimos 500 eventos o 30 días. Vaciarlo borra el archivo."
+   },
+   "pt": {
+    "name": "Registro de atividade e último uso",
+    "what": "O registro desta página e quando cada permissão foi usada pela última vez. Tipo de evento, hora, duração, tamanho, host e, se essa chave estiver ligada, o nome do app da frente. Não guarda áudio, texto nem conteúdo da área de transferência.",
+    "kept": "Os últimos 500 eventos ou 30 dias. Limpar apaga o arquivo."
+   }
+  },
+  {
+   "id": "web_data",
+   "code": [
+    "desktop/src-tauri/src/tabs.rs",
+    "desktop/src-tauri/src/commands.rs"
+   ],
+   "mac": "~/Library/WebKit/ai.zerosoft.desktop/",
+   "win": "%LOCALAPPDATA%\\ai.zerosoft.desktop\\EBWebView\\",
+   "content": true,
+   "delete": true,
+   "en": {
+    "name": "Website data",
+    "what": "What the zerosoft website stores, as in a browser: local storage and databases (including what it keeps for offline use). On Windows this folder also holds the cookies and the cache. Written by the system webview (WebKit on macOS, WebView2 on Windows) in its own formats.",
+    "kept": "Until you delete website data, which also signs you out."
+   },
+   "es": {
+    "name": "Datos del sitio",
+    "what": "Lo que guarda el sitio de zerosoft, como en un navegador: almacenamiento local y bases de datos (incluido lo que deja para usar sin conexión). En Windows esta carpeta también tiene las cookies y la caché. Lo escribe el webview del sistema (WebKit en macOS, WebView2 en Windows) en sus propios formatos.",
+    "kept": "Hasta que borres los datos del sitio, que también cierra la sesión."
+   },
+   "pt": {
+    "name": "Dados do site",
+    "what": "O que o site do zerosoft guarda, como em um navegador: armazenamento local e bancos de dados (incluindo o que deixa para uso offline). No Windows esta pasta também tem os cookies e o cache. Gravado pelo webview do sistema (WebKit no macOS, WebView2 no Windows) nos formatos próprios dele.",
+    "kept": "Até você apagar os dados do site, o que também encerra a sessão."
+   }
+  },
+  {
+   "id": "web_cookies",
+   "code": [
+    "desktop/src-tauri/src/auth.rs",
+    "desktop/src-tauri/src/api.rs"
+   ],
+   "mac": "~/Library/HTTPStorages/ai.zerosoft.desktop.binarycookies",
+   "win": "",
+   "content": true,
+   "delete": false,
+   "en": {
+    "name": "Cookies (your session)",
+    "what": "The website cookies, including the session cookie that keeps you signed in. The webview stores it; the app encrypts nothing here and keeps no other copy of the session, in a file or in the system keychain. For its own requests the app reads the cookie from the webview each time.",
+    "kept": "Until you sign out, the session expires, or you delete website data."
+   },
+   "es": {
+    "name": "Cookies (tu sesión)",
+    "what": "Las cookies del sitio, incluida la de sesión que te mantiene adentro. La guarda el webview; la app no cifra nada acá y no tiene otra copia de la sesión, ni en un archivo ni en el llavero del sistema. Para sus propios pedidos la app lee la cookie del webview cada vez.",
+    "kept": "Hasta que cierres la sesión, venza, o borres los datos del sitio."
+   },
+   "pt": {
+    "name": "Cookies (sua sessão)",
+    "what": "Os cookies do site, incluindo o de sessão que mantém você conectado. O webview guarda; o app não criptografa nada aqui e não tem outra cópia da sessão, nem em arquivo nem nas chaves do sistema. Para os próprios pedidos o app lê o cookie do webview a cada vez.",
+    "kept": "Até você sair, a sessão expirar ou você apagar os dados do site."
+   }
+  },
+  {
+   "id": "web_cache",
+   "code": [
+    "desktop/src-tauri/src/tabs.rs"
+   ],
+   "mac": "~/Library/Caches/ai.zerosoft.desktop/",
+   "win": "",
+   "content": true,
+   "delete": false,
+   "en": {
+    "name": "Web cache",
+    "what": "Pages, images and scripts the webview cached to load faster.",
+    "kept": "Managed by the webview. Removed when you delete website data."
+   },
+   "es": {
+    "name": "Caché web",
+    "what": "Páginas, imágenes y scripts que el webview guardó para cargar más rápido.",
+    "kept": "Lo administra el webview. Se borra con los datos del sitio."
+   },
+   "pt": {
+    "name": "Cache web",
+    "what": "Páginas, imagens e scripts que o webview guardou para carregar mais rápido.",
+    "kept": "Administrado pelo webview. Apagado com os dados do site."
+   }
+  },
+  {
+   "id": "autostart",
+   "code": [
+    "desktop/src-tauri/src/lib.rs",
+    "desktop/src-tauri/src/commands.rs"
+   ],
+   "mac": "",
+   "win": "",
+   "content": false,
+   "delete": false,
+   "en": {
+    "name": "Open at login",
+    "what": "Only if you turned on \"Open zerosoft when I log in\": a login item kept by the system (a LaunchAgent on macOS, a Run entry in the registry on Windows). It holds the path of the app.",
+    "kept": "Until you turn the switch off or delete all local data."
+   },
+   "es": {
+    "name": "Abrir al iniciar sesión",
+    "what": "Solo si prendiste \"abrir zerosoft al iniciar sesión\": un ítem de inicio que guarda el sistema (un LaunchAgent en macOS, una entrada Run del registro en Windows). Tiene la ruta de la app.",
+    "kept": "Hasta que apagues la llave o borres todos los datos locales."
+   },
+   "pt": {
+    "name": "Abrir ao entrar",
+    "what": "Só se você ligou \"abrir o zerosoft ao entrar no computador\": um item de início mantido pelo sistema (um LaunchAgent no macOS, uma entrada Run do registro no Windows). Tem o caminho do app.",
+    "kept": "Até você desligar a chave ou apagar todos os dados locais."
+   }
+  }
+ ],
+ "network": [
+  {
+   "id": "tabs",
+   "code": [
+    "desktop/src-tauri/src/tabs.rs",
+    "desktop/src-tauri/src/nav.rs"
+   ],
+   "host": "server",
+   "en": {
+    "feature": "The zerosoft app in each tab",
+    "sent": "What the website sends in any browser: the pages you open, your work and the session cookie. Analytics the website uses apply here as they do in a browser.",
+    "when": "While a tab is open."
+   },
+   "es": {
+    "feature": "La app de zerosoft en cada pestaña",
+    "sent": "Lo que el sitio manda en cualquier navegador: las páginas que abrís, tu trabajo y la cookie de sesión. La analítica que use el sitio vale acá igual que en un navegador.",
+    "when": "Mientras hay una pestaña abierta."
+   },
+   "pt": {
+    "feature": "O app do zerosoft em cada aba",
+    "sent": "O que o site envia em qualquer navegador: as páginas que você abre, seu trabalho e o cookie de sessão. A análise que o site usar vale aqui como em um navegador.",
+    "when": "Enquanto há uma aba aberta."
+   }
+  },
+  {
+   "id": "dictation",
+   "code": [
+    "desktop/src-tauri/src/api.rs",
+    "desktop/src-tauri/src/dictation.rs",
+    "desktop/src-tauri/src/platform.rs"
+   ],
+   "host": "server",
+   "endpoint": "POST /api/voice/dictate",
+   "en": {
+    "feature": "Dictation",
+    "sent": "The audio of what you said (WAV, 16 kHz, mono), its duration, a category (email, chat, note, other) worked out from the name of the app in front, that app's name (macOS, if the switch is on; otherwise the word \"desktop\") and the session cookie. The server transcribes it and saves the text in your Voice history. One request without a cookie (HEAD /robots.txt) opens the connection when you start.",
+    "when": "When you finish a dictation or resend a saved one."
+   },
+   "es": {
+    "feature": "Dictado",
+    "sent": "El audio de lo que dijiste (WAV, 16 kHz, mono), su duración, una categoría (email, chat, nota, otro) que sale del nombre de la app de adelante, el nombre de esa app (macOS, si la llave está prendida; si no, la palabra \"desktop\") y la cookie de sesión. El servidor lo transcribe y guarda el texto en tu historial de Voice. Un pedido sin cookie (HEAD /robots.txt) abre la conexión cuando empezás.",
+    "when": "Cuando terminás un dictado o mandás de nuevo uno guardado."
+   },
+   "pt": {
+    "feature": "Ditado",
+    "sent": "O áudio do que você disse (WAV, 16 kHz, mono), a duração, uma categoria (email, chat, nota, outro) tirada do nome do app da frente, o nome desse app (macOS, se a chave estiver ligada; senão, a palavra \"desktop\") e o cookie de sessão. O servidor transcreve e salva o texto no seu histórico do Voice. Um pedido sem cookie (HEAD /robots.txt) abre a conexão quando você começa.",
+    "when": "Quando você termina um ditado ou reenvia um salvo."
+   }
+  },
+  {
+   "id": "voice",
+   "code": [
+    "desktop/src-tauri/src/commands.rs",
+    "desktop/src-tauri/src/dictation.rs"
+   ],
+   "host": "server",
+   "endpoint": "/api/voice/settings, /api/voice/dictionary, /api/voice/sessions",
+   "en": {
+    "feature": "Voice settings, dictionary and history",
+    "sent": "The session cookie and what you change. These live on the server; the app shows them and saves your edits. \"Paste last\" asks the server for your latest dictation when the app has none in memory.",
+    "when": "When you open those sections in Settings, or use \"paste last\"."
+   },
+   "es": {
+    "feature": "Ajustes de Voice, diccionario e historial",
+    "sent": "La cookie de sesión y lo que cambiás. Viven en el servidor; la app los muestra y guarda tus cambios. \"Pegar el último\" le pide al servidor tu último dictado cuando la app no tiene ninguno en memoria.",
+    "when": "Cuando abrís esas secciones en Ajustes, o usás \"pegar el último\"."
+   },
+   "pt": {
+    "feature": "Ajustes do Voice, dicionário e histórico",
+    "sent": "O cookie de sessão e o que você altera. Ficam no servidor; o app mostra e salva suas alterações. \"Colar o último\" pede ao servidor seu último ditado quando o app não tem nenhum na memória.",
+    "when": "Quando você abre essas seções em Ajustes, ou usa \"colar o último\"."
+   }
+  },
+  {
+   "id": "meetings",
+   "code": [
+    "desktop/src-tauri/src/system_audio.rs",
+    "desktop/src-tauri/src/commands.rs"
+   ],
+   "host": "server",
+   "en": {
+    "feature": "Meeting notes",
+    "sent": "The app hands the computer audio it captures to the zerosoft page in a tab, in memory. That page records the meeting and uploads it the way the website does. The native part sends nothing itself.",
+    "when": "While a meeting records with computer audio (macOS)."
+   },
+   "es": {
+    "feature": "Notas de reunión",
+    "sent": "La app le pasa el audio de la computadora que captura a la página de zerosoft de una pestaña, en memoria. Esa página graba la reunión y la sube como lo hace el sitio. La parte nativa no manda nada por su cuenta.",
+    "when": "Mientras se graba una reunión con el audio de la computadora (macOS)."
+   },
+   "pt": {
+    "feature": "Notas de reunião",
+    "sent": "O app passa o áudio do computador que captura para a página do zerosoft de uma aba, na memória. Essa página grava a reunião e envia como o site faz. A parte nativa não envia nada por conta própria.",
+    "when": "Enquanto uma reunião é gravada com o áudio do computador (macOS)."
+   }
+  },
+  {
+   "id": "badge",
+   "code": [
+    "desktop/src-tauri/src/badge.rs",
+    "desktop/src-tauri/src/commands.rs"
+   ],
+   "host": "server",
+   "endpoint": "GET /api/desktop/badge",
+   "en": {
+    "feature": "Unread count and notifications",
+    "sent": "The session cookie and the time of the previous check. The answer has your unread counts, up to 5 new notifications, the apps your workspace turned off, and your name and email (shown in Settings). Checks made without a previous time (the first one after each launch, and the ones Settings makes) also tell the server that your account uses the desktop app.",
+    "when": "Every 30 seconds, when a window gets focus, and when Settings opens."
+   },
+   "es": {
+    "feature": "Contador de no leídos y avisos",
+    "sent": "La cookie de sesión y la hora de la consulta anterior. La respuesta trae tus contadores de no leídos, hasta 5 avisos nuevos, las apps que tu workspace apagó, y tu nombre y email (se muestran en Ajustes). Las consultas sin hora anterior (la primera de cada arranque y las que hace Ajustes) también le dicen al servidor que tu cuenta usa la app de escritorio.",
+    "when": "Cada 30 segundos, cuando una ventana toma el foco y cuando se abre Ajustes."
+   },
+   "pt": {
+    "feature": "Contador de não lidos e avisos",
+    "sent": "O cookie de sessão e a hora da consulta anterior. A resposta traz seus contadores de não lidos, até 5 avisos novos, os apps que seu workspace desligou, e seu nome e email (mostrados em Ajustes). As consultas sem hora anterior (a primeira de cada abertura e as que Ajustes faz) também dizem ao servidor que sua conta usa o app de desktop.",
+    "when": "A cada 30 segundos, quando uma janela recebe o foco e quando Ajustes abre."
+   }
+  },
+  {
+   "id": "settings_nav",
+   "code": [
+    "desktop/src-tauri/src/commands.rs"
+   ],
+   "host": "server",
+   "endpoint": "GET /api/settings/nav",
+   "en": {
+    "feature": "Settings sections",
+    "sent": "The session cookie and the language of the app, to list the settings sections your account has.",
+    "when": "When the Settings window opens."
+   },
+   "es": {
+    "feature": "Secciones de Ajustes",
+    "sent": "La cookie de sesión y el idioma de la app, para listar las secciones de ajustes que tiene tu cuenta.",
+    "when": "Cuando se abre la ventana de Ajustes."
+   },
+   "pt": {
+    "feature": "Seções de Ajustes",
+    "sent": "O cookie de sessão e o idioma do app, para listar as seções de ajustes que sua conta tem.",
+    "when": "Quando a janela de Ajustes abre."
+   }
+  },
+  {
+   "id": "signin",
+   "code": [
+    "desktop/src-tauri/src/auth.rs",
+    "desktop/src-tauri/src/deeplink.rs"
+   ],
+   "host": "server",
+   "endpoint": "/api/desktop/login, POST /api/desktop/token",
+   "en": {
+    "feature": "Sign in with Google",
+    "sent": "Your browser opens the sign-in page of your server with a one-time challenge (PKCE), a random state, the language of the app and the platform (Mac or Windows). When the browser returns, the app trades a one-time code and its verifier for the session cookie and puts it in the webview. Signing in with email happens inside the tab, like on the website.",
+    "when": "When you sign in."
+   },
+   "es": {
+    "feature": "Entrar con Google",
+    "sent": "Tu navegador abre la página de ingreso de tu servidor con un desafío de un solo uso (PKCE), un state al azar, el idioma de la app y la plataforma (Mac o Windows). Cuando el navegador vuelve, la app cambia un código de un solo uso y su verificador por la cookie de sesión y la pone en el webview. Entrar con email pasa dentro de la pestaña, como en el sitio.",
+    "when": "Cuando iniciás sesión."
+   },
+   "pt": {
+    "feature": "Entrar com Google",
+    "sent": "Seu navegador abre a página de entrada do seu servidor com um desafio de uso único (PKCE), um state aleatório, o idioma do app e a plataforma (Mac ou Windows). Quando o navegador volta, o app troca um código de uso único e o verificador pelo cookie de sessão e o coloca no webview. Entrar com email acontece dentro da aba, como no site.",
+    "when": "Quando você entra."
+   }
+  },
+  {
+   "id": "updates",
+   "code": [
+    "desktop/src-tauri/src/updater.rs",
+    "desktop/src-tauri/tauri.conf.json",
+    "lib/desktop-release.ts"
+   ],
+   "host": "update",
+   "endpoint": "GET /api/desktop/update/latest.json",
+   "en": {
+    "feature": "Updates",
+    "sent": "A request for the update feed, without your session cookie. If there is a new version, the package is downloaded from the address in that feed (GitHub Releases). The app installs it only if its signature matches the public key built into the app.",
+    "when": "20 seconds after launch, every 4 hours, and when you ask."
+   },
+   "es": {
+    "feature": "Actualizaciones",
+    "sent": "Un pedido del feed de actualizaciones, sin tu cookie de sesión. Si hay versión nueva, el paquete se baja de la dirección que dice ese feed (GitHub Releases). La app lo instala solo si la firma coincide con la clave pública que trae la app.",
+    "when": "20 segundos después de abrir, cada 4 horas y cuando lo pedís."
+   },
+   "pt": {
+    "feature": "Atualizações",
+    "sent": "Um pedido do feed de atualizações, sem o cookie de sessão. Se há versão nova, o pacote é baixado do endereço indicado no feed (GitHub Releases). O app só instala se a assinatura bater com a chave pública que vem no app.",
+    "when": "20 segundos depois de abrir, a cada 4 horas e quando você pede."
+   }
+  },
+  {
+   "id": "browser",
+   "code": [
+    "desktop/src-tauri/src/nav.rs",
+    "desktop/src-tauri/src/lib.rs"
+   ],
+   "host": "browser",
+   "en": {
+    "feature": "Links and connecting accounts",
+    "sent": "Nothing from the app. A link to another site, and the consent screen of an integration (Gmail, Calendar, Slack and others), open in your system browser.",
+    "when": "When you click them."
+   },
+   "es": {
+    "feature": "Links y conectar cuentas",
+    "sent": "Nada desde la app. Un link a otro sitio, y la pantalla de permiso de una integración (Gmail, Calendar, Slack y otras), se abren en tu navegador del sistema.",
+    "when": "Cuando hacés clic."
+   },
+   "pt": {
+    "feature": "Links e conectar contas",
+    "sent": "Nada pelo app. Um link para outro site, e a tela de consentimento de uma integração (Gmail, Calendar, Slack e outras), abrem no navegador do sistema.",
+    "when": "Quando você clica."
+   }
+  }
+ ],
+ "never": [
+  {
+   "id": "telemetry",
+   "code": [
+    "desktop/src-tauri/src/api.rs",
+    "desktop/src-tauri/Cargo.toml"
+   ],
+   "en": "The native app has no analytics, telemetry or crash reporting. Its only network requests are the ones in the table above.",
+   "es": "La app nativa no tiene analítica, telemetría ni reporte de fallas. Sus únicos pedidos de red son los de la tabla de arriba.",
+   "pt": "O app nativo não tem análise, telemetria nem relatório de falhas. Os únicos pedidos de rede dele são os da tabela acima."
+  },
+  {
+   "id": "screen",
+   "code": [
+    "desktop/src-tauri/src/platform.rs",
+    "desktop/src-tauri/src/system_audio.rs"
+   ],
+   "en": "It does not read window titles, the contents of your screen or text in other apps. The only thing it learns about another app is its name, for dictation, and only with that switch on.",
+   "es": "No lee títulos de ventanas, el contenido de tu pantalla ni texto de otras apps. Lo único que sabe de otra app es su nombre, para el dictado, y solo con esa llave prendida.",
+   "pt": "Não lê títulos de janelas, o conteúdo da tela nem texto de outros apps. A única coisa que sabe de outro app é o nome, para o ditado, e só com essa chave ligada."
+  },
+  {
+   "id": "keys",
+   "code": [
+    "desktop/src-tauri/src/dictation.rs"
+   ],
+   "en": "It does not record what you type. It receives only the shortcuts it registered.",
+   "es": "No registra lo que escribís. Recibe solo los atajos que registró.",
+   "pt": "Não registra o que você digita. Recebe só os atalhos que registrou."
+  },
+  {
+   "id": "clipboard",
+   "code": [
+    "desktop/src-tauri/src/clipboard.rs",
+    "desktop/src-tauri/src/dictation.rs"
+   ],
+   "en": "It does not save or send what is on your clipboard.",
+   "es": "No guarda ni manda lo que hay en tu portapapeles.",
+   "pt": "Não guarda nem envia o que está na área de transferência."
+  },
+  {
+   "id": "ids",
+   "code": [
+    "desktop/src-tauri/src/api.rs",
+    "desktop/src-tauri/src/auth.rs"
+   ],
+   "en": "It sends no device identifier, computer name or user name. Its own requests identify themselves as \"zerosoft-desktop\" plus the version.",
+   "es": "No manda ningún identificador del dispositivo, nombre de la computadora ni nombre de usuario. Sus pedidos se identifican como \"zerosoft-desktop\" más la versión.",
+   "pt": "Não envia nenhum identificador do dispositivo, nome do computador nem nome de usuário. Os pedidos dele se identificam como \"zerosoft-desktop\" mais a versão."
+  },
+  {
+   "id": "logs",
+   "code": [
+    "desktop/src-tauri/Cargo.toml",
+    "desktop/src-tauri/src/lib.rs"
+   ],
+   "en": "It writes no log files. The activity log on this page is the only record it keeps of what it did.",
+   "es": "No escribe archivos de log. El registro de actividad de esta página es lo único que guarda de lo que hizo.",
+   "pt": "Não grava arquivos de log. O registro de atividade desta página é a única coisa que guarda do que fez."
+  },
+  {
+   "id": "keychain",
+   "code": [
+    "desktop/src-tauri/src/auth.rs"
+   ],
+   "en": "It stores nothing in the system keychain and has no password or token of its own.",
+   "es": "No guarda nada en el llavero del sistema y no tiene contraseña ni token propio.",
+   "pt": "Não guarda nada nas chaves do sistema e não tem senha nem token próprio."
+  }
+ ],
+ "indicators": [
+  {
+   "id": "menu_bar",
+   "code": [
+    "desktop/src-tauri/src/tray.rs",
+    "desktop/src-tauri/src/privacy.rs"
+   ],
+   "en": "While the app dictates, captures computer audio, or a tab reported a meeting or screen recording, a dot shows next to the zerosoft icon in the macOS menu bar, and the icon's tooltip and menu say what is active (macOS and Windows). The app draws it from its own state. The page cannot switch it off and there is no setting that hides it.",
+   "es": "Mientras la app dicta, captura el audio de la computadora, o una pestaña avisó que graba una reunión o la pantalla, aparece un punto al lado del ícono de zerosoft en la barra de menú de macOS, y el globo y el menú del ícono dicen qué está activo (macOS y Windows). La app lo dibuja con su propio estado. La página no lo puede apagar y no hay ajuste que lo esconda.",
+   "pt": "Enquanto o app dita, captura o áudio do computador, ou uma aba avisou que grava uma reunião ou a tela, aparece um ponto ao lado do ícone do zerosoft na barra de menus do macOS, e a dica e o menu do ícone dizem o que está ativo (macOS e Windows). O app desenha com o próprio estado. A página não pode desligar e não há ajuste que esconda."
+  },
+  {
+   "id": "hud",
+   "code": [
+    "desktop/src-tauri/src/hud.rs",
+    "desktop/src-tauri/src/dictation.rs"
+   ],
+   "en": "Dictation shows a bar at the bottom of the screen with a timer for as long as the microphone is open.",
+   "es": "El dictado muestra una barra abajo en la pantalla con un reloj todo el tiempo que el micrófono está abierto.",
+   "pt": "O ditado mostra uma barra embaixo na tela com um relógio durante todo o tempo em que o microfone está aberto."
+  },
+  {
+   "id": "system_audio",
+   "code": [
+    "desktop/src-tauri/src/system_audio.rs",
+    "desktop/src-tauri/src/indicator.rs",
+    "desktop/src-tauri/src/commands.rs"
+   ],
+   "en": "Computer audio capture can start only from the tab you are looking at, never from a background tab or a hidden window. While it runs and that tab is not in front, a small floating indicator stays on top of other apps even if you turned the meeting indicator off; you can close it for that recording. The menu of the icon has \"Stop capturing computer audio\". If the page stops reading the audio for 30 seconds, the capture stops on its own.",
+   "es": "La captura del audio de la computadora solo puede empezar desde la pestaña que estás mirando, nunca desde una pestaña de atrás ni una ventana escondida. Mientras corre y esa pestaña no está adelante, un indicador flotante chico queda encima de las otras apps aunque hayas apagado el indicador de reuniones; lo podés cerrar para esa grabación. El menú del ícono tiene \"dejar de capturar el audio de la computadora\". Si la página deja de leer el audio 30 segundos, la captura se corta sola.",
+   "pt": "A captura do áudio do computador só pode começar na aba que você está olhando, nunca em uma aba de trás nem em uma janela escondida. Enquanto roda e essa aba não está na frente, um indicador flutuante pequeno fica sobre os outros apps mesmo que você tenha desligado o indicador de reuniões; você pode fechá-lo para aquela gravação. O menu do ícone tem \"parar de capturar o áudio do computador\". Se a página parar de ler o áudio por 30 segundos, a captura para sozinha."
+  },
+  {
+   "id": "page",
+   "code": [
+    "desktop/src-tauri/src/tabs.rs",
+    "desktop/src-tauri/src/rec_overlay.rs"
+   ],
+   "en": "Microphone, camera and screen used by the zerosoft page in a tab (meetings, calls, Rec) are opened by the webview, not by the native code. macOS shows its own orange or green dot. The app logs each time it hands the microphone or camera to the page, and marks a recording when the page reports one.",
+   "es": "El micrófono, la cámara y la pantalla que usa la página de zerosoft en una pestaña (reuniones, llamadas, Rec) los abre el webview, no el código nativo. macOS muestra su propio punto naranja o verde. La app anota cada vez que le da el micrófono o la cámara a la página, y marca una grabación cuando la página avisa.",
+   "pt": "O microfone, a câmera e a tela usados pela página do zerosoft em uma aba (reuniões, chamadas, Rec) são abertos pelo webview, não pelo código nativo. O macOS mostra o próprio ponto laranja ou verde. O app registra cada vez que entrega o microfone ou a câmera à página, e marca uma gravação quando a página avisa."
+  }
+ ],
+ "events": [
+  {
+   "id": "mic_start",
+   "code": [
+    "desktop/src-tauri/src/dictation.rs"
+   ],
+   "en": "Dictation opened the microphone",
+   "es": "El dictado abrió el micrófono",
+   "pt": "O ditado abriu o microfone"
+  },
+  {
+   "id": "mic_stop",
+   "code": [
+    "desktop/src-tauri/src/dictation.rs"
+   ],
+   "en": "Dictation closed the microphone",
+   "es": "El dictado cerró el micrófono",
+   "pt": "O ditado fechou o microfone"
+  },
+  {
+   "id": "system_audio_start",
+   "code": [
+    "desktop/src-tauri/src/system_audio.rs"
+   ],
+   "en": "Computer audio capture started",
+   "es": "Empezó la captura del audio de la computadora",
+   "pt": "Começou a captura do áudio do computador"
+  },
+  {
+   "id": "system_audio_stop",
+   "code": [
+    "desktop/src-tauri/src/system_audio.rs"
+   ],
+   "en": "Computer audio capture stopped",
+   "es": "Terminó la captura del audio de la computadora",
+   "pt": "Terminou a captura do áudio do computador"
+  },
+  {
+   "id": "page_media",
+   "code": [
+    "desktop/src-tauri/src/tabs.rs"
+   ],
+   "en": "The zerosoft page in a tab was given the microphone or camera",
+   "es": "La página de zerosoft de una pestaña recibió el micrófono o la cámara",
+   "pt": "A página do zerosoft de uma aba recebeu o microfone ou a câmera"
+  },
+  {
+   "id": "meeting_start",
+   "code": [
+    "desktop/src-tauri/src/commands.rs"
+   ],
+   "en": "A tab reported that a meeting recording started",
+   "es": "Una pestaña avisó que empezó a grabar una reunión",
+   "pt": "Uma aba avisou que começou a gravar uma reunião"
+  },
+  {
+   "id": "meeting_stop",
+   "code": [
+    "desktop/src-tauri/src/commands.rs"
+   ],
+   "en": "A tab reported that the meeting recording ended",
+   "es": "Una pestaña avisó que terminó de grabar la reunión",
+   "pt": "Uma aba avisou que terminou de gravar a reunião"
+  },
+  {
+   "id": "screen_start",
+   "code": [
+    "desktop/src-tauri/src/rec_overlay.rs"
+   ],
+   "en": "A tab reported that a Rec recording started",
+   "es": "Una pestaña avisó que empezó una grabación de Rec",
+   "pt": "Uma aba avisou que começou uma gravação do Rec"
+  },
+  {
+   "id": "screen_stop",
+   "code": [
+    "desktop/src-tauri/src/rec_overlay.rs"
+   ],
+   "en": "A tab reported that the Rec recording ended",
+   "es": "Una pestaña avisó que terminó la grabación de Rec",
+   "pt": "Uma aba avisou que terminou a gravação do Rec"
+  },
+  {
+   "id": "audio_upload",
+   "code": [
+    "desktop/src-tauri/src/dictation.rs",
+    "desktop/src-tauri/src/api.rs"
+   ],
+   "en": "Dictation audio sent for transcription",
+   "es": "Audio de un dictado enviado a transcribir",
+   "pt": "Áudio de um ditado enviado para transcrição"
+  },
+  {
+   "id": "paste",
+   "code": [
+    "desktop/src-tauri/src/dictation.rs",
+    "desktop/src-tauri/src/clipboard.rs"
+   ],
+   "en": "Text put on the clipboard, and pasted if Accessibility allows",
+   "es": "Texto puesto en el portapapeles, y pegado si Accesibilidad lo permite",
+   "pt": "Texto colocado na área de transferência, e colado se a Acessibilidade permitir"
+  },
+  {
+   "id": "update_check",
+   "code": [
+    "desktop/src-tauri/src/updater.rs"
+   ],
+   "en": "Checked for updates",
+   "es": "Se buscaron actualizaciones",
+   "pt": "Busca por atualizações"
+  },
+  {
+   "id": "sign_in",
+   "code": [
+    "desktop/src-tauri/src/auth.rs"
+   ],
+   "en": "Signed in through the browser",
+   "es": "Sesión iniciada desde el navegador",
+   "pt": "Entrada pelo navegador"
+  },
+  {
+   "id": "sign_out",
+   "code": [
+    "desktop/src-tauri/src/auth.rs"
+   ],
+   "en": "Signed out from the app",
+   "es": "Sesión cerrada desde la app",
+   "pt": "Saída pelo app"
+  },
+  {
+   "id": "data_deleted",
+   "code": [
+    "desktop/src-tauri/src/commands.rs"
+   ],
+   "en": "Local data deleted",
+   "es": "Datos locales borrados",
+   "pt": "Dados locais apagados"
+  }
+ ],
+ "tags": {
+  "shortcut": {
+   "en": "shortcut",
+   "es": "atajo",
+   "pt": "atalho"
+  },
+  "menu": {
+   "en": "menu",
+   "es": "menú",
+   "pt": "menu"
+  },
+  "settings": {
+   "en": "Settings",
+   "es": "Ajustes",
+   "pt": "Ajustes"
+  },
+  "page": {
+   "en": "page",
+   "es": "página",
+   "pt": "página"
+  },
+  "idle": {
+   "en": "page stopped reading",
+   "es": "la página dejó de leer",
+   "pt": "a página parou de ler"
+  },
+  "user": {
+   "en": "you",
+   "es": "vos",
+   "pt": "você"
+  },
+  "dictation": {
+   "en": "dictation",
+   "es": "dictado",
+   "pt": "ditado"
+  },
+  "paste_last": {
+   "en": "paste last",
+   "es": "pegar el último",
+   "pt": "colar o último"
+  },
+  "history": {
+   "en": "history",
+   "es": "historial",
+   "pt": "histórico"
+  },
+  "retry": {
+   "en": "resend",
+   "es": "reenvío",
+   "pt": "reenvio"
+  },
+  "auto": {
+   "en": "automatic",
+   "es": "automático",
+   "pt": "automático"
+  },
+  "manual": {
+   "en": "on request",
+   "es": "a pedido",
+   "pt": "a pedido"
+  },
+  "browser": {
+   "en": "browser",
+   "es": "navegador",
+   "pt": "navegador"
+  },
+  "ok": {
+   "en": "ok",
+   "es": "ok",
+   "pt": "ok"
+  },
+  "failed": {
+   "en": "failed",
+   "es": "falló",
+   "pt": "falhou"
+  },
+  "saved": {
+   "en": "failed, audio kept",
+   "es": "falló, audio guardado",
+   "pt": "falhou, áudio guardado"
+  },
+  "cancelled": {
+   "en": "cancelled",
+   "es": "cancelado",
+   "pt": "cancelado"
+  },
+  "pasted": {
+   "en": "pasted",
+   "es": "pegado",
+   "pt": "colado"
+  },
+  "copied": {
+   "en": "copied only",
+   "es": "solo copiado",
+   "pt": "só copiado"
+  },
+  "update": {
+   "en": "new version",
+   "es": "versión nueva",
+   "pt": "versão nova"
+  },
+  "microphone": {
+   "en": "microphone",
+   "es": "micrófono",
+   "pt": "microfone"
+  },
+  "camera": {
+   "en": "camera",
+   "es": "cámara",
+   "pt": "câmera"
+  },
+  "pending": {
+   "en": "unsent dictations",
+   "es": "dictados sin enviar",
+   "pt": "ditados não enviados"
+  },
+  "web_data": {
+   "en": "website data",
+   "es": "datos del sitio",
+   "pt": "dados do site"
+  }
+ },
+ "controls": [
+  {
+   "id": "sendAppName",
+   "code": [
+    "desktop/src-tauri/src/dictation.rs",
+    "desktop/src-tauri/src/platform.rs"
+   ],
+   "default": true,
+   "en": {
+    "name": "Send the name of the app in front with each dictation",
+    "help": "macOS only. The server uses it to pick the tone (email, chat, note) and shows it in your history. Off: the app does not read it, sends the word \"desktop\" and the category \"other\"."
+   },
+   "es": {
+    "name": "Mandar con cada dictado el nombre de la app de adelante",
+    "help": "Solo en macOS. El servidor lo usa para elegir el tono (email, chat, nota) y lo muestra en tu historial. Apagado: la app no lo lee, manda la palabra \"desktop\" y la categoría \"otro\"."
+   },
+   "pt": {
+    "name": "Enviar com cada ditado o nome do app da frente",
+    "help": "Só no macOS. O servidor usa para escolher o tom (email, chat, nota) e mostra no seu histórico. Desligado: o app não lê, envia a palavra \"desktop\" e a categoria \"outro\"."
+   }
+  },
+  {
+   "id": "keepFailedDictations",
+   "code": [
+    "desktop/src-tauri/src/dictation.rs",
+    "desktop/src-tauri/src/retry.rs"
+   ],
+   "default": true,
+   "en": {
+    "name": "Keep dictations that could not be sent",
+    "help": "Saves the audio on this computer, not encrypted, for up to 7 days so you can send it again. Off: a dictation that fails is lost."
+   },
+   "es": {
+    "name": "Guardar los dictados que no se pudieron enviar",
+    "help": "Guarda el audio en esta computadora, sin cifrar, hasta 7 días para que lo puedas mandar de nuevo. Apagado: un dictado que falla se pierde."
+   },
+   "pt": {
+    "name": "Guardar os ditados que não puderam ser enviados",
+    "help": "Guarda o áudio neste computador, sem criptografia, por até 7 dias para você reenviar. Desligado: um ditado que falha se perde."
+   }
+  },
+  {
+   "id": "allowSystemAudio",
+   "code": [
+    "desktop/src-tauri/src/commands.rs",
+    "desktop/src-tauri/src/system_audio.rs"
+   ],
+   "default": true,
+   "en": {
+    "name": "Let meeting notes capture the audio of this computer",
+    "help": "macOS only. Off: the app refuses the capture."
+   },
+   "es": {
+    "name": "Dejar que las notas de reunión capturen el audio de esta computadora",
+    "help": "Solo en macOS. Apagado: la app rechaza la captura."
+   },
+   "pt": {
+    "name": "Deixar as notas de reunião capturarem o áudio deste computador",
+    "help": "Só no macOS. Desligado: o app recusa a captura."
+   }
+  },
+  {
+   "id": "restoreClipboard",
+   "code": [
+    "desktop/src-tauri/src/clipboard.rs"
+   ],
+   "default": true,
+   "en": {
+    "name": "Put back what was on the clipboard after pasting",
+    "help": "Off: the app does not read your clipboard at all, and the dictated text stays on it."
+   },
+   "es": {
+    "name": "Devolver lo que había en el portapapeles después de pegar",
+    "help": "Apagado: la app no lee tu portapapeles para nada, y el texto dictado queda ahí."
+   },
+   "pt": {
+    "name": "Devolver o que havia na área de transferência depois de colar",
+    "help": "Desligado: o app não lê sua área de transferência, e o texto ditado fica nela."
+   }
+  },
+  {
+   "id": "restoreTabs",
+   "code": [
+    "desktop/src-tauri/src/session.rs"
+   ],
+   "default": true,
+   "en": {
+    "name": "Reopen my windows and tabs when zerosoft starts",
+    "help": "Off: the paths and titles of your open tabs are not written to disk."
+   },
+   "es": {
+    "name": "Al abrir zerosoft, volver a abrir mis ventanas y pestañas",
+    "help": "Apagado: las rutas y los títulos de tus pestañas abiertas no se escriben en disco."
+   },
+   "pt": {
+    "name": "Ao abrir o zerosoft, reabrir minhas janelas e abas",
+    "help": "Desligado: os caminhos e títulos das abas abertas não são gravados em disco."
+   }
+  },
+  {
+   "id": "openAtLogin",
+   "code": [
+    "desktop/src-tauri/src/commands.rs"
+   ],
+   "default": false,
+   "en": {
+    "name": "Open zerosoft when I log in",
+    "help": "Adds or removes the login item."
+   },
+   "es": {
+    "name": "Abrir zerosoft al iniciar sesión en la compu",
+    "help": "Agrega o saca el ítem de inicio."
+   },
+   "pt": {
+    "name": "Abrir o zerosoft ao entrar no computador",
+    "help": "Adiciona ou remove o item de início."
+   }
+  }
+ ],
+ "security": [
+  {
+   "id": "bridge",
+   "code": [
+    "desktop/src-tauri/capabilities/remote.json",
+    "desktop/src-tauri/src/commands.rs",
+    "desktop/src-tauri/src/lib.rs"
+   ],
+   "en": "The page in a tab can call 11 native commands and no others: app version, start sign-in, open Settings, show a notification, report a recording, tab actions, the Rec bar, and start, read and stop computer audio. Each one checks that the caller is a tab showing your server. Through the app it cannot start a dictation, read files or change these settings.",
+   "es": "La página de una pestaña puede llamar a 11 comandos nativos y a ningún otro: versión de la app, iniciar sesión, abrir Ajustes, mostrar un aviso, avisar una grabación, acciones de pestañas, la barra de Rec, y empezar, leer y cortar el audio de la computadora. Cada uno revisa que quien llama sea una pestaña que muestra tu servidor. A través de la app no puede empezar un dictado, leer archivos ni cambiar estos ajustes.",
+   "pt": "A página de uma aba pode chamar 11 comandos nativos e nenhum outro: versão do app, iniciar a entrada, abrir Ajustes, mostrar um aviso, avisar uma gravação, ações de abas, a barra do Rec, e iniciar, ler e parar o áudio do computador. Cada um confere que quem chama é uma aba mostrando o seu servidor. Pelo app ela não consegue iniciar um ditado, ler arquivos nem mudar estes ajustes."
+  },
+  {
+   "id": "navigation",
+   "code": [
+    "desktop/src-tauri/src/nav.rs"
+   ],
+   "en": "A tab only navigates to pages of your server. Any other address opens in your system browser instead.",
+   "es": "Una pestaña solo navega a páginas de tu servidor. Cualquier otra dirección se abre en tu navegador del sistema.",
+   "pt": "Uma aba só navega para páginas do seu servidor. Qualquer outro endereço abre no navegador do sistema."
+  },
+  {
+   "id": "local_pages",
+   "code": [
+    "desktop/src-tauri/tauri.conf.json",
+    "desktop/src-tauri/capabilities/local.json"
+   ],
+   "en": "Settings, the dictation bar and the indicators are files inside the app, with a content security policy that allows only their own scripts. Only the local Settings page can change settings or delete data.",
+   "es": "Ajustes, la barra de dictado y los indicadores son archivos dentro de la app, con una política de seguridad de contenido que solo permite sus propios scripts. Solo la página local de Ajustes puede cambiar ajustes o borrar datos.",
+   "pt": "Ajustes, a barra de ditado e os indicadores são arquivos dentro do app, com uma política de segurança de conteúdo que só permite os próprios scripts. Só a página local de Ajustes pode mudar ajustes ou apagar dados."
+  },
+  {
+   "id": "deeplinks",
+   "code": [
+    "desktop/src-tauri/src/deeplink.rs"
+   ],
+   "en": "zerosoft:// links are checked field by field: they can open a page of the app or finish a sign-in that this app started, nothing else.",
+   "es": "Los links zerosoft:// se revisan campo por campo: pueden abrir una página de la app o terminar un inicio de sesión que empezó esta app, nada más.",
+   "pt": "Os links zerosoft:// são conferidos campo a campo: podem abrir uma página do app ou concluir uma entrada que este app iniciou, nada mais."
+  },
+  {
+   "id": "updates",
+   "code": [
+    "desktop/src-tauri/src/updater.rs",
+    "desktop/src-tauri/tauri.conf.json"
+   ],
+   "en": "Updates are installed only if signed with the zerosoft updater key. A server you configure can offer a package but cannot make the app install one it did not sign.",
+   "es": "Las actualizaciones se instalan solo si están firmadas con la clave del updater de zerosoft. Un servidor que configures puede ofrecer un paquete pero no puede hacer que la app instale uno que no firmó zerosoft.",
+   "pt": "As atualizações só são instaladas se assinadas com a chave do updater do zerosoft. Um servidor que você configure pode oferecer um pacote, mas não consegue fazer o app instalar um que o zerosoft não assinou."
+  },
+  {
+   "id": "source",
+   "code": [
+    "desktop/README.md"
+   ],
+   "en": "The app is open source (AGPL-3.0). Everything on this page can be checked against the code in the links.",
+   "es": "La app es de código abierto (AGPL-3.0). Todo lo de esta página se puede revisar contra el código de los links.",
+   "pt": "O app é de código aberto (AGPL-3.0). Tudo nesta página pode ser conferido com o código dos links."
+  }
+ ],
+ "open": [
+  {
+   "id": "signing",
+   "code": [
+    "desktop/README.md",
+    ".github/workflows/desktop.yml"
+   ],
+   "en": "The Mac app is not notarized by Apple and the Windows installer is not signed with a code-signing certificate, so both systems warn the first time you open it.",
+   "es": "La app de Mac no está notarizada por Apple y el instalador de Windows no está firmado con un certificado de firma de código, así que los dos sistemas avisan la primera vez que la abrís.",
+   "pt": "O app de Mac não é notarizado pela Apple e o instalador de Windows não é assinado com um certificado de assinatura de código, então os dois sistemas avisam na primeira vez que você abre."
+  },
+  {
+   "id": "pending_plain",
+   "code": [
+    "desktop/src-tauri/src/retry.rs"
+   ],
+   "en": "Dictations that could not be sent are saved without encryption.",
+   "es": "Los dictados que no se pudieron enviar se guardan sin cifrar.",
+   "pt": "Os ditados que não puderam ser enviados são guardados sem criptografia."
+  },
+  {
+   "id": "page_media",
+   "code": [
+    "desktop/src-tauri/src/tabs.rs"
+   ],
+   "en": "The page of your server gets the microphone and camera without a prompt from the app each time. The app has no indicator of its own for how long the page keeps them open; it relies on the one macOS shows and on what the page reports.",
+   "es": "La página de tu servidor recibe el micrófono y la cámara sin que la app pregunte cada vez. La app no tiene un indicador propio de cuánto tiempo los mantiene abiertos la página; depende del que muestra macOS y de lo que avisa la página.",
+   "pt": "A página do seu servidor recebe o microfone e a câmera sem o app perguntar a cada vez. O app não tem um indicador próprio de por quanto tempo a página os mantém abertos; depende do que o macOS mostra e do que a página avisa."
+  }
+ ]
+}

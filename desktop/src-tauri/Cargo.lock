@@ -6396,7 +6396,7 @@ dependencies = [
 
 [[package]]
 name = "zerosoft-desktop"
-version = "0.3.5"
+version = "0.3.7"
 dependencies = [
  "arboard",
  "base64 0.22.1",

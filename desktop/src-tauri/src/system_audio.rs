@@ -16,7 +16,51 @@ static RUNNING: AtomicBool = AtomicBool::new(false);
 /// Última lectura de la página (ms desde 1970). Si la página deja de leer (se cerró la pestaña, se
 /// recargó o navegó), la captura se corta sola a los IDLE_STOP_MS: nadie queda grabado sin saberlo.
 static LAST_READ: AtomicU64 = AtomicU64::new(0);
-const IDLE_STOP_MS: u64 = 30_000;
+pub const IDLE_STOP_MS: u64 = 30_000;
+/// Cuándo empezó la captura en curso (ms desde 1970; 0 = no hay).
+static STARTED_AT: AtomicU64 = AtomicU64::new(0);
+
+/// Por qué se cortó la captura.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Why {
+    /// La página (o un reinicio de la captura) la cortó.
+    Page,
+    /// La página dejó de leer.
+    Idle,
+    /// La persona, desde la barra de menú o el indicador.
+    User,
+}
+
+/// Avisa cada vez que la captura empieza (`true`) o termina (`false`, con cuánto duró en ms): lo
+/// usa lib.rs para el indicador nativo y el registro de actividad. La captura no depende de que
+/// la página avise nada.
+type Listener = Box<dyn Fn(bool, Why, u64) + Send + Sync>;
+static LISTENER: OnceLock<Listener> = OnceLock::new();
+
+pub fn on_change(f: impl Fn(bool, Why, u64) + Send + Sync + 'static) {
+    let _ = LISTENER.set(Box::new(f));
+}
+
+fn notify(on: bool, why: Why, duration_ms: u64) {
+    if let Some(f) = LISTENER.get() {
+        f(on, why, duration_ms);
+    }
+}
+
+/// Marca el final de la captura en curso (si había) y avisa. Devuelve si había una.
+fn ended(why: Why) -> bool {
+    let was = RUNNING.swap(false, Ordering::Relaxed);
+    if was {
+        let started = STARTED_AT.swap(0, Ordering::Relaxed);
+        notify(false, why, now_ms().saturating_sub(started));
+    }
+    was
+}
+
+/// ms desde 1970 en que empezó la captura en curso.
+pub fn started_at() -> Option<u64> {
+    Some(STARTED_AT.load(Ordering::Relaxed)).filter(|v| *v > 0 && running())
+}
 static STOP: OnceLock<Mutex<Option<std::sync::mpsc::Sender<()>>>> = OnceLock::new();
 
 #[derive(Debug, PartialEq, Eq)]
@@ -89,12 +133,16 @@ pub fn running() -> bool {
 }
 
 pub fn stop() {
+    stop_because(Why::Page);
+}
+
+pub fn stop_because(why: Why) {
     if let Some(m) = STOP.get() {
         if let Some(tx) = m.lock().ok().and_then(|mut g| g.take()) {
             let _ = tx.send(());
         }
     }
-    RUNNING.store(false, Ordering::Relaxed);
+    ended(why);
     if let Ok(mut b) = BUF.lock() {
         b.clear();
     }
@@ -174,7 +222,7 @@ mod mac {
                             Err(mpsc::RecvTimeoutError::Timeout) => {
                                 if idle(now_ms(), LAST_READ.load(Ordering::Relaxed)) {
                                     log::info!("system audio: sin lecturas, se corta la captura");
-                                    RUNNING.store(false, Ordering::Relaxed);
+                                    ended(Why::Idle);
                                     if let Ok(mut b) = BUF.lock() {
                                         b.clear();
                                     }
@@ -198,7 +246,9 @@ mod mac {
         match ready_rx.recv_timeout(Duration::from_secs(8)) {
             Ok(SysAudio::Ok) => {
                 *STOP.get_or_init(|| Mutex::new(None)).lock().unwrap() = Some(stop_tx);
+                STARTED_AT.store(now_ms(), Ordering::Relaxed);
                 RUNNING.store(true, Ordering::Relaxed);
+                notify(true, Why::Page, 0);
                 SysAudio::Ok
             }
             Ok(other) => other,

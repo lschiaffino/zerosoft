@@ -21,7 +21,7 @@ use crate::strings;
 pub(crate) type CmdResult<T> = Result<T, String>;
 
 /// Solo la página local de la ventana de Ajustes (no una ruta del servidor cargada ahí).
-fn from_settings(w: &WebviewWindow) -> CmdResult<()> {
+pub(crate) fn from_settings(w: &WebviewWindow) -> CmdResult<()> {
     if w.label() == "settings" && w.url().map(|u| crate::nav::is_local(&u)).unwrap_or(false) {
         Ok(())
     } else {
@@ -71,6 +71,9 @@ pub struct SettingsView {
     open_at_login: bool,
     onboarded: bool,
     recording_indicator: bool,
+    send_app_name: bool,
+    keep_failed_dictations: bool,
+    allow_system_audio: bool,
     permissions: Value,
     /// Qué decir de Accesibilidad si falta (accessibility_hint).
     accessibility_hint: &'static str,
@@ -136,6 +139,9 @@ async fn view(app: &AppHandle) -> SettingsView {
         open_at_login: app.autolaunch().is_enabled().unwrap_or(false),
         onboarded: s.onboarded,
         recording_indicator: s.recording_indicator,
+        send_app_name: s.send_app_name,
+        keep_failed_dictations: s.keep_failed_dictations,
+        allow_system_audio: s.allow_system_audio,
         permissions: json!({
             "microphone": platform::microphone_status(),
             "accessibility": accessibility,
@@ -174,6 +180,11 @@ pub fn accessibility_hint(granted: bool, seen_in: &str, version: &str, signature
 
 pub fn refresh_settings(app: &AppHandle) {
     let _ = app.emit_to("settings", "settings://refresh", ());
+}
+
+/// Hay algo nuevo en el registro de actividad (Ajustes › Privacidad y datos lo relee si está abierta).
+pub fn refresh_privacy(app: &AppHandle) {
+    let _ = app.emit_to("settings", "privacy://refresh", ());
 }
 
 /// Origen de las páginas locales de la app (Mac: tauri://localhost; Windows: http://tauri.localhost).
@@ -345,7 +356,12 @@ pub async fn permission_ask(app: AppHandle, window: WebviewWindow, kind: String)
         "microphone" => {
             if platform::microphone_status() == PermissionStatus::NotDetermined {
                 // Abrir el micrófono un momento dispara el aviso del sistema.
-                let _ = tauri::async_runtime::spawn_blocking(|| crate::audio::start().map(|c| c.finish())).await;
+                let opened = tauri::async_runtime::spawn_blocking(|| crate::audio::start().map(|c| c.finish()).is_ok()).await.unwrap_or(false);
+                if opened {
+                    use crate::privacy::{Event, Kind, Tag};
+                    crate::privacy::record(&app, Event::new(Kind::MicStart).trigger(Tag::Settings));
+                    crate::privacy::record(&app, Event::new(Kind::MicStop).duration(0));
+                }
             } else {
                 let _ = app.opener().open_url(platform::PANE_MIC, None::<&str>);
             }
@@ -485,10 +501,15 @@ pub async fn history_list(app: AppHandle, window: WebviewWindow) -> CmdResult<Va
 }
 
 #[tauri::command]
-pub fn history_copy(window: WebviewWindow, text: String) -> CmdResult<bool> {
+pub fn history_copy(app: AppHandle, window: WebviewWindow, text: String) -> CmdResult<bool> {
     from_settings(&window)?;
     let text: String = text.chars().take(20_000).collect();
-    Ok(arboard::Clipboard::new().and_then(|mut c| c.set_text(text)).is_ok())
+    let ok = arboard::Clipboard::new().and_then(|mut c| c.set_text(text)).is_ok();
+    if ok {
+        use crate::privacy::{Event, Kind, Tag};
+        crate::privacy::record(&app, Event::new(Kind::Paste).trigger(Tag::History).result(Tag::Copied));
+    }
+    Ok(ok)
 }
 
 #[tauri::command]
@@ -500,7 +521,7 @@ pub async fn history_paste(app: AppHandle, window: WebviewWindow, text: String) 
     let _ = app.hide();
     tokio::time::sleep(std::time::Duration::from_millis(350)).await;
     let text: String = text.chars().take(20_000).collect();
-    Ok(match dictation::insert_text(&app, &text).await {
+    Ok(match dictation::insert_text(&app, &text, crate::privacy::Tag::History).await {
         crate::clipboard::How::Pasted => "pasted",
         crate::clipboard::How::Copied => "copied",
     })
@@ -535,7 +556,7 @@ pub fn account_sign_in(app: AppHandle, window: WebviewWindow) -> CmdResult<()> {
 #[tauri::command]
 pub async fn account_sign_out(app: AppHandle, window: WebviewWindow) -> CmdResult<SettingsView> {
     from_settings(&window)?;
-    crate::auth::sign_out(&app).await;
+    crate::auth::sign_out(&app, crate::privacy::Tag::Settings).await;
     crate::load_app_path(&app, "/app");
     crate::tabs::reload_all(&app);
     Ok(view(&app).await)
@@ -646,6 +667,25 @@ pub fn desktop_recording(app: AppHandle, window: tauri::Webview, active: bool, s
     };
     let tab = crate::tabs::tab_id(window.label());
     crate::tabs::set_recording(&app, tab, rec.is_some());
+    // Registro de actividad: cuándo la página avisó que empezó y terminó de grabar.
+    {
+        use crate::privacy::{Event, Kind, Tag};
+        let st = app.state::<AppState>();
+        let mut since = st.meeting_since.lock().unwrap();
+        match (rec.is_some(), *since) {
+            (true, None) => {
+                *since = Some(now_ms());
+                drop(since);
+                crate::privacy::record(&app, Event::new(Kind::MeetingStart).trigger(Tag::Page));
+            }
+            (false, Some(t)) => {
+                *since = None;
+                drop(since);
+                crate::privacy::record(&app, Event::new(Kind::MeetingStop).trigger(Tag::Page).duration(now_ms().saturating_sub(t)));
+            }
+            _ => {}
+        }
+    }
     crate::indicator::set_recording(&app, rec);
     Ok(())
 }
@@ -671,8 +711,7 @@ pub struct IndicatorView {
 pub fn indicator_state(app: AppHandle, window: WebviewWindow) -> CmdResult<IndicatorView> {
     from_indicator(&window)?;
     let st = app.state::<AppState>();
-    let rec = st.recording.lock().unwrap().clone();
-    Ok(IndicatorView { recording: rec, strings: strings::table(st.locale) })
+    Ok(IndicatorView { recording: crate::indicator::current(&app), strings: strings::table(st.locale) })
 }
 
 #[tauri::command]
@@ -700,9 +739,127 @@ pub fn desktop_notify(app: AppHandle, window: tauri::Webview, title: String, bod
 }
 
 
+/// La captura del audio de la computadora empieza solo desde la pestaña a la vista; una captura en
+/// curso se puede reiniciar desde donde esté.
+pub fn system_audio_start_allowed(tab_visible: bool, already_running: bool) -> bool {
+    tab_visible || already_running
+}
+
+// ---------- Privacidad y datos (privacy.rs) ----------
+
+fn privacy_view(app: &AppHandle) -> Value {
+    let st = app.state::<AppState>();
+    let data = st.privacy.snapshot();
+    let stores = crate::privacy::Paths::of(app).map(|p| crate::privacy::stores(&p, app.autolaunch().is_enabled().unwrap_or(false))).unwrap_or_default();
+    let mut events = data.events;
+    events.reverse();
+    json!({
+        "stores": stores,
+        "usage": data.usage,
+        "events": events,
+        "facts": crate::privacy::facts(),
+        "capturing": crate::tray::capture_key(app),
+    })
+}
+
+/// Lo que puede pedir Ajustes › Privacidad y datos. Solo la página local de Ajustes.
+/// - get: inventario, últimos usos, registro y los hechos.
+/// - delete (target: pending | activity | web_data | all).
+/// - reveal (target: id de un dato guardado): lo muestra en Finder o el Explorador.
+/// - export: el registro de actividad a un archivo en Descargas.
+/// - open (target: docs | source:<archivo>): la página pública o un archivo del repositorio, en el
+///   navegador. Solo los archivos que nombran los hechos.
+#[tauri::command]
+pub async fn privacy(app: AppHandle, window: WebviewWindow, action: String, target: Option<String>) -> CmdResult<Value> {
+    use crate::privacy::{Event, Kind, Paths, Tag};
+    from_settings(&window)?;
+    let target = target.unwrap_or_default();
+    let paths = Paths::of(&app).ok_or("paths")?;
+    match action.as_str() {
+        "get" => {}
+        "delete" => match target.as_str() {
+            "pending" => {
+                if !crate::privacy::delete_pending(&paths) {
+                    return Err("delete".into());
+                }
+                crate::privacy::record(&app, Event::new(Kind::DataDeleted).trigger(Tag::Settings).result(Tag::Pending));
+                crate::tray::rebuild(&app);
+                refresh_settings(&app);
+            }
+            "activity" => app.state::<AppState>().privacy.clear(),
+            // Cookies (la sesión), almacenamiento y caché del webview: como "borrar datos del sitio".
+            "web_data" => {
+                let wv = crate::tabs::any_webview(&app).ok_or("webview")?;
+                wv.clear_all_browsing_data().map_err(|_| "delete".to_string())?;
+                crate::privacy::record(&app, Event::new(Kind::DataDeleted).trigger(Tag::Settings).result(Tag::WebData));
+                crate::load_app_path(&app, "/app");
+                crate::tabs::reload_all(&app);
+                refresh_settings(&app);
+            }
+            // Todo lo que la app guardó acá, y reinicia como recién instalada.
+            "all" => {
+                let _ = app.autolaunch().disable();
+                crate::system_audio::stop_because(crate::system_audio::Why::User);
+                let files = crate::privacy::wipe_files(&paths);
+                app.state::<AppState>().privacy.clear();
+                let web = crate::tabs::any_webview(&app).map(|wv| wv.clear_all_browsing_data().is_ok()).unwrap_or(true);
+                if !files || !web {
+                    return Ok(json!({ "ok": false, "restart": true }));
+                }
+                let a = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    // Un momento para que el webview termine de borrar antes de reiniciar.
+                    tokio::time::sleep(std::time::Duration::from_millis(900)).await;
+                    a.restart();
+                });
+                return Ok(json!({ "ok": true, "restart": true }));
+            }
+            _ => return Err("target".into()),
+        },
+        "open" => {
+            let url = if target == "docs" {
+                format!("{}{}", api::server(&app), crate::privacy::DOCS_PATH)
+            } else {
+                let file = target.strip_prefix("source:").filter(|f| crate::privacy::is_source(f)).ok_or("target")?;
+                format!("{}{file}", crate::privacy::repo())
+            };
+            let _ = app.opener().open_url(url, None::<&str>);
+            return Ok(json!({ "ok": true }));
+        }
+        "reveal" => {
+            if !crate::privacy::STORE_IDS.contains(&target.as_str()) {
+                return Err("target".into());
+            }
+            let p = paths.of_store(&target).ok_or("target")?;
+            // Si todavía no existe, la carpeta que lo va a contener (la primera que exista).
+            let shown = p.ancestors().find(|a| a.exists()).ok_or("target")?.to_path_buf();
+            let _ = app.opener().reveal_item_in_dir(shown);
+        }
+        "export" => {
+            let dir = app.path().download_dir().map_err(|_| "export".to_string())?;
+            let data = app.state::<AppState>().privacy.snapshot();
+            let file = dir.join(format!("zerosoft-activity-{}.json", now_ms()));
+            let body = json!({ "app": "zerosoft desktop", "version": app.package_info().version.to_string(), "exportedAt": now_ms(), "usage": data.usage, "events": data.events });
+            std::fs::write(&file, serde_json::to_vec_pretty(&body).unwrap_or_default()).map_err(|_| "export".to_string())?;
+            let _ = app.opener().reveal_item_in_dir(&file);
+            return Ok(json!({ "ok": true, "file": file.to_string_lossy(), "view": privacy_view(&app) }));
+        }
+        _ => return Err("action".into()),
+    }
+    Ok(json!({ "ok": true, "view": privacy_view(&app) }))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{accessibility_hint, settings_user_agent};
+    use super::{accessibility_hint, settings_user_agent, system_audio_start_allowed};
+
+    #[test]
+    fn system_audio_starts_only_from_the_tab_in_view() {
+        assert!(system_audio_start_allowed(true, false));
+        assert!(!system_audio_start_allowed(false, false));
+        // Una captura en curso se puede reiniciar (la página la vuelve a pedir al reconectar).
+        assert!(system_audio_start_allowed(false, true));
+    }
 
     #[test]
     fn settings_ua_is_recognized_by_the_server() {
@@ -727,6 +884,16 @@ mod tests {
 #[tauri::command]
 pub async fn desktop_system_audio_start(app: AppHandle, window: tauri::Webview) -> CmdResult<String> {
     from_app(&app, &window)?;
+    // Apagado en Ajustes › Privacidad y datos: la app no captura (la página sigue con el micrófono).
+    if !app.state::<AppState>().settings.lock().unwrap().allow_system_audio {
+        return Ok(crate::system_audio::SysAudio::Unsupported.code().to_string());
+    }
+    // Solo desde la pestaña que la persona tiene a la vista: una pestaña de atrás o una ventana
+    // escondida no puede empezar a capturar. (Reiniciar una captura en curso sí.)
+    let front = crate::tabs::tab_id(window.label()).is_some_and(|id| crate::tabs::tab_visible(&app, id));
+    if !system_audio_start_allowed(front, crate::system_audio::running()) {
+        return Ok(crate::system_audio::SysAudio::Failed.code().to_string());
+    }
     let res = tauri::async_runtime::spawn_blocking(crate::system_audio::start).await.map_err(|e| e.to_string())?;
     if res == crate::system_audio::SysAudio::Denied {
         let _ = app.opener().open_url(platform::PANE_SCREEN, None::<&str>);

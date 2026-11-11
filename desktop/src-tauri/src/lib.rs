@@ -22,6 +22,7 @@ mod hud;
 mod indicator;
 mod nav;
 mod platform;
+mod privacy;
 mod rec_overlay;
 mod retry;
 mod session;
@@ -335,6 +336,7 @@ pub fn run() {
             commands::settings_open_web,
             commands::update_check,
             commands::update_restart,
+            commands::privacy,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -362,6 +364,29 @@ pub fn run() {
                 disabled_apps: Mutex::new(Vec::new()),
                 update_ready: Mutex::new(None),
                 update: Mutex::new(state::UpdateInfo::default()),
+                privacy: privacy::Log::open(&data_dir.join("privacy")),
+                meeting_since: Mutex::new(None),
+                screen_since: Mutex::new(None),
+                mic_since: Mutex::new(None),
+            });
+            // El audio de la computadora empezó o terminó (system_audio.rs): registro de actividad
+            // e indicador nativo. No pasa por la página.
+            let sa = handle.clone();
+            system_audio::on_change(move |on, why, ms| {
+                use privacy::{Event, Kind, Tag};
+                let by = match why {
+                    system_audio::Why::Page => Tag::Page,
+                    system_audio::Why::Idle => Tag::Idle,
+                    system_audio::Why::User => Tag::User,
+                };
+                if on {
+                    indicator::undismiss();
+                    privacy::record(&sa, Event::new(Kind::SystemAudioStart).trigger(by));
+                } else {
+                    privacy::record(&sa, Event::new(Kind::SystemAudioStop).trigger(by).duration(ms));
+                }
+                tray::rebuild(&sa);
+                indicator::update(&sa);
             });
             allow_server(&handle);
             app.set_menu(tray::app_menu(&handle)?)?;

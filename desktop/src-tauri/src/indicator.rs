@@ -32,9 +32,24 @@ pub fn valid_path(p: &str) -> bool {
     p.starts_with("/app/") && p.len() <= 200 && !p.contains("//") && !p.contains("..") && p.chars().all(|c| c.is_ascii_alphanumeric() || "/-_".contains(c))
 }
 
-/// Se muestra si hay grabación, está prendido en Ajustes y la ventana principal no está adelante.
-pub fn should_show(recording: bool, enabled: bool, main_in_front: bool) -> bool {
-    recording && enabled && !main_in_front
+/// Se muestra si la pestaña que graba no está adelante y: hay una reunión grabándose y está
+/// prendido en Ajustes, o la app está capturando el audio de la computadora. Lo segundo no depende
+/// del ajuste ni de lo que avise la página: la captura es nativa y siempre se marca. La persona
+/// lo puede cerrar para esta grabación (`dismissed`); el punto de la barra de menú queda igual.
+pub fn should_show(meeting: bool, system_audio: bool, enabled: bool, dismissed: bool, main_in_front: bool) -> bool {
+    !dismissed && !main_in_front && ((meeting && enabled) || system_audio)
+}
+
+/// Lo que muestra el indicador: la reunión que avisó la página o, si la app captura el audio de
+/// la computadora sin que la página haya avisado nada, esa captura desde que empezó.
+pub fn current(app: &AppHandle) -> Option<Recording> {
+    let rec = app.state::<AppState>().recording.lock().unwrap().clone();
+    rec.or_else(|| crate::system_audio::started_at().map(|t| Recording { started_at: t, path: String::new() }))
+}
+
+/// Empezó una captura nueva: el indicador vuelve aunque se haya cerrado en la anterior.
+pub fn undismiss() {
+    DISMISSED.store(false, Ordering::Relaxed);
 }
 
 /// La pestaña que graba está a la vista (tabs.rs).
@@ -107,9 +122,10 @@ pub fn update(app: &AppHandle) {
     // Ventanas y foco, en el hilo principal.
     let _ = app.run_on_main_thread(move || {
         let st = app2.state::<AppState>();
-        let rec = st.recording.lock().unwrap().clone();
+        let meeting = st.recording.lock().unwrap().is_some();
+        let rec = current(&app2);
         let enabled = st.settings.lock().unwrap().recording_indicator;
-        let show = should_show(rec.is_some(), enabled && !DISMISSED.load(Ordering::Relaxed), main_in_front(&app2));
+        let show = should_show(meeting, crate::system_audio::running(), enabled, DISMISSED.load(Ordering::Relaxed), main_in_front(&app2));
         if show {
             if create(&app2).is_err() {
                 return;
@@ -228,6 +244,9 @@ pub fn dismiss(app: &AppHandle) {
 pub fn stop(app: &AppHandle) {
     if let Some(w) = crate::tabs::recording_webview(app) {
         let _ = w.eval("window.dispatchEvent(new Event('zerosoft:stop-recording'))");
+    } else if crate::system_audio::running() {
+        // Ninguna pestaña dijo que graba: la captura del audio de la computadora se corta acá.
+        crate::system_audio::stop_because(crate::system_audio::Why::User);
     }
 }
 
@@ -270,9 +289,14 @@ mod tests {
 
     #[test]
     fn visibility() {
-        assert!(should_show(true, true, false));
-        assert!(!should_show(true, true, true));
-        assert!(!should_show(true, false, false));
-        assert!(!should_show(false, true, false));
+        assert!(should_show(true, false, true, false, false));
+        assert!(!should_show(true, false, true, false, true));
+        assert!(!should_show(true, false, false, false, false));
+        assert!(!should_show(false, false, true, false, false));
+        // El audio de la computadora se marca aunque el indicador esté apagado en Ajustes y aunque
+        // la página no haya avisado que graba.
+        assert!(should_show(false, true, false, false, false));
+        assert!(should_show(true, true, false, false, false));
+        assert!(!should_show(true, true, true, true, false));
     }
 }

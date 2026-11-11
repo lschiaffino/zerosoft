@@ -46,6 +46,7 @@ const COMMANDS: &[&str] = &[
     "settings_open_web",
     "update_check",
     "update_restart",
+    "privacy",
 ];
 
 /// ScreenCaptureKit (system_audio.rs) trae un puente en Swift: el binario final necesita saber dónde

@@ -318,11 +318,11 @@ pub fn frontmost_app() -> String {
     #[cfg(target_os = "macos")]
     {
         use std::process::Command;
-        let asn = Command::new("lsappinfo").arg("front").output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
+        let asn = Command::new("/usr/bin/lsappinfo").arg("front").output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
         if !asn.starts_with("ASN:") || asn.len() > 40 {
             return String::new();
         }
-        let out = Command::new("lsappinfo").args(["info", "-only", "name", &asn]).output().ok().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
+        let out = Command::new("/usr/bin/lsappinfo").args(["info", "-only", "name", &asn]).output().ok().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
         // "LSDisplayName"="Slack"
         return out.split("=\"").nth(1).and_then(|r| r.split('"').next()).unwrap_or("").chars().take(100).collect();
     }

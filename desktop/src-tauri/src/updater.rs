@@ -32,6 +32,14 @@ fn set_info(app: &AppHandle, f: impl FnOnce(&mut crate::state::UpdateInfo)) {
 
 /// Busca una versión nueva y, si hay, la baja (Mac: la deja instalada para el próximo arranque).
 /// `interactive`: lo pidió la persona (menú o Ajustes): se avisa también si está al día.
+/// Cada cuánto se busca sola una versión nueva.
+pub const CHECK_EVERY_SECS: u64 = 4 * 3600;
+
+fn log_check(app: &AppHandle, interactive: bool, result: crate::privacy::Tag) {
+    use crate::privacy::{Event, Kind, Tag};
+    crate::privacy::record(app, Event::new(Kind::UpdateCheck).trigger(if interactive { Tag::Manual } else { Tag::Auto }).result(result).host_of(&crate::api::server(app)));
+}
+
 pub async fn check(app: &AppHandle, interactive: bool) {
     let l = app.state::<AppState>().locale;
     if !enabled(app) {
@@ -58,6 +66,7 @@ pub async fn check(app: &AppHandle, interactive: bool) {
     let update = match updater.check().await {
         Ok(Some(u)) => u,
         res => {
+            log_check(app, interactive, if res.is_err() { crate::privacy::Tag::Failed } else { crate::privacy::Tag::Ok });
             finish(app, res.is_err());
             if interactive && res.is_ok() {
                 let _ = app.notification().builder().title(t(l, "upToDate")).body(format!("v{}", app.package_info().version)).show();
@@ -66,6 +75,7 @@ pub async fn check(app: &AppHandle, interactive: bool) {
         }
     };
     let version = update.version.clone();
+    log_check(app, interactive, crate::privacy::Tag::Update);
     // Se sabe que hay versión nueva antes de bajarla: Ajustes ya lo muestra.
     set_info(app, |i| i.available = Some(version.clone()));
     if app.state::<AppState>().update_ready.lock().unwrap().as_deref() == Some(version.as_str()) {
@@ -100,7 +110,7 @@ pub fn start(app: &AppHandle) {
         tokio::time::sleep(Duration::from_secs(20)).await;
         loop {
             check(&app, false).await;
-            tokio::time::sleep(Duration::from_secs(4 * 3600)).await;
+            tokio::time::sleep(Duration::from_secs(CHECK_EVERY_SECS)).await;
         }
     });
 }

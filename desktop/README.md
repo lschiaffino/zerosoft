@@ -114,9 +114,41 @@ Ajustes de la app de escritorio. La primera vez se abre sola y lo explica.
 
 Primeros pasos (sesión, micrófono, Accesibilidad con links a Ajustes del Sistema y estado al día, y un
 cuadro para probar), General (modo, atajo, portapapeles, abrir al iniciar), Voice (idioma, limpieza,
-tono por app), Diccionario, Historial (copiar, pegar de nuevo, mandar de nuevo los guardados) y Cuenta.
+tono por app), Diccionario, Historial (copiar, pegar de nuevo, mandar de nuevo los guardados), Permisos,
+Privacidad y datos y Cuenta.
 Voice, Diccionario e Historial se leen y guardan en el servidor: son los mismos que
 `/app/voice/settings` y `/app/voice/dictation`.
+
+### Privacidad y datos (`src/privacy.rs`, `ui/settings-privacy.ts`, `privacy-facts.json`)
+
+Ajustes › Privacidad y datos muestra, con el estado real de la app: cada permiso (para qué sirve,
+si está dado y cuándo se usó por última vez), lo que la app guarda en la computadora (ruta, tamaño,
+Mostrar en la carpeta y Borrar donde se puede), cada pedido que manda la app y a dónde, las llaves
+opcionales y un registro de actividad.
+
+- **Una sola lista de hechos:** `desktop/privacy-facts.json` (en, es, pt, con el archivo de código
+  de cada afirmación). La app la trae compilada y la página pública `/download/privacy` la importa
+  (`lib/desktop-privacy.ts`). Si se agrega un permiso, algo guardado en disco, un pedido de red o
+  un evento, se suma ahí: los tests de `privacy.rs` y `tests/unit/desktop-privacy.test.ts` fallan
+  si la lista no coincide con el código (ids, límites, archivos).
+- **Registro de actividad:** `<datos>/privacy/activity.json`, los últimos 500 eventos o 30 días.
+  Cada evento es una estructura cerrada (`Event`): tipo, etiquetas de una lista fija, duración,
+  tamaño, host y, si la persona lo deja, el nombre de la app de adelante. No hay campo de texto
+  libre. Se exporta a Descargas y se vacía desde Ajustes. No sale de la computadora.
+- **Indicador que no se apaga:** mientras el dictado tiene el micrófono abierto, la app captura
+  el audio de la computadora o una pestaña avisó una grabación, la barra de menú muestra un punto
+  al lado del ícono (Mac) y el globo y el menú del ícono dicen qué está activo (`tray.rs`). Sale
+  del estado nativo: la página no lo apaga y no hay ajuste que lo esconda. El audio de la
+  computadora además muestra el indicador flotante aunque esté apagado en Ajustes, solo puede
+  empezar desde la pestaña a la vista (`commands.rs`, `desktop_system_audio_start`) y se corta
+  desde el menú del ícono.
+- **Llaves:** mandar el nombre de la app de adelante con los dictados (apagada, no se lee),
+  guardar el audio de los dictados que no se pudieron enviar, y dejar capturar el audio de la
+  computadora. Con "volver a abrir mis ventanas y pestañas" apagado, `session.json` no guarda
+  rutas ni títulos.
+- **Borrar todo:** borra los archivos propios, los datos del sitio (cookies, almacenamiento y
+  caché del webview), saca el ítem de inicio y reinicia la app. Mientras tanto nada se vuelve a
+  escribir (`privacy::wiped`).
 
 ### Lo que la versión de Electron hacía y esta todavía no
 

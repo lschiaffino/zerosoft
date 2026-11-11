@@ -147,7 +147,7 @@ impl PendingStore {
     }
 
     pub fn save(&self, meta: &PendingMeta, audio: &[u8]) -> bool {
-        if fs::create_dir_all(&self.dir).is_err() {
+        if crate::privacy::wiped() || fs::create_dir_all(&self.dir).is_err() {
             return false;
         }
         let (a, j) = self.paths(&meta.id);
