@@ -699,6 +699,10 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-view:hover { background: var(--ui-hover); color: var(--ink); }
 .gr-view.is-on { color: var(--ink); border-color: var(--ink); font-weight: 600; }
 .gr-view:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+/* Con el dedo, las listas guardadas son objetivos de 40px, como las pestañas de abajo. */
+@media (pointer: coarse) {
+  .gr-view { display: inline-flex; align-items: center; min-height: 40px; min-width: 40px; }
+}
 .gr-list-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 0; }
 .gr-branch-count { margin-left: auto; font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); }
 .gr-multi { display: flex; flex-wrap: wrap; gap: 4px; }
