@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-app-color-buttons',
+    date: '2026-11-11',
+    title: {
+      en: 'The main button of each app takes the app\'s colour',
+      es: 'El botón principal de cada app toma el color de la app',
+      pt: 'O botão principal de cada app usa a cor do app',
+    },
+    items: [
+      {
+        product: 'platform',
+        en: 'Inside an app, the highlighted button (the one that used to be black) now has that app\'s colour, with the text in white or dark, whichever reads better. Home and Settings keep the black button.',
+        es: 'Dentro de una app, el botón resaltado (el que antes era negro) ahora tiene el color de esa app, con el texto en blanco o en oscuro, el que mejor se lea. Inicio y Ajustes siguen con el botón negro.',
+        pt: 'Dentro de um app, o botão em destaque (o que antes era preto) agora tem a cor desse app, com o texto em branco ou escuro, o que ficar mais legível. Início e Ajustes continuam com o botão preto.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-lines-analytics-dashboard',
     date: '2026-11-11',
     title: {
