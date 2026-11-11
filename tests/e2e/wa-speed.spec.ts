@@ -21,6 +21,17 @@ const POLL_BOUND_MS = 5500;
 /** La burbuja de lo que mando, con la respuesta del servidor demorada a propósito. */
 const OPTIMISTIC_BOUND_MS = 700;
 const SERVER_DELAY_MS = 2500;
+/** Abrir la app y el chat (con `next dev` cada pantalla se compila la primera vez): fuera de lo que se mide. */
+const OPEN_MS = 90_000;
+
+test.describe.configure({ timeout: 240_000 });
+
+/** Deja la medición en el reporte y en el log de la corrida (así se lee también en CI). */
+function note(what: string, value: string) {
+  test.info().annotations.push({ type: what, description: value });
+  // eslint-disable-next-line no-console
+  console.log(`[wa-speed] ${test.info().titlePath.slice(1).join(' › ')} · ${what}: ${value}`);
+}
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -37,7 +48,7 @@ async function useStream(context: BrowserContext, baseURL: string | undefined) {
 
 /** Espera a que la conexión del aviso esté abierta (el stream respondió). */
 async function streamOpen(page: Page, app: 'groups' | 'inbox') {
-  await page.waitForResponse((res) => res.url().includes(`/api/${app}/live`) && res.status() === 200 && (res.headers()['content-type'] ?? '').includes('text/event-stream'), { timeout: 15_000 });
+  await page.waitForResponse((res) => res.url().includes(`/api/${app}/live`) && res.status() === 200 && (res.headers()['content-type'] ?? '').includes('text/event-stream'), { timeout: OPEN_MS });
 }
 
 // ---------------------------------------------------------------- Lines
@@ -53,7 +64,7 @@ async function fakeNumber(request: APIRequestContext): Promise<NumberInfo> {
   const { id } = (await created.json()) as { id: string };
   await request.post(`/api/groups/numbers/${id}/connect`, { data: { action: 'connect' } });
   await expect
-    .poll(async () => ((await (await request.get(`/api/groups/numbers/${id}/connect`)).json()) as { status: string }).status, { timeout: 10_000 })
+    .poll(async () => ((await (await request.get(`/api/groups/numbers/${id}/connect`)).json()) as { status: string }).status, { timeout: 30_000 })
     .toBe('connected');
   const info = (await (await request.get(`/api/groups/numbers/${id}`)).json()) as { webhookUrl: string };
   return { id, webhookUrl: info.webhookUrl };
@@ -70,41 +81,12 @@ async function linesInbound(request: APIRequestContext, n: NumberInfo, chatId: s
 
 async function openLinesChat(page: Page, name: string, wait: 'networkidle' | 'domcontentloaded') {
   await page.goto('/en/app/lines/inbox', { waitUntil: wait });
-  await page.locator('.gr-row', { hasText: name }).click();
-  await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
+  await page.locator('.gr-row', { hasText: name }).click({ timeout: OPEN_MS });
+  await expect(page.getByRole('heading', { level: 2, name })).toBeVisible({ timeout: OPEN_MS });
+  await expect(page.getByLabel('WhatsApp', { exact: true })).toBeVisible({ timeout: OPEN_MS });
 }
 
 test.describe('Lines', () => {
-  test('con el stream, el mensaje que llega aparece en el chat abierto en menos de 2 s', async ({ page, request, context, baseURL }) => {
-    const errors = watchErrors(page);
-    await useStream(context, baseURL);
-    const n = await fakeNumber(request);
-    const name = `Vera${uid()}`;
-    const chat = linesDm();
-    await linesInbound(request, n, chat, 'primer mensaje', name);
-    const open = streamOpen(page, 'groups');
-    await openLinesChat(page, name, 'domcontentloaded');
-    await open;
-    await expect(page.locator('.gr-msg-in', { hasText: 'primer mensaje' })).toBeVisible();
-    // Que la primera relectura (la de conectar) ya haya pasado.
-    await sleep(600);
-
-    const samples: number[] = [];
-    for (let i = 0; i < 3; i++) {
-      const text = `llega ${i} ${uid()}`;
-      const t0 = Date.now();
-      await linesInbound(request, n, chat, text, name);
-      await expect(page.locator('.gr-msg-in', { hasText: text })).toBeVisible({ timeout: STREAM_BOUND_MS });
-      samples.push(Date.now() - t0);
-      await sleep(300);
-    }
-    test.info().annotations.push({ type: 'webhook→burbuja (stream) ms', description: samples.join(', ') });
-    expect(Math.max(...samples)).toBeLessThan(STREAM_BOUND_MS);
-    // La lista también: la vista previa de la fila es el último.
-    await expect(page.locator('.gr-row', { hasText: name })).toContainText('llega 2');
-    expect(errors).toEqual([]);
-  });
-
   test('sin stream, llega igual por la consulta de respaldo', async ({ page, request }) => {
     const n = await fakeNumber(request);
     const name = `Vera${uid()}`;
@@ -112,13 +94,15 @@ test.describe('Lines', () => {
     await linesInbound(request, n, chat, 'primer mensaje', name);
     await openLinesChat(page, name, 'networkidle');
     // El stream está apagado (204): la pantalla pasa a consultar el aviso.
-    await page.waitForResponse((res) => res.url().includes('/api/groups/live') && res.status() === 200 && (res.headers()['content-type'] ?? '').includes('json'), { timeout: 15_000 });
+    await page.waitForResponse((res) => res.url().includes('/api/groups/live') && res.status() === 200 && (res.headers()['content-type'] ?? '').includes('json'), { timeout: OPEN_MS });
+    await linesInbound(request, n, chat, 'calentamiento', name);
+    await expect(page.locator('.gr-msg-in', { hasText: 'calentamiento' })).toBeVisible({ timeout: OPEN_MS });
     await sleep(500);
     const text = `por consulta ${uid()}`;
     const t0 = Date.now();
     await linesInbound(request, n, chat, text, name);
     await expect(page.locator('.gr-msg-in', { hasText: text })).toBeVisible({ timeout: POLL_BOUND_MS });
-    test.info().annotations.push({ type: 'webhook→burbuja (consulta) ms', description: String(Date.now() - t0) });
+    note('webhook→burbuja (consulta) ms', String(Date.now() - t0));
   });
 
   test('lo que mando aparece al apretar Enter, aunque el servidor tarde; dos seguidos salen en orden', async ({ page, request }) => {
@@ -144,7 +128,7 @@ test.describe('Lines', () => {
     const first = page.locator('.gr-msg-out', { hasText: one });
     await expect(first).toBeVisible({ timeout: OPTIMISTIC_BOUND_MS });
     const shownIn = Date.now() - t0;
-    test.info().annotations.push({ type: 'Enter→burbuja ms', description: String(shownIn) });
+    note('Enter→burbuja ms', String(shownIn));
     expect(shownIn).toBeLessThan(OPTIMISTIC_BOUND_MS);
     // Sale con el reloj de "enviando" y el campo queda libre para el próximo, sin esperar.
     await expect(first.locator('.wa-ticks')).toContainText('Sending');
@@ -194,6 +178,38 @@ test.describe('Lines', () => {
     await page.reload({ waitUntil: 'networkidle' });
     await expect(page.locator('.gr-msg-out', { hasText: text })).toHaveCount(1);
   });
+
+  test('con el stream, el mensaje que llega aparece en el chat abierto en menos de 2 s', async ({ page, request, context, baseURL }) => {
+    const errors = watchErrors(page);
+    await useStream(context, baseURL);
+    const n = await fakeNumber(request);
+    const name = `Vera${uid()}`;
+    const chat = linesDm();
+    await linesInbound(request, n, chat, 'primer mensaje', name);
+    const open = streamOpen(page, 'groups');
+    await openLinesChat(page, name, 'domcontentloaded');
+    await open;
+    await expect(page.locator('.gr-msg-in', { hasText: 'primer mensaje' })).toBeVisible({ timeout: OPEN_MS });
+    // Uno de calentamiento, sin medir: la primera relectura del chat (y, con `next dev`, compilar su ruta).
+    await linesInbound(request, n, chat, 'calentamiento', name);
+    await expect(page.locator('.gr-msg-in', { hasText: 'calentamiento' })).toBeVisible({ timeout: OPEN_MS });
+    await sleep(600);
+
+    const samples: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      const text = `llega ${i} ${uid()}`;
+      const t0 = Date.now();
+      await linesInbound(request, n, chat, text, name);
+      await expect(page.locator('.gr-msg-in', { hasText: text })).toBeVisible({ timeout: STREAM_BOUND_MS });
+      samples.push(Date.now() - t0);
+      await sleep(300);
+    }
+    note('webhook→burbuja (stream) ms', samples.join(', '));
+    expect(Math.max(...samples)).toBeLessThan(STREAM_BOUND_MS);
+    // La lista también: la vista previa de la fila es el último.
+    await expect(page.locator('.gr-row', { hasText: name })).toContainText('llega 2');
+    expect(errors).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------- Inbox
@@ -209,7 +225,7 @@ async function sql(statement: string, args: Array<string | number> = []): Promis
 
 async function linkWhatsapp(request: APIRequestContext): Promise<{ id: string; secret: string }> {
   await request.post('/api/inbox/whatsapp');
-  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
+  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 30_000 }).toBe('connected');
   const [row] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
   return { id: String(row.id), secret: String(row.webhook_secret) };
 }
@@ -225,41 +241,13 @@ async function inboxInbound(request: APIRequestContext, acc: { id: string; secre
 
 async function openInboxChat(page: Page, name: string, wait: 'networkidle' | 'domcontentloaded') {
   await page.goto('/en/app/inbox', { waitUntil: wait });
-  await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
-  await expect(page.getByRole('textbox', { name: 'Message' })).toBeVisible();
+  await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click({ timeout: OPEN_MS });
+  await expect(page.getByRole('textbox', { name: 'Message' })).toBeVisible({ timeout: OPEN_MS });
 }
 
 test.describe('Inbox', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-  });
-
-  test('con el stream, el mensaje que llega aparece en el chat abierto en menos de 2 s', async ({ page, request, context, baseURL }) => {
-    const errors = watchErrors(page);
-    await useStream(context, baseURL);
-    const acc = await linkWhatsapp(request);
-    const name = `Ana ${uid()}`;
-    const chat = inboxDm();
-    await inboxInbound(request, acc, chat, 'primer mensaje', name);
-    const open = streamOpen(page, 'inbox');
-    await openInboxChat(page, name, 'domcontentloaded');
-    await open;
-    await expect(page.locator('.gr-msg-in', { hasText: 'primer mensaje' })).toBeVisible();
-    await sleep(600);
-
-    const samples: number[] = [];
-    for (let i = 0; i < 3; i++) {
-      const text = `llega ${i} ${uid()}`;
-      const t0 = Date.now();
-      await inboxInbound(request, acc, chat, text, name);
-      await expect(page.locator('.gr-msg-in', { hasText: text })).toBeVisible({ timeout: STREAM_BOUND_MS });
-      samples.push(Date.now() - t0);
-      await sleep(300);
-    }
-    test.info().annotations.push({ type: 'webhook→burbuja (stream) ms', description: samples.join(', ') });
-    expect(Math.max(...samples)).toBeLessThan(STREAM_BOUND_MS);
-    await expect(page.locator('.ib-item', { hasText: name })).toContainText('llega 2');
-    expect(errors).toEqual([]);
   });
 
   test('sin stream, llega igual por la consulta de respaldo', async ({ page, request }) => {
@@ -268,13 +256,15 @@ test.describe('Inbox', () => {
     const chat = inboxDm();
     await inboxInbound(request, acc, chat, 'primer mensaje', name);
     await openInboxChat(page, name, 'networkidle');
-    await page.waitForResponse((res) => res.url().includes('/api/inbox/live') && res.status() === 200 && (res.headers()['content-type'] ?? '').includes('json'), { timeout: 15_000 });
+    await page.waitForResponse((res) => res.url().includes('/api/inbox/live') && res.status() === 200 && (res.headers()['content-type'] ?? '').includes('json'), { timeout: OPEN_MS });
+    await inboxInbound(request, acc, chat, 'calentamiento', name);
+    await expect(page.locator('.gr-msg-in', { hasText: 'calentamiento' })).toBeVisible({ timeout: OPEN_MS });
     await sleep(500);
     const text = `por consulta ${uid()}`;
     const t0 = Date.now();
     await inboxInbound(request, acc, chat, text, name);
     await expect(page.locator('.gr-msg-in', { hasText: text })).toBeVisible({ timeout: POLL_BOUND_MS });
-    test.info().annotations.push({ type: 'webhook→burbuja (consulta) ms', description: String(Date.now() - t0) });
+    note('webhook→burbuja (consulta) ms', String(Date.now() - t0));
   });
 
   test('lo que mando aparece al apretar Enter, aunque el servidor tarde; dos seguidos salen en orden', async ({ page, request }) => {
@@ -299,7 +289,7 @@ test.describe('Inbox', () => {
     const first = page.locator('.gr-msg-out', { hasText: one });
     await expect(first).toBeVisible({ timeout: OPTIMISTIC_BOUND_MS });
     const shownIn = Date.now() - t0;
-    test.info().annotations.push({ type: 'Enter→burbuja ms', description: String(shownIn) });
+    note('Enter→burbuja ms', String(shownIn));
     expect(shownIn).toBeLessThan(OPTIMISTIC_BOUND_MS);
     await expect(first.locator('.wa-ticks')).toContainText('Sending');
     await expect(field).toHaveValue('');
@@ -321,6 +311,10 @@ test.describe('Inbox', () => {
   });
 
   test('si el envío no sale, la burbuja se va, el texto vuelve al campo y se avisa', async ({ page, request }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
+    page.on('console', (msg) => msg.type() === 'error' && errors.push(`console: ${msg.text().slice(0, 300)}`));
+    page.on('requestfinished', (r) => r.method() === 'POST' && errors.push(`POST ${new URL(r.url()).pathname}`));
     const acc = await linkWhatsapp(request);
     const name = `Ana ${uid()}`;
     await inboxInbound(request, acc, inboxDm(), 'hola', name);
@@ -335,7 +329,7 @@ test.describe('Inbox', () => {
     await field.fill(text);
     await field.press('Enter');
     // No salió: nada queda como si se hubiera mandado, y el texto no se pierde.
-    await expect(page.locator('.ib-toast')).toBeVisible();
+    await expect(page.locator('.ib-toast'), errors.join(' | ')).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('.gr-msg-out', { hasText: text })).toHaveCount(0);
     await expect(field).toHaveValue(text);
     // Vuelve la red: Enter de nuevo lo manda, una sola vez.
@@ -345,5 +339,35 @@ test.describe('Inbox', () => {
     await expect(page.locator('.gr-msg-out', { hasText: text }).locator('.wa-ticks')).not.toContainText('Sending', { timeout: 10_000 });
     await page.reload({ waitUntil: 'networkidle' });
     await expect(page.locator('.gr-msg-out', { hasText: text })).toHaveCount(1);
+  });
+
+  test('con el stream, el mensaje que llega aparece en el chat abierto en menos de 2 s', async ({ page, request, context, baseURL }) => {
+    const errors = watchErrors(page);
+    await useStream(context, baseURL);
+    const acc = await linkWhatsapp(request);
+    const name = `Ana ${uid()}`;
+    const chat = inboxDm();
+    await inboxInbound(request, acc, chat, 'primer mensaje', name);
+    const open = streamOpen(page, 'inbox');
+    await openInboxChat(page, name, 'domcontentloaded');
+    await open;
+    await expect(page.locator('.gr-msg-in', { hasText: 'primer mensaje' })).toBeVisible({ timeout: OPEN_MS });
+    await inboxInbound(request, acc, chat, 'calentamiento', name);
+    await expect(page.locator('.gr-msg-in', { hasText: 'calentamiento' })).toBeVisible({ timeout: OPEN_MS });
+    await sleep(600);
+
+    const samples: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      const text = `llega ${i} ${uid()}`;
+      const t0 = Date.now();
+      await inboxInbound(request, acc, chat, text, name);
+      await expect(page.locator('.gr-msg-in', { hasText: text })).toBeVisible({ timeout: STREAM_BOUND_MS });
+      samples.push(Date.now() - t0);
+      await sleep(300);
+    }
+    note('webhook→burbuja (stream) ms', samples.join(', '));
+    expect(Math.max(...samples)).toBeLessThan(STREAM_BOUND_MS);
+    await expect(page.locator('.ib-item', { hasText: name })).toContainText('llega 2');
+    expect(errors).toEqual([]);
   });
 });

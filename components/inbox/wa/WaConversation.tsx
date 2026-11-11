@@ -26,6 +26,7 @@ import LinkPreview from '@/components/groups/wa/LinkPreview';
 import Transcript from '@/components/groups/wa/Transcript';
 import { AttachButton, useSendTray, VoiceBar } from './media-send';
 import { pendingSends } from './pending';
+import { isTempId } from '@/lib/optimistic-send';
 import AttachPreview from '@/components/groups/wa/AttachPreview';
 import { filesFrom, hasFiles } from '@/components/groups/wa/attachments';
 import ScheduledList from '../ScheduledList';
@@ -274,6 +275,8 @@ const WaConversation = forwardRef<
   const canDeleteAll = (m: MessageDto) => m.fromMe && !m.revoked && Date.now() - Date.parse(m.sentAt) < 60 * 3600_000;
 
   const menuFor = (m: MessageDto): MenuItem[] => {
+    // Una burbuja que todavía se está mandando no existe en el servidor: solo se puede copiar.
+    if (isTempId(m.id)) return [{ key: 'copy', label: w('copy'), onSelect: () => void copy(m) }];
     const items: MenuItem[] = [];
     if (!m.revoked) {
       items.push({ key: 'reply', label: w('reply'), onSelect: () => startReply(m) });
@@ -535,7 +538,7 @@ const WaConversation = forwardRef<
             {(m.reactions?.length ?? 0) > 1 && <b>{m.reactions!.length}</b>}
           </button>
         )}
-        {!m.revoked && connected && (
+        {!m.revoked && connected && !isTempId(m.id) && (
           <div className="gr-msg-actions">
             <button
               type="button"
