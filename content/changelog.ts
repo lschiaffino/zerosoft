@@ -29,6 +29,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-11-whatsapp-archive-sync',
+    date: '2026-11-11',
+    title: {
+      en: 'Inbox and Lines: archiving stays in step with WhatsApp',
+      es: 'Inbox y Lines: archivar queda igual que en WhatsApp',
+      pt: 'Inbox e Lines: arquivar fica igual ao WhatsApp',
+    },
+    items: [
+      {
+        product: 'inbox',
+        en: 'The chat list updates as soon as something changes: a new message in an archived chat brings it back to the inbox within a second or two, without waiting for the next refresh.',
+        es: 'La lista de chats se actualiza apenas algo cambia: un mensaje nuevo en un chat archivado lo devuelve a la bandeja en uno o dos segundos, sin esperar la próxima actualización.',
+        pt: 'A lista de conversas se atualiza assim que algo muda: uma mensagem nova numa conversa arquivada a traz de volta para a caixa em um ou dois segundos, sem esperar a próxima atualização.',
+      },
+      {
+        product: 'inbox',
+        en: 'Archiving or unarchiving a chat here now reaches WhatsApp on your phone: the request carries the latest message and its time, which WhatsApp needs to apply it. If WhatsApp does not answer, it is retried in the background.',
+        es: 'Archivar o desarchivar un chat acá ahora llega a WhatsApp en el teléfono: el pedido lleva el último mensaje y su hora, que WhatsApp necesita para aplicarlo. Si WhatsApp no responde, se reintenta en segundo plano.',
+        pt: 'Arquivar ou desarquivar uma conversa aqui agora chega ao WhatsApp no celular: o pedido leva a última mensagem e o horário dela, que o WhatsApp precisa para aplicá-lo. Se o WhatsApp não responde, tenta de novo em segundo plano.',
+      },
+      {
+        product: 'groups',
+        en: 'Lines does the same: archiving or unarchiving a chat also archives it in WhatsApp on the number, and the inbox list updates right away when a message arrives or a teammate changes a chat.',
+        es: 'Lines hace lo mismo: archivar o desarchivar un chat también lo archiva en el WhatsApp del número, y la bandeja se actualiza al instante cuando llega un mensaje o alguien del equipo cambia un chat.',
+        pt: 'O Lines faz o mesmo: arquivar ou desarquivar uma conversa também a arquiva no WhatsApp do número, e a caixa se atualiza na hora quando chega uma mensagem ou alguém da equipe muda uma conversa.',
+      },
+    ],
+  },
+  {
     id: '2026-11-11-chat-row-menu',
     date: '2026-11-11',
     title: {

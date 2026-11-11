@@ -72,6 +72,9 @@ export async function GET(req: NextRequest) {
   const chatEmails = await sendOfflineReplyEmails({ limit: 200 }).catch(() => null);
   const chatCampaigns = await processChatCampaigns({ limit: 90 }).catch(() => null);
   await pruneChatEvents().catch(() => null);
+  // Inbox y Lines: archivar en WhatsApp lo que no salió en el momento (reintentos con backoff, claim por fila) y el feed en vivo de las listas.
+  const waArchive = await import('@/lib/wa-archive-sync').then((m) => m.runArchivePushes({ limit: 100, deadline: start + 30_000 })).catch(() => null);
+  await import('@/lib/wa-live').then((m) => m.pruneLiveEvents()).catch(() => null);
   const noteReminders = await fireNoteReminders({ limit: 200 }).catch(() => null);
   const noteTasks = await fireNoteTasksDue({ limit: 200 }).catch(() => null);
   const noteEmbeddings = await warmNoteEmbeddings().catch(() => null);
@@ -123,5 +126,5 @@ export async function GET(req: NextRequest) {
   const talkRecaps = await import('@/lib/talk-ai').then((m) => m.sendDailyRecaps({ budgetMs: 15_000 })).catch(() => null);
   // Notes: archivos para la búsqueda, al final y con tope de tiempo (no le saca el minuto a lo demás).
   const noteFiles = await processNoteFileQueue({ limit: 10, budgetMs: 20_000 }).catch(() => null);
-  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
+  return NextResponse.json({ reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, waArchive, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports });
 }
